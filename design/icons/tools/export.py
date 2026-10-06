@@ -12,7 +12,7 @@
 - docs/manual/icons/index.html: the catalog — every icon, its id and title,
   what uses it (component types, commands, file kinds …), light and dark.
 
-The manual's reference pages (tools/manual_reference.py) show the
+The manual's reference pages (`rapidr lang export --manual`) show the
 components' icons from light/.
 """
 
@@ -28,6 +28,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import kit  # noqa: E402
 import catalog  # noqa: E402,F401
+import registry  # noqa: E402
 from palette import THEMES, themed  # noqa: E402
 
 ICONS = os.path.dirname(HERE)
@@ -52,9 +53,7 @@ def uses():
     def add(ref, text, cat):
         ref = ref if "/" in ref else f"{cat}/{ref}"
         out.setdefault(ref, []).append(text)
-    src = open(os.path.join(ROOT, "crates", "rapidr-ast", "src", "lib.rs"), encoding="utf-8").read()
-    m = re.search(r"pub const COMPONENT_TYPES\s*:\s*&\[[^=]*=\s*&\[(.*?)\];", src, re.S)
-    types = re.findall(r'"([^"]*)"', re.sub(r"//[^\n]*", "", m.group(1)))
+    types = [t for t, _ in registry.components()]
     aliases = inv.get("component-aliases", {})
     for t in types:
         add(aliases.get(t, t[1:].lower()), t, "components")

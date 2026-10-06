@@ -7,6 +7,8 @@ license.workspace = true
 
 [dependencies]
 rapidr-value = { workspace = true }
+# Which names are components and their methods (object.rs): the language registry's
+rapidr-lang = { workspace = true }
 # (preserve_order: an object's keys stay in their order, as the web's RJSON
 # — the browser's JSON — keeps them)
 serde_json = { version = "1", features = ["preserve_order"] }

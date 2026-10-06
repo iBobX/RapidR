@@ -8,12 +8,24 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **The language registry** (`crates/rapidr-lang`, RapidR Studio I0): one
+  description of the language (every component, property, method, event,
+  builtin, statement and constant, with types, defaults, signatures and
+  short docs in RapidR's own words), compiled from `data/*.toml`. The
+  compilers' component list, the runtimes' name tests, the editor's
+  keyword groups, the icon tools, the manual's reference pages and the
+  web IDE's completion data all come from it; `rapidr lang export` writes
+  them, `tools/lang_dispatch.py --check` proves every name the runtimes
+  answer is in it, and `tests/lang_conformance.mjs` runs one program per
+  component on every runtime. RDOCKMANAGER and the icon methods
+  (`Bitmap.LoadIcon`, `ImageList.AddIcon`) are in it.
 - **The user manual** (`docs/manual/`): getting started, the language,
   components (RapidQ's Q names and RapidR's R names), the CLI and the
   Runtime, the web, databases, data science, DirectX and media,
   differences from RapidQ, troubleshooting. Its reference pages (components,
-  builtins, data-science members) are generated from the source by
-  `python3 tools/manual_reference.py` (`--check` fails when they're stale).
+  builtins, members, statements, constants, data-science members) are
+  generated from the language registry by `rapidr lang export --manual`
+  (`cargo test -p rapidr-lang` fails when they're stale).
   Every SDK installs it in `share/doc/rapidr/manual/`.
 - The release notes of v2.117.0, the first public release
   (`docs/release-notes/v2.117.0.md`).

@@ -13,7 +13,7 @@
    whitespace; its colours are checked (the tokens' values, currentColor —
    only currentColor in a monochrome icon).
 3. Check the inventory (design/icons/inventory.toml): every component type in
-   the code (COMPONENT_TYPES, crates/rapidr-ast/src/lib.rs), every planned
+   the language registry (crates/rapidr-lang/data/components), every planned
    component, command, marker, file kind, project kind, symbol and toolbox
    group names an icon that exists at every size; every component is in one
    toolbox group.
@@ -34,6 +34,7 @@ sys.path.insert(0, HERE)
 import kit  # noqa: E402
 import catalog  # noqa: E402,F401
 import palette  # noqa: E402
+import registry  # noqa: E402
 
 ICONS_DIR = os.path.dirname(HERE)
 ROOT = os.path.dirname(os.path.dirname(ICONS_DIR))
@@ -140,21 +141,13 @@ def load_sources():
 
 # ---- 3. inventory --------------------------------------------------------------------
 
-def const_list(src, name):
-    m = re.search(r"pub const " + re.escape(name) + r"\s*:\s*&\[[^=]*=\s*&\[(.*?)\];", src, re.S)
-    if not m:
-        fail(f"{name} not found")
-    return re.findall(r'"([^"]*)"', re.sub(r"//[^\n]*", "", m.group(1)))
-
-
 def icon_ref(ref, default_cat):
     return ref if "/" in ref else f"{default_cat}/{ref}"
 
 
 def inventory(icons):
     inv = tomllib.load(open(os.path.join(ICONS_DIR, "inventory.toml"), "rb"))
-    ast = open(os.path.join(ROOT, "crates", "rapidr-ast", "src", "lib.rs"), encoding="utf-8").read()
-    types = const_list(ast, "COMPONENT_TYPES")
+    types = [t for t, _ in registry.components()]
     aliases = inv.get("component-aliases", {})
     planned = inv.get("planned-components", {})
     errors = []
@@ -200,11 +193,10 @@ def inventory(icons):
     for t in sorted(all_types - set(seen)):
         errors.append(f"component {t} is in no toolbox group")
     # (RapidQ's groups hold RapidQ's components, RapidR's the rest)
-    sys.path.insert(0, os.path.join(ROOT, "tools"))
-    import manual_reference
-    rapidq = set(manual_reference.RAPIDQ_BUILTIN) | set(manual_reference.RAPIDQ_LIBRARY)
+    # (the language registry says which components have a RapidQ name)
+    q_named = {t for t, q in registry.components() if q}
     def has_q_name(t):
-        return t in ("RPROGRESSBAR", "RTREEVIEW") or ("Q" + t[1:]) in rapidq
+        return t in q_named
     for gid, title, ref, parent, members in groups:
         for mbr in members:
             if parent == "rapidq" and not has_q_name(mbr):

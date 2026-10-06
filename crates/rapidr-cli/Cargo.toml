@@ -17,6 +17,8 @@ rapidr-vm-host-native = { workspace = true, features = ["full", "session"] }
 rapidr-webbundle.workspace = true
 rapidr-lsp.workspace = true
 rapidr-dap.workspace = true
+# `rapidr lang`: the language registry's generators
+rapidr-lang.workspace = true
 base64 = "0.22"
 # Downloaded files are remembered by content (SHA-256)
 sha2 = "0.10"

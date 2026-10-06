@@ -1,0 +1,215 @@
+# Network, devices and CGI: the registry's components (crates/rapidr-lang; src/lib.rs says how to edit).
+group = "Network, devices and CGI"
+
+[[component]]
+name = "RSOCKET"
+rapidq = "QSOCKET"
+visual = false
+where = "desktop (TCP); web (WebSocket)"
+default_event = "OnConnect"
+doc = "A TCP client socket: connect to a host and port, then read and write text or bytes. In the browser it connects over WebSocket."
+properties = [
+  { name = "Family", type = "enum", values = ["AF_UNSPEC", "AF_UNIX", "AF_INET", "AF_IMPLINK", "AF_PUP", "AF_CHAOS", "AF_IPX", "AF_NS", "AF_ISO", "AF_ECMA", "AF_DATAKIT", "AF_CCITT", "AF_SNA", "AF_DECnet", "AF_DLI", "AF_LAT", "AF_HYLINK", "AF_APPLETALK", "AF_NETBIOS", "AF_VOICEVIEW", "AF_FIREFOX", "AF_UNKNOWN1", "AF_BAN"], default = "AF_INET" },
+  { name = "LParam", type = "int" },
+  { name = "MySocket", type = "int", access = "read", design = false },
+  { name = "Parent", type = "component", kinds = ["QFORM"], access = "write", design = false },
+  { name = "Protocol", type = "enum", values = ["IPPROTO_IP", "IPPROTO_ICMP", "IPPROTO_IGMP", "IPPROTO_TCP", "IPPROTO_PUP", "IPPROTO_UDP", "IPPROTO_IDP", "IPPROTO_RAW"], default = "IPPROTO_IP" },
+  { name = "Tag", type = "int" },
+  { name = "Transferred", type = "int", access = "read", design = false },
+  { name = "WMessage", type = "int", default = 0 },
+  { name = "Host", type = "string", origin = "rapidr" },
+  { name = "Port", type = "int", origin = "rapidr" },
+  { name = "Connected", type = "int", origin = "rapidr" },
+  { name = "Timeout", type = "int", origin = "rapidr" },
+  { name = "Type", type = "int" },
+]
+methods = [
+  { name = "Accept", params = "Socket AS INTEGER", returns = "VARIANT", value = true },
+  { name = "Close", params = "Socket AS INTEGER", value = true },
+  { name = "Connect", params = "ServerName AS STRING, PortNum AS INTEGER", returns = "VARIANT", value = true },
+  { name = "ConnectionReady", params = "Sock AS INTEGER", returns = "VARIANT" },
+  { name = "GetHostIP", returns = "VARIANT" },
+  { name = "GetHostName", returns = "VARIANT" },
+  { name = "GetPeerName", params = "Socket AS INTEGER", returns = "VARIANT" },
+  { name = "IsClientReady", params = "Sock AS INTEGER, ClientSock AS INTEGER", returns = "VARIANT" },
+  { name = "IsServerReady", params = "Sock AS INTEGER", returns = "VARIANT" },
+  { name = "Open", params = "PortNum AS INTEGER", returns = "VARIANT", only = "web" },
+  { name = "Peek", params = "Socket AS INTEGER, NumBytes AS INTEGER", returns = "VARIANT" },
+  { name = "Read", params = "Socket AS INTEGER, NumBytes AS INTEGER", returns = "VARIANT", value = true },
+  { name = "ReadByte", params = "Socket AS INTEGER", returns = "BYTE" },
+  { name = "ReadLine", params = "Socket AS INTEGER", returns = "VARIANT", value = true },
+  { name = "Write", params = "Socket AS INTEGER, Message AS STRING, NumBytes AS INTEGER", value = true },
+  { name = "WriteByte", params = "Socket AS INTEGER, B AS BYTE" },
+  { name = "WriteLine", params = "Socket AS INTEGER, Message AS STRING", returns = "VARIANT", value = true },
+  { name = "Disconnect", origin = "rapidr" },
+  { name = "Send", origin = "rapidr", only = "web" },
+  { name = "Receive", origin = "rapidr", only = "web" },
+]
+events = [
+  { name = "OnConnect", params = "State AS STRING", origin = "rapidr" },
+  { name = "OnDisconnect", params = "State AS STRING", origin = "rapidr" },
+  { name = "OnError", params = "Message AS STRING", origin = "rapidr" },
+]
+
+[[component]]
+name = "RSERVERSOCKET"
+visual = false
+only = "desktop"
+default_event = "OnClientConnect"
+doc = "A TCP server: listens on a port, accepts clients and exchanges data with them. RapidR's own; desktop only."
+properties = [
+  { name = "Host", type = "string" },
+  { name = "Port", type = "int" },
+  { name = "ClientCount", type = "int" },
+]
+methods = [
+  { name = "Start", value = true, only = "desktop" },
+  { name = "Stop", value = true, only = "desktop" },
+  { name = "Broadcast", value = true, only = "desktop" },
+  { name = "Listen", value = true, only = "desktop" },
+  { name = "Accept", value = true, only = "desktop" },
+  { name = "Poll", only = "desktop" },
+  { name = "SendTo", only = "desktop" },
+]
+events = [
+  { name = "OnClientConnect", params = "Address AS STRING" },
+  { name = "OnClientDisconnect", params = "Address AS STRING" },
+  { name = "OnDataReceived", params = "Address AS STRING, Data AS STRING" },
+  { name = "OnError" },
+]
+
+[[component]]
+name = "RHTTP"
+visual = false
+doc = "An HTTP(S) client: Get or Post a URL, then read StatusCode, ResponseText and ResponseHeaders. RapidR's own."
+properties = [
+  { name = "Host", type = "string" },
+  { name = "Port", type = "int" },
+  { name = "Url", type = "string" },
+  { name = "StatusCode", type = "int" },
+  { name = "ResponseText", type = "string" },
+  { name = "ResponseHeaders", type = "string" },
+  { name = "Timeout", type = "int" },
+  { name = "UseSSL", type = "int" },
+]
+methods = [
+  { name = "Get", value = true },
+  { name = "Post", value = true },
+]
+events = []
+
+[[component]]
+name = "RCGI"
+rapidq = "QCGI"
+from = "qcgi.inc"
+visual = false
+doc = "For CGI programs behind a web server (qcgi.inc): the request's CGI variables as properties, and Parse / Get for its form fields."
+properties = [
+  { name = "AutoConvert", type = "int", default = 1 },
+  { name = "MaxInput", type = "int", default = 32767 },
+  { name = "Accept", type = "string", access = "read", design = false },
+  { name = "AuthType", type = "string", access = "read", design = false },
+  { name = "ContentLength", type = "int", access = "read", design = false },
+  { name = "ContentType", type = "string", access = "read", design = false },
+  { name = "Cookie", type = "string", access = "read", design = false },
+  { name = "GatewayInterface", type = "string", access = "read", design = false },
+  { name = "PathInfo", type = "string", access = "read", design = false },
+  { name = "PathTranslated", type = "string", access = "read", design = false },
+  { name = "Referer", type = "string", access = "read", design = false },
+  { name = "RemoteAddr", type = "string", access = "read", design = false },
+  { name = "RemoteHost", type = "string", access = "read", design = false },
+  { name = "RemoteIdent", type = "string", access = "read", design = false },
+  { name = "RemoteUser", type = "string", access = "read", design = false },
+  { name = "RequestMethod", type = "string", access = "read", design = false },
+  { name = "ScriptName", type = "string", access = "read", design = false },
+  { name = "ServerSoftware", type = "string", access = "read", design = false },
+  { name = "ServerName", type = "string", access = "read", design = false },
+  { name = "ServerPort", type = "int", access = "read", design = false },
+  { name = "ServerProtocol", type = "string", access = "read", design = false },
+  { name = "UserAgent", type = "string", access = "read", design = false },
+]
+methods = [
+  { name = "Parse" },
+  { name = "Get", params = "Name AS STRING, BYREF Value AS STRING", returns = "INTEGER" },
+]
+events = []
+
+[[component]]
+name = "RCOMPORT"
+rapidq = "QCOMPORT"
+aliases = ["COMPORT"]
+visual = false
+where = "desktop (serial2); web (Web Serial)"
+default_event = "OnRxChar"
+doc = "A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then read and write strings. Web Serial in the browser."
+properties = [
+  { name = "BytesNotRead", type = "int", access = "read", design = false },
+  { name = "BytesNotWritten", type = "int", access = "read", design = false },
+  { name = "BaudRate", type = "enum", values = ["br110", "br300", "br600", "br1200", "br2400", "br4800", "br9600", "br14400", "br19200", "br38400", "br56000", "br57600", "br115200"], default = "br110" },
+  { name = "Connected", type = "int", access = "read", design = false },
+  { name = "DataBits", type = "int", default = 8 },
+  { name = "Handle", type = "int", access = "read", design = false },
+  { name = "Parity", type = "enum", values = ["prNone", "prOdd", "prEven", "prMark", "prSpace"], default = "prNone" },
+  { name = "ReadBufSize", type = "int", default = 1024 },
+  { name = "StopBits", type = "enum", values = ["sbOneStopBit", "sbOne5StopBits", "sbTwoStopBits"], default = "sbOneStopBit" },
+  { name = "WriteBufSize", type = "int", default = 1024 },
+  { name = "Port", type = "any" },
+  { name = "DcbFlags", type = "int", origin = "rapidr" },
+  { name = "InQue", type = "int", access = "read", design = false },
+  { name = "OutQue", type = "int", access = "read", design = false },
+  { name = "PendingIO", type = "int", access = "read", design = false },
+]
+methods = [
+  { name = "AbortAllIO" },
+  { name = "Close", value = true },
+  { name = "Open", value = true },
+  { name = "PurgeIn" },
+  { name = "PurgeOut" },
+  { name = "Read", params = "QFile, Count AS INTEGER, Wait AS INTEGER" },
+  { name = "ReadString", params = "Count AS INTEGER, Wait AS INTEGER", returns = "VARIANT" },
+  { name = "WaitForLastIO" },
+  { name = "Write", params = "QMemoryStream, Count AS INTEGER, Wait AS INTEGER" },
+  { name = "WriteString", params = "Str AS STRING, Wait AS INTEGER" },
+  { name = "AddFlowControl" },
+  { name = "DelFlowControl" },
+]
+events = [
+  { name = "OnBreak", missing = true },
+  { name = "OnClose" },
+  { name = "OnComError", params = "ErrorMessage AS STRING" },
+  { name = "OnOpen" },
+  { name = "OnReadString" },
+  { name = "OnWriteString" },
+  { name = "OnRing", missing = true },
+  { name = "OnRxChar", params = "InQue AS INTEGER" },
+  { name = "OnTxEmpty", missing = true },
+  { name = "OnError", params = "Message AS STRING" },
+]
+
+[[component]]
+name = "RDOWNLOAD"
+rapidq = "QDOWNLOAD"
+from = "Qdownload.inc"
+visual = false
+doc = "Downloads a file over HTTP(S) into a variable or a file, with progress (Qdownload.inc)."
+properties = [
+  { name = "Server", type = "string" },
+  { name = "Port", type = "int", default = 80 },
+  { name = "File", type = "string" },
+  { name = "Outfile", type = "string" },
+  { name = "Outvar", type = "string", access = "read", design = false },
+  { name = "Outdevice", type = "int", default = 1 },
+  { name = "Statedevice", type = "int", default = 1 },
+  { name = "State", type = "int", access = "read", design = false },
+  { name = "Size", type = "int", access = "read", design = false },
+  { name = "LastError", type = "int", access = "read", design = false },
+  { name = "LastStringError", type = "string", access = "read", design = false },
+  { name = "StateGauge", type = "component", kinds = ["QGAUGE"] },
+]
+methods = [
+  { name = "LeechFile", returns = "VARIANT", value = true },
+  { name = "Check", returns = "VARIANT", value = true },
+  { name = "Percent", returns = "VARIANT" },
+  { name = "Speed" },
+]
+events = []

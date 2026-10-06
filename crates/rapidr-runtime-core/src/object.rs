@@ -2056,29 +2056,10 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
     }
 }
 
-/// Check if a type name is a known component type.
-pub fn is_component_type(type_name: &str) -> bool {
-    matches!(
-        type_name.to_uppercase().as_str(),
-        "RFORM" | "RFORMMDI" | "RBUTTON" | "RLABEL" | "REDIT" | "RPANEL" | "RBEVEL" | "RDIGDISPLAY" | "RGLASSFRAME" | "RDOCKMANAGER"
-        | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE"
-        | "RTIMER" | "RIMAGE" | "RCANVAS" | "RSTRINGGRID" | "RTABCONTROL"
-        | "RTREEVIEW" | "RMAINMENU" | "RMENUITEM" | "RPOPUPMENU"
-        | "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG"
-        | "RTOOLBAR" | "RSTATUSBAR" | "RPROGRESS" | "RRICHEDIT" | "RMEMO"
-        | "RSCROLLBAR" | "RUPDOWN" | "RDATETIMEPICKER" | "RMONTHCALENDAR"
-        | "RHEADER" | "RRECT" | "RNOTIFYICONDATA" | "RHEADERCONTROL" | "RIMAGELIST" | "RFILESTREAM" | "RJSON" | "RSTRINGLIST" | "RREGISTRY"
-        | "RFONT" | "RMEMORYSTREAM" | "RBITMAP"
-        | "RTRACKBAR" | "RSCROLLBOX" | "RSPLITTER" | "RPRINTER"
-        | "RSQLITE" | "RMYSQL"
-        | "RSOCKET" | "RSERVERSOCKET" | "RHTTP"
-        | "RLISTVIEW" | "RPROGRESSBAR"
-        | "RNUM" | "RPLOT" | "RDATAFRAME"
-        | "RDESIGNSURFACE" | "RCODEEDITOR" | "RGROUPBOX"
-        | "RDXSCREEN" | "RDXIMAGELIST" | "RDXTIMER" | "RDXSOUND" | "RDXJOYSTICK"
-        | "RD3DFRAME" | "RD3DMESHBUILDER" | "RD3DMESH" | "RD3DFACE" | "RD3DLIGHT" | "RD3DTEXTURE" | "RD3DVISUAL" | "RD3DWRAP" | "RD3DVECTOR"
-    ) || rapidr_value::objects::rqlib::is_type(type_name)
-}
+/// Whether a type name is a component the compilers create, and whether a
+/// member is some component's method: the language registry's
+/// (crates/rapidr-lang), as the web runtime's.
+pub use rapidr_lang::{is_component_method, is_component_type};
 
 /// A stored property, without any of `rp_comp_get`'s lookups.
 pub(crate) fn stored(name: &str, prop: &str) -> Option<Value> {
@@ -2120,52 +2101,6 @@ pub fn get_children_of(parent_name: &str) -> Vec<(String, String)> {
         children.sort_by_key(|c| c.2);
         children.into_iter().map(|(n, t, _)| (n, t)).collect()
     })
-}
-
-/// Check if a member name is a known method (not a property) for component types.
-/// Used by codegen to decide whether `obj.member` (no parens) is a method call.
-pub fn is_component_method(member: &str) -> bool {
-    matches!(
-        member.to_lowercase().as_str(),
-        // Form/Widget methods
-        "showmodal" | "close" | "show" | "hide" | "refresh" | "center" | "setparent"
-        // Collection methods
-        | "clear" | "additems" | "additem" | "deleteitems" | "deleteitem" | "removeitem"
-        | "addrow" | "sort" | "find"
-        // Focus/input methods
-        | "setfocus" | "focus" | "click" | "selectall" | "copy" | "paste" | "cut"
-        // Dialog methods
-        | "execute"
-        // Database methods
-        | "connect" | "disconnect" | "query" | "fetchrow" | "fetchfield"
-        | "fieldseek" | "rowseek" | "row" | "rowblob" | "escapestring"
-        | "selectdb" | "createdb" | "dropdb"
-        // Network methods
-        | "write" | "writeline" | "read" | "readline"
-        | "bind" | "listen" | "accept"
-        | "start" | "stop" | "broadcast"
-        | "get" | "post"
-        // FileStream methods
-        | "open" | "readall" | "eof"
-        // StringList methods
-        | "loadfromfile" | "savetofile" | "add" | "delete"
-        // Canvas methods
-        | "line" | "rect" | "fillrect" | "circle" | "ellipse"
-        | "setpixel" | "getpixel" | "drawtext" | "loadimage" | "saveimage"
-        // TreeView methods
-        | "addroot" | "addchild" | "expand" | "collapse"
-        // Design surface methods
-        | "addcomponent" | "getname" | "gettype"
-        | "getcompx" | "getcompy" | "getcompw" | "getcomph"
-        | "setprop" | "getprop" | "setcompbounds" | "setname"
-        | "selectcomp" | "removecomponent" | "clearall"
-        // StringGrid methods
-        | "cell" | "cells" | "setcell" | "setsuggestions"
-        // CodeEditor methods
-        | "getsublist" | "gotosub" | "gotoline"
-        // TabControl methods
-        | "addtabs" | "tab"
-    )
 }
 
 /// QSTATUSBAR panels: `AddPanels "Ready", "Line 1"` appends panels, kept as

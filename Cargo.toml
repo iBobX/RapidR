@@ -4,6 +4,7 @@ members = [
     "crates/rapidr-cli",
     "crates/rapidr-diagnostics",
     "crates/rapidr-ast",
+    "crates/rapidr-lang",
     "crates/rapidr-lexer",
     "crates/rapidr-parser",
     "crates/rapidr-preprocessor",
@@ -47,6 +48,7 @@ license = "MIT"
 
 [workspace.dependencies]
 rapidr-ast = { path = "crates/rapidr-ast" }
+rapidr-lang = { path = "crates/rapidr-lang" }
 rapidr-diagnostics = { path = "crates/rapidr-diagnostics" }
 rapidr-lexer = { path = "crates/rapidr-lexer" }
 rapidr-parser = { path = "crates/rapidr-parser" }

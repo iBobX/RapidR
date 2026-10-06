@@ -595,7 +595,7 @@ impl Languages {
         B.get_or_init(|| {
             let mut set = Languages::new();
             for (id, src) in BUILTIN_SOURCES {
-                let extra: &[(&str, &[&str])] = if *id == "rapidq-basic" { basic::KEYWORD_GROUPS } else { &[] };
+                let extra: &[(&str, &[&str])] = if *id == "rapidq-basic" { basic::keyword_groups() } else { &[] };
                 match set.load_with(src, extra) {
                     Ok(_) => {}
                     Err(e) => panic!("built-in language {id}: {e}"),

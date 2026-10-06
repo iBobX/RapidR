@@ -1,0 +1,83 @@
+# Menus: the registry's components (crates/rapidr-lang; src/lib.rs says how to edit).
+group = "Menus"
+
+[[component]]
+name = "RMAINMENU"
+rapidq = "QMAINMENU"
+visual = false
+doc = "A form's menu bar; its menus and commands are QMENUITEMs."
+properties = [
+  { name = "Handle", type = "int", access = "read", design = false },
+  { name = "Parent", type = "component", kinds = ["QFORM"], access = "write", design = false },
+  { name = "ItemCount", type = "int", design = false, origin = "rapidr" },
+]
+methods = [
+  { name = "AddItems", params = "Items ...", value = true },
+  { name = "DelIndex", params = "index AS LONG" },
+  { name = "DelItems", params = "Items ..." },
+  { name = "Insert", params = "I AS INTEGER, Item AS QMENUITEM" },
+  { name = "Add", origin = "rapidr" },
+  { name = "Clear", value = true, origin = "rapidr" },
+]
+events = []
+
+[[component]]
+name = "RMENUITEM"
+rapidq = "QMENUITEM"
+visual = false
+default_event = "OnClick"
+doc = "One menu entry: a command (OnClick), a checkable option, a separator (\"-\") or a submenu holding more items."
+properties = [
+  { name = "Caption", type = "string" },
+  { name = "Checked", type = "int" },
+  { name = "Command", type = "int", access = "read", design = false },
+  { name = "Count", type = "int", access = "read", design = false },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "Handle", type = "int", access = "read", design = false },
+  { name = "Hint", type = "string" },
+  { name = "MenuIndex", type = "int" },
+  { name = "RadioItem", type = "bool", default = false },
+  { name = "ShortCut", type = "string" },
+  { name = "Tag", type = "int" },
+  { name = "Visible", type = "bool", default = true },
+  { name = "ItemCount", type = "int", design = false, origin = "rapidr" },
+]
+methods = [
+  { name = "AddItems", params = "Items ...", value = true },
+  { name = "DelIndex", params = "index AS LONG" },
+  { name = "DelItems", params = "Items ..." },
+  { name = "Insert", params = "I AS INTEGER, Item AS QMENUITEM" },
+  { name = "Clear", value = true, origin = "rapidr" },
+  { name = "Add", origin = "rapidr" },
+]
+events = [
+  { name = "OnClick" },
+]
+
+[[component]]
+name = "RPOPUPMENU"
+rapidq = "QPOPUPMENU"
+visual = false
+default_event = "OnPopup"
+doc = "A context menu, shown when the user right-clicks a component whose PopupMenu it is, or by Popup."
+properties = [
+  { name = "Alignment", type = "enum", values = ["taLeftJustify", "taRightJustify", "taCenter"] },
+  { name = "AutoPopup", type = "bool", default = true },
+  { name = "Handle", type = "int", access = "read", design = false },
+  { name = "Tag", type = "int" },
+  { name = "WindowHandle", type = "int" },
+  { name = "ItemCount", type = "int", design = false, origin = "rapidr" },
+]
+methods = [
+  { name = "AddItems", params = "Items ...", value = true },
+  { name = "DelIndex", params = "index AS LONG" },
+  { name = "DelItems", params = "Items ..." },
+  { name = "Insert", params = "I AS INTEGER, Item AS QMENUITEM" },
+  { name = "Popup", params = "X AS INTEGER, Y AS INTEGER" },
+  { name = "AddItem", value = true, origin = "rapidr", only = "desktop" },
+  { name = "Clear", value = true, origin = "rapidr" },
+  { name = "Add", origin = "rapidr" },
+]
+events = [
+  { name = "OnPopup" },
+]

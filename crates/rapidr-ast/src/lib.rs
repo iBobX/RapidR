@@ -1911,46 +1911,10 @@ pub fn input_assignment(i: &InputStatement) -> AssignmentStatement {
     }
 }
 
-/// Component types both backends can create (uppercase). The single source
-/// for "is this DIM/CREATE type a GUI/system component?".
-pub const COMPONENT_TYPES: &[&str] = &[
-    "RFORM", "RFORMMDI", "RBUTTON", "RLABEL", "REDIT", "RPANEL",
-    "RCHECKBOX", "RRADIOBUTTON", "RCOMBOBOX", "RLISTBOX", "RFILELISTBOX", "RDIRTREE",
-    "RTIMER", "RIMAGE", "RCANVAS", "RHEADER", "RRECT", "RSTRINGGRID", "RTABCONTROL",
-    "RTREEVIEW", "RMAINMENU", "RMENUITEM", "RPOPUPMENU",
-    "ROPENDIALOG", "RSAVEDIALOG", "RFILEDIALOG", "RCOLORDIALOG", "RFONTDIALOG",
-    "RTOOLBAR", "RSTATUSBAR", "RPROGRESS", "RRICHEDIT", "RMEMO",
-    "RSCROLLBAR", "RUPDOWN", "RDATETIMEPICKER",
-    "RFILESTREAM", "RSTRINGLIST", "RTRACKBAR", "RPRINTER", "RREGISTRY",
-    "RSPLITTER", "RSCROLLBOX",
-    "RSQLITE", "RMYSQL",
-    "RSOCKET", "RSERVERSOCKET", "RHTTP",
-    "RLISTVIEW", "RPROGRESSBAR",
-    "RNUM", "RDATAFRAME", "RPLOT",
-    "RDESIGNSURFACE", "RCODEEDITOR", "RGROUPBOX",
-    "RCOOLBTN", "ROVALBTN",
-    "RJSON",
-    // RapidQ's DirectX 2D objects (rapidr_value::objects::directx)
-    "RDXSCREEN", "RDXIMAGELIST", "RDXTIMER", "RDXSOUND", "RDXJOYSTICK",
-    // (and Direct3D's: rapidr_value::objects::d3d)
-    "RD3DFRAME", "RD3DMESHBUILDER", "RD3DMESH", "RD3DFACE", "RD3DLIGHT", "RD3DTEXTURE", "RD3DVISUAL", "RD3DWRAP", "RD3DVECTOR",
-    // RapidQ's non-visual objects (rapidr_value::objects)
-    "RFONT", "RMEMORYSTREAM", "RBITMAP", "RIMAGELIST",
-    // RapidQ's data types that are objects (rapidr_value::objects::record)
-    "RNOTIFYICONDATA",
-    // RapidQ's include libraries' components (INCLUDE_LIBRARY_COMPONENTS)
-    "RBEVEL", "RDIGDISPLAY",
-    // RapidQ's QGLASSFRAME (rapidr_value::objects::glass)
-    "RGLASSFRAME",
-    // RapidR Studio's docking (I1: rapidr_value::dock)
-    "RDOCKMANAGER",
-    // RapidQ's input / output and media objects (rapidr_value::objects::rqlib)
-    "RCGI", "RCOMPORT", "RDOWNLOAD", "RMIDI", "RWAVE", "RVIDEO", "RCDAUDIO",
-    // Web-exclusive components
-    "RWEBVIEW", "RDOM", "RJAVASCRIPT", "RWEBSTORAGE",
-    "RWEBAUDIO", "RWEBVIDEO", "RWEBNOTIFICATION", "RWEBGEOLOCATION",
-    "RROUTER",
-];
+/// Component types both backends can create (RapidR's upper-case names):
+/// the language registry's (crates/rapidr-lang/data/components), the single
+/// source for "is this DIM/CREATE type a GUI/system component?".
+pub const COMPONENT_TYPES: &[&str] = rapidr_lang::COMPONENT_TYPES;
 
 /// RapidQ's built-in objects (its manual's component list) that RapidR has
 /// no component for yet. Fields and variables of these types are objects

@@ -1,0 +1,501 @@
+# Docs of methods by name (any component that has one and gives it no doc
+# of its own). Written in RapidR's own words.
+
+[method]
+Abort = { doc = "Cancels the print job in progress; the pages not yet sent are dropped." }
+AbortAllIO = { doc = "Cancels every read and write still pending on the serial port." }
+Abs = { doc = "Replaces each element with its absolute value (in place)." }
+Accept = { doc = "Takes a waiting client connection: with a listening socket's number it returns the new client socket's number; on an RSERVERSOCKET it handles waiting clients and messages, as `Poll`." }
+Acos = { doc = "Replaces each element with its arc cosine, in radians (in place). Same as `ArcCos`." }
+ActiveChild = { doc = "Brings the MDI child with index `Index` to the front, restoring it if it is minimized." }
+ActiveNextChild = { doc = "Activates the next MDI child window, the one under the active one." }
+ActivePreviousChild = { doc = "Activates the previous MDI child window, sending the active one to the back." }
+Add = { doc = "Appends one entry: a line of text to an editor or string list, or an item to a menu." }
+Add_column = { doc = "Adds a column of values under a name, replacing a column of that name. Same as `AddColumn`." }
+Add_row = { doc = "Appends a row made of the values given. Same as `AddRow`." }
+Add_series = { doc = "Adds a data series to the chart. Same as `AddSeries`." }
+AddBMPFile = { doc = "Loads a bitmap file and appends its image to the list; pixels of `MaskColor` become transparent." }
+AddBMPHandle = { doc = "Appends a bitmap resource's image to the list, with `MaskColor` as its transparent color." }
+AddBorderIcons = { doc = "Adds the given border icons (system menu, minimize, maximize, help) to the form's title bar." }
+AddChild = { doc = "Adds a child: an MDI form shows the form with handle `handle` as a child window (title, index and place); a tree view adds a node with text `String` under the node at `Index`." }
+AddChildItems = { doc = "Adds child nodes with the texts given under the node at `Index`." }
+AddClass = { doc = "Adds a CSS class to the element." }
+AddColumns = { doc = "Appends columns to the list view, one per caption given." }
+AddComponent = { doc = "Puts a component on the design surface: `AddComponent(Type, Name, X, Y, W, H)`." }
+AddDirTypes = { doc = "Adds kinds of folders, by attribute, to those the tree lists." }
+AddDriveTypes = { doc = "Adds kinds of drives (fixed, removable, network, CD …) to those the tree lists." }
+AddFace = { doc = "Adds a face to the mesh builder." }
+AddFileTypes = { doc = "Adds kinds of files, by attribute (read-only, hidden, system …), to those the list shows." }
+AddFlowControl = { doc = "Turns on flow-control options of the serial port." }
+AddFrame = { doc = "Makes frame `Frame` a child of this frame, so it moves with it." }
+AddICOFile = { doc = "Loads an icon file and appends it to the list." }
+AddICOHandle = { doc = "Appends an icon resource to the list." }
+AddItem = { doc = "Appends one item (a list entry, line, node or menu item) to the component." }
+AddItems = { doc = "Appends one or more strings (items, lines or nodes) to the component, in the order given." }
+AddLight = { doc = "Adds a light to the frame or to the 3D scene." }
+AddLines = { doc = "Appends lines of text, one per argument; in a tree view each line's leading spaces set its depth." }
+AddList = { doc = "Appends every string of another string list." }
+AddNode = { doc = "Adds a top-level node with the given text." }
+AddOptions = { doc = "Turns on the option flags given." }
+AddPanels = { doc = "Appends panels to the status bar, one per caption given." }
+AddRoot = { doc = "Adds a top-level node with the given text. Same as `AddNode`." }
+AddRow = { doc = "Appends a row made of the values given; a grid widens to fit them." }
+AddScale = { doc = "Scales the frame by `X`, `Y`, `Z`; `CombineType` replaces its transform (0) or applies the scale before (1) or after (2) it." }
+AddSection = { doc = "Appends a section with the caption given. Same as `AddSections` with one." }
+AddSections = { doc = "Appends sections to the header, one per caption given." }
+AddSeries = { doc = "Adds a named series of values to the chart." }
+AddString = { doc = "Appends one string as a new item or line." }
+AddStrings = { doc = "Appends the strings given, each as a new line." }
+AddStyles = { doc = "Turns on the font styles given (bold, italic, underline, strike-out)." }
+AddSubItem = { doc = "Appends sub-item text `String` (the next column) to the item at `Index`." }
+AddTab = { doc = "Appends a tab with the caption given." }
+AddTabs = { doc = "Appends tabs, one per caption given." }
+AddVertex = { doc = "Adds a vertex at `X`, `Y`, `Z`." }
+AddVisual = { doc = "Attaches a visual (a mesh builder or mesh) to the frame, so it is drawn there." }
+Adjustformsize = { doc = "Sizes the form to fit the image." }
+All = { doc = "Returns true (1) when every element is non-zero." }
+AlphaSort = { doc = "Sorts the nodes alphabetically. Same as `Sort`." }
+Any = { doc = "Returns true (1) when at least one element is non-zero." }
+Append = { doc = "Appends another's contents: the rows of another DataFrame (as `Concat`), or the elements of another array." }
+AppendRow = { doc = "Appends a row made of the values given. Same as `AddRow`." }
+AppendTo = { doc = "Moves the element inside the page element with the id given." }
+Apply = { doc = "Applies the texture wrap to mesh `M`, giving its vertices texture coordinates." }
+ApplyRelative = { doc = "Applies the texture wrap to mesh `M`, measured relative to frame `F`." }
+ArcCos = { doc = "Replaces each element with its arc cosine, in radians (in place). Same as `Acos`." }
+ArcSin = { doc = "Replaces each element with its arc sine, in radians (in place). Same as `Asin`." }
+ArcTan = { doc = "Replaces each element with its arc tangent, in radians (in place). Same as `Atan`." }
+ArrangeIcons = { doc = "Lines up the icons of the minimized MDI child windows." }
+Asin = { doc = "Replaces each element with its arc sine, in radians (in place). Same as `ArcSin`." }
+At = { doc = "Reads one value: an array's element at an index, or a DataFrame's cell by row and column name." }
+Atan = { doc = "Replaces each element with its arc tangent, in radians (in place). Same as `ArcTan`." }
+Average = { doc = "The arithmetic mean of the elements; the same as Mean." }
+Avg = { doc = "The arithmetic mean of the elements; the same as Mean." }
+Axhline = { doc = "Draws a horizontal line across the chart at the y given. Same as `HLine`." }
+Axvline = { doc = "Draws a vertical line across the chart at the x given. Same as `VLine`." }
+Back = { doc = "Goes back one step in the browser's history." }
+BeginDoc = { doc = "Starts a print job; what is drawn on the printer goes on its pages until `EndDoc`." }
+Broadcast = { doc = "Sends a line of text to every connected client." }
+Build = { doc = "Returns the strings from `Start` to `End` joined into one, separated by `Delim`." }
+Button = { doc = "Tells whether a joystick button is pressed." }
+Call = { doc = "Calls a global JavaScript function by name with the other arguments, and returns its result." }
+CameraLookAt = { doc = "Turns the camera to face frame `F`; `Constraint` limits the axes it may turn on." }
+Cascade = { doc = "Arranges the MDI child windows in an overlapping cascade." }
+CascadeChild = { doc = "Arranges the MDI child windows in an overlapping cascade." }
+Ceil = { doc = "Rounds each element up to a whole number (in place)." }
+Center = { doc = "Moves the form to the middle of the screen." }
+ChangeDirUp = { doc = "Shows the parent of the current folder." }
+Check = { doc = "Returns true when an Internet connection is available; RapidR always reports one." }
+ChildExist = { doc = "Returns true when an MDI child with the title given is open." }
+Circle = { doc = "Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`." }
+Clamp = { doc = "Limits each element to the range from a low to a high value (in place). Same as `Clip`." }
+Clear = { doc = "Empties the component: removes its items, lines, text or data, or erases its drawing." }
+ClearAll = { doc = "Removes every component from the design surface." }
+ClearColumns = { doc = "Removes every column from the list view." }
+ClearSelection = { doc = "Deletes the selected text." }
+Clearticks = { doc = "Removes every tick mark put with `SetTick`." }
+ClearWatch = { doc = "Stops the position watch WatchPosition started." }
+Close = { doc = "Closes what the component has open: a form, file, port, device, connection or database." }
+CloseAllChild = { doc = "Closes every MDI child window." }
+CloseChild = { doc = "Closes the active MDI child window." }
+CloseKey = { doc = "Closes the registry key that is open." }
+Cls = { doc = "Clears the drawing area to its background color." }
+Collapse = { doc = "Collapses the node at `Index`; with `Recurse` true, every node under it too." }
+Columns = { doc = "The frame's column names, comma-separated." }
+Concatenate = { doc = "Appends the elements of another array, named by its variable, to this one. Same as `Append`." }
+Connect = { doc = "Opens a connection: to a MySQL server from a host, user and password (true on success), or to TCP port `PortNum` of a server (the new socket's number, -1 on failure)." }
+ConnectionReady = { doc = "Returns true when numbered socket `Sock` is ready: a client waiting to be accepted on a server socket." }
+CopyFrom = { doc = "Copies `Bytes` bytes from another stream into this one." }
+CopyRect = { doc = "Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit." }
+CopyToClipboard = { doc = "Copies the selected text to the clipboard." }
+Correlation = { doc = "Returns the correlation matrix of the numeric columns. Same as `Corr`." }
+Cos = { doc = "Replaces each element with its cosine (in place)." }
+Create = { doc = "Starts the object empty and ready to use (the web's name; same as `New` and `Init`)." }
+CreateAnimation = { doc = "Creates a Direct3D animation, a frame's motion between key positions." }
+CreateAnimationSet = { doc = "Creates a Direct3D animation set, animations played together." }
+CreateDB = { doc = "Creates a database named `DB` on the server; returns true on success." }
+CreateFace = { doc = "Creates a new, empty face in variable `Face`." }
+CreateFrame = { doc = "Creates a new frame in variable `Frame`, a child of this frame or of the scene." }
+CreateKey = { doc = "Creates registry key `Key` under the open one; returns true on success." }
+CreateLightRGB = { doc = "Creates a light of type `LightType` colored `R`, `G`, `B` (0 to 1) in variable `Light`." }
+CreateMesh = { doc = "Builds a mesh from the mesh builder's geometry into variable `Mesh`." }
+CreateMeshBuilder = { doc = "Creates an empty mesh builder in variable `MB`." }
+CreateObject = { doc = "Creates an object of the COM class `ClassName` (its ProgID); returns true on success." }
+CreateRemote = { doc = "Creates an object of the COM class `ClassName` on the computer `Host`; returns true on success." }
+CreateShadow = { doc = "Creates in `V` the shadow of `MB` cast by `Light` on the plane through (`px`, `py`, `pz`) with normal (`nx`, `ny`, `nz`)." }
+CreateWrap = { doc = "Creates in `W` a texture wrap of type `WrapType` (flat, cylinder, sphere, chrome) from an origin, direction, up vector, offset and scale." }
+CumProd = { doc = "Replaces each element with the product of it and all those before it (in place)." }
+CumSum = { doc = "Replaces each element with the running total up to it (in place)." }
+CutToClipBoard = { doc = "Moves the selected text to the clipboard." }
+DelBorderIcons = { doc = "Removes the given border icons from the form's title bar." }
+DelDirTypes = { doc = "Removes kinds of folders, by attribute, from those the tree lists." }
+DelDriveTypes = { doc = "Removes kinds of drives from those the tree lists." }
+Delete = { doc = "Removes part of the contents: a list's string or image at an index, or a recording's samples from `Pos1` to `Pos2`." }
+DeleteCol = { doc = "Removes column `Column`; the columns after it move left." }
+DeleteColumn = { doc = "Removes a column from the grid." }
+DeleteFace = { doc = "Removes face `Face` from the mesh builder." }
+DeleteFrame = { doc = "Removes child frame `Frame` from this frame." }
+DeleteItem = { doc = "Removes the item at the index given." }
+DeleteItems = { doc = "Removes the items at the indexes given." }
+DeleteKey = { doc = "Deletes registry key `Key`; returns true on success." }
+DeleteLight = { doc = "Removes light `Light` from the frame." }
+DeleteRow = { doc = "Removes row `Row`; the rows after it move up." }
+DeleteValue = { doc = "Deletes value `ValName` from the open key; returns true on success." }
+DeleteVisual = { doc = "Detaches visual `Visual` from the frame." }
+DelFileTypes = { doc = "Removes kinds of files, by attribute, from those the list shows." }
+DelFlowControl = { doc = "Turns off flow-control options of the serial port." }
+DelIndex = { doc = "Removes the menu item at position `index`." }
+DelItem = { doc = "Removes the node at the index given." }
+DelItems = { doc = "Removes the items at the indexes given." }
+DelLines = { doc = "Removes the lines (nodes) at the indexes given. Same as `DelItems`." }
+DelOptions = { doc = "Turns off the option flags given." }
+DelStyles = { doc = "Turns off the font styles given." }
+DelSubItem = { doc = "Removes sub-item `SubIndex` of the item at `Index`." }
+DelTab = { doc = "Removes the tab at the index given." }
+DelTabs = { doc = "Removes the tabs at the indexes given." }
+Diff = { doc = "Replaces the array with the differences between neighbouring elements, one element shorter." }
+Disconnect = { doc = "Closes the connection. Same as `Close`." }
+Display = { doc = "Fills an RStringGrid with the DataFrame's column names and rows. Same as `ToGrid`." }
+Div = { doc = "Divides each element by a number or by another array's matching element (in place). Same as `Divide`." }
+Dock = { doc = "Docks the form on side `Dock` of its host." }
+Download = { doc = "Saves the stream's text to the user's computer as a browser download, named by `FileName`." }
+Draw = { doc = "Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there." }
+DrawText = { doc = "Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels." }
+Drop_column = { doc = "Removes a column by name. Same as `Drop`." }
+Drop_nulls = { doc = "Removes the rows that have a missing value. Same as `DropNA`." }
+DropDB = { doc = "Deletes database `DB` from the server; returns true on success." }
+Eject = { doc = "Opens the CD drive's tray." }
+Ellipse = { doc = "Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows." }
+EndDoc = { doc = "Ends the print job and sends its pages to the printer." }
+EscapeString = { doc = "Returns the string with quotes and special characters escaped for a MySQL query." }
+Eval = { doc = "Runs a piece of JavaScript and returns its result." }
+Exchange = { doc = "Swaps the strings at `Index1` and `Index2`." }
+Execute = { doc = "Runs the component's action: a dialog shows itself, waits, and returns true when the user confirms." }
+Exp = { doc = "Replaces each element with e raised to it (in place)." }
+Expand = { doc = "Expands the node at `Index`; with `Recurse` true, every node under it too." }
+ExtractRes = { doc = "Writes the program's embedded resource number `Resource` into the stream." }
+FastPset = { doc = "Sets the back buffer's pixel at (`X1`, `Y1`) to `C`, a device pixel value." }
+FetchField = { doc = "Moves to the next column of the query's result and fills the field information; returns false when none are left." }
+FetchLengths = { doc = "Returns the lengths of the fields of the current row." }
+FetchRow = { doc = "Moves to the next row of the query's result; returns false when no rows are left." }
+FieldSeek = { doc = "Moves the field cursor to column `Position`, the next one `FetchField` reads." }
+Fill = { doc = "Fills the whole back buffer with color `Color`." }
+Fill_between = { doc = "Draws the area between a curve and the axis, filled. Same as `Area`." }
+Fill_null = { doc = "Replaces the missing values with the value given. Same as `FillNA`." }
+FillCircle = { doc = "Draws a filled circle of radius `r` around (`cx`, `cy`), in the brush color or the color given." }
+FillRect = { doc = "Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`." }
+Find = { doc = "Searches the items for a string and returns the index of the match (-1 when there is none)." }
+Flip = { doc = "On a DirectX screen, shows what was drawn on the back buffer; on an array, reverses the elements (same as `Reverse`)." }
+Floor = { doc = "Rounds each element down to a whole number (in place)." }
+Fmod = { doc = "Replaces each element with its remainder after division by a number (in place). Same as `Mod`." }
+FogEnabled = { doc = "Turns fog on or off in the frame's scene." }
+ForceUpdate = { doc = "Marks the rectangle (`X1`, `Y1`)–(`X2`, `Y2`) of the 3D view to be drawn again; RapidR draws the whole view at each `Render`." }
+Forward = { doc = "Goes forward one step in the browser's history." }
+Free = { doc = "Releases the object (a COM object or a thread) and what it holds." }
+FreeChild = { doc = "Returns true when the form with handle `handle` isn't shown as an MDI child, so it can be added." }
+From_list = { doc = "Fills the array from text of comma-separated numbers. Same as `FromList`." }
+FullCollapse = { doc = "Collapses every node." }
+FullExpand = { doc = "Expands every node." }
+FullScreen = { doc = "Shows the video full screen." }
+Get = { doc = "Reads by key or index: an array element, a list's string, a stored value or a CGI variable; an HTTP client fetches a URL and returns the response body." }
+GetAsHandle = { doc = "Returns a handle to the clipboard's data in format `Format`." }
+GetAsText = { doc = "Returns the clipboard's text." }
+GetAttribute = { doc = "Returns the value of the element's HTML attribute of that name." }
+GetCell = { doc = "Returns the text of the cell at a column and row." }
+GetChild = { doc = "Returns the index of the MDI child with the title given, or -1." }
+GetCompH = { doc = "Returns the height of the component at the index given on the design surface." }
+GetCompW = { doc = "Returns the width of the component at the index given on the design surface." }
+GetCompX = { doc = "Returns the left position of the component at the index given on the design surface." }
+GetCompY = { doc = "Returns the top position of the component at the index given on the design surface." }
+GetDataSize = { doc = "Returns the size in bytes of the named value's data." }
+GetDataType = { doc = "Returns the type of the named value's data (string, integer, binary …)." }
+GetFace = { doc = "Puts face number `Index` of the mesh builder in `Face`." }
+GetFont = { doc = "Copies the font chosen in the dialog into font `F`." }
+GetHostIP = { doc = "Returns this computer's IP address." }
+GetHostName = { doc = "Returns this computer's network name." }
+GetIDofName = { doc = "Returns the dispatch ID of the COM object's method or property named `Name`." }
+GetItem = { doc = "Returns the element at the index given. Same as `Get`." }
+GetItemAt = { doc = "Returns the index of the node at the point (`X`, `Y`), or -1 when there is none." }
+GetName = { doc = "Returns the name of the component at the index given on the design surface." }
+GetObject = { doc = "Connects to a running object of the COM class `ClassName`; returns true on success." }
+GetPeerName = { doc = "Returns the address of the other end of socket `Socket`." }
+GetPixelDepth = { doc = "Returns the display's number of bits per pixel." }
+GetPosition = { doc = "Asks the browser for the device's location; the answer comes in an event." }
+GetPriority = { doc = "Returns the program's process priority." }
+GetProp = { doc = "Returns the value of a property of the component at an index on the design surface: `GetProp(Index, Name)`." }
+GetSubList = { doc = "Returns the names of the program's SUBs and FUNCTIONs, one per line." }
+GetType = { doc = "Returns the type of the component at the index given on the design surface." }
+GetValue = { doc = "Returns the element at the index given. Same as `Get`." }
+GetVertex = { doc = "Reads vertex `Index` of the face: its position and normal." }
+GotoLine = { doc = "Moves the caret to the line given and scrolls it into view." }
+GotoSub = { doc = "Moves the caret to the SUB or FUNCTION of the name given." }
+Group_by = { doc = "Groups the rows by a column and aggregates the other columns. Same as `GroupBy`." }
+HasFormat = { doc = "Returns true when the clipboard holds data in format `Format`." }
+HasKey = { doc = "Returns true when the storage has a value under the key given." }
+HelpCommand = { doc = "Sends command `Command` with `Data` to the help system for the program's help file." }
+HelpContext = { doc = "Opens the program's help file at the topic with context number `Context`." }
+HelpJump = { doc = "Opens the program's help file at the topic `JumpID`." }
+Hide = { doc = "Makes the component or form invisible; it stays loaded." }
+HideTitleBar = { doc = "Removes the form's title bar." }
+Histogram = { doc = "Draws a histogram of the values. Same as `Hist`." }
+IconArrangeChild = { doc = "Lines up the icons of the minimized MDI child windows." }
+IndexOf = { doc = "Returns the index of the first string equal to `String`, or -1." }
+Init = { doc = "Prepares the object: a DirectX screen makes its drawing surface `Width` × `Height`; on the web a data-science object starts empty." }
+Insert = { doc = "Inserts at a position: a node or string before index `Index`, or menu item `Item` at position `I`." }
+InsertBMPFile = { doc = "Loads a bitmap file and inserts its image at position `Index`, with `Mask` as its transparent color." }
+InsertBMPHandle = { doc = "Inserts a bitmap resource's image at position `Index`, with `Mask` as its transparent color." }
+InsertCol = { doc = "Inserts an empty column before column `Column`." }
+InsertICOFile = { doc = "Loads an icon file and inserts it at position `Index`." }
+InsertICOHandle = { doc = "Inserts an icon resource at position `Index`." }
+InsertItem = { doc = "Inserts an item with text `String` before position `Index`." }
+InsertRow = { doc = "Inserts an empty row before row `Row`." }
+InsertSubItem = { doc = "Inserts sub-item text `String` at column `SubIndex` of the item at `Index`." }
+InsertTab = { doc = "Inserts a tab with caption `String` at position `Index`." }
+Invoke = { doc = "Calls the COM object's method (or reads its property) named `ID` with the arguments given, and returns the result." }
+InvokeCopy = { doc = "Calls the COM object's member `ID` and puts the object it returns in `Object`." }
+IsClientReady = { doc = "Returns true when client socket `ClientSock` of server socket `Sock` has data to read." }
+IsServerReady = { doc = "Returns true when socket `Sock` has data from the server to read." }
+Join = { doc = "Joins another DataFrame on a common column. Same as `Merge`." }
+KeyExists = { doc = "Returns true when registry key `Key` exists." }
+KeyItem = { doc = "Returns the name of subkey number `Index` of the open key." }
+Keys = { doc = "Returns the keys in the storage." }
+LeechFile = { doc = "Downloads the file the properties name from the server, to a file, a variable or memory; returns true on success." }
+Len = { doc = "Returns the number of rows. Same as `Rows`." }
+Line = { doc = "Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`." }
+Lines = { doc = "Reads a line of the text by index, or sets it when a second value follows." }
+Listen = { doc = "Starts the server listening on its `Host` and `Port`. Same as `Start`." }
+Ln = { doc = "Replaces each element with its natural logarithm (in place). Same as `Log`." }
+Load = { doc = "Loads from a file: a 3D model (`.X`) into a frame or mesh builder, or a picture into an image." }
+LoadArray = { doc = "Reads an array's elements from the stream." }
+LoadBlob = { doc = "Reads binary data (a BLOB) for a query." }
+LoadFromFile = { doc = "Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture." }
+LoadFromPlot = { doc = "Shows an RPlot's chart as the image." }
+LoadFromResource = { doc = "Loads images from a bitmap resource." }
+LoadFromStream = { doc = "Loads the component's contents from an open stream." }
+LoadFromUrl = { doc = "Fetches a URL's text into the stream; an event fires when it has arrived." }
+LoadTexture = { doc = "Loads an image file as a texture: onto the mesh builder, or into texture `Tex`." }
+LoadUdtArray = { doc = "Reads an array of user-defined types from the stream." }
+Log = { doc = "Replaces each element with its natural logarithm (in place). Same as `Ln`." }
+Log10 = { doc = "Replaces each element with its base-10 logarithm (in place)." }
+Log2 = { doc = "Replaces each element with its base-2 logarithm (in place)." }
+LookAt = { doc = "Turns the frame to face frame `F`; `Constraint` limits the axes it may turn on." }
+Max = { doc = "Returns the largest element." }
+MaximizeAllChild = { doc = "Maximizes every MDI child window." }
+MemCopyFrom = { doc = "Copies `Bytes` bytes from memory address `Address` into the stream." }
+MemCopyTo = { doc = "Copies `Bytes` bytes of the stream to memory address `Address`." }
+Min = { doc = "Returns the smallest element." }
+Minimize = { doc = "Minimizes the program's windows." }
+MinimizeAllChild = { doc = "Minimizes every MDI child window and lines up their icons." }
+Move = { doc = "Moves the 3D scene on by `D` time steps: every frame moves and turns by its velocity and rotation." }
+MoveCol = { doc = "Moves a column to another position; those between shift over. Same as `MoveColumn`." }
+MoveColumn = { doc = "Moves a column to another position; those between shift over. Same as `MoveCol`." }
+MoveKey = { doc = "Moves registry key `OldKey` to `NewKey`; with `Delete` false the old key is kept as a copy." }
+MoveRow = { doc = "Moves a row to another position; those between shift over." }
+Mul = { doc = "Multiplies each element by a number or by another array's matching element (in place). Same as `Multiply`." }
+Navigate = { doc = "Goes to an address: a web view loads a URL; a router changes the page's `#` route." }
+Neg = { doc = "Changes the sign of each element (in place). Same as `Negative`." }
+Negative = { doc = "Changes the sign of each element (in place). Same as `Neg`." }
+New = { doc = "Starts anew, empty: a blank recording for a wave; on the web, a data-science object." }
+NewPage = { doc = "Ends the current page and starts a new one." }
+Next = { doc = "Activates the next MDI child window." }
+Nonzero = { doc = "Replaces the array with the indexes of its non-zero elements. Same as `Where`." }
+Norm = { doc = "Returns the array's length as a vector (its L2 norm)." }
+Normal = { doc = "Fills the array with `n` random values from a normal distribution (mean and standard deviation optional). Same as `RandN`." }
+Normalize = { doc = "Scales the elements so the array's L2 norm is 1 (in place)." }
+Open = { doc = "Opens what the component works with: a media file or device, a file stream in a mode, a serial port, the clipboard, or a listening socket on a port." }
+OpenKey = { doc = "Opens registry key `Key`, creating it when `CanCreate` is true; returns true on success." }
+Paint = { doc = "Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`." }
+Parse = { doc = "Splits text into parts: a string list splits `Source` at `Delim` into its items and returns how many; a CGI reads the request's variables." }
+PasteFromClipboard = { doc = "Inserts the clipboard's text at the caret, replacing the selection." }
+Pause = { doc = "Pauses playback; `Play` goes on from there." }
+Peek = { doc = "Returns up to `NumBytes` bytes waiting on socket `Socket`, leaving them to be read." }
+Percent = { doc = "Returns how far a transfer is, as a whole percentage of the total." }
+PickFile = { doc = "Opens the browser's file picker and reads the chosen file into the stream; an optional filter such as `.txt` limits the choice." }
+Play = { doc = "Starts playing from the current position." }
+Poll = { doc = "Handles what is waiting on the server: new clients, messages and disconnections, each as its event." }
+Popup = { doc = "Shows the popup menu at screen point (`X`, `Y`)." }
+Post = { doc = "Sends form data to a URL in an HTTP POST and returns the response body." }
+Pow = { doc = "Raises each element to a power (in place). Same as `Power`." }
+Previous = { doc = "Activates the previous MDI child window." }
+Print = { doc = "Prints the contents to the console and returns them as text. Same as `Show`." }
+Pset = { doc = "Sets the pixel at (`x`, `y`) to color `c`." }
+PurgeIn = { doc = "Discards the data waiting in the serial port's receive buffer." }
+PurgeOut = { doc = "Discards the data still waiting to be sent from the serial port." }
+Push = { doc = "Appends a value to the end of the array." }
+Push_row = { doc = "Appends a row made of the values given. Same as `AddRow`." }
+Put = { doc = "Writes pixel data onto the canvas; the counterpart of `Get`." }
+QuerySelector = { doc = "Returns the id of the first page element matching a CSS selector, or null." }
+Random = { doc = "Fills the array with `n` random values from 0 up to 1. Same as `Rand`." }
+Random_normal = { doc = "Fills the array with `n` random values from a normal distribution. Same as `RandN`." }
+Random_uniform = { doc = "Fills the array with `n` random values between a low and a high value. Same as `Uniform`." }
+Read = { doc = "Reads data: up to `NumBytes` from a socket (returned), `Count` bytes from a serial port into a stream, or a variable's worth from a stream into it." }
+Read_csv = { doc = "Loads a CSV file into the DataFrame. Same as `ReadCSV`." }
+Read_json = { doc = "Loads a JSON file into the DataFrame. Same as `LoadFromJSON`." }
+ReadAll = { doc = "Returns the rest of the stream as text." }
+ReadBinary = { doc = "Reads the named binary value of the open key." }
+ReadBinStr = { doc = "Reads `n` bytes from the stream and returns them as a string." }
+ReadByte = { doc = "Reads one byte from the socket or stream." }
+ReadFloat = { doc = "Reads the named value of the open key as a floating-point number." }
+ReadInteger = { doc = "Reads the named value of the open key as an integer." }
+ReadLine = { doc = "Reads one line of text, without its line end." }
+Readln = { doc = "Reads one line of text, without its line end. Same as `ReadLine`." }
+ReadNum = { doc = "Reads a number stored in binary as the type given (`Num_Byte`, `Num_Long`, `Num_Double` …)." }
+ReadStr = { doc = "Reads `n` characters from the stream." }
+ReadString = { doc = "Reads a string: `Count` characters from the serial port, or the named string value of the open registry key." }
+ReadUDT = { doc = "Reads a user-defined type variable from the stream, field by field." }
+RealConnect = { doc = "Connects to a MySQL server with host, user, password, database, port, socket and flags; returns true on success." }
+Receive = { doc = "Returns the next message received on the WebSocket. Same as `Read`." }
+Reciprocal = { doc = "Replaces each element with 1 divided by it (in place)." }
+Record = { doc = "Starts recording sound from the input device." }
+RecreateBuf = { doc = "Makes the sound buffer again after the device lost it." }
+Rect = { doc = "Draws the outline of a rectangle. Same as `Rectangle`." }
+Rectangle = { doc = "Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`." }
+Refresh = { doc = "Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names." }
+RegistryConnect = { doc = "Connects to the registry of the network computer `CompName`; returns true on success." }
+Release = { doc = "Gives back the DirectX surfaces; RapidR has nothing to free." }
+Reload = { doc = "Reads the folders from disk again." }
+Remove = { doc = "Removes something: a list's string by index, the element from the page, or a stored value by key." }
+RemoveClass = { doc = "Removes a CSS class from the element." }
+RemoveComponent = { doc = "Removes the component at the index given from the design surface." }
+RemoveItem = { doc = "Removes the item at the index given." }
+RemoveTab = { doc = "Removes the tab at the index given." }
+Rename_column = { doc = "Renames a column. Same as `Rename`." }
+RenameValue = { doc = "Renames a value of the open key." }
+Render = { doc = "Draws the scene: a DirectX screen draws its 3D view; on the web a chart is drawn (as `SaveFig`)." }
+Repaint = { doc = "Redraws the component." }
+RequestPermission = { doc = "Asks the user's permission to show notifications." }
+Reshape = { doc = "Changes the array's shape; RapidR's arrays are one-dimensional, so it leaves it as it is." }
+RestoreChild = { doc = "Gives every MDI child window its normal size and place again." }
+Resume = { doc = "Lets a suspended thread run again." }
+Reverse = { doc = "Reverses the order of the elements (in place). Same as `Flip`." }
+Rotate = { doc = "Rotates the picture by `Angle` degrees around (`xOrigin`, `yOrigin`)." }
+RoundRect = { doc = "Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`." }
+RowBlob = { doc = "Returns `Bytes` bytes of the binary field in row `Row`." }
+RowCount = { doc = "How many rows the frame has." }
+Rows = { doc = "Returns the number of rows." }
+RowSeek = { doc = "Moves to row `Row` of the query's result, the next one `FetchRow` reads." }
+Save = { doc = "Saves to a file: the chart as an image, or the recording as a WAV file." }
+SaveArray = { doc = "Writes an array's elements to the stream." }
+SaveBlob = { doc = "Writes binary data (a BLOB) for a query." }
+SaveToFile = { doc = "Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture." }
+SaveToStream = { doc = "Writes the component's contents to an open stream." }
+SaveUdtArray = { doc = "Writes an array of user-defined types to the stream." }
+Scale = { doc = "Scales the mesh by `X`, `Y`, `Z`." }
+Seek = { doc = "Moves the current position: a stream's to `Position` from its start, current place or end; a player's to a time in seconds." }
+SelectAll = { doc = "Selects all the text." }
+SelectComp = { doc = "Selects the component at the index given on the design surface (-1: none)." }
+SelectDB = { doc = "Makes database `DB` the current one; returns true on success." }
+Send = { doc = "Sends text over the WebSocket. Same as `Write`." }
+SendTo = { doc = "Sends a line of text to one client, by its address." }
+Series = { doc = "Adds a data series to the chart. Same as `AddSeries`." }
+Set = { doc = "Stores a value: an array's element at an index, or a value under a key in the browser's storage." }
+Set_column = { doc = "Adds a column of values under a name, replacing a column of that name. Same as `AddColumn`." }
+Set_title = { doc = "Sets the chart's title. Same as `SetTitle`." }
+Set_xlabel = { doc = "Sets the label of the x axis. Same as `SetXLabel`." }
+Set_ylabel = { doc = "Sets the label of the y axis. Same as `SetYLabel`." }
+SetAsHandle = { doc = "Puts the data behind handle `Handle` on the clipboard in format `Format`." }
+SetAsText = { doc = "Puts text on the clipboard." }
+SetAttribute = { doc = "Sets the element's HTML attribute of that name to a value." }
+SetBackgroundImage = { doc = "Uses a texture as the 3D scene's background." }
+SetBackgroundRGB = { doc = "Sets the 3D scene's background color from `R`, `G`, `B` (0 to 1)." }
+SetCameraOrientation = { doc = "Points the camera along (`DX`, `DY`, `DZ`) with (`UX`, `UY`, `UZ`) as its up direction." }
+SetCameraPosition = { doc = "Moves the camera to (`X`, `Y`, `Z`)." }
+SetCell = { doc = "Sets the text of the cell at a column and row." }
+SetColCount = { doc = "Sets the number of columns, adding or removing them at the end." }
+SetColorRGB = { doc = "Sets the color from `R`, `G`, `B` (0 to 1)." }
+SetColorRGBA = { doc = "Sets the colour and its opacity from red, green, blue and alpha parts (0 to 1). Same as SetRGBA." }
+SetCompBounds = { doc = "Moves and sizes a component on the design surface: `SetCompBounds(Index, X, Y, W, H)`." }
+SetDeskBar = { doc = "Sets up the MDI form's bar for its child windows; RapidR accepts it and does nothing." }
+SetFocus = { doc = "Gives the component the keyboard focus." }
+SetFogParams = { doc = "Sets where the fog starts and ends, and its density." }
+SetFont = { doc = "Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size." }
+SetHorzChild = { doc = "Tiles the MDI child windows one above another." }
+SetHTML = { doc = "Shows the HTML given in the web view." }
+SetItem = { doc = "Sets the element at an index. Same as `Set`." }
+SetLightRGB = { doc = "Sets the light's type and its color from `R`, `G`, `B` (0 to 1)." }
+SetName = { doc = "Renames the component at an index on the design surface." }
+SetOrientation = { doc = "Points the frame along (`DX`, `DY`, `DZ`) with (`UX`, `UY`, `UZ`) as its up direction." }
+SetPenUmbra = { doc = "Sets the angle of the spotlight's penumbra, the soft edge of its cone." }
+SetPixel = { doc = "Sets one pixel to a color. Same as `Pset`." }
+SetPosition = { doc = "Moves the frame to (`X`, `Y`, `Z`)." }
+SetPriority = { doc = "Sets the program's process priority." }
+SetProp = { doc = "Sets a property of the component at an index on the design surface: `SetProp(Index, Name, Value)`." }
+SetQuality = { doc = "Sets how the mesh is drawn: points, wireframe, flat or smooth shading." }
+SetRange = { doc = "Sets how far the light reaches." }
+SetRenderMode = { doc = "Sets the 3D view's rendering mode flags." }
+SetRGB = { doc = "Sets the mesh's color from `R`, `G`, `B` (0 to 1)." }
+SetRGBA = { doc = "Sets the mesh's color from `R`, `G`, `B` and its opacity `A` (0 to 1)." }
+SetRotation = { doc = "Sets the frame spinning around the axis (`X`, `Y`, `Z`), `Theta` radians each time step of `Move`." }
+SetRowCount = { doc = "Sets the number of rows, adding or removing them at the end." }
+SetSize = { doc = "Sets the stream's size in bytes, cutting or growing it." }
+SetSuggestions = { doc = "Sets the suggestions offered while a cell is edited, one per line." }
+SetTexture = { doc = "Puts texture `Tex` on the frame or mesh." }
+SetTextureQuality = { doc = "Sets how textures are filtered when drawn." }
+SetTick = { doc = "Puts a tick mark at position `Pos`." }
+SetTitle = { doc = "Sets the chart's title." }
+SetUmbra = { doc = "Sets the angle of the spotlight's cone of full brightness." }
+SetValue = { doc = "Sets the element at an index. Same as `Set`." }
+SetVelocity = { doc = "Sets the velocity (`X`, `Y`, `Z`) a frame moves by each time step of `Move`; a DirectX screen sets its camera's." }
+SetVertChild = { doc = "Tiles the MDI child windows side by side." }
+SetXLabel = { doc = "Sets the label of the x axis." }
+SetYLabel = { doc = "Sets the label of the y axis." }
+Shape = { doc = "The array's or frame's dimensions as text: an array's length, a frame's rows and columns." }
+ShapeForm = { doc = "Shapes the form to a bitmap file's outline, its pixels of `TransparentColor` cut away." }
+Show = { doc = "Shows the component or form; a data-science object prints its contents." }
+ShowModal = { doc = "Shows the form and waits until it closes; returns its modal result." }
+ShowTitleBar = { doc = "Puts the form's title bar back." }
+Shuffle = { doc = "Puts the elements in random order (in place)." }
+Sign = { doc = "Replaces each element with its sign: -1, 0 or 1 (in place)." }
+Sin = { doc = "Replaces each element with its sine (in place)." }
+Sort = { doc = "Sorts the items, nodes or elements in ascending order." }
+Speed = { doc = "Returns a transfer's speed in bytes a second, from two `TIME$` values and the bytes moved." }
+Sqrt = { doc = "Replaces each element with its square root (in place)." }
+Square = { doc = "Replaces each element with its square (in place)." }
+Start = { doc = "Starts the server listening on its `Host` and `Port`; returns false when the port can't be opened." }
+StartDrag = { doc = "Starts dragging the button." }
+Std = { doc = "Returns the standard deviation of the values." }
+Stop = { doc = "Stops what is running: playback (back to the start), recording, or the server." }
+StretchDraw = { doc = "Draws a bitmap scaled to fill rectangle `Rect`." }
+String = { doc = "Returns the string at the index given. Same as `Item`." }
+Strings = { doc = "Returns the string at the index given. Same as `Item`." }
+Sub = { doc = "Subtracts a number or another array's matching element from each element (in place). Same as `Subtract`." }
+Suspend = { doc = "Pauses the thread until `Resume`." }
+SwapCols = { doc = "Swaps columns `Col1` and `Col2`." }
+SwapItem = { doc = "Swaps the items at `Index1` and `Index2`." }
+SwapRows = { doc = "Swaps rows `Row1` and `Row2`." }
+T = { doc = "Swaps rows and columns. Same as `Transpose`." }
+Tabs = { doc = "Returns the caption of the tab at an index, or sets it when a second value follows." }
+Tan = { doc = "Replaces each element with its tangent (in place)." }
+Terminate = { doc = "Ends it: stops the thread, or ends the program." }
+TextHeight = { doc = "Returns the height in pixels of the text in the current font." }
+TextOut = { doc = "Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font." }
+TextRect = { doc = "Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`." }
+TextWidth = { doc = "Returns the width in pixels of the text in the current font." }
+Tile = { doc = "Tiles the MDI child windows so none overlap." }
+To_csv = { doc = "Saves the DataFrame to a CSV file. Same as `SaveToCSV`." }
+To_grid = { doc = "Fills an RStringGrid with the DataFrame's column names and rows. Same as `ToGrid`." }
+To_json = { doc = "Saves the DataFrame to a JSON file. Same as `SaveToJSON`." }
+ToggleClass = { doc = "Adds a CSS class to the element, or removes it when it has it." }
+ToList = { doc = "Returns the elements as text, comma-separated." }
+ToString = { doc = "Returns the contents as text." }
+Translate = { doc = "Moves the mesh's vertices by (`TX`, `TY`, `TZ`)." }
+Unique = { doc = "Replaces the array with its distinct values, sorted." }
+Update = { doc = "Brings the component up to date: redraws it, lists its files again, or reads its device's state again." }
+ValueExists = { doc = "Returns true when the open key has a value named `ValueName`." }
+ValueItem = { doc = "Returns the name of value number `Index` of the open key." }
+Variance = { doc = "Returns the variance of the elements. Same as `Var`." }
+WaitForLastIO = { doc = "Waits until the serial port's last read or write has finished." }
+WatchPosition = { doc = "Starts following the device's position: Latitude, Longitude and Accuracy update and OnChange fires at each change, until ClearWatch." }
+Where = { doc = "Replaces the array with the indexes of its non-zero elements. Same as `Nonzero`." }
+Write = { doc = "Writes data: `NumBytes` of a message to a socket, `Count` bytes of a stream to a serial port, or a variable to a stream." }
+WriteBinary = { doc = "Writes a binary value under a name in the open key." }
+WriteBinStr = { doc = "Writes `bytes` bytes of the string to the stream." }
+WriteByte = { doc = "Writes one byte to the socket or stream." }
+WriteCSV = { doc = "Saves the DataFrame to a CSV file. Same as `SaveToCSV`." }
+WriteFloat = { doc = "Writes a floating-point value under a name in the open key." }
+WriteInteger = { doc = "Writes an integer value under a name in the open key." }
+WriteLine = { doc = "Writes text followed by a line end." }
+Writeln = { doc = "Writes text followed by a line end. Same as `WriteLine`." }
+WriteNum = { doc = "Writes a number in binary, `bytes` bytes long." }
+WriteStr = { doc = "Writes `bytes` characters of the string to the stream." }
+WriteString = { doc = "Writes a string: to the serial port (waiting when `Wait` is true), or as a named value of the open registry key." }
+WriteUDT = { doc = "Writes a user-defined type variable to the stream, field by field." }

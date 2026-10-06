@@ -1,0 +1,156 @@
+# Media: the registry's components (crates/rapidr-lang; src/lib.rs says how to edit).
+group = "Media"
+
+[[component]]
+name = "RMIDI"
+rapidq = "QMIDI"
+from = "QMidi.inc"
+visual = false
+default_event = "OnChange"
+doc = "Plays a standard MIDI file (QMidi.inc) on the system's MIDI output, or on RapidR's own synthesizer where there is none."
+properties = [
+  { name = "Timer", type = "component", kinds = ["QTIMER"] },
+  { name = "Lenght", type = "int", access = "read", design = false },
+  { name = "State", type = "int", default = 0, access = "read", design = false },
+  { name = "FileOpen", type = "bool", default = false, access = "read", design = false },
+  { name = "CurrentFrame", type = "int" },
+  { name = "Error", type = "string", access = "read", design = false },
+  { name = "Volume", type = "int", default = 0 },
+  { name = "Interval", type = "int", origin = "rapidr" },
+  { name = "Enabled", type = "int", origin = "rapidr" },
+  { name = "Length", type = "int", origin = "rapidr" },
+  { name = "LengthTime", type = "string", origin = "rapidr" },
+  { name = "Position", type = "int", origin = "rapidr" },
+]
+methods = [
+  { name = "Close", value = true },
+  { name = "Open", params = "FileName AS STRING", returns = "VARIANT", value = true },
+  { name = "Play" },
+  { name = "Stop" },
+  { name = "Pause" },
+]
+events = [
+  { name = "OnChange", params = "position AS LONG" },
+]
+
+[[component]]
+name = "RWAVE"
+rapidq = "QWAVE"
+from = "QWave.inc"
+visual = false
+default_event = "OnChange"
+doc = "Plays, records and saves WAV sound (QWave.inc)."
+properties = [
+  { name = "Timer", type = "component", kinds = ["QTIMER"] },
+  { name = "Lenght", type = "int", access = "read", design = false },
+  { name = "State", type = "int", default = 0, access = "read", design = false },
+  { name = "FileOpen", type = "bool", default = false, access = "read", design = false },
+  { name = "CurrentPos", type = "int" },
+  { name = "Bits", type = "int" },
+  { name = "Frequence", type = "int" },
+  { name = "Mode", type = "int" },
+  { name = "Error", type = "string", access = "read", design = false },
+  { name = "Volume", type = "int", default = 0 },
+  { name = "DeviceType", type = "string" },
+  { name = "Interval", type = "int", origin = "rapidr" },
+  { name = "Enabled", type = "int", origin = "rapidr" },
+  { name = "Length", type = "int", origin = "rapidr" },
+  { name = "LengthTime", type = "string", origin = "rapidr" },
+  { name = "Position", type = "int", origin = "rapidr" },
+]
+methods = [
+  { name = "Close", value = true },
+  { name = "Open", params = "FileName AS STRING", returns = "VARIANT", value = true },
+  { name = "Play" },
+  { name = "Stop" },
+  { name = "Pause" },
+  { name = "New" },
+  { name = "Record" },
+  { name = "Save", params = "FileName AS STRING", returns = "VARIANT" },
+  { name = "Delete", params = "Pos1 AS LONG, Pos2 AS LONG" },
+]
+events = [
+  { name = "OnChange", params = "position AS LONG" },
+]
+
+[[component]]
+name = "RVIDEO"
+rapidq = "QVIDEO"
+from = "QVideo.inc"
+visual = true
+size = [0, 0]
+default_event = "OnChange"
+doc = "Plays an AVI video with its sound (QVideo.inc), on a form or in a window of its own."
+properties = [
+  { name = "Timer", type = "component", kinds = ["QTIMER"] },
+  { name = "Lenght", type = "int", access = "read", design = false },
+  { name = "LenghtTime", type = "int", access = "read", design = false },
+  { name = "State", type = "int", default = 0, access = "read", design = false },
+  { name = "Handle", type = "int", access = "read", design = false },
+  { name = "Parent", type = "int", design = false },
+  { name = "FileOpen", type = "bool", default = false, access = "read", design = false },
+  { name = "Left", type = "int" },
+  { name = "Top", type = "int" },
+  { name = "Width", type = "int" },
+  { name = "Height", type = "int" },
+  { name = "ImgWidth", type = "int", access = "read", design = false },
+  { name = "ImgHeight", type = "int", access = "read", design = false },
+  { name = "CurrentFrame", type = "int" },
+  { name = "AudioOff", type = "bool", default = false },
+  { name = "Error", type = "string", access = "read", design = false },
+  { name = "Caption", type = "string" },
+  { name = "BorderStyle", type = "enum", values = ["bsNone", "bsSingle", "bsSizeable", "bsDialog", "bsToolWindow", "bsSizeToolWin"], default = "bsSizeable" },
+  { name = "WindowState", type = "enum", values = ["wsNormal", "wsMinimized", "wsMaximized"], default = "wsNormal" },
+  { name = "Volume", type = "int", default = 0 },
+  { name = "Interval", type = "int", origin = "rapidr" },
+  { name = "Enabled", type = "int", origin = "rapidr" },
+  { name = "Length", type = "int", origin = "rapidr" },
+  { name = "LengthTime", type = "int", origin = "rapidr" },
+  { name = "Position", type = "int", origin = "rapidr" },
+]
+methods = [
+  { name = "Close", value = true },
+  { name = "Open", params = "FileName AS STRING", returns = "VARIANT", value = true },
+  { name = "Show", value = true },
+  { name = "Play" },
+  { name = "Stop" },
+  { name = "Pause" },
+]
+events = [
+  { name = "OnChange", params = "position AS LONG, timePos AS LONG" },
+]
+
+[[component]]
+name = "RCDAUDIO"
+rapidq = "QCDAUDIO"
+from = "Qcdaudio.inc"
+visual = false
+default_event = "OnChange"
+doc = "Plays audio CDs (Qcdaudio.inc). RapidR answers as a computer with no CD drive."
+properties = [
+  { name = "Timer", type = "component", kinds = ["QTIMER"] },
+  { name = "Time", type = "string", access = "read", design = false },
+  { name = "TrackTime", type = "string", access = "read", design = false },
+  { name = "TrackNumber", type = "int", access = "read", design = false },
+  { name = "TimePosition", type = "string", access = "read", design = false },
+  { name = "State", type = "int", default = 0, access = "read", design = false },
+  { name = "AudioOpen", type = "bool", default = false, access = "read", design = false },
+  { name = "Present", type = "bool", default = false, access = "read", design = false },
+  { name = "CurrentTrack", type = "int" },
+  { name = "Error", type = "string", access = "read", design = false },
+  { name = "Interval", type = "int", origin = "rapidr" },
+  { name = "Enabled", type = "int", origin = "rapidr" },
+  { name = "LengthTime", type = "string", origin = "rapidr" },
+  { name = "Position", type = "int" },
+]
+methods = [
+  { name = "Open", returns = "VARIANT", value = true },
+  { name = "Close", value = true },
+  { name = "Play" },
+  { name = "Stop" },
+  { name = "Pause" },
+  { name = "Eject" },
+]
+events = [
+  { name = "OnChange", params = "track AS INTEGER, time AS STRING" },
+]

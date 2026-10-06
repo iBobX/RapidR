@@ -7,6 +7,8 @@ license.workspace = true
 
 [dependencies]
 rapidr-value = { workspace = true }
+# Which names are components and their methods (object_web.rs): the language registry's
+rapidr-lang = { workspace = true }
 # The program's windows: the UI kernel draws them on the page, as on the
 # desktop (docs/web-host-plan.md) — its program glue and the web host.
 rapidr-ui-kernel = { workspace = true }

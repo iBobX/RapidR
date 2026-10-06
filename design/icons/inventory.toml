@@ -279,8 +279,8 @@ resource = "resource"
 # docs/ide-plan.md I1 (RToolbox): "RapidQ" and "RapidR", and their groups.
 # members: component types; every component type (and planned component)
 # is in exactly one group. A group under "rapidq" holds only components
-# RapidQ has (RC.EXE's names and its include libraries': the lists in
-# tools/manual_reference.py), shown with their Q names; every other
+# RapidQ has (RC.EXE's names and its include libraries': the language
+# registry's `rapidq` names, crates/rapidr-lang/data/components), shown with their Q names; every other
 # component is under "rapidr" (build.py checks both).
 [toolbox-groups.rapidq]
 icon = "rapidq"

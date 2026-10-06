@@ -3693,6 +3693,7 @@ name = "rapidr-ast"
 version = "2.117.0"
 dependencies = [
  "rapidr-diagnostics",
+ "rapidr-lang",
 ]
 
 [[package]]
@@ -3740,6 +3741,7 @@ dependencies = [
  "rapidr-bytecode",
  "rapidr-codegen-rust",
  "rapidr-dap",
+ "rapidr-lang",
  "rapidr-lexer",
  "rapidr-lsp",
  "rapidr-parser",
@@ -3811,6 +3813,7 @@ dependencies = [
  "proptest",
  "rapidr-ast",
  "rapidr-bytecode",
+ "rapidr-lang",
  "rapidr-lexer",
  "regex",
  "regex-automata",
@@ -3826,6 +3829,20 @@ dependencies = [
  "miniz_oxide",
  "rapidr-ast",
  "resvg",
+]
+
+[[package]]
+name = "rapidr-lang"
+version = "2.117.0"
+dependencies = [
+ "rapidr-ast",
+ "rapidr-bcgen",
+ "rapidr-bytecode",
+ "rapidr-lexer",
+ "rapidr-parser",
+ "rapidr-preprocessor",
+ "rapidr-value",
+ "toml 1.1.6+spec-1.1.0",
 ]
 
 [[package]]
@@ -3918,6 +3935,7 @@ dependencies = [
  "plotters",
  "plotters-backend",
  "rapidr-db",
+ "rapidr-lang",
  "rapidr-ui-app",
  "rapidr-ui-host-winit",
  "rapidr-ui-kernel",
@@ -3934,6 +3952,7 @@ version = "2.117.0"
 dependencies = [
  "js-sys",
  "rapidr-db",
+ "rapidr-lang",
  "rapidr-ui-app",
  "rapidr-ui-host-web",
  "rapidr-ui-kernel",

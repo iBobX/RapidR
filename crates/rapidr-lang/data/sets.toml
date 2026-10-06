@@ -1,0 +1,36 @@
+# Members RapidR adds to every component the UI kernel lays out (`sets = ["layout", "a11y"]` in a
+# component): RapidR's extensions, additive — a program that doesn't set them behaves as under RapidQ.
+
+[[set]]
+name = "layout"
+origin = "rapidr"
+properties = [
+  { name = "Anchors", type = "set", values = ["akLeft", "akTop", "akRight", "akBottom"], default = "akLeft + akTop", category = "Layout", doc = "Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch." },
+  { name = "MinWidth", type = "int", default = 0, category = "Layout", doc = "The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`." },
+  { name = "MinHeight", type = "int", default = 0, category = "Layout", doc = "The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`." },
+  { name = "MaxWidth", type = "int", default = 0, category = "Layout", doc = "The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`." },
+  { name = "MaxHeight", type = "int", default = 0, category = "Layout", doc = "The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`." },
+]
+methods = []
+events = []
+
+[[set]]
+name = "a11y"
+origin = "rapidr"
+properties = [
+  { name = "AccessibleName", type = "string", default = "", category = "Accessibility", doc = "What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit)." },
+  { name = "AccessibleDescription", type = "string", default = "", category = "Accessibility", doc = "A longer description a screen reader gives after the name (what the control does, a shortcut)." },
+]
+methods = []
+events = []
+
+# The desktop runtime's generic dispatch answers these for any component; the web doesn't yet.
+[[set]]
+name = "generic"
+origin = "rapidr"
+properties = []
+methods = [
+  { name = "Click", value = true, only = "desktop", doc = "Runs the control's OnClick handler, as a click would." },
+  { name = "SetParent", params = "Parent", only = "desktop", doc = "Moves the control into another form or container: the same as setting Parent." },
+]
+events = []

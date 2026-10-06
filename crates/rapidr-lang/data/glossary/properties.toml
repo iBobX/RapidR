@@ -1,0 +1,547 @@
+# Docs and categories of properties by name (any component that has one
+# and gives it no doc of its own). Written in RapidR's own words.
+
+[property]
+Aborted = { category = "Misc", doc = "Non-zero when the current print job was cancelled with `Abort`; read-only." }
+Absoluteindex = { category = "Data", doc = "On a tree node (`Item(i).AbsoluteIndex`), its position counting every node from the top, from 0; the same as `Index`." }
+Accept = { category = "Network", doc = "The content types the browser accepts (the request's `HTTP_ACCEPT`); read-only." }
+Accuracy = { category = "Data", doc = "How precise the last reported position is, in metres." }
+ActiveOnly = { category = "Behavior", doc = "When true, the timer pauses while the application isn't the active one." }
+Align = { category = "Layout", doc = "Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave." }
+Alignment = { category = "Appearance", doc = "How the text lines up inside the control: `taLeftJustify`, `taCenter` or `taRightJustify`; on a popup menu, which side of the point it opens on." }
+AllowAllUp = { category = "Behavior", doc = "With a `GroupIndex`, lets every button of the group be up at once; otherwise one always stays down." }
+AllowInPlace = { category = "Behavior", doc = "Whether the OLE object may be edited inside the container rather than in its own application's window." }
+AllowStretch = { category = "Drawing", doc = "Whether the back buffer is stretched to fill the control when their sizes differ." }
+AltAlign = { category = "Layout", doc = "The edge (an `alXXX` value) the dock form's alternative docking place sits at." }
+AltDock = { category = "Layout", doc = "1 while the docked form sits at its alternative place, 0 at its home; read-only." }
+Angle = { category = "Appearance", doc = "The rotation of the label's text, in degrees counter-clockwise; it needs a TrueType font." }
+AudioOff = { category = "Media", doc = "True mutes the video's sound track." }
+AudioOpen = { category = "Media", doc = "True while the CD audio device is open; read-only." }
+AuthType = { category = "Network", doc = "How the request was authenticated (the request's `AUTH_TYPE`, e.g. `Basic`); read-only." }
+AutoConvert = { category = "Network", doc = "1 (the default) decodes form values in `Parse`: `%xx` becomes its character and `+` a space; 0 keeps them as sent." }
+AutoPlay = { category = "Media", doc = "Starts the audio or video playing as soon as it can (the element's `autoplay`)." }
+AutoPopup = { category = "Behavior", doc = "When true, a right click on a control the menu is attached to opens it; false leaves that to the program's `Popup`." }
+AutoScroll = { category = "Layout", doc = "Shows scroll bars by itself when the controls inside reach past the visible area." }
+AutoShow = { category = "Behavior", doc = "Whether the OLE object is shown as soon as it's loaded." }
+AutoSize = { category = "Layout", doc = "Makes the control fit its content: a label its text, an image its picture, an edit its font's height; a DirectX screen's buffer follows the control's size." }
+AutoUpdate = { category = "Media", doc = "Keeps the sound's buffer filled by itself while it streams." }
+Average = { category = "Data", doc = "The mean of the array's values; the same as `Avg`." }
+Avg = { category = "Data", doc = "The mean of the array's values; the same as `Average`." }
+BackColor = { category = "Appearance", doc = "The colour of the gauge's unfilled part, as &HBBGGRR." }
+BaudRate = { category = "Network", doc = "The serial line's speed: a `brXXX` constant (`br9600` …) or the rate itself in bits per second." }
+Beveled = { category = "Appearance", doc = "Draws the splitter bar with a raised 3-D edge." }
+BevelInner = { category = "Appearance", doc = "The inner bevel: `bvNone`, `bvLowered` or `bvRaised`." }
+BevelOuter = { category = "Appearance", doc = "The outer bevel: `bvNone`, `bvLowered` or `bvRaised`." }
+BevelWidth = { category = "Appearance", doc = "The width of each bevel, in pixels." }
+BitCount = { category = "Drawing", doc = "The colour depth of the full-screen display mode, in bits per pixel (8, 16, 24 or 32)." }
+Bits = { category = "Media", doc = "Bits per sample of a new recording (8 or 16)." }
+BkColor = { category = "Appearance", doc = "The colour the images are drawn on; `clNone` (the default) draws them transparent." }
+BlendColor = { category = "Appearance", doc = "The colour blended over images drawn focused or selected; `clNone` by default." }
+BMP = { category = "Appearance", doc = "The picture shown, from a .BMP file name; on a button, its glyph." }
+BMPClosed = { category = "Appearance", doc = "The picture (a .BMP file name) drawn beside a closed outline node; write-only." }
+BMPHandle = { category = "Appearance", doc = "Sets the picture from a resource handle (`$RESOURCE`) instead of a file; write-only." }
+BMPHandleClosed = { category = "Appearance", doc = "Sets the closed-node picture from a resource handle; write-only." }
+BMPHandleLeaf = { category = "Appearance", doc = "Sets the leaf-node picture from a resource handle; write-only." }
+BMPHandleMinus = { category = "Appearance", doc = "Sets the collapse-button picture from a resource handle; write-only." }
+BMPHandleOpen = { category = "Appearance", doc = "Sets the open-node picture from a resource handle; write-only." }
+BMPHandlePlus = { category = "Appearance", doc = "Sets the expand-button picture from a resource handle; write-only." }
+BMPLeaf = { category = "Appearance", doc = "The picture (a .BMP file name) drawn beside an outline node without children; write-only." }
+BMPMinus = { category = "Appearance", doc = "The picture (a .BMP file name) of the button that collapses an outline node; write-only." }
+BMPOpen = { category = "Appearance", doc = "The picture (a .BMP file name) drawn beside an expanded outline node; write-only." }
+BMPPlus = { category = "Appearance", doc = "The picture (a .BMP file name) of the button that expands an outline node; write-only." }
+Body = { category = "Misc", doc = "The text shown under the notification's title." }
+Bold = { category = "Font", doc = "True for a bold font." }
+BorderStyle = { category = "Appearance", doc = "The border: one of the `bsXXX` constants. On a form, `bsSizeable` lets the user resize it, `bsDialog` doesn't, `bsNone` has no title bar." }
+Bottom = { category = "Layout", doc = "The rectangle's bottom edge, in pixels." }
+BrushColor = { category = "Drawing", doc = "The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush)." }
+BufferLength = { category = "Media", doc = "The length of the sound's streaming buffer, in milliseconds." }
+Buttons = { category = "Data", doc = "The joystick buttons held down, one bit each: bit n − 1 for button n." }
+ButtonStyle = { category = "Appearance", doc = "Draws the tabs as push buttons instead of tabs." }
+BytesNotRead = { category = "Network", doc = "Bytes received but not yet read, as the last read or write saw them; read-only." }
+BytesNotWritten = { category = "Network", doc = "Bytes still waiting to be sent, as the last read or write saw them; read-only." }
+Cancel = { category = "Behavior", doc = "Makes this the button the Esc key presses on its form." }
+CanClose = { category = "Behavior", doc = "Shows a close button on the dock form's title so the user can close it." }
+Canvas = { category = "Drawing", doc = "The canvas the dock form's frame and title are drawn on." }
+Caption = { category = "Appearance", doc = "The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut." }
+cbSize = { category = "Misc", doc = "The structure's size in bytes, filled in for you; read-only." }
+Cell = { category = "Data", doc = "A cell's text, `Cell(col, row)`, both from 0 with the fixed rows and columns counted." }
+Cells = { category = "Data", doc = "The same as `Cell(col, row)`: a cell's text." }
+Center = { category = "Layout", doc = "Centres the picture in the control instead of placing it at the top left." }
+CharCase = { category = "Behavior", doc = "Turns typed text to `ecUpperCase` or `ecLowerCase`; `ecNormal` leaves it as typed." }
+Charset = { category = "Font", doc = "The character set the font is made for (`DEFAULT_CHARSET` …)." }
+CheckBoxes = { category = "Appearance", doc = "Shows a check box beside each item." }
+Checked = { category = "Data", doc = "True when the check box, radio button or menu item is checked." }
+ChildCaption = { category = "Window", doc = "The active MDI child window's title." }
+ChildCount = { category = "Window", doc = "The number of MDI child windows open; read-only." }
+ChildHandle = { category = "Window", doc = "The handle of the active MDI child window; read-only." }
+ChildHeight = { category = "Window", doc = "The active MDI child window's height, in pixels." }
+ChildIcon = { category = "Window", doc = "The icon shown on the MDI child windows' title bars." }
+ChildLeft = { category = "Window", doc = "The active MDI child window's left edge inside the client area, in pixels." }
+ChildMax = { category = "Window", doc = "The most MDI child windows the form takes (1024)." }
+ChildResult = { category = "Window", doc = "Set it to False in `OnChildClose` to keep the child window open." }
+ChildState = { category = "Window", doc = "The active MDI child window's state: 0 normal, 1 minimized, 2 maximized." }
+ChildTop = { category = "Window", doc = "The active MDI child window's top edge inside the client area, in pixels." }
+ChildWidth = { category = "Window", doc = "The active MDI child window's width, in pixels." }
+Client = { category = "Layout", doc = "The panel inside the dock form that holds the program's own controls; parent them to it." }
+ClientCount = { category = "Network", doc = "The number of clients connected to the server now." }
+ClientHeight = { category = "Layout", doc = "The height of the area inside the borders (and a form's title bar and menu), in pixels; on `Screen`, the work area's, without the task bar." }
+ClientWidth = { category = "Layout", doc = "The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar." }
+Closed = { category = "Window", doc = "True when the dock form has been closed (hidden); `Dock` brings it back; read-only." }
+Col = { category = "Data", doc = "The column of the grid's selected cell, from 0." }
+ColCount = { category = "Data", doc = "The number of columns: of a grid (fixed ones included), of a query's result, of a data frame." }
+Color = { category = "Appearance", doc = "The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked." }
+ColorHighLight = { category = "Appearance", doc = "The colour of the oval button's lit edge, as &HBBGGRR." }
+Colors = { category = "Data", doc = "The custom colours the colour dialog offers, `Colors(1)` to `Colors(16)`." }
+ColorShadow = { category = "Appearance", doc = "The colour of the oval button's shaded edge, as &HBBGGRR." }
+Cols = { category = "Data", doc = "RapidR's name for a grid's `ColCount`." }
+Column = { category = "Data", doc = "A list view column, `Column(i)` from 0, with its own `Caption`, `Width` and `Alignment`." }
+ColumnClick = { category = "Behavior", doc = "Makes the column headers act as buttons that fire `OnColumnClick`." }
+ColumnList = { category = "Data", doc = "The choices a `gcsList` grid column drops down, `ColumnList(col)`." }
+Columns = { category = "Layout", doc = "On a list box, how many columns the items flow into (0: one, scrolling down); on a list view, the column count; on a data frame, the column names, comma-separated." }
+ColumnsCount = { category = "Data", doc = "The number of list view columns." }
+ColumnStyle = { category = "Behavior", doc = "How a grid column edits, `ColumnStyle(col)`: `gcsNone` as text, `gcsList` with a drop-down of `ColumnList`, `gcsEllipsis` with a … button." }
+ColWidth = { category = "Layout", doc = "RapidR's name for a grid's `DefaultColWidth`." }
+ColWidths = { category = "Layout", doc = "A grid column's width in pixels, `ColWidths(col)` from 0." }
+Command = { category = "Misc", doc = "The menu item's command number, as the system identifies it; read-only." }
+CompCount = { category = "Data", doc = "The number of components on the design surface." }
+ComponentIndex = { category = "Window", doc = "The index the active MDI child was added with (`AddChild`'s third argument); read-only." }
+Connected = { category = "Network", doc = "Non-zero while the connection (database, serial port, socket) is open, or while the joystick is plugged in." }
+ConsoleX = { category = "Misc", doc = "The console's width in characters (80); read-only." }
+ConsoleY = { category = "Misc", doc = "The console's height in lines (25); read-only." }
+ContentLength = { category = "Network", doc = "The length in bytes of the request's body (`CONTENT_LENGTH`); read-only." }
+ContentType = { category = "Network", doc = "The type of the request's body (`CONTENT_TYPE`); read-only." }
+Controls = { category = "Media", doc = "Shows the browser's play, pause and volume controls on the audio or video." }
+Cookie = { category = "Network", doc = "The cookies sent with the request (`HTTP_COOKIE`); read-only." }
+Copies = { category = "Misc", doc = "How many copies to print." }
+CopyMode = { category = "Drawing", doc = "How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies)." }
+Count = { category = "Data", doc = "How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components." }
+CssClass = { category = "Appearance", doc = "The element's CSS class names (its `class` attribute)." }
+CssStyle = { category = "Appearance", doc = "The element's inline CSS (its `style` attribute); its place and size stay the runtime's." }
+CurrentFrame = { category = "Media", doc = "The frame (video) or position (MIDI) playing now; setting it seeks there." }
+CurrentKey = { category = "Data", doc = "The handle of the registry key open now; read-only." }
+CurrentPath = { category = "Data", doc = "The path of the registry key open now, under `RootKey`; read-only." }
+CurrentPos = { category = "Media", doc = "The position in the wave, in milliseconds; setting it seeks there." }
+CurrentTime = { category = "Media", doc = "The audio's or video's position, in seconds; setting it seeks there." }
+CurrentTrack = { category = "Media", doc = "The CD track playing or selected, from 1; setting it moves there." }
+Cursor = { category = "Appearance", doc = "The mouse pointer shown over the control: one of the `crXXX` constants." }
+Cursors = { category = "Appearance", doc = "A mouse pointer's handle, `Cursors(i)` by its `crXXX` number; read-only." }
+Data = { category = "Data", doc = "The array's values as text, comma-separated (`1,2,3`); setting it fills the array." }
+Database = { category = "Data", doc = "The database in use: an SQLite file, or a MySQL database's name." }
+DataBits = { category = "Network", doc = "Bits per character on the serial line (5 to 8)." }
+Date = { category = "Data", doc = "The date picked in the date-time picker, or a file's date (`FileRec`), as text." }
+dB = { category = "Data", doc = "A database's name, `dB(i)` from 0, as the server lists them." }
+DBCount = { category = "Data", doc = "The number of databases the server lists." }
+DcbFlags = { category = "Network", doc = "The serial port's flow-control flag bits, read at `Open`: 20625 none, 24725 hardware, 21393 XON / XOFF." }
+Default = { category = "Behavior", doc = "Makes this the button the Enter key presses on its form." }
+DefaultColWidth = { category = "Layout", doc = "The width of grid columns not given their own, in pixels." }
+DefaultExt = { category = "Behavior", doc = "The extension added to a file name typed without one (`txt`, no dot)." }
+DefaultRowHeight = { category = "Layout", doc = "The height of grid rows not given their own, in pixels." }
+DeviceType = { category = "Media", doc = "The device type the wave opens with (`waveaudio`)." }
+Directory = { category = "Data", doc = "The folder shown by the file list, directory tree or directory list view." }
+Display = { category = "Data", doc = "The text the digital display shows: digits, and the few letters and signs segments can form." }
+dlw_PopupMenu = { category = "Behavior", doc = "The popup menu the directory list view opens on a right click." }
+Docked = { category = "Layout", doc = "True while the dock form is docked, false while it floats in its own window; read-only." }
+DockStyle = { category = "Appearance", doc = "How the dock form's frame and title look while it's docked: a style number." }
+Down = { category = "Data", doc = "True while the button is pressed in; with a `GroupIndex` it stays down." }
+Dpi = { category = "Drawing", doc = "The dots per inch the plot is rendered at." }
+DragCursor = { category = "Appearance", doc = "The mouse pointer (a `crXXX` number) shown where the dock form can be dragged from." }
+DrawingStyle = { category = "Drawing", doc = "How the images are drawn: `dsNormal`, `dsTransparent`, or blended with `BlendColor` (`dsFocused`, `dsSelected`)." }
+Drive = { category = "Data", doc = "The drive the file list shows (`C:`)." }
+DropDownCount = { category = "Appearance", doc = "How many items the drop-down list shows before it scrolls." }
+DType = { category = "Data", doc = "The array's element type: `float64`." }
+Duplicates = { category = "Behavior", doc = "What a sorted string list does with a string it already has: `dupIgnore` drops it, `dupAccept` adds it, `dupError` raises an error." }
+Duration = { category = "Media", doc = "The audio's or video's length, in seconds; read-only." }
+DVX = { category = "Drawing", doc = "The vector's X component." }
+DVY = { category = "Drawing", doc = "The vector's Y component." }
+DVZ = { category = "Drawing", doc = "The vector's Z component." }
+EditorMode = { category = "Behavior", doc = "True while the grid's selected cell is being edited (or cells are always editable)." }
+EditText = { category = "Data", doc = "The edit's text as shown, with the input mask's literal characters." }
+Empty = { category = "Data", doc = "Non-zero when the data frame has no rows, or the bitmap holds no picture; read-only." }
+Enabled = { category = "Behavior", doc = "Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks." }
+EOF = { category = "Data", doc = "Non-zero when the read position is at the end of the stream; read-only." }
+Error = { category = "Media", doc = "The device's error text after an `Open` that failed; empty otherwise; read-only." }
+ExeName = { category = "Misc", doc = "The program's executable file name; read-only." }
+Expanded = { category = "Data", doc = "On a tree node (`Item(i).Expanded`), whether its children are shown; setting it opens or closes the node." }
+ExtendedSelect = { category = "Behavior", doc = "With `MultiSelect`, lets Shift and Ctrl clicks select a range or add items." }
+ExtensionsList = { category = "Data", doc = "A string list of the file extensions the directory list view shows." }
+FaceCount = { category = "Data", doc = "The number of faces in the mesh; read-only." }
+Family = { category = "Network", doc = "The socket's address family, one of the `AF_XXX` constants (`AF_INET`)." }
+FastLoad = { category = "Behavior", doc = "Reads a folder's subfolders only when it's opened, so big trees show sooner." }
+FieldCount = { category = "Data", doc = "The number of fields (columns) in the last query's result." }
+File = { category = "Network", doc = "The path of the file to download on the server (`/dir/file.zip`)." }
+FileName = { category = "Data", doc = "The file chosen in a dialog (with its folder), or the file the object reads or writes." }
+FileOpen = { category = "Media", doc = "True while a file is open on the device; read-only." }
+Files = { category = "Data", doc = "With `MultiSelect`, the files picked: `Files(0)` is the folder, `Files(1)` on the names." }
+FileTime = { category = "Data", doc = "The file's date and time as one packed number; read-only." }
+FileTitle = { category = "Data", doc = "The chosen file's name without its folder; read-only." }
+Filter = { category = "Behavior", doc = "The file types offered, as description|patterns pairs (`Text|*.txt|All Files|*.*`), patterns split by `;`." }
+FilterIndex = { category = "Behavior", doc = "Which filter is selected, from 1." }
+FixedColor = { category = "Appearance", doc = "The background colour of the grid's fixed rows and columns." }
+FixedCols = { category = "Layout", doc = "How many columns at the grid's left stay fixed as headers." }
+FixedRows = { category = "Layout", doc = "How many rows at the grid's top stay fixed as headers." }
+Flat = { category = "Appearance", doc = "Draws the button without a border until the mouse is over it." }
+FlatButtons = { category = "Appearance", doc = "With `ButtonStyle`, draws the tab buttons flat." }
+Flatseparators = { category = "Appearance", doc = "RapidR's spelling of `FlatSeperators`." }
+FlatSeperators = { category = "Appearance", doc = "With flat tab buttons, draws separators between them (RapidQ's spelling)." }
+FocusButtons = { category = "Behavior", doc = "Lets the tab buttons take the keyboard focus." }
+FogColor = { category = "Drawing", doc = "The colour of the frame's fog." }
+FogMode = { category = "Drawing", doc = "How the fog thickens with distance: linear, exponential or exponential squared." }
+Font = { category = "Font", doc = "The font of the text, a QFONT; assigning one copies it." }
+FontColor = { category = "Font", doc = "RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR." }
+FontCount = { category = "Font", doc = "The number of fonts installed; read-only." }
+FontName = { category = "Font", doc = "On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`." }
+Fonts = { category = "Font", doc = "A printer font's name, `Fonts(i)` from 0; read-only." }
+FontsCount = { category = "Font", doc = "The number of printer fonts; read-only." }
+FontSize = { category = "Font", doc = "RapidR's shortcut for `Font.Size`, in points." }
+ForeColor = { category = "Appearance", doc = "The colour of the gauge's filled part, as &HBBGGRR." }
+Format = { category = "Data", doc = "A format the clipboard holds, `Format(i)` from 0." }
+FormatCount = { category = "Data", doc = "The number of formats the clipboard holds; read-only." }
+FormCaption = { category = "Data", doc = "The caption of the form being designed." }
+FormStyle = { category = "Window", doc = "`fsNormal`, `fsStayOnTop` (above other windows), or an MDI parent or child (`fsMDIForm`, `fsMDIChild`)." }
+FrameRate = { category = "Drawing", doc = "How many times the timer fired in the last whole second; read-only." }
+Frequence = { category = "Media", doc = "Samples per second of a new recording (11025, 22050, 44100 …); RapidQ's spelling." }
+Frequency = { category = "Media", doc = "On a DirectX sound, the playback rate in samples per second; on a track bar, the step between tick marks." }
+FullScreen = { category = "Drawing", doc = "Takes the whole screen in the display mode `BitCount` and the size give." }
+GatewayInterface = { category = "Network", doc = "The CGI version the web server speaks (`GATEWAY_INTERFACE`, `CGI/1.1`); read-only." }
+GetBMP = { category = "Data", doc = "An image of the list as a bitmap, `GetBMP(i)` from 0; read-only." }
+GetICO = { category = "Data", doc = "An image of the list as an icon, `GetICO(i)` from 0; read-only." }
+GetSubList = { category = "Data", doc = "The names of the SUBs and FUNCTIONs declared in the text, in order." }
+Grid = { category = "Appearance", doc = "Non-zero draws grid lines on the plot." }
+GridHeight = { category = "Layout", doc = "The height of all the grid's rows together, in pixels." }
+GridLines = { category = "Appearance", doc = "Draws lines between the rows and columns." }
+GridLineWidth = { category = "Appearance", doc = "The width of the lines between cells, in pixels." }
+GridWidth = { category = "Layout", doc = "The width of all the grid's columns together, in pixels." }
+GroupIndex = { category = "Behavior", doc = "Buttons with the same non-zero number act as a group: pressing one raises the others." }
+Handle = { category = "Misc", doc = "The window (or other system object's) handle, for API calls and for components that take one." }
+HasChildren = { category = "Data", doc = "On a tree node (`Item(i).HasChildren`), whether it has child nodes; setting it shows a button before any are added." }
+Hash = { category = "Data", doc = "The same as Route: the address's `#hash` without the `#`." }
+HasSubKeys = { category = "Data", doc = "Non-zero when the open registry key has subkeys; read-only." }
+Height = { category = "Layout", doc = "The height, in pixels; on `Screen`, the screen's." }
+HelpFile = { category = "Help", doc = "The help file the program opens for F1." }
+hIcon = { category = "Appearance", doc = "The handle of the icon the tray shows (`Application.Icon`, or an image's)." }
+HideScrollBars = { category = "Appearance", doc = "Hides scroll bars until the text needs them, instead of showing them disabled." }
+HideSelection = { category = "Appearance", doc = "Hides the selection's highlight while the control doesn't have the focus." }
+Hint = { category = "Help", doc = "The tooltip shown when the mouse rests on the control (with `ShowHint`)." }
+HintColor = { category = "Help", doc = "The background colour of tooltips, as &HBBGGRR." }
+HintHidePause = { category = "Help", doc = "How long a tooltip stays up, in milliseconds (2500)." }
+HintPause = { category = "Help", doc = "How long the mouse must rest before a tooltip shows, in milliseconds (500)." }
+HintShortPause = { category = "Help", doc = "The delay before the next tooltip when the mouse moves on to another control, in milliseconds (50)." }
+HorzIncrement = { category = "Layout", doc = "How far a click on the horizontal scroll bar's arrow scrolls, in pixels." }
+HorzMargin = { category = "Layout", doc = "Room kept past the right-most control when the box scrolls, in pixels." }
+HorzPosition = { category = "Layout", doc = "How far the box is scrolled to the right, in pixels." }
+HorzRange = { category = "Layout", doc = "The width the box scrolls over, in pixels (0: what its controls need)." }
+HorzTracking = { category = "Behavior", doc = "Scrolls the content while the horizontal thumb is dragged, not only when it's let go." }
+HorzVisible = { category = "Layout", doc = "Shows the horizontal scroll bar when it's needed." }
+Host = { category = "Network", doc = "The server's host name or address." }
+HotTrack = { category = "Appearance", doc = "Highlights the item, tab or header section under the mouse." }
+Html = { category = "Data", doc = "The HTML the web view shows as its page, or the element holds." }
+hWnd = { category = "Misc", doc = "The window that gets the tray icon's messages." }
+ICOHandle = { category = "Appearance", doc = "Sets the icon from a resource handle (`$RESOURCE`); write-only." }
+Icon = { category = "Appearance", doc = "The icon (an .ICO file name) of the window, the application or the image." }
+ImageIndex = { category = "Appearance", doc = "On a tree node (`Item(i).ImageIndex`), the picture from `Images` drawn beside it." }
+Images = { category = "Appearance", doc = "The image list the tree draws its nodes' pictures from." }
+ImageType = { category = "Drawing", doc = "Whether the images are drawn as pictures (`itImage`) or as their masks (`itMask`)." }
+ImgHeight = { category = "Media", doc = "The video picture's height, in pixels; read-only." }
+ImgWidth = { category = "Media", doc = "The video picture's width, in pixels; read-only." }
+IncrementalDisplay = { category = "Appearance", doc = "Shows a large picture bit by bit while it loads." }
+Indent = { category = "Layout", doc = "How far each level of the tree is indented, in pixels." }
+Index = { category = "Data", doc = "On a joystick, which one it reads (0 the first); on a tree node (`Item(i).Index`), its position from 0." }
+InitialDir = { category = "Behavior", doc = "The folder the dialog or tree starts in." }
+InnerHTML = { category = "Data", doc = "The element's contents as HTML." }
+InnerText = { category = "Data", doc = "The element's contents as plain text." }
+InputMask = { category = "Behavior", doc = "A mask the typed text must fit (Delphi's edit-mask format, such as `!99/99/0000;1;_`)." }
+InQue = { category = "Network", doc = "Bytes waiting in the receive buffer now; read-only." }
+Interval = { category = "Behavior", doc = "The milliseconds between a timer's ticks; on a media object, between its position updates." }
+IsDown = { category = "Data", doc = "True while the joystick is pushed down (towards the player), as the last `Update` read it." }
+IsLeft = { category = "Data", doc = "True while the joystick is pushed left, as the last `Update` read it." }
+IsMasked = { category = "Behavior", doc = "True when the edit has an `InputMask`; read-only." }
+IsRight = { category = "Data", doc = "True while the joystick is pushed right, as the last `Update` read it." }
+IsUp = { category = "Data", doc = "True while the joystick is pushed up (away from the player), as the last `Update` read it." }
+IsVisible = { category = "Data", doc = "On a tree node (`Item(i).IsVisible`), whether all its parents are expanded so it can be seen; read-only." }
+Italic = { category = "Font", doc = "True for an italic font." }
+Item = { category = "Data", doc = "An item, `Item(i)` from 0: a list's string, a database result's field, or a tree or list view node with its own properties." }
+ItemCount = { category = "Data", doc = "The number of items: list strings, tree nodes, list view rows or menu items." }
+ItemHeight = { category = "Layout", doc = "Each item's height, in pixels." }
+ItemIndex = { category = "Data", doc = "The selected item, from 0; -1 when none is." }
+Items = { category = "Data", doc = "RapidR's: the items as text, one per line; `Items(i)` is `Item(i)`." }
+ItemSeparator = { category = "Data", doc = "The text between node names in an outline path (`\\`)." }
+KeyItemCount = { category = "Data", doc = "The number of subkeys of the open registry key; read-only." }
+KeyPreview = { category = "Behavior", doc = "Gives the form the key events before the control that has the focus." }
+Kind = { category = "Appearance", doc = "What it is: a gauge's shape (`gkHorizontalBar`, `gkPie` …), a button's stock kind (`bkOK` gives caption, glyph and ModalResult), a scroll bar's direction." }
+LabelStyle = { category = "Appearance", doc = "The label's text effect: plain, or raised or lowered with `UpperColor` and `LowerColor`." }
+LargeChange = { category = "Behavior", doc = "How far a click in the scroll bar's track moves it." }
+LargeImageList = { category = "Appearance", doc = "The image list of the icons shown in `vsIcon` view." }
+LargeImages = { category = "Appearance", doc = "The image list of the icons shown in `vsIcon` view; write-only." }
+LastError = { category = "Network", doc = "The number of the download's last error (0: none); read-only." }
+LastStringError = { category = "Network", doc = "The text of the download's last error; read-only." }
+Latitude = { category = "Data", doc = "The last reported position's latitude, in degrees." }
+Layout = { category = "Appearance", doc = "Where the picture sits next to the caption: `blBMPLeft`, `blBMPRight`, `blBMPTop` or `blBMPBottom`." }
+Left = { category = "Layout", doc = "The distance from the parent's left edge (a form's: the screen's), in pixels." }
+LeftCol = { category = "Layout", doc = "The first scrollable column shown at the grid's left." }
+Len = { category = "Data", doc = "The number of values in the array." }
+Lenght = { category = "Media", doc = "The length: milliseconds for MIDI and wave, frames for video (RapidQ's spelling); read-only." }
+LenghtTime = { category = "Media", doc = "The video's length in milliseconds (RapidQ's spelling); read-only." }
+Length = { category = "Data", doc = "On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values." }
+LengthTime = { category = "Media", doc = "RapidR's spelling of `LenghtTime`: the length as time." }
+Level = { category = "Data", doc = "On a tree node (`Item(i).Level`), its depth: 0 for a top-level node." }
+Line = { category = "Data", doc = "A line of the text, `Line(i)` from 0." }
+LineCount = { category = "Data", doc = "The number of lines of text (on a tree, of nodes)." }
+LineSize = { category = "Behavior", doc = "How far an arrow key moves the track bar's slider." }
+ListCount = { category = "Data", doc = "RapidR's name for `ItemCount`." }
+ListIndex = { category = "Data", doc = "RapidR's name for `ItemIndex`." }
+Locked = { category = "Behavior", doc = "Stops the user dragging the dock form away." }
+Longitude = { category = "Data", doc = "The last reported position's longitude, in degrees." }
+Loop = { category = "Media", doc = "Starts the audio or video over when it ends." }
+Looped = { category = "Media", doc = "Plays the sound over and over until it's stopped." }
+LowerColor = { category = "Appearance", doc = "The shadow colour of a raised or lowered label, as &HBBGGRR." }
+LParam = { category = "Network", doc = "The extra value of the last socket message (`WMessage`)." }
+Mask = { category = "Behavior", doc = "The file pattern shown (`*.*`, `*.bas;*.inc`)." }
+Masked = { category = "Drawing", doc = "Whether the images have masks, so their background shows through." }
+Max = { category = "Behavior", doc = "The highest value of the progress bar, scroll bar, up-down or track bar." }
+MaxFontSize = { category = "Font", doc = "The largest size the font dialog offers (0: no limit)." }
+MaxInput = { category = "Network", doc = "The most characters `Parse` reads from the request (32767)." }
+MaxLength = { category = "Behavior", doc = "The most characters the user can type (0: no limit)." }
+MaxY = { category = "Drawing", doc = "The highest Y of the mesh's vertices; read-only." }
+MdiChildCount = { category = "Window", doc = "The number of MDI child forms open." }
+MDIMenu = { category = "Window", doc = "The menu that lists the MDI child windows." }
+MenuIndex = { category = "Data", doc = "The item's position in its parent menu, from 0." }
+Min = { category = "Behavior", doc = "The lowest value of the progress bar, scroll bar, up-down or track bar." }
+MinFontSize = { category = "Font", doc = "The smallest size the font dialog offers (0: no limit)." }
+MinSize = { category = "Layout", doc = "The smallest size the splitter leaves the control it resizes, in pixels." }
+MinY = { category = "Drawing", doc = "The lowest Y of the mesh's vertices; read-only." }
+ModalResult = { category = "Window", doc = "What `ShowModal` returns (`mrOk` …): setting it on a form closes the form; a button sets it on its form when clicked." }
+Mode = { category = "Behavior", doc = "On a file dialog, 0 to open or 1 to save; on a wave, the channels of a new recording (1 mono, 2 stereo)." }
+Modified = { category = "Data", doc = "True once the user changes the text (or the OLE object); the program may clear it." }
+Monitors = { category = "Misc", doc = "The number of monitors; read-only." }
+Monochrome = { category = "Drawing", doc = "Non-zero for a black-and-white bitmap." }
+MouseButtons = { category = "Misc", doc = "The number of buttons on the mouse; read-only." }
+MousePresent = { category = "Misc", doc = "Non-zero when a mouse is attached; read-only." }
+MouseSwap = { category = "Misc", doc = "Non-zero when the left and right mouse buttons are swapped; read-only." }
+MouseX = { category = "Misc", doc = "The mouse pointer's X on the screen, in pixels; read-only." }
+MouseY = { category = "Misc", doc = "The mouse pointer's Y on the screen, in pixels; read-only." }
+Moveable = { category = "Behavior", doc = "Lets the user drag the frame around." }
+MultiLine = { category = "Layout", doc = "Wraps the tabs onto more rows instead of scrolling them." }
+MultiSelect = { category = "Behavior", doc = "Lets the user select more than one item or file." }
+MySocket = { category = "Network", doc = "The socket's handle; read-only." }
+Name = { category = "Font", doc = "The font's name (`Arial`); on a joystick, the device's name." }
+Ncols = { category = "Data", doc = "The number of columns in the data frame." }
+NDim = { category = "Data", doc = "The array's number of dimensions (1)." }
+NoChangeDir = { category = "Behavior", doc = "Puts the current folder back as it was after the dialog closes." }
+Nrows = { category = "Data", doc = "The number of rows in the data frame." }
+NumBMPs = { category = "Appearance", doc = "How many glyphs the button's picture holds side by side (up, disabled, down, held down)." }
+NumFields = { category = "Data", doc = "The number of fields in the last query's result." }
+NumRows = { category = "Data", doc = "The number of rows in the last query's result." }
+Orientation = { category = "Layout", doc = "A track bar's or splitter's direction (`tbHorizontal`, `tbVertical`); on a printer, portrait or landscape." }
+Outdevice = { category = "Network", doc = "Where the download goes: 1 into `OutVar`, 2 into the file `OutFile`." }
+Outfile = { category = "Network", doc = "The file the download is written to (with `OutDevice` 2)." }
+OutLineStyle = { category = "Appearance", doc = "What each outline node shows: its text alone, or with plus / minus buttons, pictures or tree lines (`osXXX`)." }
+OutQue = { category = "Network", doc = "Bytes waiting in the send buffer now; read-only." }
+Outvar = { category = "Network", doc = "The downloaded text (with `OutDevice` 1); read-only." }
+PageHeight = { category = "Misc", doc = "The printable height of the page, in printer pixels; read-only." }
+PageNumber = { category = "Misc", doc = "The page being printed, from 1; read-only." }
+PageSize = { category = "Behavior", doc = "How far Page Up / Page Down (or a click in the track) moves a track bar; on a scroll bar, the thumb's size." }
+PageWidth = { category = "Misc", doc = "The printable width of the page, in printer pixels; read-only." }
+Pan = { category = "Media", doc = "The left-right balance, from -100 (right muted) to 100 (left muted); 0 centred." }
+Panel = { category = "Data", doc = "A status bar panel, `Panel(i)` from 0, with its own `Caption` and `Width`." }
+PanelCount = { category = "Data", doc = "The number of status bar panels; setting it adds or removes some." }
+Parent = { category = "Layout", doc = "The component it sits in (a form, panel, tab control …) or belongs to." }
+ParentID = { category = "Layout", doc = "The id of the page element the component goes into." }
+Parity = { category = "Network", doc = "The serial line's parity check: `prNone`, `prOdd`, `prEven`, `prMark` or `prSpace`." }
+Password = { category = "Network", doc = "The password the database connection logs in with." }
+PasswordChar = { category = "Behavior", doc = "A character shown in place of each one typed (`*`); empty shows the text." }
+Path = { category = "Misc", doc = "The folder the program's executable is in; read-only." }
+PathInfo = { category = "Network", doc = "The extra path after the script's name in the URL (`PATH_INFO`); read-only." }
+PathTranslated = { category = "Network", doc = "`PathInfo` turned into a file path on the server (`PATH_TRANSLATED`); read-only." }
+Paused = { category = "Media", doc = "True while the audio or video is paused; read-only." }
+PenColor = { category = "Drawing", doc = "The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen)." }
+PendingIO = { category = "Network", doc = "Writes still pending: always 0, as RapidR's I/O never stays pending; read-only." }
+PenWidth = { category = "Drawing", doc = "The width of the lines the drawing methods draw, in pixels." }
+Picture = { category = "Media", doc = "The picture or media source shown; the same as `Src`." }
+Pitch = { category = "Font", doc = "`fpFixed` for a monospaced font, `fpVariable` for a proportional one, `fpDefault` either." }
+Pixel = { category = "Drawing", doc = "A pixel's colour, `Pixel(x, y)`, as &HBBGGRR." }
+PixelFormat = { category = "Drawing", doc = "The bitmap's bits per pixel (`pf1bit` … `pf32bit`); `pfDevice` follows the screen." }
+PixelsPerInch = { category = "Misc", doc = "The screen's pixels per inch as programs see it: always 96, as RapidR scales for high-DPI screens itself; read-only." }
+PlainText = { category = "Behavior", doc = "Loads and saves the text as plain text rather than RTF." }
+Playing = { category = "Media", doc = "True while the sound, audio or video plays; read-only." }
+Pointer = { category = "Data", doc = "The address of the stream's memory; read-only." }
+PopupMenu = { category = "Behavior", doc = "The popup menu shown when the user right-clicks the control." }
+Port = { category = "Network", doc = "The network port; on a serial port, its name (`COM1`) or number." }
+Position = { category = "Data", doc = "Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position." }
+Poster = { category = "Media", doc = "The picture a video shows before it plays." }
+Pov = { category = "Data", doc = "The joystick's hat direction, in hundredths of a degree clockwise from forward; -1 when centred." }
+Present = { category = "Media", doc = "True when there's a disc in the drive; read-only." }
+PrinterIndex = { category = "Misc", doc = "Which printer prints, an index into `Printers`; -1 the default one." }
+Printers = { category = "Misc", doc = "An installed printer's name, `Printers(i)` from 0; read-only." }
+PrintersCount = { category = "Misc", doc = "The number of installed printers; read-only." }
+Printing = { category = "Misc", doc = "Non-zero while a print job is open (between `BeginDoc` and `EndDoc`); read-only." }
+Protocol = { category = "Network", doc = "The socket's protocol, one of the `IPPROTO_XXX` constants." }
+R = { category = "Data", doc = "The joystick's fourth axis (rudder), 0 to 65535, 32767 at rest." }
+RadioItem = { category = "Appearance", doc = "Shows a dot instead of a check mark when the menu item is checked." }
+ReadBufSize = { category = "Network", doc = "The size of the serial port's receive buffer, in bytes, read at `Open`." }
+ReadOnly = { category = "Behavior", doc = "Stops the user changing the text or items; they can still select and copy." }
+ReadOnStart = { category = "Behavior", doc = "Reads the folder tree as the program starts rather than when it's first shown." }
+Referer = { category = "Network", doc = "The page the request came from (`HTTP_REFERER`); read-only." }
+RemoteAddr = { category = "Network", doc = "The client's IP address (`REMOTE_ADDR`); read-only." }
+RemoteHost = { category = "Network", doc = "The client's host name, when the server knows it (`REMOTE_HOST`); read-only." }
+RemoteIdent = { category = "Network", doc = "The client's user name from an ident lookup (`REMOTE_IDENT`); read-only." }
+RemoteUser = { category = "Network", doc = "The user name the request authenticated as (`REMOTE_USER`); read-only." }
+RequestMethod = { category = "Network", doc = "The request's method: `GET`, `POST` … (`REQUEST_METHOD`); read-only." }
+ResponseHeaders = { category = "Network", doc = "The headers of the last HTTP response, one per line." }
+ResponseText = { category = "Network", doc = "The body of the last HTTP response, as text." }
+Right = { category = "Layout", doc = "The rectangle's right edge, in pixels." }
+RootKey = { category = "Data", doc = "The top registry key the paths start from (`HKEY_CURRENT_USER` …)." }
+Route = { category = "Data", doc = "The current route: the address's `#hash` without the `#`." }
+Row = { category = "Data", doc = "The selected row: of a grid's selected cell or a tree's node, from 0; on a database, the current result row (MySQL: `Row(i)`, its field i)." }
+RowCount = { category = "Data", doc = "The number of rows: of a grid (fixed ones included), of a query's result, of a data frame." }
+RowHeights = { category = "Layout", doc = "A grid row's height in pixels, `RowHeights(row)` from 0." }
+Rows = { category = "Data", doc = "RapidR's name for a grid's `RowCount`." }
+RowSelect = { category = "Appearance", doc = "Highlights the selected item's whole row, not only its first column." }
+Sandbox = { category = "Behavior", doc = "What the page in the web view may do (the iframe's `sandbox`, such as `allow-scripts`)." }
+Scale = { category = "Misc", doc = "The screen's scale factor (2 on a Retina display); read-only." }
+ScriptName = { category = "Network", doc = "The script's path in the URL (`SCRIPT_NAME`); read-only." }
+ScrollBars = { category = "Appearance", doc = "Which scroll bars show: `ssNone`, `ssHorizontal`, `ssVertical` or `ssBoth`." }
+ScrollOpposite = { category = "Layout", doc = "Moves the rows of tabs that aren't selected to the opposite side." }
+SectionCount = { category = "Data", doc = "RapidR's name for `SectionsCount`." }
+Sections = { category = "Data", doc = "A header section, `Sections(i)` from 0, with its own `Caption` and `Width`." }
+SectionsCount = { category = "Data", doc = "The number of header sections; read-only." }
+SelAttributes = { category = "Font", doc = "The font of the selected text, or of what's typed next; write-only." }
+SelCount = { category = "Data", doc = "How many items (or files) are selected." }
+Selected = { category = "Data", doc = "Whether item i is selected, `Selected(i)`; setting it selects or deselects." }
+SelectedCol = { category = "Data", doc = "RapidR's name for a grid's `Col`." }
+SelectedIndex = { category = "Appearance", doc = "On a tree node (`Item(i).SelectedIndex`), the picture from `Images` drawn while it's selected." }
+SelectedItem = { category = "Data", doc = "The selected tree node's text." }
+SelectedRow = { category = "Data", doc = "RapidR's name for a grid's `Row`." }
+SelEnd = { category = "Data", doc = "The end of the track bar's highlighted range." }
+SelFont = { category = "Font", doc = "The font of the selected text." }
+SelLength = { category = "Data", doc = "The number of characters selected." }
+SelStart = { category = "Data", doc = "Where the selection starts: a character offset from 0 in text, the start of a track bar's highlighted range." }
+SelText = { category = "Data", doc = "The selected text; setting it replaces the selection." }
+Separator = { category = "Data", doc = "The text between cells when the grid saves or loads rows (`,`)." }
+Server = { category = "Network", doc = "The host name of the server to download from." }
+ServerName = { category = "Network", doc = "The web server's host name (`SERVER_NAME`); read-only." }
+ServerPort = { category = "Network", doc = "The port the request came in on (`SERVER_PORT`); read-only." }
+ServerProtocol = { category = "Network", doc = "The request's protocol, such as `HTTP/1.1` (`SERVER_PROTOCOL`); read-only." }
+ServerSoftware = { category = "Network", doc = "The web server's name and version (`SERVER_SOFTWARE`); read-only." }
+Shape = { category = "Data", doc = "The size of the array or data frame as text: `(n)` or `(rows, cols)`." }
+ShareImages = { category = "Behavior", doc = "Keeps the image list from freeing its images when it goes, so others can share them." }
+ShortCut = { category = "Behavior", doc = "The key that runs the menu item, as text (`Ctrl+S`, `F5`)." }
+ShortName = { category = "Data", doc = "The file's short (8.3) name; read-only." }
+ShowButtons = { category = "Appearance", doc = "Shows + / - buttons beside nodes that have children." }
+ShowColumnHeaders = { category = "Appearance", doc = "Shows the column headers in `vsReport` view." }
+ShowHint = { category = "Help", doc = "Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off." }
+ShowIcons = { category = "Appearance", doc = "Shows an icon beside each file name." }
+ShowLines = { category = "Appearance", doc = "Draws lines joining the nodes to their parents." }
+ShowRoot = { category = "Appearance", doc = "Draws lines and buttons for the top-level nodes too." }
+ShowText = { category = "Appearance", doc = "Shows the percentage on the gauge." }
+SimplePanel = { category = "Appearance", doc = "Shows `SimpleText` across the whole status bar instead of its panels." }
+SimpleText = { category = "Data", doc = "The text the status bar shows with `SimplePanel`." }
+Size = { category = "Data", doc = "A size: of a font, in points; of a file, stream, sound or download, in bytes; of an array, its number of values." }
+Sizeable = { category = "Behavior", doc = "Lets the user resize the dock form while it floats." }
+SizeGrip = { category = "Appearance", doc = "Shows the resize grip at the status bar's right end." }
+SizeMode = { category = "Layout", doc = "How the OLE object fits the container: clipped, centred, scaled, stretched or sizing it (`smXXX`)." }
+SmallChange = { category = "Behavior", doc = "How far a click on the scroll bar's arrow moves it." }
+SmallImageList = { category = "Appearance", doc = "The image list of the icons shown in `vsSmallIcon`, `vsList` and `vsReport` views." }
+SmallImages = { category = "Appearance", doc = "The image list of the icons shown in `vsSmallIcon`, `vsList` and `vsReport` views; write-only." }
+Sorted = { category = "Behavior", doc = "Keeps the items in alphabetical order." }
+SortType = { category = "Behavior", doc = "`stText` sorts the items by their text; `stNone` keeps them as added." }
+Spacing = { category = "Appearance", doc = "The gap between the button's picture and its caption, in pixels." }
+Src = { category = "Media", doc = "The URL of the audio, video or picture shown." }
+ST1_TitleBackground = { category = "Appearance", doc = "The colour of the dock form's title in dock style 1, as &HBBGGRR." }
+State = { category = "Data", doc = "What it's doing: a media object's 0 closed, 1 playing, 2 paused, 3 stopped, 4 recording; a download's percent done; a check box's 0, 1 or 2 (greyed); an OLE object's `osXXX`." }
+Statedevice = { category = "Network", doc = "Where the download's progress shows: 1 in `State`, 2 in the `StateGauge` gauge." }
+StateGauge = { category = "Network", doc = "The gauge that shows the download's progress (with `StateDevice` 2)." }
+StateImages = { category = "Appearance", doc = "The image list of the state pictures (check marks …) drawn beside the items; write-only." }
+StateIndex = { category = "Appearance", doc = "On a tree node (`Item(i).StateIndex`), the picture from `StateImages` beside it; -1 for none." }
+StatusCode = { category = "Network", doc = "The HTTP status of the last response (200, 404 …)." }
+StickyFocus = { category = "Media", doc = "Keeps the sound audible while another application has the focus." }
+StopBits = { category = "Network", doc = "The serial line's stop bits: `sbOneStopBit`, `sbOne5StopBits` or `sbTwoStopBits`." }
+StorageType = { category = "Data", doc = "Which browser storage it uses: `local` (kept) or `session` (gone when the tab closes)." }
+Stretch = { category = "Layout", doc = "Stretches the picture to fill the control." }
+Strikeout = { category = "Font", doc = "True for a struck-out font." }
+Style = { category = "Appearance", doc = "A variant of the component: a combo box's `csXXX` (drop-down, simple, list only, owner-drawn), a list box's `lbXXX`, a colour dialog's options, a dock form's alternative-place mode." }
+SubItem = { category = "Data", doc = "A list view item's text in a further column, `SubItem(i, n)`, both from 0." }
+szTip = { category = "Help", doc = "The tooltip text of the tray icon." }
+Tab = { category = "Data", doc = "A tab's caption, `Tab(i)` from 0." }
+TabHeight = { category = "Layout", doc = "The height of each tab, in pixels (0: fits the text)." }
+TabInactiveColor = { category = "Appearance", doc = "The colour of the tabs that aren't selected, as &HBBGGRR." }
+TabInactiveFont = { category = "Font", doc = "The font of the tabs that aren't selected; write-only." }
+TabIndex = { category = "Data", doc = "The selected tab, from 0." }
+Table = { category = "Data", doc = "A table's name, `Table(i)` from 0, as the database lists them; read-only." }
+TableCount = { category = "Data", doc = "The number of tables in the database." }
+TabOrder = { category = "Behavior", doc = "The control's place in the Tab key's order among its parent's controls, from 0." }
+TabPosition = { category = "Layout", doc = "The side the tabs sit on: 0 top, 1 bottom, 2 left, 3 right." }
+TabStops = { category = "Behavior", doc = "Whether the Tab key stops in a grid column, `TabStops(col)`." }
+TabWidth = { category = "Layout", doc = "On a tab control, each tab's width in pixels (0: fits the text); on a list box, the distance between tab stops in its items." }
+Tag = { category = "Misc", doc = "A number for the program's own use; RapidR never reads it." }
+TagName = { category = "Data", doc = "The element's HTML tag (`div`, `span` …); changing it remakes the element with the new tag." }
+Text = { category = "Data", doc = "The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents." }
+TextStyle = { category = "Appearance", doc = "How the label draws its text, together with `LabelStyle`." }
+Theme = { category = "Appearance", doc = "The look RapidR draws with: `classic`, `modern`, `dark` or `highcontrast`; reads as the theme in use." }
+TickMarks = { category = "Appearance", doc = "Where the track bar's ticks go: `tmBottomRight`, `tmTopLeft` or `tmBoth`." }
+TickStyle = { category = "Appearance", doc = "`tsAuto` draws a tick every `Frequency`, `tsManual` only at the ends and where `SetTick` puts them, `tsNone` none." }
+TileMode = { category = "Window", doc = "How `Tile` lays out the MDI children: side by side or one above another." }
+Time = { category = "Data", doc = "The time picked in the date-time picker, a file's time (`FileRec`), or the CD's position, as text." }
+Timeout = { category = "Network", doc = "How long to wait for the network, in milliseconds." }
+TimePosition = { category = "Media", doc = "The position on the CD, as text; read-only." }
+Timer = { category = "Media", doc = "The media object's own QTIMER, which reads its position and fires `OnChange` while it plays." }
+Title = { category = "Window", doc = "The title of a dialog, the application (task bar), a print job, a notification or a plot." }
+TitleColor = { category = "Appearance", doc = "The colour of the dock form's title text, as &HBBGGRR." }
+ToolTip = { category = "Help", doc = "The element's tooltip (its `title`)." }
+Top = { category = "Layout", doc = "The distance from the parent's top edge (a form's: the screen's), in pixels." }
+TopIndex = { category = "Layout", doc = "The item shown at the top of the list, from 0." }
+TopItem = { category = "Layout", doc = "The node shown at the top of the tree." }
+TopRow = { category = "Layout", doc = "The first scrollable row shown at the grid's top." }
+TrackNumber = { category = "Media", doc = "The number of tracks on the CD; read-only." }
+TrackTime = { category = "Media", doc = "The current track's length, as text; read-only." }
+Transferred = { category = "Network", doc = "Bytes sent or received by the last transfer; read-only." }
+Transparency = { category = "Appearance", doc = "How see-through the frame is, in percent (60)." }
+Transparent = { category = "Appearance", doc = "Lets what's behind show through the background (on a picture, its `TransparentColor` pixels)." }
+TransparentColor = { category = "Appearance", doc = "The colour drawn see-through, as &HBBGGRR." }
+TransparentMode = { category = "Drawing", doc = "0 takes the see-through colour from the bitmap's bottom-left pixel; 1 uses `TransparentColor`." }
+Type = { category = "Network", doc = "The socket's type: a stream (TCP) or datagram (UDP) socket." }
+U = { category = "Data", doc = "The joystick's fifth axis, 0 to 65535, 32767 at rest." }
+uCallBackMessage = { category = "Misc", doc = "The message number the tray icon sends its window for mouse events." }
+uFlags = { category = "Misc", doc = "Which of the structure's fields hold values (`NIF_ICON`, `NIF_TIP`, `NIF_MESSAGE` …)." }
+uID = { category = "Misc", doc = "The program's own number for the tray icon." }
+Underline = { category = "Font", doc = "True for an underlined font." }
+UndockedHeight = { category = "Layout", doc = "The dock form's height while it floats, in pixels (400)." }
+UndockedWidth = { category = "Layout", doc = "The dock form's width while it floats, in pixels (170)." }
+UndockStyle = { category = "Appearance", doc = "How the dock form's frame and title look while it floats: a style number." }
+UpperColor = { category = "Appearance", doc = "The highlight colour of a raised or lowered label, as &HBBGGRR." }
+Url = { category = "Network", doc = "The address: the page the web view shows, or the HTTP request's." }
+Use3D = { category = "Drawing", doc = "Sets the DirectX screen up for Direct3D drawing." }
+UseHardware = { category = "Drawing", doc = "Uses the graphics card's acceleration when it can." }
+User = { category = "Network", doc = "The user name the database connection logs in with." }
+UserAgent = { category = "Network", doc = "The browser's name and version (`HTTP_USER_AGENT`); read-only." }
+UseSSL = { category = "Network", doc = "Non-zero makes the request over HTTPS." }
+V = { category = "Data", doc = "The joystick's sixth axis, 0 to 65535, 32767 at rest." }
+ValueItemCount = { category = "Data", doc = "The number of values in the open registry key; read-only." }
+VertexCount = { category = "Data", doc = "The number of vertices of the face; read-only." }
+VerticalTabs = { category = "Layout", doc = "Puts the tabs down the side instead of along the top." }
+VertIncrement = { category = "Layout", doc = "How far a click on the vertical scroll bar's arrow scrolls, in pixels." }
+VertMargin = { category = "Layout", doc = "Room kept below the lowest control when the box scrolls, in pixels." }
+VertPosition = { category = "Layout", doc = "How far the box is scrolled down, in pixels." }
+VertRange = { category = "Layout", doc = "The height the box scrolls over, in pixels (0: what its controls need)." }
+VertTracking = { category = "Behavior", doc = "Scrolls the content while the vertical thumb is dragged, not only when it's let go." }
+VertVisible = { category = "Layout", doc = "Shows the vertical scroll bar when it's needed." }
+ViewStyle = { category = "Appearance", doc = "How the items show: `vsIcon`, `vsSmallIcon`, `vsList`, or `vsReport` (rows with columns)." }
+Visible = { category = "Appearance", doc = "Whether the control or form is shown." }
+VisibleColCount = { category = "Layout", doc = "How many scrollable columns fit in the grid's view; read-only." }
+VisibleRowCount = { category = "Layout", doc = "How many scrollable rows fit in the grid's view; read-only." }
+Volume = { category = "Media", doc = "The loudness: 0 to 100 on media objects and DirectX sounds; 0 to 1 on web audio and video." }
+WantTabs = { category = "Behavior", doc = "Lets the Tab key type a tab instead of moving the focus on." }
+WarnIfOverWrite = { category = "Behavior", doc = "Asks before saving over a file that's already there." }
+WatchID = { category = "Data", doc = "The browser's id of the position watch WatchPosition started; 0 when none is running." }
+WhereX = { category = "Data", doc = "The caret's column, from 0; read-only." }
+WhereY = { category = "Data", doc = "The caret's line, from 0; read-only." }
+Width = { category = "Layout", doc = "The width, in pixels; on `Screen`, the screen's." }
+WindowHandle = { category = "Window", doc = "The window that gets the popup menu's messages." }
+WindowState = { category = "Window", doc = "`wsNormal`, `wsMinimized` or `wsMaximized`." }
+WMessage = { category = "Network", doc = "The window message the socket posts on its events (0: none)." }
+WordWrap = { category = "Appearance", doc = "Wraps long lines at the control's edge." }
+WriteBufSize = { category = "Network", doc = "The size of the serial port's send buffer, in bytes, read at `Open`." }
+X = { category = "Data", doc = "An X: the vector's component, the joystick's first axis (0 to 65535, 32767 at rest), or the mouse pointer's on the screen." }
+XLabel = { category = "Appearance", doc = "The title under the plot's X axis." }
+Y = { category = "Data", doc = "A Y: the vector's component, the joystick's second axis (0 to 65535, 32767 at rest, growing downward), or the mouse pointer's on the screen." }
+YLabel = { category = "Appearance", doc = "The title beside the plot's Y axis." }
+Z = { category = "Data", doc = "A Z: the vector's component, or the joystick's third axis (0 to 65535, 32767 at rest)." }

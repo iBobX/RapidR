@@ -1,0 +1,250 @@
+# Web only: the registry's components (crates/rapidr-lang; src/lib.rs says how to edit).
+group = "Web only"
+
+[[component]]
+name = "RWEBVIEW"
+visual = true
+size = [400, 300]
+only = "web"
+default_event = "OnClick"
+sets = ["layout", "a11y"]
+doc = "An embedded web page or HTML (an iframe): URL, HTML, Sandbox. Web only."
+properties = [
+  { name = "Left", type = "int", default = 0 },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "Height", type = "int" },
+  { name = "Visible", type = "bool", default = true },
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "Hint", type = "string" },
+  { name = "Html", type = "string" },
+  { name = "Url", type = "string" },
+  { name = "Sandbox", type = "string" },
+  { name = "ToolTip", type = "string" },
+]
+methods = [
+  { name = "SetHTML", params = "Html AS STRING", value = true },
+  { name = "Navigate", params = "Url AS STRING", value = true },
+]
+events = [
+  { name = "OnClick" },
+  { name = "OnDblClick" },
+  { name = "OnLoad" },
+]
+
+[[component]]
+name = "RDOM"
+visual = true
+size = [100, 25]
+only = "web"
+default_event = "OnClick"
+sets = ["layout", "a11y"]
+doc = "An HTML element of the program's own: its HTML, CSS classes, style and attributes. Web only."
+properties = [
+  { name = "Left", type = "int", default = 0 },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "Height", type = "int" },
+  { name = "Visible", type = "bool", default = true },
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "Hint", type = "string" },
+  { name = "TagName", type = "string" },
+  { name = "InnerHTML", type = "string" },
+  { name = "InnerText", type = "string" },
+  { name = "CssClass", type = "string" },
+  { name = "CssStyle", type = "string" },
+  { name = "Html", type = "string" },
+  { name = "ToolTip", type = "string" },
+  { name = "ParentID", type = "string" },
+]
+methods = [
+  { name = "Create" },
+  { name = "AppendTo", value = true },
+  { name = "SetAttribute", value = true },
+  { name = "GetAttribute", value = true },
+  { name = "AddClass", value = true },
+  { name = "RemoveClass", value = true },
+  { name = "ToggleClass", value = true },
+  { name = "Remove", value = true },
+  { name = "QuerySelector", value = true },
+]
+events = [
+  { name = "OnClick" },
+  { name = "OnDblClick" },
+  { name = "OnChange" },
+  { name = "OnMouseDown" },
+  { name = "OnMouseUp" },
+  { name = "OnMouseMove" },
+  { name = "OnFocus" },
+  { name = "OnBlur" },
+  { name = "OnScroll" },
+]
+
+[[component]]
+name = "RJAVASCRIPT"
+visual = false
+only = "web"
+doc = "Runs JavaScript in the page: Eval a piece of code or Call a function. Web only."
+properties = []
+methods = [
+  { name = "Eval", params = "Code AS STRING", value = true },
+  { name = "Call", params = "Function AS STRING, [Args] ...", value = true },
+]
+events = []
+
+[[component]]
+name = "RWEBSTORAGE"
+visual = false
+only = "web"
+doc = "Keeps strings by key in the browser's localStorage or sessionStorage. Web only."
+properties = [
+  { name = "StorageType", type = "string", default = "local" },
+]
+methods = [
+  { name = "Set", params = "Key AS STRING, Value AS STRING", value = true },
+  { name = "Get", params = "Key AS STRING", value = true },
+  { name = "Remove", params = "Key AS STRING", value = true },
+  { name = "Clear", value = true },
+  { name = "Keys", value = true },
+  { name = "HasKey", params = "Key AS STRING", value = true },
+]
+events = []
+
+[[component]]
+name = "RWEBAUDIO"
+visual = true
+size = [100, 25]
+only = "web"
+default_event = "OnPlay"
+sets = ["layout", "a11y"]
+doc = "An HTML5 audio player: Src, Volume, Loop, Play, Pause, Seek. Web only."
+properties = [
+  { name = "Left", type = "int", default = 0 },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "Height", type = "int" },
+  { name = "Visible", type = "bool", default = true },
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "Hint", type = "string" },
+  { name = "Src", type = "string" },
+  { name = "Volume", type = "float", default = 1.0 },
+  { name = "CurrentTime", type = "float" },
+  { name = "Duration", type = "float", access = "read", design = false },
+  { name = "Loop", type = "bool" },
+  { name = "AutoPlay", type = "bool" },
+  { name = "Controls", type = "bool" },
+  { name = "Playing", type = "bool", access = "read", design = false },
+  { name = "Paused", type = "bool", access = "read", design = false },
+  { name = "Picture", type = "string", design = false, doc = "The same as Src." },
+]
+methods = [
+  { name = "Play", value = true },
+  { name = "Pause", value = true },
+  { name = "Stop" },
+  { name = "Seek", params = "Seconds AS DOUBLE", value = true },
+]
+events = [
+  { name = "OnPlay" },
+  { name = "OnPause" },
+  { name = "OnEnded" },
+  { name = "OnTimeUpdate" },
+]
+
+[[component]]
+name = "RWEBVIDEO"
+visual = true
+size = [100, 25]
+only = "web"
+default_event = "OnClick"
+sets = ["layout", "a11y"]
+doc = "An HTML5 video player on the form: Src, Volume, Play, Pause, Seek, FullScreen. Web only."
+properties = [
+  { name = "Left", type = "int", default = 0 },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "Height", type = "int" },
+  { name = "Visible", type = "bool", default = true },
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "Hint", type = "string" },
+  { name = "Src", type = "string" },
+  { name = "Volume", type = "float", default = 1.0 },
+  { name = "CurrentTime", type = "float" },
+  { name = "Duration", type = "float", access = "read", design = false },
+  { name = "Loop", type = "bool" },
+  { name = "AutoPlay", type = "bool" },
+  { name = "Controls", type = "bool" },
+  { name = "Playing", type = "bool", access = "read", design = false },
+  { name = "Paused", type = "bool", access = "read", design = false },
+  { name = "Poster", type = "string" },
+  { name = "Picture", type = "string", design = false, doc = "The same as Src." },
+]
+methods = [
+  { name = "Play", value = true },
+  { name = "Pause", value = true },
+  { name = "Stop" },
+  { name = "Seek", params = "Seconds AS DOUBLE", value = true },
+  { name = "FullScreen", value = true },
+]
+events = [
+  { name = "OnPlay" },
+  { name = "OnPause" },
+  { name = "OnEnded" },
+  { name = "OnTimeUpdate" },
+  { name = "OnClick" },
+]
+
+[[component]]
+name = "RWEBNOTIFICATION"
+visual = false
+only = "web"
+doc = "Shows the browser's notifications, once the user allows them (RequestPermission). Web only."
+properties = [
+  { name = "Title", type = "string", default = "Notification" },
+  { name = "Body", type = "string", default = "" },
+]
+methods = [
+  { name = "Show", value = true },
+  { name = "RequestPermission", value = true },
+]
+events = []
+
+[[component]]
+name = "RWEBGEOLOCATION"
+visual = false
+only = "web"
+doc = "Reads the device's position (Latitude, Longitude, Accuracy) from the browser. Web only."
+properties = [
+  { name = "Latitude", type = "float", access = "read", design = false },
+  { name = "Longitude", type = "float", access = "read", design = false },
+  { name = "Accuracy", type = "float", access = "read", design = false },
+  { name = "WatchID", type = "int", access = "read", design = false },
+]
+methods = [
+  { name = "GetPosition", value = true },
+  { name = "WatchPosition", value = true },
+  { name = "ClearWatch", value = true },
+]
+events = []
+
+[[component]]
+name = "RROUTER"
+visual = false
+only = "web"
+default_event = "OnRouteChange"
+doc = "Hash routes for single-page web apps: Navigate, Back, Forward and OnRouteChange. Web only."
+properties = [
+  { name = "Route", type = "string", access = "read", design = false },
+  { name = "Hash", type = "string", access = "read", design = false },
+]
+methods = [
+  { name = "Navigate", params = "Route AS STRING", value = true },
+  { name = "Back", value = true },
+  { name = "Forward", value = true },
+]
+events = [
+  { name = "OnRouteChange" },
+]
