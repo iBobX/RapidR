@@ -207,9 +207,10 @@ impl<W: Write> Adapter<W> {
     }
 
     fn remember_path(&mut self, path: &Path) {
+        // (as the editor wrote it, never resolved: /var/… and /private/var/…
+        // are the same file to the system but two editors to VS Code)
         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-            let path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
-            self.paths.entry(name.to_ascii_lowercase()).or_insert(path);
+            self.paths.entry(name.to_ascii_lowercase()).or_insert_with(|| path.to_path_buf());
         }
     }
 
@@ -409,7 +410,6 @@ impl<W: Write> Adapter<W> {
         if !program.is_file() {
             return Err(format!("{}: no such file", program.display()));
         }
-        let program = program.canonicalize().unwrap_or(program);
         self.program_dir = program.parent().map(Path::to_path_buf);
         self.remember_path(&program);
         // (the files it includes, as the preprocessor finds them)
@@ -541,7 +541,7 @@ impl<W: Write> Adapter<W> {
                     .iter()
                     .map(|var| {
                         let path = child_path(parent.as_deref(), &var.name);
-                        let mut v = json!({ "name": var.name, "value": var.value, "type": var.kind, "variablesReference": var.reference, "evaluateName": path });
+                        let mut v = json!({ "name": var.name, "value": shown(&var.value, &var.kind), "type": var.kind, "variablesReference": var.reference, "evaluateName": path });
                         if var.reference != 0 {
                             self.refs.insert(var.reference, (frame, Some(path)));
                             if var.kind == "Array" {
@@ -559,7 +559,7 @@ impl<W: Write> Adapter<W> {
                 if reference != 0 {
                     self.refs.insert(reference, (frame, Some(expr.trim().trim_start_matches('?').trim().to_string())));
                 }
-                self.respond(seq, &command, Some(json!({ "result": result, "type": kind, "variablesReference": reference })));
+                self.respond(seq, &command, Some(json!({ "result": shown(&result, &kind), "type": kind, "variablesReference": reference })));
             }
             (Pending::SetVariable { path, frame }, EventBody::Evaluate { result, kind, reference }) => {
                 if reference != 0 {
@@ -615,6 +615,16 @@ impl<W: Write> Adapter<W> {
 
 /// The expression naming a child of `parent`: an element `a(1)`, a field
 /// `p.Name` (a scope's variable: just its name).
+/// A value as the editor shows it: a variable never assigned is `Empty`
+/// (the session sends no text for it).
+fn shown(value: &str, kind: &str) -> String {
+    if value.is_empty() && kind == "Empty" {
+        "Empty".to_string()
+    } else {
+        value.to_string()
+    }
+}
+
 /// What the debug console's text is for the session's `repl` evaluation:
 /// a statement as typed (an assignment, `PRINT …`, `CALL …`, `? …`), any
 /// other text as an expression to print (`? text`).

@@ -12,7 +12,7 @@ This extension is a thin client. The language intelligence comes from RapidR its
 
 ### IntelliSense that knows your program
 
-The completion list includes the builtins, the keywords, the components with their properties, methods and events, and your own variables, SUBs, FUNCTIONs and TYPEs. It also covers the files you `$INCLUDE`.
+The completion list includes the builtins, the keywords, the components with their properties, methods and events, and your own variables, SUBs, FUNCTIONs and TYPEs. It also covers the files you `$INCLUDE`, as the editor has them, saved or not.
 
 ```basic
 CREATE Form AS QFORM
@@ -72,6 +72,8 @@ Turn on **RapidQ-compatible** (`rapidr.rapidqCompatible`) for programs that must
 Run and Debug are also on the editor's title bar. Every command is in the RapidR status bar item, which shows the version of RapidR in use.
 
 ![Debugging](images/debug.png)
+
+While the program is stopped, watches, hovers and the Debug Console evaluate BASIC expressions in the frame you pick (`sum / n`, `UCASE$(name$)`, `Form.Caption`), and the Debug Console runs statements (`total = 100`). Tick **Run-time errors** under Breakpoints to stop where an error happens, in event handlers too.
 
 F5 works without a `launch.json`: it debugs the file in the active editor. To give a program arguments or a working folder, add a configuration:
 

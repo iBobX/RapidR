@@ -120,7 +120,8 @@ exports.run = async function () {
     await sleep(1500);
     await shot('outline');
 
-    // 6. Debugging: a breakpoint, the variables, a data tip.
+    // 6. Debugging: a breakpoint, the variables, watches and the debug
+    // console evaluating expressions in the stopped frame.
     ed = await open(path.join(ws, 'stats.bas'));
     at = lineOf(ed, '        sum = sum + values(k)');
     vscode.debug.addBreakpoints([new vscode.SourceBreakpoint(new vscode.Location(ed.document.uri, at))]);
@@ -136,10 +137,39 @@ exports.run = async function () {
     }
     await sleep(800);
     await vscode.commands.executeCommand('workbench.view.debug');
-    await sleep(800);
-    ed = vscode.window.activeTextEditor || ed;
-    await placeCaret(ed, at.translate(0, '        su'.length));
     await sleep(500);
+    // Watches: expressions of the program, evaluated by the VM in the frame
+    // (selected in the editor, "Add to Watch").
+    for (const expr of ['sum + values(k)', 'sum / n', 'values(k) * 2']) {
+        // (the command takes the focused editor's selection; an expression
+        // the program doesn't have is typed on a scratch line, then undone)
+        ed = await vscode.window.showTextDocument(ed.document, { preserveFocus: false });
+        let typed = false;
+        if (!ed.document.getText().includes(expr)) {
+            await ed.edit((e) => e.insert(new vscode.Position(ed.document.lineCount - 1, 0), `' ${expr}\n`));
+            typed = true;
+        }
+        const i = ed.document.getText().indexOf(expr);
+        ed.selection = new vscode.Selection(ed.document.positionAt(i), ed.document.positionAt(i + expr.length));
+        await sleep(200);
+        await vscode.commands.executeCommand('editor.debug.action.selectionToWatch');
+        await sleep(300);
+        if (typed) {
+            await vscode.commands.executeCommand('undo');
+        }
+        continue;
+        await vscode.commands.executeCommand('editor.debug.action.selectionToWatch');
+        await sleep(400);
+    }
+    // The debug console: an expression typed there is printed.
+    await vscode.commands.executeCommand('workbench.debug.action.focusRepl');
+    await sleep(500);
+    await vscode.commands.executeCommand('type', { text: 'UCASE$("mean so far: ") + STR$(sum / (k - 1))' });
+    await vscode.commands.executeCommand('repl.action.acceptInput');
+    await sleep(1200);
+    await vscode.window.showTextDocument(ed.document, { preserveFocus: false });
+    await placeCaret(ed, at.translate(0, '        su'.length));
+    await sleep(800);
     await shot('debug');
     await vscode.commands.executeCommand('workbench.action.debug.stop');
     tracker.dispose();
