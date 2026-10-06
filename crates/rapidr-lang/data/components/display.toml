@@ -5,7 +5,7 @@ group = "Display and drawing"
 name = "RLABEL"
 rapidq = "QLABEL"
 visual = true
-size = [75, 25]
+size = [65, 17]
 default_event = "OnClick"
 sets = ["layout", "a11y", "generic"]
 doc = "Text on a form that the user reads but doesn't edit, with alignment, word wrap, an angle and 3D styles."
@@ -59,7 +59,7 @@ events = [
 name = "RIMAGE"
 rapidq = "QIMAGE"
 visual = true
-size = [100, 100]
+size = [105, 105]
 default_event = "OnClick"
 sets = ["layout", "a11y"]
 doc = "Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the program can also draw on it like a canvas."
@@ -132,7 +132,7 @@ events = [
 name = "RCANVAS"
 rapidq = "QCANVAS"
 visual = true
-size = [100, 100]
+size = [105, 105]
 default_event = "OnClick"
 sets = ["layout", "a11y"]
 doc = "A surface to draw on: lines, shapes, text and pictures, usually redrawn in its OnPaint handler."
@@ -208,7 +208,7 @@ events = [
 name = "RHEADER"
 rapidq = "QHEADER"
 visual = true
-size = [200, 20]
+size = [320, 17]
 default_event = "OnSectionClick"
 sets = ["layout", "a11y"]
 doc = "A row of headings (sections) the user can click and resize, as above a list's columns."
@@ -313,7 +313,7 @@ events = []
 name = "RPROGRESSBAR"
 rapidq = "QGAUGE"
 visual = true
-size = [250, 25]
+size = [100, 100]
 sets = ["layout", "a11y", "generic"]
 doc = "RapidQ's gauge (QGAUGE): shows progress from Min to Max at Position as a bar, a pie, a needle or the percentage."
 properties = [
@@ -363,6 +363,12 @@ properties = [
   { name = "FormCaption", type = "string" },
   { name = "Parent", type = "component", kinds = ["QFORM"], design = false },
   { name = "Count", type = "int" },
+  { name = "SelCount", type = "int", access = "read", doc = "How many components are selected (Shift / Ctrl+click, a rubber band)." },
+  { name = "PreviewWidth", type = "int", design = false, doc = "The resize preview: the designed form shown this wide, its components where the running program puts them (Align, Anchors, Constraints); 0 ends the preview. Dragging the form's corner does the same." },
+  { name = "PreviewHeight", type = "int", design = false, doc = "The resize preview's height (see PreviewWidth); 0 ends the preview." },
+  { name = "ShowGuides", type = "bool", default = true, doc = "Whether a drag snaps to and shows smart guides: siblings' edges, centres and baselines, the form's centre lines, margins, equal spacing (Alt suspends snapping)." },
+  { name = "SnapToGrid", type = "bool", default = true, doc = "Whether moves and resizes snap to the grid where no guide is near." },
+  { name = "GridSize", type = "int", default = 8, doc = "The grid's step in pixels." },
 ]
 methods = [
   { name = "AddComponent", value = true },
@@ -379,6 +385,10 @@ methods = [
   { name = "GetCompY", value = true },
   { name = "GetCompW", value = true },
   { name = "GetCompH", value = true },
+  { name = "Undo", returns = "INTEGER", doc = "Undoes the last change to the designed form (a move, a resize, a property, an added or removed component); True if there was one." },
+  { name = "Redo", returns = "INTEGER", doc = "Does again the last change undone; True if there was one." },
+  { name = "AlignSelection", params = "How AS STRING", doc = "Lines the selected components up with the first selected: \"left\", \"center\", \"right\", \"top\", \"middle\" or \"bottom\" (one undo step)." },
+  { name = "SelectAdd", params = "Index AS INTEGER", doc = "Adds component Index to the selection (as Shift+click)." },
   { name = "Show", value = true, only = "desktop" },
   { name = "Hide", value = true, only = "desktop" },
 ]

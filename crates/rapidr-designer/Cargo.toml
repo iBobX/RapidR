@@ -1,0 +1,21 @@
+[package]
+name = "rapidr-designer"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+description = "RapidR Studio's form designer on the source: CREATE blocks read into the designer model, its changes written back as the smallest text edits"
+
+# GUI-free and wasm-safe (docs/ide-plan.md §3.1): the parser for tools and
+# the shared designer model only.
+[dependencies]
+rapidr-ast.workspace = true
+rapidr-diagnostics.workspace = true
+rapidr-parser.workspace = true
+rapidr-preprocessor.workspace = true
+rapidr-value.workspace = true
+rapidr-lang.workspace = true
+
+[dev-dependencies]
+# Property tests (MIT OR Apache-2.0; dev-only, never shipped).
+proptest = { version = "1.11", default-features = false, features = ["std"] }
