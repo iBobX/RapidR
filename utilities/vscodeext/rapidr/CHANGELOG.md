@@ -2,6 +2,12 @@
 
 The extension's version is the version of RapidR it ships with.
 
+## Unreleased
+
+- **Automatic keyword case** as you type (`rapidr.keywordCase`: upper, lower, proper, preserve) and your names as declared (`rapidr.identifierCase`); Format Document and the new Format Selection apply them too. Format on type is on by default for RapidR files.
+- Hover, completion and the warnings now come from RapidR's language registry: types, defaults and the include file of RapidQ's names; what RapidR doesn't have yet; what works on one runtime only; in RapidQ-compatible mode, every RapidR extension (members, builtins, statements, directives, types), not only components.
+- The debugger shows a SUB's STATIC variables and its own variables in its Locals, under their names; Globals shows only globals.
+
 ## 2.117.0
 
 Rebuilt on RapidR's language server and debug adapter.

@@ -6,13 +6,13 @@
 //! store ([`KernelEvent::Set`](crate::KernelEvent::Set)) before OnClick.
 
 use rapidr_value::objects::a11y::{AccessNode, Action};
-use rapidr_value::objects::ops::{Op, Rect};
+use rapidr_value::objects::ops::Rect;
 
 use super::progress::range;
 use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::Clipboard;
-use crate::paint::Painter;
+use crate::paint::{Dir, Painter};
 use crate::store::{self, Store};
 
 pub struct UpDown;
@@ -92,16 +92,21 @@ impl ComponentKind for UpDown {
             } else {
                 p.raised_edge(r);
             }
-            let d = if pushed { 1.0 } else { 0.0 };
-            let (cx0, cy0) = (r.0 as f64 + r.2 as f64 / 2.0 + d, r.1 as f64 + r.3 as f64 / 2.0 + d);
-            let s = ((r.2.min(r.3) as f64) / 4.0).clamp(1.5, 4.0);
-            let points = match (across, k) {
-                (false, 0) => [(cx0 - s, cy0 + s / 2.0), (cx0 + s, cy0 + s / 2.0), (cx0, cy0 - s / 2.0)],
-                (false, _) => [(cx0 - s, cy0 - s / 2.0), (cx0 + s, cy0 - s / 2.0), (cx0, cy0 + s / 2.0)],
-                (true, 0) => [(cx0 - s / 2.0, cy0 - s), (cx0 - s / 2.0, cy0 + s), (cx0 + s / 2.0, cy0)],
-                (true, _) => [(cx0 + s / 2.0, cy0 - s), (cx0 + s / 2.0, cy0 + s), (cx0 - s / 2.0, cy0)],
+            // (Windows' classic glyph: up and down; the first half of a
+            // horizontal one points right, the second left)
+            let dir = match (across, k) {
+                (false, 0) => Dir::Up,
+                (false, _) => Dir::Down,
+                (true, 0) => Dir::Right,
+                (true, _) => Dir::Left,
             };
-            p.op(Op::Arrow { points, color });
+            if cx.state.enabled {
+                p.classic_arrow(r, dir, color, pushed);
+            } else {
+                // (embossed: white a pixel down and right, the shadow over it)
+                p.classic_arrow((r.0 + 1, r.1 + 1, r.2, r.3), dir, t.light, pushed);
+                p.classic_arrow(r, dir, t.shadow, pushed);
+            }
         }
     }
 

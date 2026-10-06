@@ -1149,6 +1149,8 @@ function renderActiveDesigner() {
   }
   formEl.appendChild(clientEl);
 
+  const docked = dockedPlacement(form);
+
   for (const w of form.children) {
     if (!isVisibleType(w.type)) continue;
     if (w.type === "RMainMenu") {
@@ -1159,8 +1161,11 @@ function renderActiveDesigner() {
       menuEl.style.width = "100%";
       menuEl.style.height = "28px";
       formEl.appendChild(menuEl);
-    } else {
-      clientEl.appendChild(buildWidgetEl(w, state.selection.includes(w.name)));
+    } else if (w.type !== "RMenuItem") {   // (a menu's items: in its bar)
+      const el = buildWidgetEl(w, state.selection.includes(w.name));
+      const d = docked.get(w);
+      if (d) for (const k of ["left", "top", "right", "bottom", "width", "height"]) el.style[k] = d[k];
+      clientEl.appendChild(el);
     }
   }
 
@@ -1238,6 +1243,37 @@ function beginFormResize(ev, form, dir) {
   };
   document.addEventListener("mousemove", onMove);
   document.addEventListener("mouseup", onUp);
+}
+
+/// Where a form's docked components go (Align; a status bar is at the
+/// bottom unless it says otherwise), as the runtime lays them out: the top
+/// and bottom ones first, then the left and right ones, each taking its
+/// edge of what is left, then alClient the rest. Widget → CSS box.
+function dockedPlacement(form) {
+  const ALIGNS = { altop: 1, albottom: 2, alleft: 3, alright: 4, alclient: 5 };
+  const alignOf = (w) => {
+    const a = w.props.align;
+    if (a === undefined || a === null || a === "") return w.type === "RStatusBar" ? 2 : 0;
+    return typeof a === "number" ? a : (ALIGNS[String(a).toLowerCase()] ?? (parseInt(a, 10) || 0));
+  };
+  const dock = { top: 0, bottom: 0, left: 0, right: 0 };
+  const out = new Map();
+  const ws = form.children.filter((w) => !w.props.parent && w.type !== "RMainMenu" && w.type !== "RMenuItem" && isVisibleType(w.type) && alignOf(w));
+  for (const pass of [[1, 2], [3, 4], [5]]) {
+    for (const w of ws) {
+      const align = alignOf(w);
+      if (!pass.includes(align)) continue;
+      const h = parseInt(w.props.height, 10) || (w.type === "RStatusBar" ? 20 : 24);
+      const wd = parseInt(w.props.width, 10) || 80;
+      const box = { left: dock.left + "px", top: dock.top + "px", right: dock.right + "px", bottom: dock.bottom + "px", width: "auto", height: "auto" };
+      if (align === 1) { box.bottom = ""; box.height = h + "px"; dock.top += h; }
+      else if (align === 2) { box.top = ""; box.height = h + "px"; dock.bottom += h; }
+      else if (align === 3) { box.right = ""; box.width = wd + "px"; dock.left += wd; }
+      else if (align === 4) { box.left = ""; box.width = wd + "px"; dock.right += wd; }
+      out.set(w, box);
+    }
+  }
+  return out;
 }
 
 function buildWidgetEl(w, selected) {
@@ -1516,7 +1552,11 @@ function renderRealComponent(w) {
       inner.style.borderBottom = "1px solid #ccc";
       inner.style.fontSize = "12px";
       inner.style.padding = "4px 8px";
-      inner.textContent = stripAmpersands(String(w.props.caption || "File   Edit   View   Help"));
+      // (its menus: the items made inside it, deserializeProject's `parent`)
+      const owner = state.project.forms.find(f => f.children.includes(w));
+      const menus = (owner?.children || []).filter(c => c.props.parent === w.name).map(c => stripAmpersands(String(c.props.caption ?? c.name)));
+      inner.textContent = menus.length ? menus.join("   ") : stripAmpersands(String(w.props.caption || "File   Edit   View   Help"));
+      inner.style.whiteSpace = "pre";
       break;
     }
     case "RToolBar": {
@@ -1542,7 +1582,7 @@ function renderRealComponent(w) {
       inner.style.borderTop = "1px solid #ccc";
       inner.style.padding = "2px 8px";
       inner.style.fontSize = "11px";
-      inner.textContent = stripAmpersands(String(w.props.caption || "Ready"));
+      inner.textContent = stripAmpersands(String(w.props.simpletext ?? w.props.caption ?? "Ready"));
       break;
     }
     case "RWebView": {
@@ -2848,6 +2888,7 @@ function loadProjectModel(model) {
   for (const f of state.project.forms) ensureFormPane(f);
   for (const m of state.project.modules) ensureModulePane(m);
   if (state.activeFormId) switchToForm(state.activeFormId);
+  else if (state.project.modules.length) switchToModule(state.project.modules[0].id);
   renderProjectTree();
   renderProperties();
   resetHistory();
@@ -2996,6 +3037,16 @@ async function addExampleResources(proj, source, exampleUrl) {
   }
 }
 
+/// A program's source (an example, or a .rr / .bas file the user opens):
+/// its forms in the designer, its code in the editor — and it runs as it is
+/// written: its own CREATE blocks and code, which the designer's model
+/// doesn't hold all of (nested CREATEs, RapidQ's component names).
+function loadProgram(proj, text) {
+  loadProjectModel(proj);
+  state.project.rawSource = text;
+  history.current = snapshotProject();
+}
+
 function setupFileLoaders() {
   const examplesSel = $("#examples");
   if (examplesSel) {
@@ -3010,10 +3061,7 @@ function setupFileLoaders() {
 
         const proj = deserializeProject(text, name);
         await addExampleResources(proj, text, val);
-        loadProjectModel(proj);
-        // (an example runs as it is written: its own CREATE blocks and code,
-        // which the designer's model doesn't hold)
-        state.project.rawSource = text;
+        loadProgram(proj, text);
         setStatus(`loaded ${name}`, "ok");
       } catch (err) {
         setStatus("load example failed: " + err.message, "error");
@@ -3027,9 +3075,8 @@ function setupFileLoaders() {
     if (!f) return;
     try {
       const text = await f.text();
-      const name = f.name.replace(/\.rr$/i, "");
-      const proj = deserializeProject(text, name);
-      loadProjectModel(proj);
+      const name = f.name.replace(/\.(rr|bas)$/i, "");
+      loadProgram(deserializeProject(text, name), text);
       setStatus(`loaded ${f.name}`, "ok");
     } catch (err) {
       setStatus("load example failed: " + err.message, "error");
@@ -3042,14 +3089,12 @@ function setupFileLoaders() {
     if (!f) return;
     try {
       const text = await f.text();
-      let proj;
-      if (f.name.toLowerCase().endsWith(".rr")) {
-        const name = f.name.replace(/\.rr$/i, "");
-        proj = deserializeProject(text, name);
+      if (/\.(rr|bas)$/i.test(f.name)) {
+        const name = f.name.replace(/\.(rr|bas)$/i, "");
+        loadProgram(deserializeProject(text, name), text);
       } else {
-        proj = JSON.parse(text);
+        loadProjectModel(JSON.parse(text));
       }
-      loadProjectModel(proj);
       setStatus(`loaded ${f.name}`, "ok");
     } catch (err) {
       setStatus("load failed: " + err.message, "error");
@@ -3740,7 +3785,8 @@ function showAboutDialog() {
       <div>
         <div style="font-size:16px;font-weight:600">RapidR IDE <span style="color:var(--c-text-mute);font-weight:400;font-size:12px">v${escapeHtml(RAPIDR_IDE_VERSION)}</span></div>
         <div style="margin-top:2px">Self-hosted, zero-backend, in-browser BASIC IDE</div>
-        <div style="margin-top:8px"><b>Author:</b> Roberto Berrospe (<a href="mailto:roberto.a.berrospe.machin@gmail.com?subject=RapidR Web IDE Contact" target="_blank">Contact</a>)</div>
+        <div style="margin-top:8px">Copyright © 2025–2026 Ruta Internet SRL. MIT License.</div>
+        <div style="margin-top:4px"><b>Author:</b> Roberto Berrospe (<a href="mailto:roberto.a.berrospe.machin@gmail.com?subject=RapidR Web IDE Contact" target="_blank">Contact</a>)</div>
         <div><b>Assisted by:</b> AI pair-programming assistants</div>
         <div style="margin-top:8px"><b>License:</b> MIT (see LICENSE)</div>
         <div style="margin-top:4px">Built on hundreds of open-source libraries: see <b>Open-source credits</b>.</div>

@@ -324,6 +324,16 @@ pub fn component(name: &str) -> Option<&'static Component> {
     BY_NAME.binary_search_by(|(n, _)| (*n).cmp(upper.as_str())).ok().map(|i| &COMPONENTS[BY_NAME[i].1])
 }
 
+/// The component the compilers read a type name as: [`component`], or a
+/// Q-prefixed name RapidQ doesn't have read as RapidR's component of the
+/// same name (`QPLOT` is RPLOT), as `rapidr_ast::canonical_type_name` does.
+pub fn resolve_component(name: &str) -> Option<&'static Component> {
+    component(name).or_else(|| {
+        let rest = name.get(1..).filter(|_| name.starts_with(['Q', 'q']))?;
+        component(&format!("R{rest}")).filter(|c| c.kind == Kind::Component)
+    })
+}
+
 /// A global object by name (`Screen`, any case).
 pub fn global(name: &str) -> Option<&'static Component> {
     GLOBALS.iter().find(|g| g.name.eq_ignore_ascii_case(name))
@@ -361,6 +371,34 @@ pub fn builtin_key(name: &str) -> String {
         key.pop();
     }
     key
+}
+
+/// A statement by its name (any case): `PRINT`, `SELECT CASE`, `PRINT #`.
+pub fn statement(name: &str) -> Option<&'static Statement> {
+    let name = name.split_whitespace().collect::<Vec<_>>().join(" ");
+    STATEMENTS.iter().find(|s| s.name.eq_ignore_ascii_case(&name))
+}
+
+/// The statement a word starts (any case): its own (`PRINT`), else the one
+/// whose name starts with it (`SELECT` → SELECT CASE, `LINE` → LINE INPUT).
+pub fn statement_starting(word: &str) -> Option<&'static Statement> {
+    statement(word).or_else(|| STATEMENTS.iter().find(|s| s.name.split(' ').next().is_some_and(|w| w.eq_ignore_ascii_case(word))))
+}
+
+/// A keyword by name (`THEN`, `AND`, `BYREF`; any case).
+pub fn keyword(name: &str) -> Option<&'static Keyword> {
+    KEYWORDS.iter().find(|k| k.name.eq_ignore_ascii_case(name))
+}
+
+/// A directive by name, with or without its `$` (`$INCLUDE`, `include`).
+pub fn directive(name: &str) -> Option<&'static Directive> {
+    let n = name.trim_start_matches('$');
+    DIRECTIVES.iter().find(|d| d.name.trim_start_matches('$').eq_ignore_ascii_case(n))
+}
+
+/// A built-in type by name (`INTEGER`, `int64`).
+pub fn type_name(name: &str) -> Option<&'static TypeName> {
+    TYPE_NAMES.iter().find(|t| t.name.eq_ignore_ascii_case(name))
 }
 
 /// The words of the language a code editor colours, by kind (upper case,
@@ -573,6 +611,10 @@ mod tests {
         assert_eq!(component("qoutline").unwrap().name, "RTREEVIEW");
         assert_eq!(component("COMPORT").unwrap().name, "RCOMPORT");
         assert!(component("QNOTHING").is_none());
+        assert!(component("QPLOT").is_none(), "not one of its names");
+        assert_eq!(resolve_component("QPlot").unwrap().name, "RPLOT");
+        assert_eq!(resolve_component("QBUTTON").unwrap().name, "RBUTTON");
+        assert!(resolve_component("QNOTHING").is_none());
         assert_eq!(b.written_name(), "QBUTTON");
         assert_eq!(component("RPLOT").unwrap().written_name(), "RPLOT");
     }
@@ -610,5 +652,19 @@ mod tests {
         assert_eq!(builtin("MID$").unwrap().key, "mid");
         assert_eq!(builtin("mid").unwrap().name, "MID$");
         assert!(builtin("TIMER").unwrap().bare);
+    }
+
+    #[test]
+    fn language_words() {
+        assert_eq!(statement("select  case").unwrap().name, "SELECT CASE");
+        assert!(statement("SELECT").is_none());
+        assert_eq!(statement_starting("select").unwrap().name, "SELECT CASE");
+        assert_eq!(statement_starting("Print").unwrap().name, "PRINT");
+        assert_eq!(statement("print #").unwrap().origin, Origin::RapidR);
+        assert_eq!(keyword("then").unwrap().kind, "control");
+        assert_eq!(directive("include").unwrap().name, "$INCLUDE");
+        assert_eq!(directive("$Theme").unwrap().origin, Origin::RapidR);
+        assert_eq!(type_name("int64").unwrap().origin, Origin::RapidR);
+        assert_eq!(type_name("INTEGER").unwrap().origin, Origin::RapidQ);
     }
 }

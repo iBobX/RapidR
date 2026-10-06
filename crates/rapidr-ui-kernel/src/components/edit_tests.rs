@@ -313,7 +313,7 @@ fn a_memo_wraps_scrolls_and_shows_only_what_fits() {
     assert_eq!(f.nodes[f.index_of("tm").unwrap()].ui.wake, None);
     set_test_now(None);
     // WordWrap off: one line a paragraph, and a horizontal bar when asked
-    with_textedit_mut("tm", |t| t.set("text", &v_str("a very long line that does not fit in a memo this narrow at all")));
+    with_textedit_mut("tm", |t| t.set("text", &v_str("a very long line that does not fit in a memo this narrow at all, however small its font may be")));
     s.set("tm", "scrollbars", v_int(3)).set("tm", "wordwrap", v_int(0));
     drop(f.paint(&s, &mut ts, 1.0));
     let e = f.node("tm").unwrap().ui.edit.as_ref().unwrap();
@@ -471,4 +471,35 @@ fn a_drag_below_a_memo_scrolls_it_down_a_line_at_a_time() {
     assert!(after > before && after - before <= 8, "{before} -> {after}");
     f.mouse_up(&s, &mut ts, 40.0, 150.0, Button::Left, NONE);
     set_test_now(None);
+}
+
+/// VCL's TEdit.AutoSelect, as RC.EXE reads it: the edit focused as the
+/// form shows selects its text (SelStart 0, SelLength 7), so does one Tab
+/// or SetFocus enters wherever the program left the selection; a click
+/// puts the caret where it clicks; a rich edit doesn't select.
+#[test]
+fn a_qedit_entered_selects_its_text() {
+    let (s, mut f, mut ts) = form(|s| {
+        s.add("ae1", "REDIT", Some("tf")).set("ae1", "text", v_str("Focused")).set("ae1", "left", v_int(10)).set("ae1", "top", v_int(10)).set("ae1", "width", v_int(150));
+        s.add("ae2", "REDIT", Some("tf")).set("ae2", "text", v_str("Second")).set("ae2", "left", v_int(10)).set("ae2", "top", v_int(40)).set("ae2", "width", v_int(150));
+        s.add("are", "RRICHEDIT", Some("tf")).set("are", "text", v_str("Rich")).set("are", "left", v_int(10)).set("are", "top", v_int(80)).set("are", "width", v_int(150)).set("are", "height", v_int(60));
+    });
+    assert_eq!(f.focused(), Some("ae1"));
+    assert_eq!(model("ae1"), ("Focused".into(), 0, 7), "focused as the form shows");
+    let mut clip = MemClipboard::default();
+    key(&mut f, &s, &mut ts, &mut clip, 9, "", NONE);
+    assert_eq!(model("ae2"), ("Second".into(), 0, 6), "Tab into it");
+    assert_eq!(model("ae1"), ("Focused".into(), 0, 7), "the one left keeps its selection");
+    with_textedit_mut("ae2", |t| t.set("selstart", &v_int(2)));
+    f.focus_id(&s, "are");
+    assert_eq!((model("are").1, model("are").2), (0, 0), "a rich edit doesn't select");
+    f.focus_id(&s, "ae2");
+    assert_eq!(model("ae2"), ("Second".into(), 0, 6), "SetFocus: selected again");
+    // (a click: the caret where it clicks, nothing selected)
+    f.focus_id(&s, "are");
+    with_textedit_mut("ae1", |t| t.set("selstart", &v_int(0)));
+    drop(f.paint(&s, &mut ts, 1.0));
+    click_at(&mut f, &s, &mut ts, 150.0, 20.0, Button::Left);
+    assert_eq!(f.focused(), Some("ae1"));
+    assert_eq!(model("ae1").2, 0, "clicked into: no selection");
 }

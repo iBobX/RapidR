@@ -3,6 +3,7 @@
 
 const COMPONENT_REGISTRY = {
     RFORM: {
+        name: 'RFORM',
         description: 'A window: the top-level container of a program\'s components, with its caption, border, menu and events. Show shows it; ShowModal shows it and waits until it closes.',
         rapidq: 'QFORM',
         props: ['autoscroll', 'borderstyle', 'caption', 'clientheight', 'clientwidth', 'color', 'cursor', 'font', 'formstyle', 'handle', 'height', 'hint', 'icohandle', 'icon', 'keypreview', 'left', 'modalresult', 'parent', 'popupmenu', 'showhint', 'top', 'visible', 'width', 'windowstate', 'autosize', 'fontsize', 'fontcolor', 'enabled', 'helpfile', 'pencolor', 'brushcolor', 'fontname', 'copymode', 'mdichildcount', 'pixel', 'tilemode', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -105,6 +106,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RFORMMDI: {
+        name: 'RFORMMDI',
         description: 'An MDI parent window (RAPIDQ2.INC\'s): a form whose child windows open, tile, cascade and minimize inside it (AddChild, CascadeChild …).',
         rapidq: 'QFORMMDI',
         props: ['childcaption', 'childhandle', 'childleft', 'childtop', 'childwidth', 'childheight', 'childmax', 'childcount', 'childicon', 'childstate', 'mdimenu', 'componentindex', 'childresult', 'pencolor', 'brushcolor', 'fontcolor', 'fontname', 'fontsize'],
@@ -160,6 +162,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RPANEL: {
+        name: 'RPANEL',
         description: 'A container with raised or lowered bevels and an optional caption, to group components and, with Align, build toolbars and side areas.',
         rapidq: 'QPANEL',
         props: ['align', 'alignment', 'bevelinner', 'bevelouter', 'bevelwidth', 'borderstyle', 'caption', 'clientheight', 'clientwidth', 'color', 'cursor', 'enabled', 'font', 'handle', 'height', 'hint', 'left', 'parent', 'showhint', 'taborder', 'tag', 'top', 'width', 'visible', 'fontsize', 'fontcolor', 'popupmenu', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -217,6 +220,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RTABCONTROL: {
+        name: 'RTABCONTROL',
         description: 'A row of tabs: the user picks one (TabIndex) and the program shows what belongs to it, usually in OnChange.',
         rapidq: 'QTABCONTROL',
         props: ['align', 'buttonstyle', 'clientheight', 'clientwidth', 'color', 'cursor', 'enabled', 'flatbuttons', 'flatseperators', 'focusbuttons', 'font', 'height', 'hint', 'hottrack', 'left', 'multiline', 'parent', 'popupmenu', 'scrollopposite', 'showhint', 'tab', 'tabheight', 'tabinactivecolor', 'tabinactivefont', 'tabindex', 'taborder', 'tabposition', 'tabwidth', 'tag', 'top', 'width', 'verticaltabs', 'visible', 'fontsize', 'fontcolor', 'flatseparators', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -286,6 +290,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RTOOLBAR: {
+        name: 'RTOOLBAR',
         description: 'A strip of tool buttons, usually along the top of a form: icon buttons (RapidR\'s icons or the program\'s pictures) with tooltips, separators, toggles, and a menu for the buttons that don\'t fit. With Customizable the user picks which buttons show. RapidR\'s own; components placed on it sit after its buttons, as on any container.',
         rapidq: null,
         props: ['align', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'color', 'hint', 'showhint', 'cursor', 'parent', 'font', 'buttonsize', 'showcaptions', 'customizable', 'buttoncount', 'layout', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -340,6 +345,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RSTATUSBAR: {
+        name: 'RSTATUSBAR',
         description: 'The bar at the bottom of a window that shows status text, as one simple text or as several panels.',
         rapidq: 'QSTATUSBAR',
         props: ['align', 'cursor', 'enabled', 'handle', 'height', 'hint', 'left', 'panel', 'parent', 'popupmenu', 'showhint', 'simplepanel', 'simpletext', 'sizegrip', 'taborder', 'top', 'width', 'visible', 'caption', 'panelcount', 'font', 'fontsize', 'fontcolor', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -391,6 +397,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RSPLITTER: {
+        name: 'RSPLITTER',
         description: 'A bar the user drags to resize the aligned component beside it, between the panes of a window.',
         rapidq: 'QSPLITTER',
         props: ['align', 'beveled', 'clientheight', 'clientwidth', 'color', 'cursor', 'enabled', 'height', 'hint', 'left', 'minsize', 'parent', 'showhint', 'tag', 'top', 'visible', 'width', 'orientation', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -432,6 +439,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RSCROLLBOX: {
+        name: 'RSCROLLBOX',
         description: 'A container that scrolls: components beyond its edges are reached with its scroll bars.',
         rapidq: 'QSCROLLBOX',
         props: ['align', 'autoscroll', 'borderstyle', 'color', 'cursor', 'enabled', 'font', 'handle', 'height', 'hint', 'horzincrement', 'horzmargin', 'horzposition', 'horzrange', 'horztracking', 'horzvisible', 'left', 'parent', 'popupmenu', 'showhint', 'taborder', 'tag', 'top', 'width', 'vertincrement', 'vertmargin', 'vertposition', 'vertrange', 'verttracking', 'vertvisible', 'visible', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -493,6 +501,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RGROUPBOX: {
+        name: 'RGROUPBOX',
         description: 'A captioned frame around related components; the radio buttons in it form one choice.',
         rapidq: 'QGROUPBOX',
         props: ['align', 'caption', 'color', 'cursor', 'enabled', 'font', 'handle', 'height', 'hint', 'left', 'parent', 'popupmenu', 'showhint', 'taborder', 'tag', 'top', 'visible', 'width', 'fontsize', 'fontcolor', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -542,6 +551,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RBEVEL: {
+        name: 'RBEVEL',
         description: 'A box with raised or lowered 3D edges (QBevel.inc), to frame or group components.',
         rapidq: 'QBEVEL',
         props: ['align', 'alignment', 'bevelinner', 'bevelouter', 'bevelwidth', 'borderstyle', 'caption', 'clientheight', 'clientwidth', 'color', 'cursor', 'enabled', 'font', 'height', 'hint', 'left', 'parent', 'showhint', 'taborder', 'tag', 'top', 'width', 'visible', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -593,6 +603,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RGLASSFRAME: {
+        name: 'RGLASSFRAME',
         description: 'A tinted glass area (UtilMind\'s Glassy Form): it shades what\'s under it with its colour at Transparency, and drags its form when Moveable.',
         rapidq: 'QGLASSFRAME',
         props: ['align', 'clientheight', 'clientwidth', 'color', 'cursor', 'handle', 'height', 'hint', 'left', 'moveable', 'parent', 'popupmenu', 'showhint', 'top', 'transparency', 'transparentcolor', 'width', 'enabled', 'visible'],
@@ -630,6 +641,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RDOCKMANAGER: {
+        name: 'RDOCKMANAGER',
         description: 'RapidR\'s docking area (RapidR Studio is built on it): panes docked at its edges, tabbed together, auto-hidden or floating, around a documents area of MDI windows or tabs. The user drags panes with a docking compass or moves them from the keyboard; the layout saves to text and loads back.',
         rapidq: null,
         props: ['align', 'documentmode', 'activedocument', 'activepane', 'panecount', 'documentcount', 'layout', 'height', 'hint', 'left', 'parent', 'top', 'width', 'enabled', 'visible', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -694,6 +706,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RBUTTON: {
+        name: 'RBUTTON',
         description: 'A push button: the user clicks it to run its OnClick handler. It can show a picture and be the form\'s Default or Cancel button.',
         rapidq: 'QBUTTON',
         props: ['align', 'bmp', 'bmphandle', 'cancel', 'caption', 'color', 'cursor', 'default', 'enabled', 'font', 'handle', 'height', 'hint', 'kind', 'layout', 'left', 'modalresult', 'numbmps', 'parent', 'popupmenu', 'showhint', 'spacing', 'taborder', 'tag', 'top', 'width', 'visible', 'fontsize', 'fontcolor', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -755,6 +768,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     REDIT: {
+        name: 'REDIT',
         description: 'A one-line text box to type and edit text in, with an optional input mask, password character and length limit.',
         rapidq: 'QEDIT',
         props: ['align', 'autosize', 'borderstyle', 'charcase', 'color', 'edittext', 'enabled', 'font', 'handle', 'height', 'hint', 'inputmask', 'ismasked', 'left', 'maxlength', 'modified', 'parent', 'passwordchar', 'popupmenu', 'readonly', 'sellength', 'selstart', 'seltext', 'showhint', 'taborder', 'tag', 'text', 'top', 'visible', 'width', 'fontsize', 'fontcolor', 'alignment', 'cursor', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -827,6 +841,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RCHECKBOX: {
+        name: 'RCHECKBOX',
         description: 'A box with a caption that the user ticks on or off (Checked).',
         rapidq: 'QCHECKBOX',
         props: ['align', 'caption', 'checked', 'enabled', 'font', 'handle', 'height', 'hint', 'left', 'parent', 'popupmenu', 'showhint', 'taborder', 'tag', 'top', 'visible', 'width', 'fontsize', 'fontcolor', 'color', 'state', 'cursor', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -875,6 +890,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RRADIOBUTTON: {
+        name: 'RRADIOBUTTON',
         description: 'One choice of several: checking it unchecks the other radio buttons in the same container.',
         rapidq: 'QRADIOBUTTON',
         props: ['align', 'caption', 'checked', 'enabled', 'font', 'handle', 'height', 'hint', 'left', 'parent', 'popupmenu', 'showhint', 'taborder', 'tag', 'top', 'visible', 'width', 'fontsize', 'fontcolor', 'color', 'cursor', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -922,6 +938,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RCOMBOBOX: {
+        name: 'RCOMBOBOX',
         description: 'A drop-down list, with or without a box to type in; the user picks one item (ItemIndex, Text).',
         rapidq: 'QCOMBOBOX',
         props: ['align', 'color', 'copymode', 'cursor', 'dropdowncount', 'enabled', 'font', 'handle', 'height', 'hint', 'item', 'itemcount', 'itemheight', 'itemindex', 'left', 'maxlength', 'parent', 'popupmenu', 'showhint', 'sorted', 'style', 'taborder', 'tag', 'text', 'top', 'visible', 'width', 'fontsize', 'fontcolor', 'pencolor', 'brushcolor', 'fontname', 'count', 'listcount', 'listindex', 'items', 'pixel', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -1008,6 +1025,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RRICHEDIT: {
+        name: 'RRICHEDIT',
         description: 'A multi-line text editor with fonts, colours and alignment per selection, that loads and saves rich text (RTF) or plain text.',
         rapidq: 'QRICHEDIT',
         props: ['align', 'alignment', 'borderstyle', 'color', 'enabled', 'font', 'handle', 'height', 'hidescrollbars', 'hideselection', 'hint', 'left', 'line', 'linecount', 'modified', 'parent', 'popupmenu', 'plaintext', 'readonly', 'scrollbars', 'selattributes', 'sellength', 'selstart', 'seltext', 'showhint', 'taborder', 'tag', 'text', 'top', 'wanttabs', 'width', 'wherex', 'wherey', 'wordwrap', 'visible', 'fontsize', 'fontcolor', 'cursor', 'selfont', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -1095,6 +1113,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RMEMO: {
+        name: 'RMEMO',
         description: 'A multi-line plain-text editor with word wrap and scroll bars. RapidR\'s own.',
         rapidq: null,
         props: ['text', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'readonly', 'font', 'fontsize', 'fontcolor', 'color', 'wordwrap', 'scrollbars', 'hint', 'showhint', 'cursor', 'parent', 'taborder', 'borderstyle', 'alignment', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -1158,6 +1177,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RSCROLLBAR: {
+        name: 'RSCROLLBAR',
         description: 'A horizontal or vertical scroll bar the user moves to pick a Position between Min and Max.',
         rapidq: 'QSCROLLBAR',
         props: ['align', 'cursor', 'enabled', 'handle', 'height', 'hint', 'kind', 'largechange', 'left', 'max', 'min', 'pagesize', 'parent', 'popupmenu', 'position', 'showhint', 'smallchange', 'taborder', 'tag', 'top', 'width', 'visible', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -1209,6 +1229,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RUPDOWN: {
+        name: 'RUPDOWN',
         description: 'Two arrow buttons that step Position up or down between Min and Max, often beside an edit. RapidR\'s own.',
         rapidq: null,
         props: ['min', 'max', 'position', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'hint', 'showhint', 'cursor', 'parent', 'taborder'],
@@ -1241,6 +1262,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RDATETIMEPICKER: {
+        name: 'RDATETIMEPICKER',
         description: 'A field for a date and a time (Date, Time), with OnChange when the user changes either. RapidR\'s own.',
         rapidq: null,
         props: ['date', 'time', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'font', 'fontsize', 'fontcolor', 'color', 'hint', 'showhint', 'cursor', 'parent', 'taborder'],
@@ -1276,6 +1298,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RTRACKBAR: {
+        name: 'RTRACKBAR',
         description: 'A slider: the user drags its thumb to pick a Position between Min and Max, along tick marks.',
         rapidq: 'QTRACKBAR',
         props: ['align', 'cursor', 'enabled', 'frequency', 'handle', 'height', 'hint', 'left', 'linesize', 'max', 'min', 'orientation', 'pagesize', 'parent', 'popupmenu', 'position', 'selend', 'selstart', 'showhint', 'taborder', 'tickmarks', 'tickstyle', 'top', 'width', 'visible', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -1330,6 +1353,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RCODEEDITOR: {
+        name: 'RCODEEDITOR',
         description: 'A code editor for BASIC: line numbers, syntax colours, and a list of the program\'s SUBs and FUNCTIONs to jump to. RapidR\'s own; the IDE\'s editor.',
         rapidq: null,
         props: ['text', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'font', 'fontsize', 'fontcolor', 'color', 'readonly', 'wordwrap', 'selstart', 'sellength', 'seltext', 'line', 'linecount', 'hint', 'showhint', 'cursor', 'parent', 'borderstyle', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -1401,6 +1425,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RCOOLBTN: {
+        name: 'RCOOLBTN',
         description: 'A flat toolbar button with a caption and a picture; with GroupIndex it stays down, as a toggle or one of a group.',
         rapidq: 'QCOOLBTN',
         props: ['align', 'allowallup', 'bmp', 'bmphandle', 'caption', 'cursor', 'down', 'enabled', 'flat', 'font', 'groupindex', 'height', 'hint', 'layout', 'left', 'numbmps', 'parent', 'showhint', 'spacing', 'tag', 'top', 'width', 'visible', 'fontsize', 'fontcolor', 'color', 'handle', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -1457,6 +1482,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     ROVALBTN: {
+        name: 'ROVALBTN',
         description: 'A round button with its own colours, highlight and shadow; like a cool button, it can stay down as a toggle.',
         rapidq: 'QOVALBTN',
         props: ['align', 'bmp', 'bmphandle', 'caption', 'color', 'colorhighlight', 'colorshadow', 'cursor', 'down', 'enabled', 'flat', 'font', 'groupindex', 'height', 'hint', 'layout', 'left', 'numbmps', 'parent', 'showhint', 'spacing', 'taborder', 'tag', 'top', 'transparent', 'transparentcolor', 'width', 'visible', 'fontsize', 'fontcolor', 'allowallup', 'handle', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -1518,6 +1544,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RLABEL: {
+        name: 'RLABEL',
         description: 'Text on a form that the user reads but doesn\'t edit, with alignment, word wrap, an angle and 3D styles.',
         rapidq: 'QLABEL',
         props: ['align', 'alignment', 'angle', 'autosize', 'caption', 'color', 'cursor', 'enabled', 'font', 'handle', 'height', 'hint', 'labelstyle', 'left', 'lowercolor', 'parent', 'popupmenu', 'showhint', 'tag', 'top', 'transparent', 'uppercolor', 'visible', 'width', 'wordwrap', 'fontsize', 'fontcolor', 'clientheight', 'clientwidth', 'layout', 'textstyle', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -1578,6 +1605,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RIMAGE: {
+        name: 'RIMAGE',
         description: 'Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the program can also draw on it like a canvas.',
         rapidq: 'QIMAGE',
         props: ['align', 'autosize', 'bmp', 'bmphandle', 'center', 'copymode', 'cursor', 'enabled', 'font', 'handle', 'height', 'hint', 'icohandle', 'icon', 'incrementaldisplay', 'left', 'parent', 'pixel', 'popupmenu', 'showhint', 'stretch', 'tag', 'top', 'transparent', 'width', 'visible', 'pencolor', 'brushcolor', 'fontcolor', 'fontname', 'fontsize', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -1653,6 +1681,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RCANVAS: {
+        name: 'RCANVAS',
         description: 'A surface to draw on: lines, shapes, text and pictures, usually redrawn in its OnPaint handler.',
         rapidq: 'QCANVAS',
         props: ['align', 'clientheight', 'clientwidth', 'color', 'copymode', 'cursor', 'enabled', 'font', 'handle', 'height', 'hint', 'left', 'parent', 'pixel', 'popupmenu', 'showhint', 'tag', 'top', 'width', 'visible', 'pencolor', 'penwidth', 'brushcolor', 'fontsize', 'fontcolor', 'fontname', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -1730,6 +1759,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RHEADER: {
+        name: 'RHEADER',
         description: 'A row of headings (sections) the user can click and resize, as above a list\'s columns.',
         rapidq: 'QHEADER',
         props: ['align', 'clientheight', 'clientwidth', 'copymode', 'cursor', 'enabled', 'font', 'handle', 'height', 'hint', 'hottrack', 'left', 'parent', 'pixel', 'popupmenu', 'sections', 'sectionscount', 'showhint', 'tag', 'top', 'width', 'visible', 'pencolor', 'brushcolor', 'fontcolor', 'fontname', 'fontsize', 'sectioncount', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -1814,6 +1844,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RPROGRESS: {
+        name: 'RPROGRESS',
         description: 'Windows\' classic progress bar: a sunken bar filled in blocks from Min to Max at Position. RapidR\'s own; RPROGRESSBAR is RapidQ\'s gauge.',
         rapidq: null,
         props: ['left', 'top', 'width', 'height', 'visible', 'enabled', 'min', 'max', 'position', 'align', 'hint', 'showhint', 'tag', 'parent', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -1850,6 +1881,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RPROGRESSBAR: {
+        name: 'RPROGRESSBAR',
         description: 'RapidQ\'s gauge (QGAUGE): shows progress from Min to Max at Position as a bar, a pie, a needle or the percentage.',
         rapidq: 'QGAUGE',
         props: ['align', 'backcolor', 'borderstyle', 'color', 'cursor', 'enabled', 'font', 'forecolor', 'height', 'hint', 'kind', 'left', 'max', 'min', 'parent', 'position', 'showhint', 'showtext', 'top', 'visible', 'width', 'popupmenu', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -1896,6 +1928,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RDESIGNSURFACE: {
+        name: 'RDESIGNSURFACE',
         description: 'RapidR\'s form designer: places components on a grid, lets the user select, move and resize them, and keeps their properties. The IDE is built on it.',
         rapidq: null,
         props: ['width', 'height', 'left', 'top', 'compcount', 'visible', 'formcaption', 'parent', 'count', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -1945,6 +1978,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RDIGDISPLAY: {
+        name: 'RDIGDISPLAY',
         description: 'A seven-segment LED display (QDigDisplay.inc) showing the digits and signs of its Display text, as on a clock or a counter.',
         rapidq: 'QDIGDISPLAY',
         props: ['align', 'clientheight', 'clientwidth', 'color', 'copymode', 'cursor', 'enabled', 'font', 'height', 'hint', 'left', 'parent', 'pixel', 'popupmenu', 'showhint', 'tag', 'top', 'width', 'visible', 'display', 'pencolor', 'brushcolor', 'fontcolor', 'fontname', 'fontsize', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -2005,6 +2039,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RLISTBOX: {
+        name: 'RLISTBOX',
         description: 'A list of text items the user picks one or several of; it can be sorted, in columns or drawn by the program.',
         rapidq: 'QLISTBOX',
         props: ['align', 'borderstyle', 'color', 'columns', 'copymode', 'cursor', 'enabled', 'extendedselect', 'font', 'handle', 'height', 'hint', 'item', 'itemcount', 'itemheight', 'itemindex', 'left', 'multiselect', 'parent', 'popupmenu', 'selcount', 'selected', 'showhint', 'sorted', 'style', 'taborder', 'tabwidth', 'tag', 'text', 'top', 'topindex', 'visible', 'width', 'fontsize', 'fontcolor', 'pencolor', 'brushcolor', 'fontname', 'count', 'listcount', 'listindex', 'items', 'pixel', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -2099,6 +2134,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RFILELISTBOX: {
+        name: 'RFILELISTBOX',
         description: 'A list of the files in a folder that match Mask, for picking a file.',
         rapidq: 'QFILELISTBOX',
         props: ['align', 'color', 'cursor', 'directory', 'drive', 'enabled', 'extendedselect', 'filename', 'font', 'height', 'hint', 'item', 'itemcount', 'itemheight', 'itemindex', 'left', 'mask', 'multiselect', 'parent', 'popupmenu', 'selcount', 'selected', 'showhint', 'showicons', 'taborder', 'tag', 'topindex', 'top', 'width', 'visible', 'count', 'listcount', 'listindex', 'items', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -2168,6 +2204,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RDIRTREE: {
+        name: 'RDIRTREE',
         description: 'A tree of drives and folders for picking a folder (Directory).',
         rapidq: 'QDIRTREE',
         props: ['align', 'borderstyle', 'color', 'cursor', 'directory', 'enabled', 'fastload', 'font', 'height', 'hideselection', 'hint', 'initialdir', 'left', 'parent', 'popupmenu', 'readonly', 'readonstart', 'showhint', 'taborder', 'top', 'width', 'visible', 'itemcount', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -2223,6 +2260,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RSTRINGGRID: {
+        name: 'RSTRINGGRID',
         description: 'A grid of text cells in rows and columns, with fixed heading rows and columns, in-place editing and per-column styles.',
         rapidq: 'QSTRINGGRID',
         props: ['align', 'borderstyle', 'cell', 'col', 'colcount', 'color', 'columnlist', 'columnstyle', 'colwidths', 'cursor', 'defaultcolwidth', 'defaultrowheight', 'editormode', 'enabled', 'fixedcolor', 'fixedcols', 'fixedrows', 'font', 'gridheight', 'gridlinewidth', 'gridwidth', 'handle', 'height', 'hint', 'left', 'leftcol', 'parent', 'popupmenu', 'row', 'rowcount', 'rowheights', 'scrollbars', 'separator', 'showhint', 'taborder', 'tabstops', 'tag', 'top', 'toprow', 'visible', 'visiblecolcount', 'visiblerowcount', 'width', 'cells', 'cols', 'rows', 'colwidth', 'selectedrow', 'selectedcol', 'fontsize', 'fontcolor', 'pencolor', 'brushcolor', 'fontname', 'copymode', 'pixel', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -2349,6 +2387,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RTREEVIEW: {
+        name: 'RTREEVIEW',
         description: 'A tree of nodes the user expands, collapses and selects, with a picture per node and in-place editing.',
         rapidq: 'QTREEVIEW',
         props: ['align', 'borderstyle', 'color', 'cursor', 'enabled', 'font', 'handle', 'height', 'hideselection', 'hint', 'images', 'indent', 'item', 'itemcount', 'itemindex', 'left', 'parent', 'popupmenu', 'readonly', 'showbuttons', 'showhint', 'showlines', 'showroot', 'sorttype', 'stateimages', 'taborder', 'tag', 'top', 'topindex', 'width', 'visible', 'bmpclosed', 'bmpleaf', 'bmpminus', 'bmpopen', 'bmpplus', 'bmphandleclosed', 'bmphandleleaf', 'bmphandleminus', 'bmphandleopen', 'bmphandleplus', 'itemheight', 'itemseparator', 'linecount', 'outlinestyle', 'row', 'scrollbars', 'fontsize', 'fontcolor', 'count', 'selecteditem', 'selected', 'topitem', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -2467,6 +2506,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RLISTVIEW: {
+        name: 'RLISTVIEW',
         description: 'A list of items with columns of sub-items, shown as icons, a list or a report with headings; checkboxes and sorting.',
         rapidq: 'QLISTVIEW',
         props: ['align', 'borderstyle', 'checkboxes', 'color', 'column', 'columnclick', 'columnscount', 'cursor', 'enabled', 'font', 'gridlines', 'handle', 'height', 'hideselection', 'hint', 'hottrack', 'item', 'itemcount', 'itemindex', 'largeimages', 'left', 'multiselect', 'parent', 'popupmenu', 'readonly', 'rowselect', 'selcount', 'selected', 'showcolumnheaders', 'showhint', 'smallimages', 'sorttype', 'stateimages', 'subitem', 'taborder', 'tag', 'top', 'width', 'viewstyle', 'visible', 'fontsize', 'fontcolor', 'columns', 'pencolor', 'brushcolor', 'fontname', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -2559,6 +2599,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RMAINMENU: {
+        name: 'RMAINMENU',
         description: 'A form\'s menu bar; its menus and commands are QMENUITEMs.',
         rapidq: 'QMAINMENU',
         props: ['handle', 'parent', 'itemcount'],
@@ -2581,6 +2622,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RMENUITEM: {
+        name: 'RMENUITEM',
         description: 'One menu entry: a command (OnClick), a checkable option, a separator ("-") or a submenu holding more items.',
         rapidq: 'QMENUITEM',
         props: ['caption', 'checked', 'command', 'count', 'enabled', 'handle', 'hint', 'menuindex', 'radioitem', 'shortcut', 'tag', 'visible', 'itemcount'],
@@ -2614,6 +2656,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RPOPUPMENU: {
+        name: 'RPOPUPMENU',
         description: 'A context menu, shown when the user right-clicks a component whose PopupMenu it is, or by Popup.',
         rapidq: 'QPOPUPMENU',
         props: ['alignment', 'autopopup', 'handle', 'tag', 'windowhandle', 'itemcount'],
@@ -2642,6 +2685,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     ROPENDIALOG: {
+        name: 'ROPENDIALOG',
         description: 'The system\'s Open dialog: Execute shows it and returns whether the user chose a file, then named by FileName. Filter limits the files listed.',
         rapidq: 'QOPENDIALOG',
         props: ['caption', 'filename', 'filter', 'filterindex', 'initialdir', 'title', 'defaultext'],
@@ -2663,6 +2707,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RSAVEDIALOG: {
+        name: 'RSAVEDIALOG',
         description: 'The system\'s Save dialog: Execute shows it and returns whether the user chose a name, then in FileName.',
         rapidq: 'QSAVEDIALOG',
         props: ['caption', 'filename', 'filter', 'filterindex', 'initialdir', 'title', 'defaultext'],
@@ -2684,6 +2729,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RFILEDIALOG: {
+        name: 'RFILEDIALOG',
         description: 'RAPIDQ2.INC\'s file dialog: one component for Open and Save (Mode), with several files at once (Files, SelCount) and an overwrite warning.',
         rapidq: 'QFILEDIALOG',
         props: ['caption', 'defaultext', 'filename', 'filetitle', 'files', 'filter', 'filterindex', 'initialdir', 'mode', 'multiselect', 'nochangedir', 'parent', 'selcount', 'warnifoverwrite', 'title'],
@@ -2713,6 +2759,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RCOLORDIALOG: {
+        name: 'RCOLORDIALOG',
         description: 'A colour picker (RAPIDQ2.INC\'s): Execute shows it and returns 1 when the user picks a colour, then in Color; Colors holds the 16 custom colours.',
         rapidq: 'QCOLORDIALOG',
         props: ['caption', 'colors', 'color', 'left', 'top', 'style'],
@@ -2733,6 +2780,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RFONTDIALOG: {
+        name: 'RFONTDIALOG',
         description: 'A font picker: Execute shows it and returns 1 when the user chooses a font, then in Name, Size, Color and the styles; GetFont and SetFont trade it with a QFONT.',
         rapidq: 'QFONTDIALOG',
         props: ['color', 'fontcount', 'fontname', 'maxfontsize', 'minfontsize', 'size', 'fontsize', 'fontcolor', 'name'],
@@ -2762,6 +2810,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RTIMER: {
+        name: 'RTIMER',
         description: 'Runs its OnTimer handler every Interval milliseconds while Enabled.',
         rapidq: 'QTIMER',
         props: ['enabled', 'interval', 'tag'],
@@ -2779,6 +2828,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RRECT: {
+        name: 'RRECT',
         description: 'A rectangle (Left, Top, Right, Bottom), as drawing methods and event handlers pass one.',
         rapidq: 'QRECT',
         props: ['left', 'top', 'right', 'bottom'],
@@ -2796,6 +2846,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RFILESTREAM: {
+        name: 'RFILESTREAM',
         description: 'A file opened to read and write: lines, numbers, strings, arrays and UDTs, at a Position that Seek moves.',
         rapidq: 'QFILESTREAM',
         props: ['eof', 'handle', 'linecount', 'position', 'size', 'filename', 'text'],
@@ -2838,6 +2889,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RSTRINGLIST: {
+        name: 'RSTRINGLIST',
         description: 'A list of strings in memory: add, insert, delete, sort and find them, load and save them as text.',
         rapidq: 'QSTRINGLIST',
         props: ['duplicates', 'item', 'itemcount', 'sorted', 'text', 'count', 'listcount', 'listindex', 'items'],
@@ -2885,6 +2937,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RPRINTER: {
+        name: 'RPRINTER',
         description: 'A printer: BeginDoc, draw pages with the canvas methods and NewPage, then EndDoc. The `Printer` global object is one.',
         rapidq: 'QPRINTER',
         props: ['aborted', 'copies', 'copymode', 'font', 'fonts', 'fontscount', 'handle', 'orientation', 'pageheight', 'pagenumber', 'pagewidth', 'printerindex', 'printers', 'printerscount', 'printing', 'title'],
@@ -2931,6 +2984,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RREGISTRY: {
+        name: 'RREGISTRY',
         description: 'Reads and writes settings as keys and values: Windows\' registry on Windows, a per-user store on other systems and the web.',
         rapidq: 'QREGISTRY',
         props: ['currentkey', 'currentpath', 'hassubkeys', 'keyitemcount', 'valueitemcount', 'rootkey'],
@@ -2972,6 +3026,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RJSON: {
+        name: 'RJSON',
         description: 'Parses and builds JSON: get and set values by dotted path, list keys, pretty-print, load and save files. RapidR\'s own.',
         rapidq: null,
         props: ['text', 'filename', 'count'],
@@ -2999,6 +3054,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RFONT: {
+        name: 'RFONT',
         description: 'A font (name, size, colour, bold, italic …) to give to components and drawing.',
         rapidq: 'QFONT',
         props: ['charset', 'color', 'fontcount', 'fontname', 'handle', 'pitch', 'size', 'name', 'bold', 'italic', 'underline', 'strikeout'],
@@ -3026,6 +3082,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RMEMORYSTREAM: {
+        name: 'RMEMORYSTREAM',
         description: 'A stream in memory: write and read text, numbers and binary data as in a file, with no file.',
         rapidq: 'QMEMORYSTREAM',
         props: ['linecount', 'pointer', 'position', 'size', 'filename', 'text'],
@@ -3064,6 +3121,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RBITMAP: {
+        name: 'RBITMAP',
         description: 'A picture in memory to draw on and draw from: load and save images, draw with the canvas methods.',
         rapidq: 'QBITMAP',
         props: ['bmp', 'bmphandle', 'copymode', 'empty', 'font', 'handle', 'height', 'monochrome', 'pixel', 'pixelformat', 'top', 'transparent', 'transparentcolor', 'transparentmode', 'width', 'pencolor', 'brushcolor', 'fontcolor', 'fontname', 'fontsize'],
@@ -3119,6 +3177,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RIMAGELIST: {
+        name: 'RIMAGELIST',
         description: 'A list of same-size pictures (bitmaps or icons), drawn by index; list views and trees take their pictures from one.',
         rapidq: 'QIMAGELIST',
         props: ['bkcolor', 'blendcolor', 'count', 'drawingstyle', 'getbmp', 'getico', 'handle', 'height', 'imagetype', 'masked', 'width', 'shareimages'],
@@ -3155,6 +3214,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RNOTIFYICONDATA: {
+        name: 'RNOTIFYICONDATA',
         description: 'Describes a system tray icon (its icon, tip and messages) for `Shell_NotifyIcon`, which RapidR keeps working on every system.',
         rapidq: 'QNOTIFYICONDATA',
         props: ['cbsize', 'hwnd', 'uid', 'uflags', 'ucallbackmessage', 'hicon', 'sztip'],
@@ -3175,6 +3235,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RSQLITE: {
+        name: 'RSQLITE',
         description: 'A SQLite database: Connect opens a file (or `:memory:`), Query runs SQL with `?` parameters, FetchRow walks the rows. RapidR\'s own; also in the browser.',
         rapidq: null,
         props: ['database', 'db', 'connected', 'rowcount', 'colcount', 'fieldcount', 'row', 'tablecount', 'dbcount'],
@@ -3209,6 +3270,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RMYSQL: {
+        name: 'RMYSQL',
         description: 'A client for a MySQL or MariaDB server: connect, run queries and walk the rows they return. Desktop only (a browser has no raw TCP).',
         rapidq: 'QMYSQL',
         props: ['connected', 'db', 'dbcount', 'colcount', 'fieldcount', 'length', 'row', 'rowcount', 'table', 'tablecount', 'host', 'user', 'password', 'database', 'port', 'item', 'numfields', 'numrows'],
@@ -3253,6 +3315,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RSOCKET: {
+        name: 'RSOCKET',
         description: 'A TCP client socket: connect to a host and port, then read and write text or bytes. In the browser it connects over WebSocket.',
         rapidq: 'QSOCKET',
         props: ['family', 'lparam', 'mysocket', 'parent', 'protocol', 'tag', 'transferred', 'wmessage', 'host', 'port', 'connected', 'timeout', 'type'],
@@ -3302,6 +3365,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RSERVERSOCKET: {
+        name: 'RSERVERSOCKET',
         description: 'A TCP server: listens on a port, accepts clients and exchanges data with them. RapidR\'s own; desktop only.',
         rapidq: null,
         props: ['host', 'port', 'clientcount'],
@@ -3329,6 +3393,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RHTTP: {
+        name: 'RHTTP',
         description: 'An HTTP(S) client: Get or Post a URL, then read StatusCode, ResponseText and ResponseHeaders. RapidR\'s own.',
         rapidq: null,
         props: ['host', 'port', 'url', 'statuscode', 'responsetext', 'responseheaders', 'timeout', 'usessl'],
@@ -3352,6 +3417,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RCGI: {
+        name: 'RCGI',
         description: 'For CGI programs behind a web server (qcgi.inc): the request\'s CGI variables as properties, and Parse / Get for its form fields.',
         rapidq: 'QCGI',
         props: ['autoconvert', 'maxinput', 'accept', 'authtype', 'contentlength', 'contenttype', 'cookie', 'gatewayinterface', 'pathinfo', 'pathtranslated', 'referer', 'remoteaddr', 'remotehost', 'remoteident', 'remoteuser', 'requestmethod', 'scriptname', 'serversoftware', 'servername', 'serverport', 'serverprotocol', 'useragent'],
@@ -3389,6 +3455,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RCOMPORT: {
+        name: 'RCOMPORT',
         description: 'A serial port (RAPIDQ2.INC\'s COMPORT): set the port and its speed, Open it, then read and write strings. Web Serial in the browser.',
         rapidq: 'QCOMPORT',
         props: ['bytesnotread', 'bytesnotwritten', 'baudrate', 'connected', 'databits', 'handle', 'parity', 'readbufsize', 'stopbits', 'writebufsize', 'port', 'dcbflags', 'inque', 'outque', 'pendingio'],
@@ -3436,6 +3503,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RDOWNLOAD: {
+        name: 'RDOWNLOAD',
         description: 'Downloads a file over HTTP(S) into a variable or a file, with progress (Qdownload.inc).',
         rapidq: 'QDOWNLOAD',
         props: ['server', 'port', 'file', 'outfile', 'outvar', 'outdevice', 'statedevice', 'state', 'size', 'lasterror', 'laststringerror', 'stategauge'],
@@ -3465,6 +3533,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RMIDI: {
+        name: 'RMIDI',
         description: 'Plays a standard MIDI file (QMidi.inc) on the system\'s MIDI output, or on RapidR\'s own synthesizer where there is none.',
         rapidq: 'QMIDI',
         props: ['timer', 'lenght', 'state', 'fileopen', 'currentframe', 'error', 'volume', 'interval', 'enabled', 'length', 'lengthtime', 'position'],
@@ -3496,6 +3565,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RWAVE: {
+        name: 'RWAVE',
         description: 'Plays, records and saves WAV sound (QWave.inc).',
         rapidq: 'QWAVE',
         props: ['timer', 'lenght', 'state', 'fileopen', 'currentpos', 'bits', 'frequence', 'mode', 'error', 'volume', 'devicetype', 'interval', 'enabled', 'length', 'lengthtime', 'position'],
@@ -3535,6 +3605,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RVIDEO: {
+        name: 'RVIDEO',
         description: 'Plays an AVI video with its sound (QVideo.inc), on a form or in a window of its own.',
         rapidq: 'QVIDEO',
         props: ['timer', 'lenght', 'lenghttime', 'state', 'handle', 'parent', 'fileopen', 'left', 'top', 'width', 'height', 'imgwidth', 'imgheight', 'currentframe', 'audiooff', 'error', 'caption', 'borderstyle', 'windowstate', 'volume', 'interval', 'enabled', 'length', 'lengthtime', 'position'],
@@ -3580,6 +3651,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RCDAUDIO: {
+        name: 'RCDAUDIO',
         description: 'Plays audio CDs (Qcdaudio.inc). RapidR answers as a computer with no CD drive.',
         rapidq: 'QCDAUDIO',
         props: ['timer', 'time', 'tracktime', 'tracknumber', 'timeposition', 'state', 'audioopen', 'present', 'currenttrack', 'error', 'interval', 'enabled', 'lengthtime', 'position'],
@@ -3614,6 +3686,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RDXSCREEN: {
+        name: 'RDXSCREEN',
         description: 'A DirectX drawing surface on a form, for games and animation: draw the next frame off screen, then Flip to show it. It also holds the Direct3D scene and camera.',
         rapidq: 'QDXSCREEN',
         props: ['align', 'allowstretch', 'autosize', 'bitcount', 'color', 'cursor', 'enabled', 'font', 'fullscreen', 'height', 'hint', 'left', 'parent', 'pixel', 'showhint', 'top', 'use3d', 'usehardware', 'visible', 'width', 'pencolor', 'brushcolor', 'fontcolor', 'fontname', 'fontsize', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -3712,6 +3785,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RDXIMAGELIST: {
+        name: 'RDXIMAGELIST',
         description: 'A library of pictures for a DirectX screen, loaded from DelphiX `.DXG` image lists and drawn with their transparency.',
         rapidq: 'QDXIMAGELIST',
         props: ['parent'],
@@ -3730,6 +3804,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RDXTIMER: {
+        name: 'RDXTIMER',
         description: 'A frame timer for DirectX animation: OnTimer fires at FrameRate (Interval 0: once a frame), optionally only while the program is active.',
         rapidq: 'QDXTIMER',
         props: ['activeonly', 'enabled', 'framerate', 'interval'],
@@ -3748,6 +3823,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RDXSOUND: {
+        name: 'RDXSOUND',
         description: 'A WAV sound played DirectSound\'s way: at its Frequency, Volume and Pan, once or looped.',
         rapidq: 'QDXSOUND',
         props: ['autoupdate', 'bufferlength', 'filename', 'frequency', 'looped', 'pan', 'parent', 'playing', 'position', 'size', 'stickyfocus', 'tag', 'volume'],
@@ -3777,6 +3853,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RDXJOYSTICK: {
+        name: 'RDXJOYSTICK',
         description: 'A joystick or gamepad: Update reads its state into IsLeft, IsUp, `Button(n)` …; RapidR adds the axes, the POV hat and which pad (Index).',
         rapidq: 'QDXJOYSTICK',
         props: ['isleft', 'isright', 'isup', 'isdown', 'index', 'connected', 'name', 'x', 'y', 'z', 'r', 'u', 'v', 'buttons', 'pov'],
@@ -3810,6 +3887,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RD3DFRAME: {
+        name: 'RD3DFRAME',
         description: 'A node of a Direct3D retained-mode scene: it has a position, orientation and motion, and holds meshes, lights and child frames. RapidR draws the scene with its own renderer.',
         rapidq: 'QD3DFRAME',
         props: ['fogcolor', 'fogmode', 'parent'],
@@ -3846,6 +3924,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RD3DMESHBUILDER: {
+        name: 'RD3DMESHBUILDER',
         description: 'Builds a 3D mesh: load a `.X` model or add vertices and faces, then scale, colour and texture it before adding it to a frame.',
         rapidq: 'QD3DMESHBUILDER',
         props: ['facecount', 'parent'],
@@ -3876,6 +3955,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RD3DMESH: {
+        name: 'RD3DMESH',
         description: 'A finished 3D mesh, made by a mesh builder, ready to add to frames.',
         rapidq: 'QD3DMESH',
         props: ['maxy', 'miny', 'parent'],
@@ -3893,6 +3973,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RD3DFACE: {
+        name: 'RD3DFACE',
         description: 'One polygon of a 3D mesh: its vertices and colour, added to a mesh builder.',
         rapidq: 'QD3DFACE',
         props: ['vertexcount'],
@@ -3913,6 +3994,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RD3DLIGHT: {
+        name: 'RD3DLIGHT',
         description: 'A light in the 3D scene (ambient, directional, point or spot), with its colour, range and cone.',
         rapidq: 'QD3DLIGHT',
         props: ['parent'],
@@ -3931,6 +4013,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RD3DTEXTURE: {
+        name: 'RD3DTEXTURE',
         description: 'A picture laid onto 3D meshes as their surface.',
         rapidq: 'QD3DTEXTURE',
         props: ['parent'],
@@ -3945,6 +4028,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RD3DVISUAL: {
+        name: 'RD3DVISUAL',
         description: 'Something a 3D frame can show (a mesh or a mesh builder), as Direct3D\'s visual.',
         rapidq: 'QD3DVISUAL',
         props: ['parent'],
@@ -3959,6 +4043,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RD3DWRAP: {
+        name: 'RD3DWRAP',
         description: 'How a texture is laid over a mesh (flat, cylinder, sphere or chrome), applied to it with Apply or ApplyRelative.',
         rapidq: 'QD3DWRAP',
         props: [],
@@ -3974,6 +4059,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RD3DVECTOR: {
+        name: 'RD3DVECTOR',
         description: 'A 3D vector (X, Y, Z), for positions and directions in the 3D scene.',
         rapidq: 'QD3DVECTOR',
         props: ['dvx', 'dvy', 'dvz', 'x', 'y', 'z'],
@@ -3993,6 +4079,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RNUM: {
+        name: 'RNUM',
         description: 'A numeric array in NumPy\'s style: make ranges, zeros or lists, then sum, average, sort, compute element-wise and do linear algebra on them. RapidR\'s own.',
         rapidq: null,
         props: ['size', 'length', 'len', 'data', 'shape', 'ndim', 'dtype'],
@@ -4116,6 +4203,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RDATAFRAME: {
+        name: 'RDATAFRAME',
         description: 'A table of named columns in pandas\' style: read CSV or JSON, select, filter, sort, group and join, compute statistics, show it in a grid. RapidR\'s own.',
         rapidq: null,
         props: ['height', 'nrows', 'colcount', 'width', 'ncols', 'empty'],
@@ -4207,6 +4295,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RPLOT: {
+        name: 'RPLOT',
         description: 'A chart in Matplotlib\'s style: line, bar, scatter, area, histogram and pie plots with labels, legends and notes, on a form or saved as a picture. RapidR\'s own.',
         rapidq: null,
         props: ['title', 'xlabel', 'ylabel', 'grid', 'width', 'height', 'dpi', 'seriescount', 'count', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -4275,6 +4364,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RWEBVIEW: {
+        name: 'RWEBVIEW',
         description: 'An embedded web page or HTML (an iframe): URL, HTML, Sandbox. Web only.',
         rapidq: null,
         props: ['left', 'top', 'width', 'height', 'visible', 'align', 'parent', 'hint', 'html', 'url', 'sandbox', 'tooltip', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -4312,6 +4402,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RDOM: {
+        name: 'RDOM',
         description: 'An HTML element of the program\'s own: its HTML, CSS classes, style and attributes. Web only.',
         rapidq: null,
         props: ['left', 'top', 'width', 'height', 'visible', 'align', 'parent', 'hint', 'tagname', 'innerhtml', 'innertext', 'cssclass', 'cssstyle', 'html', 'tooltip', 'parentid', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -4366,6 +4457,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RJAVASCRIPT: {
+        name: 'RJAVASCRIPT',
         description: 'Runs JavaScript in the page: Eval a piece of code or Call a function. Web only.',
         rapidq: null,
         props: [],
@@ -4381,6 +4473,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RWEBSTORAGE: {
+        name: 'RWEBSTORAGE',
         description: 'Keeps strings by key in the browser\'s localStorage or sessionStorage. Web only.',
         rapidq: null,
         props: ['storagetype'],
@@ -4401,6 +4494,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RWEBAUDIO: {
+        name: 'RWEBAUDIO',
         description: 'An HTML5 audio player: Src, Volume, Loop, Play, Pause, Seek. Web only.',
         rapidq: null,
         props: ['left', 'top', 'width', 'height', 'visible', 'align', 'parent', 'hint', 'src', 'volume', 'currenttime', 'duration', 'loop', 'autoplay', 'controls', 'playing', 'paused', 'picture', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -4447,6 +4541,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RWEBVIDEO: {
+        name: 'RWEBVIDEO',
         description: 'An HTML5 video player on the form: Src, Volume, Play, Pause, Seek, FullScreen. Web only.',
         rapidq: null,
         props: ['left', 'top', 'width', 'height', 'visible', 'align', 'parent', 'hint', 'src', 'volume', 'currenttime', 'duration', 'loop', 'autoplay', 'controls', 'playing', 'paused', 'poster', 'picture', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -4496,6 +4591,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RWEBNOTIFICATION: {
+        name: 'RWEBNOTIFICATION',
         description: 'Shows the browser\'s notifications, once the user allows them (RequestPermission). Web only.',
         rapidq: null,
         props: ['title', 'body'],
@@ -4513,6 +4609,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RWEBGEOLOCATION: {
+        name: 'RWEBGEOLOCATION',
         description: 'Reads the device\'s position (Latitude, Longitude, Accuracy) from the browser. Web only.',
         rapidq: null,
         props: ['latitude', 'longitude', 'accuracy', 'watchid'],
@@ -4533,6 +4630,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RROUTER: {
+        name: 'RROUTER',
         description: 'Hash routes for single-page web apps: Navigate, Back, Forward and OnRouteChange. Web only.',
         rapidq: null,
         props: ['route', 'hash'],
@@ -4552,6 +4650,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RPROPERTYINSPECTOR: {
+        name: 'RPROPERTYINSPECTOR',
         description: 'An object inspector in the style of Delphi\'s: the properties of a component (or of every component a designer has selected) as a two-column grid of names and values, by category or A to Z, with a search box and an editor for each kind of value — numbers, text, True / False, a list of constants, a set of flags, colours with a picker, fonts, pictures and files, lists of strings, a component reference, and a visual editor for the four Anchors. A value left at its default is shown dimmed and can be reset; RapidR\'s own members of a RapidQ component are grouped under "RapidR extensions". An Events page lists the component\'s events and the SUB each one runs.',
         rapidq: null,
         props: ['align', 'target', 'designer', 'view', 'page', 'filter', 'showevents', 'showrapidrextensions', 'readonly', 'handlers', 'namewidth', 'selected', 'rowcount', 'targettype', 'height', 'hint', 'left', 'parent', 'top', 'width', 'enabled', 'visible', 'font', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -4614,6 +4713,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RTOOLBOX: {
+        name: 'RTOOLBOX',
         description: 'The palette of components a form designer places, grouped under "RapidQ" (the components RapidQ has, shown with their Q names: QBUTTON) and "RapidR" (RapidR\'s own), each with its icon and the name the designer writes. The user searches it, double-clicks a component (or presses Enter) to add it, or drags it onto a designer. Templates — a component with preset properties — have a group of their own.',
         rapidq: null,
         props: ['align', 'filter', 'shownames', 'selected', 'count', 'height', 'hint', 'left', 'parent', 'top', 'width', 'enabled', 'visible', 'font', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -4662,6 +4762,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RPROJECTTREE: {
+        name: 'RPROJECTTREE',
         description: 'A project\'s files as a tree (an .rrproj project, or a .bas / .rr file and the files it includes), grouped by kind — forms with the components their CREATE blocks make, modules, includes, resources, assets, data — each with its icon. The user opens a file (double click or Enter), renames it in place (F2), drags it to reorder or into a folder, and deletes it after confirming; the program hears each change and does the work on the disk.',
         rapidq: null,
         props: ['align', 'project', 'projectname', 'showfiles', 'showforms', 'showcomponents', 'selected', 'filecount', 'modified', 'height', 'hint', 'left', 'parent', 'top', 'width', 'enabled', 'visible', 'font', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -4723,6 +4824,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     ROUTPUTCONSOLE: {
+        name: 'ROUTPUTCONSOLE',
         description: 'A program\'s output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI sequences — with pages for the build log and the problems found. `file:line` places in the text and every problem are links; the user searches the text, and the oldest lines go past MaxLines.',
         rapidq: null,
         props: ['align', 'page', 'maxlines', 'filter', 'showtabs', 'autoscroll', 'linecount', 'problemcount', 'text', 'height', 'hint', 'left', 'parent', 'top', 'width', 'enabled', 'visible', 'font', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
@@ -4774,6 +4876,7 @@ const COMPONENT_REGISTRY = {
         },
     },
     RCOMMANDPALETTE: {
+        name: 'RCOMMANDPALETTE',
         description: 'A box of commands found by typing: Show opens it over the form, the user types a few letters of a command (in any order of its words, letters skipped), picks one with the arrows and Enter, and OnCommand says which. Each command shows its shortcut; the ones used last come first.',
         rapidq: null,
         props: ['filter', 'placeholder', 'count', 'commandcount', 'selected', 'maxrows', 'height', 'hint', 'left', 'parent', 'top', 'width', 'enabled', 'visible', 'font', 'accessiblename', 'accessibledescription'],

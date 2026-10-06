@@ -42,6 +42,7 @@ fn demo_store() -> MemStore {
     s.add("btnOK", "RBUTTON", Some("form")).set("btnOK", "caption", v_str("OK")).set("btnOK", "left", v_int(186)).set("btnOK", "top", v_int(8));
     s.add("tbLevel", "RTRACKBAR", Some("form")).set("tbLevel", "left", v_int(8)).set("tbLevel", "top", v_int(44)).set("tbLevel", "position", v_int(3));
     s.add("tcPages", "RTABCONTROL", Some("form")).set("tcPages", "left", v_int(164)).set("tcPages", "top", v_int(44));
+    s.set("tcPages", "width", v_int(150)).set("tcPages", "height", v_int(100));
     s.call("tcPages", "addtabs", &[v_str("One"), v_str("Two"), v_str("Three")]);
     // (the page's label in the area the components fill: TabControl::display)
     let (dx, dy, _, _) = with_tabcontrol("tcpages", |t| t.display(150, 100, &Font::default())).unwrap();
@@ -231,7 +232,7 @@ fn enter_and_escape_click_the_default_and_cancel_buttons() {
     // the Default button's frame shows while no other button has the focus
     f.focus_id(&s, "edName");
     let list = f.paint(&s, &mut ts, 1.0);
-    let ok_frame = list.items.iter().any(|i| matches!(i, Item::Op { origin: (186, 8), op: Op::Edge { light, .. } } if light == &vec![0]));
+    let ok_frame = list.items.iter().any(|i| matches!(i, Item::Op { origin: (186, 8), op: Op::Edge { light, .. } } if light == &vec![rapidr_value::theme::CLASSIC.frame]));
     assert!(ok_frame, "{}", list.dump());
     // a disabled Default button isn't clicked, nor focused by Tab
     s.set("btnOK", "enabled", v_int(0));
@@ -441,15 +442,15 @@ fn display_list_of_a_simple_form() {
     let hello_w = text_size("H", &Font::default()).0;
     let expected = format!(
         "fill 0,0 200x80 #ffffff @0,0
-clip 0,0 75x25 @8,8
-text 0,0 75x25 \"Hello\" Arial 13px #000000 topleft @8,8
+clip 0,0 65x17 @8,8
+text 0,0 65x17 \"Hello\" MS Sans Serif 11px #000000 topleft @8,8
 line 0.5,12.5-{}.5,12.5 #000000 @8,8
 unclip @8,8
 clip 0,0 75x25 @100,40
 fill 0,0 75x25 #f0f0f0 @100,40
-edge 0,0 75x25 #000000 #000000 @100,40
-edge 1,1 73x23 #ffffff #404040/#808080 @100,40
-text 0,0 75x25 \"Go\" Arial 13px #000000 center @100,40
+edge 0,0 75x25 #646464 #646464 @100,40
+edge 1,1 73x23 #ffffff/#e3e3e3 #696969/#a0a0a0 @100,40
+text 0,0 75x25 \"Go\" MS Sans Serif 11px #000000 center @100,40
 focus 4,4 67x17 @100,40
 unclip @100,40
 ",
@@ -461,7 +462,7 @@ unclip @100,40
     assert!(f.paint(&s, &mut ts, 1.0).dump().contains("fill 0,0 75x25 #e5f1fb @100,40"));
     s.set("b", "enabled", v_int(0));
     let dump = f.paint(&s, &mut ts, 1.0).dump();
-    assert!(dump.contains("\"Go\" Arial 13px #808080"), "{dump}");
+    assert!(dump.contains("\"Go\" MS Sans Serif 11px #a0a0a0"), "{dump}");
     assert!(!dump.contains("focus "), "a disabled button loses the focus");
 }
 
@@ -470,10 +471,12 @@ fn shared_models_draw_their_own_ops() {
     let (s, mut f, mut ts) = setup();
     let list = f.paint(&s, &mut ts, 1.0);
     let at = |origin: (i64, i64)| list.items.iter().filter(move |i| matches!(i, Item::Op { origin: o, .. } if *o == origin)).collect::<Vec<_>>();
-    // the track bar: the model's shapes, as the web runtime draws them
-    let shapes = with_trackbar("tblevel", |t| t.shapes(150.0, 45.0, true)).unwrap();
-    let drawn: Vec<_> = at((8, 44)).into_iter().filter_map(|i| if let Item::Op { op: Op::Shape(s), .. } = i { Some(s.clone()) } else { None }).collect();
-    assert_eq!(drawn, shapes);
+    // the track bar (classic: Windows' own look from the model's numbers): its
+    // sunken channel 8 pixels in, the thumb where the model puts it
+    let drawn: Vec<Op> = at((8, 44)).into_iter().filter_map(|i| if let Item::Op { op, .. } = i { Some(op.clone()) } else { None }).collect();
+    assert!(drawn.iter().any(|o| matches!(o, Op::Edge { rect: (8, 4, 134, 18), .. })), "{drawn:?}");
+    let thumb_left = 8 + with_trackbar("tblevel", |t| t.position).unwrap() * (150 - 27) / 10;
+    assert!(drawn.iter().any(|o| matches!(o, Op::Fill { rect: (x, 2, 10, 1), .. } if (x - thumb_left).abs() <= 1)), "{drawn:?}");
     // the tab control: its ops, converted unchanged
     let ops = with_tabcontrol("tcpages", |t| t.ops(150, 100, &Font::default(), 0xF0F0F0, true, false)).unwrap();
     let drawn: Vec<_> = at((164, 44)).into_iter().filter_map(|i| if let Item::Op { op, .. } = i { Some(op.clone()) } else { None }).filter(|o| !matches!(o, Op::ClipPush { .. } | Op::ClipPop)).collect();
@@ -611,13 +614,16 @@ fn text_measurement_matches_text_width() {
             assert!((f64::from(w) - expected as f64).abs() <= 0.5 + 1e-3, "{name} {size}: {s:?} parley {w} vs TextWidth {expected}");
         }
     }
-    // bold (synthesized from the regular faces): parley keeps the advances,
-    // TextWidth adds GDI's 1-pixel overhang (an open question for drawing
-    // bold captions)
+    // bold (synthesized from the regular faces): MS Sans Serif's a pixel
+    // wider a character in both (letter spacing in the layout); the others
+    // keep the advances, TextWidth adding GDI's 1-pixel overhang
     let bold = Font { styles: 1, ..Font::default() };
+    let arial_bold = Font { name: "Arial".into(), size: 10, styles: 1, color: 0 };
     for s in strings {
         let (w, _) = ts.measure(s, &bold);
-        assert!((f64::from(w) + 1.0 - text_size(s, &bold).0 as f64).abs() <= 0.5 + 1e-3, "bold {s:?}: {w}");
+        assert!((f64::from(w) - text_size(s, &bold).0 as f64).abs() <= 0.5 + 1e-3, "bold {s:?}: {w}");
+        let (w, _) = ts.measure(s, &arial_bold);
+        assert!((f64::from(w) + 1.0 - text_size(s, &arial_bold).0 as f64).abs() <= 0.5 + 1e-3, "Arial bold {s:?}: {w}");
     }
     // the setting matters: kerned, "AVAWAY" is narrower
     let font = Font::default();
@@ -629,8 +635,8 @@ fn text_measurement_matches_text_width() {
     let mut kerned = b.build("AVAWAY");
     kerned.break_all_lines(None);
     assert!(kerned.full_width() < unkerned - 1.0, "kerned {} vs {unkerned}", kerned.full_width());
-    // and the font size is Windows' MulDiv: 10 pt = 13 px
-    assert_eq!(crate::text::font_pixels(&font), 13.0);
+    // and the font size is Windows' MulDiv: 8 pt (RapidQ's default) = 11 px
+    assert_eq!(crate::text::font_pixels(&font), 11.0);
 }
 
 // ------------------------------------------------- double clicks --
@@ -792,7 +798,7 @@ fn themed_store() -> MemStore {
     put(&mut s, "tgb", "RGROUPBOX", (300, 110, 110, 60));
     s.set("tgb", "caption", v_str("Group"));
     put(&mut s, "tsb", "RSTATUSBAR", (0, 276, 420, 24));
-    s.set("tsb", "simpletext", v_str("Ready"));
+    s.set("tsb", "simplepanel", v_int(1)).set("tsb", "simpletext", v_str("Ready"));
     s
 }
 

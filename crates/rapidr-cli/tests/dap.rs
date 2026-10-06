@@ -253,6 +253,37 @@ fn breakpoints_in_two_files_the_stack_variables_and_stepping() {
     dap.ok("disconnect", json!({}));
 }
 
+/// A SUB's STATIC and its own undeclared variable (RapidQ keeps both
+/// between calls; the compiler stores them as `SUB Tick::hits` and
+/// `Tick__p`) are its frame's Locals, as the source names them; Globals
+/// shows the program's globals only.
+#[test]
+fn a_subs_own_variables_are_its_locals_not_globals() {
+    let src = "DIM Total AS INTEGER\nSUB Tick(n AS INTEGER)\n  STATIC hits AS INTEGER\n  hits = hits + 1\n  p = p + n\n  Total = Total + p\nEND SUB\nTick 1\nTick 2\nPRINT \"total \"; Total\n";
+    let dir = folder("own-vars", &[("main.bas", src)]);
+    let mut dap = Dap::start(&dir);
+    dap.launch(&dir.join("main.bas"), json!({}));
+    dap.ok("setBreakpoints", json!({ "source": { "path": dir.join("main.bas") }, "breakpoints": [{ "line": 6 }] }));
+    dap.ok("configurationDone", json!({}));
+    assert_eq!(dap.stopped(), ("breakpoint".into(), "main.bas".into(), 6));
+    dap.ok("continue", json!({ "threadId": 1 }));
+    assert_eq!(dap.stopped(), ("breakpoint".into(), "main.bas".into(), 6));
+    let frames = dap.ok("stackTrace", json!({ "threadId": 1 }))["stackFrames"].clone();
+    let scopes = dap.ok("scopes", json!({ "frameId": frames[0]["id"] }))["scopes"].clone();
+    assert_eq!((scopes[0]["name"].as_str(), scopes[1]["name"].as_str()), (Some("Locals"), Some("Globals")));
+    let locals = dap.variables(&scopes[0]["variablesReference"]);
+    assert_eq!(locals, [("n".into(), "2".into()), ("hits".into(), "2".into()), ("p".into(), "3".into())]);
+    let globals = dap.variables(&scopes[1]["variablesReference"]);
+    assert!(globals.contains(&("Total".into(), "1".into())), "{globals:?}");
+    assert!(globals.iter().all(|(n, _)| !n.contains("__") && !n.contains("::") && n != "p" && n != "hits"), "{globals:?}");
+    // (a watch of the STATIC in its frame)
+    assert_eq!(dap.ok("evaluate", json!({ "expression": "hits * 10 + p", "frameId": frames[0]["id"], "context": "watch" }))["result"], "23");
+    dap.ok("continue", json!({ "threadId": 1 }));
+    assert_eq!(dap.exited(), 0);
+    assert!(dap.stdout.contains("total 4"), "{}", dap.stdout);
+    dap.ok("disconnect", json!({}));
+}
+
 #[test]
 fn a_program_that_does_not_compile_says_why() {
     let dir = folder("compile-error", &[("bad.bas", "PRINT \"a\"\nIF THEN\n")]);

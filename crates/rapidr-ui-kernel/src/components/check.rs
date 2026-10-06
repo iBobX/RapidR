@@ -21,10 +21,18 @@ use crate::store::{self, Store};
 /// The box's side.
 pub const BOX: i64 = 13;
 /// From the box to the caption.
-pub const GAP: i64 = 4;
+pub const GAP: i64 = 5;
 
 /// Windows' check mark: 7 columns of 3 pixels, its top left at (x, y).
 pub fn check_mark(p: &mut Painter, x: i64, y: i64, color: u32) {
+    if !p.one_to_one() {
+        // (a high-DPI screen: the same band, its steps smoothed into
+        // diagonals, at the screen's resolution)
+        let (x, y) = (x as f64, y as f64);
+        let points = vec![(x, y + 2.5), (x + 2.5, y + 5.0), (x + 7.0, y + 0.5), (x + 7.0, y + 2.5), (x + 2.5, y + 7.0), (x, y + 4.5)];
+        p.op(rapidr_value::objects::ops::Op::Polygon { points, color });
+        return;
+    }
     for (c, top) in [2, 3, 4, 3, 2, 1, 0].into_iter().enumerate() {
         p.fill((x + c as i64, y + top, 1, 3), color);
     }
@@ -80,11 +88,13 @@ pub fn caption_right(cx: &Cx, p: &mut Painter, mark: i64) {
     let (w, h) = (cx.width(), cx.height());
     let t = p.theme();
     let text = store::string(cx.store, cx.id, "caption");
-    let color = ink_of(cx, backdrop(cx.store, cx.id));
+    let mut color = ink_of(cx, backdrop(cx.store, cx.id));
     let x = mark + GAP;
-    // (disabled, classic: embossed — white under the grey)
+    // (disabled, classic: embossed — white under the shadow grey, as
+    // Windows' DrawState)
     if !cx.state.enabled && !t.fluent() {
         caption(p, (x + 1, 1, w - x, h), &text, &cx.font, t.light, Place::Left);
+        color = t.shadow;
     }
     caption(p, (x, 0, w - x, h), &text, &cx.font, color, Place::Left);
     if cx.state.focused {

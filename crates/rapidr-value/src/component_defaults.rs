@@ -40,6 +40,10 @@ pub fn shared(type_name: &str) -> Vec<(String, Value)> {
             put("caption", v_str(""));
             put("left", v_int(0));
             put("top", v_int(0));
+            // (a QLABEL's AutoSize is True until set, RC.EXE: crate::autosize)
+            if type_name.eq_ignore_ascii_case("RLABEL") {
+                put("autosize", v_bool(true));
+            }
         }
         "REDIT" | "RMEMO" | "RRICHEDIT" => {
             put("text", v_str(""));
@@ -233,7 +237,6 @@ pub fn desktop(type_name: &str) -> Vec<(String, Value)> {
             put("visible", v_bool(true));
             put("alignment", v_int(0));
             put("fontcolor", v_int(0));
-            put("fontsize", v_int(12));
         }
         "REDIT" => {
             put("enabled", v_bool(true));
@@ -270,8 +273,6 @@ pub fn desktop(type_name: &str) -> Vec<(String, Value)> {
             put("penwidth", v_int(1));
             put("brushcolor", v_int(0xFFFFFF));
             put("fontcolor", v_int(0));
-            put("fontsize", v_int(12));
-            put("fontname", v_str("Arial"));
         }
         // (the DirectX lane's)
         "RDXSCREEN" => {

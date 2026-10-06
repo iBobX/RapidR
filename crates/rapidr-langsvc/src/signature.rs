@@ -8,7 +8,7 @@ use rapidr_ast::{Parameter, Statement};
 
 use crate::context::{self, chain_before, pretty_component, Ty};
 use crate::model::SymbolKind;
-use crate::registry::{self, Param};
+use rapidr_lang::Param;
 use crate::text::{is_name_char, is_suffix_char, LineIndex};
 use crate::{Signature, SignatureHelp, Snapshot};
 
@@ -89,8 +89,9 @@ pub(crate) fn signature(s: &Snapshot, file: &Path, text: &str, offset: usize) ->
             }
             Some(_) => return None,
             None => {
-                let b = registry::builtin(name)?;
-                builtin_signature(b.syntax, b.params, b.doc)
+                let b = rapidr_lang::builtin(name)?;
+                let doc = crate::complete::with_notes(b.doc, &crate::compat::notes(b.origin, rapidr_lang::Origin::RapidQ, b.missing, b.runtimes, None));
+                syntax_signature(b.syntax, doc)
             }
         }
     };
@@ -147,7 +148,57 @@ fn push_params(label: &mut String, texts: &[String]) -> Vec<(usize, usize)> {
     ranges
 }
 
-fn builtin_signature(syntax: &str, params: &[Param], doc: &str) -> Signature {
+/// A builtin's signature: the registry's syntax line, each parameter's
+/// range found in it (`MID$(String, Position, Num)`, `LOCATE [Y%][, X%]`).
+fn syntax_signature(syntax: &str, doc: String) -> Signature {
+    let bytes = syntax.as_bytes();
+    let name_end = syntax.find(['(', ' ', '[']).unwrap_or(syntax.len());
+    let (inner_start, inner_end) = match syntax.find('(') {
+        Some(open) if syntax[name_end..open].chars().all(|c| c == '[') => {
+            let mut depth = 0;
+            let mut close = syntax.len();
+            for (i, &b) in bytes.iter().enumerate().skip(open) {
+                match b {
+                    b'(' => depth += 1,
+                    b')' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            close = i;
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            (open + 1, close)
+        }
+        _ => (name_end, syntax.len()),
+    };
+    let mut params = Vec::new();
+    let mut piece_start = inner_start;
+    let mut depth = 0;
+    for i in inner_start..=inner_end {
+        let at_end = i == inner_end;
+        let b = if at_end { b',' } else { bytes[i] };
+        match b {
+            b'(' => depth += 1,
+            b')' => depth -= 1,
+            b',' if depth == 0 => {
+                let piece = &syntax[piece_start..i];
+                let lead = piece.len() - piece.trim_start_matches([' ', '[', ']']).len();
+                let body = piece.trim_matches([' ', '[', ']']);
+                if !body.is_empty() && body != "..." && body != "…" {
+                    params.push((piece_start + lead, piece_start + lead + body.len()));
+                }
+                piece_start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    Signature { label: syntax.to_string(), params, doc: (!doc.is_empty()).then_some(doc) }
+}
+
+fn params_signature(syntax: &str, params: &[Param], doc: &str) -> Signature {
     let name = syntax.split('(').next().unwrap_or(syntax);
     let texts: Vec<String> = params.iter().map(Param::text).collect();
     let mut label = format!("{name}(");
@@ -160,7 +211,7 @@ fn member_signature(s: &Snapshot, ty: &Ty, name: &str) -> Option<Signature> {
     match ty {
         Ty::Component(c) => {
             let m = c.method(name)?;
-            let mut sig = builtin_signature(&format!("{}.{}", pretty_component(c.written_name()), m.name), m.params, m.doc);
+            let mut sig = params_signature(&format!("{}.{}", pretty_component(c.written_name()), m.name), m.params, m.doc);
             if let Some(r) = m.returns {
                 sig.label.push_str(" AS ");
                 sig.label.push_str(r);
