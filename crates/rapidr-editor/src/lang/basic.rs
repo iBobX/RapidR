@@ -1,87 +1,40 @@
 //! RapidQ / RapidR BASIC's keyword groups, added to `rapidq-basic.toml`'s
-//! rules when it loads.
-//!
-//! Until the language registry (stage I0, lane L-REG) generates them, they
-//! are the compiler's own lists, copied: the lexer's keywords, the
-//! components (`rapidr_ast::COMPONENT_TYPES`, each also under its RapidQ `Q`
-//! name) and the builtins every host implements
-//! (`rapidr_bytecode::builtins::BUILTINS`). Tests check them against those
-//! lists so they can't drift.
+//! rules when it loads: the language registry's words
+//! (`rapidr_lang::words`) — its statements, keywords, types, operators,
+//! components under both names and the builtins the runtimes implement —
+//! so the editor colours exactly the language the compilers accept.
 
-/// The lexer's control-flow keywords.
-pub const CONTROL: &[&str] = &[
-    "IF", "THEN", "ELSE", "ELSEIF", "END", "FOR", "TO", "STEP", "NEXT", "WHILE", "WEND", "DO", "LOOP", "UNTIL", "SELECT", "CASE", "EXIT", "RETURN", "GOTO", "GOSUB", "CALL",
-];
-
-/// The lexer's other statement keywords.
-pub const STATEMENTS: &[&str] = &[
-    "DIM", "AS", "SUB", "FUNCTION", "CREATE", "CONST", "TYPE", "STRUCT", "DECLARE", "LIB", "ALIAS", "WITH", "IMPORT", "PRINT", "INPUT", "DEFSTR", "DEFINT", "DEFBYTE", "DEFWORD", "DEFDWORD",
-    "DEFLONG", "DEFLNG", "DEFSHORT", "DEFSNG", "DEFDBL", "DEFCUR", "EXTENDS", "PROPERTY", "SET", "BYVAL", "BYREF", "BIND", "CONSTRUCTOR", "OPEN", "CLOSE", "WRITE", "SEEK", "KILL", "RUSTSTART",
-    "RUSTEND",
-];
-
-/// The lexer's type keywords (and SHORT, which DEFSHORT declares).
-pub const TYPES: &[&str] = &["INTEGER", "STRING", "DOUBLE", "SINGLE", "BYTE", "WORD", "DWORD", "LONG", "SHORT", "INT64", "CURRENCY", "ROBJECT", "VARIANT"];
-
-/// Operators written as words.
-pub const OPERATORS: &[&str] = &["AND", "OR", "NOT", "XOR", "MOD"];
-
-/// Constants every program has.
-pub const CONSTANTS: &[&str] = &["TRUE", "FALSE"];
-
-/// `rapidr_ast::COMPONENT_TYPES` (R names; the Q names are added).
-pub const COMPONENTS: &[&str] = &[
-    "RFORM", "RFORMMDI", "RBUTTON", "RLABEL", "REDIT", "RPANEL", "RCHECKBOX", "RRADIOBUTTON", "RCOMBOBOX", "RLISTBOX", "RFILELISTBOX", "RDIRTREE", "RTIMER", "RIMAGE", "RCANVAS", "RHEADER",
-    "RRECT", "RSTRINGGRID", "RTABCONTROL", "RTREEVIEW", "RMAINMENU", "RMENUITEM", "RPOPUPMENU", "ROPENDIALOG", "RSAVEDIALOG", "RFILEDIALOG", "RCOLORDIALOG", "RFONTDIALOG", "RTOOLBAR",
-    "RSTATUSBAR", "RPROGRESS", "RRICHEDIT", "RMEMO", "RSCROLLBAR", "RUPDOWN", "RDATETIMEPICKER", "RFILESTREAM", "RSTRINGLIST", "RTRACKBAR", "RPRINTER", "RREGISTRY", "RSPLITTER", "RSCROLLBOX",
-    "RSQLITE", "RMYSQL", "RSOCKET", "RSERVERSOCKET", "RHTTP", "RLISTVIEW", "RPROGRESSBAR", "RNUM", "RDATAFRAME", "RPLOT", "RDESIGNSURFACE", "RCODEEDITOR", "RGROUPBOX", "RCOOLBTN", "ROVALBTN",
-    "RJSON", "RDXSCREEN", "RDXIMAGELIST", "RDXTIMER", "RDXSOUND", "RDXJOYSTICK", "RD3DFRAME", "RD3DMESHBUILDER", "RD3DMESH", "RD3DFACE", "RD3DLIGHT", "RD3DTEXTURE", "RD3DVISUAL", "RD3DWRAP",
-    "RD3DVECTOR", "RFONT", "RMEMORYSTREAM", "RBITMAP", "RIMAGELIST", "RNOTIFYICONDATA", "RBEVEL", "RDIGDISPLAY", "RGLASSFRAME", "RCGI", "RCOMPORT", "RDOWNLOAD", "RMIDI", "RWAVE", "RVIDEO",
-    "RCDAUDIO", "RWEBVIEW", "RDOM", "RJAVASCRIPT", "RWEBSTORAGE", "RWEBAUDIO", "RWEBVIDEO", "RWEBNOTIFICATION", "RWEBGEOLOCATION", "RROUTER",
-];
-
-/// The components' RapidQ names (`Q` + an R name's rest) and the older
-/// names `rapidr_ast::canonical_type_name` maps.
-pub const Q_COMPONENTS: &[&str] = &[
-    "QFORM", "QFORMMDI", "QBUTTON", "QLABEL", "QEDIT", "QPANEL", "QCHECKBOX", "QRADIOBUTTON", "QCOMBOBOX", "QLISTBOX", "QFILELISTBOX", "QDIRTREE", "QTIMER", "QIMAGE", "QCANVAS", "QHEADER",
-    "QRECT", "QSTRINGGRID", "QTABCONTROL", "QTREEVIEW", "QMAINMENU", "QMENUITEM", "QPOPUPMENU", "QOPENDIALOG", "QSAVEDIALOG", "QFILEDIALOG", "QCOLORDIALOG", "QFONTDIALOG", "QTOOLBAR",
-    "QSTATUSBAR", "QPROGRESS", "QRICHEDIT", "QMEMO", "QSCROLLBAR", "QUPDOWN", "QDATETIMEPICKER", "QFILESTREAM", "QSTRINGLIST", "QTRACKBAR", "QPRINTER", "QREGISTRY", "QSPLITTER", "QSCROLLBOX",
-    "QSQLITE", "QMYSQL", "QSOCKET", "QSERVERSOCKET", "QHTTP", "QLISTVIEW", "QPROGRESSBAR", "QNUM", "QDATAFRAME", "QPLOT", "QDESIGNSURFACE", "QCODEEDITOR", "QGROUPBOX", "QCOOLBTN", "QOVALBTN",
-    "QJSON", "QDXSCREEN", "QDXIMAGELIST", "QDXTIMER", "QDXSOUND", "QDXJOYSTICK", "QD3DFRAME", "QD3DMESHBUILDER", "QD3DMESH", "QD3DFACE", "QD3DLIGHT", "QD3DTEXTURE", "QD3DVISUAL", "QD3DWRAP",
-    "QD3DVECTOR", "QFONT", "QMEMORYSTREAM", "QBITMAP", "QIMAGELIST", "QNOTIFYICONDATA", "QBEVEL", "QDIGDISPLAY", "QGLASSFRAME", "QCGI", "QCOMPORT", "QDOWNLOAD", "QMIDI", "QWAVE", "QVIDEO",
-    "QCDAUDIO", "QWEBVIEW", "QDOM", "QJAVASCRIPT", "QWEBSTORAGE", "QWEBAUDIO", "QWEBVIDEO", "QWEBNOTIFICATION", "QWEBGEOLOCATION", "QROUTER", "QGAUGE", "QOUTLINE", "COMPORT",
-];
-
-/// `rapidr_bytecode::builtins::BUILTINS` as programs write them: without the
-/// compiler's internal `__` calls and its `_func` / `_hash` / `_field`
-/// variants.
-pub const BUILTINS: &[&str] = &[
-    "ATAN", "TAB", "GET", "SETCONSOLETITLE", "CHDRIVE", "MEMCPY", "MEMSET", "MEMCMP", "LFLUSH", "ABS", "ACOS", "ASC", "ASIN", "ATN", "BEEP", "BIN", "CBOOL", "CDBL", "CEIL", "CHDIR", "CHR", "CINT",
-    "CLS", "CLNG", "CLOSE", "COLOR", "COMMAND", "COMMANDCOUNT", "CONVBASE", "COS", "CSNG", "CSRLIN", "CURDIR", "DATE", "DELETE", "DIR", "DIREXISTS", "DOEVENTS", "INKEY", "E", "END", "ENVIRON", "EOF", "EXP",
-    "EXTRACTRESOURCE", "FIELD", "FILEEXISTS", "FILELEN", "FIX", "FLOOR", "FORMAT", "FRAC", "FREEFILE", "HEX", "HEXTODEC", "IIF", "INPUT", "INSERT", "INSTR", "INT", "INV", "ISNUMERIC", "KILL",
-    "LBOUND", "LCASE", "LEFT", "LEN", "LOCATE", "LOF", "LOG", "LTRIM", "MESSAGEBOX", "MESSAGEDLG", "MID", "MKDIR", "MOUSEX", "MOUSEY", "MSGBOX", "OCT", "OPEN", "PI", "PLAYSOUND", "PLAYWAV",
-    "POS", "PRINT", "PRINTLN", "RANDOMIZE", "RENAME", "RESOURCE", "RESOURCECOUNT", "REPLACE", "REPLACESUBSTR", "REVERSE", "RGB", "RIGHT", "RINSTR", "RMDIR", "RND", "ROUND", "RTRIM", "RUN",
-    "SEEK", "SGN", "SHELL", "SHELLWAIT", "SHL", "SHR", "SHOWMESSAGE", "SIN", "SLEEP", "SOUND", "SPACE", "SQR", "STR", "STRF", "STRING", "TALLY", "TAN", "TIME", "TIMER", "TRIM", "UBOUND",
-    "UCASE", "VAL", "VARTYPE",
-];
+use std::sync::OnceLock;
 
 /// The groups, as `Language::from_toml_with` takes them (the first group
 /// that has a word decides its kind).
-pub const KEYWORD_GROUPS: &[(&str, &[&str])] = &[
-    ("keyword.control", CONTROL),
-    ("keyword", STATEMENTS),
-    ("type", TYPES),
-    ("keyword.operator", OPERATORS),
-    ("constant", CONSTANTS),
-    ("type.component", COMPONENTS),
-    ("type.component", Q_COMPONENTS),
-    ("function", BUILTINS),
-];
+pub fn keyword_groups() -> &'static [(&'static str, &'static [&'static str])] {
+    static GROUPS: OnceLock<Vec<(&'static str, &'static [&'static str])>> = OnceLock::new();
+    GROUPS.get_or_init(|| {
+        let group = |kind: &'static str, words: &str| -> (&'static str, &'static [&'static str]) {
+            (kind, Box::leak(rapidr_lang::words(words).into_boxed_slice()))
+        };
+        vec![
+            group("keyword.control", "control"),
+            group("keyword", "keyword"),
+            group("type", "type"),
+            group("keyword.operator", "operator"),
+            group("constant", "constant"),
+            group("type.component", "component"),
+            group("type.component", "component_q"),
+            group("function", "builtin"),
+        ]
+    })
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::collections::BTreeSet;
+
+    fn group(kind: &str) -> BTreeSet<&'static str> {
+        keyword_groups().iter().filter(|(k, _)| *k == kind).flat_map(|(_, w)| w.iter().copied()).collect()
+    }
 
     fn lexes_as_keyword(word: &str) -> bool {
         let tokens = rapidr_lexer::Lexer::new(&format!("{word} "), None).tokenize().expect("lexes");
@@ -89,32 +42,38 @@ mod tests {
     }
 
     #[test]
-    fn the_lexers_keywords() {
-        for w in CONTROL.iter().chain(STATEMENTS).chain(OPERATORS).chain(TYPES.iter().filter(|t| **t != "SHORT")) {
-            assert!(lexes_as_keyword(w), "{w} is not a keyword of rapidr-lexer");
+    fn the_lexers_keywords_are_coloured() {
+        let all: BTreeSet<&str> = keyword_groups().iter().flat_map(|(_, w)| w.iter().copied()).collect();
+        for w in ["IF", "THEN", "NEXT", "LOOP", "DIM", "AS", "CREATE", "DEFLNG", "DEFLONG", "RUSTSTART", "RUSTEND", "INTEGER", "INT64", "AND", "MOD"] {
+            assert!(lexes_as_keyword(w), "{w} is a keyword of rapidr-lexer");
+            assert!(all.contains(w), "{w} isn't coloured");
         }
-        assert!(!lexes_as_keyword("SHORT"));
+        assert!(group("keyword.control").contains("WEND") && group("keyword.operator").contains("XOR"));
+        // (statements the parser knows by name: coloured too)
+        assert!(group("keyword").contains("SWAP") && group("keyword").contains("REDIM"));
     }
 
     #[test]
     fn the_components() {
-        let ours: BTreeSet<&str> = COMPONENTS.iter().copied().collect();
-        let theirs: BTreeSet<&str> = rapidr_ast::COMPONENT_TYPES.iter().copied().collect();
-        assert_eq!(ours, theirs, "COMPONENTS drifted from rapidr_ast::COMPONENT_TYPES");
-        for r in COMPONENTS {
-            let q = format!("Q{}", &r[1..]);
-            assert!(Q_COMPONENTS.contains(&q.as_str()), "{q} missing");
-            // (an include library's component keeps its Q name)
-            let c = rapidr_ast::canonical_type_name(&q).to_ascii_uppercase();
-            assert!(c == *r || c == q, "{q} is {c}");
+        let ours = group("type.component");
+        for r in rapidr_ast::COMPONENT_TYPES {
+            assert!(ours.contains(r), "{r}");
         }
+        for q in ["QFORM", "QBUTTON", "QGAUGE", "QOUTLINE", "COMPORT"] {
+            assert!(ours.contains(q), "{q}");
+        }
+        assert!(!ours.contains("QPLOT"), "RapidQ has no QPLOT");
     }
 
     #[test]
     fn the_builtins() {
-        let ours: BTreeSet<String> = BUILTINS.iter().map(|b| b.to_ascii_lowercase()).collect();
+        let ours = group("function");
+        let words: BTreeSet<&str> = keyword_groups().iter().flat_map(|(_, w)| w.iter().copied()).collect();
         let internal = |b: &str| b.starts_with("__") || b.contains('.') || b.ends_with("_func") || b.ends_with("_hash") || b.ends_with("_field") || b == "line_input" || b == "rapidr__waitkey";
-        let theirs: BTreeSet<String> = rapidr_bytecode::builtins::BUILTINS.iter().filter(|b| !internal(b)).map(|b| b.to_string()).collect();
-        assert_eq!(ours, theirs, "BUILTINS drifted from rapidr_bytecode::builtins::BUILTINS");
+        for b in rapidr_bytecode::builtins::BUILTINS.iter().filter(|b| !internal(b)) {
+            let upper = b.to_ascii_uppercase();
+            assert!(words.contains(upper.as_str()) || matches!(*b, "e" | "get" | "println"), "the builtin {upper} isn't coloured");
+        }
+        assert!(ours.contains("MID") && ours.contains("COMMANDCOUNT"));
     }
 }

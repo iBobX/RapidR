@@ -513,52 +513,52 @@ doc = "Gives a type: `DIM x AS INTEGER`, a parameter's, a FUNCTION's result; als
 
 [[keyword]]
 name = "TO"
-kind = "keyword"
+kind = "control"
 doc = "A range: `FOR i = 1 TO 10`, array bounds `DIM a(1 TO 5)`, `CASE 1 TO 9`; also `BIND p TO routine`."
 
 [[keyword]]
 name = "STEP"
-kind = "keyword"
+kind = "control"
 doc = "In FOR: the amount added to the counter each pass (negative to count down)."
 
 [[keyword]]
 name = "THEN"
-kind = "keyword"
+kind = "control"
 doc = "Ends an IF or ELSEIF condition; what follows on the same line is a one-line IF."
 
 [[keyword]]
 name = "ELSE"
-kind = "keyword"
+kind = "control"
 doc = "In IF: the statements run when no condition was true; `CASE ELSE` in SELECT CASE."
 
 [[keyword]]
 name = "ELSEIF"
-kind = "keyword"
+kind = "control"
 doc = "In IF: another condition, tested when those before it were false."
 
 [[keyword]]
 name = "NEXT"
-kind = "keyword"
+kind = "control"
 doc = "Ends a FOR loop; the counter's name after it is optional."
 
 [[keyword]]
 name = "WEND"
-kind = "keyword"
+kind = "control"
 doc = "Ends a WHILE loop."
 
 [[keyword]]
 name = "LOOP"
-kind = "keyword"
+kind = "control"
 doc = "Ends a DO loop, optionally with its `WHILE` or `UNTIL` test."
 
 [[keyword]]
 name = "UNTIL"
-kind = "keyword"
+kind = "control"
 doc = "In DO … LOOP: loop until the condition becomes true."
 
 [[keyword]]
 name = "CASE"
-kind = "keyword"
+kind = "control"
 doc = "In SELECT CASE: the values the next statements run for; `CASE ELSE` for any other."
 
 [[keyword]]

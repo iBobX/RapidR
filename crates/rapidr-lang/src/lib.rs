@@ -284,7 +284,8 @@ pub struct Directive {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Keyword {
     pub name: &'static str,
-    /// `operator` or `keyword`.
+    /// `operator`, `control` (THEN, NEXT, LOOP …: part of a flow statement)
+    /// or `keyword`.
     pub kind: &'static str,
     pub origin: Origin,
     pub doc: &'static str,
@@ -354,6 +355,50 @@ pub fn builtin_key(name: &str) -> String {
         key.pop();
     }
     key
+}
+
+/// The words of the language a code editor colours, by kind (upper case,
+/// without type suffixes; each list sorted, words in one list only):
+/// `control` (the flow statements' words and THEN, NEXT, LOOP …),
+/// `keyword` (the other statements' words and keywords), `type`,
+/// `operator`, `constant` (TRUE, FALSE), `component` (RapidR's names),
+/// `component_q` (RapidQ's names and aliases), `builtin` (what the runtimes
+/// implement).
+pub fn words(kind: &str) -> Vec<&'static str> {
+    let statement_words = |flow: bool| -> Vec<&'static str> {
+        STATEMENTS.iter().filter(|s| (s.group == "Flow") == flow).flat_map(|s| s.name.split(' ')).filter(|w| w.chars().all(|c| c.is_ascii_uppercase())).collect()
+    };
+    let mut w: Vec<&'static str> = match kind {
+        "control" => {
+            let mut v = statement_words(true);
+            v.extend(KEYWORDS.iter().filter(|k| k.kind == "control").map(|k| k.name));
+            v
+        }
+        "keyword" => {
+            let mut v = statement_words(false);
+            v.extend(KEYWORDS.iter().filter(|k| k.kind == "keyword").map(|k| k.name));
+            v
+        }
+        "type" => TYPE_NAMES.iter().map(|t| t.name).collect(),
+        "operator" => KEYWORDS.iter().filter(|k| k.kind == "operator").map(|k| k.name).collect(),
+        "constant" => vec!["TRUE", "FALSE"],
+        "component" => COMPONENT_TYPES.to_vec(),
+        "component_q" => COMPONENTS.iter().filter(|c| c.kind == Kind::Component).flat_map(|c| c.rapidq.into_iter().chain(c.aliases.iter().copied())).collect(),
+        "builtin" => BUILTINS.iter().filter(|b| !b.missing).map(|b| b.name.trim_end_matches(['$', '%', '#', '&', '!'])).collect(),
+        _ => Vec::new(),
+    };
+    w.sort_unstable();
+    w.dedup();
+    // (a word in two lists belongs to the first: the flow's NEXT isn't a keyword too)
+    let earlier: Vec<&'static str> = match kind {
+        "keyword" => words("control"),
+        "type" => [words("control"), words("keyword")].concat(),
+        "operator" => [words("control"), words("keyword"), words("type")].concat(),
+        "builtin" => [words("control"), words("keyword"), words("type"), words("operator")].concat(),
+        _ => Vec::new(),
+    };
+    w.retain(|x| !earlier.contains(x));
+    w
 }
 
 /// A constant's value by name (any case), and its group.

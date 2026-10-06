@@ -23,12 +23,13 @@ regex-automata = "0.4"
 # Apache-2.0).
 toml = { version = "1.1", default-features = false, features = ["std", "serde", "parse"] }
 serde = { version = "1", features = ["derive"] }
+# BASIC's keyword groups: the language registry's words (GUI-free, wasm-safe).
+rapidr-lang = { workspace = true }
 
 [dev-dependencies]
 # Property tests (MIT OR Apache-2.0; dev-only, never shipped).
 proptest = { version = "1.11", default-features = false, features = ["std"] }
-# The BASIC keyword lists are checked against the compiler's own (until the
-# language registry generates them).
+# The registry's BASIC words are checked against the compiler's own lists.
 rapidr-lexer = { workspace = true }
 rapidr-ast = { workspace = true }
 rapidr-bytecode = { workspace = true }

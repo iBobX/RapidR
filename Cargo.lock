@@ -3758,6 +3758,7 @@ dependencies = [
  "proptest",
  "rapidr-ast",
  "rapidr-bytecode",
+ "rapidr-lang",
  "rapidr-lexer",
  "regex",
  "regex-automata",
