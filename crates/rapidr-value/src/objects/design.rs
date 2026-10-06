@@ -580,6 +580,10 @@ impl DesignSurface {
                 }
                 drag.moved = drag.now != drag.start;
                 let index = self.index_of(primary)?;
+                // (a press without a move says nothing)
+                if !drag.moved {
+                    return None;
+                }
                 Some(DesignEvent::Move { index, x: to.left, y: to.top, w: to.width, h: to.height })
             }
         }
@@ -782,7 +786,9 @@ impl DesignSurface {
         // the form's corner: the resize preview's grip
         d.corner_grip((fw - CORNER, fh - CORNER, CORNER, CORNER), t.border_strong);
         if let Some((pw, ph)) = self.preview {
-            d.text((fw - 120, fh - CORNER - 16, 112, 14), &format!("{pw} × {ph}"), sans(11), t.text, Place::TopRight);
+            // (its size under its corner, on the backdrop when there's room)
+            let y = if fh + 18 <= h { fh + 3 } else { 3 };
+            d.text((fw - 120, y, 116, 14), &format!("{pw} × {ph}"), sans(11), if fh + 18 <= h { t.window } else { t.text }, Place::TopRight);
         }
         d.ops
     }
