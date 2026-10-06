@@ -1,58 +1,94 @@
 {
   "name": "rapidr",
   "displayName": "RapidR",
-  "description": "Full language support for RapidR (.rr) — a modern BASIC-to-Rust transpiler with 50+ GUI/data science components, data science, SQL databases, sockets, HTTP, JSON, and a visual IDE. Syntax highlighting, IntelliSense, hover docs, signature help, code snippets, diagnostics, and compile integration.",
-  "version": "2.7.0",
+  "description": "RapidR and RapidQ BASIC: IntelliSense, diagnostics, go to definition, rename, formatting and debugging, through RapidR's own language server and debug adapter.",
+  "version": "2.117.0",
   "publisher": "rapidr",
   "license": "MIT",
+  "author": "Roberto Berrospe",
+  "homepage": "https://github.com/iBobX/RapidR#readme",
+  "bugs": {
+    "url": "https://github.com/iBobX/RapidR/issues"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/iBobX/RapidR/tree/main/utilities/vscodeext/rapidr"
+    "url": "https://github.com/iBobX/RapidR.git",
+    "directory": "utilities/vscodeext/rapidr"
+  },
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#0E1525",
+    "theme": "dark"
   },
   "engines": {
-    "vscode": "^1.75.0"
+    "vscode": "^1.90.0"
   },
   "categories": [
     "Programming Languages",
+    "Debuggers",
     "Snippets",
-    "Linters"
+    "Linters",
+    "Formatters"
   ],
   "keywords": [
     "rapidr",
-    "basic",
-    "transpiler",
     "rapidq",
+    "basic",
+    "qbasic",
     "gui",
-    "data-science",
     "rust",
-    "numpy",
-    "pandas",
-    "matplotlib"
+    "language server",
+    "debugger"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "In a workspace you haven't trusted, RapidR doesn't run a rapidr found in the workspace (a source checkout's target/ folder) and ignores a workspace's rapidr.path.",
+      "restrictedConfigurations": [
+        "rapidr.path"
+      ]
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "The language server and the debugger read the program's files ($INCLUDE) from disk."
+    }
+  },
   "activationEvents": [
-    "onLanguage:rapidr"
+    "onLanguage:rapidr",
+    "onDebugResolve:rapidr",
+    "onDebugDynamicConfigurations:rapidr",
+    "onDebugInitialConfigurations"
   ],
-  "main": "./src/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "languages": [
       {
         "id": "rapidr",
         "aliases": [
           "RapidR",
-          "rapidr",
-          "rr"
+          "RapidQ",
+          "rapidr"
         ],
         "extensions": [
-          ".rr"
+          ".rr",
+          ".bas",
+          ".inc"
         ],
-        "configuration": "./language-configuration.json"
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./images/file-rr.svg",
+          "dark": "./images/file-rr.svg"
+        }
       }
     ],
     "grammars": [
       {
         "language": "rapidr",
         "scopeName": "source.rapidr",
-        "path": "./syntaxes/rapidr.tmLanguage.json"
+        "path": "./syntaxes/rapidr.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.rust": "rust"
+        }
       }
     ],
     "snippets": [
@@ -61,114 +97,249 @@
         "path": "./snippets/rapidr.json"
       }
     ],
-    "commands": [
+    "breakpoints": [
       {
-        "command": "rapidr.compile",
-        "title": "RapidR: Compile Current File",
-        "icon": "$(play)"
-      },
-      {
-        "command": "rapidr.compileAndRun",
-        "title": "RapidR: Compile and Run",
-        "icon": "$(debug-start)"
-      },
-      {
-        "command": "rapidr.compileToExe",
-        "title": "RapidR: Build Standalone Executable"
-      },
-      {
-        "command": "rapidr.compileWeb",
-        "title": "RapidR: Compile for Web (WASM)",
-        "icon": "$(globe)"
-      },
-      {
-        "command": "rapidr.compileWebAndServe",
-        "title": "RapidR: Compile for Web and Serve",
-        "icon": "$(broadcast)"
-      },
-      {
-        "command": "rapidr.buildBc",
-        "title": "RapidR: Build Bytecode (.rrbc)"
-      },
-      {
-        "command": "rapidr.runBc",
-        "title": "RapidR: Build and Run Bytecode"
-      },
-      {
-        "command": "rapidr.bundleBc",
-        "title": "RapidR: Build Web Bundle (.zip)"
-      },
-      {
-        "command": "rapidr.buildInterp",
-        "title": "RapidR: Build (Interpreted Native)"
-      },
-      {
-        "command": "rapidr.buildWebInterp",
-        "title": "RapidR: Build Web (Interpreted Bundle)"
+        "language": "rapidr"
       }
     ],
-    "keybindings": [
+    "debuggers": [
       {
-        "command": "rapidr.compile",
-        "key": "ctrl+shift+b",
-        "mac": "cmd+shift+b",
-        "when": "editorLangId == rapidr"
+        "type": "rapidr",
+        "label": "RapidR",
+        "languages": [
+          "rapidr"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "The program to debug: a .bas or .rr file.",
+                "default": "${file}"
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The program's command line (COMMAND$(1), COMMAND$(2), …).",
+                "default": []
+              },
+              "cwd": {
+                "type": "string",
+                "description": "The folder the program runs in. Default: the program's folder.",
+                "default": "${fileDirname}"
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "Pause on the program's first statement.",
+                "default": false
+              },
+              "noDebug": {
+                "type": "boolean",
+                "description": "Run without debugging (breakpoints are ignored).",
+                "default": false
+              },
+              "env": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "description": "Environment variables for the program (null removes one).",
+                "default": {}
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "rapidr",
+            "request": "launch",
+            "name": "RapidR: current file",
+            "program": "${file}"
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "RapidR: Launch the current file",
+            "description": "Debug the file in the active editor",
+            "body": {
+              "type": "rapidr",
+              "request": "launch",
+              "name": "RapidR: current file",
+              "program": "^\"\\${file}\""
+            }
+          },
+          {
+            "label": "RapidR: Launch a program",
+            "description": "Debug a given program with arguments",
+            "body": {
+              "type": "rapidr",
+              "request": "launch",
+              "name": "RapidR: ${1:program}",
+              "program": "^\"\\${workspaceFolder}/${2:main.bas}\"",
+              "args": [],
+              "cwd": "^\"\\${workspaceFolder}\"",
+              "stopOnEntry": false
+            }
+          }
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "command": "rapidr.run",
+        "title": "Run File",
+        "category": "RapidR",
+        "icon": "$(play)",
+        "enablement": "!rapidr.missing"
       },
       {
-        "command": "rapidr.compileAndRun",
-        "key": "f5",
-        "mac": "f5",
-        "when": "editorLangId == rapidr"
+        "command": "rapidr.debug",
+        "title": "Debug File",
+        "category": "RapidR",
+        "icon": "$(debug-alt)",
+        "enablement": "!rapidr.missing"
       },
       {
-        "command": "rapidr.compileWeb",
-        "key": "ctrl+shift+w",
-        "mac": "cmd+shift+w",
-        "when": "editorLangId == rapidr"
+        "command": "rapidr.buildNative",
+        "title": "Build Native Executable",
+        "category": "RapidR",
+        "enablement": "!rapidr.missing"
+      },
+      {
+        "command": "rapidr.buildStandalone",
+        "title": "Build Standalone Executable (Interpreted)",
+        "category": "RapidR",
+        "enablement": "!rapidr.missing"
+      },
+      {
+        "command": "rapidr.bundleWeb",
+        "title": "Bundle for the Web (.zip)",
+        "category": "RapidR",
+        "enablement": "!rapidr.missing"
+      },
+      {
+        "command": "rapidr.restartServer",
+        "title": "Restart Language Server",
+        "category": "RapidR"
+      },
+      {
+        "command": "rapidr.showOutput",
+        "title": "Show Language Server Output",
+        "category": "RapidR"
+      },
+      {
+        "command": "rapidr.locate",
+        "title": "Locate rapidr…",
+        "category": "RapidR"
+      },
+      {
+        "command": "rapidr.showCommands",
+        "title": "Show Commands",
+        "category": "RapidR"
       }
     ],
     "menus": {
-      "editor/title": [
+      "editor/title/run": [
         {
-          "command": "rapidr.compileAndRun",
-          "when": "editorLangId == rapidr",
-          "group": "navigation"
+          "command": "rapidr.run",
+          "when": "resourceLangId == rapidr",
+          "group": "navigation@1"
         },
         {
-          "command": "rapidr.compileWeb",
-          "when": "editorLangId == rapidr",
-          "group": "navigation"
+          "command": "rapidr.debug",
+          "when": "resourceLangId == rapidr",
+          "group": "navigation@2"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "rapidr.run",
+          "when": "resourceLangId == rapidr",
+          "group": "rapidr@1"
+        },
+        {
+          "command": "rapidr.debug",
+          "when": "resourceLangId == rapidr",
+          "group": "rapidr@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "rapidr.run",
+          "when": "editorLangId == rapidr"
+        },
+        {
+          "command": "rapidr.debug",
+          "when": "editorLangId == rapidr"
+        },
+        {
+          "command": "rapidr.buildNative",
+          "when": "editorLangId == rapidr"
+        },
+        {
+          "command": "rapidr.buildStandalone",
+          "when": "editorLangId == rapidr"
+        },
+        {
+          "command": "rapidr.bundleWeb",
+          "when": "editorLangId == rapidr"
         }
       ]
     },
     "configuration": {
       "title": "RapidR",
       "properties": {
-        "rapidr.compilerPath": {
+        "rapidr.path": {
           "type": "string",
           "default": "",
-          "description": "Path to rapidr compiler binary. Leave empty to auto-detect from workspace or PATH."
+          "scope": "machine-overridable",
+          "markdownDescription": "The `rapidr` executable (or the folder it is in, or `RapidR.app`). Empty: found on `PATH`, then in the usual install places, then in a RapidR source checkout open in the workspace (`target/release`, `target/debug`)."
         },
-        "rapidr.runAfterCompile": {
+        "rapidr.rapidqCompatible": {
           "type": "boolean",
-          "default": true,
-          "description": "Automatically run the compiled file after compilation."
+          "default": false,
+          "markdownDescription": "Report what RapidQ doesn't have as warnings, for programs that must still compile with RapidQ: RapidR's own components, and Q-names RapidQ doesn't have (with a quick fix). How programs compile and run doesn't change."
         },
-        "rapidr.encoding": {
+        "rapidr.trace.server": {
           "type": "string",
-          "default": "utf-8",
           "enum": [
-            "utf-8",
-            "latin-1"
+            "off",
+            "messages",
+            "verbose"
           ],
-          "description": "Source file encoding for the compiler."
-        },
-        "rapidr.webServerPort": {
-          "type": "number",
-          "default": 8080,
-          "description": "Port for the local HTTP server when serving web builds."
+          "default": "off",
+          "description": "Log the messages between VS Code and the language server (rapidr lsp) in the \"RapidR Language Server\" output."
         }
       }
     }
+  },
+  "scripts": {
+    "version:sync": "node scripts/sync-version.js",
+    "build": "node scripts/build.js",
+    "watch": "node scripts/build.js --watch",
+    "notices": "node scripts/notices.js",
+    "vscode:prepublish": "node scripts/build.js --production && node scripts/notices.js",
+    "package": "node scripts/sync-version.js && node scripts/package.js",
+    "ls": "vsce ls --no-dependencies",
+    "test:unit": "mocha test/unit",
+    "pretest": "node scripts/build.js",
+    "test": "mocha test/unit && node test/runTest.js"
+  },
+  "dependencies": {
+    "vscode-languageclient": "9.0.1"
+  },
+  "devDependencies": {
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "4.0.0",
+    "esbuild": "0.28.2",
+    "mocha": "12.0.3"
   }
 }

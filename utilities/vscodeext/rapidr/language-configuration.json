@@ -4,43 +4,70 @@
     "blockComment": null
   },
   "brackets": [
-    ["(", ")"]
+    [
+      "(",
+      ")"
+    ]
   ],
   "autoClosingPairs": [
-    { "open": "(", "close": ")" },
-    { "open": "\"", "close": "\"", "notIn": ["string", "comment"] }
+    {
+      "open": "(",
+      "close": ")"
+    },
+    {
+      "open": "\"",
+      "close": "\"",
+      "notIn": [
+        "string",
+        "comment"
+      ]
+    }
   ],
   "surroundingPairs": [
-    ["(", ")"],
-    ["\"", "\""]
+    [
+      "(",
+      ")"
+    ],
+    [
+      "\"",
+      "\""
+    ]
   ],
   "folding": {
     "markers": {
-      "start": "(?i)^\\s*(IF\\b.*\\bTHEN\\s*$|FOR\\b|WHILE\\b|DO\\b|SUB\\b|FUNCTION\\b|SELECT\\s+CASE\\b|TYPE\\b|CREATE\\b|WITH\\b|\\$IFDEF\\b|\\$IFNDEF\\b)",
-      "end": "(?i)^\\s*(END\\s+IF|NEXT\\b|WEND\\b|LOOP\\b|END\\s+SUB|END\\s+FUNCTION|END\\s+SELECT|END\\s+TYPE|END\\s+CREATE|END\\s+WITH|\\$ENDIF\\b)"
+      "start": "(?i)^\\s*(IF\\b.*\\bTHEN\\s*$|FOR\\b|WHILE\\b|DO\\b|SUBI?\\b|FUNCTIONI?\\b|SELECT\\s+CASE\\b|TYPE\\b|STRUCT\\b|CREATE\\b|WITH\\b|CONSTRUCTOR\\b|EVENT\\b|PROPERTY\\s+SET\\b|\\$IFDEF\\b|\\$IFNDEF\\b)",
+      "end": "(?i)^\\s*(END\\s+IF\\b|NEXT\\b|WEND\\b|LOOP\\b|END\\s+SUBI?\\b|END\\s+FUNCTIONI?\\b|END\\s+SELECT\\b|END\\s+TYPE\\b|END\\s+STRUCT\\b|END\\s+CREATE\\b|END\\s+WITH\\b|END\\s+CONSTRUCTOR\\b|END\\s+EVENT\\b|END\\s+PROPERTY\\b|\\$ENDIF\\b)"
     }
   },
   "wordPattern": "[A-Za-z_][A-Za-z0-9_]*[\\$%#&!]?",
   "indentationRules": {
-    "increaseIndentPattern": "(?i)^\\s*(IF\\b.*\\bTHEN\\s*$|ELSE\\b|ELSEIF\\b.*\\bTHEN\\s*$|FOR\\b|WHILE\\b|DO\\b|SUB\\b|FUNCTION\\b|SELECT\\s+CASE\\b|CASE\\b|TYPE\\b|CREATE\\b|WITH\\b|CONSTRUCTOR\\b)",
-    "decreaseIndentPattern": "(?i)^\\s*(END\\s+IF|ELSE\\b|ELSEIF\\b|NEXT\\b|WEND\\b|LOOP\\b|END\\s+SUB|END\\s+FUNCTION|END\\s+SELECT|END\\s+TYPE|END\\s+CREATE|END\\s+WITH|END\\s+CONSTRUCTOR|CASE\\b)"
+    "increaseIndentPattern": "(?i)^\\s*(IF\\b.*\\bTHEN\\s*$|FOR\\b|WHILE\\b|DO\\b|SUBI?\\b|FUNCTIONI?\\b|SELECT\\s+CASE\\b|TYPE\\b|STRUCT\\b|CREATE\\b|WITH\\b|CONSTRUCTOR\\b|EVENT\\b|PROPERTY\\s+SET\\b|ELSE\\b|ELSEIF\\b.*\\bTHEN\\s*$|CASE\\b)",
+    "decreaseIndentPattern": "(?i)^\\s*(END\\s+IF\\b|NEXT\\b|WEND\\b|LOOP\\b|END\\s+SUBI?\\b|END\\s+FUNCTIONI?\\b|END\\s+SELECT\\b|END\\s+TYPE\\b|END\\s+STRUCT\\b|END\\s+CREATE\\b|END\\s+WITH\\b|END\\s+CONSTRUCTOR\\b|END\\s+EVENT\\b|END\\s+PROPERTY\\b|ELSE\\b|ELSEIF\\b|CASE\\b)"
   },
   "onEnterRules": [
     {
       "beforeText": "(?i)^\\s*(IF\\b.*\\bTHEN)\\s*$",
-      "action": { "indent": "indent" }
+      "action": {
+        "indent": "indent"
+      }
     },
     {
-      "beforeText": "(?i)^\\s*(FOR\\b|WHILE\\b|DO\\b|SUB\\b|FUNCTION\\b|SELECT\\s+CASE\\b|TYPE\\b|CREATE\\b|WITH\\b|CONSTRUCTOR\\b)",
-      "action": { "indent": "indent" }
+      "beforeText": "(?i)^\\s*(FOR\\b|WHILE\\b|DO\\b|SUBI?\\b|FUNCTIONI?\\b|SELECT\\s+CASE\\b|TYPE\\b|STRUCT\\b|CREATE\\b|WITH\\b|CONSTRUCTOR\\b|EVENT\\b|PROPERTY\\s+SET\\b)",
+      "action": {
+        "indent": "indent"
+      }
     },
     {
       "beforeText": "(?i)^\\s*(ELSE|ELSEIF\\b.*\\bTHEN)\\s*$",
-      "action": { "indent": "indent" }
+      "action": {
+        "indent": "indent"
+      }
     },
     {
       "beforeText": "(?i)^\\s*CASE\\b",
-      "action": { "indent": "indent" }
+      "action": {
+        "indent": "indent"
+      }
     }
   ]
 }

@@ -38,6 +38,21 @@ def monaco_version():
     return m.group(1)
 
 
+def vscode_extension_packages():
+    """The JavaScript packages bundled into the VS Code extension (rapidr-<ver>.vsix):
+    its package-lock.json's production entries (utilities/vscodeext/rapidr)."""
+    lock_path = os.path.join(ROOT, "utilities", "vscodeext", "rapidr", "package-lock.json")
+    with open(lock_path, encoding="utf-8") as f:
+        lock = json.load(f)
+    out = []
+    for key, meta in lock.get("packages", {}).items():
+        if not key.startswith("node_modules/") or meta.get("dev") or meta.get("devOptional"):
+            continue
+        name = key.rsplit("node_modules/", 1)[1]
+        out.append((name, meta["version"], meta.get("license") or "NOASSERTION"))
+    return sorted(set(out))
+
+
 def licenses(expr):
     """CycloneDX wants a single SPDX id as `license.id`, else an expression."""
     if re.fullmatch(r"[A-Za-z0-9.+-]+", expr):
@@ -90,6 +105,17 @@ def main():
             "externalReferences": [{"type": "vcs", "url": "https://github.com/liberationfonts/liberation-fonts"}],
         },
     ]
+    # (bundled into the VS Code extension's dist/extension.js; listed in its THIRD_PARTY_NOTICES.md)
+    for name, ver, lic in vscode_extension_packages():
+        components.append({
+            "type": "library",
+            "bom-ref": f"pkg:npm/{name}@{ver}",
+            "name": name,
+            "version": ver,
+            "purl": f"pkg:npm/{name.replace('@', '%40')}@{ver}",
+            "licenses": licenses(lic),
+            "description": f"in the VS Code extension (rapidr-{version}.vsix)",
+        })
     bom = {
         "bomFormat": "CycloneDX",
         "specVersion": "1.5",

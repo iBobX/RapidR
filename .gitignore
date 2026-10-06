@@ -33,6 +33,8 @@ tests/results
 *.vsix
 target
 rapidr
+# (the line above is the binary; the VS Code extension's folder has the same name)
+!utilities/vscodeext/rapidr/
 ide
 *.compiled
 *.interp

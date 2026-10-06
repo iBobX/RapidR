@@ -1,344 +1,169 @@
-# RapidR — VS Code Extension
+# RapidR for Visual Studio Code
 
-> The official RapidR extension for Visual Studio Code, providing a complete development environment for the RapidR programming language.
+The VS Code extension for RapidR and RapidQ BASIC (`.bas`, `.rr`, `.inc`). Its source is in [`utilities/vscodeext/rapidr/`](utilities/vscodeext/rapidr/), and its Marketplace page is [the extension's README](utilities/vscodeext/rapidr/README.md).
 
----
+RapidR is compatible with RapidQ and written from the ground up in pure Rust. It has a native compiler, an interpreter and a web runtime. The extension is a **thin client**: it holds no language knowledge of its own.
 
-## Why This Extension Exists
+| What you see in VS Code | Where it comes from |
+|---|---|
+| Completion, hover, signature help, go to definition, references, rename, outline, formatting, diagnostics | `rapidr lsp`, the language server (the Language Server Protocol over stdio), built on `rapidr-langsvc`, the same engine as RapidR Studio |
+| Breakpoints, stepping, call stack, variables, watches | `rapidr dap`, the debug adapter (the Debug Adapter Protocol over stdio) |
+| Run, build and bundle commands | `rapidr run` / `build` / `bundle-bc`, in a terminal |
+| Syntax highlighting, snippets, brackets, folding, indentation | static files in the extension: the TextMate grammar, `snippets/rapidr.json`, `language-configuration.json` |
 
-**RapidR** is a modern BASIC-to-Rust transpiler that lets you write desktop GUI applications, console tools, database programs, and network clients/servers using a clean, familiar BASIC syntax. The compiler translates `.rr` source files into standalone Rust projects that compile to native executables.
+VS Code and RapidR Studio therefore give the same answers, and both understand programs the way the compiler does. The diagnostics use RapidQ's compiler wording (`Undeclared identifier x`, `Member X not part of class Y`, …).
 
-Without editor support, writing RapidR means working in a plain text file with no visual feedback — no colour-coded keywords, no autocomplete for the 40+ built-in GUI components, no way to quickly check a function's signature, and no one-click compilation. Every property name, event handler, and function call has to be typed from memory or looked up in the manual.
+The extension's version is RapidR's version. Each RapidR release ships a matching `rapidr-<version>.vsix`.
 
-**This extension solves all of that.** It turns VS Code into a first-class RapidR IDE where you can write, understand, navigate, and compile RapidR programs without ever leaving the editor.
+## Installing
 
----
+1. **Install RapidR** from the [GitHub releases](https://github.com/iBobX/RapidR/releases): the macOS `.dmg`, the Windows installer, or the Linux `.deb` / `.tar.gz`.
+2. **Install the extension**, either:
+   - from the VS Code Marketplace or Open VSX (search for "RapidR"), once it is published there (see [docs/vscode-publishing.md](docs/vscode-publishing.md)); or
+   - from the release's `rapidr-<version>.vsix`: in VS Code, open the Extensions view, then **⋯ → Install from VSIX…**, or run `code --install-extension rapidr-<version>.vsix`.
+3. Open a `.bas` or `.rr` file. The status bar shows **RapidR \<version\>** once the extension has found `rapidr`.
 
-## What It Does
+### How the extension finds `rapidr`
 
-At a high level, the extension provides six integrated capabilities:
+It checks these places in order:
 
-1. **Syntax Highlighting** — A full TextMate grammar that colours every element of the language so you can read code at a glance.
-2. **IntelliSense & Autocomplete** — Context-aware completions that know which component you're working with and suggest the right properties, methods, and events.
-3. **Hover Documentation** — Instant reference docs for every keyword, function, component type, and directive, displayed right where your cursor is.
-4. **Signature Help** — Parameter hints that appear as you type function arguments, showing what each parameter expects.
-5. **Document Symbols & Outline** — A structural overview of your file (SUBs, FUNCTIONs, TYPEs, CREATE blocks) in the sidebar and breadcrumbs.
-6. **Compile & Run Integration** — One-key compilation and execution from inside VS Code, including standalone executable builds.
+1. The **`rapidr.path`** setting. This can name the executable, the folder it is in, an install prefix (with `bin/`), or `RapidR.app` on macOS. If it is set and wrong, the extension says so and doesn't fall back to another `rapidr`.
+2. The `RAPIDR_PATH` environment variable (for development and tests).
+3. **`PATH`**. The extension searches it like `which` / `where` (with `PATHEXT` on Windows) and starts no process to do so.
+4. The **install places**:
+   - macOS: `/Applications/RapidR.app/Contents/MacOS/rapidr` and `~/Applications/…`, `/usr/local/bin`, `/opt/homebrew/bin`, `~/.local/bin`.
+   - Linux: `/usr/bin/rapidr`, `/usr/local/bin/rapidr`, `~/.local/bin/rapidr`.
+   - Windows: `%LOCALAPPDATA%\Programs\RapidR\bin\rapidr.exe`, `%ProgramFiles%\RapidR\bin\rapidr.exe`.
+5. A **RapidR source checkout** open in the workspace: `./rapidr`, `target/release/rapidr`, `target/debug/rapidr`. This applies in trusted workspaces only.
 
----
+The extension then runs `rapidr version`, which prints `RapidR <version>`. If `rapidr` is not found, a notification says **"RapidR was not found"** and offers two buttons. **Download RapidR** opens the releases page. **Locate rapidr…** opens a file picker and saves your choice in `rapidr.path`. The status bar item then shows a warning.
 
-## Features in Detail
+## Features
 
-### Syntax Highlighting
+- **Completion**: builtins, keywords, components (under both their `Q` and `R` names) and their properties, methods and events, and the program's own variables, constants, SUBs, FUNCTIONs and TYPEs, including those in `$INCLUDE` files. Member completion follows the variable's type, inside `WITH` and `CREATE` too. Completion triggers on `.`.
+- **Hover** with signatures and documentation, and **signature help** (triggered by `(` and `,`).
+- **Go to Definition**, also into `$INCLUDE` files; **Find All References**; **Rename Symbol**.
+- **Outline** and breadcrumbs: SUBs, FUNCTIONs, TYPEs, the CREATE tree.
+- **Format Document**.
+- **Diagnostics** as you type, in RapidQ's compiler wording. With `rapidr.rapidqCompatible` on, what RapidQ doesn't have is reported too: today RapidR's own components and Q-names RapidQ lacks (`QPLOT`, with a quick fix to `RPlot`); members, builtins, statements and directives join when the language registry records each one's origin.
+- **Run / Build / Bundle / Debug** commands, on the editor title bar, in the Command Palette, in the explorer's context menu, and in the status bar item's menu.
+- Highlighting, snippets, folding and indentation for RapidQ / RapidR syntax.
 
-The extension registers a comprehensive TextMate grammar (`syntaxes/rapidr.tmLanguage.json`) that applies accurate scopes to every language construct. VS Code's theme engine then colours them according to whatever colour theme you use (Dark+, Monokai, Solarized, etc.).
+### Commands
 
-What gets highlighted:
+| Command | What it runs |
+|---|---|
+| RapidR: Run File | `rapidr run <file>` in the "RapidR" terminal. It saves the file and the RapidR files it may `$INCLUDE` first. Running again ends the previous run. |
+| RapidR: Debug File | Starts a `rapidr` debug session on the file. |
+| RapidR: Build Native Executable | `rapidr build <file> --release`, which needs Rust (`rapidr setup`). |
+| RapidR: Build Standalone Executable (Interpreted) | `rapidr build <file> --interp`: one executable, no Rust. |
+| RapidR: Bundle for the Web (.zip) | `rapidr bundle-bc <file> -o <name>-web.zip`, written beside the file. |
+| RapidR: Restart Language Server | Finds `rapidr` again and restarts `rapidr lsp`. |
+| RapidR: Show Language Server Output | The "RapidR Language Server" output channel. |
+| RapidR: Locate rapidr… | Picks the executable and saves it in `rapidr.path`. |
 
-| Element | Examples |
-|---------|----------|
-| **Keywords** | `DIM`, `IF`, `THEN`, `ELSE`, `ELSEIF`, `FOR`, `TO`, `STEP`, `NEXT`, `WHILE`, `WEND`, `DO`, `LOOP`, `UNTIL`, `SUB`, `FUNCTION`, `SELECT CASE`, `CREATE`, `WITH`, `TYPE`, `IMPORT`, `DECLARE`, `BIND`, `CONST`, `RETURN`, `EXIT`, `CALL`, `GOTO`, `GOSUB` |
-| **Data types** | `INTEGER`, `STRING`, `DOUBLE`, `SINGLE`, `BYTE`, `WORD`, `DWORD`, `LONG`, `INT64`, `CURRENCY`, `POBJECT`, `VARIANT` |
-| **Component types** | `PFORM`, `PBUTTON`, `PLABEL`, `PEDIT`, `PCANVAS`, `PPANEL`, `PCHECKBOX`, `PRADIOBUTTON`, `PCOMBOBOX`, `PLISTBOX`, `PRICHEDIT`, `PTIMER`, `PPROGRESSBAR`, `PSTRINGGRID`, `PTABCONTROL`, `PCODEEDITOR`, `PIMAGE`, `PLISTVIEW`, `PTREEVIEW`, `PSCROLLBAR`, `PSTATUSBAR`, `PMAINMENU`, `PMENUITEM`, `PPOPUPMENU`, `PMYSQL`, `PSQLITE`, `PSOCKET`, `PSERVERSOCKET`, `PHTTP`, `PFILESTREAM`, `POPENDIALOG`, `PSAVEDIALOG`, `PCOLORDIALOG`, `PFONTDIALOG`, `PDESIGNSURFACE`, `PNUMPY`, `PMATPLOTLIB`, `PPANDAS`, and more |
-| **Built-in functions** | 100+ functions across string, math, I/O, system, GUI, array, and conversion categories |
-| **Literals** | Strings (`"..."`), decimal numbers, hex (`&HFF`), octal (`&O77`), binary (`&B1010`) |
-| **Directives** | `$APPTYPE`, `$INCLUDE`, `$DEFINE`, `$UNDEF`, `$IFDEF`, `$IFNDEF`, `$ELSE`, `$ENDIF`, `$MACRO`, `$TYPECHECK`, `$OPTION`, `$OPTIMIZE`, `$ESCAPECHARS` |
-| **Comments** | Single-quote (`'`) line comments and `REM` statements |
-| **Operators** | `AND`, `OR`, `NOT`, `XOR`, `MOD`, `+`, `-`, `*`, `/`, `\`, `^`, `=`, `<>`, `<`, `>`, `<=`, `>=` |
+The extension adds no keybindings. F5 (debug) and Ctrl+F5 / Cmd+F5 (run without debugging) are VS Code's own and work on RapidR files through the debugger.
 
-### IntelliSense & Autocomplete
-
-The completion engine (`src/completionProvider.js`) analyses the cursor context in real time and provides different suggestions depending on where you are in the code:
+### Settings
 
-- **Dot completion** — Type a variable name followed by `.` and the extension looks up the variable's type (from its `CREATE` or `DIM` statement), then shows only the members that belong to that specific type. This works for both **built-in GUI components** and **user-defined TYPEs**.
-  - *Built-in components:* typing `myButton.` on a `PBUTTON` variable shows `caption`, `width`, `onclick`, `setfocus`, etc.
-  - *User-defined TYPEs:* typing `r.` on a `DIM r AS Rect` variable (where `Rect` is a TYPE you defined) shows all of `Rect`'s fields, SUBs, FUNCTIONs, and PROPERTYs. Fields appear as field-type completions and methods appear with call-signature snippets.
-  - *Inheritance:* if your TYPE uses `EXTENDS`, the extension resolves the full inheritance chain and includes parent members in the completion list.
+| Setting | Default | |
+|---|---|---|
+| `rapidr.path` | `""` | The `rapidr` to use (machine-overridable). |
+| `rapidr.rapidqCompatible` | `false` | Report what RapidQ doesn't have. The server receives this as the `rapidqCompatible` initialization option, and changing it restarts the server. |
+| `rapidr.trace.server` | `off` | `messages` / `verbose`: log the LSP traffic in the output channel. |
 
-- **WITH block completion** — Inside a `WITH myForm ... END WITH` block, typing `.` automatically resolves `myForm`'s type and shows its members. No need to repeat the variable name.
+## Debugging
 
-- **CREATE block completion** — Inside a `CREATE myEdit AS PEDIT ... END CREATE` block, the extension offers the component's properties (with `= ` appended for quick assignment), methods, and events.
-
-- **Type completion** — After `DIM x AS` or `CREATE x AS`, the extension lists all available data types, component types, and user-defined TYPE names.
-
-- **Directive completion** — After typing `$`, all compiler directives are suggested with descriptions.
-
-- **General completions** — At any other position, you get keyword completions, built-in function names (with snippet placeholders for arguments), and symbols you've defined in the current file (your own SUBs, FUNCTIONs, variables, constants, and CREATE'd components).
-
-### Hover Documentation
-
-The hover provider (`src/hoverProvider.js`) shows inline documentation when you hold the mouse or press the hover shortcut over any symbol:
-
-- **Keywords** — Each keyword shows a brief description and typical syntax pattern. For example, hovering `FOR` shows: *"Counted loop. Syntax: FOR var = start TO end [STEP n] ... NEXT"*.
-- **Component types** — Hovering a type like `PSTRINGGRID` displays all of its properties, methods, and events in categorised lists.
-- **User-defined TYPEs** — Hovering a TYPE name (e.g., `Rect`) shows the full type definition: all fields with their types, all SUBs, FUNCTIONs, CONSTRUCTORs, and PROPERTYs with their signatures, and the parent type if `EXTENDS` is used.
-- **User-defined TYPE members** — Hovering a member like `r.Left` (where `r` is a `Rect`) shows whether it's a field or method, its type or signature, and which TYPE it belongs to.
-- **User-defined TYPE instances** — Hovering a variable like `r` (where `r` is a `DIM r AS Rect`) shows the variable's type and lists all available members.
-- **Built-in functions** — Shows the function signature as a code block plus a description. For example, hovering `MID$` shows: `MID$(str, start [, length])` — *"Returns substring from position"*.
-- **Data types** — Shows the type name and its Rust equivalent (e.g., `DOUBLE` → *"Double-precision float (f64)"*).
-- **Directives** — Shows the directive's purpose (e.g., `$APPTYPE` → *"Set application type: GUI, CONSOLE, or CGI"*).
-- **User variables** — If you hover a variable that was created with `CREATE`, it shows the variable name and its component type. If it's an instance of a user-defined TYPE, it shows the type name and its members.
-
-### Signature Help
-
-The signature provider (`src/signatureProvider.js`) activates when you type `(` after a built-in function name. It displays the full function signature in a tooltip and highlights the parameter you're currently typing. As you add commas to move to the next argument, the highlight advances accordingly.
-
-This works for all 100+ built-in functions that accept parameters (string functions like `MID$`, `LEFT$`, `INSTR`; math functions like `ROUND`, `IIF`; GUI functions like `MESSAGEBOX`, `RGB`; etc.).
-
-### Document Symbols & Outline
-
-The symbol provider (`src/symbolProvider.js`) scans the current file and reports all significant declarations to VS Code. This powers:
-
-- **The Outline panel** (sidebar) — Shows a tree of all SUBs, FUNCTIONs, TYPEs, CREATE blocks, CONSTs, and top-level DIM variables.
-- **Breadcrumbs** (top of the editor) — Shows which SUB or FUNCTION the cursor is currently inside.
-- **Go to Symbol** (`Cmd+Shift+O` / `Ctrl+Shift+O`) — Instantly jump to any declaration in the file.
-
-Each symbol is tagged with an appropriate icon (function, struct, object, constant, variable) and shows its detail (e.g., a CREATE'd component shows its type like `PFORM`).
-
-### Snippets (40+)
-
-The extension includes over 40 code snippets (`snippets/rapidr.json`) that expand common patterns with a single Tab press. Snippet placeholders let you jump between fields with Tab.
-
-| Prefix | What It Generates |
-|--------|-------------------|
-| `dim` | `DIM varName AS type` |
-| `dima` | Array declaration with size |
-| `const` | `CONST NAME = value` |
-| `if` | `IF ... THEN ... END IF` |
-| `ife` | `IF ... THEN ... ELSE ... END IF` |
-| `ifeif` | `IF ... ELSEIF ... ELSE ... END IF` |
-| `for` | `FOR i = 1 TO n ... NEXT` |
-| `fors` | `FOR` with `STEP` |
-| `while` | `WHILE ... WEND` |
-| `dowhile` | `DO WHILE ... LOOP` |
-| `dountil` | `DO ... LOOP UNTIL` |
-| `dowhilepre` | `DO ... LOOP WHILE` (post-test) |
-| `select` | `SELECT CASE` with branches |
-| `sub` | `SUB Name() ... END SUB` |
-| `func` | `FUNCTION Name() AS type ... END FUNCTION` |
-| `type` | `TYPE Name ... END TYPE` |
-| `typec` | TYPE with CONSTRUCTOR |
-| `create-form` | Full `CREATE ... AS PFORM` block |
-| `create-button` | Full `CREATE ... AS PBUTTON` block |
-| `create-label` | Full `CREATE ... AS PLABEL` block |
-| `create-edit` | Full `CREATE ... AS PEDIT` block |
-| `create-panel` | Full `CREATE ... AS PPANEL` block |
-| `create-timer` | Full `CREATE ... AS PTIMER` block |
-| `create-listbox` | Full `CREATE ... AS PLISTBOX` block |
-| `create-combobox` | Full `CREATE ... AS PCOMBOBOX` block |
-| `create-grid` | Full `CREATE ... AS PSTRINGGRID` block |
-| `create-richedit` | Full `CREATE ... AS PRICHEDIT` block |
-| `create-canvas` | Full `CREATE ... AS PCANVAS` block |
-| `create-codeeditor` | Full `CREATE ... AS PCODEEDITOR` block |
-| `create-menu` | Full `CREATE ... AS PMAINMENU` block |
-| `create-mysql` | Full `CREATE ... AS PMYSQL` block |
-| `create-sqlite` | Full `CREATE ... AS PSQLITE` block |
-| `create-socket` | Full `CREATE ... AS PSOCKET` block |
-| `create-http` | Full `CREATE ... AS PHTTP` block |
-| `with` | `WITH object ... END WITH` block |
-| `import` | `IMPORT "module"` |
-| `declare` | `DECLARE FUNCTION ... LIB ...` |
-| `bind` | `BIND object.event TO handler` |
-| `$include` | `$INCLUDE "file"` |
-| `$define` | `$DEFINE SYMBOL value` |
-| `$ifdef` | `$IFDEF ... $ENDIF` block |
-| `$apptype` | `$APPTYPE GUI|CONSOLE|CGI` |
-| `$typecheck` | `$TYPECHECK ON|OFF` |
-| `rpcons` | Full console app skeleton with boilerplate |
-| `rpgui` | Full GUI app skeleton (form, button, event handler) |
-| `rpdb` | Full database app skeleton (SQLite connection, query, display) |
-
-### Compile & Run Integration
-
-The extension integrates directly with the RapidR compiler (`rapidr`) so you never need to switch to a terminal:
-
-| Action | Shortcut | Command Palette |
-|--------|----------|-----------------|
-| Compile current file | `Ctrl+Shift+B` (`Cmd+Shift+B` on Mac) | *RapidR: Compile Current File* |
-| Compile and run | `F5` | *RapidR: Compile and Run* |
-| Build standalone executable | — | *RapidR: Build Standalone Executable* |
-| Compile for Web (WASM) | `Ctrl+Shift+W` (`Cmd+Shift+W` on Mac) | *RapidR: Compile for Web (WASM)* |
-| Build bytecode (`.rrbc`) | — | *RapidR: Build Bytecode (.rrbc)* |
-| Build & run bytecode | — | *RapidR: Build and Run Bytecode* |
-| Build static web bundle (`.zip`) | — | *RapidR: Build Web Bundle (.zip)* |
-| Build interpreted native (one self-contained exe) | — | *RapidR: Build (Interpreted Native)* |
-| Build interpreted web bundle (`.zip`) | — | *RapidR: Build Web (Interpreted Bundle)* |
-
-Additionally:
-- A **play button** appears in the editor title bar when a `.rr` file is active.
-- A **status bar item** (`▶ RapidR`) at the bottom of VS Code shows when a RapidR file is open. Click it to compile and run.
-- The compiler path is **auto-detected** from your workspace (it searches for `rapidr` in the workspace root and parent directories). You can also set it manually in settings.
-
-### Diagnostics
-
-Every time you save a `.rr` file (and when you first open one), the extension performs lightweight validation and reports problems in the **Problems panel**:
-
-- **Unclosed blocks** — Detects when a `IF` is missing its `END IF`, a `FOR` is missing its `NEXT`, a `SUB` is missing its `END SUB`, etc. The diagnostic appears on the opening line of the unclosed block, telling you exactly which closing keyword is missing.
-- **Unterminated strings** — Detects lines where a string literal is opened with `"` but never closed.
-
-These diagnostics appear as yellow/red squiggly underlines in the editor and in the Problems panel (`Ctrl+Shift+M` / `Cmd+Shift+M`).
-
----
-
-## Extension Architecture
-
-The extension is a pure JavaScript VS Code extension (no TypeScript compilation or bundler required). Here's how the source files are organised:
-
-```
-utilities/vscodeext/rapidr/
-├── package.json                          # Extension manifest: commands, keybindings,
-│                                         # settings, language & grammar registration
-├── language-configuration.json           # Bracket matching, folding regions,
-│                                         # auto-indentation rules, comment toggling
-├── README.md                             # This file
-├── syntaxes/
-│   └── rapidr.tmLanguage.json            # TextMate grammar: regex-based tokenisation
-│                                         # for syntax highlighting (15 pattern groups)
-├── snippets/
-│   └── rapidr.json                       # 40+ code snippets with Tab-stop placeholders
-└── src/
-    ├── extension.js                      # Main entry point: registers all providers,
-    │                                     # commands, diagnostics, and status bar
-    ├── languageData.js                   # Complete language database: 40+ component
-    │                                     # types with props/methods/events, 100+
-    │                                     # built-in functions, keywords, types, directives
-    ├── completionProvider.js             # Context-aware autocomplete engine
-    │                                     # (dot, WITH, CREATE, directive, type, general)
-    │                                     # Supports both built-in and user-defined types
-    ├── hoverProvider.js                  # Hover-to-see-docs for all language elements
-    │                                     # including user-defined TYPE definitions
-    ├── signatureProvider.js              # Function parameter hints on typing "("
-    ├── symbolProvider.js                 # Document outline: SUBs, FUNCTIONs, TYPEs,
-    │                                     # CREATE blocks, CONSTs, DIM variables
-    └── typeParser.js                     # Shared parser for user-defined TYPE blocks:
-                                          # extracts fields, SUBs, FUNCTIONs, PROPERTYs,
-                                          # CONSTRUCTORs, and resolves EXTENDS inheritance
-```
-
-**How it works:**
-
-1. When VS Code opens a `.rr` file, the extension activates (`onLanguage:rapidr` activation event).
-2. The TextMate grammar handles all syntax highlighting passively — no JavaScript needed.
-3. The four provider classes (`completionProvider`, `hoverProvider`, `signatureProvider`, `symbolProvider`) are registered with the VS Code language API and respond to editor events.
-4. All providers share a single language database (`languageData.js`) containing the full RapidR component registry, built-in function catalogue, keyword list, type definitions, and directive definitions — all extracted directly from the RapidR compiler source code.
-5. A shared `typeParser.js` module scans the document for `TYPE ... END TYPE` blocks on demand and extracts fields, methods, constructors, properties, and inheritance (`EXTENDS`). Both the completion and hover providers use this when a variable's type is not found in the built-in component registry.
-6. The compile commands invoke `rapidr` in a VS Code terminal, passing the active file path and configured flags.
-6. The diagnostic validator runs on save/open and pushes warnings to VS Code's Problems panel.
-
----
-
-## Installation
-
-### Method 1: Symlink (Development / Quick Setup)
-
-The simplest way to install — create a symbolic link from VS Code's extensions folder to this directory:
-
-```bash
-# macOS / Linux
-ln -s /path/to/RapidR/utilities/vscodeext/rapidr ~/.vscode/extensions/rapidr
-
-# Example with the default RapidR project location:
-ln -s ~/Programming/rust/RapidR/utilities/vscodeext/rapidr ~/.vscode/extensions/rapidr
-```
-
-Then reload VS Code:
-- Press `Cmd+Shift+P` (Mac) or `Ctrl+Shift+P` (Windows/Linux)
-- Type **Developer: Reload Window** and press Enter
-
-Open any `.rr` file and the extension activates automatically.
-
-### Method 2: Copy the Folder
-
-If you prefer not to symlink, copy the entire extension folder:
-
-```bash
-cp -r /path/to/RapidR/utilities/vscodeext/rapidr ~/.vscode/extensions/rapidr
-```
-
-Reload VS Code as described above.
-
-### Method 3: Build a VSIX Package
-
-To create a distributable `.vsix` package that can be shared with others or installed on any machine:
-
-```bash
-cd /path/to/RapidR/utilities/vscodeext/rapidr
-
-# Install the packaging tool (one-time)
-npm install -g @vscode/vsce
-
-# Build the VSIX
-vsce package
-```
-
-This produces `rapidr-1.0.0.vsix`. Install it with:
-
-```bash
-code --install-extension rapidr-1.0.0.vsix
-```
-
-Or from within VS Code: `Extensions` sidebar → `...` menu → **Install from VSIX...** → select the file.
-
-### Verifying the Installation
-
-After installing and reloading:
-
-1. Open a `.rr` file — you should see syntax colouring immediately.
-2. Check the bottom-left status bar for the `▶ RapidR` indicator.
-3. Try typing `DIM x AS ` — you should see type completions appear.
-4. Open the Outline panel (`Cmd+Shift+O`) — SUBs and FUNCTIONs should appear.
-
----
-
-## Configuration
-
-All settings are under the `rapidr.*` namespace in VS Code Settings (`Cmd+,` / `Ctrl+,`):
-
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `rapidr.compilerPath` | `string` | `""` (auto-detect) | Absolute path to `rapidr` binary. When left empty, the extension searches the workspace root, parent directories, and PATH automatically. |
-| `rapidr.runAfterCompile` | `boolean` | `true` | When enabled, the compiled binary is executed immediately after a successful compile. Disable if you only want to compile without running. |
-| `rapidr.encoding` | `string` | `utf-8` | Source file encoding passed to the compiler. Choose `latin-1` if your `.rr` files use Latin-1 encoded characters. |
-
-### Example `settings.json`
+The extension contributes the **`rapidr`** debug type. VS Code runs `rapidr dap` as the debug adapter, over stdio. With no `launch.json`, F5 debugs the active RapidR file (`program: ${file}`). To give arguments, a working folder or environment variables, add a configuration (**Run → Add Configuration… → RapidR**):
 
 ```json
 {
-    "rapidr.compilerPath": "/Users/you/Projects/RapidR/rapidr",
-    "rapidr.runAfterCompile": true,
-    "rapidr.encoding": "utf-8"
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "rapidr",
+      "request": "launch",
+      "name": "RapidR: main.bas",
+      "program": "${workspaceFolder}/main.bas",
+      "args": ["data.csv"],
+      "cwd": "${workspaceFolder}",
+      "stopOnEntry": false,
+      "env": { "MY_SETTING": "1" }
+    }
+  ]
 }
 ```
 
----
+| Attribute | |
+|---|---|
+| `program` | The `.bas`, `.rr` or `.rrbc` to run. Default: `${file}`. |
+| `args` | The program's command line (`COMMAND$(n)`). |
+| `cwd` | The program's folder (default: the program's own folder). |
+| `stopOnEntry` | Pause on the first statement. |
+| `noDebug` | Run without debugging. Ctrl+F5 sets this. |
+| `env` | Extra environment variables (`null` removes one). |
 
-## Requirements
+## Troubleshooting
 
-| Requirement | Version | Purpose |
-|-------------|---------|---------|
-| VS Code | 1.75 or later | Extension host API compatibility |
-| Rust | stable | The generated Rust projects are compiled with `cargo build` |
-| RapidR compiler | — | The `rapidr` script and `compiler/` + `rp_runtime/` directories from the RapidR project |
+- **"RapidR was not found."** Use **Locate rapidr…**, or set `rapidr.path`. VS Code started from the macOS Dock may have a shorter `PATH` than your shell. The install places are searched anyway.
+- **"RapidR's language server didn't start."** Run **RapidR: Show Language Server Output**. A RapidR older than the language server has no `rapidr lsp`, so update it. To see the protocol traffic, set `rapidr.trace.server` to `verbose`.
+- **Nothing happens on F5.** The active editor must be a RapidR file, or `launch.json` must name a `program`.
+- **Untrusted workspace.** The workspace's `rapidr.path` is ignored, and a `rapidr` built inside the workspace isn't run, until you trust the workspace.
+- **`.bas` opens as another language.** Another extension claims `.bas` (Visual Basic, for example). Choose "RapidR" in the language picker on the status bar, or add `"files.associations": { "*.bas": "rapidr" }`.
 
-No additional npm packages or native dependencies are required. The extension is pure JavaScript with zero runtime dependencies beyond the VS Code API.
+## Building the extension
 
----
+It is plain JavaScript (no TypeScript), bundled with esbuild into `dist/extension.js`. The `.vsix` therefore carries one script and no `node_modules`. Building it needs Node.js 22 or newer.
 
-## Supported Languages and File Types
+```bash
+./build_vsc_extension.sh            # → utilities/vscodeext/rapidr/dist/rapidr-<version>.vsix
+```
 
-| Language ID | File Extension | MIME Type |
-|-------------|---------------|-----------|
-| `rapidr` | `.rr` | `text/x-rapidr` |
+That script runs `npm ci` and `npm run package` in `utilities/vscodeext/rapidr/`. The package step does three things:
 
----
+- `scripts/sync-version.js` copies RapidR's version (Cargo.toml's `[workspace.package] version`) into `package.json`.
+- `vscode:prepublish` bundles the extension (`scripts/build.js --production`) and regenerates `THIRD_PARTY_NOTICES.md` (`scripts/notices.js`). The notices list every bundled JavaScript package with its licence text, and the step fails on a licence other than MIT, ISC, BSD, Apache-2.0 or 0BSD.
+- `vsce package --no-dependencies` makes the `.vsix`.
 
-## Known Limitations
+`npm run ls` lists what goes into the `.vsix`. `.vscodeignore` keeps only the bundle, the grammar, snippets, language configuration, images, README, CHANGELOG, LICENSE and the notices.
 
-- Diagnostics are lightweight (block matching and string checking only). Full semantic analysis (undefined variables, type mismatches) is handled by the compiler itself — use `Ctrl+Shift+B` to get full compiler diagnostics.
-- The extension does not include a debugger. Run/debug is handled by compiling to native executables.
+The release puts the `.vsix` beside the installers: `tools/release/vscode.sh` (run by `prepare.sh`) writes `dist/<version>/out/rapidr-<version>.vsix`, and `finish.sh`'s `SHA256SUMS` covers it. Publishing to the Marketplace and Open VSX is done by hand, with your own accounts: see [docs/vscode-publishing.md](docs/vscode-publishing.md).
 
----
+| Production dependency | Licence |
+|---|---|
+| `vscode-languageclient` (with `vscode-languageserver-protocol`, `vscode-jsonrpc`, `vscode-languageserver-types`) | MIT |
+| `minimatch`, `semver` | ISC |
+| `brace-expansion`, `balanced-match` | MIT |
 
-## License
+Development only: `esbuild`, `@vscode/vsce`, `@vscode/test-electron` and `mocha`, all MIT.
 
-MIT
+## Testing the extension
+
+```bash
+cd utilities/vscodeext/rapidr
+npm install
+npm run test:unit                               # finding rapidr, terminal quoting: plain Node
+cargo build -p rapidr-cli                       # (from the repository root) a rapidr with `lsp`
+npm test                                        # unit tests, then the integration tests
+RAPIDR_PATH=/path/to/rapidr npm test            # another rapidr
+RAPIDR_TEST_GREP=diagnostics npm test           # some tests only
+VSCODE_VERSION=1.90.0 npm test                  # the oldest VS Code supported
+```
+
+The integration tests (`test/runTest.js`, `test/suite/`) use `@vscode/test-electron`. They download a VS Code once into `.vscode-test/` and start it with a temporary profile, never yours, and only this extension. That VS Code opens `test/fixtures/workspace/`, which holds four files:
+
+- `main.bas`: a form with a button, a SUB, and an `$INCLUDE`.
+- `helpers.inc`: a FUNCTION.
+- `errors.bas`: an undeclared variable under `$TYPECHECK ON`.
+- `hello.bas`: a console program for the Run command.
+
+The tests ask VS Code what its own UI asks (`vscode.executeCompletionItemProvider`, `…HoverProvider`, `…SignatureHelpProvider`, `…DefinitionProvider`, `…ReferenceProvider`, `…DocumentRenameProvider`, `…DocumentSymbolProvider`, `…FormatDocumentProvider`, `languages.getDiagnostics`). They check six things:
+
+- Completion offers the members after `Form.` (`Caption`), builtins (`MID$`), the program's SUB, variable, and the FUNCTION from the include.
+- Hover and signature help name what is under the cursor.
+- Definition goes into `helpers.inc`, references and rename find all four uses, and the outline has the SUB, the form and its button.
+- Formatting changes only layout and letter case, and the error is reported as `Undeclared identifier undeclaredThing` on its line.
+- The `rapidr` debug type, its breakpoints and its launch attributes are contributed.
+- Run File opens the "RapidR" terminal, and running again replaces it.
+
+The tests run on macOS as a normal window that opens briefly. On Linux without a display, use `xvfb-run -a npm test`.
