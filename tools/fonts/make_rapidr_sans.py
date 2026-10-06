@@ -33,6 +33,7 @@ so.
 
 writes crates/rapidr-value/fonts/RapidRSans-Regular.ttf (needs fontTools).
 """
+import math
 import os
 import unicodedata
 
@@ -72,11 +73,13 @@ GAP = 1.0
 EXTRA = 0.4
 # The letters keep their shapes: a glyph's outline is narrowed at most this
 # much (barely visible) to keep the gap …
-SQUEEZE = (0.96, 1.04)
+SQUEEZE = (1.0, 1.0)
 # … and where it still doesn't fit, the letter is made smaller in both
 # directions, at most this much (spacing wins over size; the few that would
 # need more — f, j, r, t, x, y, A, C, V — keep a smaller gap).
 SHRINK = 0.9
+# Space kept on each side of a letter, at least (or 40 % of what there is).
+SIDE = 0.25
 # Descenders kept within the line's 2 pixels below the baseline
 # (Liberation's g, p, y reach 0.212 em down; MS Sans Serif's line 2 of 11
 # pixels), so nothing is cut off at the bottom of a 13-pixel line: only
@@ -86,8 +89,9 @@ SHORT = (DESCENT_PX / EM_PX) / 0.212
 # x-height of exactly 6 pixels at 8 pt (Liberation's is 5.81), capitals and
 # digits 8 pixels high (7.57) — MS Sans Serif's x-height, its capitals a
 # little taller still — on whole pixels, so their tops are crisp at 1×.
-BIG = 6 / (EM_PX * 1082 / 2048)
-BIG_CAPS = 8 / (EM_PX * 1409 / 2048)
+BIG = 1.0
+BIG_CAPS = 1.0
+WIDER = {"r": 4}
 
 
 class Fit(FilterPen):
@@ -120,30 +124,33 @@ class Fit(FilterPen):
 KEEP_LIBERATION = {c for c in range(0x80, 0xA0)}
 
 
-def stem_shift(g, glyf, px):
-    """How far to move a glyph sideways (within half a pixel) so that its
-    upright edges — the sides of l, i, n, H … — fall on pixel boundaries
-    at 8 pt (one pixel `px` units), where a 1-pixel stem then shows as one
-    black column instead of two grey ones."""
-    if not g.numberOfContours:
-        return 0
-    coords, ends, flags = g.getCoordinates(glyf)
+def stem_shift(g, glyf, px, lo, hi):
+    """How far to move a glyph sideways, between lo and hi (font units), so
+    that its upright edges — the sides of l, i, n, H … — fall on pixel
+    boundaries at 8 pt (one pixel `px` units), where a 1-pixel stem then
+    shows as one black column instead of two grey ones. (The range keeps
+    some space on both sides of the letter: a letter moved flush against
+    its cell's edge touches the next one — B then r.)"""
+    if lo > hi:
+        return round((lo + hi) / 2)
     edges = []
-    start = 0
-    for end in ends:
-        pts = [(coords[i], flags[i] & 1) for i in range(start, end + 1)]
-        for (a, on_a), (b, on_b) in zip(pts, pts[1:] + pts[:1]):
-            if on_a and on_b and abs(a[0] - b[0]) <= 2 and abs(a[1] - b[1]) >= px * 3 // 4:
-                edges.append(((a[0] + b[0]) / 2, abs(a[1] - b[1])))
-        start = end + 1
+    if g.numberOfContours:
+        coords, ends, flags = g.getCoordinates(glyf)
+        start = 0
+        for end in ends:
+            pts = [(coords[i], flags[i] & 1) for i in range(start, end + 1)]
+            for (a, on_a), (b, on_b) in zip(pts, pts[1:] + pts[:1]):
+                if on_a and on_b and abs(a[0] - b[0]) <= 2 and abs(a[1] - b[1]) >= px * 3 // 4:
+                    edges.append(((a[0] + b[0]) / 2, abs(a[1] - b[1])))
+            start = end + 1
     if not edges:
-        return 0
+        return min(max(0, round(lo)), round(hi))
 
     def cost(s):
         return sum(w * min((x + s) % px, px - (x + s) % px) for x, w in edges)
 
-    best = min(range(-px // 2, px // 2 + 1, 2), key=lambda s: (round(cost(s)), abs(s)))
-    return best if cost(best) < cost(0) else 0
+    span = range(int(math.ceil(lo)), int(math.floor(hi)) + 1)
+    return min(span, key=lambda s: (round(cost(s)), abs(s))) if span else round((lo + hi) / 2)
 
 
 def main():
@@ -186,6 +193,7 @@ def main():
             continue
         done.add(name)
         advance, _ = hmtx[name]
+        width = WIDER.get(ch, width)
         target = round(width * upm / EM_PX)
         if advance <= 0:
             hmtx[name] = (target, 0)
@@ -212,8 +220,11 @@ def main():
         share = lsb / (lsb + rsb) if lsb + rsb > 0 else 0.5
         dx = slack * share - x0 * big * kx * u
         g = outline(name, kx, u, dx, big)
-        # (its upright stems on whole pixels at 8 pt: crisp as a bitmap font's)
-        s = stem_shift(g, glyf, upm // EM_PX)
+        # (its upright stems on whole pixels at 8 pt: crisp as a bitmap font's;
+        # at least SIDE on either side of it, or half what there is)
+        side = min(SIDE * upm / EM_PX, max(slack, 0) * 0.4) if slack > 0 else slack / 2
+        lsb0 = slack * share
+        s = stem_shift(g, glyf, upm // EM_PX, side - lsb0, slack - side - lsb0)
         if s:
             g = outline(name, kx, u, dx + s, big)
         glyf[name] = g
