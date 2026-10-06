@@ -113,6 +113,67 @@ pub enum StepMode {
     Out { target_depth: usize },
 }
 
+/// Why the VM stopped for the debugger.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum StopReason {
+    /// A breakpoint's line was reached.
+    #[default]
+    Breakpoint,
+    /// A step (in, over, out) ended.
+    Step,
+    /// The debugger asked it to pause ([`Vm::request_pause`]).
+    Pause,
+    /// A run-time error, with [`Vm::break_on_error`] on: stopped at the
+    /// faulting statement, before the error unwinds anything.
+    Exception,
+}
+
+/// Where and why the VM stopped (handed to a [`Debugger`]).
+#[derive(Debug, Clone)]
+pub struct StopInfo {
+    pub reason: StopReason,
+    /// The compiled line (map it with `Module::source_map`).
+    pub line: Option<u32>,
+    /// The error, when `reason` is [`StopReason::Exception`].
+    pub error: Option<String>,
+}
+
+/// How a [`Debugger`] lets the VM go on after a stop.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Resume {
+    Continue,
+    StepIn,
+    StepOver,
+    StepOut,
+    /// End the program (as END does).
+    Terminate,
+}
+
+/// A debugger that serves stops where they happen: the VM calls it at the
+/// stop, with the VM and the program to inspect (stack, variables,
+/// [`Vm::evaluate`]), and goes on as it says. A host that can block (the
+/// desktop, its commands arriving on another thread) installs one; a host
+/// that can't (the web page) has none, and the VM returns
+/// [`VmError::Paused`] instead, to be continued with [`Vm::resume`] & co.
+pub trait Debugger<H: Host + ?Sized> {
+    /// The VM stopped: inspect it, then say how to go on.
+    fn stopped(&mut self, vm: &mut Vm<'_, H>, module: &Module, stop: &StopInfo) -> Resume;
+    /// [`Vm::interrupt`] was raised (a command waits: new breakpoints, a
+    /// pause): handle what's pending; `true` stops here (a pause).
+    fn interrupted(&mut self, vm: &mut Vm<'_, H>, module: &Module) -> bool;
+}
+
+/// What [`Vm::debug_point`] decided.
+enum DebugAction {
+    Run,
+    Pause,
+    Halt,
+}
+
+/// Instructions an evaluation may run before it's stopped
+/// ([`Vm::evaluate`]): a watch with an endless loop must not hang the IDE.
+pub const EVAL_FUEL: u64 = 5_000_000;
+
 /// One activation frame.
 #[derive(Debug, Clone)]
 pub struct Frame {
@@ -139,6 +200,10 @@ pub struct Frame {
     /// ([`Vm::after_host`]): the frame below was running, and continues
     /// once the handler has returned.
     pub nested: bool,
+    /// Height of the value stack when the frame started (its arguments
+    /// taken): what's left once it's gone (a failed handler, unwound after
+    /// the debugger stopped at its error).
+    pub stack_base: usize,
 }
 
 /// One turn of a host's wait ([`Vm::pump_wait`]).
@@ -176,9 +241,34 @@ pub struct Vm<'h, H: Host + ?Sized> {
 
     // Debugger state
     pub debug_mode: bool,
+    /// Compiled lines to stop at: the union of [`Self::set_breakpoints`]'
+    /// and every file's [`Self::set_file_breakpoints`].
     pub breakpoints: std::collections::HashSet<u32>,
+    /// Breakpoints by file (its name, lower case): compiled lines.
+    file_breakpoints: Vec<(String, std::collections::HashSet<u32>)>,
+    /// Compiled lines set directly ([`Self::set_breakpoints`]).
+    line_breakpoints: std::collections::HashSet<u32>,
     pub step_mode: StepMode,
     pub last_line: u32,
+    /// Raised by another thread (or a message handler) for the VM's
+    /// attention: at its next instruction (in debug mode) it calls the
+    /// [`Debugger`]'s `interrupted`, or without one, pauses.
+    pub interrupt: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    /// The debugger that serves stops in place (see [`Debugger`]).
+    pub debugger: Option<Box<dyn Debugger<H>>>,
+    /// Stop at a run-time error's statement (debug mode), before it
+    /// unwinds: [`StopReason::Exception`].
+    pub break_on_error: bool,
+    /// Why the VM last stopped.
+    pub stop_reason: StopReason,
+    /// The error of the last [`StopReason::Exception`] stop.
+    pub stop_error: Option<String>,
+    /// The error the VM stopped at, without a [`Debugger`]: it unwinds as
+    /// it would have when the program goes on ([`Self::resume`]).
+    pending_error: Option<VmError>,
+    /// Instructions left to an evaluation ([`Self::evaluate`]); `Some`
+    /// while one runs.
+    eval_fuel: Option<u64>,
     /// Locals vectors of returned frames, reused by the next calls (no
     /// allocation per SUB/FUNCTION call).
     spare_locals: Vec<Vec<Value>>,
@@ -210,8 +300,17 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             print_col: 0,
             debug_mode: false,
             breakpoints: Default::default(),
+            file_breakpoints: Vec::new(),
+            line_breakpoints: Default::default(),
             step_mode: StepMode::None,
             last_line: 0,
+            interrupt: Default::default(),
+            debugger: None,
+            break_on_error: false,
+            stop_reason: StopReason::default(),
+            stop_error: None,
+            pending_error: None,
+            eval_fuel: None,
             spare_locals: Vec::new(),
             fault_ip: 0,
             error_line: None,
@@ -262,7 +361,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         }
         let ret_ip = self.frames.last().map(|fr| fr.locals.len() /* unused */ ).unwrap_or(0);
         // ret_ip placeholder — replaced by exec() loop's saved ip on push.
-        self.frames.push(Frame { fn_index, locals, ret_ip, wants_value, ip: 0, gosub: Vec::new(), stop: false, waiting: false, then: Vec::new(), nested: false });
+        let stack_base = self.stack.len();
+        self.frames.push(Frame { fn_index, locals, ret_ip, wants_value, ip: 0, gosub: Vec::new(), stop: false, waiting: false, then: Vec::new(), nested: false, stack_base });
         let _ = ret_ip;
         Ok(())
     }
@@ -275,21 +375,116 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     fn exec(&mut self, module: &Module) -> Result<(), VmError> {
         match self.exec_loop(module) {
             Err(e) if !matches!(e, VmError::Paused | VmError::Suspended | VmError::Yielded | VmError::At { .. }) => {
-                self.yield_rest.clear();
                 self.error_line = self
                     .frames
                     .last()
                     .and_then(|f| module.functions.get(f.fn_index as usize))
                     .and_then(|f| f.get_line_for_ip(self.fault_ip));
-                let Some(line) = self.error_line else { return Err(e) };
-                let (file, line) = match module.source_map.locate(line) {
-                    Some((file, l)) => (Some(file.to_string()), l),
-                    None => (None, line),
+                let error = match self.error_line {
+                    None => e,
+                    Some(line) => {
+                        let (file, line) = match module.source_map.locate(line) {
+                            Some((file, l)) => (Some(file.to_string()), l),
+                            None => (None, line),
+                        };
+                        VmError::At { error: Box::new(e), file, line }
+                    }
                 };
-                Err(VmError::At { error: Box::new(e), file, line })
+                // The debugger stops at the faulting statement first, with
+                // every frame still there.
+                if self.debug_mode && self.break_on_error && self.eval_fuel.is_none() && !self.frames.is_empty() {
+                    let fault_ip = self.fault_ip;
+                    self.frames.last_mut().unwrap().ip = fault_ip;
+                    let description = match &error {
+                        VmError::At { error, .. } => error.to_string(),
+                        other => other.to_string(),
+                    };
+                    self.stop_reason = StopReason::Exception;
+                    self.stop_error = Some(description.clone());
+                    self.step_mode = StepMode::None;
+                    if let Some(mut debugger) = self.debugger.take() {
+                        let stop = StopInfo { reason: StopReason::Exception, line: self.error_line, error: Some(description) };
+                        let _ = debugger.stopped(self, module, &stop);
+                        self.debugger = Some(debugger);
+                    } else {
+                        self.pending_error = Some(error);
+                        return Err(VmError::Paused);
+                    }
+                }
+                self.yield_rest.clear();
+                Err(error)
             }
             other => other,
         }
+    }
+
+    /// Stops the debugger's way: [`Self::debug_mode`]'s check before an
+    /// instruction — the interrupt, then (on a new line) a breakpoint or the
+    /// end of a step. With a [`Debugger`], it serves the stop here.
+    fn debug_point(&mut self, module: &Module, ip: usize) -> DebugAction {
+        let top = self.frames.last().unwrap();
+        let at = module.functions[top.fn_index as usize].line_at(ip);
+        let line = at.map(|(line, _)| line);
+        let mut reason = None;
+        if self.interrupt.load(std::sync::atomic::Ordering::Relaxed) {
+            self.interrupt.store(false, std::sync::atomic::Ordering::Relaxed);
+            self.frames.last_mut().unwrap().ip = ip;
+            let pause = match self.debugger.take() {
+                Some(mut debugger) => {
+                    let pause = debugger.interrupted(self, module);
+                    self.debugger = Some(debugger);
+                    pause
+                }
+                None => true,
+            };
+            if pause {
+                reason = Some(StopReason::Pause);
+            }
+        }
+        if let Some((line, start)) = at {
+            if self.last_line != line {
+                if reason.is_none() {
+                    let depth = self.frames.len();
+                    // (at a statement's start: not where a call returns
+                    // into the middle of the line that made it)
+                    if start && self.breakpoints.contains(&line) {
+                        reason = Some(StopReason::Breakpoint);
+                    } else if match self.step_mode {
+                        StepMode::Into => true,
+                        StepMode::Over { target_depth } => depth <= target_depth,
+                        StepMode::Out { target_depth } => depth < target_depth,
+                        StepMode::None => false,
+                    } {
+                        reason = Some(StopReason::Step);
+                    }
+                }
+                self.last_line = line;
+            }
+        }
+        let Some(reason) = reason else { return DebugAction::Run };
+        self.frames.last_mut().unwrap().ip = ip;
+        self.step_mode = StepMode::None;
+        self.stop_reason = reason;
+        self.stop_error = None;
+        let Some(mut debugger) = self.debugger.take() else { return DebugAction::Pause };
+        let resume = debugger.stopped(self, module, &StopInfo { reason, line, error: None });
+        self.debugger = Some(debugger);
+        if resume == Resume::Terminate {
+            return DebugAction::Halt;
+        }
+        self.apply_resume(resume);
+        DebugAction::Run
+    }
+
+    /// How the program goes on from a stop.
+    fn apply_resume(&mut self, resume: Resume) {
+        let depth = self.frames.len();
+        self.step_mode = match resume {
+            Resume::Continue | Resume::Terminate => StepMode::None,
+            Resume::StepIn => StepMode::Into,
+            Resume::StepOver => StepMode::Over { target_depth: depth },
+            Resume::StepOut => StepMode::Out { target_depth: depth },
+        };
     }
 
     fn exec_loop(&mut self, module: &Module) -> Result<(), VmError> {
@@ -312,7 +507,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         // the VM stops here, ready to continue at `ip`.
         macro_rules! tick {
             () => {
-                if H::YIELDS {
+                if H::YIELDS && self.eval_fuel.is_none() {
                     self.ticks -= 1;
                     if self.ticks == 0 {
                         self.ticks = YIELD_CHECK_EVERY;
@@ -347,23 +542,26 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             }
 
             if self.debug_mode {
-                let current_fn = &module.functions[self.frames.last().unwrap().fn_index as usize];
-                if let Some(line) = current_fn.get_line_for_ip(ip) {
-                    if self.last_line != line {
-                        let depth = self.frames.len();
-                        let should_pause = self.breakpoints.contains(&line) || match self.step_mode {
-                            StepMode::Into => true,
-                            StepMode::Over { target_depth } => depth <= target_depth,
-                            StepMode::Out { target_depth } => depth < target_depth,
-                            StepMode::None => false,
-                        };
-                        if should_pause {
-                            self.frames.last_mut().unwrap().ip = ip;
-                            self.step_mode = StepMode::None;
-                            self.last_line = line;
-                            return Err(VmError::Paused);
+                if let Some(fuel) = &mut self.eval_fuel {
+                    // (an evaluation: no stops, a bounded number of steps)
+                    if *fuel == 0 {
+                        return Err(VmError::Runtime("the evaluation ran too long and was stopped".into()));
+                    }
+                    *fuel -= 1;
+                } else {
+                    match self.debug_point(module, ip) {
+                        DebugAction::Run => {
+                            // (a debugger served a stop here: the frames are
+                            // as they were, an evaluation came and went)
+                            refresh!();
                         }
-                        self.last_line = line;
+                        DebugAction::Pause => return Err(VmError::Paused),
+                        DebugAction::Halt => {
+                            self.frames.clear();
+                            self.stack.clear();
+                            self.yield_rest.clear();
+                            return Ok(());
+                        }
                     }
                 }
             }
@@ -377,6 +575,9 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 // END (and the main program's last instruction): the whole
                 // program stops, including code an event handler interrupted.
                 Op::Halt => {
+                    if self.eval_fuel.is_some() {
+                        return Err(VmError::Runtime("END can't run in an evaluation".into()));
+                    }
                     self.frames.clear();
                     self.stack.clear();
                     self.yield_rest.clear();
@@ -987,6 +1188,10 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// the code it interrupted continues. (A handler the host ran on top of
     /// waiting or paused code just ends.)
     fn continue_run(&mut self, module: &Module) -> Result<(), VmError> {
+        // (stopped at an error: it unwinds now, as it would have)
+        if let Some(error) = self.pending_error.take() {
+            return Err(self.unwind_error(error));
+        }
         loop {
             self.exec(module)?;
             let Some(top) = self.frames.last() else {
@@ -1021,16 +1226,222 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         !self.frames.is_empty()
     }
 
+    /// The error the VM stopped at (without a [`Debugger`]) does what it
+    /// would have done had the VM not stopped: the innermost event handler
+    /// the host ran fails and leaves nothing behind (as [`Self::invoke`]),
+    /// and a handler that ran right after a host operation fails the code
+    /// below it too; reaching the main program, it ends.
+    fn unwind_error(&mut self, error: VmError) -> VmError {
+        while let Some(i) = self.frames.iter().rposition(|f| f.stop) {
+            let frame = &mut self.frames[i];
+            let then = std::mem::take(&mut frame.then);
+            let (nested, base) = (frame.nested, frame.stack_base);
+            self.host.event_finished(then, &[]);
+            self.frames.truncate(i);
+            self.stack.truncate(base);
+            let depth = self.frames.len();
+            self.yield_rest.retain(|(d, _)| *d < depth);
+            if !nested {
+                return error;
+            }
+        }
+        self.frames.clear();
+        self.stack.clear();
+        self.yield_rest.clear();
+        error
+    }
+
+    /// Breakpoints at compiled lines (of the preprocessed program).
     pub fn set_breakpoints(&mut self, bps: std::collections::HashSet<u32>) {
-        self.breakpoints = bps;
+        self.line_breakpoints = bps;
+        self.rebuild_breakpoints();
     }
 
     pub fn add_breakpoint(&mut self, line: u32) {
-        self.breakpoints.insert(line);
+        self.line_breakpoints.insert(line);
+        self.rebuild_breakpoints();
     }
 
     pub fn remove_breakpoint(&mut self, line: u32) {
-        self.breakpoints.remove(&line);
+        self.line_breakpoints.remove(&line);
+        self.rebuild_breakpoints();
+    }
+
+    /// Replaces the breakpoints of `file` (a name: the program's own file
+    /// or an `$INCLUDE`d one, as `Module::source_map` names them; with no
+    /// source map, the program) with `lines` of that file, through the
+    /// source map. A line without code moves to the next line of the same
+    /// file that has some; the answer says, per line asked, where it stops
+    /// (`None`: nowhere — no code from there on, or no such file).
+    pub fn set_file_breakpoints(&mut self, module: &Module, file: &str, lines: &[u32]) -> Vec<Option<u32>> {
+        let code_lines = module.code_lines();
+        let map = &module.source_map;
+        let mut compiled = std::collections::HashSet::new();
+        let placed = lines
+            .iter()
+            .map(|&line| {
+                if map.runs.is_empty() {
+                    // (no map: compiled lines are the program's own)
+                    let at = code_lines.get(code_lines.partition_point(|&l| l < line)).copied()?;
+                    compiled.insert(at);
+                    return Some(at);
+                }
+                let file_index = map.file_index(file)?;
+                let mut actual = None;
+                for start in map.compiled_lines(file, line) {
+                    // the first line with code from there on, in the same file
+                    let next = code_lines[code_lines.partition_point(|&l| l < start)..]
+                        .iter()
+                        .copied()
+                        .find(|&l| map.locate(l).is_some_and(|(f, _)| map.file_index(f) == Some(file_index)));
+                    if let Some(at) = next {
+                        compiled.insert(at);
+                        actual = actual.or_else(|| map.locate(at).map(|(_, l)| l));
+                    }
+                }
+                actual
+            })
+            .collect();
+        let key = file.rsplit(['/', '\\']).next().unwrap_or(file).to_ascii_lowercase();
+        self.file_breakpoints.retain(|(f, _)| *f != key);
+        if !compiled.is_empty() {
+            self.file_breakpoints.push((key, compiled));
+        }
+        self.rebuild_breakpoints();
+        placed
+    }
+
+    /// Every file's breakpoints gone.
+    pub fn clear_breakpoints(&mut self) {
+        self.file_breakpoints.clear();
+        self.line_breakpoints.clear();
+        self.breakpoints.clear();
+    }
+
+    fn rebuild_breakpoints(&mut self) {
+        self.breakpoints = self.line_breakpoints.clone();
+        for (_, lines) in &self.file_breakpoints {
+            self.breakpoints.extend(lines);
+        }
+    }
+
+    /// Asks the VM to pause at its next instruction (debug mode). Safe from
+    /// any thread through a clone of [`Self::interrupt`].
+    pub fn request_pause(&self) {
+        self.interrupt.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// The source location (file, line) of frame `index` (0 = the
+    /// outermost), through the source map; the file is `None` without one.
+    pub fn frame_location(&self, module: &Module, index: usize) -> Option<(Option<String>, u32)> {
+        let frame = self.frames.get(index)?;
+        let line = module.functions.get(frame.fn_index as usize)?.get_line_for_ip(frame.ip)?;
+        Some(match module.source_map.locate(line) {
+            Some((file, l)) => (Some(file.to_string()), l),
+            None => (None, line),
+        })
+    }
+
+    /// Runs `fn_index` of `module` — a snippet compiled against frame
+    /// `frame`'s symbols (`rapidr_bcgen::compile_snippet`, whose module is
+    /// the program's plus the snippet) — on top of the stopped program, and
+    /// returns its value. The snippet sees the frame's locals (its first
+    /// parameters are the frame's local slots) and, with `write_back`, what
+    /// it assigns to them is written into the frame (the Immediate window,
+    /// setting a variable). It can't stop at breakpoints, END the program
+    /// or wait, and has `fuel` instructions; a failure leaves the program as
+    /// it was.
+    pub fn evaluate(&mut self, module: &Module, fn_index: u32, frame: Option<usize>, write_back: bool, fuel: u64) -> Result<Value, VmError> {
+        let f = module.functions.get(fn_index as usize).ok_or(VmError::BadFunctionIndex(fn_index))?;
+        let (base_frames, base_stack) = (self.frames.len(), self.stack.len());
+        let mut locals = self.spare_locals.pop().unwrap_or_default();
+        locals.clear();
+        if let Some(i) = frame {
+            let source = self.frames.get(i).ok_or_else(|| VmError::Runtime(format!("no frame {i}")))?;
+            locals.extend(source.locals.iter().cloned());
+        }
+        locals.resize((f.n_locals as usize).max(locals.len()), Value::Null);
+        self.frames.push(Frame {
+            fn_index,
+            locals,
+            ret_ip: 0,
+            wants_value: true,
+            ip: 0,
+            gosub: Vec::new(),
+            stop: true,
+            waiting: false,
+            then: Vec::new(),
+            nested: false,
+            stack_base: base_stack,
+        });
+        let saved = (self.debug_mode, self.step_mode, self.last_line, self.eval_fuel.take(), self.returned_nested);
+        self.debug_mode = true;
+        self.eval_fuel = Some(fuel);
+        let result = self.exec(module);
+        (self.debug_mode, self.step_mode, self.last_line, self.eval_fuel, self.returned_nested) = saved;
+        match result {
+            Ok(()) if self.frames.len() == base_frames => {
+                let value = self.stack.pop().unwrap_or(Value::Null);
+                self.stack.truncate(base_stack);
+                if let (true, Some(i)) = (write_back, frame) {
+                    // (the snippet's parameters are the frame's slots)
+                    let out = std::mem::take(&mut self.arg_out);
+                    if let Some(target) = self.frames.get_mut(i) {
+                        for (slot, v) in target.locals.iter_mut().zip(out.iter()) {
+                            *slot = v.clone();
+                        }
+                    }
+                    self.arg_out = out;
+                }
+                Ok(value)
+            }
+            other => {
+                self.frames.truncate(base_frames);
+                self.stack.truncate(base_stack);
+                Err(match other {
+                    Ok(()) => VmError::Runtime("the evaluation ended the program".into()),
+                    Err(VmError::Suspended | VmError::Yielded | VmError::Paused) => {
+                        VmError::Runtime("the evaluation would wait (a dialog or a form): not while the program is stopped".into())
+                    }
+                    Err(VmError::At { error, .. }) => *error,
+                    Err(e) => e,
+                })
+            }
+        }
+    }
+
+    /// Sets local slot `slot` of frame `frame` (0 = the outermost).
+    pub fn set_local(&mut self, frame: usize, slot: usize, value: Value) -> Result<(), VmError> {
+        let f = self.frames.get_mut(frame).ok_or_else(|| VmError::Runtime(format!("no frame {frame}")))?;
+        let s = f.locals.get_mut(slot).ok_or(VmError::BadLocalSlot(slot as u16))?;
+        *s = value;
+        Ok(())
+    }
+
+    /// Sets the global variable `name` (any case; the spelling the program
+    /// uses). Returns false if the program has no such global yet.
+    pub fn set_global(&mut self, module: &Module, name: &str, value: Value) -> bool {
+        let Some(i) = self.global_index(module, name) else { return false };
+        if i >= self.globals.len() {
+            self.globals.resize(module.strings.len().max(i + 1), None);
+        }
+        self.globals[i] = Some(value);
+        true
+    }
+
+    /// The slot of global `name`: the string the program assigned it under
+    /// (the VM keys globals by the index of their name's spelling).
+    pub fn global_index(&self, module: &Module, name: &str) -> Option<usize> {
+        let mut first = None;
+        for (i, s) in module.strings.iter().enumerate() {
+            if s.eq_ignore_ascii_case(name) {
+                if self.globals.get(i).is_some_and(Option::is_some) {
+                    return Some(i);
+                }
+                first.get_or_insert(i);
+            }
+        }
+        first
     }
 
     pub fn resume(&mut self, module: &Module) -> Result<(), VmError> {
