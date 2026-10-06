@@ -617,7 +617,7 @@ pub fn group_ops(m: &Manager, gr: &Group, t: &Theme, font: &Font, active: bool) 
         let mut x = 8;
         let ic = titles.icon(pane);
         if !ic.is_empty() {
-            icon(&mut ops, &ic, x, (HEADER - 16) / 2, ink_title, p.accent);
+            icon(&mut ops, &ic, x, (HEADER - 16) / 2, ink_title, if p.classic { ink_title } else { p.accent });
             x += 22;
         }
         let room = gr.tabs[0].rect.2 - x - 4;
@@ -656,7 +656,7 @@ pub fn group_ops(m: &Manager, gr: &Group, t: &Theme, font: &Font, active: bool) 
             let mut tx = x + 10;
             let ic = titles.icon(&tab.pane);
             if !ic.is_empty() {
-                icon(&mut ops, &ic, tx, (HEADER - 16) / 2, ink, p.accent);
+                icon(&mut ops, &ic, tx, (HEADER - 16) / 2, ink, if p.classic && !shown { ink } else { p.accent });
                 tx += 22;
             }
             let room = x + tw - tx - 8;
