@@ -317,6 +317,7 @@ impl Document {
         let parse = parse_source_for_tools(&self.text, &self.base_dir, self.path.clone(), self.options.clone());
         self.diagnostics = parse.diagnostics.iter().map(|d| d.message.clone()).collect();
         let file = self.path.as_deref().and_then(|p| parse.file_id(p)).unwrap_or(0);
+        let constants = program_constants(&parse.program.statements);
         let mut forms = Vec::new();
         for s in &parse.program.statements {
             let Statement::Create(c) = s else { continue };
@@ -330,7 +331,8 @@ impl Document {
             let mut next = previous.map_or(1, FormDesign::next_id);
             let mut spans = HashMap::new();
             let tree = to_subtree(node, previous, &mut next, &mut spans, &mut Vec::new());
-            let synced = FormDesign::from_subtree_after(tree, next);
+            let mut synced = FormDesign::from_subtree_after(tree, next);
+            synced.set_constants(Some(constants.clone()));
             let old = self.forms.get(k).filter(|f| same(&f.synced)).or_else(|| self.forms.iter().find(|f| same(&f.synced)));
             let mut designer = match old {
                 Some(old) => old.designer.clone(),
@@ -711,6 +713,47 @@ fn child_indent(text: &str, m: &FormDesign, spans: &HashMap<NodeId, BlockSpans>,
     match spans.get(&parent) {
         Some(b) => body_indent(text, b, style),
         None => style.indent.clone(),
+    }
+}
+
+/// The program's integer CONSTs (lower case), in order — RAPIDQ.INC's when
+/// it includes it: `alClient` means 5 only then (else it's an undeclared
+/// variable, 0, in RapidQ and RapidR alike).
+fn program_constants(statements: &[Statement]) -> std::collections::BTreeMap<String, i64> {
+    let mut out = std::collections::BTreeMap::new();
+    for s in statements {
+        if let Statement::Const(c) = s {
+            if let Some(v) = const_value(&c.value, &out) {
+                out.insert(c.name.to_ascii_lowercase(), v);
+            }
+        }
+    }
+    out
+}
+
+fn const_value(e: &Expression, known: &std::collections::BTreeMap<String, i64>) -> Option<i64> {
+    use rapidr_ast::{BinaryOperator as B, LiteralValue, UnaryOperator as U};
+    match e {
+        Expression::Literal(l) => match &l.value {
+            LiteralValue::Integer(n) => Some(*n),
+            LiteralValue::Float(f) if f.fract() == 0.0 => Some(*f as i64),
+            _ => None,
+        },
+        Expression::Identifier(id) => known.get(&id.name.to_ascii_lowercase()).copied().or_else(|| rapidr_value::designer::value::builtin_constant(&id.name)),
+        Expression::Unary(u) if u.operator == U::Negate => const_value(&u.operand, known).map(|v| -v),
+        Expression::Binary(b) => {
+            let (l, r) = (const_value(&b.left, known)?, const_value(&b.right, known)?);
+            Some(match b.operator {
+                B::Add => l + r,
+                B::Subtract => l - r,
+                B::Multiply => l * r,
+                B::Or => l | r,
+                B::And => l & r,
+                B::Xor => l ^ r,
+                _ => return None,
+            })
+        }
+        _ => None,
     }
 }
 

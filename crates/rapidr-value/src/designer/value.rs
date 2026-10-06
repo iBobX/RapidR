@@ -34,8 +34,19 @@ impl PropValue {
     }
 }
 
-/// Reads a value's text.
+/// Reads a value's text, any of the registry's constants known (a program
+/// that doesn't include RAPIDQ.INC has only RapidR's own: [`read_with`]).
 pub fn read(text: &str) -> PropValue {
+    read_with(text, &|n| rapidr_lang::constant(n).map(|(v, _)| v))
+}
+
+/// A constant RapidR itself defines (`akLeft` …: no include needed).
+pub fn builtin_constant(name: &str) -> Option<i64> {
+    rapidr_lang::constant(name).filter(|(_, g)| g.source == "RapidR").map(|(v, _)| v)
+}
+
+/// Reads a value's text, names resolved by `constant`.
+pub fn read_with(text: &str, constant: &dyn Fn(&str) -> Option<i64>) -> PropValue {
     let t = text.trim();
     if let Some(s) = string_literal(t) {
         return PropValue::Str(s);
@@ -44,7 +55,7 @@ pub fn read(text: &str) -> PropValue {
         Some(tokens) if !tokens.is_empty() => tokens,
         _ => return PropValue::Code,
     };
-    let mut p = Parser { tokens: &tokens, at: 0 };
+    let mut p = Parser { tokens: &tokens, at: 0, constant };
     match p.expr() {
         Some(v) if p.at == tokens.len() => PropValue::Number(v),
         _ => match tokens.as_slice() {
@@ -182,6 +193,7 @@ fn tokenize(t: &str) -> Option<Vec<Tok>> {
 struct Parser<'a> {
     tokens: &'a [Tok],
     at: usize,
+    constant: &'a dyn Fn(&str) -> Option<i64>,
 }
 
 impl Parser<'_> {
@@ -273,7 +285,7 @@ impl Parser<'_> {
                 let v = match n.to_ascii_uppercase().as_str() {
                     "TRUE" => 1.0,
                     "FALSE" => 0.0,
-                    _ => rapidr_lang::constant(&n)?.0 as f64,
+                    _ => (self.constant)(&n)? as f64,
                 };
                 self.at += 1;
                 Some(v)

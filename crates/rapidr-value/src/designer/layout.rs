@@ -54,6 +54,8 @@ pub struct Layout {
     /// false for macOS's system menu bar.
     menu_in_window: bool,
     updating: bool,
+    /// The form being replayed (its constants).
+    design: Option<FormDesign>,
 }
 
 /// The properties layout reads (the rest don't move anything).
@@ -79,8 +81,10 @@ impl Layout {
             scrollers: HashMap::new(),
             menu_in_window,
             updating: false,
+            design: Some(design.clone()),
         };
         l.create(design, design.root());
+        l.design = None;
         l
     }
 
@@ -127,7 +131,11 @@ impl Layout {
     /// changed take their text's size (`crate::autosize`, as the runtimes).
     /// A value the designer can't read is skipped.
     fn assign(&mut self, key: &str, prop: &str, text: &str) {
-        let value = match super::value::read(text) {
+        let read = match &self.design {
+            Some(d) => d.read_value(text),
+            None => super::value::read(text),
+        };
+        let value = match read {
             super::value::PropValue::Number(f) if f.fract() == 0.0 => Value::Integer(f as i64),
             super::value::PropValue::Number(f) => Value::Double(f),
             super::value::PropValue::Str(s) => Value::String(s),

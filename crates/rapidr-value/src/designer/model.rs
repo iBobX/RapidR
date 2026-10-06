@@ -204,6 +204,10 @@ pub struct FormDesign {
     nodes: BTreeMap<NodeId, Node>,
     root: NodeId,
     next: NodeId,
+    /// The constants its program defines (lower case; RAPIDQ.INC's when it
+    /// includes it), RapidR's own always known; `None`: every constant of
+    /// the registry (a form designed without its program).
+    constants: Option<BTreeMap<String, i64>>,
 }
 
 impl PartialEq for FormDesign {
@@ -217,7 +221,7 @@ impl FormDesign {
     pub fn new(name: &str, type_written: &str) -> FormDesign {
         let mut nodes = BTreeMap::new();
         nodes.insert(1, Node::new(1, name, type_written));
-        FormDesign { nodes, root: 1, next: 2 }
+        FormDesign { nodes, root: 1, next: 2, constants: None }
     }
 
     /// The form from a whole CREATE tree (as read from source).
@@ -230,10 +234,28 @@ impl FormDesign {
     /// its source keeps its components' ids.
     pub fn from_subtree_after(tree: Subtree, next: NodeId) -> FormDesign {
         let max = tree.all().iter().map(|t| t.id).max().unwrap_or(0);
-        let mut d = FormDesign { nodes: BTreeMap::new(), root: 0, next: next.max(max + 1) };
+        let mut d = FormDesign { nodes: BTreeMap::new(), root: 0, next: next.max(max + 1), constants: None };
         let id = d.attach(None, tree, true);
         d.root = id;
         d
+    }
+
+    /// Says which constants its program defines (see the field).
+    pub fn set_constants(&mut self, constants: Option<BTreeMap<String, i64>>) {
+        self.constants = constants;
+    }
+
+    /// A constant's value as its program knows it.
+    pub fn constant(&self, name: &str) -> Option<i64> {
+        match &self.constants {
+            None => rapidr_lang::constant(name).map(|(v, _)| v),
+            Some(c) => c.get(&name.to_ascii_lowercase()).copied().or_else(|| super::value::builtin_constant(name)),
+        }
+    }
+
+    /// A value's text read with the program's constants.
+    pub fn read_value(&self, text: &str) -> super::value::PropValue {
+        super::value::read_with(text, &|n| self.constant(n))
     }
 
     /// The id the next new component gets.
