@@ -18,9 +18,9 @@ Symbols and Symbols 2, Noto Sans SC and KR), all under the SIL Open Font
 License 1.1. The Noto fonts' chunks ship beside the web runtime with
 their `OFL.txt`.
 
-**651 libraries** under 23 license expressions.
+**656 libraries** under 23 license expressions.
 
-## Apache-2.0 OR MIT (367)
+## Apache-2.0 OR MIT (371)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -278,6 +278,7 @@ their `OFL.txt`.
 | serde_json | 1.0.149 | <https://github.com/serde-rs/json> |
 | serde_path_to_error | 0.1.20 | <https://github.com/dtolnay/path-to-error> |
 | serde_repr | 0.1.21 | <https://github.com/dtolnay/serde-repr> |
+| serde_spanned | 1.1.1 | <https://github.com/toml-rs/toml> |
 | serde_urlencoded | 0.7.1 | <https://github.com/nox/serde_urlencoded> |
 | sha1 | 0.10.6 | <https://github.com/RustCrypto/hashes> |
 | sha2 | 0.10.9 | <https://github.com/RustCrypto/hashes> |
@@ -295,6 +296,7 @@ their `OFL.txt`.
 | stable_deref_trait | 1.2.1 | <https://github.com/storyyeller/stable_deref_trait> |
 | stacker | 0.1.23 | <https://github.com/rust-lang/stacker> |
 | static_assertions | 1.1.0 | <https://github.com/nvzqz/static-assertions-rs> |
+| str_indices | 0.4.4 | <https://github.com/cessen/str_indices> |
 | streaming-iterator | 0.1.9 | <https://github.com/sfackler/streaming-iterator> |
 | strength_reduce | 0.2.4 | <http://github.com/ejmahler/strength_reduce> |
 | svg_fmt | 0.4.5 | <https://github.com/nical/rust_debug> |
@@ -306,9 +308,11 @@ their `OFL.txt`.
 | thiserror | 2.0.18 | <https://github.com/dtolnay/thiserror> |
 | thiserror-impl | 1.0.69 | <https://github.com/dtolnay/thiserror> |
 | thiserror-impl | 2.0.18 | <https://github.com/dtolnay/thiserror> |
-| toml_datetime | 1.1.0+spec-1.1.0 | <https://github.com/toml-rs/toml> |
+| toml | 1.1.6+spec-1.1.0 | <https://github.com/toml-rs/toml> |
+| toml_datetime | 1.1.1+spec-1.1.0 | <https://github.com/toml-rs/toml> |
 | toml_edit | 0.25.8+spec-1.1.0 | <https://github.com/toml-rs/toml> |
-| toml_parser | 1.1.0+spec-1.1.0 | <https://github.com/toml-rs/toml> |
+| toml_parser | 1.1.3+spec-1.1.0 | <https://github.com/toml-rs/toml> |
+| toml_writer | 1.1.2+spec-1.1.0 | <https://github.com/toml-rs/toml> |
 | ttf-parser | 0.25.1 | <https://github.com/harfbuzz/ttf-parser> |
 | typenum | 1.19.0 | <https://github.com/paholg/typenum> |
 | unicase | 2.9.0 | <https://github.com/seanmonstar/unicase> |
@@ -392,7 +396,7 @@ their `OFL.txt`.
 | zstd-safe | 7.2.4 | <https://github.com/gyscos/zstd-rs> |
 | zstd-sys | 2.0.16+zstd.1.5.7 | <https://github.com/gyscos/zstd-rs> |
 
-## MIT (165)
+## MIT (166)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -509,6 +513,7 @@ their `OFL.txt`.
 | redox_syscall | 0.7.5 | <https://gitlab.redox-os.org/redox-os/syscall> |
 | rfd | 0.17.2 | <https://github.com/PolyMeilex/rfd> |
 | rgb | 0.8.53 | <https://github.com/kornelski/rust-rgb> |
+| ropey | 1.6.1 | <https://github.com/cessen/ropey> |
 | rsqlite-vfs | 0.1.1 | <https://crates.io/crates/rsqlite-vfs> |
 | rusqlite | 0.40.2 | <https://github.com/rusqlite/rusqlite> |
 | saturating | 0.1.0 | <https://github.com/breeswish/saturating-rs> |

@@ -18,6 +18,7 @@ members = [
     "crates/rapidr-ui-app",
     "crates/rapidr-ui-host-winit",
     "crates/rapidr-launcher",
+    "crates/rapidr-editor",
     # (a spike, out of every regular build: docs/web-host-plan.md)
     "crates/rapidr-ui-host-web",
     "interpreter/rapidr-bytecode",

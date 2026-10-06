@@ -1,0 +1,113 @@
+# HTML, with CSS in <style> and JavaScript in <script>.
+
+[language]
+id = "html"
+name = "HTML"
+extensions = ["html", "htm", "xhtml"]
+case_insensitive = true
+block_comment = ["<!--", "-->"]
+word = '[A-Za-z_][A-Za-z0-9_-]*'
+
+[brackets]
+pairs = [["<", ">"], ["(", ")"], ["[", "]"], ["{", "}"]]
+auto_close = [['"', '"'], ["'", "'"], ["<!--", "-->"]]
+
+[indent]
+increase = '<(?:[A-Za-z][A-Za-z0-9-]*)(?:\s[^>]*)?>[^<]*$'
+decrease = '^\s*</'
+
+[folding]
+offside = true
+
+[defaults]
+comment = "comment"
+dq = "string"
+sq = "string"
+
+[[states.root]]
+match = '<!--'
+token = "comment"
+push = "comment"
+[[states.root]]
+match = '<![A-Za-z][^>]*>?'
+token = "directive"
+[[states.root]]
+match = '(<)(script)\b'
+groups = ["punctuation", "keyword.tag"]
+push = "script_tag"
+[[states.root]]
+match = '(<)(style)\b'
+groups = ["punctuation", "keyword.tag"]
+push = "style_tag"
+[[states.root]]
+match = '(</?)([A-Za-z][A-Za-z0-9:-]*)'
+groups = ["punctuation", "keyword.tag"]
+push = "tag"
+[[states.root]]
+match = '&(#[0-9]+|#x[0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]*);'
+token = "constant.entity"
+
+[[states.comment]]
+match = '-->'
+token = "comment"
+pop = true
+
+[[states.tag]]
+match = '/?>'
+token = "punctuation"
+pop = true
+[[states.tag]]
+include = "attributes"
+
+# after <script …>: JavaScript until </script>
+[[states.script_tag]]
+match = '/>'
+token = "punctuation"
+pop = true
+[[states.script_tag]]
+match = '>'
+token = "punctuation"
+pop = true
+embed = "javascript"
+end = '</script\s*>'
+end_token = "keyword.tag"
+[[states.script_tag]]
+include = "attributes"
+
+[[states.style_tag]]
+match = '/>'
+token = "punctuation"
+pop = true
+[[states.style_tag]]
+match = '>'
+token = "punctuation"
+pop = true
+embed = "css"
+end = '</style\s*>'
+end_token = "keyword.tag"
+[[states.style_tag]]
+include = "attributes"
+
+[[states.attributes]]
+match = '[A-Za-z_:@][A-Za-z0-9_:.@-]*'
+token = "variable.attribute"
+[[states.attributes]]
+match = '='
+token = "operator"
+[[states.attributes]]
+match = '"'
+token = "string"
+push = "dq"
+[[states.attributes]]
+match = "'"
+token = "string"
+push = "sq"
+
+[[states.dq]]
+match = '"'
+token = "string"
+pop = true
+[[states.sq]]
+match = "'"
+token = "string"
+pop = true

@@ -1,0 +1,70 @@
+# JSON (comments read too, as JSONC files have them).
+
+[language]
+id = "json"
+name = "JSON"
+extensions = ["json", "jsonc", "json5", "webmanifest", "geojson"]
+line_comment = ["//"]
+block_comment = ["/*", "*/"]
+
+[brackets]
+pairs = [["{", "}"], ["[", "]"]]
+auto_close = [["{", "}"], ["[", "]"], ['"', '"']]
+
+[indent]
+increase = '[\{\[]\s*$'
+decrease = '^\s*[\}\]]'
+
+[folding]
+brackets = true
+
+[keywords]
+constant = ["true", "false", "null"]
+
+[defaults]
+string = "string"
+comment = "comment"
+
+[[states.root]]
+match = '("(?:\\.|[^"\\])*")(\s*)(:)'
+groups = ["variable.property", "", "punctuation"]
+[[states.root]]
+match = '"'
+token = "string"
+push = "string"
+[[states.root]]
+match = '-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?'
+token = "number"
+[[states.root]]
+match = '[A-Za-z_][A-Za-z0-9_]*'
+token = "invalid"
+keywords = true
+[[states.root]]
+match = '[{}\[\],:]'
+token = "punctuation"
+[[states.root]]
+match = '//.*$'
+token = "comment"
+[[states.root]]
+match = '/\*'
+token = "comment"
+push = "comment"
+
+[[states.string]]
+match = '\\(["\\/bfnrt]|u[0-9a-fA-F]{4})'
+token = "string.escape"
+[[states.string]]
+match = '\\.'
+token = "invalid"
+[[states.string]]
+match = '"'
+token = "string"
+pop = true
+[[states.string]]
+match = '$'
+pop = true
+
+[[states.comment]]
+match = '\*/'
+token = "comment"
+pop = true
