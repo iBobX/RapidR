@@ -17,6 +17,7 @@
 //! '! diagnostic main.bas:3:1 "Unknown SUB or FUNCTION 'Nope'"
 //! '! diagnostics none
 //! '! outline Form Btn Greet          (the main file's outline, flattened)
+//! '! options rapidq-compatible       (the case is a RapidQ-compatible project)
 //! ```
 //!
 //! Positions are `file:line:column`, 1-based, columns in bytes.
@@ -125,7 +126,8 @@ fn run_case(dir: &Path) -> Vec<String> {
         files.insert(target, clean);
     }
     let main = main.expect("a case has files");
-    let mut analysis = Analysis::new(Options::default());
+    let rapidq_compatible = expectations.iter().any(|e| e == "options rapidq-compatible");
+    let mut analysis = Analysis::new(Options { rapidq_compatible, ..Default::default() });
     for (p, t) in &files {
         analysis.update(p.clone(), t.clone());
     }
@@ -133,6 +135,9 @@ fn run_case(dir: &Path) -> Vec<String> {
     for e in &expectations {
         let w = words(e);
         let fail = |msg: String| format!("{name}: '! {e}\n      {msg}");
+        if w.first().map(String::as_str) == Some("options") {
+            continue;
+        }
         if w.first().map(String::as_str) == Some("outline") {
             fn flat(items: &[rapidr_langsvc::OutlineItem], out: &mut Vec<String>) {
                 for i in items {

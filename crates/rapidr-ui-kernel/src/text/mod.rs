@@ -169,6 +169,12 @@ pub fn styles(font: &Font, color: u32) -> Vec<StyleProperty<'static, Ink>> {
     ];
     if font.styles & 1 != 0 {
         out.push(StyleProperty::FontWeight(FontWeight::BOLD));
+        // (as wide as `text_size` measures it: MS Sans Serif's bold a pixel
+        // wider a character)
+        let spacing = rapidr_value::objects::text::bold_spacing(font);
+        if spacing > 0.0 {
+            out.push(StyleProperty::LetterSpacing(spacing));
+        }
     }
     if font.styles & 2 != 0 {
         out.push(StyleProperty::FontStyle(FontStyle::Italic));

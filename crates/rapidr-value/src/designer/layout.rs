@@ -19,6 +19,7 @@ use super::model::{prop_key, FormDesign, Item, NodeId};
 use crate::layout::engine::{self, LayoutStore};
 use crate::layout::{self as lay, Align, AnchorRules, Constraints, Rect, DEFAULT_ANCHORS};
 use crate::scrollbars::{self, Scroller};
+use crate::Value;
 
 /// What the layout keeps of a component.
 #[derive(Clone, Debug)]
@@ -32,6 +33,9 @@ struct Comp {
     anchors: Option<i64>,
     constraints: Constraints,
     border_style: Option<i64>,
+    /// Its other properties as the runtimes store them (Caption, AutoSize,
+    /// the font …: what a QLABEL's AutoSize reads).
+    props: HashMap<String, Value>,
 }
 
 /// The designed form laid out: every component's rectangle (its Left / Top
@@ -96,28 +100,83 @@ impl Layout {
             anchors: None,
             constraints: Constraints::default(),
             border_style: None,
+            props: crate::component_defaults::shared(&ty).into_iter().collect(),
         };
         self.comps.insert(key.clone(), comp);
         self.order.push(key.clone());
         if let Some(p) = node.parent {
             let parent = key_of(design, p);
+            let before = self.labels_before(&key, "parent");
             if let Some(c) = self.comps.get_mut(&key) {
                 c.parent = parent;
             }
             engine::after_set(self, &key, "parent");
+            self.labels_after(&key, before);
         }
         for item in &node.body {
             match item {
-                Item::Prop(p) => {
-                    let k = prop_key(&p.name);
-                    if geometry(&k) {
-                        if let Some(v) = super::value::int(&p.value) {
-                            self.set(&key, &k, v);
-                        }
-                    }
-                }
+                Item::Prop(p) => self.assign(&key, &prop_key(&p.name), &p.value),
                 Item::Child(c) => self.create(design, *c),
                 Item::Code(_) => {}
+            }
+        }
+    }
+
+    /// One assignment of a CREATE block, as `rp_comp_set` runs it: stored
+    /// (geometry through [`Layout::set`]), then the AutoSize labels it
+    /// changed take their text's size (`crate::autosize`, as the runtimes).
+    /// A value the designer can't read is skipped.
+    fn assign(&mut self, key: &str, prop: &str, text: &str) {
+        let value = match super::value::read(text) {
+            super::value::PropValue::Number(f) if f.fract() == 0.0 => Value::Integer(f as i64),
+            super::value::PropValue::Number(f) => Value::Double(f),
+            super::value::PropValue::Str(s) => Value::String(s),
+            _ => return,
+        };
+        let flat = crate::autosize::font_property(prop).map_or_else(|| prop.to_string(), str::to_string);
+        let before = self.labels_before(key, &flat);
+        if geometry(&flat) {
+            self.set(key, &flat, crate::layout::property_value(&flat, value).to_i64());
+        } else if let Some(c) = self.comps.get_mut(key) {
+            c.props.insert(flat, value);
+        }
+        self.labels_after(key, before);
+    }
+
+    /// A stored property, as the runtimes read one (Null when unset).
+    fn stored(&self, key: &str, prop: &str) -> Value {
+        let Some(c) = self.comps.get(&key.to_lowercase()) else { return Value::Null };
+        match prop {
+            "left" => Value::Integer(c.rect.left),
+            "top" => Value::Integer(c.rect.top),
+            "width" => Value::Integer(c.rect.width),
+            "height" => Value::Integer(c.rect.height),
+            "parent" => Value::String(c.parent.clone()),
+            "align" => Value::Integer(c.align.value()),
+            _ => c.props.get(prop).cloned().unwrap_or(Value::Null),
+        }
+    }
+
+    fn font_key(&self, key: &str) -> crate::autosize::FontKey {
+        (crate::objects::font_from_props(key, &|i, p| self.stored(i, p)), self.stored(key, "fontcolor").to_i64())
+    }
+
+    fn labels_before(&self, key: &str, prop: &str) -> Option<crate::autosize::Before> {
+        let ty = self.comps.get(key)?.ty.clone();
+        let children = |p: &str| -> Vec<(String, String)> { self.children_of(&p.to_lowercase()).into_iter().map(|k| (k.clone(), self.comps.get(&k).map(|c| c.ty.clone()).unwrap_or_default())).collect() };
+        crate::autosize::before_set(key, &ty, prop, &|i, p| self.stored(i, p), &children, &|l| self.font_key(l))
+    }
+
+    fn labels_after(&mut self, key: &str, before: Option<crate::autosize::Before>) {
+        let Some(before) = before else { return };
+        for label in crate::autosize::changed_labels(key, before, &|i, p| self.stored(i, p), &|l| self.font_key(l)) {
+            let Some(r) = crate::autosize::label_bounds(&label, &|i, p| self.stored(i, p)) else { continue };
+            let now = self.stored(&label, "left").to_i64();
+            let cur = self.comps.get(&label).map(|c| c.rect).unwrap_or_default();
+            for (p, v, was) in [("left", r.left, now), ("width", r.width, cur.width), ("height", r.height, cur.height)] {
+                if v != was {
+                    self.set(&label, p, v);
+                }
             }
         }
     }
@@ -472,14 +531,14 @@ mod tests {
         let d = FormDesign::from_subtree(form);
         let mut l = Layout::of(&d);
         let r = |l: &Layout, n: &str| l.rect(d.find(n).unwrap()).unwrap();
-        assert_eq!(r(&l, "Sp"), Rect::new(200, 30, 5, 225));
+        assert_eq!(r(&l, "Sp"), Rect::new(200, 30, 3, 225));
         assert_eq!(r(&l, "Tree"), Rect::new(0, 30, 200, 225));
         assert_eq!(r(&l, "Bar"), Rect::new(0, 0, 381, 30));
-        assert_eq!(r(&l, "Ed"), Rect::new(205, 30, 176, 225));
+        assert_eq!(r(&l, "Ed"), Rect::new(203, 30, 178, 225));
         assert_eq!(l.form_client_size(), (381, 269));
         assert_eq!(l.scroll_bars(d.root()), (false, true), "the button reaches 255 + 20 below…");
         l.resize(500, 400);
-        assert_eq!(r(&l, "Ed"), Rect::new(205, 30, 293, 319));
+        assert_eq!(r(&l, "Ed"), Rect::new(203, 30, 295, 319));
         assert_eq!(r(&l, "Foot"), Rect::new(0, 349, 498, 20));
     }
 }

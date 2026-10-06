@@ -5,8 +5,11 @@
 //! and Courier New, which RapidQ programs name — read with `ttf-parser`
 //! and filled here with 4 × 4 anti-aliasing.
 //!
-//! A QFONT's name picks the face (Courier / mono: Liberation Mono; Times /
-//! serif / Roman: Liberation Serif; anything else: Liberation Sans), its
+//! A QFONT's name picks the face (MS Sans Serif, RapidQ's default — and
+//! Microsoft Sans Serif, MS Shell Dlg: RapidR Sans, Liberation Sans made as
+//! wide as MS Sans Serif, `fonts/README.md`; Courier / mono: Liberation
+//! Mono; Times / serif / Roman: Liberation Serif; anything else: Liberation
+//! Sans, Arial's widths), its
 //! size is points at 96 dpi (Windows' screen resolution: 12 pt = 16 px);
 //! bold is drawn twice a pixel apart, italic slanted, underline and
 //! strike-out as lines. Like Windows' TextOut, (x, y) is the top left of
@@ -48,26 +51,30 @@ impl Target for HiRes {
 }
 
 const SANS: &[u8] = include_bytes!("../../fonts/LiberationSans-Regular.ttf");
+const RSANS: &[u8] = include_bytes!("../../fonts/RapidRSans-Regular.ttf");
 const SERIF: &[u8] = include_bytes!("../../fonts/LiberationSerif-Regular.ttf");
 const MONO: &[u8] = include_bytes!("../../fonts/LiberationMono-Regular.ttf");
 
 /// Longest text drawn in one call (so a huge string can't stall drawing).
 const MAX_CHARS: usize = 10_000;
 
-/// The built-in faces' files (Liberation Sans, Serif, Mono): what the UI
-/// kernel registers with its text shaper, so its captions are drawn from
-/// the very fonts `TextWidth` measures.
-pub const BUILTIN_FONTS: [&[u8]; 3] = [SANS, SERIF, MONO];
+/// The built-in faces' files (Liberation Sans, Serif, Mono, RapidR Sans):
+/// what the UI kernel registers with its text shaper, so its captions are
+/// drawn from the very fonts `TextWidth` measures.
+pub const BUILTIN_FONTS: [&[u8]; 4] = [SANS, SERIF, MONO, RSANS];
 
 /// The built-in face standing for a QFONT's name, by its family name:
-/// Courier / mono: "Liberation Mono"; Times / serif / Roman: "Liberation
-/// Serif"; anything else: "Liberation Sans".
+/// MS Sans Serif (RapidQ's default; Microsoft Sans Serif, MS Shell Dlg,
+/// "Sans Serif"): "RapidR Sans"; Courier / mono: "Liberation Mono"; Times /
+/// serif / Roman: "Liberation Serif"; anything else: "Liberation Sans".
 pub fn family_name(name: &str) -> &'static str {
     let n = name.to_ascii_lowercase();
+    let n = n.trim();
     if n.contains("courier") || n.contains("mono") || n.contains("fixed") || n.contains("terminal") || n.contains("console") {
         "Liberation Mono"
+    } else if n == "ms sans serif" || n == "microsoft sans serif" || n == "sans serif" || n.starts_with("ms shell dlg") || n == "ms sans" || n == "helv" {
+        "RapidR Sans"
     } else if n.contains("sans") {
-        // ("MS Sans Serif", "Microsoft Sans Serif": sans, though they say serif)
         "Liberation Sans"
     } else if n.contains("times") || n.contains("serif") || n.contains("roman") || n.contains("georgia") {
         "Liberation Serif"
@@ -80,6 +87,7 @@ fn face_data(name: &str) -> &'static [u8] {
     match family_name(name) {
         "Liberation Mono" => MONO,
         "Liberation Serif" => SERIF,
+        "RapidR Sans" => RSANS,
         _ => SANS,
     }
 }
@@ -124,11 +132,26 @@ pub fn line_metrics(font: &Font) -> (f32, f32) {
     scaled(font).map_or((0.0, 0.0), |s| (s.ascent, s.height))
 }
 
+/// How far below the top of a line of `font`'s text its baseline is, in
+/// pixels (GDI's tmAscent: 11 for MS Sans Serif 8).
+pub fn ascent(font: &Font) -> f32 {
+    scaled(font).map_or(0.0, |s| s.ascent)
+}
+
+/// The space a bold character takes beyond its regular width, in pixels:
+/// one for MS Sans Serif (RapidR Sans) — Windows' MS Sans Serif Bold is a
+/// pixel wider a character, RapidQ's capture shows — none for the others
+/// (their bold is the regular advance, one pixel more for the whole text).
+pub fn bold_spacing(font: &Font) -> f32 {
+    if font.styles & 1 != 0 && family_name(&font.name) == "RapidR Sans" { 1.0 } else { 0.0 }
+}
+
 /// `TextWidth` / `TextHeight` of `text` in `font`, in pixels.
 pub fn text_size(text: &str, font: &Font) -> (i64, i64) {
     let Some(s) = scaled(font) else { return (0, 0) };
     let bold = font.styles & 1 != 0;
-    let w: f32 = text.chars().take(MAX_CHARS).map(|c| s.advance(c)).sum::<f32>() + if bold { 1.0 } else { 0.0 };
+    let spacing = bold_spacing(font);
+    let w: f32 = text.chars().take(MAX_CHARS).map(|c| s.advance(c) + spacing).sum::<f32>() + if bold && spacing == 0.0 { 1.0 } else { 0.0 };
     (w.round() as i64, s.height.ceil() as i64)
 }
 
@@ -278,7 +301,7 @@ fn glyphs(target: &mut impl Target, s: &Scaled, x: f32, y: f32, by: f32, text: &
                 fill(target, &e.edges, color);
             }
         }
-        pen += s.advance(c);
+        pen += s.advance(c) + bold_spacing(font) * by;
     }
 }
 
@@ -317,8 +340,10 @@ pub fn text_out(bmp: &mut Bitmap, x: i64, y: i64, text: &str, font: &Font, color
 mod tests {
     #[test]
     fn sans_serif_names_are_sans() {
-        assert_eq!(super::family_name("MS Sans Serif"), "Liberation Sans");
-        assert_eq!(super::family_name("Microsoft Sans Serif"), "Liberation Sans");
+        assert_eq!(super::family_name("MS Sans Serif"), "RapidR Sans");
+        assert_eq!(super::family_name("Microsoft Sans Serif"), "RapidR Sans");
+        assert_eq!(super::family_name("Arial"), "Liberation Sans");
+        assert_eq!(super::family_name("Comic Sans MS"), "Liberation Sans");
         assert_eq!(super::family_name("Times New Roman"), "Liberation Serif");
         assert_eq!(super::family_name("Courier New"), "Liberation Mono");
     }

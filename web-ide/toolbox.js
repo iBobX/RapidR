@@ -7,6 +7,8 @@
 //               SQLite, HTTP, Num, etc.). The runtime instantiates them
 //               just like visible widgets but they have no on-form layout.
 
+import { COMPONENT_REGISTRY, prettyComponentName } from "./lang-data.js";
+
 export const TOOLBOX_GROUPS = [
   {
     name: "Standard",
@@ -121,9 +123,18 @@ export function isVisibleType(type) {
   return true;   // unknown types default to visible
 }
 
+/// The designer's name for a component type a program writes: RapidQ's
+/// name is the RapidR component's (QFORM is RForm, QMENUITEM is RMenuItem —
+/// the language registry's entry says which, lang-data.js), in the
+/// toolbox's casing; any casing (rbutton, RBUTTON) is the same type.
 export function normalizeTypeCasing(type) {
   if (!type) return "";
-  const lower = type.toLowerCase();
+  const upper = type.toUpperCase();
+  // (and QMEMO is RMemo: the compiler's rule, rapidr_ast::canonical_type_name)
+  const key = COMPONENT_REGISTRY[upper]?.name
+    || (upper.startsWith("Q") && COMPONENT_REGISTRY["R" + upper.slice(1)]?.name)
+    || upper;
+  const lower = key.toLowerCase();
   for (const g of TOOLBOX_GROUPS) {
     for (const it of g.items) {
       if (it.type.toLowerCase() === lower) {
@@ -131,14 +142,8 @@ export function normalizeTypeCasing(type) {
       }
     }
   }
-  // Try case-insensitive matching for common extra names that might be standard (like RForm or RMainMenu or RMenuItem)
-  if (lower === "rform") return "RForm";
-  if (lower === "rmainmenu") return "RMainMenu";
-  if (lower === "rmenuitem") return "RMenuItem";
-  if (lower === "rpopupmenu") return "RPopupMenu";
-  if (lower === "rtoolbar") return "RToolBar";
-  if (lower === "rstatusbar") return "RStatusBar";
-  
+  // (a component the toolbox doesn't list: RForm, RMenuItem, RStatusBar…)
+  if (COMPONENT_REGISTRY[key]) return prettyComponentName(key);
   return type;
 }
 
