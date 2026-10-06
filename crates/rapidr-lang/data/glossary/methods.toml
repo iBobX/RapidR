@@ -68,6 +68,8 @@ ArrangeIcons = { doc = "Lines up the icons of the minimized MDI child windows." 
 Asin = { doc = "Replaces each element with its arc sine, in radians (in place). Same as `ArcSin`." }
 At = { doc = "Reads one value: an array's element at an index, or a DataFrame's cell by row and column name." }
 Atan = { doc = "Replaces each element with its arc tangent, in radians (in place). Same as `ArcTan`." }
+Average = { doc = "The arithmetic mean of the elements; the same as Mean." }
+Avg = { doc = "The arithmetic mean of the elements; the same as Mean." }
 Axhline = { doc = "Draws a horizontal line across the chart at the y given. Same as `HLine`." }
 Axvline = { doc = "Draws a vertical line across the chart at the x given. Same as `VLine`." }
 Back = { doc = "Goes back one step in the browser's history." }
@@ -98,6 +100,7 @@ CloseChild = { doc = "Closes the active MDI child window." }
 CloseKey = { doc = "Closes the registry key that is open." }
 Cls = { doc = "Clears the drawing area to its background color." }
 Collapse = { doc = "Collapses the node at `Index`; with `Recurse` true, every node under it too." }
+Columns = { doc = "The frame's column names, comma-separated." }
 Concatenate = { doc = "Appends the elements of another array, named by its variable, to this one. Same as `Append`." }
 Connect = { doc = "Opens a connection: to a MySQL server from a host, user and password (true on success), or to TCP port `PortNum` of a server (the new socket's number, -1 on failure)." }
 ConnectionReady = { doc = "Returns true when numbered socket `Sock` is ready: a client waiting to be accepted on a server socket." }
@@ -367,6 +370,7 @@ Reverse = { doc = "Reverses the order of the elements (in place). Same as `Flip`
 Rotate = { doc = "Rotates the picture by `Angle` degrees around (`xOrigin`, `yOrigin`)." }
 RoundRect = { doc = "Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`." }
 RowBlob = { doc = "Returns `Bytes` bytes of the binary field in row `Row`." }
+RowCount = { doc = "How many rows the frame has." }
 Rows = { doc = "Returns the number of rows." }
 RowSeek = { doc = "Moves to row `Row` of the query's result, the next one `FetchRow` reads." }
 Save = { doc = "Saves to a file: the chart as an image, or the recording as a WAV file." }
@@ -434,6 +438,7 @@ SetVelocity = { doc = "Sets the velocity (`X`, `Y`, `Z`) a frame moves by each t
 SetVertChild = { doc = "Tiles the MDI child windows side by side." }
 SetXLabel = { doc = "Sets the label of the x axis." }
 SetYLabel = { doc = "Sets the label of the y axis." }
+Shape = { doc = "The array's or frame's dimensions as text: an array's length, a frame's rows and columns." }
 ShapeForm = { doc = "Shapes the form to a bitmap file's outline, its pixels of `TransparentColor` cut away." }
 Show = { doc = "Shows the component or form; a data-science object prints its contents." }
 ShowModal = { doc = "Shows the form and waits until it closes; returns its modal result." }

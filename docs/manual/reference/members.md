@@ -252,119 +252,119 @@ A numeric array in NumPy's style: make ranges, zeros or lists, then sum, average
 
 | Property | Type | Default | |
 |---|---|---|---|
+| `Size` (read-only) | int |  | A size: of a font, in points; of a file, stream, sound or download, in bytes; of an array, its number of values. |
+| `Length` (read-only) | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
+| `Len` (read-only) | int |  | The number of values in the array. |
 | `Data` | string |  | The array's values as text, comma-separated (`1,2,3`); setting it fills the array. |
-| `Shape` *(web)* | string |  | The size of the array or data frame as text: `(n)` or `(rows, cols)`. |
-| `Size` | int |  | A size: of a font, in points; of a file, stream, sound or download, in bytes; of an array, its number of values. |
-| `Length` | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
-| `Len` | int |  | The number of values in the array. |
-| `NDim` | int |  | The array's number of dimensions (1). |
-| `DType` | string |  | The array's element type: `float64`. |
-| `Avg` *(web)* | string |  | The mean of the array's values; the same as `Average`. |
-| `Average` *(web)* | string |  | The mean of the array's values; the same as `Avg`. |
+| `Shape` (read-only) | string |  | The size of the array or data frame as text: `(n)` or `(rows, cols)`. |
+| `NDim` (read-only) | int |  | The array's number of dimensions (1). |
+| `DType` (read-only) | string |  | The array's element type: `float64`. |
 
 | Method | |
 |---|---|
-| `Arange(start, stop, [step])` | Creates evenly spaced values in [start, stop) with given step (default 1) |
-| `LinSpace(start, stop, [num])` | Creates num evenly spaced values between start and stop (default 50) |
-| `Zeros(n)` | Creates array of n zeros |
-| `Ones(n)` | Creates array of n ones |
-| `Full(n, fillValue)` | Creates array of n elements filled with fillValue |
-| `FromList(v1, v2, v3, …)` | Creates array from comma-separated string of numbers |
-| `Sum` | Returns sum of all elements |
-| `Mean` | Returns arithmetic mean |
+| `Create([n])` | Makes the array n zeros (empty without n). |
+| `New` | Starts anew, empty: a blank recording for a wave; on the web, a data-science object. |
+| `Init` | Prepares the object: a DirectX screen makes its drawing surface `Width` × `Height`; on the web a data-science object starts empty. |
+| `Arange(start, stop, [step])` | Evenly spaced values in [start, stop) with the given step (default 1; may be negative). |
+| `LinSpace(start, stop, [num])` | num evenly spaced values from start to stop, both included (default 50). |
+| `Zeros(n)` | n zeros. |
+| `Ones(n)` | n ones. |
+| `Full(n, fillValue)` | n elements of fillValue. |
+| `FromList(v1, v2, v3, …)` | The numbers of a comma-separated list. |
+| `From_list` | Fills the array from text of comma-separated numbers. Same as `FromList`. |
+| `Set(index, value)` | Sets element index (from 0); past the end the array grows with zeros. |
+| `SetValue` | Sets the element at an index. Same as `Set`. |
+| `SetItem` | Sets the element at an index. Same as `Set`. |
+| `Get(index)` | Element index (from 0); 0 past the end. |
+| `GetValue` | Returns the element at the index given. Same as `Get`. |
+| `GetItem` | Returns the element at the index given. Same as `Get`. |
+| `At` | Reads one value: an array's element at an index, or a DataFrame's cell by row and column name. |
+| `Push(value)` | Adds value at the end. |
+| `Sum` | The sum of the elements. |
+| `Mean` | The arithmetic mean. |
+| `Avg` | The arithmetic mean of the elements; the same as Mean. |
+| `Average` | The arithmetic mean of the elements; the same as Mean. |
 | `Min` | Returns the smallest element. |
 | `Max` | Returns the largest element. |
-| `Std` | Returns standard deviation |
-| `Var` | Returns variance |
-| `Median` | Returns median value |
-| `ArgMin` | Returns index of minimum value |
-| `ArgMax` | Returns index of maximum value |
-| `Count` | Returns number of elements |
-| `Ptp` | Returns peak-to-peak (max - min) range |
+| `Std` | The (population) standard deviation. |
+| `Var` | The (population) variance. |
+| `Variance` | Returns the variance of the elements. Same as `Var`. |
+| `Median` | The median. |
+| `ArgMin` | The index of the smallest element. |
+| `ArgMax` | The index of the largest element. |
+| `Count` | The number of elements. |
+| `Ptp` | Peak to peak: max - min. |
 | `Sin` | Replaces each element with its sine (in place). |
 | `Cos` | Replaces each element with its cosine (in place). |
 | `Tan` | Replaces each element with its tangent (in place). |
 | `Asin` | Replaces each element with its arc sine, in radians (in place). Same as `ArcSin`. |
+| `ArcSin` | Replaces each element with its arc sine, in radians (in place). Same as `Asin`. |
 | `Acos` | Replaces each element with its arc cosine, in radians (in place). Same as `ArcCos`. |
+| `ArcCos` | Replaces each element with its arc cosine, in radians (in place). Same as `Acos`. |
 | `Atan` | Replaces each element with its arc tangent, in radians (in place). Same as `ArcTan`. |
+| `ArcTan` | Replaces each element with its arc tangent, in radians (in place). Same as `Atan`. |
 | `Sqrt` | Replaces each element with its square root (in place). |
 | `Abs` | Replaces each element with its absolute value (in place). |
 | `Exp` | Replaces each element with e raised to it (in place). |
 | `Log` | Replaces each element with its natural logarithm (in place). Same as `Ln`. |
+| `Ln` | Replaces each element with its natural logarithm (in place). Same as `Log`. |
 | `Log2` | Replaces each element with its base-2 logarithm (in place). |
 | `Log10` | Replaces each element with its base-10 logarithm (in place). |
 | `Floor` | Rounds each element down to a whole number (in place). |
 | `Ceil` | Rounds each element up to a whole number (in place). |
-| `Round([decimals])` | Rounds elements to given decimal places (default 0) |
+| `Round([decimals])` | Rounds every element (default 0 decimals). |
 | `Sign` | Replaces each element with its sign: -1, 0 or 1 (in place). |
 | `Reciprocal` | Replaces each element with 1 divided by it (in place). |
 | `Square` | Replaces each element with its square (in place). |
 | `Negative` | Changes the sign of each element (in place). Same as `Neg`. |
-| `Add(value)` | Adds scalar or another array element-wise |
-| `Subtract(value)` | Subtracts scalar or another array element-wise |
-| `Multiply(value)` | Multiplies by scalar or another array element-wise |
-| `Divide(value)` | Divides by scalar or another array element-wise |
-| `Power(exp)` | Raises elements to the given power |
-| `Mod(divisor)` | Computes element-wise modulo |
-| `Clip(low, high)` | Clips values to [low, high] range |
+| `Neg` | Changes the sign of each element (in place). Same as `Negative`. |
+| `Add(value)` | Adds a number, or another array element by element (arrays of the same length). |
+| `Subtract(value)` | Subtracts a number or another array, element by element. |
+| `Sub` | Subtracts a number or another array's matching element from each element (in place). Same as `Subtract`. |
+| `Multiply(value)` | Multiplies by a number or another array, element by element. |
+| `Mul` | Multiplies each element by a number or by another array's matching element (in place). Same as `Multiply`. |
+| `Divide(value)` | Divides by a number or another array, element by element (by 0: NAN). |
+| `Div` | Divides each element by a number or by another array's matching element (in place). Same as `Divide`. |
+| `Power(exp)` | Raises every element to a power (default 2). |
+| `Pow` | Raises each element to a power (in place). Same as `Power`. |
+| `Mod(divisor)` | The remainder of each element. |
+| `Fmod` | Replaces each element with its remainder after division by a number (in place). Same as `Mod`. |
+| `Clip(low, high)` | Limits every element to [low, high]. |
+| `Clamp` | Limits each element to the range from a low to a high value (in place). Same as `Clip`. |
 | `Sort` | Sorts the items, nodes or elements in ascending order. |
 | `Reverse` | Reverses the order of the elements (in place). Same as `Flip`. |
+| `Flip` | On a DirectX screen, shows what was drawn on the back buffer; on an array, reverses the elements (same as `Reverse`). |
 | `Unique` | Replaces the array with its distinct values, sorted. |
 | `Shuffle` | Puts the elements in random order (in place). |
-| `Append(v1, v2, …)` | Appends comma-separated values to the array |
-| `Slice(start, end)` | Returns elements from start to end index |
+| `Append(v1, v2, …)` | Adds another array, a list or a number at the end. |
+| `Concatenate` | Appends the elements of another array, named by its variable, to this one. Same as `Append`. |
+| `Slice(start, end)` | Keeps the elements from start to end (not included). |
+| `Reshape` | Changes the array's shape; RapidR's arrays are one-dimensional, so it leaves it as it is. |
 | `CumSum` | Replaces each element with the running total up to it (in place). |
 | `CumProd` | Replaces each element with the product of it and all those before it (in place). |
 | `Diff` | Replaces the array with the differences between neighbouring elements, one element shorter. |
-| `Dot(otherArray)` | Computes dot product with another RNum array |
+| `Dot(otherArray)` | The dot product with another array. |
 | `Norm` | Returns the array's length as a vector (its L2 norm). |
 | `Normalize` | Scales the elements so the array's L2 norm is 1 (in place). |
 | `Any` | Returns true (1) when at least one element is non-zero. |
 | `All` | Returns true (1) when every element is non-zero. |
 | `Where` | Replaces the array with the indexes of its non-zero elements. Same as `Nonzero`. |
 | `Nonzero` | Replaces the array with the indexes of its non-zero elements. Same as `Where`. |
-| `SearchSorted(value)` | Finds insertion index for value in sorted array |
-| `Rand(n)` | Fills with n random values in [0,1) |
-| `Randn(n)` | Fills with n standard-normal random values |
-| `Uniform(low, high, n)` | Fills with n uniform random values in [low,high) |
-| `Randint(low, high, n)` | Fills with n random integers in [low,high) |
-| `Choice(n)` | Randomly samples n elements from the array |
-| `ToList` | Returns the elements as text, comma-separated. |
-| `ToString` | Returns the contents as text. |
-| `Print` | Prints the contents to the console and returns them as text. Same as `Show`. |
-| `Show` | Shows the component or form; a data-science object prints its contents. |
-| `Reshape` *(desktop)* | Changes the array's shape; RapidR's arrays are one-dimensional, so it leaves it as it is. |
-| `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
-| `From_list` | Fills the array from text of comma-separated numbers. Same as `FromList`. |
-| `Variance` | Returns the variance of the elements. Same as `Var`. |
-| `ArcSin` | Replaces each element with its arc sine, in radians (in place). Same as `Asin`. |
-| `ArcCos` | Replaces each element with its arc cosine, in radians (in place). Same as `Acos`. |
-| `ArcTan` | Replaces each element with its arc tangent, in radians (in place). Same as `Atan`. |
-| `Ln` | Replaces each element with its natural logarithm (in place). Same as `Log`. |
-| `Neg` | Changes the sign of each element (in place). Same as `Negative`. |
-| `Sub` | Subtracts a number or another array's matching element from each element (in place). Same as `Subtract`. |
-| `Mul` | Multiplies each element by a number or by another array's matching element (in place). Same as `Multiply`. |
-| `Div` | Divides each element by a number or by another array's matching element (in place). Same as `Divide`. |
-| `Pow` | Raises each element to a power (in place). Same as `Power`. |
-| `Fmod` | Replaces each element with its remainder after division by a number (in place). Same as `Mod`. |
-| `Clamp` | Limits each element to the range from a low to a high value (in place). Same as `Clip`. |
-| `Flip` | On a DirectX screen, shows what was drawn on the back buffer; on an array, reverses the elements (same as `Reverse`). |
-| `Concatenate` | Appends the elements of another array, named by its variable, to this one. Same as `Append`. |
+| `SearchSorted(value)` | Where value would go in the sorted array. |
+| `Rand(n)` | n random values in [0, 1) (default 1). |
 | `Random` | Fills the array with `n` random values from 0 up to 1. Same as `Rand`. |
+| `Randn(n)` | n normally distributed values. |
 | `Random_normal` | Fills the array with `n` random values from a normal distribution. Same as `RandN`. |
 | `Normal` | Fills the array with `n` random values from a normal distribution (mean and standard deviation optional). Same as `RandN`. |
+| `Uniform(low, high, n)` | n random values in [low, high). |
 | `Random_uniform` | Fills the array with `n` random values between a low and a high value. Same as `Uniform`. |
-| `Create` *(web)* | Starts the object empty and ready to use (the web's name; same as `New` and `Init`). |
-| `New` *(web)* | Starts anew, empty: a blank recording for a wave; on the web, a data-science object. |
-| `Init` *(web)* | Prepares the object: a DirectX screen makes its drawing surface `Width` × `Height`; on the web a data-science object starts empty. |
-| `Set` *(web)* | Stores a value: an array's element at an index, or a value under a key in the browser's storage. |
-| `SetValue` *(web)* | Sets the element at an index. Same as `Set`. |
-| `SetItem` *(web)* | Sets the element at an index. Same as `Set`. |
-| `Get` *(web)* | Reads by key or index: an array element, a list's string, a stored value or a CGI variable; an HTTP client fetches a URL and returns the response body. |
-| `GetValue` *(web)* | Returns the element at the index given. Same as `Get`. |
-| `GetItem` *(web)* | Returns the element at the index given. Same as `Get`. |
-| `At` *(web)* | Reads one value: an array's element at an index, or a DataFrame's cell by row and column name. |
-| `Push` *(web)* | Appends a value to the end of the array. |
+| `Randint(low, high, n)` | n random whole numbers from low to high, both included. |
+| `Choice(n)` | One element at random (returned), or the array becomes n of them. |
+| `ToList` | The elements as "1,2,3". |
+| `ToString` | Returns the contents as text. |
+| `Print` | Prints the array as [1, 2, 3]. |
+| `Show` | Shows the component or form; a data-science object prints its contents. |
+| `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 
 <a id="rdataframe"></a>
 ## RDATAFRAME
@@ -373,87 +373,87 @@ A table of named columns in pandas' style: read CSV or JSON, select, filter, sor
 
 | Property | Type | Default | |
 |---|---|---|---|
-| `RowCount` | int |  | The number of rows: of a grid (fixed ones included), of a query's result, of a data frame. |
-| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
-| `Nrows` | int |  | The number of rows in the data frame. |
-| `ColCount` | int |  | The number of columns: of a grid (fixed ones included), of a query's result, of a data frame. |
-| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `Ncols` | int |  | The number of columns in the data frame. |
-| `Columns` | string |  | On a list box, how many columns the items flow into (0: one, scrolling down); on a list view, the column count; on a data frame, the column names, comma-separated. |
-| `Shape` | string |  | The size of the array or data frame as text: `(n)` or `(rows, cols)`. |
-| `Empty` | int |  | Non-zero when the data frame has no rows, or the bitmap holds no picture; read-only. |
+| `Height` (read-only) | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Nrows` (read-only) | int |  | The number of rows in the data frame. |
+| `ColCount` (read-only) | int |  | The number of columns: of a grid (fixed ones included), of a query's result, of a data frame. |
+| `Width` (read-only) | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `Ncols` (read-only) | int |  | The number of columns in the data frame. |
+| `Empty` (read-only) | int |  | Non-zero when the data frame has no rows, or the bitmap holds no picture; read-only. |
 
 | Method | |
 |---|---|
-| `LoadFromCSV(filename)` | Loads a CSV file into the DataFrame. Auto-resolves paths relative to project. |
-| `ReadCSV(filename)` | Alias for loadfromcsv. |
-| `SaveToCSV(filename)` *(desktop)* | Saves the DataFrame to a CSV file. |
-| `LoadFromJSON(filename)` *(desktop)* | Loads a JSON file into the DataFrame. |
-| `SaveToJSON(filename)` *(desktop)* | Saves the DataFrame to a JSON file. |
-| `Head([n])` | Returns the first n rows as a string (default 5). |
-| `Tail([n])` | Returns the last n rows as a string (default 5). |
-| `Cell(col, row)` | Returns cell value by column and row indices. |
-| `CellByName(row, columnName)` | Returns cell value by row index and column name. |
-| `At` | Reads one value: an array's element at an index, or a DataFrame's cell by row and column name. |
-| `SetCell(col, row, value)` | Sets a cell value by column and row indices. Auto-expands rows as needed. |
-| `Iloc(row)` *(desktop)* | Returns an entire row as comma-separated string. |
-| `Select(col1, col2, …)` | Selects specified columns into a new DataFrame. |
-| `Sort(column, [ascending])` | Sorts by column. ascending: 1 (default) or 0. |
-| `Sort_values(column, [ascending])` *(desktop)* | Alias for sort with Pandas naming. |
-| `Filter(column, operator, value)` | Filters rows. Operators: >, <, >=, <=, =, !=, contains. |
-| `Query(expression)` *(desktop)* | Filters using a query expression string. |
-| `GroupBy(column, aggColumn, aggFunc)` *(desktop)* | Groups by column, aggregates aggColumn with aggFunc (mean/sum/count/min/max/first/last). |
-| `Drop(column)` | Removes a column from the DataFrame. |
-| `Rename(oldName, newName)` | Renames a column. |
-| `AddColumn(name, values)` | Adds a column with comma-separated values. |
-| `Fillna(value)` | Fills null/missing values with the given value. |
-| `Dropna` | Removes rows containing null values. |
-| `Describe` | Returns statistical summary (count, mean, std, min, max, etc.). |
-| `Value_counts(column)` *(desktop)* | Returns frequency counts for a column. |
-| `Nunique(column)` *(desktop)* | Returns number of unique values in a column. |
-| `Corr(col1, col2)` *(desktop)* | Returns Pearson correlation coefficient between two columns. |
-| `Sample(n)` | Returns n random rows. |
-| `Nlargest(n, column)` *(desktop)* | Returns n largest rows by column value. |
-| `Nsmallest(n, column)` *(desktop)* | Returns n smallest rows by column value. |
-| `Info` | Prints DataFrame info: columns, types, non-null counts. |
-| `Dtypes` *(desktop)* | Returns column data types. |
-| `Merge(otherDf, onColumn, [how])` *(desktop)* | Joins with another DataFrame. how: inner (default), left, right, outer, cross. |
-| `Join` *(desktop)* | Joins another DataFrame on a common column. Same as `Merge`. |
-| `Concat(otherDf)` *(desktop)* | Vertically concatenates another DataFrame. |
-| `Transpose` | Transposes rows and columns. |
-| `Apply(column, function)` *(desktop)* | Applies a transform to a column: upper, lower, abs, round, sqrt, log. |
-| `Replace(column, oldValue, newValue)` *(desktop)* | Replaces values in a column. |
-| `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
-| `Rows` | Returns the number of rows. |
-| `ToString` | Returns the contents as text. |
-| `Show` | Shows the component or form; a data-science object prints its contents. |
-| `Print` | Prints the contents to the console and returns them as text. Same as `Show`. |
-| `ToGrid(gridName)` | Populates an RStringGrid with the DataFrame contents. |
+| `Create` | Makes the frame empty. |
+| `New` | Starts anew, empty: a blank recording for a wave; on the web, a data-science object. |
+| `Init` | Prepares the object: a DirectX screen makes its drawing surface `Width` × `Height`; on the web a data-science object starts empty. |
+| `AddRow(v1, v2, …, v2, …)` | Adds a row (columns column_1, ... if the frame has fewer). |
+| `Add_row` | Appends a row made of the values given. Same as `AddRow`. |
+| `AppendRow` | Appends a row made of the values given. Same as `AddRow`. |
+| `Push_row` | Appends a row made of the values given. Same as `AddRow`. |
+| `LoadFromCSV(filename)` | Reads CSV (the first line the header) from a file, or the CSV text itself. |
+| `ReadCSV(filename)` | The same as loadfromcsv. |
 | `Read_csv(filename)` | Loads a CSV file into the DataFrame. Same as `ReadCSV`. |
-| `To_csv(filename)` *(desktop)* | Saves the DataFrame to a CSV file. Same as `SaveToCSV`. |
-| `WriteCSV(filename)` *(desktop)* | Saves the DataFrame to a CSV file. Same as `SaveToCSV`. |
-| `Read_json(filename)` *(desktop)* | Loads a JSON file into the DataFrame. Same as `LoadFromJSON`. |
-| `To_json(filename)` *(desktop)* | Saves the DataFrame to a JSON file. Same as `SaveToJSON`. |
-| `Group_by` *(desktop)* | Groups the rows by a column and aggregates the other columns. Same as `GroupBy`. |
+| `SaveToCSV(filename)` | Writes the frame as CSV (default output.csv). |
+| `To_csv(filename)` | Saves the DataFrame to a CSV file. Same as `SaveToCSV`. |
+| `WriteCSV(filename)` | Saves the DataFrame to a CSV file. Same as `SaveToCSV`. |
+| `LoadFromJSON(filename)` | Reads JSON records ([{...}, ...]), JSON Lines or columns ({"a": [...]}). |
+| `Read_json(filename)` | Loads a JSON file into the DataFrame. Same as `LoadFromJSON`. |
+| `SaveToJSON(filename)` | Writes the frame as an array of JSON records (default output.json). |
+| `To_json(filename)` | Saves the DataFrame to a JSON file. Same as `SaveToJSON`. |
+| `Head([n])` | Keeps the first n rows (default 5). |
+| `Tail([n])` | Keeps the last n rows (default 5). |
+| `Cell(col, row)` | The text of a cell (col: an index from 0, or a column name); "" for a missing value. |
+| `CellByName(row, columnName)` | The text of a cell by its column name. |
+| `At` | Reads one value: an array's element at an index, or a DataFrame's cell by row and column name. |
+| `SetCell(col, row, value)` | Sets a cell (col: an index or a name); past the end the frame grows. |
+| `Iloc(row)` | Keeps rows start to end (not included). |
+| `Select(col1, col2, …)` | Keeps those columns, in that order. |
+| `Sort(column, [ascending])` | Sorts by columns: 1 ascending (default), 0 descending; numbers as numbers, missing values last. |
+| `Sort_values(column, [ascending])` | The same as sort. |
+| `Filter(column, operator, value)` | Keeps the rows that pass: =, ==, <>, !=, >, <, >=, <=, contains, startswith, endswith. |
+| `Query(expression)` | Filters with one condition: query "age > 30". |
+| `GroupBy(column, aggColumn, aggFunc)` | A row a group: the column, then mean (default), sum, count, min, max, first, last, median or std of every other column. |
+| `Group_by` | Groups the rows by a column and aggregates the other columns. Same as `GroupBy`. |
+| `Drop(column)` | Removes a column. |
 | `Drop_column` | Removes a column by name. Same as `Drop`. |
+| `Rename(oldName, newName)` | Renames a column. |
 | `Rename_column` | Renames a column. Same as `Rename`. |
+| `AddColumn(name, values)` | Adds (or replaces) a column; a frame without rows gets one a value. |
 | `Add_column` | Adds a column of values under a name, replacing a column of that name. Same as `AddColumn`. |
 | `Set_column` | Adds a column of values under a name, replacing a column of that name. Same as `AddColumn`. |
+| `Fillna(value)` | Missing values become value (default "0"). |
 | `Fill_null` | Replaces the missing values with the value given. Same as `FillNA`. |
+| `Dropna` | Removes the rows with a missing value. |
 | `Drop_nulls` | Removes the rows that have a missing value. Same as `DropNA`. |
-| `Correlation` *(desktop)* | Returns the correlation matrix of the numeric columns. Same as `Corr`. |
-| `Append` *(desktop)* | Appends another's contents: the rows of another DataFrame (as `Concat`), or the elements of another array. |
+| `Describe` | The frame becomes the summary of its numeric columns: count, mean, std, min, 25%, 50%, 75%, max. |
+| `Value_counts(column)` | The frame becomes each value of the column and its count, most first. |
+| `Nunique(column)` | How many different values the column has. |
+| `Corr(col1, col2)` | Pearson's correlation of two columns. |
+| `Correlation` | Returns the correlation matrix of the numeric columns. Same as `Corr`. |
+| `Sample(n)` | Keeps n rows at random (default 5). |
+| `Nlargest(n, column)` | Keeps the n rows with the largest values (default 5). |
+| `Nsmallest(n, column)` | Keeps the n rows with the smallest values (default 5). |
+| `Info` | Prints the size and each column's type and non-null count. |
+| `Dtypes` | The columns' types: "name: str,age: i64". |
+| `Shape` | The array's or frame's dimensions as text: an array's length, a frame's rows and columns. |
+| `Merge(otherDf, onColumn, [how])` | Joins another frame on a column: inner (default), left, right, outer, cross. |
+| `Join` | Joins another DataFrame on a common column. Same as `Merge`. |
+| `Concat(otherDf)` | Adds another frame's rows (columns matched by name). |
+| `Append` | Appends another's contents: the rows of another DataFrame (as `Concat`), or the elements of another array. |
+| `Transpose` | Columns become rows. |
 | `T` | Swaps rows and columns. Same as `Transpose`. |
+| `Apply(column, function)` | Transforms a column: upper, lower, trim, abs, round, sqrt, log, exp. |
+| `Replace(column, oldValue, newValue)` | Cells that are oldValue become newValue. |
+| `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
+| `Columns` | The frame's column names, comma-separated. |
+| `Rows` | Returns the number of rows. |
+| `RowCount` | How many rows the frame has. |
 | `Len` | Returns the number of rows. Same as `Rows`. |
+| `ToString` | The frame as a text table. |
+| `Show` | Shows the component or form; a data-science object prints its contents. |
+| `Print` | Prints the frame as a text table. |
+| `ToGrid(gridName)` | Fills a QSTRINGGRID: the header row, then the cells. |
 | `To_grid` | Fills an RStringGrid with the DataFrame's column names and rows. Same as `ToGrid`. |
 | `Display` | Fills an RStringGrid with the DataFrame's column names and rows. Same as `ToGrid`. |
-| `Create` *(web)* | Starts the object empty and ready to use (the web's name; same as `New` and `Init`). |
-| `New` *(web)* | Starts anew, empty: a blank recording for a wave; on the web, a data-science object. |
-| `Init` *(web)* | Prepares the object: a DirectX screen makes its drawing surface `Width` × `Height`; on the web a data-science object starts empty. |
-| `AddRow` *(web)* | Appends a row made of the values given; a grid widens to fit them. |
-| `Add_row` *(web)* | Appends a row made of the values given. Same as `AddRow`. |
-| `AppendRow` *(web)* | Appends a row made of the values given. Same as `AddRow`. |
-| `Push_row` *(web)* | Appends a row made of the values given. Same as `AddRow`. |
 
 <a id="rplot"></a>
 ## RPLOT
@@ -465,16 +465,10 @@ A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots
 | `Title` | string |  | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
 | `XLabel` | string |  | The title under the plot's X axis. |
 | `YLabel` | string |  | The title beside the plot's Y axis. |
+| `Grid` | int |  | Non-zero draws grid lines on the plot. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
-| `Grid` | int |  | Non-zero draws grid lines on the plot. |
-| `Dpi` *(desktop)* | int |  | The dots per inch the plot is rendered at. |
-| `Hint` *(web)* | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
-| `Left` *(web)* | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
-| `Top` *(web)* | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
-| `Visible` *(web)* | int |  | Whether the control or form is shown. |
-| `Parent` *(web)* | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-| `Align` *(web)* | enum |  | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
+| `Dpi` | int |  | The dots per inch the plot is rendered at. |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -485,46 +479,44 @@ A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots
 
 | Method | |
 |---|---|
-| `Clear` | Clears all series, annotations and resets the plot. |
-| `Plot(xData, yData, [color], [label])` | Draws a line plot. xData/yData are comma-separated strings. |
-| `Bar(labels, values, [color], [label])` | Draws a vertical bar chart. |
-| `Barh(labels, values, [color], [label])` | Draws a horizontal bar chart. |
-| `Scatter(xData, yData, [color], [label])` | Draws a scatter plot. |
-| `Step(xData, yData, [color], [label])` | Draws a step plot. |
-| `Area(xData, yData, [color], [label])` | Draws a filled area chart. |
+| `Create` | Starts the object empty and ready to use (the web's name; same as `New` and `Init`). |
+| `New` | Starts anew, empty: a blank recording for a wave; on the web, a data-science object. |
+| `Init` | Prepares the object: a DirectX screen makes its drawing surface `Width` × `Height`; on the web a data-science object starts empty. |
+| `Clear` | Removes every series and setting. |
+| `Plot(xData, yData, [color], [label])` | A line: x and y are RNum arrays (or "1,2,3"); style "-" (default), "--" dashed, "o" points. |
+| `Bar(labels, values, [color], [label])` | Vertical bars. |
+| `Barh(labels, values, [color], [label])` | Horizontal bars. |
+| `Scatter(xData, yData, [color], [label])` | Points. |
+| `Step(xData, yData, [color], [label])` | A step line. |
+| `Area(xData, yData, [color], [label])` | A filled area under the line. |
 | `Fill_between` | Draws the area between a curve and the axis, filled. Same as `Area`. |
-| `Hist(data, [bins], [color], [label])` | Draws a histogram. Default 10 bins. |
-| `Pie(labels, values, [colors])` | Draws a pie chart. |
-| `Hline(y, [color], [label])` | Draws a horizontal reference line at y. |
-| `Axhline` | Draws a horizontal line across the chart at the y given. Same as `HLine`. |
-| `Vline(x, [color], [label])` | Draws a vertical reference line at x. |
-| `Axvline` | Draws a vertical line across the chart at the x given. Same as `VLine`. |
-| `Annotate(text, x, y, [color])` | Places text annotation at (x,y). |
-| `Legend([position])` | Enables legend display. Position: "top-right" (default). |
-| `SaveFig(filename)` | Renders and saves the plot to a PNG file. |
-| `Save` | Saves to a file: the chart as an image, or the recording as a WAV file. |
-| `Figsize(width, height, [dpi])` | Sets figure dimensions in pixels and optional DPI. |
-| `Xlim(min, max)` | Sets the X axis range. |
-| `Ylim(min, max)` | Sets the Y axis range. |
-| `Xscale(type)` *(desktop)* | Sets X axis scale: "linear" or "log". |
-| `Yscale(type)` *(desktop)* | Sets Y axis scale: "linear" or "log". |
-| `Render` *(web)* | Draws the scene: a DirectX screen draws its 3D view; on the web a chart is drawn (as `SaveFig`). |
+| `AddSeries(label, y1, y2, …, [x1], [x2, …], [color])` | A line from numbers written in place, drawn at once where the chart shows. |
+| `Add_series` | Adds a data series to the chart. Same as `AddSeries`. |
+| `Series` | Adds a data series to the chart. Same as `AddSeries`. |
+| `Hist(data, [bins], [color], [label])` | A histogram (default 10 bins). |
 | `Histogram` | Draws a histogram of the values. Same as `Hist`. |
-| `Create` *(web)* | Starts the object empty and ready to use (the web's name; same as `New` and `Init`). |
-| `New` *(web)* | Starts anew, empty: a blank recording for a wave; on the web, a data-science object. |
-| `Init` *(web)* | Prepares the object: a DirectX screen makes its drawing surface `Width` × `Height`; on the web a data-science object starts empty. |
-| `SetTitle` *(web)* | Sets the chart's title. |
-| `Set_title` *(web)* | Sets the chart's title. Same as `SetTitle`. |
-| `SetXLabel` *(web)* | Sets the label of the x axis. |
-| `Set_xlabel` *(web)* | Sets the label of the x axis. Same as `SetXLabel`. |
-| `SetYLabel` *(web)* | Sets the label of the y axis. |
-| `Set_ylabel` *(web)* | Sets the label of the y axis. Same as `SetYLabel`. |
-| `AddSeries` *(web)* | Adds a named series of values to the chart. |
-| `Add_series` *(web)* | Adds a data series to the chart. Same as `AddSeries`. |
-| `Series` *(web)* | Adds a data series to the chart. Same as `AddSeries`. |
-| `Show` *(web)* | Shows the component or form; a data-science object prints its contents. |
-| `Click` *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
+| `Pie(labels, values, [colors])` | A pie chart. |
+| `Hline(y, [color], [label])` | A horizontal reference line at y. |
+| `Axhline` | Draws a horizontal line across the chart at the y given. Same as `HLine`. |
+| `Vline(x, [color], [label])` | A vertical reference line at x. |
+| `Axvline` | Draws a vertical line across the chart at the x given. Same as `VLine`. |
+| `Annotate(text, x, y, [color])` | Text at (x, y). |
+| `Legend([position])` | Shows the series labels. |
+| `SetTitle` | Sets the chart's title. |
+| `Set_title` | Sets the chart's title. Same as `SetTitle`. |
+| `SetXLabel` | Sets the label of the x axis. |
+| `Set_xlabel` | Sets the label of the x axis. Same as `SetXLabel`. |
+| `SetYLabel` | Sets the label of the y axis. |
+| `Set_ylabel` | Sets the label of the y axis. Same as `SetYLabel`. |
+| `SaveFig(filename)` | Draws the chart into a PNG file (on the web: on the page). |
+| `Save` | Saves to a file: the chart as an image, or the recording as a WAV file. |
+| `Render` | Draws the scene: a DirectX screen draws its 3D view; on the web a chart is drawn (as `SaveFig`). |
+| `Show` | Draws the chart where it is shown (the page, on the web). |
+| `Figsize(width, height, [dpi])` | The size in inches at the chart's DPI. |
+| `Xlim(min, max)` | The X axis range. |
+| `Ylim(min, max)` | The Y axis range. |
+| `Xscale(type)` | "linear" or "log" (kept with the chart; drawn linear). |
+| `Yscale(type)` | "linear" or "log" (kept with the chart; drawn linear). |
 
 <a id="ropendialog"></a>
 ## ROPENDIALOG (QOPENDIALOG)
@@ -967,8 +959,6 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `Cls` *(RapidR)* | Clears the drawing area to its background color. |
 | `Load` *(RapidR)* *(desktop)* | Loads from a file: a 3D model (`.X`) into a frame or mesh builder, or a picture into an image. |
 | `Clear` *(RapidR)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1050,8 +1040,6 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
 | `Get` *(not yet)* | Reads by key or index: an array element, a list's string, a stored value or a CGI variable; an HTTP client fetches a URL and returns the response body. |
 | `Put` *(not yet)* | Writes pixel data onto the canvas; the counterpart of `Get`. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1136,8 +1124,6 @@ A row of headings (sections) the user can click and resize, as above a list's co
 | `DrawText` *(RapidR)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 | `SetFont` *(RapidR)* | Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size. |
 | `AddSection` *(RapidR)* | Appends a section with the caption given. Same as `AddSections` with one. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1270,8 +1256,6 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `GetCompH` | Returns the height of the component at the index given on the design surface. |
 | `Show` *(desktop)* | Shows the component or form; a data-science object prints its contents. |
 | `Hide` *(desktop)* | Makes the component or form invisible; it stays loaded. |
-| `Click` *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -3286,8 +3270,6 @@ A tree of nodes the user expands, collapses and selects, with a picture per node
 | `AlphaSort` *(RapidR)* | Sorts the nodes alphabetically. Same as `Sort`. |
 | `AddRoot` *(RapidR)* | Adds a top-level node with the given text. Same as `AddNode`. |
 | `AddNode` *(RapidR)* | Adds a top-level node with the given text. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -4286,8 +4268,6 @@ An embedded web page or HTML (an iframe): URL, HTML, Sandbox. Web only.
 |---|---|
 | `SetHTML(Html AS STRING)` | Shows the HTML given in the web view. |
 | `Navigate(Url AS STRING)` | Goes to an address: a web view loads a URL; a router changes the page's `#` route. |
-| `Click` *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -4337,8 +4317,6 @@ An HTML element of the program's own: its HTML, CSS classes, style and attribute
 | `ToggleClass` | Adds a CSS class to the element, or removes it when it has it. |
 | `Remove` | Removes something: a list's string by index, the element from the page, or a stored value by key. |
 | `QuerySelector` | Returns the id of the first page element matching a CSS selector, or null. |
-| `Click` *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -4419,8 +4397,6 @@ An HTML5 audio player: Src, Volume, Loop, Play, Pause, Seek. Web only.
 | `Pause` | Pauses playback; `Play` goes on from there. |
 | `Stop` | Stops what is running: playback (back to the start), recording, or the server. |
 | `Seek(Seconds AS DOUBLE)` | Moves the current position: a stream's to `Position` from its start, current place or end; a player's to a time in seconds. |
-| `Click` *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -4470,8 +4446,6 @@ An HTML5 video player on the form: Src, Volume, Play, Pause, Seek, FullScreen. W
 | `Stop` | Stops what is running: playback (back to the start), recording, or the server. |
 | `Seek(Seconds AS DOUBLE)` | Moves the current position: a stream's to `Position` from its start, current place or end; a player's to a time in seconds. |
 | `FullScreen` | Shows the video full screen. |
-| `Click` *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|

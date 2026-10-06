@@ -52,14 +52,10 @@ MEDIA = "RMIDI RWAVE RVIDEO RCDAUDIO"
 WEB = "RWEBVIEW RDOM RJAVASCRIPT RWEBSTORAGE RWEBAUDIO RWEBVIDEO RWEBNOTIFICATION RWEBGEOLOCATION RROUTER RPLOT"
 SITES = {
     # --- desktop runtime
-    ("crates/rapidr-runtime-core/src/datascience.rs", "num_method"): "RNUM",
-    ("crates/rapidr-runtime-core/src/datascience.rs", "num_get_prop"): "RNUM",
-    ("crates/rapidr-runtime-core/src/datascience.rs", "num_set_prop"): "RNUM",
-    ("crates/rapidr-runtime-core/src/datascience.rs", "dataframe_method"): "RDATAFRAME",
-    ("crates/rapidr-runtime-core/src/datascience.rs", "dataframe_get_prop"): "RDATAFRAME",
-    ("crates/rapidr-runtime-core/src/datascience.rs", "plot_method"): "RPLOT",
-    ("crates/rapidr-runtime-core/src/datascience.rs", "plot_get_prop"): "RPLOT",
-    ("crates/rapidr-runtime-core/src/datascience.rs", "plot_set_prop"): "RPLOT",
+    # --- data science: one model for every runtime
+    ("crates/rapidr-value/src/datascience/num.rs", "*"): "RNUM",
+    ("crates/rapidr-value/src/datascience/frame.rs", "*"): "RDATAFRAME",
+    ("crates/rapidr-value/src/datascience/plot.rs", "*"): "RPLOT",
     ("crates/rapidr-runtime-core/src/layout.rs", "after_set"): "*",
     ("crates/rapidr-runtime-core/src/network.rs", "socket_method"): "RSOCKET",
     ("crates/rapidr-runtime-core/src/network.rs", "method"): "RSOCKET RSERVERSOCKET",
@@ -73,13 +69,6 @@ SITES = {
     ("crates/rapidr-runtime-core/src/ui/kernel.rs", "tree_method"): "RTREEVIEW",
     ("crates/rapidr-runtime-core/src/ui/kernel.rs", "design_surface_method"): "RDESIGNSURFACE",
     # --- web runtime
-    ("crates/rapidr-runtime-web/src/datascience_web.rs", "num_method"): "RNUM",
-    ("crates/rapidr-runtime-web/src/datascience_web.rs", "num_get_prop"): "RNUM",
-    ("crates/rapidr-runtime-web/src/datascience_web.rs", "dataframe_method"): "RDATAFRAME",
-    ("crates/rapidr-runtime-web/src/datascience_web.rs", "dataframe_get_prop"): "RDATAFRAME",
-    ("crates/rapidr-runtime-web/src/datascience_web.rs", "plot_method"): "RPLOT",
-    ("crates/rapidr-runtime-web/src/datascience_web.rs", "plot_get_prop"): "RPLOT",
-    ("crates/rapidr-runtime-web/src/datascience_web.rs", "plot_set_prop"): "RPLOT",
     ("crates/rapidr-runtime-web/src/io_web.rs", "method"): "RCOMPORT RDOWNLOAD " + MEDIA,
     ("crates/rapidr-runtime-web/src/kernel_web.rs", "set_prop"): "*",
     ("crates/rapidr-runtime-web/src/layout_web.rs", "after_set"): "*",

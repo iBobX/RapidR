@@ -7,7 +7,7 @@ visual = true
 size = [400, 300]
 only = "web"
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "An embedded web page or HTML (an iframe): URL, HTML, Sandbox. Web only."
 properties = [
   { name = "Left", type = "int", default = 0 },
@@ -39,7 +39,7 @@ visual = true
 size = [100, 25]
 only = "web"
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "An HTML element of the program's own: its HTML, CSS classes, style and attributes. Web only."
 properties = [
   { name = "Left", type = "int", default = 0 },
@@ -118,7 +118,7 @@ visual = true
 size = [100, 25]
 only = "web"
 default_event = "OnPlay"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "An HTML5 audio player: Src, Volume, Loop, Play, Pause, Seek. Web only."
 properties = [
   { name = "Left", type = "int", default = 0 },
@@ -159,7 +159,7 @@ visual = true
 size = [100, 25]
 only = "web"
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "An HTML5 video player on the form: Src, Volume, Play, Pause, Seek, FullScreen. Web only."
 properties = [
   { name = "Left", type = "int", default = 0 },

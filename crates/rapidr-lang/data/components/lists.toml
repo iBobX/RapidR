@@ -343,7 +343,7 @@ aliases = ["QOUTLINE"]
 visual = true
 size = [120, 100]
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A tree of nodes the user expands, collapses and selects, with a picture per node and in-place editing."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },

@@ -3658,6 +3658,7 @@ name = "rapidr-ast"
 version = "2.117.0"
 dependencies = [
  "rapidr-diagnostics",
+ "rapidr-lang",
 ]
 
 [[package]]
@@ -3704,6 +3705,7 @@ dependencies = [
  "rapidr-bcgen",
  "rapidr-bytecode",
  "rapidr-codegen-rust",
+ "rapidr-lang",
  "rapidr-lexer",
  "rapidr-parser",
  "rapidr-preprocessor",
@@ -3765,6 +3767,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rapidr-lang"
+version = "2.117.0"
+dependencies = [
+ "rapidr-ast",
+ "rapidr-bcgen",
+ "rapidr-bytecode",
+ "rapidr-lexer",
+ "rapidr-parser",
+ "rapidr-preprocessor",
+ "rapidr-value",
+ "toml",
+]
+
+[[package]]
 name = "rapidr-launcher"
 version = "2.117.0"
 dependencies = [
@@ -3820,6 +3836,7 @@ dependencies = [
  "plotters",
  "plotters-backend",
  "rapidr-db",
+ "rapidr-lang",
  "rapidr-ui-app",
  "rapidr-ui-host-winit",
  "rapidr-ui-kernel",
@@ -3836,6 +3853,7 @@ version = "2.117.0"
 dependencies = [
  "js-sys",
  "rapidr-db",
+ "rapidr-lang",
  "rapidr-ui-app",
  "rapidr-ui-host-web",
  "rapidr-ui-kernel",

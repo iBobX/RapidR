@@ -61,7 +61,7 @@ rapidq = "QIMAGE"
 visual = true
 size = [100, 100]
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the program can also draw on it like a canvas."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -134,7 +134,7 @@ rapidq = "QCANVAS"
 visual = true
 size = [100, 100]
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A surface to draw on: lines, shapes, text and pictures, usually redrawn in its OnPaint handler."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -210,7 +210,7 @@ rapidq = "QHEADER"
 visual = true
 size = [200, 20]
 default_event = "OnSectionClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A row of headings (sections) the user can click and resize, as above a list's columns."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -351,7 +351,7 @@ name = "RDESIGNSURFACE"
 visual = true
 size = [640, 480]
 default_event = "OnSelect"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "RapidR's form designer: places components on a grid, lets the user select, move and resize them, and keeps their properties. The IDE is built on it."
 properties = [
   { name = "Width", type = "int" },

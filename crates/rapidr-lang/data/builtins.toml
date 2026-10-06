@@ -221,8 +221,8 @@ doc = "The program's command line: `COMMAND$(n)` the n-th argument (`COMMAND$(0)
 name = "COMMANDCOUNT"
 syntax = "COMMANDCOUNT"
 group = "System"
-missing = true
-doc = "The number of arguments on the program's command line (not counting the program itself)."
+bare = true
+doc = "The number of arguments on the program's command line (not counting the program itself); COMMAND$(n) reads each."
 
 [[builtin]]
 name = "CONVBASE$"
