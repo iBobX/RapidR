@@ -108,7 +108,11 @@ function startServer() {
         outputChannel: output,
         traceOutputChannel: output,
         revealOutputChannelOn: RevealOutputChannelOn.Never,
-        initializationOptions: { rapidqCompatible: cfg.get('rapidqCompatible', false) },
+        initializationOptions: {
+            rapidqCompatible: cfg.get('rapidqCompatible', false),
+            keywordCase: cfg.get('keywordCase', 'upper'),
+            identifierCase: cfg.get('identifierCase', 'preserve'),
+        },
         synchronize: { fileEvents: watcher },
         errorHandler: {
             error: () => ({ action: ErrorAction.Continue }),
@@ -399,7 +403,7 @@ async function activate(context) {
                 await resolveRapidr();
                 if (rapidr.path) startServer().catch(() => {});
                 else notifyMissing(true);
-            } else if (e.affectsConfiguration('rapidr.rapidqCompatible')) {
+            } else if (['rapidqCompatible', 'keywordCase', 'identifierCase'].some((k) => e.affectsConfiguration(`rapidr.${k}`))) {
                 restartServer().catch(() => {});
             }
         }),

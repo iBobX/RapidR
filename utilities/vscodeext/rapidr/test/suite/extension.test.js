@@ -282,6 +282,114 @@ describe('RapidR for VS Code', () => {
                 vscode.debug.removeBreakpoints(vscode.debug.breakpoints);
             }
         });
+
+        it('shows a SUB\'s own variables in its Locals, by their names, and only real globals in Globals', async () => {
+            const doc = await open('ownvars.bas');
+            const line = at(doc, 'Total = Total + p').line;
+            const bp = new vscode.SourceBreakpoint(new vscode.Location(doc.uri, new vscode.Position(line, 0)));
+            vscode.debug.addBreakpoints([bp]);
+            const events = [];
+            const tracker = vscode.debug.registerDebugAdapterTrackerFactory('rapidr', {
+                createDebugAdapterTracker: () => ({ onDidSendMessage: (m) => { if (m.type === 'event') events.push(m); } }),
+            });
+            try {
+                assert.ok(await vscode.debug.startDebugging(undefined, { type: 'rapidr', request: 'launch', name: 'ownvars.bas', program: doc.uri.fsPath }));
+                const stops = () => events.filter((e) => e.event === 'stopped');
+                await eventually(() => stops().length >= 1, 'the first stop');
+                const session = vscode.debug.activeDebugSession;
+                await session.customRequest('continue', { threadId: 1 });
+                await eventually(() => stops().length >= 2, 'the second call\'s stop');
+                const st = await session.customRequest('stackTrace', { threadId: 1 });
+                const scopes = (await session.customRequest('scopes', { frameId: st.stackFrames[0].id })).scopes;
+                const vars = async (s) => (await session.customRequest('variables', { variablesReference: s.variablesReference })).variables.map((v) => `${v.name}=${v.value}`);
+                assert.deepStrictEqual(scopes.map((s) => s.name), ['Locals', 'Globals']);
+                assert.deepStrictEqual(await vars(scopes[0]), ['n=2', 'hits=2', 'p=3']);
+                const globals = await vars(scopes[1]);
+                assert.ok(globals.includes('Total=1'), `globals: ${globals.join(', ')}`);
+                assert.ok(globals.every((g) => !/__|::|^p=|^hits=/.test(g)), `globals: ${globals.join(', ')}`);
+                vscode.debug.removeBreakpoints([bp]);
+                await session.customRequest('continue', { threadId: 1 });
+                await eventually(() => events.find((e) => e.event === 'terminated'), 'the end of the program');
+            } finally {
+                tracker.dispose();
+                vscode.debug.removeBreakpoints(vscode.debug.breakpoints);
+            }
+        });
+    });
+
+    describe('the language registry (rapidr lsp)', () => {
+        it('hovers a global object\'s member with the registry\'s doc', async () => {
+            const doc = await open('registry.bas');
+            const text = await eventually(async () => {
+                const t = hoverText(await vscode.commands.executeCommand('vscode.executeHoverProvider', doc.uri, at(doc, 'Screen.Width', 'Screen.W'.length)));
+                return /Screen\.Width/.test(t) ? t : null;
+            }, 'hover on Screen.Width');
+            assert.match(text, /read only/);
+        });
+
+        it('warns of what RapidR doesn\'t have yet, and in a RapidQ-compatible project of RapidR\'s extensions', async () => {
+            const doc = await open('registry.bas');
+            const messages = () => vscode.languages.getDiagnostics(doc.uri).map((d) => d.message);
+            await eventually(() => messages().some((m) => /QForm\.ShapeForm is not implemented in RapidR yet/.test(m)), 'the not-implemented warning');
+            assert.ok(!messages().some((m) => /RapidR's own component/.test(m)), 'no compatibility warning by default');
+            const cfg = vscode.workspace.getConfiguration('rapidr');
+            await cfg.update('rapidqCompatible', true, vscode.ConfigurationTarget.Global);
+            try {
+                await eventually(() => messages().some((m) => /RNum is RapidR's own component/.test(m)), 'the RapidQ-compatibility warning', 30000);
+            } finally {
+                await cfg.update('rapidqCompatible', undefined, vscode.ConfigurationTarget.Global);
+            }
+        });
+    });
+
+    describe('automatic keyword case (rapidr lsp, format on type)', () => {
+        /** Types `text` at the end of the document a character at a time, as a user does. */
+        async function typeSlowly(editor, text) {
+            for (const ch of text) {
+                await vscode.commands.executeCommand('type', { text: ch });
+                await new Promise((r) => setTimeout(r, 120));
+            }
+            await new Promise((r) => setTimeout(r, 600));
+        }
+        const lastLine = (doc) => doc.lineAt(doc.lineCount - 1).text;
+
+        it('is on for RapidR files by default', () => {
+            const cfg = vscode.workspace.getConfiguration('editor', { languageId: 'rapidr' });
+            assert.strictEqual(cfg.get('formatOnType'), true);
+            assert.strictEqual(vscode.workspace.getConfiguration('rapidr').get('keywordCase'), 'upper');
+        });
+
+        it('cases each word as it is finished; strings, comments and members stay; one undo restores what was typed', async () => {
+            // (no completion list: Enter must not accept a suggestion that
+            // happens to be the upper-case word)
+            const ed = vscode.workspace.getConfiguration('editor');
+            await ed.update('quickSuggestions', { other: 'off', comments: 'off', strings: 'off' }, vscode.ConfigurationTarget.Global);
+            await ed.update('acceptSuggestionOnEnter', 'off', vscode.ConfigurationTarget.Global);
+            await ed.update('suggestOnTriggerCharacters', false, vscode.ConfigurationTarget.Global);
+            const doc = await open('casing.bas');
+            const editor = vscode.window.activeTextEditor;
+            const end = doc.lineAt(doc.lineCount - 1).range.end;
+            editor.selection = new vscode.Selection(end, end);
+            try {
+                await typeSlowly(editor, 'dim x as integer\n');
+                assert.strictEqual(doc.lineAt(doc.lineCount - 2).text, 'DIM x AS INTEGER');
+                await typeSlowly(editor, 'print "dim as" \' dim as\n');
+                assert.strictEqual(doc.lineAt(doc.lineCount - 2).text, 'PRINT "dim as" \' dim as');
+                await typeSlowly(editor, 'form.show ');
+                assert.strictEqual(lastLine(doc), 'form.show ');
+                await typeSlowly(editor, ': dim ');
+                assert.strictEqual(lastLine(doc), 'form.show : DIM ');
+                // one undo: the case edit goes, what was typed stays
+                await vscode.commands.executeCommand('undo');
+                await new Promise((r) => setTimeout(r, 300));
+                assert.strictEqual(lastLine(doc), 'form.show : dim ');
+            } finally {
+                await vscode.commands.executeCommand('workbench.action.files.revert');
+                for (const k of ['quickSuggestions', 'acceptSuggestionOnEnter', 'suggestOnTriggerCharacters']) {
+                    await ed.update(k, undefined, vscode.ConfigurationTarget.Global);
+                }
+            }
+        });
     });
 
     describe('diagnostics (rapidr lsp)', () => {

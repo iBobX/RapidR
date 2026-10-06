@@ -33,6 +33,26 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   and the release notes.
 
 ### Added
+- **Automatic keyword case in VS Code, as in QuickBASIC and VB.** Type
+  `dim x as integer` and it becomes `DIM x AS INTEGER` as you go: each
+  word is put in BASIC's case when you finish it (space, Enter, Tab, `(`,
+  `)`, `,`, `:`, `=` or an operator) — keywords and statements, type
+  names, directives (`$INCLUDE`) and builtins (`MID$`). Strings, comments,
+  `$INCLUDE` paths and your own names are never touched, and one Undo
+  gives back what you typed. Format Document and Format Selection apply
+  the same rules to the whole text. Two settings:
+  - `rapidr.keywordCase`: `upper` (the default), `lower`, `proper`
+    (`Dim x As Integer`) or `preserve` (off);
+  - `rapidr.identifierCase`: `declaration` writes every use of your
+    variables, SUBs, FUNCTIONs and constants as their declaration does,
+    and a component's members as RapidR spells them (`Form.Caption`), as
+    VB did; `preserve` (the default) leaves them as typed.
+
+  BASIC ignores case, so a program never changes: a test formats every
+  conformance program and example and checks that it compiles to the same
+  code, its strings and comments byte for byte. Format on type is now on
+  by default for RapidR files (`editor.formatOnType`). RapidR Studio's
+  editor will use the same rules.
 - **The language registry** (`crates/rapidr-lang`, RapidR Studio I0): one
   description of the language (every component, property, method, event,
   builtin, statement and constant, with types, defaults, signatures and
@@ -128,6 +148,30 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   - `tools/regress.sh unit` checks that everything is up to date.
 
 ### Changed
+- **The VS Code extension and RapidR Studio know the language from the
+  language registry.** Completion, hover, signature help and the
+  compatibility warnings come from the one description of the language
+  RapidR's compilers and IDE use (the language service's own copy of it is
+  gone). What you see:
+  - hovers give a property's type, whether it is read only and RapidQ's
+    default, the include file a RapidQ name comes from, and say when
+    something is a RapidR extension, works on the desktop or the web only,
+    or isn't implemented in RapidR yet;
+  - `Screen.`, `Application.`, `Printer.` … complete and hover, and so do
+    the objects an indexed property gives (`Tree.Item(0).`);
+  - what RapidR doesn't have yet isn't offered in completion, and where a
+    program uses it there is a warning ("RapidQ's QForm.ShapeForm is not
+    implemented in RapidR yet"); a member or builtin only one runtime has
+    gets a note;
+  - in a RapidQ-compatible project (`rapidr.rapidqCompatible`), every
+    RapidR extension is reported, not only components: members of RapidQ's
+    components (`QForm.Anchors`), builtins, statements (`OPEN`,
+    `LINE INPUT`, `PRINT #`), the `$THEME` directive, types (`INT64`) and
+    RapidR's constants — "… is a RapidR extension: RapidQ's compiler
+    refuses it";
+  - signature help for builtins shows their syntax with the parameter you
+    are typing highlighted, also for statements written without
+    parentheses (`LOCATE 1, 2`).
 - **RNUM, RDATAFRAME and RPLOT are one implementation for every runtime**
   (`rapidr_value::datascience`, docs/ide-plan.md decision D7): native
   builds, interpreted programs and the browser run the same arrays, frames
@@ -200,6 +244,19 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   2026-10-06 should be cloned again.
 
 ### Fixed
+- **Debugger: a SUB's own variables showed up in Globals under made-up
+  names.** A SUB's STATIC variables and the variables a SUB uses before
+  the main program does (RapidQ keeps those between calls) were listed in
+  the Globals scope as `S__p` or `SUB S::hits` (with a `#init` twin). They
+  are now in that SUB's Locals under the names the program gives them, and
+  Globals lists only the program's real globals. A watch or the debug
+  console can read and set a SUB's STATIC variables too. The same in VS
+  Code (`rapidr dap`) and RapidR Studio.
+- **VS Code: an error right after a dot (`Form.` at a line's end) was
+  underlined over nothing.** It now underlines the dot.
+- **VS Code: Format Document re-indented the second line of a string
+  continued with `_` (under `$ESCAPECHARS`)**, which changed the string.
+  A string that spans lines is now left exactly as written.
 - **Web: typing in a Save As dialog went into the program's window
   below.** In the web IDE, Notepad's File > Save As showed an in-page
   dialog; a click in its file name field lost the focus at once, and the

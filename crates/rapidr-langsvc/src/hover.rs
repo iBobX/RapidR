@@ -4,10 +4,13 @@
 
 use std::path::Path;
 
-use crate::complete::component_doc;
+use rapidr_lang::Runtimes;
+
+use crate::compat;
+use crate::complete::{component_doc, with_notes};
 use crate::context::{self, chain_before, pretty_component, Ty};
 use crate::model::{name_key, ScopeKind, Symbol, SymbolKind};
-use crate::registry::{self, Origin};
+use rapidr_lang::Origin;
 use crate::text::{word_at, LineIndex};
 use crate::{Hover, Snapshot};
 
@@ -29,8 +32,8 @@ pub(crate) fn hover(s: &Snapshot, file: &Path, text: &str, offset: usize) -> Opt
 
     // `$INCLUDE`, `$APPTYPE` …
     if start > line_start && text.as_bytes()[start - 1] == b'$' && line_text.trim_start().starts_with('$') {
-        if let Some(d) = registry::directive(word) {
-            return hover(format!("```rapidr\n{}\n```\n{}", d.syntax, d.doc));
+        if let Some(d) = rapidr_lang::directive(word) {
+            return hover(format!("```rapidr\n{}\n```\n{}", d.syntax, with_notes(d.doc, &compat::notes(d.origin, Origin::RapidQ, false, Runtimes::All, None))));
         }
     }
 
@@ -54,27 +57,33 @@ pub(crate) fn hover(s: &Snapshot, file: &Path, text: &str, offset: usize) -> Opt
             return hover(md);
         }
     }
-    if let Some(c) = registry::component(word) {
+    if let Some(c) = rapidr_lang::resolve_component(word) {
         return hover(format!("```rapidr\n{}\n```\n{}", pretty_component(&word.to_ascii_uppercase()), component_doc(c).unwrap_or_default()));
     }
-    if let Some(b) = registry::builtin(word) {
+    if let Some(g) = rapidr_lang::global(word) {
+        let notes = compat::notes(g.origin, Origin::RapidQ, false, g.runtimes, g.from);
+        return hover(format!("```rapidr\n{}\n```\n*global object*\n\n{}", g.name, with_notes(g.doc, &notes)));
+    }
+    if let Some(b) = rapidr_lang::builtin(word) {
         let mut md = format!("```rapidr\n{}\n```\n", b.syntax);
-        if !b.doc.is_empty() {
-            md.push_str(b.doc);
-        }
+        md.push_str(&with_notes(b.doc, &compat::notes(b.origin, Origin::RapidQ, b.missing, b.runtimes, None)));
         return hover(md);
     }
-    if let Some(st) = registry::statement(word) {
-        return hover(format!("```rapidr\n{}\n```\n{}", st.syntax, st.doc));
+    let lang = |syntax: &str, doc: &str, origin: Origin| {
+        hover(format!("```rapidr\n{syntax}\n```\n{}", with_notes(doc, &compat::notes(origin, Origin::RapidQ, false, Runtimes::All, None))))
+    };
+    if let Some(t) = rapidr_lang::type_name(word) {
+        return lang(t.name, t.doc, t.origin);
     }
-    if let Some(t) = registry::type_name(word) {
-        return hover(format!("```rapidr\n{}\n```\n{}{}", t.name, t.doc, if t.origin == Origin::RapidR { "\n\n*RapidR's own type.*" } else { "" }));
+    if let Some(k) = rapidr_lang::keyword(word) {
+        return lang(k.name, k.doc, k.origin);
     }
-    if let Some((value, group)) = registry::constant(word) {
-        return hover(format!("```rapidr\nCONST {word} = {value}\n```\n{}", group.doc));
+    if let Some(st) = rapidr_lang::statement_starting(word) {
+        return lang(st.syntax, st.doc, st.origin);
     }
-    if registry::is_builtin_name(word) {
-        return hover(format!("```rapidr\n{}\n```\nA builtin.", word.to_ascii_uppercase()));
+    if let Some((value, group)) = rapidr_lang::constant(word) {
+        let from = if group.origin == Origin::RapidR { "RapidR's own, always there".to_string() } else { format!("from {}", group.source) };
+        return hover(format!("```rapidr\nCONST {word} = {value}\n```\n*{}: {from}*\n\n{}", group.name, group.doc));
     }
     None
 }
@@ -107,7 +116,7 @@ pub(crate) fn symbol_hover(s: &Snapshot, sym: &Symbol) -> String {
             _ => format!("STATIC variable{owner}"),
         },
         SymbolKind::Static => format!("STATIC variable{owner}"),
-        SymbolKind::Constant => match (&decl, registry::constant(&sym.name)) {
+        SymbolKind::Constant => match (&decl, rapidr_lang::constant(&sym.name)) {
             (None, Some((_, group))) => format!("constant of {}", group.source),
             _ => "constant".to_string(),
         },
@@ -124,8 +133,8 @@ pub(crate) fn symbol_hover(s: &Snapshot, sym: &Symbol) -> String {
             context::routine_statement(&s.parsed.program, &sym.name).map(|st| crate::signature::routine_label(st).0).unwrap_or_else(|| line.clone())
         }
         (Some((line, _, _)), _) if !line.is_empty() => line.clone(),
-        (None, SymbolKind::Constant) if registry::constant(&sym.name).is_some() => {
-            format!("CONST {} = {}", sym.name, registry::constant(&sym.name).map_or(0, |(v, _)| v))
+        (None, SymbolKind::Constant) if rapidr_lang::constant(&sym.name).is_some() => {
+            format!("CONST {} = {}", sym.name, rapidr_lang::constant(&sym.name).map_or(0, |(v, _)| v))
         }
         _ => match &sym.ty {
             Some(t) => format!("{} AS {t}", sym.name),
@@ -135,7 +144,7 @@ pub(crate) fn symbol_hover(s: &Snapshot, sym: &Symbol) -> String {
     // (a top-level SUB / FUNCTION: its signature says what it is)
     let mut md = if what == "SUB" || what == "FUNCTION" { format!("```rapidr\n{code}\n```\n") } else { format!("```rapidr\n{code}\n```\n*{what}*") };
     if let Some(t) = &sym.ty {
-        if let Some(c) = registry::component(t) {
+        if let Some(c) = rapidr_lang::resolve_component(t) {
             md.push_str(&format!(" — {}", pretty_component(c.written_name())));
             if let Some(q) = c.rapidq {
                 if !q.eq_ignore_ascii_case(c.name) {
@@ -171,24 +180,28 @@ fn member_hover(s: &Snapshot, ty: &Ty, member: &str) -> Option<String> {
     match ty {
         Ty::Component(c) => {
             let owner = pretty_component(c.written_name());
-            let (code, kind, doc, origin) = if let Some(p) = c.property(member) {
-                let ro = matches!(p.access, registry::Access::Read);
-                (format!("{owner}.{}", p.name), if ro { "property (read only)" } else { "property" }, p.doc, p.origin)
+            let (code, kind, doc, notes) = if let Some(p) = c.property(member) {
+                let mut kind = match p.access {
+                    rapidr_lang::Access::Read => format!("{} property (read only)", p.ty.as_str()),
+                    rapidr_lang::Access::Write => format!("{} property (write only)", p.ty.as_str()),
+                    rapidr_lang::Access::ReadWrite => format!("{} property", p.ty.as_str()),
+                };
+                if let Some(d) = p.default {
+                    kind.push_str(&format!(", {}", default_text(d)));
+                }
+                let notes = compat::notes(p.origin, c.origin, p.missing, p.runtimes, p.from);
+                (format!("{owner}.{}", p.name), kind, p.doc, notes)
             } else if let Some(m) = c.method(member) {
-                let params = m.params.iter().map(|p| p.text()).collect::<Vec<_>>().join(", ");
-                let ret = m.returns.map(|r| format!(" AS {r}")).unwrap_or_default();
-                (format!("{owner}.{}({params}){ret}", m.name), "method", m.doc, m.origin)
+                (format!("{owner}.{}", m.signature()), "method".to_string(), m.doc, compat::notes(m.origin, c.origin, m.missing, m.runtimes, m.from))
             } else {
                 let e = c.event(member)?;
-                (format!("{owner}.{}", e.name), "event", e.doc, e.origin)
+                (format!("{owner}.{}", e.signature()), "event".to_string(), e.doc, compat::notes(e.origin, c.origin, e.missing, e.runtimes, e.from))
             };
             let mut md = format!("```rapidr\n{code}\n```\n*{kind} of {owner}*");
-            if !doc.is_empty() {
+            let text = with_notes(doc, &notes);
+            if !text.is_empty() {
                 md.push_str("\n\n");
-                md.push_str(doc);
-            }
-            if origin == Origin::RapidR && c.origin == Origin::RapidQ {
-                md.push_str("\n\n*A RapidR extension: RapidQ doesn't have it.*");
+                md.push_str(&text);
             }
             Some(md)
         }
@@ -199,6 +212,19 @@ fn member_hover(s: &Snapshot, ty: &Ty, member: &str) -> Option<String> {
             let c = context::base_component(s, t)?;
             member_hover(s, &Ty::Component(c), member)
         }
+    }
+}
+
+/// `default 0`, `default "text"`, `default alNone`: RapidQ's value at
+/// creation (the registry's).
+fn default_text(d: rapidr_lang::DefaultValue) -> String {
+    use rapidr_lang::DefaultValue::*;
+    match d {
+        Int(n) => format!("default {n}"),
+        Float(x) => format!("default {x}"),
+        Bool(b) => format!("default {}", if b { "True" } else { "False" }),
+        Str(s) => format!("default \"{s}\""),
+        Expr(e) => format!("default {e}"),
     }
 }
 
