@@ -95,6 +95,8 @@ pub const GO_FIXED_HORZ_LINE: u32 = 1;
 pub const GO_VERT_LINE: u32 = 2;
 pub const GO_HORZ_LINE: u32 = 3;
 pub const GO_RANGE_SELECT: u32 = 4;
+/// goDrawFocusSelected: the focused cell highlighted like the rest of the selection.
+pub const GO_DRAW_FOCUS_SELECTED: u32 = 5;
 pub const GO_ROW_SIZING: u32 = 6;
 pub const GO_COL_SIZING: u32 = 7;
 /// The user drags a fixed column's cell to move its row, a fixed row's cell

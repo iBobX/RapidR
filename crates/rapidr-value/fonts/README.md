@@ -29,3 +29,19 @@ Reserved Font Name for it (`JetBrainsMono-OFL.txt`).
 RCODEEDITOR and RDIFFVIEW draw code with it (docs/ide-plan.md, decision
 D8); programs can name it too (`Font.Name = "JetBrains Mono"`). Characters
 outside the subset fall back to Liberation Mono and the fallback fonts.
+
+## RapidR Sans
+
+**RapidR Sans** (`RapidRSans-Regular.ttf`) is a Modified Version of
+Liberation Sans 2.1.5 under the same licence (SIL Open Font License 1.1;
+renamed, as the OFL asks: Liberation is a Reserved Font Name). It is the
+face RapidR draws MS Sans Serif with — RapidQ's default font, every
+component's — so a form laid out for RapidQ fits in RapidR as it did there:
+each Windows-1252 character is exactly as wide as MS Sans Serif's at 8 pt
+on a 96-dpi screen (its em is 11 pixels; the letters keep Liberation's
+shapes — the widths come from their side bearings, a letter narrowed at
+most 4 % or made a little smaller where it must), and a line is 13
+pixels high with the baseline 11 pixels down, as Windows draws it. The widths are RapidQ's own `TextWidth` of each
+character, measured with RapidQ's compiler on Windows 11; no Microsoft font
+data is used. `tools/fonts/make_rapidr_sans.py` makes it from
+`LiberationSans-Regular.ttf` (reproducibly) and explains the details.

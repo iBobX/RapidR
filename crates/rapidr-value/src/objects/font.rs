@@ -22,14 +22,20 @@ impl Font {
         if self.size < 0 {
             (-self.size).min(1_000)
         } else {
-            (self.size.clamp(1, 1_000) * 96 + 36) / 72
+            // (MS Sans Serif is a bitmap font: 9, 11 and 13 points show its
+            // 8, 10 and 12, RapidQ's capture)
+            let points = match self.size {
+                9 | 11 | 13 if super::text::family_name(&self.name) == "RapidR Sans" => self.size - 1,
+                p => p,
+            };
+            (points.clamp(1, 1_000) * 96 + 36) / 72
         }
     }
 }
 
 impl Default for Font {
     fn default() -> Self {
-        Self { name: "Arial".into(), size: 10, color: 0, styles: 0 }
+        Self { name: super::DEFAULT_FONT_NAME.into(), size: super::DEFAULT_FONT_SIZE, color: 0, styles: 0 }
     }
 }
 

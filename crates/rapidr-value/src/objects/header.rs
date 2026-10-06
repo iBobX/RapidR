@@ -169,11 +169,25 @@ impl Header {
                 surface.line(l, h - 1, r - 1, h - 1, bgr(look.border));
                 surface.line(r - 1, 3, r - 1, h - 4, bgr(look.border));
             } else {
-                let (light, dark) = if pressed { (bgr(look.shadow), bgr(look.light)) } else { (bgr(look.light), bgr(look.shadow)) };
-                surface.line(l, 0, r - 1, 0, light);
-                surface.line(l, 0, l, h - 1, light);
-                surface.line(l, h - 1, r - 1, h - 1, dark);
-                surface.line(r - 1, 0, r - 1, h - 1, dark);
+                // (a push button's edge: white then COLOR_3DLIGHT above, the dark
+                // shadow then the shadow below; pressed, a shadow frame)
+                if pressed {
+                    let s = bgr(look.shadow);
+                    surface.line(l, 0, r - 1, 0, s);
+                    surface.line(l, 0, l, h - 1, s);
+                    surface.line(l, h - 1, r - 1, h - 1, s);
+                    surface.line(r - 1, 0, r - 1, h - 1, s);
+                } else {
+                    let (lt, l3, sh, dk) = (bgr(look.light), bgr(look.light3d), bgr(look.shadow), bgr(look.dark_shadow));
+                    surface.line(l, 0, r - 1, 0, lt);
+                    surface.line(l, 0, l, h - 1, lt);
+                    surface.line(l + 1, 1, r - 2, 1, l3);
+                    surface.line(l + 1, 1, l + 1, h - 2, l3);
+                    surface.line(l, h - 1, r - 1, h - 1, dk);
+                    surface.line(r - 1, 0, r - 1, h - 1, dk);
+                    surface.line(l + 1, h - 2, r - 2, h - 2, sh);
+                    surface.line(r - 2, 1, r - 2, h - 2, sh);
+                }
             }
             let rect = (l, 0, r, h);
             if s.style == HS_OWNER_DRAW {
@@ -197,7 +211,20 @@ impl Header {
         // What's past the last section: the header's face (drawn raised).
         let end = spans.last().map_or(0, |s| s.1);
         if end < w {
-            surface.line(end, h - 1, w - 1, h - 1, bgr(if look.fluent() { look.border } else { look.shadow }));
+            if look.fluent() {
+                surface.line(end, h - 1, w - 1, h - 1, bgr(look.border));
+            } else {
+                // (Windows' header: the rest one more raised face)
+                let (lt, l3, sh, dk) = (bgr(look.light), bgr(look.light3d), bgr(look.shadow), bgr(look.dark_shadow));
+                surface.line(end, 0, w - 1, 0, lt);
+                surface.line(end, 0, end, h - 1, lt);
+                surface.line(end + 1, 1, w - 2, 1, l3);
+                surface.line(end + 1, 1, end + 1, h - 2, l3);
+                surface.line(end, h - 1, w - 1, h - 1, dk);
+                surface.line(w - 1, 0, w - 1, h - 1, dk);
+                surface.line(end + 1, h - 2, w - 2, h - 2, sh);
+                surface.line(w - 2, 1, w - 2, h - 2, sh);
+            }
         }
         owner
     }
@@ -325,7 +352,7 @@ mod tests {
         let owner = h.paint(&mut b, &Font::default());
         assert_eq!(owner, vec![(2, false, (150, 0, 200, 20))]);
         // A raised face: light top-left, dark bottom-right; text in section 0.
-        assert_eq!((b.pixel(0, 0), b.pixel(99, 19)), (Some(0xFFFFFF), Some(0x808080)));
+        assert_eq!((b.pixel(0, 0), b.pixel(99, 19)), (Some(0xFFFFFF), Some(0x696969)));
         assert!((1..99).any(|x| (1..19).any(|y| b.pixel(x, y).is_some_and(|c| c < 0x808080))), "a caption");
     }
 }

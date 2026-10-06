@@ -19,6 +19,7 @@ CREATE Form AS QFORM
     END CREATE
   END CREATE
   CREATE Status AS QSTATUSBAR
+    SimplePanel = 1
     SimpleText = "ready"
   END CREATE
   CREATE Split AS QSPLITTER
