@@ -23,3 +23,18 @@ pixels high with the baseline 11 pixels down, as Windows draws it. The widths ar
 character, measured with RapidQ's compiler on Windows 11; no Microsoft font
 data is used. `tools/fonts/make_rapidr_sans.py` makes it from
 `LiberationSans-Regular.ttf` (reproducibly) and explains the details.
+
+**Inter** (`Inter-Regular.ttf`, `Inter-SemiBold.ttf`; Inter 4.1,
+<https://github.com/rsms/inter>, `Inter-4.1.zip`, SHA-256
+`9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e`) and
+**JetBrains Mono** (`JetBrainsMono-Regular.ttf`, `JetBrainsMono-Bold.ttf`;
+2.304, <https://github.com/JetBrains/JetBrainsMono>,
+`JetBrainsMono-2.304.zip`, SHA-256
+`6f6376c6ed2960ea8a963cd7387ec9d76e3f629125bc33d1fdcd7eb7012f7bbf`) are
+RapidR's own UI and code faces (docs/ide-plan.md decision D8: RapidR
+Studio, the RapidR look's chrome). Both are under the SIL Open Font License
+1.1 (`Inter-OFL.txt`, `JetBrainsMono-OFL.txt`, with their copyright lines),
+neither with a Reserved Font Name. `tools/fonts/subset_ui_fonts.py` subsets
+them to the Latin scripts without hinting (about 72 KB each); other
+characters come from the fallback fonts. RapidQ's font names never map to
+them: a program gets them by naming "Inter" or "JetBrains Mono".

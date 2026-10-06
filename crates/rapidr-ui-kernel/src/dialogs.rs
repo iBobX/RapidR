@@ -108,6 +108,12 @@ impl Dialog {
         let id = format!("{PREFIX}dlg{n}");
         let mut store = MemStore::new();
         store.add(&id, "RFORM", None);
+        // (the theme's chrome font, its components following it: Windows'
+        // in the classic look, Inter in RapidR's — a dialog is the
+        // system's, not the program's)
+        let font = rapidr_value::ide_theme::chrome_font(rapidr_value::theme::current());
+        store.set(&id, "fontname", Value::String(font.name));
+        store.set(&id, "fontsize", Value::Integer(font.size));
         Dialog { id, title: title.to_string(), size: (0, 0), store, kind, applied: None }
     }
 

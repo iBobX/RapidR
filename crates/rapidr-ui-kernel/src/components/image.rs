@@ -200,6 +200,26 @@ pub fn paint_glyph(cx: &Cx, p: &mut Painter, rect: Rect, enabled: bool, pressed:
             ((x0, gy), ((x0 + gw + sp, ry, tw, h), Place::Left))
         }
     };
-    p.picture(&format!("{}#glyph", cx.id), 0, pic, (at.0, at.1, gw, gh));
+    if !enabled && count < 2 {
+        // (a strip without a disabled frame — one picture, such as a
+        // Bitmap.LoadIcon's: greyed, as Windows greys a speed button's
+        // only glyph)
+        p.picture(&format!("{}#glyph-off", cx.id), 0, greyed(&pic), (at.0, at.1, gw, gh));
+    } else {
+        p.picture(&format!("{}#glyph", cx.id), 0, pic, (at.0, at.1, gw, gh));
+    }
     Some(caption)
+}
+
+/// A picture as a disabled control shows it: its colours to grey, faint.
+pub fn greyed(pic: &Picture) -> Picture {
+    let mut rgba = pic.rgba.clone();
+    for px in rgba.chunks_exact_mut(4) {
+        let y = (u32::from(px[0]) * 299 + u32::from(px[1]) * 587 + u32::from(px[2]) * 114) / 1000;
+        px[0] = y as u8;
+        px[1] = y as u8;
+        px[2] = y as u8;
+        px[3] = (u32::from(px[3]) * 2 / 5) as u8;
+    }
+    Picture { width: pic.width, height: pic.height, rgba }
 }

@@ -47,6 +47,7 @@ pub mod paint;
 pub mod store;
 pub mod text;
 pub mod tick;
+pub mod tooltip;
 pub mod tree;
 
 #[cfg(test)]

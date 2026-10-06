@@ -1,0 +1,339 @@
+' documents.inc: source files as documents — a code editor each, and a
+' designer for the form a file creates — and what the side panes show of
+' the active one: its outline (RLanguageService), its problems, its form's
+' properties.
+
+DIM FormName AS STRING
+DIM FormType AS STRING
+DIM FormCaption AS STRING
+DIM PropKey(60) AS STRING
+DIM PropValue(60) AS STRING
+DIM PropCount AS INTEGER
+DIM OutlineLine(400) AS INTEGER
+DIM OutlineCount AS INTEGER
+
+' (a path's file name)
+FUNCTION FileTitle(Path AS STRING) AS STRING
+  DIM p AS STRING, i AS INTEGER
+  p = REPLACESUBSTR$(Path, "\", "/")
+  i = RINSTR(p, "/")
+  IF i > 0 THEN Result = MID$(p, i + 1) ELSE Result = p
+END FUNCTION
+
+' (a file name without its extension)
+FUNCTION BaseName(Path AS STRING) AS STRING
+  DIM t AS STRING, i AS INTEGER
+  t = FileTitle(Path)
+  i = RINSTR(t, ".")
+  IF i > 1 THEN Result = LEFT$(t, i - 1) ELSE Result = t
+END FUNCTION
+
+' (a file's extension, lower case)
+FUNCTION FileExt(Path AS STRING) AS STRING
+  DIM i AS INTEGER
+  i = RINSTR(Path, ".")
+  IF i > 0 THEN Result = LCASE$(MID$(Path, i + 1)) ELSE Result = ""
+END FUNCTION
+
+' (the value of `Name = value` in a statement, "" if it isn't that property)
+FUNCTION Assigned(Stmt AS STRING, Name AS STRING) AS STRING
+  DIM s AS STRING, i AS INTEGER
+  s = LTRIM$(RTRIM$(Stmt))
+  i = INSTR(s, "=")
+  IF i < 2 THEN EXIT FUNCTION
+  IF UCASE$(RTRIM$(LEFT$(s, i - 1))) = UCASE$(Name) THEN Result = LTRIM$(MID$(s, i + 1))
+END FUNCTION
+
+' (a string literal's text, quotes off)
+FUNCTION Unquote(v AS STRING) AS STRING
+  IF LEFT$(v, 1) = CHR$(34) AND RIGHT$(v, 1) = CHR$(34) AND LEN(v) >= 2 THEN Result = MID$(v, 2, LEN(v) - 2) ELSE Result = v
+END FUNCTION
+
+' ---- the form a file creates (until RFormDesigner, L-DMODEL / L-SYNC) ------------
+' Its first top-level CREATE … AS QFORM: the form's own assignments for the
+' Properties pane, its children's bounds and captions for the designer.
+'
+' PLUG POINT (L-SYNC): the designer model is crates/rapidr-designer's
+' Document, which RDESIGNSURFACE doesn't hold yet (it has no source-text
+' members). Once it does, this scanner goes, and:
+'   - OpenDocument / ScanForm: DesignDoc(d).Source = CodeDoc(d).Text
+'     (Document::open_bytes; the surface shows forms()(0) through designer(0));
+'   - the surface's edits: an OnSourceEdit(Start, Length, Text) per TextPatch
+'     from Document::sync(), applied to CodeDoc(d) as one undo step;
+'   - CodeChanged: DesignDoc(d).Source = CodeDoc(d).Text after the Analyzer's
+'     pause (Document::set_text), so the code's edits reach the designer;
+'   - Edit > Undo / Redo while the designer is active: DesignDoc(d).Undo / Redo
+'     (one text history per file: Document::undo / redo).
+
+SUB ScanForm(d AS INTEGER)
+  DIM n AS INTEGER, i AS INTEGER, s AS STRING, u AS STRING, k AS INTEGER, depth AS INTEGER
+  DIM nm AS STRING, ty AS STRING, j AS INTEGER, part AS STRING, parts AS INTEGER
+  DIM cx AS INTEGER, cy AS INTEGER, cw AS INTEGER, ch AS INTEGER, cname AS STRING, ctype AS STRING, ccap AS STRING
+  DIM inForm AS INTEGER, formDepth AS INTEGER, v AS STRING
+  FormName = "": FormType = "": FormCaption = ""
+  PropCount = 0
+  DesignDoc(d).ClearAll
+  cname = ""
+  depth = 0
+  n = CodeDoc(d).LineCount
+  FOR i = 0 TO n - 1
+    s = LTRIM$(RTRIM$(CodeDoc(d).Line(i)))
+    u = UCASE$(s)
+    IF LEFT$(u, 7) = "CREATE " AND INSTR(u, " AS ") > 0 THEN
+      k = INSTR(u, " AS ")
+      nm = RTRIM$(MID$(s, 8, k - 8))
+      ty = UCASE$(LTRIM$(RTRIM$(MID$(s, k + 4))))
+      depth = depth + 1
+      IF FormName = "" AND (ty = "QFORM" OR ty = "RFORM") THEN
+        FormName = nm: FormType = ty: inForm = 1: formDepth = depth
+        PropKey(0) = "Name": PropValue(0) = nm
+        PropKey(1) = "Type": PropValue(1) = ty
+        PropCount = 2
+      ELSEIF inForm AND depth = formDepth + 1 THEN
+        cname = nm: ctype = ty: cx = 8: cy = 8: cw = 80: ch = 25: ccap = ""
+      END IF
+    ELSEIF LEFT$(u, 10) = "END CREATE" THEN
+      IF inForm AND depth = formDepth + 1 AND cname <> "" THEN
+        DesignDoc(d).AddComponent ctype, cname, cx, cy, cw, ch
+        IF ccap <> "" THEN DesignDoc(d).SetProp DesignDoc(d).Count - 1, "Caption", ccap
+        cname = ""
+      END IF
+      IF inForm AND depth = formDepth THEN inForm = 0
+      IF depth > 0 THEN depth = depth - 1
+    ELSEIF inForm AND s <> "" AND LEFT$(s, 1) <> "'" THEN
+      parts = TALLY(s, ":") + 1
+      FOR j = 1 TO parts
+        part = FIELD$(s, ":", j)
+        IF depth = formDepth THEN
+          k = INSTR(part, "=")
+          IF k > 1 AND PropCount < 60 THEN
+            PropKey(PropCount) = LTRIM$(RTRIM$(LEFT$(part, k - 1)))
+            PropValue(PropCount) = LTRIM$(RTRIM$(MID$(part, k + 1)))
+            IF UCASE$(PropKey(PropCount)) = "CAPTION" THEN FormCaption = Unquote(PropValue(PropCount))
+            PropCount = PropCount + 1
+          END IF
+        ELSEIF depth = formDepth + 1 AND cname <> "" THEN
+          v = Assigned(part, "Left"): IF v <> "" THEN cx = VAL(v)
+          v = Assigned(part, "Top"): IF v <> "" THEN cy = VAL(v)
+          v = Assigned(part, "Width"): IF v <> "" THEN cw = VAL(v)
+          v = Assigned(part, "Height"): IF v <> "" THEN ch = VAL(v)
+          v = Assigned(part, "Caption"): IF v <> "" THEN ccap = Unquote(v)
+        END IF
+      NEXT
+    END IF
+  NEXT
+  IF FormCaption <> "" THEN DesignDoc(d).FormCaption = FormCaption ELSE DesignDoc(d).FormCaption = FormName
+END SUB
+
+' ---- the outline (RLanguageService) ------------------------------------------------
+
+' (an outline kind's icon in SymbolIcons)
+FUNCTION OutlineIcon(Kind AS STRING, Detail AS STRING) AS INTEGER
+  DIM t AS STRING
+  IF Kind = "component" THEN
+    t = UCASE$(Detail)
+    IF INSTR(t, " ") > 0 THEN t = MID$(t, RINSTR(t, " ") + 1)
+    IF t <> "" THEN
+      SymbolIcons.AddIcon t
+      Result = SymbolIcons.Count - 1
+      EXIT FUNCTION
+    END IF
+  END IF
+  SymbolIcons.AddIcon "symbols/" + Kind
+  Result = SymbolIcons.Count - 1
+END FUNCTION
+
+SUB FillOutline(d AS INTEGER)
+  DIM text AS STRING, n AS INTEGER, i AS INTEGER, row AS STRING
+  DIM depth AS INTEGER, kind AS STRING, nm AS STRING, detail AS STRING, ln AS INTEGER, img AS INTEGER
+  DIM parentNode(20) AS INTEGER
+  OutlineTree.Clear
+  SymbolIcons.Clear
+  OutlineCount = 0
+  IF d < 0 THEN EXIT SUB
+  text = Lang.Outline(DocFile(d))
+  n = TALLY(text, CHR$(10))
+  FOR i = 1 TO n
+    row = FIELD$(text, CHR$(10), i)
+    depth = VAL(FIELD$(row, CHR$(9), 1))
+    kind = FIELD$(row, CHR$(9), 2)
+    nm = FIELD$(row, CHR$(9), 3)
+    detail = FIELD$(row, CHR$(9), 4)
+    ln = VAL(FIELD$(row, CHR$(9), 5))
+    IF depth > 19 THEN depth = 19
+    IF kind = "component" AND detail <> "" THEN nm = nm + ": " + detail
+    IF depth = 0 THEN
+      OutlineTree.AddItems nm
+    ELSE
+      OutlineTree.AddChildItems parentNode(depth - 1), nm
+    END IF
+    img = OutlineIcon(kind, detail)
+    OutlineTree.Item(OutlineTree.ItemCount - 1).ImageIndex = img
+    OutlineTree.Item(OutlineTree.ItemCount - 1).SelectedIndex = img
+    parentNode(depth) = OutlineTree.ItemCount - 1
+    IF OutlineTree.ItemCount <= 400 THEN OutlineLine(OutlineTree.ItemCount - 1) = ln - 1
+  NEXT
+  OutlineCount = OutlineTree.ItemCount
+  OutlineTree.FullExpand
+END SUB
+
+' ---- problems (RLanguageService's diagnostics: the compiler's messages) ----------
+
+SUB FillProblems(d AS INTEGER)
+  DIM text AS STRING, n AS INTEGER, i AS INTEGER, row AS STRING, sev AS STRING, k AS INTEGER, errs AS INTEGER, warns AS INTEGER
+  ClearProblems
+  IF d < 0 THEN EXIT SUB
+  text = Lang.Diagnostics(DocFile(d))
+  n = TALLY(text, CHR$(10))
+  FOR i = 1 TO n
+    row = FIELD$(text, CHR$(10), i)
+    sev = FIELD$(row, CHR$(9), 1)
+    k = 2
+    IF sev = "error" THEN k = 0: errs = errs + 1
+    IF sev = "warning" THEN k = 1: warns = warns + 1
+    AddProblem k, FIELD$(row, CHR$(9), 4), FileTitle(FIELD$(row, CHR$(9), 5)), VAL(FIELD$(row, CHR$(9), 2))
+    ProblemLine(ProblemsView.ItemCount - 1) = VAL(FIELD$(row, CHR$(9), 2))
+  NEXT
+  IF n = 0 THEN AddProblem 3, "No problems", FileTitle(DocFile(d)), 0
+  IF errs + warns = 0 THEN
+    Dock.PaneTitle("problemsview", "Problems")
+  ELSE
+    Dock.PaneTitle("problemsview", "Problems (" + LTRIM$(STR$(errs + warns)) + ")")
+  END IF
+END SUB
+
+' The active document's outline, problems and properties again.
+SUB AnalyzeActive
+  DIM d AS INTEGER
+  d = ActiveCode
+  IF d >= 0 THEN
+    Lang.Update DocFile(d), CodeDoc(d).Text
+    ScanForm d
+  ELSE
+    PropCount = 0
+  END IF
+  FillOutline d
+  FillProblems d
+  ShowProperties FormName
+END SUB
+
+' ---- opening, saving, closing ---------------------------------------------------------
+
+FUNCTION FreeDoc AS INTEGER
+  DIM d AS INTEGER
+  FOR d = 0 TO DocCount - 1
+    IF DocOpen(d) = 0 THEN
+      Result = d
+      EXIT FUNCTION
+    END IF
+  NEXT
+  IF DocCount < MAXDOCS THEN
+    Result = DocCount
+    DocCount = DocCount + 1
+  ELSE
+    Result = -1
+  END IF
+END FUNCTION
+
+' (the open document of a file, -1 if none)
+FUNCTION DocOf(Path AS STRING) AS INTEGER
+  DIM d AS INTEGER
+  Result = -1
+  FOR d = 0 TO DocCount - 1
+    IF DocOpen(d) AND LCASE$(DocFile(d)) = LCASE$(Path) THEN
+      Result = d
+      EXIT FUNCTION
+    END IF
+  NEXT
+END FUNCTION
+
+SUB DocTitles(d AS INTEGER)
+  DIM t AS STRING
+  t = FileTitle(DocFile(d))
+  IF DocDirty(d) THEN t = t + " *"
+  Dock.PaneTitle("codedoc(" + LTRIM$(STR$(d)) + ")", t)
+  IF DocHasForm(d) THEN Dock.PaneTitle("designdoc(" + LTRIM$(STR$(d)) + ")", t + " [Design]")
+END SUB
+
+' Opens a source file as documents: its code, and its form in a designer
+' when it makes one. An open one is brought to the front.
+SUB OpenDocument(Path AS STRING)
+  DIM d AS INTEGER, title AS STRING
+  d = DocOf(Path)
+  IF d >= 0 THEN
+    Dock.FocusPane("codedoc(" + LTRIM$(STR$(d)) + ")")
+    EXIT SUB
+  END IF
+  d = FreeDoc
+  IF d < 0 THEN EXIT SUB
+  Loading = 1
+  CodeDoc(d).Font = MonoFont
+  CodeDoc(d).LoadFromFile Path
+  CodeDoc(d).Tag = d
+  CodeDoc(d).OnChange = CodeChanged
+  Loading = 0
+  DocFile(d) = Path
+  DocKind(d) = "code"
+  DocOpen(d) = 1
+  DocDirty(d) = 0
+  ScanForm d
+  DocHasForm(d) = Flag(FormName <> "")
+  title = FileTitle(Path)
+  IF DocHasForm(d) THEN
+    DesignDoc(d).Width = 640: DesignDoc(d).Height = 420
+    Dock.AddPane(DesignDoc(d), title + " [Design]", "documents", "form")
+  END IF
+  Dock.AddPane(CodeDoc(d), title, "documents", "code")
+  ActiveDoc = d
+  AnalyzeActive
+  OutputLine "Opened " + Path
+  UpdateCommands
+END SUB
+
+' Writes a document's file; True when it did.
+FUNCTION SaveDocument(d AS INTEGER) AS INTEGER
+  IF d < 0 THEN EXIT FUNCTION
+  IF DocOpen(d) = 0 THEN EXIT FUNCTION
+  CodeDoc(d).SaveToFile DocFile(d)
+  DocDirty(d) = 0
+  DocTitles d
+  Result = 1
+END FUNCTION
+
+SUB SaveAll
+  DIM d AS INTEGER
+  FOR d = 0 TO DocCount - 1
+    IF DocOpen(d) AND DocDirty(d) THEN SaveDocument d
+  NEXT
+END SUB
+
+' (the documents of file d go; asked first when it has changes)
+SUB CloseDocument(d AS INTEGER)
+  IF d < 0 THEN EXIT SUB
+  IF DocOpen(d) = 0 THEN EXIT SUB
+  DocOpen(d) = 0
+  Dock.ClosePane("codedoc(" + LTRIM$(STR$(d)) + ")")
+  IF DocHasForm(d) THEN Dock.ClosePane("designdoc(" + LTRIM$(STR$(d)) + ")")
+  Lang.Close DocFile(d)
+  IF ActiveDoc = d THEN ActiveDoc = -1
+  AnalyzeActive
+  UpdateCommands
+END SUB
+
+SUB CodeChanged(Sender AS RCODEEDITOR)
+  DIM d AS INTEGER
+  IF Loading THEN EXIT SUB
+  d = Sender.Tag
+  IF DocDirty(d) = 0 THEN
+    DocDirty(d) = 1
+    DocTitles d
+  END IF
+  ' (the problems and the outline follow once typing stops)
+  Analyzer.Enabled = 0
+  Analyzer.Enabled = 1
+END SUB
+
+SUB AnalyzerTick
+  Analyzer.Enabled = 0
+  AnalyzeActive
+END SUB

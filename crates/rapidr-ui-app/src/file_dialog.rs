@@ -34,6 +34,9 @@ pub struct Request {
     /// DefaultExt ("txt"; "" none): added to a saved name without one —
     /// the name a browser's save picker proposes has it already.
     pub default_ext: String,
+    /// (RapidR's) An Open dialog's PickFolder: a folder is chosen, not a
+    /// file (FileName is the folder; on the web its files are read in).
+    pub folder: bool,
 }
 
 /// Which file dialog component type `comp_type` is: (save, multi), or
@@ -70,6 +73,7 @@ pub fn request<P: Program>(p: P, name: &str, save: bool, multi: bool) -> Request
         file_name: some(fd::file_title(&prop("filename"))),
         confirm_overwrite: save && (matches!(warn, Value::Null) || warn.to_bool()),
         default_ext: prop("defaultext"),
+        folder: !save && p.get(name, "pickfolder").to_bool(),
     }
 }
 

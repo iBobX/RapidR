@@ -49,7 +49,7 @@ fi
 
 step "the IDE's bytecode"
 cargo build -q --release --locked -p rapidr-cli
-target/release/rapidr build-bc examples/ide.rr -o "$PREP/rapidr-ide.rrbc"
+target/release/rapidr build-bc ide/studio.rr -o "$PREP/rapidr-ide.rrbc"
 
 step "the web bundle"
 tools/release/web.sh

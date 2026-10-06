@@ -702,7 +702,9 @@ fn pick_files(id: u64, req: Request, gestured: bool) {
         FILES.with(|f| f.borrow_mut().insert(id, wait));
         later();
     };
-    if req.save {
+    if req.folder {
+        crate::file_picker_web::open_folder(gestured, done);
+    } else if req.save {
         crate::file_picker_web::save(&req, gestured, done);
     } else {
         crate::file_picker_web::open(&req, gestured, done);

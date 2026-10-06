@@ -184,6 +184,12 @@ impl WinitHost {
     }
 }
 
+/// Whether `window` is a Wayland surface (not XWayland's).
+fn on_wayland(window: &Window) -> bool {
+    use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    window.window_handle().is_ok_and(|h| matches!(h.as_raw(), RawWindowHandle::Wayland(_)))
+}
+
 /// Wayland: a FIFO swapchain waits in present for the compositor's frame
 /// callback, which doesn't come while the window can't be seen (minimized,
 /// on another workspace, the screen locked) — the whole program, its timers
@@ -192,9 +198,7 @@ impl WinitHost {
 /// (RedrawRequested, itself paced by the frame callbacks), so it doesn't
 /// draw more often either.
 fn unthrottled_on_wayland(window: &Window, surface: &mut RenderSurface<'static>, dev: &vello::util::DeviceHandle) {
-    use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
-    let wayland = window.window_handle().is_ok_and(|h| matches!(h.as_raw(), RawWindowHandle::Wayland(_)));
-    if wayland && surface.surface.get_capabilities(dev.adapter()).present_modes.contains(&wgpu::PresentMode::Mailbox) {
+    if on_wayland(window) &&surface.surface.get_capabilities(dev.adapter()).present_modes.contains(&wgpu::PresentMode::Mailbox) {
         surface.config.present_mode = wgpu::PresentMode::Mailbox;
         surface.surface.configure(&dev.device, &surface.config);
     }
@@ -442,7 +446,14 @@ impl Shim<'_> {
                 cmd @ (HostCmd::Popup { .. } | HostCmd::FileDialog { .. }) if held => later.push(cmd),
                 HostCmd::Show(f) => self.show(el, &f),
                 HostCmd::Hide(f) => {
-                    if let Some(w) = self.s.wins.get(&f) {
+                    // (Wayland has no hidden window — winit's set_visible
+                    // does nothing there, found in Ubuntu's session: the
+                    // window goes, and the next Show makes it again)
+                    if self.s.wins.get(&f).is_some_and(|w| on_wayland(&w.window)) {
+                        if let Some(w) = self.s.wins.remove(&f) {
+                            self.s.ids.remove(&w.window.id());
+                        }
+                    } else if let Some(w) = self.s.wins.get(&f) {
                         w.window.set_visible(false);
                     }
                     // (the modal underneath gets the focus back)
@@ -969,7 +980,7 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
                 // now, and again once the click that activated this one is
                 // over (`apply`).
                 if let Some(m) = self.desk.modal.last() {
-                    if *m != f {
+                    if !self.desk.accepts_input(&f) {
                         if let Some(w) = self.s.wins.get(m) {
                             w.window.focus_window();
                         }
@@ -1028,7 +1039,14 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
                 self.desk.mouse_wheel(store, &f, at, (dx, dy), m, Source::User);
                 self.after_input(&f);
             }
-            WindowEvent::KeyboardInput { event, .. } => {
+            WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
+                // (keys still held when a window gets the focus come again
+                // as synthetic presses — on Windows, the P of the
+                // Ctrl+Shift+P that opened Studio's palette typed a "p"
+                // into it: not typed; their releases still count)
+                if is_synthetic && event.state == ElementState::Pressed {
+                    return;
+                }
                 let vk = vk_of(&event.logical_key);
                 let m = self.mods();
                 if event.state == ElementState::Pressed {
