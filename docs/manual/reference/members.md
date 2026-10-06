@@ -1956,6 +1956,12 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `FormCaption` | string |  | The caption of the form being designed. |
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `Count` | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
+| `SelCount` (read-only) | int |  | How many components are selected (Shift / Ctrl+click, a rubber band). |
+| `PreviewWidth` | int |  | The resize preview: the designed form shown this wide, its components where the running program puts them (Align, Anchors, Constraints); 0 ends the preview. Dragging the form's corner does the same. |
+| `PreviewHeight` | int |  | The resize preview's height (see PreviewWidth); 0 ends the preview. |
+| `ShowGuides` | bool | True | Whether a drag snaps to and shows smart guides: siblings' edges, centres and baselines, the form's centre lines, margins, equal spacing (Alt suspends snapping). |
+| `SnapToGrid` | bool | True | Whether moves and resizes snap to the grid where no guide is near. |
+| `GridSize` | int | 8 | The grid's step in pixels. |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -1980,6 +1986,10 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `GetCompY` | Returns the top position of the component at the index given on the design surface. |
 | `GetCompW` | Returns the width of the component at the index given on the design surface. |
 | `GetCompH` | Returns the height of the component at the index given on the design surface. |
+| `Undo AS INTEGER` | Undoes the last change to the designed form (a move, a resize, a property, an added or removed component); True if there was one. |
+| `Redo AS INTEGER` | Does again the last change undone; True if there was one. |
+| `AlignSelection(How AS STRING)` | Lines the selected components up with the first selected: "left", "center", "right", "top", "middle" or "bottom" (one undo step). |
+| `SelectAdd(Index AS INTEGER)` | Adds component Index to the selection (as Shift+click). |
 | `Show` *(desktop)* | Shows the component or form; a data-science object prints its contents. |
 | `Hide` *(desktop)* | Makes the component or form invisible; it stays loaded. |
 

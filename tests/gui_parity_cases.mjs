@@ -200,6 +200,11 @@ export const cases = [
   { name: "anchors", events: "ok.onclick", dump: "a.caption,b.caption,c.caption", resize: "250,180",
     expect: ["a.caption=300,230|200|300|200|150|400x300|12|3|0|300|200|15", "b.caption=200,130|100|250|150|100|300x200",
       "c.caption=400,330|300|400|300|200|500x400 300,330|150|300|200|150|400x400 250,150 200,100,200 200,330|50|200|100|100|300x400|10"] },
+  // (I4 L-DMODEL) The designer's resize preview is the running program:
+  // crates/rapidr-designer/tests/anchors.rs reads this expect list and must
+  // give the same rectangles from the CREATE block resized in the designer.
+  { name: "designer_anchors", events: "", resize: "600,450", dump: "bar.left,bar.top,bar.width,bar.height,status.left,status.top,status.width,status.height,namelbl.left,namelbl.top,namelbl.width,namelbl.height,nameed.left,nameed.top,nameed.width,nameed.height,notes.left,notes.top,notes.width,notes.height,side.left,side.top,side.width,side.height,pick.left,pick.top,pick.width,pick.height,ok.left,ok.top,ok.width,ok.height,cancel.left,cancel.top,cancel.width,cancel.height,mid.left,mid.top,mid.width,mid.height",
+    expect: ["bar.left=0", "bar.top=0", "bar.width=598", "bar.height=32", "status.left=0", "status.top=397", "status.width=598", "status.height=22", "namelbl.left=12", "namelbl.top=48", "namelbl.width=31", "namelbl.height=13", "nameed.left=64", "nameed.top=44", "nameed.width=420", "nameed.height=21", "notes.left=12", "notes.top=80", "notes.width=472", "notes.height=280", "side.left=496", "side.top=44", "side.width=92", "side.height=316", "pick.left=8", "pick.top=280", "pick.width=75", "pick.height=25", "ok.left=428", "ok.top=366", "ok.width=75", "ok.height=25", "cancel.left=512", "cancel.top=366", "cancel.width=75", "cancel.height=25", "mid.left=222", "mid.top=370", "mid.width=36", "mid.height=13"] },
   { name: "font_size", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=35x19 28x16"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",

@@ -142,6 +142,12 @@ impl Scaled {
     }
 }
 
+/// The distance from a line's top to its text's baseline, and the line's
+/// height, in `font`, in pixels (the designer's baseline guides).
+pub fn line_metrics(font: &Font) -> (f32, f32) {
+    scaled(font).map_or((0.0, 0.0), |s| (s.ascent, s.height))
+}
+
 /// How far below the top of a line of `font`'s text its baseline is, in
 /// pixels (GDI's tmAscent: 11 for MS Sans Serif 8).
 pub fn ascent(font: &Font) -> f32 {

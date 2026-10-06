@@ -25,6 +25,7 @@ members = [
     "crates/rapidr-icons",
     "crates/rapidr-langsvc",
     "crates/rapidr-studio",
+    "crates/rapidr-designer",
     "crates/rapidr-lsp",
     "crates/rapidr-dap",
     # (a spike, out of every regular build: docs/web-host-plan.md)
@@ -75,6 +76,7 @@ rapidr-compiler-wasm = { path = "interpreter/rapidr-compiler-wasm" }
 rapidr-webbundle = { path = "interpreter/rapidr-webbundle" }
 rapidr-langsvc = { path = "crates/rapidr-langsvc" }
 rapidr-studio = { path = "crates/rapidr-studio" }
+rapidr-designer = { path = "crates/rapidr-designer" }
 rapidr-lsp = { path = "crates/rapidr-lsp" }
 rapidr-dap = { path = "crates/rapidr-dap" }
 
