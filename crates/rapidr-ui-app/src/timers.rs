@@ -1,6 +1,6 @@
 //! QTIMER: one heap of deadlines for every timer the program made (moved
 //! from runtime-core's `ui/kernel.rs`). A timer ticks only while the
-//! program waits — a modal form, the main loop, DOEVENTS, INPUT$, a dialog
+//! program waits — a modal form, DOEVENTS, INPUT$, a dialog
 //! — as RapidQ's WM_TIMERs come only while its message loop runs: the
 //! runtime fires what's due between its host's turns ([`fire_due`]) and
 //! waits no longer than the next deadline ([`next_due`]). Interval and
@@ -66,7 +66,7 @@ fn interval<P: Program>(p: P, name: &str) -> Duration {
 }
 
 /// Starts timer `name` ticking if it's enabled and isn't already (it
-/// fires while the program waits: a modal form, the main loop, DOEVENTS).
+/// fires while the program waits: a modal form, DOEVENTS).
 pub fn schedule<P: Program>(p: P, name: &str) {
     let name = name.to_lowercase();
     if p.get(&name, "enabled").to_i64() == 0 || !tm(|s| s.scheduled.insert(name.clone())) {

@@ -727,13 +727,6 @@ pub fn gui_take_wait_started() -> bool {
     waits::take_started()
 }
 
-/// Starts waiting for the program's windows (after the main program). The
-/// host starts with the first window: a console program never opens the
-/// system's windowing (no display needed, no Dock icon).
-pub fn gui_begin_app_wait() {
-    waits::begin_app();
-}
-
 /// One step of the innermost wait: `None` while it goes on, `Some` when
 /// it's over (a ShowModal's: its ModalResult; a dialog's: its builtin's
 /// result).
@@ -781,18 +774,6 @@ pub fn gui_pump_wait() -> Option<Value> {
     }
     step(None);
     None
-}
-
-/// The program's windows until none is left.
-pub fn run_gui_event_loop() {
-    if held() {
-        return;
-    }
-    // (the host starts with the first window: see gui_begin_app_wait)
-    forms::show_pending(Rt);
-    while forms::any_shown() {
-        step(None);
-    }
 }
 
 /// MESSAGEBOX / MESSAGEDLG / SHOWMESSAGE: a kernel-drawn modal dialog

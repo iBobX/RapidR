@@ -63,7 +63,7 @@ if want web; then
   echo "== web gui parity at 2x (high-DPI: what programs read is unchanged)"; RAPIDR_DPR=2 RAPIDR_DESKTOP_CAPTURES="$PWD/$W/gui_captures" node tests/web_gui_parity.mjs 2>&1 | grep -E "✗|≠|Kernel host|parity"
   # (Chrome's accessibility tree over the mirror = the kernel's)
   echo "== web accessibility"; node tests/web_a11y.mjs 2>&1 | grep -E "✗|^    |Kernel host|Web accessibility"
-  echo "== web"; for t in tests/web_ide_*.mjs tests/debug_e2e_*.mjs tests/web_session.mjs tests/web_bundle_*.mjs tests/web_end_timer.mjs tests/web_vm_yield.mjs tests/web_overlays.mjs tests/web_fonts.mjs tests/web_webapi.mjs tests/web_sqlite.mjs; do
+  echo "== web"; for t in tests/web_ide_*.mjs tests/debug_e2e_*.mjs tests/web_session.mjs tests/web_bundle_*.mjs tests/web_end_timer.mjs tests/web_main_end.mjs tests/web_vm_yield.mjs tests/web_overlays.mjs tests/web_fonts.mjs tests/web_webapi.mjs tests/web_sqlite.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "ASSERT|Error|✗"; }
   done
 fi

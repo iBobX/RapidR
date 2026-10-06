@@ -161,12 +161,14 @@ fn an_editor_session() {
     let main_uri = c.open(&main);
     let doc = json!({ "uri": main_uri });
 
-    // Line 11 doesn't compile: the compiler's message, there.
+    // Line 12 doesn't parse — `Form.` with no member yet is RC.EXE's
+    // "Member  not part of class FORM" — and the parser's error comes
+    // before the compiler's (line 11's unknown SUB): its message, there.
     let diags = c.diagnostics_for(&main_uri);
     assert_eq!(diags.len(), 1, "{diags:?}");
-    assert_eq!(diags[0]["message"], "Unknown SUB or FUNCTION 'Nope'");
-    assert_eq!(diags[0]["range"]["start"], pos(10, 0));
-    assert_eq!(diags[0]["range"]["end"], pos(10, 4));
+    assert_eq!(diags[0]["message"], "Member  not part of class FORM");
+    assert_eq!(diags[0]["range"]["start"], pos(11, 4));
+    assert_eq!(diags[0]["range"]["end"], pos(11, 5));
     assert_eq!(diags[0]["severity"], 1);
     assert_eq!(diags[0]["source"], "rapidr");
 

@@ -56,7 +56,6 @@ pub mod prelude {
         rp_set_event_dispatcher, rp_stop_all_timers,
         rp_bind_event_closure, rp_bind_event_out, rp_bind_event_indirect_this, rp_comp_call, rp_comp_get, rp_comp_method, rp_comp_read, rp_comp_set, rp_comp_value, rp_component_array,
         rp_create_component, rp_fire_event, rp_fire_event_1, rp_fire_event_2, rp_fire_event_5,
-        rp_run_app,
     };
     pub use crate::value::{rp_fixed_string, rp_new_array, v_bool, v_dbl, v_int, v_null, v_str, Value};
     // SUBI / FUNCTIONI arguments

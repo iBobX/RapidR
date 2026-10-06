@@ -301,8 +301,8 @@ fn headless(dir: &Path, delay: &str) -> Vec<(&'static str, String)> {
 }
 
 #[test]
-fn a_breakpoint_in_an_event_handler_after_main() {
-    let program = "SUB Clicked\n  PRINT \"clicked\"\n  Form.Caption = \"done\"\nEND SUB\nCREATE Form AS QFORM\n  Caption = \"Click me\"\n  CREATE Btn AS QBUTTON\n    Caption = \"Go\"\n    OnClick = Clicked\n  END CREATE\nEND CREATE\nForm.Show\nPRINT \"main done\"\n";
+fn a_breakpoint_in_an_event_handler_while_main_waits() {
+    let program = "SUB Clicked\n  PRINT \"clicked\"\n  Form.Caption = \"done\"\nEND SUB\nCREATE Form AS QFORM\n  Caption = \"Click me\"\n  CREATE Btn AS QBUTTON\n    Caption = \"Go\"\n    OnClick = Clicked\n  END CREATE\nEND CREATE\nPRINT \"main waits\"\nForm.ShowModal\n";
     let dir = folder("gui-click", &[("click.bas", program)]);
     let mut env = headless(&dir, "1");
     env.push(("RAPIDR_TEST_EVENTS", "btn.onclick".into()));
@@ -312,11 +312,27 @@ fn a_breakpoint_in_an_event_handler_after_main() {
     dap.ok("setBreakpoints", json!({ "source": { "path": dir.join("click.bas") }, "breakpoints": [{ "line": 2 }] }));
     dap.ok("configurationDone", json!({}));
     assert_eq!(dap.stopped(), ("breakpoint".into(), "click.bas".into(), 2));
-    assert!(dap.stdout.contains("main done") && !dap.stdout.contains("clicked"), "{}", dap.stdout);
+    assert!(dap.stdout.contains("main waits") && !dap.stdout.contains("clicked"), "{}", dap.stdout);
     assert_eq!(dap.ok("evaluate", json!({ "expression": "Btn.Caption", "context": "hover" }))["result"], "\"Go\"");
     dap.ok("continue", json!({ "threadId": 1 }));
     assert_eq!(dap.exited(), 0);
     assert!(dap.stdout.contains("clicked") && dap.stdout.contains("form.caption=done"), "{}", dap.stdout);
+}
+
+#[test]
+fn the_program_ends_with_its_main_code() {
+    // (RapidQ's: after Form.Show the main program's end is the program's —
+    // the form goes, no event reaches it: docs/rapidq-ground-truth.md)
+    let program = "SUB Clicked\n  PRINT \"clicked\"\nEND SUB\nCREATE Form AS QFORM\n  CREATE Btn AS QBUTTON\n    OnClick = Clicked\n  END CREATE\nEND CREATE\nForm.Show\nPRINT \"main done\"\n";
+    let dir = folder("gui-main-end", &[("show.bas", program)]);
+    let mut env = headless(&dir, "1");
+    env.push(("RAPIDR_TEST_EVENTS", "btn.onclick".into()));
+    let mut dap = Dap::start_with(&dir, &env);
+    dap.launch(&dir.join("show.bas"), json!({}));
+    dap.ok("setBreakpoints", json!({ "source": { "path": dir.join("show.bas") }, "breakpoints": [{ "line": 2 }] }));
+    dap.ok("configurationDone", json!({}));
+    assert_eq!(dap.exited(), 0);
+    assert!(dap.stdout.contains("main done") && !dap.stdout.contains("clicked"), "{}", dap.stdout);
 }
 
 #[test]

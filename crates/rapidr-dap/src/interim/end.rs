@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use rapidr_bytecode::Module;
 use rapidr_runtime_core::object as obj;
-use rapidr_vm::{Host, StepMode, Vm, VmError};
+use rapidr_vm::{StepMode, Vm, VmError};
 
 use super::host::{DebugHost, Flags, InputQueue};
 use super::inspect::{self, Children, GLOBALS_REF, LOCALS_REF, NEEDS_EVALUATOR, PAGE};
@@ -136,12 +136,9 @@ pub fn run(module: Module, program: &str, args: Vec<String>) -> i32 {
     let code = if end.until_start(&mut vm) {
         let result = vm.run(&module);
         match end.drive(&mut vm, result) {
-            Ok(()) => {
-                if vm.host.inner.has_components {
-                    end.serve_app(&mut vm);
-                }
-                0
-            }
+            // (the main program's end is the program's, windows and all:
+            // RapidQ's — rapidr_vm_host_native::run_module)
+            Ok(()) => 0,
             Err(e) => {
                 end.error_stop(&mut vm, &e);
                 output("stderr", format!("vm error: {e}\n"));
@@ -523,47 +520,6 @@ impl<'m> End<'m> {
         match frame {
             Some(f) if (f as usize) < vm.frames.len() => Some(f as usize),
             _ => vm.frames.len().checked_sub(1),
-        }
-    }
-
-    /// After MAIN, the program's windows until none is left (the native
-    /// host's `serve_app`): UI events pumped, the handlers they queue run —
-    /// a breakpoint in one stops there.
-    fn serve_app(&mut self, vm: &mut Vm<'_, DebugHost>) {
-        obj::rp_begin_app_wait();
-        loop {
-            self.run_queued(vm);
-            // (the VM lent to the wait: a native menu held open, the
-            // runtime's tracking ticks fire the due timers and their
-            // handlers run here)
-            let me = &mut *self;
-            let vm2 = &mut *vm;
-            if obj::rp_pump_wait_serving(&mut || me.run_queued(vm2)).is_some() {
-                return;
-            }
-        }
-    }
-
-    /// The handlers queued so far, each to completion before the next.
-    fn run_queued(&mut self, vm: &mut Vm<'_, DebugHost>) {
-        loop {
-            self.serve_pending(vm);
-            let events = vm.host.take_events();
-            if events.is_empty() {
-                break;
-            }
-            for event in events {
-                let fn_index = event.handler;
-                // (each handler's first line is a new line, even the same
-                // handler's again)
-                vm.last_line = 0;
-                self.take_pause(vm);
-                let result = vm.invoke_event(self.module, event).map(drop);
-                if let Err(e) = self.drive(vm, result) {
-                    self.error_stop(vm, &e);
-                    output("stderr", format!("[rapidr] event handler #{fn_index} failed: {e}\n"));
-                }
-            }
         }
     }
 }

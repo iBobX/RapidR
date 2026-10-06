@@ -74,7 +74,7 @@ Kernel versions of the facade functions (`src/ui/kernel.rs`) fall into a few kin
 | Window | `gui_show`, `gui_show_visible`, `gui_hide`, `gui_close`, `gui_center`, `gui_move_form`, `gui_set_form_border`, `gui_apply_icon(s)` | `HostCmd`s, plus OnShow / OnClose logic copied from `gui_show` and `gui_close` (`rp_fire_event_then` with `CloseAction`) |
 | Text | `text_push`, `gui_set_text`, `gui_set_input_value` | No-ops: the edit node re-reads `TextEdit::revision`, as the prototype's `Edit::refresh` does |
 | Text | `text_pull`, `gui_get_text`, `gui_get_input_value` | No-ops: the kernel writes user edits into the model on every keystroke (`TextEdit::user_edit`, as the prototype's `Edit::sync`) |
-| Waits | `gui_showmodal`, `gui_doevents`, `gui_wait_key`, `gui_pump_wait`, `gui_begin_app_wait`, `gui_take_wait_started`, `gui_set_cooperative_waits`, `run_gui_event_loop`, `gui_choice`, `gui_dialog_execute` | See §1.5 |
+| Waits | `gui_showmodal`, `gui_doevents`, `gui_wait_key`, `gui_pump_wait`, `gui_take_wait_started`, `gui_set_cooperative_waits`, `gui_choice`, `gui_dialog_execute` | See §1.5 |
 | Queries | `window_shown`, `form_window_exists`, `form_scale`, `menu_offset`, `is_modal`, `mouse_in_form` | Answered from kernel and host state |
 | Deferred | `design_surface_*`, `code_editor_method` | Unsupported in the kernel until Stage 10 (one-time warning) |
 
@@ -140,7 +140,7 @@ Kernel versions of the facade functions (`src/ui/kernel.rs`) fall into a few kin
 | RapidQ call | FLTK today | Kernel host: native build | Kernel host: VM |
 |---|---|---|---|
 | `Form.ShowModal` | `gui_showmodal`: `while app::wait()` | Push to `MODAL_FORMS`; `while form_shown { step(None) }`; `modal_ended` | Unchanged protocol: push `Wait::Form`, set `WAIT_STARTED`; `Host::pump` → `ui::gui_pump_wait` → one `step(None)`, returning `Some(modal_result)` when the form closes |
-| Main loop after MAIN | `run_gui_event_loop` / `serve_app` | `while any window shown { step(None) }` | `serve_app` → `rp_pump_wait`, as today |
+| After MAIN | — | The program ends, its windows with it (RapidQ's: RC.EXE, docs/rapidq-ground-truth.md) | The same: no loop after MAIN |
 | `DOEVENTS` | `app::wait_for(0.0)` | `step(Some(ZERO))` | Same; handlers run in `after_host` |
 | INPUT$ / `rp_waitkey` | `gui_wait_key` | `step` until `console::key_waiting()` | A wait the VM serves (`Wait::Key`): 1 when a key came, 0 when no window is left |
 | `SLEEP` | `thread::sleep` | Unchanged (RapidQ doesn't pump during SLEEP) | Unchanged |
@@ -149,7 +149,7 @@ Kernel versions of the facade functions (`src/ui/kernel.rs`) fall into a few kin
 | Colour / Font dialog | FLTK windows | Kernel-drawn modal forms (rfd has neither). Until lists are ported, a minimal kernel dialog | The same forms, a wait the VM serves (`Wait::Dialog`) |
 
 - **Modality.** Input to any window other than the top of `MODAL_FORMS` is dropped and the modal window is focused. On Windows, use `with_owner_window` so the modal stays above its owner.
-- **Timers.** The FLTK `add_timeout3` chain is replaced by a `BinaryHeap<(Instant, gen, name)>` in `src/ui/kernel.rs`. It ticks only while `step` runs (ShowModal, the main loop, DoEvents, INPUT$, dialogs), as FLTK timeouts do. `rp_stop_all_timers` clears it.
+- **Timers.** The FLTK `add_timeout3` chain is replaced by a `BinaryHeap<(Instant, gen, name)>` in `src/ui/kernel.rs`. It ticks only while `step` runs (ShowModal, DoEvents, INPUT$, dialogs), as FLTK timeouts do. `rp_stop_all_timers` clears it.
 - **Menus.**
   - macOS: muda's NSMenu bar, built from `rapidr_value::objects::menu::entries`. muda events arrive through an `EventLoopProxy` user event and become `HostEvent::Menu`.
   - Windows and Linux: a kernel-drawn in-window bar using the shared menu model and `layout::MAIN_MENU_HEIGHT`, the same `ClientHeight` as the web and as `RAPIDR_MENU=window`. muda on Linux needs GTK.

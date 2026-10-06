@@ -758,9 +758,12 @@ impl RustCodegen {
             }
         }
 
-        // For web targets, finalize: auto-parent orphan widgets and show forms
+        // For web targets, finalize: auto-parent orphan widgets and show
+        // forms; then the program's end, as in RapidQ, unless a form shown
+        // modally is waited for (a web build's ShowModal returns at once)
         if self.target == AppTarget::Web {
             self.line("gui_finalize();");
+            self.line("gui_main_ended();");
         } else {
             // Files the program never closed keep what was written.
             self.line("rp_close_all();");
