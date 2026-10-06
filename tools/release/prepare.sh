@@ -6,20 +6,23 @@
 #   dist/<ver>/prep/commit            its hash
 #   dist/<ver>/prep/web-runtime/      the web interpreter (rapidrintr.js + .wasm)
 #   dist/<ver>/prep/rapidr-ide.rrbc   the IDE, compiled
-#   dist/<ver>/out/                   the web bundle, the SBOM, RELEASE_NOTES.md
+#   dist/<ver>/out/                   the web bundle, the VS Code extension (.vsix),
+#                                     the SBOM, RELEASE_NOTES.md
 #
 #   tools/release/prepare.sh
 #   RAPIDR_RELEASE_DIRTY=1 tools/release/prepare.sh    (trying the scripts out:
 #                                     the archive is still HEAD, without the changes)
 #
-# Needs: Rust, wasm-pack, python3, git, zip. About 3 GB of disk for the web
-# interpreter's build (target/wasm32-unknown-unknown); prep/ is ~20 MB.
+# Needs: Rust, wasm-pack, python3, git, zip, Node.js 22+ (npm). About 3 GB of
+# disk for the web interpreter's build (target/wasm32-unknown-unknown); prep/
+# is ~20 MB.
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 cd "$ROOT"
 need python3 "the release scripts"
 need cargo "https://rustup.rs"
 need wasm-pack "cargo install wasm-pack"
+need npm "the VS Code extension: Node.js 22 or newer"
 
 if [ -n "$(git status --porcelain --untracked-files=no)" ] && [ -z "${RAPIDR_RELEASE_DIRTY:-}" ]; then
     die "the tree has uncommitted changes: a release is built from a commit (RAPIDR_RELEASE_DIRTY=1 to try anyway)"
@@ -50,6 +53,9 @@ target/release/rapidr build-bc examples/ide.rr -o "$PREP/rapidr-ide.rrbc"
 
 step "the web bundle"
 tools/release/web.sh
+
+step "the VS Code extension"
+tools/release/vscode.sh
 
 step "SBOM, release notes"
 python3 tools/release/sbom.py --out "$OUT/rapidr-$VERSION.cdx.json"

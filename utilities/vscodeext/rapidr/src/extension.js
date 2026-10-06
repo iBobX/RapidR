@@ -1,425 +1,429 @@
+// RapidR for VS Code: a thin client. IntelliSense, diagnostics, navigation,
+// rename and formatting come from `rapidr lsp` (the language server, Rust);
+// debugging from `rapidr dap` (the debug adapter, Rust); run / build
+// commands run `rapidr` in a terminal. This file only finds rapidr and wires
+// those up.
+'use strict';
+
 const vscode = require('vscode');
-const { RapidRCompletionProvider } = require('./completionProvider');
-const { RapidRHoverProvider } = require('./hoverProvider');
-const { RapidRSignatureHelpProvider } = require('./signatureProvider');
-const { RapidRDocumentSymbolProvider } = require('./symbolProvider');
+const nodePath = require('path');
+const { LanguageClient, TransportKind, RevealOutputChannelOn, ErrorAction, CloseAction } = require('vscode-languageclient/node');
+const { findRapidr, rapidrVersion } = require('./locate');
+const { shellKind, commandLine } = require('./shell');
 
-const RAPIDR_MODE = { language: 'rapidr', scheme: 'file' };
+const DOWNLOAD_URL = 'https://github.com/iBobX/RapidR/releases';
+const LANGUAGE = 'rapidr';
+const TERMINAL_NAME = 'RapidR';
+const SELECTOR = [
+    { language: LANGUAGE, scheme: 'file' },
+    { language: LANGUAGE, scheme: 'untitled' },
+];
 
-function activate(context) {
-    // Register completion provider
-    context.subscriptions.push(
-        vscode.languages.registerCompletionItemProvider(
-            RAPIDR_MODE,
-            new RapidRCompletionProvider(),
-            '.', '(', '$'
-        )
-    );
+/** What we know of rapidr: { path, version, source, error }. */
+let rapidr = { path: null, version: null, source: null, error: null };
+let serverError = null;
+let client = null;
+let serverReady = Promise.resolve();
+let output;
+let status;
+let watcher;
+let missingNotified = false;
 
-    // Register hover provider
-    context.subscriptions.push(
-        vscode.languages.registerHoverProvider(
-            RAPIDR_MODE,
-            new RapidRHoverProvider()
-        )
-    );
+// ---------------------------------------------------------------- rapidr
 
-    // Register signature help provider
-    context.subscriptions.push(
-        vscode.languages.registerSignatureHelpProvider(
-            RAPIDR_MODE,
-            new RapidRSignatureHelpProvider(),
-            '(', ','
-        )
-    );
-
-    // Register document symbol provider (Outline view)
-    context.subscriptions.push(
-        vscode.languages.registerDocumentSymbolProvider(
-            RAPIDR_MODE,
-            new RapidRDocumentSymbolProvider()
-        )
-    );
-
-    // Register compile command
-    context.subscriptions.push(
-        vscode.commands.registerCommand('rapidr.compile', () => compileFile(false))
-    );
-
-    // Register compile and run command
-    context.subscriptions.push(
-        vscode.commands.registerCommand('rapidr.compileAndRun', () => compileFile(true))
-    );
-
-    // Register compile to executable command
-    context.subscriptions.push(
-        vscode.commands.registerCommand('rapidr.compileToExe', () => compileToExe())
-    );
-
-    // Register compile for web (WASM) command
-    context.subscriptions.push(
-        vscode.commands.registerCommand('rapidr.compileWeb', () => compileWeb(false))
-    );
-
-    // Register compile for web and serve command
-    context.subscriptions.push(
-        vscode.commands.registerCommand('rapidr.compileWebAndServe', () => compileWeb(true))
-    );
-
-    // Bytecode pipeline (Phase 7)
-    context.subscriptions.push(
-        vscode.commands.registerCommand('rapidr.buildBc', () => bcCommand('build-bc'))
-    );
-    context.subscriptions.push(
-        vscode.commands.registerCommand('rapidr.runBc', () => bcRunCommand())
-    );
-    context.subscriptions.push(
-        vscode.commands.registerCommand('rapidr.bundleBc', () => bcCommand('bundle-bc'))
-    );
-
-    // Phase 8: unified compiled vs interpreted build modes
-    context.subscriptions.push(
-        vscode.commands.registerCommand('rapidr.buildInterp', () => interpBuildCommand(false))
-    );
-    context.subscriptions.push(
-        vscode.commands.registerCommand('rapidr.buildWebInterp', () => interpBuildCommand(true))
-    );
-
-    // Setup diagnostics
-    const diagnostics = vscode.languages.createDiagnosticCollection('rapidr');
-    context.subscriptions.push(diagnostics);
-
-    // Validate on save
-    context.subscriptions.push(
-        vscode.workspace.onDidSaveTextDocument(doc => {
-            if (doc.languageId === 'rapidr') {
-                validateDocument(doc, diagnostics);
-            }
-        })
-    );
-
-    // Validate on open
-    context.subscriptions.push(
-        vscode.workspace.onDidOpenTextDocument(doc => {
-            if (doc.languageId === 'rapidr') {
-                validateDocument(doc, diagnostics);
-            }
-        })
-    );
-
-    // Validate currently open document
-    if (vscode.window.activeTextEditor && vscode.window.activeTextEditor.document.languageId === 'rapidr') {
-        validateDocument(vscode.window.activeTextEditor.document, diagnostics);
+async function resolveRapidr() {
+    const cfg = vscode.workspace.getConfiguration('rapidr');
+    const folders = (vscode.workspace.workspaceFolders || []).filter((f) => f.uri.scheme === 'file').map((f) => f.uri.fsPath);
+    const found = findRapidr({ setting: cfg.get('path', ''), workspaceFolders: folders, trusted: vscode.workspace.isTrusted });
+    rapidr = { path: null, version: null, source: null, error: found.error || null };
+    if (found.path) {
+        try {
+            rapidr = { path: found.path, version: await rapidrVersion(found.path), source: found.source, error: null };
+            output.appendLine(`rapidr ${rapidr.version}: ${rapidr.path} (from ${rapidr.source})`);
+        } catch (err) {
+            rapidr.error = `${found.path} didn't run: ${err.message}`;
+        }
     }
-
-    // Status bar item
-    const statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-    statusItem.text = '$(play) RapidR';
-    statusItem.tooltip = 'Compile and Run (F5)';
-    statusItem.command = 'rapidr.compileAndRun';
-    context.subscriptions.push(statusItem);
-
-    context.subscriptions.push(
-        vscode.window.onDidChangeActiveTextEditor(editor => {
-            if (editor && editor.document.languageId === 'rapidr') {
-                statusItem.show();
-            } else {
-                statusItem.hide();
-            }
-        })
-    );
-
-    if (vscode.window.activeTextEditor && vscode.window.activeTextEditor.document.languageId === 'rapidr') {
-        statusItem.show();
-    }
-
-    console.log('RapidR extension activated');
+    if (!rapidr.path) output.appendLine(`RapidR was not found. ${rapidr.error || 'Looked in: ' + (found.tried || []).join(', ')}`);
+    await vscode.commands.executeCommand('setContext', 'rapidr.missing', !rapidr.path);
+    updateStatus();
+    return rapidr;
 }
 
-function findCompilerPath() {
-    const path = require('path');
-    const fs = require('fs');
-    const config = vscode.workspace.getConfiguration('rapidr');
-    const configuredPath = config.get('compilerPath');
-    if (configuredPath && fs.existsSync(configuredPath)) {
-        return configuredPath;
+/** "RapidR was not found", with Download / Locate. Once per session unless `force`. */
+async function notifyMissing(force) {
+    if (missingNotified && !force) return;
+    missingNotified = true;
+    const detail = rapidr.error ? ` ${rapidr.error}` : ' Install RapidR, or tell VS Code where rapidr is.';
+    const choice = await vscode.window.showWarningMessage(`RapidR was not found.${detail}`, 'Download RapidR', 'Locate rapidr…');
+    if (choice === 'Download RapidR') await vscode.env.openExternal(vscode.Uri.parse(DOWNLOAD_URL));
+    else if (choice === 'Locate rapidr…') await locateRapidr();
+}
+
+async function locateRapidr() {
+    const picked = await vscode.window.showOpenDialog({
+        title: 'Locate rapidr',
+        openLabel: 'Use this rapidr',
+        canSelectFiles: true,
+        canSelectFolders: process.platform !== 'darwin',
+        canSelectMany: false,
+        filters: process.platform === 'win32' ? { 'rapidr.exe': ['exe'], 'All files': ['*'] } : undefined,
+    });
+    if (!picked || picked.length === 0) return;
+    const chosen = picked[0].fsPath;
+    const found = findRapidr({ setting: chosen });
+    if (!found.path) {
+        vscode.window.showErrorMessage(`${chosen} isn't rapidr (the RapidR executable).`);
+        return;
     }
-    // Auto-detect: look for rapidr binary relative to the workspace, then in PATH
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (workspaceFolders) {
-        for (const folder of workspaceFolders) {
-            const candidates = [
-                path.join(folder.uri.fsPath, 'rapidr'),
-                path.join(folder.uri.fsPath, '..', 'rapidr'),
-                path.join(folder.uri.fsPath, '..', '..', 'rapidr'),
-            ];
-            for (const candidate of candidates) {
-                try {
-                    const resolved = fs.realpathSync(candidate);
-                    if (fs.existsSync(resolved)) {
-                        return resolved;
-                    }
-                } catch {
-                    // keep searching
+    try {
+        const version = await rapidrVersion(found.path);
+        // (the change event resolves rapidr again and restarts the server)
+        await vscode.workspace.getConfiguration('rapidr').update('path', found.path, vscode.ConfigurationTarget.Global);
+        vscode.window.showInformationMessage(`Using rapidr ${version}: ${found.path}`);
+    } catch (err) {
+        vscode.window.showErrorMessage(`${found.path} didn't run: ${err.message}`);
+    }
+}
+
+// ---------------------------------------------------------------- the language server
+
+function startServer() {
+    if (!rapidr.path) {
+        serverReady = Promise.reject(new Error('RapidR was not found'));
+        serverReady.catch(() => {});
+        return serverReady;
+    }
+    const cfg = vscode.workspace.getConfiguration('rapidr');
+    const serverOptions = {
+        command: rapidr.path,
+        args: ['lsp'],
+        transport: TransportKind.stdio,
+        options: { env: { ...process.env } },
+    };
+    let started = false;
+    let crashes = [];
+    const clientOptions = {
+        documentSelector: SELECTOR,
+        outputChannel: output,
+        traceOutputChannel: output,
+        revealOutputChannelOn: RevealOutputChannelOn.Never,
+        initializationOptions: { rapidqCompatible: cfg.get('rapidqCompatible', false) },
+        synchronize: { fileEvents: watcher },
+        errorHandler: {
+            error: () => ({ action: ErrorAction.Continue }),
+            closed: () => {
+                // (a server that never started is reported once, below)
+                if (!started) return { action: CloseAction.DoNotRestart, handled: true };
+                const now = Date.now();
+                crashes = crashes.filter((t) => now - t < 3 * 60 * 1000).concat(now);
+                if (crashes.length <= 4) {
+                    output.appendLine('rapidr lsp stopped: restarting it');
+                    return { action: CloseAction.Restart, handled: true };
                 }
-            }
-        }
-    }
-    // Fall back to PATH
-    return 'rapidr';
+                serverError = 'it stopped 5 times in 3 minutes';
+                updateStatus();
+                vscode.window.showErrorMessage(
+                    "RapidR's language server stopped 5 times in 3 minutes and won't be restarted (RapidR: Restart Language Server tries again).",
+                    'Show Output',
+                ).then((choice) => choice && output.show(true));
+                return { action: CloseAction.DoNotRestart, handled: true };
+            },
+        },
+    };
+    const c = new LanguageClient('rapidr', 'RapidR Language Server', serverOptions, clientOptions);
+    client = c;
+    serverError = null;
+    serverReady = c.start().then(
+        () => {
+            started = true;
+            output.appendLine(`rapidr lsp started (${rapidr.path})`);
+            updateStatus();
+        },
+        async (err) => {
+            serverError = err && err.message ? err.message : String(err);
+            output.appendLine(`rapidr lsp didn't start: ${serverError}`);
+            if (client === c) client = null;
+            try { await c.dispose(); } catch { /* already gone */ }
+            updateStatus();
+            vscode.window.showErrorMessage(
+                `RapidR's language server didn't start (rapidr ${rapidr.version} at ${rapidr.path}). A RapidR older than the language server has no "rapidr lsp": update it.`,
+                'Show Output', 'Download RapidR',
+            ).then((choice) => {
+                if (choice === 'Show Output') output.show(true);
+                else if (choice === 'Download RapidR') vscode.env.openExternal(vscode.Uri.parse(DOWNLOAD_URL));
+            });
+            throw err;
+        },
+    );
+    serverReady.catch(() => {});
+    return serverReady;
 }
 
-function compileFile(run) {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor || editor.document.languageId !== 'rapidr') {
-        vscode.window.showWarningMessage('No RapidR file is open.');
-        return;
+async function stopServer() {
+    const c = client;
+    client = null;
+    if (!c) return;
+    try {
+        await c.stop();
+    } catch (err) {
+        output.appendLine(`rapidr lsp: stopping: ${err.message || err}`);
     }
-    editor.document.save().then(() => {
-        const filePath = editor.document.uri.fsPath;
-        const compilerPath = findCompilerPath();
-        const config = vscode.workspace.getConfiguration('rapidr');
+    try { await c.dispose(); } catch { /* stopped */ }
+}
 
-        // Use the shortcut syntax: rapidr --release <file.rr>
-        // This builds the file and places the binary alongside the source
-        let cmd = `"${compilerPath}" --release "${filePath}"`;
-        if (run || config.get('runAfterCompile')) {
-            const path = require('path');
-            const baseName = path.basename(filePath, path.extname(filePath));
-            const binaryPath = path.join(path.dirname(filePath), baseName);
-            cmd += ` && "${binaryPath}"`;
+async function restartServer() {
+    await stopServer();
+    return startServer();
+}
+
+// ---------------------------------------------------------------- status bar
+
+function updateStatus() {
+    if (!status) return;
+    const editor = vscode.window.activeTextEditor;
+    const show = editor && editor.document.languageId === LANGUAGE;
+    if (!rapidr.path) {
+        status.text = '$(warning) RapidR';
+        status.tooltip = `RapidR was not found${rapidr.error ? ': ' + rapidr.error : ''}. Click for options.`;
+        status.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+    } else if (serverError) {
+        status.text = `$(warning) RapidR ${rapidr.version}`;
+        status.tooltip = `rapidr ${rapidr.version} (${rapidr.path}): the language server didn't start. Click for options.`;
+        status.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+    } else {
+        status.text = `$(play-circle) RapidR ${rapidr.version}`;
+        status.tooltip = `rapidr ${rapidr.version}: ${rapidr.path}\nClick for RapidR's commands.`;
+        status.backgroundColor = undefined;
+    }
+    status.accessibilityInformation = { label: String(status.text).replace(/\$\([^)]*\)\s*/g, '') + ': RapidR commands' };
+    if (show) status.show();
+    else status.hide();
+}
+
+async function showCommands() {
+    const items = rapidr.path
+        ? [
+            { label: '$(play) Run File', command: 'rapidr.run' },
+            { label: '$(debug-alt) Debug File', command: 'rapidr.debug' },
+            { label: '$(tools) Build Native Executable', description: 'rapidr build --release', command: 'rapidr.buildNative' },
+            { label: '$(package) Build Standalone Executable', description: 'rapidr build --interp', command: 'rapidr.buildStandalone' },
+            { label: '$(globe) Bundle for the Web', description: 'rapidr bundle-bc', command: 'rapidr.bundleWeb' },
+            { label: '', kind: vscode.QuickPickItemKind.Separator },
+            { label: '$(refresh) Restart Language Server', command: 'rapidr.restartServer' },
+            { label: '$(output) Show Language Server Output', command: 'rapidr.showOutput' },
+            { label: '$(file-binary) Locate rapidr…', description: rapidr.path, command: 'rapidr.locate' },
+        ]
+        : [
+            { label: '$(cloud-download) Download RapidR', description: DOWNLOAD_URL, run: () => vscode.env.openExternal(vscode.Uri.parse(DOWNLOAD_URL)) },
+            { label: '$(file-binary) Locate rapidr…', command: 'rapidr.locate' },
+            { label: '$(output) Show Language Server Output', command: 'rapidr.showOutput' },
+        ];
+    const picked = await vscode.window.showQuickPick(items, { title: rapidr.path ? `RapidR ${rapidr.version}` : 'RapidR was not found', placeHolder: 'RapidR' });
+    if (!picked) return;
+    if (picked.run) await picked.run();
+    else await vscode.commands.executeCommand(picked.command);
+}
+
+// ---------------------------------------------------------------- run / build
+
+/** The program a command acts on (the explorer's file, else the active editor's), saved. */
+async function programFile(uri) {
+    let doc = null;
+    if (uri instanceof vscode.Uri) {
+        doc = vscode.workspace.textDocuments.find((d) => d.uri.toString() === uri.toString()) || null;
+        if (!doc && uri.scheme === 'file') {
+            await saveRapidrDocuments();
+            return uri.fsPath;
         }
+    } else if (vscode.window.activeTextEditor) {
+        doc = vscode.window.activeTextEditor.document;
+    }
+    if (!doc || doc.languageId !== LANGUAGE) {
+        vscode.window.showInformationMessage('Open a RapidR program (.bas, .rr) first.');
+        return null;
+    }
+    if (doc.isUntitled) {
+        await vscode.commands.executeCommand('workbench.action.files.saveAs');
+        const now = vscode.window.activeTextEditor && vscode.window.activeTextEditor.document;
+        if (!now || now.isUntitled) return null;
+        doc = now;
+    }
+    if (doc.isDirty) await doc.save();
+    await saveRapidrDocuments();
+    if (doc.uri.scheme !== 'file') {
+        vscode.window.showErrorMessage('RapidR runs programs saved on disk.');
+        return null;
+    }
+    return doc.uri.fsPath;
+}
 
-        const terminal = vscode.window.createTerminal({ name: 'RapidR' });
-        terminal.sendText(cmd);
-        terminal.show();
+/** The program and the files it $INCLUDEs are read from disk: every changed RapidR file is saved. */
+async function saveRapidrDocuments() {
+    for (const d of vscode.workspace.textDocuments) {
+        if (d.isDirty && !d.isUntitled && d.languageId === LANGUAGE) await d.save();
+    }
+}
+
+/** `rapidr <args>` in the "RapidR" terminal (a new one: running again ends the previous run). */
+function runInTerminal(args, cwd, focus) {
+    for (const t of vscode.window.terminals) if (t.name === TERMINAL_NAME) t.dispose();
+    const term = vscode.window.createTerminal({ name: TERMINAL_NAME, cwd, iconPath: new vscode.ThemeIcon('play-circle') });
+    term.show(!focus);
+    term.sendText(commandLine(shellKind(vscode.env.shell, process.platform), rapidr.path, args));
+    return term;
+}
+
+async function withRapidr() {
+    if (rapidr.path) return true;
+    await notifyMissing(true);
+    return false;
+}
+
+function terminalCommand(build) {
+    return async (uri) => {
+        if (!(await withRapidr())) return;
+        const file = await programFile(uri);
+        if (!file) return;
+        const { args, focus } = build(file);
+        runInTerminal(args, nodePath.dirname(file), focus);
+    };
+}
+
+const runCommand = terminalCommand((file) => ({ args: ['run', file], focus: true }));
+const buildNativeCommand = terminalCommand((file) => ({ args: ['build', file, '--release'] }));
+const buildStandaloneCommand = terminalCommand((file) => ({ args: ['build', file, '--interp'] }));
+const bundleWebCommand = terminalCommand((file) => {
+    const stem = nodePath.basename(file, nodePath.extname(file));
+    return { args: ['bundle-bc', file, '-o', nodePath.join(nodePath.dirname(file), `${stem}-web.zip`)] };
+});
+
+async function debugCommand(uri) {
+    if (!(await withRapidr())) return;
+    const file = await programFile(uri);
+    if (!file) return;
+    const folder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(file));
+    await vscode.debug.startDebugging(folder, {
+        type: LANGUAGE,
+        request: 'launch',
+        name: `RapidR: ${nodePath.basename(file)}`,
+        program: file,
+        cwd: nodePath.dirname(file),
     });
 }
 
-function compileToExe() {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor || editor.document.languageId !== 'rapidr') {
-        vscode.window.showWarningMessage('No RapidR file is open.');
-        return;
-    }
-    editor.document.save().then(() => {
-        const filePath = editor.document.uri.fsPath;
-        const compilerPath = findCompilerPath();
+// ---------------------------------------------------------------- debugging (rapidr dap)
 
-        const cmd = `"${compilerPath}" --release "${filePath}"`;
-        const terminal = vscode.window.createTerminal({ name: 'RapidR Build' });
-        terminal.sendText(cmd);
-        terminal.show();
+const CURRENT_FILE = { type: LANGUAGE, request: 'launch', name: 'RapidR: current file', program: '${file}' };
+
+const configurationProvider = {
+    provideDebugConfigurations() {
+        return [{ ...CURRENT_FILE }];
+    },
+    resolveDebugConfiguration(folder, config) {
+        // F5 with no launch.json: the active editor's program
+        if (!config.type && !config.request && !config.name) {
+            const editor = vscode.window.activeTextEditor;
+            if (editor && editor.document.languageId === LANGUAGE) Object.assign(config, CURRENT_FILE);
+        }
+        if (!config.program) {
+            vscode.window.showInformationMessage('Open a RapidR program (.bas, .rr) to debug it, or give the launch configuration a "program".');
+            return undefined;
+        }
+        return config;
+    },
+    async resolveDebugConfigurationWithSubstitutedVariables(folder, config) {
+        if (!rapidr.path) {
+            await notifyMissing(true);
+            return undefined;
+        }
+        if (!nodePath.isAbsolute(config.program) && folder && folder.uri.scheme === 'file') {
+            config.program = nodePath.join(folder.uri.fsPath, config.program);
+        }
+        if (!config.cwd) config.cwd = nodePath.dirname(config.program);
+        return config;
+    },
+};
+
+const dynamicConfigurationProvider = {
+    provideDebugConfigurations() {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor || editor.document.languageId !== LANGUAGE || editor.document.isUntitled) return [];
+        return [{ ...CURRENT_FILE, name: `RapidR: ${nodePath.basename(editor.document.uri.fsPath)}`, program: editor.document.uri.fsPath }];
+    },
+};
+
+const adapterFactory = {
+    createDebugAdapterDescriptor() {
+        if (!rapidr.path) throw new Error('RapidR was not found: set rapidr.path, or install RapidR (' + DOWNLOAD_URL + ').');
+        return new vscode.DebugAdapterExecutable(rapidr.path, ['dap']);
+    },
+};
+
+// ---------------------------------------------------------------- activation
+
+async function activate(context) {
+    output = vscode.window.createOutputChannel('RapidR Language Server');
+    status = vscode.window.createStatusBarItem('rapidr.status', vscode.StatusBarAlignment.Left, 50);
+    status.name = 'RapidR';
+    status.command = 'rapidr.showCommands';
+    // ($INCLUDE files changed outside the editor: one watcher for every client)
+    watcher = vscode.workspace.createFileSystemWatcher('**/*.{rr,bas,inc,RR,BAS,INC}');
+    context.subscriptions.push(output, status, watcher);
+
+    const command = (id, fn) => context.subscriptions.push(vscode.commands.registerCommand(id, fn));
+    command('rapidr.run', runCommand);
+    command('rapidr.debug', debugCommand);
+    command('rapidr.buildNative', buildNativeCommand);
+    command('rapidr.buildStandalone', buildStandaloneCommand);
+    command('rapidr.bundleWeb', bundleWebCommand);
+    command('rapidr.restartServer', async () => {
+        await stopServer();
+        await resolveRapidr();
+        if (!rapidr.path) return notifyMissing(true);
+        return startServer().catch(() => {});
     });
+    command('rapidr.showOutput', () => output.show(true));
+    command('rapidr.locate', locateRapidr);
+    command('rapidr.showCommands', showCommands);
+
+    context.subscriptions.push(
+        vscode.debug.registerDebugConfigurationProvider(LANGUAGE, configurationProvider),
+        vscode.debug.registerDebugConfigurationProvider(LANGUAGE, dynamicConfigurationProvider, vscode.DebugConfigurationProviderTriggerKind.Dynamic),
+        vscode.debug.registerDebugAdapterDescriptorFactory(LANGUAGE, adapterFactory),
+        vscode.window.onDidChangeActiveTextEditor(updateStatus),
+        vscode.workspace.onDidOpenTextDocument(updateStatus),
+        vscode.workspace.onDidChangeConfiguration(async (e) => {
+            if (e.affectsConfiguration('rapidr.path')) {
+                await stopServer();
+                await resolveRapidr();
+                if (rapidr.path) startServer().catch(() => {});
+                else notifyMissing(true);
+            } else if (e.affectsConfiguration('rapidr.rapidqCompatible')) {
+                restartServer().catch(() => {});
+            }
+        }),
+        vscode.workspace.onDidGrantWorkspaceTrust(async () => {
+            if (rapidr.path) return;
+            await resolveRapidr();
+            if (rapidr.path) startServer().catch(() => {});
+        }),
+    );
+
+    await resolveRapidr();
+    if (rapidr.path) startServer().catch(() => {});
+    else notifyMissing(false);
+
+    // (for the tests, and for other extensions)
+    return {
+        rapidr: () => ({ ...rapidr }),
+        whenServerReady: () => serverReady,
+        languageClient: () => client,
+    };
 }
 
-function compileWeb(serve) {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor || editor.document.languageId !== 'rapidr') {
-        vscode.window.showWarningMessage('No RapidR file is open.');
-        return;
-    }
-    editor.document.save().then(() => {
-        const path = require('path');
-        const filePath = editor.document.uri.fsPath;
-        const compilerPath = findCompilerPath();
-        const baseName = path.basename(filePath, path.extname(filePath));
-        const webDir = path.join(path.dirname(filePath), baseName + '_web');
-
-        let cmd = `"${compilerPath}" --web "${filePath}"`;
-        if (serve) {
-            const config = vscode.workspace.getConfiguration('rapidr');
-            const port = config.get('webServerPort') || 8080;
-            cmd += ` && echo "\\nServing at http://localhost:${port}" && python3 -m http.server -d "${webDir}" ${port}`;
-        }
-
-        const terminal = vscode.window.createTerminal({ name: 'RapidR Web' });
-        terminal.sendText(cmd);
-        terminal.show();
-
-        if (serve) {
-            const config = vscode.workspace.getConfiguration('rapidr');
-            const port = config.get('webServerPort') || 8080;
-            // Open browser after a short delay to let the server start
-            setTimeout(() => {
-                vscode.env.openExternal(vscode.Uri.parse(`http://localhost:${port}`));
-            }, 3000);
-        }
-    });
+function deactivate() {
+    return stopServer();
 }
-
-function validateDocument(document, diagnostics) {
-    const text = document.getText();
-    const lines = text.split('\n');
-    const diags = [];
-    const blockStack = [];
-
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const trimmed = line.trim();
-        const upper = trimmed.toUpperCase();
-
-        // Skip comments and empty lines
-        if (!trimmed || upper.startsWith("'") || upper.startsWith('REM ') || upper === 'REM') {
-            continue;
-        }
-        // Skip directives
-        if (trimmed.startsWith('$')) continue;
-
-        // Track block structures for mismatched END detection
-        if (/^(IF\b.*\bTHEN\s*$)/i.test(trimmed)) {
-            blockStack.push({ type: 'IF', line: i });
-        } else if (/^FOR\b/i.test(upper)) {
-            blockStack.push({ type: 'FOR', line: i });
-        } else if (/^WHILE\b/i.test(upper)) {
-            blockStack.push({ type: 'WHILE', line: i });
-        } else if (/^DO\b/i.test(upper)) {
-            blockStack.push({ type: 'DO', line: i });
-        } else if (/^SUB\b/i.test(upper)) {
-            blockStack.push({ type: 'SUB', line: i });
-        } else if (/^FUNCTION\b/i.test(upper)) {
-            blockStack.push({ type: 'FUNCTION', line: i });
-        } else if (/^SELECT\s+CASE\b/i.test(upper)) {
-            blockStack.push({ type: 'SELECT', line: i });
-        } else if (/^TYPE\b/i.test(upper)) {
-            blockStack.push({ type: 'TYPE', line: i });
-        } else if (/^CREATE\b/i.test(upper)) {
-            blockStack.push({ type: 'CREATE', line: i });
-        } else if (/^WITH\b/i.test(upper)) {
-            blockStack.push({ type: 'WITH', line: i });
-        }
-
-        // Pop blocks
-        if (/^END\s+IF\b/i.test(upper)) {
-            if (blockStack.length > 0 && blockStack[blockStack.length - 1].type === 'IF') {
-                blockStack.pop();
-            }
-        } else if (/^NEXT\b/i.test(upper)) {
-            if (blockStack.length > 0 && blockStack[blockStack.length - 1].type === 'FOR') {
-                blockStack.pop();
-            }
-        } else if (/^WEND\b/i.test(upper)) {
-            if (blockStack.length > 0 && blockStack[blockStack.length - 1].type === 'WHILE') {
-                blockStack.pop();
-            }
-        } else if (/^LOOP\b/i.test(upper)) {
-            if (blockStack.length > 0 && blockStack[blockStack.length - 1].type === 'DO') {
-                blockStack.pop();
-            }
-        } else if (/^END\s+SUB\b/i.test(upper)) {
-            if (blockStack.length > 0 && blockStack[blockStack.length - 1].type === 'SUB') {
-                blockStack.pop();
-            }
-        } else if (/^END\s+FUNCTION\b/i.test(upper)) {
-            if (blockStack.length > 0 && blockStack[blockStack.length - 1].type === 'FUNCTION') {
-                blockStack.pop();
-            }
-        } else if (/^END\s+SELECT\b/i.test(upper)) {
-            if (blockStack.length > 0 && blockStack[blockStack.length - 1].type === 'SELECT') {
-                blockStack.pop();
-            }
-        } else if (/^END\s+TYPE\b/i.test(upper)) {
-            if (blockStack.length > 0 && blockStack[blockStack.length - 1].type === 'TYPE') {
-                blockStack.pop();
-            }
-        } else if (/^END\s+CREATE\b/i.test(upper)) {
-            if (blockStack.length > 0 && blockStack[blockStack.length - 1].type === 'CREATE') {
-                blockStack.pop();
-            }
-        } else if (/^END\s+WITH\b/i.test(upper)) {
-            if (blockStack.length > 0 && blockStack[blockStack.length - 1].type === 'WITH') {
-                blockStack.pop();
-            }
-        }
-
-        // Check for unclosed strings
-        const inString = (trimmed.split('"').length - 1) % 2 !== 0;
-        if (inString) {
-            // Check it's not just in a comment
-            const commentIdx = trimmed.indexOf("'");
-            const firstQuote = trimmed.indexOf('"');
-            if (commentIdx === -1 || firstQuote < commentIdx) {
-                diags.push(new vscode.Diagnostic(
-                    new vscode.Range(i, 0, i, line.length),
-                    'Unterminated string literal',
-                    vscode.DiagnosticSeverity.Error
-                ));
-            }
-        }
-    }
-
-    // Report unclosed blocks
-    for (const block of blockStack) {
-        const endKeyword = block.type === 'FOR' ? 'NEXT' : block.type === 'WHILE' ? 'WEND' : block.type === 'DO' ? 'LOOP' : `END ${block.type}`;
-        diags.push(new vscode.Diagnostic(
-            new vscode.Range(block.line, 0, block.line, lines[block.line].length),
-            `Unclosed ${block.type} block — missing ${endKeyword}`,
-            vscode.DiagnosticSeverity.Warning
-        ));
-    }
-
-    diagnostics.set(document.uri, diags);
-}
-
-// ---- Phase 7: bytecode pipeline helpers ----
-
-function bcCommand(subcommand) {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor || editor.document.languageId !== 'rapidr') {
-        vscode.window.showWarningMessage('No RapidR file is open.');
-        return;
-    }
-    editor.document.save().then(() => {
-        const filePath = editor.document.uri.fsPath;
-        const compilerPath = findCompilerPath();
-        const cmd = `"${compilerPath}" ${subcommand} "${filePath}"`;
-        const terminal = vscode.window.createTerminal({ name: `RapidR ${subcommand}` });
-        terminal.sendText(cmd);
-        terminal.show();
-    });
-}
-
-function bcRunCommand() {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor || editor.document.languageId !== 'rapidr') {
-        vscode.window.showWarningMessage('No RapidR file is open.');
-        return;
-    }
-    editor.document.save().then(() => {
-        const path = require('path');
-        const filePath = editor.document.uri.fsPath;
-        const compilerPath = findCompilerPath();
-        const stem = path.basename(filePath, path.extname(filePath));
-        const dir = path.dirname(filePath);
-        const rrbc = path.join(dir, `${stem}.rrbc`);
-        // Compile to bytecode (placed next to source) then run it.
-        const cmd = `"${compilerPath}" build-bc "${filePath}" -o "${rrbc}" && "${compilerPath}" run-bc "${rrbc}"`;
-        const terminal = vscode.window.createTerminal({ name: 'RapidR run-bc' });
-        terminal.sendText(cmd);
-        terminal.show();
-    });
-}
-
-// `rapidr build <file> --interp [--web]` — single self-contained
-// native exe (desktop) or static web bundle .zip (web).
-function interpBuildCommand(web) {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor || editor.document.languageId !== 'rapidr') {
-        vscode.window.showWarningMessage('No RapidR file is open.');
-        return;
-    }
-    editor.document.save().then(() => {
-        const filePath = editor.document.uri.fsPath;
-        const compilerPath = findCompilerPath();
-        const flags = web ? '--web --interp' : '--interp';
-        const label = web ? 'RapidR build --web --interp' : 'RapidR build --interp';
-        const cmd = `"${compilerPath}" build "${filePath}" ${flags}`;
-        const terminal = vscode.window.createTerminal({ name: label });
-        terminal.sendText(cmd);
-        terminal.show();
-    });
-}
-
-function deactivate() {}
 
 module.exports = { activate, deactivate };

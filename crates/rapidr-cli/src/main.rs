@@ -19,7 +19,7 @@ use home::Home;
 
 /// The subcommands (a first argument that is one isn't a file).
 const SUBCOMMANDS: &[&str] = &[
-    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "__dialog",
+    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "lsp", "dap", "__debuggee", "__dialog",
 ];
 
 /// `--log <file> <command…>`: this rapidr again with the command, its
@@ -119,6 +119,9 @@ fn main() -> ExitCode {
         (Some("setup"), _) => setup::setup(&args[1..]),
         (Some("notices"), _) => notices::command(&args[1..]),
         (Some("__dialog"), Some(path)) => launch::run_dialog(&path),
+        (Some("lsp"), _) => rapidr_lsp::run_stdio(),
+        (Some("dap"), _) => rapidr_dap::run_stdio(),
+        (Some("__debuggee"), Some(_)) => rapidr_dap::debuggee_main(&args[1..]),
         (Some("parse"), Some(path)) => parse_source_file(&path),
         (Some("preprocess"), Some(path)) => preprocess_source_file(&path),
         (Some("lex"), Some(path)) => lex_source_file(&path),
@@ -200,6 +203,8 @@ fn main() -> ExitCode {
             eprintln!("  rapidr ide [file.rr]                             The IDE");
             eprintln!("  rapidr examples [copy <name|all> [folder]]       The example programs: listed, or copied to a folder");
             eprintln!("  rapidr notices [<os>-<arch>|web|tools-<os>] [-o FILE]  The third-party notices builds carry");
+            eprintln!("  rapidr lsp                                       The language server (LSP, stdio): editors' IntelliSense");
+            eprintln!("  rapidr dap                                       The debug adapter (DAP, stdio): editors' debugger");
             eprintln!("  rapidr about");
             eprintln!("  rapidr [--release|--debug] [--web] [--interp] <file.rr>  Build source file");
             eprintln!("  rapidr parse <file.rr>");

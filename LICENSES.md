@@ -16,6 +16,11 @@ has the details per output.
 If you redistribute RapidR itself, keep this file, `THIRD_PARTY_NOTICES.md`
 and `THIRD-PARTY-NOTICES.txt` (in an install's `share/doc/rapidr/`) with it.
 
+The VS Code extension (`rapidr-<version>.vsix`, MIT) carries its own
+`THIRD_PARTY_NOTICES.md`: the JavaScript packages bundled into it
+(`vscode-languageclient` and its dependencies, MIT / ISC), with their licence
+texts (`utilities/vscodeext/rapidr/scripts/notices.js` makes it).
+
 ---
 
 ## 1. Monaco Editor 0.52.2 — MIT License

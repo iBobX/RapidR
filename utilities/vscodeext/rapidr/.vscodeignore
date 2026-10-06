@@ -1,3 +1,14 @@
-.vscode/**
-.git/**
-*.vsix
+# What the .vsix leaves out: it carries dist/extension.js (the bundle), the
+# grammar, snippets, language configuration, images, README, CHANGELOG,
+# LICENSE and THIRD_PARTY_NOTICES.md. `npx @vscode/vsce ls` lists it.
+**
+!package.json
+!dist/extension.js
+!syntaxes/**
+!snippets/**
+!language-configuration.json
+!images/**
+!README.md
+!CHANGELOG.md
+!LICENSE
+!THIRD_PARTY_NOTICES.md

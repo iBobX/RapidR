@@ -18,9 +18,9 @@ Symbols and Symbols 2, Noto Sans SC and KR), all under the SIL Open Font
 License 1.1. The Noto fonts' chunks ship beside the web runtime with
 their `OFL.txt`.
 
-**570 libraries** under 22 license expressions.
+**573 libraries** under 22 license expressions.
 
-## Apache-2.0 OR MIT (327)
+## Apache-2.0 OR MIT (328)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -171,6 +171,7 @@ their `OFL.txt`.
 | litrs | 1.0.0 | <https://github.com/LukasKalbertodt/litrs> |
 | lock_api | 0.4.14 | <https://github.com/Amanieu/parking_lot> |
 | log | 0.4.29 | <https://github.com/rust-lang/log> |
+| lsp-server | 0.10.0 | <https://github.com/rust-lang/rust-analyzer/tree/master/lib/lsp-server> |
 | memmap2 | 0.9.10 | <https://github.com/RazrFalcon/memmap2-rs> |
 | mime | 0.3.17 | <https://github.com/hyperium/mime> |
 | muda | 0.21.0 | <https://github.com/tauri-apps/muda> |
@@ -352,7 +353,7 @@ their `OFL.txt`.
 | x11rb | 0.13.2 | <https://github.com/psychon/x11rb> |
 | x11rb-protocol | 0.13.2 | <https://github.com/psychon/x11rb> |
 
-## MIT (131)
+## MIT (133)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -380,6 +381,7 @@ their `OFL.txt`.
 | drm-sys | 0.8.1 | <https://github.com/Smithay/drm-rs> |
 | endi | 1.1.1 | <https://github.com/zeenix/endi> |
 | float-cmp | 0.9.0 | <https://github.com/mikedilger/float-cmp> |
+| fluent-uri | 0.1.4 | <https://github.com/yescallop/fluent-uri-rs> |
 | generic-array | 0.14.7 | <https://github.com/fizyk20/generic-array.git> |
 | harfrust | 0.12.0 | <https://github.com/harfbuzz/harfrust> |
 | http-body | 1.0.1 | <https://github.com/hyperium/http-body> |
@@ -393,6 +395,7 @@ their `OFL.txt`.
 | libsqlite3-sys | 0.38.2 | <https://github.com/rusqlite/rusqlite> |
 | libudev-sys | 0.1.4 | <https://github.com/dcuddeback/libudev-sys> |
 | lru | 0.18.5 | <https://github.com/jeromefroe/lru-rs.git> |
+| lsp-types | 0.97.0 | <https://github.com/gluon-lang/lsp-types> |
 | memoffset | 0.9.1 | <https://github.com/Gilnaa/memoffset> |
 | midir | 0.11.0 | <https://github.com/Boddlnagg/midir> |
 | mime_guess | 2.0.5 | <https://github.com/abonander/mime_guess> |
