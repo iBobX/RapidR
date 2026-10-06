@@ -7,7 +7,7 @@ rapidq = "QMIDI"
 from = "QMidi.inc"
 visual = false
 default_event = "OnChange"
-doc = ""
+doc = "Plays a standard MIDI file (QMidi.inc) on the system's MIDI output, or on RapidR's own synthesizer where there is none."
 properties = [
   { name = "Timer", type = "component", kinds = ["QTIMER"] },
   { name = "Lenght", type = "int", access = "read", design = false },
@@ -18,8 +18,8 @@ properties = [
   { name = "Volume", type = "int", default = 0 },
   { name = "Interval", type = "int", origin = "rapidr" },
   { name = "Enabled", type = "int", origin = "rapidr" },
-  { name = "Length", type = "int", indexed = 1, design = false, origin = "rapidr" },
-  { name = "Lengthtime", type = "string", origin = "rapidr" },
+  { name = "Length", type = "int", origin = "rapidr" },
+  { name = "LengthTime", type = "string", origin = "rapidr" },
   { name = "Position", type = "int", origin = "rapidr" },
 ]
 methods = [
@@ -39,7 +39,7 @@ rapidq = "QWAVE"
 from = "QWave.inc"
 visual = false
 default_event = "OnChange"
-doc = ""
+doc = "Plays, records and saves WAV sound (QWave.inc)."
 properties = [
   { name = "Timer", type = "component", kinds = ["QTIMER"] },
   { name = "Lenght", type = "int", access = "read", design = false },
@@ -54,8 +54,8 @@ properties = [
   { name = "DeviceType", type = "string" },
   { name = "Interval", type = "int", origin = "rapidr" },
   { name = "Enabled", type = "int", origin = "rapidr" },
-  { name = "Length", type = "int", indexed = 1, design = false, origin = "rapidr" },
-  { name = "Lengthtime", type = "string", origin = "rapidr" },
+  { name = "Length", type = "int", origin = "rapidr" },
+  { name = "LengthTime", type = "string", origin = "rapidr" },
   { name = "Position", type = "int", origin = "rapidr" },
 ]
 methods = [
@@ -80,8 +80,7 @@ from = "QVideo.inc"
 visual = true
 size = [0, 0]
 default_event = "OnChange"
-sets = ["layout", "a11y"]
-doc = ""
+doc = "Plays an AVI video with its sound (QVideo.inc), on a form or in a window of its own."
 properties = [
   { name = "Timer", type = "component", kinds = ["QTIMER"] },
   { name = "Lenght", type = "int", access = "read", design = false },
@@ -105,8 +104,8 @@ properties = [
   { name = "Volume", type = "int", default = 0 },
   { name = "Interval", type = "int", origin = "rapidr" },
   { name = "Enabled", type = "int", origin = "rapidr" },
-  { name = "Length", type = "int", indexed = 1, design = false, origin = "rapidr" },
-  { name = "Lengthtime", type = "int", origin = "rapidr" },
+  { name = "Length", type = "int", origin = "rapidr" },
+  { name = "LengthTime", type = "int", origin = "rapidr" },
   { name = "Position", type = "int", origin = "rapidr" },
 ]
 methods = [
@@ -127,7 +126,7 @@ rapidq = "QCDAUDIO"
 from = "Qcdaudio.inc"
 visual = false
 default_event = "OnChange"
-doc = ""
+doc = "Plays audio CDs (Qcdaudio.inc). RapidR answers as a computer with no CD drive."
 properties = [
   { name = "Timer", type = "component", kinds = ["QTIMER"] },
   { name = "Time", type = "string", access = "read", design = false },
@@ -141,8 +140,7 @@ properties = [
   { name = "Error", type = "string", access = "read", design = false },
   { name = "Interval", type = "int", origin = "rapidr" },
   { name = "Enabled", type = "int", origin = "rapidr" },
-  { name = "Length", type = "int", indexed = 1, design = false, origin = "rapidr" },
-  { name = "Lengthtime", type = "string", origin = "rapidr" },
+  { name = "LengthTime", type = "string", origin = "rapidr" },
   { name = "Position", type = "int" },
 ]
 methods = [

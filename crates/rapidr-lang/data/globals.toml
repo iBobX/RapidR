@@ -4,24 +4,24 @@
 [[object]]
 name = "Screen"
 kind = "global"
-doc = ""
+doc = "The screen: its size and work area, the mouse's position, the monitors, the mouse cursor shown, and its density (`Scale`)."
 properties = [
   { name = "ConsoleX", type = "int", access = "read" },
   { name = "ConsoleY", type = "int", access = "read" },
-  { name = "Cursors", type = "int", indexed = 1, access = "read" },
+  { name = "Cursors", type = "int", access = "read", indexed = 1 },
   { name = "Height", type = "int", access = "read" },
   { name = "MouseX", type = "int", access = "read" },
   { name = "MouseY", type = "int", access = "read" },
   { name = "Width", type = "int", access = "read" },
   { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"] },
-  { name = "ClientHeight", type = "int", from = "RAPIDQ2.INC", access = "read" },
-  { name = "ClientWidth", type = "int", from = "RAPIDQ2.INC", access = "read" },
-  { name = "Monitors", type = "int", from = "RAPIDQ2.INC", access = "read" },
-  { name = "MouseButtons", type = "int", from = "RAPIDQ2.INC", access = "read" },
-  { name = "MousePresent", type = "int", from = "RAPIDQ2.INC", access = "read" },
-  { name = "MouseSwap", type = "int", from = "RAPIDQ2.INC", access = "read" },
-  { name = "PixelsPerInch", type = "int", origin = "rapidr", access = "read" },
-  { name = "Scale", type = "int", origin = "rapidr", access = "read" },
+  { name = "ClientHeight", type = "int", access = "read", from = "RAPIDQ2.INC" },
+  { name = "ClientWidth", type = "int", access = "read", from = "RAPIDQ2.INC" },
+  { name = "Monitors", type = "int", access = "read", from = "RAPIDQ2.INC" },
+  { name = "MouseButtons", type = "int", access = "read", from = "RAPIDQ2.INC" },
+  { name = "MousePresent", type = "int", access = "read", from = "RAPIDQ2.INC" },
+  { name = "MouseSwap", type = "int", access = "read", from = "RAPIDQ2.INC" },
+  { name = "PixelsPerInch", type = "int", access = "read", origin = "rapidr" },
+  { name = "Scale", type = "float", access = "read", origin = "rapidr" },
 ]
 methods = [
   { name = "GetPixelDepth", from = "RAPIDQ2.INC" },
@@ -31,7 +31,7 @@ events = []
 [[object]]
 name = "Application"
 kind = "global"
-doc = ""
+doc = "The running program: its file and folder, title, icon, hint settings, RapidR's Theme, and Terminate to end it."
 properties = [
   { name = "ExeName", type = "string", access = "read" },
   { name = "Handle", type = "int", access = "read" },
@@ -44,8 +44,8 @@ properties = [
   { name = "IcoHandle", type = "resource", access = "write" },
   { name = "ShowHint", type = "bool" },
   { name = "Title", type = "string" },
-  { name = "Path", type = "int", access = "read" },
-  { name = "Theme", type = "int", origin = "rapidr" },
+  { name = "Path", type = "string", access = "read" },
+  { name = "Theme", type = "string", origin = "rapidr" },
 ]
 methods = [
   { name = "HelpCommand", params = "Command AS WORD, Data AS LONG", missing = true },
@@ -61,7 +61,7 @@ events = []
 [[object]]
 name = "Clipboard"
 kind = "global"
-doc = ""
+doc = "The clipboard: its text and the formats on it (the system's clipboard on the desktop)."
 properties = [
   { name = "Format", type = "int", indexed = 1 },
   { name = "FormatCount", type = "int", access = "read" },
@@ -83,7 +83,7 @@ events = []
 name = "Mouse"
 kind = "global"
 origin = "rapidr"
-doc = ""
+doc = "The mouse pointer's position on the screen (X, Y). RapidR's own."
 properties = [
   { name = "X", type = "int", access = "read" },
   { name = "Y", type = "int", access = "read" },
@@ -94,7 +94,7 @@ events = []
 [[object]]
 name = "FileRec"
 kind = "global"
-doc = ""
+doc = "What the last DIR$ found: the file's name, short name, date, time and size."
 properties = [
   { name = "FileName", type = "string", access = "read" },
   { name = "ShortName", type = "string", access = "read" },
@@ -110,7 +110,7 @@ events = []
 name = "Printer"
 kind = "global"
 instance_of = "RPRINTER"
-doc = ""
+doc = "The printer, ready to use (a QPRINTER): each document becomes a PDF sent to the system's printer, or the browser's print dialog on the web."
 properties = []
 methods = []
 events = []

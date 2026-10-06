@@ -9,12 +9,17 @@ names what that site answers. SITES says which components each site serves
 builtins, internal keys).
 
     python3 tools/lang_dispatch.py            the sites and their names, as JSON
-    python3 tools/lang_dispatch.py --check    every site is in SITES (exit 1 if not)
+    python3 tools/lang_dispatch.py --check    the language registry's reverse check (exit 1
+                                              naming what fails): every site is in SITES,
+                                              and every name a site answers is a member,
+                                              in crates/rapidr-lang/data, of a component
+                                              it serves (of some component, for "*")
 
-Used by crates/rapidr-lang's reverse check (tests/reverse.rs runs it) and
-by tools/lang_seed.py. Plain text matching, no Rust parser: a site is a
-`match <prop|method|…> {` block; its names are the string patterns of its
-arms (`"caption" | "text" =>`).
+`tools/regress.sh unit` runs the check; tools/lang_seed.py used the sites
+to seed the registry. Plain text matching, no Rust parser: a site is a
+`match <prop|method|…> {` block, its names the string patterns of its arms
+(`"caption" | "text" =>`); a tuple arm names its component itself
+(`("RWEBSTORAGE", "get") =>`, `("screen", "width")`).
 """
 
 import glob
@@ -120,6 +125,7 @@ SITES = {
     ("crates/rapidr-value/src/objects/font.rs", "*"): "RFONT",
     ("crates/rapidr-value/src/objects/glass.rs", "*"): "RGLASSFRAME",
     ("crates/rapidr-value/src/objects/grid.rs", "*"): "RSTRINGGRID",
+    ("crates/rapidr-value/src/objects/header.rs", "call", "member"): "HEADERSECTION",
     ("crates/rapidr-value/src/objects/header.rs", "*"): "RHEADER",
     ("crates/rapidr-value/src/objects/imagelist.rs", "*"): "RIMAGELIST",
     ("crates/rapidr-value/src/objects/joystick.rs", "*"): "RDXJOYSTICK",
@@ -134,6 +140,7 @@ SITES = {
     ("crates/rapidr-value/src/objects/tabcontrol.rs", "*"): "RTABCONTROL",
     ("crates/rapidr-value/src/objects/textedit.rs", "*"): TEXTS,
     ("crates/rapidr-value/src/objects/trackbar.rs", "*"): "RTRACKBAR",
+    ("crates/rapidr-value/src/objects/tree.rs", "item"): "TREENODE",
     ("crates/rapidr-value/src/objects/tree.rs", "*"): "RTREEVIEW",
 }
 
@@ -182,26 +189,115 @@ def sites():
                     depth -= 1
                 j += 1
             block = body_src[i:j]
-            arms = re.findall(r'^\s*((?:"[^"\n]+"\s*\|\s*)*"[^"\n]+")\s*(?:if [^\n]*)?=>', block, re.M)
-            names = [n for a in arms for n in re.findall(r'"([^"]+)"', a)]
+            # (this match's own arms only: not those of a match inside an arm)
+            names = []
+            depth = 0
+            for text in block.split("\n"):
+                if depth == 0:
+                    a = re.match(r'^\s*((?:"[^"\n]+"\s*\|\s*)*"[^"\n]+")\s*(?:if [^\n]*)?=>', text)
+                    if a:
+                        names += re.findall(r'"([^"]+)"', a.group(1))
+                code = re.sub(r'"(?:[^"\\]|\\.)*"', '""', text)
+                code = re.sub(r"'(?:[^'\\]|\\.)'", "''", code)
+                depth += code.count("{") + code.count("(") - code.count("}") - code.count(")")
             if not names:
                 continue
             impl, fn = enclosing(body_src, m.start())
             line = body_src[: m.start()].count("\n") + 1
-            serves = SITES.get((rel, impl)) or SITES.get((rel, fn)) or SITES.get((rel, "*"))
+            serves = SITES.get((rel, fn, var)) or SITES.get((rel, fn)) or SITES.get((rel, impl)) or SITES.get((rel, "*"))
             kind = "method" if var in ("method", "method_lower", "m", "lmethod") or (fn or "").endswith(("call", "method")) else "prop"
             out.append({"file": rel, "line": line, "fn": fn, "impl": impl, "var": var, "kind": kind, "serves": serves, "names": names})
     return out
 
 
+def tuple_sites():
+    """`("RTYPE", "member" | …) =>` arms: their component and names."""
+    out = []
+    pat = re.compile(r'\(\s*"(R[A-Z0-9]+|screen|application|clipboard|mouse|filerec)"\s*,\s*((?:"[a-z0-9_.]+"\s*\|\s*)*"[a-z0-9_.]+")\s*\)\s*(?:if [^\n]*)?=>')
+    for path in sources():
+        rel = os.path.relpath(path, ROOT)
+        src = open(path, encoding="utf-8").read()
+        cut = src.find("#[cfg(test)]")
+        src = src if cut < 0 else src[:cut]
+        for m in pat.finditer(src):
+            who = m.group(1)
+            out.append({"file": rel, "line": src[: m.start()].count("\n") + 1, "serves": who if who.startswith("R") else who.capitalize(),
+                        "names": re.findall(r'"([^"]+)"', m.group(2))})
+    return out
+
+
+def registry():
+    """{component or global object name: {lower-case member names}}, from crates/rapidr-lang/data."""
+    import tomllib
+    data = os.path.join(ROOT, "crates", "rapidr-lang", "data")
+    sets = {s["name"]: s for s in tomllib.load(open(os.path.join(data, "sets.toml"), "rb"))["set"]}
+    tables = []
+    for f in glob.glob(os.path.join(data, "components", "*.toml")):
+        tables += tomllib.load(open(f, "rb"))["component"]
+    tables += tomllib.load(open(os.path.join(data, "globals.toml"), "rb"))["object"]
+    tables += tomllib.load(open(os.path.join(data, "items.toml"), "rb"))["object"]
+    out = {}
+    for c in tables:
+        names = {m["name"].lower() for k in ("properties", "methods", "events") for m in c.get(k, [])}
+        for st in c.get("sets", []):
+            names |= {m["name"].lower() for k in ("properties", "methods", "events") for m in sets[st].get(k, [])}
+        out[c["name"].upper()] = names
+    return out
+
+
+# Names the runtimes match on that are deliberately no component's member:
+# what they keep for themselves, other spellings of a member, and the
+# desktop's catch-all stubs (gui_generic_method: no-ops any component
+# accepts, so a RapidQ program calling them on the wrong one runs on).
+NOT_MEMBERS = {
+    "items": "the generic list store's key (Item(i) is the member)",
+    "focus": "SetFocus's other spelling",
+    "copy": "a no-op stub (a text control's is CopyToClipboard)",
+    "paste": "a no-op stub (a text control's is PasteFromClipboard)",
+    "cut": "a no-op stub (a text control's is CutToClipboard)",
+    "getpixel": "a no-op drawing stub (a picture's is Pixel)",
+    "loadimage": "a no-op drawing stub (a picture's is LoadFromFile)",
+    "saveimage": "a no-op drawing stub (a picture's is SaveToFile)",
+}
+
+
+def check():
+    problems = []
+    reg = registry()
+    every = set().union(*reg.values())
+    for s in sites():
+        where = f"{s['file']}:{s['line']} (fn {s['fn']})"
+        if s["serves"] is None:
+            problems.append(f"{where}: a dispatch site missing from SITES (tools/lang_dispatch.py)")
+            continue
+        if s["serves"] == "-":
+            continue
+        serves = s["serves"].split()
+        for n in s["names"]:
+            if not re.match(r"^[a-z][a-z0-9_]*$", n) or n in NOT_MEMBERS:
+                continue
+            if serves == ["*"]:
+                if n not in every:
+                    problems.append(f"{where}: `{n}` is no component's member in the registry")
+            elif not any(n in reg.get(c.upper(), ()) for c in serves):
+                problems.append(f"{where}: `{n}` isn't a member of {' / '.join(serves)} in the registry")
+    for t in tuple_sites():
+        for n in t["names"]:
+            if "." in n or n in NOT_MEMBERS:
+                continue
+            if n not in reg.get(t["serves"].upper(), ()):
+                problems.append(f"{t['file']}:{t['line']}: `{n}` isn't a member of {t['serves']} in the registry")
+    return problems
+
+
 def main():
-    found = sites()
     if "--check" in sys.argv[1:]:
-        unmapped = [f"{s['file']}:{s['line']} (fn {s['fn']}, impl {s['impl']})" for s in found if s["serves"] is None]
-        if unmapped:
-            sys.exit("lang_dispatch: dispatch sites missing from SITES:\n  " + "\n  ".join(unmapped))
+        problems = check()
+        if problems:
+            sys.exit(f"lang_dispatch: {len(problems)} names the runtimes answer aren't in the language registry:\n  " + "\n  ".join(problems))
+        print("lang_dispatch: every name the runtimes answer is in the language registry")
         return
-    json.dump(found, sys.stdout, indent=1)
+    json.dump(sites(), sys.stdout, indent=1)
 
 
 if __name__ == "__main__":

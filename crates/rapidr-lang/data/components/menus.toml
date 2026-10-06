@@ -5,7 +5,7 @@ group = "Menus"
 name = "RMAINMENU"
 rapidq = "QMAINMENU"
 visual = false
-doc = ""
+doc = "A form's menu bar; its menus and commands are QMENUITEMs."
 properties = [
   { name = "Handle", type = "int", access = "read", design = false },
   { name = "Parent", type = "component", kinds = ["QFORM"], access = "write", design = false },
@@ -17,7 +17,7 @@ methods = [
   { name = "DelItems", params = "Items ..." },
   { name = "Insert", params = "I AS INTEGER, Item AS QMENUITEM" },
   { name = "Add", origin = "rapidr" },
-  { name = "Clear", origin = "rapidr", value = true },
+  { name = "Clear", value = true, origin = "rapidr" },
 ]
 events = []
 
@@ -26,7 +26,7 @@ name = "RMENUITEM"
 rapidq = "QMENUITEM"
 visual = false
 default_event = "OnClick"
-doc = ""
+doc = "One menu entry: a command (OnClick), a checkable option, a separator (\"-\") or a submenu holding more items."
 properties = [
   { name = "Caption", type = "string" },
   { name = "Checked", type = "int" },
@@ -47,7 +47,7 @@ methods = [
   { name = "DelIndex", params = "index AS LONG" },
   { name = "DelItems", params = "Items ..." },
   { name = "Insert", params = "I AS INTEGER, Item AS QMENUITEM" },
-  { name = "Clear", origin = "rapidr", value = true },
+  { name = "Clear", value = true, origin = "rapidr" },
   { name = "Add", origin = "rapidr" },
 ]
 events = [
@@ -59,7 +59,7 @@ name = "RPOPUPMENU"
 rapidq = "QPOPUPMENU"
 visual = false
 default_event = "OnPopup"
-doc = ""
+doc = "A context menu, shown when the user right-clicks a component whose PopupMenu it is, or by Popup."
 properties = [
   { name = "Alignment", type = "enum", values = ["taLeftJustify", "taRightJustify", "taCenter"] },
   { name = "AutoPopup", type = "bool", default = true },
@@ -74,8 +74,8 @@ methods = [
   { name = "DelItems", params = "Items ..." },
   { name = "Insert", params = "I AS INTEGER, Item AS QMENUITEM" },
   { name = "Popup", params = "X AS INTEGER, Y AS INTEGER" },
-  { name = "AddItem", origin = "rapidr", value = true },
-  { name = "Clear", origin = "rapidr", value = true },
+  { name = "AddItem", value = true, origin = "rapidr" },
+  { name = "Clear", value = true, origin = "rapidr" },
   { name = "Add", origin = "rapidr" },
 ]
 events = [

@@ -4,15 +4,15 @@
 [[group]]
 name = "Truth values"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "The value of false, for flags and comparisons."
 constants = [
   ["False", 0],
 ]
 
 [[group]]
-name = "True"
+name = "Truth values"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "The value of true as RAPIDQ.INC defines it: 1 (a comparison itself gives -1)."
 constants = [
   ["True", 1],
 ]
@@ -20,7 +20,7 @@ constants = [
 [[group]]
 name = "PLAYWAV options"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Options for `PLAYWAV`: wait for the sound to end, play it in the background, or repeat it."
 constants = [
   ["SND_SYNC", 0],
   ["SND_ASYNC", 1],
@@ -30,7 +30,7 @@ constants = [
 [[group]]
 name = "Colours"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods."
 constants = [
   ["clBlack", 0],
   ["clMaroon", 128],
@@ -63,7 +63,7 @@ constants = [
 [[group]]
 name = "Modal results"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Results of a form shown with ShowModal, and a button's ModalResult that closes the form with it."
 constants = [
   ["mrNone", 0],
   ["mrOk", 1],
@@ -79,7 +79,7 @@ constants = [
 [[group]]
 name = "Message box buttons and icons"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Flags for `MESSAGEBOX`: which buttons it shows, added to the icon it shows."
 constants = [
   ["MB_OK", 0],
   ["MB_OKCANCEL", 1],
@@ -98,57 +98,57 @@ constants = [
 ]
 
 [[group]]
-name = "IDOK"
+name = "Message box results"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "What `MESSAGEBOX` returns: the button the user chose."
 constants = [
   ["IDOK", 1],
 ]
 
 [[group]]
-name = "IDCANCEL"
+name = "Message box results"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "What `MESSAGEBOX` returns: the button the user chose."
 constants = [
   ["IDCANCEL", 2],
 ]
 
 [[group]]
-name = "IDABORT"
+name = "Message box results"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "What `MESSAGEBOX` returns: the button the user chose."
 constants = [
   ["IDABORT", 3],
 ]
 
 [[group]]
-name = "IDRETRY"
+name = "Message box results"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "What `MESSAGEBOX` returns: the button the user chose."
 constants = [
   ["IDRETRY", 4],
 ]
 
 [[group]]
-name = "IDIGNORE"
+name = "Message box results"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "What `MESSAGEBOX` returns: the button the user chose."
 constants = [
   ["IDIGNORE", 5],
 ]
 
 [[group]]
-name = "IDYES"
+name = "Message box results"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "What `MESSAGEBOX` returns: the button the user chose."
 constants = [
   ["IDYES", 6],
 ]
 
 [[group]]
-name = "IDNO"
+name = "Message box results"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "What `MESSAGEBOX` returns: the button the user chose."
 constants = [
   ["IDNO", 7],
 ]
@@ -156,7 +156,7 @@ constants = [
 [[group]]
 name = "Border styles"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "A form's or control's BorderStyle: no border, a fixed one, a sizeable one, a dialog's or a tool window's."
 constants = [
   ["bsNone", 0],
   ["bsSingle", 1],
@@ -169,7 +169,7 @@ constants = [
 [[group]]
 name = "Window states"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "A form's WindowState: normal, minimized or maximized."
 constants = [
   ["wsNormal", 0],
   ["wsMinimized", 1],
@@ -179,7 +179,7 @@ constants = [
 [[group]]
 name = "Alignment in the parent"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "A control's Align: where it docks in its parent (top, bottom, left, right, the whole client area) as the parent resizes."
 constants = [
   ["alNone", 0],
   ["alTop", 1],
@@ -190,9 +190,9 @@ constants = [
 ]
 
 [[group]]
-name = "Mouse buttons and message dialog buttons"
+name = "Mouse buttons"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Which mouse button an OnMouseDown or OnMouseUp event is for."
 constants = [
   ["mbLeft", 0],
   ["mbRight", 1],
@@ -202,7 +202,7 @@ constants = [
 [[group]]
 name = "Message dialog types"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "The kind of message `MESSAGEDLG` shows, which sets its caption and icon."
 constants = [
   ["mtWarning", 0],
   ["mtError", 1],
@@ -212,9 +212,9 @@ constants = [
 ]
 
 [[group]]
-name = "Mouse buttons and message dialog buttons"
+name = "Message dialog buttons"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Buttons for `MESSAGEDLG`, added together for more than one."
 constants = [
   ["mbYes", 1],
   ["mbNo", 2],
@@ -230,7 +230,7 @@ constants = [
 [[group]]
 name = "File stream modes"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "How a QFILESTREAM opens its file: create it, or open it to read, to write or both."
 constants = [
   ["fmCreate", 65535],
   ["fmOpenRead", 0],
@@ -241,7 +241,7 @@ constants = [
 [[group]]
 name = "Seek origins"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Where a stream's Seek counts from: the start, the current position or the end."
 constants = [
   ["soFromBeginning", 0],
   ["soFromCurrent", 1],
@@ -249,9 +249,9 @@ constants = [
 ]
 
 [[group]]
-name = "Num"
+name = "Number types"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "The type a stream's ReadNum and WriteNum read or write a number as."
 constants = [
   ["Num_BYTE", 1],
   ["Num_SHORT", 2],
@@ -263,9 +263,9 @@ constants = [
 ]
 
 [[group]]
-name = "Font styles and form styles"
+name = "Font styles"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Font styles (bold, italic, underline, strike-out), combined in a font's Style."
 constants = [
   ["fsBold", 0],
   ["fsItalic", 1],
@@ -274,9 +274,9 @@ constants = [
 ]
 
 [[group]]
-name = "Colours"
+name = "Special colours"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Colours meaning no colour, or the control's default one."
 constants = [
   ["clNone", 536870911],
   ["clDefault", 536870912],
@@ -285,7 +285,7 @@ constants = [
 [[group]]
 name = "Pixel formats"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "A bitmap's PixelFormat: the number of bits each pixel takes."
 constants = [
   ["pfDevice", 0],
   ["pf1bit", 1],
@@ -300,7 +300,7 @@ constants = [
 [[group]]
 name = "Virtual key codes"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Codes of the keyboard's keys, as OnKeyDown and OnKeyUp events give them."
 constants = [
   ["VK_BACK", 8],
   ["VK_TAB", 9],
@@ -338,7 +338,7 @@ constants = [
 [[group]]
 name = "Text alignment"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Horizontal alignment of a control's text (Alignment): left, right or centred."
 constants = [
   ["taLeftJustify", 0],
   ["taRightJustify", 1],
@@ -348,7 +348,7 @@ constants = [
 [[group]]
 name = "PLAYWAV options"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "More `PLAYWAV` options: no default sound, don't stop a sound playing, play from memory."
 constants = [
   ["SND_NODEFAULT", 2],
   ["SND_NOSTOP", 16],
@@ -356,9 +356,9 @@ constants = [
 ]
 
 [[group]]
-name = "Colours"
+name = "System colours"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "The system's colours for parts of the user interface; a control using one follows the theme."
 constants = [
   ["clScrollBar", -2147483648],
   ["clBackGround", -2147483647],
@@ -382,9 +382,9 @@ constants = [
 ]
 
 [[group]]
-name = "Shift states and scroll bars"
+name = "Shift states"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Which of Shift, Ctrl and Alt are held, as keyboard and mouse events give them."
 constants = [
   ["ssShift", 256],
   ["ssCtrl", 16],
@@ -394,7 +394,7 @@ constants = [
 [[group]]
 name = "Font pitch"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "A font's Pitch: the font's default, proportional or fixed-width."
 constants = [
   ["fpDefault", 0],
   ["fpVariable", 1],
@@ -404,7 +404,7 @@ constants = [
 [[group]]
 name = "Character sets"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
 constants = [
   ["ANSI_CHARSET", 0],
 ]
@@ -412,7 +412,7 @@ constants = [
 [[group]]
 name = "Character sets"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
 constants = [
   ["DEFAULT_CHARSET", 1],
 ]
@@ -420,7 +420,7 @@ constants = [
 [[group]]
 name = "Character sets"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
 constants = [
   ["SYMBOL_CHARSET", 2],
 ]
@@ -428,7 +428,7 @@ constants = [
 [[group]]
 name = "Character sets"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
 constants = [
   ["MAC_CHARSET", 77],
 ]
@@ -436,7 +436,7 @@ constants = [
 [[group]]
 name = "Character sets"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
 constants = [
   ["SHIFTJIS_CHARSET", 128],
 ]
@@ -444,7 +444,7 @@ constants = [
 [[group]]
 name = "Character sets"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
 constants = [
   ["HANGEUL_CHARSET", 129],
 ]
@@ -452,7 +452,7 @@ constants = [
 [[group]]
 name = "Character sets"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
 constants = [
   ["JOHAB_CHARSET", 130],
 ]
@@ -460,7 +460,7 @@ constants = [
 [[group]]
 name = "Character sets"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
 constants = [
   ["GB2312_CHARSET", 134],
 ]
@@ -468,7 +468,7 @@ constants = [
 [[group]]
 name = "Character sets"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
 constants = [
   ["CHINESEBIG5_CHARSET", 136],
 ]
@@ -476,7 +476,7 @@ constants = [
 [[group]]
 name = "Character sets"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
 constants = [
   ["GREEK_CHARSET", 161],
 ]
@@ -484,7 +484,7 @@ constants = [
 [[group]]
 name = "Character sets"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
 constants = [
   ["TURKISH_CHARSET", 162],
 ]
@@ -492,7 +492,7 @@ constants = [
 [[group]]
 name = "Character sets"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
 constants = [
   ["VIETNAMESE_CHARSET", 163],
 ]
@@ -500,7 +500,7 @@ constants = [
 [[group]]
 name = "Character sets"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
 constants = [
   ["HEBREW_CHARSET", 177],
 ]
@@ -508,7 +508,7 @@ constants = [
 [[group]]
 name = "Character sets"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
 constants = [
   ["ARABIC_CHARSET", 178],
 ]
@@ -516,7 +516,7 @@ constants = [
 [[group]]
 name = "Character sets"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
 constants = [
   ["BALTIC_CHARSET", 186],
 ]
@@ -524,7 +524,7 @@ constants = [
 [[group]]
 name = "Character sets"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
 constants = [
   ["RUSSIAN_CHARSET", 204],
 ]
@@ -532,7 +532,7 @@ constants = [
 [[group]]
 name = "Character sets"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
 constants = [
   ["THAI_CHARSET", 222],
 ]
@@ -540,7 +540,7 @@ constants = [
 [[group]]
 name = "Character sets"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
 constants = [
   ["EASTEUROPE_CHARSET", 238],
 ]
@@ -548,15 +548,15 @@ constants = [
 [[group]]
 name = "Character sets"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
 constants = [
   ["OEM_CHARSET", 255],
 ]
 
 [[group]]
-name = "Font styles and form styles"
+name = "Form styles"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "A form's FormStyle: normal, an MDI child or parent, or always on top."
 constants = [
   ["fsNormal", 0],
   ["fsMDIChild", 1],
@@ -567,23 +567,23 @@ constants = [
 [[group]]
 name = "Key states"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "The Ctrl key held, as keyboard and mouse events give it."
 constants = [
   ["CtrlDown", 1],
 ]
 
 [[group]]
-name = "Alt"
+name = "Key states"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "The Alt key held, as keyboard and mouse events give it."
 constants = [
   ["AltDown", 16],
 ]
 
 [[group]]
-name = "Shift"
+name = "Key states"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "The Shift key held, as keyboard and mouse events give it."
 constants = [
   ["ShiftDown", 256],
 ]
@@ -591,7 +591,7 @@ constants = [
 [[group]]
 name = "Border icons"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "The buttons on a form's title bar (system menu, minimize, maximize, help), for its BorderIcons."
 constants = [
   ["biSystemMenu", 0],
   ["biMinimize", 1],
@@ -602,7 +602,7 @@ constants = [
 [[group]]
 name = "Close actions"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "What happens when a form closes, set in its OnClose event: nothing, hide it, free it or minimize it."
 constants = [
   ["caNone", 0],
   ["caHide", 1],
@@ -613,7 +613,7 @@ constants = [
 [[group]]
 name = "Text layout"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Vertical placement of a control's text (Layout): top, centre or bottom."
 constants = [
   ["tlTop", 0],
   ["tlCenter", 1],
@@ -623,7 +623,7 @@ constants = [
 [[group]]
 name = "Label styles"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "A label's LabelStyle: flat, raised or recessed text."
 constants = [
   ["lsNone", 0],
   ["lsRaised", 1],
@@ -633,7 +633,7 @@ constants = [
 [[group]]
 name = "Bevels"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "The bevels of a panel or bevel (BevelInner, BevelOuter): none, lowered or raised."
 constants = [
   ["bvNone", 0],
   ["bvLowered", 1],
@@ -643,7 +643,7 @@ constants = [
 [[group]]
 name = "Bevel panels"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "A panel's border styles: none or single."
 constants = [
   ["bpNone", 0],
   ["bpSingle", 1],
@@ -652,7 +652,7 @@ constants = [
 [[group]]
 name = "Edit character case"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "An edit's CharCase: text kept as typed, or turned to upper or lower case."
 constants = [
   ["ecNormal", 0],
   ["ecUpperCase", 1],
@@ -662,7 +662,7 @@ constants = [
 [[group]]
 name = "Combo box styles"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "A combo box's Style: drop-down with editing, simple, drop-down list, or drawn by the program."
 constants = [
   ["csDropDown", 0],
   ["csSimple", 1],
@@ -672,9 +672,9 @@ constants = [
 ]
 
 [[group]]
-name = "Shift states and scroll bars"
+name = "Scroll bars"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Which scroll bars a memo, rich edit, grid or tree view shows (ScrollBars)."
 constants = [
   ["ssNone", 0],
   ["ssHorizontal", 1],
@@ -685,7 +685,7 @@ constants = [
 [[group]]
 name = "Modal results"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "More modal results: \"No to all\" and \"Yes to all\"."
 constants = [
   ["mrNoToAll", 9],
   ["mrYesToAll", 10],
@@ -694,7 +694,7 @@ constants = [
 [[group]]
 name = "Button glyph layout"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Where a button's picture is placed next to its caption (Layout)."
 constants = [
   ["blBMPLeft", 0],
   ["blBMPRight", 1],
@@ -705,7 +705,7 @@ constants = [
 [[group]]
 name = "Button kinds"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "A button's Kind: a custom button, or a standard one (OK, Cancel, Help, Yes, No, …) with its caption and picture."
 constants = [
   ["bkCustom", 0],
   ["bkOK", 1],
@@ -723,7 +723,7 @@ constants = [
 [[group]]
 name = "Cursors"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Mouse pointer shapes for a control's Cursor property and Screen.Cursor."
 constants = [
   ["crDefault", 0],
   ["crNone", -1],
@@ -752,7 +752,7 @@ constants = [
 [[group]]
 name = "File types"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Kinds of file to list, by attribute: read-only, hidden, system, volume label, folder, archive or normal."
 constants = [
   ["ftReadOnly", 0],
   ["ftHidden", 1],
@@ -764,9 +764,9 @@ constants = [
 ]
 
 [[group]]
-name = "Scroll bar kinds and stop bits"
+name = "Scroll bar kinds"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "A scroll bar's Kind: horizontal or vertical."
 constants = [
   ["sbHorizontal", 0],
   ["sbVertical", 1],
@@ -775,7 +775,7 @@ constants = [
 [[group]]
 name = "Scroll codes"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "What a scroll bar's OnScroll event reports was done: a line or page step, a drag of the thumb, the ends, or the end of scrolling."
 constants = [
   ["scLineUp", 0],
   ["scLineDown", 1],
@@ -791,7 +791,7 @@ constants = [
 [[group]]
 name = "Draw states"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "An image list's DrawingStyle: how its images are drawn (focused, selected, normal, transparent)."
 constants = [
   ["dsFocused", 0],
   ["dsSelected", 1],
@@ -802,16 +802,16 @@ constants = [
 [[group]]
 name = "Image types"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "An image list's ImageType: draw the image or its mask."
 constants = [
   ["itImage", 0],
   ["itMask", 1],
 ]
 
 [[group]]
-name = "Status bar panel styles"
+name = "Sort types"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "A list view's or tree view's SortType: unsorted, or sorted by item text."
 constants = [
   ["stNone", 0],
   ["stText", 2],
@@ -820,7 +820,7 @@ constants = [
 [[group]]
 name = "List view styles"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "A list view's ViewStyle: large icons, small icons, a list or a report with columns."
 constants = [
   ["vsIcon", 0],
   ["vsSmallIcon", 1],
@@ -831,7 +831,7 @@ constants = [
 [[group]]
 name = "Track bar orientation"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "A track bar's (or splitter's, printer's) Orientation: horizontal or vertical."
 constants = [
   ["tbHorizontal", 0],
   ["tbVertical", 1],
@@ -840,7 +840,7 @@ constants = [
 [[group]]
 name = "Tick marks"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "On which side a track bar draws its tick marks (TickMarks): bottom or right, top or left, or both."
 constants = [
   ["tmBottomRight", 0],
   ["tmTopLeft", 1],
@@ -850,7 +850,7 @@ constants = [
 [[group]]
 name = "Tick styles"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "A track bar's TickStyle: no ticks, ticks at every step, or only those the program sets."
 constants = [
   ["tsNone", 0],
   ["tsAuto", 1],
@@ -860,7 +860,7 @@ constants = [
 [[group]]
 name = "Grid options"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "A string grid's Options: grid lines, selecting, sizing and moving rows and columns, editing and more, combined."
 constants = [
   ["goFixedVertLine", 0],
   ["goFixedHorzLine", 1],
@@ -882,7 +882,7 @@ constants = [
 [[group]]
 name = "Grid column styles"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "A string grid's ColumnStyle for a column: a drop-down list, an ellipsis button, or none."
 constants = [
   ["gcsList", 0],
   ["gcsEllipsis", 1],
@@ -890,9 +890,9 @@ constants = [
 ]
 
 [[group]]
-name = "Outline styles and OLE states"
+name = "Outline styles"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "A tree view's OutlineStyle: which of text, plus/minus buttons, pictures and tree lines it shows."
 constants = [
   ["osText", 0],
   ["osPlusMinusText", 1],
@@ -905,7 +905,7 @@ constants = [
 [[group]]
 name = "Outline options"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Outline drawing options: draw the tree's root, the focus rectangle, stretched bitmaps."
 constants = [
   ["ooDrawTreeRoot", 0],
   ["ooDrawFocusRect", 1],
@@ -915,7 +915,7 @@ constants = [
 [[group]]
 name = "Gauge kinds"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "A progress bar's Kind: text, a horizontal or vertical bar, a pie or a needle."
 constants = [
   ["gkText", 0],
   ["gkHorizontalBar", 1],
@@ -927,7 +927,7 @@ constants = [
 [[group]]
 name = "Copy modes"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Raster operations for CopyMode: how drawing a picture combines its pixels with those already there."
 constants = [
   ["cmBlackness", 66],
   ["cmDstInvert", 5570569],
@@ -947,9 +947,9 @@ constants = [
 ]
 
 [[group]]
-name = "Tick marks"
+name = "Transparent modes"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "How a bitmap chooses its transparent colour: automatically or the one set."
 constants = [
   ["tmAuto", 0],
   ["tmFixed", 1],
@@ -958,7 +958,7 @@ constants = [
 [[group]]
 name = "List box styles"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "A list box's Style: standard, or drawn by the program with fixed or variable item heights."
 constants = [
   ["lbStandard", 0],
   ["lbOwnerDrawFixed", 1],
@@ -968,7 +968,7 @@ constants = [
 [[group]]
 name = "Baud rates"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Serial port speeds for a QCOMPORT's BaudRate."
 constants = [
   ["br110", 0],
   ["br300", 1],
@@ -986,9 +986,9 @@ constants = [
 ]
 
 [[group]]
-name = "Scroll bar kinds and stop bits"
+name = "Stop bits"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Serial port stop bits for a QCOMPORT's StopBits: one, one and a half or two."
 constants = [
   ["sbOneStopBit", 0],
   ["sbOne5StopBits", 1],
@@ -998,7 +998,7 @@ constants = [
 [[group]]
 name = "Parity"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Serial port parity for a QCOMPORT's Parity: none, odd, even, mark or space."
 constants = [
   ["prNone", 0],
   ["prOdd", 1],
@@ -1010,7 +1010,7 @@ constants = [
 [[group]]
 name = "Font dialog options"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Options for the font dialog, combined in its Options."
 constants = [
   ["fdAnsiOnly", 0],
   ["fdTrueTypeOnly", 1],
@@ -1033,7 +1033,7 @@ constants = [
 [[group]]
 name = "Directory types"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Kinds of folder to list, by attribute: read-only, hidden, system, normal or all."
 constants = [
   ["dtReadOnly", 0],
   ["dtHidden", 1],
@@ -1045,7 +1045,7 @@ constants = [
 [[group]]
 name = "Drive types"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Kinds of drive: removable, fixed, network, CD-ROM, RAM disk or unknown."
 constants = [
   ["drtUnknown", 0],
   ["drtRemovable", 1],
@@ -1058,7 +1058,7 @@ constants = [
 [[group]]
 name = "IP protocols"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Internet protocols for a socket's Protocol."
 constants = [
   ["IPPROTO_IP", 0],
   ["IPPROTO_ICMP", 1],
@@ -1073,7 +1073,7 @@ constants = [
 [[group]]
 name = "Socket types"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Socket types: a stream (TCP), datagrams (UDP), raw and others."
 constants = [
   ["SOCK_STREAM", 1],
   ["SOCK_DGRAM", 2],
@@ -1085,7 +1085,7 @@ constants = [
 [[group]]
 name = "Address families"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Address families for a socket's Family (AF_INET for IPv4 and others)."
 constants = [
   ["AF_UNSPEC", 0],
   ["AF_UNIX", 1],
@@ -1115,7 +1115,7 @@ constants = [
 [[group]]
 name = "Header section styles"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "A header section's Style: text, or drawn by the program."
 constants = [
   ["hsText", 0],
   ["hsOwnerDraw", 1],
@@ -1124,7 +1124,7 @@ constants = [
 [[group]]
 name = "Duplicates"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "What a sorted string list does with an item it already has (Duplicates): ignore it, accept it or raise an error."
 constants = [
   ["dupIgnore", 0],
   ["dupAccept", 1],
@@ -1134,7 +1134,7 @@ constants = [
 [[group]]
 name = "Stretch modes"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "How an OLE container sizes its object (SizeMode): clip, centre, scale, stretch or size itself to it."
 constants = [
   ["smClip", 0],
   ["smCenter", 1],
@@ -1144,9 +1144,9 @@ constants = [
 ]
 
 [[group]]
-name = "Outline styles and OLE states"
+name = "OLE states"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "The State of an OLE container's object: empty, loaded, running, open or active in place."
 constants = [
   ["osEmpty", 0],
   ["osLoaded", 1],
@@ -1159,7 +1159,7 @@ constants = [
 [[group]]
 name = "Float formats"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Formats for `STRF$`: general, scientific, fixed decimals, or fixed with thousands separators."
 constants = [
   ["ffGeneral", 0],
   ["ffExponent", 1],
@@ -1170,7 +1170,7 @@ constants = [
 [[group]]
 name = "File attributes"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "File attributes for `DIR$` and file searches; faAnyFile matches every file."
 constants = [
   ["faReadOnly", 1],
   ["faHidden", 2],
@@ -1184,7 +1184,7 @@ constants = [
 [[group]]
 name = "Printer orientation"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "The printer's Orientation: portrait or landscape."
 constants = [
   ["poPortrait", 0],
   ["poLandscape", 1],
@@ -1193,15 +1193,15 @@ constants = [
 [[group]]
 name = "Close actions"
 source = "RAPIDQ.INC"
-doc = ""
+doc = "Another close action, `caClose`: the form closes."
 constants = [
   ["caClose", 2],
 ]
 
 [[group]]
-name = "qcgi.inc constants"
+name = "CGI limits"
 source = "qcgi.inc"
-doc = ""
+doc = "Sizes for the CGI library (qcgi.inc): how much request input it reads and how many name/value pairs it keeps."
 constants = [
   ["CGI_INPUT_DEFAULT", 32767],
   ["CGI_INPUT_LARGE", 65535],
@@ -1210,9 +1210,9 @@ constants = [
 ]
 
 [[group]]
-name = "qmidi.inc constants"
+name = "MIDI player states"
 source = "qmidi.inc"
-doc = ""
+doc = "Commands and states of the MIDI player library (qmidi.inc): close, play, pause, stop."
 constants = [
   ["MD_CLOSE", 0],
   ["MD_PLAY", 1],
@@ -1221,9 +1221,9 @@ constants = [
 ]
 
 [[group]]
-name = "qwave.inc constants"
+name = "Wave audio"
 source = "qwave.inc"
-doc = ""
+doc = "The wave audio library's (qwave.inc) commands and states (play, pause, stop, record) and recording formats: channels, bits per sample, sample rates."
 constants = [
   ["WV_CLOSE", 0],
   ["WV_PLAY", 1],
@@ -1241,9 +1241,9 @@ constants = [
 ]
 
 [[group]]
-name = "qvideo.inc constants"
+name = "Video player states"
 source = "qvideo.inc"
-doc = ""
+doc = "Commands and states of the video player library (qvideo.inc): close, play, pause, stop."
 constants = [
   ["VD_CLOSE", 0],
   ["VD_PLAY", 1],
@@ -1252,9 +1252,9 @@ constants = [
 ]
 
 [[group]]
-name = "qcdaudio.inc constants"
+name = "CD audio states"
 source = "qcdaudio.inc"
-doc = ""
+doc = "Commands and states of the CD audio library (qcdaudio.inc): close, play, pause, stop."
 constants = [
   ["CD_CLOSE", 0],
   ["CD_PLAY", 1],
@@ -1266,7 +1266,7 @@ constants = [
 name = "Anchors"
 source = "RapidR"
 origin = "rapidr"
-doc = ""
+doc = "RapidR's Anchors flags, combined: the sides of its parent a control keeps its distance to as the parent resizes."
 constants = [
   ["akleft", 1],
   ["aktop", 2],

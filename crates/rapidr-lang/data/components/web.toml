@@ -7,58 +7,30 @@ visual = true
 size = [400, 300]
 only = "web"
 default_event = "OnClick"
-sets = ["layout", "a11y"]
-doc = "Embedded HTML content viewer (iframe). Web-only component."
+sets = ["layout", "a11y", "generic"]
+doc = "An embedded web page or HTML (an iframe): URL, HTML, Sandbox. Web only."
 properties = [
-  { name = "Left", type = "int", only = "web" },
-  { name = "Top", type = "int", only = "web" },
-  { name = "Width", type = "int", only = "web" },
-  { name = "Height", type = "int", only = "web" },
-  { name = "Visible", type = "int", only = "web" },
-  { name = "Enabled", type = "int" },
-  { name = "Html", type = "string", only = "web" },
-  { name = "Url", type = "string", only = "web" },
-  { name = "Sandbox", type = "string", only = "web" },
-  { name = "Color", type = "color" },
-  { name = "Font", type = "font" },
-  { name = "FontSize", type = "int" },
-  { name = "FontColor", type = "color" },
-  { name = "Parent", type = "component", kinds = ["QFORM"], design = false, only = "web" },
-  { name = "Src", type = "string", only = "web" },
-  { name = "Picture", type = "string", only = "web" },
-  { name = "Volume", type = "int", only = "web" },
-  { name = "Currenttime", type = "string", only = "web" },
-  { name = "Loop", type = "string", only = "web" },
-  { name = "Autoplay", type = "string", only = "web" },
-  { name = "Controls", type = "string", only = "web" },
-  { name = "Poster", type = "string", only = "web" },
-  { name = "InnerHTML", type = "string", only = "web" },
-  { name = "Innertext", type = "string", only = "web" },
-  { name = "CssClass", type = "string", only = "web" },
-  { name = "CssStyle", type = "string", only = "web" },
-  { name = "Tooltip", type = "string", only = "web" },
-  { name = "Hint", type = "string", only = "web" },
-  { name = "Tagname", type = "string", only = "web" },
-  { name = "Parentid", type = "string", only = "web" },
-  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], only = "web" },
-  { name = "Duration", type = "string", only = "web" },
-  { name = "Playing", type = "int", only = "web" },
-  { name = "Paused", type = "string", only = "web" },
+  { name = "Left", type = "int", default = 0 },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "Height", type = "int" },
+  { name = "Visible", type = "bool", default = true },
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "Hint", type = "string" },
+  { name = "Html", type = "string" },
+  { name = "Url", type = "string" },
+  { name = "Sandbox", type = "string" },
+  { name = "ToolTip", type = "string" },
 ]
 methods = [
-  { name = "Sethtml", value = true },
-  { name = "Navigate", value = true },
-  { name = "Show", value = true },
-  { name = "Hide", value = true },
-  { name = "SetFocus", value = true },
-  { name = "Play", only = "web", value = true },
-  { name = "Pause", only = "web", value = true },
-  { name = "Stop", only = "web" },
+  { name = "SetHTML", params = "Html AS STRING", value = true },
+  { name = "Navigate", params = "Url AS STRING", value = true },
 ]
 events = [
   { name = "OnClick" },
   { name = "OnDblClick" },
-  { name = "Onload" },
+  { name = "OnLoad" },
 ]
 
 [[component]]
@@ -67,57 +39,36 @@ visual = true
 size = [100, 25]
 only = "web"
 default_event = "OnClick"
-sets = ["layout", "a11y"]
-doc = "Direct DOM element. Create arbitrary HTML elements. Web-only component."
+sets = ["layout", "a11y", "generic"]
+doc = "An HTML element of the program's own: its HTML, CSS classes, style and attributes. Web only."
 properties = [
-  { name = "InnerHTML", type = "string", only = "web" },
-  { name = "Innertext", type = "string", only = "web" },
-  { name = "CssClass", type = "string", only = "web" },
-  { name = "CssStyle", type = "string", only = "web" },
-  { name = "Tagname", type = "string", only = "web" },
-  { name = "Left", type = "int", only = "web" },
-  { name = "Top", type = "int", only = "web" },
-  { name = "Width", type = "int", only = "web" },
-  { name = "Height", type = "int", only = "web" },
-  { name = "Visible", type = "int", only = "web" },
-  { name = "Enabled", type = "int" },
-  { name = "Color", type = "color" },
-  { name = "Font", type = "font" },
-  { name = "FontSize", type = "int" },
-  { name = "FontColor", type = "color" },
-  { name = "Parent", type = "component", kinds = ["QFORM"], design = false, only = "web" },
-  { name = "Html", type = "string", only = "web" },
-  { name = "Url", type = "string", only = "web" },
-  { name = "Sandbox", type = "string", only = "web" },
-  { name = "Src", type = "string", only = "web" },
-  { name = "Picture", type = "string", only = "web" },
-  { name = "Volume", type = "int", only = "web" },
-  { name = "Currenttime", type = "string", only = "web" },
-  { name = "Loop", type = "string", only = "web" },
-  { name = "Autoplay", type = "string", only = "web" },
-  { name = "Controls", type = "string", only = "web" },
-  { name = "Poster", type = "string", only = "web" },
-  { name = "Tooltip", type = "string", only = "web" },
-  { name = "Hint", type = "string", only = "web" },
-  { name = "Parentid", type = "string", only = "web" },
-  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], only = "web" },
-  { name = "Duration", type = "string", only = "web" },
-  { name = "Playing", type = "int", only = "web" },
-  { name = "Paused", type = "string", only = "web" },
+  { name = "Left", type = "int", default = 0 },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "Height", type = "int" },
+  { name = "Visible", type = "bool", default = true },
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "Hint", type = "string" },
+  { name = "TagName", type = "string" },
+  { name = "InnerHTML", type = "string" },
+  { name = "InnerText", type = "string" },
+  { name = "CssClass", type = "string" },
+  { name = "CssStyle", type = "string" },
+  { name = "Html", type = "string" },
+  { name = "ToolTip", type = "string" },
+  { name = "ParentID", type = "string" },
 ]
 methods = [
   { name = "Create" },
-  { name = "Appendto", value = true },
+  { name = "AppendTo", value = true },
   { name = "SetAttribute", value = true },
-  { name = "Getattribute", value = true },
+  { name = "GetAttribute", value = true },
   { name = "AddClass", value = true },
-  { name = "Removeclass", value = true },
-  { name = "Toggleclass", value = true },
+  { name = "RemoveClass", value = true },
+  { name = "ToggleClass", value = true },
   { name = "Remove", value = true },
   { name = "QuerySelector", value = true },
-  { name = "Play", only = "web", value = true },
-  { name = "Pause", only = "web", value = true },
-  { name = "Stop", only = "web" },
 ]
 events = [
   { name = "OnClick" },
@@ -126,94 +77,30 @@ events = [
   { name = "OnMouseDown" },
   { name = "OnMouseUp" },
   { name = "OnMouseMove" },
-  { name = "Onfocus" },
-  { name = "Onblur" },
+  { name = "OnFocus" },
+  { name = "OnBlur" },
   { name = "OnScroll" },
 ]
 
 [[component]]
 name = "RJAVASCRIPT"
-visual = true
+visual = false
 only = "web"
-sets = ["layout", "a11y"]
-doc = "Execute arbitrary JavaScript from RapidR. Web-only component."
-properties = [
-  { name = "Html", type = "string", only = "web" },
-  { name = "Url", type = "string", only = "web" },
-  { name = "Sandbox", type = "string", only = "web" },
-  { name = "Src", type = "string", only = "web" },
-  { name = "Picture", type = "string", only = "web" },
-  { name = "Volume", type = "int", only = "web" },
-  { name = "Currenttime", type = "string", only = "web" },
-  { name = "Loop", type = "string", only = "web" },
-  { name = "Autoplay", type = "string", only = "web" },
-  { name = "Controls", type = "string", only = "web" },
-  { name = "Poster", type = "string", only = "web" },
-  { name = "InnerHTML", type = "string", only = "web" },
-  { name = "Innertext", type = "string", only = "web" },
-  { name = "CssClass", type = "string", only = "web" },
-  { name = "CssStyle", type = "string", only = "web" },
-  { name = "Tooltip", type = "string", only = "web" },
-  { name = "Hint", type = "string", only = "web" },
-  { name = "Tagname", type = "string", only = "web" },
-  { name = "Left", type = "int", only = "web" },
-  { name = "Top", type = "int", only = "web" },
-  { name = "Width", type = "int", only = "web" },
-  { name = "Height", type = "int", only = "web" },
-  { name = "Visible", type = "int", only = "web" },
-  { name = "Parent", type = "component", kinds = ["QFORM"], design = false, only = "web" },
-  { name = "Parentid", type = "string", only = "web" },
-  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], only = "web" },
-  { name = "Duration", type = "string", only = "web" },
-  { name = "Playing", type = "int", only = "web" },
-  { name = "Paused", type = "string", only = "web" },
-]
+doc = "Runs JavaScript in the page: Eval a piece of code or Call a function. Web only."
+properties = []
 methods = [
   { name = "Eval", value = true },
   { name = "Call", value = true },
-  { name = "Play", only = "web", value = true },
-  { name = "Pause", only = "web", value = true },
-  { name = "Stop", only = "web" },
 ]
 events = []
 
 [[component]]
 name = "RWEBSTORAGE"
-visual = true
+visual = false
 only = "web"
-sets = ["layout", "a11y"]
-doc = "Browser localStorage / sessionStorage access. Web-only component."
+doc = "Keeps strings by key in the browser's localStorage or sessionStorage. Web only."
 properties = [
-  { name = "Storagetype", type = "string" },
-  { name = "Html", type = "string", only = "web" },
-  { name = "Url", type = "string", only = "web" },
-  { name = "Sandbox", type = "string", only = "web" },
-  { name = "Src", type = "string", only = "web" },
-  { name = "Picture", type = "string", only = "web" },
-  { name = "Volume", type = "int", only = "web" },
-  { name = "Currenttime", type = "string", only = "web" },
-  { name = "Loop", type = "string", only = "web" },
-  { name = "Autoplay", type = "string", only = "web" },
-  { name = "Controls", type = "string", only = "web" },
-  { name = "Poster", type = "string", only = "web" },
-  { name = "InnerHTML", type = "string", only = "web" },
-  { name = "Innertext", type = "string", only = "web" },
-  { name = "CssClass", type = "string", only = "web" },
-  { name = "CssStyle", type = "string", only = "web" },
-  { name = "Tooltip", type = "string", only = "web" },
-  { name = "Hint", type = "string", only = "web" },
-  { name = "Tagname", type = "string", only = "web" },
-  { name = "Left", type = "int", only = "web" },
-  { name = "Top", type = "int", only = "web" },
-  { name = "Width", type = "int", only = "web" },
-  { name = "Height", type = "int", only = "web" },
-  { name = "Visible", type = "int", only = "web" },
-  { name = "Parent", type = "component", kinds = ["QFORM"], design = false, only = "web" },
-  { name = "Parentid", type = "string", only = "web" },
-  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], only = "web" },
-  { name = "Duration", type = "string", only = "web" },
-  { name = "Playing", type = "int", only = "web" },
-  { name = "Paused", type = "string", only = "web" },
+  { name = "StorageType", type = "string", default = "local" },
 ]
 methods = [
   { name = "Set", value = true },
@@ -222,9 +109,6 @@ methods = [
   { name = "Clear", value = true },
   { name = "Keys", value = true },
   { name = "HasKey", value = true },
-  { name = "Play", only = "web", value = true },
-  { name = "Pause", only = "web", value = true },
-  { name = "Stop", only = "web" },
 ]
 events = []
 
@@ -233,51 +117,40 @@ name = "RWEBAUDIO"
 visual = true
 size = [100, 25]
 only = "web"
-default_event = "Onplay"
-sets = ["layout", "a11y"]
-doc = "HTML5 audio player. Web-only component."
+default_event = "OnPlay"
+sets = ["layout", "a11y", "generic"]
+doc = "An HTML5 audio player: Src, Volume, Loop, Play, Pause, Seek. Web only."
 properties = [
-  { name = "Src", type = "string", only = "web" },
-  { name = "Volume", type = "int", only = "web" },
-  { name = "Loop", type = "string", only = "web" },
-  { name = "Autoplay", type = "string", only = "web" },
-  { name = "Controls", type = "string", only = "web" },
-  { name = "Currenttime", type = "string", only = "web" },
-  { name = "Duration", type = "string", only = "web" },
-  { name = "Playing", type = "int", only = "web" },
-  { name = "Paused", type = "string", only = "web" },
-  { name = "Parent", type = "component", kinds = ["QFORM"], design = false, only = "web" },
-  { name = "Html", type = "string", only = "web" },
-  { name = "Url", type = "string", only = "web" },
-  { name = "Sandbox", type = "string", only = "web" },
-  { name = "Picture", type = "string", only = "web" },
-  { name = "Poster", type = "string", only = "web" },
-  { name = "InnerHTML", type = "string", only = "web" },
-  { name = "Innertext", type = "string", only = "web" },
-  { name = "CssClass", type = "string", only = "web" },
-  { name = "CssStyle", type = "string", only = "web" },
-  { name = "Tooltip", type = "string", only = "web" },
-  { name = "Hint", type = "string", only = "web" },
-  { name = "Tagname", type = "string", only = "web" },
-  { name = "Left", type = "int", only = "web" },
-  { name = "Top", type = "int", only = "web" },
-  { name = "Width", type = "int", only = "web" },
-  { name = "Height", type = "int", only = "web" },
-  { name = "Visible", type = "int", only = "web" },
-  { name = "Parentid", type = "string", only = "web" },
-  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], only = "web" },
+  { name = "Left", type = "int", default = 0 },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "Height", type = "int" },
+  { name = "Visible", type = "bool", default = true },
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "Hint", type = "string" },
+  { name = "Src", type = "string" },
+  { name = "Volume", type = "float", default = 1.0 },
+  { name = "CurrentTime", type = "float" },
+  { name = "Duration", type = "float", access = "read", design = false },
+  { name = "Loop", type = "bool" },
+  { name = "AutoPlay", type = "bool" },
+  { name = "Controls", type = "bool" },
+  { name = "Playing", type = "bool", access = "read", design = false },
+  { name = "Paused", type = "bool", access = "read", design = false },
+  { name = "Picture", type = "string", design = false, doc = "The same as Src." },
 ]
 methods = [
-  { name = "Play", only = "web", value = true },
-  { name = "Pause", only = "web", value = true },
-  { name = "Stop", only = "web" },
-  { name = "Seek", value = true },
+  { name = "Play", value = true },
+  { name = "Pause", value = true },
+  { name = "Stop" },
+  { name = "Seek", params = "Seconds AS DOUBLE", value = true },
 ]
 events = [
-  { name = "Onplay" },
-  { name = "Onpause" },
-  { name = "Onended" },
-  { name = "Ontimeupdate" },
+  { name = "OnPlay" },
+  { name = "OnPause" },
+  { name = "OnEnded" },
+  { name = "OnTimeUpdate" },
 ]
 
 [[component]]
@@ -286,195 +159,91 @@ visual = true
 size = [100, 25]
 only = "web"
 default_event = "OnClick"
-sets = ["layout", "a11y"]
-doc = "HTML5 video player. Web-only component."
+sets = ["layout", "a11y", "generic"]
+doc = "An HTML5 video player on the form: Src, Volume, Play, Pause, Seek, FullScreen. Web only."
 properties = [
-  { name = "Src", type = "string", only = "web" },
-  { name = "Volume", type = "int", only = "web" },
-  { name = "Loop", type = "string", only = "web" },
-  { name = "Autoplay", type = "string", only = "web" },
-  { name = "Controls", type = "string", only = "web" },
-  { name = "Poster", type = "string", only = "web" },
-  { name = "Currenttime", type = "string", only = "web" },
-  { name = "Duration", type = "string", only = "web" },
-  { name = "Playing", type = "int", only = "web" },
-  { name = "Paused", type = "string", only = "web" },
-  { name = "Left", type = "int", only = "web" },
-  { name = "Top", type = "int", only = "web" },
-  { name = "Width", type = "int", only = "web" },
-  { name = "Height", type = "int", only = "web" },
-  { name = "Visible", type = "int", only = "web" },
-  { name = "Parent", type = "component", kinds = ["QFORM"], design = false, only = "web" },
-  { name = "Html", type = "string", only = "web" },
-  { name = "Url", type = "string", only = "web" },
-  { name = "Sandbox", type = "string", only = "web" },
-  { name = "Picture", type = "string", only = "web" },
-  { name = "InnerHTML", type = "string", only = "web" },
-  { name = "Innertext", type = "string", only = "web" },
-  { name = "CssClass", type = "string", only = "web" },
-  { name = "CssStyle", type = "string", only = "web" },
-  { name = "Tooltip", type = "string", only = "web" },
-  { name = "Hint", type = "string", only = "web" },
-  { name = "Tagname", type = "string", only = "web" },
-  { name = "Parentid", type = "string", only = "web" },
-  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], only = "web" },
+  { name = "Left", type = "int", default = 0 },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "Height", type = "int" },
+  { name = "Visible", type = "bool", default = true },
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "Hint", type = "string" },
+  { name = "Src", type = "string" },
+  { name = "Volume", type = "float", default = 1.0 },
+  { name = "CurrentTime", type = "float" },
+  { name = "Duration", type = "float", access = "read", design = false },
+  { name = "Loop", type = "bool" },
+  { name = "AutoPlay", type = "bool" },
+  { name = "Controls", type = "bool" },
+  { name = "Playing", type = "bool", access = "read", design = false },
+  { name = "Paused", type = "bool", access = "read", design = false },
+  { name = "Poster", type = "string" },
+  { name = "Picture", type = "string", design = false, doc = "The same as Src." },
 ]
 methods = [
-  { name = "Play", only = "web", value = true },
-  { name = "Pause", only = "web", value = true },
-  { name = "Stop", only = "web" },
-  { name = "Seek", value = true },
+  { name = "Play", value = true },
+  { name = "Pause", value = true },
+  { name = "Stop" },
+  { name = "Seek", params = "Seconds AS DOUBLE", value = true },
   { name = "FullScreen", value = true },
 ]
 events = [
-  { name = "Onplay" },
-  { name = "Onpause" },
-  { name = "Onended" },
-  { name = "Ontimeupdate" },
+  { name = "OnPlay" },
+  { name = "OnPause" },
+  { name = "OnEnded" },
+  { name = "OnTimeUpdate" },
   { name = "OnClick" },
 ]
 
 [[component]]
 name = "RWEBNOTIFICATION"
-visual = true
+visual = false
 only = "web"
-sets = ["layout", "a11y"]
-doc = "Browser push notification. Web-only component."
+doc = "Shows the browser's notifications, once the user allows them (RequestPermission). Web only."
 properties = [
-  { name = "Title", type = "string" },
-  { name = "Body", type = "string" },
-  { name = "Html", type = "string", only = "web" },
-  { name = "Url", type = "string", only = "web" },
-  { name = "Sandbox", type = "string", only = "web" },
-  { name = "Src", type = "string", only = "web" },
-  { name = "Picture", type = "string", only = "web" },
-  { name = "Volume", type = "int", only = "web" },
-  { name = "Currenttime", type = "string", only = "web" },
-  { name = "Loop", type = "string", only = "web" },
-  { name = "Autoplay", type = "string", only = "web" },
-  { name = "Controls", type = "string", only = "web" },
-  { name = "Poster", type = "string", only = "web" },
-  { name = "InnerHTML", type = "string", only = "web" },
-  { name = "Innertext", type = "string", only = "web" },
-  { name = "CssClass", type = "string", only = "web" },
-  { name = "CssStyle", type = "string", only = "web" },
-  { name = "Tooltip", type = "string", only = "web" },
-  { name = "Hint", type = "string", only = "web" },
-  { name = "Tagname", type = "string", only = "web" },
-  { name = "Left", type = "int", only = "web" },
-  { name = "Top", type = "int", only = "web" },
-  { name = "Width", type = "int", only = "web" },
-  { name = "Height", type = "int", only = "web" },
-  { name = "Visible", type = "int", only = "web" },
-  { name = "Parent", type = "component", kinds = ["QFORM"], design = false, only = "web" },
-  { name = "Parentid", type = "string", only = "web" },
-  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], only = "web" },
-  { name = "Duration", type = "string", only = "web" },
-  { name = "Playing", type = "int", only = "web" },
-  { name = "Paused", type = "string", only = "web" },
+  { name = "Title", type = "string", default = "Notification" },
+  { name = "Body", type = "string", default = "" },
 ]
 methods = [
-  { name = "RequestPermission", value = true },
   { name = "Show", value = true },
-  { name = "Play", only = "web", value = true },
-  { name = "Pause", only = "web", value = true },
-  { name = "Stop", only = "web" },
+  { name = "RequestPermission", value = true },
 ]
 events = []
 
 [[component]]
 name = "RWEBGEOLOCATION"
-visual = true
+visual = false
 only = "web"
-sets = ["layout", "a11y"]
-doc = "Browser geolocation API. Web-only component."
+doc = "Reads the device's position (Latitude, Longitude, Accuracy) from the browser. Web only."
 properties = [
-  { name = "Latitude", type = "string" },
-  { name = "Longitude", type = "string" },
-  { name = "Accuracy", type = "string" },
-  { name = "Html", type = "string", only = "web" },
-  { name = "Url", type = "string", only = "web" },
-  { name = "Sandbox", type = "string", only = "web" },
-  { name = "Src", type = "string", only = "web" },
-  { name = "Picture", type = "string", only = "web" },
-  { name = "Volume", type = "int", only = "web" },
-  { name = "Currenttime", type = "string", only = "web" },
-  { name = "Loop", type = "string", only = "web" },
-  { name = "Autoplay", type = "string", only = "web" },
-  { name = "Controls", type = "string", only = "web" },
-  { name = "Poster", type = "string", only = "web" },
-  { name = "InnerHTML", type = "string", only = "web" },
-  { name = "Innertext", type = "string", only = "web" },
-  { name = "CssClass", type = "string", only = "web" },
-  { name = "CssStyle", type = "string", only = "web" },
-  { name = "Tooltip", type = "string", only = "web" },
-  { name = "Hint", type = "string", only = "web" },
-  { name = "Tagname", type = "string", only = "web" },
-  { name = "Left", type = "int", only = "web" },
-  { name = "Top", type = "int", only = "web" },
-  { name = "Width", type = "int", only = "web" },
-  { name = "Height", type = "int", only = "web" },
-  { name = "Visible", type = "int", only = "web" },
-  { name = "Parent", type = "component", kinds = ["QFORM"], design = false, only = "web" },
-  { name = "Parentid", type = "string", only = "web" },
-  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], only = "web" },
-  { name = "Duration", type = "string", only = "web" },
-  { name = "Playing", type = "int", only = "web" },
-  { name = "Paused", type = "string", only = "web" },
+  { name = "Latitude", type = "float", access = "read", design = false },
+  { name = "Longitude", type = "float", access = "read", design = false },
+  { name = "Accuracy", type = "float", access = "read", design = false },
+  { name = "WatchID", type = "int", access = "read", design = false },
 ]
 methods = [
   { name = "GetPosition", value = true },
-  { name = "Play", only = "web", value = true },
-  { name = "Pause", only = "web", value = true },
-  { name = "Stop", only = "web" },
+  { name = "WatchPosition", value = true },
+  { name = "ClearWatch", value = true },
 ]
 events = []
 
 [[component]]
 name = "RROUTER"
-visual = true
+visual = false
 only = "web"
 default_event = "OnRouteChange"
-sets = ["layout", "a11y"]
-doc = "Single-page app hash-based router. Web-only component."
+doc = "Hash routes for single-page web apps: Navigate, Back, Forward and OnRouteChange. Web only."
 properties = [
-  { name = "Html", type = "string", only = "web" },
-  { name = "Url", type = "string", only = "web" },
-  { name = "Sandbox", type = "string", only = "web" },
-  { name = "Src", type = "string", only = "web" },
-  { name = "Picture", type = "string", only = "web" },
-  { name = "Volume", type = "int", only = "web" },
-  { name = "Currenttime", type = "string", only = "web" },
-  { name = "Loop", type = "string", only = "web" },
-  { name = "Autoplay", type = "string", only = "web" },
-  { name = "Controls", type = "string", only = "web" },
-  { name = "Poster", type = "string", only = "web" },
-  { name = "InnerHTML", type = "string", only = "web" },
-  { name = "Innertext", type = "string", only = "web" },
-  { name = "CssClass", type = "string", only = "web" },
-  { name = "CssStyle", type = "string", only = "web" },
-  { name = "Tooltip", type = "string", only = "web" },
-  { name = "Hint", type = "string", only = "web" },
-  { name = "Tagname", type = "string", only = "web" },
-  { name = "Left", type = "int", only = "web" },
-  { name = "Top", type = "int", only = "web" },
-  { name = "Width", type = "int", only = "web" },
-  { name = "Height", type = "int", only = "web" },
-  { name = "Visible", type = "int", only = "web" },
-  { name = "Parent", type = "component", kinds = ["QFORM"], design = false, only = "web" },
-  { name = "Parentid", type = "string", only = "web" },
-  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], only = "web" },
-  { name = "Duration", type = "string", only = "web" },
-  { name = "Playing", type = "int", only = "web" },
-  { name = "Paused", type = "string", only = "web" },
+  { name = "Route", type = "string", access = "read", design = false },
+  { name = "Hash", type = "string", access = "read", design = false },
 ]
 methods = [
   { name = "Navigate", value = true },
   { name = "Back", value = true },
   { name = "Forward", value = true },
-  { name = "Play", only = "web", value = true },
-  { name = "Pause", only = "web", value = true },
-  { name = "Stop", only = "web" },
 ]
 events = [
   { name = "OnRouteChange" },

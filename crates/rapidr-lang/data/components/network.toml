@@ -7,7 +7,7 @@ rapidq = "QSOCKET"
 visual = false
 where = "desktop (TCP); web (WebSocket)"
 default_event = "OnConnect"
-doc = ""
+doc = "A TCP client socket: connect to a host and port, then read and write text or bytes. In the browser it connects over WebSocket."
 properties = [
   { name = "Family", type = "enum", values = ["AF_UNSPEC", "AF_UNIX", "AF_INET", "AF_IMPLINK", "AF_PUP", "AF_CHAOS", "AF_IPX", "AF_NS", "AF_ISO", "AF_ECMA", "AF_DATAKIT", "AF_CCITT", "AF_SNA", "AF_DECnet", "AF_DLI", "AF_LAT", "AF_HYLINK", "AF_APPLETALK", "AF_NETBIOS", "AF_VOICEVIEW", "AF_FIREFOX", "AF_UNKNOWN1", "AF_BAN"], default = "AF_INET" },
   { name = "LParam", type = "int" },
@@ -21,22 +21,22 @@ properties = [
   { name = "Port", type = "int", origin = "rapidr" },
   { name = "Connected", type = "int", origin = "rapidr" },
   { name = "Timeout", type = "int", origin = "rapidr" },
-  { name = "Type", type = "any" },
+  { name = "Type", type = "int" },
 ]
 methods = [
-  { name = "Accept", params = "Socket AS INTEGER", returns = "VARIANT", only = "web", value = true },
+  { name = "Accept", params = "Socket AS INTEGER", returns = "VARIANT", value = true },
   { name = "Close", params = "Socket AS INTEGER", value = true },
   { name = "Connect", params = "ServerName AS STRING, PortNum AS INTEGER", returns = "VARIANT", value = true },
-  { name = "ConnectionReady", params = "Sock AS INTEGER", returns = "VARIANT", only = "web" },
-  { name = "GetHostIP", returns = "VARIANT", only = "web" },
-  { name = "GetHostName", returns = "VARIANT", only = "web" },
+  { name = "ConnectionReady", params = "Sock AS INTEGER", returns = "VARIANT" },
+  { name = "GetHostIP", returns = "VARIANT" },
+  { name = "GetHostName", returns = "VARIANT" },
   { name = "GetPeerName", params = "Socket AS INTEGER", returns = "VARIANT" },
-  { name = "IsClientReady", params = "Sock AS INTEGER, ClientSock AS INTEGER", returns = "VARIANT", only = "web" },
-  { name = "IsServerReady", params = "Sock AS INTEGER", returns = "VARIANT", only = "web" },
+  { name = "IsClientReady", params = "Sock AS INTEGER, ClientSock AS INTEGER", returns = "VARIANT" },
+  { name = "IsServerReady", params = "Sock AS INTEGER", returns = "VARIANT" },
   { name = "Open", params = "PortNum AS INTEGER", returns = "VARIANT", only = "web" },
   { name = "Peek", params = "Socket AS INTEGER, NumBytes AS INTEGER", returns = "VARIANT" },
   { name = "Read", params = "Socket AS INTEGER, NumBytes AS INTEGER", returns = "VARIANT", value = true },
-  { name = "ReadByte", params = "Socket AS INTEGER", returns = "BYTE", only = "web" },
+  { name = "ReadByte", params = "Socket AS INTEGER", returns = "BYTE" },
   { name = "ReadLine", params = "Socket AS INTEGER", returns = "VARIANT", value = true },
   { name = "Write", params = "Socket AS INTEGER, Message AS STRING, NumBytes AS INTEGER", value = true },
   { name = "WriteByte", params = "Socket AS INTEGER, B AS BYTE" },
@@ -46,9 +46,9 @@ methods = [
   { name = "Receive", origin = "rapidr", only = "web" },
 ]
 events = [
-  { name = "OnConnect", origin = "rapidr" },
-  { name = "OnDisconnect", origin = "rapidr" },
-  { name = "OnError", origin = "rapidr" },
+  { name = "OnConnect", params = "State AS STRING", origin = "rapidr" },
+  { name = "OnDisconnect", params = "State AS STRING", origin = "rapidr" },
+  { name = "OnError", params = "Message AS STRING", origin = "rapidr" },
 ]
 
 [[component]]
@@ -56,41 +56,41 @@ name = "RSERVERSOCKET"
 visual = false
 only = "desktop"
 default_event = "OnClientConnect"
-doc = ""
+doc = "A TCP server: listens on a port, accepts clients and exchanges data with them. RapidR's own; desktop only."
 properties = [
-  { name = "Host", type = "any" },
+  { name = "Host", type = "string" },
   { name = "Port", type = "int" },
   { name = "ClientCount", type = "int" },
 ]
 methods = [
-  { name = "Start", only = "desktop", value = true },
-  { name = "Stop", only = "desktop", value = true },
-  { name = "Broadcast", only = "desktop", value = true },
-  { name = "Listen", only = "desktop", value = true },
-  { name = "Accept", only = "desktop", value = true },
+  { name = "Start", value = true, only = "desktop" },
+  { name = "Stop", value = true, only = "desktop" },
+  { name = "Broadcast", value = true, only = "desktop" },
+  { name = "Listen", value = true, only = "desktop" },
+  { name = "Accept", value = true, only = "desktop" },
   { name = "Poll", only = "desktop" },
-  { name = "Sendto", only = "desktop" },
+  { name = "SendTo", only = "desktop" },
 ]
 events = [
-  { name = "OnClientConnect" },
-  { name = "Onclientdisconnect" },
-  { name = "Ondatareceived" },
+  { name = "OnClientConnect", params = "Address AS STRING" },
+  { name = "OnClientDisconnect", params = "Address AS STRING" },
+  { name = "OnDataReceived", params = "Address AS STRING, Data AS STRING" },
   { name = "OnError" },
 ]
 
 [[component]]
 name = "RHTTP"
 visual = false
-doc = ""
+doc = "An HTTP(S) client: Get or Post a URL, then read StatusCode, ResponseText and ResponseHeaders. RapidR's own."
 properties = [
   { name = "Host", type = "string" },
   { name = "Port", type = "int" },
   { name = "Url", type = "string" },
   { name = "StatusCode", type = "int" },
   { name = "ResponseText", type = "string" },
-  { name = "Responseheaders", type = "string" },
+  { name = "ResponseHeaders", type = "string" },
   { name = "Timeout", type = "int" },
-  { name = "Usessl", type = "int" },
+  { name = "UseSSL", type = "int" },
 ]
 methods = [
   { name = "Get", value = true },
@@ -103,7 +103,7 @@ name = "RCGI"
 rapidq = "QCGI"
 from = "qcgi.inc"
 visual = false
-doc = ""
+doc = "For CGI programs behind a web server (qcgi.inc): the request's CGI variables as properties, and Parse / Get for its form fields."
 properties = [
   { name = "AutoConvert", type = "int", default = 1 },
   { name = "MaxInput", type = "int", default = 32767 },
@@ -140,8 +140,8 @@ rapidq = "QCOMPORT"
 aliases = ["COMPORT"]
 visual = false
 where = "desktop (serial2); web (Web Serial)"
-default_event = "OnBreak"
-doc = ""
+default_event = "OnRxChar"
+doc = "A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then read and write strings. Web Serial in the browser."
 properties = [
   { name = "BytesNotRead", type = "int", access = "read", design = false },
   { name = "BytesNotWritten", type = "int", access = "read", design = false },
@@ -153,11 +153,11 @@ properties = [
   { name = "ReadBufSize", type = "int", default = 1024 },
   { name = "StopBits", type = "enum", values = ["sbOneStopBit", "sbOne5StopBits", "sbTwoStopBits"], default = "sbOneStopBit" },
   { name = "WriteBufSize", type = "int", default = 1024 },
-  { name = "Port", type = "int" },
-  { name = "Dcbflags", type = "int", origin = "rapidr" },
-  { name = "InQue", type = "int" },
-  { name = "OutQue", type = "int" },
-  { name = "PendingIO", type = "int" },
+  { name = "Port", type = "any" },
+  { name = "DcbFlags", type = "int", origin = "rapidr" },
+  { name = "InQue", type = "int", access = "read", design = false },
+  { name = "OutQue", type = "int", access = "read", design = false },
+  { name = "PendingIO", type = "int", access = "read", design = false },
 ]
 methods = [
   { name = "AbortAllIO" },
@@ -170,20 +170,20 @@ methods = [
   { name = "WaitForLastIO" },
   { name = "Write", params = "QMemoryStream, Count AS INTEGER, Wait AS INTEGER" },
   { name = "WriteString", params = "Str AS STRING, Wait AS INTEGER" },
-  { name = "Addflowcontrol" },
-  { name = "Delflowcontrol" },
+  { name = "AddFlowControl" },
+  { name = "DelFlowControl" },
 ]
 events = [
-  { name = "OnBreak" },
+  { name = "OnBreak", missing = true },
   { name = "OnClose" },
   { name = "OnComError", params = "ErrorMessage AS STRING" },
   { name = "OnOpen" },
   { name = "OnReadString" },
   { name = "OnWriteString" },
-  { name = "OnRing" },
+  { name = "OnRing", missing = true },
   { name = "OnRxChar", params = "InQue AS INTEGER" },
-  { name = "OnTxEmpty" },
-  { name = "OnError" },
+  { name = "OnTxEmpty", missing = true },
+  { name = "OnError", params = "Message AS STRING" },
 ]
 
 [[component]]
@@ -191,7 +191,7 @@ name = "RDOWNLOAD"
 rapidq = "QDOWNLOAD"
 from = "Qdownload.inc"
 visual = false
-doc = ""
+doc = "Downloads a file over HTTP(S) into a variable or a file, with progress (Qdownload.inc)."
 properties = [
   { name = "Server", type = "string" },
   { name = "Port", type = "int", default = 80 },
@@ -207,7 +207,7 @@ properties = [
   { name = "StateGauge", type = "component", kinds = ["QGAUGE"] },
 ]
 methods = [
-  { name = "Leechfile", returns = "VARIANT", value = true },
+  { name = "LeechFile", returns = "VARIANT", value = true },
   { name = "Check", returns = "VARIANT", value = true },
   { name = "Percent", returns = "VARIANT" },
   { name = "Speed" },

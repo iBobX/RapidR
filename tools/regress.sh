@@ -35,15 +35,18 @@ if want web; then curl -s -o /dev/null "${RAPIDR_URL:-http://localhost:8765}/" |
 if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test result: FAILED|panicked|^error" | head -5
   # (the UI kernel and the program glue stay GUI-free: they must build for
   # the browser too)
-  cargo check -q -p rapidr-ui-kernel -p rapidr-ui-app --target wasm32-unknown-unknown 2>&1 | grep -E "^error" -A5 | head -10
-  # (the user manual's generated reference pages match the source)
-  python3 tools/manual_reference.py --check; echo "(unit done)"; fi
-if want conformance; then echo "== conformance"; node tests/conformance/run.mjs 2>&1 | tail -1; fi
+  cargo check -q -p rapidr-ui-kernel -p rapidr-ui-app -p rapidr-lang --target wasm32-unknown-unknown 2>&1 | grep -E "^error" -A5 | head -10
+  # (the language registry's reverse check: every name the runtimes'
+  # dispatch answers is in it; what it generates is current: cargo test)
+  python3 tools/lang_dispatch.py --check; echo "(unit done)"; fi
+if want conformance; then echo "== conformance"; node tests/conformance/run.mjs 2>&1 | tail -1
+  echo "== the language registry against the desktop runtimes"; node tests/lang_conformance.mjs --backend vm,native 2>&1 | grep -E "^FAIL|passed"; fi
 if want examples; then echo "== native examples"; tools/native_examples.sh 2>&1 | tail -1; fi
 if want gui; then echo "== gui events (the UI kernel's headless host, native + interpreted)"; node tests/native_gui_events.mjs 2>&1 | grep -E "✗|GUI events"
   echo "== gui events at 2x (high-DPI: what programs read is unchanged)"; RAPIDR_SCALE=2 node tests/native_gui_events.mjs 2>&1 | grep -E "✗|GUI events"; fi
 if want web; then
   echo "== web conformance"; node tests/web_conformance.mjs 2>&1 | tail -1
+  echo "== the language registry against the web runtime"; node tests/lang_conformance.mjs --backend web 2>&1 | grep -E "^FAIL|passed"
   # (the UI kernel hosts the web — docs/web-host-plan.md: the cases' dumps
   # by the desktop's own test hooks, and every window and accessibility tree
   # byte for byte against the desktop's own captures, made here by

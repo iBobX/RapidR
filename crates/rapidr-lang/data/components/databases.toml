@@ -5,10 +5,10 @@ group = "Databases"
 name = "RSQLITE"
 visual = false
 default_event = "OnConnect"
-doc = ""
+doc = "A SQLite database: Connect opens a file (or `:memory:`), Query runs SQL with `?` parameters, FetchRow walks the rows. RapidR's own; also in the browser."
 properties = [
   { name = "Database", type = "string" },
-  { name = "dB", type = "string", indexed = 1, design = false },
+  { name = "dB", type = "string", design = false, indexed = 1 },
   { name = "Connected", type = "int" },
   { name = "RowCount", type = "int" },
   { name = "ColCount", type = "int" },
@@ -18,20 +18,20 @@ properties = [
   { name = "DBCount", type = "int" },
 ]
 methods = [
-  { name = "Connect", params = "file", doc = "Opens (or creates) the database file; \":memory:\" for one in memory. Returns 1 if the database was there already, 0 if new. On the web a database lasts for the page's session (a project's .db file is read in first).", value = true },
+  { name = "Connect", params = "file", value = true, doc = "Opens (or creates) the database file; \":memory:\" for one in memory. Returns 1 if the database was there already, 0 if new. On the web a database lasts for the page's session (a project's .db file is read in first)." },
   { name = "Close", value = true },
-  { name = "Query", params = "sql, [value] ...", doc = "Runs the SQL's statements; one with result columns (SELECT, WITH, PRAGMA, … RETURNING) gives the rows FetchRow walks. Values after the SQL are bound to its ? placeholders (never spliced into it: no SQL injection); an array gives its elements. Returns 1, or 0 on an error (OnError gets the message).", value = true },
-  { name = "FetchRow", doc = "Moves to the next row of the last query's rows: 1, or 0 past the last.", value = true },
+  { name = "Query", params = "sql, [value] ...", value = true, doc = "Runs the SQL's statements; one with result columns (SELECT, WITH, PRAGMA, … RETURNING) gives the rows FetchRow walks. Values after the SQL are bound to its ? placeholders (never spliced into it: no SQL injection); an array gives its elements. Returns 1, or 0 on an error (OnError gets the message)." },
+  { name = "FetchRow", value = true, doc = "Moves to the next row of the last query's rows: 1, or 0 past the last." },
   { name = "FetchField", value = true },
-  { name = "RowSeek", params = "row", doc = "The next FetchRow fetches row `row` (from 0).", value = true },
+  { name = "RowSeek", params = "row", value = true, doc = "The next FetchRow fetches row `row` (from 0)." },
   { name = "FieldSeek", value = true },
-  { name = "EscapeString", params = "text", doc = "The text with its single quotes doubled, to put between quotes in SQL (binding with ? is safer).", value = true },
-  { name = "ClearParams", doc = "Drops the values queued with AddParam.", value = true },
+  { name = "EscapeString", params = "text", value = true, doc = "The text with its single quotes doubled, to put between quotes in SQL (binding with ? is safer)." },
+  { name = "ClearParams", value = true, doc = "Drops the values queued with AddParam." },
 ]
 events = [
   { name = "OnConnect" },
   { name = "OnDisconnect" },
-  { name = "OnError" },
+  { name = "OnError", params = "Message AS STRING" },
 ]
 
 [[component]]
@@ -40,49 +40,49 @@ rapidq = "QMYSQL"
 visual = false
 only = "desktop"
 default_event = "OnConnect"
-doc = ""
+doc = "A client for a MySQL or MariaDB server: connect, run queries and walk the rows they return. Desktop only (a browser has no raw TCP)."
 properties = [
   { name = "Connected", type = "int", access = "read", design = false },
-  { name = "DB", type = "string", indexed = 1, access = "read", design = false },
+  { name = "DB", type = "string", access = "read", design = false, indexed = 1 },
   { name = "DBCount", type = "int", access = "read", design = false },
   { name = "ColCount", type = "int", access = "read", design = false },
   { name = "FieldCount", type = "int", access = "read", design = false },
-  { name = "Length", type = "int", indexed = 1, access = "read", design = false },
-  { name = "Row", type = "string", indexed = 1, access = "read", design = false },
+  { name = "Length", type = "int", access = "read", design = false, indexed = 1 },
+  { name = "Row", type = "string", access = "read", design = false, indexed = 1 },
   { name = "RowCount", type = "int", access = "read", design = false },
-  { name = "Table", type = "string", indexed = 1, access = "read", design = false },
+  { name = "Table", type = "string", access = "read", design = false, indexed = 1 },
   { name = "TableCount", type = "int", access = "read", design = false },
-  { name = "Host", type = "any", origin = "rapidr" },
+  { name = "Host", type = "string", origin = "rapidr" },
   { name = "User", type = "string", origin = "rapidr" },
   { name = "Password", type = "string", origin = "rapidr" },
   { name = "Database", type = "string", origin = "rapidr" },
   { name = "Port", type = "int", origin = "rapidr" },
-  { name = "Item", type = "string", indexed = 1, design = false },
-  { name = "Numfields", type = "any" },
-  { name = "Numrows", type = "any" },
+  { name = "Item", type = "string", design = false, indexed = 1 },
+  { name = "NumFields", type = "int" },
+  { name = "NumRows", type = "int" },
 ]
 methods = [
   { name = "Close", value = true },
   { name = "Connect", params = "Host AS STRING, User AS STRING, Passwd AS STRING", returns = "INTEGER", value = true },
-  { name = "CreateDB", params = "DB AS STRING", returns = "INTEGER", missing = true, value = true },
-  { name = "DropDB", params = "DB AS STRING", returns = "INTEGER", missing = true, value = true },
+  { name = "CreateDB", params = "DB AS STRING", returns = "INTEGER", value = true, missing = true },
+  { name = "DropDB", params = "DB AS STRING", returns = "INTEGER", value = true, missing = true },
   { name = "EscapeString", params = "S AS STRING, Length AS INTEGER", returns = "STRING", value = true },
   { name = "FetchField", returns = "VARIANT", value = true },
   { name = "FetchLengths", returns = "VARIANT", missing = true },
   { name = "FetchRow", returns = "VARIANT", value = true },
   { name = "FieldSeek", params = "Position AS INTEGER", returns = "VARIANT", value = true },
-  { name = "Query", params = "Query AS STRING", doc = "Runs the SQL. Values after it are bound to its ? placeholders (sent apart from the SQL: no SQL injection); an array gives its elements. Returns 1, or 0 on an error (OnError gets the message).", returns = "INTEGER", value = true },
+  { name = "Query", params = "Query AS STRING", returns = "INTEGER", value = true, doc = "Runs the SQL. Values after it are bound to its ? placeholders (sent apart from the SQL: no SQL injection); an array gives its elements. Returns 1, or 0 on an error (OnError gets the message)." },
   { name = "RealConnect", params = "Host AS STRING, User AS STRING, Passwd AS STRING, DB AS STRING, Port AS INTEGER, UnixSock AS STRING, Flags AS INTEGER", missing = true },
-  { name = "Refresh", params = "RefreshFlags AS INTEGER", returns = "INTEGER", missing = true, value = true },
-  { name = "RowBlob", params = "Row AS INTEGER, Bytes AS LONG", returns = "STRING", missing = true, value = true },
+  { name = "Refresh", params = "RefreshFlags AS INTEGER", returns = "INTEGER", value = true, missing = true },
+  { name = "RowBlob", params = "Row AS INTEGER, Bytes AS LONG", returns = "STRING", value = true, missing = true },
   { name = "RowSeek", params = "Row AS INTEGER", returns = "VARIANT", value = true },
   { name = "SelectDB", params = "DB AS STRING", returns = "INTEGER", value = true },
-  { name = "ClearParams", doc = "Drops the values queued with AddParam.", origin = "rapidr", value = true },
+  { name = "ClearParams", value = true, origin = "rapidr", doc = "Drops the values queued with AddParam." },
   { name = "LoadBlob", missing = true },
   { name = "SaveBlob", missing = true },
 ]
 events = [
   { name = "OnConnect", origin = "rapidr" },
   { name = "OnDisconnect", origin = "rapidr" },
-  { name = "OnError", origin = "rapidr" },
+  { name = "OnError", params = "Message AS STRING", origin = "rapidr" },
 ]

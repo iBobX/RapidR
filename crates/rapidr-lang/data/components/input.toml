@@ -7,8 +7,8 @@ rapidq = "QBUTTON"
 visual = true
 size = [75, 25]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
-doc = ""
+sets = ["layout", "a11y", "generic"]
+doc = "A push button: the user clicks it to run its OnClick handler. It can show a picture and be the form's Default or Cancel button."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "BMP", type = "picture" },
@@ -42,9 +42,9 @@ properties = [
 ]
 methods = [
   { name = "StartDrag", missing = true },
-  { name = "SetFocus", origin = "rapidr", value = true },
+  { name = "SetFocus", value = true, origin = "rapidr" },
   { name = "Repaint", origin = "rapidr" },
-  { name = "Refresh", origin = "rapidr", value = true },
+  { name = "Refresh", value = true, origin = "rapidr" },
 ]
 events = [
   { name = "OnClick" },
@@ -54,9 +54,9 @@ events = [
   { name = "OnMouseDown", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
-  { name = "Onenddrag" },
-  { name = "Onstartdrag" },
-  { name = "WndProc" },
+  { name = "OnEndDrag", missing = true },
+  { name = "OnStartDrag", missing = true },
+  { name = "WndProc", missing = true },
 ]
 
 [[component]]
@@ -65,8 +65,8 @@ rapidq = "QEDIT"
 visual = true
 size = [120, 25]
 default_event = "OnChange"
-sets = ["layout", "a11y"]
-doc = ""
+sets = ["layout", "a11y", "generic"]
+doc = "A one-line text box to type and edit text in, with an optional input mask, password character and length limit."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "AutoSize", type = "bool", default = true },
@@ -102,26 +102,25 @@ properties = [
   { name = "FontColor", type = "color", origin = "rapidr" },
   { name = "Alignment", type = "enum", values = ["taLeftJustify", "taRightJustify", "taCenter"], origin = "rapidr" },
   { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], origin = "rapidr" },
-  { name = "GetSubList", type = "string", origin = "rapidr" },
 ]
 methods = [
-  { name = "SetFocus", origin = "rapidr", value = true },
-  { name = "Clear", origin = "rapidr", value = true },
-  { name = "SelectAll", origin = "rapidr", value = true },
+  { name = "SetFocus", value = true, origin = "rapidr" },
+  { name = "Clear", value = true, origin = "rapidr" },
+  { name = "SelectAll", value = true, origin = "rapidr" },
   { name = "CopyToClipboard", origin = "rapidr" },
-  { name = "CutToClipBoard", origin = "rapidr" },
+  { name = "CutToClipboard", origin = "rapidr" },
   { name = "PasteFromClipboard", origin = "rapidr" },
   { name = "Repaint", origin = "rapidr" },
-  { name = "Refresh", origin = "rapidr", value = true },
-  { name = "AddItems", origin = "rapidr", value = true },
-  { name = "Clearselection", origin = "rapidr" },
+  { name = "Refresh", value = true, origin = "rapidr" },
+  { name = "AddItems", value = true, origin = "rapidr" },
+  { name = "ClearSelection", origin = "rapidr" },
 ]
 events = [
   { name = "OnChange" },
   { name = "OnKeyDown", params = "Key AS WORD, Shift AS INTEGER" },
   { name = "OnKeyPress", params = "Key AS BYTE" },
   { name = "OnKeyUp", params = "Key AS WORD, Shift AS INTEGER" },
-  { name = "WndProc", params = "Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER" },
+  { name = "WndProc", params = "Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER", missing = true },
   { name = "OnClick", origin = "rapidr" },
   { name = "OnDblClick", origin = "rapidr" },
 ]
@@ -132,8 +131,8 @@ rapidq = "QCHECKBOX"
 visual = true
 size = [100, 20]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
-doc = ""
+sets = ["layout", "a11y", "generic"]
+doc = "A box with a caption that the user ticks on or off (Checked)."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "Caption", type = "string" },
@@ -159,13 +158,13 @@ properties = [
   { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], origin = "rapidr" },
 ]
 methods = [
-  { name = "SetFocus", origin = "rapidr", value = true },
+  { name = "SetFocus", value = true, origin = "rapidr" },
   { name = "Repaint", origin = "rapidr" },
-  { name = "Refresh", origin = "rapidr", value = true },
+  { name = "Refresh", value = true, origin = "rapidr" },
 ]
 events = [
   { name = "OnClick" },
-  { name = "WndProc" },
+  { name = "WndProc", missing = true },
 ]
 
 [[component]]
@@ -174,8 +173,8 @@ rapidq = "QRADIOBUTTON"
 visual = true
 size = [100, 20]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
-doc = ""
+sets = ["layout", "a11y", "generic"]
+doc = "One choice of several: checking it unchecks the other radio buttons in the same container."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "Caption", type = "string" },
@@ -200,13 +199,13 @@ properties = [
   { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], origin = "rapidr" },
 ]
 methods = [
-  { name = "SetFocus", origin = "rapidr", value = true },
+  { name = "SetFocus", value = true, origin = "rapidr" },
   { name = "Repaint", origin = "rapidr" },
-  { name = "Refresh", origin = "rapidr", value = true },
+  { name = "Refresh", value = true, origin = "rapidr" },
 ]
 events = [
   { name = "OnClick" },
-  { name = "WndProc" },
+  { name = "WndProc", missing = true },
 ]
 
 [[component]]
@@ -215,8 +214,8 @@ rapidq = "QCOMBOBOX"
 visual = true
 size = [145, 25]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
-doc = ""
+sets = ["layout", "a11y", "generic"]
+doc = "A drop-down list, with or without a box to type in; the user picks one item (ItemIndex, Text)."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "Color", type = "color" },
@@ -228,7 +227,7 @@ properties = [
   { name = "Handle", type = "int", access = "read", design = false },
   { name = "Height", type = "int" },
   { name = "Hint", type = "string" },
-  { name = "Item", type = "string", indexed = 1, design = false },
+  { name = "Item", type = "string", design = false, indexed = 1 },
   { name = "ItemCount", type = "int", access = "read", design = false },
   { name = "ItemHeight", type = "int" },
   { name = "ItemIndex", type = "int", default = -1 },
@@ -254,7 +253,7 @@ properties = [
   { name = "ListCount", type = "int", origin = "rapidr" },
   { name = "ListIndex", type = "int", origin = "rapidr" },
   { name = "Items", type = "string", origin = "rapidr" },
-  { name = "Pixel", type = "int", indexed = 2, design = false },
+  { name = "Pixel", type = "int", design = false, indexed = 2 },
 ]
 methods = [
   { name = "AddItems", params = "Items ...", value = true },
@@ -276,18 +275,18 @@ methods = [
   { name = "TextWidth", params = "Text AS STRING", returns = "WORD", missing = true },
   { name = "TextRect", params = "Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", missing = true },
   { name = "TextOut", params = "x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", missing = true },
-  { name = "AddItem", origin = "rapidr", value = true },
-  { name = "DeleteItem", origin = "rapidr", value = true },
-  { name = "SetFocus", origin = "rapidr", value = true },
-  { name = "Refresh", origin = "rapidr", value = true },
+  { name = "AddItem", value = true, origin = "rapidr" },
+  { name = "DeleteItem", value = true, origin = "rapidr" },
+  { name = "SetFocus", value = true, origin = "rapidr" },
+  { name = "Refresh", value = true, origin = "rapidr" },
   { name = "Rect", origin = "rapidr" },
   { name = "SetPixel", origin = "rapidr" },
   { name = "Ellipse", origin = "rapidr" },
   { name = "DrawText", origin = "rapidr" },
   { name = "AddString", origin = "rapidr" },
-  { name = "Deleteitems", origin = "rapidr", value = true },
-  { name = "RemoveItem", origin = "rapidr", value = true },
-  { name = "Find", origin = "rapidr", value = true },
+  { name = "DeleteItems", value = true, origin = "rapidr" },
+  { name = "RemoveItem", value = true, origin = "rapidr" },
+  { name = "Find", value = true, origin = "rapidr" },
 ]
 events = [
   { name = "OnChange" },
@@ -295,7 +294,7 @@ events = [
   { name = "OnMeasureItem", params = "Index AS INTEGER, Height AS INTEGER" },
   { name = "OnClick", origin = "rapidr" },
   { name = "OnDblClick", origin = "rapidr" },
-  { name = "WndProc" },
+  { name = "WndProc", missing = true },
 ]
 
 [[component]]
@@ -304,8 +303,8 @@ rapidq = "QRICHEDIT"
 visual = true
 size = [200, 100]
 default_event = "OnChange"
-sets = ["layout", "a11y"]
-doc = ""
+sets = ["layout", "a11y", "generic"]
+doc = "A multi-line text editor with fonts, colours and alignment per selection, that loads and saves rich text (RTF) or plain text."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "Alignment", type = "enum", values = ["taLeftJustify", "taRightJustify", "taCenter"], default = "taLeftJustify" },
@@ -319,13 +318,13 @@ properties = [
   { name = "HideSelection", type = "bool", default = true },
   { name = "Hint", type = "string" },
   { name = "Left", type = "int", default = 0 },
-  { name = "Line", type = "string", indexed = 1, design = false },
+  { name = "Line", type = "string", design = false, indexed = 1 },
   { name = "LineCount", type = "int", design = false },
   { name = "Modified", type = "int", access = "read", design = false },
   { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
   { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"], access = "write", design = false },
-  { name = "Plaintext", type = "bool", default = false },
-  { name = "Readonly", type = "bool", default = false },
+  { name = "PlainText", type = "bool", default = false },
+  { name = "ReadOnly", type = "bool", default = false },
   { name = "ScrollBars", type = "enum", values = ["ssNone", "ssHorizontal", "ssVertical", "ssBoth"], default = "ssNone" },
   { name = "SelAttributes", type = "font", access = "write", design = false },
   { name = "SelLength", type = "int" },
@@ -340,13 +339,12 @@ properties = [
   { name = "Width", type = "int" },
   { name = "WhereX", type = "int", access = "read", design = false },
   { name = "WhereY", type = "int", access = "read", design = false },
-  { name = "Wordwrap", type = "bool", default = true },
+  { name = "WordWrap", type = "bool", default = true },
   { name = "Visible", type = "bool", default = true },
   { name = "FontSize", type = "int", origin = "rapidr" },
   { name = "FontColor", type = "color", origin = "rapidr" },
   { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], origin = "rapidr" },
-  { name = "GetSubList", type = "string", origin = "rapidr" },
-  { name = "Selfont", type = "any" },
+  { name = "SelFont", type = "font" },
 ]
 methods = [
   { name = "AddStrings", params = "Items ..." },
@@ -359,15 +357,15 @@ methods = [
   { name = "SaveToFile", params = "FileName AS STRING" },
   { name = "SaveToStream", params = "Stream AS QFILESTREAM", missing = true },
   { name = "SelectAll", value = true },
-  { name = "SetFocus", origin = "rapidr", value = true },
+  { name = "SetFocus", value = true, origin = "rapidr" },
   { name = "Repaint", origin = "rapidr" },
-  { name = "Refresh", origin = "rapidr", value = true },
+  { name = "Refresh", value = true, origin = "rapidr" },
   { name = "Lines", origin = "rapidr" },
   { name = "AddString" },
   { name = "AddLines", origin = "rapidr" },
   { name = "Add", origin = "rapidr" },
-  { name = "AddItems", origin = "rapidr", value = true },
-  { name = "Clearselection", origin = "rapidr" },
+  { name = "AddItems", value = true, origin = "rapidr" },
+  { name = "ClearSelection", origin = "rapidr" },
 ]
 events = [
   { name = "OnChange" },
@@ -386,8 +384,8 @@ name = "RMEMO"
 visual = true
 size = [200, 100]
 default_event = "OnChange"
-sets = ["layout", "a11y"]
-doc = ""
+sets = ["layout", "a11y", "generic"]
+doc = "A multi-line plain-text editor with word wrap and scroll bars. RapidR's own."
 properties = [
   { name = "Text", type = "string" },
   { name = "Width", type = "int" },
@@ -410,14 +408,13 @@ properties = [
   { name = "TabOrder", type = "int" },
   { name = "BorderStyle", type = "enum", values = ["bsNone", "bsSingle", "bsSizeable", "bsDialog", "bsToolWindow", "bsSizeToolWin"] },
   { name = "Alignment", type = "enum", values = ["taLeftJustify", "taRightJustify", "taCenter"] },
-  { name = "GetSubList", type = "string" },
 ]
 methods = [
   { name = "Clear", value = true },
   { name = "SetFocus", value = true },
   { name = "SelectAll", value = true },
   { name = "CopyToClipboard" },
-  { name = "CutToClipBoard" },
+  { name = "CutToClipboard" },
   { name = "PasteFromClipboard" },
   { name = "Repaint" },
   { name = "Refresh", value = true },
@@ -426,7 +423,7 @@ methods = [
   { name = "AddLines" },
   { name = "Add" },
   { name = "AddItems", value = true },
-  { name = "Clearselection" },
+  { name = "ClearSelection" },
 ]
 events = [
   { name = "OnChange" },
@@ -443,8 +440,8 @@ rapidq = "QSCROLLBAR"
 visual = true
 size = [100, 20]
 default_event = "OnChange"
-sets = ["layout", "a11y"]
-doc = ""
+sets = ["layout", "a11y", "generic"]
+doc = "A horizontal or vertical scroll bar the user moves to pick a Position between Min and Max."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
@@ -471,7 +468,7 @@ properties = [
 ]
 methods = [
   { name = "Repaint", origin = "rapidr" },
-  { name = "Refresh", origin = "rapidr", value = true },
+  { name = "Refresh", value = true, origin = "rapidr" },
 ]
 events = [
   { name = "OnChange" },
@@ -485,8 +482,7 @@ events = [
 name = "RUPDOWN"
 visual = true
 default_event = "OnChange"
-sets = ["layout", "a11y"]
-doc = ""
+doc = "Two arrow buttons that step Position up or down between Min and Max, often beside an edit. RapidR's own."
 properties = [
   { name = "Min", type = "int" },
   { name = "Max", type = "int" },
@@ -517,8 +513,7 @@ events = [
 name = "RDATETIMEPICKER"
 visual = true
 default_event = "OnChange"
-sets = ["layout", "a11y"]
-doc = ""
+doc = "A field for a date and a time (Date, Time), with OnChange when the user changes either. RapidR's own."
 properties = [
   { name = "Date", type = "string" },
   { name = "Time", type = "string" },
@@ -554,8 +549,8 @@ rapidq = "QTRACKBAR"
 visual = true
 size = [150, 45]
 default_event = "OnChange"
-sets = ["layout", "a11y"]
-doc = ""
+sets = ["layout", "a11y", "generic"]
+doc = "A slider: the user drags its thumb to pick a Position between Min and Max, along tick marks."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
@@ -585,10 +580,10 @@ properties = [
 ]
 methods = [
   { name = "SetTick", params = "Pos AS INTEGER" },
-  { name = "SetFocus", origin = "rapidr", value = true },
+  { name = "SetFocus", value = true, origin = "rapidr" },
   { name = "Repaint", origin = "rapidr" },
-  { name = "Refresh", origin = "rapidr", value = true },
-  { name = "Clearticks", origin = "rapidr" },
+  { name = "Refresh", value = true, origin = "rapidr" },
+  { name = "ClearTicks", origin = "rapidr" },
 ]
 events = [
   { name = "OnChange" },
@@ -600,8 +595,8 @@ name = "RCODEEDITOR"
 visual = true
 size = [400, 300]
 default_event = "OnChange"
-sets = ["layout", "a11y"]
-doc = ""
+sets = ["layout", "a11y", "generic"]
+doc = "A code editor for BASIC: line numbers, syntax colours, and a list of the program's SUBs and FUNCTIONs to jump to. RapidR's own; the IDE's editor."
 properties = [
   { name = "Text", type = "string" },
   { name = "Width", type = "int" },
@@ -619,7 +614,7 @@ properties = [
   { name = "SelStart", type = "int" },
   { name = "SelLength", type = "int" },
   { name = "SelText", type = "string" },
-  { name = "Line", type = "string", indexed = 1, design = false },
+  { name = "Line", type = "string", design = false, indexed = 1 },
   { name = "LineCount", type = "int", design = false },
   { name = "Hint", type = "string" },
   { name = "ShowHint", type = "int" },
@@ -632,12 +627,12 @@ methods = [
   { name = "SetFocus", value = true },
   { name = "SelectAll", value = true },
   { name = "CopyToClipboard" },
-  { name = "CutToClipBoard" },
+  { name = "CutToClipboard" },
   { name = "PasteFromClipboard" },
   { name = "LoadFromFile" },
   { name = "SaveToFile" },
   { name = "AddStrings" },
-  { name = "Gotosub", value = true },
+  { name = "GotoSub", value = true },
   { name = "GotoLine", value = true },
   { name = "GetSubList", value = true },
   { name = "Repaint" },
@@ -647,7 +642,7 @@ methods = [
   { name = "AddLines" },
   { name = "Add" },
   { name = "AddItems", value = true },
-  { name = "Clearselection" },
+  { name = "ClearSelection" },
 ]
 events = [
   { name = "OnChange" },
@@ -664,8 +659,8 @@ rapidq = "QCOOLBTN"
 visual = true
 size = [25, 25]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
-doc = "Flat/toggle toolbar button with optional multi-state BMP image. Supports GroupIndex for radio-button-like groups."
+sets = ["layout", "a11y", "generic"]
+doc = "A flat toolbar button with a caption and a picture; with GroupIndex it stays down, as a toggle or one of a group."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "AllowAllUp", type = "bool", default = false },
@@ -696,9 +691,9 @@ properties = [
   { name = "Handle", type = "int", design = false },
 ]
 methods = [
-  { name = "SetFocus", origin = "rapidr", value = true },
+  { name = "SetFocus", value = true, origin = "rapidr" },
   { name = "Repaint", origin = "rapidr" },
-  { name = "Refresh", origin = "rapidr", value = true },
+  { name = "Refresh", value = true, origin = "rapidr" },
   { name = "StartDrag", missing = true },
 ]
 events = [
@@ -714,8 +709,8 @@ rapidq = "QOVALBTN"
 visual = true
 size = [75, 40]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
-doc = "Oval/round button with customizable colors and highlight/shadow effects."
+sets = ["layout", "a11y", "generic"]
+doc = "A round button with its own colours, highlight and shadow; like a cool button, it can stay down as a toggle."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "BMP", type = "picture", access = "write", design = false },
@@ -747,13 +742,13 @@ properties = [
   { name = "Visible", type = "bool", default = true },
   { name = "FontSize", type = "int", origin = "rapidr" },
   { name = "FontColor", type = "color", origin = "rapidr" },
-  { name = "AllowAllUp", type = "int", origin = "rapidr" },
+  { name = "AllowAllUp", type = "bool", origin = "rapidr" },
   { name = "Handle", type = "int", design = false },
 ]
 methods = [
-  { name = "SetFocus", origin = "rapidr", value = true },
+  { name = "SetFocus", value = true, origin = "rapidr" },
   { name = "Repaint" },
-  { name = "Refresh", origin = "rapidr", value = true },
+  { name = "Refresh", value = true, origin = "rapidr" },
   { name = "StartDrag", missing = true },
 ]
 events = [
@@ -761,5 +756,5 @@ events = [
   { name = "OnMouseDown" },
   { name = "OnMouseMove" },
   { name = "OnMouseUp" },
-  { name = "WndProc" },
+  { name = "WndProc", missing = true },
 ]

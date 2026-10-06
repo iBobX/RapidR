@@ -5,7 +5,7 @@ group = "Direct3D (retained mode)"
 name = "RD3DFRAME"
 rapidq = "QD3DFRAME"
 visual = false
-doc = ""
+doc = "A node of a Direct3D retained-mode scene: it has a position, orientation and motion, and holds meshes, lights and child frames. RapidR draws the scene with its own renderer."
 properties = [
   { name = "FogColor", type = "color" },
   { name = "FogMode", type = "int" },
@@ -39,7 +39,7 @@ events = []
 name = "RD3DMESHBUILDER"
 rapidq = "QD3DMESHBUILDER"
 visual = false
-doc = ""
+doc = "Builds a 3D mesh: load a `.X` model or add vertices and faces, then scale, colour and texture it before adding it to a frame."
 properties = [
   { name = "FaceCount", type = "int", access = "read", design = false },
   { name = "Parent", type = "component", kinds = ["QFORM"], design = false },
@@ -67,7 +67,7 @@ events = []
 name = "RD3DMESH"
 rapidq = "QD3DMESH"
 visual = false
-doc = ""
+doc = "A finished 3D mesh, made by a mesh builder, ready to add to frames."
 properties = [
   { name = "MaxY", type = "float", access = "read", design = false },
   { name = "MinY", type = "float", access = "read", design = false },
@@ -82,14 +82,17 @@ events = []
 name = "RD3DFACE"
 rapidq = "QD3DFACE"
 visual = false
-doc = ""
+doc = "One polygon of a 3D mesh: its vertices and colour, added to a mesh builder."
 properties = [
   { name = "VertexCount", type = "int", access = "read", design = false },
 ]
 methods = [
-  { name = "AddVertex", params = "X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE", missing = true },
-  { name = "GetVertex", params = "Index AS LONG, Position AS QD3DVECTOR, Normal AS QD3DVECTOR", missing = true },
-  { name = "SetColorRGB", params = "R AS DOUBLE, G AS DOUBLE, B AS DOUBLE", missing = true },
+  { name = "AddVertex", params = "X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE", test = "skip: needs a Direct3D scene (a frame and a mesh) to act on" },
+  { name = "GetVertex", params = "Index AS LONG, Position AS QD3DVECTOR, Normal AS QD3DVECTOR", test = "skip: needs a Direct3D scene (a frame and a mesh) to act on" },
+  { name = "SetColorRGB", params = "R AS DOUBLE, G AS DOUBLE, B AS DOUBLE", test = "skip: needs a Direct3D scene (a frame and a mesh) to act on" },
+  { name = "SetRGB", origin = "rapidr", test = "skip: needs a Direct3D scene (a frame and a mesh) to act on" },
+  { name = "SetColorRGBA", origin = "rapidr", test = "skip: needs a Direct3D scene (a frame and a mesh) to act on" },
+  { name = "SetRGBA", origin = "rapidr", test = "skip: needs a Direct3D scene (a frame and a mesh) to act on" },
 ]
 events = []
 
@@ -97,15 +100,15 @@ events = []
 name = "RD3DLIGHT"
 rapidq = "QD3DLIGHT"
 visual = false
-doc = ""
+doc = "A light in the 3D scene (ambient, directional, point or spot), with its colour, range and cone."
 properties = [
   { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL"], design = false },
 ]
 methods = [
-  { name = "SetLightRGB", params = "LightType AS INTEGER, R AS DOUBLE, G AS DOUBLE, B AS DOUBLE", missing = true },
-  { name = "SetPenUmbra", params = "Angle AS DOUBLE", missing = true },
-  { name = "SetRange", params = "Range AS DOUBLE", missing = true },
-  { name = "SetUmbra", params = "Angle AS DOUBLE", missing = true },
+  { name = "SetLightRGB", params = "LightType AS INTEGER, R AS DOUBLE, G AS DOUBLE, B AS DOUBLE", test = "skip: needs a Direct3D scene (a frame and a mesh) to act on" },
+  { name = "SetPenUmbra", params = "Angle AS DOUBLE", test = "skip: needs a Direct3D scene (a frame and a mesh) to act on" },
+  { name = "SetRange", params = "Range AS DOUBLE", test = "skip: needs a Direct3D scene (a frame and a mesh) to act on" },
+  { name = "SetUmbra", params = "Angle AS DOUBLE", test = "skip: needs a Direct3D scene (a frame and a mesh) to act on" },
 ]
 events = []
 
@@ -113,7 +116,7 @@ events = []
 name = "RD3DTEXTURE"
 rapidq = "QD3DTEXTURE"
 visual = false
-doc = ""
+doc = "A picture laid onto 3D meshes as their surface."
 properties = [
   { name = "Parent", type = "component", kinds = ["QFORM"], design = false },
 ]
@@ -124,7 +127,7 @@ events = []
 name = "RD3DVISUAL"
 rapidq = "QD3DVISUAL"
 visual = false
-doc = ""
+doc = "Something a 3D frame can show (a mesh or a mesh builder), as Direct3D's visual."
 properties = [
   { name = "Parent", type = "component", kinds = ["QFORM"], design = false },
 ]
@@ -135,11 +138,11 @@ events = []
 name = "RD3DWRAP"
 rapidq = "QD3DWRAP"
 visual = false
-doc = ""
+doc = "How a texture is laid over a mesh (flat, cylinder, sphere or chrome), applied to it with Apply or ApplyRelative."
 properties = []
 methods = [
-  { name = "Apply", params = "M AS QD3DMESH", missing = true },
-  { name = "ApplyRelative", params = "F AS QD3DFRAME, M AS QD3DMESH", missing = true },
+  { name = "Apply", params = "M AS QD3DMESH", test = "skip: needs a Direct3D scene (a frame and a mesh) to act on" },
+  { name = "ApplyRelative", params = "F AS QD3DFRAME, M AS QD3DMESH", test = "skip: needs a Direct3D scene (a frame and a mesh) to act on" },
 ]
 events = []
 
@@ -147,7 +150,7 @@ events = []
 name = "RD3DVECTOR"
 rapidq = "QD3DVECTOR"
 visual = false
-doc = ""
+doc = "A 3D vector (X, Y, Z), for positions and directions in the 3D scene."
 properties = [
   { name = "DVX", type = "float" },
   { name = "DVY", type = "float" },

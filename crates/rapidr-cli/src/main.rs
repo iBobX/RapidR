@@ -9,6 +9,7 @@ use rapidr_parser::parse_file as parser_parse_file;
 use rapidr_preprocessor::{preprocess_file, PreprocessOptions};
 
 mod home;
+mod lang;
 mod macos;
 mod launch;
 mod notices;
@@ -18,7 +19,7 @@ use home::Home;
 
 /// The subcommands (a first argument that is one isn't a file).
 const SUBCOMMANDS: &[&str] = &[
-    "version", "run", "open", "info", "about", "ide", "setup", "notices", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "__dialog",
+    "version", "run", "open", "info", "about", "ide", "setup", "notices", "lang", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "__dialog",
 ];
 
 /// `--log <file> <command…>`: this rapidr again with the command, its
@@ -109,6 +110,7 @@ fn main() -> ExitCode {
         (Some("ide"), _) => launch::ide(args[1..].to_vec()),
         (Some("setup"), _) => setup::setup(&args[1..]),
         (Some("notices"), _) => notices::command(&args[1..]),
+        (Some("lang"), _) => lang::command(&args[1..]),
         (Some("__dialog"), Some(path)) => launch::run_dialog(&path),
         (Some("parse"), Some(path)) => parse_source_file(&path),
         (Some("preprocess"), Some(path)) => preprocess_source_file(&path),
@@ -189,6 +191,8 @@ fn main() -> ExitCode {
             eprintln!("  rapidr setup [--check] [--yes] [--toolchain gnullvm|msvc]  Rust for native builds, rapidr on PATH");
             eprintln!("  rapidr ide [file.rr]                             The IDE");
             eprintln!("  rapidr notices [<os>-<arch>|web|tools-<os>] [-o FILE]  The third-party notices builds carry");
+            eprintln!("  rapidr lang export --json|--prompt|--vscode|--web-ide|--manual|--all  What the language registry generates");
+            eprintln!("  rapidr lang conformance <dir> [--target desktop|web]  The registry's conformance programs");
             eprintln!("  rapidr about");
             eprintln!("  rapidr [--release|--debug] [--web] [--interp] <file.rr>  Build source file");
             eprintln!("  rapidr parse <file.rr>");

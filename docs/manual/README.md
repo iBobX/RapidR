@@ -22,11 +22,14 @@ where something isn't done yet, it says so.
 | [Differences from RapidQ, and extensions](differences.md) | What RapidR does that RapidQ doesn't, what it does differently on purpose, and what it doesn't do |
 | [Troubleshooting](troubleshooting.md) | Common messages and what to do about them |
 
-Reference tables, generated from RapidR's source (`python3
-tools/manual_reference.py`):
+Reference tables, generated from RapidR's language registry (`rapidr lang
+export --manual`):
 
 - [Components: RapidQ's and RapidR's names](reference/components.md)
+- [Every component's properties, methods and events](reference/members.md)
 - [Built-in functions](reference/builtins.md)
+- [Statements, directives, keywords and types](reference/statements.md)
+- [Constants](reference/constants.md)
 - [Data-science members](reference/data-science.md)
 
 Elsewhere:

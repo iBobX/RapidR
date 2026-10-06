@@ -7,6 +7,8 @@ license.workspace = true
 
 [dependencies]
 rapidr-diagnostics.workspace = true
+# COMPONENT_TYPES: the language registry's
+rapidr-lang.workspace = true
 
 [lib]
 path = "src/lib.rs"

@@ -171,6 +171,8 @@ struct Ctx {
     constants: HashMap<String, i64>,
     glossary: Glossary,
     sets: HashMap<String, Table>,
+    /// items.toml's objects (a type = "item" property's kinds).
+    items: Vec<String>,
 }
 
 const TYPES: &[(&str, &str)] = &[
@@ -185,6 +187,7 @@ const TYPES: &[(&str, &str)] = &[
     ("component", "Component"),
     ("picture", "Picture"),
     ("resource", "Resource"),
+    ("item", "Item"),
     ("any", "Any"),
 ];
 
@@ -208,6 +211,16 @@ fn property(ctx: &Ctx, p: &Table, family: &str, set: Option<&str>, at: &str) -> 
         return Err(format!("{at}: an {ty_s} needs `values`"));
     }
     let kinds = strs(p, "kinds", at)?;
+    if ty == "Item" {
+        for k in &kinds {
+            if !ctx.items.contains(k) {
+                return Err(format!("{at}: item kind `{k}` isn't in items.toml"));
+            }
+        }
+        if kinds.is_empty() {
+            return Err(format!("{at}: an item property names its kinds (items.toml)"));
+        }
+    }
     let default = match p.get("default") {
         None => "None".to_string(),
         Some(Value::Integer(i)) => format!("Some(DefaultValue::Int({i}))"),
@@ -323,6 +336,7 @@ fn component(ctx: &Ctx, c: &Table, group: &str, global: bool, at: &str) -> Res<(
     let family = if global { s(c, "origin").unwrap_or("rapidq") } else if rapidq.is_some() { "rapidq" } else { "rapidr" };
     let kind = match (global, s(c, "kind").unwrap_or("component")) {
         (true, "global") => "Kind::Global",
+        (true, "item") => "Kind::Item",
         (false, "component") => "Kind::Component",
         (false, "library") => "Kind::Library",
         (false, "planned") => "Kind::Planned",
@@ -445,21 +459,25 @@ fn build(dir: &Path) -> Res<String> {
     }
     // The glossary: docs and categories by member name.
     let mut glossary = Glossary { entries: HashMap::new() };
-    if let Some(p) = by_name("glossary.toml") {
-        let g = load(&p)?;
+    for p in paths.iter().filter(|p| p.parent().is_some_and(|d| d.ends_with("glossary"))) {
+        let g = load(p)?;
+        let gfile = p.strip_prefix(dir).unwrap().display().to_string();
         for (kind, entries) in &g {
             if !["property", "method", "event"].contains(&kind.as_str()) {
-                return Err(format!("glossary.toml: [{kind}] (property, method or event)"));
+                return Err(format!("{gfile}: [{kind}] (property, method or event)"));
             }
-            let entries = entries.as_table().ok_or("glossary.toml: tables of entries")?;
+            let entries = entries.as_table().ok_or_else(|| format!("{gfile}: tables of entries"))?;
             for (name, e) in entries {
-                let at = format!("glossary.toml: {kind}.{name}");
+                let at = format!("{gfile}: {kind}.{name}");
                 let e = e.as_table().ok_or_else(|| format!("{at}: a table"))?;
                 keys_allowed(e, &["doc", "category"], &at)?;
-                glossary.entries.insert(
-                    (kind.clone(), name.to_ascii_lowercase()),
-                    (s(e, "doc").unwrap_or("").to_string(), s(e, "category").unwrap_or("").to_string()),
-                );
+                if glossary
+                    .entries
+                    .insert((kind.clone(), name.to_ascii_lowercase()), (s(e, "doc").unwrap_or("").to_string(), s(e, "category").unwrap_or("").to_string()))
+                    .is_some()
+                {
+                    return Err(format!("{at}: twice"));
+                }
             }
         }
     }
@@ -469,12 +487,19 @@ fn build(dir: &Path) -> Res<String> {
             sets.insert(req(st, "name", "sets.toml")?.to_string(), st.clone());
         }
     }
-    let ctx = Ctx { constants, glossary, sets };
+    let mut items_names = Vec::new();
+    if let Some(p) = by_name("items.toml") {
+        for o in tables(&load(&p)?, "object", "items.toml")? {
+            items_names.push(req(o, "name", "items.toml")?.to_string());
+        }
+    }
+    let ctx = Ctx { constants, glossary, sets, items: items_names };
 
     let mut comps = Vec::new();
     let mut component_types = Vec::new();
     let mut index: BTreeMap<String, usize> = BTreeMap::new();
     let mut globals = Vec::new();
+    let mut items = Vec::new();
     let mut builtins = Vec::new();
     let mut internal = Vec::new();
     let mut statements = Vec::new();
@@ -498,6 +523,11 @@ fn build(dir: &Path) -> Res<String> {
                     component_types.push(name.to_ascii_uppercase());
                 }
                 comps.push(code);
+            }
+        } else if file == "items.toml" {
+            for c in tables(&t, "object", &file)? {
+                let (code, _, _, _) = component(&ctx, c, "Items", true, &file)?;
+                items.push(code);
             }
         } else if file == "globals.toml" {
             for c in tables(&t, "object", &file)? {
@@ -579,13 +609,14 @@ fn build(dir: &Path) -> Res<String> {
                 let at = format!("{file}: {name}");
                 types.push(format!("TypeName {{ name: {}, origin: {}, doc: {} }}", lit(name), origin(x, "rapidq", &at)?, lit(s(x, "doc").unwrap_or(""))));
             }
-        } else if !["constants.toml", "glossary.toml", "sets.toml"].contains(&file.as_str()) {
+        } else if !["constants.toml", "sets.toml"].contains(&file.as_str()) && !file.starts_with("glossary") {
             return Err(format!("{file}: not a registry file (components/*.toml, globals, builtins, language, constants, glossary, sets)"));
         }
     }
     let mut out = String::from("// Generated by build.rs from data/*.toml. Do not edit.\n\n");
     writeln!(out, "pub static COMPONENTS: &[Component] = &[\n    {},\n];\n", comps.join(",\n    ")).unwrap();
     writeln!(out, "pub static GLOBALS: &[Component] = &[\n    {},\n];\n", globals.join(",\n    ")).unwrap();
+    writeln!(out, "pub static ITEMS: &[Component] = &[\n    {},\n];\n", items.join(",\n    ")).unwrap();
     writeln!(
         out,
         "/// Every component the compilers create (RapidR's upper-case names), in the data's order.\npub const COMPONENT_TYPES: &[&str] = &[{}];\n",

@@ -4,667 +4,679 @@
 name = "DIM"
 syntax = "DIM name[(bounds)] [AS type] [= value] [, …]"
 group = "Declarations"
-doc = ""
+doc = "Declares variables or arrays, with a type and optionally a first value; inside a SUB or FUNCTION, locals. `DIM m` with no type is a DOUBLE."
 
 [[statement]]
 name = "REDIM"
 syntax = "REDIM [PRESERVE] name(bounds) [AS type]"
 group = "Declarations"
-doc = ""
+doc = "Resizes an array that exists (or creates it); the elements whose indexes are still inside the new bounds keep their values."
 
 [[statement]]
 name = "STATIC"
 syntax = "STATIC name[(bounds)] AS type"
 group = "Declarations"
-doc = ""
+doc = "Inside a SUB or FUNCTION, declares a local variable that keeps its value from one call to the next."
 
 [[statement]]
 name = "CONST"
 syntax = "CONST name = expression [, …]"
 group = "Declarations"
-doc = ""
+doc = "Names a value fixed for the whole program: `CONST MaxItems = 3`."
 
 [[statement]]
 name = "DEFINT"
 syntax = "DEFINT name [= value] [, …]"
 group = "Declarations"
-doc = ""
+doc = "Declares INTEGER (32-bit) variables or arrays, optionally with first values (`DEFINT k(1 TO 3) = {7, 8, 9}`)."
 
 [[statement]]
 name = "DEFSTR"
 syntax = "DEFSTR name [= value] [, …]"
 group = "Declarations"
-doc = ""
+doc = "Declares STRING variables or arrays, optionally with first values."
 
 [[statement]]
 name = "DEFBYTE"
 syntax = "DEFBYTE name [= value] [, …]"
 group = "Declarations"
-doc = ""
+doc = "Declares BYTE variables or arrays, optionally with first values."
 
 [[statement]]
 name = "DEFWORD"
 syntax = "DEFWORD name [= value] [, …]"
 group = "Declarations"
-doc = ""
+doc = "Declares WORD variables or arrays, optionally with first values."
 
 [[statement]]
 name = "DEFDWORD"
 syntax = "DEFDWORD name [= value] [, …]"
 group = "Declarations"
-doc = ""
+doc = "Declares DWORD variables or arrays, optionally with first values."
 
 [[statement]]
 name = "DEFLNG"
 syntax = "DEFLNG name [= value] [, …] (also DEFLONG)"
 group = "Declarations"
-doc = ""
+doc = "Declares LONG variables or arrays, optionally with first values."
+
+[[statement]]
+name = "DEFLONG"
+syntax = "DEFLONG name [= value] [, …]"
+group = "Declarations"
+origin = "rapidr"
+doc = "The same as DEFLNG, under the longer name."
 
 [[statement]]
 name = "DEFSHORT"
 syntax = "DEFSHORT name [= value] [, …]"
 group = "Declarations"
-doc = ""
+doc = "Declares SHORT variables or arrays, optionally with first values."
 
 [[statement]]
 name = "DEFSNG"
 syntax = "DEFSNG name [= value] [, …]"
 group = "Declarations"
-doc = ""
+doc = "Declares SINGLE variables or arrays, optionally with first values."
 
 [[statement]]
 name = "DEFDBL"
 syntax = "DEFDBL name [= value] [, …]"
 group = "Declarations"
-doc = ""
+doc = "Declares DOUBLE variables or arrays, optionally with first values."
 
 [[statement]]
 name = "DEFCUR"
 syntax = "DEFCUR name [= value] [, …]"
 group = "Declarations"
 origin = "rapidr"
-doc = ""
+doc = "Declares CURRENCY variables or arrays, optionally with first values."
 
 [[statement]]
 name = "GLOBAL"
 syntax = "GLOBAL name AS type (also PUBLIC / PRIVATE before a declaration)"
 group = "Declarations"
 origin = "rapidr"
-doc = ""
+doc = "VB's scope words, accepted so such programs compile: `GLOBAL` / `PUBLIC` / `PRIVATE` before a declaration, SUB or FUNCTION declare it as without them."
 
 [[statement]]
 name = "TYPE"
 syntax = "TYPE name [EXTENDS type] … END TYPE (also STRUCT … END STRUCT)"
 group = "Types and objects"
-doc = ""
+doc = "Defines a record type: fields, and optionally methods, a CONSTRUCTOR, events and a parent type to inherit from (`EXTENDS`). `STRUCT` is another name for it."
 
 [[statement]]
 name = "EXTENDS"
 syntax = "TYPE name EXTENDS QOBJECT | component"
 group = "Types and objects"
-doc = ""
+doc = "Makes a TYPE inherit another TYPE's members, or makes it a component of your own built on a RapidQ component (`EXTENDS QBUTTON`)."
 
 [[statement]]
 name = "PROPERTY SET"
-syntax = "PROPERTY SET name(value AS type)"
+syntax = "PROPERTY SET name(value AS type) … END PROPERTY"
 group = "Types and objects"
-doc = ""
+doc = "In a TYPE: the routine that runs when a program assigns to the property `name`, given the value assigned."
 
 [[statement]]
 name = "EVENT"
 syntax = "EVENT(member) … END EVENT"
 group = "Types and objects"
-doc = ""
+doc = "In a TYPE that extends a component: the code run when the component's event happens (`EVENT OnClick … END EVENT`)."
 
 [[statement]]
 name = "CONSTRUCTOR"
 syntax = "CONSTRUCTOR … END CONSTRUCTOR"
 group = "Types and objects"
-doc = ""
+doc = "In a TYPE: code that runs when a variable of the type is created, to set its fields' first values."
 
 [[statement]]
 name = "PUBLIC"
 syntax = "PUBLIC: / PRIVATE: in a TYPE"
 group = "Types and objects"
-doc = ""
+doc = "In a TYPE: `PUBLIC:` and `PRIVATE:` start sections of members; accepted, and access isn't enforced."
 
 [[statement]]
 name = "CREATE"
 syntax = "CREATE name AS type … END CREATE"
 group = "Types and objects"
-doc = ""
+doc = "Creates a component (or object) and sets its properties and events in the block; components created inside it get it as their parent."
 
 [[statement]]
 name = "WITH"
 syntax = "WITH object … END WITH"
 group = "Types and objects"
-doc = ""
+doc = "Inside the block, `.Member` refers to a member of the object named: `WITH Form … .Caption = \"Hi\" … END WITH`."
 
 [[statement]]
 name = "SUB"
 syntax = "SUB name[(params)] … END SUB"
 group = "Routines"
-doc = ""
+doc = "Defines a routine that returns no value; it is called by its name, arguments without parentheses (`Greet \"you\"`)."
 
 [[statement]]
 name = "FUNCTION"
 syntax = "FUNCTION name[(params)] AS type … END FUNCTION"
 group = "Routines"
-doc = ""
+doc = "Defines a routine that returns a value: assign it to the function's name (or `Result`) inside the body."
 
 [[statement]]
 name = "SUBI"
 syntax = "SUBI name(…) … END SUBI"
 group = "Routines"
-doc = ""
+doc = "Defines a SUB that takes any number of arguments, read inside with `PARAMVAL`, `PARAMSTR$`, `PARAMVALCOUNT` and `PARAMSTRCOUNT`."
 
 [[statement]]
 name = "FUNCTIONI"
 syntax = "FUNCTIONI name(…) AS type … END FUNCTIONI"
 group = "Routines"
-doc = ""
+doc = "Defines a FUNCTION that takes any number of arguments, read inside with `PARAMVAL`, `PARAMSTR$`, `PARAMVALCOUNT` and `PARAMSTRCOUNT`."
 
 [[statement]]
 name = "DECLARE"
 syntax = "DECLARE SUB|FUNCTION name [LIB \"file\" [ALIAS \"name\"]] [(params)] [AS type]"
 group = "Routines"
-doc = ""
+doc = "Declares a SUB or FUNCTION ahead of its body, or one in a shared library (`LIB`), callable in native builds; Windows API libraries are refused with a portable alternative named."
 
 [[statement]]
 name = "CALL"
 syntax = "CALL name[(args)]"
 group = "Routines"
-doc = ""
+doc = "Calls a SUB (the arguments then in parentheses); calling it by its name alone does the same."
 
 [[statement]]
 name = "BIND"
 syntax = "BIND pointer TO routine"
 group = "Routines"
-doc = ""
+doc = "Stores the address of a SUB or FUNCTION in a variable, for `CALLFUNC`."
 
 [[statement]]
 name = "EXIT"
 syntax = "EXIT FOR | DO | WHILE | SUB | FUNCTION"
 group = "Flow"
-doc = ""
+doc = "Leaves the innermost FOR, DO or WHILE loop, or the SUB or FUNCTION, at once."
 
 [[statement]]
 name = "IF"
 syntax = "IF condition THEN … [ELSEIF condition THEN …] [ELSE …] END IF"
 group = "Flow"
-doc = ""
+doc = "Runs statements when a condition is true (non-zero), others with ELSEIF or ELSE; on one line, `IF c THEN … ELSE …` needs no END IF."
 
 [[statement]]
 name = "SELECT CASE"
 syntax = "SELECT CASE expression … CASE values … CASE ELSE … END SELECT"
 group = "Flow"
-doc = ""
+doc = "Runs the first CASE whose values match the expression: single values, `a TO b` ranges, `IS > n` comparisons, lists of them; CASE ELSE when none does."
 
 [[statement]]
 name = "FOR"
 syntax = "FOR variable = start TO end [STEP step] … NEXT [variable]"
 group = "Flow"
-doc = ""
+doc = "Runs the body for each value of a counter from `start` to `end`, adding `step` (1 when not given) each time."
 
 [[statement]]
 name = "WHILE"
 syntax = "WHILE condition … WEND"
 group = "Flow"
-doc = ""
+doc = "Runs the body as long as the condition is true, testing it before each pass."
 
 [[statement]]
 name = "DO"
 syntax = "DO [WHILE|UNTIL condition] … LOOP [WHILE|UNTIL condition]"
 group = "Flow"
-doc = ""
+doc = "A loop: tested at the top (`DO WHILE` / `DO UNTIL`), at the bottom (`LOOP WHILE` / `LOOP UNTIL`), or not at all (left with `EXIT DO`)."
 
 [[statement]]
 name = "GOTO"
 syntax = "GOTO label"
 group = "Flow"
-doc = ""
+doc = "Continues the program at a label or line number."
 
 [[statement]]
 name = "GOSUB"
 syntax = "GOSUB label … RETURN"
 group = "Flow"
-doc = ""
+doc = "Jumps to a label; the `RETURN` there comes back to the statement after the GOSUB."
 
 [[statement]]
 name = "RETURN"
 syntax = "RETURN"
 group = "Flow"
-doc = ""
+doc = "Goes back to the statement after the last `GOSUB`."
 
 [[statement]]
 name = "END"
 syntax = "END"
 group = "Flow"
-doc = ""
+doc = "Ends the program at once; files it wrote are kept. `END IF`, `END SUB` and the like close blocks."
 
 [[statement]]
 name = "ON ERROR"
 syntax = "ON ERROR RESUME NEXT | GOTO label"
 group = "Flow"
 origin = "rapidr"
-doc = ""
+doc = "VB's error trapping, accepted so such programs compile and ignored: a run-time error still ends the program."
 
 [[statement]]
 name = "PRINT"
 syntax = "PRINT [expression][; | ,] …"
 group = "Console"
-doc = ""
+doc = "Writes values to the console and ends the line, unless the last is followed by `;` or `,` (the same in RapidQ: no print zones). `?` is short for PRINT."
 
 [[statement]]
 name = "LPRINT"
 syntax = "LPRINT [expression][; | ,] …"
 group = "Console"
-doc = ""
+doc = "Prints to the printer as `PRINT` prints to the console; `LFLUSH` sends the job."
 
 [[statement]]
 name = "INPUT"
 syntax = "INPUT [\"prompt\";] variable"
 group = "Console"
-doc = ""
+doc = "Shows the prompt, reads a line typed at the console and stores it in the variable (as a number for a numeric one)."
 
 [[statement]]
 name = "LINE INPUT"
 syntax = "LINE INPUT #n, variable"
 group = "Files"
 origin = "rapidr"
-doc = ""
+doc = "Reads a whole line, commas included, from a file opened for INPUT into a string variable."
 
 [[statement]]
 name = "OPEN"
 syntax = "OPEN file FOR INPUT|OUTPUT|APPEND|BINARY|RANDOM AS #n"
 group = "Files"
 origin = "rapidr"
-doc = ""
+doc = "Opens a file under a number: `INPUT` to read lines, `OUTPUT` to write a new file, `APPEND` to add to one, `BINARY` or `RANDOM` for bytes."
 
 [[statement]]
 name = "CLOSE"
-syntax = "CLOSE [#n]"
+syntax = "CLOSE #n"
 group = "Files"
 origin = "rapidr"
-doc = ""
+doc = "Closes the file opened under that number; what was written to it is kept."
 
 [[statement]]
 name = "PRINT #"
 syntax = "PRINT #n, expression [; …]"
 group = "Files"
 origin = "rapidr"
-doc = ""
+doc = "Writes values to a file opened for OUTPUT or APPEND, as PRINT writes them to the console."
 
 [[statement]]
 name = "WRITE #"
 syntax = "WRITE #n, expression [, …]"
 group = "Files"
 origin = "rapidr"
-doc = ""
+doc = "Writes values to a file separated by commas, strings in quotes, so `INPUT #` can read them back."
 
 [[statement]]
 name = "INPUT #"
 syntax = "INPUT #n, variable [, …]"
 group = "Files"
 origin = "rapidr"
-doc = ""
+doc = "Reads comma-separated values from a file opened for INPUT into variables."
 
 [[statement]]
 name = "SEEK"
 syntax = "SEEK #n, position"
 group = "Files"
 origin = "rapidr"
-doc = ""
+doc = "Moves to a byte of an open file (1 the first): the next read or write is there."
 
 [[statement]]
 name = "DATA"
 syntax = "DATA value [, …]"
 group = "Data"
-doc = ""
+doc = "Lists values in the program for `READ` to read, in order."
 
 [[statement]]
 name = "READ"
 syntax = "READ variable [, …]"
 group = "Data"
-doc = ""
+doc = "Stores the next values from the program's `DATA` lists in variables."
 
 [[statement]]
 name = "RESTORE"
 syntax = "RESTORE [label]"
 group = "Data"
-doc = ""
+doc = "Makes the next `READ` start again from the first `DATA` value, or from the first after a label."
 
 [[statement]]
 name = "SWAP"
 syntax = "SWAP a, b"
 group = "Data"
-doc = ""
+doc = "Exchanges the values of two variables or array elements."
 
 [[statement]]
 name = "INC"
 syntax = "INC variable [, amount]"
 group = "Data"
-doc = ""
+doc = "Adds `amount` (1 when not given) to a variable."
 
 [[statement]]
 name = "DEC"
 syntax = "DEC variable [, amount]"
 group = "Data"
-doc = ""
+doc = "Subtracts `amount` (1 when not given) from a variable."
 
 [[statement]]
 name = "QUICKSORT"
 syntax = "QUICKSORT(array(first), array(last), ascending [, …])"
 group = "Data"
-doc = ""
+doc = "Sorts an array's elements from `first` to `last` in place, numbers by value and strings by their characters; ascending when the last argument is 0."
 
 [[statement]]
 name = "REM"
 syntax = "REM comment (also ' comment)"
 group = "Other"
-doc = ""
+doc = "A comment: the rest of the line is ignored. `'` does the same, also after a statement."
 
 [[statement]]
 name = "IMPORT"
-syntax = "IMPORT \"file\""
+syntax = "IMPORT \"module\" [AS alias]"
 group = "Other"
 origin = "rapidr"
-doc = ""
+doc = "Names a module; accepted and without effect (RapidR's builtins and components need no import)."
 
 [[statement]]
 name = "RUSTSTART"
 syntax = "RUSTSTART … RUSTEND (Rust code, native builds)"
 group = "Other"
 origin = "rapidr"
-doc = ""
+doc = "Puts Rust code in the program, up to `RUSTEND`; only in native builds (the interpreter and the web refuse it)."
 
 [[directive]]
 name = "$INCLUDE"
 syntax = "$INCLUDE \"file\""
-doc = ""
+doc = "Includes another source file at this point. RapidQ's include folders and `\\` paths work; `RAPIDQ.INC` is built in."
 
 [[directive]]
 name = "$RESOURCE"
 syntax = "$RESOURCE name AS \"file\""
-doc = ""
+doc = "Builds a file into the program as a resource, for `RESOURCE(n)`, `EXTRACTRESOURCE`, `PLAYWAV` and pictures."
 
 [[directive]]
 name = "$DEFINE"
 syntax = "$DEFINE name [text]"
-doc = ""
+doc = "Defines a name for `$IFDEF` and, with text, replaces the name by the text in the lines that follow."
 
 [[directive]]
 name = "$UNDEF"
 syntax = "$UNDEF name"
-doc = ""
+doc = "Removes a name defined with `$DEFINE`."
 
 [[directive]]
 name = "$IFDEF"
 syntax = "$IFDEF name"
-doc = ""
+doc = "Compiles the lines up to `$ELSE` or `$ENDIF` only when the name is defined."
 
 [[directive]]
 name = "$IFNDEF"
 syntax = "$IFNDEF name"
-doc = ""
+doc = "Compiles the lines up to `$ELSE` or `$ENDIF` only when the name is not defined."
 
 [[directive]]
 name = "$ELSE"
 syntax = "$ELSE"
-doc = ""
+doc = "Starts the lines compiled when the `$IFDEF` / `$IFNDEF` test fails."
 
 [[directive]]
 name = "$ENDIF"
 syntax = "$ENDIF"
-doc = ""
+doc = "Ends a `$IFDEF` / `$IFNDEF` block."
 
 [[directive]]
 name = "$MACRO"
 syntax = "$MACRO name(params) = text"
-doc = ""
+doc = "Defines a macro with parameters: each use is replaced by the text, its parameters by the arguments."
 
 [[directive]]
 name = "$APPTYPE"
 syntax = "$APPTYPE GUI | CONSOLE | CGI"
-doc = ""
+doc = "The program's kind: `CONSOLE`, `GUI` or `CGI` (and RapidR's `WEB`). Without it, a program that creates components is a GUI program."
 
 [[directive]]
 name = "$TYPECHECK"
 syntax = "$TYPECHECK ON | OFF"
-doc = ""
+doc = "`ON`: from here, storing into a variable never declared (DIM, CONST, a parameter) is a compile error; `OFF` turns the check off."
 
 [[directive]]
 name = "$OPTIMIZE"
 syntax = "$OPTIMIZE ON | OFF"
-doc = ""
+doc = "RapidQ's optimizer switch; accepted, with nothing for RapidR to change."
 
 [[directive]]
 name = "$ESCAPECHARS"
 syntax = "$ESCAPECHARS ON | OFF"
-doc = ""
+doc = "`ON`: strings in this file understand escapes (`\\n`, `\\t`, `\\\"`, `\\\\`, `\\x41`); `OFF` (the default) reads them as written."
 
 [[directive]]
 name = "$OPTION"
 syntax = "$OPTION ICON \"file\" | DECIMAL | BYREF | INKEY$ TRAPALL | EXPLICIT …"
-doc = ""
+doc = "Program options: `ICON \"file\"` the program's icon, `DECIMAL` VAL's decimal character, `BYREF` parameters by reference, `EXPLICIT` as `$TYPECHECK ON`, `INKEY$ TRAPALL`, `DIM type`."
 
 [[directive]]
 name = "$THEME"
 syntax = "$THEME name"
 origin = "rapidr"
-doc = ""
+doc = "The look the program's windows are drawn in: `Classic` (the default), `Modern`, `Dark`, `HighContrast` or `Auto`."
 
 [[keyword]]
 name = "AND"
 kind = "operator"
-doc = ""
+doc = "Bitwise AND of two 32-bit integers (`7 AND 3` is 3); with comparisons, both must be true."
 
 [[keyword]]
 name = "OR"
 kind = "operator"
-doc = ""
+doc = "Bitwise OR of two 32-bit integers; with comparisons, either may be true."
 
 [[keyword]]
 name = "XOR"
 kind = "operator"
-doc = ""
+doc = "Bitwise exclusive OR of two 32-bit integers; with comparisons, exactly one is true."
 
 [[keyword]]
 name = "NOT"
 kind = "operator"
-doc = ""
+doc = "Bitwise NOT of a 32-bit integer (`NOT 0` is -1); it binds more loosely than comparisons."
 
 [[keyword]]
 name = "MOD"
 kind = "operator"
-doc = ""
+doc = "The remainder of an integer division; its operands are rounded half to even first (`7 MOD 3` is 1)."
 
 [[keyword]]
 name = "SHL"
 kind = "operator"
-doc = ""
+doc = "`a SHL n`: a's 32 bits shifted left by n."
 
 [[keyword]]
 name = "SHR"
 kind = "operator"
-doc = ""
+doc = "`a SHR n`: a's 32 bits shifted right by n, zeros coming in."
 
 [[keyword]]
 name = "INV"
 kind = "operator"
-doc = ""
+doc = "`a INV m`: the inverse of a modulo m (`3 INV 26` is 9), -1 when there is none."
 
 [[keyword]]
 name = "IS"
 kind = "operator"
-doc = ""
+doc = "In `CASE IS > n` (and the other comparisons): compares the SELECT CASE expression."
 
 [[keyword]]
 name = "AS"
 kind = "keyword"
-doc = ""
+doc = "Gives a type: `DIM x AS INTEGER`, a parameter's, a FUNCTION's result; also `CREATE name AS type`, `OPEN … AS #n`, `$RESOURCE name AS \"file\"`."
 
 [[keyword]]
 name = "TO"
 kind = "keyword"
-doc = ""
+doc = "A range: `FOR i = 1 TO 10`, array bounds `DIM a(1 TO 5)`, `CASE 1 TO 9`; also `BIND p TO routine`."
 
 [[keyword]]
 name = "STEP"
 kind = "keyword"
-doc = ""
+doc = "In FOR: the amount added to the counter each pass (negative to count down)."
 
 [[keyword]]
 name = "THEN"
 kind = "keyword"
-doc = ""
+doc = "Ends an IF or ELSEIF condition; what follows on the same line is a one-line IF."
 
 [[keyword]]
 name = "ELSE"
 kind = "keyword"
-doc = ""
+doc = "In IF: the statements run when no condition was true; `CASE ELSE` in SELECT CASE."
 
 [[keyword]]
 name = "ELSEIF"
 kind = "keyword"
-doc = ""
+doc = "In IF: another condition, tested when those before it were false."
 
 [[keyword]]
 name = "NEXT"
 kind = "keyword"
-doc = ""
+doc = "Ends a FOR loop; the counter's name after it is optional."
 
 [[keyword]]
 name = "WEND"
 kind = "keyword"
-doc = ""
+doc = "Ends a WHILE loop."
 
 [[keyword]]
 name = "LOOP"
 kind = "keyword"
-doc = ""
+doc = "Ends a DO loop, optionally with its `WHILE` or `UNTIL` test."
 
 [[keyword]]
 name = "UNTIL"
 kind = "keyword"
-doc = ""
+doc = "In DO … LOOP: loop until the condition becomes true."
 
 [[keyword]]
 name = "CASE"
 kind = "keyword"
-doc = ""
+doc = "In SELECT CASE: the values the next statements run for; `CASE ELSE` for any other."
 
 [[keyword]]
 name = "LIB"
 kind = "keyword"
-doc = ""
+doc = "In DECLARE: the shared library a routine is in."
 
 [[keyword]]
 name = "ALIAS"
 kind = "keyword"
-doc = ""
+doc = "In DECLARE … LIB: the routine's name in the library, when the program calls it by another."
 
 [[keyword]]
 name = "BYVAL"
 kind = "keyword"
-doc = ""
+doc = "A parameter passed by value: the routine gets a copy (the default, unless `$OPTION BYREF`)."
 
 [[keyword]]
 name = "BYREF"
 kind = "keyword"
-doc = ""
+doc = "A parameter passed by reference: the routine's changes reach the caller's variable."
 
 [[keyword]]
 name = "PRESERVE"
 kind = "keyword"
-doc = ""
+doc = "In REDIM, VB's word for keeping an array's values; RapidR's REDIM keeps them anyway."
 
 [[keyword]]
 name = "SET"
 kind = "keyword"
-doc = ""
+doc = "In `PROPERTY SET`: the routine that runs when the property is assigned."
 
 [[keyword]]
 name = "STRUCT"
 kind = "keyword"
-doc = ""
+doc = "Another name for TYPE: `STRUCT … END STRUCT` defines a record type."
 
 [[keyword]]
 name = "PRIVATE"
 kind = "keyword"
-doc = ""
+doc = "In a TYPE, `PRIVATE:` starts a section of members (access isn't enforced); before a declaration, VB's scope word, accepted."
+
+[[keyword]]
+name = "PROTECTED"
+kind = "keyword"
+doc = "In a TYPE, `PROTECTED:` starts a section of members, as PRIVATE: and PUBLIC: do (access isn't enforced)."
 
 [[keyword]]
 name = "THIS"
 kind = "keyword"
-doc = ""
+doc = "Inside a TYPE's methods: the instance the method was called on (`This.Count`)."
 
 [[keyword]]
 name = "SUPER"
 kind = "keyword"
-doc = ""
+doc = "Inside a TYPE that extends another: the parent type's members, as in `Super.Method`."
 
 [[keyword]]
 name = "RUSTEND"
 kind = "keyword"
 origin = "rapidr"
-doc = ""
+doc = "Ends a `RUSTSTART` block of Rust code."
 
 [[type]]
 name = "BYTE"
-doc = ""
+doc = "8-bit unsigned integer, 0 to 255; a store wraps (`300` holds 44). Suffix `?`."
 
 [[type]]
 name = "SHORT"
-doc = ""
+doc = "16-bit signed integer, -32,768 to 32,767; a store wraps. Suffix `%`."
 
 [[type]]
 name = "WORD"
-doc = ""
+doc = "16-bit unsigned integer, 0 to 65,535; a store wraps. Suffix `??`."
 
 [[type]]
 name = "INTEGER"
-doc = ""
+doc = "32-bit signed integer, -2,147,483,648 to 2,147,483,647, the same as LONG; a store truncates a fraction."
 
 [[type]]
 name = "DWORD"
-doc = ""
+doc = "32-bit integer, signed as RapidQ has it (-2,147,483,648 to 2,147,483,647). Suffix `???`."
 
 [[type]]
 name = "LONG"
-doc = ""
+doc = "32-bit signed integer, -2,147,483,648 to 2,147,483,647; a store truncates a fraction. Suffix `&`."
 
 [[type]]
 name = "SINGLE"
-doc = ""
+doc = "32-bit floating-point number, about 7 significant digits. Suffix `!`."
 
 [[type]]
 name = "DOUBLE"
-doc = ""
+doc = "64-bit floating-point number, about 15 significant digits. Suffix `#`."
 
 [[type]]
 name = "STRING"
-doc = ""
+doc = "Text of any length, counted in characters; `STRING * n` always holds n characters. Suffix `$`."
 
 [[type]]
 name = "VARIANT"
-doc = ""
+doc = "Holds whatever is stored in it: a number, text or object. An undeclared variable is one."
 
 [[type]]
 name = "QOBJECT"
-doc = ""
+doc = "The base type of objects: `TYPE name EXTENDS QOBJECT` makes a TYPE with methods, a constructor and inheritance."
 
 [[type]]
 name = "INT64"
 origin = "rapidr"
-doc = ""
+doc = "64-bit signed integer, -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807."
 
 [[type]]
 name = "CURRENCY"
 origin = "rapidr"
-doc = ""
+doc = "A number for amounts of money; RapidR keeps it as a 64-bit floating-point number."
 
 [[type]]
 name = "ROBJECT"
 origin = "rapidr"
-doc = ""
+doc = "RapidR's name for QOBJECT, the base type of objects: `TYPE name EXTENDS ROBJECT`."

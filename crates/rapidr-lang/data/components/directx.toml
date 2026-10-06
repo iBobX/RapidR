@@ -7,7 +7,8 @@ rapidq = "QDXSCREEN"
 visual = true
 size = [100, 100]
 default_event = "OnClick"
-doc = ""
+sets = ["layout", "a11y", "generic"]
+doc = "A DirectX drawing surface on a form, for games and animation: draw the next frame off screen, then Flip to show it. It also holds the Direct3D scene and camera."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "AllowStretch", type = "bool", default = true },
@@ -22,7 +23,7 @@ properties = [
   { name = "Hint", type = "string" },
   { name = "Left", type = "int" },
   { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
-  { name = "Pixel", type = "int", indexed = 2, design = false },
+  { name = "Pixel", type = "int", design = false, indexed = 2 },
   { name = "ShowHint", type = "bool", default = false },
   { name = "Top", type = "int" },
   { name = "Use3D", type = "bool", default = false },
@@ -78,8 +79,8 @@ methods = [
   { name = "Ellipse", origin = "rapidr" },
   { name = "DrawText", origin = "rapidr" },
   { name = "Render" },
-  { name = "Createanimation", missing = true },
-  { name = "Createanimationset", missing = true },
+  { name = "CreateAnimation", missing = true },
+  { name = "CreateAnimationSet", missing = true },
 ]
 events = [
   { name = "OnClick" },
@@ -97,7 +98,7 @@ events = [
 name = "RDXIMAGELIST"
 rapidq = "QDXIMAGELIST"
 visual = false
-doc = ""
+doc = "A library of pictures for a DirectX screen, loaded from DelphiX `.DXG` image lists and drawn with their transparency."
 properties = [
   { name = "Parent", type = "component", kinds = ["QDXSCREEN"], access = "write", design = false },
 ]
@@ -114,7 +115,7 @@ name = "RDXTIMER"
 rapidq = "QDXTIMER"
 visual = false
 default_event = "OnTimer"
-doc = ""
+doc = "A frame timer for DirectX animation: OnTimer fires at FrameRate (Interval 0: once a frame), optionally only while the program is active."
 properties = [
   { name = "ActiveOnly", type = "bool", default = true },
   { name = "Enabled", type = "bool", default = false },
@@ -130,7 +131,7 @@ events = [
 name = "RDXSOUND"
 rapidq = "QDXSOUND"
 visual = false
-doc = ""
+doc = "A WAV sound played DirectSound's way: at its Frequency, Volume and Pan, once or looped."
 properties = [
   { name = "AutoUpdate", type = "bool", default = true },
   { name = "BufferLength", type = "int", default = 1000 },
@@ -150,7 +151,7 @@ methods = [
   { name = "Play" },
   { name = "Stop" },
   { name = "Update" },
-  { name = "Recreatebuf", missing = true },
+  { name = "RecreateBuf", missing = true },
 ]
 events = []
 
@@ -158,7 +159,7 @@ events = []
 name = "RDXJOYSTICK"
 rapidq = "QDXJOYSTICK"
 visual = false
-doc = ""
+doc = "A joystick or gamepad: Update reads its state into IsLeft, IsUp, `Button(n)` …; RapidR adds the axes, the POV hat and which pad (Index)."
 properties = [
   { name = "IsLeft", type = "int" },
   { name = "IsRight", type = "int" },
@@ -167,9 +168,9 @@ properties = [
   { name = "Index", type = "int", origin = "rapidr" },
   { name = "Connected", type = "int", origin = "rapidr" },
   { name = "Name", type = "string", origin = "rapidr" },
-  { name = "X", type = "float", origin = "rapidr" },
-  { name = "Y", type = "float", origin = "rapidr" },
-  { name = "Z", type = "float", origin = "rapidr" },
+  { name = "X", type = "int", origin = "rapidr" },
+  { name = "Y", type = "int", origin = "rapidr" },
+  { name = "Z", type = "int", origin = "rapidr" },
   { name = "R", type = "int", origin = "rapidr" },
   { name = "U", type = "int", origin = "rapidr" },
   { name = "V", type = "int", origin = "rapidr" },
@@ -178,6 +179,10 @@ properties = [
 ]
 methods = [
   { name = "Update" },
-  { name = "Button" },
+  { name = "Button", params = "Index AS INTEGER" },
 ]
-events = []
+events = [
+  { name = "OnButtonDown", params = "Button AS INTEGER", origin = "rapidr" },
+  { name = "OnButtonUp", params = "Button AS INTEGER", origin = "rapidr" },
+  { name = "OnMove", origin = "rapidr", doc = "Fires when the joystick's position changes (X, Y and the other axes read the new values)." },
+]

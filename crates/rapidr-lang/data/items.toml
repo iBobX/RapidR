@@ -1,0 +1,81 @@
+# The objects an indexed property gives (`Tree.Item(0).Text`, `Header.Sections(1).Width`):
+# RapidQ's TreeNodeType, SectionsType, PanelType, ColumnType and ItemType, as RapidR answers them.
+
+[[object]]
+name = "TreeNode"
+kind = "item"
+doc = "One node of a QTREEVIEW (`Tree.Item(i)`, counted from 0 in display order): its text, pictures, state and place in the tree."
+properties = [
+  { name = "Text", type = "string", category = "Data", doc = "The node's caption." },
+  { name = "ImageIndex", type = "int", category = "Appearance", doc = "The picture (from the tree's Images list) shown beside the node; -1 for none." },
+  { name = "SelectedIndex", type = "int", category = "Appearance", doc = "The picture shown while the node is selected." },
+  { name = "StateIndex", type = "int", category = "Appearance", doc = "An extra state picture (from StateImages) left of the node; -1 for none." },
+  { name = "Expanded", type = "bool", category = "Behavior", doc = "Whether the node's children show." },
+  { name = "HasChildren", type = "bool", category = "Behavior", doc = "Whether the node shows an expand button, even before it has children." },
+  { name = "Selected", type = "bool", category = "Behavior", doc = "Whether the node is the selected one; setting it selects it." },
+  { name = "Level", type = "int", access = "read", design = false, category = "Data", doc = "How deep the node is: 0 for a root node." },
+  { name = "Count", type = "int", access = "read", design = false, category = "Data", doc = "How many children the node has." },
+  { name = "IsVisible", type = "bool", access = "read", design = false, category = "Behavior", doc = "Whether the node can be seen (all its parents expanded)." },
+  { name = "Index", type = "int", access = "read", design = false, category = "Data", doc = "The node's position among its parent's children, from 0." },
+  { name = "AbsoluteIndex", type = "int", access = "read", design = false, category = "Data", doc = "The node's position in the whole tree, from 0." },
+  { name = "Parent", type = "int", access = "read", design = false, category = "Data", doc = "The index of the node's parent; -1 for a root node." },
+  { name = "Handle", type = "int", access = "read", design = false, category = "Misc", doc = "A number identifying the node." },
+]
+methods = []
+events = []
+
+[[object]]
+name = "HeaderSection"
+kind = "item"
+doc = "One section of a QHEADER (`Header.Sections(i)`, from 0): its caption, width limits, alignment and whether it can be clicked."
+properties = [
+  { name = "Caption", type = "string", category = "Appearance", doc = "The section's text." },
+  { name = "Text", type = "string", category = "Appearance", doc = "The same as Caption." },
+  { name = "Width", type = "int", category = "Layout", doc = "The section's width in pixels." },
+  { name = "MinWidth", type = "int", category = "Layout", doc = "The narrowest the user can drag the section." },
+  { name = "MaxWidth", type = "int", category = "Layout", doc = "The widest the user can drag the section; 0 for no limit." },
+  { name = "Alignment", type = "enum", values = ["taLeftJustify", "taRightJustify", "taCenter"], category = "Appearance", doc = "How the caption sits in the section." },
+  { name = "AllowClick", type = "bool", category = "Behavior", doc = "Whether the section acts as a button (OnSectionClick)." },
+  { name = "Style", type = "enum", values = ["hsText", "hsOwnerDraw"], category = "Appearance", doc = "hsText draws the caption; hsOwnerDraw leaves the drawing to OnDrawSection." },
+  { name = "Left", type = "int", access = "read", design = false, category = "Layout", doc = "Where the section starts, in pixels from the header's left edge." },
+  { name = "Right", type = "int", access = "read", design = false, category = "Layout", doc = "Where the section ends, in pixels from the header's left edge." },
+]
+methods = []
+events = []
+
+[[object]]
+name = "StatusPanel"
+kind = "item"
+doc = "One panel of a QSTATUSBAR (`StatusBar.Panel(i)`, from 0)."
+properties = [
+  { name = "Caption", type = "string", category = "Appearance", doc = "The panel's text." },
+  { name = "Width", type = "int", category = "Layout", doc = "The panel's width in pixels (the last panel takes what's left)." },
+]
+methods = []
+events = []
+
+[[object]]
+name = "ListItem"
+kind = "item"
+doc = "One row of a QLISTVIEW (`ListView.Item(i)`, from 0): its caption, check box and pictures; its other columns are SubItem(i, j)."
+properties = [
+  { name = "Caption", type = "string", category = "Data", doc = "The row's first column." },
+  { name = "Checked", type = "bool", category = "Behavior", doc = "Whether the row's check box is ticked (with CheckBoxes)." },
+  { name = "Selected", type = "bool", access = "read", design = false, category = "Behavior", doc = "Whether the row is selected." },
+  { name = "ImageIndex", type = "int", category = "Appearance", doc = "The picture (from the list's images) shown on the row." },
+  { name = "StateIndex", type = "int", category = "Appearance", doc = "An extra state picture shown left of the row; -1 for none." },
+  { name = "Index", type = "int", access = "read", design = false, category = "Data", doc = "The row's position, from 0 (-1 for no such row)." },
+]
+methods = []
+events = []
+
+[[object]]
+name = "ListColumn"
+kind = "item"
+doc = "One column of a QLISTVIEW in report view (`ListView.Column(i)`, from 0)."
+properties = [
+  { name = "Caption", type = "string", category = "Appearance", doc = "The column's heading." },
+  { name = "Width", type = "int", category = "Layout", doc = "The column's width in pixels." },
+]
+methods = []
+events = []

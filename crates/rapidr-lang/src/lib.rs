@@ -26,7 +26,7 @@
 //!   `only` (`desktop` / `web`), `sets` (members from sets.toml), `doc`, and
 //!   its `properties`, `methods` and `events`, one inline table each:
 //!   - property: `name`, `type` (int, float, string, bool, color, enum, set,
-//!     font, component, picture, resource, any), `values` (an enum's or
+//!     font, component, picture, resource, item, any), `values` (an enum's or
 //!     set's constants), `kinds` (a component property's types), `default`
 //!     (a number, Boolean, text — or for other types a constant
 //!     expression: `"alNone"`, `"akLeft + akTop"`), `access` (`read` /
@@ -46,6 +46,9 @@
 //!   RapidR doesn't answer it yet on any runtime. `only`: one runtime
 //!   answers it.
 //! - `globals.toml`: the global objects (`[[object]]`, same fields).
+//! - `items.toml`: what an indexed property gives (`Tree.Item(i)` is a
+//!   TreeNode): `[[object]]`s that a property of `type = "item"` names in
+//!   its `kinds`.
 //! - `sets.toml`: members RapidR adds to every visual component.
 //! - `glossary.toml`: docs and categories by member name, for members that
 //!   don't have their own `doc`.
@@ -84,6 +87,8 @@ pub enum Kind {
     Planned,
     /// A global object, never created (Screen, Application).
     Global,
+    /// The object an indexed property gives (Tree.Item(i): a TreeNode).
+    Item,
 }
 
 /// Which runtimes answer a name (native builds and the interpreter are the
@@ -109,6 +114,8 @@ pub enum Type {
     Component,
     Picture,
     Resource,
+    /// An object of items.toml (`Item(i)` of a tree: a TreeNode).
+    Item,
     Any,
 }
 
@@ -315,6 +322,12 @@ pub fn global(name: &str) -> Option<&'static Component> {
     GLOBALS.iter().find(|g| g.name.eq_ignore_ascii_case(name))
 }
 
+/// An item object by name (`TreeNode`, any case): what an indexed property
+/// of type `item` gives.
+pub fn item(name: &str) -> Option<&'static Component> {
+    ITEMS.iter().find(|g| g.name.eq_ignore_ascii_case(name))
+}
+
 /// Whether `type_name` (any case) is a component the compilers create:
 /// RapidR's name, as [`COMPONENT_TYPES`] lists it.
 pub fn is_component_type(type_name: &str) -> bool {
@@ -478,6 +491,7 @@ impl Type {
             Type::Component => "component",
             Type::Picture => "picture",
             Type::Resource => "resource",
+            Type::Item => "item",
             Type::Any => "any",
         }
     }
@@ -490,6 +504,7 @@ impl Kind {
             Kind::Library => "library",
             Kind::Planned => "planned",
             Kind::Global => "global",
+            Kind::Item => "item",
         }
     }
 }

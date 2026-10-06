@@ -8,7 +8,7 @@ name = "QOLECONTAINER"
 rapidq = "QOLECONTAINER"
 kind = "planned"
 visual = true
-doc = ""
+doc = "Hosts an embedded OLE object (a document or control of another program) on a form. Planned: RapidR doesn't have it yet."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"] },
   { name = "AllowInPlace", type = "bool" },
@@ -53,7 +53,7 @@ name = "QOLEOBJECT"
 rapidq = "QOLEOBJECT"
 kind = "planned"
 visual = false
-doc = ""
+doc = "Drives a COM / OLE automation object (another program's) by calling its methods by name. Planned: RapidR doesn't have it yet."
 properties = []
 methods = [
   { name = "CreateObject", params = "ClassName AS STRING", returns = "INTEGER" },
@@ -69,10 +69,10 @@ events = []
 [[component]]
 name = "QDOCKFORM"
 rapidq = "QDOCKFORM"
-kind = "library"
 from = "QDockForm.inc"
+kind = "library"
 visual = true
-doc = ""
+doc = "A panel docked at an edge of its form that the user can tear off into a window of its own and dock back. RapidR's own BASIC implementation of the RapidQ library."
 properties = [
   { name = "Align", type = "int" },
   { name = "AltAlign", type = "int" },
@@ -114,10 +114,10 @@ events = [
 [[component]]
 name = "QDIRLISTVIEW"
 rapidq = "QDIRLISTVIEW"
-kind = "library"
 from = "QDirListView.inc"
+kind = "library"
 visual = true
-doc = ""
+doc = "A list view showing a folder's subfolders and files with their size, type and date, which the user browses. RapidR's own BASIC implementation of the RapidQ library."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"] },
   { name = "BorderStyle", type = "enum", values = ["bsNone", "bsSingle", "bsSizeable", "bsDialog", "bsToolWindow", "bsSizeToolWin"] },
@@ -196,7 +196,7 @@ name = "QD3DANIMATION"
 rapidq = "QD3DANIMATION"
 kind = "planned"
 visual = false
-doc = ""
+doc = "A Direct3D keyframe animation of a frame's position and orientation. Planned: RapidR doesn't have it yet."
 properties = [
   { name = "Parent", type = "any" },
 ]
@@ -208,7 +208,7 @@ name = "QD3DANIMATIONSET"
 rapidq = "QD3DANIMATIONSET"
 kind = "planned"
 visual = false
-doc = ""
+doc = "A set of Direct3D animations played together. Planned: RapidR doesn't have it yet."
 properties = [
   { name = "Parent", type = "any" },
 ]
@@ -220,7 +220,7 @@ name = "QTHREAD"
 rapidq = "QTHREAD"
 kind = "planned"
 visual = false
-doc = ""
+doc = "Runs its OnExecute code in a background thread. Planned: RapidR doesn't have it yet."
 properties = []
 methods = [
   { name = "Free" },
@@ -229,7 +229,7 @@ methods = [
   { name = "Terminate" },
 ]
 events = [
-  { name = "Onexecute" },
+  { name = "OnExecute" },
 ]
 
 [[component]]
@@ -237,7 +237,7 @@ name = "QTRANSIMAGE"
 rapidq = "QTRANSIMAGE"
 kind = "planned"
 visual = true
-doc = ""
+doc = "A picture with a transparent colour that can shape and size its form to it. Planned: RapidR doesn't have it yet."
 properties = [
   { name = "Align", type = "any" },
   { name = "AutoSize", type = "any" },
@@ -262,7 +262,7 @@ properties = [
   { name = "Width", type = "any" },
 ]
 methods = [
-  { name = "Adjustformsize" },
+  { name = "AdjustFormSize" },
   { name = "Execute" },
 ]
 events = []

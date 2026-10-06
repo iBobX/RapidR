@@ -10,6 +10,16 @@ license.workspace = true
 # the compilers, the runtimes' dispatch, the IDE, the CLI's generators.
 [dependencies]
 
+# tests/coverage.rs ties the registry to the compilers and the runtimes.
+[dev-dependencies]
+rapidr-ast.workspace = true
+rapidr-lexer.workspace = true
+rapidr-parser.workspace = true
+rapidr-preprocessor.workspace = true
+rapidr-bcgen.workspace = true
+rapidr-bytecode.workspace = true
+rapidr-value.workspace = true
+
 [build-dependencies]
 # Reads data/*.toml at build time only (nothing of it is in a program).
 toml = "1"
