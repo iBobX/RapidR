@@ -21,6 +21,7 @@ pub mod memory;
 pub mod handles;
 pub mod tray;
 pub mod mdi;
+pub mod dock;
 pub mod events;
 pub mod input;
 pub mod globals;
