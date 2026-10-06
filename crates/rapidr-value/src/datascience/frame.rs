@@ -9,6 +9,14 @@
 //! summed. Numbers the frame computes (`describe`, `groupby`) are written as
 //! RapidR writes numbers ([`super::num_text`]).
 //!
+//! **Columnar** (I7 / L-FRAME): each column keeps its cells' text in one
+//! buffer (offsets and a null mask beside it, no allocation a cell), and
+//! works out once — when first asked — its type and its cells as numbers;
+//! filters, sorts, groups and joins then compare numbers and string slices
+//! and move rows by index. A million-row CSV loads, filters, sorts, groups
+//! and joins in tens to hundreds of milliseconds
+//! (`cargo run --release -p rapidr-value --example frame_bench`).
+//!
 //! Printed (`ToString`, `Print`), a frame is a plain-text table, the same
 //! on every runtime ([`Frame::to_text`]):
 //!
@@ -20,20 +28,12 @@
 //! [2 rows x 3 columns]
 //! ```
 
-use std::cell::RefCell;
+use std::cell::{OnceCell, RefCell};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use super::{arg_i, arg_s, arg_s_or, key, num_text, parse_num, random_index, Host};
 use crate::{v_dbl, v_int, v_null, v_str, Value};
-
-/// A table: column names and rows of cells (`None` is null). Every row has
-/// one cell per column.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Frame {
-    pub columns: Vec<String>,
-    pub rows: Vec<Vec<Option<String>>>,
-}
 
 /// A column's type, from its cells.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -59,6 +59,190 @@ impl DType {
     }
 }
 
+/// What a column is, worked out once: its type, and each cell as a number
+/// (NaN where it's null or not a number — `parse_num` never gives NaN).
+#[derive(Clone, Debug)]
+struct Analysis {
+    dtype: DType,
+    nums: Vec<f64>,
+}
+
+/// One column: its cells' text end to end, where each ends, which are null.
+#[derive(Clone, Debug, Default)]
+pub struct Column {
+    text: String,
+    ends: Vec<usize>,
+    nulls: Vec<bool>,
+    analysis: OnceCell<Analysis>,
+}
+
+impl PartialEq for Column {
+    fn eq(&self, other: &Self) -> bool {
+        self.len() == other.len() && (0..self.len()).all(|i| self.get(i) == other.get(i))
+    }
+}
+
+impl Column {
+    fn with_capacity(rows: usize) -> Column {
+        Column { text: String::new(), ends: Vec::with_capacity(rows), nulls: Vec::with_capacity(rows), analysis: OnceCell::new() }
+    }
+
+    /// `n` null cells.
+    fn nulls(n: usize) -> Column {
+        Column { text: String::new(), ends: vec![0; n], nulls: vec![true; n], analysis: OnceCell::new() }
+    }
+
+    pub fn len(&self) -> usize {
+        self.nulls.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.nulls.is_empty()
+    }
+
+    /// Cell `i` (None: null, or past the end).
+    pub fn get(&self, i: usize) -> Option<&str> {
+        if *self.nulls.get(i)? {
+            return None;
+        }
+        let start = if i == 0 { 0 } else { self.ends[i - 1] };
+        Some(&self.text[start..self.ends[i]])
+    }
+
+    fn push(&mut self, cell: Option<&str>) {
+        if let Some(s) = cell {
+            self.text.push_str(s);
+        }
+        self.ends.push(self.text.len());
+        self.nulls.push(cell.is_none());
+        self.analysis = OnceCell::new();
+    }
+
+    fn iter(&self) -> impl Iterator<Item = Option<&str>> + '_ {
+        (0..self.len()).map(move |i| self.get(i))
+    }
+
+    /// The cells at `rows`, in that order.
+    fn take(&self, rows: &[usize]) -> Column {
+        let mut out = Column::with_capacity(rows.len());
+        for &r in rows {
+            out.push(self.get(r));
+        }
+        out
+    }
+
+    /// The column with each cell `f` of the old one.
+    fn map(&self, mut f: impl FnMut(Option<&str>) -> Option<String>) -> Column {
+        let mut out = Column::with_capacity(self.len());
+        for i in 0..self.len() {
+            let v = f(self.get(i));
+            out.push(v.as_deref());
+        }
+        out
+    }
+
+    /// Cell `row` becomes `cell` (in place: the text after it moves).
+    fn set(&mut self, row: usize, cell: Option<&str>) {
+        if row >= self.len() {
+            self.grow(row);
+            self.push(cell);
+            return;
+        }
+        let start = if row == 0 { 0 } else { self.ends[row - 1] };
+        let end = self.ends[row];
+        let new = cell.unwrap_or("");
+        self.text.replace_range(start..end, new);
+        let delta = new.len() as isize - (end - start) as isize;
+        if delta != 0 {
+            for e in &mut self.ends[row..] {
+                *e = (*e as isize + delta) as usize;
+            }
+        }
+        self.nulls[row] = cell.is_none();
+        self.analysis = OnceCell::new();
+    }
+
+    /// At least `n` cells (nulls added).
+    fn grow(&mut self, n: usize) {
+        if self.len() < n {
+            let end = self.text.len();
+            self.ends.resize(n, end);
+            self.nulls.resize(n, true);
+            self.analysis = OnceCell::new();
+        }
+    }
+
+    fn truncate(&mut self, n: usize) {
+        if n < self.len() {
+            self.ends.truncate(n);
+            self.nulls.truncate(n);
+            self.text.truncate(self.ends.last().copied().unwrap_or(0));
+            self.analysis = OnceCell::new();
+        }
+    }
+
+    fn analysis(&self) -> &Analysis {
+        self.analysis.get_or_init(|| {
+            let mut t = None::<DType>;
+            let mut is_str = false;
+            let mut nums = Vec::with_capacity(self.len());
+            for cell in self.iter() {
+                let Some(cell) = cell else {
+                    nums.push(f64::NAN);
+                    continue;
+                };
+                let n = parse_num(cell);
+                nums.push(n.unwrap_or(f64::NAN));
+                if is_str {
+                    continue;
+                }
+                let this = if n.is_some() && is_int(cell) {
+                    DType::Int
+                } else if n.is_some() {
+                    DType::Float
+                } else if cell.eq_ignore_ascii_case("true") || cell.eq_ignore_ascii_case("false") {
+                    DType::Bool
+                } else {
+                    is_str = true;
+                    continue;
+                };
+                t = Some(match (t, this) {
+                    (None, x) => x,
+                    (Some(a), b) if a == b => a,
+                    (Some(DType::Int), DType::Float) | (Some(DType::Float), DType::Int) => DType::Float,
+                    _ => {
+                        is_str = true;
+                        continue;
+                    }
+                });
+            }
+            Analysis { dtype: if is_str { DType::Str } else { t.unwrap_or(DType::Str) }, nums }
+        })
+    }
+
+    pub fn dtype(&self) -> DType {
+        self.analysis().dtype
+    }
+
+    /// Each cell as a number (NaN: null or not a number).
+    fn nums(&self) -> &[f64] {
+        &self.analysis().nums
+    }
+}
+
+/// A whole number as i64 reads it (what makes a column `i64`).
+fn is_int(s: &str) -> bool {
+    s.trim().parse::<i64>().is_ok()
+}
+
+/// A table: column names and their columns, every column `height` long.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Frame {
+    pub columns: Vec<String>,
+    cols: Vec<Column>,
+    height: usize,
+}
+
 /// Most rows a printed frame shows (the first and last half of them).
 const PRINT_ROWS: usize = 20;
 /// Widest cell a printed frame shows in full.
@@ -70,7 +254,7 @@ impl Frame {
     }
 
     pub fn height(&self) -> usize {
-        self.rows.len()
+        self.height
     }
 
     /// Column `name`'s index: the exact name first, then any case.
@@ -96,38 +280,25 @@ impl Frame {
     }
 
     pub fn cell(&self, row: usize, col: usize) -> Option<&str> {
-        self.rows.get(row).and_then(|r| r.get(col)).and_then(|c| c.as_deref())
+        self.cols.get(col).and_then(|c| c.get(row))
     }
 
     /// Column `c`'s type.
     pub fn dtype(&self, c: usize) -> DType {
-        let mut t = None::<DType>;
-        for cell in self.rows.iter().filter_map(|r| r.get(c).and_then(|x| x.as_deref())) {
-            let this = if cell.trim().parse::<i64>().is_ok() {
-                DType::Int
-            } else if parse_num(cell).is_some() {
-                DType::Float
-            } else if cell.eq_ignore_ascii_case("true") || cell.eq_ignore_ascii_case("false") {
-                DType::Bool
-            } else {
-                return DType::Str;
-            };
-            t = Some(match (t, this) {
-                (None, x) => x,
-                (Some(a), b) if a == b => a,
-                (Some(DType::Int), DType::Float) | (Some(DType::Float), DType::Int) => DType::Float,
-                _ => return DType::Str,
-            });
-        }
-        t.unwrap_or(DType::Str)
+        self.cols[c].dtype()
     }
 
     /// Column `c`'s numbers (nulls and text skipped).
     fn numbers(&self, c: usize) -> Vec<f64> {
-        self.rows.iter().filter_map(|r| r.get(c).and_then(|x| x.as_deref()).and_then(parse_num)).collect()
+        self.cols[c].nums().iter().copied().filter(|x| !x.is_nan()).collect()
     }
 
-    /// A new column (a name already taken gets `_2`, `_3` …).
+    /// Row `r`'s cells.
+    pub fn row(&self, r: usize) -> Vec<Option<&str>> {
+        self.cols.iter().map(|c| c.get(r)).collect()
+    }
+
+    /// A new column of nulls (a name already taken gets `_2`, `_3` …).
     fn add_column(&mut self, name: &str) -> usize {
         let mut n = name.trim().to_string();
         if n.is_empty() {
@@ -141,21 +312,48 @@ impl Frame {
             n = format!("{n}_{k}");
         }
         self.columns.push(n);
-        for r in &mut self.rows {
-            r.push(None);
-        }
+        self.cols.push(Column::nulls(self.height));
         self.width() - 1
     }
 
-    /// At least `n` columns (`column_4` …) and `rows` rows.
+    /// At least `cols` columns (`column_4` …) and `rows` rows.
     fn grow(&mut self, rows: usize, cols: usize) {
         while self.width() < cols {
             let n = self.width() + 1;
             self.add_column(&format!("column_{n}"));
         }
-        let w = self.width();
-        while self.rows.len() < rows {
-            self.rows.push(vec![None; w]);
+        if rows > self.height {
+            self.height = rows;
+            for c in &mut self.cols {
+                c.grow(rows);
+            }
+        }
+    }
+
+    /// A row at the end (cells past the columns add columns).
+    fn push_row(&mut self, cells: &[Option<String>]) {
+        self.grow(self.height, cells.len());
+        for (c, col) in self.cols.iter_mut().enumerate() {
+            col.push(cells.get(c).cloned().flatten().as_deref());
+        }
+        self.height += 1;
+    }
+
+    /// Only the rows at `rows`, in that order.
+    fn keep(&mut self, rows: &[usize]) {
+        for c in &mut self.cols {
+            *c = c.take(rows);
+        }
+        self.height = rows.len();
+    }
+
+    /// The first `n` rows.
+    fn truncate(&mut self, n: usize) {
+        if n < self.height {
+            for c in &mut self.cols {
+                c.truncate(n);
+            }
+            self.height = n;
         }
     }
 
@@ -216,7 +414,7 @@ impl Frame {
     /// The frame as a grid's rows: the header, then the cells (null as "").
     pub fn grid_rows(&self) -> Vec<Vec<String>> {
         std::iter::once(self.columns.clone())
-            .chain(self.rows.iter().map(|r| r.iter().map(|c| c.clone().unwrap_or_default()).collect()))
+            .chain((0..self.height).map(|r| self.cols.iter().map(|c| c.get(r).unwrap_or("").to_string()).collect()))
             .collect()
     }
 }
@@ -231,107 +429,178 @@ fn null_word(s: &str) -> bool {
     matches!(s, "" | "NA" | "N/A" | "null" | "NULL" | "NaN")
 }
 
-/// CSV records (RFC 4180: quoted fields with `""` for a quote, line breaks
-/// inside quotes); each field with whether it was quoted. Blank lines are
-/// skipped.
-fn csv_records(text: &str) -> Vec<Vec<(String, bool)>> {
-    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
-    let mut records = Vec::new();
-    let mut record: Vec<(String, bool)> = Vec::new();
-    let mut field = String::new();
-    let mut quoted = false;
-    let mut in_quotes = false;
-    let mut chars = text.chars().peekable();
-    let end_record = |record: &mut Vec<(String, bool)>, records: &mut Vec<Vec<(String, bool)>>| {
-        let blank = record.len() == 1 && !record[0].1 && record[0].0.trim().is_empty();
-        if !blank {
-            records.push(std::mem::take(record));
-        } else {
-            record.clear();
-        }
-    };
-    while let Some(c) = chars.next() {
-        if in_quotes {
-            if c == '"' {
-                if chars.peek() == Some(&'"') {
-                    chars.next();
-                    field.push('"');
-                } else {
-                    in_quotes = false;
-                }
-            } else {
-                field.push(c);
-            }
-            continue;
-        }
-        match c {
-            '"' if field.trim().is_empty() && !quoted => {
-                field.clear();
-                quoted = true;
-                in_quotes = true;
-            }
-            ',' => {
-                record.push((std::mem::take(&mut field), quoted));
-                quoted = false;
-            }
-            '\r' if chars.peek() == Some(&'\n') => {}
-            '\n' | '\r' => {
-                record.push((std::mem::take(&mut field), quoted));
-                quoted = false;
-                end_record(&mut record, &mut records);
-            }
-            _ => field.push(c),
-        }
-    }
-    if !field.is_empty() || quoted || !record.is_empty() {
-        record.push((field, quoted));
-        end_record(&mut record, &mut records);
-    }
-    records
-}
-
 /// A read field's cell: a quoted field as written, an unquoted one trimmed
 /// (and null if it's empty or a missing-value word).
-fn field_cell((text, quoted): (String, bool)) -> Option<String> {
+fn field_value(text: &str, quoted: bool) -> Option<&str> {
     if quoted {
         return Some(text);
     }
     let t = text.trim();
-    (!null_word(t)).then(|| t.to_string())
+    (!null_word(t)).then_some(t)
+}
+
+fn field_cell((text, quoted): (String, bool)) -> Option<String> {
+    field_value(&text, quoted).map(str::to_string)
+}
+
+/// Reads CSV (RFC 4180: quoted fields with `""` for a quote, line breaks
+/// inside quotes), calling `field(text, quoted)` for each field and
+/// `end()` after each record; blank lines are skipped.
+fn csv_scan(text: &str, mut field: impl FnMut(&str, bool), mut end: impl FnMut()) {
+    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
+    let b = text.as_bytes();
+    let mut i = 0;
+    let mut buf = String::new();
+    while i < b.len() {
+        // (a blank line: nothing)
+        let line_end = b[i..].iter().position(|&c| c == b'\n' || c == b'\r').map_or(b.len(), |p| i + p);
+        if text[i..line_end].trim().is_empty() {
+            i = line_end;
+            if i < b.len() && b[i] == b'\r' {
+                i += 1;
+            }
+            if i < b.len() && b[i] == b'\n' {
+                i += 1;
+            }
+            continue;
+        }
+        // one record
+        loop {
+            // (leading spaces before a quote belong to nothing)
+            let start = i;
+            let mut j = i;
+            while j < b.len() && (b[j] == b' ' || b[j] == b'\t') {
+                j += 1;
+            }
+            if j < b.len() && b[j] == b'"' {
+                buf.clear();
+                let mut k = j + 1;
+                loop {
+                    let Some(p) = b[k..].iter().position(|&c| c == b'"') else {
+                        buf.push_str(&text[k..]);
+                        k = b.len();
+                        break;
+                    };
+                    buf.push_str(&text[k..k + p]);
+                    k += p + 1;
+                    if k < b.len() && b[k] == b'"' {
+                        buf.push('"');
+                        k += 1;
+                    } else {
+                        break;
+                    }
+                }
+                // (anything after the closing quote up to the comma: kept)
+                let rest_end = b[k..].iter().position(|&c| c == b',' || c == b'\n' || c == b'\r').map_or(b.len(), |p| k + p);
+                buf.push_str(&text[k..rest_end]);
+                field(&buf, true);
+                i = rest_end;
+            } else {
+                let e = b[start..].iter().position(|&c| c == b',' || c == b'\n' || c == b'\r').map_or(b.len(), |p| start + p);
+                field(&text[start..e], false);
+                i = e;
+            }
+            if i < b.len() && b[i] == b',' {
+                i += 1;
+                if i == b.len() {
+                    field("", false);
+                }
+                continue;
+            }
+            break;
+        }
+        end();
+        if i < b.len() && b[i] == b'\r' {
+            i += 1;
+        }
+        if i < b.len() && b[i] == b'\n' {
+            i += 1;
+        }
+    }
+}
+
+/// CSV records, each field with whether it was quoted.
+fn csv_records(text: &str) -> Vec<Vec<(String, bool)>> {
+    let records = RefCell::new(Vec::new());
+    let record = RefCell::new(Vec::new());
+    csv_scan(text, |f, q| record.borrow_mut().push((f.to_string(), q)), || records.borrow_mut().push(std::mem::take(&mut *record.borrow_mut())));
+    records.into_inner()
 }
 
 /// A frame from CSV text whose first record is the header.
 pub fn parse_csv(text: &str) -> Frame {
-    let mut records = csv_records(text).into_iter();
     let mut f = Frame::default();
-    let Some(header) = records.next() else { return f };
-    for (name, _) in header {
-        f.add_column(&name);
-    }
-    for record in records {
-        let cells: Vec<Option<String>> = record.into_iter().map(field_cell).collect();
-        let n = cells.len();
-        f.grow(0, n);
-        let mut row = cells;
-        row.resize(f.width(), None);
-        f.rows.push(row);
-    }
+    let mut header = true;
+    let mut c = 0usize;
+    let rows_guess = text.len() / 32 + 1;
+    let f_cell = RefCell::new(&mut f);
+    let col = RefCell::new(&mut c);
+    let head = RefCell::new(&mut header);
+    csv_scan(
+        text,
+        |field, quoted| {
+            let mut f = f_cell.borrow_mut();
+            let mut c = col.borrow_mut();
+            if **head.borrow() {
+                f.add_column(field);
+                if **c == 0 {
+                    for col in &mut f.cols {
+                        col.ends.reserve(rows_guess);
+                        col.nulls.reserve(rows_guess);
+                    }
+                }
+            } else {
+                if **c >= f.width() {
+                    let h = f.height;
+                    let n = f.width() + 1;
+                    f.add_column(&format!("column_{n}"));
+                    let last = f.cols.len() - 1;
+                    f.cols[last].grow(h);
+                }
+                f.cols[**c].push(field_value(field, quoted));
+            }
+            **c += 1;
+        },
+        || {
+            let mut f = f_cell.borrow_mut();
+            let mut c = col.borrow_mut();
+            if **head.borrow() {
+                **head.borrow_mut() = false;
+            } else {
+                let h = f.height + 1;
+                for col in f.cols.iter_mut().skip(**c) {
+                    col.push(None);
+                }
+                f.height = h;
+            }
+            **c = 0;
+        },
+    );
     f
 }
 
-fn csv_field(s: &str) -> String {
+fn csv_field(s: &str) -> std::borrow::Cow<'_, str> {
     if s.is_empty() || s.contains([',', '"', '\n', '\r']) || s.trim() != s {
-        format!("\"{}\"", s.replace('"', "\"\""))
+        format!("\"{}\"", s.replace('"', "\"\"")).into()
     } else {
-        s.to_string()
+        s.into()
     }
 }
 
 /// The frame as CSV (a header line, null cells empty).
 pub fn to_csv(f: &Frame) -> String {
-    let mut out = f.columns.iter().map(|c| csv_field(c)).collect::<Vec<_>>().join(",") + "\n";
-    for r in &f.rows {
-        out += &r.iter().map(|c| c.as_deref().map(csv_field).unwrap_or_default()).collect::<Vec<_>>().join(",");
+    let mut out = String::with_capacity(f.cols.iter().map(|c| c.text.len() + c.len()).sum::<usize>() + 64);
+    out += &f.columns.iter().map(|c| csv_field(c)).collect::<Vec<_>>().join(",");
+    out.push('\n');
+    for r in 0..f.height {
+        for (i, c) in f.cols.iter().enumerate() {
+            if i > 0 {
+                out.push(',');
+            }
+            if let Some(s) = c.get(r) {
+                out += &csv_field(s);
+            }
+        }
         out.push('\n');
     }
     out
@@ -519,6 +788,22 @@ fn json_cell(v: Json) -> Option<String> {
     }
 }
 
+impl Frame {
+    /// Column `c` becomes `values` (padded with nulls, or the frame grown,
+    /// to one cell a row).
+    fn set_column(&mut self, c: usize, values: Vec<Option<String>>) {
+        if values.len() > self.height {
+            self.grow(values.len(), 0);
+        }
+        let mut col = Column::with_capacity(self.height);
+        for v in &values {
+            col.push(v.as_deref());
+        }
+        col.grow(self.height);
+        self.cols[c] = col;
+    }
+}
+
 /// A frame from JSON: an array of records (`[{"a": 1}, …]`), JSON Lines
 /// (one record a line), or columns (`{"a": [1, 2], …}`).
 pub fn parse_json_frame(text: &str) -> Option<Frame> {
@@ -533,10 +818,7 @@ pub fn parse_json_frame(text: &str) -> Option<Frame> {
                     _ => Vec::new(),
                 };
                 let c = f.add_column(&name);
-                f.grow(cells.len(), 0);
-                for (r, cell) in cells.into_iter().enumerate() {
-                    f.rows[r][c] = cell;
-                }
+                f.set_column(c, cells);
             }
             return Some(f);
         }
@@ -552,7 +834,7 @@ pub fn parse_json_frame(text: &str) -> Option<Frame> {
     };
     let mut f = Frame::default();
     for record in records {
-        let mut row = vec![None; f.width()];
+        let mut row: Vec<Option<String>> = vec![None; f.width()];
         match record {
             Json::Obj(fields) => {
                 for (k, v) in fields {
@@ -570,19 +852,19 @@ pub fn parse_json_frame(text: &str) -> Option<Frame> {
             Json::Arr(items) => {
                 for (c, v) in items.into_iter().enumerate() {
                     if c >= f.width() {
-                        f.grow(0, c + 1);
+                        f.grow(f.height, c + 1);
                         row.resize(f.width(), None);
                     }
                     row[c] = json_cell(v);
                 }
             }
             other => {
-                f.grow(0, 1);
+                f.grow(f.height, 1);
                 row.resize(f.width(), None);
                 row[0] = json_cell(other);
             }
         }
-        f.rows.push(row);
+        f.push_row(&row);
     }
     Some(f)
 }
@@ -591,22 +873,19 @@ pub fn parse_json_frame(text: &str) -> Option<Frame> {
 /// booleans as such in columns of those types.
 pub fn to_json(f: &Frame) -> String {
     let types: Vec<DType> = (0..f.width()).map(|c| f.dtype(c)).collect();
-    let rows: Vec<String> = f
-        .rows
-        .iter()
+    let names: Vec<String> = f.columns.iter().map(|c| json_string(c)).collect();
+    let rows: Vec<String> = (0..f.height)
         .map(|r| {
-            let fields: Vec<String> = r
-                .iter()
-                .enumerate()
-                .map(|(c, cell)| {
-                    let v = match (cell.as_deref(), types[c]) {
+            let fields: Vec<String> = (0..f.width())
+                .map(|c| {
+                    let v = match (f.cell(r, c), types[c]) {
                         (None, _) => "null".to_string(),
                         (Some(s), DType::Int) => s.trim().parse::<i64>().map_or("null".into(), |n| n.to_string()),
                         (Some(s), DType::Float) => parse_num(s).map_or("null".into(), |x| format!("{x}")),
                         (Some(s), DType::Bool) => s.to_ascii_lowercase(),
                         (Some(s), DType::Str) => json_string(s),
                     };
-                    format!("{}:{}", json_string(&f.columns[c]), v)
+                    format!("{}:{}", names[c], v)
                 })
                 .collect();
             format!("{{{}}}", fields.join(","))
@@ -668,7 +947,7 @@ fn read_text(path: &str) -> Result<String, String> {
     let mut first_error = None;
     for t in &tries {
         match crate::objects::read_file(t) {
-            Ok(bytes) => return Ok(String::from_utf8_lossy(&bytes).into_owned()),
+            Ok(bytes) => return Ok(String::from_utf8(bytes).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())),
             Err(e) => {
                 first_error.get_or_insert(e);
             }
@@ -695,16 +974,17 @@ fn write_text(path: &str, text: &str) -> Result<(), String> {
     crate::objects::write_file(path, text.as_bytes())
 }
 
-/// Compares two cells of a column (numbers as numbers in a numeric one);
-/// nulls after everything.
-fn cmp_cells(a: Option<&str>, b: Option<&str>, numeric: bool) -> Ordering {
-    match (a, b) {
+/// Row `i`'s and row `j`'s cells of column `c` compared (`cmp_cells`, with
+/// the column's numbers worked out once).
+fn cmp_rows(c: &Column, numeric: bool, i: usize, j: usize) -> Ordering {
+    match (c.get(i), c.get(j)) {
         (None, None) => Ordering::Equal,
         (None, _) => Ordering::Greater,
         (_, None) => Ordering::Less,
         (Some(x), Some(y)) => {
             if numeric {
-                if let (Some(p), Some(q)) = (parse_num(x), parse_num(y)) {
+                let (p, q) = (c.nums()[i], c.nums()[j]);
+                if !p.is_nan() && !q.is_nan() {
                     return p.partial_cmp(&q).unwrap_or(Ordering::Equal);
                 }
             }
@@ -713,16 +993,30 @@ fn cmp_cells(a: Option<&str>, b: Option<&str>, numeric: bool) -> Ordering {
     }
 }
 
-/// Sorts `f`'s rows by `keys` (column, descending), stably; nulls last.
-fn sort_rows(f: &mut Frame, keys: &[(usize, bool)]) {
+/// The order `f`'s rows sort in by `keys` (column, descending), stably;
+/// nulls last.
+fn sorted_rows(f: &Frame, keys: &[(usize, bool)]) -> Vec<usize> {
     let numeric: Vec<bool> = keys.iter().map(|(c, _)| f.dtype(*c).numeric()).collect();
-    f.rows.sort_by(|a, b| {
-        for (i, (c, desc)) in keys.iter().enumerate() {
-            let (x, y) = (a[*c].as_deref(), b[*c].as_deref());
-            let o = match (x, y) {
-                (None, _) | (_, None) => cmp_cells(x, y, numeric[i]),
-                _ if *desc => cmp_cells(y, x, numeric[i]),
-                _ => cmp_cells(x, y, numeric[i]),
+    let mut idx: Vec<usize> = (0..f.height).collect();
+    // (one numeric key: sort by the numbers themselves)
+    if let [(c, desc)] = keys {
+        if numeric[0] {
+            let nums = f.cols[*c].nums();
+            let rank = |i: usize| if nums[i].is_nan() { (1u8, 0.0) } else { (0u8, if *desc { -nums[i] } else { nums[i] }) };
+            idx.sort_by(|&i, &j| {
+                let (a, b) = (rank(i), rank(j));
+                a.0.cmp(&b.0).then_with(|| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal))
+            });
+            return idx;
+        }
+    }
+    idx.sort_by(|&i, &j| {
+        for (k, (c, desc)) in keys.iter().enumerate() {
+            let col = &f.cols[*c];
+            let o = match (col.get(i), col.get(j)) {
+                (None, _) | (_, None) => cmp_rows(col, numeric[k], i, j),
+                _ if *desc => cmp_rows(col, numeric[k], j, i),
+                _ => cmp_rows(col, numeric[k], i, j),
             };
             if o != Ordering::Equal {
                 return o;
@@ -730,31 +1024,57 @@ fn sort_rows(f: &mut Frame, keys: &[(usize, bool)]) {
         }
         Ordering::Equal
     });
+    idx
 }
 
-/// Whether `cell` passes `cell OP value` (`==`/`=`, `!=`/`<>`, `>`, `<`,
-/// `>=`, `<=`, `contains`, `startswith`, `endswith`): numbers compare as
-/// numbers, text as text; a null cell never passes.
-fn passes(cell: Option<&str>, op: &str, value: &str) -> Option<bool> {
-    let Some(cell) = cell else {
-        return Some(false);
-    };
-    let ord = match (parse_num(cell), parse_num(value)) {
-        (Some(a), Some(b)) => a.partial_cmp(&b).unwrap_or(Ordering::Equal),
-        _ => cell.cmp(value),
-    };
+/// A comparison `filter` makes.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Op {
+    Eq,
+    Ne,
+    Gt,
+    Lt,
+    Ge,
+    Le,
+    Contains,
+    Starts,
+    Ends,
+}
+
+fn op_of(op: &str) -> Option<Op> {
     Some(match op.trim().to_ascii_lowercase().as_str() {
-        "==" | "=" => ord == Ordering::Equal,
-        "!=" | "<>" => ord != Ordering::Equal,
-        ">" => ord == Ordering::Greater,
-        "<" => ord == Ordering::Less,
-        ">=" => ord != Ordering::Less,
-        "<=" => ord != Ordering::Greater,
-        "contains" => cell.contains(value),
-        "startswith" => cell.starts_with(value),
-        "endswith" => cell.ends_with(value),
+        "==" | "=" => Op::Eq,
+        "!=" | "<>" => Op::Ne,
+        ">" => Op::Gt,
+        "<" => Op::Lt,
+        ">=" => Op::Ge,
+        "<=" => Op::Le,
+        "contains" => Op::Contains,
+        "startswith" => Op::Starts,
+        "endswith" => Op::Ends,
         _ => return None,
     })
+}
+
+/// Whether `cell` (its number `n`: NaN if none) passes `cell OP value`:
+/// numbers compare as numbers, text as text; a null cell never passes.
+fn passes(cell: Option<&str>, n: f64, op: Op, value: &str, value_num: Option<f64>) -> bool {
+    let Some(cell) = cell else { return false };
+    let ord = || match value_num {
+        Some(b) if !n.is_nan() => n.partial_cmp(&b).unwrap_or(Ordering::Equal),
+        _ => cell.cmp(value),
+    };
+    match op {
+        Op::Eq => ord() == Ordering::Equal,
+        Op::Ne => ord() != Ordering::Equal,
+        Op::Gt => ord() == Ordering::Greater,
+        Op::Lt => ord() == Ordering::Less,
+        Op::Ge => ord() != Ordering::Less,
+        Op::Le => ord() != Ordering::Greater,
+        Op::Contains => cell.contains(value),
+        Op::Starts => cell.starts_with(value),
+        Op::Ends => cell.ends_with(value),
+    }
 }
 
 /// `"age > 30"` → ("age", ">", "30"); quotes around the value go.
@@ -782,25 +1102,33 @@ fn unquote(s: &str) -> String {
     t.to_string()
 }
 
-/// One group's value of a column under aggregate `agg`.
-fn aggregate(cells: &[Option<&str>], dtype: DType, agg: &str) -> Option<String> {
-    let present: Vec<&str> = cells.iter().filter_map(|c| *c).collect();
-    let nums: Vec<f64> = present.iter().filter_map(|c| parse_num(c)).collect();
-    let numeric = dtype.numeric();
+/// One group's (`members`, rows of `col`) value under aggregate `agg`.
+fn aggregate(col: &Column, members: &[usize], agg: &str) -> Option<String> {
+    let numeric = col.dtype().numeric();
+    let nums = || -> Vec<f64> { members.iter().map(|&i| col.nums()[i]).filter(|x| !x.is_nan()).collect() };
     match agg {
-        "count" => Some(present.len().to_string()),
-        "first" => cells.first().copied().flatten().map(str::to_string),
-        "last" => cells.last().copied().flatten().map(str::to_string),
-        "sum" if numeric => Some(num_text(nums.iter().sum())),
+        "count" => Some(members.iter().filter(|&&i| col.get(i).is_some()).count().to_string()),
+        "first" => members.first().and_then(|&i| col.get(i)).map(str::to_string),
+        "last" => members.last().and_then(|&i| col.get(i)).map(str::to_string),
+        "sum" if numeric => Some(num_text(nums().iter().sum())),
         "min" | "max" if numeric => {
             let pick = if agg == "min" { f64::min } else { f64::max };
-            nums.iter().copied().reduce(pick).map(num_text)
+            nums().into_iter().reduce(pick).map(num_text)
         }
-        "min" => present.iter().min().map(|s| s.to_string()),
-        "max" => present.iter().max().map(|s| s.to_string()),
-        "median" if numeric && !nums.is_empty() => Some(num_text(percentile(&nums, 0.5))),
-        "std" if numeric && !nums.is_empty() => Some(num_text(std_dev(&nums))),
-        "mean" if numeric && !nums.is_empty() => Some(num_text(nums.iter().sum::<f64>() / nums.len() as f64)),
+        "min" => members.iter().filter_map(|&i| col.get(i)).min().map(str::to_string),
+        "max" => members.iter().filter_map(|&i| col.get(i)).max().map(str::to_string),
+        "median" if numeric => {
+            let v = nums();
+            (!v.is_empty()).then(|| num_text(percentile(&v, 0.5)))
+        }
+        "std" if numeric => {
+            let v = nums();
+            (!v.is_empty()).then(|| num_text(std_dev(&v)))
+        }
+        "mean" if numeric => {
+            let v = nums();
+            (!v.is_empty()).then(|| num_text(v.iter().sum::<f64>() / v.len() as f64))
+        }
         _ => None,
     }
 }
@@ -822,16 +1150,26 @@ fn std_dev(v: &[f64]) -> f64 {
     (v.iter().map(|x| (x - m).powi(2)).sum::<f64>() / v.len() as f64).sqrt()
 }
 
-/// The `p` quantile (0 … 1), interpolated between neighbours as pandas'.
-fn percentile(v: &[f64], p: f64) -> f64 {
-    if v.is_empty() {
+/// The `p` quantile (0 … 1) of sorted `s`, interpolated between neighbours
+/// as pandas'.
+fn quantile_sorted(s: &[f64], p: f64) -> f64 {
+    if s.is_empty() {
         return 0.0;
     }
-    let mut s = v.to_vec();
-    s.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
     let pos = p * (s.len() - 1) as f64;
     let (lo, hi) = (pos.floor() as usize, pos.ceil() as usize);
     s[lo] + (s[hi] - s[lo]) * (pos - lo as f64)
+}
+
+fn sort_floats(v: &mut [f64]) {
+    v.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
+}
+
+/// The `p` quantile (0 … 1), interpolated between neighbours as pandas'.
+fn percentile(v: &[f64], p: f64) -> f64 {
+    let mut s = v.to_vec();
+    sort_floats(&mut s);
+    quantile_sorted(&s, p)
 }
 
 /// `apply`'s operations on one cell.
@@ -854,6 +1192,40 @@ fn apply_op(cell: Option<&str>, op: &str, decimals: i32) -> Option<Option<String
     }
 }
 
+/// A join key: a number (equal numbers match: "1" and "1.0"), else text.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+enum JoinKey<'a> {
+    Num(u64),
+    Text(&'a str),
+}
+
+/// Column `k`'s rows by key (nulls left out).
+fn join_index(f: &Frame, k: usize) -> HashMap<JoinKey<'_>, Vec<usize>> {
+    let col = &f.cols[k];
+    let nums = col.nums();
+    let mut m: HashMap<JoinKey<'_>, Vec<usize>> = HashMap::new();
+    for i in 0..f.height {
+        if let Some(cell) = col.get(i) {
+            m.entry(join_key(cell, nums[i])).or_default().push(i);
+        }
+    }
+    m
+}
+
+/// Row `i`'s key in column `k` (None: null).
+fn join_key_of(f: &Frame, k: usize, i: usize) -> Option<JoinKey<'_>> {
+    f.cols[k].get(i).map(|cell| join_key(cell, f.cols[k].nums()[i]))
+}
+
+fn join_key(cell: &str, n: f64) -> JoinKey<'_> {
+    if n.is_nan() {
+        JoinKey::Text(cell)
+    } else {
+        // (0.0 and -0.0 are one number)
+        JoinKey::Num(if n == 0.0 { 0 } else { n.to_bits() })
+    }
+}
+
 /// Calls RDATAFRAME `name`'s `method` (lowercase).
 pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Host) -> Value {
     let warn = |what: &str| host.warn(&format!("[ERROR] RDataFrame.{method}: {what}"));
@@ -873,11 +1245,7 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
                     cells = csv_records(&text).into_iter().next().unwrap_or_default().into_iter().map(field_cell).collect();
                 }
             }
-            modify(name, |f| {
-                f.grow(0, cells.len());
-                cells.resize(f.width(), None);
-                f.rows.push(cells);
-            });
+            modify(name, |f| f.push_row(&cells));
             v_null()
         }
 
@@ -917,14 +1285,17 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
         // --- Selection / Indexing ---
         "head" => {
             let n = arg_i(args, 0, 5).max(0) as usize;
-            modify(name, |f| f.rows.truncate(n));
+            modify(name, |f| f.truncate(n));
             v_null()
         }
         "tail" => {
             let n = arg_i(args, 0, 5).max(0) as usize;
             modify(name, |f| {
-                let skip = f.rows.len().saturating_sub(n);
-                f.rows.drain(..skip);
+                let skip = f.height.saturating_sub(n);
+                if skip > 0 {
+                    let rows: Vec<usize> = (skip..f.height).collect();
+                    f.keep(&rows);
+                }
             });
             v_null()
         }
@@ -965,7 +1336,7 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
                 if let Some(c) = c {
                     if r < 10_000_000 {
                         f.grow(r + 1, c + 1);
-                        f.rows[r][c] = value;
+                        f.cols[c].set(r, value.as_deref());
                     }
                 }
             });
@@ -976,7 +1347,8 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
             modify(name, |f| {
                 let end = (arg_i(args, 1, f.height() as i64).max(0) as usize).min(f.height());
                 let start = start.min(end);
-                f.rows = f.rows[start..end].to_vec();
+                let rows: Vec<usize> = (start..end).collect();
+                f.keep(&rows);
             });
             v_null()
         }
@@ -987,7 +1359,7 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
             match picked {
                 Ok(idx) => modify(name, |f| {
                     f.columns = idx.iter().map(|&i| f.columns[i].clone()).collect();
-                    f.rows = f.rows.iter().map(|r| idx.iter().map(|&i| r[i].clone()).collect()).collect();
+                    f.cols = idx.iter().map(|&i| f.cols[i].clone()).collect();
                 }),
                 Err(col) => missing(&col),
             }
@@ -1001,7 +1373,10 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
             let cols: Vec<String> = arg_s(args, 0).split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
             let keys: Result<Vec<(usize, bool)>, String> = read(name, |f| cols.iter().map(|c| f.col(c).map(|i| (i, !ascending)).ok_or_else(|| c.clone())).collect());
             match keys {
-                Ok(keys) => modify(name, |f| sort_rows(f, &keys)),
+                Ok(keys) => modify(name, |f| {
+                    let order = sorted_rows(f, &keys);
+                    f.keep(&order);
+                }),
                 Err(col) => missing(&col),
             }
             v_null()
@@ -1025,11 +1400,19 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
                 missing(&col);
                 return v_null();
             };
-            if passes(Some(""), &op, "").is_none() {
+            let Some(op) = op_of(&op) else {
                 warn(&format!("unknown operator \"{op}\""));
                 return v_null();
-            }
-            modify(name, |f| f.rows.retain(|r| passes(r[c].as_deref(), &op, &value) == Some(true)));
+            };
+            let value_num = parse_num(&value);
+            modify(name, |f| {
+                let col = &f.cols[c];
+                let nums = col.nums();
+                let rows: Vec<usize> = (0..f.height).filter(|&i| passes(col.get(i), nums[i], op, &value, value_num)).collect();
+                if rows.len() != f.height {
+                    f.keep(&rows);
+                }
+            });
             v_null()
         }
 
@@ -1044,38 +1427,35 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
                 return v_null();
             };
             modify(name, |f| {
-                let numeric = f.dtype(g).numeric();
-                let mut keys: Vec<Option<String>> = Vec::new();
-                let mut groups: HashMap<Option<String>, Vec<usize>> = HashMap::new();
-                for (i, r) in f.rows.iter().enumerate() {
-                    let k = r[g].clone();
-                    groups.entry(k.clone()).or_insert_with(|| {
-                        keys.push(k);
-                        Vec::new()
-                    }).push(i);
+                let gcol = &f.cols[g];
+                let numeric = gcol.dtype().numeric();
+                // (each group's rows, in order; groups in their keys' order)
+                let mut index: HashMap<Option<&str>, usize> = HashMap::new();
+                let mut groups: Vec<(Option<&str>, Vec<usize>)> = Vec::new();
+                for i in 0..f.height {
+                    let k = gcol.get(i);
+                    let gi = *index.entry(k).or_insert_with(|| {
+                        groups.push((k, Vec::new()));
+                        groups.len() - 1
+                    });
+                    groups[gi].1.push(i);
                 }
-                keys.sort_by(|a, b| cmp_cells(a.as_deref(), b.as_deref(), numeric));
-                let types: Vec<DType> = (0..f.width()).map(|c| f.dtype(c)).collect();
+                groups.sort_by(|a, b| cmp_rows(gcol, numeric, a.1[0], b.1[0]));
                 // (the group column first, then the others in their order)
                 let order: Vec<usize> = std::iter::once(g).chain((0..f.width()).filter(|&c| c != g)).collect();
-                let rows: Vec<Vec<Option<String>>> = keys
-                    .iter()
-                    .map(|k| {
-                        let members = &groups[k];
-                        order
-                            .iter()
-                            .map(|&c| {
-                                if c == g {
-                                    return k.clone();
-                                }
-                                let cells: Vec<Option<&str>> = members.iter().map(|&i| f.rows[i][c].as_deref()).collect();
-                                aggregate(&cells, types[c], &agg)
-                            })
-                            .collect()
-                    })
-                    .collect();
-                f.columns = order.iter().map(|&c| f.columns[c].clone()).collect();
-                f.rows = rows;
+                let mut out = Frame { columns: order.iter().map(|&c| f.columns[c].clone()).collect(), cols: Vec::new(), height: groups.len() };
+                for &c in &order {
+                    let mut col = Column::with_capacity(groups.len());
+                    for (k, members) in &groups {
+                        if c == g {
+                            col.push(*k);
+                        } else {
+                            col.push(aggregate(&f.cols[c], members, &agg).as_deref());
+                        }
+                    }
+                    out.cols.push(col);
+                }
+                *f = out;
             });
             v_null()
         }
@@ -1086,9 +1466,7 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
             match read(name, |f| f.col(&col)) {
                 Some(c) => modify(name, |f| {
                     f.columns.remove(c);
-                    for r in &mut f.rows {
-                        r.remove(c);
-                    }
+                    f.cols.remove(c);
                 }),
                 None => missing(&col),
             }
@@ -1107,7 +1485,7 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
             // addcolumn name, "v1,v2,…" (a column of that name is replaced);
             // a frame with no rows gets one a value
             let col = arg_s(args, 0);
-            let values: Vec<Option<String>> = match args.get(1) {
+            let mut values: Vec<Option<String>> = match args.get(1) {
                 Some(v) => {
                     let text = v.to_string_val();
                     if text.is_empty() {
@@ -1123,9 +1501,8 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
                     f.grow(values.len(), 0);
                 }
                 let c = f.col(&col).filter(|_| !col.trim().is_empty()).unwrap_or_else(|| f.add_column(&col));
-                for (r, row) in f.rows.iter_mut().enumerate() {
-                    row[c] = values.get(r).cloned().flatten();
-                }
+                values.truncate(f.height);
+                f.set_column(c, values);
             });
             v_null()
         }
@@ -1134,16 +1511,21 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
         "fillna" | "fill_null" => {
             let fill = arg_s_or(args, 0, "0");
             modify(name, |f| {
-                for cell in f.rows.iter_mut().flatten() {
-                    if cell.is_none() {
-                        *cell = Some(fill.clone());
+                for c in &mut f.cols {
+                    if c.nulls.iter().any(|n| *n) {
+                        *c = c.map(|v| Some(v.map_or_else(|| fill.clone(), str::to_string)));
                     }
                 }
             });
             v_null()
         }
         "dropna" | "drop_nulls" => {
-            modify(name, |f| f.rows.retain(|r| r.iter().all(Option::is_some)));
+            modify(name, |f| {
+                let rows: Vec<usize> = (0..f.height).filter(|&r| f.cols.iter().all(|c| !c.nulls[r])).collect();
+                if rows.len() != f.height {
+                    f.keep(&rows);
+                }
+            });
             v_null()
         }
 
@@ -1153,23 +1535,25 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
             modify(name, |f| {
                 let stats = ["count", "mean", "std", "min", "25%", "50%", "75%", "max"];
                 let numeric: Vec<usize> = (0..f.width()).filter(|&c| f.dtype(c).numeric()).collect();
-                let mut out = Frame { columns: vec!["statistic".to_string()], rows: stats.iter().map(|s| vec![Some(s.to_string())]).collect() };
+                let mut out = Frame::default();
+                let s = out.add_column("statistic");
+                out.set_column(s, stats.iter().map(|s| Some(s.to_string())).collect());
                 for &c in &numeric {
-                    let v = f.numbers(c);
+                    let mut v = f.numbers(c);
+                    let (m, sd) = (mean(&v), std_dev(&v));
+                    sort_floats(&mut v);
                     let col = out.add_column(&f.columns[c]);
                     let values = [
                         v.len() as f64,
-                        mean(&v),
-                        std_dev(&v),
-                        v.iter().copied().fold(f64::INFINITY, f64::min),
-                        percentile(&v, 0.25),
-                        percentile(&v, 0.5),
-                        percentile(&v, 0.75),
-                        v.iter().copied().fold(f64::NEG_INFINITY, f64::max),
+                        m,
+                        sd,
+                        v.first().copied().unwrap_or(f64::INFINITY),
+                        quantile_sorted(&v, 0.25),
+                        quantile_sorted(&v, 0.5),
+                        quantile_sorted(&v, 0.75),
+                        v.last().copied().unwrap_or(f64::NEG_INFINITY),
                     ];
-                    for (r, x) in values.iter().enumerate() {
-                        out.rows[r][col] = (r == 0 || !v.is_empty()).then(|| num_text(*x));
-                    }
+                    out.set_column(col, values.iter().enumerate().map(|(r, x)| (r == 0 || !v.is_empty()).then(|| num_text(*x))).collect());
                 }
                 *f = out;
             });
@@ -1183,22 +1567,23 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
                 return v_null();
             };
             modify(name, |f| {
-                let mut order: Vec<String> = Vec::new();
-                let mut counts: HashMap<String, usize> = HashMap::new();
-                for v in f.rows.iter().filter_map(|r| r[c].clone()) {
-                    *counts.entry(v.clone()).or_insert_with(|| {
+                let column = &f.cols[c];
+                let mut order: Vec<&str> = Vec::new();
+                let mut counts: HashMap<&str, usize> = HashMap::new();
+                for v in column.iter().flatten() {
+                    *counts.entry(v).or_insert_with(|| {
                         order.push(v);
                         0
                     }) += 1;
                 }
                 order.sort_by(|a, b| counts[b].cmp(&counts[a]));
-                *f = Frame {
-                    columns: vec![f.columns[c].clone(), "count".to_string()],
-                    rows: order.into_iter().map(|v| {
-                        let n = counts[&v];
-                        vec![Some(v), Some(n.to_string())]
-                    }).collect(),
-                };
+                let mut out = Frame::default();
+                let a = out.add_column(&f.columns[c]);
+                let b = out.add_column("count");
+                let n: Vec<Option<String>> = order.iter().map(|v| Some(counts[v].to_string())).collect();
+                out.set_column(a, order.iter().map(|v| Some(v.to_string())).collect());
+                out.set_column(b, n);
+                *f = out;
             });
             v_null()
         }
@@ -1206,7 +1591,7 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
             let col = arg_s(args, 0);
             read(name, |f| match f.col(&col) {
                 Some(c) => {
-                    let set: std::collections::HashSet<&str> = f.rows.iter().filter_map(|r| r[c].as_deref()).collect();
+                    let set: std::collections::HashSet<&str> = f.cols[c].iter().flatten().collect();
                     v_int(set.len() as i64)
                 }
                 None => v_int(0),
@@ -1217,7 +1602,8 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
             let (a, b) = (arg_s(args, 0), arg_s(args, 1));
             read(name, |f| {
                 let (Some(ca), Some(cb)) = (f.col(&a), f.col(&b)) else { return v_dbl(0.0) };
-                let pairs: Vec<(f64, f64)> = f.rows.iter().filter_map(|r| Some((parse_num(r[ca].as_deref()?)?, parse_num(r[cb].as_deref()?)?))).collect();
+                let (na, nb) = (f.cols[ca].nums(), f.cols[cb].nums());
+                let pairs: Vec<(f64, f64)> = (0..f.height).filter(|&i| !na[i].is_nan() && !nb[i].is_nan()).map(|i| (na[i], nb[i])).collect();
                 let n = pairs.len() as f64;
                 if n < 2.0 {
                     return v_dbl(0.0);
@@ -1236,14 +1622,14 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
             // n rows at random (no row twice)
             let n = arg_i(args, 0, 5).max(0) as usize;
             modify(name, |f| {
-                let mut rows = std::mem::take(&mut f.rows);
+                let mut rows: Vec<usize> = (0..f.height).collect();
                 let n = n.min(rows.len());
                 for i in 0..n {
                     let j = i + random_index(rows.len() - i);
                     rows.swap(i, j);
                 }
                 rows.truncate(n);
-                f.rows = rows;
+                f.keep(&rows);
             });
             v_null()
         }
@@ -1252,8 +1638,9 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
             let n = arg_i(args, 1, 5).max(0) as usize;
             match read(name, |f| f.col(&col)) {
                 Some(c) => modify(name, |f| {
-                    sort_rows(f, &[(c, method == "nlargest")]);
-                    f.rows.truncate(n);
+                    let mut order = sorted_rows(f, &[(c, method == "nlargest")]);
+                    order.truncate(n);
+                    f.keep(&order);
                 }),
                 None => missing(&col),
             }
@@ -1265,7 +1652,7 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
             let text = read(name, |f| {
                 let mut lines = vec![format!("RDataFrame: {} rows x {} columns", f.height(), f.width())];
                 for c in 0..f.width() {
-                    let present = f.rows.iter().filter(|r| r[c].is_some()).count();
+                    let present = f.cols[c].nulls.iter().filter(|n| !**n).count();
                     lines.push(format!("  {}: {} ({} non-null)", f.columns[c], f.dtype(c).name(), present));
                 }
                 lines.join("\n")
@@ -1282,8 +1669,8 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
             let other = frame(&arg_s(args, 0));
             let on = arg_s(args, 1);
             let how = arg_s_or(args, 2, "inner").trim().to_ascii_lowercase();
-            let this = frame(name);
-            match join(&this, &other, &on, &how) {
+            let joined = read(name, |this| join(this, &other, &on, &how));
+            match joined {
                 Ok(f) => set_frame(name, f),
                 Err(e) => warn(&e),
             }
@@ -1294,13 +1681,17 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
             let other = frame(&arg_s(args, 0));
             modify(name, |f| {
                 let idx: Vec<usize> = other.columns.iter().map(|c| f.columns.iter().position(|x| x == c).unwrap_or_else(|| f.add_column(c))).collect();
-                for r in &other.rows {
-                    let mut row = vec![None; f.width()];
-                    for (i, cell) in r.iter().enumerate() {
-                        row[idx[i]] = cell.clone();
+                let h = f.height + other.height;
+                for (i, &c) in idx.iter().enumerate() {
+                    let src = &other.cols[i];
+                    for r in 0..other.height {
+                        f.cols[c].push(src.get(r));
                     }
-                    f.rows.push(row);
                 }
+                for c in &mut f.cols {
+                    c.grow(h);
+                }
+                f.height = h;
             });
             v_null()
         }
@@ -1313,14 +1704,13 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
                 if f.width() == 0 {
                     return;
                 }
-                let mut out = Frame { columns: vec!["column".to_string()], rows: Vec::new() };
+                let mut out = Frame::default();
+                let names = out.add_column("column");
+                out.set_column(names, f.columns.iter().map(|c| Some(c.clone())).collect());
                 for r in 0..f.height() {
-                    out.columns.push(r.to_string());
-                }
-                for c in 0..f.width() {
-                    let mut row = vec![Some(f.columns[c].clone())];
-                    row.extend(f.rows.iter().map(|r| r[c].clone()));
-                    out.rows.push(row);
+                    let c = out.add_column(&r.to_string());
+                    let cells: Vec<Option<String>> = f.cols.iter().map(|col| col.get(r).map(str::to_string)).collect();
+                    out.set_column(c, cells);
                 }
                 *f = out;
             });
@@ -1340,11 +1730,7 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
                 host.warn(&format!("[WARN] RDataFrame.apply: unknown op '{op}'"));
                 return v_null();
             }
-            modify(name, |f| {
-                for r in &mut f.rows {
-                    r[c] = apply_op(r[c].as_deref(), &op, decimals).flatten();
-                }
-            });
+            modify(name, |f| f.cols[c] = f.cols[c].map(|v| apply_op(v, &op, decimals).flatten()));
             v_null()
         }
         "replace" => {
@@ -1355,13 +1741,7 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
                 missing(&col);
                 return v_null();
             };
-            modify(name, |f| {
-                for r in &mut f.rows {
-                    if r[c].as_deref() == Some(old.as_str()) {
-                        r[c] = field_cell((new.clone(), true));
-                    }
-                }
-            });
+            modify(name, |f| f.cols[c] = f.cols[c].map(|v| if v == Some(old.as_str()) { field_cell((new.clone(), true)) } else { v.map(str::to_string) }));
             v_null()
         }
 
@@ -1402,7 +1782,8 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
 
 /// `merge`: `a` joined with `b` on column `on` (`how`: inner, left, right,
 /// outer, cross). The key column once; `b`'s other columns after `a`'s, a
-/// name both have taking `_right`.
+/// name both have taking `_right`. Keys match as text, or as numbers ("1"
+/// and "1.0"); a null key matches nothing.
 fn join(a: &Frame, b: &Frame, on: &str, how: &str) -> Result<Frame, String> {
     let cross = how == "cross";
     let (ka, kb) = if cross {
@@ -1413,65 +1794,69 @@ fn join(a: &Frame, b: &Frame, on: &str, how: &str) -> Result<Frame, String> {
             _ => return Err(format!("no column \"{on}\" in both frames")),
         }
     };
-    let mut out = Frame { columns: a.columns.clone(), rows: Vec::new() };
-    let b_cols: Vec<usize> = (0..b.width()).filter(|&c| c != kb).collect();
-    for &c in &b_cols {
+    // Which rows pair up: (a's row, b's row), either missing for an
+    // unmatched row of the other.
+    let mut pairs: Vec<(Option<usize>, Option<usize>)> = Vec::new();
+    if cross {
+        for i in 0..a.height {
+            for j in 0..b.height {
+                pairs.push((Some(i), Some(j)));
+            }
+        }
+    } else {
+        let (index, key_of) = (join_index, join_key_of);
+        if how == "right" {
+            let ia = index(a, ka);
+            for j in 0..b.height {
+                match key_of(b, kb, j).and_then(|k| ia.get(&k)) {
+                    Some(rows) => pairs.extend(rows.iter().map(|&i| (Some(i), Some(j)))),
+                    None => pairs.push((None, Some(j))),
+                }
+            }
+        } else {
+            let ib = index(b, kb);
+            let mut b_used = vec![false; b.height];
+            for i in 0..a.height {
+                match key_of(a, ka, i).and_then(|k| ib.get(&k)) {
+                    Some(rows) => {
+                        for &j in rows {
+                            b_used[j] = true;
+                            pairs.push((Some(i), Some(j)));
+                        }
+                    }
+                    None if matches!(how, "left" | "outer" | "full") => pairs.push((Some(i), None)),
+                    None => {}
+                }
+            }
+            if matches!(how, "outer" | "full") {
+                pairs.extend((0..b.height).filter(|j| !b_used[*j]).map(|j| (None, Some(j))));
+            }
+        }
+    }
+    let mut out = Frame { columns: a.columns.clone(), cols: Vec::new(), height: pairs.len() };
+    for (c, col) in a.cols.iter().enumerate() {
+        let mut o = Column::with_capacity(pairs.len());
+        for (i, j) in &pairs {
+            o.push(match i {
+                Some(i) => col.get(*i),
+                // (an unmatched row of b: its key in the key column)
+                None if c == ka => j.and_then(|j| b.cols[kb].get(j)),
+                None => None,
+            });
+        }
+        out.cols.push(o);
+    }
+    for (c, col) in b.cols.iter().enumerate().filter(|(c, _)| *c != kb) {
         let mut n = b.columns[c].clone();
         if out.columns.contains(&n) {
             n += "_right";
         }
         out.columns.push(n);
-    }
-    let same = |x: Option<&str>, y: Option<&str>| match (x, y) {
-        (Some(p), Some(q)) => p == q || matches!((parse_num(p), parse_num(q)), (Some(m), Some(n)) if m == n),
-        _ => false,
-    };
-    let row_of = |ra: Option<&Vec<Option<String>>>, rb: Option<&Vec<Option<String>>>| -> Vec<Option<String>> {
-        let mut row: Vec<Option<String>> = match ra {
-            Some(r) => r.clone(),
-            None => vec![None; a.width()],
-        };
-        if !cross && ra.is_none() {
-            row[ka] = rb.and_then(|r| r[kb].clone());
+        let mut o = Column::with_capacity(pairs.len());
+        for (_, j) in &pairs {
+            o.push(j.and_then(|j| col.get(j)));
         }
-        row.extend(b_cols.iter().map(|&c| rb.and_then(|r| r[c].clone())));
-        row
-    };
-    let mut b_used = vec![false; b.height()];
-    match how {
-        "right" => {
-            for rb in &b.rows {
-                let matches: Vec<&Vec<Option<String>>> = a.rows.iter().filter(|ra| same(ra[ka].as_deref(), rb[kb].as_deref())).collect();
-                if matches.is_empty() {
-                    out.rows.push(row_of(None, Some(rb)));
-                }
-                for ra in matches {
-                    out.rows.push(row_of(Some(ra), Some(rb)));
-                }
-            }
-        }
-        _ => {
-            for ra in &a.rows {
-                let mut found = false;
-                for (j, rb) in b.rows.iter().enumerate() {
-                    if cross || same(ra[ka].as_deref(), rb[kb].as_deref()) {
-                        found = true;
-                        b_used[j] = true;
-                        out.rows.push(row_of(Some(ra), Some(rb)));
-                    }
-                }
-                if !found && matches!(how, "left" | "outer" | "full") {
-                    out.rows.push(row_of(Some(ra), None));
-                }
-            }
-            if matches!(how, "outer" | "full") {
-                for (j, rb) in b.rows.iter().enumerate() {
-                    if !b_used[j] {
-                        out.rows.push(row_of(None, Some(rb)));
-                    }
-                }
-            }
-        }
+        out.cols.push(o);
     }
     Ok(out)
 }

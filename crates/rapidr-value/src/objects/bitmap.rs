@@ -966,6 +966,16 @@ impl Bitmap {
         Ok(())
     }
 
+    /// Takes `img` as its pixels (opaque; a chart's: `LoadFromPlot`).
+    pub fn set_pixels(&mut self, img: Pixels) {
+        self.img = img;
+        self.alpha = None;
+        self.svg = None;
+        self.redraw = None;
+        self.hi = None;
+        self.touch();
+    }
+
     /// What draws the picture again at a screen scale (`scale` device
     /// pixels per pixel, the picture's size times it): what a high-DPI screen
     /// shows of it, sharp, until something draws on it (an RPLOT's chart,

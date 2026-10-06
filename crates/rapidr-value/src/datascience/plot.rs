@@ -1,10 +1,11 @@
 //! RPLOT: a chart in the manner of Matplotlib — its model (the series,
-//! titles, limits, size) and every member. Drawing it is the runtime's
-//! ([`super::Host::save_plot`], [`super::Host::show_plot`]), from
-//! [`state`]: plotters on the desktop, an HTML canvas on the web.
+//! titles, limits, size) and every member. It's drawn by [`super::chart`]
+//! (the UI kernel's ops, one renderer for every runtime); the runtime only
+//! puts the pixels somewhere ([`super::Host::save_plot`], a QIMAGE).
 //!
 //! A series' data are RNUM arrays named by their components' names
-//! (`plt.plot "x", "y"`), or numbers written in place (`"1,2,3"`).
+//! (`plt.plot "x", "y"`), numbers written in place (`"1,2,3"`), or — for x
+//! — names (`"North,South,East"`): bars over their categories.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -23,6 +24,8 @@ pub struct Series {
     pub label: String,
     pub color: String,
     pub style: String,
+    /// The names x stands for (bars over categories): x is 0, 1, 2 …
+    pub categories: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -39,7 +42,9 @@ pub struct Plot {
     pub title: String,
     pub xlabel: String,
     pub ylabel: String,
-    pub grid: bool,
+    /// None: the default look (light horizontal gridlines); Some(true):
+    /// both ways (`Grid = 1`); Some(false): none (`Grid = 0`).
+    pub grid: Option<bool>,
     /// Pixels, or inches (times `dpi`) when under 100 (`plt.width = 7`).
     pub width: u32,
     pub height: u32,
@@ -52,6 +57,8 @@ pub struct Plot {
     /// "linear" or "log".
     pub xscale: String,
     pub yscale: String,
+    /// `XTicks`: the x axis' tick positions and their names.
+    pub xticks: Option<(Vec<f64>, Vec<String>)>,
 }
 
 impl Default for Plot {
@@ -60,7 +67,7 @@ impl Default for Plot {
             title: String::new(),
             xlabel: String::new(),
             ylabel: String::new(),
-            grid: false,
+            grid: None,
             width: 640,
             height: 480,
             dpi: 100,
@@ -71,6 +78,7 @@ impl Default for Plot {
             ylim: None,
             xscale: "linear".into(),
             yscale: "linear".into(),
+            xticks: None,
         }
     }
 }
@@ -82,215 +90,11 @@ impl Plot {
         let px = |v: u32| if v < 100 { (v.max(1) * dpi).min(8000) } else { v.min(8000) };
         (px(self.width), px(self.height))
     }
-
-    /// Whether the chart is a pie (drawn without axes).
-    pub fn is_pie(&self) -> bool {
-        self.series.iter().any(|s| s.style == "pie")
-    }
-
-    /// The axes' ranges, ((x from, to), (y from, to)): the data — whole bars,
-    /// reference lines — 5% around it, from 0 where bars or areas stand on
-    /// it; `xlim` / `ylim` as set. What both renderers draw.
-    pub fn ranges(&self) -> ((f64, f64), (f64, f64)) {
-        let (mut x0, mut x1, mut y0, mut y1) = (f64::INFINITY, f64::NEG_INFINITY, f64::INFINITY, f64::NEG_INFINITY);
-        let (mut zero_x, mut zero_y) = (false, false);
-        let mut take = |x: Option<f64>, y: Option<f64>| {
-            if let Some(x) = x.filter(|v| v.is_finite()) {
-                x0 = x0.min(x);
-                x1 = x1.max(x);
-            }
-            if let Some(y) = y.filter(|v| v.is_finite()) {
-                y0 = y0.min(y);
-                y1 = y1.max(y);
-            }
-        };
-        for s in &self.series {
-            match s.style.as_str() {
-                "hline" => s.y.iter().for_each(|y| take(None, Some(*y))),
-                "vline" => s.x.iter().for_each(|x| take(Some(*x), None)),
-                "pie" => {}
-                "bar" => {
-                    let half = bar_width(&s.x) / 2.0;
-                    zero_y = true;
-                    for (x, y) in s.x.iter().zip(&s.y) {
-                        take(Some(x - half), Some(*y));
-                        take(Some(x + half), Some(0.0));
-                    }
-                }
-                "barh" => {
-                    let half = bar_width(&s.y) / 2.0;
-                    zero_x = true;
-                    for (x, y) in s.x.iter().zip(&s.y) {
-                        take(Some(*x), Some(y - half));
-                        take(Some(0.0), Some(y + half));
-                    }
-                }
-                style => {
-                    zero_y |= style == "area";
-                    s.x.iter().zip(&s.y).for_each(|(x, y)| take(Some(*x), Some(*y)));
-                    if style == "area" {
-                        take(None, Some(0.0));
-                    }
-                }
-            }
-        }
-        let axis = |lo: f64, hi: f64, zero: bool, lim: Option<(f64, f64)>| -> (f64, f64) {
-            if let Some((a, b)) = lim.filter(|(a, b)| b > a) {
-                return (a, b);
-            }
-            let (mut lo, mut hi) = if lo.is_finite() && hi.is_finite() { (lo, hi) } else { (0.0, 1.0) };
-            if hi <= lo {
-                let d = if lo == 0.0 { 1.0 } else { lo.abs() * 0.1 };
-                (lo, hi) = (lo - d, hi + d);
-            }
-            let m = (hi - lo) * 0.05;
-            // (bars stand on the axis: no margin below 0 when all are above it)
-            let lo2 = if zero && lo >= 0.0 { lo.min(0.0) } else { lo - m };
-            let hi2 = if zero && hi <= 0.0 { hi.max(0.0) } else { hi + m };
-            (lo2, hi2)
-        };
-        (axis(x0, x1, zero_x, self.xlim), axis(y0, y1, zero_y, self.ylim))
-    }
 }
 
-/// A bar's width for bars at `at`: 0.8 of the closest two's distance (0.8
-/// for one bar).
-pub fn bar_width(at: &[f64]) -> f64 {
-    let mut v: Vec<f64> = at.iter().copied().filter(|x| x.is_finite()).collect();
-    v.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    let gap = v.windows(2).map(|w| w[1] - w[0]).filter(|d| *d > 0.0).fold(f64::INFINITY, f64::min);
-    if gap.is_finite() { gap * 0.8 } else { 0.8 }
-}
-
-/// The colours series without one take, in turn.
-pub const PALETTE: &[&str] = &["blue", "red", "green", "orange", "purple", "cyan", "magenta", "steelblue", "brown", "pink", "teal", "gold", "navy", "coral"];
-
-/// A colour name or `#RRGGBB` as red, green, blue (black if unknown).
-pub fn rgb(color: &str) -> (u8, u8, u8) {
-    let c = color.trim().to_ascii_lowercase();
-    match c.as_str() {
-        "red" => (255, 0, 0),
-        "green" => (0, 128, 0),
-        "blue" => (0, 0, 255),
-        "black" => (0, 0, 0),
-        "white" => (255, 255, 255),
-        "orange" => (255, 165, 0),
-        "purple" => (128, 0, 128),
-        "cyan" => (0, 255, 255),
-        "magenta" => (255, 0, 255),
-        "yellow" => (255, 255, 0),
-        "steelblue" => (70, 130, 180),
-        "gray" | "grey" => (128, 128, 128),
-        "lightblue" => (173, 216, 230),
-        "lightgreen" => (144, 238, 144),
-        "darkred" => (139, 0, 0),
-        "darkblue" => (0, 0, 139),
-        "darkgreen" => (0, 100, 0),
-        "brown" => (139, 69, 19),
-        "pink" => (255, 192, 203),
-        "gold" => (255, 215, 0),
-        "navy" => (0, 0, 128),
-        "teal" => (0, 128, 128),
-        "coral" => (255, 127, 80),
-        "salmon" => (250, 128, 114),
-        "olive" => (128, 128, 0),
-        "maroon" => (128, 0, 0),
-        "lime" => (0, 255, 0),
-        "indigo" => (75, 0, 130),
-        "violet" => (238, 130, 238),
-        "silver" => (192, 192, 192),
-        "tomato" => (255, 99, 71),
-        s if s.len() == 7 && s.starts_with('#') => {
-            let h = |i: usize| u8::from_str_radix(&s[i..i + 2], 16).unwrap_or(0);
-            (h(1), h(3), h(5))
-        }
-        _ => (0, 0, 0),
-    }
-}
-
-/// A colour as CSS `#rrggbb`.
-pub fn css(color: &str) -> String {
-    let (r, g, b) = rgb(color);
-    format!("#{r:02x}{g:02x}{b:02x}")
-}
-
-/// Round tick values (steps of 1, 2 or 5 times a power of ten) from `lo`
-/// to `hi`, about `n` of them: where both renderers put an axis' ticks.
-pub fn nice_ticks(lo: f64, hi: f64, n: usize) -> Vec<f64> {
-    if !(lo.is_finite() && hi.is_finite()) || hi <= lo {
-        return Vec::new();
-    }
-    let raw = (hi - lo) / n.max(1) as f64;
-    let mag = 10f64.powf(raw.log10().floor());
-    let step = [1.0, 2.0, 5.0, 10.0].iter().map(|m| m * mag).find(|s| *s >= raw).unwrap_or(10.0 * mag);
-    let first = (lo / step).ceil() as i64;
-    let last = (hi / step).floor() as i64;
-    (first..=last).take(100).map(|i| i as f64 * step).collect()
-}
-
-/// Where a chart's legend goes, as (right, top): the corner of the plot
-/// area (x from `x0` to `x1`, y from `y0` to `y1`) with the fewest data
-/// points under a legend covering `(fw, fh)` of it (fractions, its margin
-/// included) — upper right first on a tie, then upper left, lower right,
-/// lower left.
-pub fn legend_corner(p: &Plot, xr: (f64, f64), yr: (f64, f64), size: (f64, f64)) -> (bool, bool) {
-    corner_and_count(p, xr, yr, size).0
-}
-
-/// The axes' ranges and the legend's corner for a legend covering `size`
-/// of the plot area (fractions; `None` without one): where no corner is
-/// free of data, the y axis reaches higher, so the legend sits above the
-/// data (as Matplotlib's headroom) — unless `ylim` is set.
-pub fn layout(p: &Plot, size: Option<(f64, f64)>) -> (((f64, f64), (f64, f64)), (bool, bool)) {
-    let (xr, yr) = p.ranges();
-    let Some(size) = size else { return ((xr, yr), (true, true)) };
-    let (corner, under) = corner_and_count(p, xr, yr, size);
-    if under == 0 || p.ylim.is_some() || size.1 >= 0.6 {
-        return ((xr, yr), corner);
-    }
-    let yr = (yr.0, yr.0 + (yr.1 - yr.0) / (1.0 - size.1));
-    ((xr, yr), corner_and_count(p, xr, yr, size).0)
-}
-
-fn corner_and_count(p: &Plot, (x0, x1): (f64, f64), (y0, y1): (f64, f64), (fw, fh): (f64, f64)) -> ((bool, bool), usize) {
-    let corners = [(true, true), (false, true), (true, false), (false, false)];
-    let (wx, wy) = (x1 - x0, y1 - y0);
-    if wx <= 0.0 || wy <= 0.0 {
-        return ((true, true), 0);
-    }
-    let points: Vec<(f64, f64)> = p
-        .series
-        .iter()
-        .filter(|s| !matches!(s.style.as_str(), "hline" | "vline" | "pie"))
-        .flat_map(|s| {
-            // (a bar covers its whole height, the base to the top)
-            let steps: &[f64] = if matches!(s.style.as_str(), "bar" | "barh" | "area") { &[0.0, 0.25, 0.5, 0.75, 1.0] } else { &[1.0] };
-            let barh = s.style == "barh";
-            s.x.iter().zip(&s.y).flat_map(move |(x, y)| steps.iter().map(move |k| if barh { (x * k, *y) } else { (*x, y * k) }))
-        })
-        .map(|(x, y)| ((x - x0) / wx, (y - y0) / wy))
-        .collect();
-    let under = |(right, top): (bool, bool)| {
-        points
-            .iter()
-            .filter(|(x, y)| (if right { *x >= 1.0 - fw } else { *x <= fw }) && (if top { *y >= 1.0 - fh } else { *y <= fh }))
-            .count()
-    };
-    corners.into_iter().map(|c| (c, under(c))).min_by_key(|(_, n)| *n).unwrap_or(((true, true), 0))
-}
-
-/// A tick's label: whole numbers without a point, others with what their
-/// step needs (`0.5`, `2.25`), very large or small ones in E notation.
-pub fn tick_text(v: f64) -> String {
-    if v.abs() < 1e-9 {
-        return "0".into();
-    }
-    if v.abs() >= 1e6 || v.abs() < 1e-3 {
-        return format!("{v:.1e}");
-    }
-    let s = format!("{v:.3}");
-    s.trim_end_matches('0').trim_end_matches('.').to_string()
-}
+/// The colours series without one take, in turn: the chart palette
+/// (`super::colors::PALETTE`, Matplotlib's `C0` … `C9` names for it).
+pub const PALETTE: &[&str] = &["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9"];
 
 thread_local! {
     static PLOTS: RefCell<HashMap<String, Plot>> = RefCell::new(HashMap::new());
@@ -305,17 +109,28 @@ fn modify<R>(name: &str, f: impl FnOnce(&mut Plot) -> R) -> R {
     PLOTS.with(|m| f(m.borrow_mut().entry(key(name)).or_default()))
 }
 
+/// A series' x: an array, numbers, or names (categories: x is 0, 1, 2 …).
+fn x_data(arg: &str) -> (Vec<f64>, Vec<String>) {
+    if !num::exists(arg) {
+        let items: Vec<String> = arg.split(',').map(|t| t.trim().to_string()).collect();
+        if items.iter().any(|t| !t.is_empty() && super::parse_num(t).is_none()) {
+            return ((0..items.len()).map(|i| i as f64).collect(), items);
+        }
+    }
+    (num::series_data(arg), Vec::new())
+}
+
 /// Adds a series of `style`: x array, y array, label, colour (the next of
 /// the palette if none) — and for `plot` a line style (`-`, `--`, `o`).
 fn add_xy(name: &str, args: &[Value], style: &str) -> Value {
-    let x = num::series_data(&arg_s(args, 0));
+    let (x, categories) = x_data(&arg_s(args, 0));
     let y = num::series_data(&arg_s(args, 1));
     let label = arg_s(args, 2);
     let style = if style == "-" { arg_s_or(args, 4, "-") } else { style.to_string() };
     modify(name, |p| {
         let color = args.get(3).map(Value::to_string_val).filter(|c| !c.trim().is_empty()).unwrap_or_else(|| PALETTE[p.series.len() % PALETTE.len()].to_string());
         let (x, y) = if style == "barh" { (y, x) } else { (x, y) };
-        p.series.push(Series { x, y, label, color, style });
+        p.series.push(Series { x, y, label, color, style, categories });
     });
     v_null()
 }
@@ -348,7 +163,7 @@ pub fn plot_method(name: &str, method: &str, args: &[Value], host: &dyn Host) ->
             let x = if xs.trim().is_empty() { (0..y.len()).map(|i| i as f64).collect() } else { num::series_data(&xs) };
             modify(name, |p| {
                 let color = args.get(3).map(Value::to_string_val).filter(|c| !c.trim().is_empty()).unwrap_or_else(|| PALETTE[p.series.len() % PALETTE.len()].to_string());
-                p.series.push(Series { x, y, label, color, style: "-".into() });
+                p.series.push(Series { x, y, label, color, style: "-".into(), categories: Vec::new() });
             });
             host.show_plot(name);
             v_null()
@@ -371,7 +186,7 @@ pub fn plot_method(name: &str, method: &str, args: &[Value], host: &dyn Host) ->
             let label = arg_s(args, 2);
             modify(name, |p| {
                 let color = args.get(3).map(Value::to_string_val).filter(|c| !c.trim().is_empty()).unwrap_or_else(|| PALETTE[p.series.len() % PALETTE.len()].to_string());
-                p.series.push(Series { x: centers, y: counts, label, color, style: "bar".into() });
+                p.series.push(Series { x: centers, y: counts, label, color, style: "hist".into(), categories: Vec::new() });
             });
             v_null()
         }
@@ -379,20 +194,20 @@ pub fn plot_method(name: &str, method: &str, args: &[Value], host: &dyn Host) ->
             // pie values, "label1,label2,…", "colour1,colour2,…"
             let data = num::series_data(&arg_s(args, 0));
             let (label, color) = (arg_s(args, 1), arg_s(args, 2));
-            modify(name, |p| p.series.push(Series { x: data.clone(), y: data, label, color, style: "pie".into() }));
+            modify(name, |p| p.series.push(Series { x: data.clone(), y: data, label, color, style: "pie".into(), categories: Vec::new() }));
             v_null()
         }
         // --- Lines and text ---
         "hline" | "axhline" => {
             let y = arg_f(args, 0, 0.0);
             let color = arg_s_or(args, 1, "black");
-            modify(name, |p| p.series.push(Series { x: Vec::new(), y: vec![y], label: String::new(), color, style: "hline".into() }));
+            modify(name, |p| p.series.push(Series { x: Vec::new(), y: vec![y], label: String::new(), color, style: "hline".into(), categories: Vec::new() }));
             v_null()
         }
         "vline" | "axvline" => {
             let x = arg_f(args, 0, 0.0);
             let color = arg_s_or(args, 1, "black");
-            modify(name, |p| p.series.push(Series { x: vec![x], y: Vec::new(), label: String::new(), color, style: "vline".into() }));
+            modify(name, |p| p.series.push(Series { x: vec![x], y: Vec::new(), label: String::new(), color, style: "vline".into(), categories: Vec::new() }));
             v_null()
         }
         "annotate" => {
@@ -427,13 +242,14 @@ pub fn plot_method(name: &str, method: &str, args: &[Value], host: &dyn Host) ->
         }
         "grid" => {
             let on = arg_i(args, 0, 1) != 0;
-            modify(name, |p| p.grid = on);
+            modify(name, |p| p.grid = Some(on));
             v_null()
         }
         // --- Output ---
         "savefig" | "save" => {
             let file = arg_s_or(args, 0, "plot.png");
-            host.save_plot(name, &file);
+            // (savefig file, scale: a PNG `scale` times the chart's size)
+            host.save_plot(name, &file, arg_f(args, 1, 1.0).clamp(0.1, 8.0));
             v_null()
         }
         "render" | "show" => {
@@ -458,6 +274,20 @@ pub fn plot_method(name: &str, method: &str, args: &[Value], host: &dyn Host) ->
         "ylim" => {
             let lim = (arg_f(args, 0, 0.0), arg_f(args, 1, 1.0));
             modify(name, |p| p.ylim = Some(lim));
+            v_null()
+        }
+        "xticks" => {
+            // xticks "Jan,Feb,Mar" [, positions]: the x axis' ticks named
+            // (at the first series' x when there are as many, else 0, 1, 2 …)
+            let names: Vec<String> = arg_s(args, 0).split(',').map(|t| t.trim().to_string()).collect();
+            let at = args.get(1).map(|v| num::series_data(&v.to_string_val())).filter(|v| !v.is_empty());
+            modify(name, |p| {
+                let at = at.unwrap_or_else(|| match p.series.iter().find(|s| !matches!(s.style.as_str(), "hline" | "vline")) {
+                    Some(s) if s.x.len() == names.len() => s.x.clone(),
+                    _ => (0..names.len()).map(|i| i as f64).collect(),
+                });
+                p.xticks = (names.iter().any(|n| !n.is_empty())).then_some((at, names));
+            });
             v_null()
         }
         "xscale" => {
@@ -487,7 +317,9 @@ pub fn plot_get_prop(name: &str, prop: &str) -> Value {
         "title" => v_str(&p.title),
         "xlabel" => v_str(&p.xlabel),
         "ylabel" => v_str(&p.ylabel),
-        "grid" => v_int(p.grid as i64),
+        "grid" => v_int(i64::from(p.grid == Some(true))),
+        "legend" => v_int(i64::from(p.legend)),
+        "count" | "seriescount" => v_int(p.series.len() as i64),
         "width" => v_int(p.width as i64),
         "height" => v_int(p.height as i64),
         "dpi" => v_int(p.dpi as i64),
@@ -501,7 +333,8 @@ pub fn plot_set_prop(name: &str, prop: &str, val: &Value) -> bool {
         "title" => modify(name, |p| p.title = val.to_string_val()),
         "xlabel" => modify(name, |p| p.xlabel = val.to_string_val()),
         "ylabel" => modify(name, |p| p.ylabel = val.to_string_val()),
-        "grid" => modify(name, |p| p.grid = val.to_f64() != 0.0),
+        "grid" => modify(name, |p| p.grid = Some(val.to_f64() != 0.0)),
+        "legend" => modify(name, |p| p.legend = val.to_f64() != 0.0),
         "width" => modify(name, |p| p.width = val.to_f64().clamp(1.0, 8000.0) as u32),
         "height" => modify(name, |p| p.height = val.to_f64().clamp(1.0, 8000.0) as u32),
         "dpi" => modify(name, |p| p.dpi = val.to_f64().clamp(50.0, 1200.0) as u32),
@@ -516,21 +349,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn ticks_and_legend_place() {
-        assert_eq!(nice_ticks(0.9, 3.1, 6), vec![1.0, 1.5, 2.0, 2.5, 3.0]);
-        assert_eq!(nice_ticks(-4.0, 184.0, 6), vec![0.0, 50.0, 100.0, 150.0]);
-        assert_eq!((tick_text(2.0), tick_text(2.5), tick_text(-0.25)), ("2".into(), "2.5".into(), "-0.25".into()));
-        let mut p = Plot::default();
-        p.series.push(Series { x: vec![1.0, 2.0, 3.0], y: vec![1.0, 2.0, 3.0], label: "up".into(), color: "red".into(), style: "-".into() });
-        // (a rising line fills the upper right and lower left)
-        assert_eq!(legend_corner(&p, (1.0, 3.0), (1.0, 3.0), (0.3, 0.3)), (false, true));
-        // (no corner free: the axis reaches higher, the legend above the data)
-        p.series.push(Series { x: vec![1.0, 3.0, 3.0], y: vec![3.0, 3.0, 1.0], label: "top".into(), color: "blue".into(), style: "o".into() });
-        let ((_, (y0, y1)), (_, top)) = layout(&p, Some((0.3, 0.3)));
-        assert!(top && y1 > 3.2 && y0 < 1.0, "{y0} {y1}");
-    }
-
-    #[test]
     fn series_and_properties() {
         let h = TestHost::default();
         num::set_data("px", vec![1.0, 2.0, 3.0]);
@@ -543,10 +361,15 @@ mod tests {
         let p = state("p1");
         assert_eq!(p.title, "T");
         assert_eq!(p.pixel_size(), (700, 480));
-        assert_eq!(p.series[0].color, "blue");
-        assert_eq!(p.series[1].color, "red");
+        assert_eq!(p.series[0].color, "C0");
+        assert_eq!(p.series[1].color, "C1");
         assert_eq!(p.series[1].y, vec![1.0, 1.0, 1.0]);
         assert_eq!(h.shown.borrow().as_slice(), ["save p1 a.png"]);
         assert_eq!(plot_method("p1", "title", &[], &h).to_string_val(), "T");
+        // (names for x: bars over their categories)
+        plot_method("p2", "bar", &[v_str("North, South,East"), v_str("3,5,2")], &h);
+        let q = state("p2");
+        assert_eq!(q.series[0].categories, ["North", "South", "East"]);
+        assert_eq!(q.series[0].x, vec![0.0, 1.0, 2.0]);
     }
 }

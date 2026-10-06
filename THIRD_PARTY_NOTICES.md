@@ -18,9 +18,9 @@ Symbols and Symbols 2, Noto Sans SC and KR), all under the SIL Open Font
 License 1.1. The Noto fonts' chunks ship beside the web runtime with
 their `OFL.txt`.
 
-**567 libraries** under 22 license expressions.
+**561 libraries** under 22 license expressions.
 
-## Apache-2.0 OR MIT (325)
+## Apache-2.0 OR MIT (323)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -147,7 +147,6 @@ their `OFL.txt`.
 | id-arena | 2.3.0 | <https://github.com/fitzgen/id-arena> |
 | idna | 1.1.0 | <https://github.com/servo/rust-url/> |
 | idna_adapter | 1.2.1 | <https://github.com/hsivonen/idna_adapter> |
-| image | 0.24.9 | <https://github.com/image-rs/image> |
 | indexmap | 2.13.0 | <https://github.com/indexmap-rs/indexmap> |
 | io-enum | 1.2.1 | <https://github.com/taiki-e/io-enum> |
 | itoa | 1.0.18 | <https://github.com/dtolnay/itoa> |
@@ -208,7 +207,6 @@ their `OFL.txt`.
 | pin-project-lite | 0.2.17 | <https://github.com/taiki-e/pin-project-lite> |
 | piper | 0.2.5 | <https://github.com/smol-rs/piper> |
 | plain | 0.2.3 | <https://github.com/randomites/plain> |
-| png | 0.17.16 | <https://github.com/image-rs/image-png> |
 | png | 0.18.1 | <https://github.com/image-rs/image-png> |
 | polling | 3.11.0 | <https://github.com/smol-rs/polling> |
 | pollster | 0.4.0 | <https://github.com/zesterer/pollster> |
@@ -350,7 +348,7 @@ their `OFL.txt`.
 | x11rb | 0.13.2 | <https://github.com/psychon/x11rb> |
 | x11rb-protocol | 0.13.2 | <https://github.com/psychon/x11rb> |
 
-## MIT (130)
+## MIT (126)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -363,7 +361,6 @@ their `OFL.txt`.
 | bytes | 1.11.1 | <https://github.com/tokio-rs/bytes> |
 | calloop | 0.13.0 | <https://github.com/Smithay/calloop> |
 | calloop-wayland-source | 0.3.0 | <https://github.com/smithay/calloop-wayland-source> |
-| color_quant | 1.1.0 | <https://github.com/image-rs/color_quant.git> |
 | combine | 4.6.7 | <https://github.com/Marwes/combine> |
 | coreaudio-sys | 0.2.17 | <https://github.com/RustAudio/coreaudio-sys.git> |
 | coremidi | 0.9.2 | <https://github.com/chris-zen/coremidi> |
@@ -425,9 +422,6 @@ their `OFL.txt`.
 | phf_macros | 0.14.0 | <https://github.com/rust-phf/rust-phf> |
 | phf_shared | 0.14.0 | <https://github.com/rust-phf/rust-phf> |
 | pico-args | 0.5.0 | <https://github.com/RazrFalcon/pico-args> |
-| plotters | 0.3.7 | <https://github.com/plotters-rs/plotters> |
-| plotters-backend | 0.3.7 | <https://github.com/plotters-rs/plotters> |
-| plotters-bitmap | 0.3.7 | <https://github.com/plotters-rs/plotters> |
 | quick-xml | 0.41.0 | <https://github.com/tafia/quick-xml> |
 | redox_syscall | 0.4.1 | <https://gitlab.redox-os.org/redox-os/syscall> |
 | redox_syscall | 0.5.18 | <https://gitlab.redox-os.org/redox-os/syscall> |

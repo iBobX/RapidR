@@ -14,6 +14,8 @@ rapidr-ui-app = { workspace = true }
 rapidr-ui-host-web = { path = "../rapidr-ui-host-web", default-features = false }
 # RSQLITE: SQLite itself, compiled to wasm (shared with the desktop runtime)
 rapidr-db = { workspace = true }
+# RPLOT's charts: the UI kernel's renderer, the desktop's (chart.rs)
+rapidr-ui-render = { workspace = true }
 wasm-bindgen = "0.2.129"
 wasm-bindgen-futures = "0.4.79"
 js-sys = "0.3.106"

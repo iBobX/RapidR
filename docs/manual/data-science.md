@@ -8,14 +8,15 @@ name, with its aliases and where it works: [reference/data-science.md](reference
 |---|---|
 | `RNUM` | a one-dimensional array of numbers, in the manner of NumPy |
 | `RDATAFRAME` | a table, in the manner of pandas |
-| `RPLOT` | charts saved as PNG or shown in a QIMAGE, in the manner of Matplotlib |
+| `RPLOT` | charts shown in a QIMAGE or saved as PNG, in the manner of Matplotlib |
 | `RJSON` | JSON documents |
 
 RNUM, RDATAFRAME and RPLOT are one implementation (RapidR's own, in pure
 Rust, with no data library underneath) that native builds, interpreted
 programs and the browser all run, so every member gives the same result
-everywhere. Only drawing a chart is each runtime's own: a PNG on the
-desktop, a canvas on the web page.
+everywhere — charts included: they're drawn by the UI kernel, as the
+windows are, so a chart is the same pixels on the desktop and in a
+browser.
 
 ## RNUM
 
@@ -97,6 +98,12 @@ numeric columns —, `value_counts`, `nunique`, `corr`), sampling (`sample`,
 `replace`), building one (`create`, `addrow`), `info`, `togrid`.
 Properties: `RowCount`, `ColCount`, `Columns`, `Shape`, `Empty`, `DTypes`.
 
+A frame is stored by columns (each column's text in one block, its type
+and numbers worked out once), so big tables are quick: a million-row CSV
+(37 MB) loads in about 0.1 s, and is filtered, sorted, grouped or joined in
+40–200 ms on a 2024 laptop — about twice that in a browser
+(`cargo run --release -p rapidr-value --example frame_bench`).
+
 ## RPLOT
 
 A chart's data are RNUM components, named by their names:
@@ -118,21 +125,43 @@ plt.legend
 plt.savefig "sine.png"
 ```
 
-Series: `plot`, `bar`, `barh`, `scatter`, `step`, `area` (x, y, label,
-colour), `hist(data, bins, label, colour)`, `pie(data, label, colours)`;
-`addseries(label, y, x, colour)` (a line from numbers written in place),
-`hline` / `vline`, `annotate(text, x, y, colour)`, `legend`, `xlim` /
-`ylim`, `xscale` / `yscale` (kept with the chart; drawn linear),
-`figsize(w, h)` (inches), `savefig(file)`, `show`, `clear`. Data are RNUM
-components or numbers written in place (`"35,25,40"`). Properties: `Title`,
-`XLabel`, `YLabel`, `Grid`, `Width`, `Height` (pixels; under 100, inches at
-the chart's `DPI`), `DPI`. Colours are names
-(`red`, `steelblue`, `coral`, … — 30 or so) or `#RRGGBB`; series without one
-take the next colour of a palette. On the desktop, chart text is drawn in
-the built-in Liberation Sans, the same on every system.
+Series: `plot` (x, y, label, colour, style: `-`, `--` dashed, `:` dotted,
+`o` markers, `o-` a line with markers), `bar`, `barh`, `scatter`, `step`,
+`area` (x, y, label, colour), `hist(data, bins, label, colour)`,
+`pie(data, labels, colours)`; `addseries(label, y, x, colour)` (a line
+from numbers written in place), `hline` / `vline`, `annotate(text, x, y,
+colour)`, `legend`, `grid`, `xlim` / `ylim`, `xscale` / `yscale` (`"log"`),
+`xticks(names [, positions])`, `figsize(w, h)` (inches),
+`savefig(file [, scale])`, `show`, `clear`. Properties: `Title`, `XLabel`,
+`YLabel`, `Grid`, `Legend`, `Width`, `Height` (pixels; under 100, inches at
+the chart's `DPI`), `DPI`, `Count` (the series).
 
-To show a chart in a window: `Image1.LoadFromPlot plt` (a QIMAGE), drawn
-from memory with no file. On the web, RPLOT draws on the page.
+Data are RNUM components or numbers written in place (`"35,25,40"`) — and
+an x can be **names**: bars over their categories, several bar series side
+by side in each.
+
+```basic
+plt.bar "Q1,Q2,Q3,Q4", sales2025, "2025"
+plt.bar "Q1,Q2,Q3,Q4", sales2026, "2026"
+plt.legend
+```
+
+Colours are the CSS names (`steelblue`, `royalblue`, `coral`, … all 148),
+`#RGB` / `#RRGGBB`, `C0` … `C9` (the palette's), or RapidQ colour numbers
+(`RGB(255, 0, 0)`); series without one take the next of a ten-colour
+palette made for charts. The look: ticks at round steps — whole numbers
+for whole-number data (months 1, 2, 3, never 1.5) —, light horizontal
+gridlines (`Grid = 1`: both ways; `Grid = 0`: none), a legend drawn as the
+series are (a dashed line's entry is dashed) where it hides the fewest
+points, pies with their percentages and names, and the current theme's
+colours (`$THEME dark` draws dark charts, high contrast plain ones). Text
+is the UI kernel's: the built-in Liberation Sans, the same on every system.
+
+To show a chart in a window: `Image1.LoadFromPlot plt` (a QIMAGE). It's
+crisp at any screen scale — a 2× screen gets the chart drawn at 2× — while
+the picture's `Pixel`s stay the chart's own size. `savefig "chart.png", 2`
+writes the PNG at twice the chart's size (on the web, among the page's
+files: the program can read it back or offer it as a download).
 
 ## RJSON
 

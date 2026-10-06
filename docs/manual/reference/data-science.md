@@ -193,6 +193,7 @@ Every method and property name the components answer, with its aliases. There is
 | `figsize` | Size and axes |
 | `xlim` | Size and axes |
 | `ylim` | Size and axes |
+| `xticks` | Size and axes |
 | `xscale` | Size and axes |
 | `yscale` | Size and axes |
 
@@ -204,6 +205,8 @@ Every method and property name the components answer, with its aliases. There is
 | `xlabel` |  |
 | `ylabel` |  |
 | `grid` |  |
+| `legend` |  |
+| `count`, `seriescount` |  |
 | `width` |  |
 | `height` |  |
 | `dpi` |  |
@@ -216,6 +219,7 @@ Every method and property name the components answer, with its aliases. There is
 | `xlabel` |  |
 | `ylabel` |  |
 | `grid` |  |
+| `legend` |  |
 | `width` |  |
 | `height` |  |
 | `dpi` |  |
