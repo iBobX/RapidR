@@ -34,3 +34,4 @@ crates/rapidr-ui-proto/target
 /.release-share
 # (the notices every build writes beside its executable: docs/licensing.md)
 THIRD-PARTY-NOTICES.txt
+__pycache__/
