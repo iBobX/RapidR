@@ -1170,8 +1170,11 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     if let Some(v) = indexed_sub_object(name, &method_lower, args) {
         return v;
     }
+    // A QSTATUSBAR's AddPanels / Clear (rapidr_value::statusbar).
     if comp_type == "RSTATUSBAR" {
-        if let Some(v) = statusbar_method(name, &method_lower, args) {
+        let get = |p: &str| rp_comp_get(name, p);
+        let mut set = |p: &str, v: Value| rp_comp_set(name, p, v);
+        if let Some(v) = rapidr_value::statusbar::call(&method_lower, args, &get, &mut set) {
             return v;
         }
     }
@@ -2083,25 +2086,6 @@ pub fn get_children_of(parent_name: &str) -> Vec<(String, String)> {
         children.sort_by_key(|c| c.2);
         children.into_iter().map(|(n, t, _)| (n, t)).collect()
     })
-}
-
-/// QSTATUSBAR panels: `AddPanels "Ready", "Line 1"` appends panels, kept as
-/// the component's properties `panel(i).caption` / `panel(i).width` (the
-/// same keys `SB.Panel(i).Caption = …` writes) and `panelcount`; the GUI
-/// draws them.
-fn statusbar_method(name: &str, method: &str, args: &[Value]) -> Option<Value> {
-    match method {
-        "addpanels" => {
-            let mut n = rp_comp_get(name, "panelcount").to_i64().max(0);
-            for a in args {
-                rp_comp_set(name, &format!("panel({n}).caption"), v_str(&a.to_string_val()));
-                n += 1;
-            }
-            rp_comp_set(name, "panelcount", v_int(n));
-            Some(v_null())
-        }
-        _ => None,
-    }
 }
 
 /// Generic storage for indexed sub-object members (see `rp_comp_method`).

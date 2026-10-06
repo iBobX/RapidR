@@ -236,6 +236,12 @@ impl TextEdit {
                 lines.extend(args.iter().map(|a| a.to_string_val().replace("\r\n", "\n").replace('\r', "\n")));
                 self.set_lines(&lines);
             }
+            // A one-line edit's AddItems: the items appended to its text.
+            "additems" => {
+                let mut text = self.text();
+                args.iter().for_each(|a| text.push_str(&a.to_string_val()));
+                self.set_text(&text);
+            }
             "clear" => {
                 self.chars.clear();
                 self.sel_start = 0;

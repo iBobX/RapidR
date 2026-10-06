@@ -115,6 +115,16 @@ export const cases = [
     expect: ["lbl.caption=paints2|255|14737632|36|"] },
   { name: "owner_list", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=r2 0:1;1:1;2:0; 0,48,180,72 h24"] },
+  // RapidR's canvas names (Rect, SetPixel, Ellipse, DrawText) on a QBITMAP,
+  // a QDXSCREEN's back buffer, an owner-drawn list's items (with RapidQ's
+  // Line, FillRect, Circle) and a grid's cells; Paint in a cell, a plain
+  // list's drawing and a QIMAGE's Clear draw nothing. Pixels: the bitmap's
+  // Rect and Ellipse, the screen's Rect and Ellipse, the list's Rect and
+  // Ellipse, the cell's Rect and Ellipse, the plain list, the cleared image.
+  { name: "drawing_members", events: "btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=bmp255,65280,16776960,16711680 dx255,65280,16711680 img-1"],
+    pixels: [[12, 20, "ff0000"], [70, 23, "00ffff"], [102, 20, "ff0000"], [185, 31, "0000ff"], [234, 20, "ff0000"], [250, 40, "00ffff"],
+      [79, 118, "ff0000"], [94, 118, "00ffff"], [240, 125, "ffffff"], [240, 170, "f0f0f0"]], clientWidth: 480 },
   { name: "dotted_paint", events: "", dump: "lbl.caption",
     expect: ["lbl.caption=painted 255"] },
   { name: "event_answers", events: "show.onclick,dlg.__close,dlg2.__close,grid.__cell_2_2,grid.__cell_3_1,g2.__cell_2_1,g2.__cell_1_2,code.onclick",

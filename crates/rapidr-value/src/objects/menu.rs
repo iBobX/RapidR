@@ -256,7 +256,7 @@ pub fn call(id: &str, method: &str, args: &[Value]) -> Option<Value> {
         }
     }
     match method {
-        "additems" | "add" => {
+        "additems" | "add" | "additem" => {
             for a in args {
                 attach(id, &a.to_string_val(), None);
             }

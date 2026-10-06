@@ -331,27 +331,6 @@ impl ItemList {
         }
     }
 
-    /// The owner-drawing methods (except `Draw`, which needs the source
-    /// image: rapidr_value::objects).
-    fn draw(&mut self, method: &str, args: &[Value]) -> bool {
-        let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
-        let c = |i: usize| crate::objects::color_bgr(n(i));
-        let optional = |i: usize| args.get(i).map(Value::to_i64).filter(|v| *v >= 0 || (*v as u32) & 0xFF00_0000 == 0x8000_0000).map(crate::objects::color_bgr);
-        match method {
-            "line" => self.record(n(0), n(1), |l, t| CellDraw::Line(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4))),
-            "rectangle" => self.record(n(0), n(1), |l, t| CellDraw::Rect(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4))),
-            "fillrect" => self.record(n(0), n(1), |l, t| CellDraw::Fill(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4))),
-            "circle" => self.record(n(0), n(1), |l, t| CellDraw::Ellipse(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4), optional(5))),
-            "pset" => self.record(n(0), n(1), |l, t| CellDraw::Pixel(n(0) - l, n(1) - t, c(2))),
-            // TextOut(x, y, text, color, background (-1: transparent)).
-            "textout" => {
-                let text = args.get(2).map(|v| v.to_string_val()).unwrap_or_default();
-                self.record(n(0), n(1), |l, t| CellDraw::Text(n(0) - l, n(1) - t, text, c(3), optional(4)))
-            }
-            _ => return false,
-        }
-        true
-    }
 
     /// Item `i` as a `width` × ItemHeight bitmap: what OnDrawItem drew on
     /// it, text in `font`; an item it didn't draw on is drawn plainly
@@ -597,7 +576,12 @@ impl ItemList {
             return self.file_member(method, args);
         }
         let text = |i: usize| args.get(i).map(|v| v.to_string_val()).unwrap_or_default();
-        if self.owner_drawn() && self.draw(method, args) {
+        // Drawing (grid.rs's owner_draw_op): kept on its item when the list
+        // is owner-drawn (OnDrawItem); else it draws nothing.
+        if let Some(op) = super::grid::owner_draw_op(method, args) {
+            if let (true, Some(((x, y), op))) = (self.owner_drawn(), op) {
+                self.record(x, y, |l, t| op.moved(-l, -t));
+            }
             return Some(Value::Null);
         }
         // QSTRINGLIST's names for the same operations.

@@ -867,7 +867,7 @@ pub fn is_drawing_method(method: &str) -> bool {
     matches!(
         method,
         "pset" | "line" | "rectangle" | "fillrect" | "circle" | "roundrect" | "paint" | "draw" | "copyrect" | "stretchdraw"
-            | "textout" | "textwidth" | "textheight" | "pixel" | "cls" | "clear" | "drawtext" | "fillcircle" | "ellipse" | "setpixel"
+            | "textout" | "textwidth" | "textheight" | "pixel" | "cls" | "clear" | "drawtext" | "fillcircle" | "ellipse" | "setpixel" | "rect"
     )
 }
 
@@ -1184,7 +1184,10 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
     }
     // Drawing on a QIMAGE without a picture: first one the control's size
     // (read before borrowing the registry: `props` may read objects too).
-    let drawing = matches!(method.as_str(), "pset" | "line" | "rectangle" | "fillrect" | "circle" | "roundrect" | "paint" | "draw" | "copyrect" | "stretchdraw")
+    let drawing = matches!(
+        method.as_str(),
+        "pset" | "line" | "rectangle" | "fillrect" | "circle" | "roundrect" | "paint" | "draw" | "copyrect" | "stretchdraw" | "rect" | "setpixel" | "ellipse" | "drawtext"
+    )
         || (method == "pixel" && args.len() >= 3);
     // A QCANVAS is always the control's size; a QFORM's surface its client
     // area's, drawing in the form's font.
@@ -1238,7 +1241,8 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             with(id, |o| if let Object::Stream(m) = o { m.write(&bytes) });
             Some(Ok(Value::Null))
         }
-        ("bitmap", "loadfromfile") => Some(read_file(&arg(0).to_string_val()).and_then(|bytes| {
+        // (`Image.Load file`: RapidR's other name)
+        ("bitmap", "loadfromfile" | "load") => Some(read_file(&arg(0).to_string_val()).and_then(|bytes| {
             with(id, |o| match o {
                 Object::Bitmap(b) => b.load_bmp_bytes(&bytes),
                 _ => Ok(()),

@@ -14,6 +14,7 @@ pub mod console;
 pub mod dialogs;
 pub mod color_dialog;
 pub mod font_dialog;
+pub mod statusbar;
 pub mod window_state;
 pub mod basic_files;
 pub mod builtins;

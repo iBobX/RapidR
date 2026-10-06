@@ -224,7 +224,8 @@ impl DxScreen {
             "release" => {}
             // `Pixel(x, y)` reads; `Pixel(x, y) = c` writes (the value last).
             "pixel" if args.len() < 3 => return Some(v_int(self.back.pixel(n(0), n(1)).map_or(-1, i64::from))),
-            "pset" | "pixel" | "line" | "rectangle" | "fillrect" | "circle" | "roundrect" | "paint" | "textout" | "textwidth" | "textheight" => {
+            "pset" | "pixel" | "line" | "rectangle" | "fillrect" | "circle" | "roundrect" | "paint" | "textout" | "textwidth" | "textheight" | "rect" | "setpixel" | "ellipse"
+            | "drawtext" => {
                 return self.back.call(method, args);
             }
             _ => return None,

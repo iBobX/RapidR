@@ -128,6 +128,31 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   - `tools/regress.sh unit` checks that everything is up to date.
 
 ### Changed
+- **The web answers every member the desktop does.** Methods the browser
+  used to report as "not implemented" now work there exactly as in desktop
+  programs, from one shared implementation:
+  - `Click` runs a control's OnClick handler on any component.
+  - `Rect`, `SetPixel`, `Ellipse` and `DrawText` (RapidR's canvas names)
+    draw on a QBITMAP and on a QDXSCREEN's back buffer (they used to do
+    nothing on the desktop too), and in an owner-drawn QLISTBOX,
+    QCOMBOBOX or QSTRINGGRID handler alongside RapidQ's `Line`, `FillRect`,
+    `Circle`. Drawn pixels are identical in the browser and on the
+    desktop, at normal and high-DPI scale.
+  - QSTATUSBAR `Clear` removes every panel (panels added afterwards start
+    again at `Panel(0)`, as RapidQ does); QMEMORYSTREAM `Clear` empties the
+    stream (RapidQ's: `Size` and `Position` 0). Both did nothing before.
+  - QIMAGE `Clear` / `Cls` remove the picture, and `Load` loads one, as
+    `LoadFromFile` does.
+  - QLISTVIEW `AddItem` / `DeleteItem` and QPOPUPMENU `AddItem` add and
+    remove rows and items (the other names of `AddItems` / `DelItems`);
+    QEDIT `AddItems` appends the strings to its text.
+  - Drawing on a list that isn't owner-drawn, on a list view, or a flood
+    fill (`Paint`) in a list's or grid's handler draws nothing on every
+    runtime (it used to be an error in the browser).
+  - The language registry no longer marks any of these as desktop only.
+    RSERVERSOCKET stays desktop only: a web page can't listen for network
+    connections.
+
 - **RNUM, RDATAFRAME and RPLOT are one implementation for every runtime**
   (`rapidr_value::datascience`, docs/ide-plan.md decision D7): native
   builds, interpreted programs and the browser run the same arrays, frames
@@ -200,6 +225,18 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   2026-10-06 should be cloned again.
 
 ### Fixed
+- **Memory and file streams read and write out of their data exactly as
+  RapidQ.** Checked against RapidQ's own compiler: `ReadStr(n)` always
+  gives n characters, spaces where the stream has no more bytes; `Position`
+  can be set past the end (and, on a memory stream, before the start), and
+  reads there get no bytes and leave it where it is; a write past the end
+  fills the gap with zeros, one before the start writes nothing; a `Size`
+  that leaves `Position` past the new end moves it to the old end.
+  `ReadAll` (RapidR's) after the stream's start returned nothing, and
+  crashed debug native builds; it now gives the rest of the stream. The
+  same fix makes `LoadFromStream` (bitmaps, grids, image lists) read the
+  rest of a stream that was already read from.
+
 - **Web: typing in a Save As dialog went into the program's window
   below.** In the web IDE, Notepad's File > Save As showed an in-page
   dialog; a click in its file name field lost the focus at once, and the

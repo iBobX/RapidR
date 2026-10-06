@@ -844,8 +844,8 @@ pub fn canvas_method(name: &str, method: &str, _args: &[Value]) -> Value {
 }
 
 /// A QIMAGE's methods the shared model leaves to the runtime (the
-/// surfaces lane's): a plot's picture (LoadFromPlot), Clear, and a file
-/// the model couldn't read (it reads BMP, PNG, JPEG, ICO and SVG).
+/// surfaces lane's): a plot's picture (LoadFromPlot) and a file the model
+/// couldn't read (it reads BMP, PNG, JPEG, ICO and SVG).
 pub fn image_method(name: &str, method: &str, args: &[Value]) -> Value {
     match method {
         "loadfromfile" | "load" => {
@@ -870,14 +870,6 @@ pub fn image_method(name: &str, method: &str, args: &[Value]) -> Value {
                 let _ = args;
                 eprintln!("[WARN] datascience not compiled — loadfromplot unavailable");
             }
-        }
-        // (the picture goes: nothing shows)
-        "clear" | "cls" => {
-            rapidr_value::objects::with_picture(name, |b| {
-                b.resize(0, 0);
-                b.alpha = None;
-                b.invalidate_display();
-            });
         }
         _ => eprintln!("[WARN] RImage.{method}() not implemented"),
     }
