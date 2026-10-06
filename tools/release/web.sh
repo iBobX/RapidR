@@ -33,7 +33,7 @@ if [ -d target/web/fonts ]; then
 elif [ -f tools/fonts.py ]; then
     die "no target/web/fonts: tools/build_web_artifacts.sh makes them"
 fi
-cp LICENSE LEGAL.md LICENSES.md THIRD_PARTY_NOTICES.md "$STAGE/"
+cp LICENSE NOTICE LEGAL.md LICENSES.md THIRD_PARTY_NOTICES.md "$STAGE/"
 rm -f "$OUT/$NAME.zip"
 (cd "$WORK/web" && zip -qr -X "$OUT/$NAME.zip" "$NAME")
 echo "wrote $OUT/$NAME.zip ($(du -h "$OUT/$NAME.zip" | cut -f1))"

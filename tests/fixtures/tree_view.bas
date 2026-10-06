@@ -1,4 +1,4 @@
-' QTREEVIEW (the manual's example): nodes numbered depth-first, Item(i)'s
+' QTREEVIEW: nodes numbered depth-first, Item(i)'s
 ' Text / Count / Level / Expanded / HasChildren, and the events that answer
 ' back — OnChanging's AllowChange, OnExpanding's AllowExpansion — then
 ' OnChange / OnExpanded; DelItems takes a node's subtree (OnDeletion).
@@ -18,9 +18,9 @@ CREATE Form AS QFORM
     Top = 5
     Width = 200
     Height = 200
-    AddItems "1", "2", "3"
-    AddChildItems 0, "Sub 1", "Sub 2", "Sub 3"
-    AddChildItems 4, "Sub A", "Sub B"
+    AddItems "North", "South", "East"
+    AddChildItems 0, "Hill", "Lake", "Wood"
+    AddChildItems 4, "Port", "Bay"
     OnChanging = Changing
     OnChange = Changed
     OnExpanding = Expanding

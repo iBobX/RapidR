@@ -128,7 +128,7 @@ export const cases = [
   { name: "startup_modal", events: "dlgok.onclick,rp.onclick,chk.onclick", dump: "lbl.caption,lbl2.caption,dlg.__shown,form.__shown",
     expect: ["lbl.caption=before after", "lbl2.caption=repainted1", "dlg.__shown=0", "form.__shown=1"] },
   { name: "tree_view", events: "tv.__toggle_0,tv.__node_2,tv.__node_1,tv.__toggle_4,btn.onclick", dump: "lbl.caption,lbl2.caption,tv.itemindex",
-    expect: ["lbl.caption=exp0 chg1 |8|Sub 1|31-10-1", "lbl2.caption=del4 del5 del6 5", "tv.itemindex=1"] },
+    expect: ["lbl.caption=exp0 chg1 |8|Hill|31-10-1", "lbl2.caption=del4 del5 del6 5", "tv.itemindex=1"] },
   { name: "tree_images", events: "btn.onclick", dump: "lbl.caption", expect: ["lbl.caption=-1 -1 1 1 0 1 -1 -1"] },
   { name: "tree_edit", events: "tv.__node_0,tv.__edit,tv.__enter,tv.__node_2,tv.__edit,tv.__enter,tv.__node_1,tv.__edit,tv.__escape,ro.onclick,tv.__edit,tv.__enter,btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=ing0 ed0:Renamed ing2 ing1 |RENAMED Pear Plum -1"] },
@@ -137,7 +137,7 @@ export const cases = [
   { name: "svg_picture", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=48 1 0000D4FF 00FFFFFF"] },
   { name: "outline", events: "outline.__toggle_3,outline.__node_4,btn.onclick", dump: "lbl.caption,outline.row",
-    expect: ["lbl.caption=6 First Child of Parent 2 2", "outline.row=4"] },
+    expect: ["lbl.caption=6 First Carrots 2", "outline.row=4"] },
   // (`colorDialog`: what each colour dialog answers in turn, `;`-separated
   // — a colour (decimal) for OK, empty for Cancel: RAPIDR_TEST_COLOR_DIALOG,
   // on the desktop and in the browser)

@@ -1,5 +1,5 @@
 ' VARPTR, MEMCPY, MEMSET, MEMCMP, VARPTR$, SIZEOF, RTLMOVEMEMORY, a
-' stream's Pointer, WriteUDT / ReadUDT (manual examples): memory-safe,
+' stream's Pointer, WriteUDT / ReadUDT (as the manual documents them): memory-safe,
 ' RapidQ's byte layout, the same on every backend
 TYPE TTest
   S AS STRING * 8

@@ -17,7 +17,7 @@ finds its home from the executable by it):
     lib/rapidr/toolchain/               LLVM-MinGW, trimmed (Windows)   sdk
     lib/rapidr/web/fonts/               the web's Noto fallback fonts   sdk (index.json, *.otf, OFL.txt)
     share/icons/                        the apps' and file types' .ico  Windows (design/brand/icons)
-    share/doc/rapidr/                   LICENSE, LEGAL.md, LICENSES.md, THIRD_PARTY_NOTICES.md,
+    share/doc/rapidr/                   LICENSE, NOTICE, LEGAL.md, LICENSES.md, THIRD_PARTY_NOTICES.md,
                                         THIRD-PARTY-NOTICES.txt (rapidr's own), the fonts' OFL, README.md
     share/doc/rapidr/manual/            the user manual (docs/manual)   sdk
 
@@ -35,7 +35,7 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DOCS = ["LICENSE", "LEGAL.md", "LICENSES.md", "THIRD_PARTY_NOTICES.md", "README.md", "crates/rapidr-value/fonts/OFL-1.1.txt"]
+DOCS = ["LICENSE", "NOTICE", "LEGAL.md", "LICENSES.md", "THIRD_PARTY_NOTICES.md", "README.md", "crates/rapidr-value/fonts/OFL-1.1.txt"]
 
 
 def copy_exe(src, dest):

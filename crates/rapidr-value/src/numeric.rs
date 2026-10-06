@@ -1,6 +1,5 @@
-//! Declared numeric types (RapidQ manual, Appendix C: "a data type … is
-//! used to bind a variable to its definition and cannot be changed once
-//! bound"). Storing into a variable, array element, field or parameter
+//! Declared numeric types (RapidQ manual, Appendix C: a variable's
+//! declared type is fixed for good once it is declared). Storing into a variable, array element, field or parameter
 //! declared BYTE, WORD, SHORT, INTEGER/LONG, DWORD, SINGLE or DOUBLE
 //! converts the value to that type — the same in both backends
 //! (`rapidr_ast::numeric` inserts the conversions; the VM runs them as one

@@ -1,4 +1,4 @@
-' QHEADER (the manual's example, reduced): AddSections, Sections(i)
+' QHEADER: AddSections, Sections(i)
 ' properties, a click, a drag of a section's edge (OnSectionTrack's
 ' begin / move / end, then OnSectionResize), and an owner-drawn section
 ' drawn by OnDrawSection on the header itself.

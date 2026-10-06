@@ -1,5 +1,5 @@
-//! RapidQ's LPRINT / LFLUSH: "a statement just like PRINT except all
-//! output is directed to the default printer"; LFLUSH starts the print job,
+//! RapidQ's LPRINT / LFLUSH: LPRINT is PRINT whose output goes to the
+//! default printer; LFLUSH starts the print job,
 //! and what's left is printed when the program ends (RapidQ manual). The
 //! text goes on PRINTER pages (rapidr_value::objects::printer: A4, 10 pt,
 //! half-inch margins) and to the runtime's print hook, as `Printer.EndDoc`.

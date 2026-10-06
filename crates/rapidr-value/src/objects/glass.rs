@@ -1,9 +1,8 @@
 //! QGLASSFRAME: built into RapidQ's compiler (RC.EXE) and runtime —
-//! UtilMind's freeware "Glassy Form" (Delphi's TGlassy), which "will draw
-//! itself as transparent part of form (shows what be under form), with
-//! possibility to set glass color and degree of the transparency". RapidQ's
-//! manual: "makes your form look transparent and shaded. It is filled with
-//! bugs. Use QFormEx in RapidQ2.inc instead."
+//! UtilMind's freeware "Glassy Form" (Delphi's TGlassy): a part of the form
+//! drawn as see-through glass, of a chosen colour and degree of
+//! transparency. RapidQ's manual describes it as a transparent, shaded look,
+//! warns that it is buggy, and points to QFormEx in RapidQ2.inc instead.
 //!
 //! Its members are RC.EXE's (`rapidr_ast::fixed_members`): no Caption, Tag,
 //! Font or OnPaint. Values as RC.EXE stores them: Transparency is a byte

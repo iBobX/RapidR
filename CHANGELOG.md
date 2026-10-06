@@ -7,6 +7,31 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Legal
+- **A review of RapidQ's terms, rights and trademarks, and of everything
+  RapidR takes from RapidQ** (`docs/legal/rapidq-review.md`): RapidQ's
+  freeware terms (free use, programs may be sold; only selling RapidQ itself
+  is forbidden), the rights sold to REAL Software (now Xojo, Inc.) in 2000,
+  trademark searches (no RapidQ or RapidR mark for software anywhere
+  searched), the law on re-implementing a language and its interface, and
+  the use of RC.EXE as a black box for testing. Every blob of the git
+  history was compared with RapidQ's distribution and manual: no file of it
+  was ever committed.
+- The built-in `RAPIDQ.INC` constants (what `$INCLUDE "RAPIDQ.INC"` gives
+  without the file) are regrouped by public origin — Windows SDK numbers,
+  Delphi VCL types, RapidQ's own — in RapidR's own order and words; the
+  same 483 names and values, pinned by a test. Programs see no change.
+- What still came from RapidQ material is rewritten: a 9-line routine from
+  one of RapidQ's examples in a conformance case, the manual's example data
+  in three test fixtures and a unit test, and manual quotes in comments and
+  docs (paraphrased). RC.EXE's output of RapidQ's own example programs moved
+  out of the repository (`.reference/rapidq_golden/`, `RAPIDQ_GOLDEN`).
+- `CONTRIBUTING.md` (no RapidQ code, text, includes, examples or media; what
+  may be used for compatibility), `NOTICE` (shipped in every package),
+  `docs/legal/clean-room.md` (how RapidR is developed independently), and a
+  clearer non-affiliation and trademark statement in `LEGAL.md`, the README
+  and the release notes.
+
 ### Added
 - **The language registry** (`crates/rapidr-lang`, RapidR Studio I0): one
   description of the language (every component, property, method, event,
@@ -1338,8 +1363,8 @@ network (16, not run).
 ## [2.84.0] — 2026-09-30
 
 ### Changed
-- Undeclared variables are DOUBLE, as in RapidQ ("all undeclared variables
-  are assumed to be of type DOUBLE if no suffix is provided"), no longer
+- Undeclared variables are DOUBLE, as in RapidQ (a variable without a
+  suffix or declaration is a DOUBLE there), no longer
   VARIANT: `n = 7 / 2` is 3.5 as before, but a string can't go into one.
   `$OPTION DIM VARIANT` brings back the old behavior; `DIM v` without AS is
   still a VARIANT (RapidQ manual, DIM).

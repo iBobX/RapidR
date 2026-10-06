@@ -868,8 +868,8 @@ pub fn option_dim(program: &Program, is_builtin: &dyn Fn(&str) -> bool) -> Progr
                 || is_component_type_name(&canonical_type_name(k))
         })
     };
-    // (RapidQ's default: "all undeclared variables are assumed to be of
-    // type DOUBLE if no suffix is provided")
+    // (RapidQ's default: a variable with no suffix and no declaration is
+    // a DOUBLE)
     let ty = option_dim_type(&program.statements).unwrap_or_else(|| "DOUBLE".to_string());
     if ty == "VARIANT" {
         return program.clone();
