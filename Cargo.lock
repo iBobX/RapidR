@@ -3961,6 +3961,7 @@ name = "rapidr-ui-kernel"
 version = "2.117.0"
 dependencies = [
  "parley",
+ "rapidr-editor",
  "rapidr-icons",
  "rapidr-value",
  "web-time",
@@ -3983,8 +3984,10 @@ name = "rapidr-value"
 version = "2.117.0"
 dependencies = [
  "jpeg-decoder",
+ "rapidr-editor",
  "rapidr-icons",
  "resvg",
+ "serde_json",
  "ttf-parser",
  "windows-registry",
 ]

@@ -111,6 +111,10 @@ pub enum KernelEvent {
     /// What the user did to a list, tree, grid, list view or header that
     /// the program answers (the lists lane's; `components::list`).
     List(String, crate::components::list::ListAction),
+    /// Component `id`'s event `event` (lowercase: `oncaretmove`) with its
+    /// arguments, fired as it is (the IDE's components: RCODEEDITOR's
+    /// OnCaretMove(Line, Column), RDIFFVIEW's OnHunkChange …).
+    Fire { id: String, event: String, args: Vec<rapidr_value::Value> },
 }
 
 impl FormUi {
