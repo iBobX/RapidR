@@ -282,6 +282,64 @@ describe('RapidR for VS Code', () => {
                 vscode.debug.removeBreakpoints(vscode.debug.breakpoints);
             }
         });
+
+        it('shows a SUB\'s own variables in its Locals, by their names, and only real globals in Globals', async () => {
+            const doc = await open('ownvars.bas');
+            const line = at(doc, 'Total = Total + p').line;
+            const bp = new vscode.SourceBreakpoint(new vscode.Location(doc.uri, new vscode.Position(line, 0)));
+            vscode.debug.addBreakpoints([bp]);
+            const events = [];
+            const tracker = vscode.debug.registerDebugAdapterTrackerFactory('rapidr', {
+                createDebugAdapterTracker: () => ({ onDidSendMessage: (m) => { if (m.type === 'event') events.push(m); } }),
+            });
+            try {
+                assert.ok(await vscode.debug.startDebugging(undefined, { type: 'rapidr', request: 'launch', name: 'ownvars.bas', program: doc.uri.fsPath }));
+                const stops = () => events.filter((e) => e.event === 'stopped');
+                await eventually(() => stops().length >= 1, 'the first stop');
+                const session = vscode.debug.activeDebugSession;
+                await session.customRequest('continue', { threadId: 1 });
+                await eventually(() => stops().length >= 2, 'the second call\'s stop');
+                const st = await session.customRequest('stackTrace', { threadId: 1 });
+                const scopes = (await session.customRequest('scopes', { frameId: st.stackFrames[0].id })).scopes;
+                const vars = async (s) => (await session.customRequest('variables', { variablesReference: s.variablesReference })).variables.map((v) => `${v.name}=${v.value}`);
+                assert.deepStrictEqual(scopes.map((s) => s.name), ['Locals', 'Globals']);
+                assert.deepStrictEqual(await vars(scopes[0]), ['n=2', 'hits=2', 'p=3']);
+                const globals = await vars(scopes[1]);
+                assert.ok(globals.includes('Total=1'), `globals: ${globals.join(', ')}`);
+                assert.ok(globals.every((g) => !/__|::|^p=|^hits=/.test(g)), `globals: ${globals.join(', ')}`);
+                vscode.debug.removeBreakpoints([bp]);
+                await session.customRequest('continue', { threadId: 1 });
+                await eventually(() => events.find((e) => e.event === 'terminated'), 'the end of the program');
+            } finally {
+                tracker.dispose();
+                vscode.debug.removeBreakpoints(vscode.debug.breakpoints);
+            }
+        });
+    });
+
+    describe('the language registry (rapidr lsp)', () => {
+        it('hovers a global object\'s member with the registry\'s doc', async () => {
+            const doc = await open('registry.bas');
+            const text = await eventually(async () => {
+                const t = hoverText(await vscode.commands.executeCommand('vscode.executeHoverProvider', doc.uri, at(doc, 'Screen.Width', 'Screen.W'.length)));
+                return /Screen\.Width/.test(t) ? t : null;
+            }, 'hover on Screen.Width');
+            assert.match(text, /read only/);
+        });
+
+        it('warns of what RapidR doesn\'t have yet, and in a RapidQ-compatible project of RapidR\'s extensions', async () => {
+            const doc = await open('registry.bas');
+            const messages = () => vscode.languages.getDiagnostics(doc.uri).map((d) => d.message);
+            await eventually(() => messages().some((m) => /QForm\.ShapeForm is not implemented in RapidR yet/.test(m)), 'the not-implemented warning');
+            assert.ok(!messages().some((m) => /RapidR's own component/.test(m)), 'no compatibility warning by default');
+            const cfg = vscode.workspace.getConfiguration('rapidr');
+            await cfg.update('rapidqCompatible', true, vscode.ConfigurationTarget.Global);
+            try {
+                await eventually(() => messages().some((m) => /RNum is RapidR's own component/.test(m)), 'the RapidQ-compatibility warning', 30000);
+            } finally {
+                await cfg.update('rapidqCompatible', undefined, vscode.ConfigurationTarget.Global);
+            }
+        });
     });
 
     describe('diagnostics (rapidr lsp)', () => {

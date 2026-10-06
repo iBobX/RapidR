@@ -15,7 +15,7 @@ rapidr-lexer.workspace = true
 rapidr-parser.workspace = true
 rapidr-preprocessor.workspace = true
 rapidr-bcgen.workspace = true
-rapidr-bytecode.workspace = true
+rapidr-lang.workspace = true
 
 [dev-dependencies]
 rapidr-preprocessor.workspace = true

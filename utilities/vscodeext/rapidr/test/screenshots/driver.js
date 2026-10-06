@@ -174,6 +174,119 @@ exports.run = async function () {
     await vscode.commands.executeCommand('workbench.action.debug.stop');
     tracker.dispose();
     await sleep(1000);
+    vscode.debug.removeBreakpoints(vscode.debug.breakpoints);
+    try { await vscode.commands.executeCommand('workbench.debug.viewlet.action.removeAllWatchExpressions'); } catch (_) { /* */ }
+
+    // The states below aren't the README's (capture.js keeps them with
+    // SHOTS_DIR): go to definition, rename, the registry's word, a SUB's
+    // own variables while stepping.
+    await vscode.commands.executeCommand('workbench.view.explorer');
+    await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+    await vscode.commands.executeCommand('workbench.action.closePanel');
+    ed = await open(path.join(ws, 'inventory.bas'));
+    await sleep(800);
+
+    // 7. Go to definition, peeked: PriceOf in its $INCLUDE file.
+    at = lineOf(ed, 'PriceOf(item, 2)');
+    await placeCaret(ed, at.translate(0, 3));
+    await vscode.commands.executeCommand('editor.action.peekDefinition');
+    await sleep(1800);
+    await shot('definition');
+    try { await vscode.commands.executeCommand('closeReferenceSearch'); } catch (_) { /* */ }
+    await sleep(400);
+
+    // 8. Rename `total`: every use renamed (selected, to be seen). (The
+    // rename box needs the window focused, which a capture can't ask.)
+    ed = await vscode.window.showTextDocument(ed.document, { preserveFocus: false });
+    at = lineOf(ed, 'DIM total AS DOUBLE');
+    const edit = await vscode.commands.executeCommand('vscode.executeDocumentRenameProvider', ed.document.uri, at.translate(0, 'DIM to'.length), 'grandTotal');
+    await vscode.workspace.applyEdit(edit);
+    await sleep(300);
+    ed.selections = ed.document.getText().split('\n').flatMap((l, i) => {
+        const out = [];
+        for (let k = l.indexOf('grandTotal'); k >= 0; k = l.indexOf('grandTotal', k + 1)) out.push(new vscode.Selection(i, k, i, k + 'grandTotal'.length));
+        return out;
+    });
+    await sleep(800);
+    await shot('renamed');
+    await restore();
+
+    // 9. The language registry's word: a RapidQ-compatible project gets
+    // RapidR's extensions reported; what RapidR doesn't have yet always is.
+    await vscode.workspace.getConfiguration('rapidr').update('rapidqCompatible', true, vscode.ConfigurationTarget.Global);
+    await sleep(2500);
+    at = lineOf(ed, 'Form.ShowModal');
+    await ed.edit((e) => e.insert(new vscode.Position(at.line, 0), 'DIM chart AS RPLOT\nForm.ShapeForm "logo.bmp", 0\nForm.Anchors = 0\nItemList.Circle 4, 4, 40, 40, 0, 0\n'));
+    await until(() => vscode.languages.getDiagnostics(ed.document.uri).length >= 4, 30000);
+    await vscode.commands.executeCommand('workbench.actions.view.problems');
+    await sleep(800);
+    await vscode.window.showTextDocument(ed.document);
+    at = lineOf(ed, 'Form.ShapeForm');
+    await placeCaret(ed, at.translate(0, 'Form.Sha'.length));
+    await vscode.commands.executeCommand('editor.action.showHover');
+    await sleep(1500);
+    await shot('registry');
+    await restore();
+    await vscode.workspace.getConfiguration('rapidr').update('rapidqCompatible', undefined, vscode.ConfigurationTarget.Global);
+    await vscode.commands.executeCommand('workbench.action.closePanel');
+    await sleep(1500);
+
+    // 10. A member's hover from the registry: type, default, docs.
+    // (another editor first: the last hover goes)
+    await open(path.join(ws, 'stock.inc'));
+    await sleep(500);
+    ed = await open(path.join(ws, 'inventory.bas'));
+    await sleep(800);
+    at = lineOf(ed, 'Form.Caption = "Inventory: "');
+    await placeCaret(ed, at.translate(0, 'Form.Cap'.length));
+    await vscode.commands.executeCommand('editor.action.showHover');
+    await sleep(1500);
+    await shot('hover-member');
+
+    // 11. Debugging a SUB with its own variables: stop, step, a watch,
+    // Locals (n, its STATIC calls and its own last) and Globals (Total).
+    ed = await open(path.join(ws, 'counter.bas'));
+    at = lineOf(ed, '    Total = Total + last');
+    const bp = new vscode.SourceBreakpoint(new vscode.Location(ed.document.uri, at));
+    vscode.debug.addBreakpoints([bp]);
+    stops = 0;
+    const tracker2 = vscode.debug.registerDebugAdapterTrackerFactory('rapidr', {
+        createDebugAdapterTracker: () => ({ onDidSendMessage: (m) => { if (m.type === 'event' && m.event === 'stopped') stops++; } }),
+    });
+    await vscode.debug.startDebugging(vscode.workspace.workspaceFolders[0], { type: 'rapidr', request: 'launch', name: 'counter.bas', program: ed.document.uri.fsPath });
+    await until(() => stops >= 1);
+    await vscode.commands.executeCommand('workbench.action.debug.continue');
+    await until(() => stops >= 2);
+    vscode.debug.removeBreakpoints([bp]);
+    await vscode.commands.executeCommand('workbench.action.debug.stepOver');
+    await until(() => stops >= 3);
+    await sleep(600);
+    await vscode.commands.executeCommand('workbench.view.debug');
+    await sleep(500);
+    for (const expr of ['calls * 100 + last']) {
+        ed = await vscode.window.showTextDocument(ed.document, { preserveFocus: false });
+        await ed.edit((e) => e.insert(new vscode.Position(ed.document.lineCount - 1, 0), `' ${expr}\n`));
+        const i = ed.document.getText().indexOf(expr);
+        ed.selection = new vscode.Selection(ed.document.positionAt(i), ed.document.positionAt(i + expr.length));
+        await sleep(200);
+        await vscode.commands.executeCommand('editor.debug.action.selectionToWatch');
+        await sleep(300);
+        await vscode.commands.executeCommand('undo');
+    }
+    // (Globals open too: the last root of the Variables tree)
+    try {
+        await vscode.commands.executeCommand('workbench.debug.action.focusVariablesView');
+        await sleep(300);
+        await vscode.commands.executeCommand('list.focusLast');
+        await vscode.commands.executeCommand('list.expand');
+        await sleep(800);
+    } catch (_) { /* */ }
+    await vscode.window.showTextDocument(ed.document, { preserveFocus: false });
+    await sleep(800);
+    await shot('debug-own-variables');
+    await vscode.commands.executeCommand('workbench.action.debug.stop');
+    tracker2.dispose();
+    await sleep(1000);
     fs.writeFileSync(path.join(SIG, 'ready-last'), '');
     await sleep(1500);
 };

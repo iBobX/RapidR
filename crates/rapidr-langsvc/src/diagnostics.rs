@@ -95,7 +95,13 @@ fn place(parsed: &Parsed, file: &Path, start: usize, end: Option<usize>, d: &Dia
     if let Some(span_end) = end.filter(|&x| x > start) {
         end_at = end_at.min(span_end.max(start + 1));
     }
-    Some(FileDiagnostic { file: file.to_path_buf(), start, end: end_at.max(start), severity: d.severity, message: d.message.clone(), code: None })
+    // (never empty on a line's text: the word focused may end at the place
+    // — `Form.`'s dot — and then the character there is underlined)
+    if end_at <= start {
+        let line_end = line_start + line_text.len();
+        end_at = (start + text[start..].chars().next().map_or(0, char::len_utf8)).min(line_end).max(start);
+    }
+    Some(FileDiagnostic { file: file.to_path_buf(), start, end: end_at, severity: d.severity, message: d.message.clone(), code: None })
 }
 
 /// The part of a line a message at column `col` is about: the name it

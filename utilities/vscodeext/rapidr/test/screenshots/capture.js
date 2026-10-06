@@ -3,6 +3,8 @@
 //
 //   node test/screenshots/capture.js          (macOS; after `npm install`)
 //   RAPIDR_PATH=/path/to/rapidr node test/screenshots/capture.js
+//   SHOTS_DIR=/some/folder VSCODE_PATH=".../Code" node test/screenshots/capture.js
+//                (every state, into that folder; an installed VS Code)
 //
 // VS Code is @vscode/test-electron's copy (.vscode-test/), with a throwaway
 // profile and a copy of showcase/ in a temporary folder — never your own VS
@@ -84,6 +86,7 @@ async function main() {
     }, 300);
     try {
         await runTests({
+            ...(process.env.VSCODE_PATH ? { vscodeExecutablePath: process.env.VSCODE_PATH } : {}),
             extensionDevelopmentPath: EXT,
             extensionTestsPath: path.join(__dirname, 'driver.js'),
             launchArgs: [workspace, '--skip-welcome', '--skip-release-notes', '--disable-telemetry',
@@ -95,14 +98,19 @@ async function main() {
     } finally {
         clearInterval(timer);
     }
-    for (const name of SHOTS) {
+    // SHOTS_DIR: every state the driver shows (the README's and the
+    // others: definition, rename, the registry's warnings, a SUB's own
+    // variables while stepping) goes there instead of images/.
+    const dir = process.env.SHOTS_DIR ? path.resolve(process.env.SHOTS_DIR) : null;
+    if (dir) fs.mkdirSync(dir, { recursive: true });
+    for (const name of dir ? captured.filter((n) => n !== 'last') : SHOTS) {
         const src = path.join(out, `${name}.png`);
         if (!fs.existsSync(src)) throw new Error(`no ${name} screenshot`);
-        const dest = path.join(EXT, 'images', `${name}.png`);
+        const dest = dir ? path.join(dir, `${name}.png`) : path.join(EXT, 'images', `${name}.png`);
         const h = Number(execFileSync('sips', ['-g', 'pixelHeight', src]).toString().match(/pixelHeight: (\d+)/)[1]);
         // (the title bar: 33 points of a 900-point window)
         execFileSync(crop, [src, dest, String(Math.round((h * 66) / 1800)), '1440']);
-        console.log(`images/${name}.png`);
+        console.log(dir ? dest : `images/${name}.png`);
     }
     fs.rmSync(work, { recursive: true, force: true });
 }

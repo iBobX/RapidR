@@ -3782,8 +3782,8 @@ version = "2.117.0"
 dependencies = [
  "rapidr-ast",
  "rapidr-bcgen",
- "rapidr-bytecode",
  "rapidr-diagnostics",
+ "rapidr-lang",
  "rapidr-lexer",
  "rapidr-parser",
  "rapidr-preprocessor",

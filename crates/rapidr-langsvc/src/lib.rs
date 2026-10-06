@@ -13,15 +13,16 @@
 //! Offsets are bytes of the file's text ([`LineIndex`] converts to the
 //! UTF-16 positions editors speak).
 //!
-//! Three seams wait for the I0 foundations, each one module, so each
-//! switch is local: [`front`] (the parser for tools, L-PARSE), [`model`]
-//! (the semantic model exported from the compiler, L-PARSE) and
-//! [`registry`] (the language registry, L-REG).
+//! It stands on the I0 foundations: [`front`] is the parser for tools
+//! (`rapidr_parser::tools`), [`model`] the compiler's own semantic model
+//! (`rapidr_bcgen::semantic`), and everything it says about the language
+//! — components, members, builtins, statements, directives, constants,
+//! their docs, origins (RapidQ's or RapidR's) and gaps — comes from the
+//! language registry, `rapidr_lang` (the IDE's one source).
 
 pub mod diagnostics;
 pub mod front;
 pub mod model;
-pub mod registry;
 pub mod text;
 
 mod compat;
@@ -309,17 +310,21 @@ impl Analysis {
     }
 
     /// The compiler's diagnostics for the program `file` is the main file
-    /// of (some may be in its `$INCLUDE` files), plus the RapidQ
-    /// compatibility checks of a RapidQ-compatible project.
+    /// of (some may be in its `$INCLUDE` files), plus the registry's word
+    /// on what the file uses ([`compat`]): what RapidR doesn't have yet,
+    /// what one runtime only answers, and — in a RapidQ-compatible project
+    /// — RapidR's extensions, which RapidQ's compiler refuses.
     pub fn diagnostics(&mut self, file: &Path) -> Vec<FileDiagnostic> {
         if let Some(d) = self.diagnostics.get(file) {
             return d.clone();
         }
         let Some(s) = self.root_snapshot(file) else { return Vec::new() };
         let mut out = diagnostics::compile(&s.parsed);
-        if self.options.rapidq_compatible {
-            out.extend(compat::check(&s, file));
-        }
+        let compiler = out.clone();
+        // (where the compiler speaks, it's said)
+        out.extend(compat::check(&s, file, self.options.rapidq_compatible).into_iter().filter(|c| {
+            !compiler.iter().any(|d| d.file == c.file && d.start < c.end.max(c.start + 1) && c.start < d.end.max(d.start + 1))
+        }));
         self.diagnostics.insert(file.to_path_buf(), out.clone());
         out
     }
