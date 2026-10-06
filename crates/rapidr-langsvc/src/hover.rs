@@ -93,10 +93,19 @@ pub(crate) fn symbol_hover(s: &Snapshot, sym: &Symbol) -> String {
         ScopeKind::Type(t) => format!(" of TYPE `{t}`"),
     };
     let what = match sym.kind {
-        SymbolKind::Global if sym.implicit => "global variable (implicit: made by its first use)".to_string(),
+        // (RapidQ's implicit variables: the compiler declares one where it's
+        // first used, not by a DIM)
+        SymbolKind::Global if sym.implicit || decl.as_ref().is_some_and(|(line, _, _)| !declares(line)) => {
+            "global variable (implicit: made by its first use)".to_string()
+        }
         SymbolKind::Global => "global variable".to_string(),
         SymbolKind::Local => format!("local variable{owner}"),
         SymbolKind::Param => format!("parameter{owner}"),
+        // (a SUB's own undeclared variable: RapidQ keeps it between calls)
+        SymbolKind::Static if decl.as_ref().is_some_and(|(line, _, _)| !declares(line)) => match &s.model.scopes[sym.scope].kind {
+            ScopeKind::Routine(r) => format!("variable of `{r}` (implicit: its own, kept between calls)"),
+            _ => format!("STATIC variable{owner}"),
+        },
         SymbolKind::Static => format!("STATIC variable{owner}"),
         SymbolKind::Constant => match (&decl, registry::constant(&sym.name)) {
             (None, Some((_, group))) => format!("constant of {}", group.source),
@@ -191,4 +200,10 @@ fn member_hover(s: &Snapshot, ty: &Ty, member: &str) -> Option<String> {
             member_hover(s, &Ty::Component(c), member)
         }
     }
+}
+
+/// Whether a line declares names (DIM, CONST …) rather than using one.
+fn declares(line: &str) -> bool {
+    let first = line.split(|c: char| !c.is_ascii_alphanumeric()).next().unwrap_or("").to_ascii_uppercase();
+    matches!(first.as_str(), "DIM" | "REDIM" | "STATIC" | "GLOBAL" | "CONST" | "PUBLIC" | "PRIVATE" | "SHARED" | "COMMON") || first.starts_with("DEF")
 }

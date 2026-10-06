@@ -220,7 +220,13 @@ fn breakpoints_in_two_files_the_stack_variables_and_stepping() {
     let names = dap.ok("evaluate", json!({ "expression": "names", "frameId": main, "context": "watch" }));
     let elements = dap.variables(&names["variablesReference"]);
     assert_eq!(elements[1], ("(1)".into(), "\"ann\"".into()));
-    let failed = dap.request("evaluate", json!({ "expression": "a + 1", "frameId": top, "context": "watch" }));
+    // Expressions, evaluated by the VM in the frame (rapidr run --session).
+    assert_eq!(dap.ok("evaluate", json!({ "expression": "a + 1", "frameId": top, "context": "watch" }))["result"], "3");
+    assert_eq!(dap.ok("evaluate", json!({ "expression": "UCASE$(names(1)) + \"!\"", "frameId": main, "context": "watch" }))["result"], "\"ANN!\"");
+    assert_eq!(dap.ok("evaluate", json!({ "expression": "a * b + total", "frameId": top, "context": "repl" }))["result"], "11");
+    // A statement in the debug console runs in the frame.
+    dap.ok("evaluate", json!({ "expression": "total = total + 0", "frameId": top, "context": "repl" }));
+    let failed = dap.request("evaluate", json!({ "expression": "a +", "frameId": top, "context": "watch" }));
     assert_eq!(failed["success"], false);
 
     // Set a variable: AddUp then returns 4 + 3.
@@ -343,4 +349,27 @@ fn a_breakpoint_in_a_timer_of_a_modal_form_keeps_the_form_modal() {
     let out = dap.stdout.clone();
     let (last_tick, done) = (out.find("tick3").or(out.find("tick 3")), out.find("main done"));
     assert!(last_tick.is_some() && done.is_some() && last_tick < done, "{out}");
+}
+
+#[test]
+fn break_on_error_inside_an_event_handler_keeps_its_frames() {
+    let program = "SUB Clicked\n  DIM n AS INTEGER\n  n = 41\n  p = n + 1\n  x = CALLFUNC(p)\n  PRINT \"never\"\nEND SUB\nCREATE Form AS QFORM\n  CREATE Btn AS QBUTTON\n    OnClick = Clicked\n  END CREATE\nEND CREATE\nForm.Show\n";
+    let dir = folder("gui-error", &[("handler.bas", program)]);
+    let mut env = headless(&dir, "1");
+    env.push(("RAPIDR_TEST_EVENTS", "btn.onclick".into()));
+    let mut dap = Dap::start_with(&dir, &env);
+    dap.launch(&dir.join("handler.bas"), json!({}));
+    dap.ok("setExceptionBreakpoints", json!({ "filters": ["error"] }));
+    dap.ok("configurationDone", json!({}));
+    let body = dap.event("stopped");
+    assert_eq!(body["reason"], "exception");
+    // Stopped at the faulting statement, in the handler, its locals there.
+    let frames = dap.ok("stackTrace", json!({ "threadId": 1 }))["stackFrames"].clone();
+    assert_eq!((frames[0]["name"].as_str(), frames[0]["line"].as_u64()), (Some("Clicked"), Some(5)));
+    let top = frames[0]["id"].clone();
+    assert_eq!(dap.ok("evaluate", json!({ "expression": "n * 2", "frameId": top, "context": "watch" }))["result"], "82");
+    assert_eq!(dap.ok("evaluate", json!({ "expression": "p", "frameId": top, "context": "hover" }))["result"], "42");
+    dap.ok("terminate", json!({}));
+    dap.event("terminated");
+    assert!(!dap.stdout.contains("never"), "{}", dap.stdout);
 }

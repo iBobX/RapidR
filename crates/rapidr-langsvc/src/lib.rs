@@ -274,24 +274,20 @@ impl Analysis {
     }
 
     /// The analysis `file` is answered from: the program it is the main
-    /// file of, or — for an `$INCLUDE`d file not changed in the editor —
-    /// the open program that includes it.
+    /// file of, or — for an `$INCLUDE`d file — an open program that
+    /// includes it (with the editor's text of every open file).
     pub fn snapshot(&mut self, file: &Path) -> Option<Arc<Snapshot>> {
         if let Some(s) = self.snapshots.get(file) {
             return Some(s.clone());
         }
-        let text = self.text(file)?;
-        let is_include = file.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("inc"));
-        if is_include {
-            let saved = rapidr_preprocessor::read_source(file).ok();
-            if saved.as_deref() == Some(text.as_str()) {
-                let roots: Vec<PathBuf> = self.docs.keys().filter(|p| p.as_path() != file && !is_inc(p)).cloned().collect();
-                for root in roots {
-                    if let Some(s) = self.root_snapshot(&root) {
-                        if s.parsed.file_key(file).is_some() {
-                            self.snapshots.insert(file.to_path_buf(), s.clone());
-                            return Some(s);
-                        }
+        if is_inc(file) {
+            let mut roots: Vec<PathBuf> = self.docs.keys().filter(|p| p.as_path() != file && !is_inc(p)).cloned().collect();
+            roots.sort();
+            for root in roots {
+                if let Some(s) = self.root_snapshot(&root) {
+                    if s.parsed.file_key(file).is_some() {
+                        self.snapshots.insert(file.to_path_buf(), s.clone());
+                        return Some(s);
                     }
                 }
             }
@@ -304,9 +300,8 @@ impl Analysis {
             return Some(s.clone());
         }
         let text = self.text(root)?;
-        let docs = &self.docs;
-        let overlay = |p: &Path| docs.get(p).cloned();
-        let parsed = front::parse(root, &text, &self.preprocess_options(), &overlay);
+        let open: Vec<(PathBuf, String)> = self.docs.iter().map(|(p, t)| (p.clone(), t.clone())).collect();
+        let parsed = front::parse(root, &text, &self.preprocess_options(), &open);
         let model = model::analyze(&parsed.program, Some(&parsed.source));
         let s = Arc::new(Snapshot { parsed, model });
         self.snapshots.insert(root.to_path_buf(), s.clone());
@@ -320,14 +315,10 @@ impl Analysis {
         if let Some(d) = self.diagnostics.get(file) {
             return d.clone();
         }
-        let Some(text) = self.text(file) else { return Vec::new() };
-        let docs = &self.docs;
-        let file_text = |p: &Path| docs.get(p).cloned();
-        let mut out = diagnostics::compile(file, &text, &self.preprocess_options(), &file_text);
+        let Some(s) = self.root_snapshot(file) else { return Vec::new() };
+        let mut out = diagnostics::compile(&s.parsed);
         if self.options.rapidq_compatible {
-            if let Some(s) = self.snapshot(file) {
-                out.extend(compat::check(&s, file));
-            }
+            out.extend(compat::check(&s, file));
         }
         self.diagnostics.insert(file.to_path_buf(), out.clone());
         out

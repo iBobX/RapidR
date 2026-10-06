@@ -3778,15 +3778,8 @@ dependencies = [
 name = "rapidr-dap"
 version = "2.117.0"
 dependencies = [
- "rapidr-bcgen",
- "rapidr-bytecode",
- "rapidr-lexer",
- "rapidr-parser",
  "rapidr-preprocessor",
- "rapidr-runtime-core",
- "rapidr-value",
- "rapidr-vm",
- "rapidr-vm-host-native",
+ "rapidr-session",
  "serde",
  "serde_json",
 ]
