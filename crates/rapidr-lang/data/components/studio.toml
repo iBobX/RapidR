@@ -1,0 +1,85 @@
+# RapidR Studio's services as components (docs/ide-plan.md I1, docs/ide-components.md §3.9): the registry's components (crates/rapidr-lang; src/lib.rs says how to edit).
+group = "IDE"
+
+[[component]]
+name = "RPROJECT"
+visual = false
+default_event = "OnChange"
+doc = "A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a .bas / .rr file with the files it $INCLUDEs, RapidQ's way. Lists the project's files and their kinds, adds and removes files, saves the project file, and makes new projects from templates. RapidR Studio is built on it."
+properties = [
+  { name = "FileName", type = "string", access = "read", design = false, doc = "The .rrproj file (\"\" for a source file opened without one)." },
+  { name = "Folder", type = "string", access = "read", design = false, doc = "The project's folder: its files' paths are relative to it." },
+  { name = "Kind", type = "string", access = "read", design = false, doc = "What is open: \"project\" (a .rrproj), \"file\" (a source file and its includes), \"v1\" (a web IDE project, imported) or \"\" (nothing)." },
+  { name = "Error", type = "string", access = "read", design = false, doc = "Why the last Open, Save, New, AddFile or RemoveFile failed (\"\" when it worked)." },
+  { name = "Name", type = "string", doc = "The project's name." },
+  { name = "MainFile", type = "string", doc = "The file the program starts from (relative to the folder)." },
+  { name = "FileCount", type = "int", access = "read", design = false, doc = "How many files the project has." },
+  { name = "CompatMode", type = "string", doc = "\"rapidq\" for a RapidQ-compatible project (RapidR's extensions reported), else \"\"." },
+]
+methods = [
+  { name = "Open", params = "Path AS STRING", returns = "INTEGER", test = "skip: needs a project file", doc = "Opens a .rrproj, or a .bas / .rr / .inc file with what it includes. True when it opened; Error says why not." },
+  { name = "Save", params = "[Path AS STRING]", returns = "INTEGER", test = "skip: writes a file", doc = "Writes the project file (a source file's project becomes <Folder>/<Name>.rrproj, or Path). True when it was written." },
+  { name = "New", params = "Template AS STRING, Name AS STRING, Folder AS STRING", returns = "INTEGER", test = "skip: writes files", doc = "A new project from a template (\"console\" or \"gui\"): main.rr and <Name>.rrproj written in Folder." },
+  { name = "AddFile", params = "Path AS STRING, [Kind AS STRING]", returns = "INTEGER", doc = "Adds a file (its kind from its name, or Kind: module, form, include, resource, asset, data). True when it was added." },
+  { name = "RemoveFile", params = "Path AS STRING", returns = "INTEGER", doc = "Takes a file out of the project (the file itself stays). True when it was in it." },
+  { name = "Close", value = true, doc = "No project is open any more." },
+  { name = "File", params = "Index AS INTEGER", returns = "STRING", doc = "File Index's path, relative to the folder (from 0)." },
+  { name = "FileKind", params = "Index AS INTEGER", returns = "STRING", doc = "File Index's kind: module, form, include, resource, asset or data." },
+  { name = "FullPath", params = "Index AS INTEGER", returns = "STRING", doc = "File Index's path to open it with (the folder's and its own)." },
+]
+events = [
+  { name = "OnChange", doc = "The project was opened, saved, closed, or its files changed." },
+]
+
+[[component]]
+name = "RLANGUAGESERVICE"
+visual = false
+doc = "RapidR's language service, the one rapidr lsp and the VS Code extension use: a BASIC file's outline and its diagnostics (the compiler's own messages), as text one item a line, fields separated by tabs. Give it the editor's text with Update."
+properties = [
+  { name = "CompatMode", type = "string", doc = "\"rapidq\": RapidR's extensions are reported, as in a RapidQ-compatible project." },
+  { name = "ErrorCount", type = "int", access = "read", design = false, doc = "How many errors the last Diagnostics found." },
+]
+methods = [
+  { name = "Update", params = "File AS STRING, Text AS STRING", doc = "A file's text as the editor has it (saved or not)." },
+  { name = "Close", params = "File AS STRING", value = true, doc = "Forgets the editor's text of a file: it is read from its file again." },
+  { name = "Outline", params = "File AS STRING", returns = "STRING", doc = "The file's outline, a line per item: depth, kind (sub, function, type, field, method, event, component, constant, variable, label), name, detail, line (from 1), separated by tabs." },
+  { name = "Diagnostics", params = "File AS STRING", returns = "STRING", doc = "The file's errors and warnings, a line each: severity (error, warning, note), line, column (from 1), message, file, separated by tabs." },
+]
+events = []
+
+[[component]]
+name = "RPROGRAMSESSION"
+visual = false
+default_event = "OnOutput"
+doc = "A run of a program under development, as an IDE runs it: in its own process on the desktop (its forms real windows), in a sandboxed frame on the web. Start, stop, pause, step, breakpoints, evaluate; its output and its stops come as events."
+properties = [
+  { name = "Program", type = "string", doc = "The source file to run (saved)." },
+  { name = "Args", type = "string", doc = "Its command line arguments, as COMMAND$ reads them (spaces separate them, quotes keep spaces)." },
+  { name = "Debug", type = "bool", default = true, doc = "Run under the debugger: breakpoints stop it, stepping works." },
+  { name = "BreakOnError", type = "bool", default = false, doc = "Stop at the statement of a run-time error." },
+  { name = "State", type = "string", access = "read", design = false, doc = "\"stopped\", \"running\" or \"paused\"." },
+  { name = "CurrentFile", type = "string", access = "read", design = false, doc = "Where the program is paused: its file." },
+  { name = "CurrentLine", type = "int", access = "read", design = false, doc = "Where the program is paused: its line (from 1; 0 when not paused)." },
+  { name = "ExitCode", type = "int", access = "read", design = false, doc = "The last run's exit code." },
+  { name = "Error", type = "string", access = "read", design = false, doc = "Why the last Start (or another request) failed." },
+]
+methods = [
+  { name = "Start", returns = "INTEGER", value = true, test = "skip: runs a program", doc = "Runs Program. True when it started; Error says why not." },
+  { name = "Stop", value = true, doc = "Ends the program at once." },
+  { name = "Pause", returns = "INTEGER", value = true, doc = "Pauses the program at its next statement." },
+  { name = "Continue", returns = "INTEGER", value = true, doc = "Lets a paused program go on." },
+  { name = "StepIn", returns = "INTEGER", value = true, doc = "Runs one statement, into a SUB or FUNCTION it calls." },
+  { name = "StepOver", returns = "INTEGER", value = true, doc = "Runs one statement, a call whole." },
+  { name = "StepOut", returns = "INTEGER", value = true, doc = "Runs to the end of the SUB or FUNCTION and stops after its call." },
+  { name = "SetBreakpoint", params = "File AS STRING, Line AS INTEGER, [Condition AS STRING]", returns = "INTEGER", doc = "A breakpoint at a line (from 1) of a file, with a condition or not." },
+  { name = "ClearBreakpoint", params = "File AS STRING, Line AS INTEGER", returns = "INTEGER", doc = "Removes a breakpoint." },
+  { name = "Evaluate", params = "Expr AS STRING", returns = "STRING", test = "skip: needs a paused program", doc = "Evaluates in the paused program: \"? expression\" gives its value, a statement runs (the Immediate window's)." },
+  { name = "Input", params = "Text AS STRING", returns = "INTEGER", doc = "A line for the program's INPUT." },
+]
+events = [
+  { name = "OnOutput", params = "Text AS STRING", doc = "The program printed Text (PRINT, errors)." },
+  { name = "OnStopped", params = "Reason AS STRING, File AS STRING, Line AS INTEGER", doc = "The program paused: at a breakpoint, a step's end, a pause, a run-time error." },
+  { name = "OnContinue", doc = "A paused program goes on." },
+  { name = "OnExit", params = "Code AS INTEGER", doc = "The program ended, with its exit code." },
+  { name = "OnFormShown", params = "Id AS STRING", doc = "The program showed a form." },
+]

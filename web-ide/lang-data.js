@@ -321,7 +321,7 @@ const COMPONENT_REGISTRY = {
         name: 'RSTATUSBAR',
         description: 'The bar at the bottom of a window that shows status text, as one simple text or as several panels.',
         rapidq: 'QSTATUSBAR',
-        props: ['align', 'cursor', 'enabled', 'handle', 'height', 'hint', 'left', 'panel', 'parent', 'popupmenu', 'showhint', 'simplepanel', 'simpletext', 'sizegrip', 'taborder', 'top', 'width', 'visible', 'caption', 'panelcount', 'font', 'fontsize', 'fontcolor', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
+        props: ['align', 'cursor', 'enabled', 'handle', 'height', 'hint', 'left', 'panel', 'parent', 'popupmenu', 'showhint', 'simplepanel', 'simpletext', 'sizegrip', 'taborder', 'top', 'width', 'visible', 'caption', 'panelcount', 'font', 'fontsize', 'fontcolor', 'color', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
         methods: ['addpanels', 'clear', 'repaint', 'refresh', 'click', 'setparent'],
         events: ['onresize', 'onclick'],
         methodSignatures: {
@@ -356,6 +356,7 @@ const COMPONENT_REGISTRY = {
             'font': 'The font of the text, a QFONT; assigning one copies it.',
             'fontsize': 'RapidR\'s shortcut for `Font.Size`, in points.',
             'fontcolor': 'RapidR\'s shortcut for `Font.Color`: the text colour, as &HBBGGRR.',
+            'color': 'The bar\'s colour (RapidR\'s): flat in every look, as an IDE\'s state bar; unset, the theme\'s.',
             'anchors': 'Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch.',
             'minwidth': 'The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`.',
             'minheight': 'The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`.',
@@ -618,7 +619,7 @@ const COMPONENT_REGISTRY = {
         description: 'RapidR\'s docking area (RapidR Studio is built on it): panes docked at its edges, tabbed together, auto-hidden or floating, around a documents area of MDI windows or tabs. The user drags panes with a docking compass or moves them from the keyboard; the layout saves to text and loads back.',
         rapidq: null,
         props: ['align', 'documentmode', 'activedocument', 'activepane', 'panecount', 'documentcount', 'layout', 'height', 'hint', 'left', 'parent', 'top', 'width', 'enabled', 'visible', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
-        methods: ['addpane', 'showpane', 'hidepane', 'floatpane', 'autohide', 'focuspane', 'closepane', 'dockpane', 'movepane', 'savelayout', 'loadlayout', 'resetlayout', 'pane', 'document', 'panetitle', 'panestate', 'panevisible', 'nextdocument', 'previousdocument', 'cascade', 'tilehorizontal', 'tilevertical', 'arrangeicons', 'click', 'setparent'],
+        methods: ['addpane', 'showpane', 'hidepane', 'floatpane', 'autohide', 'focuspane', 'closepane', 'dockpane', 'movepane', 'savelayout', 'loadlayout', 'resetlayout', 'pane', 'document', 'panetitle', 'panestate', 'panevisible', 'documentstate', 'nextdocument', 'previousdocument', 'cascade', 'tilehorizontal', 'tilevertical', 'arrangeicons', 'click', 'setparent'],
         events: ['onpanechange', 'ondocumentactivate', 'ondocumentclose', 'onlayoutchange'],
         methodSignatures: {
             'addpane': { sig: 'AddPane(Component, Title AS STRING, Where AS STRING, Icon AS STRING) AS INTEGER', desc: 'Adds a component as a pane, titled, docked where Where says ("left", "right", "top", "bottom", "documents", "float", "tab:<pane>", "<side>:<pane>", "autohide:<side>"), with a built-in icon name or "". True when it was placed.' },
@@ -638,6 +639,7 @@ const COMPONENT_REGISTRY = {
             'panetitle': { sig: 'PaneTitle(Name AS STRING, [Title AS STRING]) AS STRING', desc: 'A pane\'s title; with Title, sets it.' },
             'panestate': { sig: 'PaneState(Name AS STRING) AS STRING', desc: 'Where a pane is: "docked", "tabbed", "autohide", "floating", "document" or "hidden".' },
             'panevisible': { sig: 'PaneVisible(Name AS STRING) AS INTEGER', desc: 'True when the pane is placed and shown (not hidden, nor behind another tab).' },
+            'documentstate': { sig: 'DocumentState(Name AS STRING, [State AS INTEGER]) AS INTEGER', desc: 'An MDI document\'s window: 0 normal, 1 minimized, 2 maximized (-1: not an MDI document); with State, it becomes that.' },
             'nextdocument': { sig: 'NextDocument', desc: 'Activates the next document (Ctrl+Tab).' },
             'previousdocument': { sig: 'PreviousDocument', desc: 'Activates the previous document (Ctrl+Shift+Tab).' },
             'cascade': { sig: 'Cascade', desc: 'Cascades the documents\' windows.' },
@@ -4622,6 +4624,97 @@ const COMPONENT_REGISTRY = {
             'onroutechange': { sig: 'OnRouteChange', desc: 'Fires when the page\'s route (the URL\'s # part) changes, by Navigate, Back, Forward or the browser.' },
         },
     },
+    RPROJECT: {
+        name: 'RPROJECT',
+        description: 'A RapidR project: a .rrproj file (format 2, or the web IDE\'s v1 projects), or a .bas / .rr file with the files it $INCLUDEs, RapidQ\'s way. Lists the project\'s files and their kinds, adds and removes files, saves the project file, and makes new projects from templates. RapidR Studio is built on it.',
+        rapidq: null,
+        props: ['filename', 'folder', 'kind', 'error', 'name', 'mainfile', 'filecount', 'compatmode'],
+        methods: ['open', 'save', 'new', 'addfile', 'removefile', 'close', 'file', 'filekind', 'fullpath'],
+        events: ['onchange'],
+        methodSignatures: {
+            'open': { sig: 'Open(Path AS STRING) AS INTEGER', desc: 'Opens a .rrproj, or a .bas / .rr / .inc file with what it includes. True when it opened; Error says why not.' },
+            'save': { sig: 'Save([Path AS STRING]) AS INTEGER', desc: 'Writes the project file (a source file\'s project becomes <Folder>/<Name>.rrproj, or Path). True when it was written.' },
+            'new': { sig: 'New(Template AS STRING, Name AS STRING, Folder AS STRING) AS INTEGER', desc: 'A new project from a template ("console" or "gui"): main.rr and <Name>.rrproj written in Folder.' },
+            'addfile': { sig: 'AddFile(Path AS STRING, [Kind AS STRING]) AS INTEGER', desc: 'Adds a file (its kind from its name, or Kind: module, form, include, resource, asset, data). True when it was added.' },
+            'removefile': { sig: 'RemoveFile(Path AS STRING) AS INTEGER', desc: 'Takes a file out of the project (the file itself stays). True when it was in it.' },
+            'close': { sig: 'Close', desc: 'No project is open any more.' },
+            'file': { sig: 'File(Index AS INTEGER) AS STRING', desc: 'File Index\'s path, relative to the folder (from 0).' },
+            'filekind': { sig: 'FileKind(Index AS INTEGER) AS STRING', desc: 'File Index\'s kind: module, form, include, resource, asset or data.' },
+            'fullpath': { sig: 'FullPath(Index AS INTEGER) AS STRING', desc: 'File Index\'s path to open it with (the folder\'s and its own).' },
+        },
+        propDocs: {
+            'filename': 'The .rrproj file ("" for a source file opened without one).',
+            'folder': 'The project\'s folder: its files\' paths are relative to it.',
+            'kind': 'What is open: "project" (a .rrproj), "file" (a source file and its includes), "v1" (a web IDE project, imported) or "" (nothing).',
+            'error': 'Why the last Open, Save, New, AddFile or RemoveFile failed ("" when it worked).',
+            'name': 'The project\'s name.',
+            'mainfile': 'The file the program starts from (relative to the folder).',
+            'filecount': 'How many files the project has.',
+            'compatmode': '"rapidq" for a RapidQ-compatible project (RapidR\'s extensions reported), else "".',
+        },
+        eventSignatures: {
+            'onchange': { sig: 'OnChange', desc: 'The project was opened, saved, closed, or its files changed.' },
+        },
+    },
+    RLANGUAGESERVICE: {
+        name: 'RLANGUAGESERVICE',
+        description: 'RapidR\'s language service, the one rapidr lsp and the VS Code extension use: a BASIC file\'s outline and its diagnostics (the compiler\'s own messages), as text one item a line, fields separated by tabs. Give it the editor\'s text with Update.',
+        rapidq: null,
+        props: ['compatmode', 'errorcount'],
+        methods: ['update', 'close', 'outline', 'diagnostics'],
+        events: [],
+        methodSignatures: {
+            'update': { sig: 'Update(File AS STRING, Text AS STRING)', desc: 'A file\'s text as the editor has it (saved or not).' },
+            'close': { sig: 'Close(File AS STRING)', desc: 'Forgets the editor\'s text of a file: it is read from its file again.' },
+            'outline': { sig: 'Outline(File AS STRING) AS STRING', desc: 'The file\'s outline, a line per item: depth, kind (sub, function, type, field, method, event, component, constant, variable, label), name, detail, line (from 1), separated by tabs.' },
+            'diagnostics': { sig: 'Diagnostics(File AS STRING) AS STRING', desc: 'The file\'s errors and warnings, a line each: severity (error, warning, note), line, column (from 1), message, file, separated by tabs.' },
+        },
+        propDocs: {
+            'compatmode': '"rapidq": RapidR\'s extensions are reported, as in a RapidQ-compatible project.',
+            'errorcount': 'How many errors the last Diagnostics found.',
+        },
+        eventSignatures: {
+        },
+    },
+    RPROGRAMSESSION: {
+        name: 'RPROGRAMSESSION',
+        description: 'A run of a program under development, as an IDE runs it: in its own process on the desktop (its forms real windows), in a sandboxed frame on the web. Start, stop, pause, step, breakpoints, evaluate; its output and its stops come as events.',
+        rapidq: null,
+        props: ['program', 'args', 'debug', 'breakonerror', 'state', 'currentfile', 'currentline', 'exitcode', 'error'],
+        methods: ['start', 'stop', 'pause', 'continue', 'stepin', 'stepover', 'stepout', 'setbreakpoint', 'clearbreakpoint', 'evaluate', 'input'],
+        events: ['onoutput', 'onstopped', 'oncontinue', 'onexit', 'onformshown'],
+        methodSignatures: {
+            'start': { sig: 'Start AS INTEGER', desc: 'Runs Program. True when it started; Error says why not.' },
+            'stop': { sig: 'Stop', desc: 'Ends the program at once.' },
+            'pause': { sig: 'Pause AS INTEGER', desc: 'Pauses the program at its next statement.' },
+            'continue': { sig: 'Continue AS INTEGER', desc: 'Lets a paused program go on.' },
+            'stepin': { sig: 'StepIn AS INTEGER', desc: 'Runs one statement, into a SUB or FUNCTION it calls.' },
+            'stepover': { sig: 'StepOver AS INTEGER', desc: 'Runs one statement, a call whole.' },
+            'stepout': { sig: 'StepOut AS INTEGER', desc: 'Runs to the end of the SUB or FUNCTION and stops after its call.' },
+            'setbreakpoint': { sig: 'SetBreakpoint(File AS STRING, Line AS INTEGER, [Condition AS STRING]) AS INTEGER', desc: 'A breakpoint at a line (from 1) of a file, with a condition or not.' },
+            'clearbreakpoint': { sig: 'ClearBreakpoint(File AS STRING, Line AS INTEGER) AS INTEGER', desc: 'Removes a breakpoint.' },
+            'evaluate': { sig: 'Evaluate(Expr AS STRING) AS STRING', desc: 'Evaluates in the paused program: "? expression" gives its value, a statement runs (the Immediate window\'s).' },
+            'input': { sig: 'Input(Text AS STRING) AS INTEGER', desc: 'A line for the program\'s INPUT.' },
+        },
+        propDocs: {
+            'program': 'The source file to run (saved).',
+            'args': 'Its command line arguments, as COMMAND$ reads them (spaces separate them, quotes keep spaces).',
+            'debug': 'Run under the debugger: breakpoints stop it, stepping works.',
+            'breakonerror': 'Stop at the statement of a run-time error.',
+            'state': '"stopped", "running" or "paused".',
+            'currentfile': 'Where the program is paused: its file.',
+            'currentline': 'Where the program is paused: its line (from 1; 0 when not paused).',
+            'exitcode': 'The last run\'s exit code.',
+            'error': 'Why the last Start (or another request) failed.',
+        },
+        eventSignatures: {
+            'onoutput': { sig: 'OnOutput(Text AS STRING)', desc: 'The program printed Text (PRINT, errors).' },
+            'onstopped': { sig: 'OnStopped(Reason AS STRING, File AS STRING, Line AS INTEGER)', desc: 'The program paused: at a breakpoint, a step\'s end, a pause, a run-time error.' },
+            'oncontinue': { sig: 'OnContinue', desc: 'A paused program goes on.' },
+            'onexit': { sig: 'OnExit(Code AS INTEGER)', desc: 'The program ended, with its exit code.' },
+            'onformshown': { sig: 'OnFormShown(Id AS STRING)', desc: 'The program showed a form.' },
+        },
+    },
 };
 // RapidQ's names for the same components (QBUTTON is RBUTTON).
 COMPONENT_REGISTRY['QFORM'] = COMPONENT_REGISTRY.RFORM;
@@ -4886,7 +4979,7 @@ const DIRECTIVES = [
 export { COMPONENT_REGISTRY, BUILTIN_FUNCTIONS, KEYWORDS, TYPE_KEYWORDS, DIRECTIVES };
 
 // Pretty display name for an upper-case component key (RBUTTON -> RButton).
-const _NAME_MAP = { RFORM:'RForm', QFORM:'QForm', RFORMMDI:'RFormMDI', QFORMMDI:'QFormMDI', RPANEL:'RPanel', QPANEL:'QPanel', RTABCONTROL:'RTabControl', QTABCONTROL:'QTabControl', RTOOLBAR:'RToolBar', RSTATUSBAR:'RStatusBar', QSTATUSBAR:'QStatusBar', RSPLITTER:'RSplitter', QSPLITTER:'QSplitter', RSCROLLBOX:'RScrollBox', QSCROLLBOX:'QScrollBox', RGROUPBOX:'RGroupBox', QGROUPBOX:'QGroupBox', RBEVEL:'RBevel', QBEVEL:'QBevel', RGLASSFRAME:'RGlassFrame', QGLASSFRAME:'QGlassFrame', RDOCKMANAGER:'Rdockmanager', RBUTTON:'RButton', QBUTTON:'QButton', REDIT:'REdit', QEDIT:'QEdit', RCHECKBOX:'RCheckBox', QCHECKBOX:'QCheckBox', RRADIOBUTTON:'RRadioButton', QRADIOBUTTON:'QRadioButton', RCOMBOBOX:'RComboBox', QCOMBOBOX:'QComboBox', RRICHEDIT:'RRichEdit', QRICHEDIT:'QRichEdit', RMEMO:'RMemo', RSCROLLBAR:'RScrollBar', QSCROLLBAR:'QScrollBar', RUPDOWN:'RUpDown', RDATETIMEPICKER:'RDateTimePicker', RTRACKBAR:'RTrackBar', QTRACKBAR:'QTrackBar', RCODEEDITOR:'RCodeEditor', RCOOLBTN:'RCoolBtn', QCOOLBTN:'QCoolBtn', ROVALBTN:'ROvalBtn', QOVALBTN:'QOvalBtn', RLABEL:'RLabel', QLABEL:'QLabel', RIMAGE:'RImage', QIMAGE:'QImage', RCANVAS:'RCanvas', QCANVAS:'QCanvas', RHEADER:'RHeader', QHEADER:'QHeader', RPROGRESS:'RProgress', RPROGRESSBAR:'RProgressBar', QGAUGE:'QGauge', RDESIGNSURFACE:'RDesignSurface', RDIGDISPLAY:'RDigDisplay', QDIGDISPLAY:'QDigDisplay', RLISTBOX:'RListBox', QLISTBOX:'QListBox', RFILELISTBOX:'RFileListBox', QFILELISTBOX:'QFileListBox', RDIRTREE:'RDirTree', QDIRTREE:'QDirTree', RSTRINGGRID:'RStringGrid', QSTRINGGRID:'QStringGrid', RTREEVIEW:'RTreeView', QTREEVIEW:'QTreeView', QOUTLINE:'QOutline', RLISTVIEW:'RListView', QLISTVIEW:'QListView', RMAINMENU:'RMainMenu', QMAINMENU:'QMainMenu', RMENUITEM:'RMenuItem', QMENUITEM:'QMenuItem', RPOPUPMENU:'RPopupMenu', QPOPUPMENU:'QPopupMenu', ROPENDIALOG:'ROpenDialog', QOPENDIALOG:'QOpenDialog', RSAVEDIALOG:'RSaveDialog', QSAVEDIALOG:'QSaveDialog', RFILEDIALOG:'RFileDialog', QFILEDIALOG:'QFileDialog', RCOLORDIALOG:'RColorDialog', QCOLORDIALOG:'QColorDialog', RFONTDIALOG:'RFontDialog', QFONTDIALOG:'QFontDialog', RTIMER:'RTimer', QTIMER:'QTimer', RRECT:'RRect', QRECT:'QRect', RFILESTREAM:'RFileStream', QFILESTREAM:'QFileStream', RSTRINGLIST:'RStringList', QSTRINGLIST:'QStringList', RPRINTER:'RPrinter', QPRINTER:'QPrinter', RREGISTRY:'RRegistry', QREGISTRY:'QRegistry', RJSON:'RJson', RFONT:'RFont', QFONT:'QFont', RMEMORYSTREAM:'RMemoryStream', QMEMORYSTREAM:'QMemoryStream', RBITMAP:'RBitmap', QBITMAP:'QBitmap', RIMAGELIST:'RImageList', QIMAGELIST:'QImageList', RNOTIFYICONDATA:'RNotifyIconData', QNOTIFYICONDATA:'QNotifyIconData', RSQLITE:'RSQLite', RMYSQL:'RMySQL', QMYSQL:'QMySQL', RSOCKET:'RSocket', QSOCKET:'QSocket', RSERVERSOCKET:'RServerSocket', RHTTP:'RHttp', RCGI:'RCGI', QCGI:'QCGI', RCOMPORT:'RComPort', QCOMPORT:'QComPort', COMPORT:'COMPORT', RDOWNLOAD:'RDownload', QDOWNLOAD:'QDownload', RMIDI:'RMIDI', QMIDI:'QMIDI', RWAVE:'RWave', QWAVE:'QWave', RVIDEO:'RVideo', QVIDEO:'QVideo', RCDAUDIO:'RCDAudio', QCDAUDIO:'QCDAudio', RDXSCREEN:'RDXScreen', QDXSCREEN:'QDXScreen', RDXIMAGELIST:'RDXImageList', QDXIMAGELIST:'QDXImageList', RDXTIMER:'RDXTimer', QDXTIMER:'QDXTimer', RDXSOUND:'RDXSound', QDXSOUND:'QDXSound', RDXJOYSTICK:'RDXJoystick', QDXJOYSTICK:'QDXJoystick', RD3DFRAME:'RD3DFrame', QD3DFRAME:'QD3DFrame', RD3DMESHBUILDER:'RD3DMeshBuilder', QD3DMESHBUILDER:'QD3DMeshBuilder', RD3DMESH:'RD3DMesh', QD3DMESH:'QD3DMesh', RD3DFACE:'RD3DFace', QD3DFACE:'QD3DFace', RD3DLIGHT:'RD3DLight', QD3DLIGHT:'QD3DLight', RD3DTEXTURE:'RD3DTexture', QD3DTEXTURE:'QD3DTexture', RD3DVISUAL:'RD3DVisual', QD3DVISUAL:'QD3DVisual', RD3DWRAP:'RD3DWrap', QD3DWRAP:'QD3DWrap', RD3DVECTOR:'RD3DVector', QD3DVECTOR:'QD3DVector', RNUM:'RNum', RDATAFRAME:'RDataFrame', RPLOT:'RPlot', RWEBVIEW:'RWebView', RDOM:'RDOM', RJAVASCRIPT:'RJavaScript', RWEBSTORAGE:'RWebStorage', RWEBAUDIO:'RWebAudio', RWEBVIDEO:'RWebVideo', RWEBNOTIFICATION:'RWebNotification', RWEBGEOLOCATION:'RWebGeolocation', RROUTER:'RRouter' };
+const _NAME_MAP = { RFORM:'RForm', QFORM:'QForm', RFORMMDI:'RFormMDI', QFORMMDI:'QFormMDI', RPANEL:'RPanel', QPANEL:'QPanel', RTABCONTROL:'RTabControl', QTABCONTROL:'QTabControl', RTOOLBAR:'RToolBar', RSTATUSBAR:'RStatusBar', QSTATUSBAR:'QStatusBar', RSPLITTER:'RSplitter', QSPLITTER:'QSplitter', RSCROLLBOX:'RScrollBox', QSCROLLBOX:'QScrollBox', RGROUPBOX:'RGroupBox', QGROUPBOX:'QGroupBox', RBEVEL:'RBevel', QBEVEL:'QBevel', RGLASSFRAME:'RGlassFrame', QGLASSFRAME:'QGlassFrame', RDOCKMANAGER:'Rdockmanager', RBUTTON:'RButton', QBUTTON:'QButton', REDIT:'REdit', QEDIT:'QEdit', RCHECKBOX:'RCheckBox', QCHECKBOX:'QCheckBox', RRADIOBUTTON:'RRadioButton', QRADIOBUTTON:'QRadioButton', RCOMBOBOX:'RComboBox', QCOMBOBOX:'QComboBox', RRICHEDIT:'RRichEdit', QRICHEDIT:'QRichEdit', RMEMO:'RMemo', RSCROLLBAR:'RScrollBar', QSCROLLBAR:'QScrollBar', RUPDOWN:'RUpDown', RDATETIMEPICKER:'RDateTimePicker', RTRACKBAR:'RTrackBar', QTRACKBAR:'QTrackBar', RCODEEDITOR:'RCodeEditor', RCOOLBTN:'RCoolBtn', QCOOLBTN:'QCoolBtn', ROVALBTN:'ROvalBtn', QOVALBTN:'QOvalBtn', RLABEL:'RLabel', QLABEL:'QLabel', RIMAGE:'RImage', QIMAGE:'QImage', RCANVAS:'RCanvas', QCANVAS:'QCanvas', RHEADER:'RHeader', QHEADER:'QHeader', RPROGRESS:'RProgress', RPROGRESSBAR:'RProgressBar', QGAUGE:'QGauge', RDESIGNSURFACE:'RDesignSurface', RDIGDISPLAY:'RDigDisplay', QDIGDISPLAY:'QDigDisplay', RLISTBOX:'RListBox', QLISTBOX:'QListBox', RFILELISTBOX:'RFileListBox', QFILELISTBOX:'QFileListBox', RDIRTREE:'RDirTree', QDIRTREE:'QDirTree', RSTRINGGRID:'RStringGrid', QSTRINGGRID:'QStringGrid', RTREEVIEW:'RTreeView', QTREEVIEW:'QTreeView', QOUTLINE:'QOutline', RLISTVIEW:'RListView', QLISTVIEW:'QListView', RMAINMENU:'RMainMenu', QMAINMENU:'QMainMenu', RMENUITEM:'RMenuItem', QMENUITEM:'QMenuItem', RPOPUPMENU:'RPopupMenu', QPOPUPMENU:'QPopupMenu', ROPENDIALOG:'ROpenDialog', QOPENDIALOG:'QOpenDialog', RSAVEDIALOG:'RSaveDialog', QSAVEDIALOG:'QSaveDialog', RFILEDIALOG:'RFileDialog', QFILEDIALOG:'QFileDialog', RCOLORDIALOG:'RColorDialog', QCOLORDIALOG:'QColorDialog', RFONTDIALOG:'RFontDialog', QFONTDIALOG:'QFontDialog', RTIMER:'RTimer', QTIMER:'QTimer', RRECT:'RRect', QRECT:'QRect', RFILESTREAM:'RFileStream', QFILESTREAM:'QFileStream', RSTRINGLIST:'RStringList', QSTRINGLIST:'QStringList', RPRINTER:'RPrinter', QPRINTER:'QPrinter', RREGISTRY:'RRegistry', QREGISTRY:'QRegistry', RJSON:'RJson', RFONT:'RFont', QFONT:'QFont', RMEMORYSTREAM:'RMemoryStream', QMEMORYSTREAM:'QMemoryStream', RBITMAP:'RBitmap', QBITMAP:'QBitmap', RIMAGELIST:'RImageList', QIMAGELIST:'QImageList', RNOTIFYICONDATA:'RNotifyIconData', QNOTIFYICONDATA:'QNotifyIconData', RSQLITE:'RSQLite', RMYSQL:'RMySQL', QMYSQL:'QMySQL', RSOCKET:'RSocket', QSOCKET:'QSocket', RSERVERSOCKET:'RServerSocket', RHTTP:'RHttp', RCGI:'RCGI', QCGI:'QCGI', RCOMPORT:'RComPort', QCOMPORT:'QComPort', COMPORT:'COMPORT', RDOWNLOAD:'RDownload', QDOWNLOAD:'QDownload', RMIDI:'RMIDI', QMIDI:'QMIDI', RWAVE:'RWave', QWAVE:'QWave', RVIDEO:'RVideo', QVIDEO:'QVideo', RCDAUDIO:'RCDAudio', QCDAUDIO:'QCDAudio', RDXSCREEN:'RDXScreen', QDXSCREEN:'QDXScreen', RDXIMAGELIST:'RDXImageList', QDXIMAGELIST:'QDXImageList', RDXTIMER:'RDXTimer', QDXTIMER:'QDXTimer', RDXSOUND:'RDXSound', QDXSOUND:'QDXSound', RDXJOYSTICK:'RDXJoystick', QDXJOYSTICK:'QDXJoystick', RD3DFRAME:'RD3DFrame', QD3DFRAME:'QD3DFrame', RD3DMESHBUILDER:'RD3DMeshBuilder', QD3DMESHBUILDER:'QD3DMeshBuilder', RD3DMESH:'RD3DMesh', QD3DMESH:'QD3DMesh', RD3DFACE:'RD3DFace', QD3DFACE:'QD3DFace', RD3DLIGHT:'RD3DLight', QD3DLIGHT:'QD3DLight', RD3DTEXTURE:'RD3DTexture', QD3DTEXTURE:'QD3DTexture', RD3DVISUAL:'RD3DVisual', QD3DVISUAL:'QD3DVisual', RD3DWRAP:'RD3DWrap', QD3DWRAP:'QD3DWrap', RD3DVECTOR:'RD3DVector', QD3DVECTOR:'QD3DVector', RNUM:'RNum', RDATAFRAME:'RDataFrame', RPLOT:'RPlot', RWEBVIEW:'RWebView', RDOM:'RDOM', RJAVASCRIPT:'RJavaScript', RWEBSTORAGE:'RWebStorage', RWEBAUDIO:'RWebAudio', RWEBVIDEO:'RWebVideo', RWEBNOTIFICATION:'RWebNotification', RWEBGEOLOCATION:'RWebGeolocation', RROUTER:'RRouter', RPROJECT:'Rproject', RLANGUAGESERVICE:'Rlanguageservice', RPROGRAMSESSION:'Rprogramsession' };
 export function prettyComponentName(upper) {
   if (!upper) return upper;
   const u = String(upper).toUpperCase();

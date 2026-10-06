@@ -266,8 +266,15 @@ pub fn step(max_wait: Option<Duration>) {
     if rapidr_ui_app::dialogs::tasks_open() {
         at_most(rapidr_ui_app::dialogs::TASK_STEP);
     }
+    // (RapidR Studio's program sessions: their output heard every 20 ms)
+    #[cfg(feature = "studio")]
+    if crate::studio::running() {
+        at_most(Duration::from_millis(20));
+    }
     let queued = crate::object::rp_vm_events_queued();
     pump(t);
+    #[cfg(feature = "studio")]
+    crate::studio::poll();
     crate::object::rp_run_deferred();
     dispatch_pending();
     // (the system tray's clicks: the form's WndProc)

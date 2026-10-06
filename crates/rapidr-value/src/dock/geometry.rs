@@ -164,9 +164,10 @@ pub struct Geometry {
     pub nodes: Vec<(Vec<usize>, Rect)>,
 }
 
-/// A tab's width for `title` (with an icon, a close button).
+/// A tab's width for `title` (with an icon, a close button): measured in
+/// the bold face the shown tab is drawn in, so it fits shown or not.
 fn tab_width(title: &str, font: &Font, icon: bool, close: bool, pad: i64) -> i64 {
-    let (w, _) = text_size(title, font);
+    let (w, _) = text_size(title, &Font { styles: font.styles | 1, ..font.clone() });
     w + 2 * pad + if icon { ICON + 6 } else { 0 } + if close { BUTTON } else { 0 }
 }
 

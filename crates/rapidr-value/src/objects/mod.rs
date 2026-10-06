@@ -219,7 +219,7 @@ pub fn set_file_io(reader: FileReader, writer: FileWriter) {
     NATIVE_FILES.with(|n| n.set(false));
 }
 
-pub(crate) fn read_file(path: &str) -> Result<Vec<u8>, String> {
+pub fn read_file(path: &str) -> Result<Vec<u8>, String> {
     if let Some(bytes) = crate::resources::read_path(path) {
         return bytes;
     }
@@ -227,7 +227,7 @@ pub(crate) fn read_file(path: &str) -> Result<Vec<u8>, String> {
     reader(path)
 }
 
-pub(crate) fn write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
+pub fn write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
     let writer = FILE_IO.with(|io| io.borrow().1);
     writer(path, bytes)
 }

@@ -85,6 +85,9 @@ const TABS: &[&str] = &["addtabs", "tab"];
 /// (I1) RDOCKMANAGER's (crate::dock): `L$ = Dock.SaveLayout`.
 const DOCK: &[&str] = &["savelayout", "resetlayout", "cascade", "tilehorizontal", "tilevertical", "arrangeicons", "nextdocument", "previousdocument"];
 
+/// (I1) RPROGRAMSESSION's: `IF Session.Start THEN`.
+const SESSION: &[&str] = &["start", "stop", "pause", "continue", "stepin", "stepover", "stepout"];
+
 /// The web's own components.
 const WEB: &[&str] = &[
     "sethtml", "navigate", "appendto", "setattribute", "getattribute",
@@ -112,6 +115,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
         "RFORMMDI" => &[MDI, DRAWING],
         "RNUM" | "RDATAFRAME" | "RPLOT" => &[DATA_SCIENCE],
         "RDESIGNSURFACE" => &[DESIGN],
+        "RPROGRAMSESSION" => &[SESSION],
         "RSTRINGGRID" => &[GRID],
         "RCODEEDITOR" => &[CODE_EDITOR],
         "RTABCONTROL" => &[TABS],
@@ -126,7 +130,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
 /// Whether `member` (lowercase) is any type's method read without
 /// parentheses — the quick test before the type is looked up.
 pub fn is_value_method_name(member: &str) -> bool {
-    [ANY, DATABASE, NETWORK, STREAM, JSON, STRING_LIST, DRAWING, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK]
+    [ANY, DATABASE, NETWORK, STREAM, JSON, STRING_LIST, DRAWING, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, SESSION]
         .iter()
         .any(|list| list.contains(&member))
 }

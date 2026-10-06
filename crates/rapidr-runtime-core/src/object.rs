@@ -415,6 +415,11 @@ fn set_property(name: &str, prop: &str, val: Value) {
     if rapidr_value::mdi::is_mdi(name) && crate::mdi::set(name, &prop_lower, &val) {
         return;
     }
+    // (I1) RapidR Studio's RPROJECT, RLANGUAGESERVICE, RPROGRAMSESSION (studio.rs).
+    #[cfg(feature = "studio")]
+    if rapidr_studio::is_studio_type(&rp_comp_type(name)) && crate::studio::set(&rp_comp_type(name), name, &prop_lower, &val) {
+        return;
+    }
     // (I1) An RDOCKMANAGER's DocumentMode, ActiveDocument, … (dock.rs).
     if rp_comp_type(name) == "RDOCKMANAGER" && crate::dock::set(name, &prop_lower, &val) {
         return;
@@ -851,6 +856,16 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
             return v;
         }
     }
+    // (I1) RapidR Studio's components (studio.rs).
+    #[cfg(feature = "studio")]
+    {
+        let t = rp_comp_type(name);
+        if rapidr_studio::is_studio_type(&t) {
+            if let Some(v) = crate::studio::get(&t, name, &prop_lower) {
+                return v;
+            }
+        }
+    }
     // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll.rs).
     if let Some(v) = crate::scroll::get(name, &prop_lower) {
         return v;
@@ -1067,6 +1082,13 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     // A QFORMMDI's AddChild, CascadeChild, … (mdi.rs).
     if rapidr_value::mdi::is_mdi(name) {
         if let Some(v) = crate::mdi::method(name, &method_lower, args) {
+            return v;
+        }
+    }
+    // (I1) RapidR Studio's RPROJECT, RLANGUAGESERVICE, RPROGRAMSESSION (studio.rs).
+    #[cfg(feature = "studio")]
+    if rapidr_studio::is_studio_type(&comp_type) {
+        if let Some(v) = crate::studio::call(&comp_type, name, &method_lower, args) {
             return v;
         }
     }
