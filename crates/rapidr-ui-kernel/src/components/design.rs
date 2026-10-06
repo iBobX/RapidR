@@ -51,6 +51,8 @@ impl ComponentKind for Design {
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
+        // (the surface is the designed form's inside: its size is the form's)
+        with_design_mut(cx.id, |d| d.set_size(w, h));
         p.ops(with_design(cx.id, |d| d.ops(w, h)).unwrap_or_default());
     }
 
@@ -60,9 +62,14 @@ impl ComponentKind for Design {
             return out;
         }
         let (x, y) = (m.x.floor() as i64, m.y.floor() as i64);
+        let (w, h) = (cx.width(), cx.height());
+        with_design_mut(cx.id, |d| d.set_size(w, h));
+        // (Shift / Ctrl / Cmd+click: in or out of the selection; Alt /
+        // Option: no snapping)
+        let add = m.mods.shift || m.mods.ctrl || m.mods.command;
         let e = match m.kind {
-            MouseKind::Down => with_design_mut(cx.id, |d| d.mouse_down(x, y, m.clicks >= 2)),
-            MouseKind::Move if m.captured => with_design_mut(cx.id, |d| d.mouse_drag(x, y)),
+            MouseKind::Down => with_design_mut(cx.id, |d| d.mouse_down_with(x, y, m.clicks >= 2, add)),
+            MouseKind::Move if m.captured => with_design_mut(cx.id, |d| d.mouse_drag_with(x, y, m.mods.alt)),
             MouseKind::Up => with_design_mut(cx.id, |d| {
                 d.mouse_up();
                 None
@@ -80,7 +87,11 @@ impl ComponentKind for Design {
         n.name = with_design(cx.id, |d| d.form_caption.clone()).unwrap_or_default();
         n.bounds = cx.rect;
         let (x0, y0) = (cx.rect.0, cx.rect.1);
-        let comps = with_design(cx.id, |d| d.components.iter().enumerate().map(|(i, c)| (format!("{} ({})", c.name, c.type_name), c.bounds(), d.selection() == Some(i))).collect::<Vec<_>>()).unwrap_or_default();
+        let comps = with_design(cx.id, |d| {
+            let sel = d.selected();
+            d.components().iter().enumerate().map(|(i, c)| (format!("{} ({})", c.name, c.type_name), c.bounds(), sel.contains(&i))).collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
         for (i, (name, (x, y, w, h), selected)) in comps.into_iter().enumerate() {
             let mut o = AccessNode::new(part_id(cx.id, PART_ITEM, i), Role::ListBoxOption);
             o.name = name;
@@ -94,13 +105,7 @@ impl ComponentKind for Design {
 
     fn access(&self, cx: &mut Cx, action: Action, part: Option<usize>, _value: Option<&AccessValue>) -> bool {
         let (Action::Click, Some(i)) = (action, part) else { return false };
-        let picked = with_design_mut(cx.id, |d| {
-            let ok = i < d.components.len();
-            if ok {
-                d.selected = i as i64;
-            }
-            ok
-        });
+        let picked = with_design_mut(cx.id, |d| d.select(i));
         if picked == Some(true) {
             heard(cx, DesignEvent::Select(i));
         }
@@ -151,12 +156,12 @@ mod tests {
         assert!(!events.iter().any(|e| matches!(e, KernelEvent::Click(_))), "no OnClick");
         assert_eq!(f.focus.map(|i| f.nodes[i].id.clone()).as_deref(), Some("ed"), "the focus stays");
         // the background, then a double click on the button
-        f.mouse_down(&s, &mut ts, 200.5, 170.5, rapidr_value::input::Button::Left, Mods::NONE);
-        f.mouse_up(&s, &mut ts, 200.5, 170.5, rapidr_value::input::Button::Left, Mods::NONE);
+        f.mouse_down(&s, &mut ts, 160.5, 140.5, rapidr_value::input::Button::Left, Mods::NONE);
+        f.mouse_up(&s, &mut ts, 160.5, 140.5, rapidr_value::input::Button::Left, Mods::NONE);
         f.mouse_down(&s, &mut ts, 60.5, 60.5, rapidr_value::input::Button::Left, Mods::NONE);
         f.mouse_up(&s, &mut ts, 60.5, 60.5, rapidr_value::input::Button::Left, Mods::NONE);
         f.mouse_down(&s, &mut ts, 60.5, 60.5, rapidr_value::input::Button::Left, Mods::NONE);
-        assert_eq!(fired(f.take_events()), [("onbgclick".to_string(), vec![190, 150]), ("onselect".to_string(), vec![0]), ("ondblclick".to_string(), vec![0])]);
+        assert_eq!(fired(f.take_events()), [("onbgclick".to_string(), vec![150, 120]), ("onselect".to_string(), vec![0]), ("ondblclick".to_string(), vec![0])]);
     }
 
     #[test]
@@ -164,7 +169,7 @@ mod tests {
         let (s, mut f, mut ts) = designer();
         let list = f.paint(&s, &mut ts, 1.0);
         let at = |o: &Op| list.items.iter().any(|i| matches!(i, Item::Op { origin: (10, 20), op } if op == o));
-        assert!(at(&Op::Fill { rect: (0, 0, 200, 160), color: 0xFFFFFF }), "{}", list.dump());
+        assert!(at(&Op::Fill { rect: (0, 0, 200, 160), color: rapidr_value::theme::current().face }), "{}", list.dump());
         assert!(list.items.iter().any(|i| matches!(i, Item::Op { origin: (10, 20), op: Op::Text { text, .. } } if text == "Button1")));
         let tree = f.access_tree(&s, &mut ts);
         let json = tree.to_json();
