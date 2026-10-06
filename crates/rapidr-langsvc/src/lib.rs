@@ -22,6 +22,7 @@
 
 pub mod case;
 pub mod diagnostics;
+pub mod editor;
 pub mod front;
 pub mod model;
 pub mod text;
