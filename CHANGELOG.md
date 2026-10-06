@@ -7,7 +7,25 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.117.0] — 2026-10-06
+
 ### Added
+- **RapidR's brand** (`design/brand/`): an original logo (an R whose
+  counter is a play triangle, on a tile), the app icons for RapidR and the
+  RapidR Runtime and the file icons for `.rr`, `.bas` and `.rrbc` on macOS
+  (`.icns`), Windows (`.ico`), Linux (hicolor) and the web (favicons), the
+  README banner and the GitHub social preview — original vector art, MIT,
+  wired into the installers and the web IDE.
+- **For testers and supporters:** GitHub issue forms (bug report, RapidQ
+  compatibility, test report; security reports go privately through
+  SECURITY.md), and "Support RapidR" (Buy Me a Coffee) in the README and
+  `.github/FUNDING.yml`.
+- **The IDE plan** (`docs/ide-plan.md`, ROADMAP Phase 3 as stages I0–I9):
+  RapidR Studio on the UI kernel, desktop and web — the designer,
+  IntelliSense, Delphi-style linked data and data-science components, a
+  debugger, AI through an MCP server in the IDE; every IDE block a public
+  component (`docs/ide-components.md`, `docs/ide-ai.md`,
+  `docs/q-and-r-components.md`).
 - **Every program RapidR builds carries its open-source notices.** A
   `THIRD-PARTY-NOTICES.txt` is written beside every native and interpreted
   executable and into every web build (the zip's root for `bundle-bc` and the
@@ -212,6 +230,9 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never an error. `DECLARE … joyGetPosEx` (winmm) now names QDXJOYSTICK.
 
 ### Changed
+- **Linux needs OpenSSL 3** (HTTPS uses the system's TLS): RapidR's Linux
+  packages run on Ubuntu 22.04 / Debian 12 and newer (`libssl3`); Ubuntu
+  20.04 and Debian 11 are no longer supported.
 - **Nothing in a program you build is copyleft, cryptographic or
   data-licensed any more** — removed, not just documented (LEGAL.md,
   docs/licensing.md):

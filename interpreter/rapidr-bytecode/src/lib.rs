@@ -273,8 +273,8 @@ pub const RUNTIME_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// The oldest RapidR Runtime that runs what this compiler writes, recorded
 /// in every module. Raise it to the release's version whenever the compiler
 /// starts writing something older runtimes don't know (an opcode, a
-/// builtin, a header field); format 3 came with 2.116.
-pub const MIN_RUNTIME: [u16; 3] = [2, 116, 0];
+/// builtin, a header field); format 3 came with 2.117.
+pub const MIN_RUNTIME: [u16; 3] = [2, 117, 0];
 /// Where a newer runtime is.
 pub const RELEASES_URL: &str = "https://github.com/iBobX/RapidR/releases";
 
