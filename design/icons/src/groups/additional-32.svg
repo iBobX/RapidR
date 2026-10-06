@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Additional</title>
+  <path d="M6 3H12A3 3 0 0 1 15 6V12A3 3 0 0 1 12 15H6A3 3 0 0 1 3 12V6A3 3 0 0 1 6 3Z" fill="#E3E9FF" stroke="#2F5BFF"/>
+  <path d="M20 3H26A3 3 0 0 1 29 6V12A3 3 0 0 1 26 15H20A3 3 0 0 1 17 12V6A3 3 0 0 1 20 3Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M6 17H12A3 3 0 0 1 15 20V26A3 3 0 0 1 12 29H6A3 3 0 0 1 3 26V20A3 3 0 0 1 6 17Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M23 18L23 28" stroke="#2F5BFF"/>
+  <path d="M18 23L28 23" stroke="#2F5BFF"/>
+</svg>

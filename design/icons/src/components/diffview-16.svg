@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Diff view</title>
+  <path d="M2.5 1.5H6.5A1 1 0 0 1 7.5 2.5V13.5A1 1 0 0 1 6.5 14.5H2.5A1 1 0 0 1 1.5 13.5V2.5A1 1 0 0 1 2.5 1.5Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M9.5 1.5H13.5A1 1 0 0 1 14.5 2.5V13.5A1 1 0 0 1 13.5 14.5H9.5A1 1 0 0 1 8.5 13.5V2.5A1 1 0 0 1 9.5 1.5Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <rect x="2" y="6" width="5" height="3" fill="#FCE1E2"/>
+  <rect x="9" y="6" width="5" height="3" fill="#D6F2E8"/>
+  <path d="M3.5 7.5L5.5 7.5" stroke="#D92D36"/>
+  <path d="M10.5 7.5L12.5 7.5" stroke="#08805E"/>
+</svg>

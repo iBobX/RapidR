@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Settings</title>
+  <path d="M6.356 2.94L6.545 1.153L9.455 1.153L9.644 2.94L11.559 4.046L13.202 3.316L14.658 5.837L13.204 6.894L13.204 9.106L14.658 10.163L13.202 12.684L11.559 11.954L9.644 13.06L9.455 14.847L6.545 14.847L6.356 13.06L4.441 11.954L2.798 12.684L1.342 10.163L2.796 9.106L2.796 6.894L1.342 5.837L2.798 3.316L4.441 4.046L6.356 2.94Z" stroke="currentColor"/>
+  <circle cx="8" cy="8" r="2.5" stroke="currentColor"/>
+</svg>

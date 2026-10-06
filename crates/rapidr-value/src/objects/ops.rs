@@ -72,7 +72,8 @@ pub enum Op {
     /// A filled polygon exactly where its points fall (logical pixel
     /// coordinates, off the grid where they are), smooth at any scale: the
     /// classic look's round shapes drawn at a high-DPI screen's resolution
-    /// (a radio button's well, an oval button).
+    /// (a radio button's well, an oval button); a chart's areas, pie slices
+    /// and markers (RPLOT).
     Polygon { points: Vec<(f64, f64)>, color: u32 },
     /// Windows' 50 % pattern (a scroll bar's track, a toggled button's
     /// face): the pixels (x, y) of `rect` with x + y odd in `a`, the others

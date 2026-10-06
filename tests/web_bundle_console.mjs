@@ -95,6 +95,13 @@ const typed = await inPage.evaluate(() => document.getElementById("rapidr-consol
 ok(typed.startsWith("What is your name? Ada\nHow old are you? 36\n"), `prompts and typed lines in the console (${JSON.stringify(typed)})`);
 ok(/Hello Ada, next year you'll be ?37/.test(typed), "the program continued with the answers (a number for age)");
 
+// 4. The web's command line: the page's query string (COMMAND$(n),
+// CommandCount), as a program's own arguments on the desktop.
+const argPage = await open(bundle("command_line_web") + "?a&b%20c&x%3D1");
+const argText = await argPage.evaluate(() => document.getElementById("rapidr-console").textContent);
+const wantArgs = "count=3\narg1=[a]\narg2=[b c]\narg3=[x=1]\narg4=[]\nbare=[a b c x=1]\nself ok";
+ok(argText.trim() === wantArgs, `the query string is the program's command line (${JSON.stringify(argText.trim())})`);
+
 ok(errors.length === 0, `no errors (${errors.length}${errors.length ? ": " + errors[0] : ""})`);
 
 await browser.close();

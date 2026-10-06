@@ -10,7 +10,7 @@ RapidR also goes further than RapidQ, without changing what RapidQ programs
 do: a data-science stack (data frames, arrays, charts), an AI stack, SQLite and
 MySQL, high-DPI screens and accessibility, and more.
 
-RapidR is not a clone of RapidQ or Delphi. It is an original implementation,
+RapidR is not a clone of RapidQ. It is an original implementation,
 written from the ground up in pure Rust, that is compatible with RapidQ.
 
 <!-- What's new in this release: from CHANGELOG.md -->
@@ -64,11 +64,19 @@ system's). **The programs you build with RapidR are
 yours**, to ship as open source or commercially: every build writes a
 `THIRD-PARTY-NOTICES.txt` beside the executable (or into the web build) with
 every notice and licence text its components ask for — ship it with the
-program, and that's all. See `LEGAL.md` (also: trademarks — RapidR is
-compatible with RapidQ and not affiliated with its author or any vendor it
-names — and no warranty) and `docs/licensing.md`.
+program, and that's all. See `LEGAL.md` (also trademarks, and no
+warranty) and `docs/licensing.md`.
 
-Every package carries `LICENSE`, `LEGAL.md`, `LICENSES.md`,
+**RapidQ.** RapidR is an independent implementation that is compatible with
+RapidQ. It contains nothing of RapidQ's — no code, manual text, include
+files, examples or images — and doesn't include or distribute RapidQ. RapidQ's
+own compiler is used only on the developer's test machine, as a black box
+that runs test programs whose output RapidR is compared with. RapidR is not
+affiliated with, endorsed or sponsored by RapidQ's author, anyone holding
+rights in RapidQ, or any vendor it names; "RapidQ" is named only to say what
+RapidR is compatible with (`LEGAL.md`, `docs/legal/rapidq-review.md`).
+
+Every package carries `LICENSE`, `NOTICE`, `LEGAL.md`, `LICENSES.md`,
 `THIRD_PARTY_NOTICES.md` and RapidR's own `THIRD-PARTY-NOTICES.txt`.
 
 Built from commit @COMMIT@.

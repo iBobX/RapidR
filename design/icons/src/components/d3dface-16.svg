@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Direct3D face</title>
+  <path d="M8.5 2.5L13.5 12.5L2.5 12.5L8.5 2.5Z" fill="#EBE4FD" stroke="#6F42E5"/>
+  <rect x="7" y="1" width="2" height="2" fill="#6F42E5"/>
+  <rect x="13" y="12" width="2" height="2" fill="#6F42E5"/>
+  <rect x="1" y="12" width="2" height="2" fill="#6F42E5"/>
+</svg>

@@ -134,17 +134,21 @@ Companions: **RComponentTray** (the non-visual components of a form; `Designer`,
 
 `Groups` (from the registry; `"RapidQ"`, `"RapidR"`, user templates), `Filter`, `ShowNames` (`"as-written"`: QBUTTON for RapidQ components, R names for the rest), `Selected`; `AddTemplate(Name, Source)`; `OnPick(Type)`, `OnDragStart(Type)`.
 
-### 3.7 RDockManager (I1)
+### 3.7 RDockManager (I1, built: `rapidr_value::dock`)
 
 | Kind | Member | Notes |
 |---|---|---|
-| Method | `AddPane(Component, Title, Where, Icon)` | Where: `"left"`, `"right"`, `"top"`, `"bottom"`, `"documents"`, `"float"`, or `"tab:<pane>"` |
-| Method | `ShowPane(Name)`, `HidePane(Name)`, `FloatPane(Name)`, `AutoHide(Name, On)`, `FocusPane(Name)` | |
-| Method | `SaveLayout` → text, `LoadLayout(Text)`, `ResetLayout` | |
-| Property | `DocumentMode` (`"mdi"`, `"tabs"`), `ActiveDocument`, `PaneCount`, `Pane(i)` | The documents area is an MDI client (QFORMMDI's model): `Cascade`, `TileHorizontal`, `TileVertical`, `ArrangeIcons` |
-| Event | `OnPaneChange`, `OnDocumentActivate(Name)`, `OnDocumentClose(Name, Cancel)`, `OnLayoutChange` | |
+| Method | `AddPane(Component, Title, Where, Icon)` → True / False | Where: `"left"`, `"right"`, `"top"`, `"bottom"` (an outer edge), `"documents"`, `"float"`, `"tab:<pane>"` (into its group), `"<side>:<pane>"` (beside its group), `"<side>:documents"`, `"autohide:<side>"`. Component: the component or its Handle. Icon: a built-in name (`explorer`, `search`, `output`, `problems`, `properties`, `toolbox`, `outline`, `form`, `code`, `debug`, `database`, `chart`, `list`) or "" |
+| Method | `ShowPane(Name)`, `HidePane(Name)`, `FloatPane(Name)`, `AutoHide(Name, On)`, `FocusPane(Name)`, `ClosePane(Name)`, `DockPane(Name, Where)`, `MovePane(Name)` | ShowPane puts a pane back where it was (or slides an auto-hidden one out); ClosePane closes a document (asking OnDocumentClose) or hides a tool pane; MovePane starts the keyboard's move with the compass |
+| Method | `SaveLayout` → text, `LoadLayout(Text)` → True / False, `ResetLayout` | The text round-trips exactly (`Layout::save`'s format: `rapidr-dock 1`, the mode, the tree with each node's extent, auto-hidden, floating, documents, hidden) |
+| Method | `Pane(i)` (0-based), `Document(i)`, `PaneTitle(Name[, Title])`, `PaneState(Name)` (`docked`, `tabbed`, `autohide`, `floating`, `document`, `hidden`), `PaneVisible(Name)`, `NextDocument`, `PreviousDocument` | Names come back lowercase (as the component registries keep them) |
+| Method | `Cascade`, `TileHorizontal`, `TileVertical`, `ArrangeIcons` | The documents' MDI client (`rapidr_value::mdi`) |
+| Property | `DocumentMode` (`"mdi"`, the default (D4); `"tabs"`), `ActiveDocument`, `ActivePane`, `PaneCount`, `DocumentCount`, `Layout` (= SaveLayout / LoadLayout) | |
+| Event | `OnPaneChange(Name)`, `OnDocumentActivate(Name)`, `OnDocumentClose(Name, Cancel)`, `OnLayoutChange` | Cancel set keeps the document open |
 
-Keyboard: F6 / Shift+F6 between areas, Ctrl+Tab between documents, "Move pane" with the arrows.
+Mouse: a tab or header shows its pane and makes it active; dragged, it brings up the docking compass (outer edges, and the cross over the group or documents under the mouse: beside, or into as a tab / a document) with an outline and a label of where it lands; dropped away from the compass it floats. A double click on a header floats a group (docks a floating one); the header's buttons auto-hide (pin) and close; splitters drag; an auto-hide strip's tab slides its pane out; a middle click closes a document tab.
+
+Keyboard: F6 / Shift+F6 between areas (the groups' shown panes, the active document), Ctrl+Tab / Ctrl+Shift+Tab between documents, Ctrl+Shift+M (or `MovePane`) moves the active pane: the arrows choose the compass's side (the same arrow again: the outer edge), Tab the next area, Space the centre, Enter docks, F floats, Escape stops; Escape in a slid-out pane slides it in.
 
 ### 3.8 Others
 

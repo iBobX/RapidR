@@ -1,0 +1,188 @@
+# DirectX 2D: the registry's components (crates/rapidr-lang; src/lib.rs says how to edit).
+group = "DirectX 2D"
+
+[[component]]
+name = "RDXSCREEN"
+rapidq = "QDXSCREEN"
+visual = true
+size = [100, 100]
+default_event = "OnClick"
+sets = ["layout", "a11y", "generic"]
+doc = "A DirectX drawing surface on a form, for games and animation: draw the next frame off screen, then Flip to show it. It also holds the Direct3D scene and camera."
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "AllowStretch", type = "bool", default = true },
+  { name = "AutoSize", type = "bool", default = true },
+  { name = "BitCount", type = "int", default = 8 },
+  { name = "Color", type = "color" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "Font", type = "font", access = "write", design = false },
+  { name = "FullScreen", type = "bool", default = false },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "Left", type = "int" },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "Pixel", type = "int", design = false, indexed = 2 },
+  { name = "ShowHint", type = "bool", default = false },
+  { name = "Top", type = "int" },
+  { name = "Use3D", type = "bool", default = false },
+  { name = "UseHardware", type = "bool", default = true },
+  { name = "Visible", type = "bool", default = true },
+  { name = "Width", type = "int" },
+  { name = "PenColor", type = "color", origin = "rapidr" },
+  { name = "BrushColor", type = "color", origin = "rapidr" },
+  { name = "FontColor", type = "color", origin = "rapidr" },
+  { name = "FontName", type = "string", origin = "rapidr" },
+  { name = "FontSize", type = "int", origin = "rapidr" },
+]
+methods = [
+  { name = "Circle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER" },
+  { name = "CopyRect", params = "D, Image, S" },
+  { name = "Draw", params = "x AS INTEGER, y AS INTEGER, BMP" },
+  { name = "FastPset", params = "X1 AS INTEGER, Y1 AS INTEGER, C AS INTEGER" },
+  { name = "Fill", params = "Color AS INTEGER" },
+  { name = "FillRect", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER" },
+  { name = "Flip" },
+  { name = "Init", params = "Width AS INTEGER, Height AS INTEGER" },
+  { name = "Line", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER" },
+  { name = "Paint", params = "x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER" },
+  { name = "Pset", params = "x AS INTEGER, y AS INTEGER, c AS INTEGER" },
+  { name = "Rectangle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER" },
+  { name = "Release" },
+  { name = "Rotate", params = "xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER" },
+  { name = "RoundRect", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER" },
+  { name = "StretchDraw", params = "Rect AS QRECT, BMP" },
+  { name = "TextHeight", params = "Text AS STRING", returns = "WORD" },
+  { name = "TextWidth", params = "Text AS STRING", returns = "WORD" },
+  { name = "TextRect", params = "Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER" },
+  { name = "TextOut", params = "x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER" },
+  { name = "AddLight", params = "Light AS QD3DLIGHT" },
+  { name = "CameraLookAt", params = "F AS QD3DFRAME, Constraint AS INTEGER" },
+  { name = "CreateFace", params = "Face AS QD3DFACE" },
+  { name = "CreateFrame", params = "Frame AS QD3DFRAME" },
+  { name = "CreateLightRGB", params = "LightType AS INTEGER, R AS DOUBLE, G AS DOUBLE, B AS DOUBLE, Light AS QD3DLIGHT" },
+  { name = "CreateMeshBuilder", params = "MB AS QD3DMESHBUILDER" },
+  { name = "CreateShadow", params = "MB AS QD3DMESHBUILDER, Light AS QD3DLIGHT, px AS DOUBLE, py AS DOUBLE, pz AS DOUBLE, nx AS DOUBLE, ny AS DOUBLE, nz AS DOUBLE, V AS QD3DVISUAL" },
+  { name = "CreateWrap", params = "WrapType AS INTEGER, A AS DOUBLE, B AS DOUBLE, C AS DOUBLE, D AS DOUBLE, E AS DOUBLE, F AS DOUBLE, G AS DOUBLE, H AS DOUBLE, I AS DOUBLE, J AS DOUBLE, K AS DOUBLE, L AS DOUBLE, M AS DOUBLE, W AS QD3DWRAP" },
+  { name = "ForceUpdate", params = "X1 AS INTEGER, Y1 AS INTEGER, X2 AS INTEGER, Y2 AS INTEGER" },
+  { name = "LoadTexture", params = "File AS STRING, Tex AS QD3DTEXTURE" },
+  { name = "Move", params = "D AS DOUBLE" },
+  { name = "SetBackgroundImage", params = "Tex AS QD3DTEXTURE" },
+  { name = "SetCameraPosition", params = "X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE" },
+  { name = "SetCameraOrientation", params = "DX AS DOUBLE, DY AS DOUBLE, DZ AS DOUBLE, UX AS DOUBLE, UY AS DOUBLE, UZ AS DOUBLE" },
+  { name = "SetRenderMode", params = "M AS INTEGER" },
+  { name = "SetVelocity", params = "X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE, R AS INTEGER" },
+  { name = "SetTextureQuality", params = "Quality AS INTEGER" },
+  { name = "Rect", origin = "rapidr", only = "desktop" },
+  { name = "SetPixel", origin = "rapidr", only = "desktop" },
+  { name = "Ellipse", origin = "rapidr", only = "desktop" },
+  { name = "DrawText", origin = "rapidr", only = "desktop" },
+  { name = "Render" },
+  { name = "CreateAnimation", missing = true },
+  { name = "CreateAnimationSet", missing = true },
+]
+events = [
+  { name = "OnClick" },
+  { name = "OnDblClick" },
+  { name = "OnInitialize" },
+  { name = "OnInitializeSurface" },
+  { name = "OnKeyDown", params = "Key AS WORD, Shift AS INTEGER" },
+  { name = "OnKeyPress", params = "Key AS BYTE" },
+  { name = "OnMouseDown", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER" },
+  { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER" },
+  { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER" },
+]
+
+[[component]]
+name = "RDXIMAGELIST"
+rapidq = "QDXIMAGELIST"
+visual = false
+doc = "A library of pictures for a DirectX screen, loaded from DelphiX `.DXG` image lists and drawn with their transparency."
+properties = [
+  { name = "Parent", type = "component", kinds = ["QDXSCREEN"], access = "write", design = false },
+]
+methods = [
+  { name = "Draw", params = "Item AS INTEGER, X AS INTEGER, Y AS INTEGER, Mask AS INTEGER" },
+  { name = "LoadFromFile", params = "FileName AS STRING" },
+  { name = "LoadFromResource", params = "Resource_Handle" },
+  { name = "LoadFromStream", params = "Stream AS QFILESTREAM" },
+]
+events = []
+
+[[component]]
+name = "RDXTIMER"
+rapidq = "QDXTIMER"
+visual = false
+default_event = "OnTimer"
+doc = "A frame timer for DirectX animation: OnTimer fires at FrameRate (Interval 0: once a frame), optionally only while the program is active."
+properties = [
+  { name = "ActiveOnly", type = "bool", default = true },
+  { name = "Enabled", type = "bool", default = false },
+  { name = "FrameRate", type = "int", access = "read", design = false },
+  { name = "Interval", type = "int" },
+]
+methods = []
+events = [
+  { name = "OnTimer" },
+]
+
+[[component]]
+name = "RDXSOUND"
+rapidq = "QDXSOUND"
+visual = false
+doc = "A WAV sound played DirectSound's way: at its Frequency, Volume and Pan, once or looped."
+properties = [
+  { name = "AutoUpdate", type = "bool", default = true },
+  { name = "BufferLength", type = "int", default = 1000 },
+  { name = "FileName", type = "string" },
+  { name = "Frequency", type = "int" },
+  { name = "Looped", type = "bool", default = false },
+  { name = "Pan", type = "int", default = 0 },
+  { name = "Parent", type = "component", kinds = ["QFORM"], access = "write", design = false },
+  { name = "Playing", type = "int", access = "read", design = false },
+  { name = "Position", type = "int" },
+  { name = "Size", type = "int", access = "read", design = false },
+  { name = "StickyFocus", type = "bool", default = false },
+  { name = "Tag", type = "int" },
+  { name = "Volume", type = "int" },
+]
+methods = [
+  { name = "Play" },
+  { name = "Stop" },
+  { name = "Update" },
+  { name = "RecreateBuf", missing = true },
+]
+events = []
+
+[[component]]
+name = "RDXJOYSTICK"
+rapidq = "QDXJOYSTICK"
+visual = false
+doc = "A joystick or gamepad: Update reads its state into IsLeft, IsUp, `Button(n)` …; RapidR adds the axes, the POV hat and which pad (Index)."
+properties = [
+  { name = "IsLeft", type = "int" },
+  { name = "IsRight", type = "int" },
+  { name = "IsUp", type = "int" },
+  { name = "IsDown", type = "int" },
+  { name = "Index", type = "int", origin = "rapidr" },
+  { name = "Connected", type = "int", origin = "rapidr" },
+  { name = "Name", type = "string", origin = "rapidr" },
+  { name = "X", type = "int", origin = "rapidr" },
+  { name = "Y", type = "int", origin = "rapidr" },
+  { name = "Z", type = "int", origin = "rapidr" },
+  { name = "R", type = "int", origin = "rapidr" },
+  { name = "U", type = "int", origin = "rapidr" },
+  { name = "V", type = "int", origin = "rapidr" },
+  { name = "Buttons", type = "int", origin = "rapidr" },
+  { name = "Pov", type = "int", origin = "rapidr" },
+]
+methods = [
+  { name = "Update" },
+  { name = "Button", params = "Index AS INTEGER" },
+]
+events = [
+  { name = "OnButtonDown", params = "Button AS INTEGER", origin = "rapidr" },
+  { name = "OnButtonUp", params = "Button AS INTEGER", origin = "rapidr" },
+  { name = "OnMove", origin = "rapidr", doc = "Fires when the joystick's position changes (X, Y and the other axes read the new values)." },
+]

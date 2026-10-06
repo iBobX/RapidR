@@ -450,6 +450,8 @@ pub fn role_of(type_name: &str) -> Role {
         "RUPDOWN" => Role::SpinButton,
         "RPROGRESS" | "RPROGRESSBAR" => Role::ProgressIndicator,
         "RGROUPBOX" | "RHEADER" => Role::Group,
+        // (I1: a dock manager's groups and its document area — rapidr_value::dock)
+        "RDOCKGROUP" | "RDOCKDOCS" => Role::Group,
         "RSTATUSBAR" => Role::Status,
         "RSPLITTER" => Role::Splitter,
         // (and a kernel-drawn message box's icon)

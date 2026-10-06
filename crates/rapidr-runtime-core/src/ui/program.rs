@@ -74,6 +74,8 @@ impl Program for Rt {
             Container::SplitMove(delta) => crate::layout::splitter_move(delta),
             Container::SplitEnd => crate::layout::splitter_end(),
             Container::Mdi { form, component, action } => crate::mdi::user(&form, &component, action),
+            // (I1: RDOCKMANAGER — dock.rs)
+            Container::Dock { id, action } => crate::dock::user(&id, action),
             // (the input lane's: the host's — `Desktop` makes it a window command)
             Container::Resize { .. } => {}
         }

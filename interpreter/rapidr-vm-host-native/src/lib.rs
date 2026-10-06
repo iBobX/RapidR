@@ -22,6 +22,9 @@ use rapidr_value::{v_dbl, v_int, v_null, v_str, Value};
 use rapidr_value::events::QueuedEvent;
 use rapidr_vm::{Host, Vm};
 
+#[cfg(feature = "session")]
+pub mod session;
+
 /// Native host: routes the [`Host`] surface to `rapidr-runtime-core`.
 #[derive(Default)]
 pub struct NativeHost {
@@ -29,9 +32,13 @@ pub struct NativeHost {
     /// debugging — the authoritative copy lives in
     /// `rapidr-runtime-core`'s `EVENT_HANDLERS`.
     pub events: Vec<(String, String, u32)>,
-    /// Set to true once any GUI component has been created — signals
-    /// the CLI driver that it should call [`run_event_loop`].
-    pub has_components: bool,
+    /// Where PRINT goes instead of standard output (a session: the IDE).
+    pub output: Option<Box<dyn FnMut(&str)>>,
+    /// Where INPUT reads a line instead of standard input (a session);
+    /// `None` from it: no more input.
+    pub input_source: Option<Box<dyn FnMut() -> Option<String>>>,
+    /// Told when a form is shown (`true`) or closed / hidden (a session).
+    pub on_form: Option<Box<dyn FnMut(&str, bool)>>,
 }
 
 impl Host for NativeHost {
@@ -47,9 +54,6 @@ impl Host for NativeHost {
         if let Some(result) = rapidr_value::shared_builtin(&key, args) {
             return result;
         }
-        if key == "__component_array" || key == "__objcreate" {
-            self.has_components = true;
-        }
         if key == "lbound" || key == "ubound" {
             let arr = args.first().cloned().unwrap_or_else(v_null);
             let dim = args.get(1).map(|v| v.to_i64()).unwrap_or(1);
@@ -62,7 +66,6 @@ impl Host for NativeHost {
 
     fn create_comp(&mut self, kind: &str, id: &str) -> Result<Value, String> {
         rp_create_component(id, kind);
-        self.has_components = true;
         Ok(v_str(id))
     }
 
@@ -83,6 +86,16 @@ impl Host for NativeHost {
     }
 
     fn call_method(&mut self, id: &str, method: &str, args: &[Value]) -> Result<Value, String> {
+        if let Some(on_form) = self.on_form.as_mut() {
+            let shown = match method.to_ascii_lowercase().as_str() {
+                "show" | "showmodal" => Some(true),
+                "close" | "hide" => Some(false),
+                _ => None,
+            };
+            if let Some(shown) = shown.filter(|_| obj::rp_comp_type(id).to_ascii_uppercase().contains("FORM")) {
+                on_form(id, shown);
+            }
+        }
         Ok(rp_comp_call(id, method, args))
     }
 
@@ -124,6 +137,10 @@ impl Host for NativeHost {
     fn print(&mut self, s: &str) -> Result<(), String> {
         // Keep the shared console cursor current (CSRLIN, POS, LOCATE).
         rapidr_value::console::track(s);
+        if let Some(output) = self.output.as_mut() {
+            output(s);
+            return Ok(());
+        }
         let stdout = io::stdout();
         let mut h = stdout.lock();
         h.write_all(s.as_bytes()).map_err(|e| e.to_string())?;
@@ -132,6 +149,9 @@ impl Host for NativeHost {
     }
 
     fn input(&mut self) -> Result<String, String> {
+        if let Some(source) = self.input_source.as_mut() {
+            return source().ok_or_else(|| "INPUT: no more input".to_string());
+        }
         let mut line = String::new();
         // (INKEY$ may have left the terminal reading a key at a time)
         rapidr_runtime_core::terminal::line_mode();
@@ -257,7 +277,8 @@ fn call_builtin_native(name: &str, args: &[Value]) -> Value {
         "inkey" => rp_inkey(),
         "rapidr__waitkey" => rp_waitkey(),
         "sleep" => { rp_sleep(&a0); v_null() }
-        "command" => rp_command(),
+        "command" => if args.is_empty() { rp_command() } else { rp_command_arg(&a0) },
+        "commandcount" => rp_commandcount(),
         "environ" => rp_environ(&a0),
         "doevents" => { rp_doevents(); v_null() }
         "end" => { rp_end(); v_null() }
@@ -401,44 +422,6 @@ fn remove_event_queue(prev: Option<obj::IndirectDispatcher>) {
     EVENTS.with(|q| q.borrow_mut().clear());
 }
 
-/// Runs the program's windows until none is left: pumps UI events and
-/// runs the handlers they queue. Call it after `vm.run(&module)` when
-/// `host.has_components` is true.
-pub fn run_event_loop<H: Host + ?Sized>(module: &Module, vm: &mut Vm<'_, H>) {
-    let prev = install_event_queue();
-    serve_app(module, vm);
-    remove_event_queue(prev);
-}
-
-fn serve_app<H: Host + ?Sized>(module: &Module, vm: &mut Vm<'_, H>) {
-    obj::rp_begin_app_wait();
-    loop {
-        run_queued(module, vm);
-        // (the VM lent to the wait: a native menu held open, the runtime's
-        // tracking ticks fire the due timers and their handlers run here)
-        if obj::rp_pump_wait_serving(&mut || run_queued(module, vm)).is_some() {
-            return;
-        }
-    }
-}
-
-/// The handlers queued so far, each to completion before the next (and
-/// what they queue, continuations included, before it too).
-fn run_queued<H: Host + ?Sized>(module: &Module, vm: &mut Vm<'_, H>) {
-    loop {
-        let events = vm.host_mut().take_events();
-        if events.is_empty() {
-            break;
-        }
-        for event in events {
-            let fn_index = event.handler;
-            if let Err(e) = vm.invoke_event(module, event) {
-                eprintln!("[rapidr] event handler #{fn_index} failed: {e}");
-            }
-        }
-    }
-}
-
 /// The program being run is the file `path` with `args`, not this
 /// executable (the RapidR Runtime running a program file:
 /// `rapidr_runtime_core::program`). Call before [`run_bytes`].
@@ -451,8 +434,8 @@ pub fn set_program(path: &str, args: Vec<String>) {
 ///
 /// Events go through a queue the VM drains itself (see [`EVENTS`]):
 /// `Form.ShowModal` in `MAIN` becomes a wait the VM serves, running the
-/// form's handlers between UI events. After `MAIN`, if components exist,
-/// the program's windows run until they're all closed.
+/// form's handlers between UI events. The program ends with `MAIN`, its
+/// windows with it (RapidQ's).
 ///
 /// Used by both the CLI's `run-bc` subcommand and the
 /// `rapidrintr-runner` stub binary (Phase 8: bytecode → single exe).
@@ -461,15 +444,20 @@ pub fn run_bytes(bytes: &[u8]) -> Result<(), String> {
     rapidr_runtime_core::value::resources::set_all(&module.resources);
     let mut host = NativeHost::default();
     let mut vm = Vm::new(&mut host);
+    run_module(&module, &mut vm)
+}
+
+/// Runs `module`'s main program on `vm`; then the program's end (timers
+/// stopped, files closed).
+pub fn run_module(module: &Module, vm: &mut Vm<'_, NativeHost>) -> Result<(), String> {
     let prev = install_event_queue();
 
-    let main_result = vm.run(&module).map_err(|e| format!("vm error: {e}"));
-    if main_result.is_ok() && vm.host_mut().has_components {
-        serve_app(&module, &mut vm);
-    }
-
-    // Stop timers first so ticks due before the loop ended don't fire
-    // into a finished program.
+    let main_result = vm.run(module).map_err(|e| format!("vm error: {e}"));
+    // The main program's end is the program's, as in RapidQ (RC.EXE: a
+    // program whose main code ends after `Form.Show` exits there — its
+    // form goes, its timers never tick): windows left open close with it.
+    // (A program keeps its windows by waiting: ShowModal, a DOEVENTS loop.)
+    // Timers stop first, so no tick fires into a finished program.
     obj::rp_stop_all_timers();
     obj::rp_mark_shutting_down();
     remove_event_queue(prev);

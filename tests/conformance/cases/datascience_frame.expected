@@ -1,0 +1,78 @@
+4x4 name,age,city,score (4, 4) 0
+name: str,age: i64,city: str,score: f64
+name      age  city  score
+-------  ----  ----  -----
+bob        30  NYC     1.5
+amy        25  LA        2
+Lee, Jo    41  NYC    3.25
+cat      null  LA      0.5
+[4 rows x 4 columns]
+name      age  city  score
+-------  ----  ----  -----
+bob        30  NYC     1.5
+amy        25  LA        2
+Lee, Jo    41  NYC    3.25
+cat      null  LA      0.5
+[4 rows x 4 columns]
+RDataFrame: 4 rows x 4 columns
+  name: str (4 non-null)
+  age: i64 (3 non-null)
+  city: str (4 non-null)
+  score: f64 (4 non-null)
+bob|Lee, Jo||LA|LA|41
+28
+name,age,city,score 2 amy
+cat
+amy Lee, Jo 2
+city,name NYC
+Lee, Jo bob amy cat
+amy cat Lee, Jo bob
+2 bob Lee, Jo
+2 amy
+2
+2 cat
+city  name   age  score
+----  ----  ----  -----
+LA    null    25   1.25
+NYC   null  35.5  2.375
+[2 rows x 4 columns]
+LA 1 2
+71 4.75
+name,age,town,id 4
+3
+0
+2 0.830150831
+city  count
+----  -----
+NYC       2
+LA        2
+[2 rows x 2 columns]
+statistic               age              score
+---------  ----------------  -----------------
+count                     3                  4
+mean                     32             1.8125
+std        6.68331255192114  0.990186219859679
+min                      25                0.5
+25%                    27.5               1.25
+50%                      30               1.75
+75%                    35.5             2.3125
+max                      41               3.25
+[8 rows x 3 columns]
+Lee, Jo amy
+cat
+3 4
+name,age,city,score,state 4 CA
+5 [] SF
+7 5 NYC NY
+BOB Los Angeles 3
+column  0    1
+------  ---  ---
+name    BOB  AMY
+age     30   25
+[2 rows x 3 columns]
+key,column_2 3 []
+0 0 1
+Lee, Jo  4
+name,age,city,score name: str,age: i64,city: str,score: f64 3.25
+a,b 2 []
+4 5 name Lee, Jo 2 []

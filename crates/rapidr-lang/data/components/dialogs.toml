@@ -1,0 +1,117 @@
+# Dialogs: the registry's components (crates/rapidr-lang; src/lib.rs says how to edit).
+group = "Dialogs"
+
+[[component]]
+name = "ROPENDIALOG"
+rapidq = "QOPENDIALOG"
+visual = false
+doc = "The system's Open dialog: Execute shows it and returns whether the user chose a file, then named by FileName. Filter limits the files listed."
+properties = [
+  { name = "Caption", type = "string" },
+  { name = "FileName", type = "string" },
+  { name = "Filter", type = "string" },
+  { name = "FilterIndex", type = "int", default = 1 },
+  { name = "InitialDir", type = "string" },
+  { name = "Title", type = "string", origin = "rapidr" },
+  { name = "DefaultExt", type = "string", origin = "rapidr" },
+]
+methods = [
+  { name = "Execute", returns = "VARIANT", value = true, test = "skip: shows the dialog and waits for the user (tests/fixtures/file_dialogs.bas and the colour / font dialog fixtures answer it)" },
+]
+events = []
+
+[[component]]
+name = "RSAVEDIALOG"
+rapidq = "QSAVEDIALOG"
+visual = false
+doc = "The system's Save dialog: Execute shows it and returns whether the user chose a name, then in FileName."
+properties = [
+  { name = "Caption", type = "string" },
+  { name = "FileName", type = "string" },
+  { name = "Filter", type = "string" },
+  { name = "FilterIndex", type = "int", default = 1 },
+  { name = "InitialDir", type = "string" },
+  { name = "Title", type = "string", origin = "rapidr" },
+  { name = "DefaultExt", type = "string", origin = "rapidr" },
+]
+methods = [
+  { name = "Execute", returns = "VARIANT", value = true, test = "skip: shows the dialog and waits for the user (tests/fixtures/file_dialogs.bas and the colour / font dialog fixtures answer it)" },
+]
+events = []
+
+[[component]]
+name = "RFILEDIALOG"
+rapidq = "QFILEDIALOG"
+from = "RAPIDQ2.INC"
+visual = false
+doc = "RAPIDQ2.INC's file dialog: one component for Open and Save (Mode), with several files at once (Files, SelCount) and an overwrite warning."
+properties = [
+  { name = "Caption", type = "string", default = "Open" },
+  { name = "DefaultExt", type = "string" },
+  { name = "FileName", type = "string" },
+  { name = "FileTitle", type = "string", access = "read", design = false },
+  { name = "Files", type = "string", design = false, indexed = 1 },
+  { name = "Filter", type = "string", default = "All Files|*.*" },
+  { name = "FilterIndex", type = "int", default = 1 },
+  { name = "InitialDir", type = "string" },
+  { name = "Mode", type = "int" },
+  { name = "MultiSelect", type = "bool", default = false },
+  { name = "NoChangeDir", type = "bool", default = false },
+  { name = "Parent", type = "int", design = false },
+  { name = "SelCount", type = "int", default = 0, access = "read", design = false },
+  { name = "WarnIfOverWrite", type = "bool", default = true },
+  { name = "Title", type = "string", origin = "rapidr" },
+]
+methods = [
+  { name = "Execute", returns = "VARIANT", value = true, test = "skip: shows the dialog and waits for the user (tests/fixtures/file_dialogs.bas and the colour / font dialog fixtures answer it)" },
+]
+events = []
+
+[[component]]
+name = "RCOLORDIALOG"
+rapidq = "QCOLORDIALOG"
+from = "RAPIDQ2.INC"
+visual = false
+doc = "A colour picker (RAPIDQ2.INC's): Execute shows it and returns 1 when the user picks a colour, then in Color; Colors holds the 16 custom colours."
+properties = [
+  { name = "Caption", type = "string" },
+  { name = "Colors", type = "int", design = false, indexed = 1 },
+  { name = "Color", type = "color", access = "read", design = false },
+  { name = "Left", type = "int" },
+  { name = "Top", type = "int" },
+  { name = "Style", type = "int" },
+]
+methods = [
+  { name = "Execute", returns = "VARIANT", value = true, test = "skip: shows the dialog and waits for the user (tests/fixtures/file_dialogs.bas and the colour / font dialog fixtures answer it)", doc = "Opens the colour picker. Returns 1 if a colour was selected, 0 if cancelled. Selected value is in .Color." },
+]
+events = []
+
+[[component]]
+name = "RFONTDIALOG"
+rapidq = "QFONTDIALOG"
+visual = false
+default_event = "OnApply"
+doc = "A font picker: Execute shows it and returns 1 when the user chooses a font, then in Name, Size, Color and the styles; GetFont and SetFont trade it with a QFONT."
+properties = [
+  { name = "Color", type = "color" },
+  { name = "FontCount", type = "int", access = "read", design = false },
+  { name = "FontName", type = "string", access = "read", design = false, indexed = 1 },
+  { name = "MaxFontSize", type = "int" },
+  { name = "MinFontSize", type = "int" },
+  { name = "Size", type = "int" },
+  { name = "FontSize", type = "int", origin = "rapidr" },
+  { name = "FontColor", type = "color", origin = "rapidr" },
+  { name = "Name", type = "string" },
+]
+methods = [
+  { name = "AddStyles", params = "Items ..." },
+  { name = "DelStyles", params = "Items ..." },
+  { name = "AddOptions", params = "Items ..." },
+  { name = "DelOptions", params = "Items ..." },
+  { name = "Execute", returns = "VARIANT", value = true, test = "skip: shows the dialog and waits for the user (tests/fixtures/file_dialogs.bas and the colour / font dialog fixtures answer it)", doc = "Opens the font dialog. Returns 1 if a font was chosen, 0 if cancelled. Read .FontName / .FontSize / .FontColor / .FontStyle for the result." },
+  { name = "GetFont", params = "F AS QFONT", missing = true },
+  { name = "SetFont", params = "F AS QFONT" },
+]
+events = [
+  { name = "OnApply" },
+]

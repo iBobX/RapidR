@@ -7,16 +7,68 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Legal
+- **A review of RapidQ's terms, rights and trademarks, and of everything
+  RapidR takes from RapidQ** (`docs/legal/rapidq-review.md`): RapidQ's
+  freeware terms (free use, programs may be sold; only selling RapidQ itself
+  is forbidden), the rights sold to REAL Software (now Xojo, Inc.) in 2000,
+  trademark searches (no RapidQ or RapidR mark for software anywhere
+  searched), the law on re-implementing a language and its interface, and
+  the use of RC.EXE as a black box for testing. Every blob of the git
+  history was compared with RapidQ's distribution and manual: no file of it
+  was ever committed.
+- The built-in `RAPIDQ.INC` constants (what `$INCLUDE "RAPIDQ.INC"` gives
+  without the file) are regrouped by public origin — Windows SDK numbers,
+  Delphi VCL types, RapidQ's own — in RapidR's own order and words; the
+  same 483 names and values, pinned by a test. Programs see no change.
+- What still came from RapidQ material is rewritten: a 9-line routine from
+  one of RapidQ's examples in a conformance case, the manual's example data
+  in three test fixtures and a unit test, and manual quotes in comments and
+  docs (paraphrased). RC.EXE's output of RapidQ's own example programs moved
+  out of the repository (`.reference/rapidq_golden/`, `RAPIDQ_GOLDEN`).
+- `CONTRIBUTING.md` (no RapidQ code, text, includes, examples or media; what
+  may be used for compatibility), `NOTICE` (shipped in every package),
+  `docs/legal/clean-room.md` (how RapidR is developed independently), and a
+  clearer non-affiliation and trademark statement in `LEGAL.md`, the README
+  and the release notes.
+
 ### Added
+- **The language registry** (`crates/rapidr-lang`, RapidR Studio I0): one
+  description of the language (every component, property, method, event,
+  builtin, statement and constant, with types, defaults, signatures and
+  short docs in RapidR's own words), compiled from `data/*.toml`. The
+  compilers' component list, the runtimes' name tests, the editor's
+  keyword groups, the icon tools, the manual's reference pages and the
+  web IDE's completion data all come from it; `rapidr lang export` writes
+  them, `tools/lang_dispatch.py --check` proves every name the runtimes
+  answer is in it, and `tests/lang_conformance.mjs` runs one program per
+  component on every runtime. RDOCKMANAGER and the icon methods
+  (`Bitmap.LoadIcon`, `ImageList.AddIcon`) are in it.
 - **The user manual** (`docs/manual/`): getting started, the language,
   components (RapidQ's Q names and RapidR's R names), the CLI and the
   Runtime, the web, databases, data science, DirectX and media,
   differences from RapidQ, troubleshooting. Its reference pages (components,
-  builtins, data-science members) are generated from the source by
-  `python3 tools/manual_reference.py` (`--check` fails when they're stale).
+  builtins, members, statements, constants, data-science members) are
+  generated from the language registry by `rapidr lang export --manual`
+  (`cargo test -p rapidr-lang` fails when they're stale).
   Every SDK installs it in `share/doc/rapidr/manual/`.
 - The release notes of v2.117.0, the first public release
   (`docs/release-notes/v2.117.0.md`).
+- Conformance cases `datascience_num`, `datascience_frame` and
+  `datascience_plot`: every documented RNUM, RDATAFRAME and RPLOT member,
+  checked on the VM, native builds and the web (`tests/web_conformance.mjs`).
+- Data-science members the desktop or the web lacked now work everywhere:
+  RNUM `create`, `set`, `get`, `push`, `avg`, and `Sum` / `Mean` / `Min` /
+  `Max` / `Std` / `Count` as properties; RDATAFRAME `create`, `addrow`,
+  `savetocsv`, `loadfromjson`, `savetojson`, `iloc`, `sort_values`,
+  `query`, `groupby`, `value_counts`, `nunique`, `corr`, `nlargest`,
+  `nsmallest`, `dtypes`, `merge`, `concat`, `apply`, `replace` on the web;
+  RPLOT `addseries`, `settitle` / `setxlabel` / `setylabel`, `show` /
+  `render` on the desktop, and `xscale` / `yscale`, `xlim` / `ylim`, `DPI`
+  on the web. `LoadFromCSV` / `LoadFromJSON` also take the data itself;
+  `filter` also takes `=`, `<>`, `startswith`, `endswith`, and `contains`
+  is a substring test on every runtime; `groupby` also takes `median` and
+  `std`; `cell` / `setcell` also take a column name.
 - **The examples, curated for the first release** (`examples/`, indexed by
   `examples/README.md`): 26 small commented programs by topic — basics/
   (hello, INPUT, files, the language), gui/ (a form and its events, menus,
@@ -44,7 +96,136 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   installs ship them in `lib/rapidr/examples/` (the home's, as a checkout's
   `examples/`: `tools/release/stage.py`).
 
+- **RapidR's own icon set** (IDE plan decision D8; `design/icons/`). There
+  are 344 icons, our own drawings (MIT), each drawn once on a 24 px grid and
+  hinted at 16, 24 and 32 px:
+  - every action and command of RapidR Studio;
+  - every component type (QBUTTON and RBUTTON share one), the IDE plan's
+    planned components and RPLOT's chart kinds;
+  - file types (the brand's R on `.rr`, `.rrbc` and `.rrproj`), symbol
+    kinds, toolbox groups and glyphs.
+
+  Monochrome action icons follow the theme; component icons are two-tone,
+  in colour tokens for the classic, modern, dark and high-contrast themes
+  (3:1 or better everywhere, monochrome in high contrast). The design system
+  is in `design/icons/README.md`.
+  - The new crate `rapidr-icons` themes and renders the icons through
+    resvg, picks the drawing hinted for the device's size (crisp at 1×,
+    1.5× and 2×) and builds for wasm32. Its SVGs are stored deflated
+    (42 KB) and inflated on first use.
+  - The UI kernel draws an icon with `Painter::icon`.
+  - New in programs (additions; RapidR's own): `Bitmap.LoadIcon(Name$
+    [, Size [, Theme$]])` and `ImageList.AddIcon(Name$ [, Theme$])`, by
+    icon name (`"run"`), component type (`"QBUTTON"`) or command id
+    (`"file.open"`).
+  - `design/icons/inventory.toml` lists what has an icon. Components come
+    from `COMPONENT_TYPES`; the toolbox groups keep RapidQ's components
+    under "RapidQ" and the rest under "RapidR". The build and the crate's
+    tests fail when a component type or a command has no icon.
+  - The manual's component reference shows each component's icon, and
+    `docs/manual/icons/` holds every icon as SVG (light and dark), PNG and
+    an HTML catalog.
+  - `tools/regress.sh unit` checks that everything is up to date.
+
+### Changed
+- **RNUM, RDATAFRAME and RPLOT are one implementation for every runtime**
+  (`rapidr_value::datascience`, docs/ide-plan.md decision D7): native
+  builds, interpreted programs and the browser run the same arrays, frames
+  (with their CSV and JSON readers and writers) and chart model; a runtime
+  adds only PRINT and filling a QSTRINGGRID. Charts are drawn by the UI
+  kernel, pixel-identical on the desktop and the web and crisp at every
+  screen scale (category axes, integer ticks); frames are a columnar
+  engine of RapidR's own (a million rows: load 114 ms, sort 182 ms, group
+  80 ms, join 60 ms). polars, ndarray and plotters are no longer
+  dependencies — 89 fewer crates in the tree, smaller native builds — and
+  THIRD_PARTY_NOTICES.md is regenerated. Where the two implementations
+  disagreed, one behaviour was chosen: `setcell(row, col, value)` (the
+  web took the column first), `randint` includes both ends, `reciprocal`
+  of 0 is INF, a missing array reads as empty, `Shape` of an RNUM is
+  `(3,)`, `groupby` puts the group column first and orders groups by key,
+  `describe` summarises the numeric columns (count, mean, std, min,
+  quartiles, max), `transpose` names its first column `column`, charts
+  default to 640 × 480 px without a grid, and computed numbers print as
+  RapidR prints numbers (`0.3`, not `0.30000000000000004`).
+  `examples/web_datascience.rr` and the web IDE's hover help follow.
+- **RPLOT's charts look the same, and better, on the desktop and the
+  web**: the axes' ranges, bar widths and legend place come from the shared
+  model (`Plot::ranges`, `nice_ticks`, `legend_corner`) — round 1-2-5
+  ticks without `.0` on whole numbers, a light grid, 2-pixel lines, real
+  dashed lines (`--`), bars wholly inside the axes standing on 0, a line
+  chart fitting its data, the legend framed in a corner free of data (the
+  y axis reaching higher when none is, as Matplotlib's headroom), pies from twelve o'clock with labels outside and white between
+  slices. Desktop charts are drawn twice as fine and averaged down (smooth
+  edges), with text at the web's sizes.
+- **Charts are sharp on high-DPI screens**: `Image.LoadFromPlot` keeps
+  what draws the chart again at the screen's scale (`Bitmap::set_redraw`,
+  as an SVG picture is), and the web's chart canvas draws at the page's
+  scale; the pixels a program reads stay the 1× ones.
+- `ToGrid` makes the header the grid's fixed row and no column fixed, so
+  every column of the frame shows as data.
+- **Web: Open and Save use the user's real files**, through the browser's
+  own pickers, as the desktop uses the system's dialogs; the in-page "Save
+  As" list of the page's files with its Upload… button is gone.
+  QOPENDIALOG / QFILEDIALOG open the system's Open dialog
+  (`showOpenFilePicker` in Chrome / Edge, a file input in Firefox / Safari)
+  and read the files picked before `Execute` returns; QSAVEDIALOG opens the
+  system's Save dialog in Chrome / Edge (`showSaveFilePicker`, FileName and
+  DefaultExt proposed). The program reads and writes them with its ordinary
+  file I/O: a name a dialog answered is the real file's (its writes go to
+  it), any other name stays in the browser's store. Firefox and Safari have
+  no save dialog: RapidR asks for the name in a box of its own, and the
+  program's writes to it are a download. `Filter` is the pickers' file
+  types (the FilterIndex one first; "All files" only when the Filter has
+  it — and a file input, which takes one group only, lets every file
+  through then, so none is greyed out); Cancel returns 0. Execute with no
+  user gesture left (from a timer) shows a small box whose button opens the
+  picker. In the web IDE the IDE shows the pickers for the program's
+  sandboxed frame and writes back only to the files picked during that run.
+  docs/manual/web.md says what each browser does.
+- **Web IDE: the run window** follows the IDE's theme (no more Windows-blue
+  title bar around the program's own windows, which draw their frames in
+  the program's theme), and is big enough for the program's windows and
+  dialogs, not only the startup form's design size.
+- INPUT's box and the host's prompts select their proposed text, so typing
+  replaces it, as Windows' boxes do.
+- README rewritten for newcomers (install from the releases first, a quick
+  start, what's in it, the platforms checked); COMPILER_MANUAL.md is now
+  the contributor manual for today's architecture, and its outdated PDF is
+  gone.
+- The git history no longer holds the earlier versions of QDockForm and
+  QDirListView (close ports of user-contributed RapidQ code) or of the four
+  conformance cases and the `tab_control` fixture that reused the manual's
+  examples: every commit carries the clean versions instead (same commits,
+  authors and messages; today's tree unchanged). Clones made before
+  2026-10-06 should be cloned again.
+
 ### Fixed
+- **Web: typing in a Save As dialog went into the program's window
+  below.** In the web IDE, Notepad's File > Save As showed an in-page
+  dialog; a click in its file name field lost the focus at once, and the
+  keys went into Notepad's editor. The dialog was a page element, not a
+  window of the UI kernel, and the Open / Save wait put the program's own
+  form on the modal list as the innermost modal window: each repaint of it
+  (the caret's blink) synced its accessibility mirror, which moved the
+  page's focus back to its editor. The in-page dialog is gone (see Changed),
+  and the form now goes on the modal list *before* the host is asked, so a
+  box the host shows for the dialog is the innermost window and keeps the
+  focus, the keys and the clicks. The modal rule is checked with real input
+  on the web for every dialog — MESSAGEBOX, MESSAGEDLG, SHOWMESSAGE,
+  INPUT's box, QCOLORDIALOG, QFONTDIALOG, a ShowModal form and the Open /
+  Save boxes: a click on the window below is refused and the focus stays
+  while it repaints, keys never reach it, Tab / Shift+Tab cycle inside the
+  dialog, Enter presses its default button, Escape cancels, and the focus
+  goes back to the control that had it (`tests/web_modal_focus.mjs`,
+  `tests/web_file_dialogs.mjs`).
+- **Desktop (macOS): a click on a window under a modal dialog brought that
+  window over the dialog.** Its input was refused, but the window took the
+  keyboard and covered the box (MESSAGEBOX, colour, font, a ShowModal
+  form), native and interpreted alike: the host gave the modal window the
+  focus back inside the focus event, and the click's own activation won.
+  It now gives it back again once the click is over, so the dialog stays in
+  front with the keyboard, as Windows keeps a modal dialog over its owner
+  (checked with real clicks and keys on both builds).
 - QSTRINGGRID with `FixedCols = 0` (or `FixedRows = 0`) showed from column
   (row) 1: the first scrollable column stays the first one shown, as in
   Delphi's grid.
@@ -56,18 +237,84 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   too.
 - RDATAFRAME's `LoadFromCsv` on the web reads a file the program saved
   (`EXTRACTRESOURCE`, OPEN), not only the project's.
-
-### Changed
-- README rewritten for newcomers (install from the releases first, a quick
-  start, what's in it, the platforms checked); COMPILER_MANUAL.md is now
-  the contributor manual for today's architecture, and its outdated PDF is
-  gone.
-- The git history no longer holds the earlier versions of QDockForm and
-  QDirListView (close ports of user-contributed RapidQ code) or of the four
-  conformance cases and the `tab_control` fixture that reused the manual's
-  examples: every commit carries the clean versions instead (same commits,
-  authors and messages; today's tree unchanged). Clones made before
-  2026-10-06 should be cloned again.
+- **The main program's end is the program's**, as in RapidQ (RC.EXE,
+  checked in the Windows VM): a program whose main code ends after
+  `Form.Show` (no ShowModal, no DOEVENTS loop) runs OnShow inside Show and
+  then ends — its form goes, its timers never tick. The interpreter kept
+  such a program's windows open with their timers stopped (so a QTIMER
+  never ticked), the web kept them open and ticking; native builds already
+  ended. The loop after the main program is gone from the interpreter, the
+  debugger and both web builds (`rp_run_app`, `Wait::App`). Conformance
+  case `main_ends_after_show`, `tests/web_main_end.mjs`.
+- **`Form.` with no member right after the dot** is RC.EXE's `Member  not
+  part of class FORM` (the member it read is empty; `Form.Font.` is
+  `Member FONT. not part of class FORM`): the next line was joined to it,
+  so `Form.` then `Nope x` compiled. A space after the dot (`Form. Caption`)
+  and WITH's `.` alone are the same error, as in RapidQ; `Form._` with
+  the member on the next line still joins. Cases `member_dot_alone`,
+  `member_dot_continued`.
+- **`$TYPECHECK ON` checks the names a program reads**, not only those it
+  stores into: an undeclared name passed to a method (`List.AddItems
+  itme`), a SUB or FUNCTION, printed, or used in an expression or a
+  condition is RC.EXE's `Undefined symbol ITME`. A name stored into while
+  the check was off is a variable from there on, as in RapidQ; True /
+  False and RapidR's own constants stay known (RapidR's additions). Cases
+  `typecheck_reads`, `typecheck_reads_ok`.
+- **A SUB or FUNCTION written without its parameters has the ones it was
+  DECLAREd with** (`DECLARE FUNCTION G (a AS INTEGER) AS INTEGER` then
+  `FUNCTION G` reads `a`; RC.EXE's G(4) is 8): `a` was an implicit
+  variable there (0). RapidQ's `forms/MinToTaskbar.bas` is written so.
+- **A program sees only its own command line**, however it runs. `rapidr
+  run-bc prog.rrbc a b` handed the program the runner's own arguments
+  (`COMMAND$` was "run-bc prog.rrbc a b"; the IDE opened "run-bc …" as a
+  file), and so did a standalone runner's `--bytecode <file>`; now they
+  set the program to the file with the arguments after it, as `rapidr run`,
+  `rapidr open`, the IDE and built executables do. An old macOS's `-psn_…`
+  argument (Finder's process number) is no argument either.
+- **`COMMAND$(n)` and `CommandCount`**, as RapidQ's (RC.EXE, checked in
+  the Windows VM): `CommandCount` was an unknown name (0) and `COMMAND$(n)`
+  ignored `n`. Now `COMMAND$(0)` is the program's file, `COMMAND$(1)` …
+  its arguments (`"b c"` one), any other index ""; the bare `COMMAND$`
+  stays RapidR's (the arguments joined with spaces). On the web the
+  arguments are the page's query string's parts (`?a&b%20c`: `a`, `b c`),
+  decoded, or the ones a page hands its program (`window.RAPIDR_ARGS`):
+  the web IDE's preview gives none, never its frame's own query string
+  (a program there saw "role=run&v=…"). Shared by every runtime (`rapidr_value::command_line`);
+  conformance cases `command_line_args` (with the runner's new
+  `<case>.args`) and `command_line_none`, the web bundle's query string in
+  `tests/web_bundle_console.mjs`.
+- `RDataFrame.ToString` / `Print` on the desktop showed only
+  `shape: (2, 2)` and a note about polars' `fmt` feature, and `Print`
+  printed twice: a frame now prints once, as a plain-text table that is the
+  same on every runtime (a header, a rule, the rows — numbers
+  right-aligned, `null` for a missing value, the first and last ten rows of
+  a longer frame — and `[2 rows x 3 columns]`); `ToString` returns it
+  without printing.
+- `RDataFrame.Cell` / `CellByName` returned text cells in double quotes
+  (`"bob"`) on the desktop: they return the plain text.
+- `RNum.Shape` printed "RNum.shape() not implemented" instead of the
+  array's shape; a property read the way methods are (`PRINT a.Shape`)
+  now reads the property on every data-science component.
+- On the web, `RDataFrame.SaveToCSV` / `SaveToJSON` before any other file
+  I/O wrote nowhere: data frames use the page's files from the start.
+- QSTRINGGRID with `FixedCols = 0` (or `FixedRows = 0`) showed from column
+  (row) 1: the first scrollable column stays the first one shown, as in
+  Delphi's grid.
+- RJSON on the web: `LoadFile` / `SaveFile` work (the page's files, as
+  OPEN's), values `Set` as numbers / booleans as on the desktop; on the
+  desktop an object's keys keep their order (as the browser's), `Remove`
+  too.
+- **A FUNCTION's own name inside it** follows RapidQ's compiler (RC.EXE):
+  without parameters it is a call of itself (`G = G + 1` recurses);
+  with parameters, reading it without arguments is the compile error
+  `Expected ( but got "+"` on every runtime. The interpreter read the
+  result variable instead, and native builds failed to compile such a
+  program. `RESULT` reads the result. Conformance cases
+  `function_self_name`, `function_self_read` (checked against RC.EXE).
+- `ANNOUNCEMENT.md` announced "1.0.0" and called RapidR a reimplementation:
+  it now announces 2.117.0 as the release notes do — RapidR is compatible
+  with RapidQ, an original implementation written from the ground up in
+  pure Rust.
 
 ## [2.117.0] — 2026-10-06
 
@@ -1208,8 +1455,8 @@ network (16, not run).
 ## [2.84.0] — 2026-09-30
 
 ### Changed
-- Undeclared variables are DOUBLE, as in RapidQ ("all undeclared variables
-  are assumed to be of type DOUBLE if no suffix is provided"), no longer
+- Undeclared variables are DOUBLE, as in RapidQ (a variable without a
+  suffix or declaration is a DOUBLE there), no longer
   VARIANT: `n = 7 / 2` is 3.5 as before, but a string can't go into one.
   `$OPTION DIM VARIANT` brings back the old behavior; `DIM v` without AS is
   still a VARIANT (RapidQ manual, DIM).

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Open</title>
+  <path d="M3 26V6H11L14 9H24V13" stroke="currentColor"/>
+  <path d="M3 26L8 15H29L24 26L3 26Z" stroke="currentColor"/>
+</svg>

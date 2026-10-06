@@ -6,6 +6,10 @@ use std::path::{Path, PathBuf};
 
 use rapidr_diagnostics::{Diagnostic, SourceLocation, TextSpan};
 
+mod origin;
+use origin::{MappedText, Output};
+pub use origin::{decode_source, encode_source, FileId, LineKind, Origin, OriginMap, OriginSpan, Segment, SourceEncoding, SourceFile};
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MacroDefinition {
     params: Option<Vec<String>>,
@@ -25,6 +29,21 @@ pub struct PreprocessOptions {
     /// file's own directory (like RapidQ's `include\` folder). Native builds
     /// also search the `RAPIDR_INCLUDE_PATH` environment variable.
     pub include_dirs: Vec<PathBuf>,
+    /// Files `$INCLUDE` finds without a file system — the web, where a
+    /// project's files are in memory: (name as the project names it, its
+    /// text). Looked up first, by the include's path or its last part, in
+    /// any case.
+    pub virtual_files: Vec<(String, String)>,
+}
+
+/// The virtual file `include_file` names ([`PreprocessOptions::virtual_files`]).
+fn find_virtual<'a>(files: &'a [(String, String)], include_file: &str) -> Option<&'a (String, String)> {
+    let wanted = include_file.trim().replace('\\', "/");
+    let base = wanted.rsplit('/').next().unwrap_or(&wanted).to_string();
+    files
+        .iter()
+        .find(|(name, _)| name.replace('\\', "/").eq_ignore_ascii_case(&wanted))
+        .or_else(|| files.iter().find(|(name, _)| name.replace('\\', "/").rsplit('/').next().is_some_and(|b| b.eq_ignore_ascii_case(&base))))
 }
 
 /// State shared by a file and everything it includes: a `$DEFINE` or `$MACRO`
@@ -34,6 +53,7 @@ struct PpState {
     macros: HashMap<String, MacroDefinition>,
     include_stack: Vec<PathBuf>,
     include_dirs: Vec<PathBuf>,
+    virtual_files: Vec<(String, String)>,
     app_type: Option<String>,
     resources: Vec<Resource>,
     /// `$ESCAPECHARS ON` is in effect (it belongs to the file it's in: an
@@ -43,6 +63,14 @@ struct PpState {
     /// RapidR's libraries put before the program (`RAPIDR_LIBRARIES`' file
     /// names, upper case): their RapidQ include files aren't read.
     libraries: Vec<String>,
+    /// Every file read so far (the origin map's files).
+    files: Vec<SourceFile>,
+    /// False when only one text's lines are classified ([`scan_lines`]):
+    /// `$INCLUDE`s aren't read.
+    follow_includes: bool,
+    /// Recovering ([`preprocess_file_recovering`]): errors collected here,
+    /// the line in error left out, and preprocessing goes on.
+    errors: Option<Vec<PreprocessError>>,
 }
 
 impl PpState {
@@ -56,11 +84,31 @@ impl PpState {
             macros: HashMap::new(),
             include_stack: Vec::new(),
             include_dirs: options.include_dirs,
+            virtual_files: options.virtual_files,
             app_type: None,
             resources: Vec::new(),
             escape_chars: false,
             libraries: Vec::new(),
+            files: Vec::new(),
+            follow_includes: true,
+            errors: None,
         }
+    }
+
+    /// The file's id, registering it the first time it's read (`fresh`).
+    fn file_id(&mut self, path: &Option<PathBuf>, text: &str, encoding: SourceEncoding) -> (FileId, bool) {
+        if path.is_some() {
+            if let Some(id) = self.files.iter().position(|f| &f.path == path) {
+                return (id, false);
+            }
+        }
+        self.files.push(SourceFile {
+            path: path.clone(),
+            text: text.to_string(),
+            encoding,
+            lines: vec![LineKind::Code; text.split('\n').count()],
+        });
+        (self.files.len() - 1, true)
     }
 
     /// Value of a VB `#If` condition: True/False, a number, a `#Const` or
@@ -96,24 +144,34 @@ impl PpState {
 /// Reads a source file. RapidQ programs are usually Windows-1252 (ANSI), not
 /// UTF-8; bytes that aren't valid UTF-8 are decoded as Windows-1252.
 pub fn read_source(path: &Path) -> std::io::Result<String> {
-    let bytes = fs::read(path)?;
-    let bytes = bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(&bytes);
-    Ok(match std::str::from_utf8(bytes) {
-        Ok(text) => text.to_string(),
-        Err(_) => bytes.iter().map(|&b| windows_1252_char(b)).collect(),
-    })
+    Ok(read_source_with_encoding(path)?.0)
 }
 
+/// [`read_source`], also saying how the file was decoded.
+pub fn read_source_with_encoding(path: &Path) -> std::io::Result<(String, SourceEncoding)> {
+    Ok(decode_source(&fs::read(path)?))
+}
+
+const WINDOWS_1252_HIGH: [char; 32] = [
+    '\u{20AC}', '\u{81}', '\u{201A}', '\u{192}', '\u{201E}', '\u{2026}', '\u{2020}', '\u{2021}',
+    '\u{2C6}', '\u{2030}', '\u{160}', '\u{2039}', '\u{152}', '\u{8D}', '\u{17D}', '\u{8F}',
+    '\u{90}', '\u{2018}', '\u{2019}', '\u{201C}', '\u{201D}', '\u{2022}', '\u{2013}', '\u{2014}',
+    '\u{2DC}', '\u{2122}', '\u{161}', '\u{203A}', '\u{153}', '\u{9D}', '\u{17E}', '\u{178}',
+];
+
 fn windows_1252_char(byte: u8) -> char {
-    const HIGH: [char; 32] = [
-        '\u{20AC}', '\u{81}', '\u{201A}', '\u{192}', '\u{201E}', '\u{2026}', '\u{2020}', '\u{2021}',
-        '\u{2C6}', '\u{2030}', '\u{160}', '\u{2039}', '\u{152}', '\u{8D}', '\u{17D}', '\u{8F}',
-        '\u{90}', '\u{2018}', '\u{2019}', '\u{201C}', '\u{201D}', '\u{2022}', '\u{2013}', '\u{2014}',
-        '\u{2DC}', '\u{2122}', '\u{161}', '\u{203A}', '\u{153}', '\u{9D}', '\u{17E}', '\u{178}',
-    ];
     match byte {
-        0x80..=0x9F => HIGH[(byte - 0x80) as usize],
+        0x80..=0x9F => WINDOWS_1252_HIGH[(byte - 0x80) as usize],
         _ => byte as char,
+    }
+}
+
+/// The Windows-1252 byte of a character (`?` when it has none).
+fn windows_1252_byte(c: char) -> u8 {
+    match WINDOWS_1252_HIGH.iter().position(|&h| h == c) {
+        Some(i) => 0x80 + i as u8,
+        None if (c as u32) < 0x80 || (0xA0..=0xFF).contains(&(c as u32)) => c as u32 as u8,
+        None => b'?',
     }
 }
 
@@ -129,6 +187,9 @@ pub struct PreprocessResult {
     /// and where it was found (`None`: not found). Resource `i` has the
     /// handle `RESOURCE_BASE + i`, which the directive defines as `NAME`.
     pub resources: Vec<Resource>,
+    /// Where each byte of `source` came from (file and byte offset), and
+    /// the text of every file read.
+    pub origins: OriginMap,
 }
 
 /// One `$RESOURCE` of a program.
@@ -186,7 +247,7 @@ pub fn preprocess_file(
     if let Some(paths) = std::env::var_os("RAPIDR_INCLUDE_PATH") {
         options.include_dirs.extend(std::env::split_paths(&paths));
     }
-    let source = read_source(path).map_err(|error| {
+    let (source, encoding) = read_source_with_encoding(path).map_err(|error| {
         PreprocessError::new(
             format!("Failed to read source file '{}': {error}", path.display()),
             1,
@@ -197,8 +258,8 @@ pub fn preprocess_file(
 
     let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
     let mut state = PpState::new(options);
-    let (source, line_map) = preprocess_program(&source, base_dir, Some(path.to_path_buf()), &mut state)?;
-    Ok(PreprocessResult { source, line_map, app_type: state.app_type, resources: state.resources })
+    let out = preprocess_program(&source, encoding, base_dir, Some(path.to_path_buf()), &mut state)?;
+    Ok(finish(out, state))
 }
 
 pub fn preprocess_source(
@@ -208,8 +269,73 @@ pub fn preprocess_source(
     options: PreprocessOptions,
 ) -> Result<PreprocessResult, PreprocessError> {
     let mut state = PpState::new(options);
-    let (source, line_map) = preprocess_program(source, base_dir.as_ref(), file_path, &mut state)?;
-    Ok(PreprocessResult { source, line_map, app_type: state.app_type, resources: state.resources })
+    let out = preprocess_program(source, SourceEncoding::Utf8, base_dir.as_ref(), file_path, &mut state)?;
+    Ok(finish(out, state))
+}
+
+/// [`preprocess_file`] for tools (editors): an `$INCLUDE` that isn't found
+/// or can't be read, or a malformed `$INCLUDE` / `$RESOURCE`, is reported
+/// and its line left out, and preprocessing goes on (the error's span is
+/// that line's bytes in its file). Fails only when `path` can't be read.
+pub fn preprocess_file_recovering(path: impl AsRef<Path>, options: PreprocessOptions) -> Result<(PreprocessResult, Vec<PreprocessError>), PreprocessError> {
+    let path = path.as_ref();
+    let mut options = options;
+    if let Some(paths) = std::env::var_os("RAPIDR_INCLUDE_PATH") {
+        options.include_dirs.extend(std::env::split_paths(&paths));
+    }
+    let (source, encoding) = read_source_with_encoding(path).map_err(|error| {
+        PreprocessError::new(format!("Failed to read source file '{}': {error}", path.display()), 1, 1, Some(path.display().to_string()))
+    })?;
+    let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
+    let mut state = PpState::new(options);
+    state.errors = Some(Vec::new());
+    let out = preprocess_program(&source, encoding, base_dir, Some(path.to_path_buf()), &mut state)?;
+    let errors = state.errors.take().unwrap_or_default();
+    Ok((finish(out, state), errors))
+}
+
+/// [`preprocess_source`] for tools: errors reported, never fatal (see
+/// [`preprocess_file_recovering`]).
+pub fn preprocess_source_recovering(
+    source: &str,
+    base_dir: impl AsRef<Path>,
+    file_path: Option<PathBuf>,
+    options: PreprocessOptions,
+) -> (PreprocessResult, Vec<PreprocessError>) {
+    let mut state = PpState::new(options);
+    state.errors = Some(Vec::new());
+    match preprocess_program(source, SourceEncoding::Utf8, base_dir.as_ref(), file_path, &mut state) {
+        Ok(out) => {
+            let errors = state.errors.take().unwrap_or_default();
+            (finish(out, state), errors)
+        }
+        // (recovering never fails; kept total anyway)
+        Err(error) => (finish(Output::default(), state), vec![error]),
+    }
+}
+
+fn finish(out: Output, state: PpState) -> PreprocessResult {
+    PreprocessResult {
+        source: out.text,
+        line_map: out.line_map,
+        app_type: state.app_type,
+        resources: state.resources,
+        origins: OriginMap { files: state.files, segments: out.segs },
+    }
+}
+
+/// What each line of `source` is to the preprocessor ([`LineKind`]), for
+/// one file on its own: its `$INCLUDE`s aren't read (so a symbol only an
+/// include file defines counts as undefined in its `$IFDEF`s). Never fails.
+pub fn scan_lines(source: &str, options: PreprocessOptions) -> Vec<LineKind> {
+    let mut state = PpState::new(options);
+    state.follow_includes = false;
+    state.errors = Some(Vec::new());
+    let file = PathBuf::from("<scanned>");
+    match preprocess_program(source, SourceEncoding::Utf8, Path::new("."), Some(file.clone()), &mut state) {
+        Ok(_) => state.files.into_iter().find(|f| f.path.as_ref() == Some(&file)).map(|f| f.lines).unwrap_or_default(),
+        Err(_) => vec![LineKind::Code; source.split('\n').count()],
+    }
 }
 
 /// RapidR's own versions of the components RapidQ's include libraries
@@ -242,44 +368,59 @@ fn names_word(source: &str, word: &str) -> bool {
 }
 
 /// The program, after RapidR's libraries for the components it names.
-fn preprocess_program(source: &str, base_dir: &Path, file_path: Option<PathBuf>, state: &mut PpState) -> Result<(String, Vec<LineOrigin>), PreprocessError> {
-    let mut lines = Vec::new();
-    let mut origins = Vec::new();
+fn preprocess_program(source: &str, encoding: SourceEncoding, base_dir: &Path, file_path: Option<PathBuf>, state: &mut PpState) -> Result<Output, PreprocessError> {
+    let mut out = Output::default();
     for (name, file, text) in RAPIDR_LIBRARIES {
         if names_word(source, name) {
-            let (lib, lib_origins) = preprocess_with_state(text, base_dir, Some(PathBuf::from(format!("<RapidR>/{file}"))), state)?;
-            lines.push(lib);
-            origins.extend(lib_origins);
+            let (lib, lib_id) = preprocess_with_state(text, SourceEncoding::Utf8, base_dir, Some(PathBuf::from(format!("<RapidR>/{file}"))), state)?;
+            out.push_output(lib, (lib_id, text.len(), false));
             state.libraries.push(file.to_ascii_uppercase());
         }
     }
-    let (main, main_origins) = preprocess_with_state(source, base_dir, file_path, state)?;
-    lines.push(main);
-    origins.extend(main_origins);
-    Ok((lines.join("\n"), origins))
+    let (main, main_id) = preprocess_with_state(source, encoding, base_dir, file_path, state)?;
+    out.push_output(main, (main_id, source.len(), false));
+    Ok(out)
 }
 
 fn preprocess_with_state(
     source: &str,
+    encoding: SourceEncoding,
     base_dir: &Path,
     file_path: Option<PathBuf>,
     state: &mut PpState,
-) -> Result<(String, Vec<LineOrigin>), PreprocessError> {
-    let mut output_lines = Vec::new();
-    let mut origins = Vec::new();
+) -> Result<(Output, FileId), PreprocessError> {
+    let (file_id, fresh) = state.file_id(&file_path, source, encoding);
+    let mut kinds = vec![LineKind::Code; if fresh { source.split('\n').count() } else { 0 }];
+    let mut out = Output::default();
     let mut skip_stack: Vec<bool> = Vec::new();
     // One entry per open `#If`: whether one of its branches was taken.
     let mut vb_taken: Vec<bool> = Vec::new();
     let file_label = file_path.as_ref().map(|path| path.display().to_string());
+    let mut line_start = 0;
 
     for (line_index, original_line) in source.split('\n').enumerate() {
         let line_number = line_index + 1;
         let line = original_line.trim();
         let upper_line = line.to_ascii_uppercase();
+        // (where this line is in the file, and the `\n` after it)
+        let range = line_start..line_start + original_line.len();
+        let newline = (file_id, range.end, range.end < source.len());
+        line_start = range.end + 1;
+        // (one output line for this source line, and what the line was)
+        macro_rules! emit {
+            ($out:expr, $kind:expr, $text:expr) => {{
+                if let Some(k) = kinds.get_mut(line_index) {
+                    *k = $kind;
+                }
+                $out.push_line($text, (file_path.clone(), line_number), newline);
+            }};
+        }
+        let blank = MappedText::default;
+        let generated = |text: String| MappedText::generated(text, file_id, range.clone());
 
         // `#!/usr/bin/env rapidr`: a script's first line, for the shell.
         if line_index == 0 && original_line.starts_with("#!") {
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Shebang, blank());
             continue;
         }
 
@@ -294,7 +435,7 @@ fn preprocess_with_state(
             } else {
                 skip_stack.push(should_skip);
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
 
@@ -305,7 +446,7 @@ fn preprocess_with_state(
             let parent_skip = skip_stack.last().copied().unwrap_or(false);
             skip_stack.push(parent_skip || !state.vb_condition(condition));
             vb_taken.push(!skip_stack.last().copied().unwrap_or(true));
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
         if let Some(rest) = upper_line.strip_prefix("#ELSEIF ") {
@@ -317,7 +458,7 @@ fn preprocess_with_state(
                 skip_stack[last] = !now;
                 *vb_taken.last_mut().unwrap() = taken || now;
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
         if upper_line == "#ELSE" || upper_line.starts_with("#ELSE ") || upper_line.starts_with("#ELSE'") {
@@ -326,14 +467,14 @@ fn preprocess_with_state(
                 let last = skip_stack.len() - 1;
                 skip_stack[last] = parent_skip || taken;
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
         if upper_line.starts_with("#END IF") || upper_line.starts_with("#ENDIF") {
             if vb_taken.pop().is_some() {
                 skip_stack.pop();
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
         if let Some(rest) = upper_line.strip_prefix("#CONST ") {
@@ -343,7 +484,7 @@ fn preprocess_with_state(
                     state.defines.insert(name.trim().to_string(), strip_inline_comment(value).trim().to_string());
                 }
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
 
@@ -358,7 +499,7 @@ fn preprocess_with_state(
             } else {
                 skip_stack.push(should_skip);
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
 
@@ -374,7 +515,7 @@ fn preprocess_with_state(
                     skip_stack[last] = !skip_stack[last];
                 }
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
 
@@ -382,12 +523,12 @@ fn preprocess_with_state(
             if !skip_stack.is_empty() {
                 skip_stack.pop();
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
 
         if skip_stack.last().copied().unwrap_or(false) {
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Inactive, blank());
             continue;
         }
 
@@ -402,7 +543,7 @@ fn preprocess_with_state(
                 };
                 state.defines.insert(symbol, value);
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
 
@@ -411,7 +552,7 @@ fn preprocess_with_state(
             if parts.len() >= 2 {
                 state.defines.retain(|key, _| !key.eq_ignore_ascii_case(parts[1]));
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
 
@@ -419,7 +560,7 @@ fn preprocess_with_state(
             if let Some((name, definition)) = parse_macro_definition(line) {
                 state.macros.insert(name, definition);
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
 
@@ -440,7 +581,7 @@ fn preprocess_with_state(
                     }
                 }
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, original_line.to_string());
+            emit!(out, LineKind::Code, MappedText::exact(original_line, file_id, range.start));
             continue;
         }
 
@@ -459,7 +600,7 @@ fn preprocess_with_state(
                 }
                 None => String::new(),
             };
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, text);
+            emit!(out, LineKind::Directive, generated(text));
             continue;
         }
 
@@ -468,27 +609,55 @@ fn preprocess_with_state(
         if upper_line.starts_with("$RESOURCE") {
             let mut consts = Vec::new();
             for part in split_statements(line) {
-                let (name, file) = parse_resource(part.trim()).ok_or_else(|| {
-                    PreprocessError::new(format!("Invalid $RESOURCE syntax: {}", part.trim()), line_number, 1, file_label.clone())
-                })?;
+                let Some((name, file)) = parse_resource(part.trim()) else {
+                    let mut error = PreprocessError::new(format!("Invalid $RESOURCE syntax: {}", part.trim()), line_number, 1, file_label.clone());
+                    match &mut state.errors {
+                        // (recovering: reported, the part left out)
+                        Some(errors) => {
+                            error.diagnostic.span = TextSpan::new(range.start, range.end);
+                            errors.push(error);
+                            continue;
+                        }
+                        None => return Err(error),
+                    }
+                };
                 let handle = RESOURCE_BASE + state.resources.len() as i64;
                 let path = resolve_include_path(base_dir, &file, &[]);
                 state.resources.push(Resource { name: name.clone(), file, path, optional: false });
                 consts.push(format!("CONST {name} = {handle}"));
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, consts.join(" : "));
+            emit!(out, LineKind::Directive, generated(consts.join(" : ")));
             continue;
         }
 
         if upper_line.starts_with("$INCLUDE") {
-            let include_file = parse_include_target(line).ok_or_else(|| {
-                PreprocessError::new(
-                    format!("Invalid $INCLUDE syntax: {line}"),
-                    line_number,
-                    1,
-                    file_label.clone(),
-                )
-            })?;
+            // (classifying one file's lines: its includes aren't read)
+            if !state.follow_includes {
+                emit!(out, LineKind::Directive, blank());
+                continue;
+            }
+            // (an error: the build stops — or, recovering, it's reported and
+            // the line left out)
+            macro_rules! fail {
+                ($message:expr) => {{
+                    let mut error = PreprocessError::new($message, line_number, 1, file_label.clone());
+                    match &mut state.errors {
+                        Some(errors) => {
+                            error.diagnostic.span = TextSpan::new(range.start, range.end);
+                            errors.push(error);
+                            emit!(out, LineKind::Directive, blank());
+                            continue;
+                        }
+                        None => return Err(error),
+                    }
+                }};
+            }
+            let Some(include_file) = parse_include_target(line) else {
+                fail!(format!("Invalid $INCLUDE syntax: {line}"));
+            };
+            if let Some(k) = kinds.get_mut(line_index) {
+                *k = LineKind::Directive;
+            }
 
             // A RapidQ library RapidR has its own version of: that one, put
             // before the program already (or now).
@@ -496,92 +665,86 @@ fn preprocess_with_state(
             if let Some((_, file, text)) = RAPIDR_LIBRARIES.iter().find(|(_, f, _)| f.to_ascii_uppercase() == short) {
                 if !state.libraries.contains(&short) {
                     state.libraries.push(short);
-                    let (lib, lib_origins) = preprocess_with_state(text, base_dir, Some(PathBuf::from(format!("<RapidR>/{file}"))), state)?;
-                    output_lines.push(lib);
-                    origins.extend(lib_origins);
+                    let (lib, _) = preprocess_with_state(text, SourceEncoding::Utf8, base_dir, Some(PathBuf::from(format!("<RapidR>/{file}"))), state)?;
+                    out.push_output(lib, newline);
                 } else {
-                    emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+                    emit!(out, LineKind::Directive, blank());
                 }
                 continue;
             }
-            let include_path = match resolve_include_path(base_dir, &include_file, &state.include_dirs) {
+            let virtual_file = find_virtual(&state.virtual_files, &include_file).cloned();
+            let include_path = match virtual_file.as_ref().map(|(name, _)| PathBuf::from(name)).or_else(|| resolve_include_path(base_dir, &include_file, &state.include_dirs)) {
                 Some(path) => path,
                 None => {
                     // RapidQ programs start with `$INCLUDE "RAPIDQ.INC"`; supply
                     // its constants when the file isn't next to the program.
                     if let Some(builtin) = builtin_include(&include_file) {
-                        emit_line(&mut output_lines, &mut origins, &file_path, line_number, builtin);
+                        emit!(out, LineKind::Directive, generated(builtin));
                         continue;
                     }
-                    return Err(PreprocessError::new(
-                        format!("Include file not found: '{include_file}'"),
-                        line_number,
-                        1,
-                        file_label.clone(),
-                    ));
+                    fail!(format!("Include file not found: '{include_file}'"));
                 }
             };
 
             if state.include_stack.iter().any(|entry| entry == &include_path) {
-                return Err(PreprocessError::new(
-                    format!("Recursive include detected: '{include_file}'"),
-                    line_number,
-                    1,
-                    file_label.clone(),
-                ));
+                fail!(format!("Recursive include detected: '{include_file}'"));
             }
 
-            let include_source = read_source(&include_path).map_err(|error| {
-                PreprocessError::new(
-                    format!("Failed to include '{include_file}': {error}"),
-                    line_number,
-                    1,
-                    file_label.clone(),
-                )
-            })?;
+            // (an IDE's in-memory file first: PreprocessOptions::virtual_files)
+            let read = match virtual_file {
+                Some((_, text)) => Ok((text, SourceEncoding::default())),
+                None => read_source_with_encoding(&include_path),
+            };
+            let (include_source, include_encoding) = match read {
+                Ok(read) => read,
+                Err(error) => fail!(format!("Failed to include '{include_file}': {error}")),
+            };
 
             // The include file has its own $ESCAPECHARS: off to begin with.
             let escape_before = state.escape_chars;
             if escape_before {
-                emit_line(&mut output_lines, &mut origins, &file_path, line_number, "$ESCAPECHARS OFF".to_string());
+                emit!(out, LineKind::Directive, generated("$ESCAPECHARS OFF".to_string()));
                 state.escape_chars = false;
             }
             state.include_stack.push(include_path.clone());
             let nested = preprocess_with_state(
                 &include_source,
+                include_encoding,
                 include_path.parent().unwrap_or_else(|| Path::new(".")),
                 Some(include_path.clone()),
                 state,
             );
             state.include_stack.pop();
-            let (nested_source, nested_origins) = nested?;
-            output_lines.push(nested_source);
-            origins.extend(nested_origins);
+            let (nested, _) = nested?;
+            out.push_output(nested, newline);
             // …and the includer's comes back.
             if state.escape_chars != escape_before {
                 let text = if escape_before { "$ESCAPECHARS ON" } else { "$ESCAPECHARS OFF" };
-                emit_line(&mut output_lines, &mut origins, &file_path, line_number, text.to_string());
+                emit!(out, LineKind::Directive, generated(text.to_string()));
                 state.escape_chars = escape_before;
             }
             continue;
         }
 
-        let mut processed_line = original_line.to_string();
+        let mut processed_line = MappedText::exact(original_line, file_id, range.start);
 
         if !state.macros.is_empty() {
             for (name, definition) in &state.macros {
-                processed_line = expand_macro(&processed_line, name, definition);
+                expand_macro(&mut processed_line, name, definition);
             }
         }
 
         if !state.defines.is_empty() && !upper_line.contains('$') {
-            processed_line = substitute_defines_outside_strings(&processed_line, &state.defines);
+            substitute_defines_outside_strings(&mut processed_line, &state.defines);
         }
 
-        emit_line(&mut output_lines, &mut origins, &file_path, line_number, processed_line);
+        emit!(out, LineKind::Code, processed_line);
     }
 
-    Ok((output_lines.join("\n"), origins))
+    if fresh {
+        state.files[file_id].lines = kinds;
+    }
+    Ok((out, file_id))
 }
 
 impl PreprocessResult {
@@ -609,153 +772,227 @@ impl PreprocessResult {
 /// Where one line of preprocessed source came from.
 pub type LineOrigin = (Option<PathBuf>, usize);
 
-fn emit_line(
-    lines: &mut Vec<String>,
-    origins: &mut Vec<LineOrigin>,
-    file: &Option<PathBuf>,
-    line: usize,
-    text: String,
-) {
-    lines.push(text);
-    origins.push((file.clone(), line));
-}
-
-/// Constants from RapidQ's RAPIDQ.INC (Delphi/Win32 values; colors are BGR
-/// like RapidQ's, which RapidR's runtimes also use). System colours are
-/// Delphi's system-colour TColors (`&H80000000 + COLOR_…`), as the real
-/// RAPIDQ.INC has them: what a form's Color reads, drawn in the theme's
-/// colours (`rapidr_value::objects::color_bgr`).
+/// The constants a RapidQ program gets from `$INCLUDE "RAPIDQ.INC"` when no
+/// such file is next to it (RapidR doesn't ship RapidQ's include files).
+///
+/// Every entry is a name and a number: an interface fact that existing
+/// programs depend on, kept so that they run unchanged. Nothing else of
+/// RapidQ's file is reproduced — no comments, layout or order. The entries
+/// are grouped here by where each number is publicly defined, alphabetically
+/// within a group, and each group says its source (docs/legal/rapidq-review.md,
+/// "RAPIDQ.INC"). Colours are &HBBGGRR numbers, as RapidR's runtimes use them;
+/// a system colour is drawn in the theme's colours
+/// (`rapidr_value::objects::color_bgr`). No name appears twice (a test checks),
+/// so the order has no effect on any program.
 pub const RAPIDQ_INC_CONSTANTS: &[(&str, i64)] = &[
-    // As in the real RAPIDQ.INC (comparisons themselves give -1 / 0).
-    ("False", 0), ("True", 1),
-    // PLAYWAV options
-    ("SND_SYNC", 0), ("SND_ASYNC", 1), ("SND_LOOP", 8),
-    // Colors (&HBBGGRR)
-    ("clBlack", 0x000000), ("clMaroon", 0x000080), ("clGreen", 0x00FF00),
-    ("clOlive", 0x008080), ("clNavy", 0x800000), ("clPurple", 0xFF00FF),
-    ("clTeal", 0x808000), ("clGray", 0x808080), ("clSilver", 0xC0C0C0),
-    ("clRed", 0x0000FF), ("clLime", 0x00FF00), ("clYellow", 0x00FFFF),
-    ("clBlue", 0xFF0000), ("clFuchsia", 0xFF00FF), ("clAqua", 0xFFFF00),
-    ("clWhite", 0xFFFFFF), ("clLtGray", 0xC0C0C0), ("clDkGray", 0x808080),
-    ("clBtnFace", -2147483633), ("clWindow", -2147483643), ("clWindowText", -2147483640),
-    ("clBtnText", -2147483630), ("clBtnShadow", -2147483632), ("clHighlight", -2147483635),
-    ("clHighlightText", -2147483634), ("clGrayText", -2147483631),
-    // Modal results
-    ("mrNone", 0), ("mrOk", 1), ("mrCancel", 2), ("mrAbort", 3), ("mrRetry", 4),
-    ("mrIgnore", 5), ("mrYes", 6), ("mrNo", 7), ("mrAll", 8),
-    // Message boxes
-    ("MB_OK", 0), ("MB_OKCANCEL", 1), ("MB_ABORTRETRYIGNORE", 2), ("MB_YESNOCANCEL", 3),
-    ("MB_YESNO", 4), ("MB_RETRYCANCEL", 5), ("MB_ICONHAND", 16), ("MB_ICONSTOP", 16),
-    ("MB_ICONERROR", 16), ("MB_ICONQUESTION", 32), ("MB_ICONEXCLAMATION", 48),
-    ("MB_ICONWARNING", 48), ("MB_ICONASTERISK", 64), ("MB_ICONINFORMATION", 64),
-    ("IDOK", 1), ("IDCANCEL", 2), ("IDABORT", 3), ("IDRETRY", 4), ("IDIGNORE", 5),
-    ("IDYES", 6), ("IDNO", 7),
-    // Form border styles, window states, alignment
-    ("bsNone", 0), ("bsSingle", 1), ("bsSizeable", 2), ("bsDialog", 3),
-    ("bsToolWindow", 4), ("bsSizeToolWin", 5),
-    ("wsNormal", 0), ("wsMinimized", 1), ("wsMaximized", 2),
-    ("alNone", 0), ("alTop", 1), ("alBottom", 2), ("alLeft", 3), ("alRight", 4), ("alClient", 5),
-    // Mouse buttons
-    ("mbLeft", 0), ("mbRight", 1), ("mbMiddle", 2),
-    // MessageDlg types and buttons
-    ("mtWarning", 0), ("mtError", 1), ("mtInformation", 2), ("mtConfirmation", 3), ("mtCustom", 4),
-    ("mbYes", 1), ("mbNo", 2), ("mbOK", 4), ("mbCancel", 8), ("mbHelp", 16), ("mbAbort", 32),
-    ("mbRetry", 64), ("mbIgnore", 128), ("mbAll", 256),
-    // File stream modes
-    ("fmCreate", 0xFFFF), ("fmOpenRead", 0), ("fmOpenWrite", 1), ("fmOpenReadWrite", 2),
-    // Stream seeking and number types (ReadNum/WriteNum)
+    // ── Windows SDK numbers (Microsoft's public Win32 headers and
+    // documentation, learn.microsoft.com). ──
+    // MessageBox flags (winuser.h)
+    ("MB_ABORTRETRYIGNORE", 2), ("MB_ICONASTERISK", 64), ("MB_ICONERROR", 16),
+    ("MB_ICONEXCLAMATION", 48), ("MB_ICONHAND", 16), ("MB_ICONINFORMATION", 64),
+    ("MB_ICONQUESTION", 32), ("MB_ICONSTOP", 16), ("MB_ICONWARNING", 48), ("MB_OK", 0),
+    ("MB_OKCANCEL", 1), ("MB_RETRYCANCEL", 5), ("MB_YESNO", 4), ("MB_YESNOCANCEL", 3),
+    // MessageBox results (winuser.h)
+    ("IDABORT", 3), ("IDCANCEL", 2), ("IDIGNORE", 5), ("IDNO", 7), ("IDOK", 1), ("IDRETRY", 4),
+    ("IDYES", 6),
+    // virtual-key codes (winuser.h)
+    ("VK_BACK", 8), ("VK_CONTROL", 17), ("VK_DELETE", 46), ("VK_DOWN", 40), ("VK_END", 35),
+    ("VK_ESCAPE", 27), ("VK_F1", 112), ("VK_F10", 121), ("VK_F11", 122), ("VK_F12", 123),
+    ("VK_F2", 113), ("VK_F3", 114), ("VK_F4", 115), ("VK_F5", 116), ("VK_F6", 117), ("VK_F7", 118),
+    ("VK_F8", 119), ("VK_F9", 120), ("VK_HOME", 36), ("VK_INSERT", 45), ("VK_LEFT", 37),
+    ("VK_MENU", 18), ("VK_NEXT", 34), ("VK_PAUSE", 19), ("VK_PRIOR", 33), ("VK_RETURN", 13),
+    ("VK_RIGHT", 39), ("VK_SHIFT", 16), ("VK_SPACE", 32), ("VK_TAB", 9), ("VK_UP", 38),
+    // PlaySound flags (mmsystem.h)
+    ("SND_ASYNC", 1), ("SND_LOOP", 8), ("SND_MEMORY", 4), ("SND_NODEFAULT", 2), ("SND_NOSTOP", 16),
+    ("SND_SYNC", 0),
+    // font character sets (wingdi.h)
+    ("ANSI_CHARSET", 0), ("ARABIC_CHARSET", 178), ("BALTIC_CHARSET", 186),
+    ("CHINESEBIG5_CHARSET", 136), ("DEFAULT_CHARSET", 1), ("EASTEUROPE_CHARSET", 238),
+    ("GB2312_CHARSET", 134), ("GREEK_CHARSET", 161), ("HANGEUL_CHARSET", 129),
+    ("HEBREW_CHARSET", 177), ("JOHAB_CHARSET", 130), ("MAC_CHARSET", 77), ("OEM_CHARSET", 255),
+    ("RUSSIAN_CHARSET", 204), ("SHIFTJIS_CHARSET", 128), ("SYMBOL_CHARSET", 2),
+    ("THAI_CHARSET", 222), ("TURKISH_CHARSET", 162), ("VIETNAMESE_CHARSET", 163),
+    // Windows Sockets protocol, socket type and address family numbers (winsock.h)
+    ("AF_APPLETALK", 16), ("AF_BAN", 21), ("AF_CCITT", 10), ("AF_CHAOS", 5), ("AF_DATAKIT", 9),
+    ("AF_DECnet", 12), ("AF_DLI", 13), ("AF_ECMA", 8), ("AF_FIREFOX", 19), ("AF_HYLINK", 15),
+    ("AF_IMPLINK", 3), ("AF_INET", 2), ("AF_IPX", 6), ("AF_ISO", 7), ("AF_LAT", 14),
+    ("AF_NETBIOS", 17), ("AF_NS", 6), ("AF_PUP", 4), ("AF_SNA", 11), ("AF_UNIX", 1),
+    ("AF_UNKNOWN1", 20), ("AF_UNSPEC", 0), ("AF_VOICEVIEW", 18), ("IPPROTO_ICMP", 1),
+    ("IPPROTO_IDP", 22), ("IPPROTO_IGMP", 2), ("IPPROTO_IP", 0), ("IPPROTO_PUP", 12),
+    ("IPPROTO_RAW", 255), ("IPPROTO_TCP", 6), ("IPPROTO_UDP", 17), ("SOCK_DGRAM", 2),
+    ("SOCK_RAW", 3), ("SOCK_RDM", 4), ("SOCK_SEQPACKET", 5), ("SOCK_STREAM", 1),
+    // raster-operation codes (wingdi.h: BLACKNESS, SRCCOPY, …), under the cm… names of Delphi's TCopyMode
+    ("cmBlackness", 0x000042), ("cmDstInvert", 0x550009), ("cmMergeCopy", 0xC000CA),
+    ("cmMergePaint", 0xBB0226), ("cmNotSrcCopy", 0x330008), ("cmNotSrcErase", 0x1100A6),
+    ("cmPatCopy", 0xF00021), ("cmPatInvert", 0x5A0049), ("cmPatPaint", 0xFB0A09),
+    ("cmSrcAnd", 0x8800C6), ("cmSrcCopy", 0xCC0020), ("cmSrcErase", 0x440328),
+    ("cmSrcInvert", 0x660046), ("cmSrcPaint", 0xEE0086), ("cmWhiteness", 0xFF0062),
+    // colours as COLORREF numbers, &HBBGGRR (wingdi.h RGB)
+    // (clGreen &H00FF00 and clPurple &HFF00FF are RapidQ's: programs see
+    // those, not the usual &H008000 / &H800080.)
+    ("clAqua", 0xFFFF00), ("clBlack", 0x000000), ("clBlue", 0xFF0000), ("clDkGray", 0x808080),
+    ("clFuchsia", 0xFF00FF), ("clGray", 0x808080), ("clGreen", 0x00FF00), ("clLime", 0x00FF00),
+    ("clLtGray", 0xC0C0C0), ("clMaroon", 0x000080), ("clNavy", 0x800000), ("clOlive", 0x008080),
+    ("clPurple", 0xFF00FF), ("clRed", 0x0000FF), ("clSilver", 0xC0C0C0), ("clTeal", 0x808000),
+    ("clWhite", 0xFFFFFF), ("clYellow", 0x00FFFF),
+    // system colours: &H80000000 + the GetSysColor index (winuser.h COLOR_…), the encoding Delphi uses for TColor
+    // (clInfoBk3DDkShadow is index 24, COLOR_INFOBK, under the name RapidQ
+    // programs use.)
+    ("cl3DDkShadow", -2147483627), ("cl3DLight", -2147483626), ("clActiveBorder", -2147483638),
+    ("clActiveCaption", -2147483646), ("clAppWorkSpace", -2147483636),
+    ("clBackGround", -2147483647), ("clBtnFace", -2147483633), ("clBtnHighlight", -2147483628),
+    ("clBtnShadow", -2147483632), ("clBtnText", -2147483630), ("clCaptionText", -2147483639),
+    ("clGrayText", -2147483631), ("clHighlight", -2147483635), ("clHighlightText", -2147483634),
+    ("clHilight", -2147483635), ("clHilightText", -2147483634), ("clInActiveBorder", -2147483637),
+    ("clInActiveCaption", -2147483645), ("clInActiveCaptionText", -2147483629),
+    ("clInfoBk3DDkShadow", -2147483624), ("clInfoText", -2147483625), ("clMenu", -2147483644),
+    ("clMenuText", -2147483641), ("clScrollBar", -2147483648), ("clWindow", -2147483643),
+    ("clWindowFrame", -2147483642), ("clWindowText", -2147483640),
+    // ── Names of the VCL types (Delphi's component library) that RapidQ's
+    // components expose, with the numbers RapidQ programs see: an
+    // enumeration's ordinal, i.e. its position in the type's declaration as
+    // Embarcadero documents it (docwiki.embarcadero.com, under the type's
+    // name), or a constant's value. Where RapidQ's number differs from
+    // today's Delphi (crSize), RapidQ's is kept: programs depend on it. ──
+    // file attributes (SysUtils fa…)
+    ("faAnyFile", 63), ("faArchive", 32), ("faDirectory", 16), ("faHidden", 2), ("faReadOnly", 1),
+    ("faSysFile", 4), ("faVolumeID", 8),
+    // file-open modes (SysUtils)
+    ("fmCreate", 65535), ("fmOpenRead", 0), ("fmOpenReadWrite", 2), ("fmOpenWrite", 1),
+    // seek origins (Classes)
     ("soFromBeginning", 0), ("soFromCurrent", 1), ("soFromEnd", 2),
-    ("Num_BYTE", 1), ("Num_SHORT", 2), ("Num_WORD", 3), ("Num_LONG", 4), ("Num_DWORD", 5),
-    ("Num_SINGLE", 6), ("Num_DOUBLE", 8),
-    // Font styles (AddStyles/DelStyles), special colors, bitmap formats
-    ("fsBold", 0), ("fsItalic", 1), ("fsUnderline", 2), ("fsStrikeOut", 3),
-    ("clNone", 536870911), ("clDefault", 536870912),
-    ("pfDevice", 0), ("pf1bit", 1), ("pf4bit", 2), ("pf8bit", 3), ("pf15bit", 4),
-    ("pf16bit", 5), ("pf24bit", 6), ("pf32bit", 7),
-    // Virtual key codes
-    ("VK_BACK", 8), ("VK_TAB", 9), ("VK_RETURN", 13), ("VK_SHIFT", 16), ("VK_CONTROL", 17),
-    ("VK_MENU", 18), ("VK_PAUSE", 19), ("VK_ESCAPE", 27), ("VK_SPACE", 32),
-    ("VK_PRIOR", 33), ("VK_NEXT", 34), ("VK_END", 35), ("VK_HOME", 36),
-    ("VK_LEFT", 37), ("VK_UP", 38), ("VK_RIGHT", 39), ("VK_DOWN", 40),
-    ("VK_INSERT", 45), ("VK_DELETE", 46),
-    ("VK_F1", 112), ("VK_F2", 113), ("VK_F3", 114), ("VK_F4", 115), ("VK_F5", 116),
-    ("VK_F6", 117), ("VK_F7", 118), ("VK_F8", 119), ("VK_F9", 120), ("VK_F10", 121),
-    ("VK_F11", 122), ("VK_F12", 123),
-    // The rest of RapidQ's RAPIDQ.INC (ENUM-like option numbers: alignment,
-    // styles, grid options, cursors, …). The system colors have no OS lookup
-    // in RapidR: the usual Windows defaults.
-    ("taLeftJustify", 0), ("taRightJustify", 1), ("taCenter", 2), ("SND_NODEFAULT", 2), ("SND_NOSTOP", 16),
-    ("SND_MEMORY", 4), ("clScrollBar", -2147483648), ("clBackGround", -2147483647), ("clActiveCaption", -2147483646), ("clInActiveCaption", -2147483645),
-    ("clMenu", -2147483644), ("clWindowFrame", -2147483642), ("clMenuText", -2147483641), ("clCaptionText", -2147483639), ("clActiveBorder", -2147483638),
-    ("clInActiveBorder", -2147483637), ("clAppWorkSpace", -2147483636), ("clHilight", -2147483635), ("clHilightText", -2147483634), ("clInActiveCaptionText", -2147483629),
-    ("clBtnHighlight", -2147483628), ("cl3DDkShadow", -2147483627), ("cl3DLight", -2147483626), ("clInfoText", -2147483625), ("clInfoBk3DDkShadow", -2147483624),
-    ("ssShift", 256), ("ssCtrl", 16), ("ssAlt", 1), ("fpDefault", 0), ("fpVariable", 1),
-    ("fpFixed", 2), ("ANSI_CHARSET", 0), ("DEFAULT_CHARSET", 1), ("SYMBOL_CHARSET", 2), ("MAC_CHARSET", 77),
-    ("SHIFTJIS_CHARSET", 128), ("HANGEUL_CHARSET", 129), ("JOHAB_CHARSET", 130), ("GB2312_CHARSET", 134), ("CHINESEBIG5_CHARSET", 136),
-    ("GREEK_CHARSET", 161), ("TURKISH_CHARSET", 162), ("VIETNAMESE_CHARSET", 163), ("HEBREW_CHARSET", 177), ("ARABIC_CHARSET", 178),
-    ("BALTIC_CHARSET", 186), ("RUSSIAN_CHARSET", 204), ("THAI_CHARSET", 222), ("EASTEUROPE_CHARSET", 238), ("OEM_CHARSET", 255),
-    ("fsNormal", 0), ("fsMDIChild", 1), ("fsMDIForm", 2), ("fsStayOnTop", 3), ("CtrlDown", 1),
-    ("AltDown", 16), ("ShiftDown", 256), ("biSystemMenu", 0), ("biMinimize", 1), ("biMaximize", 2),
-    ("biHelp", 3), ("caNone", 0), ("caHide", 1), ("caFree", 2), ("caMinimize", 3),
-    ("tlTop", 0), ("tlCenter", 1), ("tlBottom", 2), ("lsNone", 0), ("lsRaised", 1),
-    ("lsRecessed", 2), ("bvNone", 0), ("bvLowered", 1), ("bvRaised", 2), ("bpNone", 0),
-    ("bpSingle", 1), ("ecNormal", 0), ("ecUpperCase", 1), ("ecLowerCase", 2), ("csDropDown", 0),
-    ("csSimple", 1), ("csDropDownList", 2), ("csOwnerDrawFixed", 3), ("csOwnerDrawVariable", 4), ("ssNone", 0),
-    ("ssHorizontal", 1), ("ssVertical", 2), ("ssBoth", 3), ("mrNoToAll", 9), ("mrYesToAll", 10),
-    ("blBMPLeft", 0), ("blBMPRight", 1), ("blBMPTop", 2), ("blBMPBottom", 3), ("bkCustom", 0),
-    ("bkOK", 1), ("bkCancel", 2), ("bkHelp", 3), ("bkYes", 4), ("bkNo", 5),
-    ("bkClose", 6), ("bkAbort", 7), ("bkRetry", 8), ("bkIgnore", 9), ("bkAll", 10),
-    ("crDefault", 0), ("crNone", -1), ("crArrow", -2), ("crCross", -3), ("crIBeam", -4),
+    // TAlign
+    ("alBottom", 2), ("alClient", 5), ("alLeft", 3), ("alNone", 0), ("alRight", 4), ("alTop", 1),
+    // TAlignment
+    ("taCenter", 2), ("taLeftJustify", 0), ("taRightJustify", 1),
+    // TBevelCut
+    ("bvLowered", 1), ("bvNone", 0), ("bvRaised", 2),
+    // TBitBtnKind
+    ("bkAbort", 7), ("bkAll", 10), ("bkCancel", 2), ("bkClose", 6), ("bkCustom", 0), ("bkHelp", 3),
+    ("bkIgnore", 9), ("bkNo", 5), ("bkOK", 1), ("bkRetry", 8), ("bkYes", 4),
+    // TBorderIcon
+    ("biHelp", 3), ("biMaximize", 2), ("biMinimize", 1), ("biSystemMenu", 0),
+    // TCloseAction
+    ("caFree", 2), ("caHide", 1), ("caMinimize", 3), ("caNone", 0),
+    // TColor clNone / clDefault
+    ("clDefault", 536870912), ("clNone", 536870911),
+    // TComboBoxStyle
+    ("csDropDown", 0), ("csDropDownList", 2), ("csOwnerDrawFixed", 3), ("csOwnerDrawVariable", 4),
+    ("csSimple", 1),
+    // TCursor (crDefault … crHandPoint)
+    ("crAppStart", -19), ("crArrow", -2), ("crCross", -3), ("crDefault", 0), ("crDrag", -12),
+    ("crHandPoint", -21), ("crHelp", -20), ("crHourGlass", -11), ("crHSplit", -14),
+    ("crIBeam", -4), ("crMultiDrag", -16), ("crNo", -18), ("crNoDrop", -13), ("crNone", -1),
     ("crSize", -5), ("crSizeNESW", -6), ("crSizeNS", -7), ("crSizeNWSE", -8), ("crSizeWE", -9),
-    ("crUpArrow", -10), ("crHourGlass", -11), ("crDrag", -12), ("crNoDrop", -13), ("crHSplit", -14),
-    ("crVSplit", -15), ("crMultiDrag", -16), ("crSQLWait", -17), ("crNo", -18), ("crAppStart", -19),
-    ("crHelp", -20), ("crHandPoint", -21), ("ftReadOnly", 0), ("ftHidden", 1), ("ftSystem", 2),
-    ("ftVolumeID", 3), ("ftDirectory", 4), ("ftArchive", 5), ("ftNormal", 6), ("sbHorizontal", 0),
-    ("sbVertical", 1), ("scLineUp", 0), ("scLineDown", 1), ("scPageUp", 2), ("scPageDown", 3),
-    ("scPosition", 4), ("scTrack", 5), ("scTop", 6), ("scBottom", 7), ("scEndScroll", 8),
-    ("dsFocused", 0), ("dsSelected", 1), ("dsNormal", 2), ("dsTransparent", 3), ("itImage", 0),
-    ("itMask", 1), ("stNone", 0), ("stText", 2), ("vsIcon", 0), ("vsSmallIcon", 1),
-    ("vsList", 2), ("vsReport", 3), ("tbHorizontal", 0), ("tbVertical", 1), ("tmBottomRight", 0),
-    ("tmTopLeft", 1), ("tmBoth", 2), ("tsNone", 0), ("tsAuto", 1), ("tsManual", 2),
-    ("goFixedVertLine", 0), ("goFixedHorzLine", 1), ("goVertLine", 2), ("goHorzLine", 3), ("goRangeSelect", 4),
-    ("goDrawFocusSelected", 5), ("goRowSizing", 6), ("goColSizing", 7), ("goRowMoving", 8), ("goColMoving", 9),
-    ("goEditing", 10), ("goTabs", 11), ("goRowSelect", 12), ("goAlwaysShowEditor", 13), ("goThumbTracking", 14),
-    ("gcsList", 0), ("gcsEllipsis", 1), ("gcsNone", 2), ("osText", 0), ("osPlusMinusText", 1),
-    ("osPictureText", 2), ("osPlusMinusPictureText", 3), ("osTreeText", 4), ("osTreePictureText", 5), ("ooDrawTreeRoot", 0),
-    ("ooDrawFocusRect", 1), ("ooDrawStretchBitmaps", 2), ("gkText", 0), ("gkHorizontalBar", 1), ("gkVerticalBar", 2),
-    ("gkPie", 3), ("gkNeedle", 4), ("cmBlackness", 66), ("cmDstInvert", 5570569), ("cmMergeCopy", 12583114),
-    ("cmMergePaint", 12255782), ("cmNotSrcCopy", 3342344), ("cmNotSrcErase", 1114278), ("cmPatCopy", 15728673), ("cmPatInvert", 5898313),
-    ("cmPatPaint", 16452105), ("cmSrcAnd", 8913094), ("cmSrcCopy", 13369376), ("cmSrcErase", 4457256), ("cmSrcInvert", 6684742),
-    ("cmSrcPaint", 15597702), ("cmWhiteness", 16711778), ("tmAuto", 0), ("tmFixed", 1), ("lbStandard", 0),
-    ("lbOwnerDrawFixed", 1), ("lbOwnerDrawVariable", 2), ("br110", 0), ("br300", 1), ("br600", 2),
-    ("br1200", 3), ("br2400", 4), ("br4800", 5), ("br9600", 6), ("br14400", 7),
-    ("br19200", 8), ("br38400", 9), ("br56000", 10), ("br57600", 11), ("br115200", 12),
-    ("sbOneStopBit", 0), ("sbOne5StopBits", 1), ("sbTwoStopBits", 2), ("prNone", 0), ("prOdd", 1),
-    ("prEven", 2), ("prMark", 3), ("prSpace", 4), ("fdAnsiOnly", 0), ("fdTrueTypeOnly", 1),
-    ("fdEffects", 2), ("fdFixedPitchOnly", 3), ("fdForceFontExist", 4), ("fdNoFaceSel", 5), ("fdNoOEMFonts", 6),
-    ("fdNoSimulations", 7), ("fdNoSizeSel", 8), ("fdNoStyleSel", 9), ("fdNoVectorFonts", 10), ("fdShowHelp", 11),
-    ("fdWysiwyg", 12), ("fdLimitSize", 13), ("fdScalableOnly", 14), ("fdApplyButton", 15), ("dtReadOnly", 0),
-    ("dtHidden", 1), ("dtSystem", 2), ("dtNormal", 3), ("dtAll", 4), ("drtUnknown", 0),
-    ("drtRemovable", 1), ("drtFixed", 2), ("drtRemote", 3), ("drtCDRom", 4), ("drtRamDisk", 5),
-    ("IPPROTO_IP", 0), ("IPPROTO_ICMP", 1), ("IPPROTO_IGMP", 2), ("IPPROTO_TCP", 6), ("IPPROTO_PUP", 12),
-    ("IPPROTO_UDP", 17), ("IPPROTO_IDP", 22), ("IPPROTO_RAW", 255), ("SOCK_STREAM", 1), ("SOCK_DGRAM", 2),
-    ("SOCK_RAW", 3), ("SOCK_RDM", 4), ("SOCK_SEQPACKET", 5), ("AF_UNSPEC", 0), ("AF_UNIX", 1),
-    ("AF_INET", 2), ("AF_IMPLINK", 3), ("AF_PUP", 4), ("AF_CHAOS", 5), ("AF_IPX", 6),
-    ("AF_NS", 6), ("AF_ISO", 7), ("AF_ECMA", 8), ("AF_DATAKIT", 9), ("AF_CCITT", 10),
-    ("AF_SNA", 11), ("AF_DECnet", 12), ("AF_DLI", 13), ("AF_LAT", 14), ("AF_HYLINK", 15),
-    ("AF_APPLETALK", 16), ("AF_NETBIOS", 17), ("AF_VOICEVIEW", 18), ("AF_FIREFOX", 19), ("AF_UNKNOWN1", 20),
-    ("AF_BAN", 21), ("hsText", 0), ("hsOwnerDraw", 1), ("dupIgnore", 0), ("dupAccept", 1),
-    ("dupError", 2), ("smClip", 0), ("smCenter", 1), ("smScale", 2), ("smStretch", 3),
-    ("smAutoSize", 4), ("osEmpty", 0), ("osLoaded", 1), ("osRunning", 2), ("osOpen", 3),
-    ("osInPlaceActive", 4), ("osUIActive", 5), ("ffGeneral", 0), ("ffExponent", 1), ("ffFixed", 2),
-    ("ffNumber", 3), ("faReadOnly", 1), ("faHidden", 2), ("faSysFile", 4), ("faVolumeID", 8),
-    ("faDirectory", 16), ("faArchive", 32), ("faAnyFile", 63), ("poPortrait", 0), ("poLandscape", 1),
-    ("caClose", 2),
+    ("crSQLWait", -17), ("crUpArrow", -10), ("crVSplit", -15),
+    // TDuplicates
+    ("dupAccept", 1), ("dupError", 2), ("dupIgnore", 0),
+    // TEditCharCase
+    ("ecLowerCase", 2), ("ecNormal", 0), ("ecUpperCase", 1),
+    // TFileAttr (FileCtrl)
+    ("ftArchive", 5), ("ftDirectory", 4), ("ftHidden", 1), ("ftNormal", 6), ("ftReadOnly", 0),
+    ("ftSystem", 2), ("ftVolumeID", 3),
+    // TFloatFormat
+    ("ffExponent", 1), ("ffFixed", 2), ("ffGeneral", 0), ("ffNumber", 3),
+    // TFontDialogOption (fdAnsiOnly … fdApplyButton)
+    ("fdAnsiOnly", 0), ("fdApplyButton", 15), ("fdEffects", 2), ("fdFixedPitchOnly", 3),
+    ("fdForceFontExist", 4), ("fdLimitSize", 13), ("fdNoFaceSel", 5), ("fdNoOEMFonts", 6),
+    ("fdNoSimulations", 7), ("fdNoSizeSel", 8), ("fdNoStyleSel", 9), ("fdNoVectorFonts", 10),
+    ("fdScalableOnly", 14), ("fdShowHelp", 11), ("fdTrueTypeOnly", 1), ("fdWysiwyg", 12),
+    // TFontPitch
+    ("fpDefault", 0), ("fpFixed", 2), ("fpVariable", 1),
+    // TFontStyle
+    ("fsBold", 0), ("fsItalic", 1), ("fsStrikeOut", 3), ("fsUnderline", 2),
+    // TFormBorderStyle
+    ("bsDialog", 3), ("bsNone", 0), ("bsSingle", 1), ("bsSizeable", 2), ("bsSizeToolWin", 5),
+    ("bsToolWindow", 4),
+    // TFormStyle
+    ("fsMDIChild", 1), ("fsMDIForm", 2), ("fsNormal", 0), ("fsStayOnTop", 3),
+    // TGaugeKind
+    ("gkHorizontalBar", 1), ("gkNeedle", 4), ("gkPie", 3), ("gkText", 0), ("gkVerticalBar", 2),
+    // TGridOption (goFixedVertLine … goThumbTracking)
+    ("goAlwaysShowEditor", 13), ("goColMoving", 9), ("goColSizing", 7), ("goDrawFocusSelected", 5),
+    ("goEditing", 10), ("goFixedHorzLine", 1), ("goFixedVertLine", 0), ("goHorzLine", 3),
+    ("goRangeSelect", 4), ("goRowMoving", 8), ("goRowSelect", 12), ("goRowSizing", 6),
+    ("goTabs", 11), ("goThumbTracking", 14), ("goVertLine", 2),
+    // THeaderSectionStyle
+    ("hsOwnerDraw", 1), ("hsText", 0),
+    // TImageType
+    ("itImage", 0), ("itMask", 1),
+    // TListBoxStyle
+    ("lbOwnerDrawFixed", 1), ("lbOwnerDrawVariable", 2), ("lbStandard", 0),
+    // TModalResult
+    ("mrAbort", 3), ("mrAll", 8), ("mrCancel", 2), ("mrIgnore", 5), ("mrNo", 7), ("mrNone", 0),
+    ("mrNoToAll", 9), ("mrOk", 1), ("mrRetry", 4), ("mrYes", 6), ("mrYesToAll", 10),
+    // TMouseButton
+    ("mbLeft", 0), ("mbMiddle", 2), ("mbRight", 1),
+    // TMsgDlgType
+    ("mtConfirmation", 3), ("mtCustom", 4), ("mtError", 1), ("mtInformation", 2), ("mtWarning", 0),
+    // TObjectState (OleCtnrs)
+    ("osEmpty", 0), ("osInPlaceActive", 4), ("osLoaded", 1), ("osOpen", 3), ("osRunning", 2),
+    ("osUIActive", 5),
+    // TOutlineOption
+    ("ooDrawFocusRect", 1), ("ooDrawStretchBitmaps", 2), ("ooDrawTreeRoot", 0),
+    // TOutlineStyle
+    ("osPictureText", 2), ("osPlusMinusPictureText", 3), ("osPlusMinusText", 1), ("osText", 0),
+    ("osTreePictureText", 5), ("osTreeText", 4),
+    // TPixelFormat
+    ("pf15bit", 4), ("pf16bit", 5), ("pf1bit", 1), ("pf24bit", 6), ("pf32bit", 7), ("pf4bit", 2),
+    ("pf8bit", 3), ("pfDevice", 0),
+    // TPrinterOrientation
+    ("poLandscape", 1), ("poPortrait", 0),
+    // TScrollBarKind
+    ("sbHorizontal", 0), ("sbVertical", 1),
+    // TScrollCode
+    ("scBottom", 7), ("scEndScroll", 8), ("scLineDown", 1), ("scLineUp", 0), ("scPageDown", 3),
+    ("scPageUp", 2), ("scPosition", 4), ("scTop", 6), ("scTrack", 5),
+    // TScrollStyle
+    ("ssBoth", 3), ("ssHorizontal", 1), ("ssNone", 0), ("ssVertical", 2),
+    // TSizeMode (OleCtnrs)
+    ("smAutoSize", 4), ("smCenter", 1), ("smClip", 0), ("smScale", 2), ("smStretch", 3),
+    // TSortType
+    ("stNone", 0), ("stText", 2),
+    // TTextLayout
+    ("tlBottom", 2), ("tlCenter", 1), ("tlTop", 0),
+    // TTickMark
+    ("tmBoth", 2), ("tmBottomRight", 0), ("tmTopLeft", 1),
+    // TTickStyle
+    ("tsAuto", 1), ("tsManual", 2), ("tsNone", 0),
+    // TTrackBarOrientation
+    ("tbHorizontal", 0), ("tbVertical", 1),
+    // TViewStyle
+    ("vsIcon", 0), ("vsList", 2), ("vsReport", 3), ("vsSmallIcon", 1),
+    // TWindowState
+    ("wsMaximized", 2), ("wsMinimized", 1), ("wsNormal", 0),
+    // ── RapidQ's own numbers, with no outside origin: TRUE is 1 (comparisons
+    // themselves give -1 / 0), the Num_… sizes of ReadNum / WriteNum, the
+    // shift-state and key-state bits, QComPort's baud / stop-bit / parity
+    // codes, the MessageDlg button bits (mbYes 1 … mbAll 256), and the option
+    // numbers of a few components. Each is a fact a RapidQ program may use. ──
+    ("AltDown", 16), ("blBMPBottom", 3), ("blBMPLeft", 0), ("blBMPRight", 1), ("blBMPTop", 2),
+    ("bpNone", 0), ("bpSingle", 1), ("br110", 0), ("br115200", 12), ("br1200", 3), ("br14400", 7),
+    ("br19200", 8), ("br2400", 4), ("br300", 1), ("br38400", 9), ("br4800", 5), ("br56000", 10),
+    ("br57600", 11), ("br600", 2), ("br9600", 6), ("caClose", 2), ("CtrlDown", 1), ("drtCDRom", 4),
+    ("drtFixed", 2), ("drtRamDisk", 5), ("drtRemote", 3), ("drtRemovable", 1), ("drtUnknown", 0),
+    ("dsFocused", 0), ("dsNormal", 2), ("dsSelected", 1), ("dsTransparent", 3), ("dtAll", 4),
+    ("dtHidden", 1), ("dtNormal", 3), ("dtReadOnly", 0), ("dtSystem", 2), ("False", 0),
+    ("gcsEllipsis", 1), ("gcsList", 0), ("gcsNone", 2), ("lsNone", 0), ("lsRaised", 1),
+    ("lsRecessed", 2), ("mbAbort", 32), ("mbAll", 256), ("mbCancel", 8), ("mbHelp", 16),
+    ("mbIgnore", 128), ("mbNo", 2), ("mbOK", 4), ("mbRetry", 64), ("mbYes", 1), ("Num_BYTE", 1),
+    ("Num_DOUBLE", 8), ("Num_DWORD", 5), ("Num_LONG", 4), ("Num_SHORT", 2), ("Num_SINGLE", 6),
+    ("Num_WORD", 3), ("prEven", 2), ("prMark", 3), ("prNone", 0), ("prOdd", 1), ("prSpace", 4),
+    ("sbOne5StopBits", 1), ("sbOneStopBit", 0), ("sbTwoStopBits", 2), ("ShiftDown", 256),
+    ("ssAlt", 1), ("ssCtrl", 16), ("ssShift", 256), ("tmAuto", 0), ("tmFixed", 1), ("True", 1),
 ];
 
 /// RapidQ's library include files whose object RapidR has built in
 /// (rapidr_ast::library), with the constants each defines: what such an
-/// `$INCLUDE` gives when the file isn't on disk.
+/// `$INCLUDE` gives when the file isn't on disk. Only the names and numbers
+/// programs use with those objects (a player's state, a wave's format, the
+/// CGI object's input limits) — interface facts, listed in numeric order; no
+/// code or text of the libraries is in RapidR (their objects are RapidR's own
+/// implementations of the behaviour), and `qcgi.inc`, which is GPL, is not
+/// needed (docs/legal/rapidq-review.md, "Library includes").
 const LIBRARY_INCLUDES: &[(&str, &[(&str, i64)])] = &[
     ("qcgi.inc", &[("CGI_INPUT_DEFAULT", 32767), ("CGI_INPUT_LARGE", 65535), ("CGI_INPUT_SMALL", 255), ("CGI_MAX_PAIRS", 256)]),
     ("qdownload.inc", &[]),
@@ -918,41 +1155,46 @@ fn find_case_insensitive(root: &Path, relative: &str) -> Option<PathBuf> {
     current.is_file().then_some(current)
 }
 
-fn expand_macro(line: &str, name: &str, definition: &MacroDefinition) -> String {
-    if !line.contains(name) {
-        return line.to_string();
+/// At most this many expansions of one macro on one line: a macro whose
+/// body calls itself (`$MACRO F(x) = F(x)`) would otherwise never end.
+const MAX_MACRO_EXPANSIONS: usize = 10_000;
+
+fn expand_macro(line: &mut MappedText, name: &str, definition: &MacroDefinition) {
+    // (a `$MACRO` without a name matches nothing)
+    if name.is_empty() || !line.text.contains(name) {
+        return;
     }
 
     match &definition.params {
         Some(params) => expand_parameterized_macro(line, name, params, &definition.body),
-        None => replace_identifier_occurrences(line, name, &definition.body),
+        None => {
+            for at in identifier_occurrences(&line.text, name).into_iter().rev() {
+                line.replace(at, &definition.body);
+            }
+        }
     }
 }
 
-fn expand_parameterized_macro(line: &str, name: &str, params: &[String], body: &str) -> String {
-    let mut result = line.to_string();
-
-    loop {
-        let Some(call_start) = find_identifier_call(&result, name) else {
+fn expand_parameterized_macro(result: &mut MappedText, name: &str, params: &[String], body: &str) {
+    for _ in 0..MAX_MACRO_EXPANSIONS {
+        let Some(call_start) = find_identifier_call(&result.text, name) else {
             break;
         };
 
         let open_index = call_start + name.len();
-        let Some(close_index) = find_matching_paren(&result, open_index) else {
+        let Some(close_index) = find_matching_paren(&result.text, open_index) else {
             break;
         };
 
-        let args_text = &result[open_index + 1..close_index];
+        let args_text = &result.text[open_index + 1..close_index];
         let args = split_macro_args(args_text);
         let mut expanded = body.to_string();
         for (param, arg) in params.iter().zip(args.iter()) {
             expanded = expanded.replace(param, arg);
         }
 
-        result.replace_range(call_start..=close_index, &expanded);
+        result.replace(call_start..close_index + 1, &expanded);
     }
-
-    result
 }
 
 fn find_identifier_call(line: &str, name: &str) -> Option<usize> {
@@ -1021,44 +1263,53 @@ fn split_macro_args(args: &str) -> Vec<String> {
     parts
 }
 
-fn substitute_defines_outside_strings(line: &str, defines: &HashMap<String, String>) -> String {
-    let mut parts = line.split('"').map(ToOwned::to_owned).collect::<Vec<_>>();
+/// `$DEFINE`d symbols → their values, outside string literals (each part
+/// between `"`s of the line as written, longest symbols first).
+fn substitute_defines_outside_strings(line: &mut MappedText, defines: &HashMap<String, String>) {
     let mut sorted = defines.iter().collect::<Vec<_>>();
     sorted.sort_by(|left, right| right.0.len().cmp(&left.0.len()));
 
-    for index in (0..parts.len()).step_by(2) {
-        let mut segment = parts[index].clone();
-        for (symbol, value) in &sorted {
-            segment = replace_identifier_occurrences(&segment, symbol, value);
+    // The parts outside quotes, as (start, end) of the line as written;
+    // done last to first so the earlier ones keep their offsets.
+    let mut parts = Vec::new();
+    let mut start = 0;
+    for (i, part) in line.text.split('"').enumerate() {
+        if i % 2 == 0 {
+            parts.push((start, start + part.len()));
         }
-        parts[index] = segment;
+        start += part.len() + 1;
     }
-
-    parts.join("\"")
+    for (part_start, part_end) in parts.into_iter().rev() {
+        let mut part_end = part_end;
+        for (symbol, value) in &sorted {
+            let found = identifier_occurrences(&line.text[part_start..part_end], symbol);
+            for at in found.iter().rev() {
+                line.replace(part_start + at.start..part_start + at.end, value);
+            }
+            part_end = part_end + found.len() * value.len() - found.len() * symbol.len();
+        }
+    }
 }
 
-fn replace_identifier_occurrences(line: &str, symbol: &str, value: &str) -> String {
-    let mut output = String::with_capacity(line.len());
+/// Where `symbol` stands as a whole identifier in `line` (left to right,
+/// a rejected match's bytes are skipped).
+fn identifier_occurrences(line: &str, symbol: &str) -> Vec<std::ops::Range<usize>> {
+    let mut found = Vec::new();
+    if symbol.is_empty() {
+        return found;
+    }
     let mut cursor = 0usize;
-
     while let Some(relative) = line[cursor..].find(symbol) {
         let start = cursor + relative;
         let end = start + symbol.len();
         let left_ok = start == 0 || !line[..start].chars().next_back().is_some_and(is_identifier_char);
         let right_ok = end >= line.len() || !line[end..].chars().next().is_some_and(is_identifier_char);
-
         if left_ok && right_ok {
-            output.push_str(&line[cursor..start]);
-            output.push_str(value);
-            cursor = end;
-        } else {
-            output.push_str(&line[cursor..end]);
-            cursor = end;
+            found.push(start..end);
         }
+        cursor = end;
     }
-
-    output.push_str(&line[cursor..]);
-    output
+    found
 }
 
 fn is_identifier_char(ch: char) -> bool {
@@ -1174,6 +1425,21 @@ mod tests {
     }
 
     #[test]
+    fn rapidq_inc_names_and_values_are_pinned() {
+        // The table was regrouped by source (docs/legal/rapidq-review.md);
+        // what programs get must not change: the same 483 names with the
+        // same numbers (FNV-1a over "name=value\n", sorted by name).
+        let mut pairs: Vec<_> = crate::RAPIDQ_INC_CONSTANTS.to_vec();
+        pairs.sort_by(|a, b| a.0.cmp(b.0));
+        let text: String = pairs.iter().map(|(n, v)| format!("{n}={v}\n")).collect();
+        let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+        for byte in text.bytes() {
+            hash = (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3);
+        }
+        assert_eq!((pairs.len(), hash), (483, 0x3f4b_730b_4fbe_3807));
+    }
+
+    #[test]
     fn escapechars_belongs_to_its_file() {
         let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
         let root = std::env::temp_dir().join(format!("rapidr-escape-{unique}"));
@@ -1250,6 +1516,18 @@ mod tests {
     }
 
     #[test]
+    fn virtual_files_are_included_without_a_file_system() {
+        let options = PreprocessOptions {
+            virtual_files: vec![("util.inc".into(), "$INCLUDE \"inner.INC\"\nSUB Hi\nEND SUB".into()), ("lib/Inner.inc".into(), "PRINT 1".into())],
+            ..Default::default()
+        };
+        let result = preprocess_source("$INCLUDE \"C:\\src\\UTIL.inc\"\nHi\n", ".", Some(std::path::PathBuf::from("main.bas")), options).unwrap();
+        assert_eq!(result.source, "PRINT 1\nSUB Hi\nEND SUB\nHi\n");
+        let origins: Vec<(String, usize)> = result.line_map.iter().map(|(f, l)| (f.as_ref().unwrap().display().to_string(), *l)).collect();
+        assert_eq!(origins, [("lib/Inner.inc".to_string(), 1), ("util.inc".into(), 2), ("util.inc".into(), 3), ("main.bas".into(), 2), ("main.bas".into(), 3)]);
+    }
+
+    #[test]
     fn rapidq_inc_is_built_in_and_keeps_line_numbers() {
         let result = preprocess("$INCLUDE \"RAPIDQ.INC\"\nPRINT clBlue\n");
         let lines: Vec<&str> = result.lines().collect();
@@ -1269,5 +1547,92 @@ mod tests {
         )
         .unwrap();
         assert!(result.source.contains("PRINT 1"));
+    }
+
+    /// Every byte of the output is mapped, in order, and exact segments are
+    /// the file's own bytes.
+    fn check_origin_map(result: &super::PreprocessResult) {
+        let map = &result.origins;
+        let mut at = 0;
+        for s in &map.segments {
+            assert_eq!(s.pp_start, at, "segments are contiguous: {:?}", s);
+            assert!(s.pp_end > s.pp_start);
+            if s.exact {
+                let file = &map.files[s.file].text;
+                assert_eq!(&result.source[s.pp_start..s.pp_end], &file[s.src_start..s.src_end]);
+            }
+            at = s.pp_end;
+        }
+        assert_eq!(at, result.source.len(), "every byte is mapped");
+    }
+
+    #[test]
+    fn origin_map_points_into_included_files() {
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!("rapidr-origins-{unique}"));
+        fs::create_dir_all(&root).unwrap();
+        let inc = "' lib\r\nSUB Hello\r\n  PRINT \"hi\"\r\nEND SUB\r\n";
+        fs::write(root.join("lib.inc"), inc).unwrap();
+        let main_text = "$DEFINE N 42\n$INCLUDE \"lib.inc\"\nx = N + 1\nHello\n$MACRO SQ(a) = ((a)*(a))\ny = SQ(x) : z = 7\n";
+        let main = root.join("main.bas");
+        fs::write(&main, main_text).unwrap();
+        let result = preprocess_file(&main, PreprocessOptions::default()).unwrap();
+        check_origin_map(&result);
+        let map = &result.origins;
+        let pos = |needle: &str| result.source.find(needle).unwrap();
+        // Code from the include: its file, its byte.
+        let o = map.origin(pos("PRINT \"hi\"")).unwrap();
+        assert_eq!(map.files[o.file].path.as_deref(), Some(root.join("lib.inc").as_path()));
+        assert_eq!(o.offset, inc.find("PRINT").unwrap());
+        assert!(o.exact);
+        // The program's own code after the include.
+        let o = map.origin(pos("Hello\n")).unwrap();
+        assert_eq!((map.files[o.file].path.as_deref(), o.offset), (Some(main.as_path()), main_text.find("Hello\n").unwrap()));
+        // A $DEFINE's value maps to the name it replaced.
+        let at = pos("x = 42");
+        let o = map.origin(at + 4).unwrap();
+        assert_eq!((o.offset, o.exact), (main_text.find("N + 1").unwrap(), false));
+        let span = map.origin_span(at, at + "x = 42 + 1".len()).unwrap();
+        assert_eq!(&main_text[span.start..span.end], "x = N + 1");
+        // A macro call: the expansion maps to the call; text after it is exact.
+        let at = pos("((x)*(x))");
+        let span = map.origin_span(at, at + "((x)*(x))".len()).unwrap();
+        assert_eq!(&main_text[span.start..span.end], "SQ(x)");
+        let o = map.origin(pos("z = 7")).unwrap();
+        assert_eq!((o.offset, o.exact), (main_text.find("z = 7").unwrap(), true));
+        // Back from a file position to the preprocessed text.
+        let file = map.find_file(&root.join("lib.inc")).unwrap();
+        assert_eq!(map.to_preprocessed(file, inc.find("PRINT").unwrap()), Some(pos("PRINT \"hi\"")));
+        // What each line was.
+        let main_id = map.find_file(&main).unwrap();
+        use super::LineKind::*;
+        assert_eq!(map.files[main_id].lines, [Directive, Directive, Code, Code, Directive, Code, Code]);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn line_kinds_of_one_file() {
+        use super::LineKind::*;
+        let kinds = super::scan_lines("#!/usr/bin/env rapidr\n$IFDEF NOPE\nskipped\n$ELSE\nkept\n$ENDIF\n$INCLUDE \"missing.inc\"\n$RESOURCE bad\nPRINT 1", PreprocessOptions::default());
+        assert_eq!(kinds, [Shebang, Directive, Inactive, Directive, Code, Directive, Directive, Directive, Code]);
+    }
+
+    #[test]
+    fn origin_map_of_builtin_includes_and_resources() {
+        let src = "$INCLUDE \"RAPIDQ.INC\"\n$RESOURCE B AS \"b.bmp\"\nPRINT clBlue, B\n";
+        let result = preprocess_source(src, ".", None, PreprocessOptions::default()).unwrap();
+        check_origin_map(&result);
+        let o = result.origins.origin(result.source.find("CONST clBlue").unwrap()).unwrap();
+        assert_eq!((o.offset, o.exact), (0, false));
+        let o = result.origins.origin(result.source.find("PRINT clBlue").unwrap()).unwrap();
+        assert_eq!((o.offset, o.exact), (src.find("PRINT").unwrap(), true));
+    }
+
+    #[test]
+    fn encodings_round_trip() {
+        for bytes in [&b"PRINT \"caf\xC3\xA9\"\r\n"[..], b"\xEF\xBB\xBFPRINT 1", b"PRINT \"caf\xE9\x80\x81\x9D\"", b"\xEF\xBB\xBFx\xFF"] {
+            let (text, encoding) = super::decode_source(bytes);
+            assert_eq!(super::encode_source(&text, encoding), bytes, "{encoding:?}");
+        }
     }
 }

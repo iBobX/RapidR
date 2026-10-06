@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>History</title>
+  <path d="M5 16A10.5 10.5 0 1 0 9 9" stroke="currentColor"/>
+  <path d="M8 3L8 9L3 9" stroke="currentColor"/>
+  <path d="M16 10V16L20 19" stroke="currentColor"/>
+</svg>

@@ -115,7 +115,7 @@ fn dispatch_indirect(handler_id: u32, args: &[Value]) {
             VM_QUEUED.with(|q| q.set(q.get() + 1));
             d(handler_id, args);
         } else if !SHUTTING_DOWN.with(|s| s.get()) {
-            // After `rp_run_app` returns and timers/widgets are torn
+            // After the program ends and timers/widgets are torn
             // down the host may still deliver a few queued events.
             // Suppress the noisy warning during shutdown — it is harmless.
             eprintln!(
@@ -415,6 +415,10 @@ fn set_property(name: &str, prop: &str, val: Value) {
     if rapidr_value::mdi::is_mdi(name) && crate::mdi::set(name, &prop_lower, &val) {
         return;
     }
+    // (I1) An RDOCKMANAGER's DocumentMode, ActiveDocument, … (dock.rs).
+    if rp_comp_type(name) == "RDOCKMANAGER" && crate::dock::set(name, &prop_lower, &val) {
+        return;
+    }
     // (the dialogs lane's) A QFONTDIALOG's Name / Size / Color are its flat
     // FontName / FontSize / FontColor too: one value.
     if let Some(other) = rapidr_value::font_dialog::alias(&prop_lower).filter(|_| rp_comp_type(name) == "RFONTDIALOG") {
@@ -666,6 +670,8 @@ fn set_property(name: &str, prop: &str, val: Value) {
     }
     // Align and geometry: lay out, move the widget (layout.rs).
     crate::layout::after_set(name, &prop_lower);
+    // (I1) A dock manager or its floating window resized: its panes placed.
+    crate::dock::after_set(name, &prop_lower);
     // A QTABCONTROL's colour, font or Enabled: drawn again (its tabs
     // measured again).
     #[cfg(feature = "gui")]
@@ -838,6 +844,12 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     // A QFORMMDI's ChildCount, ChildCaption, … (mdi.rs).
     if let Some(v) = rapidr_value::mdi::get(name, &prop_lower) {
         return v;
+    }
+    // (I1) An RDOCKMANAGER's PaneCount, ActiveDocument, … (dock.rs).
+    if rp_comp_type(name) == "RDOCKMANAGER" {
+        if let Some(v) = rapidr_value::dock::runtime::rt_get(name, &prop_lower) {
+            return v;
+        }
     }
     // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll.rs).
     if let Some(v) = crate::scroll::get(name, &prop_lower) {
@@ -1055,6 +1067,12 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     // A QFORMMDI's AddChild, CascadeChild, … (mdi.rs).
     if rapidr_value::mdi::is_mdi(name) {
         if let Some(v) = crate::mdi::method(name, &method_lower, args) {
+            return v;
+        }
+    }
+    // (I1) An RDOCKMANAGER's AddPane, SaveLayout, … (dock.rs).
+    if comp_type == "RDOCKMANAGER" {
+        if let Some(v) = crate::dock::method(name, &method_lower, args) {
             return v;
         }
     }
@@ -1612,30 +1630,12 @@ pub fn rp_take_wait_started() -> bool {
     false
 }
 
-/// Starts waiting for the program's windows (the main event loop).
-pub fn rp_begin_app_wait() {
-    #[cfg(feature = "gui")]
-    crate::ui::gui_begin_app_wait();
-}
-
 /// One step of the innermost wait: `None` while it goes on, `Some` when over.
 pub fn rp_pump_wait() -> Option<Value> {
     #[cfg(feature = "gui")]
     return crate::ui::gui_pump_wait();
     #[cfg(not(feature = "gui"))]
     Some(v_null())
-}
-
-/// Start the GUI event loop (or no-op without GUI feature).
-pub fn rp_run_app() {
-    #[cfg(feature = "gui")]
-    {
-        crate::ui::run_gui_event_loop();
-    }
-    #[cfg(not(feature = "gui"))]
-    {
-        println!("[GUI] ShowModal called — GUI not compiled, returning immediately.");
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -2052,29 +2052,10 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
     }
 }
 
-/// Check if a type name is a known component type.
-pub fn is_component_type(type_name: &str) -> bool {
-    matches!(
-        type_name.to_uppercase().as_str(),
-        "RFORM" | "RFORMMDI" | "RBUTTON" | "RLABEL" | "REDIT" | "RPANEL" | "RBEVEL" | "RDIGDISPLAY" | "RGLASSFRAME"
-        | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE"
-        | "RTIMER" | "RIMAGE" | "RCANVAS" | "RSTRINGGRID" | "RTABCONTROL"
-        | "RTREEVIEW" | "RMAINMENU" | "RMENUITEM" | "RPOPUPMENU"
-        | "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG"
-        | "RTOOLBAR" | "RSTATUSBAR" | "RPROGRESS" | "RRICHEDIT" | "RMEMO"
-        | "RSCROLLBAR" | "RUPDOWN" | "RDATETIMEPICKER" | "RMONTHCALENDAR"
-        | "RHEADER" | "RRECT" | "RNOTIFYICONDATA" | "RHEADERCONTROL" | "RIMAGELIST" | "RFILESTREAM" | "RJSON" | "RSTRINGLIST" | "RREGISTRY"
-        | "RFONT" | "RMEMORYSTREAM" | "RBITMAP"
-        | "RTRACKBAR" | "RSCROLLBOX" | "RSPLITTER" | "RPRINTER"
-        | "RSQLITE" | "RMYSQL"
-        | "RSOCKET" | "RSERVERSOCKET" | "RHTTP"
-        | "RLISTVIEW" | "RPROGRESSBAR"
-        | "RNUM" | "RPLOT" | "RDATAFRAME"
-        | "RDESIGNSURFACE" | "RCODEEDITOR" | "RGROUPBOX"
-        | "RDXSCREEN" | "RDXIMAGELIST" | "RDXTIMER" | "RDXSOUND" | "RDXJOYSTICK"
-        | "RD3DFRAME" | "RD3DMESHBUILDER" | "RD3DMESH" | "RD3DFACE" | "RD3DLIGHT" | "RD3DTEXTURE" | "RD3DVISUAL" | "RD3DWRAP" | "RD3DVECTOR"
-    ) || rapidr_value::objects::rqlib::is_type(type_name)
-}
+/// Whether a type name is a component the compilers create, and whether a
+/// member is some component's method: the language registry's
+/// (crates/rapidr-lang), as the web runtime's.
+pub use rapidr_lang::{is_component_method, is_component_type};
 
 /// A stored property, without any of `rp_comp_get`'s lookups.
 pub(crate) fn stored(name: &str, prop: &str) -> Option<Value> {
@@ -2116,52 +2097,6 @@ pub fn get_children_of(parent_name: &str) -> Vec<(String, String)> {
         children.sort_by_key(|c| c.2);
         children.into_iter().map(|(n, t, _)| (n, t)).collect()
     })
-}
-
-/// Check if a member name is a known method (not a property) for component types.
-/// Used by codegen to decide whether `obj.member` (no parens) is a method call.
-pub fn is_component_method(member: &str) -> bool {
-    matches!(
-        member.to_lowercase().as_str(),
-        // Form/Widget methods
-        "showmodal" | "close" | "show" | "hide" | "refresh" | "center" | "setparent"
-        // Collection methods
-        | "clear" | "additems" | "additem" | "deleteitems" | "deleteitem" | "removeitem"
-        | "addrow" | "sort" | "find"
-        // Focus/input methods
-        | "setfocus" | "focus" | "click" | "selectall" | "copy" | "paste" | "cut"
-        // Dialog methods
-        | "execute"
-        // Database methods
-        | "connect" | "disconnect" | "query" | "fetchrow" | "fetchfield"
-        | "fieldseek" | "rowseek" | "row" | "rowblob" | "escapestring"
-        | "selectdb" | "createdb" | "dropdb"
-        // Network methods
-        | "write" | "writeline" | "read" | "readline"
-        | "bind" | "listen" | "accept"
-        | "start" | "stop" | "broadcast"
-        | "get" | "post"
-        // FileStream methods
-        | "open" | "readall" | "eof"
-        // StringList methods
-        | "loadfromfile" | "savetofile" | "add" | "delete"
-        // Canvas methods
-        | "line" | "rect" | "fillrect" | "circle" | "ellipse"
-        | "setpixel" | "getpixel" | "drawtext" | "loadimage" | "saveimage"
-        // TreeView methods
-        | "addroot" | "addchild" | "expand" | "collapse"
-        // Design surface methods
-        | "addcomponent" | "getname" | "gettype"
-        | "getcompx" | "getcompy" | "getcompw" | "getcomph"
-        | "setprop" | "getprop" | "setcompbounds" | "setname"
-        | "selectcomp" | "removecomponent" | "clearall"
-        // StringGrid methods
-        | "cell" | "cells" | "setcell" | "setsuggestions"
-        // CodeEditor methods
-        | "getsublist" | "gotosub" | "gotoline"
-        // TabControl methods
-        | "addtabs" | "tab"
-    )
 }
 
 /// QSTATUSBAR panels: `AddPanels "Ready", "Line 1"` appends panels, kept as

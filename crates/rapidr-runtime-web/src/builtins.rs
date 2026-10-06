@@ -360,16 +360,42 @@ pub fn rp_sleep(_ms: &Value) {
 // System / Shell — NOT SUPPORTED on web
 // ---------------------------------------------------------------------------
 
+/// The page's program and arguments: its path (as Application.ExeName) and
+/// its query string's parts (`?a&b%20c`: "a", "b c") — the web's command
+/// line (rapidr_value::command_line). A page that runs the program as a
+/// part of itself gives its arguments instead, as `window.RAPIDR_ARGS` (an
+/// array of strings): the web IDE's preview, whose own query string is
+/// the IDE's.
+fn page_command_line() -> (String, Vec<String>) {
+    let window = web_sys::window();
+    let loc = window.as_ref().map(|w| w.location());
+    let path = loc.as_ref().and_then(|l| l.pathname().ok()).unwrap_or_default();
+    let given = window
+        .as_ref()
+        .and_then(|w| js_sys::Reflect::get(w, &"RAPIDR_ARGS".into()).ok())
+        .filter(js_sys::Array::is_array)
+        .map(|a| js_sys::Array::from(&a).iter().map(|v| v.as_string().unwrap_or_default()).collect());
+    let args = given.unwrap_or_else(|| {
+        let query = loc.as_ref().and_then(|l| l.search().ok()).unwrap_or_default();
+        crate::value::command_line::query_args(&query)
+    });
+    (path, args)
+}
+
+/// A bare `COMMAND$` (RapidR's): the page's arguments, joined.
 pub fn rp_command() -> Value {
-    // Return URL query string as "command line"
-    if let Some(window) = web_sys::window() {
-        if let Ok(loc) = window.location().search() {
-            if loc.len() > 1 {
-                return Value::String(loc[1..].to_string());
-            }
-        }
-    }
-    Value::String(String::new())
+    crate::value::command_line::command_line(&page_command_line().1)
+}
+
+/// `COMMAND$(n)`: 0 the page, 1… its arguments.
+pub fn rp_command_arg(n: &Value) -> Value {
+    let (path, args) = page_command_line();
+    crate::value::command_line::command_arg(&path, &args, n)
+}
+
+/// `CommandCount`.
+pub fn rp_commandcount() -> Value {
+    crate::value::command_line::command_count(&page_command_line().1)
 }
 
 /// `ENVIRON$(name)`: the page's own table (rapidr_value::environ) — empty

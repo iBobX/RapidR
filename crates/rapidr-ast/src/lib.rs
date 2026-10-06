@@ -18,6 +18,14 @@ pub fn strip_type_suffix(name: &str) -> &str {
     if base.is_empty() { name } else { base }
 }
 
+/// Whether `ident` names routine `routine` (both as written): the same
+/// name, and no type suffix or the routine's own — `day&` inside FUNCTION
+/// Day is a variable of its own, as RapidQ keeps them apart.
+pub fn names_routine(ident: &str, routine: &str) -> bool {
+    let (i, r) = (strip_type_suffix(ident), strip_type_suffix(routine));
+    i.eq_ignore_ascii_case(r) && (i.len() == ident.len() || ident[i.len()..] == routine[r.len()..])
+}
+
 /// The type a suffix declares (RapidQ manual, data types): `?` BYTE, `??`
 /// WORD, `???` DWORD, `%` SHORT, `&` LONG, `!` SINGLE, `#` DOUBLE, `$`
 /// STRING.
@@ -860,8 +868,8 @@ pub fn option_dim(program: &Program, is_builtin: &dyn Fn(&str) -> bool) -> Progr
                 || is_component_type_name(&canonical_type_name(k))
         })
     };
-    // (RapidQ's default: "all undeclared variables are assumed to be of
-    // type DOUBLE if no suffix is provided")
+    // (RapidQ's default: a variable with no suffix and no declaration is
+    // a DOUBLE)
     let ty = option_dim_type(&program.statements).unwrap_or_else(|| "DOUBLE".to_string());
     if ty == "VARIANT" {
         return program.clone();
@@ -1211,10 +1219,15 @@ pub fn type_mismatches(program: &Program) -> Vec<(TextSpan, String)> {
 /// RapidQ's `$TYPECHECK ON` (and `$OPTION EXPLICIT`, "same as using
 /// TYPECHECK ON"): from there until `$TYPECHECK OFF`, a variable stored
 /// into (`x = …`, `FOR x`, `INPUT x`) must have been declared — DIM,
-/// CONST, a parameter — or it is RapidQ's `Undeclared identifier x`.
-/// Run on the program as written (before [`hoist_routines`]), so each
-/// SUB is checked with the setting where it stands. `is_builtin`: RapidQ's
-/// own names (`NViewLibPresent = 2` sets one).
+/// CONST, a parameter — or it is RapidQ's `Undeclared identifier x`; a
+/// name read anywhere else (an argument — `List.AddItems itme` —, an
+/// operand, a condition, what PRINT prints) is RC.EXE's `Undefined symbol
+/// ITME` (the name in upper case, its suffix kept). Run on the program as
+/// written (before [`hoist_routines`]), so each SUB is checked with the
+/// setting where it stands. `is_builtin`: RapidQ's own names
+/// (`NViewLibPresent = 2` sets one); RapidR's own constants and
+/// True / False are known too (its additions). A name stored into while
+/// the check is off is a variable from there on, as RapidQ makes it one.
 pub fn typecheck_errors(program: &Program, is_builtin: &dyn Fn(&str) -> bool) -> Vec<(TextSpan, String)> {
     use std::collections::HashSet;
     fn switch(s: &Statement, on: &mut bool) {
@@ -1232,6 +1245,11 @@ pub fn typecheck_errors(program: &Program, is_builtin: &dyn Fn(&str) -> bool) ->
             match s {
                 Statement::Dim(d) => into.extend(d.declarators.iter().map(|v| strip_type_suffix(&v.name).to_ascii_lowercase())),
                 Statement::Const(c) => { into.insert(strip_type_suffix(&c.name).to_ascii_lowercase()); }
+                // (a component and the ones CREATEd inside it)
+                Statement::Create(c) => {
+                    into.insert(strip_type_suffix(&c.name).to_ascii_lowercase());
+                    declared_in(&c.body, into);
+                }
                 Statement::If(i) => {
                     declared_in(&i.then_body, into);
                     for b in &i.elseif_branches {
@@ -1255,55 +1273,180 @@ pub fn typecheck_errors(program: &Program, is_builtin: &dyn Fn(&str) -> bool) ->
     }
     // (`OutVal%` is the `outval` DIM declared)
     let key = |n: &str| strip_type_suffix(n).to_ascii_lowercase();
-    struct Check<'a> {
-        globals: &'a HashSet<String>,
-        locals: HashSet<String>,
-        reported: HashSet<String>,
+    /// What every routine sees: the program's declarations, and the
+    /// variables its main program made by storing into them unchecked.
+    struct Shared<'a> {
+        globals: HashSet<String>,
         is_builtin: &'a dyn Fn(&str) -> bool,
     }
-    impl Check<'_> {
-        fn store(&mut self, name: &str, span: TextSpan, on: bool, out: &mut Vec<(TextSpan, String)>) {
+    struct Check {
+        /// A routine's parameters and DIMs (and what it stored into
+        /// unchecked); `None` for the main program, whose are the globals.
+        locals: Option<HashSet<String>>,
+        reported: HashSet<String>,
+    }
+    impl Check {
+        fn known(&self, k: &str, shared: &Shared) -> bool {
+            self.locals.as_ref().is_some_and(|l| l.contains(k))
+                || shared.globals.contains(k)
+                || (shared.is_builtin)(k)
+                || rapidr_constant(k).is_some()
+                || matches!(k, "true" | "false" | "vttrue" | "vtfalse")
+        }
+        fn skipped(name: &str) -> bool {
+            name.starts_with("__") || name.contains('.') || name.eq_ignore_ascii_case("_with_")
+        }
+        fn store(&mut self, name: &str, span: TextSpan, on: bool, shared: &mut Shared, out: &mut Vec<(TextSpan, String)>) {
             let k = strip_type_suffix(name).to_ascii_lowercase();
-            if !on || name.starts_with("__") || name.contains('.') || self.locals.contains(&k) || self.globals.contains(&k) || (self.is_builtin)(&k) {
+            if Self::skipped(name) || self.known(&k, shared) {
+                return;
+            }
+            if !on {
+                // (the variable RapidQ makes of it)
+                match self.locals.as_mut() {
+                    Some(l) => l.insert(k),
+                    None => shared.globals.insert(k),
+                };
                 return;
             }
             if self.reported.insert(k) {
                 out.push((span, format!("Undeclared identifier {name}")));
             }
         }
-        fn walk(&mut self, stmts: &[Statement], on: &mut bool, out: &mut Vec<(TextSpan, String)>) {
+        /// The names `e` reads: a bare name is checked; the object of a
+        /// member or method and a called routine or array are not
+        /// (RapidR's other checks name those).
+        fn read(&mut self, e: &Expression, on: bool, shared: &Shared, out: &mut Vec<(TextSpan, String)>) {
+            if !on {
+                return;
+            }
+            match e {
+                Expression::Identifier(i) => {
+                    let k = strip_type_suffix(&i.name).to_ascii_lowercase();
+                    if Self::skipped(&i.name) || self.known(&k, shared) {
+                        return;
+                    }
+                    if self.reported.insert(k) {
+                        out.push((i.span, format!("Undefined symbol {}", i.name.to_ascii_uppercase())));
+                    }
+                }
+                Expression::Literal(_) => {}
+                Expression::Binary(b) => {
+                    self.read(&b.left, on, shared, out);
+                    self.read(&b.right, on, shared, out);
+                }
+                Expression::Unary(u) => self.read(&u.operand, on, shared, out),
+                Expression::MemberAccess(m) => self.read_callee(&m.object, on, shared, out),
+                Expression::MethodCall(m) => {
+                    self.read_callee(&m.object, on, shared, out);
+                    self.read_all(&m.args, on, shared, out);
+                }
+                Expression::FunctionCall(f) => {
+                    self.read_callee(&f.callee, on, shared, out);
+                    self.read_all(&f.args, on, shared, out);
+                }
+                Expression::ArrayAccess(a) => {
+                    self.read_callee(&a.array, on, shared, out);
+                    self.read_all(&a.indices, on, shared, out);
+                }
+            }
+        }
+        fn read_all(&mut self, es: &[Expression], on: bool, shared: &Shared, out: &mut Vec<(TextSpan, String)>) {
+            for e in es {
+                self.read(e, on, shared, out);
+            }
+        }
+        /// An object, a routine or an array: not a bare name read, but what
+        /// leads to it may be (`a(i).x`).
+        fn read_callee(&mut self, e: &Expression, on: bool, shared: &Shared, out: &mut Vec<(TextSpan, String)>) {
+            if !matches!(e, Expression::Identifier(_)) {
+                self.read(e, on, shared, out);
+            }
+        }
+        /// What a store's target reads: an element's indices.
+        fn target(&mut self, e: &Expression, on: bool, shared: &Shared, out: &mut Vec<(TextSpan, String)>) {
+            if !matches!(e, Expression::Identifier(_)) {
+                self.read_callee(e, on, shared, out);
+            }
+        }
+        fn walk(&mut self, stmts: &[Statement], on: &mut bool, shared: &mut Shared, out: &mut Vec<(TextSpan, String)>) {
             for s in stmts {
                 switch(s, on);
                 match s {
                     Statement::Assignment(a) => {
+                        self.read(&a.value, *on, shared, out);
+                        self.target(&a.target, *on, shared, out);
                         if let Expression::Identifier(i) = &a.target {
-                            self.store(&i.name, a.span, *on, out);
+                            self.store(&i.name, a.span, *on, shared, out);
                         }
                     }
+                    Statement::Call(c) => {
+                        self.read_callee(&c.callee, *on, shared, out);
+                        self.read_all(&c.args, *on, shared, out);
+                    }
+                    Statement::Print(p) => self.read_all(&p.items, *on, shared, out),
                     Statement::Input(i) => {
+                        if let Some(p) = &i.prompt {
+                            self.read(p, *on, shared, out);
+                        }
+                        self.target(&i.target, *on, shared, out);
                         if let Expression::Identifier(t) = &i.target {
-                            self.store(&t.name, i.span, *on, out);
+                            self.store(&t.name, i.span, *on, shared, out);
                         }
                     }
                     Statement::For(f) => {
-                        self.store(&f.variable, f.span, *on, out);
-                        self.walk(&f.body, on, out);
+                        self.read(&f.start, *on, shared, out);
+                        self.read(&f.end, *on, shared, out);
+                        if let Some(step) = &f.step {
+                            self.read(step, *on, shared, out);
+                        }
+                        self.store(&f.variable, f.span, *on, shared, out);
+                        self.walk(&f.body, on, shared, out);
                     }
                     Statement::If(i) => {
-                        self.walk(&i.then_body, on, out);
+                        self.read(&i.condition, *on, shared, out);
+                        self.walk(&i.then_body, on, shared, out);
                         for b in &i.elseif_branches {
-                            self.walk(&b.body, on, out);
+                            self.read(&b.condition, *on, shared, out);
+                            self.walk(&b.body, on, shared, out);
                         }
-                        self.walk(&i.else_body, on, out);
+                        self.walk(&i.else_body, on, shared, out);
                     }
-                    Statement::While(w) => self.walk(&w.body, on, out),
-                    Statement::DoLoop(d) => self.walk(&d.body, on, out),
-                    Statement::With(w) => self.walk(&w.body, on, out),
-                    Statement::SelectCase(c) => {
-                        for case in &c.cases {
-                            self.walk(&case.body, on, out);
+                    Statement::While(w) => {
+                        self.read(&w.condition, *on, shared, out);
+                        self.walk(&w.body, on, shared, out);
+                    }
+                    Statement::DoLoop(d) => {
+                        if let Some(c) = &d.condition {
+                            self.read(c, *on, shared, out);
                         }
-                        self.walk(&c.case_else, on, out);
+                        self.walk(&d.body, on, shared, out);
+                    }
+                    Statement::With(w) => {
+                        self.read_callee(&w.object, *on, shared, out);
+                        self.walk(&w.body, on, shared, out);
+                    }
+                    Statement::SelectCase(c) => {
+                        self.read(&c.expression, *on, shared, out);
+                        for case in &c.cases {
+                            for v in &case.values {
+                                match v {
+                                    CaseValue::Value(e) | CaseValue::Is(_, e) => self.read(e, *on, shared, out),
+                                    CaseValue::Range(a, b) => {
+                                        self.read(a, *on, shared, out);
+                                        self.read(b, *on, shared, out);
+                                    }
+                                    CaseValue::IsLogic(_, e, rest) => {
+                                        self.read(e, *on, shared, out);
+                                        for (_, x) in rest {
+                                            self.read(x, *on, shared, out);
+                                        }
+                                    }
+                                }
+                            }
+                            self.walk(&case.body, on, shared, out);
+                        }
+                        self.walk(&c.case_else, on, shared, out);
                     }
                     _ => {}
                 }
@@ -1324,13 +1467,14 @@ pub fn typecheck_errors(program: &Program, is_builtin: &dyn Fn(&str) -> bool) ->
             Statement::Subroutine(r) => { globals.insert(key(&r.name)); }
             Statement::Function(f) => { globals.insert(key(&f.name)); }
             Statement::Declare(d) => { globals.insert(key(&d.name)); }
-            Statement::Create(c) => { globals.insert(key(&c.name)); }
+            Statement::Type(t) => { globals.insert(key(&t.name)); }
             _ => {}
         }
     }
+    let mut shared = Shared { globals, is_builtin };
     let mut out = Vec::new();
     let mut on = false;
-    let mut main = Check { globals: &globals, locals: HashSet::new(), reported: HashSet::new(), is_builtin };
+    let mut main = Check { locals: None, reported: HashSet::new() };
     for s in &program.statements {
         let routine = match s {
             Statement::Subroutine(r) => Some((&r.name, &r.params, &r.body, false)),
@@ -1345,11 +1489,11 @@ pub fn typecheck_errors(program: &Program, is_builtin: &dyn Fn(&str) -> bool) ->
                     locals.insert("result".to_string());
                 }
                 declared_in(body, &mut locals);
-                let mut c = Check { globals: &globals, locals, reported: HashSet::new(), is_builtin };
+                let mut c = Check { locals: Some(locals), reported: HashSet::new() };
                 // (a $TYPECHECK inside the SUB holds on after it)
-                c.walk(body, &mut on, &mut out);
+                c.walk(body, &mut on, &mut shared, &mut out);
             }
-            None => main.walk(std::slice::from_ref(s), &mut on, &mut out),
+            None => main.walk(std::slice::from_ref(s), &mut on, &mut shared, &mut out),
         }
     }
     out
@@ -1570,6 +1714,70 @@ pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
     );
     for (callee, argc, span) in calls {
         count(&callee, argc, span, &mut out);
+    }
+    // A FUNCTION with parameters naming itself without them, other than to
+    // set its result (`F = F + x`): RapidQ reads the name as a call, so it
+    // wants the arguments — `Expected ( but got "+"` (RC.EXE; RESULT reads
+    // the result). Without parameters the name is a call of itself, which
+    // both compilers make.
+    for s in &outside_types {
+        let Statement::Function(f) = s else { continue };
+        if f.params.is_empty() {
+            continue;
+        }
+        let mut not_reads: HashSet<*const Expression> = HashSet::new();
+        let mut set_or_called: HashSet<*const Expression> = HashSet::new();
+        let mut next_token: HashMap<*const Expression, &'static str> = HashMap::new();
+        let mut reads: Vec<(*const Expression, TextSpan)> = Vec::new();
+        walk(
+            &f.body,
+            &mut |st| match st {
+                Statement::Assignment(a) => {
+                    set_or_called.insert(&a.target as *const Expression);
+                }
+                Statement::Call(c) => {
+                    set_or_called.insert(&c.callee as *const Expression);
+                }
+                _ => {}
+            },
+            &mut |e| match e {
+                Expression::FunctionCall(c) => {
+                    not_reads.insert(&*c.callee as *const Expression);
+                }
+                Expression::ArrayAccess(a) => {
+                    not_reads.insert(&*a.array as *const Expression);
+                }
+                Expression::Binary(b) => {
+                    use BinaryOperator as B;
+                    let op = match b.operator {
+                        B::Add => "+",
+                        B::Subtract => "-",
+                        B::Multiply => "*",
+                        B::Divide => "/",
+                        B::IntegerDivide => "\\",
+                        B::Power => "^",
+                        B::Concat => "&",
+                        B::Equal => "=",
+                        B::NotEqual => "<>",
+                        B::LessThan => "<",
+                        B::LessThanOrEqual => "<=",
+                        B::GreaterThan => ">",
+                        B::GreaterThanOrEqual => ">=",
+                        B::Modulo => "MOD",
+                        B::And => "AND",
+                        B::Or => "OR",
+                        B::Xor => "XOR",
+                    };
+                    next_token.insert(&*b.left as *const Expression, op);
+                }
+                Expression::Identifier(i) if names_routine(&i.name, &f.name) => reads.push((e as *const Expression, i.span)),
+                _ => {}
+            },
+        );
+        for (at, span) in reads.into_iter().filter(|(at, _)| !not_reads.contains(at) && !set_or_called.contains(at)) {
+            let got = next_token.get(&at).map_or("end-of-line".to_string(), |t| format!("\"{t}\""));
+            out.push((span, format!("Expected ( but got {got}")));
+        }
     }
     fn dims(stmts: &[Statement], seen: &mut HashSet<String>, out: &mut Vec<(TextSpan, String)>) {
         for s in stmts {
@@ -1839,44 +2047,10 @@ pub fn input_assignment(i: &InputStatement) -> AssignmentStatement {
     }
 }
 
-/// Component types both backends can create (uppercase). The single source
-/// for "is this DIM/CREATE type a GUI/system component?".
-pub const COMPONENT_TYPES: &[&str] = &[
-    "RFORM", "RFORMMDI", "RBUTTON", "RLABEL", "REDIT", "RPANEL",
-    "RCHECKBOX", "RRADIOBUTTON", "RCOMBOBOX", "RLISTBOX", "RFILELISTBOX", "RDIRTREE",
-    "RTIMER", "RIMAGE", "RCANVAS", "RHEADER", "RRECT", "RSTRINGGRID", "RTABCONTROL",
-    "RTREEVIEW", "RMAINMENU", "RMENUITEM", "RPOPUPMENU",
-    "ROPENDIALOG", "RSAVEDIALOG", "RFILEDIALOG", "RCOLORDIALOG", "RFONTDIALOG",
-    "RTOOLBAR", "RSTATUSBAR", "RPROGRESS", "RRICHEDIT", "RMEMO",
-    "RSCROLLBAR", "RUPDOWN", "RDATETIMEPICKER",
-    "RFILESTREAM", "RSTRINGLIST", "RTRACKBAR", "RPRINTER", "RREGISTRY",
-    "RSPLITTER", "RSCROLLBOX",
-    "RSQLITE", "RMYSQL",
-    "RSOCKET", "RSERVERSOCKET", "RHTTP",
-    "RLISTVIEW", "RPROGRESSBAR",
-    "RNUM", "RDATAFRAME", "RPLOT",
-    "RDESIGNSURFACE", "RCODEEDITOR", "RGROUPBOX",
-    "RCOOLBTN", "ROVALBTN",
-    "RJSON",
-    // RapidQ's DirectX 2D objects (rapidr_value::objects::directx)
-    "RDXSCREEN", "RDXIMAGELIST", "RDXTIMER", "RDXSOUND", "RDXJOYSTICK",
-    // (and Direct3D's: rapidr_value::objects::d3d)
-    "RD3DFRAME", "RD3DMESHBUILDER", "RD3DMESH", "RD3DFACE", "RD3DLIGHT", "RD3DTEXTURE", "RD3DVISUAL", "RD3DWRAP", "RD3DVECTOR",
-    // RapidQ's non-visual objects (rapidr_value::objects)
-    "RFONT", "RMEMORYSTREAM", "RBITMAP", "RIMAGELIST",
-    // RapidQ's data types that are objects (rapidr_value::objects::record)
-    "RNOTIFYICONDATA",
-    // RapidQ's include libraries' components (INCLUDE_LIBRARY_COMPONENTS)
-    "RBEVEL", "RDIGDISPLAY",
-    // RapidQ's QGLASSFRAME (rapidr_value::objects::glass)
-    "RGLASSFRAME",
-    // RapidQ's input / output and media objects (rapidr_value::objects::rqlib)
-    "RCGI", "RCOMPORT", "RDOWNLOAD", "RMIDI", "RWAVE", "RVIDEO", "RCDAUDIO",
-    // Web-exclusive components
-    "RWEBVIEW", "RDOM", "RJAVASCRIPT", "RWEBSTORAGE",
-    "RWEBAUDIO", "RWEBVIDEO", "RWEBNOTIFICATION", "RWEBGEOLOCATION",
-    "RROUTER",
-];
+/// Component types both backends can create (RapidR's upper-case names):
+/// the language registry's (crates/rapidr-lang/data/components), the single
+/// source for "is this DIM/CREATE type a GUI/system component?".
+pub const COMPONENT_TYPES: &[&str] = rapidr_lang::COMPONENT_TYPES;
 
 /// RapidQ's built-in objects (its manual's component list) that RapidR has
 /// no component for yet. Fields and variables of these types are objects

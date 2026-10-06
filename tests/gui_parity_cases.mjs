@@ -27,6 +27,19 @@
 //           capture's scale — RAPIDR_SCALE, or a real screen's)
 
 export const cases = [
+  // RDOCKMANAGER (I1, rapidr_value::dock): an IDE's layout. A tab clicked
+  // (Output), the Explorer's splitter dragged 40 to the right, the
+  // Toolbox's strip tab clicked twice (slid out, in), Properties dragged
+  // by its header onto the compass's bottom arm over Explorer, Output
+  // moved by the keyboard (MovePane, Left, Enter: left of its group), F6
+  // in Properties (the next area: Output); SaveLayout / changes / LoadLayout give the
+  // same text; tabbed documents, both closed (OnDocumentClose's Cancel
+  // keeps Doc1), Properties floated (its window). Pixels: Explorer's inactive classic title bar, a gutter.
+  { name: "dock_manager", events: "dock.__mousedown_300_352,dock.__mouseup_300_352,dock.__mousedown_265_200,dock.__mousemove_285_200,dock.__mousemove_305_200,dock.__mouseup_305_200,dock.__mousedown_12_40,dock.__mouseup_12_40,dock.__mousedown_12_40,dock.__mouseup_12_40,dock.__mousedown_700_12,dock.__mousemove_710_20,dock.__mousemove_164_296,dock.__mouseup_164_296,bmove.onclick,dock.__key_37,dock.__key_13,props.__key_117,bsave.onclick,btabs.onclick,breport.onclick",
+    dump: "lbl.caption,info.caption",
+    expect: ["lbl.caption=- p:output L p:props p:props L p:output L p:output p:explorer L p:props L [hidden autohide] L loaded same L c:doc1 c:doc2 a:doc1 p:doc2 L p:props L",
+      "info.caption=tabs 6 explorer output doc1 | docked floating docked docked autohide document | 280x495 298x304"],
+    pixels: [[150, 5, "808080"], [306, 200, "f0f0f0"]], clientWidth: 898 },
   // QGLASSFRAME: the default black glass over the form's face (60 % see-
   // through), red glass at 50 over a cyan panel; Moveable: the form
   // follows a drag on it (20, 10), a glass not Moveable doesn't; clicks.
@@ -117,7 +130,7 @@ export const cases = [
   { name: "startup_modal", events: "dlgok.onclick,rp.onclick,chk.onclick", dump: "lbl.caption,lbl2.caption,dlg.__shown,form.__shown",
     expect: ["lbl.caption=before after", "lbl2.caption=repainted1", "dlg.__shown=0", "form.__shown=1"] },
   { name: "tree_view", events: "tv.__toggle_0,tv.__node_2,tv.__node_1,tv.__toggle_4,btn.onclick", dump: "lbl.caption,lbl2.caption,tv.itemindex",
-    expect: ["lbl.caption=exp0 chg1 |8|Sub 1|31-10-1", "lbl2.caption=del4 del5 del6 5", "tv.itemindex=1"] },
+    expect: ["lbl.caption=exp0 chg1 |8|Hill|31-10-1", "lbl2.caption=del4 del5 del6 5", "tv.itemindex=1"] },
   { name: "tree_images", events: "btn.onclick", dump: "lbl.caption", expect: ["lbl.caption=-1 -1 1 1 0 1 -1 -1"] },
   { name: "tree_edit", events: "tv.__node_0,tv.__edit,tv.__enter,tv.__node_2,tv.__edit,tv.__enter,tv.__node_1,tv.__edit,tv.__escape,ro.onclick,tv.__edit,tv.__enter,btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=ing0 ed0:Renamed ing2 ing1 |RENAMED Pear Plum -1"] },
@@ -126,7 +139,7 @@ export const cases = [
   { name: "svg_picture", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=48 1 0000D4FF 00FFFFFF"] },
   { name: "outline", events: "outline.__toggle_3,outline.__node_4,btn.onclick", dump: "lbl.caption,outline.row",
-    expect: ["lbl.caption=6 First Child of Parent 2 2", "outline.row=4"] },
+    expect: ["lbl.caption=6 First Carrots 2", "outline.row=4"] },
   // (`colorDialog`: what each colour dialog answers in turn, `;`-separated
   // — a colour (decimal) for OK, empty for Cancel: RAPIDR_TEST_COLOR_DIALOG,
   // on the desktop and in the browser)

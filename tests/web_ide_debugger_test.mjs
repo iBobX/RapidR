@@ -1,13 +1,17 @@
 // Playwright E2E test for the in-browser RapidR debugger.
 //
-// Usage:  node tests/web_ide_debugger_test.mjs   (server on http://localhost:8765)
+// The IDE's debugger runs the program under RapidR's program session
+// protocol (rapidr-session) in the preview frame.
+//
+// Usage:  node tests/web_ide_debugger_test.mjs   (repo served on RAPIDR_URL,
+// else http://localhost:8765)
 
 import { chromium } from "playwright";
 import { join } from "node:path";
 import { mkdirSync } from "node:fs";
 
 const PORT = +(process.env.RAPIDR_PORT || 8765);
-const URL_BASE = `http://localhost:${PORT}`;
+const URL_BASE = process.env.RAPIDR_URL || `http://localhost:${PORT}`;
 const SHOT_DIR = new URL("./web-screenshots/", import.meta.url).pathname;
 mkdirSync(SHOT_DIR, { recursive: true });
 

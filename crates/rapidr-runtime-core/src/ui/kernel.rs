@@ -727,13 +727,6 @@ pub fn gui_take_wait_started() -> bool {
     waits::take_started()
 }
 
-/// Starts waiting for the program's windows (after the main program). The
-/// host starts with the first window: a console program never opens the
-/// system's windowing (no display needed, no Dock icon).
-pub fn gui_begin_app_wait() {
-    waits::begin_app();
-}
-
 /// One step of the innermost wait: `None` while it goes on, `Some` when
 /// it's over (a ShowModal's: its ModalResult; a dialog's: its builtin's
 /// result).
@@ -781,18 +774,6 @@ pub fn gui_pump_wait() -> Option<Value> {
     }
     step(None);
     None
-}
-
-/// The program's windows until none is left.
-pub fn run_gui_event_loop() {
-    if held() {
-        return;
-    }
-    // (the host starts with the first window: see gui_begin_app_wait)
-    forms::show_pending(Rt);
-    while forms::any_shown() {
-        step(None);
-    }
 }
 
 /// MESSAGEBOX / MESSAGEDLG / SHOWMESSAGE: a kernel-drawn modal dialog
@@ -875,17 +856,12 @@ pub fn image_method(name: &str, method: &str, args: &[Value]) -> Value {
             #[cfg(feature = "datascience")]
             {
                 let plot = args.first().map(Value::to_string_val).unwrap_or_default();
-                let png = crate::datascience::plot_render_to_bytes(&plot);
-                if !png.is_empty() {
-                    let loaded = rapidr_value::objects::with_picture(name, |b| b.load_bmp_bytes(&png));
-                    if let Some(Err(e)) = loaded {
-                        eprintln!("[rapidr] {name}.LoadFromPlot: {e}");
-                    }
+                // (the chart's pixels, and drawn again at the screen's scale
+                // for a high-DPI screen: sharp, not enlarged)
+                if let Some((w, h)) = rapidr_ui_render::chart::load_into_picture(name, &plot) {
                     if rp_comp_get(name, "stretch").to_i64() == 0 && rp_comp_get(name, "autosize").to_bool() {
-                        if let Some((w, h)) = rapidr_value::objects::with_picture(name, |b| (b.img.width as i64, b.img.height as i64)) {
-                            rp_comp_set(name, "width", v_int(w));
-                            rp_comp_set(name, "height", v_int(h));
-                        }
+                        rp_comp_set(name, "width", v_int(w));
+                        rp_comp_set(name, "height", v_int(h));
                     }
                 }
             }

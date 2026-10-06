@@ -21,9 +21,13 @@ corpus       the console programs of RapidQ's example corpus
              what RapidR runs (no DLL calls, no network, no printing, no
              registry, no SHELL): RapidQ's output against RapidR's.
              --write-golden saves RapidQ's output of each program that ran
-             to tests/rapidq_golden/<name>.expected.
+             to .reference/rapidq_golden/<name>.expected (RAPIDQ_GOLDEN).
 golden       no VM: RapidR's output of the corpus programs against the
-             saved tests/rapidq_golden/*.expected (RapidQ's own output).
+             saved .reference/rapidq_golden/*.expected (RapidQ's own output).
+
+The corpus and its outputs are other people's programs and what they
+print: they stay on this machine (.reference/ is never committed;
+docs/legal/rapidq-review.md).
 
 --write-expected (conformance, probes) writes RapidQ's output to the
 .expected of each case it ran to the end (a new case without one included),
@@ -53,7 +57,8 @@ EXE = ".exe" if os.name == "nt" else ""
 RAPIDR = os.path.join(ROOT, "rapidr" + EXE)
 WORK = os.path.join(ROOT, "tests", "conformance", ".work", "rqtruth")
 CASES = os.path.join(ROOT, "tests", "conformance", "cases")
-GOLDEN = os.path.join(ROOT, "tests", "rapidq_golden")
+# (outside git: the corpus programs' own output — docs/legal/rapidq-review.md)
+GOLDEN = os.path.expanduser(os.environ.get("RAPIDQ_GOLDEN", os.path.join(ROOT, ".reference", "rapidq_golden")))
 RAPIDQ = os.path.expanduser(os.environ.get("RAPIDQ_DIR", "~/Downloads/Rapidq"))
 SUB = os.environ.get("RQ_SUB", "gt")
 

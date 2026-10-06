@@ -123,6 +123,8 @@ pub fn default_size(type_name: &str) -> Option<(i64, i64)> {
         "RDIGDISPLAY" => (12, 24),
         // (RC.EXE's QGLASSFRAME)
         "RGLASSFRAME" => (105, 105),
+        // (I1: RapidR Studio's docking)
+        "RDOCKMANAGER" => (400, 300),
         "RCOMBOBOX" => (145, 25),
         "RLISTBOX" | "RTREEVIEW" | "RDIRTREE" => (121, 97),
         "RFILELISTBOX" => (145, 97),

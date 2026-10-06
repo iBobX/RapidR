@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <title>Select all</title>
+  <path d="M3.75 6.75L3.75 3.75L6.75 3.75" stroke="currentColor"/>
+  <path d="M20.75 6.75L20.75 3.75L17.75 3.75" stroke="currentColor"/>
+  <path d="M3.75 17.75L3.75 20.75L6.75 20.75" stroke="currentColor"/>
+  <path d="M20.75 17.75L20.75 20.75L17.75 20.75" stroke="currentColor"/>
+  <path d="M10.75 3.75L13.75 3.75" stroke="currentColor"/>
+  <path d="M10.75 20.75L13.75 20.75" stroke="currentColor"/>
+  <path d="M3.75 10.75L3.75 13.75" stroke="currentColor"/>
+  <path d="M20.75 10.75L20.75 13.75" stroke="currentColor"/>
+  <rect x="8" y="8" width="8" height="8" rx="1" fill="currentColor"/>
+</svg>

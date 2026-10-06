@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>AI chat</title>
+  <defs><linearGradient id="g1" gradientUnits="userSpaceOnUse" x1="7.6" y1="18.8" x2="24.4" y2="6.2"><stop offset="0" stop-color="#2F5BFF"/><stop offset="1" stop-color="#19C6E6"/></linearGradient></defs>
+  <path d="M5 6A3 3 0 0 1 8 3H24A3 3 0 0 1 27 6V19A3 3 0 0 1 24 22H13L7 27V22H8A3 3 0 0 1 5 19L5 6Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M16 6.2Q17.134 11.366 22.3 12.5Q17.134 13.634 16 18.8Q14.866 13.634 9.7 12.5Q14.866 11.366 16 6.2Z" fill="url(#g1)"/>
+</svg>

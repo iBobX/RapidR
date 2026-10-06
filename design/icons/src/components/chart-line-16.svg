@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Chart: line</title>
+  <path d="M2.5 2.5V13.5H13.5" stroke="#5B6478"/>
+  <path d="M4.5 10.5L6.5 6.5L9.5 9.5L13.5 3.5" stroke="#B86E00"/>
+</svg>

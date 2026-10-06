@@ -37,8 +37,8 @@ pub use kernel::{
     // (`gui_choice`, the dialogs lane's: the box's icon, and whether it
     // beeps as Windows' MessageBox does — MESSAGEBOX; Delphi's MessageDlg
     // doesn't)
-    gui_showmodal, gui_wait_key, gui_begin_app_wait, gui_take_wait_started, gui_set_cooperative_waits,
-    run_gui_event_loop, gui_choice, gui_dialog_execute,
+    gui_showmodal, gui_wait_key, gui_take_wait_started, gui_set_cooperative_waits,
+    gui_choice, gui_dialog_execute,
     // (the I/O lane's: a method waiting for work done in the background)
     gui_wait_task,
     // What only the host knows (`app_active`: the DirectX lane's).

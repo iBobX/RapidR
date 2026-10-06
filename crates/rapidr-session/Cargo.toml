@@ -1,0 +1,22 @@
+[package]
+name = "rapidr-session"
+description = "RapidR's program session protocol (run / stop / debug / inspect / forms) between RapidR Studio and the program it runs: the messages, the IDE's end (RProgramSession) and, with `program`, the program's end on the VM"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+
+[features]
+default = []
+# The program's end: serves the protocol on a running VM (the VM hosts).
+program = ["dep:rapidr-vm", "dep:rapidr-bcgen", "dep:rapidr-bytecode", "dep:rapidr-value", "dep:rapidr-lexer", "dep:rapidr-parser"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rapidr-lexer = { workspace = true, optional = true }
+rapidr-parser = { workspace = true, optional = true }
+rapidr-vm = { workspace = true, optional = true }
+rapidr-bcgen = { workspace = true, optional = true }
+rapidr-bytecode = { workspace = true, optional = true }
+rapidr-value = { workspace = true, optional = true }

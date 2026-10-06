@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Chart: step</title>
+  <path d="M4 4V28H28" stroke="#5B6478"/>
+  <path d="M8 23H13V16H19V20H23V9H27" stroke="#B86E00"/>
+</svg>

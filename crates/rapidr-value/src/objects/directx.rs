@@ -10,8 +10,8 @@
 //!   screen is set up — cleared to black, OnInitialize then
 //!   OnInitializeSurface — when its form is first shown ([`initialize`]):
 //!   what a program draws before that is lost, as DirectX had no surface
-//!   yet ("you must wait for QDXScreen surface to initialize before
-//!   drawing on it").
+//!   yet (RapidQ's manual says to wait for the surface's initialization
+//!   before drawing).
 //! - The surface's size: `Init(Width, Height)`'s, or the control's without
 //!   one. With AutoSize (the default) a control resized after that — the
 //!   `Align = alClient` RapidQ programs set after Init — gives the surface
@@ -897,8 +897,8 @@ impl DxSound {
         self.stop(id);
         self.file_name = name.to_string();
         let wav = parse_wav(bytes)?;
-        // ("a default frequency for the .WAV file will be given to you
-        // when you load a new sound file")
+        // (loading a sound sets Frequency to the file's own rate, as
+        // RapidQ's manual says)
         self.frequency = i64::from(wav.rate);
         self.wav = Some(Rc::new(wav));
         self.position = 0;

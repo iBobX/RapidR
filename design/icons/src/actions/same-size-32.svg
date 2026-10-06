@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Make same size</title>
+  <path d="M13 5L28 5" stroke="currentColor"/>
+  <path d="M16 8L13 5L16 3" stroke="currentColor"/>
+  <path d="M25 3L28 5L25 8" stroke="currentColor"/>
+  <path d="M5 13L5 28" stroke="currentColor"/>
+  <path d="M3 16L5 13L8 16" stroke="currentColor"/>
+  <path d="M8 25L5 28L3 25" stroke="currentColor"/>
+  <path d="M16 13H25A3 3 0 0 1 28 16V25A3 3 0 0 1 25 28H16A3 3 0 0 1 13 25V16A3 3 0 0 1 16 13Z" stroke="currentColor"/>
+</svg>

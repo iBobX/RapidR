@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>File dialog</title>
+  <path d="M3 1.5H13A1.5 1.5 0 0 1 14.5 3V13A1.5 1.5 0 0 1 13 14.5H3A1.5 1.5 0 0 1 1.5 13V3A1.5 1.5 0 0 1 3 1.5Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M1.5 4.5V3.5A1.5 1.5 0 0 1 2.5 1.5H13.5A1.5 1.5 0 0 1 14.5 3.5V4.5L1.5 4.5Z" fill="#D7F3F9" stroke="#5B6478"/>
+  <path d="M5.5 6.5H8.5L10.5 8.5V12.5H5.5L5.5 6.5Z" fill="#D7F3F9" stroke="#007F9C"/>
+</svg>

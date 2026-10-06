@@ -38,10 +38,15 @@ if want web || want examples; then curl -s -o /dev/null "${RAPIDR_URL:-http://lo
 if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test result: FAILED|panicked|^error" | head -5
   # (the UI kernel and the program glue stay GUI-free: they must build for
   # the browser too)
-  cargo check -q -p rapidr-ui-kernel -p rapidr-ui-app --target wasm32-unknown-unknown 2>&1 | grep -E "^error" -A5 | head -10
-  # (the user manual's generated reference pages match the source)
-  python3 tools/manual_reference.py --check; echo "(unit done)"; fi
-if want conformance; then echo "== conformance"; node tests/conformance/run.mjs 2>&1 | tail -1; fi
+  cargo check -q -p rapidr-ui-kernel -p rapidr-ui-app -p rapidr-session -p rapidr-project -p rapidr-lang --target wasm32-unknown-unknown 2>&1 | grep -E "^error" -A5 | head -10
+  # (RapidR's icons: the sources, the crate's tables and the manual's copies
+  # match the geometry in design/icons/tools)
+  python3 design/icons/tools/build.py --check; python3 design/icons/tools/export.py --check
+  # (the language registry's reverse check: every name the runtimes'
+  # dispatch answers is in it; what it generates is current: cargo test)
+  python3 tools/lang_dispatch.py --check; echo "(unit done)"; fi
+if want conformance; then echo "== conformance"; node tests/conformance/run.mjs 2>&1 | tail -1
+  echo "== the language registry against the desktop runtimes"; node tests/lang_conformance.mjs --backend vm,native 2>&1 | grep -E "^FAIL|passed"; fi
 # (every example in examples/ on every runtime it claims — rapidr run,
 # interpreted and native executables, the web — GUI ones by the test hooks)
 if want examples; then echo "== examples"; node tests/examples_run.mjs 2>&1 | grep -E "✗|^    |Examples:"; fi
@@ -53,6 +58,7 @@ if want gui; then echo "== gui events (the UI kernel's headless host, native + i
 if want visual; then echo "== visual gallery"; python3 tools/visual/gallery.py check 2>&1 | grep -E "✗|^visual:|sheet:"; fi
 if want web; then
   echo "== web conformance"; node tests/web_conformance.mjs 2>&1 | tail -1
+  echo "== the language registry against the web runtime"; node tests/lang_conformance.mjs --backend web 2>&1 | grep -E "^FAIL|passed"
   # (the UI kernel hosts the web — docs/web-host-plan.md: the cases' dumps
   # by the desktop's own test hooks, and every window and accessibility tree
   # byte for byte against the desktop's own captures, made here by
@@ -65,7 +71,7 @@ if want web; then
   echo "== web gui parity at 2x (high-DPI: what programs read is unchanged)"; RAPIDR_DPR=2 RAPIDR_DESKTOP_CAPTURES="$PWD/$W/gui_captures" node tests/web_gui_parity.mjs 2>&1 | grep -E "✗|≠|Kernel host|parity"
   # (Chrome's accessibility tree over the mirror = the kernel's)
   echo "== web accessibility"; node tests/web_a11y.mjs 2>&1 | grep -E "✗|^    |Kernel host|Web accessibility"
-  echo "== web"; for t in tests/web_ide_*.mjs tests/web_bundle_*.mjs tests/web_end_timer.mjs tests/web_vm_yield.mjs tests/web_overlays.mjs tests/web_fonts.mjs tests/web_webapi.mjs tests/web_sqlite.mjs; do
+  echo "== web"; for t in tests/web_ide_*.mjs tests/debug_e2e_*.mjs tests/web_session.mjs tests/web_bundle_*.mjs tests/web_file_dialogs.mjs tests/web_modal_focus.mjs tests/web_end_timer.mjs tests/web_main_end.mjs tests/web_vm_yield.mjs tests/web_overlays.mjs tests/web_fonts.mjs tests/web_webapi.mjs tests/web_sqlite.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "ASSERT|Error|✗"; }
   done
 fi

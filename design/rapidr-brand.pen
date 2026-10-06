@@ -1,0 +1,2401 @@
+{
+  "version": "2.20",
+  "children": [
+    {
+      "type": "frame",
+      "id": "bi8Au",
+      "x": 0,
+      "y": 0,
+      "name": "Logo concepts",
+      "clip": true,
+      "fill": "$board",
+      "layout": "vertical",
+      "gap": 36,
+      "padding": 60,
+      "children": [
+        {
+          "type": "frame",
+          "id": "g2myl",
+          "name": "Header",
+          "layout": "vertical",
+          "gap": 10,
+          "children": [
+            {
+              "type": "text",
+              "id": "h2jel",
+              "name": "Title",
+              "fill": "$ink",
+              "content": "RapidR logo concepts",
+              "fontFamily": "Inter",
+              "fontSize": 40,
+              "fontWeight": "700",
+              "letterSpacing": -0.4
+            },
+            {
+              "type": "text",
+              "id": "R9sqe",
+              "name": "Subtitle",
+              "fill": "$slate",
+              "content": "Each concept in full colour and monochrome, on light and dark. The SVG masters in design/brand are the source of truth.",
+              "fontFamily": "Inter",
+              "fontSize": 18,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "J87IU",
+          "name": "Concepts",
+          "gap": 36,
+          "children": [
+            {
+              "type": "frame",
+              "id": "iyn0f",
+              "name": "Concept A  Velocity",
+              "width": 540,
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "xYpkB",
+                  "name": "Name",
+                  "fill": "$ink",
+                  "content": "A  Velocity",
+                  "fontFamily": "Inter",
+                  "fontSize": 28,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "K1Q0Vn",
+                  "name": "Description",
+                  "fill": "$slate",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "A forward-leaning R trailing three speed bars.",
+                  "fontFamily": "Inter",
+                  "fontSize": 16,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "E8gIo",
+                  "name": "Colour",
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "TclSb",
+                      "name": "On light",
+                      "width": 264,
+                      "height": 264,
+                      "fill": "$paper",
+                      "cornerRadius": 18,
+                      "layout": "none",
+                      "children": [
+                        {
+                          "type": "path",
+                          "id": "I5bMIq",
+                          "x": 32,
+                          "y": 32,
+                          "name": "Mark",
+                          "geometry": "M47.227 16l14 0-14.454 68-14 0z m14 0l9 0c11.598 0 19.001 9.402 16.536 21-2.465 11.598-13.865 21-25.463 21l-9 0z m-2.976 14l-2.976 14 8 0c3.866 0 7.666-3.134 8.488-7 0.822-3.866-1.646-7-5.512-7z m-3.951 28l14 0 9.473 26-15 0z m-38.049-28l18 0c2.209 0 3.619 1.791 3.15 4l0 0c-0.47 2.209-2.641 4-4.85 4l-18 0c-2.209 0-3.62-1.791-3.15-4l0 0c0.469-2.209 2.641-4 4.85-4z m4.599 16l10 0c2.209 0 3.62 1.791 3.15 4l0 0c-0.47 2.209-2.641 4-4.85 4l-10 0c-2.209 0-3.62-1.791-3.15-4l0 0c0.47-2.209 2.641-4 4.85-4z m4.599 16l2 0c2.209 0 3.62 1.791 3.15 4l0 0c-0.469 2.209-2.641 4-4.85 4l-2 0c-2.209 0-3.619-1.791-3.15-4l0 0c0.47-2.209 2.641-4 4.85-4z",
+                          "viewBox": [
+                            0,
+                            0,
+                            100,
+                            100
+                          ],
+                          "fill": {
+                            "type": "gradient",
+                            "gradientType": "linear",
+                            "enabled": true,
+                            "rotation": -45,
+                            "size": {
+                              "height": 1
+                            },
+                            "colors": [
+                              {
+                                "color": "#2F5BFF",
+                                "position": 0
+                              },
+                              {
+                                "color": "#19C6E6",
+                                "position": 1
+                              }
+                            ]
+                          },
+                          "width": 200,
+                          "height": 200
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "xjbG6",
+                      "name": "On dark",
+                      "width": 264,
+                      "height": 264,
+                      "fill": "$ink",
+                      "cornerRadius": 18,
+                      "layout": "none",
+                      "children": [
+                        {
+                          "type": "path",
+                          "id": "S9fLiO",
+                          "x": 32,
+                          "y": 32,
+                          "name": "Mark",
+                          "geometry": "M47.227 16l14 0-14.454 68-14 0z m14 0l9 0c11.598 0 19.001 9.402 16.536 21-2.465 11.598-13.865 21-25.463 21l-9 0z m-2.976 14l-2.976 14 8 0c3.866 0 7.666-3.134 8.488-7 0.822-3.866-1.646-7-5.512-7z m-3.951 28l14 0 9.473 26-15 0z m-38.049-28l18 0c2.209 0 3.619 1.791 3.15 4l0 0c-0.47 2.209-2.641 4-4.85 4l-18 0c-2.209 0-3.62-1.791-3.15-4l0 0c0.469-2.209 2.641-4 4.85-4z m4.599 16l10 0c2.209 0 3.62 1.791 3.15 4l0 0c-0.47 2.209-2.641 4-4.85 4l-10 0c-2.209 0-3.62-1.791-3.15-4l0 0c0.47-2.209 2.641-4 4.85-4z m4.599 16l2 0c2.209 0 3.62 1.791 3.15 4l0 0c-0.469 2.209-2.641 4-4.85 4l-2 0c-2.209 0-3.619-1.791-3.15-4l0 0c0.47-2.209 2.641-4 4.85-4z",
+                          "viewBox": [
+                            0,
+                            0,
+                            100,
+                            100
+                          ],
+                          "fill": {
+                            "type": "gradient",
+                            "gradientType": "linear",
+                            "enabled": true,
+                            "rotation": -45,
+                            "size": {
+                              "height": 1
+                            },
+                            "colors": [
+                              {
+                                "color": "#2F5BFF",
+                                "position": 0
+                              },
+                              {
+                                "color": "#19C6E6",
+                                "position": 1
+                              }
+                            ]
+                          },
+                          "width": 200,
+                          "height": 200
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "OhewA",
+                  "name": "Mono",
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "H2wkZT",
+                      "name": "On light",
+                      "width": 264,
+                      "height": 264,
+                      "fill": "$paper",
+                      "cornerRadius": 18,
+                      "layout": "none",
+                      "children": [
+                        {
+                          "type": "path",
+                          "id": "os3P3",
+                          "x": 32,
+                          "y": 32,
+                          "name": "Mark",
+                          "geometry": "M47.227 16l14 0-14.454 68-14 0z m14 0l9 0c11.598 0 19.001 9.402 16.536 21-2.465 11.598-13.865 21-25.463 21l-9 0z m-2.976 14l-2.976 14 8 0c3.866 0 7.666-3.134 8.488-7 0.822-3.866-1.646-7-5.512-7z m-3.951 28l14 0 9.473 26-15 0z m-38.049-28l18 0c2.209 0 3.619 1.791 3.15 4l0 0c-0.47 2.209-2.641 4-4.85 4l-18 0c-2.209 0-3.62-1.791-3.15-4l0 0c0.469-2.209 2.641-4 4.85-4z m4.599 16l10 0c2.209 0 3.62 1.791 3.15 4l0 0c-0.47 2.209-2.641 4-4.85 4l-10 0c-2.209 0-3.62-1.791-3.15-4l0 0c0.47-2.209 2.641-4 4.85-4z m4.599 16l2 0c2.209 0 3.62 1.791 3.15 4l0 0c-0.469 2.209-2.641 4-4.85 4l-2 0c-2.209 0-3.619-1.791-3.15-4l0 0c0.47-2.209 2.641-4 4.85-4z",
+                          "viewBox": [
+                            0,
+                            0,
+                            100,
+                            100
+                          ],
+                          "fill": "$ink",
+                          "width": 200,
+                          "height": 200
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "req9p",
+                      "name": "On dark",
+                      "width": 264,
+                      "height": 264,
+                      "fill": "$ink",
+                      "cornerRadius": 18,
+                      "layout": "none",
+                      "children": [
+                        {
+                          "type": "path",
+                          "id": "WEbbj",
+                          "x": 32,
+                          "y": 32,
+                          "name": "Mark",
+                          "geometry": "M47.227 16l14 0-14.454 68-14 0z m14 0l9 0c11.598 0 19.001 9.402 16.536 21-2.465 11.598-13.865 21-25.463 21l-9 0z m-2.976 14l-2.976 14 8 0c3.866 0 7.666-3.134 8.488-7 0.822-3.866-1.646-7-5.512-7z m-3.951 28l14 0 9.473 26-15 0z m-38.049-28l18 0c2.209 0 3.619 1.791 3.15 4l0 0c-0.47 2.209-2.641 4-4.85 4l-18 0c-2.209 0-3.62-1.791-3.15-4l0 0c0.469-2.209 2.641-4 4.85-4z m4.599 16l10 0c2.209 0 3.62 1.791 3.15 4l0 0c-0.47 2.209-2.641 4-4.85 4l-10 0c-2.209 0-3.62-1.791-3.15-4l0 0c0.47-2.209 2.641-4 4.85-4z m4.599 16l2 0c2.209 0 3.62 1.791 3.15 4l0 0c-0.469 2.209-2.641 4-4.85 4l-2 0c-2.209 0-3.619-1.791-3.15-4l0 0c0.47-2.209 2.641-4 4.85-4z",
+                          "viewBox": [
+                            0,
+                            0,
+                            100,
+                            100
+                          ],
+                          "fill": "#FFFFFF",
+                          "width": 200,
+                          "height": 200
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "kWaeV",
+              "name": "Concept B  Prompt",
+              "width": 540,
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "TiMKM",
+                  "name": "Name",
+                  "fill": "$ink",
+                  "content": "B  Prompt",
+                  "fontFamily": "Inter",
+                  "fontSize": 28,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "EFPg1",
+                  "name": "Description",
+                  "fill": "$slate",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "The R as a command prompt: chevron bowl, block cursor.",
+                  "fontFamily": "Inter",
+                  "fontSize": 16,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "u11KG",
+                  "name": "Colour",
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "L7Hb8",
+                      "name": "On light",
+                      "width": 264,
+                      "height": 264,
+                      "fill": "$paper",
+                      "cornerRadius": 18,
+                      "layout": "none",
+                      "children": [
+                        {
+                          "type": "path",
+                          "id": "OePs6",
+                          "x": 32,
+                          "y": 32,
+                          "name": "Strokes",
+                          "geometry": "M27 20v60m0-60l33 19-33 19m14-8l15 26",
+                          "viewBox": [
+                            0,
+                            0,
+                            100,
+                            100
+                          ],
+                          "width": 200,
+                          "height": 200,
+                          "stroke": {
+                            "type": "gradient",
+                            "gradientType": "linear",
+                            "enabled": true,
+                            "rotation": -45,
+                            "size": {
+                              "height": 1
+                            },
+                            "colors": [
+                              {
+                                "color": "#2F5BFF",
+                                "position": 0
+                              },
+                              {
+                                "color": "#19C6E6",
+                                "position": 1
+                              }
+                            ]
+                          },
+                          "strokeWidth": 26,
+                          "strokeLinejoin": "round",
+                          "strokeLinecap": "round"
+                        },
+                        {
+                          "type": "path",
+                          "id": "X6Lsdn",
+                          "x": 32,
+                          "y": 32,
+                          "name": "Cursor",
+                          "geometry": "M64 74.5h18a2.5 2.5 0 0 1 2.5 2.5v7a2.5 2.5 0 0 1-2.5 2.5h-18a2.5 2.5 0 0 1-2.5-2.5v-7a2.5 2.5 0 0 1 2.5-2.5z",
+                          "viewBox": [
+                            0,
+                            0,
+                            100,
+                            100
+                          ],
+                          "fill": {
+                            "type": "gradient",
+                            "gradientType": "linear",
+                            "enabled": true,
+                            "rotation": -45,
+                            "size": {
+                              "height": 1
+                            },
+                            "colors": [
+                              {
+                                "color": "#2F5BFF",
+                                "position": 0
+                              },
+                              {
+                                "color": "#19C6E6",
+                                "position": 1
+                              }
+                            ]
+                          },
+                          "width": 200,
+                          "height": 200
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "ztKvJ",
+                      "name": "On dark",
+                      "width": 264,
+                      "height": 264,
+                      "fill": "$ink",
+                      "cornerRadius": 18,
+                      "layout": "none",
+                      "children": [
+                        {
+                          "type": "path",
+                          "id": "iYGLl",
+                          "x": 32,
+                          "y": 32,
+                          "name": "Strokes",
+                          "geometry": "M27 20v60m0-60l33 19-33 19m14-8l15 26",
+                          "viewBox": [
+                            0,
+                            0,
+                            100,
+                            100
+                          ],
+                          "width": 200,
+                          "height": 200,
+                          "stroke": {
+                            "type": "gradient",
+                            "gradientType": "linear",
+                            "enabled": true,
+                            "rotation": -45,
+                            "size": {
+                              "height": 1
+                            },
+                            "colors": [
+                              {
+                                "color": "#2F5BFF",
+                                "position": 0
+                              },
+                              {
+                                "color": "#19C6E6",
+                                "position": 1
+                              }
+                            ]
+                          },
+                          "strokeWidth": 26,
+                          "strokeLinejoin": "round",
+                          "strokeLinecap": "round"
+                        },
+                        {
+                          "type": "path",
+                          "id": "wSCI2",
+                          "x": 32,
+                          "y": 32,
+                          "name": "Cursor",
+                          "geometry": "M64 74.5h18a2.5 2.5 0 0 1 2.5 2.5v7a2.5 2.5 0 0 1-2.5 2.5h-18a2.5 2.5 0 0 1-2.5-2.5v-7a2.5 2.5 0 0 1 2.5-2.5z",
+                          "viewBox": [
+                            0,
+                            0,
+                            100,
+                            100
+                          ],
+                          "fill": {
+                            "type": "gradient",
+                            "gradientType": "linear",
+                            "enabled": true,
+                            "rotation": -45,
+                            "size": {
+                              "height": 1
+                            },
+                            "colors": [
+                              {
+                                "color": "#2F5BFF",
+                                "position": 0
+                              },
+                              {
+                                "color": "#19C6E6",
+                                "position": 1
+                              }
+                            ]
+                          },
+                          "width": 200,
+                          "height": 200
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "h8l2Ee",
+                  "name": "Mono",
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "zAmli",
+                      "name": "On light",
+                      "width": 264,
+                      "height": 264,
+                      "fill": "$paper",
+                      "cornerRadius": 18,
+                      "layout": "none",
+                      "children": [
+                        {
+                          "type": "path",
+                          "id": "pLeAJ",
+                          "x": 32,
+                          "y": 32,
+                          "name": "Strokes",
+                          "geometry": "M27 20v60m0-60l33 19-33 19m14-8l15 26",
+                          "viewBox": [
+                            0,
+                            0,
+                            100,
+                            100
+                          ],
+                          "width": 200,
+                          "height": 200,
+                          "stroke": "$ink",
+                          "strokeWidth": 26,
+                          "strokeLinejoin": "round",
+                          "strokeLinecap": "round"
+                        },
+                        {
+                          "type": "path",
+                          "id": "Vy9AU",
+                          "x": 32,
+                          "y": 32,
+                          "name": "Cursor",
+                          "geometry": "M64 74.5h18a2.5 2.5 0 0 1 2.5 2.5v7a2.5 2.5 0 0 1-2.5 2.5h-18a2.5 2.5 0 0 1-2.5-2.5v-7a2.5 2.5 0 0 1 2.5-2.5z",
+                          "viewBox": [
+                            0,
+                            0,
+                            100,
+                            100
+                          ],
+                          "fill": "$ink",
+                          "width": 200,
+                          "height": 200
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "sXFJo",
+                      "name": "On dark",
+                      "width": 264,
+                      "height": 264,
+                      "fill": "$ink",
+                      "cornerRadius": 18,
+                      "layout": "none",
+                      "children": [
+                        {
+                          "type": "path",
+                          "id": "WSwHZ",
+                          "x": 32,
+                          "y": 32,
+                          "name": "Strokes",
+                          "geometry": "M27 20v60m0-60l33 19-33 19m14-8l15 26",
+                          "viewBox": [
+                            0,
+                            0,
+                            100,
+                            100
+                          ],
+                          "width": 200,
+                          "height": 200,
+                          "stroke": "#FFFFFF",
+                          "strokeWidth": 26,
+                          "strokeLinejoin": "round",
+                          "strokeLinecap": "round"
+                        },
+                        {
+                          "type": "path",
+                          "id": "AOlZB",
+                          "x": 32,
+                          "y": 32,
+                          "name": "Cursor",
+                          "geometry": "M64 74.5h18a2.5 2.5 0 0 1 2.5 2.5v7a2.5 2.5 0 0 1-2.5 2.5h-18a2.5 2.5 0 0 1-2.5-2.5v-7a2.5 2.5 0 0 1 2.5-2.5z",
+                          "viewBox": [
+                            0,
+                            0,
+                            100,
+                            100
+                          ],
+                          "fill": "#FFFFFF",
+                          "width": 200,
+                          "height": 200
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "IpvoY",
+              "name": "Concept C  Run",
+              "width": 540,
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "eqO4h",
+                  "name": "Name",
+                  "fill": "$ink",
+                  "content": "C  Run",
+                  "fontFamily": "Inter",
+                  "fontSize": 28,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "pvkho",
+                  "name": "Description",
+                  "fill": "$slate",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "A constructed R whose counter is a play triangle, on a tile.",
+                  "fontFamily": "Inter",
+                  "fontSize": 16,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "Itny0",
+                  "name": "Colour",
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "hpeLo",
+                      "name": "On light",
+                      "width": 264,
+                      "height": 264,
+                      "fill": "$paper",
+                      "cornerRadius": 18,
+                      "layout": "none",
+                      "children": [
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": 46,
+                          "id": "vn8xo",
+                          "x": 32,
+                          "y": 32,
+                          "name": "Tile",
+                          "fill": {
+                            "type": "gradient",
+                            "gradientType": "linear",
+                            "enabled": true,
+                            "rotation": -45,
+                            "size": {
+                              "height": 1
+                            },
+                            "colors": [
+                              {
+                                "color": "#2F5BFF",
+                                "position": 0
+                              },
+                              {
+                                "color": "#19C6E6",
+                                "position": 1
+                              }
+                            ]
+                          },
+                          "width": 200,
+                          "height": 200
+                        },
+                        {
+                          "type": "path",
+                          "id": "hyT5r",
+                          "x": 32,
+                          "y": 32,
+                          "name": "R",
+                          "geometry": "M25.5 19l28 0c11.046 0 20 8.954 20 20 0 11.046-8.954 20-20 20l-12 0 0 22-16 0z m16 12l0 16 19-8z m2 28l16 0 15 22-16 0z",
+                          "viewBox": [
+                            0,
+                            0,
+                            100,
+                            100
+                          ],
+                          "fill": "#FFFFFF",
+                          "width": 200,
+                          "height": 200
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "QiFMO",
+                      "name": "On dark",
+                      "width": 264,
+                      "height": 264,
+                      "fill": "$ink",
+                      "cornerRadius": 18,
+                      "layout": "none",
+                      "children": [
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": 46,
+                          "id": "U3RWN",
+                          "x": 32,
+                          "y": 32,
+                          "name": "Tile",
+                          "fill": {
+                            "type": "gradient",
+                            "gradientType": "linear",
+                            "enabled": true,
+                            "rotation": -45,
+                            "size": {
+                              "height": 1
+                            },
+                            "colors": [
+                              {
+                                "color": "#2F5BFF",
+                                "position": 0
+                              },
+                              {
+                                "color": "#19C6E6",
+                                "position": 1
+                              }
+                            ]
+                          },
+                          "width": 200,
+                          "height": 200
+                        },
+                        {
+                          "type": "path",
+                          "id": "MZMsW",
+                          "x": 32,
+                          "y": 32,
+                          "name": "R",
+                          "geometry": "M25.5 19l28 0c11.046 0 20 8.954 20 20 0 11.046-8.954 20-20 20l-12 0 0 22-16 0z m16 12l0 16 19-8z m2 28l16 0 15 22-16 0z",
+                          "viewBox": [
+                            0,
+                            0,
+                            100,
+                            100
+                          ],
+                          "fill": "#FFFFFF",
+                          "width": 200,
+                          "height": 200
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ktRO8",
+                  "name": "Mono",
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "NeSkQ",
+                      "name": "On light",
+                      "width": 264,
+                      "height": 264,
+                      "fill": "$paper",
+                      "cornerRadius": 18,
+                      "layout": "none",
+                      "children": [
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": 46,
+                          "id": "B7FjdX",
+                          "x": 32,
+                          "y": 32,
+                          "name": "Tile",
+                          "fill": "$ink",
+                          "width": 200,
+                          "height": 200
+                        },
+                        {
+                          "type": "path",
+                          "id": "yP7wD",
+                          "x": 32,
+                          "y": 32,
+                          "name": "R",
+                          "geometry": "M25.5 19l28 0c11.046 0 20 8.954 20 20 0 11.046-8.954 20-20 20l-12 0 0 22-16 0z m16 12l0 16 19-8z m2 28l16 0 15 22-16 0z",
+                          "viewBox": [
+                            0,
+                            0,
+                            100,
+                            100
+                          ],
+                          "fill": "$paper",
+                          "width": 200,
+                          "height": 200
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "JEGjy",
+                      "name": "On dark",
+                      "width": 264,
+                      "height": 264,
+                      "fill": "$ink",
+                      "cornerRadius": 18,
+                      "layout": "none",
+                      "children": [
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": 46,
+                          "id": "LWHFM",
+                          "x": 32,
+                          "y": 32,
+                          "name": "Tile",
+                          "fill": "#FFFFFF",
+                          "width": 200,
+                          "height": 200
+                        },
+                        {
+                          "type": "path",
+                          "id": "S29OX",
+                          "x": 32,
+                          "y": 32,
+                          "name": "R",
+                          "geometry": "M25.5 19l28 0c11.046 0 20 8.954 20 20 0 11.046-8.954 20-20 20l-12 0 0 22-16 0z m16 12l0 16 19-8z m2 28l16 0 15 22-16 0z",
+                          "viewBox": [
+                            0,
+                            0,
+                            100,
+                            100
+                          ],
+                          "fill": "$ink",
+                          "width": 200,
+                          "height": 200
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "v7zAsD",
+      "x": 0,
+      "y": 973,
+      "name": "Final: C Run",
+      "fill": "$board",
+      "layout": "vertical",
+      "gap": 40,
+      "padding": 60,
+      "children": [
+        {
+          "type": "frame",
+          "id": "t1Y8R",
+          "name": "Header",
+          "layout": "vertical",
+          "gap": 10,
+          "children": [
+            {
+              "type": "text",
+              "id": "ctyoo",
+              "name": "Title",
+              "fill": "$ink",
+              "content": "RapidR final: concept C, Run",
+              "fontFamily": "Inter",
+              "fontSize": 40,
+              "fontWeight": "700"
+            },
+            {
+              "type": "text",
+              "id": "b2U2N",
+              "name": "Subtitle",
+              "fill": "$slate",
+              "content": "Mark, lockups, app icons and palette. Vector copies of design/brand masters for review.",
+              "fontFamily": "Inter",
+              "fontSize": 18,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "W5xaY",
+          "name": "Lockups",
+          "gap": 24,
+          "children": [
+            {
+              "type": "frame",
+              "id": "yCzFk",
+              "name": "On light",
+              "fill": "$paper",
+              "cornerRadius": 20,
+              "gap": 26,
+              "padding": [
+                48,
+                56
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "T6lZw",
+                  "name": "Mark",
+                  "width": 120,
+                  "height": 120,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "r6p0Zn",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Tile",
+                      "geometry": "M66 0l7.687 0.008 2.701 0.024 1.998 0.039 1.642 0.056 1.419 0.071 1.26 0.088 1.14 0.103 1.044 0.12 0.966 0.135 0.9 0.153 0.843 0.168 0.793 0.185 0.747 0.202 0.707 0.219 0.67 0.237 0.636 0.253 0.605 0.271 0.575 0.29 0.547 0.307 0.521 0.326 0.495 0.346 0.472 0.365 0.449 0.384 0.427 0.406 0.406 0.427 0.384 0.449 0.365 0.472 0.346 0.495 0.326 0.521 0.307 0.547 0.29 0.575 0.271 0.605 0.253 0.636 0.237 0.67 0.219 0.707 0.202 0.747 0.185 0.793 0.168 0.843 0.153 0.9 0.135 0.966 0.12 1.044 0.103 1.14 0.088 1.26 0.071 1.419 0.056 1.642 0.039 1.998 0.024 2.701 0.008 7.687 0 32-0.008 7.687-0.024 2.701-0.039 1.998-0.056 1.642-0.071 1.419-0.088 1.26-0.103 1.14-0.12 1.044-0.135 0.966-0.153 0.9-0.168 0.843-0.185 0.793-0.202 0.747-0.219 0.707-0.237 0.67-0.253 0.636-0.271 0.605-0.29 0.575-0.307 0.547-0.326 0.521-0.346 0.495-0.365 0.472-0.384 0.449-0.406 0.427-0.427 0.406-0.449 0.384-0.472 0.365-0.495 0.346-0.521 0.326-0.547 0.307-0.575 0.29-0.605 0.271-0.636 0.253-0.67 0.237-0.707 0.219-0.747 0.202-0.793 0.185-0.843 0.168-0.9 0.153-0.966 0.135-1.044 0.12-1.14 0.103-1.26 0.088-1.419 0.071-1.642 0.056-1.998 0.039-2.701 0.024-7.687 0.008-32 0-7.687-0.008-2.701-0.024-1.998-0.039-1.642-0.056-1.419-0.071-1.26-0.088-1.14-0.103-1.044-0.12-0.966-0.135-0.9-0.153-0.843-0.168-0.793-0.185-0.747-0.202-0.707-0.219-0.67-0.237-0.636-0.253-0.605-0.271-0.575-0.29-0.547-0.307-0.521-0.326-0.495-0.346-0.472-0.365-0.449-0.384-0.427-0.406-0.406-0.427-0.384-0.449-0.365-0.472-0.346-0.495-0.326-0.521-0.307-0.547-0.29-0.575-0.271-0.605-0.253-0.636-0.237-0.67-0.219-0.707-0.202-0.747-0.185-0.793-0.168-0.843-0.153-0.9-0.135-0.966-0.12-1.044-0.103-1.14-0.088-1.26-0.071-1.419-0.056-1.642-0.039-1.998-0.024-2.701-0.008-7.687 0-32 0.008-7.687 0.024-2.701 0.039-1.998 0.056-1.642 0.071-1.419 0.088-1.26 0.103-1.14 0.12-1.044 0.135-0.966 0.153-0.9 0.168-0.843 0.185-0.793 0.202-0.747 0.219-0.707 0.237-0.67 0.253-0.636 0.271-0.605 0.29-0.575 0.307-0.547 0.326-0.521 0.346-0.495 0.365-0.472 0.384-0.449 0.406-0.427 0.427-0.406 0.449-0.384 0.472-0.365 0.495-0.346 0.521-0.326 0.547-0.307 0.575-0.29 0.605-0.271 0.636-0.253 0.67-0.237 0.707-0.219 0.747-0.202 0.793-0.185 0.843-0.168 0.9-0.153 0.966-0.135 1.044-0.12 1.14-0.103 1.26-0.088 1.419-0.071 1.642-0.056 1.998-0.039 2.701-0.024 7.687-0.008z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": -45,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#2F5BFF",
+                            "position": 0
+                          },
+                          {
+                            "color": "#19C6E6",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 120,
+                      "height": 120
+                    },
+                    {
+                      "type": "path",
+                      "id": "pybND",
+                      "x": 0,
+                      "y": 0,
+                      "name": "R",
+                      "geometry": "M25.5 19l28 0c11.046 0 20 8.954 20 20 0 11.046-8.954 20-20 20l-12 0 0 22-16 0z m16 12l0 16 19-8z m0 28l16 0 17 22-16 0z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": "#FFFFFF",
+                      "width": 120,
+                      "height": 120
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "FYvX8",
+                  "name": "Wordmark",
+                  "width": 266,
+                  "height": 120,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "q64FLw",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Rapid",
+                      "geometry": "M4.181 73.991l0-48 18.919 0c3.637 0 6.739 0.644 9.305 1.931 2.565 1.288 4.525 3.106 5.878 5.456 1.353 2.35 2.029 5.113 2.029 8.288 0 3.194-0.688 5.936-2.064 8.226-1.377 2.291-3.366 4.046-5.968 5.265-2.601 1.218-5.743 1.828-9.424 1.828l-12.675 0 0-8.175 11.025 0c1.944 0 3.556-0.265 4.835-0.795 1.28-0.529 2.238-1.324 2.874-2.383 0.636-1.06 0.954-2.382 0.954-3.966 0-1.594-0.32-2.938-0.959-4.034-0.639-1.095-1.6-1.925-2.883-2.489-1.282-0.564-2.902-0.846-4.858-0.846l-6.844 0 0 39.694z m25.913-21.844l11.925 21.844-11.194 0-11.681-21.844z m26.479 22.519c-2.291 0-4.336-0.401-6.134-1.202-1.798-0.802-3.216-1.996-4.254-3.584-1.037-1.587-1.556-3.567-1.556-5.939 0-2.006 0.364-3.687 1.092-5.041 0.728-1.355 1.725-2.447 2.991-3.275 1.265-0.828 2.708-1.456 4.329-1.884 1.62-0.428 3.322-0.728 5.107-0.9 2.084-0.206 3.768-0.407 5.05-0.602 1.283-0.196 2.215-0.489 2.796-0.882 0.582-0.392 0.872-0.972 0.872-1.741l0-0.131c0-1.488-0.467-2.638-1.401-3.45-0.935-0.813-2.249-1.219-3.943-1.219-1.796 0-3.227 0.393-4.291 1.179-1.064 0.786-1.765 1.774-2.102 2.965l-9.244-0.75c0.469-2.188 1.39-4.082 2.763-5.684 1.374-1.601 3.151-2.836 5.332-3.703 2.182-0.867 4.708-1.301 7.58-1.301 2.009 0 3.93 0.235 5.761 0.706 1.831 0.47 3.461 1.195 4.889 2.175 1.428 0.979 2.557 2.239 3.387 3.778 0.829 1.539 1.244 3.382 1.244 5.529l0 24.281-9.468 0 0-4.987-0.282 0c-0.581 1.118-1.354 2.104-2.318 2.957-0.964 0.853-2.128 1.517-3.492 1.992-1.364 0.476-2.933 0.713-4.708 0.713z m2.868-6.881c1.466 0 2.76-0.294 3.884-0.881 1.123-0.588 2.004-1.383 2.641-2.386 0.638-1.004 0.957-2.133 0.957-3.39l0-3.825c-0.3 0.197-0.723 0.379-1.268 0.544-0.546 0.166-1.152 0.314-1.819 0.446-0.667 0.131-1.336 0.248-2.006 0.351-0.671 0.103-1.279 0.194-1.826 0.272-1.175 0.169-2.201 0.441-3.078 0.818-0.876 0.376-1.557 0.881-2.043 1.514-0.486 0.633-0.729 1.418-0.729 2.356 0 1.368 0.497 2.407 1.49 3.117 0.994 0.709 2.26 1.064 3.797 1.064z m24.182 19.706l0-49.5 9.844 0 0 6.056 0.431 0c0.444-0.981 1.083-1.974 1.917-2.979 0.835-1.004 1.928-1.847 3.281-2.526 1.354-0.68 3.033-1.02 5.04-1.02 2.637 0 5.063 0.683 7.277 2.049 2.214 1.365 3.986 3.42 5.316 6.164 1.329 2.744 1.994 6.175 1.994 10.294 0 4.018-0.646 7.406-1.938 10.162-1.292 2.756-3.042 4.842-5.25 6.258-2.208 1.415-4.681 2.123-7.418 2.123-1.938 0-3.581-0.321-4.929-0.963-1.349-0.642-2.452-1.45-3.31-2.423-0.857-0.974-1.518-1.958-1.98-2.951l-0.3 0 0 19.256z m9.769-31.5c0 2.138 0.297 4.002 0.893 5.595 0.595 1.592 1.454 2.829 2.578 3.712 1.123 0.883 2.485 1.324 4.085 1.324 1.638 0 3.018-0.449 4.142-1.347 1.123-0.899 1.976-2.147 2.559-3.746 0.583-1.598 0.874-3.444 0.874-5.538 0-2.081-0.288-3.912-0.865-5.491-0.576-1.58-1.426-2.813-2.55-3.699-1.123-0.886-2.51-1.329-4.16-1.329-1.612 0-2.98 0.431-4.104 1.292-1.123 0.861-1.98 2.078-2.569 3.651-0.589 1.574-0.883 3.432-0.883 5.576z m30.983 18l0-36 9.975 0 0 36z m5.014-40.65c-1.486 0-2.759-0.494-3.818-1.482-1.06-0.988-1.589-2.175-1.589-3.562 0-1.387 0.53-2.575 1.591-3.562 1.06-0.988 2.33-1.481 3.809-1.481 1.49 0 2.763 0.493 3.817 1.481 1.055 0.988 1.582 2.176 1.582 3.563 0 1.387-0.527 2.574-1.582 3.562-1.054 0.987-2.325 1.481-3.81 1.481z m25.206 41.231c-2.738 0-5.21-0.708-7.418-2.123-2.208-1.416-3.958-3.502-5.25-6.258-1.292-2.756-1.939-6.144-1.939-10.162 0-4.119 0.665-7.55 1.995-10.294 1.33-2.744 3.102-4.799 5.316-6.164 2.214-1.366 4.639-2.049 7.277-2.049 2.006 0 3.686 0.34 5.039 1.02 1.353 0.679 2.447 1.522 3.281 2.526 0.835 1.005 1.474 1.998 1.918 2.979l0.3 0 0-18.056 9.974 0 0 48-9.843 0 0-5.756-0.431 0c-0.463 0.993-1.123 1.977-1.981 2.951-0.858 0.973-1.961 1.781-3.309 2.423-1.349 0.642-2.992 0.963-4.929 0.963z m3.168-7.95c1.6 0 2.962-0.441 4.086-1.324 1.123-0.883 1.982-2.12 2.578-3.712 0.595-1.593 0.893-3.457 0.893-5.595 0-2.144-0.295-4.002-0.884-5.576-0.589-1.573-1.445-2.79-2.569-3.651-1.123-0.861-2.491-1.292-4.104-1.292-1.65 0-3.036 0.443-4.16 1.329-1.123 0.886-1.973 2.119-2.55 3.699-0.576 1.579-0.865 3.41-0.865 5.491 0 2.094 0.292 3.94 0.875 5.538 0.582 1.599 1.435 2.847 2.559 3.746 1.123 0.898 2.504 1.347 4.141 1.347z",
+                      "viewBox": [
+                        0,
+                        0,
+                        221.6,
+                        100
+                      ],
+                      "fill": "$ink",
+                      "width": 266,
+                      "height": 120
+                    },
+                    {
+                      "type": "path",
+                      "id": "teCWd",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Final R",
+                      "geometry": "M182.465 73.991l0-48 18.919 0c3.637 0 6.739 0.644 9.305 1.931 2.565 1.288 4.525 3.106 5.878 5.456 1.353 2.35 2.029 5.113 2.029 8.288 0 3.194-0.688 5.936-2.064 8.226-1.377 2.291-3.366 4.046-5.968 5.265-2.601 1.218-5.743 1.828-9.424 1.828l-12.675 0 0-8.175 11.025 0c1.944 0 3.556-0.265 4.835-0.795 1.28-0.529 2.238-1.324 2.874-2.383 0.636-1.06 0.954-2.382 0.954-3.966 0-1.594-0.32-2.938-0.959-4.034-0.639-1.095-1.6-1.925-2.883-2.489-1.282-0.564-2.902-0.846-4.858-0.846l-6.844 0 0 39.694z m25.913-21.844l11.925 21.844-11.194 0-11.681-21.844z",
+                      "viewBox": [
+                        0,
+                        0,
+                        221.6,
+                        100
+                      ],
+                      "fill": "$blue",
+                      "width": 266,
+                      "height": 120
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "C3RFAc",
+              "name": "On dark",
+              "fill": "$ink",
+              "cornerRadius": 20,
+              "gap": 26,
+              "padding": [
+                48,
+                56
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "axGvY",
+                  "name": "Mark",
+                  "width": 120,
+                  "height": 120,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "M4u9pW",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Tile",
+                      "geometry": "M66 0l7.687 0.008 2.701 0.024 1.998 0.039 1.642 0.056 1.419 0.071 1.26 0.088 1.14 0.103 1.044 0.12 0.966 0.135 0.9 0.153 0.843 0.168 0.793 0.185 0.747 0.202 0.707 0.219 0.67 0.237 0.636 0.253 0.605 0.271 0.575 0.29 0.547 0.307 0.521 0.326 0.495 0.346 0.472 0.365 0.449 0.384 0.427 0.406 0.406 0.427 0.384 0.449 0.365 0.472 0.346 0.495 0.326 0.521 0.307 0.547 0.29 0.575 0.271 0.605 0.253 0.636 0.237 0.67 0.219 0.707 0.202 0.747 0.185 0.793 0.168 0.843 0.153 0.9 0.135 0.966 0.12 1.044 0.103 1.14 0.088 1.26 0.071 1.419 0.056 1.642 0.039 1.998 0.024 2.701 0.008 7.687 0 32-0.008 7.687-0.024 2.701-0.039 1.998-0.056 1.642-0.071 1.419-0.088 1.26-0.103 1.14-0.12 1.044-0.135 0.966-0.153 0.9-0.168 0.843-0.185 0.793-0.202 0.747-0.219 0.707-0.237 0.67-0.253 0.636-0.271 0.605-0.29 0.575-0.307 0.547-0.326 0.521-0.346 0.495-0.365 0.472-0.384 0.449-0.406 0.427-0.427 0.406-0.449 0.384-0.472 0.365-0.495 0.346-0.521 0.326-0.547 0.307-0.575 0.29-0.605 0.271-0.636 0.253-0.67 0.237-0.707 0.219-0.747 0.202-0.793 0.185-0.843 0.168-0.9 0.153-0.966 0.135-1.044 0.12-1.14 0.103-1.26 0.088-1.419 0.071-1.642 0.056-1.998 0.039-2.701 0.024-7.687 0.008-32 0-7.687-0.008-2.701-0.024-1.998-0.039-1.642-0.056-1.419-0.071-1.26-0.088-1.14-0.103-1.044-0.12-0.966-0.135-0.9-0.153-0.843-0.168-0.793-0.185-0.747-0.202-0.707-0.219-0.67-0.237-0.636-0.253-0.605-0.271-0.575-0.29-0.547-0.307-0.521-0.326-0.495-0.346-0.472-0.365-0.449-0.384-0.427-0.406-0.406-0.427-0.384-0.449-0.365-0.472-0.346-0.495-0.326-0.521-0.307-0.547-0.29-0.575-0.271-0.605-0.253-0.636-0.237-0.67-0.219-0.707-0.202-0.747-0.185-0.793-0.168-0.843-0.153-0.9-0.135-0.966-0.12-1.044-0.103-1.14-0.088-1.26-0.071-1.419-0.056-1.642-0.039-1.998-0.024-2.701-0.008-7.687 0-32 0.008-7.687 0.024-2.701 0.039-1.998 0.056-1.642 0.071-1.419 0.088-1.26 0.103-1.14 0.12-1.044 0.135-0.966 0.153-0.9 0.168-0.843 0.185-0.793 0.202-0.747 0.219-0.707 0.237-0.67 0.253-0.636 0.271-0.605 0.29-0.575 0.307-0.547 0.326-0.521 0.346-0.495 0.365-0.472 0.384-0.449 0.406-0.427 0.427-0.406 0.449-0.384 0.472-0.365 0.495-0.346 0.521-0.326 0.547-0.307 0.575-0.29 0.605-0.271 0.636-0.253 0.67-0.237 0.707-0.219 0.747-0.202 0.793-0.185 0.843-0.168 0.9-0.153 0.966-0.135 1.044-0.12 1.14-0.103 1.26-0.088 1.419-0.071 1.642-0.056 1.998-0.039 2.701-0.024 7.687-0.008z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": -45,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#2F5BFF",
+                            "position": 0
+                          },
+                          {
+                            "color": "#19C6E6",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 120,
+                      "height": 120
+                    },
+                    {
+                      "type": "path",
+                      "id": "T4Bnc",
+                      "x": 0,
+                      "y": 0,
+                      "name": "R",
+                      "geometry": "M25.5 19l28 0c11.046 0 20 8.954 20 20 0 11.046-8.954 20-20 20l-12 0 0 22-16 0z m16 12l0 16 19-8z m0 28l16 0 17 22-16 0z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": "#FFFFFF",
+                      "width": 120,
+                      "height": 120
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "N2HbK",
+                  "name": "Wordmark",
+                  "width": 266,
+                  "height": 120,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "MPgmp",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Rapid",
+                      "geometry": "M4.181 73.991l0-48 18.919 0c3.637 0 6.739 0.644 9.305 1.931 2.565 1.288 4.525 3.106 5.878 5.456 1.353 2.35 2.029 5.113 2.029 8.288 0 3.194-0.688 5.936-2.064 8.226-1.377 2.291-3.366 4.046-5.968 5.265-2.601 1.218-5.743 1.828-9.424 1.828l-12.675 0 0-8.175 11.025 0c1.944 0 3.556-0.265 4.835-0.795 1.28-0.529 2.238-1.324 2.874-2.383 0.636-1.06 0.954-2.382 0.954-3.966 0-1.594-0.32-2.938-0.959-4.034-0.639-1.095-1.6-1.925-2.883-2.489-1.282-0.564-2.902-0.846-4.858-0.846l-6.844 0 0 39.694z m25.913-21.844l11.925 21.844-11.194 0-11.681-21.844z m26.479 22.519c-2.291 0-4.336-0.401-6.134-1.202-1.798-0.802-3.216-1.996-4.254-3.584-1.037-1.587-1.556-3.567-1.556-5.939 0-2.006 0.364-3.687 1.092-5.041 0.728-1.355 1.725-2.447 2.991-3.275 1.265-0.828 2.708-1.456 4.329-1.884 1.62-0.428 3.322-0.728 5.107-0.9 2.084-0.206 3.768-0.407 5.05-0.602 1.283-0.196 2.215-0.489 2.796-0.882 0.582-0.392 0.872-0.972 0.872-1.741l0-0.131c0-1.488-0.467-2.638-1.401-3.45-0.935-0.813-2.249-1.219-3.943-1.219-1.796 0-3.227 0.393-4.291 1.179-1.064 0.786-1.765 1.774-2.102 2.965l-9.244-0.75c0.469-2.188 1.39-4.082 2.763-5.684 1.374-1.601 3.151-2.836 5.332-3.703 2.182-0.867 4.708-1.301 7.58-1.301 2.009 0 3.93 0.235 5.761 0.706 1.831 0.47 3.461 1.195 4.889 2.175 1.428 0.979 2.557 2.239 3.387 3.778 0.829 1.539 1.244 3.382 1.244 5.529l0 24.281-9.468 0 0-4.987-0.282 0c-0.581 1.118-1.354 2.104-2.318 2.957-0.964 0.853-2.128 1.517-3.492 1.992-1.364 0.476-2.933 0.713-4.708 0.713z m2.868-6.881c1.466 0 2.76-0.294 3.884-0.881 1.123-0.588 2.004-1.383 2.641-2.386 0.638-1.004 0.957-2.133 0.957-3.39l0-3.825c-0.3 0.197-0.723 0.379-1.268 0.544-0.546 0.166-1.152 0.314-1.819 0.446-0.667 0.131-1.336 0.248-2.006 0.351-0.671 0.103-1.279 0.194-1.826 0.272-1.175 0.169-2.201 0.441-3.078 0.818-0.876 0.376-1.557 0.881-2.043 1.514-0.486 0.633-0.729 1.418-0.729 2.356 0 1.368 0.497 2.407 1.49 3.117 0.994 0.709 2.26 1.064 3.797 1.064z m24.182 19.706l0-49.5 9.844 0 0 6.056 0.431 0c0.444-0.981 1.083-1.974 1.917-2.979 0.835-1.004 1.928-1.847 3.281-2.526 1.354-0.68 3.033-1.02 5.04-1.02 2.637 0 5.063 0.683 7.277 2.049 2.214 1.365 3.986 3.42 5.316 6.164 1.329 2.744 1.994 6.175 1.994 10.294 0 4.018-0.646 7.406-1.938 10.162-1.292 2.756-3.042 4.842-5.25 6.258-2.208 1.415-4.681 2.123-7.418 2.123-1.938 0-3.581-0.321-4.929-0.963-1.349-0.642-2.452-1.45-3.31-2.423-0.857-0.974-1.518-1.958-1.98-2.951l-0.3 0 0 19.256z m9.769-31.5c0 2.138 0.297 4.002 0.893 5.595 0.595 1.592 1.454 2.829 2.578 3.712 1.123 0.883 2.485 1.324 4.085 1.324 1.638 0 3.018-0.449 4.142-1.347 1.123-0.899 1.976-2.147 2.559-3.746 0.583-1.598 0.874-3.444 0.874-5.538 0-2.081-0.288-3.912-0.865-5.491-0.576-1.58-1.426-2.813-2.55-3.699-1.123-0.886-2.51-1.329-4.16-1.329-1.612 0-2.98 0.431-4.104 1.292-1.123 0.861-1.98 2.078-2.569 3.651-0.589 1.574-0.883 3.432-0.883 5.576z m30.983 18l0-36 9.975 0 0 36z m5.014-40.65c-1.486 0-2.759-0.494-3.818-1.482-1.06-0.988-1.589-2.175-1.589-3.562 0-1.387 0.53-2.575 1.591-3.562 1.06-0.988 2.33-1.481 3.809-1.481 1.49 0 2.763 0.493 3.817 1.481 1.055 0.988 1.582 2.176 1.582 3.563 0 1.387-0.527 2.574-1.582 3.562-1.054 0.987-2.325 1.481-3.81 1.481z m25.206 41.231c-2.738 0-5.21-0.708-7.418-2.123-2.208-1.416-3.958-3.502-5.25-6.258-1.292-2.756-1.939-6.144-1.939-10.162 0-4.119 0.665-7.55 1.995-10.294 1.33-2.744 3.102-4.799 5.316-6.164 2.214-1.366 4.639-2.049 7.277-2.049 2.006 0 3.686 0.34 5.039 1.02 1.353 0.679 2.447 1.522 3.281 2.526 0.835 1.005 1.474 1.998 1.918 2.979l0.3 0 0-18.056 9.974 0 0 48-9.843 0 0-5.756-0.431 0c-0.463 0.993-1.123 1.977-1.981 2.951-0.858 0.973-1.961 1.781-3.309 2.423-1.349 0.642-2.992 0.963-4.929 0.963z m3.168-7.95c1.6 0 2.962-0.441 4.086-1.324 1.123-0.883 1.982-2.12 2.578-3.712 0.595-1.593 0.893-3.457 0.893-5.595 0-2.144-0.295-4.002-0.884-5.576-0.589-1.573-1.445-2.79-2.569-3.651-1.123-0.861-2.491-1.292-4.104-1.292-1.65 0-3.036 0.443-4.16 1.329-1.123 0.886-1.973 2.119-2.55 3.699-0.576 1.579-0.865 3.41-0.865 5.491 0 2.094 0.292 3.94 0.875 5.538 0.582 1.599 1.435 2.847 2.559 3.746 1.123 0.898 2.504 1.347 4.141 1.347z",
+                      "viewBox": [
+                        0,
+                        0,
+                        221.6,
+                        100
+                      ],
+                      "fill": "#FFFFFF",
+                      "width": 266,
+                      "height": 120
+                    },
+                    {
+                      "type": "path",
+                      "id": "FutLk",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Final R",
+                      "geometry": "M182.465 73.991l0-48 18.919 0c3.637 0 6.739 0.644 9.305 1.931 2.565 1.288 4.525 3.106 5.878 5.456 1.353 2.35 2.029 5.113 2.029 8.288 0 3.194-0.688 5.936-2.064 8.226-1.377 2.291-3.366 4.046-5.968 5.265-2.601 1.218-5.743 1.828-9.424 1.828l-12.675 0 0-8.175 11.025 0c1.944 0 3.556-0.265 4.835-0.795 1.28-0.529 2.238-1.324 2.874-2.383 0.636-1.06 0.954-2.382 0.954-3.966 0-1.594-0.32-2.938-0.959-4.034-0.639-1.095-1.6-1.925-2.883-2.489-1.282-0.564-2.902-0.846-4.858-0.846l-6.844 0 0 39.694z m25.913-21.844l11.925 21.844-11.194 0-11.681-21.844z",
+                      "viewBox": [
+                        0,
+                        0,
+                        221.6,
+                        100
+                      ],
+                      "fill": "#6E93FF",
+                      "width": 266,
+                      "height": 120
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "A1tcVv",
+              "name": "Mono",
+              "fill": "#FFFFFF",
+              "cornerRadius": 20,
+              "gap": 26,
+              "padding": [
+                48,
+                56
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "Y4o0d",
+                  "name": "Mark",
+                  "width": 120,
+                  "height": 120,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "JEbUy",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Tile",
+                      "geometry": "M66 0l7.687 0.008 2.701 0.024 1.998 0.039 1.642 0.056 1.419 0.071 1.26 0.088 1.14 0.103 1.044 0.12 0.966 0.135 0.9 0.153 0.843 0.168 0.793 0.185 0.747 0.202 0.707 0.219 0.67 0.237 0.636 0.253 0.605 0.271 0.575 0.29 0.547 0.307 0.521 0.326 0.495 0.346 0.472 0.365 0.449 0.384 0.427 0.406 0.406 0.427 0.384 0.449 0.365 0.472 0.346 0.495 0.326 0.521 0.307 0.547 0.29 0.575 0.271 0.605 0.253 0.636 0.237 0.67 0.219 0.707 0.202 0.747 0.185 0.793 0.168 0.843 0.153 0.9 0.135 0.966 0.12 1.044 0.103 1.14 0.088 1.26 0.071 1.419 0.056 1.642 0.039 1.998 0.024 2.701 0.008 7.687 0 32-0.008 7.687-0.024 2.701-0.039 1.998-0.056 1.642-0.071 1.419-0.088 1.26-0.103 1.14-0.12 1.044-0.135 0.966-0.153 0.9-0.168 0.843-0.185 0.793-0.202 0.747-0.219 0.707-0.237 0.67-0.253 0.636-0.271 0.605-0.29 0.575-0.307 0.547-0.326 0.521-0.346 0.495-0.365 0.472-0.384 0.449-0.406 0.427-0.427 0.406-0.449 0.384-0.472 0.365-0.495 0.346-0.521 0.326-0.547 0.307-0.575 0.29-0.605 0.271-0.636 0.253-0.67 0.237-0.707 0.219-0.747 0.202-0.793 0.185-0.843 0.168-0.9 0.153-0.966 0.135-1.044 0.12-1.14 0.103-1.26 0.088-1.419 0.071-1.642 0.056-1.998 0.039-2.701 0.024-7.687 0.008-32 0-7.687-0.008-2.701-0.024-1.998-0.039-1.642-0.056-1.419-0.071-1.26-0.088-1.14-0.103-1.044-0.12-0.966-0.135-0.9-0.153-0.843-0.168-0.793-0.185-0.747-0.202-0.707-0.219-0.67-0.237-0.636-0.253-0.605-0.271-0.575-0.29-0.547-0.307-0.521-0.326-0.495-0.346-0.472-0.365-0.449-0.384-0.427-0.406-0.406-0.427-0.384-0.449-0.365-0.472-0.346-0.495-0.326-0.521-0.307-0.547-0.29-0.575-0.271-0.605-0.253-0.636-0.237-0.67-0.219-0.707-0.202-0.747-0.185-0.793-0.168-0.843-0.153-0.9-0.135-0.966-0.12-1.044-0.103-1.14-0.088-1.26-0.071-1.419-0.056-1.642-0.039-1.998-0.024-2.701-0.008-7.687 0-32 0.008-7.687 0.024-2.701 0.039-1.998 0.056-1.642 0.071-1.419 0.088-1.26 0.103-1.14 0.12-1.044 0.135-0.966 0.153-0.9 0.168-0.843 0.185-0.793 0.202-0.747 0.219-0.707 0.237-0.67 0.253-0.636 0.271-0.605 0.29-0.575 0.307-0.547 0.326-0.521 0.346-0.495 0.365-0.472 0.384-0.449 0.406-0.427 0.427-0.406 0.449-0.384 0.472-0.365 0.495-0.346 0.521-0.326 0.547-0.307 0.575-0.29 0.605-0.271 0.636-0.253 0.67-0.237 0.707-0.219 0.747-0.202 0.793-0.185 0.843-0.168 0.9-0.153 0.966-0.135 1.044-0.12 1.14-0.103 1.26-0.088 1.419-0.071 1.642-0.056 1.998-0.039 2.701-0.024 7.687-0.008z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": "$ink",
+                      "width": 120,
+                      "height": 120
+                    },
+                    {
+                      "type": "path",
+                      "id": "qykgW",
+                      "x": 0,
+                      "y": 0,
+                      "name": "R",
+                      "geometry": "M25.5 19l28 0c11.046 0 20 8.954 20 20 0 11.046-8.954 20-20 20l-12 0 0 22-16 0z m16 12l0 16 19-8z m0 28l16 0 17 22-16 0z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": "#FFFFFF",
+                      "width": 120,
+                      "height": 120
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r30Ivf",
+                  "name": "Wordmark",
+                  "width": 266,
+                  "height": 120,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "q0BEc",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Rapid",
+                      "geometry": "M4.181 73.991l0-48 18.919 0c3.637 0 6.739 0.644 9.305 1.931 2.565 1.288 4.525 3.106 5.878 5.456 1.353 2.35 2.029 5.113 2.029 8.288 0 3.194-0.688 5.936-2.064 8.226-1.377 2.291-3.366 4.046-5.968 5.265-2.601 1.218-5.743 1.828-9.424 1.828l-12.675 0 0-8.175 11.025 0c1.944 0 3.556-0.265 4.835-0.795 1.28-0.529 2.238-1.324 2.874-2.383 0.636-1.06 0.954-2.382 0.954-3.966 0-1.594-0.32-2.938-0.959-4.034-0.639-1.095-1.6-1.925-2.883-2.489-1.282-0.564-2.902-0.846-4.858-0.846l-6.844 0 0 39.694z m25.913-21.844l11.925 21.844-11.194 0-11.681-21.844z m26.479 22.519c-2.291 0-4.336-0.401-6.134-1.202-1.798-0.802-3.216-1.996-4.254-3.584-1.037-1.587-1.556-3.567-1.556-5.939 0-2.006 0.364-3.687 1.092-5.041 0.728-1.355 1.725-2.447 2.991-3.275 1.265-0.828 2.708-1.456 4.329-1.884 1.62-0.428 3.322-0.728 5.107-0.9 2.084-0.206 3.768-0.407 5.05-0.602 1.283-0.196 2.215-0.489 2.796-0.882 0.582-0.392 0.872-0.972 0.872-1.741l0-0.131c0-1.488-0.467-2.638-1.401-3.45-0.935-0.813-2.249-1.219-3.943-1.219-1.796 0-3.227 0.393-4.291 1.179-1.064 0.786-1.765 1.774-2.102 2.965l-9.244-0.75c0.469-2.188 1.39-4.082 2.763-5.684 1.374-1.601 3.151-2.836 5.332-3.703 2.182-0.867 4.708-1.301 7.58-1.301 2.009 0 3.93 0.235 5.761 0.706 1.831 0.47 3.461 1.195 4.889 2.175 1.428 0.979 2.557 2.239 3.387 3.778 0.829 1.539 1.244 3.382 1.244 5.529l0 24.281-9.468 0 0-4.987-0.282 0c-0.581 1.118-1.354 2.104-2.318 2.957-0.964 0.853-2.128 1.517-3.492 1.992-1.364 0.476-2.933 0.713-4.708 0.713z m2.868-6.881c1.466 0 2.76-0.294 3.884-0.881 1.123-0.588 2.004-1.383 2.641-2.386 0.638-1.004 0.957-2.133 0.957-3.39l0-3.825c-0.3 0.197-0.723 0.379-1.268 0.544-0.546 0.166-1.152 0.314-1.819 0.446-0.667 0.131-1.336 0.248-2.006 0.351-0.671 0.103-1.279 0.194-1.826 0.272-1.175 0.169-2.201 0.441-3.078 0.818-0.876 0.376-1.557 0.881-2.043 1.514-0.486 0.633-0.729 1.418-0.729 2.356 0 1.368 0.497 2.407 1.49 3.117 0.994 0.709 2.26 1.064 3.797 1.064z m24.182 19.706l0-49.5 9.844 0 0 6.056 0.431 0c0.444-0.981 1.083-1.974 1.917-2.979 0.835-1.004 1.928-1.847 3.281-2.526 1.354-0.68 3.033-1.02 5.04-1.02 2.637 0 5.063 0.683 7.277 2.049 2.214 1.365 3.986 3.42 5.316 6.164 1.329 2.744 1.994 6.175 1.994 10.294 0 4.018-0.646 7.406-1.938 10.162-1.292 2.756-3.042 4.842-5.25 6.258-2.208 1.415-4.681 2.123-7.418 2.123-1.938 0-3.581-0.321-4.929-0.963-1.349-0.642-2.452-1.45-3.31-2.423-0.857-0.974-1.518-1.958-1.98-2.951l-0.3 0 0 19.256z m9.769-31.5c0 2.138 0.297 4.002 0.893 5.595 0.595 1.592 1.454 2.829 2.578 3.712 1.123 0.883 2.485 1.324 4.085 1.324 1.638 0 3.018-0.449 4.142-1.347 1.123-0.899 1.976-2.147 2.559-3.746 0.583-1.598 0.874-3.444 0.874-5.538 0-2.081-0.288-3.912-0.865-5.491-0.576-1.58-1.426-2.813-2.55-3.699-1.123-0.886-2.51-1.329-4.16-1.329-1.612 0-2.98 0.431-4.104 1.292-1.123 0.861-1.98 2.078-2.569 3.651-0.589 1.574-0.883 3.432-0.883 5.576z m30.983 18l0-36 9.975 0 0 36z m5.014-40.65c-1.486 0-2.759-0.494-3.818-1.482-1.06-0.988-1.589-2.175-1.589-3.562 0-1.387 0.53-2.575 1.591-3.562 1.06-0.988 2.33-1.481 3.809-1.481 1.49 0 2.763 0.493 3.817 1.481 1.055 0.988 1.582 2.176 1.582 3.563 0 1.387-0.527 2.574-1.582 3.562-1.054 0.987-2.325 1.481-3.81 1.481z m25.206 41.231c-2.738 0-5.21-0.708-7.418-2.123-2.208-1.416-3.958-3.502-5.25-6.258-1.292-2.756-1.939-6.144-1.939-10.162 0-4.119 0.665-7.55 1.995-10.294 1.33-2.744 3.102-4.799 5.316-6.164 2.214-1.366 4.639-2.049 7.277-2.049 2.006 0 3.686 0.34 5.039 1.02 1.353 0.679 2.447 1.522 3.281 2.526 0.835 1.005 1.474 1.998 1.918 2.979l0.3 0 0-18.056 9.974 0 0 48-9.843 0 0-5.756-0.431 0c-0.463 0.993-1.123 1.977-1.981 2.951-0.858 0.973-1.961 1.781-3.309 2.423-1.349 0.642-2.992 0.963-4.929 0.963z m3.168-7.95c1.6 0 2.962-0.441 4.086-1.324 1.123-0.883 1.982-2.12 2.578-3.712 0.595-1.593 0.893-3.457 0.893-5.595 0-2.144-0.295-4.002-0.884-5.576-0.589-1.573-1.445-2.79-2.569-3.651-1.123-0.861-2.491-1.292-4.104-1.292-1.65 0-3.036 0.443-4.16 1.329-1.123 0.886-1.973 2.119-2.55 3.699-0.576 1.579-0.865 3.41-0.865 5.491 0 2.094 0.292 3.94 0.875 5.538 0.582 1.599 1.435 2.847 2.559 3.746 1.123 0.898 2.504 1.347 4.141 1.347z",
+                      "viewBox": [
+                        0,
+                        0,
+                        221.6,
+                        100
+                      ],
+                      "fill": "$ink",
+                      "width": 266,
+                      "height": 120
+                    },
+                    {
+                      "type": "path",
+                      "id": "R0bbo",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Final R",
+                      "geometry": "M182.465 73.991l0-48 18.919 0c3.637 0 6.739 0.644 9.305 1.931 2.565 1.288 4.525 3.106 5.878 5.456 1.353 2.35 2.029 5.113 2.029 8.288 0 3.194-0.688 5.936-2.064 8.226-1.377 2.291-3.366 4.046-5.968 5.265-2.601 1.218-5.743 1.828-9.424 1.828l-12.675 0 0-8.175 11.025 0c1.944 0 3.556-0.265 4.835-0.795 1.28-0.529 2.238-1.324 2.874-2.383 0.636-1.06 0.954-2.382 0.954-3.966 0-1.594-0.32-2.938-0.959-4.034-0.639-1.095-1.6-1.925-2.883-2.489-1.282-0.564-2.902-0.846-4.858-0.846l-6.844 0 0 39.694z m25.913-21.844l11.925 21.844-11.194 0-11.681-21.844z",
+                      "viewBox": [
+                        0,
+                        0,
+                        221.6,
+                        100
+                      ],
+                      "fill": "$ink",
+                      "width": 266,
+                      "height": 120
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "GEQlw",
+          "name": "App icons",
+          "gap": 40,
+          "alignItems": "end",
+          "children": [
+            {
+              "type": "frame",
+              "id": "hEJYN",
+              "name": "IDE",
+              "layout": "vertical",
+              "gap": 12,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "FOjsH",
+                  "name": "Icon",
+                  "width": 256,
+                  "height": 256,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "onNFh",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Tile",
+                      "geometry": "M66 0l7.687 0.008 2.701 0.024 1.998 0.039 1.642 0.056 1.419 0.071 1.26 0.088 1.14 0.103 1.044 0.12 0.966 0.135 0.9 0.153 0.843 0.168 0.793 0.185 0.747 0.202 0.707 0.219 0.67 0.237 0.636 0.253 0.605 0.271 0.575 0.29 0.547 0.307 0.521 0.326 0.495 0.346 0.472 0.365 0.449 0.384 0.427 0.406 0.406 0.427 0.384 0.449 0.365 0.472 0.346 0.495 0.326 0.521 0.307 0.547 0.29 0.575 0.271 0.605 0.253 0.636 0.237 0.67 0.219 0.707 0.202 0.747 0.185 0.793 0.168 0.843 0.153 0.9 0.135 0.966 0.12 1.044 0.103 1.14 0.088 1.26 0.071 1.419 0.056 1.642 0.039 1.998 0.024 2.701 0.008 7.687 0 32-0.008 7.687-0.024 2.701-0.039 1.998-0.056 1.642-0.071 1.419-0.088 1.26-0.103 1.14-0.12 1.044-0.135 0.966-0.153 0.9-0.168 0.843-0.185 0.793-0.202 0.747-0.219 0.707-0.237 0.67-0.253 0.636-0.271 0.605-0.29 0.575-0.307 0.547-0.326 0.521-0.346 0.495-0.365 0.472-0.384 0.449-0.406 0.427-0.427 0.406-0.449 0.384-0.472 0.365-0.495 0.346-0.521 0.326-0.547 0.307-0.575 0.29-0.605 0.271-0.636 0.253-0.67 0.237-0.707 0.219-0.747 0.202-0.793 0.185-0.843 0.168-0.9 0.153-0.966 0.135-1.044 0.12-1.14 0.103-1.26 0.088-1.419 0.071-1.642 0.056-1.998 0.039-2.701 0.024-7.687 0.008-32 0-7.687-0.008-2.701-0.024-1.998-0.039-1.642-0.056-1.419-0.071-1.26-0.088-1.14-0.103-1.044-0.12-0.966-0.135-0.9-0.153-0.843-0.168-0.793-0.185-0.747-0.202-0.707-0.219-0.67-0.237-0.636-0.253-0.605-0.271-0.575-0.29-0.547-0.307-0.521-0.326-0.495-0.346-0.472-0.365-0.449-0.384-0.427-0.406-0.406-0.427-0.384-0.449-0.365-0.472-0.346-0.495-0.326-0.521-0.307-0.547-0.29-0.575-0.271-0.605-0.253-0.636-0.237-0.67-0.219-0.707-0.202-0.747-0.185-0.793-0.168-0.843-0.153-0.9-0.135-0.966-0.12-1.044-0.103-1.14-0.088-1.26-0.071-1.419-0.056-1.642-0.039-1.998-0.024-2.701-0.008-7.687 0-32 0.008-7.687 0.024-2.701 0.039-1.998 0.056-1.642 0.071-1.419 0.088-1.26 0.103-1.14 0.12-1.044 0.135-0.966 0.153-0.9 0.168-0.843 0.185-0.793 0.202-0.747 0.219-0.707 0.237-0.67 0.253-0.636 0.271-0.605 0.29-0.575 0.307-0.547 0.326-0.521 0.346-0.495 0.365-0.472 0.384-0.449 0.406-0.427 0.427-0.406 0.449-0.384 0.472-0.365 0.495-0.346 0.521-0.326 0.547-0.307 0.575-0.29 0.605-0.271 0.636-0.253 0.67-0.237 0.707-0.219 0.747-0.202 0.793-0.185 0.843-0.168 0.9-0.153 0.966-0.135 1.044-0.12 1.14-0.103 1.26-0.088 1.419-0.071 1.642-0.056 1.998-0.039 2.701-0.024 7.687-0.008z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": -45,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#2F5BFF",
+                            "position": 0
+                          },
+                          {
+                            "color": "#19C6E6",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 256,
+                      "height": 256,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#0E152540",
+                        "offset": {
+                          "x": 0,
+                          "y": 3.072
+                        },
+                        "blur": 7.68
+                      }
+                    },
+                    {
+                      "type": "path",
+                      "id": "Dcyc3",
+                      "x": 0,
+                      "y": 0,
+                      "name": "R",
+                      "geometry": "M25.5 19l28 0c11.046 0 20 8.954 20 20 0 11.046-8.954 20-20 20l-12 0 0 22-16 0z m16 12l0 16 19-8z m0 28l16 0 17 22-16 0z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": "#FFFFFF",
+                      "width": 256,
+                      "height": 256
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "qXCNf",
+                  "name": "Label",
+                  "fill": "$slate",
+                  "content": "IDE 256",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "tzVfw",
+              "name": "IDE",
+              "layout": "vertical",
+              "gap": 12,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "S67GNb",
+                  "name": "Icon",
+                  "width": 128,
+                  "height": 128,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "tZN3c",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Tile",
+                      "geometry": "M66 0l7.687 0.008 2.701 0.024 1.998 0.039 1.642 0.056 1.419 0.071 1.26 0.088 1.14 0.103 1.044 0.12 0.966 0.135 0.9 0.153 0.843 0.168 0.793 0.185 0.747 0.202 0.707 0.219 0.67 0.237 0.636 0.253 0.605 0.271 0.575 0.29 0.547 0.307 0.521 0.326 0.495 0.346 0.472 0.365 0.449 0.384 0.427 0.406 0.406 0.427 0.384 0.449 0.365 0.472 0.346 0.495 0.326 0.521 0.307 0.547 0.29 0.575 0.271 0.605 0.253 0.636 0.237 0.67 0.219 0.707 0.202 0.747 0.185 0.793 0.168 0.843 0.153 0.9 0.135 0.966 0.12 1.044 0.103 1.14 0.088 1.26 0.071 1.419 0.056 1.642 0.039 1.998 0.024 2.701 0.008 7.687 0 32-0.008 7.687-0.024 2.701-0.039 1.998-0.056 1.642-0.071 1.419-0.088 1.26-0.103 1.14-0.12 1.044-0.135 0.966-0.153 0.9-0.168 0.843-0.185 0.793-0.202 0.747-0.219 0.707-0.237 0.67-0.253 0.636-0.271 0.605-0.29 0.575-0.307 0.547-0.326 0.521-0.346 0.495-0.365 0.472-0.384 0.449-0.406 0.427-0.427 0.406-0.449 0.384-0.472 0.365-0.495 0.346-0.521 0.326-0.547 0.307-0.575 0.29-0.605 0.271-0.636 0.253-0.67 0.237-0.707 0.219-0.747 0.202-0.793 0.185-0.843 0.168-0.9 0.153-0.966 0.135-1.044 0.12-1.14 0.103-1.26 0.088-1.419 0.071-1.642 0.056-1.998 0.039-2.701 0.024-7.687 0.008-32 0-7.687-0.008-2.701-0.024-1.998-0.039-1.642-0.056-1.419-0.071-1.26-0.088-1.14-0.103-1.044-0.12-0.966-0.135-0.9-0.153-0.843-0.168-0.793-0.185-0.747-0.202-0.707-0.219-0.67-0.237-0.636-0.253-0.605-0.271-0.575-0.29-0.547-0.307-0.521-0.326-0.495-0.346-0.472-0.365-0.449-0.384-0.427-0.406-0.406-0.427-0.384-0.449-0.365-0.472-0.346-0.495-0.326-0.521-0.307-0.547-0.29-0.575-0.271-0.605-0.253-0.636-0.237-0.67-0.219-0.707-0.202-0.747-0.185-0.793-0.168-0.843-0.153-0.9-0.135-0.966-0.12-1.044-0.103-1.14-0.088-1.26-0.071-1.419-0.056-1.642-0.039-1.998-0.024-2.701-0.008-7.687 0-32 0.008-7.687 0.024-2.701 0.039-1.998 0.056-1.642 0.071-1.419 0.088-1.26 0.103-1.14 0.12-1.044 0.135-0.966 0.153-0.9 0.168-0.843 0.185-0.793 0.202-0.747 0.219-0.707 0.237-0.67 0.253-0.636 0.271-0.605 0.29-0.575 0.307-0.547 0.326-0.521 0.346-0.495 0.365-0.472 0.384-0.449 0.406-0.427 0.427-0.406 0.449-0.384 0.472-0.365 0.495-0.346 0.521-0.326 0.547-0.307 0.575-0.29 0.605-0.271 0.636-0.253 0.67-0.237 0.707-0.219 0.747-0.202 0.793-0.185 0.843-0.168 0.9-0.153 0.966-0.135 1.044-0.12 1.14-0.103 1.26-0.088 1.419-0.071 1.642-0.056 1.998-0.039 2.701-0.024 7.687-0.008z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": -45,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#2F5BFF",
+                            "position": 0
+                          },
+                          {
+                            "color": "#19C6E6",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 128,
+                      "height": 128,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#0E152540",
+                        "offset": {
+                          "x": 0,
+                          "y": 1.536
+                        },
+                        "blur": 3.84
+                      }
+                    },
+                    {
+                      "type": "path",
+                      "id": "DsLw2",
+                      "x": 0,
+                      "y": 0,
+                      "name": "R",
+                      "geometry": "M25.5 19l28 0c11.046 0 20 8.954 20 20 0 11.046-8.954 20-20 20l-12 0 0 22-16 0z m16 12l0 16 19-8z m0 28l16 0 17 22-16 0z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": "#FFFFFF",
+                      "width": 128,
+                      "height": 128
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "jlhnm",
+                  "name": "Label",
+                  "fill": "$slate",
+                  "content": "IDE 128",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "XLP3n",
+              "name": "IDE",
+              "layout": "vertical",
+              "gap": 12,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "D4WxT9",
+                  "name": "Icon",
+                  "width": 64,
+                  "height": 64,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "FwiPd",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Tile",
+                      "geometry": "M66 0l7.687 0.008 2.701 0.024 1.998 0.039 1.642 0.056 1.419 0.071 1.26 0.088 1.14 0.103 1.044 0.12 0.966 0.135 0.9 0.153 0.843 0.168 0.793 0.185 0.747 0.202 0.707 0.219 0.67 0.237 0.636 0.253 0.605 0.271 0.575 0.29 0.547 0.307 0.521 0.326 0.495 0.346 0.472 0.365 0.449 0.384 0.427 0.406 0.406 0.427 0.384 0.449 0.365 0.472 0.346 0.495 0.326 0.521 0.307 0.547 0.29 0.575 0.271 0.605 0.253 0.636 0.237 0.67 0.219 0.707 0.202 0.747 0.185 0.793 0.168 0.843 0.153 0.9 0.135 0.966 0.12 1.044 0.103 1.14 0.088 1.26 0.071 1.419 0.056 1.642 0.039 1.998 0.024 2.701 0.008 7.687 0 32-0.008 7.687-0.024 2.701-0.039 1.998-0.056 1.642-0.071 1.419-0.088 1.26-0.103 1.14-0.12 1.044-0.135 0.966-0.153 0.9-0.168 0.843-0.185 0.793-0.202 0.747-0.219 0.707-0.237 0.67-0.253 0.636-0.271 0.605-0.29 0.575-0.307 0.547-0.326 0.521-0.346 0.495-0.365 0.472-0.384 0.449-0.406 0.427-0.427 0.406-0.449 0.384-0.472 0.365-0.495 0.346-0.521 0.326-0.547 0.307-0.575 0.29-0.605 0.271-0.636 0.253-0.67 0.237-0.707 0.219-0.747 0.202-0.793 0.185-0.843 0.168-0.9 0.153-0.966 0.135-1.044 0.12-1.14 0.103-1.26 0.088-1.419 0.071-1.642 0.056-1.998 0.039-2.701 0.024-7.687 0.008-32 0-7.687-0.008-2.701-0.024-1.998-0.039-1.642-0.056-1.419-0.071-1.26-0.088-1.14-0.103-1.044-0.12-0.966-0.135-0.9-0.153-0.843-0.168-0.793-0.185-0.747-0.202-0.707-0.219-0.67-0.237-0.636-0.253-0.605-0.271-0.575-0.29-0.547-0.307-0.521-0.326-0.495-0.346-0.472-0.365-0.449-0.384-0.427-0.406-0.406-0.427-0.384-0.449-0.365-0.472-0.346-0.495-0.326-0.521-0.307-0.547-0.29-0.575-0.271-0.605-0.253-0.636-0.237-0.67-0.219-0.707-0.202-0.747-0.185-0.793-0.168-0.843-0.153-0.9-0.135-0.966-0.12-1.044-0.103-1.14-0.088-1.26-0.071-1.419-0.056-1.642-0.039-1.998-0.024-2.701-0.008-7.687 0-32 0.008-7.687 0.024-2.701 0.039-1.998 0.056-1.642 0.071-1.419 0.088-1.26 0.103-1.14 0.12-1.044 0.135-0.966 0.153-0.9 0.168-0.843 0.185-0.793 0.202-0.747 0.219-0.707 0.237-0.67 0.253-0.636 0.271-0.605 0.29-0.575 0.307-0.547 0.326-0.521 0.346-0.495 0.365-0.472 0.384-0.449 0.406-0.427 0.427-0.406 0.449-0.384 0.472-0.365 0.495-0.346 0.521-0.326 0.547-0.307 0.575-0.29 0.605-0.271 0.636-0.253 0.67-0.237 0.707-0.219 0.747-0.202 0.793-0.185 0.843-0.168 0.9-0.153 0.966-0.135 1.044-0.12 1.14-0.103 1.26-0.088 1.419-0.071 1.642-0.056 1.998-0.039 2.701-0.024 7.687-0.008z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": -45,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#2F5BFF",
+                            "position": 0
+                          },
+                          {
+                            "color": "#19C6E6",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 64,
+                      "height": 64,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#0E152540",
+                        "offset": {
+                          "x": 0,
+                          "y": 0.768
+                        },
+                        "blur": 1.92
+                      }
+                    },
+                    {
+                      "type": "path",
+                      "id": "xGQFT",
+                      "x": 0,
+                      "y": 0,
+                      "name": "R",
+                      "geometry": "M25.5 19l28 0c11.046 0 20 8.954 20 20 0 11.046-8.954 20-20 20l-12 0 0 22-16 0z m16 12l0 16 19-8z m0 28l16 0 17 22-16 0z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": "#FFFFFF",
+                      "width": 64,
+                      "height": 64
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "tlnpO",
+                  "name": "Label",
+                  "fill": "$slate",
+                  "content": "IDE 64",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "GibCX",
+              "name": "IDE",
+              "layout": "vertical",
+              "gap": 12,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "FsLag",
+                  "name": "Icon",
+                  "width": 32,
+                  "height": 32,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "M4yi0I",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Tile",
+                      "geometry": "M66 0l7.687 0.008 2.701 0.024 1.998 0.039 1.642 0.056 1.419 0.071 1.26 0.088 1.14 0.103 1.044 0.12 0.966 0.135 0.9 0.153 0.843 0.168 0.793 0.185 0.747 0.202 0.707 0.219 0.67 0.237 0.636 0.253 0.605 0.271 0.575 0.29 0.547 0.307 0.521 0.326 0.495 0.346 0.472 0.365 0.449 0.384 0.427 0.406 0.406 0.427 0.384 0.449 0.365 0.472 0.346 0.495 0.326 0.521 0.307 0.547 0.29 0.575 0.271 0.605 0.253 0.636 0.237 0.67 0.219 0.707 0.202 0.747 0.185 0.793 0.168 0.843 0.153 0.9 0.135 0.966 0.12 1.044 0.103 1.14 0.088 1.26 0.071 1.419 0.056 1.642 0.039 1.998 0.024 2.701 0.008 7.687 0 32-0.008 7.687-0.024 2.701-0.039 1.998-0.056 1.642-0.071 1.419-0.088 1.26-0.103 1.14-0.12 1.044-0.135 0.966-0.153 0.9-0.168 0.843-0.185 0.793-0.202 0.747-0.219 0.707-0.237 0.67-0.253 0.636-0.271 0.605-0.29 0.575-0.307 0.547-0.326 0.521-0.346 0.495-0.365 0.472-0.384 0.449-0.406 0.427-0.427 0.406-0.449 0.384-0.472 0.365-0.495 0.346-0.521 0.326-0.547 0.307-0.575 0.29-0.605 0.271-0.636 0.253-0.67 0.237-0.707 0.219-0.747 0.202-0.793 0.185-0.843 0.168-0.9 0.153-0.966 0.135-1.044 0.12-1.14 0.103-1.26 0.088-1.419 0.071-1.642 0.056-1.998 0.039-2.701 0.024-7.687 0.008-32 0-7.687-0.008-2.701-0.024-1.998-0.039-1.642-0.056-1.419-0.071-1.26-0.088-1.14-0.103-1.044-0.12-0.966-0.135-0.9-0.153-0.843-0.168-0.793-0.185-0.747-0.202-0.707-0.219-0.67-0.237-0.636-0.253-0.605-0.271-0.575-0.29-0.547-0.307-0.521-0.326-0.495-0.346-0.472-0.365-0.449-0.384-0.427-0.406-0.406-0.427-0.384-0.449-0.365-0.472-0.346-0.495-0.326-0.521-0.307-0.547-0.29-0.575-0.271-0.605-0.253-0.636-0.237-0.67-0.219-0.707-0.202-0.747-0.185-0.793-0.168-0.843-0.153-0.9-0.135-0.966-0.12-1.044-0.103-1.14-0.088-1.26-0.071-1.419-0.056-1.642-0.039-1.998-0.024-2.701-0.008-7.687 0-32 0.008-7.687 0.024-2.701 0.039-1.998 0.056-1.642 0.071-1.419 0.088-1.26 0.103-1.14 0.12-1.044 0.135-0.966 0.153-0.9 0.168-0.843 0.185-0.793 0.202-0.747 0.219-0.707 0.237-0.67 0.253-0.636 0.271-0.605 0.29-0.575 0.307-0.547 0.326-0.521 0.346-0.495 0.365-0.472 0.384-0.449 0.406-0.427 0.427-0.406 0.449-0.384 0.472-0.365 0.495-0.346 0.521-0.326 0.547-0.307 0.575-0.29 0.605-0.271 0.636-0.253 0.67-0.237 0.707-0.219 0.747-0.202 0.793-0.185 0.843-0.168 0.9-0.153 0.966-0.135 1.044-0.12 1.14-0.103 1.26-0.088 1.419-0.071 1.642-0.056 1.998-0.039 2.701-0.024 7.687-0.008z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": -45,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#2F5BFF",
+                            "position": 0
+                          },
+                          {
+                            "color": "#19C6E6",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 32,
+                      "height": 32,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#0E152540",
+                        "offset": {
+                          "x": 0,
+                          "y": 0.384
+                        },
+                        "blur": 0.96
+                      }
+                    },
+                    {
+                      "type": "path",
+                      "id": "Eyeq8",
+                      "x": 0,
+                      "y": 0,
+                      "name": "R",
+                      "geometry": "M25.5 19l28 0c11.046 0 20 8.954 20 20 0 11.046-8.954 20-20 20l-12 0 0 22-16 0z m16 12l0 16 19-8z m0 28l16 0 17 22-16 0z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": "#FFFFFF",
+                      "width": 32,
+                      "height": 32
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "pphRg",
+                  "name": "Label",
+                  "fill": "$slate",
+                  "content": "IDE 32",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "v4cMh",
+              "name": "Runtime",
+              "layout": "vertical",
+              "gap": 12,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "baBHd",
+                  "name": "Icon",
+                  "width": 256,
+                  "height": 256,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "a2yR1d",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Tile",
+                      "geometry": "M66 0l7.687 0.008 2.701 0.024 1.998 0.039 1.642 0.056 1.419 0.071 1.26 0.088 1.14 0.103 1.044 0.12 0.966 0.135 0.9 0.153 0.843 0.168 0.793 0.185 0.747 0.202 0.707 0.219 0.67 0.237 0.636 0.253 0.605 0.271 0.575 0.29 0.547 0.307 0.521 0.326 0.495 0.346 0.472 0.365 0.449 0.384 0.427 0.406 0.406 0.427 0.384 0.449 0.365 0.472 0.346 0.495 0.326 0.521 0.307 0.547 0.29 0.575 0.271 0.605 0.253 0.636 0.237 0.67 0.219 0.707 0.202 0.747 0.185 0.793 0.168 0.843 0.153 0.9 0.135 0.966 0.12 1.044 0.103 1.14 0.088 1.26 0.071 1.419 0.056 1.642 0.039 1.998 0.024 2.701 0.008 7.687 0 32-0.008 7.687-0.024 2.701-0.039 1.998-0.056 1.642-0.071 1.419-0.088 1.26-0.103 1.14-0.12 1.044-0.135 0.966-0.153 0.9-0.168 0.843-0.185 0.793-0.202 0.747-0.219 0.707-0.237 0.67-0.253 0.636-0.271 0.605-0.29 0.575-0.307 0.547-0.326 0.521-0.346 0.495-0.365 0.472-0.384 0.449-0.406 0.427-0.427 0.406-0.449 0.384-0.472 0.365-0.495 0.346-0.521 0.326-0.547 0.307-0.575 0.29-0.605 0.271-0.636 0.253-0.67 0.237-0.707 0.219-0.747 0.202-0.793 0.185-0.843 0.168-0.9 0.153-0.966 0.135-1.044 0.12-1.14 0.103-1.26 0.088-1.419 0.071-1.642 0.056-1.998 0.039-2.701 0.024-7.687 0.008-32 0-7.687-0.008-2.701-0.024-1.998-0.039-1.642-0.056-1.419-0.071-1.26-0.088-1.14-0.103-1.044-0.12-0.966-0.135-0.9-0.153-0.843-0.168-0.793-0.185-0.747-0.202-0.707-0.219-0.67-0.237-0.636-0.253-0.605-0.271-0.575-0.29-0.547-0.307-0.521-0.326-0.495-0.346-0.472-0.365-0.449-0.384-0.427-0.406-0.406-0.427-0.384-0.449-0.365-0.472-0.346-0.495-0.326-0.521-0.307-0.547-0.29-0.575-0.271-0.605-0.253-0.636-0.237-0.67-0.219-0.707-0.202-0.747-0.185-0.793-0.168-0.843-0.153-0.9-0.135-0.966-0.12-1.044-0.103-1.14-0.088-1.26-0.071-1.419-0.056-1.642-0.039-1.998-0.024-2.701-0.008-7.687 0-32 0.008-7.687 0.024-2.701 0.039-1.998 0.056-1.642 0.071-1.419 0.088-1.26 0.103-1.14 0.12-1.044 0.135-0.966 0.153-0.9 0.168-0.843 0.185-0.793 0.202-0.747 0.219-0.707 0.237-0.67 0.253-0.636 0.271-0.605 0.29-0.575 0.307-0.547 0.326-0.521 0.346-0.495 0.365-0.472 0.384-0.449 0.406-0.427 0.427-0.406 0.449-0.384 0.472-0.365 0.495-0.346 0.521-0.326 0.547-0.307 0.575-0.29 0.605-0.271 0.636-0.253 0.67-0.237 0.707-0.219 0.747-0.202 0.793-0.185 0.843-0.168 0.9-0.153 0.966-0.135 1.044-0.12 1.14-0.103 1.26-0.088 1.419-0.071 1.642-0.056 1.998-0.039 2.701-0.024 7.687-0.008z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 0,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#0E1525",
+                            "position": 0
+                          },
+                          {
+                            "color": "#1A2644",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 256,
+                      "height": 256,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#0E152540",
+                        "offset": {
+                          "x": 0,
+                          "y": 3.072
+                        },
+                        "blur": 7.68
+                      }
+                    },
+                    {
+                      "type": "path",
+                      "id": "WqLsu",
+                      "x": 0,
+                      "y": 0,
+                      "name": "R",
+                      "geometry": "M25.5 19l28 0c11.046 0 20 8.954 20 20 0 11.046-8.954 20-20 20l-12 0 0 22-16 0z m16 12l0 16 19-8z m0 28l16 0 17 22-16 0z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": "#FFFFFF",
+                      "width": 256,
+                      "height": 256
+                    },
+                    {
+                      "type": "path",
+                      "id": "mw3WZ",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Play",
+                      "geometry": "M41.5 31l0 16 19-8z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": "$amber",
+                      "width": 256,
+                      "height": 256
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "YJ1Lh",
+                  "name": "Label",
+                  "fill": "$slate",
+                  "content": "Runtime 256",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "CxTWY",
+              "name": "Runtime",
+              "layout": "vertical",
+              "gap": 12,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "N1arsK",
+                  "name": "Icon",
+                  "width": 128,
+                  "height": 128,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "y3MlAb",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Tile",
+                      "geometry": "M66 0l7.687 0.008 2.701 0.024 1.998 0.039 1.642 0.056 1.419 0.071 1.26 0.088 1.14 0.103 1.044 0.12 0.966 0.135 0.9 0.153 0.843 0.168 0.793 0.185 0.747 0.202 0.707 0.219 0.67 0.237 0.636 0.253 0.605 0.271 0.575 0.29 0.547 0.307 0.521 0.326 0.495 0.346 0.472 0.365 0.449 0.384 0.427 0.406 0.406 0.427 0.384 0.449 0.365 0.472 0.346 0.495 0.326 0.521 0.307 0.547 0.29 0.575 0.271 0.605 0.253 0.636 0.237 0.67 0.219 0.707 0.202 0.747 0.185 0.793 0.168 0.843 0.153 0.9 0.135 0.966 0.12 1.044 0.103 1.14 0.088 1.26 0.071 1.419 0.056 1.642 0.039 1.998 0.024 2.701 0.008 7.687 0 32-0.008 7.687-0.024 2.701-0.039 1.998-0.056 1.642-0.071 1.419-0.088 1.26-0.103 1.14-0.12 1.044-0.135 0.966-0.153 0.9-0.168 0.843-0.185 0.793-0.202 0.747-0.219 0.707-0.237 0.67-0.253 0.636-0.271 0.605-0.29 0.575-0.307 0.547-0.326 0.521-0.346 0.495-0.365 0.472-0.384 0.449-0.406 0.427-0.427 0.406-0.449 0.384-0.472 0.365-0.495 0.346-0.521 0.326-0.547 0.307-0.575 0.29-0.605 0.271-0.636 0.253-0.67 0.237-0.707 0.219-0.747 0.202-0.793 0.185-0.843 0.168-0.9 0.153-0.966 0.135-1.044 0.12-1.14 0.103-1.26 0.088-1.419 0.071-1.642 0.056-1.998 0.039-2.701 0.024-7.687 0.008-32 0-7.687-0.008-2.701-0.024-1.998-0.039-1.642-0.056-1.419-0.071-1.26-0.088-1.14-0.103-1.044-0.12-0.966-0.135-0.9-0.153-0.843-0.168-0.793-0.185-0.747-0.202-0.707-0.219-0.67-0.237-0.636-0.253-0.605-0.271-0.575-0.29-0.547-0.307-0.521-0.326-0.495-0.346-0.472-0.365-0.449-0.384-0.427-0.406-0.406-0.427-0.384-0.449-0.365-0.472-0.346-0.495-0.326-0.521-0.307-0.547-0.29-0.575-0.271-0.605-0.253-0.636-0.237-0.67-0.219-0.707-0.202-0.747-0.185-0.793-0.168-0.843-0.153-0.9-0.135-0.966-0.12-1.044-0.103-1.14-0.088-1.26-0.071-1.419-0.056-1.642-0.039-1.998-0.024-2.701-0.008-7.687 0-32 0.008-7.687 0.024-2.701 0.039-1.998 0.056-1.642 0.071-1.419 0.088-1.26 0.103-1.14 0.12-1.044 0.135-0.966 0.153-0.9 0.168-0.843 0.185-0.793 0.202-0.747 0.219-0.707 0.237-0.67 0.253-0.636 0.271-0.605 0.29-0.575 0.307-0.547 0.326-0.521 0.346-0.495 0.365-0.472 0.384-0.449 0.406-0.427 0.427-0.406 0.449-0.384 0.472-0.365 0.495-0.346 0.521-0.326 0.547-0.307 0.575-0.29 0.605-0.271 0.636-0.253 0.67-0.237 0.707-0.219 0.747-0.202 0.793-0.185 0.843-0.168 0.9-0.153 0.966-0.135 1.044-0.12 1.14-0.103 1.26-0.088 1.419-0.071 1.642-0.056 1.998-0.039 2.701-0.024 7.687-0.008z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 0,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#0E1525",
+                            "position": 0
+                          },
+                          {
+                            "color": "#1A2644",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 128,
+                      "height": 128,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#0E152540",
+                        "offset": {
+                          "x": 0,
+                          "y": 1.536
+                        },
+                        "blur": 3.84
+                      }
+                    },
+                    {
+                      "type": "path",
+                      "id": "eKE1L",
+                      "x": 0,
+                      "y": 0,
+                      "name": "R",
+                      "geometry": "M25.5 19l28 0c11.046 0 20 8.954 20 20 0 11.046-8.954 20-20 20l-12 0 0 22-16 0z m16 12l0 16 19-8z m0 28l16 0 17 22-16 0z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": "#FFFFFF",
+                      "width": 128,
+                      "height": 128
+                    },
+                    {
+                      "type": "path",
+                      "id": "c1H5xg",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Play",
+                      "geometry": "M41.5 31l0 16 19-8z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": "$amber",
+                      "width": 128,
+                      "height": 128
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "aZj3d",
+                  "name": "Label",
+                  "fill": "$slate",
+                  "content": "Runtime 128",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "CXEZn",
+              "name": "Runtime",
+              "layout": "vertical",
+              "gap": 12,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "vnFy8",
+                  "name": "Icon",
+                  "width": 64,
+                  "height": 64,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "v54Xnh",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Tile",
+                      "geometry": "M66 0l7.687 0.008 2.701 0.024 1.998 0.039 1.642 0.056 1.419 0.071 1.26 0.088 1.14 0.103 1.044 0.12 0.966 0.135 0.9 0.153 0.843 0.168 0.793 0.185 0.747 0.202 0.707 0.219 0.67 0.237 0.636 0.253 0.605 0.271 0.575 0.29 0.547 0.307 0.521 0.326 0.495 0.346 0.472 0.365 0.449 0.384 0.427 0.406 0.406 0.427 0.384 0.449 0.365 0.472 0.346 0.495 0.326 0.521 0.307 0.547 0.29 0.575 0.271 0.605 0.253 0.636 0.237 0.67 0.219 0.707 0.202 0.747 0.185 0.793 0.168 0.843 0.153 0.9 0.135 0.966 0.12 1.044 0.103 1.14 0.088 1.26 0.071 1.419 0.056 1.642 0.039 1.998 0.024 2.701 0.008 7.687 0 32-0.008 7.687-0.024 2.701-0.039 1.998-0.056 1.642-0.071 1.419-0.088 1.26-0.103 1.14-0.12 1.044-0.135 0.966-0.153 0.9-0.168 0.843-0.185 0.793-0.202 0.747-0.219 0.707-0.237 0.67-0.253 0.636-0.271 0.605-0.29 0.575-0.307 0.547-0.326 0.521-0.346 0.495-0.365 0.472-0.384 0.449-0.406 0.427-0.427 0.406-0.449 0.384-0.472 0.365-0.495 0.346-0.521 0.326-0.547 0.307-0.575 0.29-0.605 0.271-0.636 0.253-0.67 0.237-0.707 0.219-0.747 0.202-0.793 0.185-0.843 0.168-0.9 0.153-0.966 0.135-1.044 0.12-1.14 0.103-1.26 0.088-1.419 0.071-1.642 0.056-1.998 0.039-2.701 0.024-7.687 0.008-32 0-7.687-0.008-2.701-0.024-1.998-0.039-1.642-0.056-1.419-0.071-1.26-0.088-1.14-0.103-1.044-0.12-0.966-0.135-0.9-0.153-0.843-0.168-0.793-0.185-0.747-0.202-0.707-0.219-0.67-0.237-0.636-0.253-0.605-0.271-0.575-0.29-0.547-0.307-0.521-0.326-0.495-0.346-0.472-0.365-0.449-0.384-0.427-0.406-0.406-0.427-0.384-0.449-0.365-0.472-0.346-0.495-0.326-0.521-0.307-0.547-0.29-0.575-0.271-0.605-0.253-0.636-0.237-0.67-0.219-0.707-0.202-0.747-0.185-0.793-0.168-0.843-0.153-0.9-0.135-0.966-0.12-1.044-0.103-1.14-0.088-1.26-0.071-1.419-0.056-1.642-0.039-1.998-0.024-2.701-0.008-7.687 0-32 0.008-7.687 0.024-2.701 0.039-1.998 0.056-1.642 0.071-1.419 0.088-1.26 0.103-1.14 0.12-1.044 0.135-0.966 0.153-0.9 0.168-0.843 0.185-0.793 0.202-0.747 0.219-0.707 0.237-0.67 0.253-0.636 0.271-0.605 0.29-0.575 0.307-0.547 0.326-0.521 0.346-0.495 0.365-0.472 0.384-0.449 0.406-0.427 0.427-0.406 0.449-0.384 0.472-0.365 0.495-0.346 0.521-0.326 0.547-0.307 0.575-0.29 0.605-0.271 0.636-0.253 0.67-0.237 0.707-0.219 0.747-0.202 0.793-0.185 0.843-0.168 0.9-0.153 0.966-0.135 1.044-0.12 1.14-0.103 1.26-0.088 1.419-0.071 1.642-0.056 1.998-0.039 2.701-0.024 7.687-0.008z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 0,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#0E1525",
+                            "position": 0
+                          },
+                          {
+                            "color": "#1A2644",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 64,
+                      "height": 64,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#0E152540",
+                        "offset": {
+                          "x": 0,
+                          "y": 0.768
+                        },
+                        "blur": 1.92
+                      }
+                    },
+                    {
+                      "type": "path",
+                      "id": "r8vlB",
+                      "x": 0,
+                      "y": 0,
+                      "name": "R",
+                      "geometry": "M25.5 19l28 0c11.046 0 20 8.954 20 20 0 11.046-8.954 20-20 20l-12 0 0 22-16 0z m16 12l0 16 19-8z m0 28l16 0 17 22-16 0z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": "#FFFFFF",
+                      "width": 64,
+                      "height": 64
+                    },
+                    {
+                      "type": "path",
+                      "id": "r0Mh0",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Play",
+                      "geometry": "M41.5 31l0 16 19-8z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": "$amber",
+                      "width": 64,
+                      "height": 64
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "I6FymQ",
+                  "name": "Label",
+                  "fill": "$slate",
+                  "content": "Runtime 64",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "KnwRv",
+              "name": "Runtime",
+              "layout": "vertical",
+              "gap": 12,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "m1cKwh",
+                  "name": "Icon",
+                  "width": 32,
+                  "height": 32,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "KXODz",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Tile",
+                      "geometry": "M66 0l7.687 0.008 2.701 0.024 1.998 0.039 1.642 0.056 1.419 0.071 1.26 0.088 1.14 0.103 1.044 0.12 0.966 0.135 0.9 0.153 0.843 0.168 0.793 0.185 0.747 0.202 0.707 0.219 0.67 0.237 0.636 0.253 0.605 0.271 0.575 0.29 0.547 0.307 0.521 0.326 0.495 0.346 0.472 0.365 0.449 0.384 0.427 0.406 0.406 0.427 0.384 0.449 0.365 0.472 0.346 0.495 0.326 0.521 0.307 0.547 0.29 0.575 0.271 0.605 0.253 0.636 0.237 0.67 0.219 0.707 0.202 0.747 0.185 0.793 0.168 0.843 0.153 0.9 0.135 0.966 0.12 1.044 0.103 1.14 0.088 1.26 0.071 1.419 0.056 1.642 0.039 1.998 0.024 2.701 0.008 7.687 0 32-0.008 7.687-0.024 2.701-0.039 1.998-0.056 1.642-0.071 1.419-0.088 1.26-0.103 1.14-0.12 1.044-0.135 0.966-0.153 0.9-0.168 0.843-0.185 0.793-0.202 0.747-0.219 0.707-0.237 0.67-0.253 0.636-0.271 0.605-0.29 0.575-0.307 0.547-0.326 0.521-0.346 0.495-0.365 0.472-0.384 0.449-0.406 0.427-0.427 0.406-0.449 0.384-0.472 0.365-0.495 0.346-0.521 0.326-0.547 0.307-0.575 0.29-0.605 0.271-0.636 0.253-0.67 0.237-0.707 0.219-0.747 0.202-0.793 0.185-0.843 0.168-0.9 0.153-0.966 0.135-1.044 0.12-1.14 0.103-1.26 0.088-1.419 0.071-1.642 0.056-1.998 0.039-2.701 0.024-7.687 0.008-32 0-7.687-0.008-2.701-0.024-1.998-0.039-1.642-0.056-1.419-0.071-1.26-0.088-1.14-0.103-1.044-0.12-0.966-0.135-0.9-0.153-0.843-0.168-0.793-0.185-0.747-0.202-0.707-0.219-0.67-0.237-0.636-0.253-0.605-0.271-0.575-0.29-0.547-0.307-0.521-0.326-0.495-0.346-0.472-0.365-0.449-0.384-0.427-0.406-0.406-0.427-0.384-0.449-0.365-0.472-0.346-0.495-0.326-0.521-0.307-0.547-0.29-0.575-0.271-0.605-0.253-0.636-0.237-0.67-0.219-0.707-0.202-0.747-0.185-0.793-0.168-0.843-0.153-0.9-0.135-0.966-0.12-1.044-0.103-1.14-0.088-1.26-0.071-1.419-0.056-1.642-0.039-1.998-0.024-2.701-0.008-7.687 0-32 0.008-7.687 0.024-2.701 0.039-1.998 0.056-1.642 0.071-1.419 0.088-1.26 0.103-1.14 0.12-1.044 0.135-0.966 0.153-0.9 0.168-0.843 0.185-0.793 0.202-0.747 0.219-0.707 0.237-0.67 0.253-0.636 0.271-0.605 0.29-0.575 0.307-0.547 0.326-0.521 0.346-0.495 0.365-0.472 0.384-0.449 0.406-0.427 0.427-0.406 0.449-0.384 0.472-0.365 0.495-0.346 0.521-0.326 0.547-0.307 0.575-0.29 0.605-0.271 0.636-0.253 0.67-0.237 0.707-0.219 0.747-0.202 0.793-0.185 0.843-0.168 0.9-0.153 0.966-0.135 1.044-0.12 1.14-0.103 1.26-0.088 1.419-0.071 1.642-0.056 1.998-0.039 2.701-0.024 7.687-0.008z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 0,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#0E1525",
+                            "position": 0
+                          },
+                          {
+                            "color": "#1A2644",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 32,
+                      "height": 32,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#0E152540",
+                        "offset": {
+                          "x": 0,
+                          "y": 0.384
+                        },
+                        "blur": 0.96
+                      }
+                    },
+                    {
+                      "type": "path",
+                      "id": "Dzu2N",
+                      "x": 0,
+                      "y": 0,
+                      "name": "R",
+                      "geometry": "M25.5 19l28 0c11.046 0 20 8.954 20 20 0 11.046-8.954 20-20 20l-12 0 0 22-16 0z m16 12l0 16 19-8z m0 28l16 0 17 22-16 0z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": "#FFFFFF",
+                      "width": 32,
+                      "height": 32
+                    },
+                    {
+                      "type": "path",
+                      "id": "d6Qt6",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Play",
+                      "geometry": "M41.5 31l0 16 19-8z",
+                      "viewBox": [
+                        0,
+                        0,
+                        100,
+                        100
+                      ],
+                      "fill": "$amber",
+                      "width": 32,
+                      "height": 32
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "lPdCa",
+                  "name": "Label",
+                  "fill": "$slate",
+                  "content": "Runtime 32",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "z7UoK",
+          "name": "Palette",
+          "gap": 16,
+          "children": [
+            {
+              "type": "frame",
+              "id": "GgBd5",
+              "name": "Ink",
+              "width": 150,
+              "height": 110,
+              "fill": "#0E1525",
+              "cornerRadius": 14,
+              "stroke": "#0E152514",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 2,
+              "padding": 14,
+              "justifyContent": "end",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "lH1Lb",
+                  "name": "Name",
+                  "fill": "#FFFFFF",
+                  "content": "Ink",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "yDgvq",
+                  "name": "Hex",
+                  "fill": "#FFFFFF",
+                  "content": "#0E1525",
+                  "fontFamily": "Inter",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "CGPsD",
+              "name": "Paper",
+              "width": 150,
+              "height": 110,
+              "fill": "#F6F8FC",
+              "cornerRadius": 14,
+              "stroke": "#0E152514",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 2,
+              "padding": 14,
+              "justifyContent": "end",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "jROwA",
+                  "name": "Name",
+                  "fill": "#0E1525",
+                  "content": "Paper",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "YqmAv",
+                  "name": "Hex",
+                  "fill": "#0E1525",
+                  "content": "#F6F8FC",
+                  "fontFamily": "Inter",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "AtfCu",
+              "name": "RapidR Blue",
+              "width": 150,
+              "height": 110,
+              "fill": "#2F5BFF",
+              "cornerRadius": 14,
+              "stroke": "#0E152514",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 2,
+              "padding": 14,
+              "justifyContent": "end",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "Y46BqH",
+                  "name": "Name",
+                  "fill": "#FFFFFF",
+                  "content": "RapidR Blue",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "RVvUf",
+                  "name": "Hex",
+                  "fill": "#FFFFFF",
+                  "content": "#2F5BFF",
+                  "fontFamily": "Inter",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "YlsM4",
+              "name": "Blue Deep",
+              "width": 150,
+              "height": 110,
+              "fill": "#1E3FD8",
+              "cornerRadius": 14,
+              "stroke": "#0E152514",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 2,
+              "padding": 14,
+              "justifyContent": "end",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "niX1W",
+                  "name": "Name",
+                  "fill": "#FFFFFF",
+                  "content": "Blue Deep",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "OzlDI",
+                  "name": "Hex",
+                  "fill": "#FFFFFF",
+                  "content": "#1E3FD8",
+                  "fontFamily": "Inter",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "uOGpr",
+              "name": "Spark Cyan",
+              "width": 150,
+              "height": 110,
+              "fill": "#19C6E6",
+              "cornerRadius": 14,
+              "stroke": "#0E152514",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 2,
+              "padding": 14,
+              "justifyContent": "end",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "M7EGRx",
+                  "name": "Name",
+                  "fill": "#0E1525",
+                  "content": "Spark Cyan",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "EC9yk",
+                  "name": "Hex",
+                  "fill": "#0E1525",
+                  "content": "#19C6E6",
+                  "fontFamily": "Inter",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "S5bqTZ",
+              "name": "Run Amber",
+              "width": 150,
+              "height": 110,
+              "fill": "#FFB224",
+              "cornerRadius": 14,
+              "stroke": "#0E152514",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 2,
+              "padding": 14,
+              "justifyContent": "end",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "yCDvh",
+                  "name": "Name",
+                  "fill": "#0E1525",
+                  "content": "Run Amber",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "A16G6J",
+                  "name": "Hex",
+                  "fill": "#0E1525",
+                  "content": "#FFB224",
+                  "fontFamily": "Inter",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "CNY50",
+              "name": "BASIC Teal",
+              "width": 150,
+              "height": 110,
+              "fill": "#12B48A",
+              "cornerRadius": 14,
+              "stroke": "#0E152514",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 2,
+              "padding": 14,
+              "justifyContent": "end",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "H7V7oN",
+                  "name": "Name",
+                  "fill": "#0E1525",
+                  "content": "BASIC Teal",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "JVCew",
+                  "name": "Hex",
+                  "fill": "#0E1525",
+                  "content": "#12B48A",
+                  "fontFamily": "Inter",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "hiT6X",
+              "name": "Slate",
+              "width": 150,
+              "height": 110,
+              "fill": "#5B6478",
+              "cornerRadius": 14,
+              "stroke": "#0E152514",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 2,
+              "padding": 14,
+              "justifyContent": "end",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "mWZkJ",
+                  "name": "Name",
+                  "fill": "#FFFFFF",
+                  "content": "Slate",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "u8piw",
+                  "name": "Hex",
+                  "fill": "#FFFFFF",
+                  "content": "#5B6478",
+                  "fontFamily": "Inter",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "EaS0Y",
+              "name": "Mist",
+              "width": 150,
+              "height": 110,
+              "fill": "#C9D1E3",
+              "cornerRadius": 14,
+              "stroke": "#0E152514",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 2,
+              "padding": 14,
+              "justifyContent": "end",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "hQGNR",
+                  "name": "Name",
+                  "fill": "#0E1525",
+                  "content": "Mist",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "jfAyz",
+                  "name": "Hex",
+                  "fill": "#0E1525",
+                  "content": "#C9D1E3",
+                  "fontFamily": "Inter",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "ink": {
+      "type": "color",
+      "value": "#0E1525"
+    },
+    "paper": {
+      "type": "color",
+      "value": "#F6F8FC"
+    },
+    "blue": {
+      "type": "color",
+      "value": "#2F5BFF"
+    },
+    "cyan": {
+      "type": "color",
+      "value": "#19C6E6"
+    },
+    "amber": {
+      "type": "color",
+      "value": "#FFB224"
+    },
+    "teal": {
+      "type": "color",
+      "value": "#12B48A"
+    },
+    "slate": {
+      "type": "color",
+      "value": "#5B6478"
+    },
+    "board": {
+      "type": "color",
+      "value": "#E9EDF5"
+    }
+  },
+  "fileToken": "edf48f64-9f38-4413-8d8e-c721eb7b7b81"
+}

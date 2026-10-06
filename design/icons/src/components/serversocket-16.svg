@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Server socket</title>
+  <path d="M3 1.5H13A1.5 1.5 0 0 1 14.5 3V6A1.5 1.5 0 0 1 13 7.5H3A1.5 1.5 0 0 1 1.5 6V3A1.5 1.5 0 0 1 3 1.5Z" fill="#D7F3F9" stroke="#007F9C"/>
+  <path d="M3 8.5H13A1.5 1.5 0 0 1 14.5 10V13A1.5 1.5 0 0 1 13 14.5H3A1.5 1.5 0 0 1 1.5 13V10A1.5 1.5 0 0 1 3 8.5Z" fill="#D7F3F9" stroke="#007F9C"/>
+  <rect x="3" y="3" width="2" height="2" fill="#007F9C"/>
+  <rect x="3" y="11" width="2" height="2" fill="#007F9C"/>
+</svg>

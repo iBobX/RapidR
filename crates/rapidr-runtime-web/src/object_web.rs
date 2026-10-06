@@ -150,7 +150,6 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         }
         "RDATAFRAME" => {
             // Non-visual component — no DOM element
-            crate::datascience_web::init_dataframe(&uname);
         }
         "RPLOT" => {
             props.insert("left".to_string(), v_int(0));
@@ -293,7 +292,7 @@ thread_local! {
 
 /// A path as RapidQ on Windows compares them: `\\` and `/` alike, no
 /// leading `./`, any case.
-fn file_key(path: &str) -> String {
+pub(crate) fn file_key(path: &str) -> String {
     let p = path.trim().replace('\\', "/");
     p.trim_start_matches("./").to_lowercase()
 }
@@ -378,10 +377,18 @@ pub fn web_remove_file(path: &str) {
 }
 
 pub(crate) fn web_write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
-    // (over a file of the same name in another case, as on Windows)
-    let name = saved_name(path).unwrap_or_else(|| path.to_string());
-    SAVED_FILES.with(|f| f.borrow_mut().insert(name, bytes.to_vec()));
+    web_store_file(path, bytes.to_vec());
+    // (a name an Open / Save dialog answered: the user's real file too)
+    crate::file_picker_web::written(path, bytes);
     Ok(())
+}
+
+/// `bytes` as file `path` in the page's store (over a file of the same
+/// name in another case, as on Windows) — a file the user picked to open,
+/// read whole before Execute returns.
+pub(crate) fn web_store_file(path: &str, bytes: Vec<u8>) {
+    let name = saved_name(path).unwrap_or_else(|| path.to_string());
+    SAVED_FILES.with(|f| f.borrow_mut().insert(name, bytes));
 }
 
 fn object_error(name: &str, what: &str, e: &str) {
@@ -597,6 +604,10 @@ fn set_property(name: &str, prop: &str, val: Value) {
     }
     // A QFORMMDI's ChildMax, ChildCaption, ChildState, … (mdi_web.rs).
     if rapidr_value::mdi::is_mdi(name) && crate::mdi_web::set(name, &lprop, &val) {
+        return;
+    }
+    // (I1) An RDOCKMANAGER's DocumentMode, ActiveDocument, … (dock_web.rs).
+    if rp_comp_type(&uname) == "RDOCKMANAGER" && crate::dock_web::set(name, &lprop, &val) {
         return;
     }
     // (the dialogs lane's) A QFONTDIALOG's Name / Size / Color are its flat
@@ -843,6 +854,8 @@ fn set_property(name: &str, prop: &str, val: Value) {
     crate::kernel_web::set_prop(&uname, &lprop, &val);
     // Align (layout_web).
     crate::layout_web::after_set(&uname, &lprop);
+    // (I1) A dock manager or its floating window resized: its panes placed.
+    crate::dock_web::after_set(&uname, &lprop);
     // A QCANVAS's new size (its surface follows).
     if matches!(lprop.as_str(), "width" | "height") && rapidr_value::objects::is_header(&uname) {
         crate::kernel_web::redraw();
@@ -979,6 +992,12 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     // A QFORMMDI's ChildCount, ChildCaption, … (mdi_web.rs).
     if let Some(v) = rapidr_value::mdi::get(name, &lprop) {
         return v;
+    }
+    // (I1) An RDOCKMANAGER's PaneCount, ActiveDocument, … (dock_web.rs).
+    if rp_comp_type(name) == "RDOCKMANAGER" {
+        if let Some(v) = rapidr_value::dock::runtime::rt_get(name, &lprop) {
+            return v;
+        }
     }
     // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll_web.rs).
     if let Some(v) = crate::scroll_web::get(name, &lprop) {
@@ -1151,6 +1170,12 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             return v;
         }
     }
+    // (I1) An RDOCKMANAGER's AddPane, SaveLayout, … (dock_web.rs).
+    if rp_comp_type(name) == "RDOCKMANAGER" {
+        if let Some(v) = crate::dock_web::method(name, &lmethod, args) {
+            return v;
+        }
+    }
 
     // Indexed sub-objects (`SB.Panel(0).Width = 100` → method
     // `panel.width=` with (0, 100); reading → `panel.width` with (0)): kept
@@ -1310,31 +1335,14 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     v_null()
 }
 
-/// A QIMAGE's picture from plot `plot`'s chart (drawn first), its size
-/// with AutoSize, as the desktop's `LoadFromPlot`.
+/// A QIMAGE's picture from plot `plot`'s chart, its size with AutoSize, as
+/// the desktop's `LoadFromPlot`: the chart's pixels, drawn again at the
+/// page's scale for the screen (datascience_web.rs).
 fn image_from_plot(name: &str, plot: &str) {
-    crate::datascience_web::render_plot(&plot.to_uppercase());
-    let canvas = crate::page_web::document()
-        .get_element_by_id(&format!("rr-{}-canvas", plot.to_lowercase()))
-        .and_then(|c| c.dyn_into::<web_sys::HtmlCanvasElement>().ok());
-    let Some(canvas) = canvas else { return };
-    let (w, h) = (canvas.width(), canvas.height());
-    let Some(ctx) = canvas.get_context("2d").ok().flatten().and_then(|c| c.dyn_into::<web_sys::CanvasRenderingContext2d>().ok()) else { return };
-    let Ok(data) = ctx.get_image_data(0.0, 0.0, f64::from(w), f64::from(h)) else { return };
-    let rgba = data.data().0;
-    rapidr_value::objects::with_picture(name, |b| {
-        b.resize(i64::from(w), i64::from(h));
-        for (i, p) in rgba.as_chunks::<4>().0.iter().enumerate() {
-            let (x, y) = ((i as u32 % w) as i64, (i as u32 / w) as i64);
-            // (over white where the chart is see-through, as the PNG the desktop decodes)
-            let a = u32::from(p[3]);
-            let mix = |c: u8| (u32::from(c) * a + 255 * (255 - a)) / 255;
-            b.pset(x, y, mix(p[0]) | mix(p[1]) << 8 | mix(p[2]) << 16);
-        }
-    });
+    let Some((w, h)) = crate::datascience_web::load_into_picture(name, plot) else { return };
     if rp_comp_get(name, "stretch").to_i64() == 0 && rp_comp_get(name, "autosize").to_bool() {
-        rp_comp_set(name, "width", v_int(i64::from(w)));
-        rp_comp_set(name, "height", v_int(i64::from(h)));
+        rp_comp_set(name, "width", v_int(w));
+        rp_comp_set(name, "height", v_int(h));
     }
     picture_changed(name);
 }
@@ -1776,28 +1784,6 @@ fn web_file_dialog(name: &str, save: bool) -> Value {
     let picked = !names.is_empty();
     answer(names);
     v_int(if picked { -1 } else { 0 })
-}
-
-/// (the kernel host's `Windows::ask_files`) The page's Open / Save
-/// dialog: the program's files that fit the filter shown first, a name
-/// field, Upload…; `done` gets the paths picked (none: Cancel). The VM's
-/// wait is the kernel host's.
-pub fn page_file_dialog(save: bool, multi: bool, title: &str, filters: &[rapidr_value::file_dialog::Filter], index: usize, file_name: &str, done: std::rc::Rc<dyn Fn(Vec<String>)>) {
-    use rapidr_value::file_dialog as fd;
-    let mut files: Vec<String> = SAVED_FILES.with(|f| f.borrow().keys().filter(|n| fd::fits(filters, index, n)).cloned().collect());
-    files.sort();
-    crate::dialog_web::open_files(crate::dialog_web::FileRequest {
-        title: title.to_string(),
-        save,
-        multi,
-        files,
-        initial: file_name.to_string(),
-        accept: fd::html_accept(filters, index),
-        store: std::rc::Rc::new(|path: &str, bytes: Vec<u8>| {
-            let _ = web_write_file(path, &bytes);
-        }),
-        done,
-    });
 }
 
 fn dialog_web_method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Value {
@@ -2439,349 +2425,10 @@ pub(crate) fn update_timer(name: &str) {
 // Component type checking
 // ---------------------------------------------------------------------------
 
-pub fn is_component_type(type_name: &str) -> bool {
-    matches!(
-        type_name.to_uppercase().as_str(),
-        "RFORM"
-            | "RBUTTON"
-            | "RLABEL"
-            | "REDIT"
-            | "RPANEL"
-            | "RCHECKBOX"
-            | "RRADIOBUTTON"
-            | "RCOMBOBOX"
-            | "RLISTBOX"
-            | "RFILELISTBOX"
-            | "RDIRTREE"
-            | "RTIMER"
-            | "RIMAGE"
-            | "RCANVAS"
-            | "RHEADER"
-            | "RRECT"
-            | "RNOTIFYICONDATA"
-            | "RBEVEL"
-            | "RDIGDISPLAY"
-            | "RGLASSFRAME"
-            | "RSTRINGGRID"
-            | "RTABCONTROL"
-            | "RTREEVIEW"
-            | "RMAINMENU"
-            | "RMENUITEM"
-            | "RPOPUPMENU"
-            | "RGROUPBOX"
-            | "RDESIGNSURFACE"
-            | "RCODEEDITOR"
-            | "ROPENDIALOG"
-            | "RSAVEDIALOG"
-            | "RFILEDIALOG"
-            | "RCOLORDIALOG"
-            | "RFONTDIALOG"
-            | "RSTATUSBAR"
-            | "RPROGRESS"
-            | "RPROGRESSBAR"
-            | "RRICHEDIT"
-            | "RMEMO"
-            | "RFILESTREAM"
-            | "RJSON"
-            | "RSTRINGLIST"
-            | "RREGISTRY"
-            | "RTOOLBAR"
-            | "RSCROLLBAR"
-            | "RDATETIMEPICKER"
-            | "RTRACKBAR"
-            | "RUPDOWN"
-            | "RPRINTER"
-            | "RSQLITE"
-            | "RMYSQL"
-            | "RSOCKET"
-            | "RSERVERSOCKET"
-            | "RHTTP"
-            | "RSPLITTER"
-            | "RSCROLLBOX"
-            | "RLISTVIEW"
-            | "RNUM"
-            | "RDATAFRAME"
-            | "RPLOT"
-            // Web-exclusive
-            | "RWEBVIEW"
-            | "RDOM"
-            | "RJAVASCRIPT"
-            | "RWEBSTORAGE"
-            | "RWEBAUDIO"
-            | "RWEBVIDEO"
-            | "RWEBNOTIFICATION"
-            | "RWEBGEOLOCATION"
-            | "RROUTER"
-            // (the DirectX lane's)
-            | "RDXSCREEN"
-            | "RDXIMAGELIST"
-            | "RDXTIMER"
-            | "RDXSOUND"
-            | "RDXJOYSTICK"
-            | "RD3DFRAME"
-            | "RD3DMESHBUILDER"
-            | "RD3DMESH"
-            | "RD3DFACE"
-            | "RD3DLIGHT"
-            | "RD3DTEXTURE"
-            | "RD3DVISUAL"
-            | "RD3DWRAP"
-            | "RD3DVECTOR"
-    ) || rapidr_value::objects::rqlib::is_type(type_name)
-}
-
-pub fn is_component_method(member: &str) -> bool {
-    matches!(
-        member.to_lowercase().as_str(),
-        "additem"
-            | "clear"
-            | "removeitem"
-            | "deleteitem"
-            | "setfocus"
-            | "focus"
-            | "refresh"
-            | "repaint"
-            | "invalidate"
-            | "show"
-            | "showmodal"
-            | "setparent"
-            | "hide"
-            | "close"
-            | "cls"
-            | "line"
-            | "rect"
-            | "rectangle"
-            | "fillrect"
-            | "circle"
-            | "fillcircle"
-            | "drawtext"
-            | "textout"
-            | "setpixel"
-            | "pset"
-            | "setcell"
-            | "getcell"
-            | "setrowcount"
-            | "setcolcount"
-            | "addtab"
-            | "removetab"
-            | "addnode"
-            | "add"
-            | "insert"
-            | "delete"
-            | "remove"
-            | "get"
-            | "strings"
-            | "indexof"
-            | "find"
-            | "sort"
-            | "savetofile"
-            | "loadfromfile"
-            // Network methods
-            | "open"
-            | "send"
-            | "receive"
-            | "connect"
-            | "disconnect"
-            | "listen"
-            // Web-exclusive methods
-            | "sethtml"
-            | "navigate"
-            | "create"
-            | "appendto"
-            | "setattribute"
-            | "getattribute"
-            | "addclass"
-            | "removeclass"
-            | "toggleclass"
-            | "queryselector"
-            | "queryselectorall"
-            | "eval"
-            | "call"
-            | "set"
-            | "haskey"
-            | "keys"
-            | "play"
-            | "pause"
-            | "stop"
-            | "seek"
-            | "fullscreen"
-            | "requestpermission"
-            | "getposition"
-            | "watchposition"
-            | "clearwatch"
-            | "addroute"
-            | "back"
-            | "forward"
-            // RNum methods
-            | "arange"
-            | "linspace"
-            | "zeros"
-            | "ones"
-            | "full"
-            | "fromlist"
-            | "from_list"
-            | "sum"
-            | "mean"
-            | "min"
-            | "max"
-            | "std"
-            | "var"
-            | "variance"
-            | "median"
-            | "argmin"
-            | "argmax"
-            | "count"
-            | "ptp"
-            | "sin"
-            | "cos"
-            | "tan"
-            | "asin"
-            | "arcsin"
-            | "acos"
-            | "arccos"
-            | "atan"
-            | "arctan"
-            | "sqrt"
-            | "abs"
-            | "exp"
-            | "log"
-            | "ln"
-            | "log2"
-            | "log10"
-            | "floor"
-            | "ceil"
-            | "round"
-            | "sign"
-            | "reciprocal"
-            | "square"
-            | "negative"
-            | "neg"
-            | "subtract"
-            | "sub"
-            | "multiply"
-            | "mul"
-            | "divide"
-            | "div"
-            | "power"
-            | "pow"
-            | "mod"
-            | "fmod"
-            | "clip"
-            | "clamp"
-            | "reverse"
-            | "flip"
-            | "unique"
-            | "shuffle"
-            | "append"
-            | "concatenate"
-            | "slice"
-            | "cumsum"
-            | "cumprod"
-            | "diff"
-            | "dot"
-            | "norm"
-            | "normalize"
-            | "any"
-            | "all"
-            | "nonzero"
-            | "searchsorted"
-            | "rand"
-            | "random"
-            | "randn"
-            | "random_normal"
-            | "normal"
-            | "uniform"
-            | "random_uniform"
-            | "randint"
-            | "choice"
-            | "tolist"
-            | "tostring"
-            | "print"
-            // RDataFrame methods
-            | "loadfromcsv"
-            | "readcsv"
-            | "read_csv"
-            | "savetocsv"
-            | "to_csv"
-            | "head"
-            | "tail"
-            | "cell"
-            | "cellbyname"
-            | "at"
-            | "iloc"
-            | "select"
-            | "sort_values"
-            | "filter"
-            | "query"
-            | "groupby"
-            | "group_by"
-            | "drop_column"
-            | "rename_column"
-            | "addcolumn"
-            | "add_column"
-            | "set_column"
-            | "fillna"
-            | "fill_null"
-            | "dropna"
-            | "drop_nulls"
-            | "describe"
-            | "value_counts"
-            | "nunique"
-            | "corr"
-            | "correlation"
-            | "sample"
-            | "nlargest"
-            | "nsmallest"
-            | "info"
-            | "dtypes"
-            | "shape"
-            | "merge"
-            | "join"
-            | "concat"
-            | "transpose"
-            | "t"
-            | "apply"
-            | "replace"
-            | "columns"
-            | "rows"
-            | "rowcount"
-            | "len"
-            | "togrid"
-            | "to_grid"
-            | "display"
-            // RPlot methods
-            | "plot"
-            | "bar"
-            | "barh"
-            | "scatter"
-            | "step"
-            | "area"
-            | "fill_between"
-            | "hist"
-            | "histogram"
-            | "pie"
-            | "hline"
-            | "axhline"
-            | "vline"
-            | "axvline"
-            | "annotate"
-            | "legend"
-            | "savefig"
-            | "save"
-            | "render"
-            | "figsize"
-            | "xlim"
-            | "ylim"
-            // RSQLite methods
-            | "fetchrow"
-            | "fetchfield"
-            | "fieldseek"
-            | "rowseek"
-            | "row"
-            | "escapestring"
-            | "execute"
-    )
-}
+/// Whether a type name is a component the compilers create, and whether a
+/// member is some component's method: the language registry's
+/// (crates/rapidr-lang), as the desktop runtime's.
+pub use rapidr_lang::{is_component_method, is_component_type};
 
 pub fn get_children_of(parent_name: &str) -> Vec<(String, String)> {
     let uname = parent_name.to_uppercase();
@@ -2800,15 +2447,6 @@ pub fn get_children_of(parent_name: &str) -> Vec<(String, String)> {
         children.sort_by_key(|c| c.2);
         children.into_iter().map(|(n, t, _)| (n, t)).collect()
     })
-}
-
-// ---------------------------------------------------------------------------
-// Run app — no-op on web (the browser IS the event loop)
-// ---------------------------------------------------------------------------
-
-pub fn rp_run_app() {
-    // On web, the browser event loop handles everything.
-    // This is intentionally a no-op.
 }
 
 // ---------------------------------------------------------------------------

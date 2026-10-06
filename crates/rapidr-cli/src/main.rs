@@ -10,6 +10,7 @@ use rapidr_preprocessor::{preprocess_file, PreprocessOptions};
 
 mod examples;
 mod home;
+mod lang;
 mod macos;
 mod launch;
 mod notices;
@@ -19,7 +20,7 @@ use home::Home;
 
 /// The subcommands (a first argument that is one isn't a file).
 const SUBCOMMANDS: &[&str] = &[
-    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "__dialog",
+    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "lsp", "dap", "__dialog",
 ];
 
 /// `--log <file> <command…>`: this rapidr again with the command, its
@@ -103,6 +104,13 @@ fn main() -> ExitCode {
             println!("RapidR {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
+        (Some("run"), Some(flag)) if flag == "--session" => match rest.split_first() {
+            Some((path, args)) => launch::run_session(path, args.to_vec()),
+            None => {
+                eprintln!("rapidr run --session <file.rrbc|.rr|.bas> [args]");
+                ExitCode::from(2)
+            }
+        },
         (Some("run"), Some(path)) => launch::run(&path, rest, launch::From::Command),
         (Some("open"), Some(path)) => launch::run(&path, rest, launch::From::Desktop),
         (Some("info"), Some(path)) => launch::info(&path),
@@ -111,7 +119,10 @@ fn main() -> ExitCode {
         (Some("examples"), _) => examples::command(&args[1..]),
         (Some("setup"), _) => setup::setup(&args[1..]),
         (Some("notices"), _) => notices::command(&args[1..]),
+        (Some("lang"), _) => lang::command(&args[1..]),
         (Some("__dialog"), Some(path)) => launch::run_dialog(&path),
+        (Some("lsp"), _) => rapidr_lsp::run_stdio(),
+        (Some("dap"), _) => rapidr_dap::run_stdio(),
         (Some("parse"), Some(path)) => parse_source_file(&path),
         (Some("preprocess"), Some(path)) => preprocess_source_file(&path),
         (Some("lex"), Some(path)) => lex_source_file(&path),
@@ -165,7 +176,7 @@ fn main() -> ExitCode {
             }
             build_bytecode_file(&path, out)
         }
-        (Some("run-bc"), Some(path)) => run_bytecode_file(&path),
+        (Some("run-bc"), Some(path)) => run_bytecode_file(&path, rest),
         (Some("bundle-bc"), Some(path)) => {
             let mut out: Option<String> = None;
             let mut wasm: Option<String> = None;
@@ -186,12 +197,17 @@ fn main() -> ExitCode {
             eprintln!("  rapidr version");
             eprintln!("  rapidr --log <file> <command…>                     The command's output in a file");
             eprintln!("  rapidr run <file.rrbc|.rr|.bas> [args]             Run a program (the RapidR Runtime)");
+            eprintln!("  rapidr run --session <file> [args]               Run it under the IDE's session protocol (stdio)");
             eprintln!("  rapidr open <file> [args]                        Run it as opening it from the desktop does");
             eprintln!("  rapidr info <file>                               Its app type, format and the runtime it needs");
             eprintln!("  rapidr setup [--check] [--yes] [--toolchain gnullvm|msvc]  Rust for native builds, rapidr on PATH");
             eprintln!("  rapidr ide [file.rr]                             The IDE");
             eprintln!("  rapidr examples [copy <name|all> [folder]]       The example programs: listed, or copied to a folder");
             eprintln!("  rapidr notices [<os>-<arch>|web|tools-<os>] [-o FILE]  The third-party notices builds carry");
+            eprintln!("  rapidr lsp                                       The language server (LSP, stdio): editors' IntelliSense");
+            eprintln!("  rapidr dap                                       The debug adapter (DAP, stdio): editors' debugger");
+            eprintln!("  rapidr lang export --json|--prompt|--web-ide|--manual|--all  What the language registry generates");
+            eprintln!("  rapidr lang conformance <dir> [--target desktop|web]  The registry's conformance programs");
             eprintln!("  rapidr about");
             eprintln!("  rapidr [--release|--debug] [--web] [--interp] <file.rr>  Build source file");
             eprintln!("  rapidr parse <file.rr>");
@@ -200,7 +216,7 @@ fn main() -> ExitCode {
             eprintln!("  rapidr codegen <file.rr> [output_dir]");
             eprintln!("  rapidr build <file.rr> [output_dir] [--release|-r] [--debug|-d] [--web|-w] [--interp|-i] [--target <os>-<arch>]");
             eprintln!("  rapidr build-bc <file.rr> [-o out.rrbc]          Compile to bytecode");
-            eprintln!("  rapidr run-bc <file.rrbc>                        Run bytecode (stub host)");
+            eprintln!("  rapidr run-bc <file.rrbc> [args]                 Run bytecode (stub host)");
             eprintln!("  rapidr bundle-bc <file.rr> [-o out.zip]          Build static web bundle");
             eprintln!("        [--wasm rapidrintr.wasm] [--js rapidrintr.js]");
             ExitCode::from(2)
@@ -819,11 +835,16 @@ fn build_bytecode_file(path: &str, output: Option<String>) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-fn run_bytecode_file(path: &str) -> ExitCode {
+fn run_bytecode_file(path: &str, args: Vec<String>) -> ExitCode {
     let bytes = match fs::read(path) {
         Ok(b) => b,
         Err(e) => { eprintln!("read {path}: {e}"); return ExitCode::from(1); }
     };
+    // The program is the file, with the arguments after it — never
+    // `run-bc <file>` (COMMAND$, CommandCount, Application.ExeName), as
+    // `rapidr run` and a built executable.
+    let program = home::canonical(path).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| path.to_string());
+    rapidr_vm_host_native::set_program(&program, args);
     // Delegate to `rapidr-vm-host-native::run_bytes`, which installs the
     // indirect event dispatcher *before* `MAIN` runs — required for any
     // program that calls `Form.ShowModal` from MAIN (the VM serves the

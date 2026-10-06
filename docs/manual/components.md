@@ -78,14 +78,15 @@ END SUB
   (Button, X, Y, Shift)`, `OnMouseMove (X, Y, Shift)`, a grid's `OnDrawCell
   (Col, Row, State, Rect)`, … A handler may declare fewer parameters.
 - Handlers can be bound at run time too: `Btn(i).OnClick = Clicked`.
-- Events run when the program waits: during `ShowModal`, `DOEVENTS`, a
-  dialog, or once the main program has run to its end while a form is
-  open.
+- Events run when the program waits: during `ShowModal`, `DOEVENTS` or a
+  dialog. The program ends when its main code does, as in RapidQ: forms
+  still open close with it and their timers stop.
 
 ```basic
 Form.ShowModal          ' shows the form and waits until it closes
 ' or
-Form.Show               ' shows it; the program waits at its end
+Form.Show               ' shows it and goes on; to keep it, wait:
+DO: DOEVENTS: LOOP UNTIL Closed    ' (Closed set by the form's OnClose)
 ```
 
 ## The global objects
@@ -99,8 +100,12 @@ Form.Show               ' shows it; the program waits at its end
 | `Mouse` | `X`, `Y` |
 
 A program run by the RapidR Runtime sees itself as if it were built:
-`Application.ExeName` and `Application.Path` name its file and `COMMAND$`
-holds its arguments.
+`Application.ExeName` and `Application.Path` name its file, and
+`COMMAND$(n)` / `CommandCount` see only its own arguments, as in RapidQ
+(`COMMAND$(0)` is the program's file; a bare `COMMAND$`, RapidR's, is the
+arguments joined with spaces) — however it runs: `rapidr run`, `rapidr
+run-bc`, a double-clicked file, a built executable. On the web they are the
+page's query string's parts (`?a&b%20c`: `a`, `b c`).
 
 ## RapidR's additions to every component
 

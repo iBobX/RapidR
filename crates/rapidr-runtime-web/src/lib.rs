@@ -19,6 +19,9 @@ pub fn builtins_input_line() -> value::Value {
     builtins::rp_input_line()
 }
 mod file_io_web;
+/// QOPENDIALOG / QSAVEDIALOG on the web: the user's real files, through the
+/// browser's own pickers.
+pub mod file_picker_web;
 pub mod globals_web;
 /// The I/O and media objects' devices (QCOMPORT, QDOWNLOAD, …).
 pub mod io_web;
@@ -28,6 +31,8 @@ pub mod media_web;
 pub mod kernel_web;
 pub mod layout_web;
 pub mod mdi_web;
+// (I1: RDOCKMANAGER — rapidr_value::dock)
+pub mod dock_web;
 pub mod network_web;
 pub mod object_web;
 /// The web-only components (RWEBVIEW, RDOM, media, RPLOT) as elements over
@@ -70,11 +75,12 @@ pub mod prelude {
         rp_bind_event_5, rp_bind_event_indirect, rp_clear_event_dispatcher,
         rp_set_event_dispatcher, rp_bind_event_closure, rp_bind_event_out, rp_bind_event_indirect_this, rp_comp_call, rp_comp_get, rp_comp_method, rp_comp_read, rp_comp_set, rp_comp_value, rp_component_array,
         rp_create_component, rp_fire_event, rp_fire_event_1, rp_fire_event_2,
-        rp_fire_event_5, rp_run_app, rp_comp_get_all_properties,
+        rp_fire_event_5, rp_comp_get_all_properties,
     };
 
     // GUI helpers
     pub use crate::object_web::{gui_register_timer, set_theme};
-    // (the program's main code done: its windows shown)
-    pub use crate::kernel_web::finalize as gui_finalize;
+    // (the program's main code done: its windows shown; then the program's
+    // end unless a form or a dialog is waited for)
+    pub use crate::kernel_web::{finalize as gui_finalize, main_ended as gui_main_ended};
 }

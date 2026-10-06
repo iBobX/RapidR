@@ -192,7 +192,8 @@ impl FormUi {
 
     fn add_children(&mut self, store: &dyn Store, parent_id: &str, parent: Option<usize>, old: &mut Vec<(String, NodeUi)>) {
         // (a QFORMMDI's child frames in their stacking order)
-        for (id, type_name) in components::mdi::stacked(parent_id, store.children(parent_id)) {
+        // (and a dock manager's slid-out pane over its groups)
+        for (id, type_name) in components::dock::stacked(parent_id, components::mdi::stacked(parent_id, store.children(parent_id))) {
             let type_name = type_name.to_ascii_uppercase();
             if !placed(&type_name) {
                 continue;

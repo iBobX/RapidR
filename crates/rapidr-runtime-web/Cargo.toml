@@ -7,6 +7,8 @@ license.workspace = true
 
 [dependencies]
 rapidr-value = { workspace = true }
+# Which names are components and their methods (object_web.rs): the language registry's
+rapidr-lang = { workspace = true }
 # The program's windows: the UI kernel draws them on the page, as on the
 # desktop (docs/web-host-plan.md) — its program glue and the web host.
 rapidr-ui-kernel = { workspace = true }
@@ -14,6 +16,8 @@ rapidr-ui-app = { workspace = true }
 rapidr-ui-host-web = { path = "../rapidr-ui-host-web", default-features = false }
 # RSQLITE: SQLite itself, compiled to wasm (shared with the desktop runtime)
 rapidr-db = { workspace = true }
+# RPLOT's charts: the UI kernel's renderer, the desktop's (chart.rs)
+rapidr-ui-render = { workspace = true }
 wasm-bindgen = "0.2.129"
 wasm-bindgen-futures = "0.4.79"
 js-sys = "0.3.106"

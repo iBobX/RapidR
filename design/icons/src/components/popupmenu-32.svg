@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Popup menu</title>
+  <defs><mask id="m1" maskUnits="userSpaceOnUse" x="0" y="0" width="32" height="32"><rect width="32" height="32" fill="white"/><path d="M19 16L29 24L24 24L27 29L24 30L22 25L19 29L19 16Z" fill="black" stroke="black" stroke-width="4.1"/></mask></defs>
+  <g mask="url(#m1)"><path d="M5 3H20A2 2 0 0 1 22 5V22A2 2 0 0 1 20 24H5A2 2 0 0 1 3 22V5A2 2 0 0 1 5 3Z" fill="#FFFFFF" stroke="#5B6478"/><rect x="5" y="11" width="15" height="6" fill="#E3E9FF"/><path d="M8 8L16 8" stroke="#5B6478"/><path d="M8 14L16 14" stroke="#2F5BFF"/><path d="M8 20L15 20" stroke="#5B6478"/></g>
+  <path d="M19 16L29 24L24 24L27 29L24 30L22 25L19 29L19 16Z" fill="#FFFFFF" stroke="#5B6478"/>
+</svg>

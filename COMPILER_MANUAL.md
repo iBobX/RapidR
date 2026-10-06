@@ -89,7 +89,7 @@ examples/                example programs (examples/README.md); ide.rr is the de
 docs/                    plans and references; docs/manual/ is the user manual
 design/brand/            logo, icons, banner (original artwork, MIT)
 fonts/                   the web's fallback fonts' sources
-utilities/vscodeext/     a VS Code extension (syntax, snippets; older, not yet registry-driven)
+utilities/vscodeext/     the VS Code extension: a client of rapidr lsp / rapidr dap (VSCODE_EXTENSION.md)
 ```
 
 | Crate | Role |
@@ -143,12 +143,22 @@ source ─ preprocessor ─ lexer ─ parser ─ AST ─ rapidr_ast lowering pas
   `stream_arrays`, `implicit_scope`, `create_property_reads`, … Each file
   documents the RapidQ rule it implements.
 - `rapidr_ast::COMPONENT_TYPES` is the list of components both backends
-  create; `canonical_type_name` maps RapidQ's Q names to R names.
-- The planned single language registry (`rapidr-lang`, IDE stage I0,
-  [docs/ide-plan.md](docs/ide-plan.md)) will generate these lists, the IDE's
-  completion data and the manual's reference. Until then
-  `tools/manual_reference.py` generates the manual's reference pages from
-  the lists above.
+  create — the language registry's; `canonical_type_name` maps RapidQ's Q
+  names to R names.
+- The language registry (`crates/rapidr-lang`, IDE stage I0,
+  [docs/ide-plan.md](docs/ide-plan.md)): every component, member, builtin,
+  statement, directive, constant and keyword, with RapidQ / RapidR origin,
+  types, defaults and docs, in `crates/rapidr-lang/data/*.toml` (its
+  `src/lib.rs` says how to edit them). `rapidr lang export --all` writes
+  what it generates (the manual's reference pages, the VS Code extension's
+  and the web IDE's language data); `rapidr lang export --json` /
+  `--prompt` give the IDE's completion data and the AI prompt's language
+  section. Tests tie it to the code: `cargo test -p rapidr-lang` (the
+  compilers' lists, BUILTINS, the lexer's and parser's keywords, the
+  preprocessor's directives and constants, members' value rule, generated
+  files current), `tools/lang_dispatch.py --check` (every name the
+  runtimes' dispatch answers is in it), `tests/lang_conformance.mjs` (a
+  program per component on every runtime).
 
 ## 5. The two backends
 
@@ -194,7 +204,9 @@ ops); `layout` (Align, Anchors, constraints); `theme`; `registry`
 (QREGISTRY's per-user store and Windows' registry); `globals` (Screen,
 Application, Clipboard, Mouse); `events`, `input`; `dialogs`, `mdi`,
 `window_state`, `tray`, `memory`, `component_defaults`, `members`
-(method-or-property reads).
+(method-or-property reads); `datascience` (RNUM, RDATAFRAME, RPLOT: arrays,
+frames with their CSV / JSON readers and printed form, the charts' model —
+a runtime adds only PRINT, grids and drawing through `datascience::Host`).
 
 A runtime's job is to store components, call these models, and pass input
 and drawing to its host.
@@ -235,14 +247,15 @@ the device scale.
 - **`rapidr-runtime-core`** (desktop): `object.rs` (the component store and
   `rp_comp_*` dispatch), `builtins.rs`, `ui/` (the facade over the kernel
   host: `kernel.rs`, `kernel_store.rs`, `program.rs`), `datascience.rs`
-  (ndarray, polars, plotters), `network.rs` (sockets, RHTTP over the
+  (the shared data-science model's desktop side: PRINT, grids, plotters
+  charts), `network.rs` (sockets, RHTTP over the
   system's TLS), `io.rs` / `serial.rs`, `media.rs`, `sound.rs` (rodio,
   nanomp3), `directx.rs`, `joystick*`, `ffi.rs` (DLL calls, native builds
   only), `terminal.rs`. Features (all on by default): `database`, `network`, `gui`, `datascience`, `audio`, `ffi`, `gamepad`.
 - **`rapidr-runtime-web`**: the same API for wasm — `object_web.rs`,
   `kernel_web.rs` (the kernel host, the VM's waits), `overlay_web.rs`,
   `dialog_web.rs`, `database_web.rs` (SQLite in wasm), `network_web.rs`
-  (fetch, WebSocket), `datascience_web.rs` (its own implementation),
+  (fetch, WebSocket), `datascience_web.rs` (the shared model's web side: charts on a canvas),
   `webapi_web.rs` (web-only components), `fonts_web.rs`, `tray_web.rs`.
 
 ## 9. The CLI, the Runtime and installs
@@ -287,8 +300,8 @@ python3 tools/fonts.py fetch       # the CJK fallback fonts' sources, once (pinn
 
 | Stage | What |
 |---|---|
-| `unit` | `cargo test --workspace`; the kernel and `rapidr-ui-app` built for wasm32; the manual's generated reference pages current (`tools/manual_reference.py --check`) |
-| `conformance` | `tests/conformance/run.mjs`: every case in `tests/conformance/cases/` natively and interpreted (`.expected`, `.expected-error`, `.expected-runtime-error`, `.input`; `' xfail:` markers) |
+| `unit` | `cargo test --workspace` (the language registry's generated files current among it); the kernel, `rapidr-ui-app` and `rapidr-lang` built for wasm32; the registry's reverse check (`tools/lang_dispatch.py --check`) |
+| `conformance` | `tests/conformance/run.mjs`: every case in `tests/conformance/cases/` natively and interpreted (`.expected`, `.expected-error`, `.expected-runtime-error`, `.input`; `' xfail:` markers); `tests/lang_conformance.mjs`: the registry's program per component, interpreted and native (known default gaps: `tests/lang/gaps.txt`) |
 | `examples` | `tools/native_examples.sh`: the examples build natively |
 | `gui` | `tests/native_gui_events.mjs`: the GUI fixtures (`tests/fixtures/*.bas`) on the kernel's headless host, native and interpreted, at 1× and 2× — events, dumps, captures, accessibility trees, themes |
 | `web` | the conformance suite in Chromium; the desktop's captures (`tests/gui_captures.mjs`) against the web host's windows and accessibility trees at 1× and 2× (`web_gui_parity.mjs`, `web_a11y.mjs`); the web IDE and bundle suites |
@@ -368,13 +381,15 @@ same everywhere); add its name to `interpreter/rapidr-bytecode/src/
 builtins.rs` `BUILTINS` and to each host's dispatch (the unit test fails
 otherwise) — `rapidr-vm-host-native`, `rapidr-vm-host-web`; emit it in
 `rapidr-codegen-rust` (`builtin_function_call`) for native builds and the
-web runtime's `builtins.rs`; a conformance case; raise `MIN_RUNTIME`;
-`python3 tools/manual_reference.py`.
+web runtime's `builtins.rs`; a conformance case; raise `MIN_RUNTIME`; its
+entry in `crates/rapidr-lang/data/builtins.toml` (`cargo test -p
+rapidr-lang` fails otherwise), then `rapidr lang export --all`.
 
 **A component**: its model in `rapidr-value/src/objects/` (state, drawing
 ops, keys, accessibility); its kind in `rapidr-ui-kernel/src/components/`
-(registered in `KINDS`); the name in `rapidr_ast::COMPONENT_TYPES` and the
-category in `tools/manual_reference.py`; defaults in
+(registered in `KINDS`); its entry, members and docs in
+`crates/rapidr-lang/data/components/` (which makes it one of
+`COMPONENT_TYPES`), then `rapidr lang export --all`; defaults in
 `rapidr_value::component_defaults`; the desktop and web runtimes'
 dispatch; a GUI fixture in `tests/fixtures/` with a case in
 `tests/gui_parity_cases.mjs` (it then runs native, interpreted and in the

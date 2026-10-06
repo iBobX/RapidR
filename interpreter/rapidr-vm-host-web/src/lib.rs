@@ -22,6 +22,8 @@ use rapidr_bytecode::Module;
 use rapidr_runtime_web::object_web as obj;
 use rapidr_runtime_web::prelude::*;
 use rapidr_value::{v_dbl, v_int, v_null, v_str, Value};
+use rapidr_session::program::{Control, ProgramEnd};
+use rapidr_session::protocol::{Command, Event as Message, EventBody, Request, PROTOCOL_VERSION};
 use rapidr_vm::{Host, Vm, VmError};
 use wasm_bindgen::prelude::*;
 
@@ -98,7 +100,23 @@ impl Host for WebHost {
     }
 
     fn call_method(&mut self, id: &str, method: &str, args: &[Value]) -> Result<Value, String> {
+        // (the IDE's session hears about the program's forms)
+        if SINK.with(|s| s.borrow().is_some()) {
+            let shown = match method.to_ascii_lowercase().as_str() {
+                "show" | "showmodal" => Some(true),
+                "close" | "hide" => Some(false),
+                _ => None,
+            };
+            if let Some(shown) = shown.filter(|_| obj::rp_comp_type(id).to_ascii_uppercase().contains("FORM")) {
+                let id = id.to_string();
+                emit(Message::new(if shown { EventBody::FormShown { id, caption: None } } else { EventBody::FormClosed { id } }));
+            }
+        }
         Ok(rp_comp_call(id, method, args))
+    }
+
+    fn component_properties(&mut self, id: &str) -> Option<(String, Vec<(String, Value)>)> {
+        obj::rp_comp_get_all_properties(id).map(|(kind, props)| (kind, props.into_iter().collect()))
     }
 
     fn register_event(&mut self, id: &str, event: &str, handler_fn_index: u32) -> Result<(), String> {
@@ -261,7 +279,8 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
             }
             v_null()
         }
-        "command" => rp_command(),
+        "command" => if args.is_empty() { rp_command() } else { rp_command_arg(&a0) },
+        "commandcount" => rp_commandcount(),
         "environ" => rp_environ(&a0),
         // The events waiting for the program run (right after this:
         // Host::take_events). Once its time slice is over, the program
@@ -399,16 +418,25 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
 // run when the program waits — DoEvents, a dialog, ShowModal, the end of
 // main — as on the desktop), and a dialog's answer waits in dialog_web.
 
-/// One program run (or debugging session) in the page.
+/// One program run in the page — under the IDE's session protocol when
+/// `end` is there ([`session_open`]).
 struct Session {
     module: Module,
     vm: Vm<'static, WebHost>,
     /// `__main` stopped for a dialog: when it finishes, show the forms.
     main_waiting: bool,
-    /// Tells a `DebugSession` whether the session is still its own.
+    /// Tells a continuation whether the session is still the page's.
     generation: u64,
     /// The VM yielded while doing this; it goes on with `continue_slice`.
     slice: Option<Slice>,
+    /// The program's end of the IDE's session (rapidr-session).
+    end: Option<ProgramEnd>,
+    /// Stopped for the debugger (a breakpoint, a step, a pause, an error).
+    stopped: bool,
+    /// `__main` has run to its end.
+    main_finished: bool,
+    /// `exited` was sent.
+    exited: bool,
 }
 
 /// What the VM was running when it yielded: what to do once it stops.
@@ -420,7 +448,7 @@ enum Slice {
     Resumed,
     /// Event handlers run while the VM was idle (`run_idle_events`).
     Idle,
-    /// A debugger command (`DebugSession`).
+    /// The debugger let the program go on (`session_request`).
     Debug,
 }
 
@@ -436,7 +464,7 @@ impl Session {
             g.set(n);
             n
         });
-        Session { module, vm, main_waiting: false, generation, slice: None }
+        Session { module, vm, main_waiting: false, generation, slice: None, end: None, stopped: false, main_finished: false, exited: false }
     }
 }
 
@@ -459,6 +487,31 @@ thread_local! {
     /// sending port): a message is a task of its own, without
     /// `setTimeout`'s minimum delay.
     static WAKE: RefCell<Option<(web_sys::MessagePort, web_sys::MessagePort)>> = const { RefCell::new(None) };
+    /// Where the session's events go (the preview frame's function, which
+    /// posts them to the IDE): `session_open`'s.
+    static SINK: RefCell<Option<js_sys::Function>> = const { RefCell::new(None) };
+    /// Events waiting to be sent once the session is released.
+    static OUTBOX: RefCell<Vec<Message>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Queues an event for the IDE (sent by [`flush_events`]).
+fn emit(event: Message) {
+    if SINK.with(|s| s.borrow().is_some()) {
+        OUTBOX.with(|o| o.borrow_mut().push(event));
+    }
+}
+
+/// Sends the queued events (as JSON) — never while the session is
+/// borrowed, so the page may answer at once.
+fn flush_events() {
+    let events: Vec<Message> = OUTBOX.with(|o| std::mem::take(&mut *o.borrow_mut()));
+    if events.is_empty() {
+        return;
+    }
+    let Some(sink) = SINK.with(|s| s.borrow().clone()) else { return };
+    for event in events {
+        let _ = sink.call1(&JsValue::NULL, &JsValue::from_str(&event.to_json()));
+    }
 }
 
 /// Shows the program's forms, once (a program that waits in ShowModal shows
@@ -504,26 +557,42 @@ fn start_session(session: Session) {
     install_resume_handler();
 }
 
-/// Tells the IDE's debugger where the VM stopped ("paused", "waiting",
-/// "halted"), if it's listening.
-fn report_debug(status: &str) {
-    if let Some(window) = web_sys::window() {
-        if let Ok(func_val) = js_sys::Reflect::get(&window, &JsValue::from_str("__rapidr_handle_debug_result")) {
-            if func_val.is_function() {
-                let func: js_sys::Function = func_val.into();
-                let _ = func.call1(&JsValue::NULL, &JsValue::from_str(status));
-            }
-        }
+/// What happened in the VM, reported once the session is released (a
+/// stop was sent as it happened: [`run_step`]).
+fn report(result: Result<(), VmError>, what: &str) {
+    match result {
+        Ok(()) | Err(VmError::Suspended | VmError::Yielded | VmError::Paused) => {}
+        Err(e) => report_error(&format!("[rapidr] {what}: {e}")),
     }
 }
 
-/// What happened in the VM, reported once the session is released (the
-/// IDE may call back into the debugger synchronously).
-fn report(result: Result<(), VmError>, what: &str) {
-    match result {
-        Ok(()) | Err(VmError::Suspended | VmError::Yielded) => {}
-        Err(VmError::Paused) => report_debug("paused"),
-        Err(e) => web_sys::console::error_1(&JsValue::from_str(&format!("[rapidr] {what}: {e}"))),
+/// An error, on the console (which the page running a session passes on
+/// as the program's error output, as it does what the program prints).
+fn report_error(text: &str) {
+    web_sys::console::error_1(&JsValue::from_str(text));
+}
+
+/// Under a session, the program's end once it has one: END ran, or the
+/// main program finished with no form to wait for (or failed).
+fn check_exit(error: bool) {
+    let exit = SESSION.with(|s| {
+        let Ok(mut guard) = s.try_borrow_mut() else { return None };
+        let session = guard.as_mut()?;
+        if session.end.is_none() || session.exited || session.stopped {
+            return None;
+        }
+        // (an error of the main program ends it; an event handler's doesn't)
+        let failed = error && !session.main_finished && !session.main_waiting;
+        let over = failed
+            || rapidr_runtime_web::object_web::program_ended()
+            || (session.main_finished && !HAS_COMPONENTS.with(Cell::get) && session.vm.frames.is_empty() && session.slice.is_none());
+        over.then(|| {
+            session.exited = true;
+            i32::from(failed)
+        })
+    });
+    if let Some(code) = exit {
+        emit(Message::new(EventBody::Exited { code }));
     }
 }
 
@@ -546,34 +615,25 @@ fn run_step(
             schedule_continue(session.generation);
         }
         Err(VmError::Suspended) if kind == Slice::Main => session.main_waiting = true,
+        // Stopped for the debugger: the IDE hears where, now.
+        Err(VmError::Paused) => {
+            session.stopped = true;
+            if let Some(end) = session.end.as_mut() {
+                emit(end.stopped_event(&session.vm, &session.module));
+            }
+        }
         _ => {}
     }
     let main_done = kind == Slice::Resumed && result.is_ok() && session.main_waiting && session.vm.frames.is_empty();
     if main_done {
         session.main_waiting = false;
     }
+    // (the main program ran to its end: from its start, or after a wait or
+    // a stop of the debugger)
+    if result.is_ok() && session.vm.frames.is_empty() && (kind == Slice::Main || main_done || (kind == Slice::Debug && !session.main_waiting)) {
+        session.main_finished = true;
+    }
     (result, main_done)
-}
-
-/// What the debugger is told when the VM stops ("paused", "waiting" —
-/// the program's forms are up — or "halted"), or the error.
-fn debug_status(result: Result<(), VmError>) -> Result<&'static str, String> {
-    Ok(match result {
-        Err(VmError::Yielded) => "waiting",
-        Ok(()) if HAS_COMPONENTS.with(Cell::get) => {
-            finalize_forms();
-            "waiting"
-        }
-        Ok(()) => "halted",
-        Err(VmError::Paused) => "paused",
-        Err(VmError::Suspended) => {
-            if dialog::modal_waiting() && HAS_COMPONENTS.with(Cell::get) {
-                finalize_forms();
-            }
-            "waiting"
-        }
-        Err(e) => return Err(format!("vm error: {e}")),
-    })
 }
 
 /// Once the session is released, what follows a VM entry that didn't
@@ -583,14 +643,18 @@ fn settle(kind: Slice, result: Result<(), VmError>, main_done: bool) {
     if matches!(result, Err(VmError::Yielded)) {
         return;
     }
+    let error = matches!(&result, Err(e) if !matches!(e, VmError::Paused | VmError::Suspended | VmError::Yielded));
+    // The main program ran to its end: the program's end, as in RapidQ
+    // (RC.EXE: a program whose main code ends after `Form.Show` exits
+    // there — its form goes, its timers never tick) and on the desktop.
+    // Its forms are shown first, and what showing them fired (OnShow) runs.
+    let mut main_ended = false;
     match kind {
         Slice::Main => match result {
-            // Mirror compiled-mode codegen: after `__main` returns, finalize
-            // the DOM tree (parents form windows, applies title-bars, shows
-            // the entry form). Without this nothing is visible.
             Ok(()) => {
                 if HAS_COMPONENTS.with(Cell::get) {
                     finalize_forms();
+                    main_ended = true;
                 }
             }
             // Waiting for a dialog: the forms appear when `__main` finishes;
@@ -600,33 +664,42 @@ fn settle(kind: Slice, result: Result<(), VmError>, main_done: bool) {
                     finalize_forms();
                 }
             }
+            // (stopped for the debugger: said already)
+            Err(VmError::Paused) => {}
             // (as the IDE's preview reports an error `rapidr_run_bc` returns)
-            Err(VmError::Paused) => report_debug("paused"),
-            Err(e) => web_sys::console::error_1(&JsValue::from_str(&format!("[run error] vm error: {e}"))),
+            Err(e) => report_error(&format!("[run error] vm error: {e}")),
         },
         Slice::Resumed => {
             if main_done && HAS_COMPONENTS.with(Cell::get) {
                 finalize_forms();
-                // The main program went on after its ShowModal and finished
-                // with no form open: it's over, as on the desktop (which
-                // exits) — its timers stop and no event reaches it any more.
-                if result.is_ok() && !rapidr_runtime_web::kernel_web::any_form_shown() {
-                    rapidr_runtime_web::object_web::end_program();
-                }
+                // (the main program went on after its ShowModal and finished)
+                main_ended = result.is_ok();
             }
             report(result, "vm error");
         }
         Slice::Idle => report(result, "event handler failed"),
-        Slice::Debug => match debug_status(result) {
-            Ok(status) => report_debug(status),
-            Err(e) => {
-                web_sys::console::error_1(&JsValue::from_str(&format!("[debug cmd error] {e}")));
-                report_debug("halted");
+        Slice::Debug => {
+            match &result {
+                // (the main program ran to its end: its forms, as after Main)
+                Ok(()) if HAS_COMPONENTS.with(Cell::get) => {
+                    finalize_forms();
+                    main_ended = SESSION.with(|s| s.try_borrow().ok().is_some_and(|g| g.as_ref().is_some_and(|session| session.main_finished)));
+                }
+                Err(VmError::Suspended) if dialog::modal_waiting() && HAS_COMPONENTS.with(Cell::get) => finalize_forms(),
+                _ => {}
             }
-        },
+            report(result, "vm error");
+        }
     }
+    check_exit(error);
     schedule_output_flush();
     run_idle_events();
+    // (unless what showing the forms fired waits: a ShowModal, a dialog)
+    if main_ended && !dialog::modal_waiting() && !dialog::is_yielded() {
+        rapidr_runtime_web::object_web::end_program();
+        check_exit(false);
+    }
+    flush_events();
 }
 
 /// Continues the VM that yielded, in a task of its own (the browser has had
@@ -678,6 +751,13 @@ fn continue_slice(generation: u64) {
 /// completion before the next. While the VM runs (the session is
 /// borrowed) this does nothing: the VM runs them at its next safe point.
 fn run_idle_events() {
+    run_idle_events_inner();
+    // (what the handlers did: a stop, an error, the program's end)
+    check_exit(false);
+    flush_events();
+}
+
+fn run_idle_events_inner() {
     loop {
         // The answers that came during a yield: it goes on.
         while dialog::resume_pending() {}
@@ -748,6 +828,8 @@ pub fn rapidr_run_bc(bytes: &[u8]) -> Result<(), JsValue> {
     // Installed before `__main` runs, so events fired during setup (an
     // RSqlite OnConnect, a synchronous RHTTP OnLoad, …) reach their handlers.
     start_session(Session::new(module, false));
+    // (a plain run: no IDE session listens)
+    SINK.with(|s| *s.borrow_mut() = None);
 
     let result = SESSION.with(|s| {
         let mut guard = s.try_borrow_mut().map_err(|_| JsValue::from_str("the VM is busy"))?;
@@ -831,9 +913,35 @@ pub fn rapidr_test_results() -> Option<String> {
 /// `assets/name`) to data URLs: the files a `$RESOURCE` line names are
 /// built into the program from there, as the desktop compiler reads them
 /// from disk.
+///
+/// The program's lines are named `project_name` in its source map (what a
+/// run-time error and the debugger's breakpoints and stops call it).
 #[wasm_bindgen]
-pub fn compile(source: &str, _project_name: &str, assets: JsValue) -> Result<Vec<u8>, JsValue> {
-    compile_inner(source, &assets).map_err(|e| JsValue::from_str(&e))
+pub fn compile(source: &str, project_name: &str, assets: JsValue) -> Result<Vec<u8>, JsValue> {
+    compile_inner(project_name, source, Vec::new(), &assets).map_err(|e| JsValue::from_str(&e))
+}
+
+/// Compiles a project's main file `main` from `files` (an object: each
+/// file's name → its text) — what `$INCLUDE` finds — and `assets` as
+/// [`compile`]. The source map names each line's file, as the desktop's
+/// does: a breakpoint in an included file stops there.
+#[wasm_bindgen]
+pub fn compile_files(main: &str, files: JsValue, assets: JsValue) -> Result<Vec<u8>, JsValue> {
+    let mut all = Vec::new();
+    if let Some(object) = files.dyn_ref::<js_sys::Object>() {
+        for entry in js_sys::Object::entries(object).iter() {
+            let pair = js_sys::Array::from(&entry);
+            if let (Some(name), Some(text)) = (pair.get(0).as_string(), pair.get(1).as_string()) {
+                all.push((name, text));
+            }
+        }
+    }
+    let source = all
+        .iter()
+        .find(|(name, _)| name == main)
+        .map(|(_, text)| text.clone())
+        .ok_or_else(|| JsValue::from_str(&format!("{main}: not among the project's files")))?;
+    compile_inner(main, &source, all, &assets).map_err(|e| JsValue::from_str(&e))
 }
 
 /// A `$RESOURCE` file's bytes from the project's assets: the name as
@@ -861,14 +969,11 @@ fn resource_bytes(assets: &JsValue, file: &str) -> Option<Vec<u8>> {
     rapidr_runtime_web::database_web::decode_base64(&url)
 }
 
-fn compile_inner(source: &str, assets: &JsValue) -> Result<Vec<u8>, String> {
-    let pre = rapidr_preprocessor::preprocess_source(
-        source,
-        ".",
-        None,
-        rapidr_preprocessor::PreprocessOptions::default(),
-    )
-    .map_err(|e| format!("preprocess error: {e}"))?;
+fn compile_inner(main: &str, source: &str, files: Vec<(String, String)>, assets: &JsValue) -> Result<Vec<u8>, String> {
+    let options = rapidr_preprocessor::PreprocessOptions { virtual_files: files, ..Default::default() };
+    let main_path = std::path::PathBuf::from(main);
+    let pre = rapidr_preprocessor::preprocess_source(source, ".", Some(main_path.clone()), options)
+        .map_err(|e| format!("preprocess error: {e}"))?;
 
     let tokens = rapidr_lexer::Lexer::new(&pre.source, None)
         .tokenize()
@@ -877,8 +982,13 @@ fn compile_inner(source: &str, assets: &JsValue) -> Result<Vec<u8>, String> {
     let program = rapidr_parser::parse_tokens(&tokens)
         .map_err(|e| e.to_string())?;
 
-    let mut compiled = rapidr_bcgen::compile_program_with_source(&program, Some(&pre.source))
+    // (as the desktop compiler: lines from $INCLUDEd files are a library's)
+    let library_lines: Vec<bool> = pre.line_map.iter().map(|(file, _)| file.as_ref().is_some_and(|f| *f != main_path)).collect();
+    let mut compiled = rapidr_bcgen::compile_program_with_libraries(&program, Some(&pre.source), &library_lines)
         .map_err(|e| format!("bcgen error: {e}"))?;
+    // Run-time errors and the debugger name each line's file and line.
+    let origins = pre.line_map.iter().map(|(file, line)| (file.as_deref().and_then(|f| f.to_str()), *line as u32));
+    compiled.module.source_map = rapidr_bytecode::SourceMap::from_origins(main, origins);
     compiled.module.apply_app_type_directive(pre.app_type.as_deref());
 
     // `$RESOURCE` files are built into the module.
@@ -895,169 +1005,133 @@ fn compile_inner(source: &str, assets: &JsValue) -> Result<Vec<u8>, String> {
     Ok(compiled.module.to_bytes())
 }
 
-// ---------- Debugger Session class for Monaco IDE ----------
+// ---------- The IDE's session (rapidr-session's protocol) ----------
+//
+// The preview frame's end of RapidR Studio's program session: the page
+// opens the program with `session_open` (its events go to `sink`, as JSON),
+// passes every request from the IDE to `session_request`. The program waits
+// for `start` (after the breakpoints). A stop leaves the VM where it is
+// (`VmError::Paused`): the page stays responsive, and `continue` / the
+// steps run it on as a slice of its own (`Slice::Debug`).
 
-/// The IDE's debugger: a session run step by step. It drives the page's
-/// session (see [`SESSION`]) as long as that is still the one it started.
+/// Opens `bytes` (a `.rrbc`; `program`: its name for `ready`) as the page's
+/// program under the IDE's session; events go to `sink` (a function taking
+/// the event's JSON).
 #[wasm_bindgen]
-pub struct DebugSession {
-    generation: u64,
+pub fn session_open(bytes: &[u8], program: &str, sink: js_sys::Function) -> Result<(), JsValue> {
+    let module = Module::from_bytes(bytes).map_err(|e| JsValue::from_str(&format!("rrbc decode error: {e}")))?;
+    rapidr_runtime_web::value::resources::set_all(&module.resources);
+    rapidr_runtime_web::object_web::install_object_hooks();
+    let mut session = Session::new(module, false);
+    session.end = Some(ProgramEnd::new());
+    start_session(session);
+    SINK.with(|s| *s.borrow_mut() = Some(sink));
+    OUTBOX.with(|o| o.borrow_mut().clear());
+    emit(Message::new(EventBody::Ready { protocol: PROTOCOL_VERSION, runtime: format!("RapidR {}", env!("CARGO_PKG_VERSION")), program: program.to_string() }));
+    flush_events();
+    Ok(())
 }
 
-impl DebugSession {
-    /// Runs `f` on this debugger's session, if it's still the page's and
-    /// isn't running already.
-    fn with<R>(&self, f: impl FnOnce(&mut Session) -> R) -> Option<R> {
-        SESSION.with(|s| {
-            let mut guard = s.try_borrow_mut().ok()?;
-            let session = guard.as_mut().filter(|s| s.generation == self.generation)?;
-            Some(f(session))
-        })
+/// One request from the IDE (JSON, rapidr-session's protocol).
+#[wasm_bindgen]
+pub fn session_request(json: &str) {
+    match Request::from_json(json) {
+        Ok(request) => serve_request(request),
+        Err(e) => emit(Message::error(0, e)),
     }
-
-    /// Runs the VM with `step` and says where it stopped: "paused",
-    /// "waiting" (the program's forms are up, or it runs on between two
-    /// time slices: the status then comes through
-    /// `__rapidr_handle_debug_result`) or "halted". While the program runs
-    /// on, a step does nothing.
-    fn drive(&mut self, step: impl FnOnce(&mut Vm<'static, WebHost>, &Module) -> Result<(), VmError>) -> Result<String, JsValue> {
-        let outcome = self
-            .with(|session| session.slice.is_none().then(|| run_step(session, Slice::Debug, step).0))
-            .ok_or_else(|| JsValue::from_str("the debugging session has ended"))?;
-        let Some(result) = outcome else { return Ok("waiting".to_string()) };
-        let status = debug_status(result).map_err(|e| JsValue::from_str(&e))?;
-        schedule_output_flush();
-        run_idle_events();
-        Ok(status.to_string())
-    }
+    flush_events();
 }
 
-#[wasm_bindgen]
-impl DebugSession {
-    #[wasm_bindgen(constructor)]
-    pub fn new(bytes: &[u8]) -> Result<DebugSession, JsValue> {
-        let module = Module::from_bytes(bytes)
-            .map_err(|e| JsValue::from_str(&format!("rrbc decode error: {e}")))?;
-        rapidr_runtime_web::value::resources::set_all(&module.resources);
-        let session = Session::new(module, true);
-        let generation = session.generation;
-        start_session(session);
-        Ok(DebugSession { generation })
-    }
+/// What a request leaves to do once the session is released.
+enum After {
+    Nothing,
+    /// Run the main program from its start.
+    Run,
+    /// Go on from a stop.
+    Go(fn(&mut Vm<'static, WebHost>, &Module) -> Result<(), VmError>),
+    /// End the program.
+    End,
+}
 
-    pub fn start(&mut self) -> Result<String, JsValue> {
-        self.with(|session| {
-            let entry = session.module.entry;
-            session.vm.call(&session.module, entry, 0, false)
-        })
-        .ok_or_else(|| JsValue::from_str("the debugging session has ended"))?
-        .map_err(|e| JsValue::from_str(&format!("vm call error: {e}")))?;
-        self.resume()
-    }
-
-    pub fn resume(&mut self) -> Result<String, JsValue> {
-        self.drive(|vm, module| vm.resume(module))
-    }
-
-    pub fn step_into(&mut self) -> Result<String, JsValue> {
-        self.drive(|vm, module| vm.step_into(module))
-    }
-
-    pub fn step_over(&mut self) -> Result<String, JsValue> {
-        self.drive(|vm, module| vm.step_over(module))
-    }
-
-    pub fn step_out(&mut self) -> Result<String, JsValue> {
-        self.drive(|vm, module| vm.step_out(module))
-    }
-
-    pub fn set_breakpoints(&mut self, lines: Vec<u32>) {
-        let set: std::collections::HashSet<u32> = lines.into_iter().collect();
-        self.with(|session| session.vm.set_breakpoints(set));
-    }
-
-    pub fn get_current_line(&self) -> Option<u32> {
-        self.with(|session| session.vm.current_line(&session.module)).flatten()
-    }
-
-    pub fn get_stack_trace(&self) -> String {
-        self.with(|session| {
-            let mut parts = Vec::new();
-            for frame in session.vm.frames.iter().rev() {
-                if let Some(func) = session.module.functions.get(frame.fn_index as usize) {
-                    let line = func.get_line_for_ip(frame.ip).unwrap_or(0);
-                    parts.push(format!("{{\"name\":{},\"line\":{}}}", json_string(&func.name), line));
-                }
-            }
-            format!("[{}]", parts.join(","))
-        })
-        .unwrap_or_else(|| "[]".to_string())
-    }
-
-    pub fn get_variables(&self) -> String {
-        self.with(|session| {
-            let (vm, module) = (&session.vm, &session.module);
-            let mut locals_parts = Vec::new();
-            if let Some(frame) = vm.frames.last() {
-                if let Some(func) = module.functions.get(frame.fn_index as usize) {
-                    for (slot, val) in frame.locals.iter().enumerate() {
-                        let name = func.local_names.get(slot).cloned().unwrap_or_else(|| format!("local_{slot}"));
-                        if !name.starts_with("__") && !name.is_empty() {
-                            locals_parts.push(format!("{}:{}", json_string(&name), rapidr_value::debug_json(val)));
-                        }
-                    }
-                }
-            }
-            let mut globals_parts = Vec::new();
-            for (name, val) in vm.global_values(module) {
-                if !name.starts_with("__") {
-                    globals_parts.push(format!("{}:{}", json_string(name), rapidr_value::debug_json(val)));
-                }
-            }
-            format!("{{\"locals\":{{{}}},\"globals\":{{{}}}}}", locals_parts.join(","), globals_parts.join(","))
-        })
-        .unwrap_or_else(|| "{\"locals\":{},\"globals\":{}}".to_string())
-    }
-
-    pub fn get_component_properties(&self, id: &str) -> String {
-        if let Some((type_name, props)) = rapidr_runtime_web::object_web::rp_comp_get_all_properties(id) {
-            let props_parts: Vec<String> =
-                props.iter().map(|(name, val)| format!("{}:{}", json_string(name), rapidr_value::debug_json(val))).collect();
-            format!("{{\"type\":{},\"properties\":{{{}}}}}", json_string(&type_name), props_parts.join(","))
-        } else {
-            "null".to_string()
+fn serve_request(request: Request) {
+    let seq = request.seq;
+    let outcome = SESSION.with(|s| {
+        let Ok(mut guard) = s.try_borrow_mut() else { return Err("the program is busy") };
+        let Some(session) = guard.as_mut().filter(|s| s.end.is_some()) else { return Err("no program under a session") };
+        if matches!(request.command, Command::Stop) {
+            return Ok(After::End);
         }
-    }
-}
-
-impl Drop for DebugSession {
-    fn drop(&mut self) {
-        // The debugger is done with its session (unless another replaced it).
-        SESSION.with(|s| {
-            if let Ok(mut slot) = s.try_borrow_mut() {
-                if slot.as_ref().is_some_and(|session| session.generation == self.generation) {
+        // (a pause while the program runs between two time slices: the
+        // debugger watches from now on, and the next slice stops at once)
+        if matches!(request.command, Command::Pause) && !session.stopped {
+            session.vm.debug_mode = true;
+        }
+        let paused = session.stopped && session.slice.is_none();
+        let mut end = session.end.take().unwrap_or_default();
+        let (reply, control) = end.handle(&mut session.vm, &session.module, request, paused);
+        let after = match control {
+            Control::Start { .. } => After::Run,
+            Control::Continue => After::Go(|vm, m| vm.resume(m)),
+            Control::StepIn => After::Go(|vm, m| vm.step_into(m)),
+            Control::StepOver => After::Go(|vm, m| vm.step_over(m)),
+            Control::StepOut => After::Go(|vm, m| vm.step_out(m)),
+            Control::Stop => After::End,
+            // (INPUT on the web is answered in the program's page)
+            Control::None | Control::Pause | Control::Input(_) => After::Nothing,
+        };
+        if matches!(after, After::Go(_)) {
+            end.resumed();
+            session.stopped = false;
+        }
+        session.end = Some(end);
+        if let Some(reply) = reply {
+            emit(reply);
+        }
+        Ok(after)
+    });
+    let after = match outcome {
+        Ok(after) => after,
+        Err(e) => {
+            emit(Message::error(seq, e));
+            return;
+        }
+    };
+    match after {
+        After::Nothing => {}
+        After::Run => {
+            let result = SESSION.with(|s| {
+                let mut guard = s.try_borrow_mut().ok()?;
+                let session = guard.as_mut()?;
+                Some(run_step(session, Slice::Main, |vm, module| vm.run(module)).0)
+            });
+            if let Some(result) = result {
+                settle(Slice::Main, result, false);
+            }
+        }
+        After::Go(step) => {
+            emit(Message::new(EventBody::Continued));
+            let result = SESSION.with(|s| {
+                let mut guard = s.try_borrow_mut().ok()?;
+                let session = guard.as_mut()?;
+                Some(run_step(session, Slice::Debug, step))
+            });
+            if let Some((result, main_done)) = result {
+                settle(Slice::Debug, result, main_done);
+            }
+        }
+        After::End => {
+            if seq != 0 {
+                emit(Message::reply(seq, EventBody::Ok));
+            }
+            rapidr_runtime_web::object_web::end_program();
+            dialog::clear_modals();
+            SESSION.with(|s| {
+                if let Ok(mut slot) = s.try_borrow_mut() {
                     *slot = None;
-                    // (a yield of it isn't continued)
-                    dialog::set_yielded(false);
                 }
-            }
-        });
-    }
-}
-
-/// A JSON string literal (names in the debugger's JSON are quoted and
-/// escaped, never pasted in raw).
-fn json_string(s: &str) -> String {
-    let mut out = String::with_capacity(s.len() + 2);
-    out.push('"');
-    for c in s.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
-            c => out.push(c),
+            });
+            dialog::set_yielded(false);
+            emit(Message::new(EventBody::Exited { code: 0 }));
         }
     }
-    out.push('"');
-    out
 }

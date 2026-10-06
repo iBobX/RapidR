@@ -1,0 +1,121 @@
+# CSS (also inside HTML's <style>).
+
+[language]
+id = "css"
+name = "CSS"
+extensions = ["css"]
+case_insensitive = true
+block_comment = ["/*", "*/"]
+word = '-?[A-Za-z_][A-Za-z0-9_-]*'
+
+[brackets]
+pairs = [["{", "}"], ["(", ")"], ["[", "]"]]
+auto_close = [["{", "}"], ["(", ")"], ["[", "]"], ['"', '"'], ["'", "'"]]
+
+[indent]
+increase = '\{\s*(/\*.*\*/\s*)?$'
+decrease = '^\s*\}'
+
+[folding]
+brackets = true
+
+[defaults]
+comment = "comment"
+dq = "string"
+sq = "string"
+
+# selectors
+[[states.root]]
+include = "common"
+[[states.root]]
+match = '@[A-Za-z-]+'
+token = "directive"
+[[states.root]]
+match = '[.#][A-Za-z_-][A-Za-z0-9_-]*'
+token = "type"
+[[states.root]]
+match = '::?[A-Za-z-]+'
+token = "function"
+[[states.root]]
+match = '[A-Za-z][A-Za-z0-9-]*|\*'
+token = "keyword.tag"
+[[states.root]]
+match = '\{'
+token = "punctuation"
+push = "block"
+[[states.root]]
+match = '[>+~,()\[\]=]'
+token = "punctuation"
+
+# declarations (and nested rules)
+[[states.block]]
+include = "common"
+[[states.block]]
+match = '\}'
+token = "punctuation"
+pop = true
+[[states.block]]
+match = '\{'
+token = "punctuation"
+push = "block"
+[[states.block]]
+match = '(-{0,2}[A-Za-z_][A-Za-z0-9_-]*)(\s*)(:)(\s|$)'
+groups = ["variable.property", "", "punctuation"]
+[[states.block]]
+match = '#[0-9A-Fa-f]{3,8}\b'
+token = "constant"
+[[states.block]]
+match = '-?([0-9]+\.?[0-9]*|\.[0-9]+)(%|[A-Za-z]+)?'
+token = "number"
+[[states.block]]
+match = '!important'
+token = "keyword"
+[[states.block]]
+match = '[A-Za-z_-][A-Za-z0-9_-]*\('
+token = "function"
+[[states.block]]
+match = '@[A-Za-z-]+'
+token = "directive"
+[[states.block]]
+match = '[;:,()]'
+token = "punctuation"
+
+[[states.common]]
+match = '/\*'
+token = "comment"
+push = "comment"
+[[states.common]]
+match = '"'
+token = "string"
+push = "dq"
+[[states.common]]
+match = "'"
+token = "string"
+push = "sq"
+
+[[states.comment]]
+match = '\*/'
+token = "comment"
+pop = true
+
+[[states.dq]]
+match = '\\(.|$)'
+token = "string.escape"
+[[states.dq]]
+match = '"'
+token = "string"
+pop = true
+[[states.dq]]
+match = '$'
+pop = true
+
+[[states.sq]]
+match = '\\(.|$)'
+token = "string.escape"
+[[states.sq]]
+match = "'"
+token = "string"
+pop = true
+[[states.sq]]
+match = '$'
+pop = true

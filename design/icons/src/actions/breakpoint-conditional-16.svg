@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Conditional breakpoint</title>
+  <defs><mask id="m1" maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16"><rect width="16" height="16" fill="white"/><rect x="6" y="6" width="4" height="1" fill="black" stroke="black" stroke-width="0"/><rect x="6" y="9" width="4" height="1" fill="black" stroke="black" stroke-width="0"/></mask></defs>
+  <g mask="url(#m1)"><circle cx="8" cy="8" r="4.5" fill="#D92D36" stroke="#D92D36"/></g>
+</svg>

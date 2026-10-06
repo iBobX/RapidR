@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>SQLite database</title>
+  <path d="M2.5 3.5V12.5A5 1.5 0 0 0 13.5 12.5V3.5" fill="#D6F2E8" stroke="#08805E"/>
+  <ellipse cx="8.5" cy="3" rx="5" ry="1.5" fill="#D6F2E8" stroke="#08805E"/>
+</svg>

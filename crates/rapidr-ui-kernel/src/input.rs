@@ -391,6 +391,11 @@ impl FormUi {
         if vk == 121 && !mods.shift && !mods.ctrl && !mods.alt && self.select_bar(store) {
             return;
         }
+        // (I1: a dock manager's keys — F6, Ctrl+Tab, its move — before the
+        // focused component's: components/dock.rs)
+        if crate::components::dock::key(self, store, ts, vk, mods) {
+            return;
+        }
         let shortcut = mods.command || mods.ctrl;
         let mut handled = false;
         // (a memo with WantTabs takes a plain Tab: components/memo.rs)

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Menu editor</title>
+  <defs><mask id="m1" maskUnits="userSpaceOnUse" x="0" y="0" width="32" height="32"><rect width="32" height="32" fill="white"/><path d="M25 13L29 17L20 25L17 26L17 22L25 13Z" fill="black" stroke="black" stroke-width="4.1"/></mask></defs>
+  <g mask="url(#m1)"><path d="M5 3H27A2 2 0 0 1 29 5V8A2 2 0 0 1 27 10H5A2 2 0 0 1 3 8V5A2 2 0 0 1 5 3Z" fill="#FFFFFF" stroke="#5B6478"/><rect x="4" y="4" width="9" height="6" fill="#E3E9FF"/><path d="M7 10H16A2 2 0 0 1 18 12V27A2 2 0 0 1 16 29H7A2 2 0 0 1 5 27V12A2 2 0 0 1 7 10Z" fill="#FFFFFF" stroke="#5B6478"/><path d="M8 16L15 16" stroke="#5B6478"/></g>
+  <path d="M25 13L29 17L20 25L17 26L17 22L25 13Z" fill="#E3E9FF" stroke="#2F5BFF"/>
+</svg>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Opens elsewhere</title>
+  <path d="M25 17V25A3 3 0 0 1 22 28H7A3 3 0 0 1 4 25V10A3 3 0 0 1 7 7H15" stroke="currentColor"/>
+  <path d="M20 4H28V12" stroke="currentColor"/>
+  <path d="M28 4L15 17" stroke="currentColor"/>
+</svg>

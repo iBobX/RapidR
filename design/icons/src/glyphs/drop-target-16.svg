@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Docking target</title>
+  <path d="M6 5.5H10A0.5 0.5 0 0 1 10.5 6V10A0.5 0.5 0 0 1 10 10.5H6A0.5 0.5 0 0 1 5.5 10V6A0.5 0.5 0 0 1 6 5.5Z" stroke="currentColor"/>
+  <path d="M6.5 3.5L8.5 1.5L9.5 3.5" stroke="currentColor"/>
+  <path d="M6.5 12.5L8.5 14.5L9.5 12.5" stroke="currentColor"/>
+  <path d="M3.5 6.5L1.5 8.5L3.5 9.5" stroke="currentColor"/>
+  <path d="M12.5 6.5L14.5 8.5L12.5 9.5" stroke="currentColor"/>
+</svg>

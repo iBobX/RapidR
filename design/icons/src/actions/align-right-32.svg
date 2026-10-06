@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Align right edges</title>
+  <path d="M28 3L28 29" stroke="currentColor"/>
+  <path d="M7 6H21A2 2 0 0 1 23 8V11A2 2 0 0 1 21 13H7A2 2 0 0 1 5 11V8A2 2 0 0 1 7 6Z" stroke="currentColor"/>
+  <path d="M14 19H21A2 2 0 0 1 23 21V24A2 2 0 0 1 21 26H14A2 2 0 0 1 12 24V21A2 2 0 0 1 14 19Z" stroke="currentColor"/>
+</svg>

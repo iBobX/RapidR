@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>DirectX image list</title>
+  <path d="M2.5 1.5H13.5A1 1 0 0 1 14.5 2.5V13.5A1 1 0 0 1 13.5 14.5H2.5A1 1 0 0 1 1.5 13.5V2.5A1 1 0 0 1 2.5 1.5Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M8.5 1.5L8.5 14.5" stroke="#5B6478"/>
+  <path d="M1.5 8.5L14.5 8.5" stroke="#5B6478"/>
+  <path d="M8.5 8.5H14.5V12.5A1.5 1.5 0 0 1 12.5 14.5H8.5L8.5 8.5Z" fill="#EBE4FD" stroke="#6F42E5"/>
+</svg>

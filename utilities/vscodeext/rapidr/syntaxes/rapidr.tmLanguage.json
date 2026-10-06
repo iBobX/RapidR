@@ -1,24 +1,60 @@
 {
   "scopeName": "source.rapidr",
   "name": "RapidR",
-  "fileTypes": ["rr"],
+  "fileTypes": [
+    "rr",
+    "bas",
+    "inc"
+  ],
   "patterns": [
-    { "include": "#comments" },
-    { "include": "#directives" },
-    { "include": "#strings" },
-    { "include": "#numbers" },
-    { "include": "#constants-language" },
-    { "include": "#keywords-declaration" },
-    { "include": "#keywords-control" },
-    { "include": "#keywords-type" },
-    { "include": "#keywords-operator" },
-    { "include": "#keywords-other" },
-    { "include": "#rust-block" },
-    { "include": "#component-types" },
-    { "include": "#builtin-functions" },
-    { "include": "#identifiers" },
-    { "include": "#operators" },
-    { "include": "#punctuation" }
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#directives"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#constants-language"
+    },
+    {
+      "include": "#keywords-declaration"
+    },
+    {
+      "include": "#keywords-control"
+    },
+    {
+      "include": "#keywords-type"
+    },
+    {
+      "include": "#keywords-operator"
+    },
+    {
+      "include": "#keywords-other"
+    },
+    {
+      "include": "#rust-block"
+    },
+    {
+      "include": "#component-types"
+    },
+    {
+      "include": "#builtin-functions"
+    },
+    {
+      "include": "#identifiers"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#punctuation"
+    }
   ],
   "repository": {
     "comments": {
@@ -37,10 +73,14 @@
       "patterns": [
         {
           "name": "meta.preprocessor.rapidr",
-          "match": "(?i)^\\s*(\\$(?:INCLUDE|DEFINE|UNDEF|IFDEF|IFNDEF|ELSE|ENDIF|MACRO|APPTYPE|OPTIMIZE|ESCAPECHARS|TYPECHECK|OPTION))\\b(.*)?$",
+          "match": "(?i)^\\s*(\\$(?:INCLUDE|DEFINE|UNDEF|IFDEF|IFNDEF|ELSE|ENDIF|MACRO|APPTYPE|OPTIMIZE|ESCAPECHARS|TYPECHECK|OPTION|RESOURCE|THEME))\\b(.*)?$",
           "captures": {
-            "1": { "name": "keyword.control.directive.rapidr" },
-            "2": { "name": "string.unquoted.directive-value.rapidr" }
+            "1": {
+              "name": "keyword.control.directive.rapidr"
+            },
+            "2": {
+              "name": "string.unquoted.directive-value.rapidr"
+            }
           }
         }
       ]
@@ -104,7 +144,7 @@
       "patterns": [
         {
           "name": "keyword.declaration.rapidr",
-          "match": "(?i)\\b(DIM|CONST|TYPE|DECLARE|IMPORT|AS|LIB|ALIAS|EXTENDS|PROPERTY|SET|BYVAL|BYREF|CONSTRUCTOR|BIND|PRIVATE|PUBLIC)\\b"
+          "match": "(?i)\\b(DIM|CONST|TYPE|STRUCT|DECLARE|IMPORT|AS|LIB|ALIAS|EXTENDS|PROPERTY|SET|BYVAL|BYREF|CONSTRUCTOR|EVENT|BIND|PRIVATE|PUBLIC|PROTECTED)\\b"
         }
       ]
     },
@@ -112,7 +152,7 @@
       "patterns": [
         {
           "name": "keyword.control.rapidr",
-          "match": "(?i)\\b(IF|THEN|ELSE|ELSEIF|END\\s+IF|END\\s+SUB|END\\s+FUNCTION|END\\s+TYPE|END\\s+CREATE|END\\s+WITH|END\\s+SELECT|END\\s+CONSTRUCTOR|END)\\b"
+          "match": "(?i)\\b(IF|THEN|ELSE|ELSEIF|END\\s+(?:IF|SUB|SUBI|FUNCTION|FUNCTIONI|TYPE|STRUCT|CREATE|WITH|SELECT|CONSTRUCTOR|EVENT|PROPERTY)|END)\\b"
         },
         {
           "name": "keyword.control.loop.rapidr",
@@ -124,7 +164,7 @@
         },
         {
           "name": "keyword.control.block.rapidr",
-          "match": "(?i)\\b(SUB|FUNCTION|CREATE|WITH)\\b"
+          "match": "(?i)\\b(SUB|SUBI|FUNCTION|FUNCTIONI|CREATE|WITH)\\b"
         }
       ]
     },
@@ -132,7 +172,7 @@
       "patterns": [
         {
           "name": "storage.type.rapidr",
-          "match": "(?i)\\b(INTEGER|STRING|DOUBLE|SINGLE|BYTE|WORD|DWORD|LONG|INT64|CURRENCY|POBJECT|VARIANT)\\b"
+          "match": "(?i)\\b(INTEGER|STRING|DOUBLE|SINGLE|BYTE|WORD|DWORD|LONG|SHORT|INT64|CURRENCY|VARIANT|QOBJECT|ROBJECT)\\b"
         }
       ]
     },
@@ -152,7 +192,7 @@
       "patterns": [
         {
           "name": "keyword.other.rapidr",
-          "match": "(?i)\\b(PRINT|INPUT|DEFSTR|DEFINT|DEFBYTE|DEFWORD|DEFDWORD|DEFLONG|DEFSNG|DEFDBL|DEFCUR)\\b"
+          "match": "(?i)\\b(PRINT|INPUT|WRITE|SEEK|DEFSTR|DEFINT|DEFBYTE|DEFWORD|DEFDWORD|DEFLONG|DEFLNG|DEFSHORT|DEFSNG|DEFDBL|DEFCUR)\\b"
         }
       ]
     },
@@ -162,8 +202,16 @@
           "name": "meta.embedded.block.rust.rapidr",
           "begin": "(?i)^\\s*(RUSTSTART)\\b",
           "end": "(?i)^\\s*(RUSTEND)\\b",
-          "beginCaptures": { "1": { "name": "keyword.control.ruststart.rapidr" } },
-          "endCaptures": { "1": { "name": "keyword.control.rustend.rapidr" } },
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.control.ruststart.rapidr"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "keyword.control.rustend.rapidr"
+            }
+          },
           "contentName": "meta.embedded.block.rust"
         }
       ]
@@ -172,11 +220,7 @@
       "patterns": [
         {
           "name": "entity.name.type.component.rapidr",
-          "match": "(?i)\\b(RForm|RButton|RLabel|REdit|RCanvas|RPanel|RTimer|RMainMenu|RMenuItem|RComboBox|RListBox|RCheckBox|RRadioButton|RRichEdit|RStringGrid|RImage|RScrollBar|RTabControl|RGroupBox|RMySQL|RSQLite|RProgressBar|RListView|ROpenDialog|RSaveDialog|RFileStream|RFileDialog|RCodeEditor|RLine|RIcon|RImageList|RSocket|RServerSocket|RHTTP|RStatusBar|RColorDialog|RFontDialog|RDesignSurface|RTreeView|RSplitter|RTrackBar|RScrollBox|RPopupMenu|RIni|RMemoryStream|RStringList|RPrinter|RCoolBtn|ROvalBtn|RNum|RPlot|RDataFrame|RJSON|RWebView|RDOM|RJavaScript|RWebStorage|RWebAudio|RWebVideo|RWebNotification|RWebGeolocation|RRouter)\\b"
-        },
-        {
-          "name": "entity.name.type.component.rapidr",
-          "match": "(?i)\\b(QForm|QButton|QLabel|QEdit|QCanvas|QPanel|QTimer|QMainMenu|QMenuItem|QComboBox|QListBox|QCheckBox|QRadioButton|QRichEdit|QStringGrid|QImage|QScrollBar|QTabControl|QGroupBox)\\b"
+          "match": "(?i)\\b[QR](?:WEBNOTIFICATION|D3DMESHBUILDER|DATETIMEPICKER|NOTIFYICONDATA|WEBGEOLOCATION|DESIGNSURFACE|MEMORYSTREAM|SERVERSOCKET|COLORDIALOG|DXIMAGELIST|FILELISTBOX|PROGRESSBAR|RADIOBUTTON|CODEEDITOR|D3DTEXTURE|DIGDISPLAY|DXJOYSTICK|FILEDIALOG|FILESTREAM|FONTDIALOG|GLASSFRAME|JAVASCRIPT|OPENDIALOG|SAVEDIALOG|STRINGGRID|STRINGLIST|TABCONTROL|WEBSTORAGE|D3DVECTOR|D3DVISUAL|DATAFRAME|IMAGELIST|POPUPMENU|SCROLLBAR|SCROLLBOX|STATUSBAR|CHECKBOX|COMBOBOX|D3DFRAME|D3DLIGHT|DOWNLOAD|DXSCREEN|GROUPBOX|LISTVIEW|MAINMENU|MENUITEM|PROGRESS|REGISTRY|RICHEDIT|SPLITTER|TRACKBAR|TREEVIEW|WEBAUDIO|WEBVIDEO|CDAUDIO|COMPORT|COOLBTN|D3DFACE|D3DMESH|D3DWRAP|DIRTREE|DXSOUND|DXTIMER|FORMMDI|LISTBOX|OVALBTN|PRINTER|TOOLBAR|WEBVIEW|BITMAP|BUTTON|CANVAS|HEADER|ROUTER|SOCKET|SQLITE|UPDOWN|BEVEL|IMAGE|LABEL|MYSQL|PANEL|TIMER|VIDEO|EDIT|FONT|FORM|HTTP|JSON|MEMO|MIDI|PLOT|RECT|WAVE|CGI|DOM|NUM)\\b"
         }
       ]
     },

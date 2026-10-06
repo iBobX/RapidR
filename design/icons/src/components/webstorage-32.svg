@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Web storage</title>
+  <path d="M7 3H25A3 3 0 0 1 28 6V26A3 3 0 0 1 25 29H7A3 3 0 0 1 4 26V6A3 3 0 0 1 7 3Z" fill="#D7F3F9" stroke="#007F9C"/>
+  <path d="M4 16L28 16" stroke="#007F9C"/>
+  <path d="M12 10L20 10" stroke="#007F9C"/>
+  <path d="M12 22L20 22" stroke="#007F9C"/>
+</svg>

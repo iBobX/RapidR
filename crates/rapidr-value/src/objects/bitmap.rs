@@ -67,6 +67,16 @@ pub struct HiRes {
     pub alpha: Option<Vec<u8>>,
 }
 
+/// Draws a picture again at a screen scale ([`Bitmap::set_redraw`]).
+#[derive(Clone)]
+pub struct Redraw(std::rc::Rc<dyn Fn(usize) -> Option<Pixels>>);
+
+impl std::fmt::Debug for Redraw {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Redraw")
+    }
+}
+
 impl HiRes {
     /// `lo` shown `scale` times larger (each pixel a scale × scale block).
     fn upscaled(lo: &Pixels, alpha: Option<&[u8]>, scale: usize) -> Option<HiRes> {
@@ -235,6 +245,9 @@ pub struct Bitmap {
     /// The SVG these pixels were drawn from, until something draws on them:
     /// what's shown is drawn from it again at a new screen scale.
     pub(crate) svg: Option<std::rc::Rc<Vec<u8>>>,
+    /// What draws these pixels again at a screen scale (an RPLOT's chart,
+    /// `LoadFromPlot`), until something draws on them — as `svg`.
+    pub(crate) redraw: Option<Redraw>,
     /// Changes whenever what the bitmap shows may have changed (every
     /// drawing method, a load, a new size, `invalidate_display`): a host
     /// keeps the picture it uploaded until it does ([`Bitmap::revision`]).
@@ -280,6 +293,7 @@ impl Default for Bitmap {
             alpha: None,
             hi: None,
             svg: None,
+            redraw: None,
             revision: next_revision(),
         }
     }
@@ -355,6 +369,7 @@ impl Bitmap {
         }
         if (w, h) != (self.img.width, self.img.height) {
             self.svg = None;
+        self.redraw = None;
             self.touch();
         }
         let mut pixels = vec![self.background; w * h];
@@ -397,8 +412,9 @@ impl Bitmap {
             // An SVG's pixels: drawn again at this scale; others: enlarged.
             let (w, h) = (self.img.width * s, self.img.height * s);
             let from_svg = self.svg.as_ref().and_then(|svg| decode_svg(svg, s as f32).ok()).map(|(fine, a)| fit_hi(fine, a, w, h, s));
+            let redrawn = || self.redraw.as_ref().and_then(|r| (r.0)(s)).filter(|p| p.width == w && p.height == h).map(|img| HiRes { scale: s, img, alpha: None });
             let had = self.hi.is_some();
-            self.hi = from_svg.or_else(|| HiRes::upscaled(&self.img, self.alpha_channel(), s)).map(Box::new);
+            self.hi = from_svg.or_else(redrawn).or_else(|| HiRes::upscaled(&self.img, self.alpha_channel(), s)).map(Box::new);
             if had || self.hi.is_some() {
                 self.touch();
             }
@@ -422,6 +438,7 @@ impl Bitmap {
     pub fn take_display(&mut self, src: &mut Bitmap) {
         self.hi = src.hi.take();
         self.svg = src.svg.take();
+        self.redraw = src.redraw.take();
         self.touch();
     }
 
@@ -454,6 +471,7 @@ impl Bitmap {
     /// Sets one of the pixels (only: what the screen shows is the caller's).
     pub(crate) fn lo_pset(&mut self, x: i64, y: i64, c: u32) {
         self.svg = None;
+        self.redraw = None;
         self.touch();
         if x >= 0 && y >= 0 && (x as usize) < self.img.width && (y as usize) < self.img.height {
             let i = y as usize * self.img.width + x as usize;
@@ -492,6 +510,7 @@ impl Bitmap {
 
     pub fn fill_rect(&mut self, x1: i64, y1: i64, x2: i64, y2: i64, c: u32) {
         self.svg = None;
+        self.redraw = None;
         self.touch();
         let (l, t, r, b) = self.clip(x1, y1, x2, y2);
         for y in t..b {
@@ -533,6 +552,7 @@ impl Bitmap {
     /// pixels that aren't the border's color.
     pub fn flood_fill(&mut self, x: i64, y: i64, c: u32, border: u32) {
         self.svg = None;
+        self.redraw = None;
         self.touch();
         let mut stack = vec![(x, y)];
         let mut seen = vec![false; self.img.pixels.len()];
@@ -832,6 +852,8 @@ impl Bitmap {
             }
             "clear" | "cls" => {
                 self.svg = None;
+                self.redraw = None;
+        self.redraw = None;
                 self.touch();
                 let bg = self.background;
                 self.img.pixels.iter_mut().for_each(|p| *p = bg);
@@ -867,6 +889,7 @@ impl Bitmap {
     /// Pixels of color `old` (the background showing) become `new`.
     fn recolor(&mut self, old: u32, new: u32) {
         self.svg = None;
+        self.redraw = None;
         self.touch();
         self.img.pixels.iter_mut().filter(|p| **p == old).for_each(|p| *p = new);
         if let Some(hi) = self.hi.as_mut() {
@@ -921,6 +944,7 @@ impl Bitmap {
         self.hi = None;
         self.touch();
         self.svg = None;
+        self.redraw = None;
         if is_svg(bytes) {
             let (img, alpha) = decode_svg(bytes, 1.0)?;
             // What the screen shows: the SVG drawn at the display scale.
@@ -940,6 +964,26 @@ impl Bitmap {
         self.alpha = alpha;
         self.auto_transparent_color();
         Ok(())
+    }
+
+    /// Takes `img` as its pixels (opaque; a chart's: `LoadFromPlot`).
+    pub fn set_pixels(&mut self, img: Pixels) {
+        self.img = img;
+        self.alpha = None;
+        self.svg = None;
+        self.redraw = None;
+        self.hi = None;
+        self.touch();
+    }
+
+    /// What draws the picture again at a screen scale (`scale` device
+    /// pixels per pixel, the picture's size times it): what a high-DPI screen
+    /// shows of it, sharp, until something draws on it (an RPLOT's chart,
+    /// `LoadFromPlot`; as an SVG is drawn again).
+    pub fn set_redraw(&mut self, redraw: impl Fn(usize) -> Option<Pixels> + 'static) {
+        self.redraw = Some(Redraw(std::rc::Rc::new(redraw)));
+        self.hi = None;
+        self.touch();
     }
 
     /// A QIMAGE's transparent color: its picture's bottom-left pixel.

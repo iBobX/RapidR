@@ -249,8 +249,8 @@ impl Cursor {
 /// Who gets a key's OnKeyDown / OnKeyPress / OnKeyUp, as RapidQ (Delphi)
 /// sends them: `chain` is the focused component up to its form. The form
 /// gets the keys typed in its controls only with KeyPreview on — and then
-/// first ("keyboard events should occur on the form before they occur on
-/// the active control"); with no control focused, the form itself.
+/// first, before the focused control (RapidQ's manual, QFORM's
+/// KeyPreview); with no control focused, the form itself.
 pub fn key_targets<'a>(chain: &'a [String], key_preview: impl Fn(&str) -> bool) -> Vec<&'a String> {
     match (chain.first(), chain.last()) {
         (Some(control), Some(form)) if chain.len() > 1 && control != form => {

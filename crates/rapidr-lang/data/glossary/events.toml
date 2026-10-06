@@ -1,0 +1,85 @@
+# Docs of events by name (any component that has one and gives it no doc
+# of its own). Written in RapidR's own words.
+
+[event]
+OnApply = { doc = "Fires when the user presses the font dialog's Apply button; the dialog's font properties already hold the font shown." }
+OnBgClick = { doc = "Fires when the user presses the design surface's empty background (X, Y: where); nothing is selected afterwards." }
+OnBlur = { doc = "Fires when the element loses the keyboard focus (the browser's blur)." }
+OnBreak = { doc = "A break condition on the serial line. RapidR accepts a handler for it but never fires it." }
+OnButtonDown = { doc = "Fires when a joystick button is pressed; Button is its number, from 1 (RapidR's, looked for at each of the joystick's ticks)." }
+OnButtonUp = { doc = "Fires when a joystick button is released; Button is its number, from 1." }
+OnChange = { doc = "Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state." }
+OnChanging = { doc = "Fires before the tree's selection moves to node Index; set AllowChange to 0 to keep the current selection." }
+OnChildActive = { doc = "Fires when an MDI child window becomes the active one (handleChild: its handle, index: its number, titleChild: its caption)." }
+OnChildClose = { doc = "Fires when an MDI child window closes (handleChild: its handle, index: its number, titleChild: its caption)." }
+OnChildResize = { doc = "Fires when an MDI child window is resized, maximized or restored (handleChild: its handle, index: its number, titleChild: its caption)." }
+OnClick = { doc = "Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button)." }
+OnClientConnect = { doc = "Fires when a client connects to the server socket; the handler gets the client's address." }
+OnClientDisconnect = { doc = "Fires when a client disconnects from the server socket; the handler gets the client's address." }
+OnClose = { doc = "Fires when the form, port or dock form closes. A form's handler can set its BYREF Action to `caNone` (0) to keep the form open." }
+OnCollapsed = { doc = "Fires after tree node Index has been collapsed." }
+OnCollapsing = { doc = "Fires before tree node Index collapses; set AllowCollapse to 0 to keep it open." }
+OnColumnClick = { doc = "Fires when the user clicks a column header of the list view (Column: its index); the usual place to sort by that column." }
+OnComError = { doc = "Fires when opening, reading, writing or closing the serial port fails; ErrorMessage says what went wrong." }
+OnConnect = { doc = "Fires when the connection is made: a database opened by Connect, a socket connected to its host." }
+OnDataReceived = { doc = "Fires when data arrives from a client; the handler gets the client's address and the data." }
+OnDblClick = { doc = "Fires when the user double-clicks the control (on a design surface: the designed component Index)." }
+OnDeletion = { doc = "Fires for each tree node the program deleted (Index: the node's index)." }
+OnDisconnect = { doc = "Fires when the connection is closed: a database by Close, a socket by either side." }
+OnDock = { doc = "Fires when the dock form docks (Docked = 1) or is torn off into its own window (Docked = 0); Alt = 1 when it docked at its alternative place." }
+OnDrawCell = { doc = "Fires for each grid cell to draw when the program draws them (Col, Row: the cell; State: selected, focused or fixed; R: the cell's rectangle)." }
+OnDrawItem = { doc = "Fires for each item of an owner-drawn list or combo box (Index: the item, State: selected or focused, R: the rectangle to draw it in)." }
+OnDrawSection = { doc = "Fires for each header section to draw (Index: the section, Pressed: nonzero while pressed, Rect: its rectangle)." }
+OnEdited = { doc = "Fires after the user edited tree node Index's text in place; S holds the new text, and the handler can change it before it is stored." }
+OnEditing = { doc = "Fires before the user starts editing tree node Index's text; set AllowEdit to 0 to refuse." }
+OnEllipsisClick = { doc = "Fires when the user clicks the \"…\" button of an ellipsis-style grid column's cell (Col, Row)." }
+OnEndDrag = { doc = "Fires when a drag of the control ends. RapidR doesn't start drags yet, so it doesn't fire." }
+OnEnded = { doc = "Fires when the audio or video reaches its end." }
+OnEnter = { doc = "Fires when the list gets the keyboard focus. RapidR doesn't fire it yet." }
+OnError = { doc = "Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message." }
+OnExecute = { doc = "The thread's body: the code a QTHREAD runs in the background. QTHREAD isn't in RapidR yet." }
+OnExpanded = { doc = "Fires after tree node Index has been expanded." }
+OnExpanding = { doc = "Fires before tree node Index expands; set AllowExpansion to 0 to keep it closed. Folder trees fill in a node's children here." }
+OnFileSelect = { doc = "Fires when the user opens a file (not a folder) in the directory list view, by double click or Enter; FileName names it." }
+OnFocus = { doc = "Fires when the element gets the keyboard focus (the browser's focus)." }
+OnGetImageIndex = { doc = "Fires for each tree node shown (Index) when what the tree shows changed; set `Item(Index).ImageIndex` to pick its picture." }
+OnGetSelectedIndex = { doc = "Fires for the selected tree node (Index) when what the tree shows changed; set `Item(Index).SelectedIndex` to pick its picture." }
+OnHint = { doc = "Fires when a hint is about to be shown on the form (Hint: its text). RapidR doesn't fire it yet." }
+OnInitialize = { doc = "Fires once when the DirectX screen has been set up on its built form, before OnInitializeSurface." }
+OnInitializeSurface = { doc = "Fires once when the DirectX screen's drawing surface is ready: the place to load pictures and build a 3D scene." }
+OnKeyDown = { doc = "Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state)." }
+OnKeyPress = { doc = "Fires when a key press types a character while the control has the focus (Key: the character's code)." }
+OnKeyUp = { doc = "Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state)." }
+OnListDropDown = { doc = "Fires before a list-style grid column's drop-down opens for cell (Col, Row); S holds its items, one per line, and the handler can change them." }
+OnLoad = { doc = "Fires when the content has loaded: the web view's page, a file read in the browser." }
+OnMeasureItem = { doc = "Fires for each item of a variable-height owner-drawn list or combo box (Index); set Height to the item's height in pixels." }
+OnMouseDown = { doc = "Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state)." }
+OnMouseMove = { doc = "Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held)." }
+OnMouseUp = { doc = "Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state)." }
+OnMove = { doc = "Fires when the user moved or resized a designed component on the design surface (Index, and its new X, Y, W, H)." }
+OnMoved = { doc = "Fires when the user finishes dragging the splitter." }
+OnObjectMove = { doc = "Fires when the OLE object asks to move or resize in its container (Rect: the new bounds). OLE isn't in RapidR yet." }
+OnOpen = { doc = "Fires when Open has opened the serial port." }
+OnPaint = { doc = "Fires when the control must be drawn again; drawing done here survives covering, resizing and theme changes." }
+OnPause = { doc = "Fires when the audio or video pauses." }
+OnPlay = { doc = "Fires when the audio or video starts or resumes playing." }
+OnPopup = { doc = "Fires just before the popup menu opens; the place to enable, check or change its items." }
+OnReadString = { doc = "Fires after ReadString has read from the serial port and waited its Wait milliseconds." }
+OnResize = { doc = "Fires when the control's size changes, by the user, the program or its alignment." }
+OnRing = { doc = "A ring signal on the serial line (a modem's incoming call). RapidR accepts a handler for it but never fires it." }
+OnRouteChange = { doc = "Fires when the page's route (the URL's # part) changes, by Navigate, Back, Forward or the browser." }
+OnRxChar = { doc = "Fires when bytes arrive at the serial port (InQue: how many are waiting to be read)." }
+OnScroll = { doc = "Fires when the user scrolls: a scroll bar (ScrollCode: the kind of move; ScrollPos: the new position), or a web element's content." }
+OnSectionClick = { doc = "Fires when the user clicks header section Index." }
+OnSectionResize = { doc = "Fires after the user resized header section Index." }
+OnSectionTrack = { doc = "Fires while the user drags a header section's border (Index: the section, Width: its new width, State: begin, move or end of the drag)." }
+OnSelect = { doc = "Fires when the user selects a designed component on the design surface (Index: which)." }
+OnSelectCell = { doc = "Fires before the grid selects cell (Col, Row); set CanSelect to 0 to refuse it." }
+OnSetEditText = { doc = "Fires when the user has edited grid cell (Col, Row) in place; Value is the new text." }
+OnShow = { doc = "Fires when the form is shown, by Show, ShowModal or `Visible = True`." }
+OnStartDrag = { doc = "Fires when a drag of the control starts. RapidR doesn't start drags yet, so it doesn't fire." }
+OnTimer = { doc = "Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits." }
+OnTimeUpdate = { doc = "Fires as the audio or video's CurrentTime advances while it plays." }
+OnTxEmpty = { doc = "Fires when the serial port's output buffer has emptied. RapidR accepts a handler for it but never fires it." }
+OnWriteString = { doc = "Fires after WriteString has sent its text and waited its Wait milliseconds." }
+WndProc = { doc = "A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire." }

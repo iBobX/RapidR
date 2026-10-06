@@ -1,0 +1,628 @@
+# Forms and containers: the registry's components (crates/rapidr-lang; src/lib.rs says how to edit).
+group = "Forms and containers"
+
+[[component]]
+name = "RFORM"
+rapidq = "QFORM"
+visual = true
+container = true
+size = [320, 240]
+default_event = "OnShow"
+sets = ["layout", "a11y", "generic"]
+doc = "A window: the top-level container of a program's components, with its caption, border, menu and events. Show shows it; ShowModal shows it and waits until it closes."
+properties = [
+  { name = "AutoScroll", type = "bool", default = true },
+  { name = "BorderStyle", type = "enum", values = ["bsNone", "bsSingle", "bsSizeable", "bsDialog", "bsToolWindow", "bsSizeToolWin"], default = "bsSizeable" },
+  { name = "Caption", type = "string" },
+  { name = "ClientHeight", type = "int", design = false },
+  { name = "ClientWidth", type = "int", design = false },
+  { name = "Color", type = "color", default = -2147483633 },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
+  { name = "Font", type = "font", access = "write", design = false },
+  { name = "FormStyle", type = "enum", values = ["fsNormal", "fsMDIChild", "fsMDIForm", "fsStayOnTop"], default = "fsNormal" },
+  { name = "Handle", type = "int", access = "read", design = false },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "IcoHandle", type = "resource", access = "write", design = false },
+  { name = "Icon", type = "picture", access = "write", design = false },
+  { name = "KeyPreview", type = "bool", default = false },
+  { name = "Left", type = "int", default = 0 },
+  { name = "ModalResult", type = "enum", values = ["mrNone", "mrOk", "mrCancel", "mrAbort", "mrRetry", "mrIgnore", "mrYes", "mrNo", "mrAll"], access = "write", design = false },
+  { name = "Parent", type = "component", kinds = ["QFORM"], access = "write", design = false },
+  { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"], access = "write", design = false },
+  { name = "ShowHint", type = "bool", default = false },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Visible", type = "bool", default = false },
+  { name = "Width", type = "int", default = 320 },
+  { name = "WindowState", type = "enum", values = ["wsNormal", "wsMinimized", "wsMaximized"], default = "wsNormal" },
+  { name = "AutoSize", type = "int", origin = "rapidr" },
+  { name = "FontSize", type = "int", origin = "rapidr" },
+  { name = "FontColor", type = "color", origin = "rapidr" },
+  { name = "Enabled", type = "int" },
+  { name = "HelpFile", type = "string", origin = "rapidr" },
+  { name = "PenColor", type = "color", origin = "rapidr" },
+  { name = "BrushColor", type = "color", origin = "rapidr" },
+  { name = "FontName", type = "string", origin = "rapidr" },
+  { name = "CopyMode", type = "enum", values = ["cmBlackness", "cmDstInvert", "cmMergeCopy", "cmMergePaint", "cmNotSrcCopy", "cmNotSrcErase", "cmPatCopy", "cmPatInvert", "cmPatPaint", "cmSrcAnd", "cmSrcCopy", "cmSrcErase", "cmSrcInvert", "cmSrcPaint", "cmWhiteness"] },
+  { name = "MdiChildCount", type = "any" },
+  { name = "Pixel", type = "int", design = false, indexed = 2 },
+  { name = "TileMode", type = "any" },
+]
+methods = [
+  { name = "AddBorderIcons", params = "Items ..." },
+  { name = "Center" },
+  { name = "Circle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER", value = true },
+  { name = "Close", value = true },
+  { name = "CopyRect", params = "D, Image, S" },
+  { name = "DelBorderIcons", params = "Items ..." },
+  { name = "Draw", params = "x AS INTEGER, y AS INTEGER, BMP" },
+  { name = "FillRect", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER", value = true },
+  { name = "HideTitleBar", missing = true },
+  { name = "Line", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER", value = true },
+  { name = "Paint", params = "x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER" },
+  { name = "Pset", params = "x AS INTEGER, y AS INTEGER, c AS INTEGER" },
+  { name = "Rectangle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER" },
+  { name = "Repaint" },
+  { name = "RoundRect", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER" },
+  { name = "ShapeForm", params = "Filename AS STRING, TransparentColor AS LONG", missing = true },
+  { name = "Show", value = true, test = "skip: waits for the user" },
+  { name = "ShowModal", returns = "VARIANT", value = true, test = "skip: waits for the user" },
+  { name = "ShowTitleBar", missing = true },
+  { name = "StretchDraw", params = "Rect AS QRECT, BMP" },
+  { name = "TextHeight", params = "Text AS STRING", returns = "WORD" },
+  { name = "TextWidth", params = "Text AS STRING", returns = "WORD" },
+  { name = "TextRect", params = "Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", missing = true },
+  { name = "TextOut", params = "x AS INTEGER, y AS INTEGER, s AS STRING, fc AS INTEGER, bc AS INTEGER" },
+  { name = "Refresh", value = true, origin = "rapidr" },
+  { name = "Hide", value = true, origin = "rapidr" },
+  { name = "SetFocus", value = true, origin = "rapidr" },
+  { name = "Update", origin = "rapidr" },
+  { name = "Rect", value = true, origin = "rapidr" },
+  { name = "SetPixel", value = true, origin = "rapidr" },
+  { name = "FillCircle", origin = "rapidr" },
+  { name = "Ellipse", value = true, origin = "rapidr" },
+  { name = "Cls", origin = "rapidr" },
+  { name = "DrawText", value = true, origin = "rapidr" },
+  { name = "ArrangeIcons", missing = true },
+  { name = "Cascade", missing = true },
+  { name = "Next", missing = true },
+  { name = "Previous", missing = true },
+  { name = "Tile", missing = true },
+]
+events = [
+  { name = "OnClick" },
+  { name = "OnClose", params = "BYREF Action AS INTEGER" },
+  { name = "OnHint", params = "Hint AS STRING", missing = true },
+  { name = "OnKeyDown", params = "Key AS WORD, Shift AS INTEGER" },
+  { name = "OnKeyPress", params = "Key AS BYTE" },
+  { name = "OnKeyUp", params = "Key AS WORD, Shift AS INTEGER" },
+  { name = "OnMouseDown", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnPaint" },
+  { name = "OnResize" },
+  { name = "OnShow" },
+  { name = "WndProc", params = "Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG", missing = true },
+  { name = "OnDblClick", origin = "rapidr" },
+  { name = "OnTimer", origin = "rapidr" },
+  { name = "OnLoad", origin = "rapidr" },
+]
+
+[[component]]
+name = "RFORMMDI"
+rapidq = "QFORMMDI"
+from = "RAPIDQ2.INC"
+visual = true
+container = true
+default_event = "OnChildClose"
+doc = "An MDI parent window (RAPIDQ2.INC's): a form whose child windows open, tile, cascade and minimize inside it (AddChild, CascadeChild …)."
+properties = [
+  { name = "ChildCaption", type = "string" },
+  { name = "ChildHandle", type = "int", access = "read", design = false },
+  { name = "ChildLeft", type = "int" },
+  { name = "ChildTop", type = "int" },
+  { name = "ChildWidth", type = "int" },
+  { name = "ChildHeight", type = "int" },
+  { name = "ChildMax", type = "int", default = 1024 },
+  { name = "ChildCount", type = "int", access = "read", design = false },
+  { name = "ChildIcon", type = "int" },
+  { name = "ChildState", type = "int" },
+  { name = "MDIMenu", type = "int" },
+  { name = "ComponentIndex", type = "int", access = "read", design = false },
+  { name = "ChildResult", type = "bool", default = false },
+  { name = "PenColor", type = "color", origin = "rapidr" },
+  { name = "BrushColor", type = "color", origin = "rapidr" },
+  { name = "FontColor", type = "color", origin = "rapidr" },
+  { name = "FontName", type = "string", origin = "rapidr" },
+  { name = "FontSize", type = "int", origin = "rapidr" },
+]
+methods = [
+  { name = "AddChild", params = "handle AS LONG, Title AS STRING, index AS LONG, left AS INTEGER, top AS INTEGER, width AS INTEGER, height AS INTEGER, DefaultSize AS LONG" },
+  { name = "CloseChild", value = true },
+  { name = "CloseAllChild", value = true },
+  { name = "CascadeChild", value = true },
+  { name = "SetHorzChild", value = true },
+  { name = "SetVertChild", value = true },
+  { name = "IconArrangeChild", value = true },
+  { name = "MinimizeAllChild" },
+  { name = "MaximizeAllChild" },
+  { name = "RestoreChild" },
+  { name = "ActiveNextChild", missing = true },
+  { name = "ActivePreviousChild", missing = true },
+  { name = "GetChild", params = "Title AS STRING", returns = "VARIANT" },
+  { name = "ChildExist", params = "Title AS STRING", returns = "VARIANT" },
+  { name = "ActiveChild", params = "Index AS LONG" },
+  { name = "FreeChild", params = "handle AS LONG", returns = "VARIANT" },
+  { name = "SetDeskBar" },
+  { name = "Rect", value = true, only = "desktop" },
+  { name = "SetPixel", value = true, origin = "rapidr" },
+  { name = "FillCircle", origin = "rapidr" },
+  { name = "Ellipse", value = true, origin = "rapidr" },
+  { name = "Cls", origin = "rapidr" },
+  { name = "DrawText", value = true, origin = "rapidr" },
+]
+events = [
+  { name = "OnChildClose", params = "handleChild AS LONG, index AS LONG, titleChild AS STRING" },
+  { name = "OnChildActive", params = "handleChild AS LONG, index AS LONG, titleChild AS STRING" },
+  { name = "OnChildResize", params = "handleChild AS LONG, index AS LONG, titleChild AS STRING" },
+]
+
+[[component]]
+name = "RPANEL"
+rapidq = "QPANEL"
+visual = true
+container = true
+size = [150, 100]
+default_event = "OnClick"
+sets = ["layout", "a11y", "generic"]
+doc = "A container with raised or lowered bevels and an optional caption, to group components and, with Align, build toolbars and side areas."
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "Alignment", type = "enum", values = ["taLeftJustify", "taRightJustify", "taCenter"], default = "taCenter" },
+  { name = "BevelInner", type = "enum", values = ["bvNone", "bvLowered", "bvRaised"], default = "bvNone" },
+  { name = "BevelOuter", type = "enum", values = ["bvNone", "bvLowered", "bvRaised"], default = "bvRaised" },
+  { name = "BevelWidth", type = "int", default = 1 },
+  { name = "BorderStyle", type = "enum", values = ["bsNone", "bsSingle", "bsSizeable", "bsDialog", "bsToolWindow", "bsSizeToolWin"], default = "bsNone" },
+  { name = "Caption", type = "string" },
+  { name = "ClientHeight", type = "int", design = false },
+  { name = "ClientWidth", type = "int", design = false },
+  { name = "Color", type = "color" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "Font", type = "font", access = "write", design = false },
+  { name = "Handle", type = "int", access = "read", design = false },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "Left", type = "int", default = 0 },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "ShowHint", type = "bool", default = false },
+  { name = "TabOrder", type = "int" },
+  { name = "Tag", type = "int" },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "Visible", type = "bool", default = true },
+  { name = "FontSize", type = "int", origin = "rapidr" },
+  { name = "FontColor", type = "color", origin = "rapidr" },
+  { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"] },
+]
+methods = [
+  { name = "Repaint" },
+  { name = "Refresh", value = true, origin = "rapidr" },
+]
+events = [
+  { name = "OnClick" },
+  { name = "OnDblClick" },
+  { name = "OnMouseDown", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnResize", origin = "rapidr" },
+  { name = "WndProc", missing = true },
+]
+
+[[component]]
+name = "RTABCONTROL"
+rapidq = "QTABCONTROL"
+visual = true
+container = true
+size = [150, 100]
+default_event = "OnClick"
+sets = ["layout", "a11y", "generic"]
+doc = "A row of tabs: the user picks one (TabIndex) and the program shows what belongs to it, usually in OnChange."
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "ButtonStyle", type = "bool", default = false },
+  { name = "ClientHeight", type = "int", design = false },
+  { name = "ClientWidth", type = "int", design = false },
+  { name = "Color", type = "color" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "FlatButtons", type = "bool", default = false },
+  { name = "FlatSeperators", type = "bool", default = false },
+  { name = "FocusButtons", type = "bool", default = false },
+  { name = "Font", type = "font", access = "write", design = false },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "HotTrack", type = "bool", default = false },
+  { name = "Left", type = "int", default = 0 },
+  { name = "MultiLine", type = "bool", default = false },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"], access = "write", design = false },
+  { name = "ScrollOpposite", type = "bool", default = false },
+  { name = "ShowHint", type = "bool", default = false },
+  { name = "Tab", type = "string", design = false, indexed = 1 },
+  { name = "TabHeight", type = "int" },
+  { name = "TabInactiveColor", type = "color" },
+  { name = "TabInactiveFont", type = "font", access = "write", design = false },
+  { name = "TabIndex", type = "int" },
+  { name = "TabOrder", type = "int" },
+  { name = "TabPosition", type = "int" },
+  { name = "TabWidth", type = "int" },
+  { name = "Tag", type = "int" },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "VerticalTabs", type = "bool", default = false },
+  { name = "Visible", type = "bool", default = true },
+  { name = "FontSize", type = "int", origin = "rapidr" },
+  { name = "FontColor", type = "color", origin = "rapidr" },
+  { name = "Flatseparators", type = "int", origin = "rapidr" },
+]
+methods = [
+  { name = "AddTabs", params = "Items ...", value = true },
+  { name = "DelTabs", params = "Items ..." },
+  { name = "InsertTab", params = "Index AS INTEGER, String AS STRING" },
+  { name = "AddTab", origin = "rapidr" },
+  { name = "Repaint", origin = "rapidr" },
+  { name = "Refresh", value = true, origin = "rapidr" },
+  { name = "DelTab", origin = "rapidr" },
+  { name = "RemoveTab", origin = "rapidr" },
+  { name = "Tabs", origin = "rapidr" },
+]
+events = [
+  { name = "OnChange" },
+  { name = "OnClick", origin = "rapidr" },
+]
+
+[[component]]
+name = "RTOOLBAR"
+visual = true
+container = true
+size = [0, 32]
+default_event = "OnClick"
+doc = "A strip along the top of a form that holds tool buttons. RapidR's own."
+properties = [
+  { name = "Width", type = "int" },
+  { name = "Height", type = "int" },
+  { name = "Top", type = "int" },
+  { name = "Left", type = "int" },
+  { name = "Visible", type = "int" },
+  { name = "Enabled", type = "int" },
+  { name = "Color", type = "color" },
+  { name = "Hint", type = "string" },
+  { name = "ShowHint", type = "int" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"] },
+  { name = "Parent", type = "component", kinds = ["QFORM"], design = false },
+]
+methods = [
+  { name = "Repaint" },
+  { name = "Refresh", value = true },
+]
+events = [
+  { name = "OnClick" },
+]
+
+[[component]]
+name = "RSTATUSBAR"
+rapidq = "QSTATUSBAR"
+visual = true
+container = true
+size = [318, 24]
+default_event = "OnClick"
+sets = ["layout", "a11y", "generic"]
+doc = "The bar at the bottom of a window that shows status text, as one simple text or as several panels."
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alBottom" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "Handle", type = "int", access = "read", design = false },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "Left", type = "int", default = 0 },
+  { name = "Panel", type = "item", kinds = ["StatusPanel"], design = false, indexed = 1 },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"], access = "write", design = false },
+  { name = "ShowHint", type = "bool", default = false },
+  { name = "SimplePanel", type = "bool", default = false },
+  { name = "SimpleText", type = "string" },
+  { name = "SizeGrip", type = "bool", default = true },
+  { name = "TabOrder", type = "int" },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "Visible", type = "bool", default = true },
+  { name = "Caption", type = "string", origin = "rapidr" },
+  { name = "PanelCount", type = "int", origin = "rapidr" },
+  { name = "Font", type = "font", origin = "rapidr" },
+  { name = "FontSize", type = "int", origin = "rapidr" },
+  { name = "FontColor", type = "color", origin = "rapidr" },
+]
+methods = [
+  { name = "AddPanels", params = "Items ...", only = "desktop" },
+  { name = "Clear", value = true, only = "desktop" },
+  { name = "Repaint", origin = "rapidr" },
+  { name = "Refresh", value = true, origin = "rapidr" },
+]
+events = [
+  { name = "OnResize" },
+  { name = "OnClick", origin = "rapidr" },
+]
+
+[[component]]
+name = "RSPLITTER"
+rapidq = "QSPLITTER"
+visual = true
+size = [5, 209]
+default_event = "OnMoved"
+sets = ["layout", "a11y", "generic"]
+doc = "A bar the user drags to resize the aligned component beside it, between the panes of a window."
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alLeft" },
+  { name = "Beveled", type = "bool", default = true },
+  { name = "ClientHeight", type = "int", design = false },
+  { name = "ClientWidth", type = "int", design = false },
+  { name = "Color", type = "color" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crHSplit" },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "Left", type = "int" },
+  { name = "MinSize", type = "int", default = 30 },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "ShowHint", type = "bool", default = false },
+  { name = "Tag", type = "int" },
+  { name = "Top", type = "int" },
+  { name = "Visible", type = "bool", default = true },
+  { name = "Width", type = "int" },
+  { name = "Orientation", type = "enum", values = ["tbHorizontal", "tbVertical"], origin = "rapidr" },
+]
+methods = []
+events = [
+  { name = "OnMoved" },
+]
+
+[[component]]
+name = "RSCROLLBOX"
+rapidq = "QSCROLLBOX"
+visual = true
+container = true
+size = [150, 100]
+default_event = "OnClick"
+sets = ["layout", "a11y", "generic"]
+doc = "A container that scrolls: components beyond its edges are reached with its scroll bars."
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "AutoScroll", type = "bool", default = true },
+  { name = "BorderStyle", type = "enum", values = ["bsNone", "bsSingle", "bsSizeable", "bsDialog", "bsToolWindow", "bsSizeToolWin"], default = "bsSingle" },
+  { name = "Color", type = "color" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "Font", type = "font", access = "write", design = false },
+  { name = "Handle", type = "int", access = "read", design = false },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "HorzIncrement", type = "int", default = 8 },
+  { name = "HorzMargin", type = "int", default = 0 },
+  { name = "HorzPosition", type = "int", default = 0 },
+  { name = "HorzRange", type = "int", default = 0 },
+  { name = "HorzTracking", type = "bool", default = false },
+  { name = "HorzVisible", type = "bool", default = true },
+  { name = "Left", type = "int", default = 0 },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"], access = "write", design = false },
+  { name = "ShowHint", type = "bool", default = false },
+  { name = "TabOrder", type = "int" },
+  { name = "Tag", type = "int" },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "VertIncrement", type = "int", default = 8 },
+  { name = "VertMargin", type = "int", default = 0 },
+  { name = "VertPosition", type = "int", default = 0 },
+  { name = "VertRange", type = "int", default = 0 },
+  { name = "VertTracking", type = "bool", default = false },
+  { name = "VertVisible", type = "bool", default = true },
+  { name = "Visible", type = "bool", default = true },
+]
+methods = [
+  { name = "Repaint" },
+  { name = "Refresh", value = true, origin = "rapidr" },
+]
+events = [
+  { name = "OnClick" },
+  { name = "OnDblClick" },
+  { name = "OnMouseDown", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnResize" },
+]
+
+[[component]]
+name = "RGROUPBOX"
+rapidq = "QGROUPBOX"
+visual = true
+container = true
+size = [150, 100]
+default_event = "OnClick"
+sets = ["layout", "a11y", "generic"]
+doc = "A captioned frame around related components; the radio buttons in it form one choice."
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "Caption", type = "string" },
+  { name = "Color", type = "color" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "Font", type = "font", access = "write", design = false },
+  { name = "Handle", type = "int", access = "read", design = false },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "Left", type = "int", default = 0 },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"], access = "write", design = false },
+  { name = "ShowHint", type = "bool", default = false },
+  { name = "TabOrder", type = "int" },
+  { name = "Tag", type = "int" },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Visible", type = "bool", default = true },
+  { name = "Width", type = "int" },
+  { name = "FontSize", type = "int", origin = "rapidr" },
+  { name = "FontColor", type = "color", origin = "rapidr" },
+]
+methods = [
+  { name = "Repaint" },
+  { name = "Refresh", value = true, origin = "rapidr" },
+]
+events = [
+  { name = "OnClick" },
+  { name = "OnDblClick" },
+  { name = "OnMouseDown", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+]
+
+[[component]]
+name = "RBEVEL"
+rapidq = "QBEVEL"
+from = "QBevel.inc"
+visual = true
+container = true
+size = [150, 100]
+default_event = "OnClick"
+sets = ["layout", "a11y", "generic"]
+doc = "A box with raised or lowered 3D edges (QBevel.inc), to frame or group components."
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "Alignment", type = "enum", values = ["taLeftJustify", "taRightJustify", "taCenter"], default = "taCenter" },
+  { name = "BevelInner", type = "enum", values = ["bvNone", "bvLowered", "bvRaised"], default = "bvNone" },
+  { name = "BevelOuter", type = "enum", values = ["bvNone", "bvLowered", "bvRaised"], default = "bvRaised" },
+  { name = "BevelWidth", type = "int", default = 1 },
+  { name = "BorderStyle", type = "enum", values = ["bsNone", "bsSingle", "bsSizeable", "bsDialog", "bsToolWindow", "bsSizeToolWin"], default = "bsNone" },
+  { name = "Caption", type = "string" },
+  { name = "ClientHeight", type = "int", design = false },
+  { name = "ClientWidth", type = "int", design = false },
+  { name = "Color", type = "color" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "Font", type = "font", access = "write", design = false },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "Left", type = "int", default = 0 },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QBEVEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "ShowHint", type = "bool", default = false },
+  { name = "TabOrder", type = "int" },
+  { name = "Tag", type = "int" },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "Visible", type = "bool", default = true },
+]
+methods = [
+  { name = "Repaint" },
+]
+events = [
+  { name = "OnClick" },
+  { name = "OnDblClick" },
+  { name = "OnMouseDown", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+]
+
+[[component]]
+name = "RGLASSFRAME"
+rapidq = "QGLASSFRAME"
+visual = true
+container = true
+size = [105, 105]
+default_event = "OnClick"
+doc = "A tinted glass area (UtilMind's Glassy Form): it shades what's under it with its colour at Transparency, and drags its form when Moveable."
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "ClientHeight", type = "int", design = false },
+  { name = "ClientWidth", type = "int", design = false },
+  { name = "Color", type = "color" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
+  { name = "Handle", type = "int", design = false },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "Left", type = "int" },
+  { name = "Moveable", type = "bool", default = true },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"], access = "write", design = false },
+  { name = "ShowHint", type = "bool", default = false },
+  { name = "Top", type = "int" },
+  { name = "Transparency", type = "int", default = 60 },
+  { name = "TransparentColor", type = "color", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "Enabled", type = "int" },
+  { name = "Visible", type = "int" },
+]
+methods = []
+events = [
+  { name = "OnClick" },
+  { name = "OnDblClick" },
+  { name = "OnMouseDown" },
+  { name = "OnMouseMove" },
+  { name = "OnMouseUp" },
+]
+
+[[component]]
+name = "RDOCKMANAGER"
+visual = true
+container = true
+size = [400, 300]
+default_event = "OnPaneChange"
+sets = ["layout", "a11y", "generic"]
+doc = "RapidR's docking area (RapidR Studio is built on it): panes docked at its edges, tabbed together, auto-hidden or floating, around a documents area of MDI windows or tabs. The user drags panes with a docking compass or moves them from the keyboard; the layout saves to text and loads back."
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "DocumentMode", type = "string", default = "mdi", doc = "How documents show: \"mdi\" (windows in the documents area, the default) or \"tabs\"." },
+  { name = "ActiveDocument", type = "string", design = false, doc = "The active document's name; setting it activates that document." },
+  { name = "ActivePane", type = "string", design = false, doc = "The active pane's name; setting it shows and focuses that pane." },
+  { name = "PaneCount", type = "int", access = "read", design = false, doc = "How many panes the manager has (documents included)." },
+  { name = "DocumentCount", type = "int", access = "read", design = false, doc = "How many documents are open." },
+  { name = "Layout", type = "string", design = false, doc = "The whole layout as text: reading it is SaveLayout, setting it LoadLayout." },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "Left", type = "int", default = 0 },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "Visible", type = "bool", default = true },
+]
+methods = [
+  { name = "AddPane", params = "Component, Title AS STRING, Where AS STRING, Icon AS STRING", returns = "INTEGER", doc = "Adds a component as a pane, titled, docked where Where says (\"left\", \"right\", \"top\", \"bottom\", \"documents\", \"float\", \"tab:<pane>\", \"<side>:<pane>\", \"autohide:<side>\"), with a built-in icon name or \"\". True when it was placed." },
+  { name = "ShowPane", params = "Name AS STRING", doc = "Shows a pane where it was last (or slides an auto-hidden one out)." },
+  { name = "HidePane", params = "Name AS STRING", doc = "Hides a pane; ShowPane brings it back where it was." },
+  { name = "FloatPane", params = "Name AS STRING", doc = "Floats a pane in its own window." },
+  { name = "AutoHide", params = "Name AS STRING, [On AS INTEGER]", doc = "Pins a pane to its edge's auto-hide strip (On False: docks it again)." },
+  { name = "FocusPane", params = "Name AS STRING", doc = "Shows a pane, makes it the active one and gives it the keyboard." },
+  { name = "ClosePane", params = "Name AS STRING", doc = "Closes a document (OnDocumentClose may cancel) or hides a tool pane." },
+  { name = "DockPane", params = "Name AS STRING, Where AS STRING", doc = "Docks a pane where Where says (AddPane's places)." },
+  { name = "MovePane", params = "Name AS STRING", returns = "INTEGER", doc = "Starts moving a pane from the keyboard with the docking compass." },
+  { name = "SaveLayout", returns = "STRING", value = true, doc = "The layout as text, for LoadLayout." },
+  { name = "LoadLayout", params = "Text AS STRING", returns = "INTEGER", doc = "Restores a layout SaveLayout gave; True when it was read." },
+  { name = "ResetLayout", value = true, doc = "Puts every pane back where AddPane placed it." },
+  { name = "Pane", params = "Index AS INTEGER", returns = "STRING", doc = "The name of pane Index (from 0)." },
+  { name = "Document", params = "Index AS INTEGER", returns = "STRING", doc = "The name of document Index (from 0)." },
+  { name = "PaneTitle", params = "Name AS STRING, [Title AS STRING]", returns = "STRING", doc = "A pane's title; with Title, sets it." },
+  { name = "PaneState", params = "Name AS STRING", returns = "STRING", doc = "Where a pane is: \"docked\", \"tabbed\", \"autohide\", \"floating\", \"document\" or \"hidden\"." },
+  { name = "PaneVisible", params = "Name AS STRING", returns = "INTEGER", doc = "True when the pane is placed and shown (not hidden, nor behind another tab)." },
+  { name = "NextDocument", value = true, doc = "Activates the next document (Ctrl+Tab)." },
+  { name = "PreviousDocument", value = true, doc = "Activates the previous document (Ctrl+Shift+Tab)." },
+  { name = "Cascade", value = true, doc = "Cascades the documents' windows." },
+  { name = "TileHorizontal", value = true, doc = "Tiles the documents' windows one above the other." },
+  { name = "TileVertical", value = true, doc = "Tiles the documents' windows side by side." },
+  { name = "ArrangeIcons", value = true },
+]
+events = [
+  { name = "OnPaneChange", params = "Name AS STRING", doc = "A pane became the active one." },
+  { name = "OnDocumentActivate", params = "Name AS STRING", doc = "A document became the active one." },
+  { name = "OnDocumentClose", params = "Name AS STRING, BYREF Cancel AS INTEGER", doc = "A document is about to close; set Cancel to keep it open." },
+  { name = "OnLayoutChange", doc = "The layout changed (the user or the program moved, docked, floated or hid a pane)." },
+]

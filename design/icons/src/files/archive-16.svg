@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Archive (.zip)</title>
+  <path d="M2.5 0.5H9.5L13.5 4.5V15.5H2.5L2.5 0.5Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M9.5 0.5V4.5H13.5" stroke="#5B6478"/>
+  <path d="M6.5 2.5L7.5 2.5" stroke="#5B6478"/>
+  <path d="M8.5 3.5L9.5 3.5" stroke="#5B6478"/>
+  <path d="M6.5 4.5L7.5 4.5" stroke="#5B6478"/>
+  <path d="M8.5 5.5L9.5 5.5" stroke="#5B6478"/>
+  <path d="M6.5 6.5L7.5 6.5" stroke="#5B6478"/>
+  <path d="M8.5 7.5L9.5 7.5" stroke="#5B6478"/>
+  <path d="M7 9.5H9A0.5 0.5 0 0 1 9.5 10V12A0.5 0.5 0 0 1 9 12.5H7A0.5 0.5 0 0 1 6.5 12V10A0.5 0.5 0 0 1 7 9.5Z" fill="#E6EAF2" stroke="#5B6478"/>
+</svg>

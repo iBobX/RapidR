@@ -32,7 +32,7 @@ while [ $# -gt 0 ]; do
 done
 [ -f "$PREP/src.tar" ] || die "run tools/release/prepare.sh first"
 # (the code shipped is the archived commit's: release scripts and docs may have moved on)
-git diff --quiet "$(cat "$PREP/commit")" HEAD -- crates interpreter examples web-ide Cargo.toml Cargo.lock LICENSE LEGAL.md LICENSES.md THIRD_PARTY_NOTICES.md \
+git diff --quiet "$(cat "$PREP/commit")" HEAD -- crates interpreter examples web-ide Cargo.toml Cargo.lock LICENSE NOTICE LEGAL.md LICENSES.md THIRD_PARTY_NOTICES.md \
     || die "the code differs from the commit prepare.sh archived ($(cat "$PREP/commit")): run prepare.sh again"
 [ -n "$NOTARY" ] && [ -z "$SIGN" ] && die "--notarize needs --sign (a Developer ID)"
 need lipo "Xcode command line tools"; need hdiutil "macOS"; need codesign "Xcode command line tools"
@@ -134,7 +134,7 @@ make_dmg() {
     rm -rf "$src" && mkdir -p "$src"
     for a in "$@"; do cp -R "$W/apps/$a.app" "$src/"; done
     ln -s /Applications "$src/Applications"
-    cp LICENSE LEGAL.md LICENSES.md THIRD_PARTY_NOTICES.md "$src/"
+    cp LICENSE NOTICE LEGAL.md LICENSES.md THIRD_PARTY_NOTICES.md "$src/"
     rm -f "$OUT/$file"
     hdiutil create -quiet -volname "$vol" -srcfolder "$src" -fs HFS+ -format ULFO "$OUT/$file"
     rm -rf "$src"

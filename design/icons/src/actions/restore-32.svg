@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Restore</title>
+  <path d="M10 8V7A3 3 0 0 1 13 4H25A3 3 0 0 1 28 7V19A3 3 0 0 1 25 22H24" stroke="currentColor"/>
+  <path d="M7 10H19A3 3 0 0 1 22 13V25A3 3 0 0 1 19 28H7A3 3 0 0 1 4 25V13A3 3 0 0 1 7 10Z" stroke="currentColor"/>
+</svg>

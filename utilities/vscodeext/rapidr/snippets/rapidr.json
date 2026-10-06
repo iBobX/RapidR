@@ -2,7 +2,7 @@
   "DIM Variable": {
     "prefix": "dim",
     "body": [
-      "DIM ${1:name} AS ${2|INTEGER,STRING,DOUBLE,SINGLE,LONG,BYTE,WORD,DWORD,INT64,CURRENCY,VARIANT,POBJECT|}"
+      "DIM ${1:name} AS ${2|INTEGER,STRING,DOUBLE,SINGLE,LONG,BYTE,WORD,DWORD,INT64,CURRENCY,VARIANT,QOBJECT|}"
     ],
     "description": "Declare a variable with DIM"
   },
@@ -395,13 +395,6 @@
     ],
     "description": "WITH block for object property access"
   },
-  "IMPORT": {
-    "prefix": "import",
-    "body": [
-      "IMPORT \"${1:module}\" AS ${2:alias}"
-    ],
-    "description": "Import a Python module"
-  },
   "DECLARE": {
     "prefix": "declare",
     "body": [
@@ -419,37 +412,37 @@
   "$INCLUDE": {
     "prefix": "$include",
     "body": [
-      "$$INCLUDE \"${1:filename.rr}\""
+      "\\$INCLUDE \"${1:file.inc}\""
     ],
     "description": "Include an external source file"
   },
   "$DEFINE": {
     "prefix": "$define",
     "body": [
-      "$$DEFINE ${1:SYMBOL} ${2:value}"
+      "\\$DEFINE ${1:SYMBOL} ${2:value}"
     ],
     "description": "Define a text substitution macro"
   },
   "$IFDEF": {
     "prefix": "$ifdef",
     "body": [
-      "$$IFDEF ${1:SYMBOL}",
+      "\\$IFDEF ${1:SYMBOL}",
       "\t${2:' conditional code}",
-      "$$ENDIF"
+      "\\$ENDIF"
     ],
     "description": "Conditional compilation block"
   },
   "$APPTYPE": {
     "prefix": "$apptype",
     "body": [
-      "$$APPTYPE ${1|GUI,CONSOLE,CGI,WEB|}"
+      "\\$APPTYPE ${1|GUI,CONSOLE,CGI,WEB|}"
     ],
     "description": "Set application type"
   },
   "$TYPECHECK": {
     "prefix": "$typecheck",
     "body": [
-      "$$TYPECHECK ${1|ON,OFF|}"
+      "\\$TYPECHECK ${1|ON,OFF|}"
     ],
     "description": "Enable or disable strict type checking"
   },
@@ -458,7 +451,7 @@
     "body": [
       "' ${1:Program Name}",
       "' RapidR Console Application",
-      "$$APPTYPE CONSOLE",
+      "\\$APPTYPE CONSOLE",
       "",
       "${2:' Your code here}",
       "PRINT \"Hello, World!\"",
@@ -471,7 +464,7 @@
     "body": [
       "' ${1:Program Name}",
       "' RapidR GUI Application",
-      "$$APPTYPE GUI",
+      "\\$APPTYPE GUI",
       "",
       "CREATE ${2:MainForm} AS RForm",
       "\tCaption = \"${3:My Application}\"",
@@ -496,7 +489,7 @@
       "\tEND CREATE",
       "END CREATE",
       "",
-      "SUB ${8:OnButtonClick}(Sender AS POBJECT)",
+      "SUB ${8:OnButtonClick}",
       "\tSHOWMESSAGE \"Hello from RapidR!\"",
       "END SUB",
       "",
@@ -510,7 +503,7 @@
     "body": [
       "' ${1:Program Name}",
       "' RapidR Database Application",
-      "$$APPTYPE CONSOLE",
+      "\\$APPTYPE CONSOLE",
       "",
       "CREATE ${2:db} AS RSQLite",
       "\tDatabase = \"${3:data.db}\"",
@@ -566,7 +559,7 @@
     "body": [
       "' ${1:Program Name}",
       "' RapidR Data Science Application",
-      "$$APPTYPE CONSOLE",
+      "\\$APPTYPE CONSOLE",
       "",
       "CREATE DF AS RDataFrame",
       "END CREATE",
@@ -685,13 +678,12 @@
     ],
     "description": "Add legend and save plot to PNG"
   },
-
   "Web App Skeleton": {
     "prefix": "rpweb",
     "body": [
       "' ${1:Program Name}",
-      "' RapidR Web Application (compiles to WASM)",
-      "$$APPTYPE WEB",
+      "' RapidR Web Application (runs in the browser)",
+      "\\$APPTYPE WEB",
       "",
       "CREATE ${2:MainForm} AS RForm",
       "\tCaption = \"${3:My Web App}\"",
@@ -714,12 +706,12 @@
       "\tEND CREATE",
       "END CREATE",
       "",
-      "SUB ${8:OnButtonClick}(Sender AS POBJECT)",
+      "SUB ${8:OnButtonClick}",
       "\tSHOWMESSAGE \"Hello from the browser!\"",
       "END SUB",
       ""
     ],
-    "description": "RapidR web application template (WASM)"
+    "description": "RapidR web application template (runs in the browser)"
   },
   "CREATE WebView": {
     "prefix": "createwebview",
@@ -811,7 +803,7 @@
       "\tOnRouteChange = ${2:HandleRoute}",
       "END CREATE",
       "",
-      "SUB ${2:HandleRoute}(Sender AS POBJECT)",
+      "SUB ${2:HandleRoute}",
       "\t' Handle route change",
       "END SUB"
     ],

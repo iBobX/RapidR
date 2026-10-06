@@ -29,6 +29,7 @@ pub mod glass;
 pub mod filelist;
 pub mod grid;
 pub mod header;
+pub mod icons;
 pub mod imagelist;
 pub mod list;
 pub mod listview;
@@ -1135,6 +1136,10 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
     }
     if let Some(v) = menu::call(id, &method, args) {
         return Some(Ok(v));
+    }
+    // (RapidR's own icons: Bitmap.LoadIcon, ImageList.AddIcon)
+    if let Some(r) = icons::call(id, &method, args) {
+        return Some(r);
     }
     if let Some(v) = with_header(id, |h| h.call(&method, args)).flatten() {
         return Some(Ok(v));

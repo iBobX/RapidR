@@ -292,8 +292,63 @@ function loadRuntimeFiles() {
 let previewPort = null;
 let previewGeneration = 0;
 
+// The program's Open / Save dialogs in the preview: its frame has an opaque
+// origin, which may not show the browser's file pickers, so the IDE shows
+// them for it (crates/rapidr-runtime-web/src/file_picker_web.rs,
+// RAPIDR_FILE_HOST in preview.html) — the user's gesture in the frame
+// activates the IDE too. The program gets the files' names and data, and
+// writes back only to the files the user picked, by token; the handles go
+// with the run.
+const previewFileHandles = new Map();
+let previewFileTokens = 0;
+
+async function previewFiles(d) {
+  const port = previewPort;
+  const reply = (msg, transfer = []) => port?.postMessage({ __rapidr_files_reply: { id: d.id, ...msg } }, transfer);
+  // (only the options a program's Filter and FileName make)
+  const o = d.opts && typeof d.opts === "object" ? d.opts : {};
+  const opts = {};
+  if (Array.isArray(o.types)) opts.types = o.types;
+  if (typeof o.excludeAcceptAllOption === "boolean") opts.excludeAcceptAllOption = o.excludeAcceptAllOption;
+  if (typeof o.id === "string") opts.id = o.id;
+  if (typeof o.suggestedName === "string") opts.suggestedName = o.suggestedName;
+  if (typeof o.multiple === "boolean") opts.multiple = o.multiple;
+  try {
+    if (d.op === "open") {
+      const handles = await window.showOpenFilePicker(opts);
+      const files = [];
+      for (const h of handles) {
+        const f = await h.getFile();
+        const token = ++previewFileTokens;
+        previewFileHandles.set(token, h);
+        files.push({ name: f.name, bytes: await f.arrayBuffer(), token });
+      }
+      reply({ ok: true, value: files }, files.map((f) => f.bytes));
+    } else if (d.op === "save") {
+      const h = await window.showSaveFilePicker(opts);
+      const token = ++previewFileTokens;
+      previewFileHandles.set(token, h);
+      reply({ ok: true, value: { name: h.name, token } });
+    } else if (d.op === "write") {
+      const h = previewFileHandles.get(d.token);
+      if (!h) throw Object.assign(new Error("not a file the user picked"), { name: "NotFoundError" });
+      const w = await h.createWritable();
+      await w.write(d.bytes);
+      await w.close();
+      reply({ ok: true });
+    }
+  } catch (e) {
+    reply({ ok: false, error: { name: e?.name || "Error", message: e?.message || String(e) } });
+  } finally {
+    // (the browser gives the focus back to the page that showed the picker,
+    // the IDE: back to the program, whose window had it)
+    if (d.op !== "write") $("#preview")?.focus();
+  }
+}
+
 function closePreviewChannel() {
   previewGeneration++;
+  previewFileHandles.clear();
   if (previewPort) {
     previewPort.onmessage = null;
     previewPort.close();
@@ -350,6 +405,7 @@ function handlePreviewMessage(d) {
     fetch(`./runtime/fonts/${file}`).then((r) => (r.ok ? r.arrayBuffer() : null)).then(reply, () => reply(null));
     return;
   }
+  if (d.__rapidr_files) return void previewFiles(d.__rapidr_files);
   if (d.__rapidr_console) {
     const { level, text } = d.__rapidr_console;
     // Runtime PRINT goes through console.log → Output panel.
@@ -358,14 +414,17 @@ function handlePreviewMessage(d) {
   }
   if (d.__rapidr_status) setStatus(d.__rapidr_status);
   if (d.__rapidr_storage) applyAppStorageOp(d.__rapidr_storage);
-  if (d.__rapidr_debug_paused) onDebugPaused(d.__rapidr_debug_paused);
-  if (d.__rapidr_debug_running) onDebugRunning();
-  if (d.__rapidr_debug_halted) onDebugHalted();
-  if (d.__rapidr_debug_properties) onDebugProperties(d.__rapidr_debug_properties);
+  // (RapidR's program session protocol, rapidr-session: JSON events)
+  if (typeof d.__rapidr_session === "string") {
+    let m = null;
+    try { m = JSON.parse(d.__rapidr_session); } catch { return; }
+    onSessionMessage(m);
+  }
 }
 
 /// Loads preview.html into #preview and boots it with `payload`
-/// (`{ run: bytecode }` or `{ debug: bytecode, breakpoints }`).
+/// (`{ run: bytecode }`, or `{ session: { bytes, program } }` to debug it
+/// through the program session protocol).
 function startPreview(role, payload) {
   closePreviewChannel();
   const gen = previewGeneration;
@@ -386,7 +445,10 @@ function startPreview(role, payload) {
     const { port1, port2 } = new MessageChannel();
     previewPort = port1;
     port1.onmessage = (m) => handlePreviewMessage(m.data || {});
-    const boot = { ...runtime, assets: projectAssetMap(), storage: loadAppStorage(), ...payload };
+    // (filePickers: the IDE shows the browser's Open / Save pickers for the
+    // frame, previewFiles)
+    const filePickers = typeof window.showOpenFilePicker === "function" && typeof window.showSaveFilePicker === "function";
+    const boot = { ...runtime, assets: projectAssetMap(), storage: loadAppStorage(), filePickers, ...payload };
     // The frame's origin is opaque, so "*" is the only valid target; the
     // payload is the user's own program and the public runtime.
     iframe.contentWindow.postMessage({ __rapidr_boot: boot }, "*", [port2]);
@@ -2497,28 +2559,28 @@ async function dispatchCommand(cmd) {
     case "run.debug":  return doDebug();
     case "debug.resume": {
       clearActiveHighlights();
-      sendDebugCommand("resume");
+      sessionSend({ type: "continue" });
       state.isDebugPaused = false;
       updateDebugUI();
       return;
     }
     case "debug.stepover": {
       clearActiveHighlights();
-      sendDebugCommand("stepOver");
+      sessionSend({ type: "stepOver" });
       state.isDebugPaused = false;
       updateDebugUI();
       return;
     }
     case "debug.stepinto": {
       clearActiveHighlights();
-      sendDebugCommand("stepInto");
+      sessionSend({ type: "stepIn" });
       state.isDebugPaused = false;
       updateDebugUI();
       return;
     }
     case "debug.stepout": {
       clearActiveHighlights();
-      sendDebugCommand("stepOut");
+      sessionSend({ type: "stepOut" });
       state.isDebugPaused = false;
       updateDebugUI();
       return;
@@ -2588,6 +2650,17 @@ function toggleDock(sel, restore) {
 
 // ─── Run / Build ───────────────────────────────────────────────
 
+/// The run window's size: the program's windows are drawn inside it with
+/// their own frames (title bar, borders — the kernel's, in the program's
+/// theme) and may be bigger than the startup form's design size, or open
+/// dialogs beside it: room around the form, within the IDE's window.
+function runWindowSize(formWidth, formHeight) {
+  const maxW = Math.max(200, window.innerWidth - 40), maxH = Math.max(150, window.innerHeight - 40);
+  const w = Math.min(maxW, Math.max(formWidth + 80, Math.min(960, Math.round(window.innerWidth * 0.7))));
+  const h = Math.min(maxH, Math.max(formHeight + 120, Math.min(720, Math.round(window.innerHeight * 0.75))));
+  return { w, h };
+}
+
 async function doRun() {
   if (!state.wasmReady) { setStatus("wasm not ready", "error"); return; }
   setStatus("compiling…");
@@ -2609,10 +2682,11 @@ async function doRun() {
     }
     
     const win = $("#preview-window");
-    win.style.width = (formWidth + 2) + "px";
-    win.style.height = (formHeight + 26) + "px";
-    win.style.left = `calc(50% - ${(formWidth + 2) / 2}px)`;
-    win.style.top = `calc(50% - ${(formHeight + 26) / 2}px)`;
+    const { w, h } = runWindowSize(formWidth, formHeight);
+    win.style.width = w + "px";
+    win.style.height = h + "px";
+    win.style.left = `calc(50% - ${w / 2}px)`;
+    win.style.top = `calc(50% - ${h / 2}px)`;
     win.hidden = false;
 
     const backdrop = $("#preview-backdrop");
@@ -2627,6 +2701,7 @@ async function doRun() {
 }
 
 function doStop() {
+  if (state.isDebugging) sessionSend({ type: "stop" });
   closePreviewChannel();
   const iframe = $("#preview");
   iframe.src = "about:blank";
@@ -2635,7 +2710,7 @@ function doStop() {
   if (backdrop) backdrop.hidden = true;
   setStatus("stopped");
   if (state.isDebugging) {
-    sendDebugCommand("stop");
+    // (the frame is gone already: Stop is a kill)
     onDebugHalted();
   }
 }
@@ -4142,7 +4217,7 @@ function toggleBreakpoint(fileId, line, editor) {
         unifiedBreakpoints.push(unifiedLine);
       }
     }
-    sendDebugCommand("setBreakpoints", { lines: unifiedBreakpoints });
+    sendSessionBreakpoints(unifiedBreakpoints);
   }
 }
 
@@ -4231,20 +4306,22 @@ async function doDebug() {
       formHeight = parseInt(startForm.props.height, 10) || 320;
     }
     
+    // (the form's size only: the code being debugged stays in view)
     const win = $("#preview-window");
-    win.style.width = (formWidth + 2) + "px";
-    win.style.height = (formHeight + 26) + "px";
+    const w = formWidth + 2, h = formHeight + 26;
+    win.style.width = w + "px";
+    win.style.height = h + "px";
 
     const ws = $("#workspace");
     if (ws) {
       const wsRect = ws.getBoundingClientRect();
-      const left = wsRect.left + (wsRect.width - (formWidth + 2)) / 2;
-      const top = wsRect.top + (wsRect.height - (formHeight + 26)) / 2;
+      const left = wsRect.left + (wsRect.width - w) / 2;
+      const top = wsRect.top + (wsRect.height - h) / 2;
       win.style.left = Math.max(0, left) + "px";
       win.style.top = Math.max(0, top) + "px";
     } else {
-      win.style.left = `calc(50% - ${(formWidth + 2) / 2}px)`;
-      win.style.top = `calc(50% - ${(formHeight + 26) / 2}px)`;
+      win.style.left = `calc(50% - ${w / 2}px)`;
+      win.style.top = `calc(50% - ${h / 2}px)`;
     }
 
     win.hidden = false;
@@ -4260,15 +4337,108 @@ async function doDebug() {
       }
     }
     
-    startPreview("debug", { debug: bc, breakpoints: unifiedBreakpoints });
+    state.sessionProgram = state.project.name;
+    state.sessionBreakpoints = unifiedBreakpoints;
+    startPreview("debug", { session: { bytes: bc, program: state.sessionProgram } });
   } catch (err) {
     setStatus("compile failed", "error");
     reportCompileFailure(err);
   }
 }
 
-function sendDebugCommand(type, args = {}) {
-  sendToPreview({ __rapidr_debug_cmd: { type, ...args } });
+// ─── The program session (rapidr-session's protocol) ───────────
+// The preview frame runs the program under RapidR's session protocol: the
+// IDE sends requests ({ seq, type, … } as JSON) and hears events (replies
+// carry `re`). The project is compiled as one program named after the
+// project (`state.sessionProgram`), so breakpoints and stops name that file
+// with lines of the unified source (state.lastMapping maps them back).
+
+const session = { seq: 0, pending: new Map() };
+
+/// Sends a request; returns its number.
+function sessionSend(command) {
+  const seq = ++session.seq;
+  sendToPreview({ __rapidr_session: JSON.stringify({ seq, ...command }) });
+  return seq;
+}
+
+/// Sends a request; resolves with its reply (rejects with an `error` one).
+function sessionRequest(command) {
+  return new Promise((resolve, reject) => {
+    session.pending.set(sessionSend(command), { resolve, reject });
+  });
+}
+
+function sendSessionBreakpoints(unifiedLines) {
+  sessionSend({
+    type: "setBreakpoints",
+    file: state.sessionProgram,
+    breakpoints: unifiedLines.map((line) => ({ line })),
+  });
+}
+
+function onSessionMessage(m) {
+  if (m.re) {
+    const waiting = session.pending.get(m.re);
+    if (waiting) {
+      session.pending.delete(m.re);
+      if (m.type === "error") waiting.reject(new Error(m.message));
+      else waiting.resolve(m);
+    }
+    return;
+  }
+  switch (m.type) {
+    case "ready":
+      // Breakpoints first, then the program runs.
+      sendSessionBreakpoints(state.sessionBreakpoints || []);
+      sessionSend({ type: "start", debug: true });
+      break;
+    case "stopped": onSessionStopped(m); break;
+    case "continued": onDebugRunning(); break;
+    case "output": {
+      const text = String(m.text).replace(/\n$/, "");
+      if (m.stream === "stderr") logError("error", text);
+      else logOutput(text);
+      break;
+    }
+    case "exited":
+      for (const w of session.pending.values()) w.reject(new Error("the program has ended"));
+      session.pending.clear();
+      onDebugHalted();
+      break;
+  }
+}
+
+/// A variable's value (rapidr-session's Variable) as the views show it.
+function sessionValue(v) {
+  switch (v.kind) {
+    case "String": return v.value.slice(1, -1).replace(/""/g, '"');
+    case "Integer": case "Double": return Number(v.value);
+    case "Boolean": return v.value === "True";
+    case "Empty": return null;
+    default: return v.value;
+  }
+}
+
+/// The program stopped: its stack and variables, then the debugger's views.
+async function onSessionStopped(m) {
+  state.watchValues = new Map();
+  try {
+    const { frames } = await sessionRequest({ type: "stackTrace" });
+    const top = frames[0];
+    const vars = { locals: {}, globals: {} };
+    if (top) {
+      const { scopes } = await sessionRequest({ type: "scopes", frame: top.id });
+      for (const scope of scopes) {
+        const { variables } = await sessionRequest({ type: "variables", ref: scope.ref });
+        const into = scope.name === "Globals" ? vars.globals : vars.locals;
+        for (const v of variables) into[v.name] = sessionValue(v);
+      }
+    }
+    onDebugPaused({ line: m.line, stack: frames.map((f) => ({ name: f.name, line: f.line })), vars });
+  } catch (err) {
+    logError("error", "[debugger] " + err.message);
+  }
 }
 
 function onDebugPaused(pausedData) {
@@ -4312,6 +4482,7 @@ function onDebugProperties(data) {
 
 function onDebugRunning() {
   state.isDebugPaused = false;
+  state.watchValues = new Map();
   state.currentPausedFileId = null;
   state.currentPausedLineInFile = null;
   
@@ -4349,6 +4520,17 @@ function onDebugHalted() {
   updateDebugUI();
 }
 
+/// A component's properties, from the program (the `properties` request).
+function requestProperties(id) {
+  sessionRequest({ type: "properties", object: id }).then(
+    (r) => onDebugProperties({
+      id,
+      properties: { type: r.kind, properties: Object.fromEntries(r.properties.map((p) => [p.name, sessionValue(p)])) },
+    }),
+    () => onDebugProperties({ id, properties: null }),
+  );
+}
+
 function requestComponentProperties() {
   const widgetNames = new Set();
   for (const f of state.project.forms) {
@@ -4368,7 +4550,7 @@ function requestComponentProperties() {
       }
     }
     if (casePreservedName) {
-      sendDebugCommand("getProperties", { id: casePreservedName });
+      requestProperties(casePreservedName);
     }
   }
   
@@ -4376,7 +4558,7 @@ function requestComponentProperties() {
     if (typeof v === "string") {
       const uv = v.toUpperCase();
       if (widgetNames.has(uv)) {
-        sendDebugCommand("getProperties", { id: v });
+        requestProperties(v);
       }
     }
   };
@@ -4402,7 +4584,7 @@ function requestComponentProperties() {
         }
       }
       if (casePreservedName) {
-        sendDebugCommand("getProperties", { id: casePreservedName });
+        requestProperties(casePreservedName);
       }
     }
   }
@@ -4449,8 +4631,8 @@ function renderCallStack() {
     }
     
     row.innerHTML = `
-      <span class="frame-name">${frame.name}</span>
-      <span class="frame-line">${locStr}</span>
+      <span class="frame-name">${escapeHtml(frame.name)}</span>
+      <span class="frame-line">${escapeHtml(locStr)}</span>
     `;
     
     row.addEventListener("click", () => {
@@ -4600,7 +4782,7 @@ function renderVarMap(map, parentEl) {
           typeRow.className = "debug-var-row";
           typeRow.innerHTML = `
             <span class="debug-var-name" style="color:var(--c-text-mute); font-style: italic;">type:</span>
-            <span class="debug-var-val string">"${props.type}"</span>
+            <span class="debug-var-val string">"${escapeHtml(props.type)}"</span>
           `;
           details.appendChild(typeRow);
         }
@@ -4611,8 +4793,8 @@ function renderVarMap(map, parentEl) {
           const propRow = document.createElement("div");
           propRow.className = "debug-var-row";
           propRow.innerHTML = `
-            <span class="debug-var-name" style="color:var(--c-text-mute);">${pk}:</span>
-            <span class="debug-var-val ${typeof pv === "string" ? "string" : "number"}">${JSON.stringify(pv)}</span>
+            <span class="debug-var-name" style="color:var(--c-text-mute);">${escapeHtml(pk)}:</span>
+            <span class="debug-var-val ${typeof pv === "string" ? "string" : "number"}">${escapeHtml(JSON.stringify(pv))}</span>
           `;
           details.appendChild(propRow);
         });
@@ -4653,90 +4835,20 @@ function renderVarMap(map, parentEl) {
   });
 }
 
+/// A watch's value: evaluated by the program's VM (the `evaluate` request)
+/// while it's stopped; asked for once per stop, shown when the reply comes.
 function evaluateWatchExpression(expr) {
-  if (!state.lastVars) return "(no execution context)";
-  
+  if (!state.isDebugPaused) return "(no execution context)";
   const trimmed = expr.trim();
   if (!trimmed) return "";
-  
-  const upperExpr = trimmed.toUpperCase();
-  
-  if (trimmed.includes(".")) {
-    const parts = trimmed.split(".");
-    const compName = parts[0].trim().toUpperCase();
-    const propName = parts[1].trim().toUpperCase();
-    
-    let actualCompId = null;
-    for (const cid of Object.keys(state.lastProperties)) {
-      if (cid.toUpperCase() === compName) {
-        actualCompId = cid;
-        break;
-      }
-    }
-    
-    if (actualCompId) {
-      const props = state.lastProperties[actualCompId];
-      let foundVal = undefined;
-      let found = false;
-      const propList = props.properties || props;
-      for (const [pk, pv] of Object.entries(propList)) {
-        if (pk.toUpperCase() === propName) {
-          foundVal = pv;
-          found = true;
-          break;
-        }
-      }
-      if (found) {
-        return typeof foundVal === "string" ? `"${foundVal}"` : JSON.stringify(foundVal);
-      }
-      return "(property not found)";
-    }
-    
-    let compIdVar = undefined;
-    for (const [lk, lv] of Object.entries(state.lastVars.locals)) {
-      if (lk.toUpperCase() === compName) { compIdVar = lv; break; }
-    }
-    if (compIdVar === undefined) {
-      for (const [gk, gv] of Object.entries(state.lastVars.globals)) {
-        if (gk.toUpperCase() === compName) { compIdVar = gv; break; }
-      }
-    }
-    
-    if (typeof compIdVar === "string") {
-      const actualId = compIdVar;
-      const props = state.lastProperties[actualId];
-      if (props) {
-        let foundVal = undefined;
-        let found = false;
-        const propList = props.properties || props;
-        for (const [pk, pv] of Object.entries(propList)) {
-          if (pk.toUpperCase() === propName) {
-            foundVal = pv;
-            found = true;
-            break;
-          }
-        }
-        if (found) {
-          return typeof foundVal === "string" ? `"${foundVal}"` : JSON.stringify(foundVal);
-        }
-      }
-    }
-    
-    return "(component not found)";
-  }
-  
-  for (const [lk, lv] of Object.entries(state.lastVars.locals)) {
-    if (lk.toUpperCase() === upperExpr) {
-      return typeof lv === "string" ? `"${lv}"` : JSON.stringify(lv);
-    }
-  }
-  for (const [gk, gv] of Object.entries(state.lastVars.globals)) {
-    if (gk.toUpperCase() === upperExpr) {
-      return typeof gv === "string" ? `"${gv}"` : JSON.stringify(gv);
-    }
-  }
-  
-  return "(undefined)";
+  if (!state.watchValues) state.watchValues = new Map();
+  if (state.watchValues.has(trimmed)) return state.watchValues.get(trimmed);
+  state.watchValues.set(trimmed, "…");
+  sessionRequest({ type: "evaluate", expr: trimmed, context: "watch" }).then(
+    (r) => { state.watchValues.set(trimmed, r.result); renderWatches(); },
+    (err) => { state.watchValues.set(trimmed, `(${err.message})`); renderWatches(); },
+  );
+  return "…";
 }
 
 function renderWatches() {
@@ -4753,11 +4865,18 @@ function renderWatches() {
     const val = evaluateWatchExpression(expr);
     const row = document.createElement("div");
     row.className = "debug-watch-row";
-    row.innerHTML = `
-      <span class="debug-watch-expr">${expr}</span>
-      <span class="debug-watch-val">${val}</span>
-      <button class="debug-watch-delete" data-idx="${idx}">×</button>
-    `;
+    // (text, never markup: the values come from the program)
+    const exprEl = document.createElement("span");
+    exprEl.className = "debug-watch-expr";
+    exprEl.textContent = expr;
+    const valEl = document.createElement("span");
+    valEl.className = "debug-watch-val";
+    valEl.textContent = val;
+    const del = document.createElement("button");
+    del.className = "debug-watch-delete";
+    del.dataset.idx = String(idx);
+    del.textContent = "×";
+    row.append(exprEl, valEl, del);
     
     row.querySelector(".debug-watch-delete").addEventListener("click", (e) => {
       const index = parseInt(e.target.dataset.idx, 10);

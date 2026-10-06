@@ -47,6 +47,8 @@ pub mod glass;
 // (Stage 10: the IDE's)
 pub mod codeedit;
 pub mod design;
+// (I1: RapidR Studio's docking)
+pub mod dock;
 
 use rapidr_value::input::Button;
 use rapidr_value::objects::a11y::{AccessNode, Action};
@@ -105,6 +107,10 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RDIGDISPLAY", &canvas::DigDisplay),
     ("RGLASSFRAME", &glass::GlassFrame),
     ("RSCROLLBAR", &scrollbar::ScrollBar),
+    // (I1: RapidR Studio's docking — rapidr_value::dock)
+    ("RDOCKMANAGER", &dock::DockManager),
+    ("RDOCKGROUP", &dock::DockGroup),
+    ("RDOCKDOCS", &dock::DockDocs),
 ];
 
 /// The kind drawing components of `type_name` (`None`: the kernel only

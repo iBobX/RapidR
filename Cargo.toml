@@ -4,6 +4,7 @@ members = [
     "crates/rapidr-cli",
     "crates/rapidr-diagnostics",
     "crates/rapidr-ast",
+    "crates/rapidr-lang",
     "crates/rapidr-lexer",
     "crates/rapidr-parser",
     "crates/rapidr-preprocessor",
@@ -18,6 +19,13 @@ members = [
     "crates/rapidr-ui-app",
     "crates/rapidr-ui-host-winit",
     "crates/rapidr-launcher",
+    "crates/rapidr-editor",
+    "crates/rapidr-project",
+    "crates/rapidr-session",
+    "crates/rapidr-icons",
+    "crates/rapidr-langsvc",
+    "crates/rapidr-lsp",
+    "crates/rapidr-dap",
     # (a spike, out of every regular build: docs/web-host-plan.md)
     "crates/rapidr-ui-host-web",
     "interpreter/rapidr-bytecode",
@@ -40,6 +48,7 @@ license = "MIT"
 
 [workspace.dependencies]
 rapidr-ast = { path = "crates/rapidr-ast" }
+rapidr-lang = { path = "crates/rapidr-lang" }
 rapidr-diagnostics = { path = "crates/rapidr-diagnostics" }
 rapidr-lexer = { path = "crates/rapidr-lexer" }
 rapidr-parser = { path = "crates/rapidr-parser" }
@@ -50,9 +59,12 @@ rapidr-codegen-rust = { path = "crates/rapidr-codegen-rust" }
 rapidr-value = { path = "crates/rapidr-value" }
 rapidr-db = { path = "crates/rapidr-db" }
 rapidr-ui-kernel = { path = "crates/rapidr-ui-kernel" }
+rapidr-icons = { path = "crates/rapidr-icons" }
 rapidr-ui-render = { path = "crates/rapidr-ui-render" }
 rapidr-ui-app = { path = "crates/rapidr-ui-app" }
 rapidr-ui-host-winit = { path = "crates/rapidr-ui-host-winit" }
+rapidr-project = { path = "crates/rapidr-project" }
+rapidr-session = { path = "crates/rapidr-session" }
 rapidr-bytecode = { path = "interpreter/rapidr-bytecode" }
 rapidr-vm = { path = "interpreter/rapidr-vm" }
 rapidr-bcgen = { path = "interpreter/rapidr-bcgen" }
@@ -60,6 +72,9 @@ rapidr-vm-host-native = { path = "interpreter/rapidr-vm-host-native" }
 rapidr-vm-host-web = { path = "interpreter/rapidr-vm-host-web" }
 rapidr-compiler-wasm = { path = "interpreter/rapidr-compiler-wasm" }
 rapidr-webbundle = { path = "interpreter/rapidr-webbundle" }
+rapidr-langsvc = { path = "crates/rapidr-langsvc" }
+rapidr-lsp = { path = "crates/rapidr-lsp" }
+rapidr-dap = { path = "crates/rapidr-dap" }
 
 # Crates.io crates RapidR replaces with its own. Every generated program's
 # Cargo.toml gets the same section (rapidr-codegen-rust: PATCHES; an

@@ -18,7 +18,7 @@ Every output RapidR builds gets a `THIRD-PARTY-NOTICES.txt`:
 | Web bundle (bytecode) | `rapidr bundle-bc x.bas`, `rapidr build --web --interp`, the web IDE's **Build** | in the zip's root; `index.html` has a comment and a `<link rel="license">` to it |
 | Native web build | `rapidr build x.bas --web` | in `x_web/`, linked the same way |
 | Bytecode | `rapidr build-bc x.bas` | none needed: a `.rrbc` holds only the program; the RapidR Runtime that runs it carries its own notices |
-| RapidR itself | the installers | `share/doc/rapidr/THIRD-PARTY-NOTICES.txt` (plus `LICENSE`, `LEGAL.md`, `LICENSES.md`, `THIRD_PARTY_NOTICES.md`) |
+| RapidR itself | the installers | `share/doc/rapidr/THIRD-PARTY-NOTICES.txt` (plus `LICENSE`, `NOTICE`, `LEGAL.md`, `LICENSES.md`, `THIRD_PARTY_NOTICES.md`) |
 
 The file has two parts: the components (name, version, licence as declared,
 the licence it is used under when there is a choice, upstream link, and
@@ -318,13 +318,18 @@ and CC0-1.0; plus OFL-1.1 for fonts. All any of them asks of a user is that
 
 ## 6. The repository
 
-Audited for this page (October 2026); the findings and what was done:
+Audited for this page (October 2026), and again, with RapidQ's terms, rights
+and trademarks, in [legal/rapidq-review.md](legal/rapidq-review.md)
+(2026-10-06; the process is recorded in
+[legal/clean-room.md](legal/clean-room.md)); the findings and what was done:
 
 - **RapidQ's distribution** (William Yu's freeware; not open source): no file
   of it is in the repository. `.reference/` (the online manual mirror, the
-  compiler's messages) is gitignored and untracked. The tests compare
-  against RC.EXE's *output* (`tests/rapidq_golden/*.expected`), which is
-  program output, not RapidQ's code.
+  compiler's messages, RC.EXE's output of RapidQ's example programs) is
+  gitignored and untracked. The conformance tests compare against RC.EXE's
+  output of RapidR's own test programs. Every blob of the history was
+  compared with RapidQ's distribution and manual: no file of it was ever
+  committed (legal/rapidq-review.md §9).
 - **Compatibility libraries** (`crates/rapidr-preprocessor/src/libraries/`):
   `QDirListView.inc` and `QDockForm.inc` had method bodies that followed
   user-contributed RapidQ libraries (Rene Saarsoo's QDirListView, Ben Laws'
@@ -336,13 +341,17 @@ Audited for this page (October 2026); the findings and what was done:
   matches the originals line for line is interface and fact: member names,
   default values, pixel coordinates. The RAPIDQ.INC / qcgi.inc names
   the preprocessor knows are constants' names and values (facts needed for
-  compatibility). `qcgi.inc` (GPL) is not included; RapidR's CGI support
-  (`objects/cgi.rs`) is its own implementation of the documented behaviour.
+  compatibility), arranged by their public origin in RapidR's own order
+  (legal/rapidq-review.md §6–7). `qcgi.inc` (GPL) is not included; RapidR's
+  CGI support (`objects/cgi.rs`) is its own implementation of the documented
+  behaviour.
 - **Tests**: four conformance cases and one GUI fixture that reused the
   manual's example programs nearly word for word were replaced by our own
-  programs covering the same features. Short phrases quoted from the manual
-  in comments and docs (one sentence each), and about nine of RC.EXE's error
-  messages reproduced for compatibility, are kept: short factual quotes.
+  programs covering the same features; in the 2026-10-06 review, a
+  9-line routine from one of RapidQ's examples and the manual's example
+  data in three fixtures were replaced too, and the manual quotes in
+  comments and docs were paraphrased. About eight of RC.EXE's short error
+  messages are reproduced for compatibility (legal/rapidq-review.md §8).
 - **Vendored JavaScript**: Monaco Editor 0.52.2 (MIT, Microsoft), which
   bundles DOMPurify (Apache-2.0 or MPL-2.0), marked (MIT) and the codicon
   icon font (CC-BY-4.0, Microsoft): credited in LICENSES.md. Only the web
@@ -358,9 +367,10 @@ Audited for this page (October 2026); the findings and what was done:
   the remaining four tiny images (`rr_star.svg`, `rr_disc.ico`,
   `picture_res.bmp`, `two_colors.jpg`) are the project's own. No icon is
   taken from RapidQ or an icon pack; the apps use the system's default icon.
-- **Names**: "RapidQ", "Visual Basic", "Delphi", "Windows" and others are
-  used nominatively ("compatible with", "as in"); LEGAL.md has the
-  trademark and no-affiliation statement.
+- **Names**: "RapidQ", "Visual Basic", "Delphi", "Windows", "DirectX",
+  "Xojo" and others are used nominatively ("compatible with", "as in");
+  LEGAL.md and NOTICE have the trademark and no-affiliation statement, and
+  CONTRIBUTING.md the rule against copying RapidQ material.
 
 ## 7. Guards
 
@@ -448,3 +458,8 @@ Still open:
    unchanged). Copies cloned before that date still hold the old versions;
    GitHub may keep the old commits reachable by their hashes until its
    support purges them. Settled.
+5. **RapidQ itself** — its terms, who holds its rights, trademarks
+   ("RapidQ", "RapidR"), the law on re-implementing its language and
+   interface, the use of RC.EXE for testing, and the residual risks: reviewed
+   on 2026-10-06 in [legal/rapidq-review.md](legal/rapidq-review.md), with
+   the decisions left to the owner in its §13.

@@ -83,21 +83,51 @@ system's OpenSSL 3, which every current distribution installs).
 ## RapidQ, and the names RapidR mentions
 
 RapidR is an independent, original implementation, written from scratch in
-Rust, of a BASIC language compatible with **RapidQ**, the freeware compiler
-by William Yu. RapidR contains no code from RapidQ, and does not include
-RapidQ's distribution (its compiler, manual, include files or examples): its
-compatibility is built from the language's documented behaviour and from
-comparing programs' output. RapidR is **not affiliated with, endorsed by or
-sponsored by** William Yu, by anyone who distributes RapidQ, or by any
-company named in its documentation.
+Rust, of a BASIC language compatible with **RapidQ** (also written
+"Rapid-Q"), the freeware compiler William Yu wrote in 1999–2000.
 
-"RapidQ" is used only to say what RapidR is compatible with. Microsoft,
-Windows, Visual Basic, Visual Studio and DirectX are trademarks of the
-Microsoft group of companies; Delphi is a trademark of Embarcadero
-Technologies; Apple and macOS are trademarks of Apple Inc.; Linux is a
-trademark of Linus Torvalds; other names belong to their owners. They are
-named only to describe compatibility or to identify a platform, never to
-suggest endorsement.
+- **Nothing of RapidQ is in RapidR.** No code, no text of its manual, no
+  include files, examples, images or icons, and RapidR doesn't include or
+  distribute any part of RapidQ's distribution, its compiler `RC.EXE`
+  included.
+- **What RapidR does take is what compatibility needs**: the language's
+  syntax and keywords, the names of its components, properties, methods,
+  events and constants with their numbers, its file formats and its
+  behaviour — the interface existing programs are written against, used
+  only so that those programs run. RapidR's documentation describes them in
+  its own words.
+- **How compatibility is checked**: by running test programs, written for
+  RapidR, under a locally installed copy of RapidQ and comparing their
+  output, the compiler being used as a black box. The process is recorded
+  in [docs/legal/clean-room.md](docs/legal/clean-room.md), and the review
+  behind this section in
+  [docs/legal/rapidq-review.md](docs/legal/rapidq-review.md).
+- **Programs written for RapidQ belong to their authors**, as they always
+  have; running them with RapidR changes nothing about that. RapidQ's own
+  terms already let programs made with it be used and sold freely.
+
+RapidR is **not affiliated with, endorsed by or sponsored by** William Yu,
+by anyone who holds rights in RapidQ or distributes it, or by any company
+named in RapidR's documentation. "RapidQ" is used only to say what RapidR
+is compatible with ("compatible with RapidQ", "as in RapidQ"); RapidR never
+uses it, or a logo of RapidQ, as its own name or mark.
+
+The same goes for the other products named in the documentation. RapidR
+implements, for compatibility, interfaces that RapidQ programs use: Windows
+API constants, the names and values of Delphi VCL types, the DelphiX image
+library format (`.DXG`) and DirectX's `.X` model format. It contains no
+code, artwork or documentation of Microsoft, Embarcadero, DelphiX's author
+or Xojo. Microsoft, Windows, Visual Basic, Visual Studio, DirectX and
+Direct3D are trademarks of the Microsoft group of companies; Delphi is a
+trademark of Embarcadero Technologies, Inc.; Xojo and REALbasic are
+trademarks of Xojo, Inc.; Apple and macOS are trademarks of Apple Inc.;
+Linux is a trademark of Linus Torvalds; other names belong to their owners.
+They are named only to describe compatibility or to identify a platform,
+never to suggest endorsement.
+
+If you hold rights in something RapidR names and have a concern, please
+open an issue (below) or write to the maintainer; it will be looked at
+promptly.
 
 ## No warranty
 

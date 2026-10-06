@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Continue</title>
+  <rect x="2" y="3" width="2" height="10" rx="0.5" fill="#08805E"/>
+  <path d="M6.5 2.5L13.5 8.5L6.5 13.5L6.5 2.5Z" fill="#08805E" stroke="#08805E"/>
+</svg>

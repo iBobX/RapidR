@@ -1,4 +1,4 @@
-' QOUTLINE (the manual's example): lines added with AddLines, each leading
+' QOUTLINE: lines added with AddLines, each leading
 ' space a level deeper; AddChild(Index, S), Item(i) read and written, Row,
 ' LineCount, OnClick — shown as a tree.
 DECLARE SUB Clicked
@@ -10,11 +10,11 @@ CREATE Form AS QForm
   Height = 260
   CREATE OutLine AS QOutLine
     Left = 5 : Top = 5 : Width = 200 : Height = 180
-    AddLines "Parent 1", _
-             " Child of Parent 1", _
-             "  Child of Child of Parent 1", _
-             "Parent 2", _
-             "Parent 3"
+    AddLines "Fruit", _
+             " Apples", _
+             "  Green apples", _
+             "Vegetables", _
+             "Grains"
     OnClick = Clicked
   END CREATE
   CREATE Btn AS QBUTTON
@@ -27,7 +27,7 @@ CREATE Form AS QForm
     Caption = "-"
   END CREATE
 END CREATE
-OutLine.AddChild 3, "Child of Parent 2"
+OutLine.AddChild 3, "Carrots"
 OutLine.Item(0) = "First"
 SUB Clicked
   Clicks = Clicks + 1

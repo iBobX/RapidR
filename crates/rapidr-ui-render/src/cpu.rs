@@ -134,6 +134,27 @@ impl CpuRenderer {
     }
 }
 
+/// `ops` drawn by themselves (an RPLOT chart's: `rapidr_value::datascience::plot`)
+/// in `size` logical pixels at `scale` device pixels per logical pixel,
+/// on white: the device pixels (RapidQ &HBBGGRR).
+pub fn render_ops(ops: &[rapidr_value::objects::ops::Op], size: (i64, i64), scale: f64, text: &mut TextSystem) -> Pixels {
+    let scale = if scale.is_finite() && scale > 0.0 { scale } else { 1.0 };
+    let w = ((size.0.max(1) as f64) * scale).round() as u32;
+    let h = ((size.1.max(1) as f64) * scale).round() as u32;
+    let mut r = CpuRenderer::new(w, h);
+    {
+        let mut canvas = CpuCanvas { ctx: &mut r.ctx, res: &mut r.res };
+        let mut p = crate::canvas::Painter::new(&mut canvas, text, scale);
+        for op in ops {
+            p.op(op);
+        }
+    }
+    r.ctx.flush();
+    let settings = vello_cpu::RasterizerSettings { render_mode: RenderMode::OptimizeSpeed, target_init: vello_cpu::TargetInit::Clear(Color::WHITE), ..Default::default() };
+    r.ctx.render_with(&mut r.pixmap, &mut r.res, settings);
+    r.pixels()
+}
+
 /// One capture with the CPU renderer (what `RAPIDR_CAPTURE` writes).
 pub fn capture(list: &DisplayList, text: &mut TextSystem, form: &FormUi) -> Pixels {
     let (w, h) = crate::canvas::device_size(list);

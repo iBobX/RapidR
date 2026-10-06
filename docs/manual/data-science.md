@@ -4,16 +4,19 @@ RapidR's own components for numbers, tables, charts and JSON — not in
 RapidQ, and usable from any RapidR program, console or GUI. Every member
 name, with its aliases and where it works: [reference/data-science.md](reference/data-science.md).
 
-| Component | Backed by (desktop) | |
-|---|---|---|
-| `RNUM` | ndarray | a one-dimensional array of numbers, in the manner of NumPy |
-| `RDATAFRAME` | polars | a table, in the manner of pandas |
-| `RPLOT` | plotters | charts saved as PNG or shown in a QIMAGE, in the manner of Matplotlib |
-| `RJSON` | serde_json | JSON documents |
+| Component | |
+|---|---|
+| `RNUM` | a one-dimensional array of numbers, in the manner of NumPy |
+| `RDATAFRAME` | a table, in the manner of pandas |
+| `RPLOT` | charts shown in a QIMAGE or saved as PNG, in the manner of Matplotlib |
+| `RJSON` | JSON documents |
 
-On the desktop (native and interpreted) these use the Rust libraries
-above; in the browser they have their own, smaller implementation, so a
-few members are desktop-only or web-only (the reference marks them).
+RNUM, RDATAFRAME and RPLOT are one implementation (RapidR's own, in pure
+Rust, with no data library underneath) that native builds, interpreted
+programs and the browser all run, so every member gives the same result
+everywhere — charts included: they're drawn by the UI kernel, as the
+windows are, so a chart is the same pixels on the desktop and in a
+browser.
 
 ## RNUM
 
@@ -40,8 +43,12 @@ another array (`add`, `subtract`, `multiply`, `divide`, `power`, `mod`,
 `clip`), ordering (`sort`, `reverse`, `unique`, `shuffle`, `append`,
 `slice`), `cumsum` / `cumprod` / `diff`, `dot` / `norm` / `normalize`,
 `any` / `all` / `where` / `searchsorted`, random numbers (`rand`, `randn`,
-`uniform`, `randint`, `choice`), `tolist`. Properties: `Size` (`Length`),
-`Data` (the values as `"1,2,3"`, settable), `NDim`, `DType`.
+`uniform`, `randint` — both ends included —, `choice`), one element
+(`get(i)`, `set i, value` — past the end the array grows —, `push`),
+`tolist`, `print`. Properties: `Size` (`Length`, `Count`), `Data` (the
+values as `"1,2,3"`, settable), `Shape` (`(3,)`), `NDim`, `DType`, and the
+aggregates `Sum`, `Mean`, `Min`, `Max`, `Std`. Numbers print as RapidR
+prints them (`0.1 + 0.2` is `0.3`).
 
 ## RDATAFRAME
 
@@ -49,27 +56,53 @@ another array (`add`, `subtract`, `multiply`, `divide`, `power`, `mod`,
 DIM df AS RDataFrame
 df.loadfromcsv "people.csv"            ' name,age,city
 PRINT df.rowcount; "x"; df.colcount; " "; df.columns   ' 4x3 name,age,city
-df.filter "age", ">", "30"             ' >, <, >=, <=, =, !=, contains
-df.sort "name", 1                      ' 1 ascending
-PRINT df.cell(0, 1)                    ' row 0, column 1
+df.filter "age", ">", 30              ' =, <>, >, <, >=, <=, contains, startswith, endswith
+df.sort "name", 1                      ' 1 ascending, 0 descending
+PRINT df.cell(0, 1)                    ' row 0, column 1 (or its name): the text, "30"
+df.print                               ' the frame as a table, below
 df.savetocsv "older.csv"
 df.togrid "Grid1"                      ' fill a QSTRINGGRID with it (headers and cells)
 ```
 
-Methods change the frame in place: I/O (`loadfromcsv`, `savetocsv`,
-`loadfromjson`, `savetojson`), selection (`head`, `tail`, `select`,
-`cell(row, col)`, `cellbyname(row, name)`, `setcell`, `iloc`), `sort`,
-`filter`, `query`, `groupby(column, function)` (`mean`, `sum`, `count`,
-`min`, `max`, `first`, `last` of every other column), columns (`drop`,
-`rename`, `addcolumn`), missing data (`fillna`, `dropna`), statistics
-(`describe` — the frame becomes the summary — `value_counts`, `nunique`,
-`corr`), sampling (`sample`, `nlargest`, `nsmallest`), joins (`merge`,
-`concat`), transforms (`transpose`, `apply`, `replace`), `togrid`.
-Properties: `RowCount`, `ColCount`, `Columns`, `Shape`, `Empty`.
+`Print` (and `PRINT df.ToString`) shows the frame as a plain-text table, the
+same on every runtime — numbers right-aligned, a missing value as `null`,
+the first and last ten rows of a longer frame:
 
-Known issues in 2.117.0 on the desktop: `ToString` / `Print` show only the
-frame's shape, and `Cell` returns a text cell with double quotes around it
-(`"bob"`).
+```text
+name  age  city
+----  ---  ----
+bob    30  NYC
+amy    25  LA
+[2 rows x 3 columns]
+```
+
+A cell is its text as read (`cell` and `cellbyname` return it as is); an
+empty CSV field, `NA` or JSON's `null` is a missing value. A column's type
+(`dtypes`: `i64`, `f64`, `bool`, `str`) is what its cells are, and decides
+how it sorts and compares: numbers as numbers, text as text.
+
+Methods change the frame in place: I/O (`loadfromcsv` and `loadfromjson`
+take a file — or the data itself, `"a,b" + CHR$(10) + "1,2"` —, `savetocsv`,
+`savetojson`: an array of records), selection (`head`, `tail`, `select`,
+`cell(row, col)`, `cellbyname(row, name)`, `setcell row, col, value` — past
+the end the frame grows —, `iloc`), `sort` / `sort_values` (several columns:
+`"city,name"`), `filter`, `query "age > 30"`, `groupby(column, function)`
+(the column first, then `mean`, `sum`, `count`, `min`, `max`, `first`,
+`last`, `median` or `std` of every other column, a row a group), columns
+(`drop`, `rename`, `addcolumn name, "v1,v2,…"`), missing data (`fillna`,
+`dropna`), statistics (`describe` — the frame becomes the summary of its
+numeric columns —, `value_counts`, `nunique`, `corr`), sampling (`sample`,
+`nlargest`, `nsmallest`), joins (`merge other, on, how` — `inner`, `left`,
+`right`, `outer`, `cross` —, `concat`), transforms (`transpose`, `apply`
+— `upper`, `lower`, `trim`, `abs`, `round`, `sqrt`, `log`, `exp` —,
+`replace`), building one (`create`, `addrow`), `info`, `togrid`.
+Properties: `RowCount`, `ColCount`, `Columns`, `Shape`, `Empty`, `DTypes`.
+
+A frame is stored by columns (each column's text in one block, its type
+and numbers worked out once), so big tables are quick: a million-row CSV
+(37 MB) loads in about 0.1 s, and is filtered, sorted, grouped or joined in
+40–200 ms on a 2024 laptop — about twice that in a browser
+(`cargo run --release -p rapidr-value --example frame_bench`).
 
 ## RPLOT
 
@@ -92,17 +125,43 @@ plt.legend
 plt.savefig "sine.png"
 ```
 
-Series: `plot`, `bar`, `barh`, `scatter`, `step`, `area` (x, y, label,
-colour), `hist(data, bins, label, colour)`, `pie(data, label, colours)`;
-`hline` / `vline`, `annotate(text, x, y, colour)`, `legend`, `xlim` /
-`ylim`, `figsize(w, h)`, `savefig(file)`, `clear`. Properties: `Title`,
-`XLabel`, `YLabel`, `Grid`, `Width`, `Height`, `DPI`. Colours are names
-(`red`, `steelblue`, `coral`, … — 30 or so) or `#RRGGBB`; series without one
-take the next colour of a palette. Chart text is drawn in the built-in
-Liberation Sans, the same on every system.
+Series: `plot` (x, y, label, colour, style: `-`, `--` dashed, `:` dotted,
+`o` markers, `o-` a line with markers), `bar`, `barh`, `scatter`, `step`,
+`area` (x, y, label, colour), `hist(data, bins, label, colour)`,
+`pie(data, labels, colours)`; `addseries(label, y, x, colour)` (a line
+from numbers written in place), `hline` / `vline`, `annotate(text, x, y,
+colour)`, `legend`, `grid`, `xlim` / `ylim`, `xscale` / `yscale` (`"log"`),
+`xticks(names [, positions])`, `figsize(w, h)` (inches),
+`savefig(file [, scale])`, `show`, `clear`. Properties: `Title`, `XLabel`,
+`YLabel`, `Grid`, `Legend`, `Width`, `Height` (pixels; under 100, inches at
+the chart's `DPI`), `DPI`, `Count` (the series).
 
-To show a chart in a window: `Image1.LoadFromPlot plt` (a QIMAGE), drawn
-from memory with no file. On the web, RPLOT draws on the page.
+Data are RNUM components or numbers written in place (`"35,25,40"`) — and
+an x can be **names**: bars over their categories, several bar series side
+by side in each.
+
+```basic
+plt.bar "Q1,Q2,Q3,Q4", sales2025, "2025"
+plt.bar "Q1,Q2,Q3,Q4", sales2026, "2026"
+plt.legend
+```
+
+Colours are the CSS names (`steelblue`, `royalblue`, `coral`, … all 148),
+`#RGB` / `#RRGGBB`, `C0` … `C9` (the palette's), or RapidQ colour numbers
+(`RGB(255, 0, 0)`); series without one take the next of a ten-colour
+palette made for charts. The look: ticks at round steps — whole numbers
+for whole-number data (months 1, 2, 3, never 1.5) —, light horizontal
+gridlines (`Grid = 1`: both ways; `Grid = 0`: none), a legend drawn as the
+series are (a dashed line's entry is dashed) where it hides the fewest
+points, pies with their percentages and names, and the current theme's
+colours (`$THEME dark` draws dark charts, high contrast plain ones). Text
+is the UI kernel's: the built-in Liberation Sans, the same on every system.
+
+To show a chart in a window: `Image1.LoadFromPlot plt` (a QIMAGE). It's
+crisp at any screen scale — a 2× screen gets the chart drawn at 2× — while
+the picture's `Pixel`s stay the chart's own size. `savefig "chart.png", 2`
+writes the PNG at twice the chart's size (on the web, among the page's
+files: the program can read it back or offer it as a download).
 
 ## RJSON
 
