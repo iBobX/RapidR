@@ -135,6 +135,12 @@ impl Highlighter {
         }
         if self.valid >= self.ends.len() {
             self.converge_from = 0;
+        } else {
+            // stopped short: the line at `valid` was tokenized from what the
+            // line before ended in then, which may have just changed, so a
+            // later pass can't stop before it (a line's own old end state is
+            // still a fair comparison: its text is the same)
+            self.converge_from = self.converge_from.max(self.valid);
         }
         self.scratch = scratch;
     }

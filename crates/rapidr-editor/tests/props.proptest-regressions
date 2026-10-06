@@ -1,0 +1,9 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc d9a1f137b6a036a74820c836f2225877dcf06adfed306e915d8dd3f0e9504599 # shrinks to start = "", raw = [0], typed = "x", key = 1
+cc bec98584e7ebbc0ae93a0881e34cf592a79460deba7afeef4b84f4bfe3e66bef # shrinks to start = "", ops = [Type("a"), Undo], lang_i = 0
+cc 54feb70cae116e2159a3e223e3322d9e631ff4d3f09281a44cf480d9a32b0661 # shrinks to start = "\tRUSTEND<script>a123/*x1PRINTx1/*${(\n(END IFr#\"&amp;\tx1,/*\na,$ESCAPECHARS OFF&amp;\n${(\r\n(/*,123(,😀a/*REM (a((<style>\tPRINT\\```&amp;,\n", edits = [(0, 0, "", 5595, 0), (38772, 55348, "<!--<!--```", 6341, 0), (7737, 18763, "r#\"/*", 52810, 1), (8007, 24271, "a", 0, 1)], lang_i = 8
