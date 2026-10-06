@@ -223,7 +223,11 @@ pub fn rt_method<R: Runtime>(rt: R, dock: &str, method: &str, args: &[Value]) ->
 /// An RDOCKMANAGER property; `None` if `prop` isn't one of its own.
 pub fn rt_get(dock: &str, prop: &str) -> Option<Value> {
     let p = prop.to_ascii_lowercase();
-    manager::with_mut(dock, |m| {
+    // (reading never makes the model: the first method or property set
+    // does, on every runtime alike — what it places is then made in the
+    // same order)
+    let empty = manager::Manager::default();
+    let read = |m: &manager::Manager| -> Option<Value> {
         Some(match p.as_str() {
             "documentmode" => Value::String(m.layout.mode.name().into()),
             "activedocument" => Value::String(m.active_document().map(|d| m.pane(&d).map_or(d.clone(), |i| i.given.clone())).unwrap_or_default()),
@@ -233,7 +237,8 @@ pub fn rt_get(dock: &str, prop: &str) -> Option<Value> {
             "layout" => Value::String(m.save()),
             _ => return None,
         })
-    })
+    };
+    manager::with(dock, read).unwrap_or_else(|| read(&empty))
 }
 
 /// Sets an RDOCKMANAGER property; whether it was one of its own.
