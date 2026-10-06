@@ -1,0 +1,24 @@
+# Members RapidR adds to every visual component (`sets = ["layout", "a11y"]` in a component).
+
+[[set]]
+name = "layout"
+origin = "rapidr"
+properties = [
+  { name = "Anchors", type = "set", values = ["akLeft", "akTop", "akRight", "akBottom"], default = "akLeft + akTop" },
+  { name = "MinWidth", type = "int", default = 0 },
+  { name = "MinHeight", type = "int", default = 0 },
+  { name = "MaxWidth", type = "int", default = 0 },
+  { name = "MaxHeight", type = "int", default = 0 },
+]
+methods = []
+events = []
+
+[[set]]
+name = "a11y"
+origin = "rapidr"
+properties = [
+  { name = "AccessibleName", type = "string", default = "" },
+  { name = "AccessibleDescription", type = "string", default = "" },
+]
+methods = []
+events = []

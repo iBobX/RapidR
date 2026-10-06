@@ -1,0 +1,1021 @@
+# The builtin functions and procedures. `name` is how programs write it (a `$` for those
+# that return text); the runtimes' dispatch key drops the suffix (MID$ is `mid`).
+
+# BUILTINS' names programs never write: the compilers' lowerings of statements (PRINT,
+# INPUT, DATA, …) and of objects, memory and numeric stores.
+internal = [
+  "__aget",
+  "__arg_round",
+  "__aset",
+  "__bind_event",
+  "__bind_event_this",
+  "__component_array",
+  "__cstring",
+  "__data_add",
+  "__data_label",
+  "__data_reset",
+  "__decimal",
+  "__environ_set",
+  "__getfield",
+  "__gui_register_timer",
+  "__inkey_trapall",
+  "__input_value",
+  "__lastoftype",
+  "__lprint",
+  "__mem_refresh",
+  "__mem_sync",
+  "__newarray",
+  "__newobject",
+  "__null",
+  "__objcall",
+  "__objcreate",
+  "__objectarray",
+  "__objget",
+  "__objset",
+  "__pack",
+  "__paramstr",
+  "__paramstrcount",
+  "__paramval",
+  "__paramvalcount",
+  "__quicksort",
+  "__read",
+  "__redim",
+  "__restore",
+  "__set_theme",
+  "__setfield",
+  "__shell_notifyicon",
+  "__sizeof",
+  "__sizeof_type",
+  "__to_byte",
+  "__to_double",
+  "__to_dword",
+  "__to_fixed",
+  "__to_long",
+  "__to_short",
+  "__to_single",
+  "__to_word",
+  "__varptr_elem",
+  "__varptr_var",
+  "date_func",
+  "e",
+  "end",
+  "get",
+  "input_field",
+  "input_func",
+  "line_input",
+  "math.e",
+  "math.pi",
+  "print",
+  "print_hash",
+  "println",
+  "rapidr__waitkey",
+  "time_func",
+  "write_hash",
+]
+
+[[builtin]]
+name = "ABS"
+syntax = "ABS(Number)"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "ACOS"
+syntax = "ACOS(Number)"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "ASC"
+syntax = "ASC(char$)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "ASIN"
+syntax = "ASIN(Number)"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "ATAN"
+syntax = "ATAN(Number)"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "ATN"
+syntax = "ATN(Number)"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "BEEP"
+group = "Dialogs and sound"
+origin = "rapidr"
+doc = ""
+
+[[builtin]]
+name = "BIN$"
+syntax = "BIN$(Integer)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "CALLBACK"
+group = "Routines"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "CALLFUNC"
+syntax = "CALLFUNC(Num, param1, param2, ...)"
+group = "Routines"
+doc = ""
+
+[[builtin]]
+name = "CBOOL"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "CDBL"
+group = "Numbers"
+origin = "rapidr"
+doc = ""
+
+[[builtin]]
+name = "CEIL"
+syntax = "CEIL(Number)"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "CHDIR"
+syntax = "CHDIR path$"
+group = "Files and folders"
+doc = ""
+
+[[builtin]]
+name = "CHDRIVE"
+syntax = "CHDRIVE \"a:\\\""
+group = "Files and folders"
+doc = ""
+
+[[builtin]]
+name = "CHR$"
+syntax = "CHR$(byte)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "CINT"
+syntax = "CINT(Number)"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "CLNG"
+syntax = "CLNG(Number)"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "CLOSE"
+group = "Files and folders"
+origin = "rapidr"
+doc = ""
+
+[[builtin]]
+name = "CLS"
+group = "Console"
+doc = ""
+
+[[builtin]]
+name = "CODEPTR"
+syntax = "CODEPTR(MySub)"
+group = "Routines"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "COLOR"
+syntax = "COLOR [Fore%][, Back%]"
+group = "Console"
+doc = ""
+
+[[builtin]]
+name = "COMMAND$"
+group = "System"
+bare = true
+doc = ""
+
+[[builtin]]
+name = "COMMANDCOUNT"
+group = "System"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "CONVBASE$"
+syntax = "CONVBASE$(Str$, FromBase, ToBase)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "CONVBASEX"
+group = "Strings"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "COS"
+syntax = "COS(Number)"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "CSNG"
+group = "Numbers"
+origin = "rapidr"
+doc = ""
+
+[[builtin]]
+name = "CSRLIN"
+group = "Console"
+bare = true
+doc = ""
+
+[[builtin]]
+name = "CURDIR$"
+group = "Files and folders"
+bare = true
+doc = ""
+
+[[builtin]]
+name = "DATE$"
+group = "System"
+bare = true
+doc = ""
+
+[[builtin]]
+name = "DELETE$"
+syntax = "DELETE$(String$, Index, Count)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "DIR$"
+syntax = "DIR$[(FileSpec$, Attributes%)]"
+group = "Files and folders"
+bare = true
+doc = ""
+
+[[builtin]]
+name = "DIREXISTS"
+syntax = "DIREXISTS(Path$)"
+group = "Files and folders"
+doc = ""
+
+[[builtin]]
+name = "DOEVENTS"
+group = "System"
+doc = ""
+
+[[builtin]]
+name = "ENVIRON"
+syntax = "ENVIRON StringExpression"
+group = "System"
+doc = ""
+
+[[builtin]]
+name = "EOF"
+group = "Files and folders"
+origin = "rapidr"
+doc = ""
+
+[[builtin]]
+name = "EXECUTE"
+syntax = "Execute function"
+group = "System"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "EXP"
+syntax = "EXP(Number)"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "EXTRACTRESOURCE"
+syntax = "EXTRACTRESOURCE ResourceNumber%, FileName$"
+group = "Files and folders"
+doc = ""
+
+[[builtin]]
+name = "FIELD$"
+syntax = "FIELD$(StringExpresion, Deliminator, FieldNumber)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "FILEEXISTS"
+syntax = "FILEEXISTS(FileName$)"
+group = "Files and folders"
+doc = ""
+
+[[builtin]]
+name = "FILELEN"
+group = "Files and folders"
+origin = "rapidr"
+doc = ""
+
+[[builtin]]
+name = "FIX"
+syntax = "FIX(Number)"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "FLOOR"
+syntax = "FLOOR(Number)"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "FORMAT$"
+syntax = "FORMAT$(S$, arg1, arg2, ...)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "FRAC"
+syntax = "FRAC(Number)"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "FREEFILE"
+group = "Files and folders"
+bare = true
+origin = "rapidr"
+doc = ""
+
+[[builtin]]
+name = "GET$"
+syntax = "GET$(NumChars)"
+group = "Other"
+doc = ""
+
+[[builtin]]
+name = "GETCAPTURE"
+group = "System"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "GETFOCUS"
+group = "System"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "HEX$"
+syntax = "HEX$(Number)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "HEXTODEC"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "IIF"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "INITARRAY"
+syntax = "INITARRAY(Array, values, ...)"
+group = "Arrays and memory"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "INKEY$"
+group = "Console"
+bare = true
+doc = ""
+
+[[builtin]]
+name = "INP"
+syntax = "INP(Address)"
+group = "System"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "INPUT$"
+syntax = "INPUT$(NumChars)"
+group = "Console"
+doc = ""
+
+[[builtin]]
+name = "INPW"
+group = "System"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "INSERT$"
+syntax = "INSERT$(Source$,Dest$,Index)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "INSTR"
+syntax = "INSTR([Start,] Search$,Find$)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "INT"
+syntax = "INT(Number)"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "INV"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "ISCONSOLE"
+group = "Console"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "ISNUMERIC"
+group = "Strings"
+origin = "rapidr"
+doc = ""
+
+[[builtin]]
+name = "KILL"
+syntax = "KILL Filename$"
+group = "Files and folders"
+doc = ""
+
+[[builtin]]
+name = "KILLMESSAGE"
+syntax = "KILLMESSAGE hWnd, Message"
+group = "System"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "LBOUND"
+syntax = "LBOUND(ArrayName[, Dimension])"
+group = "Arrays and memory"
+doc = ""
+
+[[builtin]]
+name = "LCASE$"
+syntax = "LCASE$(String)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "LEFT$"
+syntax = "LEFT$(String,Num)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "LEN"
+syntax = "LEN(String)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "LFLUSH"
+group = "System"
+doc = ""
+
+[[builtin]]
+name = "LIBRARYINST"
+syntax = "LIBRARYINST(DLLName)"
+group = "System"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "LOCATE"
+syntax = "LOCATE [Y%][, X%][, cursor]"
+group = "Console"
+doc = ""
+
+[[builtin]]
+name = "LOF"
+group = "Files and folders"
+origin = "rapidr"
+doc = ""
+
+[[builtin]]
+name = "LOG"
+syntax = "LOG(Number)"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "LPRINT"
+syntax = "LPRINT [Expression][;|,][...]"
+group = "System"
+doc = ""
+
+[[builtin]]
+name = "LTRIM$"
+syntax = "LTRIM$(String)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "MEMCMP"
+syntax = "MEMCMP(ptr1, ptr2, count)"
+group = "Arrays and memory"
+doc = ""
+
+[[builtin]]
+name = "MEMCPY"
+group = "Arrays and memory"
+doc = ""
+
+[[builtin]]
+name = "MEMSET"
+group = "Arrays and memory"
+doc = ""
+
+[[builtin]]
+name = "MESSAGEBOX"
+syntax = "MESSAGEBOX(Msg$, Title$, MsgButtons%)"
+group = "Dialogs and sound"
+doc = ""
+
+[[builtin]]
+name = "MESSAGEDLG"
+syntax = "MESSAGEDLG(Msg$, MsgType, MsgButtons, HelpContext)"
+group = "Dialogs and sound"
+doc = ""
+
+[[builtin]]
+name = "MICROTIMER"
+group = "System"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "MID$"
+syntax = "MID$(String, Position, Num)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "MKDIR"
+syntax = "MKDIR Dir$"
+group = "Files and folders"
+doc = ""
+
+[[builtin]]
+name = "MOUSEX"
+group = "System"
+bare = true
+doc = ""
+
+[[builtin]]
+name = "MOUSEY"
+group = "System"
+bare = true
+doc = ""
+
+[[builtin]]
+name = "MSGBOX"
+group = "Dialogs and sound"
+origin = "rapidr"
+doc = ""
+
+[[builtin]]
+name = "NVIEWLIBPRESENT"
+group = "System"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "OCT"
+group = "Strings"
+origin = "rapidr"
+doc = ""
+
+[[builtin]]
+name = "OPEN"
+group = "Files and folders"
+origin = "rapidr"
+doc = ""
+
+[[builtin]]
+name = "OUT"
+syntax = "OUT(Address, bytevalue)"
+group = "System"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "OUTW"
+group = "System"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "PARAMSTR$"
+group = "Routines"
+doc = ""
+
+[[builtin]]
+name = "PARAMSTRCOUNT"
+group = "Routines"
+doc = ""
+
+[[builtin]]
+name = "PARAMVAL"
+group = "Routines"
+doc = ""
+
+[[builtin]]
+name = "PARAMVALCOUNT"
+group = "Routines"
+doc = ""
+
+[[builtin]]
+name = "PCOPY"
+syntax = "PCOPY source, dest"
+group = "Console"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "PEEK"
+group = "Arrays and memory"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "PI"
+group = "Numbers"
+bare = true
+origin = "rapidr"
+doc = ""
+
+[[builtin]]
+name = "PLAYSOUND"
+group = "Dialogs and sound"
+origin = "rapidr"
+doc = ""
+
+[[builtin]]
+name = "PLAYWAV"
+syntax = "PLAYWAV FileName$|Resource_Handle, SndOption"
+group = "Dialogs and sound"
+doc = ""
+
+[[builtin]]
+name = "POKE"
+syntax = "POKE [#PageNum,] address, byte"
+group = "Arrays and memory"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "POS"
+group = "Console"
+doc = ""
+
+[[builtin]]
+name = "POSTMESSAGE"
+syntax = "POSTMESSAGE(Handle, uMsg, wParam, lParam)"
+group = "System"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "RANDOMIZE"
+syntax = "RANDOMIZE [Num]"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "RELEASECAPTURE"
+group = "System"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "RENAME"
+syntax = "RENAME File1$, File2$"
+group = "Files and folders"
+doc = ""
+
+[[builtin]]
+name = "REPLACE$"
+syntax = "REPLACE$(Source$, Replace$, Index)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "REPLACESUBSTR$"
+syntax = "REPLACESUBSTR$(Source$, ReplaceStr$, Withstr$)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "RESOURCE"
+syntax = "RESOURCE(number%)"
+group = "Files and folders"
+doc = ""
+
+[[builtin]]
+name = "RESOURCECOUNT"
+group = "Files and folders"
+bare = true
+doc = ""
+
+[[builtin]]
+name = "REVERSE$"
+syntax = "REVERSE$(S$)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "RGB"
+syntax = "RGB(Red%, Green%, Blue%)"
+group = "Colours"
+doc = ""
+
+[[builtin]]
+name = "RIGHT$"
+syntax = "RIGHT$(String,Num)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "RINSTR"
+syntax = "RINSTR([Start,] SearchString, FindString)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "RMDIR"
+syntax = "RMDIR Dir$"
+group = "Files and folders"
+doc = ""
+
+[[builtin]]
+name = "RND"
+syntax = "RND(UpperBound)"
+group = "Numbers"
+bare = true
+doc = ""
+
+[[builtin]]
+name = "ROUND"
+syntax = "ROUND(Number)"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "RTLMOVEMEMORY"
+group = "Arrays and memory"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "RTRIM$"
+syntax = "RTRIM$(String)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "RUN"
+syntax = "RUN command$"
+group = "System"
+doc = ""
+
+[[builtin]]
+name = "SEEK"
+group = "Files and folders"
+origin = "rapidr"
+doc = ""
+
+[[builtin]]
+name = "SENDMESSAGE"
+syntax = "SENDMESSAGE(Handle, uMsg, wParam, lParam)"
+group = "System"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "SETCAPTURE"
+group = "System"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "SETCONSOLETITLE"
+syntax = "SETCONSOLETITLE(Title$)"
+group = "Console"
+doc = ""
+
+[[builtin]]
+name = "SETFOCUS"
+group = "System"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "SGN"
+syntax = "SGN(Number)"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "SHELL"
+syntax = "SHELL command$                <<< Executes command, and blocks until finished"
+group = "System"
+doc = ""
+
+[[builtin]]
+name = "SHELLWAIT"
+group = "System"
+origin = "rapidr"
+doc = ""
+
+[[builtin]]
+name = "SHL"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "SHOWMESSAGE"
+syntax = "SHOWMESSAGE text$"
+group = "Dialogs and sound"
+doc = ""
+
+[[builtin]]
+name = "SHR"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "SIN"
+syntax = "SIN(Number)"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "SIZEOF"
+syntax = "SIZEOF (Var(Index))"
+group = "Arrays and memory"
+doc = ""
+
+[[builtin]]
+name = "SLEEP"
+syntax = "SLEEP Num"
+group = "System"
+doc = ""
+
+[[builtin]]
+name = "SOUND"
+syntax = "SOUND freq, duration"
+group = "Dialogs and sound"
+doc = ""
+
+[[builtin]]
+name = "SPACE$"
+syntax = "SPACE$(Num)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "SQR"
+syntax = "SQR(Number)"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "STR$"
+syntax = "STR$(Number)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "STRF$"
+syntax = "STRF$(Number, Format%, Precision%, Digits%)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "STRING$"
+syntax = "STRING$(Num, Char) or STRING$(Num, Char$)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "TAB"
+group = "Console"
+doc = ""
+
+[[builtin]]
+name = "TALLY"
+syntax = "TALLY(Search$, Match$)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "TAN"
+syntax = "TAN(Number)"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "TIME$"
+syntax = "TIME$"
+group = "System"
+bare = true
+doc = ""
+
+[[builtin]]
+name = "TIMER"
+group = "System"
+bare = true
+doc = ""
+
+[[builtin]]
+name = "TRIM"
+group = "Strings"
+origin = "rapidr"
+doc = ""
+
+[[builtin]]
+name = "UBOUND"
+syntax = "UBOUND(ArrayName[, Dimension])"
+group = "Arrays and memory"
+doc = ""
+
+[[builtin]]
+name = "UCASE$"
+syntax = "UCASE$(String)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "UDTPTR"
+group = "Arrays and memory"
+doc = ""
+
+[[builtin]]
+name = "UNLOADLIBRARY"
+syntax = "UNLOADLIBRARY(DLLName)"
+group = "System"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "VAL"
+syntax = "VAL(String)"
+group = "Strings"
+doc = ""
+
+[[builtin]]
+name = "VARPTR"
+syntax = "VARPTR(VarName)"
+group = "Arrays and memory"
+doc = ""
+
+[[builtin]]
+name = "VARTYPE"
+syntax = "VARTYPE(variant)"
+group = "Numbers"
+doc = ""
+
+[[builtin]]
+name = "WSTRING"
+group = "Strings"
+missing = true
+doc = ""
+
+[[builtin]]
+name = "WSTRINGTOASCII"
+group = "Strings"
+missing = true
+doc = ""

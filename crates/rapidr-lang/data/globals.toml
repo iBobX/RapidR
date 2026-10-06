@@ -1,0 +1,116 @@
+# The global objects: there in every program, never created (RapidQ's Screen, Application,
+# Clipboard; FileRec, which DIR$ fills; Printer, a QPRINTER; RapidR's Mouse).
+
+[[object]]
+name = "Screen"
+kind = "global"
+doc = ""
+properties = [
+  { name = "ConsoleX", type = "int", access = "read" },
+  { name = "ConsoleY", type = "int", access = "read" },
+  { name = "Cursors", type = "int", indexed = 1, access = "read" },
+  { name = "Height", type = "int", access = "read" },
+  { name = "MouseX", type = "int", access = "read" },
+  { name = "MouseY", type = "int", access = "read" },
+  { name = "Width", type = "int", access = "read" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"] },
+  { name = "ClientHeight", type = "int", from = "RAPIDQ2.INC", access = "read" },
+  { name = "ClientWidth", type = "int", from = "RAPIDQ2.INC", access = "read" },
+  { name = "Monitors", type = "int", from = "RAPIDQ2.INC", access = "read" },
+  { name = "MouseButtons", type = "int", from = "RAPIDQ2.INC", access = "read" },
+  { name = "MousePresent", type = "int", from = "RAPIDQ2.INC", access = "read" },
+  { name = "MouseSwap", type = "int", from = "RAPIDQ2.INC", access = "read" },
+  { name = "PixelsPerInch", type = "int", origin = "rapidr", access = "read" },
+  { name = "Scale", type = "int", origin = "rapidr", access = "read" },
+]
+methods = [
+  { name = "GetPixelDepth", from = "RAPIDQ2.INC" },
+]
+events = []
+
+[[object]]
+name = "Application"
+kind = "global"
+doc = ""
+properties = [
+  { name = "ExeName", type = "string", access = "read" },
+  { name = "Handle", type = "int", access = "read" },
+  { name = "HelpFile", type = "string" },
+  { name = "HintColor", type = "color" },
+  { name = "HintHidePause", type = "int" },
+  { name = "HintPause", type = "int" },
+  { name = "HintShortPause", type = "int" },
+  { name = "Icon", type = "picture" },
+  { name = "IcoHandle", type = "resource", access = "write" },
+  { name = "ShowHint", type = "bool" },
+  { name = "Title", type = "string" },
+  { name = "Path", type = "int", access = "read" },
+  { name = "Theme", type = "int", origin = "rapidr" },
+]
+methods = [
+  { name = "HelpCommand", params = "Command AS WORD, Data AS LONG", missing = true },
+  { name = "HelpContext", params = "Context AS LONG", missing = true },
+  { name = "HelpJump", params = "JumpID AS STRING", missing = true },
+  { name = "Minimize" },
+  { name = "Terminate" },
+  { name = "GetPriority", missing = true },
+  { name = "SetPriority", params = "Priority AS LONG", returns = "VARIANT", missing = true },
+]
+events = []
+
+[[object]]
+name = "Clipboard"
+kind = "global"
+doc = ""
+properties = [
+  { name = "Format", type = "int", indexed = 1 },
+  { name = "FormatCount", type = "int", access = "read" },
+  { name = "Text", type = "string" },
+]
+methods = [
+  { name = "Clear" },
+  { name = "Close" },
+  { name = "GetAsHandle", params = "Format AS WORD", returns = "LONG", missing = true },
+  { name = "GetAsText", params = "length AS INTEGER", returns = "STRING" },
+  { name = "HasFormat", params = "Format AS WORD", returns = "SHORT" },
+  { name = "Open" },
+  { name = "SetAsHandle", params = "Format AS WORD, Handle AS LONG", missing = true },
+  { name = "SetAsText", params = "Text AS STRING" },
+]
+events = []
+
+[[object]]
+name = "Mouse"
+kind = "global"
+origin = "rapidr"
+doc = ""
+properties = [
+  { name = "X", type = "int", access = "read" },
+  { name = "Y", type = "int", access = "read" },
+]
+methods = []
+events = []
+
+[[object]]
+name = "FileRec"
+kind = "global"
+doc = ""
+properties = [
+  { name = "FileName", type = "string", access = "read" },
+  { name = "ShortName", type = "string", access = "read" },
+  { name = "Date", type = "string", access = "read" },
+  { name = "Time", type = "string", access = "read" },
+  { name = "Size", type = "int", access = "read" },
+  { name = "FileTime", type = "int", access = "read" },
+]
+methods = []
+events = []
+
+[[object]]
+name = "Printer"
+kind = "global"
+instance_of = "RPRINTER"
+doc = ""
+properties = []
+methods = []
+events = []

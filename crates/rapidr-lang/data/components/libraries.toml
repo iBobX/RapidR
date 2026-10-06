@@ -1,0 +1,268 @@
+# Components that aren't built into the runtimes: RapidQ's community libraries RapidR
+# supplies in BASIC (rapidr_preprocessor::RAPIDR_LIBRARIES), and RapidQ's objects RapidR
+# doesn't have yet (rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED).
+group = "Libraries"
+
+[[component]]
+name = "QOLECONTAINER"
+rapidq = "QOLECONTAINER"
+kind = "planned"
+visual = true
+doc = ""
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"] },
+  { name = "AllowInPlace", type = "bool" },
+  { name = "AutoShow", type = "bool" },
+  { name = "BorderStyle", type = "enum", values = ["bsNone", "bsSingle", "bsSizeable", "bsDialog", "bsToolWindow", "bsSizeToolWin"] },
+  { name = "Color", type = "color" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"] },
+  { name = "Enabled", type = "bool" },
+  { name = "Handle", type = "int", access = "read" },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "Left", type = "int" },
+  { name = "Modified", type = "bool" },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write" },
+  { name = "ShowHint", type = "bool" },
+  { name = "SizeMode", type = "enum", values = ["smClip", "smCenter", "smScale", "smStretch", "smAutoSize"] },
+  { name = "State", type = "enum", values = ["osEmpty", "osLoaded", "osRunning", "osOpen", "osInPlaceActive", "osUIActive"] },
+  { name = "TabOrder", type = "int" },
+  { name = "Tag", type = "int" },
+  { name = "Top", type = "int" },
+  { name = "Width", type = "int" },
+  { name = "Visible", type = "bool" },
+]
+methods = [
+  { name = "CreateObject", params = "ClassName AS STRING", returns = "INTEGER" },
+  { name = "Free" },
+  { name = "Invoke", params = "ID AS STRING, Params, Items ...", returns = "VARIANT" },
+]
+events = [
+  { name = "OnKeyDown", params = "Key AS WORD, Shift AS INTEGER" },
+  { name = "OnKeyPress", params = "Key AS BYTE" },
+  { name = "OnKeyUp", params = "Key AS WORD, Shift AS INTEGER" },
+  { name = "OnMouseDown", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnObjectMove", params = "Rect AS QRECT" },
+  { name = "OnResize" },
+]
+
+[[component]]
+name = "QOLEOBJECT"
+rapidq = "QOLEOBJECT"
+kind = "planned"
+visual = false
+doc = ""
+properties = []
+methods = [
+  { name = "CreateObject", params = "ClassName AS STRING", returns = "INTEGER" },
+  { name = "CreateRemote", params = "Host AS STRING, ClassName AS STRING", returns = "INTEGER" },
+  { name = "Free" },
+  { name = "GetIDofName", params = "Name AS STRING", returns = "INTEGER" },
+  { name = "GetObject", params = "ClassName AS STRING", returns = "INTEGER" },
+  { name = "Invoke", params = "ID AS STRING, Params, Items ...", returns = "VARIANT" },
+  { name = "InvokeCopy", params = "ID AS STRING, Object AS QOLEOBJECT" },
+]
+events = []
+
+[[component]]
+name = "QDOCKFORM"
+rapidq = "QDOCKFORM"
+kind = "library"
+from = "QDockForm.inc"
+visual = true
+doc = ""
+properties = [
+  { name = "Align", type = "int" },
+  { name = "AltAlign", type = "int" },
+  { name = "AltDock", type = "int", access = "read" },
+  { name = "CanClose", type = "bool" },
+  { name = "Canvas", type = "component", kinds = ["QCANVAS"] },
+  { name = "Caption", type = "string" },
+  { name = "Client", type = "component", kinds = ["QPANEL"] },
+  { name = "Closed", type = "bool", access = "read" },
+  { name = "Docked", type = "bool", access = "read" },
+  { name = "DockStyle", type = "int" },
+  { name = "DragCursor", type = "int" },
+  { name = "Font", type = "font", access = "write" },
+  { name = "Height", type = "int" },
+  { name = "Left", type = "int" },
+  { name = "Locked", type = "bool" },
+  { name = "Parent", type = "component", kinds = ["QFORM"], access = "write" },
+  { name = "Sizeable", type = "bool" },
+  { name = "ST1_TitleBackground", type = "int" },
+  { name = "Style", type = "int" },
+  { name = "TitleColor", type = "color" },
+  { name = "Top", type = "int" },
+  { name = "UndockedHeight", type = "int" },
+  { name = "UndockedWidth", type = "int" },
+  { name = "UndockStyle", type = "int" },
+  { name = "Width", type = "int" },
+  { name = "Visible", type = "int" },
+]
+methods = [
+  { name = "Close" },
+  { name = "Dock", params = "Dock AS INTEGER" },
+]
+events = [
+  { name = "OnDock", params = "Docked AS INTEGER, Alt AS INTEGER" },
+  { name = "OnPaint" },
+  { name = "OnClose" },
+]
+
+[[component]]
+name = "QDIRLISTVIEW"
+rapidq = "QDIRLISTVIEW"
+kind = "library"
+from = "QDirListView.inc"
+visual = true
+doc = ""
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"] },
+  { name = "BorderStyle", type = "enum", values = ["bsNone", "bsSingle", "bsSizeable", "bsDialog", "bsToolWindow", "bsSizeToolWin"] },
+  { name = "CheckBoxes", type = "bool" },
+  { name = "Color", type = "color" },
+  { name = "Column", type = "any", indexed = 1 },
+  { name = "ColumnClick", type = "bool" },
+  { name = "ColumnsCount", type = "int" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"] },
+  { name = "Directory", type = "string" },
+  { name = "dlw_PopupMenu", type = "component", kinds = ["QPOPUPMENU"] },
+  { name = "Enabled", type = "bool" },
+  { name = "ExtensionsList", type = "component", kinds = ["QSTRINGLIST"] },
+  { name = "Filename", type = "string", access = "read" },
+  { name = "Font", type = "font", access = "write" },
+  { name = "GridLines", type = "bool" },
+  { name = "Handle", type = "int", access = "read" },
+  { name = "Height", type = "int" },
+  { name = "HideSelection", type = "bool" },
+  { name = "Hint", type = "string" },
+  { name = "HotTrack", type = "bool" },
+  { name = "Item", type = "any", indexed = 1 },
+  { name = "ItemCount", type = "int" },
+  { name = "ItemIndex", type = "int" },
+  { name = "LargeImageList", type = "component", kinds = ["QIMAGELIST"] },
+  { name = "LargeImages", type = "component", kinds = ["QIMAGELIST"], access = "write" },
+  { name = "Left", type = "int" },
+  { name = "Mask", type = "string" },
+  { name = "MultiSelect", type = "bool" },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write" },
+  { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"], access = "write" },
+  { name = "ReadOnly", type = "bool" },
+  { name = "RowSelect", type = "bool" },
+  { name = "SelCount", type = "int" },
+  { name = "Selected", type = "int", indexed = 1 },
+  { name = "ShowColumnHeaders", type = "bool" },
+  { name = "ShowHint", type = "bool" },
+  { name = "ShowRoot", type = "bool" },
+  { name = "SmallImageList", type = "component", kinds = ["QIMAGELIST"] },
+  { name = "SmallImages", type = "component", kinds = ["QIMAGELIST"], access = "write" },
+  { name = "SortType", type = "enum", values = ["stNone", "stText"] },
+  { name = "StateImages", type = "component", kinds = ["QIMAGELIST"], access = "write" },
+  { name = "SubItem", type = "string", indexed = 2 },
+  { name = "TabOrder", type = "int" },
+  { name = "Tag", type = "int" },
+  { name = "Top", type = "int" },
+  { name = "Width", type = "int" },
+  { name = "ViewStyle", type = "enum", values = ["vsIcon", "vsSmallIcon", "vsList", "vsReport"] },
+  { name = "Visible", type = "bool" },
+]
+methods = [
+  { name = "AddColumns", params = "Items ..." },
+  { name = "AddItems", params = "Items ..." },
+  { name = "AddSubItem", params = "Index AS INTEGER, String AS STRING" },
+  { name = "ChangeDirUp" },
+  { name = "Clear" },
+  { name = "ClearColumns" },
+  { name = "DelItems", params = "Items ..." },
+  { name = "DelSubItem", params = "Index AS INTEGER, SubIndex AS INTEGER" },
+  { name = "InsertItem", params = "Index AS INTEGER, String AS STRING" },
+  { name = "InsertSubItem", params = "Index AS INTEGER, SubIndex AS INTEGER, String AS STRING" },
+  { name = "Refresh" },
+  { name = "SwapItem", params = "Index1 AS INTEGER, Index2 AS INTEGER" },
+]
+events = [
+  { name = "OnClick" },
+  { name = "OnChange", params = "Index AS INTEGER, Change AS BYTE" },
+  { name = "OnColumnClick", params = "Column AS INTEGER" },
+  { name = "OnDblClick" },
+  { name = "OnFileSelect" },
+  { name = "OnKeyPress", params = "Key AS BYTE" },
+]
+
+[[component]]
+name = "QD3DANIMATION"
+rapidq = "QD3DANIMATION"
+kind = "planned"
+visual = false
+doc = ""
+properties = [
+  { name = "Parent", type = "any" },
+]
+methods = []
+events = []
+
+[[component]]
+name = "QD3DANIMATIONSET"
+rapidq = "QD3DANIMATIONSET"
+kind = "planned"
+visual = false
+doc = ""
+properties = [
+  { name = "Parent", type = "any" },
+]
+methods = []
+events = []
+
+[[component]]
+name = "QTHREAD"
+rapidq = "QTHREAD"
+kind = "planned"
+visual = false
+doc = ""
+properties = []
+methods = [
+  { name = "Free" },
+  { name = "Resume" },
+  { name = "Suspend" },
+  { name = "Terminate" },
+]
+events = [
+  { name = "Onexecute" },
+]
+
+[[component]]
+name = "QTRANSIMAGE"
+rapidq = "QTRANSIMAGE"
+kind = "planned"
+visual = true
+doc = ""
+properties = [
+  { name = "Align", type = "any" },
+  { name = "AutoSize", type = "any" },
+  { name = "Bmp", type = "any" },
+  { name = "BMPHandle", type = "any" },
+  { name = "Center", type = "any" },
+  { name = "ClientHeight", type = "any" },
+  { name = "ClientWidth", type = "any" },
+  { name = "Cursor", type = "any" },
+  { name = "Enabled", type = "any" },
+  { name = "Handle", type = "any" },
+  { name = "Height", type = "any" },
+  { name = "Hint", type = "any" },
+  { name = "Left", type = "any" },
+  { name = "Parent", type = "any" },
+  { name = "PopupMenu", type = "any" },
+  { name = "ShowHint", type = "any" },
+  { name = "Stretch", type = "any" },
+  { name = "Top", type = "any" },
+  { name = "TransparentColor", type = "any" },
+  { name = "Visible", type = "any" },
+  { name = "Width", type = "any" },
+]
+methods = [
+  { name = "Adjustformsize" },
+  { name = "Execute" },
+]
+events = []

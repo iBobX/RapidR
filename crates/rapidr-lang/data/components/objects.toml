@@ -1,0 +1,410 @@
+# Non-visual objects: the registry's components (crates/rapidr-lang; src/lib.rs says how to edit).
+group = "Non-visual objects"
+
+[[component]]
+name = "RTIMER"
+rapidq = "QTIMER"
+visual = false
+default_event = "OnTimer"
+doc = ""
+properties = [
+  { name = "Enabled", type = "bool", default = true },
+  { name = "Interval", type = "int" },
+  { name = "Tag", type = "int" },
+]
+methods = []
+events = [
+  { name = "OnTimer", params = "Sender AS QTIMER" },
+]
+
+[[component]]
+name = "RRECT"
+rapidq = "QRECT"
+visual = true
+sets = ["layout", "a11y"]
+doc = ""
+properties = [
+  { name = "Left", type = "int", default = 0 },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Right", type = "int", default = 0 },
+  { name = "Bottom", type = "int", default = 0 },
+]
+methods = []
+events = []
+
+[[component]]
+name = "RFILESTREAM"
+rapidq = "QFILESTREAM"
+visual = false
+doc = ""
+properties = [
+  { name = "EOF", type = "int", access = "read", design = false },
+  { name = "Handle", type = "int", access = "read", design = false },
+  { name = "LineCount", type = "int", access = "read", design = false },
+  { name = "Position", type = "int" },
+  { name = "Size", type = "int", access = "read", design = false },
+  { name = "FileName", type = "string", origin = "rapidr" },
+  { name = "Text", type = "string", origin = "rapidr" },
+]
+methods = [
+  { name = "Close", value = true },
+  { name = "CopyFrom", params = "Stream, Bytes AS INTEGER", missing = true },
+  { name = "ExtractRes", params = "Resource AS LONG" },
+  { name = "LoadArray", params = "Array", missing = true },
+  { name = "Open", params = "FileName AS STRING, Method AS INTEGER", value = true },
+  { name = "Read", params = "variable" },
+  { name = "ReadLine", returns = "STRING", value = true },
+  { name = "ReadNum", params = "Num_", returns = "DOUBLE" },
+  { name = "ReadBinStr", params = "n", returns = "STRING" },
+  { name = "ReadStr", params = "n", returns = "STRING" },
+  { name = "ReadUDT", params = "MyType" },
+  { name = "SaveArray", params = "Array", missing = true },
+  { name = "Seek", params = "Position AS INTEGER, From AS INTEGER" },
+  { name = "Write", params = "variable" },
+  { name = "WriteLine", params = "S AS STRING" },
+  { name = "WriteNum", params = "number, bytes AS INTEGER" },
+  { name = "WriteBinStr", params = "string, bytes AS INTEGER" },
+  { name = "WriteStr", params = "string, bytes AS INTEGER" },
+  { name = "WriteUDT", params = "MyType" },
+  { name = "Download", origin = "rapidr", only = "web", value = true },
+  { name = "PickFile", origin = "rapidr", only = "web", value = true },
+  { name = "LoadFromUrl", origin = "rapidr", only = "web", value = true },
+  { name = "Readall", origin = "rapidr", value = true },
+  { name = "Writeln", origin = "rapidr" },
+  { name = "Readln", origin = "rapidr", value = true },
+  { name = "Loadudtarray", missing = true },
+  { name = "ReadByte", missing = true },
+  { name = "Saveudtarray", missing = true },
+  { name = "WriteByte", missing = true },
+]
+events = []
+
+[[component]]
+name = "RSTRINGLIST"
+rapidq = "QSTRINGLIST"
+visual = false
+doc = ""
+properties = [
+  { name = "Duplicates", type = "enum", values = ["dupIgnore", "dupAccept", "dupError"], default = "dupIgnore" },
+  { name = "Item", type = "string", indexed = 1, design = false },
+  { name = "ItemCount", type = "int", access = "read", design = false },
+  { name = "Sorted", type = "bool", default = false },
+  { name = "Text", type = "string" },
+  { name = "Count", type = "int", origin = "rapidr" },
+  { name = "ListCount", type = "int", origin = "rapidr" },
+  { name = "ListIndex", type = "int", origin = "rapidr" },
+  { name = "Items", type = "string", origin = "rapidr" },
+]
+methods = [
+  { name = "AddItems", params = "Items ...", value = true },
+  { name = "AddList", params = "List AS QSTRINGLIST", missing = true },
+  { name = "Build", params = "Start AS INTEGER, End AS INTEGER, Delim AS STRING", returns = "STRING" },
+  { name = "Clear", value = true },
+  { name = "DelItems", params = "Items ..." },
+  { name = "Exchange", params = "Index1 AS INTEGER, Index2 AS INTEGER" },
+  { name = "IndexOf", params = "String AS STRING", returns = "VARIANT" },
+  { name = "InsertItem", params = "Index AS INTEGER, String AS STRING" },
+  { name = "LoadFromFile", params = "File AS STRING", value = true },
+  { name = "LoadFromStream", params = "File AS QSTREAM", missing = true },
+  { name = "Parse", params = "Source AS STRING, Delim AS STRING", returns = "LONG" },
+  { name = "SaveToFile", params = "File AS STRING", value = true },
+  { name = "SaveToStream", params = "File AS QSTREAM", missing = true },
+  { name = "Sort", value = true },
+  { name = "Add", origin = "rapidr", value = true },
+  { name = "Delete", origin = "rapidr", value = true },
+  { name = "Insert", origin = "rapidr" },
+  { name = "Remove", origin = "rapidr" },
+  { name = "Get", origin = "rapidr" },
+  { name = "Strings", origin = "rapidr" },
+  { name = "String", origin = "rapidr" },
+  { name = "AddItem", origin = "rapidr", value = true },
+  { name = "AddString", origin = "rapidr" },
+  { name = "DeleteItem", origin = "rapidr", value = true },
+  { name = "Deleteitems", origin = "rapidr", value = true },
+  { name = "RemoveItem", origin = "rapidr", value = true },
+  { name = "Find", value = true },
+  { name = "Refresh", origin = "rapidr", value = true },
+]
+events = []
+
+[[component]]
+name = "RPRINTER"
+rapidq = "QPRINTER"
+visual = false
+doc = ""
+properties = [
+  { name = "Aborted", type = "int", access = "read", design = false },
+  { name = "Copies", type = "int" },
+  { name = "CopyMode", type = "enum", values = ["cmBlackness", "cmDstInvert", "cmMergeCopy", "cmMergePaint", "cmNotSrcCopy", "cmNotSrcErase", "cmPatCopy", "cmPatInvert", "cmPatPaint", "cmSrcAnd", "cmSrcCopy", "cmSrcErase", "cmSrcInvert", "cmSrcPaint", "cmWhiteness"], default = "cmBlackNess" },
+  { name = "Font", type = "font", access = "write", design = false },
+  { name = "Fonts", type = "string", indexed = 1, access = "read", design = false },
+  { name = "FontsCount", type = "int", access = "read", design = false },
+  { name = "Handle", type = "int", access = "read", design = false },
+  { name = "Orientation", type = "enum", values = ["tbHorizontal", "tbVertical"] },
+  { name = "PageHeight", type = "int", access = "read", design = false },
+  { name = "PageNumber", type = "int", access = "read", design = false },
+  { name = "PageWidth", type = "int", access = "read", design = false },
+  { name = "PrinterIndex", type = "int" },
+  { name = "Printers", type = "string", indexed = 1, access = "read", design = false },
+  { name = "PrintersCount", type = "int", access = "read", design = false },
+  { name = "Printing", type = "int", access = "read", design = false },
+  { name = "Title", type = "string" },
+]
+methods = [
+  { name = "Abort" },
+  { name = "BeginDoc" },
+  { name = "EndDoc" },
+  { name = "NewPage" },
+  { name = "Circle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER" },
+  { name = "CopyRect", params = "D, Image, S" },
+  { name = "Draw", params = "x AS INTEGER, y AS INTEGER, BMP" },
+  { name = "FillRect", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER" },
+  { name = "Line", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER" },
+  { name = "Paint", params = "x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER" },
+  { name = "Pset", params = "x AS INTEGER, y AS INTEGER, c AS INTEGER" },
+  { name = "Rectangle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER" },
+  { name = "RoundRect", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER" },
+  { name = "StretchDraw", params = "Rect AS QRECT, BMP" },
+  { name = "TextHeight", params = "Text AS STRING", returns = "WORD" },
+  { name = "TextWidth", params = "Text AS STRING", returns = "WORD" },
+  { name = "TextRect", params = "Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", missing = true },
+  { name = "TextOut", params = "x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER" },
+]
+events = []
+
+[[component]]
+name = "RREGISTRY"
+rapidq = "QREGISTRY"
+visual = false
+doc = ""
+properties = [
+  { name = "CurrentKey", type = "int", access = "read", design = false },
+  { name = "CurrentPath", type = "string", access = "read", design = false },
+  { name = "HasSubKeys", type = "int", access = "read", design = false },
+  { name = "KeyItemCount", type = "int", access = "read", design = false },
+  { name = "ValueItemCount", type = "int", access = "read", design = false },
+  { name = "RootKey", type = "int" },
+]
+methods = [
+  { name = "CloseKey" },
+  { name = "CreateKey", params = "Key AS STRING", returns = "INTEGER" },
+  { name = "DeleteKey", params = "Key AS STRING", returns = "INTEGER" },
+  { name = "DeleteValue", params = "ValName AS STRING", returns = "INTEGER" },
+  { name = "KeyExists", params = "Key AS STRING", returns = "INTEGER" },
+  { name = "KeyItem", params = "Index AS INTEGER", returns = "STRING" },
+  { name = "MoveKey", params = "OldKey AS STRING, NewKey AS STRING, Delete AS INTEGER", returns = "VARIANT" },
+  { name = "OpenKey", params = "Key AS STRING, CanCreate AS INTEGER", returns = "VARIANT" },
+  { name = "ReadFloat", params = "ValueName AS STRING", returns = "DOUBLE" },
+  { name = "ReadInteger", params = "ValueName AS STRING", returns = "INTEGER" },
+  { name = "ReadString", params = "ValueName AS STRING", returns = "STRING" },
+  { name = "RegistryConnect", params = "CompName AS STRING", returns = "INTEGER" },
+  { name = "ValueExists", params = "ValueName AS STRING", returns = "INTEGER" },
+  { name = "ValueItem", params = "Index AS INTEGER", returns = "STRING" },
+  { name = "RenameValue" },
+  { name = "GetDataSize" },
+  { name = "GetDataType" },
+  { name = "ReadBinary" },
+  { name = "WriteString" },
+  { name = "WriteInteger" },
+  { name = "WriteFloat" },
+  { name = "WriteBinary" },
+]
+events = []
+
+[[component]]
+name = "RJSON"
+visual = false
+doc = "JSON parsing and generation component. Supports parse, stringify, prettify, dot-path get/set, file I/O, and key enumeration."
+properties = [
+  { name = "Text", type = "string" },
+  { name = "FileName", type = "string" },
+  { name = "Count", type = "int" },
+]
+methods = [
+  { name = "Parse", params = "jsonString", doc = "Parses a JSON string into the internal store. Returns 1 on success, 0 on error.", value = true },
+  { name = "Stringify", doc = "Returns the stored JSON as a compact string.", value = true },
+  { name = "Prettify", doc = "Returns the stored JSON as a pretty-printed string with indentation.", value = true },
+  { name = "Get", params = "path", doc = "Returns the value at the dot-path (e.g. \"user.name\" or \"items.0\"). Returns \"\" if not found." },
+  { name = "Set", params = "path, value", doc = "Sets the value at the dot-path, creating intermediate objects as needed." },
+  { name = "Has", params = "path", doc = "Returns 1 if the path exists, 0 otherwise.", value = true },
+  { name = "Remove", params = "path", doc = "Removes the key at the given path.", value = true },
+  { name = "Keys", doc = "Returns a comma-separated list of top-level keys.", value = true },
+  { name = "LoadFile", params = "filename", doc = "Loads and parses a JSON file. Returns 1 on success, 0 on error.", value = true },
+  { name = "SaveFile", params = "filename", doc = "Saves the stored JSON to a file (pretty-printed). Returns 1 on success, 0 on error.", value = true },
+  { name = "Clear", doc = "Clears the stored JSON data.", value = true },
+]
+events = []
+
+[[component]]
+name = "RFONT"
+rapidq = "QFONT"
+visual = false
+doc = ""
+properties = [
+  { name = "Charset", type = "enum", values = ["DEFAULT_CHARSET"], default = "DEFAULT_CHARSET" },
+  { name = "Color", type = "color" },
+  { name = "FontCount", type = "int", access = "read", design = false },
+  { name = "FontName", type = "string", indexed = 1, access = "read", design = false },
+  { name = "Handle", type = "int", design = false },
+  { name = "Pitch", type = "enum", values = ["fpDefault", "fpVariable", "fpFixed"], default = "fpDefault" },
+  { name = "Size", type = "int" },
+  { name = "Name", type = "any" },
+  { name = "Bold", type = "int" },
+  { name = "Italic", type = "int" },
+  { name = "Underline", type = "int" },
+  { name = "Strikeout", type = "int" },
+]
+methods = [
+  { name = "AddStyles", params = "Items ..." },
+  { name = "DelStyles", params = "Items ..." },
+]
+events = []
+
+[[component]]
+name = "RMEMORYSTREAM"
+rapidq = "QMEMORYSTREAM"
+visual = false
+doc = ""
+properties = [
+  { name = "LineCount", type = "int", access = "read", design = false },
+  { name = "Pointer", type = "int", access = "read", design = false },
+  { name = "Position", type = "int" },
+  { name = "Size", type = "int" },
+  { name = "FileName", type = "string", origin = "rapidr" },
+  { name = "Text", type = "string", origin = "rapidr" },
+]
+methods = [
+  { name = "Close", value = true },
+  { name = "CopyFrom", params = "Stream, Bytes AS INTEGER", missing = true },
+  { name = "ExtractRes", params = "Resource AS LONG" },
+  { name = "LoadArray", params = "Array", missing = true },
+  { name = "MemCopyFrom", params = "Address AS LONG, Bytes AS LONG", missing = true },
+  { name = "MemCopyTo", params = "Address AS LONG, Bytes AS LONG", missing = true },
+  { name = "Read", params = "variable" },
+  { name = "ReadLine", returns = "STRING", value = true },
+  { name = "ReadNum", params = "Num_Type", returns = "DOUBLE" },
+  { name = "ReadStr", params = "n", returns = "STRING" },
+  { name = "ReadBinStr", params = "n", returns = "STRING" },
+  { name = "ReadUDT", params = "MyType" },
+  { name = "SaveArray", params = "Array", missing = true },
+  { name = "Seek", params = "Position AS INTEGER, From AS INTEGER" },
+  { name = "Write", params = "variable" },
+  { name = "WriteLine", params = "S AS STRING" },
+  { name = "WriteNum", params = "number, bytes AS INTEGER" },
+  { name = "WriteBinStr", params = "string, bytes AS INTEGER" },
+  { name = "WriteStr", params = "string, bytes AS INTEGER" },
+  { name = "WriteUDT", params = "MyType" },
+  { name = "Readall", origin = "rapidr", value = true },
+  { name = "Writeln", origin = "rapidr" },
+  { name = "Readln", origin = "rapidr", value = true },
+  { name = "Clear", value = true },
+  { name = "Loadudtarray", missing = true },
+  { name = "Saveudtarray", missing = true },
+  { name = "Setsize", missing = true },
+]
+events = []
+
+[[component]]
+name = "RBITMAP"
+rapidq = "QBITMAP"
+visual = false
+doc = ""
+properties = [
+  { name = "BMP", type = "picture" },
+  { name = "BMPHandle", type = "resource", access = "write", design = false },
+  { name = "CopyMode", type = "enum", values = ["cmBlackness", "cmDstInvert", "cmMergeCopy", "cmMergePaint", "cmNotSrcCopy", "cmNotSrcErase", "cmPatCopy", "cmPatInvert", "cmPatPaint", "cmSrcAnd", "cmSrcCopy", "cmSrcErase", "cmSrcInvert", "cmSrcPaint", "cmWhiteness"], default = "cmBlackness" },
+  { name = "Empty", type = "int", access = "read", design = false },
+  { name = "Font", type = "font", access = "write", design = false },
+  { name = "Handle", type = "int", design = false },
+  { name = "Height", type = "int" },
+  { name = "Monochrome", type = "int" },
+  { name = "Pixel", type = "int", indexed = 2, design = false },
+  { name = "PixelFormat", type = "enum", values = ["pfDevice", "pf1bit", "pf4bit", "pf8bit", "pf15bit", "pf16bit", "pf24bit", "pf32bit"], default = "pfDevice" },
+  { name = "Top", type = "int" },
+  { name = "Transparent", type = "bool", default = false },
+  { name = "TransparentColor", type = "color" },
+  { name = "TransparentMode", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "PenColor", type = "color", origin = "rapidr" },
+  { name = "BrushColor", type = "color", origin = "rapidr" },
+  { name = "FontColor", type = "color", origin = "rapidr" },
+  { name = "FontName", type = "string", origin = "rapidr" },
+  { name = "FontSize", type = "int", origin = "rapidr" },
+]
+methods = [
+  { name = "Circle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER", value = true },
+  { name = "CopyRect", params = "D, Image, S" },
+  { name = "Draw", params = "x AS INTEGER, y AS INTEGER, BMP" },
+  { name = "FillRect", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER", value = true },
+  { name = "Line", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER", value = true },
+  { name = "LoadFromFile", params = "FileName AS STRING" },
+  { name = "LoadFromStream", params = "Stream" },
+  { name = "Paint", params = "x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER" },
+  { name = "Pset", params = "x AS INTEGER, y AS INTEGER, c AS INTEGER" },
+  { name = "Rectangle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER" },
+  { name = "Rotate", params = "xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER", missing = true },
+  { name = "RoundRect", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER" },
+  { name = "SaveToFile", params = "FileName AS STRING" },
+  { name = "SaveToStream", params = "Stream" },
+  { name = "StretchDraw", params = "Rect AS QRECT, BMP" },
+  { name = "TextHeight", params = "Text AS STRING", returns = "WORD" },
+  { name = "TextWidth", params = "Text AS STRING", returns = "WORD" },
+  { name = "TextRect", params = "Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", missing = true },
+  { name = "TextOut", params = "x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER" },
+  { name = "Rect", origin = "rapidr", value = true },
+  { name = "SetPixel", origin = "rapidr", value = true },
+  { name = "Ellipse", origin = "rapidr", value = true },
+  { name = "DrawText", origin = "rapidr", value = true },
+]
+events = []
+
+[[component]]
+name = "RIMAGELIST"
+rapidq = "QIMAGELIST"
+visual = false
+doc = ""
+properties = [
+  { name = "BkColor", type = "color", default = 536870911 },
+  { name = "BlendColor", type = "color", default = 536870911 },
+  { name = "Count", type = "int", access = "read", design = false },
+  { name = "DrawingStyle", type = "enum", values = ["dsFocused", "dsSelected", "dsNormal", "dsTransparent"], default = "dsNormal" },
+  { name = "GetBMP", type = "any", indexed = 1, access = "read", design = false },
+  { name = "GetICO", type = "any", indexed = 1, access = "read", design = false },
+  { name = "Handle", type = "int", design = false },
+  { name = "Height", type = "int" },
+  { name = "ImageType", type = "enum", values = ["itImage", "itMask"], default = "itImage" },
+  { name = "Masked", type = "bool", default = true },
+  { name = "Width", type = "int" },
+  { name = "Shareimages", type = "any" },
+]
+methods = [
+  { name = "AddBMPFile", params = "FileName AS STRING, MaskColor AS INTEGER" },
+  { name = "AddICOFile", params = "FileName AS STRING" },
+  { name = "AddBMPHandle", params = "BMP_Resource, MaskColor AS INTEGER" },
+  { name = "AddICOHandle", params = "ICO_Resource" },
+  { name = "Clear", value = true },
+  { name = "Delete", params = "Index AS INTEGER" },
+  { name = "Draw", params = "QIMAGE, X AS INTEGER, Y AS INTEGER, Index AS INTEGER", missing = true },
+  { name = "InsertBMPFile", params = "Index AS INTEGER, Filename AS STRING, Mask AS INTEGER" },
+  { name = "InsertICOFile", params = "Index AS INTEGER, Filename AS STRING" },
+  { name = "InsertBMPHandle", params = "Index AS INTEGER, BMP_Resource, Mask AS INTEGER" },
+  { name = "InsertICOHandle", params = "Index AS INTEGER, ICO_Resource" },
+]
+events = []
+
+[[component]]
+name = "RNOTIFYICONDATA"
+rapidq = "QNOTIFYICONDATA"
+visual = false
+doc = ""
+properties = [
+  { name = "cbSize", type = "int", access = "read", design = false },
+  { name = "hWnd", type = "int" },
+  { name = "uID", type = "int" },
+  { name = "uFlags", type = "int" },
+  { name = "uCallBackMessage", type = "int" },
+  { name = "hIcon", type = "int" },
+  { name = "szTip", type = "string" },
+]
+methods = []
+events = []

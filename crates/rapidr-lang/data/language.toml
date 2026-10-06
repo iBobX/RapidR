@@ -1,0 +1,670 @@
+# The statements the parser accepts (keywords that start a statement).
+
+[[statement]]
+name = "DIM"
+syntax = "DIM name[(bounds)] [AS type] [= value] [, …]"
+group = "Declarations"
+doc = ""
+
+[[statement]]
+name = "REDIM"
+syntax = "REDIM [PRESERVE] name(bounds) [AS type]"
+group = "Declarations"
+doc = ""
+
+[[statement]]
+name = "STATIC"
+syntax = "STATIC name[(bounds)] AS type"
+group = "Declarations"
+doc = ""
+
+[[statement]]
+name = "CONST"
+syntax = "CONST name = expression [, …]"
+group = "Declarations"
+doc = ""
+
+[[statement]]
+name = "DEFINT"
+syntax = "DEFINT name [= value] [, …]"
+group = "Declarations"
+doc = ""
+
+[[statement]]
+name = "DEFSTR"
+syntax = "DEFSTR name [= value] [, …]"
+group = "Declarations"
+doc = ""
+
+[[statement]]
+name = "DEFBYTE"
+syntax = "DEFBYTE name [= value] [, …]"
+group = "Declarations"
+doc = ""
+
+[[statement]]
+name = "DEFWORD"
+syntax = "DEFWORD name [= value] [, …]"
+group = "Declarations"
+doc = ""
+
+[[statement]]
+name = "DEFDWORD"
+syntax = "DEFDWORD name [= value] [, …]"
+group = "Declarations"
+doc = ""
+
+[[statement]]
+name = "DEFLNG"
+syntax = "DEFLNG name [= value] [, …] (also DEFLONG)"
+group = "Declarations"
+doc = ""
+
+[[statement]]
+name = "DEFSHORT"
+syntax = "DEFSHORT name [= value] [, …]"
+group = "Declarations"
+doc = ""
+
+[[statement]]
+name = "DEFSNG"
+syntax = "DEFSNG name [= value] [, …]"
+group = "Declarations"
+doc = ""
+
+[[statement]]
+name = "DEFDBL"
+syntax = "DEFDBL name [= value] [, …]"
+group = "Declarations"
+doc = ""
+
+[[statement]]
+name = "DEFCUR"
+syntax = "DEFCUR name [= value] [, …]"
+group = "Declarations"
+origin = "rapidr"
+doc = ""
+
+[[statement]]
+name = "GLOBAL"
+syntax = "GLOBAL name AS type (also PUBLIC / PRIVATE before a declaration)"
+group = "Declarations"
+origin = "rapidr"
+doc = ""
+
+[[statement]]
+name = "TYPE"
+syntax = "TYPE name [EXTENDS type] … END TYPE (also STRUCT … END STRUCT)"
+group = "Types and objects"
+doc = ""
+
+[[statement]]
+name = "EXTENDS"
+syntax = "TYPE name EXTENDS QOBJECT | component"
+group = "Types and objects"
+doc = ""
+
+[[statement]]
+name = "PROPERTY SET"
+syntax = "PROPERTY SET name(value AS type)"
+group = "Types and objects"
+doc = ""
+
+[[statement]]
+name = "EVENT"
+syntax = "EVENT(member) … END EVENT"
+group = "Types and objects"
+doc = ""
+
+[[statement]]
+name = "CONSTRUCTOR"
+syntax = "CONSTRUCTOR … END CONSTRUCTOR"
+group = "Types and objects"
+doc = ""
+
+[[statement]]
+name = "PUBLIC"
+syntax = "PUBLIC: / PRIVATE: in a TYPE"
+group = "Types and objects"
+doc = ""
+
+[[statement]]
+name = "CREATE"
+syntax = "CREATE name AS type … END CREATE"
+group = "Types and objects"
+doc = ""
+
+[[statement]]
+name = "WITH"
+syntax = "WITH object … END WITH"
+group = "Types and objects"
+doc = ""
+
+[[statement]]
+name = "SUB"
+syntax = "SUB name[(params)] … END SUB"
+group = "Routines"
+doc = ""
+
+[[statement]]
+name = "FUNCTION"
+syntax = "FUNCTION name[(params)] AS type … END FUNCTION"
+group = "Routines"
+doc = ""
+
+[[statement]]
+name = "SUBI"
+syntax = "SUBI name(…) … END SUBI"
+group = "Routines"
+doc = ""
+
+[[statement]]
+name = "FUNCTIONI"
+syntax = "FUNCTIONI name(…) AS type … END FUNCTIONI"
+group = "Routines"
+doc = ""
+
+[[statement]]
+name = "DECLARE"
+syntax = "DECLARE SUB|FUNCTION name [LIB \"file\" [ALIAS \"name\"]] [(params)] [AS type]"
+group = "Routines"
+doc = ""
+
+[[statement]]
+name = "CALL"
+syntax = "CALL name[(args)]"
+group = "Routines"
+doc = ""
+
+[[statement]]
+name = "BIND"
+syntax = "BIND pointer TO routine"
+group = "Routines"
+doc = ""
+
+[[statement]]
+name = "EXIT"
+syntax = "EXIT FOR | DO | WHILE | SUB | FUNCTION"
+group = "Flow"
+doc = ""
+
+[[statement]]
+name = "IF"
+syntax = "IF condition THEN … [ELSEIF condition THEN …] [ELSE …] END IF"
+group = "Flow"
+doc = ""
+
+[[statement]]
+name = "SELECT CASE"
+syntax = "SELECT CASE expression … CASE values … CASE ELSE … END SELECT"
+group = "Flow"
+doc = ""
+
+[[statement]]
+name = "FOR"
+syntax = "FOR variable = start TO end [STEP step] … NEXT [variable]"
+group = "Flow"
+doc = ""
+
+[[statement]]
+name = "WHILE"
+syntax = "WHILE condition … WEND"
+group = "Flow"
+doc = ""
+
+[[statement]]
+name = "DO"
+syntax = "DO [WHILE|UNTIL condition] … LOOP [WHILE|UNTIL condition]"
+group = "Flow"
+doc = ""
+
+[[statement]]
+name = "GOTO"
+syntax = "GOTO label"
+group = "Flow"
+doc = ""
+
+[[statement]]
+name = "GOSUB"
+syntax = "GOSUB label … RETURN"
+group = "Flow"
+doc = ""
+
+[[statement]]
+name = "RETURN"
+syntax = "RETURN"
+group = "Flow"
+doc = ""
+
+[[statement]]
+name = "END"
+syntax = "END"
+group = "Flow"
+doc = ""
+
+[[statement]]
+name = "ON ERROR"
+syntax = "ON ERROR RESUME NEXT | GOTO label"
+group = "Flow"
+origin = "rapidr"
+doc = ""
+
+[[statement]]
+name = "PRINT"
+syntax = "PRINT [expression][; | ,] …"
+group = "Console"
+doc = ""
+
+[[statement]]
+name = "LPRINT"
+syntax = "LPRINT [expression][; | ,] …"
+group = "Console"
+doc = ""
+
+[[statement]]
+name = "INPUT"
+syntax = "INPUT [\"prompt\";] variable"
+group = "Console"
+doc = ""
+
+[[statement]]
+name = "LINE INPUT"
+syntax = "LINE INPUT #n, variable"
+group = "Files"
+origin = "rapidr"
+doc = ""
+
+[[statement]]
+name = "OPEN"
+syntax = "OPEN file FOR INPUT|OUTPUT|APPEND|BINARY|RANDOM AS #n"
+group = "Files"
+origin = "rapidr"
+doc = ""
+
+[[statement]]
+name = "CLOSE"
+syntax = "CLOSE [#n]"
+group = "Files"
+origin = "rapidr"
+doc = ""
+
+[[statement]]
+name = "PRINT #"
+syntax = "PRINT #n, expression [; …]"
+group = "Files"
+origin = "rapidr"
+doc = ""
+
+[[statement]]
+name = "WRITE #"
+syntax = "WRITE #n, expression [, …]"
+group = "Files"
+origin = "rapidr"
+doc = ""
+
+[[statement]]
+name = "INPUT #"
+syntax = "INPUT #n, variable [, …]"
+group = "Files"
+origin = "rapidr"
+doc = ""
+
+[[statement]]
+name = "SEEK"
+syntax = "SEEK #n, position"
+group = "Files"
+origin = "rapidr"
+doc = ""
+
+[[statement]]
+name = "DATA"
+syntax = "DATA value [, …]"
+group = "Data"
+doc = ""
+
+[[statement]]
+name = "READ"
+syntax = "READ variable [, …]"
+group = "Data"
+doc = ""
+
+[[statement]]
+name = "RESTORE"
+syntax = "RESTORE [label]"
+group = "Data"
+doc = ""
+
+[[statement]]
+name = "SWAP"
+syntax = "SWAP a, b"
+group = "Data"
+doc = ""
+
+[[statement]]
+name = "INC"
+syntax = "INC variable [, amount]"
+group = "Data"
+doc = ""
+
+[[statement]]
+name = "DEC"
+syntax = "DEC variable [, amount]"
+group = "Data"
+doc = ""
+
+[[statement]]
+name = "QUICKSORT"
+syntax = "QUICKSORT(array(first), array(last), ascending [, …])"
+group = "Data"
+doc = ""
+
+[[statement]]
+name = "REM"
+syntax = "REM comment (also ' comment)"
+group = "Other"
+doc = ""
+
+[[statement]]
+name = "IMPORT"
+syntax = "IMPORT \"file\""
+group = "Other"
+origin = "rapidr"
+doc = ""
+
+[[statement]]
+name = "RUSTSTART"
+syntax = "RUSTSTART … RUSTEND (Rust code, native builds)"
+group = "Other"
+origin = "rapidr"
+doc = ""
+
+[[directive]]
+name = "$INCLUDE"
+syntax = "$INCLUDE \"file\""
+doc = ""
+
+[[directive]]
+name = "$RESOURCE"
+syntax = "$RESOURCE name AS \"file\""
+doc = ""
+
+[[directive]]
+name = "$DEFINE"
+syntax = "$DEFINE name [text]"
+doc = ""
+
+[[directive]]
+name = "$UNDEF"
+syntax = "$UNDEF name"
+doc = ""
+
+[[directive]]
+name = "$IFDEF"
+syntax = "$IFDEF name"
+doc = ""
+
+[[directive]]
+name = "$IFNDEF"
+syntax = "$IFNDEF name"
+doc = ""
+
+[[directive]]
+name = "$ELSE"
+syntax = "$ELSE"
+doc = ""
+
+[[directive]]
+name = "$ENDIF"
+syntax = "$ENDIF"
+doc = ""
+
+[[directive]]
+name = "$MACRO"
+syntax = "$MACRO name(params) = text"
+doc = ""
+
+[[directive]]
+name = "$APPTYPE"
+syntax = "$APPTYPE GUI | CONSOLE | CGI"
+doc = ""
+
+[[directive]]
+name = "$TYPECHECK"
+syntax = "$TYPECHECK ON | OFF"
+doc = ""
+
+[[directive]]
+name = "$OPTIMIZE"
+syntax = "$OPTIMIZE ON | OFF"
+doc = ""
+
+[[directive]]
+name = "$ESCAPECHARS"
+syntax = "$ESCAPECHARS ON | OFF"
+doc = ""
+
+[[directive]]
+name = "$OPTION"
+syntax = "$OPTION ICON \"file\" | DECIMAL | BYREF | INKEY$ TRAPALL | EXPLICIT …"
+doc = ""
+
+[[directive]]
+name = "$THEME"
+syntax = "$THEME name"
+origin = "rapidr"
+doc = ""
+
+[[keyword]]
+name = "AND"
+kind = "operator"
+doc = ""
+
+[[keyword]]
+name = "OR"
+kind = "operator"
+doc = ""
+
+[[keyword]]
+name = "XOR"
+kind = "operator"
+doc = ""
+
+[[keyword]]
+name = "NOT"
+kind = "operator"
+doc = ""
+
+[[keyword]]
+name = "MOD"
+kind = "operator"
+doc = ""
+
+[[keyword]]
+name = "SHL"
+kind = "operator"
+doc = ""
+
+[[keyword]]
+name = "SHR"
+kind = "operator"
+doc = ""
+
+[[keyword]]
+name = "INV"
+kind = "operator"
+doc = ""
+
+[[keyword]]
+name = "IS"
+kind = "operator"
+doc = ""
+
+[[keyword]]
+name = "AS"
+kind = "keyword"
+doc = ""
+
+[[keyword]]
+name = "TO"
+kind = "keyword"
+doc = ""
+
+[[keyword]]
+name = "STEP"
+kind = "keyword"
+doc = ""
+
+[[keyword]]
+name = "THEN"
+kind = "keyword"
+doc = ""
+
+[[keyword]]
+name = "ELSE"
+kind = "keyword"
+doc = ""
+
+[[keyword]]
+name = "ELSEIF"
+kind = "keyword"
+doc = ""
+
+[[keyword]]
+name = "NEXT"
+kind = "keyword"
+doc = ""
+
+[[keyword]]
+name = "WEND"
+kind = "keyword"
+doc = ""
+
+[[keyword]]
+name = "LOOP"
+kind = "keyword"
+doc = ""
+
+[[keyword]]
+name = "UNTIL"
+kind = "keyword"
+doc = ""
+
+[[keyword]]
+name = "CASE"
+kind = "keyword"
+doc = ""
+
+[[keyword]]
+name = "LIB"
+kind = "keyword"
+doc = ""
+
+[[keyword]]
+name = "ALIAS"
+kind = "keyword"
+doc = ""
+
+[[keyword]]
+name = "BYVAL"
+kind = "keyword"
+doc = ""
+
+[[keyword]]
+name = "BYREF"
+kind = "keyword"
+doc = ""
+
+[[keyword]]
+name = "PRESERVE"
+kind = "keyword"
+doc = ""
+
+[[keyword]]
+name = "SET"
+kind = "keyword"
+doc = ""
+
+[[keyword]]
+name = "STRUCT"
+kind = "keyword"
+doc = ""
+
+[[keyword]]
+name = "PRIVATE"
+kind = "keyword"
+doc = ""
+
+[[keyword]]
+name = "THIS"
+kind = "keyword"
+doc = ""
+
+[[keyword]]
+name = "SUPER"
+kind = "keyword"
+doc = ""
+
+[[keyword]]
+name = "RUSTEND"
+kind = "keyword"
+origin = "rapidr"
+doc = ""
+
+[[type]]
+name = "BYTE"
+doc = ""
+
+[[type]]
+name = "SHORT"
+doc = ""
+
+[[type]]
+name = "WORD"
+doc = ""
+
+[[type]]
+name = "INTEGER"
+doc = ""
+
+[[type]]
+name = "DWORD"
+doc = ""
+
+[[type]]
+name = "LONG"
+doc = ""
+
+[[type]]
+name = "SINGLE"
+doc = ""
+
+[[type]]
+name = "DOUBLE"
+doc = ""
+
+[[type]]
+name = "STRING"
+doc = ""
+
+[[type]]
+name = "VARIANT"
+doc = ""
+
+[[type]]
+name = "QOBJECT"
+doc = ""
+
+[[type]]
+name = "INT64"
+origin = "rapidr"
+doc = ""
+
+[[type]]
+name = "CURRENCY"
+origin = "rapidr"
+doc = ""
+
+[[type]]
+name = "ROBJECT"
+origin = "rapidr"
+doc = ""

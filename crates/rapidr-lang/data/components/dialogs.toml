@@ -1,0 +1,118 @@
+# Dialogs: the registry's components (crates/rapidr-lang; src/lib.rs says how to edit).
+group = "Dialogs"
+
+[[component]]
+name = "ROPENDIALOG"
+rapidq = "QOPENDIALOG"
+visual = false
+doc = ""
+properties = [
+  { name = "Caption", type = "string" },
+  { name = "FileName", type = "string" },
+  { name = "Filter", type = "string" },
+  { name = "FilterIndex", type = "int", default = 1 },
+  { name = "InitialDir", type = "string" },
+  { name = "Title", type = "string", origin = "rapidr" },
+  { name = "DefaultExt", type = "string", origin = "rapidr" },
+]
+methods = [
+  { name = "Execute", returns = "VARIANT", value = true },
+]
+events = []
+
+[[component]]
+name = "RSAVEDIALOG"
+rapidq = "QSAVEDIALOG"
+visual = false
+doc = ""
+properties = [
+  { name = "Caption", type = "string" },
+  { name = "FileName", type = "string" },
+  { name = "Filter", type = "string" },
+  { name = "FilterIndex", type = "int", default = 1 },
+  { name = "InitialDir", type = "string" },
+  { name = "Title", type = "string", origin = "rapidr" },
+  { name = "DefaultExt", type = "string", origin = "rapidr" },
+]
+methods = [
+  { name = "Execute", returns = "VARIANT", value = true },
+]
+events = []
+
+[[component]]
+name = "RFILEDIALOG"
+rapidq = "QFILEDIALOG"
+from = "RAPIDQ2.INC"
+visual = false
+doc = ""
+properties = [
+  { name = "Caption", type = "string", default = "Open" },
+  { name = "DefaultExt", type = "string" },
+  { name = "FileName", type = "string" },
+  { name = "FileTitle", type = "string", access = "read", design = false },
+  { name = "Files", type = "string", indexed = 1, default = "All Files|*.*", design = false },
+  { name = "Filter", type = "string", default = "All Files|*.*" },
+  { name = "FilterIndex", type = "int", default = 1 },
+  { name = "InitialDir", type = "string" },
+  { name = "Mode", type = "int" },
+  { name = "MultiSelect", type = "bool", default = false },
+  { name = "NoChangeDir", type = "bool", default = false },
+  { name = "Parent", type = "int", design = false },
+  { name = "SelCount", type = "int", default = 0, access = "read", design = false },
+  { name = "WarnIfOverWrite", type = "bool", default = true },
+  { name = "Title", type = "string", origin = "rapidr" },
+]
+methods = [
+  { name = "Execute", returns = "VARIANT", value = true },
+]
+events = []
+
+[[component]]
+name = "RCOLORDIALOG"
+rapidq = "QCOLORDIALOG"
+from = "RAPIDQ2.INC"
+visual = true
+sets = ["layout", "a11y"]
+doc = "Native colour-picker dialog. On the web runtime renders an HTML5 <input type=\"color\">; on desktop uses the system colour dialog. After Execute, read the .Color property as an RGB integer."
+properties = [
+  { name = "Caption", type = "string" },
+  { name = "Colors", type = "int", indexed = 1, design = false },
+  { name = "Color", type = "color", access = "read", design = false },
+  { name = "Left", type = "int" },
+  { name = "Top", type = "int" },
+  { name = "Style", type = "int" },
+]
+methods = [
+  { name = "Execute", doc = "Opens the colour picker. Returns 1 if a colour was selected, 0 if cancelled. Selected value is in .Color.", returns = "VARIANT", value = true },
+]
+events = []
+
+[[component]]
+name = "RFONTDIALOG"
+rapidq = "QFONTDIALOG"
+visual = false
+default_event = "OnApply"
+doc = "Font selection dialog. After Execute, read .FontName / .FontSize / .FontColor / .FontStyle to retrieve the user choice."
+properties = [
+  { name = "Color", type = "color" },
+  { name = "FontCount", type = "int", access = "read", design = false },
+  { name = "FontName", type = "string", indexed = 1, access = "read", design = false },
+  { name = "MaxFontSize", type = "int" },
+  { name = "MinFontSize", type = "int" },
+  { name = "Size", type = "int" },
+  { name = "FontSize", type = "int", origin = "rapidr" },
+  { name = "FontColor", type = "color", origin = "rapidr" },
+  { name = "Name", type = "any" },
+]
+methods = [
+  { name = "AddStyles", params = "Items ..." },
+  { name = "DelStyles", params = "Items ..." },
+  { name = "AddOptions", params = "Items ..." },
+  { name = "DelOptions", params = "Items ..." },
+  { name = "Execute", doc = "Opens the font dialog. Returns 1 if a font was chosen, 0 if cancelled. Read .FontName / .FontSize / .FontColor / .FontStyle for the result.", returns = "VARIANT", value = true },
+  { name = "GetFont", params = "F AS QFONT", missing = true },
+  { name = "SetFont", params = "F AS QFONT" },
+]
+events = [
+  { name = "OnApply" },
+]

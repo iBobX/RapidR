@@ -1,0 +1,15 @@
+[package]
+name = "rapidr-lang"
+description = "RapidR's language registry: every component, member, builtin, statement, directive, constant and keyword, with RapidQ / RapidR origin and docs (data/*.toml, compiled into static tables)"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+
+# No dependencies: the registry is static data (wasm-safe, no GUI), read by
+# the compilers, the runtimes' dispatch, the IDE, the CLI's generators.
+[dependencies]
+
+[build-dependencies]
+# Reads data/*.toml at build time only (nothing of it is in a program).
+toml = "1"

@@ -1,0 +1,572 @@
+# Forms and containers: the registry's components (crates/rapidr-lang; src/lib.rs says how to edit).
+group = "Forms and containers"
+
+[[component]]
+name = "RFORM"
+rapidq = "QFORM"
+visual = true
+container = true
+size = [320, 240]
+default_event = "OnTimer"
+sets = ["layout", "a11y"]
+doc = ""
+properties = [
+  { name = "AutoScroll", type = "bool", default = true },
+  { name = "BorderStyle", type = "enum", values = ["bsNone", "bsSingle", "bsSizeable", "bsDialog", "bsToolWindow", "bsSizeToolWin"], default = "bsSizeable" },
+  { name = "Caption", type = "string" },
+  { name = "ClientHeight", type = "int", design = false },
+  { name = "ClientWidth", type = "int", design = false },
+  { name = "Color", type = "color", default = -2147483633 },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
+  { name = "Font", type = "font", access = "write", design = false },
+  { name = "FormStyle", type = "enum", values = ["fsNormal", "fsMDIChild", "fsMDIForm", "fsStayOnTop"], default = "fsNormal" },
+  { name = "Handle", type = "int", access = "read", design = false },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "IcoHandle", type = "resource", access = "write", design = false },
+  { name = "Icon", type = "picture", access = "write", design = false },
+  { name = "KeyPreview", type = "bool", default = false },
+  { name = "Left", type = "int", default = 0 },
+  { name = "ModalResult", type = "enum", values = ["mrNone", "mrOk", "mrCancel", "mrAbort", "mrRetry", "mrIgnore", "mrYes", "mrNo", "mrAll"], access = "write", design = false },
+  { name = "Parent", type = "component", kinds = ["QFORM"], access = "write", design = false },
+  { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"], access = "write", design = false },
+  { name = "ShowHint", type = "bool", default = false },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Visible", type = "bool", default = false },
+  { name = "Width", type = "int", default = 320 },
+  { name = "WindowState", type = "enum", values = ["wsNormal", "wsMinimized", "wsMaximized"], default = "wsNormal" },
+  { name = "AutoSize", type = "int", origin = "rapidr" },
+  { name = "FontSize", type = "int", origin = "rapidr" },
+  { name = "FontColor", type = "color", origin = "rapidr" },
+  { name = "Enabled", type = "int" },
+  { name = "HelpFile", type = "string", origin = "rapidr" },
+  { name = "PenColor", type = "color", origin = "rapidr" },
+  { name = "BrushColor", type = "color", origin = "rapidr" },
+  { name = "FontName", type = "string", origin = "rapidr" },
+  { name = "CopyMode", type = "enum", values = ["cmBlackness", "cmDstInvert", "cmMergeCopy", "cmMergePaint", "cmNotSrcCopy", "cmNotSrcErase", "cmPatCopy", "cmPatInvert", "cmPatPaint", "cmSrcAnd", "cmSrcCopy", "cmSrcErase", "cmSrcInvert", "cmSrcPaint", "cmWhiteness"] },
+  { name = "Mdichildcount", type = "any" },
+  { name = "Pixel", type = "int", indexed = 2, design = false },
+  { name = "Tilemode", type = "any" },
+]
+methods = [
+  { name = "AddBorderIcons", params = "Items ..." },
+  { name = "Center" },
+  { name = "Circle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER", value = true },
+  { name = "Close", value = true },
+  { name = "CopyRect", params = "D, Image, S" },
+  { name = "DelBorderIcons", params = "Items ..." },
+  { name = "Draw", params = "x AS INTEGER, y AS INTEGER, BMP" },
+  { name = "FillRect", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER", value = true },
+  { name = "HideTitleBar", missing = true },
+  { name = "Line", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER", value = true },
+  { name = "Paint", params = "x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER" },
+  { name = "Pset", params = "x AS INTEGER, y AS INTEGER, c AS INTEGER" },
+  { name = "Rectangle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER" },
+  { name = "Repaint" },
+  { name = "RoundRect", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER" },
+  { name = "ShapeForm", params = "Filename AS STRING, TransparentColor AS LONG", missing = true },
+  { name = "Show", test = "skip: waits for the user", value = true },
+  { name = "ShowModal", returns = "VARIANT", test = "skip: waits for the user", value = true },
+  { name = "ShowTitleBar", missing = true },
+  { name = "StretchDraw", params = "Rect AS QRECT, BMP" },
+  { name = "TextHeight", params = "Text AS STRING", returns = "WORD" },
+  { name = "TextWidth", params = "Text AS STRING", returns = "WORD" },
+  { name = "TextRect", params = "Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", missing = true },
+  { name = "TextOut", params = "x AS INTEGER, y AS INTEGER, s AS STRING, fc AS INTEGER, bc AS INTEGER" },
+  { name = "Refresh", origin = "rapidr", value = true },
+  { name = "Hide", origin = "rapidr", value = true },
+  { name = "SetFocus", origin = "rapidr", value = true },
+  { name = "Update", origin = "rapidr" },
+  { name = "Rect", origin = "rapidr", value = true },
+  { name = "SetPixel", origin = "rapidr", value = true },
+  { name = "FillCircle", origin = "rapidr" },
+  { name = "Ellipse", origin = "rapidr", value = true },
+  { name = "Cls", origin = "rapidr" },
+  { name = "DrawText", origin = "rapidr", value = true },
+  { name = "ArrangeIcons", missing = true },
+  { name = "Cascade", missing = true },
+  { name = "Next", missing = true },
+  { name = "Previous", missing = true },
+  { name = "Tile", missing = true },
+]
+events = [
+  { name = "OnClick" },
+  { name = "OnClose", params = "BYREF Action AS INTEGER" },
+  { name = "OnHint", params = "Hint AS STRING" },
+  { name = "OnKeyDown", params = "Key AS WORD, Shift AS INTEGER" },
+  { name = "OnKeyPress", params = "Key AS BYTE" },
+  { name = "OnKeyUp", params = "Key AS WORD, Shift AS INTEGER" },
+  { name = "OnMouseDown", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnPaint" },
+  { name = "OnResize" },
+  { name = "OnShow" },
+  { name = "WndProc", params = "Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG" },
+  { name = "OnDblClick", origin = "rapidr" },
+  { name = "OnTimer", origin = "rapidr" },
+]
+
+[[component]]
+name = "RFORMMDI"
+rapidq = "QFORMMDI"
+from = "RAPIDQ2.INC"
+visual = false
+container = true
+default_event = "OnChildClose"
+doc = ""
+properties = [
+  { name = "ChildCaption", type = "string" },
+  { name = "ChildHandle", type = "int", access = "read", design = false },
+  { name = "ChildLeft", type = "int" },
+  { name = "ChildTop", type = "int" },
+  { name = "ChildWidth", type = "int" },
+  { name = "ChildHeight", type = "int" },
+  { name = "ChildMax", type = "int", default = 1024 },
+  { name = "ChildCount", type = "int", access = "read", design = false },
+  { name = "ChildIcon", type = "int" },
+  { name = "ChildState", type = "int" },
+  { name = "MDIMenu", type = "int" },
+  { name = "ComponentIndex", type = "int", access = "read", design = false },
+  { name = "ChildResult", type = "bool", default = false },
+  { name = "PenColor", type = "color", origin = "rapidr" },
+  { name = "BrushColor", type = "color", origin = "rapidr" },
+  { name = "FontColor", type = "color", origin = "rapidr" },
+  { name = "FontName", type = "string", origin = "rapidr" },
+  { name = "FontSize", type = "int", origin = "rapidr" },
+]
+methods = [
+  { name = "AddChild", params = "handle AS LONG, Title AS STRING, index AS LONG, left AS INTEGER, top AS INTEGER, width AS INTEGER, height AS INTEGER, DefaultSize AS LONG" },
+  { name = "CloseChild", value = true },
+  { name = "CloseAllChild", value = true },
+  { name = "CascadeChild", value = true },
+  { name = "SetHorzChild", value = true },
+  { name = "SetVertChild", value = true },
+  { name = "IconArrangeChild", value = true },
+  { name = "MinimizeAllChild" },
+  { name = "MaximizeAllChild" },
+  { name = "RestoreChild" },
+  { name = "ActiveNextChild", missing = true },
+  { name = "ActivePreviousChild", missing = true },
+  { name = "GetChild", params = "Title AS STRING", returns = "VARIANT" },
+  { name = "ChildExist", params = "Title AS STRING", returns = "VARIANT" },
+  { name = "ActiveChild", params = "Index AS LONG" },
+  { name = "FreeChild", params = "handle AS LONG", returns = "VARIANT" },
+  { name = "SetDeskBar" },
+  { name = "Rect", value = true },
+  { name = "SetPixel", origin = "rapidr", value = true },
+  { name = "FillCircle", origin = "rapidr" },
+  { name = "Ellipse", origin = "rapidr", value = true },
+  { name = "Cls", origin = "rapidr" },
+  { name = "DrawText", origin = "rapidr", value = true },
+]
+events = [
+  { name = "OnChildClose", params = "handleChild AS LONG, index AS LONG, titleChild AS STRING" },
+  { name = "OnChildActive", params = "handleChild AS LONG, index AS LONG, titleChild AS STRING" },
+  { name = "OnChildResize", params = "handleChild AS LONG, index AS LONG, titleChild AS STRING" },
+]
+
+[[component]]
+name = "RPANEL"
+rapidq = "QPANEL"
+visual = true
+container = true
+size = [150, 100]
+default_event = "OnClick"
+sets = ["layout", "a11y"]
+doc = ""
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "Alignment", type = "enum", values = ["taLeftJustify", "taRightJustify", "taCenter"], default = "taCenter" },
+  { name = "BevelInner", type = "enum", values = ["bvNone", "bvLowered", "bvRaised"], default = "bvNone" },
+  { name = "BevelOuter", type = "enum", values = ["bvNone", "bvLowered", "bvRaised"], default = "bvRaised" },
+  { name = "BevelWidth", type = "int", default = 1 },
+  { name = "BorderStyle", type = "enum", values = ["bsNone", "bsSingle", "bsSizeable", "bsDialog", "bsToolWindow", "bsSizeToolWin"], default = "bsNone" },
+  { name = "Caption", type = "string" },
+  { name = "ClientHeight", type = "int", design = false },
+  { name = "ClientWidth", type = "int", design = false },
+  { name = "Color", type = "color" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "Font", type = "font", access = "write", design = false },
+  { name = "Handle", type = "int", access = "read", design = false },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "Left", type = "int", default = 0 },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "ShowHint", type = "bool", default = false },
+  { name = "TabOrder", type = "int" },
+  { name = "Tag", type = "int" },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "Visible", type = "bool", default = true },
+  { name = "FontSize", type = "int", origin = "rapidr" },
+  { name = "FontColor", type = "color", origin = "rapidr" },
+  { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"] },
+]
+methods = [
+  { name = "Repaint" },
+  { name = "Refresh", origin = "rapidr", value = true },
+]
+events = [
+  { name = "OnClick" },
+  { name = "OnDblClick" },
+  { name = "OnMouseDown", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnResize", origin = "rapidr" },
+  { name = "WndProc" },
+]
+
+[[component]]
+name = "RTABCONTROL"
+rapidq = "QTABCONTROL"
+visual = true
+container = true
+size = [150, 100]
+default_event = "OnClick"
+sets = ["layout", "a11y"]
+doc = ""
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "ButtonStyle", type = "bool", default = false },
+  { name = "ClientHeight", type = "int", design = false },
+  { name = "ClientWidth", type = "int", design = false },
+  { name = "Color", type = "color" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "FlatButtons", type = "bool", default = false },
+  { name = "FlatSeperators", type = "bool", default = false },
+  { name = "FocusButtons", type = "bool", default = false },
+  { name = "Font", type = "font", access = "write", design = false },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "HotTrack", type = "bool", default = false },
+  { name = "Left", type = "int", default = 0 },
+  { name = "MultiLine", type = "bool", default = false },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"], access = "write", design = false },
+  { name = "ScrollOpposite", type = "bool", default = false },
+  { name = "ShowHint", type = "bool", default = false },
+  { name = "Tab", type = "string", indexed = 1, design = false },
+  { name = "TabHeight", type = "int" },
+  { name = "TabInactiveColor", type = "color" },
+  { name = "TabInactiveFont", type = "font", access = "write", design = false },
+  { name = "TabIndex", type = "int" },
+  { name = "TabOrder", type = "int" },
+  { name = "TabPosition", type = "int" },
+  { name = "TabWidth", type = "int" },
+  { name = "Tag", type = "int" },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "VerticalTabs", type = "bool", default = false },
+  { name = "Visible", type = "bool", default = true },
+  { name = "FontSize", type = "int", origin = "rapidr" },
+  { name = "FontColor", type = "color", origin = "rapidr" },
+  { name = "Flatseparators", type = "int", origin = "rapidr" },
+]
+methods = [
+  { name = "AddTabs", params = "Items ...", value = true },
+  { name = "DelTabs", params = "Items ..." },
+  { name = "InsertTab", params = "Index AS INTEGER, String AS STRING" },
+  { name = "Addtab", origin = "rapidr" },
+  { name = "Repaint", origin = "rapidr" },
+  { name = "Refresh", origin = "rapidr", value = true },
+  { name = "Deltab", origin = "rapidr" },
+  { name = "Removetab", origin = "rapidr" },
+  { name = "Tabs", origin = "rapidr" },
+]
+events = [
+  { name = "OnChange" },
+  { name = "OnClick", origin = "rapidr" },
+]
+
+[[component]]
+name = "RTOOLBAR"
+visual = true
+container = true
+size = [0, 32]
+default_event = "OnClick"
+sets = ["layout", "a11y"]
+doc = ""
+properties = [
+  { name = "Width", type = "int" },
+  { name = "Height", type = "int" },
+  { name = "Top", type = "int" },
+  { name = "Left", type = "int" },
+  { name = "Visible", type = "int" },
+  { name = "Enabled", type = "int" },
+  { name = "Color", type = "color" },
+  { name = "Hint", type = "string" },
+  { name = "ShowHint", type = "int" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"] },
+  { name = "Parent", type = "component", kinds = ["QFORM"], design = false },
+]
+methods = [
+  { name = "Repaint" },
+  { name = "Refresh", value = true },
+]
+events = [
+  { name = "OnClick" },
+]
+
+[[component]]
+name = "RSTATUSBAR"
+rapidq = "QSTATUSBAR"
+visual = true
+container = true
+size = [318, 24]
+default_event = "OnClick"
+sets = ["layout", "a11y"]
+doc = ""
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alBottom" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "Handle", type = "int", access = "read", design = false },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "Left", type = "int", default = 0 },
+  { name = "Panel", type = "any", indexed = 1, design = false },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"], access = "write", design = false },
+  { name = "ShowHint", type = "bool", default = false },
+  { name = "SimplePanel", type = "bool", default = false },
+  { name = "SimpleText", type = "string" },
+  { name = "SizeGrip", type = "bool", default = true },
+  { name = "TabOrder", type = "int" },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "Visible", type = "bool", default = true },
+  { name = "Caption", type = "string", origin = "rapidr" },
+  { name = "Panelcount", type = "int", origin = "rapidr" },
+  { name = "Font", type = "font", origin = "rapidr" },
+  { name = "FontSize", type = "int", origin = "rapidr" },
+  { name = "FontColor", type = "color", origin = "rapidr" },
+]
+methods = [
+  { name = "AddPanels", params = "Items ...", only = "desktop" },
+  { name = "Clear", value = true },
+  { name = "Repaint", origin = "rapidr" },
+  { name = "Refresh", origin = "rapidr", value = true },
+]
+events = [
+  { name = "OnResize" },
+  { name = "OnClick", origin = "rapidr" },
+]
+
+[[component]]
+name = "RSPLITTER"
+rapidq = "QSPLITTER"
+visual = true
+size = [5, 209]
+default_event = "OnMoved"
+sets = ["layout", "a11y"]
+doc = ""
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alLeft" },
+  { name = "Beveled", type = "bool", default = true },
+  { name = "ClientHeight", type = "int", design = false },
+  { name = "ClientWidth", type = "int", design = false },
+  { name = "Color", type = "color" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crHSplit" },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "Left", type = "int" },
+  { name = "MinSize", type = "int", default = 30 },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "ShowHint", type = "bool", default = false },
+  { name = "Tag", type = "int" },
+  { name = "Top", type = "int" },
+  { name = "Visible", type = "bool", default = true },
+  { name = "Width", type = "int" },
+  { name = "Orientation", type = "enum", values = ["tbHorizontal", "tbVertical"], origin = "rapidr" },
+]
+methods = []
+events = [
+  { name = "OnMoved" },
+]
+
+[[component]]
+name = "RSCROLLBOX"
+rapidq = "QSCROLLBOX"
+visual = true
+container = true
+size = [150, 100]
+default_event = "OnClick"
+sets = ["layout", "a11y"]
+doc = ""
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "AutoScroll", type = "bool", default = true },
+  { name = "BorderStyle", type = "enum", values = ["bsNone", "bsSingle", "bsSizeable", "bsDialog", "bsToolWindow", "bsSizeToolWin"], default = "bsSingle" },
+  { name = "Color", type = "color" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "Font", type = "font", access = "write", design = false },
+  { name = "Handle", type = "int", access = "read", design = false },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "HorzIncrement", type = "int", default = 8 },
+  { name = "HorzMargin", type = "int", default = 0 },
+  { name = "HorzPosition", type = "int", default = 0 },
+  { name = "HorzRange", type = "int", default = 0 },
+  { name = "HorzTracking", type = "bool", default = false },
+  { name = "HorzVisible", type = "bool", default = true },
+  { name = "Left", type = "int", default = 0 },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"], access = "write", design = false },
+  { name = "ShowHint", type = "bool", default = false },
+  { name = "TabOrder", type = "int" },
+  { name = "Tag", type = "int" },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "VertIncrement", type = "int", default = 8 },
+  { name = "VertMargin", type = "int", default = 0 },
+  { name = "VertPosition", type = "int", default = 0 },
+  { name = "VertRange", type = "int", default = 0 },
+  { name = "VertTracking", type = "bool", default = false },
+  { name = "VertVisible", type = "bool", default = true },
+  { name = "Visible", type = "bool", default = true },
+]
+methods = [
+  { name = "Repaint" },
+  { name = "Refresh", origin = "rapidr", value = true },
+]
+events = [
+  { name = "OnClick" },
+  { name = "OnDblClick" },
+  { name = "OnMouseDown", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnResize" },
+]
+
+[[component]]
+name = "RGROUPBOX"
+rapidq = "QGROUPBOX"
+visual = true
+container = true
+size = [150, 100]
+default_event = "OnClick"
+sets = ["layout", "a11y"]
+doc = ""
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "Caption", type = "string" },
+  { name = "Color", type = "color" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "Font", type = "font", access = "write", design = false },
+  { name = "Handle", type = "int", access = "read", design = false },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "Left", type = "int", default = 0 },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"], access = "write", design = false },
+  { name = "ShowHint", type = "bool", default = false },
+  { name = "TabOrder", type = "int" },
+  { name = "Tag", type = "int" },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Visible", type = "bool", default = true },
+  { name = "Width", type = "int" },
+  { name = "FontSize", type = "int", origin = "rapidr" },
+  { name = "FontColor", type = "color", origin = "rapidr" },
+]
+methods = [
+  { name = "Repaint" },
+  { name = "Refresh", origin = "rapidr", value = true },
+]
+events = [
+  { name = "OnClick" },
+  { name = "OnDblClick" },
+  { name = "OnMouseDown", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+]
+
+[[component]]
+name = "RBEVEL"
+rapidq = "QBEVEL"
+from = "QBevel.inc"
+visual = true
+container = true
+size = [150, 100]
+default_event = "OnClick"
+sets = ["layout", "a11y"]
+doc = ""
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "Alignment", type = "enum", values = ["taLeftJustify", "taRightJustify", "taCenter"], default = "taCenter" },
+  { name = "BevelInner", type = "enum", values = ["bvNone", "bvLowered", "bvRaised"], default = "bvNone" },
+  { name = "BevelOuter", type = "enum", values = ["bvNone", "bvLowered", "bvRaised"], default = "bvRaised" },
+  { name = "BevelWidth", type = "int", default = 1 },
+  { name = "BorderStyle", type = "enum", values = ["bsNone", "bsSingle", "bsSizeable", "bsDialog", "bsToolWindow", "bsSizeToolWin"], default = "bsNone" },
+  { name = "Caption", type = "string" },
+  { name = "ClientHeight", type = "int", design = false },
+  { name = "ClientWidth", type = "int", design = false },
+  { name = "Color", type = "color" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "Font", type = "font", access = "write", design = false },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "Left", type = "int", default = 0 },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QBEVEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "ShowHint", type = "bool", default = false },
+  { name = "TabOrder", type = "int" },
+  { name = "Tag", type = "int" },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "Visible", type = "bool", default = true },
+]
+methods = [
+  { name = "Repaint" },
+]
+events = [
+  { name = "OnClick" },
+  { name = "OnDblClick" },
+  { name = "OnMouseDown", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+]
+
+[[component]]
+name = "RGLASSFRAME"
+rapidq = "QGLASSFRAME"
+visual = true
+container = true
+size = [105, 105]
+default_event = "OnClick"
+sets = ["layout", "a11y"]
+doc = ""
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "ClientHeight", type = "int", design = false },
+  { name = "ClientWidth", type = "int", design = false },
+  { name = "Color", type = "color" },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
+  { name = "Handle", type = "int", design = false },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "Left", type = "int" },
+  { name = "Moveable", type = "bool", default = true },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"], access = "write", design = false },
+  { name = "ShowHint", type = "bool", default = false },
+  { name = "Top", type = "int" },
+  { name = "Transparency", type = "int", default = 60 },
+  { name = "TransparentColor", type = "color", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "Enabled", type = "int" },
+  { name = "Visible", type = "int" },
+]
+methods = []
+events = [
+  { name = "OnClick" },
+  { name = "OnDblClick" },
+  { name = "OnMouseDown" },
+  { name = "OnMouseMove" },
+  { name = "OnMouseUp" },
+]
