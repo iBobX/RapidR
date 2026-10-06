@@ -50,3 +50,6 @@ __pycache__/
 
 # (tests/fixtures/dir_list_view.bas writes it where it runs)
 dirlv/
+
+# (the company's own papers, kept beside the code, never committed)
+private/

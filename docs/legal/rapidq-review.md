@@ -484,7 +484,7 @@ edited fixtures (pixels and accessibility trees identical to the desktop's);
 - **Who holds RapidR's copyright.** Decided 2026-10-06: Ruta Internet SRL.
   `LICENSE`, `NOTICE`, the VS Code extension's licence and the installers'
   metadata name it. Roberto Berrospe's rights in RapidR go to the company by
-  a written assignment (docs/legal/copyright-assignment.md, to be signed).
+  a written assignment the company keeps with its own records.
 - **Optional courtesy**: a note to Xojo, Inc. or William Yu asking for no
   objection would be the strongest assurance, but it isn't needed for
   anything RapidR does, and it is the owner's call whether to make contact.
