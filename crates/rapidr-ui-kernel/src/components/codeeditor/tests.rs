@@ -126,6 +126,67 @@ fn folds_hide_lines_and_completion_from_the_program() {
     assert!(text("ce3").contains("x = 1 Left"), "{:?}", text("ce3"));
 }
 
+#[test]
+fn screen_readers_read_the_window_as_text_runs() {
+    use rapidr_editor::Buffer;
+    use rapidr_value::objects::a11y::node_id;
+    let long = "y".repeat(600);
+    let mut src = (1..=300).map(|i| format!("PRINT {i}")).collect::<Vec<_>>();
+    src[1] = "\tIF a$ = \"b\" THEN".into();
+    src[2] = long.clone();
+    let src = src.join("\n");
+    let (s, mut f, mut ts) = code_form("ce4", &src);
+    f.paint(&s, &mut ts, 2.0);
+    f.focus_id(&s, "ce4");
+    // "IF" on line 2 selected backwards: the caret after the tab
+    with_code_mut("ce4", |c| {
+        let a = c.doc.buffer().line_start(1) + 1;
+        c.doc.set_selections(rapidr_editor::Selections::single(rapidr_editor::Selection::new(a + 2, a)));
+    });
+    f.paint(&s, &mut ts, 2.0);
+    let tree = f.access_tree(&s, &mut ts);
+    let n = tree.find(node_id("ce4")).unwrap();
+    assert_eq!(n.description, "Line 2, column 2", "the caret's place (after the name rule)");
+    let t = n.text.as_ref().expect("text runs");
+    // the runs joined are the value (the window of lines): 101 lines, the
+    // long one in 3 pieces
+    let joined: String = t.runs.iter().map(|r| r.text.as_str()).collect();
+    assert_eq!(Some(&joined), n.value.as_ref());
+    assert_eq!(t.runs.len(), 102 + 2);
+    for r in &t.runs {
+        let sum: usize = r.char_lengths.iter().map(|&l| l as usize).sum();
+        assert_eq!(sum, r.text.len());
+        assert!(r.char_lengths.len() <= 251);
+    }
+    assert_eq!((t.runs[0].text.as_str(), t.runs[0].char_lengths.len()), ("PRINT 1\n", 8), "the break one character");
+    assert!(t.runs[2].continues && t.runs[3].continues && !t.runs[4].continues);
+    assert_eq!(t.runs[2].text.len() + t.runs[3].text.len() + t.runs[4].text.len(), 600 + 1);
+    // the lines in view are laid out: the tab as wide as 4 columns, the
+    // characters left to right; the editor's place in the form
+    let r1 = &t.runs[1];
+    assert_eq!(r1.char_positions.len(), r1.char_lengths.len());
+    let (w_tab, w_i) = (r1.char_widths[0], r1.char_widths[1]);
+    assert!(w_tab > 3.0 * w_i && w_tab < 5.0 * w_i, "tab {w_tab}, I {w_i}");
+    assert!(r1.char_positions.windows(2).all(|p| p[1] >= p[0]));
+    assert!(r1.bounds.0 > 8 && r1.bounds.1 > t.runs[0].bounds.1, "{:?} {:?}", r1.bounds, t.runs[0].bounds);
+    // words as Ctrl+Right stops: the tab, IF, a$ (BASIC's), =, ", b, ", THEN
+    assert_eq!(r1.word_starts, [0, 1, 4, 7, 9, 10, 11, 13]);
+    // off-screen lines: no positions
+    assert!(t.runs.last().unwrap().char_positions.is_empty());
+    // the selection: anchor after "IF", the caret after the tab
+    let (anchor, focus) = t.selection.unwrap();
+    assert_eq!((anchor.run, anchor.char_index), (1, 3));
+    assert_eq!((focus.run, focus.char_index), (1, 1));
+    // the caret at a line's end: on its break
+    with_code_mut("ce4", |c| {
+        let e = c.doc.buffer().line_end(0);
+        c.doc.set_selections(rapidr_editor::Selections::single(rapidr_editor::Selection::new(e, e)));
+    });
+    let tree = f.access_tree(&s, &mut ts);
+    let t = tree.find(node_id("ce4")).unwrap().text.clone().unwrap();
+    assert_eq!(t.selection.map(|(_, f)| (f.run, f.char_index)), Some((0, "PRINT 1".len())));
+}
+
 use rapidr_editor::service as svc;
 
 /// A language service of the test's own: completion of two names,

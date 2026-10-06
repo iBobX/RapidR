@@ -432,15 +432,25 @@ impl CodeEditor {
         t.split('\n').map(str::to_string).collect()
     }
 
+    /// The lines either side of the caret's a screen reader's window holds
+    /// (`objects::text_window`'s).
+    pub const WINDOW_RADIUS: usize = 100;
+
+    /// The first and last lines of [`text_window`](Self::text_window)'s
+    /// window (0-based, inclusive).
+    pub fn window_lines(&self, radius: usize) -> (usize, usize) {
+        let buf = self.doc.buffer();
+        let line = buf.line_of(self.doc.selections().primary().head);
+        (line.saturating_sub(radius), (line + radius).min(buf.len_lines() - 1))
+    }
+
     /// The lines within `radius` of the primary caret's, and the primary
     /// selection in them (characters, clamped to the window): what a
     /// page's text field mirrors for screen readers and input methods.
     pub fn text_window(&self, radius: usize) -> super::TextWindow {
         let buf = self.doc.buffer();
         let p = self.doc.selections().primary();
-        let line = buf.line_of(p.head);
-        let first = line.saturating_sub(radius);
-        let last = (line + radius).min(buf.len_lines() - 1);
+        let (first, last) = self.window_lines(radius);
         let (a, b) = (buf.line_start(first), buf.line_end(last));
         let c0 = buf.byte_to_char(a);
         let total = buf.byte_to_char(b) - c0;

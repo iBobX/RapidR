@@ -66,3 +66,9 @@ zbus = "5"
 # kernel draws every menu there (and its default GTK feature stays off).
 [target.'cfg(any(target_os = "macos", target_os = "windows"))'.dependencies]
 muda = { version = "0.21", default-features = false }
+
+[dev-dependencies]
+# (the tests read a tree back as the platform adapters do: its text, lines
+# and selection from the text runs; MIT OR Apache-2.0, already in the lock
+# through accesskit_winit)
+accesskit_consumer = "0.39"
