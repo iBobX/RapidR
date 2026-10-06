@@ -7,6 +7,17 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Added
+- **RapidR Studio's panels as public components** (docs/ide-plan.md I1, L-PANELS), the same on the
+  desktop, in native builds and on the web: **RPROPERTYINSPECTOR** (Delphi's object inspector: typed
+  editors from the language registry, a visual Anchors pin editor, colours, fonts, lists, the Events
+  page, defaults dimmed and reset, "RapidR extensions", multi-selection, a designer's selection
+  followed), **RTOOLBOX** (RapidQ's and RapidR's components with RapidR's icons, search, drag and
+  drop), **RPROJECTTREE** (.rrproj projects by kind, forms' components, rename, delete, reorder),
+  **ROUTPUTCONSOLE** (ANSI output, build log, problems, `file:line` links, search), **RTOOLBAR** as
+  a real toolbar (icon buttons, toggles, overflow, customizable) and **RCOMMANDPALETTE** (fuzzy
+  commands). Example: `examples/studio/panels.rr`.
+
 ### Legal
 - **A review of RapidQ's terms, rights and trademarks, and of everything
   RapidR takes from RapidQ** (`docs/legal/rapidq-review.md`): RapidQ's

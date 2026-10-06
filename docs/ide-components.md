@@ -122,17 +122,33 @@ RDESIGNSURFACE keeps its members (AddComponent, GetName, GetType, GetCompX/Y/W/H
 
 Companions: **RComponentTray** (the non-visual components of a form; `Designer`, `Links` to show link lines), **RTabOrderEditor** (`Designer`; a list to reorder), **RMenuEditor** (`Menu` — a QMAINMENU / QPOPUPMENU; captions, mnemonics, shortcuts, checked, enabled, separators, OnClick).
 
-### 3.4 RPropertyInspector (I1)
+### 3.4 RPropertyInspector (I1, built: `rapidr_value::panels::inspector`)
 
-`Target` (a component, or a designer's selection via `Designer`), `View` (`"categories"`, `"alphabetic"`), `Filter`, `ShowEvents`, `ShowRapidRExtensions`, `ReadOnly`; `Refresh`, `ExpandAll`, `CollapseAll`; `OnPropertyChange(Prop, Value)`, `OnEventDblClick(Event)`, `OnEditorRequest(Prop)` (custom editors). Editors come from the registry's property types (number, text, Boolean, enum, set, colour, font, picture / asset, strings, columns, component reference, SQL, expression, file). Users can inspect their own objects: properties the registry doesn't know are shown as text.
+The language registry (`crates/rapidr-lang/data/components/ide.toml`) is the reference for every member; in short:
 
-### 3.5 RProjectTree (I1)
+- **Properties**: `Target` (a component's name or Handle; several names separated by commas inspect them together), `Designer` (a designer whose selection it follows), `View` (`"categories"` / `"alphabetic"`), `Page` (`"properties"` / `"events"`), `Filter`, `ShowEvents`, `ShowRapidRExtensions`, `ReadOnly`, `Handlers` (the SUBs an event may run, one `Name(parameters)` per line), `NameWidth`, `Selected`, `RowCount`, `TargetType`.
+- **Methods**: `Refresh`, `ExpandAll`, `CollapseAll`, `Expand(Name)`, `Collapse(Name)`, `Value(Prop)`, `SetValue(Prop, Value)`, `ResetValue(Prop)`, `IsDefault(Prop)`, `EditValue(Prop)`, `AddProperty(Name, Type, Value, Category)` / `ClearProperties` (the program's own objects), `Row(i)`.
+- **Events**: `OnPropertyChange(Prop, Value)`, `OnEventDblClick(Event)`, `OnEditorRequest(Prop)`, `OnSelect(Prop)`.
 
-`Project` (an RProject), `ShowFiles`, `ShowForms`, `ShowComponents`, `Selected`; `Refresh`, `Reveal(Path)`, `Rename`, `NewFile(Kind)`, `Delete` (asks); `OnOpen(Path)`, `OnSelect(Path)`, `OnRename(Old, New)`. Built on the tree view model; drag and drop to move.
+Editors from the registry's types and `editor` key: number, text, Boolean, enum (a dropped list), set (a row per flag), colour (an inline picker: standard and system colours, a value field), font (Name, Size, Color, styles), picture / file (a "…" that raises OnEditorRequest), strings (a row per line), columns, component reference; **Anchors** has a visual pin editor. A value at its default is dimmed, a changed one bold; Delete or the reset glyph puts it back. RapidR-only members of a RapidQ component are grouped under "RapidR extensions" with an "R" badge.
 
-### 3.6 RToolbox (I1)
+**What it inspects** (`rapidr_value::panels::subject`): a `Subject` — the program's live components (`Live`), RDESIGNSURFACE's selection, or the designer model (`inspector::designer_model::DesignerModelSubject` over `rapidr_value::designer::Designer`: each change is one undoable `set_property`). A designer component registers its maker with `subject::register_designer(type, make)` and calls `inspector::designer_changed(host, name)` after each selection change or command; the inspector hands every change back as the program writes it (`set_source`: `alClient`, `akLeft + akTop`, `&H0000FF`).
 
-`Groups` (from the registry; `"RapidQ"`, `"RapidR"`, user templates), `Filter`, `ShowNames` (`"as-written"`: QBUTTON for RapidQ components, R names for the rest), `Selected`; `AddTemplate(Name, Source)`; `OnPick(Type)`, `OnDragStart(Type)`.
+### 3.5 RProjectTree (I1, built: `rapidr_value::panels::project_tree`)
+
+- **Properties**: `Project` (an `.rrproj`, or a `.bas` / `.rr` file and its `$INCLUDE`s, read through the runtime's file hooks), `ProjectName`, `ShowFiles`, `ShowForms`, `ShowComponents`, `Selected` (a path, `path#Component`, a folder as `path/`), `FileCount`, `Modified`.
+- **Methods**: `Refresh`, `LoadText(Text, Path)`, `SetFileText(Path, Text)`, `File(i)`, `FileKind(Path)`, `AddFile`, `RemoveFile`, `NewFile(Kind[, Name])`, `Rename([Path], [NewName])`, `Delete([Path])` (an inline confirmation), `Reveal`, `Save`, `ProjectText`, `ExpandAll`, `CollapseAll`.
+- **Events**: `OnOpen(Path)`, `OnSelect(Path)`, `OnRename(Old, New, Cancel)`, `OnDelete(Path, Cancel)`, `OnMove(Path, NewPath, Index)`, `OnNewFile(Path, Kind)`.
+
+The program does the work on the disk in those events; the tree changes only the project. Files are grouped by kind, forms open into the components their CREATE blocks make, F2 renames in place, files drag to reorder (Alt+Up / Alt+Down from the keyboard).
+
+### 3.6 RToolbox (I1, built: `rapidr_value::panels::toolbox`)
+
+- **Properties**: `Filter`, `ShowNames` (`"as-written"`: QBUTTON for RapidQ's components, R names for the rest; `"rapidr"`; `"titles"`), `Selected`, `Count`.
+- **Methods**: `Item(i)`, `Expand(Group)`, `Collapse(Group)`, `ExpandAll`, `CollapseAll`, `AddTemplate(Name, Source, Icon)`, `RemoveTemplate`, `Template(Name)`.
+- **Events**: `OnPick(Type)`, `OnSelect(Type)`, `OnDragStart(Type)`, `OnDragDrop(Type, Target, X, Y)` (the deepest component under the drop, in its own pixels).
+
+Groups come from `design/icons/inventory.toml` (`rapidr_icons::TOOLBOX_GROUPS`); only components the compilers create are shown. Search is fuzzy, with the matched letters marked.
 
 ### 3.7 RDockManager (I1, built: `rapidr_value::dock`)
 
@@ -152,9 +168,9 @@ Keyboard: F6 / Shift+F6 between areas (the groups' shown panes, the active docum
 
 ### 3.8 Others
 
-- **RToolBar** (I1): a real kernel kind — `AddButton(Name, Icon, Hint, Command)`, `AddSeparator`, `Customizable`, overflow menu; OnClick(Name).
-- **ROutputConsole** (I1): ANSI output (CLS / COLOR / LOCATE as the console has them), `Write`, `Clear`, `MaxLines`, `Filter`, clickable `file:line` links (`OnLinkClick(File, Line)`).
-- **RCommandPalette** (I1): `AddCommand(Id, Title, Shortcut)`, `Show`; `OnCommand(Id)`.
+- **RToolBar** (I1, built: `rapidr_value::panels::toolbar`; RTOOLBAR stays a container for programs that place buttons on it): `AddButton(Name, Icon, Hint, [Command], [Caption])`, `AddToggle`, `AddSeparator([Name])`, `RemoveButton`, `Clear`, `Button(i)`, `ButtonEnabled` / `ButtonDown` / `ButtonVisible` / `ButtonHint(Name[, value])`; `ButtonSize`, `ShowCaptions`, `Customizable` (which buttons show, from the overflow menu), `Layout` (the hidden ones), `ButtonCount`, `ClickedButton`; `OnButtonClick(Name, Command)`, then `OnClick`. Buttons that don't fit go behind an overflow button.
+- **ROutputConsole** (I1, built: `rapidr_value::panels::console`): pages Output (ANSI: colours, CLS, LOCATE, as the console writes them), Build and Problems; `Write`, `WriteLine`, `Clear([Page])`, `AddBuildLine`, `AddProblem(File, Line, Column, Severity, Message)`, `ClearProblems`, `Line(i)`, `Find(Text)`, `FindNext`; `Page`, `MaxLines`, `Filter`, `ShowTabs`, `AutoScroll`, `LineCount`, `ProblemCount`, `Text`; `OnLinkClick(File, Line)` (`file:line` places and problems), `OnPageChange(Page)`.
+- **RCommandPalette** (I1, built: `rapidr_value::panels::palette`): `AddCommand(Id, Title, [Shortcut], [Category], [Icon])`, `RemoveCommand`, `Clear`, `CommandEnabled`, `Command(i)`, `Show`, `Hide`; `Filter`, `Placeholder`, `Count`, `CommandCount`, `Selected`, `MaxRows`; `OnCommand(Id)`, `OnCancel`. Fuzzy search over "Category: Title", the most recently used first.
 - **RProgramView** (I5): shows a running program's remote form; `Session`, `FormId`, `InspectMode`; `OnInspect(Component)`.
 - **Debugger views** (I6): **RBreakpointList**, **RCallStackView**, **RVariablesView** (`Scope`: `"locals"`, `"globals"`, `"watches"`; `AddWatch(Expr)`), **RImmediateWindow** — all bound to an RProgramSession (`Session = Program1`).
 - **RDataPreview** (I7): `DataSet` (any dataset / frame), `Tab` (`"schema"`, `"rows"`, `"stats"`), `MaxRows`; `Refresh`; `OnCellClick(Row, Col)`.
