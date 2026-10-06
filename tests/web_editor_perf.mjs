@@ -80,7 +80,10 @@ const program = [
 ].join("\n");
 const open = await page.evaluate(async ({ program, big }) => {
   const dataUrl = "data:application/octet-stream;base64," + btoa(big);
-  const bc = window.rr.compile(program, "perf", [{ name: "big.bas", mime: "application/octet-stream", dataUrl }]);
+  const assets = [{ name: "big.bas", mime: "application/octet-stream", dataUrl }];
+  // (the program's files: what LoadFromFile reads on the web)
+  window.__rapidr_assets = { "big.bas": dataUrl };
+  const bc = window.rr.compile(program, "perf", assets);
   window.RAPIDR_FRAME_TIMES = [];
   const t0 = Date.now();
   window.rr.rapidr_run_bc(bc);
@@ -122,6 +125,7 @@ for (let i = 0; i < (quick ? 60 : 200); i++) {
   await page.waitForTimeout(16);
 }
 await page.waitForTimeout(200);
+if (process.env.RAPIDR_PERF_SHOT) await page.screenshot({ path: process.env.RAPIDR_PERF_SHOT });
 const work = await page.evaluate(() => window.RAPIDR_FRAME_TIMES.map((f) => f[0]));
 row(`scroll (${work.length} frames): a frame's work p50`, ms(pct(work, 0.5)), "", true);
 row("scroll: the longest frame's work", ms(Math.max(...work)), "≤ 33 ms", Math.max(...work) <= 33);
