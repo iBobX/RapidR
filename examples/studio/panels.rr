@@ -85,13 +85,17 @@ Palette.AddCommand "view.output", "Show the Output", "", "View", "output"
 Palette.AddCommand "edit.clearOutput", "Clear the Output", "", "Edit", ""
 
 ' A project, from its file's text (where there are no files: the web).
-Tree.LoadText "format = 2" + CHR$(10) + "name = ""Greeter""" + CHR$(10) + "main = ""Greeter.rr""" + CHR$(10) + _
-    "[[files]]" + CHR$(10) + "path = ""Greeter.rr""" + CHR$(10) + "kind = ""module""" + CHR$(10) + _
-    "[[files]]" + CHR$(10) + "path = ""Form1.rr""" + CHR$(10) + "kind = ""form""" + CHR$(10) + _
-    "[[files]]" + CHR$(10) + "path = ""strings.inc""" + CHR$(10) + "kind = ""include""" + CHR$(10) + _
-    "[[files]]" + CHR$(10) + "path = ""data/names.csv""" + CHR$(10) + "kind = ""data""", "Greeter.rrproj"
-Tree.SetFileText "Form1.rr", "CREATE Form1 AS QFORM" + CHR$(10) + "  CREATE Greet AS QBUTTON" + CHR$(10) + "  END CREATE" + CHR$(10) + _
-    "  CREATE Answer AS QLABEL" + CHR$(10) + "  END CREATE" + CHR$(10) + "END CREATE"
+DIM NL AS STRING, Q AS STRING, P AS STRING, F AS STRING
+NL = CHR$(10): Q = CHR$(34)
+P = "format = 2" + NL + "name = " + Q + "Greeter" + Q + NL + "main = " + Q + "Greeter.rr" + Q + NL
+P = P + "[[files]]" + NL + "path = " + Q + "Greeter.rr" + Q + NL + "kind = " + Q + "module" + Q + NL
+P = P + "[[files]]" + NL + "path = " + Q + "Form1.rr" + Q + NL + "kind = " + Q + "form" + Q + NL
+P = P + "[[files]]" + NL + "path = " + Q + "strings.inc" + Q + NL + "kind = " + Q + "include" + Q + NL
+P = P + "[[files]]" + NL + "path = " + Q + "data/names.csv" + Q + NL + "kind = " + Q + "data" + Q + NL
+Tree.LoadText P, "Greeter.rrproj"
+F = "CREATE Form1 AS QFORM" + NL + "  CREATE Greet AS QBUTTON" + NL + "  END CREATE" + NL
+F = F + "  CREATE Answer AS QLABEL" + NL + "  END CREATE" + NL + "END CREATE"
+Tree.SetFileText "Form1.rr", F
 Tree.ExpandAll
 
 ' The designer, its first component, and the inspector following it.

@@ -85,6 +85,9 @@ export const cases = [
     expect: ["now.caption=Theme: dark"] },
   { file: "gui/tray.rr", runtimes: ["run", "interp", "native", "web"], events: "hidebtn.onclick,form.__tray_513,form.__tray_514", dump: "info.caption,form.__shown",
     expect: ["info.caption=Back from the tray (1)", "form.__shown=1"] },
+  // studio/
+  { file: "studio/panels.rr", runtimes: ["run", "interp", "native", "web"], events: "box.__dblclick_60_170", dump: "tree.projectname,tree.filecount,designer.compcount,insp.targettype",
+    expect: ["tree.projectname=Greeter", "tree.filecount=4", "designer.compcount=2", "insp.targettype=QCHECKBOX"] },
   // graphics/, directx/
   { file: "graphics/canvas.rr", runtimes: ["run", "interp", "native", "web"], events: "chart.__mousedown_60_40,chart.__mouseup_60_40,chart.__mousedown_300_30,chart.__mouseup_300_30", dump: "info.caption",
     expect: ["info.caption=2 dots, last at 300,30 (002828DC)"] },
