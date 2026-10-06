@@ -163,7 +163,7 @@ fn main() -> ExitCode {
             }
             build_bytecode_file(&path, out)
         }
-        (Some("run-bc"), Some(path)) => run_bytecode_file(&path),
+        (Some("run-bc"), Some(path)) => run_bytecode_file(&path, rest),
         (Some("bundle-bc"), Some(path)) => {
             let mut out: Option<String> = None;
             let mut wasm: Option<String> = None;
@@ -197,7 +197,7 @@ fn main() -> ExitCode {
             eprintln!("  rapidr codegen <file.rr> [output_dir]");
             eprintln!("  rapidr build <file.rr> [output_dir] [--release|-r] [--debug|-d] [--web|-w] [--interp|-i] [--target <os>-<arch>]");
             eprintln!("  rapidr build-bc <file.rr> [-o out.rrbc]          Compile to bytecode");
-            eprintln!("  rapidr run-bc <file.rrbc>                        Run bytecode (stub host)");
+            eprintln!("  rapidr run-bc <file.rrbc> [args]                 Run bytecode (stub host)");
             eprintln!("  rapidr bundle-bc <file.rr> [-o out.zip]          Build static web bundle");
             eprintln!("        [--wasm rapidrintr.wasm] [--js rapidrintr.js]");
             ExitCode::from(2)
@@ -816,11 +816,16 @@ fn build_bytecode_file(path: &str, output: Option<String>) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-fn run_bytecode_file(path: &str) -> ExitCode {
+fn run_bytecode_file(path: &str, args: Vec<String>) -> ExitCode {
     let bytes = match fs::read(path) {
         Ok(b) => b,
         Err(e) => { eprintln!("read {path}: {e}"); return ExitCode::from(1); }
     };
+    // The program is the file, with the arguments after it — never
+    // `run-bc <file>` (COMMAND$, CommandCount, Application.ExeName), as
+    // `rapidr run` and a built executable.
+    let program = home::canonical(path).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| path.to_string());
+    rapidr_vm_host_native::set_program(&program, args);
     // Delegate to `rapidr-vm-host-native::run_bytes`, which installs the
     // indirect event dispatcher *before* `MAIN` runs — required for any
     // program that calls `Form.ShowModal` from MAIN (the VM serves the

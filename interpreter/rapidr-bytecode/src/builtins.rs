@@ -31,7 +31,7 @@ pub const BUILTINS: &[&str] = &[
     "__objget", "__objset", "__objcall", "__objcreate", "__bind_event_this",
     "abs", "acos", "asc", "asin", "atn",
     "beep", "bin",
-    "cbool", "cdbl", "ceil", "chdir", "chr", "cint", "cls", "clng", "close", "color", "command", "convbase",
+    "cbool", "cdbl", "ceil", "chdir", "chr", "cint", "cls", "clng", "close", "color", "command", "commandcount", "convbase",
     "cos", "csng", "csrlin", "curdir",
     "date", "date_func", "delete", "dir", "direxists", "doevents", "inkey",
     "e", "end", "environ", "eof", "exp",
@@ -59,7 +59,7 @@ pub const SHARED_DATA_BUILTINS: &[&str] = &["__data_add", "__data_label", "__dat
 
 /// Builtins that may be written without parentheses (`x = TIMER`): a bare
 /// name that isn't a variable calls them with no arguments.
-pub const BARE_BUILTINS: &[&str] = &["command", "csrlin", "curdir", "date", "dir", "freefile", "inkey", "mousex", "mousey", "pi", "resourcecount", "rnd", "time", "timer"];
+pub const BARE_BUILTINS: &[&str] = &["command", "commandcount", "csrlin", "curdir", "date", "dir", "freefile", "inkey", "mousex", "mousey", "pi", "resourcecount", "rnd", "time", "timer"];
 
 /// Hosts dispatch on the lowercased name with one BASIC type suffix
 /// (`$ % # & !`) removed, so `MID$`, `Mid` and `mid` are the same builtin.

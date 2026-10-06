@@ -6,6 +6,8 @@
 //   name.bas              the program (console only; no GUI)
 //   name.expected         exact expected stdout (trailing whitespace ignored)
 //   name.input            optional: what the program reads (INPUT) on stdin
+//   name.args             optional: the program's command-line arguments, one
+//                         per line (COMMAND$(n), CommandCount)
 //   name.expected-error   OR: the program must FAIL to compile, and the
 //                         compiler output must contain every non-empty line
 //                         of this file (e.g. "3:1" and "Unknown SUB")
@@ -83,15 +85,15 @@ function run(cmd, cmdArgs, opts = {}) {
 }
 
 // Returns { compiled: bool, output: string, diagnostics: string }.
-function runVm(name, src, input) {
+function runVm(name, src, input, progArgs) {
   const rrbc = join(WORK, `${name}.rrbc`);
   const c = run(RAPIDR, ["build-bc", src, "-o", rrbc]);
   if (!c.ok) return { compiled: false, output: "", diagnostics: c.out + c.err };
-  const r = run(RAPIDR, ["run-bc", rrbc], { input });
+  const r = run(RAPIDR, ["run-bc", rrbc, ...progArgs], { input });
   return { compiled: true, output: r.out, diagnostics: c.err + r.err, crashed: !r.ok };
 }
 
-function runCodegen(name, src, input) {
+function runCodegen(name, src, input, progArgs) {
   const dir = join(WORK, "codegen");
   mkdirSync(dir, { recursive: true });
   const rr = join(dir, `${name}.rr`);
@@ -110,7 +112,7 @@ function runCodegen(name, src, input) {
     dropBuild(env.CARGO_TARGET_DIR, name);
     return { compiled: false, output: "", diagnostics: cargoErrors(c.out + c.err) };
   }
-  const r = run(bin, [], { input });
+  const r = run(bin, progArgs, { input });
   // (its build, ~350 MB, gone once it ran: tests/cargo_builds.mjs)
   rmSync(bin, { force: true });
   dropBuild(env.CARGO_TARGET_DIR, name);
@@ -169,9 +171,11 @@ for (const name of cases) {
   const runtimeError = existsSync(runtimePath) ? readFileSync(runtimePath, "utf8") : null;
   const inputPath = join(CASES, `${name}.input`);
   const input = existsSync(inputPath) ? readFileSync(inputPath, "utf8") : "";
+  const argsPath = join(CASES, `${name}.args`);
+  const progArgs = existsSync(argsPath) ? readFileSync(argsPath, "utf8").replace(/\r\n/g, "\n").split("\n").filter((l) => l !== "") : [];
 
   for (const backend of backends) {
-    const problem = check(RUNNERS[backend](name, src, input), expected, expectedError, runtimeError);
+    const problem = check(RUNNERS[backend](name, src, input, progArgs), expected, expectedError, runtimeError);
     let status;
     if (problem && xfail.has(backend)) status = "XFAIL";
     else if (problem) status = "FAIL";

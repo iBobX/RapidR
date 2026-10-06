@@ -61,7 +61,12 @@ pub fn main() -> ExitCode {
         match args.first().map(|s| s.as_str()) {
             Some("--bytecode") | Some("-b") => match args.get(1) {
                 Some(path) => match read_external_bytecode(path) {
-                    Ok(b) => b,
+                    Ok(b) => {
+                        // (the program is that file, with the arguments
+                        // after it — not `--bytecode <file>`)
+                        rapidr_vm_host_native::set_program(path, args[2..].to_vec());
+                        b
+                    }
                     Err(e) => {
                         eprintln!("{e}");
                         return ExitCode::from(1);
