@@ -1,6 +1,7 @@
 # Real mouse/keyboard input for checking desktop GUI builds by hand (macOS):
 # python3 tools/real_input.py PID c:x,y (click, window coords incl. title bar) d:x1,y1,x2,y2 (drag) k:keycode s:out.png
-#   m:x,y (the mouse moved there: hover), w:seconds (wait), k:cmd+shift+keycode (modifiers: cmd, shift, ctrl, alt)
+#   m:x,y (the mouse moved there: hover), w:seconds (wait), k:cmd+shift+keycode (modifiers: cmd, shift, ctrl, alt),
+#   t:text (typed)
 # Needs Accessibility + Screen Recording for the Claude Code helper app.
 # The UI kernel's windows take it as a user's input; run the program without
 # RAPIDR_CAPTURE / RAPIDR_TEST_EVENTS (under a test the kernel drops user input).
@@ -8,10 +9,16 @@
 # act.py PID action... : actions "c:x,y" (click), "k:code" (key), "s:file" (screenshot of the window)
 import Quartz,time,sys,subprocess
 pid=int(sys.argv[1])
+def windows():
+    return [w for w in Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListOptionOnScreenOnly,Quartz.kCGNullWindowID) if w.get('kCGWindowLayer')==0]
 def front():
-    subprocess.run(["osascript","-e",f'tell application "System Events" to set frontmost of (first process whose unix id is {pid}) to true'])
-    time.sleep(0.4)
-    ws=[w for w in Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListOptionOnScreenOnly,Quartz.kCGNullWindowID) if w.get('kCGWindowLayer')==0]
+    # (activated only when another program is in front: activating it again
+    # gives the key to its main window, away from a window it just opened)
+    ws=windows()
+    if not ws or ws[0]['kCGWindowOwnerPID']!=pid:
+        subprocess.run(["osascript","-e",f'tell application "System Events" to set frontmost of (first process whose unix id is {pid}) to true'])
+        time.sleep(0.4)
+        ws=windows()
     if not ws or ws[0]['kCGWindowOwnerPID']!=pid: sys.exit("not frontmost: "+str(ws[0].get('kCGWindowOwnerName') if ws else None))
     return dict([w for w in ws if w['kCGWindowOwnerPID']==pid][0]['kCGWindowBounds'])
 def mouse(t,x,y,c=1):
@@ -41,6 +48,11 @@ for a in sys.argv[2:]:
             e=Quartz.CGEventCreateKeyboardEvent(None,code,d)
             if flags: Quartz.CGEventSetFlags(e,flags)
             Quartz.CGEventPost(Quartz.kCGHIDEventTap,e); time.sleep(0.05)
+    elif kind=="t":
+        # text typed (t:RapidR Dark) by System Events, as the keyboard's
+        # keys (an event carrying only a Unicode string is dropped by
+        # macOS' input methods now and then)
+        subprocess.run(["osascript","-e",'tell application "System Events" to keystroke "%s"'%arg.replace('\\','\\\\').replace('"','\\"')])
     elif kind=="s":
         subprocess.run(["screencapture","-x","-R%d,%d,%d,%d"%(b['X'],b['Y'],b['Width'],b['Height']),arg])
     time.sleep(0.3)

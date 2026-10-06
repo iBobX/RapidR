@@ -969,7 +969,7 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
                 // now, and again once the click that activated this one is
                 // over (`apply`).
                 if let Some(m) = self.desk.modal.last() {
-                    if *m != f {
+                    if !self.desk.accepts_input(&f) {
                         if let Some(w) = self.s.wins.get(m) {
                             w.window.focus_window();
                         }

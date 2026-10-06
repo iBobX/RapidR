@@ -181,11 +181,9 @@ pub fn rt_method<R: Runtime>(rt: R, dock: &str, method: &str, args: &[Value]) ->
                     }
                     m.touch();
                 });
-                // (an MDI window's title follows)
-                let docs = docs_name(dock);
-                if mdi::child_index(&docs, &p).is_some() {
-                    let _ = mdi::set(&docs, "childcaption", &Value::String(t), (0, 0));
-                }
+                // (an MDI window's title follows: that pane's window, not
+                // the active one)
+                mdi::set_child_title(&docs_name(dock), &p, &t);
                 Outcome::default()
             } else {
                 return Some(Value::String(manager::with(dock, |m| m.pane(&name(0)).map(|p| p.title.clone())).flatten().unwrap_or_default()));

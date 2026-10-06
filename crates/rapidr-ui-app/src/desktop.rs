@@ -273,9 +273,17 @@ impl Desktop {
         v.into_iter().map(|(k, _)| k.clone()).collect()
     }
 
-    /// Input may reach form `id` (no modal form, or it's the innermost).
+    /// Input may reach form `id`: no modal form, it's the innermost, or it
+    /// was shown after the innermost went up — Windows' modal loop disables
+    /// the windows there are when it starts; a window shown from it (a
+    /// RapidQ program's `Form2.Show` under `Form.ShowModal`) works.
     pub fn accepts_input(&self, id: &str) -> bool {
-        self.modal.last().is_none_or(|m| m.eq_ignore_ascii_case(id))
+        let Some(m) = self.modal.last() else { return true };
+        if m.eq_ignore_ascii_case(id) {
+            return true;
+        }
+        let z = |name: &str| self.forms.get(&name.to_lowercase()).filter(|f| f.shown).map(|f| f.z);
+        matches!((z(id), z(m)), (Some(a), Some(b)) if a > b)
     }
 
     fn admits(&self, id: &str, src: Source) -> bool {
