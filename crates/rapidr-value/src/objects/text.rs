@@ -54,14 +54,22 @@ const SANS: &[u8] = include_bytes!("../../fonts/LiberationSans-Regular.ttf");
 const RSANS: &[u8] = include_bytes!("../../fonts/RapidRSans-Regular.ttf");
 const SERIF: &[u8] = include_bytes!("../../fonts/LiberationSerif-Regular.ttf");
 const MONO: &[u8] = include_bytes!("../../fonts/LiberationMono-Regular.ttf");
+// RapidR's own UI and code faces (docs/ide-plan.md D8; fonts/README.md):
+// Inter for an IDE's chrome, JetBrains Mono for code — named by programs
+// that want them ("Inter", "JetBrains Mono"); RapidQ's names never map here.
+const INTER: &[u8] = include_bytes!("../../fonts/Inter-Regular.ttf");
+const INTER_SEMIBOLD: &[u8] = include_bytes!("../../fonts/Inter-SemiBold.ttf");
+const JBMONO: &[u8] = include_bytes!("../../fonts/JetBrainsMono-Regular.ttf");
+const JBMONO_BOLD: &[u8] = include_bytes!("../../fonts/JetBrainsMono-Bold.ttf");
 
 /// Longest text drawn in one call (so a huge string can't stall drawing).
 const MAX_CHARS: usize = 10_000;
 
-/// The built-in faces' files (Liberation Sans, Serif, Mono, RapidR Sans):
-/// what the UI kernel registers with its text shaper, so its captions are
-/// drawn from the very fonts `TextWidth` measures.
-pub const BUILTIN_FONTS: [&[u8]; 4] = [SANS, SERIF, MONO, RSANS];
+/// The built-in faces' files (Liberation Sans, Serif, Mono, RapidR Sans,
+/// Inter regular and semibold, JetBrains Mono regular and bold): what the
+/// UI kernel registers with its text shaper, so its captions are drawn from
+/// the very fonts `TextWidth` measures.
+pub const BUILTIN_FONTS: [&[u8]; 8] = [SANS, SERIF, MONO, RSANS, INTER, INTER_SEMIBOLD, JBMONO, JBMONO_BOLD];
 
 /// The built-in face standing for a QFONT's name, by its family name:
 /// MS Sans Serif (RapidQ's default; Microsoft Sans Serif, MS Shell Dlg,
@@ -70,7 +78,11 @@ pub const BUILTIN_FONTS: [&[u8]; 4] = [SANS, SERIF, MONO, RSANS];
 pub fn family_name(name: &str) -> &'static str {
     let n = name.to_ascii_lowercase();
     let n = n.trim();
-    if n.contains("courier") || n.contains("mono") || n.contains("fixed") || n.contains("terminal") || n.contains("console") {
+    if n == "inter" || n.starts_with("inter ") {
+        "Inter"
+    } else if n.starts_with("jetbrains mono") || n == "jetbrainsmono" {
+        "JetBrains Mono"
+    } else if n.contains("courier") || n.contains("mono") || n.contains("fixed") || n.contains("terminal") || n.contains("console") {
         "Liberation Mono"
     } else if n == "ms sans serif" || n == "microsoft sans serif" || n == "sans serif" || n.starts_with("ms shell dlg") || n == "ms sans" || n == "helv" {
         "RapidR Sans"
@@ -83,8 +95,12 @@ pub fn family_name(name: &str) -> &'static str {
     }
 }
 
-fn face_data(name: &str) -> &'static [u8] {
+fn face_data(name: &str, bold: bool) -> &'static [u8] {
     match family_name(name) {
+        "Inter" if bold => INTER_SEMIBOLD,
+        "Inter" => INTER,
+        "JetBrains Mono" if bold => JBMONO_BOLD,
+        "JetBrains Mono" => JBMONO,
         "Liberation Mono" => MONO,
         "Liberation Serif" => SERIF,
         "RapidR Sans" => RSANS,
@@ -111,7 +127,7 @@ fn scaled(font: &Font) -> Option<Scaled> {
 
 /// The font drawn `by` times larger (on a high-DPI screen's pixels).
 fn scaled_by(font: &Font, by: f32) -> Option<Scaled> {
-    let face = ttf_parser::Face::parse(face_data(&font.name), 0).ok()?;
+    let face = ttf_parser::Face::parse(face_data(&font.name, font.styles & 1 != 0), 0).ok()?;
     let px = pixel_size(font) * by;
     let scale = px / face.units_per_em() as f32;
     let ascent = face.ascender() as f32 * scale;
@@ -281,7 +297,8 @@ fn blend(bmp: &mut impl Target, x: i64, y: i64, c: u32, a: u32) {
 /// `by` times larger than the font's size.
 #[allow(clippy::too_many_arguments)]
 fn glyphs(target: &mut impl Target, s: &Scaled, x: f32, y: f32, by: f32, text: &str, font: &Font, color: u32) {
-    let bold = font.styles & 1 != 0;
+    // (a face with a bold of its own — Inter, JetBrains Mono — isn't drawn twice)
+    let bold = font.styles & 1 != 0 && !matches!(family_name(&font.name), "Inter" | "JetBrains Mono");
     let slant = if font.styles & 2 != 0 { 0.2 } else { 0.0 };
     let baseline = y + s.ascent;
     let mut pen = x;

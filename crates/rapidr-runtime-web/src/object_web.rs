@@ -606,6 +606,10 @@ fn set_property(name: &str, prop: &str, val: Value) {
     if rapidr_value::mdi::is_mdi(name) && crate::mdi_web::set(name, &lprop, &val) {
         return;
     }
+    // (I1) RapidR Studio's RPROJECT, RLANGUAGESERVICE, RPROGRAMSESSION (studio_web.rs).
+    if rapidr_studio::is_studio_type(&rp_comp_type(&uname)) && crate::studio_web::set(&rp_comp_type(&uname), name, &lprop, &val) {
+        return;
+    }
     // (I1) An RDOCKMANAGER's DocumentMode, ActiveDocument, … (dock_web.rs).
     if rp_comp_type(&uname) == "RDOCKMANAGER" && crate::dock_web::set(name, &lprop, &val) {
         return;
@@ -993,6 +997,15 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     if let Some(v) = rapidr_value::mdi::get(name, &lprop) {
         return v;
     }
+    // (I1) RapidR Studio's components (studio_web.rs).
+    {
+        let t = rp_comp_type(name);
+        if rapidr_studio::is_studio_type(&t) {
+            if let Some(v) = crate::studio_web::get(&t, name, &lprop) {
+                return v;
+            }
+        }
+    }
     // (I1) An RDOCKMANAGER's PaneCount, ActiveDocument, … (dock_web.rs).
     if rp_comp_type(name) == "RDOCKMANAGER" {
         if let Some(v) = rapidr_value::dock::runtime::rt_get(name, &lprop) {
@@ -1168,6 +1181,15 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     if rapidr_value::mdi::is_mdi(name) {
         if let Some(v) = crate::mdi_web::method(name, &lmethod, args) {
             return v;
+        }
+    }
+    // (I1) RapidR Studio's RPROJECT, RLANGUAGESERVICE, RPROGRAMSESSION (studio_web.rs).
+    {
+        let t = rp_comp_type(name);
+        if rapidr_studio::is_studio_type(&t) {
+            if let Some(v) = crate::studio_web::call(&t, name, &method.to_ascii_lowercase(), args) {
+                return v;
+            }
         }
     }
     // (I1) An RDOCKMANAGER's AddPane, SaveLayout, … (dock_web.rs).

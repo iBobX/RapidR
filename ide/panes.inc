@@ -1,14 +1,14 @@
-' panes.inc: the dock manager's panes and documents.
+' panes.inc: the dock manager's panes, and the start page.
 '
 ' Plug-in points (docs/ide-plan.md I1): each pane is registered by name with
 ' Dock.AddPane in SetUpDock — a wave B component replaces a pane by taking
-' its place there (same name, same Where) and its Fill… SUB here:
+' its place there (same name, same Where) and its Fill… SUB:
 '   ProjectTree   "Project"     left              RProjectTree   (L-PANELS)
 '   ToolboxTree   "Toolbox"     below Project     RToolbox       (L-PANELS)
 '   PropGrid      "Properties"  right             RPropertyInspector (L-PANELS)
 '   OutlineTree   "Outline"     below Properties  (RLanguageService's outline)
 '   OutputBox     "Output"      bottom            ROutputConsole (L-PANELS)
-'   ProblemsView  "Problems"    with Output       (diagnostics)
+'   ProblemsView  "Problems"    with Output       (RLanguageService's diagnostics)
 '   ImmediateBox  "Immediate"   with Output       RImmediateWindow (I6)
 '   CodeDoc(i)    a source file                   RCodeEditor    (L-EDVIEW)
 '   DesignDoc(i)  a file's form                   RFormDesigner  (L-DMODEL / L-DVIEW)
@@ -57,7 +57,7 @@ SUB FillToolbox
   ToolboxTree.Expand 0, 0
 END SUB
 
-' ---- the project tree --------------------------------------------------------
+' ---- trees' icons ------------------------------------------------------------------
 
 SUB TreeIcon(Tree AS QTREEVIEW, Index AS INTEGER, Image AS INTEGER)
   Tree.Item(Index).ImageIndex = Image
@@ -69,33 +69,6 @@ FUNCTION FileIcon(Name AS STRING) AS INTEGER
   FileIcons.AddIcon Name
   Result = FileIcons.Count - 1
 END FUNCTION
-
-SUB FillProjectTree
-  DIM root AS INTEGER, k AS INTEGER, d AS INTEGER, ext AS STRING
-  ProjectTree.Clear
-  FileIcons.Clear
-  IF ProjectOpen = 0 THEN
-    ProjectTree.AddItems "No project open"
-    TreeIcon ProjectTree, 0, FileIcon("files/folder")
-    EXIT SUB
-  END IF
-  ProjectTree.AddItems ProjectName
-  root = 0
-  TreeIcon ProjectTree, root, FileIcon("files/rrproj")
-  FOR d = 0 TO DocCount - 1
-    IF DocOpen(d) AND DocKind(d) = "code" THEN
-      ProjectTree.AddChildItems root, FileTitle(DocFile(d))
-      k = ProjectTree.ItemCount - 1
-      ext = LCASE$(MID$(DocFile(d), RINSTR(DocFile(d), ".") + 1))
-      TreeIcon ProjectTree, k, FileIcon("files/" + ext)
-      IF FormName <> "" THEN
-        ProjectTree.AddChildItems k, FormName + " (" + FormType + ")"
-        TreeIcon ProjectTree, ProjectTree.ItemCount - 1, FileIcon(FormType)
-      END IF
-    END IF
-  NEXT
-  ProjectTree.FullExpand
-END SUB
 
 ' ---- the problems list ----------------------------------------------------------
 
@@ -115,6 +88,7 @@ SUB AddProblem(Kind AS INTEGER, Message AS STRING, InFile AS STRING, LineNo AS I
   ProblemsView.Item(i).ImageIndex = Kind
   ProblemsView.AddSubItem i, InFile
   IF LineNo > 0 THEN ProblemsView.AddSubItem i, STR$(LineNo) ELSE ProblemsView.AddSubItem i, ""
+  IF i < 400 THEN ProblemLine(i) = LineNo
 END SUB
 
 SUB SetUpProblems
@@ -152,46 +126,153 @@ SUB ShowProperties(Title AS STRING)
   IF Title = "" THEN Dock.PaneTitle("propgrid", "Properties") ELSE Dock.PaneTitle("propgrid", "Properties: " + Title)
 END SUB
 
-' ---- the welcome page's examples ---------------------------------------------------
+' ---- the start page ----------------------------------------------------------------
+' Start: what to do first; Recent: the projects opened last (settings);
+' Examples: RapidR's own, as cards in a grid that follows the page's width
+' (each also in the command palette, for the keyboard).
 
-DIM ExampleFile(40) AS STRING
+DIM StartIcon(4) AS QIMAGE
+DIM StartBmp(4) AS QBITMAP
+DIM StartLink(4) AS QLABEL
+DIM StartIconName(4) AS STRING
+DIM RecentLink(6) AS QLABEL
+DIM ExCard(16) AS QPANEL
+DIM ExIcon(16) AS QIMAGE
+DIM ExBmp(16) AS QBITMAP
+DIM ExTitle(16) AS QLABEL
+DIM ExText(16) AS QLABEL
+DIM ExampleFile(16) AS STRING
+DIM ExampleWhat(16) AS STRING
 DIM ExampleCount AS INTEGER
+DIM LogoBmp AS QBITMAP
 
-SUB AddExample(File AS STRING, Kind AS STRING, What AS STRING)
+SUB AddStart(k AS INTEGER, Icon AS STRING, Caption AS STRING)
+  StartIcon(k).Parent = Welcome
+  StartIcon(k).Left = 48: StartIcon(k).Top = 168 + k * 28: StartIcon(k).Width = 16: StartIcon(k).Height = 16
+  StartIconName(k) = Icon
+  StartLink(k).Parent = Welcome
+  StartLink(k).Left = 74: StartLink(k).Top = 166 + k * 28: StartLink(k).Width = 200: StartLink(k).Height = 20
+  StartLink(k).Caption = Caption
+  StartLink(k).Cursor = -21
+  StartLink(k).Tag = k + 1
+  StartLink(k).OnClick = WelcomeLink
+END SUB
+
+SUB AddExample(File AS STRING, What AS STRING)
   DIM i AS INTEGER
-  ExampleFile(ExampleCount) = File
-  ExamplesView.AddItems FileTitle(File)
-  i = ExamplesView.ItemCount - 1
-  IF Kind = "gui" THEN ExamplesView.Item(i).ImageIndex = 0 ELSE ExamplesView.Item(i).ImageIndex = 1
-  ExamplesView.AddSubItem i, LEFT$(File, INSTR(File, "/") - 1)
-  ExamplesView.AddSubItem i, What
+  i = ExampleCount
+  IF i > 16 THEN EXIT SUB
+  ExampleFile(i) = File
+  ExampleWhat(i) = What
+  ExCard(i).Parent = Welcome
+  ExCard(i).BevelOuter = 0
+  ExCard(i).Tag = i
+  ExCard(i).Cursor = -21
+  ExCard(i).AccessibleName = "Example " + BaseName(File) + ": " + What
+  ExCard(i).OnClick = CardPicked
+  ExIcon(i).Parent = ExCard(i)
+  ExIcon(i).Left = 14: ExIcon(i).Top = 14: ExIcon(i).Width = 24: ExIcon(i).Height = 24
+  ExTitle(i).Parent = ExCard(i)
+  ExTitle(i).Left = 48: ExTitle(i).Top = 12: ExTitle(i).Width = 168: ExTitle(i).Height = 18
+  ExTitle(i).Caption = FileTitle(File)
+  ExTitle(i).Tag = i
+  ExTitle(i).OnClick = CardLabelPicked
+  ExText(i).Parent = ExCard(i)
+  ExText(i).Left = 48: ExText(i).Top = 32: ExText(i).Width = 168: ExText(i).Height = 18
+  ExText(i).Caption = What
+  ExText(i).Tag = i
+  ExText(i).OnClick = CardLabelPicked
   ExampleCount = ExampleCount + 1
 END SUB
 
 ' The examples that come with RapidR (examples/, as `rapidr examples` lists them).
 SUB FillExamples
-  ExamplesView.Clear
-  ExamplesView.ClearColumns
-  ExamplesView.AddColumns "Example", "Topic", "What it shows"
-  ExamplesView.Column(0).Width = 120
-  ExamplesView.Column(1).Width = 70
-  ExamplesView.Column(2).Width = 400
-  ExampleIcons.Clear
-  ExampleIcons.AddIcon "QFORM"
-  ExampleIcons.AddIcon "files/rr"
+  AddStart 0, "file.newProject", "New Project..."
+  AddStart 1, "file.open", "Open Project or File..."
+  AddStart 2, "RFORM", "Open an Example"
+  AddStart 3, "view.commandPalette", "All Commands"
   ExampleCount = 0
-  AddExample "gui/hello_form.rr", "gui", "A form, a button and its OnClick"
-  AddExample "gui/menus.rr", "gui", "A main menu, a pop-up menu, shortcuts"
-  AddExample "gui/dialogs.rr", "gui", "Open, save, colour and font dialogs"
-  AddExample "gui/stopwatch.rr", "gui", "A QTIMER driving a display"
-  AddExample "gui/pantry.rr", "gui", "A list and a grid working together"
-  AddExample "gui/themes.rr", "gui", "The four themes, switched live"
-  AddExample "graphics/canvas.rr", "gui", "Drawing on a QCANVAS"
-  AddExample "data/dataframe.rr", "gui", "A data frame and a chart"
-  AddExample "rapidq/notepad.bas", "gui", "A RapidQ notepad, as RapidQ wrote it"
-  AddExample "basics/hello.rr", "console", "PRINT, variables, FOR, SUB and FUNCTION"
-  AddExample "basics/language.rr", "console", "TYPE, arrays, DATA, SELECT CASE, objects"
-  AddExample "basics/files.rr", "console", "Text files and streams"
-  AddExample "data/sqlite.rr", "console", "A SQLite database"
-  AddExample "data/json.rr", "console", "Reading and writing JSON"
+  AddExample "gui/hello_form.rr", "A form, a button, its OnClick"
+  AddExample "gui/menus.rr", "Main and pop-up menus"
+  AddExample "gui/dialogs.rr", "Open, save, colour, font"
+  AddExample "gui/pantry.rr", "A list and a grid together"
+  AddExample "gui/themes.rr", "The themes, switched live"
+  AddExample "data/dataframe.rr", "A data frame and a chart"
+  AddExample "rapidq/notepad.bas", "RapidQ's notepad, as it was"
+  AddExample "basics/hello.rr", "PRINT, FOR, SUB, FUNCTION"
+  LayOutWelcome
+END SUB
+
+' (the brand and the icons in the current theme, again after a switch)
+SUB LoadWelcomeIcons
+  DIM k AS INTEGER
+  IF Application.Theme = "dark" OR Application.Theme = "highcontrast" THEN
+    LogoBmp.LoadFromFile HomeDir + "ide/assets/rapidr-lockup-dark.svg"
+  ELSE
+    LogoBmp.LoadFromFile HomeDir + "ide/assets/rapidr-lockup.svg"
+  END IF
+  WelcomeLogo.BMPHandle = LogoBmp
+  FOR k = 0 TO 3
+    StartBmp(k).LoadIcon StartIconName(k), 16
+    StartIcon(k).BMPHandle = StartBmp(k)
+  NEXT
+  FOR k = 0 TO ExampleCount - 1
+    IF FileExt(ExampleFile(k)) = "bas" THEN ExBmp(k).LoadIcon "files/bas", 24 ELSE ExBmp(k).LoadIcon "files/rr", 24
+    ExIcon(k).BMPHandle = ExBmp(k)
+  NEXT
+END SUB
+
+' The cards in as many columns as the page has room for (200 pixels or
+' more each, sharing the width), the Examples heading over them.
+SUB LayOutWelcome
+  DIM cols AS INTEGER, k AS INTEGER, room AS INTEGER, w AS INTEGER, x0 AS INTEGER
+  x0 = 290
+  room = Welcome.Width - x0 - 32
+  cols = (room + 12) \ 212
+  IF cols < 1 THEN cols = 1
+  IF cols > 4 THEN cols = 4
+  w = (room - (cols - 1) * 12) \ cols
+  IF w > 300 THEN w = 300
+  ExamplesHead.Left = x0
+  FOR k = 0 TO ExampleCount - 1
+    ExCard(k).Left = x0 + (k MOD cols) * (w + 12)
+    ExCard(k).Top = 168 + (k \ cols) * 70
+    ExCard(k).Width = w: ExCard(k).Height = 58
+    ExTitle(k).Width = w - 56
+    ExText(k).Width = w - 56
+  NEXT
+END SUB
+
+SUB FillRecent
+  DIM n AS INTEGER, i AS INTEGER, p AS STRING
+  n = TALLY(RecentList, CHR$(10))
+  IF n > 6 THEN n = 6
+  FOR i = 0 TO 5
+    RecentLink(i).Parent = Welcome
+    RecentLink(i).Left = 48: RecentLink(i).Top = 326 + i * 24: RecentLink(i).Width = 230: RecentLink(i).Height = 20
+    RecentLink(i).Cursor = -21
+    RecentLink(i).Tag = i
+    RecentLink(i).OnClick = RecentPicked
+    IF i < n THEN
+      p = FIELD$(RecentList, CHR$(10), i + 1)
+      RecentLink(i).Caption = BaseName(p)
+      RecentLink(i).Hint = p
+      RecentLink(i).Visible = 1
+    ELSE
+      RecentLink(i).Visible = 0
+    END IF
+  NEXT
+  RecentNone.Visible = Flag(n = 0)
+END SUB
+
+SUB CardPicked(Sender AS QPANEL)
+  OpenProject HomeDir + "examples/" + ExampleFile(Sender.Tag)
+END SUB
+
+SUB CardLabelPicked(Sender AS QLABEL)
+  OpenProject HomeDir + "examples/" + ExampleFile(Sender.Tag)
+END SUB
+
+SUB RecentPicked(Sender AS QLABEL)
+  OpenProject FIELD$(RecentList, CHR$(10), Sender.Tag + 1)
 END SUB

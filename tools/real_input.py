@@ -1,5 +1,6 @@
 # Real mouse/keyboard input for checking desktop GUI builds by hand (macOS):
 # python3 tools/real_input.py PID c:x,y (click, window coords incl. title bar) d:x1,y1,x2,y2 (drag) k:keycode s:out.png
+#   m:x,y (the mouse moved there: hover), w:seconds (wait), k:cmd+shift+keycode (modifiers: cmd, shift, ctrl, alt)
 # Needs Accessibility + Screen Recording for the Claude Code helper app.
 # The UI kernel's windows take it as a user's input; run the program without
 # RAPIDR_CAPTURE / RAPIDR_TEST_EVENTS (under a test the kernel drops user input).
@@ -27,8 +28,19 @@ for a in sys.argv[2:]:
         for k in range(1,11):
             mouse(Quartz.kCGEventLeftMouseDragged,x1+(x2-x1)*k/10,y1+(y2-y1)*k/10); time.sleep(0.03)
         mouse(Quartz.kCGEventLeftMouseUp,x2,y2)
+    elif kind=="m":
+        x,y=[float(v) for v in arg.split(",")]; x+=b['X']; y+=b['Y']
+        mouse(Quartz.kCGEventMouseMoved,x,y)
+    elif kind=="w":
+        time.sleep(float(arg))
     elif kind=="k":
-        for d in (True,False): Quartz.CGEventPost(Quartz.kCGHIDEventTap,Quartz.CGEventCreateKeyboardEvent(None,int(arg),d)); time.sleep(0.05)
+        parts=arg.split("+"); code=int(parts[-1]); flags=0
+        for m in parts[:-1]:
+            flags|={"cmd":Quartz.kCGEventFlagMaskCommand,"shift":Quartz.kCGEventFlagMaskShift,"ctrl":Quartz.kCGEventFlagMaskControl,"alt":Quartz.kCGEventFlagMaskAlternate}[m]
+        for d in (True,False):
+            e=Quartz.CGEventCreateKeyboardEvent(None,code,d)
+            if flags: Quartz.CGEventSetFlags(e,flags)
+            Quartz.CGEventPost(Quartz.kCGHIDEventTap,e); time.sleep(0.05)
     elif kind=="s":
         subprocess.run(["screencapture","-x","-R%d,%d,%d,%d"%(b['X'],b['Y'],b['Width'],b['Height']),arg])
     time.sleep(0.3)

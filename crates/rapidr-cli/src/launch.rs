@@ -121,8 +121,11 @@ pub fn run_session(path: &str, args: Vec<String>) -> ExitCode {
     }
 }
 
-/// `rapidr ide [file]`: RapidR's IDE — an install's `ide/rapidr-ide.rrbc`,
-/// a checkout's `examples/ide.rr`.
+/// `rapidr ide [--theme NAME] [--do ID,…] [file]`: RapidR Studio (ide/,
+/// docs/ide-plan.md I1) — an install's `ide/rapidr-ide.rrbc`, a checkout's
+/// `ide/studio.rr` — told where RapidR's home is (its examples, its
+/// assets) and handed the rest of the command line (a project or file to
+/// open).
 pub fn ide(args: Vec<String>) -> ExitCode {
     let Some(home) = crate::home::Home::find() else {
         eprintln!("RapidR's home was not found (set RAPIDR_HOME)");
@@ -130,13 +133,28 @@ pub fn ide(args: Vec<String>) -> ExitCode {
     };
     let ide = match &home.release {
         Some(_) => home.root.join("ide").join("rapidr-ide.rrbc"),
-        None => home.root.join("examples").join("ide.rr"),
+        None => home.root.join("ide").join("studio.rr"),
     };
     if !ide.is_file() {
         eprintln!("{}: not found — the IDE comes with the RapidR SDK, not the Runtime", ide.display());
         return ExitCode::from(1);
     }
-    run(&ide.to_string_lossy(), args, From::Own)
+    // (a file named on the command line: as the user's shell sees it)
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let mut studio_args = vec!["--home".to_string(), home.root.to_string_lossy().into_owned()];
+    let mut it = args.into_iter();
+    while let Some(a) = it.next() {
+        if a == "--theme" || a == "--do" {
+            studio_args.push(a);
+            studio_args.extend(it.next());
+        } else if a.starts_with("--") {
+            studio_args.push(a);
+        } else {
+            let p = std::path::Path::new(&a);
+            studio_args.push(if p.is_relative() { cwd.join(p).to_string_lossy().into_owned() } else { a });
+        }
+    }
+    run(&ide.to_string_lossy(), studio_args, From::Own)
 }
 
 /// `rapidr info <file>`: what the runtime knows of a program before it

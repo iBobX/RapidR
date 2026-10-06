@@ -7,9 +7,11 @@
 #
 # OUT (default target/studio-web) gets:
 #   index.html, studio.js      the page (ide/web)
+#   run.html                   the program under development's sandboxed frame
 #   studio.rrbc                the shell, the same bytecode `rapidr ide` runs
 #   runtime/                   the web runtime (target/web: rapidrintr.js /
 #                              _bg.wasm, fonts/, THIRD-PARTY-NOTICES.txt)
+#   ide/assets/                the start page's brand (RapidR's lockups)
 #   examples/                  RapidR's examples, as the Welcome page lists them
 #
 # The runtime is built first (tools/build_web_artifacts.sh) unless
@@ -37,9 +39,12 @@ fi
 rm -rf "$OUT"
 mkdir -p "$OUT/runtime"
 "$RAPIDR" build-bc ide/studio.rr -o "$OUT/studio.rrbc"
-cp ide/web/index.html ide/web/studio.js "$OUT/"
+cp ide/web/index.html ide/web/studio.js ide/web/run.html "$OUT/"
 cp target/web/rapidrintr.js target/web/rapidrintr_bg.wasm target/web/THIRD-PARTY-NOTICES.txt "$OUT/runtime/"
 cp -R target/web/fonts "$OUT/runtime/fonts"
+# (the start page's brand: ide/assets, read from --home as on the desktop)
+mkdir -p "$OUT/ide/assets"
+cp ide/assets/* "$OUT/ide/assets/"
 # (the examples: sources and their data files)
 mkdir -p "$OUT/examples"
 (cd examples && find . -type f ! -name 'ide.rr' ! -name '*.md' -print0 | while IFS= read -r -d '' f; do

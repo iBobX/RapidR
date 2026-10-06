@@ -99,6 +99,30 @@ fn project_path(folder: &str, path: &str) -> String {
     normalize_path(&p)
 }
 
+/// A program's files to compile it where there is no file system (the web):
+/// its main file's name and every (path, text) — the main file and what it
+/// `$INCLUDE`s, paths relative to its folder.
+pub fn program_files(program: &str) -> Result<(String, Vec<(String, String)>), String> {
+    let program = slashes(program);
+    let folder = folder_of(&program);
+    let main = program.rsplit('/').next().unwrap_or(&program).to_string();
+    let main_text = read_text(&program)?;
+    let resolve = |rel: &str| -> Option<(String, String)> {
+        if rel.eq_ignore_ascii_case(&main) {
+            return Some((main.clone(), main_text.clone()));
+        }
+        read_text(&join(&folder, rel)).ok().map(|t| (rel.to_string(), t))
+    };
+    let project = rapidr_project::implicit_from_resolver(&main, &resolve);
+    let mut files = vec![(main.clone(), main_text.clone())];
+    for f in project.files.iter().filter(|f| !f.path.eq_ignore_ascii_case(&main)) {
+        if let Ok(t) = read_text(&join(&folder, &f.path)) {
+            files.push((f.path.clone(), t));
+        }
+    }
+    Ok((main, files))
+}
+
 fn exists(path: &str) -> bool {
     rapidr_value::objects::read_file(path).is_ok()
 }

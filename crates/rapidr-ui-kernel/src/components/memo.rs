@@ -77,9 +77,16 @@ impl Flavor {
     }
 
     /// The code editor's look: Courier New at 13 pixels, black (grey when
-    /// disabled), no word wrap, BASIC's colours.
+    /// disabled), no word wrap, BASIC's colours — in RapidR's own looks
+    /// (modern, dark, high contrast) JetBrains Mono at 13 pixels in the
+    /// theme's editor colours (`rapidr_value::ide_theme`).
     fn code_look(enabled: bool) -> Look {
         let t = rapidr_value::theme::current();
+        if t.fluent() {
+            let e = rapidr_value::ide_theme::editor(t);
+            let font = Font { name: "JetBrains Mono".into(), size: -13, ..Font::default() };
+            return Look { font, color: if enabled { e.text } else { t.gray_text }, syntax: Syntax::Basic, ..Look::default() };
+        }
         let font = Font { name: "Courier New".into(), size: -13, ..Font::default() };
         Look { font, color: if enabled { t.text } else { t.gray_text }, syntax: Syntax::Basic, ..Look::default() }
     }
@@ -162,9 +169,12 @@ impl Memo {
         if gw <= 0 || gh <= 0 {
             return;
         }
-        p.fill(geo.gutter, p.theme().face);
+        let t = p.theme();
+        let ed = rapidr_value::ide_theme::editor(t);
+        let (ground, ink) = if t.fluent() { (ed.gutter, ed.line_number) } else { (t.face, t.gray_text) };
+        p.fill(geo.gutter, ground);
         let s = f64::from(e.ed.scale()).max(0.01);
-        let font = Font { name: "Arial".into(), size: -12, ..Font::default() };
+        let font = if t.fluent() { Font { name: "JetBrains Mono".into(), size: -12, ..Font::default() } } else { Font { name: "Arial".into(), size: -12, ..Font::default() } };
         let sy = e.scroll().1;
         let lh = e.ed.line_height() / s;
         p.clipped(geo.gutter, |p| {
@@ -173,7 +183,7 @@ impl Memo {
                 let n = (i + 1).to_string();
                 let th = rapidr_value::objects::text::text_size(&n, &font).1;
                 let ny = (y + (lh - th as f64) / 2.0).round() as i64;
-                p.text((gx, ny, gw - 4, th), &n, &font, p.theme().gray_text, Place::TopRight);
+                p.text((gx, ny, gw - 6, th), &n, &font, ink, Place::TopRight);
             }
         });
     }
@@ -212,8 +222,15 @@ impl ComponentKind for Memo {
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
+        // (a code editor in RapidR's own looks: the theme's editor ground,
+        // unless the program chose a Color)
+        let ground = if p.fluent() && Flavor::of(cx.store, cx.id).code && crate::paint::color_of(cx.store, cx.id).is_none() {
+            rapidr_value::ide_theme::editor(p.theme()).background
+        } else {
+            background(cx.store, cx.id)
+        };
         if p.fluent() {
-            p.fluent_field(w, h, background(cx.store, cx.id), Some(cx.state.focused));
+            p.fluent_field(w, h, ground, Some(cx.state.focused));
         } else {
             p.fill((0, 0, w, h), background(cx.store, cx.id));
             p.sunken_edge((0, 0, w, h));

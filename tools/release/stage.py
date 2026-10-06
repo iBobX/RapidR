@@ -100,6 +100,8 @@ def main():
             shutil.copytree(args.toolchain, os.path.join(lib, "toolchain"))
         os.makedirs(os.path.join(lib, "ide"))
         shutil.copy2(args.ide, os.path.join(lib, "ide", "rapidr-ide.rrbc"))
+        # (RapidR Studio's start page: the brand's lockups, ide/assets)
+        shutil.copytree(os.path.join(ROOT, "ide", "assets"), os.path.join(lib, "ide", "assets"))
         # (a checkout's tracked files — no builds, nothing a run left; a
         # release archive's examples/ is only those)
         tracked = subprocess.run(["git", "ls-files", "examples"], cwd=ROOT, capture_output=True, text=True, check=True).stdout.splitlines() \

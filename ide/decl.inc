@@ -57,6 +57,10 @@ DIM DesignDoc(MAXDOCS) AS RDESIGNSURFACE
 DIM DocFile(MAXDOCS) AS STRING
 DIM DocKind(MAXDOCS) AS STRING
 DIM DocOpen(MAXDOCS) AS INTEGER
+DIM DocDirty(MAXDOCS) AS INTEGER
+DIM DocHasForm(MAXDOCS) AS INTEGER
+' (a file being loaded: its editor's OnChange isn't the user's)
+DIM Loading AS INTEGER
 DIM DocCount AS INTEGER
 DIM ActiveDoc AS INTEGER
 
@@ -64,6 +68,14 @@ DIM ActiveDoc AS INTEGER
 DIM HomeDir AS STRING
 DIM ProjectName AS STRING
 DIM ProjectMain AS STRING
+DIM ProjectFile AS STRING
+DIM TreePath(200) AS STRING
+DIM ProblemLine(400) AS INTEGER
+DIM RecentList AS STRING
+DIM SavedLayout AS STRING
+DIM DefaultFolder AS STRING
+DIM RunStarted AS DOUBLE
+DIM DoList AS STRING
 DIM ProjectOpen AS INTEGER
 DIM RunState AS STRING
 DIM ThemeName AS STRING
@@ -82,7 +94,6 @@ DECLARE SUB StudioClose(Action AS INTEGER)
 DECLARE SUB PaneChanged(Name AS STRING)
 DECLARE SUB DocumentActivated(Name AS STRING)
 DECLARE SUB DocumentClosing(Name AS STRING, Cancel AS INTEGER)
-DECLARE SUB ExampleOpened
 DECLARE SUB WelcomeLink(Sender AS QLABEL)
 DECLARE SUB ProjectTreeOpen
 DECLARE SUB DesignSelected(Index AS INTEGER)
@@ -92,3 +103,27 @@ DECLARE SUB PaletteChanged
 DECLARE SUB PaletteKey(Key AS INTEGER, Shift AS INTEGER)
 DECLARE SUB PaletteListKey(Key AS INTEGER, Shift AS INTEGER)
 DECLARE SUB PalettePicked
+DECLARE SUB CodeChanged(Sender AS RCODEEDITOR)
+DECLARE SUB AnalyzerTick
+DECLARE SUB ProgramOutput(Text AS STRING)
+DECLARE SUB ProgramStopped(Reason AS STRING, InFile AS STRING, LineNo AS INTEGER)
+DECLARE SUB ProgramContinued
+DECLARE SUB ProgramExited(Code AS INTEGER)
+DECLARE SUB ImmediateKey(Key AS INTEGER, Shift AS INTEGER)
+DECLARE SUB NewBrowse
+DECLARE SUB NewCreate
+DECLARE SUB NewCancel
+DECLARE SUB CardPicked(Sender AS QPANEL)
+DECLARE SUB CardLabelPicked(Sender AS QLABEL)
+DECLARE SUB RecentPicked(Sender AS QLABEL)
+DECLARE SUB StudioKey(Key AS INTEGER, Shift AS INTEGER)
+DECLARE SUB LayOutWelcome
+DECLARE SUB MacroTick
+
+' ---- Studio's services: public components (rapidr-studio) ----
+DIM Proj AS RPROJECT
+DIM Lang AS RLANGUAGESERVICE
+DIM Session AS RPROGRAMSESSION
+DIM Reg AS QREGISTRY
+DIM OpenDlg AS QOPENDIALOG
+DIM SaveDlg AS QSAVEDIALOG

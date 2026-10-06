@@ -8,9 +8,62 @@ FUNCTION TC(Name AS STRING) AS LONG
   Result = Application.ThemeColor(Name)
 END FUNCTION
 
+' The fonts of the look: Inter / JetBrains Mono in RapidR's, Windows' in
+' the classic one; trees' and lists' rows roomier in RapidR's.
+SUB ApplyFonts
+  DIM k AS INTEGER, rows AS INTEGER
+  IF ThemeName = "classic" THEN
+    UIFont.Name = "MS Sans Serif": UIFont.Size = 8
+    MonoFont.Name = "Courier New": MonoFont.Size = 10
+    StatusFont.Name = "MS Sans Serif": StatusFont.Size = 8
+    HeadFont.Name = "Arial": HeadFont.Size = 20: HeadFont.Bold = 1
+    SubFont.Name = "Arial": SubFont.Size = 11: SubFont.Bold = 1
+    CardFont.Name = "MS Sans Serif": CardFont.Size = 8: CardFont.Bold = 1
+    DimFont.Name = "MS Sans Serif": DimFont.Size = 8
+    rows = 16
+  ELSE
+    UIFont.Name = "Inter": UIFont.Size = 10
+    MonoFont.Name = "JetBrains Mono": MonoFont.Size = 10
+    StatusFont.Name = "Inter": StatusFont.Size = 9
+    HeadFont.Name = "Inter": HeadFont.Size = 20: HeadFont.Bold = 1
+    SubFont.Name = "Inter": SubFont.Size = 11: SubFont.Bold = 1
+    CardFont.Name = "Inter": CardFont.Size = 10: CardFont.Bold = 1
+    DimFont.Name = "Inter": DimFont.Size = 9
+    rows = 22
+  END IF
+  LinkFont.Name = UIFont.Name: LinkFont.Size = UIFont.Size
+  ProjectTree.Font = UIFont: ProjectTree.ItemHeight = rows: ProjectTree.Indent = 16
+  ToolboxTree.Font = UIFont: ToolboxTree.ItemHeight = rows: ToolboxTree.Indent = 16
+  OutlineTree.Font = UIFont: OutlineTree.ItemHeight = rows: OutlineTree.Indent = 16
+  PropGrid.Font = UIFont: PropGrid.DefaultRowHeight = rows
+  ProblemsView.Font = UIFont
+  Dock.Font = UIFont
+  Status.Font = StatusFont
+  PaletteEdit.Font = UIFont
+  PaletteList.Font = UIFont
+  OutputBox.Font = MonoFont
+  ImmediateBox.Font = MonoFont
+  FOR k = 0 TO DocCount - 1
+    CodeDoc(k).Font = MonoFont
+  NEXT
+  WelcomeTag.Font = UIFont
+  RecentNone.Font = DimFont
+  FOR k = 0 TO 3
+    StartLink(k).Font = LinkFont
+  NEXT
+  FOR k = 0 TO 5
+    RecentLink(k).Font = LinkFont
+  NEXT
+  FOR k = 0 TO ExampleCount - 1
+    ExTitle(k).Font = CardFont
+    ExText(k).Font = DimFont
+  NEXT
+END SUB
+
 SUB ApplyChrome
   DIM k AS INTEGER
   ThemeName = Application.Theme
+  ApplyFonts
   ToolBar.Color = TC("toolbar")
   ToolLine.Color = TC("toolbar.border")
   FOR k = 0 TO TBSepCount - 1
@@ -20,16 +73,28 @@ SUB ApplyChrome
   ' (the start page)
   Welcome.Color = TC("page")
   WelcomeTitle.Font = HeadFont
-  WelcomeTitle.Font.Color = TC("page.heading")
+  WelcomeTitle.Font.Color = TC("page.dim")
   WelcomeTag.Font.Color = TC("page.dim")
   StartHead.Font = SubFont
   StartHead.Font.Color = TC("page.heading")
   RecentHead.Font = SubFont
   RecentHead.Font.Color = TC("page.heading")
-  LinkNew.Font.Color = TC("page.link")
-  LinkOpen.Font.Color = TC("page.link")
-  LinkExample.Font.Color = TC("page.link")
-  LinkPalette.Font.Color = TC("page.link")
+  ExamplesHead.Font = SubFont
+  ExamplesHead.Font.Color = TC("page.heading")
+  RecentNone.Font.Color = TC("page.dim")
+  FOR k = 0 TO 3
+    StartLink(k).Font.Color = TC("page.link")
+  NEXT
+  FOR k = 0 TO 5
+    RecentLink(k).Font.Color = TC("page.link")
+  NEXT
+  FOR k = 0 TO ExampleCount - 1
+    ExCard(k).Color = TC("card")
+    ExTitle(k).Font = CardFont
+    ExTitle(k).Font.Color = TC("page.text")
+    ExText(k).Font.Color = TC("page.dim")
+  NEXT
+  LoadWelcomeIcons
   OutputBox.Font = MonoFont
   ImmediateBox.Font = MonoFont
   ApplyState
@@ -91,6 +156,6 @@ SUB SetTheme(Name AS STRING)
   ApplyChrome
   FillToolbox
   FillProjectTree
-  ScanActive
+  AnalyzeActive
   UpdateCommands
 END SUB

@@ -145,7 +145,7 @@ pub fn palette(t: &Theme) -> Palette {
     Palette {
         classic: false,
         contrast: false,
-        ground: if dark { mix(t.face, 0x000000, 0.32) } else { mix(t.face, t.shadow, 0.62) },
+        ground: if dark { mix(t.face, 0x000000, 0.22) } else { mix(t.face, t.shadow, 0.38) },
         header: t.face,
         header_active: if dark { mix(t.face, t.accent, 0.10) } else { mix(t.window, t.accent, 0.07) },
         title: mix(t.text, t.face, if dark { 0.22 } else { 0.18 }),
@@ -669,8 +669,11 @@ pub fn group_ops(m: &Manager, gr: &Group, t: &Theme, font: &Font, active: bool) 
             }
         }
     }
-    // ---- its buttons
-    for (b, r) in &gr.buttons {
+    // ---- its buttons (RapidR's look: only where the mouse or the focus is —
+    // the active group, or under the mouse; always in classic and high
+    // contrast)
+    let quiet = !p.classic && !p.contrast && !active && hover.is_none();
+    for (b, r) in gr.buttons.iter().filter(|_| !quiet) {
         let hot = hover == Some(GroupHit::Button(*b));
         let down = pressed == Some(GroupHit::Button(*b)) && hot;
         let ink = if p.classic {

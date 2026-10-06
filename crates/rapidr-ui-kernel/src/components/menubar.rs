@@ -133,7 +133,8 @@ pub fn items(parent: &str) -> Vec<ItemView> {
 
 /// Menus' font (the system's menu font: RapidQ's menus have no Font).
 pub fn menu_font() -> Font {
-    Font::default()
+    // (Windows' menu font in the classic look; RapidR's chrome font in its own)
+    rapidr_value::ide_theme::chrome_font(rapidr_value::theme::current())
 }
 
 /// A panel's size for its items.
@@ -260,7 +261,8 @@ impl FormUi {
             .into_iter()
             .filter(|i| !i.separator)
             .map(|i| {
-                let w = text_size(&mnemonic(&i.caption).0, &font).0 + 2 * BAR_PAD;
+                let pad = if rapidr_value::theme::current().fluent() { BAR_PAD + 3 } else { BAR_PAD };
+                let w = text_size(&mnemonic(&i.caption).0, &font).0 + 2 * pad;
                 let r = (x, 0, w, self.menu_offset);
                 x += w;
                 (i, r)
@@ -679,14 +681,18 @@ impl FormUi {
                 p.thin_raised(frame);
             }
             let d = i64::from(open && !t.fluent());
+            // (RapidR's look underlines the bar's access keys only while the
+            // keyboard is in the menus, as Windows 11 does)
+            let shown_caption = if t.fluent() && !self.menus.keyboard && !self.menu_open() { mnemonic(&item.caption).0.replace('&', "&&") } else { item.caption.clone() };
+            let item_caption = &shown_caption;
             if item.enabled {
                 let ink = if t.fluent() && open { t.menu_highlight_text } else { t.menu_text };
-                caption(p, (r.0 + d, r.1 + d, r.2, r.3), &item.caption, &font, ink, Place::Center);
+                caption(p, (r.0 + d, r.1 + d, r.2, r.3), item_caption, &font, ink, Place::Center);
             } else {
                 if !t.fluent() {
-                    caption(p, (r.0 + 1, r.1 + 1, r.2, r.3), &item.caption, &font, t.light, Place::Center);
+                    caption(p, (r.0 + 1, r.1 + 1, r.2, r.3), item_caption, &font, t.light, Place::Center);
                 }
-                caption(p, r, &item.caption, &font, t.gray_text, Place::Center);
+                caption(p, r, item_caption, &font, t.gray_text, Place::Center);
             }
         }
     }

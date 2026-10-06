@@ -39,7 +39,17 @@ impl Host for Desktop {
         // data files found beside it)
         let full = std::fs::canonicalize(program).map_err(|e| format!("{program}: {e}"))?;
         let cwd = full.parent().filter(|p| !p.as_os_str().is_empty());
-        rapidr_session::process::ProcessTransport::spawn(&exe, &full.to_string_lossy(), args, cwd)
+        // (the IDE's own test hooks aren't the program's; under a capture
+        // test the program's windows are captured too, as `<prefix>-program`)
+        let mut env: Vec<(String, Option<String>)> = std::env::vars()
+            .map(|(k, _)| k)
+            .filter(|k| k.starts_with("RAPIDR_TEST_") || k == "RAPIDR_CAPTURE" || k == "RAPIDR_CAPTURE_DELAY")
+            .map(|k| (k, None))
+            .collect();
+        if let Ok(prefix) = std::env::var("RAPIDR_CAPTURE") {
+            env.push(("RAPIDR_CAPTURE".into(), Some(format!("{prefix}-program"))));
+        }
+        rapidr_session::process::ProcessTransport::spawn_with_env(&exe, &full.to_string_lossy(), args, cwd, &env)
             .map(|t| Box::new(t) as Box<dyn Transport>)
             .map_err(|e| format!("{}: {e}", exe.display()))
     }

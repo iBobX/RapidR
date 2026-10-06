@@ -825,6 +825,8 @@ pub fn rapidr_run_bc(bytes: &[u8]) -> Result<(), JsValue> {
         .map_err(|e| JsValue::from_str(&format!("rrbc decode error: {e}")))?;
     rapidr_runtime_web::value::resources::set_all(&module.resources);
     rapidr_runtime_web::object_web::install_object_hooks();
+    // (RapidR Studio's RPROGRAMSESSION compiles the program it runs here)
+    rapidr_runtime_web::studio_web::set_compiler(compile_for_studio);
     // Installed before `__main` runs, so events fired during setup (an
     // RSqlite OnConnect, a synchronous RHTTP OnLoad, …) reach their handlers.
     start_session(Session::new(module, false));
@@ -967,6 +969,30 @@ fn resource_bytes(assets: &JsValue, file: &str) -> Option<Vec<u8>> {
     })?;
     let url = js_sys::Reflect::get(assets, &JsValue::from_str(&found)).ok()?.as_string()?;
     rapidr_runtime_web::database_web::decode_base64(&url)
+}
+
+/// (RapidR Studio's) A program from its files, as RPROGRAMSESSION runs it.
+fn compile_for_studio(main: &str, files: Vec<(String, String)>) -> Result<Vec<u8>, String> {
+    let source = files.iter().find(|(n, _)| n == main).map(|(_, t)| t.clone()).ok_or_else(|| format!("{main}: not among the program's files"))?;
+    compile_inner(main, &source, files, &JsValue::UNDEFINED)
+}
+
+/// (RapidR Studio's page) The program under development's frame sent an
+/// event (session protocol JSON): the session's events fire.
+#[wasm_bindgen]
+pub fn studio_session_incoming(json: &str) {
+    rapidr_runtime_web::rapidr_studio::channel::incoming(json);
+    rapidr_runtime_web::studio_web::poll();
+    run_idle_events();
+}
+
+/// (RapidR Studio's page) The program's frame ended (closed, or it failed
+/// to start).
+#[wasm_bindgen]
+pub fn studio_session_ended(code: i32) {
+    rapidr_runtime_web::rapidr_studio::channel::ended(code);
+    rapidr_runtime_web::studio_web::poll();
+    run_idle_events();
 }
 
 fn compile_inner(main: &str, source: &str, files: Vec<(String, String)>, assets: &JsValue) -> Result<Vec<u8>, String> {

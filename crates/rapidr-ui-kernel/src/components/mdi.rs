@@ -134,8 +134,26 @@ impl ComponentKind for ChildFrame {
         let maximized = store::int(cx.store, cx.id, "childstate", 0) == 2;
         let t = p.theme();
         let (bx, by, bw, bh) = title_bar(w);
-        let (bar, ink) = if active { (t.caption, t.caption_text) } else { (t.inactive_caption, t.inactive_caption_text) };
-        if t.fluent() {
+        let (mut bar, mut ink) = if active { (t.caption, t.caption_text) } else { (t.inactive_caption, t.inactive_caption_text) };
+        // (RapidR's look — modern, dark: a light window, its title bar the
+        // window's surface, a hairline frame rounded 7 pixels, the accent
+        // only in the active one's frame and a thin line on top; high
+        // contrast keeps its strong title bar)
+        let soft = t.fluent() && !t.ring_fields;
+        if soft {
+            let surface = t.face;
+            bar = if active { rapidr_value::dock::look::mix(surface, t.accent, if t.dark { 0.10 } else { 0.06 }) } else { surface };
+            ink = if active { t.text } else { rapidr_value::dock::look::mix(t.text, surface, 0.35) };
+            let radius = if maximized { 0.0 } else { 7.0 };
+            let line = if active { rapidr_value::dock::look::mix(t.accent, surface, 0.25) } else { t.border };
+            p.round((0, 0, w, h), radius, Some(surface), None, 1.0);
+            p.clipped((0, 0, w, bh + BORDER), |p| p.round((0, 0, w, h), radius, Some(bar), None, 1.0));
+            p.fill((1, bh + BORDER, w - 2, 1), rapidr_value::dock::look::mix(t.border, surface, 0.3));
+            p.round((0, 0, w, h), radius, None, Some(line), 1.0);
+            if active && !maximized {
+                p.clipped((0, 0, w, 2), |p| p.round((0, 0, w, h), radius, Some(t.accent), None, 1.0));
+            }
+        } else if t.fluent() {
             p.fill((0, 0, w, h), t.face);
             p.frame((0, 0, w, h), if active { t.caption } else { t.border });
             // (the title bar reaches the frame)
@@ -147,7 +165,8 @@ impl ComponentKind for ChildFrame {
             p.fill((bx, by, bw, bh), bar);
         }
         let title = store::string(cx.store, cx.id, "caption");
-        let font = Font { styles: cx.font.styles | 1, color: rapidr_value::theme::bgr(ink) as i64, ..cx.font.clone() };
+        let base = if t.fluent() { rapidr_value::ide_theme::chrome_font(t) } else { cx.font.clone() };
+        let font = Font { styles: base.styles | 1, color: rapidr_value::theme::bgr(ink) as i64, ..base };
         let room = (bw - 3 * (TITLE_HEIGHT - 2) - 6).max(0);
         p.clipped((bx + 2, by, room, bh), |p| p.text((bx + 3, by, room, bh), &title, &font, ink, Place::Left));
         for slot in 0..3 {

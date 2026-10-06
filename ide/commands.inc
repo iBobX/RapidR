@@ -244,17 +244,18 @@ SUB AddTool(Id AS STRING)
   IF i < 0 OR TBCount >= MAXTOOLS THEN EXIT SUB
   TB(TBCount).Parent = ToolBar
   TB(TBCount).Left = TBNextX: TB(TBCount).Top = 5
-  TB(TBCount).Width = 28: TB(TBCount).Height = 28
+  TB(TBCount).Width = 30: TB(TBCount).Height = 30
   TB(TBCount).Flat = 1
   TB(TBCount).Tag = i
   hint = PlainTitle(Cmd(i).Title)
   TB(TBCount).AccessibleName = hint
   IF CmdKeys(i) <> "" THEN hint = hint + " (" + CmdKeys(i) + ")"
   TB(TBCount).Hint = hint
+  TB(TBCount).ShowHint = 1
   TB(TBCount).OnClick = ToolPicked
   TBCmd(TBCount) = i
   Cmd(i).Tool = TBCount
-  TBNextX = TBNextX + 30
+  TBNextX = TBNextX + 32
   TBCount = TBCount + 1
 END SUB
 
@@ -262,10 +263,10 @@ SUB AddToolSep
   IF TBSepCount > 12 THEN EXIT SUB
   TBSep(TBSepCount).Parent = ToolBar
   TBSep(TBSepCount).BevelOuter = 0
-  TBSep(TBSepCount).Left = TBNextX + 4: TBSep(TBSepCount).Top = 10
-  TBSep(TBSepCount).Width = 1: TBSep(TBSepCount).Height = 18
+  TBSep(TBSepCount).Left = TBNextX + 6: TBSep(TBSepCount).Top = 12
+  TBSep(TBSepCount).Width = 1: TBSep(TBSepCount).Height = 16
   TBSepCount = TBSepCount + 1
-  TBNextX = TBNextX + 10
+  TBNextX = TBNextX + 14
 END SUB
 
 SUB BuildToolBar
@@ -358,7 +359,7 @@ END SUB
 
 ' ---- the command palette ---------------------------------------------------------
 
-DIM PaletteCmd(MAXCMDS) AS INTEGER
+DIM PaletteCmd(MAXCMDS + 20) AS INTEGER
 DIM PaletteCount AS INTEGER
 
 SUB FillPalette
@@ -366,6 +367,16 @@ SUB FillPalette
   f = LCASE$(PaletteEdit.Text)
   PaletteList.Clear
   PaletteCount = 0
+  ' (":N": a line of the active document)
+  IF LEFT$(f, 1) = ":" THEN
+    IF ActiveCode >= 0 THEN
+      PaletteList.AddItems "Go to line " + MID$(f, 2) + " (1 to " + LTRIM$(STR$(CodeDoc(ActiveCode).LineCount)) + ")"
+      PaletteCmd(0) = -10000
+      PaletteCount = 1
+      PaletteList.ItemIndex = 0
+    END IF
+    EXIT SUB
+  END IF
   FOR i = 0 TO CmdCount - 1
     IF Cmd(i).Id <> "" AND CmdEnabled(i) <> 0 THEN
       cat = Cmd(i).Category
@@ -377,6 +388,15 @@ SUB FillPalette
         PaletteCmd(PaletteCount) = i
         PaletteCount = PaletteCount + 1
       END IF
+    END IF
+  NEXT
+  ' (the examples: "Example: hello_form.rr …", opened by a negative entry)
+  FOR i = 0 TO ExampleCount - 1
+    txt = "Example: " + FileTitle(ExampleFile(i)) + " - " + ExampleWhat(i)
+    IF f = "" OR INSTR(LCASE$(txt), f) > 0 THEN
+      PaletteList.AddItems txt
+      PaletteCmd(PaletteCount) = -1 - i
+      PaletteCount = PaletteCount + 1
     END IF
   NEXT
   IF PaletteCount > 0 THEN PaletteList.ItemIndex = 0
@@ -400,7 +420,13 @@ SUB PalettePicked
   k = PaletteList.ItemIndex
   IF k < 0 OR k >= PaletteCount THEN EXIT SUB
   Palette.Hide
-  RunCommand Cmd(PaletteCmd(k)).Id
+  IF PaletteCmd(k) = -10000 THEN
+    IF VAL(MID$(PaletteEdit.Text, 2)) > 0 AND ActiveCode >= 0 THEN CodeDoc(ActiveCode).GotoLine VAL(MID$(PaletteEdit.Text, 2)) - 1
+  ELSEIF PaletteCmd(k) < 0 THEN
+    OpenProject HomeDir + "examples/" + ExampleFile(-1 - PaletteCmd(k))
+  ELSE
+    RunCommand Cmd(PaletteCmd(k)).Id
+  END IF
 END SUB
 
 ' (the palette's keys: Up / Down move in the list, Enter runs, Escape closes)

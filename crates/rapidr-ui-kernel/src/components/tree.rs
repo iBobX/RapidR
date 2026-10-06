@@ -21,6 +21,11 @@ use std::collections::HashMap;
 use rapidr_value::objects::a11y::{part_id, AccessNode, Action, PART_ITEM};
 use rapidr_value::objects::ops::{Place, Rect};
 use rapidr_value::objects::tree::{Hit, Row, BUTTON, ROW_HEIGHT};
+
+/// A tree's rows' height (its ItemHeight, or 16).
+fn row_h(id: &str) -> i64 {
+    with_tree(id, |t| t.row_height()).unwrap_or(ROW_HEIGHT)
+}
 use rapidr_value::objects::with_tree;
 
 use super::list::{act, background, bar_mouse, bar_tick, begin_edit, drop_editor, edit_key, editing, editor_ime, editor_ime_area, editor_menu, editor_mouse, end_edit, fire, paint_editor, picture_of, set_edit_text, sunken, vscroll_at, vscroll_state, InPlace, ListAction};
@@ -65,7 +70,7 @@ fn icon(cx: &Cx, node: usize, selected: bool) -> Option<(crate::display::Picture
 /// The rows as drawn now (inside the frame; TopIndex's row first).
 fn rows(cx: &Cx) -> Vec<Row> {
     let h = cx.height() - 4;
-    with_tree(cx.id, |t| t.rows(ROW_HEIGHT, h)).unwrap_or_default()
+    with_tree(cx.id, |t| t.rows(t.row_height(), h)).unwrap_or_default()
 }
 
 /// Where node `n`'s text box is (in the component), with its icon's room.
@@ -134,7 +139,7 @@ impl Tree {
         let (pos, _, _) = vscroll_state(cx.id);
         with_tree(cx.id, |t| {
             let rows = t.visible_rows();
-            if let Some(&r) = rows.get((pos / ROW_HEIGHT) as usize) {
+            if let Some(&r) = rows.get((pos / t.row_height()) as usize) {
                 t.top_index = r as i64;
             }
         });
@@ -193,7 +198,7 @@ impl ComponentKind for Tree {
             return;
         };
         // (the bar follows TopIndex)
-        let (_, cw, bar) = vscroll_at(cx.id, w - 4, h - 4, count * ROW_HEIGHT, ROW_HEIGHT, Some(top_row * ROW_HEIGHT));
+        let (_, cw, bar) = vscroll_at(cx.id, w - 4, h - 4, count * row_h(cx.id), row_h(cx.id), Some(top_row * row_h(cx.id)));
         let rows = rows(cx);
         let font = cx.font.clone();
         let focused = cx.state.focused;
@@ -266,7 +271,7 @@ impl ComponentKind for Tree {
         // (TopIndex follows the bar, a row at a time)
         let (pos, _, _) = vscroll_state(cx.id);
         with_tree(cx.id, |t| {
-            if let Some(&r) = t.visible_rows().get((pos / ROW_HEIGHT) as usize) {
+            if let Some(&r) = t.visible_rows().get((pos / t.row_height()) as usize) {
                 t.top_index = r as i64;
             }
         });
@@ -297,7 +302,7 @@ impl ComponentKind for Tree {
         // click's second press too)
         cancel_edit_soon(cx);
         let (x, y) = (m.x.floor() as i64 - 2, m.y.floor() as i64 - 2);
-        let hit = with_tree(cx.id, |t| t.hit(x, y, ROW_HEIGHT)).flatten();
+        let hit = with_tree(cx.id, |t| t.hit(x, y, t.row_height())).flatten();
         // (a press elsewhere ends an edit, keeping it)
         if editing(cx.id).is_some() {
             Self::finish_edit(cx, true);
@@ -324,7 +329,7 @@ impl ComponentKind for Tree {
         // (while editing, the keys are the editor's — its row scrolled away
         // or not)
         if editing(cx.id).is_some() {
-            let r = Self::edit_rect(cx).unwrap_or((2, 2, cx.width() - 4, ROW_HEIGHT));
+            let r = Self::edit_rect(cx).unwrap_or((2, 2, cx.width() - 4, row_h(cx.id)));
             if let Some(end) = edit_key(cx, k, clip, r) {
                 if let Some(keep) = end {
                     Self::finish_edit(cx, keep);
@@ -348,7 +353,7 @@ impl ComponentKind for Tree {
                 }
             }
             38 | 40 | 36 | 35 | 33 | 34 => {
-                let page = ((cx.height() - 4) / ROW_HEIGHT).max(1) as usize;
+                let page = ((cx.height() - 4) / row_h(cx.id)).max(1) as usize;
                 let next = match (k.vk, at) {
                     (_, None) => rows.first().copied(),
                     (40, Some(a)) => rows.get(a + 1).copied(),

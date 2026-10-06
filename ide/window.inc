@@ -20,14 +20,16 @@ MarkIcons.Width = 16: MarkIcons.Height = 16
 DIM ExampleIcons AS QIMAGELIST
 ExampleIcons.Width = 16: ExampleIcons.Height = 16
 
+' The fonts: RapidR's look's chrome in Inter, code in JetBrains Mono
+' (docs/ide-plan.md D8); the classic look keeps Windows' (RapidQ's).
+DIM UIFont AS QFONT
 DIM HeadFont AS QFONT
-HeadFont.Size = 20: HeadFont.Bold = 1
 DIM SubFont AS QFONT
-SubFont.Size = 11: SubFont.Bold = 1
+DIM CardFont AS QFONT
+DIM DimFont AS QFONT
 DIM LinkFont AS QFONT
-LinkFont.Size = 9
+DIM StatusFont AS QFONT
 DIM MonoFont AS QFONT
-MonoFont.Name = "Courier New": MonoFont.Size = 10
 
 CREATE Studio AS QFORM
   Caption = "RapidR Studio"
@@ -35,10 +37,11 @@ CREATE Studio AS QFORM
   KeyPreview = 1
   OnResize = StudioResize
   OnClose = StudioClose
+  OnKeyDown = StudioKey
   CREATE MainMenu AS QMAINMENU
   END CREATE
   CREATE ToolBar AS QPANEL
-    Align = 1: Height = 38
+    Align = 1: Height = 40
     BevelOuter = 0
     AccessibleName = "Tool bar"
   END CREATE
@@ -100,62 +103,54 @@ CREATE Studio AS QFORM
     Width = 700: Height = 190
     WordWrap = 0
     AccessibleName = "Immediate"
+    OnKeyDown = ImmediateKey
+  END CREATE
+  ' (the problems and the outline follow the editor once typing stops)
+  CREATE Macro AS QTIMER
+    Interval = 400
+    Enabled = 0
+    OnTimer = MacroTick
+  END CREATE
+  CREATE Analyzer AS QTIMER
+    Interval = 600
+    Enabled = 0
+    OnTimer = AnalyzerTick
   END CREATE
 
-  ' ---- the start page (a document) ----
+  ' ---- the start page (a document): the brand, Start, Recent, the examples ----
   CREATE Welcome AS QPANEL
     Width = 720: Height = 520
     BevelOuter = 0
     AccessibleName = "Welcome"
+    OnResize = LayOutWelcome
+    CREATE WelcomeLogo AS QIMAGE
+      Left = 48: Top = 36: Width = 153: Height = 44
+      Stretch = 1
+      AccessibleName = "RapidR"
+    END CREATE
     CREATE WelcomeTitle AS QLABEL
-      Left = 40: Top = 30: Width = 600: Height = 36
-      Caption = "RapidR Studio"
+      Left = 216: Top = 44: Width = 400: Height = 30
+      Caption = "Studio"
     END CREATE
     CREATE WelcomeTag AS QLABEL
-      Left = 40: Top = 70: Width = 640: Height = 20
+      Left = 48: Top = 92: Width = 640: Height = 20
       Caption = "RapidQ programs, made modern: desktop and web from one source."
     END CREATE
     CREATE StartHead AS QLABEL
-      Left = 40: Top = 112: Width = 200: Height = 22
+      Left = 48: Top = 136: Width = 220: Height = 22
       Caption = "Start"
     END CREATE
-    CREATE LinkNew AS QLABEL
-      Left = 40: Top = 142: Width = 220: Height = 20
-      Caption = "New Project..."
-      Cursor = -21
-      OnClick = WelcomeLink
-    END CREATE
-    CREATE LinkOpen AS QLABEL
-      Left = 40: Top = 166: Width = 220: Height = 20
-      Caption = "Open Project or File..."
-      Cursor = -21
-      OnClick = WelcomeLink
-    END CREATE
-    CREATE LinkExample AS QLABEL
-      Left = 40: Top = 190: Width = 220: Height = 20
-      Caption = "Open an Example..."
-      Cursor = -21
-      OnClick = WelcomeLink
-    END CREATE
-    CREATE LinkPalette AS QLABEL
-      Left = 40: Top = 214: Width = 220: Height = 20
-      Caption = "All Commands (Ctrl+Shift+P)"
-      Cursor = -21
-      OnClick = WelcomeLink
-    END CREATE
     CREATE RecentHead AS QLABEL
-      Left = 290: Top = 112: Width = 300: Height = 22
-      Caption = "Examples"
+      Left = 48: Top = 296: Width = 220: Height = 22
+      Caption = "Recent"
     END CREATE
-    CREATE ExamplesView AS QLISTVIEW
-      Left = 290: Top = 142: Width = 400: Height = 340
-      Anchors = akLeft + akTop + akRight + akBottom
-      ViewStyle = 3
-      RowSelect = 1
-      ReadOnly = 1
-      SmallImages = ExampleIcons
-      AccessibleName = "Examples"
-      OnDblClick = ExampleOpened
+    CREATE RecentNone AS QLABEL
+      Left = 48: Top = 326: Width = 220: Height = 20
+      Caption = "No recent projects yet"
+    END CREATE
+    CREATE ExamplesHead AS QLABEL
+      Left = 300: Top = 136: Width = 300: Height = 22
+      Caption = "Examples"
     END CREATE
   END CREATE
 END CREATE
@@ -176,5 +171,46 @@ CREATE Palette AS QFORM
     Left = 8: Top = 40: Width = 528: Height = 276
     AccessibleName = "Commands"
     OnDblClick = PalettePicked
+  END CREATE
+END CREATE
+
+' ---- File > New Project ---------------------------------------------------------------
+CREATE NewDialog AS QFORM
+  Caption = "New Project"
+  Width = 460: Height = 230
+  BorderStyle = 3
+  CREATE NewNameLabel AS QLABEL
+    Left = 16: Top = 20: Width = 90: Caption = "&Name:"
+  END CREATE
+  CREATE NewName AS QEDIT
+    Left = 110: Top = 16: Width = 320
+  END CREATE
+  CREATE NewKindLabel AS QLABEL
+    Left = 16: Top = 56: Width = 90: Caption = "&Kind:"
+  END CREATE
+  CREATE NewKind AS QCOMBOBOX
+    Left = 110: Top = 52: Width = 320
+    AddItems "A program with a form", "A console program"
+  END CREATE
+  CREATE NewFolderLabel AS QLABEL
+    Left = 16: Top = 92: Width = 90: Caption = "&Folder:"
+  END CREATE
+  CREATE NewFolder AS QEDIT
+    Left = 110: Top = 88: Width = 284
+  END CREATE
+  CREATE NewFolderBtn AS QBUTTON
+    Left = 400: Top = 87: Width = 30: Caption = "..."
+    AccessibleName = "Choose the folder"
+    OnClick = NewBrowse
+  END CREATE
+  CREATE NewOk AS QBUTTON
+    Left = 254: Top = 140: Width = 84: Caption = "Create"
+    Default = 1
+    OnClick = NewCreate
+  END CREATE
+  CREATE NewNo AS QBUTTON
+    Left = 346: Top = 140: Width = 84: Caption = "Cancel"
+    Cancel = 1
+    OnClick = NewCancel
   END CREATE
 END CREATE
