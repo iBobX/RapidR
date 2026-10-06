@@ -77,6 +77,9 @@ pub enum Op {
     /// wide with round joins and ends, smooth: a fluent check mark, a
     /// chevron.
     Stroke { points: Vec<(f64, f64)>, color: u32, width: f64 },
+    /// A filled polygon exactly where its points fall (smooth, off the
+    /// pixel grid): a chart's areas, pie slices and markers (RPLOT).
+    Polygon { points: Vec<(f64, f64)>, color: u32 },
     /// A bitmap model's picture (a QCANVAS, a QIMAGE, a form's surface) by
     /// its object id, scaled into `rect`; `revision` tells a host when to
     /// upload it again.

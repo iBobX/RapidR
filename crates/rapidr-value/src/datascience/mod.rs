@@ -6,10 +6,9 @@
 //! charts' models, their methods and properties, the CSV and JSON readers
 //! and writers, the text a frame prints as. What a runtime adds is only
 //! what can't be shared ([`Host`]): where `PRINT`ed text goes, how a
-//! QSTRINGGRID is filled, and how a chart is drawn — plotters into a PNG on
-//! the desktop (`rapidr-runtime-core/src/datascience.rs`), an HTML canvas on
-//! the web (`rapidr-runtime-web/src/datascience_web.rs`), both from the one
-//! [`plot::Plot`] model.
+//! QSTRINGGRID is filled, and where a chart's pixels go. Charts are drawn
+//! once for all ([`chart`]: the UI kernel's ops, rendered by
+//! rapidr-ui-render — the same pixels on the desktop and the web).
 //!
 //! **Why our own engine and not polars / ndarray** (docs/ide-plan.md, D7).
 //! Until 2.117 the desktop answered these components with ndarray and
@@ -25,6 +24,8 @@
 //! longer compiled into every native build). A columnar engine can replace
 //! [`frame::Frame`] behind the same members if programs ever need it.
 
+pub mod chart;
+pub mod colors;
 pub mod frame;
 pub mod num;
 pub mod plot;
@@ -44,12 +45,13 @@ pub trait Host {
     /// row first, the grid's one fixed row; no fixed column; every row as
     /// long as the first).
     fn to_grid(&self, grid: &str, rows: &[Vec<String>]);
-    /// `Plot.SaveFig file`: draw chart `plot` (its model is
-    /// [`plot::state`]) into `file`.
-    fn save_plot(&self, plot: &str, file: &str);
+    /// `Plot.SaveFig file [, scale]`: chart `plot` (its model is
+    /// [`plot::state`], drawn by [`chart`]) as a PNG in `file`, `scale`
+    /// times its size.
+    fn save_plot(&self, plot: &str, file: &str, scale: f64);
     /// `Plot.Show` / `Plot.Render` (and a series added with `AddSeries`):
-    /// draw chart `plot` where it is shown — the page on the web; nothing on
-    /// the desktop, where a chart is shown by `Image.LoadFromPlot`.
+    /// nothing on every runtime today — a chart is shown by
+    /// `Image.LoadFromPlot` (kept for a runtime that shows charts itself).
     fn show_plot(&self, plot: &str);
 }
 
@@ -143,7 +145,7 @@ pub(crate) mod test_host {
         fn to_grid(&self, grid: &str, rows: &[Vec<String>]) {
             self.grids.borrow_mut().push((grid.to_string(), rows.to_vec()));
         }
-        fn save_plot(&self, plot: &str, file: &str) {
+        fn save_plot(&self, plot: &str, file: &str, _scale: f64) {
             self.shown.borrow_mut().push(format!("save {plot} {file}"));
         }
         fn show_plot(&self, plot: &str) {

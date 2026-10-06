@@ -1,116 +1,28 @@
 # The constants: RapidQ's RAPIDQ.INC (what `$INCLUDE "RAPIDQ.INC"` gives, built in), its
 # library includes' and RapidR's own. Values as RapidQ's (colours are BGR).
-
-[[group]]
-name = "Truth values"
-source = "RAPIDQ.INC"
-doc = "The value of false, for flags and comparisons."
-constants = [
-  ["False", 0],
-]
-
-[[group]]
-name = "Truth values"
-source = "RAPIDQ.INC"
-doc = "The value of true as RAPIDQ.INC defines it: 1 (a comparison itself gives -1)."
-constants = [
-  ["True", 1],
-]
-
-[[group]]
-name = "PLAYWAV options"
-source = "RAPIDQ.INC"
-doc = "Options for `PLAYWAV`: wait for the sound to end, play it in the background, or repeat it."
-constants = [
-  ["SND_SYNC", 0],
-  ["SND_ASYNC", 1],
-  ["SND_LOOP", 8],
-]
-
-[[group]]
-name = "Colours"
-source = "RAPIDQ.INC"
-doc = "Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods."
-constants = [
-  ["clBlack", 0],
-  ["clMaroon", 128],
-  ["clGreen", 65280],
-  ["clOlive", 32896],
-  ["clNavy", 8388608],
-  ["clPurple", 16711935],
-  ["clTeal", 8421376],
-  ["clGray", 8421504],
-  ["clSilver", 12632256],
-  ["clRed", 255],
-  ["clLime", 65280],
-  ["clYellow", 65535],
-  ["clBlue", 16711680],
-  ["clFuchsia", 16711935],
-  ["clAqua", 16776960],
-  ["clWhite", 16777215],
-  ["clLtGray", 12632256],
-  ["clDkGray", 8421504],
-  ["clBtnFace", -2147483633],
-  ["clWindow", -2147483643],
-  ["clWindowText", -2147483640],
-  ["clBtnText", -2147483630],
-  ["clBtnShadow", -2147483632],
-  ["clHighlight", -2147483635],
-  ["clHighlightText", -2147483634],
-  ["clGrayText", -2147483631],
-]
-
-[[group]]
-name = "Modal results"
-source = "RAPIDQ.INC"
-doc = "Results of a form shown with ShowModal, and a button's ModalResult that closes the form with it."
-constants = [
-  ["mrNone", 0],
-  ["mrOk", 1],
-  ["mrCancel", 2],
-  ["mrAbort", 3],
-  ["mrRetry", 4],
-  ["mrIgnore", 5],
-  ["mrYes", 6],
-  ["mrNo", 7],
-  ["mrAll", 8],
-]
+# RAPIDQ.INC's numbers are in RapidR's own order: grouped by where each is
+# publicly defined, as crates/rapidr-preprocessor's RAPIDQ_INC_CONSTANTS
+# (docs/legal/rapidq-review.md); a test keeps the two the same.
 
 [[group]]
 name = "Message box buttons and icons"
 source = "RAPIDQ.INC"
 doc = "Flags for `MESSAGEBOX`: which buttons it shows, added to the icon it shows."
 constants = [
+  ["MB_ABORTRETRYIGNORE", 2],
+  ["MB_ICONASTERISK", 64],
+  ["MB_ICONERROR", 16],
+  ["MB_ICONEXCLAMATION", 48],
+  ["MB_ICONHAND", 16],
+  ["MB_ICONINFORMATION", 64],
+  ["MB_ICONQUESTION", 32],
+  ["MB_ICONSTOP", 16],
+  ["MB_ICONWARNING", 48],
   ["MB_OK", 0],
   ["MB_OKCANCEL", 1],
-  ["MB_ABORTRETRYIGNORE", 2],
-  ["MB_YESNOCANCEL", 3],
-  ["MB_YESNO", 4],
   ["MB_RETRYCANCEL", 5],
-  ["MB_ICONHAND", 16],
-  ["MB_ICONSTOP", 16],
-  ["MB_ICONERROR", 16],
-  ["MB_ICONQUESTION", 32],
-  ["MB_ICONEXCLAMATION", 48],
-  ["MB_ICONWARNING", 48],
-  ["MB_ICONASTERISK", 64],
-  ["MB_ICONINFORMATION", 64],
-]
-
-[[group]]
-name = "Message box results"
-source = "RAPIDQ.INC"
-doc = "What `MESSAGEBOX` returns: the button the user chose."
-constants = [
-  ["IDOK", 1],
-]
-
-[[group]]
-name = "Message box results"
-source = "RAPIDQ.INC"
-doc = "What `MESSAGEBOX` returns: the button the user chose."
-constants = [
-  ["IDCANCEL", 2],
+  ["MB_YESNO", 4],
+  ["MB_YESNOCANCEL", 3],
 ]
 
 [[group]]
@@ -119,182 +31,12 @@ source = "RAPIDQ.INC"
 doc = "What `MESSAGEBOX` returns: the button the user chose."
 constants = [
   ["IDABORT", 3],
-]
-
-[[group]]
-name = "Message box results"
-source = "RAPIDQ.INC"
-doc = "What `MESSAGEBOX` returns: the button the user chose."
-constants = [
-  ["IDRETRY", 4],
-]
-
-[[group]]
-name = "Message box results"
-source = "RAPIDQ.INC"
-doc = "What `MESSAGEBOX` returns: the button the user chose."
-constants = [
+  ["IDCANCEL", 2],
   ["IDIGNORE", 5],
-]
-
-[[group]]
-name = "Message box results"
-source = "RAPIDQ.INC"
-doc = "What `MESSAGEBOX` returns: the button the user chose."
-constants = [
-  ["IDYES", 6],
-]
-
-[[group]]
-name = "Message box results"
-source = "RAPIDQ.INC"
-doc = "What `MESSAGEBOX` returns: the button the user chose."
-constants = [
   ["IDNO", 7],
-]
-
-[[group]]
-name = "Border styles"
-source = "RAPIDQ.INC"
-doc = "A form's or control's BorderStyle: no border, a fixed one, a sizeable one, a dialog's or a tool window's."
-constants = [
-  ["bsNone", 0],
-  ["bsSingle", 1],
-  ["bsSizeable", 2],
-  ["bsDialog", 3],
-  ["bsToolWindow", 4],
-  ["bsSizeToolWin", 5],
-]
-
-[[group]]
-name = "Window states"
-source = "RAPIDQ.INC"
-doc = "A form's WindowState: normal, minimized or maximized."
-constants = [
-  ["wsNormal", 0],
-  ["wsMinimized", 1],
-  ["wsMaximized", 2],
-]
-
-[[group]]
-name = "Alignment in the parent"
-source = "RAPIDQ.INC"
-doc = "A control's Align: where it docks in its parent (top, bottom, left, right, the whole client area) as the parent resizes."
-constants = [
-  ["alNone", 0],
-  ["alTop", 1],
-  ["alBottom", 2],
-  ["alLeft", 3],
-  ["alRight", 4],
-  ["alClient", 5],
-]
-
-[[group]]
-name = "Mouse buttons"
-source = "RAPIDQ.INC"
-doc = "Which mouse button an OnMouseDown or OnMouseUp event is for."
-constants = [
-  ["mbLeft", 0],
-  ["mbRight", 1],
-  ["mbMiddle", 2],
-]
-
-[[group]]
-name = "Message dialog types"
-source = "RAPIDQ.INC"
-doc = "The kind of message `MESSAGEDLG` shows, which sets its caption and icon."
-constants = [
-  ["mtWarning", 0],
-  ["mtError", 1],
-  ["mtInformation", 2],
-  ["mtConfirmation", 3],
-  ["mtCustom", 4],
-]
-
-[[group]]
-name = "Message dialog buttons"
-source = "RAPIDQ.INC"
-doc = "Buttons for `MESSAGEDLG`, added together for more than one."
-constants = [
-  ["mbYes", 1],
-  ["mbNo", 2],
-  ["mbOK", 4],
-  ["mbCancel", 8],
-  ["mbHelp", 16],
-  ["mbAbort", 32],
-  ["mbRetry", 64],
-  ["mbIgnore", 128],
-  ["mbAll", 256],
-]
-
-[[group]]
-name = "File stream modes"
-source = "RAPIDQ.INC"
-doc = "How a QFILESTREAM opens its file: create it, or open it to read, to write or both."
-constants = [
-  ["fmCreate", 65535],
-  ["fmOpenRead", 0],
-  ["fmOpenWrite", 1],
-  ["fmOpenReadWrite", 2],
-]
-
-[[group]]
-name = "Seek origins"
-source = "RAPIDQ.INC"
-doc = "Where a stream's Seek counts from: the start, the current position or the end."
-constants = [
-  ["soFromBeginning", 0],
-  ["soFromCurrent", 1],
-  ["soFromEnd", 2],
-]
-
-[[group]]
-name = "Number types"
-source = "RAPIDQ.INC"
-doc = "The type a stream's ReadNum and WriteNum read or write a number as."
-constants = [
-  ["Num_BYTE", 1],
-  ["Num_SHORT", 2],
-  ["Num_WORD", 3],
-  ["Num_LONG", 4],
-  ["Num_DWORD", 5],
-  ["Num_SINGLE", 6],
-  ["Num_DOUBLE", 8],
-]
-
-[[group]]
-name = "Font styles"
-source = "RAPIDQ.INC"
-doc = "Font styles (bold, italic, underline, strike-out), combined in a font's Style."
-constants = [
-  ["fsBold", 0],
-  ["fsItalic", 1],
-  ["fsUnderline", 2],
-  ["fsStrikeOut", 3],
-]
-
-[[group]]
-name = "Special colours"
-source = "RAPIDQ.INC"
-doc = "Colours meaning no colour, or the control's default one."
-constants = [
-  ["clNone", 536870911],
-  ["clDefault", 536870912],
-]
-
-[[group]]
-name = "Pixel formats"
-source = "RAPIDQ.INC"
-doc = "A bitmap's PixelFormat: the number of bits each pixel takes."
-constants = [
-  ["pfDevice", 0],
-  ["pf1bit", 1],
-  ["pf4bit", 2],
-  ["pf8bit", 3],
-  ["pf15bit", 4],
-  ["pf16bit", 5],
-  ["pf24bit", 6],
-  ["pf32bit", 7],
+  ["IDOK", 1],
+  ["IDRETRY", 4],
+  ["IDYES", 6],
 ]
 
 [[group]]
@@ -303,25 +45,15 @@ source = "RAPIDQ.INC"
 doc = "Codes of the keyboard's keys, as OnKeyDown and OnKeyUp events give them."
 constants = [
   ["VK_BACK", 8],
-  ["VK_TAB", 9],
-  ["VK_RETURN", 13],
-  ["VK_SHIFT", 16],
   ["VK_CONTROL", 17],
-  ["VK_MENU", 18],
-  ["VK_PAUSE", 19],
-  ["VK_ESCAPE", 27],
-  ["VK_SPACE", 32],
-  ["VK_PRIOR", 33],
-  ["VK_NEXT", 34],
-  ["VK_END", 35],
-  ["VK_HOME", 36],
-  ["VK_LEFT", 37],
-  ["VK_UP", 38],
-  ["VK_RIGHT", 39],
-  ["VK_DOWN", 40],
-  ["VK_INSERT", 45],
   ["VK_DELETE", 46],
+  ["VK_DOWN", 40],
+  ["VK_END", 35],
+  ["VK_ESCAPE", 27],
   ["VK_F1", 112],
+  ["VK_F10", 121],
+  ["VK_F11", 122],
+  ["VK_F12", 123],
   ["VK_F2", 113],
   ["VK_F3", 114],
   ["VK_F4", 115],
@@ -330,19 +62,28 @@ constants = [
   ["VK_F7", 118],
   ["VK_F8", 119],
   ["VK_F9", 120],
-  ["VK_F10", 121],
-  ["VK_F11", 122],
-  ["VK_F12", 123],
+  ["VK_HOME", 36],
+  ["VK_INSERT", 45],
+  ["VK_LEFT", 37],
+  ["VK_MENU", 18],
+  ["VK_NEXT", 34],
+  ["VK_PAUSE", 19],
+  ["VK_PRIOR", 33],
+  ["VK_RETURN", 13],
+  ["VK_RIGHT", 39],
+  ["VK_SHIFT", 16],
+  ["VK_SPACE", 32],
+  ["VK_TAB", 9],
+  ["VK_UP", 38],
 ]
 
 [[group]]
-name = "Text alignment"
+name = "PLAYWAV options"
 source = "RAPIDQ.INC"
-doc = "Horizontal alignment of a control's text (Alignment): left, right or centred."
+doc = "Options for `PLAYWAV`: wait for the sound to end, play it in the background, or repeat it."
 constants = [
-  ["taLeftJustify", 0],
-  ["taRightJustify", 1],
-  ["taCenter", 2],
+  ["SND_ASYNC", 1],
+  ["SND_LOOP", 8],
 ]
 
 [[group]]
@@ -350,55 +91,17 @@ name = "PLAYWAV options"
 source = "RAPIDQ.INC"
 doc = "More `PLAYWAV` options: no default sound, don't stop a sound playing, play from memory."
 constants = [
+  ["SND_MEMORY", 4],
   ["SND_NODEFAULT", 2],
   ["SND_NOSTOP", 16],
-  ["SND_MEMORY", 4],
 ]
 
 [[group]]
-name = "System colours"
+name = "PLAYWAV options"
 source = "RAPIDQ.INC"
-doc = "The system's colours for parts of the user interface; a control using one follows the theme."
+doc = "Options for `PLAYWAV`: wait for the sound to end, play it in the background, or repeat it."
 constants = [
-  ["clScrollBar", -2147483648],
-  ["clBackGround", -2147483647],
-  ["clActiveCaption", -2147483646],
-  ["clInActiveCaption", -2147483645],
-  ["clMenu", -2147483644],
-  ["clWindowFrame", -2147483642],
-  ["clMenuText", -2147483641],
-  ["clCaptionText", -2147483639],
-  ["clActiveBorder", -2147483638],
-  ["clInActiveBorder", -2147483637],
-  ["clAppWorkSpace", -2147483636],
-  ["clHilight", -2147483635],
-  ["clHilightText", -2147483634],
-  ["clInActiveCaptionText", -2147483629],
-  ["clBtnHighlight", -2147483628],
-  ["cl3DDkShadow", -2147483627],
-  ["cl3DLight", -2147483626],
-  ["clInfoText", -2147483625],
-  ["clInfoBk3DDkShadow", -2147483624],
-]
-
-[[group]]
-name = "Shift states"
-source = "RAPIDQ.INC"
-doc = "Which of Shift, Ctrl and Alt are held, as keyboard and mouse events give them."
-constants = [
-  ["ssShift", 256],
-  ["ssCtrl", 16],
-  ["ssAlt", 1],
-]
-
-[[group]]
-name = "Font pitch"
-source = "RAPIDQ.INC"
-doc = "A font's Pitch: the font's default, proportional or fixed-width."
-constants = [
-  ["fpDefault", 0],
-  ["fpVariable", 1],
-  ["fpFixed", 2],
+  ["SND_SYNC", 0],
 ]
 
 [[group]]
@@ -407,521 +110,81 @@ source = "RAPIDQ.INC"
 doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
 constants = [
   ["ANSI_CHARSET", 0],
-]
-
-[[group]]
-name = "Character sets"
-source = "RAPIDQ.INC"
-doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
-constants = [
-  ["DEFAULT_CHARSET", 1],
-]
-
-[[group]]
-name = "Character sets"
-source = "RAPIDQ.INC"
-doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
-constants = [
-  ["SYMBOL_CHARSET", 2],
-]
-
-[[group]]
-name = "Character sets"
-source = "RAPIDQ.INC"
-doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
-constants = [
-  ["MAC_CHARSET", 77],
-]
-
-[[group]]
-name = "Character sets"
-source = "RAPIDQ.INC"
-doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
-constants = [
-  ["SHIFTJIS_CHARSET", 128],
-]
-
-[[group]]
-name = "Character sets"
-source = "RAPIDQ.INC"
-doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
-constants = [
-  ["HANGEUL_CHARSET", 129],
-]
-
-[[group]]
-name = "Character sets"
-source = "RAPIDQ.INC"
-doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
-constants = [
-  ["JOHAB_CHARSET", 130],
-]
-
-[[group]]
-name = "Character sets"
-source = "RAPIDQ.INC"
-doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
-constants = [
-  ["GB2312_CHARSET", 134],
-]
-
-[[group]]
-name = "Character sets"
-source = "RAPIDQ.INC"
-doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
-constants = [
+  ["ARABIC_CHARSET", 178],
+  ["BALTIC_CHARSET", 186],
   ["CHINESEBIG5_CHARSET", 136],
-]
-
-[[group]]
-name = "Character sets"
-source = "RAPIDQ.INC"
-doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
-constants = [
+  ["DEFAULT_CHARSET", 1],
+  ["EASTEUROPE_CHARSET", 238],
+  ["GB2312_CHARSET", 134],
   ["GREEK_CHARSET", 161],
-]
-
-[[group]]
-name = "Character sets"
-source = "RAPIDQ.INC"
-doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
-constants = [
+  ["HANGEUL_CHARSET", 129],
+  ["HEBREW_CHARSET", 177],
+  ["JOHAB_CHARSET", 130],
+  ["MAC_CHARSET", 77],
+  ["OEM_CHARSET", 255],
+  ["RUSSIAN_CHARSET", 204],
+  ["SHIFTJIS_CHARSET", 128],
+  ["SYMBOL_CHARSET", 2],
+  ["THAI_CHARSET", 222],
   ["TURKISH_CHARSET", 162],
-]
-
-[[group]]
-name = "Character sets"
-source = "RAPIDQ.INC"
-doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
-constants = [
   ["VIETNAMESE_CHARSET", 163],
 ]
 
 [[group]]
-name = "Character sets"
+name = "Address families"
 source = "RAPIDQ.INC"
-doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
+doc = "Address families for a socket's Family (AF_INET for IPv4 and others)."
 constants = [
-  ["HEBREW_CHARSET", 177],
+  ["AF_APPLETALK", 16],
+  ["AF_BAN", 21],
+  ["AF_CCITT", 10],
+  ["AF_CHAOS", 5],
+  ["AF_DATAKIT", 9],
+  ["AF_DECnet", 12],
+  ["AF_DLI", 13],
+  ["AF_ECMA", 8],
+  ["AF_FIREFOX", 19],
+  ["AF_HYLINK", 15],
+  ["AF_IMPLINK", 3],
+  ["AF_INET", 2],
+  ["AF_IPX", 6],
+  ["AF_ISO", 7],
+  ["AF_LAT", 14],
+  ["AF_NETBIOS", 17],
+  ["AF_NS", 6],
+  ["AF_PUP", 4],
+  ["AF_SNA", 11],
+  ["AF_UNIX", 1],
+  ["AF_UNKNOWN1", 20],
+  ["AF_UNSPEC", 0],
+  ["AF_VOICEVIEW", 18],
 ]
 
 [[group]]
-name = "Character sets"
+name = "IP protocols"
 source = "RAPIDQ.INC"
-doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
+doc = "Internet protocols for a socket's Protocol."
 constants = [
-  ["ARABIC_CHARSET", 178],
+  ["IPPROTO_ICMP", 1],
+  ["IPPROTO_IDP", 22],
+  ["IPPROTO_IGMP", 2],
+  ["IPPROTO_IP", 0],
+  ["IPPROTO_PUP", 12],
+  ["IPPROTO_RAW", 255],
+  ["IPPROTO_TCP", 6],
+  ["IPPROTO_UDP", 17],
 ]
 
 [[group]]
-name = "Character sets"
+name = "Socket types"
 source = "RAPIDQ.INC"
-doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
+doc = "Socket types: a stream (TCP), datagrams (UDP), raw and others."
 constants = [
-  ["BALTIC_CHARSET", 186],
-]
-
-[[group]]
-name = "Character sets"
-source = "RAPIDQ.INC"
-doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
-constants = [
-  ["RUSSIAN_CHARSET", 204],
-]
-
-[[group]]
-name = "Character sets"
-source = "RAPIDQ.INC"
-doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
-constants = [
-  ["THAI_CHARSET", 222],
-]
-
-[[group]]
-name = "Character sets"
-source = "RAPIDQ.INC"
-doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
-constants = [
-  ["EASTEUROPE_CHARSET", 238],
-]
-
-[[group]]
-name = "Character sets"
-source = "RAPIDQ.INC"
-doc = "Character sets for a font's Charset property, choosing which script a font's characters are drawn from."
-constants = [
-  ["OEM_CHARSET", 255],
-]
-
-[[group]]
-name = "Form styles"
-source = "RAPIDQ.INC"
-doc = "A form's FormStyle: normal, an MDI child or parent, or always on top."
-constants = [
-  ["fsNormal", 0],
-  ["fsMDIChild", 1],
-  ["fsMDIForm", 2],
-  ["fsStayOnTop", 3],
-]
-
-[[group]]
-name = "Key states"
-source = "RAPIDQ.INC"
-doc = "The Ctrl key held, as keyboard and mouse events give it."
-constants = [
-  ["CtrlDown", 1],
-]
-
-[[group]]
-name = "Key states"
-source = "RAPIDQ.INC"
-doc = "The Alt key held, as keyboard and mouse events give it."
-constants = [
-  ["AltDown", 16],
-]
-
-[[group]]
-name = "Key states"
-source = "RAPIDQ.INC"
-doc = "The Shift key held, as keyboard and mouse events give it."
-constants = [
-  ["ShiftDown", 256],
-]
-
-[[group]]
-name = "Border icons"
-source = "RAPIDQ.INC"
-doc = "The buttons on a form's title bar (system menu, minimize, maximize, help), for its BorderIcons."
-constants = [
-  ["biSystemMenu", 0],
-  ["biMinimize", 1],
-  ["biMaximize", 2],
-  ["biHelp", 3],
-]
-
-[[group]]
-name = "Close actions"
-source = "RAPIDQ.INC"
-doc = "What happens when a form closes, set in its OnClose event: nothing, hide it, free it or minimize it."
-constants = [
-  ["caNone", 0],
-  ["caHide", 1],
-  ["caFree", 2],
-  ["caMinimize", 3],
-]
-
-[[group]]
-name = "Text layout"
-source = "RAPIDQ.INC"
-doc = "Vertical placement of a control's text (Layout): top, centre or bottom."
-constants = [
-  ["tlTop", 0],
-  ["tlCenter", 1],
-  ["tlBottom", 2],
-]
-
-[[group]]
-name = "Label styles"
-source = "RAPIDQ.INC"
-doc = "A label's LabelStyle: flat, raised or recessed text."
-constants = [
-  ["lsNone", 0],
-  ["lsRaised", 1],
-  ["lsRecessed", 2],
-]
-
-[[group]]
-name = "Bevels"
-source = "RAPIDQ.INC"
-doc = "The bevels of a panel or bevel (BevelInner, BevelOuter): none, lowered or raised."
-constants = [
-  ["bvNone", 0],
-  ["bvLowered", 1],
-  ["bvRaised", 2],
-]
-
-[[group]]
-name = "Bevel panels"
-source = "RAPIDQ.INC"
-doc = "A panel's border styles: none or single."
-constants = [
-  ["bpNone", 0],
-  ["bpSingle", 1],
-]
-
-[[group]]
-name = "Edit character case"
-source = "RAPIDQ.INC"
-doc = "An edit's CharCase: text kept as typed, or turned to upper or lower case."
-constants = [
-  ["ecNormal", 0],
-  ["ecUpperCase", 1],
-  ["ecLowerCase", 2],
-]
-
-[[group]]
-name = "Combo box styles"
-source = "RAPIDQ.INC"
-doc = "A combo box's Style: drop-down with editing, simple, drop-down list, or drawn by the program."
-constants = [
-  ["csDropDown", 0],
-  ["csSimple", 1],
-  ["csDropDownList", 2],
-  ["csOwnerDrawFixed", 3],
-  ["csOwnerDrawVariable", 4],
-]
-
-[[group]]
-name = "Scroll bars"
-source = "RAPIDQ.INC"
-doc = "Which scroll bars a memo, rich edit, grid or tree view shows (ScrollBars)."
-constants = [
-  ["ssNone", 0],
-  ["ssHorizontal", 1],
-  ["ssVertical", 2],
-  ["ssBoth", 3],
-]
-
-[[group]]
-name = "Modal results"
-source = "RAPIDQ.INC"
-doc = "More modal results: \"No to all\" and \"Yes to all\"."
-constants = [
-  ["mrNoToAll", 9],
-  ["mrYesToAll", 10],
-]
-
-[[group]]
-name = "Button glyph layout"
-source = "RAPIDQ.INC"
-doc = "Where a button's picture is placed next to its caption (Layout)."
-constants = [
-  ["blBMPLeft", 0],
-  ["blBMPRight", 1],
-  ["blBMPTop", 2],
-  ["blBMPBottom", 3],
-]
-
-[[group]]
-name = "Button kinds"
-source = "RAPIDQ.INC"
-doc = "A button's Kind: a custom button, or a standard one (OK, Cancel, Help, Yes, No, …) with its caption and picture."
-constants = [
-  ["bkCustom", 0],
-  ["bkOK", 1],
-  ["bkCancel", 2],
-  ["bkHelp", 3],
-  ["bkYes", 4],
-  ["bkNo", 5],
-  ["bkClose", 6],
-  ["bkAbort", 7],
-  ["bkRetry", 8],
-  ["bkIgnore", 9],
-  ["bkAll", 10],
-]
-
-[[group]]
-name = "Cursors"
-source = "RAPIDQ.INC"
-doc = "Mouse pointer shapes for a control's Cursor property and Screen.Cursor."
-constants = [
-  ["crDefault", 0],
-  ["crNone", -1],
-  ["crArrow", -2],
-  ["crCross", -3],
-  ["crIBeam", -4],
-  ["crSize", -5],
-  ["crSizeNESW", -6],
-  ["crSizeNS", -7],
-  ["crSizeNWSE", -8],
-  ["crSizeWE", -9],
-  ["crUpArrow", -10],
-  ["crHourGlass", -11],
-  ["crDrag", -12],
-  ["crNoDrop", -13],
-  ["crHSplit", -14],
-  ["crVSplit", -15],
-  ["crMultiDrag", -16],
-  ["crSQLWait", -17],
-  ["crNo", -18],
-  ["crAppStart", -19],
-  ["crHelp", -20],
-  ["crHandPoint", -21],
-]
-
-[[group]]
-name = "File types"
-source = "RAPIDQ.INC"
-doc = "Kinds of file to list, by attribute: read-only, hidden, system, volume label, folder, archive or normal."
-constants = [
-  ["ftReadOnly", 0],
-  ["ftHidden", 1],
-  ["ftSystem", 2],
-  ["ftVolumeID", 3],
-  ["ftDirectory", 4],
-  ["ftArchive", 5],
-  ["ftNormal", 6],
-]
-
-[[group]]
-name = "Scroll bar kinds"
-source = "RAPIDQ.INC"
-doc = "A scroll bar's Kind: horizontal or vertical."
-constants = [
-  ["sbHorizontal", 0],
-  ["sbVertical", 1],
-]
-
-[[group]]
-name = "Scroll codes"
-source = "RAPIDQ.INC"
-doc = "What a scroll bar's OnScroll event reports was done: a line or page step, a drag of the thumb, the ends, or the end of scrolling."
-constants = [
-  ["scLineUp", 0],
-  ["scLineDown", 1],
-  ["scPageUp", 2],
-  ["scPageDown", 3],
-  ["scPosition", 4],
-  ["scTrack", 5],
-  ["scTop", 6],
-  ["scBottom", 7],
-  ["scEndScroll", 8],
-]
-
-[[group]]
-name = "Draw states"
-source = "RAPIDQ.INC"
-doc = "An image list's DrawingStyle: how its images are drawn (focused, selected, normal, transparent)."
-constants = [
-  ["dsFocused", 0],
-  ["dsSelected", 1],
-  ["dsNormal", 2],
-  ["dsTransparent", 3],
-]
-
-[[group]]
-name = "Image types"
-source = "RAPIDQ.INC"
-doc = "An image list's ImageType: draw the image or its mask."
-constants = [
-  ["itImage", 0],
-  ["itMask", 1],
-]
-
-[[group]]
-name = "Sort types"
-source = "RAPIDQ.INC"
-doc = "A list view's or tree view's SortType: unsorted, or sorted by item text."
-constants = [
-  ["stNone", 0],
-  ["stText", 2],
-]
-
-[[group]]
-name = "List view styles"
-source = "RAPIDQ.INC"
-doc = "A list view's ViewStyle: large icons, small icons, a list or a report with columns."
-constants = [
-  ["vsIcon", 0],
-  ["vsSmallIcon", 1],
-  ["vsList", 2],
-  ["vsReport", 3],
-]
-
-[[group]]
-name = "Track bar orientation"
-source = "RAPIDQ.INC"
-doc = "A track bar's (or splitter's, printer's) Orientation: horizontal or vertical."
-constants = [
-  ["tbHorizontal", 0],
-  ["tbVertical", 1],
-]
-
-[[group]]
-name = "Tick marks"
-source = "RAPIDQ.INC"
-doc = "On which side a track bar draws its tick marks (TickMarks): bottom or right, top or left, or both."
-constants = [
-  ["tmBottomRight", 0],
-  ["tmTopLeft", 1],
-  ["tmBoth", 2],
-]
-
-[[group]]
-name = "Tick styles"
-source = "RAPIDQ.INC"
-doc = "A track bar's TickStyle: no ticks, ticks at every step, or only those the program sets."
-constants = [
-  ["tsNone", 0],
-  ["tsAuto", 1],
-  ["tsManual", 2],
-]
-
-[[group]]
-name = "Grid options"
-source = "RAPIDQ.INC"
-doc = "A string grid's Options: grid lines, selecting, sizing and moving rows and columns, editing and more, combined."
-constants = [
-  ["goFixedVertLine", 0],
-  ["goFixedHorzLine", 1],
-  ["goVertLine", 2],
-  ["goHorzLine", 3],
-  ["goRangeSelect", 4],
-  ["goDrawFocusSelected", 5],
-  ["goRowSizing", 6],
-  ["goColSizing", 7],
-  ["goRowMoving", 8],
-  ["goColMoving", 9],
-  ["goEditing", 10],
-  ["goTabs", 11],
-  ["goRowSelect", 12],
-  ["goAlwaysShowEditor", 13],
-  ["goThumbTracking", 14],
-]
-
-[[group]]
-name = "Grid column styles"
-source = "RAPIDQ.INC"
-doc = "A string grid's ColumnStyle for a column: a drop-down list, an ellipsis button, or none."
-constants = [
-  ["gcsList", 0],
-  ["gcsEllipsis", 1],
-  ["gcsNone", 2],
-]
-
-[[group]]
-name = "Outline styles"
-source = "RAPIDQ.INC"
-doc = "A tree view's OutlineStyle: which of text, plus/minus buttons, pictures and tree lines it shows."
-constants = [
-  ["osText", 0],
-  ["osPlusMinusText", 1],
-  ["osPictureText", 2],
-  ["osPlusMinusPictureText", 3],
-  ["osTreeText", 4],
-  ["osTreePictureText", 5],
-]
-
-[[group]]
-name = "Outline options"
-source = "RAPIDQ.INC"
-doc = "Outline drawing options: draw the tree's root, the focus rectangle, stretched bitmaps."
-constants = [
-  ["ooDrawTreeRoot", 0],
-  ["ooDrawFocusRect", 1],
-  ["ooDrawStretchBitmaps", 2],
-]
-
-[[group]]
-name = "Gauge kinds"
-source = "RAPIDQ.INC"
-doc = "A progress bar's Kind: text, a horizontal or vertical bar, a pie or a needle."
-constants = [
-  ["gkText", 0],
-  ["gkHorizontalBar", 1],
-  ["gkVerticalBar", 2],
-  ["gkPie", 3],
-  ["gkNeedle", 4],
+  ["SOCK_DGRAM", 2],
+  ["SOCK_RAW", 3],
+  ["SOCK_RDM", 4],
+  ["SOCK_SEQPACKET", 5],
+  ["SOCK_STREAM", 1],
 ]
 
 [[group]]
@@ -947,6 +210,897 @@ constants = [
 ]
 
 [[group]]
+name = "Colours"
+source = "RAPIDQ.INC"
+doc = "Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods."
+constants = [
+  ["clAqua", 16776960],
+  ["clBlack", 0],
+  ["clBlue", 16711680],
+  ["clDkGray", 8421504],
+  ["clFuchsia", 16711935],
+  ["clGray", 8421504],
+  ["clGreen", 65280],
+  ["clLime", 65280],
+  ["clLtGray", 12632256],
+  ["clMaroon", 128],
+  ["clNavy", 8388608],
+  ["clOlive", 32896],
+  ["clPurple", 16711935],
+  ["clRed", 255],
+  ["clSilver", 12632256],
+  ["clTeal", 8421376],
+  ["clWhite", 16777215],
+  ["clYellow", 65535],
+]
+
+[[group]]
+name = "System colours"
+source = "RAPIDQ.INC"
+doc = "The system's colours for parts of the user interface; a control using one follows the theme."
+constants = [
+  ["cl3DDkShadow", -2147483627],
+  ["cl3DLight", -2147483626],
+  ["clActiveBorder", -2147483638],
+  ["clActiveCaption", -2147483646],
+  ["clAppWorkSpace", -2147483636],
+  ["clBackGround", -2147483647],
+]
+
+[[group]]
+name = "Colours"
+source = "RAPIDQ.INC"
+doc = "Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods."
+constants = [
+  ["clBtnFace", -2147483633],
+]
+
+[[group]]
+name = "System colours"
+source = "RAPIDQ.INC"
+doc = "The system's colours for parts of the user interface; a control using one follows the theme."
+constants = [
+  ["clBtnHighlight", -2147483628],
+]
+
+[[group]]
+name = "Colours"
+source = "RAPIDQ.INC"
+doc = "Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods."
+constants = [
+  ["clBtnShadow", -2147483632],
+  ["clBtnText", -2147483630],
+]
+
+[[group]]
+name = "System colours"
+source = "RAPIDQ.INC"
+doc = "The system's colours for parts of the user interface; a control using one follows the theme."
+constants = [
+  ["clCaptionText", -2147483639],
+]
+
+[[group]]
+name = "Colours"
+source = "RAPIDQ.INC"
+doc = "Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods."
+constants = [
+  ["clGrayText", -2147483631],
+  ["clHighlight", -2147483635],
+  ["clHighlightText", -2147483634],
+]
+
+[[group]]
+name = "System colours"
+source = "RAPIDQ.INC"
+doc = "The system's colours for parts of the user interface; a control using one follows the theme."
+constants = [
+  ["clHilight", -2147483635],
+  ["clHilightText", -2147483634],
+  ["clInActiveBorder", -2147483637],
+  ["clInActiveCaption", -2147483645],
+  ["clInActiveCaptionText", -2147483629],
+  ["clInfoBk3DDkShadow", -2147483624],
+  ["clInfoText", -2147483625],
+  ["clMenu", -2147483644],
+  ["clMenuText", -2147483641],
+  ["clScrollBar", -2147483648],
+]
+
+[[group]]
+name = "Colours"
+source = "RAPIDQ.INC"
+doc = "Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods."
+constants = [
+  ["clWindow", -2147483643],
+]
+
+[[group]]
+name = "System colours"
+source = "RAPIDQ.INC"
+doc = "The system's colours for parts of the user interface; a control using one follows the theme."
+constants = [
+  ["clWindowFrame", -2147483642],
+]
+
+[[group]]
+name = "Colours"
+source = "RAPIDQ.INC"
+doc = "Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods."
+constants = [
+  ["clWindowText", -2147483640],
+]
+
+[[group]]
+name = "File attributes"
+source = "RAPIDQ.INC"
+doc = "File attributes for `DIR$` and file searches; faAnyFile matches every file."
+constants = [
+  ["faAnyFile", 63],
+  ["faArchive", 32],
+  ["faDirectory", 16],
+  ["faHidden", 2],
+  ["faReadOnly", 1],
+  ["faSysFile", 4],
+  ["faVolumeID", 8],
+]
+
+[[group]]
+name = "File stream modes"
+source = "RAPIDQ.INC"
+doc = "How a QFILESTREAM opens its file: create it, or open it to read, to write or both."
+constants = [
+  ["fmCreate", 65535],
+  ["fmOpenRead", 0],
+  ["fmOpenReadWrite", 2],
+  ["fmOpenWrite", 1],
+]
+
+[[group]]
+name = "Seek origins"
+source = "RAPIDQ.INC"
+doc = "Where a stream's Seek counts from: the start, the current position or the end."
+constants = [
+  ["soFromBeginning", 0],
+  ["soFromCurrent", 1],
+  ["soFromEnd", 2],
+]
+
+[[group]]
+name = "Alignment in the parent"
+source = "RAPIDQ.INC"
+doc = "A control's Align: where it docks in its parent (top, bottom, left, right, the whole client area) as the parent resizes."
+constants = [
+  ["alBottom", 2],
+  ["alClient", 5],
+  ["alLeft", 3],
+  ["alNone", 0],
+  ["alRight", 4],
+  ["alTop", 1],
+]
+
+[[group]]
+name = "Text alignment"
+source = "RAPIDQ.INC"
+doc = "Horizontal alignment of a control's text (Alignment): left, right or centred."
+constants = [
+  ["taCenter", 2],
+  ["taLeftJustify", 0],
+  ["taRightJustify", 1],
+]
+
+[[group]]
+name = "Bevels"
+source = "RAPIDQ.INC"
+doc = "The bevels of a panel or bevel (BevelInner, BevelOuter): none, lowered or raised."
+constants = [
+  ["bvLowered", 1],
+  ["bvNone", 0],
+  ["bvRaised", 2],
+]
+
+[[group]]
+name = "Button kinds"
+source = "RAPIDQ.INC"
+doc = "A button's Kind: a custom button, or a standard one (OK, Cancel, Help, Yes, No, …) with its caption and picture."
+constants = [
+  ["bkAbort", 7],
+  ["bkAll", 10],
+  ["bkCancel", 2],
+  ["bkClose", 6],
+  ["bkCustom", 0],
+  ["bkHelp", 3],
+  ["bkIgnore", 9],
+  ["bkNo", 5],
+  ["bkOK", 1],
+  ["bkRetry", 8],
+  ["bkYes", 4],
+]
+
+[[group]]
+name = "Border icons"
+source = "RAPIDQ.INC"
+doc = "The buttons on a form's title bar (system menu, minimize, maximize, help), for its BorderIcons."
+constants = [
+  ["biHelp", 3],
+  ["biMaximize", 2],
+  ["biMinimize", 1],
+  ["biSystemMenu", 0],
+]
+
+[[group]]
+name = "Close actions"
+source = "RAPIDQ.INC"
+doc = "What happens when a form closes, set in its OnClose event: nothing, hide it, free it or minimize it."
+constants = [
+  ["caFree", 2],
+  ["caHide", 1],
+  ["caMinimize", 3],
+  ["caNone", 0],
+]
+
+[[group]]
+name = "Special colours"
+source = "RAPIDQ.INC"
+doc = "Colours meaning no colour, or the control's default one."
+constants = [
+  ["clDefault", 536870912],
+  ["clNone", 536870911],
+]
+
+[[group]]
+name = "Combo box styles"
+source = "RAPIDQ.INC"
+doc = "A combo box's Style: drop-down with editing, simple, drop-down list, or drawn by the program."
+constants = [
+  ["csDropDown", 0],
+  ["csDropDownList", 2],
+  ["csOwnerDrawFixed", 3],
+  ["csOwnerDrawVariable", 4],
+  ["csSimple", 1],
+]
+
+[[group]]
+name = "Cursors"
+source = "RAPIDQ.INC"
+doc = "Mouse pointer shapes for a control's Cursor property and Screen.Cursor."
+constants = [
+  ["crAppStart", -19],
+  ["crArrow", -2],
+  ["crCross", -3],
+  ["crDefault", 0],
+  ["crDrag", -12],
+  ["crHandPoint", -21],
+  ["crHelp", -20],
+  ["crHourGlass", -11],
+  ["crHSplit", -14],
+  ["crIBeam", -4],
+  ["crMultiDrag", -16],
+  ["crNo", -18],
+  ["crNoDrop", -13],
+  ["crNone", -1],
+  ["crSize", -5],
+  ["crSizeNESW", -6],
+  ["crSizeNS", -7],
+  ["crSizeNWSE", -8],
+  ["crSizeWE", -9],
+  ["crSQLWait", -17],
+  ["crUpArrow", -10],
+  ["crVSplit", -15],
+]
+
+[[group]]
+name = "Duplicates"
+source = "RAPIDQ.INC"
+doc = "What a sorted string list does with an item it already has (Duplicates): ignore it, accept it or raise an error."
+constants = [
+  ["dupAccept", 1],
+  ["dupError", 2],
+  ["dupIgnore", 0],
+]
+
+[[group]]
+name = "Edit character case"
+source = "RAPIDQ.INC"
+doc = "An edit's CharCase: text kept as typed, or turned to upper or lower case."
+constants = [
+  ["ecLowerCase", 2],
+  ["ecNormal", 0],
+  ["ecUpperCase", 1],
+]
+
+[[group]]
+name = "File types"
+source = "RAPIDQ.INC"
+doc = "Kinds of file to list, by attribute: read-only, hidden, system, volume label, folder, archive or normal."
+constants = [
+  ["ftArchive", 5],
+  ["ftDirectory", 4],
+  ["ftHidden", 1],
+  ["ftNormal", 6],
+  ["ftReadOnly", 0],
+  ["ftSystem", 2],
+  ["ftVolumeID", 3],
+]
+
+[[group]]
+name = "Float formats"
+source = "RAPIDQ.INC"
+doc = "Formats for `STRF$`: general, scientific, fixed decimals, or fixed with thousands separators."
+constants = [
+  ["ffExponent", 1],
+  ["ffFixed", 2],
+  ["ffGeneral", 0],
+  ["ffNumber", 3],
+]
+
+[[group]]
+name = "Font dialog options"
+source = "RAPIDQ.INC"
+doc = "Options for the font dialog, combined in its Options."
+constants = [
+  ["fdAnsiOnly", 0],
+  ["fdApplyButton", 15],
+  ["fdEffects", 2],
+  ["fdFixedPitchOnly", 3],
+  ["fdForceFontExist", 4],
+  ["fdLimitSize", 13],
+  ["fdNoFaceSel", 5],
+  ["fdNoOEMFonts", 6],
+  ["fdNoSimulations", 7],
+  ["fdNoSizeSel", 8],
+  ["fdNoStyleSel", 9],
+  ["fdNoVectorFonts", 10],
+  ["fdScalableOnly", 14],
+  ["fdShowHelp", 11],
+  ["fdTrueTypeOnly", 1],
+  ["fdWysiwyg", 12],
+]
+
+[[group]]
+name = "Font pitch"
+source = "RAPIDQ.INC"
+doc = "A font's Pitch: the font's default, proportional or fixed-width."
+constants = [
+  ["fpDefault", 0],
+  ["fpFixed", 2],
+  ["fpVariable", 1],
+]
+
+[[group]]
+name = "Font styles"
+source = "RAPIDQ.INC"
+doc = "Font styles (bold, italic, underline, strike-out), combined in a font's Style."
+constants = [
+  ["fsBold", 0],
+  ["fsItalic", 1],
+  ["fsStrikeOut", 3],
+  ["fsUnderline", 2],
+]
+
+[[group]]
+name = "Border styles"
+source = "RAPIDQ.INC"
+doc = "A form's or control's BorderStyle: no border, a fixed one, a sizeable one, a dialog's or a tool window's."
+constants = [
+  ["bsDialog", 3],
+  ["bsNone", 0],
+  ["bsSingle", 1],
+  ["bsSizeable", 2],
+  ["bsSizeToolWin", 5],
+  ["bsToolWindow", 4],
+]
+
+[[group]]
+name = "Form styles"
+source = "RAPIDQ.INC"
+doc = "A form's FormStyle: normal, an MDI child or parent, or always on top."
+constants = [
+  ["fsMDIChild", 1],
+  ["fsMDIForm", 2],
+  ["fsNormal", 0],
+  ["fsStayOnTop", 3],
+]
+
+[[group]]
+name = "Gauge kinds"
+source = "RAPIDQ.INC"
+doc = "A progress bar's Kind: text, a horizontal or vertical bar, a pie or a needle."
+constants = [
+  ["gkHorizontalBar", 1],
+  ["gkNeedle", 4],
+  ["gkPie", 3],
+  ["gkText", 0],
+  ["gkVerticalBar", 2],
+]
+
+[[group]]
+name = "Grid options"
+source = "RAPIDQ.INC"
+doc = "A string grid's Options: grid lines, selecting, sizing and moving rows and columns, editing and more, combined."
+constants = [
+  ["goAlwaysShowEditor", 13],
+  ["goColMoving", 9],
+  ["goColSizing", 7],
+  ["goDrawFocusSelected", 5],
+  ["goEditing", 10],
+  ["goFixedHorzLine", 1],
+  ["goFixedVertLine", 0],
+  ["goHorzLine", 3],
+  ["goRangeSelect", 4],
+  ["goRowMoving", 8],
+  ["goRowSelect", 12],
+  ["goRowSizing", 6],
+  ["goTabs", 11],
+  ["goThumbTracking", 14],
+  ["goVertLine", 2],
+]
+
+[[group]]
+name = "Header section styles"
+source = "RAPIDQ.INC"
+doc = "A header section's Style: text, or drawn by the program."
+constants = [
+  ["hsOwnerDraw", 1],
+  ["hsText", 0],
+]
+
+[[group]]
+name = "Image types"
+source = "RAPIDQ.INC"
+doc = "An image list's ImageType: draw the image or its mask."
+constants = [
+  ["itImage", 0],
+  ["itMask", 1],
+]
+
+[[group]]
+name = "List box styles"
+source = "RAPIDQ.INC"
+doc = "A list box's Style: standard, or drawn by the program with fixed or variable item heights."
+constants = [
+  ["lbOwnerDrawFixed", 1],
+  ["lbOwnerDrawVariable", 2],
+  ["lbStandard", 0],
+]
+
+[[group]]
+name = "Modal results"
+source = "RAPIDQ.INC"
+doc = "Results of a form shown with ShowModal, and a button's ModalResult that closes the form with it."
+constants = [
+  ["mrAbort", 3],
+  ["mrAll", 8],
+  ["mrCancel", 2],
+  ["mrIgnore", 5],
+  ["mrNo", 7],
+  ["mrNone", 0],
+]
+
+[[group]]
+name = "Modal results"
+source = "RAPIDQ.INC"
+doc = "More modal results: \"No to all\" and \"Yes to all\"."
+constants = [
+  ["mrNoToAll", 9],
+]
+
+[[group]]
+name = "Modal results"
+source = "RAPIDQ.INC"
+doc = "Results of a form shown with ShowModal, and a button's ModalResult that closes the form with it."
+constants = [
+  ["mrOk", 1],
+  ["mrRetry", 4],
+  ["mrYes", 6],
+]
+
+[[group]]
+name = "Modal results"
+source = "RAPIDQ.INC"
+doc = "More modal results: \"No to all\" and \"Yes to all\"."
+constants = [
+  ["mrYesToAll", 10],
+]
+
+[[group]]
+name = "Mouse buttons"
+source = "RAPIDQ.INC"
+doc = "Which mouse button an OnMouseDown or OnMouseUp event is for."
+constants = [
+  ["mbLeft", 0],
+  ["mbMiddle", 2],
+  ["mbRight", 1],
+]
+
+[[group]]
+name = "Message dialog types"
+source = "RAPIDQ.INC"
+doc = "The kind of message `MESSAGEDLG` shows, which sets its caption and icon."
+constants = [
+  ["mtConfirmation", 3],
+  ["mtCustom", 4],
+  ["mtError", 1],
+  ["mtInformation", 2],
+  ["mtWarning", 0],
+]
+
+[[group]]
+name = "OLE states"
+source = "RAPIDQ.INC"
+doc = "The State of an OLE container's object: empty, loaded, running, open or active in place."
+constants = [
+  ["osEmpty", 0],
+  ["osInPlaceActive", 4],
+  ["osLoaded", 1],
+  ["osOpen", 3],
+  ["osRunning", 2],
+  ["osUIActive", 5],
+]
+
+[[group]]
+name = "Outline options"
+source = "RAPIDQ.INC"
+doc = "Outline drawing options: draw the tree's root, the focus rectangle, stretched bitmaps."
+constants = [
+  ["ooDrawFocusRect", 1],
+  ["ooDrawStretchBitmaps", 2],
+  ["ooDrawTreeRoot", 0],
+]
+
+[[group]]
+name = "Outline styles"
+source = "RAPIDQ.INC"
+doc = "A tree view's OutlineStyle: which of text, plus/minus buttons, pictures and tree lines it shows."
+constants = [
+  ["osPictureText", 2],
+  ["osPlusMinusPictureText", 3],
+  ["osPlusMinusText", 1],
+  ["osText", 0],
+  ["osTreePictureText", 5],
+  ["osTreeText", 4],
+]
+
+[[group]]
+name = "Pixel formats"
+source = "RAPIDQ.INC"
+doc = "A bitmap's PixelFormat: the number of bits each pixel takes."
+constants = [
+  ["pf15bit", 4],
+  ["pf16bit", 5],
+  ["pf1bit", 1],
+  ["pf24bit", 6],
+  ["pf32bit", 7],
+  ["pf4bit", 2],
+  ["pf8bit", 3],
+  ["pfDevice", 0],
+]
+
+[[group]]
+name = "Printer orientation"
+source = "RAPIDQ.INC"
+doc = "The printer's Orientation: portrait or landscape."
+constants = [
+  ["poLandscape", 1],
+  ["poPortrait", 0],
+]
+
+[[group]]
+name = "Scroll bar kinds"
+source = "RAPIDQ.INC"
+doc = "A scroll bar's Kind: horizontal or vertical."
+constants = [
+  ["sbHorizontal", 0],
+  ["sbVertical", 1],
+]
+
+[[group]]
+name = "Scroll codes"
+source = "RAPIDQ.INC"
+doc = "What a scroll bar's OnScroll event reports was done: a line or page step, a drag of the thumb, the ends, or the end of scrolling."
+constants = [
+  ["scBottom", 7],
+  ["scEndScroll", 8],
+  ["scLineDown", 1],
+  ["scLineUp", 0],
+  ["scPageDown", 3],
+  ["scPageUp", 2],
+  ["scPosition", 4],
+  ["scTop", 6],
+  ["scTrack", 5],
+]
+
+[[group]]
+name = "Scroll bars"
+source = "RAPIDQ.INC"
+doc = "Which scroll bars a memo, rich edit, grid or tree view shows (ScrollBars)."
+constants = [
+  ["ssBoth", 3],
+  ["ssHorizontal", 1],
+  ["ssNone", 0],
+  ["ssVertical", 2],
+]
+
+[[group]]
+name = "Stretch modes"
+source = "RAPIDQ.INC"
+doc = "How an OLE container sizes its object (SizeMode): clip, centre, scale, stretch or size itself to it."
+constants = [
+  ["smAutoSize", 4],
+  ["smCenter", 1],
+  ["smClip", 0],
+  ["smScale", 2],
+  ["smStretch", 3],
+]
+
+[[group]]
+name = "Sort types"
+source = "RAPIDQ.INC"
+doc = "A list view's or tree view's SortType: unsorted, or sorted by item text."
+constants = [
+  ["stNone", 0],
+  ["stText", 2],
+]
+
+[[group]]
+name = "Text layout"
+source = "RAPIDQ.INC"
+doc = "Vertical placement of a control's text (Layout): top, centre or bottom."
+constants = [
+  ["tlBottom", 2],
+  ["tlCenter", 1],
+  ["tlTop", 0],
+]
+
+[[group]]
+name = "Tick marks"
+source = "RAPIDQ.INC"
+doc = "On which side a track bar draws its tick marks (TickMarks): bottom or right, top or left, or both."
+constants = [
+  ["tmBoth", 2],
+  ["tmBottomRight", 0],
+  ["tmTopLeft", 1],
+]
+
+[[group]]
+name = "Tick styles"
+source = "RAPIDQ.INC"
+doc = "A track bar's TickStyle: no ticks, ticks at every step, or only those the program sets."
+constants = [
+  ["tsAuto", 1],
+  ["tsManual", 2],
+  ["tsNone", 0],
+]
+
+[[group]]
+name = "Track bar orientation"
+source = "RAPIDQ.INC"
+doc = "A track bar's (or splitter's, printer's) Orientation: horizontal or vertical."
+constants = [
+  ["tbHorizontal", 0],
+  ["tbVertical", 1],
+]
+
+[[group]]
+name = "List view styles"
+source = "RAPIDQ.INC"
+doc = "A list view's ViewStyle: large icons, small icons, a list or a report with columns."
+constants = [
+  ["vsIcon", 0],
+  ["vsList", 2],
+  ["vsReport", 3],
+  ["vsSmallIcon", 1],
+]
+
+[[group]]
+name = "Window states"
+source = "RAPIDQ.INC"
+doc = "A form's WindowState: normal, minimized or maximized."
+constants = [
+  ["wsMaximized", 2],
+  ["wsMinimized", 1],
+  ["wsNormal", 0],
+]
+
+[[group]]
+name = "Key states"
+source = "RAPIDQ.INC"
+doc = "The Alt key held, as keyboard and mouse events give it."
+constants = [
+  ["AltDown", 16],
+]
+
+[[group]]
+name = "Button glyph layout"
+source = "RAPIDQ.INC"
+doc = "Where a button's picture is placed next to its caption (Layout)."
+constants = [
+  ["blBMPBottom", 3],
+  ["blBMPLeft", 0],
+  ["blBMPRight", 1],
+  ["blBMPTop", 2],
+]
+
+[[group]]
+name = "Bevel panels"
+source = "RAPIDQ.INC"
+doc = "A panel's border styles: none or single."
+constants = [
+  ["bpNone", 0],
+  ["bpSingle", 1],
+]
+
+[[group]]
+name = "Baud rates"
+source = "RAPIDQ.INC"
+doc = "Serial port speeds for a QCOMPORT's BaudRate."
+constants = [
+  ["br110", 0],
+  ["br115200", 12],
+  ["br1200", 3],
+  ["br14400", 7],
+  ["br19200", 8],
+  ["br2400", 4],
+  ["br300", 1],
+  ["br38400", 9],
+  ["br4800", 5],
+  ["br56000", 10],
+  ["br57600", 11],
+  ["br600", 2],
+  ["br9600", 6],
+]
+
+[[group]]
+name = "Close actions"
+source = "RAPIDQ.INC"
+doc = "Another close action, `caClose`: the form closes."
+constants = [
+  ["caClose", 2],
+]
+
+[[group]]
+name = "Key states"
+source = "RAPIDQ.INC"
+doc = "The Ctrl key held, as keyboard and mouse events give it."
+constants = [
+  ["CtrlDown", 1],
+]
+
+[[group]]
+name = "Drive types"
+source = "RAPIDQ.INC"
+doc = "Kinds of drive: removable, fixed, network, CD-ROM, RAM disk or unknown."
+constants = [
+  ["drtCDRom", 4],
+  ["drtFixed", 2],
+  ["drtRamDisk", 5],
+  ["drtRemote", 3],
+  ["drtRemovable", 1],
+  ["drtUnknown", 0],
+]
+
+[[group]]
+name = "Draw states"
+source = "RAPIDQ.INC"
+doc = "An image list's DrawingStyle: how its images are drawn (focused, selected, normal, transparent)."
+constants = [
+  ["dsFocused", 0],
+  ["dsNormal", 2],
+  ["dsSelected", 1],
+  ["dsTransparent", 3],
+]
+
+[[group]]
+name = "Directory types"
+source = "RAPIDQ.INC"
+doc = "Kinds of folder to list, by attribute: read-only, hidden, system, normal or all."
+constants = [
+  ["dtAll", 4],
+  ["dtHidden", 1],
+  ["dtNormal", 3],
+  ["dtReadOnly", 0],
+  ["dtSystem", 2],
+]
+
+[[group]]
+name = "Truth values"
+source = "RAPIDQ.INC"
+doc = "The value of false, for flags and comparisons."
+constants = [
+  ["False", 0],
+]
+
+[[group]]
+name = "Grid column styles"
+source = "RAPIDQ.INC"
+doc = "A string grid's ColumnStyle for a column: a drop-down list, an ellipsis button, or none."
+constants = [
+  ["gcsEllipsis", 1],
+  ["gcsList", 0],
+  ["gcsNone", 2],
+]
+
+[[group]]
+name = "Label styles"
+source = "RAPIDQ.INC"
+doc = "A label's LabelStyle: flat, raised or recessed text."
+constants = [
+  ["lsNone", 0],
+  ["lsRaised", 1],
+  ["lsRecessed", 2],
+]
+
+[[group]]
+name = "Message dialog buttons"
+source = "RAPIDQ.INC"
+doc = "Buttons for `MESSAGEDLG`, added together for more than one."
+constants = [
+  ["mbAbort", 32],
+  ["mbAll", 256],
+  ["mbCancel", 8],
+  ["mbHelp", 16],
+  ["mbIgnore", 128],
+  ["mbNo", 2],
+  ["mbOK", 4],
+  ["mbRetry", 64],
+  ["mbYes", 1],
+]
+
+[[group]]
+name = "Number types"
+source = "RAPIDQ.INC"
+doc = "The type a stream's ReadNum and WriteNum read or write a number as."
+constants = [
+  ["Num_BYTE", 1],
+  ["Num_DOUBLE", 8],
+  ["Num_DWORD", 5],
+  ["Num_LONG", 4],
+  ["Num_SHORT", 2],
+  ["Num_SINGLE", 6],
+  ["Num_WORD", 3],
+]
+
+[[group]]
+name = "Parity"
+source = "RAPIDQ.INC"
+doc = "Serial port parity for a QCOMPORT's Parity: none, odd, even, mark or space."
+constants = [
+  ["prEven", 2],
+  ["prMark", 3],
+  ["prNone", 0],
+  ["prOdd", 1],
+  ["prSpace", 4],
+]
+
+[[group]]
+name = "Stop bits"
+source = "RAPIDQ.INC"
+doc = "Serial port stop bits for a QCOMPORT's StopBits: one, one and a half or two."
+constants = [
+  ["sbOne5StopBits", 1],
+  ["sbOneStopBit", 0],
+  ["sbTwoStopBits", 2],
+]
+
+[[group]]
+name = "Key states"
+source = "RAPIDQ.INC"
+doc = "The Shift key held, as keyboard and mouse events give it."
+constants = [
+  ["ShiftDown", 256],
+]
+
+[[group]]
+name = "Shift states"
+source = "RAPIDQ.INC"
+doc = "Which of Shift, Ctrl and Alt are held, as keyboard and mouse events give them."
+constants = [
+  ["ssAlt", 1],
+  ["ssCtrl", 16],
+  ["ssShift", 256],
+]
+
+[[group]]
 name = "Transparent modes"
 source = "RAPIDQ.INC"
 doc = "How a bitmap chooses its transparent colour: automatically or the one set."
@@ -956,246 +1110,11 @@ constants = [
 ]
 
 [[group]]
-name = "List box styles"
+name = "Truth values"
 source = "RAPIDQ.INC"
-doc = "A list box's Style: standard, or drawn by the program with fixed or variable item heights."
+doc = "The value of true as RAPIDQ.INC defines it: 1 (a comparison itself gives -1)."
 constants = [
-  ["lbStandard", 0],
-  ["lbOwnerDrawFixed", 1],
-  ["lbOwnerDrawVariable", 2],
-]
-
-[[group]]
-name = "Baud rates"
-source = "RAPIDQ.INC"
-doc = "Serial port speeds for a QCOMPORT's BaudRate."
-constants = [
-  ["br110", 0],
-  ["br300", 1],
-  ["br600", 2],
-  ["br1200", 3],
-  ["br2400", 4],
-  ["br4800", 5],
-  ["br9600", 6],
-  ["br14400", 7],
-  ["br19200", 8],
-  ["br38400", 9],
-  ["br56000", 10],
-  ["br57600", 11],
-  ["br115200", 12],
-]
-
-[[group]]
-name = "Stop bits"
-source = "RAPIDQ.INC"
-doc = "Serial port stop bits for a QCOMPORT's StopBits: one, one and a half or two."
-constants = [
-  ["sbOneStopBit", 0],
-  ["sbOne5StopBits", 1],
-  ["sbTwoStopBits", 2],
-]
-
-[[group]]
-name = "Parity"
-source = "RAPIDQ.INC"
-doc = "Serial port parity for a QCOMPORT's Parity: none, odd, even, mark or space."
-constants = [
-  ["prNone", 0],
-  ["prOdd", 1],
-  ["prEven", 2],
-  ["prMark", 3],
-  ["prSpace", 4],
-]
-
-[[group]]
-name = "Font dialog options"
-source = "RAPIDQ.INC"
-doc = "Options for the font dialog, combined in its Options."
-constants = [
-  ["fdAnsiOnly", 0],
-  ["fdTrueTypeOnly", 1],
-  ["fdEffects", 2],
-  ["fdFixedPitchOnly", 3],
-  ["fdForceFontExist", 4],
-  ["fdNoFaceSel", 5],
-  ["fdNoOEMFonts", 6],
-  ["fdNoSimulations", 7],
-  ["fdNoSizeSel", 8],
-  ["fdNoStyleSel", 9],
-  ["fdNoVectorFonts", 10],
-  ["fdShowHelp", 11],
-  ["fdWysiwyg", 12],
-  ["fdLimitSize", 13],
-  ["fdScalableOnly", 14],
-  ["fdApplyButton", 15],
-]
-
-[[group]]
-name = "Directory types"
-source = "RAPIDQ.INC"
-doc = "Kinds of folder to list, by attribute: read-only, hidden, system, normal or all."
-constants = [
-  ["dtReadOnly", 0],
-  ["dtHidden", 1],
-  ["dtSystem", 2],
-  ["dtNormal", 3],
-  ["dtAll", 4],
-]
-
-[[group]]
-name = "Drive types"
-source = "RAPIDQ.INC"
-doc = "Kinds of drive: removable, fixed, network, CD-ROM, RAM disk or unknown."
-constants = [
-  ["drtUnknown", 0],
-  ["drtRemovable", 1],
-  ["drtFixed", 2],
-  ["drtRemote", 3],
-  ["drtCDRom", 4],
-  ["drtRamDisk", 5],
-]
-
-[[group]]
-name = "IP protocols"
-source = "RAPIDQ.INC"
-doc = "Internet protocols for a socket's Protocol."
-constants = [
-  ["IPPROTO_IP", 0],
-  ["IPPROTO_ICMP", 1],
-  ["IPPROTO_IGMP", 2],
-  ["IPPROTO_TCP", 6],
-  ["IPPROTO_PUP", 12],
-  ["IPPROTO_UDP", 17],
-  ["IPPROTO_IDP", 22],
-  ["IPPROTO_RAW", 255],
-]
-
-[[group]]
-name = "Socket types"
-source = "RAPIDQ.INC"
-doc = "Socket types: a stream (TCP), datagrams (UDP), raw and others."
-constants = [
-  ["SOCK_STREAM", 1],
-  ["SOCK_DGRAM", 2],
-  ["SOCK_RAW", 3],
-  ["SOCK_RDM", 4],
-  ["SOCK_SEQPACKET", 5],
-]
-
-[[group]]
-name = "Address families"
-source = "RAPIDQ.INC"
-doc = "Address families for a socket's Family (AF_INET for IPv4 and others)."
-constants = [
-  ["AF_UNSPEC", 0],
-  ["AF_UNIX", 1],
-  ["AF_INET", 2],
-  ["AF_IMPLINK", 3],
-  ["AF_PUP", 4],
-  ["AF_CHAOS", 5],
-  ["AF_IPX", 6],
-  ["AF_NS", 6],
-  ["AF_ISO", 7],
-  ["AF_ECMA", 8],
-  ["AF_DATAKIT", 9],
-  ["AF_CCITT", 10],
-  ["AF_SNA", 11],
-  ["AF_DECnet", 12],
-  ["AF_DLI", 13],
-  ["AF_LAT", 14],
-  ["AF_HYLINK", 15],
-  ["AF_APPLETALK", 16],
-  ["AF_NETBIOS", 17],
-  ["AF_VOICEVIEW", 18],
-  ["AF_FIREFOX", 19],
-  ["AF_UNKNOWN1", 20],
-  ["AF_BAN", 21],
-]
-
-[[group]]
-name = "Header section styles"
-source = "RAPIDQ.INC"
-doc = "A header section's Style: text, or drawn by the program."
-constants = [
-  ["hsText", 0],
-  ["hsOwnerDraw", 1],
-]
-
-[[group]]
-name = "Duplicates"
-source = "RAPIDQ.INC"
-doc = "What a sorted string list does with an item it already has (Duplicates): ignore it, accept it or raise an error."
-constants = [
-  ["dupIgnore", 0],
-  ["dupAccept", 1],
-  ["dupError", 2],
-]
-
-[[group]]
-name = "Stretch modes"
-source = "RAPIDQ.INC"
-doc = "How an OLE container sizes its object (SizeMode): clip, centre, scale, stretch or size itself to it."
-constants = [
-  ["smClip", 0],
-  ["smCenter", 1],
-  ["smScale", 2],
-  ["smStretch", 3],
-  ["smAutoSize", 4],
-]
-
-[[group]]
-name = "OLE states"
-source = "RAPIDQ.INC"
-doc = "The State of an OLE container's object: empty, loaded, running, open or active in place."
-constants = [
-  ["osEmpty", 0],
-  ["osLoaded", 1],
-  ["osRunning", 2],
-  ["osOpen", 3],
-  ["osInPlaceActive", 4],
-  ["osUIActive", 5],
-]
-
-[[group]]
-name = "Float formats"
-source = "RAPIDQ.INC"
-doc = "Formats for `STRF$`: general, scientific, fixed decimals, or fixed with thousands separators."
-constants = [
-  ["ffGeneral", 0],
-  ["ffExponent", 1],
-  ["ffFixed", 2],
-  ["ffNumber", 3],
-]
-
-[[group]]
-name = "File attributes"
-source = "RAPIDQ.INC"
-doc = "File attributes for `DIR$` and file searches; faAnyFile matches every file."
-constants = [
-  ["faReadOnly", 1],
-  ["faHidden", 2],
-  ["faSysFile", 4],
-  ["faVolumeID", 8],
-  ["faDirectory", 16],
-  ["faArchive", 32],
-  ["faAnyFile", 63],
-]
-
-[[group]]
-name = "Printer orientation"
-source = "RAPIDQ.INC"
-doc = "The printer's Orientation: portrait or landscape."
-constants = [
-  ["poPortrait", 0],
-  ["poLandscape", 1],
-]
-
-[[group]]
-name = "Close actions"
-source = "RAPIDQ.INC"
-doc = "Another close action, `caClose`: the form closes."
-constants = [
-  ["caClose", 2],
+  ["True", 1],
 ]
 
 [[group]]

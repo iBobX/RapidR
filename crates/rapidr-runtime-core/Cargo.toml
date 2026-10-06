@@ -23,14 +23,9 @@ rapidr-db = { workspace = true, optional = true, features = ["mysql"] }
 # linked dynamically, never shipped; libssl-dev to build). No cryptography is
 # compiled into a program, and the certificates are the system's.
 ureq = { version = "2", optional = true, default-features = false, features = ["gzip", "native-tls"] }
-# RPLOT's charts (MIT). Their text is drawn in the built-in Liberation Sans
-# by ab_glyph (Apache-2.0) through plotters' backend interface
-# (datascience.rs), not with the system's fonts through plotters' font-kit
-# (whose graph has MPL-2.0 code, FreeType and fontconfig).
-plotters = { version = "0.3", optional = true, default-features = false, features = ["bitmap_backend", "bitmap_encoder", "all_series", "all_elements", "full_palette", "colormaps"] }
-plotters-backend = { version = "0.3", optional = true }
-ab_glyph = { version = "0.2", optional = true }
-image = { version = "0.24", optional = true, default-features = false, features = ["png"] }
+# RPLOT's charts: drawn by the UI kernel's renderer (rapidr-ui-render's
+# chart.rs), the one every runtime uses — no chart library of the desktop's own.
+rapidr-ui-render = { workspace = true, optional = true }
 # Sound (sound.rs): rodio (MIT OR Apache-2.0) plays it and decodes WAV
 # (hound), Ogg Vorbis (lewton) and FLAC (claxon); MP3 is nanomp3's (MIT OR
 # Apache-2.0, pure Rust, a port of the public-domain minimp3), not rodio's
@@ -72,8 +67,8 @@ network = ["dep:ureq"]
 # through `src/ui`; the system clipboard.
 gui = ["dep:rapidr-ui-kernel", "dep:rapidr-ui-app", "dep:rapidr-ui-host-winit", "dep:arboard"]
 # RNUM, RDATAFRAME, RPLOT: the shared model is rapidr-value's
-# (datascience/); the desktop adds plotters' charts as PNGs.
-datascience = ["dep:plotters", "dep:plotters-backend", "dep:ab_glyph", "dep:image"]
+# (datascience/), the charts drawn by the kernel's renderer.
+datascience = ["dep:rapidr-ui-render", "dep:rapidr-ui-kernel"]
 audio = ["dep:rodio", "dep:nanomp3", "dep:midir"]
 gamepad = ["dep:gilrs"]
 ffi = ["dep:libloading"]

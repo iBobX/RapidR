@@ -235,6 +235,8 @@ A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots
 | `Width` | ✓ | ✓ | The width, in pixels; on `Screen`, the screen's. |
 | `Height` | ✓ | ✓ | The height, in pixels; on `Screen`, the screen's. |
 | `Dpi` | ✓ | ✓ | The dots per inch the plot is rendered at. |
+| `SeriesCount` | ✓ | ✓ | How many series the plot has. |
+| `Count` | ✓ | ✓ | How many series the plot has (SeriesCount). |
 
 ### Methods
 
@@ -276,6 +278,7 @@ A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots
 | `Figsize(width, height, [dpi])` | ✓ | ✓ | The size in inches at the chart's DPI. |
 | `Xlim(min, max)` | ✓ | ✓ | The X axis range. |
 | `Ylim(min, max)` | ✓ | ✓ | The Y axis range. |
+| `Xticks(names, [positions])` | ✓ | ✓ | Names the X axis' ticks ("Jan,Feb,Mar"), at positions, or at the first series' x values when there are as many, else at 0, 1, 2 … |
 | `Xscale(type)` | ✓ | ✓ | "linear" or "log" (kept with the chart; drawn linear). |
 | `Yscale(type)` | ✓ | ✓ | "linear" or "log" (kept with the chart; drawn linear). |
 

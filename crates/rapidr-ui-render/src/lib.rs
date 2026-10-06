@@ -15,12 +15,15 @@
 //!   desktop's windows, WebGPU in a browser that has it.
 //! - [`images`]: the pictures a list names, converted once per revision and
 //!   kept between frames.
+//! - [`chart`]: RPLOT's charts (rapidr-value's chart model) as pixels at any
+//!   scale — `LoadFromPlot`'s pictures, `SaveFig`'s PNGs — on every runtime.
 //!
 //! Nothing here knows a window system or the DOM: the hosts
 //! (`rapidr-ui-host-winit`, `rapidr-ui-host-web`) make the surfaces and put
 //! the frames on them.
 
 pub mod canvas;
+pub mod chart;
 pub mod cpu;
 #[cfg(feature = "gpu")]
 pub mod gpu;

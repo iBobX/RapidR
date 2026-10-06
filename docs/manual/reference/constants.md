@@ -4,125 +4,149 @@
 
 RapidQ's RAPIDQ.INC (built in: `$INCLUDE "RAPIDQ.INC"` needs no file), its library includes' and RapidR's own. Colours are RapidQ's: `&HBBGGRR`.
 
-## Truth values
+## Message box buttons and icons
 
-The value of false, for flags and comparisons.
+Flags for `MESSAGEBOX`: which buttons it shows, added to the icon it shows.
 
-`False` = 0
+`MB_ABORTRETRYIGNORE` = 2, `MB_ICONASTERISK` = 64, `MB_ICONERROR` = 16, `MB_ICONEXCLAMATION` = 48, `MB_ICONHAND` = 16, `MB_ICONINFORMATION` = 64, `MB_ICONQUESTION` = 32, `MB_ICONSTOP` = 16, `MB_ICONWARNING` = 48, `MB_OK` = 0, `MB_OKCANCEL` = 1, `MB_RETRYCANCEL` = 5, `MB_YESNO` = 4, `MB_YESNOCANCEL` = 3
 
-## Truth values
+## Message box results
 
-The value of true as RAPIDQ.INC defines it: 1 (a comparison itself gives -1).
+What `MESSAGEBOX` returns: the button the user chose.
 
-`True` = 1
+`IDABORT` = 3, `IDCANCEL` = 2, `IDIGNORE` = 5, `IDNO` = 7, `IDOK` = 1, `IDRETRY` = 4, `IDYES` = 6
+
+## Virtual key codes
+
+Codes of the keyboard's keys, as OnKeyDown and OnKeyUp events give them.
+
+`VK_BACK` = 8, `VK_CONTROL` = 17, `VK_DELETE` = 46, `VK_DOWN` = 40, `VK_END` = 35, `VK_ESCAPE` = 27, `VK_F1` = 112, `VK_F10` = 121, `VK_F11` = 122, `VK_F12` = 123, `VK_F2` = 113, `VK_F3` = 114, `VK_F4` = 115, `VK_F5` = 116, `VK_F6` = 117, `VK_F7` = 118, `VK_F8` = 119, `VK_F9` = 120, `VK_HOME` = 36, `VK_INSERT` = 45, `VK_LEFT` = 37, `VK_MENU` = 18, `VK_NEXT` = 34, `VK_PAUSE` = 19, `VK_PRIOR` = 33, `VK_RETURN` = 13, `VK_RIGHT` = 39, `VK_SHIFT` = 16, `VK_SPACE` = 32, `VK_TAB` = 9, `VK_UP` = 38
 
 ## PLAYWAV options
 
 Options for `PLAYWAV`: wait for the sound to end, play it in the background, or repeat it.
 
-`SND_SYNC` = 0, `SND_ASYNC` = 1, `SND_LOOP` = 8
+`SND_ASYNC` = 1, `SND_LOOP` = 8
+
+## PLAYWAV options
+
+More `PLAYWAV` options: no default sound, don't stop a sound playing, play from memory.
+
+`SND_MEMORY` = 4, `SND_NODEFAULT` = 2, `SND_NOSTOP` = 16
+
+## PLAYWAV options
+
+Options for `PLAYWAV`: wait for the sound to end, play it in the background, or repeat it.
+
+`SND_SYNC` = 0
+
+## Character sets
+
+Character sets for a font's Charset property, choosing which script a font's characters are drawn from.
+
+`ANSI_CHARSET` = 0, `ARABIC_CHARSET` = 178, `BALTIC_CHARSET` = 186, `CHINESEBIG5_CHARSET` = 136, `DEFAULT_CHARSET` = 1, `EASTEUROPE_CHARSET` = 238, `GB2312_CHARSET` = 134, `GREEK_CHARSET` = 161, `HANGEUL_CHARSET` = 129, `HEBREW_CHARSET` = 177, `JOHAB_CHARSET` = 130, `MAC_CHARSET` = 77, `OEM_CHARSET` = 255, `RUSSIAN_CHARSET` = 204, `SHIFTJIS_CHARSET` = 128, `SYMBOL_CHARSET` = 2, `THAI_CHARSET` = 222, `TURKISH_CHARSET` = 162, `VIETNAMESE_CHARSET` = 163
+
+## Address families
+
+Address families for a socket's Family (AF_INET for IPv4 and others).
+
+`AF_APPLETALK` = 16, `AF_BAN` = 21, `AF_CCITT` = 10, `AF_CHAOS` = 5, `AF_DATAKIT` = 9, `AF_DECnet` = 12, `AF_DLI` = 13, `AF_ECMA` = 8, `AF_FIREFOX` = 19, `AF_HYLINK` = 15, `AF_IMPLINK` = 3, `AF_INET` = 2, `AF_IPX` = 6, `AF_ISO` = 7, `AF_LAT` = 14, `AF_NETBIOS` = 17, `AF_NS` = 6, `AF_PUP` = 4, `AF_SNA` = 11, `AF_UNIX` = 1, `AF_UNKNOWN1` = 20, `AF_UNSPEC` = 0, `AF_VOICEVIEW` = 18
+
+## IP protocols
+
+Internet protocols for a socket's Protocol.
+
+`IPPROTO_ICMP` = 1, `IPPROTO_IDP` = 22, `IPPROTO_IGMP` = 2, `IPPROTO_IP` = 0, `IPPROTO_PUP` = 12, `IPPROTO_RAW` = 255, `IPPROTO_TCP` = 6, `IPPROTO_UDP` = 17
+
+## Socket types
+
+Socket types: a stream (TCP), datagrams (UDP), raw and others.
+
+`SOCK_DGRAM` = 2, `SOCK_RAW` = 3, `SOCK_RDM` = 4, `SOCK_SEQPACKET` = 5, `SOCK_STREAM` = 1
+
+## Copy modes
+
+Raster operations for CopyMode: how drawing a picture combines its pixels with those already there.
+
+`cmBlackness` = 66, `cmDstInvert` = 5570569, `cmMergeCopy` = 12583114, `cmMergePaint` = 12255782, `cmNotSrcCopy` = 3342344, `cmNotSrcErase` = 1114278, `cmPatCopy` = 15728673, `cmPatInvert` = 5898313, `cmPatPaint` = 16452105, `cmSrcAnd` = 8913094, `cmSrcCopy` = 13369376, `cmSrcErase` = 4457256, `cmSrcInvert` = 6684742, `cmSrcPaint` = 15597702, `cmWhiteness` = 16711778
 
 ## Colours
 
 Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods.
 
-`clBlack` = 0, `clMaroon` = 128, `clGreen` = 65280, `clOlive` = 32896, `clNavy` = 8388608, `clPurple` = 16711935, `clTeal` = 8421376, `clGray` = 8421504, `clSilver` = 12632256, `clRed` = 255, `clLime` = 65280, `clYellow` = 65535, `clBlue` = 16711680, `clFuchsia` = 16711935, `clAqua` = 16776960, `clWhite` = 16777215, `clLtGray` = 12632256, `clDkGray` = 8421504, `clBtnFace` = -2147483633, `clWindow` = -2147483643, `clWindowText` = -2147483640, `clBtnText` = -2147483630, `clBtnShadow` = -2147483632, `clHighlight` = -2147483635, `clHighlightText` = -2147483634, `clGrayText` = -2147483631
+`clAqua` = 16776960, `clBlack` = 0, `clBlue` = 16711680, `clDkGray` = 8421504, `clFuchsia` = 16711935, `clGray` = 8421504, `clGreen` = 65280, `clLime` = 65280, `clLtGray` = 12632256, `clMaroon` = 128, `clNavy` = 8388608, `clOlive` = 32896, `clPurple` = 16711935, `clRed` = 255, `clSilver` = 12632256, `clTeal` = 8421376, `clWhite` = 16777215, `clYellow` = 65535
 
-## Modal results
+## System colours
 
-Results of a form shown with ShowModal, and a button's ModalResult that closes the form with it.
+The system's colours for parts of the user interface; a control using one follows the theme.
 
-`mrNone` = 0, `mrOk` = 1, `mrCancel` = 2, `mrAbort` = 3, `mrRetry` = 4, `mrIgnore` = 5, `mrYes` = 6, `mrNo` = 7, `mrAll` = 8
+`cl3DDkShadow` = -2147483627, `cl3DLight` = -2147483626, `clActiveBorder` = -2147483638, `clActiveCaption` = -2147483646, `clAppWorkSpace` = -2147483636, `clBackGround` = -2147483647
 
-## Message box buttons and icons
+## Colours
 
-Flags for `MESSAGEBOX`: which buttons it shows, added to the icon it shows.
+Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods.
 
-`MB_OK` = 0, `MB_OKCANCEL` = 1, `MB_ABORTRETRYIGNORE` = 2, `MB_YESNOCANCEL` = 3, `MB_YESNO` = 4, `MB_RETRYCANCEL` = 5, `MB_ICONHAND` = 16, `MB_ICONSTOP` = 16, `MB_ICONERROR` = 16, `MB_ICONQUESTION` = 32, `MB_ICONEXCLAMATION` = 48, `MB_ICONWARNING` = 48, `MB_ICONASTERISK` = 64, `MB_ICONINFORMATION` = 64
+`clBtnFace` = -2147483633
 
-## Message box results
+## System colours
 
-What `MESSAGEBOX` returns: the button the user chose.
+The system's colours for parts of the user interface; a control using one follows the theme.
 
-`IDOK` = 1
+`clBtnHighlight` = -2147483628
 
-## Message box results
+## Colours
 
-What `MESSAGEBOX` returns: the button the user chose.
+Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods.
 
-`IDCANCEL` = 2
+`clBtnShadow` = -2147483632, `clBtnText` = -2147483630
 
-## Message box results
+## System colours
 
-What `MESSAGEBOX` returns: the button the user chose.
+The system's colours for parts of the user interface; a control using one follows the theme.
 
-`IDABORT` = 3
+`clCaptionText` = -2147483639
 
-## Message box results
+## Colours
 
-What `MESSAGEBOX` returns: the button the user chose.
+Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods.
 
-`IDRETRY` = 4
+`clGrayText` = -2147483631, `clHighlight` = -2147483635, `clHighlightText` = -2147483634
 
-## Message box results
+## System colours
 
-What `MESSAGEBOX` returns: the button the user chose.
+The system's colours for parts of the user interface; a control using one follows the theme.
 
-`IDIGNORE` = 5
+`clHilight` = -2147483635, `clHilightText` = -2147483634, `clInActiveBorder` = -2147483637, `clInActiveCaption` = -2147483645, `clInActiveCaptionText` = -2147483629, `clInfoBk3DDkShadow` = -2147483624, `clInfoText` = -2147483625, `clMenu` = -2147483644, `clMenuText` = -2147483641, `clScrollBar` = -2147483648
 
-## Message box results
+## Colours
 
-What `MESSAGEBOX` returns: the button the user chose.
+Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods.
 
-`IDYES` = 6
+`clWindow` = -2147483643
 
-## Message box results
+## System colours
 
-What `MESSAGEBOX` returns: the button the user chose.
+The system's colours for parts of the user interface; a control using one follows the theme.
 
-`IDNO` = 7
+`clWindowFrame` = -2147483642
 
-## Border styles
+## Colours
 
-A form's or control's BorderStyle: no border, a fixed one, a sizeable one, a dialog's or a tool window's.
+Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods.
 
-`bsNone` = 0, `bsSingle` = 1, `bsSizeable` = 2, `bsDialog` = 3, `bsToolWindow` = 4, `bsSizeToolWin` = 5
+`clWindowText` = -2147483640
 
-## Window states
+## File attributes
 
-A form's WindowState: normal, minimized or maximized.
+File attributes for `DIR$` and file searches; faAnyFile matches every file.
 
-`wsNormal` = 0, `wsMinimized` = 1, `wsMaximized` = 2
-
-## Alignment in the parent
-
-A control's Align: where it docks in its parent (top, bottom, left, right, the whole client area) as the parent resizes.
-
-`alNone` = 0, `alTop` = 1, `alBottom` = 2, `alLeft` = 3, `alRight` = 4, `alClient` = 5
-
-## Mouse buttons
-
-Which mouse button an OnMouseDown or OnMouseUp event is for.
-
-`mbLeft` = 0, `mbRight` = 1, `mbMiddle` = 2
-
-## Message dialog types
-
-The kind of message `MESSAGEDLG` shows, which sets its caption and icon.
-
-`mtWarning` = 0, `mtError` = 1, `mtInformation` = 2, `mtConfirmation` = 3, `mtCustom` = 4
-
-## Message dialog buttons
-
-Buttons for `MESSAGEDLG`, added together for more than one.
-
-`mbYes` = 1, `mbNo` = 2, `mbOK` = 4, `mbCancel` = 8, `mbHelp` = 16, `mbAbort` = 32, `mbRetry` = 64, `mbIgnore` = 128, `mbAll` = 256
+`faAnyFile` = 63, `faArchive` = 32, `faDirectory` = 16, `faHidden` = 2, `faReadOnly` = 1, `faSysFile` = 4, `faVolumeID` = 8
 
 ## File stream modes
 
 How a QFILESTREAM opens its file: create it, or open it to read, to write or both.
 
-`fmCreate` = 65535, `fmOpenRead` = 0, `fmOpenWrite` = 1, `fmOpenReadWrite` = 2
+`fmCreate` = 65535, `fmOpenRead` = 0, `fmOpenReadWrite` = 2, `fmOpenWrite` = 1
 
 ## Seek origins
 
@@ -130,287 +154,209 @@ Where a stream's Seek counts from: the start, the current position or the end.
 
 `soFromBeginning` = 0, `soFromCurrent` = 1, `soFromEnd` = 2
 
-## Number types
+## Alignment in the parent
 
-The type a stream's ReadNum and WriteNum read or write a number as.
+A control's Align: where it docks in its parent (top, bottom, left, right, the whole client area) as the parent resizes.
 
-`Num_BYTE` = 1, `Num_SHORT` = 2, `Num_WORD` = 3, `Num_LONG` = 4, `Num_DWORD` = 5, `Num_SINGLE` = 6, `Num_DOUBLE` = 8
-
-## Font styles
-
-Font styles (bold, italic, underline, strike-out), combined in a font's Style.
-
-`fsBold` = 0, `fsItalic` = 1, `fsUnderline` = 2, `fsStrikeOut` = 3
-
-## Special colours
-
-Colours meaning no colour, or the control's default one.
-
-`clNone` = 536870911, `clDefault` = 536870912
-
-## Pixel formats
-
-A bitmap's PixelFormat: the number of bits each pixel takes.
-
-`pfDevice` = 0, `pf1bit` = 1, `pf4bit` = 2, `pf8bit` = 3, `pf15bit` = 4, `pf16bit` = 5, `pf24bit` = 6, `pf32bit` = 7
-
-## Virtual key codes
-
-Codes of the keyboard's keys, as OnKeyDown and OnKeyUp events give them.
-
-`VK_BACK` = 8, `VK_TAB` = 9, `VK_RETURN` = 13, `VK_SHIFT` = 16, `VK_CONTROL` = 17, `VK_MENU` = 18, `VK_PAUSE` = 19, `VK_ESCAPE` = 27, `VK_SPACE` = 32, `VK_PRIOR` = 33, `VK_NEXT` = 34, `VK_END` = 35, `VK_HOME` = 36, `VK_LEFT` = 37, `VK_UP` = 38, `VK_RIGHT` = 39, `VK_DOWN` = 40, `VK_INSERT` = 45, `VK_DELETE` = 46, `VK_F1` = 112, `VK_F2` = 113, `VK_F3` = 114, `VK_F4` = 115, `VK_F5` = 116, `VK_F6` = 117, `VK_F7` = 118, `VK_F8` = 119, `VK_F9` = 120, `VK_F10` = 121, `VK_F11` = 122, `VK_F12` = 123
+`alBottom` = 2, `alClient` = 5, `alLeft` = 3, `alNone` = 0, `alRight` = 4, `alTop` = 1
 
 ## Text alignment
 
 Horizontal alignment of a control's text (Alignment): left, right or centred.
 
-`taLeftJustify` = 0, `taRightJustify` = 1, `taCenter` = 2
-
-## PLAYWAV options
-
-More `PLAYWAV` options: no default sound, don't stop a sound playing, play from memory.
-
-`SND_NODEFAULT` = 2, `SND_NOSTOP` = 16, `SND_MEMORY` = 4
-
-## System colours
-
-The system's colours for parts of the user interface; a control using one follows the theme.
-
-`clScrollBar` = -2147483648, `clBackGround` = -2147483647, `clActiveCaption` = -2147483646, `clInActiveCaption` = -2147483645, `clMenu` = -2147483644, `clWindowFrame` = -2147483642, `clMenuText` = -2147483641, `clCaptionText` = -2147483639, `clActiveBorder` = -2147483638, `clInActiveBorder` = -2147483637, `clAppWorkSpace` = -2147483636, `clHilight` = -2147483635, `clHilightText` = -2147483634, `clInActiveCaptionText` = -2147483629, `clBtnHighlight` = -2147483628, `cl3DDkShadow` = -2147483627, `cl3DLight` = -2147483626, `clInfoText` = -2147483625, `clInfoBk3DDkShadow` = -2147483624
-
-## Shift states
-
-Which of Shift, Ctrl and Alt are held, as keyboard and mouse events give them.
-
-`ssShift` = 256, `ssCtrl` = 16, `ssAlt` = 1
-
-## Font pitch
-
-A font's Pitch: the font's default, proportional or fixed-width.
-
-`fpDefault` = 0, `fpVariable` = 1, `fpFixed` = 2
-
-## Character sets
-
-Character sets for a font's Charset property, choosing which script a font's characters are drawn from.
-
-`ANSI_CHARSET` = 0
-
-## Character sets
-
-Character sets for a font's Charset property, choosing which script a font's characters are drawn from.
-
-`DEFAULT_CHARSET` = 1
-
-## Character sets
-
-Character sets for a font's Charset property, choosing which script a font's characters are drawn from.
-
-`SYMBOL_CHARSET` = 2
-
-## Character sets
-
-Character sets for a font's Charset property, choosing which script a font's characters are drawn from.
-
-`MAC_CHARSET` = 77
-
-## Character sets
-
-Character sets for a font's Charset property, choosing which script a font's characters are drawn from.
-
-`SHIFTJIS_CHARSET` = 128
-
-## Character sets
-
-Character sets for a font's Charset property, choosing which script a font's characters are drawn from.
-
-`HANGEUL_CHARSET` = 129
-
-## Character sets
-
-Character sets for a font's Charset property, choosing which script a font's characters are drawn from.
-
-`JOHAB_CHARSET` = 130
-
-## Character sets
-
-Character sets for a font's Charset property, choosing which script a font's characters are drawn from.
-
-`GB2312_CHARSET` = 134
-
-## Character sets
-
-Character sets for a font's Charset property, choosing which script a font's characters are drawn from.
-
-`CHINESEBIG5_CHARSET` = 136
-
-## Character sets
-
-Character sets for a font's Charset property, choosing which script a font's characters are drawn from.
-
-`GREEK_CHARSET` = 161
-
-## Character sets
-
-Character sets for a font's Charset property, choosing which script a font's characters are drawn from.
-
-`TURKISH_CHARSET` = 162
-
-## Character sets
-
-Character sets for a font's Charset property, choosing which script a font's characters are drawn from.
-
-`VIETNAMESE_CHARSET` = 163
-
-## Character sets
-
-Character sets for a font's Charset property, choosing which script a font's characters are drawn from.
-
-`HEBREW_CHARSET` = 177
-
-## Character sets
-
-Character sets for a font's Charset property, choosing which script a font's characters are drawn from.
-
-`ARABIC_CHARSET` = 178
-
-## Character sets
-
-Character sets for a font's Charset property, choosing which script a font's characters are drawn from.
-
-`BALTIC_CHARSET` = 186
-
-## Character sets
-
-Character sets for a font's Charset property, choosing which script a font's characters are drawn from.
-
-`RUSSIAN_CHARSET` = 204
-
-## Character sets
-
-Character sets for a font's Charset property, choosing which script a font's characters are drawn from.
-
-`THAI_CHARSET` = 222
-
-## Character sets
-
-Character sets for a font's Charset property, choosing which script a font's characters are drawn from.
-
-`EASTEUROPE_CHARSET` = 238
-
-## Character sets
-
-Character sets for a font's Charset property, choosing which script a font's characters are drawn from.
-
-`OEM_CHARSET` = 255
-
-## Form styles
-
-A form's FormStyle: normal, an MDI child or parent, or always on top.
-
-`fsNormal` = 0, `fsMDIChild` = 1, `fsMDIForm` = 2, `fsStayOnTop` = 3
-
-## Key states
-
-The Ctrl key held, as keyboard and mouse events give it.
-
-`CtrlDown` = 1
-
-## Key states
-
-The Alt key held, as keyboard and mouse events give it.
-
-`AltDown` = 16
-
-## Key states
-
-The Shift key held, as keyboard and mouse events give it.
-
-`ShiftDown` = 256
-
-## Border icons
-
-The buttons on a form's title bar (system menu, minimize, maximize, help), for its BorderIcons.
-
-`biSystemMenu` = 0, `biMinimize` = 1, `biMaximize` = 2, `biHelp` = 3
-
-## Close actions
-
-What happens when a form closes, set in its OnClose event: nothing, hide it, free it or minimize it.
-
-`caNone` = 0, `caHide` = 1, `caFree` = 2, `caMinimize` = 3
-
-## Text layout
-
-Vertical placement of a control's text (Layout): top, centre or bottom.
-
-`tlTop` = 0, `tlCenter` = 1, `tlBottom` = 2
-
-## Label styles
-
-A label's LabelStyle: flat, raised or recessed text.
-
-`lsNone` = 0, `lsRaised` = 1, `lsRecessed` = 2
+`taCenter` = 2, `taLeftJustify` = 0, `taRightJustify` = 1
 
 ## Bevels
 
 The bevels of a panel or bevel (BevelInner, BevelOuter): none, lowered or raised.
 
-`bvNone` = 0, `bvLowered` = 1, `bvRaised` = 2
-
-## Bevel panels
-
-A panel's border styles: none or single.
-
-`bpNone` = 0, `bpSingle` = 1
-
-## Edit character case
-
-An edit's CharCase: text kept as typed, or turned to upper or lower case.
-
-`ecNormal` = 0, `ecUpperCase` = 1, `ecLowerCase` = 2
-
-## Combo box styles
-
-A combo box's Style: drop-down with editing, simple, drop-down list, or drawn by the program.
-
-`csDropDown` = 0, `csSimple` = 1, `csDropDownList` = 2, `csOwnerDrawFixed` = 3, `csOwnerDrawVariable` = 4
-
-## Scroll bars
-
-Which scroll bars a memo, rich edit, grid or tree view shows (ScrollBars).
-
-`ssNone` = 0, `ssHorizontal` = 1, `ssVertical` = 2, `ssBoth` = 3
-
-## Modal results
-
-More modal results: "No to all" and "Yes to all".
-
-`mrNoToAll` = 9, `mrYesToAll` = 10
-
-## Button glyph layout
-
-Where a button's picture is placed next to its caption (Layout).
-
-`blBMPLeft` = 0, `blBMPRight` = 1, `blBMPTop` = 2, `blBMPBottom` = 3
+`bvLowered` = 1, `bvNone` = 0, `bvRaised` = 2
 
 ## Button kinds
 
 A button's Kind: a custom button, or a standard one (OK, Cancel, Help, Yes, No, …) with its caption and picture.
 
-`bkCustom` = 0, `bkOK` = 1, `bkCancel` = 2, `bkHelp` = 3, `bkYes` = 4, `bkNo` = 5, `bkClose` = 6, `bkAbort` = 7, `bkRetry` = 8, `bkIgnore` = 9, `bkAll` = 10
+`bkAbort` = 7, `bkAll` = 10, `bkCancel` = 2, `bkClose` = 6, `bkCustom` = 0, `bkHelp` = 3, `bkIgnore` = 9, `bkNo` = 5, `bkOK` = 1, `bkRetry` = 8, `bkYes` = 4
+
+## Border icons
+
+The buttons on a form's title bar (system menu, minimize, maximize, help), for its BorderIcons.
+
+`biHelp` = 3, `biMaximize` = 2, `biMinimize` = 1, `biSystemMenu` = 0
+
+## Close actions
+
+What happens when a form closes, set in its OnClose event: nothing, hide it, free it or minimize it.
+
+`caFree` = 2, `caHide` = 1, `caMinimize` = 3, `caNone` = 0
+
+## Special colours
+
+Colours meaning no colour, or the control's default one.
+
+`clDefault` = 536870912, `clNone` = 536870911
+
+## Combo box styles
+
+A combo box's Style: drop-down with editing, simple, drop-down list, or drawn by the program.
+
+`csDropDown` = 0, `csDropDownList` = 2, `csOwnerDrawFixed` = 3, `csOwnerDrawVariable` = 4, `csSimple` = 1
 
 ## Cursors
 
 Mouse pointer shapes for a control's Cursor property and Screen.Cursor.
 
-`crDefault` = 0, `crNone` = -1, `crArrow` = -2, `crCross` = -3, `crIBeam` = -4, `crSize` = -5, `crSizeNESW` = -6, `crSizeNS` = -7, `crSizeNWSE` = -8, `crSizeWE` = -9, `crUpArrow` = -10, `crHourGlass` = -11, `crDrag` = -12, `crNoDrop` = -13, `crHSplit` = -14, `crVSplit` = -15, `crMultiDrag` = -16, `crSQLWait` = -17, `crNo` = -18, `crAppStart` = -19, `crHelp` = -20, `crHandPoint` = -21
+`crAppStart` = -19, `crArrow` = -2, `crCross` = -3, `crDefault` = 0, `crDrag` = -12, `crHandPoint` = -21, `crHelp` = -20, `crHourGlass` = -11, `crHSplit` = -14, `crIBeam` = -4, `crMultiDrag` = -16, `crNo` = -18, `crNoDrop` = -13, `crNone` = -1, `crSize` = -5, `crSizeNESW` = -6, `crSizeNS` = -7, `crSizeNWSE` = -8, `crSizeWE` = -9, `crSQLWait` = -17, `crUpArrow` = -10, `crVSplit` = -15
+
+## Duplicates
+
+What a sorted string list does with an item it already has (Duplicates): ignore it, accept it or raise an error.
+
+`dupAccept` = 1, `dupError` = 2, `dupIgnore` = 0
+
+## Edit character case
+
+An edit's CharCase: text kept as typed, or turned to upper or lower case.
+
+`ecLowerCase` = 2, `ecNormal` = 0, `ecUpperCase` = 1
 
 ## File types
 
 Kinds of file to list, by attribute: read-only, hidden, system, volume label, folder, archive or normal.
 
-`ftReadOnly` = 0, `ftHidden` = 1, `ftSystem` = 2, `ftVolumeID` = 3, `ftDirectory` = 4, `ftArchive` = 5, `ftNormal` = 6
+`ftArchive` = 5, `ftDirectory` = 4, `ftHidden` = 1, `ftNormal` = 6, `ftReadOnly` = 0, `ftSystem` = 2, `ftVolumeID` = 3
+
+## Float formats
+
+Formats for `STRF$`: general, scientific, fixed decimals, or fixed with thousands separators.
+
+`ffExponent` = 1, `ffFixed` = 2, `ffGeneral` = 0, `ffNumber` = 3
+
+## Font dialog options
+
+Options for the font dialog, combined in its Options.
+
+`fdAnsiOnly` = 0, `fdApplyButton` = 15, `fdEffects` = 2, `fdFixedPitchOnly` = 3, `fdForceFontExist` = 4, `fdLimitSize` = 13, `fdNoFaceSel` = 5, `fdNoOEMFonts` = 6, `fdNoSimulations` = 7, `fdNoSizeSel` = 8, `fdNoStyleSel` = 9, `fdNoVectorFonts` = 10, `fdScalableOnly` = 14, `fdShowHelp` = 11, `fdTrueTypeOnly` = 1, `fdWysiwyg` = 12
+
+## Font pitch
+
+A font's Pitch: the font's default, proportional or fixed-width.
+
+`fpDefault` = 0, `fpFixed` = 2, `fpVariable` = 1
+
+## Font styles
+
+Font styles (bold, italic, underline, strike-out), combined in a font's Style.
+
+`fsBold` = 0, `fsItalic` = 1, `fsStrikeOut` = 3, `fsUnderline` = 2
+
+## Border styles
+
+A form's or control's BorderStyle: no border, a fixed one, a sizeable one, a dialog's or a tool window's.
+
+`bsDialog` = 3, `bsNone` = 0, `bsSingle` = 1, `bsSizeable` = 2, `bsSizeToolWin` = 5, `bsToolWindow` = 4
+
+## Form styles
+
+A form's FormStyle: normal, an MDI child or parent, or always on top.
+
+`fsMDIChild` = 1, `fsMDIForm` = 2, `fsNormal` = 0, `fsStayOnTop` = 3
+
+## Gauge kinds
+
+A progress bar's Kind: text, a horizontal or vertical bar, a pie or a needle.
+
+`gkHorizontalBar` = 1, `gkNeedle` = 4, `gkPie` = 3, `gkText` = 0, `gkVerticalBar` = 2
+
+## Grid options
+
+A string grid's Options: grid lines, selecting, sizing and moving rows and columns, editing and more, combined.
+
+`goAlwaysShowEditor` = 13, `goColMoving` = 9, `goColSizing` = 7, `goDrawFocusSelected` = 5, `goEditing` = 10, `goFixedHorzLine` = 1, `goFixedVertLine` = 0, `goHorzLine` = 3, `goRangeSelect` = 4, `goRowMoving` = 8, `goRowSelect` = 12, `goRowSizing` = 6, `goTabs` = 11, `goThumbTracking` = 14, `goVertLine` = 2
+
+## Header section styles
+
+A header section's Style: text, or drawn by the program.
+
+`hsOwnerDraw` = 1, `hsText` = 0
+
+## Image types
+
+An image list's ImageType: draw the image or its mask.
+
+`itImage` = 0, `itMask` = 1
+
+## List box styles
+
+A list box's Style: standard, or drawn by the program with fixed or variable item heights.
+
+`lbOwnerDrawFixed` = 1, `lbOwnerDrawVariable` = 2, `lbStandard` = 0
+
+## Modal results
+
+Results of a form shown with ShowModal, and a button's ModalResult that closes the form with it.
+
+`mrAbort` = 3, `mrAll` = 8, `mrCancel` = 2, `mrIgnore` = 5, `mrNo` = 7, `mrNone` = 0
+
+## Modal results
+
+More modal results: "No to all" and "Yes to all".
+
+`mrNoToAll` = 9
+
+## Modal results
+
+Results of a form shown with ShowModal, and a button's ModalResult that closes the form with it.
+
+`mrOk` = 1, `mrRetry` = 4, `mrYes` = 6
+
+## Modal results
+
+More modal results: "No to all" and "Yes to all".
+
+`mrYesToAll` = 10
+
+## Mouse buttons
+
+Which mouse button an OnMouseDown or OnMouseUp event is for.
+
+`mbLeft` = 0, `mbMiddle` = 2, `mbRight` = 1
+
+## Message dialog types
+
+The kind of message `MESSAGEDLG` shows, which sets its caption and icon.
+
+`mtConfirmation` = 3, `mtCustom` = 4, `mtError` = 1, `mtInformation` = 2, `mtWarning` = 0
+
+## OLE states
+
+The State of an OLE container's object: empty, loaded, running, open or active in place.
+
+`osEmpty` = 0, `osInPlaceActive` = 4, `osLoaded` = 1, `osOpen` = 3, `osRunning` = 2, `osUIActive` = 5
+
+## Outline options
+
+Outline drawing options: draw the tree's root, the focus rectangle, stretched bitmaps.
+
+`ooDrawFocusRect` = 1, `ooDrawStretchBitmaps` = 2, `ooDrawTreeRoot` = 0
+
+## Outline styles
+
+A tree view's OutlineStyle: which of text, plus/minus buttons, pictures and tree lines it shows.
+
+`osPictureText` = 2, `osPlusMinusPictureText` = 3, `osPlusMinusText` = 1, `osText` = 0, `osTreePictureText` = 5, `osTreeText` = 4
+
+## Pixel formats
+
+A bitmap's PixelFormat: the number of bits each pixel takes.
+
+`pf15bit` = 4, `pf16bit` = 5, `pf1bit` = 1, `pf24bit` = 6, `pf32bit` = 7, `pf4bit` = 2, `pf8bit` = 3, `pfDevice` = 0
+
+## Printer orientation
+
+The printer's Orientation: portrait or landscape.
+
+`poLandscape` = 1, `poPortrait` = 0
 
 ## Scroll bar kinds
 
@@ -422,19 +368,19 @@ A scroll bar's Kind: horizontal or vertical.
 
 What a scroll bar's OnScroll event reports was done: a line or page step, a drag of the thumb, the ends, or the end of scrolling.
 
-`scLineUp` = 0, `scLineDown` = 1, `scPageUp` = 2, `scPageDown` = 3, `scPosition` = 4, `scTrack` = 5, `scTop` = 6, `scBottom` = 7, `scEndScroll` = 8
+`scBottom` = 7, `scEndScroll` = 8, `scLineDown` = 1, `scLineUp` = 0, `scPageDown` = 3, `scPageUp` = 2, `scPosition` = 4, `scTop` = 6, `scTrack` = 5
 
-## Draw states
+## Scroll bars
 
-An image list's DrawingStyle: how its images are drawn (focused, selected, normal, transparent).
+Which scroll bars a memo, rich edit, grid or tree view shows (ScrollBars).
 
-`dsFocused` = 0, `dsSelected` = 1, `dsNormal` = 2, `dsTransparent` = 3
+`ssBoth` = 3, `ssHorizontal` = 1, `ssNone` = 0, `ssVertical` = 2
 
-## Image types
+## Stretch modes
 
-An image list's ImageType: draw the image or its mask.
+How an OLE container sizes its object (SizeMode): clip, centre, scale, stretch or size itself to it.
 
-`itImage` = 0, `itMask` = 1
+`smAutoSize` = 4, `smCenter` = 1, `smClip` = 0, `smScale` = 2, `smStretch` = 3
 
 ## Sort types
 
@@ -442,11 +388,23 @@ A list view's or tree view's SortType: unsorted, or sorted by item text.
 
 `stNone` = 0, `stText` = 2
 
-## List view styles
+## Text layout
 
-A list view's ViewStyle: large icons, small icons, a list or a report with columns.
+Vertical placement of a control's text (Layout): top, centre or bottom.
 
-`vsIcon` = 0, `vsSmallIcon` = 1, `vsList` = 2, `vsReport` = 3
+`tlBottom` = 2, `tlCenter` = 1, `tlTop` = 0
+
+## Tick marks
+
+On which side a track bar draws its tick marks (TickMarks): bottom or right, top or left, or both.
+
+`tmBoth` = 2, `tmBottomRight` = 0, `tmTopLeft` = 1
+
+## Tick styles
+
+A track bar's TickStyle: no ticks, ticks at every step, or only those the program sets.
+
+`tsAuto` = 1, `tsManual` = 2, `tsNone` = 0
 
 ## Track bar orientation
 
@@ -454,53 +412,125 @@ A track bar's (or splitter's, printer's) Orientation: horizontal or vertical.
 
 `tbHorizontal` = 0, `tbVertical` = 1
 
-## Tick marks
+## List view styles
 
-On which side a track bar draws its tick marks (TickMarks): bottom or right, top or left, or both.
+A list view's ViewStyle: large icons, small icons, a list or a report with columns.
 
-`tmBottomRight` = 0, `tmTopLeft` = 1, `tmBoth` = 2
+`vsIcon` = 0, `vsList` = 2, `vsReport` = 3, `vsSmallIcon` = 1
 
-## Tick styles
+## Window states
 
-A track bar's TickStyle: no ticks, ticks at every step, or only those the program sets.
+A form's WindowState: normal, minimized or maximized.
 
-`tsNone` = 0, `tsAuto` = 1, `tsManual` = 2
+`wsMaximized` = 2, `wsMinimized` = 1, `wsNormal` = 0
 
-## Grid options
+## Key states
 
-A string grid's Options: grid lines, selecting, sizing and moving rows and columns, editing and more, combined.
+The Alt key held, as keyboard and mouse events give it.
 
-`goFixedVertLine` = 0, `goFixedHorzLine` = 1, `goVertLine` = 2, `goHorzLine` = 3, `goRangeSelect` = 4, `goDrawFocusSelected` = 5, `goRowSizing` = 6, `goColSizing` = 7, `goRowMoving` = 8, `goColMoving` = 9, `goEditing` = 10, `goTabs` = 11, `goRowSelect` = 12, `goAlwaysShowEditor` = 13, `goThumbTracking` = 14
+`AltDown` = 16
+
+## Button glyph layout
+
+Where a button's picture is placed next to its caption (Layout).
+
+`blBMPBottom` = 3, `blBMPLeft` = 0, `blBMPRight` = 1, `blBMPTop` = 2
+
+## Bevel panels
+
+A panel's border styles: none or single.
+
+`bpNone` = 0, `bpSingle` = 1
+
+## Baud rates
+
+Serial port speeds for a QCOMPORT's BaudRate.
+
+`br110` = 0, `br115200` = 12, `br1200` = 3, `br14400` = 7, `br19200` = 8, `br2400` = 4, `br300` = 1, `br38400` = 9, `br4800` = 5, `br56000` = 10, `br57600` = 11, `br600` = 2, `br9600` = 6
+
+## Close actions
+
+Another close action, `caClose`: the form closes.
+
+`caClose` = 2
+
+## Key states
+
+The Ctrl key held, as keyboard and mouse events give it.
+
+`CtrlDown` = 1
+
+## Drive types
+
+Kinds of drive: removable, fixed, network, CD-ROM, RAM disk or unknown.
+
+`drtCDRom` = 4, `drtFixed` = 2, `drtRamDisk` = 5, `drtRemote` = 3, `drtRemovable` = 1, `drtUnknown` = 0
+
+## Draw states
+
+An image list's DrawingStyle: how its images are drawn (focused, selected, normal, transparent).
+
+`dsFocused` = 0, `dsNormal` = 2, `dsSelected` = 1, `dsTransparent` = 3
+
+## Directory types
+
+Kinds of folder to list, by attribute: read-only, hidden, system, normal or all.
+
+`dtAll` = 4, `dtHidden` = 1, `dtNormal` = 3, `dtReadOnly` = 0, `dtSystem` = 2
+
+## Truth values
+
+The value of false, for flags and comparisons.
+
+`False` = 0
 
 ## Grid column styles
 
 A string grid's ColumnStyle for a column: a drop-down list, an ellipsis button, or none.
 
-`gcsList` = 0, `gcsEllipsis` = 1, `gcsNone` = 2
+`gcsEllipsis` = 1, `gcsList` = 0, `gcsNone` = 2
 
-## Outline styles
+## Label styles
 
-A tree view's OutlineStyle: which of text, plus/minus buttons, pictures and tree lines it shows.
+A label's LabelStyle: flat, raised or recessed text.
 
-`osText` = 0, `osPlusMinusText` = 1, `osPictureText` = 2, `osPlusMinusPictureText` = 3, `osTreeText` = 4, `osTreePictureText` = 5
+`lsNone` = 0, `lsRaised` = 1, `lsRecessed` = 2
 
-## Outline options
+## Message dialog buttons
 
-Outline drawing options: draw the tree's root, the focus rectangle, stretched bitmaps.
+Buttons for `MESSAGEDLG`, added together for more than one.
 
-`ooDrawTreeRoot` = 0, `ooDrawFocusRect` = 1, `ooDrawStretchBitmaps` = 2
+`mbAbort` = 32, `mbAll` = 256, `mbCancel` = 8, `mbHelp` = 16, `mbIgnore` = 128, `mbNo` = 2, `mbOK` = 4, `mbRetry` = 64, `mbYes` = 1
 
-## Gauge kinds
+## Number types
 
-A progress bar's Kind: text, a horizontal or vertical bar, a pie or a needle.
+The type a stream's ReadNum and WriteNum read or write a number as.
 
-`gkText` = 0, `gkHorizontalBar` = 1, `gkVerticalBar` = 2, `gkPie` = 3, `gkNeedle` = 4
+`Num_BYTE` = 1, `Num_DOUBLE` = 8, `Num_DWORD` = 5, `Num_LONG` = 4, `Num_SHORT` = 2, `Num_SINGLE` = 6, `Num_WORD` = 3
 
-## Copy modes
+## Parity
 
-Raster operations for CopyMode: how drawing a picture combines its pixels with those already there.
+Serial port parity for a QCOMPORT's Parity: none, odd, even, mark or space.
 
-`cmBlackness` = 66, `cmDstInvert` = 5570569, `cmMergeCopy` = 12583114, `cmMergePaint` = 12255782, `cmNotSrcCopy` = 3342344, `cmNotSrcErase` = 1114278, `cmPatCopy` = 15728673, `cmPatInvert` = 5898313, `cmPatPaint` = 16452105, `cmSrcAnd` = 8913094, `cmSrcCopy` = 13369376, `cmSrcErase` = 4457256, `cmSrcInvert` = 6684742, `cmSrcPaint` = 15597702, `cmWhiteness` = 16711778
+`prEven` = 2, `prMark` = 3, `prNone` = 0, `prOdd` = 1, `prSpace` = 4
+
+## Stop bits
+
+Serial port stop bits for a QCOMPORT's StopBits: one, one and a half or two.
+
+`sbOne5StopBits` = 1, `sbOneStopBit` = 0, `sbTwoStopBits` = 2
+
+## Key states
+
+The Shift key held, as keyboard and mouse events give it.
+
+`ShiftDown` = 256
+
+## Shift states
+
+Which of Shift, Ctrl and Alt are held, as keyboard and mouse events give them.
+
+`ssAlt` = 1, `ssCtrl` = 16, `ssShift` = 256
 
 ## Transparent modes
 
@@ -508,113 +538,11 @@ How a bitmap chooses its transparent colour: automatically or the one set.
 
 `tmAuto` = 0, `tmFixed` = 1
 
-## List box styles
+## Truth values
 
-A list box's Style: standard, or drawn by the program with fixed or variable item heights.
+The value of true as RAPIDQ.INC defines it: 1 (a comparison itself gives -1).
 
-`lbStandard` = 0, `lbOwnerDrawFixed` = 1, `lbOwnerDrawVariable` = 2
-
-## Baud rates
-
-Serial port speeds for a QCOMPORT's BaudRate.
-
-`br110` = 0, `br300` = 1, `br600` = 2, `br1200` = 3, `br2400` = 4, `br4800` = 5, `br9600` = 6, `br14400` = 7, `br19200` = 8, `br38400` = 9, `br56000` = 10, `br57600` = 11, `br115200` = 12
-
-## Stop bits
-
-Serial port stop bits for a QCOMPORT's StopBits: one, one and a half or two.
-
-`sbOneStopBit` = 0, `sbOne5StopBits` = 1, `sbTwoStopBits` = 2
-
-## Parity
-
-Serial port parity for a QCOMPORT's Parity: none, odd, even, mark or space.
-
-`prNone` = 0, `prOdd` = 1, `prEven` = 2, `prMark` = 3, `prSpace` = 4
-
-## Font dialog options
-
-Options for the font dialog, combined in its Options.
-
-`fdAnsiOnly` = 0, `fdTrueTypeOnly` = 1, `fdEffects` = 2, `fdFixedPitchOnly` = 3, `fdForceFontExist` = 4, `fdNoFaceSel` = 5, `fdNoOEMFonts` = 6, `fdNoSimulations` = 7, `fdNoSizeSel` = 8, `fdNoStyleSel` = 9, `fdNoVectorFonts` = 10, `fdShowHelp` = 11, `fdWysiwyg` = 12, `fdLimitSize` = 13, `fdScalableOnly` = 14, `fdApplyButton` = 15
-
-## Directory types
-
-Kinds of folder to list, by attribute: read-only, hidden, system, normal or all.
-
-`dtReadOnly` = 0, `dtHidden` = 1, `dtSystem` = 2, `dtNormal` = 3, `dtAll` = 4
-
-## Drive types
-
-Kinds of drive: removable, fixed, network, CD-ROM, RAM disk or unknown.
-
-`drtUnknown` = 0, `drtRemovable` = 1, `drtFixed` = 2, `drtRemote` = 3, `drtCDRom` = 4, `drtRamDisk` = 5
-
-## IP protocols
-
-Internet protocols for a socket's Protocol.
-
-`IPPROTO_IP` = 0, `IPPROTO_ICMP` = 1, `IPPROTO_IGMP` = 2, `IPPROTO_TCP` = 6, `IPPROTO_PUP` = 12, `IPPROTO_UDP` = 17, `IPPROTO_IDP` = 22, `IPPROTO_RAW` = 255
-
-## Socket types
-
-Socket types: a stream (TCP), datagrams (UDP), raw and others.
-
-`SOCK_STREAM` = 1, `SOCK_DGRAM` = 2, `SOCK_RAW` = 3, `SOCK_RDM` = 4, `SOCK_SEQPACKET` = 5
-
-## Address families
-
-Address families for a socket's Family (AF_INET for IPv4 and others).
-
-`AF_UNSPEC` = 0, `AF_UNIX` = 1, `AF_INET` = 2, `AF_IMPLINK` = 3, `AF_PUP` = 4, `AF_CHAOS` = 5, `AF_IPX` = 6, `AF_NS` = 6, `AF_ISO` = 7, `AF_ECMA` = 8, `AF_DATAKIT` = 9, `AF_CCITT` = 10, `AF_SNA` = 11, `AF_DECnet` = 12, `AF_DLI` = 13, `AF_LAT` = 14, `AF_HYLINK` = 15, `AF_APPLETALK` = 16, `AF_NETBIOS` = 17, `AF_VOICEVIEW` = 18, `AF_FIREFOX` = 19, `AF_UNKNOWN1` = 20, `AF_BAN` = 21
-
-## Header section styles
-
-A header section's Style: text, or drawn by the program.
-
-`hsText` = 0, `hsOwnerDraw` = 1
-
-## Duplicates
-
-What a sorted string list does with an item it already has (Duplicates): ignore it, accept it or raise an error.
-
-`dupIgnore` = 0, `dupAccept` = 1, `dupError` = 2
-
-## Stretch modes
-
-How an OLE container sizes its object (SizeMode): clip, centre, scale, stretch or size itself to it.
-
-`smClip` = 0, `smCenter` = 1, `smScale` = 2, `smStretch` = 3, `smAutoSize` = 4
-
-## OLE states
-
-The State of an OLE container's object: empty, loaded, running, open or active in place.
-
-`osEmpty` = 0, `osLoaded` = 1, `osRunning` = 2, `osOpen` = 3, `osInPlaceActive` = 4, `osUIActive` = 5
-
-## Float formats
-
-Formats for `STRF$`: general, scientific, fixed decimals, or fixed with thousands separators.
-
-`ffGeneral` = 0, `ffExponent` = 1, `ffFixed` = 2, `ffNumber` = 3
-
-## File attributes
-
-File attributes for `DIR$` and file searches; faAnyFile matches every file.
-
-`faReadOnly` = 1, `faHidden` = 2, `faSysFile` = 4, `faVolumeID` = 8, `faDirectory` = 16, `faArchive` = 32, `faAnyFile` = 63
-
-## Printer orientation
-
-The printer's Orientation: portrait or landscape.
-
-`poPortrait` = 0, `poLandscape` = 1
-
-## Close actions
-
-Another close action, `caClose`: the form closes.
-
-`caClose` = 2
+`True` = 1
 
 ## CGI limits
 

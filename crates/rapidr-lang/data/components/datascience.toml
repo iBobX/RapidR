@@ -223,6 +223,8 @@ properties = [
   { name = "Width", type = "int" },
   { name = "Height", type = "int" },
   { name = "Dpi", type = "int" },
+  { name = "SeriesCount", type = "int", access = "read", design = false, doc = "How many series the plot has." },
+  { name = "Count", type = "int", access = "read", design = false, doc = "How many series the plot has (SeriesCount)." },
 ]
 methods = [
   { name = "Create" },
@@ -261,6 +263,7 @@ methods = [
   { name = "Figsize", params = "width, height, [dpi]", value = true, doc = "The size in inches at the chart's DPI." },
   { name = "Xlim", params = "min, max", value = true, doc = "The X axis range." },
   { name = "Ylim", params = "min, max", value = true, doc = "The Y axis range." },
+  { name = "Xticks", params = "names, [positions]", doc = "Names the X axis' ticks (\"Jan,Feb,Mar\"), at positions, or at the first series' x values when there are as many, else at 0, 1, 2 …" },
   { name = "Xscale", params = "type", value = true, doc = "\"linear\" or \"log\" (kept with the chart; drawn linear)." },
   { name = "Yscale", params = "type", value = true, doc = "\"linear\" or \"log\" (kept with the chart; drawn linear)." },
 ]

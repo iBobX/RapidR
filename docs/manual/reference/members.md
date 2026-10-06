@@ -4255,6 +4255,8 @@ A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Dpi` | int |  | The dots per inch the plot is rendered at. |
+| `SeriesCount` (read-only) | int |  | How many series the plot has. |
+| `Count` (read-only) | int |  | How many series the plot has (SeriesCount). |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -4301,6 +4303,7 @@ A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots
 | `Figsize(width, height, [dpi])` | The size in inches at the chart's DPI. |
 | `Xlim(min, max)` | The X axis range. |
 | `Ylim(min, max)` | The Y axis range. |
+| `Xticks(names, [positions])` | Names the X axis' ticks ("Jan,Feb,Mar"), at positions, or at the first series' x values when there are as many, else at 0, 1, 2 … |
 | `Xscale(type)` | "linear" or "log" (kept with the chart; drawn linear). |
 | `Yscale(type)` | "linear" or "log" (kept with the chart; drawn linear). |
 

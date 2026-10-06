@@ -1313,24 +1313,14 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     v_null()
 }
 
-/// A QIMAGE's picture from plot `plot`'s chart (drawn first), its size
-/// with AutoSize, as the desktop's `LoadFromPlot`.
+/// A QIMAGE's picture from plot `plot`'s chart, its size with AutoSize, as
+/// the desktop's `LoadFromPlot`: the chart's pixels, drawn again at the
+/// page's scale for the screen (datascience_web.rs).
 fn image_from_plot(name: &str, plot: &str) {
-    // (the chart's pixels, as the PNG the desktop decodes; drawn again at
-    // the screen's scale for a high-DPI screen: sharp, not enlarged)
-    let state = rapidr_value::datascience::plot::state(plot);
-    let Some(lo) = crate::datascience_web::plot_pixels(&state, 1) else { return };
-    let (w, h) = (lo.width as u32, lo.height as u32);
-    rapidr_value::objects::with_picture(name, |b| {
-        b.resize(i64::from(w), i64::from(h));
-        for (i, c) in lo.pixels.iter().enumerate() {
-            b.pset((i as u32 % w) as i64, (i as u32 / w) as i64, *c);
-        }
-        b.set_redraw(move |scale| crate::datascience_web::plot_pixels(&state, scale));
-    });
+    let Some((w, h)) = crate::datascience_web::load_into_picture(name, plot) else { return };
     if rp_comp_get(name, "stretch").to_i64() == 0 && rp_comp_get(name, "autosize").to_bool() {
-        rp_comp_set(name, "width", v_int(i64::from(w)));
-        rp_comp_set(name, "height", v_int(i64::from(h)));
+        rp_comp_set(name, "width", v_int(w));
+        rp_comp_set(name, "height", v_int(h));
     }
     picture_changed(name);
 }
