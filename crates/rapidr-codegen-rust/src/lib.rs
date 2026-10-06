@@ -2540,9 +2540,17 @@ impl RustCodegen {
                             }
                         }
                         // A FUNCTION named without parentheses is called
-                        // (`y = Five + 1`), except inside itself, where the
-                        // name is its result variable.
+                        // (`y = Five + 1`) — inside itself too, as RC.EXE
+                        // compiles it (`G = G + 1` recurses; with parameters
+                        // it's rapidr_ast::rapidq_checks' error, and the
+                        // result variable is read only as RESULT).
                         let lower = name.to_lowercase();
+                        if let Some(fname) = self.current_function.as_deref().filter(|f| strip_type_suffix(f).eq_ignore_ascii_case(&name)) {
+                            if self.returning_functions.contains(&lower) && self.function_param_counts.get(&lower).copied().unwrap_or(0) == 0 {
+                                return format!("{snake}()");
+                            }
+                            return format!("_{}.clone()", to_snake(fname));
+                        }
                         // A SUB's name as a value (`WndProc = MyProc`) is
                         // nothing, as in the VM.
                         if !self.returning_functions.contains(&lower)

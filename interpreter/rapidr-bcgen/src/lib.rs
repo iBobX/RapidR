@@ -248,6 +248,10 @@ struct FnCtx {
     /// FUNCTIONs return the value assigned to their own name, kept in this
     /// local (`Fact = n * Fact(n - 1)`); SUBs have none.
     result_slot: Option<u16>,
+    /// A FUNCTION without parameters: its index. Its name read inside it
+    /// calls it again, as RC.EXE compiles it (`G = G + 1` recurses; with
+    /// parameters, reading the name is rapidr_ast::rapidq_checks' error).
+    recursive_self: Option<u32>,
 }
 
 impl Bcgen {
@@ -522,7 +526,8 @@ impl Bcgen {
                 self.scope.locals.insert("Result".to_string(), slot);
             }
         }
-        let saved_ctx = self.fn_ctx.replace(FnCtx { result_slot });
+        let recursive_self = (is_func && params.is_empty() && self.fn_indices.get(name) == Some(&idx)).then_some(idx);
+        let saved_ctx = self.fn_ctx.replace(FnCtx { result_slot, recursive_self });
         let saved_loops = std::mem::take(&mut self.loop_stack);
         self.routine = RoutineLabels { uses_gosub: contains_gosub(body), ..Default::default() };
         let mut code = Vec::new();
@@ -2111,6 +2116,11 @@ impl Bcgen {
                     let cs = self.module.add_const(Const::Str(id.name.clone()));
                     emit(code, Op::LoadConst);
                     push_u32(code, cs);
+                } else if let Some(fi) = self.fn_ctx.as_ref().and_then(|c| c.recursive_self).filter(|fi| self.fn_indices.get(&id.name) == Some(fi)) {
+                    // (a FUNCTION without parameters reading its own name:
+                    // a call of itself, as in RapidQ — `RESULT` reads the result)
+                    emit(code, Op::CallFunc);
+                    push_u32(code, fi); code.push(0);
                 } else if let Some(slot) = self.scope.get(&id.name) {
                     emit(code, Op::LoadLocal); push_u16(code, slot);
                 } else if !self.is_known_global(&id.name)

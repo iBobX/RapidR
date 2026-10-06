@@ -147,7 +147,7 @@ Next: **[the user manual](docs/manual/README.md)** and
 | **DirectX & media** | QDXSCREEN, QDXIMAGELIST, QDXTIMER, QDXSOUND, QDXJOYSTICK (gamepads), Direct3D retained mode (`.X` models, lights, textures, shadows) on RapidR's software rasterizer; QMIDI with a built-in synthesizer, QWAVE, QVIDEO (AVI), MP3 / Ogg / FLAC / WAV |
 | **The web** | the UI kernel on a canvas; SQLite in WebAssembly; web-only components (`RWebView`, `RDOM`, `RJavaScript`, `RWebStorage`, …); a web IDE that compiles in the browser |
 | **Databases** | `RSQLite` (SQLite itself, everywhere) and RapidQ's `QMySQL`, with `?` parameter binding |
-| **Data science** | `RNum` (ndarray), `RDataFrame` (polars), `RPlot` (charts as PNG or in a `QImage`), `RJson` |
+| **Data science** | `RNum` (arrays), `RDataFrame` (tables), `RPlot` (charts as PNG or in a `QImage`), `RJson` — one implementation on every runtime |
 | **The RapidR Runtime** | runs `.rrbc` programs and sources directly; file associations per user; bytecode that says which runtime it needs; `#!/usr/bin/env rapidr` scripts |
 | **Builds** | native (Rust; universal on macOS), standalone interpreted executables with no Rust needed (on Windows for x64 and ARM64 alike, on macOS universal), web bundles, `--web` native WebAssembly |
 
@@ -222,7 +222,7 @@ not affiliated with its author or with any vendor it names.
 
 RapidR stands on the shoulders of open-source software: winit, wgpu, vello,
 parley and AccessKit (the UI), wasm-bindgen, the Monaco editor (the web
-IDE), ndarray, Polars, plotters, SQLite and hundreds of Rust crates. The
+IDE), plotters, SQLite and hundreds of Rust crates. The
 full list, with licenses and links, is in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) (generated from the
 dependency graph) and [LICENSES.md](LICENSES.md) (vendored JavaScript and

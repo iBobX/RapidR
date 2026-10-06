@@ -150,7 +150,6 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         }
         "RDATAFRAME" => {
             // Non-visual component — no DOM element
-            crate::datascience_web::init_dataframe(&uname);
         }
         "RPLOT" => {
             props.insert("left".to_string(), v_int(0));
@@ -1299,24 +1298,17 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
 /// A QIMAGE's picture from plot `plot`'s chart (drawn first), its size
 /// with AutoSize, as the desktop's `LoadFromPlot`.
 fn image_from_plot(name: &str, plot: &str) {
-    crate::datascience_web::render_plot(&plot.to_uppercase());
-    let canvas = crate::page_web::document()
-        .get_element_by_id(&format!("rr-{}-canvas", plot.to_lowercase()))
-        .and_then(|c| c.dyn_into::<web_sys::HtmlCanvasElement>().ok());
-    let Some(canvas) = canvas else { return };
-    let (w, h) = (canvas.width(), canvas.height());
-    let Some(ctx) = canvas.get_context("2d").ok().flatten().and_then(|c| c.dyn_into::<web_sys::CanvasRenderingContext2d>().ok()) else { return };
-    let Ok(data) = ctx.get_image_data(0.0, 0.0, f64::from(w), f64::from(h)) else { return };
-    let rgba = data.data().0;
+    // (the chart's pixels, as the PNG the desktop decodes; drawn again at
+    // the screen's scale for a high-DPI screen: sharp, not enlarged)
+    let state = rapidr_value::datascience::plot::state(plot);
+    let Some(lo) = crate::datascience_web::plot_pixels(&state, 1) else { return };
+    let (w, h) = (lo.width as u32, lo.height as u32);
     rapidr_value::objects::with_picture(name, |b| {
         b.resize(i64::from(w), i64::from(h));
-        for (i, p) in rgba.as_chunks::<4>().0.iter().enumerate() {
-            let (x, y) = ((i as u32 % w) as i64, (i as u32 / w) as i64);
-            // (over white where the chart is see-through, as the PNG the desktop decodes)
-            let a = u32::from(p[3]);
-            let mix = |c: u8| (u32::from(c) * a + 255 * (255 - a)) / 255;
-            b.pset(x, y, mix(p[0]) | mix(p[1]) << 8 | mix(p[2]) << 16);
+        for (i, c) in lo.pixels.iter().enumerate() {
+            b.pset((i as u32 % w) as i64, (i as u32 / w) as i64, *c);
         }
+        b.set_redraw(move |scale| crate::datascience_web::plot_pixels(&state, scale));
     });
     if rp_comp_get(name, "stretch").to_i64() == 0 && rp_comp_get(name, "autosize").to_bool() {
         rp_comp_set(name, "width", v_int(i64::from(w)));

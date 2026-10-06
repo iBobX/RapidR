@@ -17,8 +17,55 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   Every SDK installs it in `share/doc/rapidr/manual/`.
 - The release notes of v2.117.0, the first public release
   (`docs/release-notes/v2.117.0.md`).
+- Conformance cases `datascience_num`, `datascience_frame` and
+  `datascience_plot`: every documented RNUM, RDATAFRAME and RPLOT member,
+  checked on the VM, native builds and the web (`tests/web_conformance.mjs`).
+- Data-science members the desktop or the web lacked now work everywhere:
+  RNUM `create`, `set`, `get`, `push`, `avg`, and `Sum` / `Mean` / `Min` /
+  `Max` / `Std` / `Count` as properties; RDATAFRAME `create`, `addrow`,
+  `savetocsv`, `loadfromjson`, `savetojson`, `iloc`, `sort_values`,
+  `query`, `groupby`, `value_counts`, `nunique`, `corr`, `nlargest`,
+  `nsmallest`, `dtypes`, `merge`, `concat`, `apply`, `replace` on the web;
+  RPLOT `addseries`, `settitle` / `setxlabel` / `setylabel`, `show` /
+  `render` on the desktop, and `xscale` / `yscale`, `xlim` / `ylim`, `DPI`
+  on the web. `LoadFromCSV` / `LoadFromJSON` also take the data itself;
+  `filter` also takes `=`, `<>`, `startswith`, `endswith`, and `contains`
+  is a substring test on every runtime; `groupby` also takes `median` and
+  `std`; `cell` / `setcell` also take a column name.
 
 ### Changed
+- **RNUM, RDATAFRAME and RPLOT are one implementation for every runtime**
+  (`rapidr_value::datascience`, docs/ide-plan.md decision D7): native
+  builds, interpreted programs and the browser run the same arrays, frames
+  (with their CSV and JSON readers and writers) and chart model; a runtime
+  adds only PRINT, filling a QSTRINGGRID and drawing (plotters on the
+  desktop, a canvas on the web). polars and ndarray are no longer
+  dependencies — 89 fewer crates in the tree, smaller native builds — and
+  THIRD_PARTY_NOTICES.md is regenerated. Where the two implementations
+  disagreed, one behaviour was chosen: `setcell(row, col, value)` (the
+  web took the column first), `randint` includes both ends, `reciprocal`
+  of 0 is INF, a missing array reads as empty, `Shape` of an RNUM is
+  `(3,)`, `groupby` puts the group column first and orders groups by key,
+  `describe` summarises the numeric columns (count, mean, std, min,
+  quartiles, max), `transpose` names its first column `column`, charts
+  default to 640 × 480 px without a grid, and computed numbers print as
+  RapidR prints numbers (`0.3`, not `0.30000000000000004`).
+  `examples/web_datascience.rr` and the web IDE's hover help follow.
+- **RPLOT's charts look the same, and better, on the desktop and the
+  web**: the axes' ranges, bar widths and legend place come from the shared
+  model (`Plot::ranges`, `nice_ticks`, `legend_corner`) — round 1-2-5
+  ticks without `.0` on whole numbers, a light grid, 2-pixel lines, real
+  dashed lines (`--`), bars wholly inside the axes standing on 0, a line
+  chart fitting its data, the legend framed in the corner with the fewest
+  points, pies from twelve o'clock with labels outside and white between
+  slices. Desktop charts are drawn twice as fine and averaged down (smooth
+  edges), with text at the web's sizes.
+- **Charts are sharp on high-DPI screens**: `Image.LoadFromPlot` keeps
+  what draws the chart again at the screen's scale (`Bitmap::set_redraw`,
+  as an SVG picture is), and the web's chart canvas draws at the page's
+  scale; the pixels a program reads stay the 1× ones.
+- `ToGrid` makes the header the grid's fixed row and no column fixed, so
+  every column of the frame shows as data.
 - README rewritten for newcomers (install from the releases first, a quick
   start, what's in it, the platforms checked); COMPILER_MANUAL.md is now
   the contributor manual for today's architecture, and its outdated PDF is
@@ -29,6 +76,37 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   examples: every commit carries the clean versions instead (same commits,
   authors and messages; today's tree unchanged). Clones made before
   2026-10-06 should be cloned again.
+
+### Fixed
+- `RDataFrame.ToString` / `Print` on the desktop showed only
+  `shape: (2, 2)` and a note about polars' `fmt` feature, and `Print`
+  printed twice: a frame now prints once, as a plain-text table that is the
+  same on every runtime (a header, a rule, the rows — numbers
+  right-aligned, `null` for a missing value, the first and last ten rows of
+  a longer frame — and `[2 rows x 3 columns]`); `ToString` returns it
+  without printing.
+- `RDataFrame.Cell` / `CellByName` returned text cells in double quotes
+  (`"bob"`) on the desktop: they return the plain text.
+- `RNum.Shape` printed "RNum.shape() not implemented" instead of the
+  array's shape; a property read the way methods are (`PRINT a.Shape`)
+  now reads the property on every data-science component.
+- On the web, `RDataFrame.SaveToCSV` / `SaveToJSON` before any other file
+  I/O wrote nowhere: data frames use the page's files from the start.
+- QSTRINGGRID: setting `FixedCols` / `FixedRows` to a new value starts
+  the grid over at its first scrollable cell (`LeftCol` / `TopRow` and the
+  selection), as Delphi's TCustomGrid does; column 0 stayed scrolled out of
+  view after `FixedCols = 0`.
+- **A FUNCTION's own name inside it** follows RapidQ's compiler (RC.EXE):
+  without parameters it is a call of itself (`G = G + 1` recurses);
+  with parameters, reading it without arguments is the compile error
+  `Expected ( but got "+"` on every runtime. The interpreter read the
+  result variable instead, and native builds failed to compile such a
+  program. `RESULT` reads the result. Conformance cases
+  `function_self_name`, `function_self_read` (checked against RC.EXE).
+- `ANNOUNCEMENT.md` announced "1.0.0" and called RapidR a reimplementation:
+  it now announces 2.117.0 as the release notes do — RapidR is compatible
+  with RapidQ, an original implementation written from the ground up in
+  pure Rust.
 
 ## [2.117.0] — 2026-10-06
 

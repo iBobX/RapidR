@@ -384,37 +384,14 @@ END SUB
 ' DataFrame handlers
 ' ============================================================
 SUB BtnDfCreate_OnClick()
-    ' Build a DataFrame from inline data
-    df1.addcolumn("Name")
-    df1.addcolumn("Age")
-    df1.addcolumn("Score")
-    df1.addcolumn("City")
-
-    ' We'll use setcell to populate rows
-    df1.setcell(0, 0, "Alice")
-    df1.setcell(1, 0, "30")
-    df1.setcell(2, 0, "92")
-    df1.setcell(3, 0, "NYC")
-
-    df1.setcell(0, 1, "Bob")
-    df1.setcell(1, 1, "25")
-    df1.setcell(2, 1, "85")
-    df1.setcell(3, 1, "LA")
-
-    df1.setcell(0, 2, "Carol")
-    df1.setcell(1, 2, "35")
-    df1.setcell(2, 2, "95")
-    df1.setcell(3, 2, "NYC")
-
-    df1.setcell(0, 3, "Dave")
-    df1.setcell(1, 3, "28")
-    df1.setcell(2, 3, "78")
-    df1.setcell(3, 3, "LA")
-
-    df1.setcell(0, 4, "Eve")
-    df1.setcell(1, 4, "32")
-    df1.setcell(2, 4, "88")
-    df1.setcell(3, 4, "NYC")
+    ' Build a DataFrame from inline data: a column at a time
+    df1.create()
+    df1.addcolumn("Name", "Alice,Bob,Carol,Dave,Eve")
+    df1.addcolumn("Age", "30,25,35,28,32")
+    df1.addcolumn("Score", "92,85,95,78,88")
+    df1.addcolumn("City", "NYC,LA,NYC,LA,NYC")
+    ' (one cell: setcell row, column, value)
+    df1.setcell(4, "City", "SF")
 
     df1.togrid("GridDf")
 
@@ -435,13 +412,13 @@ SUB BtnDfFilter_OnClick()
     rowNum = 1
     FOR r = 0 TO 4
         DIM score AS INTEGER
-        score = VAL(df1.cell(2, r))
+        score = VAL(df1.cell(r, 2))
         IF score >= 88 THEN
             GridDf.SetRowCount(rowNum + 1)
-            GridDf.SetCell(0, rowNum, df1.cell(0, r))
-            GridDf.SetCell(1, rowNum, df1.cell(1, r))
-            GridDf.SetCell(2, rowNum, df1.cell(2, r))
-            GridDf.SetCell(3, rowNum, df1.cell(3, r))
+            GridDf.SetCell(0, rowNum, df1.cell(r, 0))
+            GridDf.SetCell(1, rowNum, df1.cell(r, 1))
+            GridDf.SetCell(2, rowNum, df1.cell(r, 2))
+            GridDf.SetCell(3, rowNum, df1.cell(r, 3))
             rowNum = rowNum + 1
         END IF
     NEXT r
@@ -466,7 +443,7 @@ SUB BtnDfStats_OnClick()
     DIM r AS INTEGER
     total = 0
     FOR r = 0 TO 4
-        total = total + VAL(df1.cell(2, r))
+        total = total + VAL(df1.cell(r, 2))
     NEXT r
     GridDf.SetCell(0, 4, "Avg Score")
     GridDf.SetCell(1, 4, STR(INT(total / 5 * 10) / 10))
