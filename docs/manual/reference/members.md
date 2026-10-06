@@ -357,6 +357,7 @@ The bar at the bottom of a window that shows status text, as one simple text or 
 | `Font` *(RapidR)* | font |  | The font of the text, a QFONT; assigning one copies it. |
 | `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `Color` *(RapidR)* | color |  | The bar's colour (RapidR's): flat in every look, as an IDE's state bar; unset, the theme's. |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -656,6 +657,7 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `PaneTitle(Name AS STRING, [Title AS STRING]) AS STRING` | A pane's title; with Title, sets it. |
 | `PaneState(Name AS STRING) AS STRING` | Where a pane is: "docked", "tabbed", "autohide", "floating", "document" or "hidden". |
 | `PaneVisible(Name AS STRING) AS INTEGER` | True when the pane is placed and shown (not hidden, nor behind another tab). |
+| `DocumentState(Name AS STRING, [State AS INTEGER]) AS INTEGER` | An MDI document's window: 0 normal, 1 minimized, 2 maximized (-1: not an MDI document); with State, it becomes that. |
 | `NextDocument` | Activates the next document (Ctrl+Tab). |
 | `PreviousDocument` | Activates the previous document (Ctrl+Shift+Tab). |
 | `Cascade` | Cascades the documents' windows. |
@@ -2642,6 +2644,7 @@ The system's Open dialog: Execute shows it and returns whether the user chose a 
 
 | Property | Type | Default | |
 |---|---|---|---|
+| `PickFolder` *(RapidR)* | bool | False | Execute chooses a folder instead of a file; FileName is the folder (on the web its files are read in, and saving one writes it back). |
 | `Caption` | string | `""` | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
 | `FileName` | string | `""` | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
 | `Filter` | string | `""` | The file types offered, as description\|patterns pairs (`Text\|*.txt\|All Files\|*.*`), patterns split by `;`. |
@@ -4492,6 +4495,95 @@ Hash routes for single-page web apps: Navigate, Back, Forward and OnRouteChange.
 |---|---|
 | `OnRouteChange` | Fires when the page's route (the URL's # part) changes, by Navigate, Back, Forward or the browser. |
 
+<a id="rproject"></a>
+## RPROJECT
+
+A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a .bas / .rr file with the files it $INCLUDEs, RapidQ's way. Lists the project's files and their kinds, adds and removes files, saves the project file, and makes new projects from templates. RapidR Studio is built on it.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `FileName` (read-only) | string |  | The .rrproj file ("" for a source file opened without one). |
+| `Folder` (read-only) | string |  | The project's folder: its files' paths are relative to it. |
+| `Kind` (read-only) | string |  | What is open: "project" (a .rrproj), "file" (a source file and its includes), "v1" (a web IDE project, imported) or "" (nothing). |
+| `Error` (read-only) | string |  | Why the last Open, Save, New, AddFile or RemoveFile failed ("" when it worked). |
+| `Name` | string |  | The project's name. |
+| `MainFile` | string |  | The file the program starts from (relative to the folder). |
+| `FileCount` (read-only) | int |  | How many files the project has. |
+| `CompatMode` | string |  | "rapidq" for a RapidQ-compatible project (RapidR's extensions reported), else "". |
+
+| Method | |
+|---|---|
+| `Open(Path AS STRING) AS INTEGER` | Opens a .rrproj, or a .bas / .rr / .inc file with what it includes. True when it opened; Error says why not. |
+| `OpenFolder(Folder AS STRING) AS INTEGER` | Opens the project of a folder: its .rrproj, else its main source (main.rr / main.bas, the one named as the folder, the one with a form). True when it opened. |
+| `Save([Path AS STRING]) AS INTEGER` | Writes the project file (a source file's project becomes <Folder>/<Name>.rrproj, or Path). True when it was written. |
+| `New(Template AS STRING, Name AS STRING, Folder AS STRING) AS INTEGER` | A new project from a template ("console" or "gui"): main.rr and <Name>.rrproj written in Folder. |
+| `AddFile(Path AS STRING, [Kind AS STRING]) AS INTEGER` | Adds a file (its kind from its name, or Kind: module, form, include, resource, asset, data). True when it was added. |
+| `RemoveFile(Path AS STRING) AS INTEGER` | Takes a file out of the project (the file itself stays). True when it was in it. |
+| `Close` | No project is open any more. |
+| `File(Index AS INTEGER) AS STRING` | File Index's path, relative to the folder (from 0). |
+| `FileKind(Index AS INTEGER) AS STRING` | File Index's kind: module, form, include, resource, asset or data. |
+| `FullPath(Index AS INTEGER) AS STRING` | File Index's path to open it with (the folder's and its own). |
+
+| Event | |
+|---|---|
+| `OnChange` | The project was opened, saved, closed, or its files changed. |
+
+<a id="rlanguageservice"></a>
+## RLANGUAGESERVICE
+
+RapidR's language service, the one rapidr lsp and the VS Code extension use: a BASIC file's outline and its diagnostics (the compiler's own messages), as text one item a line, fields separated by tabs. Give it the editor's text with Update.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `CompatMode` | string |  | "rapidq": RapidR's extensions are reported, as in a RapidQ-compatible project. |
+| `ErrorCount` (read-only) | int |  | How many errors the last Diagnostics found. |
+
+| Method | |
+|---|---|
+| `Update(File AS STRING, Text AS STRING)` | A file's text as the editor has it (saved or not). |
+| `Close(File AS STRING)` | Forgets the editor's text of a file: it is read from its file again. |
+| `Outline(File AS STRING) AS STRING` | The file's outline, a line per item: depth, kind (sub, function, type, field, method, event, component, constant, variable, label), name, detail, line (from 1), separated by tabs. |
+| `Diagnostics(File AS STRING) AS STRING` | The file's errors and warnings, a line each: severity (error, warning, note), line, column (from 1), message, file, separated by tabs. |
+
+<a id="rprogramsession"></a>
+## RPROGRAMSESSION
+
+A run of a program under development, as an IDE runs it: in its own process on the desktop (its forms real windows), in a sandboxed frame on the web. Start, stop, pause, step, breakpoints, evaluate; its output and its stops come as events.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Program` | string |  | The source file to run (saved). |
+| `Args` | string |  | Its command line arguments, as COMMAND$ reads them (spaces separate them, quotes keep spaces). |
+| `Debug` | bool | True | Run under the debugger: breakpoints stop it, stepping works. |
+| `BreakOnError` | bool | False | Stop at the statement of a run-time error. |
+| `State` (read-only) | string |  | "stopped", "running" or "paused". |
+| `CurrentFile` (read-only) | string |  | Where the program is paused: its file. |
+| `CurrentLine` (read-only) | int |  | Where the program is paused: its line (from 1; 0 when not paused). |
+| `ExitCode` (read-only) | int |  | The last run's exit code. |
+| `Error` (read-only) | string |  | Why the last Start (or another request) failed. |
+
+| Method | |
+|---|---|
+| `Start AS INTEGER` | Runs Program. True when it started; Error says why not. |
+| `Stop` | Ends the program at once. |
+| `Pause AS INTEGER` | Pauses the program at its next statement. |
+| `Continue AS INTEGER` | Lets a paused program go on. |
+| `StepIn AS INTEGER` | Runs one statement, into a SUB or FUNCTION it calls. |
+| `StepOver AS INTEGER` | Runs one statement, a call whole. |
+| `StepOut AS INTEGER` | Runs to the end of the SUB or FUNCTION and stops after its call. |
+| `SetBreakpoint(File AS STRING, Line AS INTEGER, [Condition AS STRING]) AS INTEGER` | A breakpoint at a line (from 1) of a file, with a condition or not. |
+| `ClearBreakpoint(File AS STRING, Line AS INTEGER) AS INTEGER` | Removes a breakpoint. |
+| `Evaluate(Expr AS STRING) AS STRING` | Evaluates in the paused program: "? expression" gives its value, a statement runs (the Immediate window's). |
+| `Input(Text AS STRING) AS INTEGER` | A line for the program's INPUT. |
+
+| Event | |
+|---|---|
+| `OnOutput(Text AS STRING)` | The program printed Text (PRINT, errors). |
+| `OnStopped(Reason AS STRING, File AS STRING, Line AS INTEGER)` | The program paused: at a breakpoint, a step's end, a pause, a run-time error. |
+| `OnContinue` | A paused program goes on. |
+| `OnExit(Code AS INTEGER)` | The program ended, with its exit code. |
+| `OnFormShown(Id AS STRING)` | The program showed a form. |
+
 <a id="screen"></a>
 ## Screen
 
@@ -4548,6 +4640,7 @@ The running program: its file and folder, title, icon, hint settings, RapidR's T
 | `HelpJump(JumpID AS STRING)` *(not yet)* | Opens the program's help file at the topic `JumpID`. |
 | `Minimize` | Minimizes the program's windows. |
 | `Terminate` | Ends it: stops the thread, or ends the program. |
+| `ThemeColor(Name AS STRING) AS LONG` *(RapidR)* | A colour of the current theme by name, as a RapidQ colour (&HBBGGRR): the theme's own ("face", "window", "accent" …) and an IDE's ("toolbar", "statusbar", "statusbar.running", "page.link", "editor.keyword" …); -1 for a name no theme has. Read it again after setting Theme. |
 | `GetPriority` *(not yet)* | Returns the program's process priority. |
 | `SetPriority(Priority AS LONG) AS VARIANT` *(not yet)* | Sets the program's process priority. |
 

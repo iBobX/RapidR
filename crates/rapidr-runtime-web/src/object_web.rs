@@ -320,7 +320,33 @@ pub(crate) fn web_write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
     web_store_file(path, bytes.to_vec());
     // (a name an Open / Save dialog answered: the user's real file too)
     crate::file_picker_web::written(path, bytes);
+    // (a page that keeps the files its program writes — RapidR Studio's,
+    // in the browser's private file system — hears each one:
+    // `window.RAPIDR_FILE_SINK(path, bytes)`)
+    if let Some(w) = web_sys::window() {
+        if let Ok(f) = js_sys::Reflect::get(&w, &"RAPIDR_FILE_SINK".into()).and_then(|f| f.dyn_into::<js_sys::Function>()) {
+            let _ = f.call2(&JsValue::NULL, &JsValue::from_str(path), &js_sys::Uint8Array::from(bytes).into());
+        }
+    }
     Ok(())
+}
+
+/// The names in the page's store under folder `folder` (directly in it):
+/// RPROJECT.OpenFolder's look at a folder picked on the web.
+pub fn stored_names_in(folder: &str) -> Vec<String> {
+    let prefix = format!("{}/", folder.trim_end_matches('/').replace('\\', "/"));
+    let lower = prefix.to_lowercase();
+    SAVED_FILES.with(|f| {
+        let mut names: Vec<String> = f
+            .borrow()
+            .keys()
+            .filter(|k| k.to_lowercase().starts_with(&lower))
+            .map(|k| k[prefix.len()..].to_string())
+            .filter(|rest| !rest.contains('/'))
+            .collect();
+        names.sort();
+        names
+    })
 }
 
 /// `bytes` as file `path` in the page's store (over a file of the same
@@ -544,6 +570,10 @@ fn set_property(name: &str, prop: &str, val: Value) {
     }
     // A QFORMMDI's ChildMax, ChildCaption, ChildState, … (mdi_web.rs).
     if rapidr_value::mdi::is_mdi(name) && crate::mdi_web::set(name, &lprop, &val) {
+        return;
+    }
+    // (I1) RapidR Studio's RPROJECT, RLANGUAGESERVICE, RPROGRAMSESSION (studio_web.rs).
+    if rapidr_studio::is_studio_type(&rp_comp_type(&uname)) && crate::studio_web::set(&rp_comp_type(&uname), name, &lprop, &val) {
         return;
     }
     // (I1) An RDOCKMANAGER's DocumentMode, ActiveDocument, … (dock_web.rs).
@@ -933,6 +963,15 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     if let Some(v) = rapidr_value::mdi::get(name, &lprop) {
         return v;
     }
+    // (I1) RapidR Studio's components (studio_web.rs).
+    {
+        let t = rp_comp_type(name);
+        if rapidr_studio::is_studio_type(&t) {
+            if let Some(v) = crate::studio_web::get(&t, name, &lprop) {
+                return v;
+            }
+        }
+    }
     // (I1) An RDOCKMANAGER's PaneCount, ActiveDocument, … (dock_web.rs).
     if rp_comp_type(name) == "RDOCKMANAGER" {
         if let Some(v) = rapidr_value::dock::runtime::rt_get(name, &lprop) {
@@ -1115,6 +1154,15 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     if rapidr_value::mdi::is_mdi(name) {
         if let Some(v) = crate::mdi_web::method(name, &lmethod, args) {
             return v;
+        }
+    }
+    // (I1) RapidR Studio's RPROJECT, RLANGUAGESERVICE, RPROGRAMSESSION (studio_web.rs).
+    {
+        let t = rp_comp_type(name);
+        if rapidr_studio::is_studio_type(&t) {
+            if let Some(v) = crate::studio_web::call(&t, name, &method.to_ascii_lowercase(), args) {
+                return v;
+            }
         }
     }
     // (I1) An RDOCKMANAGER's AddPane, SaveLayout, … (dock_web.rs).

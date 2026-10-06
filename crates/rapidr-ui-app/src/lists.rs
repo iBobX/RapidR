@@ -202,8 +202,8 @@ pub fn tree_refresh<P: Program>(p: P, name: &str) {
 /// `GetItemAt (X, Y)`: the node in the row there (the kernel's rows, inside
 /// the 2-pixel frame), or -1.
 pub fn tree_item_at(name: &str, x: i64, y: i64) -> i64 {
-    use rapidr_value::objects::tree::ROW_HEIGHT;
-    rapidr_value::objects::with_tree(name, |m| m.item_at(x - 2, y - 2, ROW_HEIGHT)).unwrap_or(-1)
+
+    rapidr_value::objects::with_tree(name, |m| m.item_at(x - 2, y - 2, m.row_height())).unwrap_or(-1)
 }
 
 // ----------------------------------------------------------- pre-paint --

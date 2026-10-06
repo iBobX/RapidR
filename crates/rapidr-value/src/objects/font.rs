@@ -41,7 +41,7 @@ impl Default for Font {
 
 /// Font names every RapidR runtime can show (the desktop and web runtimes
 /// map them to the platform's own fonts): what `FontName(i)` lists.
-pub const FONT_NAMES: &[&str] = &["Arial", "Courier New", "Times New Roman", "MS Sans Serif", "Symbol"];
+pub const FONT_NAMES: &[&str] = &["Arial", "Courier New", "Times New Roman", "MS Sans Serif", "Symbol", "Inter", "JetBrains Mono"];
 
 const STYLE_NAMES: [&str; 4] = ["bold", "italic", "underline", "strikeout"];
 

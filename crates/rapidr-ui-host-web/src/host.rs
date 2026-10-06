@@ -1105,7 +1105,11 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
             if cmd && ["c", "x", "v", "r", "t", "w", "l", "n", "+", "-", "=", "0"].contains(&k.as_str()) {
                 return;
             }
-            if key == "F5" || key == "F12" || key == "F6" || (key == "Tab" && e.ctrl_key()) {
+            // (a page that is the application — RapidR Studio's — says so with
+            // `window.RAPIDR_APP_KEYS = true`: F5 runs, F6 moves between its
+            // areas, Ctrl+Tab between its documents, as an IDE's keys)
+            let app_keys = web_sys::window().and_then(|w| js_sys::Reflect::get(&w, &"RAPIDR_APP_KEYS".into()).ok()).and_then(|v| v.as_bool()).unwrap_or(false);
+            if key == "F12" || (!app_keys && (key == "F5" || key == "F6" || (key == "Tab" && e.ctrl_key()))) {
                 return;
             }
             let Some(vk) = rapidr_value::input::vk_of_key(&key, &e.code()) else { return };

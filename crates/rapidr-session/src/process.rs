@@ -26,8 +26,20 @@ impl ProcessTransport {
     /// Runs `runtime run --session program args…` (`runtime`: the `rapidr`
     /// executable), in `cwd` if given.
     pub fn spawn(runtime: &Path, program: &str, args: &[String], cwd: Option<&Path>) -> std::io::Result<Self> {
+        Self::spawn_with_env(runtime, program, args, cwd, &[])
+    }
+
+    /// [`Self::spawn`], with environment variables set (`Some`) or removed
+    /// (`None`) for the program.
+    pub fn spawn_with_env(runtime: &Path, program: &str, args: &[String], cwd: Option<&Path>, env: &[(String, Option<String>)]) -> std::io::Result<Self> {
         let mut command = Process::new(runtime);
         command.arg("run").arg("--session").arg(program).args(args);
+        for (k, v) in env {
+            match v {
+                Some(v) => command.env(k, v),
+                None => command.env_remove(k),
+            };
+        }
         command.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
         if let Some(dir) = cwd {
             command.current_dir(dir);

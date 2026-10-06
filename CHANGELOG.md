@@ -33,6 +33,57 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   and the release notes.
 
 ### Added
+- **RapidR Studio: the IDE's shell** (`ide/`, docs/ide-plan.md I1 /
+  L-SHELL + L-WEB). One RapidR program on RapidR's public components — the
+  same bytecode on the desktop (`rapidr ide [file]`) and in the browser
+  (`tools/build_studio_web.sh` → `target/studio-web`, drawn by the UI
+  kernel on a canvas); their captures are byte-identical and their
+  accessibility trees equal (`tests/studio_shell.mjs`: two scenes, four
+  themes, 1× and 2×).
+  - **The window:** a menu bar, a tool bar of RapidR's icons and the
+    command palette (Ctrl+Shift+P), all made from one command table (VB6 /
+    Visual Studio keys: F5 Run, Ctrl+F5, Shift+F5 Stop, F9, F8 / F10 /
+    F11, Ctrl+S, Ctrl+O, Ctrl+N); RDOCKMANAGER with Project / Toolbox,
+    Properties / Outline and Output / Problems / Immediate around an MDI
+    documents area (tabs one click away); a status bar that turns green
+    while the program runs and orange while it's paused.
+  - **What it does:** opens a project, a source file with what it
+    includes, or a folder; makes new projects; saves files and the
+    `.rrproj`; runs and stops the program — in its own process on the
+    desktop (its forms real windows), in a sandboxed frame on the web — with
+    its output in the Output pane; shows each file's outline and the
+    compiler's problems as you type; the Immediate window evaluates in a
+    paused program; theme switch, MDI or tabs, the dock's layout and recent
+    projects kept per user; `--do` runs commands (`rapidr ide --do
+    run.start file.rr`).
+  - **On the web:** the File System Access API for files and folders (saved
+    back to the user's disk), Studio's own files kept in the browser's
+    private file system between visits, and F5 / F6 / Ctrl+Tab as the
+    IDE's keys.
+  - **RapidR's look** is Studio's default — as the system is: light, dark
+    or high contrast (`Application.Theme = "rapidr"`, `"rapidr light"`,
+    `"rapidr dark"`, `"rapidr high contrast"`); classic stays one click
+    away.
+- **RPROJECT, RLANGUAGESERVICE, RPROGRAMSESSION** — RapidR Studio's
+  services as public non-visual components (`crates/rapidr-studio`), the
+  same on every runtime: a project (`.rrproj` v2 or v1, a source file and
+  its includes, a folder), the language service's outline and diagnostics,
+  and a run of a program under development (start, stop, pause, step,
+  breakpoints, evaluate; OnOutput, OnStopped, OnExit …).
+- **Tooltips**: a component's `Hint` shows in a small box when its
+  `ShowHint` is True — after half a second, under the mouse or under a
+  component the keyboard reached — as in RapidQ; drawn by the UI kernel on
+  every host.
+- **Inter and JetBrains Mono** built in (SIL OFL, Latin subsets): RapidR's
+  UI and code faces — the RapidR look's menus, MDI titles, tooltips and
+  code editor; programs can name them.
+- `Application.ThemeColor(Name)`: a colour of the current theme by name —
+  its own tokens and an IDE's (tool bar, status bar per run state, start
+  page, editor colours).
+- `QOPENDIALOG.PickFolder` chooses a folder; `QSTATUSBAR.Color`;
+  `QTREEVIEW.ItemHeight` (QOUTLINE's) sets the rows' height;
+  `RDOCKMANAGER.DocumentState`; a tab in a menu caption shows key text
+  without binding it (Windows' menus' rule).
 - **RapidR Studio's form designer model (I4, L-DMODEL), and anchoring that
   is the running program's.** The designer reads a program's
   `CREATE … END CREATE` blocks into a component tree (parents, z-order,
@@ -192,6 +243,24 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   - `tools/regress.sh unit` checks that everything is up to date.
 
 ### Changed
+- **`rapidr ide` opens RapidR Studio** (`ide/studio.rr`; an install's
+  `ide/rapidr-ide.rrbc` is compiled from it); the old `examples/ide.rr`
+  and the HTML web IDE stay until Studio reaches their features
+  (docs/ide-plan.md I1's acceptance).
+- **RapidR's look (modern, dark, high contrast) draws its chrome in its own
+  fonts and shapes**: menus, MDI titles and tooltips in Inter; the code
+  editor in JetBrains Mono on the theme's editor colours (keywords readable
+  in the dark look); MDI windows rounded with a light title bar; the dock's
+  headers 28 pixels with their buttons where the mouse or the focus is;
+  flat tool buttons a soft rounded fill under the mouse; the menu bar's
+  access keys underlined from the keyboard only. The classic look and every
+  program's own metrics are unchanged.
+- **On a Mac, a menu's `Ctrl+` ShortCut is ⌘** (the system menu bar's
+  key equivalent; in-window menus take either), as Mac programs' keys are.
+- A flat button whose only glyph is a picture (no disabled frame) is drawn
+  greyed while disabled, as Windows greys a speed button's glyph.
+- RCODEEDITOR reads a UTF-8 source as UTF-8 (`LoadFromFile`) and writes it
+  back so; other files stay a byte a character, as RapidQ's text boxes.
 - **One layout sequence for every runtime.** When Align and Anchors place
   components (a property set, a container resized) is
   `rapidr_value::layout::engine`'s, run by the desktop and web runtimes
@@ -351,6 +420,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
     same fix makes `LoadFromStream` (bitmaps, grids, image lists) read the
     rest of a stream that was already read from.
 
+- The web runtime's `Application.Theme` read "modern" after `auto`
+  (now `rapidr`) chose the dark or high contrast look; it reads the look
+  drawn.
+- A docked group's tabs were measured in the regular face but drawn bold:
+  the shown tab's title was cut short ("Out…").
 - **Debugger: a SUB's own variables showed up in Globals under made-up
   names.** A SUB's STATIC variables and the variables a SUB uses before
   the main program does (RapidQ keeps those between calls) were listed in

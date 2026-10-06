@@ -1,0 +1,15 @@
+[package]
+name = "rapidr-studio"
+description = "RapidR Studio's services as public non-visual components — RPROJECT (rapidr-project), RLANGUAGESERVICE (rapidr-langsvc), RPROGRAMSESSION (rapidr-session's client) — one implementation the desktop and web runtimes reach through a thin host trait (docs/ide-plan.md I1)"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+
+# wasm-safe: the hosts give it files (rapidr-value's file hooks), events and
+# a way to launch the program under development.
+[dependencies]
+rapidr-value.workspace = true
+rapidr-project.workspace = true
+rapidr-session.workspace = true
+rapidr-langsvc.workspace = true

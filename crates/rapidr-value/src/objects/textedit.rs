@@ -39,6 +39,9 @@ pub struct TextEdit {
     /// Goes up when the program asks for the caret to be scrolled into
     /// view (GotoLine, GotoSub).
     pub reveal: u64,
+    /// (an RCODEEDITOR's) Its file was UTF-8: SaveToFile writes UTF-8 back
+    /// (otherwise each character is a byte, Windows' ANSI, as RapidQ's).
+    pub utf8: bool,
 }
 
 impl TextEdit {

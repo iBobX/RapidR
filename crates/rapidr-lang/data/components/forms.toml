@@ -343,6 +343,7 @@ properties = [
   { name = "Font", type = "font", origin = "rapidr" },
   { name = "FontSize", type = "int", origin = "rapidr" },
   { name = "FontColor", type = "color", origin = "rapidr" },
+  { name = "Color", type = "color", origin = "rapidr", doc = "The bar's colour (RapidR's): flat in every look, as an IDE's state bar; unset, the theme's." },
 ]
 methods = [
   { name = "AddPanels", params = "Items ..." },
@@ -613,6 +614,7 @@ methods = [
   { name = "PaneTitle", params = "Name AS STRING, [Title AS STRING]", returns = "STRING", doc = "A pane's title; with Title, sets it." },
   { name = "PaneState", params = "Name AS STRING", returns = "STRING", doc = "Where a pane is: \"docked\", \"tabbed\", \"autohide\", \"floating\", \"document\" or \"hidden\"." },
   { name = "PaneVisible", params = "Name AS STRING", returns = "INTEGER", doc = "True when the pane is placed and shown (not hidden, nor behind another tab)." },
+  { name = "DocumentState", params = "Name AS STRING, [State AS INTEGER]", returns = "INTEGER", doc = "An MDI document's window: 0 normal, 1 minimized, 2 maximized (-1: not an MDI document); with State, it becomes that." },
   { name = "NextDocument", value = true, doc = "Activates the next document (Ctrl+Tab)." },
   { name = "PreviousDocument", value = true, doc = "Activates the previous document (Ctrl+Shift+Tab)." },
   { name = "Cascade", value = true, doc = "Cascades the documents' windows." },
