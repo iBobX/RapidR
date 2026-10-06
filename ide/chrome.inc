@@ -39,8 +39,13 @@ SUB ApplyFonts
   ProblemsView.Font = UIFont
   Dock.Font = UIFont
   Status.Font = StatusFont
-  PaletteEdit.Font = UIFont
-  PaletteList.Font = UIFont
+  ' (Studio's dialogs: the chrome font's face and size on the form, which
+  ' their components follow — Delphi's ParentFont; not a QFONT, whose
+  ' colour would be chosen for them and win over the theme's text colour;
+  ' sizes to match)
+  Palette.Font.Name = UIFont.Name: Palette.Font.Size = UIFont.Size
+  NewDialog.Font.Name = UIFont.Name: NewDialog.Font.Size = UIFont.Size
+  LayOutDialogs
   OutputBox.Font = MonoFont
   ImmediateBox.Font = MonoFont
   FOR k = 0 TO DocCount - 1
@@ -58,6 +63,37 @@ SUB ApplyFonts
     ExTitle(k).Font = CardFont
     ExText(k).Font = DimFont
   NEXT
+END SUB
+
+' Studio's dialogs' controls: RapidQ's sizes in the classic look, the
+' RAPIDR look's (Inter 13 px: 28 px fields, 32 px buttons, more air) in the
+' others.
+SUB LayOutDialogs
+  DIM row AS INTEGER, fh AS INTEGER, bh AS INTEGER, bw AS INTEGER, x AS INTEGER, w AS INTEGER, y AS INTEGER, pad AS INTEGER
+  IF ThemeName = "classic" THEN
+    row = 36: fh = 21: bh = 25: bw = 84: x = 110: w = 320: pad = 16
+  ELSE
+    row = 44: fh = 28: bh = 32: bw = 96: x = 112: w = 340: pad = 20
+  END IF
+  y = pad
+  NewNameLabel.Left = pad: NewNameLabel.Top = y + (fh - 16) / 2
+  NewName.Left = x: NewName.Top = y: NewName.Width = w: NewName.Height = fh
+  y = y + row
+  NewKindLabel.Left = pad: NewKindLabel.Top = y + (fh - 16) / 2
+  NewKind.Left = x: NewKind.Top = y: NewKind.Width = w
+  y = y + row
+  NewFolderLabel.Left = pad: NewFolderLabel.Top = y + (fh - 16) / 2
+  NewFolder.Left = x: NewFolder.Top = y: NewFolder.Width = w - fh - 8: NewFolder.Height = fh
+  NewFolderBtn.Left = x + w - fh: NewFolderBtn.Top = y: NewFolderBtn.Width = fh: NewFolderBtn.Height = fh
+  y = y + row + pad / 2
+  NewNo.Width = bw: NewNo.Height = bh: NewNo.Left = x + w - bw: NewNo.Top = y
+  NewOk.Width = bw: NewOk.Height = bh: NewOk.Left = x + w - 2 * bw - 8: NewOk.Top = y
+  NewDialog.ClientWidth = x + w + pad
+  NewDialog.ClientHeight = y + bh + pad
+  ' (the palette)
+  PaletteEdit.Height = fh
+  PaletteList.Top = 8 + fh + 8
+  PaletteList.Height = Palette.ClientHeight - PaletteList.Top - 8
 END SUB
 
 SUB ApplyChrome

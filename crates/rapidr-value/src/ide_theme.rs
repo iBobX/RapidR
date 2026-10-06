@@ -25,15 +25,16 @@ use crate::objects::font::Font;
 use crate::theme::{Look, Theme};
 
 /// The font of the chrome a theme draws that a program gives no font to
-/// (menus, MDI windows' titles, tooltips): Windows' (RapidQ's MS Sans
-/// Serif 8) in the classic look, Inter at 13 pixels in RapidR's (modern,
-/// dark, high contrast). A program's own components keep their Font — and
-/// RapidQ's metrics — in every look.
+/// (menus, MDI windows' titles, tooltips, the dialogs the kernel draws —
+/// message and input boxes, the colour and font dialogs): Windows'
+/// (RapidQ's MS Sans Serif 8) in the classic look, Inter 10 pt (13 pixels)
+/// in RapidR's (modern, dark, high contrast). A program's own components
+/// keep their Font — and RapidQ's metrics — in every look.
 pub fn chrome_font(t: &Theme) -> Font {
     if t.look == Look::Classic {
         Font::default()
     } else {
-        Font { name: "Inter".into(), size: -13, color: 0, styles: 0 }
+        Font { name: "Inter".into(), size: 10, color: 0, styles: 0 }
     }
 }
 

@@ -87,6 +87,7 @@ DIM DocumentMode AS STRING
 DIM StateText AS STRING
 
 DECLARE SUB RunCommand(Id AS STRING)
+DECLARE SUB LayOutDialogs
 DECLARE SUB MenuPicked(Sender AS QMENUITEM)
 DECLARE SUB ToolPicked(Sender AS QCOOLBTN)
 DECLARE SUB StudioResize
