@@ -41,6 +41,14 @@
       send({ __rapidr_font: { id, file } });
     });
 
+    const fileWaiters = new Map();
+    let fileAsks = 0;
+    const askFiles = (msg) => new Promise((resolve, reject) => {
+      const id = ++fileAsks;
+      fileWaiters.set(id, { resolve, reject });
+      send({ __rapidr_files: { id, ...msg } });
+    });
+
     const text = (args) => args.map((a) => {
       if (typeof a === "string") return a;
       try { return JSON.stringify(a); } catch { return String(a); }
@@ -97,6 +105,12 @@
           try { window.__rapidr_rt.session_request(e.data.__rapidr_session); }
           catch (err) { sessionEvent({ type: "output", stream: "stderr", text: "[session] " + err + "\n" }); }
         }
+        if (e.data?.__rapidr_files_reply) {
+          const { id, ok, value, error } = e.data.__rapidr_files_reply;
+          const w = fileWaiters.get(id);
+          fileWaiters.delete(id);
+          if (w) ok ? w.resolve(value) : w.reject(Object.assign(new Error(error?.message || "failed"), { name: error?.name || "Error" }));
+        }
         if (e.data?.__rapidr_font_reply) {
           const { id, bytes } = e.data.__rapidr_font_reply;
           const w = fontWaiters.get(id);
@@ -105,6 +119,16 @@
         }
       };
 
+      // (the program's Open / Save dialogs: this frame's opaque origin may
+      // not show the browser's file pickers, so the IDE shows them —
+      // host.js previewFiles; crates/rapidr-runtime-web/src/file_picker_web.rs)
+      if (data.filePickers) {
+        window.RAPIDR_FILE_HOST = {
+          open: (opts) => askFiles({ op: "open", opts }),
+          save: (opts) => askFiles({ op: "save", opts }),
+          write: (token, bytes) => askFiles({ op: "write", token, bytes }),
+        };
+      }
       window.__rapidr_assets = data.assets || {};
       // (the program's command line — COMMAND$(n), CommandCount — is its
       // own, never this frame's query string, which is the IDE's)

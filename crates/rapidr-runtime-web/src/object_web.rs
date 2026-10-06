@@ -292,7 +292,7 @@ thread_local! {
 
 /// A path as RapidQ on Windows compares them: `\\` and `/` alike, no
 /// leading `./`, any case.
-fn file_key(path: &str) -> String {
+pub(crate) fn file_key(path: &str) -> String {
     let p = path.trim().replace('\\', "/");
     p.trim_start_matches("./").to_lowercase()
 }
@@ -377,10 +377,18 @@ pub fn web_remove_file(path: &str) {
 }
 
 pub(crate) fn web_write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
-    // (over a file of the same name in another case, as on Windows)
-    let name = saved_name(path).unwrap_or_else(|| path.to_string());
-    SAVED_FILES.with(|f| f.borrow_mut().insert(name, bytes.to_vec()));
+    web_store_file(path, bytes.to_vec());
+    // (a name an Open / Save dialog answered: the user's real file too)
+    crate::file_picker_web::written(path, bytes);
     Ok(())
+}
+
+/// `bytes` as file `path` in the page's store (over a file of the same
+/// name in another case, as on Windows) — a file the user picked to open,
+/// read whole before Execute returns.
+pub(crate) fn web_store_file(path: &str, bytes: Vec<u8>) {
+    let name = saved_name(path).unwrap_or_else(|| path.to_string());
+    SAVED_FILES.with(|f| f.borrow_mut().insert(name, bytes));
 }
 
 fn object_error(name: &str, what: &str, e: &str) {
@@ -1762,28 +1770,6 @@ fn web_file_dialog(name: &str, save: bool) -> Value {
     let picked = !names.is_empty();
     answer(names);
     v_int(if picked { -1 } else { 0 })
-}
-
-/// (the kernel host's `Windows::ask_files`) The page's Open / Save
-/// dialog: the program's files that fit the filter shown first, a name
-/// field, Upload…; `done` gets the paths picked (none: Cancel). The VM's
-/// wait is the kernel host's.
-pub fn page_file_dialog(save: bool, multi: bool, title: &str, filters: &[rapidr_value::file_dialog::Filter], index: usize, file_name: &str, done: std::rc::Rc<dyn Fn(Vec<String>)>) {
-    use rapidr_value::file_dialog as fd;
-    let mut files: Vec<String> = SAVED_FILES.with(|f| f.borrow().keys().filter(|n| fd::fits(filters, index, n)).cloned().collect());
-    files.sort();
-    crate::dialog_web::open_files(crate::dialog_web::FileRequest {
-        title: title.to_string(),
-        save,
-        multi,
-        files,
-        initial: file_name.to_string(),
-        accept: fd::html_accept(filters, index),
-        store: std::rc::Rc::new(|path: &str, bytes: Vec<u8>| {
-            let _ = web_write_file(path, &bytes);
-        }),
-        done,
-    });
 }
 
 fn dialog_web_method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Value {

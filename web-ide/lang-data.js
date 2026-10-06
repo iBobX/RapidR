@@ -4182,8 +4182,8 @@ const COMPONENT_REGISTRY = {
     RPLOT: {
         description: 'A chart in Matplotlib\'s style: line, bar, scatter, area, histogram and pie plots with labels, legends and notes, on a form or saved as a picture. RapidR\'s own.',
         rapidq: null,
-        props: ['title', 'xlabel', 'ylabel', 'grid', 'width', 'height', 'dpi', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
-        methods: ['create', 'new', 'init', 'clear', 'plot', 'bar', 'barh', 'scatter', 'step', 'area', 'fill_between', 'addseries', 'add_series', 'series', 'hist', 'histogram', 'pie', 'hline', 'axhline', 'vline', 'axvline', 'annotate', 'legend', 'settitle', 'set_title', 'setxlabel', 'set_xlabel', 'setylabel', 'set_ylabel', 'savefig', 'save', 'render', 'show', 'figsize', 'xlim', 'ylim', 'xscale', 'yscale'],
+        props: ['title', 'xlabel', 'ylabel', 'grid', 'width', 'height', 'dpi', 'seriescount', 'count', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
+        methods: ['create', 'new', 'init', 'clear', 'plot', 'bar', 'barh', 'scatter', 'step', 'area', 'fill_between', 'addseries', 'add_series', 'series', 'hist', 'histogram', 'pie', 'hline', 'axhline', 'vline', 'axvline', 'annotate', 'legend', 'settitle', 'set_title', 'setxlabel', 'set_xlabel', 'setylabel', 'set_ylabel', 'savefig', 'save', 'render', 'show', 'figsize', 'xlim', 'ylim', 'xticks', 'xscale', 'yscale'],
         events: [],
         methodSignatures: {
             'create': { sig: 'Create', desc: 'Starts the object empty and ready to use (the web\'s name; same as `New` and `Init`).' },
@@ -4222,6 +4222,7 @@ const COMPONENT_REGISTRY = {
             'figsize': { sig: 'Figsize(width, height, [dpi])', desc: 'The size in inches at the chart\'s DPI.' },
             'xlim': { sig: 'Xlim(min, max)', desc: 'The X axis range.' },
             'ylim': { sig: 'Ylim(min, max)', desc: 'The Y axis range.' },
+            'xticks': { sig: 'Xticks(names, [positions])', desc: 'Names the X axis\' ticks ("Jan,Feb,Mar"), at positions, or at the first series\' x values when there are as many, else at 0, 1, 2 …' },
             'xscale': { sig: 'Xscale(type)', desc: '"linear" or "log" (kept with the chart; drawn linear).' },
             'yscale': { sig: 'Yscale(type)', desc: '"linear" or "log" (kept with the chart; drawn linear).' },
         },
@@ -4233,6 +4234,8 @@ const COMPONENT_REGISTRY = {
             'width': 'The width, in pixels; on `Screen`, the screen\'s.',
             'height': 'The height, in pixels; on `Screen`, the screen\'s.',
             'dpi': 'The dots per inch the plot is rendered at.',
+            'seriescount': 'How many series the plot has.',
+            'count': 'How many series the plot has (SeriesCount).',
             'anchors': 'Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch.',
             'minwidth': 'The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`.',
             'minheight': 'The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`.',

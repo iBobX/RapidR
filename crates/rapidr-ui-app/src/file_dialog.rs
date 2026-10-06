@@ -5,7 +5,7 @@
 //! dialog closes ([`answered`]): FileName, FileTitle, Files(…), SelCount,
 //! DefaultExt added to a saved name (`rapidr_value::file_dialog`). The
 //! host shows its dialog (`Windows::ask_files`: the desktop's rfd sheet;
-//! on the web the page's file input, docs/web-host-plan.md §3.8) and the
+//! on the web the browser's own pickers, docs/web-host-plan.md §3.8) and the
 //! program waits for it as for any dialog (`dialogs.rs`); under a test
 //! `RAPIDR_TEST_FILE_DIALOG` answers instead.
 
@@ -31,6 +31,9 @@ pub struct Request {
     pub file_name: Option<String>,
     /// A save asks before replacing a file (WarnIfOverWrite, by default).
     pub confirm_overwrite: bool,
+    /// DefaultExt ("txt"; "" none): added to a saved name without one —
+    /// the name a browser's save picker proposes has it already.
+    pub default_ext: String,
 }
 
 /// Which file dialog component type `comp_type` is: (save, multi), or
@@ -66,6 +69,7 @@ pub fn request<P: Program>(p: P, name: &str, save: bool, multi: bool) -> Request
         dir: some(prop("initialdir")),
         file_name: some(fd::file_title(&prop("filename"))),
         confirm_overwrite: save && (matches!(warn, Value::Null) || warn.to_bool()),
+        default_ext: prop("defaultext"),
     }
 }
 

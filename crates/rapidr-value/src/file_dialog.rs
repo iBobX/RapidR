@@ -24,14 +24,65 @@ pub fn parse_filter(text: &str) -> Vec<Filter> {
         .collect()
 }
 
-/// The browser's `accept` for a file input: the patterns' extensions
-/// (`.bmp,.ico`), or "" for any file.
-pub fn html_accept(filters: &[Filter], index: usize) -> String {
-    let Some(f) = filters.get(index).or_else(|| filters.first()) else { return String::new() };
-    if f.patterns.iter().any(|p| p == "*.*" || p == "*") {
+/// Whether filter `f` lets any file through (`*.*`, `*`).
+pub fn any_file(f: &Filter) -> bool {
+    f.patterns.iter().any(|p| p == "*.*" || p == "*")
+}
+
+/// A pattern's extension as a browser's picker takes it (`*.txt` →
+/// `.txt`, lowercase), `None` for one it can't express (`data*.txt`,
+/// `*.htm*`, an exact name).
+fn picker_ext(pattern: &str) -> Option<String> {
+    let ext = pattern.strip_prefix('*')?;
+    let ok = ext.len() >= 2 && ext.len() <= 16 && ext.starts_with('.') && ext[1..].chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '_' | '.'));
+    ok.then(|| ext.to_ascii_lowercase())
+}
+
+/// Every extension of `filters`, once each, in order.
+fn extensions<'a>(filters: impl IntoIterator<Item = &'a Filter>) -> Vec<String> {
+    let mut exts: Vec<String> = Vec::new();
+    for e in filters.into_iter().flat_map(|f| f.patterns.iter().filter_map(|p| picker_ext(p))) {
+        if !exts.contains(&e) {
+            exts.push(e);
+        }
+    }
+    exts
+}
+
+/// The browser's `accept` for a file input, which has one group only: the
+/// extensions of every filter (`.bmp,.ico,.txt`), or "" — any file — when
+/// one of them is "All files" (`*.*`, `*`), there's none, or none of its
+/// patterns can be expressed: a file the program's Filter lets through is
+/// never greyed out.
+pub fn html_accept(filters: &[Filter]) -> String {
+    if filters.is_empty() || filters.iter().any(any_file) {
         return String::new();
     }
-    f.patterns.iter().filter_map(|p| p.strip_prefix('*')).filter(|e| e.starts_with('.')).collect::<Vec<_>>().join(",")
+    extensions(filters).join(",")
+}
+
+/// The File System Access pickers' file types for `filters`, the one
+/// FilterIndex shows (`index`, from 0) first, as Windows' dialog shows it
+/// first: (description, extensions) for each filter it can express, and
+/// whether the picker offers "All files" — when the Filter has it, when
+/// there's no Filter, or when none of its filters can be expressed; never
+/// otherwise, as on Windows.
+pub fn picker_types(filters: &[Filter], index: usize) -> (Vec<(String, Vec<String>)>, bool) {
+    let mut order: Vec<&Filter> = filters.iter().collect();
+    if index < order.len() {
+        let f = order.remove(index);
+        order.insert(0, f);
+    }
+    let types: Vec<(String, Vec<String>)> = order
+        .into_iter()
+        .filter(|f| !any_file(f))
+        .filter_map(|f| {
+            let exts = extensions([f]);
+            (!exts.is_empty()).then(|| (f.name.clone(), exts))
+        })
+        .collect();
+    let accept_all = filters.is_empty() || filters.iter().any(any_file) || types.is_empty();
+    (types, accept_all)
 }
 
 /// Whether file `name` fits filter `index` (from 0; any file when there's
@@ -90,8 +141,19 @@ mod tests {
         let f = parse_filter("Picture files|*.BMP;*.ICO|All Files|*.*");
         assert_eq!(f.len(), 2);
         assert_eq!(f[0].patterns, vec!["*.BMP", "*.ICO"]);
-        assert_eq!(html_accept(&f, 0), ".BMP,.ICO");
-        assert_eq!(html_accept(&f, 1), "");
+        // (one group: "All Files" in the Filter lets every file through)
+        assert_eq!(html_accept(&f), "");
+        let pics = parse_filter("Pictures|*.BMP;*.ico|Text|*.txt;*.bmp");
+        assert_eq!(html_accept(&pics), ".bmp,.ico,.txt");
+        assert_eq!(html_accept(&[]), "");
+        // (the FilterIndex one first; "All Files" offered when the Filter has it)
+        let (types, all) = picker_types(&f, 1);
+        assert_eq!(types, vec![("Picture files".to_string(), vec![".bmp".to_string(), ".ico".to_string()])]);
+        assert!(all);
+        let (types, all) = picker_types(&pics, 1);
+        assert_eq!((types[0].0.as_str(), all), ("Text", false));
+        // (nothing a picker can express: any file)
+        assert_eq!(picker_types(&parse_filter("Logs|log*.txt"), 0), (vec![], true));
         assert!(parse_filter("").is_empty());
         assert!(fits(&f, 0, "a.ico") && !fits(&f, 0, "a.txt") && fits(&f, 1, "a.txt") && fits(&[], 0, "x"));
     }

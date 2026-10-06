@@ -182,6 +182,13 @@ impl Dialog {
     /// answers), titled `title` — a message box's layout with the field
     /// under the text.
     pub fn input(n: u64, title: &str, text: &str, initial: &str) -> Dialog {
+        Dialog::prompt(n, title, text, initial, "OK", None)
+    }
+
+    /// An input box whose default button is captioned `ok` ("&Save"),
+    /// with a Cancel button captioned `cancel` beside it when there's one
+    /// (Escape and the close box cancel either way).
+    pub fn prompt(n: u64, title: &str, text: &str, initial: &str, ok: &str, cancel: Option<&str>) -> Dialog {
         const FIELD_W: i64 = 240;
         const FIELD_H: i64 = 21;
         const GAP: i64 = 8;
@@ -191,7 +198,7 @@ impl Dialog {
         let line_h = text_size("Ag", &font).1.max(1);
         let text_w = lines.iter().map(|l| text_size(l, &font).0).max().unwrap_or(0).max(FIELD_W);
         let text_h = lines.len() as i64 * line_h;
-        let layout = message_layout(text_w, text_h + GAP + FIELD_H, 1, false);
+        let layout = message_layout(text_w, text_h + GAP + FIELD_H, 1 + usize::from(cancel.is_some()), false);
         let (tx, ty, _, _) = layout.text;
         for (i, line) in lines.iter().enumerate() {
             let id = d.put(&format!("t{i}"), "RLABEL", (tx, ty + i as i64 * line_h, text_w + 2, line_h));
@@ -199,11 +206,20 @@ impl Dialog {
         }
         let field = d.put("field", "REDIT", (tx, ty + text_h + GAP, text_w, FIELD_H));
         d.set(&field, "text", Value::String(initial.to_string()));
+        // (the proposed text selected, as Windows' boxes have it: typing
+        // replaces it)
+        d.set(&field, "selstart", Value::Integer(0));
+        d.set(&field, "sellength", Value::Integer(initial.chars().count() as i64));
         d.set(&field, "accessiblename", Value::String(lines.join(" ")));
         if let Some(rect) = layout.buttons.first() {
             let id = d.put("ok", "RBUTTON", *rect);
-            d.set(&id, "caption", Value::String("OK".into()));
+            d.set(&id, "caption", Value::String(ok.into()));
             d.set(&id, "default", Value::Integer(-1));
+        }
+        if let (Some(caption), Some(rect)) = (cancel, layout.buttons.get(1)) {
+            let id = d.put("cancel", "RBUTTON", *rect);
+            d.set(&id, "caption", Value::String(caption.into()));
+            d.set(&id, "cancel", Value::Integer(-1));
         }
         d.finish(layout.size.0, layout.size.1);
         d
@@ -786,6 +802,25 @@ mod tests {
         assert_eq!(store::string(&d2.store, "rapidr:dlg2:t0", "caption"), "R&&D");
         d.close();
         assert!(d.store.ids().is_empty());
+    }
+
+    #[test]
+    fn prompt_with_cancel_selects_the_proposed_text() {
+        let mut ts = TextSystem::new();
+        let mut d = Dialog::prompt(11, "Save As", "File name:", "notes.txt", "&Save", Some("Cancel"));
+        let field = "rapidr:dlg11:field";
+        assert_eq!(store::string(&d.store, field, "text"), "notes.txt");
+        // (selected whole: typing replaces it)
+        assert_eq!((store::int(&d.store, field, "selstart", -1), store::int(&d.store, field, "sellength", -1)), (0, 9));
+        assert_eq!(store::string(&d.store, "rapidr:dlg11:ok", "caption"), "&Save");
+        assert!(store::flag(&d.store, "rapidr:dlg11:cancel", "cancel", false));
+        let mut f = ui(&d);
+        assert_eq!(click(&mut d, &mut f, &mut ts, "cancel"), Some(Answer::Text(None)));
+        let mut f = ui(&d);
+        assert_eq!(click(&mut d, &mut f, &mut ts, "ok"), Some(Answer::Text(Some("notes.txt".into()))));
+        // (INPUT's box: OK only)
+        let d2 = Dialog::input(12, "", "Name?", "");
+        assert!(!d2.store.ids().contains(&"rapidr:dlg12:cancel".to_string()));
     }
 
     #[test]

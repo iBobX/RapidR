@@ -37,11 +37,57 @@ A browser page has no file system. RapidR gives a program one of its own:
   `RDataFrame.LoadFromCSV`, `RSQLite.Connect`). Keep a web program in a
   folder of its own so that only its files go in. `$RESOURCE` files are
   built in too.
-- **Files the program writes** live for the page's session: written, read
-  back, listed by `FILEEXISTS`, deleted by `KILL`.
+- **Files the program writes** live for the page's session in the
+  browser's private store: written, read back, listed by `FILEEXISTS`,
+  deleted by `KILL`. They never reach the user's disk unless a dialog
+  named them (below).
 - **Other names** are fetched from the page's own server.
-- Open / Save dialogs use the browser's file picker; printing opens the
-  browser's print dialog.
+- Printing opens the browser's print dialog.
+
+### Open and Save: the user's real files
+
+`QOPENDIALOG`, `QSAVEDIALOG` and `QFILEDIALOG` open the browser's own
+file pickers, as the desktop opens the system's dialogs. The program
+then reads and writes those files with its ordinary file I/O
+(`LoadFromFile`, `SaveToFile`, `QFILESTREAM`, `OPEN … FOR`):
+
+- **Open** reads the files picked whole before `Execute` returns. Their
+  names are in `FileName` / `Files(…)` — the name only: a browser never
+  tells a page the folder, so `Files(0)` is empty.
+- **Save** answers the name the user chose, and what the program writes to
+  that name goes to that file.
+- A name that came from a dialog stays the real file's for the rest of the
+  session; every other name stays in the browser's private store. If two
+  files picked from different folders have the same name, the last one
+  picked is the one written.
+- `Filter` becomes the pickers' file types, the `FilterIndex` one first.
+  "All files" (`*.*`, `*`) is offered only when the Filter has it, as on
+  Windows; a browser that takes one group of types only (the file input
+  below) gets every filter's extensions — and every file when the Filter
+  has "All files", so nothing is greyed out.
+- Cancel returns 0, as RapidQ's `Execute`.
+
+What each browser does:
+
+| | Chrome, Edge, Opera (File System Access) | Firefox, Safari |
+|---|---|---|
+| Open | The system's Open dialog (`showOpenFilePicker`). | The system's Open dialog (a file input). |
+| Save | The system's Save dialog (`showSaveFilePicker`), the program's `FileName` (with `DefaultExt`) proposed; the program's writes go into that file. | No save dialog in these browsers: RapidR asks for the name in a box of its own, drawn as the program's other dialogs, and the program's writes to that name go out as a **download** of it (the browser's Downloads folder, or where it asks). |
+| Writing back to a file that was opened | Allowed after the browser's "save changes" prompt. | Not possible: the writes stay in the browser's store. Save it with a Save dialog. |
+
+A browser opens its pickers only right after the user's click or key. A
+program whose `Execute` comes later — from a timer, say — first shows a
+small box ("Choose the file to open." with **Open…** and **Cancel**):
+its button is the click the browser needs.
+
+In the web IDE the program runs in a sandboxed frame, which may not show
+these pickers itself: the IDE shows them for it, and writes back only to
+the files the user picked during that run.
+
+All of this is the web interpreter's (`bundle-bc`, `build --web --interp`,
+the IDE). A program compiled to WebAssembly (`build --web`) can't wait
+for a dialog: its `Execute` asks for a name with the browser's prompt, and
+the files stay in the browser's store.
 
 ## What runs differently in a browser
 

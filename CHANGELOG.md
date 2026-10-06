@@ -132,8 +132,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   (`rapidr_value::datascience`, docs/ide-plan.md decision D7): native
   builds, interpreted programs and the browser run the same arrays, frames
   (with their CSV and JSON readers and writers) and chart model; a runtime
-  adds only PRINT, filling a QSTRINGGRID and drawing (plotters on the
-  desktop, a canvas on the web). polars and ndarray are no longer
+  adds only PRINT and filling a QSTRINGGRID. Charts are drawn by the UI
+  kernel, pixel-identical on the desktop and the web and crisp at every
+  screen scale (category axes, integer ticks); frames are a columnar
+  engine of RapidR's own (a million rows: load 114 ms, sort 182 ms, group
+  80 ms, join 60 ms). polars, ndarray and plotters are no longer
   dependencies — 89 fewer crates in the tree, smaller native builds — and
   THIRD_PARTY_NOTICES.md is regenerated. Where the two implementations
   disagreed, one behaviour was chosen: `setcell(row, col, value)` (the
@@ -160,6 +163,31 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   scale; the pixels a program reads stay the 1× ones.
 - `ToGrid` makes the header the grid's fixed row and no column fixed, so
   every column of the frame shows as data.
+- **Web: Open and Save use the user's real files**, through the browser's
+  own pickers, as the desktop uses the system's dialogs; the in-page "Save
+  As" list of the page's files with its Upload… button is gone.
+  QOPENDIALOG / QFILEDIALOG open the system's Open dialog
+  (`showOpenFilePicker` in Chrome / Edge, a file input in Firefox / Safari)
+  and read the files picked before `Execute` returns; QSAVEDIALOG opens the
+  system's Save dialog in Chrome / Edge (`showSaveFilePicker`, FileName and
+  DefaultExt proposed). The program reads and writes them with its ordinary
+  file I/O: a name a dialog answered is the real file's (its writes go to
+  it), any other name stays in the browser's store. Firefox and Safari have
+  no save dialog: RapidR asks for the name in a box of its own, and the
+  program's writes to it are a download. `Filter` is the pickers' file
+  types (the FilterIndex one first; "All files" only when the Filter has
+  it — and a file input, which takes one group only, lets every file
+  through then, so none is greyed out); Cancel returns 0. Execute with no
+  user gesture left (from a timer) shows a small box whose button opens the
+  picker. In the web IDE the IDE shows the pickers for the program's
+  sandboxed frame and writes back only to the files picked during that run.
+  docs/manual/web.md says what each browser does.
+- **Web IDE: the run window** follows the IDE's theme (no more Windows-blue
+  title bar around the program's own windows, which draw their frames in
+  the program's theme), and is big enough for the program's windows and
+  dialogs, not only the startup form's design size.
+- INPUT's box and the host's prompts select their proposed text, so typing
+  replaces it, as Windows' boxes do.
 - README rewritten for newcomers (install from the releases first, a quick
   start, what's in it, the platforms checked); COMPILER_MANUAL.md is now
   the contributor manual for today's architecture, and its outdated PDF is
@@ -172,6 +200,43 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   2026-10-06 should be cloned again.
 
 ### Fixed
+- **Web: typing in a Save As dialog went into the program's window
+  below.** In the web IDE, Notepad's File > Save As showed an in-page
+  dialog; a click in its file name field lost the focus at once, and the
+  keys went into Notepad's editor. The dialog was a page element, not a
+  window of the UI kernel, and the Open / Save wait put the program's own
+  form on the modal list as the innermost modal window: each repaint of it
+  (the caret's blink) synced its accessibility mirror, which moved the
+  page's focus back to its editor. The in-page dialog is gone (see Changed),
+  and the form now goes on the modal list *before* the host is asked, so a
+  box the host shows for the dialog is the innermost window and keeps the
+  focus, the keys and the clicks. The modal rule is checked with real input
+  on the web for every dialog — MESSAGEBOX, MESSAGEDLG, SHOWMESSAGE,
+  INPUT's box, QCOLORDIALOG, QFONTDIALOG, a ShowModal form and the Open /
+  Save boxes: a click on the window below is refused and the focus stays
+  while it repaints, keys never reach it, Tab / Shift+Tab cycle inside the
+  dialog, Enter presses its default button, Escape cancels, and the focus
+  goes back to the control that had it (`tests/web_modal_focus.mjs`,
+  `tests/web_file_dialogs.mjs`).
+- **Desktop (macOS): a click on a window under a modal dialog brought that
+  window over the dialog.** Its input was refused, but the window took the
+  keyboard and covered the box (MESSAGEBOX, colour, font, a ShowModal
+  form), native and interpreted alike: the host gave the modal window the
+  focus back inside the focus event, and the click's own activation won.
+  It now gives it back again once the click is over, so the dialog stays in
+  front with the keyboard, as Windows keeps a modal dialog over its owner
+  (checked with real clicks and keys on both builds).
+- QSTRINGGRID with `FixedCols = 0` (or `FixedRows = 0`) showed from column
+  (row) 1: the first scrollable column stays the first one shown, as in
+  Delphi's grid.
+- RDATAFRAME's `Cell`, `At` and `SetCell` gave strings in quotes on the
+  desktop (`"Alice"`); now as the web gives them.
+- RJSON on the web: `LoadFile` / `SaveFile` work (the page's files, as
+  OPEN's), values `Set` as numbers / booleans as on the desktop; on the
+  desktop an object's keys keep their order (as the browser's), `Remove`
+  too.
+- RDATAFRAME's `LoadFromCsv` on the web reads a file the program saved
+  (`EXTRACTRESOURCE`, OPEN), not only the project's.
 - **The main program's end is the program's**, as in RapidQ (RC.EXE,
   checked in the Windows VM): a program whose main code ends after
   `Form.Show` (no ShowModal, no DOEVENTS loop) runs OnShow inside Show and

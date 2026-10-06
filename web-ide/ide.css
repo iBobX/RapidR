@@ -763,9 +763,13 @@ button.tb[data-cmd="run.build"] { width: auto; padding: 0 8px; font-size: 11px; 
   border-radius: 4px;
   overflow: hidden;
 }
+/* (the IDE's own chrome, in the IDE's theme: the program's windows inside
+   draw their frames themselves, in the program's theme — a second
+   Windows-style title bar around them would compete with theirs) */
 #preview-titlebar {
-  background: linear-gradient(180deg, #0A246A 0%, #316AC5 100%);
-  color: white;
+  background: var(--c-bg-dark);
+  color: var(--c-text);
+  border-bottom: 1px solid var(--c-border-l);
   height: 24px;
   display: flex; align-items: center;
   padding: 0 8px;
@@ -782,8 +786,9 @@ button.tb[data-cmd="run.build"] { width: auto; padding: 0 8px; font-size: 11px; 
   cursor: pointer;
   font-size: 14px;
 }
-#preview-close:hover { background: var(--c-warn); }
-#preview { flex: 1; min-height: 0; border: 0; background: white; width: 100%; }
+#preview-close:hover { background: var(--c-warn); color: white; }
+/* (the program's desktop: its windows over the IDE's workspace colour) */
+#preview { flex: 1; min-height: 0; border: 0; background: var(--c-bg); width: 100%; color-scheme: normal; }
 
 /* Backdrop for Run Mode */
 #preview-backdrop {

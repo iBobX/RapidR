@@ -292,8 +292,63 @@ function loadRuntimeFiles() {
 let previewPort = null;
 let previewGeneration = 0;
 
+// The program's Open / Save dialogs in the preview: its frame has an opaque
+// origin, which may not show the browser's file pickers, so the IDE shows
+// them for it (crates/rapidr-runtime-web/src/file_picker_web.rs,
+// RAPIDR_FILE_HOST in preview.html) — the user's gesture in the frame
+// activates the IDE too. The program gets the files' names and data, and
+// writes back only to the files the user picked, by token; the handles go
+// with the run.
+const previewFileHandles = new Map();
+let previewFileTokens = 0;
+
+async function previewFiles(d) {
+  const port = previewPort;
+  const reply = (msg, transfer = []) => port?.postMessage({ __rapidr_files_reply: { id: d.id, ...msg } }, transfer);
+  // (only the options a program's Filter and FileName make)
+  const o = d.opts && typeof d.opts === "object" ? d.opts : {};
+  const opts = {};
+  if (Array.isArray(o.types)) opts.types = o.types;
+  if (typeof o.excludeAcceptAllOption === "boolean") opts.excludeAcceptAllOption = o.excludeAcceptAllOption;
+  if (typeof o.id === "string") opts.id = o.id;
+  if (typeof o.suggestedName === "string") opts.suggestedName = o.suggestedName;
+  if (typeof o.multiple === "boolean") opts.multiple = o.multiple;
+  try {
+    if (d.op === "open") {
+      const handles = await window.showOpenFilePicker(opts);
+      const files = [];
+      for (const h of handles) {
+        const f = await h.getFile();
+        const token = ++previewFileTokens;
+        previewFileHandles.set(token, h);
+        files.push({ name: f.name, bytes: await f.arrayBuffer(), token });
+      }
+      reply({ ok: true, value: files }, files.map((f) => f.bytes));
+    } else if (d.op === "save") {
+      const h = await window.showSaveFilePicker(opts);
+      const token = ++previewFileTokens;
+      previewFileHandles.set(token, h);
+      reply({ ok: true, value: { name: h.name, token } });
+    } else if (d.op === "write") {
+      const h = previewFileHandles.get(d.token);
+      if (!h) throw Object.assign(new Error("not a file the user picked"), { name: "NotFoundError" });
+      const w = await h.createWritable();
+      await w.write(d.bytes);
+      await w.close();
+      reply({ ok: true });
+    }
+  } catch (e) {
+    reply({ ok: false, error: { name: e?.name || "Error", message: e?.message || String(e) } });
+  } finally {
+    // (the browser gives the focus back to the page that showed the picker,
+    // the IDE: back to the program, whose window had it)
+    if (d.op !== "write") $("#preview")?.focus();
+  }
+}
+
 function closePreviewChannel() {
   previewGeneration++;
+  previewFileHandles.clear();
   if (previewPort) {
     previewPort.onmessage = null;
     previewPort.close();
@@ -350,6 +405,7 @@ function handlePreviewMessage(d) {
     fetch(`./runtime/fonts/${file}`).then((r) => (r.ok ? r.arrayBuffer() : null)).then(reply, () => reply(null));
     return;
   }
+  if (d.__rapidr_files) return void previewFiles(d.__rapidr_files);
   if (d.__rapidr_console) {
     const { level, text } = d.__rapidr_console;
     // Runtime PRINT goes through console.log → Output panel.
@@ -389,7 +445,10 @@ function startPreview(role, payload) {
     const { port1, port2 } = new MessageChannel();
     previewPort = port1;
     port1.onmessage = (m) => handlePreviewMessage(m.data || {});
-    const boot = { ...runtime, assets: projectAssetMap(), storage: loadAppStorage(), ...payload };
+    // (filePickers: the IDE shows the browser's Open / Save pickers for the
+    // frame, previewFiles)
+    const filePickers = typeof window.showOpenFilePicker === "function" && typeof window.showSaveFilePicker === "function";
+    const boot = { ...runtime, assets: projectAssetMap(), storage: loadAppStorage(), filePickers, ...payload };
     // The frame's origin is opaque, so "*" is the only valid target; the
     // payload is the user's own program and the public runtime.
     iframe.contentWindow.postMessage({ __rapidr_boot: boot }, "*", [port2]);
@@ -2591,6 +2650,17 @@ function toggleDock(sel, restore) {
 
 // ─── Run / Build ───────────────────────────────────────────────
 
+/// The run window's size: the program's windows are drawn inside it with
+/// their own frames (title bar, borders — the kernel's, in the program's
+/// theme) and may be bigger than the startup form's design size, or open
+/// dialogs beside it: room around the form, within the IDE's window.
+function runWindowSize(formWidth, formHeight) {
+  const maxW = Math.max(200, window.innerWidth - 40), maxH = Math.max(150, window.innerHeight - 40);
+  const w = Math.min(maxW, Math.max(formWidth + 80, Math.min(960, Math.round(window.innerWidth * 0.7))));
+  const h = Math.min(maxH, Math.max(formHeight + 120, Math.min(720, Math.round(window.innerHeight * 0.75))));
+  return { w, h };
+}
+
 async function doRun() {
   if (!state.wasmReady) { setStatus("wasm not ready", "error"); return; }
   setStatus("compiling…");
@@ -2612,10 +2682,11 @@ async function doRun() {
     }
     
     const win = $("#preview-window");
-    win.style.width = (formWidth + 2) + "px";
-    win.style.height = (formHeight + 26) + "px";
-    win.style.left = `calc(50% - ${(formWidth + 2) / 2}px)`;
-    win.style.top = `calc(50% - ${(formHeight + 26) / 2}px)`;
+    const { w, h } = runWindowSize(formWidth, formHeight);
+    win.style.width = w + "px";
+    win.style.height = h + "px";
+    win.style.left = `calc(50% - ${w / 2}px)`;
+    win.style.top = `calc(50% - ${h / 2}px)`;
     win.hidden = false;
 
     const backdrop = $("#preview-backdrop");
@@ -4235,20 +4306,22 @@ async function doDebug() {
       formHeight = parseInt(startForm.props.height, 10) || 320;
     }
     
+    // (the form's size only: the code being debugged stays in view)
     const win = $("#preview-window");
-    win.style.width = (formWidth + 2) + "px";
-    win.style.height = (formHeight + 26) + "px";
+    const w = formWidth + 2, h = formHeight + 26;
+    win.style.width = w + "px";
+    win.style.height = h + "px";
 
     const ws = $("#workspace");
     if (ws) {
       const wsRect = ws.getBoundingClientRect();
-      const left = wsRect.left + (wsRect.width - (formWidth + 2)) / 2;
-      const top = wsRect.top + (wsRect.height - (formHeight + 26)) / 2;
+      const left = wsRect.left + (wsRect.width - w) / 2;
+      const top = wsRect.top + (wsRect.height - h) / 2;
       win.style.left = Math.max(0, left) + "px";
       win.style.top = Math.max(0, top) + "px";
     } else {
-      win.style.left = `calc(50% - ${(formWidth + 2) / 2}px)`;
-      win.style.top = `calc(50% - ${(formHeight + 26) / 2}px)`;
+      win.style.left = `calc(50% - ${w / 2}px)`;
+      win.style.top = `calc(50% - ${h / 2}px)`;
     }
 
     win.hidden = false;
