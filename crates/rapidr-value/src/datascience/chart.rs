@@ -205,6 +205,13 @@ pub fn ops(p: &Plot, theme: &Theme) -> (Vec<Op>, (i64, i64)) {
     (draw(&c, size, theme), size)
 }
 
+/// Chart `p` drawn `size` logical pixels big, whatever its own Width and
+/// Height say (an RPLOT on a form fills its rectangle), in `theme`'s
+/// colours.
+pub fn ops_sized(p: &Plot, theme: &Theme, size: (i64, i64)) -> Vec<Op> {
+    draw(&chart_of(p), size, theme)
+}
+
 /// The colours a chart draws with, from a theme.
 struct Ink {
     bg: u32,

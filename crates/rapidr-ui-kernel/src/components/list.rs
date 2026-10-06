@@ -140,6 +140,13 @@ pub fn begin_edit_typed(id: &str, edit: InPlace) {
     show(id, (n, 0));
 }
 
+/// (I1 / L-PANELS) Starts editing with characters `sel` (start, length)
+/// selected: a project tree's file name without its extension.
+pub fn begin_edit_selecting(id: &str, edit: InPlace, sel: (usize, usize)) {
+    EDITING.with(|e| e.borrow_mut().insert(id.to_lowercase(), edit));
+    show(id, sel);
+}
+
 pub fn editing(id: &str) -> Option<InPlace> {
     EDITING.with(|e| e.borrow().get(&id.to_lowercase()).cloned())
 }

@@ -73,6 +73,8 @@
 //   * tests/fixtures/dock_form.bas — QDOCKFORM (RapidR's library): docked, floated, docked at its alternative, closed.
 //   * tests/fixtures/themes.bas — the kernel's themes: Application.Theme at run time, and the form captured
 //     under each theme (`themes`: RAPIDR_THEME, <case>-<theme>-<kind>-1.bmp in the work directory).
+//   * tests/fixtures/rplot_on_form.bas — RPLOT on a form (the kernel's chart): Anchors and Align, a series added,
+//     Title set, Render; the capture's pixels.
 //
 // Usage (repo root, after building ./rapidr):  node tests/native_gui_events.mjs [name…]
 // (only the cases whose name contains one of the arguments)

@@ -1,0 +1,174 @@
+' panels.rr: RapidR Studio's panels in a program of your own — the
+' components the IDE is built from, docked by an RDOCKMANAGER: a toolbar,
+' the toolbox, the project tree, a form designer with the property
+' inspector following its selection, the output console and the command
+' palette (Ctrl+Shift+P, or the toolbar's last button).
+'
+'   rapidr run studio/panels.rr
+'
+' Double-click a component in the toolbox (or drag it onto the designer) to
+' add it; select it and change its properties in the inspector — Anchors
+' has its own pin editor; double-click a file in the project tree; click a
+' `file:line` link or a problem in the console.
+$THEME modern
+$INCLUDE "RAPIDQ.INC"
+
+DECLARE SUB AddComponent (Type AS STRING)
+DECLARE SUB DropComponent (Type AS STRING, Target AS STRING, X AS INTEGER, Y AS INTEGER)
+DECLARE SUB OpenNode (Path AS STRING)
+DECLARE SUB PropertyChanged (Prop AS STRING, Value AS STRING)
+DECLARE SUB EventWanted (Event AS STRING)
+DECLARE SUB LinkClicked (File AS STRING, Line AS INTEGER)
+DECLARE SUB ButtonClicked (Name AS STRING, Command AS STRING)
+DECLARE SUB RunCommand (Id AS STRING)
+DECLARE SUB KeyPressed (Key AS INTEGER, Shift AS INTEGER)
+
+DIM Count AS INTEGER
+
+CREATE Form AS QFORM
+    Caption = "RapidR Studio panels"
+    Width = 1180: Height = 760
+    KeyPreview = 1
+    OnKeyDown = KeyPressed
+    Center
+    CREATE Bar AS RTOOLBAR
+        Align = alTop
+        Height = 36
+        OnButtonClick = ButtonClicked
+    END CREATE
+    CREATE Dock AS RDOCKMANAGER
+        Align = alClient
+    END CREATE
+    CREATE Box AS RTOOLBOX
+        OnPick = AddComponent
+        OnDragDrop = DropComponent
+    END CREATE
+    CREATE Tree AS RPROJECTTREE
+        OnOpen = OpenNode
+    END CREATE
+    CREATE Insp AS RPROPERTYINSPECTOR
+        OnPropertyChange = PropertyChanged
+        OnEventDblClick = EventWanted
+    END CREATE
+    CREATE Cons AS ROUTPUTCONSOLE
+        OnLinkClick = LinkClicked
+    END CREATE
+    CREATE Designer AS RDESIGNSURFACE
+        FormCaption = "Form1"
+    END CREATE
+    CREATE Palette AS RCOMMANDPALETTE
+        OnCommand = RunCommand
+    END CREATE
+END CREATE
+
+' The toolbar: icons are RapidR's own (rapidr examples: docs/manual/icons).
+Bar.AddButton "new", "file.new", "New file (Ctrl+N)", "file.new"
+Bar.AddButton "open", "file.open", "Open… (Ctrl+O)", "file.open"
+Bar.AddButton "save", "file.save", "Save (Ctrl+S)", "file.save"
+Bar.AddSeparator
+Bar.AddButton "run", "run.start", "Run (F5)", "run.start"
+Bar.AddButton "stop", "run.stop", "Stop (Shift+F5)", "run.stop"
+Bar.ButtonEnabled "stop", 0
+Bar.AddSeparator
+Bar.AddToggle "grid", "view.grid", "Show the grid", "view.grid"
+Bar.ButtonDown "grid", 1
+Bar.AddSeparator
+Bar.AddButton "palette", "view.commandPalette", "Command palette (Ctrl+Shift+P)", "view.commandPalette"
+
+' The commands the palette finds.
+Palette.AddCommand "file.new", "New File", "Ctrl+N", "File", "file.new"
+Palette.AddCommand "file.open", "Open…", "Ctrl+O", "File", "file.open"
+Palette.AddCommand "file.save", "Save", "Ctrl+S", "File", "file.save"
+Palette.AddCommand "run.start", "Run", "F5", "Run", "run.start"
+Palette.AddCommand "view.toolbox", "Show the Toolbox", "", "View", "toolbox"
+Palette.AddCommand "view.output", "Show the Output", "", "View", "output"
+Palette.AddCommand "edit.clearOutput", "Clear the Output", "", "Edit", ""
+
+' A project, from its file's text (where there are no files: the web).
+Tree.LoadText "format = 2" + CHR$(10) + "name = ""Greeter""" + CHR$(10) + "main = ""Greeter.rr""" + CHR$(10) + _
+    "[[files]]" + CHR$(10) + "path = ""Greeter.rr""" + CHR$(10) + "kind = ""module""" + CHR$(10) + _
+    "[[files]]" + CHR$(10) + "path = ""Form1.rr""" + CHR$(10) + "kind = ""form""" + CHR$(10) + _
+    "[[files]]" + CHR$(10) + "path = ""strings.inc""" + CHR$(10) + "kind = ""include""" + CHR$(10) + _
+    "[[files]]" + CHR$(10) + "path = ""data/names.csv""" + CHR$(10) + "kind = ""data""", "Greeter.rrproj"
+Tree.SetFileText "Form1.rr", "CREATE Form1 AS QFORM" + CHR$(10) + "  CREATE Greet AS QBUTTON" + CHR$(10) + "  END CREATE" + CHR$(10) + _
+    "  CREATE Answer AS QLABEL" + CHR$(10) + "  END CREATE" + CHR$(10) + "END CREATE"
+Tree.ExpandAll
+
+' The designer, its first component, and the inspector following it.
+Designer.AddComponent "QBUTTON", "Button1", 24, 24, 96, 28
+Designer.SetProp 0, "Caption", "Greet"
+Designer.SelectComp 0
+Insp.Designer = Designer
+Insp.Handlers = "Button1Click(Sender)" + CHR$(10) + "Greet(Sender)"
+
+' The console: a program's output (its colours too), the build log, problems.
+Cons.WriteLine "Greeter 1.0"
+Cons.Write CHR$(27) + "[32mready" + CHR$(27) + "[0m" + CHR$(13) + CHR$(10)
+Cons.AddBuildLine "Compiling Greeter.rr …"
+Cons.AddBuildLine "Form1.rr:12:5: warning: Answer is never read"
+Cons.AddBuildLine "Built in 0.21 s"
+Cons.AddProblem "Form1.rr", 12, 5, "warning", "Answer is never read"
+Cons.AddProblem "Greeter.rr", 3, 1, "info", "RapidR extension: QPLOT is RPLOT in RapidQ-compatible projects"
+
+' The layout: the toolbox and the project left, the inspector right, the
+' console under the designer.
+Dock.AddPane(Box, "Toolbox", "left", "toolbox")
+Dock.AddPane(Tree, "Project", "tab:box", "explorer")
+Dock.AddPane(Insp, "Properties", "right", "properties")
+Dock.AddPane(Designer, "Form1.rr", "documents", "form")
+Dock.AddPane(Cons, "Output", "bottom:documents", "output")
+Dock.FocusPane("Box")
+Form.ShowModal
+
+SUB AddComponent (Type AS STRING)
+    Count = Count + 1
+    Designer.AddComponent Type, "Component" + STR$(Count), 24 + 16 * Count, 72 + 16 * Count, 96, 28
+    Designer.SelectComp Designer.CompCount - 1
+    Insp.Refresh
+    Cons.WriteLine "Added a " + Type
+END SUB
+
+SUB DropComponent (Type AS STRING, Target AS STRING, X AS INTEGER, Y AS INTEGER)
+    IF LCASE$(Target) <> "designer" THEN EXIT SUB
+    Count = Count + 1
+    Designer.AddComponent Type, "Component" + STR$(Count), X - X MOD 8, Y - Y MOD 8, 96, 28
+    Designer.SelectComp Designer.CompCount - 1
+    Insp.Refresh
+    Cons.WriteLine "Dropped a " + Type + " at" + STR$(X) + "," + STR$(Y)
+END SUB
+
+SUB OpenNode (Path AS STRING)
+    Cons.WriteLine "Open " + Path
+END SUB
+
+SUB PropertyChanged (Prop AS STRING, Value AS STRING)
+    Cons.WriteLine Insp.TargetType + "." + Prop + " = " + Value
+END SUB
+
+SUB EventWanted (Event AS STRING)
+    Cons.WriteLine "SUB " + Insp.Target + Event + " (Sender AS QBUTTON)  ' (the IDE would write it)"
+END SUB
+
+SUB LinkClicked (File AS STRING, Line AS INTEGER)
+    Cons.WriteLine "Go to " + File + " line" + STR$(Line)
+END SUB
+
+SUB ButtonClicked (Name AS STRING, Command AS STRING)
+    RunCommand Command
+END SUB
+
+SUB RunCommand (Id AS STRING)
+    SELECT CASE Id
+    CASE "view.commandPalette": Palette.Show
+    CASE "view.toolbox": Dock.FocusPane("Box")
+    CASE "view.output": Dock.FocusPane("Cons")
+    CASE "edit.clearOutput": Cons.Clear
+    CASE "view.grid": Cons.WriteLine "Grid " + IIF(Bar.ButtonDown("grid"), "on", "off")
+    CASE ELSE: Cons.WriteLine "Command: " + Id
+    END SELECT
+END SUB
+
+SUB KeyPressed (Key AS INTEGER, Shift AS INTEGER)
+    ' Ctrl+Shift+P (Shift: 1 Shift, 4 Ctrl)
+    IF Key = 80 AND (Shift AND 5) = 5 THEN Palette.Show
+END SUB

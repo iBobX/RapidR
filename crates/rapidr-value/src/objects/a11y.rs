@@ -456,7 +456,9 @@ pub fn role_of(type_name: &str) -> Role {
         // kernel describes their rows, tabs and buttons)
         "RPROPERTYINSPECTOR" => Role::Grid,
         "RTOOLBOX" | "RPROJECTTREE" => Role::Tree,
-        "ROUTPUTCONSOLE" => Role::MultilineTextInput,
+        // (a console: its tabs, its search box, its page — a read-only
+        // multiline text, or the problems' list — inside)
+        "ROUTPUTCONSOLE" => Role::Group,
         "RTOOLBAR" => Role::Group,
         "RCOMMANDPALETTE" => Role::Dialog,
         "RSTATUSBAR" => Role::Status,
@@ -466,6 +468,8 @@ pub fn role_of(type_name: &str) -> Role {
         // (QDIGDISPLAY: a picture of its Display, named by it)
         "RDIGDISPLAY" => Role::Image,
         "RCANVAS" | "RDXSCREEN" => Role::Canvas,
+        // (a chart: a picture of its data, named by its Title)
+        "RPLOT" => Role::Image,
         "RMAINMENU" => Role::MenuBar,
         // (QPANEL, QSCROLLBOX and what the hosts only place)
         _ => Role::Pane,
@@ -577,6 +581,8 @@ pub fn describe(id: &str, type_name: &str, get: Props, size: (i64, i64), font: &
         "RLABEL" | "RGROUPBOX" | "RPANEL" | "RBEVEL" => own_caption(&mut n, false),
         // (QDIGDISPLAY: the text it shows)
         "RDIGDISPLAY" => n.name = super::digdisplay_text(id).unwrap_or_else(|| text(get, "display")),
+        // (an RPLOT: its Title)
+        "RPLOT" => n.name = crate::datascience::plot::state(id).title,
         // (its text: a PasswordChar's characters for a password)
         "REDIT" | "RMEMO" | "RRICHEDIT" | "RCODEEDITOR" => {
             let multi = t != "REDIT";

@@ -329,7 +329,8 @@ A strip of tool buttons, usually along the top of a form: icon buttons (RapidR's
 | `ShowCaptions` | bool | False | Whether each button shows its caption beside its icon. |
 | `Customizable` | bool | False | The user can choose which buttons show, from the toolbar's menu (its overflow button). |
 | `ButtonCount` (read-only) | int |  | How many buttons and separators it has. |
-| `Layout` | string |  | Which buttons the user hid, as text to keep and set back (Customizable). |
+| `Layout` | string |  | Which buttons the user hid, as text to keep and set back (Customizable): their names, a comma between. |
+| `ClickedButton` (read-only) | string |  | The name of the button the last click was on, for OnClick to read (empty when the strip itself was clicked). |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -344,7 +345,7 @@ A strip of tool buttons, usually along the top of a form: icon buttons (RapidR's
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `AddButton(Name AS STRING, Icon AS STRING, Hint AS STRING, [Command AS STRING], [Caption AS STRING])` | Adds an icon button: Icon is one of RapidR's icons ("save", "run", a command id such as "file.save") or a picture file; Hint its tooltip (and what a screen reader calls it); Command what OnClick reports besides the name. |
 | `AddToggle(Name AS STRING, Icon AS STRING, Hint AS STRING, [Command AS STRING], [Caption AS STRING])` | Adds a button that stays down when clicked, until clicked again. |
-| `AddSeparator` | Adds a thin line between groups of buttons. |
+| `AddSeparator([Name AS STRING])` | Adds a thin line between groups of buttons (named, to be removed by RemoveButton). |
 | `RemoveButton(Name AS STRING)` | Takes a button (or a separator, by its name) off the toolbar. |
 | `Clear` | Removes every button. |
 | `Button(Index AS INTEGER) AS STRING` | Button Index's name (from 0; a separator's is "-"). |
@@ -357,8 +358,8 @@ A strip of tool buttons, usually along the top of a form: icon buttons (RapidR's
 
 | Event | |
 |---|---|
-| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
-| `OnButtonClick(Name AS STRING, Command AS STRING)` | A button was clicked (or a toggle turned): its name and command. |
+| `OnClick` | A button or the strip was clicked (after OnButtonClick): ClickedButton says which button. |
+| `OnButtonClick(Name AS STRING, Command AS STRING)` | A button was clicked (or a toggle turned, ButtonDown already the new state; or picked from the menu of the buttons that don't fit): its name and command. |
 
 <a id="rstatusbar"></a>
 ## RSTATUSBAR (QSTATUSBAR)
@@ -1981,6 +1982,12 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `FormCaption` | string |  | The caption of the form being designed. |
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `Count` | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
+| `SelCount` (read-only) | int |  | How many components are selected (Shift / Ctrl+click, a rubber band). |
+| `PreviewWidth` | int |  | The resize preview: the designed form shown this wide, its components where the running program puts them (Align, Anchors, Constraints); 0 ends the preview. Dragging the form's corner does the same. |
+| `PreviewHeight` | int |  | The resize preview's height (see PreviewWidth); 0 ends the preview. |
+| `ShowGuides` | bool | True | Whether a drag snaps to and shows smart guides: siblings' edges, centres and baselines, the form's centre lines, margins, equal spacing (Alt suspends snapping). |
+| `SnapToGrid` | bool | True | Whether moves and resizes snap to the grid where no guide is near. |
+| `GridSize` | int | 8 | The grid's step in pixels. |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -2005,6 +2012,10 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `GetCompY` | Returns the top position of the component at the index given on the design surface. |
 | `GetCompW` | Returns the width of the component at the index given on the design surface. |
 | `GetCompH` | Returns the height of the component at the index given on the design surface. |
+| `Undo AS INTEGER` | Undoes the last change to the designed form (a move, a resize, a property, an added or removed component); True if there was one. |
+| `Redo AS INTEGER` | Does again the last change undone; True if there was one. |
+| `AlignSelection(How AS STRING)` | Lines the selected components up with the first selected: "left", "center", "right", "top", "middle" or "bottom" (one undo step). |
+| `SelectAdd(Index AS INTEGER)` | Adds component Index to the selection (as Shift+click). |
 | `Show` *(desktop)* | Shows the component or form; a data-science object prints its contents. |
 | `Hide` *(desktop)* | Makes the component or form invisible; it stays loaded. |
 
@@ -4271,7 +4282,7 @@ A table of named columns in pandas' style: read CSV or JSON, select, filter, sor
 <a id="rplot"></a>
 ## RPLOT
 
-A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots with labels, legends and notes, on a form or saved as a picture. RapidR's own.
+A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots with labels, legends and notes, on a form (drawn crisp at any screen scale, the same on the desktop and the web) or saved as a picture. RapidR's own.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -4323,10 +4334,10 @@ A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots
 | `Set_xlabel` | Sets the label of the x axis. Same as `SetXLabel`. |
 | `SetYLabel` | Sets the label of the y axis. |
 | `Set_ylabel` | Sets the label of the y axis. Same as `SetYLabel`. |
-| `SaveFig(filename)` | Draws the chart into a PNG file (on the web: on the page). |
+| `SaveFig(filename)` | Draws the chart into a PNG file (on the web: one of the page's files, which the program can read back or offer as a download). |
 | `Save` | Saves to a file: the chart as an image, or the recording as a WAV file. |
 | `Render` | Draws the scene: a DirectX screen draws its 3D view; on the web a chart is drawn (as `SaveFig`). |
-| `Show` | Draws the chart where it is shown (the page, on the web). |
+| `Show` | Draws the chart again where it shows: an RPLOT on a form (a chart only saved or loaded into a picture has nowhere else to show). |
 | `Figsize(width, height, [dpi])` | The size in inches at the chart's DPI. |
 | `Xlim(min, max)` | The X axis range. |
 | `Ylim(min, max)` | The Y axis range. |
@@ -4730,7 +4741,7 @@ A project's files as a tree (an .rrproj project, or a .bas / .rr file and the fi
 | `ShowFiles` | bool | True | Whether the files are shown (grouped by kind). |
 | `ShowForms` | bool | True | Whether forms are shown with the components their CREATE blocks make. |
 | `ShowComponents` | bool | True | Whether a form's components are listed under it. |
-| `Selected` | string | `""` | The selected node: a file's path, or `path#Component` for a form's component. |
+| `Selected` | string | `""` | The selected node: a file's path, `path#Component` for a form's component, a folder's path ending in `/`, "" for the project or a group. |
 | `FileCount` (read-only) | int |  | How many files the project has. |
 | `Modified` | bool |  | The project changed since it was read or saved. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
@@ -4773,7 +4784,7 @@ A project's files as a tree (an .rrproj project, or a .bas / .rr file and the fi
 | Event | |
 |---|---|
 | `OnOpen(Path AS STRING)` | The user opened a node (double click, Enter): a file's path, or `path#Component`. |
-| `OnSelect(Path AS STRING)` | The selected node changed. |
+| `OnSelect(Path AS STRING)` | The user selected another node (Path as Selected gives it). |
 | `OnRename(OldPath AS STRING, NewPath AS STRING, BYREF Cancel AS INTEGER)` | A file is being renamed: set Cancel to refuse. The program renames the file on the disk. |
 | `OnDelete(Path AS STRING, BYREF Cancel AS INTEGER)` | The user confirmed taking a file out of the project: set Cancel to keep it. The program deletes it from the disk if it wants to. |
 | `OnMove(Path AS STRING, NewPath AS STRING, Index AS INTEGER)` | The user dragged a file: to another place in the order (Index, from 0) or into another folder (NewPath). |

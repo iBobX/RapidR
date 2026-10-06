@@ -172,7 +172,7 @@ name = "RPANEL"
 rapidq = "QPANEL"
 visual = true
 container = true
-size = [150, 100]
+size = [185, 41]
 default_event = "OnClick"
 sets = ["layout", "a11y", "generic"]
 doc = "A container with raised or lowered bevels and an optional caption, to group components and, with Align, build toolbars and side areas."
@@ -224,7 +224,7 @@ name = "RTABCONTROL"
 rapidq = "QTABCONTROL"
 visual = true
 container = true
-size = [150, 100]
+size = [289, 193]
 default_event = "OnClick"
 sets = ["layout", "a11y", "generic"]
 doc = "A row of tabs: the user picks one (TabIndex) and the program shows what belongs to it, usually in OnChange."
@@ -308,14 +308,15 @@ properties = [
   { name = "ShowCaptions", type = "bool", default = false, origin = "rapidr", doc = "Whether each button shows its caption beside its icon." },
   { name = "Customizable", type = "bool", default = false, origin = "rapidr", doc = "The user can choose which buttons show, from the toolbar's menu (its overflow button)." },
   { name = "ButtonCount", type = "int", access = "read", design = false, origin = "rapidr", doc = "How many buttons and separators it has." },
-  { name = "Layout", type = "string", design = false, origin = "rapidr", doc = "Which buttons the user hid, as text to keep and set back (Customizable)." },
+  { name = "Layout", type = "string", design = false, origin = "rapidr", doc = "Which buttons the user hid, as text to keep and set back (Customizable): their names, a comma between." },
+  { name = "ClickedButton", type = "string", access = "read", design = false, origin = "rapidr", doc = "The name of the button the last click was on, for OnClick to read (empty when the strip itself was clicked)." },
 ]
 methods = [
   { name = "Repaint" },
   { name = "Refresh", value = true },
   { name = "AddButton", params = "Name AS STRING, Icon AS STRING, Hint AS STRING, [Command AS STRING], [Caption AS STRING]", origin = "rapidr", doc = "Adds an icon button: Icon is one of RapidR's icons (\"save\", \"run\", a command id such as \"file.save\") or a picture file; Hint its tooltip (and what a screen reader calls it); Command what OnClick reports besides the name." },
   { name = "AddToggle", params = "Name AS STRING, Icon AS STRING, Hint AS STRING, [Command AS STRING], [Caption AS STRING]", origin = "rapidr", doc = "Adds a button that stays down when clicked, until clicked again." },
-  { name = "AddSeparator", origin = "rapidr", doc = "Adds a thin line between groups of buttons." },
+  { name = "AddSeparator", params = "[Name AS STRING]", origin = "rapidr", doc = "Adds a thin line between groups of buttons (named, to be removed by RemoveButton)." },
   { name = "RemoveButton", params = "Name AS STRING", origin = "rapidr", doc = "Takes a button (or a separator, by its name) off the toolbar." },
   { name = "Clear", value = true, origin = "rapidr", doc = "Removes every button." },
   { name = "Button", params = "Index AS INTEGER", returns = "STRING", origin = "rapidr", doc = "Button Index's name (from 0; a separator's is \"-\")." },
@@ -325,8 +326,8 @@ methods = [
   { name = "ButtonHint", params = "Name AS STRING, [Hint AS STRING]", returns = "STRING", origin = "rapidr", doc = "A button's tooltip; with Hint, sets it." },
 ]
 events = [
-  { name = "OnClick" },
-  { name = "OnButtonClick", params = "Name AS STRING, Command AS STRING", origin = "rapidr", doc = "A button was clicked (or a toggle turned): its name and command." },
+  { name = "OnClick", doc = "A button or the strip was clicked (after OnButtonClick): ClickedButton says which button." },
+  { name = "OnButtonClick", params = "Name AS STRING, Command AS STRING", origin = "rapidr", doc = "A button was clicked (or a toggle turned, ButtonDown already the new state; or picked from the menu of the buttons that don't fit): its name and command." },
 ]
 
 [[component]]
@@ -334,7 +335,7 @@ name = "RSTATUSBAR"
 rapidq = "QSTATUSBAR"
 visual = true
 container = true
-size = [318, 24]
+size = [320, 19]
 default_event = "OnClick"
 sets = ["layout", "a11y", "generic"]
 doc = "The bar at the bottom of a window that shows status text, as one simple text or as several panels."
@@ -378,7 +379,7 @@ events = [
 name = "RSPLITTER"
 rapidq = "QSPLITTER"
 visual = true
-size = [5, 209]
+size = [3, 200]
 default_event = "OnMoved"
 sets = ["layout", "a11y", "generic"]
 doc = "A bar the user drags to resize the aligned component beside it, between the panes of a window."
@@ -412,7 +413,7 @@ name = "RSCROLLBOX"
 rapidq = "QSCROLLBOX"
 visual = true
 container = true
-size = [150, 100]
+size = [185, 41]
 default_event = "OnClick"
 sets = ["layout", "a11y", "generic"]
 doc = "A container that scrolls: components beyond its edges are reached with its scroll bars."
@@ -467,7 +468,7 @@ name = "RGROUPBOX"
 rapidq = "QGROUPBOX"
 visual = true
 container = true
-size = [150, 100]
+size = [185, 105]
 default_event = "OnClick"
 sets = ["layout", "a11y", "generic"]
 doc = "A captioned frame around related components; the radio buttons in it form one choice."
@@ -511,7 +512,7 @@ rapidq = "QBEVEL"
 from = "QBevel.inc"
 visual = true
 container = true
-size = [150, 100]
+size = [185, 41]
 default_event = "OnClick"
 sets = ["layout", "a11y", "generic"]
 doc = "A box with raised or lowered 3D edges (QBevel.inc), to frame or group components."

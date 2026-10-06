@@ -57,6 +57,7 @@ TOLERANCE = 3
 EXTRA = [
     ("fixture-a11y_form", "tests/fixtures/a11y_form.bas"),
     ("fixture-themes", "tests/fixtures/themes.bas"),
+    ("fixture-rplot_on_form", "tests/fixtures/rplot_on_form.bas", {"RAPIDR_TEST_EVENTS": "btn.onclick"}),
     ("example-hello_form", "examples/gui/hello_form.rr"),
     ("example-dialogs", "examples/gui/dialogs.rr"),
     ("example-dialogs-font", "examples/gui/dialogs.rr", {"RAPIDR_TEST_EVENTS": "FontBtn.onclick", "RAPIDR_TEST_FONT_DIALOG": "", "RAPIDR_TEST_DIALOG_HOLD": "4000"}),
