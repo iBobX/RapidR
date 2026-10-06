@@ -133,7 +133,9 @@ fn focus(line: &str, col: usize, message: &str) -> (usize, usize) {
             from = end;
         }
     }
-    if let Some((s, e)) = crate::text::word_at(line, col) {
+    // (a word that ends at the column — `Form` before `Form.`'s dot — isn't
+    // what the message at the dot is about)
+    if let Some((s, e)) = crate::text::word_at(line, col).filter(|&(_, e)| e > col) {
         return (s, e);
     }
     let trimmed_end = line.trim_end().len();
@@ -163,5 +165,6 @@ mod tests {
         assert_eq!(focus(line, 0, "Too many actual parameters for Pair$"), (0, 5));
         assert_eq!(focus("PRINT b + 1", 0, "Undeclared identifier b"), (6, 7));
         assert_eq!(focus("G.Caption = \"x\"", 0, "Member CAPTION not part of class G"), (2, 9));
+        assert_eq!(focus("Form.", 4, "Member  not part of class FORM"), (4, 5));
     }
 }
