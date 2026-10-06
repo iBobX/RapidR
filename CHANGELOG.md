@@ -33,6 +33,43 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   and the release notes.
 
 ### Added
+- **Every RapidQ member now works in RapidR.** The 101 RapidQ properties,
+  methods and events that RapidR didn't answer before now work in native
+  builds, the interpreter and the web. Each was checked against RapidQ's own
+  compiler, RC.EXE:
+  - **Streams.** QFILESTREAM has ReadByte and WriteByte. ReadByte gives 26
+    past the end, as RapidQ does. QMEMORYSTREAM has `SetSize = n`,
+    MemCopyFrom and MemCopyTo (with VARPTR or Pointer addresses). CopyFrom
+    reports a stream read error when it asks for more bytes than are left.
+    SaveUDTArray and LoadUDTArray are accepted and do nothing, as in RapidQ.
+  - **String lists and rich edits.** QSTRINGLIST.LoadFromStream splits lines
+    at CR LF, LF or CR. Its SaveToStream reads the list from the stream,
+    exactly as RapidQ's does. QRICHEDIT has LoadFromStream and SaveToStream.
+    QSTRINGGRID has DeleteColumn, another name for DeleteCol.
+  - **Drawing.** TextRect draws text clipped to a rectangle on forms, images,
+    canvases, bitmaps, headers, the printer, and owner-drawn lists and grids.
+    Rotate turns an image, canvas or bitmap by degrees. QCANVAS has Get and
+    Put, QIMAGELIST has Draw, and QIMAGE has Repaint. Lists, combo boxes and
+    grids take RoundRect, CopyRect, StretchDraw, TextOut, TextWidth and
+    TextHeight in their owner drawing.
+  - **Forms.** HideTitleBar and ShowTitleBar remove and restore the title
+    bar. ShapeForm cuts a window to a bitmap's outline (not on Wayland). A
+    QFORM has Cascade, Tile, Next, Previous and ArrangeIcons. QFORMMDI has
+    ActiveNextChild and ActivePreviousChild.
+  - **Events that never fired now do.** OnHint fires when the mouse brings a
+    new hint, and RapidR now shows tooltips (ShowHint, HintPause,
+    HintColor). OnEnter fires when a list box or file list box gets the
+    focus. OnStartDrag and OnEndDrag fire around a button drag, and
+    StartDrag moves the control with the mouse. QCOMPORT fires OnBreak,
+    OnRing and OnTxEmpty. A control's WndProc can be bound but is never
+    called, as in RapidQ. A form's WndProc still gets its tray icon's
+    messages.
+  - **QMYSQL.** RealConnect, CreateDB, DropDB, Refresh, FetchLengths (with
+    Length), RowBlob, LoadBlob and SaveBlob work. An empty host means this
+    machine, as in RapidQ. EscapeString escapes the way MySQL's C client
+    does.
+  - New conformance cases (most with RC.EXE's own output as the expected
+    output) and new GUI cases for the desktop and the web.
 - **Automatic keyword case in VS Code, as in QuickBASIC and VB.** Type
   `dim x as integer` and it becomes `DIM x AS INTEGER` as you go: each
   word is put in BASIC's case when you finish it (space, Enter, Tab, `(`,
@@ -148,6 +185,10 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   - `tools/regress.sh unit` checks that everything is up to date.
 
 ### Changed
+- QDXSCREEN.TextRect now uses the same drawing as every other TextRect: a
+  background colour fills the whole rectangle, not just the text.
+- `SetFocus` on the desktop now moves the keyboard focus, as it already did
+  on the web.
 - **The VS Code extension and RapidR Studio know the language from the
   language registry.** Completion, hover, signature help and the
   compatibility warnings come from the one description of the language
