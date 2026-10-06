@@ -48,6 +48,25 @@ export const cases = [
   { name: "panel_palette", events: "bopen.onclick,pal.__key_83,pal.__key_65,pal.__key_40,pal.__key_13,bopen.onclick,pal.__key_27,bopen.onclick,edit1.__mousedown_5_5,edit1.__mouseup_5_5,bopen.onclick,pal.__mousedown_100_81,pal.__mouseup_100_81,bopen.onclick,pal.__key_83,breport.onclick",
     dump: "lbl.caption,info.caption",
     expect: ["lbl.caption= first:file.save run:file.saveall first:file.saveall cancel first:file.saveall cancel first:file.saveall run:file.save first:file.save", "info.caption=3 file.save [s] -1 5"] },
+  // RPROPERTYINSPECTOR (I1 / L-PANELS, rapidr_value::panels::inspector): a
+  // QBUTTON inspected — Caption typed ("Renamed", Enter), Default's box
+  // ticked, Cursor picked from its dropped list (Down, Down, Enter),
+  // Anchors found by typing "anc", opened, its top pin turned off by Space
+  // and its right pin on by a click, Cursor put back by Delete; the Events
+  // page: OnClick double-clicked, its SUB picked from the list of those that
+  // fit; the form inspected (QFORM), then both buttons (their Captions
+  // differ: blank); the search "cap"; the columns' line dragged 30 right.
+  { name: "panel_inspector", events: "insp.__mousedown_200_148,insp.__mouseup_200_148,insp.__enter,insp.__mousedown_135_368,insp.__mouseup_135_368,insp.__mousedown_60_192,insp.__mouseup_60_192,insp.__mousedown_270_192,insp.__mouseup_270_192,insp.__key_40,insp.__key_40,insp.__key_13,insp.__key_65,insp.__key_78,insp.__key_67,insp.__key_39,insp.__key_40,insp.__key_32,insp.__mousedown_196_352,insp.__mouseup_196_352,insp.__key_67,insp.__key_85,insp.__key_46,insp.__mousedown_100_46,insp.__mouseup_100_46,insp.__dblclick_60_104,insp.__mousedown_285_104,insp.__mouseup_285_104,insp.__key_40,insp.__key_13,bform.onclick,breport.onclick,bboth.onclick,insp.__mousedown_40_46,insp.__mouseup_40_46,insp.__mousedown_100_76,insp.__mouseup_100_76,insp.__key_67,insp.__key_65,insp.__key_80,insp.__mousedown_122_126,insp.__mousemove_152_126,insp.__mouseup_152_126,breport.onclick",
+    dump: "log.caption",
+    expect: ["log.caption=sel Caption | change Caption=Renamed | sel Default | change Default=True | sel Cursor | change Cursor=crArrow | sel Align | sel Anchors | change Anchors=akLeft | change Anchors=akLeft + akRight | sel Caption | sel Cursor | change Cursor=crDefault | sel OnClick | dbl OnClick | change OnClick=Button1Click | [QFORM caption=Inspector anchors=akLeft, akTop-1 page=events filter= rows=14 OnClose= nw=120] | [QBUTTON caption= anchors=0 page=properties filter=cap rows=2 Caption= nw=150] | "] },
+  // RPROPERTYINSPECTOR following an RDESIGNSURFACE (its designer model):
+  // Caption typed, NameEdit picked on the surface (the inspector follows),
+  // its Hint typed, OkButton picked again, its top anchor pin turned off,
+  // the program's own Speed (AddProperty) typed; the surface's GetProp
+  // reads what the inspector wrote.
+  { name: "panel_inspector_designer", events: "insp.__mousedown_200_148,insp.__mouseup_200_148,insp.__enter,surface.__mousedown_40_66,surface.__mouseup_40_66,insp.__key_72,insp.__key_73,insp.__key_113,insp.__enter,surface.__mousedown_40_26,surface.__mouseup_40_26,insp.__key_65,insp.__key_78,insp.__key_67,insp.__key_39,insp.__key_40,insp.__key_32,insp.__key_83,insp.__key_80,insp.__key_69,insp.__key_113,insp.__key_57,insp.__key_13,breport.onclick",
+    dump: "log.caption",
+    expect: ["log.caption=Caption=Renamed | Hint=Renamed | Anchors=akLeft | Speed=9 | [QBUTTON Renamed akLeft Renamed 9]"] },
   // RPROJECTTREE (I1 / L-PANELS, rapidr_value::panels::project_tree): a
   // project given as text (LoadText, SetFileText). Form1.rr opened by its
   // chevron, Button1 double-clicked (OnSelect, OnOpen "Form1.rr#Button1"),

@@ -45,7 +45,7 @@ methods = [
   { name = "ResetValue", params = "Prop AS STRING", doc = "Puts a property back to its default value." },
   { name = "IsDefault", params = "Prop AS STRING", returns = "INTEGER", doc = "True when a property has its default value." },
   { name = "EditValue", params = "Prop AS STRING", doc = "Selects a property's row and starts its editor, as a double click would." },
-  { name = "AddProperty", params = "Name AS STRING, Type AS STRING, Value AS STRING, [Category AS STRING]", doc = "Shows a property of the program's own (an object the registry doesn't know): Type is \"int\", \"float\", \"string\", \"bool\", \"color\", \"file\" or a list of constants separated by \"|\". Its changes come to OnPropertyChange." },
+  { name = "AddProperty", params = "Name AS STRING, Type AS STRING, Value AS STRING, [Category AS STRING]", doc = "Shows a property of the program's own (an object the registry doesn't know): Type is \"int\", \"float\", \"string\", \"bool\", \"color\", \"file\", \"picture\", \"strings\" (a line per row), \"columns\", \"component\", a list of constants separated by \"|\" (one of them) or \"set:\" and flags separated by \"|\" (any of them). Value is its value now, and its default (shown dimmed while it has it); Category groups it (\"Misc\" when left out). Its changes come to OnPropertyChange only." },
   { name = "ClearProperties", value = true, doc = "Removes the properties AddProperty gave." },
   { name = "Row", params = "Index AS INTEGER", returns = "STRING", doc = "What row Index (from 0) shows, as \"Name=Value\" (a category heading as \"[Name]\")." },
 ]
