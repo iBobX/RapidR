@@ -22,7 +22,6 @@ RPROGRESS = "progressbar"
 [planned-components]
 # The IDE's public components (docs/ide-components.md §3) and the linked data
 # components of stage I7 (§4), RAI (Phase 5).
-RDOCKMANAGER = "dockmanager"
 RFORMDESIGNER = "formdesigner"
 RPROPERTYINSPECTOR = "propertyinspector"
 RPROJECTTREE = "projecttree"
