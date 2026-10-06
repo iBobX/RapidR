@@ -21,6 +21,7 @@ Members: RapidQ's components have the members RapidQ's documentation gives them,
 | `RGLASSFRAME` | `QGLASSFRAME` | RapidQ | everywhere |
 | `RTOOLBAR` | — | RapidR | everywhere |
 | `RSTATUSBAR` | `QSTATUSBAR` | RapidQ | everywhere |
+| `RDOCKMANAGER` | — | RapidR | everywhere |
 
 ## Buttons and input
 
@@ -187,4 +188,4 @@ These RapidQ objects compile (variables of their type are generic objects) but d
 - `QOLECONTAINER`
 - `QOLEOBJECT`
 
-97 components; 74 of them have a RapidQ name.
+98 components; 74 of them have a RapidQ name.

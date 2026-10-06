@@ -28,6 +28,8 @@ pub mod media_web;
 pub mod kernel_web;
 pub mod layout_web;
 pub mod mdi_web;
+// (I1: RDOCKMANAGER — rapidr_value::dock)
+pub mod dock_web;
 pub mod network_web;
 pub mod object_web;
 /// The web-only components (RWEBVIEW, RDOM, media, RPLOT) as elements over
