@@ -100,16 +100,15 @@ SUB ChartByDepartment
     FOR d = 1 TO 3
         line = line + IIF(d > 1, ",", "") + STR$(INT(total(d) / count(d) / 1000))
     NEXT
-    ' into RNUM arrays, then a bar chart of them
-    DIM xs AS RNUM, ys AS RNUM
-    xs.FromList("1,2,3")
+    ' into an RNUM array, then a bar chart of it: a bar over each
+    ' department's name (names in place of x numbers)
+    DIM ys AS RNUM
     ys.FromList(line)
     Chart.Clear
     Chart.Width = Picture.Width     ' the chart's size in pixels
     Chart.Height = Picture.Height
     Chart.Title = "Average salary (thousands)"
-    Chart.XLim(0.5, 3.5)
-    Chart.Bar(xs, ys, "Average salary", "steelblue")
+    Chart.Bar("Engineering,Marketing,Sales", ys, "Average salary", "steelblue")
     Picture.LoadFromPlot(Chart)
     Info.Caption = "Averages: " + line + " (thousands). Highest: " + depts(ys.ArgMax + 1)
 END SUB

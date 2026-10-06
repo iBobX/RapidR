@@ -192,6 +192,15 @@ pub fn decode_png(b: &[u8]) -> Result<(Pixels, Option<Vec<u8>>), String> {
     Ok((Pixels { width: w, height: h, pixels }, alpha))
 }
 
+/// Encodes pixels (RapidQ &HBBGGRR, opaque) as a PNG.
+pub fn encode_png(img: &Pixels) -> Result<Vec<u8>, String> {
+    let mut pixmap = resvg::tiny_skia::Pixmap::new(img.width.max(1) as u32, img.height.max(1) as u32).ok_or("image too large for a PNG")?;
+    for (dst, &c) in pixmap.pixels_mut().iter_mut().zip(&img.pixels) {
+        *dst = resvg::tiny_skia::ColorU8::from_rgba((c & 0xFF) as u8, (c >> 8 & 0xFF) as u8, (c >> 16 & 0xFF) as u8, 255).premultiply();
+    }
+    pixmap.encode_png().map_err(|e| format!("PNG: {e}"))
+}
+
 /// Decodes a Windows icon: its largest, deepest image — a PNG, or a BMP
 /// without its file header whose height counts its see-through mask too.
 pub fn decode_ico(b: &[u8]) -> Result<(Pixels, Option<Vec<u8>>), String> {

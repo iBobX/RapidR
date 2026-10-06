@@ -123,6 +123,7 @@ fn op_line(op: &Op) -> String {
             format!("round {} r{radius} fill {} stroke {} w{width}", rect(*r), c(fill), c(stroke))
         }
         Op::Stroke { points, color, width } => format!("stroke {} points #{color:06x} w{width}", points.len()),
+        Op::Polygon { points, color } => format!("polygon {} points #{color:06x}", points.len()),
         Op::Image { source, revision, rect: r } => format!("image {source}#{revision} {}", rect(*r)),
         Op::ClipPush { rect: r } => format!("clip {}", rect(*r)),
         Op::ClipPop => "unclip".to_string(),

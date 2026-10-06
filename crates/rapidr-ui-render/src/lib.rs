@@ -21,6 +21,7 @@
 //! the frames on them.
 
 pub mod canvas;
+pub mod chart;
 pub mod cpu;
 #[cfg(feature = "gpu")]
 pub mod gpu;

@@ -18,9 +18,9 @@ Symbols and Symbols 2, Noto Sans SC and KR), all under the SIL Open Font
 License 1.1. The Noto fonts' chunks ship beside the web runtime with
 their `OFL.txt`.
 
-**651 libraries** under 23 license expressions.
+**642 libraries** under 23 license expressions.
 
-## Apache-2.0 OR MIT (367)
+## Apache-2.0 OR MIT (361)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -164,7 +164,6 @@ their `OFL.txt`.
 | id-arena | 2.3.0 | <https://github.com/fitzgen/id-arena> |
 | idna | 1.1.0 | <https://github.com/servo/rust-url/> |
 | idna_adapter | 1.2.1 | <https://github.com/hsivonen/idna_adapter> |
-| image | 0.24.9 | <https://github.com/image-rs/image> |
 | indexmap | 2.13.0 | <https://github.com/indexmap-rs/indexmap> |
 | io-enum | 1.2.1 | <https://github.com/taiki-e/io-enum> |
 | itoa | 1.0.18 | <https://github.com/dtolnay/itoa> |
@@ -188,7 +187,6 @@ their `OFL.txt`.
 | litrs | 1.0.0 | <https://github.com/LukasKalbertodt/litrs> |
 | lock_api | 0.4.14 | <https://github.com/Amanieu/parking_lot> |
 | log | 0.4.29 | <https://github.com/rust-lang/log> |
-| matrixmultiply | 0.3.10 | <https://github.com/bluss/matrixmultiply/> |
 | memmap2 | 0.9.10 | <https://github.com/RazrFalcon/memmap2-rs> |
 | mime | 0.3.17 | <https://github.com/hyperium/mime> |
 | muda | 0.21.0 | <https://github.com/tauri-apps/muda> |
@@ -200,7 +198,6 @@ their `OFL.txt`.
 | nanomp3 | 0.2.0 | <https://github.com/robbie01/nanomp3> |
 | nanomp3-core | 0.2.0 | <https://github.com/robbie01/nanomp3> |
 | native-tls | 0.2.18 | <https://github.com/rust-native-tls/rust-native-tls> |
-| ndarray | 0.16.1 | <https://github.com/rust-ndarray/ndarray> |
 | ndk | 0.8.0 | <https://github.com/rust-mobile/ndk> |
 | ndk | 0.9.0 | <https://github.com/rust-mobile/ndk> |
 | ndk-context | 0.1.1 | <https://github.com/rust-windowing/android-ndk-rs> |
@@ -208,7 +205,6 @@ their `OFL.txt`.
 | ndk-sys | 0.6.0+11769913 | <https://github.com/rust-mobile/ndk> |
 | ntapi | 0.4.3 | <https://github.com/MSxDOS/ntapi> |
 | num-bigint | 0.4.6 | <https://github.com/rust-num/num-bigint> |
-| num-complex | 0.4.6 | <https://github.com/rust-num/num-complex> |
 | num-derive | 0.4.2 | <https://github.com/rust-num/num-derive> |
 | num-integer | 0.1.46 | <https://github.com/rust-num/num-integer> |
 | num-traits | 0.2.19 | <https://github.com/rust-num/num-traits> |
@@ -230,7 +226,6 @@ their `OFL.txt`.
 | piper | 0.2.5 | <https://github.com/smol-rs/piper> |
 | plain | 0.2.3 | <https://github.com/randomites/plain> |
 | planus | 0.3.1 | <https://github.com/planus-org/planus> |
-| png | 0.17.16 | <https://github.com/image-rs/image-png> |
 | png | 0.18.1 | <https://github.com/image-rs/image-png> |
 | polling | 3.11.0 | <https://github.com/smol-rs/polling> |
 | pollster | 0.4.0 | <https://github.com/zesterer/pollster> |
@@ -252,7 +247,6 @@ their `OFL.txt`.
 | rand_distr | 0.4.3 | <https://github.com/rust-random/rand> |
 | range-alloc | 0.1.5 | <https://github.com/gfx-rs/range-alloc> |
 | raw-window-metal | 1.1.0 | <https://github.com/rust-windowing/raw-window-metal> |
-| rawpointer | 0.2.1 | <https://github.com/bluss/rawpointer/> |
 | rayon | 1.11.0 | <https://github.com/rayon-rs/rayon> |
 | rayon-core | 1.13.0 | <https://github.com/rayon-rs/rayon> |
 | read-fonts | 0.41.0 | <https://github.com/googlefonts/fontations> |
@@ -392,7 +386,7 @@ their `OFL.txt`.
 | zstd-safe | 7.2.4 | <https://github.com/gyscos/zstd-rs> |
 | zstd-sys | 2.0.16+zstd.1.5.7 | <https://github.com/gyscos/zstd-rs> |
 
-## MIT (165)
+## MIT (162)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -409,8 +403,8 @@ their `OFL.txt`.
 | calloop | 0.13.0 | <https://github.com/Smithay/calloop> |
 | calloop-wayland-source | 0.3.0 | <https://github.com/smithay/calloop-wayland-source> |
 | castaway | 0.2.4 | <https://github.com/sagebind/castaway> |
-| color_quant | 1.1.0 | <https://github.com/image-rs/color_quant.git> |
 | combine | 4.6.7 | <https://github.com/Marwes/combine> |
+| comfy-table | 7.2.2 | <https://github.com/nukesor/comfy-table> |
 | compact_str | 0.8.1 | <https://github.com/ParkMyCar/compact_str> |
 | coreaudio-sys | 0.2.17 | <https://github.com/RustAudio/coreaudio-sys.git> |
 | coremidi | 0.9.2 | <https://github.com/chris-zen/coremidi> |
@@ -479,9 +473,6 @@ their `OFL.txt`.
 | phf_shared | 0.12.1 | <https://github.com/rust-phf/rust-phf> |
 | phf_shared | 0.14.0 | <https://github.com/rust-phf/rust-phf> |
 | pico-args | 0.5.0 | <https://github.com/RazrFalcon/pico-args> |
-| plotters | 0.3.7 | <https://github.com/plotters-rs/plotters> |
-| plotters-backend | 0.3.7 | <https://github.com/plotters-rs/plotters> |
-| plotters-bitmap | 0.3.7 | <https://github.com/plotters-rs/plotters> |
 | polars | 0.46.0 | <https://github.com/pola-rs/polars> |
 | polars-compute | 0.46.0 | <https://github.com/pola-rs/polars> |
 | polars-core | 0.46.0 | <https://github.com/pola-rs/polars> |

@@ -10,6 +10,7 @@ pub mod strings;
 pub mod numeric;
 pub mod variadic;
 pub mod data;
+pub mod datascience;
 pub mod console;
 pub mod dialogs;
 pub mod color_dialog;

@@ -1,0 +1,35 @@
+5x4 Name,Department,Salary,Years (5, 4)
+cell(0,0) Alice salary of row 2: 92000
+dtypes: Name: str,Department: str,Salary: i64,Years: i64
+over 60000, highest first: Charlie,Alice,Fiona,Bob
+sales: Bob,Diana empty 0
+names with 'an': Diana
+saved and read back: (5, 4) Fiona
+mean salary by department:
+shape: (3, 2)
+┌─────────────┬─────────┐
+│ Department  ┆ Salary  │
+│ ---         ┆ ---     │
+│ str         ┆ f64     │
+╞═════════════╪═════════╡
+│ Engineering ┆ 88500.0 │
+│ Marketing   ┆ 71000.0 │
+│ Sales       ┆ 60000.0 │
+└─────────────┴─────────┘
+describe salary: mean 73600.0000 std 14604.7937 median 71000.0000
+counts: Engineering,Sales,Marketing = 2,2,1
+joined: Name,Department,Salary,Years,Floor floors 3,1,3,1,
+built: (4, 2) first,b,c,d sum of x 1,2,3,4
+DataFrame: 4 rows x 2 columns
+  x: i64 (4)
+  label: str (4)
+nunique 4 corr 1.000
+shape: (2, 2)
+┌─────┬───────┐
+│ x   ┆ label │
+│ --- ┆ ---   │
+│ i64 ┆ str   │
+╞═════╪═══════╡
+│ 1   ┆ first │
+│ 2   ┆ b     │
+└─────┴───────┘

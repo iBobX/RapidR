@@ -205,6 +205,28 @@ fn ellipse_spans(x1: i64, y1: i64, x2: i64, y2: i64, fill: bool, mut span: impl 
     }
 }
 
+/// Draws a picture again at a screen scale (device pixels per pixel): its
+/// pixels at that scale, opaque (a chart's: the runtimes' `LoadFromPlot`).
+#[derive(Clone)]
+pub struct Redraw(pub std::rc::Rc<dyn Fn(usize) -> Option<Pixels>>);
+
+impl std::fmt::Debug for Redraw {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Redraw")
+    }
+}
+
+/// What an SVG or a redraw shows of a `w` × `h` bitmap at scale `s`.
+fn vector_hi(svg: Option<&std::rc::Rc<Vec<u8>>>, redraw: Option<&Redraw>, w: usize, h: usize, s: usize) -> Option<HiRes> {
+    let (fw, fh) = (w * s, h * s);
+    if let Some(svg) = svg {
+        return decode_svg(svg, s as f32).ok().map(|(fine, a)| fit_hi(fine, a, fw, fh, s));
+    }
+    let fine = (redraw?.0)(s)?;
+    let alpha = vec![255u8; fine.pixels.len()];
+    Some(fit_hi(fine, alpha, fw, fh, s))
+}
+
 #[derive(Debug, Clone)]
 pub struct Bitmap {
     pub img: Pixels,
@@ -235,6 +257,9 @@ pub struct Bitmap {
     /// The SVG these pixels were drawn from, until something draws on them:
     /// what's shown is drawn from it again at a new screen scale.
     pub(crate) svg: Option<std::rc::Rc<Vec<u8>>>,
+    /// What draws these pixels again at a screen scale (a chart's
+    /// picture, `LoadFromPlot`), until something draws on them: as `svg`.
+    pub(crate) redraw: Option<Redraw>,
     /// Changes whenever what the bitmap shows may have changed (every
     /// drawing method, a load, a new size, `invalidate_display`): a host
     /// keeps the picture it uploaded until it does ([`Bitmap::revision`]).
@@ -280,6 +305,7 @@ impl Default for Bitmap {
             alpha: None,
             hi: None,
             svg: None,
+            redraw: None,
             revision: next_revision(),
         }
     }
@@ -354,7 +380,7 @@ impl Bitmap {
             return;
         }
         if (w, h) != (self.img.width, self.img.height) {
-            self.svg = None;
+            self.forget_vector();
             self.touch();
         }
         let mut pixels = vec![self.background; w * h];
@@ -394,9 +420,9 @@ impl Bitmap {
         }
         let fits = self.hi.as_ref().is_some_and(|h| h.scale == s && h.img.width == self.img.width * s && h.img.height == self.img.height * s);
         if !fits {
-            // An SVG's pixels: drawn again at this scale; others: enlarged.
-            let (w, h) = (self.img.width * s, self.img.height * s);
-            let from_svg = self.svg.as_ref().and_then(|svg| decode_svg(svg, s as f32).ok()).map(|(fine, a)| fit_hi(fine, a, w, h, s));
+            // An SVG's or a chart's pixels: drawn again at this scale;
+            // others: enlarged.
+            let from_svg = vector_hi(self.svg.as_ref(), self.redraw.as_ref(), self.img.width, self.img.height, s);
             let had = self.hi.is_some();
             self.hi = from_svg.or_else(|| HiRes::upscaled(&self.img, self.alpha_channel(), s)).map(Box::new);
             if had || self.hi.is_some() {
@@ -422,6 +448,25 @@ impl Bitmap {
     pub fn take_display(&mut self, src: &mut Bitmap) {
         self.hi = src.hi.take();
         self.svg = src.svg.take();
+        self.redraw = src.redraw.take();
+        self.touch();
+    }
+
+    /// Forgets the SVG or chart these pixels were drawn from (something
+    /// drew on them).
+    fn forget_vector(&mut self) {
+        self.svg = None;
+        self.redraw = None;
+    }
+
+    /// Takes a picture drawn by `redraw` (a chart): `img` its pixels, and
+    /// what the screen shows drawn again at the screen's scale.
+    pub fn load_drawn(&mut self, img: Pixels, redraw: Redraw) {
+        self.hi = None;
+        self.svg = None;
+        self.alpha = None;
+        self.img = img;
+        self.redraw = Some(redraw);
         self.touch();
     }
 
@@ -453,7 +498,7 @@ impl Bitmap {
 
     /// Sets one of the pixels (only: what the screen shows is the caller's).
     pub(crate) fn lo_pset(&mut self, x: i64, y: i64, c: u32) {
-        self.svg = None;
+        self.forget_vector();
         self.touch();
         if x >= 0 && y >= 0 && (x as usize) < self.img.width && (y as usize) < self.img.height {
             let i = y as usize * self.img.width + x as usize;
@@ -491,7 +536,7 @@ impl Bitmap {
     }
 
     pub fn fill_rect(&mut self, x1: i64, y1: i64, x2: i64, y2: i64, c: u32) {
-        self.svg = None;
+        self.forget_vector();
         self.touch();
         let (l, t, r, b) = self.clip(x1, y1, x2, y2);
         for y in t..b {
@@ -532,7 +577,7 @@ impl Bitmap {
     /// the screen shows gets the same region: each filled pixel's device
     /// pixels that aren't the border's color.
     pub fn flood_fill(&mut self, x: i64, y: i64, c: u32, border: u32) {
-        self.svg = None;
+        self.forget_vector();
         self.touch();
         let mut stack = vec![(x, y)];
         let mut seen = vec![false; self.img.pixels.len()];
@@ -592,8 +637,7 @@ impl Bitmap {
         let shown = match src.hi.as_deref().filter(|h| h.scale == s && h.img.width == src.img.width * s && h.img.height == src.img.height * s) {
             Some(h) => std::borrow::Cow::Borrowed(h),
             None => {
-                let (w, h) = (src.img.width * s, src.img.height * s);
-                let from_svg = src.svg.as_ref().and_then(|svg| decode_svg(svg, s as f32).ok()).map(|(fine, a)| fit_hi(fine, a, w, h, s));
+                let from_svg = vector_hi(src.svg.as_ref(), src.redraw.as_ref(), src.img.width, src.img.height, s);
                 match from_svg.or_else(|| HiRes::upscaled(&src.img, src.alpha_channel(), s)) {
                     Some(h) => std::borrow::Cow::Owned(h),
                     None => return,
@@ -831,7 +875,7 @@ impl Bitmap {
                 self.ellipse(n(0), n(1), n(2), n(3), color(4, pen), false);
             }
             "clear" | "cls" => {
-                self.svg = None;
+                self.forget_vector();
                 self.touch();
                 let bg = self.background;
                 self.img.pixels.iter_mut().for_each(|p| *p = bg);
@@ -866,7 +910,7 @@ impl Bitmap {
 
     /// Pixels of color `old` (the background showing) become `new`.
     fn recolor(&mut self, old: u32, new: u32) {
-        self.svg = None;
+        self.forget_vector();
         self.touch();
         self.img.pixels.iter_mut().filter(|p| **p == old).for_each(|p| *p = new);
         if let Some(hi) = self.hi.as_mut() {
@@ -920,7 +964,7 @@ impl Bitmap {
     pub fn load_bmp_bytes(&mut self, bytes: &[u8]) -> Result<(), String> {
         self.hi = None;
         self.touch();
-        self.svg = None;
+        self.forget_vector();
         if is_svg(bytes) {
             let (img, alpha) = decode_svg(bytes, 1.0)?;
             // What the screen shows: the SVG drawn at the display scale.

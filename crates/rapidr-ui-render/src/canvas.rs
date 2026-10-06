@@ -242,6 +242,11 @@ impl<'a> Painter<'a> {
             Op::Arrow { points, color } => self.polygon(points, *color),
             Op::Round { rect, radius, fill, stroke, width } => self.round(*rect, *radius, *fill, *stroke, *width),
             Op::Stroke { points, color, width } => self.polyline(points, *color, *width),
+            Op::Polygon { points, color } => {
+                if points.len() >= 3 {
+                    self.polygon(points, *color)
+                }
+            }
             // (a picture the display list carries: a component's own, or a
             // program's bitmap by object id with its drawing revision)
             Op::Image { source, revision, rect } => {
