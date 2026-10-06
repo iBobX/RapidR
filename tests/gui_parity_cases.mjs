@@ -30,6 +30,26 @@ export const cases = [
   // RapidR Studio's panels (I1 / L-PANELS, rapidr_value::panels): each made,
   // placed and drawn by the kernel (the scaffold's check; each panel has its own case).
   { name: "panels_smoke", events: "", dump: "lbl.caption", expect: ["lbl.caption=2800"] },
+  // RPROJECTTREE (I1 / L-PANELS, rapidr_value::panels::project_tree): a
+  // project given as text (LoadText, SetFileText). Form1.rr opened by its
+  // chevron, Button1 double-clicked (OnSelect, OnOpen "Form1.rr#Button1"),
+  // Utils.rr renamed in place (F2, "tools" typed, Enter: OnRename),
+  // Report.rr deleted (Delete, Enter on the strip's Remove: OnDelete, the
+  // selection moves on), tools.rr dragged above Main.rr and About.rr out of
+  // its folder onto the Forms group (OnMove), Main.rr renamed by the
+  // program (OnRename's Cancel refuses), a new form named by typing
+  // (OnNewFile); the files in their order, Modified, ProjectText.
+  { name: "panel_project", events: "tree.__mousedown_45_103,tree.__mouseup_45_103,tree.__dblclick_150_169,tree.__mousedown_120_279,tree.__mouseup_120_279,tree.__key_113,tree.__key_84,tree.__key_79,tree.__key_79,tree.__key_76,tree.__key_83,tree.__key_13,tree.__mousedown_120_301,tree.__mouseup_120_301,tree.__key_46,tree.__key_13,tree.__mousedown_120_279,tree.__mousemove_120_268,tree.__mousemove_120_250,tree.__mouseup_120_250,tree.__mousedown_120_81,tree.__mousemove_120_70,tree.__mousemove_120_37,tree.__mouseup_120_37,brename.onclick,bnew.onclick,tree.__key_68,tree.__key_73,tree.__key_65,tree.__key_76,tree.__key_79,tree.__key_71,tree.__key_13,breport.onclick",
+    dump: "lbl.caption,info.caption",
+    expect: ["lbl.caption= S:Form1.rr#Button1 O:Form1.rr#Button1 S:Utils.rr R:Utils.rr>tools.rr S:Report.rr D:Report.rr S: S:tools.rr M:tools.rr>tools.rr@0 S:forms/About.rr M:forms/About.rr>About.rr@3 R:Main.rr>Summary.rr new:Form2.rr N:dialog.rr/form",
+      "info.caption=Inventory: tools.rr Main.rr Form1.rr About.rr lib/strings.inc data/stock.csv dialog.rr |-1-1 dialog.rr form"] },
+  // RPROJECTTREE reading files (Project =): an .rrproj and an implicit
+  // project ($INCLUDEs followed); the keyboard (Down, Right, End, Left,
+  // type-ahead, Enter: OnOpen), Reveal of a component.
+  { name: "panel_project_files", events: "t1.__key_40,t1.__key_40,t1.__key_40,t1.__key_39,t1.__key_39,t1.__key_35,t1.__key_37,t1.__key_77,t1.__key_40,t1.__key_13,breport.onclick",
+    dump: "lbl.caption,info.caption",
+    expect: ["lbl.caption= S: S: S:panel_project_form.rr S:panel_project_form.rr#Form1 S:panel_project_util.inc S: S: S:panel_project_main.rr O:panel_project_main.rr | panel_project_main.rr | panel_project_form.rr#Button1 0",
+      "info.caption=Demo3: panel_project_main.rr/module panel_project_form.rr/form panel_project_util.inc/include | panel_project_main3: panel_project_main.rr/module panel_project_util.inc/include panel_project_form.rr/form"] },
   // RDOCKMANAGER (I1, rapidr_value::dock): an IDE's layout. A tab clicked
   // (Output), the Explorer's splitter dragged 40 to the right, the
   // Toolbox's strip tab clicked twice (slid out, in), Properties dragged

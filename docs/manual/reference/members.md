@@ -4730,7 +4730,7 @@ A project's files as a tree (an .rrproj project, or a .bas / .rr file and the fi
 | `ShowFiles` | bool | True | Whether the files are shown (grouped by kind). |
 | `ShowForms` | bool | True | Whether forms are shown with the components their CREATE blocks make. |
 | `ShowComponents` | bool | True | Whether a form's components are listed under it. |
-| `Selected` | string | `""` | The selected node: a file's path, or `path#Component` for a form's component. |
+| `Selected` | string | `""` | The selected node: a file's path, `path#Component` for a form's component, a folder's path ending in `/`, "" for the project or a group. |
 | `FileCount` (read-only) | int |  | How many files the project has. |
 | `Modified` | bool |  | The project changed since it was read or saved. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
@@ -4773,7 +4773,7 @@ A project's files as a tree (an .rrproj project, or a .bas / .rr file and the fi
 | Event | |
 |---|---|
 | `OnOpen(Path AS STRING)` | The user opened a node (double click, Enter): a file's path, or `path#Component`. |
-| `OnSelect(Path AS STRING)` | The selected node changed. |
+| `OnSelect(Path AS STRING)` | The user selected another node (Path as Selected gives it). |
 | `OnRename(OldPath AS STRING, NewPath AS STRING, BYREF Cancel AS INTEGER)` | A file is being renamed: set Cancel to refuse. The program renames the file on the disk. |
 | `OnDelete(Path AS STRING, BYREF Cancel AS INTEGER)` | The user confirmed taking a file out of the project: set Cancel to keep it. The program deletes it from the disk if it wants to. |
 | `OnMove(Path AS STRING, NewPath AS STRING, Index AS INTEGER)` | The user dragged a file: to another place in the order (Index, from 0) or into another folder (NewPath). |

@@ -110,7 +110,7 @@ properties = [
   { name = "ShowFiles", type = "bool", default = true, doc = "Whether the files are shown (grouped by kind)." },
   { name = "ShowForms", type = "bool", default = true, doc = "Whether forms are shown with the components their CREATE blocks make." },
   { name = "ShowComponents", type = "bool", default = true, doc = "Whether a form's components are listed under it." },
-  { name = "Selected", type = "string", default = "", design = false, doc = "The selected node: a file's path, or `path#Component` for a form's component." },
+  { name = "Selected", type = "string", default = "", design = false, doc = "The selected node: a file's path, `path#Component` for a form's component, a folder's path ending in `/`, \"\" for the project or a group." },
   { name = "FileCount", type = "int", access = "read", design = false, doc = "How many files the project has." },
   { name = "Modified", type = "bool", design = false, doc = "The project changed since it was read or saved." },
   { name = "Height", type = "int" },
@@ -142,7 +142,7 @@ methods = [
 ]
 events = [
   { name = "OnOpen", params = "Path AS STRING", doc = "The user opened a node (double click, Enter): a file's path, or `path#Component`." },
-  { name = "OnSelect", params = "Path AS STRING", doc = "The selected node changed." },
+  { name = "OnSelect", params = "Path AS STRING", doc = "The user selected another node (Path as Selected gives it)." },
   { name = "OnRename", params = "OldPath AS STRING, NewPath AS STRING, BYREF Cancel AS INTEGER", doc = "A file is being renamed: set Cancel to refuse. The program renames the file on the disk." },
   { name = "OnDelete", params = "Path AS STRING, BYREF Cancel AS INTEGER", doc = "The user confirmed taking a file out of the project: set Cancel to keep it. The program deletes it from the disk if it wants to." },
   { name = "OnMove", params = "Path AS STRING, NewPath AS STRING, Index AS INTEGER", doc = "The user dragged a file: to another place in the order (Index, from 0) or into another folder (NewPath)." },

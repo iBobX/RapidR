@@ -4794,7 +4794,7 @@ const COMPONENT_REGISTRY = {
             'showfiles': 'Whether the files are shown (grouped by kind).',
             'showforms': 'Whether forms are shown with the components their CREATE blocks make.',
             'showcomponents': 'Whether a form\'s components are listed under it.',
-            'selected': 'The selected node: a file\'s path, or `path#Component` for a form\'s component.',
+            'selected': 'The selected node: a file\'s path, `path#Component` for a form\'s component, a folder\'s path ending in `/`, "" for the project or a group.',
             'filecount': 'How many files the project has.',
             'modified': 'The project changed since it was read or saved.',
             'height': 'The height, in pixels; on `Screen`, the screen\'s.',
@@ -4816,7 +4816,7 @@ const COMPONENT_REGISTRY = {
         },
         eventSignatures: {
             'onopen': { sig: 'OnOpen(Path AS STRING)', desc: 'The user opened a node (double click, Enter): a file\'s path, or `path#Component`.' },
-            'onselect': { sig: 'OnSelect(Path AS STRING)', desc: 'The selected node changed.' },
+            'onselect': { sig: 'OnSelect(Path AS STRING)', desc: 'The user selected another node (Path as Selected gives it).' },
             'onrename': { sig: 'OnRename(OldPath AS STRING, NewPath AS STRING, BYREF Cancel AS INTEGER)', desc: 'A file is being renamed: set Cancel to refuse. The program renames the file on the disk.' },
             'ondelete': { sig: 'OnDelete(Path AS STRING, BYREF Cancel AS INTEGER)', desc: 'The user confirmed taking a file out of the project: set Cancel to keep it. The program deletes it from the disk if it wants to.' },
             'onmove': { sig: 'OnMove(Path AS STRING, NewPath AS STRING, Index AS INTEGER)', desc: 'The user dragged a file: to another place in the order (Index, from 0) or into another folder (NewPath).' },
