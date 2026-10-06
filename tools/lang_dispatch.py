@@ -130,6 +130,8 @@ SITES = {
     ("crates/rapidr-value/src/objects/printer.rs", "*"): "RPRINTER",
     ("crates/rapidr-value/src/objects/tabcontrol.rs", "*"): "RTABCONTROL",
     ("crates/rapidr-value/src/objects/textedit.rs", "*"): TEXTS,
+    ("crates/rapidr-value/src/objects/codeedit.rs", "*"): "RCODEEDITOR",
+    ("crates/rapidr-value/src/autosize.rs", "resizes"): "RLABEL",
     ("crates/rapidr-value/src/objects/trackbar.rs", "*"): "RTRACKBAR",
     ("crates/rapidr-value/src/objects/tree.rs", "item"): "TREENODE",
     ("crates/rapidr-value/src/objects/tree.rs", "*"): "RTREEVIEW",

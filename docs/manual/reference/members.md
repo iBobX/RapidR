@@ -1360,7 +1360,7 @@ A slider: the user drags its thumb to pick a Position between Min and Max, along
 <a id="rcodeeditor"></a>
 ## RCODEEDITOR
 
-A code editor for BASIC: line numbers, syntax colours, and a list of the program's SUBs and FUNCTIONs to jump to. RapidR's own; the IDE's editor.
+RapidR Studio's code editor: syntax colours from a language definition (BASIC by default; SQL, JSON, HTML … or your own), line numbers, folding, several carets, find and replace, word wrap, a minimap, markers, problems and IntelliSense (completion, hovers, signatures) from RapidR's language service where the runtime carries it, or from the program through its request events. What it always answered counts lines from 0 (Line, GotoLine, WhereX, WhereY); what's new counts lines and columns from 1.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -1372,16 +1372,49 @@ A code editor for BASIC: line numbers, syntax colours, and a list of the program
 | `Visible` | int |  | Whether the control or form is shown. |
 | `Enabled` | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Font` | font |  | The font of the text, a QFONT; assigning one copies it. |
-| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontSize` | int |  | The code's size in points (10 = 13 pixels); Ctrl+= / Ctrl+- and Ctrl+wheel change it. |
+| `FontName` | string |  | The code's font (JetBrains Mono, built in). |
 | `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `ReadOnly` | int |  | Stops the user changing the text or items; they can still select and copy. |
-| `WordWrap` | int |  | Wraps long lines at the control's edge. |
+| `WordWrap` | int |  | Long lines break at the view's width (Alt+Z turns it on and off). |
 | `SelStart` | int |  | Where the selection starts: a character offset from 0 in text, the start of a track bar's highlighted range. |
 | `SelLength` | int |  | The number of characters selected. |
 | `SelText` | string |  | The selected text; setting it replaces the selection. |
 | `Line` | string |  | A line of the text, `Line(i)` from 0. |
 | `LineCount` | int |  | The number of lines of text (on a tree, of nodes). |
+| `WhereX` (read-only) | int |  | The caret's column, from 0. |
+| `WhereY` (read-only) | int |  | The caret's line, from 0. |
+| `Modified` | bool |  | The text changed since it was set, loaded or saved (undoing back to the saved text clears it). |
+| `MaxLength` | int |  | The most characters the user can type (0: no limit). |
+| `CharCase` | int |  | Turns typed text to `ecUpperCase` or `ecLowerCase`; `ecNormal` leaves it as typed. |
+| `WantTabs` | bool |  | Tab types (indents) in the editor rather than moving the focus on (True by default). |
+| `Language` | string |  | The language its colours, brackets, indentation and folding follow: an id ("rapidq-basic", "sql", "json", "html", "css", "javascript", "markdown", "toml", "rust", "csv", "plaintext"), a file name whose extension says, or a language definition file (.toml). |
+| `ColorScheme` | string |  | "auto" (the theme's) or a scheme's name: "classic", "modern", "dark", "highcontrast". |
+| `TabSize` | int |  | Columns per tab stop (4). |
+| `InsertSpaces` | bool |  | Tab inserts spaces (True) or a tab character. |
+| `AutoClose` | bool |  | Typing an opening bracket or quote types its closing one too. |
+| `AutoIndent` | bool |  | A new line keeps the indentation, one level more after SUB, IF … THEN, FOR … |
+| `ShowLineNumbers` | bool |  | The gutter numbers the lines. |
+| `ShowFolding` | bool |  | The gutter has fold arrows (SUB … END SUB, CREATE … END CREATE …). |
+| `ShowMinimap` | bool |  | A small picture of the whole text at the right, its view's part marked; click or drag it to scroll. |
+| `ShowWhitespace` | bool |  | Spaces show as dots, tabs as arrows. |
+| `HighlightCurrentLine` | bool |  | The caret's line is tinted. |
+| `Rulers` | string |  | Columns with a vertical line, comma-separated ("80,120"). |
+| `CaretLine` | int |  | The caret's line, from 1; setting it moves the caret there. |
+| `CaretColumn` | int |  | The caret's column (a character of the line), from 1. |
+| `CursorCount` (read-only) | int |  | How many carets there are. |
+| `CanUndo` (read-only) | bool |  | Undo has something to undo. |
+| `CanRedo` (read-only) | bool |  | Redo has something to do again. |
+| `CompletionTrigger` | string |  | Characters that open completion by themselves ("."). |
+| `LanguageService` | bool |  | RapidR's language service answers completion, hovers, signatures and problems (where the runtime carries it: rapidr run, RapidR Studio); off, the program answers the request events. |
+| `KeywordCase` | string |  | The language's words' case as you type: "upper" (DIM x AS INTEGER), "lower", "proper" or "preserve". |
+| `FileName` | string |  | The file it was loaded from or saved to (the language service knows it by this name). |
+| `LineEnding` | string |  | The file's line breaks SaveToFile writes: "CRLF", "LF" or "CR" (LoadFromFile keeps the file's). |
+| `Encoding` (read-only) | string |  | How the file was stored: "UTF-8", "UTF-8 BOM" or "Latin-1" (SaveToFile writes it back the same). |
+| `DiagnosticCount` (read-only) | int |  | How many problems it shows. |
+| `FoldCount` (read-only) | int |  | How many places are folded. |
+| `Outline` (read-only) | string |  | The SUBs' and FUNCTIONs' names, one per line. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
 | `ShowHint` | int |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
@@ -1403,8 +1436,8 @@ A code editor for BASIC: line numbers, syntax colours, and a list of the program
 | `CopyToClipboard` | Copies the selected text to the clipboard. |
 | `CutToClipboard` | Moves the selected text to the clipboard. |
 | `PasteFromClipboard` | Inserts the clipboard's text at the caret, replacing the selection. |
-| `LoadFromFile` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
-| `SaveToFile` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
+| `LoadFromFile` | Loads a file: its line breaks and encoding are remembered, its language taken from its name unless Language was set. |
+| `SaveToFile` | Saves the text (to its FileName when none is given) with the file's own line breaks and encoding; clears Modified. |
 | `AddStrings` | Appends the strings given, each as a new line. |
 | `GotoSub` | Moves the caret to the SUB or FUNCTION of the name given. |
 | `GotoLine` | Moves the caret to the line given and scrolls it into view. |
@@ -1417,6 +1450,49 @@ A code editor for BASIC: line numbers, syntax colours, and a list of the program
 | `Add` | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
 | `AddItems` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
 | `ClearSelection` | Deletes the selected text. |
+| `Undo` | Undoes the last edit (typing is undone a word at a time). |
+| `Redo` | Does again what Undo undid. |
+| `Find(Text AS STRING, Options AS STRING) AS INTEGER` | Selects the next place of Text after the selection; Options: "case", "word", "regex" (comma-separated). True when found. |
+| `FindNext AS INTEGER` | Find's next place. |
+| `FindPrevious AS INTEGER` | Find's previous place. |
+| `Replace(Find AS STRING, With AS STRING, Options AS STRING) AS INTEGER` | Replaces the selected place of Find (selecting the next); 1 when it replaced one. A regex's With can say $1. |
+| `ReplaceAll(Find AS STRING, With AS STRING, Options AS STRING) AS INTEGER` | Replaces every place (Options "selection": in the selection), one undo step; how many. |
+| `AddCursor(Line AS INTEGER, Column AS INTEGER)` | Another caret at a line and column (from 1). |
+| `SelectNextOccurrence AS INTEGER` | Adds the next place of the selected word to the selections (Ctrl+D). |
+| `ClearCursors` | Back to the one main caret. |
+| `Fold(Line AS INTEGER) AS INTEGER` | Folds the block at a line (from 1). |
+| `Unfold(Line AS INTEGER) AS INTEGER` | Unfolds the block at a line (from 1). |
+| `FoldAll` | Folds every block (Ctrl+K Ctrl+0). |
+| `UnfoldAll` | Unfolds every block (Ctrl+K Ctrl+J). |
+| `InsertText(Text AS STRING)` | Types Text at every caret (one undo step). |
+| `ReplaceRange(StartLine AS INTEGER, StartColumn AS INTEGER, EndLine AS INTEGER, EndColumn AS INTEGER, Text AS STRING)` | Replaces the text between two places (lines and columns from 1). |
+| `ApplyEdits(Json AS STRING) AS INTEGER` | Several edits as one undo step: a JSON list of {"line", "column", "endLine", "endColumn", "text"} (or "start" / "end" character offsets). False, and nothing done, when two overlap. |
+| `SetDiagnostics(Json AS STRING)` | The program's problems, shown as squiggles and in the gutter: a JSON list of {"line", "column", "endLine", "endColumn", "severity" (error, warning, info, hint), "message"}. |
+| `ClearDiagnostics` | Removes the problems shown. |
+| `AddMarker(Line AS INTEGER, Kind AS STRING)` | A gutter marker on a line (from 1) that follows it through edits: "breakpoint", "current" (the debugger's line), "bookmark", "error", "warning" or a kind of the program's. |
+| `RemoveMarker(Line AS INTEGER, [Kind AS STRING]) AS INTEGER` | Removes the marker of Kind (every kind when empty) from a line; True when there was one. |
+| `ClearMarkers([Kind AS STRING])` | Removes every marker of Kind (all when empty). |
+| `GetMarkers([Kind AS STRING]) AS STRING` | The lines (from 1) with a marker of Kind (any when empty), comma-separated. |
+| `HasMarker(Line AS INTEGER, [Kind AS STRING]) AS INTEGER` | Whether a line (from 1) has a marker of Kind (any when empty). |
+| `ShowCompletion(Items)` | Shows a completion list at the caret: lines of tab-separated label, kind, detail and text to insert (a string or a QSTRINGLIST), or JSON. The answer to OnCompletionRequest. |
+| `ShowHover(Text AS STRING)` | Shows a hover where OnHoverRequest asked (a fenced ``` block shows as code). |
+| `ShowSignature(Text AS STRING, ActiveParam AS INTEGER)` | Shows signature help over the caret, the parameter ActiveParam (from 0) marked. |
+| `HidePopups` | Closes the completion list, the hover and signature help. |
+| `TriggerCompletion` | Opens completion at the caret, as Ctrl+Space does. |
+| `TriggerSignature` | Opens signature help at the caret, as Ctrl+Shift+Space does. |
+| `TriggerHover([Line AS INTEGER], Column AS INTEGER])` | Shows the hover at a place (the caret's when none is given). |
+| `FormatDocument` | Re-indents the text and cases its words (the language service's; Shift+Alt+F). |
+| `GotoDefinition` | Jumps to the declaration of what's at the caret (F12); in another file, OnNavigate. |
+| `FindReferences` | Selects every use of what's at the caret here and tells OnReferences (Shift+F12). |
+| `Rename(NewName AS STRING)` | Renames what's at the caret everywhere it's used (F2); other files' edits come through OnFileEdits. |
+| `OpenFind([Mode AS STRING])` | Opens the find box: "find", "replace", "goto" (a line) or "rename". |
+| `GotoLineColumn(Line AS INTEGER, Column AS INTEGER)` | The caret at a line and column (from 1), scrolled into view. |
+| `ToggleComment` | Comments the caret's lines out, or back in (Ctrl+/). |
+| `Indent` | Indents the lines with a caret one level (Ctrl+]). |
+| `Outdent` | Takes the lines with a caret one level out (Ctrl+[). |
+| `CopyText AS STRING` | What Copy would put on the clipboard (the selections, or the caret's line). |
+| `BeginUpdate` | Many changes to come: the view waits for EndUpdate. |
+| `EndUpdate` | The changes are done: the view shows them. |
 | `Click` *(desktop)* | Runs the control's OnClick handler, as a click would. |
 | `SetParent(Parent)` *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
@@ -1428,6 +1504,16 @@ A code editor for BASIC: line numbers, syntax colours, and a list of the program
 | `OnKeyDown` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyUp` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyPress` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
+| `OnCaretMove(Line AS INTEGER, Column AS INTEGER)` | The user moved the caret (line and column from 1). |
+| `OnSelectionChange` | The user changed the selections. |
+| `OnGutterClick(Line AS INTEGER, Area AS STRING)` | A click in the gutter: Area is "marker" (where breakpoints go), "number" or "fold". |
+| `OnCompletionRequest(Line AS INTEGER, Column AS INTEGER, Prefix AS STRING)` | Completion is wanted and no language service answers: answer with ShowCompletion. |
+| `OnHoverRequest(Line AS INTEGER, Column AS INTEGER)` | The mouse rests on the text and no language service answers: answer with ShowHover. |
+| `OnSignatureRequest(Line AS INTEGER, Column AS INTEGER)` | Signature help is wanted (after ( or ,) and no language service answers: answer with ShowSignature. |
+| `OnSave` | Ctrl+S (Cmd+S) in the editor. |
+| `OnNavigate(File AS STRING, Line AS INTEGER, Column AS INTEGER)` | Go to definition found it in another file: open it there. |
+| `OnReferences(Json AS STRING)` | Find references' places: a JSON list of {"file", "line", "column"}. |
+| `OnFileEdits(File AS STRING, Json AS STRING)` | A rename's edits to another file (ApplyEdits' JSON with "start" / "end" byte offsets). |
 
 <a id="rcoolbtn"></a>
 ## RCOOLBTN (QCOOLBTN)

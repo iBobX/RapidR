@@ -1162,7 +1162,7 @@ impl CodeEditor {
             "unfold" => return Some(flag(self.unfold(num(0, 1).max(1) as usize - 1))),
             "foldall" => self.fold_all(),
             "unfoldall" => self.unfold_all(),
-            "inserttext" | "insert" => {
+            "inserttext" => {
                 let t = self.program_text(&arg(0));
                 self.program_edit(|d| {
                     let _ = d.paste(&t, 0);
@@ -1226,7 +1226,7 @@ impl CodeEditor {
                 self.unhide_carets();
                 self.reveal += 1;
             }
-            "toggleComment" | "togglecomment" => {
+            "togglecomment" => {
                 self.program_edit(|d| {
                     let _ = d.toggle_line_comment(0);
                 });

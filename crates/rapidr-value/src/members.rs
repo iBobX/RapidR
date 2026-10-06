@@ -78,7 +78,7 @@ const DESIGN: &[&str] = &[
 
 const GRID: &[&str] = &["cell", "cells", "setcell", "setsuggestions"];
 
-const CODE_EDITOR: &[&str] = &["getsublist", "gotosub", "gotoline"];
+const CODE_EDITOR: &[&str] = &["getsublist", "gotosub", "gotoline", "copytext", "findnext", "findprevious", "selectnextoccurrence", "getmarkers"];
 
 const TABS: &[&str] = &["addtabs", "tab"];
 
