@@ -202,6 +202,11 @@ pub struct CodeEditor {
     pub file_ending: LineEnding,
     /// BeginUpdate's depth: the view doesn't draw while above 0.
     pub update_depth: u32,
+    /// The lines edits replaced since the view last looked (first, before,
+    /// after), for its per-line caches; `generation` goes up instead when
+    /// the whole document is replaced (or too much happened unseen).
+    pub line_edits: Vec<(usize, usize, usize)>,
+    pub generation: u64,
     /// The fold ranges, as last computed (`fold_version`: the document's
     /// version then; mapped through edits meanwhile).
     folds: Vec<FoldRange>,
@@ -307,6 +312,8 @@ impl CodeEditor {
             encoding: Encoding::Utf8,
             file_ending: LineEnding::Lf,
             update_depth: 0,
+            line_edits: Vec::new(),
+            generation: 0,
             folds: Vec::new(),
             fold_anchors: Vec::new(),
             fold_version: None,
@@ -487,6 +494,8 @@ impl CodeEditor {
         doc.auto_indent = self.opts.auto_indent;
         doc.track_changes(true);
         self.doc = doc;
+        self.generation += 1;
+        self.line_edits.clear();
         self.folded.clear();
         self.folds.clear();
         self.fold_anchors.clear();
@@ -516,6 +525,13 @@ impl CodeEditor {
         let sets = self.doc.take_applied();
         if sets.is_empty() {
             return;
+        }
+        let lines = self.doc.take_line_edits();
+        if self.line_edits.len() + lines.len() > 4096 {
+            self.line_edits.clear();
+            self.generation += 1;
+        } else {
+            self.line_edits.extend(lines);
         }
         for set in &sets {
             for m in &mut self.markers {

@@ -70,6 +70,9 @@ pub struct Document {
     /// (edits, undo and redo), while a view tracks them
     /// ([`Document::track_changes`]).
     applied: Option<Vec<ChangeSet>>,
+    /// The lines each applied change replaced, in order: (first line, lines
+    /// before, lines after) — what a view's per-line caches splice.
+    applied_lines: Vec<(usize, usize, usize)>,
 }
 
 impl Clone for Document {
@@ -90,6 +93,7 @@ impl Clone for Document {
             text_cache: OnceLock::new(),
             last_typed: self.last_typed,
             applied: self.applied.as_ref().map(|_| Vec::new()),
+            applied_lines: Vec::new(),
         }
     }
 }
@@ -120,6 +124,7 @@ impl Document {
             text_cache: OnceLock::new(),
             last_typed: None,
             applied: None,
+            applied_lines: Vec::new(),
         }
     }
 
@@ -134,6 +139,13 @@ impl Document {
     /// coordinates of the text it was applied to).
     pub fn take_applied(&mut self) -> Vec<ChangeSet> {
         self.applied.as_mut().map(std::mem::take).unwrap_or_default()
+    }
+
+    /// The lines the changes since the last call replaced, in the order
+    /// they were applied: (first line, lines before, lines after), each in
+    /// the line numbers of its moment (while tracking).
+    pub fn take_line_edits(&mut self) -> Vec<(usize, usize, usize)> {
+        std::mem::take(&mut self.applied_lines)
     }
 
     /// A document for a file: its language from the path.
@@ -355,18 +367,23 @@ impl Document {
     fn apply_raw(&mut self, changes: &ChangeSet) -> Vec<String> {
         let hl = &mut self.highlighter;
         let mut lines = (0, 0);
+        let mut line_log = self.applied.as_ref().map(|_| Vec::new());
         let removed = changes.apply_with(&mut self.buffer, |buf, range, inserted, phase| match phase {
             Phase::Before => lines = (buf.line_of(range.start), buf.line_of(range.end)),
             Phase::After => {
                 let (first, old_last) = lines;
                 let new_last = buf.line_of(range.start + inserted).max(first);
                 hl.edited(first, old_last - first + 1, new_last - first + 1);
+                if let Some(l) = &mut line_log {
+                    l.push((first, old_last - first + 1, new_last - first + 1));
+                }
             }
         });
         self.version += 1;
         self.text_cache = OnceLock::new();
         if let Some(log) = &mut self.applied {
             log.push(changes.clone());
+            self.applied_lines.extend(line_log.unwrap_or_default());
         }
         removed
     }
