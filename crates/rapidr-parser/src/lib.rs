@@ -6,6 +6,9 @@ use rapidr_ast::*;
 use rapidr_diagnostics::{Diagnostic, Severity, SourceLocation, TextSpan};
 use rapidr_lexer::{lex_file, Token, TokenType};
 
+pub mod tools;
+pub use tools::{parse_file_for_tools, parse_source_for_tools, Location, ToolsParse};
+
 /// Every error found while lexing/parsing. The parser recovers line by line,
 /// so one run reports all syntax errors in the file, not just the first.
 #[derive(Debug, Clone, PartialEq, Eq)]

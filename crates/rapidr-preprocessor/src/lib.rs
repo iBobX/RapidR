@@ -6,6 +6,10 @@ use std::path::{Path, PathBuf};
 
 use rapidr_diagnostics::{Diagnostic, SourceLocation, TextSpan};
 
+mod origin;
+use origin::{MappedText, Output};
+pub use origin::{decode_source, encode_source, FileId, LineKind, Origin, OriginMap, OriginSpan, Segment, SourceEncoding, SourceFile};
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MacroDefinition {
     params: Option<Vec<String>>,
@@ -43,6 +47,14 @@ struct PpState {
     /// RapidR's libraries put before the program (`RAPIDR_LIBRARIES`' file
     /// names, upper case): their RapidQ include files aren't read.
     libraries: Vec<String>,
+    /// Every file read so far (the origin map's files).
+    files: Vec<SourceFile>,
+    /// False when only one text's lines are classified ([`scan_lines`]):
+    /// `$INCLUDE`s aren't read.
+    follow_includes: bool,
+    /// Recovering ([`preprocess_file_recovering`]): errors collected here,
+    /// the line in error left out, and preprocessing goes on.
+    errors: Option<Vec<PreprocessError>>,
 }
 
 impl PpState {
@@ -60,7 +72,26 @@ impl PpState {
             resources: Vec::new(),
             escape_chars: false,
             libraries: Vec::new(),
+            files: Vec::new(),
+            follow_includes: true,
+            errors: None,
         }
+    }
+
+    /// The file's id, registering it the first time it's read (`fresh`).
+    fn file_id(&mut self, path: &Option<PathBuf>, text: &str, encoding: SourceEncoding) -> (FileId, bool) {
+        if path.is_some() {
+            if let Some(id) = self.files.iter().position(|f| &f.path == path) {
+                return (id, false);
+            }
+        }
+        self.files.push(SourceFile {
+            path: path.clone(),
+            text: text.to_string(),
+            encoding,
+            lines: vec![LineKind::Code; text.split('\n').count()],
+        });
+        (self.files.len() - 1, true)
     }
 
     /// Value of a VB `#If` condition: True/False, a number, a `#Const` or
@@ -96,24 +127,34 @@ impl PpState {
 /// Reads a source file. RapidQ programs are usually Windows-1252 (ANSI), not
 /// UTF-8; bytes that aren't valid UTF-8 are decoded as Windows-1252.
 pub fn read_source(path: &Path) -> std::io::Result<String> {
-    let bytes = fs::read(path)?;
-    let bytes = bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(&bytes);
-    Ok(match std::str::from_utf8(bytes) {
-        Ok(text) => text.to_string(),
-        Err(_) => bytes.iter().map(|&b| windows_1252_char(b)).collect(),
-    })
+    Ok(read_source_with_encoding(path)?.0)
 }
 
+/// [`read_source`], also saying how the file was decoded.
+pub fn read_source_with_encoding(path: &Path) -> std::io::Result<(String, SourceEncoding)> {
+    Ok(decode_source(&fs::read(path)?))
+}
+
+const WINDOWS_1252_HIGH: [char; 32] = [
+    '\u{20AC}', '\u{81}', '\u{201A}', '\u{192}', '\u{201E}', '\u{2026}', '\u{2020}', '\u{2021}',
+    '\u{2C6}', '\u{2030}', '\u{160}', '\u{2039}', '\u{152}', '\u{8D}', '\u{17D}', '\u{8F}',
+    '\u{90}', '\u{2018}', '\u{2019}', '\u{201C}', '\u{201D}', '\u{2022}', '\u{2013}', '\u{2014}',
+    '\u{2DC}', '\u{2122}', '\u{161}', '\u{203A}', '\u{153}', '\u{9D}', '\u{17E}', '\u{178}',
+];
+
 fn windows_1252_char(byte: u8) -> char {
-    const HIGH: [char; 32] = [
-        '\u{20AC}', '\u{81}', '\u{201A}', '\u{192}', '\u{201E}', '\u{2026}', '\u{2020}', '\u{2021}',
-        '\u{2C6}', '\u{2030}', '\u{160}', '\u{2039}', '\u{152}', '\u{8D}', '\u{17D}', '\u{8F}',
-        '\u{90}', '\u{2018}', '\u{2019}', '\u{201C}', '\u{201D}', '\u{2022}', '\u{2013}', '\u{2014}',
-        '\u{2DC}', '\u{2122}', '\u{161}', '\u{203A}', '\u{153}', '\u{9D}', '\u{17E}', '\u{178}',
-    ];
     match byte {
-        0x80..=0x9F => HIGH[(byte - 0x80) as usize],
+        0x80..=0x9F => WINDOWS_1252_HIGH[(byte - 0x80) as usize],
         _ => byte as char,
+    }
+}
+
+/// The Windows-1252 byte of a character (`?` when it has none).
+fn windows_1252_byte(c: char) -> u8 {
+    match WINDOWS_1252_HIGH.iter().position(|&h| h == c) {
+        Some(i) => 0x80 + i as u8,
+        None if (c as u32) < 0x80 || (0xA0..=0xFF).contains(&(c as u32)) => c as u32 as u8,
+        None => b'?',
     }
 }
 
@@ -129,6 +170,9 @@ pub struct PreprocessResult {
     /// and where it was found (`None`: not found). Resource `i` has the
     /// handle `RESOURCE_BASE + i`, which the directive defines as `NAME`.
     pub resources: Vec<Resource>,
+    /// Where each byte of `source` came from (file and byte offset), and
+    /// the text of every file read.
+    pub origins: OriginMap,
 }
 
 /// One `$RESOURCE` of a program.
@@ -186,7 +230,7 @@ pub fn preprocess_file(
     if let Some(paths) = std::env::var_os("RAPIDR_INCLUDE_PATH") {
         options.include_dirs.extend(std::env::split_paths(&paths));
     }
-    let source = read_source(path).map_err(|error| {
+    let (source, encoding) = read_source_with_encoding(path).map_err(|error| {
         PreprocessError::new(
             format!("Failed to read source file '{}': {error}", path.display()),
             1,
@@ -197,8 +241,8 @@ pub fn preprocess_file(
 
     let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
     let mut state = PpState::new(options);
-    let (source, line_map) = preprocess_program(&source, base_dir, Some(path.to_path_buf()), &mut state)?;
-    Ok(PreprocessResult { source, line_map, app_type: state.app_type, resources: state.resources })
+    let out = preprocess_program(&source, encoding, base_dir, Some(path.to_path_buf()), &mut state)?;
+    Ok(finish(out, state))
 }
 
 pub fn preprocess_source(
@@ -208,8 +252,73 @@ pub fn preprocess_source(
     options: PreprocessOptions,
 ) -> Result<PreprocessResult, PreprocessError> {
     let mut state = PpState::new(options);
-    let (source, line_map) = preprocess_program(source, base_dir.as_ref(), file_path, &mut state)?;
-    Ok(PreprocessResult { source, line_map, app_type: state.app_type, resources: state.resources })
+    let out = preprocess_program(source, SourceEncoding::Utf8, base_dir.as_ref(), file_path, &mut state)?;
+    Ok(finish(out, state))
+}
+
+/// [`preprocess_file`] for tools (editors): an `$INCLUDE` that isn't found
+/// or can't be read, or a malformed `$INCLUDE` / `$RESOURCE`, is reported
+/// and its line left out, and preprocessing goes on (the error's span is
+/// that line's bytes in its file). Fails only when `path` can't be read.
+pub fn preprocess_file_recovering(path: impl AsRef<Path>, options: PreprocessOptions) -> Result<(PreprocessResult, Vec<PreprocessError>), PreprocessError> {
+    let path = path.as_ref();
+    let mut options = options;
+    if let Some(paths) = std::env::var_os("RAPIDR_INCLUDE_PATH") {
+        options.include_dirs.extend(std::env::split_paths(&paths));
+    }
+    let (source, encoding) = read_source_with_encoding(path).map_err(|error| {
+        PreprocessError::new(format!("Failed to read source file '{}': {error}", path.display()), 1, 1, Some(path.display().to_string()))
+    })?;
+    let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
+    let mut state = PpState::new(options);
+    state.errors = Some(Vec::new());
+    let out = preprocess_program(&source, encoding, base_dir, Some(path.to_path_buf()), &mut state)?;
+    let errors = state.errors.take().unwrap_or_default();
+    Ok((finish(out, state), errors))
+}
+
+/// [`preprocess_source`] for tools: errors reported, never fatal (see
+/// [`preprocess_file_recovering`]).
+pub fn preprocess_source_recovering(
+    source: &str,
+    base_dir: impl AsRef<Path>,
+    file_path: Option<PathBuf>,
+    options: PreprocessOptions,
+) -> (PreprocessResult, Vec<PreprocessError>) {
+    let mut state = PpState::new(options);
+    state.errors = Some(Vec::new());
+    match preprocess_program(source, SourceEncoding::Utf8, base_dir.as_ref(), file_path, &mut state) {
+        Ok(out) => {
+            let errors = state.errors.take().unwrap_or_default();
+            (finish(out, state), errors)
+        }
+        // (recovering never fails; kept total anyway)
+        Err(error) => (finish(Output::default(), state), vec![error]),
+    }
+}
+
+fn finish(out: Output, state: PpState) -> PreprocessResult {
+    PreprocessResult {
+        source: out.text,
+        line_map: out.line_map,
+        app_type: state.app_type,
+        resources: state.resources,
+        origins: OriginMap { files: state.files, segments: out.segs },
+    }
+}
+
+/// What each line of `source` is to the preprocessor ([`LineKind`]), for
+/// one file on its own: its `$INCLUDE`s aren't read (so a symbol only an
+/// include file defines counts as undefined in its `$IFDEF`s). Never fails.
+pub fn scan_lines(source: &str, options: PreprocessOptions) -> Vec<LineKind> {
+    let mut state = PpState::new(options);
+    state.follow_includes = false;
+    state.errors = Some(Vec::new());
+    let file = PathBuf::from("<scanned>");
+    match preprocess_program(source, SourceEncoding::Utf8, Path::new("."), Some(file.clone()), &mut state) {
+        Ok(_) => state.files.into_iter().find(|f| f.path.as_ref() == Some(&file)).map(|f| f.lines).unwrap_or_default(),
+        Err(_) => vec![LineKind::Code; source.split('\n').count()],
+    }
 }
 
 /// RapidR's own versions of the components RapidQ's include libraries
@@ -242,44 +351,59 @@ fn names_word(source: &str, word: &str) -> bool {
 }
 
 /// The program, after RapidR's libraries for the components it names.
-fn preprocess_program(source: &str, base_dir: &Path, file_path: Option<PathBuf>, state: &mut PpState) -> Result<(String, Vec<LineOrigin>), PreprocessError> {
-    let mut lines = Vec::new();
-    let mut origins = Vec::new();
+fn preprocess_program(source: &str, encoding: SourceEncoding, base_dir: &Path, file_path: Option<PathBuf>, state: &mut PpState) -> Result<Output, PreprocessError> {
+    let mut out = Output::default();
     for (name, file, text) in RAPIDR_LIBRARIES {
         if names_word(source, name) {
-            let (lib, lib_origins) = preprocess_with_state(text, base_dir, Some(PathBuf::from(format!("<RapidR>/{file}"))), state)?;
-            lines.push(lib);
-            origins.extend(lib_origins);
+            let (lib, lib_id) = preprocess_with_state(text, SourceEncoding::Utf8, base_dir, Some(PathBuf::from(format!("<RapidR>/{file}"))), state)?;
+            out.push_output(lib, (lib_id, text.len(), false));
             state.libraries.push(file.to_ascii_uppercase());
         }
     }
-    let (main, main_origins) = preprocess_with_state(source, base_dir, file_path, state)?;
-    lines.push(main);
-    origins.extend(main_origins);
-    Ok((lines.join("\n"), origins))
+    let (main, main_id) = preprocess_with_state(source, encoding, base_dir, file_path, state)?;
+    out.push_output(main, (main_id, source.len(), false));
+    Ok(out)
 }
 
 fn preprocess_with_state(
     source: &str,
+    encoding: SourceEncoding,
     base_dir: &Path,
     file_path: Option<PathBuf>,
     state: &mut PpState,
-) -> Result<(String, Vec<LineOrigin>), PreprocessError> {
-    let mut output_lines = Vec::new();
-    let mut origins = Vec::new();
+) -> Result<(Output, FileId), PreprocessError> {
+    let (file_id, fresh) = state.file_id(&file_path, source, encoding);
+    let mut kinds = vec![LineKind::Code; if fresh { source.split('\n').count() } else { 0 }];
+    let mut out = Output::default();
     let mut skip_stack: Vec<bool> = Vec::new();
     // One entry per open `#If`: whether one of its branches was taken.
     let mut vb_taken: Vec<bool> = Vec::new();
     let file_label = file_path.as_ref().map(|path| path.display().to_string());
+    let mut line_start = 0;
 
     for (line_index, original_line) in source.split('\n').enumerate() {
         let line_number = line_index + 1;
         let line = original_line.trim();
         let upper_line = line.to_ascii_uppercase();
+        // (where this line is in the file, and the `\n` after it)
+        let range = line_start..line_start + original_line.len();
+        let newline = (file_id, range.end, range.end < source.len());
+        line_start = range.end + 1;
+        // (one output line for this source line, and what the line was)
+        macro_rules! emit {
+            ($out:expr, $kind:expr, $text:expr) => {{
+                if let Some(k) = kinds.get_mut(line_index) {
+                    *k = $kind;
+                }
+                $out.push_line($text, (file_path.clone(), line_number), newline);
+            }};
+        }
+        let blank = MappedText::default;
+        let generated = |text: String| MappedText::generated(text, file_id, range.clone());
 
         // `#!/usr/bin/env rapidr`: a script's first line, for the shell.
         if line_index == 0 && original_line.starts_with("#!") {
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Shebang, blank());
             continue;
         }
 
@@ -294,7 +418,7 @@ fn preprocess_with_state(
             } else {
                 skip_stack.push(should_skip);
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
 
@@ -305,7 +429,7 @@ fn preprocess_with_state(
             let parent_skip = skip_stack.last().copied().unwrap_or(false);
             skip_stack.push(parent_skip || !state.vb_condition(condition));
             vb_taken.push(!skip_stack.last().copied().unwrap_or(true));
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
         if let Some(rest) = upper_line.strip_prefix("#ELSEIF ") {
@@ -317,7 +441,7 @@ fn preprocess_with_state(
                 skip_stack[last] = !now;
                 *vb_taken.last_mut().unwrap() = taken || now;
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
         if upper_line == "#ELSE" || upper_line.starts_with("#ELSE ") || upper_line.starts_with("#ELSE'") {
@@ -326,14 +450,14 @@ fn preprocess_with_state(
                 let last = skip_stack.len() - 1;
                 skip_stack[last] = parent_skip || taken;
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
         if upper_line.starts_with("#END IF") || upper_line.starts_with("#ENDIF") {
             if vb_taken.pop().is_some() {
                 skip_stack.pop();
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
         if let Some(rest) = upper_line.strip_prefix("#CONST ") {
@@ -343,7 +467,7 @@ fn preprocess_with_state(
                     state.defines.insert(name.trim().to_string(), strip_inline_comment(value).trim().to_string());
                 }
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
 
@@ -358,7 +482,7 @@ fn preprocess_with_state(
             } else {
                 skip_stack.push(should_skip);
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
 
@@ -374,7 +498,7 @@ fn preprocess_with_state(
                     skip_stack[last] = !skip_stack[last];
                 }
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
 
@@ -382,12 +506,12 @@ fn preprocess_with_state(
             if !skip_stack.is_empty() {
                 skip_stack.pop();
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
 
         if skip_stack.last().copied().unwrap_or(false) {
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Inactive, blank());
             continue;
         }
 
@@ -402,7 +526,7 @@ fn preprocess_with_state(
                 };
                 state.defines.insert(symbol, value);
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
 
@@ -411,7 +535,7 @@ fn preprocess_with_state(
             if parts.len() >= 2 {
                 state.defines.retain(|key, _| !key.eq_ignore_ascii_case(parts[1]));
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
 
@@ -419,7 +543,7 @@ fn preprocess_with_state(
             if let Some((name, definition)) = parse_macro_definition(line) {
                 state.macros.insert(name, definition);
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+            emit!(out, LineKind::Directive, blank());
             continue;
         }
 
@@ -440,7 +564,7 @@ fn preprocess_with_state(
                     }
                 }
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, original_line.to_string());
+            emit!(out, LineKind::Code, MappedText::exact(original_line, file_id, range.start));
             continue;
         }
 
@@ -459,7 +583,7 @@ fn preprocess_with_state(
                 }
                 None => String::new(),
             };
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, text);
+            emit!(out, LineKind::Directive, generated(text));
             continue;
         }
 
@@ -468,27 +592,55 @@ fn preprocess_with_state(
         if upper_line.starts_with("$RESOURCE") {
             let mut consts = Vec::new();
             for part in split_statements(line) {
-                let (name, file) = parse_resource(part.trim()).ok_or_else(|| {
-                    PreprocessError::new(format!("Invalid $RESOURCE syntax: {}", part.trim()), line_number, 1, file_label.clone())
-                })?;
+                let Some((name, file)) = parse_resource(part.trim()) else {
+                    let mut error = PreprocessError::new(format!("Invalid $RESOURCE syntax: {}", part.trim()), line_number, 1, file_label.clone());
+                    match &mut state.errors {
+                        // (recovering: reported, the part left out)
+                        Some(errors) => {
+                            error.diagnostic.span = TextSpan::new(range.start, range.end);
+                            errors.push(error);
+                            continue;
+                        }
+                        None => return Err(error),
+                    }
+                };
                 let handle = RESOURCE_BASE + state.resources.len() as i64;
                 let path = resolve_include_path(base_dir, &file, &[]);
                 state.resources.push(Resource { name: name.clone(), file, path, optional: false });
                 consts.push(format!("CONST {name} = {handle}"));
             }
-            emit_line(&mut output_lines, &mut origins, &file_path, line_number, consts.join(" : "));
+            emit!(out, LineKind::Directive, generated(consts.join(" : ")));
             continue;
         }
 
         if upper_line.starts_with("$INCLUDE") {
-            let include_file = parse_include_target(line).ok_or_else(|| {
-                PreprocessError::new(
-                    format!("Invalid $INCLUDE syntax: {line}"),
-                    line_number,
-                    1,
-                    file_label.clone(),
-                )
-            })?;
+            // (classifying one file's lines: its includes aren't read)
+            if !state.follow_includes {
+                emit!(out, LineKind::Directive, blank());
+                continue;
+            }
+            // (an error: the build stops — or, recovering, it's reported and
+            // the line left out)
+            macro_rules! fail {
+                ($message:expr) => {{
+                    let mut error = PreprocessError::new($message, line_number, 1, file_label.clone());
+                    match &mut state.errors {
+                        Some(errors) => {
+                            error.diagnostic.span = TextSpan::new(range.start, range.end);
+                            errors.push(error);
+                            emit!(out, LineKind::Directive, blank());
+                            continue;
+                        }
+                        None => return Err(error),
+                    }
+                }};
+            }
+            let Some(include_file) = parse_include_target(line) else {
+                fail!(format!("Invalid $INCLUDE syntax: {line}"));
+            };
+            if let Some(k) = kinds.get_mut(line_index) {
+                *k = LineKind::Directive;
+            }
 
             // A RapidQ library RapidR has its own version of: that one, put
             // before the program already (or now).
@@ -496,11 +648,10 @@ fn preprocess_with_state(
             if let Some((_, file, text)) = RAPIDR_LIBRARIES.iter().find(|(_, f, _)| f.to_ascii_uppercase() == short) {
                 if !state.libraries.contains(&short) {
                     state.libraries.push(short);
-                    let (lib, lib_origins) = preprocess_with_state(text, base_dir, Some(PathBuf::from(format!("<RapidR>/{file}"))), state)?;
-                    output_lines.push(lib);
-                    origins.extend(lib_origins);
+                    let (lib, _) = preprocess_with_state(text, SourceEncoding::Utf8, base_dir, Some(PathBuf::from(format!("<RapidR>/{file}"))), state)?;
+                    out.push_output(lib, newline);
                 } else {
-                    emit_line(&mut output_lines, &mut origins, &file_path, line_number, String::new());
+                    emit!(out, LineKind::Directive, blank());
                 }
                 continue;
             }
@@ -510,78 +661,67 @@ fn preprocess_with_state(
                     // RapidQ programs start with `$INCLUDE "RAPIDQ.INC"`; supply
                     // its constants when the file isn't next to the program.
                     if let Some(builtin) = builtin_include(&include_file) {
-                        emit_line(&mut output_lines, &mut origins, &file_path, line_number, builtin);
+                        emit!(out, LineKind::Directive, generated(builtin));
                         continue;
                     }
-                    return Err(PreprocessError::new(
-                        format!("Include file not found: '{include_file}'"),
-                        line_number,
-                        1,
-                        file_label.clone(),
-                    ));
+                    fail!(format!("Include file not found: '{include_file}'"));
                 }
             };
 
             if state.include_stack.iter().any(|entry| entry == &include_path) {
-                return Err(PreprocessError::new(
-                    format!("Recursive include detected: '{include_file}'"),
-                    line_number,
-                    1,
-                    file_label.clone(),
-                ));
+                fail!(format!("Recursive include detected: '{include_file}'"));
             }
 
-            let include_source = read_source(&include_path).map_err(|error| {
-                PreprocessError::new(
-                    format!("Failed to include '{include_file}': {error}"),
-                    line_number,
-                    1,
-                    file_label.clone(),
-                )
-            })?;
+            let (include_source, include_encoding) = match read_source_with_encoding(&include_path) {
+                Ok(read) => read,
+                Err(error) => fail!(format!("Failed to include '{include_file}': {error}")),
+            };
 
             // The include file has its own $ESCAPECHARS: off to begin with.
             let escape_before = state.escape_chars;
             if escape_before {
-                emit_line(&mut output_lines, &mut origins, &file_path, line_number, "$ESCAPECHARS OFF".to_string());
+                emit!(out, LineKind::Directive, generated("$ESCAPECHARS OFF".to_string()));
                 state.escape_chars = false;
             }
             state.include_stack.push(include_path.clone());
             let nested = preprocess_with_state(
                 &include_source,
+                include_encoding,
                 include_path.parent().unwrap_or_else(|| Path::new(".")),
                 Some(include_path.clone()),
                 state,
             );
             state.include_stack.pop();
-            let (nested_source, nested_origins) = nested?;
-            output_lines.push(nested_source);
-            origins.extend(nested_origins);
+            let (nested, _) = nested?;
+            out.push_output(nested, newline);
             // …and the includer's comes back.
             if state.escape_chars != escape_before {
                 let text = if escape_before { "$ESCAPECHARS ON" } else { "$ESCAPECHARS OFF" };
-                emit_line(&mut output_lines, &mut origins, &file_path, line_number, text.to_string());
+                emit!(out, LineKind::Directive, generated(text.to_string()));
                 state.escape_chars = escape_before;
             }
             continue;
         }
 
-        let mut processed_line = original_line.to_string();
+        let mut processed_line = MappedText::exact(original_line, file_id, range.start);
 
         if !state.macros.is_empty() {
             for (name, definition) in &state.macros {
-                processed_line = expand_macro(&processed_line, name, definition);
+                expand_macro(&mut processed_line, name, definition);
             }
         }
 
         if !state.defines.is_empty() && !upper_line.contains('$') {
-            processed_line = substitute_defines_outside_strings(&processed_line, &state.defines);
+            substitute_defines_outside_strings(&mut processed_line, &state.defines);
         }
 
-        emit_line(&mut output_lines, &mut origins, &file_path, line_number, processed_line);
+        emit!(out, LineKind::Code, processed_line);
     }
 
-    Ok((output_lines.join("\n"), origins))
+    if fresh {
+        state.files[file_id].lines = kinds;
+    }
+    Ok((out, file_id))
 }
 
 impl PreprocessResult {
@@ -608,17 +748,6 @@ impl PreprocessResult {
 
 /// Where one line of preprocessed source came from.
 pub type LineOrigin = (Option<PathBuf>, usize);
-
-fn emit_line(
-    lines: &mut Vec<String>,
-    origins: &mut Vec<LineOrigin>,
-    file: &Option<PathBuf>,
-    line: usize,
-    text: String,
-) {
-    lines.push(text);
-    origins.push((file.clone(), line));
-}
 
 /// Constants from RapidQ's RAPIDQ.INC (Delphi/Win32 values; colors are BGR
 /// like RapidQ's, which RapidR's runtimes also use). System colours are
@@ -918,41 +1047,46 @@ fn find_case_insensitive(root: &Path, relative: &str) -> Option<PathBuf> {
     current.is_file().then_some(current)
 }
 
-fn expand_macro(line: &str, name: &str, definition: &MacroDefinition) -> String {
-    if !line.contains(name) {
-        return line.to_string();
+/// At most this many expansions of one macro on one line: a macro whose
+/// body calls itself (`$MACRO F(x) = F(x)`) would otherwise never end.
+const MAX_MACRO_EXPANSIONS: usize = 10_000;
+
+fn expand_macro(line: &mut MappedText, name: &str, definition: &MacroDefinition) {
+    // (a `$MACRO` without a name matches nothing)
+    if name.is_empty() || !line.text.contains(name) {
+        return;
     }
 
     match &definition.params {
         Some(params) => expand_parameterized_macro(line, name, params, &definition.body),
-        None => replace_identifier_occurrences(line, name, &definition.body),
+        None => {
+            for at in identifier_occurrences(&line.text, name).into_iter().rev() {
+                line.replace(at, &definition.body);
+            }
+        }
     }
 }
 
-fn expand_parameterized_macro(line: &str, name: &str, params: &[String], body: &str) -> String {
-    let mut result = line.to_string();
-
-    loop {
-        let Some(call_start) = find_identifier_call(&result, name) else {
+fn expand_parameterized_macro(result: &mut MappedText, name: &str, params: &[String], body: &str) {
+    for _ in 0..MAX_MACRO_EXPANSIONS {
+        let Some(call_start) = find_identifier_call(&result.text, name) else {
             break;
         };
 
         let open_index = call_start + name.len();
-        let Some(close_index) = find_matching_paren(&result, open_index) else {
+        let Some(close_index) = find_matching_paren(&result.text, open_index) else {
             break;
         };
 
-        let args_text = &result[open_index + 1..close_index];
+        let args_text = &result.text[open_index + 1..close_index];
         let args = split_macro_args(args_text);
         let mut expanded = body.to_string();
         for (param, arg) in params.iter().zip(args.iter()) {
             expanded = expanded.replace(param, arg);
         }
 
-        result.replace_range(call_start..=close_index, &expanded);
+        result.replace(call_start..close_index + 1, &expanded);
     }
-
-    result
 }
 
 fn find_identifier_call(line: &str, name: &str) -> Option<usize> {
@@ -1021,44 +1155,53 @@ fn split_macro_args(args: &str) -> Vec<String> {
     parts
 }
 
-fn substitute_defines_outside_strings(line: &str, defines: &HashMap<String, String>) -> String {
-    let mut parts = line.split('"').map(ToOwned::to_owned).collect::<Vec<_>>();
+/// `$DEFINE`d symbols → their values, outside string literals (each part
+/// between `"`s of the line as written, longest symbols first).
+fn substitute_defines_outside_strings(line: &mut MappedText, defines: &HashMap<String, String>) {
     let mut sorted = defines.iter().collect::<Vec<_>>();
     sorted.sort_by(|left, right| right.0.len().cmp(&left.0.len()));
 
-    for index in (0..parts.len()).step_by(2) {
-        let mut segment = parts[index].clone();
-        for (symbol, value) in &sorted {
-            segment = replace_identifier_occurrences(&segment, symbol, value);
+    // The parts outside quotes, as (start, end) of the line as written;
+    // done last to first so the earlier ones keep their offsets.
+    let mut parts = Vec::new();
+    let mut start = 0;
+    for (i, part) in line.text.split('"').enumerate() {
+        if i % 2 == 0 {
+            parts.push((start, start + part.len()));
         }
-        parts[index] = segment;
+        start += part.len() + 1;
     }
-
-    parts.join("\"")
+    for (part_start, part_end) in parts.into_iter().rev() {
+        let mut part_end = part_end;
+        for (symbol, value) in &sorted {
+            let found = identifier_occurrences(&line.text[part_start..part_end], symbol);
+            for at in found.iter().rev() {
+                line.replace(part_start + at.start..part_start + at.end, value);
+            }
+            part_end = part_end + found.len() * value.len() - found.len() * symbol.len();
+        }
+    }
 }
 
-fn replace_identifier_occurrences(line: &str, symbol: &str, value: &str) -> String {
-    let mut output = String::with_capacity(line.len());
+/// Where `symbol` stands as a whole identifier in `line` (left to right,
+/// a rejected match's bytes are skipped).
+fn identifier_occurrences(line: &str, symbol: &str) -> Vec<std::ops::Range<usize>> {
+    let mut found = Vec::new();
+    if symbol.is_empty() {
+        return found;
+    }
     let mut cursor = 0usize;
-
     while let Some(relative) = line[cursor..].find(symbol) {
         let start = cursor + relative;
         let end = start + symbol.len();
         let left_ok = start == 0 || !line[..start].chars().next_back().is_some_and(is_identifier_char);
         let right_ok = end >= line.len() || !line[end..].chars().next().is_some_and(is_identifier_char);
-
         if left_ok && right_ok {
-            output.push_str(&line[cursor..start]);
-            output.push_str(value);
-            cursor = end;
-        } else {
-            output.push_str(&line[cursor..end]);
-            cursor = end;
+            found.push(start..end);
         }
+        cursor = end;
     }
-
-    output.push_str(&line[cursor..]);
-    output
+    found
 }
 
 fn is_identifier_char(ch: char) -> bool {
@@ -1269,5 +1412,92 @@ mod tests {
         )
         .unwrap();
         assert!(result.source.contains("PRINT 1"));
+    }
+
+    /// Every byte of the output is mapped, in order, and exact segments are
+    /// the file's own bytes.
+    fn check_origin_map(result: &super::PreprocessResult) {
+        let map = &result.origins;
+        let mut at = 0;
+        for s in &map.segments {
+            assert_eq!(s.pp_start, at, "segments are contiguous: {:?}", s);
+            assert!(s.pp_end > s.pp_start);
+            if s.exact {
+                let file = &map.files[s.file].text;
+                assert_eq!(&result.source[s.pp_start..s.pp_end], &file[s.src_start..s.src_end]);
+            }
+            at = s.pp_end;
+        }
+        assert_eq!(at, result.source.len(), "every byte is mapped");
+    }
+
+    #[test]
+    fn origin_map_points_into_included_files() {
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!("rapidr-origins-{unique}"));
+        fs::create_dir_all(&root).unwrap();
+        let inc = "' lib\r\nSUB Hello\r\n  PRINT \"hi\"\r\nEND SUB\r\n";
+        fs::write(root.join("lib.inc"), inc).unwrap();
+        let main_text = "$DEFINE N 42\n$INCLUDE \"lib.inc\"\nx = N + 1\nHello\n$MACRO SQ(a) = ((a)*(a))\ny = SQ(x) : z = 7\n";
+        let main = root.join("main.bas");
+        fs::write(&main, main_text).unwrap();
+        let result = preprocess_file(&main, PreprocessOptions::default()).unwrap();
+        check_origin_map(&result);
+        let map = &result.origins;
+        let pos = |needle: &str| result.source.find(needle).unwrap();
+        // Code from the include: its file, its byte.
+        let o = map.origin(pos("PRINT \"hi\"")).unwrap();
+        assert_eq!(map.files[o.file].path.as_deref(), Some(root.join("lib.inc").as_path()));
+        assert_eq!(o.offset, inc.find("PRINT").unwrap());
+        assert!(o.exact);
+        // The program's own code after the include.
+        let o = map.origin(pos("Hello\n")).unwrap();
+        assert_eq!((map.files[o.file].path.as_deref(), o.offset), (Some(main.as_path()), main_text.find("Hello\n").unwrap()));
+        // A $DEFINE's value maps to the name it replaced.
+        let at = pos("x = 42");
+        let o = map.origin(at + 4).unwrap();
+        assert_eq!((o.offset, o.exact), (main_text.find("N + 1").unwrap(), false));
+        let span = map.origin_span(at, at + "x = 42 + 1".len()).unwrap();
+        assert_eq!(&main_text[span.start..span.end], "x = N + 1");
+        // A macro call: the expansion maps to the call; text after it is exact.
+        let at = pos("((x)*(x))");
+        let span = map.origin_span(at, at + "((x)*(x))".len()).unwrap();
+        assert_eq!(&main_text[span.start..span.end], "SQ(x)");
+        let o = map.origin(pos("z = 7")).unwrap();
+        assert_eq!((o.offset, o.exact), (main_text.find("z = 7").unwrap(), true));
+        // Back from a file position to the preprocessed text.
+        let file = map.find_file(&root.join("lib.inc")).unwrap();
+        assert_eq!(map.to_preprocessed(file, inc.find("PRINT").unwrap()), Some(pos("PRINT \"hi\"")));
+        // What each line was.
+        let main_id = map.find_file(&main).unwrap();
+        use super::LineKind::*;
+        assert_eq!(map.files[main_id].lines, [Directive, Directive, Code, Code, Directive, Code, Code]);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn line_kinds_of_one_file() {
+        use super::LineKind::*;
+        let kinds = super::scan_lines("#!/usr/bin/env rapidr\n$IFDEF NOPE\nskipped\n$ELSE\nkept\n$ENDIF\n$INCLUDE \"missing.inc\"\n$RESOURCE bad\nPRINT 1", PreprocessOptions::default());
+        assert_eq!(kinds, [Shebang, Directive, Inactive, Directive, Code, Directive, Directive, Directive, Code]);
+    }
+
+    #[test]
+    fn origin_map_of_builtin_includes_and_resources() {
+        let src = "$INCLUDE \"RAPIDQ.INC\"\n$RESOURCE B AS \"b.bmp\"\nPRINT clBlue, B\n";
+        let result = preprocess_source(src, ".", None, PreprocessOptions::default()).unwrap();
+        check_origin_map(&result);
+        let o = result.origins.origin(result.source.find("CONST clBlue").unwrap()).unwrap();
+        assert_eq!((o.offset, o.exact), (0, false));
+        let o = result.origins.origin(result.source.find("PRINT clBlue").unwrap()).unwrap();
+        assert_eq!((o.offset, o.exact), (src.find("PRINT").unwrap(), true));
+    }
+
+    #[test]
+    fn encodings_round_trip() {
+        for bytes in [&b"PRINT \"caf\xC3\xA9\"\r\n"[..], b"\xEF\xBB\xBFPRINT 1", b"PRINT \"caf\xE9\x80\x81\x9D\"", b"\xEF\xBB\xBFx\xFF"] {
+            let (text, encoding) = super::decode_source(bytes);
+            assert_eq!(super::encode_source(&text, encoding), bytes, "{encoding:?}");
+        }
     }
 }
