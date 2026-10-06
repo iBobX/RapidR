@@ -1,9 +1,9 @@
 form320x240
-button75x25 label75x25 edit120x25
-richedit200x100 coolbtn25x25 ovalbtn75x40
-checkbox100x20 radio100x20 panel150x100
-tabcontrol150x100 combobox145x25 listbox120x100
-groupbox150x100 scrollbox150x100 scrollbar100x20
-stringgrid150x100 listview150x100 dirtree150x150
-filelistbox150x150 treeview120x100 trackbar150x45
-canvas100x100 image100x100 progressbar250x25
+button75x25 label65x17 edit121x21
+richedit185x89 coolbtn25x25 ovalbtn100x50
+checkbox97x17 radio113x17 panel185x41
+tabcontrol289x193 combobox145x25 listbox121x97
+groupbox185x105 scrollbox185x41 scrollbar121x17
+stringgrid320x120 listview250x150 dirtree121x97
+filelistbox145x97 treeview121x97 trackbar150x45
+canvas105x105 image105x105 progressbar100x100

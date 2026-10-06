@@ -12,6 +12,7 @@ CREATE Form AS QFORM
   Caption = "size grip": Width = 320: Height = 240
   OnResize = Resized
   CREATE Bar AS QSTATUSBAR
+    SimplePanel = 1
     SimpleText = "ready"
     OnMouseDown = BarDown
   END CREATE

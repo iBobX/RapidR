@@ -228,6 +228,9 @@ pub fn rp_component_array(kind: &str, name: &str, bounds: &[(i64, i64)]) -> Valu
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // (a Color or a Parent changed: the canvases' backdrops follow)
     let backdrops = prop.eq_ignore_ascii_case("color") || prop.eq_ignore_ascii_case("parent");
+    // (an AutoSize QLABEL's Caption, WordWrap, AutoSize, font or Parent: it
+    // takes its text's size — layout.rs, rapidr_value::autosize)
+    let labels = crate::layout::labels_before_set(name, prop);
     // (the program chose a Font.Color — or a whole Font: RapidQ's
     // ParentFont no longer applies, rapidr_value::component_defaults::
     // font_color_read)
@@ -239,6 +242,9 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
         });
     }
     set_property(name, prop, val);
+    if let Some(before) = labels {
+        crate::layout::labels_after_set(name, before);
+    }
     if backdrops {
         refresh_canvas_backdrops();
     }
@@ -941,6 +947,14 @@ pub fn rp_comp_read(name: &str, prop: &str) -> Value {
     }
     if (prop.eq_ignore_ascii_case("font.color") || prop.eq_ignore_ascii_case("fontcolor")) && !rp_comp_type(name).is_empty() && !rapidr_value::objects::TYPES.contains(&rp_comp_type(name).as_str()) {
         return program_font_color(name);
+    }
+    // (Font.Name, Size, Bold …: its own, else its parent's — RapidQ's ParentFont —
+    // else MS Sans Serif 8, as RC.EXE reads them)
+    if let Some(flat) = rapidr_value::objects::font_flat_name(prop) {
+        let t = rp_comp_type(name);
+        if !t.is_empty() && !rapidr_value::objects::TYPES.contains(&t.as_str()) {
+            return rapidr_value::property_read(rapidr_value::objects::inherited_font_prop(name, flat, &|i, p| rp_comp_get(i, p)));
+        }
     }
     rapidr_value::property_read(rp_comp_get(name, prop))
 }

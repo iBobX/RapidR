@@ -48,3 +48,6 @@ crates/rapidr-ui-proto/target
 # (the notices every build writes beside its executable: docs/licensing.md)
 THIRD-PARTY-NOTICES.txt
 __pycache__/
+
+# (tests/fixtures/dir_list_view.bas writes it where it runs)
+dirlv/

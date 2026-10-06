@@ -257,6 +257,8 @@ impl<'a> Painter<'a> {
                 Op::Text { rect, text, angle, font, color } => self.text(*rect, text, font, *color, *angle, Place::Center),
                 Op::Focus { rect } => self.focus(*rect),
                 Op::Arrow { points, color } => self.polygon(points, *color),
+                // (the prototype draws the pattern's ground only)
+                Op::Checker { rect, b, .. } => self.fill(*rect, *b),
             }
         }
     }

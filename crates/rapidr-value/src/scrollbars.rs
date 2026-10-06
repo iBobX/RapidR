@@ -83,12 +83,123 @@ pub struct Scroller {
     pub pressed: Option<(bool, Part)>,
     drag: Option<Drag>,
     pub revision: u64,
+    /// Set: it is one scroll bar on its own (a QSCROLLBAR), drawn by the
+    /// same code as a container's bars.
+    pub alone: Option<Alone>,
 }
 
 impl Default for Scroller {
     fn default() -> Self {
-        Scroller { auto: true, horz: Axis::default(), vert: Axis::default(), pressed: None, drag: None, revision: 0 }
+        Scroller { auto: true, horz: Axis::default(), vert: Axis::default(), pressed: None, drag: None, revision: 0, alone: None }
     }
+}
+
+/// A scroll bar on its own (a QSCROLLBAR, Delphi's TScrollBar): set on a
+/// [`Scroller`] ([`Scroller::alone`]), its one bar fills the area it draws
+/// end to end and side to side, the thumb where the component's Position
+/// puts it — so it looks exactly like a container's bars in every theme.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Alone {
+    pub vertical: bool,
+    /// The thumb's start and length along the bar (`None`: none shows — a
+    /// disabled bar's, or no room for it).
+    pub thumb: Option<(i64, i64)>,
+    /// Drawn disabled: greyed arrows (Windows' disabled scroll bar).
+    pub disabled: bool,
+}
+
+/// The smallest thumb a QSCROLLBAR with a PageSize shows (Windows'
+/// MINTRACKTHUMB).
+const MIN_TRACK_THUMB: i64 = 8;
+
+/// A QSCROLLBAR's numbers (Windows' SCROLLINFO, as TScrollBar sets it):
+/// Min, Max, PageSize and Position.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Values {
+    pub min: i64,
+    pub max: i64,
+    pub page: i64,
+    pub position: i64,
+}
+
+impl Values {
+    /// The furthest Position goes: Max less a page but one (Windows').
+    pub fn last(&self) -> i64 {
+        (self.max - (self.page - 1).max(0)).max(self.min)
+    }
+
+    /// `p` kept between Min and [`Values::last`].
+    pub fn clamp(&self, p: i64) -> i64 {
+        p.clamp(self.min, self.last())
+    }
+
+    /// Its arrow buttons' length along a bar `len` long: a scroll bar's
+    /// thickness, or less each when the bar is shorter than two of them
+    /// (and a pixel between them), as Windows shrinks them.
+    pub fn arrow(len: i64) -> i64 {
+        BAR.min((len - 1).max(0) / 2)
+    }
+
+    /// The thumb's start and length along a bar `len` long (`None`: no
+    /// room), as Windows works it out: as long as a page is of the range
+    /// (at least [`MIN_TRACK_THUMB`]) — a bar's thickness with no
+    /// PageSize — and placed as Position is between Min and the last.
+    pub fn thumb(&self, len: i64) -> Option<(i64, i64)> {
+        let arrow = Self::arrow(len);
+        let track = len - 2 * arrow;
+        let span = (self.max - self.min).max(0) + 1;
+        let size = if self.page > 0 { mul_div(track, self.page, span).max(MIN_TRACK_THUMB) } else { BAR };
+        if track <= 0 || size > track {
+            return None;
+        }
+        let last = self.last();
+        let at = if last > self.min { mul_div(track - size, self.clamp(self.position) - self.min, last - self.min) } else { 0 };
+        Some((arrow + at, size))
+    }
+
+    /// The part of a bar `len` long at `along` pixels from its start.
+    pub fn part_at(&self, along: i64, len: i64) -> Option<Part> {
+        let arrow = Self::arrow(len);
+        if along < 0 || along >= len {
+            return None;
+        }
+        Some(if along < arrow {
+            Part::Back
+        } else if along >= len - arrow {
+            Part::Forward
+        } else {
+            match self.thumb(len) {
+                Some((t, _)) if along < t => Part::PageBack,
+                Some((t, s)) if along >= t + s => Part::PageForward,
+                Some(_) => Part::Thumb,
+                None => return None,
+            }
+        })
+    }
+
+    /// The Position a thumb pressed at Position `start` shows once the
+    /// mouse moved `moved` pixels along a bar `len` long.
+    pub fn dragged(&self, start: i64, moved: i64, len: i64) -> i64 {
+        let Some((_, size)) = self.thumb(len) else { return self.clamp(start) };
+        let room = len - 2 * Self::arrow(len) - size;
+        let span = self.last() - self.min;
+        if room <= 0 || span <= 0 {
+            return self.clamp(start);
+        }
+        let from = mul_div(room, self.clamp(start) - self.min, span);
+        self.min + mul_div((from + moved).clamp(0, room), span, room)
+    }
+}
+
+/// `a` × `b` / `c`, rounded to the nearest (Windows' MulDiv).
+fn mul_div(a: i64, b: i64, c: i64) -> i64 {
+    if c == 0 {
+        return 0;
+    }
+    let n = a as i128 * b as i128;
+    let c = c as i128;
+    let q = if (n < 0) == (c < 0) { (2 * n + c) / (2 * c) } else { (2 * n - c) / (2 * c) };
+    q as i64
 }
 
 /// A component inside (in the client area's coordinates, as scrolled now).
@@ -205,6 +316,9 @@ impl Scroller {
 
     /// A bar's rectangle, if it shows (a theme drawing its own bars).
     pub fn bar(&self, vertical: bool, w: i64, h: i64) -> Option<Rect> {
+        if let Some(a) = self.alone {
+            return (a.vertical == vertical).then_some((0, 0, w, h));
+        }
         let (cw, ch) = self.client(w, h);
         if vertical {
             self.vert.shown.then_some((cw, 0, BAR, ch))
@@ -215,6 +329,9 @@ impl Scroller {
 
     /// The thumb's start and length along a bar `len` long (None: no room).
     pub fn thumb(&self, vertical: bool, len: i64, w: i64, h: i64) -> Option<(i64, i64)> {
+        if let Some(a) = self.alone {
+            return a.thumb.filter(|_| a.vertical == vertical);
+        }
         let track = len - 2 * BAR;
         if track < MIN_THUMB {
             return None;
@@ -367,33 +484,40 @@ impl Scroller {
         for vertical in [false, true] {
             let Some((bx, by, bw, bh)) = self.bar(vertical, w, h) else { continue };
             let pressed = |p: Part| self.pressed == Some((vertical, p));
-            out.push(Op::Fill { rect: (bx, by, bw, bh), color: th.track });
             let len = if vertical { bh } else { bw };
-            let at = |along: i64, size: i64| if vertical { (bx, by + along, BAR, size) } else { (bx + along, by, size, BAR) };
-            // the page parts held down show darker
+            // (a bar on its own is as thick as it is, its arrows shorter
+            // when it is short)
+            let across = if self.alone.is_some() { if vertical { bw } else { bh } } else { BAR };
+            let arrow = if self.alone.is_some() { Values::arrow(len) } else { BAR.min(len) };
+            let disabled = self.alone.is_some_and(|a| a.disabled);
+            let at = |along: i64, size: i64| if vertical { (bx, by + along, across, size) } else { (bx + along, by, size, across) };
+            // the track: Windows' checks of white and the face (inverted
+            // where a page part is held down)
+            checker(&mut out, (bx, by, bw, bh), th.light, th.face);
             if let Some((t, s)) = self.thumb(vertical, len, w, h) {
+                let (inv_light, inv_face) = (th.light ^ 0xFF_FFFF, th.face ^ 0xFF_FFFF);
                 if pressed(Part::PageBack) {
-                    out.push(Op::Fill { rect: at(BAR, t - BAR), color: th.track_pressed });
+                    checker(&mut out, at(arrow, t - arrow), inv_light, inv_face);
                 }
                 if pressed(Part::PageForward) {
-                    out.push(Op::Fill { rect: at(t + s, len - BAR - t - s), color: th.track_pressed });
+                    checker(&mut out, at(t + s, len - arrow - t - s), inv_light, inv_face);
                 }
                 button(&mut out, at(t, s), false);
             }
-            for (part, along) in [(Part::Back, 0), (Part::Forward, len - BAR)] {
-                let r = at(along, BAR.min(len));
+            for (part, along) in [(Part::Back, 0), (Part::Forward, len - arrow)] {
+                let r = at(along, arrow);
                 let down = pressed(part);
                 button(&mut out, r, down);
-                let (x, y, rw, rh) = r;
-                let (cx, cy) = (x as f64 + rw as f64 / 2.0 + f64::from(u8::from(down)), y as f64 + rh as f64 / 2.0 + f64::from(u8::from(down)));
-                let s = 3.5;
-                let points = match (vertical, part == Part::Forward) {
-                    (false, false) => [(cx + s / 2.0, cy - s), (cx + s / 2.0, cy + s), (cx - s / 2.0 - 1.0, cy)],
-                    (false, true) => [(cx - s / 2.0, cy - s), (cx - s / 2.0, cy + s), (cx + s / 2.0 + 1.0, cy)],
-                    (true, false) => [(cx - s, cy + s / 2.0), (cx + s, cy + s / 2.0), (cx, cy - s / 2.0 - 1.0)],
-                    (true, true) => [(cx - s, cy - s / 2.0), (cx + s, cy - s / 2.0), (cx, cy + s / 2.0 + 1.0)],
-                };
-                out.push(Op::Arrow { points, color: th.text });
+                let d = f64::from(u8::from(down));
+                let points = arrow_glyph(r, vertical, part == Part::Forward).map(|(x, y)| (x + d, y + d));
+                if disabled {
+                    // (Windows' disabled glyph: white a pixel down and
+                    // right, the shadow over it)
+                    out.push(Op::Arrow { points: points.map(|(x, y)| (x + 1.0, y + 1.0)), color: th.light });
+                    out.push(Op::Arrow { points, color: th.shadow });
+                } else {
+                    out.push(Op::Arrow { points, color: th.text });
+                }
             }
         }
         out
@@ -402,8 +526,9 @@ impl Scroller {
     /// The program reading AutoScroll, HorzPosition, … (`None`: not one).
     pub fn get(&self, prop: &str) -> Option<Value> {
         let flag = |b: bool| v_int(if b { -1 } else { 0 });
+        // (a Delphi Boolean: RC.EXE reads a form's AutoScroll as 1)
         if prop == "autoscroll" {
-            return Some(flag(self.auto));
+            return Some(v_int(i64::from(self.auto)));
         }
         let (a, rest) = if let Some(r) = prop.strip_prefix("horz") {
             (&self.horz, r)
@@ -429,7 +554,14 @@ impl Scroller {
     pub fn set(&mut self, prop: &str, val: &Value) -> Option<()> {
         let n = val.to_i64();
         if prop == "autoscroll" {
-            self.auto = val.to_bool();
+            // (turned off, the ranges go — the bars with them — as Delphi's
+            // SetAutoScroll; RC.EXE: ClientWidth 347 → 364, and back on)
+            let auto = val.to_bool();
+            if self.auto && !auto {
+                self.horz.range = 0;
+                self.vert.range = 0;
+            }
+            self.auto = auto;
         } else {
             let (vertical, rest) = if let Some(r) = prop.strip_prefix("horz") {
                 (false, r)
@@ -458,6 +590,32 @@ impl Scroller {
     }
 }
 
+/// A scroll bar's track `r` as Windows' classic one: a checkerboard of
+/// single pixels, `a` where x + y is odd (from the area's corner) and `b`
+/// between.
+fn checker(out: &mut Vec<Op>, r: Rect, a: u32, b: u32) {
+    if r.2 > 0 && r.3 > 0 {
+        // (one op: a pattern the renderer draws)
+        out.push(Op::Checker { rect: r, a, b });
+    }
+}
+
+/// An arrow button's glyph in button `r`, pointing back (left / up) or
+/// forward (right / down): Windows' classic one — in a 17-pixel button 4
+/// pixels deep and 7 across, a back arrow's tip 5 pixels in, a forward
+/// one's base 7 — as a triangle whose edges run through its stair-steps
+/// (so it is a smooth triangle at any scale).
+fn arrow_glyph(r: Rect, vertical: bool, forward: bool) -> [(f64, f64); 3] {
+    let (x, y, w, h) = r;
+    let (a0, len, c0, thick) = if vertical { (y, h, x, w) } else { (x, w, y, h) };
+    let depth = (w.min(h) as f64 * 4.0 / 17.0).round().max(2.0);
+    let c = a0 as f64 + len as f64 / 2.0;
+    let m = c0 as f64 + thick as f64 / 2.0;
+    let (base, tip) = if forward { (c - 1.5, c - 1.5 + depth) } else { (c + 0.5, c + 0.5 - depth) };
+    let pts = [(base, m - depth), (base, m + depth), (tip, m)];
+    if vertical { pts.map(|(a, b)| (b, a)) } else { pts }
+}
+
 /// A raised button (pushed: flat with a shadow line), as the bars' parts.
 fn button(out: &mut Vec<Op>, r: Rect, pushed: bool) {
     let (x, y, w, h) = r;
@@ -465,7 +623,7 @@ fn button(out: &mut Vec<Op>, r: Rect, pushed: bool) {
         return;
     }
     let th = crate::theme::current();
-    let (face, light, shadow, dark) = (th.face, th.light, th.shadow, th.dark_shadow);
+    let (face, light, light3d, shadow, dark) = (th.face, th.light, th.light3d, th.shadow, th.dark_shadow);
     out.push(Op::Fill { rect: r, color: face });
     if pushed {
         for (rr, c) in [((x, y, w, 1), shadow), ((x, y, 1, h), shadow), ((x, y + h - 1, w, 1), shadow), ((x + w - 1, y, 1, h), shadow)] {
@@ -473,9 +631,11 @@ fn button(out: &mut Vec<Op>, r: Rect, pushed: bool) {
         }
         return;
     }
+    // (EDGE_RAISED: COLOR_3DLIGHT then white above, the dark shadow then
+    // the shadow below)
     for (rr, c) in [
-        ((x, y, w, 1), face),
-        ((x, y, 1, h), face),
+        ((x, y, w, 1), light3d),
+        ((x, y, 1, h), light3d),
         ((x + 1, y + 1, w - 2, 1), light),
         ((x + 1, y + 1, 1, h - 2), light),
         ((x, y + h - 1, w, 1), dark),
@@ -554,6 +714,24 @@ mod tests {
         let kids = [Child { align: Align::Client, ..child(0, 0, 900, 900) }, Child { align: Align::Right, ..child(0, 0, 50, 10) }, child(280, 0, 10, 10)];
         s.update(300, 200, &kids);
         assert_eq!(s.horz.range, 340);
+    }
+
+    /// A QSCROLLBAR's geometry, as RC.EXE's on Windows 11 shows it
+    /// (tests/visual/rapidq/ranges@1x-1.png).
+    #[test]
+    fn a_bar_on_its_own() {
+        let v = Values { min: 0, max: 100, page: 1, position: 30 };
+        assert_eq!(v.thumb(200), Some((64, 8)), "17 + 158 × 30 / 100, the smallest thumb");
+        assert_eq!(Values::arrow(17), 8, "a short bar's arrows share it, a pixel between");
+        assert_eq!(Values { page: 0, ..v }.thumb(200).map(|t| t.1), Some(BAR), "no PageSize: a square thumb");
+        assert_eq!(Values { page: 20, ..v }.last(), 81);
+        assert_eq!((v.part_at(5, 200), v.part_at(40, 200), v.part_at(66, 200), v.part_at(150, 200), v.part_at(199, 200)), (Some(Part::Back), Some(Part::PageBack), Some(Part::Thumb), Some(Part::PageForward), Some(Part::Forward)));
+        assert_eq!(v.dragged(30, 79, 200), 80);
+        let mut s = Scroller { alone: Some(Alone { vertical: false, thumb: v.thumb(200), disabled: false }), ..Scroller::default() };
+        assert_eq!((s.bar(false, 200, 17), s.bar(true, 200, 17)), (Some((0, 0, 200, 17)), None));
+        assert!(s.ops(200, 17).contains(&Op::Fill { rect: (64, 0, 8, 1), color: crate::theme::current().light3d }));
+        s.alone = Some(Alone { vertical: false, thumb: None, disabled: true });
+        assert_eq!(s.ops(200, 17).iter().filter(|o| matches!(o, Op::Arrow { .. })).count(), 4, "embossed arrows");
     }
 
     #[test]

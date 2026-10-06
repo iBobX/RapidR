@@ -35,6 +35,15 @@ pub const GRAY_TEXT: u32 = theme::CLASSIC.gray_text;
 pub const HIGHLIGHT: u32 = theme::CLASSIC.highlight;
 pub const HIGHLIGHT_TEXT: u32 = theme::CLASSIC.highlight_text;
 
+/// Where an arrow glyph points.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Dir {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
 /// Puts ops into a display list in logical pixels, from an origin (the
 /// component being drawn), in a theme (the current one when it was made).
 pub struct Painter<'a> {
@@ -140,20 +149,21 @@ impl<'a> Painter<'a> {
     /// a list's, a check box's box.
     pub fn sunken_edge(&mut self, rect: Rect) {
         let t = self.theme;
-        self.edge(rect, &[t.shadow, t.dark_shadow], &[t.light, t.face]);
+        self.edge(rect, &[t.shadow, t.dark_shadow], &[t.light, t.light3d]);
     }
 
     /// EDGE_RAISED: a menu's, a window's border, a scroll, combo or up-down
     /// button's.
     pub fn raised_edge(&mut self, rect: Rect) {
         let t = self.theme;
-        self.edge(rect, &[t.face, t.light], &[t.dark_shadow, t.shadow]);
+        self.edge(rect, &[t.light3d, t.light], &[t.dark_shadow, t.shadow]);
     }
 
-    /// A push button's (DFCS_BUTTONPUSH): one light line, two dark ones.
+    /// A push button's (DFCS_BUTTONPUSH): white then COLOR_3DLIGHT above,
+    /// the dark shadow then the shadow below.
     pub fn button_edge(&mut self, rect: Rect) {
         let t = self.theme;
-        self.edge(rect, &[t.light], &[t.dark_shadow, t.shadow]);
+        self.edge(rect, &[t.light, t.light3d], &[t.dark_shadow, t.shadow]);
     }
 
     /// One line in, shaded above (BDR_SUNKENOUTER): a status panel's, a
@@ -213,6 +223,101 @@ impl<'a> Painter<'a> {
         self.stroke(&points, color, 1.0);
     }
 
+    /// Whether the screen is 1× (one device pixel per logical pixel): the
+    /// classic look then draws its small round glyphs (a radio button's
+    /// well, …) pixel for pixel as Windows does; on a high-DPI screen it
+    /// draws them as smooth shapes at the screen's resolution instead.
+    pub fn one_to_one(&self) -> bool {
+        (self.scale() - 1.0).abs() < 1e-9
+    }
+
+    /// Pixel art at (x, y): `rows` of characters, one per pixel, each in
+    /// the colour `palette` gives its character (others, `.`: nothing) —
+    /// a row's runs of one colour as one fill.
+    pub fn pixels(&mut self, x: i64, y: i64, rows: &[&str], palette: &[(char, u32)]) {
+        for (j, row) in rows.iter().enumerate() {
+            let chars: Vec<char> = row.chars().collect();
+            let mut i = 0;
+            while i < chars.len() {
+                let c = chars[i];
+                let start = i;
+                while i < chars.len() && chars[i] == c {
+                    i += 1;
+                }
+                if let Some(&(_, color)) = palette.iter().find(|(k, _)| *k == c) {
+                    self.fill((x + start as i64, y + j as i64, (i - start) as i64, 1), color);
+                }
+            }
+        }
+    }
+
+    /// A disc of radius `r` around (cx, cy) — or its sector from `from` to
+    /// `to` degrees (counter-clockwise from 3 o'clock, y up) — as a smooth
+    /// polygon, at the screen's resolution.
+    pub fn sector(&mut self, c: (f64, f64), r: f64, from: f64, to: f64, color: u32) {
+        self.ellipse(c, (r, r), from, to, color);
+    }
+
+    /// [`Painter::sector`] of an ellipse of radii (rx, ry).
+    pub fn ellipse(&mut self, (cx, cy): (f64, f64), (rx, ry): (f64, f64), from: f64, to: f64, color: u32) {
+        let r = rx.max(ry);
+        let full = (to - from).abs() >= 360.0;
+        let steps = ((r * self.scale() * 2.0).ceil() as usize).clamp(16, 256);
+        let mut points = Vec::with_capacity(steps + 2);
+        if !full {
+            points.push((cx, cy));
+        }
+        for k in 0..=steps {
+            let a = (from + (to - from) * k as f64 / steps as f64).to_radians();
+            points.push((cx + rx * a.cos(), cy - ry * a.sin()));
+        }
+        if full {
+            points.pop();
+        }
+        self.op(Op::Polygon { points, color });
+    }
+
+    /// Windows' classic arrow glyph (DrawFrameControl's, an up-down's
+    /// halves) in button `r`, pointing `dir`: `d` rows deep — a quarter of
+    /// the button's shorter side (3 in a 17 × 12 half, 4 in a 17 × 17 one) —
+    /// placed as Windows places it (RapidQ's capture); a pixel down and
+    /// right while pushed. Pixel for pixel at 1×; a smooth triangle over the
+    /// same cells at a high-DPI screen's resolution.
+    pub fn classic_arrow(&mut self, r: Rect, dir: Dir, color: u32, pushed: bool) {
+        let (x, y, w, h) = r;
+        let d = (w.min(h) / 4).max(1);
+        let span = 2 * d - 1;
+        let k = i64::from(pushed);
+        // (the glyph's cell box: left, top, width, height)
+        let (bx, by, bw, bh) = match dir {
+            Dir::Up | Dir::Down => (x + (w - span - 2) / 2 + k, y + (h - d) / 2 + k, span, d),
+            Dir::Left => (x + (w - d - 2) / 2 + k, y + (h - span) / 2 + k, d, span),
+            Dir::Right => (x + (w - d + 1) / 2 + k, y + (h - span) / 2 + k, d, span),
+        };
+        if self.one_to_one() {
+            for i in 0..d {
+                // (row / column i from the tip: 2i + 1 cells)
+                let (len, off) = (2 * i + 1, d - 1 - i);
+                let cell = match dir {
+                    Dir::Up => (bx + off, by + i, len, 1),
+                    Dir::Down => (bx + off, by + d - 1 - i, len, 1),
+                    Dir::Left => (bx + i, by + off, 1, len),
+                    Dir::Right => (bx + d - 1 - i, by + off, 1, len),
+                };
+                self.fill(cell, color);
+            }
+            return;
+        }
+        let (l, t, rr, b) = (bx as f64, by as f64, (bx + bw) as f64, (by + bh) as f64);
+        let points = match dir {
+            Dir::Up => [(l, b), (rr, b), ((l + rr) / 2.0, t)],
+            Dir::Down => [(l, t), (rr, t), ((l + rr) / 2.0, b)],
+            Dir::Left => [(rr, t), (rr, b), (l, (t + b) / 2.0)],
+            Dir::Right => [(l, t), (l, b), (rr, (t + b) / 2.0)],
+        };
+        self.op(Op::Arrow { points, color });
+    }
+
     pub fn text(&mut self, rect: Rect, text: &str, font: &Font, color: u32, place: Place) {
         if !text.is_empty() {
             self.op(Op::Text { rect, text: text.to_string(), font: font.clone(), color, angle: 0, place });
@@ -225,6 +330,13 @@ impl<'a> Painter<'a> {
 
     pub fn line(&mut self, from: (f64, f64), to: (f64, f64), color: u32) {
         self.op(Op::Line { from, to, color });
+    }
+
+    /// Clips what `f` draws to a polygon (logical points from the origin).
+    pub fn clipped_polygon(&mut self, points: Vec<(f64, f64)>, f: impl FnOnce(&mut Painter)) {
+        self.op(Op::ClipPolygon { points });
+        f(self);
+        self.op(Op::ClipPop);
     }
 
     /// Clips what `f` draws to `rect`.
@@ -282,9 +394,8 @@ pub fn caption(p: &mut Painter, rect: Rect, caption: &str, font: &Font, color: u
     if w <= 0 {
         return;
     }
-    // (the underline: the pixel row under the baseline; Liberation's
-    // ascent is 0.905 em)
-    let y = (top as f64 + font.pixel_size() as f64 * 0.905).floor() + 1.5;
+    // (the underline: the second pixel row under the baseline, as GDI's)
+    let y = (top as f64 + f64::from(rapidr_value::objects::text::ascent(font))).round() + 1.5;
     p.line(((left + x) as f64 + 0.5, y), ((left + x + w - 1) as f64 + 0.5, y), color);
 }
 
@@ -353,6 +464,27 @@ pub fn backdrop(store: &dyn Store, id: &str) -> u32 {
         at = parent;
     }
     t.face
+}
+
+/// What shows behind component `id` where it draws nothing (a pie gauge's
+/// corners): the nearest Color the program set on its parents, else the
+/// theme's face — in every theme.
+pub fn behind(store: &dyn Store, id: &str) -> u32 {
+    let mut at = store::string(store, id, "parent");
+    for _ in 0..64 {
+        if at.is_empty() {
+            break;
+        }
+        if let Some(c) = color_of(store, &at) {
+            return c;
+        }
+        let parent = store::string(store, &at, "parent");
+        if parent.eq_ignore_ascii_case(&at) {
+            break;
+        }
+        at = parent;
+    }
+    theme::current().face
 }
 
 /// A scroll bar model's bars for an area `w` × `h`, as the theme draws
@@ -463,7 +595,10 @@ impl FormUi {
             hover: self.hover == Some(i),
             pressed: self.pressed == Some(i) && self.hover == Some(i),
             held: self.pressed == Some(i),
-            enabled: self.nodes[i].enabled,
+            // (drawn as its own Enabled says: Windows draws the children of a
+            // disabled window — a panel, a group box, a form under a modal one —
+            // as they are, though they take no input, RapidQ's capture shows)
+            enabled: store::flag(store, &self.nodes[i].id, "enabled", true),
             caret_on: self.caret_on,
             default_frame: default == Some(i) && !focused_is_button,
         };

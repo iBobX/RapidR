@@ -932,8 +932,9 @@ mod tests {
         let req = fd::request(&|_| Value::Null);
         let chosen = req.font.clone();
         let mut d = Dialog::font(4, "Font", req.clone(), &all);
-        assert_eq!(store::int(&d.store, "rapidr:dlg4:size", "itemindex", -1), 2);
-        assert_eq!(store::int(&d.store, "rapidr:dlg4:font", "itemindex", -1), 0);
+        // (RapidQ's default font: MS Sans Serif 8)
+        assert_eq!(store::int(&d.store, "rapidr:dlg4:size", "itemindex", -1), 0);
+        assert_eq!(store::int(&d.store, "rapidr:dlg4:font", "itemindex", -1), 3);
         // (fdEffects by default: the effects, the colour Black; no Apply)
         assert_eq!(d.size, fd::layout::size(true));
         assert_eq!(store::int(&d.store, "rapidr:dlg4:color", "itemindex", -1), 0);
@@ -942,7 +943,7 @@ mod tests {
         let mut f = ui(&d);
         f.sync(&d.store);
         let n = f.node("rapidr:dlg4:style").expect("the style list");
-        let (x, y) = (n.abs.0 as f64 + 10.0, n.abs.1 as f64 + 2.0 + 2.5 * 16.0);
+        let (x, y) = (n.abs.0 as f64 + 10.0, n.abs.1 as f64 + 2.0 + 2.5 * 13.0);
         f.mouse_down(&d.store, &mut ts, x, y, Button::Left, Mods::NONE);
         f.mouse_up(&d.store, &mut ts, x, y, Button::Left, Mods::NONE);
         assert_eq!(answer(&mut d, &mut f), None);
@@ -979,7 +980,7 @@ mod tests {
         let mut f = ui(&d);
         assert_eq!(click(&mut d, &mut f, &mut ts, "apply"), None);
         let applied = d.take_applied().expect("applied");
-        assert_eq!((applied.size, applied.color), (10, 0x0000FF));
+        assert_eq!((applied.size, applied.color), (8, 0x0000FF));
         assert_eq!(d.take_applied(), None);
         // the sample draws its text with the lines when underlined
         let mut req = fd::request(&|_| Value::Null);
