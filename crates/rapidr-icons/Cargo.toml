@@ -1,0 +1,17 @@
+[package]
+name = "rapidr-icons"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+description = "RapidR's own icon set (docs/ide-plan.md D8): every action, component, file type, symbol and glyph as hinted SVGs (16, 24, 32 px), themed by colour tokens and drawn with resvg"
+
+# No GUI, no host: SVG text in, pixels out. Builds for
+# wasm32-unknown-unknown (the web host draws the same icons).
+[dependencies]
+# The SVG renderer rapidr-value already uses for pictures (MIT OR Apache-2.0).
+resvg = { version = "0.48.1", default-features = false }
+
+[dev-dependencies]
+# The component list the inventory test checks against.
+rapidr-ast = { workspace = true }

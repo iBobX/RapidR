@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Format document</title>
+  <path d="M5 6L27 6" stroke="currentColor"/>
+  <path d="M10 13L27 13" stroke="currentColor"/>
+  <path d="M10 20L27 20" stroke="currentColor"/>
+  <path d="M5 27L27 27" stroke="currentColor"/>
+  <path d="M5 13L8 17L5 20" stroke="currentColor"/>
+</svg>

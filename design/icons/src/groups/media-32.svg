@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Media</title>
+  <path d="M12 24V7L26 4V21" stroke="#6F42E5"/>
+  <circle cx="8.5" cy="24.5" r="3.5" fill="#EBE4FD" stroke="#6F42E5"/>
+  <circle cx="22.5" cy="20.5" r="3.5" fill="#EBE4FD" stroke="#6F42E5"/>
+</svg>

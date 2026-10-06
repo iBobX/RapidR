@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <title>Project</title>
+  <path d="M2.75 18.75V3.75H8.75L10.75 5.75H21.75V18.75L2.75 18.75Z" fill="#E3E9FF" stroke="#2F5BFF"/>
+  <path d="M2.75 8.75L21.75 8.75" stroke="#2F5BFF"/>
+  <path d="M9 10H13A2.5 2.5 0 0 1 13 15H11V18H9L9 10ZM11 12V14L13 13L11 12ZM11 15H13L15 18H13L11 15Z" fill="#2F5BFF" fill-rule="evenodd"/>
+</svg>

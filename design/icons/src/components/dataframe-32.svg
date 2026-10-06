@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>RDATAFRAME (data frame)</title>
+  <path d="M6 5H26A3 3 0 0 1 29 8V24A3 3 0 0 1 26 27H6A3 3 0 0 1 3 24V8A3 3 0 0 1 6 5Z" fill="#FFFFFF" stroke="#08805E"/>
+  <path d="M3 11V8A3 3 0 0 1 6 5H26A3 3 0 0 1 29 8V11L3 11Z" fill="#D6F2E8" stroke="#08805E"/>
+  <path d="M3 11H11V27H6A3 3 0 0 1 3 24L3 11Z" fill="#D6F2E8" stroke="#08805E"/>
+  <path d="M11 19L29 19" stroke="#08805E"/>
+  <path d="M20 11L20 27" stroke="#08805E"/>
+</svg>

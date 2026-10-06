@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Sort descending</title>
+  <path d="M10 5L10 26" stroke="currentColor"/>
+  <path d="M14 23L10 27L6 23" stroke="currentColor"/>
+  <path d="M18 9L28 9" stroke="currentColor"/>
+  <path d="M18 15L24 15" stroke="currentColor"/>
+  <path d="M18 22L21 22" stroke="currentColor"/>
+</svg>

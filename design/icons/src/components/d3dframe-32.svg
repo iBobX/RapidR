@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Direct3D frame</title>
+  <path d="M12 20L28 20" stroke="#D92D36"/>
+  <path d="M26 17L29 20L26 23" stroke="#D92D36"/>
+  <path d="M12 20L12 4" stroke="#08805E"/>
+  <path d="M9 6L12 3L15 6" stroke="#08805E"/>
+  <path d="M12 20L4 28" stroke="#2F5BFF"/>
+  <path d="M8 28L4 28L4 24" stroke="#2F5BFF"/>
+</svg>

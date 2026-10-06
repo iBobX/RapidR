@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Data source</title>
+  <path d="M8.5 8.5L3.5 3.5" stroke="#5B6478"/>
+  <path d="M8.5 8.5L12.5 3.5" stroke="#5B6478"/>
+  <path d="M8.5 8.5L8.5 13.5" stroke="#5B6478"/>
+  <circle cx="8.5" cy="8.5" r="3" fill="#D6F2E8" stroke="#08805E"/>
+  <circle cx="3.5" cy="3.5" r="1.5" fill="#08805E"/>
+  <circle cx="12.5" cy="3.5" r="1.5" fill="#08805E"/>
+  <circle cx="8.5" cy="13.5" r="1.5" fill="#08805E"/>
+</svg>

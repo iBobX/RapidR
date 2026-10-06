@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Oval button (QOVALBTN)</title>
+  <ellipse cx="8" cy="8.5" rx="6.5" ry="4" fill="#E3E9FF" stroke="#2F5BFF"/>
+  <path d="M5.5 8.5L10.5 8.5" stroke="#2F5BFF"/>
+</svg>

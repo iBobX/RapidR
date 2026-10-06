@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Scroll bar</title>
+  <path d="M2.5 5.5H13.5A1 1 0 0 1 14.5 6.5V9.5A1 1 0 0 1 13.5 10.5H2.5A1 1 0 0 1 1.5 9.5V6.5A1 1 0 0 1 2.5 5.5Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <rect x="6" y="7" width="4" height="2" fill="#2F5BFF"/>
+</svg>

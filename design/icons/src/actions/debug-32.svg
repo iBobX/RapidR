@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Debug</title>
+  <path d="M12 10A4 4 0 0 1 20 10" stroke="#08805E"/>
+  <path d="M16 10H16A7 7 0 0 1 23 17V22A7 7 0 0 1 16 29H16A7 7 0 0 1 9 22V17A7 7 0 0 1 16 10Z" fill="#D6F2E8" stroke="#08805E"/>
+  <path d="M16 16L16 29" stroke="#08805E"/>
+  <path d="M9 15L4 13" stroke="#08805E"/>
+  <path d="M23 15L28 13" stroke="#08805E"/>
+  <path d="M9 20L4 20" stroke="#08805E"/>
+  <path d="M23 20L28 20" stroke="#08805E"/>
+  <path d="M9 25L4 27" stroke="#08805E"/>
+  <path d="M23 25L28 27" stroke="#08805E"/>
+  <path d="M13 5L12 3" stroke="#08805E"/>
+  <path d="M19 5L20 3" stroke="#08805E"/>
+</svg>

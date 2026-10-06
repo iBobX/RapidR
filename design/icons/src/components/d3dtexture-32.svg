@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Direct3D texture</title>
+  <path d="M4.5 3H27.5A1.5 1.5 0 0 1 29 4.5V27.5A1.5 1.5 0 0 1 27.5 29H4.5A1.5 1.5 0 0 1 3 27.5V4.5A1.5 1.5 0 0 1 4.5 3Z" fill="#FFFFFF" stroke="#6F42E5"/>
+  <rect x="3" y="3" width="9" height="9" fill="#EBE4FD"/>
+  <rect x="20" y="3" width="9" height="9" fill="#EBE4FD"/>
+  <rect x="12" y="12" width="8" height="8" fill="#EBE4FD"/>
+  <rect x="3" y="20" width="9" height="9" fill="#EBE4FD"/>
+  <rect x="20" y="20" width="9" height="9" fill="#EBE4FD"/>
+  <path d="M4.5 3H27.5A1.5 1.5 0 0 1 29 4.5V27.5A1.5 1.5 0 0 1 27.5 29H4.5A1.5 1.5 0 0 1 3 27.5V4.5A1.5 1.5 0 0 1 4.5 3Z" stroke="#6F42E5"/>
+</svg>

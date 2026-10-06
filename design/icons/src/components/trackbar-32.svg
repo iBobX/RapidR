@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Track bar</title>
+  <path d="M3 19L29 19" stroke="#5B6478"/>
+  <path d="M3 25L3 28" stroke="#5B6478"/>
+  <path d="M10 25L10 28" stroke="#5B6478"/>
+  <path d="M16 25L16 28" stroke="#5B6478"/>
+  <path d="M22 25L22 28" stroke="#5B6478"/>
+  <path d="M29 25L29 28" stroke="#5B6478"/>
+  <path d="M10 7L17 7L17 16L13 20L10 16L10 7Z" fill="#E3E9FF" stroke="#2F5BFF"/>
+</svg>

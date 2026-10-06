@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>RapidR components</title>
+  <defs><linearGradient id="g1" gradientUnits="userSpaceOnUse" x1="3.4" y1="28.6" x2="28.6" y2="3.4"><stop offset="0" stop-color="#2F5BFF"/><stop offset="1" stop-color="#19C6E6"/></linearGradient><mask id="m2" maskUnits="userSpaceOnUse" x="0" y="0" width="32" height="32"><rect width="32" height="32" fill="white"/><path d="M10 7H18A6 6 0 0 1 18 19H14V25H10L10 7ZM14 10V15L20 13L14 10ZM14 19H19L24 25H19L14 19Z" fill-rule="evenodd" fill="black" stroke="black" stroke-width="0"/></mask></defs>
+  <g mask="url(#m2)"><rect x="3" y="3" width="26" height="26" rx="6.5" fill="url(#g1)"/></g>
+</svg>

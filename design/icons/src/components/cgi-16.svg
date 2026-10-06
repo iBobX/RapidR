@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>CGI</title>
+  <path d="M2.5 0.5H9.5L13.5 4.5V15.5H2.5L2.5 0.5Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M9.5 0.5V4.5H13.5" stroke="#5B6478"/>
+  <path d="M5.5 6.5L7.5 8.5L5.5 10.5" stroke="#007F9C"/>
+  <path d="M8.5 11.5L10.5 11.5" stroke="#007F9C"/>
+</svg>

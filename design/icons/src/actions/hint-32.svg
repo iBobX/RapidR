@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Hint</title>
+  <path d="M12 22C12 19 8 17 8 12A8.5 8.5 0 0 1 24 12C24 17 20 19 20 22L12 22Z" fill="#D7F3F9" stroke="#007F9C"/>
+  <path d="M12 27L20 27" stroke="#007F9C"/>
+</svg>

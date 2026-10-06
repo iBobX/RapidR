@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Ask the AI</title>
+  <defs><linearGradient id="g1" gradientUnits="userSpaceOnUse" x1="3.8" y1="9.4" x2="12.2" y2="3.1"><stop offset="0" stop-color="#2F5BFF"/><stop offset="1" stop-color="#19C6E6"/></linearGradient></defs>
+  <path d="M2.5 3.5A1.5 1.5 0 0 1 3.5 1.5H12.5A1.5 1.5 0 0 1 13.5 3.5V9.5A1.5 1.5 0 0 1 12.5 10.5H6.5L3.5 13.5V10.5H3.5A1.5 1.5 0 0 1 2.5 9.5L2.5 3.5Z" stroke="#5B6478"/>
+  <path d="M8 3.1Q8.567 5.683 11.15 6.25Q8.567 6.817 8 9.4Q7.433 6.817 4.85 6.25Q7.433 5.683 8 3.1Z" fill="url(#g1)"/>
+</svg>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>File stream</title>
+  <defs><mask id="m1" maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16"><rect width="16" height="16" fill="white"/><path d="M5.5 11.5L14.5 11.5" fill="black" stroke="black" stroke-width="2.4"/></mask></defs>
+  <g mask="url(#m1)"><path d="M2.5 0.5H8.5L11.5 4.5V13.5H2.5L2.5 0.5Z" fill="#FFFFFF" stroke="#5B6478"/><path d="M8.5 0.5V4.5H11.5" stroke="#5B6478"/></g>
+  <path d="M5.5 11.5L13.5 11.5" stroke="#2F5BFF"/>
+  <path d="M12.5 9.5L14.5 11.5L12.5 13.5" stroke="#2F5BFF"/>
+</svg>

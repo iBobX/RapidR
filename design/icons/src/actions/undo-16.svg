@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Undo</title>
+  <path d="M2.5 6.5H9.5A4 4 0 0 1 9.5 13.5H5.5" stroke="currentColor"/>
+  <path d="M5.5 8.5L2.5 6.5L5.5 3.5" stroke="currentColor"/>
+</svg>

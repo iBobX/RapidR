@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Zoom to fit</title>
+  <path d="M3 10L3 3L10 3" stroke="currentColor"/>
+  <path d="M29 10L29 3L22 3" stroke="currentColor"/>
+  <path d="M3 22L3 29L10 29" stroke="currentColor"/>
+  <path d="M29 22L29 29L22 29" stroke="currentColor"/>
+  <path d="M11.5 10H20.5A1.5 1.5 0 0 1 22 11.5V20.5A1.5 1.5 0 0 1 20.5 22H11.5A1.5 1.5 0 0 1 10 20.5V11.5A1.5 1.5 0 0 1 11.5 10Z" stroke="currentColor"/>
+</svg>

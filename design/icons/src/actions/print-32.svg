@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Print</title>
+  <path d="M9 10V3H23V10" stroke="currentColor"/>
+  <path d="M9 23H5V12A2 2 0 0 1 7 10H25A2 2 0 0 1 27 12V23H23" stroke="currentColor"/>
+  <path d="M9.5 18H22.5A0.5 0.5 0 0 1 23 18.5V28.5A0.5 0.5 0 0 1 22.5 29H9.5A0.5 0.5 0 0 1 9 28.5V18.5A0.5 0.5 0 0 1 9.5 18Z" stroke="currentColor"/>
+</svg>

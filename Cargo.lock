@@ -4616,6 +4616,14 @@ name = "rapidr-diagnostics"
 version = "2.117.0"
 
 [[package]]
+name = "rapidr-icons"
+version = "2.117.0"
+dependencies = [
+ "rapidr-ast",
+ "resvg",
+]
+
+[[package]]
 name = "rapidr-launcher"
 version = "2.117.0"
 dependencies = [
