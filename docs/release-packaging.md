@@ -62,12 +62,33 @@ source replacement, nothing downloaded).
 - **No Rust needed** to run programs (`rapidr run`, double clicks), to make
   standalone interpreted executables (`rapidr build x.bas --interp`, from the
   shipped runner) or to use the IDE. Only native builds need Rust.
-- **`rapidr setup`** installs it when asked: rustup (MIT / Apache-2.0) into
-  `~/.cargo` and `~/.rustup`, after saying so and asking (`--yes` to agree,
-  `--check` to only report); it also offers to link `rapidr` into
-  `/usr/local/bin` or `~/.local/bin` when it isn't on PATH (the macOS app, a
-  `.tar.gz` not installed). The CLI finds cargo on PATH or in rustup's folder,
-  so the IDE started from the desktop builds too.
+- **One exact toolchain.** An install's native builds use the Rust it was
+  tested with (`release.toml`): toolchain `1.98.1`, on Windows
+  `1.98.1-<arch>-pc-windows-gnullvm`. `rapidr build` always names it in
+  cargo's environment (RUSTUP_TOOLCHAIN); it never relies on, or changes, the
+  user's rustup default.
+- **`rapidr setup`** (`--yes` to agree, `--check` to only report):
+  - **with rustup already there**, it only installs that toolchain *beside*
+    the user's own (`rustup toolchain install <exact> --profile minimal`;
+    on macOS `rustup target add --toolchain <exact>` for the two slices; the
+    x64 SDK on Windows on ARM adds `--force-non-host`). It never runs
+    `rustup default`, `set default-host`, `update`, `override`, or removes a
+    toolchain — unit-tested (`setup.rs`), and the smoke tests check the
+    user's `rustup default` / `show active-toolchain` are unchanged. (rustup
+    itself makes the first toolchain it installs the default when there is
+    none; setup then puts "none" back with `rustup default none`, the one
+    `default` it ever runs, and only in that case);
+  - **with no Rust at all**, after saying so and asking, rustup itself (MIT /
+    Apache-2.0) into `~/.cargo` and `~/.rustup`, for the machine's native
+    architecture (aarch64 on Windows on ARM, also when the x64 rapidr runs
+    there emulated);
+  - **with a Rust that isn't rustup's**, it reports it and changes nothing;
+  - it also offers to link `rapidr` into `/usr/local/bin` or `~/.local/bin`
+    when it isn't on PATH (`--no-path`: not offered). The CLI finds cargo on
+    PATH or in rustup's folder, so the IDE started from the desktop builds
+    too.
+  - Uninstalling RapidR removes no toolchain (`rustup toolchain uninstall
+    <exact>` is the user's to run).
 - **The vendored crates** are those the runtime's builds use on that OS and
   for the web: a crate only other platforms compile keeps its `Cargo.toml`
   (resolution reads it) and nothing else (`tools/release/home.py`) — about
@@ -87,10 +108,13 @@ Rosetta.
 - `rapidr build x.bas --interp` makes a universal executable by default;
   `--target macos-arm64` / `--target macos-x86_64` give one slice, taken out
   of the universal runner (`crates/rapidr-cli/src/macos.rs`, no lipo needed).
-- `rapidr build x.bas` (native) builds both slices and joins them with lipo
-  when Rust has both targets (`rustup target add aarch64-apple-darwin
+- `rapidr build x.bas --release` (native) builds both slices and joins them
+  with lipo when Rust has both targets (`rapidr setup` adds them to RapidR's
+  toolchain; by hand: `rustup target add aarch64-apple-darwin
   x86_64-apple-darwin`); with one, it builds that one and says how to get
-  universal.
+  universal. A **debug** build (`rapidr build x.bas`, the default) is this
+  Mac's architecture only: half the build time while developing; what is
+  shipped is built with `--release`.
 - **Deployment target**: `MACOSX_DEPLOYMENT_TARGET=10.13` for RapidR's own
   executables and native builds (unless the user sets it): the x86_64 slice
   runs on macOS 10.13 and later — Intel Macs up to the last macOS for them,
@@ -111,8 +135,8 @@ x64 and ARM64, no Microsoft licence — and **ships it**: each Windows SDK
 carries a trimmed LLVM-MinGW for its architecture (`lib\rapidr\toolchain\`:
 clang, lld, llvm-ar, the headers, the mingw-w64 runtime, compiler-rt and
 libunwind for that architecture; no debugger, Python or other targets).
-`rapidr setup` installs Rust's `stable-<arch>-pc-windows-gnullvm` toolchain
-(rustup, after asking), and `rapidr build` runs cargo with it, the shipped
+`rapidr setup` installs Rust's `<version>-<arch>-pc-windows-gnullvm` toolchain
+beside the user's own (rustup, after asking), and `rapidr build` runs cargo with it, the shipped
 clang as linker and C compiler, and `+crt-static` (libunwind and the mingw-w64
 runtime linked in: a built program needs no DLL beside it). No Visual Studio.
 What a program built this way carries, licence-wise: LICENSES.md §7.1 (the
@@ -236,15 +260,15 @@ their authors', to ship as they like.
 - System libraries the Linux binaries link (not shipped): glibc (2.31 or newer), OpenSSL 3
   (`libssl.so.3`, `libcrypto.so.3`: HTTPS), ALSA, fontconfig, xkbcommon —
   dynamically, which puts no obligation on RapidR's packages. The `.deb`s'
-  `Depends` come from `dpkg-shlibdeps`, so they name `libssl3t64` (Ubuntu
-  24.04; `libssl3` elsewhere) with the rest. The `.tar.gz` installs need it
+  `Depends` come from what the binaries need (`linux.sh`, `depends()`), so
+  they name `libssl3t64 | libssl3` (24.04 renamed it) with the rest. The `.tar.gz` installs need it
   too: it is part of every current distribution's base system.
 - **Building on Linux needs OpenSSL's development files** (since HTTPS moved
   to the system's TLS): `libssl-dev`, and for the other architecture's
   build (cross-linking) `libssl-dev:<arch>` too — e.g. on the arm64 Ubuntu
   VM, `sudo apt install libssl-dev libssl-dev:amd64` (with the amd64
-  multiarch sources the release machine's setup adds; put `libssl-dev` in
-  that setup's list of the other architecture's libraries). `openssl-sys`
+  multiarch sources the release machine's setup adds; `setup-tools.sh
+  system` installs both). `openssl-sys`
   finds them with pkg-config (`PKG_CONFIG_LIBDIR=/usr/lib/<triple>/pkgconfig`
   for the cross build, as for ALSA and fontconfig). It links them
   dynamically; never set `OPENSSL_STATIC` or enable a `vendored` feature
@@ -306,13 +330,15 @@ vendored source trees. `dist/` and `target/` may be links to a build volume
 
 - **Linux** (any Ubuntu 24.04 VM, arm64 or amd64 — the user's ARM one, or an
   x86_64 one under Parallels' emulation): both architectures from one machine.
-  `linux.sh` links with Zig (`cargo zigbuild`) against **glibc 2.31**, so the
-  binaries run on Ubuntu 20.04 / 22.04 / 24.04, Debian 11 / 12 and newer;
-  `readelf -V` checks no newer `GLIBC_` symbol version is asked for. The
-  other architecture's ALSA, FreeType and fontconfig come from Ubuntu's
-  multiarch `-dev` packages (ports.ubuntu.com for arm64, archive.ubuntu.com
-  and security.ubuntu.com for amd64). The `.deb`s' Depends name packages every
-  Debian / Ubuntu since 2020 has (`libasound2t64 | libasound2`, …). The other
+  `linux.sh` links with Zig (`cargo zigbuild`) against **glibc 2.31**;
+  `readelf -V` checks no newer `GLIBC_` symbol version is asked for. With
+  HTTPS on the system's OpenSSL 3 (`libssl.so.3`), the binaries run on
+  Ubuntu 22.04 / 24.04, Debian 12 and newer (20.04 and Debian 11 have
+  OpenSSL 1.1 only). The other architecture's ALSA, FreeType, fontconfig
+  and OpenSSL come from Ubuntu's multiarch `-dev` packages (ports.ubuntu.com for arm64, archive.ubuntu.com
+  and security.ubuntu.com for amd64). The `.deb`s' Depends name packages by both
+  their old and their 24.04 names (`libasound2t64 | libasound2`,
+  `libssl3t64 | libssl3`, …). The other
   architecture's packages are smoke-tested in the same VM: everything but a
   native build. Its x86_64 programs run through binfmt — **Rosetta for
   Linux** on the ARM VM (Parallels: "Use Rosetta to run x86-64 binaries";

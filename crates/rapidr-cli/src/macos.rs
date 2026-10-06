@@ -58,8 +58,8 @@ pub fn thin(fat: &[u8], cpu: u32) -> Result<Vec<u8>, String> {
 
 /// Rust has both macOS targets (`rustup target add` both): a native build
 /// makes a universal executable.
-pub fn rust_has_both_targets(rustc: &Path) -> bool {
-    let sysroot = Command::new(rustc).args(["--print", "sysroot"]).output().ok().filter(|o| o.status.success());
+pub fn rust_has_both_targets(mut rustc: Command) -> bool {
+    let sysroot = rustc.args(["--print", "sysroot"]).output().ok().filter(|o| o.status.success());
     let Some(sysroot) = sysroot.map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()) else { return false };
     TRIPLES.iter().all(|t| Path::new(&sysroot).join("lib/rustlib").join(t).join("lib").is_dir())
 }

@@ -7,9 +7,10 @@
 #
 #   tools/release/linux.sh [x86_64] [aarch64]        (default: both)
 #
-# Linked by Zig (cargo-zigbuild) against glibc $GLIBC — Ubuntu 20.04, Debian 11 and
-# newer — whichever the build machine's: the binaries ask for no newer symbol
-# (checked). The other architecture's ALSA, FreeType and fontconfig come from
+# Linked by Zig (cargo-zigbuild) against glibc $GLIBC, whichever the build
+# machine's: the binaries ask for no newer symbol (checked). They need the
+# system's OpenSSL 3 (HTTPS): Ubuntu 22.04, Debian 12 and newer. The other
+# architecture's ALSA, FreeType, fontconfig and OpenSSL come from
 # multiarch -dev packages (fontique can't open fontconfig at run time: it is
 # linked, as on any desktop it is installed). tools/release/linux/
 # setup-tools.sh installs all of it. Run from the release's source (prepare.sh's
@@ -48,6 +49,8 @@ depends() {
             libfreetype.so.6) deps+=("libfreetype6") ;;
             libfontconfig.so.1) deps+=("libfontconfig1") ;;
             libz.so.1) deps+=("zlib1g") ;;
+            # (OpenSSL 3, for HTTPS: Ubuntu 22.04, Debian 12 and later — 24.04 renamed it)
+            libssl.so.3|libcrypto.so.3) deps+=("libssl3t64 | libssl3") ;;
             *) die "$1 needs $l: add its package to depends() in linux.sh" ;;
         esac
     done
@@ -122,8 +125,12 @@ for ARCH in $ARCHS; do
     step "build $T (glibc $GLIBC)"
     # (pkg-config finds that architecture's libraries — for these builds only:
     # stage.py's notices build this machine's rapidr)
+    # (-idirafter: Zig's compiler doesn't look in the multiarch include folder, where
+    # OpenSSL's opensslconf.h is — openssl-sys reads its headers; searched last, so the
+    # C library's headers stay Zig's, for glibc $GLIBC)
     cross=(env PKG_CONFIG_ALLOW_CROSS=1 PKG_CONFIG_SYSROOT_DIR=/ CARGO_PROFILE_RELEASE_STRIP=symbols
-        PKG_CONFIG_LIBDIR="/usr/lib/$ARCH-linux-gnu/pkgconfig:/usr/share/pkgconfig")
+        PKG_CONFIG_LIBDIR="/usr/lib/$ARCH-linux-gnu/pkgconfig:/usr/share/pkgconfig"
+        "CFLAGS_${T//-/_}=-idirafter /usr/include/$ARCH-linux-gnu")
     "${cross[@]}" cargo zigbuild -q --locked --release --target "$T.$GLIBC" -p rapidr-cli
     "${cross[@]}" cargo zigbuild -q --locked --profile runner --target "$T.$GLIBC" -p rapidr-runner-stub --bin rapidrintr-runner
     for b in "$TD/$T/release/rapidr" "$TD/$T/runner/rapidrintr-runner"; do

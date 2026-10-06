@@ -91,6 +91,60 @@ pub fn windows_gnullvm_triple() -> String {
     format!("{}-pc-windows-gnullvm", env::consts::ARCH)
 }
 
+impl Home {
+    /// The exact rustup toolchain an install's native builds use: the Rust
+    /// it was tested with (`release.toml`), on Windows for this SDK's
+    /// architecture and linker (`1.98.1-aarch64-pc-windows-gnullvm`).
+    /// Always named in the build's environment (RUSTUP_TOOLCHAIN), never
+    /// made the user's default: `rapidr setup` installs it beside the user's
+    /// own toolchains. None in a checkout (its builds use the user's Rust as
+    /// they always have).
+    pub fn rust_toolchain(&self) -> Option<String> {
+        let rust = self.release.as_ref().map(|r| r.rust.as_str()).filter(|r| !r.is_empty())?;
+        Some(toolchain_name(rust, env::consts::OS, env::consts::ARCH, env::var("RAPIDR_TOOLCHAIN").is_ok_and(|t| t == "msvc")))
+    }
+}
+
+/// `1.98.1-aarch64-pc-windows-gnullvm` on Windows; `1.98.1` elsewhere (rustup
+/// picks the host: the universal macOS rapidr runs natively).
+pub fn toolchain_name(rust: &str, os: &str, arch: &str, msvc: bool) -> String {
+    match os {
+        "windows" => format!("{rust}-{arch}-pc-windows-{}", if msvc { "msvc" } else { "gnullvm" }),
+        _ => rust.to_string(),
+    }
+}
+
+/// A Rust tool (`cargo`, `rustc`) for building programs: in an install, run
+/// with the install's own toolchain (RUSTUP_TOOLCHAIN) — whatever the user's
+/// rustup default is, which RapidR never changes.
+pub fn rust_command(name: &str) -> std::process::Command {
+    let mut cmd = std::process::Command::new(rust_tool(name));
+    if let Some(tc) = Home::find().and_then(|h| h.rust_toolchain()) {
+        cmd.env("RUSTUP_TOOLCHAIN", tc);
+    }
+    cmd
+}
+
+/// The machine's own architecture (`aarch64`, `x86_64`) — on Windows on ARM
+/// too when this rapidr is the x64 build running emulated (it sees AMD64 in
+/// PROCESSOR_ARCHITECTURE, but the processor is still named ARM).
+pub fn native_arch() -> &'static str {
+    if cfg!(windows) {
+        let id = env::var("PROCESSOR_IDENTIFIER").unwrap_or_default();
+        let arch = env::var("PROCESSOR_ARCHITEW6432").or_else(|_| env::var("PROCESSOR_ARCHITECTURE")).unwrap_or_default();
+        return windows_native_arch(&id, &arch);
+    }
+    env::consts::ARCH
+}
+
+fn windows_native_arch(processor_identifier: &str, processor_architecture: &str) -> &'static str {
+    if processor_identifier.to_ascii_uppercase().starts_with("ARM") || processor_architecture.eq_ignore_ascii_case("ARM64") {
+        "aarch64"
+    } else {
+        "x86_64"
+    }
+}
+
 impl Release {
     fn read(path: &Path) -> Option<Release> {
         let text = fs::read_to_string(path).ok()?;
@@ -217,6 +271,23 @@ mod tests {
         assert_eq!(home.runner_targets(), ["linux-x86_64", "windows-aarch64"]);
         assert!(home.runner("windows-aarch64", "rapidrintr-runnerw").ends_with("runners/windows-aarch64/rapidrintr-runnerw.exe"));
         fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn the_install_names_its_exact_toolchain() {
+        assert_eq!(toolchain_name("1.98.1", "windows", "aarch64", false), "1.98.1-aarch64-pc-windows-gnullvm");
+        assert_eq!(toolchain_name("1.98.1", "windows", "x86_64", true), "1.98.1-x86_64-pc-windows-msvc");
+        assert_eq!(toolchain_name("1.98.1", "macos", "aarch64", false), "1.98.1");
+        assert_eq!(toolchain_name("1.98.1", "linux", "x86_64", false), "1.98.1");
+        // (a checkout has no release.toml: the user's own Rust, as before)
+        assert_eq!(Home { root: PathBuf::from("."), release: None }.rust_toolchain(), None);
+    }
+
+    #[test]
+    fn windows_on_arm_is_seen_from_an_emulated_x64_rapidr() {
+        assert_eq!(windows_native_arch("ARMv8 (64-bit) Family 8 Model 0 Revision 0, Apple", "AMD64"), "aarch64");
+        assert_eq!(windows_native_arch("", "ARM64"), "aarch64");
+        assert_eq!(windows_native_arch("Intel64 Family 6 Model 154 Stepping 3, GenuineIntel", "AMD64"), "x86_64");
     }
 
     #[test]

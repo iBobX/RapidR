@@ -233,8 +233,9 @@ What ships, and its licences:
 | Part | What it is | Licence |
 |---|---|---|
 | clang, lld, llvm-ar and the LLVM libraries they load | the compiler and linker (tools: nothing of them is in a built program) | Apache-2.0 WITH LLVM-exception (`toolchain\LICENSE.TXT`) |
-| compiler-rt builtins, libunwind | linked **statically** into every built program (Rust's unwinder and runtime helpers; `+crt-static`) | Apache-2.0 WITH LLVM-exception: the LLVM exception waives the attribution in binaries |
-| mingw-w64 runtime (crt objects, `libmingw32`, `libmingwex`, …) | linked statically into every built program | ZPL-2.1, with parts under BSD / MIT / ISC-style and public-domain terms (`toolchain\<arch>-w64-mingw32\share\mingw32\COPYING.MinGW-w64-runtime.txt`) |
+| libunwind | linked **statically** into every built program (Rust's unwinder; `+crt-static`) | Apache-2.0 WITH LLVM-exception: the LLVM exception waives the attribution in binaries |
+| compiler-rt builtins | in the toolchain, **not** linked into Rust programs (Rust's `compiler_builtins` provides them) | Apache-2.0 WITH LLVM-exception |
+| mingw-w64 runtime (crt objects, `libmingw32`, `libmingwex`, …) | a few of its objects linked statically into every built program: start-up code, UCRT shims, a few math helpers; on x64 also its `fprintf` with David M. Gay's gdtoa (docs/licensing.md §3.3 lists them, from a link map) | the linked ones: public domain, ZPL-2.1 and gdtoa's permission notice (HPND); the whole runtime: ZPL-2.1, with parts under BSD / MIT / ISC-style and public-domain terms (`toolchain\<arch>-w64-mingw32\share\mingw32\COPYING.MinGW-w64-runtime.txt`) |
 | mingw-w64 headers | used while compiling C code the crates carry (SQLite, …) | ZPL-2.1 / public domain; a few headers and IDLs imported from Wine are LGPL-2.1+ |
 | libc++, winpthreads, libomp | in the toolchain, **not** linked into Rust programs (no C++ in them) | Apache-2.0 WITH LLVM-exception / MIT and BSD |
 
@@ -246,12 +247,13 @@ the Windows smoke test checks the same of a program built natively.
 **What this means for programs built with RapidR on Windows** (native builds;
 interpreted executables and the runtime are RapidR's own, MIT):
 
-- The mingw-w64 runtime is in the executable. Its licence asks for its
-  copyright notices to be reproduced with binary distributions (BSD / ZPL
-  style: a notice, nothing more). Ship
-  `COPYING.MinGW-w64-runtime.txt` (in the SDK's toolchain folder, above) with
-  your program, or its notices in your documentation. Open source or
-  commercial, either is fine.
+- Parts of the mingw-w64 runtime are in the executable. Their licences
+  (ZPL-2.1, and gdtoa's notice on x64) ask for their copyright notices to be
+  reproduced with binary distributions (a notice, nothing more). The
+  `THIRD-PARTY-NOTICES.txt` that `rapidr build` writes beside the program
+  carries exactly those notices: ship it with your program. Nothing
+  Cephes-derived, nothing imported from Wine and nothing (L)GPL is linked
+  (docs/licensing.md §3.3). Open source or commercial, either is fine.
 - The LGPL-2.1 Wine headers are only ever *compiled against* (declarations,
   constants, small inline functions); LGPL-2.1 §5 leaves such a program's
   licence to its author. No LGPL code is linked.

@@ -8,8 +8,8 @@
 # The .rrbc / .rr file types are always registered (HKCU\Software\Classes, this
 # user's) and the test checks the uninstaller removes them: run it in a test VM.
 # PATH is left alone (/TASKS=""); -Associations also ticks "Open .bas files with
-# RapidR by default". -Native runs `rapidr setup --yes` (Rust's gnullvm toolchain,
-# as a user would) and builds programs natively with the LLVM-MinGW the SDK ships:
+# RapidR by default". -Native runs `rapidr setup --yes` (RapidR's exact gnullvm toolchain,
+# installed into a throwaway RUSTUP_HOME / CARGO_HOME: the VM user's Rust is checked unchanged) and builds programs natively with the LLVM-MinGW the SDK ships:
 # conformance cases from -Cases (their output checked) and a GUI fixture.
 param(
     [Parameter(Mandatory = $true)][string]$Installer,
@@ -25,6 +25,9 @@ $T = Join-Path $env:TEMP ("rapidr-smoke-" + [guid]::NewGuid().ToString("N").Subs
 New-Item -ItemType Directory -Force "$T\work", "$T\prints" | Out-Null
 $env:RAPIDR_PRINT_TO = "$T\prints"; $env:RAPIDR_REGISTRY = "$T\registry.reg"; $env:RAPIDR_CONFIG_DIR = "$T\config"
 $script:fail = 0
+# (an error the script didn't expect counts as a failure, and the rest still runs: the uninstall
+# and the clean-up, so a failed run leaves no install, file types or toolchain behind)
+trap { Write-Host "  FAIL  unexpected error: $_"; $script:fail = 1; continue }
 function Check($what, [scriptblock]$test) {
     $ok = $false
     try { $ok = [bool](& $test) } catch { $ok = $false }
@@ -96,10 +99,26 @@ if ($kind -eq "sdk") {
     Check "the IDE starts (headless)" { (Out-Of $R @("ide")) -match "statusbar.caption=Ready" }
     Remove-Item env:RAPIDR_CAPTURE, env:RAPIDR_CAPTURE_DELAY, env:RAPIDR_TEST_DUMP
     if ($Native) {
-        Write-Host "== native builds: rapidr setup, then the shipped LLVM-MinGW (offline, an empty cargo home)"
-        Write-Host (Out-Of $R @("setup", "--yes"))
+        Write-Host "== native builds: rapidr setup, then the shipped LLVM-MinGW (a throwaway rustup and cargo home, offline)"
+        # The user's own Rust is never touched: its default, read before and after. Setup works in a
+        # throwaway RUSTUP_HOME / CARGO_HOME with a default host of its own, which must stay as it is.
+        $rustup = (Get-Command rustup -ErrorAction SilentlyContinue).Source
+        if (-not $rustup) { $rustup = "$env:USERPROFILE\.cargo\bin\rustup.exe" }
+        function Users-Rust { (& $rustup default 2>&1 | Out-String) + (& $rustup show active-toolchain 2>&1 | Out-String) }
+        $usersBefore = Users-Rust
+        $env:RUSTUP_HOME = "$T\rustup-home"; $env:CARGO_HOME = "$T\cargo-home"
+        New-Item -ItemType Directory -Force $env:RUSTUP_HOME, $env:CARGO_HOME | Out-Null
+        # (not $native: PowerShell's names ignore case, and that would be the -Native switch)
+        $hostArch = if ("$env:PROCESSOR_IDENTIFIER" -like "ARM*") { "aarch64" } else { "x86_64" }
+        & $rustup set default-host "$hostArch-pc-windows-msvc" 2>&1 | Out-Null
+        function Rust-State { (& $rustup default 2>&1 | Out-String) + ((& $rustup show 2>&1 | Select-String "Default host") -join "") }
+        $before = Rust-State
+        $setup = Out-Of $R @("setup", "--yes")
+        Write-Host $setup
+        Check "setup installs RapidR's toolchain beside, the defaults unchanged" { (Rust-State) -eq $before }
+        Check "setup: native builds ready" { $setup -match "native builds ready" }
         Check "setup: the shipped linker" { (Out-Of $R @("setup", "--check")) -match "linker: LLVM-MinGW, shipped" }
-        $env:CARGO_HOME = "$T\cargo-home"; $env:CARGO_TARGET_DIR = "$T\native-target"
+        $env:CARGO_TARGET_DIR = "$T\native-target"
         $readobj = "$T\app\lib\rapidr\toolchain\bin\llvm-readobj.exe"
         foreach ($case in "arithmetic", "arrays", "control_flow", "functions", "gosub_goto", "data_read") {
             Copy-Item "$Cases\tests\conformance\cases\$case.bas" "$T\work\$case.bas"
@@ -120,8 +139,9 @@ if ($kind -eq "sdk") {
         $env:RAPIDR_CAPTURE = "$T\work\gui"; $env:RAPIDR_CAPTURE_DELAY = "0.5"
         Check "native builds carry the mingw-w64 notices" { (Get-Content -Raw "$T\work\THIRD-PARTY-NOTICES.txt") -match "mingw-w64 runtime" }
         Check "native GUI fixture runs (capture)" { (Test-Path "$T\work\list_items.exe") -and ((Out-Of "$T\work\list_items.exe" @()) -match "captured window") }
-        Remove-Item env:RAPIDR_CAPTURE, env:RAPIDR_CAPTURE_DELAY, env:CARGO_HOME, env:CARGO_TARGET_DIR
-        Remove-Item -Recurse -Force "$T\native-target", "$T\cargo-home" -ErrorAction SilentlyContinue
+        Remove-Item env:RAPIDR_CAPTURE, env:RAPIDR_CAPTURE_DELAY, env:CARGO_HOME, env:RUSTUP_HOME, env:CARGO_TARGET_DIR
+        Remove-Item -Recurse -Force "$T\native-target", "$T\cargo-home", "$T\rustup-home" -ErrorAction SilentlyContinue
+        Check "the user's own Rust unchanged (rustup default, active toolchain)" { (Users-Rust) -eq $usersBefore }
     }
 } else {
     Check "no executables: says it's the runtime" { (Out-Of $R @("build", "hello.bas", "--interp")) -match "This is the RapidR Runtime" }

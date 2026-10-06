@@ -451,7 +451,7 @@ fn build_desktop(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitC
     // both targets — what's shipped runs on every Mac —, for macOS from
     // DEPLOYMENT_TARGET on (macos.rs); a debug build is this Mac's only (half
     // the build time while developing)
-    let universal = release && cfg!(target_os = "macos") && macos::rust_has_both_targets(&home::rust_tool("rustc"));
+    let universal = release && cfg!(target_os = "macos") && macos::rust_has_both_targets(home::rust_command("rustc"));
     if cfg!(target_os = "macos") {
         if env::var_os("MACOSX_DEPLOYMENT_TARGET").is_none() {
             cargo.env("MACOSX_DEPLOYMENT_TARGET", macos::DEPLOYMENT_TARGET);
@@ -531,9 +531,9 @@ fn build_desktop(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitC
 /// builds with its vendored crates, offline (home.rs); a runtime-only
 /// install builds none.
 fn cargo_for_programs() -> Result<process::Command, String> {
-    let home = Home::find();
-    let mut cargo = process::Command::new(home::rust_tool("cargo"));
-    let Some(home) = home else { return Ok(cargo) };
+    // (an install: its own exact toolchain, never the user's default)
+    let mut cargo = home::rust_command("cargo");
+    let Some(home) = Home::find() else { return Ok(cargo) };
     if !home.can_build() {
         return Err("This is the RapidR Runtime: it runs programs (`rapidr run`) and builds none. Native and web builds need the RapidR SDK.".into());
     }
@@ -554,7 +554,6 @@ fn cargo_for_programs() -> Result<process::Command, String> {
         let bin = tc.join("bin");
         let clang = bin.join(format!("{}-w64-mingw32-clang.exe", env::consts::ARCH));
         cargo
-            .env("RUSTUP_TOOLCHAIN", format!("stable-{triple}"))
             .env(format!("CARGO_TARGET_{}_LINKER", env_triple.to_uppercase()), &clang)
             // (libunwind and the mingw-w64 runtime linked in: an executable
             // that needs no DLL beside it)

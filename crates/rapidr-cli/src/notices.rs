@@ -284,7 +284,7 @@ const ALLOWED: &[(&str, &str)] = &[
 /// permissive notices of data and protocol descriptions compiled into
 /// crates (HPND-sell-variant and X11: MIT's kin, a notice and no
 /// endorsement). Generation fails on any other.
-const EXTRA_ALLOWED: &[&str] = &["MIT", "Apache-2.0 WITH LLVM-exception", "BSD-2-Clause", "BSD-3-Clause", "ISC", "ZPL-2.1", "OFL-1.1", "public domain", "HPND-sell-variant", "X11"];
+const EXTRA_ALLOWED: &[&str] = &["MIT", "Apache-2.0 WITH LLVM-exception", "BSD-2-Clause", "BSD-3-Clause", "ISC", "ZPL-2.1", "OFL-1.1", "public domain", "HPND", "HPND-sell-variant", "X11"];
 
 /// Crates that must never be compiled into a program: what RapidR replaced
 /// so nothing copyleft, cryptographic or data-licensed is shipped
@@ -313,6 +313,16 @@ const NOTO_OFL: &str = include_str!("../../../fonts/fallback/OFL.txt");
 /// mingw-w64's notices, from the LLVM-MinGW release the Windows SDK ships.
 const MINGW_RUNTIME: &str = include_str!("../licenses/MinGW-w64-runtime.txt");
 const MINGW_COPYING: &str = include_str!("../licenses/MinGW-w64-COPYING.txt");
+
+/// The gdtoa section of mingw-w64's runtime notices (COPYING.MinGW-w64-runtime.txt):
+/// the only part of that file, besides the overall ZPL notice, that applies
+/// to what a link keeps (docs/licensing.md §3.3).
+fn mingw_gdtoa() -> &'static str {
+    let start = MINGW_RUNTIME.find("gdtoa: Converting").and_then(|i| MINGW_RUNTIME[i..].find('\n').map(|n| i + n)).unwrap_or(0);
+    let start = start + MINGW_RUNTIME[start..].find("The author").unwrap_or(0);
+    let end = MINGW_RUNTIME[start..].find("Parts of the math library").map(|e| start + e).unwrap_or(MINGW_RUNTIME.len());
+    MINGW_RUNTIME[start..end].trim_end().trim_end_matches('=').trim_end()
+}
 
 fn rank(id: &str) -> Option<usize> {
     ALLOWED.iter().position(|(a, _)| *a == id)
@@ -827,33 +837,36 @@ fn extras(kind: &Kind, crates: &BTreeSet<&str>, packages: &HashMap<(String, Stri
     }
     if kind.os() == "windows" {
         // What LLVM-MinGW (the SDK's toolchain, the *-pc-windows-gnullvm
-        // targets) links into a program: its texts, from the llvm-mingw
+        // targets) links into a program, exactly: the objects
+        // tools/release/windows/link_audit.sh finds kept in a program and in
+        // rapidr.exe (docs/licensing.md §3.3), with the texts of the llvm-mingw
         // release the SDK ships (crates/rapidr-cli/licenses/MinGW-w64-*.txt).
+        // Its member_licences.py carries the same licence list: change both together.
         out.push(Component {
             name: "mingw-w64 runtime (LLVM-MinGW: *-pc-windows-gnullvm builds)".into(),
             version: String::new(),
             declared: "ZPL-2.1, with BSD-, ISC- and MIT-style and public-domain parts".into(),
-            used: "ZPL-2.1 AND BSD-2-Clause AND ISC AND MIT AND public domain".into(),
+            used: "ZPL-2.1 AND HPND AND public domain".into(),
             url: "https://www.mingw-w64.org".into(),
-            note: "Its start-up objects and run-time library (crt2.o, libmingw32, libmingwex: gdtoa, getopt, parts of the math library, …) are linked statically into programs built with the gnullvm targets — RapidR's own Windows executables and native builds made with the RapidR SDK. Its licence asks for these notices to go with the program in binary form. (A few mingw-w64 headers imported from Wine are LGPL-2.1-or-later; they are only compiled against, never linked.)".into(),
+            note: "Linked statically into programs built with the gnullvm targets — RapidR's own Windows executables and native builds made with the RapidR SDK: the start-up objects (crt2.o, crtbegin.o, crtend.o) and a few members of libmingw32 (start-up, TLS, pseudo-relocations, argument and environment set-up), libmingwex (hypotf, isnan, ldexp, sincos, sincosf, Control Flow Guard and load-config support, the math error hook) and libucrt_extra (UCRT shims); on x64 also libmingwex's __mingw_fprintf with its formatter and David M. Gay's gdtoa (for libunwind's error messages). Public domain, or ZPL-2.1 (mingw-w64's COPYING), and gdtoa under its own permission notice (HPND), which both ask for their notices with the program in binary form. No Cephes-derived math code, nothing imported from Wine and nothing (L)GPL is linked.".into(),
             blocks: vec![
-                Block { title: "mingw-w64 — COPYING.MinGW-w64-runtime.txt".into(), text: MINGW_RUNTIME.into() },
                 Block { title: "mingw-w64 — COPYING (ZPL-2.1)".into(), text: MINGW_COPYING.into() },
+                Block { title: "mingw-w64 — gdtoa (David M. Gay, Lucent Technologies)".into(), text: mingw_gdtoa().into() },
             ],
         });
         out.push(Component {
-            name: "LLVM compiler-rt (builtins) and libunwind (LLVM-MinGW: *-pc-windows-gnullvm builds)".into(),
+            name: "LLVM libunwind (LLVM-MinGW: *-pc-windows-gnullvm builds)".into(),
             version: String::new(),
             declared: "Apache-2.0 WITH LLVM-exception".into(),
             used: "Apache-2.0 WITH LLVM-exception".into(),
             url: "https://llvm.org".into(),
-            note: "Linked statically into programs built with the gnullvm targets (in place of GCC's libgcc: no GPL code is linked). The LLVM exception lets this embedded code be shipped without its notices; they are here all the same.".into(),
+            note: "Linked statically into programs built with the gnullvm targets (in place of GCC's libgcc_eh: no GPL code is linked). compiler-rt's builtins are not linked: Rust's compiler_builtins provides them. The LLVM exception lets this embedded code be shipped without its notices; they are here all the same.".into(),
             blocks: vec![Block { title: "LLVM — Apache-2.0 WITH LLVM-exception".into(), text: ALLOWED.iter().find(|(id, _)| *id == "Apache-2.0 WITH LLVM-exception").map(|(_, t)| *t).unwrap_or_default().into() }],
         });
     }
     let system = match kind.os() {
         "macos" => Some("macOS's libraries and frameworks (libSystem, AppKit, Metal, Core Audio, Core MIDI, IOKit, Security for HTTPS, …) are part of the operating system: linked dynamically, not part of this program, not distributed with it."),
-        "windows" => Some("Windows' DLLs (kernel32, user32, the Universal C Runtime, SChannel for HTTPS, …) are part of the operating system: linked dynamically, not distributed with this program. The start-up and run-time support code the toolchain links in: with the *-pc-windows-gnullvm targets (LLVM-MinGW), LLVM's compiler-rt and libunwind (Apache-2.0 WITH LLVM-exception, which lets that embedded code be shipped without notices) and the mingw-w64 runtime's start-up objects (the mingw-w64 runtime licence, COPYING.MinGW-w64-runtime.txt in LLVM-MinGW); with *-pc-windows-msvc, Microsoft's C runtime start-up code (and, with +crt-static, as in RapidR's release builds, the Visual C++ runtime), distributed under the Visual Studio licence's terms for its distributable code."),
+        "windows" => Some("Windows' DLLs (kernel32, user32, the Universal C Runtime, SChannel for HTTPS, …) are part of the operating system: linked dynamically, not distributed with this program. The start-up and run-time support code the toolchain links in: with the *-pc-windows-gnullvm targets (LLVM-MinGW), LLVM's libunwind and parts of the mingw-w64 runtime (both listed above, with their notices); with *-pc-windows-msvc, Microsoft's C runtime start-up code (and, with +crt-static, as in RapidR's release builds, the Visual C++ runtime), distributed under the Visual Studio licence's terms for its distributable code."),
         "linux" => Some("The GNU C library (glibc), libgcc_s, OpenSSL 3 (libssl.so.3 and libcrypto.so.3, for HTTPS; Apache-2.0), ALSA's libasound, fontconfig, X11, Wayland and xkbcommon are the system's libraries: linked or loaded dynamically from the user's system, not part of this program, not distributed with it (glibc and libasound are LGPL-2.1-or-later, which puts no conditions on a program that only uses the system's shared copies). The start-up files linked into every Linux program (glibc's crt1.o / crti.o, GCC's crtbegin.o) carry licence exceptions for exactly this use."),
         "web" => Some("The program runs in the visitor's web browser. Its JavaScript glue is generated by wasm-bindgen (listed here); the rest of the page (index.html, loader.js, the console) is RapidR's (MIT)."),
         _ => None,
@@ -1103,5 +1116,16 @@ mod tests {
         theirs.sort();
         ours.sort();
         assert_eq!(theirs, ours);
+    }
+
+    /// The gdtoa notice is cut whole from mingw-w64's runtime notices: its
+    /// three permission notices, nothing of the sections around it.
+    #[test]
+    fn the_gdtoa_notice_is_cut_whole() {
+        let g = mingw_gdtoa();
+        assert!(g.starts_with("The author of this software is David M. Gay."), "{g}");
+        assert_eq!(g.matches("Permission to use, copy, modify, and distribute").count(), 3);
+        assert!(g.trim_end().ends_with("THIS SOFTWARE."), "{g}");
+        assert!(!g.contains("math library") && !g.contains("==="));
     }
 }

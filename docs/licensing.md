@@ -200,7 +200,7 @@ the web IDE adds Monaco (LICENSES.md §1).
 | Platform | Linked into the program | Licence | What it asks |
 |---|---|---|---|
 | All | Rust's standard library (`core`, `alloc`, `std` and the crates they are built from, incl. `compiler_builtins` with code from LLVM compiler-rt) | MIT OR Apache-2.0 (compiler-rt parts: Apache-2.0 WITH LLVM-exception) | notice: in the file (MIT). The LLVM exception waives notices for code embedded in object form |
-| Windows, `gnullvm` (LLVM-MinGW) | compiler-rt builtins, libunwind; mingw-w64's start-up objects and helper library | Apache-2.0 WITH LLVM-exception; mingw-w64 runtime licence (`COPYING.MinGW-w64-runtime.txt`) | LLVM parts: nothing. mingw-w64: see open question 2 |
+| Windows, `gnullvm` (LLVM-MinGW) | libunwind; a few of mingw-w64's start-up objects and library members (exactly: below) | Apache-2.0 WITH LLVM-exception; public domain, ZPL-2.1 and, on x64, gdtoa's permission notice (HPND) | libunwind: nothing. mingw-w64: its notices in binary distributions — the Windows notices carry exactly the linked parts' (`notices.rs`, `extras()`) |
 | Windows, `msvc` | Microsoft's C runtime (static with `+crt-static`, as the release does) | Visual Studio licence, "Distributable Code" | no notice; the developer needs a valid Build Tools / Visual Studio licence |
 | Windows | kernel32, user32, the Universal CRT, … (DLLs) | part of Windows | nothing: not shipped |
 | macOS | libSystem and system frameworks | part of macOS | nothing: not shipped |
@@ -209,6 +209,72 @@ the web IDE adds Monaco (LICENSES.md §1).
 | Linux | OpenSSL 3 (`libssl.so.3`, `libcrypto.so.3`: HTTPS) | Apache-2.0 | nothing: dynamically linked from the system, not shipped (a program needs the system's `libssl3`) |
 | Linux | `libasound` (ALSA), fontconfig, X11, Wayland, xkbcommon | LGPL-2.1 (alsa-lib); MIT-style; MIT | nothing: dynamically linked or loaded from the system, not shipped |
 | macOS, Windows | Security.framework; SChannel (HTTPS) | part of the system | nothing |
+
+#### What LLVM-MinGW links into a Windows program, exactly
+
+Audited from linker maps (October 2026: LLVM-MinGW 20260922, UCRT; its
+mingw-w64 at commit `57b59503`; Rust 1.98.1 `*-pc-windows-gnullvm`,
+`+crt-static`): `tools/release/windows/link_audit.sh` cross-links, on a Mac
+or Linux machine, a GUI program on the full runtime
+(`tests/fixtures/list_items.bas`, generated as `rapidr build` generates it) and
+`rapidr.exe` (`--release`, as the release builds it), for aarch64 and x86_64,
+with `-Wl,-Map` and `--no-gc-sections` (so the map shows everything the link
+pulls in, what any program on the same runtime could contain, not only what
+one program keeps), lists the toolchain's objects, and checks each one's
+source (`member_licences.py`, against the mingw-w64 source).
+
+| From | In all four outputs | Only in some | Licence (source header) |
+|---|---|---|---|
+| start-up objects | `crt2.o` (`crt/crtexe.c`), `crtbegin.o`, `crtend.o` (mingw-w64's, not compiler-rt's) | — | public domain |
+| `libmingw32` | `_newmode`, `dllargv`, `gccmain`, `merr`, `mingw_helpers`, `natstart`, `pesect`, `pseudo-reloc`, `pseudo-reloc-list`, `tlssup`, `usermatherr`, `wildcard`, `xncommod`, `xthdloc`, `xtxtmode` | `CRT_fp10` (x64) | public domain |
+| `libmingw32` | `cinitexe` | — | ZPL-2.1 (no header: mingw-w64-crt's COPYING) |
+| `libmingwex` | `loadcfg`, `mingw_cfguard_support` | `isnan` (programs), `sincos`, `sincosf` (aarch64 rapidr.exe), `guard_dispatch` (x64), `ldexp` (x64 rapidr.exe) | public domain |
+| `libmingwex` | `hypotf` (mingw-w64's own, not Cephes's `hypotl`), `mingw_matherr` | — | ZPL-2.1 |
+| `libmingwex` | — | `mingw_fprintf`, `mingw_pformat` (x64) | public domain ("without restriction of copyright") |
+| `libmingwex` | — | `gdtoa`, `dmisc`, `gmisc`, `misc` (x64) | David M. Gay / Lucent permission notice (HPND) |
+| `libucrt_extra` | `__initenv`, `__p___initenv`, `ucrt___local_stdio_printf_options`, `ucrt__getmainargs`, `ucrt_amsg_exit`, `ucrt_fprintf`, `ucrt_vfprintf` | `sincos`, `sincosf` (x64) | public domain |
+| LLVM libunwind | `libunwind.cpp`, `Unwind-seh.cpp`, `UnwindLevel1.c`, `UnwindLevel1-gcc-ext.c`, `UnwindRegistersSave.S` | — | Apache-2.0 WITH LLVM-exception |
+| LLVM compiler-rt | nothing: Rust's `compiler_builtins` provides the builtins | — | — |
+
+On x64, LLVM-MinGW's libunwind calls mingw-w64's own `__mingw_fprintf` for
+its error messages (its objects reference it), which brings in that
+formatter and gdtoa; on aarch64 it calls the UCRT's `fprintf`.
+
+- **Cephes**: mingw-w64's Cephes-derived files (`math/cbrt*`, `lgamma*`,
+  `tgamma*`, `erfl`, `coshl`, `sinhl`, `tanhl`, `hypotl`, and everything
+  including `cephes_mconf.h`) — none is pulled in. Nothing RapidR builds
+  calls them: Rust has no `long double`, its `cbrt` and `tgamma` resolve to
+  the UCRT's DLL (LLVM-MinGW's UCRT import libraries export them), and
+  nothing calls `lgamma` (which libmingwex would provide). The audit would
+  flag it if anything did.
+- **Wine**: nothing in mingw-w64-crt is imported from Wine (only a comment
+  in `libsrc/dloadhelper.c` mentions Wine's header; not linked either). The
+  Wine-imported, LGPL-2.1-or-later files are headers and IDLs: compiled
+  against by the crates' C code (SQLite), never linked. The import libraries
+  (`libkernel32.a`, …) are generated from mingw-w64's `.def` files, none of
+  which carries an LGPL or Wine notice.
+- **(L)GPL**: nothing linked; no libgcc (compiler-rt and libunwind replace
+  it), and `libgmon` (profiling) is linked only with `-pg`, which RapidR
+  never passes.
+
+So the Windows notices (`notices.rs`, `extras()`) list mingw-w64's COPYING
+(ZPL-2.1) and the gdtoa notice, used as `ZPL-2.1 AND HPND AND public domain`,
+and LLVM's libunwind; not the rest of `COPYING.MinGW-w64-runtime.txt`
+(getopt, the math library's BSD parts, the string functions' parts, the Wine
+headers), whose code isn't linked. The whole file still ships with the SDK's
+toolchain (LICENSES.md §7.1).
+
+To redo the audit after a toolchain update:
+
+```sh
+# LLVM-MinGW's macOS (or Linux) release, and the mingw-w64 source at the commit it names
+MINGW_SRC=<mingw-w64 source> tools/release/windows/link_audit.sh <llvm-mingw folder> <work folder> x86_64
+MINGW_SRC=<mingw-w64 source> tools/release/windows/link_audit.sh <llvm-mingw folder> <work folder> aarch64
+```
+
+It exits 1 when an object is flagged: Cephes, Wine, (L)GPL, or a licence the
+notices don't carry. Then remove what pulls it in, or update the notices and
+`member_licences.py`'s list together.
 
 ## 4. What each licence asks of someone who ships a program
 
@@ -359,14 +425,12 @@ Still open:
    material as unrestricted, §5 of 2.1). Removing it would remove screen
    readers on Linux; there is no other licence for the interface. For
    review.
-2. **mingw-w64 runtime (Windows, `gnullvm`).** Programs linked with
-   LLVM-MinGW contain mingw-w64's start-up code and helper library. Its
-   licence (`COPYING.MinGW-w64-runtime.txt`) is mostly ZPL-2.1 / public
-   domain / MIT-style; ZPL-2.1 asks for its notice in binary distributions.
-   When the release adopts gnullvm, add that file's text to the Windows
-   notices (`notices.rs`, `extras()`) after checking which of its parts the
-   linked objects come from. (With `msvc`, Microsoft's runtime is
-   redistributable code under the Visual Studio licence: no notice.)
+2. **mingw-w64 runtime (Windows, `gnullvm`)** — settled (October 2026).
+   The linked objects were audited from link maps (§3.3): public domain,
+   ZPL-2.1 and, on x64, gdtoa's notice; no Cephes, no Wine, no (L)GPL code.
+   The Windows notices carry exactly those notices. (With `msvc`,
+   Microsoft's runtime is redistributable code under the Visual Studio
+   licence: no notice.)
 3. **Google Fonts in the web IDE (settled).** Loading fonts from Google's
    servers sent the visitor's IP address to Google, which some EU courts
    have found a GDPR issue without consent. The links are gone: the IDE
