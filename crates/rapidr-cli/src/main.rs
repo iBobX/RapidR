@@ -447,9 +447,11 @@ fn build_desktop(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitC
             return ExitCode::from(1);
         }
     };
-    // macOS: universal (arm64 + x86_64) when Rust has both targets, for
-    // macOS from DEPLOYMENT_TARGET on (macos.rs)
-    let universal = cfg!(target_os = "macos") && macos::rust_has_both_targets(&home::rust_tool("rustc"));
+    // macOS: a release build is universal (arm64 + x86_64) when Rust has
+    // both targets — what's shipped runs on every Mac —, for macOS from
+    // DEPLOYMENT_TARGET on (macos.rs); a debug build is this Mac's only (half
+    // the build time while developing)
+    let universal = release && cfg!(target_os = "macos") && macos::rust_has_both_targets(&home::rust_tool("rustc"));
     if cfg!(target_os = "macos") {
         if env::var_os("MACOSX_DEPLOYMENT_TARGET").is_none() {
             cargo.env("MACOSX_DEPLOYMENT_TARGET", macos::DEPLOYMENT_TARGET);
@@ -458,7 +460,7 @@ fn build_desktop(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitC
             for t in macos::TRIPLES {
                 cargo_args.extend(["--target", t]);
             }
-        } else {
+        } else if release {
             println!("(this Mac's architecture only: `rustup target add aarch64-apple-darwin x86_64-apple-darwin` makes universal executables)");
         }
     }

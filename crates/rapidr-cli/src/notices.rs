@@ -284,7 +284,7 @@ const ALLOWED: &[(&str, &str)] = &[
 /// permissive notices of data and protocol descriptions compiled into
 /// crates (HPND-sell-variant and X11: MIT's kin, a notice and no
 /// endorsement). Generation fails on any other.
-const EXTRA_ALLOWED: &[&str] = &["MIT", "BSD-3-Clause", "OFL-1.1", "public domain", "HPND-sell-variant", "X11"];
+const EXTRA_ALLOWED: &[&str] = &["MIT", "Apache-2.0 WITH LLVM-exception", "BSD-2-Clause", "BSD-3-Clause", "ISC", "ZPL-2.1", "OFL-1.1", "public domain", "HPND-sell-variant", "X11"];
 
 /// Crates that must never be compiled into a program: what RapidR replaced
 /// so nothing copyleft, cryptographic or data-licensed is shipped
@@ -833,7 +833,7 @@ fn extras(kind: &Kind, crates: &BTreeSet<&str>, packages: &HashMap<(String, Stri
             name: "mingw-w64 runtime (LLVM-MinGW: *-pc-windows-gnullvm builds)".into(),
             version: String::new(),
             declared: "ZPL-2.1, with BSD-, ISC- and MIT-style and public-domain parts".into(),
-            used: "ZPL-2.1 and the parts' own terms".into(),
+            used: "ZPL-2.1 AND BSD-2-Clause AND ISC AND MIT AND public domain".into(),
             url: "https://www.mingw-w64.org".into(),
             note: "Its start-up objects and run-time library (crt2.o, libmingw32, libmingwex: gdtoa, getopt, parts of the math library, …) are linked statically into programs built with the gnullvm targets — RapidR's own Windows executables and native builds made with the RapidR SDK. Its licence asks for these notices to go with the program in binary form. (A few mingw-w64 headers imported from Wine are LGPL-2.1-or-later; they are only compiled against, never linked.)".into(),
             blocks: vec![
