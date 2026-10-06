@@ -1126,6 +1126,17 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             }
             picture_changed(name);
         }
+        // `ImageList.Draw Target, X, Y, Index`: the target QIMAGE / QCANVAS
+        // shows it.
+        if let Some(target) = args.first().map(Value::to_string_val).filter(|t| method_lower == "draw" && rapidr_value::objects::exists(t)) {
+            if rapidr_value::objects::is_picture(&target) {
+                picture_changed(&target);
+            }
+            #[cfg(feature = "gui")]
+            if rapidr_value::objects::is_canvas(&target) {
+                crate::ui::canvas_redraw(&target);
+            }
+        }
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_canvas(name) {
             crate::ui::canvas_redraw(name);

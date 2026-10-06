@@ -389,6 +389,8 @@ pub fn is_screen_method(method: &str) -> bool {
             | "createwrap"
             | "createshadow"
             | "setvelocity"
+            | "createanimation"
+            | "createanimationset"
     )
 }
 
@@ -549,6 +551,11 @@ pub fn screen_call(id: &str, screen: &mut DxScreen, method: &str, args: &[Value]
             let camera = store(|s| s.scene(id).camera);
             return frame_call(id, Some(camera), method, args).map(|r| r.map(|_| Value::Null));
         }
+        // CreateAnimation(Ani AS QD3DANIMATION) / CreateAnimationSet(AniSet
+        // AS QD3DANIMATIONSET): RapidQ makes Direct3D's animation objects,
+        // but gives them nothing to do (RC.EXE's member table: a Parent,
+        // no keys, nothing that plays them) — nothing for RapidR to keep.
+        "createanimation" | "createanimationset" => return Some(Ok(Value::Null)),
         _ => return None,
     };
     Some(r.map(|_| Value::Null))

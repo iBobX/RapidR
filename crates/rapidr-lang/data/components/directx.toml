@@ -79,8 +79,8 @@ methods = [
   { name = "Ellipse", origin = "rapidr", only = "desktop" },
   { name = "DrawText", origin = "rapidr", only = "desktop" },
   { name = "Render" },
-  { name = "CreateAnimation", missing = true },
-  { name = "CreateAnimationSet", missing = true },
+  { name = "CreateAnimation", params = "Ani AS QD3DANIMATION", test = "args: 0", doc = "Takes a Direct3D animation object. RapidQ gives such an object nothing to do (no keys, nothing that plays it), so this does nothing." },
+  { name = "CreateAnimationSet", params = "AniSet AS QD3DANIMATIONSET", test = "args: 0", doc = "Takes a Direct3D animation set. RapidQ gives such an object nothing to do (no animations to add, nothing that plays it), so this does nothing." },
 ]
 events = [
   { name = "OnClick" },
@@ -151,7 +151,7 @@ methods = [
   { name = "Play" },
   { name = "Stop" },
   { name = "Update" },
-  { name = "RecreateBuf", missing = true },
+  { name = "RecreateBuf", doc = "Makes the sound's buffer again after DirectSound lost it. RapidR's sound never loses its buffer, so this does nothing." },
 ]
 events = []
 
