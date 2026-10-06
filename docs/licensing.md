@@ -440,5 +440,11 @@ Still open:
 4. **QDockForm / QDirListView history.** The earlier versions were close
    ports of user-contributed RapidQ code whose authors allowed free
    distribution and modification (QDockForm) or stated no terms
-   (QDirListView). Both are rewritten now; the old versions remain in git
-   history.
+   (QDirListView). Both are rewritten now, and on 2026-10-06 the git history
+   was rewritten too: every earlier version of the two libraries, and of the
+   four conformance cases and the `tab_control` fixture that had reused the
+   manual's examples, was replaced by the clean version in every commit
+   (`git filter-repo`; same commits, authors and messages, today's tree
+   unchanged). Copies cloned before that date still hold the old versions;
+   GitHub may keep the old commits reachable by their hashes until its
+   support purges them. Settled.

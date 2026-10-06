@@ -7,6 +7,14 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Changed
+- The git history no longer holds the earlier versions of QDockForm and
+  QDirListView (close ports of user-contributed RapidQ code) or of the four
+  conformance cases and the `tab_control` fixture that reused the manual's
+  examples: every commit carries the clean versions instead (same commits,
+  authors and messages; today's tree unchanged). Clones made before
+  2026-10-06 should be cloned again.
+
 ## [2.117.0] — 2026-10-06
 
 ### Added
