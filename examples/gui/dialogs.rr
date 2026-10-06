@@ -1,0 +1,88 @@
+' dialogs.rr: the standard dialogs — open a file, pick a colour, pick a
+' font — and a question with Yes / No.
+'
+'   rapidr run dialogs.rr
+'
+' A dialog's Execute shows it and is true when the user pressed OK; its
+' properties then hold the answer (FileName, Color, Name / Size …).
+' MESSAGEDLG asks a question and returns the button pressed.
+$INCLUDE "RAPIDQ.INC"
+
+DECLARE SUB OpenFile
+DECLARE SUB PickColour
+DECLARE SUB PickFont
+DECLARE SUB Ask
+
+CREATE OpenDlg AS QOPENDIALOG
+    Caption = "Open a text file"
+    Filter = "Text files|*.txt|All files|*.*"
+END CREATE
+CREATE ColourDlg AS QCOLORDIALOG
+END CREATE
+CREATE FontDlg AS QFONTDIALOG
+END CREATE
+
+CREATE Form AS QFORM
+    Caption = "Dialogs"
+    Width = 360
+    Height = 230
+    Center
+    CREATE OpenBtn AS QBUTTON
+        Caption = "&Open...": Left = 12: Top = 12: Width = 100
+        OnClick = OpenFile
+    END CREATE
+    CREATE ColourBtn AS QBUTTON
+        Caption = "&Colour...": Left = 12: Top = 44: Width = 100
+        OnClick = PickColour
+    END CREATE
+    CREATE FontBtn AS QBUTTON
+        Caption = "&Font...": Left = 12: Top = 76: Width = 100
+        OnClick = PickFont
+    END CREATE
+    CREATE AskBtn AS QBUTTON
+        Caption = "&Ask...": Left = 12: Top = 108: Width = 100
+        OnClick = Ask
+    END CREATE
+    CREATE Sample AS QPANEL
+        Caption = "Sample text": Left = 126: Top = 12: Width = 210: Height = 120
+        BevelOuter = bvLowered
+    END CREATE
+    CREATE Answer AS QLABEL
+        Caption = "Pick something.": Left = 12: Top = 150: Width = 330
+    END CREATE
+END CREATE
+
+SUB OpenFile
+    IF OpenDlg.Execute THEN
+        Answer.Caption = "Chose " + OpenDlg.FileName
+    ELSE
+        Answer.Caption = "No file chosen"
+    END IF
+END SUB
+
+SUB PickColour
+    ColourDlg.Color = Sample.Color
+    IF ColourDlg.Execute THEN
+        Sample.Color = ColourDlg.Color
+        Answer.Caption = "Colour &H" + HEX$(ColourDlg.Color)
+    END IF
+END SUB
+
+SUB PickFont
+    IF FontDlg.Execute THEN
+        Sample.Font.Name = FontDlg.Name
+        Sample.Font.Size = FontDlg.Size
+        Answer.Caption = "Font " + FontDlg.Name + STR$(FontDlg.Size)
+    END IF
+END SUB
+
+SUB Ask
+    SELECT CASE MESSAGEDLG("Do you like RapidR?", mtConfirmation, mbYes OR mbNo, 0)
+        CASE mrYes
+            Answer.Caption = "Glad to hear it!"
+        CASE ELSE
+            Answer.Caption = "We'll keep working on it."
+    END SELECT
+END SUB
+
+Form.ShowModal

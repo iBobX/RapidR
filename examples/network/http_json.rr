@@ -1,0 +1,42 @@
+' http_json.rr: fetching a JSON document over HTTP with RHTTP and reading
+' it with RJSON — a three-day forecast.
+'
+'   python3 -m http.server 8000        (in this folder: serves forecast.json)
+'   rapidr run http_json.rr
+'   rapidr run http_json.rr http://127.0.0.1:8000/forecast.json
+'
+' The address is the program's argument (COMMAND$; on a web page, what
+' follows the ? in its address), else a server on this machine. Get
+' returns the body; StatusCode says how it went (200: OK).
+$APPTYPE CONSOLE
+
+DIM url AS STRING
+url = COMMAND$
+IF url = "" THEN url = "http://127.0.0.1:8000/forecast.json"
+
+DIM web AS RHTTP
+DIM body AS STRING
+web.Timeout = 5000
+PRINT "Fetching " + url
+body = web.Get(url)
+IF web.StatusCode <> 200 THEN
+    PRINT "No forecast (status " + STR$(web.StatusCode) + "): is the server running?"
+    END
+END IF
+
+DIM fc AS RJSON
+IF fc.Parse(body) = 0 THEN
+    PRINT "The answer isn't JSON."
+    END
+END IF
+
+PRINT "Forecast for " + fc.Get("place") + " (updated " + fc.Get("updated") + ")"
+DIM i AS INTEGER, warmest AS STRING, best AS INTEGER
+best = -100
+FOR i = 0 TO 2
+    DIM d AS STRING
+    d = "days." + STR$(i) + "."
+    PRINT "  " + LEFT$(fc.Get(d + "day") + SPACE$(10), 10) + fc.Get(d + "low") + " to " + fc.Get(d + "high") + " " + fc.Get("unit") + ", " + fc.Get(d + "sky")
+    IF VAL(fc.Get(d + "high")) > best THEN best = VAL(fc.Get(d + "high")): warmest = fc.Get(d + "day")
+NEXT
+PRINT "Warmest: " + warmest

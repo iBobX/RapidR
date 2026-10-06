@@ -1,0 +1,99 @@
+' stopwatch.rr: a QTIMER drives a stopwatch — Start, Lap, Stop, Reset.
+'
+'   rapidr run stopwatch.rr
+'
+' A QTIMER calls its OnTimer every Interval milliseconds while Enabled.
+' The time shown comes from TIMER (seconds since midnight), so it stays
+' right even if a tick comes late.
+
+DECLARE SUB Tick
+DECLARE SUB StartStop
+DECLARE SUB Lap
+DECLARE SUB Reset
+
+DIM started AS DOUBLE      ' TIMER when Start was pressed
+DIM banked AS DOUBLE       ' seconds from earlier runs (before a Stop)
+
+FUNCTION Elapsed AS DOUBLE
+    Elapsed = banked
+    IF Clock.Enabled THEN Elapsed = banked + (TIMER - started)
+END FUNCTION
+
+FUNCTION Shown(t AS DOUBLE) AS STRING
+    ' m:ss.t
+    DIM m AS INTEGER
+    DIM s AS STRING
+    m = INT(t / 60)
+    s = FORMAT$("%.1f", t - m * 60)
+    IF LEN(s) < 4 THEN s = "0" + s
+    Shown = STR$(m) + ":" + s
+END FUNCTION
+
+CREATE Form AS QFORM
+    Caption = "Stopwatch"
+    Width = 300
+    Height = 280
+    Center
+    CREATE Time AS QLABEL
+        Caption = "0:00.0": Left = 20: Top = 12: Width = 260: Height = 50
+        Font.Size = 28
+        Alignment = 2        ' centred
+    END CREATE
+    CREATE StartBtn AS QBUTTON
+        Caption = "&Start": Left = 20: Top = 70: Width = 80
+        OnClick = StartStop
+    END CREATE
+    CREATE LapBtn AS QBUTTON
+        Caption = "&Lap": Left = 110: Top = 70: Width = 80: Enabled = 0
+        OnClick = Lap
+    END CREATE
+    CREATE ResetBtn AS QBUTTON
+        Caption = "&Reset": Left = 200: Top = 70: Width = 80
+        OnClick = Reset
+    END CREATE
+    CREATE Laps AS QLISTBOX
+        Left = 20: Top = 106: Width = 260: Height = 110
+    END CREATE
+    CREATE State AS QLABEL
+        Caption = "Ready": Left = 20: Top = 224: Width = 260
+    END CREATE
+    CREATE Clock AS QTIMER
+        Interval = 100
+        Enabled = 0
+        OnTimer = Tick
+    END CREATE
+END CREATE
+
+SUB Tick
+    Time.Caption = Shown(Elapsed)
+END SUB
+
+SUB StartStop
+    IF Clock.Enabled THEN
+        banked = Elapsed
+        Clock.Enabled = 0
+        StartBtn.Caption = "&Start"
+        State.Caption = "Stopped"
+    ELSE
+        started = TIMER
+        Clock.Enabled = 1
+        StartBtn.Caption = "&Stop"
+        State.Caption = "Running"
+    END IF
+    LapBtn.Enabled = Clock.Enabled
+    Tick
+END SUB
+
+SUB Lap
+    Laps.AddItems "Lap " + STR$(Laps.ItemCount + 1) + ":  " + Shown(Elapsed)
+END SUB
+
+SUB Reset
+    banked = 0
+    started = TIMER
+    Laps.Clear
+    Tick
+    State.Caption = IIF(Clock.Enabled, "Running", "Ready")
+END SUB
+
+Form.ShowModal

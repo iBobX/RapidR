@@ -1,6 +1,6 @@
 // Smoke test for the wasm-bindgen target=web build of rapidr-compiler-wasm.
 // Loads target/web/rapidrintr.js, initializes the wasm by passing raw bytes
-// (avoiding fetch()), and compiles examples/hello_world.rr.
+// (avoiding fetch()), and compiles examples/basics/hello.rr.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -9,7 +9,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..');
 const wasmPath = path.join(repoRoot, 'target/web/rapidrintr_bg.wasm');
 const jsPath = path.join(repoRoot, 'target/web/rapidrintr.js');
-const srcPath = path.join(repoRoot, 'examples/hello_world.rr');
+const srcPath = path.join(repoRoot, 'examples/basics/hello.rr');
 
 const RRBC_MAGIC = Uint8Array.of(0x52, 0x52, 0x42, 0x43); // "RRBC"
 
@@ -25,7 +25,7 @@ try {
     await mod.default(wasmBytes);
 
     const source = readFileSync(srcPath, 'utf8');
-    const bytecode = mod.compile(source, 'hello_world');
+    const bytecode = mod.compile(source, 'hello');
 
     if (!(bytecode instanceof Uint8Array)) {
         fail(`compile() did not return a Uint8Array (got ${typeof bytecode})`);

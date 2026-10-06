@@ -288,13 +288,6 @@ impl StringGrid {
     }
 
     /// Keeps the fixed rows/columns and the selection inside the grid.
-    /// The top-left cell and the selection at the first cell that isn't
-    /// fixed (Delphi's TCustomGrid.Initialize).
-    fn initialize(&mut self) {
-        let (c, r) = (self.fixed_cols() as i64, self.fixed_rows() as i64);
-        (self.left_col, self.top_row, self.col, self.row, self.anchor) = (c, r, c, r, None);
-    }
-
     fn fix_selection(&mut self) {
         let (rows, cols) = (self.row_count() as i64, self.col_count as i64);
         if self.row >= rows {
@@ -445,20 +438,30 @@ impl StringGrid {
         match prop {
             "colcount" | "cols" => self.resize(self.row_count(), count),
             "rowcount" | "rows" => self.resize(count, self.col_count),
-            // (a change starts the grid over at its first scrollable cell,
-            // as Delphi's TCustomGrid.Initialize: the top-left cell and the
-            // selection)
+            // (a grid not scrolled, its current cell the first one beside the
+            // fixed ones, stays so: with FixedCols = 0 column 0 shows and is
+            // the current one, as Delphi's grid does)
             "fixedcols" => {
-                if count != self.want_fixed_cols {
-                    self.want_fixed_cols = count;
-                    self.initialize();
+                let old = self.fixed_cols() as i64;
+                self.want_fixed_cols = count;
+                let new = self.fixed_cols() as i64;
+                if self.left_col == old {
+                    self.left_col = new;
+                }
+                if self.col == old {
+                    self.col = new;
                 }
                 self.fix_selection();
             }
             "fixedrows" => {
-                if count != self.want_fixed_rows {
-                    self.want_fixed_rows = count;
-                    self.initialize();
+                let old = self.fixed_rows() as i64;
+                self.want_fixed_rows = count;
+                let new = self.fixed_rows() as i64;
+                if self.top_row == old {
+                    self.top_row = new;
+                }
+                if self.row == old {
+                    self.row = new;
                 }
                 self.fix_selection();
             }
@@ -832,6 +835,20 @@ mod tests {
     }
 
     #[test]
+    fn no_fixed_column_shows_column_0() {
+        let mut g = StringGrid::default();
+        g.set("fixedcols", &v_int(0));
+        assert_eq!((g.left_col, g.col, g.fixed_cols()), (0, 0, 0));
+        g.set("fixedrows", &v_int(0));
+        assert_eq!((g.top_row, g.row), (0, 0));
+        // (scrolled, it stays where it was)
+        let mut g = StringGrid::default();
+        g.left_col = 3;
+        g.set("fixedcols", &v_int(2));
+        assert_eq!(g.left_col, 3);
+    }
+
+    #[test]
     fn range_selection() {
         let mut g = StringGrid::default();
         assert!(g.range_select());
@@ -882,17 +899,6 @@ mod tests {
 
     fn s(x: &str) -> Value {
         v_str(x)
-    }
-
-    #[test]
-    fn fixed_cols_start_the_grid_over() {
-        // (Delphi's SetFixedCols → Initialize: the first scrollable cell
-        // shows and is selected)
-        let mut g = StringGrid::default();
-        g.set("fixedcols", &crate::v_int(0));
-        assert_eq!((g.get("leftcol").unwrap().to_i64(), g.get("col").unwrap().to_i64()), (0, 0));
-        g.set("fixedrows", &crate::v_int(2));
-        assert_eq!((g.get("toprow").unwrap().to_i64(), g.get("row").unwrap().to_i64()), (2, 2));
     }
 
     #[test]

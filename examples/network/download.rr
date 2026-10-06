@@ -1,0 +1,72 @@
+' download.rr: downloading a file with QDOWNLOAD, a gauge following it.
+' QDOWNLOAD is RapidQ's Qdownload.inc object, built into RapidR.
+'
+'   python3 -m http.server 8000        (in this folder)
+'   rapidr run download.rr
+'   rapidr run download.rr http://127.0.0.1:8000/forecast.json
+'
+' QDOWNLOAD speaks HTTP to Server:Port for File. OutDevice 2 saves into
+' OutFile (1 keeps it in OutVar); StateDevice 2 moves its StateGauge (a
+' QGAUGE we put on the form). LeechFile downloads, the form still answering.
+$INCLUDE "RAPIDQ.INC"
+$INCLUDE "qdownload.inc"
+
+DECLARE SUB Fetch
+
+DIM Getter AS QDOWNLOAD
+
+CREATE Form AS QFORM
+    Caption = "Download"
+    Width = 420
+    Height = 170
+    Center
+    CREATE UrlEdit AS QEDIT
+        Left = 10: Top = 12: Width = 300
+    END CREATE
+    CREATE FetchBtn AS QBUTTON
+        Caption = "&Download": Left = 318: Top = 10: Width = 84: OnClick = Fetch
+    END CREATE
+    CREATE Info AS QLABEL
+        Left = 10: Top = 80: Width = 390
+        Caption = "Ready"
+    END CREATE
+END CREATE
+' (the download's own gauge, placed on the form)
+Getter.StateGauge.Parent = Form
+Getter.StateGauge.Left = 10
+Getter.StateGauge.Top = 46
+Getter.StateGauge.Width = 392
+Getter.StateGauge.ForeColor = &HB4823C
+
+SUB Fetch
+    ' http://host:port/path into its parts
+    DIM url AS STRING, slash AS INTEGER, colon AS INTEGER, hostport AS STRING
+    url = UrlEdit.Text
+    IF LEFT$(LCASE$(url), 7) = "http://" THEN url = MID$(url, 8)
+    slash = INSTR(url, "/")
+    IF slash = 0 THEN url = url + "/": slash = LEN(url)
+    hostport = LEFT$(url, slash - 1)
+    colon = INSTR(hostport, ":")
+    IF colon THEN
+        Getter.Server = LEFT$(hostport, colon - 1)
+        Getter.Port = VAL(MID$(hostport, colon + 1))
+    ELSE
+        Getter.Server = hostport
+        Getter.Port = 80
+    END IF
+    Getter.File = MID$(url, slash + 1)
+    Getter.OutDevice = 2
+    Getter.OutFile = "downloaded.tmp"
+    Getter.StateDevice = 2
+    Info.Caption = "Downloading " + Getter.File + " from " + Getter.Server + "..."
+    IF Getter.LeechFile THEN
+        Info.Caption = "Saved " + STR$(FILELEN("downloaded.tmp")) + " bytes of " + Getter.File
+        KILL "downloaded.tmp"
+    ELSE
+        Info.Caption = "Failed: " + Getter.LastStringError
+    END IF
+END SUB
+
+UrlEdit.Text = COMMAND$
+IF UrlEdit.Text = "" THEN UrlEdit.Text = "http://127.0.0.1:8000/forecast.json"
+Form.ShowModal

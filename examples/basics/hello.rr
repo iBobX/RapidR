@@ -1,0 +1,42 @@
+' hello.rr: the first RapidR program, in a console.
+'
+'   rapidr run hello.rr
+'
+' PRINT writes a line; variables are declared with DIM (or used directly,
+' as RapidQ allows); SUBs and FUNCTIONs are declared where they are used.
+$APPTYPE CONSOLE
+
+DIM who AS STRING
+who = "RapidR"
+PRINT "Hello from " + who + "!"
+
+' Numbers: STR$ turns one into text (as RapidQ's, without a leading space)
+DIM a AS INTEGER, b AS INTEGER
+a = 3
+b = 7
+PRINT STR$(a) + " x " + STR$(b) + " = " + STR$(a * b)
+
+' A FOR loop, building a line with ; (no new line until the last PRINT)
+PRINT "Squares:";
+DIM i AS INTEGER
+FOR i = 1 TO 5
+    PRINT " " + STR$(i * i);
+NEXT i
+PRINT
+
+' A FUNCTION returns the value given to its name (or to RESULT)
+FUNCTION Reversed(s AS STRING) AS STRING
+    DIM k AS INTEGER, r AS STRING
+    FOR k = LEN(s) TO 1 STEP -1
+        r = r + MID$(s, k, 1)
+    NEXT k
+    Reversed = r
+END FUNCTION
+
+' A SUB does something; call it with or without CALL
+SUB Shout(s AS STRING)
+    PRINT UCASE$(s) + " in reverse: " + UCASE$(Reversed(s))
+END SUB
+
+Shout who
+PRINT "Today is " + DATE$ + ", " + LEFT$(TIME$, 5)

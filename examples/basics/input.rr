@@ -1,0 +1,27 @@
+' input.rr: a console program that asks — INPUT reads what the user types.
+'
+'   rapidr run input.rr
+'
+' INPUT "prompt"; variable reads a line into a string or a number. Here a
+' small tip calculator: the bill, the tip, how many people share it.
+$APPTYPE CONSOLE
+
+DIM name AS STRING
+DIM bill AS DOUBLE
+DIM tip AS DOUBLE
+DIM people AS INTEGER
+
+INPUT "Your name: "; name
+IF name = "" THEN name = "friend"
+PRINT "Hello, " + name + "."
+
+INPUT "The bill: "; bill
+INPUT "Tip in percent (15 if empty): "; tip
+IF tip = 0 THEN tip = 15
+INPUT "How many people? "; people
+IF people < 1 THEN people = 1
+
+DIM total AS DOUBLE
+total = bill * (1 + tip / 100)
+PRINT "Total with a " + STR$(tip) + "% tip: " + FORMAT$("%.2f", total)
+PRINT "Each of " + STR$(people) + " pays: " + FORMAT$("%.2f", total / people)

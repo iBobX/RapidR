@@ -32,6 +32,32 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   `filter` also takes `=`, `<>`, `startswith`, `endswith`, and `contains`
   is a substring test on every runtime; `groupby` also takes `median` and
   `std`; `cell` / `setcell` also take a column name.
+- **The examples, curated for the first release** (`examples/`, indexed by
+  `examples/README.md`): 26 small commented programs by topic — basics/
+  (hello, INPUT, files, the language), gui/ (a form and its events, menus,
+  dialogs, a timer, a list and a grid, themes, the tray icon), graphics/
+  (canvas), directx/ (QDXSCREEN sprites, a Direct3D cube from a `.X`
+  model), media/ (QMIDI with the built-in synthesizer, QWAVE, QVIDEO), data/
+  (SQLite with parameters, JSON, RNum, RDataFrame and RPlot), network/
+  (RHTTP + RJSON, QDOWNLOAD), rapidq/ (a notepad in plain RapidQ code),
+  web/ (browser storage, RJAVASCRIPT and RROUTER) — plus the IDE. All of
+  them RapidR's own; their media and models are made by
+  `tools/make_example_media.py` (nothing downloaded). The old test scraps
+  and demos went (and the scripts that drove them: `tools/native_examples.sh`,
+  `tests/full_matrix.sh`, `tests/bc_smoke.sh`, `tests/web_matrix.mjs` and the
+  demos' ad-hoc page scripts); the web IDE's examples list shows the new ones,
+  with the files their `$RESOURCE` lines name.
+- `tests/examples_run.mjs` (the `examples` stage of `tools/regress.sh`, in
+  place of `tools/native_examples.sh`'s `cargo check`): every example RUNS on
+  every runtime it claims — `rapidr run`, interpreted and native executables
+  (each native build dropped after its run), the web (the UI kernel's page)
+  — GUI ones through the test hooks (events, then the components' properties
+  read back), network ones against the tests' own local server; the table
+  must list every program and the README every entry.
+- `rapidr examples` lists the examples and `rapidr examples copy <name|all>
+  [folder]` copies one (with the data files it names) or all of them; SDK
+  installs ship them in `lib/rapidr/examples/` (the home's, as a checkout's
+  `examples/`: `tools/release/stage.py`).
 
 ### Changed
 - **RNUM, RDATAFRAME and RPLOT are one implementation for every runtime**
@@ -92,10 +118,13 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   now reads the property on every data-science component.
 - On the web, `RDataFrame.SaveToCSV` / `SaveToJSON` before any other file
   I/O wrote nowhere: data frames use the page's files from the start.
-- QSTRINGGRID: setting `FixedCols` / `FixedRows` to a new value starts
-  the grid over at its first scrollable cell (`LeftCol` / `TopRow` and the
-  selection), as Delphi's TCustomGrid does; column 0 stayed scrolled out of
-  view after `FixedCols = 0`.
+- QSTRINGGRID with `FixedCols = 0` (or `FixedRows = 0`) showed from column
+  (row) 1: the first scrollable column stays the first one shown, as in
+  Delphi's grid.
+- RJSON on the web: `LoadFile` / `SaveFile` work (the page's files, as
+  OPEN's), values `Set` as numbers / booleans as on the desktop; on the
+  desktop an object's keys keep their order (as the browser's), `Remove`
+  too.
 - **A FUNCTION's own name inside it** follows RapidQ's compiler (RC.EXE):
   without parameters it is a call of itself (`G = G + 1` recurses);
   with parameters, reading it without arguments is the compile error

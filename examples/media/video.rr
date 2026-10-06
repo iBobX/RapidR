@@ -1,0 +1,71 @@
+' video.rr: an AVI video on a form with QVIDEO — Play, Pause, a frame
+' counter.
+'
+'   rapidr run video.rr
+'
+' QVIDEO is RapidQ's QVideo.inc object (built into RapidR, with its own
+' decoders: uncompressed, RLE, Video 1, Cinepak, Motion JPEG). Its Parent is
+' the window it plays in; Left, Top, Width and Height place the picture.
+' clip.avi (a bouncing ball, 24 frames) was made by
+' tools/make_example_media.py.
+$INCLUDE "RAPIDQ.INC"
+$INCLUDE "QVideo.inc"
+$RESOURCE CLIP AS "clip.avi"
+
+DECLARE SUB PlayIt
+DECLARE SUB PauseIt
+DECLARE SUB Changed (Position AS LONG, TimePos AS LONG)
+
+DIM Video AS QVIDEO
+Video.Timer.Interval = 50
+Video.OnChange = Changed
+
+CREATE Form AS QFORM
+    Caption = "Video"
+    Width = 300
+    Height = 270
+    Center
+    CREATE PlayBtn AS QBUTTON
+        Caption = "&Play": Left = 12: Top = 12: Width = 80: OnClick = PlayIt
+    END CREATE
+    CREATE PauseBtn AS QBUTTON
+        Caption = "P&ause": Left = 100: Top = 12: Width = 80: OnClick = PauseIt
+    END CREATE
+    CREATE Info AS QLABEL
+        Left = 12: Top = 210: Width = 270
+    END CREATE
+END CREATE
+
+SUB PlayIt
+    ' (from the start again once it has played to its end)
+    IF Video.State = VD_STOP AND Video.CurrentFrame >= Video.Lenght - 1 THEN Video.CurrentFrame = 0
+    Video.Play
+END SUB
+
+SUB PauseIt
+    Video.Pause
+    Info.Caption = "Paused at frame " + STR$(Video.CurrentFrame)
+END SUB
+
+SUB Changed (Position AS LONG, TimePos AS LONG)
+    IF Video.State = VD_STOP THEN
+        Info.Caption = "Played to the end: " + STR$(Video.Lenght) + " frames"
+    ELSE
+        Info.Caption = "Frame " + STR$(Position + 1) + " of " + STR$(Video.Lenght) + ", " + STR$(TimePos) + " ms"
+    END IF
+END SUB
+
+EXTRACTRESOURCE CLIP, "clip.tmp.avi"
+Video.Parent = Form.Handle
+IF Video.Open("clip.tmp.avi") THEN
+    ' the picture at three times its size, under the buttons
+    Video.Left = 50: Video.Top = 50
+    Video.Width = Video.ImgWidth * 3
+    Video.Height = Video.ImgHeight * 3
+    Info.Caption = STR$(Video.Lenght) + " frames of " + STR$(Video.ImgWidth) + "x" + STR$(Video.ImgHeight)
+ELSE
+    Info.Caption = "Can't open it: " + Video.Error
+END IF
+Form.ShowModal
+Video.Close
+KILL "clip.tmp.avi"

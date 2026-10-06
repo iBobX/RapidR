@@ -1,0 +1,40 @@
+' json.rr: reading and writing JSON with RJSON — parse text, read values
+' by their path, change them, write the result back out.
+'
+'   rapidr run json.rr
+'
+' Paths go through objects with dots and into arrays by index:
+' "address.city", "tags.0". (BASIC strings can't hold a " directly, so the
+' JSON text below uses ' and swaps it with REPLACESUBSTR$.)
+$APPTYPE CONSOLE
+
+DIM Order AS RJSON
+DIM text AS STRING
+text = "{'id': 1042, 'customer': {'name': 'Ada', 'city': 'London'}, 'items': ['tea', 'scones', 'jam'], 'paid': false}"
+text = REPLACESUBSTR$(text, "'", CHR$(34))
+
+IF Order.Parse(text) = 0 THEN
+    PRINT "That isn't JSON."
+    END
+END IF
+
+PRINT "Order " + Order.Get("id") + " for " + Order.Get("customer.name") + " in " + Order.Get("customer.city")
+PRINT "First item: " + Order.Get("items.0") + ", last: " + Order.Get("items.2")
+PRINT "Top-level keys: " + Order.Keys
+PRINT "Has a discount? " + IIF(Order.Has("discount"), "yes", "no")
+
+' Change it: set values (new paths are made), remove one
+Order.Set("paid", 1)
+Order.Set("customer.city", "Cambridge")
+Order.Set("delivery.slot", "afternoon")
+Order.Remove("items")
+PRINT "Now paid: " + Order.Get("paid") + ", to " + Order.Get("customer.city") + ", items kept: " + IIF(Order.Has("items"), "yes", "no")
+
+' Stringify gives the JSON text (Prettify: indented); SaveFile writes it
+' indented to a file, LoadFile reads one
+PRINT "As text: " + STR$(LEN(Order.Stringify)) + " characters"
+Order.SaveFile("order.tmp.json")
+DIM Copy AS RJSON
+Copy.LoadFile("order.tmp.json")
+PRINT "Read back: delivery in the " + Copy.Get("delivery.slot") + ", for " + Copy.Get("customer.name")
+KILL "order.tmp.json"

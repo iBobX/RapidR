@@ -1,5 +1,6 @@
 // The GUI tests' own HTTP server (QDOWNLOAD's fixture, tests/fixtures/
-// download.bas): files of the repository's tests/ by their path, sent
+// download.bas; the network examples, tests/examples_run.mjs): files of the
+// repository's tests/ and examples/ by their path, sent
 // slowly (four parts, 100 ms apart) so a program's timers tick while it
 // waits; a file that isn't there is a 404. Local only (127.0.0.1, a free
 // port), with CORS for the browser's page. The runners give programs its
@@ -21,7 +22,7 @@ function serve() {
     const headers = { "Access-Control-Allow-Origin": "*", "Access-Control-Expose-Headers": "Content-Length" };
     const path = normalize(decodeURIComponent((req.url || "/").split("?")[0])).replace(/^([/\\])+/, "");
     const file = join(ROOT, path);
-    if (!path.startsWith("tests") || !existsSync(file) || !statSync(file).isFile()) {
+    if (!/^(tests|examples)[/\\]/.test(path) || !existsSync(file) || !statSync(file).isFile()) {
       res.writeHead(404, { ...headers, "Content-Type": "text/plain", "Content-Length": "9" });
       res.end("not found");
       return;
