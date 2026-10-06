@@ -235,6 +235,9 @@ struct Layout {
     inset: i64,
     header_h: i64,
     row_h: i64,
+    /// Above the first row of a report view with a header: 2 pixels, as
+    /// Windows' list view leaves (RapidQ's capture).
+    pad: i64,
     /// An item's cell (list, small icon and icon views).
     cell: (i64, i64),
     /// Items across a line (icon views) or down a column (list view).
@@ -755,6 +758,7 @@ impl ListView {
         let small = self.small_size();
         let slot_h = small.map_or(0, |s| s.1).max(self.state_slot().map_or(0, |s| s.1));
         let row_h = (text_h + 1).max(slot_h + 1);
+        let pad = if self.view_style == VS_REPORT && header_h > 0 { 2 } else { 0 };
         let n = self.items.len() as i64;
         // The widest caption with its images (list and small icon views).
         let item_w = |it: &Item| {
@@ -777,7 +781,7 @@ impl ListView {
         // Content size for a viewport `vw` × `vh`.
         let measure = |vw: i64, vh: i64| -> ((i64, i64), i64) {
             match self.view_style {
-                VS_REPORT => ((self.columns.iter().map(|c| c.width.max(0)).sum(), n * row_h), 1),
+                VS_REPORT => ((self.columns.iter().map(|c| c.width.max(0)).sum(), n * row_h + pad), 1),
                 VS_LIST => {
                     let rows = (vh / cell.1).max(1);
                     let cols = (n + rows - 1) / rows;
@@ -812,7 +816,7 @@ impl ListView {
         // (the vertical bar reaches up beside the header)
         let vbar = need_v.then_some(Bar { vertical: true, rect: (view.2, inset, view.2 + BAR, view.3), content: ch, view: vh, pos: scroll_y });
         let hbar = need_h.then_some(Bar { vertical: false, rect: (view.0, view.3, view.2, view.3 + BAR), content: cw, view: vw, pos: scroll_x });
-        Layout { inset, header_h, row_h, cell, per_line, view, content: (cw, ch), vbar, hbar, text_h }
+        Layout { inset, header_h, row_h, pad, cell, per_line, view, content: (cw, ch), vbar, hbar, text_h }
     }
 
     /// The scroll position the layout allows.
@@ -852,7 +856,7 @@ impl ListView {
         };
         match self.view_style {
             VS_REPORT => {
-                let top = l.view.1 + i * l.row_h - sy;
+                let top = l.view.1 + l.pad + i * l.row_h - sy;
                 let width: i64 = self.columns.iter().map(|c| c.width.max(0)).sum();
                 let left = l.view.0 - sx;
                 let first = self.columns.first().map_or(0, |c| c.width.max(0));
@@ -965,7 +969,11 @@ impl ListView {
         // Grid lines (report view): under the items, over the whole area.
         if self.grid_lines && self.view_style == VS_REPORT {
             let (sx, sy) = self.scroll;
-            let mut y = l.view.1 - sy % l.row_h.max(1) + l.row_h - 1;
+            // (each row's bottom line, from the first row's, below the pad)
+            let mut y = l.view.1 + l.pad - sy + l.row_h - 1;
+            while y < l.view.1 {
+                y += l.row_h.max(1);
+            }
             while y < l.view.3 {
                 b.line(l.view.0, y, l.view.2 - 1, y, c.grid);
                 y += l.row_h.max(1);

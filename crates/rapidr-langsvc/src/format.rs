@@ -75,9 +75,21 @@ pub(crate) fn format(text: &str, indent: &str) -> Vec<TextEdit> {
         if continued && !content.is_empty() {
             want.push_str(indent);
         }
-        let new_line = if content.is_empty() { String::new() } else { format!("{want}{content}") };
-        if new_line != line {
-            edits.push(TextEdit { start: line_start, end: line_start + line.len(), text: new_line });
+        // (only the blanks around the line's text change: the case edits,
+        // `case::case_edits`, change words inside it, and never overlap)
+        if content.is_empty() {
+            if !line.is_empty() {
+                edits.push(TextEdit { start: line_start, end: line_start + line.len(), text: String::new() });
+            }
+        } else {
+            let lead = line.len() - line.trim_start().len();
+            if line[..lead] != want {
+                edits.push(TextEdit { start: line_start, end: line_start + lead, text: want });
+            }
+            let trail = lead + content.len();
+            if trail < line.len() {
+                edits.push(TextEdit { start: line_start + trail, end: line_start + line.len(), text: String::new() });
+            }
         }
         let _ = ending;
         continued = code_part(content).trim_end().ends_with(" _") || code_part(content).trim_end() == "_";
@@ -103,6 +115,11 @@ pub(crate) fn format(text: &str, indent: &str) -> Vec<TextEdit> {
             _ => {}
         }
     }
+    // A token that spans lines (a string continued with `_` under
+    // $ESCAPECHARS) is the program's text: no blank inside it changes.
+    let lf = rapidr_lexer::LosslessFile::lex(text, None);
+    let multiline: Vec<(usize, usize)> = lf.tokens.iter().map(|t| (t.span.start, t.span.end)).filter(|&(s, e)| text[s..e.min(text.len())].contains('\n')).collect();
+    edits.retain(|e| !multiline.iter().any(|&(s, end)| e.start < end && s < e.end.max(e.start + 1)));
     edits
 }
 

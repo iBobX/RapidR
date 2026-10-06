@@ -99,6 +99,13 @@ impl Parsed {
         let id = self.file_id(file)?;
         Some(&self.tools.preprocessed.origins.files[id].text)
     }
+
+    /// A file of the program as the compiler's lexer reads it: its tokens
+    /// (spans count bytes of the file's text) and what each line was to the
+    /// preprocessor.
+    pub fn lossless(&self, file: &Path) -> Option<&rapidr_lexer::LosslessFile> {
+        self.tools.files.get(self.file_id(file)?)
+    }
 }
 
 /// Whether two paths name the same file (as written, or once resolved).

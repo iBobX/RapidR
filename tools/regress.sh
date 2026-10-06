@@ -64,8 +64,8 @@ if want web; then
   # byte for byte against the desktop's own captures, made here by
   # tests/gui_captures.mjs at 1× and 2×; what the page shows outside the
   # windows by the cases' webCheck. Known ≠: menus / themes (the desktop's
-  # macOS menu bar), message_icons / message_dialogs, align_layout 1× (its
-  # status bar's text) — wasm SIMD's rounding, one or two pixels by one level)
+  # macOS menu bar), message_icons / message_dialogs (wasm SIMD's rounding,
+  # one or two pixels by one level))
   echo "== desktop captures for the web"; node tests/gui_captures.mjs "$PWD/$W/gui_captures" 2>&1 | tail -1
   echo "== web gui parity"; RAPIDR_DESKTOP_CAPTURES="$PWD/$W/gui_captures" node tests/web_gui_parity.mjs 2>&1 | grep -E "✗|≠|Kernel host|parity"
   echo "== web gui parity at 2x (high-DPI: what programs read is unchanged)"; RAPIDR_DPR=2 RAPIDR_DESKTOP_CAPTURES="$PWD/$W/gui_captures" node tests/web_gui_parity.mjs 2>&1 | grep -E "✗|≠|Kernel host|parity"

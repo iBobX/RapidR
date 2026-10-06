@@ -5,7 +5,7 @@
 use rapidr_ast::{Expression, Program, Statement};
 
 use crate::model::{name_key, ScopeId, ScopeKind, SymbolKind};
-use crate::registry::{self, Component};
+use rapidr_lang::Component;
 use crate::text::{is_name_char, is_suffix_char, LineIndex};
 use crate::Snapshot;
 
@@ -159,7 +159,7 @@ pub(crate) enum Ty {
 
 impl Ty {
     pub fn from_name(s: &Snapshot, name: &str) -> Option<Ty> {
-        if let Some(c) = registry::component(name) {
+        if let Some(c) = rapidr_lang::resolve_component(name) {
             return Some(Ty::Component(c));
         }
         let key = name_key(name);
@@ -202,7 +202,7 @@ pub(crate) fn base_component(s: &Snapshot, type_name: &str) -> Option<&'static C
         let key = name_key(&name);
         let sym = s.model.symbols.iter().find(|sym| sym.kind == SymbolKind::Type && name_key(&sym.name) == key)?;
         let base = sym.ty.clone()?;
-        if let Some(c) = registry::component(&base) {
+        if let Some(c) = rapidr_lang::resolve_component(&base) {
             return Some(c);
         }
         name = base;
@@ -213,11 +213,19 @@ pub(crate) fn base_component(s: &Snapshot, type_name: &str) -> Option<&'static C
 /// The type of a member of a type.
 pub(crate) fn member_type(s: &Snapshot, ty: &Ty, member: &str) -> Option<Ty> {
     match ty {
-        Ty::Component(_) => {
-            if member.eq_ignore_ascii_case("font") {
-                return registry::component("RFONT").map(Ty::Component);
+        // (the registry's property types: a font, a component, the item
+        // object an indexed property gives — `Tree.Item(i).`)
+        Ty::Component(c) => {
+            let p = c.property(member)?;
+            match p.ty {
+                _ if member.eq_ignore_ascii_case("font") => rapidr_lang::component("RFONT").map(Ty::Component),
+                rapidr_lang::Type::Font => rapidr_lang::component("RFONT").map(Ty::Component),
+                rapidr_lang::Type::Component | rapidr_lang::Type::Item => {
+                    let kind = p.kinds.first()?;
+                    rapidr_lang::component(kind).or_else(|| rapidr_lang::item(kind)).map(Ty::Component)
+                }
+                _ => None,
             }
-            None
         }
         Ty::User(t) => {
             if let Some(sym) = user_member(s, t, member) {
@@ -242,8 +250,11 @@ pub(crate) fn resolve_chain(s: &Snapshot, pre: usize, chain: &[String]) -> Optio
         let base = s.model.symbols.iter().find(|sym| sym.kind == SymbolKind::Type && name_key(&sym.name) == key)?.ty.clone()?;
         Ty::from_name(s, &base)?
     } else {
-        let sym = s.model.lookup(first, scope)?;
-        Ty::from_name(s, s.model.symbols[sym].ty.as_deref()?)?
+        match s.model.lookup(first, scope) {
+            Some(sym) => Ty::from_name(s, s.model.symbols[sym].ty.as_deref()?)?,
+            // RapidQ's global objects (`Screen.`, `Printer.`)
+            None => Ty::Component(rapidr_lang::global(first)?),
+        }
     };
     for m in &chain[1..] {
         ty = member_type(s, &ty, m)?;
@@ -345,7 +356,7 @@ fn expr_chain(e: &Expression) -> Option<Vec<String>> {
 pub(crate) fn create_at(s: &Snapshot, pre: usize) -> Option<&'static Component> {
     let blocks = blocks_at(&s.parsed.program, pre);
     match blocks.last()? {
-        Statement::Create(c) => registry::component(&c.type_name),
+        Statement::Create(c) => rapidr_lang::resolve_component(&c.type_name),
         _ => None,
     }
 }

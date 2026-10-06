@@ -10,6 +10,7 @@
 
 use std::sync::mpsc::{Receiver, TryRecvError};
 
+use rapidr_bcgen::GlobalSlot;
 use rapidr_bytecode::Module;
 use rapidr_value::Value;
 use rapidr_vm::{Debugger, Host, Resume, StopInfo, StopReason, Vm, EVAL_FUEL};
@@ -259,8 +260,11 @@ impl ProgramEnd {
     fn variables<H: Host + ?Sized>(&mut self, vm: &Vm<'_, H>, module: &Module, reference: u32, start: u32, count: u32) -> Result<Vec<Variable>, String> {
         let mut named: Vec<(String, Value)> = Vec::new();
         if reference == GLOBALS_REF {
+            // (only the program's globals: a routine's STATICs and its own
+            // undeclared variables, which the compiler keeps in global
+            // slots, are its frame's)
             for (name, v) in vm.global_values(module) {
-                if !hidden(name) {
+                if !hidden(name) && rapidr_bcgen::global_slot(module, name) == GlobalSlot::Global {
                     named.push((name.to_string(), v.clone()));
                 }
             }
@@ -275,6 +279,16 @@ impl ProgramEnd {
                     _ => {}
                 }
             }
+            // Its STATICs and its own undeclared variables, as it names them.
+            let mut own: Vec<(String, Value)> = vm
+                .global_values(module)
+                .filter_map(|(name, v)| match rapidr_bcgen::global_slot(module, name) {
+                    GlobalSlot::Routine { function, name, .. } if function == frame.fn_index => Some((name.to_string(), v.clone())),
+                    _ => None,
+                })
+                .collect();
+            own.sort_by_key(|(n, _)| n.to_ascii_lowercase());
+            named.extend(own);
         } else if reference >= CHILDREN_REF {
             let value = self.children.get((reference - CHILDREN_REF) as usize).cloned().ok_or("that value is gone (the program went on)")?;
             match &value {
@@ -540,5 +554,57 @@ mod tests {
         assert!(matches!(by_re(8), EventBody::Evaluate { ref result, .. } if result == "42"));
         assert_eq!(by_re(9), EventBody::Evaluate { result: String::new(), kind: String::new(), reference: 0 });
         assert!(sent.iter().any(|e| e.body == EventBody::Continued));
+    }
+
+    /// A SUB's STATIC and its own undeclared variable (RapidQ's implicit
+    /// scope) live in global slots (`SUB Tick::hits`, `Tick__p`): they are
+    /// the SUB frame's Locals under their source names, never Globals.
+    #[test]
+    fn a_routines_own_variables_are_its_frames_not_globals() {
+        let src = "DIM Total AS INTEGER\nSUB Tick(n AS INTEGER)\n  STATIC hits AS INTEGER\n  hits = hits + 1\n  p = p + n\n  Total = Total + p\nEND SUB\nTick 1\nTick 2\nq = 5\nPRINT Total; q\n";
+        let m = compile_program(src);
+        let (tx, rx) = mpsc::channel();
+        let sent: Rc<RefCell<Vec<Event>>> = Rc::default();
+        let log = sent.clone();
+        let mut dbg = BlockingDebugger::new(rx, Box::new(move |e| log.borrow_mut().push(e.clone())));
+        let mut host = StubHost::default();
+        let mut vm = Vm::new(&mut host);
+        tx.send(req(1, Command::SetBreakpoints { file: "prog.bas".into(), breakpoints: vec![SourceBreakpoint { line: 6, ..Default::default() }] })).unwrap();
+        tx.send(req(2, Command::Start { program: None, args: vec![], debug: true, stop_on_entry: false, break_on_error: false })).unwrap();
+        assert_eq!(dbg.until_start(&mut vm, &m), Some(false));
+        for (seq, c) in [
+            // the first call's stop: go on
+            (3, Command::Continue),
+            // the second call's
+            (4, Command::Variables { reference: LOCALS_REF + 1, start: None, count: None }),
+            (5, Command::Variables { reference: GLOBALS_REF, start: None, count: None }),
+            (6, Command::Evaluate { expr: "hits * 100 + p".into(), frame: None, context: None }),
+            (7, Command::SetVariable { frame: None, name: "hits".into(), value: "hits + 40".into() }),
+            (8, Command::Variables { reference: LOCALS_REF, start: None, count: None }),
+            (9, Command::Continue),
+        ] {
+            tx.send(req(seq, c)).unwrap();
+        }
+        vm.debug_mode = true;
+        vm.debugger = Some(Box::new(dbg));
+        vm.run(&m).unwrap();
+        let module_strings = m.strings.clone();
+        drop(vm);
+        assert_eq!(host.output.trim(), "45");
+        let sent = sent.borrow();
+        let by_re = |re: u64| sent.iter().find(|e| e.re == Some(re)).map(|e| e.body.clone()).unwrap();
+        let names = |re: u64| {
+            let EventBody::Variables { variables } = by_re(re) else { panic!("{:?}", by_re(re)) };
+            variables.iter().map(|v| (v.name.clone(), v.value.clone())).collect::<Vec<_>>()
+        };
+        let pairs = |v: &[(&str, &str)]| v.iter().map(|(a, b)| (a.to_string(), b.to_string())).collect::<Vec<_>>();
+        // (the compiler does keep them as globals: the test means something)
+        assert!(module_strings.iter().any(|s| s == "Tick__p") && module_strings.iter().any(|s| s == "SUB Tick::hits"), "{module_strings:?}");
+        assert_eq!(names(4), pairs(&[("n", "2"), ("hits", "2"), ("p", "3")]));
+        assert_eq!(names(5), pairs(&[("q", "0"), ("Total", "1")]));
+        assert!(matches!(by_re(6), EventBody::Evaluate { ref result, .. } if result == "203"), "{:?}", by_re(6));
+        assert!(matches!(by_re(7), EventBody::Evaluate { ref result, .. } if result == "42"), "{:?}", by_re(7));
+        // (the main program's frame has none of them)
+        assert!(names(8).iter().all(|(n, _)| n != "hits" && n != "p" && !n.contains("__") && !n.contains("::")), "{:?}", names(8));
     }
 }

@@ -137,7 +137,8 @@ ok(JSON.stringify(lv.items) === JSON.stringify(["readme.txt", "first.txt", "phot
 ok(lv.index === "2" && lv.selected === 2, `ItemIndex = 2 (${lv.index}; selected in the mirror: ${lv.selected})`);
 
 // Row 3 (the client edge 2, the header 17 px high, rows 14 — Windows' classic
-// list view: its middle at y = 2 + 17 + 3 * 14 + 7), a real click there.
+// list view, 2 pixels under the header: its middle at y = 2 + 17 + 2 + 3 * 14 + 5),
+// a real click there.
 await k.click(frame, "LV", [20, 68]);
 await page.waitForTimeout(300);
 const clicked = await k.text(frame, "Lbl");

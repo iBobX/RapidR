@@ -5,6 +5,8 @@
 //   npm test                          (unit tests, then these)
 //   RAPIDR_PATH=/path/to/rapidr npm test
 //   VSCODE_VERSION=1.90.0 npm test    (default: stable)
+//   VSCODE_PATH=".../Visual Studio Code.app/Contents/MacOS/Code" npm test
+//                                     (an installed VS Code; still a throwaway profile)
 //   RAPIDR_TEST_GREP=diagnostics npm test
 //
 // Needs a rapidr with `rapidr lsp`: RAPIDR_PATH, else this checkout's
@@ -41,7 +43,7 @@ async function main() {
 
 async function run(ext, rapidr, prints, userData) {
     await runTests({
-        version: process.env.VSCODE_VERSION || 'stable',
+        ...vscodeToUse(),
         extensionDevelopmentPath: ext,
         extensionTestsPath: path.join(__dirname, 'suite', 'index.js'),
         launchArgs: [
@@ -57,9 +59,19 @@ async function run(ext, rapidr, prints, userData) {
         extensionTestsEnv: {
             RAPIDR_PATH: rapidr,
             RAPIDR_PRINT_TO: prints,
+            // (and nothing touches the real registry / preferences store)
+            RAPIDR_REGISTRY: path.join(prints, 'registry.reg'),
             RAPIDR_TEST_GREP: process.env.RAPIDR_TEST_GREP || '',
         },
     });
+}
+
+// VSCODE_PATH: a VS Code already installed (its executable, e.g.
+// "/Applications/Visual Studio Code.app/Contents/MacOS/Code"), run with the
+// throwaway profile above; else @vscode/test-electron's download.
+function vscodeToUse() {
+    if (process.env.VSCODE_PATH) return { vscodeExecutablePath: process.env.VSCODE_PATH };
+    return { version: process.env.VSCODE_VERSION || 'stable' };
 }
 
 main().catch((err) => {
