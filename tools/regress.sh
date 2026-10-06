@@ -35,7 +35,9 @@ if want web; then curl -s -o /dev/null "${RAPIDR_URL:-http://localhost:8765}/" |
 if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test result: FAILED|panicked|^error" | head -5
   # (the UI kernel and the program glue stay GUI-free: they must build for
   # the browser too)
-  cargo check -q -p rapidr-ui-kernel -p rapidr-ui-app --target wasm32-unknown-unknown 2>&1 | grep -E "^error" -A5 | head -10; echo "(unit done)"; fi
+  cargo check -q -p rapidr-ui-kernel -p rapidr-ui-app --target wasm32-unknown-unknown 2>&1 | grep -E "^error" -A5 | head -10
+  # (the user manual's generated reference pages match the source)
+  python3 tools/manual_reference.py --check; echo "(unit done)"; fi
 if want conformance; then echo "== conformance"; node tests/conformance/run.mjs 2>&1 | tail -1; fi
 if want examples; then echo "== native examples"; tools/native_examples.sh 2>&1 | tail -1; fi
 if want gui; then echo "== gui events (the UI kernel's headless host, native + interpreted)"; node tests/native_gui_events.mjs 2>&1 | grep -E "✗|GUI events"
