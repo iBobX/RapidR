@@ -89,6 +89,7 @@ SITES = {
     ("crates/rapidr-value/src/globals.rs", "file_rec"): "FILEREC",
     ("crates/rapidr-value/src/layout.rs", "with"): "*",
     ("crates/rapidr-value/src/layout.rs", "default_property"): "*",
+    ("crates/rapidr-value/src/autosize.rs", "resizes"): "RLABEL",
     ("crates/rapidr-value/src/mdi.rs", "call"): "RFORMMDI",
     ("crates/rapidr-value/src/mdi.rs", "set"): "RFORMMDI",
     ("crates/rapidr-value/src/registry.rs", "get"): "RREGISTRY",

@@ -11,7 +11,7 @@ sets = ["layout", "a11y", "generic"]
 doc = "A DirectX drawing surface on a form, for games and animation: draw the next frame off screen, then Flip to show it. It also holds the Direct3D scene and camera."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
-  { name = "AllowStretch", type = "bool", default = true },
+  { name = "AllowStretch", type = "bool", default = false },
   { name = "AutoSize", type = "bool", default = true },
   { name = "BitCount", type = "int", default = 8 },
   { name = "Color", type = "color" },
@@ -21,13 +21,13 @@ properties = [
   { name = "FullScreen", type = "bool", default = false },
   { name = "Height", type = "int" },
   { name = "Hint", type = "string" },
-  { name = "Left", type = "int" },
+  { name = "Left", type = "int", default = 0 },
   { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
   { name = "Pixel", type = "int", design = false, indexed = 2 },
   { name = "ShowHint", type = "bool", default = false },
-  { name = "Top", type = "int" },
+  { name = "Top", type = "int", default = 0 },
   { name = "Use3D", type = "bool", default = false },
-  { name = "UseHardware", type = "bool", default = true },
+  { name = "UseHardware", type = "bool", default = -1 },
   { name = "Visible", type = "bool", default = true },
   { name = "Width", type = "int" },
   { name = "PenColor", type = "color", origin = "rapidr" },
@@ -120,7 +120,7 @@ properties = [
   { name = "ActiveOnly", type = "bool", default = true },
   { name = "Enabled", type = "bool", default = false },
   { name = "FrameRate", type = "int", access = "read", design = false },
-  { name = "Interval", type = "int" },
+  { name = "Interval", type = "int", default = 1000 },
 ]
 methods = []
 events = [
@@ -133,8 +133,8 @@ rapidq = "QDXSOUND"
 visual = false
 doc = "A WAV sound played DirectSound's way: at its Frequency, Volume and Pan, once or looped."
 properties = [
-  { name = "AutoUpdate", type = "bool", default = true },
-  { name = "BufferLength", type = "int", default = 1000 },
+  { name = "AutoUpdate", type = "bool", default = false },
+  { name = "BufferLength", type = "int", default = 0 },
   { name = "FileName", type = "string" },
   { name = "Frequency", type = "int" },
   { name = "Looped", type = "bool", default = false },

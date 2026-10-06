@@ -741,7 +741,7 @@ impl TabControl {
     }
 
     pub fn get(&self, prop: &str) -> Option<Value> {
-        let flag = |b: bool| v_int(if b { -1 } else { 0 });
+        let flag = |b: bool| v_int(b as i64);
         Some(match prop {
             "tabindex" => v_int(self.index),
             "multiline" => flag(self.multi_line),

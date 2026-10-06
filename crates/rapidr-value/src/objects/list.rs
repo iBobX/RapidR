@@ -108,7 +108,7 @@ fn index(v: Option<&Value>) -> Option<usize> {
 }
 
 fn flag(on: bool) -> Value {
-    v_int(if on { -1 } else { 0 })
+    v_int(on as i64)
 }
 
 impl ItemList {
@@ -765,7 +765,7 @@ mod tests {
         l.call("selected", &[v_int(0), v_int(-1)]);
         l.call("selected", &[v_int(2), v_int(-1)]);
         assert_eq!(l.get("selcount").unwrap().to_i64(), 3);
-        assert_eq!(l.call("selected", &[v_int(2)]).unwrap().to_i64(), -1);
+        assert_eq!(l.call("selected", &[v_int(2)]).unwrap().to_i64(), 1);
         assert_eq!(l.call("selected", &[v_int(1)]).unwrap().to_i64(), 0);
     }
 

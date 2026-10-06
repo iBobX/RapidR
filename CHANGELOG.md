@@ -200,6 +200,19 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   2026-10-06 should be cloned again.
 
 ### Fixed
+- **Every component now starts with RapidQ's values, on every runtime.**
+  Reading a property right after creating a component gave nothing for 252
+  properties that RapidQ gives a value — a button's Cursor, Kind,
+  ModalResult and Spacing, a label's Enabled, a form's KeyPreview, Align
+  and ShowHint almost everywhere. They now read what RapidQ's own compiler
+  reads, the same in native programs, the interpreter and the web. Checked
+  against RapidQ, a few values changed: a new form's Left and Top are 0 (it
+  opens at the top left of the screen, as in RapidQ, where RapidR used 100),
+  CopyMode reads cmSrcCopy, a QDXSCREEN's AllowStretch is off, and
+  true/false properties of lists, trees, list views and scroll boxes read 1
+  rather than -1 (so `= True` works with RAPIDQ.INC). A button, gauge,
+  scroll box or tab control on a form now reads its form's Color, as in
+  RapidQ.
 - **Web: typing in a Save As dialog went into the program's window
   below.** In the web IDE, Notepad's File > Save As showed an in-page
   dialog; a click in its file name field lost the focus at once, and the

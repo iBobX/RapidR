@@ -3983,6 +3983,7 @@ version = "2.117.0"
 dependencies = [
  "jpeg-decoder",
  "rapidr-icons",
+ "rapidr-lang",
  "resvg",
  "ttf-parser",
  "windows-registry",

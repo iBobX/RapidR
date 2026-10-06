@@ -84,7 +84,8 @@ struct Mdi {
 
 impl Default for Mdi {
     fn default() -> Self {
-        Mdi { children: Vec::new(), child_max: 1024, result: true, menu: 0, added: 0 }
+        // (RC.EXE: ChildResult reads 0 until a child closes — close_next sets it)
+        Mdi { children: Vec::new(), child_max: 1024, result: false, menu: 0, added: 0 }
     }
 }
 
@@ -389,7 +390,7 @@ pub fn get(form: &str, prop: &str) -> Option<Value> {
         Some(match prop.to_ascii_lowercase().as_str() {
             "childcount" => Value::Integer(m.children.len() as i64),
             "childmax" => Value::Integer(m.child_max),
-            "childresult" => Value::Integer(if m.result { -1 } else { 0 }),
+            "childresult" => Value::Integer(m.result as i64),
             "mdimenu" => Value::Integer(m.menu),
             "childcaption" => s(&|c| Value::String(c.title.clone())),
             "childhandle" => s(&|c| Value::Integer(c.handle)),

@@ -86,14 +86,15 @@ pub fn status_grip(size_grip: bool, on_form: bool, border_style: i64, align: Ali
 /// QHEADER at the top — Delphi's THeaderControl; RC.EXE reads `Align` 1 and
 /// a header created at Left 10, Top 10, Width 300 shows across the whole
 /// top of the form — QSPLITTER at the left, as in RapidQ), for RapidR's
-/// type names.
+/// type names: the language registry's default Align (a new component
+/// stores it: `crate::component_defaults::creation`).
 pub fn default_align(type_name: &str) -> Align {
-    match type_name.to_ascii_uppercase().as_str() {
-        "RSTATUSBAR" => Align::Bottom,
-        "RHEADER" => Align::Top,
-        "RSPLITTER" => Align::Left,
-        _ => Align::None,
-    }
+    let align = rapidr_lang::component(type_name).and_then(|c| c.property("align")).and_then(|p| match p.default? {
+        rapidr_lang::DefaultValue::Expr(e) => rapidr_lang::eval_constant(e),
+        rapidr_lang::DefaultValue::Int(n) => Some(n),
+        _ => None,
+    });
+    Align::from_value(align.unwrap_or(0))
 }
 
 /// The Width × Height a component starts with, the same on every runtime
