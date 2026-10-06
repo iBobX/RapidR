@@ -48,6 +48,39 @@ export const cases = [
   { name: "panel_palette", events: "bopen.onclick,pal.__key_83,pal.__key_65,pal.__key_40,pal.__key_13,bopen.onclick,pal.__key_27,bopen.onclick,edit1.__mousedown_5_5,edit1.__mouseup_5_5,bopen.onclick,pal.__mousedown_100_81,pal.__mouseup_100_81,bopen.onclick,pal.__key_83,breport.onclick",
     dump: "lbl.caption,info.caption",
     expect: ["lbl.caption= first:file.save run:file.saveall first:file.saveall cancel first:file.saveall cancel first:file.saveall run:file.save first:file.save", "info.caption=3 file.save [s] -1 5"] },
+  // RPROJECTTREE (I1 / L-PANELS, rapidr_value::panels::project_tree): a
+  // project given as text (LoadText, SetFileText). Form1.rr opened by its
+  // chevron, Button1 double-clicked (OnSelect, OnOpen "Form1.rr#Button1"),
+  // Utils.rr renamed in place (F2, "tools" typed, Enter: OnRename),
+  // Report.rr deleted (Delete, Enter on the strip's Remove: OnDelete, the
+  // selection moves on), tools.rr dragged above Main.rr and About.rr out of
+  // its folder onto the Forms group (OnMove), Main.rr renamed by the
+  // program (OnRename's Cancel refuses), a new form named by typing
+  // (OnNewFile); the files in their order, Modified, ProjectText.
+  { name: "panel_project", events: "tree.__mousedown_45_103,tree.__mouseup_45_103,tree.__dblclick_150_169,tree.__mousedown_120_279,tree.__mouseup_120_279,tree.__key_113,tree.__key_84,tree.__key_79,tree.__key_79,tree.__key_76,tree.__key_83,tree.__key_13,tree.__mousedown_120_301,tree.__mouseup_120_301,tree.__key_46,tree.__key_13,tree.__mousedown_120_279,tree.__mousemove_120_268,tree.__mousemove_120_250,tree.__mouseup_120_250,tree.__mousedown_120_81,tree.__mousemove_120_70,tree.__mousemove_120_37,tree.__mouseup_120_37,brename.onclick,bnew.onclick,tree.__key_68,tree.__key_73,tree.__key_65,tree.__key_76,tree.__key_79,tree.__key_71,tree.__key_13,breport.onclick",
+    dump: "lbl.caption,info.caption",
+    expect: ["lbl.caption= S:Form1.rr#Button1 O:Form1.rr#Button1 S:Utils.rr R:Utils.rr>tools.rr S:Report.rr D:Report.rr S: S:tools.rr M:tools.rr>tools.rr@0 S:forms/About.rr M:forms/About.rr>About.rr@3 R:Main.rr>Summary.rr new:Form2.rr N:dialog.rr/form",
+      "info.caption=Inventory: tools.rr Main.rr Form1.rr About.rr lib/strings.inc data/stock.csv dialog.rr |-1-1 dialog.rr form"] },
+  // RPROJECTTREE reading files (Project =): an .rrproj and an implicit
+  // project ($INCLUDEs followed); the keyboard (Down, Right, End, Left,
+  // type-ahead, Enter: OnOpen), Reveal of a component.
+  { name: "panel_project_files", events: "t1.__key_40,t1.__key_40,t1.__key_40,t1.__key_39,t1.__key_39,t1.__key_35,t1.__key_37,t1.__key_77,t1.__key_40,t1.__key_13,breport.onclick",
+    dump: "lbl.caption,info.caption",
+    expect: ["lbl.caption= S: S: S:panel_project_form.rr S:panel_project_form.rr#Form1 S:panel_project_util.inc S: S: S:panel_project_main.rr O:panel_project_main.rr | panel_project_main.rr | panel_project_form.rr#Button1 0",
+      "info.caption=Demo3: panel_project_main.rr/module panel_project_form.rr/form panel_project_util.inc/include | panel_project_main3: panel_project_main.rr/module panel_project_util.inc/include panel_project_form.rr/form"] },
+  // (L-PANELS D) ROUTPUTCONSOLE: ANSI colours, CLS, LOCATE written; a link
+  // clicked in the output, the Build tab and its compiler message's link,
+  // the Problems tab and a problem, the Output tab; Find / FindNext, F3.
+  // RTOOLBAR: Save, the disabled Stop (nothing), the Grid toggle, a
+  // QCOOLBTN on it, the strip; the narrow bar's "»" and Redo in its menu,
+  // then its menu's "Cut" line (hidden: Layout); the mouse over Open.
+  { name: "panel_console", events: "cons.__mousedown_70_72,cons.__mouseup_70_72,cons.__mousedown_88_14,cons.__mouseup_88_14,cons.__mousedown_40_55,cons.__mouseup_40_55,cons.__mousedown_140_14,cons.__mouseup_140_14,cons.__mousedown_200_61,cons.__mouseup_200_61,cons.__mousedown_30_14,cons.__mouseup_30_14,bfind.onclick,cons.__key_114,breport.onclick",
+    dump: "lbl.caption,info.caption",
+    expect: ["lbl.caption= link:Main.rr:12 page:build link:src/app.bas:3 page:problems link:src/app.bas:3 page:output find:3 next:2",
+      "info.caption=output 7 2 [RapidR output console] [           LOCATE 6, 12] line"] },
+  { name: "panel_toolbar", events: "bar.__mousedown_74_16,bar.__mouseup_74_16,bar.__mousedown_142_16,bar.__mouseup_142_16,bar.__mousedown_181_16,bar.__mouseup_181_16,bar.__mousedown_230_16,bar.__mouseup_230_16,bar.__mousedown_400_16,bar.__mouseup_400_16,bar2.__mousedown_125_16,bar2.__mouseup_125_16,bar2.__mousedown_102_37,bar2.__mouseup_102_37,bar2.__mousedown_125_16,bar2.__mouseup_125_16,bar2.__mousedown_102_63,bar2.__mouseup_102_63,breport.onclick,bar.__mousemove_45_16",
+    dump: "lbl.caption,info.caption",
+    expect: ["lbl.caption= save/file.save click:save grid/designer.showGrid click:grid cool click: redo/edit.redo", "info.caption=8 - -1 0 [cut] Open a file4"] },
   // RDOCKMANAGER (I1, rapidr_value::dock): an IDE's layout. A tab clicked
   // (Output), the Explorer's splitter dragged 40 to the right, the
   // Toolbox's strip tab clicked twice (slid out, in), Properties dragged
@@ -221,6 +254,11 @@ export const cases = [
   { name: "anchors", events: "ok.onclick", dump: "a.caption,b.caption,c.caption", resize: "250,180",
     expect: ["a.caption=300,230|200|300|200|150|400x300|12|3|0|300|200|15", "b.caption=200,130|100|250|150|100|300x200",
       "c.caption=400,330|300|400|300|200|500x400 300,330|150|300|200|150|400x400 250,150 200,100,200 200,330|50|200|100|100|300x400|10"] },
+  // (I4 L-DMODEL) The designer's resize preview is the running program:
+  // crates/rapidr-designer/tests/anchors.rs reads this expect list and must
+  // give the same rectangles from the CREATE block resized in the designer.
+  { name: "designer_anchors", events: "", resize: "600,450", dump: "bar.left,bar.top,bar.width,bar.height,status.left,status.top,status.width,status.height,namelbl.left,namelbl.top,namelbl.width,namelbl.height,nameed.left,nameed.top,nameed.width,nameed.height,notes.left,notes.top,notes.width,notes.height,side.left,side.top,side.width,side.height,pick.left,pick.top,pick.width,pick.height,ok.left,ok.top,ok.width,ok.height,cancel.left,cancel.top,cancel.width,cancel.height,mid.left,mid.top,mid.width,mid.height",
+    expect: ["bar.left=0", "bar.top=0", "bar.width=598", "bar.height=32", "status.left=0", "status.top=397", "status.width=598", "status.height=22", "namelbl.left=12", "namelbl.top=48", "namelbl.width=31", "namelbl.height=13", "nameed.left=64", "nameed.top=44", "nameed.width=420", "nameed.height=21", "notes.left=12", "notes.top=80", "notes.width=472", "notes.height=280", "side.left=496", "side.top=44", "side.width=92", "side.height=316", "pick.left=8", "pick.top=280", "pick.width=75", "pick.height=25", "ok.left=428", "ok.top=366", "ok.width=75", "ok.height=25", "cancel.left=512", "cancel.top=366", "cancel.width=75", "cancel.height=25", "mid.left=222", "mid.top=370", "mid.width=36", "mid.height=13"] },
   { name: "font_size", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=35x19 28x16"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
@@ -324,4 +362,18 @@ export const cases = [
   // events' capture only)
   { name: "themes", events: "btndark.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=theme classic then dark"], themes: ["modern", "dark", "highcontrast"] },
+  // RPLOT on a form (the UI kernel's component, the one chart renderer): a
+  // line chart anchored left / top / right, widened with the form (500 ×
+  // 350); a bar chart aligned to the bottom. The click adds a dashed series
+  // and a legend, titles the bars and renders: drawn again. Pixels: the
+  // line chart's background, the form between the charts, a bar (steelblue),
+  // the legend's red and blue swatches; on the web, the red line drawn on
+  // the form's canvas (the window's capture is compared with the desktop's).
+  { name: "rplot_on_form", events: "btn.onclick", dump: "lbl.caption", resize: "500,350",
+    expect: ["lbl.caption=2 330x170 0,209 498x110 Sales 1"],
+    pixels: [[12, 34, "ffffff"], [400, 100, "f0f0f0"], [420, 270, "4682b4"], [57, 85, "ff0000"], [60, 101, "0000ff"]], clientWidth: 498,
+    webCheck: `(() => { const c = document.querySelector('.rr-kwin[data-rr-form="form"] canvas.rr-kclient'); const g = c && c.getContext("2d"); if (!g) return "no canvas";
+      const d = g.getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] > 200 && d[i + 1] < 60 && d[i + 2] < 60) n++;
+      return n > 200 ? "red line drawn" : "red pixels: " + n; })()`,
+    webExpect: "red line drawn" },
 ];

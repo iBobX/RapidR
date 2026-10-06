@@ -3734,6 +3734,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "rapidr-designer"
+version = "2.117.0"
+dependencies = [
+ "proptest",
+ "rapidr-ast",
+ "rapidr-diagnostics",
+ "rapidr-lang",
+ "rapidr-parser",
+ "rapidr-preprocessor",
+ "rapidr-value",
+]
+
+[[package]]
 name = "rapidr-diagnostics"
 version = "2.117.0"
 
@@ -3983,6 +3996,7 @@ name = "rapidr-value"
 version = "2.117.0"
 dependencies = [
  "jpeg-decoder",
+ "proptest",
  "rapidr-icons",
  "rapidr-lang",
  "rapidr-project",

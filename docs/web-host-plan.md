@@ -554,7 +554,7 @@ The HTML / Monaco web IDE (`web-ide/`) stays for now, as the test harness and th
 
 ### W6: the web-only components (`overlay_web.rs`)
 
-**The elements.** RWEBVIEW (a sandboxed `<iframe>`), RDOM (the program's element), RWEBAUDIO / RWEBVIDEO and RPLOT (its chart's canvas) are real elements with the id `rr-<name>`. Each is made once the component is registered; `overlay_web::create` applies what the program set.
+**The elements.** RWEBVIEW (a sandboxed `<iframe>`), RDOM (the program's element) and RWEBAUDIO / RWEBVIDEO are real elements with the id `rr-<name>`. (RPLOT was one, its chart on an HTML canvas; since 2026-10-06 it is a UI-kernel component, `components::plot`, drawn as the desktop's.) Each is made once the component is registered; `overlay_web::create` applies what the program set.
 
 **Placement.** The kernel places them as nodes of their form, drawn by nothing. The host (`host::set_overlay_types`, `place_overlays`) puts each element in its window's `.rr-koverlays` layer over the client canvas, at the node's place. It's clipped to its parents' rectangles (`clip-path`) and hidden with them. The element takes its own pointer events.
 

@@ -1,9 +1,11 @@
 //! RNUM, RDATAFRAME and RPLOT on the desktop (native builds and interpreted
 //! programs): the shared model in `rapidr_value::datascience` — the same
 //! one the web runs — with what only the desktop does: `PRINT` to stdout,
-//! filling a QSTRINGGRID, writing a chart's PNG (`SaveFig`). Charts are
-//! drawn by the one renderer every runtime uses (rapidr-ui-render's
-//! chart.rs: the UI kernel's ops), so they're the web's pixels too.
+//! filling a QSTRINGGRID, writing a chart's PNG (`SaveFig`), drawing an
+//! RPLOT's form again when its chart changes. Charts are drawn by the one
+//! renderer every runtime uses (the UI kernel's ops: an RPLOT on a form is
+//! a kernel component; rapidr-ui-render's chart.rs makes pictures and
+//! PNGs), so they're the web's pixels too.
 
 use rapidr_value::datascience as ds;
 
@@ -51,8 +53,12 @@ impl ds::Host for Desktop {
         }
     }
 
-    // (a desktop chart is shown by Image.LoadFromPlot)
-    fn show_plot(&self, _plot: &str) {}
+    // (an RPLOT on a form is the UI kernel's: its form drawn again)
+    #[allow(unused_variables)]
+    fn show_plot(&self, plot: &str) {
+        #[cfg(feature = "gui")]
+        crate::ui::redraw_widget(plot);
+    }
 }
 
 pub fn num_method(name: &str, method: &str, args: &[Value]) -> Value {
@@ -75,8 +81,12 @@ pub fn dataframe_get_prop(name: &str, prop: &str) -> Value {
     ds::frame::dataframe_get_prop(name, prop)
 }
 
+/// (whatever a chart's member changed, an RPLOT on a form shows: drawn
+/// again)
 pub fn plot_method(name: &str, method: &str, args: &[Value]) -> Value {
-    ds::plot::plot_method(name, method, args, &Desktop)
+    let v = ds::plot::plot_method(name, method, args, &Desktop);
+    ds::Host::show_plot(&Desktop, name);
+    v
 }
 
 pub fn plot_get_prop(name: &str, prop: &str) -> Value {
@@ -84,5 +94,7 @@ pub fn plot_get_prop(name: &str, prop: &str) -> Value {
 }
 
 pub fn plot_set_prop(name: &str, prop: &str, val: &Value) {
-    ds::plot::plot_set_prop(name, prop, val);
+    if ds::plot::plot_set_prop(name, prop, val) {
+        ds::Host::show_plot(&Desktop, name);
+    }
 }

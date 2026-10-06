@@ -51,6 +51,8 @@ pub mod design;
 pub mod dock;
 // (I1 / L-PANELS: RapidR Studio's panels — rapidr_value::panels)
 pub mod panels;
+// (the data-science lane's: RPLOT on a form)
+pub mod plot;
 
 use rapidr_value::input::Button;
 use rapidr_value::objects::a11y::{AccessNode, Action};
@@ -120,6 +122,8 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("ROUTPUTCONSOLE", &panels::console::Console),
     ("RTOOLBAR", &panels::toolbar::ToolBar),
     ("RCOMMANDPALETTE", &panels::palette::Palette),
+    // (the data-science lane's: a chart on a form — rapidr_value::datascience)
+    ("RPLOT", &plot::Plot),
 ];
 
 /// The kind drawing components of `type_name` (`None`: the kernel only

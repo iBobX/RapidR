@@ -33,6 +33,50 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   and the release notes.
 
 ### Added
+- **RapidR Studio's form designer model (I4, L-DMODEL), and anchoring that
+  is the running program's.** The designer reads a program's
+  `CREATE … END CREATE` blocks into a component tree (parents, z-order,
+  Tab order), changes it with undoable commands (add, delete, move, resize,
+  align, distribute, same size, bring to front / send to back, Tab order,
+  cut / copy / paste, duplicate, rename, anchors, any property from the
+  inspector), and writes each change back as the smallest text edit:
+  a property's value, a new line in the block's own indentation, a nested
+  CREATE before its parent's `END CREATE` — comments, blank lines, other
+  code and everything outside the blocks stay byte for byte, and Undo
+  gives the exact bytes back. Every form of `examples/` and of RapidQ's 386
+  examples opens and saves unchanged; moving a component 8 pixels changes
+  exactly one value. Where components are comes from the runtimes' own
+  layout (Align, Anchors, Constraints, a QLABEL's AutoSize, scroll bars,
+  the default sizes): dragging the designed form's corner previews it at
+  another size with every component where the running program puts it —
+  checked against the program itself resized, native, interpreted and in
+  the browser (`tests/fixtures/designer_anchors.bas`).
+- **RDESIGNSURFACE on the designer model**: Shift / Ctrl+click and a rubber
+  band select several components; drags snap to the grid and to smart
+  guides (siblings' edges, centres and text baselines, the form's centre
+  lines, 8-pixel margins, equal spacing — Alt for none); eight handles; round
+  anchor pins on the selected component's sides (click to anchor that
+  side); the form's corner drags the resize preview; moves and resizes are
+  one undo step each. New members: `Undo`, `Redo`, `AlignSelection(How)`,
+  `SelectAdd(Index)`, `SelCount`, `PreviewWidth` / `PreviewHeight`,
+  `ShowGuides`, `SnapToGrid`, `GridSize`. Its chrome follows the theme.
+  `examples/form_designer.bas` shows it. Existing programs' calls answer as
+  before.
+
+- **An RPLOT on a form shows its chart, the same on the desktop and the
+  web.** Put an RPLOT in a form's CREATE block and the chart is drawn in
+  its place, filling its Left / Top / Width / Height, and follows Align
+  and Anchors as the form is resized. It is sharp at any screen scale
+  (1×, 1.5×, 2×) and drawn in the program's theme (classic, modern,
+  dark). It is drawn again whenever the chart changes: a new series
+  (`Plot`, `Bar` …), a property (`Title`, `Grid` …), `Render` / `Show`.
+  Native builds, interpreted programs and the browser show the same
+  pixels, and a screen reader hears an image named by the chart's Title.
+  On the web the chart is no longer a separate page element: it is drawn
+  on the form like every other component (the old element is gone). A
+  chart that is never placed on a form works as before (`SaveFig`,
+  `Image.LoadFromPlot`). A new RPLOT is 640 × 480, the chart's own size,
+  everywhere.
 - **Automatic keyword case in VS Code, as in QuickBASIC and VB.** Type
   `dim x as integer` and it becomes `DIM x AS INTEGER` as you go: each
   word is put in BASIC's case when you finish it (space, Enter, Tab, `(`,
@@ -148,6 +192,12 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   - `tools/regress.sh unit` checks that everything is up to date.
 
 ### Changed
+- **One layout sequence for every runtime.** When Align and Anchors place
+  components (a property set, a container resized) is
+  `rapidr_value::layout::engine`'s, run by the desktop and web runtimes
+  and by the designer; nothing a program sees changes.
+- The language registry's component sizes are the runtimes' (RapidQ's
+  measured defaults); a test keeps them the same.
 - **The VS Code extension and RapidR Studio know the language from the
   language registry.** Completion, hover, signature help and the
   compatibility warnings come from the one description of the language
