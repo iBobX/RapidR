@@ -249,7 +249,7 @@ fn a_designers_selection_is_inspected_there() {
     crate::objects::with_design_mut("surface", |d| {
         d.add("QBUTTON", "OkButton", (8, 8, 75, 25));
         d.add("QEDIT", "NameEdit", (8, 40, 120, 21));
-        d.selected = 0;
+        d.select(0);
     });
     remove("di");
     with_mut("di", |m| m.designer = "Surface".into());
@@ -263,17 +263,53 @@ fn a_designers_selection_is_inspected_there() {
     assert!(commit(&host, "di", "anchors.akright", "True").is_ok());
     assert!(commit(&host, "di", "width", "90").is_ok());
     crate::objects::with_design("surface", |d| {
-        assert_eq!(d.components[0].prop("align"), Some("alTop"));
-        assert_eq!(d.components[0].prop("anchors"), Some("akLeft + akTop + akRight"));
-        assert_eq!(d.components[0].w, 90);
+        assert_eq!(d.components()[0].prop("align"), Some("alTop"));
+        assert_eq!(d.components()[0].prop("anchors"), Some("akLeft + akTop + akRight"));
+        assert_eq!(d.components()[0].prop("width"), Some("90"));
     });
     assert_eq!(with("di", |m| m.value_text("anchors")).flatten().as_deref(), Some("akLeft, akTop, akRight"));
     // (the selection changes: designer_changed reads it again)
-    crate::objects::with_design_mut("surface", |d| d.selected = 1);
+    crate::objects::with_design_mut("surface", |d| d.select(1));
     designer_changed(&host, "surface");
     assert_eq!(with("di", |m| m.snap.type_name.clone()).unwrap(), "QEDIT");
     assert!(commit(&host, "di", "hint", "Your name").is_ok());
-    crate::objects::with_design("surface", |d| assert_eq!(d.components[1].prop("hint"), Some("Your name")));
+    crate::objects::with_design("surface", |d| assert_eq!(d.components()[1].prop("hint"), Some("Your name")));
     reset(&host, "di", "hint");
-    crate::objects::with_design("surface", |d| assert_eq!(d.components[1].prop("hint"), None));
+    crate::objects::with_design("surface", |d| assert_eq!(d.components()[1].prop("hint"), None));
+}
+
+#[test]
+fn the_designer_models_selection_one_command_each() {
+    use crate::designer::model::{FormDesign, Prop as DProp, SubItem, Subtree};
+    use std::rc::Rc;
+    let b = |n: &str, cap: &str| Subtree { id: 0, name: n.into(), type_written: "QBUTTON".into(), body: vec![SubItem::Child(Subtree { id: 0, name: String::new(), type_written: String::new(), body: Vec::new() }); 0].into_iter().chain([SubItem::Prop(DProp { name: "Caption".into(), value: cap.into() })]).collect() };
+    let design = FormDesign::from_subtree(Subtree { id: 0, name: "Form".into(), type_written: "QFORM".into(), body: vec![SubItem::Child(b("B1", "\"One\"")), SubItem::Child(b("B2", "\"Two\""))] });
+    let (b1, b2) = (design.find("B1").unwrap(), design.find("B2").unwrap());
+    let d = Rc::new(RefCell::new(crate::designer::Designer::new(design)));
+    d.borrow_mut().selection.set(b1);
+    super::designer_model::attach("fd1", Rc::clone(&d));
+    super::designer_model::register("RFORMDESIGNER");
+    let host = Fake::with(&[("FD1", "RFORMDESIGNER")]);
+    remove("dm");
+    with_mut("dm", |m| m.designer = "FD1".into());
+    refresh(&host, "dm");
+    assert_eq!(with("dm", |m| m.value_text("caption")).flatten().as_deref(), Some("One"));
+    // (a change: one command, the CREATE block's text as the program writes it)
+    assert!(commit(&host, "dm", "caption", "Go").is_ok());
+    assert!(commit(&host, "dm", "anchors.akright", "True").is_ok());
+    let node = |id| d.borrow().design.node(id).map(|n| (n.prop("Caption").map(str::to_string), n.prop("Anchors").map(str::to_string)));
+    assert_eq!(node(b1), Some((Some("\"Go\"".into()), Some("akLeft + akTop + akRight".into()))));
+    assert_eq!(with("dm", |m| m.value_text("anchors")).flatten().as_deref(), Some("akLeft, akTop, akRight"));
+    // (both selected: Caption differs, a change goes to both; undo is the designer's)
+    d.borrow_mut().selection.toggle(b2);
+    designer_changed(&host, "fd1");
+    assert_eq!(with("dm", |m| m.snap.props.iter().find(|p| p.name == "Caption").unwrap().value.clone()).unwrap(), None);
+    assert!(commit(&host, "dm", "caption", "Same").is_ok());
+    assert_eq!(node(b2).unwrap().0.as_deref(), Some("\"Same\""));
+    assert!(d.borrow_mut().undo());
+    assert_eq!(node(b2).unwrap().0.as_deref(), Some("\"Two\""));
+    // (reset: the line goes)
+    reset(&host, "dm", "anchors");
+    assert_eq!(node(b1).unwrap().1, None);
+    super::designer_model::detach("fd1");
 }

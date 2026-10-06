@@ -17,6 +17,7 @@
 //!   Value) with the value as the program writes it.
 
 pub mod design;
+pub mod designer_model;
 pub mod model;
 pub mod read;
 pub mod values;
