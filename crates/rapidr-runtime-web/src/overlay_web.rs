@@ -1,8 +1,8 @@
 //! The web-only components on the UI kernel's page (docs/web-host-plan.md
 //! §3.6, Stage W6): RWEBVIEW (an `<iframe>`), RDOM (the program's own
-//! element), RWEBAUDIO / RWEBVIDEO (`<audio>` / `<video>`), and the data
-//! science lane's RPLOT (its chart's HTML canvas) need the DOM by their
-//! nature. Each is a real element with the id `rr-<name>` (the one
+//! element) and RWEBAUDIO / RWEBVIDEO (`<audio>` / `<video>`) need the DOM
+//! by their nature (an RPLOT is the kernel's own component, drawn like the
+//! desktop's: rapidr_ui_kernel::components::plot). Each is a real element with the id `rr-<name>` (the one
 //! scripts and RDOM's AppendTo / QuerySelector use), and the kernel places
 //! it: the component is a node of its form like any other (Left, Top,
 //! Width, Height, Visible, Align, its parents'), drawn by nothing; the host
@@ -21,7 +21,7 @@ use web_sys::{HtmlElement, HtmlMediaElement};
 use crate::object_web::{rp_comp_get_stored, rp_comp_type};
 
 /// The components the host places as DOM elements over its canvases.
-pub const TYPES: &[&str] = &["RWEBVIEW", "RDOM", "RWEBAUDIO", "RWEBVIDEO", "RPLOT"];
+pub const TYPES: &[&str] = &["RWEBVIEW", "RDOM", "RWEBAUDIO", "RWEBVIDEO"];
 
 pub fn is_overlay(type_name: &str) -> bool {
     TYPES.iter().any(|t| t.eq_ignore_ascii_case(type_name))
@@ -94,11 +94,6 @@ pub fn create(name: &str, type_name: &str) {
             if let Some(v) = el.dyn_ref::<HtmlMediaElement>() {
                 v.set_controls(stored(name, "controls").is_none_or(|c| c.to_bool()));
             }
-        }
-        "RPLOT" => {
-            el.set_class_name("rr-plot-container");
-            let _ = el.style().set_property("background", "white");
-            let _ = el.style().set_property("border", "1px solid #ccc");
         }
         _ => {}
     }

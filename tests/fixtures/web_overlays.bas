@@ -1,7 +1,8 @@
 ' The web-only components on the UI kernel's page (tests/web_overlays.mjs,
-' docs/web-host-plan.md §3.6): an RWEBVIEW, RDOM elements, an RWEBVIDEO
-' and an RPLOT are the page's own elements, placed by the kernel over the
-' form's canvas; a drop-down list opens over them.
+' docs/web-host-plan.md §3.6): an RWEBVIEW, RDOM elements and an
+' RWEBVIDEO are the page's own elements, placed by the kernel over the
+' form's canvas; a drop-down list opens over them. (An RPLOT is the
+' kernel's own component: tests/fixtures/rplot_on_form.bas.)
 $APPTYPE WEB
 
 CREATE Form AS RFORM
@@ -55,12 +56,6 @@ CREATE Form AS RFORM
     Width = 160
     Height = 100
   END CREATE
-  CREATE Plot1 AS RPLOT
-    Left = 190
-    Top = 170
-    Width = 300
-    Height = 200
-  END CREATE
 END CREATE
 
 CREATE Free AS RDOM
@@ -81,12 +76,4 @@ SUB DomClicked
 END SUB
 
 Web.SetHtml("<html><body><p id='p'>hello from the frame</p></body></html>")
-DIM xs(4) AS DOUBLE
-DIM ys(4) AS DOUBLE
-FOR i = 0 TO 4
-  xs(i) = i
-  ys(i) = i * i
-NEXT
-Plot1.plot(xs, ys, "squares", "red")
-Plot1.render()
 Form.ShowModal

@@ -62,6 +62,21 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   `ShowGuides`, `SnapToGrid`, `GridSize`. Its chrome follows the theme.
   `examples/form_designer.bas` shows it. Existing programs' calls answer as
   before.
+
+- **An RPLOT on a form shows its chart, the same on the desktop and the
+  web.** Put an RPLOT in a form's CREATE block and the chart is drawn in
+  its place, filling its Left / Top / Width / Height, and follows Align
+  and Anchors as the form is resized. It is sharp at any screen scale
+  (1×, 1.5×, 2×) and drawn in the program's theme (classic, modern,
+  dark). It is drawn again whenever the chart changes: a new series
+  (`Plot`, `Bar` …), a property (`Title`, `Grid` …), `Render` / `Show`.
+  Native builds, interpreted programs and the browser show the same
+  pixels, and a screen reader hears an image named by the chart's Title.
+  On the web the chart is no longer a separate page element: it is drawn
+  on the form like every other component (the old element is gone). A
+  chart that is never placed on a form works as before (`SaveFig`,
+  `Image.LoadFromPlot`). A new RPLOT is 640 × 480, the chart's own size,
+  everywhere.
 - **Automatic keyword case in VS Code, as in QuickBASIC and VB.** Type
   `dim x as integer` and it becomes `DIM x AS INTEGER` as you go: each
   word is put in BASIC's case when you finish it (space, Enter, Tab, `(`,

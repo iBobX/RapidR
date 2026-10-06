@@ -93,6 +93,13 @@ pub fn shared(type_name: &str) -> Vec<(String, Value)> {
             put("align", v_int(0));
             put("cursor", v_int(0));
         }
+        // RPLOT: a chart, shown when it's on a form (the UI kernel's
+        // components::plot); its size is its model's (layout::default_size).
+        "RPLOT" => {
+            put("left", v_int(0));
+            put("top", v_int(0));
+            put("visible", v_bool(true));
+        }
         // QDIGDISPLAY: a canvas showing its Display (objects::digdisplay).
         "RDIGDISPLAY" => {
             put("left", v_int(0));

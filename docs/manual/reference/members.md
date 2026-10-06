@@ -4254,7 +4254,7 @@ A table of named columns in pandas' style: read CSV or JSON, select, filter, sor
 <a id="rplot"></a>
 ## RPLOT
 
-A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots with labels, legends and notes, on a form or saved as a picture. RapidR's own.
+A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots with labels, legends and notes, on a form (drawn crisp at any screen scale, the same on the desktop and the web) or saved as a picture. RapidR's own.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -4306,10 +4306,10 @@ A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots
 | `Set_xlabel` | Sets the label of the x axis. Same as `SetXLabel`. |
 | `SetYLabel` | Sets the label of the y axis. |
 | `Set_ylabel` | Sets the label of the y axis. Same as `SetYLabel`. |
-| `SaveFig(filename)` | Draws the chart into a PNG file (on the web: on the page). |
+| `SaveFig(filename)` | Draws the chart into a PNG file (on the web: one of the page's files, which the program can read back or offer as a download). |
 | `Save` | Saves to a file: the chart as an image, or the recording as a WAV file. |
 | `Render` | Draws the scene: a DirectX screen draws its 3D view; on the web a chart is drawn (as `SaveFig`). |
-| `Show` | Draws the chart where it is shown (the page, on the web). |
+| `Show` | Draws the chart again where it shows: an RPLOT on a form (a chart only saved or loaded into a picture has nowhere else to show). |
 | `Figsize(width, height, [dpi])` | The size in inches at the chart's DPI. |
 | `Xlim(min, max)` | The X axis range. |
 | `Ylim(min, max)` | The Y axis range. |
