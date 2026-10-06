@@ -579,6 +579,9 @@ fn set_property(name: &str, prop: &str, val: Value) {
         ("font.bold", "fontbold"),
         ("font.italic", "fontitalic"),
         ("font.color", "fontcolor"),
+        // (I1 / L-PANELS: the inspector's font parts)
+        ("font.underline", "fontunderline"),
+        ("font.strikeout", "fontstrikeout"),
     ];
     for &(dotted, flat) in aliases {
         if prop_lower == dotted {
@@ -1170,6 +1173,11 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_dirtree(name) {
             crate::ui::dirtree_refresh(name);
+        }
+        // (I1 / L-PANELS) A designer's selection or props changed: the
+        // inspectors following it read it again.
+        if rapidr_value::objects::is_design(name) {
+            crate::panels::designer_changed(name);
         }
         // A QHEADER's sections changed (not a drawing on it): painted again.
         #[cfg(feature = "gui")]

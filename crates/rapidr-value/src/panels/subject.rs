@@ -19,8 +19,13 @@
 //! 2. implement [`Subject`] over the designer's model: `objects` is the
 //!    selection (name, type as the source writes it); `get` a property's
 //!    value as the CREATE block sets it (`None`: not set there — the
-//!    registry's default applies); `set` / `reset` / `set_handler` become
-//!    the designer's commands (one undo step each, the smallest text edit);
+//!    registry's default applies; the text as written is fine: `alClient`,
+//!    `True`, `&HFF`, `akLeft + akTop`); `set_source` (the value as the
+//!    program writes it, and as a runtime keeps it) / `reset` /
+//!    `set_handler` become the designer's commands (one undo step each, the
+//!    smallest text edit); a font's parts come as `Font.Name`, `Font.Size`,
+//!    `Font.Color`, `Font.Bold`, `Font.Italic`, `Font.Underline`,
+//!    `Font.StrikeOut`;
 //! 3. when the selection or a selected object's property changes, call
 //!    [`super::inspector::designer_changed`]`(host, designer)`: every
 //!    inspector following that designer reads it again.
@@ -90,6 +95,16 @@ pub trait Subject {
     /// Sets `prop` on each of `objects` (one change, one undo step); `Err`
     /// says why it was refused (shown to the user, the old value kept).
     fn set(&self, host: &dyn Host, objects: &[String], prop: &str, value: &Value) -> Result<(), String>;
+
+    /// [`set`](Subject::set) with the value also as the program writes it
+    /// (`source`: `alClient`, `akLeft + akTop`, `True`, `clRed`,
+    /// `&H0000FF`, a text as it is — what OnPropertyChange says): what the
+    /// inspector calls. A designer writes `source` into the CREATE block;
+    /// by default, `set` with the runtime's value.
+    fn set_source(&self, host: &dyn Host, objects: &[String], prop: &str, value: &Value, source: &str) -> Result<(), String> {
+        let _ = source;
+        self.set(host, objects, prop, value)
+    }
 
     /// Puts `prop` back to its default on each of `objects` (a designer
     /// removes the assignment from the CREATE block).

@@ -748,7 +748,7 @@ fn set_property(name: &str, prop: &str, val: Value) {
 
     // `Form.Font.Size = 12` and `FontSize = 12` are one property (as on the
     // desktop): the flat name is what drawing and the DOM read.
-    for (dotted, flat) in [("font.name", "fontname"), ("font.size", "fontsize"), ("font.bold", "fontbold"), ("font.italic", "fontitalic"), ("font.color", "fontcolor")] {
+    for (dotted, flat) in [("font.name", "fontname"), ("font.size", "fontsize"), ("font.bold", "fontbold"), ("font.italic", "fontitalic"), ("font.color", "fontcolor"), ("font.underline", "fontunderline"), ("font.strikeout", "fontstrikeout")] {
         if lprop == dotted {
             rp_comp_set(name, flat, val.clone());
         } else if lprop == flat {
@@ -1246,6 +1246,11 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
                 return v_null();
             }
             picture_changed(&uname);
+        }
+        // (I1 / L-PANELS) A designer's selection or props changed: the
+        // inspectors following it read it again.
+        if rapidr_value::objects::is_design(name) {
+            crate::panels_web::designer_changed(&uname);
         }
         // (drawn again: a tree's rows built again first)
         if rapidr_value::objects::is_tree(name) {

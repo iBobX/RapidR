@@ -86,6 +86,12 @@ pub fn after_set(name: &str, prop: &str) {
     runtime::rt_after_set(Desktop, name, prop)
 }
 
+/// A designer's selection, or a selected component's property, changed
+/// (its methods): the inspectors following it read it again.
+pub fn designer_changed(name: &str) {
+    rapidr_value::panels::inspector::designer_changed(&Desktop, name)
+}
+
 /// What the user did to a panel (the kernel's `Container::Panel`).
 pub fn user(name: &str, action: User) {
     runtime::rt_user(Desktop, name, action)

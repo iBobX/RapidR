@@ -33,7 +33,14 @@ use crate::Program;
 /// completion).
 pub fn dispatch<P: Program>(p: P, id: &str, action: ListAction) {
     match action {
-        ListAction::Fire(event, args) => p.fire_args(id, &event, &args),
+        ListAction::Fire(event, args) => {
+            // (I1 / L-PANELS: a designer's selection or bounds changed by the
+            // user — the inspectors following it read it again first)
+            if p.type_of(id).eq_ignore_ascii_case("RDESIGNSURFACE") {
+                p.container(rapidr_ui_kernel::components::form::Container::Panel { id: id.to_string(), action: rapidr_value::panels::User::Inspector(rapidr_value::panels::inspector::User::DesignerChanged) });
+            }
+            p.fire_args(id, &event, &args)
+        }
         ListAction::TreeSelect(i) => tree_user_select(p, id, i),
         ListAction::TreeToggle(i, open) => tree_user_toggle(p, id, i, open),
         ListAction::TreeEdit(i) => tree_begin_edit(p, id, i),
