@@ -172,6 +172,33 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   2026-10-06 should be cloned again.
 
 ### Fixed
+- **The main program's end is the program's**, as in RapidQ (RC.EXE,
+  checked in the Windows VM): a program whose main code ends after
+  `Form.Show` (no ShowModal, no DOEVENTS loop) runs OnShow inside Show and
+  then ends — its form goes, its timers never tick. The interpreter kept
+  such a program's windows open with their timers stopped (so a QTIMER
+  never ticked), the web kept them open and ticking; native builds already
+  ended. The loop after the main program is gone from the interpreter, the
+  debugger and both web builds (`rp_run_app`, `Wait::App`). Conformance
+  case `main_ends_after_show`, `tests/web_main_end.mjs`.
+- **`Form.` with no member right after the dot** is RC.EXE's `Member  not
+  part of class FORM` (the member it read is empty; `Form.Font.` is
+  `Member FONT. not part of class FORM`): the next line was joined to it,
+  so `Form.` then `Nope x` compiled. A space after the dot (`Form. Caption`)
+  and WITH's `.` alone are the same error, as in RapidQ; `Form._` with
+  the member on the next line still joins. Cases `member_dot_alone`,
+  `member_dot_continued`.
+- **`$TYPECHECK ON` checks the names a program reads**, not only those it
+  stores into: an undeclared name passed to a method (`List.AddItems
+  itme`), a SUB or FUNCTION, printed, or used in an expression or a
+  condition is RC.EXE's `Undefined symbol ITME`. A name stored into while
+  the check was off is a variable from there on, as in RapidQ; True /
+  False and RapidR's own constants stay known (RapidR's additions). Cases
+  `typecheck_reads`, `typecheck_reads_ok`.
+- **A SUB or FUNCTION written without its parameters has the ones it was
+  DECLAREd with** (`DECLARE FUNCTION G (a AS INTEGER) AS INTEGER` then
+  `FUNCTION G` reads `a`; RC.EXE's G(4) is 8): `a` was an implicit
+  variable there (0). RapidQ's `forms/MinToTaskbar.bas` is written so.
 - **A program sees only its own command line**, however it runs. `rapidr
   run-bc prog.rrbc a b` handed the program the runner's own arguments
   (`COMMAND$` was "run-bc prog.rrbc a b"; the IDE opened "run-bc …" as a

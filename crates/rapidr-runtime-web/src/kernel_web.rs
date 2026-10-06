@@ -895,8 +895,15 @@ pub fn form_window_exists(name: &str) -> bool {
     forms::form_window_exists(name)
 }
 
-pub fn any_form_shown() -> bool {
-    forms::any_shown()
+/// A compiled web build's main program ran to its end (after
+/// [`finalize`]): the program's end, as in RapidQ — its forms go, its
+/// timers stop — unless it waits for a form shown modally or a dialog (a
+/// compiled build's ShowModal returns at once and the form is waited for
+/// from the page).
+pub fn main_ended() {
+    if forms::modal_forms().is_empty() {
+        crate::object_web::end_program();
+    }
 }
 
 /// Whether `name` shows: visible up to its form, whose window shows (the

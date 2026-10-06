@@ -2450,15 +2450,6 @@ pub fn get_children_of(parent_name: &str) -> Vec<(String, String)> {
 }
 
 // ---------------------------------------------------------------------------
-// Run app — no-op on web (the browser IS the event loop)
-// ---------------------------------------------------------------------------
-
-pub fn rp_run_app() {
-    // On web, the browser event loop handles everything.
-    // This is intentionally a no-op.
-}
-
-// ---------------------------------------------------------------------------
 // Theme — Application.Theme: the UI kernel draws in it (globals_web)
 // ---------------------------------------------------------------------------
 

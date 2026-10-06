@@ -166,11 +166,14 @@ struct Parser<'a> {
     /// components (`TYPE QBEVEL EXTENDS QPANEL`, QBevel.inc), upper case:
     /// those names are the program's TYPE, not RapidR's built-in.
     own_types: Vec<String>,
+    /// The objects of the WITH blocks being parsed, innermost last, as
+    /// RC.EXE names them in its errors ([`member_path`]).
+    with_objects: Vec<(String, String)>,
 }
 
 impl<'a> Parser<'a> {
     fn new(tokens: &'a [Token]) -> Self {
-        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false, own_types: Vec::new() }
+        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false, own_types: Vec::new(), with_objects: Vec::new() }
     }
 
     /// A type's name as written: RapidR's name for a RapidQ component
@@ -228,6 +231,40 @@ impl<'a> Parser<'a> {
                 format!("Syntax error in {word} statement")
             }
             _ => format!("Syntax error: unexpected '{}'", tok.lexeme),
+        }
+    }
+
+    /// Whether a member's name follows the `.` just read, right after it.
+    /// RC.EXE takes nothing else: `Form.` at a line's end (the next line
+    /// isn't joined to it) or `Form. Caption` is its `Member  not part of
+    /// class FORM` — the member it read is empty. A `_` continuation
+    /// joins the next line's name to it (`REDITPOP(i)._` then `POPUP(x, y)`,
+    /// RapidQ's MultiCaptiveChildWnds.bas). (RC refuses `Form. _` too — a
+    /// space before the `_` —, which the tokens can't tell apart: open.)
+    fn member_follows(&self) -> bool {
+        let (Some(dot), Some(next)) = (self.tokens.get(self.pos.wrapping_sub(1)), self.peek()) else { return false };
+        !matches!(next.kind, TokenType::Newline | TokenType::Eof | TokenType::Colon) && (next.span.start == dot.span.end || next.line > dot.line)
+    }
+
+    /// An object as RC.EXE names it in `Member P not part of class O`: the
+    /// name it starts from in upper case, and the members read after it so
+    /// far, each with its dot (`Form.Font.` is `FONT.` of `FORM`). Inside a
+    /// WITH, `.Font` starts from the WITH's object.
+    fn member_path(&self, e: &Expression) -> (String, String) {
+        match e {
+            Expression::Identifier(i) if i.name == "_with_" => self.with_objects.last().cloned().unwrap_or_default(),
+            Expression::Identifier(i) => (i.name.to_ascii_uppercase(), String::new()),
+            Expression::MemberAccess(m) => {
+                let (object, path) = self.member_path(&m.object);
+                (object, format!("{path}{}.", m.member.to_ascii_uppercase()))
+            }
+            Expression::FunctionCall(f) => self.member_path(&f.callee),
+            Expression::ArrayAccess(a) => self.member_path(&a.array),
+            Expression::MethodCall(m) => {
+                let (object, path) = self.member_path(&m.object);
+                (object, format!("{path}{}.", m.method.to_ascii_uppercase()))
+            }
+            _ => (String::new(), String::new()),
         }
     }
 
@@ -338,6 +375,7 @@ impl<'a> Parser<'a> {
     fn parse_program(&mut self) -> Program {
         let start = self.pos;
         let mut body = self.parse_body(&[]);
+        declared_parameters(&mut body);
         pack_variadic_calls(&mut body, &self.variadic);
         input_chars(&mut body);
         if !self.data_items.is_empty() {
@@ -2244,8 +2282,11 @@ impl<'a> Parser<'a> {
         self.expect(TokenType::With)?;
         let object = self.parse_expression()?;
         self.consume_eol();
+        let path = self.member_path(&object);
+        self.with_objects.push(path);
         // RapidQ lets `END SUB` / `END FUNCTION` close a WITH left open.
         let body = self.parse_body(&[Terminator::EndPair("WITH"), Terminator::EndPair("SUB"), Terminator::EndPair("FUNCTION")]);
+        self.with_objects.pop();
         if self.peek_is_end_followed_by("WITH") {
             self.expect(TokenType::End);
             self.expect(TokenType::With);
@@ -2854,6 +2895,11 @@ impl<'a> Parser<'a> {
                 continue;
             }
             if self.match_kind(TokenType::Dot) {
+                if !self.member_follows() {
+                    let (object, path) = self.member_path(&expr);
+                    self.error_at(self.pos - 1, format!("Member {path} not part of class {object}"));
+                    return None;
+                }
                 // Accept any token as member name (keywords like Close, Show, Open, Clear are valid method/property names)
                 let member = self.advance()?;
                 expr = Expression::MemberAccess(MemberAccessExpression {
@@ -2926,6 +2972,11 @@ impl<'a> Parser<'a> {
             // WITH-dot access: `.Property`
             TokenType::Dot => {
                 let dot_tok = self.advance()?;
+                if !self.member_follows() {
+                    let (object, path) = self.with_objects.last().cloned().unwrap_or_default();
+                    self.error_at(self.pos - 1, format!("Member {path} not part of class {object}"));
+                    return None;
+                }
                 // Accept any token as member name (keywords like Close, Show, Clear are valid after dot)
                 let member = self.advance()?;
                 Some(Expression::MemberAccess(MemberAccessExpression {
@@ -2975,6 +3026,42 @@ impl<'a> Parser<'a> {
                 Some(expr)
             }
             _ => None,
+        }
+    }
+}
+
+/// A SUB or FUNCTION written without its parameters (`FUNCTION WinProc`)
+/// has the ones it was DECLAREd with — `DECLARE FUNCTION G (a AS INTEGER)
+/// AS INTEGER` then `FUNCTION G` reads `a`: RC.EXE runs it so (G(4) is 8),
+/// and RapidQ's MinToTaskbar.bas is written so.
+fn declared_parameters(body: &mut [Statement]) {
+    let declared: Vec<(String, Vec<rapidr_ast::Parameter>, Option<String>)> = body
+        .iter()
+        .filter_map(|s| match s {
+            Statement::Declare(d) if d.lib.is_none() && !d.params.is_empty() => Some((d.name.to_ascii_lowercase(), d.params.clone(), d.return_type.clone())),
+            _ => None,
+        })
+        .collect();
+    if declared.is_empty() {
+        return;
+    }
+    let find = |name: &str| declared.iter().find(|(n, _, _)| n.eq_ignore_ascii_case(name));
+    for s in body.iter_mut() {
+        match s {
+            Statement::Subroutine(r) if r.params.is_empty() => {
+                if let Some((_, params, _)) = find(&r.name) {
+                    r.params = params.clone();
+                }
+            }
+            Statement::Function(f) if f.params.is_empty() => {
+                if let Some((_, params, ret)) = find(&f.name) {
+                    f.params = params.clone();
+                    if f.return_type.is_none() {
+                        f.return_type = ret.clone();
+                    }
+                }
+            }
+            _ => {}
         }
     }
 }

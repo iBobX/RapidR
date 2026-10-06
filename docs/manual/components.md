@@ -78,14 +78,15 @@ END SUB
   (Button, X, Y, Shift)`, `OnMouseMove (X, Y, Shift)`, a grid's `OnDrawCell
   (Col, Row, State, Rect)`, … A handler may declare fewer parameters.
 - Handlers can be bound at run time too: `Btn(i).OnClick = Clicked`.
-- Events run when the program waits: during `ShowModal`, `DOEVENTS`, a
-  dialog, or once the main program has run to its end while a form is
-  open.
+- Events run when the program waits: during `ShowModal`, `DOEVENTS` or a
+  dialog. The program ends when its main code does, as in RapidQ: forms
+  still open close with it and their timers stop.
 
 ```basic
 Form.ShowModal          ' shows the form and waits until it closes
 ' or
-Form.Show               ' shows it; the program waits at its end
+Form.Show               ' shows it and goes on; to keep it, wait:
+DO: DOEVENTS: LOOP UNTIL Closed    ' (Closed set by the form's OnClose)
 ```
 
 ## The global objects

@@ -115,7 +115,7 @@ fn dispatch_indirect(handler_id: u32, args: &[Value]) {
             VM_QUEUED.with(|q| q.set(q.get() + 1));
             d(handler_id, args);
         } else if !SHUTTING_DOWN.with(|s| s.get()) {
-            // After `rp_run_app` returns and timers/widgets are torn
+            // After the program ends and timers/widgets are torn
             // down the host may still deliver a few queued events.
             // Suppress the noisy warning during shutdown — it is harmless.
             eprintln!(
@@ -1616,30 +1616,12 @@ pub fn rp_take_wait_started() -> bool {
     false
 }
 
-/// Starts waiting for the program's windows (the main event loop).
-pub fn rp_begin_app_wait() {
-    #[cfg(feature = "gui")]
-    crate::ui::gui_begin_app_wait();
-}
-
 /// One step of the innermost wait: `None` while it goes on, `Some` when over.
 pub fn rp_pump_wait() -> Option<Value> {
     #[cfg(feature = "gui")]
     return crate::ui::gui_pump_wait();
     #[cfg(not(feature = "gui"))]
     Some(v_null())
-}
-
-/// Start the GUI event loop (or no-op without GUI feature).
-pub fn rp_run_app() {
-    #[cfg(feature = "gui")]
-    {
-        crate::ui::run_gui_event_loop();
-    }
-    #[cfg(not(feature = "gui"))]
-    {
-        println!("[GUI] ShowModal called — GUI not compiled, returning immediately.");
-    }
 }
 
 // ---------------------------------------------------------------------------

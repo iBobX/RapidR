@@ -310,7 +310,8 @@ in any modern terminal and in the IDE's output panel.
 | `$RESOURCE NAME AS "file"` | a file built into the program (`RESOURCE(n)`, `EXTRACTRESOURCE`, pictures) |
 | `$OPTION ICON "file.ico"` | the program's icon |
 | `$ESCAPECHARS ON` | escape sequences in this file's strings |
-| `$OPTIMIZE`, `$TYPECHECK` | accepted |
+| `$TYPECHECK ON` / `OFF` (`$OPTION EXPLICIT`: ON) | every variable must be declared (DIM, CONST, a parameter): an undeclared one stored into is RapidQ's `Undeclared identifier x`, read is its `Undefined symbol X` |
+| `$OPTIMIZE` | accepted |
 | `$THEME name` | RapidR's: the desktop look ([Components](components.md#themes)) |
 | `#If … Then` / `#ElseIf` / `#Else` / `#End If`, `#Const` | VB's conditional compilation |
 

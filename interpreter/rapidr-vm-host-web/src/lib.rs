@@ -644,14 +644,17 @@ fn settle(kind: Slice, result: Result<(), VmError>, main_done: bool) {
         return;
     }
     let error = matches!(&result, Err(e) if !matches!(e, VmError::Paused | VmError::Suspended | VmError::Yielded));
+    // The main program ran to its end: the program's end, as in RapidQ
+    // (RC.EXE: a program whose main code ends after `Form.Show` exits
+    // there — its form goes, its timers never tick) and on the desktop.
+    // Its forms are shown first, and what showing them fired (OnShow) runs.
+    let mut main_ended = false;
     match kind {
         Slice::Main => match result {
-            // Mirror compiled-mode codegen: after `__main` returns, finalize
-            // the DOM tree (parents form windows, applies title-bars, shows
-            // the entry form). Without this nothing is visible.
             Ok(()) => {
                 if HAS_COMPONENTS.with(Cell::get) {
                     finalize_forms();
+                    main_ended = true;
                 }
             }
             // Waiting for a dialog: the forms appear when `__main` finishes;
@@ -669,12 +672,8 @@ fn settle(kind: Slice, result: Result<(), VmError>, main_done: bool) {
         Slice::Resumed => {
             if main_done && HAS_COMPONENTS.with(Cell::get) {
                 finalize_forms();
-                // The main program went on after its ShowModal and finished
-                // with no form open: it's over, as on the desktop (which
-                // exits) — its timers stop and no event reaches it any more.
-                if result.is_ok() && !rapidr_runtime_web::kernel_web::any_form_shown() {
-                    rapidr_runtime_web::object_web::end_program();
-                }
+                // (the main program went on after its ShowModal and finished)
+                main_ended = result.is_ok();
             }
             report(result, "vm error");
         }
@@ -682,7 +681,10 @@ fn settle(kind: Slice, result: Result<(), VmError>, main_done: bool) {
         Slice::Debug => {
             match &result {
                 // (the main program ran to its end: its forms, as after Main)
-                Ok(()) if HAS_COMPONENTS.with(Cell::get) => finalize_forms(),
+                Ok(()) if HAS_COMPONENTS.with(Cell::get) => {
+                    finalize_forms();
+                    main_ended = SESSION.with(|s| s.try_borrow().ok().is_some_and(|g| g.as_ref().is_some_and(|session| session.main_finished)));
+                }
                 Err(VmError::Suspended) if dialog::modal_waiting() && HAS_COMPONENTS.with(Cell::get) => finalize_forms(),
                 _ => {}
             }
@@ -692,6 +694,11 @@ fn settle(kind: Slice, result: Result<(), VmError>, main_done: bool) {
     check_exit(error);
     schedule_output_flush();
     run_idle_events();
+    // (unless what showing the forms fired waits: a ShowModal, a dialog)
+    if main_ended && !dialog::modal_waiting() && !dialog::is_yielded() {
+        rapidr_runtime_web::object_web::end_program();
+        check_exit(false);
+    }
     flush_events();
 }
 

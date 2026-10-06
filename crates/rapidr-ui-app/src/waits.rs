@@ -25,8 +25,6 @@ use crate::{dialogs, forms, Program, Windows};
 pub enum Wait {
     /// `Form.ShowModal`: until the form is closed.
     Form(String),
-    /// The program's main event loop: until no window is left.
-    App,
     // (timers during native menu tracking: the VM waits between
     // instructions, so it can lend itself to a tracking tick — rather than
     // inside a builtin, where its handlers could only queue)
@@ -88,27 +86,19 @@ pub fn take_started() -> bool {
     ws(|s| std::mem::replace(&mut s.started, false))
 }
 
-/// The program's main event loop begins (after the main program): a wait
-/// for its windows, under any it starts.
-pub fn begin_app() {
-    ws(|s| s.waits.push(Wait::App));
-}
-
 /// The innermost wait if it's a turn's (DOEVENTS', Popup's): the runtime
 /// takes it off ([`pop`]) when the turn is over.
 pub fn turn() -> Option<Wait> {
     ws(|s| s.waits.last().filter(|w| matches!(w, Wait::Popup | Wait::Once(_))).cloned())
 }
 
-/// Whether the innermost wait is over: none left, its modal form closed,
-/// no window left for the main loop. (A wait for an answer ends with its
-/// result: [`answered`].)
+/// Whether the innermost wait is over: none left, its modal form closed.
+/// (A wait for an answer ends with its result: [`answered`].)
 pub fn over() -> bool {
     let last = ws(|s| s.waits.last().cloned());
     match last {
         None => true,
         Some(Wait::Form(name)) => !forms::modal_waits(&name),
-        Some(Wait::App) => !forms::any_shown(),
         Some(Wait::Popup | Wait::Once(_)) => true,
         Some(Wait::Dialog(_) | Wait::Key | Wait::Menu(_)) => false,
     }

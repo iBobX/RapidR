@@ -291,7 +291,7 @@ Next up, in order:
 - [x] `$OPTION ICON "app.ico"` (the program's icon, built in; a missing one leaves the default) and `$OPTION BYREF` on both backends; `$OPTION EXPLICIT` / BYTECODE / GTK / INKEY$ / VBDLL / WEAKTYPE accepted (v2.79.0)
 - [x] `$OPTION DIM type` (undeclared variables' type) and `$OPTION DECIMAL` (VAL's decimal character) — v2.82.0
 - [x] Undeclared variables are DOUBLE as RapidQ's; RapidQ's `Type mismatch` error for a string stored into a number (v2.84.0)
-- [x] `$TYPECHECK ON/OFF` and `$OPTION EXPLICIT`: RapidQ's `Undeclared identifier` (v2.85.0)
+- [x] `$TYPECHECK ON/OFF` and `$OPTION EXPLICIT`: RapidQ's `Undeclared identifier` (v2.85.0) for stores and `Undefined symbol` for reads (RC.EXE-checked)
 - [x] RapidQ's argument-count, duplicate-DIM and RESULT-outside-FUNCTION errors (v2.86.0); its other messages are in `.reference/rapidq-compiler-messages.txt`
 - [x] RapidQ's `Property X of Y is read-only.` for its components' read-only properties (v2.87.0)
 - [x] INKEY$ extended keys as CHR$(27) + scan code (RapidQ's manual) and `$OPTION INKEY$ TRAPALL/DEFAULT` (v2.88.0)
