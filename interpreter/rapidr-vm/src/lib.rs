@@ -1335,7 +1335,10 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// outermost), through the source map; the file is `None` without one.
     pub fn frame_location(&self, module: &Module, index: usize) -> Option<(Option<String>, u32)> {
         let frame = self.frames.get(index)?;
-        let line = module.functions.get(frame.fn_index as usize)?.get_line_for_ip(frame.ip)?;
+        // (a caller's ip is past the call — or the host operation that ran
+        // a handler —: its line is the one before)
+        let ip = if index + 1 < self.frames.len() { frame.ip.saturating_sub(1) } else { frame.ip };
+        let line = module.functions.get(frame.fn_index as usize)?.get_line_for_ip(ip)?;
         Some(match module.source_map.locate(line) {
             Some((file, l)) => (Some(file.to_string()), l),
             None => (None, line),

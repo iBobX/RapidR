@@ -9,11 +9,13 @@ license.workspace = true
 [features]
 default = []
 # The program's end: serves the protocol on a running VM (the VM hosts).
-program = ["dep:rapidr-vm", "dep:rapidr-bcgen", "dep:rapidr-bytecode", "dep:rapidr-value"]
+program = ["dep:rapidr-vm", "dep:rapidr-bcgen", "dep:rapidr-bytecode", "dep:rapidr-value", "dep:rapidr-lexer", "dep:rapidr-parser"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+rapidr-lexer = { workspace = true, optional = true }
+rapidr-parser = { workspace = true, optional = true }
 rapidr-vm = { workspace = true, optional = true }
 rapidr-bcgen = { workspace = true, optional = true }
 rapidr-bytecode = { workspace = true, optional = true }

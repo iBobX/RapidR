@@ -4573,6 +4573,7 @@ dependencies = [
  "rapidr-lexer",
  "rapidr-parser",
  "rapidr-preprocessor",
+ "rapidr-session",
  "rapidr-vm",
  "rapidr-vm-host-native",
  "rapidr-webbundle",
@@ -4713,6 +4714,8 @@ version = "2.117.0"
 dependencies = [
  "rapidr-bcgen",
  "rapidr-bytecode",
+ "rapidr-lexer",
+ "rapidr-parser",
  "rapidr-value",
  "rapidr-vm",
  "serde",
@@ -4814,6 +4817,7 @@ version = "2.117.0"
 dependencies = [
  "rapidr-bytecode",
  "rapidr-runtime-core",
+ "rapidr-session",
  "rapidr-value",
  "rapidr-vm",
 ]

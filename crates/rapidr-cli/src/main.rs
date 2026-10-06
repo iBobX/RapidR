@@ -102,6 +102,13 @@ fn main() -> ExitCode {
             println!("RapidR {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
+        (Some("run"), Some(flag)) if flag == "--session" => match rest.split_first() {
+            Some((path, args)) => launch::run_session(path, args.to_vec()),
+            None => {
+                eprintln!("rapidr run --session <file.rrbc|.rr|.bas> [args]");
+                ExitCode::from(2)
+            }
+        },
         (Some("run"), Some(path)) => launch::run(&path, rest, launch::From::Command),
         (Some("open"), Some(path)) => launch::run(&path, rest, launch::From::Desktop),
         (Some("info"), Some(path)) => launch::info(&path),
@@ -184,6 +191,7 @@ fn main() -> ExitCode {
             eprintln!("  rapidr version");
             eprintln!("  rapidr --log <file> <command…>                     The command's output in a file");
             eprintln!("  rapidr run <file.rrbc|.rr|.bas> [args]             Run a program (the RapidR Runtime)");
+            eprintln!("  rapidr run --session <file> [args]               Run it under the IDE's session protocol (stdio)");
             eprintln!("  rapidr open <file> [args]                        Run it as opening it from the desktop does");
             eprintln!("  rapidr info <file>                               Its app type, format and the runtime it needs");
             eprintln!("  rapidr setup [--check] [--yes] [--toolchain gnullvm|msvc]  Rust for native builds, rapidr on PATH");
