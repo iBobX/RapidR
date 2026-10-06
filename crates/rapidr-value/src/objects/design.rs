@@ -13,22 +13,37 @@
 //! OnSelect (Index), OnDblClick (Index), OnBgClick (X, Y), OnMove (Index,
 //! X, Y, W, H).
 //!
-//! RapidQ has no designer, so the look is RapidR's own:
-//! [`DesignSurface::ops`] is that drawing in the shared op vocabulary (the
-//! form's face with grid dots, each designed component as a placeholder of
-//! its type — the WYSIWYG drawing is lane L-DVIEW's — and the chrome in the
-//! theme's tokens) for the hosts that draw ops. The designed form's caption
-//! and size are the program's (FormCaption, the surface's Width / Height):
-//! the surface *is* the designed form's inside.
+//! **What the surface shows** (lane L-DVIEW, WYSIWYG): the designed form as
+//! the running program shows it — its frame and title bar, its main menu,
+//! each component drawn by the UI kernel's own component from a
+//! design-time store (a QLABEL is a label, a QSTRINGGRID a string grid:
+//! `rapidr_ui_kernel::components::design`), on a backdrop a margin from
+//! the surface's corner ([`DesignSurface::form_rect`]); under the form, a
+//! tray strip of the non-visual components (QTIMER, QFILEDIALOG …:
+//! [`DesignSurface::tray`]). Over that, the designer's own chrome
+//! ([`DesignSurface::chrome_ops`]: the selection's frames and handles, the
+//! anchor pins, the guides, the rubber band, the form's corner grip) and
+//! the grid's dots on the form's face ([`DesignSurface::grid_ops`]), in the
+//! theme's tokens. RapidQ has no designer: the chrome is RapidR's own.
+//!
+//! **Coordinates**: the API (GetCompX …, OnBgClick, OnMove) and the mouse
+//! functions here speak the designed form's client coordinates — (0, 0) is
+//! its client area's top left, below its title bar and menu bar
+//! ([`DesignSurface::client_origin`] is where that is on the surface). The
+//! form's size is its own (its Width / Height); a form made through the API
+//! (AddComponent on the default form) fills the surface instead
+//! ([`DesignSurface::set_size`]).
 
+use std::cell::RefCell;
 use std::collections::BTreeMap;
+use std::rc::Rc;
 
 use super::font::Font;
 use super::ops::{Op, Place, Rect};
 use super::trackbar::Shape;
 use crate::designer::snap::{self, Edges, Target};
 use crate::designer::{arrange, value, Command, Designer, FormDesign, Guide, GuideKind, Layout, NodeId, Side, Snapper, Subtree};
-use crate::layout::Rect as LRect;
+use crate::layout::{Rect as LRect, FORM_BORDER, FORM_CAPTION, MAIN_MENU_HEIGHT};
 use crate::{v_int, v_str, Value};
 
 /// The grid moves and resizes snap to (and its dots are drawn on).
@@ -39,17 +54,35 @@ const GRAB: i64 = 5;
 const MIN_SIZE: i64 = 16;
 /// A handle's size, drawn.
 const HANDLE: i64 = 7;
+/// The backdrop shown around a designed form that has a frame.
+pub const MARGIN: i64 = 12;
+/// The tray strip under the form: its height, an item's icon, the gap
+/// above it.
+pub const TRAY_H: i64 = 36;
+pub const TRAY_ICON: i64 = 20;
+pub const TRAY_GAP: i64 = 8;
+/// The form's corner grip (the resize preview's), outside its corner.
+const CORNER: i64 = 10;
+
 /// A designed component.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct DesignComp {
+    /// Its node in the designer model.
+    pub id: NodeId,
     pub name: String,
-    /// Its RapidR type name as the program gave it (`RBUTTON` …).
+    /// Its type as the program wrote it (`QBUTTON`, `RBUTTON` …).
     pub type_name: String,
+    /// RapidR's name for its type (`RBUTTON`).
+    pub canonical: String,
+    /// Where it is on the form's client area (its parents' places added;
+    /// during a drag, where the drag puts it).
     pub x: i64,
     pub y: i64,
     pub w: i64,
     pub h: i64,
-    /// Its properties (lowercase names), as SetProp stored them.
+    /// It shows on the form (else it is in the tray strip, or a menu).
+    pub visual: bool,
+    /// Its properties (lowercase names), as the CREATE block sets them.
     pub props: BTreeMap<String, String>,
 }
 
@@ -58,58 +91,20 @@ impl DesignComp {
         self.props.get(name).map(String::as_str)
     }
 
-    /// Its Caption, else its name.
-    pub fn caption(&self) -> &str {
-        self.prop("caption").unwrap_or(&self.name)
-    }
-
     pub fn bounds(&self) -> Rect {
         (self.x, self.y, self.w, self.h)
     }
-
-    /// A colour property (0xRRGGBB): see [`parse_color`].
-    pub fn color(&self, prop: &str) -> Option<u32> {
-        self.prop(prop).and_then(parse_color)
-    }
-
-    /// A true / false property: "1" or "True" (as the designer stores them).
-    fn on(&self, prop: &str) -> bool {
-        self.prop(prop).is_some_and(|s| s == "1" || s.eq_ignore_ascii_case("true"))
-    }
-
-    /// The font its Font.Name / FontName and Font.Size / FontSize (points)
-    /// say; 12-pixel Arial when unset.
-    pub fn font(&self) -> Font {
-        let pick = |a: &str, b: &str| self.prop(a).or_else(|| self.prop(b)).map(str::trim).filter(|s| !s.is_empty());
-        let name = pick("font.name", "fontname").unwrap_or("Arial").to_string();
-        let size = pick("font.size", "fontsize").and_then(|s| s.parse::<i64>().ok()).filter(|s| *s > 0).unwrap_or(-12);
-        Font { name, size, ..Font::default() }
-    }
 }
 
-/// A colour as the designer's properties hold one (0xRRGGBB): `#RRGGBB`,
-/// `rgb(r, g, b)`, or RapidQ's `&HBBGGRR` / the number a QCOLORDIALOG's
-/// Color gives (BGR).
-pub fn parse_color(s: &str) -> Option<u32> {
-    let s = s.trim();
-    if let Some(hex) = s.strip_prefix('#') {
-        let byte = |i: usize| hex.get(i..i + 2).and_then(|h| u8::from_str_radix(h, 16).ok());
-        return Some(u32::from(byte(0)?) << 16 | u32::from(byte(2)?) << 8 | u32::from(byte(4)?));
-    }
-    if let Some(inner) = s.strip_prefix("rgb(").and_then(|r| r.strip_suffix(')')) {
-        let parts: Vec<u8> = inner.split(',').map(|p| p.trim().parse::<u8>()).collect::<Result<_, _>>().ok()?;
-        let [r, g, b] = <[u8; 3]>::try_from(parts).ok()?;
-        return Some(u32::from(r) << 16 | u32::from(g) << 8 | u32::from(b));
-    }
-    let n = match s.strip_prefix("&H").or_else(|| s.strip_prefix("&h")) {
-        Some(hex) => i64::from_str_radix(hex, 16).ok()?,
-        None => s.parse::<i64>().ok()?,
-    };
-    if !(0..=0xFF_FFFF).contains(&n) {
-        return None;
-    }
-    let n = n as u32;
-    Some((n & 0xFF) << 16 | (n & 0xFF00) | (n >> 16))
+/// A non-visual component in the tray strip under the form: its index (as
+/// the API counts components), name and type as written, and its place
+/// (client coordinates).
+#[derive(Clone, Debug, PartialEq)]
+pub struct TrayItem {
+    pub index: usize,
+    pub name: String,
+    pub type_name: String,
+    pub rect: Rect,
 }
 
 /// What a press grabbed: the selection to move, one of the primary
@@ -131,6 +126,8 @@ pub enum Grip {
     FormCorner,
     /// A rubber band from the background.
     Band,
+    /// A tray item pressed (it doesn't move).
+    Tray,
 }
 
 impl Grip {
@@ -191,7 +188,8 @@ struct Drag {
     grip: Grip,
     /// Where the press was.
     from: (i64, i64),
-    /// The press's offset in the primary selection (moving).
+    /// The press's offset in the primary selection (moving); the form's
+    /// size less the press's place (the form's corner).
     offset: (i64, i64),
     /// The selection's rectangles when the drag began (form coordinates).
     start: Vec<(NodeId, LRect)>,
@@ -206,35 +204,63 @@ struct Drag {
 #[derive(Clone, Debug)]
 pub struct DesignSurface {
     pub designer: Designer,
-    /// The designed form's caption (FormCaption).
+    /// The designed form's caption (FormCaption), when its CREATE block sets
+    /// none.
     pub form_caption: String,
     /// SelectComp's last number, as the program gave it (-1: none).
     selected_raw: i64,
-    /// The surface's size: the designed form's inside.
+    /// The surface's size.
     size: (i64, i64),
+    /// The form fills the surface (a form made through the API); else it
+    /// has its own size (a form read from a program).
+    pub fit: bool,
     drag: Option<Drag>,
     /// The guides of the drag in progress (form coordinates).
     pub guides: Vec<Guide>,
-    /// The resize preview: the designed form at this inside size, its
-    /// components where the running program puts them (PreviewWidth /
-    /// PreviewHeight, or the form's corner dragged).
+    /// The resize preview: the designed form at this size (its Width ×
+    /// Height), its components where the running program puts them
+    /// (PreviewWidth / PreviewHeight, or the form's corner dragged).
     pub preview: Option<(i64, i64)>,
     pub show_guides: bool,
+    /// The grid's dots on the form's face.
+    pub show_grid: bool,
     /// The anchor pins are drawn on the primary selection.
     pub show_pins: bool,
+    /// The selection's frames, handles and pins are drawn (off: the
+    /// designed form alone, as the running program shows it).
+    pub show_selection: bool,
     /// The rubber band being drawn (form coordinates).
     band: Option<LRect>,
+    /// The form laid out as designed, for the design it was laid out from.
+    laid: RefCell<Option<(FormDesign, Rc<Layout>)>>,
+    /// The same at the preview's size.
+    previewed: RefCell<Option<((i64, i64), Rc<Layout>)>>,
 }
 
 impl Default for DesignSurface {
     fn default() -> Self {
         let mut design = FormDesign::new("Form", "QFORM");
-        // (the surface is the form's inside: a form without a frame)
         let root = design.root();
-        for (p, v) in [("BorderStyle", "0"), ("Width", "640"), ("Height", "480")] {
+        for (p, v) in [("Width", "640"), ("Height", "480")] {
             let _ = Command::SetProp { node: root, name: p.into(), value: Some(v.into()) }.apply(&mut design);
         }
-        DesignSurface { designer: Designer::new(design), form_caption: "Form1".into(), selected_raw: -1, size: (640, 480), drag: None, guides: Vec::new(), preview: None, show_guides: true, show_pins: true, band: None }
+        DesignSurface {
+            designer: Designer::new(design),
+            form_caption: "Form1".into(),
+            selected_raw: -1,
+            size: (640, 480),
+            fit: true,
+            drag: None,
+            guides: Vec::new(),
+            preview: None,
+            show_guides: true,
+            show_grid: true,
+            show_pins: true,
+            show_selection: true,
+            band: None,
+            laid: RefCell::new(None),
+            previewed: RefCell::new(None),
+        }
     }
 }
 
@@ -256,7 +282,27 @@ fn plain_value(text: &str) -> String {
     }
 }
 
+/// The tray's font (its items' names).
+pub fn tray_font() -> Font {
+    Font::default()
+}
+
 impl DesignSurface {
+    /// A surface showing `designer`'s form at its own size (a form read from
+    /// a program: `rapidr-designer`'s `Document::designer`).
+    pub fn with_designer(designer: Designer) -> DesignSurface {
+        let mut d = DesignSurface { designer, fit: false, ..DesignSurface::default() };
+        d.form_caption = d.root_text("Caption").unwrap_or_default();
+        d
+    }
+
+    /// Shows `designer`'s form instead (at its own size), nothing selected.
+    pub fn set_designer(&mut self, designer: Designer) {
+        let keep = (self.size, self.show_guides, self.show_grid, self.show_pins, self.show_selection);
+        *self = DesignSurface::with_designer(designer);
+        (self.size, self.show_guides, self.show_grid, self.show_pins, self.show_selection) = keep;
+    }
+
     /// The designed components, in creation order (the form not counted):
     /// what the API's indexes count.
     pub fn ids(&self) -> Vec<NodeId> {
@@ -293,49 +339,209 @@ impl DesignSurface {
         }
     }
 
-    /// The surface's size (the designed form's inside): the form follows.
+    // ------------------------------------------------------ geometry --
+
+    /// A property of the form itself, as its CREATE block writes it.
+    fn root_text(&self, prop: &str) -> Option<String> {
+        let d = &self.designer.design;
+        d.node(d.root()).and_then(|n| n.prop(prop)).map(plain_value)
+    }
+
+    fn root_int(&self, prop: &str) -> Option<i64> {
+        let d = &self.designer.design;
+        d.node(d.root()).and_then(|n| n.prop(prop)).and_then(|t| d.read_value(t).int())
+    }
+
+    /// The designed form's title: its Caption, else FormCaption.
+    pub fn title(&self) -> String {
+        self.root_text("Caption").unwrap_or_else(|| self.form_caption.clone())
+    }
+
+    /// The form has a frame (BorderStyle isn't bsNone).
+    pub fn border(&self) -> bool {
+        self.root_int("BorderStyle").unwrap_or(2) != 0
+    }
+
+    /// The form's main menu bar's height (0 without a QMAINMENU).
+    pub fn menu_height(&self) -> i64 {
+        let d = &self.designer.design;
+        if d.children(d.root()).iter().any(|&c| d.node(c).is_some_and(|n| n.canonical == "RMAINMENU")) {
+            MAIN_MENU_HEIGHT
+        } else {
+            0
+        }
+    }
+
+    /// The backdrop around the form (none for a form without a frame that
+    /// fills the surface).
+    pub fn margin(&self) -> i64 {
+        if self.border() || !self.fit {
+            MARGIN
+        } else {
+            0
+        }
+    }
+
+    /// The form's inside starts this far into its window (its frame's left
+    /// and top: border, title bar).
+    fn inset(&self) -> (i64, i64) {
+        if self.border() {
+            (FORM_BORDER, FORM_BORDER + FORM_CAPTION)
+        } else {
+            (0, 0)
+        }
+    }
+
+    /// The form's window on the surface: where, and its Width × Height (the
+    /// preview's while it shows).
+    pub fn form_rect(&self) -> Rect {
+        let m = self.margin();
+        let (w, h) = self.layout().form_size();
+        (m, m, w, h)
+    }
+
+    /// Where the form's client area (0, 0) is on the surface.
+    pub fn client_origin(&self) -> (i64, i64) {
+        let m = self.margin();
+        let (ix, iy) = self.inset();
+        (m + ix, m + iy + self.menu_height())
+    }
+
+    /// The form's inside below its menu (its scroll bars included).
+    pub fn client_size(&self) -> (i64, i64) {
+        let (_, _, w, h) = self.form_rect();
+        crate::layout::form_client_size(w, h, if self.border() { 2 } else { 0 }, self.menu_height())
+    }
+
+    /// The tray strip under the form (client coordinates): its items, left
+    /// to right; empty when the form has no non-visual component.
+    pub fn tray(&self) -> Vec<TrayItem> {
+        let d = &self.designer.design;
+        let (ox, oy) = self.client_origin();
+        let (fx, fy, _, fh) = self.form_rect();
+        let top = fy + fh + TRAY_GAP - oy;
+        let mut x = fx - ox + 4;
+        let font = tray_font();
+        self.ids()
+            .into_iter()
+            .enumerate()
+            .filter_map(|(index, id)| {
+                let n = d.node(id)?;
+                if n.is_visual() || matches!(n.canonical.as_str(), "RMAINMENU" | "RMENUITEM") {
+                    return None;
+                }
+                let w = 4 + TRAY_ICON + 4 + super::text::text_size(&n.name, &font).0 + 8;
+                let rect = (x, top + 4, w, TRAY_H - 8);
+                x += w + 4;
+                Some(TrayItem { index, name: n.name.clone(), type_name: n.type_written.clone(), rect })
+            })
+            .collect()
+    }
+
+    /// The tray strip's rectangle (client coordinates), when it shows.
+    pub fn tray_rect(&self) -> Option<Rect> {
+        let items = self.tray();
+        let last = items.last()?;
+        let (ox, oy) = self.client_origin();
+        let (fx, fy, fw, fh) = self.form_rect();
+        let w = fw.max(last.rect.0 + last.rect.2 + 4 - (fx - ox));
+        Some((fx - ox, fy + fh + TRAY_GAP - oy, w, TRAY_H))
+    }
+
+    /// The surface's size: a form made through the API fills it (less the
+    /// margin and the tray strip).
     pub fn set_size(&mut self, w: i64, h: i64) {
-        if self.size == (w, h) || w <= 0 || h <= 0 {
+        if w <= 0 || h <= 0 {
             return;
         }
         self.size = (w, h);
+        if !self.fit {
+            return;
+        }
+        let m = self.margin();
+        let tray = if self.tray().is_empty() { 0 } else { TRAY_GAP + TRAY_H };
+        let (fw, fh) = ((w - 2 * m).max(MIN_SIZE), (h - 2 * m - tray).max(MIN_SIZE));
         let root = self.designer.design.root();
-        for (p, v) in [("Width", w), ("Height", h)] {
-            let _ = Command::SetProp { node: root, name: p.into(), value: Some(v.to_string()) }.apply(&mut self.designer.design);
-        }
-    }
-
-    /// The form laid out: as designed, or at the preview's size.
-    pub fn layout(&self) -> Layout {
-        let l = self.designer.layout();
-        match self.preview {
-            Some((w, h)) => {
-                let mut l = l;
-                l.resize(w, h);
-                l
+        for (p, v) in [("Width", fw), ("Height", fh)] {
+            if self.root_int(p) != Some(v) {
+                let _ = Command::SetProp { node: root, name: p.into(), value: Some(v.to_string()) }.apply(&mut self.designer.design);
             }
-            None => l,
         }
     }
 
-    /// Each component as drawn: its rectangle on the surface (during a
-    /// drag, where the drag puts it), its properties' values.
+    /// The form laid out as designed (kept while the design is unchanged).
+    fn laid_out(&self) -> Rc<Layout> {
+        let mut laid = self.laid.borrow_mut();
+        if let Some((d, l)) = laid.as_ref() {
+            if *d == self.designer.design {
+                return l.clone();
+            }
+        }
+        let l = Rc::new(self.designer.layout());
+        *laid = Some((self.designer.design.clone(), l.clone()));
+        self.previewed.borrow_mut().take();
+        l
+    }
+
+    /// The form laid out: as designed, or at the preview's size (both kept
+    /// while the design and the preview are unchanged).
+    pub fn layout(&self) -> Rc<Layout> {
+        let base = self.laid_out();
+        let Some(size) = self.preview else { return base };
+        let mut previewed = self.previewed.borrow_mut();
+        if let Some((s, l)) = previewed.as_ref() {
+            if *s == size {
+                return l.clone();
+            }
+        }
+        let mut l = (*base).clone();
+        l.resize(size.0, size.1);
+        let l = Rc::new(l);
+        *previewed = Some((size, l.clone()));
+        l
+    }
+
+    /// Each component as drawn, in creation order (one per index): its
+    /// rectangle on the form's client area (during a drag, where the drag
+    /// puts it), its properties' values.
     pub fn components(&self) -> Vec<DesignComp> {
         let l = self.layout();
         let d = &self.designer.design;
+        let dragging = self.drag.as_ref().filter(|g| matches!(g.grip, Grip::Move | Grip::Left | Grip::Top | Grip::Right | Grip::Bottom | Grip::TopLeft | Grip::TopRight | Grip::BottomLeft | Grip::Corner));
         self.ids()
             .into_iter()
             .filter_map(|id| {
                 let n = d.node(id)?;
-                let r = self.drag.as_ref().filter(|g| !matches!(g.grip, Grip::FormCorner | Grip::Band)).and_then(|g| g.now.iter().find(|(i, _)| *i == id).map(|(_, r)| *r)).or_else(|| {
+                let r = dragging.and_then(|g| g.now.iter().find(|(i, _)| *i == id).map(|(_, r)| *r)).or_else(|| {
                     let r = l.rect(id)?;
                     let o = l.origin(d, id);
                     Some(LRect::new(r.left + o.0, r.top + o.1, r.width, r.height))
-                })?;
+                });
+                let r = r.unwrap_or_default();
+                let visual = n.is_visual() && crate::layout::default_size(&n.canonical).is_some();
                 let props = n.props().map(|p| (p.name.to_lowercase(), plain_value(&p.value))).collect();
-                Some(DesignComp { name: n.name.clone(), type_name: n.type_written.clone(), x: r.left, y: r.top, w: r.width, h: r.height, props })
+                Some(DesignComp { id, name: n.name.clone(), type_name: n.type_written.clone(), canonical: n.canonical.clone(), x: r.left, y: r.top, w: r.width, h: r.height, visual, props })
             })
             .collect()
+    }
+
+    /// Every component's place in its parent's client area as drawn now
+    /// (Left, Top, Width, Height: the layout's, a drag's, the preview's):
+    /// what the design-time store gives the kernel's components.
+    pub fn placed(&self) -> Vec<(NodeId, LRect)> {
+        let l = self.layout();
+        let d = &self.designer.design;
+        let moving = self.drag.as_ref().filter(|g| g.moved && !matches!(g.grip, Grip::FormCorner | Grip::Band | Grip::Tray));
+        let mut out: Vec<(NodeId, LRect)> = l.rects();
+        if let Some(g) = moving {
+            for (id, abs) in &g.now {
+                let o = l.origin(d, *id);
+                if let Some(r) = out.iter_mut().find(|(i, _)| i == id) {
+                    r.1 = LRect::new(abs.left - o.0, abs.top - o.1, abs.width, abs.height);
+                }
+            }
+        }
+        out
     }
 
     fn rect_of(&self, id: NodeId) -> Option<LRect> {
@@ -381,7 +587,14 @@ impl DesignSurface {
     /// The primary selection's handle at (x, y), if the mouse is on one
     /// (the corners first, then the sides' middles).
     pub fn grip_at(&self, x: i64, y: i64) -> Option<Grip> {
-        let r = self.designer.selection.primary().and_then(|id| self.rect_of(id))?;
+        if !self.show_selection {
+            return None;
+        }
+        let id = self.designer.selection.primary()?;
+        if !self.on_form(id) {
+            return None;
+        }
+        let r = self.rect_of(id)?;
         let near = |hx: i64, hy: i64| (x - hx).abs() <= GRAB && (y - hy).abs() <= GRAB;
         let (l, t, rr, b, cx, cy) = (r.left, r.top, r.left + r.width, r.top + r.height, r.left + r.width / 2, r.top + r.height / 2);
         [(rr, b, Grip::Corner), (l, t, Grip::TopLeft), (rr, t, Grip::TopRight), (l, b, Grip::BottomLeft), (rr, cy, Grip::Right), (cx, b, Grip::Bottom), (l, cy, Grip::Left), (cx, t, Grip::Top)]
@@ -390,30 +603,52 @@ impl DesignSurface {
             .map(|(_, _, g)| g)
     }
 
+    /// Component `id` is drawn on the form (not a tray item or a menu).
+    fn on_form(&self, id: NodeId) -> bool {
+        self.designer.design.node(id).is_some_and(|n| n.is_visual() && crate::layout::default_size(&n.canonical).is_some())
+    }
+
     /// The primary selection's anchor pin at (x, y): the side it toggles.
     pub fn pin_at(&self, x: i64, y: i64) -> Option<Side> {
-        if !self.show_pins {
+        if !self.show_pins || !self.show_selection {
             return None;
         }
         let id = self.designer.selection.primary()?;
+        if !self.on_form(id) {
+            return None;
+        }
         let r = self.rect_of(id)?;
         pins(r).into_iter().find(|(_, p)| x >= p.left && x < p.left + p.width && y >= p.top && y < p.top + p.height).map(|(s, _)| s)
     }
 
-    /// The topmost component at (x, y) (its edges included).
+    /// The topmost component at (x, y) (its edges included), or the tray
+    /// item there.
     pub fn component_at(&self, x: i64, y: i64) -> Option<usize> {
-        self.components().iter().rposition(|c| x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h)
+        if let Some(t) = self.tray().into_iter().find(|t| x >= t.rect.0 && x < t.rect.0 + t.rect.2 && y >= t.rect.1 && y < t.rect.1 + t.rect.3) {
+            return Some(t.index);
+        }
+        let (cw, ch) = self.client_size();
+        if x < 0 || y < 0 || x >= cw || y >= ch {
+            return None;
+        }
+        self.components().iter().rposition(|c| c.visual && x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h)
     }
 
-    /// The designed form's corner (the resize preview's grip).
+    /// The form's corner grip (the resize preview's), client coordinates.
+    fn corner_rect(&self) -> Rect {
+        let (ox, oy) = self.client_origin();
+        let (fx, fy, fw, fh) = self.form_rect();
+        (fx + fw - ox - 3, fy + fh - oy - 3, CORNER + 3, CORNER + 3)
+    }
+
     fn on_form_corner(&self, x: i64, y: i64) -> bool {
-        let (w, h) = self.size;
-        x >= w - CORNER && y >= h - CORNER
+        let (cx, cy, cw, ch) = self.corner_rect();
+        x >= cx && y >= cy && x < cx + cw && y < cy + ch
     }
 
-    /// The mouse pressed at (x, y) of the surface (`double`: the second
-    /// press of a double click; `add`: Shift / Ctrl held): an anchor pin
-    /// toggled, a handle or the form's corner grabbed (nothing heard), a
+    /// The mouse pressed at (x, y) of the form's client area (`double`: the
+    /// second press of a double click; `add`: Shift / Ctrl held): an anchor
+    /// pin toggled, a handle or the form's corner grabbed (nothing heard), a
     /// component selected (OnSelect / OnDblClick; with `add`, in or out of
     /// the selection), or the background (nothing selected, OnBgClick, a
     /// rubber band).
@@ -445,7 +680,7 @@ impl DesignSurface {
                 }
                 self.selected_raw = i as i64;
                 if self.designer.selection.contains(id) {
-                    self.start_drag(Grip::Move, x, y);
+                    self.start_drag(if self.on_form(id) { Grip::Move } else { Grip::Tray }, x, y);
                 }
                 Some(if double { DesignEvent::DblClick(i) } else { DesignEvent::Select(i) })
             }
@@ -466,8 +701,13 @@ impl DesignSurface {
     }
 
     fn start_drag(&mut self, grip: Grip, x: i64, y: i64) {
-        let start: Vec<(NodeId, LRect)> = self.designer.selection.ids().iter().filter_map(|&id| self.rect_of(id).map(|r| (id, r))).collect();
-        let offset = start.first().map_or((0, 0), |(_, r)| (x - r.left, y - r.top));
+        let start: Vec<(NodeId, LRect)> = self.designer.selection.ids().iter().filter(|&&id| self.on_form(id)).filter_map(|&id| self.rect_of(id).map(|r| (id, r))).collect();
+        let offset = if grip == Grip::FormCorner {
+            let (_, _, w, h) = self.form_rect();
+            (w - x, h - y)
+        } else {
+            start.first().map_or((0, 0), |(_, r)| (x - r.left, y - r.top))
+        };
         self.drag = Some(Drag { grip, from: (x, y), offset, now: start.clone(), start, moved: false });
     }
 
@@ -478,15 +718,15 @@ impl DesignSurface {
         let l = self.layout();
         let parent = d.parent(primary).unwrap_or(d.root());
         let origin = if parent == d.root() { (0, 0) } else { self.rect_of(parent).map_or((0, 0), |r| (r.left, r.top)) };
-        let area = l.client_of(parent).map_or(self.size, |c| (c.width, c.height));
+        let area = l.client_of(parent).map_or(self.client_size(), |c| (c.width, c.height));
         let targets = d
             .children(parent)
             .into_iter()
-            .filter(|c| !self.designer.selection.contains(*c))
+            .filter(|c| !self.designer.selection.contains(*c) && self.on_form(*c))
             .filter_map(|c| {
                 let r = l.rect(c)?;
                 let n = d.node(c)?;
-                Some(Target { rect: r, baseline: snap::baseline(&n.canonical, r.height, &DesignComp::default().font()) })
+                Some(Target { rect: r, baseline: snap::baseline(&n.canonical, r.height, &l.font(c)) })
             })
             .collect();
         (targets, area, origin)
@@ -509,8 +749,9 @@ impl DesignSurface {
 
     fn drag_to(&mut self, drag: &mut Drag, x: i64, y: i64, free: bool) -> Option<DesignEvent> {
         match drag.grip {
+            Grip::Tray => None,
             Grip::FormCorner => {
-                self.preview = Some(((x + CORNER / 2).max(16), (y + CORNER / 2).max(16)));
+                self.preview = Some(((x + drag.offset.0).max(MIN_SIZE), (y + drag.offset.1).max(MIN_SIZE)));
                 None
             }
             Grip::Band => {
@@ -520,7 +761,7 @@ impl DesignSurface {
                 let touched: Vec<NodeId> = self
                     .ids()
                     .into_iter()
-                    .filter(|&id| self.designer.design.parent(id) == Some(self.designer.design.root()))
+                    .filter(|&id| self.designer.design.parent(id) == Some(self.designer.design.root()) && self.on_form(id))
                     .filter(|&id| self.rect_of(id).is_some_and(|r| r.left < band.left + band.width && band.left < r.left + r.width && r.top < band.top + band.height && band.top < r.top + r.height))
                     .collect();
                 self.designer.selection.set_all(touched);
@@ -534,7 +775,7 @@ impl DesignSurface {
                 let snapped = if grip == Grip::Move {
                     let proposed = LRect::new(x - drag.offset.0, y - drag.offset.1, r0.width, r0.height);
                     let n = self.designer.design.node(primary)?;
-                    let baseline = snap::baseline(&n.canonical, r0.height, &DesignComp::default().font());
+                    let baseline = snap::baseline(&n.canonical, r0.height, &self.laid_out().font(primary));
                     snapper.snap_move(local(proposed), baseline, &targets, area, free)
                 } else {
                     let (dx, dy) = (x - drag.from.0, y - drag.from.1);
@@ -612,6 +853,11 @@ impl DesignSurface {
         let _ = self.designer.execute(Command::Batch(cmds));
     }
 
+    /// A drag is in progress.
+    pub fn dragging(&self) -> bool {
+        self.drag.as_ref().is_some_and(|g| g.moved)
+    }
+
     /// A property (`None`: not the surface's; the runtime keeps it).
     pub fn get(&self, prop: &str) -> Option<Value> {
         Some(match prop {
@@ -621,6 +867,8 @@ impl DesignSurface {
             "previewwidth" => v_int(self.preview.map_or(0, |p| p.0)),
             "previewheight" => v_int(self.preview.map_or(0, |p| p.1)),
             "showguides" => Value::Boolean(self.show_guides),
+            "showgrid" => Value::Boolean(self.show_grid),
+            "showselection" => Value::Boolean(self.show_selection),
             "snaptogrid" => Value::Boolean(self.designer.snapper.snap_to_grid),
             "gridsize" => v_int(self.designer.snapper.grid),
             _ => return None,
@@ -633,10 +881,13 @@ impl DesignSurface {
             // (0 ends the preview)
             "previewwidth" | "previewheight" => {
                 let v = val.to_i64();
-                let (w, h) = self.preview.unwrap_or(self.size);
+                let (_, _, fw, fh) = self.form_rect();
+                let (w, h) = self.preview.unwrap_or((fw, fh));
                 self.preview = if v <= 0 { None } else if prop == "previewwidth" { Some((v, h)) } else { Some((w, v)) };
             }
             "showguides" => self.show_guides = val.to_bool(),
+            "showgrid" => self.show_grid = val.to_bool(),
+            "showselection" => self.show_selection = val.to_bool(),
             "snaptogrid" => self.designer.snapper.snap_to_grid = val.to_bool(),
             "gridsize" => self.designer.snapper.grid = val.to_i64().max(1),
             _ => return false,
@@ -727,49 +978,58 @@ impl DesignSurface {
 
     // -------------------------------------------------------- drawing --
 
-    /// The surface drawn at `w` × `h` (its own pixels): the designed form's
-    /// face with grid dots, each component as a placeholder of its type
-    /// (where the drag or the resize preview puts it), the selection framed
-    /// with its handles and the primary's anchor pins, the guides, the
-    /// rubber band and the form's corner grip — the chrome in the theme's
-    /// tokens.
-    pub fn ops(&self, w: i64, h: i64) -> Vec<Op> {
-        let t = crate::theme::current();
-        let mut d = Draw::default();
-        let (fw, fh) = self.preview.unwrap_or((w, h));
-        // (the preview: the form at its new size on the surface's backdrop)
-        if self.preview.is_some() {
-            d.fill((0, 0, w, h), t.shadow);
+    /// The grid's dots over the form's client area `w` × `h` (client
+    /// coordinates), in a shade of `face` (the form's colour): drawn on the
+    /// form's face, under its components.
+    pub fn grid_ops(&self, w: i64, h: i64, face: u32) -> Vec<Op> {
+        if !self.show_grid {
+            return Vec::new();
         }
-        d.fill((0, 0, fw, fh), t.face);
-        let dot = shade(t.face, if t.dark { 40 } else { -55 });
-        for gx in (0..fw.max(0)).step_by(self.designer.snapper.grid.max(2) as usize) {
-            for gy in (0..fh.max(0)).step_by(self.designer.snapper.grid.max(2) as usize) {
+        let t = crate::theme::current();
+        let dark = (face >> 16 & 0xFF) + (face >> 8 & 0xFF) + (face & 0xFF) < 3 * 0x80;
+        let dot = shade(face, if dark || t.dark && face == t.face { 40 } else { -55 });
+        let step = self.designer.snapper.grid.max(2);
+        let mut d = Draw::default();
+        for gx in (0..w.max(0)).step_by(step as usize) {
+            for gy in (0..h.max(0)).step_by(step as usize) {
                 d.fill((gx, gy, 1, 1), dot);
             }
         }
-        let comps = self.components();
-        let selected = self.selected();
-        for c in &comps {
-            d.component(c);
-        }
-        for (k, &i) in selected.iter().enumerate() {
-            if let Some(c) = comps.get(i) {
-                d.rect(c.bounds(), t.accent);
-                if k == 0 {
-                    d.handles(c.bounds(), t.accent, t.window);
-                } else {
-                    d.corners(c.bounds(), t.accent);
+        d.ops
+    }
+
+    /// The designer's chrome over the drawn form, in client coordinates: the
+    /// selection framed with the primary's eight handles and anchor pins
+    /// (unless [`DesignSurface::show_selection`] is off), the guides, the
+    /// rubber band, the form's corner grip and the preview's size — in the
+    /// theme's tokens.
+    pub fn chrome_ops(&self) -> Vec<Op> {
+        let t = crate::theme::current();
+        let mut d = Draw::default();
+        if self.show_selection {
+            let comps = self.components();
+            let tray = self.tray();
+            for (k, &i) in self.selected().iter().enumerate() {
+                let Some(c) = comps.get(i) else { continue };
+                if c.visual {
+                    d.rect(c.bounds(), t.accent);
+                    if k == 0 {
+                        d.handles(c.bounds(), t.accent, t.window);
+                    } else {
+                        d.corners(c.bounds(), t.accent);
+                    }
+                } else if let Some(item) = tray.iter().find(|x| x.index == i) {
+                    d.rect(item.rect, t.accent);
                 }
             }
-        }
-        if self.show_pins && self.drag.as_ref().is_none_or(|g| !g.moved) {
-            if let Some(id) = self.designer.selection.primary() {
-                if let (Some(i), Some(n)) = (self.index_of(id), self.designer.design.node(id)) {
-                    let anchors = n.int("Anchors").unwrap_or(crate::layout::DEFAULT_ANCHORS);
-                    if let Some(c) = comps.get(i) {
-                        for (side, p) in pins(LRect::new(c.x, c.y, c.w, c.h)) {
-                            d.pin(p, anchors & side.bit() != 0, side, t.accent, t.window, t.border_strong);
+            if self.show_pins && self.drag.as_ref().is_none_or(|g| !g.moved) {
+                if let Some(id) = self.designer.selection.primary().filter(|&id| self.on_form(id)) {
+                    if let (Some(i), Some(n)) = (self.index_of(id), self.designer.design.node(id)) {
+                        let anchors = n.int("Anchors").unwrap_or(crate::layout::DEFAULT_ANCHORS);
+                        if let Some(c) = comps.get(i) {
+                            for (side, p) in pins(LRect::new(c.x, c.y, c.w, c.h)) {
+                                d.pin(p, anchors & side.bit() != 0, side, t.accent, t.window, t.border_strong);
+                            }
                         }
                     }
                 }
@@ -783,19 +1043,17 @@ impl DesignSurface {
         if let Some(b) = self.band {
             d.rect((b.left, b.top, b.width, b.height), t.accent);
         }
-        // the form's corner: the resize preview's grip
-        d.corner_grip((fw - CORNER, fh - CORNER, CORNER, CORNER), t.border_strong);
-        if let Some((pw, ph)) = self.preview {
-            // (its size under its corner, on the backdrop when there's room)
-            let y = if fh + 18 <= h { fh + 3 } else { 3 };
-            d.text((fw - 120, y, 116, 14), &format!("{pw} × {ph}"), sans(11), if fh + 18 <= h { t.window } else { t.text }, Place::TopRight);
+        if self.show_selection {
+            // the form's corner: the resize preview's grip
+            let (x, y, _, _) = self.corner_rect();
+            d.corner_grip((x + 3, y + 3, CORNER, CORNER), t.accent);
+            if let Some((pw, ph)) = self.preview {
+                d.text((x - 120, y + CORNER + 4, 130, 14), &format!("{pw} × {ph}"), Font::default(), t.window, Place::TopRight);
+            }
         }
         d.ops
     }
 }
-
-/// How near the corner of the form the preview grip is.
-const CORNER: i64 = 12;
 
 /// A guide moved from a container's client coordinates to the form's.
 fn shift_guide(g: Guide, (ox, oy): (i64, i64)) -> Guide {
@@ -822,7 +1080,56 @@ fn pins(r: LRect) -> [(Side, LRect); 4] {
 /// An anchor pin's size.
 const PIN: i64 = 9;
 
+/// A colour lighter (`d` > 0) or darker by `d` per channel (saturating).
+fn shade(c: u32, d: i32) -> u32 {
+    let ch = |s: u32| ((((c >> s) & 0xFF) as i32 + d).clamp(0, 255) as u32) << s;
+    ch(16) | ch(8) | ch(0)
+}
+
+/// The designer's drawing calls, made as ops.
+#[derive(Default)]
+struct Draw {
+    ops: Vec<Op>,
+}
+
 impl Draw {
+    fn fill(&mut self, rect: Rect, color: u32) {
+        if rect.2 > 0 && rect.3 > 0 {
+            self.ops.push(Op::Fill { rect, color });
+        }
+    }
+
+    /// A one-pixel outline inside `rect`.
+    fn rect(&mut self, rect: Rect, color: u32) {
+        if rect.2 > 0 && rect.3 > 0 {
+            self.ops.push(Op::Edge { rect, light: vec![color], dark: vec![color] });
+        }
+    }
+
+    /// A line through the pixels from (x0, y0) to (x1, y1), both included.
+    fn line(&mut self, (x0, y0): (i64, i64), (x1, y1): (i64, i64), color: u32) {
+        self.ops.push(Op::Line { from: (x0 as f64 + 0.5, y0 as f64 + 0.5), to: (x1 as f64 + 0.5, y1 as f64 + 0.5), color });
+    }
+
+    fn text(&mut self, rect: Rect, text: &str, font: Font, color: u32, place: Place) {
+        if !text.is_empty() {
+            self.ops.push(Op::Text { rect, text: text.to_string(), font, color, angle: 0, place });
+        }
+    }
+
+    /// A filled ellipse inscribed in `rect`.
+    fn pie(&mut self, (x, y, w, h): Rect, color: u32) {
+        let (cx, cy, rx, ry) = (x as f64 + w as f64 / 2.0, y as f64 + h as f64 / 2.0, w as f64 / 2.0, h as f64 / 2.0);
+        let steps = ((rx.max(ry) * 4.0).ceil() as usize).clamp(12, 96);
+        let points = (0..steps)
+            .map(|k| {
+                let a = (360.0 * k as f64 / steps as f64).to_radians();
+                (cx + rx * a.cos(), cy - ry * a.sin())
+            })
+            .collect();
+        self.ops.push(Op::Shape(Shape { points, fill: Some(color), stroke: Some(color) }));
+    }
+
     /// The primary selection's eight handles: squares in the window colour
     /// framed in the accent.
     fn handles(&mut self, (x, y, w, h): Rect, accent: u32, fill: u32) {
@@ -875,274 +1182,35 @@ impl Draw {
         if let Some(text) = label {
             let mid = (a + b) / 2;
             let r = if g.vertical { (g.at + 3, mid - 7, 24, 14) } else { (mid - 12, g.at - 15, 24, 14) };
-            self.text(r, &text, sans(10), accent, Place::Center);
+            self.text(r, &text, Font::default(), accent, Place::Center);
         }
     }
 
-    /// The form's corner grip: three short diagonal lines.
-    fn corner_grip(&mut self, (x, y, w, h): (i64, i64, i64, i64), color: u32) {
+    /// The form's corner grip: three short diagonal lines in a `w` × `h`
+    /// square at (x, y).
+    fn corner_grip(&mut self, (x, y, w, h): Rect, color: u32) {
         for k in [3, 6, 9] {
+            let k = k * w.min(h) / 10;
             self.line((x + w - 1, y + h - 1 - k), (x + w - 1 - k, y + h - 1), color);
         }
-        let _ = (w, h);
     }
 }
-const WHITE: u32 = 0xFFFFFF;
-const BLACK: u32 = 0x000000;
-
-/// The placeholders' sans serif at `px` pixels (Arial's metrics:
-/// Liberation Sans).
-fn sans(px: i64) -> Font {
-    Font { name: "Arial".into(), size: -px, ..Font::default() }
-}
-
-fn mono(px: i64) -> Font {
-    Font { name: "Courier New".into(), size: -px, ..Font::default() }
-}
-
-/// A colour lighter (`d` > 0) or darker by `d` per channel (saturating).
-fn shade(c: u32, d: i32) -> u32 {
-    let ch = |s: u32| ((((c >> s) & 0xFF) as i32 + d).clamp(0, 255) as u32) << s;
-    ch(16) | ch(8) | ch(0)
-}
-
-/// The designer's drawing calls, made as ops.
-#[derive(Default)]
-struct Draw {
-    ops: Vec<Op>,
-}
-
-impl Draw {
-    fn fill(&mut self, rect: Rect, color: u32) {
-        if rect.2 > 0 && rect.3 > 0 {
-            self.ops.push(Op::Fill { rect, color });
-        }
-    }
-
-    /// A one-pixel outline inside `rect`.
-    fn rect(&mut self, rect: Rect, color: u32) {
-        if rect.2 > 0 && rect.3 > 0 {
-            self.ops.push(Op::Edge { rect, light: vec![color], dark: vec![color] });
-        }
-    }
-
-    /// A line through the pixels from (x0, y0) to (x1, y1), both included.
-    fn line(&mut self, (x0, y0): (i64, i64), (x1, y1): (i64, i64), color: u32) {
-        self.ops.push(Op::Line { from: (x0 as f64 + 0.5, y0 as f64 + 0.5), to: (x1 as f64 + 0.5, y1 as f64 + 0.5), color });
-    }
-
-    fn text(&mut self, rect: Rect, text: &str, font: Font, color: u32, place: Place) {
-        if !text.is_empty() {
-            self.ops.push(Op::Text { rect, text: text.to_string(), font, color, angle: 0, place });
-        }
-    }
-
-    /// The points of an ellipse inscribed in `rect`, from `from` to `to`
-    /// degrees (counter-clockwise from 3 o'clock).
-    fn ellipse((x, y, w, h): Rect, from: f64, to: f64) -> Vec<(f64, f64)> {
-        let (cx, cy, rx, ry) = (x as f64 + w as f64 / 2.0, y as f64 + h as f64 / 2.0, w as f64 / 2.0, h as f64 / 2.0);
-        let steps = ((rx.max(ry) * 4.0).ceil() as usize).clamp(12, 96);
-        (0..=steps)
-            .map(|k| {
-                let a = (from + (to - from) * k as f64 / steps as f64).to_radians();
-                (cx + rx * a.cos(), cy - ry * a.sin())
-            })
-            .collect()
-    }
-
-    /// A filled ellipse (the whole turn).
-    fn pie(&mut self, rect: Rect, color: u32) {
-        let mut points = Self::ellipse(rect, 0.0, 360.0);
-        points.pop();
-        self.ops.push(Op::Shape(Shape { points, fill: Some(color), stroke: Some(color) }));
-    }
-
-    /// An ellipse's outline from `from` to `to` degrees: a closed
-    /// shape for the whole turn, else its segments (a shape of more than
-    /// two points is closed) — on the device's pixels, smooth at 2×.
-    fn arc(&mut self, rect: Rect, from: f64, to: f64, color: u32) {
-        let mut points = Self::ellipse(rect, from, to);
-        if (to - from).abs() >= 360.0 {
-            points.pop();
-            self.ops.push(Op::Shape(Shape { points, fill: None, stroke: Some(color) }));
-            return;
-        }
-        for pair in points.windows(2) {
-            self.ops.push(Op::Shape(Shape { points: pair.to_vec(), fill: None, stroke: Some(color) }));
-        }
-    }
-
-    /// A raised box in `bg` (the designer's buttons): lighter top / left,
-    /// darker bottom / right.
-    fn raised(&mut self, (x, y, w, h): Rect, bg: u32) {
-        self.fill((x, y, w, h), bg);
-        let (light, dark) = (shade(bg, 30), shade(bg, -85));
-        self.line((x, y), (x + w - 1, y), light);
-        self.line((x, y), (x, y + h - 1), light);
-        self.line((x + w - 1, y), (x + w - 1, y + h - 1), dark);
-        self.line((x, y + h - 1), (x + w - 1, y + h - 1), dark);
-    }
-
-    /// One designed component, as its type's placeholder.
-    fn component(&mut self, c: &DesignComp) {
-        let (x, y, w, h) = c.bounds();
-        let label = c.caption();
-        let font_color = c.color("fontcolor").unwrap_or(BLACK);
-        let grey = 0x828282;
-        match c.type_name.to_ascii_uppercase().as_str() {
-            "RBUTTON" => {
-                self.raised((x, y, w, h), c.color("color").unwrap_or(0xE1E1E1));
-                self.text((x, y, w, h), label, c.font(), font_color, Place::Center);
-            }
-            "RLABEL" => self.text((x + 2, y, w - 4, h), label, c.font(), font_color, Place::Left),
-            "REDIT" => {
-                self.fill((x, y, w, h), WHITE);
-                self.line((x, y), (x + w - 1, y), grey);
-                self.line((x, y), (x, y + h - 1), grey);
-                self.line((x + w - 1, y), (x + w - 1, y + h - 1), 0xF5F5F5);
-                self.line((x, y + h - 1), (x + w - 1, y + h - 1), 0xF5F5F5);
-                self.text((x + 4, y, w - 8, h), c.prop("text").unwrap_or(&c.name), sans(12), BLACK, Place::Left);
-            }
-            "RCHECKBOX" => {
-                let (bx, by) = (x + 2, y + (h - 13) / 2);
-                self.fill((bx, by, 13, 13), WHITE);
-                self.rect((bx, by, 13, 13), grey);
-                if c.on("checked") {
-                    self.line((bx + 2, by + 6), (bx + 5, by + 10), BLACK);
-                    self.line((bx + 5, by + 10), (bx + 11, by + 2), BLACK);
-                }
-                self.text((x + 18, y, w - 20, h), label, sans(12), BLACK, Place::Left);
-            }
-            "RRADIOBUTTON" => {
-                let ry = y + h / 2;
-                self.pie((x + 2, ry - 6, 13, 13), WHITE);
-                self.arc((x + 2, ry - 6, 13, 13), 0.0, 360.0, grey);
-                self.text((x + 18, y, w - 20, h), label, sans(12), BLACK, Place::Left);
-            }
-            "RCOMBOBOX" => {
-                self.fill((x, y, w - 18, h), WHITE);
-                self.rect((x, y, w, h), grey);
-                self.fill((x + w - 18, y + 1, 17, h - 2), 0xE1E1E1);
-                let (ax, ay) = (x + w - 12, y + h / 2 - 1);
-                for k in 0..3 {
-                    self.line((ax - 3 + k, ay + k), (ax + 3 - k, ay + k), BLACK);
-                }
-                self.text((x + 4, y, w - 22, h), &c.name, sans(12), BLACK, Place::Left);
-            }
-            "RLISTBOX" => {
-                self.fill((x, y, w, h), WHITE);
-                self.rect((x, y, w, h), grey);
-                self.text((x + 4, y + 2, w - 8, 16), "(ListBox)", sans(11), 0xB4B4B4, Place::Left);
-            }
-            kind @ ("RPANEL" | "RGROUPBOX") => {
-                self.fill((x, y, w, h), c.color("color").unwrap_or(0xF0F0F0));
-                if kind == "RGROUPBOX" {
-                    let font = sans(11);
-                    let tw = super::text::text_size(label, &font).0 + 8;
-                    let line = 0xA0A0A0;
-                    self.line((x, y + 8), (x + 6, y + 8), line);
-                    self.line((x + 6 + tw, y + 8), (x + w - 1, y + 8), line);
-                    self.line((x, y + 8), (x, y + h - 1), line);
-                    self.line((x + w - 1, y + 8), (x + w - 1, y + h - 1), line);
-                    self.line((x, y + h - 1), (x + w - 1, y + h - 1), line);
-                    self.text((x + 10, y, tw, 16), label, font, BLACK, Place::Left);
-                } else {
-                    self.rect((x, y, w, h), 0xB4B4B4);
-                }
-            }
-            "RPROGRESSBAR" => {
-                self.fill((x, y, w, h), 0xE6E6E6);
-                self.fill((x + 1, y + 1, w / 3, h - 2), 0x3C82C8);
-                self.rect((x, y, w, h), 0xA0A0A0);
-            }
-            "RTIMER" => {
-                self.fill((x, y, w, h), 0xF0F0FF);
-                self.rect((x, y, w, h), 0x6464C8);
-                self.text((x, y, w, h), &c.name, sans(10), 0x3C3CA0, Place::Center);
-                self.text((x, y + h / 2 + 2, w, h / 2), "[Timer]", sans(8), 0x3C3CA0, Place::TopCenter);
-            }
-            "RRICHEDIT" | "RMEMO" => {
-                self.fill((x, y, w, h), WHITE);
-                self.rect((x, y, w, h), grey);
-                self.text((x + 4, y + 2, w - 8, 16), "(RichEdit)", mono(11), 0xB4B4B4, Place::Left);
-            }
-            "RCANVAS" => {
-                self.fill((x, y, w, h), c.color("color").unwrap_or(WHITE));
-                self.rect((x, y, w, h), 0xA0A0A0);
-                self.line((x + w / 2, y), (x + w / 2, y + h), 0xD2D2D2);
-                self.line((x, y + h / 2), (x + w, y + h / 2), 0xD2D2D2);
-                self.text((x, y, w, h), &c.name, sans(10), grey, Place::Center);
-            }
-            "RIMAGE" => {
-                self.fill((x, y, w, h), 0xF5F5F5);
-                self.rect((x, y, w, h), 0xB4B4B4);
-                self.line((x, y), (x + w, y + h), 0xB4B4B4);
-                self.line((x + w, y), (x, y + h), 0xB4B4B4);
-                self.text((x, y, w, h), &c.name, sans(10), grey, Place::Center);
-            }
-            "RTREEVIEW" => {
-                self.fill((x, y, w, h), WHITE);
-                self.rect((x, y, w, h), grey);
-                self.text((x + 6, y + 4, w - 12, 14), "+ Item 1", sans(10), 0x646464, Place::Left);
-                self.text((x + 6, y + 18, w - 12, 14), "+ Item 2", sans(10), 0x646464, Place::Left);
-            }
-            "RTRACKBAR" => {
-                let track = y + h / 2;
-                self.fill((x + 4, track - 2, w - 8, 4), 0xB4B4B4);
-                let thumb = x + w / 3;
-                self.fill((thumb - 5, y + 4, 10, h - 8), 0xC8C8C8);
-                self.rect((thumb - 5, y + 4, 10, h - 8), grey);
-            }
-            "RSTRINGGRID" => {
-                self.fill((x, y, w, h), WHITE);
-                self.fill((x, y, w, 20), 0xC8D2E6);
-                self.rect((x, y, w, h), 0xA0A0A0);
-                self.line((x + w / 2, y), (x + w / 2, y + h), 0xA0A0A0);
-                for row in 0..4 {
-                    self.line((x, y + row * 20), (x + w, y + row * 20), 0xA0A0A0);
-                }
-                self.text((x + 2, y + 2, w - 4, 16), &c.name, sans(10), BLACK, Place::Left);
-            }
-            kind @ ("RMYSQL" | "RSQLITE") => {
-                self.fill((x, y, w, h), 0xFFF5E6);
-                self.rect((x, y, w, h), 0xB48C50);
-                self.text((x, y + 2, w, h / 2), if kind == "RMYSQL" { "MySQL" } else { "SQLite" }, sans(10), 0x78501E, Place::Center);
-                self.text((x, y + h / 2, w, h / 2), &c.name, sans(9), 0x78501E, Place::Center);
-            }
-            "RCOOLBTN" => {
-                if c.on("down") {
-                    self.fill((x, y, w, h), 0xC8D2E6);
-                    self.rect((x, y, w, h), grey);
-                } else if !c.on("flat") {
-                    self.raised((x, y, w, h), 0xE1E1E1);
-                } else {
-                    self.fill((x, y, w, h), 0xF0F0F0);
-                }
-                self.text((x, y, w, h), label, c.font(), font_color, Place::Center);
-            }
-            "ROVALBTN" => {
-                self.pie((x, y, w, h), c.color("color").unwrap_or(0xDCDCDC));
-                self.arc((x, y, w, h), 45.0, 225.0, WHITE);
-                self.arc((x, y, w, h), 225.0, 405.0, 0x808080);
-                self.text((x, y, w, h), label, c.font(), font_color, Place::Center);
-            }
-            _ => {
-                self.fill((x, y, w, h), 0xECECEC);
-                self.rect((x, y, w, h), 0xA0A0A0);
-                self.text((x + 2, y + 2, w - 4, h - 4), label, sans(11), BLACK, Place::Center);
-                self.text((x + 2, y + 1, w - 4, 12), &c.type_name, sans(9), 0x646464, Place::TopLeft);
-            }
-        }
-    }
-}
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn surface() -> DesignSurface {
+    /// A frameless form filling the surface, as the API made them before
+    /// (client coordinates = the surface's).
+    fn frameless() -> DesignSurface {
         let mut d = DesignSurface::default();
+        let root = d.designer.design.root();
+        let _ = Command::SetProp { node: root, name: "BorderStyle".into(), value: Some("0".into()) }.apply(&mut d.designer.design);
+        d
+    }
+
+    fn surface() -> DesignSurface {
+        let mut d = frameless();
         d.call("addcomponent", &[v_str("RBUTTON"), v_str("Button1"), v_int(16), v_int(16), v_int(80), v_int(24)]);
         d.call("addcomponent", &[v_str("RLABEL"), v_str("Label1"), v_int(48), v_int(32), v_int(64), v_int(16)]);
         d
@@ -1158,7 +1226,6 @@ mod tests {
         assert_eq!(d.call("getprop", &[v_int(0), v_str("Caption")]), Some(v_str("Button1")), "Caption starts as the name");
         d.call("setprop", &[v_int(0), v_str("Color"), v_str("&H0000FF")]);
         assert_eq!(d.call("getprop", &[v_int(0), v_str("color")]), Some(v_str("&H0000FF")));
-        assert_eq!(d.components()[0].color("color"), Some(0xFF0000), "RapidQ's BGR");
         assert_eq!(d.call("getprop", &[v_int(5), v_str("color")]), Some(v_str("")));
         d.call("setcompbounds", &[v_int(1), v_int(1), v_int(2)]);
         assert_eq!(d.components()[1].bounds(), (1, 2, 80, 25), "missing sizes default");
@@ -1171,11 +1238,14 @@ mod tests {
         assert_eq!((d.get("count"), d.selection()), (Some(v_int(1)), None));
         assert!(d.set("formcaption", &v_str("Main")));
         assert_eq!(d.get("formcaption"), Some(v_str("Main")));
+        assert_eq!(d.title(), "Main", "the title bar's, while the form sets no Caption");
         assert_eq!(d.call("undo", &[]), Some(Value::Boolean(true)), "the removal undone");
         assert_eq!(d.get("count"), Some(v_int(2)));
         d.call("clearall", &[]);
         assert_eq!(d.call("count", &[]), Some(v_int(0)));
         assert_eq!(d.call("show", &[]), None, "the host's");
+        assert!(d.set("showgrid", &Value::Boolean(false)) && d.set("showselection", &Value::Boolean(false)));
+        assert_eq!((d.get("showgrid"), d.get("showselection")), (Some(Value::Boolean(false)), Some(Value::Boolean(false))));
     }
 
     #[test]
@@ -1188,6 +1258,7 @@ mod tests {
         let e = d.mouse_drag(33, 26);
         assert!(matches!(e, Some(DesignEvent::Move { index: 0, .. })));
         assert_eq!(d.call("getcompx", &[v_int(0)]), Some(v_int(16)), "not written while dragging");
+        assert!(d.placed().iter().any(|(id, r)| *id == d.ids()[0] && r.left != 16), "the drag is drawn");
         d.mouse_up();
         let x = d.call("getcompx", &[v_int(0)]).unwrap().to_i64();
         assert!(x % 8 == 0 && x != 16, "moved onto the grid or a guide: {x}");
@@ -1216,14 +1287,14 @@ mod tests {
 
     #[test]
     fn guides_show_while_dragging() {
-        let mut d = DesignSurface::default();
+        let mut d = frameless();
         d.call("addcomponent", &[v_str("REDIT"), v_str("Ed"), v_int(100), v_int(100), v_int(120), v_int(25)]);
         d.call("addcomponent", &[v_str("RBUTTON"), v_str("B"), v_int(300), v_int(300), v_int(75), v_int(25)]);
         d.mouse_down(310, 310, false);
         // 3 px right of the edit's left edge
         d.mouse_drag(113, 250);
         assert!(d.guides.iter().any(|g| g.vertical && g.at == 100 && g.kind == GuideKind::Edge), "{:?}", d.guides);
-        let ops = d.ops(640, 480);
+        let ops = d.chrome_ops();
         let accent = crate::theme::current().accent;
         assert!(ops.iter().any(|o| matches!(o, Op::Line { color, from, to } if *color == accent && from.0 == to.0)), "a guide drawn");
         d.mouse_up();
@@ -1233,7 +1304,7 @@ mod tests {
 
     #[test]
     fn anchor_pins_and_the_resize_preview() {
-        let mut d = DesignSurface::default();
+        let mut d = frameless();
         d.set_size(400, 300);
         d.call("addcomponent", &[v_str("RBUTTON"), v_str("Ok"), v_int(300), v_int(250), v_int(75), v_int(25)]);
         // the right pin, then the bottom pin; the left and top ones off
@@ -1244,11 +1315,12 @@ mod tests {
             d.mouse_up();
         }
         assert_eq!(d.call("getprop", &[v_int(0), v_str("Anchors")]), Some(v_str("akRight + akBottom")));
-        // the form's corner dragged 100 × 50 bigger: the button follows
-        assert_eq!(d.mouse_down(396, 296, false), None);
-        d.mouse_drag(496, 346);
-        assert_eq!(d.preview, Some((502, 352)));
-        assert_eq!((d.components()[0].x, d.components()[0].y), (402, 302));
+        // the form's corner grip dragged 100 × 50 further: the button follows
+        assert_eq!(d.form_rect(), (0, 0, 400, 300));
+        assert_eq!(d.mouse_down(402, 302, false), None);
+        d.mouse_drag(502, 352);
+        assert_eq!(d.preview, Some((500, 350)));
+        assert_eq!((d.components()[0].x, d.components()[0].y), (400, 300));
         d.mouse_up();
         assert_eq!(d.preview, None);
         assert_eq!(d.call("getcompx", &[v_int(0)]), Some(v_int(300)), "the design unchanged");
@@ -1260,29 +1332,57 @@ mod tests {
     }
 
     #[test]
-    fn colours_parse_every_way_the_designer_stores_them() {
-        assert_eq!(parse_color("#102030"), Some(0x102030));
-        assert_eq!(parse_color("rgb(1, 2, 3)"), Some(0x010203));
-        assert_eq!(parse_color("&HFF0000"), Some(0x0000FF));
-        assert_eq!(parse_color("255"), Some(0xFF0000), "a QCOLORDIALOG's Color: red");
-        assert_eq!(parse_color("-5"), None);
-        assert_eq!(parse_color("blue"), None);
+    fn a_framed_form_its_menu_and_its_tray() {
+        let mut d = DesignSurface::default();
+        d.set_size(500, 400);
+        assert!(d.border(), "a form has a frame unless BorderStyle = bsNone");
+        assert_eq!(d.form_rect(), (MARGIN, MARGIN, 500 - 2 * MARGIN, 400 - 2 * MARGIN), "the API's form fills the surface");
+        assert_eq!(d.client_origin(), (MARGIN + FORM_BORDER, MARGIN + FORM_BORDER + FORM_CAPTION));
+        d.call("addcomponent", &[v_str("QBUTTON"), v_str("B"), v_int(8), v_int(8), v_int(75), v_int(25)]);
+        d.call("addcomponent", &[v_str("QTIMER"), v_str("Tick"), v_int(0), v_int(0), v_int(0), v_int(0)]);
+        d.call("addcomponent", &[v_str("QMAINMENU"), v_str("Menu"), v_int(0), v_int(0), v_int(0), v_int(0)]);
+        d.set_size(500, 400);
+        assert_eq!(d.menu_height(), MAIN_MENU_HEIGHT);
+        assert_eq!(d.client_origin().1, MARGIN + FORM_BORDER + FORM_CAPTION + MAIN_MENU_HEIGHT);
+        let tray = d.tray();
+        assert_eq!(tray.len(), 1, "the timer, not the menu");
+        assert_eq!((tray[0].index, tray[0].name.as_str()), (1, "Tick"));
+        let (_, fy, _, fh) = d.form_rect();
+        assert_eq!(fy + fh + TRAY_GAP + TRAY_H + MARGIN, 400, "the form leaves room for the tray");
+        // a press on the tray item selects it (no move); on the button, the button
+        let (tx, ty, _, _) = tray[0].rect;
+        assert_eq!(d.mouse_down(tx + 2, ty + 2, false), Some(DesignEvent::Select(1)));
+        d.mouse_drag(tx + 40, ty + 40);
+        d.mouse_up();
+        assert_eq!(d.selection(), Some(1));
+        assert!(d.chrome_ops().iter().any(|o| matches!(o, Op::Edge { rect, .. } if *rect == tray[0].rect)), "the selected tray item framed");
+        assert_eq!(d.mouse_down(10, 10, false), Some(DesignEvent::Select(0)));
+        d.mouse_up();
+        // the title: the form's Caption, else FormCaption
+        assert_eq!(d.title(), "Form1");
+        let root = d.designer.design.root();
+        let _ = d.designer.execute(Command::SetProp { node: root, name: "Caption".into(), value: Some("\"Hello\"".into()) });
+        assert_eq!(d.title(), "Hello");
+        // no chrome with the selection hidden; no dots without the grid
+        d.show_selection = false;
+        d.show_grid = false;
+        assert!(d.chrome_ops().is_empty());
+        assert!(d.grid_ops(100, 100, 0xF0F0F0).is_empty());
+        d.show_grid = true;
+        assert_eq!(d.grid_ops(16, 16, 0xF0F0F0).len(), 4);
     }
 
     #[test]
-    fn the_drawing_is_placeholders_with_the_selection_on_top() {
-        let mut d = surface();
-        d.call("addcomponent", &[v_str("RQUUX"), v_str("Odd1"), v_int(100), v_int(100), v_int(60), v_int(40)]);
-        let ops = d.ops(64, 40);
-        assert_eq!(ops[0], Op::Fill { rect: (0, 0, 64, 40), color: crate::theme::current().face });
-        let texts: Vec<&str> = ops.iter().filter_map(|o| if let Op::Text { text, .. } = o { Some(text.as_str()) } else { None }).collect();
-        assert_eq!(texts, ["Button1", "Label1", "Odd1", "RQUUX"]);
-        let accent = crate::theme::current().accent;
-        let handles = ops.iter().filter(|o| matches!(o, Op::Fill { rect: (_, _, 7, 7), color } if *color == accent)).count();
-        assert_eq!(handles, 8, "only the primary's");
-        // a set font size is in points, as the designed program shows it
-        d.call("setprop", &[v_int(0), v_str("font.size"), v_str("10")]);
-        assert_eq!(d.components()[0].font().pixel_size(), 13);
-        assert_eq!(d.components()[1].font().pixel_size(), 12);
+    fn a_form_read_from_a_program_keeps_its_size() {
+        let mut design = FormDesign::new("Main", "QFORM");
+        let root = design.root();
+        for (p, v) in [("Width", "300"), ("Height", "200"), ("Caption", "\"Main\"")] {
+            let _ = Command::SetProp { node: root, name: p.into(), value: Some(v.into()) }.apply(&mut design);
+        }
+        let mut d = DesignSurface::with_designer(Designer::new(design));
+        d.set_size(800, 600);
+        assert_eq!(d.form_rect(), (MARGIN, MARGIN, 300, 200));
+        assert_eq!(d.title(), "Main");
+        assert_eq!(d.client_size(), crate::layout::form_client_size(300, 200, 2, 0));
     }
 }

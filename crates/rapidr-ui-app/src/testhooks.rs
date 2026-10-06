@@ -12,6 +12,7 @@
 //! - `RAPIDR_TEST_RESIZE=w,h`: the frontmost form resized (Width, Height)
 //!   as a user dragging its border would, before the events.
 //! - `RAPIDR_TEST_SPLIT=splitter:delta`: a QSPLITTER dragged by `delta`.
+//! - `RAPIDR_TEST_NOFOCUS=1`: forms show with nothing focused ([`no_focus`]).
 //! - `RAPIDR_TEST_FILE_DIALOG=a;b`: what Open/Save dialogs pick (empty:
 //!   Cancel).
 //! - `RAPIDR_TEST_COLOR_DIALOG=255;` / `RAPIDR_TEST_FONT_DIALOG=…`: what
@@ -48,6 +49,13 @@ pub fn var(name: &str) -> Option<String> {
         return found;
     }
     std::env::var(name).ok()
+}
+
+/// `RAPIDR_TEST_NOFOCUS=1`: forms show with nothing focused (no focus
+/// rectangle, caret or AutoSelect), as RapidR Studio's designer shows them —
+/// what `tools/visual/designer_wysiwyg.py` compares the designer with.
+pub fn no_focus() -> bool {
+    var("RAPIDR_TEST_NOFOCUS").is_some_and(|v| !v.is_empty() && v != "0")
 }
 
 /// A GUI test drives the program (`RAPIDR_CAPTURE` or `RAPIDR_TEST_EVENTS`):

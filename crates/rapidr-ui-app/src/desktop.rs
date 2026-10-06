@@ -85,37 +85,9 @@ pub enum HostCmd {
 
 pub use crate::windows::Icon;
 
-/// A form's window frame: what the window system (the desktop's) or the
-/// web host's kernel-drawn frame shows.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Frame {
-    /// The user may resize it (bsSizeable, bsSizeToolWin).
-    pub resizable: bool,
-    /// The title bar's buttons.
-    pub close: bool,
-    pub minimize: bool,
-    pub maximize: bool,
-}
-
-impl Default for Frame {
-    fn default() -> Self {
-        Frame { resizable: true, close: true, minimize: true, maximize: true }
-    }
-}
-
-/// BorderIcons' bits (biSystemMenu 0, biMinimize 1, biMaximize 2, biHelp 3).
-pub const BI_DEFAULT: i64 = 0b0111;
-
-/// The frame for BorderStyle `style` (bsNone 0, bsSingle 1, bsSizeable 2,
-/// bsDialog 3, bsToolWindow 4, bsSizeToolWin 5) and BorderIcons `icons`
-/// (as Windows draws them): without biSystemMenu no button at all; a dialog
-/// or tool window has no minimize / maximize; only bsSizeable and
-/// bsSizeToolWin resize. biHelp has no counterpart.
-pub fn frame_of(style: i64, icons: i64) -> Frame {
-    let system = icons & 1 != 0;
-    let full = matches!(style, 1 | 2);
-    Frame { resizable: matches!(style, 2 | 5), close: system, minimize: system && full && icons & 2 != 0, maximize: system && full && icons & 4 != 0 }
-}
+/// A form's window frame (BorderStyle, BorderIcons): the kernel's, which
+/// the web host and the form designer draw (`rapidr_ui_kernel::frame`).
+pub use rapidr_ui_kernel::frame::{frame_of, Frame, BI_DEFAULT};
 
 /// What an Open / Save dialog shows (`crate::file_dialog`'s request, in the
 /// host's terms).
@@ -206,7 +178,9 @@ impl Desktop {
         let key = id.to_lowercase();
         let (blinks, scale) = (self.blinks, self.default_scale);
         self.forms.entry(key.clone()).or_insert_with(|| {
-            let mut ui = FormUi::build(store, &key, menu_in_window);
+            // (`RAPIDR_TEST_NOFOCUS`: shown with nothing focused, as the
+            // form designer shows a form — the WYSIWYG comparison)
+            let mut ui = if crate::testhooks::no_focus() { FormUi::build_unfocused(store, &key, menu_in_window) } else { FormUi::build(store, &key, menu_in_window) };
             ui.blinks = blinks;
             ui.scale = scale;
             Form { ui, spec, shown: false, z: 0, scale, state: 0 }

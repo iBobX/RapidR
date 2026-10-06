@@ -41,6 +41,7 @@ pub mod components;
 pub mod dialogs;
 pub mod display;
 mod focus;
+pub mod frame;
 pub mod icons;
 pub mod input;
 pub mod paint;
