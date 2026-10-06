@@ -475,8 +475,8 @@ The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate wind
 
 ## Phase 3B — Look: one RapidR look, OS looks, native widgets (after the first release; the user, 2026-10-06)
 
-Programs choose how they look; old programs keep RapidQ's classic look unless they ask.
-- [ ] **`$THEME rapidr`**: RapidR's own look, pixel-identical on every OS and on the web, for developers who want their program to look exactly the same everywhere (today's `modern` / `dark` grow into it; the old names stay as aliases)
+Programs choose how they look with `$THEME`.
+- [ ] **`$THEME rapidr` — the default** (the user, 2026-10-06): RapidR's own look, pixel-identical on every OS and on the web, in light, dark and high contrast (following the system's setting unless the program picks one). Today's `modern` / `dark` / `highcontrast` grow into it; the old names stay as aliases. It keeps RapidQ's metrics (the default font's text widths, control sizes) so forms laid out for RapidQ still fit. `$THEME classic` gives RapidQ's exact Windows look.
 - [ ] **`$THEME native`**: drawn themes that follow the OS the program runs on: Windows 11, macOS and Linux (GNOME / Adwaita style), light and dark following the system. On the web the page detects the visitor's OS and uses its theme. A program can also name one directly (`$THEME macos`, `windows11`, `linux`). Our own drawings only, never the OS's images (as Flutter and Qt do).
 - [ ] **Native widgets host — spike, then decide**: real OS controls, with the UI kernel kept as the model (properties, events, layout, accessibility tree) so programs don't change and RapidQ's behaviour stays exact. macOS: AppKit. Windows: the Win32 common controls (what RapidQ itself used) or WinUI. Linux: no permissive native toolkit (GTK and Qt are LGPL / GPL, against the dependency policy), so Linux and the web keep the drawn `native` theme. The spike measures: components covered, behaviour differences against RC.EXE, how the GUI tests run (pixel captures become per-OS), cost of keeping two renderers in step.
 
