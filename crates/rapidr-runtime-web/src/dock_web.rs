@@ -43,6 +43,9 @@ impl Runtime for Web {
     fn focus(self, name: &str) {
         rp_comp_call(name, "setfocus", &[]);
     }
+    fn show(self, form: &str) {
+        rp_comp_call(form, "show", &[]);
+    }
 }
 
 /// An RDOCKMANAGER method (`None`: not one of its own).

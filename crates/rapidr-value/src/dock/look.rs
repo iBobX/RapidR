@@ -433,12 +433,30 @@ pub fn overlay_ops(m: &Manager, g: &Geometry, t: &Theme, font: &Font) -> Vec<Op>
     let mut ops = Vec::new();
     if let Some(f) = &g.flyout {
         let (x, y, w, h) = f.rect;
-        // (a soft edge on its open sides)
-        for k in 1..=3i64 {
-            let c = mix(p.shadow, p.ground, 0.55 + 0.15 * k as f64);
-            fill(&mut ops, (x + w + k - 1, y + k, 1, h - k), c);
-            fill(&mut ops, (x + k, y + h + k - 1, w, 1), c);
+        // (a shadow falling from its open edge onto what it slides over,
+        // and a firm line along that edge)
+        let (ix, iy, iw, ih) = g.inner;
+        let side = if x == ix && w < iw { Side::Left } else if x + w == ix + iw && w < iw { Side::Right } else if y == iy && h < ih { Side::Top } else { Side::Bottom };
+        let deep = if p.contrast { 0 } else { 8i64 };
+        for k in 0..deep {
+            let c = mix(p.shadow, p.ground, 0.35 + 0.65 * (k as f64 + 1.0) / deep as f64);
+            let r = match side {
+                Side::Left => (x + w + k, y, 1, h),
+                Side::Right => (x - 1 - k, y, 1, h),
+                Side::Top => (x, y + h + k, w, 1),
+                Side::Bottom => (x, y - 1 - k, w, 1),
+            };
+            ops.push(Op::ClipPush { rect: (ix, iy, iw, ih) });
+            fill(&mut ops, r, c);
+            ops.push(Op::ClipPop);
         }
+        let edge = match side {
+            Side::Left => (x + w - 1, y, 1, h),
+            Side::Right => (x, y, 1, h),
+            Side::Top => (x, y + h - 1, w, 1),
+            Side::Bottom => (x, y, w, 1),
+        };
+        fill(&mut ops, edge, if p.contrast { p.accent } else { p.guide_border });
     }
     let (pane, target, at, area) = match (&m.ui.drag, &m.ui.moving) {
         (Some(d), _) if d.started => (d.pane.clone(), d.target.clone(), Some(d.at), None),

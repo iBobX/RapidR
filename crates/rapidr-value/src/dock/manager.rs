@@ -412,6 +412,7 @@ impl Manager {
         match self.layout.find(&name) {
             Some(Where::AutoHide(..)) => {
                 self.flyout = Some(name.clone());
+                self.active_pane = Some(name.clone());
                 self.touch();
             }
             Some(_) => {

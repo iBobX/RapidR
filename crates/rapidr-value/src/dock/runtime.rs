@@ -49,6 +49,8 @@ pub trait Runtime: Copy + 'static {
     fn restructure(self);
     /// `name.SetFocus`.
     fn focus(self, name: &str);
+    /// `form.Show` (a floating window's first showing: built, shown).
+    fn show(self, form: &str);
 }
 
 thread_local! {
@@ -340,6 +342,13 @@ pub fn finish<R: Runtime>(rt: R, dock: &str, out: Outcome) {
         });
     }
     apply(rt, &dock);
+    // (a window just floated comes to the front, over the one it left)
+    for (p, _) in &out.floating {
+        let at = manager::with(&dock, |m| m.layout.floating.iter().position(|f| f.panes.contains(p))).flatten();
+        if let Some(i) = at {
+            rt.show(&float_form(&dock, i));
+        }
+    }
     for e in &out.events {
         fire(rt, &dock, e);
     }
@@ -578,8 +587,8 @@ fn apply_now<R: Runtime>(rt: R, dock: &str) {
         if !rt.get(&gname, "visible").to_bool() {
             rt.set(&gname, "visible", int(-1));
         }
-        if !rt.get(&form, "visible").to_bool() {
-            rt.set(&form, "visible", int(-1));
+        if !rt.get(&form, "__dockshown").to_bool() || !rt.get(&form, "visible").to_bool() {
+            rt.show(&form);
         }
         rt.set(&form, "__dockshown", int(-1));
     }

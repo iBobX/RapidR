@@ -6,7 +6,8 @@
 ' Explorer), moves Output with the keyboard (Ctrl+Shift+M's MovePane, the
 ' arrows, Enter), F6; the program saves the layout, changes it and loads
 ' it back (the same text), switches to tabbed documents and closes them
-' (OnDocumentClose's Cancel keeps one). Pane names come back lowercase.
+' (OnDocumentClose's Cancel keeps one), floats Properties (a window of its
+' own). Pane names come back lowercase.
 DIM log AS STRING
 DIM saved AS STRING
 
@@ -44,6 +45,7 @@ SUB Tabbed
   Dock.DocumentMode = "tabs"
   Dock.ClosePane("Doc1")
   Dock.ClosePane("Doc2")
+  Dock.FloatPane("Props")
 END SUB
 
 SUB Report
