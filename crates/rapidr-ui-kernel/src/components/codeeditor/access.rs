@@ -63,7 +63,7 @@ pub fn describe(cx: &mut Cx) -> AccessNode {
             n.description.push_str(". ");
         }
         n.description.push_str(&d);
-        n.role = Role::MultilineTextInput;
+
         n.states.multiline = true;
         n.children.extend(kids);
     }

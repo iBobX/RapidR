@@ -35,7 +35,12 @@ fn key(f: &mut FormUi, s: &MemStore, ts: &mut TextSystem, vk: i64, text: &str, m
 
 fn typed(f: &mut FormUi, s: &MemStore, ts: &mut TextSystem, t: &str) {
     for c in t.chars() {
-        let vk = if c == ' ' { 32 } else { c.to_ascii_uppercase() as i64 };
+        let vk = match c {
+            ' ' => 32,
+            '.' => 190,
+            c if c.is_ascii_alphanumeric() => c.to_ascii_uppercase() as i64,
+            _ => 0,
+        };
         key(f, s, ts, vk, &c.to_string(), Mods::NONE);
     }
 }
@@ -119,4 +124,94 @@ fn folds_hide_lines_and_completion_from_the_program() {
     assert!(has_popup, "the list shows Left (its typed part apart)");
     key(&mut f, &s, &mut ts, 13, "\r", Mods::NONE);
     assert!(text("ce3").contains("x = 1 Left"), "{:?}", text("ce3"));
+}
+
+use rapidr_editor::service as svc;
+
+/// A language service of the test's own: completion of two names,
+/// upper-case keywords, one problem, a hover.
+struct Fake {
+    text: String,
+}
+
+impl svc::LanguageService for Fake {
+    fn serves(&self, language: &str) -> bool {
+        language == "rapidq-basic"
+    }
+    fn update(&mut self, _file: &str, text: &str) {
+        self.text = text.to_string();
+    }
+    fn close(&mut self, _file: &str) {}
+    fn completions(&mut self, _file: &str, offset: usize) -> svc::Completions {
+        let start = self.text[..offset].rfind(|c: char| !c.is_alphanumeric()).map_or(0, |i| i + 1);
+        svc::Completions { items: vec![svc::Completion::new("Caption", svc::CompletionKind::Property), svc::Completion::new("ShowModal", svc::CompletionKind::Method)], start, end: offset }
+    }
+    fn hover(&mut self, _file: &str, offset: usize) -> Option<svc::Hover> {
+        Some(svc::Hover { text: "```\nDIM x AS INTEGER\n```\nA variable.".into(), start: offset, end: offset + 1 })
+    }
+    fn signature(&mut self, _file: &str, _offset: usize) -> Option<svc::SignatureHelp> {
+        None
+    }
+    fn diagnostics(&mut self, file: &str) -> Vec<svc::Diagnostic> {
+        vec![svc::Diagnostic { file: file.into(), start: 0, end: 3, severity: svc::Severity::Error, message: "boom".into(), code: String::new() }]
+    }
+    fn definition(&mut self, _file: &str, _offset: usize) -> Vec<svc::Location> {
+        Vec::new()
+    }
+    fn references(&mut self, _file: &str, _offset: usize) -> Vec<svc::Location> {
+        Vec::new()
+    }
+    fn rename(&mut self, _file: &str, _offset: usize, _new_name: &str) -> Result<Vec<(String, Vec<svc::Edit>)>, String> {
+        Err("no".into())
+    }
+    fn outline(&mut self, _file: &str) -> Vec<svc::OutlineItem> {
+        Vec::new()
+    }
+    fn semantic_tokens(&mut self, _file: &str) -> Vec<svc::SemanticToken> {
+        Vec::new()
+    }
+    fn format(&mut self, _file: &str, _indent: &str) -> Vec<svc::Edit> {
+        Vec::new()
+    }
+    fn case_edits(&mut self, _file: &str, offset: usize, ch: char, case: &str) -> Vec<svc::Edit> {
+        let end = offset - ch.len_utf8();
+        let start = self.text[..end].rfind(|c: char| !c.is_alphanumeric()).map_or(0, |i| i + 1);
+        let word = &self.text[start..end];
+        if case == "upper" && word.eq_ignore_ascii_case("dim") && word != "DIM" {
+            return vec![svc::Edit { start, end, text: "DIM".into() }];
+        }
+        Vec::new()
+    }
+    fn case_triggers(&self) -> &'static [char] {
+        &[' ']
+    }
+    fn position(&mut self, _file: &str, _offset: usize) -> Option<(usize, usize)> {
+        None
+    }
+}
+
+#[test]
+fn the_language_service_completes_cases_and_diagnoses() {
+    svc::install(Box::new(Fake { text: String::new() }));
+    let (s, mut f, mut ts) = code_form("ce4", "");
+    f.paint(&s, &mut ts, 1.0);
+    f.focus_id(&s, "ce4");
+    // keyword case as the word ends
+    typed(&mut f, &s, &mut ts, "dim x");
+    assert_eq!(text("ce4"), "DIM x");
+    // completion opens after a trigger, filters as the word grows, Tab
+    // accepts
+    typed(&mut f, &s, &mut ts, " = Form.Sh");
+    assert!(with_code("ce4", |c| c.completion.is_some()).unwrap(), "completion after Form.");
+    key(&mut f, &s, &mut ts, 9, "\t", Mods::NONE);
+    assert_eq!(text("ce4"), "DIM x = Form.ShowModal");
+    // the problems once typing stops
+    let later = crate::tick::now() + std::time::Duration::from_secs(2);
+    crate::tick::set_test_now(Some(later));
+    f.tick(&s, &mut ts, later);
+    crate::tick::set_test_now(None);
+    assert_eq!(with_code("ce4", |c| c.diagnostics.len()).unwrap(), 1);
+    let list = f.paint(&s, &mut ts, 1.0);
+    let squiggle = list.items.iter().any(|i| matches!(i, Item::Op { op: rapidr_value::objects::ops::Op::Stroke { .. }, .. }));
+    assert!(squiggle, "the problem is underlined");
 }

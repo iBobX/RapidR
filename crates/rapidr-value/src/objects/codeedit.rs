@@ -961,7 +961,7 @@ impl CodeEditor {
             }),
             "diagnosticcount" => v_int(self.diagnostics.len() as i64),
             "foldcount" => v_int(self.folded.len() as i64),
-            "outline" => v_str(&super::code::sub_list(&self.doc.text()).join("\n")),
+            "outline" => v_str(&self.outline()),
             _ => return None,
         })
     }
@@ -1246,6 +1246,42 @@ impl CodeEditor {
         }
         self.changed();
         Some(Value::Null)
+    }
+
+    /// The file's outline, one entry a line: kind, name, line (from 1) and
+    /// depth, tab-separated — the language service's (SUBs, FUNCTIONs,
+    /// TYPEs and their members, the CREATE tree …), else the SUBs and
+    /// FUNCTIONs GetSubList finds.
+    pub fn outline(&self) -> String {
+        let lang = self.doc.language().id.clone();
+        if self.opts.language_service && rapidr_editor::service::available(&lang) {
+            let file = if self.file_name.is_empty() { "untitled-outline.bas".to_string() } else { self.file_name.clone() };
+            let text = self.doc.text();
+            let items = rapidr_editor::service::with(|s| {
+                s.update(&file, &text);
+                s.outline(&file)
+            });
+            if let Some(items) = items {
+                let mut out = Vec::new();
+                fn walk(c: &CodeEditor, items: &[rapidr_editor::service::OutlineItem], depth: usize, out: &mut Vec<String>) {
+                    for it in items {
+                        out.push(format!("{}\t{}\t{}\t{depth}", it.kind.name(), it.name, c.line_col(it.name_start).0));
+                        walk(c, &it.children, depth + 1, out);
+                    }
+                }
+                walk(self, &items, 0, &mut out);
+                return out.join("\n");
+            }
+        }
+        let text = self.doc.text();
+        super::code::sub_list(&text)
+            .iter()
+            .filter_map(|name| super::code::sub_line(&text, name).map(|l| {
+                let kind = if text.lines().nth(l).is_some_and(|s| s.trim_start().to_ascii_uppercase().starts_with("FUNCTION")) { "function" } else { "sub" };
+                format!("{kind}\t{name}\t{}\t0", l + 1)
+            }))
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 
     fn after_history(&mut self) {

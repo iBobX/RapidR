@@ -648,7 +648,7 @@ properties = [
   { name = "Encoding", type = "string", access = "read", design = false, doc = "How the file was stored: \"UTF-8\", \"UTF-8 BOM\" or \"Latin-1\" (SaveToFile writes it back the same)." },
   { name = "DiagnosticCount", type = "int", access = "read", design = false, doc = "How many problems it shows." },
   { name = "FoldCount", type = "int", access = "read", design = false, doc = "How many places are folded." },
-  { name = "Outline", type = "string", access = "read", design = false, doc = "The SUBs' and FUNCTIONs' names, one per line." },
+  { name = "Outline", type = "string", access = "read", design = false, doc = "The file's outline, one entry a line: kind, name, line (from 1) and depth, tab-separated — the language service's (SUBs, FUNCTIONs, TYPEs and their members, the CREATE tree), else the SUBs and FUNCTIONs." },
   { name = "Hint", type = "string" },
   { name = "ShowHint", type = "int" },
   { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"] },

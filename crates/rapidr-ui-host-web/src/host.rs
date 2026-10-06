@@ -1278,6 +1278,12 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
         let id = id.to_string();
         listen(&m, "input", &mut out, move |e| {
             let Some(field) = e.target() else { return };
+            // (a code editor's field holds a window of its lines: never
+            // typed over whole)
+            let name = field.dyn_ref::<web_sys::Element>().and_then(|el| el.get_attribute("data-rr-name"));
+            if name.is_some_and(|n| rapidr_value::objects::is_code(&n)) {
+                return;
+            }
             let value = if let Some(i) = field.dyn_ref::<web_sys::HtmlInputElement>() {
                 i.value()
             } else if let Some(t) = field.dyn_ref::<web_sys::HtmlTextAreaElement>() {
