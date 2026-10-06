@@ -187,7 +187,49 @@ pub struct AccessNode {
     pub actions: Vec<Action>,
     /// Logical pixels (the form's client area once the kernel places it).
     pub bounds: Rect,
+    /// A text field's text as screen readers read it by character, word
+    /// and line (AccessKit's text runs; the code editor's), and its
+    /// selection. Not in the JSON dump.
+    pub text: Option<Box<TextInfo>>,
     pub children: Vec<AccessNode>,
+}
+
+/// A text field's text for reading by character, word and line: its runs
+/// in order (their texts joined are the field's value) and the selection.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TextInfo {
+    pub runs: Vec<TextRun>,
+    /// (anchor, focus): where the selection started and the caret.
+    pub selection: Option<(TextPos, TextPos)>,
+}
+
+/// A piece of a line of text (AccessKit's text run): a line, or a long
+/// line's piece (`continues`: the next run is on the same line). A line's
+/// last run ends with its line break, one character.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TextRun {
+    pub id: u64,
+    pub text: String,
+    /// Logical pixels, like the nodes' bounds.
+    pub bounds: Rect,
+    /// Each character's UTF-8 bytes (a CR LF break: one character of 2).
+    pub char_lengths: Vec<u8>,
+    /// Each character's left and advance (logical pixels from the run's
+    /// left); empty when the run isn't laid out (not in view).
+    pub char_positions: Vec<f32>,
+    pub char_widths: Vec<f32>,
+    /// The characters starting words (indices into `char_lengths`, so a
+    /// run holds at most 255 characters).
+    pub word_starts: Vec<u8>,
+    pub continues: bool,
+}
+
+/// A place in a [`TextInfo`]: run `run`'s character `char_index` (its
+/// character count: the run's end).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct TextPos {
+    pub run: usize,
+    pub char_index: usize,
 }
 
 impl AccessNode {
@@ -206,6 +248,7 @@ impl AccessNode {
             states: States::default(),
             actions: Vec::new(),
             bounds: (0, 0, 0, 0),
+            text: None,
             children: Vec::new(),
         }
     }
@@ -215,6 +258,10 @@ impl AccessNode {
     pub fn offset(&mut self, dx: i64, dy: i64) {
         self.bounds.0 += dx;
         self.bounds.1 += dy;
+        for r in self.text.iter_mut().flat_map(|t| t.runs.iter_mut()) {
+            r.bounds.0 += dx;
+            r.bounds.1 += dy;
+        }
         for c in &mut self.children {
             c.offset(dx, dy);
         }

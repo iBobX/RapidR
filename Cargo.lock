@@ -3938,6 +3938,7 @@ name = "rapidr-ui-host-winit"
 version = "2.117.0"
 dependencies = [
  "accesskit",
+ "accesskit_consumer",
  "accesskit_winit",
  "core-foundation-sys",
  "muda",

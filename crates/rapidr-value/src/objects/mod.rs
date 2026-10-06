@@ -550,7 +550,7 @@ pub fn with_code_mut<R>(id: &str, f: impl FnOnce(&mut codeedit::CodeEditor) -> R
 pub fn text_window(id: &str) -> Option<TextWindow> {
     with(id, |o| match o {
         Object::Text(t) => Some(TextWindow { text: t.raw(), sel_start: t.sel_start, sel_len: t.sel_len, first: 0, read_only: t.read_only, code: false }),
-        Object::Code(c) => Some(c.text_window(100)),
+        Object::Code(c) => Some(c.text_window(codeedit::CodeEditor::WINDOW_RADIUS)),
         _ => None,
     })?
 }
