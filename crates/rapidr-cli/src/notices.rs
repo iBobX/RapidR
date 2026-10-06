@@ -308,6 +308,8 @@ const BANNED: &[(&str, &str)] = &[
 
 const RAPIDR_LICENSE: &str = include_str!("../../../LICENSE");
 const OFL: &str = include_str!("../../rapidr-value/fonts/OFL-1.1.txt");
+/// JetBrains Mono's licence (its copyright line first).
+const CODE_FONT_OFL: &str = include_str!("../../rapidr-value/fonts/JetBrainsMono-OFL.txt");
 /// The Noto fallback fonts' licence (their copyright lines first).
 const NOTO_OFL: &str = include_str!("../../../fonts/fallback/OFL.txt");
 /// mingw-w64's notices, from the LLVM-MinGW release the Windows SDK ships.
@@ -725,6 +727,15 @@ fn extras(kind: &Kind, crates: &BTreeSet<&str>, packages: &HashMap<(String, Stri
             url: "https://github.com/liberationfonts/liberation-fonts".into(),
             note: "Built into the program unmodified. Reserved Font Names: Liberation (and Arimo, Tinos, Cousine). The OFL lets the fonts be bundled with any software, commercial included; the fonts themselves may not be sold on their own.".into(),
             blocks: vec![Block { title: "Liberation fonts — OFL-1.1".into(), text: OFL.into() }],
+        });
+        out.push(Component {
+            name: "JetBrains Mono (upright and italic)".into(),
+            version: "2.211".into(),
+            declared: "OFL-1.1".into(),
+            used: "OFL-1.1".into(),
+            url: "https://github.com/JetBrains/JetBrainsMono".into(),
+            note: "Built into the program: the variable fonts' Latin subset as Google Fonts distributes it, converted from WOFF2 to TrueType (glyphs unchanged). It declares no Reserved Font Name. The OFL lets the fonts be bundled with any software, commercial included; the fonts themselves may not be sold on their own.".into(),
+            blocks: vec![Block { title: "JetBrains Mono — OFL-1.1".into(), text: CODE_FONT_OFL.into() }],
         });
     }
     // (the web runtime's fallback fonts: shipped beside it, fonts/)

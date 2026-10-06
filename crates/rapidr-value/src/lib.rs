@@ -33,6 +33,8 @@ pub mod layout;
 pub mod members;
 pub mod scrollbars;
 pub mod theme;
+// (I2) The code editor's colour schemes, one per theme.
+pub mod code_scheme;
 pub mod registry;
 pub mod resources;
 pub mod environ;

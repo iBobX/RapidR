@@ -50,21 +50,31 @@ impl Target for HiRes {
 const SANS: &[u8] = include_bytes!("../../fonts/LiberationSans-Regular.ttf");
 const SERIF: &[u8] = include_bytes!("../../fonts/LiberationSerif-Regular.ttf");
 const MONO: &[u8] = include_bytes!("../../fonts/LiberationMono-Regular.ttf");
+/// RapidR Studio's code font (docs/ide-plan.md, D8): JetBrains Mono's Latin
+/// subset, upright and italic, each with its weight axis (100–800).
+const CODE: &[u8] = include_bytes!("../../fonts/JetBrainsMono-Regular.ttf");
+const CODE_ITALIC: &[u8] = include_bytes!("../../fonts/JetBrainsMono-Italic.ttf");
+
+/// The code editor's face (RCODEEDITOR, RDIFFVIEW): what [`family_name`]
+/// gives for a name containing "JetBrains", and the shaper's family name.
+pub const CODE_FACE: &str = "JetBrains Mono";
 
 /// Longest text drawn in one call (so a huge string can't stall drawing).
 const MAX_CHARS: usize = 10_000;
 
-/// The built-in faces' files (Liberation Sans, Serif, Mono): what the UI
-/// kernel registers with its text shaper, so its captions are drawn from
-/// the very fonts `TextWidth` measures.
-pub const BUILTIN_FONTS: [&[u8]; 3] = [SANS, SERIF, MONO];
+/// The built-in faces' files (Liberation Sans, Serif, Mono; JetBrains Mono
+/// upright and italic): what the UI kernel registers with its text shaper,
+/// so its captions are drawn from the very fonts `TextWidth` measures.
+pub const BUILTIN_FONTS: [&[u8]; 5] = [SANS, SERIF, MONO, CODE, CODE_ITALIC];
 
 /// The built-in face standing for a QFONT's name, by its family name:
-/// Courier / mono: "Liberation Mono"; Times / serif / Roman: "Liberation
-/// Serif"; anything else: "Liberation Sans".
+/// JetBrains: RapidR's code font; Courier / mono: "Liberation Mono"; Times
+/// / serif / Roman: "Liberation Serif"; anything else: "Liberation Sans".
 pub fn family_name(name: &str) -> &'static str {
     let n = name.to_ascii_lowercase();
-    if n.contains("courier") || n.contains("mono") || n.contains("fixed") || n.contains("terminal") || n.contains("console") {
+    if n.contains("jetbrains") {
+        CODE_FACE
+    } else if n.contains("courier") || n.contains("mono") || n.contains("fixed") || n.contains("terminal") || n.contains("console") {
         "Liberation Mono"
     } else if n.contains("sans") {
         // ("MS Sans Serif", "Microsoft Sans Serif": sans, though they say serif)
@@ -79,6 +89,7 @@ pub fn family_name(name: &str) -> &'static str {
 fn face_data(name: &str) -> &'static [u8] {
     match family_name(name) {
         "Liberation Mono" => MONO,
+        CODE_FACE => CODE,
         "Liberation Serif" => SERIF,
         _ => SANS,
     }
@@ -315,6 +326,7 @@ mod tests {
         assert_eq!(super::family_name("Microsoft Sans Serif"), "Liberation Sans");
         assert_eq!(super::family_name("Times New Roman"), "Liberation Serif");
         assert_eq!(super::family_name("Courier New"), "Liberation Mono");
+        assert_eq!(super::family_name("JetBrains Mono"), super::CODE_FACE);
     }
 
     use super::*;

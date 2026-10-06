@@ -186,7 +186,7 @@ pub fn styles(font: &Font, color: u32) -> Vec<StyleProperty<'static, Ink>> {
 /// doesn't have).
 fn generic(face: &str) -> GenericFamily {
     match face {
-        "Liberation Mono" => GenericFamily::Monospace,
+        "Liberation Mono" | rapidr_value::objects::text::CODE_FACE => GenericFamily::Monospace,
         "Liberation Serif" => GenericFamily::Serif,
         _ => GenericFamily::SansSerif,
     }

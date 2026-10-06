@@ -104,6 +104,15 @@ def main():
             "description": "built into the runtimes (crates/rapidr-value/fonts)",
             "externalReferences": [{"type": "vcs", "url": "https://github.com/liberationfonts/liberation-fonts"}],
         },
+        {
+            "type": "data",
+            "bom-ref": "jetbrains-mono@2.211",
+            "name": "JetBrains Mono",
+            "version": "2.211",
+            "licenses": [{"license": {"id": "OFL-1.1"}}],
+            "description": "the code editor's font, built into the runtimes (crates/rapidr-value/fonts)",
+            "externalReferences": [{"type": "vcs", "url": "https://github.com/JetBrains/JetBrainsMono"}],
+        },
     ]
     # (bundled into the VS Code extension's dist/extension.js; listed in its THIRD_PARTY_NOTICES.md)
     for name, ver, lic in vscode_extension_packages():

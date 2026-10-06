@@ -116,6 +116,24 @@ character widths as Arial, Times New Roman and Courier New.
 > [`crates/rapidr-value/fonts/OFL-1.1.txt`](crates/rapidr-value/fonts/OFL-1.1.txt)
 > and at <https://openfontlicense.org>.
 
+### JetBrains Mono 2.211 — SIL Open Font License 1.1
+
+`crates/rapidr-value/fonts/JetBrainsMono-Regular.ttf` and
+`JetBrainsMono-Italic.ttf` are JetBrains Mono by The JetBrains Mono Project
+Authors (<https://github.com/JetBrains/JetBrainsMono>): the variable fonts'
+Latin subset as Google Fonts distributes it (packaged by Fontsource),
+converted from WOFF2 to TrueType, glyphs unchanged. They are built into the
+runtimes with the Liberation fonts; RapidR's code editor (RCODEEDITOR,
+RDIFFVIEW) draws code with them.
+
+> Copyright 2020 The JetBrains Mono Project Authors
+> (https://github.com/JetBrains/JetBrainsMono)
+>
+> This Font Software is licensed under the SIL Open Font License, Version
+> 1.1. The full license text is in
+> [`crates/rapidr-value/fonts/JetBrainsMono-OFL.txt`](crates/rapidr-value/fonts/JetBrainsMono-OFL.txt)
+> and at <https://openfontlicense.org>. It declares no Reserved Font Name.
+
 ### Cantarell Regular — SIL Open Font License 1.1 (Linux)
 
 Built into the `sctk-adwaita` crate, through which winit draws a window's
