@@ -1607,6 +1607,53 @@ fn fixed_member_checks(program: &Program, outside_types: &[Statement], component
     out
 }
 
+const CATCH_ALL_NAMES: &[&str] = &[
+    "showmodal", "show", "close", "hide", "repaint", "refresh", "update", "paint", "center", "setparent", "clear", "additems", "additem",
+    "deleteitems", "deleteitem", "removeitem", "setfocus", "focus", "click", "addbordericons", "delbordericons", "selectall", "copy", "paste", "cut", "execute",
+    "line", "rect", "fillrect", "circle", "ellipse", "setpixel", "getpixel", "drawtext", "loadimage", "saveimage",
+];
+
+/// RapidQ's `Member X not part of class Y` for a component's member the
+/// language registry (crates/rapidr-lang) doesn't have — RapidQ's members
+/// (those RapidR doesn't answer yet too: RC.EXE compiles them) and RapidR's
+/// own: `Btn.Click` on a QBUTTON is RC.EXE's error, and RapidR's. Checked on
+/// a component the program names (CREATE, DIM AS Q…) and its first member
+/// (`Form.Font.Name`: Font); a TYPE EXTENDS one is the TYPE's business, and
+/// so are an include library's components (`from`: their members are the
+/// include's TYPE's) and the OLE objects (their members are the server's).
+fn registry_member_checks(program: &Program, outside_types: &[Statement], component_types: &std::collections::HashMap<String, String>) -> Vec<(TextSpan, String)> {
+    let mut out = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    let user_types: std::collections::HashSet<String> =
+        program.statements.iter().filter_map(|s| if let Statement::Type(t) = s { Some(canonical_type_name(&t.name).to_ascii_uppercase()) } else { None }).collect();
+    walk(outside_types, &mut |_| {}, &mut |e| {
+        let Expression::MemberAccess(m) = e else { return };
+        let Expression::Identifier(root) = m.object.as_ref() else { return };
+        let Some(t) = component_types.get(&root.name.to_ascii_lowercase()) else { return };
+        if fixed_members(t).is_some() || user_types.contains(&canonical_type_name(t).to_ascii_uppercase()) {
+            return;
+        }
+        let Some(c) = rapidr_lang::component(&canonical_type_name(t)) else { return };
+        // (a Q name RapidQ doesn't have — QToolBar — is an include's TYPE)
+        let foreign_q = t.to_ascii_uppercase().starts_with('Q')
+            && !c.rapidq.is_some_and(|q| q.eq_ignore_ascii_case(t))
+            && !c.aliases.iter().any(|a| a.eq_ignore_ascii_case(t));
+        if c.from.is_some() || foreign_q || matches!(c.name, "QOLEOBJECT" | "QOLECONTAINER") {
+            return;
+        }
+        // (`Form.WndProc = F` binds its OnWndProc)
+        let event = m.member.get(2..).filter(|_| m.member.to_ascii_lowercase().starts_with("on"));
+        if !CATCH_ALL_NAMES.iter().any(|n| n.eq_ignore_ascii_case(&m.member)) {
+            return;
+        }
+        if c.has_member(&m.member) || event.is_some_and(|e| c.event(e).is_some()) || !seen.insert((m.span.start, m.span.end)) {
+            return;
+        }
+        out.push((m.span, format!("Member {} not part of class {}", m.member.to_ascii_uppercase(), root.name.to_ascii_uppercase())));
+    });
+    out
+}
+
 /// The properties RapidQ's manual lists as read-only (R) for its own
 /// components (Appendix A); assigning one is RapidQ's `Property X of Y is
 /// read-only.`
@@ -1891,6 +1938,7 @@ pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
         &mut |_| {},
     );
     out.extend(fixed_member_checks(program, &outside_types, &component_types));
+    out.extend(registry_member_checks(program, &outside_types, &component_types));
     let mut global_dims = HashSet::new();
     let main: Vec<Statement> = outside_types.iter().filter(|s| !matches!(s, Statement::Subroutine(_) | Statement::Function(_))).cloned().collect();
     dims(&main, &mut global_dims, &mut out);
