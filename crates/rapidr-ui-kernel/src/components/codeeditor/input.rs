@@ -258,7 +258,7 @@ pub fn accept_completion(x: &mut Ctx) -> bool {
         let _ = x.c.doc.apply(set, Selections::single(Selection::new(first.0, first.1)), EditKind::Command, now_ms());
         let stops: Vec<(usize, usize)> = exp.stops.iter().map(|r| (start + r.start, start + r.end)).collect();
         x.c.anchors = stops.iter().flat_map(|&(a, b)| [(a, true), (b, false)]).collect();
-        x.ui.snippet = (stops.len() > 1).then(|| super::SnippetSession { stops, current: 0 });
+        x.ui.snippet = (stops.len() > 1).then_some(super::SnippetSession { stops, current: 0 });
         edited(x, None);
     } else {
         let len = x.c.doc.len_bytes();
@@ -514,7 +514,7 @@ fn key_in(x: &mut Ctx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
             return true;
         }
         (70, true, false) => {
-            find::open(x, if shift { find::Mode::Find } else { find::Mode::Find });
+            find::open(x, find::Mode::Find);
             return true;
         }
         (72, true, false) | (70, true, true) => {

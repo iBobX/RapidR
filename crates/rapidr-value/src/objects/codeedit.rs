@@ -1213,7 +1213,7 @@ impl CodeEditor {
                 let text = arg(0);
                 let at = self.hover_request.unwrap_or(self.doc.selections().primary().head);
                 let r = self.doc.word_at(at).unwrap_or(at..at);
-                self.hover = (!text.trim().is_empty()).then(|| HoverInfo { text, start: r.start, end: r.end });
+                self.hover = (!text.trim().is_empty()).then_some(HoverInfo { text, start: r.start, end: r.end });
             }
             "showsignature" => self.show_signature(&arg(0), num(1, 0)),
             "hidepopups" => self.hide_popups(),

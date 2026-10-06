@@ -202,6 +202,7 @@ fn blocks(text: &str) -> Vec<(bool, String)> {
 }
 
 /// A line of code drawn in the language's colours from (x, y).
+#[allow(clippy::too_many_arguments)]
 fn code_line(p: &mut Painter, sc: &Scheme, hl: &mut Highlighter, state: &mut rapidr_editor::StateId, line: &str, font: &Font, x: i64, y: i64, h: i64) {
     let (tokens, next) = hl.line_spans(line, *state);
     *state = next;

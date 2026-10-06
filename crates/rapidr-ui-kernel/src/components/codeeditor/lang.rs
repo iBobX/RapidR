@@ -246,7 +246,7 @@ pub fn hover(x: &mut Ctx, at: usize) {
         x.fire("onhoverrequest", vec![v_int(line as i64), v_int(col as i64)]);
         return;
     }
-    x.c.hover = (!text.trim().is_empty()).then(|| HoverInfo { text, start: range.start, end: range.end });
+    x.c.hover = (!text.trim().is_empty()).then_some(HoverInfo { text, start: range.start, end: range.end });
 }
 
 /// Diagnostics and semantic colours from the service, now.

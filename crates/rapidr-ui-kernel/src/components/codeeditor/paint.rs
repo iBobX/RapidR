@@ -455,7 +455,7 @@ fn paint_text(x: &mut Ctx, p: &mut Painter, caret_on: bool) {
     // folded lines' "…" boxes
     let folded: Vec<usize> = x.c.folded.iter().copied().collect();
     for sh in shown.iter().filter(|sh| folded.contains(&sh.row.line)) {
-        let last = shown.iter().filter(|o| o.row.line == sh.row.line).last().map_or(sh.index, |o| o.index);
+        let last = shown.iter().rfind(|o| o.row.line == sh.row.line).map_or(sh.index, |o| o.index);
         if sh.index != last {
             continue;
         }

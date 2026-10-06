@@ -53,7 +53,7 @@ pub struct Row {
 /// ending the row before), else anywhere.
 pub fn wrap_line(text: &str, cols: usize, tab: usize) -> Vec<Range<usize>> {
     if cols == 0 || text.is_empty() {
-        return vec![0..text.len()];
+        return std::iter::once(0..text.len()).collect();
     }
     let mut out = Vec::new();
     let mut start = 0;
@@ -109,12 +109,16 @@ pub fn display_cols(s: &str, tab: usize) -> usize {
     col
 }
 
+/// What a row table was built for: the document's generation and version,
+/// the wrap columns, the tab width, the hidden lines.
+type RowsKey = (u64, u64, usize, usize, Vec<Range<usize>>);
+
 /// The rows the lines make: none stored without wrap or folds.
 #[derive(Debug, Default)]
 pub struct RowMap {
     /// The document's generation and version it was built for, the wrap
     /// columns (0: no wrap), the tab width, the hidden lines.
-    key: Option<(u64, u64, usize, usize, Vec<Range<usize>>)>,
+    key: Option<RowsKey>,
     /// Each line's row count (0 when hidden), with word wrap or folds.
     counts: Vec<u32>,
     /// Rows before each line (`counts`' running sum; one more entry).
@@ -188,9 +192,7 @@ impl RowMap {
 
     fn apply_hidden(&mut self) {
         if self.cols == 0 {
-            for n in &mut self.counts {
-                *n = 1;
-            }
+            self.counts.fill(1);
         }
         for r in &self.hidden {
             for l in r.clone() {
@@ -268,7 +270,7 @@ impl RowMap {
         while out.len() < n && row < total {
             let (line, k) = self.line_of_row(row);
             let text = c.doc.line(line);
-            let pieces = if self.cols > 0 { wrap_line(&text, self.cols, self.tab) } else { vec![0..text.len()] };
+            let pieces = if self.cols > 0 { wrap_line(&text, self.cols, self.tab) } else { std::iter::once(0..text.len()).collect() };
             for (i, r) in pieces.into_iter().enumerate().skip(k) {
                 if out.len() >= n {
                     break;
