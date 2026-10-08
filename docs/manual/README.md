@@ -21,6 +21,7 @@ where something isn't done yet, it says so.
 | [Data science](data-science.md) | RNum, RDataFrame, RPlot, RJson |
 | [DirectX and media](directx-and-media.md) | RDXScreen and the Direct3D objects, sound, joysticks, RMIDI / RWave / RVideo / RCDAudio, the system tray, serial ports, CGI, downloads |
 | [Serial ports and IoT boards](serial-ports.md) | RComPort (RapidQ name QCOMPORT): opening ports, listing them with their USB IDs, lines in, plug events, resetting an ESP32 through DTR / RTS, Web Serial |
+| [Importing RapidQ programs](importing-rapidq.md) | A copy of a RapidQ program (`.bas`, `.rqw`, `.rqb`, `.rq`) with RapidR's names, proved to behave the same: in RapidR Studio and with `rapidr import-rapidq` |
 | [Differences from RapidQ, and extensions](differences.md) | What RapidR does that RapidQ doesn't, what it does differently on purpose, and what it doesn't do |
 | [Troubleshooting](troubleshooting.md) | Common messages and what to do about them |
 

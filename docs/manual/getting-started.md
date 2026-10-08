@@ -130,9 +130,26 @@ END SUB
 Form.ShowModal
 ```
 
-`rapidr run form.bas` opens the window; closing it ends the program. `RForm`
-is the form; RapidQ programs write `QFORM`, the same component (see
-[Components](components.md)). A program that uses RapidQ's constants (`clRed`,
+`rapidr run form.bas` opens the window; closing it ends the program.
+
+### RapidR's names and RapidQ's names
+
+RapidR writes its components `RForm`, `RButton`, `RLabel`, `REdit`,
+`RStringGrid` …, and RapidR Studio, the examples and this manual use these
+names. RapidQ programs write `QFORM`, `QBUTTON`, `QLABEL` …: **RapidR
+accepts those too, silently, with no setting** — `QFORM` and `RForm` are the
+same component, and you can mix them:
+
+```basic
+DIM Old AS QBUTTON      ' RapidQ's name
+DIM New AS RButton      ' RapidR's name: the same component
+```
+
+The rule is simply Q → R (`QBUTTON` is `RButton`); a few differ: `QGAUGE` is
+`RProgressBar`, `QOUTLINE` is `RTreeView`, `COMPORT` is `RComPort`. The full
+list: [reference/components.md](reference/components.md). To turn a RapidQ
+program into one with RapidR's names, see
+[Importing RapidQ programs](importing-rapidq.md). A program that uses RapidQ's constants (`clRed`,
 `MB_OK` …) keeps the line `$INCLUDE "RAPIDQ.INC"`: RapidR supplies them
 through that line without needing the file.
 

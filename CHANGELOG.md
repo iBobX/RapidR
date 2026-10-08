@@ -29,6 +29,10 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   stays RapidQ-style); names already written are never changed.
 - `.rqw`, `.rqb` and `.rq` files open in Studio (File ▸ Open, Open Folder, the language
   service), and the language service reads a project's include files on the web too.
+- The manual: a new page, [Importing RapidQ programs](docs/manual/importing-rapidq.md) (what
+  changes, the copy, Studio's steps with screenshots, the CLI), and "RapidR's names and RapidQ's
+  names" in Getting started and Differences. Its screenshots are made again by
+  `node tools/manual/shots.mjs` (scenes in `tools/manual/scenes/`).
 
 ### RapidR's names everywhere, and a RapidQ importer (R-NAMES, phase 1)
 - **RapidR's names are the default**: `RButton`, `RLabel`, `RForm`, `RStringGrid` … (mixed case) in

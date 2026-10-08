@@ -26,8 +26,13 @@ and RAPIDQ2.INC's `COMPORT` is `RComPort`.
   (`RWebView`, `RDOM`, …) and others.
 - A program written with RapidQ's names, using only RapidQ's components and
   members, stays a plain RapidQ program, which RapidQ's own compiler still
-  builds. To bring one over to RapidR's names, use `rapidr import-rapidq`:
-  it writes a converted copy and a report, and leaves the original alone.
+  builds. To bring one over to RapidR's names, import it (RapidR Studio's
+  File ▸ Import RapidQ Project or File…, or `rapidr import-rapidq`): a
+  converted copy and a report, the original left alone —
+  [Importing RapidQ programs](importing-rapidq.md).
+- RapidR Studio shows RapidR's names (the toolbox, the inspector, Help,
+  completion); what it adds to a file written with RapidQ's names is written
+  with RapidQ's names, so a file never mixes them.
 - Because a leading Q is read as R whenever the R component exists,
   `QPLOT` is accepted and means `RPlot`, though RapidQ has no QPLOT. Prefer
   the R name for RapidR's own components.
