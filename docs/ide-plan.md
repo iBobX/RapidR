@@ -593,6 +593,8 @@ Order rationale: the registry, the parser-for-tools and the session protocol are
 
 **Bar: I0, I1, I2, I3, I4, basic I6, and I7's core** — plus the HTML IDE deleted, the accessibility and performance targets met, and RapidQ compatibility complete on the three runtimes (ROADMAP's release item).
 
+**The experience bar: [docs/studio-wow.md](studio-wow.md)** (2026-10-08). It is the WOW checklist: the first five minutes step by step, every area benchmarked against Xcode, Delphi, Xojo, VB6, RapidQ's IDE and VS Code, P0 / P1 / P2 items with acceptance tests (`tests/studio_wow.mjs`, `tools/regress.sh perf`), the polish list, and a gap table of every P0 item against the code. The release ships when its P0 items are green.
+
 - I3 is in fully (rename and references are cheap once the semantic model exists, and they are what "pro" means in an IDE); the formatter may slip to 1.1.
 - I6 basic (§I6): breakpoints with conditions, stepping, pause, call stack, locals / globals / watches evaluated by the VM, data tips, break on error, the immediate window (it shares the watches' evaluator). DAP and logpoints / hit counts may slip to 1.1.
 - **I7's core is argued in, not out**: linked, live data at design time is the feature the user named as the Delphi / Lazarus experience, the data-science stack is first-class, and RPlot / RDataFrame must become one implementation anyway (rule 2) before a release can claim identical runtimes. It reuses I4's tray and pickers, so its marginal cost is moderate (~10–14 sessions).
