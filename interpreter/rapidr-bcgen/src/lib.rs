@@ -384,10 +384,10 @@ struct Bcgen {
     /// Collected rather than returned immediately so one compile reports
     /// every problem.
     errors: Vec<Diagnostic>,
-    /// DECLARE ... LIB (external DLL) function names, by [`name_key`].
-    lib_functions: HashSet<String>,
-    /// Library of each `DECLARE … LIB` routine (`name_key` → lowercase DLL name).
-    lib_of: HashMap<String, String>,
+    /// `DECLARE … LIB` routines by [`name_key`]: the library, the exported
+    /// name and the calling spec (`rapidr_value::dll::spec_of`) a call
+    /// hands to `__dll_call`.
+    lib_decls: HashMap<String, (String, String, String)>,
     /// BYREF flag of each parameter, per SUB/FUNCTION.
     fn_byref: NameMap<Vec<bool>>,
     /// The SUB/FUNCTION being lowered, if any.
@@ -480,8 +480,7 @@ impl Bcgen {
             deferred_errors: HashMap::new(),
             warnings: Vec::new(),
             errors: Vec::new(),
-            lib_functions: HashSet::new(),
-            lib_of: HashMap::new(),
+            lib_decls: HashMap::new(),
             fn_byref: NameMap::default(),
             fn_ctx: None,
             fn_name: String::new(),
@@ -551,9 +550,10 @@ impl Bcgen {
                     funcs.push(f);
                 }
                 Statement::Declare(d) if d.lib.is_some() => {
-                    self.lib_functions.insert(name_key(&d.name));
-                    let lib = d.lib.clone().unwrap_or_default().trim_matches('"').to_ascii_lowercase();
-                    self.lib_of.insert(name_key(&d.name), lib);
+                    let lib = d.lib.clone().unwrap_or_default().trim_matches('"').to_string();
+                    let alias = d.alias.clone().unwrap_or_else(|| d.name.clone()).trim_matches('"').to_string();
+                    let spec = rapidr_value::dll::spec_of(&d.params.iter().map(|p| (p.type_name.clone(), p.by_ref)).collect::<Vec<_>>(), d.return_type.as_deref());
+                    self.lib_decls.insert(name_key(&d.name), (lib, alias, spec));
                 }
                 _ => {}
             }
@@ -643,7 +643,6 @@ impl Bcgen {
             .span_location(span)
             .is_some_and(|(line, _)| self.library_lines.get(line - 1).copied().unwrap_or(false));
         if message.contains(NATIVE_ONLY_MARKER)
-            || message.contains(WINDOWS_ONLY_MARKER)
             || (in_library && (message.contains(UNSUPPORTED_MARKER) || message.starts_with("Unknown SUB or FUNCTION")))
         {
             if let Some(routine) = self.current_routine.clone() {
@@ -662,21 +661,7 @@ impl Bcgen {
             return;
         }
         let key = name_key(name);
-        let windows_lib = self.lib_of.get(&key).filter(|lib| is_windows_system_library(lib)).cloned();
-        let message = if let Some(lib) = windows_lib {
-            let api = key.trim_end_matches(['a', 'w']).to_string();
-            let hint = windows_api_hint(&key).or_else(|| windows_api_hint(&api));
-            format!(
-                "'{name}' is a Windows API function (LIB \"{lib}\"){WINDOWS_ONLY_MARKER}{}",
-                hint.map(|h| format!(". Instead, {h}")).unwrap_or_else(|| ", and this call has no portable equivalent yet".to_string())
-            )
-        } else if self.lib_functions.contains(&key) {
-            format!(
-                "'{name}' is an external DLL function (DECLARE ... LIB); the bytecode interpreter can't call DLLs yet, build natively with `rapidr build`"
-            )
-        } else if matches!(key.as_str(), "peek" | "poke") {
-            format!("{} (raw memory access){UNSUPPORTED_MARKER}", name.to_uppercase())
-        } else if key == "inc" || key == "dec" {
+        let message = if key == "inc" || key == "dec" {
             format!("{} needs a variable: `{} x` or `{} x, amount`", name.to_uppercase(), name.to_uppercase(), name.to_uppercase())
         } else if RAPIDQ_BUILTINS.contains(&key.as_str()) {
             format!("{} (a RapidQ built-in){UNSUPPORTED_MARKER}", name.to_uppercase())
@@ -1830,6 +1815,9 @@ impl Bcgen {
         if self.try_lower_pointer_call(&c.callee, &c.args, false, code)? {
             return Ok(());
         }
+        if self.try_lower_dll_call(&c.callee, &c.args, false, code)? {
+            return Ok(());
+        }
         // Push args.
         let user_routine = matches!(&c.callee, Expression::Identifier(id) if self.fn_indices.contains_key(&id.name));
         for a in &c.args {
@@ -2185,6 +2173,33 @@ impl Bcgen {
     /// After a call to `callee`, copy each BYREF parameter's final value back
     /// into the caller's variable (copy-in/copy-out, as VB does for plain
     /// variables). Only variables and array elements can be written back.
+    /// A call to a `DECLARE … LIB` routine: `__dll_call(lib, alias, spec,
+    /// args…)` — the host makes the call on Windows and reports the error
+    /// elsewhere (docs/windows-dll-calls.md). STRING and BYREF arguments
+    /// that are variables were turned into addresses by `rapidr_ast::memory`.
+    fn try_lower_dll_call(&mut self, callee: &Expression, args: &[Expression], as_expr: bool, code: &mut Vec<u8>) -> Result<bool, String> {
+        let Expression::Identifier(id) = callee else { return Ok(false) };
+        if self.fn_indices.contains_key(&id.name) {
+            return Ok(false);
+        }
+        let Some((lib, alias, spec)) = self.lib_decls.get(&name_key(&id.name)).cloned() else { return Ok(false) };
+        for s in [lib, alias, spec] {
+            let i = self.module.add_const(Const::Str(s));
+            emit(code, Op::LoadConst);
+            push_u32(code, i);
+        }
+        for a in args {
+            self.lower_arg(a, false, code)?;
+        }
+        let s = self.module.add_string("__dll_call");
+        emit(code, Op::CallBuiltin);
+        push_u32(code, s); code.push((args.len() + 3) as u8);
+        if !as_expr {
+            emit(code, Op::Pop);
+        }
+        Ok(true)
+    }
+
     fn emit_byref_writeback(&mut self, callee: &str, args: &[Expression], code: &mut Vec<u8>) -> Result<(), String> {
         let flags = self.fn_byref.get(callee).cloned().unwrap_or_default();
         for (i, arg) in args.iter().enumerate() {
@@ -2438,6 +2453,10 @@ impl Bcgen {
                         emit(code, Op::CallFunc);
                         push_u32(code, fi); code.push(0);
                     }
+                    NameUse::Global if !self.is_known_global(&id.name) && self.lib_decls.contains_key(&name_key(&id.name)) => {
+                        // A DLL's function without parentheses (`t = GetTickCount`).
+                        self.try_lower_dll_call(e, &[], true, code)?;
+                    }
                     NameUse::Global => {
                         let s = self.global_str(&id.name);
                         emit(code, Op::LoadGlobal); push_u32(code, s);
@@ -2508,6 +2527,9 @@ impl Bcgen {
                     return Ok(());
                 }
                 if self.try_lower_pointer_call(&fc.callee, &fc.args, true, code)? {
+                    return Ok(());
+                }
+                if self.try_lower_dll_call(&fc.callee, &fc.args, true, code)? {
                     return Ok(());
                 }
                 // Check if this is a variant array/list subscript indexing:
@@ -2793,94 +2815,11 @@ const RAPIDQ_BUILTINS: &[&str] = &[
 /// Rust backend): errors about the program itself do; ones about what only
 /// the interpreter lacks (DLL calls, raw memory, Windows APIs) don't.
 pub fn error_applies_to_native_builds(message: &str) -> bool {
-    !message.contains(NATIVE_ONLY_MARKER) && !message.contains(WINDOWS_ONLY_MARKER)
+    !message.contains(NATIVE_ONLY_MARKER)
 }
 
 /// Present in every error about a feature only native builds support.
 const NATIVE_ONLY_MARKER: &str = "`rapidr build`";
-/// In every error about calling Windows itself (RapidR doesn't emulate it).
-const WINDOWS_ONLY_MARKER: &str = "; RapidR runs on every platform and doesn't emulate Windows";
-
-/// Windows system DLLs (`DECLARE … LIB "user32"` …). Calls into other DLLs
-/// are the program's own libraries, which native builds can load.
-fn is_windows_system_library(lib: &str) -> bool {
-    let base = lib.rsplit(['\\', '/']).next().unwrap_or(lib).trim_end_matches(".dll");
-    matches!(
-        base,
-        "user32" | "kernel32" | "gdi32" | "gdiplus" | "shell32" | "winmm" | "advapi32" | "comctl32"
-            | "comdlg32" | "wsock32" | "ws2_32" | "ole32" | "oleaut32" | "odbc32" | "odbccp32"
-            | "wininet" | "winspool.drv" | "winspool" | "version" | "shlwapi" | "psapi" | "ntdll"
-            | "msvcrt" | "mpr" | "netapi32" | "iphlpapi" | "urlmon" | "imm32" | "msimg32" | "avifil32"
-            | "msvfw32" | "vfw32" | "opengl32" | "glu32" | "ddraw" | "dsound" | "dinput" | "rasapi32"
-            | "setupapi" | "powrprof" | "secur32" | "crypt32" | "dwmapi" | "uxtheme" | "comctl32.dll"
-    )
-}
-
-/// What to use instead of a Windows API call, by API name (`name_key`,
-/// with the A/W suffix removed by the caller when needed).
-fn windows_api_hint(api: &str) -> Option<&'static str> {
-    let a = api;
-    Some(if a.starts_with("sql") {
-        "use the RSQLITE or RMYSQL component for databases"
-    } else if a.starts_with("gdip") {
-        "load, draw and save images with RIMAGE / RCANVAS"
-    } else if a.starts_with("mcisend") || matches!(a, "playsound" | "sndplaysound" | "waveoutopen") {
-        "play sounds with PLAYSOUND (or RWEBAUDIO on the web)"
-    } else if matches!(a, "shellexecute" | "shellexecuteex" | "winexec" | "createprocess") {
-        "run programs and open files with SHELL / SHELLWAIT"
-    } else if a.starts_with("joy") {
-        "read joysticks and gamepads with a QDXJOYSTICK (Update, IsLeft / IsRight / IsUp / IsDown, Button(n); RapidR's X, Y, Buttons, POV, OnButtonDown …)"
-    } else if matches!(a, "sleep") {
-        "use SLEEP"
-    } else if matches!(a, "messagebox" | "messageboxex") {
-        "use SHOWMESSAGE"
-    } else if matches!(a, "messagebeep" | "beep") {
-        "use BEEP"
-    } else if matches!(a, "gettickcount" | "timegettime" | "queryperformancecounter") {
-        "use TIMER"
-    } else if matches!(a, "getsystemmetrics") {
-        "use Screen.Width / Screen.Height"
-    } else if matches!(a, "getenvironmentvariable") {
-        "use ENVIRON$"
-    } else if matches!(a, "getcurrentdirectory" | "setcurrentdirectory") {
-        "use CURDIR$ / CHDIR"
-    } else if matches!(a, "createdirectory" | "removedirectory" | "deletefile" | "movefile") {
-        "use MKDIR / RMDIR / KILL / RENAME"
-    } else if matches!(
-        a,
-        "selectobject" | "createpen" | "createsolidbrush" | "deleteobject" | "getstockobject" | "getobject"
-            | "getcurrentobject" | "ellipse" | "rectangle" | "lineto" | "moveto" | "movetoex" | "bitblt"
-            | "stretchblt" | "getdc" | "releasedc" | "setpixel" | "getpixel" | "textout" | "setgraphicsmode"
-            | "setworldtransform" | "createfont" | "createfontindirect" | "polygon"
-    ) {
-        "draw with an RCANVAS (Line, Circle, Rectangle, TextOut, …)"
-    } else if matches!(
-        a,
-        "setwindowlong" | "getwindowlong" | "callwindowproc" | "setwindowpos" | "showwindow" | "movewindow"
-            | "setfocus" | "getfocus" | "findwindow" | "getwindowrect" | "getclientrect" | "createwindowex"
-            | "windowfrompoint" | "sendmessage" | "sendmessageapi" | "postmessage" | "setwindowtext"
-            | "getwindowtext" | "getactivewindow" | "setforegroundwindow" | "enablewindow" | "destroywindow"
-            | "setparent" | "getsyscolor" | "registerhotkey" | "setcapture" | "releasecapture"
-    ) {
-        "use the component's own properties, methods and events (Left, Top, Visible, Caption, SetFocus, OnKeyDown, …)"
-    } else if matches!(
-        a,
-        "socket" | "recv" | "send" | "connect" | "bind" | "listen" | "accept" | "closesocket" | "htons" | "htonl"
-            | "ntohs" | "inet_addr" | "gethostbyname" | "wsastartup" | "wsacleanup" | "wsaasyncselect" | "ioctlsocket"
-    ) {
-        "use the RSOCKET / RSERVERSOCKET components"
-    } else if a.starts_with("internet") || a.starts_with("qftp_internet") || a.starts_with("http") || a == "urldownloadtofile" {
-        "use the RHTTP component"
-    } else if matches!(a, "multibytetowidechar" | "widechartomultibyte" | "lstrlen" | "lstrcpy") {
-        "RapidR strings are Unicode already; use the string functions (LEN, MID$, …)"
-    } else if matches!(a, "copymemory" | "rtlmovememory" | "movememory" | "zeromemory" | "fillmemory") {
-        "raw memory access has no portable equivalent; copy values or arrays instead"
-    } else if a.starts_with("reg") {
-        "store settings in a file (e.g. with RSQLITE or a text file) instead of the registry"
-    } else {
-        return None;
-    })
-}
 
 /// Ends every error about a feature no backend supports yet.
 const UNSUPPORTED_MARKER: &str = " isn't supported yet";
@@ -3110,24 +3049,21 @@ mod tests {
         h
     }
 
+    /// DLL calls compile whether or not anything reaches them (the call
+    /// itself is answered when it runs: Windows makes it, the others
+    /// report the error — docs/windows-dll-calls.md).
     #[test]
-    fn native_only_code_blocks_only_when_reachable() {
+    fn dll_calls_compile_reached_or_not() {
         let lib = "DECLARE FUNCTION MessageBeep LIB \"user32\" (t AS LONG) AS LONG\n\
                    SUB Unused\n  x = MessageBeep(0)\n  y = VARPTR(x)\nEND SUB\n\
                    SUB Used\n  z = MessageBeep(1)\nEND SUB\n\
                    TYPE TIdle\n  SUB Go\n    q = MessageBeep(2)\n  END SUB\nEND TYPE\n";
-        // Nothing reaches the DLL calls: the program compiles and runs.
         let h = run(&format!("{lib}PRINT \"ok\""));
         assert_eq!(h.output, "ok\n");
-        // Calling `Used` reaches one; only that call is reported.
-        let src = format!("{lib}Used");
-        let Err(err) = compile_program_with_source(&parse(&src), Some(&src)) else { panic!("should not compile") };
-        assert_eq!(err.lines().count(), 1, "{err}");
-        assert!(err.contains("MessageBeep") && err.starts_with("7:"), "{err}");
-        // A method called on an instance brings its code along.
-        let src = format!("{lib}DIM t AS TIdle\nt.Go");
-        let Err(err) = compile_program_with_source(&parse(&src), Some(&src)) else { panic!("should not compile") };
-        assert!(err.starts_with("11:"), "{err}");
+        for tail in ["Used", "DIM t AS TIdle\nt.Go"] {
+            let src = format!("{lib}{tail}");
+            compile_program_with_source(&parse(&src), Some(&src)).expect("compiles");
+        }
     }
 
     #[test]
@@ -3145,15 +3081,34 @@ mod tests {
         assert!(err.contains("Frobble"), "{err}");
     }
 
+    /// A DLL's routines compile everywhere: the call is `__dll_call` with
+    /// the library, the exported name and the DECLARE's spec in front of
+    /// the arguments (Windows makes the call; the others report the error
+    /// when it runs — docs/windows-dll-calls.md).
     #[test]
-    fn windows_api_calls_say_what_to_use_instead() {
+    fn dll_calls_compile_to_dll_call() {
         let src = "DECLARE FUNCTION ShellExecute LIB \"shell32.dll\" ALIAS \"ShellExecuteA\" (h AS LONG, f AS STRING) AS LONG\n\
-                   DECLARE FUNCTION MySum LIB \"mylib\" (a AS LONG) AS LONG\n\
-                   x = ShellExecute(0, \"a.txt\")\ny = MySum(1)\n";
-        let Err(err) = compile_program_with_source(&parse(src), Some(src)) else { panic!("should not compile") };
-        let lines: Vec<&str> = err.lines().collect();
-        assert!(lines[0].contains("Windows API function") && lines[0].contains("SHELL"), "{err}");
-        assert!(lines[1].contains("external DLL function") && lines[1].contains("rapidr build"), "{err}");
+                   DECLARE SUB MySleep LIB \"kernel32\" ALIAS \"Sleep\" (BYVAL ms AS LONG)\n\
+                   x = ShellExecute(0, \"a.txt\")\nMySleep 1\n";
+        let compiled = compile_program_with_source(&parse(src), Some(src)).expect("compiles");
+        let strings: Vec<String> = compiled.module.strings.iter().cloned().collect();
+        assert!(strings.iter().any(|s| s == "__dll_call"), "{strings:?}");
+        let consts: Vec<String> = compiled.module.consts.iter().filter_map(|c| match c { Const::Str(s) => Some(s.clone()), _ => None }).collect();
+        assert!(consts.iter().any(|s| s == "shell32.dll") && consts.iter().any(|s| s == "ShellExecuteA") && consts.iter().any(|s| s == "LONG|LONG:v,STRING:v"), "{consts:?}");
+        assert!(consts.iter().any(|s| s == "|LONG:v"), "{consts:?}");
+    }
+
+    /// `CODEPTR(Proc)` handed to a DLL becomes the callback marker the
+    /// runtime refuses (rapidr_ast::memory and rapidr_value::dll agree on it).
+    #[test]
+    fn codeptr_to_a_dll_is_the_callback_marker() {
+        assert_eq!(rapidr_ast::memory::DLL_CALLBACK_MARKER, rapidr_value::dll::CALLBACK_MARKER);
+        let src = "DECLARE FUNCTION EnumWindows LIB \"user32\" ALIAS \"EnumWindows\" (lpEnumFunc AS LONG, lParam AS LONG) AS LONG\n\
+                   FUNCTION EnumProc(h AS LONG, l AS LONG) AS LONG\n  EnumProc = 1\nEND FUNCTION\n\
+                   x = EnumWindows(CODEPTR(EnumProc), 0)\n";
+        let compiled = compile_program_with_source(&parse(src), Some(src)).expect("compiles");
+        let consts: Vec<String> = compiled.module.consts.iter().filter_map(|c| match c { Const::Str(s) => Some(s.clone()), _ => None }).collect();
+        assert!(consts.iter().any(|s| s.starts_with(rapidr_value::dll::CALLBACK_MARKER) && s.to_ascii_lowercase().ends_with("enumproc")), "{consts:?}");
     }
 
     #[test]

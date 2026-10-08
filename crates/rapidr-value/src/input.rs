@@ -199,6 +199,29 @@ pub enum Cursor {
     Help,
     Hand,
     Progress,
+    /// A cursor the program put in `Screen.Cursors(i)`: the system's handle
+    /// (an HCURSOR on Windows, from `LoadCursorFromFile` or `LoadCursor`).
+    Custom(i64),
+}
+
+/// `Screen.Cursors(i)`: the handles the program stored, by cursor code
+/// (RapidQ's TScreen.Cursors). Shared by every thread: the program's and
+/// the window host's.
+static SCREEN_CURSORS: std::sync::Mutex<Vec<(i64, i64)>> = std::sync::Mutex::new(Vec::new());
+
+/// `Screen.Cursors(code) = handle` (0 puts the standard one back, as
+/// RC.EXE does).
+pub fn set_screen_cursor(code: i64, handle: i64) {
+    let mut c = SCREEN_CURSORS.lock().unwrap_or_else(|e| e.into_inner());
+    c.retain(|(k, _)| *k != code);
+    if handle != 0 {
+        c.push((code, handle));
+    }
+}
+
+/// The handle the program stored for cursor `code`, if any.
+pub fn screen_cursor(code: i64) -> Option<i64> {
+    SCREEN_CURSORS.lock().unwrap_or_else(|e| e.into_inner()).iter().find(|(k, _)| *k == code).map(|(_, h)| *h)
 }
 
 impl Cursor {
@@ -224,10 +247,19 @@ impl Cursor {
         }
     }
 
+    /// The pointer cursor `code` shows: the handle the program put in
+    /// `Screen.Cursors(code)` when there is one, else the standard one.
+    pub fn resolve(code: i64) -> Cursor {
+        match screen_cursor(code) {
+            Some(h) => Cursor::Custom(h),
+            None => Cursor::of(code),
+        }
+    }
+
     /// The CSS cursor.
     pub fn css(self) -> &'static str {
         match self {
-            Cursor::Default | Cursor::Arrow => "default",
+            Cursor::Default | Cursor::Arrow | Cursor::Custom(_) => "default",
             Cursor::None => "none",
             Cursor::Cross => "crosshair",
             Cursor::IBeam => "text",
@@ -277,6 +309,12 @@ mod tests {
         assert_eq!(Cursor::of(-4).css(), "text");
         assert_eq!(Cursor::of(-15), Cursor::SizeNS);
         assert_eq!(Cursor::of(5), Cursor::Default);
+        // Screen.Cursors(i): the program's handle, until it puts 0 back.
+        assert_eq!(Cursor::resolve(7), Cursor::Default);
+        set_screen_cursor(7, 4242);
+        assert_eq!((Cursor::resolve(7), screen_cursor(7)), (Cursor::Custom(4242), Some(4242)));
+        set_screen_cursor(7, 0);
+        assert_eq!(Cursor::resolve(7), Cursor::Default);
     }
 
     #[test]

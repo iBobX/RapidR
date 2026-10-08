@@ -8,7 +8,7 @@ doc = "The screen: its size and work area, the mouse's position, the monitors, t
 properties = [
   { name = "ConsoleX", type = "int", access = "read" },
   { name = "ConsoleY", type = "int", access = "read" },
-  { name = "Cursors", type = "int", access = "read", indexed = 1 },
+  { name = "Cursors", type = "int", indexed = 1, doc = "The cursor handles by cursor code: Cursors(i) = a handle from LoadCursorFromFile or LoadCursor (Windows) makes Cursor = i show it; 0 puts the standard cursor back. Reading gives the handle in use (Windows; 0 on other systems, which have no cursor handles)." },
   { name = "Height", type = "int", access = "read" },
   { name = "MouseX", type = "int", access = "read" },
   { name = "MouseY", type = "int", access = "read" },

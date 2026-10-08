@@ -1,0 +1,154 @@
+// SEC-19 regression: PEEK / POKE / MEMCPY / VARPTR$ never reach memory
+// RapidR doesn't own, and DLL calls stay off the web.
+//
+// RapidR's memory functions work on a model of the program's own memory
+// (rapidr_value::memory: blocks for variables, arrays, TYPEs and streams;
+// rapidr_value::console: the console's pages). An address outside them, or
+// past a block's end, must stop the program with a run-time error that says
+// so — never read or write the process, never crash. Each probe below is a
+// program run by the interpreter (`rapidr build-bc` + `run-bc`); the same
+// model serves native builds and the web (the conformance cases
+// peek_bad_address and peek_poke_memory run there).
+//
+// Then the DLL side: a sandboxed run (RAPIDR_SANDBOX) calls no DLL, a
+// pointer a DLL returned is no memory of the program, x86 machine code
+// isn't run (Windows), and a control's Handle is never a real window's
+// (so an API call given one can't reach another program's window). The
+// last part pins the web's side: its hosts answer a DLL call with the
+// error and the web runtime links no library loader.
+//
+//   node tests/security/peek_poke_unowned_memory.mjs     (after ./build.sh)
+
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const EXE = process.platform === "win32" ? ".exe" : "";
+const RAPIDR = resolve(ROOT, process.env.RAPIDR_BIN || `rapidr${EXE}`);
+if (!existsSync(RAPIDR)) {
+  console.error(`rapidr binary not found at ${RAPIDR} (run ./build.sh or set RAPIDR_BIN)`);
+  process.exit(2);
+}
+
+let failures = 0;
+const check = (name, ok, detail = "") => {
+  if (ok) console.log("ok:", name);
+  else { console.error("FAIL:", name, detail); failures++; }
+};
+
+const dir = mkdtempSync(join(tmpdir(), "rapidr-sec19-"));
+const env = { ...process.env, RAPIDR_PRINT_TO: join(dir, "prints"), RAPIDR_REGISTRY: join(dir, "reg.reg") };
+
+// Runs `src`; it must print "before", then stop with a run-time error
+// containing `want` (exit code 1, not a signal or an access violation).
+function refused(name, src, want, extraEnv = {}) {
+  const bas = join(dir, `${name}.bas`), rrbc = join(dir, `${name}.rrbc`);
+  writeFileSync(bas, `PRINT "before"\n${src}\nPRINT "not reached"\n`);
+  const c = spawnSync(RAPIDR, ["build-bc", bas, "-o", rrbc], { encoding: "utf8", env });
+  if (c.status !== 0) return check(name, false, `(didn't compile: ${c.stderr.trim()})`);
+  const r = spawnSync(RAPIDR, ["run-bc", rrbc], { encoding: "utf8", env: { ...env, ...extraEnv }, timeout: 30_000 });
+  const err = r.stderr || "";
+  check(
+    `${name}: refused with a run-time error`,
+    r.status === 1 && r.signal === null && r.stdout.startsWith("before") && !r.stdout.includes("not reached") && err.includes("run-time error") && err.includes(want),
+    `(status ${r.status}, signal ${r.signal}, stdout ${JSON.stringify(r.stdout)}, stderr ${JSON.stringify(err.trim())})`,
+  );
+}
+
+// Addresses that are no memory of the program: real process memory on
+// Windows (KUSER_SHARED_DATA, the low 2 GB, a 64-bit pointer), just past
+// the console's pages, negative.
+refused("peek_kuser_shared", "x = PEEK(&H7FFE0000)", "isn't memory of this program");
+refused("peek_past_pages", "x = PEEK(4000)", "isn't memory of this program");
+refused("peek_negative", "x = PEEK(-1)", "isn't memory of this program");
+refused("poke_top_of_2gb", "POKE &H7FFFFFF0, 1", "isn't memory of this program");
+refused("poke_huge", "POKE 1E18, 1", "isn't memory of this program");
+// Inside the address range of a block but past what it holds.
+refused("peek_past_long", "DIM n AS LONG\nx = PEEK(VARPTR(n) + 4)", "past the end");
+refused("poke_past_string", "s$ = \"Hi\"\nPOKE VARPTR(s$) + 10, 65", "past the end");
+refused("poke_between_blocks", "DIM n AS LONG\nPOKE VARPTR(n) + 6000, 1", "isn't memory of this program");
+refused("peek_past_array", "DIM a(3) AS INTEGER\nx = PEEK(VARPTR(a(0)) + 16)", "past the end");
+// A console page that doesn't exist.
+refused("peek_page_8", "x = PEEK(#8, 0)", "page");
+// The other memory functions follow the same rules.
+refused("memcpy_to_unowned", "DIM n AS LONG\nMEMCPY 12345678, VARPTR(n), 4", "isn't memory of this program");
+refused("memcpy_overrun", "DIM n AS LONG\nDIM m AS LONG\nMEMCPY VARPTR(m), VARPTR(n), 64", "past the end");
+refused("memset_unowned", "MEMSET 99999999, 0, 16", "isn't memory of this program");
+refused("varptr_string_unowned", "x$ = VARPTR$(305419896)", "isn't memory of this program");
+// QMEMORYSTREAM's MemCopyFrom / MemCopyTo: the same model. An object
+// method's error is reported and the program goes on (as every RapidR
+// object method's); nothing is copied, Position stays.
+function reported(name, src, want, out) {
+  const bas = join(dir, `${name}.bas`), rrbc = join(dir, `${name}.rrbc`);
+  writeFileSync(bas, `PRINT "before"\n${src}\n`);
+  const c = spawnSync(RAPIDR, ["build-bc", bas, "-o", rrbc], { encoding: "utf8", env });
+  if (c.status !== 0) return check(name, false, `(didn't compile: ${c.stderr.trim()})`);
+  const r = spawnSync(RAPIDR, ["run-bc", rrbc], { encoding: "utf8", env, timeout: 30_000 });
+  const err = r.stderr || "";
+  check(
+    `${name}: refused, nothing copied`,
+    r.status === 0 && r.signal === null && r.stdout.includes(out) && err.includes(want),
+    `(status ${r.status}, signal ${r.signal}, stdout ${JSON.stringify(r.stdout)}, stderr ${JSON.stringify(err.trim())})`,
+  );
+}
+reported("memcopyfrom_kuser_shared", "DIM M AS QMEMORYSTREAM\nM.MemCopyFrom(&H7FFE0000, 16)\nPRINT \"size\"; M.Size", "isn't memory of this program", "size0");
+reported("memcopyto_top_of_2gb", "DIM M AS QMEMORYSTREAM\nM.WriteStr(\"abcd\", 4)\nM.Position = 0\nM.MemCopyTo(&H7FFFFFF0, 4)\nPRINT \"pos\"; M.Position", "isn't memory of this program", "pos0");
+reported("memcopyto_overrun", "DIM n AS LONG\nDIM M AS QMEMORYSTREAM\nM.WriteStr(STRING$(64, 65), 64)\nM.Position = 0\nM.MemCopyTo(VARPTR(n), 64)\nPRINT \"n\"; n", "past the end", "n0");
+reported("memcopyfrom_pointer_stand_in", "DIM M AS QMEMORYSTREAM\nM.MemCopyFrom(&HD1E00000, 4)\nPRINT \"size\"; M.Size", "memory a DLL returned", "size0");
+reported("memcopyto_huge_count", "DIM n AS LONG\nDIM M AS QMEMORYSTREAM\nM.MemCopyTo(VARPTR(n), 1E15)\nPRINT \"n\"; n", "more than a stream holds", "n0");
+// Hardware ports: always a run-time error.
+refused("inp_port", "x = INP(&H378)", "hardware port");
+// A DLL call where there are no Windows DLLs: the error names the function.
+if (process.platform !== "win32") {
+  refused("dll_off_windows", "DECLARE FUNCTION GetTickCount LIB \"kernel32\" () AS LONG\nt = GetTickCount", "'GetTickCount' is a Windows function (kernel32)");
+  refused("third_party_dll_off_windows", "DECLARE FUNCTION Ping LIB \"evil.dll\" (BYVAL n AS LONG) AS LONG\nt = Ping(1)", "'Ping' is a function of evil.dll, a Windows DLL");
+}
+
+// A 32-bit stand-in for a pointer a DLL returned (rapidr_value::dll's
+// POINTER_STAND_IN_BASE, 0xD1E00000) is no memory of the program either.
+refused("peek_pointer_stand_in", "x = PEEK(&HD1E00001)", "memory a DLL returned");
+refused("memcpy_to_pointer_stand_in", "DIM n AS LONG\nMEMCPY &HD1E00000, VARPTR(n), 4", "memory a DLL returned");
+// A sandboxed run (RAPIDR_SANDBOX, what RapidR sets for code the user
+// didn't start, SEC-10) loads and calls no DLL — on every system, Windows
+// included, and for the message built-ins too.
+refused("dll_sandboxed", "DECLARE FUNCTION GetTickCount LIB \"kernel32\" () AS LONG\nt = GetTickCount", "this run is sandboxed", { RAPIDR_SANDBOX: "1" });
+refused("own_dylib_sandboxed", `DECLARE FUNCTION cabs LIB "${process.platform === "darwin" ? "libSystem.B.dylib" : process.platform === "win32" ? "msvcrt" : "libc.so.6"}" ALIAS "abs" (BYVAL n AS LONG) AS LONG\nt = cabs(-1)`, "this run is sandboxed", { RAPIDR_SANDBOX: "1" });
+refused("sendmessage_sandboxed", "SENDMESSAGE 0, 0, 0, 0", "this run is sandboxed", { RAPIDR_SANDBOX: "1" });
+// x86 machine code a program wrote, run through CallWindowProc (RapidQ's
+// way to run assembler): refused before Windows is called.
+if (process.platform === "win32") {
+  refused("x86_code_in_a_string", "DECLARE FUNCTION CallWindowProc LIB \"user32\" ALIAS \"CallWindowProcA\" (BYVAL p AS LONG, BYVAL h AS LONG, BYVAL m AS LONG, BYVAL w AS LONG, BYVAL l AS LONG) AS LONG\ncode$ = CHR$(&HC3)\nr = CallWindowProc(VARPTR(code$), 0, 0, 0, 0)", "machine code for 32-bit x86");
+}
+
+// RapidR's own component handles are never a window of the system: their
+// low word (a USER handle's table index) stays near 0xFFFF, so a DLL call
+// given a control's Handle can't reach another program's window.
+{
+  const bas = join(dir, "handles.bas"), rrbc = join(dir, "handles.rrbc");
+  writeFileSync(bas, "CREATE Form AS QFORM\n  CREATE B AS QBUTTON\n  END CREATE\n  CREATE E AS QEDIT\n  END CREATE\nEND CREATE\nPRINT B.Handle\nPRINT E.Handle\n");
+  spawnSync(RAPIDR, ["build-bc", bas, "-o", rrbc], { encoding: "utf8", env });
+  const r = spawnSync(RAPIDR, ["run-bc", rrbc], { encoding: "utf8", env: { ...env, RAPIDR_CAPTURE: join(dir, "cap") }, timeout: 30_000 });
+  const hs = r.stdout.trim().split(/\s+/).map(Number).filter((n) => n);
+  check(
+    "control handles are no USER handles",
+    hs.length === 2 && hs.every((h) => h > 0 && h <= 0x7fffffff && (h & 0xffff) >= 0xffc0),
+    `(${JSON.stringify(r.stdout)} ${r.stderr.trim()})`,
+  );
+}
+
+// The web: no library loader, and both web hosts refuse a DLL call.
+const read = (p) => readFileSync(join(ROOT, p), "utf8");
+check("the web VM host answers __dll_call with the error", /key == "__dll_call"[\s\S]{0,300}?Err\(rapidr_value::dll::needs_windows_error\([^;]{0,40}?, true\)\)/.test(read("interpreter/rapidr-vm-host-web/src/lib.rs")));
+check("the web runtime answers __dll_call with the error", /needs_windows_error\([^;]{0,40}?, true\)/.test(read("crates/rapidr-runtime-web/src/builtins.rs")));
+for (const toml of ["crates/rapidr-runtime-web/Cargo.toml", "interpreter/rapidr-vm-host-web/Cargo.toml"]) {
+  check(`${toml} links no library loader`, !/libloading/.test(read(toml)));
+}
+// The VM itself has no unsafe code at all.
+check("the VM forbids unsafe code", /#!\[forbid\(unsafe_code\)\]/.test(read("interpreter/rapidr-vm/src/lib.rs")));
+
+rmSync(dir, { recursive: true, force: true });
+if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
+console.log("\nSEC-19 PEEK / POKE / DLL boundaries: all checks passed");

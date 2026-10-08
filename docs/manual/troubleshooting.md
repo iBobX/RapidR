@@ -35,14 +35,29 @@ run`, `build --interp` and `bundle-bc` don't.
 **The first native build takes minutes** — it compiles RapidR's runtime
 once; later builds reuse it (keep `CARGO_TARGET_DIR` if you set one).
 
-**`'GetTickCount' is a Windows API function (LIB "kernel32"); RapidR runs
-on every platform and doesn't emulate Windows. Instead, use TIMER`** —
-RapidR doesn't run Windows DLL calls. Use the portable equivalent the
-message names, or RapidR's components.
+**`run-time error: 'GetTickCount' is a Windows function (kernel32): this
+program calls Windows itself, so it runs on Windows only. For every system,
+use TIMER`** — the program calls Windows' DLLs, which only exist on
+Windows. Run it there, or use the portable equivalent the message names.
 
-**`'x' is an external DLL function (DECLARE ... LIB); the bytecode
-interpreter can't call DLLs yet`** — calls into your own libraries work
-in native builds (`rapidr build --release`).
+**`'X.DLL' is a 32-bit DLL; RapidR programs are 64-bit, so Windows can't
+load it`** — the DLL came with an old program; a 64-bit build of it is
+needed (or RapidR's own component for the job).
+
+**`can't find the DLL 'X.DLL'`** — the DLL isn't one of Windows' and isn't
+in the current folder or beside the program.
+
+**`the call to F in user32 crashed (access violation …)`** — the DLL was
+given something that isn't the pointer or handle it expects: often a TYPE
+whose fields hold pointers or handles as `LONG` (64-bit Windows wants them
+8 bytes wide), or a control's `Handle` (only a form's is a real window).
+
+**`'SetWindowLongA' is given CODEPTR(WndProc), a callback …`** — SUBs
+handed to a DLL to call back aren't supported yet.
+
+**`address … isn't memory of this program`** — PEEK / POKE / MEMCPY reach
+only the program's own memory (VARPTR of a variable, an element, a TYPE, a
+stream's Pointer) and the console's pages.
 
 **`RUSTSTART ... RUSTEND blocks only work in native builds`** — as it says.
 

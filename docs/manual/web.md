@@ -102,14 +102,16 @@ the files stay in the browser's store.
   opens the project's `x.db` in memory for the session (changes aren't
   saved to the browser's storage yet).
 - **RMySQL** and **RServerSocket** don't work in a browser (no raw TCP);
-  call a server of yours with RHttp instead. **RSocket / RSocket** connect
-  over WebSocket. **RHttp** uses the browser's fetch, so the browser's CORS
+  call a server of yours with RHttp instead. **RSocket** connects over
+  WebSocket. **RHttp** uses the browser's fetch, so the browser's CORS
   rules apply.
 - **RComPort** uses Web Serial, **RDXJoystick** the Gamepad API, **RMIDI**
   Web MIDI (or RapidR's own synthesizer through Web Audio), sound Web Audio.
 - **RRegistry** keeps its keys in a per-user store, as on macOS and Linux.
-- `DECLARE … LIB` (native libraries) and `RUSTSTART` blocks aren't
-  available in the interpreter.
+- A web page can't load DLLs or native libraries: a `DECLARE … LIB`
+  routine (and `SENDMESSAGE` / `POSTMESSAGE` / `KILLMESSAGE`) stops the
+  program with an error naming it when it's called. `RUSTSTART` blocks
+  aren't available in the interpreter. PEEK / POKE work as on the desktop.
 - Text RapidR's built-in fonts can't draw (symbols, Chinese, Japanese,
   Korean, emoji) uses Noto fonts shipped with the build, loaded as the page
   needs them.
