@@ -328,7 +328,8 @@ Next up, in order:
 - [ ] Modern `TRY/CATCH`
 - [ ] Runtime errors carry source line on both backends
 - [x] **RapidQ importer, names** (R-NAMES phase 1, 2026-10-08): `rapidr import-rapidq <file | folder | .rrproj>` → a copy with RapidR's names (token-aware on the compiler's parse), `$INCLUDE`s followed (`.bas` / `.rqw` / `.rqb` / `.rq` / `.inc`), a report, each program proved to compile to identical bytecode (RapidQ's corpus: 175 / 175 of the programs RapidR compiles); `rapidr upgrade-names <file> [--dry-run]` (crates/rapidr-import, docs/q-and-r-components.md §6)
-- [ ] **RapidQ importer, the rest**: zip input; `CREATE` trees become designer forms; modules; a compatibility report (what RapidR doesn't run yet, by program); RapidR Studio's File ▸ Import (R-NAMES phase 2)
+- [x] **RapidQ importer in RapidR Studio** (R-NAMES phase 2, 2026-10-08): File ▸ Import RapidQ Project or File… / Import RapidQ Folder… — the same engine on the disk (desktop) and on the page's store (web: `rapidr_import::Memory`, the same copy byte for byte), the copy opened as a project with its report; `rapidr import-rapidq <src> [dest]`
+- [ ] **RapidQ importer, the rest**: zip input; FreeQ's `.QProj` project files (no sample yet); `CREATE` trees become designer forms; modules; a compatibility report (what RapidR doesn't run yet, by program); the report rendered (not raw Markdown)
 - [ ] **VB6 importer**: `.vbp` + `.frm` (`Begin VB.Form …`) + `.bas`
 - [ ] Imported projects with `RUSTSTART`/`DECLARE LIB` flagged native-privileged (SEC-10)
 - [x] Corpus: the original RapidQ distribution (386 example programs, 126 includes, manual) → `tools/rapidq_corpus.py` reports compile pass-rate and top blockers (v2.15.0: 82/386 compile, from 46)
@@ -418,7 +419,8 @@ The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate wind
 
 **R-NAMES — RapidR's names everywhere** (decided by Robert 2026-10-08, for the first release; legal is a main reason: visibly original, "compatible with RapidQ", not a clone — [docs/q-and-r-components.md](docs/q-and-r-components.md), plan and results in [docs/ide-plan.md](docs/ide-plan.md#r-names-results-phase-1-and-the-plan-for-phase-2--rapidrs-names-everywhere-2026-10-08))
 - [x] Phase 1: RapidR's names (`RButton`) the default in the registry's exports, the manual, the language service (completion, hovers, "RapidQ name: QBUTTON"), the examples (but `examples/rapidq/`), the docs and the template; the compilers always accept both names; the importer and `upgrade-names` (crates/rapidr-import) with the corpus proof; `.rqw` / `.rqb` / `.rq` sources everywhere; a RapidQ-compatible project warns on RapidR's names of RapidQ's components
-- [ ] Phase 2 (after the editor and designer lanes merge): RapidR Studio's toolbox, inspector and completion under RapidR's names; the designer and completion follow each file's style (`NameStyle`, never mixed); File ▸ "Import RapidQ Project or File…"; "Upgrade this file to RapidR names"; Studio's own strings and `ide/` code (the R-NAMES legal scan's list in docs/ide-plan.md)
+- [x] Phase 2 (2026-10-08): RapidR Studio's toolbox (groups by purpose, no "RapidQ" / "RapidR" groups; RapidR's names; the card gives RapidQ's name), inspector header ("RButton (RapidQ name: QBUTTON)"), the designer's announcements, F1 Help and completion under RapidR's names; the designer and completion write new code in each file's style (`rapidr_lang::NameStyle`, never mixed); the templates (but "RapidQ program"), Add Form, Studio's own strings and `ide/` code under RapidR's names (proved: the same bytecode); File ▸ "Import RapidQ Project or File…" on desktop and web; `.rqw` / `.rqb` / `.rq` open, run and are read by the language service in Studio
+- [ ] Phase 2, the rest: "Upgrade this file to RapidR names" (Code menu, the palette, a code action: the diff, then one undoable edit)
 - [ ] Decide (Robert): built-in RAPIDQ.INC constants without the `$INCLUDE` line for RapidR's own files (today the line stays, as in RapidQ)
 
 **I0 — Foundations** (L, 12–16 sessions)
@@ -430,7 +432,7 @@ The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate wind
 
 **I1 — Shell** (L, 16–22 sessions)
 - [ ] RDockManager: docked / tabbed / auto-hide / floating panels, layouts saved and restored, all by keyboard; the documents area an MDI client on `rapidr_value::mdi` (cascade / tile) or tabs
-- [x] RProjectTree, RToolbox (groups "RapidQ" and "RapidR", names as the designer writes them — R-NAMES phase 2 changes both), RPropertyInspector (typed editors from the registry, RapidR extensions badged, Events tab), ROutputConsole (ANSI), RCommandPalette, a real RToolBar kind — in RapidR Studio, properties two-way with the designer and the code (S-PANELS, 2026-10-08)
+- [x] RProjectTree, RToolbox (groups by purpose, RapidR's names — R-NAMES phase 2), RPropertyInspector (typed editors from the registry, RapidR extensions badged, Events tab), ROutputConsole (ANSI), RCommandPalette, a real RToolBar kind — in RapidR Studio, properties two-way with the designer and the code (S-PANELS, 2026-10-08)
 - [ ] The shell (`ide/`, a RapidR program on public components only), commands and shortcuts (VB6 / Delphi scheme), settings, modern / dark / high-contrast themes with editor colours, vector icons, OFL fonts
 - [ ] Run / Stop / Build through `RProgramSession` / `RProject` on both hosts (Build: `RPROJECT.Build` makes the app for the desktop it runs on, B-PKG; the web shows the program instead)
 - [ ] Web: the IDE page on the canvas host, IndexedDB / OPFS autosave, File System Access open / save, zip import / export, web bundle build

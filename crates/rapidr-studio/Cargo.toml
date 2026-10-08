@@ -20,3 +20,5 @@ rapidr-designer.workspace = true
 rapidr-preprocessor.workspace = true
 # RPROJECT.IconPreview: the project's icon drawn as rapidr build draws it
 rapidr-package.workspace = true
+# File > Import RapidQ Project or File: the engine of `rapidr import-rapidq`
+rapidr-import.workspace = true

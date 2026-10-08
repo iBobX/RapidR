@@ -33,10 +33,12 @@
 
 pub mod convert;
 pub mod diff;
+pub mod files;
 pub mod import;
 pub mod rapidq_inc;
 pub mod report;
 pub mod verify;
 
-pub use convert::{plan_program, Change, Edit, FilePlan, NameStyle, Note, Options, ProgramPlan};
-pub use import::{import, upgrade_file, ImportReport, ProgramReport, Upgrade, Verification};
+pub use convert::{plan_program, plan_program_with, Change, Edit, FilePlan, NameStyle, Note, Options, ProgramPlan};
+pub use files::{Disk, Files, Memory};
+pub use import::{import, import_with, upgrade_file, ImportReport, ProgramReport, Upgrade, Verification};

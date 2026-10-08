@@ -142,7 +142,7 @@ const CASES = [
     delay: 4,
     dump: {
       "designdoc(0).formname": /^Form$/,
-      "designdoc(0).statustext": /^Button1 \(QBUTTON\), 128, 88, 75 × 25$/,
+      "designdoc(0).statustext": /^Button1 \(RButton\), 128, 88, 75 × 25$/,
       "codedoc(0).text": /Width = 540\n    Height = 340[\s\S]*    CREATE Button1 AS QBUTTON\n        Caption = "Button1"\n        Left = 128\n        Top = 88\n        Width = 75\n        Height = 25\n    END CREATE\nEND CREATE/,
     },
   },
@@ -154,7 +154,7 @@ const CASES = [
     open: "examples/rapidq/notepad.bas",
     do: "view.designer,designer.add.QCHECKBOX",
     delay: 3,
-    dump: { "designdoc(0).statustext": /^Added CheckBox1 \(QCHECKBOX\)/, "codedoc(0).text": /    CREATE CheckBox1 AS QCHECKBOX\n        Caption = "CheckBox1"\n/ },
+    dump: { "designdoc(0).statustext": /^Added CheckBox1 \(RCheckBox\)/, "codedoc(0).text": /    CREATE CheckBox1 AS QCHECKBOX\n        Caption = "CheckBox1"\n/ },
   },
   // (I4) The same, then Ctrl+Z three times: the exact text back.
   {
@@ -228,12 +228,47 @@ const CASES = [
   },
   // (S-PANELS) The toolbox: Enter on QCHECKBOX adds one to the form (its
   // CREATE block in the code), selected in the inspector.
+  // (R-NAMES) The toolbox shows RapidR's names and gives RButton's kind of
+  // name whatever was asked (QCHECKBOX here); the designer writes it in the
+  // file's own style: pantry.rr writes RapidR's names, so RCheckBox.
   {
     name: "toolbox-add",
     open: "examples/gui/pantry.rr",
     do: "wait,view.designer,tool:QCHECKBOX,wait",
     delay: 6,
-    dump: { "codedoc(0).text": /CREATE CheckBox1 AS QCHECKBOX/i, "inspector.target": /^CheckBox1$/i },
+    dump: { "codedoc(0).text": /    CREATE CheckBox1 AS RCheckBox\n(?![\s\S]*QCHECKBOX)/, "inspector.target": /^CheckBox1$/i, "toolbox.shownames": /^rapidr$/, "toolbox.selected": /^RCheckBox$/ },
+  },
+  // (R-NAMES) RapidQ's other source extensions open as they are: a .rqw
+  // (RapidQ's names, an include in a folder of its own) — its form in the
+  // designer, the language service reading the include (on the web too).
+  {
+    name: "open-rqw",
+    open: "tests/fixtures/rapidq_import/greeter.rqw",
+    webFiles: ["tests/fixtures/rapidq_import/greeter.rqw", "tests/fixtures/rapidq_import/include/shapes.inc"],
+    do: "wait,view.designer,wait",
+    delay: 5,
+    dump: { "proj.kind": /^file$/, "proj.mainfile": /^greeter\.rqw$/, "proj.filecount": /^2$/, "designdoc(0).formname": /^Form$/, "lang.errorcount": /^0$/ },
+  },
+  // (R-NAMES) File > Import RapidQ Project or File: a copy of a RapidQ
+  // program (a .rqw with an include in a folder of its own) with RapidR's
+  // names, proved to compile to the same bytecode, opened as a project with
+  // the RapidQ-compatible setting off, its report beside the code.
+  {
+    name: "import-rapidq",
+    importFrom: "tests/fixtures/rapidq_import/greeter.rqw",
+    webFiles: ["tests/fixtures/rapidq_import/greeter.rqw", "tests/fixtures/rapidq_import/include/shapes.inc"],
+    do: "wait",
+    delay: 6,
+    dump: {
+      "proj.importsummary": /^1 program\(s\), 2 source file\(s\) \(2 changed, 7 name\(s\)\)[\s\S]*: 1 identical, 0 different/,
+      "proj.mainfile": /^greeter\.rqw$/,
+      "proj.filecount": /^2$/,
+      "proj.compatmode": /^$/,
+      "proj.importreport": /greeter-rapidr\/rapidr-import-report\.md$/,
+      "codedoc(0).text": /^(?![\s\S]*AS Q[A-Z])[\s\S]*DECLARE SUB SayHello \(Sender AS RButton\)[\s\S]*CREATE Form AS RForm[\s\S]*CREATE NameEdit AS REdit/,
+      "codedoc(1).text": /^# RapidQ import: greeter\.rqw[\s\S]*\| `greeter\.rqw` \| yes: identical bytecode \|[\s\S]*`QBUTTON` → `RButton`/,
+      "lang.errorcount": /^0$/,
+    },
   },
   // (S-SHELL-2) Documents are tabs, never windows: a form's file is one
   // tab with the Design | Code switch (no MDI window, no "[Design]"
@@ -300,7 +335,7 @@ const CASES = [
     open: "examples/gui/hello_form.rr",
     do: 'wait,view.code,code:Answer.Caption=>Answer.Caption,help.contents',
     delay: 4,
-    dump: { "helptitle.caption": /^QLABEL\.Caption$/, "helpwhat.caption": /^Property of QLABEL/ },
+    dump: { "helptitle.caption": /^RLabel\.Caption$/, "helpwhat.caption": /^Property of RLabel/ },
   },
   // (S-PANELS) The project tree lists the form's components; the palette
   // finds a symbol of the file.
@@ -318,7 +353,12 @@ function runDesktop(c) {
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   const args = ["run", "ide/studio.rr", "--home", ".", "--fresh", "--theme", "rapidr-light"];
-  if (c.do) args.push("--do", c.do);
+  // (R-NAMES: a RapidQ program's folder copied here, imported from there —
+  // the import writes its copy beside it)
+  if (c.importFrom) {
+    cpSync(join(ROOT, dirname(c.importFrom)), join(dir, "src"), { recursive: true });
+    args.push("--do", `import:${join(dir, "src", c.importFrom.split("/").pop())}` + (c.do ? "," + c.do : ""));
+  } else if (c.do) args.push("--do", c.do);
   if (c.open && c.copyDir) {
     // (the project's whole folder: Build writes the app beside it)
     cpSync(join(ROOT, dirname(c.open)), join(dir, "project"), { recursive: true });
@@ -401,7 +441,9 @@ async function runWebPage(ctx, c, last) {
     });
     const q = new URLSearchParams({ theme: "rapidr-light", window: "normal" });
     if (c.fresh !== false) q.set("fresh", "");
-    if (c.do) q.set("do", c.do);
+    // (the program's files are in the page's store: imported from there)
+    if (c.importFrom) q.set("do", `import:${c.importFrom}` + (c.do ? "," + c.do : ""));
+    else if (c.do) q.set("do", c.do);
     if (c.open) q.set("open", c.open);
     await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
     await page.waitForFunction(() => window.rr && window.rr.rapidr_test_results(), null, { timeout: Math.max(90000, c.delay * 1000 + 60000), polling: 200 });

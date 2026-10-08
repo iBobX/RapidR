@@ -13,8 +13,8 @@ use rapidr_lang::{Component, Origin, Runtimes};
 /// Who a name belongs to, in words.
 fn origin(o: Origin) -> &'static str {
     match o {
-        Origin::RapidQ => "RapidQ",
-        Origin::RapidR => "RapidR (not in RapidQ)",
+        Origin::RapidQ => "RapidQ-compatible",
+        Origin::RapidR => "RapidR's own (not in RapidQ)",
     }
 }
 
@@ -37,9 +37,10 @@ fn default_text(d: &rapidr_lang::DefaultValue) -> String {
     }
 }
 
-/// A member of a component (a property, a method, an event): its entry.
+/// A member of a component (a property, a method, an event): its entry,
+/// under RapidR's name of the component (`RButton.Caption`: R-NAMES).
 fn member(c: &Component, name: &str) -> Option<Vec<String>> {
-    let comp = c.written_name();
+    let comp = c.spelling();
     if let Some(p) = c.property(name) {
         let mut what = format!("Property of {comp} · {}", p.ty.as_str());
         if let Some(d) = &p.default {
@@ -59,15 +60,20 @@ fn member(c: &Component, name: &str) -> Option<Vec<String>> {
     None
 }
 
-/// A component's entry: what it is and its members by kind.
+/// A component's entry under RapidR's name (`RButton`, RapidQ's as a
+/// note): what it is and its members by kind.
 fn component(c: &Component) -> Vec<String> {
-    let name = c.written_name();
-    let mut what = format!("Component · {} · {}", origin(c.origin), runs(c.runtimes));
+    let name = c.spelling();
+    let from = match c.rapidq {
+        Some(q) if c.kind == rapidr_lang::Kind::Component => format!("RapidQ name: {q}"),
+        _ => origin(c.origin).to_string(),
+    };
+    let mut what = format!("Component · {from} · {}", runs(c.runtimes));
     if let Some(e) = c.default_event {
         what.push_str(&format!(" · its default event {e}"));
     }
     let list = |names: Vec<&str>| names.join(", ");
-    let mut out = vec![name.to_string(), format!("CREATE {}1 AS {name}\n\nEND CREATE", c.display), what, c.doc.to_string()];
+    let mut out = vec![name.clone(), format!("CREATE {}1 AS {name}\n\nEND CREATE", c.display), what, c.doc.to_string()];
     let props: Vec<&str> = c.properties.iter().filter(|p| !p.missing).map(|p| p.name).collect();
     let methods: Vec<&str> = c.methods.iter().filter(|m| !m.missing).map(|m| m.name).collect();
     let events: Vec<&str> = c.events.iter().filter(|e| !e.missing).map(|e| e.name).collect();
@@ -127,7 +133,7 @@ pub fn entry(word: &str, of: &str) -> Option<Vec<String>> {
     }
     if let Some(c) = rapidr_lang::global(word) {
         let mut e = component(c);
-        e[1] = c.written_name().to_string();
+        e[1] = c.spelling();
         e[2] = e[2].replacen("Component", "Object", 1);
         return Some(e);
     }
@@ -154,20 +160,23 @@ mod tests {
         assert!(e[1].to_ascii_uppercase().starts_with("SHOWMESSAGE"), "{e:?}");
         assert!(e[2].contains("RapidQ"), "{e:?}");
         assert!(!e[3].is_empty());
+        // (RapidR's names, whichever name was asked: R-NAMES)
         let b = entry("QBUTTON", "").unwrap();
-        assert_eq!(b[0], "QBUTTON");
-        assert!(b[1].starts_with("CREATE Button1 AS QBUTTON"), "{b:?}");
+        assert_eq!(b[0], "RButton");
+        assert!(b[1].starts_with("CREATE Button1 AS RButton"), "{b:?}");
+        assert!(b[2].starts_with("Component · RapidQ name: QBUTTON"), "{b:?}");
         assert!(b.iter().any(|l| l.starts_with("Properties: ") && l.contains("Caption")), "{b:?}");
         let p = entry("Caption", "QBUTTON").unwrap();
-        assert_eq!(p[0], "QBUTTON.Caption");
-        assert!(p[2].starts_with("Property of QBUTTON · string"), "{p:?}");
+        assert_eq!(p[0], "RButton.Caption");
+        assert!(p[2].starts_with("Property of RButton · string"), "{p:?}");
         let ev = entry("OnClick", "qbutton").unwrap();
-        assert!(ev[2].starts_with("Event of QBUTTON"), "{ev:?}");
-        assert!(entry("RPLOT", "").unwrap()[2].contains("RapidR (not in RapidQ)"));
+        assert!(ev[2].starts_with("Event of RButton"), "{ev:?}");
+        assert!(entry("RPLOT", "").unwrap()[2].contains("RapidR's own (not in RapidQ)"));
+        assert_eq!(entry("RPLOT", "").unwrap()[0], "RPlot");
         assert!(entry("clRed", "").unwrap()[2].starts_with("Constant = "));
         assert!(entry("FOR", "").is_some());
         assert!(entry("nothing_here_at_all", "").is_none());
         assert_eq!(text("nothing_here_at_all", ""), "");
-        assert_eq!(text("QBUTTON", "").lines().next(), Some("QBUTTON"));
+        assert_eq!(text("QBUTTON", "").lines().next(), Some("RButton"));
     }
 }

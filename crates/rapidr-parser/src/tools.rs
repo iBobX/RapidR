@@ -104,6 +104,25 @@ impl ToolsParse {
             })
             .collect()
     }
+
+    /// How file `file` writes the names of RapidQ's components (its type
+    /// names: `AS QBUTTON`, `EXTENDS RForm`), the program's own TYPEs left
+    /// out — the style RapidR Studio's designer and completion write new
+    /// code in (`NameCounts::writing_style`, docs/ide-plan.md R-NAMES).
+    pub fn name_counts(&self, file: FileId) -> rapidr_lang::NameCounts {
+        let own: Vec<&str> = self.program.statements.iter().filter_map(|s| if let rapidr_ast::Statement::Type(t) = s { Some(t.name.as_str()) } else { None }).collect();
+        let mut counts = rapidr_lang::NameCounts::default();
+        for span in &self.type_names {
+            let Some(written) = self.preprocessed.source.get(span.start..span.end) else { continue };
+            if own.iter().any(|t| t.eq_ignore_ascii_case(written)) {
+                continue;
+            }
+            if self.locate(*span).is_some_and(|l| l.exact && l.file == file) {
+                counts.count(written);
+            }
+        }
+        counts
+    }
 }
 
 /// Parses the program in `path` for tools (see the module documentation).

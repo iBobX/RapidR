@@ -4640,14 +4640,14 @@ An object inspector in the style of Delphi's: the properties of a component (or 
 <a id="rtoolbox"></a>
 ## RToolbox
 
-The palette of components a form designer places, grouped under "RapidQ" (the components RapidQ has, shown with their Q names: RButton) and "RapidR" (RapidR's own), each with its icon and the name the designer writes. The user searches it, double-clicks a component (or presses Enter) to add it, or drags it onto a designer. Templates — a component with preset properties — have a group of their own.
+The palette of components a form designer places, under RapidR's names (RButton; an item's card gives RapidQ's name where RapidQ has one), grouped by purpose (Standard, Additional, Dialogs, System, Network, Data …), each with its icon. The user searches it (by any of a component's names, or words of what it does), double-clicks a component (or presses Enter) to add it, or drags it onto a designer, which writes it in its file's own style. Templates — a component with preset properties — have a group of their own.
 
 | Property | Type | Default | |
 |---|---|---|---|
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
 | `Filter` | string | `""` | The search box's text: only the components whose names match it are shown. |
-| `ShowNames` | string | `"as-written"` | How components are named: "as-written" (RapidQ's components by their Q names, the others by their R names — what the designer writes), "rapidr" (every one by its R name) or "titles" (in words: "Button"). |
-| `Selected` | string | `""` | The selected component's type as the designer writes it (RButton), or a template's name. |
+| `ShowNames` | string | `"rapidr"` | How components are named: "rapidr" (RapidR's names: RButton), "rapidq" (as a file written with RapidQ's names writes them: QBUTTON for RapidQ's components, RapidR's names for the others) or "titles" (in words: "Button"). |
+| `Selected` | string | `""` | The selected component's type under RapidR's name (RButton), or a template's name. |
 | `Count` (read-only) | int |  | How many components are shown now: the filter applied, a closed group's left out (Item counts the same ones). |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -4668,8 +4668,8 @@ The palette of components a form designer places, grouped under "RapidQ" (the co
 
 | Method | |
 |---|---|
-| `Item(Index AS INTEGER) AS STRING` | The component shown at Index (from 0) as the designer writes it. |
-| `Expand(Group AS STRING)` | Opens a group ("RapidQ", "Standard", "Data Science" …). |
+| `Item(Index AS INTEGER) AS STRING` | The component shown at Index (from 0), under RapidR's name (RButton), or a template's name. |
+| `Expand(Group AS STRING)` | Opens a group ("Standard", "Data Science" …, by its title or id). |
 | `Collapse(Group AS STRING)` | Closes a group. |
 | `ExpandAll` | Opens every group. |
 | `CollapseAll` | Closes every group. |
@@ -4679,7 +4679,7 @@ The palette of components a form designer places, grouped under "RapidQ" (the co
 
 | Event | |
 |---|---|
-| `OnPick(Type AS STRING)` | The user chose a component to add (double click, Enter): its type as the designer writes it, or a template's name. |
+| `OnPick(Type AS STRING)` | The user chose a component to add (double click, Enter): its type under RapidR's name (RButton: a designer writes it in its file's own style), or a template's name. |
 | `OnSelect(Type AS STRING)` | The selected component changed. |
 | `OnDragStart(Type AS STRING)` | The user started dragging a component out of the toolbox. |
 | `OnDragDrop(Type AS STRING, Target AS STRING, X AS INTEGER, Y AS INTEGER)` | A dragged component was let go over component Target, the deepest one shown there on the toolbox's form (its name in lower case), at (X, Y) in Target's own pixels; over the bare form Target is "" and (X, Y) is in the form's client area. Let go over the toolbox itself, nothing is dropped. |
@@ -4841,7 +4841,7 @@ A box of commands found by typing: Show opens it over the form, the user types a
 <a id="rproject"></a>
 ## RProject
 
-A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a .bas / .rr file with the files it $INCLUDEs, RapidQ's way. Lists the project's files and their kinds, adds and removes files, saves the project file, and makes new projects from templates. RapidR Studio is built on it.
+A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a source file (.rr, or RapidQ's .bas, .rqw, .rqb, .rq) with the files it $INCLUDEs, RapidQ's way. Lists the project's files and their kinds, adds and removes files, saves the project file, and makes new projects from templates. RapidR Studio is built on it.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -4862,6 +4862,8 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `Building` (read-only) | int |  | True while a Build runs. |
 | `FileManager` (read-only) | string |  | What this system calls the file manager Reveal opens: "Finder", "File Explorer" or "Files" ("" on the web). |
 | `BuiltPath` (read-only) | string |  | What the last Build made: the .app, the .exe or the AppDir ("" until one succeeds). |
+| `ImportSummary` (read-only) | string |  | The last ImportRapidQ's summary: how many programs, files and names, and how many compile to the same bytecode as their originals. |
+| `ImportReport` (read-only) | string |  | The last ImportRapidQ's report (rapidr-import-report.md in the copy): every name changed by file, line and column, what was left and why, each program's proof. |
 
 | Method | |
 |---|---|
@@ -4878,6 +4880,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `Build([Kind AS STRING]) AS INTEGER` | Makes the program into an app for this computer's system with rapidr build: Name.app on macOS, the .exe with its icon and version on Windows, Name.AppDir on Linux. Kind is "native" or "interpreted" (else BuildKind). Runs in the background: OnBuildOutput gives its lines, OnBuildDone its end. True when it started; Error says why not (on the web there is nothing to run it). |
 | `StopBuild` | Stops the Build that is running. |
 | `Reveal([Path AS STRING]) AS INTEGER` | Shows Path (else what the last Build made) selected in Finder, Explorer or the Linux file manager. |
+| `ImportRapidQ(Source AS STRING, [Dest AS STRING]) AS STRING` | Imports a RapidQ program — a .bas, .rqw, .rqb, .rq or .inc file and the files it includes, or a folder of them — as a copy with RapidR's names (QBUTTON becomes RButton) in Dest (else <name>-rapidr beside it, the next free name): each program proved to compile to the same bytecode as its original, a report (ImportReport) and a project for the copy (the RapidQ-compatible setting off). The original is only read. Gives the copy's project file to Open; "" when it can't (Error says why). On the web, Source is a file or folder in the page's store (one the user picked). |
 | `IconPreview([Size AS INTEGER]) AS STRING` | Draws the app's icon (Icon, else RapidR's) as a Size-pixel PNG (128 by default) in the project's .rapidr folder and gives its path, for an RImage to show; "" when the icon can't be read (Error says why). |
 | `Find(Pattern AS STRING, Options AS STRING, Text AS STRING) AS STRING` | Find in Files: every match of Pattern in Text, a line each: line, column (both from 1), length, the line's text, separated by tabs. Options: any of "case" (match case), "word" (whole words), "regex" (Pattern is a regular expression), separated by commas. "" with Error set when the pattern is not a valid regular expression. |
 | `Replace(Pattern AS STRING, Options AS STRING, Text AS STRING, With AS STRING) AS STRING` | Text with every match of Pattern (Find's Options) replaced by With; in a regular expression's replacement $1 or ${name} stand for its groups. |

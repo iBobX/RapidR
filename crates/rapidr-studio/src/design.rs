@@ -308,7 +308,7 @@ mod tests {
         // Tab to the panel, Shift+arrow by the grid, Ctrl+arrow resizes
         assert!(s.key(9, "", false, false));
         assert_eq!(s.root_name(), "F");
-        assert!(s.announcement.starts_with("Panel1 (QPANEL), 200, 10"), "{}", s.announcement);
+        assert!(s.announcement.starts_with("Panel1 (RPanel), 200, 10"), "RapidR's name, the code QPANEL: {}", s.announcement);
         assert!(s.key(39, "", true, false));
         assert!(s.key(40, "", false, true));
         let text = s.get("source").unwrap().to_string_val();

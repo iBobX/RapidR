@@ -10,7 +10,7 @@ FUNCTION ActiveCode AS INTEGER
 END FUNCTION
 
 SUB ShowAbout
-  SHOWMESSAGE "RapidR Studio (RapidR 2.117.0)" + CHR$(13) + CHR$(10) + "RapidQ programs, made modern: desktop and web from one source." + CHR$(13) + CHR$(10) + CHR$(13) + CHR$(10) + "Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence."
+  SHOWMESSAGE "RapidR Studio (RapidR 2.117.0)" + CHR$(13) + CHR$(10) + "Runs RapidQ programs, and takes them further: desktop and web from one source." + CHR$(13) + CHR$(10) + CHR$(13) + CHR$(10) + "Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence."
 END SUB
 
 SUB ShowShortcuts
@@ -34,7 +34,7 @@ SUB SaveDocumentAs
   IF d < 0 THEN EXIT SUB
   SaveDlg.Caption = "Save As"
   SaveDlg.FileName = FileTitle(DocFile(d))
-  SaveDlg.Filter = "RapidR sources (*.rr;*.bas;*.inc)|*.rr;*.bas;*.inc|All files|*.*"
+  SaveDlg.Filter = "RapidR sources (*.rr;*.bas;*.rqw;*.rqb;*.rq;*.inc)|*.rr;*.bas;*.rqw;*.rqb;*.rq;*.inc|All files|*.*"
   IF SaveDlg.Execute THEN
     DocFile(d) = SaveDlg.FileName
     SaveDocument d
@@ -64,6 +64,8 @@ SUB RunCommand(Id AS STRING)
     CASE "file.open": AskOpen
     CASE "file.openFolder": AskOpenFolder
     CASE "file.openExample": ShowPalette "Example"
+    CASE "file.importRapidQ": AskImportRapidQ
+    CASE "file.importRapidQFolder": AskImportRapidQFolder
     CASE "file.save": SaveDocument d
     CASE "file.saveAs": SaveDocumentAs
     CASE "file.saveAll": SaveAll: SaveProjectFile
@@ -119,7 +121,12 @@ SUB RunCommand(Id AS STRING)
     ' ---- help ----
     CASE "help.about": ShowAbout
     CASE ELSE
-      OutputLine "(" + Id + ": not there yet)"
+      ' (a test step: import:<file or folder> — imported without the dialog)
+      IF LEFT$(Id, 7) = "import:" THEN
+        ImportRapidQ MID$(Id, 8)
+      ELSE
+        OutputLine "(" + Id + ": not there yet)"
+      END IF
   END SELECT
 END SUB
 
@@ -180,11 +187,12 @@ SUB DocumentClosing(Name AS STRING, Cancel AS INTEGER)
   UpdateCommands
 END SUB
 
-SUB WelcomeLink(Sender AS QLABEL)
+SUB WelcomeLink(Sender AS RLabel)
   SELECT CASE Sender.Tag
     CASE 1: RunCommand "file.newProject"
     CASE 2: RunCommand "file.open"
-    CASE 3: ShowPalette "Example"
+    CASE 3: RunCommand "file.importRapidQ"
+    CASE 4: ShowPalette "Example"
     CASE ELSE: RunCommand "view.commandPalette"
   END SELECT
 END SUB

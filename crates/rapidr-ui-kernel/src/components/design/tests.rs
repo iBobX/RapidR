@@ -124,7 +124,7 @@ fn the_mouse_selects_moves_and_clears_with_the_designers_events() {
     assert_eq!(fired(f.take_events()), [("onbgclick".to_string(), vec![150, 120]), ("onselect".to_string(), vec![0]), ("ondblclick".to_string(), vec![0])]);
     let tree = f.access_tree(&s, &mut ts);
     let json = tree.to_json();
-    assert!(json.contains("Button1 (RBUTTON)") && json.contains("\"listbox\""), "{json}");
+    assert!(json.contains("Button1 (RButton)") && json.contains("\"listbox\""), "RapidR's name: {json}");
 }
 
 #[test]

@@ -6,6 +6,7 @@
 ' Opens a project (.rrproj) or a source file (with what it includes) and
 ' its main file's documents.
 SUB OpenProject(Path AS STRING)
+  DIM i AS INTEGER
   IF Path = "" THEN EXIT SUB
   IF Proj.Open(Path) = 0 THEN
     OutputLine "Can't open " + Path + ": " + Proj.Error
@@ -20,6 +21,11 @@ SUB OpenProject(Path AS STRING)
   ProjectMain = ProjectMain + Proj.MainFile
   ProjectFile = Path
   Lang.CompatMode = Proj.CompatMode
+  ' (the project's include files read for the language service: on the web
+  ' they are in the page's store, not on a disk it could read)
+  FOR i = 0 TO Proj.FileCount - 1
+    IF Proj.FileKind(i) = "include" THEN Lang.Update Proj.FullPath(i), Proj.FileText(Proj.FullPath(i))
+  NEXT
   AddRecent Path
   FillProjectTree
   ' (the start page makes room; the files open when it was last closed
@@ -54,7 +60,7 @@ END SUB
 ' File > Open: a project or a source file.
 SUB AskOpen
   OpenDlg.Caption = "Open Project or File"
-  OpenDlg.Filter = "RapidR projects and sources (*.rrproj;*.rr;*.bas;*.inc)|*.rrproj;*.rr;*.bas;*.inc|All files|*.*"
+  OpenDlg.Filter = "RapidR projects and sources (*.rrproj;*.rr;*.bas;*.rqw;*.rqb;*.rq;*.inc)|*.rrproj;*.rr;*.bas;*.rqw;*.rqb;*.rq;*.inc|All files|*.*"
   IF OpenDlg.Execute THEN OpenProject OpenDlg.FileName
 END SUB
 
@@ -75,6 +81,45 @@ SUB AskOpenFolder
     END IF
   END IF
   OpenDlg.PickFolder = 0
+END SUB
+
+' File > Import RapidQ Project or File / Folder (R-NAMES): a COPY of a
+' RapidQ program (a .bas, .rqw, .rqb, .rq or .inc file and what it
+' includes, or a folder of them) with RapidR's names, beside it
+' (<name>-rapidr), each program proved to compile to the same bytecode as
+' its original; the original is only read. The copy opens as a project,
+' its report (what changed, line by line, and the proof) beside the code.
+SUB AskImportRapidQ
+  OpenDlg.Caption = "Import RapidQ Project or File"
+  OpenDlg.Filter = "RapidQ programs (*.bas;*.rqw;*.rqb;*.rq;*.inc)|*.bas;*.rqw;*.rqb;*.rq;*.inc|RapidR projects (*.rrproj)|*.rrproj|All files|*.*"
+  IF OpenDlg.Execute THEN ImportRapidQ OpenDlg.FileName
+END SUB
+
+SUB AskImportRapidQFolder
+  DIM f AS STRING
+  OpenDlg.Caption = "Import RapidQ Folder"
+  OpenDlg.PickFolder = 1
+  IF OpenDlg.Execute THEN f = OpenDlg.FileName
+  OpenDlg.PickFolder = 0
+  IF f <> "" THEN ImportRapidQ f
+END SUB
+
+SUB ImportRapidQ(Source AS STRING)
+  DIM made AS STRING, report AS STRING, summary AS STRING
+  OutputLine "Importing " + Source + ": a copy with RapidR's names (the original is only read)"
+  made = Proj.ImportRapidQ(Source)
+  IF made = "" THEN
+    OutputLine "Can't import " + Source + ": " + Proj.Error
+    SetState "error", "Can't import " + FileTitle(Source)
+    EXIT SUB
+  END IF
+  summary = Proj.ImportSummary
+  report = Proj.ImportReport
+  OutputLine summary
+  OutputLine "The copy: " + made
+  OpenProject made
+  OpenDocument report
+  SetState "stopped", "Imported " + FileTitle(Source) + " as a copy with RapidR's names"
 END SUB
 
 ' File > New Project: a form program (or a console one) where the user says.

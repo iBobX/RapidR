@@ -339,6 +339,9 @@ impl Document {
             _ => d.location.line.max(1),
         });
         let constants = program_constants(&parse.program.statements);
+        // (new components are written in the file's own style: R-NAMES)
+        let names = parse.name_counts(file).writing_style();
+        let rapidq_file = self.path.as_deref().and_then(|p| p.extension()).and_then(|e| e.to_str()).is_some_and(|e| ["bas", "inc", "rqw", "rqb", "rq"].iter().any(|x| x.eq_ignore_ascii_case(e)));
         let mut forms = Vec::new();
         for s in &parse.program.statements {
             let Statement::Create(c) = s else { continue };
@@ -355,7 +358,8 @@ impl Document {
             let mut synced = FormDesign::from_subtree_after(tree, next);
             synced.set_constants(Some(constants.clone()));
             // (a RapidQ program: constants it doesn't define written as numbers)
-            synced.set_rapidq(self.path.as_deref().and_then(|p| p.extension()).is_some_and(|e| e.eq_ignore_ascii_case("bas") || e.eq_ignore_ascii_case("inc")));
+            synced.set_rapidq(rapidq_file);
+            synced.set_names(names);
             let old = self.forms.get(k).filter(|f| same(&f.synced)).or_else(|| self.forms.iter().find(|f| same(&f.synced)));
             let mut designer = match old {
                 Some(old) => old.designer.clone(),

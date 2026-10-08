@@ -252,7 +252,7 @@ fn main() -> ExitCode {
             eprintln!("  rapidr dap                                       The debug adapter (DAP, stdio): editors' debugger");
             eprintln!("  rapidr lang export --json|--prompt|--manual|--all  What the language registry generates");
             eprintln!("  rapidr lang conformance <dir> [--target desktop|web]  The registry's conformance programs");
-            eprintln!("  rapidr import-rapidq <file|folder|.rrproj> [-o OUT_DIR] [--include DIR]  A copy of a RapidQ program with RapidR's names, and a report");
+            eprintln!("  rapidr import-rapidq <file|folder|.rrproj> [OUT_DIR] [--include DIR]  A copy of a RapidQ program with RapidR's names, and a report");
             eprintln!("  rapidr upgrade-names <file> [--dry-run]          RapidR's names in one of your own files (--dry-run: the diff only)");
             eprintln!("  rapidr about");
             eprintln!("  rapidr [--release|--debug] [--web] [--interp] <file.rr>  Build source file");

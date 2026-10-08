@@ -41,7 +41,7 @@
 //!   those.
 //!
 //! A screen reader sees a list box whose options are the designed
-//! components ("Button1 (QBUTTON), 16, 24, 75 × 25"), the selected ones
+//! components ("Button1 (RButton), 16, 24, 75 × 25"), the selected ones
 //! selected; clicking one selects it (OnSelect); a live region (a status)
 //! says what each change did.
 
@@ -692,7 +692,9 @@ impl ComponentKind for Design {
                 .map(|(i, c)| {
                     let (x, y, w, h) = tray.iter().find(|t| t.index == i).map_or(c.bounds(), |t| t.rect);
                     let place = if c.visual { format!(", {}, {}, {} × {}", c.x, c.y, c.w, c.h) } else { String::new() };
-                    (format!("{} ({}){place}", c.name, c.type_name), (x + ox, y + oy, w, h), sel.contains(&i))
+                    // (RapidR's name, whatever the code wrote: R-NAMES)
+                    let ty = rapidr_value::objects::design::shown_type(&c.type_name);
+                    (format!("{} ({ty}){place}", c.name), (x + ox, y + oy, w, h), sel.contains(&i))
                 })
                 .collect::<Vec<_>>()
         })

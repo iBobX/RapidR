@@ -3887,6 +3887,7 @@ version = "2.117.0"
 dependencies = [
  "rapidr-ast",
  "rapidr-diagnostics",
+ "rapidr-lang",
  "rapidr-lexer",
  "rapidr-preprocessor",
 ]
@@ -3979,6 +3980,7 @@ version = "2.117.0"
 dependencies = [
  "rapidr-designer",
  "rapidr-editor",
+ "rapidr-import",
  "rapidr-lang",
  "rapidr-langsvc",
  "rapidr-package",

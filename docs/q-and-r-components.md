@@ -51,12 +51,13 @@ For people who also compile with RapidQ's own compiler (RC.EXE). Off by default;
 
 ## 6. Converting a program: `rapidr import-rapidq` and `rapidr upgrade-names`
 
-- `rapidr import-rapidq <file | folder | project.rrproj> [-o out_dir] [--include DIR]` writes a **copy** with RapidR's names and a report (`rapidr-import-report.md`); the original is never touched. Sources may be `.bas`, `.rqw` (RapidQ's window programs), `.rqb` (libraries of functions), `.rq` (libraries of TYPEs), `.inc` or `.rr`; each keeps its extension. RapidQ IDE templates (`.tpl`) aren't copied.
+- `rapidr import-rapidq <file | folder | project.rrproj> [out_dir | -o out_dir] [--include DIR]` writes a **copy** with RapidR's names and a report (`rapidr-import-report.md`); the original is never touched (the copy goes to `<name>-rapidr` beside it when no folder is given). Sources may be `.bas`, `.rqw`, `.rqb`, `.rq` (the other extensions RapidQ's editors saved programs with), `.inc` or `.rr`; each keeps its extension. RapidQ IDE templates (`.tpl`) aren't copied.
+- **RapidR Studio**: File ▸ **Import RapidQ Project or File…** (a file) and **Import RapidQ Folder…** run the same engine: the copy beside the original (`<name>-rapidr`, the next free name), opened as a project (the RapidQ-compatible setting off) with the report beside its code. On the web the program is read from the page's store (what the user picked) and the copy written back into it — the engine works on files in memory there (`rapidr_import::Memory`), the same copy byte for byte.
 - `rapidr upgrade-names <file> [--dry-run]` does the same to one of your own files in place (`--dry-run`: the diff only).
 - **What changes**: exactly the type names the compiler's parser reads (after `AS` in `DIM` / `CREATE` / parameters / TYPE fields / FUNCTION results, after `EXTENDS`) that mean one of RapidR's components. Never strings, comments, the program's own names (`QButtonCount`), its own TYPEs, a name a `$DEFINE` makes, or code in an `$IFDEF` branch the build doesn't compile — the report lists those.
 - **Includes** are followed into the copy (the program's own and RapidQ's include folder's). `$INCLUDE "RAPIDQ.INC"` stays: RapidR supplies RAPIDQ.INC's constants through that line (no file needed), as RapidQ gives them through it; without it, `clRed` would be an undeclared name. RapidQ's RAPIDQ.INC file itself isn't copied, unless the program uses something of it RapidR's constants don't have (RapidQ's `QBColor` array).
 - **Proved**: every program the original compiles to is compared with what its copy compiles to, byte for byte, and the report says so for each. On RapidQ's own 428 example programs (`.bas`, `.rqw`, `.rqb`, `.rq`): every one that RapidR compiles today (175) compiles to identical bytecode after the conversion.
-- The engine is `crates/rapidr-import`; RapidR Studio uses the same.
+- The engine is `crates/rapidr-import` (on the disk, or on files in memory: `rapidr_import::Files`); RapidR Studio uses the same.
 
 ## 7. Summary
 

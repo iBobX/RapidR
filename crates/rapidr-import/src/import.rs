@@ -2,10 +2,10 @@
 //! and upgrading one of RapidR's own files in place.
 
 use std::collections::BTreeMap;
-use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::convert::{plan_program, same_file, Change, Edit, FilePlan, Note, Options};
+use crate::convert::{plan_program, plan_program_with, same_file, Change, Edit, FilePlan, Note, Options};
+use crate::files::{Disk, Files};
 use crate::verify;
 
 /// Whether a copy was proved to compile as its original.
@@ -78,12 +78,12 @@ fn fold(p: &Path) -> PathBuf {
     }
 }
 
-fn real(p: &Path) -> PathBuf {
-    fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf())
+fn real(fs: &dyn Files, p: &Path) -> PathBuf {
+    fs.canonical(p).unwrap_or_else(|| p.to_path_buf())
 }
 
-fn key(p: &Path) -> PathBuf {
-    fold(&real(p))
+fn key(fs: &dyn Files, p: &Path) -> PathBuf {
+    fold(&real(fs, p))
 }
 
 fn ext(p: &Path) -> String {
@@ -96,8 +96,8 @@ fn skipped(p: &Path) -> bool {
     ext(p) == "tpl"
 }
 
-/// Main programs first (`.bas`, `.rqw`, `.rr`), then libraries (`.rqb`,
-/// `.rq`), then the rest (`.inc` …), each by path.
+/// Programs first (`.bas`, `.rqw`, `.rr`), then RapidQ's other program
+/// files (`.rqb`, `.rq`), then the rest (`.inc` …), each by path.
 fn entry_rank(p: &Path) -> u8 {
     match ext(p).as_str() {
         "bas" | "rqw" | "rr" => 0,
@@ -106,18 +106,15 @@ fn entry_rank(p: &Path) -> u8 {
     }
 }
 
-fn walk(dir: &Path, skip: &Path, out: &mut Vec<PathBuf>) {
-    let Ok(rd) = fs::read_dir(dir) else { return };
-    let mut entries: Vec<PathBuf> = rd.filter_map(|e| e.ok().map(|e| e.path())).collect();
-    entries.sort();
-    for p in entries {
+fn walk(fs: &dyn Files, dir: &Path, skip: &Path, out: &mut Vec<PathBuf>) {
+    for p in fs.entries(dir) {
         let name = p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-        if name.starts_with('.') || same_file(&p, skip) {
+        if name.starts_with('.') || same_file(fs, &p, skip) {
             continue;
         }
-        if p.is_dir() {
-            walk(&p, skip, out);
-        } else if p.is_file() {
+        if fs.is_dir(&p) {
+            walk(fs, &p, skip, out);
+        } else if fs.is_file(&p) {
             out.push(p);
         }
     }
@@ -128,26 +125,34 @@ fn walk(dir: &Path, skip: &Path, out: &mut Vec<PathBuf>) {
 /// with RapidR's names, and checks each program against its original
 /// (when `verify`). Never writes over a file it reads.
 pub fn import(input: &Path, out_dir: &Path, options: &Options, verify: bool) -> Result<ImportReport, String> {
-    let input = fs::canonicalize(input).map_err(|e| format!("{}: {e}", input.display()))?;
+    import_with(&Disk, input, out_dir, options, verify)
+}
+
+/// [`import`] in `fs` (the disk, or files in memory: RapidR Studio on the
+/// web).
+pub fn import_with(fs: &dyn Files, input: &Path, out_dir: &Path, options: &Options, verify: bool) -> Result<ImportReport, String> {
+    let input = fs.canonical(input).ok_or_else(|| format!("{}: no such file or folder", input.display()))?;
     let is_project = ext(&input) == "rrproj";
-    let root = if input.is_dir() { input.clone() } else { input.parent().map(Path::to_path_buf).unwrap_or_default() };
-    fs::create_dir_all(out_dir).map_err(|e| format!("{}: {e}", out_dir.display()))?;
-    let out_dir = fs::canonicalize(out_dir).map_err(|e| format!("{}: {e}", out_dir.display()))?;
-    if out_dir == root || (input.is_dir() && root.starts_with(&out_dir)) {
+    let input_is_dir = fs.is_dir(&input);
+    let root = if input_is_dir { input.clone() } else { input.parent().map(Path::to_path_buf).unwrap_or_default() };
+    fs.make_dir(out_dir)?;
+    let out_dir = fs.canonical(out_dir).unwrap_or_else(|| out_dir.to_path_buf());
+    if out_dir == root || (input_is_dir && root.starts_with(&out_dir)) {
         return Err(format!("{}: the copy must go to another folder than the original's", out_dir.display()));
     }
 
     // The programs and the other files.
     let mut all: Vec<PathBuf> = Vec::new();
     let mut entries: Vec<PathBuf> = Vec::new();
-    if input.is_dir() || is_project {
-        walk(&root, &out_dir, &mut all);
+    if input_is_dir || is_project {
+        walk(fs, &root, &out_dir, &mut all);
         // (RapidQ's RAPIDQ.INC is never a program of its own: RapidR supplies it)
         entries = all.iter().filter(|p| rapidr_preprocessor::is_source_path(p) && !crate::convert::is_rapidq_inc_name(&p.to_string_lossy())).cloned().collect();
         if is_project {
-            if let Ok(opened) = rapidr_project::open(&input) {
-                let main = root.join(&opened.project().main);
-                if let Some(i) = entries.iter().position(|e| same_file(e, &main)) {
+            let project = fs.read(&input).ok().and_then(|b| rapidr_project::Project::from_toml(&String::from_utf8_lossy(&b)).ok());
+            if let Some(project) = project {
+                let main = root.join(&project.main);
+                if let Some(i) = entries.iter().position(|e| same_file(fs, e, &main)) {
                     let m = entries.remove(i);
                     entries.insert(0, m);
                 }
@@ -170,10 +175,10 @@ pub fn import(input: &Path, out_dir: &Path, options: &Options, verify: bool) -> 
     let mut program_entries: Vec<(PathBuf, bool)> = Vec::new();
     for entry in &entries {
         // (a file another program includes is converted with it)
-        if entry_rank(entry) == 2 && reached.iter().any(|r| same_file(r, entry)) {
+        if entry_rank(entry) == 2 && reached.iter().any(|r| same_file(fs, r, entry)) {
             continue;
         }
-        let plan = match plan_program(entry, options) {
+        let plan = match plan_program_with(fs, entry, options) {
             Ok(p) => p,
             Err(e) => {
                 report.notes.push(Note { path: Some(entry.clone()), line: 0, message: format!("not read: {e}") });
@@ -192,8 +197,8 @@ pub fn import(input: &Path, out_dir: &Path, options: &Options, verify: bool) -> 
             report.notes.push(Note { path: Some(entry.clone()), line: 0, message: why.clone() });
         }
         for mut f in plan.files {
-            let key = key(&f.path);
-            f.path = real(&f.path);
+            let key = key(fs, &f.path);
+            f.path = real(fs, &f.path);
             if f.is_rapidq_inc {
                 if plan.carry_rapidq_inc.is_some() {
                     carried_inc.push(key.clone());
@@ -211,7 +216,7 @@ pub fn import(input: &Path, out_dir: &Path, options: &Options, verify: bool) -> 
             }
         }
         for r in plan.resources {
-            extra.push(real(&r));
+            extra.push(real(fs, &r));
         }
     }
     report.rapidq_inc_left_out.retain(|p| !carried_inc.contains(p));
@@ -230,7 +235,7 @@ pub fn import(input: &Path, out_dir: &Path, options: &Options, verify: bool) -> 
     };
     let sources: Vec<PathBuf> = files.values().map(|f| f.path.clone()).collect();
     let guard = |dest: &Path| -> Result<(), String> {
-        if sources.iter().chain(all.iter()).any(|s| same_file(s, dest)) {
+        if sources.iter().chain(all.iter()).any(|s| same_file(fs, s, dest)) {
             return Err(format!("{}: would write over an original", dest.display()));
         }
         Ok(())
@@ -247,12 +252,12 @@ pub fn import(input: &Path, out_dir: &Path, options: &Options, verify: bool) -> 
             continue;
         }
         guard(&dest)?;
-        write(&dest, &plan.converted_bytes())?;
+        fs.write(&dest, &plan.converted_bytes())?;
         written.push(fold(&dest));
         report.files.push(FileReport { source: path.clone(), dest, changes: plan.changes.clone(), is_source: true });
     }
     // Everything else of a folder (and a program's resources), as it is.
-    let mut others: Vec<PathBuf> = all.iter().map(|p| real(p)).filter(|p| !files.contains_key(&fold(p))).collect();
+    let mut others: Vec<PathBuf> = all.iter().map(|p| real(fs, p)).filter(|p| !files.contains_key(&fold(p))).collect();
     others.extend(extra.into_iter().filter(|p| !files.contains_key(&fold(p))));
     others.sort();
     others.dedup();
@@ -269,8 +274,8 @@ pub fn import(input: &Path, out_dir: &Path, options: &Options, verify: bool) -> 
             continue;
         }
         guard(&dest)?;
-        let bytes = fs::read(&p).map_err(|e| format!("{}: {e}", p.display()))?;
-        write(&dest, &bytes)?;
+        let bytes = fs.read(&p)?;
+        fs.write(&dest, &bytes)?;
         written.push(fold(&dest));
         report.files.push(FileReport { source: p, dest, changes: Vec::new(), is_source: false });
     }
@@ -280,10 +285,10 @@ pub fn import(input: &Path, out_dir: &Path, options: &Options, verify: bool) -> 
     // Notes about a line another program converted after all (an `$IFDEF`
     // branch one program compiles, another doesn't) are dropped.
     let converted: Vec<(PathBuf, usize)> = report.files.iter().flat_map(|f| f.changes.iter().map(move |c| (fold(&f.source), c.line))).collect();
-    report.notes.retain(|n| !(n.message.contains("$IFDEF branch") && n.path.as_ref().is_some_and(|p| converted.contains(&(key(p), n.line)))));
+    report.notes.retain(|n| !(n.message.contains("$IFDEF branch") && n.path.as_ref().is_some_and(|p| converted.contains(&(key(fs, p), n.line)))));
     let mut seen: Vec<(Option<PathBuf>, usize, String)> = Vec::new();
     report.notes.retain(|n| {
-        let k = (n.path.as_ref().map(|p| key(p)), n.line, n.message.clone());
+        let k = (n.path.as_ref().map(|p| key(fs, p)), n.line, n.message.clone());
         if seen.contains(&k) {
             false
         } else {
@@ -299,11 +304,11 @@ pub fn import(input: &Path, out_dir: &Path, options: &Options, verify: bool) -> 
     let mut orig_dirs = options.include_dirs.clone();
     orig_dirs.extend(env_include_dirs());
     for (entry, builtin_inc) in program_entries {
-        let k = key(&entry);
+        let k = key(fs, &entry);
         let copy = report.files.iter().find(|f| fold(&f.source) == k).map(|f| f.dest.clone()).unwrap_or_default();
-        let verification = verify.then(|| match verify::bytecode(&entry, &orig_dirs, None, builtin_inc) {
+        let verification = verify.then(|| match verify::bytecode_with(fs, &entry, &orig_dirs, None, builtin_inc) {
             Err(e) => Verification::OriginalFails(first_line(&e)),
-            Ok(a) => match verify::bytecode(&copy, &copy_dirs, None, builtin_inc) {
+            Ok(a) => match verify::bytecode_with(fs, &copy, &copy_dirs, None, builtin_inc) {
                 Err(e) => Verification::CopyFails(first_line(&e)),
                 Ok(b) if a == b => Verification::Identical,
                 Ok(_) => Verification::Differs,
@@ -352,13 +357,6 @@ fn merge(have: &mut FilePlan, other: FilePlan, notes: &mut Vec<Note>) {
     have.changes.sort_by_key(|c| (c.line, c.column));
 }
 
-fn write(dest: &Path, bytes: &[u8]) -> Result<(), String> {
-    if let Some(parent) = dest.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
-    }
-    fs::write(dest, bytes).map_err(|e| format!("{}: {e}", dest.display()))
-}
-
 /// One of RapidR's own files, upgraded to RapidR's names in place.
 #[derive(Debug, Clone)]
 pub struct Upgrade {
@@ -378,7 +376,7 @@ pub struct Upgrade {
 /// changed) and checks it compiles as before.
 pub fn upgrade_file(path: &Path, options: &Options) -> Result<Upgrade, String> {
     let plan = plan_program(path, options)?;
-    let file = plan.files.into_iter().find(|f| same_file(&f.path, path)).ok_or_else(|| format!("{}: not read", path.display()))?;
+    let file = plan.files.into_iter().find(|f| same_file(&Disk, &f.path, path)).ok_or_else(|| format!("{}: not read", path.display()))?;
     let converted = file.converted();
     let mut dirs = options.include_dirs.clone();
     dirs.extend(env_include_dirs());
@@ -386,6 +384,6 @@ pub fn upgrade_file(path: &Path, options: &Options) -> Result<Upgrade, String> {
         Err(_) => None,
         Ok(a) => Some(verify::bytecode(path, &dirs, Some(&converted), false).is_ok_and(|b| a == b)),
     };
-    let notes = plan.notes.into_iter().filter(|n| n.path.as_deref().is_some_and(|p| same_file(p, path))).collect();
+    let notes = plan.notes.into_iter().filter(|n| n.path.as_deref().is_some_and(|p| same_file(&Disk, p, path))).collect();
     Ok(Upgrade { path: path.to_path_buf(), bytes: file.converted_bytes(), original: file.text, converted, changes: file.changes, notes, verified })
 }

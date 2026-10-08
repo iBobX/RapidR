@@ -213,6 +213,10 @@ pub struct FormDesign {
     /// constant its program doesn't define is written as its number (RC.EXE
     /// reads an undefined name as an empty variable, 0).
     rapidq: bool,
+    /// The names new components are written with (its file's style, as
+    /// read with its program: [`FormDesign::set_names`]); `None`: as the
+    /// form's own components write theirs.
+    names: Option<rapidr_lang::NameStyle>,
 }
 
 impl PartialEq for FormDesign {
@@ -226,7 +230,7 @@ impl FormDesign {
     pub fn new(name: &str, type_written: &str) -> FormDesign {
         let mut nodes = BTreeMap::new();
         nodes.insert(1, Node::new(1, name, type_written));
-        FormDesign { nodes, root: 1, next: 2, constants: None, rapidq: false }
+        FormDesign { nodes, root: 1, next: 2, constants: None, rapidq: false, names: None }
     }
 
     /// The form from a whole CREATE tree (as read from source).
@@ -239,7 +243,7 @@ impl FormDesign {
     /// its source keeps its components' ids.
     pub fn from_subtree_after(tree: Subtree, next: NodeId) -> FormDesign {
         let max = tree.all().iter().map(|t| t.id).max().unwrap_or(0);
-        let mut d = FormDesign { nodes: BTreeMap::new(), root: 0, next: next.max(max + 1), constants: None, rapidq: false };
+        let mut d = FormDesign { nodes: BTreeMap::new(), root: 0, next: next.max(max + 1), constants: None, rapidq: false, names: None };
         let id = d.attach(None, tree, true);
         d.root = id;
         d
@@ -253,6 +257,25 @@ impl FormDesign {
     /// Says the program is RapidQ's (a `.bas` / `.inc` file).
     pub fn set_rapidq(&mut self, on: bool) {
         self.rapidq = on;
+    }
+
+    /// Says how its file writes component names (docs/ide-plan.md,
+    /// R-NAMES): the style new components are written in.
+    pub fn set_names(&mut self, style: rapidr_lang::NameStyle) {
+        self.names = Some(style);
+    }
+
+    /// The names a new component is written with: its file's style, else
+    /// the style of the form's own components (`CREATE Form AS QFORM` …:
+    /// RapidQ's), RapidR's when nothing says otherwise.
+    pub fn names(&self) -> rapidr_lang::NameStyle {
+        self.names.unwrap_or_else(|| {
+            let mut counts = rapidr_lang::NameCounts::default();
+            for n in self.nodes.values() {
+                counts.count(&n.type_written);
+            }
+            counts.writing_style()
+        })
     }
 
     /// Whether `name` (any case) can be written as a RapidQ property's

@@ -5,8 +5,10 @@ use std::path::{Path, PathBuf};
 use rapidr_ast::{Program, Statement};
 use rapidr_lang::Component;
 use rapidr_lexer::{Lexer, TokenType};
-use rapidr_parser::{parse_file_for_tools, ToolsParse};
+use rapidr_parser::ToolsParse;
 use rapidr_preprocessor::{FileId, LineKind, PreprocessOptions, SourceEncoding};
+
+use crate::files::Files;
 
 /// How a program is read.
 #[derive(Debug, Clone)]
@@ -70,27 +72,14 @@ pub struct FilePlan {
     pub rapidr_names: usize,
 }
 
-/// How a file writes the names of the components RapidQ has too: what
-/// RapidR Studio's designer and completion follow, so a file never mixes
-/// the two (docs/ide-plan.md, R-NAMES phase 2).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NameStyle {
-    /// RapidQ's names only (`QBUTTON`): a RapidQ program.
-    RapidQ,
-    /// RapidR's names only (`RButton`), or none yet: RapidR's default.
-    RapidR,
-    /// Both.
-    Mixed,
-}
+/// How a file writes the names of the components RapidQ has too (the
+/// registry's, shared with RapidR Studio's designer and completion).
+pub use rapidr_lang::NameStyle;
 
 impl FilePlan {
     /// How the file writes component names (before the conversion).
     pub fn style(&self) -> NameStyle {
-        match (self.rapidq_names, self.rapidr_names) {
-            (0, _) => NameStyle::RapidR,
-            (_, 0) => NameStyle::RapidQ,
-            _ => NameStyle::Mixed,
-        }
+        rapidr_lang::NameCounts { rapidq: self.rapidq_names, rapidr: self.rapidr_names }.style()
     }
 
     /// The file's text with the edits made.
@@ -133,11 +122,17 @@ pub fn apply(text: &str, edits: &[Edit]) -> String {
     out
 }
 
-/// Plans the conversion of the program whose main file is `entry`.
+/// Plans the conversion of the program whose main file is `entry` (on the
+/// disk).
 pub fn plan_program(entry: &Path, options: &Options) -> Result<ProgramPlan, String> {
+    plan_program_with(&crate::files::Disk, entry, options)
+}
+
+/// [`plan_program`] in `files`.
+pub fn plan_program_with(files: &dyn Files, entry: &Path, options: &Options) -> Result<ProgramPlan, String> {
     let pp = PreprocessOptions { include_dirs: options.include_dirs.clone(), ..Default::default() };
-    let tp = parse_file_for_tools(entry, pp).map_err(|d| d.to_string())?;
-    Ok(plan_parsed(entry, &tp, options))
+    let tp = files.parse(entry, pp)?;
+    Ok(plan_parsed(files, entry, &tp, options))
 }
 
 /// The program's own TYPEs (upper case).
@@ -189,7 +184,7 @@ pub fn is_rapidq_inc_name(path: &str) -> bool {
     path.rsplit(['/', '\\']).next().is_some_and(|n| n.trim().eq_ignore_ascii_case("RAPIDQ.INC"))
 }
 
-pub(crate) fn plan_parsed(entry: &Path, tp: &ToolsParse, options: &Options) -> ProgramPlan {
+pub(crate) fn plan_parsed(fs: &dyn Files, entry: &Path, tp: &ToolsParse, options: &Options) -> ProgramPlan {
     let own = own_types(&tp.program);
     let files = &tp.preprocessed.origins.files;
     let mut plans: Vec<Option<FilePlan>> = files
@@ -283,7 +278,7 @@ pub(crate) fn plan_parsed(entry: &Path, tp: &ToolsParse, options: &Options) -> P
     }
     let mut out: Vec<FilePlan> = Vec::new();
     // (the main file first)
-    let main = plans.iter().position(|p| p.as_ref().is_some_and(|p| same_file(&p.path, entry)));
+    let main = plans.iter().position(|p| p.as_ref().is_some_and(|p| same_file(fs, &p.path, entry)));
     if let Some(m) = main {
         out.extend(plans[m].take());
     }
@@ -313,8 +308,8 @@ fn count_style(tp: &ToolsParse, span: rapidr_diagnostics::TextSpan, lexeme: &str
     }
 }
 
-pub(crate) fn same_file(a: &Path, b: &Path) -> bool {
-    a == b || matches!((std::fs::canonicalize(a), std::fs::canonicalize(b)), (Ok(x), Ok(y)) if x == y)
+pub(crate) fn same_file(fs: &dyn Files, a: &Path, b: &Path) -> bool {
+    a == b || matches!((fs.canonical(a), fs.canonical(b)), (Some(x), Some(y)) if x == y)
 }
 
 /// The names after `AS` / `EXTENDS` on one line, as the lexer reads it.

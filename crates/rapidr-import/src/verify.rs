@@ -7,6 +7,8 @@ use std::path::{Path, PathBuf};
 
 use rapidr_preprocessor::PreprocessOptions;
 
+use crate::files::Files;
+
 /// The bytecode `main` compiles to, its `$INCLUDE`s looked for in its
 /// folder and then `include_dirs` (nothing else: not `RAPIDR_INCLUDE_PATH`);
 /// `replace`: the main file's text instead of the file's (an upgrade
@@ -16,15 +18,22 @@ use rapidr_preprocessor::PreprocessOptions;
 /// even where a RAPIDQ.INC file would be found (the copy of a program whose
 /// RAPIDQ.INC was left out is compared with its original so).
 pub fn bytecode(main: &Path, include_dirs: &[PathBuf], replace: Option<&str>, builtin_rapidq_inc: bool) -> Result<Vec<u8>, String> {
+    bytecode_with(&crate::files::Disk, main, include_dirs, replace, builtin_rapidq_inc)
+}
+
+/// [`bytecode`] of a program in `files`.
+pub fn bytecode_with(files: &dyn Files, main: &Path, include_dirs: &[PathBuf], replace: Option<&str>, builtin_rapidq_inc: bool) -> Result<Vec<u8>, String> {
     let text = match replace {
         Some(t) => t.to_string(),
-        None => rapidr_preprocessor::read_source(main).map_err(|e| format!("{}: {e}", main.display()))?,
+        None => rapidr_preprocessor::decode_source(&files.read(main)?).0,
     };
     let base = main.parent().unwrap_or_else(|| Path::new("."));
     let mut options = PreprocessOptions { include_dirs: include_dirs.to_vec(), ..Default::default() };
     if builtin_rapidq_inc {
         options.virtual_files.push(("RAPIDQ.INC".into(), rapidr_preprocessor::rapidq_inc_text()));
     }
+    // (in memory: the other files are the preprocessor's virtual files)
+    options.virtual_files.extend(files.virtual_files());
     let pre = rapidr_preprocessor::preprocess_source(&text, base, Some(main.to_path_buf()), options).map_err(|e| e.to_string())?;
     let label = main.display().to_string();
     let remap = |e: String| pre.remap_messages(&label, &e);

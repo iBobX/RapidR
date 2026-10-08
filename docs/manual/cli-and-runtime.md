@@ -6,7 +6,7 @@ One command, `rapidr`, is the compiler, the build tool and the runtime.
 
 | Command | |
 |---|---|
-| `rapidr run <file> [args]` | Run a program: a `.rrbc`, or a source (`.rr` / `.bas`, or RapidQ's `.rqw` window programs, `.rqb` function libraries and `.rq` TYPE libraries; compiled in memory first). This is the RapidR Runtime. |
+| `rapidr run <file> [args]` | Run a program: a `.rrbc`, or a source (`.rr` / `.bas`, or RapidQ's other source extensions `.rqw`, `.rqb` and `.rq`; compiled in memory first). This is the RapidR Runtime. |
 | `rapidr <file.rrbc> [args]` | The same, for a compiled program (and for `#!/usr/bin/env rapidr` scripts) |
 | `rapidr open <file> [args]` | Run it as a double click does: a downloaded file asks first, a console program gets a terminal |
 | `rapidr info <file>` | The program's kind, bytecode format and the oldest runtime it needs |
@@ -17,7 +17,7 @@ One command, `rapidr`, is the compiler, the build tool and the runtime.
 | `rapidr install-app <Name.AppDir>` | Linux: put a built app in your applications menu |
 | `rapidr build-bc <file> [-o out.rrbc]` | Compile to bytecode, for the Runtime |
 | `rapidr bundle-bc <file> [-o out.zip]` | A static web bundle (a `.zip`) |
-| `rapidr import-rapidq <file\|folder\|.rrproj> [-o out_dir]` | Write a converted copy of a RapidQ program with RapidR's names, and a report (`rapidr-import-report.md`). The original is untouched, and each program is proved to compile to the same bytecode |
+| `rapidr import-rapidq <file\|folder\|.rrproj> [out_dir]` | Write a converted copy of a RapidQ program with RapidR's names, and a report (`rapidr-import-report.md`), in `out_dir` (also `-o out_dir`; else `<name>-rapidr` beside it). The original is untouched, and each program is proved to compile to the same bytecode. RapidR Studio's File ▸ Import RapidQ Project or File… does the same |
 | `rapidr upgrade-names <file> [--dry-run]` | The same conversion in place, for RapidR's own files; `--dry-run` prints a diff and changes nothing |
 | `rapidr setup [--check] [--yes] [--no-path]` | Install the Rust native builds use; put `rapidr` on PATH |
 | `rapidr notices [<os>-<arch>\|web\|tools-<os>] [-o file]` | Print the third-party notices a kind of build carries |

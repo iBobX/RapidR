@@ -63,7 +63,7 @@ pub fn markdown(r: &ImportReport) -> String {
     }
     if !kinds.is_empty() {
         let list: Vec<String> = kinds.iter().map(|(k, n)| format!("{n} `{k}`")).collect();
-        let _ = writeln!(out, "Source files: {} (RapidQ's `.rqw` window programs, `.rqb` / `.rq` libraries and `.inc` includes keep their extensions).\n", list.join(", "));
+        let _ = writeln!(out, "Source files: {} (RapidQ's `.rqw`, `.rqb` and `.rq` programs and `.inc` includes keep their extensions).\n", list.join(", "));
     }
 
     if !r.programs.is_empty() {

@@ -30,21 +30,22 @@ export const cases = [
   // RapidR Studio's panels (I1 / L-PANELS, rapidr_value::panels): each made,
   // placed and drawn by the kernel (the scaffold's check; each panel has its own case).
   { name: "panels_smoke", events: "", dump: "lbl.caption", expect: ["lbl.caption=2800"] },
-  // RTOOLBOX and RCOMMANDPALETTE (I1 / L-PANELS sub-lane B). The toolbox:
-  // "but" searched, Enter (OnPick QBUTTON), Escape twice (cleared, out of the
-  // box), QLABEL dragged onto a panel and onto a panel in it (OnDragDrop:
-  // the target, the point in its pixels), RapidQ's group closed by a
-  // click. Its keyboard: Down x4, "l" (type-ahead), Left x2 (to the group,
-  // closed), Down, Right (its first item), End, Home, Enter (RapidQ closed).
+  // RTOOLBOX and RCOMMANDPALETTE (I1 / L-PANELS sub-lane B). The toolbox
+  // (RapidR's names, groups by purpose: R-NAMES): "but" searched, Enter
+  // (OnPick RButton), Escape twice (cleared, out of the box), RLabel
+  // dragged onto a panel and onto a panel in it (OnDragDrop: the target,
+  // the point in its pixels), the Standard group closed by a click. Its
+  // keyboard: Down x4, "l" (type-ahead), Left x2 (to the group, closed),
+  // Down, Right (its first item), End, Home, Enter (Standard open again).
   // The palette: shown five times: "sa", Down, Enter; Escape; a click
   // elsewhere (the focus leaves); a click on a row; "s". The ones used
   // last come first, a disabled command is skipped.
-  { name: "panel_toolbox", events: "box.__mousedown_60_15,box.__mouseup_60_15,box.__key_66,box.__key_85,box.__key_84,box.__key_13,box.__key_27,box.__key_27,box.__mousedown_100_133,box.__mousemove_150_133,box.__mousemove_400_150,box.__mouseup_400_150,box.__mousedown_100_133,box.__mousemove_150_133,box.__mouseup_500_80,box.__mousedown_100_40,box.__mouseup_100_40,breport.onclick",
+  { name: "panel_toolbox", events: "box.__mousedown_60_15,box.__mouseup_60_15,box.__key_66,box.__key_85,box.__key_84,box.__key_13,box.__key_27,box.__key_27,box.__mousedown_100_109,box.__mousemove_150_109,box.__mousemove_400_150,box.__mouseup_400_150,box.__mousedown_100_109,box.__mousemove_150_109,box.__mouseup_500_80,box.__mousedown_100_40,box.__mouseup_100_40,breport.onclick",
     dump: "lbl.caption,info.caption",
-    expect: ["lbl.caption= pick:QBUTTON sel:QLABEL drag:QLABEL drop:QLABEL>surface@108,118 drag:QLABEL drop:QLABEL>inner@28,28", "info.caption=32 RMEMO QLABEL []"] },
+    expect: ["lbl.caption= pick:RButton sel:RLabel drag:RLabel drop:RLabel>surface@108,118 drag:RLabel drop:RLabel>inner@28,28", "info.caption=89 RFormMDI RLabel []"] },
   { name: "panel_toolbox_keys", events: "box.__key_40,box.__key_40,box.__key_40,box.__key_40,box.__key_76,box.__key_37,box.__key_37,box.__key_40,box.__key_39,box.__key_35,box.__key_36,box.__key_13,breport.onclick",
     dump: "lbl.caption,info.caption",
-    expect: ["lbl.caption= sel:QFORM sel:QBUTTON sel:QLABEL sel:QFORMMDI sel:RLANGUAGESERVICE", "info.caption=32 RMEMO RLANGUAGESERVICE []"] },
+    expect: ["lbl.caption= sel:RForm sel:RButton sel:RLabel sel:RFormMDI sel:RLanguageService", "info.caption=106 RForm RLanguageService []"] },
   { name: "panel_palette", events: "bopen.onclick,pal.__key_83,pal.__key_65,pal.__key_40,pal.__key_13,bopen.onclick,pal.__key_27,bopen.onclick,edit1.__mousedown_5_5,edit1.__mouseup_5_5,bopen.onclick,pal.__mousedown_100_81,pal.__mouseup_100_81,bopen.onclick,pal.__key_83,breport.onclick",
     dump: "lbl.caption,info.caption",
     expect: ["lbl.caption= first:file.save run:file.saveall first:file.saveall cancel first:file.saveall cancel first:file.saveall run:file.save first:file.save", "info.caption=3 file.save [s] -1 5"] },

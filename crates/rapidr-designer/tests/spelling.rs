@@ -44,3 +44,31 @@ fn constants_a_rapidq_program_lacks_are_numbers() {
     // (RapidR's own properties keep RapidR's constants)
     assert!(set("f.bas", FORM, "E", "Anchors", "akLeft + akRight").contains("Anchors = akLeft + akRight"));
 }
+
+/// What a component added from the toolbox is written as (R-NAMES): the
+/// file's own style — RapidR's names (`RButton`), RapidQ's (`QBUTTON`) in a
+/// file written with RapidQ's names — so a file never mixes them; the names
+/// already there are never changed.
+#[test]
+fn new_components_follow_the_files_names() {
+    let add = |path: &str, text: &str, ty: &str| -> String {
+        let mut doc = Document::open(text, Some(Path::new(path)), PreprocessOptions::default());
+        let d = doc.designer(0).unwrap();
+        d.add_component(ty, rapidr_value::layout::Rect::new(8, 8, 75, 25), None).unwrap();
+        doc.sync();
+        doc.text().to_string()
+    };
+    let t = add("f.bas", FORM, "RBUTTON");
+    assert!(t.contains("AS QBUTTON\n") && !t.contains("RButton"), "a RapidQ program keeps RapidQ's names:\n{t}");
+    let r = "CREATE Form AS RForm\n    CREATE B AS RButton\n    END CREATE\nEND CREATE\n";
+    let t = add("f.rr", r, "QLABEL");
+    assert!(t.contains("AS RLabel\n") && !t.contains("QLABEL"), "{t}");
+    // (the extension doesn't decide: the names written do)
+    let t = add("f.bas", r, "QEDIT");
+    assert!(t.contains("AS REdit\n"), "{t}");
+    let t = add("f.rr", FORM, "REDIT");
+    assert!(t.contains("AS QEDIT\n"), "{t}");
+    // (DIMs count too: a file with more of RapidR's names writes RapidR's)
+    let mixed = format!("DIM F1 AS RFont\nDIM F2 AS RFont\nDIM F3 AS RFont\n{FORM}");
+    assert!(add("f.bas", &mixed, "QLABEL").contains("AS RLabel\n"));
+}

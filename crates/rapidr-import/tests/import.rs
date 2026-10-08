@@ -4,7 +4,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use rapidr_import::{import, plan_program, report, upgrade_file, NameStyle, Options, Verification};
+use rapidr_import::{import, import_with, plan_program, report, upgrade_file, Files, Memory, NameStyle, Options, Verification};
 
 fn dir(name: &str) -> PathBuf {
     let d = std::env::temp_dir().join(format!("rapidr-import-{name}-{}", std::process::id()));
@@ -120,6 +120,52 @@ fn import_copies_proves_and_reports() {
     assert_eq!(again.changes(), 0, "{}", report::markdown(&again));
     // Never over the original.
     assert!(import(&src, &src, &Options::default(), false).is_err());
+}
+
+/// The same import in memory (RapidR Studio on the web: the page's store)
+/// writes the same copy as on the disk, byte for byte — an include found by
+/// its path (`include\\Shapes.inc`) before another file of its name, a
+/// Windows-1252 text kept in its encoding — and proves it the same way.
+#[test]
+fn import_in_memory_writes_what_the_disk_does() {
+    let d = dir("memory");
+    let src = d.join("prog");
+    let mut latin = PROGRAM.replace("QBUTTON clicked", "QBUTTON cliqu\u{e9}").replace('\n', "\r\n").into_bytes();
+    // (é in Windows-1252, as RapidQ's editor saved it)
+    let at = latin.windows(2).position(|w| w == "\u{e9}".as_bytes()).unwrap();
+    latin.splice(at..at + 2, [0xE9]);
+    let files: Vec<(&str, Vec<u8>)> = vec![
+        ("main.bas", [b"$INCLUDE \"include\\Shapes.inc\"\r\n".as_slice(), &latin].concat()),
+        ("lib.rqb", b"SUB Helper (L AS QLISTBOX)\r\nEND SUB\r\n".to_vec()),
+        ("include/Shapes.inc", b"DIM Box AS QPANEL\r\n".to_vec()),
+        ("Shapes.inc", b"DIM Wrong AS QEDIT\r\n".to_vec()),
+        ("data/notes.txt", b"QFORM in a data file\n".to_vec()),
+    ];
+    for (name, bytes) in &files {
+        let p = src.join(name);
+        fs::create_dir_all(p.parent().unwrap()).unwrap();
+        fs::write(p, bytes).unwrap();
+    }
+    let on_disk = import(&src, &d.join("copy"), &Options::default(), true).unwrap();
+    let mem = Memory::new(files.iter().map(|(n, b)| (PathBuf::from("/store/prog").join(n), b.clone())));
+    let in_mem = import_with(&mem, Path::new("/store/prog"), Path::new("/store/prog-rapidr"), &Options::default(), true).unwrap();
+    let written = mem.written();
+    assert_eq!(written.len(), on_disk.files.len(), "{written:?}");
+    for f in &on_disk.files {
+        let rel = f.dest.strip_prefix(fs::canonicalize(d.join("copy")).unwrap()).unwrap();
+        let want = fs::read(&f.dest).unwrap();
+        let got = mem.read(&Path::new("/store/prog-rapidr").join(rel)).unwrap();
+        assert_eq!(got, want, "{}", rel.display());
+    }
+    let main = mem.read(Path::new("/store/prog-rapidr/main.bas")).unwrap();
+    assert!(main.contains(&0xE9) && !String::from_utf8_lossy(&main).contains("\u{e9}"), "Windows-1252 kept");
+    assert_eq!(mem.read(Path::new("/store/prog-rapidr/include/Shapes.inc")).unwrap(), b"DIM Box AS RPanel\r\n");
+    assert_eq!(on_disk.changes(), in_mem.changes());
+    let ok = |r: &rapidr_import::ImportReport| r.programs.iter().filter(|p| p.verification == Some(Verification::Identical)).count();
+    assert_eq!(ok(&in_mem), ok(&on_disk));
+    assert!(ok(&in_mem) >= 1, "{}", report::markdown(&in_mem));
+    // (nothing written over what was read)
+    assert!(import_with(&mem, Path::new("/store/prog"), Path::new("/store/prog"), &Options::default(), false).is_err());
 }
 
 #[test]

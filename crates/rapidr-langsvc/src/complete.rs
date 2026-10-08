@@ -13,6 +13,11 @@ use crate::model::{name_key, ScopeKind, SymbolKind};
 use crate::{Completion, CompletionKind, Completions, Snapshot};
 
 pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize, rapidq_compatible: bool) -> Completions {
+    // (the file's own style, never mixed: RapidQ's names in a file written
+    // with them — or in a RapidQ-compatible project's file that has no
+    // RapidR names yet —, RapidR's otherwise: R-NAMES)
+    let counts = s.parsed.name_counts(file);
+    let rapidq_names = counts.writing_style() == rapidr_lang::NameStyle::RapidQ || (rapidq_compatible && counts.rapidr == 0);
     let lc = line_context(text, offset);
     let pre = s.pre_offset(file, lc.word_start).unwrap_or(0);
     let mut out = Out::default();
@@ -31,7 +36,7 @@ pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize, 
                 });
             }
         }
-        Place::AfterAs => types(s, &mut out, rapidq_compatible),
+        Place::AfterAs => types(s, &mut out, rapidq_names),
         Place::Label => {
             let scope = s.model.scope_at(pre);
             for sym in &s.model.symbols {
@@ -55,7 +60,7 @@ pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize, 
                         kind: CompletionKind::Keyword,
                         detail: Some("CREATE name AS type … END CREATE".into()),
                         doc: Some("Creates a component inside this one.".into()),
-                        insert: Some("CREATE ${1:Name} AS ${2:QButton}\n\t$0\nEND CREATE".into()),
+                        insert: Some(format!("CREATE ${{1:Name}} AS ${{2:{}}}\n\t$0\nEND CREATE", if rapidq_names { "QButton" } else { "RButton" })),
                         snippet: true,
                         sort: "1".into(),
                     });
@@ -139,10 +144,10 @@ pub(crate) fn with_notes(doc: &str, notes: &str) -> String {
 }
 
 /// Types after `AS`: the components under RapidR's names (`RButton`) —
-/// in a RapidQ-compatible project RapidQ's components under RapidQ's
-/// (`QButton`), which RapidQ's compiler knows — the program's TYPEs, the
-/// built-in types (docs/q-and-r-components.md).
-fn types(s: &Snapshot, out: &mut Out, rapidq_compatible: bool) {
+/// in a file written with RapidQ's names RapidQ's components under
+/// RapidQ's (`QButton`), so the file never mixes them — the program's
+/// TYPEs, the built-in types (docs/q-and-r-components.md, R-NAMES).
+fn types(s: &Snapshot, out: &mut Out, rapidq_names: bool) {
     for t in rapidr_lang::TYPE_NAMES {
         out.push(Completion {
             label: t.name.to_string(),
@@ -163,7 +168,7 @@ fn types(s: &Snapshot, out: &mut Out, rapidq_compatible: bool) {
     for c in rapidr_lang::COMPONENTS.iter().filter(|c| c.kind != Kind::Planned) {
         let (label, detail) = match (c.rapidq_spelling(), c.from) {
             (Some(q), _) if c.kind != Kind::Component => (q, format!("RapidQ's, from {}", c.from.unwrap_or("RapidQ"))),
-            (Some(q), _) if rapidq_compatible => (q, format!("RapidR name: {}", c.spelling())),
+            (Some(q), _) if rapidq_names => (q, format!("RapidR name: {}", c.spelling())),
             (Some(_), Some(inc)) => (c.spelling(), format!("RapidQ name: {} (from {inc})", c.written_name())),
             (Some(_), None) => (c.spelling(), format!("RapidQ name: {}", c.written_name())),
             (None, _) => (c.spelling(), "RapidR's own component".to_string()),

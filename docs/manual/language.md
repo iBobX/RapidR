@@ -11,9 +11,9 @@ RapidR also accepts some syntax RapidQ doesn't (VB's `#If`, `ON ERROR`,
 
 ## Source files
 
-- Extensions `.bas` and `.rr` are the same language. RapidQ's source
-  extensions are accepted too: `.rqw` (window programs), `.rqb` (libraries of
-  functions) and `.rq` (libraries of TYPEs).
+- Extensions `.bas` and `.rr` are the same language. The other extensions
+  RapidQ's editors saved programs with are accepted too: `.rqw`, `.rqb` and
+  `.rq` (run, built, opened in RapidR Studio and `$INCLUDE`d like a `.bas`).
   A file is read as UTF-8; one that isn't valid UTF-8 is read as
   Windows-1252 (ANSI), as RapidQ's programs usually are.
 - **Case doesn't matter** in keywords, names, components and builtins.

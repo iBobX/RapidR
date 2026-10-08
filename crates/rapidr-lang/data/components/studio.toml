@@ -6,7 +6,7 @@ name = "RPROJECT"
 display = "Project"
 visual = false
 default_event = "OnChange"
-doc = "A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a .bas / .rr file with the files it $INCLUDEs, RapidQ's way. Lists the project's files and their kinds, adds and removes files, saves the project file, and makes new projects from templates. RapidR Studio is built on it."
+doc = "A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a source file (.rr, or RapidQ's .bas, .rqw, .rqb, .rq) with the files it $INCLUDEs, RapidQ's way. Lists the project's files and their kinds, adds and removes files, saves the project file, and makes new projects from templates. RapidR Studio is built on it."
 properties = [
   { name = "FileName", type = "string", access = "read", design = false, doc = "The .rrproj file (\"\" for a source file opened without one)." },
   { name = "Folder", type = "string", access = "read", design = false, doc = "The project's folder: its files' paths are relative to it." },
@@ -25,6 +25,8 @@ properties = [
   { name = "Building", type = "int", access = "read", design = false, doc = "True while a Build runs." },
   { name = "FileManager", type = "string", access = "read", design = false, doc = "What this system calls the file manager Reveal opens: \"Finder\", \"File Explorer\" or \"Files\" (\"\" on the web)." },
   { name = "BuiltPath", type = "string", access = "read", design = false, doc = "What the last Build made: the .app, the .exe or the AppDir (\"\" until one succeeds)." },
+  { name = "ImportSummary", type = "string", access = "read", design = false, doc = "The last ImportRapidQ's summary: how many programs, files and names, and how many compile to the same bytecode as their originals." },
+  { name = "ImportReport", type = "string", access = "read", design = false, doc = "The last ImportRapidQ's report (rapidr-import-report.md in the copy): every name changed by file, line and column, what was left and why, each program's proof." },
 ]
 methods = [
   { name = "Open", params = "Path AS STRING", returns = "INTEGER", test = "skip: needs a project file", doc = "Opens a .rrproj, or a .bas / .rr / .inc file with what it includes. True when it opened; Error says why not." },
@@ -40,6 +42,7 @@ methods = [
   { name = "Build", params = "[Kind AS STRING]", returns = "INTEGER", value = true, test = "skip: builds a program", doc = "Makes the program into an app for this computer's system with rapidr build: Name.app on macOS, the .exe with its icon and version on Windows, Name.AppDir on Linux. Kind is \"native\" or \"interpreted\" (else BuildKind). Runs in the background: OnBuildOutput gives its lines, OnBuildDone its end. True when it started; Error says why not (on the web there is nothing to run it)." },
   { name = "StopBuild", value = true, test = "skip: needs a running build", doc = "Stops the Build that is running." },
   { name = "Reveal", params = "[Path AS STRING]", returns = "INTEGER", value = true, test = "skip: opens the file manager", doc = "Shows Path (else what the last Build made) selected in Finder, Explorer or the Linux file manager." },
+  { name = "ImportRapidQ", params = "Source AS STRING, [Dest AS STRING]", returns = "STRING", test = "skip: writes a copy of a program", doc = "Imports a RapidQ program — a .bas, .rqw, .rqb, .rq or .inc file and the files it includes, or a folder of them — as a copy with RapidR's names (QBUTTON becomes RButton) in Dest (else <name>-rapidr beside it, the next free name): each program proved to compile to the same bytecode as its original, a report (ImportReport) and a project for the copy (the RapidQ-compatible setting off). The original is only read. Gives the copy's project file to Open; \"\" when it can't (Error says why). On the web, Source is a file or folder in the page's store (one the user picked)." },
   { name = "IconPreview", params = "[Size AS INTEGER]", returns = "STRING", test = "skip: writes a file", doc = "Draws the app's icon (Icon, else RapidR's) as a Size-pixel PNG (128 by default) in the project's .rapidr folder and gives its path, for an RImage to show; \"\" when the icon can't be read (Error says why)." },
   { name = "Find", params = "Pattern AS STRING, Options AS STRING, Text AS STRING", returns = "STRING", value = true, doc = "Find in Files: every match of Pattern in Text, a line each: line, column (both from 1), length, the line's text, separated by tabs. Options: any of \"case\" (match case), \"word\" (whole words), \"regex\" (Pattern is a regular expression), separated by commas. \"\" with Error set when the pattern is not a valid regular expression." },
   { name = "Replace", params = "Pattern AS STRING, Options AS STRING, Text AS STRING, With AS STRING", returns = "STRING", doc = "Text with every match of Pattern (Find's Options) replaced by With; in a regular expression's replacement $1 or ${name} stand for its groups." },

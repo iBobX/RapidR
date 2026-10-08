@@ -361,6 +361,19 @@ pub fn stored_names_in(folder: &str) -> Vec<String> {
     })
 }
 
+/// The files in the page's store under folder `folder`, at any depth
+/// (paths relative to it): RPROJECT.ImportRapidQ's look at a folder picked
+/// on the web.
+pub fn stored_names_under(folder: &str) -> Vec<String> {
+    let prefix = format!("{}/", folder.trim_end_matches('/').replace('\\', "/"));
+    let lower = prefix.to_lowercase();
+    SAVED_FILES.with(|f| {
+        let mut names: Vec<String> = f.borrow().keys().filter(|k| k.to_lowercase().starts_with(&lower)).map(|k| k[prefix.len()..].to_string()).filter(|rest| !rest.is_empty()).collect();
+        names.sort();
+        names
+    })
+}
+
 /// `bytes` as file `path` in the page's store (over a file of the same
 /// name in another case, as on Windows) — a file the user picked to open,
 /// read whole before Execute returns.

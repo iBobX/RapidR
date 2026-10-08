@@ -46,6 +46,12 @@ use crate::designer::{arrange, value, Command, Designer, FormDesign, Guide, Guid
 use crate::layout::{Rect as LRect, FORM_BORDER, FORM_CAPTION, MAIN_MENU_HEIGHT};
 use crate::{v_int, v_str, Value};
 
+/// A component type as the designer's announcements name it: RapidR's
+/// name (`RButton`), whatever the code wrote (R-NAMES).
+pub fn shown_type(written: &str) -> String {
+    rapidr_lang::component(written).map_or_else(|| written.to_string(), |c| c.spelling())
+}
+
 /// The grid moves and resizes snap to (and its dots are drawn on).
 pub const GRID: i64 = 8;
 /// How near a handle the mouse grabs it (either way).
@@ -473,7 +479,7 @@ pub struct DesignSurface {
 
 impl Default for DesignSurface {
     fn default() -> Self {
-        let mut design = FormDesign::new("Form", "QFORM");
+        let mut design = FormDesign::new("Form", "RForm");
         let root = design.root();
         for (p, v) in [("Width", "640"), ("Height", "480")] {
             let _ = Command::SetProp { node: root, name: p.into(), value: Some(v.into()) }.apply(&mut design);
@@ -624,7 +630,7 @@ impl DesignSurface {
         match form {
             Some(_) => self.reload(fresh || changed),
             None => {
-                self.designer = Designer::new(FormDesign::new("", "QFORM"));
+                self.designer = Designer::new(FormDesign::new("", "RForm"));
                 self.forget_gestures();
             }
         }
@@ -660,7 +666,7 @@ impl DesignSurface {
 
     /// What the surface says where there is no form to show.
     pub fn empty_text(&self) -> Option<&'static str> {
-        self.no_form().then_some("This file creates no form.\nAdd one with CREATE Form AS QFORM … END CREATE, then come back here.")
+        self.no_form().then_some("This file creates no form.\nAdd one with CREATE Form1 AS RForm … END CREATE, then come back here.")
     }
 
     /// The designer's changes since the last commit written into the
@@ -777,10 +783,17 @@ impl DesignSurface {
     /// place and size.
     fn describe_comp(&self, id: NodeId) -> String {
         let Some(n) = self.designer.design.node(id) else { return String::new() };
+        let ty = shown_type(&n.type_written);
         match self.rect_of(id).filter(|_| self.on_form(id)) {
-            Some(r) => format!("{} ({}), {}, {}, {} × {}", n.name, n.type_written, r.left, r.top, r.width, r.height),
-            None => format!("{} ({})", n.name, n.type_written),
+            Some(r) => format!("{} ({ty}), {}, {}, {} × {}", n.name, r.left, r.top, r.width, r.height),
+            None => format!("{} ({ty})", n.name),
         }
+    }
+
+    /// "Form1 (RForm), nothing selected".
+    fn describe_none(&self) -> String {
+        let d = &self.designer.design;
+        format!("{} ({}), nothing selected", self.root_name(), d.node(d.root()).map(|n| shown_type(&n.type_written)).unwrap_or_default())
     }
 
     /// The selection changed: OnSelect with the primary's index (-1: none),
@@ -792,7 +805,7 @@ impl DesignSurface {
         let text = match self.designer.selection.primary() {
             Some(id) if self.designer.selection.len() > 1 => format!("{}, and {} more selected", self.describe_comp(id), self.designer.selection.len() - 1),
             Some(id) => self.describe_comp(id),
-            None => format!("{} ({}), nothing selected", self.root_name(), self.designer.design.node(self.designer.design.root()).map(|n| n.type_written.clone()).unwrap_or_default()),
+            None => self.describe_none(),
         };
         self.say(text);
     }
@@ -1396,7 +1409,7 @@ impl DesignSurface {
             None => {
                 if !add {
                     self.designer.selection.clear();
-                    let text = format!("{} ({}), nothing selected", self.root_name(), self.designer.design.node(self.designer.design.root()).map(|n| n.type_written.clone()).unwrap_or_default());
+                    let text = self.describe_none();
                     self.say(text);
                 }
                 self.selected_raw = -1;

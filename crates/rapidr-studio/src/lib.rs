@@ -23,6 +23,7 @@ pub mod channel;
 pub mod design;
 pub mod find;
 pub mod help;
+pub mod import;
 pub mod langsvc;
 pub mod project;
 pub mod session;
@@ -42,6 +43,12 @@ pub trait Host: Copy + 'static {
     /// The files directly in `folder` (their names; RPROJECT.OpenFolder):
     /// the disk's on the desktop, the page's store on the web.
     fn list_files(self, folder: &str) -> Vec<String>;
+    /// Every file under `folder`, at any depth (paths relative to it, `/`
+    /// separated): the page's store on the web (RPROJECT.ImportRapidQ reads
+    /// a picked folder from it); the desktop reads the disk itself.
+    fn list_tree(self, _folder: &str) -> Vec<String> {
+        Vec::new()
+    }
     /// The `rapidr` executable RPROJECT.Build runs (`rapidr build`); `None`
     /// where there is none to run (the web).
     fn rapidr(self) -> Option<std::path::PathBuf> {

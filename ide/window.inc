@@ -10,41 +10,41 @@
 ' palette an RCOMMANDPALETTE (panels.inc); documents are CodeDoc(i)
 ' (RCodeEditor) and DesignDoc(i) (the designer) — see panes.inc.
 
-DIM SymbolIcons AS QIMAGELIST
+DIM SymbolIcons AS RImageList
 SymbolIcons.Width = 16: SymbolIcons.Height = 16
-DIM ExampleIcons AS QIMAGELIST
+DIM ExampleIcons AS RImageList
 ExampleIcons.Width = 16: ExampleIcons.Height = 16
 
 ' The fonts: RapidR's look's chrome in Inter, code in JetBrains Mono
 ' (docs/ide-plan.md D8); the classic look keeps Windows' (RapidQ's).
-DIM UIFont AS QFONT
-DIM HeadFont AS QFONT
-DIM SubFont AS QFONT
-DIM CardFont AS QFONT
-DIM DimFont AS QFONT
-DIM LinkFont AS QFONT
-DIM StatusFont AS QFONT
-DIM MonoFont AS QFONT
+DIM UIFont AS RFont
+DIM HeadFont AS RFont
+DIM SubFont AS RFont
+DIM CardFont AS RFont
+DIM DimFont AS RFont
+DIM LinkFont AS RFont
+DIM StatusFont AS RFont
+DIM MonoFont AS RFont
 
-CREATE Studio AS QFORM
+CREATE Studio AS RForm
   Caption = "RapidR Studio"
   Width = 1280: Height = 800
   KeyPreview = 1
   OnResize = StudioResize
   OnClose = StudioClose
   OnKeyDown = StudioKey
-  CREATE MainMenu AS QMAINMENU
+  CREATE MainMenu AS RMainMenu
   END CREATE
-  CREATE ToolBar AS RTOOLBAR
+  CREATE ToolBar AS RToolBar
     Align = 1: Height = 40
     ButtonSize = 30
     AccessibleName = "Tool bar"
     OnButtonClick = ToolClicked
   END CREATE
-  CREATE Status AS QSTATUSBAR
+  CREATE Status AS RStatusBar
     AccessibleName = "Status"
   END CREATE
-  CREATE Dock AS RDOCKMANAGER
+  CREATE Dock AS RDockManager
     Align = 5
     DocumentMode = "tabs"
     OnPaneChange = PaneChanged
@@ -53,7 +53,7 @@ CREATE Studio AS QFORM
   END CREATE
 
   ' ---- tool panes ----
-  CREATE ProjectTree AS RPROJECTTREE
+  CREATE ProjectTree AS RProjectTree
     Width = 250: Height = 300
     AccessibleName = "Project"
     OnOpen = ProjectNodeOpen
@@ -63,7 +63,7 @@ CREATE Studio AS QFORM
     OnDelete = ProjectDelete
     OnMove = ProjectMove
   END CREATE
-  CREATE Toolbox AS RTOOLBOX
+  CREATE Toolbox AS RToolbox
     Width = 250: Height = 300
     AccessibleName = "Toolbox"
     OnPick = ToolboxPick
@@ -71,80 +71,80 @@ CREATE Studio AS QFORM
     OnDragStart = ToolboxDragStart
     OnDragDrop = ToolboxDrop
   END CREATE
-  CREATE Inspector AS RPROPERTYINSPECTOR
+  CREATE Inspector AS RPropertyInspector
     Width = 290: Height = 340
     AccessibleName = "Properties"
     OnPropertyChange = InspectorChanged
     OnEventDblClick = InspectorEvent
   END CREATE
-  CREATE OutlineTree AS QTREEVIEW
+  CREATE OutlineTree AS RTreeView
     Width = 290: Height = 260
     Images = SymbolIcons
     AccessibleName = "Outline"
     OnDblClick = OutlineOpen
   END CREATE
-  CREATE OutputBox AS ROUTPUTCONSOLE
+  CREATE OutputBox AS ROutputConsole
     Width = 700: Height = 190
     AccessibleName = "Output"
     OnLinkClick = OutputLink
   END CREATE
-  CREATE ImmediateBox AS QRICHEDIT
+  CREATE ImmediateBox AS RRichEdit
     Width = 700: Height = 190
     WordWrap = 0
     AccessibleName = "Immediate"
     OnKeyDown = ImmediateKey
   END CREATE
   ' (the problems and the outline follow the editor once typing stops)
-  CREATE Macro AS QTIMER
+  CREATE Macro AS RTimer
     Interval = 400
     Enabled = 0
     OnTimer = MacroTick
   END CREATE
-  CREATE Analyzer AS QTIMER
+  CREATE Analyzer AS RTimer
     Interval = 600
     Enabled = 0
     OnTimer = AnalyzerTick
   END CREATE
 
   ' ---- the start page (a document): the brand, Start, Recent, the examples ----
-  CREATE Welcome AS QPANEL
+  CREATE Welcome AS RPanel
     Width = 720: Height = 520
     BevelOuter = 0
     AccessibleName = "Welcome"
     OnResize = LayOutWelcome
-    CREATE WelcomeLogo AS QIMAGE
+    CREATE WelcomeLogo AS RImage
       Left = 48: Top = 36: Width = 153: Height = 44
       Stretch = 1
       AccessibleName = "RapidR"
     END CREATE
-    CREATE WelcomeTitle AS QLABEL
+    CREATE WelcomeTitle AS RLabel
       Left = 216: Top = 44: Width = 400: Height = 30
       Caption = "Studio"
     END CREATE
-    CREATE WelcomeTag AS QLABEL
+    CREATE WelcomeTag AS RLabel
       Left = 48: Top = 92: Width = 640: Height = 20
-      Caption = "RapidQ programs, made modern: desktop and web from one source."
+      Caption = "Runs RapidQ programs, and takes them further: desktop and web from one source."
     END CREATE
-    CREATE StartHead AS QLABEL
+    CREATE StartHead AS RLabel
       Left = 48: Top = 136: Width = 220: Height = 22
       Caption = "Start"
     END CREATE
-    CREATE RecentHead AS QLABEL
-      Left = 48: Top = 296: Width = 220: Height = 22
+    CREATE RecentHead AS RLabel
+      Left = 48: Top = 324: Width = 220: Height = 22
       Caption = "Recent"
     END CREATE
-    CREATE RecentNone AS QLABEL
-      Left = 48: Top = 326: Width = 220: Height = 20
+    CREATE RecentNone AS RLabel
+      Left = 48: Top = 354: Width = 220: Height = 20
       Caption = "No recent projects yet"
     END CREATE
-    CREATE ExamplesHead AS QLABEL
+    CREATE ExamplesHead AS RLabel
       Left = 300: Top = 136: Width = 300: Height = 22
       Caption = "Examples"
     END CREATE
   END CREATE
 
   ' ---- the command palette (Ctrl+Shift+P): over the window's top ----
-  CREATE Palette AS RCOMMANDPALETTE
+  CREATE Palette AS RCommandPalette
     Width = 600
     Placeholder = "Type a command, :line, or an example"
     AccessibleName = "Command Palette"
@@ -154,37 +154,37 @@ END CREATE
 
 
 ' ---- File > New Project ---------------------------------------------------------------
-CREATE NewDialog AS QFORM
+CREATE NewDialog AS RForm
   Caption = "New Project"
   Width = 460: Height = 230
   BorderStyle = 3
-  CREATE NewNameLabel AS QLABEL
+  CREATE NewNameLabel AS RLabel
     Left = 16: Top = 20: Width = 90: Caption = "&Name:"
   END CREATE
-  CREATE NewName AS QEDIT
+  CREATE NewName AS REdit
     Left = 110: Top = 16: Width = 320
   END CREATE
-  CREATE NewKindLabel AS QLABEL
+  CREATE NewKindLabel AS RLabel
     Left = 16: Top = 56: Width = 90: Caption = "Template:"
   END CREATE
   ' (the templates' cards: workspace.inc's gallery)
-  CREATE NewFolderLabel AS QLABEL
+  CREATE NewFolderLabel AS RLabel
     Left = 16: Top = 92: Width = 90: Caption = "&Folder:"
   END CREATE
-  CREATE NewFolder AS QEDIT
+  CREATE NewFolder AS REdit
     Left = 110: Top = 88: Width = 284
   END CREATE
-  CREATE NewFolderBtn AS QBUTTON
+  CREATE NewFolderBtn AS RButton
     Left = 400: Top = 87: Width = 30: Caption = "..."
     AccessibleName = "Choose the folder"
     OnClick = NewBrowse
   END CREATE
-  CREATE NewOk AS QBUTTON
+  CREATE NewOk AS RButton
     Left = 254: Top = 140: Width = 84: Caption = "Create"
     Default = 1
     OnClick = NewCreate
   END CREATE
-  CREATE NewNo AS QBUTTON
+  CREATE NewNo AS RButton
     Left = 346: Top = 140: Width = 84: Caption = "Cancel"
     Cancel = 1
     OnClick = NewCancel

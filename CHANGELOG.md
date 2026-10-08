@@ -7,6 +7,29 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### RapidR Studio speaks RapidR's names, and imports RapidQ programs (R-NAMES, phase 2)
+- **File ▸ Import RapidQ Project or File…** (and **Import RapidQ Folder…**): pick a RapidQ program
+  (`.bas`, `.rqw`, `.rqb`, `.rq` or `.inc`, with the files it includes) or a folder; Studio writes
+  a **copy** with RapidR's names beside it (`<name>-rapidr`, the next free name), proves each
+  program compiles to the same bytecode as its original, and opens the copy as a project with its
+  report beside the code. The original is only read. On the web it works on the files the user
+  picked (the page's store) with the same engine — the same copy, byte for byte.
+- `rapidr import-rapidq <src> [dest]`: the copy's folder may now follow the source (`-o` still
+  works).
+- **Only RapidR's names in Studio**: the toolbox lists `RButton`, `RLabel`, `RForm` … grouped by
+  purpose (Standard, Additional, Dialogs, System, Network, Data …: no "RapidQ" group any more);
+  an item's card gives its RapidQ name. The inspector's header says "Button1  RButton (RapidQ name:
+  QBUTTON)", the designer tells a screen reader "Button1 (RButton)", F1 Help shows
+  `RButton.Caption`, and completion offers `RButton`. The templates (but "RapidQ program"), Add
+  Form, the About box ("Runs RapidQ programs, and takes them further"), the status bar ("RapidR
+  BASIC"), View ▸ Theme ▸ Classic (Windows) and Studio's own code use RapidR's names (Studio's code
+  converted by the importer: the same bytecode).
+- **A file never mixes the two**: what the designer adds and what completion offers follow the
+  file's own style — RapidR's names, or RapidQ's in a file written with them (a RapidQ program
+  stays RapidQ-style); names already written are never changed.
+- `.rqw`, `.rqb` and `.rq` files open in Studio (File ▸ Open, Open Folder, the language
+  service), and the language service reads a project's include files on the web too.
+
 ### RapidR's names everywhere, and a RapidQ importer (R-NAMES, phase 1)
 - **RapidR's names are the default**: `RButton`, `RLabel`, `RForm`, `RStringGrid` … (mixed case) in
   the examples, the docs and the manual, the new-project template, completion and hovers. RapidQ's
@@ -25,8 +48,7 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   (`tools/rapidq_import_check.py`).
 - **`rapidr upgrade-names <file> [--dry-run]`**: the same for your own files, in place (`--dry-run`
   shows the diff); refused if the program would compile differently.
-- **RapidQ's `.rqw` (window programs), `.rqb` (libraries of functions) and `.rq` (libraries of
-  TYPEs)** are source files: `rapidr run` / `build` / `build-bc` / the `rapidr file.rqw` shortcut,
+- **RapidQ's other source extensions, `.rqw`, `.rqb` and `.rq`,** are source files: `rapidr run` / `build` / `build-bc` / the `rapidr file.rqw` shortcut,
   `$INCLUDE`, projects, `rapidr dap`, the launcher, the VS Code extension and the installers' file
   associations ("RapidQ BASIC source") know them.
 - The manual's component tables lead with RapidR's names (a *RapidQ name* column); the registry's

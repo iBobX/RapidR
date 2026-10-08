@@ -9,13 +9,15 @@ use std::process::ExitCode;
 use rapidr_import::{diff, report, Options, Verification};
 
 fn usage() -> ExitCode {
-    eprintln!("usage: rapidr import-rapidq <file.bas|.rqw|.rqb|.rq|.inc | folder | project.rrproj> [-o OUT_DIR] [--include DIR]… [--no-verify]");
+    eprintln!("usage: rapidr import-rapidq <file.bas|.rqw|.rqb|.rq|.inc | folder | project.rrproj> [OUT_DIR | -o OUT_DIR] [--include DIR]… [--no-verify]");
     eprintln!("       rapidr upgrade-names <file> [--dry-run] [--include DIR]…");
     ExitCode::from(2)
 }
 
 struct Args {
     path: Option<String>,
+    /// A second path (import-rapidq's copy folder).
+    second: Option<String>,
     out: Option<String>,
     includes: Vec<PathBuf>,
     dry_run: bool,
@@ -24,7 +26,7 @@ struct Args {
 }
 
 fn args(rest: &[String]) -> Args {
-    let mut a = Args { path: None, out: None, includes: Vec::new(), dry_run: false, verify: true, bad: false };
+    let mut a = Args { path: None, second: None, out: None, includes: Vec::new(), dry_run: false, verify: true, bad: false };
     let mut it = rest.iter();
     while let Some(x) = it.next() {
         match x.as_str() {
@@ -37,18 +39,20 @@ fn args(rest: &[String]) -> Args {
             "--no-verify" => a.verify = false,
             s if s.starts_with('-') => a.bad = true,
             s if a.path.is_none() => a.path = Some(s.to_string()),
+            s if a.second.is_none() => a.second = Some(s.to_string()),
             _ => a.bad = true,
         }
     }
     a
 }
 
-/// `rapidr import-rapidq <input> [-o out]`.
+/// `rapidr import-rapidq <input> [out | -o out]`: the copy goes to `out`
+/// (else `<name>-rapidr` beside the input); the input is only read.
 pub fn import_rapidq(rest: &[String]) -> ExitCode {
     let a = args(rest);
-    let (Some(path), false, false) = (a.path.as_deref(), a.bad, a.dry_run) else { return usage() };
+    let (Some(path), false, false, false) = (a.path.as_deref(), a.bad, a.dry_run, a.out.is_some() && a.second.is_some()) else { return usage() };
     let input = Path::new(path);
-    let out = a.out.map(PathBuf::from).unwrap_or_else(|| {
+    let out = a.out.or(a.second).map(PathBuf::from).unwrap_or_else(|| {
         let stem = input.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "program".into());
         input.parent().unwrap_or(Path::new(".")).join(format!("{stem}-rapidr"))
     });
@@ -80,7 +84,7 @@ pub fn import_rapidq(rest: &[String]) -> ExitCode {
 /// in place.
 pub fn upgrade_names(rest: &[String]) -> ExitCode {
     let a = args(rest);
-    let (Some(path), false) = (a.path.as_deref(), a.bad) else { return usage() };
+    let (Some(path), false, None) = (a.path.as_deref(), a.bad, a.second.as_deref()) else { return usage() };
     let options = Options { include_dirs: a.includes, normalize_case: true };
     let u = match rapidr_import::upgrade_file(Path::new(path), &options) {
         Ok(u) => u,

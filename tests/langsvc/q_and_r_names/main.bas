@@ -1,5 +1,8 @@
 DIM a AS QBUTTON
 DIM b AS RBUTTON
+DIM c AS RLabel
+DIM e AS REdit
+DIM f AS RPanel
 DIM g AS QGAUGE
 DIM n AS |
 a.|

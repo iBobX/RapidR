@@ -215,11 +215,11 @@ impl Subject for Live {
     }
 }
 
-/// A component type as the program writes it: RapidQ's name for a
-/// component RapidQ has (`RBUTTON` → `QBUTTON`), RapidR's otherwise.
+/// A running component's type as RapidR names it (`RBUTTON` →
+/// `RButton`: R-NAMES; the runtime keeps no other name).
 pub fn written_type(type_name: &str) -> String {
     match rapidr_lang::component(type_name) {
-        Some(c) => c.written_name().to_string(),
+        Some(c) => c.spelling(),
         None => type_name.to_ascii_uppercase(),
     }
 }

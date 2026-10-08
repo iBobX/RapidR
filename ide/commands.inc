@@ -60,6 +60,9 @@ SUB DefineCommands
   AddCmd "file.openFolder", "Open &Folder...", "File", "", "", "", "files/folder-open"
   AddCmd "file.openExample", "Open &Example...", "File", "", "", "", "RFORM"
   AddSep "File"
+  AddCmd "file.importRapidQ", "&Import RapidQ Project or File...", "File", "", "", "", "import"
+  AddCmd "file.importRapidQFolder", "Import RapidQ Fol&der...", "File", "", "", "", "import"
+  AddSep "File"
   AddCmd "file.save", "&Save", "File", "Ctrl+S", "", "document", ""
   AddCmd "file.saveAs", "Save &As...", "File", "", "", "document", "-"
   AddCmd "file.saveAll", "Save A&ll", "File", "Ctrl+Shift+S", "", "project", ""
@@ -109,7 +112,7 @@ SUB DefineCommands
   AddCmd "view.theme.dark", "RapidR &Dark", "View/Theme", "", "", "", "-"
   AddCmd "view.theme.highcontrast", "RapidR &High Contrast", "View/Theme", "", "", "", "-"
   AddSep "View/Theme"
-  AddCmd "view.theme.classic", "&Classic (RapidQ's Windows)", "View/Theme", "", "", "", "-"
+  AddCmd "view.theme.classic", "&Classic (Windows)", "View/Theme", "", "", "", "-"
   DefinePreviewCommands
   AddSep "View"
   AddCmd "view.layout", "&Reset Layout", "View", "", "", "", ""
@@ -304,7 +307,7 @@ SUB UpdateCommands
   CheckCmd "view.previewClassic", PreviewClassic
 END SUB
 
-SUB MenuPicked(Sender AS QMENUITEM)
+SUB MenuPicked(Sender AS RMenuItem)
   RunCommand Cmd(Sender.Tag).Id
 END SUB
 

@@ -48,7 +48,7 @@ SUB ApplyFonts
   NEXT
   WelcomeTag.Font = UIFont
   RecentNone.Font = DimFont
-  FOR k = 0 TO 3
+  FOR k = 0 TO 4
     StartLink(k).Font = LinkFont
   NEXT
   FOR k = 0 TO 5
@@ -106,7 +106,7 @@ SUB ApplyChrome
   ExamplesHead.Font = SubFont
   ExamplesHead.Font.Color = TC("page.heading")
   RecentNone.Font.Color = TC("page.dim")
-  FOR k = 0 TO 3
+  FOR k = 0 TO 4
     StartLink(k).Font.Color = TC("page.link")
   NEXT
   FOR k = 0 TO 5
@@ -152,7 +152,7 @@ SUB SetState(State AS STRING, Text AS STRING)
 END SUB
 
 SUB SetUpStatus
-  Status.AddPanels "", "", "Ln 1, Col 1", "UTF-8", "CRLF", "RapidQ BASIC"
+  Status.AddPanels "", "", "Ln 1, Col 1", "UTF-8", "CRLF", "RapidR BASIC"
   LayOutStatus
 END SUB
 
