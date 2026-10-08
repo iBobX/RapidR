@@ -674,6 +674,8 @@ impl Bcgen {
             format!(
                 "'{name}' is an external DLL function (DECLARE ... LIB); the bytecode interpreter can't call DLLs yet, build natively with `rapidr build`"
             )
+        } else if matches!(key.as_str(), "peek" | "poke") {
+            format!("{} (raw memory access){UNSUPPORTED_MARKER}", name.to_uppercase())
         } else if key == "inc" || key == "dec" {
             format!("{} needs a variable: `{} x` or `{} x, amount`", name.to_uppercase(), name.to_uppercase(), name.to_uppercase())
         } else if RAPIDQ_BUILTINS.contains(&key.as_str()) {
