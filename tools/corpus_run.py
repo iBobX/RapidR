@@ -5,7 +5,7 @@ interpreter and as a native build, and sorts what goes wrong by cause.
 Usage (repo root, after building ./rapidr):
     python3 tools/corpus_run.py [--backend vm,native] [--jobs N]
         [--corpus corpus.json] [--examples DIR] [--include DIR]
-        [--golden DIR] [--report docs/corpus-runtime.md] [--json out.json]
+        [--golden DIR] [--report report.md] [--json out.json]
         [--label "after"] [--before before.json] [filter ...]
 
 Which programs: those `tools/rapidq_corpus.py --json` lists as compiling
@@ -514,7 +514,7 @@ def write_report(path, report, backends, label, before, notes=None):
         L.append("")
     L.append("## Other lanes (not fixed here)")
     L.append("")
-    L.append("Programs that need DirectX, OLE, Windows DLL calls or hardware access (PEEK / POKE / INP / OUT) belong to other lanes; how they run now:")
+    L.append("Programs that need DirectX, OLE, Windows DLL calls or hardware access (INP / OUT) belong to other lanes; how they run now:")
     L.append("")
     for lane in LANES[1:]:
         es = [e for e in report if e["lane"] == lane and not e.get("skipped")]

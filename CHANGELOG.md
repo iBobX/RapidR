@@ -635,8 +635,8 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   2026-10-06 should be cloned again.
 
 ### Fixed
-- **RapidQ's examples at run time** (`tools/corpus_run.py`, report in
-  docs/corpus-runtime.md): every example that compiles is run on the
+- **RapidQ's examples at run time** (`tools/corpus_run.py`; its report stays
+  on this machine, what it found in `tools/corpus_run_notes.md`): every example that compiles is run on the
   interpreter and as a native build, GUI ones captured beside RC.EXE's
   windows, and what went wrong fixed as RapidQ does it (each checked with
   RC.EXE): `SLEEP .1`; a program's own `TYPE QToolBar`; `Font.AddStyles` /
