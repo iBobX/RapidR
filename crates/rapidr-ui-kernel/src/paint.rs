@@ -542,37 +542,49 @@ impl FormUi {
     /// pixel. Geometry and captions are read from the store now.
     pub fn paint(&mut self, store: &dyn Store, ts: &mut TextSystem, scale: f64) -> DisplayList {
         self.sync(store);
-        self.scale = scale;
         let (w, h) = self.client;
         let mut list = DisplayList { size: (w, h + self.menu_offset), scale, ..Default::default() };
         let mut p = Painter::new(&mut list);
+        self.paint_into(store, ts, &mut p, &mut |_| {});
+        list
+    }
+
+    /// The form drawn with `p` (its scale the list's), its window's inside
+    /// at `p`'s origin — what [`FormUi::paint`] draws, into another
+    /// component's drawing (the form designer shows a designed form so).
+    /// `under` draws on the form's background, under its components (the
+    /// designer's grid), with (0, 0) the client area's top left.
+    pub fn paint_into(&mut self, store: &dyn Store, ts: &mut TextSystem, p: &mut Painter, under: &mut dyn FnMut(&mut Painter)) {
+        self.sync(store);
+        self.scale = p.scale();
+        let (w, h) = self.client;
         if self.menu_offset > 0 {
             // (the in-window menu bar: components/menubar.rs)
-            self.paint_menu_bar(store, &mut p);
+            self.paint_menu_bar(store, p);
         }
         let color = color_of(store, &self.form).unwrap_or(p.theme().face);
         p.fill((0, self.menu_offset, w, h), color);
         // (the form's own drawing surface, under its components)
-        crate::components::canvas::paint_form_surface(self, &mut p);
+        crate::components::canvas::paint_form_surface(self, p);
+        p.at((0, self.menu_offset), |p| under(p));
         let default = self.default_button(store);
         let focused_is_button = self.focus.is_some_and(|f| self.nodes[f].type_name == "RBUTTON");
         for root in self.roots() {
-            self.paint_node(root, store, ts, &mut p, default, focused_is_button);
+            self.paint_node(root, store, ts, p, default, focused_is_button);
         }
         // (the form's scroll bars, over its components)
-        crate::components::scrollbox::paint_form_bars(&self.form, (w, h), &mut p, self.menu_offset);
+        crate::components::scrollbox::paint_form_bars(&self.form, (w, h), p, self.menu_offset);
         if !self.popups_apart {
             // (an open drop-down list, over them)
-            crate::components::combo::paint_popup(self, store, ts, &mut p);
+            crate::components::combo::paint_popup(self, store, ts, p);
             // (open menus over everything)
-            self.paint_menus(store, &mut p);
+            self.paint_menus(store, p);
             // (a tooltip over them)
-            self.paint_tip(&mut p);
+            self.paint_tip(p);
         }
         self.dirty = false;
         // (the caret's blink: tick.rs)
         self.arm_caret();
-        list
     }
 
     /// With [`FormUi::popups_apart`]: the open drop-down list and menus

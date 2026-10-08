@@ -129,7 +129,10 @@ mod mac {
     /// runs (`rapidr open`).
     pub(crate) fn command(file: Option<&PathBuf>) -> Command {
         let rapidr = super::beside("rapidr");
-        let has_ide = rapidr.parent().is_some_and(|d| d.join("../lib/rapidr/ide/rapidr-ide.rrbc").is_file());
+        // (an install's IDE, or a checkout's: tools/studio_app.sh's dev app
+        // says where in RAPIDR_HOME, through its Info.plist's LSEnvironment)
+        let has_ide = rapidr.parent().is_some_and(|d| d.join("../lib/rapidr/ide/rapidr-ide.rrbc").is_file())
+            || std::env::var_os("RAPIDR_HOME").is_some_and(|h| PathBuf::from(h).join("ide/studio.rr").is_file());
         let is_source = file.is_some_and(|f| f.extension().is_some_and(|e| e.eq_ignore_ascii_case("rr") || e.eq_ignore_ascii_case("bas")));
         let mut cmd = Command::new(&rapidr);
         match file {

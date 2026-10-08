@@ -276,6 +276,13 @@ impl Layout {
         self.order.iter().filter_map(|k| self.comps.get(k)).map(|c| (c.id, c.rect)).collect()
     }
 
+    /// A component's font as the runtimes read it (its own Font properties,
+    /// else its parent's — RapidQ's ParentFont — else RapidQ's default).
+    pub fn font(&self, id: NodeId) -> crate::objects::font::Font {
+        let key = self.comps.iter().find(|(_, c)| c.id == id).map(|(k, _)| k.clone()).unwrap_or_default();
+        crate::objects::font_from_props(&key, &|i, p| self.stored(i, p))
+    }
+
     /// The form's Width × Height.
     pub fn form_size(&self) -> (i64, i64) {
         self.comps.get(&self.root).map_or((0, 0), |c| (c.rect.width, c.rect.height))
@@ -296,6 +303,12 @@ impl Layout {
     /// The scroll bars a form or scroll box shows (horizontal, vertical).
     pub fn scroll_bars(&self, id: NodeId) -> (bool, bool) {
         self.comps.iter().find(|(_, c)| c.id == id).and_then(|(k, _)| self.scrollers.get(k)).map_or((false, false), |s| (s.horz.shown, s.vert.shown))
+    }
+
+    /// A form's or scroll box's scroll bars as the runtimes keep them (the
+    /// model they draw), when it scrolls.
+    pub fn scroller(&self, id: NodeId) -> Option<Scroller> {
+        self.comps.iter().find(|(_, c)| c.id == id).and_then(|(k, _)| self.scrollers.get(k)).cloned()
     }
 
     /// Where a component's client origin is in the form's client area

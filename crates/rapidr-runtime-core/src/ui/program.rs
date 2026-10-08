@@ -76,6 +76,8 @@ impl Program for Rt {
             Container::Mdi { form, component, action } => crate::mdi::user(&form, &component, action),
             // (I1: RDOCKMANAGER — dock.rs)
             Container::Dock { id, action } => crate::dock::user(&id, action),
+            // (I1 / L-PANELS — panels.rs)
+            Container::Panel { id, action } => crate::panels::user(&id, action),
             // (the input lane's: the host's — `Desktop` makes it a window command)
             Container::Resize { .. } => {}
         }

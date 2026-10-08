@@ -58,6 +58,27 @@ def r_counter(x, y, size):
     return scale_translate("M41.5 31 L41.5 47 L60.5 39 Z", k, x, y)
 
 
+# The default icon of a compiled program (`rapidr build`): the Runtime's Ink
+# tile with an app window drawn in white and the Run triangle in amber inside
+# it, so a program reads as "made with RapidR" until it gets its own icon.
+# On the 100 grid: the window's frame, its title bar and the triangle.
+WIN_OUTER = (18, 22, 64, 56, 8)          # x, y, w, h, radius
+WIN_HOLE = (24, 34, 52, 38, 3)           # the window's inside (frame 6, title bar 12)
+WIN_DOTS = ((26.5, 28), (32.5, 28), (38.5, 28), 1.9)   # title-bar dots: centres, radius
+WIN_PLAY = "M43.8 43 L43.8 63 L61.1 53 Z"
+
+
+def window_parts(x, y, size):
+    """(frame with its inside cut out, the title bar's dots, the triangle) on a tile at (x, y, size)."""
+    k = size / 100
+    ox, oy, ow, oh, orr = WIN_OUTER
+    hx, hy, hw, hh, hr = WIN_HOLE
+    frame = scale_translate(f"{rrect(ox, oy, ow, oh, orr)} {rrect(hx, hy, hw, hh, hr)}", k, x, y)
+    (d1, d2, d3, r) = WIN_DOTS
+    dots = " ".join(rrect(cx - r, cy - r, 2 * r, 2 * r, r) for cx, cy in (d1, d2, d3))
+    return frame, scale_translate(dots, k, x, y), scale_translate(WIN_PLAY, k, x, y)
+
+
 def app_icon(kind, platform):
     """kind: 'ide' or 'runtime'. platform: 'macos' (Apple grid, 824 tile on
     1024, with shadow) or 'full' (Windows/Linux: 944 tile)."""
@@ -83,6 +104,21 @@ def app_icon(kind, platform):
                     else f'<path fill="url(#bg)" d="{tile}"/>')
         body.append(f'<path fill="url(#hl)" d="{tile}"/>')
         body.append(f'<path fill="url(#gl)" filter="url(#gs)" d="{r_parts(x, y, size)}"/>')
+    elif kind == "program":
+        defs.append(lin("bg", 0, y, 0, y + size, [(0, INK_HI, None), (1, INK, None)]))
+        defs.append(rad("hl", x + size * 0.25, y + size * 0.05, size * 0.8,
+                        [(0, "#5B8CFF", 0.18), (1, "#5B8CFF", 0)]))
+        defs.append(lin("gl", 0, y + size * 0.22, 0, y + size * 0.78, [(0, WHITE, None), (1, "#DCE5F7", None)]))
+        defs.append(shadow("gs", size * 0.012, size * 0.02, 0.45, "#000000"))
+        defs.append(lin("am", 0, y + size * 0.43, 0, y + size * 0.63, [(0, "#FFCB52", None), (1, "#FFA514", None)]))
+        frame, dots, play = window_parts(x, y, size)
+        body.append(f'<g filter="url(#ts)"><path fill="url(#bg)" d="{tile}"/></g>' if platform == "macos"
+                    else f'<path fill="url(#bg)" d="{tile}"/>')
+        body.append(f'<path fill="url(#hl)" d="{tile}"/>')
+        body.append(f'<path fill="none" stroke="#FFFFFF" stroke-opacity="0.10" stroke-width="{_num(size * 0.006)}" d="{tile}"/>')
+        body.append(f'<path fill="url(#gl)" fill-rule="evenodd" filter="url(#gs)" d="{frame}"/>')
+        body.append(f'<path fill="{INK}" d="{dots}"/>')
+        body.append(f'<path fill="url(#am)" d="{play}"/>')
     else:
         defs.append(lin("bg", 0, y, 0, y + size, [(0, INK_HI, None), (1, INK, None)]))
         defs.append(rad("hl", x + size * 0.25, y + size * 0.05, size * 0.8,
@@ -97,7 +133,7 @@ def app_icon(kind, platform):
         body.append(f'<path fill="none" stroke="#FFFFFF" stroke-opacity="0.10" stroke-width="{_num(size * 0.006)}" d="{tile}"/>')
         body.append(f'<path fill="url(#gl)" filter="url(#gs)" d="{r_parts(x, y, size)}"/>')
         body.append(f'<path fill="url(#am)" d="{r_counter(x, y, size)}"/>')
-    name = "RapidR" if kind == "ide" else "RapidR Runtime"
+    name = {"ide": "RapidR", "runtime": "RapidR Runtime", "program": "RapidR program"}[kind]
     return "".join(body), "".join(defs), f"{name} app icon"
 
 
@@ -130,9 +166,38 @@ SMALL_R[22] = {k: (transform(v, (1, 0, 0, 1, 1, 1)) if isinstance(v, str) else v
 SMALL_R[22]["tile"] = (1, 1, 20, 4.5)
 
 
+# Hand-hinted small program icons (pixels of the target size): the window's
+# outside and inside (x0, y0, x1, y1, radius) and the triangle.
+SMALL_WIN = {
+    16: dict(outer=(3, 3, 13, 13, 1.5), hole=(4, 6, 12, 12, 0), play="M7 7 V11 L10.4 9 Z"),
+    20: dict(outer=(4, 4, 16, 16, 2), hole=(5, 7.5, 15, 15, 0), play="M8.5 9 V13.5 L12.5 11.25 Z"),
+    22: dict(outer=(4, 4, 18, 18, 2), hole=(5, 8, 17, 17, 0.5), play="M9.5 9.5 V15 L14.2 12.25 Z"),
+    24: dict(outer=(5, 5, 19, 19, 2.5), hole=(6, 9, 18, 18, 0.5), play="M10.5 10.5 V16 L15.2 13.25 Z"),
+    32: dict(outer=(6, 7, 26, 25, 3), hole=(8, 11, 24, 23, 1), play="M13.5 13.5 V20.5 L19.8 17 Z"),
+    "mac32": dict(outer=(8, 8, 24, 24, 2.5), hole=(9, 11.5, 23, 23, 0.5), play="M14 13.5 V20.5 L19.6 17 Z"),
+}
+
+
+def program_icon_small(s, tile):
+    tx, ty, tw, tr = tile
+    p = SMALL_WIN[s]
+    ox0, oy0, ox1, oy1, orr = p["outer"]
+    hx0, hy0, hx1, hy1, hr = p["hole"]
+    hole = (f"M{_num(hx0)} {_num(hy0)} H{_num(hx1)} V{_num(hy1)} H{_num(hx0)} Z" if hr == 0
+            else rrect(hx0, hy0, hx1 - hx0, hy1 - hy0, hr))
+    frame = f"{rrect(ox0, oy0, ox1 - ox0, oy1 - oy0, orr)} {hole}"
+    defs = lin("bg", 0, ty, 0, ty + tw, [(0, INK_HI, None), (1, INK, None)])
+    body = (f'<path fill="url(#bg)" d="{rrect(tx, ty, tw, tw, tr)}"/>'
+            f'<path fill="{WHITE}" fill-rule="evenodd" d="{frame}"/>'
+            f'<path fill="{AMBER}" d="{p["play"]}"/>')
+    return body, defs
+
+
 def app_icon_small(kind, s):
     p = SMALL_R[s]
     tx, ty, tw, tr = p["tile"]
+    if kind == "program":
+        return program_icon_small(s, p["tile"])
     tile = rrect(tx, ty, tw, tw, tr)
     if kind == "ide":
         defs = lin("bg", tx, ty + tw, tx + tw, ty, [(0, BLUE, None), (1, CYAN, None)])
@@ -285,7 +350,7 @@ def touch_icon():
 
 
 def main():
-    for kind in ("ide", "runtime"):
+    for kind in ("ide", "runtime", "program"):
         for plat in ("macos", "full"):
             b, d, t = app_icon(kind, plat)
             write(f"app-{kind}-{plat}", b, defs=d, title=t)

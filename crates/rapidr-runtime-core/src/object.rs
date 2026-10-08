@@ -195,6 +195,19 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     if rapidr_value::objects::rqlib::is_type(type_name) {
         crate::io::created(name, type_name);
     }
+    // (I4) a design surface reads its Source with the designer (rapidr-studio)
+    #[cfg(feature = "studio")]
+    if type_name.eq_ignore_ascii_case("RDESIGNSURFACE") {
+        rapidr_studio::design::install();
+    }
+}
+
+/// (I4) What an RDESIGNSURFACE's call left to hear (OnSourceEdit, OnChange,
+/// OnSelect …), fired.
+fn design_events(name: &str) {
+    for e in rapidr_value::objects::take_design_events(name) {
+        rp_fire_event_args(name, e.event(), &e.args());
+    }
 }
 
 /// `DIM lbl(1 TO 3) AS QLABEL`: one component per element, ids `lbl(1)`,
@@ -430,6 +443,10 @@ fn set_property(name: &str, prop: &str, val: Value) {
     if rp_comp_type(name) == "RDOCKMANAGER" && crate::dock::set(name, &prop_lower, &val) {
         return;
     }
+    // (I1 / L-PANELS) A panel's Target, Filter, Page, … (panels.rs).
+    if rapidr_value::panels::is_panel(&rp_comp_type(name)) && crate::panels::set(name, &prop_lower, &val) {
+        return;
+    }
     // (the dialogs lane's) A QFONTDIALOG's Name / Size / Color are its flat
     // FontName / FontSize / FontColor too: one value.
     if let Some(other) = rapidr_value::font_dialog::alias(&prop_lower).filter(|_| rp_comp_type(name) == "RFONTDIALOG") {
@@ -537,6 +554,9 @@ fn set_property(name: &str, prop: &str, val: Value) {
         if rapidr_value::objects::is_canvas(name) || rapidr_value::objects::is_trackbar(name) || rapidr_value::objects::is_design(name) {
             crate::ui::redraw_widget(name);
         }
+        if rapidr_value::objects::is_design(name) {
+            design_events(name);
+        }
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_tabcontrol(name) {
             crate::ui::tab_control_changed(name);
@@ -588,6 +608,9 @@ fn set_property(name: &str, prop: &str, val: Value) {
         ("font.underline", "fontunderline"),
         ("font.strikeout", "fontstrikeout"),
         ("font.color", "fontcolor"),
+        // (I1 / L-PANELS: the inspector's font parts)
+        ("font.underline", "fontunderline"),
+        ("font.strikeout", "fontstrikeout"),
     ];
     for &(dotted, flat) in aliases {
         if prop_lower == dotted {
@@ -685,6 +708,8 @@ fn set_property(name: &str, prop: &str, val: Value) {
     crate::layout::after_set(name, &prop_lower);
     // (I1) A dock manager or its floating window resized: its panes placed.
     crate::dock::after_set(name, &prop_lower);
+    // (I1 / L-PANELS) An inspector showing it follows (panels.rs).
+    crate::panels::after_set(name, &prop_lower);
     // A QTABCONTROL's colour, font or Enabled: drawn again (its tabs
     // measured again).
     #[cfg(feature = "gui")]
@@ -874,6 +899,10 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
         if let Some(v) = rapidr_value::dock::runtime::rt_get(name, &prop_lower) {
             return v;
         }
+    }
+    // (I1 / L-PANELS) A panel's RowCount, Count, LineCount, … (panels.rs).
+    if let Some(v) = crate::panels::get(name, &prop_lower) {
+        return v;
     }
     // (I1) RapidR Studio's components (studio.rs).
     #[cfg(feature = "studio")]
@@ -1135,6 +1164,10 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             return v;
         }
     }
+    // (I1 / L-PANELS) A panel's AddButton, AddCommand, Write, … (panels.rs).
+    if let Some(v) = crate::panels::method(name, &method_lower, args) {
+        return v;
+    }
 
     // `Form.Pixel(x, y)` read: RapidQ's -1s and its children's pixels.
     if rp_comp_type(name) == "RFORM" && args.len() == 2 && method_lower.as_str() == "pixel" {
@@ -1223,12 +1256,20 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             }
         } else if rapidr_value::objects::is_trackbar(name) || rapidr_value::objects::is_design(name) {
             crate::ui::redraw_widget(name);
+        }
+        if rapidr_value::objects::is_design(name) {
+            design_events(name);
         } else if rapidr_value::objects::is_tabcontrol(name) {
             crate::ui::tab_control_changed(name);
         }
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_dirtree(name) {
             crate::ui::dirtree_refresh(name);
+        }
+        // (I1 / L-PANELS) A designer's selection or props changed: the
+        // inspectors following it read it again.
+        if rapidr_value::objects::is_design(name) {
+            crate::panels::designer_changed(name);
         }
         // A QHEADER's sections changed (not a drawing on it): painted again.
         #[cfg(feature = "gui")]
@@ -2063,8 +2104,11 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
         }
         // (the kernel's focus, as the web's: a list hears its OnEnter)
         "setfocus" | "focus" => {
+            // (L-PANELS: the kernel's focus to it, as the web's SetFocus)
             #[cfg(feature = "gui")]
-            crate::ui::gui_set_focus(name);
+            if let Some(form) = form_of(name) {
+                rapidr_ui_app::windows::push_op(rapidr_ui_app::WindowOp::Focus(form.to_lowercase(), name.to_lowercase()));
+            }
             v_null()
         }
         // (the title bar's own buttons are the system's: the set is kept,
@@ -2133,6 +2177,15 @@ pub(crate) fn store_prop(name: &str, prop: &str, val: Value) {
             comp.properties.insert(prop.to_lowercase(), val);
         }
     });
+}
+
+/// Every component: (name, type), in creation order.
+pub fn all_components() -> Vec<(String, String)> {
+    COMPONENTS.with(|c| {
+        let mut all: Vec<(String, String, u32)> = c.borrow().iter().map(|(n, comp)| (n.clone(), comp.type_name.clone(), comp.creation_order)).collect();
+        all.sort_by_key(|c| c.2);
+        all.into_iter().map(|(n, t, _)| (n, t)).collect()
+    })
 }
 
 pub fn get_children_of(parent_name: &str) -> Vec<(String, String)> {

@@ -97,6 +97,10 @@ mod tests {
         assert_eq!(text, "  CREATE Button1 AS QBUTTON\r\n      Caption = \"Button1\"\r\n      Left = 8\r\n      Top = 16\r\n      Width = 75\r\n      Height = 25\r\n  END CREATE\r\n");
         let plot = new_component(&d, "RPLOT", Rect::new(0, 0, 600, 400));
         assert_eq!((plot.name.as_str(), plot.type_written.as_str()), ("Plot1", "RPLOT"));
+        // (named after the registry's mixed-case spelling, as Delphi and VB)
+        for (ty, name) in [("QCHECKBOX", "CheckBox1"), ("RSTRINGGRID", "StringGrid1"), ("QCOMBOBOX", "ComboBox1"), ("QRICHEDIT", "RichEdit1"), ("QDXSCREEN", "DXScreen1")] {
+            assert_eq!(new_component(&d, ty, Rect::new(0, 0, 10, 10)).name, name);
+        }
         let timer = new_component(&d, "QTIMER", Rect::new(0, 0, 0, 0));
         assert!(timer.prop("Left").is_none(), "not visual: no geometry");
         assert_eq!(Style::of("a\r\n\tb\r\n").indent, "\t");

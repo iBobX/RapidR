@@ -79,7 +79,7 @@ function components(source) {
 }
 
 function interp(src, dir, out, comps) {
-  const b = spawnSync(join(ROOT, "rapidr"), ["build", src, out, "--interp"], { cwd: dir, env, encoding: "utf8", timeout: 300_000 });
+  const b = spawnSync(join(ROOT, "rapidr"), ["build", src, out, "--interp", "--no-bundle"], { cwd: dir, env, encoding: "utf8", timeout: 300_000 });
   if (b.status !== 0) return { error: (b.stderr || b.stdout || "").split("\n").filter((l) => /error/i.test(l)).slice(0, 3).join(" | ") || `exit ${b.status}` };
   const props = [];
   for (const [name, type] of comps) {
@@ -109,7 +109,7 @@ function interp(src, dir, out, comps) {
 // size their forms from it.
 const screenProbe = join(WORK, "screen.bas");
 writeFileSync(screenProbe, "PRINT Screen.Width; \",\"; Screen.Height\n");
-spawnSync(join(ROOT, "rapidr"), ["build", screenProbe, join(WORK, "screen"), "--interp"], { env, encoding: "utf8" });
+spawnSync(join(ROOT, "rapidr"), ["build", screenProbe, join(WORK, "screen"), "--interp", "--no-bundle"], { env, encoding: "utf8" });
 const [screenW, screenH] = (spawnSync(join(WORK, "screen", "screen"), [], { env, encoding: "utf8" }).stdout || "1280,720").split(",").map((n) => parseInt(n, 10) || 0);
 const browser = await chromium.launch();
 let page, logs = [], pageErrors = [];

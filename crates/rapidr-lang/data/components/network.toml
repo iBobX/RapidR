@@ -3,6 +3,7 @@ group = "Network, devices and CGI"
 
 [[component]]
 name = "RSOCKET"
+display = "Socket"
 rapidq = "QSOCKET"
 visual = false
 where = "desktop (TCP); web (WebSocket)"
@@ -53,6 +54,7 @@ events = [
 
 [[component]]
 name = "RSERVERSOCKET"
+display = "ServerSocket"
 visual = false
 only = "desktop"
 default_event = "OnClientConnect"
@@ -80,6 +82,7 @@ events = [
 
 [[component]]
 name = "RHTTP"
+display = "Http"
 visual = false
 doc = "An HTTP(S) client: Get or Post a URL, then read StatusCode, ResponseText and ResponseHeaders. RapidR's own."
 properties = [
@@ -100,6 +103,7 @@ events = []
 
 [[component]]
 name = "RCGI"
+display = "CGI"
 rapidq = "QCGI"
 from = "qcgi.inc"
 visual = false
@@ -136,6 +140,7 @@ events = []
 
 [[component]]
 name = "RCOMPORT"
+display = "ComPort"
 rapidq = "QCOMPORT"
 aliases = ["COMPORT"]
 visual = false
@@ -188,6 +193,7 @@ events = [
 
 [[component]]
 name = "RDOWNLOAD"
+display = "Download"
 rapidq = "QDOWNLOAD"
 from = "Qdownload.inc"
 visual = false

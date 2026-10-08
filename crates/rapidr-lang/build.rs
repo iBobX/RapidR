@@ -194,7 +194,7 @@ const TYPES: &[(&str, &str)] = &[
 fn property(ctx: &Ctx, p: &Table, family: &str, set: Option<&str>, at: &str) -> Res<String> {
     keys_allowed(
         p,
-        &["name", "type", "values", "kinds", "default", "access", "design", "indexed", "category", "origin", "from", "only", "missing", "doc"],
+        &["name", "type", "values", "kinds", "default", "access", "design", "indexed", "category", "origin", "from", "only", "missing", "editor", "doc"],
         at,
     )?;
     let name = req(p, "name", at)?;
@@ -255,8 +255,14 @@ fn property(ctx: &Ctx, p: &Table, family: &str, set: Option<&str>, at: &str) -> 
     let (gdoc, gcat) = ctx.glossary.doc("property", name);
     let doc = s(p, "doc").map(str::to_string).filter(|d| !d.is_empty()).unwrap_or(gdoc);
     let category = s(p, "category").map(str::to_string).unwrap_or(gcat);
+    let editor = s(p, "editor");
+    if let Some(e) = editor {
+        if !EDITORS.contains(&e) {
+            return Err(format!("{at}: editor `{e}` (one of {})", EDITORS.join(", ")));
+        }
+    }
     Ok(format!(
-        "Property {{ name: {}, ty: Type::{ty}, values: &[{}], kinds: &[{}], default: {default}, access: {access}, design: {design}, indexed: {indexed}, category: {}, origin: {}, from: {}, runtimes: {}, missing: {}, set: {}, doc: {} }}",
+        "Property {{ name: {}, ty: Type::{ty}, values: &[{}], kinds: &[{}], default: {default}, access: {access}, design: {design}, indexed: {indexed}, category: {}, origin: {}, from: {}, runtimes: {}, missing: {}, set: {}, editor: {}, doc: {} }}",
         lit(name),
         values.iter().map(|v| lit(v)).collect::<Vec<_>>().join(", "),
         kinds.iter().map(|v| lit(v)).collect::<Vec<_>>().join(", "),
@@ -266,9 +272,14 @@ fn property(ctx: &Ctx, p: &Table, family: &str, set: Option<&str>, at: &str) -> 
         runtimes(p, at)?,
         b(p, "missing").unwrap_or(false),
         opt(set),
+        opt(editor),
         lit(&doc),
     ))
 }
+
+/// The inspector's editors a property may ask for beyond its type's
+/// (RPropertyInspector, docs/ide-components.md §3.4).
+const EDITORS: &[&str] = &["strings", "columns", "file", "picture", "multiline", "sql", "expression"];
 
 fn method(ctx: &Ctx, m: &Table, family: &str, set: Option<&str>, at: &str) -> Res<String> {
     keys_allowed(m, &["name", "params", "returns", "value", "origin", "from", "only", "missing", "test", "doc"], at)?;
@@ -325,7 +336,7 @@ fn component(ctx: &Ctx, c: &Table, group: &str, global: bool, at: &str) -> Res<(
     keys_allowed(
         c,
         &[
-            "name", "rapidq", "from", "aliases", "kind", "group", "visual", "container", "size", "only", "where", "default_event", "sets", "origin",
+            "name", "display", "rapidq", "from", "aliases", "kind", "group", "visual", "container", "size", "only", "where", "default_event", "sets", "origin",
             "instance_of", "doc", "properties", "methods", "events",
         ],
         at,
@@ -333,6 +344,14 @@ fn component(ctx: &Ctx, c: &Table, group: &str, global: bool, at: &str) -> Res<(
     let name = req(c, "name", at)?;
     let at = &format!("{at}: {name}");
     let rapidq = s(c, "rapidq");
+    // (a component's name in mixed case without its Q / R: `CheckBox`;
+    // a global object's is its name)
+    let display = match s(c, "display") {
+        Some(d) if global || d.eq_ignore_ascii_case(&name[1..]) => d,
+        Some(d) => return Err(format!("{at}: display `{d}` isn't its name without the Q / R")),
+        None if global => name,
+        None => return Err(format!("{at}: `display` (its name in mixed case without the Q / R) is required")),
+    };
     let family = if global { s(c, "origin").unwrap_or("rapidq") } else if rapidq.is_some() { "rapidq" } else { "rapidr" };
     let kind = match (global, s(c, "kind").unwrap_or("component")) {
         (true, "global") => "Kind::Global",
@@ -404,8 +423,9 @@ fn component(ctx: &Ctx, c: &Table, group: &str, global: bool, at: &str) -> Res<(
     };
     let doc = s(c, "doc").unwrap_or("");
     let code = format!(
-        "Component {{ name: {}, rapidq: {}, from: {}, aliases: &[{}], kind: {kind}, group: {}, origin: {}, visual: {}, container: {}, size: {size}, default_event: {}, runtimes: {}, where_note: {}, instance_of: {}, doc: {}, properties: &[{}], methods: &[{}], events: &[{}] }}",
+        "Component {{ name: {}, display: {}, rapidq: {}, from: {}, aliases: &[{}], kind: {kind}, group: {}, origin: {}, visual: {}, container: {}, size: {size}, default_event: {}, runtimes: {}, where_note: {}, instance_of: {}, doc: {}, properties: &[{}], methods: &[{}], events: &[{}] }}",
         lit(name),
+        lit(display),
         opt(rapidq),
         opt(s(c, "from")),
         aliases.iter().map(|a| lit(a)).collect::<Vec<_>>().join(", "),
@@ -429,7 +449,7 @@ fn component(ctx: &Ctx, c: &Table, group: &str, global: bool, at: &str) -> Res<(
 /// The component files in the manual's (and the toolbox's) order: what a
 /// component is for, the everyday ones first.
 const FAMILIES: &[&str] =
-    &["forms", "input", "display", "lists", "menus", "dialogs", "objects", "databases", "network", "media", "directx", "d3d", "datascience", "web", "libraries"];
+    &["forms", "input", "display", "lists", "menus", "dialogs", "objects", "databases", "network", "media", "directx", "d3d", "datascience", "web", "ide", "libraries"];
 
 fn build(dir: &Path) -> Res<String> {
     let mut paths = Vec::new();

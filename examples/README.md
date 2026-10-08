@@ -51,6 +51,12 @@ The **Runs on** column lists the ways each example is tested on (by
 | [themes.rr](gui/themes.rr) | RapidR's themes: `$THEME modern`, switching with `Application.Theme` (classic, modern, dark, high contrast) | run · interp · native · web | `rapidr run gui/themes.rr` |
 | [tray.rr](gui/tray.rr) | A system tray icon, as RapidQ programs make one (`QNOTIFYICONDATA`, `Shell_NotifyIcon`, the form's `WndProc`) | run · interp · native · web | `rapidr run gui/tray.rr` |
 
+### studio/ — RapidR Studio's panels in your own program
+
+| Example | What it shows | Runs on | Try |
+|---------|---------------|---------|-----|
+| [panels.rr](studio/panels.rr) | The IDE's public components docked together: a toolbar, the toolbox, the project tree, a designer with the property inspector following it (Anchors' pin editor), the output console, the command palette | run · interp · native · web | `rapidr run studio/panels.rr` |
+
 ### graphics/ and directx/ — drawing
 
 | Example | What it shows | Runs on | Try |

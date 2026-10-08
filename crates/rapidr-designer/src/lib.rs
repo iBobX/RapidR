@@ -117,6 +117,9 @@ pub struct Document {
     undo: Vec<Vec<(TextPatch, String)>>,
     redo: Vec<Vec<(TextPatch, String)>>,
     diagnostics: Vec<String>,
+    /// The first error's line in this file (from 1), when the text doesn't
+    /// compile.
+    error_line: Option<usize>,
 }
 
 /// A component read from the text, with where its pieces are.
@@ -157,6 +160,7 @@ impl Document {
             undo: Vec::new(),
             redo: Vec::new(),
             diagnostics: Vec::new(),
+            error_line: None,
         };
         d.reread(&[]);
         d
@@ -189,6 +193,12 @@ impl Document {
     /// is: L-SYNC shows it, the designer keeps the last good state).
     pub fn diagnostics(&self) -> &[String] {
         &self.diagnostics
+    }
+
+    /// Where the text's first error is (a line from 1), when it doesn't
+    /// parse: the designer shows the last good state, read-only.
+    pub fn error_line(&self) -> Option<usize> {
+        self.error_line
     }
 
     /// The code editor changed the text: the forms are read again (their
@@ -285,6 +295,13 @@ impl Document {
         !self.redo.is_empty()
     }
 
+    /// Forgets the undo / redo history (the text was changed elsewhere:
+    /// its edits' places are gone).
+    pub fn clear_history(&mut self) {
+        self.undo.clear();
+        self.redo.clear();
+    }
+
     /// Applies a transaction's inverse; returns the inverse's own record.
     /// (A record `(patch, removed)`: `start..end` held `removed` and now
     /// holds `insert`.)
@@ -317,6 +334,10 @@ impl Document {
         let parse = parse_source_for_tools(&self.text, &self.base_dir, self.path.clone(), self.options.clone());
         self.diagnostics = parse.diagnostics.iter().map(|d| d.message.clone()).collect();
         let file = self.path.as_deref().and_then(|p| parse.file_id(p)).unwrap_or(0);
+        self.error_line = parse.diagnostics.iter().find(|d| d.severity == rapidr_diagnostics::Severity::Error).map(|d| match locate(&parse, file, d.span) {
+            Some((start, _)) if start <= self.text.len() => self.text[..start].matches('\n').count() + 1,
+            _ => d.location.line.max(1),
+        });
         let constants = program_constants(&parse.program.statements);
         let mut forms = Vec::new();
         for s in &parse.program.statements {
@@ -333,6 +354,8 @@ impl Document {
             let tree = to_subtree(node, previous, &mut next, &mut spans, &mut Vec::new());
             let mut synced = FormDesign::from_subtree_after(tree, next);
             synced.set_constants(Some(constants.clone()));
+            // (a RapidQ program: constants it doesn't define written as numbers)
+            synced.set_rapidq(self.path.as_deref().and_then(|p| p.extension()).is_some_and(|e| e.eq_ignore_ascii_case("bas") || e.eq_ignore_ascii_case("inc")));
             let old = self.forms.get(k).filter(|f| same(&f.synced)).or_else(|| self.forms.iter().find(|f| same(&f.synced)));
             let mut designer = match old {
                 Some(old) => old.designer.clone(),
@@ -759,3 +782,7 @@ fn const_value(e: &Expression, known: &std::collections::BTreeMap<String, i64>) 
 
 #[cfg(test)]
 mod tests;
+
+// (event handlers made from the designer and the inspector: S-PANELS)
+mod handlers;
+pub use handlers::{default_event, params_text, Handler};

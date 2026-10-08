@@ -55,9 +55,10 @@ pub fn prop_key(name: &str) -> String {
 }
 
 /// RapidR's name of a type as written (`QBUTTON` → `RBUTTON`, `QGAUGE` →
-/// `RPROGRESSBAR`); upper case as written when the registry doesn't know it.
+/// `RPROGRESSBAR`, `QMEMO` → `RMEMO` as the compilers read it); upper case
+/// as written when the registry doesn't know it.
 pub fn canonical_type(written: &str) -> String {
-    match rapidr_lang::component(written) {
+    match rapidr_lang::resolve_component(written) {
         Some(c) => c.name.to_string(),
         None => written.to_ascii_uppercase(),
     }
@@ -208,6 +209,10 @@ pub struct FormDesign {
     /// includes it), RapidR's own always known; `None`: every constant of
     /// the registry (a form designed without its program).
     constants: Option<BTreeMap<String, i64>>,
+    /// A RapidQ program (a `.bas` / `.inc` file): a RapidQ property's
+    /// constant its program doesn't define is written as its number (RC.EXE
+    /// reads an undefined name as an empty variable, 0).
+    rapidq: bool,
 }
 
 impl PartialEq for FormDesign {
@@ -221,7 +226,7 @@ impl FormDesign {
     pub fn new(name: &str, type_written: &str) -> FormDesign {
         let mut nodes = BTreeMap::new();
         nodes.insert(1, Node::new(1, name, type_written));
-        FormDesign { nodes, root: 1, next: 2, constants: None }
+        FormDesign { nodes, root: 1, next: 2, constants: None, rapidq: false }
     }
 
     /// The form from a whole CREATE tree (as read from source).
@@ -234,7 +239,7 @@ impl FormDesign {
     /// its source keeps its components' ids.
     pub fn from_subtree_after(tree: Subtree, next: NodeId) -> FormDesign {
         let max = tree.all().iter().map(|t| t.id).max().unwrap_or(0);
-        let mut d = FormDesign { nodes: BTreeMap::new(), root: 0, next: next.max(max + 1), constants: None };
+        let mut d = FormDesign { nodes: BTreeMap::new(), root: 0, next: next.max(max + 1), constants: None, rapidq: false };
         let id = d.attach(None, tree, true);
         d.root = id;
         d
@@ -243,6 +248,21 @@ impl FormDesign {
     /// Says which constants its program defines (see the field).
     pub fn set_constants(&mut self, constants: Option<BTreeMap<String, i64>>) {
         self.constants = constants;
+    }
+
+    /// Says the program is RapidQ's (a `.bas` / `.inc` file).
+    pub fn set_rapidq(&mut self, on: bool) {
+        self.rapidq = on;
+    }
+
+    /// Whether `name` (any case) can be written as a RapidQ property's
+    /// value: the program defines it (RAPIDQ.INC's when included), or it
+    /// isn't a RapidQ program.
+    pub fn writable_constant(&self, name: &str) -> bool {
+        match (&self.constants, self.rapidq) {
+            (Some(c), true) => c.contains_key(&name.to_ascii_lowercase()),
+            _ => true,
+        }
     }
 
     /// A constant's value as its program knows it.
@@ -332,8 +352,14 @@ impl FormDesign {
         (1..).map(|n| format!("{base}{n}")).find(|n| self.find(n).is_none()).unwrap_or_default()
     }
 
-    /// The name a new component of this type gets (`QBUTTON` → `Button1`).
+    /// The name a new component of this type gets, after its name in
+    /// mixed case as the registry spells it (`QBUTTON` → `Button1`,
+    /// `QCHECKBOX` → `CheckBox1`, `QSTRINGGRID` → `StringGrid1`), as Delphi
+    /// and VB name them.
     pub fn new_name(&self, type_written: &str) -> String {
+        if let Some(c) = rapidr_lang::component(type_written) {
+            return self.unique_name(c.display);
+        }
         let t = type_written.to_ascii_uppercase();
         let short = t.strip_prefix('Q').or_else(|| t.strip_prefix('R')).unwrap_or(&t);
         let mut base: String = short.chars().take(1).collect();

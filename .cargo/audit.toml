@@ -1,0 +1,11 @@
+# cargo-audit configuration (docs/security-audit.md SEC-20). Keep in step
+# with deny.toml's [advisories] ignore list: every entry says why.
+[advisories]
+ignore = [
+    # ttf-parser 0.25 is unmaintained (informational, no vulnerability). It
+    # only ever parses fonts built into RapidR (crates/rapidr-value
+    # objects/text.rs) and, on Linux Wayland, the system's fonts for winit's
+    # title bars — never untrusted data. See deny.toml.
+    "RUSTSEC-2026-0192",
+]
+informational_warnings = ["unmaintained", "unsound", "notice"]

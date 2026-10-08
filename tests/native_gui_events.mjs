@@ -128,7 +128,7 @@ function build(name, interp) {
   if (PREBUILT) return join(PREBUILT, `${name}-${interp ? "interp" : "native"}${EXE}`);
   const out = join(WORK, `${name}-${interp ? "interp" : "native"}`);
   mkdirSync(out, { recursive: true });
-  const args = ["build", join(ROOT, `tests/fixtures/${name}.bas`), out, ...(interp ? ["--interp"] : [])];
+  const args = ["build", join(ROOT, `tests/fixtures/${name}.bas`), out, "--no-bundle", ...(interp ? ["--interp"] : [])];
   execFileSync(join(ROOT, `rapidr${EXE}`), args, { cwd: ROOT, stdio: "ignore", env: { ...process.env, CARGO_TARGET_DIR: CARGO_TARGET } });
   // Native builds also copy the executable (and its THIRD-PARTY-NOTICES.txt)
   // next to the source; don't leave them there.

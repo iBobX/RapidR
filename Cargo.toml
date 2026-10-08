@@ -28,6 +28,7 @@ members = [
     "crates/rapidr-designer",
     "crates/rapidr-lsp",
     "crates/rapidr-dap",
+    "crates/rapidr-package",
     # (a spike, out of every regular build: docs/web-host-plan.md)
     "crates/rapidr-ui-host-web",
     "interpreter/rapidr-bytecode",
@@ -79,6 +80,7 @@ rapidr-studio = { path = "crates/rapidr-studio" }
 rapidr-designer = { path = "crates/rapidr-designer" }
 rapidr-lsp = { path = "crates/rapidr-lsp" }
 rapidr-dap = { path = "crates/rapidr-dap" }
+rapidr-package = { path = "crates/rapidr-package" }
 
 # Crates.io crates RapidR replaces with its own. Every generated program's
 # Cargo.toml gets the same section (rapidr-codegen-rust: PATCHES; an

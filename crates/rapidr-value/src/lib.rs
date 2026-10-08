@@ -23,6 +23,8 @@ pub mod handles;
 pub mod tray;
 pub mod mdi;
 pub mod dock;
+// (I1 / L-PANELS: RapidR Studio's panels as public components)
+pub mod panels;
 pub mod events;
 // (form members: OnHint, a button's drag, ShapeForm's outline)
 pub mod hints;

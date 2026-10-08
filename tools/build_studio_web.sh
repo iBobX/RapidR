@@ -10,7 +10,9 @@
 #   run.html                   the program under development's sandboxed frame
 #   studio.rrbc                the shell, the same bytecode `rapidr ide` runs
 #   runtime/                   the web runtime (target/web: rapidrintr.js /
-#                              _bg.wasm, fonts/, THIRD-PARTY-NOTICES.txt)
+#                              _bg.wasm, fonts/, THIRD-PARTY-NOTICES.txt,
+#                              rapidr-webview.html)
+#   _headers, .htaccess        the hosts' response headers (ide/web)
 #   ide/assets/                the start page's brand (RapidR's lockups)
 #   examples/                  RapidR's examples, as the Welcome page lists them
 #
@@ -41,6 +43,11 @@ mkdir -p "$OUT/runtime"
 "$RAPIDR" build-bc ide/studio.rr -o "$OUT/studio.rrbc"
 cp ide/web/index.html ide/web/studio.js ide/web/run.html "$OUT/"
 cp target/web/rapidrintr.js target/web/rapidrintr_bg.wasm target/web/THIRD-PARTY-NOTICES.txt "$OUT/runtime/"
+# (the frame an RWEBVIEW's Html runs in: docs/security-audit.md SEC-15)
+cp interpreter/rapidr-webbundle/web/rapidr-webview.html "$OUT/runtime/"
+# (the hosts' headers: ide/web/_headers, .htaccess — no CORS, no framing by
+# other sites; docs/security-audit.md SEC-17)
+cp ide/web/_headers ide/web/.htaccess "$OUT/"
 cp -R target/web/fonts "$OUT/runtime/fonts"
 # (the start page's brand: ide/assets, read from --home as on the desktop)
 mkdir -p "$OUT/ide/assets"

@@ -8,6 +8,12 @@
 //! Synchronous: one thread answers requests in order; diagnostics are
 //! published once the messages waiting are handled (typing doesn't compile
 //! the program at every key).
+//!
+//! Confined (docs/security-audit.md SEC-18): the server reads files from the
+//! disk only inside the workspace folders the client opened and the folders
+//! of the documents it opened (plus the include folders it names) — a
+//! project's `$INCLUDE "../../.ssh/id_rsa"`, or a request about a document
+//! elsewhere, reads nothing.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -105,6 +111,11 @@ pub fn serve(connection: &Connection) -> Result<(), String> {
             range: None,
             ..Default::default()
         })),
+        // (the folders it may read follow the client's: SEC-18)
+        workspace: Some(WorkspaceServerCapabilities {
+            workspace_folders: Some(WorkspaceFoldersServerCapabilities { supported: Some(true), change_notifications: Some(OneOf::Left(true)) }),
+            file_operations: None,
+        }),
         ..Default::default()
     };
     let result = InitializeResult {
@@ -114,12 +125,14 @@ pub fn serve(connection: &Connection) -> Result<(), String> {
     connection.initialize_finish(id, serde_json::to_value(result).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
 
     let mut server = Server {
-        analysis: Analysis::new(rapidr_langsvc::Options { rapidq_compatible, include_dirs, case }),
+        analysis: Analysis::new(rapidr_langsvc::Options { rapidq_compatible, include_dirs, case, roots: Some(Vec::new()) }),
         open: HashSet::new(),
         dirty: false,
         published: HashMap::new(),
         utf8,
+        workspace: workspace_roots(&params),
     };
+    server.confine();
     loop {
         let Ok(msg) = connection.receiver.recv() else { return Ok(()) };
         match msg {
@@ -157,9 +170,37 @@ struct Server {
     /// The files each main file's diagnostics were published for.
     published: HashMap<PathBuf, HashSet<PathBuf>>,
     utf8: bool,
+    /// The workspace folders the client opened.
+    workspace: Vec<PathBuf>,
+}
+
+/// The folders a client opened: its workspace folders, else its root.
+#[allow(deprecated)]
+fn workspace_roots(params: &InitializeParams) -> Vec<PathBuf> {
+    let mut roots: Vec<PathBuf> = params.workspace_folders.iter().flatten().filter(|f| f.uri.as_str().starts_with("file:")).map(|f| uri_to_path(&f.uri)).collect();
+    if roots.is_empty() {
+        roots.extend(params.root_uri.iter().filter(|u| u.as_str().starts_with("file:")).map(uri_to_path));
+        roots.extend(params.root_path.iter().filter(|p| !p.is_empty()).map(PathBuf::from));
+    }
+    roots
 }
 
 impl Server {
+    /// What the analysis may read from the disk: the workspace folders and
+    /// the folders of the documents open in the editor (SEC-18).
+    fn confine(&mut self) {
+        let mut roots = self.workspace.clone();
+        for doc in &self.open {
+            if let Some(dir) = doc.parent().filter(|d| !d.as_os_str().is_empty() && !d.starts_with("/__untitled__")) {
+                if !roots.iter().any(|r| r == dir) {
+                    roots.push(dir.to_path_buf());
+                }
+            }
+        }
+        roots.sort();
+        self.analysis.set_roots(roots);
+    }
+
     fn notification(&mut self, n: Notification) {
         match n.method.as_str() {
             notification::DidOpenTextDocument::METHOD => {
@@ -167,6 +208,7 @@ impl Server {
                     let path = uri_to_path(&p.text_document.uri);
                     self.analysis.update(path.clone(), p.text_document.text);
                     self.open.insert(path);
+                    self.confine();
                     self.dirty = true;
                 }
             }
@@ -187,10 +229,20 @@ impl Server {
                     let path = uri_to_path(&p.text_document.uri);
                     self.analysis.close(&path);
                     self.open.remove(&path);
+                    self.confine();
                     self.dirty = true;
                 }
             }
             notification::DidSaveTextDocument::METHOD => self.dirty = true,
+            notification::DidChangeWorkspaceFolders::METHOD => {
+                if let Ok(p) = serde_json::from_value::<DidChangeWorkspaceFoldersParams>(n.params) {
+                    let removed: Vec<PathBuf> = p.event.removed.iter().map(|f| uri_to_path(&f.uri)).collect();
+                    self.workspace.retain(|r| !removed.contains(r));
+                    self.workspace.extend(p.event.added.iter().filter(|f| f.uri.as_str().starts_with("file:")).map(|f| uri_to_path(&f.uri)));
+                    self.confine();
+                    self.dirty = true;
+                }
+            }
             _ => {}
         }
     }
@@ -647,3 +699,8 @@ mod tests {
         assert_eq!(path_to_uri(&path).unwrap().as_str(), "untitled:Untitled-1");
     }
 }
+
+/// The security regressions (tests/security/, `tools/regress.sh security`).
+#[cfg(test)]
+#[path = "../../../tests/security/lsp_workspace_confinement.rs"]
+mod security_regressions;

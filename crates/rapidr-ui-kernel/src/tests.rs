@@ -614,16 +614,16 @@ fn text_measurement_matches_text_width() {
             assert!((f64::from(w) - expected as f64).abs() <= 0.5 + 1e-3, "{name} {size}: {s:?} parley {w} vs TextWidth {expected}");
         }
     }
-    // bold (synthesized from the regular faces): MS Sans Serif's a pixel
-    // wider a character in both (letter spacing in the layout); the others
-    // keep the advances, TextWidth adding GDI's 1-pixel overhang
+    // bold (synthesized from the regular faces): MS Sans Serif's and
+    // Arial's a pixel wider a character in both (letter spacing in the
+    // layout, the room the heavier letters take)
     let bold = Font { styles: 1, ..Font::default() };
     let arial_bold = Font { name: "Arial".into(), size: 10, styles: 1, color: 0 };
     for s in strings {
         let (w, _) = ts.measure(s, &bold);
         assert!((f64::from(w) - text_size(s, &bold).0 as f64).abs() <= 0.5 + 1e-3, "bold {s:?}: {w}");
         let (w, _) = ts.measure(s, &arial_bold);
-        assert!((f64::from(w) + 1.0 - text_size(s, &arial_bold).0 as f64).abs() <= 0.5 + 1e-3, "Arial bold {s:?}: {w}");
+        assert!((f64::from(w) - text_size(s, &arial_bold).0 as f64).abs() <= 0.5 + 1e-3, "Arial bold {s:?}: {w}");
     }
     // the setting matters: kerned, "AVAWAY" is narrower
     let font = Font::default();

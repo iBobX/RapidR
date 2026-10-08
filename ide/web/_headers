@@ -1,0 +1,16 @@
+# RapidR Studio for the web: response headers for hosts that read this file
+# (Netlify, Cloudflare Pages). docs/security-audit.md SEC-17.
+#
+# index.html carries its own Content-Security-Policy (a meta tag); the header
+# adds what only a header can say: no other site may put Studio in a frame.
+# No CORS: run.html, the program's sandboxed frame, gets the runtime from
+# Studio by message, never by fetching it. No Cross-Origin-Resource-Policy:
+# that frame's opaque origin loads the program's pictures from here.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Cross-Origin-Opener-Policy: same-origin
+/
+  Content-Security-Policy: frame-ancestors 'self'
+/index.html
+  Content-Security-Policy: frame-ancestors 'self'

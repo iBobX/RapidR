@@ -573,20 +573,6 @@ pub fn gui_set_form_border(name: &str) {
     forms::set_form_border(Rt, name);
 }
 
-/// `X.SetFocus`: the keyboard focus to component `name` on its form's
-/// kernel side (the web's too).
-pub fn gui_set_focus(name: &str) {
-    let Some(form) = crate::object::form_of(name).map(|f| lower(&f)) else { return };
-    with_kern(|k| {
-        if let Some(f) = k.desk.forms.get_mut(&form) {
-            f.ui.sync(&RtStore);
-            f.ui.focus_id(&RtStore, &lower(name));
-            f.ui.dirty = true;
-        }
-    });
-    invalidate();
-}
-
 /// `Form.HideTitleBar` / `ShowTitleBar` (rapidr_ui_app::forms::set_title_bar).
 pub fn gui_title_bar(name: &str, show: bool) {
     forms::set_title_bar(Rt, &lower(name), show);

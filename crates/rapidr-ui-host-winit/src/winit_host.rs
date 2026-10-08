@@ -709,6 +709,20 @@ impl Shim<'_> {
         if let Some((x, y)) = spec.position {
             attrs = attrs.with_position(LogicalPosition::new(x as f64, y as f64));
         }
+        // Linux: the windows' app ID (Wayland) and WM_CLASS (X11): the
+        // AppDir's (its AppRun says RAPIDR_APP_ID: the bundle ID, which
+        // `rapidr build`'s desktop entry is named after and names in
+        // StartupWMClass, so the dock and the window switcher show the
+        // app's icon for them), else the executable's name
+        #[cfg(all(unix, not(any(target_os = "macos", target_os = "ios", target_os = "android"))))]
+        if let Some(id) = std::env::var("RAPIDR_APP_ID")
+            .ok()
+            .filter(|s| !s.is_empty())
+            .or_else(|| std::env::current_exe().ok().and_then(|e| e.file_stem().map(|s| s.to_string_lossy().into_owned())))
+        {
+            use winit::platform::wayland::WindowAttributesExtWayland;
+            attrs = attrs.with_name(id.clone(), id);
+        }
         let window = match el.create_window(attrs) {
             Ok(w) => Arc::new(w),
             Err(e) => {
@@ -949,7 +963,18 @@ fn apply_state(window: &Window, state: i64) {
 }
 
 fn icon(icon: Option<&crate::Icon>) -> Option<winit::window::Icon> {
-    let i = icon?;
+    let Some(i) = icon else {
+        // (Windows: a program without an icon of its own shows its .exe's,
+        // the MAINICON `rapidr build` writes — in the title bar and on the
+        // taskbar as in Explorer; none there, Windows' default)
+        #[cfg(windows)]
+        {
+            use winit::platform::windows::IconExtWindows;
+            return winit::window::Icon::from_resource_name("MAINICON", None).ok();
+        }
+        #[cfg(not(windows))]
+        return None;
+    };
     winit::window::Icon::from_rgba(i.rgba.clone(), i.width, i.height).ok()
 }
 

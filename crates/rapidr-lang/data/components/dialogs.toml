@@ -3,6 +3,7 @@ group = "Dialogs"
 
 [[component]]
 name = "ROPENDIALOG"
+display = "OpenDialog"
 rapidq = "QOPENDIALOG"
 visual = false
 doc = "The system's Open dialog: Execute shows it and returns whether the user chose a file, then named by FileName. Filter limits the files listed."
@@ -23,6 +24,7 @@ events = []
 
 [[component]]
 name = "RSAVEDIALOG"
+display = "SaveDialog"
 rapidq = "QSAVEDIALOG"
 visual = false
 doc = "The system's Save dialog: Execute shows it and returns whether the user chose a name, then in FileName."
@@ -42,6 +44,7 @@ events = []
 
 [[component]]
 name = "RFILEDIALOG"
+display = "FileDialog"
 rapidq = "QFILEDIALOG"
 from = "RAPIDQ2.INC"
 visual = false
@@ -70,6 +73,7 @@ events = []
 
 [[component]]
 name = "RCOLORDIALOG"
+display = "ColorDialog"
 rapidq = "QCOLORDIALOG"
 from = "RAPIDQ2.INC"
 visual = false
@@ -89,6 +93,7 @@ events = []
 
 [[component]]
 name = "RFONTDIALOG"
+display = "FontDialog"
 rapidq = "QFONTDIALOG"
 visual = false
 default_event = "OnApply"

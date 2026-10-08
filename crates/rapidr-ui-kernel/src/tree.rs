@@ -30,6 +30,9 @@ pub struct NodeUi {
     pub surface: Option<crate::components::canvas::Shown>,
     /// When its kind's `tick` runs next (tick.rs).
     pub wake: Option<crate::tick::Instant>,
+    /// (I4 L-DVIEW) An RDESIGNSURFACE's designed form: its design-time
+    /// store and the form's own tree (components/design.rs).
+    pub design: Option<Box<crate::components::design::View>>,
 }
 
 pub struct Node {
@@ -141,6 +144,19 @@ impl FormUi {
     /// the window (everywhere but macOS' system menu bar), so the form's
     /// components sit below it.
     pub fn build(store: &dyn Store, form: &str, menu_in_window: bool) -> FormUi {
+        let mut f = FormUi::build_unfocused(store, form, menu_in_window);
+        f.focus = f.tab_order(store).first().copied();
+        // (the first focus is entered: a list's OnEnter as its form shows;
+        // a QEDIT focused then selects its text: AutoSelect)
+        if let Some(i) = f.focus {
+            f.entered(i);
+            crate::focus::select_on_entry(&f.nodes[i].id, &f.nodes[i].type_name);
+        }
+        f
+    }
+
+    /// The same with nothing focused (a form shown in the designer).
+    pub fn build_unfocused(store: &dyn Store, form: &str, menu_in_window: bool) -> FormUi {
         let mut f = FormUi {
             form: form.to_lowercase(),
             nodes: Vec::new(),
@@ -171,13 +187,6 @@ impl FormUi {
             hint: Default::default(),
         };
         f.rebuild(store);
-        f.focus = f.tab_order(store).first().copied();
-        // (the first focus is entered: a list's OnEnter as its form shows;
-        // a QEDIT focused then selects its text: AutoSelect)
-        if let Some(i) = f.focus {
-            f.entered(i);
-            crate::focus::select_on_entry(&f.nodes[i].id, &f.nodes[i].type_name);
-        }
         f
     }
 
@@ -207,7 +216,10 @@ impl FormUi {
     fn add_children(&mut self, store: &dyn Store, parent_id: &str, parent: Option<usize>, old: &mut Vec<(String, NodeUi)>) {
         // (a QFORMMDI's child frames in their stacking order)
         // (and a dock manager's slid-out pane over its groups)
-        for (id, type_name) in components::dock::stacked(parent_id, components::mdi::stacked(parent_id, store.children(parent_id))) {
+        // (and a shown command palette, a toolbox dragging, over their neighbours)
+        let children = components::dock::stacked(parent_id, components::mdi::stacked(parent_id, store.children(parent_id)));
+        let children = components::panels::palette::stacked(parent_id, components::panels::toolbox::stacked(parent_id, children));
+        for (id, type_name) in children {
             let type_name = type_name.to_ascii_uppercase();
             if !placed(&type_name) {
                 continue;
@@ -321,7 +333,11 @@ impl FormUi {
     /// Paragraph `para`'s layout of node `id`'s editor (a memo has one per
     /// paragraph).
     pub fn editor_layout_at(&self, id: &str, para: usize) -> Option<&parley::Layout<crate::text::Ink>> {
-        self.node(id)?.ui.edit.as_ref()?.para_layout(para)
+        match self.node(id) {
+            Some(n) => n.ui.edit.as_ref()?.para_layout(para),
+            // (a component of a form shown in a designer on this one)
+            None => self.nodes.iter().filter_map(|n| n.ui.design.as_ref()).find_map(|v| v.editor_layout_at(id, para)),
+        }
     }
 }
 

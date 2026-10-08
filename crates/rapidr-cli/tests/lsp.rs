@@ -194,7 +194,7 @@ fn an_editor_session() {
     let md = r["contents"]["value"].as_str().unwrap();
     assert!(md.contains("DIM total AS INTEGER"), "{md}");
     let r = c.request("textDocument/hover", json!({ "textDocument": doc, "position": pos(2, 6) }));
-    assert!(r["contents"]["value"].as_str().unwrap().contains("property of QForm"));
+    assert!(r["contents"]["value"].as_str().unwrap().contains("of QForm*"));
 
     // Signature help inside `AddOne(`, and in `Greet "Ann", |`.
     let r = c.request("textDocument/signatureHelp", json!({ "textDocument": doc, "position": pos(8, 15) }));

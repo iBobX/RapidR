@@ -176,6 +176,11 @@ Every component RapidR creates, by what it is for. A RapidQ name and its R name 
 
 | | RapidR name | RapidQ name | From | Where |
 |---|---|---|---|---|
+| <img src="../icons/light/components/propertyinspector.svg" width="20" height="20" alt=""> | [`RPROPERTYINSPECTOR`](members.md#rpropertyinspector) | — | RapidR | everywhere |
+| <img src="../icons/light/components/toolbox.svg" width="20" height="20" alt=""> | [`RTOOLBOX`](members.md#rtoolbox) | — | RapidR | everywhere |
+| <img src="../icons/light/components/projecttree.svg" width="20" height="20" alt=""> | [`RPROJECTTREE`](members.md#rprojecttree) | — | RapidR | everywhere |
+| <img src="../icons/light/components/outputconsole.svg" width="20" height="20" alt=""> | [`ROUTPUTCONSOLE`](members.md#routputconsole) | — | RapidR | everywhere |
+| <img src="../icons/light/components/commandpalette.svg" width="20" height="20" alt=""> | [`RCOMMANDPALETTE`](members.md#rcommandpalette) | — | RapidR | everywhere |
 | <img src="../icons/light/components/project.svg" width="20" height="20" alt=""> | [`RPROJECT`](members.md#rproject) | — | RapidR | everywhere |
 | <img src="../icons/light/components/languageservice.svg" width="20" height="20" alt=""> | [`RLANGUAGESERVICE`](members.md#rlanguageservice) | — | RapidR | everywhere |
 | <img src="../icons/light/components/programsession.svg" width="20" height="20" alt=""> | [`RPROGRAMSESSION`](members.md#rprogramsession) | — | RapidR | everywhere |
@@ -198,4 +203,4 @@ RapidQ has these objects (RC.EXE knows them); RapidR doesn't yet. Variables of t
 - `QTHREAD`: Runs its OnExecute code in a background thread. Planned: RapidR doesn't have it yet.
 - `QTRANSIMAGE`: A picture with a transparent colour that can shape and size its form to it. Planned: RapidR doesn't have it yet.
 
-101 components; 74 of them have a RapidQ name.
+106 components; 74 of them have a RapidQ name.

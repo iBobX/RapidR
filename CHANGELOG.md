@@ -7,6 +7,75 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Added
+- **RapidR Studio's panels as public components** (docs/ide-plan.md I1, L-PANELS), the same on the
+  desktop, in native builds and on the web: **RPROPERTYINSPECTOR** (Delphi's object inspector: typed
+  editors from the language registry, a visual Anchors pin editor, colours, fonts, lists, the Events
+  page, defaults dimmed and reset, "RapidR extensions", multi-selection, a designer's selection
+  followed), **RTOOLBOX** (RapidQ's and RapidR's components with RapidR's icons, search, drag and
+  drop), **RPROJECTTREE** (.rrproj projects by kind, forms' components, rename, delete, reorder),
+  **ROUTPUTCONSOLE** (ANSI output, build log, problems, `file:line` links, search), **RTOOLBAR** as
+  a real toolbar (icon buttons, toggles, overflow, customizable) and **RCOMMANDPALETTE** (fuzzy
+  commands). Example: `examples/studio/panels.rr`.
+### RapidR Studio: the panels work
+- **The real panels replace the stand-ins** (`ide/panels.inc`): the tool bar (RTOOLBAR, buttons with
+  tooltips), the command palette (RCOMMANDPALETTE), the project tree (RPROJECTTREE), the toolbox
+  (RTOOLBOX), the property inspector (RPROPERTYINSPECTOR) and the output console (ROUTPUTCONSOLE:
+  output, build log, problems with links). Desktop and web byte-identical.
+- **Properties work**: select a component on the form (or in the project tree, or by name in the
+  palette) and the inspector shows its properties as its CREATE block writes them (defaults
+  dimmed; Left / Top / Width / Height as laid out), by category or A–Z, searched, documented under
+  the rows. A change is one undo step in the designer, written into the code as the smallest edit;
+  the code edited reaches the inspector. Values are written as RapidQ needs them: Booleans as 1 / 0,
+  and in a `.bas` program without RAPIDQ.INC a RapidQ constant as its number (RC.EXE reads an
+  undefined `clRed` or `True` as 0).
+- **Events**: double-click an event's row: its SUB is written with the registry's parameters (a
+  DECLARE beside the file's, or the SUB before the form, as RC.EXE needs) and bound, or found; the
+  caret goes inside it. The Events page offers the file's SUBs that fit.
+- **Toolbox**: the registry's components by group with RapidR's icons; search also by what a
+  component is ("chart" finds RPLOT); a card as the tooltip; double-click or Enter adds, a click arms
+  the placing tool, a drag drops on the form.
+- **Project tree**: forms with their components (selecting one selects it in the designer), files
+  with changes marked with a dot, Project > Add Form / Add Module, rename (F2), take out of the
+  project, reorder.
+- **One search** (Ctrl+P, Ctrl+Shift+P): commands, examples, the project's files, the file's
+  symbols and its form's components; `:N` goes to line N (the palette's AddPrefix).
+- Empty panels say what to do (`EmptyText`).
+
+### RapidR Studio: the form designer works
+- A file's [Design] tab shows its form as the running program shows it, at its own size, read from the code (`RDESIGNSURFACE.Source` on rapidr-designer's Document); the stand-in scanner and its boxes are gone.
+- Drag the form's right edge, bottom edge or corner to resize it: anchored and aligned components follow live, and the new size (and where the anchors moved them) is written into the CREATE block, one undo step.
+- Add components: click a type then click or draw on the form (`PlaceType`), drag one in (`DragComponent`), or `AddComponent(Type, X, Y)`. Names are unique in the whole file; typing right after adding sets the Caption; dropping on a panel puts it inside.
+- Select, move, resize, delete, copy / paste / duplicate, align and arrange with the mouse or the keyboard; every change is announced to screen readers, written into the code as the smallest edit (`OnSourceEdit`), and undone to the exact bytes. Double-click makes or finds the event handler (`CreateHandler`). While the code has errors the designer is read-only under a banner.
+### Security
+- **Every web page RapidR builds has a Content-Security-Policy**, made from
+  what the program uses (SEC-15): no inline scripts, `'unsafe-eval'` only for
+  RJAVASCRIPT, frames only for RWEBVIEW, other servers only for the network
+  components and the addresses the program spells out; `rapidr build --web
+  --csp "…"` (and `bundle-bc --csp`) adds the author's own. Builds also write
+  `_headers` and `.htaccess` with the same policy, `frame-ancestors 'self'`,
+  `nosniff`, COOP and CORP. A program showing someone else's markup through
+  RDOM no longer runs its scripts.
+- **RWEBVIEW's page runs at an origin of its own** (SEC-12): the frame's
+  default sandbox leaves `allow-same-origin` out (`Sandbox` opts in), and its
+  `Html` runs in `rapidr-webview.html`, a frame every web build ships, with
+  its scripts working as before.
+- **Names in built pages are escaped for where they go** (SEC-16): a project
+  or file named like markup or script is text in the page; no name is
+  written into a script any more.
+- **The release's web bundle is RapidR Studio** (SEC-17): `tools/release/web.sh`
+  ships `tools/build_studio_web.sh`'s site; programs' bundles no longer carry
+  any of the old web IDE's files.
+- **`rapidr lsp` reads only the workspace** the editor opened (and the
+  folders of the files it opened); **`rapidr dap`** launches only RapidR
+  programs and never passes loader variables (`LD_PRELOAD`, `DYLD_*`,
+  `PATH`, …) to them (SEC-18). The authentication `rapidr mcp` will need is
+  designed (docs/security-audit.md §7).
+- Supply chain (SEC-20): memmap2 0.9.11, anyhow 1.0.104; cargo-deny fails on
+  unsound crates; `cargo deny` and `cargo audit` clean. Signing the release
+  checksums with minisign is proposed (docs/security-audit.md §8).
+- A `security` stage in `tools/regress.sh`, with a regression test for each.
+
 ### Legal
 - **A review of RapidQ's terms, rights and trademarks, and of everything
   RapidR takes from RapidQ** (`docs/legal/rapidq-review.md`): RapidQ's
@@ -33,6 +102,37 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   and the release notes.
 
 ### Added
+- **Every build is an app for its system, with an icon** (`rapidr build`,
+  `crates/rapidr-package`, docs/manual/building-apps.md). A program with
+  windows becomes `Name.app` on macOS (Info.plist with its name, bundle ID,
+  version, `NSHighResolutionCapable`, `LSMinimumSystemVersion`; its icon as
+  `.icns` from 16 to 1024 px; signed ad hoc so it opens on Apple silicon;
+  an interpreted program's bytecode in `Contents/Resources`), an `.exe`
+  with its icon (16 to 256 px) and version information on Windows, and
+  `Name.AppDir` on Linux (desktop entry, hicolor icons 16 to 512 px;
+  `rapidr install-app` puts it in the applications menu). Console programs
+  stay plain executables (`--bundle` makes apps of them; `--no-bundle`
+  keeps any program a plain executable). Native and interpreted builds
+  alike, cross builds too: the resources are written in pure Rust (editpe,
+  BSD-2-Clause), so a Mac makes a Windows `.exe`'s icon.
+- **The icon**: `--icon`, the project's `[build] icon` (`.rrproj`, with
+  `app_name`, `bundle_id`, `version`, `company`), `$OPTION ICON`, RC.EXE's
+  `-g<icon>` — in that order — as `.icns`, `.ico`, `.png` or `.svg`, made
+  into every size each system wants (clear errors for files that aren't
+  pictures, a note for small ones). Without one, RapidR's new **program
+  icon** (`design/brand`: the Runtime's Ink tile, an app window, the amber
+  Run triangle; `RapidR-App.icns`, `rapidr-app.ico`, `apps/rapidr-app`).
+  `rapidr build app.rrproj` builds a project's main file with its settings.
+- **RapidR Studio: Run > Build makes the app** for the system Studio runs on
+  (RPROJECT.Build: `rapidr build` in the background, its lines in Output),
+  **Run > Reveal in Finder / File Explorer / Files**, and **Project >
+  Project Options**: the app's name, bundle ID, version, company, icon (with
+  a preview) and native or interpreted build, saved in the project
+  (`ide/build.inc`; RPROJECT's Icon, AppName, BundleID, Version, Company,
+  BuildKind, Building, BuiltPath, FileManager, Build, StopBuild, Reveal,
+  IconPreview, OnBuildOutput, OnBuildDone).
+- `tools/studio_app.sh`: RapidR Studio as `RapidR Studio.app` from a
+  checkout (its icon in the Dock, this checkout's Studio).
 - **Every RapidQ member now works in RapidR.** The 101 RapidQ properties,
   methods and events that RapidR didn't answer before now work in native
   builds, the interpreter and the web. Each was checked against RapidQ's own
@@ -280,6 +380,12 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   - `tools/regress.sh unit` checks that everything is up to date.
 
 ### Changed
+- **`$OPTION ICON` as RapidQ's compiler has it** (checked against RC.EXE):
+  an icon file that isn't there is a compile error, `ICON file x does not
+  exist.` (it used to leave the default icon); the file name may be
+  unquoted; with several, the last one wins. The icon is now also the built
+  executable's / app's. RapidR still takes any `.ico` (RapidQ only 766-byte
+  32 × 32 ones), `.icns`, `.png` and `.svg`.
 - QDXSCREEN.TextRect now uses the same drawing as every other TextRect: a
   background colour fills the whole rectangle, not just the text.
 - `SetFocus` on the desktop now moves the keyboard focus, as it already did
@@ -435,6 +541,32 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   2026-10-06 should be cloned again.
 
 ### Fixed
+- **Text in RapidQ's default font was cramped, letters running together**
+  ("program", "start", "Bread", "Price", "Right-click" in labels, edits,
+  grids and status bars; worst on a Retina or 150 % screen and on the web).
+  RapidR Sans, the font RapidR draws MS Sans Serif with, had Liberation's
+  letters made larger twice over (12 % instead of 6 %) and squeezed into MS
+  Sans Serif's bitmap widths (an r is 3 pixels there): "Br", "pr", "ar"
+  overlapped by up to a pixel, and 816 of 2,028 letter pairs were closer
+  than half a pixel at 8 pt. Now every letter is Liberation's own shape, all
+  one size (95 %, never narrowed, no letter smaller than the next), with at
+  least 0.8 of a pixel between letters: 47 pairs are closer than half a
+  pixel (Liberation Sans itself, Arial's spacing, has 85) — the cross-bars
+  of t and f, the points of A, V, w. Readability comes first: r, x, y, j,
+  C, the brackets, & and % are a pixel wider than RapidQ's bitmap, so text
+  measures a little wider than in RapidQ — "program" 40 pixels (RapidQ 38),
+  "start" 21 (20), "Password:" 50 (49), "Right-click" and "Notepad -
+  untitled" unchanged, a long sentence about 1–2 % (TextWidth and AutoSize
+  report what is drawn); tab stops stay RapidQ's. New gallery cases `hello`,
+  `spacing` and `words` with RC.EXE's captures beside them, and
+  `tools/visual/words.py` (word by word, old | new | RC.EXE, 1×, 1.5×, 2×).
+- **Bold Arial ran together too** (a web window's title, "Pantry"; a
+  chart's bold title): its bold is the regular letter made heavier, about a
+  pixel wider at 12 px, which ate the space between letters. Each bold
+  character now takes half a pixel more at 12 px, as Windows' Arial Bold
+  is wider than its regular (TextWidth too; RC.EXE: Arial 9 bold "Pantry"
+  37 pixels, RapidR 38, before 36).
+
 - **Every component now starts with RapidQ's values, on every runtime.**
   Reading a property right after creating a component gave nothing for 252
   properties that RapidQ gives a value — a button's Cursor, Kind,

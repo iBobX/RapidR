@@ -132,6 +132,10 @@
         };
       }
       window.__rapidr_assets = data.assets || {};
+      // (the frame an RWEBVIEW's Html runs in, beside the runtime: its own
+      // sandboxed, opaque-origin frame — crates/rapidr-runtime-web's
+      // overlay_web.rs, docs/security-audit.md SEC-15)
+      window.RAPIDR_WEBVIEW_FRAME = new URL("runtime/rapidr-webview.html", location.href).href;
       // (the program's command line — COMMAND$(n), CommandCount — is its
       // own, never this frame's query string, which is the IDE's)
       window.RAPIDR_ARGS = Array.isArray(data.args) ? data.args.map(String) : [];

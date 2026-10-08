@@ -19,6 +19,10 @@ rapidr-lsp.workspace = true
 rapidr-dap.workspace = true
 # `rapidr lang`: the language registry's generators
 rapidr-lang.workspace = true
+# `rapidr build`: programs made into apps (Name.app, the .exe's resources, Name.AppDir) with their icons
+rapidr-package.workspace = true
+# a program's project (`.rrproj`): its app name, icon, version
+rapidr-project.workspace = true
 base64 = "0.22"
 # Downloaded files are remembered by content (SHA-256)
 sha2 = "0.10"
