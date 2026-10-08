@@ -52,7 +52,7 @@ PRINT "Where is 'art'? In Earth at " + STR$(INSTR(names(3), "art"))
 
 ' An object TYPE: fields, a constructor and methods (RObject is the base object;
 ' RapidQ's name for it is QOBJECT)
-TYPE Counter EXTENDS QOBJECT
+TYPE Counter EXTENDS RObject
     Count AS INTEGER
     Step AS INTEGER
 

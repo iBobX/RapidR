@@ -186,7 +186,7 @@ FlatSeperators = { category = "Appearance", doc = "With flat tab buttons, draws 
 FocusButtons = { category = "Behavior", doc = "Lets the tab buttons take the keyboard focus." }
 FogColor = { category = "Drawing", doc = "The colour of the frame's fog." }
 FogMode = { category = "Drawing", doc = "How the fog thickens with distance: linear, exponential or exponential squared." }
-Font = { category = "Font", doc = "The font of the text, a RFont; assigning one copies it." }
+Font = { category = "Font", doc = "The font of the text, an RFont; assigning one copies it." }
 FontColor = { category = "Font", doc = "RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR." }
 FontCount = { category = "Font", doc = "The number of fonts installed; read-only." }
 FontName = { category = "Font", doc = "On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`." }

@@ -348,7 +348,7 @@ constants = [
 [[group]]
 name = "File stream modes"
 source = "RAPIDQ.INC"
-doc = "How a RFileStream opens its file: create it, or open it to read, to write or both."
+doc = "How an RFileStream opens its file: create it, or open it to read, to write or both."
 constants = [
   ["fmCreate", 65535],
   ["fmOpenRead", 0],
@@ -933,7 +933,7 @@ constants = [
 [[group]]
 name = "Baud rates"
 source = "RAPIDQ.INC"
-doc = "Serial port speeds for a RComPort's BaudRate."
+doc = "Serial port speeds for an RComPort's BaudRate."
 constants = [
   ["br110", 0],
   ["br115200", 12],
@@ -1063,7 +1063,7 @@ constants = [
 [[group]]
 name = "Parity"
 source = "RAPIDQ.INC"
-doc = "Serial port parity for a RComPort's Parity: none, odd, even, mark or space."
+doc = "Serial port parity for an RComPort's Parity: none, odd, even, mark or space."
 constants = [
   ["prEven", 2],
   ["prMark", 3],
@@ -1075,7 +1075,7 @@ constants = [
 [[group]]
 name = "Stop bits"
 source = "RAPIDQ.INC"
-doc = "Serial port stop bits for a RComPort's StopBits: one, one and a half or two."
+doc = "Serial port stop bits for an RComPort's StopBits: one, one and a half or two."
 constants = [
   ["sbOne5StopBits", 1],
   ["sbOneStopBit", 0],

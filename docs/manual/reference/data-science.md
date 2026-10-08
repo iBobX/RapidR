@@ -216,7 +216,7 @@ A table of named columns in pandas' style: read CSV or JSON, select, filter, sor
 | `ToString` | ✓ | ✓ | The frame as a text table. |
 | `Show` | ✓ | ✓ | Shows the component or form; a data-science object prints its contents. |
 | `Print` | ✓ | ✓ | Prints the frame as a text table. |
-| `ToGrid(gridName)` | ✓ | ✓ | Fills a QSTRINGGRID: the header row, then the cells. |
+| `ToGrid(gridName)` | ✓ | ✓ | Fills an RStringGrid: the header row, then the cells. |
 | `To_grid` | ✓ | ✓ | Fills an RStringGrid with the DataFrame's column names and rows. Same as `ToGrid`. |
 | `Display` | ✓ | ✓ | Fills an RStringGrid with the DataFrame's column names and rows. Same as `ToGrid`. |
 

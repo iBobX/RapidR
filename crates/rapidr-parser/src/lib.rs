@@ -3605,7 +3605,7 @@ mod tests {
     #[test]
     fn type_names_are_recorded_for_tools() {
         let tokens = rapidr_lexer::Lexer::new("DIM a AS QBUTTON, s AS STRING\nSUB S (x AS QFORM)\nEND SUB\nFUNCTION F AS QFONT\nEND FUNCTION\nPRINT \"AS QLABEL\"\n", None).tokenize().unwrap();
-        let (_, diags, spans) = parse_tokens_with_type_names(&tokens);
+        let (_, diags, spans) = super::parse_tokens_with_type_names(&tokens);
         assert!(diags.is_empty(), "{diags:?}");
         let src = "DIM a AS QBUTTON, s AS STRING\nSUB S (x AS QFORM)\nEND SUB\nFUNCTION F AS QFONT\nEND FUNCTION\nPRINT \"AS QLABEL\"\n";
         let names: Vec<&str> = spans.iter().map(|s| &src[s.start..s.end]).collect();
@@ -3847,7 +3847,7 @@ mod tests {
         match &stmts[0] {
             Statement::Create(c) => {
                 assert_eq!(c.name, "frm");
-                assert_eq!(c.type_name, "RForm");
+                assert_eq!(c.type_name, "RFORM");
                 assert_eq!(c.body.len(), 2);
             }
             other => panic!("expected create, got {other:?}"),

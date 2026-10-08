@@ -15,7 +15,7 @@ properties = [
 ]
 methods = []
 events = [
-  { name = "OnTimer", params = "Sender AS RTimer" },
+  { name = "OnTimer", params = "Sender AS QTIMER" },
 ]
 
 [[component]]

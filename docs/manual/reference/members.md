@@ -18,7 +18,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
 | `Color` | color | -2147483633 | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `FormStyle` | enum | `fsNormal` | `fsNormal`, `fsStayOnTop` (above other windows), or an MDI parent or child (`fsMDIForm`, `fsMDIChild`). |
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
@@ -42,7 +42,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `HelpFile` *(RapidR)* | string |  | The help file the program opens for F1. |
 | `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
 | `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
 | `CopyMode` | enum |  | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
 | `MdiChildCount` | any |  | The number of MDI child forms open. |
 | `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
@@ -76,10 +76,10 @@ A window: the top-level container of a program's components, with its caption, b
 | `Show` | Shows the component or form; a data-science object prints its contents. |
 | `ShowModal AS VARIANT` | Shows the form and waits until it closes; returns its modal result. |
 | `ShowTitleBar` *(not yet)* | Puts the form's title bar back. |
-| `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
+| `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
 | `TextOut(x AS INTEGER, y AS INTEGER, s AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `Hide` *(RapidR)* | Makes the component or form invisible; it stays loaded. |
@@ -139,7 +139,7 @@ An MDI parent window (RAPIDQ2.INC's): a form whose child windows open, tile, cas
 | `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
 | `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
 | `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
 
 | Method | |
@@ -193,7 +193,7 @@ A container with raised or lowered bevels and an optional caption, to group comp
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -248,7 +248,7 @@ A row of tabs: the user picks one (TabIndex) and the program shows what belongs 
 | `FlatButtons` | bool | False | With `ButtonStyle`, draws the tab buttons flat. |
 | `FlatSeperators` | bool | False | With flat tab buttons, draws separators between them (RapidQ's spelling). |
 | `FocusButtons` | bool | False | Lets the tab buttons take the keyboard focus. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
 | `HotTrack` | bool | False | Highlights the item, tab or header section under the mouse. |
@@ -318,7 +318,7 @@ A strip of tool buttons, usually along the top of a form: icon buttons (RapidR's
 | `ShowHint` | int |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-| `Font` | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` | font |  | The font of the text, an RFont; assigning one copies it. |
 | `ButtonSize` | int | 28 | The buttons' width and height in pixels (the icon is drawn in the middle, 16 or 20 pixels). |
 | `ShowCaptions` | bool | False | Whether each button shows its caption beside its icon. |
 | `Customizable` | bool | False | The user can choose which buttons show, from the toolbar's menu (its overflow button). |
@@ -380,7 +380,7 @@ The bar at the bottom of a window that shows status text, as one simple text or 
 | `Visible` | bool | True | Whether the control or form is shown. |
 | `Caption` *(RapidR)* | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
 | `PanelCount` *(RapidR)* | int |  | The number of status bar panels; setting it adds or removes some. |
-| `Font` *(RapidR)* | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` *(RapidR)* | font |  | The font of the text, an RFont; assigning one copies it. |
 | `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `Color` *(RapidR)* | color |  | The bar's colour (RapidR's): flat in every look, as an IDE's state bar; unset, the theme's. |
@@ -454,7 +454,7 @@ A container that scrolls: components beyond its edges are reached with its scrol
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -513,7 +513,7 @@ A captioned frame around related components; the radio buttons in it form one ch
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -568,7 +568,7 @@ A box with raised or lowered 3D edges (QBevel.inc), to frame or group components
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
@@ -714,7 +714,7 @@ A push button: the user clicks it to run its OnClick handler. It can show a pict
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Default` | bool | False | Makes this the button the Enter key presses on its form. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -776,7 +776,7 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `EditText` | string |  | The edit's text as shown, with the input mask's literal characters. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -844,7 +844,7 @@ A box with a caption that the user ticks on or off (Checked).
 | `Caption` | string | `""` | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
 | `Checked` | bool | False | True when the check box, radio button or menu item is checked. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -892,7 +892,7 @@ One choice of several: checking it unchecks the other radio buttons in the same 
 | `Caption` | string | `""` | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
 | `Checked` | bool | False | True when the check box, radio button or menu item is checked. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -941,7 +941,7 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `DropDownCount` | int | 8 | How many items the drop-down list shows before it scrolls. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -966,7 +966,7 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
 | `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
 | `Count` *(RapidR)* | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
 | `ListCount` *(RapidR)* | int |  | RapidR's name for `ItemCount`. |
 | `ListIndex` *(RapidR)* | int |  | RapidR's name for `ItemIndex`. |
@@ -996,10 +996,10 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(not yet)* | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
 | `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` *(not yet)* | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
-| `StretchDraw(Rect AS QRECT, BMP)` *(not yet)* | Draws a bitmap scaled to fill rectangle `Rect`. |
+| `StretchDraw(Rect AS RRECT, BMP)` *(not yet)* | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` *(not yet)* | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` *(not yet)* | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `AddItem` *(RapidR)* | Appends one item (a list entry, line, node or menu item) to the component. |
 | `DeleteItem` *(RapidR)* | Removes the item at the index given. |
@@ -1031,7 +1031,7 @@ A multi-line text editor with fonts, colours and alignment per selection, that l
 | `BorderStyle` | enum | `bsSingle` | The border: one of the `bsXXX` constants. On a form, `bsSizeable` lets the user resize it, `bsDialog` doesn't, `bsNone` has no title bar. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `HideScrollBars` | bool | True | Hides scroll bars until the text needs them, instead of showing them disabled. |
@@ -1080,10 +1080,10 @@ A multi-line text editor with fonts, colours and alignment per selection, that l
 | `CopyToClipboard` | Copies the selected text to the clipboard. |
 | `CutToClipboard` | Moves the selected text to the clipboard. |
 | `LoadFromFile(FileName AS STRING)` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
-| `LoadFromStream(Stream AS QFILESTREAM)` *(not yet)* | Loads the component's contents from an open stream. |
+| `LoadFromStream(Stream AS RFILESTREAM)` *(not yet)* | Loads the component's contents from an open stream. |
 | `PasteFromClipboard` | Inserts the clipboard's text at the caret, replacing the selection. |
 | `SaveToFile(FileName AS STRING)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
-| `SaveToStream(Stream AS QFILESTREAM)` *(not yet)* | Writes the component's contents to an open stream. |
+| `SaveToStream(Stream AS RFILESTREAM)` *(not yet)* | Writes the component's contents to an open stream. |
 | `SelectAll` | Selects all the text. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Repaint` *(RapidR)* | Redraws the component. |
@@ -1122,7 +1122,7 @@ A multi-line plain-text editor with word wrap and scroll bars. RapidR's own.
 | `Visible` | int | True | Whether the control or form is shown. |
 | `Enabled` | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `ReadOnly` | int | False | Stops the user changing the text or items; they can still select and copy. |
-| `Font` | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` | font |  | The font of the text, an RFont; assigning one copies it. |
 | `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
@@ -1267,7 +1267,7 @@ A field for a date and a time (Date, Time), with OnChange when the user changes 
 | `Left` | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
 | `Visible` | int |  | Whether the control or form is shown. |
 | `Enabled` | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` | font |  | The font of the text, an RFont; assigning one copies it. |
 | `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
@@ -1355,7 +1355,7 @@ A code editor for BASIC: line numbers, syntax colours, and a list of the program
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
 | `Visible` | int | True | Whether the control or form is shown. |
 | `Enabled` | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` | font |  | The font of the text, an RFont; assigning one copies it. |
 | `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
@@ -1427,7 +1427,7 @@ A flat toolbar button with a caption and a picture; with GroupIndex it stays dow
 | `Down` | bool | False | True while the button is pressed in; with a `GroupIndex` it stays down. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Flat` | bool | False | Draws the button without a border until the mouse is over it. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `GroupIndex` | int | 0 | Buttons with the same non-zero number act as a group: pressing one raises the others. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -1485,7 +1485,7 @@ A round button with its own colours, highlight and shadow; like a cool button, i
 | `Down` | bool | False | True while the button is pressed in; with a `GroupIndex` it stays down. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Flat` | bool | False | Draws the button without a border until the mouse is over it. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `GroupIndex` | int | 0 | Buttons with the same non-zero number act as a group: pressing one raises the others. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -1544,7 +1544,7 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -1604,7 +1604,7 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `CopyMode` | enum | `cmSrcCopy` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Handle` | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -1625,7 +1625,7 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
 | `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
 | `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
@@ -1648,10 +1648,10 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `Repaint` *(not yet)* | Redraws the component. |
 | `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` *(not yet)* | Rotates the picture by `Angle` degrees around (`xOrigin`, `yOrigin`). |
 | `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
-| `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
+| `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `LoadFromFile` *(RapidR)* | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
 | `SaveToFile` *(RapidR)* | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
@@ -1682,7 +1682,7 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `CopyMode` | enum |  | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
 | `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -1700,7 +1700,7 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
 | `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -1722,10 +1722,10 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `Repaint` | Redraws the component. |
 | `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` *(not yet)* | Rotates the picture by `Angle` degrees around (`xOrigin`, `yOrigin`). |
 | `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
-| `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
+| `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `Cls` *(RapidR)* | Clears the canvas using the current Color. |
 | `FillCircle(x, y, radius, [color])` *(RapidR)* | Draws a filled circle. |
@@ -1763,7 +1763,7 @@ A row of headings (sections) the user can click and resize, as above a list's co
 | `CopyMode` | enum | `cmSrcCopy` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Handle` | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -1782,7 +1782,7 @@ A row of headings (sections) the user can click and resize, as above a list's co
 | `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
 | `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
 | `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `SectionCount` *(RapidR)* | int |  | RapidR's name for `SectionsCount`. |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
@@ -1807,10 +1807,10 @@ A row of headings (sections) the user can click and resize, as above a list's co
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
 | `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
-| `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
+| `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `Update` *(RapidR)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
@@ -1868,7 +1868,7 @@ Windows' classic progress bar: a sunken bar filled in blocks from Min to Max at 
 <a id="rprogressbar"></a>
 ## RProgressBar <small>(RapidQ name: QGAUGE)</small>
 
-RapidQ's gauge (QGAUGE): shows progress from Min to Max at Position as a bar, a pie, a needle or the percentage.
+RapidQ's gauge (RProgressBar): shows progress from Min to Max at Position as a bar, a pie, a needle or the percentage.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -1878,7 +1878,7 @@ RapidQ's gauge (QGAUGE): shows progress from Min to Max at Position as a bar, a 
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `ForeColor` | color |  | The colour of the gauge's filled part, as &HBBGGRR. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -1931,14 +1931,14 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `GridSize` | int | 8 | The grid's step in pixels. |
 | `ShowGrid` | bool | True | Whether the grid's dots show on the designed form. |
 | `ShowSelection` | bool | True | Whether the designer's own marks show: the selection's frames and handles, the anchor pins, the form's sizing grips. Off: the designed form alone, as the running program shows it. |
-| `Source` | string |  | The program's source text. Setting it reads the file's forms and shows the one FormName names (else its first QFORM) at its own size, drawn as the running program draws it; setting the same text again changes nothing. From then on every change made in the designer is written back into this text as the smallest edits (OnSourceEdit), and reading Source gives the text as they left it. Set it again whenever the code is edited elsewhere. |
+| `Source` | string |  | The program's source text. Setting it reads the file's forms and shows the one FormName names (else its first RForm) at its own size, drawn as the running program draws it; setting the same text again changes nothing. From then on every change made in the designer is written back into this text as the smallest edits (OnSourceEdit), and reading Source gives the text as they left it. Set it again whenever the code is edited elsewhere. |
 | `SourceFile` | string |  | The source's file name, set before Source: its $INCLUDE files are found from there. |
 | `FormName` | string |  | The name of the form being designed ("" when the source creates none). Setting it designs that form of the source instead. |
 | `SelIndex` | int |  | The index of the selected component (the first selected); -1 when nothing is, which means the form itself. |
-| `PlaceType` | string |  | The placing tool: a component type ("QBUTTON"). The next click on the form places one at its default size, or a drag draws its rectangle; Shift keeps the tool for another. Escape or "" turns it off. |
+| `PlaceType` | string |  | The placing tool: a component type ("RButton"). The next click on the form places one at its default size, or a drag draws its rectangle; Shift keeps the tool for another. Escape or "" turns it off. |
 | `CanUndo` (read-only) | int |  | Whether Undo has a change to undo. |
 | `CanRedo` (read-only) | int |  | Whether Redo has a change to do again. |
-| `StatusText` (read-only) | string |  | What the last change did, in words: what a screen reader is told ("Button1 (QBUTTON), 16, 24, 75 × 25"). |
+| `StatusText` (read-only) | string |  | What the last change did, in words: what a screen reader is told ("Button1 (RButton), 16, 24, 75 × 25"). |
 | `HandlerLine` (read-only) | int |  | The line (from 0) of the SUB the last CreateHandler gave: where the code editor's caret goes. |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
@@ -2005,7 +2005,7 @@ A seven-segment LED display (QDigDisplay.inc) showing the digits and signs of it
 | `CopyMode` | enum |  | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
 | `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Height` | int | 24 | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
@@ -2021,7 +2021,7 @@ A seven-segment LED display (QDigDisplay.inc) showing the digits and signs of it
 | `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
 | `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
 | `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
@@ -2065,7 +2065,7 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `ExtendedSelect` | bool | True | With `MultiSelect`, lets Shift and Ctrl clicks select a range or add items. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -2094,7 +2094,7 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
 | `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
 | `Count` *(RapidR)* | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
 | `ListCount` *(RapidR)* | int |  | RapidR's name for `ItemCount`. |
 | `ListIndex` *(RapidR)* | int |  | RapidR's name for `ItemIndex`. |
@@ -2126,10 +2126,10 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `Repaint` | Redraws the component. |
 | `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` *(not yet)* | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
 | `SaveToFile(FileName AS STRING)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
-| `StretchDraw(Rect AS QRECT, BMP)` *(not yet)* | Draws a bitmap scaled to fill rectangle `Rect`. |
+| `StretchDraw(Rect AS RRECT, BMP)` *(not yet)* | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` *(not yet)* | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` *(not yet)* | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `AddItem` *(RapidR)* | Appends one item (a list entry, line, node or menu item) to the component. |
 | `DeleteItem` *(RapidR)* | Removes the item at the index given. |
@@ -2165,7 +2165,7 @@ A list of the files in a folder that match Mask, for picking a file.
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `ExtendedSelect` | bool | True | With `MultiSelect`, lets Shift and Ctrl clicks select a range or add items. |
 | `Filename` | string |  | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
 | `Item` | string |  | An item, `Item(i)` from 0: a list's string, a database result's field, or a tree or list view node with its own properties. |
@@ -2233,7 +2233,7 @@ A tree of drives and folders for picking a folder (Directory).
 | `Directory` | string |  | The folder shown by the file list, directory tree or directory list view. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `FastLoad` | bool | False | Reads a folder's subfolders only when it's opened, so big trees show sooner. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `HideSelection` | bool | False | Hides the selection's highlight while the control doesn't have the focus. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -2297,7 +2297,7 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `FixedColor` | color |  | The background colour of the grid's fixed rows and columns. |
 | `FixedCols` | int | 1 | How many columns at the grid's left stay fixed as headers. |
 | `FixedRows` | int | 1 | How many rows at the grid's top stay fixed as headers. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `GridHeight` | int |  | The height of all the grid's rows together, in pixels. |
 | `GridLineWidth` | int | 1 | The width of the lines between cells, in pixels. |
 | `GridWidth` | int |  | The width of all the grid's columns together, in pixels. |
@@ -2333,7 +2333,7 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
 | `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
 | `CopyMode` | enum |  | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
 | `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
@@ -2358,20 +2358,20 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `InsertRow(Row AS INTEGER)` | Inserts an empty row before row `Row`. |
 | `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
 | `LoadFromFile(File AS STRING, RowOffset AS INTEGER, ColOffset AS INTEGER, MaxRows AS INTEGER)` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
-| `LoadFromStream(S AS QFILESTREAM, RowOffset AS INTEGER, ColOffset AS INTEGER, MaxRows AS INTEGER)` | Loads the component's contents from an open stream. |
+| `LoadFromStream(S AS RFILESTREAM, RowOffset AS INTEGER, ColOffset AS INTEGER, MaxRows AS INTEGER)` | Loads the component's contents from an open stream. |
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with `c` up to the border colour `borderc` in OnDrawCell: on the cell as the grid drew it and the handler's drawing so far. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
 | `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` *(not yet)* | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
 | `SaveToFile(File AS STRING, RowOffset AS INTEGER, ColOffset AS INTEGER, MaxRows AS INTEGER)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
-| `SaveToStream(S AS QFILESTREAM, RowOffset AS INTEGER, ColOffset AS INTEGER, MaxRows AS INTEGER)` | Writes the component's contents to an open stream. |
+| `SaveToStream(S AS RFILESTREAM, RowOffset AS INTEGER, ColOffset AS INTEGER, MaxRows AS INTEGER)` | Writes the component's contents to an open stream. |
 | `SwapCols(Col1 AS INTEGER, Col2 AS INTEGER)` | Swaps columns `Col1` and `Col2`. |
 | `SwapRows(Row1 AS INTEGER, Row2 AS INTEGER)` | Swaps rows `Row1` and `Row2`. |
-| `StretchDraw(Rect AS QRECT, BMP)` *(not yet)* | Draws a bitmap scaled to fill rectangle `Rect`. |
+| `StretchDraw(Rect AS RRECT, BMP)` *(not yet)* | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` *(not yet)* | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` *(not yet)* | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `AddRow` *(RapidR)* | Appends a row made of the values given; a grid widens to fit them. |
 | `SetCell` *(RapidR)* | Sets the text of the cell at a column and row. |
@@ -2413,7 +2413,7 @@ A tree of nodes the user expands, collapses and selects, with a picture per node
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Handle` | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `HideSelection` | bool | False | Hides the selection's highlight while the control doesn't have the focus. |
@@ -2536,7 +2536,7 @@ A list of items with columns of sub-items, shown as icons, a list or a report wi
 | `ColumnsCount` (read-only) | int |  | The number of list view columns. |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `GridLines` | bool | False | Draws lines between the rows and columns. |
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
@@ -2572,7 +2572,7 @@ A list of items with columns of sub-items, shown as icons, a list or a report wi
 | `Columns` *(RapidR)* | int |  | On a list box, how many columns the items flow into (0: one, scrolling down); on a list view, the column count; on a data frame, the column names, comma-separated. |
 | `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
 | `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -2621,7 +2621,7 @@ A form's menu bar; its menus and commands are QMENUITEMs.
 | `AddItems(Items, …)` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
 | `DelIndex(index AS LONG)` | Removes the menu item at position `index`. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
-| `Insert(I AS INTEGER, Item AS QMENUITEM)` | Inserts at a position: a node or string before index `Index`, or menu item `Item` at position `I`. |
+| `Insert(I AS INTEGER, Item AS RMENUITEM)` | Inserts at a position: a node or string before index `Index`, or menu item `Item` at position `I`. |
 | `Add` *(RapidR)* | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
 | `Clear` *(RapidR)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 
@@ -2651,7 +2651,7 @@ One menu entry: a command (OnClick), a checkable option, a separator ("-") or a 
 | `AddItems(Items, …)` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
 | `DelIndex(index AS LONG)` | Removes the menu item at position `index`. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
-| `Insert(I AS INTEGER, Item AS QMENUITEM)` | Inserts at a position: a node or string before index `Index`, or menu item `Item` at position `I`. |
+| `Insert(I AS INTEGER, Item AS RMENUITEM)` | Inserts at a position: a node or string before index `Index`, or menu item `Item` at position `I`. |
 | `Clear` *(RapidR)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `Add` *(RapidR)* | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
 
@@ -2678,7 +2678,7 @@ A context menu, shown when the user right-clicks a component whose PopupMenu it 
 | `AddItems(Items, …)` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
 | `DelIndex(index AS LONG)` | Removes the menu item at position `index`. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
-| `Insert(I AS INTEGER, Item AS QMENUITEM)` | Inserts at a position: a node or string before index `Index`, or menu item `Item` at position `I`. |
+| `Insert(I AS INTEGER, Item AS RMENUITEM)` | Inserts at a position: a node or string before index `Index`, or menu item `Item` at position `I`. |
 | `Popup(X AS INTEGER, Y AS INTEGER)` | Shows the popup menu at screen point (`X`, `Y`). |
 | `Clear` *(RapidR)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `Add` *(RapidR)* | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
@@ -2774,13 +2774,13 @@ A colour picker (RAPIDQ2.INC's): Execute shows it and returns 1 when the user pi
 <a id="rfontdialog"></a>
 ## RFontDialog <small>(RapidQ name: QFONTDIALOG)</small>
 
-A font picker: Execute shows it and returns 1 when the user chooses a font, then in Name, Size, Color and the styles; GetFont and SetFont trade it with a QFONT.
+A font picker: Execute shows it and returns 1 when the user chooses a font, then in Name, Size, Color and the styles; GetFont and SetFont trade it with an RFont.
 
 | Property | Type | Default | |
 |---|---|---|---|
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `FontCount` (read-only) | int |  | The number of fonts installed; read-only. |
-| `FontName` (read-only) | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontName` (read-only) | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
 | `MaxFontSize` | int |  | The largest size the font dialog offers (0: no limit). |
 | `MinFontSize` | int |  | The smallest size the font dialog offers (0: no limit). |
 | `Size` | int |  | A size: of a font, in points; of a file, stream, sound or download, in bytes; of an array, its number of values. |
@@ -2795,8 +2795,8 @@ A font picker: Execute shows it and returns 1 when the user chooses a font, then
 | `AddOptions(Items, …)` | Turns on the option flags given. |
 | `DelOptions(Items, …)` | Turns off the option flags given. |
 | `Execute AS VARIANT` | Opens the font dialog. Returns 1 if a font was chosen, 0 if cancelled. Read .FontName / .FontSize / .FontColor / .FontStyle for the result. |
-| `GetFont(F AS QFONT)` *(not yet)* | Copies the font chosen in the dialog into font `F`. |
-| `SetFont(F AS QFONT)` | Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size. |
+| `GetFont(F AS RFONT)` *(not yet)* | Copies the font chosen in the dialog into font `F`. |
+| `SetFont(F AS RFONT)` | Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size. |
 
 | Event | |
 |---|---|
@@ -2896,7 +2896,7 @@ A list of strings in memory: add, insert, delete, sort and find them, load and s
 | Method | |
 |---|---|
 | `AddItems(Items, …)` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
-| `AddList(List AS QSTRINGLIST)` *(not yet)* | Appends every string of another string list. |
+| `AddList(List AS RSTRINGLIST)` *(not yet)* | Appends every string of another string list. |
 | `Build(Start AS INTEGER, End AS INTEGER, Delim AS STRING) AS STRING` | Returns the strings from `Start` to `End` joined into one, separated by `Delim`. |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
@@ -2934,7 +2934,7 @@ A printer: BeginDoc, draw pages with the canvas methods and NewPage, then EndDoc
 | `Aborted` (read-only) | int |  | Non-zero when the current print job was cancelled with `Abort`; read-only. |
 | `Copies` | int |  | How many copies to print. |
 | `CopyMode` | enum | `cmSrcCopy` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Fonts` (read-only) | string |  | A printer font's name, `Fonts(i)` from 0; read-only. |
 | `FontsCount` (read-only) | int |  | The number of printer fonts; read-only. |
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
@@ -2963,10 +2963,10 @@ A printer: BeginDoc, draw pages with the canvas methods and NewPage, then EndDoc
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
-| `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
+| `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 
 <a id="rregistry"></a>
@@ -3043,7 +3043,7 @@ A font (name, size, colour, bold, italic …) to give to components and drawing.
 | `Charset` | enum | `DEFAULT_CHARSET` | The character set the font is made for (`DEFAULT_CHARSET` …). |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `FontCount` (read-only) | int |  | The number of fonts installed; read-only. |
-| `FontName` (read-only) | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontName` (read-only) | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
 | `Handle` | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Pitch` | enum | `fpDefault` | `fpFixed` for a monospaced font, `fpVariable` for a proportional one, `fpDefault` either. |
 | `Size` | int |  | A size: of a font, in points; of a file, stream, sound or download, in bytes; of an array, its number of values. |
@@ -3113,7 +3113,7 @@ A picture in memory to draw on and draw from: load and save images, draw with th
 | `BMPHandle` (write-only) | resource |  | Sets the picture from a resource handle (`$RESOURCE`) instead of a file; write-only. |
 | `CopyMode` | enum | `cmSrcCopy` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
 | `Empty` (read-only) | int |  | Non-zero when the data frame has no rows, or the bitmap holds no picture; read-only. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Handle` | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Monochrome` | int |  | Non-zero for a black-and-white bitmap. |
@@ -3127,7 +3127,7 @@ A picture in memory to draw on and draw from: load and save images, draw with th
 | `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
 | `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
 | `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
 
 | Method | |
@@ -3146,10 +3146,10 @@ A picture in memory to draw on and draw from: load and save images, draw with th
 | `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
 | `SaveToFile(FileName AS STRING)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
 | `SaveToStream(Stream)` | Writes the component's contents to an open stream. |
-| `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
+| `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `LoadIcon(Name AS STRING, [Size AS INTEGER], [Theme AS STRING])` *(RapidR)* | Loads one of RapidR's own icons (an icon name such as "run", a component type, a command id), Size pixels square (16 if left out), in the current theme's colours or Theme's; crisp at every screen scale. |
 
@@ -3181,7 +3181,7 @@ A list of same-size pictures (bitmaps or icons), drawn by index; list views and 
 | `AddICOHandle(ICO_Resource)` | Appends an icon resource to the list. |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `Delete(Index AS INTEGER)` | Removes part of the contents: a list's string or image at an index, or a recording's samples from `Pos1` to `Pos2`. |
-| `Draw(QIMAGE, X AS INTEGER, Y AS INTEGER, Index AS INTEGER)` *(not yet)* | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
+| `Draw(RImage, X AS INTEGER, Y AS INTEGER, Index AS INTEGER)` *(not yet)* | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
 | `InsertBMPFile(Index AS INTEGER, Filename AS STRING, Mask AS INTEGER)` | Loads a bitmap file and inserts its image at position `Index`, with `Mask` as its transparent color. |
 | `InsertICOFile(Index AS INTEGER, Filename AS STRING)` | Loads an icon file and inserts it at position `Index`. |
 | `InsertBMPHandle(Index AS INTEGER, BMP_Resource, Mask AS INTEGER)` | Inserts a bitmap resource's image at position `Index`, with `Mask` as its transparent color. |
@@ -3510,7 +3510,7 @@ Plays a standard MIDI file (QMidi.inc) on the system's MIDI output, or on RapidR
 
 | Property | Type | Default | |
 |---|---|---|---|
-| `Timer` | component |  | The media object's own QTIMER, which reads its position and fires `OnChange` while it plays. |
+| `Timer` | component |  | The media object's own RTimer, which reads its position and fires `OnChange` while it plays. |
 | `Lenght` (read-only) | int |  | The length: milliseconds for MIDI and wave, frames for video (RapidQ's spelling); read-only. |
 | `State` (read-only) | int | 0 | What it's doing: a media object's 0 closed, 1 playing, 2 paused, 3 stopped, 4 recording; a download's percent done; a check box's 0, 1 or 2 (greyed); an OLE object's `osXXX`. |
 | `FileOpen` (read-only) | bool | False | True while a file is open on the device; read-only. |
@@ -3542,7 +3542,7 @@ Plays, records and saves WAV sound (QWave.inc).
 
 | Property | Type | Default | |
 |---|---|---|---|
-| `Timer` | component |  | The media object's own QTIMER, which reads its position and fires `OnChange` while it plays. |
+| `Timer` | component |  | The media object's own RTimer, which reads its position and fires `OnChange` while it plays. |
 | `Lenght` (read-only) | int |  | The length: milliseconds for MIDI and wave, frames for video (RapidQ's spelling); read-only. |
 | `State` (read-only) | int | 0 | What it's doing: a media object's 0 closed, 1 playing, 2 paused, 3 stopped, 4 recording; a download's percent done; a check box's 0, 1 or 2 (greyed); an OLE object's `osXXX`. |
 | `FileOpen` (read-only) | bool | False | True while a file is open on the device; read-only. |
@@ -3582,7 +3582,7 @@ Plays an AVI video with its sound (QVideo.inc), on a form or in a window of its 
 
 | Property | Type | Default | |
 |---|---|---|---|
-| `Timer` | component |  | The media object's own QTIMER, which reads its position and fires `OnChange` while it plays. |
+| `Timer` | component |  | The media object's own RTimer, which reads its position and fires `OnChange` while it plays. |
 | `Lenght` (read-only) | int |  | The length: milliseconds for MIDI and wave, frames for video (RapidQ's spelling); read-only. |
 | `LenghtTime` (read-only) | int |  | The video's length in milliseconds (RapidQ's spelling); read-only. |
 | `State` (read-only) | int | 0 | What it's doing: a media object's 0 closed, 1 playing, 2 paused, 3 stopped, 4 recording; a download's percent done; a check box's 0, 1 or 2 (greyed); an OLE object's `osXXX`. |
@@ -3628,7 +3628,7 @@ Plays audio CDs (Qcdaudio.inc). RapidR answers as a computer with no CD drive.
 
 | Property | Type | Default | |
 |---|---|---|---|
-| `Timer` | component |  | The media object's own QTIMER, which reads its position and fires `OnChange` while it plays. |
+| `Timer` | component |  | The media object's own RTimer, which reads its position and fires `OnChange` while it plays. |
 | `Time` (read-only) | string |  | The time picked in the date-time picker, a file's time (`FileRec`), or the CD's position, as text. |
 | `TrackTime` (read-only) | string |  | The current track's length, as text; read-only. |
 | `TrackNumber` (read-only) | int |  | The number of tracks on the CD; read-only. |
@@ -3670,7 +3670,7 @@ A DirectX drawing surface on a form, for games and animation: draw the next fram
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `FullScreen` | bool | False | Takes the whole screen in the display mode `BitCount` and the size give. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -3686,7 +3686,7 @@ A DirectX drawing surface on a form, for games and animation: draw the next fram
 | `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
 | `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
 | `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
@@ -3713,23 +3713,23 @@ A DirectX drawing surface on a form, for games and animation: draw the next fram
 | `Release` | Gives back the DirectX surfaces; RapidR has nothing to free. |
 | `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` | Rotates the picture by `Angle` degrees around (`xOrigin`, `yOrigin`). |
 | `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
-| `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
+| `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `AddLight(Light AS QD3DLIGHT)` | Adds a light to the frame or to the 3D scene. |
-| `CameraLookAt(F AS QD3DFRAME, Constraint AS INTEGER)` | Turns the camera to face frame `F`; `Constraint` limits the axes it may turn on. |
-| `CreateFace(Face AS QD3DFACE)` | Creates a new, empty face in variable `Face`. |
-| `CreateFrame(Frame AS QD3DFRAME)` | Creates a new frame in variable `Frame`, a child of this frame or of the scene. |
-| `CreateLightRGB(LightType AS INTEGER, R AS DOUBLE, G AS DOUBLE, B AS DOUBLE, Light AS QD3DLIGHT)` | Creates a light of type `LightType` colored `R`, `G`, `B` (0 to 1) in variable `Light`. |
-| `CreateMeshBuilder(MB AS QD3DMESHBUILDER)` | Creates an empty mesh builder in variable `MB`. |
-| `CreateShadow(MB AS QD3DMESHBUILDER, Light AS QD3DLIGHT, px AS DOUBLE, py AS DOUBLE, pz AS DOUBLE, nx AS DOUBLE, ny AS DOUBLE, nz AS DOUBLE, V AS QD3DVISUAL)` | Creates in `V` the shadow of `MB` cast by `Light` on the plane through (`px`, `py`, `pz`) with normal (`nx`, `ny`, `nz`). |
-| `CreateWrap(WrapType AS INTEGER, A AS DOUBLE, B AS DOUBLE, C AS DOUBLE, D AS DOUBLE, E AS DOUBLE, F AS DOUBLE, G AS DOUBLE, H AS DOUBLE, I AS DOUBLE, J AS DOUBLE, K AS DOUBLE, L AS DOUBLE, M AS DOUBLE, W AS QD3DWRAP)` | Creates in `W` a texture wrap of type `WrapType` (flat, cylinder, sphere, chrome) from an origin, direction, up vector, offset and scale. |
+| `AddLight(Light AS RD3DLIGHT)` | Adds a light to the frame or to the 3D scene. |
+| `CameraLookAt(F AS RD3DFRAME, Constraint AS INTEGER)` | Turns the camera to face frame `F`; `Constraint` limits the axes it may turn on. |
+| `CreateFace(Face AS RD3DFACE)` | Creates a new, empty face in variable `Face`. |
+| `CreateFrame(Frame AS RD3DFRAME)` | Creates a new frame in variable `Frame`, a child of this frame or of the scene. |
+| `CreateLightRGB(LightType AS INTEGER, R AS DOUBLE, G AS DOUBLE, B AS DOUBLE, Light AS RD3DLIGHT)` | Creates a light of type `LightType` colored `R`, `G`, `B` (0 to 1) in variable `Light`. |
+| `CreateMeshBuilder(MB AS RD3DMESHBUILDER)` | Creates an empty mesh builder in variable `MB`. |
+| `CreateShadow(MB AS RD3DMESHBUILDER, Light AS RD3DLIGHT, px AS DOUBLE, py AS DOUBLE, pz AS DOUBLE, nx AS DOUBLE, ny AS DOUBLE, nz AS DOUBLE, V AS RD3DVISUAL)` | Creates in `V` the shadow of `MB` cast by `Light` on the plane through (`px`, `py`, `pz`) with normal (`nx`, `ny`, `nz`). |
+| `CreateWrap(WrapType AS INTEGER, A AS DOUBLE, B AS DOUBLE, C AS DOUBLE, D AS DOUBLE, E AS DOUBLE, F AS DOUBLE, G AS DOUBLE, H AS DOUBLE, I AS DOUBLE, J AS DOUBLE, K AS DOUBLE, L AS DOUBLE, M AS DOUBLE, W AS RD3DWRAP)` | Creates in `W` a texture wrap of type `WrapType` (flat, cylinder, sphere, chrome) from an origin, direction, up vector, offset and scale. |
 | `ForceUpdate(X1 AS INTEGER, Y1 AS INTEGER, X2 AS INTEGER, Y2 AS INTEGER)` | Marks the rectangle (`X1`, `Y1`)–(`X2`, `Y2`) of the 3D view to be drawn again; RapidR draws the whole view at each `Render`. |
-| `LoadTexture(File AS STRING, Tex AS QD3DTEXTURE)` | Loads an image file as a texture: onto the mesh builder, or into texture `Tex`. |
+| `LoadTexture(File AS STRING, Tex AS RD3DTEXTURE)` | Loads an image file as a texture: onto the mesh builder, or into texture `Tex`. |
 | `Move(D AS DOUBLE)` | Moves the 3D scene on by `D` time steps: every frame moves and turns by its velocity and rotation. |
-| `SetBackgroundImage(Tex AS QD3DTEXTURE)` | Uses a texture as the 3D scene's background. |
+| `SetBackgroundImage(Tex AS RD3DTEXTURE)` | Uses a texture as the 3D scene's background. |
 | `SetCameraPosition(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE)` | Moves the camera to (`X`, `Y`, `Z`). |
 | `SetCameraOrientation(DX AS DOUBLE, DY AS DOUBLE, DZ AS DOUBLE, UX AS DOUBLE, UY AS DOUBLE, UZ AS DOUBLE)` | Points the camera along (`DX`, `DY`, `DZ`) with (`UX`, `UY`, `UZ`) as its up direction. |
 | `SetRenderMode(M AS INTEGER)` | Sets the 3D view's rendering mode flags. |
@@ -3765,7 +3765,7 @@ A library of pictures for a DirectX screen, loaded from DelphiX `.DXG` image lis
 | `Draw(Item AS INTEGER, X AS INTEGER, Y AS INTEGER, Mask AS INTEGER)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
 | `LoadFromFile(FileName AS STRING)` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
 | `LoadFromResource(Resource_Handle)` | Loads images from a bitmap resource. |
-| `LoadFromStream(Stream AS QFILESTREAM)` | Loads the component's contents from an open stream. |
+| `LoadFromStream(Stream AS RFILESTREAM)` | Loads the component's contents from an open stream. |
 
 <a id="rdxtimer"></a>
 ## RDXTimer <small>(RapidQ name: QDXTIMER)</small>
@@ -3858,24 +3858,24 @@ A node of a Direct3D retained-mode scene: it has a position, orientation and mot
 
 | Method | |
 |---|---|
-| `AddFrame(Frame AS QD3DFRAME)` | Makes frame `Frame` a child of this frame, so it moves with it. |
-| `AddLight(Light AS QD3DLIGHT)` | Adds a light to the frame or to the 3D scene. |
+| `AddFrame(Frame AS RD3DFRAME)` | Makes frame `Frame` a child of this frame, so it moves with it. |
+| `AddLight(Light AS RD3DLIGHT)` | Adds a light to the frame or to the 3D scene. |
 | `AddScale(CombineType AS INTEGER, X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE)` | Scales the frame by `X`, `Y`, `Z`; `CombineType` replaces its transform (0) or applies the scale before (1) or after (2) it. |
-| `AddVisual(Visual AS QD3DMESHBUILDER)` | Attaches a visual (a mesh builder or mesh) to the frame, so it is drawn there. |
-| `CreateFrame(Frame AS QD3DFRAME)` | Creates a new frame in variable `Frame`, a child of this frame or of the scene. |
-| `DeleteFrame(Frame AS QD3DFRAME)` | Removes child frame `Frame` from this frame. |
-| `DeleteLight(Light AS QD3DLIGHT)` | Removes light `Light` from the frame. |
-| `DeleteVisual(Visual AS QD3DMESHBUILDER)` | Detaches visual `Visual` from the frame. |
+| `AddVisual(Visual AS RD3DMESHBUILDER)` | Attaches a visual (a mesh builder or mesh) to the frame, so it is drawn there. |
+| `CreateFrame(Frame AS RD3DFRAME)` | Creates a new frame in variable `Frame`, a child of this frame or of the scene. |
+| `DeleteFrame(Frame AS RD3DFRAME)` | Removes child frame `Frame` from this frame. |
+| `DeleteLight(Light AS RD3DLIGHT)` | Removes light `Light` from the frame. |
+| `DeleteVisual(Visual AS RD3DMESHBUILDER)` | Detaches visual `Visual` from the frame. |
 | `Load(FileName AS STRING)` | Loads from a file: a 3D model (`.X`) into a frame or mesh builder, or a picture into an image. |
-| `LookAt(F AS QD3DFRAME, Constraint AS INTEGER)` | Turns the frame to face frame `F`; `Constraint` limits the axes it may turn on. |
+| `LookAt(F AS RD3DFRAME, Constraint AS INTEGER)` | Turns the frame to face frame `F`; `Constraint` limits the axes it may turn on. |
 | `Move(D AS DOUBLE)` | Moves the 3D scene on by `D` time steps: every frame moves and turns by its velocity and rotation. |
-| `SetBackgroundImage(Texture AS QD3DTEXTURE)` | Uses a texture as the 3D scene's background. |
+| `SetBackgroundImage(Texture AS RD3DTEXTURE)` | Uses a texture as the 3D scene's background. |
 | `SetBackgroundRGB(R AS DOUBLE, G AS DOUBLE, B AS DOUBLE)` | Sets the 3D scene's background color from `R`, `G`, `B` (0 to 1). |
 | `SetFogParams(Start AS DOUBLE, End AS DOUBLE, Density AS DOUBLE)` | Sets where the fog starts and ends, and its density. |
 | `SetOrientation(DX AS DOUBLE, DY AS DOUBLE, DZ AS DOUBLE, UX AS DOUBLE, UY AS DOUBLE, UZ AS DOUBLE)` | Points the frame along (`DX`, `DY`, `DZ`) with (`UX`, `UY`, `UZ`) as its up direction. |
 | `SetPosition(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE)` | Moves the frame to (`X`, `Y`, `Z`). |
 | `SetRotation(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE, Theta AS DOUBLE)` | Sets the frame spinning around the axis (`X`, `Y`, `Z`), `Theta` radians each time step of `Move`. |
-| `SetTexture(Tex AS QD3DTEXTURE)` | Puts texture `Tex` on the frame or mesh. |
+| `SetTexture(Tex AS RD3DTEXTURE)` | Puts texture `Tex` on the frame or mesh. |
 | `SetVelocity` *(RapidR)* | Sets the velocity (`X`, `Y`, `Z`) a frame moves by each time step of `Move`; a DirectX screen sets its camera's. |
 | `FogEnabled` | Turns fog on or off in the frame's scene. |
 
@@ -3891,19 +3891,19 @@ Builds a 3D mesh: load a `.X` model or add vertices and faces, then scale, colou
 
 | Method | |
 |---|---|
-| `AddFace(Face AS QD3DFACE)` | Adds a face to the mesh builder. |
+| `AddFace(Face AS RD3DFACE)` | Adds a face to the mesh builder. |
 | `AddVertex(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE)` | Adds a vertex at `X`, `Y`, `Z`. |
-| `CreateFace(Face AS QD3DFACE)` | Creates a new, empty face in variable `Face`. |
-| `CreateMesh(Mesh AS QD3DMESH)` | Builds a mesh from the mesh builder's geometry into variable `Mesh`. |
-| `DeleteFace(Face AS QD3DFACE)` | Removes face `Face` from the mesh builder. |
-| `GetFace(Index AS LONG, Face AS QD3DFACE)` | Puts face number `Index` of the mesh builder in `Face`. |
+| `CreateFace(Face AS RD3DFACE)` | Creates a new, empty face in variable `Face`. |
+| `CreateMesh(Mesh AS RD3DMESH)` | Builds a mesh from the mesh builder's geometry into variable `Mesh`. |
+| `DeleteFace(Face AS RD3DFACE)` | Removes face `Face` from the mesh builder. |
+| `GetFace(Index AS LONG, Face AS RD3DFACE)` | Puts face number `Index` of the mesh builder in `Face`. |
 | `Load(S AS STRING)` | Loads from a file: a 3D model (`.X`) into a frame or mesh builder, or a picture into an image. |
 | `LoadTexture(S AS STRING)` | Loads an image file as a texture: onto the mesh builder, or into texture `Tex`. |
 | `Scale(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE)` | Scales the mesh by `X`, `Y`, `Z`. |
 | `SetQuality(Quality AS INTEGER)` | Sets how the mesh is drawn: points, wireframe, flat or smooth shading. |
 | `SetRGB(R AS DOUBLE, G AS DOUBLE, B AS DOUBLE)` | Sets the mesh's color from `R`, `G`, `B` (0 to 1). |
 | `SetRGBA(R AS DOUBLE, G AS DOUBLE, B AS DOUBLE, A AS DOUBLE)` | Sets the mesh's color from `R`, `G`, `B` and its opacity `A` (0 to 1). |
-| `SetTexture(Tex AS QD3DTEXTURE)` | Puts texture `Tex` on the frame or mesh. |
+| `SetTexture(Tex AS RD3DTEXTURE)` | Puts texture `Tex` on the frame or mesh. |
 | `Translate(TX AS DOUBLE, TY AS DOUBLE, TZ AS DOUBLE)` | Moves the mesh's vertices by (`TX`, `TY`, `TZ`). |
 | `SetColorRGB` *(RapidR)* | Sets the color from `R`, `G`, `B` (0 to 1). |
 
@@ -3934,7 +3934,7 @@ One polygon of a 3D mesh: its vertices and colour, added to a mesh builder.
 | Method | |
 |---|---|
 | `AddVertex(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE)` | Adds a vertex at `X`, `Y`, `Z`. |
-| `GetVertex(Index AS LONG, Position AS QD3DVECTOR, Normal AS QD3DVECTOR)` | Reads vertex `Index` of the face: its position and normal. |
+| `GetVertex(Index AS LONG, Position AS RD3DVECTOR, Normal AS RD3DVECTOR)` | Reads vertex `Index` of the face: its position and normal. |
 | `SetColorRGB(R AS DOUBLE, G AS DOUBLE, B AS DOUBLE)` | Sets the color from `R`, `G`, `B` (0 to 1). |
 | `SetRGB` *(RapidR)* | Sets the mesh's color from `R`, `G`, `B` (0 to 1). |
 | `SetColorRGBA` *(RapidR)* | Sets the colour and its opacity from red, green, blue and alpha parts (0 to 1). Same as SetRGBA. |
@@ -3981,8 +3981,8 @@ How a texture is laid over a mesh (flat, cylinder, sphere or chrome), applied to
 
 | Method | |
 |---|---|
-| `Apply(M AS QD3DMESH)` | Applies the texture wrap to mesh `M`, giving its vertices texture coordinates. |
-| `ApplyRelative(F AS QD3DFRAME, M AS QD3DMESH)` | Applies the texture wrap to mesh `M`, measured relative to frame `F`. |
+| `Apply(M AS RD3DMESH)` | Applies the texture wrap to mesh `M`, giving its vertices texture coordinates. |
+| `ApplyRelative(F AS RD3DFRAME, M AS RD3DMESH)` | Applies the texture wrap to mesh `M`, measured relative to frame `F`. |
 
 <a id="rd3dvector"></a>
 ## RD3DVector <small>(RapidQ name: QD3DVECTOR)</small>
@@ -4204,7 +4204,7 @@ A table of named columns in pandas' style: read CSV or JSON, select, filter, sor
 | `ToString` | The frame as a text table. |
 | `Show` | Shows the component or form; a data-science object prints its contents. |
 | `Print` | Prints the frame as a text table. |
-| `ToGrid(gridName)` | Fills a QSTRINGGRID: the header row, then the cells. |
+| `ToGrid(gridName)` | Fills an RStringGrid: the header row, then the cells. |
 | `To_grid` | Fills an RStringGrid with the DataFrame's column names and rows. Same as `ToGrid`. |
 | `Display` | Fills an RStringGrid with the DataFrame's column names and rows. Same as `ToGrid`. |
 
@@ -4566,7 +4566,7 @@ An object inspector in the style of Delphi's: the properties of a component (or 
 | `NameWidth` | int | 120 | The width of the names' column, in pixels (the user drags the line between the columns). |
 | `Selected` | string | `""` | The property (or event) whose row is selected; setting it selects that row. |
 | `RowCount` (read-only) | int |  | How many rows are shown now (the categories' headings included). |
-| `TargetType` (read-only) | string |  | The inspected component's type as the program writes it (QBUTTON), or "" when several of different types are inspected. |
+| `TargetType` (read-only) | string |  | The inspected component's type as the program writes it (RButton), or "" when several of different types are inspected. |
 | `Rows` (read-only) | string |  | Every row shown, one a line, as Row gives them ("Name=Value", a category heading as "[Name]"). |
 | `Doc` (read-only) | string |  | What the selected row is, in words, as the inspector shows it under the rows: a property's description, an event's with its parameters. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
@@ -4577,7 +4577,7 @@ An object inspector in the style of Delphi's: the properties of a component (or 
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `Font` | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -4612,14 +4612,14 @@ An object inspector in the style of Delphi's: the properties of a component (or 
 <a id="rtoolbox"></a>
 ## RToolbox
 
-The palette of components a form designer places, grouped under "RapidQ" (the components RapidQ has, shown with their Q names: QBUTTON) and "RapidR" (RapidR's own), each with its icon and the name the designer writes. The user searches it, double-clicks a component (or presses Enter) to add it, or drags it onto a designer. Templates — a component with preset properties — have a group of their own.
+The palette of components a form designer places, grouped under "RapidQ" (the components RapidQ has, shown with their Q names: RButton) and "RapidR" (RapidR's own), each with its icon and the name the designer writes. The user searches it, double-clicks a component (or presses Enter) to add it, or drags it onto a designer. Templates — a component with preset properties — have a group of their own.
 
 | Property | Type | Default | |
 |---|---|---|---|
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
 | `Filter` | string | `""` | The search box's text: only the components whose names match it are shown. |
 | `ShowNames` | string | `"as-written"` | How components are named: "as-written" (RapidQ's components by their Q names, the others by their R names — what the designer writes), "rapidr" (every one by its R name) or "titles" (in words: "Button"). |
-| `Selected` | string | `""` | The selected component's type as the designer writes it (QBUTTON), or a template's name. |
+| `Selected` | string | `""` | The selected component's type as the designer writes it (RButton), or a template's name. |
 | `Count` (read-only) | int |  | How many components are shown now: the filter applied, a closed group's left out (Item counts the same ones). |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -4629,7 +4629,7 @@ The palette of components a form designer places, grouped under "RapidQ" (the co
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `Font` | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -4681,7 +4681,7 @@ A project's files as a tree (an .rrproj project, or a .bas / .rr file and the fi
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `Font` | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -4743,7 +4743,7 @@ A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `Font` | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -4790,7 +4790,7 @@ A box of commands found by typing: Show opens it over the form, the user types a
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Visible` | bool | False | Whether the control or form is shown. |
-| `Font` | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Font` | font |  | The font of the text, an RFont; assigning one copies it. |
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
 
@@ -4850,7 +4850,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `Build([Kind AS STRING]) AS INTEGER` | Makes the program into an app for this computer's system with rapidr build: Name.app on macOS, the .exe with its icon and version on Windows, Name.AppDir on Linux. Kind is "native" or "interpreted" (else BuildKind). Runs in the background: OnBuildOutput gives its lines, OnBuildDone its end. True when it started; Error says why not (on the web there is nothing to run it). |
 | `StopBuild` | Stops the Build that is running. |
 | `Reveal([Path AS STRING]) AS INTEGER` | Shows Path (else what the last Build made) selected in Finder, Explorer or the Linux file manager. |
-| `IconPreview([Size AS INTEGER]) AS STRING` | Draws the app's icon (Icon, else RapidR's) as a Size-pixel PNG (128 by default) in the project's .rapidr folder and gives its path, for a QIMAGE to show; "" when the icon can't be read (Error says why). |
+| `IconPreview([Size AS INTEGER]) AS STRING` | Draws the app's icon (Icon, else RapidR's) as a Size-pixel PNG (128 by default) in the project's .rapidr folder and gives its path, for an RImage to show; "" when the icon can't be read (Error says why). |
 
 | Event | |
 |---|---|
@@ -5023,12 +5023,12 @@ What the last DIR$ found: the file's name, short name, date, time and size.
 <a id="printer"></a>
 ## Printer
 
-The printer, ready to use (a QPRINTER): each document becomes a PDF sent to the system's printer, or the browser's print dialog on the web.
+The printer, ready to use (an RPrinter): each document becomes a PDF sent to the system's printer, or the browser's print dialog on the web.
 
 <a id="treenode"></a>
 ## TreeNode
 
-One node of a QTREEVIEW (`Tree.Item(i)`, counted from 0 in display order): its text, pictures, state and place in the tree.
+One node of an RTreeView (`Tree.Item(i)`, counted from 0 in display order): its text, pictures, state and place in the tree.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -5050,7 +5050,7 @@ One node of a QTREEVIEW (`Tree.Item(i)`, counted from 0 in display order): its t
 <a id="headersection"></a>
 ## HeaderSection
 
-One section of a QHEADER (`Header.Sections(i)`, from 0): its caption, width limits, alignment and whether it can be clicked.
+One section of an RHeader (`Header.Sections(i)`, from 0): its caption, width limits, alignment and whether it can be clicked.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -5068,7 +5068,7 @@ One section of a QHEADER (`Header.Sections(i)`, from 0): its caption, width limi
 <a id="statuspanel"></a>
 ## StatusPanel
 
-One panel of a QSTATUSBAR (`StatusBar.Panel(i)`, from 0).
+One panel of an RStatusBar (`StatusBar.Panel(i)`, from 0).
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -5078,7 +5078,7 @@ One panel of a QSTATUSBAR (`StatusBar.Panel(i)`, from 0).
 <a id="listitem"></a>
 ## ListItem
 
-One row of a QLISTVIEW (`ListView.Item(i)`, from 0): its caption, check box and pictures; its other columns are SubItem(i, j).
+One row of an RListView (`ListView.Item(i)`, from 0): its caption, check box and pictures; its other columns are SubItem(i, j).
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -5092,7 +5092,7 @@ One row of a QLISTVIEW (`ListView.Item(i)`, from 0): its caption, check box and 
 <a id="listcolumn"></a>
 ## ListColumn
 
-One column of a QLISTVIEW in report view (`ListView.Column(i)`, from 0).
+One column of an RListView in report view (`ListView.Column(i)`, from 0).
 
 | Property | Type | Default | |
 |---|---|---|---|

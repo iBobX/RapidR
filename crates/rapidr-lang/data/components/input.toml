@@ -290,7 +290,7 @@ methods = [
 ]
 events = [
   { name = "OnChange" },
-  { name = "OnDrawItem", params = "Index AS INTEGER, State AS INTEGER, R AS RRect" },
+  { name = "OnDrawItem", params = "Index AS INTEGER, State AS INTEGER, R AS QRECT" },
   { name = "OnMeasureItem", params = "Index AS INTEGER, Height AS INTEGER" },
   { name = "OnClick", origin = "rapidr" },
   { name = "OnDblClick", origin = "rapidr" },
