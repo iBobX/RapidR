@@ -86,7 +86,9 @@ impl ComponentKind for PushButton {
             let border = if accent { fill } else if s.hover && s.enabled { t.border_hot } else { t.border };
             p.round((0, 0, w, h), t.radius, Some(fill), Some(border), 1.0);
             let color = if accent { t.accent_text } else { ink_of(cx, fill) };
-            caption(p, (0, 0, w, h), &data.caption, &cx.font, color, Place::Center);
+            // (its glyph, BMP / BMPHandle, beside the caption: image.rs)
+            let (at, place) = super::image::paint_glyph(cx, p, (0, 0, w, h), s.enabled, s.pressed, false).unwrap_or(((0, 0, w, h), Place::Center));
+            caption(p, at, &data.caption, &cx.font, color, place);
             if s.focused {
                 p.focus((0, 0, w, h));
             }
@@ -105,13 +107,16 @@ impl ComponentKind for PushButton {
         }
         let shift = i64::from(s.pressed);
         let mut color = ink_of(cx, t.face);
+        // (its glyph, BMP / BMPHandle, beside the caption, the two centred
+        // together as Delphi's TBitBtn lays them out: image.rs)
+        let ((x, y, cw, ch), place) = super::image::paint_glyph(cx, p, (shift, shift, w, h), s.enabled, s.pressed, false).unwrap_or(((shift, shift, w, h), Place::Center));
         if !s.enabled {
             // (embossed, as Windows' DrawState: white a pixel down and right,
             // the shadow over it)
-            caption(p, (shift + 1, shift + 1, w, h), &data.caption, &cx.font, t.light, Place::Center);
+            caption(p, (x + 1, y + 1, cw, ch), &data.caption, &cx.font, t.light, place);
             color = t.shadow;
         }
-        caption(p, (shift, shift, w, h), &data.caption, &cx.font, color, Place::Center);
+        caption(p, (x, y, cw, ch), &data.caption, &cx.font, color, place);
         if s.focused {
             p.focus((4, 4, w - 8, h - 8));
         }

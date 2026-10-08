@@ -1095,6 +1095,23 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         });
         return Some(Ok(()));
     }
+    // `List2.Handle = List1.Handle` (QIMAGELIST): the other list's images
+    // (RC.EXE: its Count, sizes and pictures — RapidQ's QToolbar example
+    // hands a TYPE's list the program's this way). Not a list's handle:
+    // nothing changes.
+    if prop == "handle" && matches!(with(id, |o| matches!(o, Object::ImageList(_))), Some(true)) {
+        let other = crate::handles::name_of(val.to_i64()).and_then(|n| {
+            with(&n, |o| match o {
+                Object::ImageList(l) => Some(l.clone()),
+                _ => None,
+            })
+            .flatten()
+        });
+        if let Some(l) = other {
+            with(id, |o| *o = Object::ImageList(l));
+        }
+        return Some(Ok(()));
+    }
     // `BMPHandle = GRID_BMP`: a `$RESOURCE` (rapidr_value::resources).
     // (a QIMAGE's ICOHandle / Icon: an icon is its picture)
     let icon = matches!(prop.as_str(), "icohandle" | "icon") && matches!(with(id, |o| matches!(o, Object::Bitmap(b) if b.picture)), Some(true));
