@@ -140,6 +140,7 @@ fn event_json(e: &Event) -> String {
 fn component_json(c: &Component) -> String {
     let o = Obj::new()
         .s("name", c.name)
+        .s("display", c.display)
         .opt("rapidq", c.rapidq)
         .opt("from", c.from)
         .strs("aliases", c.aliases)

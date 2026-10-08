@@ -3761,10 +3761,15 @@ version = "2.117.0"
 dependencies = [
  "proptest",
  "rapidr-ast",
+ "rapidr-bcgen",
+ "rapidr-codegen-rust",
  "rapidr-diagnostics",
  "rapidr-lang",
+ "rapidr-lexer",
  "rapidr-parser",
  "rapidr-preprocessor",
+ "rapidr-ui-kernel",
+ "rapidr-ui-render",
  "rapidr-value",
 ]
 
@@ -3956,8 +3961,10 @@ dependencies = [
 name = "rapidr-studio"
 version = "2.117.0"
 dependencies = [
+ "rapidr-designer",
  "rapidr-langsvc",
  "rapidr-package",
+ "rapidr-preprocessor",
  "rapidr-project",
  "rapidr-session",
  "rapidr-value",

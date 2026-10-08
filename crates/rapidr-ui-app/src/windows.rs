@@ -51,8 +51,10 @@ pub struct Icon {
 /// user's would be.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ScriptInput {
-    /// `comp.__key_N`: the component focused, the key pressed and released.
-    Key { comp: String, vk: i64 },
+    /// `comp.__key_N`: the component focused, the key pressed and released
+    /// (`__key_N_S`: with RapidQ's Shift state S held — ssShift 256, ssCtrl
+    /// 16, ssAlt 1).
+    Key { comp: String, vk: i64, state: i64 },
     /// `comp.__mousedown_x_y` …: the mouse at (x, y) in the component (a
     /// press is a single click, however soon after another).
     Mouse { comp: String, kind: Mouse, x: i64, y: i64 },
