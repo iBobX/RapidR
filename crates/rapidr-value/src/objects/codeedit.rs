@@ -236,6 +236,9 @@ pub struct CodeEditor {
     /// edits.
     fold_anchors: Vec<(usize, usize)>,
     fold_version: Option<u64>,
+    /// Completions accepted lately, the latest first (they rank first among
+    /// equals).
+    pub recent: Vec<String>,
 }
 
 impl Default for CodeEditor {
@@ -255,6 +258,51 @@ fn normalize_breaks(s: &str) -> String {
 
 fn flag(b: bool) -> Value {
     v_int(if b { -1 } else { 0 })
+}
+
+/// How well `label` matches what was `typed` (smaller is better; `None`:
+/// it doesn't): 0 its start as typed, 1 its start in any case, 2 on its
+/// word starts (capitals, after `_`, `$`, `.`, digits' start: `ss` →
+/// SelStart), 3 together anywhere, 4 in order anywhere.
+pub fn match_tier(label: &str, typed: &str) -> Option<u8> {
+    if typed.is_empty() || label.starts_with(typed) {
+        return Some(0);
+    }
+    let (l, t) = (label.to_lowercase(), typed.to_lowercase());
+    if l.starts_with(&t) {
+        return Some(1);
+    }
+    // the word starts' letters, in order, each typed letter starting a word
+    // or going on the one it's in
+    let chars: Vec<char> = label.chars().collect();
+    let starts: Vec<bool> = (0..chars.len())
+        .map(|i| i == 0 || (chars[i].is_uppercase() && !chars[i - 1].is_uppercase()) || matches!(chars[i - 1], '_' | '$' | '.' | ' ') || (chars[i].is_ascii_digit() && !chars[i - 1].is_ascii_digit()))
+        .collect();
+    let tc: Vec<char> = t.chars().collect();
+    if tc.len() <= 24 && words_match(&chars, &starts, &tc) {
+        return Some(2);
+    }
+    if l.contains(&t) {
+        return Some(3);
+    }
+    let mut it = l.chars();
+    tc.iter().all(|c| it.any(|h| h == *c)).then_some(4)
+}
+
+/// Whether `typed` (lower case) is spelled by `label`'s word starts, each
+/// typed letter beginning a word or following the letter before it in
+/// the same word (`gsl`, `getsl`, `gsubl` → GetSubList).
+fn words_match(label: &[char], starts: &[bool], typed: &[char]) -> bool {
+    fn go(label: &[char], starts: &[bool], typed: &[char], at: usize, need_start: bool) -> bool {
+        let Some((&c, rest)) = typed.split_first() else { return true };
+        // (the next letter of the current word)
+        if !need_start && at < label.len() && label[at].to_lowercase().eq(std::iter::once(c)) && !starts[at] && go(label, starts, rest, at + 1, false) {
+            return true;
+        }
+        // (or the start of a later word)
+        (at..label.len()).any(|j| starts[j] && label[j].to_lowercase().eq(std::iter::once(c)) && go(label, starts, rest, j + 1, false))
+    }
+    go(label, starts, typed, 0, true)
 }
 
 thread_local! {
@@ -341,6 +389,7 @@ impl CodeEditor {
             folds: Vec::new(),
             fold_anchors: Vec::new(),
             fold_version: None,
+            recent: Vec::new(),
         }
     }
 
@@ -876,6 +925,47 @@ impl CodeEditor {
     }
 
     /// Shows completion items at the primary caret.
+    /// The completion items that match what's typed since the list opened,
+    /// best first (indexes into the list's items) — VS Code's and Xcode's
+    /// fuzzy matching: the typed letters as the label's start (its case,
+    /// then any case), then on its word starts (`ss` → SelStart, `gsl` →
+    /// GetSubList), then anywhere together, then anywhere in order; among
+    /// equals, the ones accepted lately first, then the service's group,
+    /// then the shorter, then A–Z.
+    pub fn completion_shown(&self) -> Vec<usize> {
+        let Some(list) = &self.completion else { return Vec::new() };
+        let head = self.doc.selections().primary().head;
+        if head < list.start {
+            return Vec::new();
+        }
+        let typed = self.doc.slice(list.start..head).into_owned();
+        let mut ranked: Vec<(u8, usize, char, usize, String, usize)> = Vec::new();
+        for (i, it) in list.items.iter().enumerate() {
+            let Some(tier) = match_tier(&it.label, &typed) else { continue };
+            let recent = self.recent.iter().position(|r| r.eq_ignore_ascii_case(&it.label)).unwrap_or(usize::MAX);
+            let group = if it.sort.is_empty() { it.label.chars().next() } else { it.sort.chars().next() }.unwrap_or(' ');
+            ranked.push((tier, recent, group, it.label.chars().count(), it.label.to_lowercase(), i));
+        }
+        // (an item exactly as typed, and only it: nothing to complete)
+        if ranked.len() == 1 && list.items[ranked[0].5].label == typed && list.items[ranked[0].5].insert.is_none() {
+            return Vec::new();
+        }
+        if typed.is_empty() {
+            // (nothing typed yet: the service's order — groups, then A–Z)
+            ranked.sort_by(|a, b| a.2.cmp(&b.2).then_with(|| a.4.cmp(&b.4)));
+        } else {
+            ranked.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)).then(a.3.cmp(&b.3)).then_with(|| a.4.cmp(&b.4)));
+        }
+        ranked.into_iter().map(|r| r.5).collect()
+    }
+
+    /// A completion was accepted: it goes first among equals next time.
+    pub fn note_accepted(&mut self, label: &str) {
+        self.recent.retain(|r| !r.eq_ignore_ascii_case(label));
+        self.recent.insert(0, label.to_string());
+        self.recent.truncate(64);
+    }
+
     pub fn show_completion(&mut self, items: Vec<Completion>, from_service: bool, start: Option<usize>) {
         if items.is_empty() {
             self.completion = None;
@@ -970,6 +1060,20 @@ impl CodeEditor {
                 Encoding::Latin1 => "Latin-1",
             }),
             "diagnosticcount" => v_int(self.diagnostics.len() as i64),
+            // what the popups show now (a program's own checks, a screen
+            // reader's echo, the scripted flows' dumps)
+            "completionitems" => {
+                let shown = self.completion_shown();
+                let list = self.completion.as_ref();
+                v_str(&shown.iter().filter_map(|&i| list.map(|l| l.items[i].label.as_str())).collect::<Vec<_>>().join("\n"))
+            }
+            "completionselected" => {
+                let shown = self.completion_shown();
+                let label = self.completion.as_ref().and_then(|l| shown.get(l.selected.min(shown.len().saturating_sub(1))).map(|&i| l.items[i].label.clone()));
+                v_str(&label.unwrap_or_default())
+            }
+            "hovertext" => v_str(self.hover.as_ref().map_or("", |h| h.text.as_str())),
+            "signaturetext" => v_str(self.signature.as_ref().map_or("", |s| s.label.as_str())),
             "foldcount" => v_int(self.folded.len() as i64),
             "outline" => v_str(&self.outline()),
             _ => return None,
@@ -1189,6 +1293,17 @@ impl CodeEditor {
                 });
             }
             "applyedits" => return Some(flag(self.apply_edits_json(&arg(0)))),
+            // (RapidR Studio's designer: RDESIGNSURFACE's OnSourceEdit, lines
+            // from 0, columns in characters; Join: part of the undo step
+            // before)
+            "applypatch" => {
+                let a = self.at_line_col(num(0, 0) + 1, num(1, 0) + 1);
+                let b = self.at_line_col(num(2, 0) + 1, num(3, 0) + 1);
+                let t = normalize_breaks(&arg(4));
+                let join = args.get(5).is_some_and(|v| v.to_i64() != 0);
+                let (a, b) = (a.min(b), a.max(b));
+                return Some(flag(self.program_edit(|d| d.apply_patch(a..b, &t, join, 0).is_ok())));
+            }
             "setdiagnostics" => {
                 let diags = self.parse_diagnostics(&arg(0));
                 self.diagnostics.retain(|d| d.source != DiagSource::Program);
@@ -1530,6 +1645,66 @@ mod tests {
         c.show_signature("MID$(S AS STRING, Start, [Count])", 1);
         let sig = c.signature.clone().unwrap();
         assert_eq!(sig.params.iter().map(|&(a, b)| &sig.label[a..b]).collect::<Vec<_>>(), ["S AS STRING", "Start", "[Count]"]);
+    }
+
+    /// Completion ranks as VS Code's: the label's start, then its word
+    /// starts (`ss` → SelStart), then together, then in order; lately
+    /// accepted first among equals; Show before ShowHint.
+    #[test]
+    fn completion_ranks_fuzzy_matches() {
+        assert_eq!(match_tier("SelStart", "Sel"), Some(0));
+        assert_eq!(match_tier("SelStart", "sel"), Some(1));
+        assert_eq!(match_tier("SelStart", "ss"), Some(2));
+        assert_eq!(match_tier("GetSubList", "gsl"), Some(2));
+        assert_eq!(match_tier("GetSubList", "getsl"), Some(2));
+        assert_eq!(match_tier("GetSubList", "sublist"), Some(2));
+        assert_eq!(match_tier("GetSubList", "ubli"), Some(3));
+        assert_eq!(match_tier("GetSubList", "gtst"), Some(4));
+        assert_eq!(match_tier("GetSubList", "xyz"), None);
+        let mut c = CodeEditor::new();
+        c.set("text", &v_str("x."));
+        c.call("gotolinecolumn", &[v_int(1), v_int(3)]);
+        let items = CodeEditor::parse_items("ShowHint\tproperty\nShow\tmethod\nSelStart\tproperty\nSelLength\tproperty\nCaption\tproperty");
+        c.show_completion(items, true, None);
+        let labels = |c: &CodeEditor| s(c.get("completionitems"));
+        assert_eq!(labels(&c), "Caption\nSelLength\nSelStart\nShow\nShowHint");
+        c.call("inserttext", &[v_str("ss")]);
+        assert_eq!(labels(&c), "SelStart", "on the word starts");
+        c.call("undo", &[]);
+        c.call("inserttext", &[v_str("s")]);
+        assert_eq!(labels(&c), "Show\nSelStart\nShowHint\nSelLength", "shorter first among equals");
+        c.note_accepted("SelLength");
+        assert_eq!(labels(&c).lines().next(), Some("SelLength"), "accepted lately: first");
+        assert_eq!(s(c.get("completionselected")), "SelLength");
+    }
+
+    /// RapidR Studio's designer contract: OnSourceEdit's patches (lines
+    /// from 0, character columns) applied in order; the ones joined undo
+    /// with the first as one step; the caret keeps its place in the text.
+    #[test]
+    fn designer_patches_undo_as_one_step() {
+        let mut c = CodeEditor::new();
+        c.set("text", &v_str("CREATE Form AS QFORM\n    Width = 340\n    Caption = \"é\"\nEND CREATE"));
+        c.call("gotolinecolumn", &[v_int(4), v_int(1)]);
+        let caret = n(c.get("selstart"));
+        // a drag: Width changes, then a Left line is added
+        assert_eq!(n(c.call("applypatch", &[v_int(1), v_int(12), v_int(1), v_int(15), v_str("360"), v_int(0)])), -1);
+        assert_eq!(n(c.call("applypatch", &[v_int(2), v_int(15), v_int(2), v_int(16), v_str("ü"), v_int(1)])), -1);
+        assert_eq!(n(c.call("applypatch", &[v_int(1), v_int(15), v_int(1), v_int(15), v_str("\n    Left = 8"), v_int(1)])), -1);
+        assert_eq!(s(c.get("text")), "CREATE Form AS QFORM\n    Width = 360\n    Left = 8\n    Caption = \"ü\"\nEND CREATE");
+        assert_eq!(n(c.get("caretline")), 5, "the caret stays on END CREATE");
+        assert_eq!(n(c.get("selstart")), caret + 13);
+        // the next action: its own step
+        c.call("applypatch", &[v_int(2), v_int(11), v_int(2), v_int(12), v_str("9"), v_int(0)]);
+        c.call("undo", &[]);
+        assert!(s(c.get("text")).contains("Left = 8"));
+        c.call("undo", &[]);
+        assert_eq!(s(c.get("text")), "CREATE Form AS QFORM\n    Width = 340\n    Caption = \"é\"\nEND CREATE", "the first action undone whole");
+        c.call("redo", &[]);
+        assert!(s(c.get("text")).contains("Width = 360\n    Left = 8"));
+        // (ends given the wrong way round are put in order)
+        assert_eq!(n(c.call("applypatch", &[v_int(0), v_int(1), v_int(0), v_int(0), v_str("c"), v_int(0)])), -1);
+        assert!(s(c.get("text")).starts_with("cREATE"));
     }
 
     #[test]

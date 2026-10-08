@@ -700,7 +700,8 @@ pub fn look_of(store: &dyn Store, id: &str, font: &Font, enabled: bool, multi: b
     let mask = if multi { None } else { store::string(store, id, "passwordchar").chars().next() };
     let align = Align::from_prop(store::int(store, id, "alignment", 0));
     let wrap = multi && store::flag(store, id, "wordwrap", true);
-    Look { font: font.clone(), color, mask, align, wrap }
+    let tab = if multi { crate::text::editor::tab_stops(font, store.type_of(id).eq_ignore_ascii_case("RRICHEDIT")) } else { 0.0 };
+    Look { font: font.clone(), color, mask, align, wrap, tab }
 }
 
 /// Node `ui`'s editor (made the first time), showing the model, laid out
@@ -902,7 +903,7 @@ impl Spec {
         let look = match src {
             Source::InPlace => {
                 let color = crate::paint::ink(cx.store, cx.id, &cx.font, true, rapidr_value::theme::current().window);
-                Look { font: cx.font.clone(), color, mask: None, align: Align::Left, wrap: false }
+                Look { font: cx.font.clone(), color, mask: None, align: Align::Left, wrap: false, tab: 0.0 }
             }
             _ => look_of(cx.store, cx.id, &cx.font, cx.state.enabled, false),
         };

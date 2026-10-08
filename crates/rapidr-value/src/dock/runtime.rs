@@ -426,7 +426,12 @@ fn close_next<R: Runtime>(rt: R, dock: String, mut rest: Vec<String>) {
 fn focus_pane<R: Runtime>(rt: R, dock: &str, pane: &str) {
     let _ = dock;
     fn first<R: Runtime>(rt: R, name: &str, t: &str, depth: usize) -> Option<String> {
-        if crate::objects::a11y::takes_focus(t) && rt.get(name, "visible").to_bool() && rt.get(name, "enabled").to_bool() {
+        // (Visible and Enabled never set: true, as the kernel reads them)
+        let on = |prop: &str| match rt.get(name, prop) {
+            crate::Value::Null => true,
+            v => v.to_bool(),
+        };
+        if crate::objects::a11y::takes_focus(t) && on("visible") && on("enabled") {
             return Some(name.to_string());
         }
         if depth > 16 {

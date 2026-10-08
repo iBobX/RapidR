@@ -417,6 +417,30 @@ impl Document {
         self.apply(set, after, EditKind::Command, now_ms)
     }
 
+    /// A patch from outside the editor (RapidR Studio's designer writing the
+    /// form's source): `range` becomes `text`, the selections follow the
+    /// text. Its own undo step, or (`join`) part of the current one — the
+    /// patches of one designer action are undone together.
+    pub fn apply_patch(&mut self, range: Range<usize>, text: &str, join: bool, now_ms: u64) -> Result<(), EditError> {
+        if !join {
+            return self.apply_edits(vec![Change::new(range, text)], now_ms);
+        }
+        if self.read_only {
+            return Err(EditError::ReadOnly);
+        }
+        let set = ChangeSet::new(vec![Change::new(range, text)], self.len_bytes())?;
+        set.validate(&self.buffer)?;
+        let after = self.selections.map(&set);
+        let before = self.selections.clone();
+        let removed = self.apply_raw(&set);
+        let inverse = set.invert(&removed);
+        let after = after.clamped(|p| self.buffer.clamp(p));
+        self.history.commit_joined(Step { changes: set, inverse }, before, after.clone(), now_ms);
+        self.selections = after;
+        self.last_typed = None;
+        Ok(())
+    }
+
     /// Rewrites every line break as `le` (one undo step) and types new ones
     /// with it.
     pub fn convert_line_endings(&mut self, le: LineEnding, now_ms: u64) -> Result<(), EditError> {

@@ -25,6 +25,7 @@ pub mod mdi;
 pub mod dock;
 pub mod events;
 pub mod input;
+pub mod send_keys;
 pub mod globals;
 pub mod file_dialog;
 pub mod format;

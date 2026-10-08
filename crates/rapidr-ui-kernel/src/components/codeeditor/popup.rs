@@ -26,49 +26,10 @@ const ITEM_H: i64 = 22;
 const LIST_W: i64 = 380;
 const DOC_W: i64 = 300;
 
-/// The completion items that match what's typed since the list opened, in
-/// order (exact prefix first, then any case, then letters in order).
+/// The completion items that match what's typed since the list opened,
+/// best first (`CodeEditor::completion_shown`: the model's ranking).
 pub fn filtered(x: &Ctx) -> Vec<usize> {
-    filter(x.c)
-}
-
-fn filter(c: &Model) -> Vec<usize> {
-    let Some(list) = &c.completion else { return Vec::new() };
-    let head = c.doc.selections().primary().head;
-    if head < list.start {
-        return Vec::new();
-    }
-    let typed = c.doc.slice(list.start..head).into_owned();
-    let lower = typed.to_lowercase();
-    let mut ranked: Vec<(u8, &str, usize)> = Vec::new();
-    for (i, it) in list.items.iter().enumerate() {
-        let label = &it.label;
-        let rank = if typed.is_empty() || label.starts_with(&typed) {
-            0
-        } else if label.to_lowercase().starts_with(&lower) {
-            1
-        } else if subsequence(&label.to_lowercase(), &lower) {
-            2
-        } else {
-            continue;
-        };
-        let sort = if it.sort.is_empty() { label.as_str() } else { it.sort.as_str() };
-        ranked.push((rank, sort, i));
-    }
-    // (an item exactly as typed, and only it: nothing to complete)
-    if ranked.len() == 1 && list.items[ranked[0].2].label == typed && list.items[ranked[0].2].insert.is_none() {
-        return Vec::new();
-    }
-    // (by how well each matches, then the service's group — its sort key's
-    // first character — then the label: `Show` before `ShowHint`)
-    let label = |i: usize| list.items[i].label.to_lowercase();
-    ranked.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.chars().next().cmp(&b.1.chars().next())).then_with(|| label(a.2).cmp(&label(b.2))));
-    ranked.into_iter().map(|r| r.2).collect()
-}
-
-fn subsequence(hay: &str, needle: &str) -> bool {
-    let mut it = hay.chars();
-    needle.chars().all(|c| it.any(|h| h == c))
+    x.c.completion_shown()
 }
 
 /// Scrolls the list so the selected item shows.
@@ -122,7 +83,7 @@ fn anchor(c: &Model, ui: &CodeUi, abs: (i64, i64), scale: f64, at: usize) -> Opt
 /// The completion list's rectangle, and the docs panel's (absolute).
 fn completion_rects(c: &Model, ui: &CodeUi, abs: (i64, i64), scale: f64, client: (i64, i64)) -> Option<(Rect, Option<Rect>, usize)> {
     let list = c.completion.as_ref()?;
-    let n = filter(c).len();
+    let n = c.completion_shown().len();
     if n == 0 {
         return None;
     }
@@ -356,7 +317,7 @@ fn paint_one(c: &Model, ui: &CodeUi, abs: (i64, i64), scale: f64, client: (i64, 
         return;
     }
     let Some(list) = &c.completion else { return };
-    let items = filter(c);
+    let items = c.completion_shown();
     let Some(((lx, ly, lw, lh), doc_rect, rows)) = completion_rects(c, ui, abs, scale, client) else { return };
     frame(p, sc, (lx, ly, lw, lh));
     let uf = ui_font();
@@ -494,7 +455,7 @@ pub fn popup_wheel(f: &mut FormUi, x: f64, y: f64, dy: f64) -> bool {
     let Some(ui) = f.nodes[i].ui.code.as_mut() else { return false };
     let over = with_code(&id, |c| {
         let (r, _, rows) = completion_rects(c, ui, abs, scale, client)?;
-        let n = filter(c).len();
+        let n = c.completion_shown().len();
         (x >= r.0 as f64 && y >= r.1 as f64 && x < (r.0 + r.2) as f64 && y < (r.1 + r.3) as f64).then_some((n, rows))
     })
     .flatten();

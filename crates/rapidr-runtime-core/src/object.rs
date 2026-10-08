@@ -2017,6 +2017,8 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             v_null()
         }
         "setfocus" | "focus" => {
+            #[cfg(feature = "gui")]
+            crate::ui::gui_set_focus(name);
             v_null()
         }
         // (the title bar's own buttons are the system's: the set is kept,

@@ -85,7 +85,7 @@ impl Align {
 }
 
 /// How the text is shown: its font and colour (0xRRGGBB), a PasswordChar,
-/// Alignment, WordWrap.
+/// Alignment, WordWrap, and the distance between tab stops.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Look {
     pub font: Font,
@@ -93,12 +93,53 @@ pub struct Look {
     pub mask: Option<char>,
     pub align: Align,
     pub wrap: bool,
+    /// The tab stops' spacing in logical pixels (a memo's: [`tab_stops`]):
+    /// a TAB character is drawn as the blank to the next stop. 0: no stops
+    /// (a one-line box's TAB is as wide as a space). A TAB is never drawn
+    /// as a glyph.
+    pub tab: f64,
 }
 
 impl Default for Look {
     fn default() -> Self {
-        Look { font: Font::default(), color: 0, mask: None, align: Align::Left, wrap: false }
+        Look { font: Font::default(), color: 0, mask: None, align: Align::Left, wrap: false, tab: 0.0 }
     }
+}
+
+/// The default tab stops of a multi-line box drawn in `font`, as Windows
+/// sets them: a QMEMO (an EDIT control) every 32 dialog units, that is 8
+/// times the font's average character width (GDI's: the width of
+/// "A…Za…z", plus 26, divided by 52, in whole pixels); a QRICHEDIT (a rich
+/// edit control) every half inch, 48 pixels at 96 dpi.
+pub fn tab_stops(font: &Font, rich: bool) -> f64 {
+    if rich {
+        return 48.0;
+    }
+    let (w, _) = rapidr_value::objects::text::text_size("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", font);
+    (8 * ((w + 26) / 52).max(1)) as f64
+}
+
+/// How much wider than a space each TAB at byte offsets `tabs` (in order)
+/// must be for what follows it to start at the next multiple of `stop`
+/// device pixels, given `layout` made with the TABs as spaces.
+fn tab_widths(layout: &Layout<Ink>, tabs: &[usize], stop: f64) -> Vec<(usize, f64)> {
+    let place = |at: usize| Cursor::from_byte_index(layout, at, Affinity::Downstream).geometry(layout, 0.0);
+    let (mut out, mut shift, mut line_y) = (Vec::with_capacity(tabs.len()), 0.0, f64::NAN);
+    for &at in tabs {
+        let (here, after) = (place(at), place(at + 1));
+        // (a wrapped line starts again from its left)
+        if here.y0 != line_y {
+            line_y = here.y0;
+            shift = 0.0;
+        }
+        let x = here.x0 + shift;
+        let space = (after.x0 - here.x0).max(0.0);
+        let next = ((x / stop).floor() + 1.0) * stop;
+        let extra = next - x - space;
+        out.push((at, extra));
+        shift += extra;
+    }
+    out
 }
 
 /// How a run of text differs from the editor's look (`None`: as the look).
@@ -480,35 +521,17 @@ impl TextEditor {
         let (mut top, mut wide) = (0.0, 0.0f64);
         for i in 0..self.paras.len() {
             if self.paras[i].layout.is_none() {
-                let shown = self.shown(i).into_owned();
-                let mut b = ts.layout_cx.ranged_builder(&mut ts.font_cx, &shown, self.scale, true);
-                for prop in &self.style {
-                    b.push_default(prop.clone());
-                }
-                // (its runs: over its own text, so not over a mask's)
-                if self.look.mask.is_none() {
-                    for span in &self.paras[i].spans {
-                        let r = span.range.start.min(shown.len())..span.range.end.min(shown.len());
-                        if r.is_empty() || !shown.is_char_boundary(r.start) || !shown.is_char_boundary(r.end) {
-                            continue;
-                        }
-                        for prop in span.style.props() {
-                            b.push(prop, r.clone());
-                        }
+                // (a TAB is shaped as a space — the same one byte, so
+                // carets and selections keep their offsets — and widened
+                // to its stop: never the font's glyph for U+0009)
+                let shown = self.shown(i).replace('\t', " ");
+                let mut layout = self.build_para(ts, i, &shown, &[], view);
+                if self.look.tab > 0.0 {
+                    let tabs: Vec<usize> = self.shown(i).match_indices('\t').map(|(at, _)| at).collect();
+                    if !tabs.is_empty() {
+                        let widths = tab_widths(&layout, &tabs, self.look.tab * scale);
+                        layout = self.build_para(ts, i, &shown, &widths, view);
                     }
-                }
-                let mut layout = b.build(&shown);
-                if self.look.wrap {
-                    layout.break_all_lines(Some(view.max(1.0) as f32));
-                    let a = match self.look.align {
-                        Align::Left => Alignment::Left,
-                        Align::Right => Alignment::Right,
-                        Align::Center => Alignment::Center,
-                    };
-                    layout.align(a, AlignmentOptions::default());
-                } else {
-                    layout.break_all_lines(None);
-                    layout.align(Alignment::Left, AlignmentOptions::default());
                 }
                 super::note_missing(&layout, &shown);
                 self.paras[i].layout = Some(layout);
@@ -527,6 +550,45 @@ impl TextEditor {
         }
         self.size = (wide, top);
         self.laid = true;
+    }
+
+    /// Paragraph `i`'s layout of `shown` (its TABs as spaces), each TAB at
+    /// `tabs[k].0` widened by `tabs[k].1` device pixels.
+    fn build_para(&self, ts: &mut TextSystem, i: usize, shown: &str, tabs: &[(usize, f64)], view: f64) -> Layout<Ink> {
+        let mut b = ts.layout_cx.ranged_builder(&mut ts.font_cx, shown, self.scale, true);
+        for prop in &self.style {
+            b.push_default(prop.clone());
+        }
+        // (its runs: over its own text, so not over a mask's)
+        if self.look.mask.is_none() {
+            for span in &self.paras[i].spans {
+                let r = span.range.start.min(shown.len())..span.range.end.min(shown.len());
+                if r.is_empty() || !shown.is_char_boundary(r.start) || !shown.is_char_boundary(r.end) {
+                    continue;
+                }
+                for prop in span.style.props() {
+                    b.push(prop, r.clone());
+                }
+            }
+        }
+        let scale = f64::from(self.scale).max(0.01);
+        for &(at, extra) in tabs {
+            b.push(StyleProperty::LetterSpacing((extra / scale) as f32), at..at + 1);
+        }
+        let mut layout = b.build(shown);
+        if self.look.wrap {
+            layout.break_all_lines(Some(view.max(1.0) as f32));
+            let a = match self.look.align {
+                Align::Left => Alignment::Left,
+                Align::Right => Alignment::Right,
+                Align::Center => Alignment::Center,
+            };
+            layout.align(a, AlignmentOptions::default());
+        } else {
+            layout.break_all_lines(None);
+            layout.align(Alignment::Left, AlignmentOptions::default());
+        }
+        layout
     }
 
     fn layout(&self, p: usize) -> &Layout<Ink> {
@@ -927,6 +989,39 @@ mod tests {
         e.replace_selection(&mut ts, "1\n2");
         assert_eq!(e.text(), "onX1\n2o\nthree");
         assert_eq!((e.focus().para, e.focus().index), (1, 1));
+    }
+
+    /// Robert's "weird character" (2026-10-08): a TAB in a memo was shaped
+    /// as the font's glyph for U+0009 (a box). It is a blank to the next
+    /// tab stop, at every scale, and carets keep their byte offsets.
+    #[test]
+    fn a_tab_is_a_blank_to_the_next_stop_never_a_glyph() {
+        for scale in [1.0f32, 2.0] {
+            let mut ts = TextSystem::new();
+            let mut e = TextEditor::new(true);
+            let font = Font::default();
+            let stop = tab_stops(&font, false);
+            e.set_look(Look { font, tab: stop, ..Look::default() });
+            e.set_scale(scale);
+            e.set_width(400.0);
+            e.set_text("a\tb\tc\nabcdefghijklm\tx");
+            e.lay_out(&mut ts);
+            let x = |p: usize, i: usize| f64::from(e.cursor(Pos::new(p, i)).geometry(e.layout(p), 0.0).x0) / f64::from(scale);
+            assert!((x(0, 2) - stop).abs() < 0.6, "b at the first stop ({} vs {stop}, scale {scale})", x(0, 2));
+            assert!((x(0, 4) - 2.0 * stop).abs() < 0.6, "c at the second stop (scale {scale})");
+            // (text past a stop: the TAB goes on to the next one)
+            let past = x(1, 13);
+            assert!(past > stop && (x(1, 14) - ((past / stop).floor() + 1.0) * stop).abs() < 0.6, "x at the stop after m (scale {scale})");
+            // no glyph is drawn for a TAB: every cluster has a real glyph
+            for line in e.layout(0).lines() {
+                for item in line.items() {
+                    if let parley::PositionedLayoutItem::GlyphRun(g) = item {
+                        assert!(g.run().clusters().all(|c| c.glyphs().all(|g| g.id != 0)), "a .notdef box drawn");
+                    }
+                }
+            }
+        }
+        assert_eq!(tab_stops(&Font::default(), true), 48.0, "a rich edit's half inch");
     }
 
     #[test]

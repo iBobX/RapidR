@@ -1328,7 +1328,7 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
 | `Visible` | int | True | Whether the control or form is shown. |
-| `Enabled` | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Font` | font |  | The font of the text, a QFONT; assigning one copies it. |
 | `FontSize` | int |  | The code's size in points (10 = 13 pixels); Ctrl+= / Ctrl+- and Ctrl+wheel change it. |
 | `FontName` | string |  | The code's font (JetBrains Mono, built in). |
@@ -1371,6 +1371,10 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `LineEnding` | string |  | The file's line breaks SaveToFile writes: "CRLF", "LF" or "CR" (LoadFromFile keeps the file's). |
 | `Encoding` (read-only) | string |  | How the file was stored: "UTF-8", "UTF-8 BOM" or "Latin-1" (SaveToFile writes it back the same). |
 | `DiagnosticCount` (read-only) | int |  | How many problems it shows. |
+| `CompletionItems` (read-only) | string |  | The completion list as it shows now, one label a line, best match first (empty while it's closed). |
+| `CompletionSelected` (read-only) | string |  | The completion list's selected label (what Tab or Enter would insert); empty while it's closed. |
+| `HoverText` (read-only) | string |  | The hover showing now (its Markdown), empty when none is. |
+| `SignatureText` (read-only) | string |  | The signature help showing now (the call's signature), empty when none is. |
 | `FoldCount` (read-only) | int |  | How many places are folded. |
 | `Outline` (read-only) | string |  | The file's outline, one entry a line: kind, name, line (from 1) and depth, tab-separated — the language service's (SUBs, FUNCTIONs, TYPEs and their members, the CREATE tree), else the SUBs and FUNCTIONs. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -1425,6 +1429,7 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `InsertText(Text AS STRING)` | Types Text at every caret (one undo step). |
 | `ReplaceRange(StartLine AS INTEGER, StartColumn AS INTEGER, EndLine AS INTEGER, EndColumn AS INTEGER, Text AS STRING)` | Replaces the text between two places (lines and columns from 1). |
 | `ApplyEdits(Json AS STRING) AS INTEGER` | Several edits as one undo step: a JSON list of {"line", "column", "endLine", "endColumn", "text"} (or "start" / "end" character offsets). False, and nothing done, when two overlap. |
+| `ApplyPatch(StartLine AS INTEGER, StartCol AS INTEGER, EndLine AS INTEGER, EndCol AS INTEGER, Text AS STRING, [Join AS INTEGER]) AS INTEGER` | Replaces the text between two places with Text — lines from 0, columns counted in characters, as RDESIGNSURFACE's OnSourceEdit gives them — keeping the carets where they were in the text. One undo step, or with Join True part of the step before (a designer action's several patches undone together). False, and nothing changed, for a range that isn't in the text. |
 | `SetDiagnostics(Json AS STRING)` | The program's problems, shown as squiggles and in the gutter: a JSON list of {"line", "column", "endLine", "endColumn", "severity" (error, warning, info, hint), "message"}. |
 | `ClearDiagnostics` | Removes the problems shown. |
 | `AddMarker(Line AS INTEGER, Kind AS STRING)` | A gutter marker on a line (from 1) that follows it through edits: "breakpoint", "current" (the debugger's line), "bookmark", "error", "warning" or a kind of the program's. |
@@ -4775,6 +4780,7 @@ The running program: its file and folder, title, icon, hint settings, RapidR's T
 | `Title` | string |  | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
 | `Path` (read-only) | string |  | The folder the program's executable is in; read-only. |
 | `Theme` *(RapidR)* | string |  | The look RapidR draws with: `classic`, `modern`, `dark` or `highcontrast`; reads as the theme in use. |
+| `KeysPending` *(RapidR)* (read-only) | int |  | How many keystrokes sent with SendKeys are still waiting to reach the program's windows. |
 
 | Method | |
 |---|---|
@@ -4784,6 +4790,7 @@ The running program: its file and folder, title, icon, hint settings, RapidR's T
 | `Minimize` | Minimizes the program's windows. |
 | `Terminate` | Ends it: stops the thread, or ends the program. |
 | `ThemeColor(Name AS STRING) AS LONG` *(RapidR)* | A colour of the current theme by name, as a RapidQ colour (&HBBGGRR): the theme's own ("face", "window", "accent" …) and an IDE's ("toolbar", "statusbar", "statusbar.running", "page.link", "editor.keyword" …); -1 for a name no theme has. Read it again after setting Theme. |
+| `SendKeys(Keys AS STRING) AS INTEGER` *(RapidR)* | Sends keystrokes to the program's own frontmost window, as if typed: one per turn of the event loop, through the same keyboard path as the user's keys (focus, shortcuts, OnKeyDown / OnKeyPress). Visual Basic's notation: + Shift, ^ Ctrl, % Alt (for the next key or a group in parentheses), ~ Enter, {TAB}, {ENTER}, {BS}, {DEL}, {ESC}, {UP}, {DOWN}, {LEFT}, {RIGHT}, {HOME}, {END}, {PGUP}, {PGDN}, {INS}, {F1} to {F16}, {+} {^} {%} {~} {(} {)} {{} {}} for those characters, {KEY n} for n presses. False, and nothing sent, when Keys is malformed. |
 | `GetPriority` *(not yet)* | Returns the program's process priority. |
 | `SetPriority(Priority AS LONG) AS VARIANT` *(not yet)* | Sets the program's process priority. |
 

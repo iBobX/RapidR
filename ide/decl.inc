@@ -120,6 +120,9 @@ DECLARE SUB RecentPicked(Sender AS QLABEL)
 DECLARE SUB StudioKey(Key AS INTEGER, Shift AS INTEGER)
 DECLARE SUB LayOutWelcome
 DECLARE SUB MacroTick
+DECLARE SUB PatchBurstTick
+DECLARE FUNCTION EditorCommand(Id AS STRING) AS INTEGER
+DECLARE FUNCTION EditorStep(Id AS STRING) AS INTEGER
 
 ' ---- Studio's services: public components (rapidr-studio) ----
 DIM Proj AS RPROJECT

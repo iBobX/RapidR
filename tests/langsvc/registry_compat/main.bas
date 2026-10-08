@@ -3,7 +3,7 @@ DIM L AS QLISTBOX
 DIM n AS RNUM
 DIM p AS QPLOT
 Form.ShapeForm "a.bmp", 0
-L.Circle 1, 2, 3, 4, 0, 0
+L.Clear
 Form.Anchors = 0
 BEEP
 x = Screen.W|idth
@@ -17,7 +17,6 @@ OPEN "f.txt" FOR INPUT AS #1
 '! diagnostic main.bas:15:1 "OPEN is a RapidR extension: RapidQ's compiler refuses it (this project is RapidQ-compatible)"
 '! options rapidq-compatible
 '! diagnostic main.bas:5:6 "RapidQ's QForm.ShapeForm is not implemented in RapidR yet"
-'! diagnostic main.bas:6:3 "QListBox.Circle works on the desktop only: the web runtime doesn't have it"
 '! diagnostic main.bas:7:6 "QForm.Anchors is a RapidR extension: RapidQ's compiler refuses it (this project is RapidQ-compatible)"
 '! diagnostic main.bas:8:1 "BEEP is a RapidR extension: RapidQ's compiler refuses it (this project is RapidQ-compatible)"
 '! diagnostic main.bas:3:10 "RNum is RapidR's own component: RapidQ doesn't have it (this project is RapidQ-compatible)"

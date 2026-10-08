@@ -29,7 +29,7 @@ pub use kernel::{
     gui_apply_geometry,
     // Windows (`gui_set_window_state`: the WindowState lane's, Form.WindowState
     // set; it was `from`).
-    gui_show, gui_show_visible, gui_hide, gui_close, gui_center, gui_move_form, gui_set_form_border, gui_apply_icon,
+    gui_show, gui_show_visible, gui_hide, gui_set_focus, gui_close, gui_center, gui_move_form, gui_set_form_border, gui_apply_icon,
     gui_apply_icons, gui_set_window_state, gui_menu_popup,
     // Text between the store and the host's editors.
     text_push, gui_set_text, gui_set_input_value, text_pull, gui_get_text, gui_get_input_value,

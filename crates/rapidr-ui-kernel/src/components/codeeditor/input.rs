@@ -234,6 +234,7 @@ pub fn accept_completion(x: &mut Ctx) -> bool {
     };
     let item = list.items[i].clone();
     x.c.completion = None;
+    x.c.note_accepted(&item.label);
     let head = x.c.doc.selections().primary().head;
     let start = list.start.min(head);
     // (the rest of the word after the caret goes too)
