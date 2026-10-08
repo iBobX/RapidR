@@ -3,7 +3,6 @@
 //! ```text
 //! rapidr lang export --json [-o FILE]     the registry as JSON (the IDE's completion data)
 //! rapidr lang export --prompt [-o FILE]   the AI system prompt's language section
-//! rapidr lang export --web-ide [-o FILE]  the web IDE's lang-data.js
 //! rapidr lang export --manual [DIR]       the manual's reference pages (docs/manual/reference)
 //! rapidr lang export --all [--check]      every file the repository keeps generated, from its root
 //! rapidr lang conformance DIR [--target desktop|web] [--gaps FILE]
@@ -29,7 +28,7 @@ pub fn command(args: &[String]) -> ExitCode {
         Some("export") => export_cmd(&args[1..]),
         Some("conformance") => conformance_cmd(&args[1..]),
         _ => {
-            eprintln!("usage: rapidr lang export --json|--prompt|--web-ide [-o FILE] | --manual [DIR] | --all [--check]");
+            eprintln!("usage: rapidr lang export --json|--prompt [-o FILE] | --manual [DIR] | --all [--check]");
             eprintln!("       rapidr lang conformance DIR [--target desktop|web] [--gaps FILE]");
             ExitCode::from(2)
         }
@@ -61,9 +60,6 @@ fn export_cmd(args: &[String]) -> ExitCode {
     if flag("--prompt") {
         return write_or_print(out, &export::prompt());
     }
-    if flag("--web-ide") {
-        return write_or_print(out, &export::web_ide_js());
-    }
     let check = flag("--check");
     let files: Vec<(PathBuf, String)> = if flag("--manual") {
         let dir = args.iter().skip_while(|a| *a != "--manual").nth(1).filter(|a| !a.starts_with('-')).map_or("docs/manual/reference", String::as_str);
@@ -71,7 +67,7 @@ fn export_cmd(args: &[String]) -> ExitCode {
     } else if flag("--all") {
         generated_files()
     } else {
-        eprintln!("rapidr lang export: --json, --prompt, --web-ide, --manual or --all");
+        eprintln!("rapidr lang export: --json, --prompt, --manual or --all");
         return ExitCode::from(2);
     };
     let mut stale = Vec::new();

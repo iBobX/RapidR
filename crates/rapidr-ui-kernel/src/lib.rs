@@ -50,6 +50,7 @@ pub mod text;
 pub mod tick;
 pub mod tooltip;
 pub mod tree;
+pub mod window_frame;
 
 #[cfg(test)]
 mod tests;

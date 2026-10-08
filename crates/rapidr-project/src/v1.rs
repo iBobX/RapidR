@@ -1,7 +1,7 @@
 //! Reading the web IDE's JSON projects (`"rapidr_project": 1`).
 //!
-//! A v1 project is one JSON object (see `web-ide/host.js`,
-//! `serializeProjectModel`):
+//! A v1 project is one JSON object, as the old HTML web IDE (deleted
+//! 2026-10-08; RapidR Studio replaced it) saved it:
 //!
 //! ```json
 //! { "rapidr_project": 1, "name": "Demo",

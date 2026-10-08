@@ -85,10 +85,11 @@ impl ComponentKind for PushButton {
             };
             let border = if accent { fill } else if s.hover && s.enabled { t.border_hot } else { t.border };
             p.round((0, 0, w, h), t.radius, Some(fill), Some(border), 1.0);
+            p.raised_rim((0, 0, w, h), if accent { t.accent_pressed } else { border }, s.enabled && !s.pressed);
             let color = if accent { t.accent_text } else { ink_of(cx, fill) };
             caption(p, (0, 0, w, h), &data.caption, &cx.font, color, Place::Center);
             if s.focused {
-                p.focus((0, 0, w, h));
+                p.focus_ring((0, 0, w, h), accent);
             }
             return;
         }

@@ -16,30 +16,63 @@ thread_local! {
     /// The mouse on the screen, from the page's last mouse move.
     static MOUSE: Cell<(i64, i64)> = const { Cell::new((0, 0)) };
     static TRACKING: Cell<bool> = const { Cell::new(false) };
-    /// The theme the program named (`$THEME`, `Application.Theme`).
-    static THEME: Cell<&'static str> = const { Cell::new("classic") };
+    static LOOK_WATCHED: Cell<bool> = const { Cell::new(false) };
 }
 
-/// `$THEME name` / `Application.Theme = name`: the browser keeps drawing
-/// its own look (rrcss) — no theme is drawn here — but the program reads
-/// back the theme its name chose, as on the desktop (`auto` and `rapidr`:
-/// the page's light, dark or high contrast look).
+/// The visitor's look, as the page sees it: (dark, high contrast). A GUI
+/// test's page says light, so captures don't depend on the browser.
+fn page_look() -> (bool, bool) {
+    let media = |q: &str| !rapidr_ui_app::testhooks::under_test() && web_sys::window().and_then(|w| w.match_media(q).ok().flatten()).is_some_and(|m| m.matches());
+    (media("(prefers-color-scheme: dark)"), media("(forced-colors: active)") || media("(prefers-contrast: more)"))
+}
+
+/// `$THEME name` / `Application.Theme = name`: the kernel draws in that
+/// theme from now on; `rapidr` (and a name no theme has) RapidR's look as
+/// the page is — light, dark or high contrast — and as it becomes.
 pub fn name_theme(name: &str) {
     use rapidr_value::theme::{choose, Choice};
-    // (the kernel draws in that theme from now on — `auto` the page's look,
-    // as the desktop's the system's)
-    let theme = match choose(name) {
-        Choice::Theme(t) => t,
-        Choice::Auto => {
-            let media = |q: &str| !rapidr_ui_app::testhooks::under_test() && web_sys::window().and_then(|w| w.match_media(q).ok().flatten()).is_some_and(|m| m.matches());
-            rapidr_value::theme::auto(media("(prefers-color-scheme: dark)"), media("(forced-colors: active)") || media("(prefers-contrast: more)"))
+    match choose(name) {
+        Choice::Theme(t) => rapidr_value::theme::set(t),
+        Choice::Auto | Choice::Unknown => {
+            let (dark, contrast) = page_look();
+            rapidr_value::theme::follow_system(dark, contrast);
+            watch_page_look();
         }
-        Choice::Unknown => &rapidr_value::theme::CLASSIC,
-    };
-    // (reading Application.Theme back gives the theme drawn: `auto`'s too)
-    THEME.with(|t| t.set(theme.name));
-    rapidr_value::theme::set(theme);
+    }
     crate::kernel_web::redraw();
+}
+
+/// Before anything is drawn: a program that names no theme gets RapidR's
+/// look as the page is (a test page's `RAPIDR_THEME` names one), and
+/// follows the page when the visitor switches to dark or high contrast.
+pub fn start_theme() {
+    rapidr_value::theme::set_user_choice(rapidr_ui_app::testhooks::var("RAPIDR_THEME"));
+    if rapidr_value::theme::wants_system() {
+        let (dark, contrast) = page_look();
+        rapidr_value::theme::system_answer(dark, contrast);
+        watch_page_look();
+    }
+}
+
+/// The page's look followed: when it changes, a theme that follows it
+/// changes too.
+fn watch_page_look() {
+    if LOOK_WATCHED.with(|w| w.replace(true)) || rapidr_ui_app::testhooks::under_test() {
+        return;
+    }
+    let Some(window) = web_sys::window() else { return };
+    for q in ["(prefers-color-scheme: dark)", "(forced-colors: active)", "(prefers-contrast: more)"] {
+        let Some(list) = window.match_media(q).ok().flatten() else { continue };
+        let cb = Closure::<dyn FnMut(web_sys::Event)>::new(|_e: web_sys::Event| {
+            if rapidr_value::theme::wants_system() {
+                let (dark, contrast) = page_look();
+                rapidr_value::theme::system_answer(dark, contrast);
+                crate::kernel_web::redraw();
+            }
+        });
+        let _ = list.add_event_listener_with_callback("change", cb.as_ref().unchecked_ref());
+        cb.forget();
+    }
 }
 
 /// Follows the mouse over the page (Screen.MouseX / MouseY).
@@ -65,7 +98,7 @@ fn screen_prop(prop: &str) -> i64 {
 
 impl Platform for Web {
     fn theme(&self) -> String {
-        THEME.with(Cell::get).to_string()
+        rapidr_value::theme::current().name.to_string()
     }
 
     fn set_theme(&self, name: &str) {

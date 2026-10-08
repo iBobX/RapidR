@@ -26,7 +26,7 @@
 
 use rapidr_value::dock::access::{self, AccessPart};
 use rapidr_value::dock::geometry::{self, DocHit, Group, GroupHit, Hit, Slot};
-use rapidr_value::dock::manager::{self, Drag, Part, SplitDrag, User};
+use rapidr_value::dock::manager::{self, DocDrag, DocSplitDrag, Drag, Part, SplitDrag, User};
 use rapidr_value::dock::{look, Axis, Target};
 use rapidr_value::input::Button;
 use rapidr_value::objects::a11y::{AccessNode, Action};
@@ -408,6 +408,20 @@ impl ComponentKind for DockDocs {
         false
     }
 
+    /// (tooltip.rs) A tab's whole title, its close button, a view switch's
+    /// segment.
+    fn tip_at(&self, store: &dyn Store, id: &str, x: f64, y: f64) -> Option<String> {
+        let dock = docs_dock(store, id)?;
+        let d = manager::with_mut(&dock, |m| m.geometry().documents.clone())?;
+        let titles = |p: &str| manager::with(&dock, |m| { use rapidr_value::dock::geometry::Titles; m.titles().title(p) }).unwrap_or_default();
+        match d.hit(x.floor() as i64, y.floor() as i64)? {
+            DocHit::Tab(g, i) => Some(titles(&d.groups[g].tabs[i].pane)),
+            DocHit::Close(g, i) => Some(format!("Close {}", titles(&d.groups[g].tabs[i].pane))),
+            DocHit::View(g, k) => d.groups[g].switch.get(k).map(|(_, c, _)| c.clone()),
+            _ => None,
+        }
+    }
+
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let theme = p.theme();
         let Some(dock) = docs_dock(cx.store, cx.id) else {
@@ -420,6 +434,14 @@ impl ComponentKind for DockDocs {
             Some(look::documents_ops(m, &d, theme, &font))
         });
         p.ops(ops.unwrap_or_default());
+    }
+
+    /// (over the documents' components) Where a dragged tab would go.
+    fn paint_over(&self, store: &dyn Store, id: &str, _w: i64, _h: i64, p: &mut Painter) {
+        let Some(dock) = docs_dock(store, id) else { return };
+        let theme = p.theme();
+        let ops = manager::with(&dock, |m| look::documents_overlay_ops(m, theme)).unwrap_or_default();
+        p.ops(ops);
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
@@ -442,15 +464,76 @@ impl ComponentKind for DockDocs {
                 }
             }),
             MouseKind::Down if m.button == Button::Left => match hit {
-                Some(DocHit::Tab(i)) => send(cx, &dock, User::Select(d.tabs[i].pane.clone())),
-                Some(DocHit::Close(i)) => manager::with_mut(&dock, |mm| mm.ui.pressed = Some(Part::Doc(DocHit::Close(i)))),
-                None => {}
+                Some(DocHit::Tab(g, i)) => {
+                    let pane = d.groups[g].tabs[i].pane.clone();
+                    send(cx, &dock, User::Select(pane.clone()));
+                    manager::with_mut(&dock, |mm| mm.ui.doc_drag = Some(DocDrag { pane, from: (x, y), at: (x, y), started: false, target: None, preview: None, bar: None }));
+                }
+                Some(DocHit::Close(g, i)) => manager::with_mut(&dock, |mm| mm.ui.pressed = Some(Part::Doc(DocHit::Close(g, i)))),
+                Some(DocHit::View(g, k)) => {
+                    if let (Some(doc), Some((v, _, _))) = (d.groups[g].shown().cloned(), d.groups[g].switch.get(k)) {
+                        send(cx, &dock, User::View(doc, *v));
+                    }
+                }
+                Some(DocHit::Splitter(i)) => {
+                    let sp = &d.splitters[i];
+                    let start = d.extents.iter().find(|(p, _)| *p == sp.path).map(|(_, e)| e.clone()).unwrap_or_default();
+                    let from = if sp.axis == Axis::Row { x } else { y };
+                    manager::with_mut(&dock, |mm| mm.ui.doc_split = Some(DocSplitDrag { splitter: i, views_of: None, start, from }));
+                }
+                Some(DocHit::ViewSplitter(g)) => {
+                    let c = d.groups[g].content;
+                    manager::with_mut(&dock, |mm| mm.ui.doc_split = Some(DocSplitDrag { splitter: 0, views_of: Some(g), start: vec![c.0, c.2], from: x }));
+                }
+                Some(DocHit::Strip(_)) | None => {}
             },
+            // (a double click on a strip's empty part: nothing; on a tab: the
+            // tab stays — VS Code pins it, we have no preview tabs)
+            MouseKind::Move if m.captured => {
+                if let Some(step) = doc_split_step(&dock, &d, x, y, false) {
+                    send(cx, &dock, step);
+                    return out;
+                }
+                manager::with_mut(&dock, |mm| {
+                    let Some(mut drag) = mm.ui.doc_drag.clone() else { return };
+                    drag.at = (x, y);
+                    if !drag.started && ((x - drag.from.0).abs() > DRAG_START || (y - drag.from.1).abs() > DRAG_START) {
+                        drag.started = true;
+                        mm.ui.hover = None;
+                    }
+                    if drag.started {
+                        match d.drop_at(&drag.pane, x, y) {
+                            Some((t, preview, bar)) => {
+                                drag.target = Some(t);
+                                drag.preview = preview;
+                                drag.bar = bar;
+                            }
+                            None => {
+                                drag.target = None;
+                                drag.preview = None;
+                                drag.bar = None;
+                            }
+                        }
+                    }
+                    mm.ui.doc_drag = Some(drag);
+                });
+            }
             MouseKind::Up => {
+                if let Some(step) = doc_split_step(&dock, &d, x, y, true) {
+                    manager::with_mut(&dock, |mm| mm.ui.doc_split = None);
+                    send(cx, &dock, step);
+                    return out;
+                }
+                manager::with_mut(&dock, |mm| mm.ui.doc_split = None);
+                let drag = manager::with_mut(&dock, |mm| mm.ui.doc_drag.take());
+                if let Some(DocDrag { pane, started: true, target: Some(t), .. }) = drag {
+                    send(cx, &dock, User::MoveDocument(pane, t));
+                    return out;
+                }
                 let pressed = manager::with_mut(&dock, |mm| mm.ui.pressed.take());
                 match (m.button, pressed, hit) {
-                    (Button::Left, Some(Part::Doc(DocHit::Close(a))), Some(DocHit::Close(b))) if a == b && m.inside => send(cx, &dock, User::CloseDocument(d.tabs[a].pane.clone())),
-                    (Button::Middle, _, Some(DocHit::Tab(i) | DocHit::Close(i))) if m.inside => send(cx, &dock, User::CloseDocument(d.tabs[i].pane.clone())),
+                    (Button::Left, Some(Part::Doc(DocHit::Close(a, i))), Some(DocHit::Close(b, k))) if (a, i) == (b, k) && m.inside => send(cx, &dock, User::CloseDocument(d.groups[a].tabs[i].pane.clone())),
+                    (Button::Middle, _, Some(DocHit::Tab(g, i) | DocHit::Close(g, i))) if m.inside => send(cx, &dock, User::CloseDocument(d.groups[g].tabs[i].pane.clone())),
                     _ => {}
                 }
             }
@@ -472,12 +555,60 @@ impl ComponentKind for DockDocs {
     fn access(&self, cx: &mut Cx, action: Action, part: Option<usize>, _value: Option<&AccessValue>) -> bool {
         let Some(dock) = docs_dock(cx.store, cx.id) else { return false };
         let Some(d) = manager::with_mut(&dock, |m| m.geometry().documents.clone()) else { return false };
+        let tabs: Vec<String> = d.groups.iter().flat_map(|g| g.tabs.iter().map(|t| t.pane.clone())).collect();
         match (part.and_then(access::decode), action) {
-            (Some(AccessPart::Tab(i)), Action::Click) if i < d.tabs.len() => send(cx, &dock, User::Select(d.tabs[i].pane.clone())),
-            (Some(AccessPart::Close(i)), Action::Click) if i < d.tabs.len() => send(cx, &dock, User::CloseDocument(d.tabs[i].pane.clone())),
+            (Some(AccessPart::Tab(i)), Action::Click) if i < tabs.len() => send(cx, &dock, User::Select(tabs[i].clone())),
+            (Some(AccessPart::Close(i)), Action::Click) if i < tabs.len() => send(cx, &dock, User::CloseDocument(tabs[i].clone())),
+            (Some(AccessPart::View(g, k)), Action::Click) => {
+                let Some(gr) = d.groups.get(g) else { return false };
+                let (Some(doc), Some((v, _, _))) = (gr.shown().cloned(), gr.switch.get(k)) else { return false };
+                send(cx, &dock, User::View(doc, *v));
+            }
+            (Some(AccessPart::DocSplitter(i)), Action::Increment | Action::Decrement) => {
+                let Some(sp) = d.splitters.get(i) else { return false };
+                let Some((_, start)) = d.extents.iter().find(|(p, _)| *p == sp.path) else { return false };
+                let step = if action == Action::Increment { 8 } else { -8 };
+                let extents = doc_extents(start, sp.index, step);
+                send(cx, &dock, User::DocSplit { path: sp.path.clone(), extents, done: true });
+            }
             _ => return false,
         }
         true
+    }
+}
+
+/// A split's extents with splitter `index` moved `delta` pixels, both
+/// neighbours kept at their least.
+fn doc_extents(start: &[i64], index: usize, delta: i64) -> Vec<i64> {
+    let mut ext = start.to_vec();
+    let (a, b) = (index, index + 1);
+    if b >= ext.len() {
+        return ext;
+    }
+    let min = geometry::MIN_EXTENT;
+    let delta = delta.clamp(-(ext[a] - min).max(0), (ext[b] - min).max(0));
+    ext[a] += delta;
+    ext[b] -= delta;
+    ext
+}
+
+/// A held splitter of the document area at (x, y): the user's step (a
+/// group split's new extents, or a document's views' share).
+fn doc_split_step(dock: &str, d: &geometry::Documents, x: i64, y: i64, done: bool) -> Option<User> {
+    let s = manager::with(dock, |m| m.ui.doc_split.clone()).flatten()?;
+    match s.views_of {
+        Some(g) => {
+            let gr = d.groups.get(g)?;
+            let doc = gr.shown()?.clone();
+            let (cx0, cw) = (s.start[0], s.start[1].max(1));
+            let ratio = ((x - cx0) * 1000 / cw).clamp(100, 900);
+            Some(User::ViewRatio(doc, ratio, done))
+        }
+        None => {
+            let sp = d.splitters.get(s.splitter)?;
+            let delta = if sp.axis == Axis::Row { x } else { y } - s.from;
+            Some(User::DocSplit { path: sp.path.clone(), extents: doc_extents(&s.start, sp.index, delta), done })
+        }
     }
 }
 
@@ -611,6 +742,43 @@ pub fn key(f: &mut FormUi, store: &dyn Store, _ts: &mut TextSystem, vk: i64, mod
             false
         }
         _ => false,
+    }
+}
+
+/// The resize pointer over a dock manager's splitter or its document
+/// area's (`Some(true)`: one standing between left and right, ↔), at
+/// (x, y) of component `id` of kind `kind`.
+pub fn splitter_cursor(store: &dyn Store, kind: &str, id: &str, x: i64, y: i64) -> Option<bool> {
+    let grab = |r: &rapidr_value::dock::Rect| x >= r.0 - 1 && y >= r.1 - 1 && x < r.0 + r.2 + 1 && y < r.1 + r.3 + 1;
+    match kind {
+        "RDOCKMANAGER" => {
+            if !manager::exists(id) {
+                return None;
+            }
+            manager::with_mut(id, |m| {
+                if let Some(s) = m.ui.split.clone() {
+                    return m.geometry().splitters.get(s.splitter).map(|s| s.axis == Axis::Row);
+                }
+                m.geometry().splitters.iter().find(|s| grab(&s.rect)).map(|s| s.axis == Axis::Row)
+            })
+        }
+        "RDOCKDOCS" => {
+            let dock = docs_dock(store, id)?;
+            manager::with_mut(&dock, |m| {
+                let d = m.geometry().documents.clone()?;
+                if let Some(s) = &m.ui.doc_split {
+                    return match s.views_of {
+                        Some(_) => Some(true),
+                        None => d.splitters.get(s.splitter).map(|s| s.axis == Axis::Row),
+                    };
+                }
+                if d.groups.iter().any(|g| g.view_splitter.as_ref().is_some_and(grab)) {
+                    return Some(true);
+                }
+                d.splitters.iter().find(|s| grab(&s.rect)).map(|s| s.axis == Axis::Row)
+            })
+        }
+        _ => None,
     }
 }
 

@@ -31,6 +31,9 @@ pub enum ModelOp {
     Arrow { points: [(f64, f64); 3], color: u32 },
     /// Windows' 50 % pattern (a scroll bar's track): [`Op::Checker`].
     Checker { rect: Rect, a: u32, b: u32 },
+    /// A rounded ring `width` pixels wide inside `rect` (RapidR's look's
+    /// focus ring): [`Op::Round`] with no fill.
+    Ring { rect: Rect, radius: f64, color: u32, width: f64 },
 }
 
 /// Where text sits in its rectangle.
@@ -86,6 +89,11 @@ pub enum Op {
     /// focus rings (`rapidr_value::theme`); a circle when `radius` is half
     /// its side.
     Round { rect: Rect, radius: f64, fill: Option<u32>, stroke: Option<u32>, width: f64 },
+    /// A soft shadow around the rounded rectangle `rect` (RapidR's look's
+    /// elevation: menus, drop-down lists, windows on the page), `size`
+    /// pixels deep and `drop` pixels down, `color` at `alpha` / 255 where
+    /// it is darkest, fading to nothing — drawn under what casts it.
+    Shadow { rect: Rect, radius: f64, size: f64, drop: f64, color: u32, alpha: u8 },
     /// Line segments through `points` (pixel coordinates), `width` pixels
     /// wide with round joins and ends, smooth: a fluent check mark, a
     /// chevron.
@@ -110,6 +118,7 @@ impl From<ModelOp> for Op {
             ModelOp::Focus { rect } => Op::Focus { rect },
             ModelOp::Arrow { points, color } => Op::Arrow { points, color },
             ModelOp::Checker { rect, a, b } => Op::Checker { rect, a, b },
+            ModelOp::Ring { rect, radius, color, width } => Op::Round { rect, radius, fill: None, stroke: Some(color), width },
         }
     }
 }

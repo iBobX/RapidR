@@ -6,7 +6,8 @@
 # checks (licences, and the notices every build carries).
 #
 # Needs: ./rapidr built (cargo build --release -p rapidr-cli, then copy it),
-# the web artifacts (tools/build_web_artifacts.sh) and the repo served on
+# the web artifacts (tools/build_web_artifacts.sh; the web stage builds
+# RapidR Studio's web site from them, target/studio-web) and the repo served on
 # http://localhost:8765 (or RAPIDR_URL) for the browser tests (Playwright).
 # Run one at a time.
 #
@@ -72,7 +73,11 @@ if want web; then
   echo "== web gui parity at 2x (high-DPI: what programs read is unchanged)"; RAPIDR_DPR=2 RAPIDR_DESKTOP_CAPTURES="$PWD/$W/gui_captures" node tests/web_gui_parity.mjs 2>&1 | grep -E "✗|≠|Kernel host|parity"
   # (Chrome's accessibility tree over the mirror = the kernel's)
   echo "== web accessibility"; node tests/web_a11y.mjs 2>&1 | grep -E "✗|^    |Kernel host|Web accessibility"
-  echo "== web"; for t in tests/web_ide_*.mjs tests/debug_e2e_*.mjs tests/web_session.mjs tests/web_bundle_*.mjs tests/web_file_dialogs.mjs tests/web_modal_focus.mjs tests/web_end_timer.mjs tests/web_main_end.mjs tests/web_vm_yield.mjs tests/web_overlays.mjs tests/web_fonts.mjs tests/web_webapi.mjs tests/web_sqlite.mjs; do
+  # (programs on the web runtime's own page, tests/web_run.mjs; RapidR
+  # Studio's run frame — its isolation, its file pickers — on Studio's web
+  # build, made here from the current sources and runtime)
+  RAPIDR="$PWD/rapidr" bash tools/build_studio_web.sh --no-runtime >/dev/null || echo "tools/build_studio_web.sh: FAILED"
+  echo "== web"; for t in tests/web_align.mjs tests/web_canvas.mjs tests/web_components.mjs tests/web_dialogs.mjs tests/web_grid.mjs tests/web_grid_draw.mjs tests/web_lists.mjs tests/web_owner_list.mjs tests/web_objects.mjs tests/web_picture.mjs tests/web_reentrant_events.mjs tests/web_multiform.mjs tests/web_pixels.mjs tests/web_debugger.mjs tests/web_session.mjs tests/web_bundle_*.mjs tests/web_file_dialogs.mjs tests/web_modal_focus.mjs tests/web_end_timer.mjs tests/web_main_end.mjs tests/web_vm_yield.mjs tests/web_overlays.mjs tests/web_fonts.mjs tests/web_webapi.mjs tests/web_sqlite.mjs tests/studio_run_frame.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "ASSERT|Error|✗"; }
   done
 fi

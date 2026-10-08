@@ -179,10 +179,22 @@ pub fn method(name: &str, method: &str, args: &[Value]) -> Value {
     if method == "leechfile" && rqlib::is_download(name) {
         return leech_file(name);
     }
-    if method == "open" && rqlib::is_comport(name) && !comport::ports_installed() {
-        let v = web_serial_open(name);
-        fire_events(name);
-        return v;
+    if rqlib::is_comport(name) {
+        if method == "open" && WEB_SERIAL.with(|w| w.get()) {
+            let v = web_serial_open(name);
+            fire_events(name);
+            return v;
+        }
+        // (the ports the page was allowed, before they were first read:
+        // the program waits for them)
+        if method == "filllist" {
+            return fill_list(name, args);
+        }
+        if method == "readline" {
+            if let Some(v) = read_line_wait(name, args) {
+                return v;
+            }
+        }
     }
     let v = match rapidr_value::objects::call(name, method, args, &|id, p| crate::object_web::rp_comp_get(id, p)) {
         Some(Ok(v)) => v,
@@ -297,8 +309,19 @@ fn fetch_now(url: &str) -> Outcome {
 
 // ------------------------------------------------------------- QCOMPORT --
 
+thread_local! {
+    /// Whether the ports are Web Serial's (else the tests' scripted ones).
+    static WEB_SERIAL: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// The ports the page was allowed (`getPorts`), as ListPorts lists
+    /// them: COM1, COM2 … in Web Serial's order, with their USB IDs. Read
+    /// when the first QCOMPORT is made (`getPorts` answers a moment later:
+    /// a list taken at once is empty, and OnPortsChanged tells when they
+    /// come), and again when one is plugged in or out, or allowed.
+    static GRANTED: RefCell<Vec<comport::PortInfo>> = const { RefCell::new(Vec::new()) };
+}
+
 /// The tests' scripted ports when the page (or the program's ENVIRON) has
-/// RAPIDR_TEST_COMPORT; else none installed: Open asks Web Serial.
+/// RAPIDR_TEST_COMPORT; else Web Serial's: Open asks for the port.
 fn install_ports() {
     if comport::ports_installed() {
         return;
@@ -307,13 +330,69 @@ fn install_ports() {
     let page = web_sys::window().and_then(|w| js_sys::Reflect::get(&w, &"RAPIDR_TEST_COMPORT".into()).ok()).and_then(|v| v.as_string());
     if let Some(s) = page.or((!script.is_empty()).then_some(script)) {
         comport::set_ports(Rc::new(comport::TestPorts::parse(&s)));
+        return;
+    }
+    WEB_SERIAL.with(|w| w.set(true));
+    comport::set_ports(Rc::new(WebPorts));
+    let Some(serial) = web_serial() else { return };
+    // (plugged in or out: the list read again — OnPortsChanged's look sees it)
+    for event in ["connect", "disconnect"] {
+        let refresh = Closure::<dyn FnMut()>::new(|| wasm_bindgen_futures::spawn_local(refresh_granted()));
+        if let Ok(add) = js_sys::Reflect::get(&serial, &"addEventListener".into()).and_then(|f| f.dyn_into::<js_sys::Function>()) {
+            let _ = add.call2(&serial, &event.into(), refresh.as_ref().unchecked_ref());
+        }
+        refresh.forget();
+    }
+    wasm_bindgen_futures::spawn_local(refresh_granted());
+}
+
+fn web_serial() -> Option<JsValue> {
+    web_sys::window().and_then(|w| js_sys::Reflect::get(&w.navigator(), &"serial".into()).ok()).filter(|s| !s.is_undefined())
+}
+
+/// The ports the page was allowed, read again (GRANTED).
+async fn refresh_granted() {
+    let Some(serial) = web_serial() else { return };
+    let granted = call_promise(&serial, "getPorts", &[]).await.map(|a| js_sys::Array::from(&a)).unwrap_or_default();
+    let mut list = Vec::new();
+    for (i, port) in granted.iter().enumerate() {
+        let info = js_sys::Reflect::get(&port, &"getInfo".into()).ok().and_then(|f| f.dyn_into::<js_sys::Function>().ok()).and_then(|f| f.call0(&port).ok());
+        let id = |k: &str| info.as_ref().and_then(|i| js_sys::Reflect::get(i, &k.into()).ok()).and_then(|v| v.as_f64()).unwrap_or(0.0) as u16;
+        list.push(comport::PortInfo { name: format!("COM{}", i + 1), vid: id("usbVendorId"), pid: id("usbProductId"), ..comport::PortInfo::default() });
+    }
+    GRANTED.with(|g| *g.borrow_mut() = list);
+}
+
+/// Web Serial's ports: listed from GRANTED; opened by `web_serial_open`
+/// (it waits for the browser), never here.
+struct WebPorts;
+
+impl comport::Ports for WebPorts {
+    fn open(&self, _port: &str, _settings: &Settings) -> Result<Box<dyn Link>, PortError> {
+        Err(PortError::NotFound)
+    }
+    fn list(&self) -> Vec<comport::PortInfo> {
+        GRANTED.with(|g| g.borrow().clone())
     }
 }
 
-/// What a Web Serial port's reader put in, and its writer.
+/// An open Web Serial port: what its reader put in, its writer, the lines
+/// its look last read.
 struct WebLink {
-    inbox: Rc<RefCell<VecDeque<u8>>>,
+    device: JsValue,
+    reader: JsValue,
     writer: JsValue,
+    inbox: Rc<RefCell<VecDeque<u8>>>,
+    signals: Rc<std::cell::Cell<comport::Signals>>,
+    open: Rc<std::cell::Cell<bool>>,
+}
+
+/// `port.setSignals({…})`, not waited for (Web Serial runs them in order).
+fn set_signals(device: &JsValue, key: &str, on: bool) -> Result<(), PortError> {
+    let o = js_sys::Object::new();
+    let _ = js_sys::Reflect::set(&o, &key.into(), &on.into());
+    let f: js_sys::Function = js_sys::Reflect::get(device, &"setSignals".into()).and_then(|f| f.dyn_into()).map_err(|_| PortError::InvalidParameter)?;
+    f.call1(device, &o).map(|_| ()).map_err(|_| PortError::InvalidParameter)
 }
 
 impl Link for WebLink {
@@ -336,6 +415,52 @@ impl Link for WebLink {
             self.inbox.borrow_mut().clear();
         }
     }
+    fn set_dtr(&mut self, on: bool) -> Result<(), PortError> {
+        set_signals(&self.device, "dataTerminalReady", on)
+    }
+    fn set_rts(&mut self, on: bool) -> Result<(), PortError> {
+        set_signals(&self.device, "requestToSend", on)
+    }
+    fn signals(&mut self) -> comport::Signals {
+        self.signals.get()
+    }
+    fn send_break(&mut self, ms: u64) -> Result<(), PortError> {
+        set_signals(&self.device, "break", true)?;
+        let device = self.device.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            sleep_ms(ms as i32).await;
+            let _ = set_signals(&device, "break", false);
+        });
+        Ok(())
+    }
+    fn line_length(&mut self, end: &[u8], _wait_ms: u64) -> Option<usize> {
+        comport::find_end(self.inbox.borrow().iter(), end)
+    }
+}
+
+impl Drop for WebLink {
+    /// Close: the reader and writer let go, the port closed (so it can be
+    /// opened again, here or by another program).
+    fn drop(&mut self) {
+        self.open.set(false);
+        let (device, reader, writer) = (self.device.clone(), self.reader.clone(), self.writer.clone());
+        wasm_bindgen_futures::spawn_local(async move {
+            let _ = call_promise(&reader, "cancel", &[]).await;
+            let _ = call_promise(&reader, "releaseLock", &[]).await;
+            let _ = call_promise(&writer, "releaseLock", &[]).await;
+            let _ = call_promise(&device, "close", &[]).await;
+        });
+    }
+}
+
+/// A promise of `ms` milliseconds (setTimeout).
+async fn sleep_ms(ms: i32) {
+    let p = js_sys::Promise::new(&mut |resolve, _| {
+        if let Some(w) = web_sys::window() {
+            let _ = w.set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, ms.max(0));
+        }
+    });
+    let _ = JsFuture::from(p).await;
 }
 
 /// QCOMPORT's Open on Web Serial: the page's n-th port for `COMn` (one it
@@ -344,8 +469,7 @@ impl Link for WebLink {
 /// isn't there.
 fn web_serial_open(name: &str) -> Value {
     let Some((port, settings)) = rqlib::comport_open_begin(name) else { return v_null() };
-    let serial = web_sys::window().and_then(|w| js_sys::Reflect::get(&w.navigator(), &"serial".into()).ok()).filter(|s| !s.is_undefined());
-    let Some(serial) = serial else {
+    let Some(serial) = web_serial() else {
         rqlib::comport_open_end(name, Err(PortError::NotFound));
         return v_null();
     };
@@ -356,6 +480,7 @@ fn web_serial_open(name: &str) -> Value {
     let name = name.to_string();
     wasm_bindgen_futures::spawn_local(async move {
         let opened = open_port(&serial, &port, &settings).await;
+        refresh_granted().await;
         rqlib::comport_open_end(&name, opened);
         fire_events(&name);
         crate::dialog_web::task_done(v_null());
@@ -386,10 +511,23 @@ async fn open_port(serial: &JsValue, port: &str, s: &Settings) -> Result<Box<dyn
     set("parity", ["none", "odd", "even"].get(usize::from(s.parity)).copied().unwrap_or("none").into());
     // (XON / XOFF: Web Serial has none)
     set("flowControl", if s.flow == Flow::Hardware { "hardware" } else { "none" }.into());
-    call_promise(&device, "open", &[options.into()]).await.map_err(|e| {
-        let n = js_sys::Reflect::get(&e, &"name".into()).ok().and_then(|n| n.as_string()).unwrap_or_default();
-        if n == "InvalidStateError" || n == "NetworkError" { PortError::AccessDenied } else { PortError::Other(n) }
-    })?;
+    // (a port this page closed a moment ago may still be closing: a few
+    // tries)
+    let mut tries = 0;
+    loop {
+        match call_promise(&device, "open", &[options.clone().into()]).await {
+            Ok(_) => break,
+            Err(e) => {
+                let n = js_sys::Reflect::get(&e, &"name".into()).ok().and_then(|n| n.as_string()).unwrap_or_default();
+                tries += 1;
+                if n == "InvalidStateError" && tries < 10 {
+                    sleep_ms(50).await;
+                    continue;
+                }
+                return Err(if n == "InvalidStateError" || n == "NetworkError" { PortError::AccessDenied } else { PortError::Other(n) });
+            }
+        }
+    }
     let readable = js_sys::Reflect::get(&device, &"readable".into()).map_err(|_| PortError::NotFound)?;
     let writable = js_sys::Reflect::get(&device, &"writable".into()).map_err(|_| PortError::NotFound)?;
     let get_writer: js_sys::Function = js_sys::Reflect::get(&writable, &"getWriter".into()).and_then(|f| f.dyn_into()).map_err(|_| PortError::NotFound)?;
@@ -397,9 +535,11 @@ async fn open_port(serial: &JsValue, port: &str, s: &Settings) -> Result<Box<dyn
     let get_reader: js_sys::Function = js_sys::Reflect::get(&readable, &"getReader".into()).and_then(|f| f.dyn_into()).map_err(|_| PortError::NotFound)?;
     let reader = get_reader.call0(&readable).map_err(|_| PortError::NotFound)?;
     let inbox = Rc::new(RefCell::new(VecDeque::new()));
-    let into = inbox.clone();
+    let open = Rc::new(std::cell::Cell::new(true));
+    let signals = Rc::new(std::cell::Cell::new(comport::Signals::default()));
+    let (into, reading) = (inbox.clone(), reader.clone());
     wasm_bindgen_futures::spawn_local(async move {
-        while let Ok(chunk) = call_promise(&reader, "read", &[]).await {
+        while let Ok(chunk) = call_promise(&reading, "read", &[]).await {
             if js_sys::Reflect::get(&chunk, &"done".into()).ok().and_then(|d| d.as_bool()).unwrap_or(true) {
                 break;
             }
@@ -408,11 +548,68 @@ async fn open_port(serial: &JsValue, port: &str, s: &Settings) -> Result<Box<dyn
             }
         }
     });
-    Ok(Box::new(WebLink { inbox, writer }))
+    // (the lines the other end drives: `getSignals` is a promise, so read
+    // every 100 ms while the port is open)
+    let (watched, still, lines) = (device.clone(), open.clone(), signals.clone());
+    wasm_bindgen_futures::spawn_local(async move {
+        while still.get() {
+            if let Ok(s) = call_promise(&watched, "getSignals", &[]).await {
+                let on = |k: &str| js_sys::Reflect::get(&s, &k.into()).ok().and_then(|v| v.as_bool()).unwrap_or(false);
+                lines.set(comport::Signals { cts: on("clearToSend"), dsr: on("dataSetReady"), cd: on("dataCarrierDetect"), ri: on("ringIndicator") });
+            }
+            sleep_ms(100).await;
+        }
+    });
+    Ok(Box::new(WebLink { device, reader, writer, inbox, signals, open }))
 }
 
-/// The page's look at `name` (a QCOMPORT whose OnRxChar the program
-/// handles): its events fired; never an OnTimer.
+/// ReadLine(Timeout) with no whole line there yet: the program waits (the
+/// page paints, its timers tick) until one arrives or the time is up.
+/// `None`: nothing to wait for — the call answers at once.
+fn read_line_wait(name: &str, args: &[Value]) -> Option<Value> {
+    let timeout = match args.first() {
+        None | Some(Value::Null) => 1000.0,
+        Some(v) => v.to_f64(),
+    };
+    let connected = rqlib::get(name, "connected").is_some_and(|v| v.to_i64() != 0);
+    if timeout <= 0.0 || !connected || rqlib::comport_has_line(name) || !crate::dialog_web::wait_task() {
+        return None;
+    }
+    let name = name.to_string();
+    wasm_bindgen_futures::spawn_local(async move {
+        let until = js_sys::Date::now() + timeout;
+        while js_sys::Date::now() < until && !rqlib::comport_has_line(&name) {
+            sleep_ms(10).await;
+        }
+        let line = rapidr_value::objects::call(&name, "readline", &[v_int(0)], &|id, p| crate::object_web::rp_comp_get(id, p)).and_then(Result::ok).unwrap_or_else(|| v_str(""));
+        fire_events(&name);
+        crate::dialog_web::task_done(line);
+    });
+    Some(v_null())
+}
+
+/// FillList(Control): the ports put in a list or combo box (cleared first;
+/// Port's selected, else the first) — as the desktop's `io::fill_list`.
+fn fill_list(name: &str, args: &[Value]) -> Value {
+    let Some(items) = rqlib::comport_port_items(name) else { return v_int(0) };
+    let control = args.first().map(Value::to_string_val).unwrap_or_default();
+    if control.is_empty() || rp_comp_type(&control).is_empty() {
+        return v_int(items.len() as i64);
+    }
+    rp_comp_method(&control, "clear", &[]);
+    for item in &items {
+        rp_comp_method(&control, "additems", &[v_str(item)]);
+    }
+    let port = rqlib::get(name, "port").map(|v| v.to_string_val()).unwrap_or_default();
+    let at = items.iter().position(|i| i == &port || i.starts_with(&format!("{port} ("))).unwrap_or(0);
+    if !items.is_empty() {
+        rp_comp_set(&control, "itemindex", v_int(at as i64));
+    }
+    v_int(items.len() as i64)
+}
+
+/// The page's look at `name` (a QCOMPORT whose OnRxChar, OnLine or
+/// OnPortsChanged the program handles): its events fired; never an OnTimer.
 pub fn look(name: &str) {
     // (a media object's Timer: its tick — OnChange)
     if rqlib::media_timer(name).is_some() {
@@ -420,7 +617,8 @@ pub fn look(name: &str) {
         fire_events(name);
         return;
     }
-    for (event, args) in rqlib::look(name) {
+    let handled = |e: &str| crate::object_web::rp_has_handler(name, e);
+    for (event, args) in rqlib::look(name, &handled) {
         rp_fire_event_args(name, event, &args);
     }
 }

@@ -6,7 +6,8 @@
 //! is under a point. Theme-free: every theme draws the same places, so the
 //! components sit where they sit whatever the look (logical pixels).
 
-use super::{Anchor, Axis, DocumentMode, Layout, Node, Rect, Side, Target};
+use super::manager::DocView;
+use super::{Anchor, Axis, DocNode, DocTarget, DocumentMode, Layout, Node, Rect, Side, Target};
 use crate::objects::font::Font;
 use crate::objects::text::text_size;
 
@@ -18,6 +19,12 @@ pub const MIN_EXTENT: i64 = 60;
 pub const HEADER: i64 = 28;
 /// The tabbed document area's tab strip.
 pub const DOC_TABS: i64 = 30;
+/// A document's view switch (Design | Code | side by side): its height,
+/// the side-by-side segment's width.
+pub const SWITCH_H: i64 = 22;
+pub const SWITCH_SPLIT: i64 = 30;
+/// The least a tab shrinks to when a strip is full.
+pub const MIN_TAB: i64 = 64;
 /// An auto-hide strip's thickness.
 pub const STRIP: i64 = 24;
 /// A header button's side.
@@ -112,14 +119,45 @@ impl Group {
     }
 }
 
-/// The document area: where it is, its tabs (tabbed mode) and where the
-/// documents go (both relative to it).
+/// The document area: where it is (in the dock manager), and in its own
+/// coordinates its groups (tabbed mode) and the splitters between them;
+/// MDI: `content` is all of it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Documents {
     pub rect: Rect,
-    pub tabs: Vec<Tab>,
+    pub groups: Vec<DocGroup>,
+    pub splitters: Vec<Splitter>,
+    /// Each split's children's extents as laid out (by its path).
+    pub extents: Vec<(Vec<usize>, Vec<i64>)>,
     pub content: Rect,
     pub path: Vec<usize>,
+}
+
+/// A group of tabbed documents (the document area's coordinates): its
+/// strip's tabs, the shown document's view switch, where its view(s) go.
+#[derive(Clone, Debug, PartialEq)]
+pub struct DocGroup {
+    /// Its path in [`Layout::groups`].
+    pub path: Vec<usize>,
+    pub rect: Rect,
+    pub docs: Vec<String>,
+    pub active: usize,
+    pub tabs: Vec<Tab>,
+    /// The switch's segments: (the view, its caption, its place).
+    pub switch: Vec<(DocView, String, Rect)>,
+    /// Under the strip.
+    pub content: Rect,
+    /// Where the shown document's component(s) go: one, or two side by
+    /// side with the splitter between them.
+    pub places: Vec<Rect>,
+    pub view_splitter: Option<Rect>,
+}
+
+impl DocGroup {
+    /// The shown document.
+    pub fn shown(&self) -> Option<&String> {
+        self.docs.get(self.active)
+    }
 }
 
 /// A splitter: between children `index` and `index + 1` of the split at
@@ -140,10 +178,24 @@ pub struct StripTab {
     pub rect: Rect,
 }
 
-/// What a pane looks like in a tab: its title and icon name.
+/// What a pane looks like in a tab: its title and icon name; a
+/// document's views (captions), the one shown, the side-by-side share, a
+/// change not saved.
 pub trait Titles {
     fn title(&self, pane: &str) -> String;
     fn icon(&self, pane: &str) -> String;
+    fn views(&self, _pane: &str) -> Vec<String> {
+        Vec::new()
+    }
+    fn view(&self, _pane: &str) -> DocView {
+        DocView::First
+    }
+    fn view_ratio(&self, _pane: &str) -> i64 {
+        500
+    }
+    fn modified(&self, _pane: &str) -> bool {
+        false
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -209,21 +261,114 @@ pub fn group(slot: Slot, panes: &[String], active: usize, rect: Rect, path: Vec<
     Group { slot, panes: panes.to_vec(), active: active.min(panes.len().saturating_sub(1)), rect, tabs, buttons, content, path }
 }
 
-/// The document area's tabs (tabbed mode) and content, `rect` its place.
+/// The document area's groups (tabbed mode) and content, `rect` its place.
 fn documents(layout: &Layout, rect: Rect, path: Vec<usize>, titles: &dyn Titles, font: &Font) -> Documents {
     let (w, h) = (rect.2, rect.3);
+    let mut d = Documents { rect, groups: Vec::new(), splitters: Vec::new(), extents: Vec::new(), content: (0, 0, w, h), path };
     if layout.mode == DocumentMode::Mdi || layout.documents.is_empty() {
-        return Documents { rect, tabs: Vec::new(), content: (0, 0, w, h), path };
+        return d;
     }
-    let mut x = 0;
+    place_docs(&layout.groups, (0, 0, w, h), Vec::new(), titles, font, &mut d);
+    d
+}
+
+/// Extents of a document split's children in proportion to their
+/// weights, each at least [`MIN_EXTENT`] while there's room.
+pub fn weighted(weights: &[i64], avail: i64) -> Vec<i64> {
+    let n = weights.len().max(1) as i64;
+    let total: i64 = weights.iter().map(|w| (*w).max(1)).sum::<i64>().max(1);
+    let mut ext: Vec<i64> = weights.iter().map(|w| avail.max(0) * (*w).max(1) / total).collect();
+    if avail >= MIN_EXTENT * n {
+        // (none under the least: the others give it what it lacks)
+        for i in 0..ext.len() {
+            if ext[i] < MIN_EXTENT {
+                let need = MIN_EXTENT - ext[i];
+                ext[i] = MIN_EXTENT;
+                let big = (0..ext.len()).filter(|&k| k != i).max_by_key(|&k| ext[k]).unwrap_or(i);
+                ext[big] -= need;
+            }
+        }
+    }
+    // (the rounding's leftover to the last)
+    let sum: i64 = ext.iter().sum();
+    if let Some(last) = ext.last_mut() {
+        *last += avail.max(0) - sum;
+    }
+    ext
+}
+
+fn place_docs(node: &DocNode, rect: Rect, path: Vec<usize>, titles: &dyn Titles, font: &Font, d: &mut Documents) {
+    match node {
+        DocNode::Group { docs, active } => d.groups.push(doc_group(docs, *active, rect, path, titles, font)),
+        DocNode::Split { axis, children, weights } => {
+            let (x, y, w, h) = rect;
+            let along = if *axis == Axis::Row { w } else { h };
+            let avail = along - GAP * (children.len() as i64 - 1);
+            let ext = weighted(weights, avail);
+            d.extents.push((path.clone(), ext.clone()));
+            let mut at = 0;
+            for (i, (c, e)) in children.iter().zip(&ext).enumerate() {
+                let r = if *axis == Axis::Row { (x + at, y, *e, h) } else { (x, y + at, w, *e) };
+                let mut p = path.clone();
+                p.push(i);
+                place_docs(c, r, p, titles, font, d);
+                at += e;
+                if i + 1 < children.len() {
+                    let s = if *axis == Axis::Row { (x + at, y, GAP, h) } else { (x, y + at, w, GAP) };
+                    d.splitters.push(Splitter { path: path.clone(), index: i, axis: *axis, rect: s });
+                    at += GAP;
+                }
+            }
+        }
+    }
+}
+
+/// One group of tabbed documents at `rect` (the document area's
+/// coordinates): its tabs (shrunk alike when they don't fit, none under
+/// [`MIN_TAB`]), the shown document's view switch at the strip's right,
+/// and where its view(s) go.
+pub fn doc_group(docs: &[String], active: usize, rect: Rect, path: Vec<usize>, titles: &dyn Titles, font: &Font) -> DocGroup {
+    let (gx, gy, gw, gh) = rect;
+    let active = active.min(docs.len().saturating_sub(1));
+    let shown = docs.get(active).cloned().unwrap_or_default();
+    // (the view switch: each view's caption, then side by side)
+    let views = titles.views(&shown);
+    let mut switch = Vec::new();
+    let mut right = gx + gw - 6;
+    if views.len() >= 2 {
+        let mut segs: Vec<(DocView, String, i64)> = views.iter().enumerate().map(|(i, c)| (if i == 0 { DocView::First } else { DocView::One(i) }, c.clone(), text_size(c, font).0 + 22)).collect();
+        segs.push((DocView::Split, "Side by Side".into(), SWITCH_SPLIT));
+        let total: i64 = segs.iter().map(|s| s.2).sum();
+        let mut x = right - total;
+        let y = gy + (DOC_TABS - SWITCH_H) / 2;
+        for (v, c, wd) in segs {
+            switch.push((v, c, (x, y, wd, SWITCH_H)));
+            x += wd;
+        }
+        right -= total + 8;
+    }
+    let room = (right - gx).max(0);
+    let widths: Vec<i64> = docs.iter().map(|p| tab_width(&titles.title(p), font, !titles.icon(p).is_empty(), true, 12).min(260)).collect();
+    let total: i64 = widths.iter().map(|w| w + 1).sum();
+    let fit = |wd: i64| if total > room && total > 0 { (wd * room / total).max(MIN_TAB.min(wd)) } else { wd };
+    let mut x = gx;
     let mut tabs = Vec::new();
-    for p in &layout.documents {
-        let wd = tab_width(&titles.title(p), font, !titles.icon(p).is_empty(), true, 12).min(260);
-        let close = (x + wd - BUTTON - 6, (DOC_TABS - BUTTON) / 2 + 1, BUTTON - 2, BUTTON - 2);
-        tabs.push(Tab { pane: p.clone(), rect: (x, 0, wd, DOC_TABS), close: Some(close) });
+    for (p, wd) in docs.iter().zip(widths) {
+        let wd = fit(wd);
+        let close = (x + wd - BUTTON - 6, gy + (DOC_TABS - BUTTON) / 2 + 1, BUTTON - 2, BUTTON - 2);
+        tabs.push(Tab { pane: p.clone(), rect: (x, gy, wd, DOC_TABS), close: Some(close) });
         x += wd + 1;
     }
-    Documents { rect, tabs, content: (0, DOC_TABS, w, (h - DOC_TABS).max(0)), path }
+    let content = (gx, gy + DOC_TABS, gw, (gh - DOC_TABS).max(0));
+    let (cx, cy, cw, ch) = content;
+    let (places, view_splitter) = if views.len() >= 2 && titles.view(&shown) == DocView::Split {
+        let first = ((cw - GAP) * titles.view_ratio(&shown).clamp(100, 900) / 1000).max(0);
+        let second = (cw - GAP - first).max(0);
+        (vec![(cx, cy, first, ch), (cx + first + GAP, cy, second, ch)], Some((cx + first, cy, GAP, ch)))
+    } else {
+        (vec![content], None)
+    };
+    DocGroup { path, rect, docs: docs.to_vec(), active, tabs, switch, content, places, view_splitter }
 }
 
 /// Extents along a split for `avail` pixels: each child its size (at
@@ -508,23 +653,97 @@ impl Group {
     }
 }
 
-/// What's under the mouse on the document area (its own coordinates).
+/// What's under the mouse on the document area (its own coordinates):
+/// a group's tab, its close button, a segment of its view switch, the
+/// rest of its strip; a splitter between groups; the splitter between a
+/// group's two views.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DocHit {
-    Tab(usize),
-    Close(usize),
+    Tab(usize, usize),
+    Close(usize, usize),
+    View(usize, usize),
+    Strip(usize),
+    Splitter(usize),
+    ViewSplitter(usize),
 }
 
 impl Documents {
     pub fn hit(&self, x: i64, y: i64) -> Option<DocHit> {
         let inside = |r: &Rect| x >= r.0 && y >= r.1 && x < r.0 + r.2 && y < r.1 + r.3;
-        for (i, t) in self.tabs.iter().enumerate() {
-            if t.close.as_ref().is_some_and(inside) {
-                return Some(DocHit::Close(i));
+        let grab = |r: &Rect| inside(&(r.0 - 1, r.1 - 1, r.2 + 2, r.3 + 2));
+        if let Some(i) = self.splitters.iter().position(|s| grab(&s.rect)) {
+            return Some(DocHit::Splitter(i));
+        }
+        for (g, gr) in self.groups.iter().enumerate() {
+            if gr.view_splitter.as_ref().is_some_and(grab) {
+                return Some(DocHit::ViewSplitter(g));
             }
-            if inside(&t.rect) {
-                return Some(DocHit::Tab(i));
+            if let Some(k) = gr.switch.iter().position(|(_, _, r)| inside(r)) {
+                return Some(DocHit::View(g, k));
             }
+            for (i, t) in gr.tabs.iter().enumerate() {
+                if t.close.as_ref().is_some_and(inside) {
+                    return Some(DocHit::Close(g, i));
+                }
+                if inside(&t.rect) {
+                    return Some(DocHit::Tab(g, i));
+                }
+            }
+            if inside(&(gr.rect.0, gr.rect.1, gr.rect.2, DOC_TABS)) {
+                return Some(DocHit::Strip(g));
+            }
+        }
+        None
+    }
+
+    /// The group holding `doc`.
+    pub fn group_of(&self, doc: &str) -> Option<usize> {
+        self.groups.iter().position(|g| g.docs.iter().any(|d| d == doc))
+    }
+
+    /// Where document `doc` dragged to (x, y) would go, with the outline
+    /// shown (a group's half for a new group beside it, all of it to join
+    /// it) or the insertion bar between tabs: over a strip, among its
+    /// tabs; over a group's page, its outer quarters split it, its middle
+    /// joins it (VS Code's editor groups).
+    pub fn drop_at(&self, doc: &str, x: i64, y: i64) -> Option<(DocTarget, Option<Rect>, Option<Rect>)> {
+        let inside = |r: &Rect| x >= r.0 && y >= r.1 && x < r.0 + r.2 && y < r.1 + r.3;
+        let from = self.group_of(doc);
+        for (g, gr) in self.groups.iter().enumerate() {
+            if !inside(&gr.rect) {
+                continue;
+            }
+            let anchor = gr.docs.first()?.clone();
+            let strip = (gr.rect.0, gr.rect.1, gr.rect.2, DOC_TABS);
+            if inside(&strip) {
+                // (before the first tab whose middle is right of the mouse)
+                let index = gr.tabs.iter().position(|t| x < t.rect.0 + t.rect.2 / 2).unwrap_or(gr.tabs.len());
+                let bx = match gr.tabs.get(index) {
+                    Some(t) => t.rect.0 - 1,
+                    None => gr.tabs.last().map_or(gr.rect.0, |t| t.rect.0 + t.rect.2),
+                };
+                let bar = (bx - 1, gr.rect.1 + 3, 3, DOC_TABS - 6);
+                return Some((DocTarget::Into { anchor, index }, None, Some(bar)));
+            }
+            let (cx, cy, cw, ch) = gr.content;
+            let (fx, fy) = ((x - cx) as f64 / cw.max(1) as f64, (y - cy) as f64 / ch.max(1) as f64);
+            // (the nearest edge within a quarter, else the middle)
+            let edges = [(fx, Side::Left), (1.0 - fx, Side::Right), (fy, Side::Top), (1.0 - fy, Side::Bottom)];
+            let (near, side) = edges.iter().cloned().fold((f64::MAX, Side::Left), |a, b| if b.0 < a.0 { b } else { a });
+            let alone = from == Some(g) && gr.docs.len() == 1;
+            if near < 0.25 && !alone {
+                let r = match side {
+                    Side::Left => (cx, cy, cw / 2, ch),
+                    Side::Right => (cx + cw - cw / 2, cy, cw / 2, ch),
+                    Side::Top => (cx, cy, cw, ch / 2),
+                    Side::Bottom => (cx, cy + ch - ch / 2, cw, ch / 2),
+                };
+                return Some((DocTarget::Split { anchor, side }, Some(r), None));
+            }
+            if from == Some(g) {
+                return None;
+            }
+            return Some((DocTarget::Into { anchor, index: gr.docs.len() }, Some(gr.content), None));
         }
         None
     }

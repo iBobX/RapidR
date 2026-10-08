@@ -1,0 +1,64 @@
+' esp32_check.rr: the real-board check tools/esp32_check.sh runs (by hand:
+' it needs an ESP32 on a USB port). It lists the serial ports, opens the
+' board's at 115200, pulses a reset through DTR / RTS and prints what the
+' board says for a few seconds: its ROM's boot log, then its program's.
+'
+' It NEVER writes to the board: no byte is sent, only the modem lines move
+' (a plain reset — IO0 stays high, so the board boots its own program; the
+' download mode and its flash are never touched).
+'
+'   rapidr run tools/esp32_check.rr [port] [seconds]
+$APPTYPE CONSOLE
+
+DIM Board AS RComPort
+DIM port AS STRING
+DIM i AS INTEGER
+DIM lines AS INTEGER
+DIM seconds AS DOUBLE
+DIM t AS DOUBLE
+DIM l AS STRING
+
+PRINT "ports:"; Board.ListPorts
+FOR i = 0 TO Board.PortCount - 1
+    PRINT "  "; Board.PortName(i); "  vid "; HEX$(Board.PortVendorID(i)); " pid "; HEX$(Board.PortProductID(i)); "  "; Board.PortDescription(i); "  ["; Board.PortManufacturer(i); " "; Board.PortSerialNumber(i); "]"
+    ' (the first USB adapter, unless a port is given)
+    IF port = "" AND Board.PortVendorID(i) <> 0 THEN port = Board.PortName(i)
+NEXT
+IF COMMAND$(1) <> "" THEN port = COMMAND$(1)
+seconds = 4
+IF COMMAND$(2) <> "" THEN seconds = VAL(COMMAND$(2))
+IF port = "" THEN
+    PRINT "no USB serial port: is the board plugged in?"
+    END
+END IF
+
+Board.Port = port
+Board.BaudRate = 115200
+Board.Open
+IF Board.Connected = 0 THEN
+    PRINT "could not open "; port
+    END
+END IF
+PRINT "opened "; port; " at 115200: DTR "; Board.DTR; " RTS "; Board.RTS; "  CTS "; Board.CTS; " DSR "; Board.DSR; " CD "; Board.CD; " RI "; Board.RI
+
+' The reset: EN held low through RTS while DTR is clear (IO0 high), then
+' released — the auto-reset circuit every ESP32 board has.
+Board.DTR = 0
+Board.RTS = 1
+SLEEP 0.1
+Board.PurgeIn
+Board.RTS = 0
+PRINT "reset: DTR "; Board.DTR; " RTS "; Board.RTS
+PRINT "---- the board says ----"
+t = TIMER
+DO
+    l = Board.ReadLine(250)
+    IF l <> "" THEN
+        PRINT "| "; l
+        lines = lines + 1
+    END IF
+LOOP UNTIL TIMER - t > seconds
+PRINT "----"
+PRINT lines; " lines; "; Board.InQue; " bytes waiting"
+Board.Close
+PRINT "closed"

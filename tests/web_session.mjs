@@ -27,7 +27,7 @@ page.on("pageerror", (e) => pageErrors.push(e.message));
 await page.goto(`${URL_BASE}/tests/web_kernel.html`, { waitUntil: "load" });
 await page.waitForFunction(() => window.rrReady === true, null, { timeout: 30000 });
 
-// What preview.html does: the program's console output is the session's
+// What RapidR Studio's run frame does (ide/web/run.html): the program's console output is the session's
 // output; every event is kept for the test.
 await page.evaluate(() => {
   window.events = [];

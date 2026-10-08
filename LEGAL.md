@@ -64,7 +64,9 @@ system's OpenSSL 3, which every current distribution installs).
   notice (the notices file already does).
 - **The built-in fonts** (Liberation Sans, Serif and Mono; on Linux also
   Cantarell, for window titles on GNOME's Wayland) are inside your program
-  unmodified, under the SIL Open Font License: fine for any program,
+  (the Regular faces unmodified; their Bold, Italic and Bold Italic cut to the
+  Latin scripts and renamed "RapidR Text …", as the licence asks), under the
+  SIL Open Font License: fine for any program,
   commercial included. Don't extract them to sell on their own, and if you
   change them, give your version another name.
 - **On Linux**, your program uses the system's OpenSSL 3 library

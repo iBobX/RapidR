@@ -224,6 +224,8 @@ mod tests {
     /// the focus.
     #[test]
     fn canvas_surface_by_revision() {
+        // (RapidQ's look, checked op for op: the classic theme, named)
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
         set_display_scale(2.0);
         let mut s = MemStore::new();
         s.add("cform", "RFORM", None);

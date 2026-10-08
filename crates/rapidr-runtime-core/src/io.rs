@@ -39,6 +39,27 @@ pub fn created(name: &str, type_name: &str) {
     }
 }
 
+/// QCOMPORT `name`'s FillList(Control): the system's ports, looked at
+/// again, put in a list or combo box (cleared first; the port the QCOMPORT
+/// has selected, else the first): how many.
+pub fn fill_list(name: &str, args: &[Value]) -> Value {
+    let Some(items) = rqlib::comport_port_items(name) else { return v_int(0) };
+    let control = args.first().map(Value::to_string_val).unwrap_or_default();
+    if control.is_empty() || rp_comp_type(&control).is_empty() {
+        return v_int(items.len() as i64);
+    }
+    crate::object::rp_comp_method(&control, "clear", &[]);
+    for item in &items {
+        crate::object::rp_comp_method(&control, "additems", &[v_str(item)]);
+    }
+    let port = rqlib::get(name, "port").map(|v| v.to_string_val()).unwrap_or_default();
+    let at = items.iter().position(|i| i == &port || i.starts_with(&format!("{port} ("))).unwrap_or(0);
+    if !items.is_empty() {
+        rp_comp_set(&control, "itemindex", v_int(at as i64));
+    }
+    v_int(items.len() as i64)
+}
+
 /// The events object `name`'s model left, fired (after each of its calls).
 pub fn fire_events(name: &str) {
     // (a media object's Timer turned on or off by Play, Stop …)
@@ -309,8 +330,9 @@ pub fn look(name: &str) -> bool {
         fire_events(name);
         return false;
     }
-    if rqlib::look_events().iter().any(|e| crate::object::rp_has_handler(name, e)) {
-        for (event, args) in rqlib::look(name) {
+    let handled = |e: &str| crate::object::rp_has_handler(name, e);
+    if rqlib::look_events().iter().any(|e| handled(e)) {
+        for (event, args) in rqlib::look(name, &handled) {
             rp_fire_event_args(name, event, &args);
         }
     }

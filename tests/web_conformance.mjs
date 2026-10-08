@@ -1,6 +1,6 @@
 // The conformance suite (tests/conformance/cases) in the browser: each
-// console case is compiled by the web IDE's wasm compiler and run by the wasm
-// VM, and its output must be the same `.expected` text the desktop
+// console case is compiled by the web runtime's wasm compiler and run by the
+// wasm VM on the runtime's own page (tests/web_run.mjs), and its output must be the same `.expected` text the desktop
 // interpreter and the native build are held to (ROADMAP: the web stays in
 // step with desktop, native and interpreter).
 //
@@ -16,9 +16,9 @@ import { chromium } from "playwright";
 import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { openRunner } from "./web_run.mjs";
 
 const CASES = join(dirname(fileURLToPath(import.meta.url)), "conformance/cases");
-const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 const filters = process.argv.slice(2);
 const norm = (s) => s.replace(/\r\n/g, "\n").split("\n").map((l) => l.trimEnd()).join("\n").trimEnd();
 
@@ -30,18 +30,13 @@ const names = readdirSync(CASES).filter((f) => f.endsWith(".bas")).map((f) => f.
 
 const browser = await chromium.launch();
 // (`RAPIDR_DPR=2`: a high-DPI screen — what programs read must not change)
-const page = await browser.newPage({ deviceScaleFactor: Number(process.env.RAPIDR_DPR || 1) });
-const pageErrors = [];
-page.on("pageerror", (e) => pageErrors.push(e.message));
-await page.goto(`${URL_BASE}/web-ide/index.html`, { waitUntil: "load" });
-await page.waitForFunction(() => document.getElementById("status")?.textContent?.includes("ready"), { timeout: 15000 });
+const r = await openRunner(browser, { deviceScaleFactor: Number(process.env.RAPIDR_DPR || 1) });
 
-// The cases' `$RESOURCE` files are the project's assets, as a user adds them
-// in the IDE (found by their last path part).
+// The cases' `$RESOURCE` files are the program's assets, as a project has
+// them (found by their last path part).
 const assets = ["resource_files", "picture_files", "video_files"].map((d) => join(CASES, d)).filter((d) => existsSync(d)).flatMap((RES) => readdirSync(RES).filter((f) => statSync(join(RES, f)).isFile()).map((f) => ({
   name: f, mime: "application/octet-stream", dataUrl: "data:application/octet-stream;base64," + readFileSync(join(RES, f)).toString("base64"),
 })));
-await page.evaluate((a) => { window.RapidR.state.project.assets = a; }, assets);
 
 let passed = 0, failed = 0, xfail = 0, xpass = 0;
 for (const name of names) {
@@ -54,42 +49,26 @@ for (const name of names) {
   // message.)
   const runtimePath = join(CASES, name + ".expected-runtime-error");
   const runtimeError = existsSync(runtimePath) ? readFileSync(runtimePath, "utf8").split("\n").map((l) => l.trim()).filter(Boolean) : null;
-  // (Markers unique to the case: the output tab keeps earlier runs' text.)
+  const hasError = () => r.errs.some((l) => runtimeError.every((needle) => l.includes(needle)));
+  // (the closing marker on a line of its own, even after a program whose
+  // last PRINT stays on its line; a program that ENDs itself never prints it)
   const tag = `@@${name}@@`;
-  await page.evaluate(({ src, tag }) => {
-    window.RapidR.runCommand("run.stop");
-    // (the program as written: no designer form around it)
-    // (the closing marker on a line of its own, even after a program whose
-    // last PRINT stays on its line)
-    window.RapidR.state.project.rawSource = `PRINT "${tag}B"\n${src}\nPRINT\nPRINT "${tag}E"\n`;
-    window.RapidR.runCommand("run.start");
-  }, { src: source, tag });
-  let text = "";
-  // (A program that ENDs itself never prints the closing marker.)
-  const ended = new RegExp(`^(${tag}E|\\[RapidR\\] Program ended\\.)$`, "m");
-  // (a run-time error goes to the Errors tab; the Output tab has what the
-  // program printed before it)
-  const errorsBefore = runtimeError ? await page.evaluate(() => document.querySelector('.obody[data-tab="errors"]')?.innerText || "") : "";
-  const hasError = (errs) => errs.slice(errorsBefore.length).split("\n").some((l) => runtimeError.every((needle) => l.includes(needle)));
-  let errors = "";
-  for (let waited = 0; waited < 20000; waited += 250) {
-    await page.waitForTimeout(250);
-    text = await page.evaluate(() => document.querySelector('.obody[data-tab="output"]')?.innerText || "");
-    // (only after this case's start: an earlier case's "Program ended." line
-    // is still in the output tab)
-    const start = text.lastIndexOf(`${tag}B\n`);
-    if (runtimeError) {
-      errors = await page.evaluate(() => document.querySelector('.obody[data-tab="errors"]')?.innerText || "");
-      if (start >= 0 && hasError(errors)) break;
-    } else if (start >= 0 && ended.test(text.slice(start))) break;
+  await r.run(`${source}\nPRINT\nPRINT "${tag}E"\n`, { assets, name: "program" });
+  const ended = () => r.lines.includes(`${tag}E`) || r.ended();
+  for (let waited = 0; waited < 20000; waited += 100) {
+    if (runtimeError ? hasError() : ended()) break;
+    if (r.errs.some((e) => e.startsWith("compile:"))) break;
+    await r.page.waitForTimeout(100);
   }
+  // (what the program printed before its error may come just after it)
+  if (runtimeError) await r.page.waitForTimeout(300);
   let got;
   if (runtimeError) {
-    const start = text.lastIndexOf(`${tag}B\n`);
-    got = start >= 0 && hasError(errors) ? norm(text.slice(start + tag.length + 2).replace(/\r\n/g, "\n")) : `<no run-time error: ${JSON.stringify(errors.slice(-200))}>`;
+    got = hasError() ? norm(r.output()) : `<no run-time error: ${JSON.stringify(r.errors().slice(-200))}>`;
   } else {
-    const m = new RegExp(`^${tag}B\\n?([\\s\\S]*?)\\n?^(?:${tag}E|\\[RapidR\\] Program ended\\.)$`, "m").exec(text.replace(/\r\n/g, "\n").replace(new RegExp(`^.*PRINT "${tag}[BE]".*$`, "gm"), ""));
-    got = m ? norm(m[1]) : `<no output: ${JSON.stringify(text.slice(-200))}>`;
+    const text = r.output();
+    const m = new RegExp(`^([\\s\\S]*?)\\n?^(?:${tag}E|\\[RapidR\\] Program ended\\.)$`, "m").exec(text);
+    got = m ? norm(m[1]) : `<no output: ${JSON.stringify((text + " " + r.errors()).slice(-200))}>`;
   }
   const same = got === expected;
   if (same && expectedFail) { xpass++; console.log(`XPASS  ${name} (remove its web xfail marker)`); }
@@ -106,5 +85,5 @@ for (const name of names) {
   }
 }
 await browser.close();
-console.log(`\n${passed} passed, ${xfail} known failures (xfail), ${failed} failed, ${xpass} unexpectedly passed, ${pageErrors.length} page errors`);
+console.log(`\n${passed} passed, ${xfail} known failures (xfail), ${failed} failed, ${xpass} unexpectedly passed, ${r.pageErrors.length} page errors`);
 if (failed || xpass) process.exit(1);
