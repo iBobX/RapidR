@@ -80,7 +80,7 @@ END SUB
 ' File > New Project: a form program (or a console one) where the user says.
 SUB AskNew
   NewName.Text = "MyProgram"
-  NewKind.ItemIndex = 0
+  PickTemplate 0
   NewFolder.Text = DefaultFolder
   NewDialog.ShowModal
 END SUB
@@ -97,7 +97,7 @@ END SUB
 
 SUB NewCreate
   DIM template AS STRING, folder AS STRING
-  IF NewKind.ItemIndex = 1 THEN template = "console" ELSE template = "gui"
+  template = TplId(TplChosen)
   folder = NewFolder.Text
   IF RIGHT$(folder, 1) <> "/" THEN folder = folder + "/"
   folder = folder + NewName.Text

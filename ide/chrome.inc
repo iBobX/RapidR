@@ -74,9 +74,12 @@ SUB LayOutDialogs
   NewNameLabel.Left = pad: NewNameLabel.Top = y + (fh - 16) / 2
   NewName.Left = x: NewName.Top = y: NewName.Width = w: NewName.Height = fh
   y = y + row
-  NewKindLabel.Left = pad: NewKindLabel.Top = y + (fh - 16) / 2
-  NewKind.Left = x: NewKind.Top = y: NewKind.Width = w
-  y = y + row
+  ' (the templates' cards in a row under their heading: workspace.inc)
+  NewKindLabel.Left = pad: NewKindLabel.Top = y
+  y = y + 22
+  LayOutTemplates pad, y
+  y = y + TPL_H + pad
+  IF TemplatesWidth + 2 * pad > x + w + pad THEN w = TemplatesWidth + pad - x
   NewFolderLabel.Left = pad: NewFolderLabel.Top = y + (fh - 16) / 2
   NewFolder.Left = x: NewFolder.Top = y: NewFolder.Width = w - fh - 8: NewFolder.Height = fh
   NewFolderBtn.Left = x + w - fh: NewFolderBtn.Top = y: NewFolderBtn.Width = fh: NewFolderBtn.Height = fh

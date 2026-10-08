@@ -54,6 +54,7 @@ SUB SetUpDocuments
   LayoutSaver.Enabled = 0
   LayoutSaver.OnTimer = SaveSoon
   Dock.DocumentMode = "tabs"
+  SetUpTemplates
   Dock.OnDocumentView = DocumentViewChanged
   Dock.OnLayoutChange = LayoutChanged
 END SUB
@@ -196,6 +197,94 @@ SUB NextArea
       EXIT SUB
     END IF
   NEXT
+END SUB
+
+' ---- File > New Project: the templates' gallery (docs/studio-wow.md WEL-2) ----------
+' A card each (its icon, its name, what it makes; RPROJECT's New writes it):
+' a click picks one, a double click (or Enter) makes the project.
+
+DIM TplCard(TPLS) AS QPANEL
+DIM TplIcon(TPLS) AS QIMAGE
+DIM TplBmp(TPLS) AS QBITMAP
+DIM TplTitle(TPLS) AS QLABEL
+DIM TplText(TPLS) AS QLABEL
+DIM TplIconName(TPLS) AS STRING
+
+DECLARE SUB TemplateClicked(Sender AS QPANEL)
+DECLARE SUB TemplateLabelClicked(Sender AS QLABEL)
+DECLARE SUB TemplateChosen(Sender AS QLABEL)
+
+SUB AddTemplate(i AS INTEGER, Id AS STRING, Icon AS STRING, Title AS STRING, What AS STRING)
+  TplId(i) = Id
+  TplIconName(i) = Icon
+  TplCard(i).Parent = NewDialog
+  TplCard(i).BevelOuter = 0
+  TplCard(i).Tag = i
+  TplCard(i).Cursor = -21
+  TplCard(i).AccessibleName = Title + ": " + What
+  TplCard(i).OnClick = TemplateClicked
+  TplCard(i).OnDblClick = NewCreate
+  TplIcon(i).Parent = TplCard(i)
+  TplIcon(i).Left = 12: TplIcon(i).Top = 12: TplIcon(i).Width = 24: TplIcon(i).Height = 24
+  TplTitle(i).Parent = TplCard(i)
+  TplTitle(i).Left = 12: TplTitle(i).Top = 42: TplTitle(i).Width = TPL_W - 20: TplTitle(i).Height = 18
+  TplTitle(i).Caption = Title
+  TplTitle(i).Tag = i
+  TplTitle(i).OnClick = TemplateLabelClicked
+  TplTitle(i).OnDblClick = TemplateChosen
+  TplText(i).Parent = TplCard(i)
+  TplText(i).AutoSize = 0
+  TplText(i).WordWrap = 1
+  TplText(i).Caption = What
+  TplText(i).Left = 12: TplText(i).Top = 62: TplText(i).Width = TPL_W - 20: TplText(i).Height = TPL_H - 66
+  TplText(i).Tag = i
+  TplText(i).OnClick = TemplateLabelClicked
+  TplText(i).OnDblClick = TemplateChosen
+END SUB
+
+SUB SetUpTemplates
+  AddTemplate 0, "gui", "RFORM", "Form app", "A window to design, with its code beside it."
+  AddTemplate 1, "console", "view.terminal", "Console", "PRINT and INPUT in a text window."
+  AddTemplate 2, "rapidq", "files/bas", "RapidQ form app", "A .bas with RapidQ's names only, checked as RapidQ."
+  AddTemplate 3, "data", "RPLOT", "Data dashboard", "A table in a grid and a chart of it."
+  AddTemplate 4, "mdi", "RFORMMDI", "MDI app", "Child windows, File and Window menus."
+END SUB
+
+' (the cards in a row from (X, Y) of the dialog)
+SUB LayOutTemplates(X AS INTEGER, Y AS INTEGER)
+  DIM i AS INTEGER
+  FOR i = 0 TO TPLS - 1
+    TplCard(i).Left = X + i * (TPL_W + 8): TplCard(i).Top = Y
+    TplCard(i).Width = TPL_W: TplCard(i).Height = TPL_H
+  NEXT
+  TemplatesWidth = TPLS * (TPL_W + 8) - 8
+END SUB
+
+' (the picked card stands out; its icons and colours in the current theme)
+SUB PickTemplate(i AS INTEGER)
+  DIM k AS INTEGER
+  TplChosen = i
+  FOR k = 0 TO TPLS - 1
+    IF k = i THEN TplCard(k).Color = TC("editor.selection") ELSE TplCard(k).Color = TC("card")
+    TplTitle(k).Font = CardFont
+    TplTitle(k).Font.Color = TC("page.text")
+    TplText(k).Font.Color = TC("page.dim")
+    TplBmp(k).LoadIcon TplIconName(k), 24
+    TplIcon(k).BMPHandle = TplBmp(k)
+  NEXT
+END SUB
+
+SUB TemplateClicked(Sender AS QPANEL)
+  PickTemplate Sender.Tag
+END SUB
+
+SUB TemplateLabelClicked(Sender AS QLABEL)
+  PickTemplate Sender.Tag
+END SUB
+
+SUB TemplateChosen(Sender AS QLABEL)
+  PickTemplate Sender.Tag
+  NewCreate
 END SUB
 
 ' The start page as a document again (closed when a project opened).

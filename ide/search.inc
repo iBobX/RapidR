@@ -112,6 +112,9 @@ SUB ApplySearchChrome
   HelpWhat.Font.Color = TC("page.dim")
   HelpSyntax.Font = MonoFont
   SearchInfo.Font.Color = TC("page.dim")
+  SearchCase.Font.Color = TC("page.text")
+  SearchWord.Font.Color = TC("page.text")
+  SearchRegex.Font.Color = TC("page.text")
   SearchPane.Color = TC("page")
   HelpPane.Color = TC("page")
 END SUB

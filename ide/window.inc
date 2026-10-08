@@ -165,12 +165,9 @@ CREATE NewDialog AS QFORM
     Left = 110: Top = 16: Width = 320
   END CREATE
   CREATE NewKindLabel AS QLABEL
-    Left = 16: Top = 56: Width = 90: Caption = "&Kind:"
+    Left = 16: Top = 56: Width = 90: Caption = "Template:"
   END CREATE
-  CREATE NewKind AS QCOMBOBOX
-    Left = 110: Top = 52: Width = 320
-    AddItems "A program with a form", "A console program"
-  END CREATE
+  ' (the templates' cards: workspace.inc's gallery)
   CREATE NewFolderLabel AS QLABEL
     Left = 16: Top = 92: Width = 90: Caption = "&Folder:"
   END CREATE
