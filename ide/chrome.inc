@@ -32,21 +32,16 @@ SUB ApplyFonts
     rows = 22
   END IF
   LinkFont.Name = UIFont.Name: LinkFont.Size = UIFont.Size
-  ProjectTree.Font = UIFont: ProjectTree.ItemHeight = rows: ProjectTree.Indent = 16
-  ToolboxTree.Font = UIFont: ToolboxTree.ItemHeight = rows: ToolboxTree.Indent = 16
   OutlineTree.Font = UIFont: OutlineTree.ItemHeight = rows: OutlineTree.Indent = 16
-  PropGrid.Font = UIFont: PropGrid.DefaultRowHeight = rows
-  ProblemsView.Font = UIFont
+  ApplyPanelFonts
   Dock.Font = UIFont
   Status.Font = StatusFont
   ' (Studio's dialogs: the chrome font's face and size on the form, which
   ' their components follow — Delphi's ParentFont; not a QFONT, whose
   ' colour would be chosen for them and win over the theme's text colour;
   ' sizes to match)
-  Palette.Font.Name = UIFont.Name: Palette.Font.Size = UIFont.Size
   NewDialog.Font.Name = UIFont.Name: NewDialog.Font.Size = UIFont.Size
   LayOutDialogs
-  OutputBox.Font = MonoFont
   ImmediateBox.Font = MonoFont
   FOR k = 0 TO DocCount - 1
     CodeDoc(k).Font = MonoFont
@@ -90,22 +85,12 @@ SUB LayOutDialogs
   NewOk.Width = bw: NewOk.Height = bh: NewOk.Left = x + w - 2 * bw - 8: NewOk.Top = y
   NewDialog.ClientWidth = x + w + pad
   NewDialog.ClientHeight = y + bh + pad
-  ' (the palette)
-  PaletteEdit.Height = fh
-  PaletteList.Top = 8 + fh + 8
-  PaletteList.Height = Palette.ClientHeight - PaletteList.Top - 8
 END SUB
 
 SUB ApplyChrome
   DIM k AS INTEGER
   ThemeName = Application.Theme
   ApplyFonts
-  ToolBar.Color = TC("toolbar")
-  ToolLine.Color = TC("toolbar.border")
-  FOR k = 0 TO TBSepCount - 1
-    TBSep(k).Color = TC("separator")
-  NEXT
-  LoadToolIcons
   ' (the start page)
   Welcome.Color = TC("page")
   WelcomeTitle.Font = HeadFont
@@ -131,7 +116,6 @@ SUB ApplyChrome
     ExText(k).Font.Color = TC("page.dim")
   NEXT
   LoadWelcomeIcons
-  OutputBox.Font = MonoFont
   ImmediateBox.Font = MonoFont
   ApplyState
 END SUB
@@ -190,7 +174,6 @@ SUB SetTheme(Name AS STRING)
   ThemeChoice = Name
   Application.Theme = Name
   ApplyChrome
-  FillToolbox
   FillProjectTree
   AnalyzeActive
   UpdateCommands
