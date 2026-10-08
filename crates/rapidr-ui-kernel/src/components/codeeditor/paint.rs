@@ -738,7 +738,14 @@ fn paint_gutter(x: &mut Ctx, p: &mut Painter) {
                 },
             }
             if here.is_some() {
-                // (the debugger's line: tinted across the text too — paint_text drew it under)
+                // (the debugger's line: tinted across the text too — paint_text
+                // drew it under; over a breakpoint's dot the arrow has a rim
+                // in the gutter's colour, so an error-red arrow shows on a red dot)
+                if kinds.iter().any(|k| k.starts_with("breakpoint")) {
+                    for (dx, dy) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+                        arrow(p, (icon_rect.0 + dx, icon_rect.1 + dy, icon_rect.2, icon_rect.3), sc.gutter);
+                    }
+                }
                 arrow(p, icon_rect, here_color);
             }
             // changes since the save

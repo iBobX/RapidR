@@ -61,6 +61,12 @@ const SCENES = [
   // (the code editor with the completion list open and its docs beside it:
   // typed through the kernel's keys, S-EDITOR)
   { name: "editor", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:dim y as string,key:Escape,key:Enter,type:form.c", delay: 6 },
+  // (S-EDITOR) a misspelt member squiggled, in Problems too; a hover; the
+  // signature after `(`; Tab at a line's start (blanks, never a glyph)
+  { name: "editor-squiggle", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,type:x$ = NameEdit.Txet,key:Escape,wait,wait,wait,view.problems", delay: 8 },
+  { name: "editor-hover", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,type:ShowMessage \"Hi\",key:Escape,key:Home,key:Right,key:Right,edit.showHover,wait,wait", delay: 7 },
+  { name: "editor-signature", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,type:x$ = MID$(,wait", delay: 6 },
+  { name: "editor-tab", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,key:Tab,type:clicks = 0,key:Escape,key:Enter,key:Tab,key:Tab,type:x,key:Escape", delay: 6 },
 ];
 
 mkdirSync(OUT, { recursive: true });

@@ -1178,6 +1178,10 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         if let Some(result) = result {
             #[cfg(feature = "gui")]
             crate::ui::text_push(name);
+            // (an RCODEEDITOR's ApplyPatches / Undo / Redo: OnChange)
+            if rapidr_value::objects::take_code_change(name) {
+                rp_fire_event(name, "onchange");
+            }
             return result.unwrap_or_else(|e| {
                 eprintln!("[rapidr] {name}.{method}: {e}");
                 v_null()
@@ -1211,10 +1215,6 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             design_events(name);
         } else if rapidr_value::objects::is_tabcontrol(name) {
             crate::ui::tab_control_changed(name);
-        }
-        // (an RCODEEDITOR's ApplyPatches / Undo / Redo: OnChange)
-        if rapidr_value::objects::is_code(name) && rapidr_value::objects::take_code_change(name) {
-            rp_fire_event(name, "onchange");
         }
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_dirtree(name) {
