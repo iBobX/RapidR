@@ -73,6 +73,18 @@ SUB DesignChanged(Sender AS RDESIGNSURFACE)
   UpdateCommands
 END SUB
 
+' Document d's designer shown (and focused) — for a file that makes no
+' form too: its empty state offers "Add a Form".
+SUB ShowDesigner(d AS INTEGER)
+  IF d < 0 THEN EXIT SUB
+  IF DocOpen(d) = 0 THEN EXIT SUB
+  IF DocHasForm(d) = 0 THEN
+    DocHasForm(d) = 1
+    Dock.AddPane(DesignDoc(d), FileTitle(DocFile(d)) + " [Design]", "documents", "form")
+  END IF
+  Dock.FocusPane("designdoc(" + LTRIM$(STR$(d)) + ")")
+END SUB
+
 ' A component double-clicked (or Enter on it): its default event's handler
 ' — made and wired when there's none — in the code editor.
 SUB DesignDblClick(Index AS INTEGER, Sender AS RDESIGNSURFACE)
@@ -96,7 +108,14 @@ FUNCTION DesignCommand(Id AS STRING) AS INTEGER
   Result = 1
   SELECT CASE Id
     CASE "view.designer"
-      IF d >= 0 THEN Dock.FocusPane("designdoc(" + LTRIM$(STR$(d)) + ")")
+      ShowDesigner ActiveDoc
+      EXIT FUNCTION
+    CASE "designer.addForm"
+      ' (Project > Add a Form to This File: a file without one gets one)
+      IF ActiveDoc >= 0 THEN
+        ShowDesigner ActiveDoc
+        DesignDoc(ActiveDoc).AddForm ""
+      END IF
       EXIT FUNCTION
     CASE "view.code"
       IF ActiveDoc >= 0 THEN Dock.FocusPane("codedoc(" + LTRIM$(STR$(ActiveDoc)) + ")")
@@ -132,6 +151,15 @@ FUNCTION DesignCommand(Id AS STRING) AS INTEGER
     CASE "designer.spaceVertically": how = "spacev"
     CASE "designer.bringToFront": how = "front"
     CASE "designer.sendToBack": how = "back"
+    CASE "designer.zoomIn": DesignDoc(d).ZoomStep 1: EXIT FUNCTION
+    CASE "designer.zoomOut": DesignDoc(d).ZoomStep -1: EXIT FUNCTION
+    CASE "designer.zoomReset": DesignDoc(d).ZoomStep 0: EXIT FUNCTION
+    CASE "designer.zoomToFit": DesignDoc(d).ZoomToFit: EXIT FUNCTION
+    CASE "designer.editCaption": DesignDoc(d).EditCaption: EXIT FUNCTION
+    CASE "designer.menuEditor": DesignDoc(d).EditMenu: EXIT FUNCTION
+    CASE "designer.tabOrder"
+      IF DesignDoc(d).TabOrderMode THEN DesignDoc(d).TabOrderMode = 0 ELSE DesignDoc(d).TabOrderMode = 1
+      EXIT FUNCTION
     CASE "edit.undo": DesignDoc(d).Undo: EXIT FUNCTION
     CASE "edit.redo": DesignDoc(d).Redo: EXIT FUNCTION
     CASE "edit.cut": Clipboard.Text = DesignDoc(d).CutSelection: EXIT FUNCTION

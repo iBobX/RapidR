@@ -1119,6 +1119,18 @@ impl DesignSurface {
         self.set_zoom(to, at)
     }
 
+    /// The zoom that shows the whole form (and its tray) in the surface,
+    /// at most 100 %.
+    pub fn zoom_to_fit(&mut self) -> bool {
+        let m = self.margin();
+        let (w, h) = self.layout().form_size();
+        let tray = if self.tray().is_empty() { 0 } else { TRAY_GAP + TRAY_H };
+        let (aw, ah) = ((self.size.0 - 2 * m - CORNER) as f64, (self.size.1 - 2 * m - CORNER) as f64);
+        let z = (aw / w.max(1) as f64).min(ah / (h + tray).max(1) as f64).min(1.0);
+        self.scroll = (0, 0);
+        self.set_zoom((z * 100.0).floor() / 100.0, None)
+    }
+
     /// The surface scrolled by (dx, dy) pixels (the mouse wheel), within
     /// what it shows (the form, its tray, the backdrop's margin); whether
     /// it moved.
@@ -2411,6 +2423,12 @@ impl DesignSurface {
             }
             "getname" => v_str(&comp(self).map_or(String::new(), |c| c.name)),
             "gettype" => v_str(&comp(self).map_or(String::new(), |c| c.type_written)),
+            // ZoomStep(Direction): 1 in, -1 out, 0 back to 100 %
+            "zoomstep" => Value::Boolean(self.zoom_step(int(0, 0).signum() as i32, None)),
+            "zoomtofit" => Value::Boolean(self.zoom_to_fit()),
+            // EditMenu: the menu editor on the form's main menu (one added
+            // when it has none)
+            "editmenu" => Value::Boolean(self.edit_menu()),
             // EditCaption: F2's — the selection's caption edited in place
             "editcaption" => Value::Boolean(self.begin_edit()),
             // AddForm(Name): a form for a file without one

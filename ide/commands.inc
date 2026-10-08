@@ -98,6 +98,10 @@ SUB DefineCommands
   AddSep "View"
   AddCmd "view.code", "&Code", "View", "F7", "", "document", ""
   AddCmd "view.designer", "&Designer", "View", "Shift+F7", "", "document", "components/designsurface"
+  AddCmd "designer.zoomIn", "Zoom &In", "View", "", "Ctrl+=", "design", ""
+  AddCmd "designer.zoomOut", "Zoom O&ut", "View", "", "Ctrl+-", "design", ""
+  AddCmd "designer.zoomReset", "Actual Si&ze", "View", "", "Ctrl+0", "design", "-"
+  AddCmd "designer.zoomToFit", "Zoom to &Fit", "View", "", "", "design", ""
   AddSep "View"
   AddSubmenu "View", "Theme", "T&heme"
   AddCmd "view.theme.rapidr", "&RapidR (as the System)", "View/Theme", "", "", "", "-"
@@ -116,6 +120,7 @@ SUB DefineCommands
   AddCmd "project.addFile", "Add &File...", "Project", "", "", "project", "file.new"
   AddCmd "project.addForm", "Add F&orm", "Project", "", "", "project", "RFORM"
   AddCmd "project.addModule", "Add &Module", "Project", "", "", "project", "files/rr"
+  AddCmd "designer.addForm", "Add a Form to This F&ile", "Project", "", "", "document", "RFORM"
   AddSep "Project"
   AddCmd "project.options", "Project &Options...", "Project", "", "", "project", "settings"
 
@@ -159,6 +164,10 @@ SUB DefineCommands
   AddSep "Format"
   AddCmd "designer.bringToFront", "Bring to &Front", "Format", "", "", "design", ""
   AddCmd "designer.sendToBack", "Send to Bac&k", "Format", "", "", "design", ""
+  AddSep "Format"
+  AddCmd "designer.editCaption", "Edit &Caption", "Format", "", "F2", "design", "-"
+  AddCmd "designer.menuEditor", "&Menu Editor", "Format", "", "", "design", ""
+  AddCmd "designer.tabOrder", "Tab &Order", "Format", "", "", "design", ""
 
   ' ---- Tools ----
   AddCmd "view.settings", "&Settings...", "Tools", "", "", "", ""

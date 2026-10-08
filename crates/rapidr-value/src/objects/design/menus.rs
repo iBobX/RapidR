@@ -491,6 +491,25 @@ impl DesignSurface {
         }
     }
 
+    /// The menu editor on: the form's main menu selected (one added first
+    /// when it has none), its bar's Type Here showing. Whether it could.
+    pub fn edit_menu(&mut self) -> bool {
+        if self.no_form() || self.read_only() {
+            return false;
+        }
+        if self.main_menu().is_none() && self.add_at("QMAINMENU", (0, 0), None).is_none() {
+            return false;
+        }
+        let Some(main) = self.main_menu() else { return false };
+        self.typing = None;
+        self.outside_sel = None;
+        self.designer.selection.set(main);
+        self.menu_open.clear();
+        self.selection_changed();
+        self.say("Menu editor: click Type Here on the menu bar and type a caption");
+        true
+    }
+
     /// The editing target's menu, if the editor is on one.
     pub fn editing_menu(&self) -> Option<NodeId> {
         match &self.editing.as_ref()?.target {
