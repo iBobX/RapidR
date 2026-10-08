@@ -25,9 +25,10 @@ texts (`utilities/vscodeext/rapidr/scripts/notices.js` makes it).
 
 ## 1. Monaco Editor 0.52.2 — MIT License
 
-Vendored under `web-ide/vendor/monaco/` and used by the in-browser IDE (only
-the IDE: never a program you build) for source editing, syntax highlighting,
-and IntelliSense.
+Vendored under `web-ide/vendor/monaco/` in the source tree, for the legacy
+in-browser IDE that remains only as a test harness until it is deleted. No
+release package ships it (the web bundle is RapidR Studio's, drawn by the UI
+kernel), and it is never part of a program you build.
 
 > The MIT License (MIT)
 >

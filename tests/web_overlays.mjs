@@ -51,8 +51,21 @@ const placed = (name) => page.evaluate((n) => {
 let web = await placed("Web");
 ok(web?.tag === "iframe" && web.form === "form" && web.inOverlays, `the web view is an iframe over the form's canvas (${JSON.stringify(web)})`);
 ok(web?.x === 10 && web?.y === 34 && web?.w === 240 && web?.h === 120, `at its Left / Top / Width / Height (${web?.x},${web?.y} ${web?.w}x${web?.h})`);
-const frameText = await page.evaluate(() => document.getElementById("rr-web")?.contentDocument?.getElementById("p")?.textContent ?? null);
+// (its page runs in the RWEBVIEW frame file, sandboxed without
+// allow-same-origin: an opaque origin the program's page can't reach into,
+// nor it into the page — docs/security-audit.md SEC-12 / SEC-15)
+const frameEl = await page.evaluate(() => { const f = document.getElementById("rr-web"); return { sandbox: f?.getAttribute("sandbox"), reachable: !!f?.contentDocument }; });
+ok(frameEl.sandbox && !/allow-same-origin/.test(frameEl.sandbox) && /allow-scripts/.test(frameEl.sandbox) && !frameEl.reachable, `its frame is sandboxed at its own origin (${JSON.stringify(frameEl)})`);
+let frameText = null, frameOrigin = null;
+for (let i = 0; i < 40 && frameText === null; i++) {
+  for (const f of page.frames()) {
+    const got = await f.evaluate(() => ({ t: document.getElementById("p")?.textContent ?? null, o: self.origin })).catch(() => null);
+    if (got?.t) { frameText = got.t; frameOrigin = got.o; }
+  }
+  if (frameText === null) await page.waitForTimeout(100);
+}
 ok(frameText === "hello from the frame", `SetHtml's page shows in it (${frameText})`);
+ok(frameOrigin === "null", `at an opaque origin (${frameOrigin})`);
 ok(await k.prop(page, "Web", "Html") === "<html><body><p id='p'>hello from the frame</p></body></html>", "Html reads the page it was given");
 
 // ---- RDOM in a panel: clipped by the panel, its own clicks ----

@@ -4241,7 +4241,7 @@ An embedded web page or HTML (an iframe): URL, HTML, Sandbox. Web only.
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
 | `Html` | string |  | The HTML the web view shows as its page, or the element holds. |
 | `Url` | string |  | The address: the page the web view shows, or the HTTP request's. |
-| `Sandbox` | string |  | What the page in the web view may do (the iframe's `sandbox`, such as `allow-scripts`). |
+| `Sandbox` | string |  | What the page in the web view may do: the iframe's `sandbox` tokens. Unset, `allow-scripts allow-forms allow-popups allow-modals allow-downloads` — the page runs its scripts at an origin of its own, never the program's; add `allow-same-origin` to let it use the program's origin (its storage and page), or set `""` to allow nothing. Set it before `Html` / `Url`. |
 | `ToolTip` | string |  | The element's tooltip (its `title`). |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |

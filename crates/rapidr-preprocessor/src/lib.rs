@@ -34,6 +34,43 @@ pub struct PreprocessOptions {
     /// text). Looked up first, by the include's path or its last part, in
     /// any case.
     pub virtual_files: Vec<(String, String)>,
+    /// Confined to these folders (a language server's workspace,
+    /// docs/security-audit.md SEC-18): an `$INCLUDE` that resolves to a file
+    /// anywhere else isn't read — "outside the workspace". `None` (builds,
+    /// `rapidr run`): RapidQ's rules, any file the program names.
+    pub confine_to: Option<Vec<PathBuf>>,
+}
+
+/// Whether `path` is inside one of `roots`, both as the file system has
+/// them (symbolic links and `..` resolved; a file that doesn't exist yet by
+/// its folder) — never by the text alone, which `root/../elsewhere` passes.
+pub fn is_within(path: &Path, roots: &[PathBuf]) -> bool {
+    let Some(real) = real_path(path) else { return false };
+    roots.iter().filter_map(|r| real_path(r)).any(|r| real.starts_with(&r))
+}
+
+/// `path` with links and `..` resolved; for one that doesn't exist, its
+/// nearest existing folder's real path with the rest (no `..`) after it.
+fn real_path(path: &Path) -> Option<PathBuf> {
+    if let Ok(p) = fs::canonicalize(path) {
+        return Some(p);
+    }
+    let mut rest = Vec::new();
+    let mut at = path;
+    loop {
+        let name = at.file_name()?;
+        if name == ".." {
+            return None;
+        }
+        rest.push(name.to_os_string());
+        at = at.parent()?;
+        if let Ok(mut p) = fs::canonicalize(if at.as_os_str().is_empty() { Path::new(".") } else { at }) {
+            for part in rest.iter().rev() {
+                p.push(part);
+            }
+            return Some(p);
+        }
+    }
 }
 
 /// The virtual file `include_file` names ([`PreprocessOptions::virtual_files`]).
@@ -54,6 +91,7 @@ struct PpState {
     include_stack: Vec<PathBuf>,
     include_dirs: Vec<PathBuf>,
     virtual_files: Vec<(String, String)>,
+    confine_to: Option<Vec<PathBuf>>,
     app_type: Option<String>,
     resources: Vec<Resource>,
     /// `$ESCAPECHARS ON` is in effect (it belongs to the file it's in: an
@@ -85,6 +123,7 @@ impl PpState {
             include_stack: Vec::new(),
             include_dirs: options.include_dirs,
             virtual_files: options.virtual_files,
+            confine_to: options.confine_to,
             app_type: None,
             resources: Vec::new(),
             escape_chars: false,
@@ -688,6 +727,12 @@ fn preprocess_with_state(
 
             if state.include_stack.iter().any(|entry| entry == &include_path) {
                 fail!(format!("Recursive include detected: '{include_file}'"));
+            }
+            // (a language server reads only its workspace: SEC-18)
+            if let Some(roots) = &state.confine_to {
+                if virtual_file.is_none() && !is_within(&include_path, roots) {
+                    fail!(format!("Include file outside the workspace: '{include_file}' (the language server reads only the folders the editor opened)"));
+                }
             }
 
             // (an IDE's in-memory file first: PreprocessOptions::virtual_files)
