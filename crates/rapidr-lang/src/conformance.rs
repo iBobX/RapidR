@@ -135,7 +135,8 @@ pub fn program(c: &Component, target: Target, gaps: &Gaps) -> Option<Program> {
             .iter()
             .enumerate()
             .map(|(j, p)| {
-                let ty = if p.ty.is_empty() || p.ty.starts_with('Q') { String::new() } else { format!(" AS {}", p.ty) };
+                // (a component-typed parameter, `R AS RRect`, untyped as before)
+                let ty = if p.ty.is_empty() || p.ty.starts_with('Q') || crate::component(p.ty).is_some() { String::new() } else { format!(" AS {}", p.ty) };
                 format!("{}a{j}{ty}", if p.byref { "BYREF " } else { "" })
             })
             .collect::<Vec<_>>()

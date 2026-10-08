@@ -142,3 +142,19 @@ fn names() {
     assert!(doc.create_handler(0, "Nobody", "OnClick").is_err());
     assert!(doc.create_handler(0, "OkButton", "OnNothing").is_err());
 }
+
+/// A handler's parameter types are written in the file's own style
+/// (R-NAMES): `R AS RRect` in a file written with RapidR's names,
+/// `R AS QRECT` in one written with RapidQ's.
+#[test]
+fn handler_parameter_types_follow_the_files_names() {
+    let make = |text: &str, path: &str| -> String {
+        let mut doc = Document::open(text, Some(Path::new(path)), PreprocessOptions::default());
+        doc.create_handler(0, "List1", "OnDrawItem").unwrap();
+        doc.text().to_string()
+    };
+    let r = make("CREATE Form AS RForm\n    CREATE List1 AS RListBox\n    END CREATE\nEND CREATE\n", "r.rr");
+    assert!(r.contains("SUB List1DrawItem (Index AS INTEGER, State AS INTEGER, R AS RRect)") && !r.contains("QRECT"), "{r}");
+    let q = make("CREATE Form AS QFORM\n    CREATE List1 AS QLISTBOX\n    END CREATE\nEND CREATE\n", "q.bas");
+    assert!(q.contains("SUB List1DrawItem (Index AS INTEGER, State AS INTEGER, R AS QRECT)") && !q.contains("RRect"), "{q}");
+}

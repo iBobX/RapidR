@@ -1019,7 +1019,7 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | Event | |
 |---|---|
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
-| `OnDrawItem(Index AS INTEGER, State AS INTEGER, R AS QRECT)` | Fires for each item of an owner-drawn list or combo box (Index: the item, State: selected or focused, R: the rectangle to draw it in). |
+| `OnDrawItem(Index AS INTEGER, State AS INTEGER, R AS RRECT)` | Fires for each item of an owner-drawn list or combo box (Index: the item, State: selected or focused, R: the rectangle to draw it in). |
 | `OnMeasureItem(Index AS INTEGER, Height AS INTEGER)` | Fires for each item of a variable-height owner-drawn list or combo box (Index); set Height to the item's height in pixels. |
 | `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
@@ -1833,7 +1833,7 @@ A row of headings (sections) the user can click and resize, as above a list's co
 
 | Event | |
 |---|---|
-| `OnDrawSection(Index AS INTEGER, Pressed AS INTEGER, Rect AS QRECT)` | Fires for each header section to draw (Index: the section, Pressed: nonzero while pressed, Rect: its rectangle). |
+| `OnDrawSection(Index AS INTEGER, Pressed AS INTEGER, Rect AS RRECT)` | Fires for each header section to draw (Index: the section, Pressed: nonzero while pressed, Rect: its rectangle). |
 | `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
@@ -2151,7 +2151,7 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 |---|---|
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
-| `OnDrawItem(Index AS INTEGER, State AS INTEGER, R AS QRECT)` | Fires for each item of an owner-drawn list or combo box (Index: the item, State: selected or focused, R: the rectangle to draw it in). |
+| `OnDrawItem(Index AS INTEGER, State AS INTEGER, R AS RRECT)` | Fires for each item of an owner-drawn list or combo box (Index: the item, State: selected or focused, R: the rectangle to draw it in). |
 | `OnEnter` *(not yet)* | Fires when the list gets the keyboard focus. RapidR doesn't fire it yet. |
 | `OnMeasureItem(Index AS INTEGER, Height AS INTEGER)` | Fires for each item of a variable-height owner-drawn list or combo box (Index); set Height to the item's height in pixels. |
 | `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
@@ -2396,7 +2396,7 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 
 | Event | |
 |---|---|
-| `OnDrawCell(Col AS INTEGER, Row AS INTEGER, State AS INTEGER, R AS QRECT)` | Fires for each grid cell to draw when the program draws them (Col, Row: the cell; State: selected, focused or fixed; R: the cell's rectangle). |
+| `OnDrawCell(Col AS INTEGER, Row AS INTEGER, State AS INTEGER, R AS RRECT)` | Fires for each grid cell to draw when the program draws them (Col, Row: the cell; State: selected, focused or fixed; R: the cell's rectangle). |
 | `OnEllipsisClick(Col AS INTEGER, Row AS INTEGER)` | Fires when the user clicks the "…" button of an ellipsis-style grid column's cell (Col, Row). |
 | `OnKeyDown(Key AS WORD, Shift AS INTEGER)` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
@@ -2822,7 +2822,7 @@ Runs its OnTimer handler every Interval milliseconds while Enabled.
 
 | Event | |
 |---|---|
-| `OnTimer(Sender AS QTIMER)` | Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits. |
+| `OnTimer(Sender AS RTIMER)` | Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits. |
 
 <a id="rrect"></a>
 ## RRect <small>(RapidQ name: QRECT)</small>

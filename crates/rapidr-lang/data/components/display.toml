@@ -278,7 +278,7 @@ methods = [
   { name = "AddSection", origin = "rapidr" },
 ]
 events = [
-  { name = "OnDrawSection", params = "Index AS INTEGER, Pressed AS INTEGER, Rect AS QRECT" },
+  { name = "OnDrawSection", params = "Index AS INTEGER, Pressed AS INTEGER, Rect AS RRect" },
   { name = "OnMouseDown", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },

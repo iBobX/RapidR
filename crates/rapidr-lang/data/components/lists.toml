@@ -89,7 +89,7 @@ methods = [
 events = [
   { name = "OnClick" },
   { name = "OnDblClick" },
-  { name = "OnDrawItem", params = "Index AS INTEGER, State AS INTEGER, R AS QRECT" },
+  { name = "OnDrawItem", params = "Index AS INTEGER, State AS INTEGER, R AS RRect" },
   { name = "OnEnter", missing = true },
   { name = "OnMeasureItem", params = "Index AS INTEGER, Height AS INTEGER" },
   { name = "WndProc", params = "Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER", missing = true },
@@ -319,7 +319,7 @@ methods = [
   { name = "DeleteColumn", missing = true },
 ]
 events = [
-  { name = "OnDrawCell", params = "Col AS INTEGER, Row AS INTEGER, State AS INTEGER, R AS QRECT" },
+  { name = "OnDrawCell", params = "Col AS INTEGER, Row AS INTEGER, State AS INTEGER, R AS RRect" },
   { name = "OnEllipsisClick", params = "Col AS INTEGER, Row AS INTEGER" },
   { name = "OnKeyDown", params = "Key AS WORD, Shift AS INTEGER" },
   { name = "OnKeyPress", params = "Key AS BYTE" },
