@@ -65,6 +65,13 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   tests that check ops) name the classic theme explicitly; the visual
   gallery's themes are `classic`, `rapidr-light`, `rapidr-dark`,
   `rapidr-high-contrast`.
+
+### Fixed
+- **`rapidr build` of a program whose name starts with a digit** (`3dcube.bas` -> `3dcube.app`)
+  failed on macOS with "3dcube.app: No such process": `codesign --verify` reads a relative
+  argument starting with a digit as a process id. The app is now signed and verified by its
+  absolute path (a test builds a digit-named app in the current folder, signs and verifies it).
+
 ### Added
 - **Serial ports for ESP32 / Arduino / IoT boards** (RComPort, RapidQ's QCOMPORT; RapidQ's members
   unchanged, RapidR's extras added, the same in native builds, the interpreter and the browser):
