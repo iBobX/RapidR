@@ -67,7 +67,7 @@ pub fn panels(store: &dyn Store, id: &str, w: i64, h: i64) -> Vec<(Rect, String)
     let mut x = 1;
     for i in 0..count {
         let width = store::int(store, id, &format!("panel({i}).width"), 0);
-        let pw = if i == count - 1 { (w + 1 - x).max(0) } else if width > 0 { width.min(10_000) } else { 100 };
+        let pw = if i == count - 1 { (w + 1 - x).max(0) } else if width > 0 { width.min(10_000) } else { rapidr_value::statusbar::PANEL_WIDTH };
         out.push((boxed(x, pw), store::string(store, id, &format!("panel({i}).caption"))));
         x += pw;
     }

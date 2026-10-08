@@ -393,6 +393,15 @@ impl LayoutStore for Layout {
             return Rect::new(-hp, -vp, cw.max(hr), ch.max(vr));
         }
         let r = LayoutStore::rect(self, parent);
+        // (a panel's: inside its bevels, as the runtimes —
+        // crate::objects::bevel::client_inset)
+        if let Some(c) = self.comps.get(parent).filter(|c| c.ty == "RPANEL") {
+            let i = crate::objects::bevel::client_inset(&|p| match p {
+                "borderstyle" => c.border_style.map_or(Value::Null, crate::v_int),
+                p => c.props.get(p).cloned().unwrap_or(Value::Null),
+            });
+            return Rect::new(i, i, (r.width - 2 * i).max(0), (r.height - 2 * i).max(0));
+        }
         Rect::new(0, 0, r.width, r.height)
     }
     fn anchor_area(&self, parent: &str) -> (i64, i64) {

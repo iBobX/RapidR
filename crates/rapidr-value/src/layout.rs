@@ -14,8 +14,15 @@
 //!   first; likewise left / right). Among equal positions, creation order
 //!   for alTop / alLeft and the reverse for alBottom / alRight (Delphi
 //!   compares with `<` and `>=`). The control whose Align, size or
-//!   visibility just changed comes first. So `Splitter (alLeft)` created before `Tree (alLeft)` ends
-//!   up to the right of the tree, as in RapidQ.
+//!   visibility just changed comes first.
+//! * Before its form is first shown, a control has no window and RapidQ
+//!   aligns nothing (RC.EXE: every Left reads 0 until the Show): the form
+//!   lays out its children then, by the places the program gave them —
+//!   so controls aligned one after another, each a size of its own, sit in
+//!   creation order (QCOOLBTNs alLeft in a tool bar, a QSPLITTER created
+//!   before its alLeft tree is left of it), an alBottom / alRight one
+//!   nearer the edge only when it reaches further ([`align_controls_unshown`]).
+//!   RapidR keeps a form's layout current all along, in that order.
 //! * Invisible controls and those with alNone are left alone.
 //!
 //! RapidR adds Delphi's `Anchors` and `Constraints` (RapidQ had Align
@@ -285,6 +292,19 @@ pub struct Control {
 /// Align, size or visibility just changed, if any. Returns the new
 /// rectangle of every aligned, visible control, as `(index, rect)`.
 pub fn align_controls(client: Rect, controls: &[Control], changed: Option<usize>) -> Vec<(usize, Rect)> {
+    align_with(client, controls, changed, false)
+}
+
+/// [`align_controls`] for a form not shown yet: no control first, and each
+/// one where the program placed it — Left / Top 0 — so equal places keep
+/// creation order, and an alBottom / alRight control goes nearer the edge
+/// only when its far side is further (Delphi's comparison of the controls'
+/// own bounds, RC.EXE's builds at their first Show).
+pub fn align_controls_unshown(client: Rect, controls: &[Control]) -> Vec<(usize, Rect)> {
+    align_with(client, controls, None, true)
+}
+
+fn align_with(client: Rect, controls: &[Control], changed: Option<usize>, unshown: bool) -> Vec<(usize, Rect)> {
     // What's left of the client area, as edges.
     let (mut left, mut top, mut right, mut bottom) = (client.left, client.top, client.right(), client.bottom());
     let mut out = Vec::new();
@@ -300,6 +320,14 @@ pub fn align_controls(client: Rect, controls: &[Control], changed: Option<usize>
                 .iter()
                 .position(|&j| {
                     let o = controls[j].rect;
+                    if unshown {
+                        // (both at Left / Top 0: only a size can tell)
+                        return match align {
+                            Align::Bottom => r.height > o.height,
+                            Align::Right => r.width > o.width,
+                            _ => false,
+                        };
+                    }
                     match align {
                         Align::Top => r.top < o.top,
                         Align::Bottom => r.bottom() >= o.bottom(),
@@ -668,7 +696,7 @@ pub fn splitter_drag(client: Rect, controls: &[Control], splitter: usize, min_si
 /// designer's. Its stores of a laid-out rectangle must not call back into
 /// layout (the runtimes store "quietly").
 pub mod engine {
-    use super::{align_controls, anchor_controls, Align, AnchorRules, Constraints, Control, Rect, DEFAULT_ANCHORS};
+    use super::{align_controls, align_controls_unshown, anchor_controls, Align, AnchorRules, Constraints, Control, Rect, DEFAULT_ANCHORS};
 
     /// A component registry layout works on. Names are the store's own
     /// keys (any case it likes, as long as `children_of` gives the same).
@@ -708,6 +736,12 @@ pub mod engine {
         fn moved(&mut self, _name: &str) {}
         /// A container's children or size changed (its scroll bars follow).
         fn scroll_update(&mut self, _name: &str) {}
+        /// Whether `parent`'s form hasn't been shown yet (its children are
+        /// laid out as RapidQ lays them out at that first Show:
+        /// [`align_controls_unshown`]).
+        fn unshown(&self, _parent: &str) -> bool {
+            false
+        }
     }
 
     /// A container's children and what [`align_controls`] reads of them.
@@ -781,7 +815,8 @@ pub mod engine {
         }
         let (children, controls) = controls_of(s, parent);
         let changed = changed.map(|c| s.key(c)).and_then(|c| children.iter().position(|n| *n == c));
-        let moves: Vec<(String, Rect, bool)> = align_controls(s.client_rect(parent), &controls, changed)
+        let laid = if s.unshown(parent) { align_controls_unshown(s.client_rect(parent), &controls) } else { align_controls(s.client_rect(parent), &controls, changed) };
+        let moves: Vec<(String, Rect, bool)> = laid
             .into_iter()
             .filter(|(i, r)| *r != controls[*i].rect)
             .map(|(i, r)| {
@@ -861,6 +896,23 @@ mod tests {
             rects[i] = r;
         }
         rects
+    }
+
+    #[test]
+    fn before_the_first_show_creation_order() {
+        // (RC.EXE: tool buttons alLeft one after another, a splitter before
+        // its tree; alBottom panels 20 and 30 high — the higher at the
+        // edge; alRight buttons of one width — the first at the edge)
+        let client = Rect::new(0, 0, 400, 300);
+        let buttons = [c(Align::Left, 25, 0, 25, 10), c(Align::Left, 0, 0, 25, 10), c(Align::Left, 0, 0, 30, 10)];
+        let r: Vec<i64> = { let mut v = vec![0; 3]; for (i, x) in align_controls_unshown(client, &buttons) { v[i] = x.left; } v };
+        assert_eq!(r, [0, 25, 50]);
+        let bottoms = [c(Align::Bottom, 0, 280, 400, 20), c(Align::Bottom, 0, 0, 400, 30)];
+        let r: Vec<i64> = { let mut v = vec![0; 2]; for (i, x) in align_controls_unshown(client, &bottoms) { v[i] = x.top; } v };
+        assert_eq!(r, [250, 270]);
+        let rights = [c(Align::Right, 380, 0, 20, 10), c(Align::Right, 0, 0, 20, 10)];
+        let r: Vec<i64> = { let mut v = vec![0; 2]; for (i, x) in align_controls_unshown(client, &rights) { v[i] = x.left; } v };
+        assert_eq!(r, [380, 360]);
     }
 
     #[test]
