@@ -999,7 +999,7 @@ Robert tried the preview (`development` @ `bb23d078`): forms showed too tall and
   - **Drag and drop** (`DragComponent`): the kernel routes the drag to any design surface it crosses (ghost shown) and adds the component where it is let go.
   - **`AddComponent(Type, X, Y)`**: -1, -1 means a free cascade spot in the selection's container (Enter on a toolbox item).
   - Visual components go into the panel, group box or scroll box under the point. Non-visual ones go to the tray, and QMENUITEMs go under the selected menu.
-  - Names are Delphi's (Button1, Button2 …), unique in the whole file, not only in the form (a `DIM Button1` makes the new one Button2).
+  - Names are Delphi's (Button1, CheckBox1, StringGrid1 …: the registry's new `display` field, each component's mixed-case spelling, which also replaced the language service's hand table), unique in the whole file, not only in the form (a `DIM Button1` makes the new one Button2).
   - **Typing right after adding writes the Caption / Text** (Delphi). Backspace corrects it; Enter or Escape ends it.
 - **Select, move, resize**: click, Shift / Ctrl / ⌘-click, rubber band, eight handles, anchor pins. A move snaps to the grid and smart guides, with a live `X, Y` / `W × H` readout; Alt turns snapping off. **Dropping on another container reparents** (the CREATE block moves into it, with the target highlighted). The mouse wheel scrolls a form larger than the pane.
 - **Keyboard** (the surface takes the focus):
