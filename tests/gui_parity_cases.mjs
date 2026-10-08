@@ -198,8 +198,10 @@ export const cases = [
     expect: ["lbl.caption=102111|10|4,6,0,2,10,|4"] },
   { name: "tab_control", events: "tab.__key_39,tab.__key_39,tab.__mousedown_8_10,btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=0Tab 2340200|1FirstTab 2|2Tab 2,0First,10|4332196"] },
+  // (RapidQ: …|14679220|…|741261|… — "right" is 20 pixels there, 21 in
+  // RapidR Sans, whose r is a pixel wider: the box's range one more)
   { name: "autoscroll", events: "box.__mousedown_140_90,box.__mouseup_140_90,box.__mousedown_102_90,box.__mouseup_102_90,box.__mousedown_50_30,box.__mouseup_50_30,btn.onclick", dump: "lbl.caption",
-    expect: ["lbl.caption=3012094252901|14679220|216184-96|741261|020096"] },
+    expect: ["lbl.caption=3012094252901|14679221|216184-96|751251|020096"] },
   { name: "onshow_scroll", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=show;333x283"] },
   { name: "form_visible", events: "btn.onclick,btn.onclick", dump: "lbl.caption",
@@ -212,8 +214,9 @@ export const cases = [
   // (I4 L-DMODEL) The designer's resize preview is the running program:
   // crates/rapidr-designer/tests/anchors.rs reads this expect list and must
   // give the same rectangles from the CREATE block resized in the designer.
+  // ("centred" is 36 pixels in RapidQ, 37 in RapidR Sans: its r a pixel wider)
   { name: "designer_anchors", events: "", resize: "600,450", dump: "bar.left,bar.top,bar.width,bar.height,status.left,status.top,status.width,status.height,namelbl.left,namelbl.top,namelbl.width,namelbl.height,nameed.left,nameed.top,nameed.width,nameed.height,notes.left,notes.top,notes.width,notes.height,side.left,side.top,side.width,side.height,pick.left,pick.top,pick.width,pick.height,ok.left,ok.top,ok.width,ok.height,cancel.left,cancel.top,cancel.width,cancel.height,mid.left,mid.top,mid.width,mid.height",
-    expect: ["bar.left=0", "bar.top=0", "bar.width=598", "bar.height=32", "status.left=0", "status.top=397", "status.width=598", "status.height=22", "namelbl.left=12", "namelbl.top=48", "namelbl.width=31", "namelbl.height=13", "nameed.left=64", "nameed.top=44", "nameed.width=420", "nameed.height=21", "notes.left=12", "notes.top=80", "notes.width=472", "notes.height=280", "side.left=496", "side.top=44", "side.width=92", "side.height=316", "pick.left=8", "pick.top=280", "pick.width=75", "pick.height=25", "ok.left=428", "ok.top=366", "ok.width=75", "ok.height=25", "cancel.left=512", "cancel.top=366", "cancel.width=75", "cancel.height=25", "mid.left=222", "mid.top=370", "mid.width=36", "mid.height=13"] },
+    expect: ["bar.left=0", "bar.top=0", "bar.width=598", "bar.height=32", "status.left=0", "status.top=397", "status.width=598", "status.height=22", "namelbl.left=12", "namelbl.top=48", "namelbl.width=31", "namelbl.height=13", "nameed.left=64", "nameed.top=44", "nameed.width=420", "nameed.height=21", "notes.left=12", "notes.top=80", "notes.width=472", "notes.height=280", "side.left=496", "side.top=44", "side.width=92", "side.height=316", "pick.left=8", "pick.top=280", "pick.width=75", "pick.height=25", "ok.left=428", "ok.top=366", "ok.width=75", "ok.height=25", "cancel.left=512", "cancel.top=366", "cancel.width=75", "cancel.height=25", "mid.left=222", "mid.top=370", "mid.width=37", "mid.height=13"] },
   { name: "font_size", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=35x19 28x16"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
