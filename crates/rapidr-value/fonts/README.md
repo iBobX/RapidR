@@ -1,6 +1,6 @@
 # Fonts built into RapidR
 
-The Liberation fonts 2.1.5 (Sans, Serif and Mono, Regular), unmodified, from
+The Liberation fonts 2.1.5 (Sans, Serif and Mono, Regular), whole and unmodified, from
 <https://github.com/liberationfonts/liberation-fonts> (release 2.1.5,
 `liberation-fonts-ttf-2.1.5.tar.gz`, SHA-256
 `7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0`).
@@ -10,7 +10,25 @@ authors in `AUTHORS`). RapidR draws text on bitmaps with them
 (`src/objects/text.rs`): they have the same character widths as Arial,
 Times New Roman and Courier New, the fonts RapidQ programs name.
 
-**RapidR Sans** (`RapidRSans-Regular.ttf`) is a Modified Version of
+**Bold, Italic and Bold Italic** (`RapidRText{Sans,Serif,Mono}-{Bold,Italic,
+BoldItalic}.ttf`, nine files) are Liberation 2.1.5's own designed faces
+(`LiberationSans-Bold.ttf` … from the same release archive), cut to the Latin
+scripts (Basic Latin, Latin-1, Latin Extended-A, punctuation, currency,
+letterlike symbols, arrows, geometric shapes, box drawing) without hinting,
+36 to 39 KB each instead of about 400 KB. A subset is a Modified Version
+under the OFL, and Liberation (also Arimo, Tinos, Cousine) is a Reserved Font
+Name, so the files are renamed **RapidR Text Sans / Serif / Mono**, their
+copyright lines kept and the OFL named in each. Their glyphs are Liberation's,
+untouched; so a bold "Arial" text has Arial Bold's widths (Liberation Sans
+Bold's advances are Arial Bold's) and a bold "Times New Roman" has Times New
+Roman Bold's, with no help from the renderer. `tools/fonts/make_liberation_styles.py
+<unpacked archive folder>` makes them reproducibly. At run time they are
+registered as members of the Liberation families (`rapidr_ui_kernel::text`),
+so a bold or italic request for "Liberation Sans" finds them; a character
+they lack (Greek, Cyrillic, Hebrew …) comes from the family's Regular face,
+made bold by drawing it twice a pixel apart, or slanted — the fallback.
+
+**RapidR Sans** (`RapidRSans-Regular.ttf`, `RapidRSans-Bold.ttf`) is a Modified Version of
 Liberation Sans 2.1.5 under the same licence (SIL Open Font License 1.1;
 renamed, as the OFL asks: Liberation is a Reserved Font Name). It is the
 face RapidR draws MS Sans Serif with — RapidQ's default font, every
@@ -25,7 +43,14 @@ space (r, x, y, j, C, the brackets), the character is a pixel wider than in
 RapidQ ("program" is 40 pixels, RapidQ's 38; "Password:" 50, RapidQ's 49).
 MS Sans Serif's widths are RapidQ's own `TextWidth` of each character, measured with RapidQ's compiler on Windows 11; no Microsoft font
 data is used. `tools/fonts/make_rapidr_sans.py` makes it from
-`LiberationSans-Regular.ttf` (reproducibly) and explains the details.
+`LiberationSans-Regular.ttf` (reproducibly) and explains the details. Its
+**Bold** is the same from Liberation Sans Bold, each character exactly one
+pixel wider than the regular's (what RC.EXE measures for MS Sans Serif Bold
+at 8 pt) and 0.35 of a pixel (at 8 pt) heavier, so its stems are MS Sans
+Serif Bold's two pixels instead of Liberation Bold's 1.6 (each outline
+repeated beside itself, one shape for the renderer), cut to the Latin scripts
+like the others; `make_rapidr_sans.py
+<unpacked archive folder>` makes it.
 
 **Inter** (`Inter-Regular.ttf`, `Inter-SemiBold.ttf`; Inter 4.1,
 <https://github.com/rsms/inter>, `Inter-4.1.zip`, SHA-256

@@ -2521,8 +2521,10 @@ impl RustCodegen {
                     return format!("v_int({n})");
                 }
                 match name_lower.as_str() {
-                    "true" | "vttrue" => "v_bool(true)".to_string(),
-                    "false" | "vtfalse" => "v_bool(false)".to_string(),
+                    // (unless the program has its own: RAPIDQ.INC's `CONST
+                    // True = 1`, as the VM reads it)
+                    "true" | "vttrue" if !variable => "v_bool(true)".to_string(),
+                    "false" | "vtfalse" if !variable => "v_bool(false)".to_string(),
                     // An omitted argument (`COLOR , 1`, `INSTR(, a, b)`)
                     "__omitted" => "v_null()".to_string(),
                     _ => {

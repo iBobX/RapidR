@@ -1067,6 +1067,8 @@ mod tests {
 
     #[test]
     fn a_syntax_colours_only_the_paragraphs_an_edit_touched() {
+        // (RapidQ's look, checked op for op: the classic theme, named)
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
         let (mut e, mut ts) = editor(true, "DIM a\nPRINT 1 ' c\nx = 2");
         e.set_look(Look { syntax: Syntax::Basic, ..Look::default() });
         e.lay_out(&mut ts);

@@ -121,6 +121,8 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
             with(name, |s| s.analysis().close(&file));
             Value::Null
         }
+        // (the Help pane: Help(Word, [OfType]) — crate::help)
+        "help" => Value::String(crate::help::text(&text_arg(args, 0), &text_arg(args, 1))),
         "outline" => Value::String(with(name, |s| {
             let a = s.analysis();
             let text = a.text(&file).unwrap_or_default();

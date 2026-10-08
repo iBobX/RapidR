@@ -1717,6 +1717,8 @@ mod tests {
 
     #[test]
     fn paints_selection_and_check_marks() {
+        // (the classic look's colours)
+        crate::theme::set(&crate::theme::CLASSIC);
         let mut lv = report();
         lv.set("checkboxes", &v_int(-1));
         lv.call("item.checked=", &[v_int(0), v_int(-1)]);

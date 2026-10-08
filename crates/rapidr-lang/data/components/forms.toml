@@ -610,7 +610,7 @@ container = true
 size = [400, 300]
 default_event = "OnPaneChange"
 sets = ["layout", "a11y"]
-doc = "RapidR's docking area (RapidR Studio is built on it): panes docked at its edges, tabbed together, auto-hidden or floating, around a documents area of MDI windows or tabs. The user drags panes with a docking compass or moves them from the keyboard; the layout saves to text and loads back."
+doc = "RapidR's docking area (RapidR Studio is built on it): panes docked at its edges, tabbed together, auto-hidden or floating, around a documents area of MDI windows or tabs. Tabbed documents can be split into groups by dragging a tab to a side, reordered by dragging along the strip, and given views (a Design | Code switch). The user drags panes with a docking compass or moves them from the keyboard; the layout saves to text and loads back."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "DocumentMode", type = "string", default = "mdi", doc = "How documents show: \"mdi\" (windows in the documents area, the default) or \"tabs\"." },
@@ -618,6 +618,7 @@ properties = [
   { name = "ActivePane", type = "string", design = false, doc = "The active pane's name; setting it shows and focuses that pane." },
   { name = "PaneCount", type = "int", access = "read", design = false, doc = "How many panes the manager has (documents included)." },
   { name = "DocumentCount", type = "int", access = "read", design = false, doc = "How many documents are open." },
+  { name = "DocumentGroupCount", type = "int", access = "read", design = false, doc = "Tabbed documents: how many groups of tabs the documents area is split into (0 with no documents)." },
   { name = "Layout", type = "string", design = false, doc = "The whole layout as text: reading it is SaveLayout, setting it LoadLayout." },
   { name = "Height", type = "int" },
   { name = "Hint", type = "string", default = "" },
@@ -647,6 +648,10 @@ methods = [
   { name = "PaneState", params = "Name AS STRING", returns = "STRING", doc = "Where a pane is: \"docked\", \"tabbed\", \"autohide\", \"floating\", \"document\" or \"hidden\"." },
   { name = "PaneVisible", params = "Name AS STRING", returns = "INTEGER", doc = "True when the pane is placed and shown (not hidden, nor behind another tab)." },
   { name = "DocumentState", params = "Name AS STRING, [State AS INTEGER]", returns = "INTEGER", doc = "An MDI document's window: 0 normal, 1 minimized, 2 maximized (-1: not an MDI document); with State, it becomes that." },
+  { name = "AddView", params = "Document AS STRING, Component, Caption AS STRING", doc = "Tabbed documents: makes Component one of a document's views, under Caption. A document with two views or more gets a switch at the right of its tab strip (one segment per view, then side by side) and shows one view at a time, or the first two side by side with a splitter between them. Add the document's own component as a view too." },
+  { name = "DocumentView", params = "Name AS STRING, [View AS STRING]", returns = "STRING", doc = "Tabbed documents: the caption of the view a document shows (\"Split\" when its first two views are side by side); with View, shows that view (a caption, or \"Split\")." },
+  { name = "DocumentModified", params = "Name AS STRING, [Modified AS INTEGER]", returns = "INTEGER", doc = "Tabbed documents: whether a document's tab shows the dot of a change not saved; with Modified, sets it." },
+  { name = "SplitDocument", params = "Name AS STRING, Side AS STRING", doc = "Tabbed documents: moves a document into a new group of tabs on a side (\"left\", \"right\", \"top\" or \"bottom\") of its group, as dragging its tab there does." },
   { name = "NextDocument", value = true, doc = "Activates the next document (Ctrl+Tab)." },
   { name = "PreviousDocument", value = true, doc = "Activates the previous document (Ctrl+Shift+Tab)." },
   { name = "Cascade", value = true, doc = "Cascades the documents' windows." },
@@ -659,4 +664,5 @@ events = [
   { name = "OnDocumentActivate", params = "Name AS STRING", doc = "A document became the active one." },
   { name = "OnDocumentClose", params = "Name AS STRING, BYREF Cancel AS INTEGER", doc = "A document is about to close; set Cancel to keep it open." },
   { name = "OnLayoutChange", doc = "The layout changed (the user or the program moved, docked, floated or hid a pane)." },
+  { name = "OnDocumentView", params = "Name AS STRING, View AS STRING", doc = "Tabbed documents: a document now shows another view (its caption, or \"Split\" for side by side)." },
 ]

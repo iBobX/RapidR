@@ -8,7 +8,7 @@
 //   python3 -m http.server -d target/studio-web 18473 --bind 127.0.0.1
 //   node tests/studio_shell.mjs [filter…]
 //
-// RAPIDR_STUDIO_URL (default http://127.0.0.1:18473) is the page's server;
+// STUDIO_WEB_URL (default http://127.0.0.1:18473/; RAPIDR_STUDIO_URL also read) is the page's server;
 // RAPIDR_STUDIO_OUT (default tests/results/studio) gets each capture as
 // <scene>-<theme>@<s>x-desktop.bmp / -web.bmp and a side-by-side
 // <scene>-<theme>@<s>x.bmp (desktop | web) to look at; RAPIDR_STUDIO_SCALES
@@ -22,7 +22,8 @@ import { chromium } from "playwright";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = dirname(HERE);
-const URL_BASE = process.env.RAPIDR_STUDIO_URL || "http://127.0.0.1:18473";
+// (STUDIO_WEB_URL: each lane serves its own build on its own port)
+const URL_BASE = (process.env.STUDIO_WEB_URL || process.env.RAPIDR_STUDIO_URL || "http://127.0.0.1:18473/").replace(/\/+$/, "");
 const OUT = process.env.RAPIDR_STUDIO_OUT || join(ROOT, "tests", "results", "studio");
 const RAPIDR = process.env.RAPIDR || join(ROOT, "rapidr");
 const SCALES = (process.env.RAPIDR_STUDIO_SCALES || "1,2").split(",").map(Number);
@@ -50,13 +51,35 @@ const SCENES = [
   {
     name: "designer",
     open: "examples/rapidq/notepad.bas",
-    do: "view.documents.tabs,view.designer,designer.place.QBUTTON",
+    do: "view.designer,designer.place.QBUTTON",
     delay: 4,
     events: [
       "__mousedown_100_120", "__mouseup_100_120",
       "__mousedown_491_250", "__mousemove_521_250", "__mousemove_551_250", "__mouseup_551_250",
       "__mousedown_110_130", "__mousemove_130_150", "__mousemove_150_170", "__mouseup_150_170",
     ].map((e) => `designdoc(0).${e}`).join(","),
+  },
+  // (S-SHELL-2) Documents as tabs: a form's file side by side (Design |
+  // Code), another file in a second group on the right; Find in Files'
+  // results; F1's Help pane.
+  // (examples without $INCLUDE: on the web the language service and the
+  // designer don't read includes from the page's store yet)
+  {
+    name: "workspace",
+    open: "examples/gui/hello_form.rr",
+    do: "wait,view:Split,open:menus.rr,view.splitVertically",
+    delay: 5,
+  },
+  {
+    name: "design-tab",
+    open: "examples/gui/hello_form.rr",
+    delay: 4,
+  },
+  {
+    name: "search",
+    open: "examples/gui/hello_form.rr",
+    do: "wait,find:Greet,help:QBUTTON",
+    delay: 5,
   },
 ];
 
@@ -137,6 +160,8 @@ async function runWeb(browser, scene, theme, scale) {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   try {
+    const files = (scene.webFiles || []).map((f) => ({ path: f, text: readFileSync(join(ROOT, f), "utf8") }));
+    await page.addInitScript((files) => { window.RAPIDR_STUDIO_TEST_FILES = files; }, files);
     await page.addInitScript((env) => { window.RAPIDR_STUDIO_TEST = env; }, {
       RAPIDR_CAPTURE: "web",
       ...(scene.delay ? { RAPIDR_CAPTURE_DELAY: String(scene.delay) } : {}),

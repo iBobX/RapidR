@@ -251,13 +251,32 @@ pub fn look_events() -> &'static [&'static str] {
     &super::comport::EVENTS
 }
 
-/// The runtime's look at `id`: the events to fire.
-pub fn look(id: &str) -> Vec<(&'static str, Vec<Value>)> {
+/// The runtime's look at `id` (`handled`: whether the program handles an
+/// event): the events to fire.
+pub fn look(id: &str, handled: &dyn Fn(&str) -> bool) -> Vec<(&'static str, Vec<Value>)> {
     with(id, |l| match l {
-        Lib::ComPort(c) => c.look(),
+        Lib::ComPort(c) => c.look(handled),
         _ => Vec::new(),
     })
     .unwrap_or_default()
+}
+
+/// QCOMPORT `id`'s FillList: the items the runtime puts in the list or
+/// combo box (the system's ports, looked at again).
+pub fn comport_port_items(id: &str) -> Option<Vec<String>> {
+    with(id, |l| match l {
+        Lib::ComPort(c) => Some(c.port_items()),
+        _ => None,
+    })?
+}
+
+/// QCOMPORT `id`'s line end (ReadLine's), and whether a whole line waits.
+pub fn comport_has_line(id: &str) -> bool {
+    with(id, |l| match l {
+        Lib::ComPort(c) => c.get("hasline").is_some_and(|v| v.to_i64() != 0),
+        _ => false,
+    })
+    .unwrap_or(false)
 }
 
 /// QCOMPORT `id`'s Open where ports open later (the browser's Web

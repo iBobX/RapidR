@@ -337,15 +337,145 @@ pub struct Layout {
     /// Auto-hidden panes by edge ([`Side::index`]).
     pub autohide: [Vec<String>; 4],
     pub floating: Vec<Floating>,
+    /// Every document, in the order of [`Layout::groups`] (kept from it:
+    /// change the documents through the layout's operations).
     pub documents: Vec<String>,
     /// The active document (an index in `documents`).
     pub active_document: Option<usize>,
     pub mode: DocumentMode,
+    /// The tabbed documents' groups (VS Code's editor groups): one group
+    /// until a document is dragged to a side (or `SplitDocument`).
+    pub groups: DocNode,
 }
 
 impl Default for Layout {
     fn default() -> Self {
-        Layout { root: Node::Documents, autohide: Default::default(), floating: Vec::new(), documents: Vec::new(), active_document: None, mode: DocumentMode::Mdi }
+        Layout { root: Node::Documents, autohide: Default::default(), floating: Vec::new(), documents: Vec::new(), active_document: None, mode: DocumentMode::Mdi, groups: DocNode::default() }
+    }
+}
+
+/// The tabbed document area's groups: split side by side (a row) or
+/// stacked (a column) in proportion to their weights, each a strip of
+/// tabs with one document shown.
+#[derive(Clone, Debug, PartialEq)]
+pub enum DocNode {
+    Group { docs: Vec<String>, active: usize },
+    Split { axis: Axis, children: Vec<DocNode>, weights: Vec<i64> },
+}
+
+impl Default for DocNode {
+    fn default() -> Self {
+        DocNode::Group { docs: Vec::new(), active: 0 }
+    }
+}
+
+/// Where a dragged document goes: into the group holding `anchor` at tab
+/// `index`, or a new group on `side` of it.
+#[derive(Clone, Debug, PartialEq)]
+pub enum DocTarget {
+    Into { anchor: String, index: usize },
+    Split { anchor: String, side: Side },
+}
+
+impl DocNode {
+    /// Its documents in order.
+    pub fn docs(&self, out: &mut Vec<String>) {
+        match self {
+            DocNode::Group { docs, .. } => out.extend(docs.iter().cloned()),
+            DocNode::Split { children, .. } => children.iter().for_each(|c| c.docs(out)),
+        }
+    }
+
+    /// The groups in order: (path, documents, shown).
+    pub fn groups(&self) -> Vec<(Vec<usize>, Vec<String>, usize)> {
+        fn walk(n: &DocNode, path: Vec<usize>, out: &mut Vec<(Vec<usize>, Vec<String>, usize)>) {
+            match n {
+                DocNode::Group { docs, active } => out.push((path, docs.clone(), *active)),
+                DocNode::Split { children, .. } => {
+                    for (i, c) in children.iter().enumerate() {
+                        let mut p = path.clone();
+                        p.push(i);
+                        walk(c, p, out);
+                    }
+                }
+            }
+        }
+        let mut out = Vec::new();
+        walk(self, Vec::new(), &mut out);
+        out
+    }
+
+    /// The path to the group holding `doc`.
+    pub fn path_of(&self, doc: &str) -> Option<Vec<usize>> {
+        self.groups().into_iter().find(|(_, d, _)| d.iter().any(|x| x == doc)).map(|(p, _, _)| p)
+    }
+
+    pub fn at_mut(&mut self, path: &[usize]) -> Option<&mut DocNode> {
+        match path.split_first() {
+            None => Some(self),
+            Some((&i, rest)) => match self {
+                DocNode::Split { children, .. } => children.get_mut(i)?.at_mut(rest),
+                _ => None,
+            },
+        }
+    }
+
+    pub fn at(&self, path: &[usize]) -> Option<&DocNode> {
+        match (path.split_first(), self) {
+            (None, n) => Some(n),
+            (Some((&i, rest)), DocNode::Split { children, .. }) => children.get(i)?.at(rest),
+            _ => None,
+        }
+    }
+
+    /// Empty groups gone, a split of one child replaced by it, a split in
+    /// a split on the same axis merged into it (its weights shared out in
+    /// proportion).
+    fn normalized(self) -> Option<DocNode> {
+        match self {
+            DocNode::Group { docs, .. } if docs.is_empty() => None,
+            DocNode::Group { docs, active } => {
+                let active = active.min(docs.len() - 1);
+                Some(DocNode::Group { docs, active })
+            }
+            DocNode::Split { axis, children, weights } => {
+                let (mut kids, mut ws) = (Vec::new(), Vec::new());
+                for (c, w) in children.into_iter().zip(weights) {
+                    match c.normalized() {
+                        Some(DocNode::Split { axis: a, children: cc, weights: ww }) if a == axis => {
+                            let total: i64 = ww.iter().sum::<i64>().max(1);
+                            for (c2, w2) in cc.into_iter().zip(ww) {
+                                kids.push(c2);
+                                ws.push((w * w2 / total).max(1));
+                            }
+                        }
+                        Some(n) => {
+                            kids.push(n);
+                            ws.push(w.max(1));
+                        }
+                        None => {}
+                    }
+                }
+                match kids.len() {
+                    0 => None,
+                    1 => kids.pop(),
+                    _ => Some(DocNode::Split { axis, children: kids, weights: ws }),
+                }
+            }
+        }
+    }
+
+    /// Only the documents `keep` says.
+    fn filter(self, keep: &dyn Fn(&str) -> bool) -> DocNode {
+        match self {
+            DocNode::Group { docs, active } => {
+                let shown = docs.get(active).cloned();
+                let docs: Vec<String> = docs.into_iter().filter(|d| keep(d)).collect();
+                let active = shown.and_then(|s| docs.iter().position(|d| *d == s)).unwrap_or(0);
+                DocNode::Group { docs, active }
+            }
+            DocNode::Split { axis, children, weights } => DocNode::Split { axis, children: children.into_iter().map(|c| c.filter(keep)).collect(), weights },
+        }
     }
 }
 
@@ -412,8 +542,177 @@ impl Layout {
                 false
             }
             Some(Where::Floating(f, i)) => std::mem::replace(&mut self.floating[f].active, i) != i,
-            Some(Where::Document(i)) => self.active_document.replace(i) != Some(i),
+            Some(Where::Document(i)) => {
+                let doc = self.documents[i].clone();
+                if let Some(path) = self.groups.path_of(&doc) {
+                    if let Some(DocNode::Group { docs, active }) = self.groups.at_mut(&path) {
+                        if let Some(k) = docs.iter().position(|d| *d == doc) {
+                            *active = k;
+                        }
+                    }
+                }
+                self.active_document.replace(i) != Some(i)
+            }
             _ => false,
+        }
+    }
+
+    // ------------------------------------------------- document groups --
+
+    /// `documents` and `active_document` again from the groups (the
+    /// active document kept by name, else the first group's shown one).
+    fn sync_documents(&mut self, was: Option<String>) {
+        let mut docs = Vec::new();
+        self.groups.docs(&mut docs);
+        self.documents = docs;
+        self.active_document = match was.and_then(|w| self.documents.iter().position(|d| *d == w)) {
+            Some(i) => Some(i),
+            None => {
+                let shown = self.groups.groups().into_iter().find_map(|(_, d, a)| d.get(a).cloned());
+                shown.and_then(|s| self.documents.iter().position(|d| *d == s))
+            }
+        };
+    }
+
+    fn normalize_groups(&mut self) {
+        let g = std::mem::take(&mut self.groups);
+        self.groups = g.normalized().unwrap_or_default();
+    }
+
+    /// The group (its path) a new document goes to: the active
+    /// document's, else the first.
+    fn active_group_path(&self) -> Vec<usize> {
+        self.active_document
+            .and_then(|i| self.documents.get(i))
+            .and_then(|d| self.groups.path_of(d))
+            .unwrap_or_else(|| self.groups.groups().first().map(|g| g.0.clone()).unwrap_or_default())
+    }
+
+    /// Adds a document (not placed now) to the active group, shown and
+    /// active.
+    pub fn add_document(&mut self, doc: &str) {
+        let path = self.active_group_path();
+        if let Some(DocNode::Group { docs, active }) = self.groups.at_mut(&path) {
+            docs.push(doc.to_string());
+            *active = docs.len() - 1;
+        }
+        self.sync_documents(Some(doc.to_string()));
+    }
+
+    /// The document groups' count.
+    pub fn group_count(&self) -> usize {
+        self.groups.groups().len()
+    }
+
+    /// Shows document `i` in its group and makes it active.
+    pub fn select_document(&mut self, i: usize) {
+        if let Some(doc) = self.documents.get(i).cloned() {
+            self.select(&doc);
+        }
+    }
+
+    /// Moves document `doc` to `target` (into a group at a tab index, or
+    /// a new group beside one), shown and active; whether it moved.
+    pub fn move_document(&mut self, doc: &str, target: &DocTarget) -> bool {
+        let Some(from) = self.groups.path_of(doc) else { return false };
+        let anchor = match target {
+            DocTarget::Into { anchor, .. } | DocTarget::Split { anchor, .. } => anchor.clone(),
+        };
+        let own: Vec<String> = match self.groups.at(&from) {
+            Some(DocNode::Group { docs, .. }) => docs.clone(),
+            _ => Vec::new(),
+        };
+        let Some(to) = self.groups.path_of(&anchor) else { return false };
+        let same_group = to == from;
+        match target {
+            DocTarget::Into { index, .. } => {
+                if same_group {
+                    if let Some(DocNode::Group { docs, active }) = self.groups.at_mut(&to) {
+                        let i = docs.iter().position(|d| d == doc).unwrap_or(0);
+                        let d = docs.remove(i);
+                        let at = if *index > i { index - 1 } else { *index }.min(docs.len());
+                        docs.insert(at, d);
+                        *active = at;
+                    }
+                } else {
+                    // (the anchor's group found again once it has left its own)
+                    self.take_from_group(doc);
+                    let Some(to) = self.groups.path_of(&anchor) else { return false };
+                    if let Some(DocNode::Group { docs, active }) = self.groups.at_mut(&to) {
+                        let at = (*index).min(docs.len());
+                        docs.insert(at, doc.to_string());
+                        *active = at;
+                    }
+                }
+            }
+            DocTarget::Split { side, .. } => {
+                // (beside its own lone group: nowhere to go)
+                if same_group && own.len() == 1 {
+                    return false;
+                }
+                // (beside its own group: another of the group anchors it)
+                let anchor = if anchor == doc {
+                    match own.iter().find(|d| d.as_str() != doc) {
+                        Some(o) => o.clone(),
+                        None => return false,
+                    }
+                } else {
+                    anchor
+                };
+                self.take_from_group(doc);
+                let Some(to) = self.groups.path_of(&anchor) else { return false };
+                let new = DocNode::Group { docs: vec![doc.to_string()], active: 0 };
+                let axis = side.axis();
+                // (a split on the same axis takes it as a sibling, halving the anchor's weight)
+                let mut done = false;
+                if let Some((&i, parent)) = to.split_last() {
+                    if let Some(DocNode::Split { axis: a, children, weights }) = self.groups.at_mut(parent) {
+                        if *a == axis {
+                            let half = (weights[i] / 2).max(1);
+                            weights[i] -= half;
+                            let at = if side.before() { i } else { i + 1 };
+                            children.insert(at, new.clone());
+                            weights.insert(at, half);
+                            done = true;
+                        }
+                    }
+                }
+                if !done {
+                    let Some(node) = self.groups.at_mut(&to) else { return false };
+                    let old = std::mem::take(node);
+                    let (children, weights) = if side.before() { (vec![new, old], vec![1000, 1000]) } else { (vec![old, new], vec![1000, 1000]) };
+                    *node = DocNode::Split { axis, children, weights };
+                }
+            }
+        }
+        self.normalize_groups();
+        self.sync_documents(Some(doc.to_string()));
+        true
+    }
+
+    /// Takes `doc` out of its group (the group showing a neighbour); the
+    /// groups normalized.
+    fn take_from_group(&mut self, doc: &str) {
+        if let Some(path) = self.groups.path_of(doc) {
+            if let Some(DocNode::Group { docs, active }) = self.groups.at_mut(&path) {
+                if let Some(i) = docs.iter().position(|d| d == doc) {
+                    docs.remove(i);
+                    if *active > i || *active >= docs.len() {
+                        *active = active.saturating_sub(1);
+                    }
+                }
+            }
+        }
+        self.normalize_groups();
+    }
+
+    /// The split at `path` laid out at these extents (its splitter
+    /// dragged): its weights.
+    pub fn set_doc_weights(&mut self, path: &[usize], extents: &[i64]) {
+        if let Some(DocNode::Split { weights, .. }) = self.groups.at_mut(path) {
+            if weights.len() == extents.len() {
+                *weights = extents.iter().map(|e| (*e).max(1)).collect();
+            }
         }
     }
 
@@ -485,13 +784,21 @@ impl Layout {
                 Place::Float(rect)
             }
             Where::Document(i) => {
-                self.documents.remove(i);
-                self.active_document = match self.active_document {
-                    _ if self.documents.is_empty() => None,
-                    Some(a) if a > i => Some(a - 1),
-                    Some(a) if a == i => Some(i.min(self.documents.len() - 1)),
-                    a => a,
+                let was = self.active_document.and_then(|a| self.documents.get(a).cloned());
+                let doc = self.documents[i].clone();
+                // (the active one gone: its group's next shown, else the first group's)
+                let keep = if was.as_deref() == Some(doc.as_str()) {
+                    let path = self.groups.path_of(&doc);
+                    self.take_from_group(&doc);
+                    path.and_then(|p| match self.groups.at(&p) {
+                        Some(DocNode::Group { docs, active }) => docs.get(*active).cloned(),
+                        _ => None,
+                    })
+                } else {
+                    self.take_from_group(&doc);
+                    was
                 };
+                self.sync_documents(keep);
                 Place::Document
             }
         };
@@ -596,10 +903,7 @@ impl Layout {
                     *active = panes.len() - 1;
                 }
             }
-            Target::Into(Anchor::Documents) => {
-                self.documents.push(pane.to_string());
-                self.active_document = Some(self.documents.len() - 1);
-            }
+            Target::Into(Anchor::Documents) => self.add_document(pane),
             Target::Float(rect) => self.floating.push(Floating { panes: vec![pane.to_string()], active: 0, rect: *rect }),
             Target::AutoHide(side) => self.autohide[side.index()].push(pane.to_string()),
         }
@@ -643,6 +947,11 @@ impl Layout {
             let active = self.active_document.map_or(-1, |a| a as i64);
             out.push_str(&format!("documents {active} {}\n", self.documents.join(" ")));
         }
+        // (the document groups, when the documents are split)
+        if matches!(self.groups, DocNode::Split { .. }) {
+            out.push_str("groups ");
+            doc_text(&self.groups, 0, &mut out);
+        }
         if !hidden.is_empty() {
             out.push_str(&format!("hidden {}\n", hidden.join(" ")));
         }
@@ -660,6 +969,7 @@ impl Layout {
         }
         let mut layout = Layout::default();
         let mut hidden = Vec::new();
+        let mut groups: Option<DocNode> = None;
         let mut seen = std::collections::HashSet::new();
         let mut keep = |p: &str| -> Option<String> {
             let p = p.to_ascii_lowercase();
@@ -693,8 +1003,32 @@ impl Layout {
                     layout.active_document = (active >= 0 && !layout.documents.is_empty()).then(|| (active as usize).min(layout.documents.len() - 1));
                 }
                 Some("hidden") => hidden.extend(words[1..].iter().filter_map(|p| keep(p))),
+                Some("groups") => {
+                    let first = words[1..].to_vec();
+                    groups = parse_doc(&first, 0, &mut it, known)?;
+                }
                 _ => return Err(format!("unknown line: {line}")),
             }
+        }
+        // (the groups hold the documents listed, in their places; the
+        // others join the first group)
+        let active = layout.active_document.and_then(|a| layout.documents.get(a).cloned());
+        let listed = layout.documents.clone();
+        let mut g = groups.and_then(|g| g.filter(&|d| listed.iter().any(|l| l == d)).normalized()).unwrap_or_default();
+        let mut in_groups = Vec::new();
+        g.docs(&mut in_groups);
+        let first = g.groups().first().map(|x| x.0.clone()).unwrap_or_default();
+        if let Some(DocNode::Group { docs, .. }) = g.at_mut(&first) {
+            for d in &listed {
+                if !in_groups.contains(d) {
+                    docs.push(d.clone());
+                }
+            }
+        }
+        layout.groups = g;
+        layout.sync_documents(active.clone());
+        if let Some(i) = layout.active_document {
+            layout.select_document(i);
         }
         // (the documents are always somewhere)
         if !layout.root.has_documents() {
@@ -703,6 +1037,52 @@ impl Layout {
         }
         layout.normalize();
         Ok((layout, hidden))
+    }
+}
+
+fn doc_text(node: &DocNode, depth: usize, out: &mut String) {
+    match node {
+        DocNode::Group { docs, active } => out.push_str(&format!("group {active} {}\n", docs.join(" "))),
+        DocNode::Split { axis, children, weights } => {
+            out.push_str(&format!("split {}\n", axis.name()));
+            for (c, w) in children.iter().zip(weights) {
+                out.push_str(&"  ".repeat(depth + 1));
+                out.push_str(&format!("{w} "));
+                doc_text(c, depth + 1, out);
+            }
+        }
+    }
+}
+
+fn parse_doc(words: &[&str], depth: usize, it: &mut Lines, known: &dyn Fn(&str) -> bool) -> Result<Option<DocNode>, String> {
+    match words.first().copied() {
+        Some("group") => {
+            let active = words.get(1).and_then(|w| w.parse::<usize>().ok()).ok_or("bad group")?;
+            let docs: Vec<String> = words[2..].iter().map(|p| p.to_ascii_lowercase()).filter(|p| known(p)).collect();
+            Ok(Some(DocNode::Group { docs, active }))
+        }
+        Some("split") => {
+            let axis = match words.get(1).copied() {
+                Some("row") => Axis::Row,
+                Some("column") => Axis::Column,
+                _ => return Err("bad split".into()),
+            };
+            let (mut children, mut weights) = (Vec::new(), Vec::new());
+            while let Some(line) = it.peek() {
+                if depth_of(line) != depth + 1 {
+                    break;
+                }
+                let line = it.next().unwrap();
+                let w: Vec<&str> = line.split_whitespace().collect();
+                let weight = w.first().and_then(|s| s.parse::<i64>().ok()).ok_or("bad weight")?;
+                if let Some(n) = parse_doc(&w[1..], depth + 1, it, known)? {
+                    children.push(n);
+                    weights.push(weight.max(1));
+                }
+            }
+            Ok(Some(DocNode::Split { axis, children, weights }))
+        }
+        _ => Err("bad group node".into()),
     }
 }
 

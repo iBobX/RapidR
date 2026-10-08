@@ -476,25 +476,55 @@ pub fn background(cx: &Cx) -> u32 {
     }
 }
 
-/// A selected row `(x, y, w, h)` of a list (its text then drawn in the
-/// colour this answers): Windows' highlight across it (classic); a fluent
-/// theme's soft rounded fill with the accent's mark at its left.
-pub fn selected_row(p: &mut Painter, (x, y, w, h): Rect) -> u32 {
+/// A selected row `(x, y, w, h)` of a list, a tree, a grid (its text then
+/// drawn in the colour this answers): Windows' highlight across it
+/// (classic); RapidR's look a rounded pill a pixel in — the accent with its
+/// text while the list has the focus, a quiet grey without it.
+pub fn selected_row(p: &mut Painter, (x, y, w, h): Rect, focused: bool) -> u32 {
     let t = p.theme();
     if !t.fluent() {
         p.fill((x, y, w, h), t.highlight);
         return t.highlight_text;
     }
-    p.round((x + 1, y, w - 2, h), (t.radius - 1.0).max(2.0), Some(t.selected), None, 1.0);
-    let mark = (h - 8).clamp(3, 16);
-    p.round((x + 1, y + (h - mark) / 2, 3, mark), 1.5, Some(t.accent), None, 1.0);
+    let (fill, ink) = if focused { (t.highlight, t.highlight_text) } else { (t.unfocused, t.text) };
+    p.round((x + 1, y, w - 2, h), row_radius(t, h), Some(fill), None, 1.0);
+    ink
+}
+
+/// The row under the mouse in an open drop-down list or a menu: Windows'
+/// highlight (classic); RapidR's look the accent's soft tint.
+pub fn hot_row(p: &mut Painter, (x, y, w, h): Rect) -> u32 {
+    let t = p.theme();
+    if !t.fluent() {
+        p.fill((x, y, w, h), t.highlight);
+        return t.highlight_text;
+    }
+    p.round((x + 2, y, w - 4, h), row_radius(t, h), Some(t.selected), None, 1.0);
     t.selected_text
 }
 
-/// Where a list's row text starts: Windows' 2 pixels in (a fluent theme
-/// leaves room for its selection mark).
+/// A row's corners: the theme's, smaller on a short row.
+fn row_radius(t: &rapidr_value::theme::Theme, h: i64) -> f64 {
+    (t.radius - 1.0).min(h as f64 / 3.0).max(2.0)
+}
+
+/// Where a list's row text starts: Windows' 2 pixels in (RapidR's look: in
+/// from its pill's rounded end).
 pub fn text_indent(p: &Painter) -> i64 {
-    if p.fluent() { 7 } else { 2 }
+    if p.fluent() { 6 } else { 2 }
+}
+
+/// The keyboard's item in a list that has the focus: Windows' dotted
+/// rectangle (classic); RapidR's look shows the selection itself, ringing
+/// the item only where it isn't the selection's (a multiple selection).
+pub fn item_focus(p: &mut Painter, rect: Rect, ringed: bool) {
+    let t = p.theme();
+    if !t.fluent() {
+        p.focus(rect);
+    } else if ringed {
+        let (x, y, w, h) = rect;
+        p.ring((x + 1, y, w - 2, h), row_radius(t, h), t.focus, 1.0);
+    }
 }
 
 /// A bitmap's screen pixels (`Bitmap::display_rgba`) as a picture.
@@ -634,6 +664,10 @@ impl ComponentKind for ListBox {
         "RLISTBOX"
     }
 
+    fn field(&self) -> bool {
+        true
+    }
+
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
         sunken(p, w, h, background(cx));
@@ -667,7 +701,7 @@ impl ComponentKind for ListBox {
                         let shown = l.render_item(i, x2 - x1, &font).display_rgba();
                         p.picture(&format!("{}#item{i}", cx.id), 0, picture_of(shown), (x1, y1, x2 - x1, y2 - y1));
                         if cx.state.focused && l.item_index == i as i64 {
-                            p.focus((x1, y1, x2 - x1, y2 - y1));
+                            item_focus(p, (x1, y1, x2 - x1, y2 - y1), l.multi_select && !l.is_selected(i));
                         }
                     }
                 });
@@ -694,12 +728,12 @@ impl ComponentKind for ListBox {
                         break;
                     }
                     let selected = l.is_selected(i);
-                    let color = if selected { selected_row(p, (0, top, cw, rh)) } else { text_color };
+                    let color = if selected { selected_row(p, (0, top, cw, rh), cx.state.focused) } else { text_color };
                     let text = l.items[i].replace(['\n', '\r', '\t'], " ");
                     let x = text_indent(p);
                     p.text((x, top, cw - x, rh), &text, &font, color, Place::Left);
                     if cx.state.focused && l.item_index == i as i64 {
-                        p.focus((0, top, cw, rh));
+                        item_focus(p, (0, top, cw, rh), l.multi_select && !selected);
                     }
                 }
                 if let Some(c) = &canvas {
@@ -847,6 +881,8 @@ mod tests {
 
     #[test]
     fn list_box_click_keys_and_test_item() {
+        // (RapidQ's look, checked op for op: the classic theme, named)
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
         let (s, mut f, mut ts) = form(|s| {
             s.add("lst", "RLISTBOX", Some("f")).set("lst", "left", v_int(10)).set("lst", "top", v_int(10));
             s.call("lst", "additems", &[v_str("a"), v_str("b"), v_str("c")]);

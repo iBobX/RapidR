@@ -36,26 +36,23 @@ pub(super) fn sync(desk: &mut Desktop) {
 }
 
 /// `$THEME name` and `Application.Theme = name` (`rapidr_value::theme::
-/// choose`: classic — RapidQ's, and every name the classic look answered
-/// to — modern, dark, highcontrast and the older looks' names): the kernel
-/// draws with that theme from now on, every form drawn again. `auto` is
-/// the system's look (dark, high contrast) as the host says, or the modern
-/// one; a name no theme has draws the classic look, said once.
+/// choose`): the kernel draws with that theme from now on, every form drawn
+/// again. `rapidr` (and `auto`) is RapidR's look as the system is — light,
+/// dark or high contrast — and as it becomes; a name no theme has draws
+/// RapidR's look too, said once.
 pub(super) fn theme(name: &str) {
     use rapidr_value::theme::{self, Choice};
     let n = name.trim().to_lowercase();
-    let chosen = match theme::choose(&n) {
-        Choice::Theme(t) => t,
-        Choice::Auto => {
+    match theme::choose(&n) {
+        Choice::Theme(t) => theme::set(t),
+        choice => {
+            if choice == Choice::Unknown {
+                super::pending(&format!("$THEME {n} (it draws RapidR's look)"));
+            }
             let (dark, contrast) = system_look();
-            theme::auto(dark, contrast)
+            theme::follow_system(dark, contrast);
         }
-        Choice::Unknown => {
-            super::pending(&format!("$THEME {n} (it draws the classic theme)"));
-            &theme::CLASSIC
-        }
-    };
-    theme::set(chosen);
+    }
     rapidr_ui_app::windows::invalidate();
 }
 
@@ -69,12 +66,26 @@ fn system_look() -> (bool, bool) {
     }
 }
 
-/// `RAPIDR_THEME=auto` (a program that names no theme): the system's look,
-/// once, before anything is drawn.
+/// A program that names no theme (or `$THEME rapidr`): RapidR's look as
+/// the system is, asked before each pump — the windows drawn again only
+/// when the system's look changed (the user switched to dark …). Asked at
+/// most twice a second: the answer is a settings read.
 fn system_theme() {
-    if rapidr_value::theme::wants_system() {
-        let (dark, contrast) = system_look();
-        rapidr_value::theme::system_answer(dark, contrast);
+    use std::cell::Cell;
+    use std::time::{Duration, Instant};
+    thread_local!(static ASKED: Cell<Option<Instant>> = const { Cell::new(None) });
+    if !rapidr_value::theme::wants_system() {
+        return;
+    }
+    let now = Instant::now();
+    if ASKED.with(|a| a.get().is_some_and(|t| now.duration_since(t) < Duration::from_millis(500))) {
+        return;
+    }
+    ASKED.with(|a| a.set(Some(now)));
+    let before = rapidr_value::theme::generation();
+    let (dark, contrast) = system_look();
+    rapidr_value::theme::system_answer(dark, contrast);
+    if rapidr_value::theme::generation() != before {
         rapidr_ui_app::windows::invalidate();
     }
 }

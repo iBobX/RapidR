@@ -637,7 +637,7 @@ A tinted glass area (UtilMind's Glassy Form): it shades what's under it with its
 <a id="rdockmanager"></a>
 ## RDOCKMANAGER
 
-RapidR's docking area (RapidR Studio is built on it): panes docked at its edges, tabbed together, auto-hidden or floating, around a documents area of MDI windows or tabs. The user drags panes with a docking compass or moves them from the keyboard; the layout saves to text and loads back.
+RapidR's docking area (RapidR Studio is built on it): panes docked at its edges, tabbed together, auto-hidden or floating, around a documents area of MDI windows or tabs. Tabbed documents can be split into groups by dragging a tab to a side, reordered by dragging along the strip, and given views (a Design \| Code switch). The user drags panes with a docking compass or moves them from the keyboard; the layout saves to text and loads back.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -647,6 +647,7 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `ActivePane` | string |  | The active pane's name; setting it shows and focuses that pane. |
 | `PaneCount` (read-only) | int |  | How many panes the manager has (documents included). |
 | `DocumentCount` (read-only) | int |  | How many documents are open. |
+| `DocumentGroupCount` (read-only) | int |  | Tabbed documents: how many groups of tabs the documents area is split into (0 with no documents). |
 | `Layout` | string |  | The whole layout as text: reading it is SaveLayout, setting it LoadLayout. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string | `""` | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -684,6 +685,10 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `PaneState(Name AS STRING) AS STRING` | Where a pane is: "docked", "tabbed", "autohide", "floating", "document" or "hidden". |
 | `PaneVisible(Name AS STRING) AS INTEGER` | True when the pane is placed and shown (not hidden, nor behind another tab). |
 | `DocumentState(Name AS STRING, [State AS INTEGER]) AS INTEGER` | An MDI document's window: 0 normal, 1 minimized, 2 maximized (-1: not an MDI document); with State, it becomes that. |
+| `AddView(Document AS STRING, Component, Caption AS STRING)` | Tabbed documents: makes Component one of a document's views, under Caption. A document with two views or more gets a switch at the right of its tab strip (one segment per view, then side by side) and shows one view at a time, or the first two side by side with a splitter between them. Add the document's own component as a view too. |
+| `DocumentView(Name AS STRING, [View AS STRING]) AS STRING` | Tabbed documents: the caption of the view a document shows ("Split" when its first two views are side by side); with View, shows that view (a caption, or "Split"). |
+| `DocumentModified(Name AS STRING, [Modified AS INTEGER]) AS INTEGER` | Tabbed documents: whether a document's tab shows the dot of a change not saved; with Modified, sets it. |
+| `SplitDocument(Name AS STRING, Side AS STRING)` | Tabbed documents: moves a document into a new group of tabs on a side ("left", "right", "top" or "bottom") of its group, as dragging its tab there does. |
 | `NextDocument` | Activates the next document (Ctrl+Tab). |
 | `PreviousDocument` | Activates the previous document (Ctrl+Shift+Tab). |
 | `Cascade` | Cascades the documents' windows. |
@@ -697,6 +702,7 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `OnDocumentActivate(Name AS STRING)` | A document became the active one. |
 | `OnDocumentClose(Name AS STRING, BYREF Cancel AS INTEGER)` | A document is about to close; set Cancel to keep it open. |
 | `OnLayoutChange` | The layout changed (the user or the program moved, docked, floated or hid a pane). |
+| `OnDocumentView(Name AS STRING, View AS STRING)` | Tabbed documents: a document now shows another view (its caption, or "Split" for side by side). |
 
 <a id="rbutton"></a>
 ## RBUTTON (QBUTTON)
@@ -1921,6 +1927,7 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `CompCount` | int |  | The number of components on the design surface. |
 | `Visible` | int |  | Whether the control or form is shown. |
 | `FormCaption` | string |  | The caption of the form being designed. |
+| `Theme` | string |  | The look the designed form is drawn in (any name `$THEME` takes; "": the surface's own): `classic` shows it as RapidQ drew it. |
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `Count` | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
 | `SelCount` (read-only) | int |  | How many components are selected (Shift / Ctrl+click, a rubber band). |
@@ -3428,7 +3435,7 @@ For CGI programs behind a web server (qcgi.inc): the request's CGI variables as 
 <a id="rcomport"></a>
 ## RCOMPORT (QCOMPORT)
 
-A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then read and write strings. Web Serial in the browser.
+A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then read and write strings. Web Serial in the browser. RapidR adds what IoT boards (ESP32, Arduino) need: the ports listed with their USB IDs, the DTR / RTS lines (a board's reset), whole lines in and an event when an adapter is plugged in or out.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -3447,6 +3454,15 @@ A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then
 | `InQue` (read-only) | int |  | Bytes waiting in the receive buffer now; read-only. |
 | `OutQue` (read-only) | int |  | Bytes waiting in the send buffer now; read-only. |
 | `PendingIO` (read-only) | int |  | Writes still pending: always 0, as RapidR's I/O never stays pending; read-only. |
+| `DTR` *(RapidR)* | int | 1 | The Data Terminal Ready line: 1 set, 0 clear. It changes at once on an open port, else at Open; until set it follows DcbFlags (set). Many boards wire it, with RTS, to their reset and boot pins. |
+| `RTS` *(RapidR)* | int | 1 | The Request To Send line: 1 set, 0 clear. It changes at once on an open port, else at Open; until set it follows DcbFlags (set). With hardware flow control the port drives it. |
+| `CTS` *(RapidR)* (read-only) | int |  | The Clear To Send line the other end drives: 1 when set (0 while the port is closed). |
+| `DSR` *(RapidR)* (read-only) | int |  | The Data Set Ready line the other end drives: 1 when set (0 while the port is closed). |
+| `CD` *(RapidR)* (read-only) | int |  | The Carrier Detect line: 1 when set (0 while the port is closed). |
+| `RI` *(RapidR)* (read-only) | int |  | The Ring Indicator line: 1 when set (0 while the port is closed). |
+| `LineEnd` *(RapidR)* | string |  | What ends a line for ReadLine and OnLine: CHR$(10) unless set. With CHR$(10) a CR just before it is dropped too, so lines ending CR LF or LF both read clean. |
+| `HasLine` *(RapidR)* (read-only) | int |  | 1 when a whole line has arrived (ReadLine returns it at once). |
+| `PortCount` *(RapidR)* (read-only) | int |  | How many ports ListPorts found (it looks first when it hasn't yet). |
 
 | Method | |
 |---|---|
@@ -3462,6 +3478,16 @@ A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then
 | `WriteString(Str AS STRING, Wait AS INTEGER)` | Writes a string: to the serial port (waiting when `Wait` is true), or as a named value of the open registry key. |
 | `AddFlowControl` | Turns on flow-control options of the serial port. |
 | `DelFlowControl` | Turns off flow-control options of the serial port. |
+| `ListPorts AS INTEGER` *(RapidR)* | Looks at the serial ports there are now and returns how many; PortName, PortDescription and the others read them, 0 being the first. On the desktop every port the system has, a USB adapter's IDs and names with it; in the browser the ports the page was allowed (COM1, COM2 …). |
+| `PortName(Index AS INTEGER) AS STRING` *(RapidR)* | Port Index's name as Port takes it (COM3, /dev/cu.usbserial-1420, /dev/ttyUSB0); empty past the last. |
+| `PortDescription(Index AS INTEGER) AS STRING` *(RapidR)* | What port Index is: the system's name for its device (CP2102N USB to UART Bridge Controller), else the USB chip its IDs name (CH340 USB to serial); empty when nothing says. |
+| `PortManufacturer(Index AS INTEGER) AS STRING` *(RapidR)* | Who made port Index's USB device, as the device says (empty when not USB). |
+| `PortSerialNumber(Index AS INTEGER) AS STRING` *(RapidR)* | Port Index's USB device's serial number (empty when it has none): it tells two boards of the same kind apart. |
+| `PortVendorID(Index AS INTEGER) AS INTEGER` *(RapidR)* | Port Index's USB vendor ID (&H10C4 Silicon Labs, &H1A86 WCH, &H0403 FTDI, &H303A Espressif); 0 when not USB. |
+| `PortProductID(Index AS INTEGER) AS INTEGER` *(RapidR)* | Port Index's USB product ID; 0 when not USB. |
+| `FillList(Control) AS INTEGER` *(RapidR)* | Looks at the ports again and puts them in a list box or combo box, one item each (the name, then the description in brackets) in PortName's order, selecting Port's; returns how many. Port = PortName(Combo.ItemIndex) then picks one. |
+| `ReadLine([Timeout AS INTEGER]) AS STRING` *(RapidR)* | The next whole line that has arrived, without its LineEnd, waiting up to Timeout ms for one (1000 without it; 0 doesn't wait). Empty when none came in time: what part of a line has arrived stays for the next read. |
+| `SendBreak([Duration AS INTEGER])` *(RapidR)* | Holds the line in a break for Duration ms (250 without it). |
 
 | Event | |
 |---|---|
@@ -3475,6 +3501,8 @@ A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then
 | `OnRxChar(InQue AS INTEGER)` | Fires when bytes arrive at the serial port (InQue: how many are waiting to be read). |
 | `OnTxEmpty` *(not yet)* | Fires when the serial port's output buffer has emptied. RapidR accepts a handler for it but never fires it. |
 | `OnError(Message AS STRING)` | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
+| `OnLine(Received AS STRING)` *(RapidR)* | Fires for each whole line that arrives, without its LineEnd (the line is read: ReadString and ReadLine don't see it). The runtime looks every 50 ms. |
+| `OnPortsChanged(Added AS STRING, Removed AS STRING)` *(RapidR)* | Fires when serial ports come or go, a USB adapter plugged in or out: the names added and removed, a CR LF between two. The runtime looks about once a second (the browser says at once). |
 
 <a id="rdownload"></a>
 ## RDOWNLOAD (QDOWNLOAD)
@@ -4858,7 +4886,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `Open(Path AS STRING) AS INTEGER` | Opens a .rrproj, or a .bas / .rr / .inc file with what it includes. True when it opened; Error says why not. |
 | `OpenFolder(Folder AS STRING) AS INTEGER` | Opens the project of a folder: its .rrproj, else its main source (main.rr / main.bas, the one named as the folder, the one with a form). True when it opened. |
 | `Save([Path AS STRING]) AS INTEGER` | Writes the project file (a source file's project becomes <Folder>/<Name>.rrproj, or Path). True when it was written. |
-| `New(Template AS STRING, Name AS STRING, Folder AS STRING) AS INTEGER` | A new project from a template ("console" or "gui"): main.rr and <Name>.rrproj written in Folder. |
+| `New(Template AS STRING, Name AS STRING, Folder AS STRING) AS INTEGER` | A new project from a template ("console", "gui", "rapidq", "data" or "mdi"): the main file (main.rr, or main.bas for "rapidq", which also turns RapidQ compatibility on) and <Name>.rrproj written in Folder. |
 | `AddFile(Path AS STRING, [Kind AS STRING]) AS INTEGER` | Adds a file (its kind from its name, or Kind: module, form, include, resource, asset, data). True when it was added. |
 | `RemoveFile(Path AS STRING) AS INTEGER` | Takes a file out of the project (the file itself stays). True when it was in it. |
 | `Close` | No project is open any more. |
@@ -4869,6 +4897,9 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `StopBuild` | Stops the Build that is running. |
 | `Reveal([Path AS STRING]) AS INTEGER` | Shows Path (else what the last Build made) selected in Finder, Explorer or the Linux file manager. |
 | `IconPreview([Size AS INTEGER]) AS STRING` | Draws the app's icon (Icon, else RapidR's) as a Size-pixel PNG (128 by default) in the project's .rapidr folder and gives its path, for a QIMAGE to show; "" when the icon can't be read (Error says why). |
+| `Find(Pattern AS STRING, Options AS STRING, Text AS STRING) AS STRING` | Find in Files: every match of Pattern in Text, a line each: line, column (both from 1), length, the line's text, separated by tabs. Options: any of "case" (match case), "word" (whole words), "regex" (Pattern is a regular expression), separated by commas. "" with Error set when the pattern is not a valid regular expression. |
+| `Replace(Pattern AS STRING, Options AS STRING, Text AS STRING, With AS STRING) AS STRING` | Text with every match of Pattern (Find's Options) replaced by With; in a regular expression's replacement $1 or ${name} stand for its groups. |
+| `FileText(Path AS STRING) AS STRING` | A file's text (UTF-8, or a byte a character as RapidQ wrote it), from the disk on the desktop and the page's store on the web; Error says why when it can't be read. |
 
 | Event | |
 |---|---|
@@ -4891,6 +4922,7 @@ RapidR's language service, the one rapidr lsp and the VS Code extension use: a B
 | `Update(File AS STRING, Text AS STRING)` | A file's text as the editor has it (saved or not). |
 | `Close(File AS STRING)` | Forgets the editor's text of a file: it is read from its file again. |
 | `Outline(File AS STRING) AS STRING` | The file's outline, a line per item: depth, kind (sub, function, type, field, method, event, component, constant, variable, label), name, detail, line (from 1), separated by tabs. |
+| `Help(Word AS STRING, [OfType AS STRING]) AS STRING` | The language's entry for a word (a component, a function, a statement, a keyword, a constant, a global object; with OfType, a member of that component type), a part a line: its title, its syntax, what it is (kind, type, RapidQ's default, RapidQ's or RapidR's, where it runs), what it does, then a component's members. "" when the word isn't known. |
 | `Diagnostics(File AS STRING) AS STRING` | The file's errors and warnings, a line each: severity (error, warning, note), line, column (from 1), message, file, separated by tabs. |
 
 <a id="rprogramsession"></a>
@@ -4904,6 +4936,7 @@ A run of a program under development, as an IDE runs it: in its own process on t
 | `Args` | string |  | Its command line arguments, as COMMAND$ reads them (spaces separate them, quotes keep spaces). |
 | `Debug` | bool | True | Run under the debugger: breakpoints stop it, stepping works. |
 | `BreakOnError` | bool | False | Stop at the statement of a run-time error. |
+| `Theme` | string |  | The look the program is drawn in when it names none (any name `$THEME` takes; "" its default, RapidR's look): `classic` previews it as RapidQ drew it. |
 | `State` (read-only) | string |  | "stopped", "running" or "paused". |
 | `CurrentFile` (read-only) | string |  | Where the program is paused: its file. |
 | `CurrentLine` (read-only) | int |  | Where the program is paused: its line (from 1; 0 when not paused). |
@@ -4979,7 +5012,7 @@ The running program: its file and folder, title, icon, hint settings, RapidR's T
 | `ShowHint` | bool |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Title` | string |  | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
 | `Path` (read-only) | string |  | The folder the program's executable is in; read-only. |
-| `Theme` *(RapidR)* | string |  | The look RapidR draws with: `classic`, `modern`, `dark` or `highcontrast`; reads as the theme in use. |
+| `Theme` *(RapidR)* | string |  | The look the program is drawn in now, by name: `rapidr light`, `rapidr dark`, `rapidr high contrast` or `classic`. Setting it takes any name `$THEME` takes (`rapidr`: RapidR's look as the system is). |
 
 | Method | |
 |---|---|
