@@ -14,7 +14,8 @@
 //!   → the size as RapidQ stores it; of anything else → `__sizeof(x, "TYPE")`
 //!   at run time (a STRING: its length; a TYPE: its fields, packed);
 //! * `RTLMOVEMEMORY(dest, src, n)` (variables passed by reference) →
-//!   `MEMCPY(VARPTR(dest), VARPTR(src), n)`;
+//!   `MEMCPY(VARPTR(dest), VARPTR(src), n)`, when the program doesn't
+//!   DECLARE a routine of that name itself;
 //! * a call to a `DECLARE … LIB` routine: a variable given for a STRING or
 //!   a BYREF parameter becomes its address (`VARPTR(x)`), so the DLL writes
 //!   into the variable's mirror and the copy-back after the statement
@@ -31,6 +32,14 @@ use rapidr_diagnostics::TextSpan;
 /// Builtins that read or write memory: statements with them refresh and
 /// copy back the mirrors in scope.
 const MEMORY_CALLS: &[&str] = &["memcpy", "memset", "memcmp", "__cstring", "peek", "poke"];
+
+/// Methods that read or write memory (QMEMORYSTREAM's): `Mem.MemCopyTo(
+/// VARPTR(i), 4)` changes `i`, so the statement copies the mirrors back.
+const MEMORY_METHODS: &[&str] = &["memcopyfrom", "memcopyto"];
+
+fn is_memory_method(callee: &Expression) -> bool {
+    matches!(callee, Expression::MemberAccess(m) if MEMORY_METHODS.iter().any(|n| m.member.eq_ignore_ascii_case(n)))
+}
 
 fn key(name: &str) -> String {
     crate::strip_type_suffix(&name.to_ascii_lowercase()).to_string()
@@ -313,6 +322,7 @@ impl Pass<'_> {
                         let n = key(&n);
                         *found |= MEMORY_CALLS.contains(&n.as_str()) || self.routines.contains(&n) || self.dlls.contains_key(&n);
                     }
+                    *found |= is_memory_method(&fc.callee);
                 }
             });
         };
@@ -322,6 +332,7 @@ impl Pass<'_> {
                     let n = key(&n);
                     found |= MEMORY_CALLS.contains(&n.as_str()) || self.routines.contains(&n) || self.dlls.contains_key(&n);
                 }
+                found |= is_memory_method(&c.callee);
                 for a in &c.args {
                     check(a, &mut found);
                 }
@@ -352,10 +363,14 @@ impl Pass<'_> {
         self.dll_arguments(stmts);
         // Expressions everywhere (nested blocks included).
         walk_expressions_mut(stmts, true, &mut |e| self.expr(e));
-        // `RTLMOVEMEMORY dest, src, n` → `MEMCPY VARPTR(dest), VARPTR(src), n`.
+        // `RTLMOVEMEMORY dest, src, n` → `MEMCPY VARPTR(dest), VARPTR(src), n`
+        // — unless the program DECLAREs (or defines) a routine of that name:
+        // then it is that DLL's routine, called on Windows as declared
+        // (`BYVAL dest AS LONG` takes an address, not a variable).
+        let own = self.dlls.contains_key("rtlmovememory") || self.routines.contains("rtlmovememory");
         walk_statements_mut(stmts, &mut |s| {
             if let Statement::Call(c) = s {
-                if callee_name(&c.callee).is_some_and(|n| n == "rtlmovememory") && c.args.len() == 3 {
+                if !own && callee_name(&c.callee).is_some_and(|n| n == "rtlmovememory") && c.args.len() == 3 {
                     let span = c.span;
                     c.callee = ident(span, "MEMCPY");
                     for i in 0..2 {

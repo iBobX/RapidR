@@ -464,8 +464,23 @@ pub fn read(addr: i64, n: usize) -> Result<Vec<u8>, String> {
     Ok(bytes[off..off + n].to_vec())
 }
 
+/// Checks that `n` bytes can be written at `addr` (inside one block of the
+/// program's, before its end — a stream's grows), before they are made.
+pub fn check_room(addr: i64, n: usize) -> Result<(), String> {
+    let (base, t) = find(addr)?;
+    let off = (addr - base) as usize;
+    let len = match &t {
+        Target::Stream(_) => return Ok(()),
+        _ => match element_size(&t) {
+            Some((array, _, size)) => array.borrow().data.len() * size,
+            None => contents(&t).len(),
+        },
+    };
+    check_end(addr, off, n, len)
+}
+
 fn check_end(addr: i64, off: usize, n: usize, len: usize) -> Result<(), String> {
-    if off + n > len {
+    if off.checked_add(n).is_none_or(|end| end > len) {
         return Err(format!("{n} bytes at address {addr} run past the end of its memory ({} bytes left)", len.saturating_sub(off)));
     }
     Ok(())

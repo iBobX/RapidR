@@ -878,7 +878,7 @@ mod tests {
         let lib = if cfg!(windows) { "ucrtbase" } else if cfg!(target_os = "macos") { "libSystem.B.dylib" } else { "libm.so.6" };
         assert_eq!(dll_call(lib, "sqrtf", "SINGLE|SINGLE:v", &[v_dbl(6.25)]).unwrap(), v_dbl(2.5));
         assert_eq!(dll_call(lib, "fmaxf", "SINGLE|SINGLE:v,SINGLE:v", &[v_dbl(-1.5), v_dbl(0.25)]).unwrap(), v_dbl(0.25));
-        assert_eq!(dll_call(lib, "ldexpf", "SINGLE|SINGLE:v,LONG:v", &[v_dbl(0.75), v_int(4)]).unwrap(), v_dbl(12.0));
+        assert_eq!(dll_call(lib, "scalbnf", "SINGLE|SINGLE:v,LONG:v", &[v_dbl(0.75), v_int(4)]).unwrap(), v_dbl(12.0));
     }
 
     /// The system's C library (every system has one): the table calls

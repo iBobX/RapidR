@@ -1,0 +1,4 @@
+'RtlMoveMemory'
+(kernel32)
+runs on Windows only
+MEMCPY

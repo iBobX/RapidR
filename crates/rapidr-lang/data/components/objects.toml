@@ -50,9 +50,9 @@ properties = [
 ]
 methods = [
   { name = "Close", value = true },
-  { name = "CopyFrom", params = "Stream, Bytes AS INTEGER", missing = true },
+  { name = "CopyFrom", params = "Stream, Bytes AS INTEGER", test = "skip: needs a second stream to copy from" },
   { name = "ExtractRes", params = "Resource AS LONG" },
-  { name = "LoadArray", params = "Array", missing = true },
+  { name = "LoadArray", params = "Array, NumElements AS LONG", test = "skip: needs an array element (A(i)), lowered to a loop by the compilers" },
   { name = "Open", params = "FileName AS STRING, Method AS INTEGER", value = true },
   { name = "Read", params = "variable" },
   { name = "ReadLine", returns = "STRING", value = true },
@@ -60,7 +60,7 @@ methods = [
   { name = "ReadBinStr", params = "n", returns = "STRING" },
   { name = "ReadStr", params = "n", returns = "STRING" },
   { name = "ReadUDT", params = "MyType" },
-  { name = "SaveArray", params = "Array", missing = true },
+  { name = "SaveArray", params = "Array, NumElements AS LONG", test = "skip: needs an array element (A(i)), lowered to a loop by the compilers" },
   { name = "Seek", params = "Position AS INTEGER, From AS INTEGER" },
   { name = "Write", params = "variable" },
   { name = "WriteLine", params = "S AS STRING" },
@@ -74,10 +74,10 @@ methods = [
   { name = "ReadAll", value = true, origin = "rapidr" },
   { name = "Writeln", origin = "rapidr" },
   { name = "Readln", value = true, origin = "rapidr" },
-  { name = "LoadUdtArray", missing = true },
-  { name = "ReadByte", missing = true },
-  { name = "SaveUdtArray", missing = true },
-  { name = "WriteByte", missing = true },
+  { name = "LoadUdtArray", params = "ArrayField", doc = "Reads every element of a TYPE's array field (`Mem.LoadUDTArray(t.Items)`) from Position, laid out as RapidQ does; the stream must hold them all." },
+  { name = "ReadByte", returns = "BYTE", value = true, doc = "Reads one byte at Position (26, DOS's end-of-file mark, past the end)." },
+  { name = "SaveUdtArray", params = "ArrayField", doc = "Writes every element of a TYPE's array field (`Mem.SaveUDTArray(t.Items)`) at Position, laid out as RapidQ does." },
+  { name = "WriteByte", params = "Byte AS BYTE", doc = "Writes one byte (the value's low 8 bits) at Position." },
 ]
 events = []
 
@@ -278,23 +278,24 @@ properties = [
   { name = "Pointer", type = "int", access = "read", design = false },
   { name = "Position", type = "int" },
   { name = "Size", type = "int" },
+  { name = "SetSize", type = "int", access = "write", design = false, doc = "Size's other name in RapidQ (`Mem.SetSize = 0`), only written." },
   { name = "FileName", type = "string", origin = "rapidr" },
   { name = "Text", type = "string", origin = "rapidr" },
 ]
 methods = [
   { name = "Close", value = true },
-  { name = "CopyFrom", params = "Stream, Bytes AS INTEGER", missing = true },
+  { name = "CopyFrom", params = "Stream, Bytes AS INTEGER", test = "skip: needs a second stream to copy from" },
   { name = "ExtractRes", params = "Resource AS LONG" },
-  { name = "LoadArray", params = "Array", missing = true },
-  { name = "MemCopyFrom", params = "Address AS LONG, Bytes AS LONG", missing = true },
-  { name = "MemCopyTo", params = "Address AS LONG, Bytes AS LONG", missing = true },
+  { name = "LoadArray", params = "Array, NumElements AS LONG", test = "skip: needs an array element (A(i)), lowered to a loop by the compilers" },
+  { name = "MemCopyFrom", params = "Address AS LONG, Bytes AS LONG", doc = "Copies Bytes bytes from Address (VARPTR of a variable, an element, a TYPE, a stream's Pointer) into the stream at Position." },
+  { name = "MemCopyTo", params = "Address AS LONG, Bytes AS LONG", doc = "Copies Bytes bytes from Position to Address (VARPTR of a variable, an element, a TYPE); Position moves on by Bytes." },
   { name = "Read", params = "variable" },
   { name = "ReadLine", returns = "STRING", value = true },
   { name = "ReadNum", params = "Num_Type", returns = "DOUBLE" },
   { name = "ReadStr", params = "n", returns = "STRING" },
   { name = "ReadBinStr", params = "n", returns = "STRING" },
   { name = "ReadUDT", params = "MyType" },
-  { name = "SaveArray", params = "Array", missing = true },
+  { name = "SaveArray", params = "Array, NumElements AS LONG", test = "skip: needs an array element (A(i)), lowered to a loop by the compilers" },
   { name = "Seek", params = "Position AS INTEGER, From AS INTEGER" },
   { name = "Write", params = "variable" },
   { name = "WriteLine", params = "S AS STRING" },
@@ -306,9 +307,8 @@ methods = [
   { name = "Writeln", origin = "rapidr" },
   { name = "Readln", value = true, origin = "rapidr" },
   { name = "Clear", value = true, doc = "Empties the stream: `Size` and `Position` 0." },
-  { name = "LoadUdtArray", missing = true },
-  { name = "SaveUdtArray", missing = true },
-  { name = "SetSize", missing = true },
+  { name = "LoadUdtArray", params = "ArrayField", doc = "Reads every element of a TYPE's array field (`Mem.LoadUDTArray(t.Items)`) from Position, laid out as RapidQ does; the stream must hold them all." },
+  { name = "SaveUdtArray", params = "ArrayField", doc = "Writes every element of a TYPE's array field (`Mem.SaveUDTArray(t.Items)`) at Position, laid out as RapidQ does." },
 ]
 events = []
 

@@ -229,6 +229,19 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   memory through VARPTR, on every runtime including the web, with a clear
   error for any other address. INP / OUT are a run-time error, as on every
   Windows since 2000.
+- **The streams' last RapidQ members**, each checked against RC.EXE:
+  QMEMORYSTREAM's `MemCopyFrom` / `MemCopyTo` (bytes between the stream
+  at Position and an address of the program's: VARPTR of a variable, an
+  element, a TYPE, a stream's Pointer — bounds-checked, on every runtime)
+  and `SetSize` (Size, only written); `SaveUDTArray` / `LoadUDTArray` on
+  both streams (a TYPE's array field, laid out as RapidQ does);
+  QFILESTREAM's `ReadByte` / `WriteByte` (26, DOS's end-of-file mark, past
+  the end, as RapidQ). `CopyFrom`, `LoadArray` and `SaveArray` were
+  already there; the registry and the manual no longer call them missing.
+- A program that DECLAREs `RtlMoveMemory` itself (`BYVAL Dest AS LONG …`)
+  calls that DLL routine as declared — on Windows the copy happens, elsewhere
+  the "Windows only" error — instead of RapidR's own RTLMOVEMEMORY, which
+  copied between the wrong variables without a word.
 - `&hHE` is 14, as RC.EXE reads it (the non-hex letters dropped).
 - **Every build is an app for its system, with an icon** (`rapidr build`,
   `crates/rapidr-package`, docs/manual/building-apps.md). A program with

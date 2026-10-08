@@ -3722,6 +3722,7 @@ dependencies = [
  "rapidr-diagnostics",
  "rapidr-lexer",
  "rapidr-parser",
+ "rapidr-value",
 ]
 
 [[package]]
@@ -4057,6 +4058,7 @@ dependencies = [
  "resvg",
  "ttf-parser",
  "windows-registry",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
