@@ -73,7 +73,7 @@ const programs = Object.keys(results).filter((k) => !results[k] || results[k].le
 mkdirSync(WORK, { recursive: true });
 
 function build(src, out, interp) {
-  const args = ["build", src, out, ...(interp ? ["--interp"] : [])];
+  const args = ["build", src, out, "--no-bundle", ...(interp ? ["--interp"] : [])];
   const r = spawnSync(join(ROOT, "rapidr"), args, { cwd: dirname(src), env, encoding: "utf8", timeout: 600_000 });
   return r.status === 0 ? null : (r.stderr || r.stdout || "").split("\n").filter((l) => /error/i.test(l)).slice(0, 3).join(" | ") || `exit ${r.status}`;
 }

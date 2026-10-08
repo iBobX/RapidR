@@ -1030,8 +1030,8 @@ fn compile_inner(main: &str, source: &str, files: Vec<(String, String)>, assets:
     for r in &pre.resources {
         let bytes = match resource_bytes(assets, &r.file) {
             Some(b) => b,
-            // (`$OPTION ICON` without its icon: the default one)
-            None if r.optional => Vec::new(),
+            // (`$OPTION ICON`'s icon: RapidQ's error)
+            None if r.icon_directive.is_some() => return Err(r.not_found()),
             None => return Err(format!("$RESOURCE {}: file not found in the project's assets: '{}' (add it under Assets)", r.name, r.file)),
         };
         compiled.module.resources.push((r.name.clone(), bytes));

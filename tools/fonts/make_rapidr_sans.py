@@ -7,21 +7,28 @@ MS Sans Serif is a Windows bitmap font; no open font has its widths
 (Liberation Sans has Arial's, a few percent wider: "Password:" is 52 pixels
 at 8 pt against MS Sans Serif's 49, and a label sized for one clips the
 other). RapidR Sans is Liberation Sans (SIL Open Font License 1.1, its
-outlines and character set) with each Windows-1252 character made exactly as
-wide as MS Sans Serif's at 8 pt on a 96-dpi screen, where its em is 11
-pixels — its letter keeping its shape (6 % larger than Liberation's, both
-ways: an x-height of 6 pixels at 8 pt), narrowed or widened at most 4 %,
-the rest from its side bearings (shared as they were), and where the ink
-still doesn't fit, the letter made a little smaller in both directions;
-descenders kept within the line — its upright stems moved onto whole
-pixels at 8 pt, and MS Sans Serif's vertical metrics:
-ascent 11 pixels, descent 2, so a line is 13 pixels high (TextHeight) with
-the baseline 11 pixels down, as GDI draws it.
+outlines and character set) with each Windows-1252 character as wide as MS
+Sans Serif's at 8 pt on a 96-dpi screen, where its em is 11 pixels, and
+MS Sans Serif's vertical metrics: ascent 11 pixels, descent 2, so a line is
+13 pixels high (TextHeight) with the baseline 11 pixels down, as GDI draws
+it.
+
+Readable first: every letter is Liberation's own shape, all of them made
+SIZE large in both directions (never narrowed, never one letter smaller
+than the next), with at least GAP between two letters. A bitmap font's
+letters are a pixel apart; anti-aliased letters closer than about that run
+together ("Br", "pr", "ar" read as one shape). Where MS Sans Serif's width
+can't hold the letter and that space — r, x, y, j, C, the brackets — the
+character is a pixel wider than MS Sans Serif's ("program" 40 pixels
+against RapidQ's 38); the rest keep their widths exactly. Within its width a
+letter keeps Liberation's balance of space left and right, its upright
+stems on whole pixels at 8 pt where that leaves space on both sides;
+descenders are kept within the line.
 
 The widths are measurements, not Microsoft's data: RapidQ's own TextWidth of
 each character in its default font, run by RC.EXE on Windows 11
 (tests/visual/README.md, docs/rapidq-ground-truth.md). Other characters keep
-Liberation's outlines and widths. The hinting instructions are dropped (they
+Liberation's outlines and widths, made SIZE large too. The hinting instructions are dropped (they
 were made for Liberation's outlines); the renderer hints automatically.
 
 As a modified version under the OFL it is renamed (Liberation is a Reserved
@@ -32,6 +39,7 @@ so.
 
 writes crates/rapidr-value/fonts/RapidRSans-Regular.ttf (needs fontTools).
 """
+import math
 import os
 
 from fontTools.pens.recordingPen import DecomposingRecordingPen
@@ -60,35 +68,44 @@ WIDTHS = [int(w) for w in """
 assert len(WIDTHS) == 224
 EM_PX = 11
 ASCENT_PX, DESCENT_PX = 11, 2
-# The letters keep their shapes: a glyph's outline is narrowed or widened
-# at most this much to meet its width (barely visible) …
-SQUEEZE = (0.96, 1.04)
-# … the rest comes from its side bearings, and a glyph whose ink still
-# doesn't fit is made smaller in both directions, at most this much.
-SHRINK = 0.88
+# The letters' size: Liberation's outlines, all of them scaled by this one
+# factor, the same in both directions — every letter the same size as the
+# others and its own shape (never narrowed, never one letter smaller than
+# the next). An x-height of 5.5 pixels at 8 pt, which the renderer's
+# hinting makes 6 at 1× (MS Sans Serif's), 8 at 1.5×, 11 at 2×.
+SIZE = 0.95
+# Between two letters, at least this much space (pixels at 8 pt): with
+# less, anti-aliased letters run together — MS Sans Serif's bitmap letters
+# have a blank pixel column between them. A letter Liberation sets closer
+# than that (the pointed A, V, x, y) keeps its own spacing plus EXTRA.
+GAP = 0.8
+EXTRA = 0.3
+# Where MS Sans Serif's width (RapidQ's TextWidth) leaves less than that
+# by more than TOLERANCE, the character is a pixel wider (r, x, y, j, C, the
+# brackets: text a pixel or two wider than in RapidQ). Less than that is
+# left: a t's or an f's cross-bar, a pointed A or V, an s, as close to the
+# next letter as Liberation sets them.
+TOLERANCE = 0.38
+# Space kept on each side of a letter when its stems are put on whole
+# pixels, at least (or 40 % of what there is).
+SIDE = 0.25
 # Descenders kept within the line's 2 pixels below the baseline
 # (Liberation's g, p, y reach 0.212 em down; MS Sans Serif's line 2 of 11
 # pixels), so nothing is cut off at the bottom of a 13-pixel line: only
 # what lies below the baseline is shortened.
-SHORT = (DESCENT_PX / EM_PX) / 0.212
-# Every letter a little larger than Liberation's, the same in both
-# directions: an x-height of 6 pixels at 8 pt (5.7 in Liberation), as MS Sans
-# Serif's and Microsoft Sans Serif's — text as large as RapidQ's.
-BIG = 1.06
+SHORT = min(SIZE, (DESCENT_PX / EM_PX) / 0.212)
 
 
 class Fit(FilterPen):
-    """x scaled by kx, both directions by u (what's below the baseline by
-    SHORT too), then moved dx."""
+    """Scaled by SIZE (what's below the baseline by SHORT), then moved dx."""
 
-    def __init__(self, out, kx=1.0, u=1.0, dx=0.0):
+    def __init__(self, out, dx=0.0):
         super().__init__(out)
-        self.kx, self.u, self.dx = kx, u, dx
+        self.dx = dx
 
     def _p(self, pt):
         x, y = pt
-        u = self.u * BIG
-        return (x * self.kx * u + self.dx, y * u * (1.0 if y > 0 else SHORT / BIG))
+        return (x * SIZE + self.dx, y * (SIZE if y > 0 else SHORT))
 
     def moveTo(self, pt):
         self._outPen.moveTo(self._p(pt))
@@ -107,30 +124,33 @@ class Fit(FilterPen):
 KEEP_LIBERATION = {c for c in range(0x80, 0xA0)}
 
 
-def stem_shift(g, glyf, px):
-    """How far to move a glyph sideways (within half a pixel) so that its
-    upright edges — the sides of l, i, n, H … — fall on pixel boundaries
-    at 8 pt (one pixel `px` units), where a 1-pixel stem then shows as one
-    black column instead of two grey ones."""
-    if not g.numberOfContours:
-        return 0
-    coords, ends, flags = g.getCoordinates(glyf)
+def stem_shift(g, glyf, px, lo, hi):
+    """How far to move a glyph sideways, between lo and hi (font units), so
+    that its upright edges — the sides of l, i, n, H … — fall on pixel
+    boundaries at 8 pt (one pixel `px` units), where a 1-pixel stem then
+    shows as one black column instead of two grey ones. (The range keeps
+    some space on both sides of the letter: a letter moved flush against
+    its cell's edge touches the next one — B then r.)"""
+    if lo > hi:
+        return round((lo + hi) / 2)
     edges = []
-    start = 0
-    for end in ends:
-        pts = [(coords[i], flags[i] & 1) for i in range(start, end + 1)]
-        for (a, on_a), (b, on_b) in zip(pts, pts[1:] + pts[:1]):
-            if on_a and on_b and abs(a[0] - b[0]) <= 2 and abs(a[1] - b[1]) >= px * 3 // 4:
-                edges.append(((a[0] + b[0]) / 2, abs(a[1] - b[1])))
-        start = end + 1
+    if g.numberOfContours:
+        coords, ends, flags = g.getCoordinates(glyf)
+        start = 0
+        for end in ends:
+            pts = [(coords[i], flags[i] & 1) for i in range(start, end + 1)]
+            for (a, on_a), (b, on_b) in zip(pts, pts[1:] + pts[:1]):
+                if on_a and on_b and abs(a[0] - b[0]) <= 2 and abs(a[1] - b[1]) >= px * 3 // 4:
+                    edges.append(((a[0] + b[0]) / 2, abs(a[1] - b[1])))
+            start = end + 1
     if not edges:
-        return 0
+        return min(max(0, round(lo)), round(hi))
 
     def cost(s):
         return sum(w * min((x + s) % px, px - (x + s) % px) for x, w in edges)
 
-    best = min(range(-px // 2, px // 2 + 1, 2), key=lambda s: (round(cost(s)), abs(s)))
-    return best if cost(best) < cost(0) else 0
+    span = range(int(math.ceil(lo)), int(math.floor(hi)) + 1)
+    return min(span, key=lambda s: (round(cost(s)), abs(s))) if span else round((lo + hi) / 2)
 
 
 def main():
@@ -142,22 +162,31 @@ def main():
     glyf = font["glyf"]
     hmtx = font["hmtx"]
     cmap = font.getBestCmap()
-    original = font.getGlyphSet()
+    # (Liberation's outlines, from a copy of their own: a glyph set reads the
+    # glyf table as it is, and the one being made changes as it goes)
+    source = TTFont(SOURCE)
+    scale_upem(source, upm)
+    original = source.getGlyphSet()
 
-    def outline(name, kx=1.0, u=1.0, dx=0.0):
+    def outline(name, dx=0.0):
         rec = DecomposingRecordingPen(original)
         original[name].draw(rec)
         pen = TTGlyphPen(None)
-        rec.replay(Fit(pen, kx, u, dx))
+        rec.replay(Fit(pen, dx))
         return pen.glyph()
 
-    # Every glyph's descender kept in the line (composites decomposed from
-    # the original outlines: a glyph outside the table keeps Liberation's
-    # shape whatever its parts become).
+    # Every glyph SIZE large, its width too (composites decomposed from the
+    # original outlines: a glyph outside the table keeps Liberation's shape
+    # whatever its parts become).
     for name in font.getGlyphOrder():
         if glyf[name].isComposite() or glyf[name].numberOfContours > 0:
             glyf[name] = outline(name)
+            glyf[name].recalcBounds(glyf)
+        advance, lsb = hmtx[name]
+        hmtx[name] = (round(advance * SIZE), getattr(glyf[name], "xMin", 0) if glyf[name].numberOfContours else 0)
 
+    px = upm / EM_PX
+    report = []
     done = set()
     for i, width in enumerate(WIDTHS):
         code = 32 + i
@@ -168,33 +197,35 @@ def main():
         if not name or name in done:
             continue
         done.add(name)
-        advance, _ = hmtx[name]
-        target = round(width * upm / EM_PX)
-        if advance <= 0:
-            hmtx[name] = (target, 0)
+        # (Liberation's width, ink and side bearings, made SIZE large)
+        advance = source["hmtx"][name][0] * SIZE
+        g = glyf[name]
+        if advance <= 0 or not g.numberOfContours:
+            hmtx[name] = (round(width * px), 0)
             continue
-        base = glyf[name]
-        base.recalcBounds(glyf)
-        if not base.numberOfContours:
-            hmtx[name] = (target, 0)
-            continue
-        # (its ink, and the space either side of it)
-        ink = base.xMax - base.xMin
-        lsb, rsb = base.xMin, advance - base.xMax
-        kx = min(max(target / (advance * BIG), SQUEEZE[0]), SQUEEZE[1])
-        u = 1.0 if ink * kx <= target else max(SHRINK, target / (ink * kx))
+        ink = g.xMax - g.xMin
+        lsb, rsb = g.xMin, advance - g.xMax
+        # (the space it needs beside it: GAP, or Liberation's own plus EXTRA)
+        gap = min(GAP * px, lsb + rsb + EXTRA * px)
+        cells = max(width, math.ceil((ink + gap) / px - TOLERANCE))
+        if cells != width:
+            report.append(f"{ch} {width}->{cells}")
+        target = cells * px
         # (the side bearings share what's left as they did)
-        slack = target - ink * kx * u
+        slack = target - ink
         share = lsb / (lsb + rsb) if lsb + rsb > 0 else 0.5
-        dx = slack * share - base.xMin * kx * u
-        g = outline(name, kx, u, dx)
-        # (its upright stems on whole pixels at 8 pt: crisp as a bitmap font's)
-        s = stem_shift(g, glyf, upm // EM_PX)
-        if s:
-            g = outline(name, kx, u, dx + s)
+        dx = slack * share - g.xMin
+        # (its upright stems on whole pixels at 8 pt: crisp as a bitmap
+        # font's; at least SIDE on either side of it, or 40 % of what there is)
+        side = min(SIDE * px, max(slack, 0) * 0.4) if slack > 0 else slack / 2
+        lsb0 = slack * share
+        moved = outline(name, dx)
+        s = stem_shift(moved, glyf, upm // EM_PX, side - lsb0, slack - side - lsb0)
+        g = outline(name, dx + s) if s else moved
         glyf[name] = g
         g.recalcBounds(glyf)
-        hmtx[name] = (target, getattr(g, "xMin", 0) if g.numberOfContours else 0)
+        hmtx[name] = (round(target), g.xMin)
+    print("wider than MS Sans Serif:", " ".join(report) or "none")
 
     # (the hinting instructions were made for Liberation's outlines; the
     # renderer hints vertically on its own)

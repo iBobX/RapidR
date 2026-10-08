@@ -14,13 +14,16 @@ Times New Roman and Courier New, the fonts RapidQ programs name.
 Liberation Sans 2.1.5 under the same licence (SIL Open Font License 1.1;
 renamed, as the OFL asks: Liberation is a Reserved Font Name). It is the
 face RapidR draws MS Sans Serif with — RapidQ's default font, every
-component's — so a form laid out for RapidQ fits in RapidR as it did there:
-each Windows-1252 character is exactly as wide as MS Sans Serif's at 8 pt
-on a 96-dpi screen (its em is 11 pixels; the letters keep Liberation's
-shapes — the widths come from their side bearings, a letter narrowed at
-most 4 % or made a little smaller where it must), and a line is 13
-pixels high with the baseline 11 pixels down, as Windows draws it. The widths are RapidQ's own `TextWidth` of each
-character, measured with RapidQ's compiler on Windows 11; no Microsoft font
+component's — so a form laid out for RapidQ fits in RapidR as it did there,
+and its text reads clearly at every scale: each Windows-1252 character is as
+wide as MS Sans Serif's at 8 pt on a 96-dpi screen (its em is 11 pixels),
+and a line is 13 pixels high with the baseline 11 pixels down, as Windows
+draws it. Its letters are Liberation's own shapes, all made 95 % as large
+(never narrowed or squeezed), with at least 0.8 of a pixel between two
+letters at 8 pt: where MS Sans Serif's width can't hold a letter and that
+space (r, x, y, j, C, the brackets), the character is a pixel wider than in
+RapidQ ("program" is 40 pixels, RapidQ's 38; "Password:" 50, RapidQ's 49).
+MS Sans Serif's widths are RapidQ's own `TextWidth` of each character, measured with RapidQ's compiler on Windows 11; no Microsoft font
 data is used. `tools/fonts/make_rapidr_sans.py` makes it from
 `LiberationSans-Regular.ttf` (reproducibly) and explains the details.
 

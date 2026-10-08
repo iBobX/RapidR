@@ -123,7 +123,7 @@
 | `$TYPECHECK ON \| OFF` | `ON`: from here, storing into a variable never declared (DIM, CONST, a parameter) is a compile error; `OFF` turns the check off. |
 | `$OPTIMIZE ON \| OFF` | RapidQ's optimizer switch; accepted, with nothing for RapidR to change. |
 | `$ESCAPECHARS ON \| OFF` | `ON`: strings in this file understand escapes (`\n`, `\t`, `\"`, `\\`, `\x41`); `OFF` (the default) reads them as written. |
-| `$OPTION ICON "file" \| DECIMAL \| BYREF \| INKEY$ TRAPALL \| EXPLICIT …` | Program options: `ICON "file"` the program's icon, `DECIMAL` VAL's decimal character, `BYREF` parameters by reference, `EXPLICIT` as `$TYPECHECK ON`, `INKEY$ TRAPALL`, `DIM type`. |
+| `$OPTION ICON "file" \| DECIMAL \| BYREF \| INKEY$ TRAPALL \| EXPLICIT …` | Program options: `ICON "file"` the program's icon (the executable's, and its windows'; a file that isn't there is a compile error; the last `ICON` wins; RapidQ takes a 766-byte 32 × 32 .ico, RapidR also any .ico, .icns, .png or .svg), `DECIMAL` VAL's decimal character, `BYREF` parameters by reference, `EXPLICIT` as `$TYPECHECK ON`, `INKEY$ TRAPALL`, `DIM type`. |
 | `$THEME name` *(RapidR)* | The look the program's windows are drawn in: `Classic` (the default), `Modern`, `Dark`, `HighContrast` or `Auto`. |
 
 ## Keywords and operators

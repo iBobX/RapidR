@@ -131,8 +131,9 @@ character widths as Arial, Times New Roman and Courier New.
 Beside them, **RapidR Sans** (`RapidRSans-Regular.ttf`) is a Modified
 Version of Liberation Sans under the same licence, renamed as the OFL
 requires (it carries none of the Reserved Font Names): Liberation Sans with
-each Windows-1252 character as wide as MS Sans Serif's at 8 pt and MS Sans
-Serif's line metrics — the face RapidR draws RapidQ's default font with.
+each Windows-1252 character as wide as MS Sans Serif's at 8 pt (a few a
+pixel wider, so its letters don't run together) and MS Sans Serif's line
+metrics — the face RapidR draws RapidQ's default font with.
 `tools/fonts/make_rapidr_sans.py` makes it; the widths are measurements of
 RapidQ's `TextWidth`, no Microsoft font data
 (`crates/rapidr-value/fonts/README.md`).
