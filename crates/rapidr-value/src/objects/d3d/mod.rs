@@ -373,8 +373,12 @@ fn arg_id(args: &[Value], i: usize) -> String {
     args.get(i).map(Value::to_string_val).unwrap_or_default().to_lowercase()
 }
 
+/// A face's or mesh's colour as D3DRM keeps it (D3DRMCreateColorRGBA): each
+/// part held to 0 … 1 — RapidQ's `Lights_terrain.bas` colours its sky box
+/// `SetColorRGB(2255, 255, 255)` and its water `(0, 60, 200)`, and RC.EXE's
+/// D3DRM lights them as white and cyan (RapidR's lit them past white).
 fn rgba(r: f64, g: f64, b: f64, a: f64) -> [f32; 4] {
-    [r as f32, g as f32, b as f32, a as f32]
+    [r, g, b, a].map(|c| c.clamp(0.0, 1.0) as f32)
 }
 
 // ------------------------------------------------------------ QDXSCREEN --

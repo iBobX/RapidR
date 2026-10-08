@@ -109,7 +109,8 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   **D3DRM makes a zero vector unit as (1, 0, 0)** — `SetRotation(0, 0, 0, a)`
   turns about x (RapidQ's `Lights_pyramid.bas` tumbles), a camera whose up
   is (0, 0, 0) is the one with up (1, 0, 0) (`RapidQ_D3D.inc`'s QD3DCAMERA:
-  `3DPong` sees its court as RapidQ did); **texture filtering** only for
+  `3DPong` sees its court as RapidQ did); colours past 1 held to 1 (RapidQ's
+  `Lights_terrain` sky); **texture filtering** only for
   D3DRMTEXTURE_LINEAR (the mipmap qualities draw nearest); and **specular highlights** from
   a `.X` material's power and specular colour (RapidQ's `myearth.x`).
 - **The `.X` models**: all 55 of the corpus (42 different; text and binary)

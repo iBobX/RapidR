@@ -281,11 +281,11 @@ Tests: `tests/fixtures/dx_joystick.bas` (case `dx_joystick`, its gamepad the cas
 | `direct3d/3dConvert/xview2.bas` | kernel32 (DLL lane) | runs | interp: refused (`SetLastError`, the DLL lane) · native: runs | native: the same form |
 | `direct3d/3d_clock/3d_orologio.bas` | QRECT in STRUCT | runs (full screen) | runs · runs · runs | windowed copy `clock_win`: the same room, clock and light |
 | `direct3d/Lights_pyramid.bas` | QRECT in STRUCT | runs | runs · runs · runs | the same pyramid, now tumbling as RapidQ's (`lp_*`) |
-| `direct3d/Lights_terrain.bas` | QRECT in STRUCT | runs (with RapidQ at `C:\rapidq`) | runs · runs · runs | asks for a height map first in both |
+| `direct3d/Lights_terrain.bas` | QRECT in STRUCT | runs (with RapidQ at `C:\rapidq`) | runs · runs · runs | asks for a height map first in both; with its files given (`lt_file`): the sky box and water lit alike (yellow by the point light, blue — its colours past 1 now held to 1); the camera follows the mouse, so the views differ |
 | `direct3d/RQ_3DTerrain.bas` | QRECT in STRUCT | runs | runs · runs · runs | the same empty scene until a map is opened |
 | `direct3d/alphablend/D3D.BAS` | runs | runs | runs · runs · runs | the same translucent egg |
 | `direct3d/circularScreen/Circular3DScreen.bas` | QRECT in STRUCT | runs | runs · runs · runs | the same curved screen |
-| `direct3d/lights_motion.bas` | QRECT in STRUCT | runs | runs · runs · runs | asks for a model first in both; Park.x drawn as RapidQ draws it (gallery) |
+| `direct3d/lights_motion.bas` | QRECT in STRUCT | runs | runs · runs · runs | asks for a model first in both; with Park.x given (`lm_file`): the same park, tumbling about x as RapidQ's (phase differs) |
 | `direct3d/shadows/SHADOW.BAS` | runs | runs | runs · runs · runs | the same ball and shadow (bounce phase differs) |
 | `direct3d/smooth_move.bas` | runs | runs | runs · runs · runs | the same |
 | `direct3d/wrap/WRAP.BAS` | runs | runs | runs · runs · runs | the same chrome egg (turn phase differs) |
@@ -309,6 +309,7 @@ Totals: RC.EXE compiles 28 of the 32 (two of them only with RapidQ installed at 
 ### What the comparison found (changed)
 
 - **D3DRM makes a zero vector unit as (1, 0, 0)** (`Vec3::d3drm_unit`): `SetRotation(0, 0, 0, a)` turns about x — RapidQ's `Lights_pyramid.bas` tumbles its pyramid (RapidR's stood still: the earlier judgement call "turns nothing", made without RapidQ to look at, is gone); an orientation whose up is (0, 0, 0) is the one with up (1, 0, 0) — `RapidQ_D3D.inc`'s QD3DCAMERA leaves its up so, and RapidQ's 3DPong sees its court on its side, as RapidR now does; up along the direction leaves x (1, 0, 0) (upright); a direction of (0, 0, 0) looks along x. Probes `po_*` (camera and frame orientations) and `lp_*` (Lights_pyramid with its light fixed, without CameraLookAt, without the rotation, at 32 bits, unlit, without blending) side by side with RC.EXE's. (RapidQ's own `Lights_pyramid` window was black in two captures: its base-less pyramid, tumbling, shows only culled back faces at times — with its mouse position printed, `lp_j`, it draws it.)
+- **Colours held to 0 … 1**: a face's or mesh's colour past 1 (RapidQ's `Lights_terrain.bas`: `SetColorRGB(2255, 255, 255)` for its sky box, `(0, 60, 200)` for its water) is white / cyan, then lit — RapidR lit it past white (`lt_file`, the program with its files given, beside RC.EXE's).
 - **Texture filtering**: only D3DRMTEXTURE_LINEAR (1) blends texels; MIPNEAREST, MIPLINEAR, LINEARMIPNEAREST and LINEARMIPLINEAR (2–5) draw a magnified texture as NEAREST does (probes `pt_*`: a 4 × 4 checker on a square). RapidR blended for 3 and 5 — RapidQ's 3DPong asks MIPLINEAR and shows hard-edged tiles.
 - **Specular highlights**: a `.X` material's power and specular colour, D3DRM's way — (n · h)^power, the viewer at infinity behind the camera (no D3DRMRENDERMODE_VIEWDEPENDENTSPECULAR) — RapidQ's `xview/myearth.x`.
 - **A QDXSCREEN is set up on its shown window**: OnInitialize and OnInitializeSurface fire once the form's window is made and shown, before its OnShow (they fired before the window existed). RapidQ's 3DPong runs its whole game loop (DoEvents) inside OnInitializeSurface: its native build never showed its window.
