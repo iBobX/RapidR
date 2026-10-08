@@ -266,6 +266,11 @@ What can't work, and says so by failing the Windows way (the API returns
 - **Drawing on a form's DC** (`GetDC(Form.Handle)` + `Rectangle`) does draw
   on the window, but RapidR repaints the form from its own model on the
   next paint, so the drawing lasts until then. Draw on a QCANVAS instead.
+- **Window regions**: `SetWindowRgn(Form.Handle, CreateEllipticRgn(…), 1)`
+  succeeds and `GetWindowRgn` reads the region back, but the window isn't
+  cut to it — RapidR draws its windows with the GPU, which Windows composes
+  whole (RapidQ's rounded and elliptic forms, `forms/QrForm.bas`, stay
+  rectangles). Open.
 - **Coordinates on a high-DPI screen.** RapidR is DPI-aware; RapidQ wasn't
   (Windows scaled its windows and gave it scaled coordinates). So the
   numbers Windows' functions take and give — `SetWindowPos`,
@@ -380,6 +385,28 @@ The compile failures that remain aren't about DLLs: 10 includes the corpus
 doesn't have, 7 `QRECT` fields in a TYPE (RC.EXE's own "Datatype %s not
 supported in STRUCT" — those DirectX programs don't compile under RapidQ
 either), and code that isn't RapidQ's (other BASICs' syntax, typos).
+
+### Side by side with RC.EXE (user32, kernel32, gdi32)
+
+The same programs built by RapidQ's RC.EXE and by RapidR (interpreted and
+native) and run in turn in the VM, their windows captured (2026-10-08,
+second pass; the probes are in the lane's scratch folder, not the
+repository):
+
+| Program | Windows API | What RC.EXE and RapidR show |
+|---|---|---|
+| `files/DiskVolumeInfo.bas` | GetVolumeInformation (kernel32), buffers by VARPTR, a BYREF serial | the same three message boxes: no volume name, NTFS, serial 653868438 (26F9-3D96) |
+| `files/GetShortFileName.bas` | GetShortPathName (kernel32), a STRING and a VARPTR buffer | `C:\PROGRA~3\MICROS~1` on all three |
+| `System/SPYINFO3A.bas` | GetCursorPos, WindowFromPoint, GetWindowText, GetClassName, GetWindowRect, GetParent, SetWindowPos, SetWindowLong, GetSysColor (user32) | the window under the mouse, its class, parent and rectangle — real data in both; RapidR's in physical pixels (it is DPI-aware, §3). Its "Lock to" check box stays below the form in RapidR: the program places it in OnResize, which RapidQ fires when a form shows (RC.EXE: Resize, Show, Resize, Paint) and RapidR doesn't yet |
+| `forms/AlwaysOnTop.bas` | SetWindowPos, GetActiveWindow, GetForegroundWindow | the same form and menu |
+| `forms/LockWin.bas` | LockWindowUpdate | RapidR fills the 25,001 items in half a second; RC.EXE, emulated on ARM, hadn't finished after a minute |
+| `cursors/animated/cursors.bas` | LoadLibrary (a 32-bit resource DLL), LoadCursor | the DLL's twelve cursors stepping over the form, alike |
+| a `.cur` through LoadCursorFromFile into `Screen.Cursors(1)`, `Cursor = 1` | LoadCursorFromFile | the file's cursor over the form, alike (RC.EXE, interpreted, native) |
+| a centred form, GetClientRect into a QRECT | GetClientRect, GetWindowRect | the form at 714, 401 in both (fixed in this pass: RapidR opened centred forms at 0, 0); the QRECT filled (fixed: it went as a string) |
+| `forms/QrForm.bas`, `forms/Qeform.bas` | CreateRoundRectRgn / CreateEllipticRgn (gdi32), SetWindowRgn | the calls succeed in RapidR too (GetWindowRgn reads the region back), but its window isn't cut to the region: RapidR draws a window with the GPU, which Windows composes whole; RC.EXE's window is rounded / elliptic. Open |
+| `graphics/GDI_p.bas` | GdiplusStartup (gdiplus) | RC.EXE: started. RapidR: error 17 (UnsupportedGdiplusVersion). The program passes `VARPTR(tSI)` BYREF — the address of a LONG holding the TYPE's address — where GDI+ wants the TYPE; under RapidQ `VARPTR` of a TYPE isn't an address (RC.EXE: 0 or a stray value — 1 here, which GDI+ reads as its version), so it works there by accident. Its drawing also wants a QBITMAP's Handle as an HDC, which RapidR's isn't (§3) |
+| `graphics/bitblt.bas` | GetDC, BitBlt | neither: the corpus lacks its `rq.bmp` |
+| memory a DLL allocated (GlobalAlloc / GlobalLock) through a DECLAREd RtlMoveMemory | kernel32 | `[Hello]` in both; `Mem.MemCopyFrom` of that pointer copies in RapidQ and is refused in RapidR (§2) |
 
 **32-bit DLLs** a RapidQ program ships, which no 64-bit program can load
 (RapidR says "… is a 32-bit DLL"): `PASCAL.DLL` (`dll/simple/DLL.BAS`),

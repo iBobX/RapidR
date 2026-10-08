@@ -212,7 +212,10 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   instead of failing to load; x86 machine code run through CallWindowProc
   and SUBs handed to a DLL as callbacks are clear errors. Checked on the
   Windows 11 VM with the 175 corpus programs that call DLLs, interpreted
-  and native (docs/windows-dll-calls.md §6).
+  and native, and user32 / kernel32 / gdi32 programs side by side with
+  RC.EXE's builds (the same volume serial, short path names, window spy
+  data, cursors; docs/windows-dll-calls.md §6, which lists what still
+  differs).
 - RapidQ's **SENDMESSAGE, POSTMESSAGE and KILLMESSAGE** are user32's
   SendMessage / PostMessage / PeekMessage(PM_REMOVE) on Windows (11 more
   corpus programs compile), the same "Windows only" error elsewhere.
