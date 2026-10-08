@@ -217,6 +217,36 @@ pub fn description(type_name: &str) -> String {
     }
 }
 
+/// What a match in a component's doc scores: below its names' matches.
+const DOC_SCORE: i32 = -1000;
+
+/// Whether every word of `filter` (three letters or more) starts a word of
+/// component `type_name`'s doc or title — "chart" finds RPLOT, "timer"
+/// QTIMER's neighbours, "grid" the grids.
+pub fn doc_match(filter: &str, type_name: &str) -> bool {
+    let q: Vec<String> = filter.split_whitespace().map(str::to_lowercase).collect();
+    if q.is_empty() || q.iter().any(|w| w.chars().count() < 3) {
+        return false;
+    }
+    let text = format!("{} {}", title_of(type_name), rapidr_lang::component(type_name).map_or("", |c| c.doc)).to_lowercase();
+    let words: Vec<&str> = text.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).collect();
+    q.iter().all(|w| words.iter().any(|x| x.starts_with(w.as_str())))
+}
+
+/// An item's card (its tooltip): what it is in a sentence, where it comes
+/// from, where it runs.
+pub fn card(key: &Key) -> String {
+    let Key::Component(t) = key else { return String::new() };
+    let Some(c) = rapidr_lang::component(t) else { return String::new() };
+    let from = if c.rapidq.is_some() { "RapidQ's" } else { "RapidR's own" };
+    let runs = match c.runtimes {
+        rapidr_lang::Runtimes::Desktop => ", desktop only",
+        rapidr_lang::Runtimes::Web => ", web only",
+        _ => "",
+    };
+    format!("{} - {} ({from}{runs})", written_name(t), description(t))
+}
+
 impl Toolbox {
     /// A component's name as ShowNames says.
     pub fn name_of(&self, type_name: &str) -> String {
@@ -308,7 +338,8 @@ impl Toolbox {
             return Some(m);
         }
         let Key::Component(t) = key else { return None };
-        [written_name(t), t.clone(), title_of(t)].iter().filter_map(|n| fuzzy::score(&self.filter, n)).map(|(s, _)| (s - 20, Vec::new())).max_by_key(|(s, _)| *s)
+        let named = [written_name(t), t.clone(), title_of(t)].iter().filter_map(|n| fuzzy::score(&self.filter, n)).map(|(s, _)| (s - 20, Vec::new())).max_by_key(|(s, _)| *s);
+        named.or_else(|| doc_match(&self.filter, t).then(|| (DOC_SCORE, Vec::new())))
     }
 
     /// The rows shown now: the groups and their items (a closed group's
@@ -673,6 +704,15 @@ mod tests {
 
     fn tb() -> Toolbox {
         Toolbox::default()
+    }
+
+    #[test]
+    fn words_of_the_doc_find_a_component() {
+        let mut t = Toolbox::default();
+        t.filter = "chart".into();
+        let rows = t.rows();
+        assert!(!rows.is_empty(), "chart finds something");
+        assert_eq!(rows[0].key, Key::Component("RPLOT".into()), "{rows:?}");
     }
 
     #[test]

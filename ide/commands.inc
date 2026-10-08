@@ -1,6 +1,6 @@
 ' commands.inc: the command table — one row per command — and what is made
-' from it: the menu bar, the tool bar, the command palette's list; which
-' commands are enabled now; RunCommand, where every one of them goes.
+' from it: the menu bar (the tool bar and the command palette: panels.inc);
+' which commands are enabled now; RunCommand, where every one of them goes.
 '
 ' Command ids are RapidR's icon inventory's (design/icons/inventory.toml),
 ' so an id is also its icon's name (Bitmap.LoadIcon takes either).
@@ -239,63 +239,6 @@ FUNCTION CmdIcon(i AS INTEGER) AS STRING
   IF Cmd(i).Icon = "" THEN Result = Cmd(i).Id ELSE Result = Cmd(i).Icon
 END FUNCTION
 
-SUB AddTool(Id AS STRING)
-  DIM i AS INTEGER, hint AS STRING
-  i = CmdIndex(Id)
-  IF i < 0 OR TBCount >= MAXTOOLS THEN EXIT SUB
-  TB(TBCount).Parent = ToolBar
-  TB(TBCount).Left = TBNextX: TB(TBCount).Top = 5
-  TB(TBCount).Width = 30: TB(TBCount).Height = 30
-  TB(TBCount).Flat = 1
-  TB(TBCount).Tag = i
-  hint = PlainTitle(Cmd(i).Title)
-  TB(TBCount).AccessibleName = hint
-  IF CmdKeys(i) <> "" THEN hint = hint + " (" + CmdKeys(i) + ")"
-  TB(TBCount).Hint = hint
-  TB(TBCount).ShowHint = 1
-  TB(TBCount).OnClick = ToolPicked
-  TBCmd(TBCount) = i
-  Cmd(i).Tool = TBCount
-  TBNextX = TBNextX + 32
-  TBCount = TBCount + 1
-END SUB
-
-SUB AddToolSep
-  IF TBSepCount > 12 THEN EXIT SUB
-  TBSep(TBSepCount).Parent = ToolBar
-  TBSep(TBSepCount).BevelOuter = 0
-  TBSep(TBSepCount).Left = TBNextX + 6: TBSep(TBSepCount).Top = 12
-  TBSep(TBSepCount).Width = 1: TBSep(TBSepCount).Height = 16
-  TBSepCount = TBSepCount + 1
-  TBNextX = TBNextX + 14
-END SUB
-
-SUB BuildToolBar
-  TBNextX = 8
-  AddTool "file.newProject": AddTool "file.open": AddTool "file.save": AddTool "file.saveAll"
-  AddToolSep
-  AddTool "edit.undo": AddTool "edit.redo"
-  AddToolSep
-  AddTool "edit.cut": AddTool "edit.copy": AddTool "edit.paste": AddTool "edit.find"
-  AddToolSep
-  AddTool "run.start": AddTool "run.withoutDebugging": AddTool "run.pause": AddTool "run.stop": AddTool "run.build"
-  AddToolSep
-  AddTool "debug.stepInto": AddTool "debug.stepOver": AddTool "debug.stepOut": AddTool "debug.toggleBreakpoint"
-  AddToolSep
-  AddTool "designer.alignLeft": AddTool "designer.alignTop": AddTool "designer.sameWidth": AddTool "designer.bringToFront"
-  AddToolSep
-  AddTool "view.commandPalette": AddTool "view.settings"
-END SUB
-
-' The tool bar's icons, drawn in the current theme (again after a switch).
-SUB LoadToolIcons
-  DIM k AS INTEGER
-  FOR k = 0 TO TBCount - 1
-    TBIcon(k).LoadIcon CmdIcon(TBCmd(k)), 16
-    TB(k).BMPHandle = TBIcon(k)
-  NEXT
-END SUB
-
 ' ---- enabled commands --------------------------------------------------------------
 
 FUNCTION CmdEnabled(i AS INTEGER) AS INTEGER
@@ -337,7 +280,8 @@ SUB UpdateCommands
     IF Cmd(i).Id <> "" THEN
       en = Flag(CmdEnabled(i))
       IF Cmd(i).Item >= 0 THEN MI(Cmd(i).Item).Enabled = en
-      IF Cmd(i).Tool >= 0 THEN TB(Cmd(i).Tool).Enabled = en
+      IF Cmd(i).Tool >= 0 THEN ToolBar.ButtonEnabled Cmd(i).Id, en
+      Palette.CommandEnabled Cmd(i).Id, en
     END IF
   NEXT
   ' (the radio items say what is chosen)
@@ -354,96 +298,4 @@ SUB MenuPicked(Sender AS QMENUITEM)
   RunCommand Cmd(Sender.Tag).Id
 END SUB
 
-SUB ToolPicked(Sender AS QCOOLBTN)
-  RunCommand Cmd(Sender.Tag).Id
-END SUB
 
-' ---- the command palette ---------------------------------------------------------
-
-DIM PaletteCmd(MAXCMDS + 20) AS INTEGER
-DIM PaletteCount AS INTEGER
-
-SUB FillPalette
-  DIM i AS INTEGER, f AS STRING, txt AS STRING, cat AS STRING
-  f = LCASE$(PaletteEdit.Text)
-  PaletteList.Clear
-  PaletteCount = 0
-  ' (":N": a line of the active document)
-  IF LEFT$(f, 1) = ":" THEN
-    IF ActiveCode >= 0 THEN
-      PaletteList.AddItems "Go to line " + MID$(f, 2) + " (1 to " + LTRIM$(STR$(CodeDoc(ActiveCode).LineCount)) + ")"
-      PaletteCmd(0) = -10000
-      PaletteCount = 1
-      PaletteList.ItemIndex = 0
-    END IF
-    EXIT SUB
-  END IF
-  FOR i = 0 TO CmdCount - 1
-    IF Cmd(i).Id <> "" AND CmdEnabled(i) <> 0 THEN
-      cat = Cmd(i).Category
-      IF INSTR(cat, "/") > 0 THEN cat = LEFT$(cat, INSTR(cat, "/") - 1)
-      txt = cat + ": " + PlainTitle(Cmd(i).Title)
-      IF f = "" OR INSTR(LCASE$(txt), f) > 0 THEN
-        IF CmdKeys(i) <> "" THEN txt = txt + "    " + CmdKeys(i)
-        PaletteList.AddItems txt
-        PaletteCmd(PaletteCount) = i
-        PaletteCount = PaletteCount + 1
-      END IF
-    END IF
-  NEXT
-  ' (the examples: "Example: hello_form.rr …", opened by a negative entry)
-  FOR i = 0 TO ExampleCount - 1
-    txt = "Example: " + FileTitle(ExampleFile(i)) + " - " + ExampleWhat(i)
-    IF f = "" OR INSTR(LCASE$(txt), f) > 0 THEN
-      PaletteList.AddItems txt
-      PaletteCmd(PaletteCount) = -1 - i
-      PaletteCount = PaletteCount + 1
-    END IF
-  NEXT
-  IF PaletteCount > 0 THEN PaletteList.ItemIndex = 0
-END SUB
-
-SUB ShowPalette
-  PaletteEdit.Text = ""
-  FillPalette
-  Palette.Left = Studio.Left + (Studio.Width - Palette.Width) / 2
-  Palette.Top = Studio.Top + 80
-  Palette.Show
-  PaletteEdit.SetFocus
-END SUB
-
-SUB PaletteChanged
-  FillPalette
-END SUB
-
-SUB PalettePicked
-  DIM k AS INTEGER
-  k = PaletteList.ItemIndex
-  IF k < 0 OR k >= PaletteCount THEN EXIT SUB
-  Palette.Hide
-  IF PaletteCmd(k) = -10000 THEN
-    IF VAL(MID$(PaletteEdit.Text, 2)) > 0 AND ActiveCode >= 0 THEN CodeDoc(ActiveCode).GotoLine VAL(MID$(PaletteEdit.Text, 2)) - 1
-  ELSEIF PaletteCmd(k) < 0 THEN
-    OpenProject HomeDir + "examples/" + ExampleFile(-1 - PaletteCmd(k))
-  ELSE
-    RunCommand Cmd(PaletteCmd(k)).Id
-  END IF
-END SUB
-
-' (the palette's keys: Up / Down move in the list, Enter runs, Escape closes)
-SUB PaletteKey(Key AS INTEGER, Shift AS INTEGER)
-  SELECT CASE Key
-    CASE 27
-      Palette.Hide
-    CASE 13
-      PalettePicked
-    CASE 38
-      IF PaletteList.ItemIndex > 0 THEN PaletteList.ItemIndex = PaletteList.ItemIndex - 1
-    CASE 40
-      IF PaletteList.ItemIndex < PaletteCount - 1 THEN PaletteList.ItemIndex = PaletteList.ItemIndex + 1
-  END SELECT
-END SUB
-
-SUB PaletteListKey(Key AS INTEGER, Shift AS INTEGER)
-  PaletteKey Key, Shift
-END SUB

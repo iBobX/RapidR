@@ -405,6 +405,17 @@ impl ComponentKind for Toolbox {
         "RTOOLBOX"
     }
 
+    /// (tooltip.rs) The item under the mouse: its card — its name, what it
+    /// is, RapidQ's or RapidR's, where it runs.
+    fn tip_at(&self, store: &dyn Store, id: &str, x: f64, y: f64) -> Option<String> {
+        let (w, h) = (crate::store::int(store, id, "width", 0), crate::store::int(store, id, "height", 0));
+        let g = geo(w, h, &look(rapidr_value::theme::current()));
+        let (rows, ..) = Self::state(id);
+        let i = row_at(id, &g, &rows, x.floor() as i64, y.floor() as i64)?;
+        let card = model::card(&rows[i].key);
+        (!card.is_empty()).then_some(card)
+    }
+
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let l = look(p.theme());
         let (w, h) = (cx.width(), cx.height());

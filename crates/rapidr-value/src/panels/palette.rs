@@ -26,6 +26,9 @@ pub struct Command {
     pub category: String,
     pub icon: String,
     pub enabled: bool,
+    /// Made by a prefix ([`Palette::prefixes`]) from what was typed: shown
+    /// only while that prefix is typed, never kept among the ones used.
+    pub typed: bool,
 }
 
 impl Command {
@@ -78,11 +81,16 @@ pub struct Palette {
     pub shown: bool,
     /// Goes up at every Show: the kernel's search box starts again.
     pub shows: u64,
+    /// Typing one of these first (`:` …) gives one command made from the
+    /// rest — its title the template with `{}` replaced by it ("Go to line
+    /// {}"), its id the prefix and the rest (`:42`) — in place of the list
+    /// (VS Code's quick open modes).
+    pub prefixes: Vec<(String, String)>,
 }
 
 impl Default for Palette {
     fn default() -> Self {
-        Palette { commands: Vec::new(), mru: Vec::new(), filter: String::new(), placeholder: "Type a command".into(), max_rows: 10, active: None, top: 0, hover: None, pressed: None, shown: false, shows: 0 }
+        Palette { commands: Vec::new(), mru: Vec::new(), filter: String::new(), placeholder: "Type a command".into(), max_rows: 10, active: None, top: 0, hover: None, pressed: None, shown: false, shows: 0, prefixes: Vec::new() }
     }
 }
 
@@ -105,9 +113,12 @@ impl Palette {
     /// used last first (most recent first), then the rest by label; typed —
     /// the matches, best first (ties: used last first, then by label).
     pub fn matches(&self) -> Vec<Found> {
+        if self.prefix().is_some() {
+            return self.commands.iter().enumerate().filter(|(_, c)| c.typed).map(|(index, _)| Found { index, marks: Vec::new() }).collect();
+        }
         let mru_rank = |c: &Command| self.mru.iter().position(|m| m.eq_ignore_ascii_case(&c.id)).unwrap_or(usize::MAX);
         let mut found: Vec<(i32, usize, bool, String, Found)> = Vec::new();
-        for (i, c) in self.commands.iter().enumerate() {
+        for (i, c) in self.commands.iter().enumerate().filter(|(_, c)| !c.typed) {
             let label = c.label();
             // (the title alone too, a little better: "s" finds File: Save
             // as soon as Run: Start)
@@ -119,6 +130,11 @@ impl Palette {
         }
         found.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)).then(a.3.cmp(&b.3)).then(a.4.index.cmp(&b.4.index)));
         found.into_iter().map(|f| f.4).collect()
+    }
+
+    /// The prefix typed first (the longest that fits), with its template.
+    pub fn prefix(&self) -> Option<&(String, String)> {
+        self.prefixes.iter().filter(|(p, _)| !p.is_empty() && self.filter.starts_with(p.as_str())).max_by_key(|(p, _)| p.len())
     }
 
     /// The command at row `row` of the matches.
@@ -140,6 +156,11 @@ impl Palette {
     /// the list at its top.
     pub fn set_filter(&mut self, text: &str) {
         self.filter = text.to_string();
+        self.commands.retain(|c| !c.typed);
+        if let Some((prefix, template)) = self.prefix().cloned() {
+            let rest = self.filter[prefix.len()..].trim().to_string();
+            self.commands.push(Command { id: format!("{prefix}{rest}"), title: template.replace("{}", &rest), shortcut: String::new(), category: String::new(), icon: String::new(), enabled: !rest.is_empty(), typed: true });
+        }
         let found = self.matches();
         self.active = self.enabled_from(&found, 0, true);
         self.top = 0;
@@ -318,9 +339,21 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
             if s(0).is_empty() {
                 return Some(Value::Null);
             }
-            let c = Command { id: s(0), title: s(1), shortcut: s(2), category: s(3), icon: s(4), enabled: true };
+            let c = Command { id: s(0), title: s(1), shortcut: s(2), category: s(3), icon: s(4), enabled: true, typed: false };
             with_mut(name, |p| p.add(c));
             resize(rt, name);
+            Some(Value::Null)
+        }
+        "addprefix" => {
+            let (prefix, template) = (s(0), s(1));
+            with_mut(name, |p| {
+                p.prefixes.retain(|(x, _)| *x != prefix);
+                if !prefix.is_empty() && !template.is_empty() {
+                    p.prefixes.push((prefix, template));
+                }
+                let f = p.filter.clone();
+                p.set_filter(&f);
+            });
             Some(Value::Null)
         }
         "removecommand" => {
@@ -427,7 +460,7 @@ pub fn rt_user<R: Runtime>(rt: R, name: &str, action: User) {
         User::Run(id) => {
             let ok = with_mut(name, |p| {
                 let ok = p.index_of(&id).is_some_and(|i| p.commands[i].enabled);
-                if ok {
+                if ok && !p.commands.iter().any(|c| c.typed && c.id.eq_ignore_ascii_case(&id)) {
                     p.used(&id);
                 }
                 ok
@@ -453,7 +486,7 @@ mod tests {
     use crate::panels::rows::vk;
 
     fn cmd(id: &str, title: &str, category: &str) -> Command {
-        Command { id: id.into(), title: title.into(), shortcut: String::new(), category: category.into(), icon: String::new(), enabled: true }
+        Command { id: id.into(), title: title.into(), shortcut: String::new(), category: category.into(), icon: String::new(), enabled: true, typed: false }
     }
 
     fn palette() -> Palette {
@@ -467,6 +500,21 @@ mod tests {
 
     fn ids(p: &Palette) -> Vec<String> {
         p.matches().iter().map(|f| p.commands[f.index].id.clone()).collect()
+    }
+
+    #[test]
+    fn a_prefix_gives_one_command_from_what_was_typed() {
+        let mut p = palette();
+        p.prefixes.push((":".into(), "Go to line {}".into()));
+        p.set_filter(":42");
+        assert_eq!(ids(&p), [":42"]);
+        assert_eq!(p.command_at(0).unwrap().title, "Go to line 42");
+        assert_eq!(p.selected(), ":42");
+        p.set_filter(":");
+        assert_eq!(p.selected(), "", "nothing to go to yet");
+        p.set_filter("sav");
+        assert!(!ids(&p).iter().any(|i| i.starts_with(':')));
+        assert!(p.commands.iter().all(|c| !c.typed));
     }
 
     #[test]

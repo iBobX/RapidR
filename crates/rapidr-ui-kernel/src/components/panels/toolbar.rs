@@ -199,6 +199,19 @@ impl ComponentKind for ToolBar {
         client_area(store, id, w, h)
     }
 
+    /// (tooltip.rs) The button under the mouse: its hint (its shortcut in
+    /// it, as the program wrote it); the "»" button's name.
+    fn tip_at(&self, store: &dyn Store, id: &str, x: f64, y: f64) -> Option<String> {
+        let (w, h) = (store::int(store, id, "width", 0), store::int(store, id, "height", 0));
+        let lay = layout(store, id, w, h);
+        let (x, y) = (x.floor() as i64, y.floor() as i64);
+        if lay.on_chevron(x, y) {
+            return Some("More buttons".into());
+        }
+        let i = lay.item_at(x, y)?;
+        model::with(id, |t| t.items.get(i).filter(|it| it.kind != Kind::Separator).map(|it| it.hint.clone())).flatten().filter(|s| !s.is_empty())
+    }
+
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let l = look(p.theme());
         let back = background(cx, &l);

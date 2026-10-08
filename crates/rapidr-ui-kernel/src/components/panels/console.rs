@@ -76,6 +76,13 @@ fn mono(cx: &Cx) -> Font {
     Console::mono_default()
 }
 
+/// The tabs', the search box's and the problems' font: the theme's chrome
+/// font (Inter in RapidR's look, MS Sans Serif in the classic one); the
+/// component's Font is the output's (RapidR Studio sets a monospaced one).
+fn chrome(cx: &Cx) -> Font {
+    Font { color: cx.font.color, ..rapidr_value::ide_theme::chrome_font(rapidr_value::theme::current()) }
+}
+
 impl Console {
     /// The output's font when the program set none.
     fn mono_default() -> Font {
@@ -107,7 +114,7 @@ fn geo(cx: &Cx) -> Geo {
     let lh = text_size("Ag", &mono).1 + 2;
     let (strip, tabs, search, top) = if show_tabs {
         let strip = (i, i, w - 2 * i, rows::TABS);
-        let tabs = tab_rects(strip, &cx.font);
+        let tabs = tab_rects(strip, &chrome(cx));
         let tabs_end = tabs.last().map_or(i, |t| t.0 + t.2 + 28);
         let sw = ((w - 2 * i) / 3).clamp(120, 220);
         let sx = w - i - sw - 4;
@@ -273,15 +280,15 @@ impl Console {
     fn paint_strip(cx: &mut Cx, p: &mut Painter, g: &Geo, s: &Snapshot, l: &Look) {
         let Some(strip) = g.strip else { return };
         let titles: Vec<&str> = Page::ALL.iter().map(|p| p.title()).collect();
-        let tabs = common::tabs(p, strip, l, &titles, s.page.index(), s.hover_tab, &cx.font);
+        let tabs = common::tabs(p, strip, l, &titles, s.page.index(), s.hover_tab, &chrome(cx));
         // (the problems' count after their tab's title)
         if let (Some((n, sev)), Some(&tab)) = (s.badge, tabs.get(Page::Problems.index())) {
-            let small = Font { size: (cx.font.size - 1).max(6), styles: 1, ..cx.font.clone() };
+            let small = Font { size: (chrome(cx).size - 1).max(6), styles: 1, ..chrome(cx) };
             let text = n.to_string();
             let (tw, th) = text_size(&text, &small);
             let (bw, bh) = ((tw + 8).max(th + 2), th + 2);
             // (clear of the title, drawn bold while its page shows)
-            let title_font = Font { styles: cx.font.styles | u8::from(s.page == Page::Problems && !l.classic), ..cx.font.clone() };
+            let title_font = Font { styles: chrome(cx).styles | u8::from(s.page == Page::Problems && !l.classic), ..chrome(cx) };
             let (title_w, _) = text_size(Page::Problems.title(), &title_font);
             let x = (tab.0 + tab.2 - 5).max(tab.0 + (tab.2 + title_w) / 2 + 3);
             let r = (x, strip.1 + (strip.3 - bh) / 2, bw, bh);
@@ -302,17 +309,17 @@ impl Console {
             let ed = editing(cx.id);
             let focused = cx.state.focused && ed.is_some();
             if ed.is_some() {
-                common::search_box(p, sr, l, "", "", focused, &cx.font);
+                common::search_box(p, sr, l, "", "", focused, &chrome(cx));
                 crate::components::edit::paint_line(cx, p, list::editor_area(editor_rect(sr)), crate::components::edit::Source::InPlace);
             } else {
-                common::search_box(p, sr, l, &s.filter, "Search", false, &cx.font);
+                common::search_box(p, sr, l, &s.filter, "Search", false, &chrome(cx));
             }
             if !s.found.is_empty() {
-                let (tw, _) = text_size(&s.found, &cx.font);
+                let (tw, _) = text_size(&s.found, &chrome(cx));
                 let x = sr.0 - 8 - tw;
                 if tabs.last().is_none_or(|t| x > t.0 + t.2 + 24) {
                     let color = if s.found == "No results" { l.error } else { l.dim };
-                    p.text((x, strip.1, tw + 2, strip.3), &s.found, &cx.font, color, Place::Left);
+                    p.text((x, strip.1, tw + 2, strip.3), &s.found, &chrome(cx), color, Place::Left);
                 }
             }
         }
@@ -404,7 +411,7 @@ impl Console {
         let (bx, by, _, bh) = g.body;
         let focused = cx.state.focused && editing(cx.id).is_none();
         if s.count == 0 {
-            p.text((bx, by, cw, bh.min(rows::ROW * 3)), "No problems", &cx.font, l.dim, Place::Center);
+            p.text((bx, by, cw, bh.min(rows::ROW * 3)), "No problems", &chrome(cx), l.dim, Place::Center);
             return;
         }
         p.clipped((bx, by, cw, bh), |p| {
@@ -416,18 +423,18 @@ impl Console {
                 let marker = rapidr_icons::marker(pr.severity.name()).map_or(pr.severity.name(), |m| m.id);
                 common::icon(p, marker, bx + 8, y + (rows::ROW - 16) / 2, 16, None, false);
                 let place = pr.place();
-                let (pw, _) = text_size(&place, &cx.font);
+                let (pw, _) = text_size(&place, &chrome(cx));
                 let tx = bx + 30;
                 let room = cw - (tx - bx) - 8;
                 let mroom = if place.is_empty() { room } else { (room - pw - 12).max(room.min(60)) };
-                let msg = common::elide(&pr.message, &cx.font, mroom);
-                let (mw, _) = text_size(&msg, &cx.font);
-                p.text((tx, y, mroom, rows::ROW), &msg, &cx.font, ink, Place::Left);
+                let msg = common::elide(&pr.message, &chrome(cx), mroom);
+                let (mw, _) = text_size(&msg, &chrome(cx));
+                p.text((tx, y, mroom, rows::ROW), &msg, &chrome(cx), ink, Place::Left);
                 if !place.is_empty() {
                     let px = tx + mw + 12;
-                    let shown = common::elide(&place, &cx.font, bx + cw - 8 - px);
+                    let shown = common::elide(&place, &chrome(cx), bx + cw - 8 - px);
                     let dim = if selected && focused && !l.classic { ink } else if selected && focused { l.selected_text } else { l.dim };
-                    p.text((px, y, bx + cw - px, rows::ROW), &shown, &cx.font, dim, Place::Left);
+                    p.text((px, y, bx + cw - px, rows::ROW), &shown, &chrome(cx), dim, Place::Left);
                 }
                 // (the selection shows the focus; classic's dotted rectangle too)
                 if selected && focused && l.classic {

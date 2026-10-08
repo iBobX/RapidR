@@ -4529,7 +4529,7 @@ An object inspector in the style of Delphi's: the properties of a component (or 
 | Property | Type | Default | |
 |---|---|---|---|
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
-| `Target` | string | `""` | The component inspected: its name (or Handle). Several names separated by commas inspect them together: only the properties they all have are shown, and a change goes to every one of them. |
+| `Target` | string | `""` | The component inspected: its name (or Handle). Several names separated by commas inspect them together: only the properties they all have are shown, and a change goes to every one of them. While the inspector follows a Designer, it reads the names of the components selected there. |
 | `Designer` | component |  | A form designer whose selection the inspector follows: what the user selects there is inspected, and a change is made in the designer. |
 | `View` | string | `"categories"` | How the rows are ordered: "categories" (grouped, the default) or "alphabetic". |
 | `Page` | string | `"properties"` | The page shown: "properties" or "events". |
@@ -4542,6 +4542,8 @@ An object inspector in the style of Delphi's: the properties of a component (or 
 | `Selected` | string | `""` | The property (or event) whose row is selected; setting it selects that row. |
 | `RowCount` (read-only) | int |  | How many rows are shown now (the categories' headings included). |
 | `TargetType` (read-only) | string |  | The inspected component's type as the program writes it (QBUTTON), or "" when several of different types are inspected. |
+| `Rows` (read-only) | string |  | Every row shown, one a line, as Row gives them ("Name=Value", a category heading as "[Name]"). |
+| `Doc` (read-only) | string |  | What the selected row is, in words, as the inspector shows it under the rows: a property's description, an event's with its parameters. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
@@ -4773,6 +4775,7 @@ A box of commands found by typing: Show opens it over the form, the user types a
 | `Command(Index AS INTEGER) AS STRING` | The id of the command shown at Index (from 0) for what was typed. |
 | `Show` | Opens the palette at the top of its form, centred (as wide as Width, at most the form's width less 32 pixels), over every other component, empty, with the keyboard in it; the commands used last come first. |
 | `Hide` | Closes it. |
+| `AddPrefix(Prefix AS STRING, Title AS STRING)` | Typing Prefix first (":", "#" …) shows one command made from what follows it in place of the list: its title is Title with {} replaced by that text ("Go to line {}"), its id Prefix and the text (":42"), which OnCommand gives. An empty Title removes the prefix. |
 
 | Event | |
 |---|---|

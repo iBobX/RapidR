@@ -71,7 +71,7 @@ const CASES = [
     open: "",
     do: "view.commandPalette",
     delay: 3,
-    dump: { "palette.visible": /^(-1|1|True)$/i, "palettelist.itemcount": /^[1-9]\d+$/ },
+    dump: { "palette.count": /^[1-9]\d+$/, "palette.commandcount": /^[1-9]\d+$/ },
   },
 ];
 

@@ -6,9 +6,6 @@
 DIM FormName AS STRING
 DIM FormType AS STRING
 DIM FormCaption AS STRING
-DIM PropKey(60) AS STRING
-DIM PropValue(60) AS STRING
-DIM PropCount AS INTEGER
 DIM OutlineLine(400) AS INTEGER
 DIM OutlineCount AS INTEGER
 
@@ -71,7 +68,6 @@ SUB ScanForm(d AS INTEGER)
   DIM cx AS INTEGER, cy AS INTEGER, cw AS INTEGER, ch AS INTEGER, cname AS STRING, ctype AS STRING, ccap AS STRING
   DIM inForm AS INTEGER, formDepth AS INTEGER, v AS STRING
   FormName = "": FormType = "": FormCaption = ""
-  PropCount = 0
   DesignDoc(d).ClearAll
   cname = ""
   depth = 0
@@ -86,9 +82,6 @@ SUB ScanForm(d AS INTEGER)
       depth = depth + 1
       IF FormName = "" AND (ty = "QFORM" OR ty = "RFORM") THEN
         FormName = nm: FormType = ty: inForm = 1: formDepth = depth
-        PropKey(0) = "Name": PropValue(0) = nm
-        PropKey(1) = "Type": PropValue(1) = ty
-        PropCount = 2
       ELSEIF inForm AND depth = formDepth + 1 THEN
         cname = nm: ctype = ty: cx = 8: cy = 8: cw = 80: ch = 25: ccap = ""
       END IF
@@ -104,14 +97,9 @@ SUB ScanForm(d AS INTEGER)
       parts = TALLY(s, ":") + 1
       FOR j = 1 TO parts
         part = FIELD$(s, ":", j)
+        ' (S-PANELS: the form's own assignments are the inspector's now)
         IF depth = formDepth THEN
-          k = INSTR(part, "=")
-          IF k > 1 AND PropCount < 60 THEN
-            PropKey(PropCount) = LTRIM$(RTRIM$(LEFT$(part, k - 1)))
-            PropValue(PropCount) = LTRIM$(RTRIM$(MID$(part, k + 1)))
-            IF UCASE$(PropKey(PropCount)) = "CAPTION" THEN FormCaption = Unquote(PropValue(PropCount))
-            PropCount = PropCount + 1
-          END IF
+          v = Assigned(part, "Caption"): IF v <> "" THEN FormCaption = Unquote(v)
         ELSEIF depth = formDepth + 1 AND cname <> "" THEN
           v = Assigned(part, "Left"): IF v <> "" THEN cx = VAL(v)
           v = Assigned(part, "Top"): IF v <> "" THEN cy = VAL(v)
@@ -191,15 +179,8 @@ SUB FillProblems(d AS INTEGER)
     k = 2
     IF sev = "error" THEN k = 0: errs = errs + 1
     IF sev = "warning" THEN k = 1: warns = warns + 1
-    AddProblem k, FIELD$(row, CHR$(9), 4), FileTitle(FIELD$(row, CHR$(9), 5)), VAL(FIELD$(row, CHR$(9), 2))
-    ProblemLine(ProblemsView.ItemCount - 1) = VAL(FIELD$(row, CHR$(9), 2))
+    AddProblem k, FIELD$(row, CHR$(9), 4), FIELD$(row, CHR$(9), 5), VAL(FIELD$(row, CHR$(9), 2)), VAL(FIELD$(row, CHR$(9), 3))
   NEXT
-  IF n = 0 THEN AddProblem 3, "No problems", FileTitle(DocFile(d)), 0
-  IF errs + warns = 0 THEN
-    Dock.PaneTitle("problemsview", "Problems")
-  ELSE
-    Dock.PaneTitle("problemsview", "Problems (" + LTRIM$(STR$(errs + warns)) + ")")
-  END IF
 END SUB
 
 ' The active document's outline, problems and properties again.
@@ -209,12 +190,11 @@ SUB AnalyzeActive
   IF d >= 0 THEN
     Lang.Update DocFile(d), CodeDoc(d).Text
     ScanForm d
-  ELSE
-    PropCount = 0
   END IF
   FillOutline d
   FillProblems d
-  ShowProperties FormName
+  ' (S-PANELS: the inspector follows the active form's designer)
+  InspectActive
 END SUB
 
 ' ---- opening, saving, closing ---------------------------------------------------------
@@ -336,4 +316,6 @@ END SUB
 SUB AnalyzerTick
   Analyzer.Enabled = 0
   AnalyzeActive
+  ' (S-PANELS: the project tree lists the form's components as the code has them)
+  ProjectFileChanged ActiveCode
 END SUB

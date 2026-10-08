@@ -4575,7 +4575,7 @@ const COMPONENT_REGISTRY = {
         name: 'RPROPERTYINSPECTOR',
         description: 'An object inspector in the style of Delphi\'s: the properties of a component (or of every component a designer has selected) as a two-column grid of names and values, by category or A to Z, with a search box and an editor for each kind of value — numbers, text, True / False, a list of constants, a set of flags, colours with a picker, fonts, pictures and files, lists of strings, a component reference, and a visual editor for the four Anchors. A value left at its default is shown dimmed and can be reset; RapidR\'s own members of a RapidQ component are grouped under "RapidR extensions". An Events page lists the component\'s events and the SUB each one runs.',
         rapidq: null,
-        props: ['align', 'target', 'designer', 'view', 'page', 'filter', 'showevents', 'showrapidrextensions', 'readonly', 'handlers', 'namewidth', 'selected', 'rowcount', 'targettype', 'height', 'hint', 'left', 'parent', 'top', 'width', 'enabled', 'visible', 'font', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
+        props: ['align', 'target', 'designer', 'view', 'page', 'filter', 'showevents', 'showrapidrextensions', 'readonly', 'handlers', 'namewidth', 'selected', 'rowcount', 'targettype', 'rows', 'doc', 'height', 'hint', 'left', 'parent', 'top', 'width', 'enabled', 'visible', 'font', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
         methods: ['refresh', 'expandall', 'collapseall', 'expand', 'collapse', 'value', 'setvalue', 'resetvalue', 'isdefault', 'editvalue', 'addproperty', 'clearproperties', 'row'],
         events: ['onpropertychange', 'oneventdblclick', 'oneditorrequest', 'onselect'],
         methodSignatures: {
@@ -4595,7 +4595,7 @@ const COMPONENT_REGISTRY = {
         },
         propDocs: {
             'align': 'Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave.',
-            'target': 'The component inspected: its name (or Handle). Several names separated by commas inspect them together: only the properties they all have are shown, and a change goes to every one of them.',
+            'target': 'The component inspected: its name (or Handle). Several names separated by commas inspect them together: only the properties they all have are shown, and a change goes to every one of them. While the inspector follows a Designer, it reads the names of the components selected there.',
             'designer': 'A form designer whose selection the inspector follows: what the user selects there is inspected, and a change is made in the designer.',
             'view': 'How the rows are ordered: "categories" (grouped, the default) or "alphabetic".',
             'page': 'The page shown: "properties" or "events".',
@@ -4608,6 +4608,8 @@ const COMPONENT_REGISTRY = {
             'selected': 'The property (or event) whose row is selected; setting it selects that row.',
             'rowcount': 'How many rows are shown now (the categories\' headings included).',
             'targettype': 'The inspected component\'s type as the program writes it (QBUTTON), or "" when several of different types are inspected.',
+            'rows': 'Every row shown, one a line, as Row gives them ("Name=Value", a category heading as "[Name]").',
+            'doc': 'What the selected row is, in words, as the inspector shows it under the rows: a property\'s description, an event\'s with its parameters.',
             'height': 'The height, in pixels; on `Screen`, the screen\'s.',
             'hint': 'The tooltip shown when the mouse rests on the control (with `ShowHint`).',
             'left': 'The distance from the parent\'s left edge (a form\'s: the screen\'s), in pixels.',
@@ -4794,7 +4796,7 @@ const COMPONENT_REGISTRY = {
         description: 'A box of commands found by typing: Show opens it over the form, the user types a few letters of a command (in any order of its words, letters skipped), picks one with the arrows and Enter, and OnCommand says which. Each command shows its shortcut; the ones used last come first.',
         rapidq: null,
         props: ['filter', 'placeholder', 'count', 'commandcount', 'selected', 'maxrows', 'height', 'hint', 'left', 'parent', 'top', 'width', 'enabled', 'visible', 'font', 'accessiblename', 'accessibledescription'],
-        methods: ['addcommand', 'removecommand', 'clear', 'commandenabled', 'command', 'show', 'hide'],
+        methods: ['addcommand', 'removecommand', 'clear', 'commandenabled', 'command', 'show', 'hide', 'addprefix'],
         events: ['oncommand', 'oncancel'],
         methodSignatures: {
             'addcommand': { sig: 'AddCommand(Id AS STRING, Title AS STRING, [Shortcut AS STRING], [Category AS STRING], [Icon AS STRING])', desc: 'Adds a command (or changes the one with that Id): its title, its shortcut as shown ("Ctrl+Shift+P"), a category put before the title ("File: "), an icon.' },
@@ -4804,6 +4806,7 @@ const COMPONENT_REGISTRY = {
             'command': { sig: 'Command(Index AS INTEGER) AS STRING', desc: 'The id of the command shown at Index (from 0) for what was typed.' },
             'show': { sig: 'Show', desc: 'Opens the palette at the top of its form, centred (as wide as Width, at most the form\'s width less 32 pixels), over every other component, empty, with the keyboard in it; the commands used last come first.' },
             'hide': { sig: 'Hide', desc: 'Closes it.' },
+            'addprefix': { sig: 'AddPrefix(Prefix AS STRING, Title AS STRING)', desc: 'Typing Prefix first (":", "#" …) shows one command made from what follows it in place of the list: its title is Title with {} replaced by that text ("Go to line {}"), its id Prefix and the text (":42"), which OnCommand gives. An empty Title removes the prefix.' },
         },
         propDocs: {
             'filter': 'What the user typed.',

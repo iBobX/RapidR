@@ -597,12 +597,39 @@ pub fn reveal(m: &mut Inspector, key: &str) {
     m.ui.reveal = true;
 }
 
+/// What row `row` of `m` is, in words: a property's registry doc, an
+/// event's doc and parameters (the footer under the rows; `Doc`).
+pub fn row_doc(m: &Inspector, row: &Row) -> String {
+    match row.kind {
+        RowKind::Event => m.snap.events.get(row.prop).map(|e| {
+            let params = if e.params.is_empty() { "no parameters".to_string() } else { e.params.join(", ") };
+            if e.doc.is_empty() {
+                format!("Runs a SUB with {params}.")
+            } else {
+                format!("{} ({params})", e.doc)
+            }
+        }),
+        RowKind::Category => Some(format!("{} properties", row.count)),
+        _ => m.snap.props.get(row.prop).map(|p| p.doc.clone()),
+    }
+    .unwrap_or_default()
+    // (the registry's docs mark code with backquotes)
+    .replace('`', "")
+}
+
 /// Its properties its model answers.
 pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
     let m = with(name, Clone::clone).unwrap_or_default();
     Some(match prop {
+        // (following a designer: the components it has selected)
+        "target" if !m.designer.is_empty() => v_str(&m.snap.objects.iter().map(|o| o.0.as_str()).collect::<Vec<_>>().join(",")),
         "target" => v_str(&m.target),
         "designer" => v_str(&m.designer),
+        "rows" => v_str(&m.rows().iter().map(Row::describe).collect::<Vec<_>>().join("\n")),
+        "doc" => {
+            let rows = m.rows();
+            v_str(&m.selected_in(&rows).map(|i| row_doc(&m, &rows[i])).unwrap_or_default())
+        }
         "view" => v_str(if m.alphabetic { "alphabetic" } else { "categories" }),
         "page" => v_str(if m.events_page { "events" } else { "properties" }),
         "filter" => v_str(&m.filter),

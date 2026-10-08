@@ -127,28 +127,21 @@ pub fn footer(p: &mut Painter, r: Rect, m: &Inspector, rows: &[Row], c: &Ctx) {
         return;
     }
     let Some(row) = sel else {
-        let hint = if m.snap.objects.is_empty() && m.snap.props.is_empty() { "Set Target (a component's name) or Designer to inspect." } else { "Select a row to see what it does." };
+        let hint = if !m.designer.is_empty() && m.snap.objects.is_empty() {
+            "Select a component on the form."
+        } else if m.snap.objects.is_empty() && m.snap.props.is_empty() {
+            "Set Target (a component's name) or Designer to inspect."
+        } else {
+            "Select a row to see what it does."
+        };
         wrapped(p, (x + 8, y + 6, w - 16, h - 8), hint, c.font, l.dim, 2);
         return;
     };
     let name = row.prop_name(&m.snap.props, &m.snap.events);
-    let doc = match row.kind {
-        RowKind::Event => m.snap.events.get(row.prop).map(|e| {
-            let params = if e.params.is_empty() { "no parameters".to_string() } else { e.params.join(", ") };
-            if e.doc.is_empty() {
-                format!("Runs a SUB with {params}.")
-            } else {
-                format!("{} ({params})", e.doc)
-            }
-        }),
-        RowKind::Category => Some(format!("{} properties", row.count)),
-        _ => m.snap.props.get(row.prop).map(|p| p.doc.clone()),
-    }
-    .unwrap_or_default();
+    let doc = rapidr_value::panels::inspector::row_doc(m, row);
     let b = bold(c.font);
     p.text((x + 8, y + 4, w - 16, 18), &common::elide(&name, &b, w - 16), &b, l.text, Place::Left);
-    // (the registry's docs mark code with backquotes)
-    wrapped(p, (x + 8, y + 22, w - 16, h - 24), &doc.replace('`', ""), c.font, l.dim, 2);
+    wrapped(p, (x + 8, y + 22, w - 16, h - 24), &doc, c.font, l.dim, 2);
 }
 
 /// `text` in up to `lines` lines across `r` (the last cut with "…").

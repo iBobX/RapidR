@@ -36,7 +36,14 @@ const SCENES = [
   // (Studio's own dialogs, in the chrome font: the window captured is the
   // dialog, the second shown)
   { name: "newproject", open: "", do: "file.newProject", window: 2 },
-  { name: "palette", open: "", do: "view.commandPalette", window: 2 },
+  // (the palette is over Studio's own window: RCOMMANDPALETTE)
+  { name: "palette", open: "", do: "view.commandPalette" },
+  // (S-PANELS: the panels on a form program — the project tree, the
+  // toolbox, the inspector following the designer, the console)
+  { name: "panels", open: "examples/gui/pantry.rr" },
+  { name: "events", open: "examples/gui/pantry.rr", do: "wait,page:events" },
+  { name: "toolbox-search", open: "examples/gui/pantry.rr", do: "wait,search:chart" },
+  { name: "palette-line", open: "examples/gui/pantry.rr", do: "wait,palette::12" },
 ];
 
 mkdirSync(OUT, { recursive: true });

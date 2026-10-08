@@ -11,7 +11,7 @@ sets = ["layout", "a11y"]
 doc = "An object inspector in the style of Delphi's: the properties of a component (or of every component a designer has selected) as a two-column grid of names and values, by category or A to Z, with a search box and an editor for each kind of value — numbers, text, True / False, a list of constants, a set of flags, colours with a picker, fonts, pictures and files, lists of strings, a component reference, and a visual editor for the four Anchors. A value left at its default is shown dimmed and can be reset; RapidR's own members of a RapidQ component are grouped under \"RapidR extensions\". An Events page lists the component's events and the SUB each one runs."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
-  { name = "Target", type = "string", default = "", design = false, doc = "The component inspected: its name (or Handle). Several names separated by commas inspect them together: only the properties they all have are shown, and a change goes to every one of them." },
+  { name = "Target", type = "string", default = "", design = false, doc = "The component inspected: its name (or Handle). Several names separated by commas inspect them together: only the properties they all have are shown, and a change goes to every one of them. While the inspector follows a Designer, it reads the names of the components selected there." },
   { name = "Designer", type = "component", kinds = ["RDESIGNSURFACE"], design = false, doc = "A form designer whose selection the inspector follows: what the user selects there is inspected, and a change is made in the designer." },
   { name = "View", type = "string", default = "categories", doc = "How the rows are ordered: \"categories\" (grouped, the default) or \"alphabetic\"." },
   { name = "Page", type = "string", default = "properties", doc = "The page shown: \"properties\" or \"events\"." },
@@ -24,6 +24,8 @@ properties = [
   { name = "Selected", type = "string", default = "", design = false, doc = "The property (or event) whose row is selected; setting it selects that row." },
   { name = "RowCount", type = "int", access = "read", design = false, doc = "How many rows are shown now (the categories' headings included)." },
   { name = "TargetType", type = "string", access = "read", design = false, doc = "The inspected component's type as the program writes it (QBUTTON), or \"\" when several of different types are inspected." },
+  { name = "Rows", type = "string", access = "read", design = false, doc = "Every row shown, one a line, as Row gives them (\"Name=Value\", a category heading as \"[Name]\")." },
+  { name = "Doc", type = "string", access = "read", design = false, doc = "What the selected row is, in words, as the inspector shows it under the rows: a property's description, an event's with its parameters." },
   { name = "Height", type = "int" },
   { name = "Hint", type = "string" },
   { name = "Left", type = "int", default = 0 },
@@ -224,6 +226,7 @@ methods = [
   { name = "Command", params = "Index AS INTEGER", returns = "STRING", doc = "The id of the command shown at Index (from 0) for what was typed." },
   { name = "Show", value = true, doc = "Opens the palette at the top of its form, centred (as wide as Width, at most the form's width less 32 pixels), over every other component, empty, with the keyboard in it; the commands used last come first." },
   { name = "Hide", value = true, doc = "Closes it." },
+  { name = "AddPrefix", params = "Prefix AS STRING, Title AS STRING", doc = "Typing Prefix first (\":\", \"#\" …) shows one command made from what follows it in place of the list: its title is Title with {} replaced by that text (\"Go to line {}\"), its id Prefix and the text (\":42\"), which OnCommand gives. An empty Title removes the prefix." },
 ]
 events = [
   { name = "OnCommand", params = "Id AS STRING", doc = "The user picked a command (Enter or a click): the palette has closed." },
