@@ -394,7 +394,6 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   2026-10-06 should be cloned again.
 
 ### Fixed
-<<<<<<< HEAD
 - **Text in RapidQ's default font looked cramped, letters almost touching**
   (most visible on a Retina screen: "Type a name, then Greet.", "Your
   name:"). RapidR Sans, the font RapidR draws MS Sans Serif with, had its
@@ -406,7 +405,7 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   squeezed. Every character's width is unchanged ("Password:" is still 49
   pixels), so RapidQ forms fit as before. The visual gallery gained a
   `hello` case with RapidQ's own capture of the same text.
-=======
+
 - **Every component now starts with RapidQ's values, on every runtime.**
   Reading a property right after creating a component gave nothing for 252
   properties that RapidQ gives a value — a button's Cursor, Kind,
@@ -454,7 +453,6 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   Windows, the P of a Ctrl+Shift+P that opened a window).
 - `RDOCKMANAGER.PaneTitle` of a document that wasn't the active MDI window
   renamed the active one.
->>>>>>> development
 - **Debugger: a SUB's own variables showed up in Globals under made-up
   names.** A SUB's STATIC variables and the variables a SUB uses before
   the main program does (RapidQ keeps those between calls) were listed in
