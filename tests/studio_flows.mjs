@@ -51,6 +51,15 @@ const CASES = [
     dump: { "outlinetree.itemcount": /^[5-9]|1\d$/, "lang.errorcount": /^0$/, "proj.kind": /^file$/, "proj.filecount": /^1$/ },
   },
   {
+    // A program with errors: Problems lists them, and Run runs nothing
+    name: "problems",
+    open: "tests/fixtures/studio_problems.bas",
+    webFiles: ["tests/fixtures/studio_problems.bas"],
+    do: "wait,run.start,wait,wait",
+    delay: 4,
+    dump: { "lang.errorcount": /^[1-9]\d*$/, "problemsview.itemcount": /^[1-9]\d*$/, "session.state": /^stopped$/, "outputbox.text": /^(?![\s\S]*fine)/ },
+  },
+  {
     name: "theme-and-tabs",
     open: "examples/gui/hello_form.rr",
     do: "view.theme.dark,view.documents.tabs",

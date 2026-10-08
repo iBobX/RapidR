@@ -29,7 +29,6 @@ const EXE = process.platform === "win32" ? ".exe" : "";
 const RAPIDR = resolve(ROOT, process.env.RAPIDR_BIN || `rapidr${EXE}`);
 const WORK = resolve(process.env.LANG_CONFORMANCE_WORK || join(ROOT, "tests/conformance/.work/lang"));
 const GAPS = join(ROOT, "tests/lang/gaps.txt");
-const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 
 const args = process.argv.slice(2);
 let backends = ["vm", "native", "web"];
@@ -161,35 +160,23 @@ function native(programs) {
 // --- the web ---------------------------------------------------------------------------
 async function web(programs, onOutput = null) {
   const { chromium } = await import("playwright");
+  const { openRunner } = await import("./web_run.mjs");
   const browser = await chromium.launch();
-  const page = await browser.newPage();
-  const consoleLines = [];
-  page.on("console", (m) => consoleLines.push(m.text()));
-  await page.goto(`${URL_BASE}/web-ide/index.html`, { waitUntil: "load" });
-  await page.waitForFunction(() => document.getElementById("status")?.textContent?.includes("ready"), { timeout: 15000 });
+  const r = await openRunner(browser);
   for (const p of programs) {
     const tag = `@@lang_${p.name}@@`;
-    const before = consoleLines.length;
-    await page.evaluate(({ src, tag }) => {
-      window.RapidR.runCommand("run.stop");
-      window.RapidR.state.project.rawSource = `PRINT "${tag}B"\n${src}\nPRINT\nPRINT "${tag}E"\n`;
-      window.RapidR.runCommand("run.start");
-    }, { src: p.source, tag });
-    let text = "";
-    const ended = new RegExp(`^(${tag}E|\\[RapidR\\] Program ended\\.)$`, "m");
-    for (let waited = 0; waited < 20000; waited += 250) {
-      await page.waitForTimeout(250);
-      text = await page.evaluate(() => document.querySelector('.obody[data-tab="output"]')?.innerText || "");
-      const start = text.lastIndexOf(`${tag}B\n`);
-      if (start >= 0 && ended.test(text.slice(start))) break;
-    }
-    const m = new RegExp(`^${tag}B\\n?([\\s\\S]*?)\\n?^(?:${tag}E|\\[RapidR\\] Program ended\\.)$`, "m").exec(text.replace(/\r\n/g, "\n"));
-    const got = m ? m[1] : `<no output: ${JSON.stringify(text.slice(-200))}>`;
+    // (the closing marker on a line of its own; a program that ENDs itself
+    // never prints it)
+    await r.run(`${p.source}\nPRINT\nPRINT "${tag}E"\n`, { name: p.name });
+    const ended = () => r.lines.includes(`${tag}E`) || r.ended() || r.errs.some((e) => e.startsWith("compile:"));
+    for (let waited = 0; waited < 20000 && !ended(); waited += 100) await r.page.waitForTimeout(100);
+    const m = new RegExp(`^([\\s\\S]*?)\\n?^(?:${tag}E|\\[RapidR\\] Program ended\\.)$`, "m").exec(r.output());
+    const got = m ? m[1] : `<no output: ${JSON.stringify((r.output() + " " + r.errors()).slice(-200))}>`;
     if (onOutput) {
       onOutput(p, got);
       continue;
     }
-    const problems = [...unanswered(consoleLines.slice(before).join("\n"))];
+    const problems = [...unanswered([...r.lines, ...r.errs].join("\n"))];
     const d = difference(p.expected, got);
     if (d) problems.push(d);
     report("web", p.name, problems);

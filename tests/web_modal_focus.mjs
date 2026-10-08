@@ -11,15 +11,15 @@
 //   * Enter presses its default button, Escape cancels;
 //   * when it closes, the focus is back on the control that had it.
 //
-// The program runs in the IDE's preview, as the user runs it.
+// The program runs on the web runtime's own page (tests/web_run.mjs).
 //
 // Usage (repo root, after tools/build_web_artifacts.sh, with the repo served
 // on RAPIDR_URL, default http://localhost:8765):  node tests/web_modal_focus.mjs
 
 import { chromium } from "playwright";
 import * as k from "./web_kernel_page.mjs";
+import { openRunner } from "./web_run.mjs";
 
-const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 let failed = 0;
 const ok = (cond, msg) => { console.log(`${cond ? "✓" : "✗"} ${msg}`); if (!cond) failed++; };
 
@@ -95,15 +95,13 @@ const SOURCE = [
 ].join("\n");
 
 const browser = await chromium.launch();
-const page = await browser.newPage();
-const errors = [];
-page.on("pageerror", (e) => errors.push(e.message));
+const r = await openRunner(browser);
+const page = r.page;
+const errors = r.pageErrors;
 page.on("dialog", async (d) => { errors.push("browser dialog " + d.type()); await d.dismiss(); });
-await page.goto(`${URL_BASE}/web-ide/index.html`, { waitUntil: "load" });
-await page.waitForFunction(() => window.RapidR?.state?.wasmReady && window.RapidR.state.activeFormId, null, { timeout: 60000 });
-await page.evaluate((src) => { window.RapidR.state.project.forms[0].code = { handlers: {}, source: src }; window.RapidR.runCommand("run.start"); }, SOURCE);
-let frame;
-for (let i = 0; i < 100 && !frame; i++) { await page.waitForTimeout(100); frame = page.frames().find((f) => f.url().includes("preview.html")); }
+await r.run(SOURCE);
+// (the program's windows are the runtime page's own)
+const frame = page;
 await k.waitFor(frame, "MainEdit");
 
 async function until(fn, ms = 5000) {

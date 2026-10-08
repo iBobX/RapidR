@@ -13,12 +13,12 @@
 // on http://localhost:8765):  node tests/web_sqlite.mjs
 
 import { chromium } from "playwright";
+import { openRunner } from "./web_run.mjs";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
-const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 let failed = 0;
 const ok = (cond, msg) => { console.log(`${cond ? "✓" : "✗"} ${msg}`); if (!cond) failed++; };
 
@@ -46,21 +46,14 @@ const asset = { name: "people.db", mime: "application/octet-stream", dataUrl: "d
 rmSync(dir, { recursive: true, force: true });
 
 const browser = await chromium.launch();
-const page = await browser.newPage();
-const pageErrors = [];
-page.on("pageerror", (e) => pageErrors.push(e.message));
-await page.goto(`${URL_BASE}/web-ide/index.html`, { waitUntil: "load" });
-await page.waitForFunction(() => document.getElementById("status")?.textContent?.includes("ready"), { timeout: 15000 });
-await page.evaluate((a) => { window.RapidR.state.project.assets = [a]; }, asset);
+const r = await openRunner(browser);
+const page = r.page;
+const pageErrors = r.pageErrors;
 
-const output = () => page.evaluate(() => (document.querySelector('.obody[data-tab="output"]')?.innerText || "").split("\n").map((l) => l.trim()));
+const output = async () => r.lines.map((l) => l.trim());
+// (the program as written, with the database among its assets)
 async function run(lines) {
-  await page.evaluate((src) => {
-    window.RapidR.runCommand("run.stop");
-    document.querySelector('.obody[data-tab="output"]').textContent = "";
-    window.RapidR.state.project.rawSource = src;
-    window.RapidR.runCommand("run.start");
-  }, lines.join("\n") + "\n");
+  await r.run(lines.join("\n") + "\n", { assets: [asset] });
 }
 async function waitFor(cond, ms = 15000) {
   for (let waited = 0; waited < ms; waited += 100) {
@@ -69,7 +62,7 @@ async function waitFor(cond, ms = 15000) {
   }
   return false;
 }
-const frameOf = () => page.frames().find((f) => f.url().includes("preview.html"));
+const frameOf = () => page;
 
 // 1. The project's file, read by SQLite.
 await run([

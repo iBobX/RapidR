@@ -122,7 +122,80 @@ async function loadRuntimeFiles() {
   return runtimeFiles;
 }
 
-const run = { box: null, frame: null, port: null, ready: false, queue: [], generation: 0 };
+const run = { box: null, frame: null, port: null, ready: false, queue: [], generation: 0, program: "", files: new Map(), fileTokens: 0 };
+
+// The program's Open / Save dialogs: its frame's opaque origin may not show
+// the browser's file pickers (showOpenFilePicker / showSaveFilePicker), so
+// this page shows them for it, inside the gesture of the user's click in
+// the frame (crates/rapidr-runtime-web/src/file_picker_web.rs,
+// RAPIDR_FILE_HOST). The frame gets the files picked and a token for each;
+// it writes only through a token it was given.
+async function frameFiles(d) {
+  const port = run.port;
+  const reply = (msg, transfer = []) => port && port.postMessage({ __rapidr_files_reply: { id: d.id, ...msg } }, transfer);
+  // (only the options a program's Filter and FileName make)
+  const o = d.opts && typeof d.opts === "object" ? d.opts : {};
+  const opts = {};
+  if (Array.isArray(o.types)) opts.types = o.types;
+  if (typeof o.excludeAcceptAllOption === "boolean") opts.excludeAcceptAllOption = o.excludeAcceptAllOption;
+  if (typeof o.id === "string") opts.id = o.id;
+  if (typeof o.suggestedName === "string") opts.suggestedName = o.suggestedName;
+  if (typeof o.multiple === "boolean") opts.multiple = o.multiple;
+  try {
+    if (d.op === "open") {
+      const handles = await window.showOpenFilePicker(opts);
+      const files = [];
+      for (const h of handles) {
+        const f = await h.getFile();
+        const token = ++run.fileTokens;
+        run.files.set(token, h);
+        files.push({ name: f.name, bytes: await f.arrayBuffer(), token });
+      }
+      reply({ ok: true, value: files }, files.map((f) => f.bytes));
+    } else if (d.op === "save") {
+      const h = await window.showSaveFilePicker(opts);
+      const token = ++run.fileTokens;
+      run.files.set(token, h);
+      reply({ ok: true, value: { name: h.name, token } });
+    } else if (d.op === "write") {
+      const h = run.files.get(d.token);
+      if (!h) throw Object.assign(new Error("not a file the user picked"), { name: "NotFoundError" });
+      const w = await h.createWritable();
+      await w.write(d.bytes);
+      await w.close();
+      reply({ ok: true });
+    }
+  } catch (e) {
+    reply({ ok: false, error: { name: (e && e.name) || "Error", message: (e && e.message) || String(e) } });
+  } finally {
+    // (the browser gives the focus back to the page that showed the picker:
+    // back to the program, whose window had it)
+    if (d.op !== "write" && run.frame) run.frame.focus();
+  }
+}
+
+// What the program keeps in localStorage (RWEBSTORAGE): its frame has no
+// storage of its own (an opaque origin), so it gets a copy at each run and
+// sends back each change, kept here per program under a key of its own
+// (never Studio's keys), capped so Studio's own storage stays safe.
+const APP_STORAGE_LIMIT = 1024 * 1024;
+const appStorageKey = (program) => `rapidr-app-storage:${program}`;
+function loadAppStorage(program) {
+  try { return JSON.parse(localStorage.getItem(appStorageKey(program)) || "{}") || {}; } catch { return {}; }
+}
+function applyAppStorageOp(program, { op, key, value }) {
+  const data = loadAppStorage(program);
+  if (op === "set" && typeof key === "string") data[key] = String(value);
+  else if (op === "remove" && typeof key === "string") delete data[key];
+  else if (op === "clear") for (const k of Object.keys(data)) delete data[k];
+  else return;
+  const json = JSON.stringify(data);
+  if (json.length > APP_STORAGE_LIMIT) {
+    window.rr.studio_session_incoming(JSON.stringify({ type: "output", stream: "stderr", text: "[storage] the program's storage is full (1 MB)\n" }));
+    return;
+  }
+  try { localStorage.setItem(appStorageKey(program), json); } catch { /* no storage: this visit only */ }
+}
 
 function frameMessage(e) {
   const d = e.data || {};
@@ -141,7 +214,7 @@ function frameMessage(e) {
     // inside runtime/fonts/, never reach out of it (SEC-14). Allow only a
     // plain file name (letters, digits, `_`, `-`, `.`) with no path separator
     // and no `..`, so this bridge can't become a same-origin read primitive
-    // for the frame (web-ide/host.js once checked `file` the same way).
+    // for the frame.
     if (typeof file !== "string" || !/^[\w.-]+$/.test(file) || file.includes("..")) {
       if (run.port) run.port.postMessage({ __rapidr_font_reply: { id, bytes: null } });
       return;
@@ -150,6 +223,10 @@ function frameMessage(e) {
       .then((r) => (r.ok ? r.arrayBuffer() : null))
       .then((bytes) => run.port && run.port.postMessage({ __rapidr_font_reply: { id, bytes } }, bytes ? [bytes] : []))
       .catch(() => run.port && run.port.postMessage({ __rapidr_font_reply: { id, bytes: null } }));
+  } else if (d.__rapidr_files) {
+    frameFiles(d.__rapidr_files);
+  } else if (d.__rapidr_storage) {
+    applyAppStorageOp(run.program, d.__rapidr_storage);
   } else if (d.__rapidr_console) {
     const { level, text } = d.__rapidr_console;
     window.rr.studio_session_incoming(JSON.stringify({ type: "output", stream: level === "error" ? "stderr" : "stdout", text: text + "\n" }));
@@ -160,6 +237,7 @@ function closeFrame() {
   run.generation++;
   if (run.port) run.port.close();
   if (run.box) run.box.remove();
+  run.files.clear();
   Object.assign(run, { box: null, frame: null, port: null, ready: false, queue: [] });
 }
 
@@ -176,7 +254,7 @@ window.RAPIDR_STUDIO_HOST = {
     frame.src = "run.html";
     box.appendChild(frame);
     document.body.appendChild(box);
-    Object.assign(run, { box, frame });
+    Object.assign(run, { box, frame, program });
     const hello = async (e) => {
       if (e.source !== frame.contentWindow || !e.data || !e.data.__rapidr_hello) return;
       window.removeEventListener("message", hello);
@@ -186,7 +264,12 @@ window.RAPIDR_STUDIO_HOST = {
       run.port = channel.port1;
       run.port.onmessage = frameMessage;
       frame.contentWindow.postMessage({
-        __rapidr_boot: { ...files, session: { bytes, program }, args: Array.from(args || []), storage: {}, filePickers: false },
+        __rapidr_boot: {
+          ...files, session: { bytes, program }, args: Array.from(args || []),
+          storage: loadAppStorage(program),
+          // (this page shows the browser's pickers for the frame: frameFiles)
+          filePickers: typeof window.showOpenFilePicker === "function" && typeof window.showSaveFilePicker === "function",
+        },
       }, "*", [channel.port2]);
     };
     window.addEventListener("message", hello);
