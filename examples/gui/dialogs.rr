@@ -21,6 +21,7 @@ CREATE ColourDlg AS QCOLORDIALOG
 END CREATE
 CREATE FontDlg AS QFONTDIALOG
 END CREATE
+DIM ChosenFont AS QFONT
 
 CREATE Form AS QFORM
     Caption = "Dialogs"
@@ -69,9 +70,13 @@ SUB PickColour
 END SUB
 
 SUB PickFont
+    ' (RapidQ's way: GetFont starts the dialog from a font, SetFont copies
+    ' everything chosen into one: face, size, style, colour)
+    ChosenFont = Sample.Font
+    FontDlg.GetFont(ChosenFont)
     IF FontDlg.Execute THEN
-        Sample.Font.Name = FontDlg.Name
-        Sample.Font.Size = FontDlg.Size
+        FontDlg.SetFont(ChosenFont)
+        Sample.Font = ChosenFont
         Answer.Caption = "Font " + FontDlg.Name + STR$(FontDlg.Size)
     END IF
 END SUB
