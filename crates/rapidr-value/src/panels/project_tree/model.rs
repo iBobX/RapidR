@@ -154,6 +154,9 @@ pub struct ProjectTree {
     /// The selected node's key ("" none).
     pub selected: String,
     pub modified: bool,
+    /// Files with changes not saved yet (FileModified), by lowercase path:
+    /// marked with a dot.
+    pub dirty: HashSet<String>,
     // ---- what the kernel keeps here (pure UI state) ----
     pub hover: Option<String>,
     pub confirm: Option<Confirm>,
@@ -186,6 +189,7 @@ impl Default for ProjectTree {
             open: HashMap::new(),
             selected: String::new(),
             modified: false,
+            dirty: HashSet::new(),
             hover: None,
             confirm: None,
             drag: None,

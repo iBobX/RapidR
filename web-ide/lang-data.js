@@ -4686,7 +4686,7 @@ const COMPONENT_REGISTRY = {
         description: 'A project\'s files as a tree (an .rrproj project, or a .bas / .rr file and the files it includes), grouped by kind — forms with the components their CREATE blocks make, modules, includes, resources, assets, data — each with its icon. The user opens a file (double click or Enter), renames it in place (F2), drags it to reorder or into a folder, and deletes it after confirming; the program hears each change and does the work on the disk.',
         rapidq: null,
         props: ['align', 'project', 'projectname', 'showfiles', 'showforms', 'showcomponents', 'selected', 'filecount', 'modified', 'height', 'hint', 'left', 'parent', 'top', 'width', 'enabled', 'visible', 'font', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
-        methods: ['refresh', 'loadtext', 'setfiletext', 'file', 'filekind', 'addfile', 'removefile', 'newfile', 'rename', 'delete', 'reveal', 'save', 'projecttext', 'expandall', 'collapseall'],
+        methods: ['refresh', 'loadtext', 'setfiletext', 'file', 'filekind', 'addfile', 'removefile', 'filemodified', 'newfile', 'rename', 'delete', 'reveal', 'save', 'projecttext', 'expandall', 'collapseall'],
         events: ['onopen', 'onselect', 'onrename', 'ondelete', 'onmove', 'onnewfile'],
         methodSignatures: {
             'refresh': { sig: 'Refresh', desc: 'Reads the project\'s files again (forms\' components included).' },
@@ -4696,6 +4696,7 @@ const COMPONENT_REGISTRY = {
             'filekind': { sig: 'FileKind(Path AS STRING) AS STRING', desc: 'A file\'s kind: "module", "form", "include", "resource", "asset" or "data".' },
             'addfile': { sig: 'AddFile(Path AS STRING, [Kind AS STRING]) AS INTEGER', desc: 'Adds a file to the project (its kind from its extension when Kind is left out). True when it was added.' },
             'removefile': { sig: 'RemoveFile(Path AS STRING) AS INTEGER', desc: 'Takes a file out of the project (the disk is left alone).' },
+            'filemodified': { sig: 'FileModified(Path AS STRING, [On AS INTEGER]) AS INTEGER', desc: 'Whether a file has changes not saved yet (an editor\'s): with On, sets it — such a file is marked with a dot after its name.' },
             'newfile': { sig: 'NewFile(Kind AS STRING, [Name AS STRING]) AS STRING', desc: 'Adds a new file of a kind with a free name (Form2.rr …) and starts renaming it: its path.' },
             'rename': { sig: 'Rename([Path AS STRING], [NewName AS STRING])', desc: 'Renames a file (OnRename may cancel); without NewName the user types the name in place.' },
             'delete': { sig: 'Delete([Path AS STRING])', desc: 'Asks the user to confirm, then takes the file out of the project (OnDelete may cancel).' },

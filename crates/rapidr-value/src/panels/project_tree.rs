@@ -135,6 +135,23 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
             basic_bool(with_mut(name, |m| m.add_file(&s(0), kind, &read)))
         }
         "removefile" => basic_bool(with_mut(name, |m| m.remove_file(&s(0)))),
+        "filemodified" => {
+            let key = s(0).replace('\\', "/").to_lowercase();
+            let on = with_mut(name, |m| {
+                if let Some(v) = args.get(1) {
+                    if truth(v) {
+                        m.dirty.insert(key.clone());
+                    } else {
+                        m.dirty.remove(&key);
+                    }
+                }
+                m.dirty.contains(&key)
+            });
+            if args.len() > 1 {
+                rt.invalidate();
+            }
+            basic_bool(on)
+        }
         "newfile" => {
             let Some(kind) = model::parse_kind(&s(0)) else { return Some(Value::String(String::new())) };
             let wanted = (args.len() > 1).then(|| s(1));

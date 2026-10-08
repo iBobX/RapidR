@@ -133,6 +133,7 @@ methods = [
   { name = "FileKind", params = "Path AS STRING", returns = "STRING", doc = "A file's kind: \"module\", \"form\", \"include\", \"resource\", \"asset\" or \"data\"." },
   { name = "AddFile", params = "Path AS STRING, [Kind AS STRING]", returns = "INTEGER", doc = "Adds a file to the project (its kind from its extension when Kind is left out). True when it was added." },
   { name = "RemoveFile", params = "Path AS STRING", returns = "INTEGER", doc = "Takes a file out of the project (the disk is left alone)." },
+  { name = "FileModified", params = "Path AS STRING, [On AS INTEGER]", returns = "INTEGER", doc = "Whether a file has changes not saved yet (an editor's): with On, sets it — such a file is marked with a dot after its name." },
   { name = "NewFile", params = "Kind AS STRING, [Name AS STRING]", returns = "STRING", doc = "Adds a new file of a kind with a free name (Form2.rr …) and starts renaming it: its path." },
   { name = "Rename", params = "[Path AS STRING], [NewName AS STRING]", doc = "Renames a file (OnRename may cancel); without NewName the user types the name in place." },
   { name = "Delete", params = "[Path AS STRING]", doc = "Asks the user to confirm, then takes the file out of the project (OnDelete may cancel)." },

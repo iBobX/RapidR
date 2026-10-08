@@ -231,6 +231,8 @@ SUB DocTitles(d AS INTEGER)
   DIM t AS STRING
   t = FileTitle(DocFile(d))
   IF DocDirty(d) THEN t = t + " *"
+  ' (S-PANELS: the project tree marks a file with changes not saved)
+  ProjectTree.FileModified DocFile(d), DocDirty(d)
   Dock.PaneTitle("codedoc(" + LTRIM$(STR$(d)) + ")", t)
   IF DocHasForm(d) THEN Dock.PaneTitle("designdoc(" + LTRIM$(STR$(d)) + ")", t + " [Design]")
 END SUB

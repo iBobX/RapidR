@@ -4673,6 +4673,7 @@ A project's files as a tree (an .rrproj project, or a .bas / .rr file and the fi
 | `FileKind(Path AS STRING) AS STRING` | A file's kind: "module", "form", "include", "resource", "asset" or "data". |
 | `AddFile(Path AS STRING, [Kind AS STRING]) AS INTEGER` | Adds a file to the project (its kind from its extension when Kind is left out). True when it was added. |
 | `RemoveFile(Path AS STRING) AS INTEGER` | Takes a file out of the project (the disk is left alone). |
+| `FileModified(Path AS STRING, [On AS INTEGER]) AS INTEGER` | Whether a file has changes not saved yet (an editor's): with On, sets it — such a file is marked with a dot after its name. |
 | `NewFile(Kind AS STRING, [Name AS STRING]) AS STRING` | Adds a new file of a kind with a free name (Form2.rr …) and starts renaming it: its path. |
 | `Rename([Path AS STRING], [NewName AS STRING])` | Renames a file (OnRename may cancel); without NewName the user types the name in place. |
 | `Delete([Path AS STRING])` | Asks the user to confirm, then takes the file out of the project (OnDelete may cancel). |

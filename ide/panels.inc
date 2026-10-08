@@ -75,6 +75,48 @@ SUB FillPalette
   Palette.AddPrefix ":", "Go to line {}"
 END SUB
 
+' One search for everything (docs/studio-wow.md CMD-2): beside the
+' commands, the project's files ("Open"), the active file's SUBs, TYPEs and
+' globals ("Symbol") and its form's components ("Component"), kept up to
+' date as the code changes (InspectActive).
+DIM QuickId(800) AS STRING
+DIM QuickCount AS INTEGER
+
+SUB AddQuick(Id AS STRING, Title AS STRING, Category AS STRING, Icon AS STRING)
+  IF QuickCount > 800 THEN EXIT SUB
+  Palette.AddCommand Id, Title, "", Category, Icon
+  QuickId(QuickCount) = Id
+  QuickCount = QuickCount + 1
+END SUB
+
+SUB RefreshQuickOpen
+  DIM i AS INTEGER, n AS INTEGER, d AS INTEGER, text AS STRING, row AS STRING, kind AS STRING, nm AS STRING, detail AS STRING
+  FOR i = 0 TO QuickCount - 1
+    Palette.RemoveCommand QuickId(i)
+  NEXT
+  QuickCount = 0
+  IF ProjectOpen THEN
+    FOR i = 0 TO Proj.FileCount - 1
+      AddQuick "open:" + Proj.FullPath(i), Proj.File(i), "Open", "files/" + FileExt(Proj.File(i))
+    NEXT
+  END IF
+  d = ActiveCode
+  IF d < 0 THEN EXIT SUB
+  text = Lang.Outline(DocFile(d))
+  n = TALLY(text, CHR$(10))
+  FOR i = 1 TO n
+    row = FIELD$(text, CHR$(10), i)
+    kind = FIELD$(row, CHR$(9), 2)
+    nm = FIELD$(row, CHR$(9), 3)
+    detail = FIELD$(row, CHR$(9), 4)
+    IF kind = "component" THEN
+      AddQuick "comp:" + nm, nm + ": " + detail, "Component", UCASE$(MID$(detail, RINSTR(detail, " ") + 1))
+    ELSE
+      AddQuick "line:" + FIELD$(row, CHR$(9), 5) + ":" + nm, nm, "Symbol", "symbols/" + kind
+    END IF
+  NEXT
+END SUB
+
 ' (Filter: what the box starts with — "Example", ":" for a line)
 SUB ShowPalette(Filter AS STRING)
   Palette.Show
@@ -85,6 +127,20 @@ SUB PaletteCommand(Id AS STRING)
   DIM d AS INTEGER
   IF LEFT$(Id, 8) = "example:" THEN
     OpenProject HomeDir + "examples/" + ExampleFile(VAL(MID$(Id, 9)))
+  ELSEIF LEFT$(Id, 5) = "open:" THEN
+    OpenDocument MID$(Id, 6)
+  ELSEIF LEFT$(Id, 5) = "line:" THEN
+    d = ActiveCode
+    IF d >= 0 THEN
+      Dock.FocusPane("codedoc(" + LTRIM$(STR$(d)) + ")")
+      CodeDoc(d).GotoLine VAL(MID$(Id, 6)) - 1
+    END IF
+  ELSEIF LEFT$(Id, 5) = "comp:" THEN
+    d = ActiveDesign
+    IF d >= 0 THEN
+      Dock.FocusPane("designdoc(" + LTRIM$(STR$(d)) + ")")
+      IF DesignIndex(d, MID$(Id, 6)) >= 0 THEN DesignDoc(d).SelectComp DesignIndex(d, MID$(Id, 6))
+    END IF
   ELSEIF LEFT$(Id, 1) = ":" THEN
     d = ActiveCode
     IF d >= 0 AND VAL(MID$(Id, 2)) > 0 THEN
@@ -160,6 +216,92 @@ SUB ProjectNodeSelect(Path AS STRING)
   IF k >= 0 THEN DesignDoc(d).SelectComp k
 END SUB
 
+' Project > Add Form / Add Module: a new file in the tree, its name typed
+' in place (Enter: ProjectNewFile writes it, adds it, opens it).
+SUB AddProjectFile(Kind AS STRING)
+  IF ProjectOpen = 0 THEN EXIT SUB
+  Dock.ShowPane("projecttree")
+  ProjectTree.NewFile Kind
+END SUB
+
+' (a new file's first text: a form, or an empty module)
+FUNCTION NewFileText(Path AS STRING, Kind AS STRING) AS STRING
+  DIM nm AS STRING, nl AS STRING
+  nl = CHR$(13) + CHR$(10)
+  nm = BaseName(Path)
+  IF Kind = "form" THEN
+    Result = "' " + FileTitle(Path) + nl + nl + "CREATE " + nm + " AS QFORM" + nl + "    Caption = " + CHR$(34) + nm + CHR$(34) + nl + "    Width = 320: Height = 240" + nl + "END CREATE" + nl
+  ELSE
+    Result = "' " + FileTitle(Path) + nl
+  END IF
+END FUNCTION
+
+SUB ProjectNewFile(Path AS STRING, Kind AS STRING)
+  DIM full AS STRING, f AS QFILESTREAM
+  full = ProjectPath(Path)
+  IF FILEEXISTS(full) = 0 THEN
+    f.Open(full, 65535)
+    f.WriteStr(NewFileText(Path, Kind), LEN(NewFileText(Path, Kind)))
+    f.Close
+  END IF
+  IF Proj.AddFile(full) THEN
+    SaveProjectFile
+  ELSE
+    OutputLine "Can't add " + Path + ": " + Proj.Error
+  END IF
+  OpenDocument full
+END SUB
+
+' Renamed in place (F2): the file on the disk, the project, its documents.
+SUB ProjectRename(OldPath AS STRING, NewPath AS STRING, Cancel AS INTEGER)
+  DIM o AS STRING, n AS STRING, d AS INTEGER
+  o = ProjectPath(OldPath): n = ProjectPath(NewPath)
+  IF FILEEXISTS(n) THEN
+    SetState "error", FileTitle(n) + " is there already"
+    Cancel = 1
+    EXIT SUB
+  END IF
+  d = DocOf(o)
+  IF d >= 0 THEN
+    IF DocDirty(d) THEN SaveDocument d
+  END IF
+  IF FILEEXISTS(o) THEN RENAME o, n
+  Proj.RemoveFile o
+  Proj.AddFile n
+  SaveProjectFile
+  IF d >= 0 THEN
+    DocFile(d) = n
+    DocTitles d
+  END IF
+  IF LCASE$(o) = LCASE$(ProjectMain) THEN ProjectMain = n
+END SUB
+
+' Taken out of the project (confirmed in the tree): its documents close; the
+' file stays on the disk.
+SUB ProjectDelete(Path AS STRING, Cancel AS INTEGER)
+  DIM p AS STRING
+  p = ProjectPath(Path)
+  IF LCASE$(p) = LCASE$(ProjectMain) THEN
+    SetState "error", "The main file stays in the project"
+    Cancel = 1
+    EXIT SUB
+  END IF
+  CloseDocument DocOf(p)
+  Proj.RemoveFile p
+  SaveProjectFile
+  SetState RunState, FileTitle(p) + " taken out of the project (still on the disk)"
+END SUB
+
+' Dragged to another place (or folder): the project keeps the tree's order.
+SUB ProjectMove(Path AS STRING, NewPath AS STRING, Index AS INTEGER)
+  IF Proj.Kind <> "project" THEN EXIT SUB
+  IF ProjectTree.Save THEN
+    IF Proj.Open(ProjectFile) = 0 THEN OutputLine "Can't read the project again: " + Proj.Error
+  ELSE
+    OutputLine "Can't save the project's order"
+  END IF
+END SUB
+
 ' (the file's text as the editor has it: its components follow the code)
 SUB ProjectFileChanged(d AS INTEGER)
   IF ProjectOpen = 0 OR d < 0 THEN EXIT SUB
@@ -222,6 +364,7 @@ END SUB
 
 SUB InspectActive
   DIM d AS INTEGER
+  RefreshQuickOpen
   d = ActiveDesign
   IF d >= 0 THEN
     Inspector.Designer = DesignDoc(d)

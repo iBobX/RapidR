@@ -57,6 +57,10 @@ CREATE Studio AS QFORM
     AccessibleName = "Project"
     OnOpen = ProjectNodeOpen
     OnSelect = ProjectNodeSelect
+    OnNewFile = ProjectNewFile
+    OnRename = ProjectRename
+    OnDelete = ProjectDelete
+    OnMove = ProjectMove
   END CREATE
   CREATE Toolbox AS RTOOLBOX
     Width = 250: Height = 300

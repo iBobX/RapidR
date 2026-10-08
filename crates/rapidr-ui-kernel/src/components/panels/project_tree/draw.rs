@@ -193,10 +193,22 @@ fn row(p: &mut Painter, g: &Geo, l: &Look, m: &Model, n: &Node, r: Rect, ink: u3
                 p.text((tx + nw, y, left, h), &common::elide(&rest, font, left), font, dim, Place::Left);
             }
         }
+        NodeKind::File(path) if dirty(m, path) => {
+            // (changes not saved: a dot after the name, as editors' tabs)
+            let shown = common::elide(&n.label, &f, room - 14);
+            let (lw, _) = text_size(&shown, &f);
+            p.text((tx, y, room.max(0), h), &shown, &f, ink, Place::Left);
+            p.round((tx + lw + 6, mid - 3, 6, 6), 3.0, Some(if selected { ink } else { l.accent }), None, 1.0);
+        }
         _ => {
             p.text((tx, y, room.max(0), h), &common::elide(&n.label, &f, room), &f, ink, Place::Left);
         }
     }
+}
+
+/// Whether file `path` has changes not saved (FileModified).
+fn dirty(m: &rapidr_value::panels::project_tree::ProjectTree, path: &str) -> bool {
+    m.dirty.contains(&path.replace('\\', "/").to_lowercase())
 }
 
 /// Where a dragged file would go among the files: a line in the accent

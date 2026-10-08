@@ -85,6 +85,7 @@ SUB DefineCommands
 
   ' ---- View ----
   AddCmd "view.commandPalette", "Command &Palette...", "View", "Ctrl+Shift+P", "", "", ""
+  AddCmd "view.quickOpen", "&Go to Anything...", "View", "Ctrl+P", "", "", "view.commandPalette"
   AddSep "View"
   AddCmd "view.project", "&Project", "View", "", "", "", "files/rrproj"
   AddCmd "view.toolbox", "&Toolbox", "View", "", "", "", "groups/standard"

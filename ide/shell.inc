@@ -85,6 +85,7 @@ SUB RunCommand(Id AS STRING)
     CASE "edit.goToLine": GoToLine
     ' ---- view ----
     CASE "view.commandPalette": ShowPalette ""
+    CASE "view.quickOpen": ShowPalette ""
     CASE "view.project": Dock.FocusPane("projecttree")
     CASE "view.toolbox": Dock.FocusPane("toolbox")
     CASE "view.properties": Dock.FocusPane("inspector")
@@ -107,6 +108,8 @@ SUB RunCommand(Id AS STRING)
     CASE "view.keyboardShortcuts": ShowShortcuts
     ' ---- project ----
     CASE "project.addFile": AddFileToProject
+    CASE "project.addForm": AddProjectFile "form"
+    CASE "project.addModule": AddProjectFile "module"
     CASE "project.options": OutputLine "Project: " + Proj.FileName + " (" + LTRIM$(STR$(Proj.FileCount)) + " files, main " + Proj.MainFile + ")"
     ' ---- run / debug ----
     CASE "run.start": StartProgram 1
