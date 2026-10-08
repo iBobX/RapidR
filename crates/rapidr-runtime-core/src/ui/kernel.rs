@@ -266,6 +266,11 @@ pub fn step(max_wait: Option<Duration>) {
     if rapidr_ui_app::dialogs::tasks_open() {
         at_most(rapidr_ui_app::dialogs::TASK_STEP);
     }
+    // (a program under the IDE's debugger: its requests heard while it
+    // waits — rapidr-vm's `wait_point`)
+    if crate::object::rp_debug_poll() {
+        at_most(crate::object::DEBUG_POLL_STEP);
+    }
     // (RapidR Studio's program sessions: their output heard every 20 ms)
     #[cfg(feature = "studio")]
     if crate::studio::running() {

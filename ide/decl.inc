@@ -178,6 +178,15 @@ DECLARE SUB PickTemplate(i AS INTEGER)
 DECLARE FUNCTION AskToSave(d AS INTEGER) AS INTEGER
 DECLARE FUNCTION AskToSaveAll AS INTEGER
 DECLARE SUB SaveSession
+DECLARE SUB LayoutChanged
+DECLARE SUB SaveDebugState
+DECLARE SUB LoadDebugState
+DECLARE SUB DebugStateChanged
+DECLARE SUB BreakpointPlaced(InFile AS STRING, LineNo AS INTEGER, NewLine AS INTEGER)
+' (Studio's settings were read: not --fresh)
+DIM SettingsRead AS INTEGER
+' (the project's breakpoints and watches being restored: nothing to save)
+DIM DebugLoading AS INTEGER
 DECLARE SUB LoadSession
 DECLARE SUB RestoreSession(Path AS STRING)
 DECLARE FUNCTION WorkspaceCommand(Id AS STRING) AS INTEGER

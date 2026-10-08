@@ -7,6 +7,8 @@
 ' its main file's documents.
 SUB OpenProject(Path AS STRING)
   IF Path = "" THEN EXIT SUB
+  ' (the project open now keeps its breakpoints and watches: debug.inc)
+  IF ProjectOpen THEN SaveSettings
   IF Proj.Open(Path) = 0 THEN
     OutputLine "Can't open " + Path + ": " + Proj.Error
     SetState "error", "Can't open " + FileTitle(Path)
@@ -27,6 +29,8 @@ SUB OpenProject(Path AS STRING)
   Dock.ClosePane("welcome")
   OpenDocument ProjectMain
   RestoreSession Path
+  ' (its breakpoints and watches: debug.inc)
+  LoadDebugState
   SetState "stopped", "Ready"
   UpdateTitle
   UpdateCommands
@@ -137,6 +141,7 @@ SUB LoadSettings
   Reg.RootKey = HKCU
   IF Reg.KeyExists(STUDIO_KEY) THEN
     Reg.OpenKey(STUDIO_KEY, 0)
+    SettingsRead = 1
     IF ThemeChoice = "" AND Reg.ValueExists("Theme") THEN ThemeChoice = Reg.ReadString("Theme")
     IF Reg.ValueExists("PreviewClassic") THEN PreviewClassic = Flag(Reg.ReadString("PreviewClassic") = "1")
     IF Reg.ValueExists("Layout") THEN SavedLayout = Reg.ReadString("Layout")
@@ -154,6 +159,7 @@ SUB SaveSettings
   Reg.WriteString("PreviewClassic", LTRIM$(STR$(PreviewClassic)))
   Reg.WriteString("Layout", Dock.SaveLayout)
   SaveSession
+  SaveDebugState
   Reg.WriteString("Recent", RecentList)
   Reg.WriteString("Folder", DefaultFolder)
   Reg.CloseKey

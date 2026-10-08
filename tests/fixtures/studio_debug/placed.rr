@@ -1,0 +1,8 @@
+' placed.rr: breakpoints on lines without code move to the next line with
+' code once the program runs; one after the last never stops
+DIM n AS INTEGER
+
+' a comment line
+n = 1
+PRINT "n ="; n
+' the end

@@ -2058,6 +2058,23 @@ pub fn program_ended() -> bool {
     ENDED.with(|e| e.get())
 }
 
+thread_local! {
+    /// Stopped by the IDE's debugger (a breakpoint, a step, a pause).
+    static DEBUG_STOPPED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// The program is stopped by the IDE's debugger (or goes on): its timers
+/// don't tick meanwhile, as a desktop program's don't while it's held at
+/// a stop — they fire again once it goes on, not once for every interval
+/// that passed.
+pub fn set_debug_stopped(on: bool) {
+    DEBUG_STOPPED.with(|d| d.set(on));
+}
+
+pub fn debug_stopped() -> bool {
+    DEBUG_STOPPED.with(|d| d.get())
+}
+
 /// Runs the handler bound to `name`'s `event` with the event's arguments
 /// (the firing component is passed last, as `Sender`); returns them as a
 /// compiled handler left them. The handler is copied out first, so it may
@@ -2441,7 +2458,8 @@ pub(crate) fn update_timer(name: &str) {
     if enabled && has_handler && interval > 0 {
         let name_for_closure = uname.clone();
         let closure = Closure::<dyn FnMut()>::new(move || {
-            if crate::directx_web::timer_fired(&name_for_closure) {
+            // (not while the debugger holds the program: see set_debug_stopped)
+            if !debug_stopped() && crate::directx_web::timer_fired(&name_for_closure) {
                 rp_fire_event(&name_for_closure, "ontimer");
             }
         });

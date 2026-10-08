@@ -30,7 +30,7 @@
 //! | `Evaluate(Expr [, Context])` → Id | in the selected frame: OnEvaluate(Id, Result). Context `repl` (the Immediate window): `? x` prints, a statement runs |
 //! | `SetVariable(Name, Value)` → Id | a variable of the selected frame set to an expression's value: OnEvaluate(Id, NewValue), then the variables again (OnVariables(0)) |
 //! | `Input(Text)` | a line for the program's INPUT |
-//! | `OnOutput(Text)`, `OnStopped(Reason, File, Line)`, `OnContinue`, `OnExit(Code)`, `OnFormShown(Id)`, `OnVariables(Ref)`, `OnEvaluate(Id, Result)` | |
+//! | `OnOutput(Text)`, `OnStopped(Reason, File, Line)`, `OnContinue`, `OnExit(Code)`, `OnFormShown(Id)`, `OnVariables(Ref)`, `OnEvaluate(Id, Result)`, `OnBreakpointPlaced(File, Line, NewLine)` | |
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -419,6 +419,17 @@ pub fn poll<H: Host>(host: H) -> bool {
 /// A reply to one of the session's own requests.
 fn reply<H: Host>(host: H, name: &str, re: u64, body: EventBody) {
     let mut fire: Vec<(&'static str, Vec<Value>)> = Vec::new();
+    // (where the program placed a file's breakpoints: one on a line without
+    // code stops at the next line with code; with none after it, never —
+    // OnBreakpointPlaced(File, Line, NewLine), 0 for never)
+    if let EventBody::Breakpoints { file, breakpoints } = &body {
+        for b in breakpoints {
+            let at = if b.verified { b.actual_line.unwrap_or(b.line) } else { 0 };
+            if at != b.line {
+                fire.push(("onbreakpointplaced", vec![Value::String(file.clone()), Value::Integer(i64::from(b.line)), Value::Integer(i64::from(at))]));
+            }
+        }
+    }
     with(name, |m| {
         let Some(want) = m.pending.remove(&re) else { return };
         let error = match &body {

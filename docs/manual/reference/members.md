@@ -5119,6 +5119,7 @@ A run of a program under development, as an IDE runs it: in its own process on t
 | `OnFormShown(Id AS STRING)` | The program showed a form. |
 | `OnVariables(Ref AS INTEGER)` | Values fetched: Ref's children (Expand), or 0 — the selected frame's locals and the watches again (Frame, Watches, SetVariable, a statement evaluated). |
 | `OnEvaluate(Id AS INTEGER, Result AS STRING)` | An Evaluate's or SetVariable's answer ("error: …" when it failed). |
+| `OnBreakpointPlaced(File AS STRING, Line AS INTEGER, NewLine AS INTEGER)` | The running program placed a breakpoint elsewhere than its line: one on a line without code (a comment, a blank line, a DIM) stops at the next line with code, NewLine; NewLine 0: no code follows it in its file, it never stops. |
 
 <a id="screen"></a>
 ## Screen

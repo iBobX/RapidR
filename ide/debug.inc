@@ -29,6 +29,8 @@ DIM BpCond(MAXBPS) AS STRING
 DIM BpHit(MAXBPS) AS STRING
 DIM BpLog(MAXBPS) AS STRING
 DIM BpOn(MAXBPS) AS INTEGER
+' (the running program found no code at or after its line: it never stops)
+DIM BpNever(MAXBPS) AS INTEGER
 DIM BpCount AS INTEGER
 ' (the Breakpoints pane's selected one, -1: none; its edits being filled in)
 DIM BpPicked AS INTEGER
@@ -155,7 +157,7 @@ END FUNCTION
 
 ' (its marker's kind: what the gutter draws)
 FUNCTION BpKind(i AS INTEGER) AS STRING
-  IF BpOn(i) = 0 THEN
+  IF BpOn(i) = 0 OR BpNever(i) THEN
     Result = "breakpoint.disabled"
   ELSEIF BpLog(i) <> "" THEN
     Result = "breakpoint.log"
@@ -200,10 +202,11 @@ FUNCTION AddBreakpoint(InFile AS STRING, LineNo AS INTEGER) AS INTEGER
   i = BpCount
   BpCount = BpCount + 1
   BpFile(i) = InFile: BpLine(i) = LineNo
-  BpCond(i) = "": BpHit(i) = "": BpLog(i) = "": BpOn(i) = 1
+  BpCond(i) = "": BpHit(i) = "": BpLog(i) = "": BpOn(i) = 1: BpNever(i) = 0
   MarkBreakpoint i
   SendBreakpoint i
   Result = i
+  DebugStateChanged
 END FUNCTION
 
 SUB RemoveBreakpoint(i AS INTEGER)
@@ -214,10 +217,11 @@ SUB RemoveBreakpoint(i AS INTEGER)
   FOR k = i TO BpCount - 2
     BpFile(k) = BpFile(k + 1): BpLine(k) = BpLine(k + 1)
     BpCond(k) = BpCond(k + 1): BpHit(k) = BpHit(k + 1)
-    BpLog(k) = BpLog(k + 1): BpOn(k) = BpOn(k + 1)
+    BpLog(k) = BpLog(k + 1): BpOn(k) = BpOn(k + 1): BpNever(k) = BpNever(k + 1)
   NEXT
   BpCount = BpCount - 1
   IF BpPicked >= BpCount THEN BpPicked = BpCount - 1
+  DebugStateChanged
 END SUB
 
 ' F9 / a click in the gutter: a breakpoint on the line, or none any more.
@@ -243,8 +247,40 @@ SUB ChangeBreakpoint(i AS INTEGER, Cond AS STRING, Hit AS STRING, LogMsg AS STRI
   BpHit(i) = LTRIM$(RTRIM$(Hit))
   BpLog(i) = LogMsg
   BpOn(i) = Flag(IsOn)
+  BpNever(i) = 0
   MarkBreakpoint i
   SendBreakpoint i
+  FillBreakpoints
+  DebugStateChanged
+END SUB
+
+' The running program placed a breakpoint elsewhere than its line (one on a
+' comment, a blank line, a DIM): it moves to the line the program stops at,
+' as Xcode and VS Code show it; with no code after it in its file, it never
+' stops — drawn as a ring, and the Breakpoints pane says so.
+SUB BreakpointPlaced(InFile AS STRING, LineNo AS INTEGER, NewLine AS INTEGER)
+  DIM i AS INTEGER, j AS INTEGER
+  i = FindBreakpoint(InFile, LineNo)
+  IF i < 0 THEN i = FindBreakpoint(DebugPath(InFile), LineNo)
+  IF i < 0 THEN EXIT SUB
+  IF NewLine <= 0 THEN
+    UnmarkBreakpoint i
+    BpNever(i) = 1
+    MarkBreakpoint i
+  ELSE
+    j = FindBreakpoint(BpFile(i), NewLine)
+    IF j >= 0 THEN
+      ' (one there already: the moved one goes)
+      RemoveBreakpoint i
+    ELSE
+      UnmarkBreakpoint i
+      Session.ClearBreakpoint BpFile(i), BpLine(i)
+      BpLine(i) = NewLine
+      MarkBreakpoint i
+      SendBreakpoint i
+      DebugStateChanged
+    END IF
+  END IF
   FillBreakpoints
 END SUB
 
@@ -329,6 +365,7 @@ FUNCTION BreakpointText(i AS INTEGER) AS STRING
   DIM t AS STRING
   t = FileTitle(BpFile(i)) + ":" + Num(BpLine(i))
   IF BpOn(i) = 0 THEN t = t + "  (off)"
+  IF BpNever(i) AND BpOn(i) THEN t = t + "  (no code here: never stops)"
   IF BpCond(i) <> "" THEN t = t + "  when " + BpCond(i)
   IF BpHit(i) <> "" THEN t = t + "  hit " + BpHit(i)
   IF BpLog(i) <> "" THEN t = t + "  log " + CHR$(34) + BpLog(i) + CHR$(34)
@@ -452,7 +489,10 @@ SUB ShowLocation(InFile AS STRING, LineNo AS INTEGER, Kind AS STRING)
   IF d < 0 THEN EXIT SUB
   Dock.FocusPane(DocPane(d))
   CodeDoc(d).GotoLine LineNo - 1
-  IF Kind = "exception" THEN
+  EditorFacts d
+  ' (the stop's message at the line's end: a run-time error's; a pause's
+  ' while the program waits for its events; a condition that failed)
+  IF (Kind = "exception" OR Kind = "current") AND Session.StopMessage <> "" THEN
     CodeDoc(d).AddMarker LineNo, Kind, Session.StopMessage
   ELSEIF Kind <> "" THEN
     CodeDoc(d).AddMarker LineNo, Kind
@@ -477,6 +517,7 @@ SUB StartProgram(WithDebugger AS INTEGER)
     EXIT SUB
   END IF
   SyncAllBreakpoints
+  ResetNeverBreakpoints
   OutputBox.Clear "output"
   OutputBox.Page = "output"
   Dock.ShowPane("outputbox")
@@ -510,6 +551,20 @@ SUB GoToFirstProblem
       EXIT SUB
     END IF
   NEXT
+END SUB
+
+' (a new run places every breakpoint again: the code may have changed)
+SUB ResetNeverBreakpoints
+  DIM i AS INTEGER, any AS INTEGER
+  FOR i = 0 TO BpCount - 1
+    IF BpNever(i) THEN
+      UnmarkBreakpoint i
+      BpNever(i) = 0
+      MarkBreakpoint i
+      any = 1
+    END IF
+  NEXT
+  IF any THEN FillBreakpoints
 END SUB
 
 SUB StopProgram
@@ -580,7 +635,10 @@ SUB ProgramStopped(Reason AS STRING, InFile AS STRING, LineNo AS INTEGER)
     CASE "breakpoint": what = "Breakpoint"
     CASE "entry": what = "Paused at the start"
     CASE "exception": what = "Run-time error"
-    CASE ELSE: what = "Paused"
+    CASE ELSE
+      what = "Paused"
+      ' (while the program waits for its events: a ShowModal, a dialog)
+      IF Reason = "pause" AND Session.StopMessage <> "" THEN what = "Paused, " + LCASE$(Session.StopMessage)
   END SELECT
   IF Reason = "exception" THEN kind = "exception" ELSE kind = "current"
   SetState "paused", what + ": " + FileTitle(PausedFile) + ":" + Num(LineNo)
@@ -800,6 +858,7 @@ SUB AddWatch(Expr AS STRING)
   Session.Watches = Session.Watches + e + CHR$(10)
   FillWatches
   Dock.ShowPane("watchpanel")
+  DebugStateChanged
 END SUB
 
 SUB WatchEditKey(Key AS INTEGER, Shift AS INTEGER)
@@ -825,6 +884,7 @@ SUB WatchTreeKey(Key AS INTEGER, Shift AS INTEGER)
   Session.Watches = acc
   WatchOpen = ""
   FillWatches
+  DebugStateChanged
 END SUB
 
 ' Debug > Add Watch: the selection in the code, or the expression under
@@ -1133,6 +1193,7 @@ SUB SetUpDebug
   Session.OnVariables = SessionVariables
   Session.OnEvaluate = SessionEvaluated
   Session.OnFormShown = ProgramFormShown
+  Session.OnBreakpointPlaced = BreakpointPlaced
   PerfForm = -1
   PerfStep = -1
   ' (RAPIDR_STUDIO_PERF: the moment Studio is up and waiting, printed for
@@ -1229,3 +1290,83 @@ SUB SetUpDebug
   FillWatches
   FillBreakpoints
 END SUB
+
+' ---- kept with the project: its breakpoints and watches -----------------------------------
+' In Studio's settings (the per-user store; the page's on the web) by the
+' project's file, saved a moment after they change (as the layout is:
+' workspace.inc) and when Studio closes: opening the project again brings
+' them back, as Xcode, Delphi and VS Code do. Files relative to the
+' project's folder; a row a breakpoint: file, line, on, condition, hit
+' count, log message (tab-separated).
+
+FUNCTION DebugStateName(Kind AS STRING) AS STRING
+  Result = Kind + " " + LCASE$(REPLACESUBSTR$(ProjectFile, "\", "/"))
+END FUNCTION
+
+' (a field without the row's separators)
+FUNCTION StateField(Text AS STRING) AS STRING
+  Result = REPLACESUBSTR$(REPLACESUBSTR$(REPLACESUBSTR$(Text, CHR$(9), " "), CHR$(13), " "), CHR$(10), " ")
+END FUNCTION
+
+' (a file as the project names it: relative to its folder when inside it)
+FUNCTION ProjectRelative(Path AS STRING) AS STRING
+  DIM f AS STRING, root AS STRING
+  f = REPLACESUBSTR$(Path, "\", "/")
+  root = REPLACESUBSTR$(Proj.Folder, "\", "/")
+  Result = f
+  IF root = "" THEN EXIT FUNCTION
+  IF RIGHT$(root, 1) <> "/" THEN root = root + "/"
+  IF LCASE$(LEFT$(f, LEN(root))) = LCASE$(root) THEN Result = MID$(f, LEN(root) + 1)
+END FUNCTION
+
+' (something to keep changed: saved with the layout's timer)
+SUB DebugStateChanged
+  IF DebugLoading = 0 THEN LayoutChanged
+END SUB
+
+' (Reg open at Studio's key: SaveSettings)
+SUB SaveDebugState
+  DIM i AS INTEGER, t AS STRING
+  IF ProjectOpen = 0 OR ProjectFile = "" THEN EXIT SUB
+  FOR i = 0 TO BpCount - 1
+    t = t + StateField(ProjectRelative(BpFile(i))) + CHR$(9) + Num(BpLine(i)) + CHR$(9) + Num(BpOn(i)) + CHR$(9) + StateField(BpCond(i)) + CHR$(9) + StateField(BpHit(i)) + CHR$(9) + StateField(BpLog(i)) + CHR$(10)
+  NEXT
+  Reg.WriteString(DebugStateName("Breakpoints"), t)
+  Reg.WriteString(DebugStateName("Watches"), Session.Watches)
+END SUB
+
+' The project just opened: its breakpoints and watches as they were (the
+' last project's gone). Not with --fresh (the tests' clean start).
+SUB LoadDebugState
+  DIM t AS STRING, w AS STRING, n AS INTEGER, k AS INTEGER, row AS STRING, i AS INTEGER, f AS STRING
+  DebugLoading = 1
+  DO WHILE BpCount > 0
+    RemoveBreakpoint BpCount - 1
+  LOOP
+  Session.ClearBreakpoints
+  BpPicked = -1
+  IF SettingsRead THEN
+    Reg.RootKey = HKCU
+    IF Reg.KeyExists(STUDIO_KEY) THEN
+      Reg.OpenKey(STUDIO_KEY, 0)
+      IF Reg.ValueExists(DebugStateName("Breakpoints")) THEN t = Reg.ReadString(DebugStateName("Breakpoints"))
+      IF Reg.ValueExists(DebugStateName("Watches")) THEN w = Reg.ReadString(DebugStateName("Watches"))
+      Reg.CloseKey
+    END IF
+  END IF
+  Session.Watches = w
+  WatchOpen = ""
+  n = TALLY(t, CHR$(10))
+  FOR k = 1 TO n
+    row = FIELD$(t, CHR$(10), k)
+    f = FIELD$(row, CHR$(9), 1)
+    IF f <> "" AND VAL(FIELD$(row, CHR$(9), 2)) > 0 THEN
+      i = AddBreakpoint(ProjectPath(f), VAL(FIELD$(row, CHR$(9), 2)))
+      IF i >= 0 THEN ChangeBreakpoint i, FIELD$(row, CHR$(9), 4), FIELD$(row, CHR$(9), 5), FIELD$(row, CHR$(9), 6), VAL(FIELD$(row, CHR$(9), 3))
+    END IF
+  NEXT
+  FillBreakpoints
+  FillWatches
+  DebugLoading = 0
+END SUB
+

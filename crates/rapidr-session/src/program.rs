@@ -21,6 +21,10 @@ pub use crate::protocol::{CHILDREN_REF, COMPONENT_REF, GLOBALS_REF, LOCALS_REF};
 /// Elements of an array shown when `variables` doesn't say how many.
 pub const PAGE: u32 = 100;
 
+/// A pause's description when the program was waiting for its events (a
+/// ShowModal, a dialog): the `stopped` event's.
+pub const WAITING_NOTE: &str = "Waiting for events";
+
 /// What the host does after a request ([`ProgramEnd::handle`]).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Control {
@@ -154,6 +158,8 @@ impl ProgramEnd {
         };
         let description = match vm.stop_reason {
             StopReason::Exception => vm.stop_error.clone(),
+            // (paused while it waits: a ShowModal, a dialog — no code runs)
+            StopReason::Pause if vm.frames.last().is_some_and(|f| f.waiting) => Some(WAITING_NOTE.to_string()),
             _ => self.note.take(),
         };
         Event::new(EventBody::Stopped { reason: reason.into(), file, line, description })
@@ -866,5 +872,121 @@ mod tests {
             })
             .collect();
         assert_eq!(logs, "pass 1: 1\npass 2: 3\npass 3: 6\npass 4: 10\npass 5: 15\n");
+    }
+
+    /// A host whose ShowModal waits for its events: three turns of the
+    /// window system (`pump`), then the form is closed (its result 1). The
+    /// IDE's pause arrives during the first turn (the reader's interrupt).
+    #[derive(Default)]
+    struct ModalHost {
+        inner: StubHost,
+        started: bool,
+        left: u32,
+        pumps: u32,
+        interrupt: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+    }
+
+    impl Host for ModalHost {
+        fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String> {
+            self.inner.call_builtin(name, args)
+        }
+        fn create_comp(&mut self, kind: &str, id: &str) -> Result<Value, String> {
+            self.inner.create_comp(kind, id)
+        }
+        fn set_prop(&mut self, id: &str, name: &str, value: Value) -> Result<(), String> {
+            self.inner.set_prop(id, name, value)
+        }
+        fn get_prop(&mut self, id: &str, name: &str) -> Result<Value, String> {
+            self.inner.get_prop(id, name)
+        }
+        fn call_method(&mut self, id: &str, method: &str, args: &[Value]) -> Result<Value, String> {
+            if method.eq_ignore_ascii_case("showmodal") {
+                self.started = true;
+                self.left = 3;
+                return Ok(Value::Null);
+            }
+            self.inner.call_method(id, method, args)
+        }
+        fn register_event(&mut self, id: &str, event: &str, handler_fn_index: u32) -> Result<(), String> {
+            self.inner.register_event(id, event, handler_fn_index)
+        }
+        fn print(&mut self, s: &str) -> Result<(), String> {
+            self.inner.print(s)
+        }
+        fn input(&mut self) -> Result<String, String> {
+            self.inner.input()
+        }
+        fn wait_started(&mut self) -> bool {
+            std::mem::take(&mut self.started)
+        }
+        fn pump(&mut self) -> Option<Value> {
+            self.pumps += 1;
+            if self.pumps == 1 {
+                if let Some(flag) = &self.interrupt {
+                    flag.store(true, std::sync::atomic::Ordering::Relaxed);
+                }
+            }
+            if self.left == 0 {
+                return Some(Value::Integer(1));
+            }
+            self.left -= 1;
+            None
+        }
+    }
+
+    /// A pause while the program waits for its events (its ShowModal; no
+    /// code runs): it stops at once at the line that waits, "Waiting for
+    /// events", its variables there; Step Over goes on with the wait and
+    /// stops at the line after it once the form is closed.
+    #[test]
+    fn a_pause_while_the_program_waits_stops_at_the_waiting_line() {
+        let src = "DIM clicks AS INTEGER\nCREATE Main AS QFORM\nEND CREATE\nclicks = 5\nMain.ShowModal\nPRINT clicks\n";
+        let m = compile_program(src);
+        let (tx, rx) = mpsc::channel();
+        let sent: Rc<RefCell<Vec<Event>>> = Rc::default();
+        let log = sent.clone();
+        // (the IDE's side: at each stop, what it asks)
+        let ide = tx.clone();
+        let stops = Rc::new(std::cell::Cell::new(0));
+        let mut dbg = BlockingDebugger::new(
+            rx,
+            Box::new(move |e: &Event| {
+                log.borrow_mut().push(e.clone());
+                if matches!(e.body, EventBody::Stopped { .. }) && e.re.is_none() {
+                    stops.set(stops.get() + 1);
+                    let next = if stops.get() == 1 { Command::StepOver } else { Command::Continue };
+                    ide.send(req(10 * stops.get(), Command::StackTrace)).unwrap();
+                    ide.send(req(10 * stops.get() + 1, Command::Evaluate { expr: "clicks * 2".into(), frame: None, context: None })).unwrap();
+                    ide.send(req(10 * stops.get() + 2, next)).unwrap();
+                }
+            }),
+        );
+        let flag = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let mut host = ModalHost { interrupt: Some(flag.clone()), ..ModalHost::default() };
+        let mut vm = Vm::new(&mut host);
+        vm.interrupt = flag;
+        tx.send(req(1, Command::Start { program: None, args: vec![], debug: true, stop_on_entry: false, break_on_error: false })).unwrap();
+        assert_eq!(dbg.until_start(&mut vm, &m), Some(false));
+        tx.send(req(2, Command::Pause)).unwrap();
+        vm.debugger = Some(Box::new(dbg));
+        vm.run(&m).unwrap();
+        drop(vm);
+        assert_eq!(host.inner.output.trim(), "5");
+        assert_eq!(host.pumps, 4, "the wait went on after the pause");
+        let sent = sent.borrow();
+        let by_re = |re: u64| sent.iter().find(|e| e.re == Some(re)).map(|e| e.body.clone()).unwrap();
+        let stops: Vec<(String, u32, Option<String>)> = sent
+            .iter()
+            .filter_map(|e| match &e.body {
+                EventBody::Stopped { reason, line, description, .. } if e.re.is_none() => Some((reason.clone(), line.unwrap_or(0), description.clone())),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(stops, vec![("pause".to_string(), 5, Some(WAITING_NOTE.to_string())), ("step".to_string(), 6, None)]);
+        let EventBody::StackTrace { frames } = by_re(10) else { panic!("{:?}", by_re(10)) };
+        assert_eq!(frames.iter().map(|f| f.line).collect::<Vec<_>>(), vec![5]);
+        assert!(matches!(by_re(11), EventBody::Evaluate { ref result, .. } if result == "10"), "{:?}", by_re(11));
+        let EventBody::StackTrace { frames } = by_re(20) else { panic!("{:?}", by_re(20)) };
+        assert_eq!(frames.iter().map(|f| f.line).collect::<Vec<_>>(), vec![6]);
     }
 }

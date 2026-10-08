@@ -1705,6 +1705,23 @@ pub fn rp_take_wait_started() -> bool {
 }
 
 /// One step of the innermost wait: `None` while it goes on, `Some` when over.
+/// A program run under the IDE's debugger (`rapidr run --session`): its
+/// waits (a ShowModal, a dialog) turn at least every
+/// [`DEBUG_POLL_STEP`], so what the debugger sends meanwhile — a pause —
+/// reaches the program while it waits for its events.
+static DEBUG_POLL: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// How often a wait under the debugger turns ([`rp_set_debug_poll`]).
+pub const DEBUG_POLL_STEP: std::time::Duration = std::time::Duration::from_millis(50);
+
+pub fn rp_set_debug_poll(on: bool) {
+    DEBUG_POLL.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn rp_debug_poll() -> bool {
+    DEBUG_POLL.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 pub fn rp_pump_wait() -> Option<Value> {
     #[cfg(feature = "gui")]
     return crate::ui::gui_pump_wait();

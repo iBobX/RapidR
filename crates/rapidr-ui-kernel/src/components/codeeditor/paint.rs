@@ -469,8 +469,10 @@ fn paint_text(x: &mut Ctx, p: &mut Painter, caret_on: bool) {
         };
         squiggle(x, p, &shown, a, b, color, sev == Severity::Hint, lh);
     }
-    // markers' notes at their lines' ends (a run-time error's message):
-    // a rounded label after the text, in the error's colours
+    // markers' notes at their lines' ends (a run-time error's message; a
+    // pause's, the program waiting for its events): a rounded label after
+    // the text, in the error's colours (a warning's; the debugger's line's
+    // in the information's)
     let font = x.ui.font.clone();
     let lx = |v: f64| v / s - ox as f64;
     for sh in &shown {
@@ -480,13 +482,17 @@ fn paint_text(x: &mut Ctx, p: &mut Painter, caret_on: bool) {
         }
         let Some(m) = x.c.markers_on(sh.row.line).find(|m| !m.note.is_empty()) else { continue };
         let note = m.note.lines().next().unwrap_or("").to_string();
-        let warn = m.kind == "warning";
+        let tone = match m.kind.as_str() {
+            "warning" => sc.warning,
+            "current" | "frame" => sc.info,
+            _ => sc.error,
+        };
         let end = sh.line_start + sh.row.range.end;
         let x0 = lx(caret_x(x.ui, sh, end)).round() as i64 + 24;
         let (tw, th) = rapidr_value::objects::text::text_size(&note, &font);
         let top = sh.top.round() as i64;
         let h = (lh.round() as i64 - 2).max(th);
-        let (fg, bg) = if warn { (sc.warning, blend(sc.warning, sc.background, 0.16)) } else { (sc.error, blend(sc.error, sc.background, 0.16)) };
+        let (fg, bg) = (tone, blend(tone, sc.background, 0.16));
         let rect = (x0, top + 1, tw + 16, h);
         p.op(Op::Round { rect, radius: 3.0, fill: Some(bg), stroke: Some(blend(fg, sc.background, 0.5)), width: 1.0 });
         p.text((x0 + 8, top + 1 + (h - th) / 2, tw + 4, th), &note, &font, fg, Place::TopLeft);

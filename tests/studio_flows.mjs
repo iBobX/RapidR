@@ -790,6 +790,60 @@ const CASES = [
     dump: { "codedoc(0).hovertext": /i = 1/, "session.frame": /^1$/, "varstree.text": /^Locals\n\t\(none\)\nGlobals/ },
   },
   {
+    // Pause while the program waits for its events (its ShowModal): it
+    // stops at once, at the line that waits, the note "Waiting for events"
+    // there and its variables shown (desktop: the program's wait turns
+    // under the debugger; web: the frame's VM waits, nothing runs). Going on
+    // from there is rapidr-session's a_pause_while_the_program_waits_… (a
+    // desktop program captured under a test ends once it has been seen)
+    name: "debug-pause-waiting",
+    open: "tests/fixtures/studio_debug/waits.rr",
+    webFiles: ["tests/fixtures/studio_debug/waits.rr"],
+    do: "run.start,wait,wait,wait,run.pause,wait,wait",
+    delay: 6,
+    scales: [1, 2],
+    capture: true,
+    dump: {
+      "session.state": /^paused$/,
+      "session.stopreason": /^pause$/,
+      "session.currentline": /^17$/,
+      "session.stopmessage": /^Waiting for events$/,
+      "varstree.text": /^Locals\n\t\(none\)\nGlobals\n\tclicks = 0$/,
+      "stacktree.text": /^\(the program\)\s+waits\.rr:17$/,
+      "codedoc(0).caretline": /^17$/,
+    },
+  },
+  {
+    // breakpoints on lines without code: the running program places them —
+    // the comment's moves to the next line with code (it stops there), the
+    // one after the last code never stops and says so
+    name: "debug-placed",
+    open: "tests/fixtures/studio_debug/placed.rr",
+    webFiles: ["tests/fixtures/studio_debug/placed.rr"],
+    do: "line:5,debug.toggleBreakpoint,line:8,debug.toggleBreakpoint,run.start,wait,wait,wait,wait",
+    delay: 6,
+    dump: {
+      "session.state": /^paused$/,
+      "session.currentline": /^6$/,
+      "bptree.text": /^placed\.rr:6\nplaced\.rr:8  \(no code here: never stops\)$/,
+    },
+  },
+  {
+    // the project's breakpoints and watches kept: Studio started again on
+    // the same settings has them as they were
+    name: "debug-kept",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,debug.toggleBreakpoint,bpcond:i = 2,watch:total * 10,wait,wait,wait,wait",
+    delay: 5,
+    restart: { do: "wait,wait,run.start,wait,wait,wait,wait", delay: 6 },
+    dump: {
+      "bptree.text": /^counter\.rr:6  when i = 2$/,
+      "watchtree.text": /^total \* 10 = 20$/,
+      "session.currentline": /^6$/,
+    },
+  },
+  {
     // a run-time error stops at its line, its message at the line's end
     name: "debug-runtime-error",
     open: "tests/fixtures/studio_debug/oops.rr",

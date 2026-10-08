@@ -1,0 +1,18 @@
+' waits.rr: a form that waits for its events (ShowModal): Pause stops at
+' that line while no code runs (tests/studio_flows.mjs debug-pause-waiting)
+DIM clicks AS INTEGER
+SUB Clicked
+  clicks = clicks + 1
+END SUB
+CREATE Main AS RFORM
+  Caption = "Waits"
+  Width = 260: Height = 140
+  CREATE Again AS RBUTTON
+    Caption = "Again"
+    Left = 20: Top = 20: Width = 100
+    OnClick = Clicked
+  END CREATE
+END CREATE
+clicks = 0
+Main.ShowModal
+PRINT "done"; clicks
