@@ -14,7 +14,7 @@
 //                                                      with --backend web, the web's `web:` lines)
 //
 // Native: every component in one program (one cargo build). Web: the web
-// IDE's page on RAPIDR_URL (default http://localhost:8765), after
+// runtime's own page (tests/web_run.mjs) on RAPIDR_URL (default http://localhost:8765), after
 // tools/build_web_artifacts.sh. Env: RAPIDR_BIN (default ./rapidr),
 // LANG_CONFORMANCE_WORK (default tests/conformance/.work/lang).
 
