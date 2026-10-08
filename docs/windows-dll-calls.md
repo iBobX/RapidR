@@ -41,33 +41,69 @@ within 32 bits for exactly this: `GetDC`, `LoadCursorFromFile`,
 `Form.Handle` fit a LONG).
 
 - Every argument of a numeric type goes in a 64-bit integer slot (RCX, RDX,
-  R8, R9 then the stack on x64; X0–X7 on ARM64 — the one convention 64-bit
-  Windows has; `extern "system"` is it). A LONG's value is sign-extended, so
-  `-1` is `HWND_TOPMOST` and `INFINITE` alike; WORD / SHORT / BYTE are
-  masked to their size. `DOUBLE` goes in a float register (`SINGLE` as a
-  32-bit float). Up to 16 integer arguments; DOUBLE arguments in calls of
-  up to 4 arguments (what RapidQ's own DLL users need; no C library, no
-  assembler: `rapidr_runtime_core::ffi` is a table of exact `extern
-  "system"` signatures).
+  R8, R9 then the stack on x64; X0–X7 then the stack on ARM64 — the one
+  convention 64-bit Windows has; `extern "system"` is it). A LONG's value is
+  sign-extended, so `-1` is `HWND_TOPMOST` and `INFINITE` alike; WORD /
+  SHORT / BYTE are masked to their size. `DOUBLE` goes in a float register,
+  `SINGLE` as its 32 bits in one (GDI+'s `GdipDrawLine(g, pen, x1 AS
+  SINGLE, …)`). Up to 16 arguments, of which up to 8 DOUBLE / SINGLE (no C
+  library, no assembler: `rapidr_runtime_core::ffi` is a table of exact
+  `extern "system"` signatures — on x64 the first four arguments' kinds
+  pick the signature and the rest go on the stack by position; on ARM64,
+  and on the other systems' x64, integers and floats fill registers of
+  their own, so one signature takes the integers, then the floats). More
+  than that, a CURRENCY by value, a string given for a float, or a count
+  of arguments other than the DECLARE's is a clear run-time error.
 - The result: a 32-bit declared type is taken from the low 32 bits of the
   register (the upper ones are undefined for such a function) — LONG /
   INTEGER / DWORD sign-extended (RapidQ's DWORD is signed), WORD / SHORT /
-  BYTE as their size; `DOUBLE` from the float register; `STRING` the C
-  string at the returned address; `INT64` the whole register.
-- A 64-bit pointer a DLL returns (`GlobalAlloc`, `GetProcAddress`, a DLL's
-  `HMODULE`) doesn't fit a LONG; stored into one it becomes -2147483648 as
-  any out-of-range store does (RapidQ's rule). Declare such results `AS
-  INT64` (a RapidR type) or pass them straight on.
+  BYTE as their size; `DOUBLE` from the float register, `SINGLE` its low 32
+  bits; `STRING` the C string at the returned address (read up to its NUL,
+  at most 1 MB); `INT64` the whole register.
+- A 64-bit pointer where the DECLARE says LONG — a result (`GlobalAlloc`,
+  `GetProcAddress`, a DLL's `HMODULE`) or what a DLL writes into a BYREF
+  LONG (`AVIFileOpen(pfile, …)`, `GetModuleHandleEx(…, hModule)`) — doesn't
+  fit 32 bits. RapidR keeps it and gives the program a 32-bit *stand-in*
+  (from 0xD1E00000, a pattern no flag combination of Windows' makes), which
+  turns back into the pointer when the program hands it to a DLL again.
+  Only an address the process has mapped gets one (`VirtualQuery`), so a
+  32-bit result over a register's stale upper half stays itself. PEEK,
+  POKE and MEMCPY on a stand-in are refused by name: it is the DLL's
+  memory, not the program's.
 - Loading: `libloading` (ISC / MIT) with Windows' own search (`"user32"`,
   `"user32.dll"`, a path). A 32-bit DLL (one shipped with an old example)
-  can't load into a 64-bit program: the error says so ("… is a 32-bit DLL;
-  RapidR programs are 64-bit, so Windows can't load it").
+  can't load into a 64-bit program: RapidR reads the DLL's PE header and
+  says so ("'PASCAL.DLL' is a 32-bit DLL; RapidR programs are 64-bit, so
+  Windows can't load it"); a DLL that isn't there is "can't find the DLL".
+  A 32-bit DLL that only holds resources, loaded with `LoadLibrary` (the
+  cursor example's CURSORS.DLL), opens as data, so `LoadCursor(hInst, …)`
+  finds its cursors.
 - A crash inside the DLL (an argument that isn't a valid pointer, as RapidQ
   crashes too) ends the program with `run-time error: the call to X in
   Y.dll crashed (access violation …)` through an unhandled-exception
   filter, instead of vanishing.
 - `CODEPTR` / `CALLBACK` handed to a DLL (window procedures, enumeration
-  callbacks) isn't supported yet: a clear run-time error.
+  callbacks) isn't supported yet: a clear run-time error before the call.
+- x86 machine code a program wrote into a string or a buffer and runs with
+  `CallWindowProc(VARPTR(code$), …)` (RapidQ's way to run assembler) can't
+  run in a 64-bit program: a clear run-time error before Windows is called.
+- A TYPE is passed with RapidQ's packed 32-bit layout. Structures whose
+  fields Windows' 64-bit version widens — pointers and handles declared as
+  LONG (`TCITEM.pszText`, `SECURITY_ATTRIBUTES.lpSecurityDescriptor`,
+  `NOTIFYICONDATA.hWnd`) — don't match what the API reads; the call fails
+  or crashes, named. Structures of numbers only (`RECT`, `POINT`,
+  `SYSTEMTIME`, `LOGFONT`) work.
+- `RAPIDR_SANDBOX` set (to anything but empty or 0): no library is loaded
+  and every DLL call is a run-time error — the gate a run RapidR starts on
+  someone else's behalf (an assistant's, an extension's) sets
+  (docs/security-audit.md SEC-19).
+
+RapidQ's own Windows-message built-ins are those functions of user32's:
+`SENDMESSAGE hWnd, uMsg, wParam, lParam` is `SendMessageA`, `POSTMESSAGE`
+`PostMessageA`, `KILLMESSAGE hWnd, uMsg` takes that message off the queue
+(`PeekMessageA` with `PM_REMOVE`) — called on Windows, the error elsewhere,
+as if the program had DECLAREd them (`rapidr_ast::memory`); a program that
+DECLAREs or defines a routine of that name keeps its own.
 
 ### On macOS, Linux and the web
 
@@ -152,7 +188,14 @@ statement, as it does under RapidQ.
 ## 3. Handles: `Form.Handle` is the window's HWND on Windows
 
 RapidR draws its own controls in one window per form, so only a form has a
-window of its own. On Windows, once a form is shown, `Form.Handle` is its
+window of its own. RapidR's own handles (a control's, a form's before it is
+shown, an icon's) are numbers no Windows USER handle can be: a USER handle
+is an index into the session's handle table (its low word, the table at
+most 65,536 entries for the whole session) and a reuse count (its high
+word), and RapidR's have a low word near 0xFFFF (`handles::own_handle`) —
+so `ShowWindow(Edit.Handle, …)` or `SendMessage(Button.Handle, WM_CLOSE, …)`
+can't reach another program's window (RapidR's first numbering, 0x10004 +
+4n, was the desktop window's range). On Windows, once a form is shown, `Form.Handle` is its
 real HWND (the winit host registers it with `rapidr_value::handles` when
 the window is made), so `SetWindowPos`, `SetForegroundWindow`, `GetDC` /
 `ReleaseDC`, `GetWindowRect`, `SetClassLong(Form.Handle, GCL_HCURSOR,
@@ -177,6 +220,16 @@ What can't work, and says so by failing the Windows way (the API returns
 - **Drawing on a form's DC** (`GetDC(Form.Handle)` + `Rectangle`) does draw
   on the window, but RapidR repaints the form from its own model on the
   next paint, so the drawing lasts until then. Draw on a QCANVAS instead.
+- **Coordinates on a high-DPI screen.** RapidR is DPI-aware; RapidQ wasn't
+  (Windows scaled its windows and gave it scaled coordinates). So the
+  numbers Windows' functions take and give — `SetWindowPos`,
+  `GetWindowRect`, `CreateRoundRectRgn(0, 0, Form.Width, Form.Height, …)` —
+  are the screen's pixels in RapidR, where `Form.Width` is in RapidQ's
+  units: at 200% a form moved with `SetWindowPos(…, 120, 90, 420, 260, …)`
+  is half the size it was under RapidQ. At 100% they agree.
+- **A form's properties after an API moved it** follow once the program's
+  handler returns: `SetWindowPos` then `Form.Left` in the same SUB reads
+  the old value, a later event the new one.
 
 ## 4. The lexer: `&hHE`
 

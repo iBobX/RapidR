@@ -10,8 +10,12 @@
 // model serves native builds and the web (the conformance cases
 // peek_bad_address and peek_poke_memory run there).
 //
-// The second half pins the web's side: its hosts answer a DLL call with
-// the error and the web runtime links no library loader.
+// Then the DLL side: a sandboxed run (RAPIDR_SANDBOX) calls no DLL, a
+// pointer a DLL returned is no memory of the program, x86 machine code
+// isn't run (Windows), and a control's Handle is never a real window's
+// (so an API call given one can't reach another program's window). The
+// last part pins the web's side: its hosts answer a DLL call with the
+// error and the web runtime links no library loader.
 //
 //   node tests/security/peek_poke_unowned_memory.mjs     (after ./build.sh)
 
@@ -40,12 +44,12 @@ const env = { ...process.env, RAPIDR_PRINT_TO: join(dir, "prints"), RAPIDR_REGIS
 
 // Runs `src`; it must print "before", then stop with a run-time error
 // containing `want` (exit code 1, not a signal or an access violation).
-function refused(name, src, want) {
+function refused(name, src, want, extraEnv = {}) {
   const bas = join(dir, `${name}.bas`), rrbc = join(dir, `${name}.rrbc`);
   writeFileSync(bas, `PRINT "before"\n${src}\nPRINT "not reached"\n`);
   const c = spawnSync(RAPIDR, ["build-bc", bas, "-o", rrbc], { encoding: "utf8", env });
   if (c.status !== 0) return check(name, false, `(didn't compile: ${c.stderr.trim()})`);
-  const r = spawnSync(RAPIDR, ["run-bc", rrbc], { encoding: "utf8", env, timeout: 30_000 });
+  const r = spawnSync(RAPIDR, ["run-bc", rrbc], { encoding: "utf8", env: { ...env, ...extraEnv }, timeout: 30_000 });
   const err = r.stderr || "";
   check(
     `${name}: refused with a run-time error`,
@@ -80,6 +84,38 @@ refused("inp_port", "x = INP(&H378)", "hardware port");
 if (process.platform !== "win32") {
   refused("dll_off_windows", "DECLARE FUNCTION GetTickCount LIB \"kernel32\" () AS LONG\nt = GetTickCount", "'GetTickCount' is a Windows function (kernel32)");
   refused("third_party_dll_off_windows", "DECLARE FUNCTION Ping LIB \"evil.dll\" (BYVAL n AS LONG) AS LONG\nt = Ping(1)", "'Ping' is a function of evil.dll, a Windows DLL");
+}
+
+// A 32-bit stand-in for a pointer a DLL returned (rapidr_value::dll's
+// POINTER_STAND_IN_BASE, 0xD1E00000) is no memory of the program either.
+refused("peek_pointer_stand_in", "x = PEEK(&HD1E00001)", "memory a DLL returned");
+refused("memcpy_to_pointer_stand_in", "DIM n AS LONG\nMEMCPY &HD1E00000, VARPTR(n), 4", "memory a DLL returned");
+// A sandboxed run (RAPIDR_SANDBOX, what RapidR sets for code the user
+// didn't start, SEC-10) loads and calls no DLL — on every system, Windows
+// included, and for the message built-ins too.
+refused("dll_sandboxed", "DECLARE FUNCTION GetTickCount LIB \"kernel32\" () AS LONG\nt = GetTickCount", "this run is sandboxed", { RAPIDR_SANDBOX: "1" });
+refused("own_dylib_sandboxed", `DECLARE FUNCTION cabs LIB "${process.platform === "darwin" ? "libSystem.B.dylib" : process.platform === "win32" ? "msvcrt" : "libc.so.6"}" ALIAS "abs" (BYVAL n AS LONG) AS LONG\nt = cabs(-1)`, "this run is sandboxed", { RAPIDR_SANDBOX: "1" });
+refused("sendmessage_sandboxed", "SENDMESSAGE 0, 0, 0, 0", "this run is sandboxed", { RAPIDR_SANDBOX: "1" });
+// x86 machine code a program wrote, run through CallWindowProc (RapidQ's
+// way to run assembler): refused before Windows is called.
+if (process.platform === "win32") {
+  refused("x86_code_in_a_string", "DECLARE FUNCTION CallWindowProc LIB \"user32\" ALIAS \"CallWindowProcA\" (BYVAL p AS LONG, BYVAL h AS LONG, BYVAL m AS LONG, BYVAL w AS LONG, BYVAL l AS LONG) AS LONG\ncode$ = CHR$(&HC3)\nr = CallWindowProc(VARPTR(code$), 0, 0, 0, 0)", "machine code for 32-bit x86");
+}
+
+// RapidR's own component handles are never a window of the system: their
+// low word (a USER handle's table index) stays near 0xFFFF, so a DLL call
+// given a control's Handle can't reach another program's window.
+{
+  const bas = join(dir, "handles.bas"), rrbc = join(dir, "handles.rrbc");
+  writeFileSync(bas, "CREATE Form AS QFORM\n  CREATE B AS QBUTTON\n  END CREATE\n  CREATE E AS QEDIT\n  END CREATE\nEND CREATE\nPRINT B.Handle\nPRINT E.Handle\n");
+  spawnSync(RAPIDR, ["build-bc", bas, "-o", rrbc], { encoding: "utf8", env });
+  const r = spawnSync(RAPIDR, ["run-bc", rrbc], { encoding: "utf8", env: { ...env, RAPIDR_CAPTURE: join(dir, "cap") }, timeout: 30_000 });
+  const hs = r.stdout.trim().split(/\s+/).map(Number).filter((n) => n);
+  check(
+    "control handles are no USER handles",
+    hs.length === 2 && hs.every((h) => h > 0 && h <= 0x7fffffff && (h & 0xffff) >= 0xffc0),
+    `(${JSON.stringify(r.stdout)} ${r.stderr.trim()})`,
+  );
 }
 
 // The web: no library loader, and both web hosts refuse a DLL call.

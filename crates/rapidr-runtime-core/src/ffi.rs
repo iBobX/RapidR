@@ -665,6 +665,9 @@ fn install_crash_filter() {
     use std::sync::Once;
     use windows_sys::Win32::System::Diagnostics::Debug::{SetUnhandledExceptionFilter, EXCEPTION_POINTERS};
     static ONCE: Once = Once::new();
+    // SAFETY (of the signature): Windows calls the filter with a pointer
+    // to the exception's record or null; the body only reads it through
+    // `as_ref`, prints and returns, touching no program state.
     unsafe extern "system" fn filter(info: *const EXCEPTION_POINTERS) -> i32 {
         let what = CALLING.lock().map(|c| c.clone()).unwrap_or_default();
         let last = LAST_CALL.lock().map(|c| c.clone()).unwrap_or_default();

@@ -74,7 +74,7 @@ SEC-13).
 | SEC-16 | Medium | Build output | `render_index_html` / `render_loader_js` / asset-map interpolate the project name and asset names into HTML+JS with no (or `"`-only) escaping → injection in the built bundle | **Fixed** (SEC-FIX pass) |
 | SEC-17 | Medium | Legacy web IDE | `web-ide/` (Monaco IDE) is still the shipped web artifact (`tools/release/web.sh`) and still `include_str!`'d into every bundle; it carries the pre-SEC-05/escaping `innerHTML` sinks and a permissive `.htaccess` | **Fixed** (SEC-FIX pass): not shipped, not embedded; the tree keeps it as a test harness until deletion |
 | SEC-18 | Low | Local service | `rapidr lsp` / `rapidr dap` accept `file://` URIs to any path and read/stat them; no project confinement (acceptable for an editor-spawned stdio server, but worth stating) | **Fixed** (SEC-FIX pass); `rapidr mcp`'s authentication designed (§7) |
-| SEC-19 | Low | FFI (in progress) | The DLL-call / VARPTR / PEEK-POKE lane is unimplemented-but-present risk; see the review checklist in §6 | Open (its own lane) |
+| SEC-19 | Low | FFI | The DLL-call / VARPTR / PEEK-POKE lane; reviewed against the checklist in §6 when it landed (C-SYS-2, 2026-10-08) | **Reviewed** (C-SYS-2): PEEK / POKE reach only RapidR's model, never process memory; calls checked and bounded; `RAPIDR_SANDBOX` is the gate a sandboxed run sets; callbacks refused; the IDE / MCP side of the gate waits for SEC-10 |
 | SEC-20 | Low | Supply chain | 3 informational RustSec advisories reachable in shipped binaries (`ttf-parser`, `memmap2`, and `anyhow` which is not actually linked); one stale `deny.toml` ignore | **Fixed** (SEC-FIX pass); checksum signing proposed (§8), the key is Robert's decision |
 
 Positives confirmed (no finding): the Studio preview frame runs at an **opaque
@@ -313,19 +313,24 @@ build server's loopback+token+Origin/Host guard).
 
 ---
 
-### SEC-19 — Low (design, in progress) — DLL-call / VARPTR / PEEK-POKE lane
+### SEC-19 — Low — DLL-call / VARPTR / PEEK-POKE lane (reviewed 2026-10-08)
 
-The Windows FFI lane (`DECLARE … LIB`, `VARPTR`, `PEEK`/`POKE`) is partly present:
-`crates/rapidr-runtime-core/src/ffi.rs` (68 `unsafe` blocks) loads an arbitrary
-library by program-supplied path and calls an arbitrary symbol with up to 4
-integer/float args, with **no signature check** and a raw `CStr::from_ptr` on the
-integer a DLL returns for a STRING result (`ffi.rs:265`). This is inherent to
-`DECLARE…LIB` (an author-opt-in, by-design power), but the VARPTR/PEEK/POKE
-pointer model is the part still being designed. Its review checklist is in §6;
-run that pass when the lane lands. Until then: `ffi` is a default-on feature of
-`rapidr-runtime-core` and the `full` feature of `rapidr-vm-host-native`, so any
-native/interpreted program can already load libraries — keep it **out of any
-sandboxed-run path** (AI-initiated runs, extension VMs, the web).
+The lane landed (docs/windows-dll-calls.md): a program's `DECLARE … LIB`
+routines are called on Windows, natively and interpreted; elsewhere the call is
+a run-time error (a library of the system's own format, named in full, still
+loads on macOS / Linux: RapidR's addition). Calling a DLL is, as in RapidQ, the
+program author's power — a wrong DECLARE can crash the program — so the review
+is about what RapidR adds around it: that no *other* path reaches raw memory,
+that what RapidR itself hands a DLL is sized and alive, and that a sandboxed
+run can't call a DLL at all. The §6 checklist, item by item, has the answers;
+the regression tests are `tests/security/peek_poke_unowned_memory.mjs` (run by
+`tools/regress.sh security`) and the unit tests of `rapidr_runtime_core::ffi`
+and `rapidr_value::{memory, handles}` (on macOS and in the Windows 11 VM).
+
+What remains open: the IDE / MCP half of the gate (SEC-10's "native-privileged"
+project flag and its confirmation) — the runtime half, `RAPIDR_SANDBOX`, is in
+place for those runs to set; C→RapidR callbacks (refused today; §6 says what
+their review must cover); Miri over the non-FFI memory code (not run).
 
 ---
 
@@ -381,7 +386,7 @@ by crate:
 
 | Crate / file | Count | What | Assessment |
 |---|---|---|---|
-| `rapidr-runtime-core/src/ffi.rs` | 68 | `libloading` load + symbol call as `extern "C" fn` for every 0–4 arg int/float combo; `CStr::from_ptr` on DLL-returned pointer (`:265`) | The main exposure. No signature check, no pointer validation; inherent to `DECLARE…LIB`. Behind default-on `ffi` feature. **Review with SEC-19 / §6; keep out of sandboxed runs.** |
+| `rapidr-runtime-core/src/ffi.rs` | 17 (C-SYS-2) | `libloading` load + symbol lookup; one `transmute` + call per signature of a table (`extern "system"`, 0–16 integer slots, up to 8 float slots); AS STRING results read byte by byte with a 1 MB bound; a 64-bit pointer written into a BYREF LONG read within the variable's real memory (`room_at`); `VirtualQuery`; `LoadLibraryExW` as data for 32-bit resource DLLs; the crash filter | Reviewed with SEC-19 / §6 (C-SYS-2): arity checked against the DECLARE, sizes bounded, every block `// SAFETY:`-commented; refused under `RAPIDR_SANDBOX`. A wrong DECLARE stays the author's UB, as in RapidQ. |
 | `rapidr-runtime-core/src/terminal.rs` | 7 | libc termios/read/poll (Unix), CRT `_kbhit`/`_getch` (Windows) | Sound: local structs, checked returns, SAFETY comments, Mutex-guarded saved state. |
 | `rapidr-runtime-core/src/object.rs` | 4 (1 non-test) | lifetime-erasing `transmute` of `*mut dyn FnMut` for re-entrant wait serving (`:1557`, `:1588`) | High-quality: drop guards + re-entry flag + SAFETY comments. 2 are test-only. |
 | `rapidr-runtime-core/src/joystick/evdev.rs` | 3 | `ioctl`, `read_unaligned` of `#[repr(C)]` structs from exact-size buffers | Sound: sizes from `size_of`, `chunks_exact`. |
@@ -449,57 +454,102 @@ Captured output: `scratchpad/supply/{deny.txt,audit.txt,audit.json,cargo-tree-ad
 
 ---
 
-## 6. Review checklist for the DLL-call / VARPTR / PEEK-POKE design (do this pass when the lane lands)
+## 6. Review checklist for the DLL-call / VARPTR / PEEK-POKE design (done, C-SYS-2, 2026-10-08)
 
-For `crates/rapidr-runtime-core/src/ffi.rs` and the new VARPTR/PEEK/POKE opcodes:
+For `crates/rapidr-runtime-core/src/ffi.rs`, `crates/rapidr-value/src/memory.rs`
+(VARPTR blocks, their real memory on Windows, PEEK / POKE) and
+`crates/rapidr-value/src/console.rs` (the console pages).
 
 **Address validation & pointer provenance**
-- [ ] Does `PEEK`/`POKE` accept an arbitrary integer address? If so it is, by
-      construction, an arbitrary read/write of the process — an author-opt-in
-      power. Confirm it is **gated by the native-privileged flag** and never
-      reachable from a sandboxed run or the web (where it must be a no-op/error,
-      as RapidQ's own web story has no memory).
-- [ ] `VARPTR`/`STRPTR`/`CODEPTR`: what do they return and does anything downstream
-      assume the pointer is still valid after the `Value` moves/reallocs? RapidR's
-      `Value::String` is a Rust `String` that can reallocate — a pointer handed to
-      a DLL must pin the buffer for the call's duration (document the lifetime;
-      consider only allowing VARPTR into a fixed/pinned buffer type).
-- [ ] Distinguish "RapidR-issued" handles from raw integers; never deref a plain
-      program integer as a pointer without the native-privileged gate.
+- [x] PEEK / POKE never take an integer as a process address. An address is
+      looked up in RapidR's own model: the console's pages (0–3999 of pages
+      0–7) or a *block* — a live view of the program's variable, array
+      element, TYPE or stream that `VARPTR` and the like handed out (1 MB–2 GB,
+      `memory::find`). Anything else, a page outside 0–7, or a byte past a
+      block's end is a run-time error that says so; real memory is never read
+      or written, on any system (the web runs the same model). So no
+      native-privileged gate is needed for them: they can't reach memory the
+      program doesn't own (Robert's decision). Tests: the probes of
+      `tests/security/peek_poke_unowned_memory.mjs` (KUSER_SHARED_DATA, the
+      top of 2 GB, 1E18, negative, past a LONG / a string / an array, between
+      blocks, page 8, MEMCPY / MEMSET / VARPTR$ to unowned addresses, a DLL
+      pointer's stand-in).
+- [x] VARPTR returns a block address, not a Rust pointer: no `Value` is ever
+      pinned or handed out. For a DLL call the live blocks are *materialised*:
+      their bytes written into memory RapidR owns for the process's life
+      (pages committed at the block's own address on Windows, a buffer of
+      ours elsewhere), the DLL gets those, and what it wrote is decoded back
+      after the call (`memory::materialize` / `read_back`; a variable that
+      grew past its block keeps its tail). Strings given by value get a
+      buffer of the call's own that lives until the call returns.
+- [x] RapidR-issued numbers are told apart: component handles are in a range
+      no Windows USER handle occupies (the table index in the low word near
+      0xFFFF: `handles::own_handle`), so a control's `Handle` given to
+      `ShowWindow` / `SendMessage` can't reach another program's window
+      (before, they were 0x10004 + 4n — the desktop window's range); 64-bit
+      pointers a DLL returns are kept as stand-ins in their own range
+      (0xD1E00000…, off `GENERIC_READ OR GENERIC_WRITE`), only for addresses
+      `VirtualQuery` finds mapped, and memory functions refuse them by name.
+      A plain integer *argument* to a DLL is passed as the DECLARE says —
+      that is the call's own power, the author's, as in RapidQ.
 
 **Buffer sizes**
-- [ ] For string/array out-params passed to a DLL, is the buffer length known and
-      enforced, or does it trust the DLL to not overrun? `ffi.rs:265`'s
-      `CStr::from_ptr` trusts a NUL to exist — a DLL returning a non-terminated
-      buffer reads out of bounds. Prefer length-bounded reads where the ABI gives
-      a length.
-- [ ] `POKE` of a string/array: bounds-check the destination against a known
-      allocation size.
+- [x] Every buffer RapidR hands a DLL has room past what it holds: a string
+      or BYREF number given as a value gets 4 KB of zeros after it (an API
+      told a larger size than the text writes there), a VARPTR'd variable at
+      least twice its size and 256 bytes (`reserve_for`). A DLL told a size
+      beyond that can still overrun — exactly as in RapidQ; it faults on
+      uncommitted pages and the crash filter names the call.
+- [x] AS STRING results are read byte by byte (`read_volatile`) up to their NUL
+      and never past 1 MB (`MAX_RESULT_STRING`); an unreadable address is
+      reported as that call's crash. No `CStr::from_ptr`.
+- [x] POKE (and MEMCPY / MEMSET) into a block is bounds-checked against what
+      the block holds ("past the end").
 
 **Call ABI / signatures**
-- [ ] `ffi.rs` dispatches on arg count (0–4) and int/float class with **no check**
-      that the declared signature matches the real C function — a mismatch is UB.
-      Can the DECLARE's type info be used to pick the right trampoline and reject
-      obviously-wrong arities? Document that a wrong DECLARE is the author's UB.
-- [ ] More than 4 args silently returns null today — make it a clear error.
+- [x] The DECLARE's types pick the signature: each argument in an integer or a
+      float slot, a SINGLE's 32 bits, a TYPE / STRING / BYREF by address;
+      results narrowed to the declared size. The argument count must equal
+      the DECLARE's; more than 16 arguments, more than 8 DOUBLE / SINGLE, a
+      CURRENCY by value, a string for a float are clear errors (none returns
+      null silently any more). That the DECLARE matches the real function
+      can't be checked — a wrong one is the author's bug, documented in
+      docs/windows-dll-calls.md.
+- [x] x86 machine code a program wrote and runs through `CallWindowProc`
+      (RapidQ's way to run assembler) is refused before Windows is called;
+      32-bit DLLs are named as such (their PE header read), not loaded.
 
 **Callbacks**
-- [ ] If the lane adds C→RapidR callbacks (function pointers passed to a DLL),
-      review re-entrancy into the VM (the VM is single-threaded, cooperative) and
-      the lifetime of the trampoline; a callback firing on another thread must not
-      touch VM state.
+- [x] Not added: `CODEPTR(Sub)` / `CALLBACK(Sub)` handed to a DLL is replaced at
+      compile time by a marker the runtime refuses before the call
+      ("RapidR doesn't pass SUBs and FUNCTIONs to DLLs yet"), so no DLL ever
+      gets a RapidR address to jump to. When callbacks come, their review
+      must cover what this item listed (re-entrancy into the single-threaded
+      VM, the trampolines' lifetime, a callback on another thread).
+- [x] A DLL call doesn't keep RapidR's library table borrowed while it runs
+      (Windows sends window messages during SetWindowPos; a handler may call
+      a DLL again).
 
 **Non-Windows behaviour**
-- [ ] `DECLARE…LIB` / `VARPTR` / `PEEK`/`POKE` on macOS/Linux and on the web:
-      define each explicitly (load `.so`/`.dylib`? error? no-op?). The web must
-      never expose any of them. Keep `ffi` out of the web build (it already is).
+- [x] Defined per system: on macOS / Linux a call into anything but a library
+      of the system's own format named in full (`libfoo.dylib`, `.so`) is a
+      run-time error naming the function; the web's two hosts answer every
+      DLL call with that error and link no library loader (checked by the
+      security test); PEEK / POKE / VARPTR are the same model everywhere.
 
 **General**
-- [ ] Run Miri on the non-FFI parts; keep the FFI module behind the default-on
-      `ffi` feature but ensure every sandboxed entry point builds/links without it
-      or refuses to call it.
-- [ ] Add a SEC-id and a CHANGELOG line when it lands; add a test that the
-      native-privileged flag is required.
+- [x] The gate for sandboxed runs: `RAPIDR_SANDBOX` (set to anything but
+      empty or 0) makes every DLL call — and SENDMESSAGE / POSTMESSAGE /
+      KILLMESSAGE — a run-time error before any library is loaded, on every
+      system (tested). The runs that must set it (AI- or MCP-initiated runs,
+      extension VMs) don't exist yet; SEC-10's project flag and confirmation
+      belong to them.
+- [x] Every `unsafe` block in the lane has a `// SAFETY:` comment (ffi.rs 17,
+      memory.rs 5, terminal.rs's console mode, globals.rs's system cursor,
+      the winit host's cursor pixels).
+- [ ] Miri on the non-FFI parts of `memory.rs`: not run (no nightly toolchain
+      in this pass).
+- [x] SEC-id and CHANGELOG line.
 
 ---
 

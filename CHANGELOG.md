@@ -111,6 +111,20 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   the web the call is a run-time error that names the function, says it
   needs Windows and gives the portable alternative where there is one.
   Such programs compile everywhere (the compiler refused them before).
+  Up to 16 arguments, of which up to 8 DOUBLE / SINGLE (GDI+, OpenGL);
+  a 64-bit pointer a DLL returns or writes into a BYREF LONG becomes a
+  32-bit stand-in that turns back into the pointer when handed to a DLL;
+  a 32-bit DLL (most DLLs shipped with RapidQ's examples) is named as such
+  instead of failing to load; x86 machine code run through CallWindowProc
+  and SUBs handed to a DLL as callbacks are clear errors. Checked on the
+  Windows 11 VM with the 175 corpus programs that call DLLs, interpreted
+  and native (docs/windows-dll-calls.md §6).
+- RapidQ's **SENDMESSAGE, POSTMESSAGE and KILLMESSAGE** are user32's
+  SendMessage / PostMessage / PeekMessage(PM_REMOVE) on Windows (11 more
+  corpus programs compile), the same "Windows only" error elsewhere.
+- `RAPIDR_SANDBOX`: a run with it set loads and calls no DLL (the gate a
+  run started for someone else sets; SEC-19 reviewed in
+  docs/security-audit.md §6).
 - **One address space**: around a DLL call the program's memory (VARPTR
   addresses, TYPEs, streams, the strings inside structures) is real at
   its own addresses on Windows, so an API fills the program's buffer.
@@ -520,6 +534,17 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   2026-10-06 should be cloned again.
 
 ### Fixed
+- A routine defined with a dotted name (`SUB Draw.3DBox`, RapidQ's
+  console/3dbox example) is called in native builds as in the interpreter
+  and RC.EXE (it went to an object method and printed a warning).
+- Windows' console shows what CLS, LOCATE and COLOR print (escape
+  sequences were printed raw in a classic console window).
+- The web's console fills a coloured cell's whole line (`COLOR , 7` left
+  dark gaps between rows).
+- RapidR's own Handles (a control's, an icon's) are never a real window's,
+  icon's or cursor's: a DLL call given a control's Handle can't reach
+  another program's window (the first numbering overlapped the desktop
+  window's).
 - **Text in RapidQ's default font was cramped, letters running together**
   ("program", "start", "Bread", "Price", "Right-click" in labels, edits,
   grids and status bars; worst on a Retina or 150 % screen and on the web).
