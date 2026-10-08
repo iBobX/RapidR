@@ -8,8 +8,8 @@ There are two kinds of package for each system:
 - **The RapidR SDK**: the IDE, the `rapidr` command (compiler and runtime),
   everything needed to make standalone executables and web bundles, and
   RapidR's runtime sources for native builds. Install this to write programs.
-- **The RapidR Runtime**: only runs RapidR and RapidQ programs (`.rrbc`,
-  `.rr`, `.bas`), like a Java runtime. Install this on machines that only
+- **The RapidR Runtime**: only runs RapidR programs, and RapidQ programs, which RapidR runs
+  unchanged (`.rrbc`, `.rr`, `.bas`, `.rqw`, `.rqb`, `.rq`), like a Java runtime. Install this on machines that only
   run programs someone gave you.
 
 The SDK includes the Runtime. Installs are per user and need no
@@ -76,7 +76,7 @@ every crate they need.
 
 ## Your first program
 
-Save this as `hello.bas` (RapidQ's extension; `.rr` works the same):
+Save this as `hello.bas` (`.rr` works the same):
 
 ```basic
 PRINT "Hello, World!"
@@ -103,21 +103,19 @@ Run.
 
 ```basic
 ' A window with a button and a label
-$INCLUDE "RAPIDQ.INC"
+DECLARE SUB ButtonClick (Sender AS RButton)
 
-DECLARE SUB ButtonClick (Sender AS QBUTTON)
-
-CREATE Form AS QFORM
+CREATE Form AS RForm
     Caption = "Hello"
     Width = 320
     Height = 160
     Center
-    CREATE Label1 AS QLABEL
+    CREATE Label1 AS RLabel
         Caption = "Not clicked yet"
         Left = 20
         Top = 20
     END CREATE
-    CREATE Button1 AS QBUTTON
+    CREATE Button1 AS RButton
         Caption = "Click me"
         Left = 20
         Top = 60
@@ -125,17 +123,18 @@ CREATE Form AS QFORM
     END CREATE
 END CREATE
 
-SUB ButtonClick (Sender AS QBUTTON)
+SUB ButtonClick (Sender AS RButton)
     Label1.Caption = "Clicked!"
 END SUB
 
 Form.ShowModal
 ```
 
-`rapidr run form.bas` opens the window; closing it ends the program. This is
-a plain RapidQ program: RapidQ's compiler builds it too. `QFORM` and `RFORM`
-are the same component (see [Components](components.md)). `$INCLUDE
-"RAPIDQ.INC"` works without the file: RapidR has RapidQ's constants built in.
+`rapidr run form.bas` opens the window; closing it ends the program. `RForm`
+is the form; RapidQ programs write `QFORM`, the same component (see
+[Components](components.md)). A program that uses RapidQ's constants (`clRed`,
+`MB_OK` …) keeps the line `$INCLUDE "RAPIDQ.INC"`: RapidR supplies them
+through that line without needing the file.
 
 ## Building
 
@@ -189,7 +188,8 @@ in a canvas. See [The web](web.md).
 
 ## Where next
 
-- [The language](language.md), with the RapidQ rules that surprise people
-  coming from other BASICs (PRINT's comma, numbers, integer stores).
+- [The language](language.md), with the rules that surprise people coming
+  from other BASICs (PRINT's comma, numbers, integer stores).
 - [The examples](../../examples/README.md).
-- RapidQ's own documentation, for its components' members.
+- [The component reference](reference/components.md), for every component's
+  members.

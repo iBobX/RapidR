@@ -4,7 +4,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use rapidr_import::{import, plan_program, report, upgrade_file, Options, Verification};
+use rapidr_import::{import, plan_program, report, upgrade_file, NameStyle, Options, Verification};
 
 fn dir(name: &str) -> PathBuf {
     let d = std::env::temp_dir().join(format!("rapidr-import-{name}-{}", std::process::id()));
@@ -74,6 +74,8 @@ fn converts_type_names_only() {
     assert!(plan.notes.iter().any(|n| n.message.contains("`QEDIT` is in an $IFDEF branch")), "{:?}", plan.notes);
     let lib = plan.files.iter().find(|f| f.path.ends_with("lib.rqb")).unwrap();
     assert_eq!(lib.converted(), "SUB Helper (L AS RListBox)\nEND SUB\n");
+    assert_eq!(f.style(), NameStyle::Mixed, "QBUTTON … and RBUTTON");
+    assert_eq!(lib.style(), NameStyle::RapidQ);
     let c = &f.changes[0];
     assert_eq!((c.line, c.column, c.from.as_str(), c.to.as_str()), (5, 11, "QGAUGE", "RProgressBar"));
 }
@@ -82,9 +84,9 @@ fn converts_type_names_only() {
 fn program_types_and_defines_stay() {
     let d = dir("own");
     // (QBevel.inc's own TYPE QBEVEL: the program's, not RapidR's built-in)
-    let main = write(&d, "main.bas", "TYPE QBEVEL EXTENDS QPANEL\n    Depth AS INTEGER\nEND TYPE\nDIM B AS QBEVEL\n$DEFINE MyForm QFORM\nDIM F AS MyForm\n");
+    let main = write(&d, "main.bas", "TYPE QBEVEL EXTENDS QPANEL\n    Depth AS INTEGER\nEND TYPE\nDIM B AS QBEVEL\n$DEFINE MyForm QFORM\nDIM F AS MyForm\nTYPE T EXTENDS QOBJECT\nEND TYPE\n");
     let plan = plan_program(&main, &Options::default()).unwrap();
-    assert_eq!(plan.files[0].converted(), "TYPE QBEVEL EXTENDS RPanel\n    Depth AS INTEGER\nEND TYPE\nDIM B AS QBEVEL\n$DEFINE MyForm QFORM\nDIM F AS MyForm\n");
+    assert_eq!(plan.files[0].converted(), "TYPE QBEVEL EXTENDS RPanel\n    Depth AS INTEGER\nEND TYPE\nDIM B AS QBEVEL\n$DEFINE MyForm QFORM\nDIM F AS MyForm\nTYPE T EXTENDS RObject\nEND TYPE\n");
     assert!(plan.notes.iter().any(|n| n.message.contains("$DEFINE MyForm QFORM")), "{:?}", plan.notes);
 }
 
@@ -149,6 +151,9 @@ fn upgrade_in_place_plan() {
     assert_eq!(u.converted, "CREATE F AS RForm\n    CREATE B AS RButton\n    END CREATE\nEND CREATE\nF.ShowModal\n");
     assert_eq!(u.verified, Some(true));
     assert_eq!(u.changes.len(), 2);
+    let upgraded = write(&d, "new.rr", &u.converted);
+    let plan = plan_program(&upgraded, &Options::default()).unwrap();
+    assert_eq!(plan.files[0].style(), NameStyle::RapidR);
     let diff = rapidr_import::diff::unified("app.rr", &u.original, &u.converted, 1);
     assert!(diff.contains("-CREATE F AS QFORM\n+CREATE F AS RForm\n"), "{diff}");
 }

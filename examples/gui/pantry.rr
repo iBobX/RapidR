@@ -1,5 +1,5 @@
 ' pantry.rr: a list and a grid working together — pick a shelf in the
-' QLISTBOX, its items show in the QSTRINGGRID; add an item, the totals
+' RListBox, its items show in the RStringGrid; add an item, the totals
 ' follow.
 '
 '   rapidr run pantry.rr
@@ -26,35 +26,35 @@ SUB Stock(shelf AS INTEGER, name AS STRING, qty AS INTEGER, price AS DOUBLE)
     itemCount = itemCount + 1
 END SUB
 
-CREATE Form AS QFORM
+CREATE Form AS RForm
     Caption = "Pantry"
     Width = 520
     Height = 330
     Center
-    CREATE Shelves AS QLISTBOX
+    CREATE Shelves AS RListBox
         Left = 10: Top = 10: Width = 120: Height = 230
         AddItems "Fruit", "Vegetables", "Bakery"
         OnClick = ShowShelf
     END CREATE
-    CREATE Grid AS QSTRINGGRID
+    CREATE Grid AS RStringGrid
         Left = 140: Top = 10: Width = 360: Height = 200
         ColCount = 4: RowCount = 2
         Cell(0, 0) = "Item": Cell(1, 0) = "Qty": Cell(2, 0) = "Price": Cell(3, 0) = "Total"
         ColWidths(0) = 156
     END CREATE
-    CREATE Total AS QLABEL
+    CREATE Total AS RLabel
         Left = 140: Top = 216: Width = 360
     END CREATE
-    CREATE NameEdit AS QEDIT
+    CREATE NameEdit AS REdit
         Left = 10: Top = 254: Width = 160: Text = "Leeks"
     END CREATE
-    CREATE QtyEdit AS QEDIT
+    CREATE QtyEdit AS REdit
         Left = 178: Top = 254: Width = 50: Text = "2"
     END CREATE
-    CREATE PriceEdit AS QEDIT
+    CREATE PriceEdit AS REdit
         Left = 236: Top = 254: Width = 70: Text = "0.80"
     END CREATE
-    CREATE AddBtn AS QBUTTON
+    CREATE AddBtn AS RButton
         Caption = "&Add to shelf": Left = 314: Top = 252: Width = 110
         OnClick = AddItem
     END CREATE

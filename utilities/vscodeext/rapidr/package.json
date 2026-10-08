@@ -1,7 +1,7 @@
 {
   "name": "rapidr",
   "displayName": "RapidR",
-  "description": "RapidR and RapidQ BASIC: IntelliSense, diagnostics, go to definition, rename, formatting and debugging, through RapidR's own language server and debug adapter.",
+  "description": "RapidR BASIC (RapidQ-compatible): IntelliSense, diagnostics, go to definition, rename, formatting and debugging, through RapidR's own language server and debug adapter.",
   "version": "2.117.0",
   "publisher": "rapidr",
   "license": "MIT",

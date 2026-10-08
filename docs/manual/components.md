@@ -1,6 +1,6 @@
 # Components and objects
 
-A RapidQ program builds its windows from **components** — forms, buttons,
+A RapidR program builds its windows from **components** — forms, buttons,
 lists, grids, timers — and uses **objects** that have no window (fonts,
 bitmaps, streams, string lists, databases). RapidR has every component and
 object RapidQ has except OLE (QOLECONTAINER, QOLEOBJECT), and adds its own.
@@ -8,25 +8,28 @@ object RapidQ has except OLE (QOLECONTAINER, QOLEOBJECT), and adds its own.
 The full list, with both names and where each runs:
 [reference/components.md](reference/components.md).
 
-## Q names and R names
+## RapidQ's names
 
-RapidQ calls its components `QFORM`, `QBUTTON`, `QSTRINGGRID`, …; RapidR
-calls the same components `RFORM`, `RBUTTON`, `RSTRINGGRID`, …. **Both names
-are one component**: the same properties, methods, events, defaults, look
-and behaviour, on every runtime. A few RapidQ names map to another R name:
-`QGAUGE` is `RPROGRESSBAR`, `QOUTLINE` (Windows 3.1's tree) is `RTREEVIEW`,
-RAPIDQ2.INC's `COMPORT` is `RCOMPORT`.
+RapidR's components are written `RButton`, `RForm`, `RStringGrid`, …. A
+RapidQ program's `QBUTTON`, `QFORM`, `QSTRINGGRID`, … are the same
+components (the RapidQ names), accepted everywhere. **Both names are one
+component**: the same properties, methods, events, defaults, look and
+behaviour, on every runtime. A few RapidQ names map to another R name:
+`QGAUGE` is `RProgressBar`, `QOUTLINE` (Windows 3.1's tree) is `RTreeView`,
+and RAPIDQ2.INC's `COMPORT` is `RComPort`.
 
-- Mix them freely: a `QFORM` can hold an `RPLOT`, an `RFORM` a `QBUTTON`;
-  `DIM`, `CREATE`, `EXTENDS`, parameters (`Sender AS QBUTTON`) and arrays
+- Mix them freely: an `RForm` can hold a `QBUTTON`, a `QFORM` an `RPlot`;
+  `DIM`, `CREATE`, `EXTENDS`, parameters (`Sender AS RButton`) and arrays
   accept either name.
-- **RapidR-only components** have only an R name: `RSQLITE`, `RJSON`,
-  `RHTTP`, `RNUM`, `RDATAFRAME`, `RPLOT`, `RCODEEDITOR`, the web components
-  (`RWEBVIEW`, `RDOM`, …) and others.
-- A program that only uses RapidQ's components and members stays a plain
-  RapidQ program, which RapidQ's own compiler still builds.
+- **RapidR-only components** have only an R name: `RSQLite`, `RJson`,
+  `RHttp`, `RNum`, `RDataFrame`, `RPlot`, `RCodeEditor`, the web components
+  (`RWebView`, `RDOM`, …) and others.
+- A program written with RapidQ's names, using only RapidQ's components and
+  members, stays a plain RapidQ program, which RapidQ's own compiler still
+  builds. To bring one over to RapidR's names, use `rapidr import-rapidq`:
+  it writes a converted copy and a report, and leaves the original alone.
 - Because a leading Q is read as R whenever the R component exists,
-  `QPLOT` is accepted and means `RPLOT`, though RapidQ has no QPLOT. Prefer
+  `QPLOT` is accepted and means `RPlot`, though RapidQ has no QPLOT. Prefer
   the R name for RapidR's own components.
 
 More on how the two families coexist (and how the planned IDE writes them):
@@ -35,21 +38,21 @@ More on how the two families coexist (and how the planned IDE writes them):
 ## Making components
 
 ```basic
-CREATE Form AS QFORM                 ' a component and its children
+CREATE Form AS RForm                 ' a component and its children
     Caption = "Orders"
     Width = 400 : Height = 300
     Center
-    CREATE Grid AS QSTRINGGRID
+    CREATE Grid AS RStringGrid
         Align = alClient
         ColCount = 3
     END CREATE
 END CREATE
 
-DIM Font AS QFONT                    ' an object, or a component made later
+DIM Font AS RFont                    ' an object, or a component made later
 Font.Name = "Arial" : Font.Size = 12
-DIM Extra AS QBUTTON
+DIM Extra AS RButton
 Extra.Parent = Form                  ' put on the form at run time
-DIM Labels(1 TO 3) AS QLABEL         ' arrays of components
+DIM Labels(1 TO 3) AS RLabel         ' arrays of components
 ```
 
 Inside `CREATE … END CREATE`, `Name = value` sets the component's property
@@ -64,11 +67,11 @@ DB.FetchRow`, `IF Dlg.Execute THEN`); RapidR does the same.
 An event property names a SUB:
 
 ```basic
-CREATE Button1 AS QBUTTON
+CREATE Button1 AS RButton
     OnClick = ButtonClick
 END CREATE
 
-SUB ButtonClick (Sender AS QBUTTON)
+SUB ButtonClick (Sender AS RButton)
     ShowMessage "Clicked " + Sender.Caption
 END SUB
 ```
@@ -124,8 +127,7 @@ compiler doesn't know it).
 
 ## Themes
 
-Programs are drawn in Windows' classic look — RapidQ's — unless they ask
-for another:
+Programs are drawn in Windows' classic look unless they ask for another:
 
 | `$THEME` / `Application.Theme` | Look |
 |---|---|
@@ -145,11 +147,11 @@ own. Older theme names from earlier RapidR versions (`Fluent`, `Aqua`,
 
 ## High-DPI screens
 
-A program's coordinates are RapidQ's pixels (1/96 inch, as Windows at 100 %)
-on every screen, so old layouts stay as they were; everything is drawn at
+A program's coordinates are logical pixels (1/96 inch, as RapidQ's, and as
+Windows at 100 %) on every screen, so old layouts stay as they were; everything is drawn at
 the screen's real resolution — text, lines, shapes, pictures and SVG images
 (accepted wherever RapidQ takes a bitmap) — so it is sharp on Retina and
-4K screens. `Screen.PixelsPerInch` reads RapidQ's 96; `Screen.Scale`
+4K screens. `Screen.PixelsPerInch` reads 96; `Screen.Scale`
 tells the real ratio.
 
 ## Accessibility

@@ -4,7 +4,9 @@ RapidR is not RapidQ, and not a copy of it: it is an original
 implementation, written from the ground up in pure Rust, that is
 **compatible** with RapidQ. The rule it follows: everything RapidQ has
 behaves exactly as in RapidQ; RapidR's extensions are additive and never
-change what an existing program does.
+change what an existing program does. To move a RapidQ program over to
+RapidR's own component names, `rapidr import-rapidq` writes a converted copy
+and a report of every change (see [the CLI](cli-and-runtime.md)).
 
 ## How compatibility is checked
 

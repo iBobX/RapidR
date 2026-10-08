@@ -155,7 +155,7 @@ const CASES = [
     dump: {
       "inspector.target": /^AddBtn$/,
       "inspector.rows": /^Caption=Go$[\s\S]*^Width=120$/m,
-      "codedoc(0).text": /    CREATE AddBtn AS QBUTTON\n        Caption = "Go": Left = 314: Top = 252: Width = 120\n        OnClick = AddItem\n/,
+      "codedoc(0).text": /    CREATE AddBtn AS RButton\n        Caption = "Go": Left = 314: Top = 252: Width = 120\n        OnClick = AddItem\n/,
     },
   },
   // (S-PANELS) …then Undo twice on the designer: the exact text back.
@@ -164,7 +164,7 @@ const CASES = [
     open: "examples/gui/pantry.rr",
     do: "wait,view.designer,pick:AddBtn,prop:Caption=Go,prop:Width=120,wait,edit.undo,edit.undo,wait",
     delay: 7,
-    dump: { "designdoc(0).canundo": /^(0|False)$/i, "inspector.rows": /^Caption=&Add to shelf$[\s\S]*^Width=110$/m, "codedoc(0).text": /CREATE AddBtn AS QBUTTON/ },
+    dump: { "designdoc(0).canundo": /^(0|False)$/i, "inspector.rows": /^Caption=&Add to shelf$[\s\S]*^Width=110$/m, "codedoc(0).text": /CREATE AddBtn AS RButton/ },
     same: { "codedoc(0).text": "examples/gui/pantry.rr" },
   },
   // (S-PANELS) The code edited (a Caption typed over): the designer reads
@@ -199,7 +199,7 @@ const CASES = [
     do: "wait,view.designer,pick:AddBtn,prop:Default=True,prop:Color=clRed,reset:Width,wait",
     delay: 6,
     dump: {
-      "codedoc(0).text": /    CREATE AddBtn AS QBUTTON\n        Caption = "&Add to shelf": Left = 314: Top = 252\n        OnClick = AddItem\n        Default = 1\n        Color = clRed\n/,
+      "codedoc(0).text": /    CREATE AddBtn AS RButton\n        Caption = "&Add to shelf": Left = 314: Top = 252\n        OnClick = AddItem\n        Default = 1\n        Color = clRed\n/,
       "inspector.rows": /^Default=True$[\s\S]*^Width=75$/m,
     },
   },

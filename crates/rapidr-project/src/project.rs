@@ -268,7 +268,7 @@ impl Project {
             ),
             "gui" => format!(
                 "$APPTYPE GUI\n\n\
-                 CREATE Form1 AS QFORM\n    \
+                 CREATE Form1 AS RForm\n    \
                  Caption = {title}\n    \
                  Width = 480\n    \
                  Height = 320\n\
@@ -697,7 +697,7 @@ mod tests {
         let (p, files) = Project::new_from_template("My \"App\"", "GUI").unwrap();
         let text = &files[0].1;
         assert!(text.starts_with("$APPTYPE GUI\n"));
-        assert!(text.contains("CREATE Form1 AS QFORM"));
+        assert!(text.contains("CREATE Form1 AS RForm"));
         assert!(text.contains("Caption = \"My \" + CHR$(34) + \"App\" + CHR$(34) + \"\""));
         assert!(text.contains("Width = 480") && text.contains("Height = 320"));
         assert!(text.trim_end().ends_with("Form1.ShowModal"));

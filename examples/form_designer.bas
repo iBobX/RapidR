@@ -1,4 +1,4 @@
-' RapidR Studio's form designer surface (RDESIGNSURFACE on the designer
+' RapidR Studio's form designer surface (RDesignSurface on the designer
 ' model, docs/ide-plan.md I4): a dialog being designed. Click a component
 ' to select it (Shift+click adds), drag it — it snaps to the grid and to
 ' smart guides (edges, centres, baselines, margins, equal spacing; hold Alt
@@ -12,27 +12,27 @@ DECLARE SUB UndoClick
 DECLARE SUB RedoClick
 DECLARE SUB PreviewClick
 
-CREATE Main AS QFORM
+CREATE Main AS RForm
   Caption = "Form designer": Width = 760: Height = 520
-  CREATE DS AS RDESIGNSURFACE
+  CREATE DS AS RDesignSurface
     Left = 8: Top = 8: Width = 600: Height = 400
     FormCaption = "Dialog1"
     OnSelect = Selected
     OnMove = Moved
   END CREATE
-  CREATE BUndo AS QBUTTON
+  CREATE BUndo AS RButton
     Caption = "Undo": Left = 624: Top = 8: Width = 112
     OnClick = UndoClick
   END CREATE
-  CREATE BRedo AS QBUTTON
+  CREATE BRedo AS RButton
     Caption = "Redo": Left = 624: Top = 40: Width = 112
     OnClick = RedoClick
   END CREATE
-  CREATE BPreview AS QBUTTON
+  CREATE BPreview AS RButton
     Caption = "Preview 440 x 300": Left = 624: Top = 72: Width = 112
     OnClick = PreviewClick
   END CREATE
-  CREATE Info AS QLABEL
+  CREATE Info AS RLabel
     Left = 8: Top = 420: Width = 728: Height = 40
     Caption = "Select a component; drag it, its handles, its pins or the form's corner."
   END CREATE

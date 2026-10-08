@@ -64,9 +64,35 @@ pub struct FilePlan {
     pub changes: Vec<Change>,
     /// RapidQ's `RAPIDQ.INC` (found as a file).
     pub is_rapidq_inc: bool,
+    /// How many of its type names name a component RapidQ has by RapidQ's
+    /// name (`QBUTTON`) and by RapidR's (`RButton`): its [`NameStyle`].
+    pub rapidq_names: usize,
+    pub rapidr_names: usize,
+}
+
+/// How a file writes the names of the components RapidQ has too: what
+/// RapidR Studio's designer and completion follow, so a file never mixes
+/// the two (docs/ide-plan.md, R-NAMES phase 2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NameStyle {
+    /// RapidQ's names only (`QBUTTON`): a RapidQ program.
+    RapidQ,
+    /// RapidR's names only (`RButton`), or none yet: RapidR's default.
+    RapidR,
+    /// Both.
+    Mixed,
 }
 
 impl FilePlan {
+    /// How the file writes component names (before the conversion).
+    pub fn style(&self) -> NameStyle {
+        match (self.rapidq_names, self.rapidr_names) {
+            (0, _) => NameStyle::RapidR,
+            (_, 0) => NameStyle::RapidQ,
+            _ => NameStyle::Mixed,
+        }
+    }
+
     /// The file's text with the edits made.
     pub fn converted(&self) -> String {
         apply(&self.text, &self.edits)
@@ -119,27 +145,34 @@ fn own_types(program: &Program) -> Vec<String> {
     program.statements.iter().filter_map(|s| if let Statement::Type(t) = s { Some(t.name.to_ascii_uppercase()) } else { None }).collect()
 }
 
-/// The component a type name means and RapidR's spelling of it, when the
-/// name should be written so: the compiler reads it as one of its
-/// components (not the program's own TYPE), and the spelling means the same.
-pub fn target(written: &str, own: &[String], normalize_case: bool) -> Option<(&'static Component, String)> {
+/// What a type name means (the compilers' name for it: `RBUTTON`) and
+/// RapidR's spelling of it (`RButton`), when the name should be written so:
+/// the compiler reads it as one of its components (not the program's own
+/// TYPE), and the spelling means the same. RapidQ's empty base object
+/// QOBJECT (`TYPE T EXTENDS QOBJECT`: a TYPE with methods) is RapidR's
+/// `RObject`.
+pub fn target(written: &str, own: &[String], normalize_case: bool) -> Option<(String, String)> {
     if own.iter().any(|t| t.eq_ignore_ascii_case(written)) {
         return None;
     }
-    let resolved = rapidr_ast::component_type_reference(written, own);
-    if !rapidr_ast::is_component_type_name(&resolved) {
-        return None;
-    }
-    let c = rapidr_lang::component(&resolved)?;
-    let to = c.spelling();
+    let (resolved, to) = if written.eq_ignore_ascii_case("QOBJECT") || written.eq_ignore_ascii_case("ROBJECT") {
+        ("ROBJECT".to_string(), "RObject".to_string())
+    } else {
+        let resolved = rapidr_ast::component_type_reference(written, own);
+        if !rapidr_ast::is_component_type_name(&resolved) {
+            return None;
+        }
+        let c: &Component = rapidr_lang::component(&resolved)?;
+        // (the new name is read as the same component)
+        if !rapidr_ast::component_type_reference(&c.spelling(), own).eq_ignore_ascii_case(&resolved) {
+            return None;
+        }
+        (resolved.to_ascii_uppercase(), c.spelling())
+    };
     if to == written || (!normalize_case && to.eq_ignore_ascii_case(written)) {
         return None;
     }
-    // (the new name is read as the same component)
-    if !rapidr_ast::component_type_reference(&to, own).eq_ignore_ascii_case(&resolved) {
-        return None;
-    }
-    Some((c, to))
+    Some((resolved, to))
 }
 
 fn is_identifier(s: &str) -> bool {
@@ -167,7 +200,7 @@ pub(crate) fn plan_parsed(entry: &Path, tp: &ToolsParse, options: &Options) -> P
                 return None;
             }
             let is_rapidq_inc = is_rapidq_inc_name(&path.to_string_lossy());
-            Some(FilePlan { path, text: f.text.clone(), encoding: f.encoding, edits: Vec::new(), changes: Vec::new(), is_rapidq_inc })
+            Some(FilePlan { path, text: f.text.clone(), encoding: f.encoding, edits: Vec::new(), changes: Vec::new(), is_rapidq_inc, rapidq_names: 0, rapidr_names: 0 })
         })
         .collect();
     let mut notes = Vec::new();
@@ -180,7 +213,8 @@ pub(crate) fn plan_parsed(entry: &Path, tp: &ToolsParse, options: &Options) -> P
 
     for span in &tp.type_names {
         let Some(lexeme) = tp.preprocessed.source.get(span.start..span.end) else { continue };
-        let Some((comp, to)) = target(lexeme, &own, options.normalize_case) else { continue };
+        count_style(tp, *span, lexeme, &own, &mut plans);
+        let Some((meaning, to)) = target(lexeme, &own, options.normalize_case) else { continue };
         let Some(loc) = tp.locate(*span) else { continue };
         let file = &files[loc.file];
         let Some(plan) = plans[loc.file].as_mut() else { continue };
@@ -190,7 +224,7 @@ pub(crate) fn plan_parsed(entry: &Path, tp: &ToolsParse, options: &Options) -> P
         let src = &file.text[loc.start..loc.end];
         let ok = if loc.exact && src.eq_ignore_ascii_case(lexeme) {
             true
-        } else if is_identifier(src) && target(src, &own, options.normalize_case).is_some_and(|(c, _)| std::ptr::eq(c, comp)) {
+        } else if is_identifier(src) && target(src, &own, options.normalize_case).is_some_and(|(m, _)| m == meaning) {
             // (a `$DEFINE` naming one of RapidQ's names: RAPIDQ2.INC's
             // QCOMPORT is COMPORT; written as RapidR's name it means the same)
             true
@@ -261,6 +295,22 @@ pub(crate) fn plan_parsed(entry: &Path, tp: &ToolsParse, options: &Options) -> P
     let mut plan = ProgramPlan { entry: entry.to_path_buf(), files: out, notes, resources, carry_rapidq_inc, errors };
     crate::rapidq_inc::note_include_lines(&mut plan);
     plan
+}
+
+/// Counts a type name of a component RapidQ has in its file's style.
+fn count_style(tp: &ToolsParse, span: rapidr_diagnostics::TextSpan, lexeme: &str, own: &[String], plans: &mut [Option<FilePlan>]) {
+    if own.iter().any(|t| t.eq_ignore_ascii_case(lexeme)) {
+        return;
+    }
+    let resolved = rapidr_ast::component_type_reference(lexeme, own);
+    let Some(c) = rapidr_lang::component(&resolved).filter(|c| c.rapidq.is_some() && c.kind == rapidr_lang::Kind::Component) else { return };
+    let Some(loc) = tp.locate(span).filter(|l| l.exact) else { return };
+    let Some(plan) = plans.get_mut(loc.file).and_then(Option::as_mut) else { return };
+    if lexeme.eq_ignore_ascii_case(c.name) {
+        plan.rapidr_names += 1;
+    } else {
+        plan.rapidq_names += 1;
+    }
 }
 
 pub(crate) fn same_file(a: &Path, b: &Path) -> bool {

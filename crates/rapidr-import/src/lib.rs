@@ -38,5 +38,5 @@ pub mod rapidq_inc;
 pub mod report;
 pub mod verify;
 
-pub use convert::{plan_program, Change, Edit, FilePlan, Note, Options, ProgramPlan};
+pub use convert::{plan_program, Change, Edit, FilePlan, NameStyle, Note, Options, ProgramPlan};
 pub use import::{import, upgrade_file, ImportReport, ProgramReport, Upgrade, Verification};

@@ -40,7 +40,7 @@ methods = [
   { name = "Build", params = "[Kind AS STRING]", returns = "INTEGER", value = true, test = "skip: builds a program", doc = "Makes the program into an app for this computer's system with rapidr build: Name.app on macOS, the .exe with its icon and version on Windows, Name.AppDir on Linux. Kind is \"native\" or \"interpreted\" (else BuildKind). Runs in the background: OnBuildOutput gives its lines, OnBuildDone its end. True when it started; Error says why not (on the web there is nothing to run it)." },
   { name = "StopBuild", value = true, test = "skip: needs a running build", doc = "Stops the Build that is running." },
   { name = "Reveal", params = "[Path AS STRING]", returns = "INTEGER", value = true, test = "skip: opens the file manager", doc = "Shows Path (else what the last Build made) selected in Finder, Explorer or the Linux file manager." },
-  { name = "IconPreview", params = "[Size AS INTEGER]", returns = "STRING", test = "skip: writes a file", doc = "Draws the app's icon (Icon, else RapidR's) as a Size-pixel PNG (128 by default) in the project's .rapidr folder and gives its path, for a QIMAGE to show; \"\" when the icon can't be read (Error says why)." },
+  { name = "IconPreview", params = "[Size AS INTEGER]", returns = "STRING", test = "skip: writes a file", doc = "Draws the app's icon (Icon, else RapidR's) as a Size-pixel PNG (128 by default) in the project's .rapidr folder and gives its path, for a RImage to show; \"\" when the icon can't be read (Error says why)." },
 ]
 events = [
   { name = "OnChange", doc = "The project was opened, saved, closed, or its files changed." },

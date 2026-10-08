@@ -2,7 +2,7 @@
   "DIM Variable": {
     "prefix": "dim",
     "body": [
-      "DIM ${1:name} AS ${2|INTEGER,STRING,DOUBLE,SINGLE,LONG,BYTE,WORD,DWORD,INT64,CURRENCY,VARIANT,QOBJECT|}"
+      "DIM ${1:name} AS ${2|INTEGER,STRING,DOUBLE,SINGLE,LONG,BYTE,WORD,DWORD,INT64,CURRENCY,VARIANT,RObject|}"
     ],
     "description": "Declare a variable with DIM"
   },

@@ -1,8 +1,8 @@
-' stopwatch.rr: a QTIMER drives a stopwatch — Start, Lap, Stop, Reset.
+' stopwatch.rr: an RTimer drives a stopwatch — Start, Lap, Stop, Reset.
 '
 '   rapidr run stopwatch.rr
 '
-' A QTIMER calls its OnTimer every Interval milliseconds while Enabled.
+' An RTimer calls its OnTimer every Interval milliseconds while Enabled.
 ' The time shown comes from TIMER (seconds since midnight), so it stays
 ' right even if a tick comes late.
 
@@ -29,35 +29,35 @@ FUNCTION Shown(t AS DOUBLE) AS STRING
     Shown = STR$(m) + ":" + s
 END FUNCTION
 
-CREATE Form AS QFORM
+CREATE Form AS RForm
     Caption = "Stopwatch"
     Width = 300
     Height = 280
     Center
-    CREATE Time AS QLABEL
+    CREATE Time AS RLabel
         Caption = "0:00.0": Left = 20: Top = 12: Width = 260: Height = 50
         Font.Size = 28
         Alignment = 2        ' centred
     END CREATE
-    CREATE StartBtn AS QBUTTON
+    CREATE StartBtn AS RButton
         Caption = "&Start": Left = 20: Top = 70: Width = 80
         OnClick = StartStop
     END CREATE
-    CREATE LapBtn AS QBUTTON
+    CREATE LapBtn AS RButton
         Caption = "&Lap": Left = 110: Top = 70: Width = 80: Enabled = 0
         OnClick = Lap
     END CREATE
-    CREATE ResetBtn AS QBUTTON
+    CREATE ResetBtn AS RButton
         Caption = "&Reset": Left = 200: Top = 70: Width = 80
         OnClick = Reset
     END CREATE
-    CREATE Laps AS QLISTBOX
+    CREATE Laps AS RListBox
         Left = 20: Top = 106: Width = 260: Height = 110
     END CREATE
-    CREATE State AS QLABEL
+    CREATE State AS RLabel
         Caption = "Ready": Left = 20: Top = 224: Width = 260
     END CREATE
-    CREATE Clock AS QTIMER
+    CREATE Clock AS RTimer
         Interval = 100
         Enabled = 0
         OnTimer = Tick

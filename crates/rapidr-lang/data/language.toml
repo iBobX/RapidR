@@ -109,7 +109,7 @@ doc = "Defines a record type: fields, and optionally methods, a CONSTRUCTOR, eve
 name = "EXTENDS"
 syntax = "TYPE name EXTENDS QOBJECT | component"
 group = "Types and objects"
-doc = "Makes a TYPE inherit another TYPE's members, or makes it a component of your own built on a RapidQ component (`EXTENDS QBUTTON`)."
+doc = "Makes a TYPE inherit another TYPE's members, or makes it a component of your own built on a RapidQ component (`EXTENDS RButton`)."
 
 [[statement]]
 name = "PROPERTY SET"
@@ -664,7 +664,7 @@ doc = "Holds whatever is stored in it: a number, text or object. An undeclared v
 
 [[type]]
 name = "QOBJECT"
-doc = "The base type of objects: `TYPE name EXTENDS QOBJECT` makes a TYPE with methods, a constructor and inheritance."
+doc = "The base type of objects: `TYPE name EXTENDS RObject` makes a TYPE with methods, a constructor and inheritance."
 
 [[type]]
 name = "INT64"

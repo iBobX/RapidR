@@ -1,38 +1,38 @@
 ' browser.rr: a program that knows it is in a web page — it asks the
-' browser with RJAVASCRIPT and moves between "pages" with RROUTER (the part
+' browser with RJavaScript and moves between "pages" with RRouter (the part
 ' of the address after #, so Back and Forward work).
 '
 '   rapidr build browser.rr --web          (a folder to put on any web server)
 '   rapidr bundle-bc browser.rr -o browser.zip
 '
-' RJAVASCRIPT.Eval runs a JavaScript expression and answers its value;
-' RROUTER.Navigate("name") sets the address's #name, Route reads it.
+' RJavaScript.Eval runs a JavaScript expression and answers its value;
+' RRouter.Navigate("name") sets the address's #name, Route reads it.
 $APPTYPE WEB
 
 DECLARE SUB ShowPage
 DECLARE SUB GoHome
 DECLARE SUB GoAbout
 
-CREATE JS AS RJAVASCRIPT
+CREATE JS AS RJavaScript
 END CREATE
-CREATE Router AS RROUTER
+CREATE Router AS RRouter
 END CREATE
 
-CREATE Form AS QFORM
+CREATE Form AS RForm
     Caption = "In the browser"
     Width = 420
     Height = 260
     Center
-    CREATE HomeBtn AS QBUTTON
+    CREATE HomeBtn AS RButton
         Caption = "&Home": Left = 12: Top = 12: Width = 90: OnClick = GoHome
     END CREATE
-    CREATE AboutBtn AS QBUTTON
+    CREATE AboutBtn AS RButton
         Caption = "&About": Left = 110: Top = 12: Width = 90: OnClick = GoAbout
     END CREATE
-    CREATE Title AS QLABEL
+    CREATE Title AS RLabel
         Left = 12: Top = 52: Width = 390: Font.Size = 14
     END CREATE
-    CREATE Body AS QLABEL
+    CREATE Body AS RLabel
         Left = 12: Top = 84: Width = 390: Height = 130: WordWrap = 1
     END CREATE
 END CREATE

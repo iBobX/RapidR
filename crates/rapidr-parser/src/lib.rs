@@ -1987,9 +1987,10 @@ impl<'a> Parser<'a> {
             }
         }
         // `TYPE X EXTENDS QFORM` or the manual's `TYPE X AS QFORM`. QOBJECT is
-        // RapidQ's empty base object: a plain TYPE with methods.
+        // RapidQ's empty base object: a plain TYPE with methods (RapidR's
+        // name for it, ROBJECT, is a type word of the lexer's).
         let extends = if self.match_kind(TokenType::Extends) || self.match_kind(TokenType::As) {
-            Some(self.expect_type()?)
+            Some(if self.peek_kind() == Some(TokenType::RObject) { self.read_type()? } else { self.expect_type()? })
                 .filter(|base| !base.eq_ignore_ascii_case("QOBJECT") && !base.eq_ignore_ascii_case("ROBJECT"))
         } else {
             None
@@ -3593,6 +3594,22 @@ mod tests {
         assert!(matches!(&stmts[1], Statement::Create(c) if c.type_name == "RBUTTON"));
         assert!(matches!(&stmts[2], Statement::Dim(d) if d.type_name == "RPROGRESSBAR"));
         assert!(matches!(&stmts[3], Statement::Dim(d) if d.type_name == "MyType"));
+        // (RapidR's names, in any case, are read the same: R-NAMES)
+        let stmts = parse("DIM f AS RForm\nCREATE b AS rbutton\nEND CREATE\nTYPE T EXTENDS RObject\n  N AS INTEGER\nEND TYPE\nTYPE U EXTENDS QOBJECT\nEND TYPE\n");
+        assert!(matches!(&stmts[0], Statement::Dim(d) if d.type_name == "RFORM"));
+        assert!(matches!(&stmts[1], Statement::Create(c) if c.type_name == "RBUTTON"));
+        assert!(matches!(&stmts[2], Statement::Type(t) if t.extends.is_none() && t.fields.len() == 1));
+        assert!(matches!(&stmts[3], Statement::Type(t) if t.extends.is_none()));
+    }
+
+    #[test]
+    fn type_names_are_recorded_for_tools() {
+        let tokens = rapidr_lexer::Lexer::new("DIM a AS QBUTTON, s AS STRING\nSUB S (x AS QFORM)\nEND SUB\nFUNCTION F AS QFONT\nEND FUNCTION\nPRINT \"AS QLABEL\"\n", None).tokenize().unwrap();
+        let (_, diags, spans) = parse_tokens_with_type_names(&tokens);
+        assert!(diags.is_empty(), "{diags:?}");
+        let src = "DIM a AS QBUTTON, s AS STRING\nSUB S (x AS QFORM)\nEND SUB\nFUNCTION F AS QFONT\nEND FUNCTION\nPRINT \"AS QLABEL\"\n";
+        let names: Vec<&str> = spans.iter().map(|s| &src[s.start..s.end]).collect();
+        assert_eq!(names, ["QBUTTON", "STRING", "QFORM", "QFONT"]);
     }
 
     #[test]

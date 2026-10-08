@@ -7,6 +7,38 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### RapidR's names everywhere, and a RapidQ importer (R-NAMES, phase 1)
+- **RapidR's names are the default**: `RButton`, `RLabel`, `RForm`, `RStringGrid` … (mixed case) in
+  the examples, the docs and the manual, the new-project template, completion and hovers. RapidQ's
+  names (`QBUTTON`) appear as "RapidQ name: QBUTTON". RapidR is compatible with RapidQ, not a copy
+  of it: **the compilers keep accepting both names**, always, mixed, in any case — old RapidQ
+  programs run unchanged (docs/q-and-r-components.md).
+- **`rapidr import-rapidq <file | folder | project.rrproj> [-o out_dir]`**: a copy of a RapidQ
+  program with RapidR's names, and a report (`rapidr-import-report.md`: every change by file, line
+  and column, and what wasn't converted and why). The original is never touched. Token-aware, on
+  the compiler's own parse: only type names (`AS …`, `EXTENDS …`) change — never strings, comments,
+  your own names (`QButtonCount`), your own TYPEs or `$DEFINE`d names. Includes are followed into
+  the copy; RapidQ's RAPIDQ.INC file stays out (RapidR supplies its constants; the
+  `$INCLUDE "RAPIDQ.INC"` line stays, since the constants come with it). **Each program is proved**:
+  it and its copy compile to the same bytecode, byte for byte. On RapidQ's own 428 example
+  programs, all 175 that RapidR compiles today compile identically after the conversion
+  (`tools/rapidq_import_check.py`).
+- **`rapidr upgrade-names <file> [--dry-run]`**: the same for your own files, in place (`--dry-run`
+  shows the diff); refused if the program would compile differently.
+- **RapidQ's `.rqw` (window programs), `.rqb` (libraries of functions) and `.rq` (libraries of
+  TYPEs)** are source files: `rapidr run` / `build` / `build-bc` / the `rapidr file.rqw` shortcut,
+  `$INCLUDE`, projects, `rapidr dap`, the launcher, the VS Code extension and the installers' file
+  associations ("RapidQ BASIC source") know them.
+- The manual's component tables lead with RapidR's names (a *RapidQ name* column); the registry's
+  JSON has each component's `spelling`; the AI prompt says to write RapidR's names.
+- The language service: completion after `AS` lists `RButton` with "RapidQ name: QBUTTON" (in a
+  RapidQ-compatible project RapidQ's names, with "RapidR name: RButton"); hovers say "RButton —
+  RapidQ name: QBUTTON"; a RapidQ-compatible project now also warns on RapidR's names of RapidQ's
+  components ("RButton is RapidR's name: RapidQ's compiler knows it as QBUTTON", with the fix).
+- **Fixed**: `TYPE T EXTENDS RObject` (RapidR's name of RapidQ's QOBJECT) was a syntax error;
+  RapidR's names in mixed case (`EXTENDS RPanel`, `AS REdit`) are now read exactly as RapidQ's
+  (the same bytecode as `QPANEL`).
+
 ### Added
 - **RapidR Studio's panels as public components** (docs/ide-plan.md I1, L-PANELS), the same on the
   desktop, in native builds and on the web: **RPROPERTYINSPECTOR** (Delphi's object inspector: typed
