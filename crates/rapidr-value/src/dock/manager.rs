@@ -10,7 +10,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use super::geometry::{self, Geometry, Guide, Slot, Titles};
-use super::{Anchor, Axis, DocumentMode, Layout, Node, Place, Rect, Side, Target, Where};
+use super::{Anchor, Axis, DocTarget, DocumentMode, Layout, Node, Place, Rect, Side, Target, Where};
 use crate::objects::font::Font;
 use crate::Value;
 
@@ -33,6 +33,63 @@ pub struct PaneInfo {
     pub extent: i64,
     /// Its floating window's size.
     pub float_size: (i64, i64),
+    /// (a document) Its views — (component, caption) — as AddView gave
+    /// them: the tab strip's Design | Code switch; none: its own component.
+    pub views: Vec<(String, String)>,
+    /// (a document) The view shown.
+    pub view: DocView,
+    /// (a document) Side by side: the first view's share, per mille.
+    pub view_ratio: i64,
+    /// (a document) Changed and not saved: a dot on its tab.
+    pub modified: bool,
+}
+
+/// What a document with views shows: one of them, or the first two side
+/// by side.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum DocView {
+    #[default]
+    First,
+    One(usize),
+    Split,
+}
+
+impl DocView {
+    /// The view's index (side by side: `None`).
+    pub fn index(self) -> Option<usize> {
+        match self {
+            DocView::First => Some(0),
+            DocView::One(i) => Some(i),
+            DocView::Split => None,
+        }
+    }
+}
+
+impl PaneInfo {
+    fn new(name: &str, title: &str, icon: &str) -> PaneInfo {
+        PaneInfo { name: name.to_string(), given: name.to_string(), title: title.to_string(), icon: icon.to_string(), place: None, extent: super::DEFAULT_SIDE, float_size: super::DEFAULT_FLOAT, views: Vec::new(), view: DocView::First, view_ratio: 500, modified: false }
+    }
+
+    /// The view shown, by caption ("Split": side by side).
+    pub fn view_caption(&self) -> String {
+        match self.view.index() {
+            None => "Split".into(),
+            Some(i) => self.views.get(i).map(|v| v.1.clone()).unwrap_or_default(),
+        }
+    }
+
+    /// The components shown for it now: its own, else the view's (two
+    /// side by side).
+    pub fn shown_components(&self) -> Vec<String> {
+        if self.views.is_empty() {
+            return vec![self.name.clone()];
+        }
+        match self.view.index() {
+            None if self.views.len() >= 2 => vec![self.views[0].0.clone(), self.views[1].0.clone()],
+            None => vec![self.views[0].0.clone()],
+            Some(i) => vec![self.views.get(i).unwrap_or(&self.views[0]).0.clone()],
+        }
+    }
 }
 
 /// What's under the mouse (or pressed) on the dock manager's parts.
@@ -64,6 +121,32 @@ pub struct SplitDrag {
     pub from: i64,
 }
 
+/// A document's tab dragged (the document area's coordinates): to
+/// another place in its strip, another group's, or a side of a group (a
+/// new group there) — `preview` the outline of where it goes, `bar` the
+/// insertion mark between tabs.
+#[derive(Clone, Debug, PartialEq)]
+pub struct DocDrag {
+    pub pane: String,
+    pub from: (i64, i64),
+    pub at: (i64, i64),
+    pub started: bool,
+    pub target: Option<DocTarget>,
+    pub preview: Option<Rect>,
+    pub bar: Option<Rect>,
+}
+
+/// A splitter of the document area held: between groups (`group`:
+/// `None`; its index in the geometry) or between a document's two views
+/// side by side (its group's index).
+#[derive(Clone, Debug, PartialEq)]
+pub struct DocSplitDrag {
+    pub splitter: usize,
+    pub views_of: Option<usize>,
+    pub start: Vec<i64>,
+    pub from: i64,
+}
+
 /// The keyboard's "move pane": the pane, the area whose compass is shown
 /// and the button chosen.
 #[derive(Clone, Debug, PartialEq)]
@@ -80,6 +163,8 @@ pub struct Ui {
     pub drag: Option<Drag>,
     pub split: Option<SplitDrag>,
     pub moving: Option<KeyMove>,
+    pub doc_drag: Option<DocDrag>,
+    pub doc_split: Option<DocSplitDrag>,
 }
 
 /// An event for the program (OnPaneChange (Name), OnDocumentActivate
@@ -119,6 +204,16 @@ pub enum User {
     Activate(String),
     /// Ctrl+Tab / Ctrl+Shift+Tab: the next / previous document.
     NextDocument(bool),
+    /// A document's tab dropped elsewhere among the documents.
+    MoveDocument(String, DocTarget),
+    /// A splitter between document groups dragged (the split's path, its
+    /// children's new extents); `done` when let go.
+    DocSplit { path: Vec<usize>, extents: Vec<i64>, done: bool },
+    /// A document's view chosen on its tab strip's switch.
+    View(String, DocView),
+    /// The splitter between a document's two views dragged: the first's
+    /// share per mille; `done` when let go.
+    ViewRatio(String, i64, bool),
 }
 
 /// What a method, a property or the user's action did, for the runtime:
@@ -208,6 +303,18 @@ impl Titles for T<'_> {
     }
     fn icon(&self, pane: &str) -> String {
         self.0.iter().find(|p| p.name == pane).map(|p| p.icon.clone()).unwrap_or_default()
+    }
+    fn views(&self, pane: &str) -> Vec<String> {
+        self.0.iter().find(|p| p.name == pane).map(|p| p.views.iter().map(|v| v.1.clone()).collect()).unwrap_or_default()
+    }
+    fn view(&self, pane: &str) -> DocView {
+        self.0.iter().find(|p| p.name == pane).map(|p| p.view).unwrap_or_default()
+    }
+    fn view_ratio(&self, pane: &str) -> i64 {
+        self.0.iter().find(|p| p.name == pane).map_or(500, |p| p.view_ratio)
+    }
+    fn modified(&self, pane: &str) -> bool {
+        self.0.iter().find(|p| p.name == pane).is_some_and(|p| p.modified)
     }
 }
 
@@ -377,7 +484,7 @@ impl Manager {
             return out;
         }
         let Some(target) = parse_where(at) else { return out };
-        self.panes.push(PaneInfo { name: name.clone(), given: name.clone(), title: title.to_string(), icon: icon.to_string(), place: None, extent: super::DEFAULT_SIDE, float_size: super::DEFAULT_FLOAT });
+        self.panes.push(PaneInfo::new(&name, title, icon));
         self.initial.push((name.clone(), target.clone()));
         if self.initial.len() == 1 {
             self.initial_mode = self.layout.mode;
@@ -581,6 +688,28 @@ impl Manager {
     /// FocusPane: shown and active; its component takes the focus.
     pub fn focus_pane(&mut self, name: &str) -> Outcome {
         let name = name.to_ascii_lowercase();
+        // (one of a document's views: that view shown — still side by side
+        // when it's one of the two — its document active, it focused)
+        if let Some(doc) = self.document_of_view(&name) {
+            let (idx, split) = match self.pane(&doc) {
+                Some(i) => (i.views.iter().position(|v| v.0 == name), i.view == DocView::Split),
+                None => (None, false),
+            };
+            if let Some(idx) = idx {
+                let mut out = if split && idx < 2 {
+                    let mut o = Outcome::default();
+                    if self.layout.select(&doc) {
+                        o.events.push(Event::pane("ondocumentactivate", &doc));
+                    }
+                    self.touch();
+                    o
+                } else {
+                    self.set_view(&doc, if idx == 0 { DocView::First } else { DocView::One(idx) })
+                };
+                out.focus = Some(name);
+                return out;
+            }
+        }
         let mut out = self.show_pane(&name);
         if self.pane(&name).is_none() {
             return out;
@@ -661,31 +790,68 @@ impl Manager {
         out
     }
 
-    /// SaveLayout.
+    /// SaveLayout: the layout's text, then each document's view when it
+    /// isn't its first, or its side-by-side share when it was moved
+    /// (`view <document> <first | n | split> <per mille>`).
     pub fn save(&self) -> String {
-        self.layout.save(&self.hidden())
+        let mut out = self.layout.save(&self.hidden());
+        for d in &self.layout.documents {
+            if let Some(p) = self.pane(d).filter(|p| !p.views.is_empty() && (p.view.index() != Some(0) || p.view_ratio != 500)) {
+                let v = match p.view.index() {
+                    None => "split".to_string(),
+                    Some(0) => "first".to_string(),
+                    Some(i) => i.to_string(),
+                };
+                out.push_str(&format!("view {d} {v} {}\n", p.view_ratio));
+            }
+        }
+        out
     }
 
-    /// LoadLayout: whether the text was a layout.
+    /// LoadLayout: whether the text was a layout. The documents' views it
+    /// names are shown (OnDocumentView for each that changes).
     pub fn load(&mut self, text: &str) -> Outcome {
         let known: Vec<String> = self.panes.iter().map(|p| p.name.clone()).collect();
-        let Ok((mut layout, _hidden)) = Layout::load(text, &|p| known.iter().any(|k| k == p)) else {
+        let views: Vec<Vec<String>> = text.lines().filter(|l| l.starts_with("view ")).map(|l| l.split_whitespace().map(str::to_string).collect()).collect();
+        let rest: String = text.lines().filter(|l| !l.starts_with("view ")).map(|l| format!("{l}\n")).collect();
+        let Ok((mut layout, _hidden)) = Layout::load(&rest, &|p| known.iter().any(|k| k == p)) else {
             return Outcome { value: Some(Value::Integer(0)), ..Default::default() };
         };
+        let mut events = Vec::new();
+        for w in views.iter().filter(|w| w.len() >= 3) {
+            let doc = w[1].to_ascii_lowercase();
+            let Some(info) = self.pane_mut(&doc) else { continue };
+            let v = match w[2].as_str() {
+                "split" if info.views.len() >= 2 => DocView::Split,
+                "first" => DocView::First,
+                n => match n.parse::<usize>() {
+                    Ok(i) if i < info.views.len() => if i == 0 { DocView::First } else { DocView::One(i) },
+                    _ => continue,
+                },
+            };
+            if let Some(r) = w.get(3).and_then(|r| r.parse::<i64>().ok()) {
+                info.view_ratio = r.clamp(100, 900);
+            }
+            if info.view.index() != v.index() {
+                info.view = v;
+                let caption = info.view_caption();
+                events.push(Event { name: "ondocumentview", args: vec![Value::String(doc.clone()), Value::String(caption)] });
+            }
+        }
         // (documents it doesn't list stay open, after the ones it lists)
         for d in &self.layout.documents {
             if !layout.documents.contains(d) && layout.find(d).is_none() {
-                layout.documents.push(d.clone());
+                layout.add_document(d);
             }
         }
         if layout.active_document.is_none() && !layout.documents.is_empty() {
-            layout.active_document = Some(0);
+            layout.select_document(0);
         }
         self.layout = layout;
         self.flyout = None;
         self.ui = Ui::default();
         self.touch();
-        Outcome { value: Some(Value::Integer(-1)), changed: true, ..Default::default() }
+        Outcome { value: Some(Value::Integer(-1)), changed: true, events, ..Default::default() }
     }
 
     /// ResetLayout: the panes where AddPane put them.
@@ -811,7 +977,103 @@ impl Manager {
                 Outcome { focus, ..Default::default() }
             }
             User::NextDocument(back) => self.next_document(back),
+            User::MoveDocument(p, t) => {
+                let mut out = Outcome::default();
+                let was = self.active_document();
+                if self.layout.move_document(&p, &t) {
+                    self.touch();
+                    if was.as_deref() != Some(p.as_str()) {
+                        out.events.push(Event::pane("ondocumentactivate", &p));
+                    }
+                    out.changed = true;
+                    out.focus = Some(p);
+                }
+                out
+            }
+            User::DocSplit { path, extents, done } => {
+                self.layout.set_doc_weights(&path, &extents);
+                self.touch();
+                Outcome { changed: done, ..Default::default() }
+            }
+            User::View(p, v) => self.set_view(&p, v),
+            User::ViewRatio(p, r, done) => {
+                if let Some(i) = self.pane_mut(&p) {
+                    i.view_ratio = r.clamp(100, 900);
+                }
+                self.touch();
+                Outcome { changed: done, ..Default::default() }
+            }
         }
+    }
+
+    // ------------------------------------------------- document views --
+
+    /// AddView(Document, Component, Caption): `component` is one of the
+    /// document's views (the document's own component too, when given).
+    pub fn add_view(&mut self, doc: &str, component: &str, caption: &str) -> Outcome {
+        let (doc, comp) = (doc.to_ascii_lowercase(), component.to_ascii_lowercase());
+        let Some(info) = self.pane_mut(&doc) else { return Outcome::default() };
+        match info.views.iter_mut().find(|v| v.0 == comp) {
+            Some(v) => v.1 = caption.to_string(),
+            None => info.views.push((comp, caption.to_string())),
+        }
+        self.touch();
+        Outcome { changed: true, ..Default::default() }
+    }
+
+    /// The view `doc` shows (`v`): OnDocumentView (Name, View) when it
+    /// changed; the shown view's component takes the focus.
+    pub fn set_view(&mut self, doc: &str, v: DocView) -> Outcome {
+        let doc = doc.to_ascii_lowercase();
+        let mut out = Outcome::default();
+        let Some(info) = self.pane_mut(&doc) else { return out };
+        let n = info.views.len();
+        let v = match v {
+            DocView::One(i) if i >= n => return out,
+            DocView::Split if n < 2 => return out,
+            v => v,
+        };
+        let same = info.view.index() == v.index();
+        info.view = v;
+        let caption = info.view_caption();
+        let focus = info.shown_components().last().cloned();
+        self.touch();
+        if !same {
+            out.events.push(Event { name: "ondocumentview", args: vec![Value::String(doc.clone()), Value::String(caption)] });
+            out.changed = true;
+        }
+        // (its document shown and active too)
+        if self.layout.documents.contains(&doc) && self.layout.select(&doc) {
+            out.events.push(Event::pane("ondocumentactivate", &doc));
+        }
+        out.focus = focus;
+        out
+    }
+
+    /// A view by its caption ("Split" / "Both": side by side).
+    pub fn view_named(&self, doc: &str, caption: &str) -> Option<DocView> {
+        let info = self.pane(doc)?;
+        let c = caption.trim();
+        if c.eq_ignore_ascii_case("split") || c.eq_ignore_ascii_case("both") {
+            return Some(DocView::Split);
+        }
+        info.views.iter().position(|v| v.1.eq_ignore_ascii_case(c)).map(|i| if i == 0 { DocView::First } else { DocView::One(i) })
+    }
+
+    /// SplitDocument(Name, Side): a new group on that side of its group,
+    /// the document in it.
+    pub fn split_document(&mut self, doc: &str, side: Side) -> Outcome {
+        let doc = doc.to_ascii_lowercase();
+        if !self.layout.documents.contains(&doc) {
+            return Outcome::default();
+        }
+        self.user(User::MoveDocument(doc.clone(), DocTarget::Split { anchor: doc, side }))
+    }
+
+    /// The document whose views include `component` (or that is it).
+    pub fn document_of_view(&self, component: &str) -> Option<String> {
+        let c = component.to_ascii_lowercase();
+        self.panes.iter().find(|p| self.layout.documents.contains(&p.name) && (p.name == c || p.views.iter().any(|v| v.0 == c))).map(|p| p.name.clone())
     }
 
     /// A floating group's panes back where they were docked.

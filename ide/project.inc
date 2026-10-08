@@ -22,10 +22,11 @@ SUB OpenProject(Path AS STRING)
   Lang.CompatMode = Proj.CompatMode
   AddRecent Path
   FillProjectTree
-  ' (the start page makes room: the form and its code side by side)
+  ' (the start page makes room; the files open when it was last closed
+  ' come back as they were: workspace.inc)
   Dock.ClosePane("welcome")
   OpenDocument ProjectMain
-  IF DocumentMode = "mdi" THEN Dock.TileVertical
+  RestoreSession Path
   SetState "stopped", "Ready"
   UpdateTitle
   UpdateCommands
@@ -45,8 +46,7 @@ SUB CloseProject
   ProjectOpen = 0
   ProjectName = ""
   FillProjectTree
-  Dock.ShowPane("welcome")
-  Dock.DocumentState("welcome", 2)
+  ShowWelcome
   UpdateTitle
   UpdateCommands
 END SUB
@@ -80,7 +80,7 @@ END SUB
 ' File > New Project: a form program (or a console one) where the user says.
 SUB AskNew
   NewName.Text = "MyProgram"
-  NewKind.ItemIndex = 0
+  PickTemplate 0
   NewFolder.Text = DefaultFolder
   NewDialog.ShowModal
 END SUB
@@ -97,7 +97,7 @@ END SUB
 
 SUB NewCreate
   DIM template AS STRING, folder AS STRING
-  IF NewKind.ItemIndex = 1 THEN template = "console" ELSE template = "gui"
+  template = TplId(TplChosen)
   folder = NewFolder.Text
   IF RIGHT$(folder, 1) <> "/" THEN folder = folder + "/"
   folder = folder + NewName.Text
@@ -199,9 +199,9 @@ SUB LoadSettings
   IF Reg.KeyExists(STUDIO_KEY) THEN
     Reg.OpenKey(STUDIO_KEY, 0)
     IF ThemeChoice = "" AND Reg.ValueExists("Theme") THEN ThemeChoice = Reg.ReadString("Theme")
-    IF Reg.ValueExists("DocumentMode") THEN DocumentMode = Reg.ReadString("DocumentMode")
     IF Reg.ValueExists("PreviewClassic") THEN PreviewClassic = Flag(Reg.ReadString("PreviewClassic") = "1")
     IF Reg.ValueExists("Layout") THEN SavedLayout = Reg.ReadString("Layout")
+    LoadSession
     IF Reg.ValueExists("Recent") THEN RecentList = Reg.ReadString("Recent")
     IF Reg.ValueExists("Folder") THEN DefaultFolder = Reg.ReadString("Folder")
     Reg.CloseKey
@@ -212,9 +212,9 @@ SUB SaveSettings
   Reg.RootKey = HKCU
   Reg.OpenKey(STUDIO_KEY, 1)
   Reg.WriteString("Theme", ThemeChoice)
-  Reg.WriteString("DocumentMode", DocumentMode)
   Reg.WriteString("PreviewClassic", LTRIM$(STR$(PreviewClassic)))
   Reg.WriteString("Layout", Dock.SaveLayout)
+  SaveSession
   Reg.WriteString("Recent", RecentList)
   Reg.WriteString("Folder", DefaultFolder)
   Reg.CloseKey
