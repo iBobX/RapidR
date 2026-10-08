@@ -4,7 +4,7 @@
 //! `&` marks a mnemonic that focuses the next component.
 
 use rapidr_value::objects::a11y::{mnemonic, AccessNode};
-use rapidr_value::objects::ops::Place;
+use rapidr_value::objects::ops::{Place, Rect};
 use rapidr_value::Value;
 
 use super::{ComponentKind, Cx, MouseIn, MouseOut};
@@ -30,6 +30,28 @@ impl ComponentKind for Label {
 
     fn focusable(&self, _store: &dyn Store, _id: &str) -> bool {
         false
+    }
+
+    /// An AutoSize label is RapidQ's size in every theme (its text measured
+    /// as RC.EXE measures it, `rapidr_value::autosize`); where the theme's
+    /// face is wider (Inter), its text runs on past its edge — to the right,
+    /// the left or both, as its Alignment puts it — rather than being cut.
+    fn room(&self, store: &dyn Store, id: &str, font: &rapidr_value::objects::font::Font, w: i64, h: i64) -> Rect {
+        if !rapidr_value::autosize::autosize_on(&store.get(id, "autosize")) {
+            return (0, 0, w, h);
+        }
+        let text = store::string(store, id, "caption");
+        let wrap = store::flag(store, id, "wordwrap", false);
+        let lines = rapidr_value::autosize::lines(&text, font, wrap.then_some(w));
+        let size = |s: &str| rapidr_value::objects::text::text_size(s, font);
+        let tw = lines.iter().map(|l| size(l).0).max().unwrap_or(0);
+        let th = size(" ").1 * lines.len() as i64;
+        let (dw, dh) = (if tw > w { tw - w + 1 } else { 0 }, (th - h).max(0));
+        match store::int(store, id, "alignment", 0) {
+            1 => (-dw, 0, w + dw, h + dh),
+            2 => (-dw / 2 - 1, 0, w + dw + 2, h + dh),
+            _ => (0, 0, w + dw, h + dh),
+        }
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {

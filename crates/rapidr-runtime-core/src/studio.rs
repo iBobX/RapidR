@@ -30,7 +30,7 @@ impl Host for Desktop {
         rp_fire_event_args(name, event, args);
     }
 
-    fn launch(self, program: &str, args: &[String]) -> Result<Box<dyn Transport>, String> {
+    fn launch(self, program: &str, args: &[String], theme: &str) -> Result<Box<dyn Transport>, String> {
         if program.is_empty() {
             return Err("no program to run".into());
         }
@@ -48,6 +48,10 @@ impl Host for Desktop {
             .collect();
         if let Ok(prefix) = std::env::var("RAPIDR_CAPTURE") {
             env.push(("RAPIDR_CAPTURE".into(), Some(format!("{prefix}-program"))));
+        }
+        // (Studio's "Preview in classic": the program's default look)
+        if !theme.is_empty() {
+            env.push(("RAPIDR_THEME".into(), Some(theme.to_string())));
         }
         rapidr_session::process::ProcessTransport::spawn_with_env(&exe, &full.to_string_lossy(), args, cwd, &env)
             .map(|t| Box::new(t) as Box<dyn Transport>)

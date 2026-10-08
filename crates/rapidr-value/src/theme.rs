@@ -172,9 +172,12 @@ pub struct Theme {
     pub radius: f64,
     /// The focus ring's width (fluent), in pixels.
     pub focus_width: f64,
-    /// A text box with the focus is ringed too, not only underlined in the
-    /// accent (high contrast: the focus shows whatever it's on).
-    pub ring_fields: bool,
+    /// Elevation: what floats above a window — a menu, a drop-down list, a
+    /// window on a web page — casts a soft shadow of this colour, at this
+    /// alpha (of 255) where it's darkest; 0: no shadows (the classic look's
+    /// raised edges, high contrast's frames say it instead).
+    pub shadow_ink: u32,
+    pub shadow_alpha: u8,
 }
 
 /// Windows' classic look (RapidQ's): its system colours as Windows 11 has
@@ -247,13 +250,46 @@ pub const CLASSIC: Theme = Theme {
     border_strong: 0x404040,
     radius: 0.0,
     focus_width: 1.0,
-    ring_fields: false,
+    shadow_ink: 0x000000,
+    shadow_alpha: 0,
 };
 
+/// RapidR's brand palette (`design/brand/README.md`, the Pencil design
+/// `design/rapidr-brand.pen`): every colour of RapidR's look is one of
+/// these or a mix of two ([`mix`]); docs/theme-tokens.md maps each token.
+pub mod brand {
+    /// Text, dark tiles and backgrounds.
+    pub const INK: u32 = 0x0E1525;
+    /// Light backgrounds.
+    pub const PAPER: u32 = 0xF6F8FC;
+    /// The primary colour: what's chosen, the default button, the focus.
+    pub const BLUE: u32 = 0x2F5BFF;
+    /// Blue text on light; the accent pressed.
+    pub const BLUE_DEEP: u32 = 0x1E3FD8;
+    /// Blue text (and the accent) on Ink.
+    pub const BLUE_ON_DARK: u32 = 0x6E93FF;
+    /// Accents on dark (the brand gradient's end).
+    pub const CYAN: u32 = 0x19C6E6;
+    /// "Run": the Runtime, compiled programs.
+    pub const AMBER: u32 = 0xFFB224;
+    /// BASIC sources (graphics only), and its text colour on light.
+    pub const TEAL: u32 = 0x12B48A;
+    pub const TEAL_DEEP: u32 = 0x0B7B5E;
+    /// Secondary text on light.
+    pub const SLATE: u32 = 0x5B6478;
+    /// Secondary text and hairlines on dark.
+    pub const MIST: u32 = 0xC9D1E3;
+    /// The design's board: Paper's darker step.
+    pub const BOARD: u32 = 0xE9EDF5;
+    pub const WHITE: u32 = 0xFFFFFF;
+}
+
+use brand::{BLUE, BLUE_DEEP, BLUE_ON_DARK, BOARD, INK, MIST, PAPER, SLATE, WHITE};
+
 /// RapidR's blue (design/brand: "RapidR Blue"), the accent of RapidR's
-/// look: what's chosen, the default button, checked boxes, the active
-/// window's line — one token, every RapidR variant's accent derived from it.
-pub const ACCENT: u32 = 0x2F5BFF;
+/// look: what's chosen, the default button, checked boxes, the focus ring —
+/// one token, every RapidR variant's accent derived from it.
+pub const ACCENT: u32 = BLUE;
 
 /// `a` toward `b` by `permille` / 1000, per channel (rounded).
 pub const fn mix(a: u32, b: u32, permille: u32) -> u32 {
@@ -268,158 +304,165 @@ pub const fn mix(a: u32, b: u32, permille: u32) -> u32 {
     out
 }
 
-/// The accent on a dark ground: RapidR's blue lightened to read there.
-const ACCENT_ON_DARK: u32 = mix(ACCENT, 0xFFFFFF, 400);
+/// Ink lightened by `permille` toward white: the dark variant's surfaces,
+/// one ramp from the brand's Ink.
+const fn ink(permille: u32) -> u32 {
+    mix(INK, WHITE, permille)
+}
 
 /// The face RapidR's look draws RapidQ's default font in, and its size
 /// against MS Sans Serif's: Inter at MS Sans Serif's pixels (8 pt: 11).
-/// Inter is wider: at 11 pixels a text is about 10 % wider than RapidQ
-/// measured it, and of the RapidQ corpus' 539 texts in components of a
-/// fixed size 26 more no longer fit (12 pixels: 56, 13: 78 —
-/// `cargo run --release -p rapidr-designer --example caption_audit`).
-/// Inter's large x-height makes its 11 pixels read as Windows 11's
-/// Segoe UI 9 pt.
+/// Chosen by the clipping audit (`cargo run --release -p rapidr-designer
+/// --example caption_audit`, docs/theme-tokens.md): of the RapidQ corpus'
+/// 539 texts in components of a fixed size, 11 clip in RapidQ's own font,
+/// 36 in Inter 11 px, 67 at 12 px, 89 at 13 px (`examples/`: 0, 0, 1, 1).
+/// Inter's large x-height makes its 11 pixels read as Windows 11's Segoe
+/// UI 9 pt.
 pub const UI_FACE: Option<(&str, f64)> = Some(("Inter", 1.0));
 
-/// RapidR's look, light: RapidR Studio's — flat, light grey surfaces,
-/// white fields and lists, thin borders, rounded corners, RapidR's blue.
+/// RapidR's look, light: RapidR Studio's — Paper surfaces, white fields
+/// and buttons on hairline borders, Ink text, RapidR Blue for what's
+/// chosen and for the focus ring.
 pub const RAPIDR: Theme = Theme {
     name: "rapidr light",
     look: Look::Fluent,
     dark: false,
     contrast: false,
     ui_face: UI_FACE,
-    face: 0xF3F3F3,
-    light: 0xFFFFFF,
-    shadow: 0xD1D1D1,
-    dark_shadow: 0x9A9A9A,
-    light3d: 0xF9F9F9,
-    window: 0xFFFFFF,
-    text: 0x1B1B1B,
-    gray_text: 0x8A8A8A,
-    highlight: ACCENT,
-    highlight_text: 0xFFFFFF,
-    unfocused: 0xE6E6E6,
-    unfocused_strong: 0xDADADA,
-    hot_text: mix(ACCENT, 0x000000, 200),
-    hot: 0xF6F6F6,
-    frame: 0x8A8A8A,
-    focus: 0x1B1B1B,
-    toggled: ACCENT,
-    // (a window's title bar: its surface touched by the accent while it's
-    // active, its title dimmed while it's not)
-    caption: mix(0xF3F3F3, ACCENT, 60),
-    caption_text: 0x1B1B1B,
-    inactive_caption: 0xF3F3F3,
-    inactive_caption_text: mix(0x1B1B1B, 0xF3F3F3, 350),
-    menu: 0xF9F9F9,
-    menu_text: 0x1B1B1B,
-    menu_highlight: 0xEAEAEA,
-    menu_highlight_text: 0x1B1B1B,
-    lines: 0xC8C8C8,
-    grid_lines: 0xE5E5E5,
-    fixed_lines: 0xD1D1D1,
-    track: 0xF9F9F9,
-    track_pressed: 0xE6E6E6,
-    channel: 0x8A8A8A,
-    channel_edge: 0x8A8A8A,
-    slider: ACCENT,
-    slider_edge: 0xE5E5E5,
-    slider_disabled: 0xC5C5C5,
-    ticks: 0x8A8A8A,
-    ticks_disabled: 0xC5C5C5,
-    view_hot: 0xF0F0F0,
-    view_grid: 0xEBEBEB,
-    view_border: 0xD9D9D9,
-    view_thumb: 0x8A8A8A,
-    view_thumb_held: 0x5E5E5E,
-    view_arrow: 0x8A8A8A,
-    view_check: 0x5E5E5E,
-    accent: ACCENT,
-    accent_text: 0xFFFFFF,
-    accent_hot: mix(ACCENT, 0x000000, 100),
-    accent_pressed: mix(ACCENT, 0x000000, 200),
-    control: 0xFDFDFD,
-    control_hot: 0xF6F6F6,
-    control_pressed: 0xF0F0F0,
-    control_disabled: 0xF5F5F5,
-    selected: mix(0xFFFFFF, ACCENT, 120),
-    selected_text: 0x1B1B1B,
-    border: 0xD4D4D4,
-    border_hot: 0xC4C4C4,
-    border_strong: 0x8A8A8A,
-    radius: 4.0,
+    face: PAPER,
+    light: WHITE,
+    shadow: 0xD5DBE7,
+    dark_shadow: 0xA3ACBE,
+    light3d: 0xFBFCFE,
+    window: WHITE,
+    text: INK,
+    gray_text: 0x858EA1,
+    highlight: BLUE,
+    highlight_text: WHITE,
+    unfocused: 0xE3E8F1,
+    unfocused_strong: 0xD5DCE8,
+    hot_text: BLUE_DEEP,
+    hot: 0xF0F3F9,
+    frame: 0x9AA3B5,
+    focus: BLUE,
+    toggled: BLUE,
+    // (a window's title bar: its surface, the title dimmed while it's not
+    // the active one — the frame's shadow says which is in front)
+    caption: 0xEEF1F7,
+    caption_text: INK,
+    inactive_caption: PAPER,
+    inactive_caption_text: SLATE,
+    menu: WHITE,
+    menu_text: INK,
+    menu_highlight: mix(WHITE, BLUE, 110),
+    menu_highlight_text: INK,
+    lines: MIST,
+    grid_lines: 0xE6EAF2,
+    fixed_lines: 0xD5DCE8,
+    track: PAPER,
+    track_pressed: BOARD,
+    channel: 0xC3CAD9,
+    channel_edge: 0xC3CAD9,
+    slider: BLUE,
+    slider_edge: 0xD5DCE8,
+    slider_disabled: MIST,
+    ticks: 0x8A93A6,
+    ticks_disabled: MIST,
+    view_hot: 0xF1F4FA,
+    view_grid: 0xEBEEF4,
+    view_border: 0xD5DCE8,
+    view_thumb: 0xB4BCCC,
+    view_thumb_held: 0x8A93A6,
+    view_arrow: 0x8A93A6,
+    view_check: SLATE,
+    accent: BLUE,
+    accent_text: WHITE,
+    accent_hot: mix(BLUE, BLUE_DEEP, 500),
+    accent_pressed: BLUE_DEEP,
+    control: WHITE,
+    control_hot: 0xF3F6FB,
+    control_pressed: BOARD,
+    control_disabled: PAPER,
+    selected: mix(WHITE, BLUE, 120),
+    selected_text: INK,
+    border: 0xD5DCE8,
+    border_hot: 0xBCC4D6,
+    border_strong: 0x8A93A6,
+    radius: 5.0,
     focus_width: 2.0,
-    ring_fields: false,
+    shadow_ink: INK,
+    shadow_alpha: 46,
 };
 
-/// RapidR's look, dark.
+/// RapidR's look, dark: the brand's Ink as the ground — surfaces one ramp
+/// lighter from it, Paper's Board for text, Blue on Dark for what's chosen.
 pub const RAPIDR_DARK: Theme = Theme {
     name: "rapidr dark",
     look: Look::Fluent,
     dark: true,
     contrast: false,
     ui_face: UI_FACE,
-    face: 0x202020,
-    light: 0x454545,
-    shadow: 0x151515,
-    dark_shadow: 0x0B0B0B,
-    light3d: 0x3A3A3A,
-    window: 0x2B2B2B,
-    text: 0xFFFFFF,
-    gray_text: 0x858585,
-    highlight: ACCENT,
-    highlight_text: 0xFFFFFF,
-    unfocused: 0x3D3D3D,
-    unfocused_strong: 0x454545,
-    hot_text: ACCENT_ON_DARK,
-    hot: 0x323232,
-    frame: 0x9A9A9A,
-    focus: 0xFFFFFF,
-    toggled: ACCENT_ON_DARK,
-    caption: mix(0x202020, ACCENT_ON_DARK, 100),
-    caption_text: 0xFFFFFF,
-    inactive_caption: 0x202020,
-    inactive_caption_text: mix(0xFFFFFF, 0x202020, 350),
-    menu: 0x2C2C2C,
-    menu_text: 0xFFFFFF,
-    menu_highlight: 0x3D3D3D,
-    menu_highlight_text: 0xFFFFFF,
-    lines: 0x5A5A5A,
-    grid_lines: 0x3A3A3A,
-    fixed_lines: 0x4A4A4A,
-    track: 0x262626,
-    track_pressed: 0x3A3A3A,
-    channel: 0x9A9A9A,
-    channel_edge: 0x9A9A9A,
-    slider: ACCENT_ON_DARK,
-    slider_edge: 0x454545,
-    slider_disabled: 0x5A5A5A,
-    ticks: 0x9A9A9A,
-    ticks_disabled: 0x5A5A5A,
-    view_hot: 0x333333,
-    view_grid: 0x3A3A3A,
-    view_border: 0x3F3F3F,
-    view_thumb: 0x9F9F9F,
-    view_thumb_held: 0xC8C8C8,
-    view_arrow: 0x9F9F9F,
-    view_check: 0xC8C8C8,
-    accent: ACCENT_ON_DARK,
-    accent_text: 0x000000,
-    accent_hot: mix(ACCENT_ON_DARK, 0x000000, 100),
-    accent_pressed: mix(ACCENT_ON_DARK, 0x000000, 200),
-    control: 0x2D2D2D,
-    control_hot: 0x353535,
-    control_pressed: 0x272727,
-    control_disabled: 0x2A2A2A,
-    selected: mix(0x2B2B2B, ACCENT, 220),
-    selected_text: 0xFFFFFF,
-    border: 0x434343,
-    border_hot: 0x505050,
-    border_strong: 0x9A9A9A,
-    radius: 4.0,
+    face: ink(45),
+    light: ink(200),
+    shadow: mix(INK, 0x000000, 300),
+    dark_shadow: mix(INK, 0x000000, 600),
+    light3d: ink(150),
+    window: ink(15),
+    text: BOARD,
+    gray_text: 0x6B7590,
+    highlight: BLUE,
+    highlight_text: WHITE,
+    unfocused: ink(150),
+    unfocused_strong: ink(200),
+    hot_text: BLUE_ON_DARK,
+    hot: ink(90),
+    frame: 0x7D879E,
+    focus: BLUE_ON_DARK,
+    toggled: BLUE_ON_DARK,
+    caption: ink(70),
+    caption_text: BOARD,
+    inactive_caption: ink(45),
+    inactive_caption_text: 0x8F99B0,
+    menu: ink(90),
+    menu_text: BOARD,
+    menu_highlight: mix(ink(90), BLUE, 300),
+    menu_highlight_text: WHITE,
+    lines: ink(250),
+    grid_lines: ink(110),
+    fixed_lines: ink(180),
+    track: ink(45),
+    track_pressed: ink(120),
+    channel: ink(300),
+    channel_edge: ink(300),
+    slider: BLUE_ON_DARK,
+    slider_edge: ink(200),
+    slider_disabled: ink(250),
+    ticks: 0x7D879E,
+    ticks_disabled: ink(250),
+    view_hot: ink(70),
+    view_grid: ink(110),
+    view_border: ink(160),
+    view_thumb: ink(330),
+    view_thumb_held: ink(500),
+    view_arrow: ink(400),
+    view_check: MIST,
+    accent: BLUE_ON_DARK,
+    accent_text: INK,
+    accent_hot: mix(BLUE_ON_DARK, WHITE, 120),
+    accent_pressed: mix(BLUE_ON_DARK, INK, 150),
+    control: ink(95),
+    control_hot: ink(135),
+    control_pressed: ink(65),
+    control_disabled: ink(60),
+    selected: mix(ink(15), BLUE, 300),
+    selected_text: WHITE,
+    border: ink(150),
+    border_hot: ink(220),
+    border_strong: 0x7D879E,
+    radius: 5.0,
     focus_width: 2.0,
-    ring_fields: false,
+    shadow_ink: 0x000000,
+    shadow_alpha: 140,
 };
 
 /// RapidR's look, high contrast: Windows' High Contrast Black — white on
@@ -491,7 +534,8 @@ pub const RAPIDR_HIGH_CONTRAST: Theme = Theme {
     border_strong: 0xFFFFFF,
     radius: 4.0,
     focus_width: 3.0,
-    ring_fields: true,
+    shadow_ink: 0x000000,
+    shadow_alpha: 0,
 };
 
 /// Every theme, the default's variants first.
@@ -510,20 +554,23 @@ pub enum Choice {
 
 /// The theme a name asks for (case, spaces, `-` and `_` ignored):
 ///
-/// - RapidR's look: `rapidr` (and `""`, `system`, `auto`: as the system
-///   is), `rapidr light` (and `light`), `rapidr dark` (`dark`), `rapidr
-///   high contrast` (`high contrast`, `hc`). The names of the looks it grew
-///   from (`modern`, `fluent`, the platform names — Windows 7 – 11, macOS,
-///   the Linux desktops — and fltk-theme's and FLTK's schemes, accepted
-///   since v2.62.0) are its light variant.
-/// - The classic look: `classic`, `rapidq`, `windows`, `win95`, `win98`,
-///   `win2k` (and their long forms), `base`.
+/// - RapidR's look: `rapidr` (and `""`, `auto`: as the system is), `rapidr
+///   light`, `rapidr dark`, `rapidr high contrast`. The names of the looks
+///   it grew from stay theirs as aliases: `modern` (and `fluent`, the
+///   platform names — Windows 7 – 11, macOS, the Linux desktops — and
+///   fltk-theme's and FLTK's schemes, accepted since v2.62.0) its light
+///   variant, `dark` its dark one, `highcontrast` (`high contrast`, `hc`)
+///   its high-contrast one.
+/// - The classic look, under every name it answered to before RapidR's
+///   look was the default (v2.114.0): `classic`, `rapidq`, `system`,
+///   `light`, `windows`, `win95`, `win98`, `win2k` (and their long forms),
+///   `base`.
 pub fn choose(name: &str) -> Choice {
     let n: String = name.chars().filter(|c| !matches!(c, ' ' | '-' | '_')).flat_map(char::to_lowercase).collect();
     Choice::Theme(match n.as_str() {
-        "" | "rapidr" | "system" | "auto" => return Choice::Auto,
-        "classic" | "rapidq" | "windows" | "win95" | "win98" | "win2k" | "windows95" | "windows98" | "win2000" | "windows2000" | "base" => &CLASSIC,
-        "rapidrlight" | "light" | "modern" | "fluent" | "win11" | "windows11" | "win10" | "windows10" | "metro" | "win8" | "windows8" | "aero" | "win7" | "windows7"
+        "" | "rapidr" | "auto" => return Choice::Auto,
+        "classic" | "rapidq" | "system" | "light" | "windows" | "win95" | "win98" | "win2k" | "windows95" | "windows98" | "win2000" | "windows2000" | "base" => &CLASSIC,
+        "rapidrlight" | "modern" | "fluent" | "win11" | "windows11" | "win10" | "windows10" | "metro" | "win8" | "windows8" | "aero" | "win7" | "windows7"
         | "aqua" | "aquaclassic" | "mac" | "macos" | "linux" | "greybird" | "xfce" | "gtk" | "gleam" | "clean" | "crystal" | "svg" | "sweet" | "fleet1" | "fleet2"
         | "plastic" | "oxy" | "blue" => &RAPIDR,
         "rapidrdark" | "dark" | "darkmode" | "moderndark" | "night" => &RAPIDR_DARK,
@@ -635,6 +682,33 @@ pub fn system_answer(dark: bool, high_contrast: bool) {
     }
 }
 
+/// `f` measured as RapidQ measures, whatever the theme draws in: the
+/// classic look's faces for the default font (RapidR Sans, MS Sans Serif's
+/// metrics). What a component's size comes from — an AutoSize label's
+/// Width and Height — so sizes never change with the theme (RC.EXE's
+/// numbers in every look); the text is drawn in the theme's face.
+pub fn rapidq_metrics<R>(f: impl FnOnce() -> R) -> R {
+    drawn_in(&CLASSIC, f)
+}
+
+/// `f` with `theme` as the current one — what it measures and draws is
+/// `theme`'s — and the current theme back after it (nothing follows the
+/// change: no window is drawn again). A designer's preview in another look.
+pub fn drawn_in<R>(theme: &'static Theme, f: impl FnOnce() -> R) -> R {
+    current();
+    let saved = CURRENT.with(Cell::get);
+    CURRENT.with(|c| c.set((Some(theme), saved.1)));
+    // (put back however `f` ends)
+    struct Restore((Option<&'static Theme>, u64));
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            CURRENT.with(|c| c.set(self.0));
+        }
+    }
+    let _restore = Restore(saved);
+    f()
+}
+
 /// A count that changes whenever the theme does (a host's windows follow).
 pub fn generation() -> u64 {
     current();
@@ -664,6 +738,27 @@ pub fn contrast(a: u32, b: u32) -> f64 {
 impl Theme {
     pub fn fluent(&self) -> bool {
         self.look == Look::Fluent
+    }
+
+    /// The corners of what floats or frames a whole surface — menus,
+    /// drop-down lists, tooltips, windows on the page — rounder than a
+    /// control's ([`Theme::radius`]); 0 in the classic look.
+    pub fn panel_radius(&self) -> f64 {
+        if self.fluent() { (self.radius * 1.6).round() } else { 0.0 }
+    }
+
+    /// The icons' palette for this theme (`rapidr_icons`' palettes:
+    /// `classic`, `modern` — RapidR's light —, `dark`, `highcontrast`).
+    pub fn icon_palette(&self) -> &'static str {
+        if self.look == Look::Classic {
+            "classic"
+        } else if self.contrast {
+            "highcontrast"
+        } else if self.dark {
+            "dark"
+        } else {
+            "modern"
+        }
     }
 
     /// Windows' system colour `index` (GetSysColor's COLOR_…, a Delphi
@@ -782,7 +877,8 @@ impl Theme {
             border_strong,
             radius: _,
             focus_width: _,
-            ring_fields: _,
+            shadow_ink,
+            shadow_alpha: _,
         } = *self;
         vec![
             ("face", face),
@@ -842,6 +938,7 @@ impl Theme {
             ("border", border),
             ("border_hot", border_hot),
             ("border_strong", border_strong),
+            ("elevation", shadow_ink),
         ]
     }
 }
@@ -885,6 +982,8 @@ mod tests {
             ("accent (pressed)", t.accent_text, t.accent_pressed),
             ("pressed", t.text_on(t.control_pressed), t.control_pressed),
             ("hot text on window", t.hot_text, t.window),
+            ("hot text on face", t.hot_text, t.face),
+            ("an unfocused selection", t.text, t.unfocused),
         ]
     }
 
@@ -926,7 +1025,9 @@ mod tests {
     fn one_accent() {
         assert_eq!((RAPIDR.accent, RAPIDR.highlight, RAPIDR.toggled, RAPIDR.slider), (ACCENT, ACCENT, ACCENT, ACCENT));
         assert_eq!(RAPIDR_DARK.highlight, ACCENT);
-        assert_eq!(RAPIDR_DARK.accent, mix(ACCENT, 0xFFFFFF, 400));
+        assert_eq!((RAPIDR_DARK.accent, RAPIDR_DARK.focus), (brand::BLUE_ON_DARK, brand::BLUE_ON_DARK));
+        // (the brand's: Ink text on Paper, the focus ring RapidR Blue)
+        assert_eq!((RAPIDR.focus, RAPIDR.text, RAPIDR.face), (ACCENT, brand::INK, brand::PAPER));
         assert_eq!(mix(0x000000, 0xFFFFFF, 500), 0x808080);
         assert_eq!(mix(0x123456, 0xABCDEF, 0), 0x123456);
         assert_eq!(mix(0x123456, 0xABCDEF, 1000), 0xABCDEF);
@@ -934,13 +1035,14 @@ mod tests {
 
     #[test]
     fn names_go_to_the_nearest_look() {
-        for n in ["", "rapidr", "RapidR", "System", "auto"] {
+        for n in ["", "rapidr", "RapidR", "auto"] {
             assert_eq!(choose(n), Choice::Auto, "{n}");
         }
-        for n in ["Classic", "rapidq", "Windows", "win95", "Win98", "Win2K", "base"] {
+        // (every name the classic look answered to stays classic)
+        for n in ["Classic", "rapidq", "System", "Light", "Windows", "win95", "Win98", "Win2K", "base"] {
             assert_eq!(choose(n), Choice::Theme(&CLASSIC), "{n}");
         }
-        for n in ["rapidr light", "RapidR-Light", "light", "modern", "Fluent", "win11", "metro", "aero", "aquaclassic", "greybird", "gleam", "plastic", "blue"] {
+        for n in ["rapidr light", "RapidR-Light", "modern", "Fluent", "win11", "metro", "aero", "aquaclassic", "greybird", "gleam", "plastic", "blue"] {
             assert_eq!(choose(n), Choice::Theme(&RAPIDR), "{n}");
         }
         for n in ["rapidr dark", "RapidR_Dark", "Dark"] {
@@ -991,7 +1093,7 @@ mod tests {
         // The classic look: RapidQ's black, whatever it's on.
         assert_eq!(CLASSIC.text_on(0x000000), 0x000000);
         // Dark: white on its own colours, black on a white the program chose.
-        assert_eq!(RAPIDR_DARK.text_on(RAPIDR_DARK.face), 0xFFFFFF);
+        assert_eq!(RAPIDR_DARK.text_on(RAPIDR_DARK.face), RAPIDR_DARK.text);
         assert_eq!(RAPIDR_DARK.text_on(0xFFFFFF), 0x000000);
         assert_eq!(RAPIDR.text_on(0x000080), 0xFFFFFF);
         assert_eq!(bgr(0x0078D7), 0xD77800);

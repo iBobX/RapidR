@@ -102,6 +102,7 @@ SUB DefineCommands
   AddCmd "view.theme.highcontrast", "RapidR &High Contrast", "View/Theme", "", "", "", "-"
   AddSep "View/Theme"
   AddCmd "view.theme.classic", "&Classic (RapidQ's Windows)", "View/Theme", "", "", "", "-"
+  DefinePreviewCommands
   AddSubmenu "View", "Documents", "&Documents As"
   AddCmd "view.documents.mdi", "&Windows (MDI)", "View/Documents", "", "", "", "-"
   AddCmd "view.documents.tabs", "&Tabs", "View/Documents", "", "", "", "-"
@@ -284,7 +285,7 @@ SUB BuildToolBar
   AddToolSep
   AddTool "designer.alignLeft": AddTool "designer.alignTop": AddTool "designer.sameWidth": AddTool "designer.bringToFront"
   AddToolSep
-  AddTool "view.commandPalette": AddTool "view.settings"
+  AddPreviewTool: AddTool "view.commandPalette": AddTool "view.settings"
 END SUB
 
 ' The tool bar's icons, drawn in the current theme (again after a switch).
@@ -348,6 +349,7 @@ SUB UpdateCommands
   CheckCmd "view.theme.classic", ThemeChoice = "classic"
   CheckCmd "view.documents.mdi", DocumentMode = "mdi"
   CheckCmd "view.documents.tabs", DocumentMode = "tabs"
+  CheckCmd "view.previewClassic", PreviewClassic
 END SUB
 
 SUB MenuPicked(Sender AS QMENUITEM)

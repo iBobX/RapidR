@@ -202,8 +202,14 @@ pub fn lines(caption: &str, font: &Font, wrap: Option<i64>) -> Vec<String> {
 }
 
 /// The size `caption` takes in `font` (DrawText's DT_CALCRECT): lines at
-/// CR LF / CR / LF, wrapped to `wrap` pixels when WordWrap is on.
+/// CR LF / CR / LF, wrapped to `wrap` pixels when WordWrap is on. Measured
+/// as RapidQ measures in every theme (`theme::rapidq_metrics`): a label's
+/// size is RC.EXE's whatever face the theme draws its text in.
 pub fn text_extent(caption: &str, font: &Font, wrap: Option<i64>) -> (i64, i64) {
+    crate::theme::rapidq_metrics(|| rapidq_extent(caption, font, wrap))
+}
+
+fn rapidq_extent(caption: &str, font: &Font, wrap: Option<i64>) -> (i64, i64) {
     let mut text = shown(caption);
     // (Delphi's DoDrawText measures an empty caption, or a lone `&`, as a
     // space)

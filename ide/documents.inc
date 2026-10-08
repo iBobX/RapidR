@@ -281,6 +281,7 @@ SUB OpenDocument(Path AS STRING)
   title = FileTitle(Path)
   IF DocHasForm(d) THEN
     DesignDoc(d).Width = 640: DesignDoc(d).Height = 420
+    DesignDoc(d).Theme = PreviewTheme
     Dock.AddPane(DesignDoc(d), title + " [Design]", "documents", "form")
   END IF
   Dock.AddPane(CodeDoc(d), title, "documents", "code")

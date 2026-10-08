@@ -75,7 +75,16 @@ pub fn call(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, Stri
 pub fn icon_svg(name: &str, size: i64, theme: Option<&str>) -> Result<String, String> {
     let icon = rapidr_icons::get(name).ok_or_else(|| format!("no icon named {name}"))?;
     let size = size.clamp(1, 1024) as u32;
-    let theme = theme.filter(|t| !t.trim().is_empty()).map_or_else(|| crate::theme::current().name.to_string(), str::to_string);
+    // (a theme's name — the current one's, or one named — as the icons'
+    // palettes are named: classic, modern, dark, highcontrast)
+    let named = match theme.filter(|t| !t.trim().is_empty()) {
+        Some(n) => match crate::theme::choose(n) {
+            crate::theme::Choice::Theme(t) => t,
+            _ => crate::theme::current(),
+        },
+        None => crate::theme::current(),
+    };
+    let theme = named.icon_palette();
     let device = size * display_scale().max(1) as u32;
     let (variant, _) = rapidr_icons::variant_for(device);
     let svg = rapidr_icons::themed_svg(icon, variant, &rapidr_icons::Style::new(&theme));

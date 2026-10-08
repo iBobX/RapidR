@@ -23,7 +23,7 @@
 //!   colours.
 
 use crate::objects::font::Font;
-use crate::theme::{Look, Theme};
+use crate::theme::{brand, mix, Look, Theme};
 
 /// The font of the chrome a theme draws that a program gives no font to
 /// (menus, MDI windows' titles, tooltips, the dialogs the kernel draws —
@@ -105,36 +105,37 @@ const CLASSIC_EDITOR: EditorColors = EditorColors {
     italic_comments: true,
 };
 
-/// Visual Studio 2022's light editor.
+/// RapidR's light editor: white, Ink text, the brand's deep blue and
+/// teal for keywords and comments.
 const MODERN_EDITOR: EditorColors = EditorColors {
     background: 0xFFFFFF,
-    text: 0x1B1B1B,
+    text: brand::INK,
     gutter: 0xFFFFFF,
-    line_number: 0x8A8A8A,
-    current_line: 0xF3F7FC,
-    selection: 0xADD6FF,
-    keyword: 0x0000FF,
+    line_number: 0x8A93A6,
+    current_line: 0xF3F6FC,
+    selection: mix(0xFFFFFF, brand::BLUE, 200),
+    keyword: brand::BLUE_DEEP,
     string: 0xA31515,
-    comment: 0x008000,
-    number: 0x098658,
-    directive: 0xAF00DB,
+    comment: brand::TEAL_DEEP,
+    number: 0x8A4B08,
+    directive: 0x8B2FC9,
     bold_keywords: false,
     italic_comments: false,
 };
 
-/// Visual Studio Code's Dark+.
+/// RapidR's dark editor: the Ink ground, Blue on Dark keywords.
 const DARK_EDITOR: EditorColors = EditorColors {
-    background: 0x1E1E1E,
-    text: 0xD4D4D4,
-    gutter: 0x1E1E1E,
-    line_number: 0x858585,
-    current_line: 0x282828,
-    selection: 0x264F78,
-    keyword: 0x569CD6,
-    string: 0xCE9178,
-    comment: 0x6A9955,
-    number: 0xB5CEA8,
-    directive: 0xC586C0,
+    background: mix(brand::INK, 0xFFFFFF, 15),
+    text: brand::BOARD,
+    gutter: mix(brand::INK, 0xFFFFFF, 15),
+    line_number: 0x6B7590,
+    current_line: mix(brand::INK, 0xFFFFFF, 50),
+    selection: mix(brand::INK, brand::BLUE, 400),
+    keyword: brand::BLUE_ON_DARK,
+    string: 0xE8A07A,
+    comment: 0x5FBF9A,
+    number: brand::AMBER,
+    directive: 0xC792EA,
     bold_keywords: false,
     italic_comments: false,
 };
@@ -215,45 +216,30 @@ pub fn ide(t: &Theme) -> IdeColors {
             editor,
         };
     }
-    if t.dark {
-        return IdeColors {
-            toolbar: t.face,
-            toolbar_border: 0x2B2B2B,
-            separator: 0x3D3D3D,
-            // (RapidR's blue itself: white reads on it)
-            status: crate::theme::ACCENT,
-            status_text: 0xFFFFFF,
-            status_running: 0x0E7A0D,
-            status_debugging: 0xB4500E,
-            status_error: 0xC42B1C,
-            status_state_text: 0xFFFFFF,
-            page: 0x1E1E1E,
-            page_text: 0xE6E6E6,
-            page_dim: 0x9D9D9D,
-            page_heading: 0xFFFFFF,
-            page_link: t.accent,
-            card: 0x2B2B2B,
-            card_border: 0x3D3D3D,
-            editor,
-        };
-    }
+    // RapidR's look, light and dark: the bars on the window's surface, a
+    // hairline under them; the status bar quiet at rest (the surface, the
+    // secondary text), in a state's colour while the program runs, is
+    // paused or failed; the start page on the fields' ground, its cards
+    // raised like buttons.
+    let (running, debugging, error) = (brand::TEAL_DEEP, 0xB45309, 0xC42B1C);
+    let dim = if t.dark { 0x8F99B0 } else { brand::SLATE };
     IdeColors {
         toolbar: t.face,
-        toolbar_border: 0xE5E5E5,
-        separator: 0xD1D1D1,
-        status: t.accent,
-        status_text: 0xFFFFFF,
-        status_running: 0x0F7B0F,
-        status_debugging: 0xC4500E,
-        status_error: 0xC42B1C,
+        toolbar_border: t.border,
+        separator: t.border,
+        status: t.face,
+        status_text: dim,
+        status_running: running,
+        status_debugging: debugging,
+        status_error: error,
         status_state_text: 0xFFFFFF,
-        page: 0xFFFFFF,
-        page_text: 0x1B1B1B,
-        page_dim: 0x616161,
-        page_heading: 0x1B1B1B,
+        page: t.window,
+        page_text: t.text,
+        page_dim: dim,
+        page_heading: t.text,
         page_link: t.hot_text,
-        card: 0xF9F9F9,
-        card_border: 0xE5E5E5,
+        card: t.control,
+        card_border: t.border,
         editor,
     }
 }
@@ -344,8 +330,8 @@ mod tests {
     #[test]
     fn colours_by_name() {
         assert_eq!(color_by_name(&CLASSIC, "Face"), Some(CLASSIC.face));
-        assert_eq!(color_by_name(&crate::theme::RAPIDR_DARK, "statusbar.running"), Some(0x0E7A0D));
-        assert_eq!(color_by_name(&crate::theme::RAPIDR, "Editor Keyword"), Some(0x0000FF));
+        assert_eq!(color_by_name(&crate::theme::RAPIDR_DARK, "statusbar.running"), Some(brand::TEAL_DEEP));
+        assert_eq!(color_by_name(&crate::theme::RAPIDR, "Editor Keyword"), Some(brand::BLUE_DEEP));
         assert_eq!(color_by_name(&CLASSIC, "nope"), None);
     }
 }

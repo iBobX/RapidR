@@ -78,7 +78,10 @@ pub const BUILTIN_FONTS: [&[u8]; 8] = [SANS, SERIF, MONO, RSANS, INTER, INTER_SE
 pub fn family_name(name: &str) -> &'static str {
     let n = name.to_ascii_lowercase();
     let n = n.trim();
-    if is_default_face(n) {
+    if n == "rapidr sans" {
+        // (the classic look's face by its own name: in every theme)
+        "RapidR Sans"
+    } else if is_default_face(n) {
         // (RapidQ's default font: the theme's face for it — Inter in
         // RapidR's look, RapidR Sans in the classic one)
         crate::theme::current().ui_face.map_or("RapidR Sans", |(face, _)| face)

@@ -99,6 +99,7 @@ SUB RunCommand(Id AS STRING)
     CASE "view.theme.dark": SetTheme "rapidr dark"
     CASE "view.theme.highcontrast": SetTheme "rapidr high contrast"
     CASE "view.theme.classic": SetTheme "classic"
+    CASE "view.previewClassic": TogglePreviewClassic
     CASE "view.documents.mdi"
       DocumentMode = "mdi": Dock.DocumentMode = "mdi": UpdateCommands
     CASE "view.documents.tabs"
@@ -283,6 +284,7 @@ SUB StartStudio
   ' (alone, the start page fills the documents area)
   Dock.DocumentState("welcome", 2)
   LayOutWelcome
+  ApplyPreview
   IF startFile <> "" THEN OpenProject startFile
   UpdateTitle
   UpdateCommands

@@ -5,21 +5,27 @@
 //! wherever the kernel draws one. (On the desktop a form's window is the
 //! system's, as an RC.EXE program's is; only its inside is the kernel's.)
 //!
-//! - **RapidR's look** (light, dark): RapidR Studio's windows — a light
-//!   window whose title bar is its surface, touched by the accent while
-//!   it's active (the theme's caption colours), a hairline frame rounded
-//!   7 pixels with a thin accent line on top of the active one, the title
-//!   in the chrome font, the buttons as thin glyphs with no bevel (under
-//!   the mouse: a soft fill, the close button red). High contrast: the
-//!   theme's strong title bar, every edge framed.
-//! - **Classic**: Windows 98 / 2000's at 1× ([`Metrics::classic`]: an
-//!   18-pixel title bar, 16 × 14 buttons — minimize and maximize side by
-//!   side, the close button two pixels apart — a 4-pixel raised border, 3
-//!   when the window can't be resized), scaled whole at 2×.
+//! - **RapidR's look** (light, dark): RapidR Studio's windows — the title
+//!   bar the window's own surface, a hairline under it and around the
+//!   window, corners rounded as the theme's panels ([`Theme::panel_radius`];
+//!   a web page's window also lifted off the page by its host's shadow),
+//!   the title in the chrome font (Inter), dimmed while the window isn't
+//!   the active one, the buttons as thin glyphs with no bevel (under the
+//!   mouse a soft fill, the close button red). High contrast: the theme's
+//!   strong title bar, every edge framed.
+//! - **Classic**: Windows 98 / 2000's ([`Metrics::classic`]): the title
+//!   bar in the caption colour, the title in MS Sans Serif bold, its
+//!   buttons Windows' own 16 × 14 bevelled ones with their pixel glyphs
+//!   (minimize and maximize side by side, the close button two pixels
+//!   apart), centred in the bar — at 2× the same shapes twice as big, never
+//!   a bigger button.
 //!
 //! A frame never changes a form's sizes: Width / Height and ClientWidth /
-//! ClientHeight are `rapidr_value::layout::form_frame`'s in every look;
-//! what a host draws around the inside is only drawn.
+//! ClientHeight are `rapidr_value::layout::form_frame`'s in every look (a
+//! 1-pixel border, a 29-pixel title bar); what a host draws around the
+//! inside is only drawn.
+//!
+//! [`Theme::panel_radius`]: rapidr_value::theme::Theme::panel_radius
 
 use std::sync::Arc;
 
@@ -60,18 +66,21 @@ pub struct Metrics {
 }
 
 impl Metrics {
-    /// Windows 98 / 2000's window frame at 96 dpi (SM_CYCAPTION 19: an
-    /// 18-pixel title bar; SM_CXSIZE × SM_CYSIZE 18 × 18: 16 × 14 buttons;
-    /// SM_CXFRAME 4, SM_CXFIXEDFRAME 3).
-    pub fn classic(resizable: bool) -> Metrics {
+    /// Windows' classic window frame in the frame every runtime accounts a
+    /// form with (`layout::form_frame`: a 1-pixel border, a 29-pixel title
+    /// bar): Windows 98 / 2000's buttons at their own size (SM_CXSIZE ×
+    /// SM_CYSIZE 18 × 18 at 96 dpi: 16 × 14 buttons, two pixels in from the
+    /// right, the close button two apart), centred in the bar.
+    pub fn classic() -> Metrics {
+        let caption = rapidr_value::layout::FORM_CAPTION;
         Metrics {
-            border: if resizable { 4 } else { 3 },
-            caption: 18,
+            border: rapidr_value::layout::FORM_BORDER,
+            caption,
             button: (16, 14),
             right: 2,
             gap: 2,
             spacing: 0,
-            top: 2,
+            top: (caption - 14) / 2,
             radius: 0.0,
         }
     }
@@ -89,7 +98,7 @@ impl Metrics {
             gap: 0,
             spacing: 0,
             top: 0,
-            radius: if maximized { 0.0 } else { 7.0 },
+            radius: if maximized { 0.0 } else { rapidr_value::theme::current().panel_radius() },
         }
     }
 
@@ -105,16 +114,17 @@ impl Metrics {
             gap: 3,
             spacing: 3,
             top: 2,
-            radius: 7.0,
+            radius: rapidr_value::theme::current().panel_radius(),
         }
     }
 
-    /// A top-level window's frame in `t`.
-    pub fn window(t: &Theme, resizable: bool, maximized: bool) -> Metrics {
+    /// A top-level window's frame in `t`: the same border and title bar in
+    /// every look (only what's drawn in them differs).
+    pub fn window(t: &Theme, maximized: bool) -> Metrics {
         if t.fluent() {
             Metrics::rapidr(maximized)
         } else {
-            Metrics::classic(resizable)
+            Metrics::classic()
         }
     }
 
@@ -191,15 +201,20 @@ const CLOSE_PRESSED: u32 = 0xC84031;
 pub fn paint(p: &mut Painter, (w, h): (i64, i64), chrome: &Chrome, m: &Metrics) {
     let t = p.theme();
     let (bx, by, bw, bh) = m.title_bar(w);
-    let (mut bar, mut ink) = if chrome.active {
+    let (bar, mut ink) = if chrome.active {
         (t.caption, t.caption_text)
     } else {
         (t.inactive_caption, t.inactive_caption_text)
     };
     if !t.fluent() {
         p.fill((0, 0, w, h), t.face);
-        // (a window's raised border)
-        p.raised_edge((0, 0, w, h));
+        // (a window's raised border: its outermost line, lit above and
+        // left — a thicker one where the frame has room)
+        if m.border >= 2 {
+            p.raised_edge((0, 0, w, h));
+        } else {
+            p.edge((0, 0, w, h), &[t.light3d], &[t.dark_shadow]);
+        }
         p.fill((bx, by, bw, bh), bar);
     } else if t.contrast {
         p.fill((0, 0, w, h), t.face);
@@ -210,30 +225,16 @@ pub fn paint(p: &mut Painter, (w, h): (i64, i64), chrome: &Chrome, m: &Metrics) 
         // (the title bar reaches the frame)
         p.fill((1, 1, w - 2, bh + m.border - 1), bar);
     } else {
-        // (a light window, its title bar the window's surface; the accent
-        // only in the active one's frame and a thin line on top)
+        // (the window's surface, its title bar a step apart from it, a
+        // hairline under the bar and around the window)
         let surface = t.face;
         let radius = if chrome.maximized { 0.0 } else { m.radius };
-        let line = if chrome.active {
-            rapidr_value::theme::mix(t.accent, surface, 250)
-        } else {
-            t.border
-        };
         p.round((0, 0, w, h), radius, Some(surface), None, 1.0);
         p.clipped((0, 0, w, bh + m.border), |p| {
             p.round((0, 0, w, h), radius, Some(bar), None, 1.0)
         });
-        p.fill(
-            (1, bh + m.border, w - 2, 1),
-            rapidr_value::theme::mix(t.border, surface, 300),
-        );
-        p.round((0, 0, w, h), radius, None, Some(line), 1.0);
-        if chrome.active && !chrome.maximized {
-            p.clipped((0, 0, w, 2), |p| {
-                p.round((0, 0, w, h), radius, Some(t.accent), None, 1.0)
-            });
-        }
-        bar = surface;
+        p.fill((1, bh + m.border - 1, w - 2, 1), t.border);
+        p.round((0, 0, w, h), radius, None, Some(if chrome.active { t.border_hot } else { t.border }), 1.0);
         if !chrome.active {
             ink = t.inactive_caption_text;
         }
@@ -461,32 +462,34 @@ mod tests {
     ];
 
     #[test]
-    fn classic_is_windows_98s() {
-        // An 18-pixel title bar, 16 × 14 buttons two pixels in from the
-        // right, minimize and maximize together, the close button apart.
-        let m = Metrics::classic(true);
+    fn classic_is_windows_98s_buttons_in_every_runtimes_frame() {
+        // The frame every runtime accounts a form with (a 1-pixel border, a
+        // 29-pixel title bar); Windows' 16 × 14 buttons two pixels in from
+        // the right, centred in the bar, minimize and maximize together, the
+        // close button apart.
+        let m = Metrics::classic();
         assert_eq!(
             (m.border, m.caption, m.inset(), m.around()),
-            (4, 18, (4, 22), (8, 26))
+            (1, 29, (1, 30), rapidr_value::layout::form_frame(2))
         );
         let r = m.buttons(300, &[Button::Close, Button::Maximize, Button::Minimize]);
         assert_eq!(
             r,
             vec![
-                (Button::Close, (278, 6, 16, 14)),
-                (Button::Maximize, (260, 6, 16, 14)),
-                (Button::Minimize, (244, 6, 16, 14))
+                (Button::Close, (281, 8, 16, 14)),
+                (Button::Maximize, (263, 8, 16, 14)),
+                (Button::Minimize, (247, 8, 16, 14))
             ]
         );
-        assert_eq!(Metrics::classic(false).border, 3);
-        assert_eq!(hit(&m, 300, &ALL, 285.0, 10.0), Part::Button(Button::Close));
+        assert_eq!(hit(&m, 300, &ALL, 288.0, 12.0), Part::Button(Button::Close));
         assert_eq!(
-            hit(&m, 300, &ALL, 277.0, 10.0),
+            hit(&m, 300, &ALL, 280.0, 12.0),
             Part::Title,
             "between the buttons"
         );
+        assert_eq!(hit(&m, 300, &ALL, 288.0, 4.0), Part::Title, "above the button");
         assert_eq!(hit(&m, 300, &ALL, 100.0, 10.0), Part::Title);
-        assert_eq!(hit(&m, 300, &ALL, 100.0, 30.0), Part::None);
+        assert_eq!(hit(&m, 300, &ALL, 100.0, 31.0), Part::None);
         assert_eq!(
             hit(
                 &m,
@@ -496,8 +499,8 @@ mod tests {
                     (Button::Maximize, false),
                     (Button::Minimize, true)
                 ],
-                265.0,
-                10.0
+                268.0,
+                12.0
             ),
             Part::Title
         );
@@ -513,5 +516,9 @@ mod tests {
         assert_eq!(r[0], (Button::Close, (279, 1, 40, 29)));
         assert_eq!(r[2], (Button::Minimize, (199, 1, 40, 29)));
         assert_eq!(Metrics::rapidr(true).radius, 0.0);
+        // (no theme moves the inside: the same border and title bar)
+        for t in rapidr_value::theme::ALL {
+            assert_eq!(Metrics::window(t, false).inset(), (1, 30), "{}", t.name);
+        }
     }
 }

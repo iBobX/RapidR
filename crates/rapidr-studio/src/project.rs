@@ -279,7 +279,7 @@ mod tests {
     struct Quiet;
     impl Host for Quiet {
         fn fire(self, _name: &str, _event: &str, _args: &[Value]) {}
-        fn launch(self, _p: &str, _a: &[String]) -> Result<Box<dyn crate::Transport>, String> {
+        fn launch(self, _p: &str, _a: &[String], _t: &str) -> Result<Box<dyn crate::Transport>, String> {
             Err("no".into())
         }
         fn list_files(self, folder: &str) -> Vec<String> {

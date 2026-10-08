@@ -26,7 +26,7 @@ impl Font {
             // (MS Sans Serif is a bitmap font: 9, 11 and 13 points show its
             // 8, 10 and 12, RapidQ's capture)
             let points = match self.size {
-                9 | 11 | 13 if default_face => self.size - 1,
+                9 | 11 | 13 if default_face || self.name.trim().eq_ignore_ascii_case("rapidr sans") => self.size - 1,
                 p => p,
             };
             (points.clamp(1, 1_000) * 96 + 36) / 72

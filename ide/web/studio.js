@@ -155,7 +155,7 @@ function closeFrame() {
 }
 
 window.RAPIDR_STUDIO_HOST = {
-  run(bytes, program, args) {
+  run(bytes, program, args, theme) {
     closeFrame();
     const generation = run.generation;
     const box = document.createElement("div");
@@ -177,7 +177,7 @@ window.RAPIDR_STUDIO_HOST = {
       run.port = channel.port1;
       run.port.onmessage = frameMessage;
       frame.contentWindow.postMessage({
-        __rapidr_boot: { ...files, session: { bytes, program }, args: Array.from(args || []), storage: {}, filePickers: false },
+        __rapidr_boot: { ...files, session: { bytes, program }, args: Array.from(args || []), theme: theme || "", storage: {}, filePickers: false },
       }, "*", [channel.port2]);
     };
     window.addEventListener("message", hello);

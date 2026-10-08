@@ -58,6 +58,7 @@ properties = [
   { name = "Args", type = "string", doc = "Its command line arguments, as COMMAND$ reads them (spaces separate them, quotes keep spaces)." },
   { name = "Debug", type = "bool", default = true, doc = "Run under the debugger: breakpoints stop it, stepping works." },
   { name = "BreakOnError", type = "bool", default = false, doc = "Stop at the statement of a run-time error." },
+  { name = "Theme", type = "string", doc = "The look the program is drawn in when it names none (any name `$THEME` takes; \"\" its default, RapidR's look): `classic` previews it as RapidQ drew it." },
   { name = "State", type = "string", access = "read", design = false, doc = "\"stopped\", \"running\" or \"paused\"." },
   { name = "CurrentFile", type = "string", access = "read", design = false, doc = "Where the program is paused: its file." },
   { name = "CurrentLine", type = "int", access = "read", design = false, doc = "Where the program is paused: its line (from 1; 0 when not paused)." },

@@ -54,6 +54,8 @@ fn demo_store() -> MemStore {
 
 /// The demo form's kernel side, painted once at 1x (as a shown window is).
 fn setup() -> (MemStore, FormUi, TextSystem) {
+    // (RapidQ's look, checked op for op: the classic theme, named)
+    rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
     let store = demo_store();
     let mut ts = TextSystem::new();
     let mut f = FormUi::build(&store, "form", false);
@@ -431,6 +433,8 @@ fn read_only_max_length_and_char_case_apply_to_typing() {
 
 #[test]
 fn display_list_of_a_simple_form() {
+    // (RapidQ's look, checked op for op: the classic theme, named)
+    rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
     let mut s = MemStore::new();
     s.add("f", "RFORM", None).set("f", "clientwidth", v_int(200)).set("f", "clientheight", v_int(80)).set("f", "color", v_int(0xFFFFFF));
     s.add("l", "RLABEL", Some("f")).set("l", "caption", v_str("&Hello")).set("l", "left", v_int(8)).set("l", "top", v_int(8));
@@ -604,6 +608,8 @@ fn kinds_agree_with_the_shared_rules() {
 /// wide as `TextWidth` (`text::text_size`) measures it.
 #[test]
 fn text_measurement_matches_text_width() {
+    // (RapidQ's look, checked op for op: the classic theme, named)
+    rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
     let mut ts = TextSystem::new();
     let strings = ["Hello, World", "AVAWAY To Ty", "Grüße, ñandú", "office fi fl", "1234567890", "Wally's iiii MMMM", "OK"];
     for (name, size, styles) in [("Arial", 10, 0), ("Times New Roman", 12, 0), ("Courier New", 9, 0), ("MS Sans Serif", 8, 0), ("Arial", 14, 2), ("Arial", -16, 0)] {
@@ -846,19 +852,36 @@ fn every_theme_draws_the_main_components_in_its_own_colours() {
 #[test]
 fn a_theme_changes_no_geometry() {
     use rapidr_value::theme::ALL;
-    // (where each component is drawn, clipped to it: the same in every
-    // theme, as the mouse and the program find it)
+    // (where each component is — as the mouse, a screen reader and the
+    // program find it — the same in every theme)
     let s = themed_store();
-    let clips = |dump: &str| dump.lines().filter(|l| l.starts_with("clip ")).map(str::to_string).collect::<Vec<_>>();
-    let first = clips(&themed_dump(&s, ALL[0]));
+    let rects = |t: &'static rapidr_value::theme::Theme| {
+        let was = rapidr_value::theme::current();
+        rapidr_value::theme::set(t);
+        let mut ts = TextSystem::new();
+        let mut f = FormUi::build(&s, "tf", false);
+        let _ = f.paint(&s, &mut ts, 1.0);
+        let tree = f.access_tree(&s, &mut ts);
+        rapidr_value::theme::set(was);
+        fn walk(n: &rapidr_value::objects::a11y::AccessNode, out: &mut Vec<(String, (i64, i64, i64, i64))>) {
+            out.push((n.name.clone(), n.bounds));
+            n.children.iter().for_each(|c| walk(c, out));
+        }
+        let mut out = Vec::new();
+        walk(&tree, &mut out);
+        out
+    };
+    let first = rects(ALL[0]);
     assert!(first.len() > 10);
     for t in &ALL[1..] {
-        assert_eq!(clips(&themed_dump(&s, t)), first, "{}", t.name);
+        assert_eq!(rects(t), first, "{}", t.name);
     }
 }
 
 #[test]
 fn switching_the_theme_repaints_in_the_new_one() {
+    // (RapidQ's look, checked op for op: the classic theme, named)
+    rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
     use rapidr_value::theme::{self, CLASSIC, RAPIDR_DARK as DARK};
     let s = themed_store();
     let mut ts = TextSystem::new();
@@ -869,5 +892,5 @@ fn switching_the_theme_repaints_in_the_new_one() {
     theme::set(&CLASSIC);
     // (the edit's box: white, then the dark theme's window, rounded)
     assert!(before.contains("fill 0,0 120x22 #ffffff @8,48"), "{before}");
-    assert!(after.contains(&format!("round 0,0 120x22 r4 fill #{:06x}", DARK.window)), "{after}");
+    assert!(after.contains(&format!("round 0,0 120x22 r{} fill #{:06x}", DARK.radius, DARK.window)), "{after}");
 }

@@ -224,6 +224,9 @@ pub struct DesignSurface {
     pub show_pins: bool,
     /// The rubber band being drawn (form coordinates).
     band: Option<LRect>,
+    /// The look the designed form is drawn in (Theme: `$THEME`'s names;
+    /// "" the surface's own) — RapidR Studio's "Preview in classic".
+    pub theme: String,
 }
 
 impl Default for DesignSurface {
@@ -234,7 +237,7 @@ impl Default for DesignSurface {
         for (p, v) in [("BorderStyle", "0"), ("Width", "640"), ("Height", "480")] {
             let _ = Command::SetProp { node: root, name: p.into(), value: Some(v.into()) }.apply(&mut design);
         }
-        DesignSurface { designer: Designer::new(design), form_caption: "Form1".into(), selected_raw: -1, size: (640, 480), drag: None, guides: Vec::new(), preview: None, show_guides: true, show_pins: true, band: None }
+        DesignSurface { designer: Designer::new(design), form_caption: "Form1".into(), selected_raw: -1, size: (640, 480), drag: None, guides: Vec::new(), preview: None, show_guides: true, show_pins: true, band: None, theme: String::new() }
     }
 }
 
@@ -617,6 +620,7 @@ impl DesignSurface {
         Some(match prop {
             "compcount" | "count" => v_int(self.ids().len() as i64),
             "formcaption" => v_str(&self.form_caption),
+            "theme" => v_str(&self.theme),
             "selcount" => v_int(self.designer.selection.len() as i64),
             "previewwidth" => v_int(self.preview.map_or(0, |p| p.0)),
             "previewheight" => v_int(self.preview.map_or(0, |p| p.1)),
@@ -630,6 +634,7 @@ impl DesignSurface {
     pub fn set(&mut self, prop: &str, val: &Value) -> bool {
         match prop {
             "formcaption" => self.form_caption = val.to_string_val(),
+            "theme" => self.theme = val.to_string_val(),
             // (0 ends the preview)
             "previewwidth" | "previewheight" => {
                 let v = val.to_i64();
@@ -734,6 +739,29 @@ impl DesignSurface {
     /// rubber band and the form's corner grip — the chrome in the theme's
     /// tokens.
     pub fn ops(&self, w: i64, h: i64) -> Vec<Op> {
+        // (in the look its Theme names, when it names one)
+        match crate::theme::choose(&self.theme) {
+            crate::theme::Choice::Theme(t) if !self.theme.trim().is_empty() => {
+                let mut ops = crate::theme::drawn_in(t, || self.ops_now(w, h));
+                // (its default font in that look's face, whatever look the
+                // surface itself is drawn in: the classic look's RapidR Sans
+                // by name)
+                if t.ui_face.is_none() {
+                    for op in &mut ops {
+                        if let Op::Text { font, .. } = op {
+                            if crate::objects::text::is_default_face(&font.name) {
+                                font.name = "RapidR Sans".into();
+                            }
+                        }
+                    }
+                }
+                ops
+            }
+            _ => self.ops_now(w, h),
+        }
+    }
+
+    fn ops_now(&self, w: i64, h: i64) -> Vec<Op> {
         let t = crate::theme::current();
         let mut d = Draw::default();
         let (fw, fh) = self.preview.unwrap_or((w, h));

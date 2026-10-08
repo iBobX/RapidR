@@ -246,6 +246,10 @@ impl ComponentKind for Grid {
         "RSTRINGGRID"
     }
 
+    fn field(&self) -> bool {
+        true
+    }
+
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         drop_editor(cx);
         let (w, h) = (cx.width(), cx.height());
@@ -289,6 +293,15 @@ impl ComponentKind for Grid {
                         let ellipsis = has_ellipsis(&g, c, r);
                         let list = (g.col, g.row) == (c as i64, r as i64) && g.list_items(c, r).is_some();
                         let button = if ellipsis || list { rh.min(cw) } else { 0 };
+                        // (RapidR's look: the selection a tint of the accent —
+                        // grey without the focus — the current cell ringed)
+                        let (sel_fill, sel_ink) = if !t.fluent() {
+                            (t.highlight, t.highlight_text)
+                        } else if cx.state.focused {
+                            (t.selected, t.selected_text)
+                        } else {
+                            (t.unfocused, t.text)
+                        };
                         p.clipped(rect, |p| {
                             if fixed {
                                 p.fill(rect, t.face);
@@ -296,11 +309,27 @@ impl ComponentKind for Grid {
                                     p.thin_raised(rect);
                                 }
                             } else {
-                                p.fill(rect, if selected { t.highlight } else { t.window });
+                                p.fill(rect, if selected { sel_fill } else { t.window });
+                            }
+                            if t.fluent() {
+                                // (the lines over the fills, as the cells
+                                // leave them in the classic look)
+                                let (vl, hl) = if fixed { (g.has_option(GO_FIXED_VERT_LINE), g.has_option(GO_FIXED_HORZ_LINE)) } else { (g.has_option(GO_VERT_LINE), g.has_option(GO_HORZ_LINE)) };
+                                if vl {
+                                    p.fill((x + cw, y, 1, rh + 1), if fixed { t.fixed_lines } else { t.grid_lines });
+                                }
+                                if hl {
+                                    p.fill((x, y + rh, cw + 1, 1), if r + 1 == fr { t.fixed_lines } else { t.grid_lines });
+                                }
                             }
                             if !(ellipsis && text == "...") {
-                                let color = if selected { t.highlight_text } else if fixed { ink(cx.store, cx.id, &font, true, t.face) } else { text_color };
-                                p.clipped((x, y, (cw - button).max(0), rh), |p| p.text((x + 2, y + 2, (cw - 4 - button).max(0), (rh - 2).max(0)), &text, &font, color, Place::TopLeft));
+                                let color = if selected { sel_ink } else if fixed { ink(cx.store, cx.id, &font, true, t.face) } else { text_color };
+                                // (RapidQ's place, two pixels in from the
+                                // cell's top left; RapidR's look centres
+                                // the line in the row and keeps it three in)
+                                let (tx, place) = if t.fluent() { (x + 3, Place::Left) } else { (x + 2, Place::TopLeft) };
+                                let text_rect = if t.fluent() { (tx, y, (cw - 5 - button).max(0), rh) } else { (tx, y + 2, (cw - 4 - button).max(0), (rh - 2).max(0)) };
+                                p.clipped((x, y, (cw - button).max(0), rh), |p| p.text(text_rect, &text, &font, color, place));
                             }
                             if button > 0 {
                                 let b = (x + cw - button, y, button, rh);
@@ -345,7 +374,11 @@ impl ComponentKind for Grid {
                                 }
                             }
                             if current && !fixed && !g.has_option(rapidr_value::objects::grid::GO_ROW_SELECT) {
-                                p.focus(rect);
+                                if t.fluent() {
+                                    p.ring(rect, 2.0, t.focus, 2.0);
+                                } else {
+                                    p.focus(rect);
+                                }
                             }
                         });
                     }
