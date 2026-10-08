@@ -383,6 +383,7 @@ fn find(addr: i64) -> Result<(i64, Target), String> {
                 }
                 Ok((base, b.target.clone()))
             }
+            _ if crate::dll::is_pointer_stand_in(addr) => Err(format!("address {addr} is memory a DLL returned (a 64-bit pointer kept in a LONG), not the program's own: PEEK, POKE, MEMCPY and the like only reach the program's memory (VARPTR of a variable, an array element, a TYPE, or a stream's Pointer); hand the pointer back to the DLL instead")),
             _ => Err(format!("address {addr} isn't memory of this program (use VARPTR of a variable, an array element, a TYPE, or a stream's Pointer)")),
         }
     })
@@ -780,11 +781,26 @@ fn backing_of(base: i64, reserved: usize) -> (*mut u8, usize) {
     })
 }
 
+/// The length of the plain variable whose address `addr` is (a VARPTR'd
+/// LONG, a string's characters): `None` for anything else, or an address
+/// inside a block.
+pub fn variable_len(addr: i64) -> Option<usize> {
+    match find(addr) {
+        Ok((base, Target::Mirror(m))) if base == addr => Some(m.borrow().bytes.len()),
+        _ => None,
+    }
+}
+
 /// A block as a DLL sees it during a call.
 pub struct Materialized {
     base: i64,
     ptr: *mut u8,
+    /// The real memory's length (the block's reserved bytes).
+    len: usize,
     bytes: Vec<u8>,
+    /// What didn't fit the block's real memory (a variable that grew past
+    /// the room its address was given with): kept as it was.
+    tail: Vec<u8>,
 }
 
 /// Writes every live block's bytes into its real memory, for a DLL call.
@@ -796,14 +812,14 @@ pub fn materialize() -> Vec<Materialized> {
     for (base, reserved, target) in live {
         let mut bytes = contents(&target);
         let (ptr, len) = backing_of(base, reserved);
-        bytes.truncate(len);
+        let tail = if bytes.len() > len { bytes.split_off(len) } else { Vec::new() };
         // SAFETY: `ptr` has `len` writable bytes (ours: committed pages or
         // a buffer), and `bytes` is at most `len` long.
         unsafe {
             std::ptr::copy_nonoverlapping(bytes.as_ptr(), ptr, bytes.len());
             std::ptr::write_bytes(ptr.add(bytes.len()), 0, len - bytes.len());
         }
-        out.push(Materialized { base, ptr, bytes });
+        out.push(Materialized { base, ptr, len, bytes, tail });
     }
     out
 }
@@ -816,6 +832,14 @@ pub fn real_pointer(addr: i64, blocks: &[Materialized]) -> Option<usize> {
     Some(m.ptr as usize + (addr - base) as usize)
 }
 
+/// How many bytes of real memory there are from `addr` (a pointer
+/// [`real_pointer`] gave) to the end of its block's: what a DLL may write
+/// there without leaving the program's memory.
+pub fn room_at(addr: i64, blocks: &[Materialized]) -> usize {
+    let Ok((base, _)) = find(addr) else { return 0 };
+    blocks.iter().find(|m| m.base == base).map_or(0, |m| m.len.saturating_sub((addr - base) as usize))
+}
+
 /// After the call: what the DLL wrote goes back into the arrays, TYPEs,
 /// variables and streams the blocks view.
 pub fn read_back(blocks: Vec<Materialized>) {
@@ -826,7 +850,9 @@ pub fn read_back(blocks: Vec<Materialized>) {
         let now = unsafe { std::slice::from_raw_parts(m.ptr, n) };
         if now != m.bytes.as_slice() {
             if let Ok((_, t)) = find(m.base) {
-                set_contents(&t, now);
+                let mut all = now.to_vec();
+                all.extend_from_slice(&m.tail);
+                set_contents(&t, &all);
             }
         }
     }
@@ -837,6 +863,10 @@ pub fn read_back(blocks: Vec<Materialized>) {
 // ---------------------------------------------------------------------------
 
 fn bad_address(a: i64) -> String {
+    if crate::dll::is_pointer_stand_in(a) {
+        // (the same words as any memory function's)
+        return find(a).err().unwrap_or_default();
+    }
     format!("address {a} isn't memory of this program: the console's pages are addresses 0 to 3999 (PEEK [#page,] address), and VARPTR gives a variable's address")
 }
 

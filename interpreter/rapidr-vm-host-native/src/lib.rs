@@ -472,6 +472,7 @@ pub fn run_bytes(bytes: &[u8]) -> Result<(), String> {
 /// Runs `module`'s main program on `vm`; then the program's end (timers
 /// stopped, files closed).
 pub fn run_module(module: &Module, vm: &mut Vm<'_, NativeHost>) -> Result<(), String> {
+    rapidr_runtime_core::terminal::start();
     let prev = install_event_queue();
 
     let main_result = vm.run(module).map_err(|e| format!("vm error: {e}"));

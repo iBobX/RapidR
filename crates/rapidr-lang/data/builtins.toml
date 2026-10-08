@@ -498,8 +498,7 @@ doc = "Deletes a file."
 name = "KILLMESSAGE"
 syntax = "KILLMESSAGE hWnd, Message"
 group = "System"
-missing = true
-doc = "Removes pending messages of one kind from a window's message queue."
+doc = "Removes pending messages of one kind from a window's message queue (Windows' PeekMessage with PM_REMOVE). Windows only: on macOS, Linux and the web it stops the program with an error saying so. Only a form's Handle is a real window; a control's Handle names no window, so nothing happens there."
 
 [[builtin]]
 name = "LBOUND"
@@ -745,8 +744,7 @@ doc = "The console cursor's column, 1 being the first."
 name = "POSTMESSAGE"
 syntax = "POSTMESSAGE(Handle, uMsg, wParam, lParam)"
 group = "System"
-missing = true
-doc = "Puts a Windows message in a window's queue and returns without waiting for it to be handled."
+doc = "Puts a Windows message in a window's queue and returns without waiting for it to be handled (Windows' PostMessage). Windows only: on macOS, Linux and the web it stops the program with an error saying so. Only a form's Handle is a real window; a control's Handle names no window, so the message goes nowhere."
 
 [[builtin]]
 name = "RANDOMIZE"
@@ -865,8 +863,7 @@ doc = "Moves to a byte of a file opened with `OPEN`: the next read or write is t
 name = "SENDMESSAGE"
 syntax = "SENDMESSAGE(Handle, uMsg, wParam, lParam)"
 group = "System"
-missing = true
-doc = "Sends a Windows message to a window and waits for the result its window procedure returns."
+doc = "Sends a Windows message to a window and waits until its window procedure has handled it (Windows' SendMessage). Windows only: on macOS, Linux and the web it stops the program with an error saying so. Only a form's Handle is a real window; a control's Handle names no window, so the message goes nowhere — use the control's own properties and methods."
 
 [[builtin]]
 name = "SETCAPTURE"

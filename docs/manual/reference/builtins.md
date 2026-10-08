@@ -201,7 +201,7 @@ RapidQ programs get these from include files or DECLAREs (RapidQ's compiler does
 | `ENVIRON StringExpression` | `ENVIRON "NAME=value"` sets a variable in the program's environment; `ENVIRON$("NAME")` reads one ("" when unset). |
 | `INP(Address)` | Reads a byte from a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error, as it did under RapidQ on Windows. |
 | `INPW(Address)` | Reads a 16-bit word from a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error. |
-| `KILLMESSAGE hWnd, Message` *(not yet)* | Removes pending messages of one kind from a window's message queue. |
+| `KILLMESSAGE hWnd, Message` | Removes pending messages of one kind from a window's message queue (Windows' PeekMessage with PM_REMOVE). Windows only: on macOS, Linux and the web it stops the program with an error saying so. Only a form's Handle is a real window; a control's Handle names no window, so nothing happens there. |
 | `LFLUSH` | Sends what `LPRINT` has printed so far to the printer as one job; what is left at the program's end is printed then. |
 | `LIBRARYINST(DLLName)` *(not yet)* | Loads a DLL and returns its instance handle, 0 when it can't be loaded: a way to test whether a library is present. |
 | `LPRINT [Expression][;\|,][...]` | Prints to the printer as `PRINT` prints to the console; `LFLUSH` sends the job. RapidR makes each job a PDF for the system's printer. |
@@ -209,9 +209,9 @@ RapidQ programs get these from include files or DECLAREs (RapidQ's compiler does
 | `MOUSEY` *bare* | The mouse pointer's vertical position, relative to the active form's client area. |
 | `OUT(Address, bytevalue)` | Writes a byte to a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error, as it did under RapidQ on Windows. |
 | `OUTW(Address, wordvalue)` | Writes a 16-bit word to a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error. |
-| `POSTMESSAGE(Handle, uMsg, wParam, lParam)` *(not yet)* | Puts a Windows message in a window's queue and returns without waiting for it to be handled. |
+| `POSTMESSAGE(Handle, uMsg, wParam, lParam)` | Puts a Windows message in a window's queue and returns without waiting for it to be handled (Windows' PostMessage). Windows only: on macOS, Linux and the web it stops the program with an error saying so. Only a form's Handle is a real window; a control's Handle names no window, so the message goes nowhere. |
 | `RUN command$` | Starts a program (a command line) without waiting for it; returns its process ID, 0 when it couldn't start. |
-| `SENDMESSAGE(Handle, uMsg, wParam, lParam)` *(not yet)* | Sends a Windows message to a window and waits for the result its window procedure returns. |
+| `SENDMESSAGE(Handle, uMsg, wParam, lParam)` | Sends a Windows message to a window and waits until its window procedure has handled it (Windows' SendMessage). Windows only: on macOS, Linux and the web it stops the program with an error saying so. Only a form's Handle is a real window; a control's Handle names no window, so the message goes nowhere — use the control's own properties and methods. |
 | `SHELL command$` | Runs a command with the system's shell and waits until it has finished; returns its exit code. |
 | `SHELLWAIT(command$)` *(RapidR)* | Runs a command with the system's shell, waits until it has finished and returns its exit code (-1 when it couldn't run). |
 | `SLEEP Num` | Pauses the program for a number of seconds; fractions allowed (`SLEEP 0.5`). |

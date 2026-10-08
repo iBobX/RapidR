@@ -593,12 +593,87 @@ fn for_each_routine(stmts: &mut [Statement], f: &mut dyn FnMut(&str, &[Parameter
     }
 }
 
+/// RapidQ's built-ins that are Windows' message functions — `SENDMESSAGE
+/// hWnd, uMsg, wParam, lParam` (Windows' SendMessage), `POSTMESSAGE` (its
+/// PostMessage), `KILLMESSAGE hWnd, uMsg` (the message taken off the queue:
+/// PeekMessage with PM_REMOVE) — as calls of user32's own functions, the
+/// DECLAREs a program would write (docs/windows-dll-calls.md §1): made on
+/// Windows, the clear "runs on Windows only" error elsewhere. A program
+/// that DECLAREs or defines a routine of that name keeps its own.
+const MESSAGE_BUILTINS: &[(&str, &str, &str, &[&str])] = &[
+    ("sendmessage", "__rq_sendmessage", "SendMessageA", &["hWnd", "uMsg", "wParam", "lParam"]),
+    ("postmessage", "__rq_postmessage", "PostMessageA", &["hWnd", "uMsg", "wParam", "lParam"]),
+    ("killmessage", "__rq_killmessage", "PeekMessageA", &["lpMsg$", "hWnd", "wMsgFilterMin", "wMsgFilterMax", "wRemoveMsg"]),
+];
+
+fn message_builtins(program: &mut Program) {
+    let mut own = HashSet::new();
+    walk(
+        &program.statements,
+        &mut |s| match s {
+            Statement::Declare(d) => {
+                own.insert(key(&d.name));
+            }
+            Statement::Subroutine(r) => {
+                own.insert(key(&r.name));
+            }
+            Statement::Function(f) => {
+                own.insert(key(&f.name));
+            }
+            _ => {}
+        },
+        &mut |_| {},
+    );
+    let wanted: Vec<_> = MESSAGE_BUILTINS.iter().filter(|(n, ..)| !own.contains(*n)).collect();
+    if wanted.is_empty() {
+        return;
+    }
+    let mut used: HashSet<&str> = HashSet::new();
+    let rename = |callee: &mut Expression, args: &mut Vec<Expression>, used: &mut HashSet<&'static str>| {
+        let Some(n) = callee_name(callee).map(|n| key(&n)) else { return };
+        let Some((name, internal, ..)) = wanted.iter().find(|(b, ..)| *b == n) else { return };
+        used.insert(name);
+        let span = statement_expr_span(callee);
+        *callee = ident(span, internal);
+        if *name == "killmessage" && args.len() == 2 {
+            // PeekMessage(MSG buffer, hWnd, uMsg, uMsg, PM_REMOVE)
+            let m = args[1].clone();
+            *args = vec![call(span, "SPACE$", vec![int(span, 64)]), args[0].clone(), m.clone(), m, int(span, 1)];
+        }
+    };
+    walk_statements_mut(&mut program.statements, &mut |s| {
+        if let Statement::Call(c) = s {
+            rename(&mut c.callee, &mut c.args, &mut used);
+        }
+    });
+    walk_expressions_mut(&mut program.statements, true, &mut |e| {
+        if let Expression::FunctionCall(fc) = e {
+            rename(&mut fc.callee, &mut fc.args, &mut used);
+        }
+    });
+    for (name, internal, alias, params) in MESSAGE_BUILTINS.iter().rev() {
+        if !used.contains(name) {
+            continue;
+        }
+        let span = TextSpan::default();
+        let params = params
+            .iter()
+            .map(|p| Parameter { span, name: p.trim_end_matches('$').into(), type_name: if p.ends_with('$') { "STRING".into() } else { "LONG".into() }, by_ref: false, is_array: false })
+            .collect();
+        program.statements.insert(
+            0,
+            Statement::Declare(DeclareStatement { span, is_function: true, name: (*internal).into(), lib: Some("\"user32\"".into()), alias: Some(format!("\"{alias}\"")), params, return_type: Some("LONG".into()) }),
+        );
+    }
+}
+
 /// Lowers the memory functions of `program` (see the module docs).
 pub fn lower(program: &Program) -> Program {
-    if !uses_memory(program) {
-        return program.clone();
-    }
     let mut program = program.clone();
+    message_builtins(&mut program);
+    if !uses_memory(&program) {
+        return program;
+    }
     let mut types = HashMap::new();
     let mut routines = HashSet::new();
     let mut dlls: HashMap<String, Vec<Parameter>> = HashMap::new();

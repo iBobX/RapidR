@@ -17,6 +17,7 @@ pub fn is_windows_system_library(lib: &str) -> bool {
             | "msvfw32" | "vfw32" | "opengl32" | "glu32" | "ddraw" | "dsound" | "dinput" | "rasapi32"
             | "setupapi" | "powrprof" | "secur32" | "crypt32" | "dwmapi" | "uxtheme" | "winhttp"
             | "crtdll" | "lz32" | "mapi32" | "msacm32" | "rpcrt4" | "winscard" | "wintrust" | "hid"
+            | "avicap32" | "tapi32" | "icmp" | "url" | "hhctrl.ocx" | "msvbvm60"
     )
 }
 
@@ -106,6 +107,13 @@ pub const CALLBACK_MARKER: &str = "\u{0}rapidr-callback:";
 /// The error for a SUB or FUNCTION handed to a DLL as a callback.
 pub fn callback_error(name: &str, routine: &str) -> String {
     format!("'{name}' is given CODEPTR({routine}), a callback the DLL would call back into the program; RapidR doesn't pass SUBs and FUNCTIONs to DLLs yet")
+}
+
+/// The error for a DLL call in a sandboxed run (`RAPIDR_SANDBOX`: code
+/// RapidR runs without the user having started it themselves, such as an
+/// assistant's run): no library is loaded.
+pub fn sandboxed_error(name: &str) -> String {
+    format!("'{name}' is a DLL function, and this run is sandboxed (RAPIDR_SANDBOX): it calls no DLL; run the program yourself to let it")
 }
 
 /// A library of macOS's or Linux's own format, named as such (`LIB
@@ -204,6 +212,21 @@ impl Spec {
     pub fn returns_float(&self) -> bool {
         matches!(self.return_type.as_str(), "DOUBLE" | "SINGLE" | "CURRENCY")
     }
+}
+
+/// The first 32-bit stand-in for a 64-bit pointer a DLL returned where the
+/// DECLARE says LONG (`rapidr_runtime_core::ffi`: it turns back into the
+/// pointer when the program hands it to a DLL again). 0xD1E00000
+/// (-773849088): a negative LONG with a bit pattern no flag combination of
+/// Windows' makes (0xC0000000 would be `GENERIC_READ OR GENERIC_WRITE`),
+/// outside the program's own addresses (`memory`: 1 MB to 2 GB).
+pub const POINTER_STAND_IN_BASE: i64 = 0xD1E0_0000u32 as i32 as i64;
+/// How many stand-ins there can be.
+pub const POINTER_STAND_INS: usize = 1 << 16;
+
+/// Whether `v` is in the stand-ins' range.
+pub fn is_pointer_stand_in(v: i64) -> bool {
+    (POINTER_STAND_IN_BASE..POINTER_STAND_IN_BASE + POINTER_STAND_INS as i64).contains(&v)
 }
 
 /// The size in bytes of a numeric declared type (a LONG for anything else).
