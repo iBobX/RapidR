@@ -627,6 +627,15 @@ impl Shim<'_> {
         if let Some((x, y)) = spec.position {
             attrs = attrs.with_position(LogicalPosition::new(x as f64, y as f64));
         }
+        // Linux: the windows' app ID (Wayland) and WM_CLASS (X11) are the
+        // executable's name — what `rapidr build`'s desktop entry names in
+        // StartupWMClass, so the dock and the window switcher show the
+        // app's icon for them
+        #[cfg(all(unix, not(any(target_os = "macos", target_os = "ios", target_os = "android"))))]
+        if let Some(id) = std::env::current_exe().ok().and_then(|e| e.file_stem().map(|s| s.to_string_lossy().into_owned())) {
+            use winit::platform::wayland::WindowAttributesExtWayland;
+            attrs = attrs.with_name(id.clone(), id);
+        }
         let window = match el.create_window(attrs) {
             Ok(w) => Arc::new(w),
             Err(e) => {
