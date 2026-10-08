@@ -8,7 +8,7 @@
 //   python3 -m http.server -d target/studio-web 18473 --bind 127.0.0.1
 //   node tests/studio_shell.mjs [filter…]
 //
-// RAPIDR_STUDIO_URL (default http://127.0.0.1:18473) is the page's server;
+// STUDIO_WEB_URL (default http://127.0.0.1:18473/; RAPIDR_STUDIO_URL also read) is the page's server;
 // RAPIDR_STUDIO_OUT (default tests/results/studio) gets each capture as
 // <scene>-<theme>@<s>x-desktop.bmp / -web.bmp and a side-by-side
 // <scene>-<theme>@<s>x.bmp (desktop | web) to look at; RAPIDR_STUDIO_SCALES
@@ -22,7 +22,8 @@ import { chromium } from "playwright";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = dirname(HERE);
-const URL_BASE = process.env.RAPIDR_STUDIO_URL || "http://127.0.0.1:18473";
+// (STUDIO_WEB_URL: each lane serves its own build on its own port)
+const URL_BASE = (process.env.STUDIO_WEB_URL || process.env.RAPIDR_STUDIO_URL || "http://127.0.0.1:18473/").replace(/\/+$/, "");
 const OUT = process.env.RAPIDR_STUDIO_OUT || join(ROOT, "tests", "results", "studio");
 const RAPIDR = process.env.RAPIDR || join(ROOT, "rapidr");
 const SCALES = (process.env.RAPIDR_STUDIO_SCALES || "1,2").split(",").map(Number);
