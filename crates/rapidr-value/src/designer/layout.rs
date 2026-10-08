@@ -481,7 +481,9 @@ impl LayoutStore for Layout {
                     })
                 })
                 .collect();
+            let bare = self.comps.get(name).is_some_and(|c| c.ty == "RFORM" && c.border_style == Some(0));
             let s = self.scrollers.entry(name.to_string()).or_default();
+            s.bare = bare;
             let before = (s.horz.shown, s.vert.shown);
             let children: Vec<scrollbars::Child> = kids.iter().map(|(_, c)| *c).collect();
             let (dx, dy) = s.update(w, h, &children);

@@ -230,8 +230,9 @@ pub fn rp_component_array(kind: &str, name: &str, bounds: &[(i64, i64)]) -> Valu
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     // (`Label.Font.AddStyles = fsBold`: RapidQ takes the method so too)
     if let Some(changes) = rapidr_value::objects::font::component_style_call(&prop.to_ascii_lowercase(), std::slice::from_ref(&val)) {
+        let t = rp_comp_type(name);
         for (p, v) in changes {
-            rp_comp_set(name, p, v);
+            rp_comp_set(name, &rapidr_value::objects::font::style_target(&t, p), v);
         }
         return;
     }
@@ -1110,8 +1111,9 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     }
     // `Label.Font.AddStyles(fsBold)` / `DelStyles`: the component's styles.
     if let Some(changes) = rapidr_value::objects::font::component_style_call(&method_lower, args) {
+        let t = rp_comp_type(name);
         for (p, v) in changes {
-            rp_comp_set(name, p, v);
+            rp_comp_set(name, &rapidr_value::objects::font::style_target(&t, p), v);
         }
         return v_null();
     }

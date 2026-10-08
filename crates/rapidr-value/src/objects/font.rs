@@ -72,6 +72,18 @@ pub fn component_style_call(method: &str, args: &[Value]) -> Option<Vec<(&'stati
     Some(args.iter().filter_map(|a| usize::try_from(a.to_i64()).ok().and_then(|i| COMPONENT_STYLES.get(i)).map(|(flat, _)| (*flat, v_int(on)))).collect())
 }
 
+/// The property a style change from [`component_style_call`] is set as on
+/// object `type_name`: a component keeps the flat `fontbold` …, a value
+/// object with a font of its own (QBITMAP: `Bitmap.Font.AddStyles = fsBold`,
+/// RC.EXE reads its Font.Bold 1 then) its `font.bold` ….
+pub fn style_target(type_name: &str, flat: &'static str) -> String {
+    if super::TYPES.contains(&type_name) {
+        format!("font.{}", flat.strip_prefix("font").unwrap_or(flat))
+    } else {
+        flat.to_string()
+    }
+}
+
 impl Font {
     /// A style as RapidQ reads it: 1 on, 0 off (RC.EXE).
     fn flag(&self, style: usize) -> Value {

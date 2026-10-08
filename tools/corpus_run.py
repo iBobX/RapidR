@@ -353,7 +353,8 @@ def run_native(p, args):
     stem = os.path.splitext(os.path.basename(staged))[0]
     proj = os.path.join(WORK, "native", p["name"])
     shutil.rmtree(proj, ignore_errors=True)
-    code, out, err, to = run([RAPIDR, "build", staged, proj], d, env, 1800)
+    # (a plain executable, not an app: it runs headless here)
+    code, out, err, to = run([RAPIDR, "build", staged, proj, "--no-bundle"], d, env, 1800)
     exe = os.path.join(d, stem + EXE)
     if code != 0 or not os.path.exists(exe):
         truth.drop_build(args.cargo_target, stem)
