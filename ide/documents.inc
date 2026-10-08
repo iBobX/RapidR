@@ -192,6 +192,8 @@ SUB OpenDocument(Path AS STRING)
   IF DocHasForm(d) THEN Dock.AddPane(DesignDoc(d), title + " [Design]", "documents", "form")
   Dock.AddPane(CodeDoc(d), title, "documents", "code")
   ActiveDoc = d
+  ' (debug.inc: its breakpoints, the paused line, data tips)
+  DebugDocOpened d
   AnalyzeActive
   ' (editor.inc: the caret's place, encoding and line breaks; the caret in
   ' the code, ready to type, as an editor opens a file)

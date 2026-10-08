@@ -88,6 +88,74 @@ async function floatingWindows(page, scale, record) {
   }
 }
 
+// (S-DEBUG: the debugger's program and the file it includes)
+const DEBUG_FILES = ["tests/fixtures/studio_debug/counter.rr", "tests/fixtures/studio_debug/tally.inc"];
+
+// (the web) Modal dialogs stay on top: the program's modal message is over
+// its own form, whole and clickable (Enter closes it); then Studio's own
+// modal dialog (File > New Project, Ctrl+N) opened while the program's
+// window floats over Studio is over that window — and a Studio menu too.
+async function modalsOnTop(page, scale, record) {
+  const frame = () => page.frames().find((f) => f.url().endsWith("/run.html"));
+  await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+  await page.waitForTimeout(800);
+  const wins = () => frame().evaluate(() => [...document.querySelectorAll(".rr-kwin")].filter((w) => getComputedStyle(w).display !== "none").map((w) => {
+    const r = w.getBoundingClientRect();
+    return { form: w.getAttribute("data-rr-form"), z: Number(getComputedStyle(w).zIndex) || 0, x: r.left, y: r.top, w: r.width, h: r.height };
+  }));
+  const hitPage = (x, y) => page.evaluate(([x, y]) => {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return "none";
+    if (el.tagName === "IFRAME") return "program";
+    const w = el.closest(".rr-kwin");
+    return w ? "studio:" + w.getAttribute("data-rr-form") : "studio";
+  }, [x, y]);
+  const hitFrame = (x, y) => frame().evaluate(([x, y]) => {
+    const el = document.elementFromPoint(x, y);
+    const w = el && el.closest(".rr-kwin");
+    return w ? w.getAttribute("data-rr-form") : "none";
+  }, [x, y]);
+  let list = await wins();
+  record("", list.length === 2, `the program shows its form and its message (${list.map((w) => w.form).join(", ")})`);
+  const top = [...list].sort((a, b) => b.z - a.z)[0];
+  const form = list.find((w) => w !== top);
+  const cx = Math.round(top.x + top.w / 2), cy = Math.round(top.y + top.h / 2);
+  record("", form && top.z > form.z && (await hitFrame(cx, cy)) === top.form, `the message is over the program's form (z ${top.z} > ${form && form.z})`);
+  const corners = [[top.x + 3, top.y + 3], [top.x + top.w - 4, top.y + top.h - 4]];
+  const hits = await Promise.all(corners.map(([x, y]) => hitPage(x, y)));
+  record("", hits.every((h) => h === "program"), `the message shows whole over Studio (corners: ${hits.join(", ")})`);
+  await page.screenshot({ path: join(WORK, `program-modal@${scale}x.png`) });
+  await page.mouse.click(cx, cy);
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(600);
+  list = await wins();
+  record("", list.length === 1, `Enter closed the message (${list.map((w) => w.form).join(", ")})`);
+  // (Studio's own modal dialog over the program's window)
+  const prog = list[0];
+  await page.mouse.click(5, page.viewportSize().height - 5);
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+N" : "Control+N");
+  await page.waitForTimeout(800);
+  const dialog = await page.evaluate(() => {
+    const w = document.querySelector('body > .rr-kwin[data-rr-form="newdialog"]');
+    if (!w || getComputedStyle(w).display === "none") return null;
+    const r = w.getBoundingClientRect();
+    return { x: r.left, y: r.top, w: r.width, h: r.height };
+  });
+  if (!dialog) {
+    record("", false, "Studio's New Project dialog opened (Ctrl+N)");
+    return;
+  }
+  // (a point of the dialog over the program's window, if they overlap; else its centre)
+  const ox = Math.max(dialog.x, prog.x) + 6, oy = Math.max(dialog.y, prog.y) + 6;
+  const overlaps = ox < Math.min(dialog.x + dialog.w, prog.x + prog.w) && oy < Math.min(dialog.y + dialog.h, prog.y + prog.h);
+  const at = overlaps ? [ox, oy] : [dialog.x + dialog.w / 2, dialog.y + dialog.h / 2];
+  const hit = await hitPage(at[0], at[1]);
+  record("", hit === "studio:newdialog", `Studio's New Project dialog is over the program's window (${overlaps ? "they overlap" : "apart"}: ${hit})`);
+  await page.screenshot({ path: join(WORK, `studio-modal-over-program@${scale}x.png`) });
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
+}
+
 // Each case: what Studio opens and does (`do`: its commands; `events`:
 // RAPIDR_TEST_EVENTS, input through the kernel), how long it waits before
 // the properties are read, and what each must say (a regular expression;
@@ -147,6 +215,20 @@ const CASES = [
     web: floatingWindows,
     desktopFiles: ["window-program-1.bmp"],
     dump: { "session.exitcode": /^0$/, "session.error": /^$/ },
+  },
+  {
+    // modal dialogs stay on top: the program's over its form, Studio's
+    // over the program's windows (modalsOnTop); the desktop's are windows
+    name: "program-modal-on-top",
+    open: "tests/fixtures/studio_debug/modal.rr",
+    webFiles: ["tests/fixtures/studio_debug/modal.rr"],
+    do: "run.start",
+    delay: 4,
+    maximized: true,
+    viewport: { width: 1440, height: 900 },
+    scales: [1, 2],
+    web: modalsOnTop,
+    dump: { "session.error": /^$/ },
   },
   {
     // Run > Build: the app for this system (interpreted: the project says),
@@ -364,10 +446,147 @@ const CASES = [
     delay: 4,
     dump: { "projecttree.filecount": /^1$/, "palette.selected": /^line:21:Stock$/ },
   },
+  // ---- S-DEBUG: running and debugging (docs/studio-wow.md RUN / DBG) ----
+  // counter.rr includes tally.inc (AddUp, the SUB stepped into); oops.rr
+  // divides by zero in a SUB. `line:N` puts the caret on line N, F9 sets a
+  // breakpoint there; captures at 1x and 2x (desktop: the Studio window; web:
+  // the page).
+  {
+    // F9, F5: paused at the breakpoint, the globals in Variables, the stack
+    name: "debug-breakpoint",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,wait",
+    delay: 6,
+    scales: [1, 2],
+    capture: true,
+    dump: {
+      "session.state": /^paused$/,
+      "session.currentline": /^6$/,
+      "session.stopreason": /^breakpoint$/,
+      "varstree.text": /^Locals\n\t\(none\)\nGlobals\n\ti = 1\n\ttotal = 0$/,
+      "stacktree.text": /^\(the program\)\s+counter\.rr:6$/,
+      "bptree.text": /^counter\.rr:6$/,
+    },
+  },
+  {
+    // F11 into AddUp: tally.inc opens at its line (the editor follows the
+    // program into another file); F10 twice: the local k and the watch on it
+    // change; the stack has both files
+    name: "debug-step-watch",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,debug.toggleBreakpoint,watch:k,watch:total + k,run.start,wait,wait,wait,debug.stepInto,wait,wait,debug.stepOver,wait,debug.stepOver,wait,debug.stepOver,wait,wait",
+    delay: 9,
+    scales: [1, 2],
+    capture: true,
+    dump: {
+      "session.state": /^paused$/,
+      "session.currentfile": /tally\.inc$/,
+      "session.currentline": /^5$/,
+      "varstree.text": /^Locals\n\tn = 1\n\tk = 2\nGlobals\n\ti = 1\n\ttotal = 0$/,
+      "watchtree.text": /^k = 2\ntotal \+ k = 2$/,
+      "stacktree.text": /^AddUp\s+tally\.inc:5\n\(the program\)\s+counter\.rr:6$/,
+      "codedoc(1).caretline": /^5$/,
+    },
+  },
+  {
+    // a condition (i = 2): it stops once, at the second time round; "? i"
+    // in Immediate says 2; F5 goes on to the end
+    name: "debug-condition-continue",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,debug.toggleBreakpoint,bpcond:i = 2,run.start,wait,wait,wait,wait,focus:immediatebox,type:? i * 100,key:Enter,wait,wait,run.start,wait,wait,wait",
+    delay: 9,
+    dump: {
+      "bptree.text": /^counter\.rr:6  when i = 2$/,
+      "immediatebox.text": /\? i \* 100\s*\n\s*200/,
+      "session.state": /^stopped$/,
+      "session.exitcode": /^0$/,
+      "outputbox.text": /total12[\s\S]*ended, exit code 0/,
+    },
+  },
+  {
+    // a logpoint prints and goes on: the program runs to its end
+    name: "debug-logpoint",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,debug.toggleBreakpoint,bplog:adding {i},run.start,wait,wait,wait,wait",
+    delay: 6,
+    dump: {
+      "session.state": /^stopped$/,
+      "session.exitcode": /^0$/,
+      "outputbox.text": /adding 1\s*\n\s*adding 2\s*\n\s*adding 3[\s\S]*total12/,
+      "bptree.text": /^counter\.rr:6  log "adding \{i\}"$/,
+    },
+  },
+  {
+    // a hit count: it stops on the third hit only
+    name: "debug-hit-count",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,debug.toggleBreakpoint,bphit:3,run.start,wait,wait,wait,wait",
+    delay: 6,
+    dump: {
+      "session.state": /^paused$/,
+      "session.currentline": /^6$/,
+      "varstree.text": /\ti = 3\n\ttotal = 6$/,
+      "bptree.text": /^counter\.rr:6  hit 3$/,
+    },
+  },
+  {
+    // Run to Cursor from a stopped program: it starts and stops there
+    name: "debug-run-to-cursor",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:8,debug.runToCursor,wait,wait,wait,wait",
+    delay: 6,
+    dump: { "session.state": /^paused$/, "session.currentline": /^8$/, "varstree.text": /total = 12/, "bptree.text": /^$/ },
+  },
+  {
+    // a data tip: the value under a resting mouse while paused; a caller's
+    // frame picked in the Call Stack shows its line and its locals
+    name: "debug-hover-frame",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,hover:6:9,wait,debug.stepInto,wait,wait,frame:1,wait,wait",
+    delay: 7,
+    dump: { "codedoc(0).hovertext": /i = 1/, "session.frame": /^1$/, "varstree.text": /^Locals\n\t\(none\)\nGlobals/ },
+  },
+  {
+    // a run-time error stops at its line, its message at the line's end
+    name: "debug-runtime-error",
+    open: "tests/fixtures/studio_debug/oops.rr",
+    webFiles: ["tests/fixtures/studio_debug/oops.rr"],
+    do: "run.start,wait,wait,wait,view.variables",
+    delay: 6,
+    scales: [1, 2],
+    capture: true,
+    dump: {
+      "session.state": /^paused$/,
+      "session.stopreason": /^exception$/,
+      "session.currentline": /^4$/,
+      "session.stopmessage": /Division by zero/,
+      "varstree.text": /^Locals\n\tAmount = 10\nGlobals\n\tz = 0$/,
+      "outputbox.text": /before\s*\n\s*each gets\s*\n\s*oops\.rr:4: run-time error: Division by zero/,
+    },
+  },
+  {
+    // Run in Browser: the desktop serves the web build on 127.0.0.1 (the
+    // page itself: tests/run_in_browser.mjs); on the web it runs here
+    name: "run-in-browser",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "run.browser,wait,wait,wait,wait",
+    delay: 8,
+    env: { RAPIDR_NO_BROWSER: "1" },
+    dump: { "session.browserurl": /^http:\/\/127\.0\.0\.1:\d+\/[0-9a-f]{32}\/$/, "outputbox.text": /Serving http:\/\/127\.0\.0\.1/ },
+    webDump: { "session.browserurl": /^$/, "outputbox.text": /Studio runs in a browser already[\s\S]*total12/ },
+  },
 ];
 
-function runDesktop(c) {
-  const dir = join(WORK, `${c.name}-desktop`);
+function runDesktop(c, scale = 1) {
+  const dir = join(WORK, `${c.name}-desktop${scale > 1 ? `@${scale}x` : ""}`);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   const args = ["run", "ide/studio.rr", "--home", ".", "--fresh", "--theme", "rapidr-light"];
@@ -392,6 +611,8 @@ function runDesktop(c) {
       RAPIDR_CAPTURE: join(dir, "window"),
       RAPIDR_CAPTURE_DELAY: String(c.delay),
       RAPIDR_MENU: "window",
+      ...(scale > 1 ? { RAPIDR_SCALE: String(scale) } : {}),
+      ...(c.env || {}),
       RAPIDR_TEST_DUMP: Object.keys(c.dump).join(","),
       ...(c.events ? { RAPIDR_TEST_EVENTS: c.events } : {}),
       RAPIDR_PRINT_TO: join(WORK, "prints"),
@@ -402,6 +623,10 @@ function runDesktop(c) {
   const dump = parseDump(r.stdout || "", Object.keys(c.dump));
   // (files the run must leave: the program's own window captured)
   for (const f of c.desktopFiles || []) dump["file " + f] = existsSync(join(dir, f)) ? "there" : "missing";
+  // (the Studio window, to look at: <case>-desktop@<s>x.png)
+  if (c.capture && existsSync(join(dir, "window-1.bmp"))) {
+    spawnSync("sips", ["-s", "format", "png", join(dir, "window-1.bmp"), "--out", join(WORK, `${c.name}-desktop@${scale}x.png`)], { stdio: "ignore" });
+  }
   return dump;
 }
 
@@ -447,6 +672,7 @@ async function runWeb(browser, c, scale = 1, record = () => {}) {
     const results = JSON.parse(await page.evaluate(() => window.rr.rapidr_test_results()));
     // (what the case does on the page itself: real mouse input)
     if (c.web) await c.web(page, scale, record);
+    if (c.capture) await page.screenshot({ path: join(WORK, `${c.name}-web@${scale}x.png`) });
     return { dump: parseDump(results.dump.join("\n"), Object.keys(c.webDump || c.dump)), errors };
   } finally {
     await page.close();
@@ -463,7 +689,8 @@ const check = (label, dump, c) => {
     console.log((ok ? "✓ " : "✗ ") + c.name + " (desktop): " + f + (ok ? " written" : " missing"));
   }
   for (const [k, re] of Object.entries(c.dump)) {
-    const v = dump[k];
+    // (a tree's Text: its lines end CR LF, as LoadFromFile reads them)
+    const v = k.endsWith("tree.text") && dump[k] !== undefined ? dump[k].replace(/\r/g, "").replace(/\n$/, "") : dump[k];
     const ok = v !== undefined && re.test(v);
     ok ? passed++ : failed++;
     console.log(`${ok ? "✓" : "✗"} ${c.name} (${label}): ${k} ${ok ? "" : `= ${JSON.stringify(v)} (wanted ${re})`}`);
@@ -481,7 +708,7 @@ const record = (name, ok, what) => {
   console.log(`${ok ? "✓" : "✗"} ${name}: ${what}`);
 };
 for (const c of CASES.filter((c) => !filters.length || filters.some((f) => c.name.includes(f)))) {
-  check("desktop", runDesktop(c), c);
+  for (const scale of c.capture ? c.scales || [1] : [1]) check(c.capture && scale > 1 ? `desktop @${scale}x` : "desktop", runDesktop(c, scale), c);
   for (const scale of c.scales || [1]) {
     const label = c.scales ? `web @${scale}x` : "web";
     try {

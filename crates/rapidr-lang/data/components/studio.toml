@@ -70,17 +70,25 @@ name = "RPROGRAMSESSION"
 display = "ProgramSession"
 visual = false
 default_event = "OnOutput"
-doc = "A run of a program under development, as an IDE runs it: in its own process on the desktop (its forms real windows), in a sandboxed frame on the web. Start, stop, pause, step, breakpoints, evaluate; its output and its stops come as events."
+doc = "A run of a program under development, as an IDE runs it: in its own process on the desktop (its forms real windows), in a sandboxed frame on the web. Start, stop, pause, step, breakpoints (with conditions, hit counts and log messages), the call stack, variables, watches and evaluation; its output and its stops come as events. What the debugger shows is fetched at each stop before OnStopped, so it can be read at once."
 properties = [
   { name = "Program", type = "string", doc = "The source file to run (saved)." },
   { name = "Args", type = "string", doc = "Its command line arguments, as COMMAND$ reads them (spaces separate them, quotes keep spaces)." },
   { name = "Debug", type = "bool", default = true, doc = "Run under the debugger: breakpoints stop it, stepping works." },
-  { name = "BreakOnError", type = "bool", default = false, doc = "Stop at the statement of a run-time error." },
+  { name = "BreakOnError", type = "bool", default = false, doc = "Stop at the statement of a run-time error (StopReason \"exception\", StopMessage the error)." },
+  { name = "StopOnEntry", type = "bool", default = false, doc = "Stop at the program's first statement when it starts." },
   { name = "State", type = "string", access = "read", design = false, doc = "\"stopped\", \"running\" or \"paused\"." },
   { name = "CurrentFile", type = "string", access = "read", design = false, doc = "Where the program is paused: its file." },
   { name = "CurrentLine", type = "int", access = "read", design = false, doc = "Where the program is paused: its line (from 1; 0 when not paused)." },
+  { name = "StopReason", type = "string", access = "read", design = false, doc = "Why it paused: \"breakpoint\", \"step\", \"pause\", \"entry\" or \"exception\"." },
+  { name = "StopMessage", type = "string", access = "read", design = false, doc = "A run-time error's message, when that's why it paused." },
   { name = "ExitCode", type = "int", access = "read", design = false, doc = "The last run's exit code." },
   { name = "Error", type = "string", access = "read", design = false, doc = "Why the last Start (or another request) failed." },
+  { name = "Frame", type = "int", design = false, doc = "The call stack's selected frame (0: where it is paused; 1 its caller …). Setting it fetches that frame's locals and the watches again, then OnVariables(0)." },
+  { name = "LocalsRef", type = "int", access = "read", design = false, doc = "The selected frame's locals, for Variables." },
+  { name = "GlobalsRef", type = "int", access = "read", design = false, doc = "The program's globals, for Variables." },
+  { name = "Watches", type = "string", design = false, doc = "The watch expressions, one a line: evaluated at every stop (WatchValues)." },
+  { name = "BrowserURL", type = "string", access = "read", design = false, doc = "Where RunInBrowser serves the program (on this machine only), once it does." },
 ]
 methods = [
   { name = "Start", returns = "INTEGER", value = true, test = "skip: runs a program", doc = "Runs Program. True when it started; Error says why not." },
@@ -90,15 +98,27 @@ methods = [
   { name = "StepIn", returns = "INTEGER", value = true, doc = "Runs one statement, into a SUB or FUNCTION it calls." },
   { name = "StepOver", returns = "INTEGER", value = true, doc = "Runs one statement, a call whole." },
   { name = "StepOut", returns = "INTEGER", value = true, doc = "Runs to the end of the SUB or FUNCTION and stops after its call." },
-  { name = "SetBreakpoint", params = "File AS STRING, Line AS INTEGER, [Condition AS STRING]", returns = "INTEGER", doc = "A breakpoint at a line (from 1) of a file, with a condition or not." },
+  { name = "SetBreakpoint", params = "File AS STRING, Line AS INTEGER, [Condition AS STRING], [HitCount AS STRING], [LogMessage AS STRING]", returns = "INTEGER", doc = "A breakpoint at a line (from 1) of a file, or its rules changed. Condition: it stops only when that is true. HitCount: only on that hit (3), or >= 3, > 3, <= 3, < 3, % 3 (every third). LogMessage: a logpoint, which prints the message ({expression} shows its value) and goes on." },
   { name = "ClearBreakpoint", params = "File AS STRING, Line AS INTEGER", returns = "INTEGER", doc = "Removes a breakpoint." },
-  { name = "Evaluate", params = "Expr AS STRING", returns = "STRING", test = "skip: needs a paused program", doc = "Evaluates in the paused program: \"? expression\" gives its value, a statement runs (the Immediate window's)." },
+  { name = "ClearBreakpoints", params = "[File AS STRING]", returns = "INTEGER", doc = "Removes a file's breakpoints (every file's when none is given)." },
+  { name = "RunToCursor", params = "File AS STRING, Line AS INTEGER", returns = "INTEGER", doc = "The program stops at that line once (a paused one goes on to it; a stopped one stops there once started)." },
+  { name = "StackTrace", returns = "STRING", value = true, test = "skip: needs a paused program", doc = "The call stack as the last stop fetched it, the innermost first: a line each, its name, file and line tab-separated." },
+  { name = "Variables", params = "Ref AS INTEGER", returns = "STRING", value = true, test = "skip: needs a paused program", doc = "Ref's values as fetched (LocalsRef, GlobalsRef, a value's children after Expand): a line each, its name, value, type, children's reference (0: none) and count, tab-separated." },
+  { name = "WatchValues", returns = "STRING", value = true, test = "skip: needs a paused program", doc = "Each watch with its value at this stop: a line each, its expression, value, type and children's reference, tab-separated." },
+  { name = "Expand", params = "Ref AS INTEGER", test = "skip: needs a paused program", doc = "Fetches a value's children (an array's elements, a TYPE's fields, a component's properties): OnVariables(Ref) when they're in." },
+  { name = "Evaluate", params = "Expr AS STRING, [Context AS STRING]", returns = "INTEGER", test = "skip: needs a paused program", doc = "Evaluates in the selected frame of the paused program: its answer comes as OnEvaluate(Id, Result) with the Id returned. Context \"repl\" (the Immediate window's): \"? expression\" gives its value, a statement runs." },
+  { name = "SetVariable", params = "Name AS STRING, Value AS STRING", returns = "INTEGER", test = "skip: needs a paused program", doc = "A variable of the selected frame set to an expression's value: OnEvaluate(Id, NewValue), then the values again (OnVariables(0))." },
   { name = "Input", params = "Text AS STRING", returns = "INTEGER", doc = "A line for the program's INPUT." },
+  { name = "RunInBrowser", returns = "INTEGER", test = "skip: opens a browser", doc = "Program's web build served on this machine (127.0.0.1, an address nobody can guess) and opened in the default browser (the desktop's; on the web, Error says to run it here). Its lines come as OnOutput; BrowserURL says where it is." },
+  { name = "StopBrowser", doc = "Ends what RunInBrowser serves." },
 ]
 events = [
-  { name = "OnOutput", params = "Text AS STRING", doc = "The program printed Text (PRINT, errors)." },
-  { name = "OnStopped", params = "Reason AS STRING, File AS STRING, Line AS INTEGER", doc = "The program paused: at a breakpoint, a step's end, a pause, a run-time error." },
+  { name = "OnOutput", params = "Text AS STRING", doc = "The program printed Text (PRINT, errors, logpoints)." },
+  { name = "OnStopped", params = "Reason AS STRING, File AS STRING, Line AS INTEGER", doc = "The program paused: at a breakpoint, a step's end, a pause, a run-time error. The call stack, the locals, the globals and the watches are in." },
   { name = "OnContinue", doc = "A paused program goes on." },
   { name = "OnExit", params = "Code AS INTEGER", doc = "The program ended, with its exit code." },
   { name = "OnFormShown", params = "Id AS STRING", doc = "The program showed a form." },
+  { name = "OnVariables", params = "Ref AS INTEGER", doc = "Values fetched: Ref's children (Expand), or 0 — the selected frame's locals and the watches again (Frame, Watches, SetVariable, a statement evaluated)." },
+  { name = "OnEvaluate", params = "Id AS INTEGER, Result AS STRING", doc = "An Evaluate's or SetVariable's answer (\"error: …\" when it failed)." },
 ]
+

@@ -39,7 +39,7 @@ SUB CloseAllDocuments
 END SUB
 
 SUB CloseProject
-  IF RunState <> "stopped" THEN Session.Stop
+  StopProgram
   CloseAllDocuments
   Proj.Close
   ProjectOpen = 0
@@ -125,69 +125,7 @@ SUB SaveProjectFile
   END IF
 END SUB
 
-' ---- running the program (RProgramSession) -----------------------------------------------
-
-SUB StartProgram(WithDebugger AS INTEGER)
-  IF ProjectOpen = 0 OR RunState <> "stopped" THEN EXIT SUB
-  ' (VB's way: what is being run is saved first)
-  SaveAll
-  AnalyzeActive
-  IF Lang.ErrorCount > 0 THEN
-    SetState "error", "Can't run: the program has errors"
-    OutputBox.Page = "problems"
-    Dock.FocusPane("outputbox")
-    EXIT SUB
-  END IF
-  OutputBox.Clear "output"
-  OutputBox.Page = "output"
-  Dock.ShowPane("outputbox")
-  Session.Program = ProjectMain
-  Session.Debug = WithDebugger
-  IF Session.Start THEN
-    SetState "running", "Running " + FileTitle(ProjectMain)
-    RunStarted = TIMER
-  ELSE
-    OutputLine "Can't run " + ProjectMain + ": " + Session.Error
-    SetState "error", "Can't run " + FileTitle(ProjectMain)
-  END IF
-END SUB
-
-SUB StopProgram
-  IF RunState <> "stopped" THEN Session.Stop
-END SUB
-
-SUB ProgramOutput(Text AS STRING)
-  OutputBox.Write Text
-END SUB
-
-SUB ProgramStopped(Reason AS STRING, InFile AS STRING, LineNo AS INTEGER)
-  SetState "paused", "Paused (" + Reason + ") at " + FileTitle(InFile) + ", line " + LTRIM$(STR$(LineNo))
-END SUB
-
-SUB ProgramContinued
-  SetState "running", "Running " + FileTitle(ProjectMain)
-END SUB
-
-SUB ProgramExited(Code AS INTEGER)
-  OutputLine "[" + FileTitle(ProjectMain) + " ended, exit code " + LTRIM$(STR$(Code)) + "]"
-  IF Code = 0 THEN SetState "stopped", "Ready" ELSE SetState "error", "Ended with exit code " + LTRIM$(STR$(Code))
-END SUB
-
-' The Immediate window: a line typed and Enter — "? x" prints x in the paused
-' program, a statement runs there.
-SUB ImmediateKey(Key AS INTEGER, Shift AS INTEGER)
-  DIM n AS INTEGER, typed AS STRING
-  IF Key <> 13 THEN EXIT SUB
-  n = ImmediateBox.LineCount
-  IF n < 1 THEN EXIT SUB
-  typed = ImmediateBox.Line(n - 1)
-  IF LTRIM$(typed) = "" THEN EXIT SUB
-  IF RunState = "paused" THEN
-    ImmediateBox.AddStrings Session.Evaluate(typed)
-  ELSE
-    ImmediateBox.AddStrings "(the program isn't paused)"
-  END IF
-END SUB
+' (running the program and debugging it: debug.inc)
 
 ' ---- settings (the per-user store) -------------------------------------------------------
 

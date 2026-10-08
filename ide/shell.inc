@@ -56,6 +56,8 @@ SUB RunCommand(Id AS STRING)
   d = ActiveCode
   ' (the designer's commands, and Edit's on a designer: designer.inc)
   IF DesignCommand(Id) THEN EXIT SUB
+  ' (Run's and Debug's: debug.inc)
+  IF DebugCommand(Id) THEN EXIT SUB
   SELECT CASE Id
     ' ---- file ----
     CASE "file.newProject": AskNew
@@ -104,15 +106,6 @@ SUB RunCommand(Id AS STRING)
     CASE "project.addModule": AddProjectFile "module"
     CASE "project.options": ShowAppSettings
     ' ---- run / debug ----
-    CASE "run.start": StartProgram 1
-    CASE "run.withoutDebugging": StartProgram 0
-    CASE "run.stop": StopProgram
-    CASE "run.restart": StopProgram: StartProgram 1
-    CASE "run.continue": Session.Continue
-    CASE "run.pause": Session.Pause
-    CASE "debug.stepInto": IF RunState = "paused" THEN Session.StepIn
-    CASE "debug.stepOver": IF RunState = "paused" THEN Session.StepOver
-    CASE "debug.stepOut": IF RunState = "paused" THEN Session.StepOut
     CASE "run.build": BuildProject
     CASE "run.reveal": RevealBuild
     ' ---- window ----
@@ -137,7 +130,8 @@ SUB StudioResize
 END SUB
 
 SUB StudioClose(Action AS INTEGER)
-  IF RunState <> "stopped" THEN Session.Stop
+  StopProgram
+  Session.StopBrowser
   SaveSettings
 END SUB
 
@@ -244,10 +238,6 @@ SUB StartStudio
   RunState = "stopped"
   StateText = "Ready"
   ActiveDoc = -1
-  Session.OnOutput = ProgramOutput
-  Session.OnStopped = ProgramStopped
-  Session.OnContinue = ProgramContinued
-  Session.OnExit = ProgramExited
   SetUpBuild
   DefineCommands
   BuildMenus
@@ -255,6 +245,7 @@ SUB StartStudio
   SetUpStatus
   SetUpPanels
   SetUpDock
+  SetUpDebug
   IF SavedLayout <> "" THEN Dock.LoadLayout(SavedLayout)
   Dock.DocumentMode = DocumentMode
   FillExamples
@@ -297,6 +288,8 @@ SUB MacroTick
   IF id <> "" AND id <> "wait" THEN
     OutputLine "> " + id
     ' (S-PANELS: the panels' test steps, tool: prop: …, else a command)
-    IF PanelStep(id) = 0 THEN RunCommand id
+    IF PanelStep(id) = 0 THEN
+      IF DebugStep(id) = 0 THEN RunCommand id
+    END IF
   END IF
 END SUB

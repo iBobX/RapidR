@@ -7,13 +7,16 @@
 #
 # Needs: ./rapidr built (cargo build --release -p rapidr-cli, then copy it),
 # the web artifacts (tools/build_web_artifacts.sh) and the repo served on
-# http://localhost:8765 (or RAPIDR_URL) for the browser tests (Playwright).
+# http://localhost:8765 (or RAPIDR_URL) for the browser tests (Playwright);
+# for the studio and perf stages, RapidR Studio for the web built
+# (tools/build_studio_web.sh) and served on http://127.0.0.1:18473 (or
+# RAPIDR_STUDIO_URL).
 # Run one at a time.
 #
 #   tools/regress.sh                  every stage, then the build caches go
 #   tools/regress.sh gui web          only these stages (unit, conformance,
-#                                     examples, gui, visual, web, security,
-#                                     perf, legal),
+#                                     examples, gui, visual, web, studio,
+#                                     security, perf, legal),
 #                                     caches kept
 #   tools/regress.sh --clean          (with stages) remove the caches after
 cd "$(dirname "$0")/.."
@@ -30,12 +33,13 @@ export RAPIDR_PRINT_TO="$PWD/$W/prints"
 export RAPIDR_REGISTRY="$PWD/$W/registry.reg"
 STAGES=(); CLEAN=0
 for a in "$@"; do if [ "$a" = --clean ]; then CLEAN=1; else STAGES+=("$a"); fi; done
-[ ${#STAGES[@]} -eq 0 ] && { STAGES=(unit conformance examples gui visual web security perf legal); CLEAN=1; }
+[ ${#STAGES[@]} -eq 0 ] && { STAGES=(unit conformance examples gui visual web studio security perf legal); CLEAN=1; }
 # (what's inside $W: it may be a link to a build volume)
 [ $CLEAN = 1 ] && trap 'rm -rf "$W"/* target/debug target/wasm32-unknown-unknown/debug' EXIT
 want() { [[ " ${STAGES[*]} " == *" $1 "* ]]; }
 # (the browser tests need the repo served: RAPIDR_URL, else port 8765)
 if want web || want examples; then curl -s -o /dev/null "${RAPIDR_URL:-http://localhost:8765}/" || { echo "serve the repo on ${RAPIDR_URL:-http://localhost:8765} first (python3 -m http.server 8765 --bind 127.0.0.1)"; exit 1; }; fi
+if want studio || want perf; then curl -s -o /dev/null "${RAPIDR_STUDIO_URL:-http://127.0.0.1:18473}/index.html" || { echo "build and serve Studio for the web on ${RAPIDR_STUDIO_URL:-http://127.0.0.1:18473} first (tools/build_studio_web.sh; python3 -m http.server -d target/studio-web 18473 --bind 127.0.0.1)"; exit 1; }; fi
 if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test result: FAILED|panicked|^error" | head -5
   # (the UI kernel and the program glue stay GUI-free: they must build for
   # the browser too)
@@ -76,6 +80,19 @@ if want web; then
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "ASSERT|Error|✗"; }
   done
 fi
+# RapidR Studio (docs/studio-wow.md): the shell (every scene and theme, the
+# desktop's capture and accessibility tree byte for byte against the web's,
+# at 1x and 2x), its flows driven through its own commands on the desktop's
+# headless host and on the web page (the designer, the inspector, the
+# editor, running and debugging: breakpoints, stepping, Variables, Watch,
+# Call Stack, Immediate, a run-time error, the program's windows floating
+# over the page), and Run in Browser (the web build served on 127.0.0.1).
+if want studio; then echo "== studio"
+  for t in tests/studio_shell.mjs tests/studio_flows.mjs tests/run_in_browser.mjs; do
+    out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m8 -E "✗|≠|Error"; }
+    echo "$out" | tail -1
+  done
+fi
 # Security regressions (docs/security-audit.md; tests/security/): the
 # browser-free scripts, and the Rust ones each crate compiles from there
 # (its `security_regressions` module) — the web bundle's policy and
@@ -98,9 +115,14 @@ fi
 # (the editor's performance, docs/ide-plan.md §6.2: the model's and the
 # view's benchmarks on a 200,000-line / 10 MB file — each exits 1 on a
 # missed target)
+# and RapidR Studio's budgets, docs/studio-wow.md §3.15: start, F5 to the
+# first form, a step to its line and values, on both hosts — a budget missed
+# or a measure 20 % over tests/studio_perf_baseline.json fails)
 if want perf; then echo "== perf"
   cargo run -q --release -p rapidr-editor --example editor_bench 2>&1 | grep -E "MISSED|targets met|missed"
-  cargo run -q --release -p rapidr-ui-render --example codeeditor_bench 2>&1 | grep -E "MISSED|targets met|missed"; fi
+  cargo run -q --release -p rapidr-ui-render --example codeeditor_bench 2>&1 | grep -E "MISSED|targets met|missed"
+  out=$(node tests/studio_perf.mjs 2>&1) || echo "tests/studio_perf.mjs: FAILED"
+  echo "$out" | grep -E "✗|Studio perf"; fi
 LEGAL_FAILED=0
 if want legal; then echo "== legal"
   out=$(cargo deny check licenses bans 2>&1) || { LEGAL_FAILED=1; echo "$out" | grep -E "^error" -A8 | head -40; }

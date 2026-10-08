@@ -394,6 +394,7 @@ properties = [
   { name = "FontColor", type = "color", origin = "rapidr" },
   { name = "Count", type = "int", origin = "rapidr" },
   { name = "SelectedItem", type = "string", origin = "rapidr" },
+  { name = "Text", type = "string", access = "read", design = false, origin = "rapidr", doc = "Every node as text: a line each, a tab per level before it (what LoadFromFile reads)." },
   { name = "Selected", type = "int", design = false, indexed = 1, origin = "rapidr" },
   { name = "TopItem", type = "any" },
 ]

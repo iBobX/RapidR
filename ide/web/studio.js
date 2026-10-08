@@ -193,6 +193,20 @@ function clipToWindows(w) {
   run.frame.style.clipPath = clip;
 }
 
+// Studio's menus and pop-ups (a window's pop-up layer shown) stay over the
+// program's windows, as the system's menus do on the desktop: the frame
+// goes under Studio while one is open.
+function studioPopupOpen() {
+  for (const p of document.querySelectorAll("body > .rr-kwin > .rr-kpopups")) {
+    if (p.style.display !== "none") return true;
+  }
+  return false;
+}
+function followPopups() {
+  if (run.box) run.box.classList.toggle("under", studioPopupOpen());
+}
+new MutationObserver(followPopups).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["style"] });
+
 function closeFrame() {
   run.generation++;
   if (run.port) run.port.close();

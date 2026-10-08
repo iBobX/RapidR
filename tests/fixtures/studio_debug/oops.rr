@@ -1,0 +1,8 @@
+' oops.rr: a run-time error the debugger stops at (tests/studio_flows.mjs)
+z = 0
+SUB Share(Amount AS INTEGER)
+  PRINT "each gets"; Amount \ z
+END SUB
+PRINT "before"
+Share 10
+PRINT "after"

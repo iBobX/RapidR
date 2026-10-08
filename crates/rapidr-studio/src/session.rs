@@ -129,6 +129,20 @@ impl Model {
         }
     }
 
+    /// StackTrace's text: a frame a line, its name, file and line.
+    fn stack_text(&self) -> Value {
+        table(self.frames.iter().map(|f| vec![f.name.clone(), f.file.clone().unwrap_or_default(), f.line.to_string()]))
+    }
+
+    /// WatchValues' text: a watch a line, its expression, value, type and
+    /// children's reference.
+    fn watch_text(&self) -> Value {
+        table(self.watches.iter().enumerate().map(|(i, w)| {
+            let (v, k, r) = self.watch_values.get(i).cloned().unwrap_or_default();
+            vec![w.clone(), v, k, r.to_string()]
+        }))
+    }
+
     /// Whether the snapshot (stack, scopes, watches) is all in.
     fn snapshot_done(&self) -> bool {
         !self.pending.values().any(|w| matches!(w, Want::Stack | Want::Vars(_) | Want::Watch(_)))
@@ -181,6 +195,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "args" => Value::String(m.args.clone()),
             "debug" => flag(s.debug),
             "breakonerror" => flag(s.break_on_error),
+            "stoponentry" => flag(s.stop_on_entry),
             "state" => Value::String(s.state().as_str().to_string()),
             "currentfile" => Value::String(s.current_file().unwrap_or("").to_string()),
             "currentline" => Value::Integer(i64::from(s.current_line())),
@@ -192,6 +207,10 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "localsref" => Value::Integer(i64::from(m.locals_ref())),
             "globalsref" => Value::Integer(i64::from(GLOBALS_REF)),
             "watches" => Value::String(m.watches.iter().map(|w| format!("{w}\n")).collect()),
+            // (read without parentheses, as a property)
+            "stacktrace" => m.stack_text(),
+            "watchvalues" => m.watch_text(),
+            "browserurl" => Value::String(browser::url(name)),
             _ => return None,
         })
     })
@@ -207,6 +226,7 @@ pub fn set<H: Host>(_host: H, name: &str, prop: &str, v: &Value) -> bool {
             }
             "debug" => m.session.debug = v.to_bool(),
             "breakonerror" => m.session.break_on_error = v.to_bool(),
+            "stoponentry" => m.session.stop_on_entry = v.to_bool(),
             "frame" => {
                 let f = (v.to_i64().max(0) as usize).min(m.frames.len().saturating_sub(1));
                 if f != m.frame && m.session.state() == State::Paused && m.held.is_none() {
@@ -224,7 +244,7 @@ pub fn set<H: Host>(_host: H, name: &str, prop: &str, v: &Value) -> bool {
                     m.watch_values.clear();
                 }
             }
-            "state" | "currentfile" | "currentline" | "exitcode" | "error" | "stopreason" | "stopmessage" | "localsref" | "globalsref" => {}
+            "state" | "currentfile" | "currentline" | "exitcode" | "error" | "stopreason" | "stopmessage" | "localsref" | "globalsref" | "browserurl" => {}
             _ => return false,
         }
         true
@@ -278,26 +298,29 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             let file = text_arg(args, 0);
             r(with(name, |m| m.session.clear_breakpoints(if file.is_empty() { None } else { Some(file.as_str()) })))
         }
+        // (a stopped program stops there once started: Start it after)
         "runtocursor" => {
             let (file, line) = (text_arg(args, 0), int_arg(args, 1, 0).max(1) as u32);
-            let stopped = with(name, |m| m.session.state() == State::Stopped);
-            let res = with(name, |m| m.session.run_to(&file, line));
-            if stopped && res.is_ok() {
-                return call(host, name, "start", &[]);
+            r(with(name, |m| m.session.run_to(&file, line)))
+        }
+        "runinbrowser" => {
+            let program = with(name, |m| m.session.program.clone());
+            let res = browser::start(host, name, &program);
+            if res.is_ok() {
+                poll(host);
             }
             r(res)
         }
-        "stacktrace" => with(name, |m| table(m.frames.iter().map(|f| vec![f.name.clone(), f.file.clone().unwrap_or_default(), f.line.to_string()]))),
+        "stopbrowser" => {
+            browser::stop(name);
+            Value::Null
+        }
+        "stacktrace" => with(name, |m| m.stack_text()),
         "variables" => {
             let reference = int_arg(args, 0, 0).max(0) as u32;
             with(name, |m| table(m.vars.get(&reference).into_iter().flatten().map(|v| vec![v.name.clone(), v.value.clone(), v.kind.clone(), v.reference.to_string(), v.count.to_string()])))
         }
-        "watchvalues" => with(name, |m| {
-            table(m.watches.iter().enumerate().map(|(i, w)| {
-                let (v, k, r) = m.watch_values.get(i).cloned().unwrap_or_default();
-                vec![w.clone(), v, k, r.to_string()]
-            }))
-        }),
+        "watchvalues" => with(name, |m| m.watch_text()),
         "expand" => {
             let reference = int_arg(args, 0, 0).max(0) as u32;
             let cached = with(name, |m| {
@@ -348,7 +371,7 @@ fn table(rows: impl Iterator<Item = Vec<String>>) -> Value {
 /// Every session's news as its events; whether one is running.
 pub fn poll<H: Host>(host: H) -> bool {
     let names: Vec<String> = SESSIONS.with(|s| s.borrow().keys().cloned().collect());
-    let mut running = false;
+    let mut running = browser::poll(host);
     for name in names {
         let (events, live) = with(&name, |m| {
             let e = m.session.poll(Some(Duration::ZERO));
@@ -463,7 +486,114 @@ fn reply<H: Host>(host: H, name: &str, re: u64, body: EventBody) {
 
 /// Whether a session is running (the desktop's loop then wakes often).
 pub fn any_running() -> bool {
-    SESSIONS.with(|s| s.borrow().values().any(|m| m.session.state() != State::Stopped))
+    SESSIONS.with(|s| s.borrow().values().any(|m| m.session.state() != State::Stopped)) || browser::starting()
+}
+
+/// Run in Browser (docs/studio-wow.md RUN-2): `rapidr serve <program>
+/// --open` — the program's web build on 127.0.0.1 under a random path,
+/// opened in the default browser — as a child process (the desktop's; the
+/// web's Studio is in a browser already). Its lines are the session's
+/// OnOutput; `BrowserURL` is where it serves. One per session: a new run
+/// replaces the last; StopBrowser (or Studio's end: the server ends when its
+/// input closes) ends it.
+mod browser {
+    use std::cell::RefCell;
+    use std::collections::BTreeMap;
+    use std::sync::mpsc::{self, Receiver};
+
+    use rapidr_value::Value;
+
+    use crate::Host;
+
+    struct Server {
+        child: std::process::Child,
+        lines: Receiver<String>,
+        url: String,
+    }
+
+    thread_local! {
+        static SERVERS: RefCell<BTreeMap<String, Server>> = RefCell::new(BTreeMap::new());
+    }
+
+    pub fn start<H: Host>(host: H, name: &str, program: &str) -> Result<(), String> {
+        use std::io::{BufRead, BufReader};
+        use std::process::{Command, Stdio};
+        if program.is_empty() {
+            return Err("no program to run".into());
+        }
+        let rapidr = host.rapidr().ok_or("Studio runs in a browser already: Run (F5) runs the program here")?;
+        stop(name);
+        let mut cmd = Command::new(&rapidr);
+        cmd.arg("serve").arg(program).arg("--open").stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x0800_0000);
+        }
+        let mut child = cmd.spawn().map_err(|e| format!("{}: {e}", rapidr.display()))?;
+        let (tx, lines) = mpsc::channel();
+        for stream in [child.stdout.take().map(|s| Box::new(s) as Box<dyn std::io::Read + Send>), child.stderr.take().map(|s| Box::new(s) as Box<dyn std::io::Read + Send>)].into_iter().flatten() {
+            let tx = tx.clone();
+            std::thread::spawn(move || {
+                for line in BufReader::new(stream).lines() {
+                    let Ok(line) = line else { break };
+                    if tx.send(line).is_err() {
+                        break;
+                    }
+                }
+            });
+        }
+        SERVERS.with(|s| s.borrow_mut().insert(name.to_ascii_lowercase(), Server { child, lines, url: String::new() }));
+        Ok(())
+    }
+
+    pub fn stop(name: &str) {
+        if let Some(mut s) = SERVERS.with(|s| s.borrow_mut().remove(&name.to_ascii_lowercase())) {
+            let _ = s.child.kill();
+            let _ = s.child.wait();
+        }
+    }
+
+    pub fn url(name: &str) -> String {
+        SERVERS.with(|s| s.borrow().get(&name.to_ascii_lowercase()).map(|s| s.url.clone()).unwrap_or_default())
+    }
+
+    /// A server still building its page (the desktop's loop wakes often
+    /// until it says where it serves).
+    pub fn starting() -> bool {
+        SERVERS.with(|s| s.borrow().values().any(|s| s.url.is_empty()))
+    }
+
+    /// The servers' lines as OnOutput; a server that ended goes (its exit
+    /// said why). Whether one is still starting.
+    pub fn poll<H: Host>(host: H) -> bool {
+        let mut out: Vec<(String, String)> = Vec::new();
+        SERVERS.with(|s| {
+            let mut s = s.borrow_mut();
+            let mut ended = Vec::new();
+            for (name, server) in s.iter_mut() {
+                while let Ok(line) = server.lines.try_recv() {
+                    if let Some(rest) = line.strip_prefix("Serving ") {
+                        server.url = rest.split_whitespace().next().unwrap_or("").to_string();
+                    }
+                    out.push((name.clone(), line + "\n"));
+                }
+                if let Ok(Some(status)) = server.child.try_wait() {
+                    if server.url.is_empty() {
+                        out.push((name.clone(), format!("[Run in Browser ended: exit code {}]\n", status.code().unwrap_or(1))));
+                    }
+                    ended.push(name.clone());
+                }
+            }
+            for n in ended {
+                s.remove(&n);
+            }
+        });
+        for (name, text) in out {
+            host.fire(&name, "onoutput", &[Value::String(text)]);
+        }
+        starting()
+    }
 }
 
 #[cfg(test)]

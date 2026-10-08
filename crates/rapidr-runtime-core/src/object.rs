@@ -1320,7 +1320,8 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         // (RCODEEDITOR's GetSubList, GotoSub, GotoLine: its text model's,
         // above; the rest as any component's)
         #[cfg(feature = "gui")]
-        "RTREEVIEW" => crate::ui::tree_method(name, &method_lower, args),
+        // (SetFocus: as any component's, below)
+        "RTREEVIEW" if !matches!(method_lower.as_str(), "setfocus" | "focus") => crate::ui::tree_method(name, &method_lower, args),
         #[cfg(feature = "gui")]
         "RCANVAS" => crate::ui::canvas_method(name, &method_lower, args),
         #[cfg(feature = "gui")]
