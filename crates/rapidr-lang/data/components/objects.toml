@@ -53,7 +53,7 @@ methods = [
   { name = "CopyFrom", params = "Stream, Bytes AS INTEGER", test = "args: rfilestream_o, 0", doc = "Copies `Bytes` bytes from another stream's position into this one (0: the whole other stream, from its start). As in RapidQ, asking for more bytes than the other stream has left stops the program with a stream read error." },
   { name = "ExtractRes", params = "Resource AS LONG" },
   { name = "LoadArray", params = "Element, Count AS LONG", test = "skip: its first argument is an array element (A(i)): the compilers make it a loop (tests/conformance/cases/stream_arrays.bas)", doc = "Reads `Count` elements into an array, starting at the element given (`Mem.LoadArray(A(1), 10)`), each as many bytes as the array's type takes." },
-  { name = "Open", params = "FileName AS STRING, Method AS INTEGER", value = true },
+  { name = "Open", params = "FileName AS STRING, Method AS INTEGER", value = true, test = "args: \"rapidr-conformance.tmp\", 65535" },
   { name = "Read", params = "variable" },
   { name = "ReadLine", returns = "STRING", value = true },
   { name = "ReadNum", params = "Num_", returns = "DOUBLE" },
