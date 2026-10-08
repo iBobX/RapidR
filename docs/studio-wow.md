@@ -443,15 +443,15 @@ Lanes in flight (the designer, the panels / inspector, the code editor, the them
 | TBX-2 | missing | No search. |
 | TBX-3 | missing | See DES-4. |
 | TBX-4 | missing | No hover card. |
-| ED-1 | partial | `crates/rapidr-editor` is done (undo tree, multi-cursor, search, folding, 11 languages, the bench). RCODEEDITOR is still the memo-based view (`crates/rapidr-ui-kernel/src/components/codeedit.rs`, `objects/{code,textedit}.rs`: one-step undo, no find / folding / multi-cursor). Nothing renders through `rapidr-editor` (only `rapidr-value/Cargo.toml` mentions it). |
-| ED-2 | missing | Tab types a literal tab character (`codeedit.rs` header: "Tab typing a tab"); Robert saw it drawn as a stray glyph. No indent / outdent. |
-| ED-3 | partial | `rapidr-langsvc` completes (golden suite, VS Code through `rapidr lsp`). RLANGUAGESERVICE exposes only `Update`, `Close`, `Outline` and `Diagnostics` (`crates/rapidr-studio/src/langsvc.rs`; ide-components §3.9), and RCODEEDITOR has no popup. |
-| ED-4 | partial | Hover and signature exist in `rapidr-langsvc`; not exposed in Studio, no popup. |
-| ED-5 | partial | Diagnostics fill the Problems list after a pause (`ide/documents.inc` `FillProblems`); no squiggles in the editor, no quick fixes in Studio. |
-| ED-6 | partial | Definition, references and rename exist in `rapidr-langsvc` (and VS Code); not in Studio. |
-| ED-7 | partial | `crates/rapidr-langsvc/src/case.rs` works in VS Code; not in Studio. |
-| ED-8 | partial | Snippets in `rapidr-editor` (`snippet` module); not wired. |
-| ED-9 | partial | The memo has IME; the editor's text runs for screen readers aren't there (I2 L-EDA11Y). |
+| ED-1 | done | RCODEEDITOR is `rapidr-editor`'s Document in the kernel's own view (`components/codeeditor/`; the memo path deleted): undo / redo by word, multi-cursor, find / replace with regex, folding, pairs, auto-indent, the current line, schemes per theme. Flows `editor-undo`, `editor-find-regex`, `editor-find-next`, `editor-fold` (S-EDITOR, ide-plan.md "I2 / I3 / S-EDITOR results"). |
+| ED-2 | done | Tab / Shift+Tab indent and outdent by the file's unit, at a line's start and on a block; Tab accepts completion and walks snippet stops. The stray glyph's root cause (a TAB shaped by the font: `.notdef`) is fixed in the kernel's text layout for every memo too. Flows `editor-tab-*`, `editor-shift-tab-line-start`; capture `editor-tab`. |
+| ED-3 | done | Completion from `rapidr-langsvc` after `.`, `AS `, identifiers and Ctrl+Space, fuzzy-ranked, docs beside the list, answered from the last analysis while typing. Flows `editor-completion`, `-fuzzy`, `-accept-and-case`; latency in the S-EDITOR results. |
+| ED-4 | done | Hover (the registry's syntax and doc: `SHOWMESSAGE text$`) and signature help with the active parameter. Flows `editor-hover`, `editor-signature`; captures. |
+| ED-5 | done | Squiggles in RapidQ's wording after the pause, the Problems panel in sync, Ctrl+. quick fixes. Flows `editor-diagnostic`, `editor-quick-fix`; capture `editor-squiggle`. |
+| ED-6 | partial | F12 (another file: Studio opens it, OnNavigate), Shift+F12 (carets here, the places listed in Output), F2 rename (other files' edits through OnFileEdits). Missing: ⌃- (go back), ⌘-click; no flow across `$INCLUDE` files yet. |
+| ED-7 | done | Keyword case as you type (Studio: upper, and the program's names as declared), from the registry key `KeywordCase` / `IdentifierCase`. Flow `editor-accept-and-case`. |
+| ED-8 | done | Snippets with tab stops from the language definition. Flow `editor-snippet`. |
+| ED-9 | partial | AccessKit text runs (character, word, line), the web mirror's window of lines, IME through the kernel's preedit paths. Not yet done by hand: VoiceOver / NVDA passes, CJK IME on each host. |
 | PRJ-1 | partial | Files with icons and double-click to open (`ide/project.inc` `FillProjectTree`, `ProjectTreeOpen`). Forms don't expand to components; no dirty marks in the tree. |
 | PRJ-2 | partial | Add File works (`AddFileToProject`); `project.addForm` / `addModule` are "not there yet"; no rename or delete. |
 | RUN-1 | partial | F5 saves and runs in its own process or a sandboxed frame; output goes to Output (`ide/project.inc` `StartProgram`; `tests/studio_flows.mjs` `run-console`). Output is a QRICHEDIT with no ANSI colours; there is no ⌘R. |

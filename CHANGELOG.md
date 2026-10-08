@@ -7,6 +7,26 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### RapidR Studio: the code editor works
+- **IntelliSense in Studio** (desktop and web alike): completion after `.` (members by type, ranked
+  fuzzily, docs beside the list), signature help, hover, F12 (into another file too), Shift+F12
+  (uses selected and listed in Output), F2 rename, squiggles with the Problems panel, Ctrl+. quick
+  fixes, keywords in upper case as you type (`dim` → `DIM`), snippets.
+- **Tab no longer types a stray character.** A TAB in any QMEMO / QRICHEDIT was drawn as the font's
+  missing-glyph box; it is now the blank to the next tab stop. In the code editor, Tab / Shift+Tab
+  indent and outdent by the file's unit.
+- **Edit menu**: Find Next / Previous, and Edit ▸ Advanced (indent / outdent lines, select next
+  occurrence, go to matching bracket, fold / unfold, parameter info, hover, word wrap).
+- **RCODEEDITOR**:
+  - `ApplyPatches(Patches, [Continues])` applies a designer change to the code as one undo step of
+    the editor's history;
+  - `GotoMatchingBracket`;
+  - the debugger's marker kinds (breakpoint, conditional, logpoint, disabled, current, frame,
+    exception) with notes at a line's end;
+  - `DebugHover` and `WordAt`;
+  - OnChange after ApplyPatches / Undo / Redo.
+- Fixed: an undo that removed lines could crash the code editor's view.
+
 ### Added
 - **RapidR Studio's panels as public components** (docs/ide-plan.md I1, L-PANELS), the same on the
   desktop, in native builds and on the web: **RPROPERTYINSPECTOR** (Delphi's object inspector: typed

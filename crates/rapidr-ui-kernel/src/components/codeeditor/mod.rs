@@ -410,6 +410,7 @@ pub fn reveal_byte(x: &mut Ctx, at: usize, center: bool) {
     let top = x.ui.scroll.1;
     if y < top || y + lh > top + view_h {
         let far = y < top - view_h || y > top + 2.0 * view_h;
+        let below = !(center && far) && y >= top;
         x.ui.scroll.1 = if center && far {
             y - (view_h / 2.0 - lh / 2.0).max(0.0)
         } else if y < top {
@@ -417,8 +418,9 @@ pub fn reveal_byte(x: &mut Ctx, at: usize, center: bool) {
         } else {
             y + lh - view_h
         };
-        // (whole rows at the top)
-        x.ui.scroll.1 = (x.ui.scroll.1 / lh).round() * lh;
+        // (whole rows at the top — rounded up when the row is below, so the
+        // caret's row is never left half under the horizontal bar)
+        x.ui.scroll.1 = if below { (x.ui.scroll.1 / lh).ceil() * lh } else { (x.ui.scroll.1 / lh).round() * lh };
     }
     if !x.c.opts.word_wrap {
         let line_start = x.c.doc.buffer().line_start(piece.line);

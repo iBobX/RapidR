@@ -1110,3 +1110,114 @@ Robert tried the preview (`development` @ `bb23d078`): "properties don't work", 
 - Worse than Delphi / Xcode, noted: no tooltips over truncated inspector values; the inspector's Rows are flat text for tests (no per-row "set in code" yet); no keyboard shortcut to jump from a toolbox item to its help.
 
 **Shared files touched.** `crates/rapidr-designer` (`handlers.rs` new, `lib.rs`, `Cargo.toml` dev-deps, `tests/handlers.rs`, `tests/spelling.rs`, the `.bas` / `.inc` flag in `reread`); rapidr-value `designer/{inspect,model}.rs` (spelling), `panels/{subject,palette,toolbox,project_tree.rs,project_tree/model.rs}`, `panels/inspector/{mod,read,designer_model}.rs`; rapidr-ui-kernel `components/panels/{common,console,toolbar,toolbox,inspector/*,project_tree/draw}.rs`; runtime-core `panels.rs`; runtime-web `panels_web.rs`, `object_web.rs` (a surface's method calls fire its events: an S-DESIGN glue gap); the registry `ide.toml` and the generated docs / `web-ide/lang-data.js`; `tools/lang_dispatch.py`; `ide/{panels.inc (new), window.inc, commands.inc, decl.inc, panes.inc, documents.inc, shell.inc, project.inc, chrome.inc, studio.rr}`; `tests/{studio_flows,studio_shell,gui_parity_cases}.mjs`; `docs/ide-components.md`, `docs/rapidq-ground-truth.md`, this section, `CHANGELOG.md`, ROADMAP (one tick).
+
+### I2 / I3 / S-EDITOR results — RapidR Studio's code editor (2026-10-08)
+
+Robert tried the preview (`development` @ `bb23d078`): there was no autocomplete, and Tab typed a stray character. This lane put Studio's code documents on `rapidr-editor` and `rapidr-langsvc`, on the desktop and the web alike.
+
+**Tab's "weird character": the root cause.** The kernel's multi-line text layout (`crates/rapidr-ui-kernel/src/text/editor.rs`) gave parley the TAB character as it was, and the font has no glyph for it, so a box (`.notdef`) was drawn. This hit every program's QMEMO / QRICHEDIT too, not only Studio. Now:
+- a TAB is shaped as a space and widened to the next tab stop: QMEMO every 8 average characters, QRICHEDIT every half inch;
+- carets keep their byte offsets;
+- the regression test is `a_tab_is_a_blank_to_the_next_stop_never_a_glyph`.
+
+In RCODEEDITOR, Tab and Shift+Tab indent and outdent by the file's unit (its tabs, else 4 spaces). They work at a line's start and on a block. Tab also accepts completion and moves through snippet stops.
+
+**What works, desktop and web (one kernel view, `crates/rapidr-ui-kernel/src/components/codeeditor/`):**
+- **The editor**:
+  - RCODEEDITOR's model is `rapidr-editor`'s `Document`; the memo-based path is deleted (`ee24dee0`);
+  - undo / redo grouped by word and pause;
+  - multi-cursor (⌘D, ⌘⌥↑↓, ⌥-click);
+  - find / replace with case, whole word and regex, and Go to Line;
+  - folding, pair matching and auto-closing, auto-indent, the current line;
+  - colour schemes per theme, JetBrains Mono;
+  - the changed-lines gutter;
+  - AccessKit text runs (read by character, word and line);
+  - on the web, the mirror holds a window of lines.
+- **IntelliSense from `rapidr-langsvc`**:
+  - completion after `.`, `AS ` and while typing identifiers (members by type, Q and R names, snippets), ranked fuzzily with the docs beside the list, never stalling (typing is answered from the last analysis across the edits since);
+  - signature help with the active parameter;
+  - hover (the registry's syntax and doc);
+  - F12 (into another file through OnNavigate → Studio opens it);
+  - Shift+F12: the uses selected as carets and listed in Output as places to click;
+  - F2 rename, with other files' edits through OnFileEdits;
+  - squiggles in RapidQ's compiler wording, and the Problems panel;
+  - Ctrl+. quick fixes;
+  - keyword auto-case (`KeywordCase`; `IdentifierCase = declaration`: the program's names as declared, Studio's default);
+  - Format Document.
+- **Studio's Edit menu**:
+  - Undo / Redo, Cut / Copy / Paste / Delete / Select All, Find / Replace / Go to Line;
+  - Find Next / Previous (F3);
+  - Complete Word, Quick Fix, Go to Definition, Find References, Rename, Toggle Comment, Format;
+  - Edit ▸ Advanced: Indent / Outdent Lines, Select Next Occurrence, Go to Matching Bracket (new `GotoMatchingBracket`), Fold / Unfold / Fold All / Unfold All, Parameter Info, Show Hover, Word Wrap.
+  - No Edit command answers "not there yet" any more.
+
+**The designer's patches: `ApplyPatches` (the shared undo with S-DESIGN-2).**
+- **`RCODEEDITOR.ApplyPatches(Patches, [Continues]) → Boolean`** takes one designer change's `OnSourceEdit` patches, one per line: `StartLine⇥StartCol⇥EndLine⇥EndCol⇥Text`.
+  - Lines are 0-based, columns are characters, and each patch is in the text the ones before it left.
+  - Text escapes `\n`, `\t`, `\\` (and `\r`).
+  - The whole call is applied as **one undo step of the editor's own history**. With `Continues` True (OnSourceStep's), it joins the step before.
+  - Carets keep their places (shifted as for a normal edit) and the scroll is left alone.
+  - **OnChange** fires once.
+  - It is all or nothing: False, and no change, when a range isn't in the text.
+- **`Undo` / `Redo`** are the same history as Ctrl/⌘+Z typed in the editor, and fire OnChange too. Setting `Text` or `SelText` still fires none, as RCODEEDITOR always did.
+- **The editor's side of the shared undo:**
+  - `ide/designer.inc` keeps a change's patches (`DesignSourceEdit` → `DesignPatches(d)`, escaped by `PatchText`) until the surface's OnChange, then calls `CodeDoc(d).ApplyPatches DesignPatches(d), Continues`;
+  - with `SharedUndo`, the designer's `OnUndo(Redo)` becomes `CodeDoc(d).Undo` / `.Redo`, and the code's OnChange sets the designer's `Source` again;
+  - the interim SelStart / SelText applier and its timer are deleted;
+  - the old single-patch `ApplyPatch` is deleted.
+
+**For the debugger (S-DEBUG), on RCODEEDITOR (`a97442ba`, in the registry):**
+- **`AddMarker(Line, Kind [, Note])`** kinds:
+  - `breakpoint` (a dot), `breakpoint.conditional` (a dot with a bar), `breakpoint.log` (a diamond), `breakpoint.disabled` (a ring);
+  - `current` (an arrow, the line tinted), `frame` (a grey arrow, a fainter tint), `exception` (an arrow and the line in the error colour);
+  - the arrows draw over the dot, rimmed in the gutter's colour;
+  - a Note is a rounded label after the line's end; the newest note on a line replaces the older one.
+- **`DebugHover`** (Boolean, default False, origin rapidr): while True, a resting mouse on a word fires `OnHoverRequest(Line, Col)` before the language service, and the program answers with `ShowHover(text)`.
+- **`WordAt(Line, Col)`** (from 1) returns the dotted name (`Form.Caption` on Caption).
+- Also `RemoveMarker`, `ClearMarkers`, `GetMarkers`, `HasMarker`, and `OnGutterClick(Line, Area)`.
+
+**Fixed on the way:**
+- an undo that took lines away read past the rope's end (the view's row table was stale until the next paint: the rows sync before the scroll bars now);
+- a caret revealed downwards could be left half under the horizontal bar (the scroll's whole-row rounding now rounds up then);
+- OnChange after the program's ApplyPatches / Undo / Redo was checked after the text editors' branch had already returned (both runtimes; S-DESIGN-2 found it too).
+
+**Tests.**
+- **`tests/studio_flows.mjs`: 155 of 155 checks pass on both hosts** (desktop `rapidr run`, web served on a lane port).
+  - Editor flows: `editor-completion` (`form.` → QFORM's members), `-completion-fuzzy`, `-accept-and-case` (`dim y as string` → `DIM y AS STRING`, `form.capt`+Tab → `Form.Caption`), `-tab-indent` / `-tab-outdent` (a block), `-tab-line-start` / `-shift-tab-line-start`, `-snippet`, `-diagnostic`, `-quick-fix`, `-rename`, `-find-regex`, `-find-next`, `-undo`, `-go-to-definition` (F12), `-hover`, `-signature`, `-references`, `-fold`.
+  - `designer-code-undo`: two designer additions are two undo steps in the code; Ctrl+Z twice gives the file back exactly, and CanUndo is False.
+- **Unit and GUI tests:**
+  - rapidr-value `objects::codeedit` (ApplyPatches' steps, escapes, all-or-nothing, OnChange; the debugger's calls);
+  - rapidr-ui-kernel `codeeditor::tests` (11, including `designer_patches_are_the_editors_undo_steps`);
+  - the `code_editor_markers` GUI case (`tests/fixtures/code_editor_markers.bas`): markers drawn; WordAt, GetMarkers, DebugHover; ApplyPatches then Undo; OnChange counted twice.
+- **`tests/studio_shell.mjs`**: the new scenes `editor-squiggle`, `editor-hover`, `editor-signature` and `editor-tab`, plus `editor`. RapidR light and dark at 1× and 2×: **20 of 20 captures byte-identical desktop / web**.
+  - The accessibility trees differ only in the Output console's text window: the desktop reads its first lines, the web its last, while the pane isn't shown. This belongs to S-PANELS' console and is noted as a follow-up.
+
+**Performance:** see the table below (`codeeditor_bench --lines 10000 --service`, desktop; `tests/web_editor_perf.mjs`, web).
+
+| Measure (10,000 lines, 0.5 MB, a 900 × 600 window at 2×) | Desktop (`codeeditor_bench --lines 10000 --service`) | Web (`web_editor_perf.mjs --lines 10000`, Chromium) |
+|---|---|---|
+| Open → first frame | 6.5 ms | 118 ms |
+| Typing, key → pixels: p50 / p99 | 3.8 / 10.9–12.1 ms (≤ 16 ✓), the language service answering | 7.0 / 18.0 ms (web budget ≤ 33 ✓) |
+| Scrolling, worst frame | 5.4–7.2 ms | 4.5 ms |
+| Memory | 76.7 MB live with the language service's analysis (the editor alone, without it: 17.5 MB) | 10 MB JS heap |
+
+These were measured on a heavily loaded machine (load average 18–27 from parallel lanes). In the runs without the service, the worst scrolled frames (47–97 ms) were scheduler stalls: their p50s stayed at 2.4–2.8 ms. The 200,000-line run without the service: typing p50 1.9 / p99 13.0 ms.
+
+**Benchmarked against VS Code, Xcode and Delphi (docs/studio-wow.md, ED):**
+- **Done:** ED-1, ED-2, ED-3, ED-4, ED-5, ED-7, ED-8.
+- **Partial:**
+  - ED-6: there is no ⌃- (go back) or ⌘-click yet, and no flow across `$INCLUDE` files;
+  - ED-9: VoiceOver / NVDA and CJK IME haven't been tried by hand.
+- **Worse than VS Code, noted:**
+  - the language service's memory sits on top of the editor's;
+  - the web's typing p99 (18 ms) is above the desktop's 16 ms budget, though within the web's;
+  - the hover and signature popups may cover the panes beside the editor (as VS Code's do).
+
+**Shared files touched:**
+- rapidr-value: `objects/{codeedit,mod}.rs`, `members.rs`;
+- rapidr-ui-kernel: `components/codeeditor/{mod,paint,tests}.rs`, and earlier `text/editor.rs` (the TAB fix);
+- runtime-core `object.rs`, runtime-web `object_web.rs`;
+- the registry `input.toml`, and the generated `members.md` / `web-ide/lang-data.js`;
+- `ide/{editor,designer,documents,decl,commands,window}.inc`, `ide/studio.rr`;
+- `tests/{studio_flows,studio_shell,gui_parity_cases}.mjs`, `tests/fixtures/code_editor_markers.bas`;
+- `docs/ide-components.md`, `docs/studio-wow.md` (the ED rows), and this section.
