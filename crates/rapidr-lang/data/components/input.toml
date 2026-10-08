@@ -707,6 +707,7 @@ methods = [
   { name = "TriggerCompletion", doc = "Opens completion at the caret, as Ctrl+Space does." },
   { name = "TriggerSignature", doc = "Opens signature help at the caret, as Ctrl+Shift+Space does." },
   { name = "TriggerHover", params = "[Line AS INTEGER, Column AS INTEGER]", doc = "Shows the hover at a place (the caret's when none is given)." },
+  { name = "QuickFix", doc = "Lists the language service's fixes for the problem at the caret (or on its line), as Ctrl+. (Cmd+. on a Mac) does: a misspelt member's nearest names, a RapidR name RapidQ doesn't know. Enter or Tab applies the one picked, as one undo step." },
   { name = "FormatDocument", doc = "Re-indents the text and cases its words (the language service's; Shift+Alt+F)." },
   { name = "GotoDefinition", doc = "Jumps to the declaration of what's at the caret (F12); in another file, OnNavigate." },
   { name = "FindReferences", doc = "Selects every use of what's at the caret here and tells OnReferences (Shift+F12)." },

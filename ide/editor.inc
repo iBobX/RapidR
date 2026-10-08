@@ -21,9 +21,40 @@ FUNCTION EditorCommand(Id AS STRING) AS INTEGER
     CASE "edit.findReferences": IF d >= 0 THEN CodeDoc(d).FindReferences
     CASE "edit.rename": IF d >= 0 THEN CodeDoc(d).OpenFind "rename"
     CASE "edit.triggerCompletion": IF d >= 0 THEN CodeDoc(d).TriggerCompletion
+    CASE "edit.quickFix": IF d >= 0 THEN CodeDoc(d).QuickFix
     CASE ELSE: Result = 0
   END SELECT
 END FUNCTION
+
+' ---- the status bar: the caret, the file's encoding and line breaks ---------------------
+SUB CodeCaretMoved(Line AS INTEGER, Column AS INTEGER)
+  Status.Panel(2).Caption = "Ln " + LTRIM$(STR$(Line)) + ", Col " + LTRIM$(STR$(Column))
+END SUB
+
+' (document d's facts in the status bar: when it opens or comes to the front)
+SUB EditorFacts(d AS INTEGER)
+  IF d < 0 THEN EXIT SUB
+  Status.Panel(2).Caption = "Ln " + LTRIM$(STR$(CodeDoc(d).CaretLine)) + ", Col " + LTRIM$(STR$(CodeDoc(d).CaretColumn))
+  Status.Panel(3).Caption = CodeDoc(d).Encoding
+  Status.Panel(4).Caption = CodeDoc(d).LineEnding
+END SUB
+
+' (the caret into document d's code once its pane is in the window — a
+' pane added this turn isn't laid out yet)
+DIM FocusDoc AS INTEGER
+
+SUB FocusCodeSoon(d AS INTEGER)
+  FocusDoc = d
+  EditorFocus.Enabled = 0
+  EditorFocus.Enabled = 1
+END SUB
+
+SUB EditorFocusTick
+  EditorFocus.Enabled = 0
+  IF FocusDoc >= 0 AND FocusDoc < DocCount THEN
+    IF DocOpen(FocusDoc) THEN Dock.FocusPane("codedoc(" + LTRIM$(STR$(FocusDoc)) + ")")
+  END IF
+END SUB
 
 ' ---- the designer's edits to the source -----------------------------------------------
 ' RDESIGNSURFACE's OnSourceEdit(StartLine, StartCol, EndLine, EndCol, Text)

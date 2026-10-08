@@ -34,6 +34,9 @@ pub struct Parsed {
     pub program: Program,
     /// Each file of the program by path → its index in the origin map.
     paths: HashMap<PathBuf, usize>,
+    /// The origin map's exact segments by (file, source start): a byte of
+    /// a file found by a binary search, not a walk through them all.
+    by_source: Vec<(usize, usize, usize)>,
 }
 
 /// The program's other open files, for the preprocessor: those in the
@@ -60,7 +63,10 @@ pub fn parse(path: &Path, text: &str, options: &PreprocessOptions, open: &[(Path
         .enumerate()
         .filter_map(|(i, f)| Some((f.path.clone()?, i)))
         .collect();
-    Parsed { root: path.to_path_buf(), source: tools.preprocessed.source.clone(), program: tools.program.clone(), tools, paths }
+    let mut by_source: Vec<(usize, usize, usize)> =
+        tools.preprocessed.origins.segments.iter().enumerate().filter(|(_, s)| s.exact).map(|(k, s)| (s.file, s.src_start, k)).collect();
+    by_source.sort_unstable();
+    Parsed { root: path.to_path_buf(), source: tools.preprocessed.source.clone(), program: tools.program.clone(), tools, paths, by_source }
 }
 
 impl Parsed {
@@ -79,9 +85,27 @@ impl Parsed {
     /// The preprocessed offset of byte `offset` of `file` (e.g. the caret).
     pub fn to_preprocessed(&self, file: &Path, offset: usize) -> Option<usize> {
         let id = self.file_id(file)?;
-        let map = &self.tools.preprocessed.origins;
         // (the end of a line or of the file: just after the byte before)
-        map.to_preprocessed(id, offset).or_else(|| map.to_preprocessed(id, offset.checked_sub(1)?).map(|p| p + 1))
+        self.pre_of(id, offset).or_else(|| self.pre_of(id, offset.checked_sub(1)?).map(|p| p + 1))
+    }
+
+    /// `OriginMap::to_preprocessed` through the index: the first segment
+    /// (in the preprocessed text's order) of file `id` holding `offset`.
+    fn pre_of(&self, id: usize, offset: usize) -> Option<usize> {
+        let segs = &self.tools.preprocessed.origins.segments;
+        let i = self.by_source.partition_point(|&(f, s, _)| (f, s) <= (id, offset));
+        // (a file's segments don't overlap unless it's included twice: a
+        // few before the place are enough)
+        let k = self.by_source[..i]
+            .iter()
+            .rev()
+            .take_while(|&&(f, _, _)| f == id)
+            .take(16)
+            .filter(|&&(_, _, k)| offset < segs[k].src_end.max(segs[k].src_start + 1))
+            .map(|&(_, _, k)| k)
+            .min()?;
+        let s = &segs[k];
+        Some(s.pp_start + (offset - s.src_start).min(s.pp_end - s.pp_start))
     }
 
     fn file_id(&self, file: &Path) -> Option<usize> {

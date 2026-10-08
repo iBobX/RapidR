@@ -249,6 +249,22 @@ impl ed::LanguageService for EditorService {
         self.analysis.case_edits(&path(file), CaseScope::Typed { offset, ch }).into_iter().map(edit).collect()
     }
 
+    fn code_actions(&mut self, file: &str, start: usize, end: usize) -> Vec<ed::CodeAction> {
+        let file = path(file);
+        let mut out: Vec<ed::CodeAction> = self
+            .analysis
+            .code_actions(&file, start, end)
+            .into_iter()
+            .filter_map(|a| {
+                // (this file's edits only: a fix never reaches into another)
+                let edits: Vec<ed::Edit> = a.edit.iter().filter(|(f, _)| *f == file).flat_map(|(_, e)| e.iter().cloned().map(edit)).collect();
+                (!edits.is_empty() && a.edit.iter().all(|(f, _)| *f == file)).then_some(ed::CodeAction { title: a.title, edits, preferred: a.preferred })
+            })
+            .collect();
+        out.sort_by_key(|a| !a.preferred);
+        out
+    }
+
     fn case_triggers(&self) -> &'static [char] {
         case::TRIGGERS
     }

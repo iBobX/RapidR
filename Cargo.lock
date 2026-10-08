@@ -4003,6 +4003,7 @@ version = "2.117.0"
 dependencies = [
  "glifo",
  "parley",
+ "rapidr-langsvc",
  "rapidr-ui-kernel",
  "rapidr-value",
  "vello",

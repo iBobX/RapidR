@@ -122,7 +122,18 @@ pub(crate) fn case_edits(s: &Snapshot, file: &Path, text: &str, scope: CaseScope
     if options.keywords == KeywordCase::Preserve && options.identifiers == IdentifierCase::Preserve {
         return Vec::new();
     }
-    let Some(lf) = s.parsed.lossless(file).filter(|lf| lf.text == text) else { return Vec::new() };
+    // (the analysis's tokens when it was made of this text; typing, from an
+    // older one: today's text lexed again — the lexer alone, quick — and the
+    // older model for the program's names)
+    let fresh;
+    let lf = match s.parsed.lossless(file) {
+        Some(lf) if lf.text == text => lf,
+        Some(_) if s.is_stale() => {
+            fresh = rapidr_lexer::lex_lossless(text);
+            &fresh
+        }
+        _ => return Vec::new(),
+    };
     let index = LineIndex::new(text);
     let (from, to) = match scope {
         CaseScope::Range { start, end } => (start, end.min(text.len())),

@@ -392,9 +392,9 @@ pub(crate) fn routine_statement<'p>(program: &'p Program, name: &str) -> Option<
     fn find<'p>(statements: &'p [Statement], key: &str) -> Option<&'p Statement> {
         for st in statements {
             match st {
-                Statement::Subroutine(s) if name_key(&s.name) == key => return Some(st),
-                Statement::Function(f) if name_key(&f.name) == key => return Some(st),
-                Statement::Declare(d) if name_key(&d.name) == key && d.lib.is_some() => return Some(st),
+                Statement::Subroutine(s) if rapidr_ast::strip_type_suffix(&s.name).eq_ignore_ascii_case(key) => return Some(st),
+                Statement::Function(f) if rapidr_ast::strip_type_suffix(&f.name).eq_ignore_ascii_case(key) => return Some(st),
+                Statement::Declare(d) if rapidr_ast::strip_type_suffix(&d.name).eq_ignore_ascii_case(key) && d.lib.is_some() => return Some(st),
                 Statement::Type(t) => {
                     if let Some(found) = find(&t.methods, key) {
                         return Some(found);

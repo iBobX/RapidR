@@ -32,6 +32,8 @@ pub enum CompletionKind {
     Label,
     Snippet,
     Text,
+    /// A quick fix (Ctrl+.: the service's code actions).
+    Fix,
 }
 
 impl CompletionKind {
@@ -56,12 +58,13 @@ impl CompletionKind {
             CompletionKind::Label => "label",
             CompletionKind::Snippet => "snippet",
             CompletionKind::Text => "text",
+            CompletionKind::Fix => "fix",
         }
     }
 
     /// The kind called `name` (any case); anything else is text.
     pub fn named(name: &str) -> CompletionKind {
-        const ALL: [CompletionKind; 17] = [
+        const ALL: [CompletionKind; 18] = [
             CompletionKind::Keyword,
             CompletionKind::Builtin,
             CompletionKind::Sub,
@@ -79,6 +82,7 @@ impl CompletionKind {
             CompletionKind::Label,
             CompletionKind::Snippet,
             CompletionKind::Text,
+            CompletionKind::Fix,
         ];
         ALL.into_iter().find(|k| k.name().eq_ignore_ascii_case(name.trim())).unwrap_or(CompletionKind::Text)
     }
@@ -198,6 +202,16 @@ pub struct Edit {
     pub text: String,
 }
 
+/// A fix for a problem (Ctrl+., VS Code's quick fix): its title and its
+/// edits of the file asked about (bytes of its text).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CodeAction {
+    pub title: String,
+    pub edits: Vec<Edit>,
+    /// The one to pick first (offered first, selected).
+    pub preferred: bool,
+}
+
 /// What an outline entry is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum OutlineKind {
@@ -289,6 +303,12 @@ pub trait LanguageService {
     /// 1-based line and 1-based character column: where a definition or a
     /// reference in another file is, for the program to open it there.
     fn position(&mut self, file: &str, offset: usize) -> Option<(usize, usize)>;
+    /// Fixes for the problems over bytes `start..end` of `file`
+    /// (none: no quick fix there).
+    fn code_actions(&mut self, file: &str, start: usize, end: usize) -> Vec<CodeAction> {
+        let _ = (file, start, end);
+        Vec::new()
+    }
     /// The characters that open completion by themselves (`.`).
     fn completion_triggers(&self) -> &'static [char] {
         &['.']

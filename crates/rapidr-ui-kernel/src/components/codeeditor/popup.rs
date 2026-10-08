@@ -68,6 +68,7 @@ fn kind_icon(k: CompletionKind) -> &'static str {
         CompletionKind::Directive => "symbols/directive",
         CompletionKind::Label => "symbols/label",
         CompletionKind::Snippet => "symbols/snippet",
+        CompletionKind::Fix => "actions/hint",
     }
 }
 

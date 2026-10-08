@@ -234,6 +234,16 @@ pub fn accept_completion(x: &mut Ctx) -> bool {
     };
     let item = list.items[i].clone();
     x.c.completion = None;
+    // (a quick fix: its edits, one step)
+    if let Some(edits) = list.fixes.get(i).cloned() {
+        let len = x.c.doc.len_bytes();
+        let changes: Vec<rapidr_editor::transaction::Change> = edits.into_iter().filter(|e| e.start <= e.end && e.end <= len).map(|e| rapidr_editor::transaction::Change::new(e.start..e.end, e.text)).collect();
+        let Ok(set) = rapidr_editor::ChangeSet::new(changes, len) else { return false };
+        let after = x.c.doc.selections().map(&set);
+        let _ = x.c.doc.apply(set, after, EditKind::Command, now_ms());
+        edited(x, None);
+        return true;
+    }
     x.c.note_accepted(&item.label);
     let head = x.c.doc.selections().primary().head;
     let start = list.start.min(head);
@@ -531,6 +541,11 @@ fn key_in(x: &mut Ctx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
         }
         (32, true, false) if shift => {
             lang::request_signature(x);
+            return true;
+        }
+        // (Ctrl+. — Cmd+. on a Mac —: the quick fixes at the caret)
+        (190, true, false) if !ro => {
+            lang::quick_fix(x);
             return true;
         }
         (32, true, false) => {
@@ -1046,6 +1061,7 @@ fn requests(x: &mut Ctx) {
         match r {
             Request::Completion => lang::request_completion(x, true),
             Request::Signature => lang::request_signature(x),
+            Request::QuickFix => lang::quick_fix(x),
             Request::Hover(at) => lang::hover(x, at),
             Request::Format => {
                 if lang::format(x) {

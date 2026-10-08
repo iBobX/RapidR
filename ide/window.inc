@@ -112,6 +112,11 @@ CREATE Studio AS QFORM
     OnTimer = MacroTick
   END CREATE
   ' (editor.inc: a designer action's source patches end with the turn)
+  CREATE EditorFocus AS QTIMER
+    Interval = 1
+    Enabled = 0
+    OnTimer = EditorFocusTick
+  END CREATE
   CREATE PatchBurst AS QTIMER
     Interval = 1
     Enabled = 0

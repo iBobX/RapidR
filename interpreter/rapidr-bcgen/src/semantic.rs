@@ -237,8 +237,9 @@ impl SemanticModel {
     /// What `name` means in a scope: the scope's own symbol, else the
     /// program's (case-insensitive, suffixes ignored).
     pub fn lookup(&self, name: &str, scope: ScopeId) -> Option<SymbolId> {
-        let key = name_key(name);
-        let find = |scope: ScopeId| self.symbols.iter().position(|s| s.scope == scope && s.kind != SymbolKind::Label && name_key(&s.name) == key);
+        // (name_key's comparison without a String per symbol)
+        let key = rapidr_ast::strip_type_suffix(name);
+        let find = |scope: ScopeId| self.symbols.iter().position(|s| s.scope == scope && s.kind != SymbolKind::Label && rapidr_ast::strip_type_suffix(&s.name).eq_ignore_ascii_case(key));
         let mut at = Some(scope);
         while let Some(scope) = at {
             if let Some(found) = find(scope) {
@@ -251,10 +252,24 @@ impl SemanticModel {
 
     /// The symbols visible in a scope (its own, then the program's).
     pub fn visible(&self, scope: ScopeId) -> Vec<SymbolId> {
+        // (an outer scope's symbol shows when `lookup` from `scope` finds
+        // it: no scope nearer has its name, and it's its scope's first of
+        // that name — one pass, the names taken so far in a set)
         let mut out: Vec<SymbolId> = (0..self.symbols.len()).filter(|&i| self.symbols[i].scope == scope).collect();
+        let mut taken: std::collections::HashSet<String> = out.iter().filter(|&&i| self.symbols[i].kind != SymbolKind::Label).map(|&i| name_key(&self.symbols[i].name)).collect();
         let mut at = self.scopes.get(scope).and_then(|s| s.parent);
         while let Some(outer) = at {
-            out.extend((0..self.symbols.len()).filter(|&i| self.symbols[i].scope == outer && self.lookup(&self.symbols[i].name, scope) == Some(i)));
+            let mut here = std::collections::HashSet::new();
+            for (i, sym) in self.symbols.iter().enumerate() {
+                if sym.scope != outer || sym.kind == SymbolKind::Label {
+                    continue;
+                }
+                let key = name_key(&sym.name);
+                if !taken.contains(&key) && here.insert(key) {
+                    out.push(i);
+                }
+            }
+            taken.extend(here);
             at = self.scopes.get(outer).and_then(|s| s.parent);
         }
         out

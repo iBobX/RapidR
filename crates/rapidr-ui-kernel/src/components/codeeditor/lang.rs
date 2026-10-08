@@ -273,6 +273,32 @@ pub fn diagnose(x: &mut Ctx) {
     }
 }
 
+/// Ctrl+. (Cmd+.): the service's fixes for the problems at the caret —
+/// else on its line — as a list to pick from (Enter or Tab applies one, as
+/// one undo step); a screen reader hears when there are none.
+pub fn quick_fix(x: &mut Ctx) {
+    x.c.completion = None;
+    if !sync(x) {
+        return;
+    }
+    let file = x.file();
+    let head = x.c.doc.selections().primary().head;
+    let buf = x.c.doc.buffer();
+    let line = buf.line_of(head);
+    let (ls, le) = (buf.line_start(line), buf.line_end(line));
+    let mut fixes = service::with(|s| s.code_actions(&file, head, head)).unwrap_or_default();
+    if fixes.is_empty() {
+        fixes = service::with(|s| s.code_actions(&file, ls, le)).unwrap_or_default();
+    }
+    if fixes.is_empty() {
+        x.ui.announce = "No quick fixes here".into();
+        return;
+    }
+    x.c.show_fixes(fixes);
+    x.ui.completion_top = 0;
+    super::access::completion_moved(x);
+}
+
 /// F12 / Ctrl+click: to the definition (here, or OnNavigate(File, Line,
 /// Column) for the program to open another file).
 pub fn goto_definition(x: &mut Ctx, at: usize) -> bool {

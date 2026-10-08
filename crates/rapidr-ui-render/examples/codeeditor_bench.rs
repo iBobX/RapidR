@@ -5,7 +5,7 @@
 //! host's renderer and the desktop's without a GPU), so key → pixels here
 //! is the slowest path the hosts have.
 //!
-//!     cargo run --release -p rapidr-ui-render --example codeeditor_bench [-- --quick | --lines N | --scale S]
+//!     cargo run --release -p rapidr-ui-render --example codeeditor_bench [-- --quick | --lines N | --scale S | --service]
 //!
 //! Prints a table and exits 1 when a target is missed (desktop's targets:
 //! open ≤ 300 ms, typing p50 ≤ 8 ms and p99 ≤ 16 ms, every scrolled frame
@@ -111,6 +111,11 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     let arg = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned();
     let quick = args.iter().any(|a| a == "--quick");
+    // (RapidR Studio's editor: the language service answers as you type)
+    let service = args.iter().any(|a| a == "--service");
+    if service {
+        rapidr_langsvc::editor::install();
+    }
     let lines: usize = arg("--lines").and_then(|v| v.parse().ok()).unwrap_or(if quick { 20_000 } else { 200_000 });
     let scale: f64 = arg("--scale").and_then(|v| v.parse().ok()).unwrap_or(2.0);
     let (w, h) = (900i64, 600i64);
@@ -163,15 +168,18 @@ fn main() {
     let list = f.paint(&s, &mut ts, scale);
     r.render(dw, dh, &list, &mut ts, &f);
     let mut clip = MemClipboard::default();
-    let keys: Vec<(i64, &str)> = "x = total + 1".chars().map(|c| (if c == ' ' { 32 } else { c.to_ascii_uppercase() as i64 }, "")).collect();
-    let text: Vec<String> = "x = total + 1".chars().map(|c| c.to_string()).collect();
+    // (with the service: a member after a dot too — completion opens on
+    // "." and narrows as the word grows, signature help, keyword case)
+    let typed = if service { "dim x as integer: x = Sender.Tag + LEN(name$)" } else { "x = total + 1" };
+    let keys: Vec<(i64, &str)> = typed.chars().map(|c| (rapidr_value::send_keys::key_of_char(c).0, "")).collect();
+    let text: Vec<String> = typed.chars().map(|c| c.to_string()).collect();
     let (mut to_list, mut to_px) = (Vec::new(), Vec::new());
     for round in 0..80 {
         for (k, (vk, _)) in keys.iter().enumerate() {
             let t = Instant::now();
             f.key_down(&s, &mut ts, *vk, &text[k], Mods::NONE, &mut clip);
             let list = f.paint(&s, &mut ts, scale);
-            to_list.push(t.elapsed());
+            to_list.push(t.elapsed()); if std::env::var("BENCH_SLOW").is_ok() && t.elapsed().as_millis() > 10 { eprintln!("slow key {:?} round {round} k {k}: {:?}", text[k], t.elapsed()); }
             r.render(dw, dh, &list, &mut ts, &f);
             to_px.push(t.elapsed());
         }
@@ -180,7 +188,7 @@ fn main() {
         let t = Instant::now();
         f.key_down(&s, &mut ts, vk, if vk == 13 { "\r" } else { "" }, Mods::NONE, &mut clip);
         let list = f.paint(&s, &mut ts, scale);
-        to_list.push(t.elapsed());
+        to_list.push(t.elapsed()); if std::env::var("BENCH_SLOW").is_ok() && t.elapsed().as_millis() > 10 { eprintln!("slow vk {vk} round {round}: {:?}", t.elapsed()); }
         r.render(dw, dh, &list, &mut ts, &f);
         to_px.push(t.elapsed());
         let _ = f.take_events();

@@ -184,17 +184,16 @@ pub fn rp_create_component(name: &str, type_name: &str) {
 
 /// The runtime's start (before a program runs, and again as components
 /// are created): how shared objects print on the web (`Printer.EndDoc`,
-/// [`web_print`]), QREGISTRY's store, RND's seed — and, built with
-/// `langsvc`, the code editor's language service.
+/// [`web_print`]), QREGISTRY's store, RND's seed, and the code editor's
+/// language service (as the desktop runtime installs it).
 pub fn install_object_hooks() {
     rapidr_value::objects::set_print_hook(web_print);
     // QREGISTRY's keys: the page's local storage.
     rapidr_value::registry::set_io(registry_load, registry_save);
     // RND's first seed (wasm has no clock).
     rapidr_value::builtins::set_entropy(|| (js_sys::Math::random() * 9_007_199_254_740_992.0) as u64);
-    // The code editor's language service (RapidR Studio's runtime), once:
-    // this runs again as components are created.
-    #[cfg(feature = "langsvc")]
+    // The code editor's language service, once: this runs again as
+    // components are created.
     {
         thread_local!(static LANGSVC: std::cell::Cell<bool> = const { std::cell::Cell::new(false) });
         if !LANGSVC.with(|done| done.replace(true)) {

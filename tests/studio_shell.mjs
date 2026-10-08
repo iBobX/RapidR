@@ -37,6 +37,9 @@ const SCENES = [
   // dialog, the second shown)
   { name: "newproject", open: "", do: "file.newProject", window: 2 },
   { name: "palette", open: "", do: "view.commandPalette", window: 2 },
+  // (the code editor with the completion list open and its docs beside it:
+  // typed through the kernel's keys, S-EDITOR)
+  { name: "editor", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:dim y as string,key:Escape,key:Enter,type:form.c", delay: 6 },
 ];
 
 mkdirSync(OUT, { recursive: true });
@@ -96,6 +99,7 @@ function runDesktop(scene, theme, scale) {
     env: {
       ...process.env,
       RAPIDR_CAPTURE: join(dir, "window"),
+      ...(scene.delay ? { RAPIDR_CAPTURE_DELAY: String(scene.delay) } : {}),
       RAPIDR_SCALE: String(scale),
       RAPIDR_MENU: "window",
       RAPIDR_TEST_A11Y: join(dir, "a11y.json"),
@@ -114,7 +118,7 @@ async function runWeb(browser, scene, theme, scale) {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   try {
-    await page.addInitScript(() => { window.RAPIDR_STUDIO_TEST = { RAPIDR_CAPTURE: "web" }; });
+    await page.addInitScript((delay) => { window.RAPIDR_STUDIO_TEST = { RAPIDR_CAPTURE: "web", ...(delay ? { RAPIDR_CAPTURE_DELAY: String(delay) } : {}) }; }, scene.delay || 0);
     const q = new URLSearchParams({ theme, window: "normal", fresh: "" });
     if (scene.open) q.set("open", scene.open);
     if (scene.do) q.set("do", scene.do);

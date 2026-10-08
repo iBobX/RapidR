@@ -84,6 +84,9 @@ pub struct CompletionList {
     /// The language service's (filtered again as the user types, asked
     /// again when nothing matches); else the program's.
     pub from_service: bool,
+    /// (Ctrl+.: a quick-fix list) each item's edits of the text, applied
+    /// as one step when it's chosen; empty for completions.
+    pub fixes: Vec<Vec<rapidr_editor::service::Edit>>,
 }
 
 /// A hover showing over bytes `start..end`.
@@ -122,6 +125,8 @@ pub enum Request {
     /// A hover at this byte.
     Hover(usize),
     Format,
+    /// Ctrl+.'s list of fixes at the caret.
+    QuickFix,
     Definition,
     References,
     Rename(String),
@@ -939,6 +944,10 @@ impl CodeEditor {
             return Vec::new();
         }
         let typed = self.doc.slice(list.start..head).into_owned();
+        // (quick fixes keep the service's order: the preferred one first)
+        if !list.fixes.is_empty() {
+            return (0..list.items.len()).filter(|&i| match_tier(&list.items[i].label, &typed).is_some()).collect();
+        }
         let mut ranked: Vec<(u8, usize, char, usize, String, usize)> = Vec::new();
         for (i, it) in list.items.iter().enumerate() {
             let Some(tier) = match_tier(&it.label, &typed) else { continue };
@@ -959,6 +968,29 @@ impl CodeEditor {
         ranked.into_iter().map(|r| r.5).collect()
     }
 
+    /// Ctrl+.'s list at the caret: the fixes' titles, each applying its
+    /// edits when chosen (the preferred one first, selected).
+    pub fn show_fixes(&mut self, fixes: Vec<rapidr_editor::service::CodeAction>) {
+        if fixes.is_empty() {
+            self.completion = None;
+        } else {
+            let head = self.doc.selections().primary().head;
+            let items = fixes
+                .iter()
+                .enumerate()
+                .map(|(k, f)| {
+                    let mut c = Completion::new(f.title.clone(), CompletionKind::Fix);
+                    // (kept in the service's order: preferred first)
+                    c.sort = format!("{k:04}");
+                    c
+                })
+                .collect();
+            let edits = fixes.into_iter().map(|f| f.edits).collect();
+            self.completion = Some(CompletionList { items, start: head, selected: 0, from_service: true, fixes: edits });
+        }
+        self.changed();
+    }
+
     /// A completion was accepted: it goes first among equals next time.
     pub fn note_accepted(&mut self, label: &str) {
         self.recent.retain(|r| !r.eq_ignore_ascii_case(label));
@@ -972,7 +1004,7 @@ impl CodeEditor {
         } else {
             let head = self.doc.selections().primary().head;
             let start = start.unwrap_or_else(|| self.word_start_before(head));
-            self.completion = Some(CompletionList { items, start, selected: 0, from_service });
+            self.completion = Some(CompletionList { items, start, selected: 0, from_service, fixes: Vec::new() });
         }
         self.changed();
     }
@@ -1339,6 +1371,7 @@ impl CodeEditor {
                 self.requests.push(Request::Hover(at));
             }
             "formatdocument" => self.requests.push(Request::Format),
+            "quickfix" => self.requests.push(Request::QuickFix),
             "gotodefinition" => self.requests.push(Request::Definition),
             "findreferences" => self.requests.push(Request::References),
             "rename" => self.requests.push(Request::Rename(arg(0))),

@@ -168,6 +168,7 @@ SUB DocumentActivated(Name AS STRING)
     END IF
   NEXT
   IF ActiveDoc <> was THEN AnalyzeActive
+  IF ActiveDoc >= 0 THEN EditorFacts ActiveDoc
   UpdateCommands
 END SUB
 
