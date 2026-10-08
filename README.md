@@ -226,8 +226,7 @@ any vendor it names ([LEGAL.md](LEGAL.md)). Contributions follow
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
 RapidR stands on the shoulders of open-source software: winit, wgpu, vello,
-parley and AccessKit (the UI), wasm-bindgen, the Monaco editor (the web
-IDE), plotters, SQLite and hundreds of Rust crates. The
+parley and AccessKit (the UI), wasm-bindgen, plotters, SQLite and hundreds of Rust crates. The
 full list, with licenses and links, is in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) (generated from the
 dependency graph) and [LICENSES.md](LICENSES.md) (vendored JavaScript and

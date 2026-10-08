@@ -122,8 +122,8 @@
       };
 
       // (the program's Open / Save dialogs: this frame's opaque origin may
-      // not show the browser's file pickers, so the IDE shows them —
-      // host.js previewFiles; crates/rapidr-runtime-web/src/file_picker_web.rs)
+      // not show the browser's file pickers, so Studio's page shows them —
+      // studio.js frameFiles; crates/rapidr-runtime-web/src/file_picker_web.rs)
       if (data.filePickers) {
         window.RAPIDR_FILE_HOST = {
           open: (opts) => askFiles({ op: "open", opts }),

@@ -1,11 +1,11 @@
 // SEC-17 and SEC-12 regressions (docs/security-audit.md), without a browser.
 //
-// SEC-17: the legacy HTML / Monaco IDE (web-ide/) was the shipped web
-// artifact (tools/release/web.sh packaged it) and its scripts were compiled
-// into every program's bundle (include_str! of web-ide/bundle_console.js and
+// SEC-17: the legacy HTML / Monaco IDE was the shipped web artifact
+// (tools/release/web.sh packaged it) and its scripts were compiled into
+// every program's bundle (include_str! of its bundle_console.js and
 // ansi_screen.js), with its wildcard-CORS .htaccess and weak escaping on the
-// shipping path. Now the release ships RapidR Studio's web build, and a
-// bundle carries only rapidr-webbundle's own files.
+// shipping path. Now the release ships RapidR Studio's web build, a bundle
+// carries only rapidr-webbundle's own files, and the old IDE is deleted.
 //
 // SEC-12: an RWEBVIEW's frame was sandboxed with `allow-scripts
 // allow-same-origin`, so its Html ran with the program's own origin. Now the
@@ -27,11 +27,10 @@ const check = (name, ok) => { if (!ok) { console.error("FAIL:", name); failures+
 
 // --- SEC-17: what ships.
 const web = read("tools/release/web.sh");
-check("tools/release/web.sh doesn't default to web-ide/", !/SITE="\$\{1:-web-ide\}"/.test(web) && !/git ls-files[^\n]*web-ide/.test(web));
-check("tools/release/web.sh ships RapidR Studio's web build", /tools\/build_studio_web\.sh/.test(web) && /target\/studio-web/.test(web));
-check("tools/release/web.sh refuses web-ide/", /web-ide\|web-ide\/\*/.test(web));
+check("tools/release/web.sh ships RapidR Studio's web build (by default; nothing taken from git's file list)", /SITE=target\/studio-web/.test(web) && /tools\/build_studio_web\.sh/.test(web) && !/ls-files/.test(web));
 const bundle = read("interpreter/rapidr-webbundle/src/lib.rs");
-check("rapidr-webbundle embeds nothing from web-ide/", !/include_str!\([^)]*web-ide/.test(bundle) && !/include_bytes!\([^)]*web-ide/.test(bundle));
+const embeds = [...bundle.matchAll(/include_(?:str|bytes)!\("([^"]*)"\)/g)].map((m) => m[1]);
+check(`rapidr-webbundle embeds only its own web/ files (${embeds.join(", ")})`, embeds.length > 0 && embeds.every((p) => p.startsWith("../web/") && !p.slice(7).includes("..")));
 for (const f of ["bundle_console.js", "ansi_screen.js", "loader.js", "start.js", "rapidr-webview.html"]) {
   check(`rapidr-webbundle has its own ${f}`, existsSync(join(ROOT, "interpreter/rapidr-webbundle/web", f)));
 }

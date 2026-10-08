@@ -72,7 +72,7 @@ SEC-13).
 | SEC-14 | **High** | Web sandbox | Studio's font bridge let the sandboxed program frame read any same-origin IDE file (fixed in this pass) | **Fixed** (audit pass) |
 | SEC-15 | Medium | Web program | Deployed web bundle (`rapidr build --web`) ships **no CSP**; `RWEBVIEW` srcdoc keeps `allow-same-origin allow-scripts` by default (SEC-12 still open in the kernel host) | **Fixed** (SEC-FIX pass, 2026-10-08) |
 | SEC-16 | Medium | Build output | `render_index_html` / `render_loader_js` / asset-map interpolate the project name and asset names into HTML+JS with no (or `"`-only) escaping → injection in the built bundle | **Fixed** (SEC-FIX pass) |
-| SEC-17 | Medium | Legacy web IDE | `web-ide/` (Monaco IDE) is still the shipped web artifact (`tools/release/web.sh`) and still `include_str!`'d into every bundle; it carries the pre-SEC-05/escaping `innerHTML` sinks and a permissive `.htaccess` | **Fixed** (SEC-FIX pass): not shipped, not embedded; the tree keeps it as a test harness until deletion |
+| SEC-17 | Medium | Legacy web IDE | The legacy HTML / Monaco IDE was still the shipped web artifact (`tools/release/web.sh`) and still `include_str!`'d into every bundle; it carried the pre-SEC-05/escaping `innerHTML` sinks and a permissive `.htaccess` | **Fixed** (SEC-FIX pass): not shipped, not embedded; then **deleted** (2026-10-08) |
 | SEC-18 | Low | Local service | `rapidr lsp` / `rapidr dap` accept `file://` URIs to any path and read/stat them; no project confinement (acceptable for an editor-spawned stdio server, but worth stating) | **Fixed** (SEC-FIX pass); `rapidr mcp`'s authentication designed (§7) |
 | SEC-19 | Low | FFI (in progress) | The DLL-call / VARPTR / PEEK-POKE lane is unimplemented-but-present risk; see the review checklist in §6 | Open (its own lane) |
 | SEC-20 | Low | Supply chain | 3 informational RustSec advisories reachable in shipped binaries (`ttf-parser`, `memmap2`, and `anyhow` which is not actually linked); one stale `deny.toml` ignore | **Fixed** (SEC-FIX pass); checksum signing proposed (§8), the key is Robert's decision |
@@ -119,7 +119,7 @@ deny — and can exfiltrate what it reads (it has unrestricted network). On a pl
 static deployment that is `studio.rrbc`, the examples, and any other file served
 from that origin; the impact scales with whatever else shares the origin (other
 users' shared projects, an app behind the same host, etc.). The predecessor
-`web-ide/host.js:404` validated this with `/^[\w.-]+$/`; the Studio rewrite
+legacy IDE's `host.js:404` validated this with `/^[\w.-]+$/`; the Studio rewrite
 dropped the check.
 
 **PoC (run locally, headless Chromium).** `scratchpad/poc/`:
@@ -146,8 +146,8 @@ if (typeof file !== "string" || !/^[\w.-]+$/.test(file) || file.includes("..")) 
 This matches every real chunk name in `tools/fonts.py`'s index (e.g.
 `NotoSansSC-Regular.000.otf`, `index.json`) and rejects `..`, path separators and
 absolute paths. The same unvalidated pattern exists in the legacy
-`web-ide/host.js:405` (`fetch(./runtime/fonts/${file})`) — there it *is* guarded
-at `:404`; keep that guard if `web-ide/` is kept (see SEC-17).
+IDE's `host.js:405` (`fetch(./runtime/fonts/${file})`) — there it *was* guarded
+at `:404` (that IDE is deleted: SEC-17).
 
 **Regression:** `tests/security/web_font_bridge_traversal.mjs` (added) — pins the
 guard in the shipped source and runs the predicate against a traversal battery;
@@ -196,7 +196,7 @@ CSP are confirmed by reading `render_index_html` (no `<meta http-equiv>`) and
   'wasm-unsafe-eval'`; `'unsafe-eval'` only if `RJavaScript` is used;
   `connect-src` listing the hosts the program's RHTTP/RSOCKET/RAI target;
   `frame-src` only if `RWebView` is used; `object-src 'none'`; `base-uri 'none'`.
-  The legacy `web-ide/zip.js:88` already emits such a CSP for its bundles — port
+  The legacy IDE's `zip.js:88` already emitted such a CSP for its bundles — port
   that logic into `rapidr-webbundle`.
 - Default `RWEBVIEW` srcdoc content to **drop `allow-same-origin`**; keep an
   explicit opt-in property (`RWebView.SameOrigin = True`) for authors who need it
@@ -249,32 +249,32 @@ escaped forms only.
 
 ### SEC-17 — Medium — The legacy Monaco web IDE is still shipped and still embedded
 
-**Status: fixed** in the SEC-FIX pass — §9.4 (with what still depends on
-`web-ide/`).
+**Status: fixed** in the SEC-FIX pass — §9.4; the legacy IDE itself was deleted
+on 2026-10-08.
 
-**Location:** `tools/release/web.sh:15` (`SITE="${1:-web-ide}"` — the release web
-artifact is `web-ide/`); `interpreter/rapidr-webbundle/src/lib.rs:69-70`
-(`include_str!("../../../web-ide/{bundle_console,ansi_screen}.js")` — pulled into
-every bundle); `web-ide/.htaccess` (`Access-Control-Allow-Origin: *` on js/mjs/
-wasm/json/css); `web-ide/host.js` numerous `innerHTML` sinks with an `escapeHtml`
+**Location** (as found; the paths are gone): `tools/release/web.sh:15` (`SITE` defaulted to
+the legacy IDE's folder — the release web artifact was the legacy IDE); `interpreter/rapidr-webbundle/src/lib.rs:69-70`
+(`include_str!` of the legacy IDE's `bundle_console.js` and `ansi_screen.js` — pulled into
+every bundle); the legacy IDE's `.htaccess` (`Access-Control-Allow-Origin: *` on js/mjs/
+wasm/json/css); the legacy IDE's `host.js`, numerous `innerHTML` sinks with an `escapeHtml`
 (`host.js:3847`) that does not escape `"` (attribute-context injections at
 `host.js:~3304`, `:3381`, `:3385`, and `bodyHtml`-into-`innerHTML` at `:2180`,
 `:3893`).
 
-**What.** The IDE plan (docs/ide-plan.md I1) says `web-ide/` is deleted once the
+**What.** The IDE plan (docs/ide-plan.md I1) says the legacy IDE is deleted once the
 kernel Studio reaches parity, and `ide/web/` (the kernel Studio) now exists — but
-`web-ide/` is still what `tools/release/web.sh` packages by default, and its two
+the legacy IDE is still what `tools/release/web.sh` packages by default, and its two
 JS helpers are compiled into every program bundle via `include_str!`. So the old
 IDE, with its weaker escaping and its wildcard-CORS `.htaccess`, is still on the
 shipping path. Its preview isolation (SEC-02/03) is in place
-(`web-ide/index.html:263` opaque sandbox, `host.js:435` `e.source` check), but the
+(its `index.html:263` opaque sandbox, `host.js:435` `e.source` check), but the
 DOM-injection surface in `host.js` predates the SEC-05 hardening done for the
 runtime.
 
 **Recommended fix.** Decide the cutover: either (a) make `tools/release/web.sh`
-ship `target/studio-web/` (the kernel Studio) and stop embedding `web-ide/*.js`
+ship `target/studio-web/` (the kernel Studio) and stop embedding the legacy IDE's scripts
 (move `bundle_console.js` / `ansi_screen.js` into `rapidr-webbundle`'s own
-sources), or (b) if `web-ide/` must ship for now, fix `escapeHtml` to also escape
+sources), or (b) if the legacy IDE must ship for now, fix `escapeHtml` to also escape
 `"` and `'`, replace the `bodyHtml`-into-`innerHTML` paths, and drop the
 wildcard-CORS `.htaccess` (scope it, or rely on same-origin). Per the project's
 "one implementation, no fallbacks" rule, (a) is the direction.
@@ -614,7 +614,7 @@ web stage.
 | `tests/security/web_bundle_injection.rs` (built into rapidr-webbundle's tests) | SEC-15: a policy on every page; SEC-16: hostile project and asset names; SEC-17: nothing of the IDE in a bundle | there was neither a policy nor escaping (`render_index_html` interpolated names as they were) |
 | `tests/web_bundle_csp.mjs` (browser, web stage) | a real bundle under its policy: RDOM markup's `<img onerror>` stopped; RWEBVIEW's script runs in an opaque frame and can't reach the page; RJAVASCRIPT's Eval works; a file name made of markup is text; a plain program runs with no violation | 11 checks fail with the pre-fix `rapidr`: `window.__pwned = 1`, and the hostile name breaks `loader.js` ("missing ) after argument list") |
 | `tests/web_overlays.mjs` (updated) | RWEBVIEW sandboxed without `allow-same-origin`, its page at origin `null` | the old frame was same-origin (its `contentDocument` was readable) |
-| `tests/security/web_shipping.mjs` | SEC-17: what ships; SEC-12: RWEBVIEW's defaults | `web.sh` defaulted to `web-ide`; `include_str!` of web-ide files; `allow-same-origin` in the default sandbox |
+| `tests/security/web_shipping.mjs` | SEC-17: what ships; SEC-12: RWEBVIEW's defaults | `web.sh` defaulted to the legacy IDE; `include_str!` of its files; `allow-same-origin` in the default sandbox |
 | `tests/security/lsp_workspace_confinement.rs` (rapidr-lsp's tests) | SEC-18: a never-opened file outside the workspace, a `..` URI and an `$INCLUDE` outside read nothing; the workspace's own files still work | the outside file's outline (`LeakedSecretName`) and the outside include's SUB came back |
 | `tests/security/dap_launch_confinement.rs` (rapidr-dap's tests) | SEC-18: loader variables never reach the debuggee; a launch names only a RapidR program | `LD_PRELOAD` / `DYLD_INSERT_LIBRARIES` passed; a key file accepted as `program` |
 | `tests/security/supply_chain.mjs` | SEC-20: versions, deny.toml, the ttf-parser ground, `cargo deny` / `cargo audit` clean | memmap2 0.9.10 (and `cargo deny` silent about it), the stale ignore |
@@ -691,37 +691,27 @@ too.
 ### 9.4 SEC-17 — what ships
 
 - `tools/release/web.sh` ships **RapidR Studio's web build**
-  (`tools/build_studio_web.sh` → `target/studio-web`, with the RWEBVIEW frame
-  and Studio's own `_headers` / `.htaccess`: no CORS, `frame-ancestors
-  'self'` on `index.html`) and refuses `web-ide/`. The SBOM no longer lists
-  Monaco (not shipped).
+  (`tools/build_studio_web.sh` → `target/studio-web`, with the RWEBVIEW frame,
+  the page's icons and Studio's own `_headers` / `.htaccess`: no CORS,
+  `frame-ancestors 'self'` on `index.html`). The SBOM doesn't list Monaco.
 - Program bundles carry only `rapidr-webbundle`'s own files (`web/`:
   `bundle_console.js`, `ansi_screen.js`, `loader.js`, `start.js`,
-  `rapidr-webview.html`); nothing is `include_str!`'d from `web-ide/`.
-- `web-ide/` is **not deleted** (no more work on it; Studio replaces it).
-  As nothing ships it any more, its `.htaccess` (wildcard CORS) and its
-  `escapeHtml` were left as they are. What still depends on it:
-  - Tests that load `web-ide/index.html` as their page: `tests/web_ide_*.mjs`
-    (24 suites), `tests/debug_e2e_*.mjs`, `tests/web_conformance.mjs`,
-    `tests/lang_conformance.mjs` (its web backend), `tests/web_sqlite.mjs`,
-    `tests/web_vm_yield.mjs`, `tests/web_modal_focus.mjs`,
-    `tests/web_file_dialogs.mjs`, `tests/visual_smoke.mjs`,
-    `tests/corpus_web_compare.mjs`, `tests/_q.mjs`, `tests/_webprobe.mjs`,
-    `tests/capture_assets_explorer_screenshot.mjs`.
-  - Generated data: `rapidr lang export --web-ide` / `--all` writes
-    `web-ide/lang-data.js` (`crates/rapidr-cli/src/lang.rs`,
-    `crates/rapidr-lang/src/export.rs`); `tools/lang_seed.py` reads it.
-  - `design/brand/src/export.py` writes the brand's icons into `web-ide/icons`.
-  - `tools/release/macos.sh` lists `web-ide` among the paths that must not
-    change after `prepare.sh` (harmless).
-  - Docs and comments: `LICENSES.md` (Monaco, now "not shipped"; `zip.js`),
-    `COMPILER_MANUAL.md`, ROADMAP, docs/ide-plan.md, docs/web-host-plan.md,
-    `crates/rapidr-project/src/v1.rs` (the v1 project format's origin), a
-    comment in `ide/web/studio.js`, `.claude/launch.json` (a server named
-    "web-ide").
-  - `bundle_console.js` and `ansi_screen.js` exist twice until `web-ide/`
-    goes: its copies serve the old IDE's own Build; the bundles' are
-    `interpreter/rapidr-webbundle/web/`.
+  `rapidr-webview.html`); the crate embeds nothing from outside its `web/`
+  folder (`tests/security/web_shipping.mjs`, `web_bundle_injection.rs`).
+- **The legacy HTML / Monaco IDE is deleted** (2026-10-08, Robert's decision:
+  RapidR Studio is the web IDE), with its wildcard-CORS `.htaccess`, its
+  `escapeHtml`, its vendored Monaco, `rapidr lang export`'s generator for its
+  `lang-data.js`, the brand export's copy of the icons into it, and
+  `tools/lang_seed.py`'s reading of its data. What the program's frame needed
+  from the IDE's page is now Studio's (`ide/web/studio.js`): the browser's file
+  pickers shown for the opaque-origin frame (`frameFiles`: only the options a
+  program's Filter / FileName make; writes only through a token the user's
+  pick gave) and the program's RWEBSTORAGE kept per program under its own key,
+  capped at 1 MB (`applyAppStorageOp`). Its browser suites were sorted
+  (docs/studio-wow.md §7): the web runtime's re-pointed at the runtime's page
+  (`tests/web_run.mjs`) or Studio's run frame (`tests/studio_run_frame.mjs`:
+  SEC-02 / 03's isolation, storage, 1:1 pixels), the IDE features' listed for
+  Studio, the old IDE's internals' deleted.
 
 ### 9.5 SEC-18 — LSP and DAP confined
 
