@@ -354,6 +354,8 @@ impl Document {
             let tree = to_subtree(node, previous, &mut next, &mut spans, &mut Vec::new());
             let mut synced = FormDesign::from_subtree_after(tree, next);
             synced.set_constants(Some(constants.clone()));
+            // (a RapidQ program: constants it doesn't define written as numbers)
+            synced.set_rapidq(self.path.as_deref().and_then(|p| p.extension()).is_some_and(|e| e.eq_ignore_ascii_case("bas") || e.eq_ignore_ascii_case("inc")));
             let old = self.forms.get(k).filter(|f| same(&f.synced)).or_else(|| self.forms.iter().find(|f| same(&f.synced)));
             let mut designer = match old {
                 Some(old) => old.designer.clone(),

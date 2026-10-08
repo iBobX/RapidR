@@ -86,6 +86,35 @@ pub fn open_list(form: &str, id: &str, items: Vec<String>, anchor: Rect) {
     DROPPED.with(|d| *d.borrow_mut() = Some(Dropped { form: form.to_lowercase(), id: id.to_lowercase(), hot: None, top: 0, items: Some(items), anchor: Some(anchor) }));
 }
 
+/// (I1 / L-PANELS) Lights row `i` of component `id`'s dropped list of
+/// another kind's ([`open_list`]: an inspector's constants), scrolled into
+/// the shown rows — the keyboard's Up / Down in it.
+pub fn set_hot(id: &str, i: usize) {
+    DROPPED.with(|d| {
+        let mut d = d.borrow_mut();
+        let Some(d) = d.as_mut().filter(|d| d.id.eq_ignore_ascii_case(id)) else { return };
+        let n = d.items.as_ref().map_or(0, Vec::len);
+        if n == 0 {
+            return;
+        }
+        let i = i.min(n - 1);
+        d.hot = Some(i);
+        if i < d.top {
+            d.top = i;
+        } else if i >= d.top + DROP_ROWS {
+            d.top = i + 1 - DROP_ROWS;
+        }
+    });
+}
+
+/// (I1 / L-PANELS) Component `id`'s dropped list of another kind's: its
+/// lit row and item (Enter picks it), its item count.
+pub fn hot_item(id: &str) -> Option<(Option<(usize, String)>, usize)> {
+    let d = dropped().filter(|d| d.id.eq_ignore_ascii_case(id))?;
+    let items = d.items?;
+    Some((d.hot.and_then(|h| items.get(h).map(|s| (h, s.clone()))), items.len()))
+}
+
 /// The drop-down's button: as wide as a scroll bar, inside the frame.
 fn button_rect(w: i64, h: i64) -> Rect {
     let bw = rapidr_value::scrollbars::BAR.min(w - 4).max(0);

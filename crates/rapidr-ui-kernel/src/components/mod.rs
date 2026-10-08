@@ -49,6 +49,8 @@ pub mod codeedit;
 pub mod design;
 // (I1: RapidR Studio's docking)
 pub mod dock;
+// (I1 / L-PANELS: RapidR Studio's panels — rapidr_value::panels)
+pub mod panels;
 // (the data-science lane's: RPLOT on a form)
 pub mod plot;
 
@@ -113,6 +115,13 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RDOCKMANAGER", &dock::DockManager),
     ("RDOCKGROUP", &dock::DockGroup),
     ("RDOCKDOCS", &dock::DockDocs),
+    // (I1 / L-PANELS: RapidR Studio's panels — rapidr_value::panels)
+    ("RPROPERTYINSPECTOR", &panels::inspector::Inspector),
+    ("RTOOLBOX", &panels::toolbox::Toolbox),
+    ("RPROJECTTREE", &panels::project_tree::ProjectTree),
+    ("ROUTPUTCONSOLE", &panels::console::Console),
+    ("RTOOLBAR", &panels::toolbar::ToolBar),
+    ("RCOMMANDPALETTE", &panels::palette::Palette),
     // (the data-science lane's: a chart on a form — rapidr_value::datascience)
     ("RPLOT", &plot::Plot),
 ];
