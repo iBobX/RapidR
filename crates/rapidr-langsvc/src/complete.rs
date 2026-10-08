@@ -6,6 +6,7 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use rapidr_lang::{Component, Kind, Origin};
+use rapidr_lexer::TokenType;
 
 use crate::compat;
 use crate::context::{self, line_context, pretty_component, Place, Ty};
@@ -15,7 +16,7 @@ use crate::{Completion, CompletionKind, Completions, Snapshot};
 pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize) -> Completions {
     let lc = line_context(text, offset);
     let pre = s.pre_offset(file, lc.word_start).unwrap_or(0);
-    let mut out = Out::default();
+    let mut out = Out { q_style: q_style(s, file), ..Out::default() };
     match &lc.place {
         Place::Nothing => {}
         Place::Directive => {
@@ -27,11 +28,15 @@ pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize) 
                     doc: Some(d.doc.to_string()),
                     insert: None,
                     snippet: false,
+                    edits: Vec::new(),
                     sort: "0".into(),
                 });
             }
         }
-        Place::AfterAs => types(s, &mut out),
+        Place::AfterAs => {
+            let q_style = out.q_style;
+            types(s, &mut out, q_style)
+        }
         Place::Label => {
             let scope = s.model.scope_at(pre);
             for sym in &s.model.symbols {
@@ -55,8 +60,9 @@ pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize) 
                         kind: CompletionKind::Keyword,
                         detail: Some("CREATE name AS type … END CREATE".into()),
                         doc: Some("Creates a component inside this one.".into()),
-                        insert: Some("CREATE ${1:Name} AS ${2:QButton}\n\t$0\nEND CREATE".into()),
+                        insert: Some(format!("CREATE ${{1:Name}} AS ${{2:{}}}\n\t$0\nEND CREATE", if out.q_style { "QButton" } else { "RButton" })),
                         snippet: true,
+                        edits: Vec::new(),
                         sort: "1".into(),
                     });
                     return out.finish(lc.word_start, lc.word_end);
@@ -72,6 +78,7 @@ pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize) 
                     doc: Some(with_notes(b.doc, &compat::notes(b.origin, Origin::RapidQ, false, b.runtimes, None))),
                     insert: None,
                     snippet: false,
+                    edits: Vec::new(),
                     sort: "3".into(),
                 });
             }
@@ -83,6 +90,7 @@ pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize) 
                     doc: Some(with_notes(g.doc, &compat::notes(g.origin, Origin::RapidQ, false, g.runtimes, g.from))),
                     insert: None,
                     snippet: false,
+                    edits: Vec::new(),
                     sort: "3".into(),
                 });
             }
@@ -94,6 +102,7 @@ pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize) 
                     doc: Some(with_notes(st.doc, &compat::notes(st.origin, Origin::RapidQ, false, rapidr_lang::Runtimes::All, None))),
                     insert: None,
                     snippet: false,
+                    edits: Vec::new(),
                     sort: "4".into(),
                 });
             }
@@ -105,6 +114,7 @@ pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize) 
                     doc: Some(with_notes(k.doc, &compat::notes(k.origin, Origin::RapidQ, false, rapidr_lang::Runtimes::All, None))),
                     insert: None,
                     snippet: false,
+                    edits: Vec::new(),
                     sort: "4".into(),
                 });
             }
@@ -120,10 +130,12 @@ pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize) 
                         doc: Some(g.doc.to_string()),
                         insert: None,
                         snippet: false,
+                        edits: Vec::new(),
                         sort: "3".into(),
                     });
                 }
             }
+            rapidq_inc_constants(s, text, &mut out);
         }
     }
     out.finish(lc.word_start, lc.word_end)
@@ -138,11 +150,19 @@ pub(crate) fn with_notes(doc: &str, notes: &str) -> String {
     }
 }
 
-/// Types after `AS`: RapidQ's components under RapidQ's names, RapidR's
-/// own under RapidR's (docs/q-and-r-components.md), the program's TYPEs,
-/// the built-in types.
-fn types(s: &Snapshot, out: &mut Out) {
+/// Types after `AS`: RapidR's names first (`RButton`), RapidQ's after them
+/// (`QButton`, still accepted: one component under two names,
+/// docs/q-and-r-components.md) — in a file written with RapidQ's names, the
+/// other way round, so a file keeps one style; the program's TYPEs and the
+/// built-in types before them.
+fn types(s: &Snapshot, out: &mut Out, q_style: bool) {
+    // (the sort groups of a name in the file's style, and of the other)
+    let (own, other) = if q_style { ("2", "3") } else { ("2", "6") };
     for t in rapidr_lang::TYPE_NAMES {
+        // (QOBJECT beside ROBJECT: the file's style first)
+        let q_twin = t.name.strip_prefix('Q').is_some_and(|rest| rapidr_lang::type_name(&format!("R{rest}")).is_some());
+        let r_twin = t.name.strip_prefix('R').is_some_and(|rest| rapidr_lang::type_name(&format!("Q{rest}")).is_some());
+        let sort = if (q_twin && !q_style) || (r_twin && q_style) { other } else { "1" };
         out.push(Completion {
             label: t.name.to_string(),
             kind: CompletionKind::Type,
@@ -150,7 +170,8 @@ fn types(s: &Snapshot, out: &mut Out) {
             doc: Some(t.doc.to_string()),
             insert: None,
             snippet: false,
-            sort: "1".into(),
+            edits: Vec::new(),
+            sort: sort.into(),
         });
     }
     for sym in &s.model.symbols {
@@ -160,21 +181,87 @@ fn types(s: &Snapshot, out: &mut Out) {
     }
     // (RapidQ's components RapidR doesn't have yet aren't offered)
     for c in rapidr_lang::COMPONENTS.iter().filter(|c| c.kind != Kind::Planned) {
-        let label = pretty_component(c.written_name());
-        let detail = match (c.rapidq, c.from) {
-            (Some(_), Some(inc)) => format!("RapidQ component from {inc} (RapidR: {})", pretty_component(c.name)),
-            (Some(_), None) => format!("RapidQ component (RapidR: {})", pretty_component(c.name)),
-            (None, _) => "RapidR component".to_string(),
+        let r = pretty_component(c.name);
+        let from = c.from.map(|inc| format!(", from {inc}")).unwrap_or_default();
+        let r_detail = match c.rapidq {
+            Some(q) => format!("RapidR component (RapidQ: {}){from}", pretty_component(q)),
+            // (a RapidQ library's object RapidR supplies under its own name)
+            None if c.origin == Origin::RapidQ => format!("RapidQ component{from}"),
+            None => format!("RapidR component{from}"),
         };
         out.push(Completion {
-            label,
+            label: r.clone(),
             kind: CompletionKind::Component,
-            detail: Some(detail),
+            detail: Some(r_detail),
             doc: component_doc(c),
             insert: None,
             snippet: false,
-            sort: if c.rapidq.is_some() { "2".into() } else { "3".into() },
+            edits: Vec::new(),
+            sort: if q_style && c.rapidq.is_some() { other.into() } else { own.into() },
         });
+        if let Some(q) = c.rapidq {
+            out.push(Completion {
+                label: pretty_component(q),
+                kind: CompletionKind::Component,
+                detail: Some(format!("RapidQ's name for {r}{from}")),
+                doc: component_doc(c),
+                insert: None,
+                snippet: false,
+                edits: Vec::new(),
+                sort: if q_style { own.into() } else { other.into() },
+            });
+        }
+    }
+}
+
+/// Whether `file` names its components the RapidQ way (`AS QFORM`) more
+/// than RapidR's (`AS RFORM`): completion then keeps to that style.
+pub(crate) fn q_style(s: &Snapshot, file: &Path) -> bool {
+    let Some(lf) = s.parsed.lossless(file) else { return false };
+    let (mut q, mut r) = (0usize, 0usize);
+    let mut after_as = false;
+    for t in &lf.tokens {
+        if t.kind == TokenType::As {
+            after_as = true;
+            continue;
+        }
+        if after_as && t.kind == TokenType::Identifier {
+            if let Some(c) = rapidr_lang::component(&t.lexeme) {
+                if c.name.eq_ignore_ascii_case(&t.lexeme) {
+                    r += 1;
+                } else {
+                    q += 1;
+                }
+            }
+        }
+        after_as = false;
+    }
+    q > r
+}
+
+/// RAPIDQ.INC's constants (`mbYes`, `clRed` …) for a program that doesn't
+/// include it yet: choosing one adds `$INCLUDE "RAPIDQ.INC"` at the file's
+/// top too (without it, RapidQ reads the name as a variable that is 0).
+fn rapidq_inc_constants(s: &Snapshot, text: &str, out: &mut Out) {
+    let have: HashSet<String> = s.model.symbols.iter().filter(|x| x.kind == SymbolKind::Constant).map(|x| name_key(&x.name)).collect();
+    let groups = || rapidr_lang::CONSTANT_GROUPS.iter().filter(|g| g.origin == Origin::RapidQ && g.source.eq_ignore_ascii_case(crate::hints::RAPIDQ_INC));
+    if groups().flat_map(|g| g.constants.iter()).any(|(n, _)| have.contains(&n.to_ascii_lowercase())) {
+        return;
+    }
+    let edit = crate::hints::include_edit(text, crate::hints::RAPIDQ_INC);
+    for g in groups() {
+        for (name, value) in g.constants {
+            out.push(Completion {
+                label: name.to_string(),
+                kind: CompletionKind::Constant,
+                detail: Some(format!("RAPIDQ.INC constant = {value}")),
+                doc: Some(with_notes(g.doc, "*Choosing it adds `$INCLUDE \"RAPIDQ.INC\"` at the top of the file too: without it, RapidQ reads the name as a variable that is always 0.*")),
+                insert: None,
+                snippet: false,
+                edits: vec![edit.clone()],
+                sort: "5".into(),
+            });
+        }
     }
 }
 
@@ -238,7 +325,7 @@ pub(crate) fn members(s: &Snapshot, ty: &Ty, out: &mut Out, events_as_assignment
 }
 
 fn component_members(c: &Component, out: &mut Out, in_create: bool) {
-    let owner = pretty_component(c.written_name());
+    let owner = pretty_component(if out.q_style { c.written_name() } else { c.name });
     let doc = |text: &str, origin, runtimes, from| Some(with_notes(text, &compat::notes(origin, c.origin, false, runtimes, from)));
     // (what RapidR doesn't answer yet isn't offered; in a CREATE body,
     // what can be set)
@@ -254,6 +341,7 @@ fn component_members(c: &Component, out: &mut Out, in_create: bool) {
             doc: doc(p.doc, p.origin, p.runtimes, p.from),
             insert: in_create.then(|| format!("{} = ", p.name)),
             snippet: false,
+            edits: Vec::new(),
             sort: "0".into(),
         });
     }
@@ -266,6 +354,7 @@ fn component_members(c: &Component, out: &mut Out, in_create: bool) {
                 doc: doc(m.doc, m.origin, m.runtimes, m.from),
                 insert: None,
                 snippet: false,
+                edits: Vec::new(),
                 sort: "1".into(),
             });
         }
@@ -278,6 +367,7 @@ fn component_members(c: &Component, out: &mut Out, in_create: bool) {
             doc: doc(e.doc, e.origin, e.runtimes, e.from),
             insert: Some(format!("{} = ", e.name)),
             snippet: false,
+            edits: Vec::new(),
             sort: "2".into(),
         });
     }
@@ -289,6 +379,11 @@ fn names(s: &Snapshot, pre: usize, out: &mut Out) {
     let in_routine = !matches!(s.model.scopes[scope].kind, ScopeKind::Program);
     for id in s.model.visible(scope) {
         let sym = &s.model.symbols[id];
+        // (RAPIDQ.INC's `mbYes` used without the include: offered as the
+        // constant, with the include — rapidq_inc_constants)
+        if sym.implicit && rapidr_lang::constant(rapidr_ast::strip_type_suffix(&sym.name)).is_some_and(|(_, g)| g.origin == Origin::RapidQ) {
+            continue;
+        }
         let (kind, sort) = match sym.kind {
             SymbolKind::Local | SymbolKind::Static => (CompletionKind::Variable, "0"),
             SymbolKind::Param => (CompletionKind::Parameter, "0"),
@@ -313,7 +408,7 @@ fn names(s: &Snapshot, pre: usize, out: &mut Out) {
 }
 
 fn simple(label: &str, kind: CompletionKind, detail: Option<String>, sort: &str) -> Completion {
-    Completion { label: label.to_string(), kind, detail, doc: None, insert: None, snippet: false, sort: sort.to_string() }
+    Completion { label: label.to_string(), kind, detail, doc: None, insert: None, snippet: false, sort: sort.to_string(), edits: Vec::new() }
 }
 
 /// `akleft` → `akLeft`.
@@ -329,6 +424,8 @@ fn pretty_constant(name: &str) -> String {
 pub(crate) struct Out {
     items: Vec<Completion>,
     seen: HashSet<String>,
+    /// The file names components the RapidQ way ([`q_style`]).
+    q_style: bool,
 }
 
 impl Out {

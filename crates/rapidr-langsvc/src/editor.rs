@@ -174,6 +174,7 @@ impl ed::LanguageService for EditorService {
                     insert: c.insert,
                     snippet: c.snippet,
                     sort: c.sort,
+                    edits: c.edits.into_iter().map(edit).collect(),
                 })
                 .collect(),
             start: got.start,

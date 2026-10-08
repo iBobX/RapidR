@@ -254,8 +254,9 @@ SUB SearchOpen
   IF d < 0 THEN EXIT SUB
   Dock.FocusPane(DocPane(d))
   IF HitLine(i) > 0 THEN
-    CodeDoc(d).GotoLine HitLine(i) - 1
-    CodeDoc(d).SelStart = CodeOffset(d, HitLine(i) - 1, HitCol(i) - 1)
+    ' (the code editor's own line and column, from 1: no walk through
+    ' the lines before)
+    CodeDoc(d).GotoLineColumn HitLine(i), HitCol(i)
     CodeDoc(d).SelLength = HitLen(i)
   END IF
 END SUB

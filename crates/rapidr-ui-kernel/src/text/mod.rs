@@ -34,7 +34,11 @@ pub use editor::{Align, Look, Pos, RunStyle, Span, TextEditor};
 pub struct Ink(pub u32);
 
 /// GDI's TextOut: no kerning, no ligatures.
-pub const FEATURES: &str = "\"kern\" off, \"liga\" off, \"clig\" off, \"calt\" off";
+pub const FEATURES: &str = "\"kern\" off, \"liga\" off, \"clig\" off";
+/// The code face's: no contextual alternates either — JetBrains Mono's
+/// ligatures (`->`, `<=`, `<>`) are them, and code shows each character
+/// (Inter keeps its own: the colon raised between digits, `12:30`).
+pub const CODE_FEATURES: &str = "\"kern\" off, \"liga\" off, \"clig\" off, \"calt\" off";
 
 /// The font database and parley's scratch space, shared by every component
 /// of every form (making either is costly).
@@ -181,7 +185,7 @@ pub fn styles(font: &Font, color: u32) -> Vec<StyleProperty<'static, Ink>> {
         StyleProperty::FontFamily(FontFamily::List(Cow::Owned(names))),
         StyleProperty::FontSize(font_pixels(font)),
         StyleProperty::LineHeight(LineHeight::MetricsRelative(1.0)),
-        StyleProperty::FontFeatures(FontFeatures::Source(Cow::Borrowed(FEATURES))),
+        StyleProperty::FontFeatures(FontFeatures::Source(Cow::Borrowed(if face == rapidr_value::objects::text::CODE_FACE { CODE_FEATURES } else { FEATURES }))),
         StyleProperty::Brush(Ink(color)),
     ];
     if font.styles & 1 != 0 {

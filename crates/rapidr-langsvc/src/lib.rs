@@ -31,6 +31,7 @@ mod compat;
 mod complete;
 mod context;
 mod format;
+mod hints;
 mod hover;
 mod navigate;
 mod signature;
@@ -98,6 +99,9 @@ pub struct Completion {
     pub snippet: bool,
     /// The order: smaller first.
     pub sort: String,
+    /// Other edits of the same file made with it (an `$INCLUDE` the name
+    /// needs: RAPIDQ.INC's constants).
+    pub edits: Vec<TextEdit>,
 }
 
 /// The completions at a place, and the text they replace (the word typed
@@ -480,6 +484,13 @@ impl Analysis {
         out.extend(compat::check(&s, file, self.options.rapidq_compatible).into_iter().filter(|c| {
             !compiler.iter().any(|d| d.file == c.file && d.start < c.end.max(c.start + 1) && c.start < d.end.max(d.start + 1))
         }));
+        // (what RapidQ compiles without a word but is likely a mistake:
+        // RAPIDQ.INC's constants without the include, names never
+        // assigned — when the program compiles, its model whole)
+        if !compiler.iter().any(|d| d.severity == rapidr_diagnostics::Severity::Error) {
+            let said: Vec<FileDiagnostic> = out.clone();
+            out.extend(hints::check(&s).into_iter().filter(|h| !said.iter().any(|d| d.file == h.file && d.start < h.end && h.start < d.end)));
+        }
         self.diagnostics.insert(file.to_path_buf(), out.clone());
         out
     }
@@ -579,7 +590,9 @@ impl Analysis {
         // through the program that includes it)
         let root = self.snapshot(file).map_or_else(|| file.to_path_buf(), |s| s.parsed.root.clone());
         let diags: Vec<FileDiagnostic> = self.diagnostics(&root).into_iter().filter(|d| d.file == file && d.start <= end && start <= d.end).collect();
-        compat::actions(&diags, |f| self.text(f))
+        let mut out = compat::actions(&diags, |f| self.text(f));
+        out.extend(hints::actions(&diags, &root, |f| self.text(f)));
+        out
     }
 }
 

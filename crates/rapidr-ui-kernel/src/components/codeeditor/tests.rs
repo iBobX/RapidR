@@ -238,7 +238,10 @@ impl svc::LanguageService for Fake {
     fn close(&mut self, _file: &str) {}
     fn completions(&mut self, _file: &str, offset: usize) -> svc::Completions {
         let start = self.text[..offset].rfind(|c: char| !c.is_alphanumeric()).map_or(0, |i| i + 1);
-        svc::Completions { items: vec![svc::Completion::new("Caption", svc::CompletionKind::Property), svc::Completion::new("ShowModal", svc::CompletionKind::Method)], start, end: offset }
+        // (and a constant that needs an include: added with it)
+        let mut needs = svc::Completion::new("mbYes", svc::CompletionKind::Constant);
+        needs.edits = vec![svc::Edit { start: 0, end: 0, text: "$INCLUDE \"RAPIDQ.INC\"\n".into() }];
+        svc::Completions { items: vec![svc::Completion::new("Caption", svc::CompletionKind::Property), svc::Completion::new("ShowModal", svc::CompletionKind::Method), needs], start, end: offset }
     }
     fn hover(&mut self, _file: &str, offset: usize) -> Option<svc::Hover> {
         Some(svc::Hover { text: "```\nDIM x AS INTEGER\n```\nA variable.".into(), start: offset, end: offset + 1 })
@@ -308,6 +311,19 @@ fn the_language_service_completes_cases_and_diagnoses() {
     let list = f.paint(&s, &mut ts, 1.0);
     let squiggle = list.items.iter().any(|i| matches!(i, Item::Op { op: rapidr_value::objects::ops::Op::Stroke { .. }, .. }));
     assert!(squiggle, "the problem is underlined");
+    // Tab on an item that needs an include: the include at the top and the
+    // name where it was typed, one step (one Ctrl+Z takes both back), the
+    // caret after the name; never a TAB character in the text
+    key(&mut f, &s, &mut ts, 13, "", Mods::NONE);
+    typed(&mut f, &s, &mut ts, "mb");
+    assert!(with_code("ce4", |c| c.completion.is_some()).unwrap(), "completion as a word starts");
+    key(&mut f, &s, &mut ts, 9, "\t", Mods::NONE);
+    assert_eq!(text("ce4"), "$INCLUDE \"RAPIDQ.INC\"\nDIM x = Form.ShowModal\nmbYes");
+    let caret = with_code("ce4", |c| c.doc.selections().primary().head).unwrap();
+    assert_eq!(caret, text("ce4").len());
+    let cmd = Mods { command: true, ctrl: true, ..Mods::NONE };
+    key(&mut f, &s, &mut ts, 90, "", cmd);
+    assert_eq!(text("ce4"), "DIM x = Form.ShowModal\nmb");
 }
 
 /// The designer's changes through ApplyPatches (S-DESIGN-2's shared

@@ -6,8 +6,8 @@
 '
 '   Design | Code    a file with a form has the switch at the right of its
 '                    tab strip (RDOCKMANAGER's AddView): its designer, its
-'                    code, or both side by side; F12 toggles (Delphi's),
-'                    F7 the code, Shift+F7 the designer
+'                    code, or both side by side; F7 the code, Shift+F7
+'                    the designer (F12 is the code's Go to Definition)
 '   groups           a tab dragged to a side of the area splits it into
 '                    groups (VS Code's editor groups), or Window > Split
 '                    Right / Split Down; the splitters between them drag
@@ -78,7 +78,7 @@ SUB AddDocumentTab(d AS INTEGER)
   END IF
 END SUB
 
-' (the switch, F12, F7, Shift+F7: what document d shows now)
+' (the switch, F7, Shift+F7: what document d shows now)
 SUB DocumentViewChanged(Name AS STRING, View AS STRING)
   DIM d AS INTEGER
   d = DocOfPane(Name)
@@ -119,7 +119,7 @@ SUB ShowView(View AS STRING)
   IF View = "Design" THEN Dock.FocusPane("designdoc(" + LTRIM$(STR$(d)) + ")")
 END SUB
 
-' F12: the form, then its code, as Delphi.
+' View > Toggle Form / Code: the form, then its code.
 SUB ToggleDesign
   DIM d AS INTEGER
   d = ActiveCode

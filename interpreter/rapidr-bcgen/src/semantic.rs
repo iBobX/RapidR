@@ -332,7 +332,8 @@ struct Builder<'a> {
     names: HashMap<(ScopeId, String, bool), SymbolId>,
     routines: HashMap<String, ScopeId>,
     functions: HashMap<String, SymbolId>,
-    used: std::collections::HashSet<(usize, usize)>,
+    /// Each span with a reference: its index in the model's references.
+    used: HashMap<(usize, usize), usize>,
     /// Routine scopes and FUNCTION symbols by the routine's span (the
     /// compiler renames a TYPE's methods; their spans stay).
     span_scopes: HashMap<(usize, usize), ScopeId>,
@@ -412,8 +413,18 @@ impl<'a> Builder<'a> {
     }
 
     fn reference(&mut self, span: TextSpan, symbol: SymbolId, access: Access) {
-        if self.used.insert((span.start, span.end)) {
-            self.model.references.push(Reference { span, symbol, access });
+        match self.used.get(&(span.start, span.end)) {
+            // (the same name read, then stored, as INPUT x and SWAP a, b do:
+            // it is written)
+            Some(&i) => {
+                if access == Access::Write && self.model.references[i].access == Access::Read && self.model.references[i].symbol == symbol {
+                    self.model.references[i].access = Access::Write;
+                }
+            }
+            None => {
+                self.used.insert((span.start, span.end), self.model.references.len());
+                self.model.references.push(Reference { span, symbol, access });
+            }
         }
     }
 
@@ -559,6 +570,18 @@ fn build(program: &Program, source: Option<&str>, recorder: Recorder) -> Semanti
     for event in recorder.events {
         match event {
             Event::Declare { routine, kind, name, ty, span } => {
+                // (RapidQ's implicit variables: the compiler's own `DIM name
+                // AS DOUBLE` for a name never declared, spanning the whole
+                // program — rapidr_ast's default-type pass. Not a
+                // declaration the program wrote: the symbol is implicit,
+                // its uses recorded as they are, Read or Write)
+                if kind == SymbolKind::Global && span == program.span && program.span.len() > 0 {
+                    match b.owned(&name) {
+                        Some((scope, var)) => b.symbol(scope, &var, SymbolKind::Static, ty, None, true),
+                        None => b.symbol(0, &name, SymbolKind::Global, ty, None, true),
+                    };
+                    continue;
+                }
                 if let (SymbolKind::Global, Some((scope, var))) = (kind, b.owned(&name)) {
                     b.declare(scope, SymbolKind::Static, &var, ty, span);
                     continue;
@@ -609,7 +632,7 @@ fn build(program: &Program, source: Option<&str>, recorder: Recorder) -> Semanti
         },
     );
     for (span, name) in idents {
-        if b.used.contains(&(span.start, span.end)) {
+        if b.used.contains_key(&(span.start, span.end)) {
             continue;
         }
         let Some(at) = b.name_span(span, &name) else { continue };

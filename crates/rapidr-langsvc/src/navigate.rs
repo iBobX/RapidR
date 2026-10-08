@@ -37,7 +37,14 @@ pub(crate) fn definition(s: &Snapshot, file: &Path, text: &str, offset: usize, o
         return Vec::new();
     }
     let Some(id) = symbol_at(s, file, offset) else { return Vec::new() };
-    s.model.symbols[id].decl.and_then(|d| s.locate(d)).into_iter().collect()
+    if let Some(d) = s.model.symbols[id].decl {
+        return s.locate(d).into_iter().collect();
+    }
+    // (RapidQ's implicit variable, never declared: where it is first
+    // stored, else where it is first used)
+    let mut uses = s.model.references_to(id);
+    let first = s.model.references_to(id).find(|r| r.access == Access::Write).or_else(|| uses.next());
+    first.and_then(|r| s.locate(r.span)).into_iter().collect()
 }
 
 pub(crate) fn references(s: &Snapshot, file: &Path, offset: usize, include_declaration: bool) -> Vec<Location> {
