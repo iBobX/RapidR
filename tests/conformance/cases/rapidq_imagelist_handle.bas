@@ -31,3 +31,4 @@ END TYPE
 DIM T AS TB
 T.H = I1.Handle
 T.Go
+KILL "il_case.bmp"

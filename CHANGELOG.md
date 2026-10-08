@@ -66,6 +66,19 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   gallery's themes are `classic`, `rapidr-light`, `rapidr-dark`,
   `rapidr-high-contrast`.
 ### Added
+- **Serial ports for ESP32 / Arduino / IoT boards** (RComPort, RapidQ's QCOMPORT; RapidQ's members
+  unchanged, RapidR's extras added, the same in native builds, the interpreter and the browser):
+  **ListPorts** with each port's USB vendor / product IDs, description, maker and serial number
+  (IOKit on macOS, SetupAPI on Windows, sysfs on Linux, Web Serial's granted ports in the browser;
+  CP210x, CH340, FTDI, ESP32 USB JTAG/serial … named from their IDs where the system says nothing),
+  **FillList** fills a list or combo box; the **DTR / RTS** lines set and read back, **CTS / DSR /
+  CD / RI** read, **SendBreak**; **ReadLine**(Timeout) with a configurable **LineEnd** and
+  **HasLine**, the **OnLine** event; **OnPortsChanged**(Added, Removed) when a USB adapter is plugged
+  in or out. Closing a port in the browser now closes the Web Serial port (it can be opened again).
+  Tested on a real ESP32 (an M5StickC Plus on FTDI): reset through DTR / RTS, its ROM boot log read,
+  interpreted, native and in Chrome. Example: `examples/iot/esp32_monitor.rr`; manual: "Serial
+  ports and IoT boards"; `tools/esp32_check.sh` checks a real board by hand (never writes to it);
+  the scripted test ports gain `esp32` (a board that prints its boot log when reset).
 - **RapidR Studio's panels as public components** (docs/ide-plan.md I1, L-PANELS), the same on the
   desktop, in native builds and on the web: **RPROPERTYINSPECTOR** (Delphi's object inspector: typed
   editors from the language registry, a visual Anchors pin editor, colours, fonts, lists, the Events
@@ -75,6 +88,23 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   **ROUTPUTCONSOLE** (ANSI output, build log, problems, `file:line` links, search), **RTOOLBAR** as
   a real toolbar (icon buttons, toggles, overflow, customizable) and **RCOMMANDPALETTE** (fuzzy
   commands). Example: `examples/studio/panels.rr`.
+### RapidR Studio: documents as tabs, Find in Files, F1 Help, templates
+- **No window inside the window**: Studio's documents are tabs, as in Xcode, VS Code and Delphi —
+  close buttons, a dot for changes not saved, middle click closes, drag along the strip reorders. A
+  file with a form is one tab with a **Design | Code** switch (and both side by side); F12 toggles,
+  F7 / Shift+F7 pick. A tab dragged to a side of the documents splits them into **groups** (or
+  Window ▸ Split Right / Split Down), with drop outlines and splitters. The layout, the open files
+  and each file's view come back when the project is opened again; the window's place too.
+- **RDOCKMANAGER** (tabbed documents): `AddView`, `DocumentView`, `DocumentModified`,
+  `SplitDocument`, `DocumentGroupCount`, `OnDocumentView`; groups and views in `SaveLayout`.
+- **QFORMMDI children resize by every edge and corner** (Windows' sizing border, resize pointers,
+  never under Windows' 136 × 39 least size — read with RC.EXE on Windows 11), desktop and web.
+- **Find in Files** (Ctrl+Shift+F): match case, whole word, regular expressions, results by file
+  linking to the line, Replace All (RPROJECT `Find`, `Replace`, `FileText`).
+- **F1 Help** pane from the language registry (RLANGUAGESERVICE `Help`) for the word at the caret,
+  the inspector's row, the toolbox's item, the designer's component; Insert types the syntax.
+- **New Project gallery**: Form app, Console, RapidQ-compatible form app (main.bas, compat on), Data
+  dashboard, MDI app with menus. Closing a changed file asks Save / Don't Save / Cancel.
 ### RapidR Studio: the panels work
 - **The real panels replace the stand-ins** (`ide/panels.inc`): the tool bar (RTOOLBAR, buttons with
   tooltips), the command palette (RCOMMANDPALETTE), the project tree (RPROJECTTREE), the toolbox
@@ -625,6 +655,10 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - **`QFONTDIALOG.SetFont(Label.Font)` / `GetFont(Label.Font)`** change and
   read the component's own font, and `Label2.Font = Label.Font` copies it
   (an addition: RapidQ's compiler refuses a component's Font there).
+- **Native builds read TRUE / FALSE as the program defines them**: RAPIDQ.INC's `CONST True = 1`
+  was ignored by native builds (TRUE stayed -1) while the interpreter and the web took it, so
+  `IF Port.Connected = TRUE` failed natively in RapidQ's own ComPort example
+  (`const_true_redefined`).
 - **Text in RapidQ's default font was cramped, letters running together**
   ("program", "start", "Bread", "Price", "Right-click" in labels, edits,
   grids and status bars; worst on a Retina or 150 % screen and on the web).

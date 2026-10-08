@@ -1125,6 +1125,8 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         }
         let v = if method_lower == "leechfile" && rapidr_value::objects::rqlib::is_download(name) {
             crate::io::leech_file(name)
+        } else if method_lower == "filllist" && rapidr_value::objects::rqlib::is_comport(name) {
+            crate::io::fill_list(name, args)
         } else {
             match rapidr_value::objects::call(name, &method_lower, args, &|id, p| rp_comp_get(id, p)) {
                 Some(Ok(v)) => v,

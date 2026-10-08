@@ -224,7 +224,7 @@ END SUB
 
 SUB BuildDone(Code AS INTEGER, Built AS STRING)
   IF Code = 0 THEN
-    OutputLine "Built " + Built + " in " + LTRIM$(STR$(INT(TIMER - BuildStarted))) + " s. Run > Reveal in " + Proj.FileManager + " shows it."
+    OutputLine "Built " + Built + " in " + LTRIM$(STR$(INT(TIMER - BuildStarted))) + " s. Run > Reveal the App shows it in " + Proj.FileManager + "."
     SetState "stopped", "Built " + FileTitle(Built)
   ELSE
     OutputLine "The build failed (exit code " + LTRIM$(STR$(Code)) + "): see above."

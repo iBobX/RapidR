@@ -3923,7 +3923,7 @@ dependencies = [
  "serde_json",
  "serial2",
  "ureq",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3963,6 +3963,8 @@ name = "rapidr-studio"
 version = "2.117.0"
 dependencies = [
  "rapidr-designer",
+ "rapidr-editor",
+ "rapidr-lang",
  "rapidr-langsvc",
  "rapidr-package",
  "rapidr-preprocessor",

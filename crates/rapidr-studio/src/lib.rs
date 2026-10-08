@@ -21,6 +21,8 @@ use rapidr_value::Value;
 pub mod build;
 pub mod channel;
 pub mod design;
+pub mod find;
+pub mod help;
 pub mod langsvc;
 pub mod project;
 pub mod session;

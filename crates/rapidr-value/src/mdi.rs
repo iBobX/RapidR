@@ -506,8 +506,9 @@ pub enum Action {
     ToggleMaximize,
     /// Dragged by its title bar to here.
     Move(i64, i64),
-    /// Dragged by its corner to this size.
-    Resize(i64, i64),
+    /// Dragged by an edge or a corner: its new Left, Top, Width, Height
+    /// ([`resized`] keeps it at least Windows' least size).
+    Resize(i64, i64, i64, i64),
 }
 
 pub fn user(form: &str, component: &str, action: Action, client: (i64, i64)) -> Outcome {
@@ -543,10 +544,10 @@ pub fn user(form: &str, component: &str, action: Action, client: (i64, i64)) -> 
                     c.normal = c.rect;
                 }
             }
-            Action::Resize(w, h) => {
+            Action::Resize(l, t, w, h) => {
                 let c = &mut m.children[i];
-                if c.state == State::Normal {
-                    c.rect = Rect::new(c.rect.left, c.rect.top, w, h);
+                if c.state == State::Normal && (c.rect.left, c.rect.top, c.rect.width, c.rect.height) != (l, t, w, h) {
+                    c.rect = Rect::new(l, t, w, h);
                     c.normal = c.rect;
                     out.events.push(Event::of("onchildresize", c));
                 }
@@ -710,6 +711,85 @@ pub fn render<R: Runtime>(rt: R, form: &str) {
     rt.stack(&order);
 }
 
+/// The edges a press on a child's frame takes to resize it (a corner:
+/// two of them).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Edges {
+    pub left: bool,
+    pub top: bool,
+    pub right: bool,
+    pub bottom: bool,
+}
+
+impl Edges {
+    /// The pointer's direction over them: "we" ↔, "ns" ↕, "nwse" ⤡,
+    /// "nesw" ⤢.
+    pub fn pointer(self) -> &'static str {
+        match (self.left || self.right, self.top || self.bottom) {
+            (true, true) if (self.left && self.top) || (self.right && self.bottom) => "nwse",
+            (true, true) => "nesw",
+            (true, false) => "we",
+            _ => "ns",
+        }
+    }
+}
+
+/// How far in from a child's outside its sizing border reaches (its frame
+/// and a pixel more, as Windows' WS_THICKFRAME).
+pub const SIZE_BORDER: i64 = BORDER + 1;
+/// Along an edge, this near a corner sizes both ways (Windows' corner
+/// zone, the caption button's width).
+pub const SIZE_CORNER: i64 = 16;
+/// The least a child is dragged to: Windows' SM_CXMINTRACK × SM_CYMINTRACK
+/// at 96 dpi (136 × 39: read by an RC.EXE-built program on Windows 11).
+pub const MIN_TRACK: (i64, i64) = (136, 39);
+
+/// The edges at (x, y) of a `w` × `h` child frame in the normal state
+/// (`None`: inside it — the title bar, the client); the title bar's
+/// buttons win over the top edge.
+pub fn edges_at(w: i64, h: i64, x: i64, y: i64) -> Option<Edges> {
+    if x < 0 || y < 0 || x >= w || y >= h {
+        return None;
+    }
+    if button_at(w, x, y).is_some() {
+        return None;
+    }
+    let (near_l, near_r, near_t, near_b) = (x < SIZE_BORDER, x >= w - SIZE_BORDER, y < SIZE_BORDER, y >= h - SIZE_BORDER);
+    if !(near_l || near_r || near_t || near_b) {
+        return None;
+    }
+    // (on an edge, near a corner: both ways)
+    let (cl, cr, ct, cb) = (x < SIZE_CORNER, x >= w - SIZE_CORNER, y < SIZE_CORNER, y >= h - SIZE_CORNER);
+    Some(Edges {
+        left: near_l || ((near_t || near_b) && cl),
+        right: near_r || ((near_t || near_b) && cr),
+        top: near_t || ((near_l || near_r) && ct),
+        bottom: near_b || ((near_l || near_r) && cb),
+    })
+}
+
+/// A frame at `start` (Left, Top, Width, Height) with `edges` dragged by
+/// (dx, dy): its new place, never under [`MIN_TRACK`] (a left or top edge
+/// stops where the size would go under it, the opposite edge staying).
+pub fn resized(start: (i64, i64, i64, i64), edges: Edges, dx: i64, dy: i64) -> (i64, i64, i64, i64) {
+    let (mut l, mut t, mut w, mut h) = start;
+    if edges.right {
+        w = (start.2 + dx).max(MIN_TRACK.0);
+    }
+    if edges.bottom {
+        h = (start.3 + dy).max(MIN_TRACK.1);
+    }
+    if edges.left {
+        w = (start.2 - dx).max(MIN_TRACK.0);
+        l = start.0 + start.2 - w;
+    }
+    if edges.top {
+        h = (start.3 - dy).max(MIN_TRACK.1);
+        t = start.1 + start.3 - h;
+    }
+    (l, t, w, h)
+}
+
 /// Where a click at (x, y) in a child's frame of width `w` lands: a title
 /// bar button, or None.
 pub fn button_at(w: i64, x: i64, y: i64) -> Option<Action> {
@@ -727,6 +807,65 @@ pub fn button_at(w: i64, x: i64, y: i64) -> Option<Action> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn every_edge_and_corner_sizes_a_child() {
+        let (w, h) = (300, 200);
+        let e = |x, y| edges_at(w, h, x, y);
+        let edges = |l, t, r, b| Some(Edges { left: l, top: t, right: r, bottom: b });
+        // (the edges, along their middles)
+        assert_eq!(e(0, 100), edges(true, false, false, false));
+        assert_eq!(e(SIZE_BORDER - 1, 100), edges(true, false, false, false));
+        assert_eq!(e(w - 1, 100), edges(false, false, true, false));
+        assert_eq!(e(150, 0), edges(false, true, false, false));
+        assert_eq!(e(150, h - 1), edges(false, false, false, true));
+        // (inside the border: not an edge — the title bar, the client)
+        assert_eq!(e(SIZE_BORDER, 100), None);
+        assert_eq!(e(150, BORDER + 5), None);
+        assert_eq!(e(150, 100), None);
+        // (the corners, from either edge within their zone)
+        assert_eq!(e(0, 0), edges(true, true, false, false));
+        assert_eq!(e(SIZE_CORNER - 1, 0), edges(true, true, false, false));
+        assert_eq!(e(0, SIZE_CORNER - 1), edges(true, true, false, false));
+        assert_eq!(e(w - 1, h - 1), edges(false, false, true, true));
+        assert_eq!(e(w - 8, 3), None, "the close button wins over the top edge");
+        assert_eq!(e(w - 1, 2), edges(false, true, true, false));
+        assert_eq!(e(w - 2, h - SIZE_CORNER), edges(false, false, true, true));
+        assert_eq!(e(2, h - 2), edges(true, false, false, true));
+        assert_eq!(e(SIZE_CORNER, h - 1), edges(false, false, false, true));
+        // (outside: nothing)
+        assert_eq!(e(-1, 100), None);
+        assert_eq!(e(w, 100), None);
+        // (their pointers)
+        assert_eq!(e(0, 0).unwrap().pointer(), "nwse");
+        assert_eq!(e(w - 1, h - 1).unwrap().pointer(), "nwse");
+        assert_eq!(e(2, h - 2).unwrap().pointer(), "nesw");
+        assert_eq!(e(0, 100).unwrap().pointer(), "we");
+        assert_eq!(e(150, h - 1).unwrap().pointer(), "ns");
+    }
+
+    #[test]
+    fn resizing_keeps_the_opposite_edge_and_the_least_size() {
+        let start = (50, 40, 300, 200);
+        let all = |l, t, r, b| Edges { left: l, top: t, right: r, bottom: b };
+        assert_eq!(resized(start, all(false, false, true, false), 30, 99), (50, 40, 330, 200));
+        assert_eq!(resized(start, all(true, false, false, false), 30, 0), (80, 40, 270, 200));
+        assert_eq!(resized(start, all(false, true, false, false), 0, -20), (50, 20, 300, 220));
+        assert_eq!(resized(start, all(true, true, false, false), -10, -10), (40, 30, 310, 210));
+        // (never under Windows' least: the left edge stops, the right stays)
+        assert_eq!(resized(start, all(true, false, false, false), 1000, 0), (50 + 300 - MIN_TRACK.0, 40, MIN_TRACK.0, 200));
+        assert_eq!(resized(start, all(false, false, true, true), -1000, -1000), (50, 40, MIN_TRACK.0, MIN_TRACK.1));
+        // (the model: the place, OnChildResize; a maximized child stays)
+        register("edges");
+        add("edges", 1, "One");
+        let out = user("edges", "edit(1)", Action::Resize(10, 20, 200, 150), (800, 600));
+        assert_eq!(out.events.iter().map(|e| e.name).collect::<Vec<_>>(), ["onchildresize"]);
+        let r = frames("edges")[0].rect;
+        assert_eq!((r.left, r.top, r.width, r.height), (10, 20, 200, 150));
+        user("edges", "edit(1)", Action::ToggleMaximize, (800, 600));
+        let out = user("edges", "edit(1)", Action::Resize(0, 0, 100, 100), (800, 600));
+        assert!(out.events.is_empty());
+    }
 
     fn names(h: i64) -> Option<String> {
         Some(format!("edit({h})"))
