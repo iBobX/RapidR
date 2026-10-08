@@ -345,6 +345,8 @@ mod tests {
 
     #[test]
     fn paints_faces_and_owner_drawn() {
+        // (the classic look's raised faces)
+        crate::theme::set(&crate::theme::CLASSIC);
         let mut h = header();
         h.call("sections.style=", &[v_int(2), v_int(HS_OWNER_DRAW)]);
         let mut b = Bitmap::new_canvas();

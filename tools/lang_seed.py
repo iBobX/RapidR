@@ -8,8 +8,9 @@ words):
 - the components: rapidr_ast::COMPONENT_TYPES, the name rules of
   `canonical_type_name`, the manual's categories (the old
   tools/manual_reference.py), the runtimes' dispatch (tools/lang_dispatch.py),
-  the web IDE's hand-written lang-data.js (only names the runtimes' sources
-  also use);
+  the old HTML web IDE's hand-written language data (only names the
+  runtimes' sources also use; that IDE and its data are gone, so `collect`
+  has none of it now);
 - RapidQ's facts: its manual's tables (names, types, R/W, defaults,
   parameter lists — from the phatcode mirror, .reference/phatcode), its
   KEYWORD.LST (which builtins, statements and directives are RapidQ's), and
@@ -200,17 +201,10 @@ DOC_FACTS = {
 # --- The JS data (seed only) --------------------------------------------------
 
 def js_data():
-    out = subprocess.run(["node", "-e", """
-const m = await import(process.argv[1]);
-console.log(JSON.stringify({components: m.COMPONENT_REGISTRY, builtins: m.BUILTIN_FUNCTIONS, keywords: m.KEYWORDS, types: m.TYPE_KEYWORDS, directives: m.DIRECTIVES}));
-""".replace("await import", "await import"), os.path.join(ROOT, "web-ide", "lang-data.js")], capture_output=True, text=True, input="")
-    if out.returncode:
-        # (node -e can't use top-level await in CJS mode: a module file)
-        script = os.path.join(WORK, "jsdata.mjs")
-        os.makedirs(WORK, exist_ok=True)
-        open(script, "w").write("const m = await import(process.argv[2]);\nconsole.log(JSON.stringify({components: m.COMPONENT_REGISTRY, builtins: m.BUILTIN_FUNCTIONS, keywords: m.KEYWORDS, types: m.TYPE_KEYWORDS, directives: m.DIRECTIVES}));\n")
-        out = subprocess.run(["node", script, os.path.join(ROOT, "web-ide", "lang-data.js")], capture_output=True, text=True, check=True)
-    return json.loads(out.stdout)
+    """The old HTML web IDE's hand-written language data was one of the
+    seed's sources; the IDE was deleted (2026-10-08), the registry is the
+    source of truth, so there is nothing left to read."""
+    return {"components": {}, "builtins": [], "keywords": [], "types": [], "directives": []}
 
 
 def runtime_literals():

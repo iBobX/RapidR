@@ -23,56 +23,22 @@ texts (`utilities/vscodeext/rapidr/scripts/notices.js` makes it).
 
 ---
 
-## 1. Monaco Editor 0.52.2 — MIT License
+## 1. (removed) Monaco Editor
 
-Vendored under `web-ide/vendor/monaco/` in the source tree, for the legacy
-in-browser IDE that remains only as a test harness until it is deleted. No
-release package ships it (the web bundle is RapidR Studio's, drawn by the UI
-kernel), and it is never part of a program you build.
-
-> The MIT License (MIT)
->
-> Copyright (c) 2016 - present Microsoft Corporation
->
-> Permission is hereby granted, free of charge, to any person obtaining a copy
-> of this software and associated documentation files (the "Software"), to deal
-> in the Software without restriction, including without limitation the rights
-> to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-> copies of the Software, and to permit persons to whom the Software is
-> furnished to do so, subject to the following conditions:
->
-> The above copyright notice and this permission notice shall be included in all
-> copies or substantial portions of the Software.
->
-> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-> IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-> FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-> AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-> LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-> OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-> SOFTWARE.
-
-Upstream: <https://github.com/microsoft/monaco-editor>
-
-Monaco's `editor.main.js` bundles, under their own licences:
-
-| Component | License | Upstream |
-|---|---|---|
-| DOMPurify 3.1.7 (© Cure53 and other contributors) | Apache-2.0 or MPL-2.0, at your option (used under Apache-2.0) | <https://github.com/cure53/DOMPurify> |
-| marked (© Christopher Jeffrey and the Marked contributors) | MIT | <https://github.com/markedjs/marked> |
-| Codicons icon font (`codicon.ttf`, © Microsoft Corporation) | CC-BY-4.0 (the icons) | <https://github.com/microsoft/vscode-codicons> |
-
-Their full texts are the standard ones: Apache-2.0
-(<https://www.apache.org/licenses/LICENSE-2.0>), MIT (above), CC-BY-4.0
-(<https://creativecommons.org/licenses/by/4.0/legalcode>). The codicons are
-credited here as CC-BY-4.0 asks (author, licence, link; unmodified).
+The Monaco editor (MIT, with DOMPurify, marked and the Codicons font inside
+it) was vendored for the old HTML in-browser IDE. That IDE was deleted on
+2026-10-08 (RapidR Studio, drawn by the UI kernel, replaces it); nothing of
+Monaco is in the source tree, in a release package or in a program you
+build. (The section keeps its number so that references to the others stay
+right.)
 
 ---
 
 ## 2. wasm-bindgen / wasm-pack generated glue — MIT OR Apache-2.0
 
-`web-ide/runtime/rapidrintr.js` and `rapidrintr_bg.wasm` are produced by
-`wasm-bindgen` from the `crates/rapidr-runtime-web` Rust crate. The
+The web runtime's `rapidrintr.js` and `rapidrintr_bg.wasm` (`target/web`:
+in RapidR Studio's web build and in every web bundle) are produced by
+`wasm-bindgen` from the `interpreter/rapidr-vm-host-web` Rust crate. The
 generated JavaScript wrapper inherits the wasm-bindgen license terms.
 
 > Copyright (c) 2014 Alex Crichton
@@ -128,7 +94,20 @@ the RapidR runtimes (desktop apps, the interpreter runner and the web
 WebAssembly), which draw text on bitmaps with them; they have the same
 character widths as Arial, Times New Roman and Courier New.
 
-Beside them, **RapidR Sans** (`RapidRSans-Regular.ttf`) is a Modified
+Their designed Bold, Italic and Bold Italic faces (Liberation 2.1.5's own,
+from the same official release archive, SHA-256
+`7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0`) are built
+in too, as nine Modified Versions cut to the Latin scripts without hinting
+(36 to 39 KB each) and renamed **RapidR Text Sans**, **RapidR Text Serif** and
+**RapidR Text Mono** as the OFL requires (Liberation, Arimo, Tinos and
+Cousine are Reserved Font Names; their copyright lines and the licence are
+kept in each file). The glyph outlines are Liberation's, unchanged;
+`tools/fonts/make_liberation_styles.py` makes the files reproducibly. With
+them, bold and italic text is drawn from designed faces as wide as Arial
+Bold's, Times New Roman Bold's and Courier New Bold's instead of the Regular
+letters drawn heavier.
+
+Beside them, **RapidR Sans** (`RapidRSans-Regular.ttf`, `RapidRSans-Bold.ttf`) is a Modified
 Version of Liberation Sans under the same licence, renamed as the OFL
 requires (it carries none of the Reserved Font Names): Liberation Sans with
 each Windows-1252 character as wide as MS Sans Serif's at 8 pt (a few a
@@ -229,12 +208,11 @@ web runtime's wasm (the IDE's and every web bundle's) compiles it in via
 
 ---
 
-## 6. PKZIP file format (in-browser exporter)
+## 6. (removed) PKZIP exporter
 
-`web-ide/zip.js` is an original implementation of the PKZIP "stored"
-format (no compression), written from the public PKZIP APPNOTE.TXT
-specification and licensed under the same MIT terms as the rest of
-RapidR. It is **not** derived from any GPL/LGPL ZIP library.
+The old HTML in-browser IDE had its own PKZIP "stored" writer (an original
+implementation, MIT); it was deleted with that IDE on 2026-10-08. (The
+section keeps its number so that references to the others stay right.)
 
 ---
 

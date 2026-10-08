@@ -127,11 +127,8 @@ def build_web():
     # iOS masks it itself and wants it opaque
     save_png(render("web-touch-icon", 180).convert("RGB"), os.path.join(web, "apple-touch-icon.png"))
     render("app-ide-full", 512, os.path.join(web, "icon-512.png"))
-    # the web IDE serves its own copies (web.sh bundles web-ide's tracked files)
-    site = os.path.join(os.path.dirname(os.path.dirname(BRAND)), "web-ide", "icons")
-    os.makedirs(site, exist_ok=True)
-    for f in ("favicon.svg", "favicon-32.png", "apple-touch-icon.png"):
-        shutil.copyfile(os.path.join(web, f), os.path.join(site, f))
+    # (RapidR Studio's web page takes its copies from here:
+    # tools/build_studio_web.sh)
 
 
 def build_logo_pngs():

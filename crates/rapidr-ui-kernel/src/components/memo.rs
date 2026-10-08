@@ -143,8 +143,15 @@ impl ComponentKind for Memo {
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
-        if p.fluent() {
-            p.fluent_field(w, h, background(cx.store, cx.id), Some(cx.state.focused));
+        let ground = background(cx.store, cx.id);
+        if p.fluent() && crate::store::int(cx.store, cx.id, "align", 0) == 5 {
+            // (a memo filling its parent — a notepad's page — is the
+            // window's own surface: square, a hairline, no focus ring
+            // around the whole window)
+            p.fill((0, 0, w, h), ground);
+            p.frame((0, 0, w, h), p.theme().border);
+        } else if p.fluent() {
+            p.fluent_field(w, h, ground, Some(cx.state.focused));
         } else {
             p.fill((0, 0, w, h), background(cx.store, cx.id));
             p.sunken_edge((0, 0, w, h));

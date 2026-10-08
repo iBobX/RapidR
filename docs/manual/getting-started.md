@@ -183,9 +183,9 @@ in a canvas. See [The web](web.md).
   early version; the full IDE (RapidR Studio: IntelliSense, a debugger,
   linked data components, AI assistance) is being built
   ([docs/ide-plan.md](../ide-plan.md)).
-- **The web IDE** (`rapidr-web-2.117.0.zip`, any static host): a designer,
-  a code editor, Run and Build (a downloadable bundle) and a debugger, all
-  in the browser with no server-side code.
+- **The web IDE** (`rapidr-web-2.117.0.zip`, any static host): RapidR
+  Studio in the browser — the designer, the code editor and Run — with no
+  server-side code (apps and web bundles are built on the desktop for now).
 
 ## Where next
 

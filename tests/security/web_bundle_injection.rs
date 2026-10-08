@@ -8,8 +8,8 @@
 // only `"` escaped: a file named `</title><img src=x onerror=…>` or
 // `x</script><script>…` was markup / script in the built bundle.
 // SEC-15: the bundle's page had no Content-Security-Policy.
-// SEC-17: the bundle's scripts were the web IDE's own (include_str! of
-// web-ide/), so every program carried IDE code.
+// SEC-17: the bundle's scripts were the old HTML web IDE's own (include_str!
+// of that IDE's files), so every program carried IDE code.
 
 use super::*;
 use std::collections::HashMap;
@@ -196,10 +196,16 @@ fn security_sec17_bundles_carry_nothing_of_the_ide() {
     for name in files.keys() {
         assert!(allowed.contains(&name.as_str()), "unexpected file in a program's bundle: {name}");
     }
-    // The crate's sources don't reach into the IDE's folders.
+    // The crate embeds only its own files (its `web/` folder): nothing from
+    // another folder of the repository, an IDE's or any other.
     let src = include_str!("../../interpreter/rapidr-webbundle/src/lib.rs");
-    let ide = ["web-ide", "/"].concat();
-    assert!(!src.contains(&format!("include_str!(\"../../../{ide}")), "rapidr-webbundle embeds web-ide/ files");
+    for embed in ["include_str!(\"", "include_bytes!(\""] {
+        for (at, _) in src.match_indices(embed) {
+            let rest = &src[at + embed.len()..];
+            let path = &rest[..rest.find('"').unwrap_or(rest.len())];
+            assert!(path.starts_with("../web/") && !path["../web/".len()..].contains(".."), "rapidr-webbundle embeds a file from outside its folder: {path}");
+        }
+    }
     for (name, body) in [("bundle_console.js", BUNDLE_CONSOLE_JS), ("ansi_screen.js", ANSI_SCREEN_JS)] {
         assert!(!body.contains("innerHTML"), "{name} writes markup");
     }

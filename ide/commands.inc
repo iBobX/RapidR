@@ -82,6 +82,7 @@ SUB DefineCommands
   AddSep "Edit"
   AddCmd "edit.find", "&Find...", "Edit", "Ctrl+F", "", "code", ""
   AddCmd "edit.replace", "R&eplace...", "Edit", "Ctrl+H", "", "code", ""
+  AddCmd "edit.findInFiles", "Find in F&iles...", "Edit", "Ctrl+Shift+F", "", "", ""
   AddCmd "edit.goToLine", "&Go to Line...", "Edit", "Ctrl+G", "", "code", ""
   ' (editor.inc: the editor's own keys, shown)
   AddCmd "edit.findNext", "Find &Next", "Edit", "", "F3", "code", "-"
@@ -124,6 +125,8 @@ SUB DefineCommands
   AddSep "View"
   AddCmd "view.code", "&Code", "View", "F7", "", "document", ""
   AddCmd "view.designer", "&Designer", "View", "Shift+F7", "", "document", "components/designsurface"
+  AddCmd "view.toggleDesigner", "Toggle &Form / Code", "View", "F12", "", "document", "-"
+  AddCmd "view.sideBySide", "Designer and Code &Side by Side", "View", "", "", "document", "view.splitVertically"
   AddSep "View"
   AddSubmenu "View", "Theme", "T&heme"
   AddCmd "view.theme.rapidr", "&RapidR (as the System)", "View/Theme", "", "", "", "-"
@@ -132,9 +135,7 @@ SUB DefineCommands
   AddCmd "view.theme.highcontrast", "RapidR &High Contrast", "View/Theme", "", "", "", "-"
   AddSep "View/Theme"
   AddCmd "view.theme.classic", "&Classic (RapidQ's Windows)", "View/Theme", "", "", "", "-"
-  AddSubmenu "View", "Documents", "&Documents As"
-  AddCmd "view.documents.mdi", "&Windows (MDI)", "View/Documents", "", "", "", "-"
-  AddCmd "view.documents.tabs", "&Tabs", "View/Documents", "", "", "", "-"
+  DefinePreviewCommands
   AddSep "View"
   AddCmd "view.layout", "&Reset Layout", "View", "", "", "", ""
 
@@ -152,7 +153,7 @@ SUB DefineCommands
   AddCmd "run.restart", "R&estart", "Run", "Ctrl+Shift+F5", "", "session", ""
   AddSep "Run"
   AddCmd "run.build", "&Build", "Run", "Ctrl+Shift+B", "", "project", ""
-  AddCmd "run.reveal", "Reveal in " + Proj.FileManager, "Run", "", "", "project", ""
+  AddCmd "run.reveal", "Reveal the &App", "Run", "", "", "project", ""
 
   ' ---- Debug ----
   AddCmd "run.continue", "&Continue", "Debug", "F5", "", "paused", ""
@@ -191,10 +192,9 @@ SUB DefineCommands
   AddCmd "view.settings", "&Settings...", "Tools", "", "", "", ""
   AddCmd "view.keyboardShortcuts", "&Keyboard Shortcuts", "Tools", "", "", "", ""
 
-  ' ---- Window ----
-  AddCmd "window.cascade", "&Cascade", "Window", "", "", "document", ""
-  AddCmd "window.tileHorizontally", "Tile &Horizontally", "Window", "", "", "document", ""
-  AddCmd "window.tileVertically", "Tile &Vertically", "Window", "", "", "document", ""
+  ' ---- Window (documents are tabs, split into groups) ----
+  AddCmd "view.splitVertically", "Split &Right", "Window", "", "", "document", ""
+  AddCmd "view.splitHorizontally", "Split &Down", "Window", "", "", "document", ""
   AddSep "Window"
   AddCmd "window.next", "&Next Document", "Window", "", "Ctrl+Tab", "document", "nav.forward"
   AddCmd "window.previous", "&Previous Document", "Window", "", "Ctrl+Shift+Tab", "document", "nav.back"
@@ -326,8 +326,7 @@ SUB UpdateCommands
   CheckCmd "view.theme.dark", ThemeChoice = "rapidr dark"
   CheckCmd "view.theme.highcontrast", ThemeChoice = "rapidr high contrast"
   CheckCmd "view.theme.classic", ThemeChoice = "classic"
-  CheckCmd "view.documents.mdi", DocumentMode = "mdi"
-  CheckCmd "view.documents.tabs", DocumentMode = "tabs"
+  CheckCmd "view.previewClassic", PreviewClassic
 END SUB
 
 SUB MenuPicked(Sender AS QMENUITEM)

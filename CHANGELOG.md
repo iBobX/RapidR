@@ -27,7 +27,78 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   - OnChange after ApplyPatches / Undo / Redo.
 - Fixed: an undo that removed lines could crash the code editor's view.
 
+### Changed
+- **Real bold and italic faces** instead of the regular letters drawn heavier and slanted: Liberation
+  2.1.5's own Bold, Italic and Bold Italic (Sans, Serif, Mono; SIL OFL 1.1, from the official release,
+  SHA-256 checked) are built in, cut to the Latin scripts without hinting (36-39 KB each) and renamed
+  "RapidR Text Sans / Serif / Mono" as the licence asks; RapidR Sans has a Bold of its own (MS Sans
+  Serif Bold's widths, a pixel wider a character, and its two-pixel stems). Bold Arial text is as wide
+  as Arial Bold's ("Pantry" 9 pt bold 37 pixels, "Hello" 12 pt bold 39, as RC.EXE measures), italic is a
+  designed italic; a character the styled face lacks (Greek, Cyrillic, ...) is drawn from the Regular
+  face, made bold or slanted, as before. The built-in fonts are now in a program once (statics, not
+  copies of consts): the interpreter and the web runtime are 1.3 MB smaller in spite of the new faces.
+  The approved images of fonts, words, spacing and the data-science examples changed with them
+  (bold looked at beside RapidQ's, all themes, 1x and 2x, web identical to the desktop).
+
+### Look
+- **RapidR's look is every program's default** (`$THEME rapidr`, or no
+  `$THEME` at all): RapidR Studio's own look, one set of tokens for Studio
+  and programs, made from the brand palette (Ink, Paper, RapidR Blue, Blue
+  Deep, Blue on Dark, Slate, Mist, Board; `docs/theme-tokens.md` maps every
+  token). Light, dark (on the brand's Ink) and high contrast, following the
+  system's setting — and its changes — unless the program names one;
+  `Application.Theme` reads `rapidr light`, `rapidr dark`, `rapidr high
+  contrast` or `classic`. RapidQ's default font is drawn in Inter at MS Sans
+  Serif's 11 pixels (chosen by the clipping audit: 26 more of the RapidQ
+  corpus' 539 fixed-size captions clip at 11 px, 56 at 12, 78 at 13); fonts
+  a program names keep their face.
+- Refined controls: 5-pixel corners on controls, 8 on menus, drop-down
+  lists and windows; soft shadows under menus, drop-down lists and tooltips
+  (a new `Op::Shadow`, the same on the desktop and the web) and around a web
+  page's windows; buttons with a hairline rim a step darker along the
+  bottom; one focus ring (2 pixels, RapidR Blue) on text boxes, buttons and
+  combo boxes, a 1-pixel accent border on lists, trees and grids; the
+  selection in the accent while a list has the focus, grey without it;
+  grids with light lines, a tinted selection, the current cell ringed and
+  text centred in its row; tabs as words underlined in the accent.
+- **Sizes never change between themes**: an AutoSize label's and a tab's
+  sizes are measured as RC.EXE measures them in every theme (the text runs
+  on rather than being cut where Inter is wider). `tests/theme_geometry.mjs`
+  runs every GUI program of `examples/` (and, with `--corpus`, RapidQ's own
+  examples) in all four looks and compares every component's place.
+- **`$THEME classic`** is RapidQ's look, and a web page's window frame in it
+  has Windows' own 16 × 14 caption buttons (they were 26 × 23, huge at 2×).
+  The web frame is now the kernel's (`window_frame`), as QFORMMDI's children
+  are on every runtime. The classic names stay classic (`System`, `Light`,
+  `Windows`, `Win95` …); `modern`, `dark` and `highcontrast` are RapidR's
+  light, dark and high-contrast looks.
+- RapidR Studio: **Preview in Classic** (View menu, tool bar, command
+  palette; saved with the settings) runs the program and draws the designer
+  in RapidQ's look without editing the source (`RPROGRAMSESSION.Theme`,
+  `RDESIGNSURFACE.Theme`). Studio's status bar is quiet at rest and takes a
+  state's colour while the program runs, pauses or fails.
+- Text a program left uncoloured on a colour reads at WCAG AA in RapidR's
+  look (a gauge's percentage white on the accent, the theme's text on the
+  rest); RapidR Studio's panels and icons follow the theme's palette in
+  dark and high contrast (they fell back to the light icons).
+- RC.EXE pixel comparisons (`tests/native_gui_events.mjs`, the kernel's unit
+  tests that check ops) name the classic theme explicitly; the visual
+  gallery's themes are `classic`, `rapidr-light`, `rapidr-dark`,
+  `rapidr-high-contrast`.
 ### Added
+- **Serial ports for ESP32 / Arduino / IoT boards** (RComPort, RapidQ's QCOMPORT; RapidQ's members
+  unchanged, RapidR's extras added, the same in native builds, the interpreter and the browser):
+  **ListPorts** with each port's USB vendor / product IDs, description, maker and serial number
+  (IOKit on macOS, SetupAPI on Windows, sysfs on Linux, Web Serial's granted ports in the browser;
+  CP210x, CH340, FTDI, ESP32 USB JTAG/serial … named from their IDs where the system says nothing),
+  **FillList** fills a list or combo box; the **DTR / RTS** lines set and read back, **CTS / DSR /
+  CD / RI** read, **SendBreak**; **ReadLine**(Timeout) with a configurable **LineEnd** and
+  **HasLine**, the **OnLine** event; **OnPortsChanged**(Added, Removed) when a USB adapter is plugged
+  in or out. Closing a port in the browser now closes the Web Serial port (it can be opened again).
+  Tested on a real ESP32 (an M5StickC Plus on FTDI): reset through DTR / RTS, its ROM boot log read,
+  interpreted, native and in Chrome. Example: `examples/iot/esp32_monitor.rr`; manual: "Serial
+  ports and IoT boards"; `tools/esp32_check.sh` checks a real board by hand (never writes to it);
+  the scripted test ports gain `esp32` (a board that prints its boot log when reset).
 - **RapidR Studio's panels as public components** (docs/ide-plan.md I1, L-PANELS), the same on the
   desktop, in native builds and on the web: **RPROPERTYINSPECTOR** (Delphi's object inspector: typed
   editors from the language registry, a visual Anchors pin editor, colours, fonts, lists, the Events
@@ -37,6 +108,23 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   **ROUTPUTCONSOLE** (ANSI output, build log, problems, `file:line` links, search), **RTOOLBAR** as
   a real toolbar (icon buttons, toggles, overflow, customizable) and **RCOMMANDPALETTE** (fuzzy
   commands). Example: `examples/studio/panels.rr`.
+### RapidR Studio: documents as tabs, Find in Files, F1 Help, templates
+- **No window inside the window**: Studio's documents are tabs, as in Xcode, VS Code and Delphi —
+  close buttons, a dot for changes not saved, middle click closes, drag along the strip reorders. A
+  file with a form is one tab with a **Design | Code** switch (and both side by side); F12 toggles,
+  F7 / Shift+F7 pick. A tab dragged to a side of the documents splits them into **groups** (or
+  Window ▸ Split Right / Split Down), with drop outlines and splitters. The layout, the open files
+  and each file's view come back when the project is opened again; the window's place too.
+- **RDOCKMANAGER** (tabbed documents): `AddView`, `DocumentView`, `DocumentModified`,
+  `SplitDocument`, `DocumentGroupCount`, `OnDocumentView`; groups and views in `SaveLayout`.
+- **QFORMMDI children resize by every edge and corner** (Windows' sizing border, resize pointers,
+  never under Windows' 136 × 39 least size — read with RC.EXE on Windows 11), desktop and web.
+- **Find in Files** (Ctrl+Shift+F): match case, whole word, regular expressions, results by file
+  linking to the line, Replace All (RPROJECT `Find`, `Replace`, `FileText`).
+- **F1 Help** pane from the language registry (RLANGUAGESERVICE `Help`) for the word at the caret,
+  the inspector's row, the toolbox's item, the designer's component; Insert types the syntax.
+- **New Project gallery**: Form app, Console, RapidQ-compatible form app (main.bas, compat on), Data
+  dashboard, MDI app with menus. Closing a changed file asks Save / Don't Save / Cancel.
 ### RapidR Studio: the panels work
 - **The real panels replace the stand-ins** (`ide/panels.inc`): the tool bar (RTOOLBAR, buttons with
   tooltips), the command palette (RCOMMANDPALETTE), the project tree (RPROJECTTREE), the toolbox
@@ -61,12 +149,18 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - **One search** (Ctrl+P, Ctrl+Shift+P): commands, examples, the project's files, the file's
   symbols and its form's components; `:N` goes to line N (the palette's AddPrefix).
 - Empty panels say what to do (`EmptyText`).
+- On the web an RTOOLBAR starts 32 pixels high, as on the desktop.
 
 ### RapidR Studio: the form designer works
 - A file's [Design] tab shows its form as the running program shows it, at its own size, read from the code (`RDESIGNSURFACE.Source` on rapidr-designer's Document); the stand-in scanner and its boxes are gone.
 - Drag the form's right edge, bottom edge or corner to resize it: anchored and aligned components follow live, and the new size (and where the anchors moved them) is written into the CREATE block, one undo step.
 - Add components: click a type then click or draw on the form (`PlaceType`), drag one in (`DragComponent`), or `AddComponent(Type, X, Y)`. Names are unique in the whole file; typing right after adding sets the Caption; dropping on a panel puts it inside.
 - Select, move, resize, delete, copy / paste / duplicate, align and arrange with the mouse or the keyboard; every change is announced to screen readers, written into the code as the smallest edit (`OnSourceEdit`), and undone to the exact bytes. Double-click makes or finds the event handler (`CreateHandler`). While the code has errors the designer is read-only under a banner.
+### Removed: the old HTML / Monaco web IDE
+- **RapidR Studio is the web IDE** (Robert's decision, 2026-10-08): the old HTML / Monaco IDE (`web-ide/`, ~10,000 lines of JS / HTML / CSS plus the vendored Monaco) is deleted, with `rapidr lang export --web-ide` and its generated `lang-data.js`, the brand export's copy of the icons into it, and every reference (regress, docs, release scripts, `tools/lang_seed.py`). Nothing shipped it any more (SEC-17).
+- What a program's run frame needed from that IDE's page is Studio's now (`ide/web/studio.js`): the browser's Open / Save pickers shown for the sandboxed frame (writes only to files the user picked during that run) and the program's RWEBSTORAGE kept per program (1 MB). Studio's web page has RapidR's icons (favicon, home-screen icon).
+- Its browser suites, sorted (docs/studio-wow.md §7): the web runtime's run programs on the runtime's own page (`tests/web_run.mjs`: `web_align`, `web_canvas`, `web_components`, `web_dialogs`, `web_grid`, `web_grid_draw`, `web_lists`, `web_objects`, `web_owner_list`, `web_picture`, `web_reentrant_events`, and the conformance, SQLite, VM-yield, modal-focus and corpus runners) or in Studio's run frame (`tests/studio_run_frame.mjs`: isolation, storage, 1:1 pixels); new `web_debugger`, `web_multiform`, `web_pixels`; new Studio flows `problems` and `run-ansi` (CLS / COLOR / LOCATE in Output). IDE features Studio doesn't have yet are listed against their checklist items (the assets manager is the new PRJ-5); the old IDE's own probes are deleted. `console_ansi` passes on the web (no xfail).
+- Studio: Build with errors shows Output's Problems page (it named a pane that no longer exists).
 ### Security
 - **Every web page RapidR builds has a Content-Security-Policy**, made from
   what the program uses (SEC-15): no inline scripts, `'unsafe-eval'` only for
@@ -520,6 +614,10 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   2026-10-06 should be cloned again.
 
 ### Fixed
+- **Native builds read TRUE / FALSE as the program defines them**: RAPIDQ.INC's `CONST True = 1`
+  was ignored by native builds (TRUE stayed -1) while the interpreter and the web took it, so
+  `IF Port.Connected = TRUE` failed natively in RapidQ's own ComPort example
+  (`const_true_redefined`).
 - **Text in RapidQ's default font was cramped, letters running together**
   ("program", "start", "Bread", "Price", "Right-click" in labels, edits,
   grids and status bars; worst on a Retina or 150 % screen and on the web).

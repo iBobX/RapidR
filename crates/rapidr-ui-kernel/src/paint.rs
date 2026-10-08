@@ -62,6 +62,27 @@ impl<'a> Painter<'a> {
         self.theme
     }
 
+    /// What `f` draws, drawn in `theme` (and measured in it), whatever this
+    /// painter's own theme: a form designer's "Preview in classic". RapidQ's
+    /// default font in what it drew is that theme's face by name, so the
+    /// renderer draws it so in any theme.
+    pub fn in_theme(&mut self, theme: &'static Theme, f: impl FnOnce(&mut Painter)) {
+        let (was, from) = (self.theme, self.list.items.len());
+        self.theme = theme;
+        theme::drawn_in(theme, || f(self));
+        self.theme = was;
+        if theme.ui_face != was.ui_face {
+            let face = theme.ui_face.map_or("RapidR Sans", |(face, _)| face);
+            for item in &mut self.list.items[from..] {
+                if let Item::Op { op: Op::Text { font, .. }, .. } = item {
+                    if rapidr_value::objects::text::is_default_face(&font.name) {
+                        font.name = face.into();
+                    }
+                }
+            }
+        }
+    }
+
     /// Whether the theme draws flat (modern, dark, high contrast).
     pub fn fluent(&self) -> bool {
         self.theme.fluent()
@@ -133,6 +154,47 @@ impl<'a> Painter<'a> {
         }
     }
 
+    /// A raised control's rim (RapidR's look: a button, a combo box's
+    /// button face): its rounded border `border` drawn again a step
+    /// darker along the bottom, so it stands a hair off the surface.
+    /// Nothing when not `raised` (pressed, disabled) or in the classic look.
+    pub fn raised_rim(&mut self, (x, y, w, h): Rect, border: u32, raised: bool) {
+        let t = self.theme;
+        if !t.fluent() || t.contrast || !raised || w <= 0 || h <= 2 {
+            return;
+        }
+        let rim = rapidr_value::theme::mix(border, if t.dark { 0x000000 } else { t.text }, if t.dark { 350 } else { 160 });
+        self.clipped((x, y + h - 2, w, 2), |p| p.round((x, y, w, h), t.radius, None, Some(rim), 1.0));
+    }
+
+    /// The keyboard focus on a control `rect` that draws its own (a button,
+    /// a check box's box): RapidR's look rings it in the focus colour —
+    /// with a hairline of the window's colour inside on an accent fill, so
+    /// the ring shows; the classic look's dotted rectangle.
+    pub fn focus_ring(&mut self, rect: Rect, on_accent: bool) {
+        let t = self.theme;
+        if !t.fluent() {
+            self.focus(rect);
+            return;
+        }
+        self.ring(rect, t.radius, t.focus, t.focus_width);
+        if on_accent {
+            let k = t.focus_width as i64;
+            self.ring((rect.0 + k, rect.1 + k, rect.2 - 2 * k, rect.3 - 2 * k), (t.radius - t.focus_width).max(1.0), t.window, 1.0);
+        }
+    }
+
+    /// What floats over the window (a menu, a drop-down list, a tooltip, a
+    /// window on the page) lifted off it: the theme's soft shadow around
+    /// `rect`, `size` pixels deep (RapidR's look; nothing where the theme
+    /// casts none — classic, high contrast). Drawn before the thing itself.
+    pub fn elevate(&mut self, rect: Rect, radius: f64, size: f64) {
+        let t = self.theme;
+        if t.shadow_alpha > 0 && rect.2 > 0 && rect.3 > 0 {
+            self.op(Op::Shadow { rect, radius, size, drop: (size / 4.0).round(), color: t.shadow_ink, alpha: t.shadow_alpha });
+        }
+    }
+
     /// A rounded frame `width` pixels wide inside `rect`.
     pub fn ring(&mut self, rect: Rect, radius: f64, color: u32, width: f64) {
         self.round(rect, radius, None, Some(color), width);
@@ -188,24 +250,40 @@ impl<'a> Painter<'a> {
     // ---- the fluent look's shapes ----
 
     /// A fluent box `w` × `h` for text or items (a text box, a list, a
-    /// tree, a grid): rounded, filled `fill`, a thin border; `line` draws
-    /// a text box's bottom line (strong; the accent, two pixels, with the
-    /// focus — `Some(true)` — and the focus ring where the theme rings
-    /// text boxes).
-    pub fn fluent_field(&mut self, w: i64, h: i64, fill: u32, line: Option<bool>) {
+    /// tree, a grid): rounded, filled `fill`, a hairline border; ringed in
+    /// the focus colour when `focused` is `Some(true)` (a box whose
+    /// component draws its own focus; lists, trees and grids are ringed by
+    /// the form, [`ComponentKind::field`]).
+    ///
+    /// [`ComponentKind::field`]: crate::components::ComponentKind::field
+    pub fn fluent_field(&mut self, w: i64, h: i64, fill: u32, focused: Option<bool>) {
         let t = self.theme;
         self.round((0, 0, w, h), t.radius, Some(fill), Some(t.border), 1.0);
-        let inset = t.radius.ceil() as i64 / 2;
-        match line {
-            Some(true) => {
-                self.fill((inset, h - 2, w - 2 * inset, 2), t.accent);
-                // (two pixels at most: the text is three in)
-                if t.ring_fields {
-                    self.ring((0, 0, w, h), t.radius, t.focus, t.focus_width.min(2.0));
-                }
-            }
-            Some(false) => self.fill((inset, h - 1, w - 2 * inset, 1), t.border_strong),
-            None => {}
+        if focused == Some(true) {
+            self.field_focus(w, h);
+        }
+    }
+
+    /// The keyboard focus on a text box `w` × `h`: RapidR's look rings the
+    /// whole box in the theme's focus colour, two pixels (the text is three
+    /// in). The classic look draws its own focus.
+    pub fn field_focus(&mut self, w: i64, h: i64) {
+        let t = self.theme;
+        if t.fluent() {
+            self.ring((0, 0, w, h), t.radius, t.focus, t.focus_width.min(2.0));
+        }
+    }
+
+    /// The keyboard focus on a box of items (a [`ComponentKind::field`]: a
+    /// list, a tree, a grid): its border in the focus colour — its
+    /// selection, the accent's while it has the focus, says the rest (high
+    /// contrast: the theme's thick ring).
+    ///
+    /// [`ComponentKind::field`]: crate::components::ComponentKind::field
+    pub fn items_focus(&mut self, w: i64, h: i64) {
+        let t = self.theme;
+        if t.fluent() {
+            self.ring((0, 0, w, h), t.radius, t.focus, if t.contrast { 2.0 } else { 1.0 });
         }
     }
 
@@ -622,14 +700,18 @@ impl FormUi {
         };
         let children = self.children(i);
         let (scale, system_corner) = (self.scale, self.system_corner);
+        let room = self.nodes[i].kind.map_or((0, 0, w, h), |k| k.room(store, &self.nodes[i].id, &store.font(&self.nodes[i].id), w, h));
         p.at((x, y), |p| {
-            p.clipped((0, 0, w, h), |p| {
+            p.clipped(room, |p| {
                 let node = &mut self.nodes[i];
                 if let Some(kind) = node.kind {
                     // (painting fires nothing)
                     let mut events = Vec::new();
                     let mut cx = Cx { store, text: ts, id: &node.id, rect: node.abs, font: store.font(&node.id), state, ui: &mut node.ui, events: &mut events, scale, system_corner };
                     kind.paint(&mut cx, p);
+                    if state.focused && kind.field() {
+                        p.items_focus(w, h);
+                    }
                 }
             });
         });

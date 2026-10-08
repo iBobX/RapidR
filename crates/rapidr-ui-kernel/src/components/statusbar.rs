@@ -235,6 +235,8 @@ mod tests {
 
     #[test]
     fn the_size_grip_resizes_the_window_and_is_drawn() {
+        // (RapidQ's look, checked op for op: the classic theme, named)
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
         let s = form("sg1");
         // (the grip takes the press — no OnMouseDown — and the drag asks the
         // host for the window's inside 50 wider, 40 higher)

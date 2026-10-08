@@ -45,6 +45,19 @@ const CASES = [
     dump: { "outputbox.text": /Hello from RapidR![\s\S]*ended, exit code 0/, "session.state": /^stopped$/, "session.exitcode": /^0$/ },
   },
   {
+    // (the old web IDE's console suite) CLS, COLOR and LOCATE in Output as
+    // on a terminal: CLS cleared "one" / "two"; LOCATE 1, 7 overwrote row 1
+    // from column 7; the next PRINT went on row 2 over "yellow on blue"; no
+    // escape sequence left in the text (the colours: rapidr-value's
+    // panels::console::screen tests)
+    name: "run-ansi",
+    open: "tests/fixtures/studio_console_ansi.bas",
+    webFiles: ["tests/fixtures/studio_console_ansi.bas"],
+    do: "run.start,wait,wait,wait",
+    delay: 5,
+    dump: { "outputbox.text": /^(?![\s\S]*(\x1b|\bone\b|\btwo\b))[\s\S]*^first LINE\nrow2ow on blue$/m, "session.exitcode": /^0$/ },
+  },
+  {
     name: "outline-problems",
     open: "examples/gui/hello_form.rr",
     do: "wait",
@@ -52,11 +65,20 @@ const CASES = [
     dump: { "outlinetree.itemcount": /^[5-9]|1\d$/, "lang.errorcount": /^0$/, "proj.kind": /^file$/, "proj.filecount": /^1$/ },
   },
   {
+    // A program with errors: Problems lists them, and Run runs nothing
+    name: "problems",
+    open: "tests/fixtures/studio_problems.bas",
+    webFiles: ["tests/fixtures/studio_problems.bas"],
+    do: "wait,run.start,wait,wait",
+    delay: 4,
+    dump: { "lang.errorcount": /^[1-9]\d*$/, "outputbox.problemcount": /^[1-9]\d*$/, "outputbox.page": /^problems$/, "session.state": /^stopped$/, "outputbox.text": /^(?![\s\S]*fine)/ },
+  },
+  {
     name: "theme-and-tabs",
     open: "examples/gui/hello_form.rr",
-    do: "view.theme.dark,view.documents.tabs",
+    do: "view.theme.dark",
     delay: 3,
-    dump: { "application.theme": /^dark$/, "dock.documentmode": /^tabs$/ },
+    dump: { "application.theme": /^rapidr dark$/, "dock.documentmode": /^tabs$/ },
   },
   {
     // (the desktop works on a copy: Save All writes the project file)
@@ -115,7 +137,7 @@ const CASES = [
   {
     name: "designer",
     open: "examples/rapidq/notepad.bas",
-    do: "view.documents.tabs,view.designer,designer.place.QBUTTON",
+    do: "view.designer,designer.place.QBUTTON",
     events: DESIGN_STEPS,
     delay: 4,
     dump: {
@@ -130,7 +152,7 @@ const CASES = [
   {
     name: "designer-add",
     open: "examples/rapidq/notepad.bas",
-    do: "view.documents.tabs,view.designer,designer.add.QCHECKBOX",
+    do: "view.designer,designer.add.QCHECKBOX",
     delay: 3,
     dump: { "designdoc(0).statustext": /^Added CheckBox1 \(QCHECKBOX\)/, "codedoc(0).text": /    CREATE CheckBox1 AS QCHECKBOX\n        Caption = "CheckBox1"\n/ },
   },
@@ -138,7 +160,7 @@ const CASES = [
   {
     name: "designer-undo",
     open: "examples/rapidq/notepad.bas",
-    do: "view.documents.tabs,view.designer,designer.place.QBUTTON",
+    do: "view.designer,designer.place.QBUTTON",
     events: DESIGN_STEPS + ",designdoc(0).__key_90_16,designdoc(0).__key_90_16,designdoc(0).__key_90_16",
     delay: 4,
     dump: { "designdoc(0).canundo": /^(0|False)$/i, "codedoc(0).text": /CREATE Form AS QFORM/ },
@@ -212,6 +234,73 @@ const CASES = [
     do: "wait,view.designer,tool:QCHECKBOX,wait",
     delay: 6,
     dump: { "codedoc(0).text": /CREATE CheckBox1 AS QCHECKBOX/i, "inspector.target": /^CheckBox1$/i },
+  },
+  // (S-SHELL-2) Documents are tabs, never windows: a form's file is one
+  // tab with the Design | Code switch (no MDI window, no "[Design]"
+  // document); F12 toggles to the code (Delphi), then both side by side —
+  // the dock's layout says each view.
+  {
+    name: "tabs-design-code",
+    open: "examples/rapidq/notepad.bas",
+    do: "wait,view.toggleDesigner,wait",
+    delay: 4,
+    dump: { "dock.documentmode": /^tabs$/, "dock.documentcount": /^1$/, "dock.layout": /^documents 0 codedoc\(0\)\n[\s\S]*^view codedoc\(0\) 1 500$/m },
+  },
+  {
+    name: "side-by-side",
+    open: "examples/gui/hello_form.rr",
+    do: "wait,view.sideBySide,wait",
+    delay: 4,
+    dump: { "dock.layout": /^view codedoc\(0\) split 500$/m, "designdoc(0).formname": /^Form$/ },
+  },
+  // (S-SHELL-2) A tab moved to a new group on the right (Window > Split
+  // Right, as dragging it to the right edge): two groups side by side.
+  {
+    name: "split-groups",
+    open: "tests/fixtures/studio_split/main.rr",
+    webFiles: ["tests/fixtures/studio_split/main.rr", "tests/fixtures/studio_split/greeting.inc"],
+    do: "wait,view:Split,open:greeting.inc,view.splitVertically,wait",
+    delay: 4,
+    dump: { "dock.documentgroupcount": /^2$/, "dock.layout": /^groups split row\n  1000 group 0 codedoc\(0\)\n  1000 group 0 codedoc\(1\)$/m, "dock.activedocument": /^codedoc\(1\)$/ },
+  },
+  // (S-SHELL-2) …and Studio started again on the same settings (not
+  // --fresh): the project's files open again, the groups and the
+  // side-by-side view as they were.
+  {
+    name: "restore-layout",
+    open: "tests/fixtures/studio_split/main.rr",
+    webFiles: ["tests/fixtures/studio_split/main.rr", "tests/fixtures/studio_split/greeting.inc"],
+    do: "wait,view:Split,open:greeting.inc,view.splitVertically,wait,wait,wait,wait,wait,wait",
+    delay: 5,
+    restart: { do: "wait,wait", delay: 5 },
+    dump: { "dock.documentgroupcount": /^2$/, "dock.documentcount": /^2$/, "dock.layout": /^groups split row\n[\s\S]*^view codedoc\(0\) split 500$/m },
+  },
+  // (S-SHELL-2, CMD-3) Find in Files over a project and the file it
+  // includes: the results by file, the open editor's text and the disk's.
+  {
+    name: "find-in-files",
+    open: "tests/fixtures/studio_split/main.rr",
+    webFiles: ["tests/fixtures/studio_split/main.rr", "tests/fixtures/studio_split/greeting.inc"],
+    do: "wait,find:SayGreeting",
+    delay: 4,
+    dump: { "searchinfo.caption": /^3 results in 2 files$/, "searchtree.itemcount": /^5$/ },
+  },
+  // (S-SHELL-2, HLP-1) F1: the registry's entry in the Help pane — for a
+  // statement, and for the word at the caret in the code (a member of the
+  // component before the dot).
+  {
+    name: "help",
+    open: "examples/gui/hello_form.rr",
+    do: "wait,help:SHOWMESSAGE",
+    delay: 4,
+    dump: { "helptitle.caption": /^SHOWMESSAGE$/, "helpsyntax.text": /^SHOWMESSAGE/, "helpwhat.caption": /^Statement · RapidQ/ },
+  },
+  {
+    name: "help-f1",
+    open: "examples/gui/hello_form.rr",
+    do: 'wait,view.code,code:Answer.Caption=>Answer.Caption,help.contents',
+    delay: 4,
+    dump: { "helptitle.caption": /^QLABEL\.Caption$/, "helpwhat.caption": /^Property of QLABEL/ },
   },
   // (S-PANELS) The project tree lists the form's components; the palette
   // finds a symbol of the file.
@@ -415,14 +504,14 @@ function runDesktop(c) {
   } else if (c.open) {
     args.push(c.open);
   }
-  const r = spawnSync(RAPIDR, args, {
+  const run = (args, delay) => spawnSync(RAPIDR, args, {
     cwd: ROOT,
-    timeout: Math.max(90000, c.delay * 1000 + 60000),
+    timeout: Math.max(90000, delay * 1000 + 60000),
     encoding: "utf8",
     env: {
       ...process.env,
       RAPIDR_CAPTURE: join(dir, "window"),
-      RAPIDR_CAPTURE_DELAY: String(c.delay),
+      RAPIDR_CAPTURE_DELAY: String(delay),
       RAPIDR_MENU: "window",
       RAPIDR_TEST_DUMP: Object.keys(c.dump).join(","),
       ...(c.events ? { RAPIDR_TEST_EVENTS: c.events } : {}),
@@ -431,6 +520,16 @@ function runDesktop(c) {
       ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: join(ROOT, c.folder) } : {}),
     },
   });
+  rmSync(join(WORK, `${c.name}.reg`), { force: true });
+  let r = run(args, c.delay);
+  if (c.restart) {
+    // (started again on the settings the first run left: not --fresh)
+    const again = args.filter((a) => a !== "--fresh");
+    const k = again.indexOf("--do");
+    if (k >= 0) again.splice(k, 2);
+    if (c.restart.do) again.splice(again.length - 1, 0, "--do", c.restart.do);
+    r = run(again, c.restart.delay || c.delay);
+  }
   return parseDump(r.stdout || "", Object.keys(c.dump));
 }
 
@@ -453,7 +552,15 @@ function parseDump(text, names) {
 }
 
 async function runWeb(browser, c) {
-  const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+  if (!c.restart) return runWebPage(await browser.newContext({ viewport: { width: 1920, height: 1080 } }), c, true);
+  // (started again in the same browser profile: the page's settings kept)
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  await runWebPage(ctx, c, false);
+  return runWebPage(ctx, { ...c, do: c.restart.do, delay: c.restart.delay || c.delay, fresh: false }, true);
+}
+
+async function runWebPage(ctx, c, last) {
+  const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   try {
@@ -466,7 +573,8 @@ async function runWeb(browser, c) {
       ...(c.events ? { RAPIDR_TEST_EVENTS: c.events } : {}),
       ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: c.folder } : {}),
     });
-    const q = new URLSearchParams({ theme: "rapidr-light", fresh: "", window: "normal" });
+    const q = new URLSearchParams({ theme: "rapidr-light", window: "normal" });
+    if (c.fresh !== false) q.set("fresh", "");
     if (c.do) q.set("do", c.do);
     if (c.open) q.set("open", c.open);
     await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
@@ -475,6 +583,7 @@ async function runWeb(browser, c) {
     return { dump: parseDump(results.dump.join("\n"), Object.keys(c.webDump || c.dump)), errors };
   } finally {
     await page.close();
+    if (last) await ctx.close();
   }
 }
 
