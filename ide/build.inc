@@ -202,7 +202,8 @@ SUB BuildProject
   IF Lang.ErrorCount > 0 THEN
     OutputLine "Build: " + LTRIM$(STR$(Lang.ErrorCount)) + " errors (see Problems)."
     SetState "error", "Can't build: the program has errors"
-    Dock.FocusPane("problemsview")
+    OutputBox.Page = "problems"
+    Dock.FocusPane("outputbox")
     EXIT SUB
   END IF
   OutputBox.Clear

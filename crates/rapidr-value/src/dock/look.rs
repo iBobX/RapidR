@@ -70,7 +70,7 @@ pub fn mix(a: u32, b: u32, t: f64) -> u32 {
 }
 
 pub fn palette(t: &Theme) -> Palette {
-    let contrast = t.name == "highcontrast";
+    let contrast = t.contrast;
     if t.look == Look::Classic {
         return Palette {
             classic: true,

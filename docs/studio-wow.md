@@ -222,6 +222,7 @@ Each table's columns are: ID | item | the best competitor | RapidR better, concr
 | PRJ-2 | New, rename, delete | All | New Form / Module / File (`project.addForm` / `addModule` work). Rename (F2) updates `$INCLUDE`s. Delete asks and goes to the trash. | P0 | `tree-edit`: `project.addForm` → `Form2.rr` in the tree and in `.rrproj`; rename → the include line follows. |
 | PRJ-3 | Search the tree | Delphi 13 (incremental, 20,000+ files) | Type to filter. | P1 | — |
 | PRJ-4 | Watch the disk; git badges | VS Code | — | P1 / P2 | — |
+| PRJ-5 | Assets | Xojo's project items; the old web IDE's assets manager | The project's files (pictures, sounds, data) with previews (image, text, CSV), filter, rename that updates every reference, delete; INS-2's picture editor picks from them; carried by `.rrproj` and every build. | P0 (proposed) | `assets`: add a PNG → listed with its preview; rename → the `Picture =` line follows; `run.build.web` → the bundle has it. |
 
 ### 3.7 Run (RUN)
 
@@ -387,7 +388,7 @@ Every row is measured in `tools/regress.sh perf` on the reference machines of [i
 | Inspector | 6 | 2 | 0 |
 | Toolbox / Library | 4 | 2 | 0 |
 | Code editor and IntelliSense | 9 | 3 | 1 |
-| Project tree | 2 | 2 | 0 |
+| Project tree | 2 + 1 (proposed) | 2 | 0 |
 | Run | 5 | 0 | 1 |
 | Debug | 6 | 3 | 1 |
 | Build and package | 4 | 2 | 1 |
@@ -453,6 +454,7 @@ Lanes in flight (the designer, the panels / inspector, the code editor, the them
 | ED-8 | partial | Snippets in `rapidr-editor` (`snippet` module); not wired. |
 | ED-9 | partial | The memo has IME; the editor's text runs for screen readers aren't there (I2 L-EDA11Y). |
 | PRJ-1 | partial | Files with icons and double-click to open (`ide/project.inc` `FillProjectTree`, `ProjectTreeOpen`). Forms don't expand to components; no dirty marks in the tree. |
+| PRJ-5 | missing | The old web IDE had an assets manager (its suites: §7); Studio has none. |
 | PRJ-2 | partial | Add File works (`AddFileToProject`); `project.addForm` / `addModule` are "not there yet"; no rename or delete. |
 | RUN-1 | partial | F5 saves and runs in its own process or a sandboxed frame; output goes to Output (`ide/project.inc` `StartProgram`; `tests/studio_flows.mjs` `run-console`). Output is a QRICHEDIT with no ANSI colours; there is no ⌘R. |
 | RUN-2 | missing | No "Run in Browser" from desktop Studio. |
@@ -507,3 +509,36 @@ Ranked by what Robert hit first, then by what the first five minutes need.
 15. **The gate:** a `studio` stage (`studio_shell`, `studio_flows`, the new `studio_wow`) and a `perf` stage in `tools/regress.sh`, so none of this regresses.
 
 Next after these: WEL-2 (the template gallery), CMD-2 (one search), HLP-1 (F1 help), DES-14 / DES-15 (the tray and live data, I7's core), DES-12 / A11Y (designing by keyboard, the screen-reader pass), and AI-1 (if Robert approves it as P0).
+
+---
+
+## 7. The old web IDE's suites (retired 2026-10-08)
+
+Robert decided (2026-10-08) that RapidR Studio is the web IDE: the HTML / Monaco IDE and its folder were deleted. Its browser suites (`tests/web_ide_*.mjs` and a few others) checked three kinds of things:
+- **the web runtime** (what a program does in the browser): re-pointed at the runtime's own page (`tests/web_run.mjs` over `tests/web_kernel.html`) or at Studio's run frame (`tests/studio_run_frame.mjs`), and kept in `tools/regress.sh web`;
+- **IDE features**: a Studio flow where Studio has the feature (`tests/studio_flows.mjs`), otherwise the item below that will hold it (nothing is dropped silently);
+- **the old IDE's own internals** (its DOM, its preview iframe, its Monaco): deleted with it.
+
+| Old suite | What it checked | Now |
+|---|---|---|
+| `web_ide_align`, `_canvas`, `_components`, `_dialogs`, `_grid`, `_grid_draw`, `_lists`, `_objects`, `_owner_list`, `_picture`, `_reentrant_events` | programs' components on the web | runtime: `tests/web_align.mjs`, `web_canvas`, `web_components`, `web_dialogs`, `web_grid`, `web_grid_draw`, `web_lists`, `web_objects`, `web_owner_list`, `web_picture`, `web_reentrant_events` (same checks, on `web_run.mjs`) |
+| `web_conformance`, `lang_conformance` (web), `web_sqlite`, `web_vm_yield`, `web_modal_focus`, `corpus_web_compare`, `_webprobe` | programs' output and behaviour | runtime: the same files, on `web_run.mjs` |
+| `web_file_dialogs` | QOPENDIALOG / QSAVEDIALOG with the user's files | runtime + Studio: the program in Studio's run frame, whose page shows the browser's pickers for it (`ide/web/studio.js` `frameFiles`) |
+| `web_ide_preview_isolation` | SEC-02 / 03: the program can't reach the IDE; storage per program; output once | Studio: `tests/studio_run_frame.mjs` (1, 2) |
+| `web_ide_examples` | (1–2) every example loads into the designer / editor, local `.rr` / `.bas` open; (3) the run window at 1:1 pixels at DPR 1 and 2 | (3) runtime + Studio: `tests/web_pixels.mjs`, `studio_run_frame.mjs` (3). (1–2) Studio: examples open (`run-console`, `designer`, `outline-problems`); every example in the designer: **WEL-1 / DES-1** |
+| `web_ide_debugger_test`, `debug_e2e_flow`, `debug_e2e_event_handling` | breakpoints (main code, an event handler), stepping, stack, variables, a watch, Stop | runtime: `tests/web_debugger.mjs` (the session protocol as Studio drives it; `web_session.mjs` for the protocol's own cases). Studio's UI for it (gutter, F9, Call Stack, Variables, Watch): **DBG-1 … DBG-4** (missing: `debug.toggleBreakpoint` is "not there yet", no panels) |
+| `web_ide_console` | CLS / COLOR / LOCATE rendered in Output | Studio: `studio_flows` `run-ansi` (the text); the colours: `rapidr_value::panels::console::screen` tests; colours seen in a flow: **RUN-1** `run-ansi` capture |
+| `web_ide_diagnostics` | errors listed, nothing runs with errors; a click jumps to the line; squiggles; live while typing | Studio: `studio_flows` `problems` (listed, nothing runs). Jump to the error, squiggles: **RUN-3, ED-5** |
+| `web_ide_smoke` | Run an example: it runs, no page errors | Studio: `studio_flows` `run-console` |
+| `web_ide_designer` | drop components → CREATE blocks; Caption edited in the grid; the result runs | Studio: `studio_flows` `designer`, `designer-add`, `toolbox-add`, `inspector-edits-code` |
+| `web_ide_undo` | each designer / grid action one undo step; redo; a new edit clears redo; Delete + undo; code typing vs text undo; New resets history | Studio: `designer-undo`, `inspector-undo`. Code-editor undo grouping, Delete + undo, New resets: **DES-10, ED-1** |
+| `web_ide_tree_validation` | components in the tree; tree ↔ designer selection; double-click → handler stub; a module name with spaces offered sanitized | Studio: `tree-and-search`, `inspector-event-handler`. Components under the form in the tree with selection sync: **PRJ-1**; double-click → handler: **DES-6**; Add Module's name check: **PRJ-2** |
+| `web_ide_round3` | Object drop-down jumps to the handler; the form's properties when the form is picked; Visible / Enabled checked by default; a closed tab reopened from the tree | Object / Event bar: **ED-10** (P1); form properties and Boolean editors: `inspector-typed`, **INS-1 / INS-2**; reopen from the tree: **PRJ-1** |
+| `web_ide_bugfixes` | move on the first click; real components in the designer; live property → designer; per-component events; copy / paste; About with credits and licence; Full Source; modules in the tree; zip dates; no black backdrop | **DES-2, DES-1, INS-2, INS-3, DES-11** (Studio has `edit.copy` / `edit.paste` on the designer, no flow case yet), About: Studio's `help.about` (no flow case); Full Source: dropped (Studio's source *is* the form, DES-5); modules: **PRJ-2**; zip dates: **BLD-3**; the backdrop: the old preview's own |
+| `web_ide_phaseF` (failing) | (1–6) a second form, each form's components, the project saved as JSON and loaded back; (7) the restored two-form project runs | (7) runtime: `tests/web_multiform.mjs`. (1–6) Studio: `save-project` (one file); Add Form exists (`project.addForm`), a two-form project saved and reopened: **PRJ-2** |
+| `web_ide_round4` (failing) | (1) two forms shown / focused across each other; (2–4) the colour picker and font list update the designer live, OK / dismiss; (5) the built zip's loader imports the runtime | (1) runtime: `tests/web_multiform.mjs`. (2–4) **INS-2** (colour, font editors). (5) runtime: `tests/web_bundle_*.mjs` (CLI bundles); from Studio: **BLD-3** |
+| `web_ide_e2e`, `web_ide_e2e_build` | each example run in the IDE, then built to a zip and served: the same content; a built bundle's button works; manifest, CSP, notices | bundles: `tests/web_bundle_*.mjs`, `tests/examples_run.mjs` (web); building the bundle from Studio: **BLD-3** |
+| `web_ide_assets`, `web_ide_assets_explorer` | the assets manager: add, list, filter, preview (image, text, CSV), rename (references follow), delete, pick for a Picture property; assets in the saved project and the zip | **missing in Studio**: an Assets pane (proposed **PRJ-5**, P0: the project's files with previews, rename updating references, picked by INS-2's picture editor; carried by `.rrproj` and BLD-3's bundle) |
+| `_q`, `visual_smoke`, `capture_assets_explorer_screenshot` | ad-hoc probes and screenshots of the old IDE's DOM | deleted (old internals) |
+
+`tests/studio_shell.mjs` and `tests/studio_flows.mjs` serve `target/studio-web` (port 18473); they are not in `tools/regress.sh` yet (§6, gap 15).

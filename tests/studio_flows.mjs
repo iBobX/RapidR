@@ -45,6 +45,19 @@ const CASES = [
     dump: { "outputbox.text": /Hello from RapidR![\s\S]*ended, exit code 0/, "session.state": /^stopped$/, "session.exitcode": /^0$/ },
   },
   {
+    // (the old web IDE's console suite) CLS, COLOR and LOCATE in Output as
+    // on a terminal: CLS cleared "one" / "two"; LOCATE 1, 7 overwrote row 1
+    // from column 7; the next PRINT went on row 2 over "yellow on blue"; no
+    // escape sequence left in the text (the colours: rapidr-value's
+    // panels::console::screen tests)
+    name: "run-ansi",
+    open: "tests/fixtures/studio_console_ansi.bas",
+    webFiles: ["tests/fixtures/studio_console_ansi.bas"],
+    do: "run.start,wait,wait,wait",
+    delay: 5,
+    dump: { "outputbox.text": /^(?![\s\S]*(\x1b|\bone\b|\btwo\b))[\s\S]*^first LINE\nrow2ow on blue$/m, "session.exitcode": /^0$/ },
+  },
+  {
     name: "outline-problems",
     open: "examples/gui/hello_form.rr",
     do: "wait",
@@ -52,11 +65,20 @@ const CASES = [
     dump: { "outlinetree.itemcount": /^[5-9]|1\d$/, "lang.errorcount": /^0$/, "proj.kind": /^file$/, "proj.filecount": /^1$/ },
   },
   {
+    // A program with errors: Problems lists them, and Run runs nothing
+    name: "problems",
+    open: "tests/fixtures/studio_problems.bas",
+    webFiles: ["tests/fixtures/studio_problems.bas"],
+    do: "wait,run.start,wait,wait",
+    delay: 4,
+    dump: { "lang.errorcount": /^[1-9]\d*$/, "outputbox.problemcount": /^[1-9]\d*$/, "outputbox.page": /^problems$/, "session.state": /^stopped$/, "outputbox.text": /^(?![\s\S]*fine)/ },
+  },
+  {
     name: "theme-and-tabs",
     open: "examples/gui/hello_form.rr",
     do: "view.theme.dark",
     delay: 3,
-    dump: { "application.theme": /^dark$/, "dock.documentmode": /^tabs$/ },
+    dump: { "application.theme": /^rapidr dark$/, "dock.documentmode": /^tabs$/ },
   },
   {
     // (the desktop works on a copy: Save All writes the project file)

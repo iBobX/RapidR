@@ -257,11 +257,13 @@ export const cases = [
   { name: "border_icons", events: "", dump: "form.bordericons", expect: ["form.bordericons=11"],
     // (web: the title bar the page draws, outside the window's capture —
     // each button's glyph, minimize / maximize / close, in the text's ink
-    // or greyed; the title bar's metrics: the host's frame.rs, 28-pixel
-    // buttons from the right edge of a 320-pixel window)
+    // or greyed; the title bar's metrics: the kernel's window_frame.rs in
+    // the classic look the tests run in, Windows' 16 × 14 buttons two
+    // pixels in from the right edge of a 320-pixel window, centred in the
+    // 29-pixel bar)
     webCheck: `(() => { const c = document.querySelector('.rr-kwin[data-rr-form="form"] canvas.rr-kframe'); const s = c.width / parseFloat(c.style.width); const g = c.getContext("2d");
       const ink = ([x, y]) => { const r = g.getImageData(Math.floor((x + 0.5) * s), Math.floor((y + 0.5) * s), 1, 1).data[0]; return r < 0x40 ? "ink" : r >= 0x60 && r <= 0xa0 ? "grey" : r.toString(16); };
-      return [[247, 17], [275, 11], [304, 15]].map(ink).join(","); })()`,
+      return [[272, 17], [288, 11], [308, 14]].map(ink).join(","); })()`,
     webExpect: "ink,grey,ink" },
   { name: "message_dialogs", events: "", dump: "lbl.caption", expect: ["lbl.caption=shown"] },
   // (a message box: its caption, the icon left of the text, the buttons
@@ -401,7 +403,9 @@ export const cases = [
   // RAPIDR_THEME, without the events — the web's run is compared with the
   // events' capture only)
   { name: "themes", events: "btndark.onclick", dump: "lbl.caption",
-    expect: ["lbl.caption=theme classic then dark"], themes: ["modern", "dark", "highcontrast"] },
+    // (the harness names the classic look; `dark`, the old name, is RapidR's
+    // dark look now)
+    expect: ["lbl.caption=theme classic then rapidr dark"], themes: ["rapidr light", "rapidr dark", "rapidr high contrast"] },
   // RPLOT on a form (the UI kernel's component, the one chart renderer): a
   // line chart anchored left / top / right, widened with the form (500 ×
   // 350); a bar chart aligned to the bottom. The click adds a dashed series

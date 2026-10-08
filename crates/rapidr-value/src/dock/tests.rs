@@ -610,7 +610,7 @@ fn every_theme_draws_it() {
     }
     // (the compass while dragging)
     m.ui.drag = Some(manager::Drag { pane: "output".into(), from: (0, 0), at: (500, 200), started: true, target: Some(Target::Edge(Side::Left)) });
-    let over = look::overlay_ops(&m, &g, &crate::theme::MODERN, &Font::default());
+    let over = look::overlay_ops(&m, &g, &crate::theme::RAPIDR, &Font::default());
     assert!(over.len() > 20, "{}", over.len());
 }
 

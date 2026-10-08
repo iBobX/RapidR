@@ -199,6 +199,7 @@ SUB LoadSettings
   IF Reg.KeyExists(STUDIO_KEY) THEN
     Reg.OpenKey(STUDIO_KEY, 0)
     IF ThemeChoice = "" AND Reg.ValueExists("Theme") THEN ThemeChoice = Reg.ReadString("Theme")
+    IF Reg.ValueExists("PreviewClassic") THEN PreviewClassic = Flag(Reg.ReadString("PreviewClassic") = "1")
     IF Reg.ValueExists("Layout") THEN SavedLayout = Reg.ReadString("Layout")
     LoadSession
     IF Reg.ValueExists("Recent") THEN RecentList = Reg.ReadString("Recent")
@@ -211,6 +212,7 @@ SUB SaveSettings
   Reg.RootKey = HKCU
   Reg.OpenKey(STUDIO_KEY, 1)
   Reg.WriteString("Theme", ThemeChoice)
+  Reg.WriteString("PreviewClassic", LTRIM$(STR$(PreviewClassic)))
   Reg.WriteString("Layout", Dock.SaveLayout)
   SaveSession
   Reg.WriteString("Recent", RecentList)

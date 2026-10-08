@@ -186,6 +186,7 @@ SUB OpenDocument(Path AS STRING)
   DesignDoc(d).OnDblClick = DesignDblClick
   DesignRead d
   DocHasForm(d) = Flag(DesignDoc(d).FormName <> "")
+  DesignDoc(d).Theme = PreviewTheme
   AddDocumentTab d
   ActiveDoc = d
   AnalyzeActive

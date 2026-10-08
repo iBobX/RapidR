@@ -92,6 +92,7 @@ SUB RunCommand(Id AS STRING)
     CASE "view.theme.dark": SetTheme "rapidr dark"
     CASE "view.theme.highcontrast": SetTheme "rapidr high contrast"
     CASE "view.theme.classic": SetTheme "classic"
+    CASE "view.previewClassic": TogglePreviewClassic
     CASE "view.layout": Dock.ResetLayout
     CASE "view.settings": ShowPalette "View: "
     CASE "view.keyboardShortcuts": ShowShortcuts
@@ -261,6 +262,7 @@ SUB StartStudio
   InspectActive
   OutputLine "RapidR Studio is ready."
   LayOutWelcome
+  ApplyPreview
   IF startFile <> "" THEN OpenProject startFile
   UpdateTitle
   UpdateCommands

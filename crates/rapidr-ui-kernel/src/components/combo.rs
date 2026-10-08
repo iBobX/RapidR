@@ -217,7 +217,8 @@ pub fn paint_popup(f: &FormUi, store: &dyn Store, _ts: &mut TextSystem, p: &mut 
     let t = p.theme();
     p.at((x, y), |p| {
         if t.fluent() {
-            p.round((0, 0, w, h), t.radius, Some(t.menu), Some(t.border), 1.0);
+            p.elevate((0, 0, w, h), t.panel_radius(), 10.0);
+            p.round((0, 0, w, h), t.panel_radius(), Some(t.menu), Some(t.border), 1.0);
         } else {
             p.fill((0, 0, w, h), t.window);
             p.frame((0, 0, w, h), t.frame);
@@ -234,7 +235,7 @@ pub fn paint_popup(f: &FormUi, store: &dyn Store, _ts: &mut TextSystem, p: &mut 
                     continue;
                 }
                 let back = if t.fluent() { t.menu } else { t.window };
-                let color = if hot { super::list::selected_row(p, (1, top, w - 2, rh)) } else { ink(store, &d.id, &font, true, back) };
+                let color = if hot { super::list::hot_row(p, (1, top, w - 2, rh)) } else { ink(store, &d.id, &font, true, back) };
                 let text = l.items[i].replace(['\n', '\r', '\t'], " ");
                 let x = if t.fluent() { 8 } else { 3 };
                 p.text((x, top, w - 3 - x, rh), &text, &font, color, Place::Left);

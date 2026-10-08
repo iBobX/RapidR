@@ -110,6 +110,7 @@ SUB DefineCommands
   AddCmd "view.theme.highcontrast", "RapidR &High Contrast", "View/Theme", "", "", "", "-"
   AddSep "View/Theme"
   AddCmd "view.theme.classic", "&Classic (RapidQ's Windows)", "View/Theme", "", "", "", "-"
+  DefinePreviewCommands
   AddSep "View"
   AddCmd "view.layout", "&Reset Layout", "View", "", "", "", ""
 
@@ -300,6 +301,7 @@ SUB UpdateCommands
   CheckCmd "view.theme.dark", ThemeChoice = "rapidr dark"
   CheckCmd "view.theme.highcontrast", ThemeChoice = "rapidr high contrast"
   CheckCmd "view.theme.classic", ThemeChoice = "classic"
+  CheckCmd "view.previewClassic", PreviewClassic
 END SUB
 
 SUB MenuPicked(Sender AS QMENUITEM)
