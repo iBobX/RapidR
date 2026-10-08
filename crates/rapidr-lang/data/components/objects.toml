@@ -3,6 +3,7 @@ group = "Non-visual objects"
 
 [[component]]
 name = "RTIMER"
+display = "Timer"
 rapidq = "QTIMER"
 visual = false
 default_event = "OnTimer"
@@ -19,6 +20,7 @@ events = [
 
 [[component]]
 name = "RRECT"
+display = "Rect"
 rapidq = "QRECT"
 visual = false
 doc = "A rectangle (Left, Top, Right, Bottom), as drawing methods and event handlers pass one."
@@ -33,6 +35,7 @@ events = []
 
 [[component]]
 name = "RFILESTREAM"
+display = "FileStream"
 rapidq = "QFILESTREAM"
 visual = false
 doc = "A file opened to read and write: lines, numbers, strings, arrays and UDTs, at a Position that Seek moves."
@@ -80,6 +83,7 @@ events = []
 
 [[component]]
 name = "RSTRINGLIST"
+display = "StringList"
 rapidq = "QSTRINGLIST"
 visual = false
 doc = "A list of strings in memory: add, insert, delete, sort and find them, load and save them as text."
@@ -128,6 +132,7 @@ events = []
 
 [[component]]
 name = "RPRINTER"
+display = "Printer"
 rapidq = "QPRINTER"
 visual = false
 doc = "A printer: BeginDoc, draw pages with the canvas methods and NewPage, then EndDoc. The `Printer` global object is one."
@@ -173,6 +178,7 @@ events = []
 
 [[component]]
 name = "RREGISTRY"
+display = "Registry"
 rapidq = "QREGISTRY"
 visual = false
 doc = "Reads and writes settings as keys and values: Windows' registry on Windows, a per-user store on other systems and the web."
@@ -212,6 +218,7 @@ events = []
 
 [[component]]
 name = "RJSON"
+display = "Json"
 visual = false
 doc = "Parses and builds JSON: get and set values by dotted path, list keys, pretty-print, load and save files. RapidR's own."
 properties = [
@@ -236,6 +243,7 @@ events = []
 
 [[component]]
 name = "RFONT"
+display = "Font"
 rapidq = "QFONT"
 visual = false
 doc = "A font (name, size, colour, bold, italic …) to give to components and drawing."
@@ -261,6 +269,7 @@ events = []
 
 [[component]]
 name = "RMEMORYSTREAM"
+display = "MemoryStream"
 rapidq = "QMEMORYSTREAM"
 visual = false
 doc = "A stream in memory: write and read text, numbers and binary data as in a file, with no file."
@@ -305,6 +314,7 @@ events = []
 
 [[component]]
 name = "RBITMAP"
+display = "Bitmap"
 rapidq = "QBITMAP"
 visual = false
 doc = "A picture in memory to draw on and draw from: load and save images, draw with the canvas methods."
@@ -356,6 +366,7 @@ events = []
 
 [[component]]
 name = "RIMAGELIST"
+display = "ImageList"
 rapidq = "QIMAGELIST"
 visual = false
 doc = "A list of same-size pictures (bitmaps or icons), drawn by index; list views and trees take their pictures from one."
@@ -391,6 +402,7 @@ events = []
 
 [[component]]
 name = "RNOTIFYICONDATA"
+display = "NotifyIconData"
 rapidq = "QNOTIFYICONDATA"
 visual = false
 doc = "Describes a system tray icon (its icon, tip and messages) for `Shell_NotifyIcon`, which RapidR keeps working on every system."

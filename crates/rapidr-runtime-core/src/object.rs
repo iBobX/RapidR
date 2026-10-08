@@ -200,6 +200,19 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     if rapidr_value::objects::rqlib::is_type(type_name) {
         crate::io::created(name, type_name);
     }
+    // (I4) a design surface reads its Source with the designer (rapidr-studio)
+    #[cfg(feature = "studio")]
+    if type_name.eq_ignore_ascii_case("RDESIGNSURFACE") {
+        rapidr_studio::design::install();
+    }
+}
+
+/// (I4) What an RDESIGNSURFACE's call left to hear (OnSourceEdit, OnChange,
+/// OnSelect …), fired.
+fn design_events(name: &str) {
+    for e in rapidr_value::objects::take_design_events(name) {
+        rp_fire_event_args(name, e.event(), &e.args());
+    }
 }
 
 /// `DIM lbl(1 TO 3) AS QLABEL`: one component per element, ids `lbl(1)`,
@@ -524,6 +537,9 @@ fn set_property(name: &str, prop: &str, val: Value) {
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_canvas(name) || rapidr_value::objects::is_trackbar(name) || rapidr_value::objects::is_design(name) {
             crate::ui::redraw_widget(name);
+        }
+        if rapidr_value::objects::is_design(name) {
+            design_events(name);
         }
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_tabcontrol(name) {
@@ -1173,6 +1189,9 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             }
         } else if rapidr_value::objects::is_trackbar(name) || rapidr_value::objects::is_design(name) {
             crate::ui::redraw_widget(name);
+        }
+        if rapidr_value::objects::is_design(name) {
+            design_events(name);
         } else if rapidr_value::objects::is_tabcontrol(name) {
             crate::ui::tab_control_changed(name);
         }

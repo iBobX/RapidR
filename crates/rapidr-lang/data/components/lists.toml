@@ -3,6 +3,7 @@ group = "Lists, grids and trees"
 
 [[component]]
 name = "RLISTBOX"
+display = "ListBox"
 rapidq = "QLISTBOX"
 visual = true
 size = [121, 97]
@@ -97,6 +98,7 @@ events = [
 
 [[component]]
 name = "RFILELISTBOX"
+display = "FileListBox"
 rapidq = "QFILELISTBOX"
 visual = true
 size = [145, 97]
@@ -160,6 +162,7 @@ events = [
 
 [[component]]
 name = "RDIRTREE"
+display = "DirTree"
 rapidq = "QDIRTREE"
 visual = true
 size = [121, 97]
@@ -208,6 +211,7 @@ events = [
 
 [[component]]
 name = "RSTRINGGRID"
+display = "StringGrid"
 rapidq = "QSTRINGGRID"
 visual = true
 size = [320, 120]
@@ -330,6 +334,7 @@ events = [
 
 [[component]]
 name = "RTREEVIEW"
+display = "TreeView"
 rapidq = "QTREEVIEW"
 aliases = ["QOUTLINE"]
 visual = true
@@ -444,6 +449,7 @@ events = [
 
 [[component]]
 name = "RLISTVIEW"
+display = "ListView"
 rapidq = "QLISTVIEW"
 visual = true
 size = [250, 150]

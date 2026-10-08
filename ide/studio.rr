@@ -16,7 +16,9 @@
 '   commands.inc   the command table → menus, tool bar, palette; enabling
 '   panes.inc      the dock manager's panes (the plug-in points)
 '   documents.inc  documents: code, designer, outline, problems, properties
+'   designer.inc   the form designer: the code it edits, its commands
 '   project.inc    the project, running it, settings
+'   build.inc      Build (the app for this system), Reveal, the app's settings
 '   chrome.inc     the look in the current theme, the status bar
 '   preview.inc    "Preview in Classic": Run and the designer in RapidQ's look
 '   shell.inc      RunCommand, the events, start-up
@@ -27,7 +29,9 @@ $INCLUDE "window.inc"
 $INCLUDE "commands.inc"
 $INCLUDE "panes.inc"
 $INCLUDE "documents.inc"
+$INCLUDE "designer.inc"
 $INCLUDE "project.inc"
+$INCLUDE "build.inc"
 $INCLUDE "chrome.inc"
 $INCLUDE "shell.inc"
 

@@ -19,6 +19,11 @@ rapidr-lang.workspace = true
 [dev-dependencies]
 # Property tests (MIT OR Apache-2.0; dev-only, never shipped).
 proptest = { version = "1.11", default-features = false, features = ["std"] }
+# (dev-only) The designer drawn as the desktop draws it — the UI kernel and
+# its CPU renderer, with the desktop host's features — for the WYSIWYG
+# captures (examples/design_capture.rs, tests/wysiwyg.rs).
+rapidr-ui-kernel = { workspace = true }
+rapidr-ui-render = { workspace = true, features = ["png"] }
 # (tests/handlers.rs: the code written compiles on both backends)
 rapidr-lexer.workspace = true
 rapidr-bcgen.workspace = true

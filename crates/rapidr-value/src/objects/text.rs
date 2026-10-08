@@ -169,10 +169,38 @@ pub fn ascent(font: &Font) -> f32 {
 
 /// The space a bold character takes beyond its regular width, in pixels:
 /// one for MS Sans Serif (RapidR Sans) — Windows' MS Sans Serif Bold is a
-/// pixel wider a character, RapidQ's capture shows — none for the others
-/// (their bold is the regular advance, one pixel more for the whole text).
+/// pixel wider a character, RapidQ's capture shows. Liberation Sans has no
+/// bold of its own here: its bold is the regular letter
+/// made heavier (the renderer's embolden, about a pixel wider at 12 px),
+/// and each character takes half that much more room, a 24th of the size —
+/// about as much as Windows' Arial Bold is wider than its regular
+/// (RC.EXE: Arial 9 bold "Pantry" 37 pixels, regular 34;
+/// Arial 12 bold "Hello" 39, regular 36). With none, the heavier letters
+/// ate the space between them ("Pantry" in a bold web title ran together).
+/// None for the others — Times New Roman's bold is as wide as its regular
+/// in RC.EXE (bold "Times" 41 pixels at 12 pt), Courier's columns stay — and
+/// the faces with a bold of their own (their bold is the regular advance,
+/// one pixel more for the whole text).
 pub fn bold_spacing(font: &Font) -> f32 {
-    if font.styles & 1 != 0 && family_name(&font.name) == "RapidR Sans" { 1.0 } else { 0.0 }
+    if font.styles & 1 == 0 {
+        return 0.0;
+    }
+    match family_name(&font.name) {
+        "RapidR Sans" => 1.0,
+        "Liberation Sans" => pixel_size(font) / 24.0,
+        _ => 0.0,
+    }
+}
+
+/// GDI's tmAveCharWidth as Windows gives it for a font without a width
+/// table — the width of `x` — where tab stops fall (DT_EXPANDTABS, a list's
+/// TabWidth). MS Sans Serif's x is 5 pixels at 8 pt: RapidR Sans draws its
+/// x a pixel wider (fonts/README.md) but keeps RapidQ's tab stops.
+pub fn average_char_width(font: &Font) -> i64 {
+    if family_name(&font.name) == "RapidR Sans" {
+        return ((5.0 * pixel_size(font) / 11.0).round() as i64).max(1);
+    }
+    text_size("x", font).0.max(1)
 }
 
 /// `TextWidth` / `TextHeight` of `text` in `font`, in pixels.

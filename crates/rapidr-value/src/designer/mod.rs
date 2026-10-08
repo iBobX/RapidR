@@ -203,6 +203,11 @@ impl Designer {
         std::mem::take(&mut self.applied)
     }
 
+    /// Whether commands were applied since the last [`Designer::take_applied`].
+    pub fn has_applied(&self) -> bool {
+        !self.applied.is_empty()
+    }
+
     fn sel(&self) -> Vec<NodeId> {
         self.selection.ids().to_vec()
     }

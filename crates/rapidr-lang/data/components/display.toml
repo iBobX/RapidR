@@ -3,6 +3,7 @@ group = "Display and drawing"
 
 [[component]]
 name = "RLABEL"
+display = "Label"
 rapidq = "QLABEL"
 visual = true
 size = [65, 17]
@@ -57,6 +58,7 @@ events = [
 
 [[component]]
 name = "RIMAGE"
+display = "Image"
 rapidq = "QIMAGE"
 visual = true
 size = [105, 105]
@@ -130,6 +132,7 @@ events = [
 
 [[component]]
 name = "RCANVAS"
+display = "Canvas"
 rapidq = "QCANVAS"
 visual = true
 size = [105, 105]
@@ -206,6 +209,7 @@ events = [
 
 [[component]]
 name = "RHEADER"
+display = "Header"
 rapidq = "QHEADER"
 visual = true
 size = [320, 17]
@@ -286,6 +290,7 @@ events = [
 
 [[component]]
 name = "RPROGRESS"
+display = "Progress"
 visual = true
 size = [200, 25]
 sets = ["layout", "a11y"]
@@ -311,6 +316,7 @@ events = []
 
 [[component]]
 name = "RPROGRESSBAR"
+display = "ProgressBar"
 rapidq = "QGAUGE"
 visual = true
 size = [100, 100]
@@ -348,6 +354,7 @@ events = []
 
 [[component]]
 name = "RDESIGNSURFACE"
+display = "DesignSurface"
 visual = true
 size = [640, 480]
 default_event = "OnSelect"
@@ -370,9 +377,31 @@ properties = [
   { name = "ShowGuides", type = "bool", default = true, doc = "Whether a drag snaps to and shows smart guides: siblings' edges, centres and baselines, the form's centre lines, margins, equal spacing (Alt suspends snapping)." },
   { name = "SnapToGrid", type = "bool", default = true, doc = "Whether moves and resizes snap to the grid where no guide is near." },
   { name = "GridSize", type = "int", default = 8, doc = "The grid's step in pixels." },
+  { name = "ShowGrid", type = "bool", default = true, doc = "Whether the grid's dots show on the designed form." },
+  { name = "ShowSelection", type = "bool", default = true, doc = "Whether the designer's own marks show: the selection's frames and handles, the anchor pins, the form's sizing grips. Off: the designed form alone, as the running program shows it." },
+  { name = "Source", type = "string", design = false, doc = "The program's source text. Setting it reads the file's forms and shows the one FormName names (else its first QFORM) at its own size, drawn as the running program draws it; setting the same text again changes nothing. From then on every change made in the designer is written back into this text as the smallest edits (OnSourceEdit), and reading Source gives the text as they left it. Set it again whenever the code is edited elsewhere." },
+  { name = "SourceFile", type = "string", design = false, doc = "The source's file name, set before Source: its $INCLUDE files are found from there." },
+  { name = "FormName", type = "string", design = false, doc = "The name of the form being designed (\"\" when the source creates none). Setting it designs that form of the source instead." },
+  { name = "SelIndex", type = "int", design = false, doc = "The index of the selected component (the first selected); -1 when nothing is, which means the form itself." },
+  { name = "PlaceType", type = "string", design = false, doc = "The placing tool: a component type (\"QBUTTON\"). The next click on the form places one at its default size, or a drag draws its rectangle; Shift keeps the tool for another. Escape or \"\" turns it off." },
+  { name = "CanUndo", type = "int", access = "read", design = false, doc = "Whether Undo has a change to undo." },
+  { name = "CanRedo", type = "int", access = "read", design = false, doc = "Whether Redo has a change to do again." },
+  { name = "StatusText", type = "string", access = "read", design = false, doc = "What the last change did, in words: what a screen reader is told (\"Button1 (QBUTTON), 16, 24, 75 × 25\")." },
+  { name = "HandlerLine", type = "int", access = "read", design = false, doc = "The line (from 0) of the SUB the last CreateHandler gave: where the code editor's caret goes." },
 ]
 methods = [
-  { name = "AddComponent", value = true },
+  { name = "AddComponent", value = true, params = "Type AS STRING, X AS INTEGER, Y AS INTEGER", doc = "Adds a new component of Type at (X, Y) of the form's inside, into the panel, group box or scroll box there, at its default size, named as Delphi names them (Button1, Button2 …) and written into Source as a CREATE block. X and Y of -1 put it at a free spot in the selected container (Enter on a toolbox item). Returns its index, or -1 when it can't go there. (AddComponent(Type, Name, X, Y, W, H), the older form, adds to a designer without a source.)" },
+  { name = "DragComponent", params = "Type AS STRING", doc = "Starts dragging a new component of Type in from elsewhere, from a toolbox's mouse-down: while the button stays down, any design surface the mouse moves over shows where it would go, and letting go there adds it (as AddComponent). Letting go anywhere else does nothing." },
+  { name = "SelectName", params = "Name AS STRING", returns = "INTEGER", doc = "Selects the component called Name; True if there is one." },
+  { name = "SelectAll", value = true, doc = "Selects every component on the form." },
+  { name = "DeleteSelection", returns = "INTEGER", doc = "Deletes the selected components (one undo step)." },
+  { name = "CopySelection", returns = "STRING", doc = "Keeps the selected components for Paste and returns their CREATE blocks as text, for the clipboard." },
+  { name = "CutSelection", returns = "STRING", doc = "CopySelection, then DeleteSelection." },
+  { name = "Paste", value = true, returns = "INTEGER", doc = "Adds the components copied last into the selected container: names kept unique, event handlers not bound." },
+  { name = "Duplicate", returns = "INTEGER", doc = "Copies the selected components beside themselves, one grid step away." },
+  { name = "Arrange", params = "How AS STRING", returns = "INTEGER", doc = "The Format menu on the selection, one undo step: \"left\", \"center\", \"right\", \"top\", \"middle\", \"bottom\" (to the first selected), \"samewidth\", \"sameheight\", \"samesize\", \"spaceh\", \"spacev\" (equal gaps), \"centerh\", \"centerv\" (in the parent), \"front\", \"back\"." },
+  { name = "ResizeForm", params = "Width AS INTEGER, Height AS INTEGER", returns = "INTEGER", doc = "Gives the designed form this Width and Height, as dragging its edge does: the size written into its CREATE block, and the components its Anchors move written where they go." },
+  { name = "CreateHandler", params = "Name AS STRING, Event AS STRING", returns = "STRING", doc = "The SUB handling component Name's Event (\"\": its default event): the one its CREATE block names, else a new one written with the event's parameters and wired (one undo step). Returns the SUB's name; HandlerLine says where it is." },
   { name = "RemoveComponent", value = true },
   { name = "ClearAll", value = true },
   { name = "SelectComp", value = true },
@@ -386,7 +415,7 @@ methods = [
   { name = "GetCompY", value = true },
   { name = "GetCompW", value = true },
   { name = "GetCompH", value = true },
-  { name = "Undo", returns = "INTEGER", doc = "Undoes the last change to the designed form (a move, a resize, a property, an added or removed component); True if there was one." },
+  { name = "Undo", returns = "INTEGER", doc = "Undoes the last change to the designed form (a move, a resize, a property, an added or removed component); True if there was one. With a Source, the exact text before it comes back (OnSourceEdit)." },
   { name = "Redo", returns = "INTEGER", doc = "Does again the last change undone; True if there was one." },
   { name = "AlignSelection", params = "How AS STRING", doc = "Lines the selected components up with the first selected: \"left\", \"center\", \"right\", \"top\", \"middle\" or \"bottom\" (one undo step)." },
   { name = "SelectAdd", params = "Index AS INTEGER", doc = "Adds component Index to the selection (as Shift+click)." },
@@ -394,14 +423,17 @@ methods = [
   { name = "Hide", value = true },
 ]
 events = [
-  { name = "OnSelect", params = "Index AS INTEGER" },
+  { name = "OnSelect", params = "Index AS INTEGER", doc = "A component was selected (pressed, Tab, added); -1: nothing, the form itself." },
   { name = "OnDblClick", params = "Index AS INTEGER" },
   { name = "OnMove", params = "Index AS INTEGER, X AS INTEGER, Y AS INTEGER, W AS INTEGER, H AS INTEGER" },
   { name = "OnBgClick", params = "X AS INTEGER, Y AS INTEGER" },
+  { name = "OnSourceEdit", params = "StartLine AS INTEGER, StartCol AS INTEGER, EndLine AS INTEGER, EndCol AS INTEGER, Text AS STRING", doc = "The designer changed Source: the text from (StartLine, StartCol) to (EndLine, EndCol) is replaced by Text (lines and columns from 0, columns in characters). One change's edits come in order, each in the text as the ones before left it: applied to the code editor in turn, it holds Source again." },
+  { name = "OnChange", doc = "The designed form changed (after its OnSourceEdit events)." },
 ]
 
 [[component]]
 name = "RDIGDISPLAY"
+display = "DigDisplay"
 rapidq = "QDIGDISPLAY"
 from = "QDigDisplay.inc"
 visual = true

@@ -1904,6 +1904,17 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `ShowGuides` | bool | True | Whether a drag snaps to and shows smart guides: siblings' edges, centres and baselines, the form's centre lines, margins, equal spacing (Alt suspends snapping). |
 | `SnapToGrid` | bool | True | Whether moves and resizes snap to the grid where no guide is near. |
 | `GridSize` | int | 8 | The grid's step in pixels. |
+| `ShowGrid` | bool | True | Whether the grid's dots show on the designed form. |
+| `ShowSelection` | bool | True | Whether the designer's own marks show: the selection's frames and handles, the anchor pins, the form's sizing grips. Off: the designed form alone, as the running program shows it. |
+| `Source` | string |  | The program's source text. Setting it reads the file's forms and shows the one FormName names (else its first QFORM) at its own size, drawn as the running program draws it; setting the same text again changes nothing. From then on every change made in the designer is written back into this text as the smallest edits (OnSourceEdit), and reading Source gives the text as they left it. Set it again whenever the code is edited elsewhere. |
+| `SourceFile` | string |  | The source's file name, set before Source: its $INCLUDE files are found from there. |
+| `FormName` | string |  | The name of the form being designed ("" when the source creates none). Setting it designs that form of the source instead. |
+| `SelIndex` | int |  | The index of the selected component (the first selected); -1 when nothing is, which means the form itself. |
+| `PlaceType` | string |  | The placing tool: a component type ("QBUTTON"). The next click on the form places one at its default size, or a drag draws its rectangle; Shift keeps the tool for another. Escape or "" turns it off. |
+| `CanUndo` (read-only) | int |  | Whether Undo has a change to undo. |
+| `CanRedo` (read-only) | int |  | Whether Redo has a change to do again. |
+| `StatusText` (read-only) | string |  | What the last change did, in words: what a screen reader is told ("Button1 (QBUTTON), 16, 24, 75 × 25"). |
+| `HandlerLine` (read-only) | int |  | The line (from 0) of the SUB the last CreateHandler gave: where the code editor's caret goes. |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -1914,7 +1925,18 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 
 | Method | |
 |---|---|
-| `AddComponent` | Puts a component on the design surface: `AddComponent(Type, Name, X, Y, W, H)`. |
+| `AddComponent(Type AS STRING, X AS INTEGER, Y AS INTEGER)` | Adds a new component of Type at (X, Y) of the form's inside, into the panel, group box or scroll box there, at its default size, named as Delphi names them (Button1, Button2 …) and written into Source as a CREATE block. X and Y of -1 put it at a free spot in the selected container (Enter on a toolbox item). Returns its index, or -1 when it can't go there. (AddComponent(Type, Name, X, Y, W, H), the older form, adds to a designer without a source.) |
+| `DragComponent(Type AS STRING)` | Starts dragging a new component of Type in from elsewhere, from a toolbox's mouse-down: while the button stays down, any design surface the mouse moves over shows where it would go, and letting go there adds it (as AddComponent). Letting go anywhere else does nothing. |
+| `SelectName(Name AS STRING) AS INTEGER` | Selects the component called Name; True if there is one. |
+| `SelectAll` | Selects every component on the form. |
+| `DeleteSelection AS INTEGER` | Deletes the selected components (one undo step). |
+| `CopySelection AS STRING` | Keeps the selected components for Paste and returns their CREATE blocks as text, for the clipboard. |
+| `CutSelection AS STRING` | CopySelection, then DeleteSelection. |
+| `Paste AS INTEGER` | Adds the components copied last into the selected container: names kept unique, event handlers not bound. |
+| `Duplicate AS INTEGER` | Copies the selected components beside themselves, one grid step away. |
+| `Arrange(How AS STRING) AS INTEGER` | The Format menu on the selection, one undo step: "left", "center", "right", "top", "middle", "bottom" (to the first selected), "samewidth", "sameheight", "samesize", "spaceh", "spacev" (equal gaps), "centerh", "centerv" (in the parent), "front", "back". |
+| `ResizeForm(Width AS INTEGER, Height AS INTEGER) AS INTEGER` | Gives the designed form this Width and Height, as dragging its edge does: the size written into its CREATE block, and the components its Anchors move written where they go. |
+| `CreateHandler(Name AS STRING, Event AS STRING) AS STRING` | The SUB handling component Name's Event ("": its default event): the one its CREATE block names, else a new one written with the event's parameters and wired (one undo step). Returns the SUB's name; HandlerLine says where it is. |
 | `RemoveComponent` | Removes the component at the index given from the design surface. |
 | `ClearAll` | Removes every component from the design surface. |
 | `SelectComp` | Selects the component at the index given on the design surface (-1: none). |
@@ -1928,7 +1950,7 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `GetCompY` | Returns the top position of the component at the index given on the design surface. |
 | `GetCompW` | Returns the width of the component at the index given on the design surface. |
 | `GetCompH` | Returns the height of the component at the index given on the design surface. |
-| `Undo AS INTEGER` | Undoes the last change to the designed form (a move, a resize, a property, an added or removed component); True if there was one. |
+| `Undo AS INTEGER` | Undoes the last change to the designed form (a move, a resize, a property, an added or removed component); True if there was one. With a Source, the exact text before it comes back (OnSourceEdit). |
 | `Redo AS INTEGER` | Does again the last change undone; True if there was one. |
 | `AlignSelection(How AS STRING)` | Lines the selected components up with the first selected: "left", "center", "right", "top", "middle" or "bottom" (one undo step). |
 | `SelectAdd(Index AS INTEGER)` | Adds component Index to the selection (as Shift+click). |
@@ -1937,10 +1959,12 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 
 | Event | |
 |---|---|
-| `OnSelect(Index AS INTEGER)` | Fires when the user selects a designed component on the design surface (Index: which). |
+| `OnSelect(Index AS INTEGER)` | A component was selected (pressed, Tab, added); -1: nothing, the form itself. |
 | `OnDblClick(Index AS INTEGER)` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnMove(Index AS INTEGER, X AS INTEGER, Y AS INTEGER, W AS INTEGER, H AS INTEGER)` | Fires when the user moved or resized a designed component on the design surface (Index, and its new X, Y, W, H). |
 | `OnBgClick(X AS INTEGER, Y AS INTEGER)` | Fires when the user presses the design surface's empty background (X, Y: where); nothing is selected afterwards. |
+| `OnSourceEdit(StartLine AS INTEGER, StartCol AS INTEGER, EndLine AS INTEGER, EndCol AS INTEGER, Text AS STRING)` | The designer changed Source: the text from (StartLine, StartCol) to (EndLine, EndCol) is replaced by Text (lines and columns from 0, columns in characters). One change's edits come in order, each in the text as the ones before left it: applied to the code editor in turn, it holds Source again. |
+| `OnChange` | The designed form changed (after its OnSourceEdit events). |
 
 <a id="rdigdisplay"></a>
 ## RDIGDISPLAY (QDIGDISPLAY)
@@ -4242,7 +4266,7 @@ An embedded web page or HTML (an iframe): URL, HTML, Sandbox. Web only.
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
 | `Html` | string |  | The HTML the web view shows as its page, or the element holds. |
 | `Url` | string |  | The address: the page the web view shows, or the HTTP request's. |
-| `Sandbox` | string |  | What the page in the web view may do (the iframe's `sandbox`, such as `allow-scripts`). |
+| `Sandbox` | string |  | What the page in the web view may do: the iframe's `sandbox` tokens. Unset, `allow-scripts allow-forms allow-popups allow-modals allow-downloads` — the page runs its scripts at an origin of its own, never the program's; add `allow-same-origin` to let it use the program's origin (its storage and page), or set `""` to allow nothing. Set it before `Html` / `Url`. |
 | `ToolTip` | string |  | The element's tooltip (its `title`). |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
@@ -4511,6 +4535,15 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `MainFile` | string |  | The file the program starts from (relative to the folder). |
 | `FileCount` (read-only) | int |  | How many files the project has. |
 | `CompatMode` | string |  | "rapidq" for a RapidQ-compatible project (RapidR's extensions reported), else "". |
+| `Icon` | string |  | The app's icon file (.icns, .ico, .png or .svg), relative to the folder; "" for the main file's $OPTION ICON, else RapidR's icon for programs. |
+| `AppName` | string |  | The app's name, as Finder, Explorer and the applications menu show it; "" for the project's Name. |
+| `BundleID` | string |  | The app's reverse-DNS identifier (com.example.notepad); "" for dev.rapidr.app.<name>. |
+| `Version` | string |  | The app's version: up to four numbers with dots (1.0, 2.3.1); "" for 1.0. |
+| `Company` | string |  | Who makes the app (Windows' company name, the copyright line). |
+| `BuildKind` | string |  | How Build makes the program: "native" (compiled with Rust) or "interpreted" (RapidR's runner and the program's bytecode; no Rust needed). |
+| `Building` (read-only) | int |  | True while a Build runs. |
+| `FileManager` (read-only) | string |  | What this system calls the file manager Reveal opens: "Finder", "File Explorer" or "Files" ("" on the web). |
+| `BuiltPath` (read-only) | string |  | What the last Build made: the .app, the .exe or the AppDir ("" until one succeeds). |
 
 | Method | |
 |---|---|
@@ -4524,10 +4557,16 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `File(Index AS INTEGER) AS STRING` | File Index's path, relative to the folder (from 0). |
 | `FileKind(Index AS INTEGER) AS STRING` | File Index's kind: module, form, include, resource, asset or data. |
 | `FullPath(Index AS INTEGER) AS STRING` | File Index's path to open it with (the folder's and its own). |
+| `Build([Kind AS STRING]) AS INTEGER` | Makes the program into an app for this computer's system with rapidr build: Name.app on macOS, the .exe with its icon and version on Windows, Name.AppDir on Linux. Kind is "native" or "interpreted" (else BuildKind). Runs in the background: OnBuildOutput gives its lines, OnBuildDone its end. True when it started; Error says why not (on the web there is nothing to run it). |
+| `StopBuild` | Stops the Build that is running. |
+| `Reveal([Path AS STRING]) AS INTEGER` | Shows Path (else what the last Build made) selected in Finder, Explorer or the Linux file manager. |
+| `IconPreview([Size AS INTEGER]) AS STRING` | Draws the app's icon (Icon, else RapidR's) as a Size-pixel PNG (128 by default) in the project's .rapidr folder and gives its path, for a QIMAGE to show; "" when the icon can't be read (Error says why). |
 
 | Event | |
 |---|---|
 | `OnChange` | The project was opened, saved, closed, or its files changed. |
+| `OnBuildOutput(Text AS STRING)` | A line rapidr build printed while Build runs. |
+| `OnBuildDone(Code AS INTEGER, Path AS STRING)` | Build ended: Code 0 when it worked, and Path is what it made (the .app, .exe or AppDir). |
 
 <a id="rlanguageservice"></a>
 ## RLANGUAGESERVICE

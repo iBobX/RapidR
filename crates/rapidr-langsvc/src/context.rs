@@ -362,27 +362,25 @@ pub(crate) fn create_at(s: &Snapshot, pre: usize) -> Option<&'static Component> 
 }
 
 /// Pretty spelling of a component name (`RBUTTON` → `RButton`,
-/// `QFORMMDI` → `QFormMDI`).
+/// `QFORMMDI` → `QFormMDI`): the registry's mixed-case spelling
+/// (`rapidr_lang::Component::display`).
 pub(crate) fn pretty_component(upper: &str) -> String {
-    const NAMES: &[&str] = &[
-        "Form", "FormMDI", "Button", "Label", "Edit", "Memo", "UpDown", "DateTimePicker", "ToolBar", "Canvas", "Panel", "Timer", "MainMenu", "MenuItem",
-        "ComboBox", "ListBox", "CheckBox", "RadioButton", "RichEdit", "StringGrid", "Image", "ScrollBar", "TabControl", "GroupBox", "MySQL", "SQLite",
-        "ProgressBar", "ListView", "OpenDialog", "SaveDialog", "FileStream", "FileDialog", "CodeEditor", "ImageList", "Bitmap", "Font", "Socket",
-        "ServerSocket", "Http", "StatusBar", "ColorDialog", "FontDialog", "DesignSurface", "TreeView", "Splitter", "TrackBar", "ScrollBox", "PopupMenu",
-        "MemoryStream", "StringList", "Printer", "Num", "Plot", "DataFrame", "Json", "WebView", "DOM", "JavaScript", "WebStorage", "WebAudio", "WebVideo",
-        "WebNotification", "WebGeolocation", "Router", "CoolBtn", "OvalBtn", "FileListBox", "DirTree", "Header", "Rect", "Registry", "Gauge", "Outline",
-        "DXScreen", "DXImageList", "DXTimer", "DXSound", "DXJoystick", "D3DFrame", "D3DMeshBuilder", "D3DMesh", "D3DFace", "D3DLight", "D3DTexture",
-        "D3DVisual", "D3DWrap", "D3DVector", "NotifyIconData", "Bevel", "DigDisplay", "GlassFrame", "CGI", "ComPort", "Download", "MIDI", "Wave", "Video",
-        "CDAudio", "Progress", "DockForm", "DirListView",
-    ];
+    if let Some(c) = rapidr_lang::resolve_component(upper) {
+        let p = c.pretty(upper);
+        if p != upper {
+            return p;
+        }
+    }
     if upper.len() < 2 {
         return upper.to_string();
     }
+    // (an alias, or a name the registry doesn't know: its first letter
+    // after the Q / R kept)
     let (first, rest) = upper.split_at(1);
-    match NAMES.iter().find(|n| n.eq_ignore_ascii_case(rest)) {
-        Some(n) => format!("{first}{n}"),
-        None if rest.is_ascii() => format!("{first}{}{}", &rest[..1], rest[1..].to_ascii_lowercase()),
-        None => upper.to_string(),
+    if rest.is_ascii() {
+        format!("{first}{}{}", &rest[..1], rest[1..].to_ascii_lowercase())
+    } else {
+        upper.to_string()
     }
 }
 

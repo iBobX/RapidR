@@ -385,7 +385,7 @@ def rapidr_native(p, base):
     env = run_env(base)
     target = os.path.join(ROOT, "tests", "conformance", ".work", "cargo-target")
     env["CARGO_TARGET_DIR"] = target
-    code, out, err = run([RAPIDR, "build", p["staged"], os.path.join(base, "native", p["name"])], d, env, None, 900)
+    code, out, err = run([RAPIDR, "build", p["staged"], os.path.join(base, "native", p["name"]), "--no-bundle"], d, env, None, 900)
     exe = os.path.join(d, p["name"] + EXE)
     if code != 0 or not os.path.exists(exe):
         drop_build(target, p["name"])

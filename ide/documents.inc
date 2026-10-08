@@ -35,45 +35,22 @@ FUNCTION FileExt(Path AS STRING) AS STRING
   IF i > 0 THEN Result = LCASE$(MID$(Path, i + 1)) ELSE Result = ""
 END FUNCTION
 
-' (the value of `Name = value` in a statement, "" if it isn't that property)
-FUNCTION Assigned(Stmt AS STRING, Name AS STRING) AS STRING
-  DIM s AS STRING, i AS INTEGER
-  s = LTRIM$(RTRIM$(Stmt))
-  i = INSTR(s, "=")
-  IF i < 2 THEN EXIT FUNCTION
-  IF UCASE$(RTRIM$(LEFT$(s, i - 1))) = UCASE$(Name) THEN Result = LTRIM$(MID$(s, i + 1))
-END FUNCTION
-
 ' (a string literal's text, quotes off)
 FUNCTION Unquote(v AS STRING) AS STRING
   IF LEFT$(v, 1) = CHR$(34) AND RIGHT$(v, 1) = CHR$(34) AND LEN(v) >= 2 THEN Result = MID$(v, 2, LEN(v) - 2) ELSE Result = v
 END FUNCTION
 
-' ---- the form a file creates (until RFormDesigner, L-DMODEL / L-SYNC) ------------
+' ---- the form a file creates: its properties (until S-PANELS' inspector) -----------
 ' Its first top-level CREATE … AS QFORM: the form's own assignments for the
-' Properties pane, its children's bounds and captions for the designer.
-'
-' PLUG POINT (L-SYNC): the designer model is crates/rapidr-designer's
-' Document, which RDESIGNSURFACE doesn't hold yet (it has no source-text
-' members). Once it does, this scanner goes, and:
-'   - OpenDocument / ScanForm: DesignDoc(d).Source = CodeDoc(d).Text
-'     (Document::open_bytes; the surface shows forms()(0) through designer(0));
-'   - the surface's edits: an OnSourceEdit(Start, Length, Text) per TextPatch
-'     from Document::sync(), applied to CodeDoc(d) as one undo step;
-'   - CodeChanged: DesignDoc(d).Source = CodeDoc(d).Text after the Analyzer's
-'     pause (Document::set_text), so the code's edits reach the designer;
-'   - Edit > Undo / Redo while the designer is active: DesignDoc(d).Undo / Redo
-'     (one text history per file: Document::undo / redo).
+' Properties pane. The designer itself reads the code (designer.inc:
+' DesignRead — rapidr-designer's Document behind RDESIGNSURFACE's Source).
 
 SUB ScanForm(d AS INTEGER)
   DIM n AS INTEGER, i AS INTEGER, s AS STRING, u AS STRING, k AS INTEGER, depth AS INTEGER
   DIM nm AS STRING, ty AS STRING, j AS INTEGER, part AS STRING, parts AS INTEGER
-  DIM cx AS INTEGER, cy AS INTEGER, cw AS INTEGER, ch AS INTEGER, cname AS STRING, ctype AS STRING, ccap AS STRING
-  DIM inForm AS INTEGER, formDepth AS INTEGER, v AS STRING
+  DIM inForm AS INTEGER, formDepth AS INTEGER
   FormName = "": FormType = "": FormCaption = ""
   PropCount = 0
-  DesignDoc(d).ClearAll
-  cname = ""
   depth = 0
   n = CodeDoc(d).LineCount
   FOR i = 0 TO n - 1
@@ -89,15 +66,8 @@ SUB ScanForm(d AS INTEGER)
         PropKey(0) = "Name": PropValue(0) = nm
         PropKey(1) = "Type": PropValue(1) = ty
         PropCount = 2
-      ELSEIF inForm AND depth = formDepth + 1 THEN
-        cname = nm: ctype = ty: cx = 8: cy = 8: cw = 80: ch = 25: ccap = ""
       END IF
     ELSEIF LEFT$(u, 10) = "END CREATE" THEN
-      IF inForm AND depth = formDepth + 1 AND cname <> "" THEN
-        DesignDoc(d).AddComponent ctype, cname, cx, cy, cw, ch
-        IF ccap <> "" THEN DesignDoc(d).SetProp DesignDoc(d).Count - 1, "Caption", ccap
-        cname = ""
-      END IF
       IF inForm AND depth = formDepth THEN inForm = 0
       IF depth > 0 THEN depth = depth - 1
     ELSEIF inForm AND s <> "" AND LEFT$(s, 1) <> "'" THEN
@@ -112,17 +82,10 @@ SUB ScanForm(d AS INTEGER)
             IF UCASE$(PropKey(PropCount)) = "CAPTION" THEN FormCaption = Unquote(PropValue(PropCount))
             PropCount = PropCount + 1
           END IF
-        ELSEIF depth = formDepth + 1 AND cname <> "" THEN
-          v = Assigned(part, "Left"): IF v <> "" THEN cx = VAL(v)
-          v = Assigned(part, "Top"): IF v <> "" THEN cy = VAL(v)
-          v = Assigned(part, "Width"): IF v <> "" THEN cw = VAL(v)
-          v = Assigned(part, "Height"): IF v <> "" THEN ch = VAL(v)
-          v = Assigned(part, "Caption"): IF v <> "" THEN ccap = Unquote(v)
         END IF
       NEXT
     END IF
   NEXT
-  IF FormCaption <> "" THEN DesignDoc(d).FormCaption = FormCaption ELSE DesignDoc(d).FormCaption = FormName
 END SUB
 
 ' ---- the outline (RLanguageService) ------------------------------------------------
@@ -209,6 +172,7 @@ SUB AnalyzeActive
   IF d >= 0 THEN
     Lang.Update DocFile(d), CodeDoc(d).Text
     ScanForm d
+    IF DocHasForm(d) THEN DesignRead d
   ELSE
     PropCount = 0
   END IF
@@ -277,13 +241,14 @@ SUB OpenDocument(Path AS STRING)
   DocOpen(d) = 1
   DocDirty(d) = 0
   ScanForm d
-  DocHasForm(d) = Flag(FormName <> "")
+  DesignDoc(d).OnSourceEdit = DesignSourceEdit
+  DesignDoc(d).OnChange = DesignChanged
+  DesignDoc(d).OnDblClick = DesignDblClick
+  DesignRead d
+  DocHasForm(d) = Flag(DesignDoc(d).FormName <> "")
   title = FileTitle(Path)
-  IF DocHasForm(d) THEN
-    DesignDoc(d).Width = 640: DesignDoc(d).Height = 420
-    DesignDoc(d).Theme = PreviewTheme
-    Dock.AddPane(DesignDoc(d), title + " [Design]", "documents", "form")
-  END IF
+  DesignDoc(d).Theme = PreviewTheme
+  IF DocHasForm(d) THEN Dock.AddPane(DesignDoc(d), title + " [Design]", "documents", "form")
   Dock.AddPane(CodeDoc(d), title, "documents", "code")
   ActiveDoc = d
   AnalyzeActive

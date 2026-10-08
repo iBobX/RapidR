@@ -8,7 +8,8 @@
 //!   `Caption = ""` on a new label changes nothing (the caption was "").
 //! * The label takes its text's size (Windows' `DrawText` with DT_CALCRECT
 //!   and DT_EXPANDTABS) when, with AutoSize on:
-//!   - its Caption changes (`"Password:"` → 49 × 13; setting the caption it
+//!   - its Caption changes (`"Password:"` → 49 × 13 — 50 in RapidR, whose
+//!     MS Sans Serif draws r a pixel wider: fonts/README.md; setting the caption it
 //!     already has does nothing: an explicit `Width = 20` stays);
 //!   - the font it's drawn in changes — any of its properties, its colour
 //!     too: its own, its parent's (Delphi's ParentFont: `Form.Font.Color =
@@ -136,10 +137,9 @@ fn line_width(line: &str, font: &Font) -> i64 {
     x
 }
 
-/// GDI's tmAveCharWidth as Windows gives it for a font without a
-/// width table: the width of `x` (5 for MS Sans Serif 8).
+/// GDI's tmAveCharWidth (5 for MS Sans Serif 8).
 fn average_char_width(font: &Font) -> i64 {
-    text_size("x", font).0.max(1)
+    crate::objects::text::average_char_width(font)
 }
 
 /// `line`'s pieces once wrapped at spaces to fit `width` (DT_WORDBREAK), as
@@ -329,45 +329,61 @@ mod tests {
         Font { name: "MS Sans Serif".into(), size: 8, color: 0, styles: 0 }
     }
 
-    /// RC.EXE's numbers (scratch probes: a_label.bas, f_text.bas).
+    /// RC.EXE's numbers (scratch probes: a_label.bas, f_text.bas), and
+    /// RapidR's: RapidR Sans draws r, x, y, j, C and the brackets a pixel
+    /// wider than MS Sans Serif's bitmap (readable anti-aliased letters need
+    /// the space: fonts/README.md), the other characters as wide as RapidQ.
+    /// (text, RapidQ's size, RapidR's size)
+    const LABELS: &[(&str, (i64, i64), (i64, i64))] = &[
+        ("Password:", (49, 13), (50, 13)),
+        ("Pass&word:", (49, 13), (50, 13)),
+        ("Right", (25, 13), (25, 13)),
+        ("Pass", (23, 13), (23, 13)),
+        ("The quick brown fox jumps over the lazy dog. 0123456789", (277, 13), (282, 13)),
+        ("Two\r\nlines here", (45, 26), (46, 26)),
+        ("", (3, 13), (3, 13)),
+        ("&", (3, 13), (3, 13)),
+        ("&&", (6, 13), (7, 13)),
+        (" ", (3, 13), (3, 13)),
+        ("A\tB", (47, 13), (47, 13)),
+        ("Right aligned longer", (94, 13), (95, 13)),
+        ("Right aligned longer text", (114, 13), (116, 13)),
+        ("Lay", (17, 13), (18, 13)),
+        ("Centred text", (57, 13), (60, 13)),
+        ("Centred text again", (86, 13), (89, 13)),
+    ];
+
     #[test]
     fn texts_measure_as_rapidq_labels() {
         let f = ms8();
-        assert_eq!(text_extent("Password:", &f, None), (49, 13));
-        assert_eq!(text_extent("Pass&word:", &f, None), (49, 13));
-        assert_eq!(text_extent("Right", &f, None), (25, 13));
-        assert_eq!(text_extent("Pass", &f, None), (23, 13));
-        assert_eq!(text_extent("The quick brown fox jumps over the lazy dog. 0123456789", &f, None), (277, 13));
-        assert_eq!(text_extent("Two\r\nlines here", &f, None), (45, 26));
-        assert_eq!(text_extent("", &f, None), (3, 13));
-        assert_eq!(text_extent("&", &f, None), (3, 13));
-        assert_eq!(text_extent("&&", &f, None), (6, 13));
-        assert_eq!(text_extent(" ", &f, None), (3, 13));
-        assert_eq!(text_extent("A\tB", &f, None), (47, 13));
-        assert_eq!(text_extent("Right aligned longer", &f, None), (94, 13));
-        assert_eq!(text_extent("Right aligned longer text", &f, None), (114, 13));
-        assert_eq!(text_extent("Lay", &f, None), (17, 13));
-        assert_eq!(text_extent("Centred text", &f, None), (57, 13));
-        assert_eq!(text_extent("Centred text again", &f, None), (86, 13));
+        for &(text, rapidq, rapidr) in LABELS {
+            assert_eq!(text_extent(text, &f, None), rapidr, "{text:?} (RapidQ: {rapidq:?})");
+            // (a pixel or so wider than RapidQ's, never narrower or taller)
+            assert!(rapidr.0 >= rapidq.0 && rapidr.0 - rapidq.0 <= (rapidq.0 / 20).max(1) + 1 && rapidr.1 == rapidq.1, "{text:?}");
+        }
     }
 
     #[test]
     fn word_wrap_fits_the_width_and_takes_the_widest_line() {
         let f = ms8();
-        assert_eq!(text_extent("Word wrap: the quick brown fox jumps over the lazy dog.", &f, Some(200)), (184, 26));
-        assert_eq!(text_extent("Word wrap: the quick brown fox jumps over the lazy dog. More words.", &f, Some(184)), (184, 26));
-        assert_eq!(text_extent("Centred text", &f, Some(57)), (57, 13));
-        // (a word wider than the width isn't cut: the label grows to it)
-        assert_eq!(text_extent("Centred text again", &f, Some(30)), (37, 39));
+        // (RapidQ: 184 × 26, both)
+        assert_eq!(text_extent("Word wrap: the quick brown fox jumps over the lazy dog.", &f, Some(200)), (189, 26));
+        assert_eq!(text_extent("Word wrap: the quick brown fox jumps over the lazy dog. More words.", &f, Some(189)), (189, 26));
+        assert_eq!(text_extent("Centred text", &f, Some(60)), (60, 13));
+        // (a word wider than the width isn't cut: the label grows to it;
+        // RapidQ: 37 × 39)
+        assert_eq!(text_extent("Centred text again", &f, Some(30)), (39, 39));
     }
 
     #[test]
     fn right_alignment_keeps_the_right_edge() {
         let f = ms8();
-        assert_eq!(bounds("Right aligned longer", &f, false, 1, Rect::new(240, 12, 25, 13)), Rect::new(171, 12, 94, 13));
-        assert_eq!(bounds("Right aligned longer text", &f, false, 1, Rect::new(240, 12, 120, 13)), Rect::new(246, 12, 114, 13));
+        // (RapidQ: 171, 12, 94, 13 and 246, 12, 114, 13 — its texts a
+        // pixel or two narrower)
+        assert_eq!(bounds("Right aligned longer", &f, false, 1, Rect::new(240, 12, 25, 13)), Rect::new(170, 12, 95, 13));
+        assert_eq!(bounds("Right aligned longer text", &f, false, 1, Rect::new(240, 12, 120, 13)), Rect::new(244, 12, 116, 13));
         // (centred: Left stays)
-        assert_eq!(bounds("Centred text", &f, false, 2, Rect::new(300, 100, 3, 13)), Rect::new(300, 100, 57, 13));
+        assert_eq!(bounds("Centred text", &f, false, 2, Rect::new(300, 100, 3, 13)), Rect::new(300, 100, 60, 13));
     }
 
     #[test]

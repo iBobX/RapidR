@@ -31,6 +31,8 @@ struct Model {
     file_name: String,
     folder: String,
     error: String,
+    /// What the last Build made (an app or executable; "" none)
+    built: String,
 }
 
 thread_local! {
@@ -68,9 +70,29 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "mainfile" => Value::String(m.project.main.clone()),
             "filecount" => Value::Integer(if m.kind.is_empty() { 0 } else { m.project.file_count() as i64 }),
             "compatmode" => Value::String(m.project.compat_mode().to_string()),
+            "icon" => Value::String(m.project.build.icon.clone()),
+            "appname" => Value::String(m.project.build.app_name.clone()),
+            "bundleid" => Value::String(m.project.build.bundle_id.clone()),
+            "version" => Value::String(m.project.build.version.clone()),
+            "company" => Value::String(m.project.build.company.clone()),
+            "buildkind" => Value::String(build_kind(&m.project).to_string()),
+            "building" => flag(crate::build::building(name)),
+            "builtpath" => Value::String(m.built.clone()),
+            // (Reveal's: what the system calls its file manager)
+            "filemanager" => Value::String(if cfg!(target_arch = "wasm32") { "" } else if cfg!(target_os = "macos") { "Finder" } else if cfg!(windows) { "File Explorer" } else { "Files" }.into()),
             _ => return None,
         })
     })
+}
+
+/// `native` (compiled with Rust) or `interpreted` (the runner and the
+/// program's bytecode: no Rust needed), from `[build] targets`.
+fn build_kind(p: &Project) -> &'static str {
+    if p.build.targets.iter().any(|t| matches!(t.to_ascii_lowercase().as_str(), "bytecode" | "interpreted" | "interp")) {
+        "interpreted"
+    } else {
+        "native"
+    }
 }
 
 pub fn set(name: &str, prop: &str, v: &Value) -> bool {
@@ -79,7 +101,17 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             "name" => m.project.name = v.to_string_val(),
             "mainfile" => m.project.main = normalize_path(&v.to_string_val()),
             "compatmode" => m.project.compat.rapidq_compatible = v.to_string_val().eq_ignore_ascii_case("rapidq"),
-            "filename" | "folder" | "kind" | "error" | "filecount" => {}
+            "icon" => m.project.build.icon = project_path(&m.folder, v.to_string_val().trim()),
+            "appname" => m.project.build.app_name = v.to_string_val().trim().to_string(),
+            "bundleid" => m.project.build.bundle_id = v.to_string_val().trim().to_string(),
+            "version" => m.project.build.version = v.to_string_val().trim().to_string(),
+            "company" => m.project.build.company = v.to_string_val().trim().to_string(),
+            "buildkind" => {
+                let kind = if v.to_string_val().trim().eq_ignore_ascii_case("interpreted") { "bytecode" } else { "native" };
+                m.project.build.targets.retain(|t| !matches!(t.to_ascii_lowercase().as_str(), "native" | "bytecode" | "interpreted" | "interp"));
+                m.project.build.targets.insert(0, kind.to_string());
+            }
+            "filename" | "folder" | "kind" | "error" | "filecount" | "building" | "builtpath" | "filemanager" => {}
             _ => return false,
         }
         true
@@ -183,7 +215,7 @@ fn open(m: &mut Model, path: &str) -> Result<(), String> {
         }
         _ => return Err(format!("{path}: not a project or a source file")),
     };
-    *m = Model { project, kind, file_name, folder, error: String::new() };
+    *m = Model { project, kind, file_name, folder, ..Model::default() };
     Ok(())
 }
 
@@ -213,8 +245,78 @@ fn new(m: &mut Model, template: &str, name: &str, folder: &str) -> Result<(), St
     }
     let file = join(&folder, &format!("{name}.rrproj"));
     write_text(&file, &project.to_toml())?;
-    *m = Model { project, kind: "project", file_name: file, folder, error: String::new() };
+    *m = Model { project, kind: "project", file_name: file, folder, ..Model::default() };
     Ok(())
+}
+
+/// `rapidr build`'s arguments for the open project (and the folder it runs
+/// in): the main file, the `.rrproj`, what the project says that isn't
+/// saved yet, `--interp` for an interpreted build (`kind`, else the
+/// project's BuildKind).
+fn build_args(name: &str, kind: &str) -> Result<(Vec<String>, String), String> {
+    with(name, |m| {
+        if m.kind.is_empty() {
+            return Err("no project is open".to_string());
+        }
+        let main = join(&m.folder, &m.project.main);
+        let mut args = vec!["build".to_string(), main];
+        if m.kind == "project" && !m.file_name.is_empty() {
+            args.extend(["--project".to_string(), m.file_name.clone()]);
+        }
+        let b = &m.project.build;
+        let mut put = |flag: &str, v: &str| {
+            if !v.trim().is_empty() {
+                args.extend([flag.to_string(), v.trim().to_string()]);
+            }
+        };
+        put("--name", &b.app_name);
+        put("--bundle-id", &b.bundle_id);
+        put("--app-version", &b.version);
+        put("--company", &b.company);
+        if !b.icon.trim().is_empty() {
+            put("--icon", &join(&m.folder, &b.icon));
+        }
+        let kind = if kind.is_empty() { build_kind(&m.project) } else { kind };
+        if kind.eq_ignore_ascii_case("interpreted") {
+            args.push("--interp".into());
+        }
+        Ok((args, m.folder.clone()))
+    })
+}
+
+/// The project's icon (its own, else RapidR's default for programs) as a
+/// PNG of `px`, written under the project's `.rapidr/` folder: its path ("" when
+/// it can't be made — Error says why).
+fn icon_preview(name: &str, px: u32) -> String {
+    let made = with(name, |m| -> Result<String, String> {
+        let icon = if m.project.build.icon.trim().is_empty() {
+            rapidr_package::Icon::rapidr_default()
+        } else {
+            let path = join(&m.folder, &m.project.build.icon);
+            let bytes = rapidr_value::objects::read_file(&path).map_err(|e| format!("{path}: {e}"))?;
+            rapidr_package::Icon::from_bytes(&bytes, &path)?
+        };
+        let out = join(&join(&m.folder, rapidr_project::STATE_DIR), &format!("icon-preview-{px}.png"));
+        #[cfg(not(target_arch = "wasm32"))]
+        let _ = std::fs::create_dir_all(folder_of(&out));
+        rapidr_value::objects::write_file(&out, &icon.png(px))?;
+        Ok(out)
+    });
+    with(name, |m| match made {
+        Ok(p) => {
+            m.error.clear();
+            p
+        }
+        Err(e) => {
+            m.error = e;
+            String::new()
+        }
+    })
+}
+
+/// A finished build's app, remembered for Reveal and BuiltPath.
+pub(crate) fn set_built(name: &str, path: &str) {
+    with(name, |m| m.built = path.to_string());
 }
 
 pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Option<Value> {
@@ -266,6 +368,35 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
         }),
         "file" => Value::String(with(name, |m| m.project.file(i.max(0) as usize).filter(|_| i >= 0).map(|f| f.path.clone()).unwrap_or_default())),
         "filekind" => Value::String(with(name, |m| m.project.file(i.max(0) as usize).filter(|_| i >= 0).map(|f| kind_name(f.kind).to_string()).unwrap_or_default())),
+        "build" => {
+            let started = build_args(name, &s(0)).and_then(|(args, cwd)| {
+                let rapidr = host.rapidr().ok_or("Build makes apps in RapidR Studio on the desktop (macOS, Windows, Linux); on the web, Run shows the program")?;
+                crate::build::start(name, rapidr, &args, &cwd)
+            });
+            let ok = started.is_ok();
+            with(name, |m| {
+                m.error = started.err().unwrap_or_default();
+                if ok {
+                    m.built.clear();
+                }
+            });
+            flag(ok)
+        }
+        "stopbuild" => {
+            crate::build::stop(name);
+            Value::Null
+        }
+        "reveal" => {
+            let path = match s(0) {
+                p if p.is_empty() => with(name, |m| m.built.clone()),
+                p => p,
+            };
+            let r = if path.is_empty() { Err("nothing built yet".to_string()) } else { host.reveal(&path) };
+            let ok = r.is_ok();
+            with(name, |m| m.error = r.err().unwrap_or_default());
+            flag(ok)
+        }
+        "iconpreview" => Value::String(icon_preview(name, int_arg(args, 0, 128).clamp(16, 1024) as u32)),
         "fullpath" => Value::String(with(name, |m| m.project.file(i.max(0) as usize).filter(|_| i >= 0).map(|f| join(&m.folder, &f.path)).unwrap_or_default())),
         _ => return None,
     })
@@ -314,6 +445,29 @@ mod tests {
         std::fs::create_dir_all(&new_dir).unwrap();
         assert_eq!(call("new", &[Value::String("gui".into()), Value::String("Fresh".into()), Value::String(new_dir.clone())]).to_i64(), 1);
         assert!(std::path::Path::new(&new_dir).join("main.rr").is_file() && std::path::Path::new(&new_dir).join("Fresh.rrproj").is_file());
+        // the app's settings, the build's arguments, the icon's preview
+        assert_eq!(call("open", &[Value::String(format!("{d}/main.rrproj"))]).to_i64(), 1);
+        let set = |p: &str, v: &str| assert!(set("p1", p, &Value::String(v.into())));
+        set("appname", "Main App");
+        set("version", "2.0");
+        set("icon", &format!("{d}/art/app.svg"));
+        set("buildkind", "interpreted");
+        assert_eq!((get("icon"), get("buildkind")), ("art/app.svg".into(), "interpreted".into()));
+        let (args, cwd) = build_args("p1", "").unwrap();
+        assert_eq!(cwd, d);
+        assert_eq!(args[..2], ["build".to_string(), format!("{d}/main.bas")]);
+        for want in ["--project", "--name", "Main App", "--app-version", "2.0", "--icon", &format!("{d}/art/app.svg"), "--interp"] {
+            assert!(args.iter().any(|a| a == want), "{want}: {args:?}");
+        }
+        assert!(!build_args("p1", "native").unwrap().0.contains(&"--interp".to_string()));
+        // (no icon file yet: Error says so; RapidR's default draws)
+        assert_eq!(call("iconpreview", &[Value::Integer(64)]).to_string_val(), "");
+        assert!(!get("error").is_empty());
+        set("icon", "");
+        let preview = call("iconpreview", &[Value::Integer(64)]).to_string_val();
+        assert!(preview.ends_with(".rapidr/icon-preview-64.png") && std::path::Path::new(&preview).is_file(), "{preview}");
+        assert_eq!(call("build", &[]).to_i64(), 0, "the quiet host has no rapidr");
+        assert!(get("error").contains("desktop"));
         assert_eq!(call("open", &[Value::String(format!("{d}/nope.rr"))]).to_i64(), 0);
         assert!(get("error").contains("no such file"));
         std::fs::remove_dir_all(&dir).unwrap();

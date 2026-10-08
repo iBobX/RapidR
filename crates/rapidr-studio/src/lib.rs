@@ -18,7 +18,9 @@
 
 use rapidr_value::Value;
 
+pub mod build;
 pub mod channel;
+pub mod design;
 pub mod langsvc;
 pub mod project;
 pub mod session;
@@ -38,6 +40,16 @@ pub trait Host: Copy + 'static {
     /// The files directly in `folder` (their names; RPROJECT.OpenFolder):
     /// the disk's on the desktop, the page's store on the web.
     fn list_files(self, folder: &str) -> Vec<String>;
+    /// The `rapidr` executable RPROJECT.Build runs (`rapidr build`); `None`
+    /// where there is none to run (the web).
+    fn rapidr(self) -> Option<std::path::PathBuf> {
+        None
+    }
+    /// Shows `path` selected in the system's file manager (Finder,
+    /// Explorer, the Linux one): RPROJECT.Reveal.
+    fn reveal(self, _path: &str) -> Result<(), String> {
+        Err("there is no file manager here".into())
+    }
 }
 
 /// Whether `type_name` (a canonical R name) is one of Studio's components.
@@ -84,7 +96,9 @@ pub fn call<H: Host>(host: H, type_name: &str, name: &str, method: &str, args: &
 /// or when the program's frame sent something (the web). Whether a session
 /// is running (the desktop then calls again soon).
 pub fn poll<H: Host>(host: H) -> bool {
-    session::poll(host)
+    let sessions = session::poll(host);
+    let builds = build::poll(host, project::set_built);
+    sessions || builds
 }
 
 // ---- helpers ---------------------------------------------------------------

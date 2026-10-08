@@ -235,7 +235,7 @@ function runDesktop(c, runtime) {
   }
   const native = runtime === "native";
   const out = join(work, `${stem}-${runtime}`);
-  const build = spawn(RAPIDR, ["build", src, out, ...(native ? [] : ["--interp"])], {
+  const build = spawn(RAPIDR, ["build", src, out, "--no-bundle", ...(native ? [] : ["--interp"])], {
     cwd: work, env: env({ CARGO_TARGET_DIR: CARGO_TARGET }), timeout: 1800000,
   });
   // (a native build copies the executable next to the source)

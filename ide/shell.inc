@@ -52,19 +52,11 @@ SUB AddFileToProject
   END IF
 END SUB
 
-SUB BuildProject
-  SaveAll
-  AnalyzeActive
-  IF Lang.ErrorCount = 0 THEN
-    OutputLine "Build: " + FileTitle(ProjectMain) + " compiles (no errors)."
-  ELSE
-    OutputLine "Build: " + LTRIM$(STR$(Lang.ErrorCount)) + " errors (see Problems)."
-  END IF
-END SUB
-
 SUB RunCommand(Id AS STRING)
   DIM d AS INTEGER
   d = ActiveCode
+  ' (the designer's commands, and Edit's on a designer: designer.inc)
+  IF DesignCommand(Id) THEN EXIT SUB
   SELECT CASE Id
     ' ---- file ----
     CASE "file.newProject": AskNew
@@ -109,7 +101,7 @@ SUB RunCommand(Id AS STRING)
     CASE "view.keyboardShortcuts": ShowShortcuts
     ' ---- project ----
     CASE "project.addFile": AddFileToProject
-    CASE "project.options": OutputLine "Project: " + Proj.FileName + " (" + LTRIM$(STR$(Proj.FileCount)) + " files, main " + Proj.MainFile + ")"
+    CASE "project.options": ShowAppSettings
     ' ---- run / debug ----
     CASE "run.start": StartProgram 1
     CASE "run.withoutDebugging": StartProgram 0
@@ -121,6 +113,7 @@ SUB RunCommand(Id AS STRING)
     CASE "debug.stepOver": IF RunState = "paused" THEN Session.StepOver
     CASE "debug.stepOut": IF RunState = "paused" THEN Session.StepOut
     CASE "run.build": BuildProject
+    CASE "run.reveal": RevealBuild
     ' ---- window ----
     CASE "window.cascade": Dock.Cascade
     CASE "window.tileHorizontally": Dock.TileHorizontal
@@ -264,6 +257,7 @@ SUB StartStudio
   Session.OnStopped = ProgramStopped
   Session.OnContinue = ProgramContinued
   Session.OnExit = ProgramExited
+  SetUpBuild
   DefineCommands
   BuildMenus
   BuildToolBar
