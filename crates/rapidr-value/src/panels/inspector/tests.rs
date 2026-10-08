@@ -95,10 +95,11 @@ fn rows_come_from_the_registry() {
     inspect(&host, "insp", "Button1");
     let m = with("insp", Clone::clone).unwrap();
     assert_eq!(m.snap.type_name, "QBUTTON");
-    // (design-time, read-write, not indexed: Caption yes; Handle, Parent, Font no)
+    // (design-time, read-write, not indexed: Caption yes; Handle, Parent no;
+    // the write-only Font by its parts, as RapidQ's programs set it)
     let names: Vec<&str> = m.snap.props.iter().map(|p| p.name.as_str()).collect();
-    assert!(names.contains(&"Caption") && names.contains(&"Anchors") && names.contains(&"Align"));
-    assert!(!names.contains(&"Handle") && !names.contains(&"Parent") && !names.contains(&"Font"));
+    assert!(names.contains(&"Caption") && names.contains(&"Anchors") && names.contains(&"Align") && names.contains(&"Font"));
+    assert!(!names.contains(&"Handle") && !names.contains(&"Parent"));
     // (categories A–Z, RapidR's own members last, with their badge)
     let rows = m.rows();
     let cats: Vec<&str> = rows.iter().filter(|r| r.kind == RowKind::Category).map(|r| r.name.as_str()).collect();

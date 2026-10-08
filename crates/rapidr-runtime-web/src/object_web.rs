@@ -178,7 +178,7 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         rapidr_studio::design::install();
     }
     if rapidr_value::objects::create(name, type_name) {
-        rapidr_value::objects::set_file_io(web_read_file, web_write_file);
+        install_file_hooks();
         // (the I/O and media lane's: their devices, a QDOWNLOAD's gauge)
         if rapidr_value::objects::rqlib::is_type(type_name) {
             crate::io_web::created(name, type_name);
@@ -325,6 +325,8 @@ fn web_read_file(path: &str) -> Result<Vec<u8>, String> {
 /// objects read and write (once).
 pub fn install_file_hooks() {
     rapidr_value::objects::set_file_io(web_read_file, web_write_file);
+    // (Studio's language service and designer: `$INCLUDE`s from the page too)
+    rapidr_studio::install_page_sources();
 }
 
 /// A file's length (0 if it can't be read).

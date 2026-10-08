@@ -291,22 +291,22 @@ $APPTYPE GUI
 DIM Csv AS STRING
 Csv = "Region,Sales,Target" + CHR$(10) + "North,120,100" + CHR$(10) + "South,85,90" + CHR$(10) + "East,150,130" + CHR$(10) + "West,95,110"
 
-DIM Chart AS RPLOT
+DIM Chart AS RPlot
 
-CREATE Form1 AS QFORM
+CREATE Form1 AS RForm
     Caption = {TITLE}
     Width = 560
     Height = 460
     Center
-    CREATE Grid AS QSTRINGGRID
+    CREATE Grid AS RStringGrid
         Left = 10: Top = 10: Width = 530: Height = 130
         FixedCols = 0
         DefaultColWidth = 120
     END CREATE
-    CREATE Picture AS QIMAGE
+    CREATE Picture AS RImage
         Left = 10: Top = 150: Width = 530: Height = 230
     END CREATE
-    CREATE Summary AS QLABEL
+    CREATE Summary AS RLabel
         Left = 10: Top = 390: Width = 530
     END CREATE
 END CREATE
@@ -328,7 +328,7 @@ END SUB
 ' Draws one bar per region from the Sales column and names the best one.
 SUB DrawChart
     DIM r AS INTEGER, names AS STRING, nums AS STRING, best AS STRING
-    DIM sales AS RNUM
+    DIM sales AS RNum
     FOR r = 1 TO Grid.RowCount - 1
         names = names + IIF(r > 1, ",", "") + Grid.Cell(0, r)
         nums = nums + IIF(r > 1, ",", "") + Grid.Cell(1, r)
@@ -361,33 +361,33 @@ DECLARE SUB CascadeWindows
 DECLARE SUB TileWindows
 
 CONST MaxDocs = 8
-DIM Docs(MaxDocs - 1) AS QMEMO   ' the text areas that become child windows
+DIM Docs(MaxDocs - 1) AS RMemo   ' the text areas that become child windows
 DIM DocCount AS INTEGER
 
-CREATE Main AS QFORMMDI
+CREATE Main AS RFormMDI
     Caption = {TITLE}
     Width = 720
     Height = 520
     Center
-    CREATE Menu AS QMAINMENU
-        CREATE FileMenu AS QMENUITEM
+    CREATE Menu AS RMainMenu
+        CREATE FileMenu AS RMenuItem
             Caption = "&File"
-            CREATE NewItem AS QMENUITEM
+            CREATE NewItem AS RMenuItem
                 Caption = "&New": ShortCut = "Ctrl+N": OnClick = NewDocument
             END CREATE
-            CREATE Sep1 AS QMENUITEM
+            CREATE Sep1 AS RMenuItem
                 Caption = "-"
             END CREATE
-            CREATE ExitItem AS QMENUITEM
+            CREATE ExitItem AS RMenuItem
                 Caption = "E&xit": OnClick = QuitApp
             END CREATE
         END CREATE
-        CREATE WindowMenu AS QMENUITEM
+        CREATE WindowMenu AS RMenuItem
             Caption = "&Window"
-            CREATE CascadeItem AS QMENUITEM
+            CREATE CascadeItem AS RMenuItem
                 Caption = "&Cascade": OnClick = CascadeWindows
             END CREATE
-            CREATE TileItem AS QMENUITEM
+            CREATE TileItem AS RMenuItem
                 Caption = "&Tile": OnClick = TileWindows
             END CREATE
         END CREATE
@@ -460,7 +460,7 @@ impl Project {
             ),
             "gui" => format!(
                 "$APPTYPE GUI\n\n\
-                 CREATE Form1 AS QFORM\n    \
+                 CREATE Form1 AS RForm\n    \
                  Caption = {title}\n    \
                  Width = 480\n    \
                  Height = 320\n\
@@ -895,7 +895,7 @@ mod tests {
         let (p, files) = Project::new_from_template("My \"App\"", "GUI").unwrap();
         let text = &files[0].1;
         assert!(text.starts_with("$APPTYPE GUI\n"));
-        assert!(text.contains("CREATE Form1 AS QFORM"));
+        assert!(text.contains("CREATE Form1 AS RForm"), "RapidR's names");
         assert!(text.contains("Caption = \"My \" + CHR$(34) + \"App\" + CHR$(34) + \"\""));
         assert!(text.contains("Width = 480") && text.contains("Height = 320"));
         assert!(text.trim_end().ends_with("Form1.ShowModal"));
@@ -925,10 +925,10 @@ mod tests {
         // an MDI parent with a main menu.
         let (p, files) = Project::new_from_template("Dash", "data").unwrap();
         assert_eq!(p.file(0).unwrap().kind, FileKind::Form);
-        assert!(files[0].1.contains("QSTRINGGRID") && files[0].1.contains("RPLOT"));
+        assert!(files[0].1.contains("AS RStringGrid") && files[0].1.contains("AS RPlot"));
         let (p, files) = Project::new_from_template("Docs", "mdi").unwrap();
         assert_eq!(p.file(0).unwrap().kind, FileKind::Form);
-        assert!(files[0].1.contains("AS QFORMMDI") && files[0].1.contains("QMAINMENU"));
+        assert!(files[0].1.contains("AS RFormMDI") && files[0].1.contains("AS RMainMenu"));
         assert!(!files[0].1.contains("{TITLE}"));
 
         assert_eq!(

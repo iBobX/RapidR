@@ -273,9 +273,10 @@ impl Document {
     }
 
     /// A new form for a file (one without a form, or another): `CREATE name
-    /// AS QFORM` with a Caption and RapidQ's starting size, and the line that
-    /// shows it (`name.ShowModal`), at the end of the file in its own style —
-    /// one undo step. The edit made.
+    /// AS RForm` (`QFORM` in a file written with RapidQ's names) with a
+    /// Caption and RapidQ's starting size, and the line that shows it
+    /// (`name.ShowModal`), at the end of the file in its own style — one
+    /// undo step. The edit made.
     pub fn add_form(&mut self, name: &str) -> Vec<TextPatch> {
         let eol = self.style.eol.clone();
         let indent = if self.text.lines().any(|l| l.starts_with([' ', '\t']) && !l.trim().is_empty()) { self.style.indent.clone() } else { "    ".to_string() };
@@ -288,7 +289,9 @@ impl Document {
                 insert.push_str(&eol);
             }
         }
-        let tree = rapidr_value::designer::Subtree::new(name, "QFORM", &[("Caption", rapidr_value::designer::value::write_str(name)), ("Width", "320".into()), ("Height", "240".into())]);
+        let path = self.path.as_deref().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default();
+        let form_type = if rapidr_value::designer::text::file_uses_rapidq_names(&self.text, &path) { "QFORM" } else { "RForm" };
+        let tree = rapidr_value::designer::Subtree::new(name, form_type, &[("Caption", rapidr_value::designer::value::write_str(name)), ("Width", "320".into()), ("Height", "240".into())]);
         insert.push_str(&write_create(&tree, "", &Style { indent, eol: eol.clone() }));
         insert.push_str(&format!("{eol}{name}.ShowModal{eol}"));
         let at = self.text.len();

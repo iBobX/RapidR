@@ -249,6 +249,22 @@ const CASES = [
       "inspector.rows": /^Default=True$[\s\S]*^Width=75$/m,
     },
   },
+  // (S-DESIGN-2) Each kind of the inspector's editors writes the code a
+  // program needs: a font by its parts (Font.Name quoted, Size, Color,
+  // Bold as 1), an enum, a colour and a Boolean — the RapidQ constants a
+  // program without RAPIDQ.INC doesn't define as their numbers (they'd
+  // read as nothing), a caption with its & — and the inspector reads them
+  // back.
+  {
+    name: "inspector-kinds",
+    open: "examples/gui/hello_form.rr",
+    do: "wait,view.designer,pick:Answer,prop:Font.Bold=True,prop:Font.Size=12,prop:Font.Color=clBlue,prop:Font.Name=Arial,prop:Alignment=taCenter,prop:Color=clYellow,prop:Caption=Say hi && bye,prop:WordWrap=True,wait",
+    delay: 6,
+    dump: {
+      "codedoc(0).text": /    CREATE Answer AS QLABEL\n        Caption = "Say hi && bye"\n        Left = 16: Top = 96: Width = 300\n        Font\.Bold = 1\n        Font\.Size = 12\n        Font\.Color = &HFF0000\n        Font\.Name = "Arial"\n        Alignment = 2\n        Color = &H00FFFF\n        WordWrap = 1\n    END CREATE/,
+      "inspector.rows": /^Alignment=taCenter$[\s\S]*^Caption=Say hi && bye$[\s\S]*^Color=(clYellow|&H00FFFF)$[\s\S]*^WordWrap=True$[\s\S]*^Font=Arial, 12 pt, Bold$/m,
+    },
+  },
   // (S-PANELS) The toolbox: Enter on QCHECKBOX adds one to the form (its
   // CREATE block in the code), selected in the inspector.
   {
@@ -366,6 +382,55 @@ const CASES = [
     do: 'wait,view.designer,pick:AddBtn,prop:Width=120,code:"&Add to shelf"=>"Store it",wait,wait,wait,view.designer,edit.undo,edit.undo,edit.redo,edit.redo,wait',
     delay: 8,
     dump: { "codedoc(0).text": /    CREATE AddBtn AS QBUTTON\n        Caption = "Store it": Left = 314: Top = 252: Width = 120\n/ },
+  },
+  // (S-DESIGN-2, Robert: "keep going until I can add new forms") A new
+  // form program; Project > Add Form (Form2.rr, named in the project tree:
+  // Enter) — the main file includes it, it opens on its designer; an
+  // RLabel, an REdit and an RButton dropped on it with their captions, the
+  // button's OnClick written (it closes Form2); Form1 gets a button whose
+  // OnClick shows Form2. Saved: the program's two files, RapidR's names, no
+  // errors (tests/studio_add_form.mjs runs what was made).
+  {
+    name: "add-form",
+    open: "",
+    do: [
+      "newproject:gui|{dir}|Multi", "wait", "wait",
+      "project.addForm", "wait", "key:Enter", "wait", "wait", "wait",
+      "tool:RLABEL", "prop:Caption=Hello from Form2",
+      "tool:REDIT", "prop:Text=Type here",
+      "tool:RBUTTON", "prop:Caption=Close", "event:OnClick", "wait", "type:Form2.Close",
+      "open:main.rr", "wait", "view.designer", "wait",
+      "tool:RBUTTON", "prop:Caption=Show Form2", "event:OnClick", "wait", "type:Form2.Show",
+      "file.saveAll", "wait", "wait", "wait",
+    ].join(","),
+    delay: 12,
+    dump: {
+      "codedoc(0).text": /^\$APPTYPE GUI\n\$INCLUDE "Form2\.rr"\n[\s\S]*SUB Button2Click\n    Form2\.Show\nEND SUB[\s\S]*CREATE Form1 AS RForm[\s\S]*    CREATE Button2 AS RButton\n        Caption = "Show Form2"[\s\S]*OnClick = Button2Click/,
+      "codedoc(1).text": /SUB Button1Click\n    Form2\.Close\nEND SUB[\s\S]*CREATE Form2 AS RForm[\s\S]*    CREATE Label1 AS RLabel\n        Caption = "Hello from Form2"[\s\S]*    CREATE Edit1 AS REdit\n[\s\S]*Text = "Type here"[\s\S]*    CREATE Button1 AS RButton\n        Caption = "Close"[\s\S]*OnClick = Button1Click/,
+      "proj.filecount": /^2$/,
+      "lang.errorcount": /^0$/,
+    },
+  },
+  // (S-DESIGN-2) Project > Add Module: Module1.rr, named in the tree,
+  // included by the main file, opened on its code.
+  {
+    name: "add-module",
+    open: "",
+    do: "newproject:gui|{dir}|Mods,wait,wait,project.addModule,wait,key:Enter,wait,wait,wait",
+    delay: 6,
+    dump: { "codedoc(0).text": /^\$APPTYPE GUI\n\$INCLUDE "Module1\.rr"\n\nCREATE Form1 AS RForm\n/, "codedoc(1).text": /^' Module1\.rr: SUBs and FUNCTIONs the program's files share$/, "proj.filecount": /^2$/, "lang.errorcount": /^0$/ },
+  },
+  // (S-DESIGN-2) A program with an $INCLUDE on the web: the language
+  // service and the designer read the included file from the page's store
+  // (rapidr_preprocessor's source reader), as the desktop reads the disk —
+  // no "missing include" error, the form designed, its button's SUB known.
+  {
+    name: "include-web",
+    open: "tests/fixtures/studio_split/main.rr",
+    webFiles: ["tests/fixtures/studio_split/main.rr", "tests/fixtures/studio_split/greeting.inc"],
+    do: "wait,wait,designer.add.QCHECKBOX,wait,wait",
+    delay: 5,
+    dump: { "lang.errorcount": /^0$/, "outputbox.problemcount": /^0$/, "designdoc(0).formname": /^Form$/, "codedoc(0).text": /    CREATE CheckBox1 AS QCHECKBOX\n/ },
   },
   // (S-SHELL-2) Documents are tabs, never windows: a form's file is one
   // tab with the Design | Code switch (no MDI window, no "[Design]"
@@ -495,7 +560,7 @@ const CASES = [
     // to the parameters
     name: "editor-snippet",
     open: "examples/gui/hello_form.rr",
-    do: "key:Ctrl+End,key:Enter,type:sub,wait,key:Tab,type:Hello,key:Tab,type:n AS INTEGER",
+    do: "view.code,key:Ctrl+End,key:Enter,type:sub,wait,key:Tab,type:Hello,key:Tab,type:n AS INTEGER",
     delay: 6,
     dump: { "codedoc(0).text": /\nSUB Hello\(n AS INTEGER\)\n {4}\nEND SUB\n?$/ },
   },
@@ -504,14 +569,14 @@ const CASES = [
     // words), in Problems too; Ctrl+. offers the fix, Enter applies it
     name: "editor-diagnostic",
     open: "examples/gui/hello_form.rr",
-    do: "key:Ctrl+End,key:Enter,type:x$ = NameEdit.Txet,key:Escape,wait,wait,wait,key:Ctrl+.,wait",
+    do: "view.code,key:Ctrl+End,key:Enter,type:x$ = NameEdit.Txet,key:Escape,wait,wait,wait,key:Ctrl+.,wait",
     delay: 8,
     dump: { "codedoc(0).diagnosticcount": /^1$/, "codedoc(0).completionitems": /^Change to Text$/ },
   },
   {
     name: "editor-quick-fix",
     open: "examples/gui/hello_form.rr",
-    do: "key:Ctrl+End,key:Enter,type:x$ = NameEdit.Txet,key:Escape,wait,wait,wait,key:Ctrl+.,wait,key:Enter,wait,wait,wait",
+    do: "view.code,key:Ctrl+End,key:Enter,type:x$ = NameEdit.Txet,key:Escape,wait,wait,wait,key:Ctrl+.,wait,key:Enter,wait,wait,wait",
     delay: 10,
     dump: { "codedoc(0).text": /\nx\$ = NameEdit\.Text\n?$/, "codedoc(0).diagnosticcount": /^0$/ },
   },
@@ -520,7 +585,7 @@ const CASES = [
     // SUB, OnClick = and the calls
     name: "editor-rename",
     open: "examples/gui/hello_form.rr",
-    do: "key:Ctrl+End,key:Enter,type:greet,key:Escape,key:Left,key:F2,wait,key:Ctrl+A,type:SayHi,key:Enter,wait",
+    do: "view.code,key:Ctrl+End,key:Enter,type:greet,key:Escape,key:Left,key:F2,wait,key:Ctrl+A,type:SayHi,key:Enter,wait",
     delay: 7,
     dump: { "codedoc(0).text": /DECLARE SUB SayHi\n[\s\S]*OnClick = SayHi\n[\s\S]*\nSUB SayHi\n[\s\S]*\nSayHi\n?$/ },
   },
@@ -529,7 +594,7 @@ const CASES = [
     // first match selected
     name: "editor-find-regex",
     open: "examples/gui/hello_form.rr",
-    do: "key:Ctrl+F,wait,key:Alt+R,type:Show\\w+,wait",
+    do: "view.code,key:Ctrl+F,wait,key:Alt+R,type:Show\\w+,wait",
     delay: 6,
     dump: { "codedoc(0).seltext": /^ShowModal$/ },
   },
@@ -537,7 +602,7 @@ const CASES = [
     // Edit > Undo takes the typing back (a word at a time), Redo again
     name: "editor-undo",
     open: "examples/gui/hello_form.rr",
-    do: "key:Ctrl+End,type:one two,edit.undo,wait,edit.undo,edit.redo,wait",
+    do: "view.code,key:Ctrl+End,type:one two,edit.undo,wait,edit.undo,edit.redo,wait",
     delay: 6,
     dump: { "codedoc(0).text": /\nForm\.ShowModal\none ?\n?$/, "codedoc(0).canredo": /^(-1|1|True)$/i },
   },
@@ -624,7 +689,8 @@ function runDesktop(c) {
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   const args = ["run", "ide/studio.rr", "--home", ".", "--fresh", "--theme", "rapidr-light"];
-  if (c.do) args.push("--do", c.do);
+  // ({dir}: the case's own folder — a new project goes there)
+  if (c.do) args.push("--do", c.do.replaceAll("{dir}", dir));
   if (c.open && c.copyDir) {
     // (the project's whole folder: Build writes the app beside it)
     cpSync(join(ROOT, dirname(c.open)), join(dir, "project"), { recursive: true });
@@ -707,7 +773,7 @@ async function runWebPage(ctx, c, last) {
     });
     const q = new URLSearchParams({ theme: "rapidr-light", window: "normal" });
     if (c.fresh !== false) q.set("fresh", "");
-    if (c.do) q.set("do", c.do);
+    if (c.do) q.set("do", c.do.replaceAll("{dir}", `/flows/${c.name}`));
     if (c.open) q.set("open", c.open);
     await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
     await page.waitForFunction(() => window.rr && window.rr.rapidr_test_results(), null, { timeout: Math.max(90000, c.delay * 1000 + 60000), polling: 200 });

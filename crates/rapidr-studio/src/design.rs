@@ -554,14 +554,90 @@ mod tests {
         let mut editor = text.to_string();
         assert!(s.key(13, "", false, false), "Enter adds one");
         heard(&mut s, &mut editor);
-        assert_eq!(editor, "' a console program\nPRINT \"Hello\"\n\nCREATE Form1 AS QFORM\n    Caption = \"Form1\"\n    Width = 320\n    Height = 240\nEND CREATE\n\nForm1.ShowModal\n");
+        // (RapidR's names: the file isn't written with RapidQ's)
+        assert_eq!(editor, "' a console program\nPRINT \"Hello\"\n\nCREATE Form1 AS RForm\n    Caption = \"Form1\"\n    Width = 320\n    Height = 240\nEND CREATE\n\nForm1.ShowModal\n");
         assert!(!s.no_form() && s.root_name() == "Form1");
         assert_eq!(s.form_rect().2, 320);
         assert!(s.add_at("QBUTTON", (8, 8), None).is_some(), "designed at once");
+        heard(&mut s, &mut editor);
+        assert!(editor.contains("    CREATE Button1 AS RButton\n"), "{editor}");
         // a name taken goes on to the next
         let mut t = DesignSurface::default();
         t.open_source("DIM Form1 AS INTEGER\n");
         assert_eq!(t.add_form("").as_deref(), Some("Form2"));
+    }
+
+    /// The program compiles to bytecode and to Rust (a designer's edit
+    /// never breaks it).
+    fn compiles(text: &str, what: &str) {
+        let tokens = rapidr_lexer::Lexer::new(text, Some("main.rr".into())).tokenize().unwrap_or_else(|e| panic!("{what}: lexer: {e}\n{text}"));
+        let program = rapidr_parser::parse_tokens(&tokens).unwrap_or_else(|e| panic!("{what}: parser: {e}\n{text}"));
+        rapidr_bcgen::compile_program_with_source(&program, Some(text)).unwrap_or_else(|e| panic!("{what}: bytecode: {e}\n{text}"));
+        assert_eq!(rapidr_codegen_rust::native_gap(&program), None, "{what}: native");
+    }
+
+    /// Every component the toolbox offers goes onto a form (Enter on the
+    /// toolbox: a free spot, the registry's creation size), written in the
+    /// form's own names (RapidR's or RapidQ's, never mixed), and the program
+    /// still compiles on both backends; a second one lands beside the first,
+    /// never on it.
+    #[test]
+    fn every_toolbox_component_can_be_added() {
+        install();
+        let mut tried = 0;
+        for (form_type, rapidq) in [("RForm", false), ("QFORM", true)] {
+            let text = format!("CREATE Form1 AS {form_type}\n    Caption = \"All\"\n    Width = 640\n    Height = 480\nEND CREATE\n\nForm1.ShowModal\n");
+            for group in rapidr_icons::TOOLBOX_GROUPS {
+                for &ty in group.members {
+                    let Some(c) = rapidr_lang::component(ty).filter(|c| c.kind == rapidr_lang::Kind::Component) else { continue };
+                    // (the form itself: Add Form; a menu item: inside a menu)
+                    if matches!(ty, "RFORM" | "RFORMMDI" | "RMENUITEM") {
+                        continue;
+                    }
+                    let mut s = DesignSurface::default();
+                    assert!(s.open_source(&text));
+                    s.set_size(1200, 900);
+                    let mut editor = text.clone();
+                    let at = s.free_spot(ty);
+                    let first = s.add_at(ty, at, None).unwrap_or_else(|| panic!("{ty}: not added ({})", s.get("statustext").unwrap().to_string_val()));
+                    heard(&mut s, &mut editor);
+                    let written = s.call("gettype", &[rapidr_value::v_int(first as i64)]).unwrap().to_string_val();
+                    let want = if rapidq { c.written_name().to_string() } else { c.pretty(c.name) };
+                    assert_eq!(written, want, "{ty} in a {form_type}");
+                    assert!(editor.contains(&format!(" AS {want}\n")), "{ty}: {editor}");
+                    compiles(&editor, &format!("{ty} in a {form_type}"));
+                    if c.visual {
+                        let (x1, y1) = (s.call("getcompx", &[rapidr_value::v_int(first as i64)]).unwrap().to_i64(), s.call("getcompy", &[rapidr_value::v_int(first as i64)]).unwrap().to_i64());
+                        let (w1, h1) = (s.call("getcompw", &[rapidr_value::v_int(first as i64)]).unwrap().to_i64(), s.call("getcomph", &[rapidr_value::v_int(first as i64)]).unwrap().to_i64());
+                        let (fw, fh) = s.client_size();
+                        assert!(x1 >= 0 && y1 >= 0 && x1 + w1 <= fw && y1 + h1 <= fh, "{ty}: inside the form ({x1}, {y1}, {w1}, {h1})");
+                        // (the registry's creation size; an aligned one — a header,
+                        // a status bar — the width or height of the form's inside)
+                        // (one RapidQ makes 0 x 0 — a QVIDEO — gets a size it can be seen
+                        // and picked at)
+                        // (one larger than the form: as large as fits)
+                        // (a label: its caption's size — RapidQ's AutoSize)
+                        if let Some((cw, ch)) = c.size.filter(|&(w, h)| w > 0 && h > 0 && ty != "RLABEL") {
+                            assert!(w1 == i64::from(cw) || w1 == fw || w1 == fw - x1 - 8, "{ty}: width {w1}, the registry's {cw}");
+                            assert!(h1 == i64::from(ch) || h1 == fh || h1 == fh - y1 - 8, "{ty}: height {h1}, the registry's {ch}");
+                        }
+                        // (nothing selected: a container takes what is added into itself)
+                        s.set("selindex", &rapidr_value::v_int(-1));
+                        let at = s.free_spot(ty);
+                        if let Some(second) = s.add_at(ty, at, None) {
+                            heard(&mut s, &mut editor);
+                            let i = rapidr_value::v_int(second as i64);
+                            let (x2, y2) = (s.call("getcompx", &[i.clone()]).unwrap().to_i64(), s.call("getcompy", &[i]).unwrap().to_i64());
+                            let overlaps = x2 < x1 + w1 && x1 < x2 + w1 && y2 < y1 + h1 && y1 < y2 + h1;
+                            assert!(!overlaps || w1 * 2 > 640 || h1 * 2 > 480, "{ty}: the second on the first ({x1},{y1}) ({x2},{y2})");
+                            compiles(&editor, &format!("two {ty}s"));
+                        }
+                    }
+                    tried += 1;
+                }
+            }
+        }
+        assert!(tried > 100, "{tried}");
     }
 
     #[test]

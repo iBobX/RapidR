@@ -238,13 +238,16 @@ pub fn doc_match(filter: &str, type_name: &str) -> bool {
 pub fn card(key: &Key) -> String {
     let Key::Component(t) = key else { return String::new() };
     let Some(c) = rapidr_lang::component(t) else { return String::new() };
-    let from = if c.rapidq.is_some() { "RapidQ's" } else { "RapidR's own" };
+    let from = match c.rapidq {
+        Some(q) => format!("RapidQ's {q}"),
+        None => "RapidR's own".to_string(),
+    };
     let runs = match c.runtimes {
         rapidr_lang::Runtimes::Desktop => ", desktop only",
         rapidr_lang::Runtimes::Web => ", web only",
         _ => "",
     };
-    format!("{} - {} ({from}{runs})", written_name(t), description(t))
+    format!("{} - {} ({from}{runs})", c.pretty(c.name), description(t))
 }
 
 impl Toolbox {
@@ -252,7 +255,8 @@ impl Toolbox {
     pub fn name_of(&self, type_name: &str) -> String {
         match self.names {
             Names::AsWritten => written_name(type_name),
-            Names::RapidR => type_name.to_ascii_uppercase(),
+            // (RapidR's own names as the registry spells them: RButton, RPlot)
+            Names::RapidR => rapidr_lang::component(type_name).map_or_else(|| type_name.to_ascii_uppercase(), |c| c.pretty(c.name)),
             Names::Titles => title_of(type_name),
         }
     }
@@ -737,7 +741,8 @@ mod tests {
         assert_eq!(t.name_of("RBUTTON"), "QBUTTON");
         assert_eq!(t.name_of("RPLOT"), "RPLOT");
         t.names = Names::RapidR;
-        assert_eq!(t.name_of("RBUTTON"), "RBUTTON");
+        assert_eq!(t.name_of("RBUTTON"), "RButton");
+        assert_eq!(t.name_of("RSTRINGGRID"), "RStringGrid");
         t.names = Names::Titles;
         assert_eq!(t.name_of("RBUTTON"), "Button");
         // (events give what the designer writes, whatever is shown)

@@ -256,12 +256,14 @@ impl FormDesign {
     }
 
     /// Whether `name` (any case) can be written as a RapidQ property's
-    /// value: the program defines it (RAPIDQ.INC's when included), or it
-    /// isn't a RapidQ program.
+    /// value: the program defines it (RAPIDQ.INC's when included) or it is
+    /// one of RapidR's own (akLeft …). A RapidR program without RAPIDQ.INC
+    /// doesn't know `clYellow` or `taCenter` either (they read as nothing),
+    /// so they are written as their numbers there too.
     pub fn writable_constant(&self, name: &str) -> bool {
-        match (&self.constants, self.rapidq) {
-            (Some(c), true) => c.contains_key(&name.to_ascii_lowercase()),
-            _ => true,
+        match &self.constants {
+            Some(c) => c.contains_key(&name.to_ascii_lowercase()) || super::value::builtin_constant(name).is_some(),
+            None => true,
         }
     }
 

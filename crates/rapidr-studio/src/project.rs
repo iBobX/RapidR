@@ -412,8 +412,63 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             Value::String(r.unwrap_or_default())
         }
         "fullpath" => Value::String(with(name, |m| m.project.file(i.max(0) as usize).filter(|_| i >= 0).map(|f| join(&m.folder, &f.path)).unwrap_or_default())),
+        // (Project > Add Form / Add Module) NewFileText(Path, Kind,
+        // MainText): a new file's text in the program's names;
+        // IncludeEdit(MainText, Path): the `$INCLUDE` the main program needs
+        // for it, as one patch for RCODEEDITOR.ApplyPatches ("" when it has it)
+        "newfiletext" => Value::String(with(name, |m| new_file_text(m, &s(0), &s(1), &s(2)))),
+        "includeedit" => Value::String(with(name, |m| include_edit(m, &s(0), &s(1)))),
         _ => return None,
     })
+}
+
+/// A file's name without its folder and extension.
+fn stem(path: &str) -> String {
+    let file = slashes(path).rsplit('/').next().unwrap_or("").to_string();
+    match file.rfind('.') {
+        Some(i) if i > 0 => file[..i].to_string(),
+        _ => file,
+    }
+}
+
+/// The text a new project file starts with: a form (`CREATE <its name> AS
+/// RForm`, or QFORM in a program written with RapidQ's names or a
+/// RapidQ-compatible project), a module, or nothing.
+fn new_file_text(m: &Model, path: &str, kind: &str, main_text: &str) -> String {
+    use rapidr_project::forms;
+    let eol = forms::line_end(main_text);
+    let title = slashes(path).rsplit('/').next().unwrap_or("").to_string();
+    match kind.to_ascii_lowercase().as_str() {
+        "form" => {
+            let rapidq = m.project.compat.rapidq_compatible || forms::uses_rapidq_names(main_text, &m.project.main);
+            forms::new_form_text(&title, &stem(path), rapidq, eol)
+        }
+        "module" => forms::new_module_text(&title, eol),
+        _ => String::new(),
+    }
+}
+
+/// The `$INCLUDE` of `path` (a project path) the main program's text needs,
+/// as an ApplyPatches line (`StartLine⇥StartCol⇥EndLine⇥EndCol⇥Text`); ""
+/// when it includes it already. The path is written relative to the main
+/// file's folder.
+fn include_edit(m: &Model, main_text: &str, path: &str) -> String {
+    let rel = project_path(&m.folder, path);
+    let main_folder = folder_of(&m.project.main);
+    let from_main = match main_folder.as_str() {
+        "" => rel.clone(),
+        f => rel.strip_prefix(&format!("{f}/")).map_or_else(|| format!("{}{rel}", "../".repeat(f.split('/').count())), str::to_string),
+    };
+    match rapidr_project::forms::include_insertion(main_text, &from_main) {
+        Some((line, text)) => format!("{line}\t0\t{line}\t0\t{}", patch_escaped(&text)),
+        None => String::new(),
+    }
+}
+
+/// A patch's text as ApplyPatches reads it: `\`, line breaks and tabs
+/// escaped.
+fn patch_escaped(text: &str) -> String {
+    text.replace('\\', "\\\\").replace('\n', "\\n").replace('\r', "\\r").replace('\t', "\\t")
 }
 
 #[cfg(test)]
@@ -430,6 +485,24 @@ mod tests {
         fn list_files(self, folder: &str) -> Vec<String> {
             std::fs::read_dir(folder).map(|d| d.filter_map(|e| e.ok()).filter(|e| e.path().is_file()).map(|e| e.file_name().to_string_lossy().into_owned()).collect()).unwrap_or_default()
         }
+    }
+
+    #[test]
+    fn a_new_form_file_and_its_include() {
+        let main = "$APPTYPE GUI\n\nCREATE Form1 AS RForm\nEND CREATE\n\nForm1.ShowModal\n";
+        let m = Model { project: Project::new("Demo", "main.rr"), kind: "project", folder: "/work/Demo".into(), ..Model::default() };
+        let form = new_file_text(&m, "Form2.rr", "form", main);
+        assert!(form.contains("\nCREATE Form2 AS RForm\n    Caption = \"Form2\"\n"), "{form}");
+        assert!(new_file_text(&m, "Form2.rr", "form", "CREATE Main AS QFORM\nEND CREATE\n").contains("CREATE Form2 AS QFORM"), "the program's own names");
+        assert!(new_file_text(&m, "Module1.rr", "module", main).starts_with("' Module1.rr"));
+        // the main program's $INCLUDE, as one patch (an absolute path too)
+        assert_eq!(include_edit(&m, main, "Form2.rr"), "1\t0\t1\t0\t$INCLUDE \"Form2.rr\"\\n");
+        assert_eq!(include_edit(&m, main, "/work/Demo/forms/About.rr"), "1\t0\t1\t0\t$INCLUDE \"forms/About.rr\"\\n");
+        assert_eq!(include_edit(&m, "$INCLUDE \"Form2.rr\"\n", "Form2.rr"), "", "there already");
+        // a main file in a folder of its own
+        let sub = Model { project: Project::new("Demo", "src/main.rr"), kind: "project", folder: "/work/Demo".into(), ..Model::default() };
+        assert_eq!(include_edit(&sub, main, "src/Form2.rr"), "1\t0\t1\t0\t$INCLUDE \"Form2.rr\"\\n");
+        assert_eq!(include_edit(&sub, main, "Shared.rr"), "1\t0\t1\t0\t$INCLUDE \"../Shared.rr\"\\n");
     }
 
     #[test]

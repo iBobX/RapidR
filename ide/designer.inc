@@ -136,7 +136,7 @@ SUB DesignDblClick(Index AS INTEGER, Sender AS RDESIGNSURFACE)
     EXIT SUB
   END IF
   Dock.FocusPane("codedoc(" + LTRIM$(STR$(d)) + ")")
-  IF Sender.HandlerLine >= 0 THEN CodeDoc(d).GotoLine Sender.HandlerLine
+  IF Sender.HandlerLine >= 0 THEN CaretAtHandler d, Sender.HandlerLine
 END SUB
 
 ' The designer's commands (Format, Edit on a designer; View's switches).

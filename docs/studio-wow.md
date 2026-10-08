@@ -421,7 +421,7 @@ Lanes in flight (the designer, the panels / inspector, the code editor, the them
 | DES-1 | done | S-DESIGN: each component drawn by the kernel's own from a design-time store; `tools/visual/designer_wysiwyg.py` 8 / 8 pixel-identical (notepad, hello_form; light, dark; 1×, 2×). |
 | DES-2 | done | S-DESIGN: click, Shift / ⌘-click, rubber band, 8 handles, live readouts, nudges, Alt frees; every change the smallest edit (`studio_flows` `designer`). S-DESIGN-2: the handles and grips keep their size and reach at any zoom. |
 | DES-3 | done | Drawn while dragging (S-DESIGN); S-DESIGN-2's `Guides` property and the `designer-guides` flow / capture (a guide held on both hosts). The 300-component budget is the model's unit test (perf stage not yet). |
-| DES-4 | done | S-DESIGN / S-PANELS: the placing tool (click or draw), drag and drop with a 60 % ghost of the real component and a "not allowed" pointer elsewhere, Enter / double-click (`AddComponent`), Delphi names, typing writes the Caption; a drop settles in for 100 ms (S-DESIGN-2). |
+| DES-4 | done | S-DESIGN / S-PANELS: the placing tool (click or draw), drag and drop with a 60 % ghost of the real component and a "not allowed" pointer elsewhere, Enter / double-click (`AddComponent`), Delphi names, typing writes the Caption; a drop settles in for 100 ms, easing out, none with reduced motion (S-DESIGN-2). Names unique in the whole program; RapidR's names written in a RapidR file. |
 | DES-5 | done | `Document::sync` edits as OnSourceEdit; code → designer at the analyzer's pause, and when the designer is shown; read-only banner on errors. S-DESIGN-2: one undo history with the code (DES-10). |
 | DES-6 | done | `CreateHandler` (S-DESIGN, S-PANELS' `create_handler`); the caret lands inside. |
 | DES-7 | done | Pins on the canvas and the form's edges / corner with the live preview (S-DESIGN); the model's 40 / 40 parity. |
@@ -442,7 +442,7 @@ Lanes in flight (the designer, the panels / inspector, the code editor, the them
 | INS-6 | partial | `Designer::set_property(prop, None)` resets (model only). |
 | TBX-1 | partial | D8 icons and Q names are done, but the list is hard-coded (`ide/panes.inc` `FillToolbox`: about 34 components out of 97 + library ones). |
 | TBX-2 | missing | No search. |
-| TBX-3 | missing | See DES-4. |
+| TBX-3 | done | S-DESIGN-2: every component of the toolbox added to a RapidR and a RapidQ form and the program compiled on both backends (`rapidr-studio` `every_toolbox_component_can_be_added`); Enter / double-click at the first free place in reading order, never on another, fitted to the form; non-visual ones in the tray. |
 | TBX-4 | missing | No hover card. |
 | ED-1 | partial | `crates/rapidr-editor` is done (undo tree, multi-cursor, search, folding, 11 languages, the bench). RCODEEDITOR is still the memo-based view (`crates/rapidr-ui-kernel/src/components/codeedit.rs`, `objects/{code,textedit}.rs`: one-step undo, no find / folding / multi-cursor). Nothing renders through `rapidr-editor` (only `rapidr-value/Cargo.toml` mentions it). |
 | ED-2 | missing | Tab types a literal tab character (`codeedit.rs` header: "Tab typing a tab"); Robert saw it drawn as a stray glyph. No indent / outdent. |
@@ -455,7 +455,7 @@ Lanes in flight (the designer, the panels / inspector, the code editor, the them
 | ED-9 | partial | The memo has IME; the editor's text runs for screen readers aren't there (I2 L-EDA11Y). |
 | PRJ-1 | partial | Files with icons and double-click to open (`ide/project.inc` `FillProjectTree`, `ProjectTreeOpen`). Forms don't expand to components; no dirty marks in the tree. |
 | PRJ-5 | missing | The old web IDE had an assets manager (its suites: §7); Studio has none. |
-| PRJ-2 | partial | Add File works (`AddFileToProject`); `project.addForm` / `addModule` are "not there yet"; no rename or delete. |
+| PRJ-2 | partial | S-DESIGN-2: Project > Add Form / Add Module work end to end — named in the tree, written in the program's names (`CREATE Form2 AS RForm`), added to the `.rrproj`, `$INCLUDE`d by the main file (one undo step in its editor), opened on the designer; the program runs with both forms on every runtime (`add-form` flow, `tests/studio_add_form.mjs`). Rename (F2) renames the file; the `$INCLUDE` doesn't follow yet. Delete asks (S-PANELS). |
 | RUN-1 | partial | F5 saves and runs in its own process or a sandboxed frame; output goes to Output (`ide/project.inc` `StartProgram`; `tests/studio_flows.mjs` `run-console`). Output is a QRICHEDIT with no ANSI colours; there is no ⌘R. |
 | RUN-2 | missing | No "Run in Browser" from desktop Studio. |
 | RUN-3 | partial | Errors block the run and focus Problems (`StartProgram`); no jump to the first error. |

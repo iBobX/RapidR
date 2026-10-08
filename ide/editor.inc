@@ -76,16 +76,24 @@ END SUB
 
 ' (the caret into document d's code once its pane is in the window — a
 ' pane added this turn isn't laid out yet)
+' (and again a turn later: a project tree's name editor that opened the
+' file — Project > Add Form — gives the focus back to the tree as it closes)
 DIM FocusDoc AS INTEGER
+DIM FocusTurns AS INTEGER
 
 SUB FocusCodeSoon(d AS INTEGER)
   FocusDoc = d
+  FocusTurns = 2
   EditorFocus.Enabled = 0
+  EditorFocus.Interval = 1
   EditorFocus.Enabled = 1
 END SUB
 
 SUB EditorFocusTick
-  EditorFocus.Enabled = 0
+  FocusTurns = FocusTurns - 1
+  ' (the second time a few frames on: the tree's focus comes back in the
+  ' host's next frame)
+  IF FocusTurns <= 0 THEN EditorFocus.Enabled = 0 ELSE EditorFocus.Interval = 80
   IF FocusDoc >= 0 AND FocusDoc < DocCount THEN
     ' (a form's file opens on its designer, Delphi's way: the designer
     ' takes the keys then; the code's caret when the code is shown)

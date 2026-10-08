@@ -3965,11 +3965,16 @@ dependencies = [
 name = "rapidr-studio"
 version = "2.117.0"
 dependencies = [
+ "rapidr-bcgen",
+ "rapidr-codegen-rust",
  "rapidr-designer",
  "rapidr-editor",
+ "rapidr-icons",
  "rapidr-lang",
  "rapidr-langsvc",
+ "rapidr-lexer",
  "rapidr-package",
+ "rapidr-parser",
  "rapidr-preprocessor",
  "rapidr-project",
  "rapidr-session",

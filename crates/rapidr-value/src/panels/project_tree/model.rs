@@ -331,6 +331,30 @@ impl ProjectTree {
         }
     }
 
+    /// The components (at any depth) the CREATE blocks of the project's
+    /// files make, but `except`'s (a path as given or the project's): what
+    /// a designer of `except` mustn't name a new component — a RapidQ
+    /// program's names are global. In the files' order, each name once.
+    pub fn component_names(&self, except: &str) -> Vec<String> {
+        let ex = normalize_path(except).to_lowercase();
+        let same = |k: &str| k == ex || ex.ends_with(&format!("/{k}")) || k.ends_with(&format!("/{ex}"));
+        let mut keys: Vec<&String> = self.texts.keys().filter(|k| !same(k)).collect();
+        keys.sort();
+        let mut out: Vec<String> = Vec::new();
+        fn walk(c: &[Comp], out: &mut Vec<String>) {
+            for c in c {
+                if !out.iter().any(|n| n.eq_ignore_ascii_case(&c.name)) {
+                    out.push(c.name.clone());
+                }
+                walk(&c.children, out);
+            }
+        }
+        for k in keys {
+            walk(&scan::creates(&self.texts[k]), &mut out);
+        }
+        out
+    }
+
     /// The selection forgotten if its node went.
     fn keep_selection(&mut self) {
         if !self.selected.is_empty() && !self.has_node(&self.selected.clone()) {
@@ -501,7 +525,13 @@ impl ProjectTree {
             FileKind::Asset => ("Asset", "png"),
             FileKind::Data => ("Data", "csv"),
         };
-        let taken = |p: &str| self.project.files.iter().any(|f| f.path.eq_ignore_ascii_case(p));
+        // (a form's file is named as its form: not a name the program's
+        // components have already — Form1 in main.rr makes the new one Form2)
+        let named = |p: &str| {
+            let stem = name_of(p).rsplit_once('.').map_or(name_of(p), |(s, _)| s);
+            kind == FileKind::Form && self.texts.values().any(|t| creates_named(&scan::creates(t), stem))
+        };
+        let taken = |p: &str| self.project.files.iter().any(|f| f.path.eq_ignore_ascii_case(p)) || named(p);
         if let Some(n) = name.map(str::trim).filter(|n| !n.is_empty()) {
             let n = name_of(&n.replace('\\', "/")).to_string();
             let (s, e) = match ext_of(&n) {
@@ -855,4 +885,9 @@ impl ProjectTree {
 /// The written name of component `name` (any case) in `cs`.
 fn find_name(cs: &[Comp], name: &str) -> Option<String> {
     cs.iter().find_map(|c| if c.name.eq_ignore_ascii_case(name) { Some(c.name.clone()) } else { find_name(&c.children, name) })
+}
+
+/// Whether one of `comps` (or a component inside one) is named `name`.
+fn creates_named(comps: &[Comp], name: &str) -> bool {
+    comps.iter().any(|c| c.name.eq_ignore_ascii_case(name) || creates_named(&c.children, name))
 }

@@ -2081,6 +2081,7 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `Visible` | int |  | Whether the control or form is shown. |
 | `FormCaption` | string |  | The caption of the form being designed. |
 | `Theme` | string |  | The look the designed form is drawn in (any name `$THEME` takes; "": the surface's own): `classic` shows it as RapidQ drew it. |
+| `ReservedNames` | string |  | Names the program's other files give their components, separated by commas: a component or form added here is never named one of them (a RapidQ program's component names are global — Form1's Button1 and Form2's would clash). |
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `Count` | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
 | `SelCount` (read-only) | int |  | How many components are selected (Shift / Ctrl+click, a rubber band). |
@@ -2115,6 +2116,7 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 
 | Method | |
 |---|---|
+| `SetFocus` | Gives the surface the keyboard focus (its keys: arrows, Delete, Ctrl+Z …). |
 | `AddComponent(Type AS STRING, X AS INTEGER, Y AS INTEGER)` | Adds a new component of Type at (X, Y) of the form's inside, into the panel, group box or scroll box there, at its default size, named as Delphi names them (Button1, Button2 …) and written into Source as a CREATE block. X and Y of -1 put it at a free spot in the selected container (Enter on a toolbox item). Returns its index, or -1 when it can't go there. (AddComponent(Type, Name, X, Y, W, H), the older form, adds to a designer without a source.) |
 | `DragComponent(Type AS STRING)` | Starts dragging a new component of Type in from elsewhere, from a toolbox's mouse-down: while the button stays down, any design surface the mouse moves over shows where it would go, and letting go there adds it (as AddComponent). Letting go anywhere else does nothing. |
 | `SelectName(Name AS STRING) AS INTEGER` | Selects the component called Name; True if there is one. |
@@ -4811,7 +4813,7 @@ The palette of components a form designer places, grouped under "RapidQ" (the co
 |---|---|---|---|
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
 | `Filter` | string | `""` | The search box's text: only the components whose names match it are shown. |
-| `ShowNames` | string | `"as-written"` | How components are named: "as-written" (RapidQ's components by their Q names, the others by their R names — what the designer writes), "rapidr" (every one by its R name) or "titles" (in words: "Button"). |
+| `ShowNames` | string | `"as-written"` | How components are named: "as-written" (RapidQ's components by their Q names, the others by their R names — what the designer writes), "rapidr" (every one by its R name, as the registry spells it: RButton, RPlot) or "titles" (in words: "Button"). |
 | `Selected` | string | `""` | The selected component's type as the designer writes it (QBUTTON), or a template's name. |
 | `Count` (read-only) | int |  | How many components are shown now: the filter applied, a closed group's left out (Item counts the same ones). |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
@@ -4888,6 +4890,7 @@ A project's files as a tree (an .rrproj project, or a .bas / .rr file and the fi
 | `Refresh` | Reads the project's files again (forms' components included). |
 | `LoadText(Text AS STRING, Path AS STRING) AS INTEGER` | Shows a project from its file's text (where there are no files to read: the web). Path is its file's name. True when it was read. |
 | `SetFileText(Path AS STRING, Text AS STRING)` | Gives a file's text (what the editor has, or a file the web can't read), so a form's components are listed from it. |
+| `ComponentNames(ExceptPath AS STRING) AS STRING` | The names the CREATE blocks of the project's other files make (at any depth), separated by commas: what a designer of ExceptPath must not name a new component (RDESIGNSURFACE.ReservedNames) — a RapidQ program's component names are global. |
 | `File(Index AS INTEGER) AS STRING` | File Index's path (from 0), in the project's order. |
 | `FileKind(Path AS STRING) AS STRING` | A file's kind: "module", "form", "include", "resource", "asset" or "data". |
 | `AddFile(Path AS STRING, [Kind AS STRING]) AS INTEGER` | Adds a file to the project (its kind from its extension when Kind is left out). True when it was added. |
@@ -5047,6 +5050,8 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `Find(Pattern AS STRING, Options AS STRING, Text AS STRING) AS STRING` | Find in Files: every match of Pattern in Text, a line each: line, column (both from 1), length, the line's text, separated by tabs. Options: any of "case" (match case), "word" (whole words), "regex" (Pattern is a regular expression), separated by commas. "" with Error set when the pattern is not a valid regular expression. |
 | `Replace(Pattern AS STRING, Options AS STRING, Text AS STRING, With AS STRING) AS STRING` | Text with every match of Pattern (Find's Options) replaced by With; in a regular expression's replacement $1 or ${name} stand for its groups. |
 | `FileText(Path AS STRING) AS STRING` | A file's text (UTF-8, or a byte a character as RapidQ wrote it), from the disk on the desktop and the page's store on the web; Error says why when it can't be read. |
+| `NewFileText(Path AS STRING, Kind AS STRING, MainText AS STRING) AS STRING` | The text a new project file starts with (Project > Add Form / Add Module): for Kind "form" a form named as the file (`CREATE Form2 AS RForm`, or QFORM when MainText — the main program — is written with RapidQ's names or the project is RapidQ-compatible) with its Caption and size; for "module" a comment naming it; "" for other kinds. Line ends as MainText's. |
+| `IncludeEdit(MainText AS STRING, Path AS STRING) AS STRING` | The `$INCLUDE` the main program (its text: MainText) needs for project file Path, as one RCODEEDITOR.ApplyPatches line (after its last $INCLUDE, else after its opening directives, else before its first statement; the path relative to the main file's folder); "" when it includes it already. |
 
 | Event | |
 |---|---|

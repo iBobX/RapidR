@@ -119,11 +119,20 @@ SUB ShowView(View AS STRING)
   IF View = "Design" THEN Dock.FocusPane("designdoc(" + LTRIM$(STR$(d)) + ")")
 END SUB
 
-' F12: the form, then its code, as Delphi.
+' F12: the form, then its code, as Delphi — and in the code, on a name,
+' that name's definition, as VS Code (Edit > Go to Definition); off a name
+' (or in a file without a form) the toggle.
 SUB ToggleDesign
   DIM d AS INTEGER
   d = ActiveCode
   IF d < 0 THEN EXIT SUB
+  IF DocKind(d) = "code" AND DocViewNow(d) <> "Design" THEN
+    IF CodeDoc(d).WordAt(CodeDoc(d).CaretLine, CodeDoc(d).CaretColumn) <> "" OR DocHasForm(d) = 0 THEN
+      CodeDoc(d).GotoDefinition
+      EXIT SUB
+    END IF
+  END IF
+  IF DocHasForm(d) = 0 THEN EXIT SUB
   IF DocViewNow(d) = "Design" THEN ShowView "Code" ELSE ShowView "Design"
 END SUB
 

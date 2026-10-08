@@ -71,7 +71,7 @@ doc = "The palette of components a form designer places, grouped under \"RapidQ\
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "Filter", type = "string", default = "", design = false, doc = "The search box's text: only the components whose names match it are shown." },
-  { name = "ShowNames", type = "string", default = "as-written", doc = "How components are named: \"as-written\" (RapidQ's components by their Q names, the others by their R names — what the designer writes), \"rapidr\" (every one by its R name) or \"titles\" (in words: \"Button\")." },
+  { name = "ShowNames", type = "string", default = "as-written", doc = "How components are named: \"as-written\" (RapidQ's components by their Q names, the others by their R names — what the designer writes), \"rapidr\" (every one by its R name, as the registry spells it: RButton, RPlot) or \"titles\" (in words: \"Button\")." },
   { name = "Selected", type = "string", default = "", design = false, doc = "The selected component's type as the designer writes it (QBUTTON), or a template's name." },
   { name = "Count", type = "int", access = "read", design = false, doc = "How many components are shown now: the filter applied, a closed group's left out (Item counts the same ones)." },
   { name = "Height", type = "int" },
@@ -134,6 +134,7 @@ methods = [
   { name = "Refresh", value = true, doc = "Reads the project's files again (forms' components included)." },
   { name = "LoadText", params = "Text AS STRING, Path AS STRING", returns = "INTEGER", doc = "Shows a project from its file's text (where there are no files to read: the web). Path is its file's name. True when it was read." },
   { name = "SetFileText", params = "Path AS STRING, Text AS STRING", doc = "Gives a file's text (what the editor has, or a file the web can't read), so a form's components are listed from it." },
+  { name = "ComponentNames", params = "ExceptPath AS STRING", returns = "STRING", doc = "The names the CREATE blocks of the project's other files make (at any depth), separated by commas: what a designer of ExceptPath must not name a new component (RDESIGNSURFACE.ReservedNames) — a RapidQ program's component names are global." },
   { name = "File", params = "Index AS INTEGER", returns = "STRING", doc = "File Index's path (from 0), in the project's order." },
   { name = "FileKind", params = "Path AS STRING", returns = "STRING", doc = "A file's kind: \"module\", \"form\", \"include\", \"resource\", \"asset\" or \"data\"." },
   { name = "AddFile", params = "Path AS STRING, [Kind AS STRING]", returns = "INTEGER", doc = "Adds a file to the project (its kind from its extension when Kind is left out). True when it was added." },

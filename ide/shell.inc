@@ -99,12 +99,16 @@ SUB RunCommand(Id AS STRING)
     ' ---- project ----
     CASE "project.addFile": AddFileToProject
     CASE "project.addForm"
-      ' (the file open has no form: one added to it; a project: a new form
-      ' file; a single file: another form in it)
-      IF ActiveDoc >= 0 THEN
-        IF DesignDoc(ActiveDoc).FormName = "" OR Proj.Kind <> "project" THEN d = DesignCommand("designer.addForm") ELSE AddProjectFile "form"
-      ELSE
+      ' (the file open makes no form: one added to it; else a new form file
+      ' of the program, its main file including it — Delphi's File > New >
+      ' Form)
+      d = ActiveCode
+      IF d >= 0 AND DesignDoc(d).FormName = "" THEN
+        d = DesignCommand("designer.addForm")
+      ELSEIF ProjectOpen THEN
         AddProjectFile "form"
+      ELSE
+        SetState "stopped", "Open or make a project first (File > New Project)"
       END IF
     CASE "project.addModule": AddProjectFile "module"
     CASE "project.options": ShowAppSettings
@@ -164,7 +168,10 @@ SUB DocumentActivated(Name AS STRING)
   ' (its view — Design, Code — says DocKind: workspace.inc)
   d = DocOfPane(Name)
   IF d >= 0 THEN ActiveDoc = d
-  IF ActiveDoc <> was THEN AnalyzeActive
+  IF ActiveDoc <> was THEN
+    AnalyzeActive
+    DesignNames ActiveDoc
+  END IF
   IF ActiveDoc >= 0 THEN EditorFacts ActiveDoc
   UpdateCommands
 END SUB

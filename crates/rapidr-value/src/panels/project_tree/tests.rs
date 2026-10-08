@@ -190,14 +190,24 @@ fn files_are_dragged_into_place() {
 #[test]
 fn new_files_get_free_names() {
     let mut t = demo();
-    assert_eq!(t.free_name(FileKind::Form, None), "Form1.rr");
-    assert_eq!(t.free_name(FileKind::Module, None), "Module1.rr");
-    assert!(t.add_file("Form1.rr", Some(FileKind::Form), &|_| None));
+    // (forms/Form1.rr makes Form1: the next form is Form2)
     assert_eq!(t.free_name(FileKind::Form, None), "Form2.rr");
+    assert_eq!(t.free_name(FileKind::Module, None), "Module1.rr");
+    assert!(t.add_file("Form2.rr", Some(FileKind::Form), &|_| None));
+    assert_eq!(t.free_name(FileKind::Form, None), "Form3.rr");
     assert_eq!(t.free_name(FileKind::Form, Some("Main")), "Main2.rr");
     assert_eq!(t.free_name(FileKind::Data, Some("table.json")), "table.json");
     assert_eq!(t.free_name(FileKind::Include, None), "Include1.inc");
-    assert!(!t.add_file("form1.RR", None, &|_| None), "already there");
+    assert!(!t.add_file("form2.RR", None, &|_| None), "already there");
+    // a form's file is named as its form: never a component's name the
+    // program has (main.rr makes Form3)
+    t.set_text("Main.rr", "CREATE Form3 AS RForm\n    CREATE Form4 AS RButton\n    END CREATE\nEND CREATE\n");
+    assert_eq!(t.free_name(FileKind::Form, None), "Form5.rr");
+    assert_eq!(t.free_name(FileKind::Module, None), "Module1.rr");
+    // what Form1.rr's designer must not name a new component
+    let names = t.component_names("proj/forms/Form1.rr");
+    assert!(names.iter().any(|n| n == "Form3") && names.iter().any(|n| n == "Form4") && names.iter().any(|n| n == "About"), "{names:?}");
+    assert!(!names.iter().any(|n| n == "Form1"), "its own: {names:?}");
 }
 
 #[test]

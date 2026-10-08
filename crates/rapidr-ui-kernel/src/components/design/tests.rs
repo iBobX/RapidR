@@ -184,3 +184,39 @@ fn a_drop_settles_in_and_is_gone_after_100_ms() {
     crate::tick::set_test_now(None);
     assert_eq!(fades(&last), 0, "settled");
 }
+
+/// The settling eases out: the wash fades and the ring closes in, frame by
+/// frame, from the drop; with the system's reduced motion there is none.
+#[test]
+fn a_drop_settles_with_easing_and_not_with_reduced_motion() {
+    let form = Subtree { id: 0, name: "Main".into(), type_written: "QFORM".into(), body: vec![p("Width", "300"), p("Height", "200"), p("BorderStyle", "0")] };
+    // (the wash's alpha and the ring's size in a frame)
+    let wash = |l: &DisplayList| l.items.iter().filter_map(|i| match i { Item::Op { op: Op::Fade { alpha }, .. } if *alpha <= 110 && *alpha != 40 => Some(*alpha), _ => None }).max();
+    let drop_at = |f: &mut FormUi, s: &MemStore, ts: &mut TextSystem| {
+        let at = (10.0 + 24.0 + 41.5, 10.0 + 24.0 + 33.5);
+        rapidr_value::objects::design::begin_drop("QBUTTON");
+        f.mouse_move(s, ts, at.0, at.1, Mods::NONE);
+        f.mouse_up(s, ts, at.0, at.1, rapidr_value::input::Button::Left, Mods::NONE);
+    };
+    let (s, mut f, mut ts, _) = shown(form.clone(), (360, 260));
+    let t0 = std::time::Instant::now();
+    crate::tick::set_test_now(Some(t0));
+    drop_at(&mut f, &s, &mut ts);
+    let mut alphas = Vec::new();
+    for ms in [0u64, 25, 50, 75, 95] {
+        crate::tick::set_test_now(Some(t0 + std::time::Duration::from_millis(ms)));
+        f.tick(&s, &mut ts, crate::tick::now());
+        alphas.push(wash(&f.paint(&s, &mut ts, 1.0)).unwrap_or(0));
+    }
+    assert!(alphas.windows(2).all(|w| w[1] < w[0]), "fading frame by frame: {alphas:?}");
+    assert!(alphas[0] >= 100 && *alphas.last().unwrap() < 20, "{alphas:?}");
+    // reduced motion: placed at once
+    rapidr_value::theme::set_reduced_motion(true);
+    let (s, mut f, mut ts, _) = shown(form, (360, 260));
+    crate::tick::set_test_now(Some(t0));
+    drop_at(&mut f, &s, &mut ts);
+    let quiet = wash(&f.paint(&s, &mut ts, 1.0));
+    rapidr_value::theme::set_reduced_motion(false);
+    crate::tick::set_test_now(None);
+    assert_eq!(quiet, None, "no settling with reduced motion");
+}

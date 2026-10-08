@@ -210,32 +210,45 @@ SUB AddProjectFile(Kind AS STRING)
   ProjectTree.NewFile Kind
 END SUB
 
-' (a new file's first text: a form, or an empty module)
-FUNCTION NewFileText(Path AS STRING, Kind AS STRING) AS STRING
-  DIM nm AS STRING, nl AS STRING
-  nl = CHR$(13) + CHR$(10)
-  nm = BaseName(Path)
-  IF Kind = "form" THEN
-    Result = "' " + FileTitle(Path) + nl + nl + "CREATE " + nm + " AS QFORM" + nl + "    Caption = " + CHR$(34) + nm + CHR$(34) + nl + "    Width = 320: Height = 240" + nl + "END CREATE" + nl
-  ELSE
-    Result = "' " + FileTitle(Path) + nl
-  END IF
-END FUNCTION
-
+' A new project file (Project > Add Form / Add Module, named in the tree):
+' written with its first text — a form in the program's own names
+' (`CREATE Form2 AS RForm`), a module — added to the project, brought into
+' the program by the main file's `$INCLUDE` (one undo step in its editor:
+' RapidQ's way of making a program of several files), and opened: a form on
+' its designer.
 SUB ProjectNewFile(Path AS STRING, Kind AS STRING)
-  DIM full AS STRING, f AS QFILESTREAM
+  DIM full AS STRING, f AS QFILESTREAM, dm AS INTEGER, mainText AS STRING, t AS STRING, patch AS STRING
   full = ProjectPath(Path)
+  ' (the main program as its editor has it)
+  dm = DocOf(ProjectMain)
+  IF dm >= 0 THEN mainText = CodeDoc(dm).Text ELSE mainText = Proj.FileText(ProjectMain)
   IF FILEEXISTS(full) = 0 THEN
+    t = Proj.NewFileText(Path, Kind, mainText)
     f.Open(full, 65535)
-    f.WriteStr(NewFileText(Path, Kind), LEN(NewFileText(Path, Kind)))
+    f.WriteStr(t, LEN(t))
     f.Close
   END IF
-  IF Proj.AddFile(full) THEN
-    SaveProjectFile
+  IF Proj.AddFile(full, Kind) THEN
+    IF Proj.Kind = "project" THEN SaveProjectFile
   ELSE
     OutputLine "Can't add " + Path + ": " + Proj.Error
   END IF
+  IF (Kind = "form" OR Kind = "module") AND LCASE$(full) <> LCASE$(ProjectMain) THEN
+    patch = Proj.IncludeEdit(mainText, full)
+    IF patch <> "" THEN
+      IF dm < 0 THEN
+        OpenDocument ProjectMain
+        dm = DocOf(ProjectMain)
+      END IF
+      IF dm >= 0 THEN
+        CodeDoc(dm).ApplyPatches patch, 0
+        ProjectFileChanged dm
+        OutputLine FileTitle(ProjectMain) + " includes " + FileTitle(full) + " ($INCLUDE): its forms are made when the program starts"
+      END IF
+    END IF
+  END IF
   OpenDocument full
+  IF Kind = "form" THEN SetState "stopped", BaseName(full) + " added: drop components on it; show it with " + BaseName(full) + ".Show"
 END SUB
 
 ' Renamed in place (F2): the file on the disk, the project, its documents.
@@ -292,6 +305,15 @@ END SUB
 SUB ProjectFileChanged(d AS INTEGER)
   IF ProjectOpen = 0 OR d < 0 THEN EXIT SUB
   ProjectTree.SetFileText DocFile(d), CodeDoc(d).Text
+  DesignNames d
+END SUB
+
+' (the names the program's other files give their components: document d's
+' designer never names a new one so — a RapidQ program's names are global)
+SUB DesignNames(d AS INTEGER)
+  IF ProjectOpen = 0 OR d < 0 THEN EXIT SUB
+  IF DocOpen(d) = 0 THEN EXIT SUB
+  DesignDoc(d).ReservedNames = ProjectTree.ComponentNames(DocFile(d))
 END SUB
 
 ' ---- the toolbox ----------------------------------------------------------------
@@ -375,7 +397,14 @@ SUB InspectorEvent(EventName AS STRING)
     EXIT SUB
   END IF
   Dock.FocusPane("codedoc(" + LTRIM$(STR$(d)) + ")")
-  IF DesignDoc(d).HandlerLine >= 0 THEN CodeDoc(d).GotoLine DesignDoc(d).HandlerLine
+  IF DesignDoc(d).HandlerLine >= 0 THEN CaretAtHandler d, DesignDoc(d).HandlerLine
+END SUB
+
+' (the caret at the end of line L of document d's code — a new handler's
+' indented body line: typing starts there)
+SUB CaretAtHandler(d AS INTEGER, L AS INTEGER)
+  CodeDoc(d).GotoLine L
+  CodeDoc(d).GotoLineColumn L + 1, LEN(CodeDoc(d).Line(L)) + 1
 END SUB
 
 ' ---- the output console --------------------------------------------------------------
@@ -424,6 +453,9 @@ SUB SetUpPanels
   Inspector.EmptyText = "Select a component on a form to see its properties."
   OutputBox.EmptyText = "Press F5 to run the program; its output shows here."
   Toolbox.Hint = "Double-click or press Enter to add a component to the form; drag it to place it."
+  ' (RapidR's names: RButton, RLabel …; the designer writes each file in
+  ' its own — a form written with RapidQ's names gets QBUTTON)
+  Toolbox.ShowNames = "rapidr"
 END SUB
 
 SUB ApplyPanelFonts
@@ -445,6 +477,7 @@ END SUB
 '   search:<text>        the toolbox's search box
 '   palette:<text>       the command palette, opened with that typed
 '   pick:<Name>          a component selected in the active designer
+'   newproject:<template>|<folder>|<name>   File > New Project's Create
 ' True when Stp was one of these.
 FUNCTION PanelStep(Stp AS STRING) AS INTEGER
   DIM k AS INTEGER, verb AS STRING, arg AS STRING
@@ -484,6 +517,14 @@ FUNCTION PanelStep(Stp AS STRING) AS INTEGER
       ' (a component selected in the active designer, by its name)
       IF ActiveDesign >= 0 THEN DesignDoc(ActiveDesign).SelectName arg
     CASE "palette": ShowPalette arg
+    CASE "newproject"
+      ' (newproject:<template>|<folder>|<name>: File > New Project's Create)
+      NewName.Text = FIELD$(arg, "|", 3)
+      NewFolder.Text = FIELD$(arg, "|", 2)
+      FOR k = 0 TO TPLS - 1
+        IF TplId(k) = FIELD$(arg, "|", 1) THEN PickTemplate k
+      NEXT
+      NewCreate
     CASE ELSE: Result = 0
   END SELECT
 END FUNCTION

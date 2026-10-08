@@ -903,6 +903,13 @@ pub fn design_surface_method(name: &str, method: &str, _args: &[Value]) -> Value
     match method {
         "show" => gui_show(name),
         "hide" => gui_hide(name),
+        // (the kernel's focus to it, as the web's SetFocus: RapidR Studio's
+        // Dock.FocusPane on a document's Design view)
+        "setfocus" | "focus" => {
+            if let Some(form) = crate::object::form_of(name) {
+                push_op(WindowOp::Focus(form.to_lowercase(), name.to_lowercase()));
+            }
+        }
         _ => eprintln!("[WARN] DesignSurface.{method}() not implemented"),
     }
     v_null()

@@ -92,10 +92,18 @@ END SUB
 ' ---- problems (RLanguageService's diagnostics: the compiler's messages) ----------
 
 SUB FillProblems(d AS INTEGER)
+  IF d < 0 THEN
+    ClearProblems
+    EXIT SUB
+  END IF
+  FillProblemsOf DocFile(d)
+END SUB
+
+' (a file's problems — the main file's: the whole program's)
+SUB FillProblemsOf(Path AS STRING)
   DIM text AS STRING, n AS INTEGER, i AS INTEGER, row AS STRING, sev AS STRING, k AS INTEGER, errs AS INTEGER, warns AS INTEGER
   ClearProblems
-  IF d < 0 THEN EXIT SUB
-  text = Lang.Diagnostics(DocFile(d))
+  text = Lang.Diagnostics(Path)
   n = TALLY(text, CHR$(10))
   FOR i = 1 TO n
     row = FIELD$(text, CHR$(10), i)
@@ -197,6 +205,9 @@ SUB OpenDocument(Path AS STRING)
   DesignDoc(d).Theme = PreviewTheme
   AddDocumentTab d
   ActiveDoc = d
+  ' (the project tree lists its components; the others' names are kept
+  ' from its designer)
+  ProjectFileChanged d
   AnalyzeActive
   ' (editor.inc: the caret's place, encoding and line breaks; the caret in
   ' the code, ready to type, as an editor opens a file)

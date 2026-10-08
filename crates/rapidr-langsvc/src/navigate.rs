@@ -30,7 +30,7 @@ pub(crate) fn definition(s: &Snapshot, file: &Path, text: &str, offset: usize, o
         for dir in candidates {
             let p = dir.join(name);
             let allowed = options.roots.as_ref().is_none_or(|roots| rapidr_preprocessor::is_within(&p, roots) || options.include_dirs.iter().any(|d| rapidr_preprocessor::is_within(&p, std::slice::from_ref(d))));
-            if allowed && p.is_file() {
+            if allowed && rapidr_preprocessor::source_exists(&p) {
                 return vec![Location { file: p, start: 0, end: 0 }];
             }
         }
@@ -233,8 +233,9 @@ fn outline_statement(s: &Snapshot, file: &Path, st: &Statement, out: &mut Vec<Ou
             }
         }
         Statement::Create(c) => {
-            // (RapidQ's components under RapidQ's names, RapidR's own under RapidR's)
-            let shown = rapidr_lang::resolve_component(&c.type_name).map_or(c.type_name.clone(), |comp| pretty_component(comp.written_name()));
+            // (the type as the file writes it — RForm in a RapidR file, QForm
+            // in a RapidQ one — in the registry's spelling)
+            let shown = pretty_component(&c.type_name);
             if let Some(mut it) = item(s, file, c.span, &c.name, OutlineKind::Component, Some(shown)) {
                 for inner in &c.body {
                     if let Statement::Create(_) = inner {

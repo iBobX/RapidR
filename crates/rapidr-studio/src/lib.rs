@@ -161,6 +161,19 @@ pub(crate) fn write_text(path: &str, text: &str) -> Result<(), String> {
     rapidr_value::objects::write_file(path, text.as_bytes())
 }
 
+/// Where there is no disk (RapidR Studio in a browser), the language
+/// service and the designer read a program's `$INCLUDE`d files through the
+/// runtime's file hooks — the page's store, the site's files — as the
+/// program's run does (`project::program_files`): the web runtime calls this
+/// when it installs its file hooks.
+pub fn install_page_sources() {
+    rapidr_preprocessor::set_source_reader(Some(page_source));
+}
+
+fn page_source(path: &std::path::Path) -> Option<Vec<u8>> {
+    rapidr_value::objects::read_file(&slashes(&path.to_string_lossy())).ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

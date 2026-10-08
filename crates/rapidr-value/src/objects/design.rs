@@ -468,6 +468,11 @@ pub struct DesignSurface {
     /// The look the designed form is drawn in (Theme: `$THEME`'s names;
     /// "" the surface's own) — RapidR Studio's "Preview in classic".
     pub theme: String,
+    /// Names the program's other files give their components (a RapidQ
+    /// program's component names are global: Form2's Button1 and Form1's
+    /// would clash): a new component or form is never named one of them
+    /// (ReservedNames; RapidR Studio gives its project's).
+    pub reserved: Vec<String>,
     /// The program's source, when Source was given (else the form is the
     /// one made through the API).
     source: Option<Attached>,
@@ -594,6 +599,7 @@ impl Default for DesignSurface {
             pointer: None,
             bar_drag: None,
             theme: String::new(),
+            reserved: Vec::new(),
         }
     }
 }
@@ -706,7 +712,7 @@ impl DesignSurface {
         if self.read_only() {
             return None;
         }
-        let taken = |n: &str| a.doc.borrow().name_taken(n);
+        let taken = |n: &str| a.doc.borrow().name_taken(n) || self.reserved(n);
         let name = match name.trim() {
             n if !n.is_empty() && !taken(n) => n.to_string(),
             _ => (1..).map(|k| format!("Form{k}")).find(|n| !taken(n)).unwrap_or_default(),
@@ -720,7 +726,7 @@ impl DesignSurface {
         self.want_form = name.clone();
         self.pick_form(true);
         self.outbox.push(DesignEvent::Change);
-        self.say(format!("Added {name} (QFORM): drop components on it"));
+        self.say(format!("Added {name}: drop components on it"));
         Some(name)
     }
 
@@ -1471,11 +1477,16 @@ impl DesignSurface {
 
     /// A name for a new component of `type_written` that nothing in the
     /// form or the file has (`Button1`, `Button2` …).
+    /// Whether the program's other files name a component `name`.
+    fn reserved(&self, name: &str) -> bool {
+        self.reserved.iter().any(|r| r.eq_ignore_ascii_case(name))
+    }
+
     fn fresh_name(&self, type_written: &str) -> String {
         let d = &self.designer.design;
         let first = d.new_name(type_written);
         let base = first.trim_end_matches(|c: char| c.is_ascii_digit()).to_string();
-        let taken = |n: &str| d.find(n).is_some() || self.source.as_ref().is_some_and(|a| a.doc.borrow().name_taken(n));
+        let taken = |n: &str| d.find(n).is_some() || self.reserved(n) || self.source.as_ref().is_some_and(|a| a.doc.borrow().name_taken(n));
         (1..).map(|k| format!("{base}{k}")).find(|n| !taken(n)).unwrap_or(first)
     }
 
@@ -1532,7 +1543,18 @@ impl DesignSurface {
         }
         let r = match rect {
             Some(r) if r.width >= 4 && r.height >= 4 => r,
-            _ => self.new_rect(type_name, at.0, at.1, rect.is_some()),
+            _ => {
+                let mut r = self.new_rect(type_name, at.0, at.1, rect.is_some());
+                // (made larger than where it goes — a 640 x 480 RPLOT on a
+                // small form: as large as fits, a grid step from the edge)
+                if visual {
+                    let area = self.layout().client_of(parent).map_or(self.client_size(), |c| (c.width, c.height));
+                    let g = self.designer.snapper.grid.max(1);
+                    r.width = r.width.min((area.0 - (r.left - origin.0) - g).max(8));
+                    r.height = r.height.min((area.1 - (r.top - origin.1) - g).max(8));
+                }
+                r
+            }
         };
         let local = LRect::new(r.left - origin.0, r.top - origin.1, r.width, r.height);
         let mut tree = crate::designer::text::new_component(d, type_name, local);
@@ -2144,6 +2166,7 @@ impl DesignSurface {
             "compcount" | "count" => v_int(self.ids().len() as i64),
             "formcaption" => v_str(&self.form_caption),
             "theme" => v_str(&self.theme),
+            "reservednames" => v_str(&self.reserved.join(",")),
             "selcount" => v_int(self.designer.selection.len() as i64),
             "selindex" => v_int(self.selection().map_or(-1, |i| i as i64)),
             "previewwidth" => v_int(self.preview.map_or(0, |p| p.0)),
@@ -2174,6 +2197,7 @@ impl DesignSurface {
         match prop {
             "formcaption" => self.form_caption = val.to_string_val(),
             "theme" => self.theme = val.to_string_val(),
+            "reservednames" => self.reserved = val.to_string_val().split([',', '\n', ';']).map(str::trim).filter(|n| !n.is_empty()).map(str::to_string).collect(),
             // (0 ends the preview)
             "previewwidth" | "previewheight" => {
                 let v = val.to_i64();
@@ -2221,12 +2245,15 @@ impl DesignSurface {
 
     /// Where a component added by keyboard (Enter on a toolbox item,
     /// AddComponent with no place) goes: the selection's container (the
-    /// selection itself when it is one), at the first free step of a
-    /// cascade from its top left (client coordinates).
+    /// selection itself when it is one), at the first place in reading order
+    /// (top to bottom, left to right, on the grid) where it covers nothing
+    /// already there, a grid step clear of it — beside the last one added,
+    /// under the row when the row is full; when nothing is free, the first
+    /// free step of a cascade from the top left (client coordinates).
     pub fn free_spot(&self, type_name: &str) -> (i64, i64) {
         let d = &self.designer.design;
-        let canonical = crate::designer::model::canonical_type(type_name);
-        let (dw, dh) = crate::layout::default_size(&canonical).unwrap_or((0, 0));
+        // (the size it will be made at: new_rect's)
+        let LRect { width: dw, height: dh, .. } = self.new_rect(type_name, 0, 0, true);
         let container = match self.designer.selection.primary() {
             Some(p) if d.node(p).is_some_and(|n| n.is_container() && !n.is_form()) => p,
             Some(p) => d.parent(p).unwrap_or(d.root()),
@@ -2235,6 +2262,21 @@ impl DesignSurface {
         let (ox, oy) = if container == d.root() { (0, 0) } else { self.rect_of(container).map_or((0, 0), |r| (r.left, r.top)) };
         let area = self.layout().client_of(container).map_or(self.client_size(), |c| (c.width, c.height));
         let g = self.designer.snapper.grid.max(1);
+        let rects: Vec<LRect> = d.children(container).into_iter().filter(|&c| d.node(c).is_some_and(|n| n.is_visual())).filter_map(|c| self.layout().rect(c)).collect();
+        if dw > 0 && dh > 0 {
+            let clear = |x: i64, y: i64| rects.iter().all(|r| x + dw + g <= r.left || r.left + r.width + g <= x || y + dh + g <= r.top || r.top + r.height + g <= y);
+            let mut y = g;
+            while y + dh <= area.1 {
+                let mut x = g;
+                while x + dw <= area.0 {
+                    if clear(x, y) {
+                        return (ox + x, oy + y);
+                    }
+                    x += g;
+                }
+                y += g;
+            }
+        }
         let taken: Vec<(i64, i64)> = d.children(container).into_iter().filter_map(|c| self.layout().rect(c).map(|r| (r.left, r.top))).collect();
         let step = (2 * g).max(8);
         let spot = (0..64)

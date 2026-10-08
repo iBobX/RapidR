@@ -98,6 +98,13 @@ const SCENES = [
   // (the code editor with the completion list open and its docs beside it:
   // typed through the kernel's keys, S-EDITOR)
   { name: "editor", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:dim y as string,key:Escape,key:Enter,type:form.c", delay: 6 },
+  // (S-DESIGN-2) A form added to a new program (Project > Add Form):
+  // Form2.rr on its designer with an RLabel, an REdit and an RButton, the
+  // button selected in the inspector; then the program's main file with the
+  // $INCLUDE and Form1's handler that shows Form2. ({dir}: the same project
+  // path on both hosts, under tests/results)
+  { name: "addform-design", open: "", project: true, do: "newproject:gui|{dir}|Multi,wait,wait,project.addForm,wait,key:Enter,wait,wait,wait,tool:RLABEL,prop:Caption=Hello from Form2,tool:REDIT,prop:Text=Type here,tool:RBUTTON,prop:Caption=Close,wait", delay: 10 },
+  { name: "addform-code", open: "", project: true, do: "newproject:gui|{dir}|Multi,wait,wait,project.addForm,wait,key:Enter,wait,wait,wait,tool:RLABEL,prop:Caption=Hello from Form2,tool:REDIT,prop:Text=Type here,tool:RBUTTON,prop:Caption=Close,event:OnClick,wait,type:Form2.Close,key:Escape,open:main.rr,wait,view.designer,wait,tool:RBUTTON,prop:Caption=Show Form2,event:OnClick,wait,type:Form2.Show,key:Escape,wait", delay: 12 },
   // (S-SHELL-2) Documents as tabs: a form's file side by side (Design |
   // Code), another file in a second group on the right; Find in Files'
   // results; F1's Help pane.
@@ -164,6 +171,11 @@ function diff(a, b) {
   return `${n} pixels differ`;
 }
 
+// (a scene's project folder, relative to the repository: the same on both
+// hosts, so what Studio says about its files is the same)
+const projectDir = (scene) => `tests/results/studio-projects/${scene.name}`;
+const sceneDo = (scene) => scene.do.replaceAll("{dir}", projectDir(scene));
+
 // ---- the desktop -------------------------------------------------------------
 function runDesktop(scene, theme, scale) {
   const dir = join(scratch, `${scene.name}-${theme}@${scale}x`);
@@ -171,7 +183,9 @@ function runDesktop(scene, theme, scale) {
   mkdirSync(dir, { recursive: true });
   const args = ["run", "ide/studio.rr", "--home", ".", "--fresh", "--theme", theme];
   if (scene.open) args.push(scene.open);
-  if (scene.do) args.push("--do", scene.do);
+  // (a new project: made afresh each run, at the path the web uses too)
+  if (scene.project) rmSync(join(ROOT, projectDir(scene)), { recursive: true, force: true });
+  if (scene.do) args.push("--do", sceneDo(scene));
   const r = spawnSync(RAPIDR, args, {
     cwd: ROOT,
     timeout: 60000,
@@ -208,7 +222,7 @@ async function runWeb(browser, scene, theme, scale) {
     });
     const q = new URLSearchParams({ theme, window: "normal", fresh: "" });
     if (scene.open) q.set("open", scene.open);
-    if (scene.do) q.set("do", scene.do);
+    if (scene.do) q.set("do", sceneDo(scene));
     await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
     await page.waitForFunction(() => window.rr && window.rr.rapidr_test_results(), null, { timeout: 60000, polling: 100 });
     const results = JSON.parse(await page.evaluate(() => window.rr.rapidr_test_results()));
