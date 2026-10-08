@@ -835,7 +835,10 @@ impl ComponentKind for Console {
                 n.children.push(s);
             }
         }
-        let (pos, _, _) = vscroll_state(cx.id);
+        // (the position as the model has it now — AutoScroll's end once lines
+        // were written — not as the last paint left it: a hidden pane isn't
+        // painted on every host)
+        let (pos, _, _) = Self::scroll(cx, &g);
         if page == Page::Problems {
             let mut lb = AccessNode::new(part_id(cx.id, PART_ROW, A11Y_PROBLEMS), Role::ListBox);
             lb.name = "Problems".into();
@@ -955,6 +958,31 @@ mod tests {
     fn click(f: &mut FormUi, s: &MemStore, ts: &mut TextSystem, x: f64, y: f64, mods: Mods) {
         f.mouse_down(s, ts, x, y, Button::Left, mods);
         f.mouse_up(s, ts, x, y, Button::Left, mods);
+    }
+
+    /// AutoScroll: the lines written follow to the end whether or not the
+    /// console was painted since (a hidden pane isn't, on every host) —
+    /// what a screen reader hears is the last lines, as on screen.
+    #[test]
+    fn autoscroll_follows_the_end_without_a_paint() {
+        let s = store("con_auto");
+        let mut ts = TextSystem::new();
+        model::remove("con_auto");
+        model::with_mut("con_auto", |c| c.write("one\n"));
+        let mut f = FormUi::build(&s, "cform", false);
+        f.paint(&s, &mut ts, 1.0);
+        // (a hundred lines more, no paint in between)
+        model::with_mut("con_auto", |c| {
+            for i in 0..100 {
+                c.write(&format!("line {i}\n"));
+            }
+        });
+        let tree = f.access_tree(&s, &mut ts).to_json();
+        assert!(tree.contains("line 99") && !tree.contains("\"one"), "{tree}");
+        // (the same once painted)
+        f.paint(&s, &mut ts, 1.0);
+        let painted = f.access_tree(&s, &mut ts).to_json();
+        assert_eq!(painted, tree);
     }
 
     #[test]

@@ -7,8 +7,9 @@
 //! classic MDI child, or RapidR's window), stacks the
 //! frames and their components in the model's z-order, and turns the
 //! mouse on a frame into the model's actions ([`Container::Mdi`]: a
-//! button, a press that raises it, a drag by the title bar or the
-//! bottom-right corner), which runtime-core applies after the pump with
+//! button, a press that raises it, a drag by the title bar, or by any edge
+//! or corner of its sizing border as Windows' (`mdi::edges_at`), which
+//! runtime-core applies after the pump with
 //! the program's events (OnChildActive, OnChildClose …).
 
 use std::cell::RefCell;
@@ -26,9 +27,6 @@ use crate::store::{self, Store};
 
 pub struct ChildFrame;
 
-/// The bottom-right corner that resizes it.
-const GRIP: i64 = 12;
-
 /// `parent`'s children for the tree: a QFORMMDI's child frames and their
 /// components over its other components, in the model's z-order (the last
 /// on top).
@@ -44,14 +42,23 @@ pub fn stacked(parent: &str, children: Vec<(String, String)>) -> Vec<(String, St
     out
 }
 
-/// A frame being dragged: by its title bar (moved) or its corner
-/// (resized); the mouse's place in the window then, and the frame's Left /
-/// Top (or Width / Height) then.
+/// A frame being dragged: by its title bar (moved: `edges` none) or an
+/// edge / corner (resized); the mouse's place in the window then, and the
+/// frame's Left, Top, Width, Height then.
 struct Drag {
     frame: String,
-    resize: bool,
+    edges: Option<mdi::Edges>,
     mouse: (f64, f64),
-    start: (i64, i64),
+    start: (i64, i64, i64, i64),
+}
+
+/// The edges under (x, y) of frame `id` (a normal one: a maximized or
+/// minimized child has no sizing border), for the press and the pointer.
+pub fn edges_at(store: &dyn Store, id: &str, w: i64, h: i64, x: i64, y: i64) -> Option<mdi::Edges> {
+    if store::int(store, id, "childstate", 0) != 0 {
+        return None;
+    }
+    mdi::edges_at(w, h, x, y)
 }
 
 thread_local! {
@@ -104,19 +111,25 @@ impl ComponentKind for ChildFrame {
                     return MouseOut { press: false, focus: Some(false) };
                 }
                 act(cx, Action::Activate);
-                let corner = x >= w - GRIP && y >= h - GRIP;
-                if corner || y < BORDER + TITLE_HEIGHT {
-                    let start = if corner { (w, h) } else { (store::int(cx.store, cx.id, "left", 0), store::int(cx.store, cx.id, "top", 0)) };
-                    DRAG.with(|d| *d.borrow_mut() = Some(Drag { frame: cx.id.to_string(), resize: corner, mouse: abs(m), start }));
+                let edges = edges_at(cx.store, cx.id, w, h, x, y);
+                if edges.is_some() || y < BORDER + TITLE_HEIGHT {
+                    let start = (store::int(cx.store, cx.id, "left", 0), store::int(cx.store, cx.id, "top", 0), w, h);
+                    DRAG.with(|d| *d.borrow_mut() = Some(Drag { frame: cx.id.to_string(), edges, mouse: abs(m), start }));
                 }
             }
             MouseKind::Move if m.captured => {
-                let Some((resize, from, start)) = DRAG.with(|d| d.borrow().as_ref().filter(|d| d.frame == cx.id).map(|d| (d.resize, d.mouse, d.start))) else {
+                let Some((edges, from, start)) = DRAG.with(|d| d.borrow().as_ref().filter(|d| d.frame == cx.id).map(|d| (d.edges, d.mouse, d.start))) else {
                     return MouseOut::default();
                 };
                 let (ax, ay) = abs(m);
                 let (dx, dy) = ((ax - from.0).round() as i64, (ay - from.1).round() as i64);
-                act(cx, if resize { Action::Resize(start.0 + dx, start.1 + dy) } else { Action::Move(start.0 + dx, start.1 + dy) });
+                act(cx, match edges {
+                    Some(e) => {
+                        let (l, t, w, h) = mdi::resized(start, e, dx, dy);
+                        Action::Resize(l, t, w, h)
+                    }
+                    None => Action::Move(start.0 + dx, start.1 + dy),
+                });
             }
             MouseKind::Up => DRAG.with(|d| *d.borrow_mut() = None),
             _ => {}

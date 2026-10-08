@@ -397,6 +397,20 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             flag(ok)
         }
         "iconpreview" => Value::String(icon_preview(name, int_arg(args, 0, 128).clamp(16, 1024) as u32)),
+        // (Find in Files) Find(Pattern, Options, Text): the matches of one
+        // text, a line each; Replace(Pattern, Options, Text, With): the text
+        // replaced; FileText(Path): a file's text (the disk's, the web's store)
+        "find" | "replace" => {
+            let r = if method == "find" { crate::find::find(&s(2), &s(0), &s(1)) } else { crate::find::replace(&s(2), &s(0), &s(1), &s(3)).map(|(t, _)| t) };
+            let ok = r.is_ok();
+            with(name, |m| m.error = r.as_ref().err().cloned().unwrap_or_default());
+            Value::String(if ok { r.unwrap() } else if method == "find" { String::new() } else { s(2) })
+        }
+        "filetext" => {
+            let r = crate::read_text(&s(0));
+            with(name, |m| m.error = r.as_ref().err().cloned().unwrap_or_default());
+            Value::String(r.unwrap_or_default())
+        }
         "fullpath" => Value::String(with(name, |m| m.project.file(i.max(0) as usize).filter(|_| i >= 0).map(|f| join(&m.folder, &f.path)).unwrap_or_default())),
         _ => return None,
     })

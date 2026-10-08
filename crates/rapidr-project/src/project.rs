@@ -236,7 +236,195 @@ impl Default for Project {
 }
 
 /// The project templates `Project::new_from_template` knows.
-pub const TEMPLATES: &[&str] = &["console", "gui"];
+pub const TEMPLATES: &[&str] = &["console", "gui", "rapidq", "data", "mdi"];
+
+/// Template sources. `{TITLE}` is replaced by the project name as a BASIC
+/// string literal.
+///
+/// RapidQ-compatible form app: RapidQ's names and syntax only.
+const TEMPLATE_RAPIDQ: &str = r#"' A RapidQ-compatible form: only RapidQ's own language and components,
+' so the program also runs in the original RapidQ.
+$APPTYPE GUI
+
+' Event handlers are declared before the CREATE blocks that use them.
+DECLARE SUB ShowText
+
+CREATE Form1 AS QFORM
+    Caption = {TITLE}
+    Width = 360
+    Height = 180
+    Center
+    CREATE Prompt AS QLABEL
+        Caption = "Type something:"
+        Left = 16: Top = 16
+    END CREATE
+    CREATE Entry AS QEDIT
+        Text = "Hello, world"
+        Left = 16: Top = 38: Width = 220
+    END CREATE
+    CREATE ShowBtn AS QBUTTON
+        Caption = "&Show"
+        Left = 248: Top = 36: Width = 80
+        OnClick = ShowText
+    END CREATE
+    CREATE Result AS QLABEL
+        Caption = "Press the button."
+        Left = 16: Top = 84: Width = 312
+    END CREATE
+END CREATE
+
+' Copies the edit's text into the label.
+SUB ShowText
+    Result.Caption = "You typed: " + Entry.Text
+END SUB
+
+Form1.ShowModal
+"#;
+
+/// Data dashboard: a grid and a chart over inline CSV text.
+const TEMPLATE_DATA: &str = r#"' A small data dashboard: a table of sales in a grid and a bar chart of
+' the same numbers. The data is written right here in the program, so it
+' runs the same on the desktop and in a browser; to use your own, replace
+' the CSV text below (first line = column names).
+$APPTYPE GUI
+
+DIM Csv AS STRING
+Csv = "Region,Sales,Target" + CHR$(10) + "North,120,100" + CHR$(10) + "South,85,90" + CHR$(10) + "East,150,130" + CHR$(10) + "West,95,110"
+
+DIM Chart AS RPLOT
+
+CREATE Form1 AS QFORM
+    Caption = {TITLE}
+    Width = 560
+    Height = 460
+    Center
+    CREATE Grid AS QSTRINGGRID
+        Left = 10: Top = 10: Width = 530: Height = 130
+        FixedCols = 0
+        DefaultColWidth = 120
+    END CREATE
+    CREATE Picture AS QIMAGE
+        Left = 10: Top = 150: Width = 530: Height = 230
+    END CREATE
+    CREATE Summary AS QLABEL
+        Left = 10: Top = 390: Width = 530
+    END CREATE
+END CREATE
+
+' Fills the grid from the CSV text, one line per row.
+SUB LoadTable
+    DIM lines AS INTEGER, r AS INTEGER, c AS INTEGER, row AS STRING
+    lines = TALLY(Csv, CHR$(10)) + 1
+    Grid.ColCount = 3
+    Grid.RowCount = lines
+    FOR r = 0 TO lines - 1
+        row = FIELD$(Csv, CHR$(10), r + 1)
+        FOR c = 0 TO 2
+            Grid.Cell(c, r) = FIELD$(row, ",", c + 1)
+        NEXT
+    NEXT
+END SUB
+
+' Draws one bar per region from the Sales column and names the best one.
+SUB DrawChart
+    DIM r AS INTEGER, names AS STRING, nums AS STRING, best AS STRING
+    DIM sales AS RNUM
+    FOR r = 1 TO Grid.RowCount - 1
+        names = names + IIF(r > 1, ",", "") + Grid.Cell(0, r)
+        nums = nums + IIF(r > 1, ",", "") + Grid.Cell(1, r)
+    NEXT
+    sales.FromList(nums)
+    best = Grid.Cell(0, sales.ArgMax + 1)
+    Chart.Clear
+    Chart.Width = Picture.Width
+    Chart.Height = Picture.Height
+    Chart.Title = "Sales by region"
+    Chart.Bar(names, sales, "Sales", "steelblue")
+    Picture.LoadFromPlot(Chart)
+    Summary.Caption = "Best region: " + best + " (" + STR$(sales.Max) + ")"
+END SUB
+
+LoadTable
+DrawChart
+Form1.ShowModal
+"#;
+
+/// MDI app with File and Window menus.
+const TEMPLATE_MDI: &str = r#"' An MDI application: one main window that holds several child windows,
+' with a File menu (New, Exit) and a Window menu (Cascade, Tile).
+$APPTYPE GUI
+$INCLUDE "RAPIDQ.INC"
+
+DECLARE SUB NewDocument
+DECLARE SUB QuitApp
+DECLARE SUB CascadeWindows
+DECLARE SUB TileWindows
+
+CONST MaxDocs = 8
+DIM Docs(MaxDocs - 1) AS QMEMO   ' the text areas that become child windows
+DIM DocCount AS INTEGER
+
+CREATE Main AS QFORMMDI
+    Caption = {TITLE}
+    Width = 720
+    Height = 520
+    Center
+    CREATE Menu AS QMAINMENU
+        CREATE FileMenu AS QMENUITEM
+            Caption = "&File"
+            CREATE NewItem AS QMENUITEM
+                Caption = "&New": ShortCut = "Ctrl+N": OnClick = NewDocument
+            END CREATE
+            CREATE Sep1 AS QMENUITEM
+                Caption = "-"
+            END CREATE
+            CREATE ExitItem AS QMENUITEM
+                Caption = "E&xit": OnClick = QuitApp
+            END CREATE
+        END CREATE
+        CREATE WindowMenu AS QMENUITEM
+            Caption = "&Window"
+            CREATE CascadeItem AS QMENUITEM
+                Caption = "&Cascade": OnClick = CascadeWindows
+            END CREATE
+            CREATE TileItem AS QMENUITEM
+                Caption = "&Tile": OnClick = TileWindows
+            END CREATE
+        END CREATE
+    END CREATE
+END CREATE
+
+' The text areas start hidden; a child window is made of one when
+' File > New is chosen.
+DIM k AS INTEGER
+FOR k = 0 TO MaxDocs - 1
+    Docs(k).Parent = Main
+    Docs(k).Visible = False
+NEXT
+
+SUB NewDocument
+    IF DocCount < MaxDocs THEN
+        DocCount = DocCount + 1
+        Docs(DocCount - 1).Text = "Document " + STR$(DocCount)
+        Main.AddChild(Docs(DocCount - 1).Handle, "Document " + STR$(DocCount), DocCount - 1, 0, 0, 0, 0, 1)
+    END IF
+END SUB
+
+SUB QuitApp
+    Main.Close
+END SUB
+
+SUB CascadeWindows
+    Main.CascadeChild
+END SUB
+
+SUB TileWindows
+    Main.SetVertChild
+END SUB
+
+NewDocument
+Main.ShowModal
+"#;
 
 impl Project {
     /// A project named `name` whose main file is `main` (added as a file,
@@ -254,13 +442,17 @@ impl Project {
         project
     }
 
-    /// A new project from a template (`console` or `gui`), with the files to
-    /// write as `(project path, contents)`. The main file is `main.rr`.
+    /// A new project from a template (see [`TEMPLATES`]: `console`, `gui`,
+    /// `rapidq`, `data`, `mdi`), with the files to write as
+    /// `(project path, contents)`. The main file is `main.rr`, or `main.bas`
+    /// for the `rapidq` template (which also turns RapidQ compatibility on).
     pub fn new_from_template(
         name: &str,
         template: &str,
     ) -> Result<(Project, Vec<(String, String)>), ProjectError> {
         let title = basic_string(name);
+        let mut rapidq = false;
+        let mut main = "main.rr".to_string();
         let main_text = match template.to_ascii_lowercase().as_str() {
             "console" => format!(
                 "$APPTYPE CONSOLE\n\nPRINT {}\n",
@@ -275,14 +467,21 @@ impl Project {
                  END CREATE\n\n\
                  Form1.ShowModal\n"
             ),
+            "rapidq" => {
+                rapidq = true;
+                main = "main.bas".to_string();
+                TEMPLATE_RAPIDQ.replace("{TITLE}", &title)
+            }
+            "data" => TEMPLATE_DATA.replace("{TITLE}", &title),
+            "mdi" => TEMPLATE_MDI.replace("{TITLE}", &title),
             _ => return Err(ProjectError::UnknownTemplate(template.to_string())),
         };
-        let main = "main.rr".to_string();
         let mut project = Project {
             name: name.to_string(),
             main: main.clone(),
             ..Project::default()
         };
+        project.compat.rapidq_compatible = rapidq;
         project.add_file(&main, kind_for_source(&main, &main_text));
         Ok((project, vec![(main, main_text)]))
     }
@@ -702,6 +901,36 @@ mod tests {
         assert!(text.contains("Width = 480") && text.contains("Height = 320"));
         assert!(text.trim_end().ends_with("Form1.ShowModal"));
         assert_eq!(p.file(0).unwrap().kind, FileKind::Form);
+
+        for id in TEMPLATES {
+            let (p, files) = Project::new_from_template("T", id).unwrap();
+            assert!(!p.main.is_empty() && p.contains(&p.main), "{id}");
+            assert!(files.iter().any(|(path, _)| *path == p.main), "{id}");
+            let expected = if *id == "rapidq" { "main.bas" } else { "main.rr" };
+            assert_eq!(p.main, expected, "{id}");
+            assert_eq!(p.compat_mode(), if *id == "rapidq" { "rapidq" } else { "" });
+        }
+
+        // The RapidQ template sticks to RapidQ: no RapidR-only names, no
+        // `""` escapes, no line continuations, SUBs declared before use.
+        let (p, files) = Project::new_from_template("My \"App\"", "rapidq").unwrap();
+        let text = &files[0].1;
+        assert_eq!(p.file(0).unwrap().kind, FileKind::Form);
+        assert!(text.contains("CREATE Form1 AS QFORM") && text.contains("QEDIT"));
+        assert!(text.contains("Caption = \"My \" + CHR$(34) + \"App\" + CHR$(34) + \"\""));
+        assert!(!text.contains("RFORM") && !text.contains(" _\n") && !text.contains("\"\"\""));
+        assert!(text.find("DECLARE SUB ShowText") < text.find("CREATE Form1"));
+
+        // The other form templates make a form (so the project tree shows
+        // it as one); the data template has a grid and a chart, the MDI one
+        // an MDI parent with a main menu.
+        let (p, files) = Project::new_from_template("Dash", "data").unwrap();
+        assert_eq!(p.file(0).unwrap().kind, FileKind::Form);
+        assert!(files[0].1.contains("QSTRINGGRID") && files[0].1.contains("RPLOT"));
+        let (p, files) = Project::new_from_template("Docs", "mdi").unwrap();
+        assert_eq!(p.file(0).unwrap().kind, FileKind::Form);
+        assert!(files[0].1.contains("AS QFORMMDI") && files[0].1.contains("QMAINMENU"));
+        assert!(!files[0].1.contains("{TITLE}"));
 
         assert_eq!(
             Project::new_from_template("x", "wizard").unwrap_err(),

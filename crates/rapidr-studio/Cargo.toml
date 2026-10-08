@@ -13,6 +13,9 @@ rapidr-value.workspace = true
 rapidr-project.workspace = true
 rapidr-session.workspace = true
 rapidr-langsvc.workspace = true
+rapidr-lang.workspace = true
+# Find in Files: the code editor's own search (regex, case, whole word)
+rapidr-editor.workspace = true
 rapidr-designer.workspace = true
 rapidr-preprocessor.workspace = true
 # RPROJECT.IconPreview: the project's icon drawn as rapidr build draws it

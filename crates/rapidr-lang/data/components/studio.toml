@@ -30,7 +30,7 @@ methods = [
   { name = "Open", params = "Path AS STRING", returns = "INTEGER", test = "skip: needs a project file", doc = "Opens a .rrproj, or a .bas / .rr / .inc file with what it includes. True when it opened; Error says why not." },
   { name = "OpenFolder", params = "Folder AS STRING", returns = "INTEGER", test = "skip: needs a project folder", doc = "Opens the project of a folder: its .rrproj, else its main source (main.rr / main.bas, the one named as the folder, the one with a form). True when it opened." },
   { name = "Save", params = "[Path AS STRING]", returns = "INTEGER", value = true, test = "skip: writes a file", doc = "Writes the project file (a source file's project becomes <Folder>/<Name>.rrproj, or Path). True when it was written." },
-  { name = "New", params = "Template AS STRING, Name AS STRING, Folder AS STRING", returns = "INTEGER", test = "skip: writes files", doc = "A new project from a template (\"console\" or \"gui\"): main.rr and <Name>.rrproj written in Folder." },
+  { name = "New", params = "Template AS STRING, Name AS STRING, Folder AS STRING", returns = "INTEGER", test = "skip: writes files", doc = "A new project from a template (\"console\", \"gui\", \"rapidq\", \"data\" or \"mdi\"): the main file (main.rr, or main.bas for \"rapidq\", which also turns RapidQ compatibility on) and <Name>.rrproj written in Folder." },
   { name = "AddFile", params = "Path AS STRING, [Kind AS STRING]", returns = "INTEGER", doc = "Adds a file (its kind from its name, or Kind: module, form, include, resource, asset, data). True when it was added." },
   { name = "RemoveFile", params = "Path AS STRING", returns = "INTEGER", doc = "Takes a file out of the project (the file itself stays). True when it was in it." },
   { name = "Close", value = true, doc = "No project is open any more." },
@@ -41,6 +41,9 @@ methods = [
   { name = "StopBuild", value = true, test = "skip: needs a running build", doc = "Stops the Build that is running." },
   { name = "Reveal", params = "[Path AS STRING]", returns = "INTEGER", value = true, test = "skip: opens the file manager", doc = "Shows Path (else what the last Build made) selected in Finder, Explorer or the Linux file manager." },
   { name = "IconPreview", params = "[Size AS INTEGER]", returns = "STRING", test = "skip: writes a file", doc = "Draws the app's icon (Icon, else RapidR's) as a Size-pixel PNG (128 by default) in the project's .rapidr folder and gives its path, for an RImage to show; \"\" when the icon can't be read (Error says why)." },
+  { name = "Find", params = "Pattern AS STRING, Options AS STRING, Text AS STRING", returns = "STRING", value = true, doc = "Find in Files: every match of Pattern in Text, a line each: line, column (both from 1), length, the line's text, separated by tabs. Options: any of \"case\" (match case), \"word\" (whole words), \"regex\" (Pattern is a regular expression), separated by commas. \"\" with Error set when the pattern is not a valid regular expression." },
+  { name = "Replace", params = "Pattern AS STRING, Options AS STRING, Text AS STRING, With AS STRING", returns = "STRING", doc = "Text with every match of Pattern (Find's Options) replaced by With; in a regular expression's replacement $1 or ${name} stand for its groups." },
+  { name = "FileText", params = "Path AS STRING", returns = "STRING", doc = "A file's text (UTF-8, or a byte a character as RapidQ wrote it), from the disk on the desktop and the page's store on the web; Error says why when it can't be read." },
 ]
 events = [
   { name = "OnChange", doc = "The project was opened, saved, closed, or its files changed." },
@@ -61,6 +64,7 @@ methods = [
   { name = "Update", params = "File AS STRING, Text AS STRING", doc = "A file's text as the editor has it (saved or not)." },
   { name = "Close", params = "File AS STRING", value = true, doc = "Forgets the editor's text of a file: it is read from its file again." },
   { name = "Outline", params = "File AS STRING", returns = "STRING", doc = "The file's outline, a line per item: depth, kind (sub, function, type, field, method, event, component, constant, variable, label), name, detail, line (from 1), separated by tabs." },
+  { name = "Help", params = "Word AS STRING, [OfType AS STRING]", returns = "STRING", doc = "The language's entry for a word (a component, a function, a statement, a keyword, a constant, a global object; with OfType, a member of that component type), a part a line: its title, its syntax, what it is (kind, type, RapidQ's default, RapidQ's or RapidR's, where it runs), what it does, then a component's members. \"\" when the word isn't known." },
   { name = "Diagnostics", params = "File AS STRING", returns = "STRING", doc = "The file's errors and warnings, a line each: severity (error, warning, note), line, column (from 1), message, file, separated by tabs." },
 ]
 events = []
