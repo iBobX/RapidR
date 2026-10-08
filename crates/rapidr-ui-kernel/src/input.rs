@@ -164,6 +164,7 @@ impl FormUi {
     /// A mouse button pressed at (x, y) of the client area.
     pub fn mouse_down(&mut self, store: &dyn Store, ts: &mut TextSystem, x: f64, y: f64, button: Button, mods: Mods) {
         self.dirty = true;
+        self.tip_hide();
         // (an open menu, the in-window menu bar: components/menubar.rs)
         if self.menu_mouse_down(store, x, y) {
             return;
@@ -261,6 +262,10 @@ impl FormUi {
             self.hover = hit;
             self.dirty = true;
         }
+        // (a hint waits, follows or goes: tooltip.rs)
+        if self.capture.is_none() {
+            self.tip_mouse(store, hit, x, y);
+        }
         let target = match self.capture {
             Some(c) => c,
             None => hit,
@@ -331,6 +336,7 @@ impl FormUi {
 
     /// The mouse left the window.
     pub fn mouse_leave(&mut self, store: &dyn Store, ts: &mut TextSystem) {
+        self.tip_hide();
         if let Some(old) = self.hover.take() {
             self.mouse_to(store, ts, old, MouseIn { kind: MouseKind::Leave, x: -1.0, y: -1.0, button: Button::Left, mods: Mods::NONE, inside: false, captured: false, clicks: 0 });
             self.dirty = true;
@@ -378,6 +384,7 @@ impl FormUi {
     pub fn key_down(&mut self, store: &dyn Store, ts: &mut TextSystem, vk: i64, text: &str, mods: Mods, clip: &mut dyn Clipboard) {
         self.dirty = true;
         self.reset_caret();
+        self.tip_hide();
         // (the input lane's: Alt pressed alone selects the menu bar when it's
         // let go — unless a menu or the bar's selection takes this Alt)
         self.menus.alt_alone = vk == 18 && !mods.ctrl && !mods.shift && !self.menus.keyboard && !self.menu_open();

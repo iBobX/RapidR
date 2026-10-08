@@ -432,6 +432,17 @@ fn key_name(vk: i64) -> String {
     }
 }
 
+/// A caption's text and the key text after a tab (Windows' menus show
+/// what follows a tab right-aligned, as an accelerator's: `"&Copy" +
+/// CHR$(9) + "Ctrl+C"` shows "Ctrl+C" without binding the key, which
+/// the focused control then keeps).
+pub fn split_caption(caption: &str) -> (&str, &str) {
+    match caption.split_once('\t') {
+        Some((text, keys)) => (text, keys.trim()),
+        None => (caption, ""),
+    }
+}
+
 /// "Ctrl+N", "Shift+Ctrl+F5", "Alt+X", "F2", "Del" (Delphi's ShortCut text,
 /// case and order free).
 pub fn parse_shortcut(text: &str) -> Option<Shortcut> {

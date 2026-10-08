@@ -10,25 +10,20 @@ authors in `AUTHORS`). RapidR draws text on bitmaps with them
 (`src/objects/text.rs`): they have the same character widths as Arial,
 Times New Roman and Courier New, the fonts RapidQ programs name.
 
-## JetBrains Mono (the code editor's font)
+## JetBrains Mono Italic (the code editor's comments)
 
-`JetBrainsMono-Regular.ttf` and `JetBrainsMono-Italic.ttf` are JetBrains
-Mono 2.211 by The JetBrains Mono Project Authors
-(<https://github.com/JetBrains/JetBrainsMono>), the variable fonts (weight
-axis 100–800) in the Latin subset Google Fonts distributes (229 characters:
-ASCII, Latin-1, common punctuation and symbols), as packaged by Fontsource
+`JetBrainsMono-Italic.ttf` is JetBrains Mono 2.211's italic by The
+JetBrains Mono Project Authors (<https://github.com/JetBrains/JetBrainsMono>),
+the variable font (weight axis 100–800) in the Latin subset Google Fonts
+distributes, as packaged by Fontsource
 (`@fontsource-variable/jetbrains-mono` 5.3.0,
-`jetbrains-mono-latin-wght-normal.woff2` SHA-256
-`18be452724bfdc236c074ca94a249a7f41a86752c7d04ab258ce9ed5651f6a7e`,
 `jetbrains-mono-latin-wght-italic.woff2` SHA-256
 `a8afa085e9ca5e53434e2ee918ba6b65c7dd4dda56509976b36591478c99d62e`),
 converted from WOFF2 to TrueType with fontTools (the glyphs and tables
 unchanged). Licensed under the SIL Open Font License 1.1, which declares no
-Reserved Font Name for it (`JetBrainsMono-OFL.txt`).
-
-RCODEEDITOR and RDIFFVIEW draw code with it (docs/ide-plan.md, decision
-D8); programs can name it too (`Font.Name = "JetBrains Mono"`). Characters
-outside the subset fall back to Liberation Mono and the fallback fonts.
+Reserved Font Name for it (`JetBrainsMono-OFL.txt`). The code editor
+(RCODEEDITOR, RDIFFVIEW) draws comments with it where its scheme says
+italic; upright and bold code comes from the 2.304 faces below.
 
 ## RapidR Sans
 
@@ -45,3 +40,18 @@ pixels high with the baseline 11 pixels down, as Windows draws it. The widths ar
 character, measured with RapidQ's compiler on Windows 11; no Microsoft font
 data is used. `tools/fonts/make_rapidr_sans.py` makes it from
 `LiberationSans-Regular.ttf` (reproducibly) and explains the details.
+
+**Inter** (`Inter-Regular.ttf`, `Inter-SemiBold.ttf`; Inter 4.1,
+<https://github.com/rsms/inter>, `Inter-4.1.zip`, SHA-256
+`9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e`) and
+**JetBrains Mono** (`JetBrainsMono-Regular.ttf`, `JetBrainsMono-Bold.ttf`;
+2.304, <https://github.com/JetBrains/JetBrainsMono>,
+`JetBrainsMono-2.304.zip`, SHA-256
+`6f6376c6ed2960ea8a963cd7387ec9d76e3f629125bc33d1fdcd7eb7012f7bbf`) are
+RapidR's own UI and code faces (docs/ide-plan.md decision D8: RapidR
+Studio, the RapidR look's chrome). Both are under the SIL Open Font License
+1.1 (`Inter-OFL.txt`, `JetBrainsMono-OFL.txt`, with their copyright lines),
+neither with a Reserved Font Name. `tools/fonts/subset_ui_fonts.py` subsets
+them to the Latin scripts without hinting (about 72 KB each); other
+characters come from the fallback fonts. RapidQ's font names never map to
+them: a program gets them by naming "Inter" or "JetBrains Mono".

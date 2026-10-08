@@ -1,0 +1,46 @@
+27:1
+Member CLICK not part of class BTN
+28:1
+Member CLICK not part of class FORM
+29:1
+Member SETPARENT not part of class BTN
+30:1
+Member SETPARENT not part of class FORM
+31:1
+Member ADDITEMS not part of class ED
+32:1
+Member ADDITEM not part of class LV
+33:1
+Member DELETEITEM not part of class LV
+34:1
+Member RECT not part of class LV
+35:1
+Member LINE not part of class LV
+36:1
+Member ADDITEM not part of class MENU
+37:1
+Member RECT not part of class LST
+38:1
+Member SETPIXEL not part of class LST
+39:1
+Member ELLIPSE not part of class LST
+40:1
+Member DRAWTEXT not part of class LST
+41:1
+Member RECT not part of class CB
+42:1
+Member RECT not part of class GRID
+43:1
+Member RECT not part of class DX
+44:1
+Member DRAWTEXT not part of class DX
+45:1
+Member RECT not part of class BMP
+46:1
+Member SETPIXEL not part of class BMP
+47:1
+Member ELLIPSE not part of class BMP
+48:1
+Member DRAWTEXT not part of class BMP
+49:1
+Member CLEAR not part of class BMP

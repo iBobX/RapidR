@@ -50,6 +50,8 @@ pub mod design;
 pub mod diffview;
 // (I1: RapidR Studio's docking)
 pub mod dock;
+// (the data-science lane's: RPLOT on a form)
+pub mod plot;
 
 use rapidr_value::input::Button;
 use rapidr_value::objects::a11y::{AccessNode, Action};
@@ -114,6 +116,8 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RDOCKDOCS", &dock::DockDocs),
     // (I2: the diff view — rapidr_value::objects::diffview)
     ("RDIFFVIEW", &diffview::DiffViewBox),
+    // (the data-science lane's: a chart on a form — rapidr_value::datascience)
+    ("RPLOT", &plot::Plot),
 ];
 
 /// The kind drawing components of `type_name` (`None`: the kernel only
@@ -358,6 +362,12 @@ pub trait ComponentKind: Sync {
 
     /// Its deadline came (it set `NodeUi::wake`; tick.rs).
     fn tick(&self, _cx: &mut Cx) {}
+
+    /// A tooltip of its own at (x, y) of it (tooltip.rs): a cut-short title,
+    /// a button's name; `None`: its Hint, if ShowHint.
+    fn tip_at(&self, _store: &dyn crate::store::Store, _id: &str, _x: f64, _y: f64) -> Option<String> {
+        None
+    }
 
     /// A right click let go on it (or the menu key): an edit's context
     /// menu — Undo, Cut, Copy, Paste, Delete, Select All, which of them

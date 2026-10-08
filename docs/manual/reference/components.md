@@ -173,6 +173,14 @@ Every component RapidR creates, by what it is for. A RapidQ name and its R name 
 | <img src="../icons/light/components/webgeolocation.svg" width="20" height="20" alt=""> | [`RWEBGEOLOCATION`](members.md#rwebgeolocation) | — | RapidR | web |
 | <img src="../icons/light/components/router.svg" width="20" height="20" alt=""> | [`RROUTER`](members.md#rrouter) | — | RapidR | web |
 
+## IDE
+
+| | RapidR name | RapidQ name | From | Where |
+|---|---|---|---|---|
+| <img src="../icons/light/components/project.svg" width="20" height="20" alt=""> | [`RPROJECT`](members.md#rproject) | — | RapidR | everywhere |
+| <img src="../icons/light/components/languageservice.svg" width="20" height="20" alt=""> | [`RLANGUAGESERVICE`](members.md#rlanguageservice) | — | RapidR | everywhere |
+| <img src="../icons/light/components/programsession.svg" width="20" height="20" alt=""> | [`RPROGRAMSESSION`](members.md#rprogramsession) | — | RapidR | everywhere |
+
 ## RapidQ's include libraries built in
 
 A program that names these (or includes the library) gets RapidR's own implementation, written in BASIC on RapidR's components, on every runtime:
@@ -191,4 +199,4 @@ RapidQ has these objects (RC.EXE knows them); RapidR doesn't yet. Variables of t
 - `QTHREAD`: Runs its OnExecute code in a background thread. Planned: RapidR doesn't have it yet.
 - `QTRANSIMAGE`: A picture with a transparent colour that can shape and size its form to it. Planned: RapidR doesn't have it yet.
 
-99 components; 74 of them have a RapidQ name.
+102 components; 74 of them have a RapidQ name.

@@ -281,6 +281,16 @@ fn lex_source_file(path: &str) -> ExitCode {
 }
 
 /// Generate Rust source code from a .rr file into an output directory.
+/// Whether the program (with what it includes) uses one of RapidR Studio's
+/// components: a native build then takes the runtime's `studio` feature.
+fn uses_studio_components(path: &str) -> bool {
+    let text = match rapidr_preprocessor::preprocess_file(Path::new(path), Default::default()) {
+        Ok(p) => p.source.to_ascii_uppercase(),
+        Err(_) => fs::read_to_string(path).unwrap_or_default().to_ascii_uppercase(),
+    };
+    text.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|w| matches!(w, "RPROJECT" | "RLANGUAGESERVICE" | "RPROGRAMSESSION"))
+}
+
 fn codegen_source_file(path: &str, output_dir: Option<String>) -> ExitCode {
     codegen_source_file_inner(path, output_dir, false)
 }
@@ -357,7 +367,15 @@ fn codegen_source_file_inner(path: &str, output_dir: Option<String>, force_web: 
     let cargo_toml = if target == AppTarget::Web {
         rapidr_codegen_rust::generate_cargo_toml_web(stem, &runtime_path.to_string_lossy())
     } else {
-        rapidr_codegen_rust::generate_cargo_toml(stem, &runtime_path.to_string_lossy())
+        let toml = rapidr_codegen_rust::generate_cargo_toml(stem, &runtime_path.to_string_lossy());
+        // (RapidR Studio's components — RPROJECT, RLANGUAGESERVICE,
+        // RPROGRAMSESSION — come with the runtime's `studio` feature, only in
+        // the programs that use them: the language service is large)
+        if uses_studio_components(path) {
+            toml.replacen("rapidr-runtime-core = { path = ", "rapidr-runtime-core = { features = [\"studio\"], path = ", 1)
+        } else {
+            toml
+        }
     };
     // (the workspace's lockfile, so wgpu, vello, winit — and on the web the
     // UI kernel's vello_cpu and parley — are the versions RapidR is tested

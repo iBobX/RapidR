@@ -3735,6 +3735,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "rapidr-designer"
+version = "2.117.0"
+dependencies = [
+ "proptest",
+ "rapidr-ast",
+ "rapidr-diagnostics",
+ "rapidr-lang",
+ "rapidr-parser",
+ "rapidr-preprocessor",
+ "rapidr-value",
+]
+
+[[package]]
 name = "rapidr-diagnostics"
 version = "2.117.0"
 
@@ -3866,6 +3879,8 @@ dependencies = [
  "nanomp3",
  "rapidr-db",
  "rapidr-lang",
+ "rapidr-session",
+ "rapidr-studio",
  "rapidr-ui-app",
  "rapidr-ui-host-winit",
  "rapidr-ui-kernel",
@@ -3885,6 +3900,7 @@ dependencies = [
  "rapidr-db",
  "rapidr-lang",
  "rapidr-langsvc",
+ "rapidr-studio",
  "rapidr-ui-app",
  "rapidr-ui-host-web",
  "rapidr-ui-kernel",
@@ -3907,6 +3923,16 @@ dependencies = [
  "rapidr-vm",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "rapidr-studio"
+version = "2.117.0"
+dependencies = [
+ "rapidr-langsvc",
+ "rapidr-project",
+ "rapidr-session",
+ "rapidr-value",
 ]
 
 [[package]]
@@ -3988,8 +4014,10 @@ name = "rapidr-value"
 version = "2.117.0"
 dependencies = [
  "jpeg-decoder",
+ "proptest",
  "rapidr-editor",
  "rapidr-icons",
+ "rapidr-lang",
  "resvg",
  "serde_json",
  "ttf-parser",

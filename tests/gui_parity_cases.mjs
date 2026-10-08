@@ -38,7 +38,7 @@ export const cases = [
   { name: "dock_manager", events: "dock.__mousedown_300_352,dock.__mouseup_300_352,dock.__mousedown_265_200,dock.__mousemove_285_200,dock.__mousemove_305_200,dock.__mouseup_305_200,dock.__mousedown_12_40,dock.__mouseup_12_40,dock.__mousedown_12_40,dock.__mouseup_12_40,dock.__mousedown_700_12,dock.__mousemove_710_20,dock.__mousemove_164_296,dock.__mouseup_164_296,bmove.onclick,dock.__key_37,dock.__key_13,props.__key_117,bsave.onclick,btabs.onclick,breport.onclick",
     dump: "lbl.caption,info.caption",
     expect: ["lbl.caption=- p:output L p:props p:props L p:output L p:output p:explorer L p:props L [hidden autohide] L loaded same L c:doc1 c:doc2 a:doc1 p:doc2 L p:props L",
-      "info.caption=tabs 6 explorer output doc1 | docked floating docked docked autohide document | 280x495 298x304"],
+      "info.caption=tabs 6 explorer output doc1 | docked floating docked docked autohide document | 280x493 298x302"],
     pixels: [[150, 5, "808080"], [306, 200, "f0f0f0"]], clientWidth: 898 },
   // RDIFFVIEW (I2, rapidr_value::objects::diffview): two versions of a
   // program, three hunks. A click on the first hunk's Accept button (pressed
@@ -101,7 +101,7 @@ export const cases = [
   { name: "grid_moving", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=5 3 H1a1 40 R2 3"] },
   { name: "string_grid", events: "btn.onclick", dump: "lbl.caption",
-    expect: ["lbl.caption=P2|P1|Lima|6|3|64|P1|Lima|4|41|-1"] },
+    expect: ["lbl.caption=P2|P1|Lima|6|3|64|P1|Lima|4|41|1"] },
   { name: "align_layout", events: "btn.onclick", dump: "loose.caption,side.caption,bar.caption,status.simpletext", resize: "600,350", split: "split:60",
     expect: ["loose.caption=103,40,235,210|100|250", "side.caption=moved160|160|163", "bar.caption=600x350|375x260|538|150", "status.simpletext=435|260|5|598"] },
   { name: "list_items", events: "items.onclick", dump: "summary.caption,lbl.caption",
@@ -128,6 +128,15 @@ export const cases = [
     expect: ["lbl.caption=paints2|255|14737632|35|338"] },
   { name: "owner_list", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=r2 0:1;1:1;2:0; 0,48,180,72 h24"] },
+  // RapidQ's drawing methods on lists and a grid (an RC.EXE-built program of
+  // this layout, seen in Windows): owner-drawn items and a cell with
+  // Rectangle and Paint's flood fill inside it (blue), a plain list box
+  // drawn on (magenta flood) whose newly selected row is painted again, a
+  // plain combo box drawn on (nothing shows).
+  { name: "list_drawing", events: "btn.onclick,sel.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=drawn selected1"],
+    pixels: [[22, 25, "0000ff"], [13, 13, "ffffff"], [300, 20, "ff00ff"], [300, 32, "0078d7"], [300, 100, "ff00ff"], [290, 90, "000000"],
+      [420, 20, "0000ff"], [430, 64, "ffffff"], [98, 190, "0000ff"]], clientWidth: 600 },
   { name: "dotted_paint", events: "", dump: "lbl.caption",
     expect: ["lbl.caption=painted 255"] },
   { name: "event_answers", events: "show.onclick,dlg.__close,dlg2.__close,grid.__cell_2_2,grid.__cell_3_1,g2.__cell_2_1,g2.__cell_1_2,code.onclick",
@@ -141,10 +150,10 @@ export const cases = [
   { name: "startup_modal", events: "dlgok.onclick,rp.onclick,chk.onclick", dump: "lbl.caption,lbl2.caption,dlg.__shown,form.__shown",
     expect: ["lbl.caption=before after", "lbl2.caption=repainted1", "dlg.__shown=0", "form.__shown=1"] },
   { name: "tree_view", events: "tv.__toggle_0,tv.__node_2,tv.__node_1,tv.__toggle_4,btn.onclick", dump: "lbl.caption,lbl2.caption,tv.itemindex",
-    expect: ["lbl.caption=exp0 chg1 |8|Hill|31-10-1", "lbl2.caption=del4 del5 del6 5", "tv.itemindex=1"] },
-  { name: "tree_images", events: "btn.onclick", dump: "lbl.caption", expect: ["lbl.caption=-1 -1 1 1 0 1 -1 -1"] },
+    expect: ["lbl.caption=exp0 chg1 |8|Hill|31101", "lbl2.caption=del4 del5 del6 5", "tv.itemindex=1"] },
+  { name: "tree_images", events: "btn.onclick", dump: "lbl.caption", expect: ["lbl.caption=-1 -1 1 1 0 1 -1 1"] },
   { name: "tree_edit", events: "tv.__node_0,tv.__edit,tv.__enter,tv.__node_2,tv.__edit,tv.__enter,tv.__node_1,tv.__edit,tv.__escape,ro.onclick,tv.__edit,tv.__enter,btn.onclick", dump: "lbl.caption",
-    expect: ["lbl.caption=ing0 ed0:Renamed ing2 ing1 |RENAMED Pear Plum -1"] },
+    expect: ["lbl.caption=ing0 ed0:Renamed ing2 ing1 |RENAMED Pear Plum 1"] },
   { name: "panel_bevels", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=201 123 112"] },
   { name: "svg_picture", events: "btn.onclick", dump: "lbl.caption",
@@ -195,7 +204,7 @@ export const cases = [
   { name: "input_chars", events: "lbl.__key_65,lbl.__key_66,lbl.__key_67", dump: "lbl.caption", expect: ["lbl.caption=[abc]-1"] },
   { name: "inherit_event", events: "c.onclick,plain.onclick,btn.onclick", dump: "lbl.caption", expect: ["lbl.caption=own mine1 own | 1"] },
   { name: "text_edits", events: "btn.onclick", dump: "lbl.caption,ed.text",
-    expect: ["lbl.caption=2two|ell|hEYo|3|two|ONE|2|8|-1|1", "ed.text=hEYo"] },
+    expect: ["lbl.caption=2two|ell|hEYo|3|two|ONE|2|8|1|1", "ed.text=hEYo"] },
   { name: "trackbar", events: "tb.__key_39,tb.__key_34,tb.__key_36,tb.__mousedown_190_10,tb.__key_35,btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=102111|10|4,6,0,2,10,|4"] },
   { name: "tab_control", events: "tab.__key_39,tab.__key_39,tab.__mousedown_8_10,btn.onclick", dump: "lbl.caption",
@@ -211,6 +220,11 @@ export const cases = [
   { name: "anchors", events: "ok.onclick", dump: "a.caption,b.caption,c.caption", resize: "250,180",
     expect: ["a.caption=300,230|200|300|200|150|400x300|12|3|0|300|200|15", "b.caption=200,130|100|250|150|100|300x200",
       "c.caption=400,330|300|400|300|200|500x400 300,330|150|300|200|150|400x400 250,150 200,100,200 200,330|50|200|100|100|300x400|10"] },
+  // (I4 L-DMODEL) The designer's resize preview is the running program:
+  // crates/rapidr-designer/tests/anchors.rs reads this expect list and must
+  // give the same rectangles from the CREATE block resized in the designer.
+  { name: "designer_anchors", events: "", resize: "600,450", dump: "bar.left,bar.top,bar.width,bar.height,status.left,status.top,status.width,status.height,namelbl.left,namelbl.top,namelbl.width,namelbl.height,nameed.left,nameed.top,nameed.width,nameed.height,notes.left,notes.top,notes.width,notes.height,side.left,side.top,side.width,side.height,pick.left,pick.top,pick.width,pick.height,ok.left,ok.top,ok.width,ok.height,cancel.left,cancel.top,cancel.width,cancel.height,mid.left,mid.top,mid.width,mid.height",
+    expect: ["bar.left=0", "bar.top=0", "bar.width=598", "bar.height=32", "status.left=0", "status.top=397", "status.width=598", "status.height=22", "namelbl.left=12", "namelbl.top=48", "namelbl.width=31", "namelbl.height=13", "nameed.left=64", "nameed.top=44", "nameed.width=420", "nameed.height=21", "notes.left=12", "notes.top=80", "notes.width=472", "notes.height=280", "side.left=496", "side.top=44", "side.width=92", "side.height=316", "pick.left=8", "pick.top=280", "pick.width=75", "pick.height=25", "ok.left=428", "ok.top=366", "ok.width=75", "ok.height=25", "cancel.left=512", "cancel.top=366", "cancel.width=75", "cancel.height=25", "mid.left=222", "mid.top=370", "mid.width=36", "mid.height=13"] },
   { name: "font_size", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=35x19 28x16"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
@@ -314,4 +328,18 @@ export const cases = [
   // events' capture only)
   { name: "themes", events: "btndark.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=theme classic then dark"], themes: ["modern", "dark", "highcontrast"] },
+  // RPLOT on a form (the UI kernel's component, the one chart renderer): a
+  // line chart anchored left / top / right, widened with the form (500 ×
+  // 350); a bar chart aligned to the bottom. The click adds a dashed series
+  // and a legend, titles the bars and renders: drawn again. Pixels: the
+  // line chart's background, the form between the charts, a bar (steelblue),
+  // the legend's red and blue swatches; on the web, the red line drawn on
+  // the form's canvas (the window's capture is compared with the desktop's).
+  { name: "rplot_on_form", events: "btn.onclick", dump: "lbl.caption", resize: "500,350",
+    expect: ["lbl.caption=2 330x170 0,209 498x110 Sales 1"],
+    pixels: [[12, 34, "ffffff"], [400, 100, "f0f0f0"], [420, 270, "4682b4"], [57, 85, "ff0000"], [60, 101, "0000ff"]], clientWidth: 498,
+    webCheck: `(() => { const c = document.querySelector('.rr-kwin[data-rr-form="form"] canvas.rr-kclient'); const g = c && c.getContext("2d"); if (!g) return "no canvas";
+      const d = g.getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] > 200 && d[i + 1] < 60 && d[i + 2] < 60) n++;
+      return n > 200 ? "red line drawn" : "red pixels: " + n; })()`,
+    webExpect: "red line drawn" },
 ];

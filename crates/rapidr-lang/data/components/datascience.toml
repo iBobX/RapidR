@@ -214,7 +214,7 @@ name = "RPLOT"
 visual = true
 size = [640, 480]
 sets = ["layout", "a11y"]
-doc = "A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots with labels, legends and notes, on a form or saved as a picture. RapidR's own."
+doc = "A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots with labels, legends and notes, on a form (drawn crisp at any screen scale, the same on the desktop and the web) or saved as a picture. RapidR's own."
 properties = [
   { name = "Title", type = "string" },
   { name = "XLabel", type = "string" },
@@ -256,10 +256,10 @@ methods = [
   { name = "Set_xlabel" },
   { name = "SetYLabel" },
   { name = "Set_ylabel" },
-  { name = "SaveFig", params = "filename", value = true, doc = "Draws the chart into a PNG file (on the web: on the page)." },
+  { name = "SaveFig", params = "filename", value = true, doc = "Draws the chart into a PNG file (on the web: one of the page's files, which the program can read back or offer as a download)." },
   { name = "Save", value = true },
   { name = "Render" },
-  { name = "Show", value = true, doc = "Draws the chart where it is shown (the page, on the web)." },
+  { name = "Show", value = true, doc = "Draws the chart again where it shows: an RPLOT on a form (a chart only saved or loaded into a picture has nowhere else to show)." },
   { name = "Figsize", params = "width, height, [dpi]", value = true, doc = "The size in inches at the chart's DPI." },
   { name = "Xlim", params = "min, max", value = true, doc = "The X axis range." },
   { name = "Ylim", params = "min, max", value = true, doc = "The Y axis range." },

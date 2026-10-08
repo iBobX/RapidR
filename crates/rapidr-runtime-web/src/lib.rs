@@ -33,9 +33,11 @@ pub mod layout_web;
 pub mod mdi_web;
 // (I1: RDOCKMANAGER — rapidr_value::dock)
 pub mod dock_web;
+pub mod studio_web;
+pub use rapidr_studio;
 pub mod network_web;
 pub mod object_web;
-/// The web-only components (RWEBVIEW, RDOM, media, RPLOT) as elements over
+/// The web-only components (RWEBVIEW, RDOM, media) as elements over
 /// the UI kernel's canvases.
 pub mod overlay_web;
 /// The fallback fonts (Noto: symbols, CJK) fetched as text needs them.

@@ -23,12 +23,12 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use rapidr_value::objects::a11y::{AccessNode, Action};
-use rapidr_value::objects::grid::{StringGrid, GCS_ELLIPSIS, GO_ALWAYS_SHOW_EDITOR, GO_COL_MOVING, GO_COL_SIZING, GO_FIXED_HORZ_LINE, GO_FIXED_VERT_LINE, GO_HORZ_LINE, GO_ROW_MOVING, GO_ROW_SIZING, GO_VERT_LINE};
+use rapidr_value::objects::grid::{CellDraw, StringGrid, GCS_ELLIPSIS, GO_ALWAYS_SHOW_EDITOR, GO_COL_MOVING, GO_COL_SIZING, GO_FIXED_HORZ_LINE, GO_FIXED_VERT_LINE, GO_HORZ_LINE, GO_ROW_MOVING, GO_ROW_SIZING, GO_VERT_LINE};
 use rapidr_value::objects::ops::{Op, Place, Rect};
 use rapidr_value::objects::{with_grid, with_grid_mut};
 use rapidr_value::scrollbars::{Child, Scroller};
 
-use super::list::{act, begin_edit, begin_edit_typed, drop_editor, edit_key, editing, editor_ime, editor_ime_area, editor_menu, editor_mouse, end_edit, fire, paint_editor, replay, set_edit_text, sunken, InPlace, ListAction};
+use super::list::{act, begin_edit, begin_edit_typed, drop_editor, edit_key, editing, editor_ime, editor_ime_area, editor_menu, editor_mouse, end_edit, fire, paint_editor, picture_of, replay, set_edit_text, sunken, InPlace, ListAction};
 use super::{ComponentKind, Cx, Ime, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::Clipboard;
@@ -322,7 +322,27 @@ impl ComponentKind for Grid {
                                 }
                             }
                             if let Some(ops) = g.owner_drawing.get(&(c, r)) {
-                                p.at((x, y), |p| replay(p, ops, &font, &format!("{}#cell{c},{r}", cx.id)));
+                                if ops.iter().any(|op| matches!(op, CellDraw::Flood(..))) {
+                                    // (Paint's flood fill works on pixels: the
+                                    // cell as the grid drew it, then the
+                                    // handler's drawing, as a picture)
+                                    let base = if fixed { t.face } else if selected { t.highlight } else { t.window };
+                                    let color = if selected { t.highlight_text } else if fixed { ink(cx.store, cx.id, &font, true, t.face) } else { text_color };
+                                    let mut b = rapidr_value::objects::bitmap::Bitmap::default();
+                                    b.resize(cw.max(1), rh.max(1));
+                                    b.fill_rect(0, 0, cw, rh, rapidr_value::theme::bgr(base));
+                                    rapidr_value::objects::text::text_out(&mut b, 2, 2, &text, &font, rapidr_value::theme::bgr(color), None);
+                                    ops.iter().for_each(|op| op.paint(&mut b, &font));
+                                    let revision = {
+                                        use std::hash::{Hash, Hasher};
+                                        let mut h = std::collections::hash_map::DefaultHasher::new();
+                                        b.img.pixels.hash(&mut h);
+                                        h.finish()
+                                    };
+                                    p.picture(&format!("{}#cell{c},{r}", cx.id), revision, picture_of(b.display_rgba()), rect);
+                                } else {
+                                    p.at((x, y), |p| replay(p, ops, &font, &format!("{}#cell{c},{r}", cx.id)));
+                                }
                             }
                             if current && !fixed && !g.has_option(rapidr_value::objects::grid::GO_ROW_SELECT) {
                                 p.focus(rect);

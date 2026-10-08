@@ -22,16 +22,10 @@ thread_local! {
 
 /// `$THEME name` / `Application.Theme = name`: the browser keeps drawing
 /// its own look (rrcss) — no theme is drawn here — but the program reads
-/// back the theme its name chose, as on the desktop (`auto`: the modern
-/// look, what the desktop chooses when the system says nothing).
+/// back the theme its name chose, as on the desktop (`auto` and `rapidr`:
+/// the page's light, dark or high contrast look).
 pub fn name_theme(name: &str) {
     use rapidr_value::theme::{choose, Choice};
-    let chosen = match choose(name) {
-        Choice::Theme(t) => t.name,
-        Choice::Auto => rapidr_value::theme::MODERN.name,
-        Choice::Unknown => rapidr_value::theme::CLASSIC.name,
-    };
-    THEME.with(|t| t.set(chosen));
     // (the kernel draws in that theme from now on — `auto` the page's look,
     // as the desktop's the system's)
     let theme = match choose(name) {
@@ -42,6 +36,8 @@ pub fn name_theme(name: &str) {
         }
         Choice::Unknown => &rapidr_value::theme::CLASSIC,
     };
+    // (reading Application.Theme back gives the theme drawn: `auto`'s too)
+    THEME.with(|t| t.set(theme.name));
     rapidr_value::theme::set(theme);
     crate::kernel_web::redraw();
 }

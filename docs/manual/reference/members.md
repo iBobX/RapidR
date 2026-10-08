@@ -13,7 +13,7 @@ A window: the top-level container of a program's components, with its caption, b
 |---|---|---|---|
 | `AutoScroll` | bool | True | Shows scroll bars by itself when the controls inside reach past the visible area. |
 | `BorderStyle` | enum | `bsSizeable` | The border: one of the `bsXXX` constants. On a form, `bsSizeable` lets the user resize it, `bsDialog` doesn't, `bsNone` has no title bar. |
-| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
+| `Caption` | string | `""` | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
 | `ClientHeight` | int |  | The height of the area inside the borders (and a form's title bar and menu), in pixels; on `Screen`, the work area's, without the task bar. |
 | `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
 | `Color` | color | -2147483633 | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
@@ -38,7 +38,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `AutoSize` *(RapidR)* | int |  | Makes the control fit its content: a label its text, an image its picture, an edit its font's height; a DirectX screen's buffer follows the control's size. |
 | `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `Enabled` | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Enabled` | int | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `HelpFile` *(RapidR)* | string |  | The help file the program opens for F1. |
 | `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
 | `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
@@ -96,8 +96,6 @@ A window: the top-level container of a program's components, with its caption, b
 | `Next` *(not yet)* | Activates the next MDI child window. |
 | `Previous` *(not yet)* | Activates the previous MDI child window. |
 | `Tile` *(not yet)* | Tiles the MDI child windows so none overlap. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -163,7 +161,7 @@ An MDI parent window (RAPIDQ2.INC's): a form whose child windows open, tile, cas
 | `ActiveChild(Index AS LONG)` | Brings the MDI child with index `Index` to the front, restoring it if it is minimized. |
 | `FreeChild(handle AS LONG) AS VARIANT` | Returns true when the form with handle `handle` isn't shown as an MDI child, so it can be added. |
 | `SetDeskBar` | Sets up the MDI form's bar for its child windows; RapidR accepts it and does nothing. |
-| `Rect` *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
+| `Rect` *(RapidR)* | Draws the outline of a rectangle. Same as `Rectangle`. |
 | `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
 | `FillCircle` *(RapidR)* | Draws a filled circle of radius `r` around (`cx`, `cy`), in the brush color or the color given. |
 | `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
@@ -189,7 +187,7 @@ A container with raised or lowered bevels and an optional caption, to group comp
 | `BevelOuter` | enum | `bvRaised` | The outer bevel: `bvNone`, `bvLowered` or `bvRaised`. |
 | `BevelWidth` | int | 1 | The width of each bevel, in pixels. |
 | `BorderStyle` | enum | `bsNone` | The border: one of the `bsXXX` constants. On a form, `bsSizeable` lets the user resize it, `bsDialog` doesn't, `bsNone` has no title bar. |
-| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
+| `Caption` | string | `""` | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
 | `ClientHeight` | int |  | The height of the area inside the borders (and a form's title bar and menu), in pixels; on `Screen`, the work area's, without the task bar. |
 | `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
@@ -222,8 +220,6 @@ A container with raised or lowered bevels and an optional caption, to group comp
 |---|---|
 | `Repaint` | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -297,8 +293,6 @@ A row of tabs: the user picks one (TabIndex) and the program shows what belongs 
 | `DelTab` *(RapidR)* | Removes the tab at the index given. |
 | `RemoveTab` *(RapidR)* | Removes the tab at the index given. |
 | `Tabs` *(RapidR)* | Returns the caption of the tab at an index, or sets it when a second value follows. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -314,8 +308,8 @@ A strip along the top of a form that holds tool buttons. RapidR's own.
 |---|---|---|---|
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
-| `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
-| `Left` | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
 | `Visible` | int |  | Whether the control or form is shown. |
 | `Enabled` | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
@@ -352,10 +346,10 @@ The bar at the bottom of a window that shows status text, as one simple text or 
 | `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `SimplePanel` | bool | False | Shows `SimpleText` across the whole status bar instead of its panels. |
-| `SimpleText` | string |  | The text the status bar shows with `SimplePanel`. |
+| `SimpleText` | string | `""` | The text the status bar shows with `SimplePanel`. |
 | `SizeGrip` | bool | True | Shows the resize grip at the status bar's right end. |
 | `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
-| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Visible` | bool | True | Whether the control or form is shown. |
 | `Caption` *(RapidR)* | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
@@ -363,6 +357,7 @@ The bar at the bottom of a window that shows status text, as one simple text or 
 | `Font` *(RapidR)* | font |  | The font of the text, a QFONT; assigning one copies it. |
 | `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `Color` *(RapidR)* | color |  | The bar's colour (RapidR's): flat in every look, as an IDE's state bar; unset, the theme's. |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -373,12 +368,10 @@ The bar at the bottom of a window that shows status text, as one simple text or 
 
 | Method | |
 |---|---|
-| `AddPanels(Items, …)` *(desktop)* | Appends panels to the status bar, one per caption given. |
-| `Clear` *(desktop)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
+| `AddPanels(Items, …)` | Appends panels to the status bar, one per caption given. |
+| `Clear` | Removes every panel: panels added after it start again at `Panel(0)`. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -401,12 +394,12 @@ A bar the user drags to resize the aligned component beside it, between the pane
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
-| `Left` | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
 | `MinSize` | int | 30 | The smallest size the splitter leaves the control it resizes, in pixels. |
 | `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
-| `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Visible` | bool | True | Whether the control or form is shown. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Orientation` *(RapidR)* | enum |  | A track bar's or splitter's direction (`tbHorizontal`, `tbVertical`); on a printer, portrait or landscape. |
@@ -417,11 +410,6 @@ A bar the user drags to resize the aligned component beside it, between the pane
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-
-| Method | |
-|---|---|
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -477,8 +465,6 @@ A container that scrolls: components beyond its edges are reached with its scrol
 |---|---|
 | `Repaint` | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -497,7 +483,7 @@ A captioned frame around related components; the radio buttons in it form one ch
 | Property | Type | Default | |
 |---|---|---|---|
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
-| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
+| `Caption` | string | `""` | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
@@ -528,8 +514,6 @@ A captioned frame around related components; the radio buttons in it form one ch
 |---|---|
 | `Repaint` | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -549,10 +533,10 @@ A box with raised or lowered 3D edges (QBevel.inc), to frame or group components
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
 | `Alignment` | enum | `taCenter` | How the text lines up inside the control: `taLeftJustify`, `taCenter` or `taRightJustify`; on a popup menu, which side of the point it opens on. |
 | `BevelInner` | enum | `bvNone` | The inner bevel: `bvNone`, `bvLowered` or `bvRaised`. |
-| `BevelOuter` | enum | `bvRaised` | The outer bevel: `bvNone`, `bvLowered` or `bvRaised`. |
+| `BevelOuter` | enum | `bvNone` | The outer bevel: `bvNone`, `bvLowered` or `bvRaised`. |
 | `BevelWidth` | int | 1 | The width of each bevel, in pixels. |
 | `BorderStyle` | enum | `bsNone` | The border: one of the `bsXXX` constants. On a form, `bsSizeable` lets the user resize it, `bsDialog` doesn't, `bsNone` has no title bar. |
-| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
+| `Caption` | string | `""` | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
 | `ClientHeight` | int |  | The height of the area inside the borders (and a form's title bar and menu), in pixels; on `Screen`, the work area's, without the task bar. |
 | `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
@@ -580,8 +564,6 @@ A box with raised or lowered 3D edges (QBevel.inc), to frame or group components
 | Method | |
 |---|---|
 | `Repaint` | Redraws the component. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -601,22 +583,22 @@ A tinted glass area (UtilMind's Glassy Form): it shades what's under it with its
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
 | `ClientHeight` | int |  | The height of the area inside the borders (and a form's title bar and menu), in pixels; on `Screen`, the work area's, without the task bar. |
 | `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
-| `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
+| `Color` | color | -2147483633 | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Handle` | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
-| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
-| `Left` | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Hint` | string | `""` | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
 | `Moveable` | bool | True | Lets the user drag the frame around. |
 | `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
-| `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Transparency` | int | 60 | How see-through the frame is, in percent (60). |
 | `TransparentColor` | color | 0 | The colour drawn see-through, as &HBBGGRR. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `Enabled` | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Visible` | int |  | Whether the control or form is shown. |
+| `Enabled` | int | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Visible` | int | True | Whether the control or form is shown. |
 
 | Event | |
 |---|---|
@@ -641,7 +623,7 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `DocumentCount` (read-only) | int |  | How many documents are open. |
 | `Layout` | string |  | The whole layout as text: reading it is SaveLayout, setting it LoadLayout. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
-| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `Hint` | string | `""` | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
 | `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
@@ -675,14 +657,13 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `PaneTitle(Name AS STRING, [Title AS STRING]) AS STRING` | A pane's title; with Title, sets it. |
 | `PaneState(Name AS STRING) AS STRING` | Where a pane is: "docked", "tabbed", "autohide", "floating", "document" or "hidden". |
 | `PaneVisible(Name AS STRING) AS INTEGER` | True when the pane is placed and shown (not hidden, nor behind another tab). |
+| `DocumentState(Name AS STRING, [State AS INTEGER]) AS INTEGER` | An MDI document's window: 0 normal, 1 minimized, 2 maximized (-1: not an MDI document); with State, it becomes that. |
 | `NextDocument` | Activates the next document (Ctrl+Tab). |
 | `PreviousDocument` | Activates the previous document (Ctrl+Shift+Tab). |
 | `Cascade` | Cascades the documents' windows. |
 | `TileHorizontal` | Tiles the documents' windows one above the other. |
 | `TileVertical` | Tiles the documents' windows side by side. |
 | `ArrangeIcons` | Lines up the icons of the minimized MDI child windows. |
-| `Click` *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -702,7 +683,7 @@ A push button: the user clicks it to run its OnClick handler. It can show a pict
 | `BMP` | picture |  | The picture shown, from a .BMP file name; on a button, its glyph. |
 | `BMPHandle` (write-only) | resource |  | Sets the picture from a resource handle (`$RESOURCE`) instead of a file; write-only. |
 | `Cancel` | bool | False | Makes this the button the Esc key presses on its form. |
-| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
+| `Caption` | string | `""` | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Default` | bool | False | Makes this the button the Enter key presses on its form. |
@@ -715,7 +696,7 @@ A push button: the user clicks it to run its OnClick handler. It can show a pict
 | `Layout` | enum | `blBMPLeft` | Where the picture sits next to the caption: `blBMPLeft`, `blBMPRight`, `blBMPTop` or `blBMPBottom`. |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
 | `ModalResult` | enum | `mrNone` | What `ShowModal` returns (`mrOk` …): setting it on a form closes the form; a button sets it on its form when clicked. |
-| `NumBMPs` | int |  | How many glyphs the button's picture holds side by side (up, disabled, down, held down). |
+| `NumBMPs` | int | 1 | How many glyphs the button's picture holds side by side (up, disabled, down, held down). |
 | `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
@@ -741,8 +722,6 @@ A push button: the user clicks it to run its OnClick handler. It can show a pict
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -790,7 +769,7 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
 | `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
-| `Text` | string |  | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
+| `Text` | string | `""` | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Visible` | bool | True | Whether the control or form is shown. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
@@ -816,10 +795,7 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `PasteFromClipboard` *(RapidR)* | Inserts the clipboard's text at the caret, replacing the selection. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `AddItems` *(RapidR)* *(desktop)* | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
 | `ClearSelection` *(RapidR)* | Deletes the selected text. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -839,7 +815,7 @@ A box with a caption that the user ticks on or off (Checked).
 | Property | Type | Default | |
 |---|---|---|---|
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
-| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
+| `Caption` | string | `""` | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
 | `Checked` | bool | False | True when the check box, radio button or menu item is checked. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
@@ -873,8 +849,6 @@ A box with a caption that the user ticks on or off (Checked).
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -889,7 +863,7 @@ One choice of several: checking it unchecks the other radio buttons in the same 
 | Property | Type | Default | |
 |---|---|---|---|
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
-| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
+| `Caption` | string | `""` | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
 | `Checked` | bool | False | True when the check box, radio button or menu item is checked. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
@@ -922,8 +896,6 @@ One choice of several: checking it unchecks the other radio buttons in the same 
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -939,7 +911,7 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 |---|---|---|---|
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
-| `CopyMode` | enum | `cmBlackness` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `CopyMode` | enum | `cmSrcCopy` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `DropDownCount` | int | 8 | How many items the drop-down list shows before it scrolls. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
@@ -985,15 +957,15 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | Method | |
 |---|---|
 | `AddItems(Items, …)` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
-| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`. |
+| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `CopyRect(D, Image, S)` *(not yet)* | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
 | `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
-| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(desktop)* | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
+| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
 | `InsertItem(Index AS INTEGER, String AS STRING)` | Inserts an item with text `String` before position `Index`. |
-| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(desktop)* | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
-| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` *(desktop)* | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
+| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
+| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with `c` up to the border colour `borderc`, on the pixels drawn so far: in an owner-drawn list's OnDrawItem the item, on a list box that isn't owner-drawn the list (as `Line` and the rest). |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` *(not yet)* | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(not yet)* | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
@@ -1007,16 +979,10 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | `DeleteItem` *(RapidR)* | Removes the item at the index given. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Rect` *(RapidR)* *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* *(desktop)* | Sets one pixel to a color. Same as `Pset`. |
-| `Ellipse` *(RapidR)* *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `DrawText` *(RapidR)* *(desktop)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 | `AddString` *(RapidR)* | Appends one string as a new item or line. |
 | `DeleteItems` *(RapidR)* | Removes the items at the indexes given. |
 | `RemoveItem` *(RapidR)* | Removes the item at the index given. |
 | `Find` *(RapidR)* | Searches the items for a string and returns the index of the match (-1 when there is none). |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1061,7 +1027,7 @@ A multi-line text editor with fonts, colours and alignment per selection, that l
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
 | `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
-| `Text` | string |  | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
+| `Text` | string | `""` | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `WantTabs` | bool | False | Lets the Tab key type a tab instead of moving the focus on. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
@@ -1102,8 +1068,6 @@ A multi-line text editor with fonts, colours and alignment per selection, that l
 | `Add` *(RapidR)* | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
 | `AddItems` *(RapidR)* | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
 | `ClearSelection` *(RapidR)* | Deletes the selected text. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1124,14 +1088,14 @@ A multi-line plain-text editor with word wrap and scroll bars. RapidR's own.
 
 | Property | Type | Default | |
 |---|---|---|---|
-| `Text` | string |  | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
+| `Text` | string | `""` | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
-| `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
-| `Left` | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
-| `Visible` | int |  | Whether the control or form is shown. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Visible` | int | True | Whether the control or form is shown. |
 | `Enabled` | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `ReadOnly` | int |  | Stops the user changing the text or items; they can still select and copy. |
+| `ReadOnly` | int | False | Stops the user changing the text or items; they can still select and copy. |
 | `Font` | font |  | The font of the text, a QFONT; assigning one copies it. |
 | `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
@@ -1169,8 +1133,6 @@ A multi-line plain-text editor with word wrap and scroll bars. RapidR's own.
 | `Add` | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
 | `AddItems` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
 | `ClearSelection` | Deletes the selected text. |
-| `Click` *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1222,8 +1184,6 @@ A horizontal or vertical scroll bar the user moves to pick a Position between Mi
 |---|---|
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1349,8 +1309,6 @@ A slider: the user drags its thumb to pick a Position between Min and Max, along
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `ClearTicks` *(RapidR)* | Removes every tick mark put with `SetTick`. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1364,12 +1322,12 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 
 | Property | Type | Default | |
 |---|---|---|---|
-| `Text` | string |  | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
+| `Text` | string | `""` | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
-| `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
-| `Left` | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
-| `Visible` | int |  | Whether the control or form is shown. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Visible` | int | True | Whether the control or form is shown. |
 | `Enabled` | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Font` | font |  | The font of the text, a QFONT; assigning one copies it. |
 | `FontSize` | int |  | The code's size in points (10 = 13 pixels); Ctrl+= / Ctrl+- and Ctrl+wheel change it. |
@@ -1493,8 +1451,6 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `CopyText AS STRING` | What Copy would put on the clipboard (the selections, or the caret's line). |
 | `BeginUpdate` | Many changes to come: the view waits for EndUpdate. |
 | `EndUpdate` | The changes are done: the view shows them. |
-| `Click` *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1563,8 +1519,6 @@ Two texts compared line by line, the way a code review shows them: side by side 
 | `PreviousHunk AS INTEGER` | Makes the previous hunk the current one (before the first, the last) and scrolls it into view, as Shift+F7 does; gives its index. |
 | `SetFocus` | Gives the view the keyboard: F7 / Shift+F7 (or Alt+Down / Alt+Up) go from hunk to hunk, Enter or Ctrl+Y accepts the current one, Backspace or Ctrl+N rejects it, the arrows, Page Up / Page Down, Home and End scroll. |
 | `Repaint` | Draws the view again. |
-| `Click` *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1585,7 +1539,7 @@ A flat toolbar button with a caption and a picture; with GroupIndex it stays dow
 | `AllowAllUp` | bool | False | With a `GroupIndex`, lets every button of the group be up at once; otherwise one always stays down. |
 | `BMP` (write-only) | picture |  | The picture shown, from a .BMP file name; on a button, its glyph. |
 | `BMPHandle` (write-only) | resource |  | Sets the picture from a resource handle (`$RESOURCE`) instead of a file; write-only. |
-| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
+| `Caption` | string | `""` | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Down` | bool | False | True while the button is pressed in; with a `GroupIndex` it stays down. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
@@ -1596,7 +1550,7 @@ A flat toolbar button with a caption and a picture; with GroupIndex it stays dow
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
 | `Layout` | enum | `blBMPLeft` | Where the picture sits next to the caption: `blBMPLeft`, `blBMPRight`, `blBMPTop` or `blBMPBottom`. |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
-| `NumBMPs` | int |  | How many glyphs the button's picture holds side by side (up, disabled, down, held down). |
+| `NumBMPs` | int | 1 | How many glyphs the button's picture holds side by side (up, disabled, down, held down). |
 | `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Spacing` | int | 4 | The gap between the button's picture and its caption, in pixels. |
@@ -1622,8 +1576,6 @@ A flat toolbar button with a caption and a picture; with GroupIndex it stays dow
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `StartDrag` *(not yet)* | Starts dragging the button. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1642,7 +1594,7 @@ A round button with its own colours, highlight and shadow; like a cool button, i
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
 | `BMP` (write-only) | picture |  | The picture shown, from a .BMP file name; on a button, its glyph. |
 | `BMPHandle` (write-only) | resource |  | Sets the picture from a resource handle (`$RESOURCE`) instead of a file; write-only. |
-| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
+| `Caption` | string | `""` | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `ColorHighLight` | int |  | The colour of the oval button's lit edge, as &HBBGGRR. |
 | `ColorShadow` | int |  | The colour of the oval button's shaded edge, as &HBBGGRR. |
@@ -1656,7 +1608,7 @@ A round button with its own colours, highlight and shadow; like a cool button, i
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
 | `Layout` | enum | `blBMPLeft` | Where the picture sits next to the caption: `blBMPLeft`, `blBMPRight`, `blBMPTop` or `blBMPBottom`. |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
-| `NumBMPs` | int |  | How many glyphs the button's picture holds side by side (up, disabled, down, held down). |
+| `NumBMPs` | int | 1 | How many glyphs the button's picture holds side by side (up, disabled, down, held down). |
 | `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Spacing` | int |  | The gap between the button's picture and its caption, in pixels. |
@@ -1685,8 +1637,6 @@ A round button with its own colours, highlight and shadow; like a cool button, i
 | `Repaint` | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `StartDrag` *(not yet)* | Starts dragging the button. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1706,8 +1656,8 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
 | `Alignment` | enum | `taLeftJustify` | How the text lines up inside the control: `taLeftJustify`, `taCenter` or `taRightJustify`; on a popup menu, which side of the point it opens on. |
 | `Angle` | int | 0 | The rotation of the label's text, in degrees counter-clockwise; it needs a TrueType font. |
-| `AutoSize` | bool | False | Makes the control fit its content: a label its text, an image its picture, an edit its font's height; a DirectX screen's buffer follows the control's size. |
-| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
+| `AutoSize` | bool | True | Makes the control fit its content: a label its text, an image its picture, an edit its font's height; a DirectX screen's buffer follows the control's size. |
+| `Caption` | string | `""` | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
@@ -1746,8 +1696,6 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 |---|---|
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -1770,7 +1718,7 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `BMP` | picture |  | The picture shown, from a .BMP file name; on a button, its glyph. |
 | `BMPHandle` (write-only) | resource |  | Sets the picture from a resource handle (`$RESOURCE`) instead of a file; write-only. |
 | `Center` | bool | False | Centres the picture in the control instead of placing it at the top left. |
-| `CopyMode` | enum | `cmBlackness` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `CopyMode` | enum | `cmSrcCopy` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
@@ -1822,12 +1770,12 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
 | `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `LoadFromFile` *(RapidR)* *(desktop)* | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
+| `LoadFromFile` *(RapidR)* | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
 | `SaveToFile` *(RapidR)* | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
 | `LoadFromPlot` *(RapidR)* | Shows an RPlot's chart as the image. |
-| `Cls` *(RapidR)* *(desktop)* | Clears the drawing area to its background color. |
-| `Load` *(RapidR)* *(desktop)* | Loads from a file: a 3D model (`.X`) into a frame or mesh builder, or a picture into an image. |
-| `Clear` *(RapidR)* *(desktop)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
+| `Cls` *(RapidR)* | Removes the picture: nothing shows. Same as `Clear`. |
+| `Load` *(RapidR)* | Loads a picture file (BMP, PNG, JPEG, ICO, SVG). Same as `LoadFromFile`. |
+| `Clear` *(RapidR)* | Removes the picture: nothing shows. Same as `Cls`. |
 
 | Event | |
 |---|---|
@@ -1848,8 +1796,8 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `ClientHeight` | int |  | The height of the area inside the borders (and a form's title bar and menu), in pixels; on `Screen`, the work area's, without the task bar. |
 | `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
-| `CopyMode` | enum | `cmBlackness` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
-| `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
+| `CopyMode` | enum |  | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
@@ -1888,7 +1836,7 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
-| `Repaint` *(desktop)* | Redraws the component. |
+| `Repaint` | Redraws the component. |
 | `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` *(not yet)* | Rotates the picture by `Angle` degrees around (`xOrigin`, `yOrigin`). |
 | `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
 | `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
@@ -1902,10 +1850,10 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `DrawText(x, y, text, [color])` *(RapidR)* | Draws text at (x, y). Optional color argument (RGB integer). |
 | `SetFont(family, [size])` *(RapidR)* | Sets the font used by subsequent DrawText calls. On the web runtime this maps to ctx.font = "<size>px <family>". Default size 12. |
 | `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
-| `Refresh` *(RapidR)* *(desktop)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Update` *(RapidR)* *(desktop)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
-| `Show` *(RapidR)* *(desktop)* | Shows the component or form; a data-science object prints its contents. |
-| `Hide` *(RapidR)* *(desktop)* | Makes the component or form invisible; it stays loaded. |
+| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `Update` *(RapidR)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
+| `Show` *(RapidR)* | Shows the component or form; a data-science object prints its contents. |
+| `Hide` *(RapidR)* | Makes the component or form invisible; it stays loaded. |
 | `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
 | `Get` *(not yet)* | Reads by key or index: an array element, a list's string, a stored value or a CGI variable; an HTTP client fetches a URL and returns the response body. |
 | `Put` *(not yet)* | Writes pixel data onto the canvas; the counterpart of `Get`. |
@@ -1926,10 +1874,10 @@ A row of headings (sections) the user can click and resize, as above a list's co
 
 | Property | Type | Default | |
 |---|---|---|---|
-| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
+| `Align` | enum | `alTop` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
 | `ClientHeight` | int |  | The height of the area inside the borders (and a form's title bar and menu), in pixels; on `Screen`, the work area's, without the task bar. |
 | `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
-| `CopyMode` | enum | `cmBlackness` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `CopyMode` | enum | `cmSrcCopy` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
@@ -1974,17 +1922,17 @@ A row of headings (sections) the user can click and resize, as above a list's co
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
-| `Repaint` *(desktop)* | Redraws the component. |
+| `Repaint` | Redraws the component. |
 | `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
 | `StretchDraw(Rect AS QRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
 | `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `Refresh` *(RapidR)* *(desktop)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Update` *(RapidR)* *(desktop)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
-| `Show` *(RapidR)* *(desktop)* | Shows the component or form; a data-science object prints its contents. |
-| `Hide` *(RapidR)* *(desktop)* | Makes the component or form invisible; it stays loaded. |
+| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `Update` *(RapidR)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
+| `Show` *(RapidR)* | Shows the component or form; a data-science object prints its contents. |
+| `Hide` *(RapidR)* | Makes the component or form invisible; it stays loaded. |
 | `Rect` *(RapidR)* | Draws the outline of a rectangle. Same as `Rectangle`. |
 | `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
 | `FillCircle` *(RapidR)* | Draws a filled circle of radius `r` around (`cx`, `cy`), in the brush color or the color given. |
@@ -2034,11 +1982,6 @@ Windows' classic progress bar: a sunken bar filled in blocks from Min to Max at 
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
 
-| Method | |
-|---|---|
-| `Click` *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
-
 <a id="rprogressbar"></a>
 ## RPROGRESSBAR (QGAUGE)
 
@@ -2057,14 +2000,14 @@ RapidQ's gauge (QGAUGE): shows progress from Min to Max at Position as a bar, a 
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
 | `Kind` | enum | `gkHorizontalBar` | What it is: a gauge's shape (`gkHorizontalBar`, `gkPie` …), a button's stock kind (`bkOK` gives caption, glyph and ModalResult), a scroll bar's direction. |
-| `Left` | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
 | `Max` | int | 100 | The highest value of the progress bar, scroll bar, up-down or track bar. |
 | `Min` | int | 0 | The lowest value of the progress bar, scroll bar, up-down or track bar. |
 | `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `Position` | int | 0 | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `ShowText` | bool | True | Shows the percentage on the gauge. |
-| `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Visible` | bool | True | Whether the control or form is shown. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `PopupMenu` | component |  | The popup menu shown when the user right-clicks the control. |
@@ -2080,8 +2023,6 @@ RapidQ's gauge (QGAUGE): shows progress from Min to Max at Position as a bar, a 
 |---|---|
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 <a id="rdesignsurface"></a>
 ## RDESIGNSURFACE
@@ -2099,6 +2040,12 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `FormCaption` | string |  | The caption of the form being designed. |
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `Count` | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
+| `SelCount` (read-only) | int |  | How many components are selected (Shift / Ctrl+click, a rubber band). |
+| `PreviewWidth` | int |  | The resize preview: the designed form shown this wide, its components where the running program puts them (Align, Anchors, Constraints); 0 ends the preview. Dragging the form's corner does the same. |
+| `PreviewHeight` | int |  | The resize preview's height (see PreviewWidth); 0 ends the preview. |
+| `ShowGuides` | bool | True | Whether a drag snaps to and shows smart guides: siblings' edges, centres and baselines, the form's centre lines, margins, equal spacing (Alt suspends snapping). |
+| `SnapToGrid` | bool | True | Whether moves and resizes snap to the grid where no guide is near. |
+| `GridSize` | int | 8 | The grid's step in pixels. |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -2123,8 +2070,12 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `GetCompY` | Returns the top position of the component at the index given on the design surface. |
 | `GetCompW` | Returns the width of the component at the index given on the design surface. |
 | `GetCompH` | Returns the height of the component at the index given on the design surface. |
-| `Show` *(desktop)* | Shows the component or form; a data-science object prints its contents. |
-| `Hide` *(desktop)* | Makes the component or form invisible; it stays loaded. |
+| `Undo AS INTEGER` | Undoes the last change to the designed form (a move, a resize, a property, an added or removed component); True if there was one. |
+| `Redo AS INTEGER` | Does again the last change undone; True if there was one. |
+| `AlignSelection(How AS STRING)` | Lines the selected components up with the first selected: "left", "center", "right", "top", "middle" or "bottom" (one undo step). |
+| `SelectAdd(Index AS INTEGER)` | Adds component Index to the selection (as Shift+click). |
+| `Show` | Shows the component or form; a data-science object prints its contents. |
+| `Hide` | Makes the component or form invisible; it stays loaded. |
 
 | Event | |
 |---|---|
@@ -2144,8 +2095,8 @@ A seven-segment LED display (QDigDisplay.inc) showing the digits and signs of it
 | `ClientHeight` | int |  | The height of the area inside the borders (and a form's title bar and menu), in pixels; on `Screen`, the work area's, without the task bar. |
 | `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
-| `CopyMode` | enum | `cmBlackness` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
-| `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
+| `CopyMode` | enum |  | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
 | `Height` | int | 24 | The height, in pixels; on `Screen`, the screen's. |
@@ -2182,8 +2133,6 @@ A seven-segment LED display (QDigDisplay.inc) showing the digits and signs of it
 | `Cls` *(RapidR)* | Clears the drawing area to its background color. |
 | `DrawText` *(RapidR)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 | `SetFont` *(RapidR)* | Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -2205,7 +2154,7 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `BorderStyle` | enum | `bsSingle` | The border: one of the `bsXXX` constants. On a form, `bsSizeable` lets the user resize it, `bsDialog` doesn't, `bsNone` has no title bar. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Columns` | int | 0 | On a list box, how many columns the items flow into (0: one, scrolling down); on a list view, the column count; on a data frame, the column names, comma-separated. |
-| `CopyMode` | enum | `cmBlackness` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `CopyMode` | enum | `cmSrcCopy` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `ExtendedSelect` | bool | True | With `MultiSelect`, lets Shift and Ctrl clicks select a range or add items. |
@@ -2255,16 +2204,16 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | Method | |
 |---|---|
 | `AddItems(Items, …)` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
-| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`. |
+| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `CopyRect(D, Image, S)` *(not yet)* | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
 | `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
-| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(desktop)* | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
+| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
 | `InsertItem(Index AS INTEGER, String AS STRING)` | Inserts an item with text `String` before position `Index`. |
-| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(desktop)* | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
+| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
 | `LoadFromFile(FileName AS STRING)` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
-| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` *(desktop)* | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
+| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with `c` up to the border colour `borderc`, on the pixels drawn so far: in an owner-drawn list's OnDrawItem the item, on a list box that isn't owner-drawn the list (as `Line` and the rest). |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` *(not yet)* | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(not yet)* | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
@@ -2279,16 +2228,10 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `DeleteItem` *(RapidR)* | Removes the item at the index given. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Rect` *(RapidR)* *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* *(desktop)* | Sets one pixel to a color. Same as `Pset`. |
-| `Ellipse` *(RapidR)* *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `DrawText` *(RapidR)* *(desktop)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 | `AddString` *(RapidR)* | Appends one string as a new item or line. |
 | `DeleteItems` *(RapidR)* | Removes the items at the indexes given. |
 | `RemoveItem` *(RapidR)* | Removes the item at the index given. |
 | `Find` *(RapidR)* | Searches the items for a string and returns the index of the match (-1 when there is none). |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -2361,8 +2304,6 @@ A list of the files in a folder that match Mask, for picking a file.
 | `RemoveItem` *(RapidR)* | Removes the item at the index given. |
 | `Find` *(RapidR)* | Searches the items for a string and returns the index of the match (-1 when there is none). |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -2394,7 +2335,7 @@ A tree of drives and folders for picking a folder (Directory).
 | `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
 | `ReadOnly` | bool | False | Stops the user changing the text or items; they can still select and copy. |
-| `ReadOnStart` | bool | False | Reads the folder tree as the program starts rather than when it's first shown. |
+| `ReadOnStart` | bool | True | Reads the folder tree as the program starts rather than when it's first shown. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
@@ -2420,8 +2361,6 @@ A tree of drives and folders for picking a folder (Directory).
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `DelDriveTypes` | Removes kinds of drives from those the tree lists. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -2513,7 +2452,7 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
 | `LoadFromFile(File AS STRING, RowOffset AS INTEGER, ColOffset AS INTEGER, MaxRows AS INTEGER)` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
 | `LoadFromStream(S AS QFILESTREAM, RowOffset AS INTEGER, ColOffset AS INTEGER, MaxRows AS INTEGER)` | Loads the component's contents from an open stream. |
-| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` *(desktop)* | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
+| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with `c` up to the border colour `borderc` in OnDrawCell: on the cell as the grid drew it and the handler's drawing so far. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
@@ -2535,17 +2474,11 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `SetColCount` *(RapidR)* | Sets the number of columns, adding or removing them at the end. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
-| `Rect` *(RapidR)* *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* *(desktop)* | Sets one pixel to a color. Same as `Pset`. |
-| `Ellipse` *(RapidR)* *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `DrawText` *(RapidR)* *(desktop)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 | `MoveCol` *(RapidR)* | Moves a column to another position; those between shift over. Same as `MoveColumn`. |
 | `MoveColumn` *(RapidR)* | Moves a column to another position; those between shift over. Same as `MoveCol`. |
 | `MoveRow` *(RapidR)* | Moves a row to another position; those between shift over. |
 | `SetSuggestions` *(RapidR)* | Sets the suggestions offered while a cell is edited, one per line. |
 | `DeleteColumn` *(not yet)* | Removes a column from the grid. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -2591,7 +2524,7 @@ A tree of nodes the user expands, collapses and selects, with a picture per node
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `ShowLines` | bool | True | Draws lines joining the nodes to their parents. |
 | `ShowRoot` | bool | True | Draws lines and buttons for the top-level nodes too. |
-| `SortType` | enum | `stText` | `stText` sorts the items by their text; `stNone` keeps them as added. |
+| `SortType` | enum | `stNone` | `stText` sorts the items by their text; `stNone` keeps them as added. |
 | `StateImages` (write-only) | component |  | The image list of the state pictures (check marks …) drawn beside the items; write-only. |
 | `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
 | `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
@@ -2651,8 +2584,8 @@ A tree of nodes the user expands, collapses and selects, with a picture per node
 | `DelOptions(Items, …)` | Turns off the option flags given. |
 | `Insert(Index AS INTEGER, String AS STRING)` | Inserts at a position: a node or string before index `Index`, or menu item `Item` at position `I`. |
 | `AddItem` *(RapidR)* | Appends one item (a list entry, line, node or menu item) to the component. |
-| `Show` *(RapidR)* *(desktop)* | Shows the component or form; a data-science object prints its contents. |
-| `Hide` *(RapidR)* *(desktop)* | Makes the component or form invisible; it stays loaded. |
+| `Show` *(RapidR)* | Shows the component or form; a data-science object prints its contents. |
+| `Hide` *(RapidR)* | Makes the component or form invisible; it stays loaded. |
 | `DelItem` *(RapidR)* | Removes the node at the index given. |
 | `AlphaSort` *(RapidR)* | Sorts the nodes alphabetically. Same as `Sort`. |
 | `AddRoot` *(RapidR)* | Adds a top-level node with the given text. Same as `AddNode`. |
@@ -2753,17 +2686,9 @@ A list of items with columns of sub-items, shown as icons, a list or a report wi
 | `InsertItem(Index AS INTEGER, String AS STRING)` | Inserts an item with text `String` before position `Index`. |
 | `InsertSubItem(Index AS INTEGER, SubIndex AS INTEGER, String AS STRING)` | Inserts sub-item text `String` at column `SubIndex` of the item at `Index`. |
 | `SwapItem(Index1 AS INTEGER, Index2 AS INTEGER)` | Swaps the items at `Index1` and `Index2`. |
-| `AddItem` *(RapidR)* *(desktop)* | Appends one item (a list entry, line, node or menu item) to the component. |
-| `DeleteItem` *(RapidR)* *(desktop)* | Removes the item at the index given. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Rect` *(RapidR)* *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* *(desktop)* | Sets one pixel to a color. Same as `Pset`. |
-| `Ellipse` *(RapidR)* *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `DrawText` *(RapidR)* *(desktop)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -2800,8 +2725,8 @@ One menu entry: a command (OnClick), a checkable option, a separator ("-") or a 
 
 | Property | Type | Default | |
 |---|---|---|---|
-| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
-| `Checked` | int |  | True when the check box, radio button or menu item is checked. |
+| `Caption` | string | `""` | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
+| `Checked` | int | False | True when the check box, radio button or menu item is checked. |
 | `Command` (read-only) | int |  | The menu item's command number, as the system identifies it; read-only. |
 | `Count` (read-only) | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
@@ -2848,7 +2773,6 @@ A context menu, shown when the user right-clicks a component whose PopupMenu it 
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
 | `Insert(I AS INTEGER, Item AS QMENUITEM)` | Inserts at a position: a node or string before index `Index`, or menu item `Item` at position `I`. |
 | `Popup(X AS INTEGER, Y AS INTEGER)` | Shows the popup menu at screen point (`X`, `Y`). |
-| `AddItem` *(RapidR)* *(desktop)* | Appends one item (a list entry, line, node or menu item) to the component. |
 | `Clear` *(RapidR)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `Add` *(RapidR)* | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
 
@@ -2863,12 +2787,13 @@ The system's Open dialog: Execute shows it and returns whether the user chose a 
 
 | Property | Type | Default | |
 |---|---|---|---|
-| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
-| `FileName` | string |  | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
-| `Filter` | string |  | The file types offered, as description\|patterns pairs (`Text\|*.txt\|All Files\|*.*`), patterns split by `;`. |
+| `PickFolder` *(RapidR)* | bool | False | Execute chooses a folder instead of a file; FileName is the folder (on the web its files are read in, and saving one writes it back). |
+| `Caption` | string | `""` | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
+| `FileName` | string | `""` | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
+| `Filter` | string | `""` | The file types offered, as description\|patterns pairs (`Text\|*.txt\|All Files\|*.*`), patterns split by `;`. |
 | `FilterIndex` | int | 1 | Which filter is selected, from 1. |
-| `InitialDir` | string |  | The folder the dialog or tree starts in. |
-| `Title` *(RapidR)* | string |  | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
+| `InitialDir` | string | `""` | The folder the dialog or tree starts in. |
+| `Title` *(RapidR)* | string | `""` | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
 | `DefaultExt` *(RapidR)* | string |  | The extension added to a file name typed without one (`txt`, no dot). |
 
 | Method | |
@@ -2882,12 +2807,12 @@ The system's Save dialog: Execute shows it and returns whether the user chose a 
 
 | Property | Type | Default | |
 |---|---|---|---|
-| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
-| `FileName` | string |  | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
-| `Filter` | string |  | The file types offered, as description\|patterns pairs (`Text\|*.txt\|All Files\|*.*`), patterns split by `;`. |
+| `Caption` | string | `""` | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
+| `FileName` | string | `""` | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
+| `Filter` | string | `""` | The file types offered, as description\|patterns pairs (`Text\|*.txt\|All Files\|*.*`), patterns split by `;`. |
 | `FilterIndex` | int | 1 | Which filter is selected, from 1. |
-| `InitialDir` | string |  | The folder the dialog or tree starts in. |
-| `Title` *(RapidR)* | string |  | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
+| `InitialDir` | string | `""` | The folder the dialog or tree starts in. |
+| `Title` *(RapidR)* | string | `""` | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
 | `DefaultExt` *(RapidR)* | string |  | The extension added to a file name typed without one (`txt`, no dot). |
 
 | Method | |
@@ -2902,20 +2827,20 @@ RAPIDQ2.INC's file dialog: one component for Open and Save (Mode), with several 
 | Property | Type | Default | |
 |---|---|---|---|
 | `Caption` | string | `"Open"` | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
-| `DefaultExt` | string |  | The extension added to a file name typed without one (`txt`, no dot). |
-| `FileName` | string |  | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
-| `FileTitle` (read-only) | string |  | The chosen file's name without its folder; read-only. |
+| `DefaultExt` | string | `""` | The extension added to a file name typed without one (`txt`, no dot). |
+| `FileName` | string | `""` | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
+| `FileTitle` (read-only) | string | `""` | The chosen file's name without its folder; read-only. |
 | `Files` | string |  | With `MultiSelect`, the files picked: `Files(0)` is the folder, `Files(1)` on the names. |
 | `Filter` | string | `"All Files|*.*"` | The file types offered, as description\|patterns pairs (`Text\|*.txt\|All Files\|*.*`), patterns split by `;`. |
-| `FilterIndex` | int | 1 | Which filter is selected, from 1. |
-| `InitialDir` | string |  | The folder the dialog or tree starts in. |
-| `Mode` | int |  | On a file dialog, 0 to open or 1 to save; on a wave, the channels of a new recording (1 mono, 2 stereo). |
+| `FilterIndex` | int | 0 | Which filter is selected, from 1. |
+| `InitialDir` | string | `""` | The folder the dialog or tree starts in. |
+| `Mode` | int | 0 | On a file dialog, 0 to open or 1 to save; on a wave, the channels of a new recording (1 mono, 2 stereo). |
 | `MultiSelect` | bool | False | Lets the user select more than one item or file. |
 | `NoChangeDir` | bool | False | Puts the current folder back as it was after the dialog closes. |
 | `Parent` | int |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `SelCount` (read-only) | int | 0 | How many items (or files) are selected. |
 | `WarnIfOverWrite` | bool | True | Asks before saving over a file that's already there. |
-| `Title` *(RapidR)* | string |  | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
+| `Title` *(RapidR)* | string | `""` | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
 
 | Method | |
 |---|---|
@@ -2978,7 +2903,7 @@ Runs its OnTimer handler every Interval milliseconds while Enabled.
 | Property | Type | Default | |
 |---|---|---|---|
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Interval` | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
+| `Interval` | int | 1000 | The milliseconds between a timer's ticks; on a media object, between its position updates. |
 | `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
 
 | Event | |
@@ -3007,9 +2932,9 @@ A file opened to read and write: lines, numbers, strings, arrays and UDTs, at a 
 | `EOF` (read-only) | int |  | Non-zero when the read position is at the end of the stream; read-only. |
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `LineCount` (read-only) | int |  | The number of lines of text (on a tree, of nodes). |
-| `Position` | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
-| `Size` (read-only) | int |  | A size: of a font, in points; of a file, stream, sound or download, in bytes; of an array, its number of values. |
-| `FileName` *(RapidR)* | string |  | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
+| `Position` | int | 0 | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
+| `Size` (read-only) | int | 0 | A size: of a font, in points; of a file, stream, sound or download, in bytes; of an array, its number of values. |
+| `FileName` *(RapidR)* | string | `""` | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
 | `Text` *(RapidR)* | string |  | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
 
 | Method | |
@@ -3101,7 +3026,7 @@ A printer: BeginDoc, draw pages with the canvas methods and NewPage, then EndDoc
 |---|---|---|---|
 | `Aborted` (read-only) | int |  | Non-zero when the current print job was cancelled with `Abort`; read-only. |
 | `Copies` | int |  | How many copies to print. |
-| `CopyMode` | enum | `cmBlackness` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `CopyMode` | enum | `cmSrcCopy` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
 | `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
 | `Fonts` (read-only) | string |  | A printer font's name, `Fonts(i)` from 0; read-only. |
 | `FontsCount` (read-only) | int |  | The number of printer fonts; read-only. |
@@ -3183,9 +3108,9 @@ Parses and builds JSON: get and set values by dotted path, list keys, pretty-pri
 
 | Property | Type | Default | |
 |---|---|---|---|
-| `Text` | string |  | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
-| `FileName` | string |  | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
-| `Count` | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
+| `Text` | string | `""` | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
+| `FileName` | string | `""` | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
+| `Count` | int | 0 | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
 
 | Method | |
 |---|---|
@@ -3265,7 +3190,7 @@ A stream in memory: write and read text, numbers and binary data as in a file, w
 | `ReadAll` *(RapidR)* | Returns the rest of the stream as text. |
 | `Writeln` *(RapidR)* | Writes text followed by a line end. Same as `WriteLine`. |
 | `Readln` *(RapidR)* | Reads one line of text, without its line end. Same as `ReadLine`. |
-| `Clear` *(desktop)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
+| `Clear` | Empties the stream: `Size` and `Position` 0. |
 | `LoadUdtArray` *(not yet)* | Reads an array of user-defined types from the stream. |
 | `SaveUdtArray` *(not yet)* | Writes an array of user-defined types to the stream. |
 | `SetSize` *(not yet)* | Sets the stream's size in bytes, cutting or growing it. |
@@ -3279,7 +3204,7 @@ A picture in memory to draw on and draw from: load and save images, draw with th
 |---|---|---|---|
 | `BMP` | picture |  | The picture shown, from a .BMP file name; on a button, its glyph. |
 | `BMPHandle` (write-only) | resource |  | Sets the picture from a resource handle (`$RESOURCE`) instead of a file; write-only. |
-| `CopyMode` | enum | `cmBlackness` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `CopyMode` | enum | `cmSrcCopy` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
 | `Empty` (read-only) | int |  | Non-zero when the data frame has no rows, or the bitmap holds no picture; read-only. |
 | `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
 | `Handle` | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
@@ -3319,10 +3244,6 @@ A picture in memory to draw on and draw from: load and save images, draw with th
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
 | `TextRect(Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `Rect` *(RapidR)* *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* *(desktop)* | Sets one pixel to a color. Same as `Pset`. |
-| `Ellipse` *(RapidR)* *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `DrawText` *(RapidR)* *(desktop)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 | `LoadIcon(Name AS STRING, [Size AS INTEGER], [Theme AS STRING])` *(RapidR)* | Loads one of RapidR's own icons (an icon name such as "run", a component type, a command id), Size pixels square (16 if left out), in the current theme's colours or Theme's; crisp at every screen scale. |
 
 <a id="rimagelist"></a>
@@ -3516,7 +3437,7 @@ A TCP client socket: connect to a host and port, then read and write text or byt
 <a id="rserversocket"></a>
 ## RSERVERSOCKET
 
-A TCP server: listens on a port, accepts clients and exchanges data with them. RapidR's own; desktop only.
+A TCP server: listens on a port, accepts clients and exchanges data with them. RapidR's own; desktop only: a web page can't listen for network connections (a browser lets it open WebSockets and HTTP requests, never a port of its own).
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -3606,13 +3527,13 @@ A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then
 |---|---|---|---|
 | `BytesNotRead` (read-only) | int |  | Bytes received but not yet read, as the last read or write saw them; read-only. |
 | `BytesNotWritten` (read-only) | int |  | Bytes still waiting to be sent, as the last read or write saw them; read-only. |
-| `BaudRate` | enum | `br110` | The serial line's speed: a `brXXX` constant (`br9600` …) or the rate itself in bits per second. |
+| `BaudRate` | int | 9600 | The serial line's speed: a `brXXX` constant (`br9600` …) or the rate itself in bits per second. |
 | `Connected` (read-only) | int |  | Non-zero while the connection (database, serial port, socket) is open, or while the joystick is plugged in. |
 | `DataBits` | int | 8 | Bits per character on the serial line (5 to 8). |
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Parity` | enum | `prNone` | The serial line's parity check: `prNone`, `prOdd`, `prEven`, `prMark` or `prSpace`. |
 | `ReadBufSize` | int | 1024 | The size of the serial port's receive buffer, in bytes, read at `Open`. |
-| `StopBits` | enum | `sbOneStopBit` | The serial line's stop bits: `sbOneStopBit`, `sbOne5StopBits` or `sbTwoStopBits`. |
+| `StopBits` | int | 1 | The serial line's stop bits: `sbOneStopBit`, `sbOne5StopBits` or `sbTwoStopBits`. |
 | `WriteBufSize` | int | 1024 | The size of the serial port's send buffer, in bytes, read at `Open`. |
 | `Port` | any |  | The network port; on a serial port, its name (`COM1`) or number. |
 | `DcbFlags` *(RapidR)* | int |  | The serial port's flow-control flag bits, read at `Open`: 20625 none, 24725 hardware, 21393 XON / XOFF. |
@@ -3771,7 +3692,7 @@ Plays an AVI video with its sound (QVideo.inc), on a form or in a window of its 
 | `AudioOff` | bool | False | True mutes the video's sound track. |
 | `Error` (read-only) | string |  | The device's error text after an `Open` that failed; empty otherwise; read-only. |
 | `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
-| `BorderStyle` | enum | `bsSizeable` | The border: one of the `bsXXX` constants. On a form, `bsSizeable` lets the user resize it, `bsDialog` doesn't, `bsNone` has no title bar. |
+| `BorderStyle` | enum | `bsNone` | The border: one of the `bsXXX` constants. On a form, `bsSizeable` lets the user resize it, `bsDialog` doesn't, `bsNone` has no title bar. |
 | `WindowState` | enum | `wsNormal` | `wsNormal`, `wsMinimized` or `wsMaximized`. |
 | `Volume` | int | 0 | The loudness: 0 to 100 on media objects and DirectX sounds; 0 to 1 on web audio and video. |
 | `Interval` *(RapidR)* | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
@@ -3836,7 +3757,7 @@ A DirectX drawing surface on a form, for games and animation: draw the next fram
 | Property | Type | Default | |
 |---|---|---|---|
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
-| `AllowStretch` | bool | True | Whether the back buffer is stretched to fill the control when their sizes differ. |
+| `AllowStretch` | bool | False | Whether the back buffer is stretched to fill the control when their sizes differ. |
 | `AutoSize` | bool | True | Makes the control fit its content: a label its text, an image its picture, an edit its font's height; a DirectX screen's buffer follows the control's size. |
 | `BitCount` | int | 8 | The colour depth of the full-screen display mode, in bits per pixel (8, 16, 24 or 32). |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
@@ -3846,13 +3767,13 @@ A DirectX drawing surface on a form, for games and animation: draw the next fram
 | `FullScreen` | bool | False | Takes the whole screen in the display mode `BitCount` and the size give. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
-| `Left` | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
 | `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
-| `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Use3D` | bool | False | Sets the DirectX screen up for Direct3D drawing. |
-| `UseHardware` | bool | True | Uses the graphics card's acceleration when it can. |
+| `UseHardware` | bool | -1 | Uses the graphics card's acceleration when it can. |
 | `Visible` | bool | True | Whether the control or form is shown. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
@@ -3907,15 +3828,9 @@ A DirectX drawing surface on a form, for games and animation: draw the next fram
 | `SetRenderMode(M AS INTEGER)` | Sets the 3D view's rendering mode flags. |
 | `SetVelocity(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE, R AS INTEGER)` | Sets the velocity (`X`, `Y`, `Z`) a frame moves by each time step of `Move`; a DirectX screen sets its camera's. |
 | `SetTextureQuality(Quality AS INTEGER)` | Sets how textures are filtered when drawn. |
-| `Rect` *(RapidR)* *(desktop)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* *(desktop)* | Sets one pixel to a color. Same as `Pset`. |
-| `Ellipse` *(RapidR)* *(desktop)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `DrawText` *(RapidR)* *(desktop)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 | `Render` | Draws the scene: a DirectX screen draws its 3D view; on the web a chart is drawn (as `SaveFig`). |
 | `CreateAnimation` *(not yet)* | Creates a Direct3D animation, a frame's motion between key positions. |
 | `CreateAnimationSet` *(not yet)* | Creates a Direct3D animation set, animations played together. |
-| `Click` *(RapidR)* *(desktop)* | Runs the control's OnClick handler, as a click would. |
-| `SetParent(Parent)` *(RapidR)* *(desktop)* | Moves the control into another form or container: the same as setting Parent. |
 
 | Event | |
 |---|---|
@@ -3955,7 +3870,7 @@ A frame timer for DirectX animation: OnTimer fires at FrameRate (Interval 0: onc
 | `ActiveOnly` | bool | True | When true, the timer pauses while the application isn't the active one. |
 | `Enabled` | bool | False | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `FrameRate` (read-only) | int |  | How many times the timer fired in the last whole second; read-only. |
-| `Interval` | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
+| `Interval` | int | 1000 | The milliseconds between a timer's ticks; on a media object, between its position updates. |
 
 | Event | |
 |---|---|
@@ -3968,8 +3883,8 @@ A WAV sound played DirectSound's way: at its Frequency, Volume and Pan, once or 
 
 | Property | Type | Default | |
 |---|---|---|---|
-| `AutoUpdate` | bool | True | Keeps the sound's buffer filled by itself while it streams. |
-| `BufferLength` | int | 1000 | The length of the sound's streaming buffer, in milliseconds. |
+| `AutoUpdate` | bool | False | Keeps the sound's buffer filled by itself while it streams. |
+| `BufferLength` | int | 0 | The length of the sound's streaming buffer, in milliseconds. |
 | `FileName` | string |  | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
 | `Frequency` | int |  | On a DirectX sound, the playback rate in samples per second; on a track bar, the step between tick marks. |
 | `Looped` | bool | False | Plays the sound over and over until it's stopped. |
@@ -4389,7 +4304,7 @@ A table of named columns in pandas' style: read CSV or JSON, select, filter, sor
 <a id="rplot"></a>
 ## RPLOT
 
-A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots with labels, legends and notes, on a form or saved as a picture. RapidR's own.
+A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots with labels, legends and notes, on a form (drawn crisp at any screen scale, the same on the desktop and the web) or saved as a picture. RapidR's own.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -4441,10 +4356,10 @@ A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots
 | `Set_xlabel` | Sets the label of the x axis. Same as `SetXLabel`. |
 | `SetYLabel` | Sets the label of the y axis. |
 | `Set_ylabel` | Sets the label of the y axis. Same as `SetYLabel`. |
-| `SaveFig(filename)` | Draws the chart into a PNG file (on the web: on the page). |
+| `SaveFig(filename)` | Draws the chart into a PNG file (on the web: one of the page's files, which the program can read back or offer as a download). |
 | `Save` | Saves to a file: the chart as an image, or the recording as a WAV file. |
 | `Render` | Draws the scene: a DirectX screen draws its 3D view; on the web a chart is drawn (as `SaveFig`). |
-| `Show` | Draws the chart where it is shown (the page, on the web). |
+| `Show` | Draws the chart again where it shows: an RPLOT on a form (a chart only saved or loaded into a picture has nowhere else to show). |
 | `Figsize(width, height, [dpi])` | The size in inches at the chart's DPI. |
 | `Xlim(min, max)` | The X axis range. |
 | `Ylim(min, max)` | The Y axis range. |
@@ -4723,6 +4638,95 @@ Hash routes for single-page web apps: Navigate, Back, Forward and OnRouteChange.
 |---|---|
 | `OnRouteChange` | Fires when the page's route (the URL's # part) changes, by Navigate, Back, Forward or the browser. |
 
+<a id="rproject"></a>
+## RPROJECT
+
+A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a .bas / .rr file with the files it $INCLUDEs, RapidQ's way. Lists the project's files and their kinds, adds and removes files, saves the project file, and makes new projects from templates. RapidR Studio is built on it.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `FileName` (read-only) | string |  | The .rrproj file ("" for a source file opened without one). |
+| `Folder` (read-only) | string |  | The project's folder: its files' paths are relative to it. |
+| `Kind` (read-only) | string |  | What is open: "project" (a .rrproj), "file" (a source file and its includes), "v1" (a web IDE project, imported) or "" (nothing). |
+| `Error` (read-only) | string |  | Why the last Open, Save, New, AddFile or RemoveFile failed ("" when it worked). |
+| `Name` | string |  | The project's name. |
+| `MainFile` | string |  | The file the program starts from (relative to the folder). |
+| `FileCount` (read-only) | int |  | How many files the project has. |
+| `CompatMode` | string |  | "rapidq" for a RapidQ-compatible project (RapidR's extensions reported), else "". |
+
+| Method | |
+|---|---|
+| `Open(Path AS STRING) AS INTEGER` | Opens a .rrproj, or a .bas / .rr / .inc file with what it includes. True when it opened; Error says why not. |
+| `OpenFolder(Folder AS STRING) AS INTEGER` | Opens the project of a folder: its .rrproj, else its main source (main.rr / main.bas, the one named as the folder, the one with a form). True when it opened. |
+| `Save([Path AS STRING]) AS INTEGER` | Writes the project file (a source file's project becomes <Folder>/<Name>.rrproj, or Path). True when it was written. |
+| `New(Template AS STRING, Name AS STRING, Folder AS STRING) AS INTEGER` | A new project from a template ("console" or "gui"): main.rr and <Name>.rrproj written in Folder. |
+| `AddFile(Path AS STRING, [Kind AS STRING]) AS INTEGER` | Adds a file (its kind from its name, or Kind: module, form, include, resource, asset, data). True when it was added. |
+| `RemoveFile(Path AS STRING) AS INTEGER` | Takes a file out of the project (the file itself stays). True when it was in it. |
+| `Close` | No project is open any more. |
+| `File(Index AS INTEGER) AS STRING` | File Index's path, relative to the folder (from 0). |
+| `FileKind(Index AS INTEGER) AS STRING` | File Index's kind: module, form, include, resource, asset or data. |
+| `FullPath(Index AS INTEGER) AS STRING` | File Index's path to open it with (the folder's and its own). |
+
+| Event | |
+|---|---|
+| `OnChange` | The project was opened, saved, closed, or its files changed. |
+
+<a id="rlanguageservice"></a>
+## RLANGUAGESERVICE
+
+RapidR's language service, the one rapidr lsp and the VS Code extension use: a BASIC file's outline and its diagnostics (the compiler's own messages), as text one item a line, fields separated by tabs. Give it the editor's text with Update.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `CompatMode` | string |  | "rapidq": RapidR's extensions are reported, as in a RapidQ-compatible project. |
+| `ErrorCount` (read-only) | int |  | How many errors the last Diagnostics found. |
+
+| Method | |
+|---|---|
+| `Update(File AS STRING, Text AS STRING)` | A file's text as the editor has it (saved or not). |
+| `Close(File AS STRING)` | Forgets the editor's text of a file: it is read from its file again. |
+| `Outline(File AS STRING) AS STRING` | The file's outline, a line per item: depth, kind (sub, function, type, field, method, event, component, constant, variable, label), name, detail, line (from 1), separated by tabs. |
+| `Diagnostics(File AS STRING) AS STRING` | The file's errors and warnings, a line each: severity (error, warning, note), line, column (from 1), message, file, separated by tabs. |
+
+<a id="rprogramsession"></a>
+## RPROGRAMSESSION
+
+A run of a program under development, as an IDE runs it: in its own process on the desktop (its forms real windows), in a sandboxed frame on the web. Start, stop, pause, step, breakpoints, evaluate; its output and its stops come as events.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Program` | string |  | The source file to run (saved). |
+| `Args` | string |  | Its command line arguments, as COMMAND$ reads them (spaces separate them, quotes keep spaces). |
+| `Debug` | bool | True | Run under the debugger: breakpoints stop it, stepping works. |
+| `BreakOnError` | bool | False | Stop at the statement of a run-time error. |
+| `State` (read-only) | string |  | "stopped", "running" or "paused". |
+| `CurrentFile` (read-only) | string |  | Where the program is paused: its file. |
+| `CurrentLine` (read-only) | int |  | Where the program is paused: its line (from 1; 0 when not paused). |
+| `ExitCode` (read-only) | int |  | The last run's exit code. |
+| `Error` (read-only) | string |  | Why the last Start (or another request) failed. |
+
+| Method | |
+|---|---|
+| `Start AS INTEGER` | Runs Program. True when it started; Error says why not. |
+| `Stop` | Ends the program at once. |
+| `Pause AS INTEGER` | Pauses the program at its next statement. |
+| `Continue AS INTEGER` | Lets a paused program go on. |
+| `StepIn AS INTEGER` | Runs one statement, into a SUB or FUNCTION it calls. |
+| `StepOver AS INTEGER` | Runs one statement, a call whole. |
+| `StepOut AS INTEGER` | Runs to the end of the SUB or FUNCTION and stops after its call. |
+| `SetBreakpoint(File AS STRING, Line AS INTEGER, [Condition AS STRING]) AS INTEGER` | A breakpoint at a line (from 1) of a file, with a condition or not. |
+| `ClearBreakpoint(File AS STRING, Line AS INTEGER) AS INTEGER` | Removes a breakpoint. |
+| `Evaluate(Expr AS STRING) AS STRING` | Evaluates in the paused program: "? expression" gives its value, a statement runs (the Immediate window's). |
+| `Input(Text AS STRING) AS INTEGER` | A line for the program's INPUT. |
+
+| Event | |
+|---|---|
+| `OnOutput(Text AS STRING)` | The program printed Text (PRINT, errors). |
+| `OnStopped(Reason AS STRING, File AS STRING, Line AS INTEGER)` | The program paused: at a breakpoint, a step's end, a pause, a run-time error. |
+| `OnContinue` | A paused program goes on. |
+| `OnExit(Code AS INTEGER)` | The program ended, with its exit code. |
+| `OnFormShown(Id AS STRING)` | The program showed a form. |
+
 <a id="screen"></a>
 ## Screen
 
@@ -4779,6 +4783,7 @@ The running program: its file and folder, title, icon, hint settings, RapidR's T
 | `HelpJump(JumpID AS STRING)` *(not yet)* | Opens the program's help file at the topic `JumpID`. |
 | `Minimize` | Minimizes the program's windows. |
 | `Terminate` | Ends it: stops the thread, or ends the program. |
+| `ThemeColor(Name AS STRING) AS LONG` *(RapidR)* | A colour of the current theme by name, as a RapidQ colour (&HBBGGRR): the theme's own ("face", "window", "accent" …) and an IDE's ("toolbar", "statusbar", "statusbar.running", "page.link", "editor.keyword" …); -1 for a name no theme has. Read it again after setting Theme. |
 | `GetPriority` *(not yet)* | Returns the program's process priority. |
 | `SetPriority(Priority AS LONG) AS VARIANT` *(not yet)* | Sets the program's process priority. |
 

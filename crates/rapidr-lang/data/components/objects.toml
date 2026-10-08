@@ -9,7 +9,7 @@ default_event = "OnTimer"
 doc = "Runs its OnTimer handler every Interval milliseconds while Enabled."
 properties = [
   { name = "Enabled", type = "bool", default = true },
-  { name = "Interval", type = "int" },
+  { name = "Interval", type = "int", default = 1000 },
   { name = "Tag", type = "int" },
 ]
 methods = []
@@ -40,9 +40,9 @@ properties = [
   { name = "EOF", type = "int", access = "read", design = false },
   { name = "Handle", type = "int", access = "read", design = false },
   { name = "LineCount", type = "int", access = "read", design = false },
-  { name = "Position", type = "int" },
-  { name = "Size", type = "int", access = "read", design = false },
-  { name = "FileName", type = "string", origin = "rapidr" },
+  { name = "Position", type = "int", default = 0 },
+  { name = "Size", type = "int", access = "read", design = false, default = 0 },
+  { name = "FileName", type = "string", origin = "rapidr", default = "" },
   { name = "Text", type = "string", origin = "rapidr" },
 ]
 methods = [
@@ -68,7 +68,7 @@ methods = [
   { name = "Download", value = true, origin = "rapidr", only = "web" },
   { name = "PickFile", value = true, origin = "rapidr", only = "web" },
   { name = "LoadFromUrl", value = true, origin = "rapidr", only = "web" },
-  { name = "ReadAll", value = true, origin = "rapidr", test = "skip: past the start it overflows (memstream.rs read: pos + usize::MAX): empty in release, a panic in debug native builds" },
+  { name = "ReadAll", value = true, origin = "rapidr" },
   { name = "Writeln", origin = "rapidr" },
   { name = "Readln", value = true, origin = "rapidr" },
   { name = "LoadUdtArray", missing = true },
@@ -134,7 +134,7 @@ doc = "A printer: BeginDoc, draw pages with the canvas methods and NewPage, then
 properties = [
   { name = "Aborted", type = "int", access = "read", design = false },
   { name = "Copies", type = "int" },
-  { name = "CopyMode", type = "enum", values = ["cmBlackness", "cmDstInvert", "cmMergeCopy", "cmMergePaint", "cmNotSrcCopy", "cmNotSrcErase", "cmPatCopy", "cmPatInvert", "cmPatPaint", "cmSrcAnd", "cmSrcCopy", "cmSrcErase", "cmSrcInvert", "cmSrcPaint", "cmWhiteness"], default = "cmBlackness" },
+  { name = "CopyMode", type = "enum", values = ["cmBlackness", "cmDstInvert", "cmMergeCopy", "cmMergePaint", "cmNotSrcCopy", "cmNotSrcErase", "cmPatCopy", "cmPatInvert", "cmPatPaint", "cmSrcAnd", "cmSrcCopy", "cmSrcErase", "cmSrcInvert", "cmSrcPaint", "cmWhiteness"], default = "cmSrcCopy" },
   { name = "Font", type = "font", access = "write", design = false },
   { name = "Fonts", type = "string", access = "read", design = false, indexed = 1 },
   { name = "FontsCount", type = "int", access = "read", design = false },
@@ -215,9 +215,9 @@ name = "RJSON"
 visual = false
 doc = "Parses and builds JSON: get and set values by dotted path, list keys, pretty-print, load and save files. RapidR's own."
 properties = [
-  { name = "Text", type = "string" },
-  { name = "FileName", type = "string" },
-  { name = "Count", type = "int" },
+  { name = "Text", type = "string", default = "" },
+  { name = "FileName", type = "string", default = "" },
+  { name = "Count", type = "int", default = 0 },
 ]
 methods = [
   { name = "Parse", params = "jsonString", value = true, doc = "Parses a JSON string into the internal store. Returns 1 on success, 0 on error." },
@@ -293,10 +293,10 @@ methods = [
   { name = "WriteBinStr", params = "string, bytes AS INTEGER" },
   { name = "WriteStr", params = "string, bytes AS INTEGER" },
   { name = "WriteUDT", params = "MyType" },
-  { name = "ReadAll", value = true, origin = "rapidr", test = "skip: past the start it overflows (memstream.rs read: pos + usize::MAX): empty in release, a panic in debug native builds" },
+  { name = "ReadAll", value = true, origin = "rapidr" },
   { name = "Writeln", origin = "rapidr" },
   { name = "Readln", value = true, origin = "rapidr" },
-  { name = "Clear", value = true, only = "desktop" },
+  { name = "Clear", value = true, doc = "Empties the stream: `Size` and `Position` 0." },
   { name = "LoadUdtArray", missing = true },
   { name = "SaveUdtArray", missing = true },
   { name = "SetSize", missing = true },
@@ -311,7 +311,7 @@ doc = "A picture in memory to draw on and draw from: load and save images, draw 
 properties = [
   { name = "BMP", type = "picture" },
   { name = "BMPHandle", type = "resource", access = "write", design = false },
-  { name = "CopyMode", type = "enum", values = ["cmBlackness", "cmDstInvert", "cmMergeCopy", "cmMergePaint", "cmNotSrcCopy", "cmNotSrcErase", "cmPatCopy", "cmPatInvert", "cmPatPaint", "cmSrcAnd", "cmSrcCopy", "cmSrcErase", "cmSrcInvert", "cmSrcPaint", "cmWhiteness"], default = "cmBlackness" },
+  { name = "CopyMode", type = "enum", values = ["cmBlackness", "cmDstInvert", "cmMergeCopy", "cmMergePaint", "cmNotSrcCopy", "cmNotSrcErase", "cmPatCopy", "cmPatInvert", "cmPatPaint", "cmSrcAnd", "cmSrcCopy", "cmSrcErase", "cmSrcInvert", "cmSrcPaint", "cmWhiteness"], default = "cmSrcCopy" },
   { name = "Empty", type = "int", access = "read", design = false },
   { name = "Font", type = "font", access = "write", design = false },
   { name = "Handle", type = "int", design = false },
@@ -350,10 +350,6 @@ methods = [
   { name = "TextWidth", params = "Text AS STRING", returns = "WORD" },
   { name = "TextRect", params = "Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", missing = true },
   { name = "TextOut", params = "x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER" },
-  { name = "Rect", value = true, origin = "rapidr", only = "desktop" },
-  { name = "SetPixel", value = true, origin = "rapidr", only = "desktop" },
-  { name = "Ellipse", value = true, origin = "rapidr", only = "desktop" },
-  { name = "DrawText", value = true, origin = "rapidr", only = "desktop" },
   { name = "LoadIcon", params = "Name AS STRING, [Size AS INTEGER], [Theme AS STRING]", origin = "rapidr", doc = "Loads one of RapidR's own icons (an icon name such as \"run\", a component type, a command id), Size pixels square (16 if left out), in the current theme's colours or Theme's; crisp at every screen scale." },
 ]
 events = []

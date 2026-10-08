@@ -4,9 +4,10 @@
 //! the front; the kernel emits the front as an `Op::Image` named by the
 //! screen's id with its drawing revision (`canvas::shown` converts it again
 //! only when a Flip changed it), so a frame that flipped nothing copies
-//! nothing. With AllowStretch (RapidQ's default) the picture fills the
-//! control, as DelphiX stretched its surface onto the window; without, it
-//! shows at its own size at the top left over black.
+//! nothing. With AllowStretch the picture fills the control, as DelphiX
+//! stretched its surface onto the window; without (RapidQ's default: RC.EXE
+//! reads 0 — AutoSize keeps the surface the control's size anyway), it shows
+//! at its own size at the top left over black.
 //!
 //! It never takes the focus (a TCustomControl: keys go to the form, as
 //! RapidQ's DirectX examples expect of Form.OnKeyDown); OnClick and
@@ -84,14 +85,14 @@ mod tests {
 
     /// Nothing drawn shows until a Flip; a frame without one keeps the
     /// same picture (revision); AllowStretch fills the control, without it
-    /// the surface shows at its own size.
+    /// (RapidQ's default) the surface shows at its own size.
     #[test]
     fn shows_the_last_flip() {
         set_display_scale(1.0);
         let mut s = MemStore::new();
         s.add("dxform", "RFORM", None).set("dxform", "width", v_int(200)).set("dxform", "height", v_int(150));
         s.add("dxs", "RDXSCREEN", Some("dxform"));
-        for (p, v) in [("left", 0), ("top", 0), ("width", 160), ("height", 120)] {
+        for (p, v) in [("left", 0), ("top", 0), ("width", 160), ("height", 120), ("allowstretch", 1)] {
             s.set("dxs", p, v_int(v));
         }
         call(&s, "dxs", "init", &[v_int(80), v_int(60)]);

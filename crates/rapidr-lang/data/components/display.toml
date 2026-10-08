@@ -5,16 +5,16 @@ group = "Display and drawing"
 name = "RLABEL"
 rapidq = "QLABEL"
 visual = true
-size = [75, 25]
+size = [65, 17]
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "Text on a form that the user reads but doesn't edit, with alignment, word wrap, an angle and 3D styles."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "Alignment", type = "enum", values = ["taLeftJustify", "taRightJustify", "taCenter"], default = "taLeftJustify" },
   { name = "Angle", type = "int", default = 0 },
-  { name = "AutoSize", type = "bool", default = false },
-  { name = "Caption", type = "string" },
+  { name = "AutoSize", type = "bool", default = true },
+  { name = "Caption", type = "string", default = "" },
   { name = "Color", type = "color" },
   { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
   { name = "Enabled", type = "bool", default = true },
@@ -59,7 +59,7 @@ events = [
 name = "RIMAGE"
 rapidq = "QIMAGE"
 visual = true
-size = [100, 100]
+size = [105, 105]
 default_event = "OnClick"
 sets = ["layout", "a11y"]
 doc = "Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the program can also draw on it like a canvas."
@@ -69,7 +69,7 @@ properties = [
   { name = "BMP", type = "picture" },
   { name = "BMPHandle", type = "resource", access = "write", design = false },
   { name = "Center", type = "bool", default = false },
-  { name = "CopyMode", type = "enum", values = ["cmBlackness", "cmDstInvert", "cmMergeCopy", "cmMergePaint", "cmNotSrcCopy", "cmNotSrcErase", "cmPatCopy", "cmPatInvert", "cmPatPaint", "cmSrcAnd", "cmSrcCopy", "cmSrcErase", "cmSrcInvert", "cmSrcPaint", "cmWhiteness"], default = "cmBlackness" },
+  { name = "CopyMode", type = "enum", values = ["cmBlackness", "cmDstInvert", "cmMergeCopy", "cmMergePaint", "cmNotSrcCopy", "cmNotSrcErase", "cmPatCopy", "cmPatInvert", "cmPatPaint", "cmSrcAnd", "cmSrcCopy", "cmSrcErase", "cmSrcInvert", "cmSrcPaint", "cmWhiteness"], default = "cmSrcCopy" },
   { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
   { name = "Enabled", type = "bool", default = true },
   { name = "Font", type = "font", access = "write", design = false },
@@ -113,12 +113,12 @@ methods = [
   { name = "TextWidth", params = "Text AS STRING", returns = "WORD" },
   { name = "TextRect", params = "Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", missing = true },
   { name = "TextOut", params = "x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER" },
-  { name = "LoadFromFile", origin = "rapidr", only = "desktop" },
+  { name = "LoadFromFile", origin = "rapidr" },
   { name = "SaveToFile", origin = "rapidr" },
   { name = "LoadFromPlot", origin = "rapidr" },
-  { name = "Cls", origin = "rapidr", only = "desktop" },
-  { name = "Load", origin = "rapidr", only = "desktop" },
-  { name = "Clear", value = true, origin = "rapidr", only = "desktop" },
+  { name = "Cls", origin = "rapidr", doc = "Removes the picture: nothing shows. Same as `Clear`." },
+  { name = "Load", origin = "rapidr", doc = "Loads a picture file (BMP, PNG, JPEG, ICO, SVG). Same as `LoadFromFile`." },
+  { name = "Clear", value = true, origin = "rapidr", doc = "Removes the picture: nothing shows. Same as `Cls`." },
 ]
 events = [
   { name = "OnClick" },
@@ -132,7 +132,7 @@ events = [
 name = "RCANVAS"
 rapidq = "QCANVAS"
 visual = true
-size = [100, 100]
+size = [105, 105]
 default_event = "OnClick"
 sets = ["layout", "a11y"]
 doc = "A surface to draw on: lines, shapes, text and pictures, usually redrawn in its OnPaint handler."
@@ -141,8 +141,8 @@ properties = [
   { name = "ClientHeight", type = "int", design = false },
   { name = "ClientWidth", type = "int", design = false },
   { name = "Color", type = "color" },
-  { name = "CopyMode", type = "enum", values = ["cmBlackness", "cmDstInvert", "cmMergeCopy", "cmMergePaint", "cmNotSrcCopy", "cmNotSrcErase", "cmPatCopy", "cmPatInvert", "cmPatPaint", "cmSrcAnd", "cmSrcCopy", "cmSrcErase", "cmSrcInvert", "cmSrcPaint", "cmWhiteness"], default = "cmBlackness" },
-  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
+  { name = "CopyMode", type = "enum", values = ["cmBlackness", "cmDstInvert", "cmMergeCopy", "cmMergePaint", "cmNotSrcCopy", "cmNotSrcErase", "cmPatCopy", "cmPatInvert", "cmPatPaint", "cmSrcAnd", "cmSrcCopy", "cmSrcErase", "cmSrcInvert", "cmSrcPaint", "cmWhiteness"] },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"] },
   { name = "Enabled", type = "bool", default = true },
   { name = "Font", type = "font", access = "write", design = false },
   { name = "Handle", type = "int", access = "read", design = false },
@@ -173,7 +173,7 @@ methods = [
   { name = "Paint", params = "x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER" },
   { name = "Pset", params = "x AS INTEGER, y AS INTEGER, c AS INTEGER" },
   { name = "Rectangle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER" },
-  { name = "Repaint", only = "desktop" },
+  { name = "Repaint" },
   { name = "Rotate", params = "xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER", missing = true },
   { name = "RoundRect", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER" },
   { name = "StretchDraw", params = "Rect AS QRECT, BMP" },
@@ -187,10 +187,10 @@ methods = [
   { name = "DrawText", params = "x, y, text, [color]", value = true, origin = "rapidr", doc = "Draws text at (x, y). Optional color argument (RGB integer)." },
   { name = "SetFont", params = "family, [size]", origin = "rapidr", doc = "Sets the font used by subsequent DrawText calls. On the web runtime this maps to ctx.font = \"<size>px <family>\". Default size 12." },
   { name = "SetPixel", value = true, origin = "rapidr" },
-  { name = "Refresh", value = true, origin = "rapidr", only = "desktop" },
-  { name = "Update", origin = "rapidr", only = "desktop" },
-  { name = "Show", value = true, origin = "rapidr", only = "desktop" },
-  { name = "Hide", value = true, origin = "rapidr", only = "desktop" },
+  { name = "Refresh", value = true, origin = "rapidr" },
+  { name = "Update", origin = "rapidr" },
+  { name = "Show", value = true, origin = "rapidr" },
+  { name = "Hide", value = true, origin = "rapidr" },
   { name = "Ellipse", value = true, origin = "rapidr" },
   { name = "Get", missing = true },
   { name = "Put", missing = true },
@@ -208,15 +208,15 @@ events = [
 name = "RHEADER"
 rapidq = "QHEADER"
 visual = true
-size = [200, 20]
+size = [320, 17]
 default_event = "OnSectionClick"
 sets = ["layout", "a11y"]
 doc = "A row of headings (sections) the user can click and resize, as above a list's columns."
 properties = [
-  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alTop" },
   { name = "ClientHeight", type = "int", design = false },
   { name = "ClientWidth", type = "int", design = false },
-  { name = "CopyMode", type = "enum", values = ["cmBlackness", "cmDstInvert", "cmMergeCopy", "cmMergePaint", "cmNotSrcCopy", "cmNotSrcErase", "cmPatCopy", "cmPatInvert", "cmPatPaint", "cmSrcAnd", "cmSrcCopy", "cmSrcErase", "cmSrcInvert", "cmSrcPaint", "cmWhiteness"], default = "cmBlackness" },
+  { name = "CopyMode", type = "enum", values = ["cmBlackness", "cmDstInvert", "cmMergeCopy", "cmMergePaint", "cmNotSrcCopy", "cmNotSrcErase", "cmPatCopy", "cmPatInvert", "cmPatPaint", "cmSrcAnd", "cmSrcCopy", "cmSrcErase", "cmSrcInvert", "cmSrcPaint", "cmWhiteness"], default = "cmSrcCopy" },
   { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
   { name = "Enabled", type = "bool", default = true },
   { name = "Font", type = "font", access = "write", design = false },
@@ -253,17 +253,17 @@ methods = [
   { name = "Paint", params = "x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER" },
   { name = "Pset", params = "x AS INTEGER, y AS INTEGER, c AS INTEGER" },
   { name = "Rectangle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER" },
-  { name = "Repaint", only = "desktop" },
+  { name = "Repaint" },
   { name = "RoundRect", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER" },
   { name = "StretchDraw", params = "Rect AS QRECT, BMP" },
   { name = "TextHeight", params = "Text AS STRING", returns = "WORD" },
   { name = "TextWidth", params = "Text AS STRING", returns = "WORD" },
   { name = "TextRect", params = "Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", missing = true },
   { name = "TextOut", params = "x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER" },
-  { name = "Refresh", value = true, origin = "rapidr", only = "desktop" },
-  { name = "Update", origin = "rapidr", only = "desktop" },
-  { name = "Show", value = true, origin = "rapidr", only = "desktop" },
-  { name = "Hide", value = true, origin = "rapidr", only = "desktop" },
+  { name = "Refresh", value = true, origin = "rapidr" },
+  { name = "Update", origin = "rapidr" },
+  { name = "Show", value = true, origin = "rapidr" },
+  { name = "Hide", value = true, origin = "rapidr" },
   { name = "Rect", origin = "rapidr" },
   { name = "SetPixel", origin = "rapidr" },
   { name = "FillCircle", origin = "rapidr" },
@@ -288,7 +288,7 @@ events = [
 name = "RPROGRESS"
 visual = true
 size = [200, 25]
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "Windows' classic progress bar: a sunken bar filled in blocks from Min to Max at Position. RapidR's own; RPROGRESSBAR is RapidQ's gauge."
 properties = [
   { name = "Left", type = "int", default = 0 },
@@ -313,8 +313,8 @@ events = []
 name = "RPROGRESSBAR"
 rapidq = "QGAUGE"
 visual = true
-size = [250, 25]
-sets = ["layout", "a11y", "generic"]
+size = [100, 100]
+sets = ["layout", "a11y"]
 doc = "RapidQ's gauge (QGAUGE): shows progress from Min to Max at Position as a bar, a pie, a needle or the percentage."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -328,14 +328,14 @@ properties = [
   { name = "Height", type = "int" },
   { name = "Hint", type = "string" },
   { name = "Kind", type = "enum", values = ["gkText", "gkHorizontalBar", "gkVerticalBar", "gkPie", "gkNeedle"], default = "gkHorizontalBar" },
-  { name = "Left", type = "int" },
+  { name = "Left", type = "int", default = 0 },
   { name = "Max", type = "int", default = 100 },
   { name = "Min", type = "int", default = 0 },
   { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
   { name = "Position", type = "int", default = 0 },
   { name = "ShowHint", type = "bool", default = false },
   { name = "ShowText", type = "bool", default = true },
-  { name = "Top", type = "int" },
+  { name = "Top", type = "int", default = 0 },
   { name = "Visible", type = "bool", default = true },
   { name = "Width", type = "int" },
   { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"] },
@@ -363,6 +363,12 @@ properties = [
   { name = "FormCaption", type = "string" },
   { name = "Parent", type = "component", kinds = ["QFORM"], design = false },
   { name = "Count", type = "int" },
+  { name = "SelCount", type = "int", access = "read", doc = "How many components are selected (Shift / Ctrl+click, a rubber band)." },
+  { name = "PreviewWidth", type = "int", design = false, doc = "The resize preview: the designed form shown this wide, its components where the running program puts them (Align, Anchors, Constraints); 0 ends the preview. Dragging the form's corner does the same." },
+  { name = "PreviewHeight", type = "int", design = false, doc = "The resize preview's height (see PreviewWidth); 0 ends the preview." },
+  { name = "ShowGuides", type = "bool", default = true, doc = "Whether a drag snaps to and shows smart guides: siblings' edges, centres and baselines, the form's centre lines, margins, equal spacing (Alt suspends snapping)." },
+  { name = "SnapToGrid", type = "bool", default = true, doc = "Whether moves and resizes snap to the grid where no guide is near." },
+  { name = "GridSize", type = "int", default = 8, doc = "The grid's step in pixels." },
 ]
 methods = [
   { name = "AddComponent", value = true },
@@ -379,8 +385,12 @@ methods = [
   { name = "GetCompY", value = true },
   { name = "GetCompW", value = true },
   { name = "GetCompH", value = true },
-  { name = "Show", value = true, only = "desktop" },
-  { name = "Hide", value = true, only = "desktop" },
+  { name = "Undo", returns = "INTEGER", doc = "Undoes the last change to the designed form (a move, a resize, a property, an added or removed component); True if there was one." },
+  { name = "Redo", returns = "INTEGER", doc = "Does again the last change undone; True if there was one." },
+  { name = "AlignSelection", params = "How AS STRING", doc = "Lines the selected components up with the first selected: \"left\", \"center\", \"right\", \"top\", \"middle\" or \"bottom\" (one undo step)." },
+  { name = "SelectAdd", params = "Index AS INTEGER", doc = "Adds component Index to the selection (as Shift+click)." },
+  { name = "Show", value = true },
+  { name = "Hide", value = true },
 ]
 events = [
   { name = "OnSelect", params = "Index AS INTEGER" },
@@ -396,15 +406,15 @@ from = "QDigDisplay.inc"
 visual = true
 size = [12, 24]
 default_event = "OnClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A seven-segment LED display (QDigDisplay.inc) showing the digits and signs of its Display text, as on a clock or a counter."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "ClientHeight", type = "int", design = false },
   { name = "ClientWidth", type = "int", design = false },
   { name = "Color", type = "color" },
-  { name = "CopyMode", type = "enum", values = ["cmBlackness", "cmDstInvert", "cmMergeCopy", "cmMergePaint", "cmNotSrcCopy", "cmNotSrcErase", "cmPatCopy", "cmPatInvert", "cmPatPaint", "cmSrcAnd", "cmSrcCopy", "cmSrcErase", "cmSrcInvert", "cmSrcPaint", "cmWhiteness"], default = "cmBlackness" },
-  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
+  { name = "CopyMode", type = "enum", values = ["cmBlackness", "cmDstInvert", "cmMergeCopy", "cmMergePaint", "cmNotSrcCopy", "cmNotSrcErase", "cmPatCopy", "cmPatInvert", "cmPatPaint", "cmSrcAnd", "cmSrcCopy", "cmSrcErase", "cmSrcInvert", "cmSrcPaint", "cmWhiteness"] },
+  { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"] },
   { name = "Enabled", type = "bool", default = true },
   { name = "Font", type = "font", access = "write", design = false },
   { name = "Height", type = "int", default = 24 },

@@ -308,8 +308,8 @@ const BANNED: &[(&str, &str)] = &[
 
 const RAPIDR_LICENSE: &str = include_str!("../../../LICENSE");
 const OFL: &str = include_str!("../../rapidr-value/fonts/OFL-1.1.txt");
-/// JetBrains Mono's licence (its copyright line first).
-const CODE_FONT_OFL: &str = include_str!("../../rapidr-value/fonts/JetBrainsMono-OFL.txt");
+const INTER_OFL: &str = include_str!("../../rapidr-value/fonts/Inter-OFL.txt");
+const JBMONO_OFL: &str = include_str!("../../rapidr-value/fonts/JetBrainsMono-OFL.txt");
 /// The Noto fallback fonts' licence (their copyright lines first).
 const NOTO_OFL: &str = include_str!("../../../fonts/fallback/OFL.txt");
 /// mingw-w64's notices, from the LLVM-MinGW release the Windows SDK ships.
@@ -729,13 +729,31 @@ fn extras(kind: &Kind, crates: &BTreeSet<&str>, packages: &HashMap<(String, Stri
             blocks: vec![Block { title: "Liberation fonts — OFL-1.1".into(), text: OFL.into() }],
         });
         out.push(Component {
-            name: "JetBrains Mono (upright and italic)".into(),
+            name: "Inter (Regular, SemiBold)".into(),
+            version: "4.1".into(),
+            declared: "OFL-1.1".into(),
+            used: "OFL-1.1".into(),
+            url: "https://github.com/rsms/inter".into(),
+            note: "Built into the program, subset to the Latin scripts (tools/fonts/subset_ui_fonts.py): RapidR's chrome font (RapidR Studio, the RapidR look's menus and tooltips) and a face programs can name. No Reserved Font Name is declared. The OFL lets the font be bundled with any software, commercial included; the font itself may not be sold on its own.".into(),
+            blocks: vec![Block { title: "Inter — OFL-1.1".into(), text: INTER_OFL.into() }],
+        });
+        out.push(Component {
+            name: "JetBrains Mono (Regular, Bold)".into(),
+            version: "2.304".into(),
+            declared: "OFL-1.1".into(),
+            used: "OFL-1.1".into(),
+            url: "https://github.com/JetBrains/JetBrainsMono".into(),
+            note: "Built into the program, subset to the Latin scripts (tools/fonts/subset_ui_fonts.py): RapidR's code font (the code editor in the RapidR look, RapidR Studio's consoles) and a face programs can name. No Reserved Font Name is declared. The OFL lets the font be bundled with any software, commercial included; the font itself may not be sold on its own.".into(),
+            blocks: vec![Block { title: "JetBrains Mono — OFL-1.1".into(), text: JBMONO_OFL.into() }],
+        });
+        out.push(Component {
+            name: "JetBrains Mono (Italic)".into(),
             version: "2.211".into(),
             declared: "OFL-1.1".into(),
             used: "OFL-1.1".into(),
             url: "https://github.com/JetBrains/JetBrainsMono".into(),
-            note: "Built into the program: the variable fonts' Latin subset as Google Fonts distributes it, converted from WOFF2 to TrueType (glyphs unchanged). It declares no Reserved Font Name. The OFL lets the fonts be bundled with any software, commercial included; the fonts themselves may not be sold on their own.".into(),
-            blocks: vec![Block { title: "JetBrains Mono — OFL-1.1".into(), text: CODE_FONT_OFL.into() }],
+            note: "Built into the program: the code editor's comments. The variable italic's Latin subset as Google Fonts distributes it, converted from WOFF2 to TrueType (glyphs unchanged). No Reserved Font Name is declared. The OFL lets the font be bundled with any software, commercial included; the font itself may not be sold on its own.".into(),
+            blocks: vec![Block { title: "JetBrains Mono — OFL-1.1".into(), text: JBMONO_OFL.into() }],
         });
     }
     // (the web runtime's fallback fonts: shipped beside it, fonts/)

@@ -19,7 +19,9 @@
 //! isn't drawn; its square keeps its place, its cursor and its drag.
 //!
 //! A fluent theme draws the bar flat: a thin line along its top, thin
-//! lines between the panels, the grip as a triangle of dots.
+//! lines between the panels, the grip as a triangle of dots. (RapidR's)
+//! `Color` colours the bar — flat in every look, the lines between its
+//! panels a faint mix of its text — as an IDE's state bar.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -31,7 +33,7 @@ use rapidr_value::objects::ops::{Place, Rect};
 use super::form::Container;
 use super::{ComponentKind, Cx};
 use crate::input::KernelEvent;
-use crate::paint::{ink_of, Painter};
+use crate::paint::{color_of, ink_of, Painter};
 use crate::store::{self, Store};
 use crate::tree::FormUi;
 
@@ -156,9 +158,14 @@ impl ComponentKind for StatusBar {
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
         let t = p.theme();
-        p.fill((0, 0, w, h), t.face);
-        let color = ink_of(cx, t.face);
-        if t.fluent() {
+        // (RapidR's Color: a bar the program colours — an IDE's state —
+        // drawn flat in every look, its lines in its text's colour, faint)
+        let custom = color_of(cx.store, cx.id);
+        let back = custom.unwrap_or(t.face);
+        p.fill((0, 0, w, h), back);
+        let color = ink_of(cx, back);
+        let line = if custom.is_some() { rapidr_value::dock::look::mix(back, color, 0.3) } else { t.border };
+        if t.fluent() && custom.is_none() {
             p.fill((0, 0, w, 1), t.border);
         }
         let boxes = panels(cx.store, cx.id, w, h);
@@ -167,11 +174,11 @@ impl ComponentKind for StatusBar {
             if bw <= 0 || bh <= 0 {
                 continue;
             }
-            if !t.fluent() {
+            if !t.fluent() && custom.is_none() {
                 p.thin_sunken((x, y, bw, bh));
             } else if k < last {
                 // (a line between this panel and the next)
-                p.fill((x + bw, y + 2, 1, (bh - 4).max(0)), t.border);
+                p.fill((x + bw, y + 2, 1, (bh - 4).max(0)), line);
             }
             // (the caption 3 pixels in, cut at the box's inside)
             let inside = (x + 1, y + 1, (bw - 2).max(0), (bh - 2).max(0));

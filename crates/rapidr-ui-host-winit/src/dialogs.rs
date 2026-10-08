@@ -95,7 +95,10 @@ impl Dialogs {
             d = d.set_parent(w);
         }
         let path = |h: rfd::FileHandle| h.path().to_string_lossy().into_owned();
-        let fut: Answer = if req.save {
+        let fut: Answer = if req.folder {
+            let f = d.pick_folder();
+            Box::pin(async move { f.await.map(path).into_iter().collect() })
+        } else if req.save {
             let f = d.save_file();
             Box::pin(async move { f.await.map(path).into_iter().collect() })
         } else if req.multi {

@@ -174,7 +174,9 @@ pub fn styles(font: &Font, color: u32) -> Vec<StyleProperty<'static, Ink>> {
         StyleProperty::Brush(Ink(color)),
     ];
     if font.styles & 1 != 0 {
-        out.push(StyleProperty::FontWeight(FontWeight::BOLD));
+        // (Inter's bold is its semibold, 600: asked for 700 it would be
+        // emboldened again on top)
+        out.push(StyleProperty::FontWeight(if face == "Inter" { FontWeight::SEMI_BOLD } else { FontWeight::BOLD }));
         // (as wide as `text_size` measures it: MS Sans Serif's bold a pixel
         // wider a character)
         let spacing = rapidr_value::objects::text::bold_spacing(font);

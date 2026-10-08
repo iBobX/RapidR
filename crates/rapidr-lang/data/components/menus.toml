@@ -28,8 +28,8 @@ visual = false
 default_event = "OnClick"
 doc = "One menu entry: a command (OnClick), a checkable option, a separator (\"-\") or a submenu holding more items."
 properties = [
-  { name = "Caption", type = "string" },
-  { name = "Checked", type = "int" },
+  { name = "Caption", type = "string", default = "" },
+  { name = "Checked", type = "int", default = false },
   { name = "Command", type = "int", access = "read", design = false },
   { name = "Count", type = "int", access = "read", design = false },
   { name = "Enabled", type = "bool", default = true },
@@ -74,7 +74,6 @@ methods = [
   { name = "DelItems", params = "Items ..." },
   { name = "Insert", params = "I AS INTEGER, Item AS QMENUITEM" },
   { name = "Popup", params = "X AS INTEGER, Y AS INTEGER" },
-  { name = "AddItem", value = true, origin = "rapidr", only = "desktop" },
   { name = "Clear", value = true, origin = "rapidr" },
   { name = "Add", origin = "rapidr" },
 ]

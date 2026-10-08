@@ -14,6 +14,7 @@ pub mod console;
 pub mod dialogs;
 pub mod color_dialog;
 pub mod font_dialog;
+pub mod statusbar;
 pub mod window_state;
 pub mod basic_files;
 pub mod builtins;
@@ -31,11 +32,14 @@ pub mod toggle_group;
 pub mod objects;
 pub mod layout;
 pub mod autosize;
+// (I4) RapidR Studio's visual designer model, GUI-free.
+pub mod designer;
 pub mod members;
 pub mod scrollbars;
 pub mod theme;
 // (I2) The code editor's colour schemes, one per theme.
 pub mod code_scheme;
+pub mod ide_theme;
 pub mod registry;
 pub mod resources;
 pub mod environ;
