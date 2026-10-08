@@ -35,6 +35,16 @@ impl Vec3 {
         let l = self.len();
         (l > 1e-12 && l.is_finite()).then(|| self * (1.0 / l))
     }
+
+    /// The vector made unit as D3DRM makes it (D3DRMVectorNormalize): a
+    /// zero vector becomes (1, 0, 0). RC.EXE with RapidQ's d3drm.dll: a
+    /// rotation about (0, 0, 0) turns about x (RapidQ's Lights_pyramid
+    /// passes one), an orientation whose up is (0, 0, 0) is the one with
+    /// up (1, 0, 0) (RapidQ_D3D.inc's QD3DCAMERA leaves it so: 3DPong), a
+    /// direction of (0, 0, 0) looks along x.
+    pub fn d3drm_unit(self) -> Vec3 {
+        self.unit().unwrap_or(v3(1.0, 0.0, 0.0))
+    }
 }
 
 impl Add for Vec3 {
@@ -97,7 +107,7 @@ impl Mat4 {
     /// A turn of `angle` radians about `axis`, clockwise seen along the axis
     /// from its tip — Direct3D's left-handed rotation (`D3DXMatrixRotationAxis`).
     pub fn rotation(axis: Vec3, angle: f64) -> Mat4 {
-        let Some(a) = axis.unit() else { return Mat4::IDENTITY };
+        let a = axis.d3drm_unit();
         let (s, c) = angle.sin_cos();
         let t = 1.0 - c;
         Mat4([
@@ -110,12 +120,11 @@ impl Mat4 {
 
     /// The frame looking along `dir` with `up` up, at `at`: its axes as rows
     /// (z = dir, y = up made square to it, x = y × z).
+    /// Each vector made unit as D3DRM does ([`Vec3::d3drm_unit`]): up along
+    /// dir leaves x (1, 0, 0) (RC.EXE: dir and up both (0, 0, 1) is upright).
     pub fn oriented(dir: Vec3, up: Vec3, at: Vec3) -> Mat4 {
-        let z = dir.unit().unwrap_or(v3(0.0, 0.0, 1.0));
-        let x = up.cross(z).unit().unwrap_or_else(|| {
-            // (up along dir: any square axis)
-            if z.x.abs() < 0.9 { v3(1.0, 0.0, 0.0).cross(z).cross(z).unit().unwrap_or(v3(1.0, 0.0, 0.0)) } else { v3(0.0, 1.0, 0.0).cross(z) }
-        });
+        let z = dir.d3drm_unit();
+        let x = up.d3drm_unit().cross(z).d3drm_unit();
         let y = z.cross(x);
         Mat4([[x.x, x.y, x.z, 0.0], [y.x, y.y, y.z, 0.0], [z.x, z.y, z.z, 0.0], [at.x, at.y, at.z, 1.0]])
     }

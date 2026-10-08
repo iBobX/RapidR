@@ -16,7 +16,7 @@
 //!   (SetCameraPosition, SetCameraOrientation, CameraLookAt). A frame's
 //!   matrix places it in its parent's space (SetPosition, SetOrientation,
 //!   AddScale); SetRotation gives it a turn per `Move` about an axis in its
-//!   parent's space (an axis of (0, 0, 0): none); `DXScreen.Move(d)` turns
+//!   parent's space (an axis of (0, 0, 0): x, as D3DRM's); `DXScreen.Move(d)` turns
 //!   and moves every frame d times its step, as `IDirect3DRMFrame::Move`.
 //! - **Meshes**: faces of their own vertices (`Face.AddVertex`,
 //!   `MeshBuilder.AddFace`), or a `.X` file (`Load`: every mesh of it in
@@ -132,6 +132,9 @@ struct MFace {
     texture: Option<Rc<Bitmap>>,
     /// The QD3DFACE this face is (AddFace, GetFace), if any.
     face: Option<usize>,
+    /// Its material's specular highlight, `(power, colour)` (a `.X`
+    /// file's: `power` above 0 and a colour), if any.
+    spec: Option<(f32, [f32; 3])>,
 }
 
 #[derive(Clone, Debug)]
@@ -719,7 +722,8 @@ fn frame_call(id: &str, h: Option<usize>, method: &str, args: &[Value]) -> Optio
             "setrotation" => {
                 let axis = arg_v(args, 0);
                 if let Some(f) = s.frame(h) {
-                    f.rot = axis.unit().map(|a| (a, arg_f(args, 3)));
+                    // (an axis of (0, 0, 0) turns about x, as D3DRM's)
+                    f.rot = Some((axis.d3drm_unit(), arg_f(args, 3)));
                 }
             }
             "setvelocity" => {
@@ -865,7 +869,7 @@ fn mesh_call(id: &str, h: Option<usize>, method: &str, args: &[Value]) -> Option
                         if !m.uvs.is_empty() {
                             m.uvs.resize(m.verts.len(), [0.0; 2]);
                         }
-                        m.faces.push(MFace { idx: (base..base + face.verts.len()).collect(), nidx: Vec::new(), color: face.color.unwrap_or([1.0; 4]), texture: None, face: Some(fh) });
+                        m.faces.push(MFace { idx: (base..base + face.verts.len()).collect(), nidx: Vec::new(), color: face.color.unwrap_or([1.0; 4]), texture: None, face: Some(fh), spec: None });
                         if let Some(Ent::Face(f)) = s.ents.get_mut(fh) {
                             f.owner = Some(h);
                         }
@@ -1105,7 +1109,8 @@ fn load_x(file: &str) -> Result<Mesh, String> {
         let color = flat.face_materials.get(i).and_then(|&k| flat.materials.get(k)).map_or([1.0; 4], |mat| mat.color);
         let nidx = flat.face_normals.get(i).filter(|n| n.len() == idx.len() && n.iter().all(|&k| k < m.normals.len())).cloned().unwrap_or_default();
         let texture = flat.face_materials.get(i).and_then(|&k| textures.get(k)).cloned().flatten();
-        m.faces.push(MFace { idx: idx.clone(), nidx, color, texture, face: None });
+        let spec = flat.face_materials.get(i).and_then(|&k| flat.materials.get(k)).filter(|mat| mat.power > 0.0 && mat.specular.iter().any(|c| *c > 0.0)).map(|mat| (mat.power, mat.specular));
+        m.faces.push(MFace { idx: idx.clone(), nidx, color, texture, face: None, spec });
     }
     Ok(m)
 }
@@ -1123,7 +1128,7 @@ fn append_mesh(m: &mut Mesh, loaded: Mesh) {
         m.uvs.clear();
     }
     for f in loaded.faces {
-        m.faces.push(MFace { idx: f.idx.iter().map(|i| i + base).collect(), nidx: f.nidx.iter().map(|i| i + nbase).collect(), color: f.color, texture: f.texture, face: None });
+        m.faces.push(MFace { idx: f.idx.iter().map(|i| i + base).collect(), nidx: f.nidx.iter().map(|i| i + nbase).collect(), color: f.color, texture: f.texture, face: None, spec: f.spec });
     }
     if m.texture.is_none() {
         m.texture = loaded.texture;
@@ -1142,15 +1147,30 @@ struct Placed {
 }
 
 /// The colour `color` takes at `p` with normal `n` (scene space) under
-/// `lights` (D3DRM's RGB model; no light: black).
-fn lit(color: [f32; 4], p: Vec3, n: Vec3, lights: &[Placed]) -> [f32; 4] {
+/// `lights` (D3DRM's RGB model; no light: black), with the material's
+/// specular highlight `spec` (`(power, colour)`) added for each light that
+/// reaches the surface: its colour times the specular colour times
+/// (n · h)^power, h halfway between the way to the light and `eye`, the
+/// way back to the camera — D3DRM's default, the viewer at infinity
+/// (without D3DRMRENDERMODE_VIEWDEPENDENTSPECULAR). RapidQ's
+/// `xview/myearth.x` shows it (RC.EXE with RapidQ's d3drm.dll).
+fn lit(color: [f32; 4], p: Vec3, n: Vec3, lights: &[Placed], spec: Option<(f32, [f32; 3])>, eye: Vec3) -> [f32; 4] {
     let mut sum = Vec3::default();
+    let mut shine = Vec3::default();
     for l in lights {
         let k = match l.light.kind {
             // D3DRMLIGHT_AMBIENT
             0 => 1.0,
             // D3DRMLIGHT_DIRECTIONAL
-            3 => n.dot(-l.dir).max(0.0),
+            3 => {
+                let k = n.dot(-l.dir).max(0.0);
+                if let (Some((power, sc)), true) = (spec, k > 0.0) {
+                    let h = (-l.dir + eye).unit().unwrap_or(n);
+                    let s = n.dot(h).max(0.0).powf(power as f64);
+                    shine = shine + v3(l.light.color.x * sc[0] as f64, l.light.color.y * sc[1] as f64, l.light.color.z * sc[2] as f64) * s;
+                }
+                k
+            }
             kind => {
                 let to = l.at - p;
                 let d = to.len();
@@ -1159,6 +1179,11 @@ fn lit(color: [f32; 4], p: Vec3, n: Vec3, lights: &[Placed]) -> [f32; 4] {
                 } else {
                     let ldir = to.unit().unwrap_or(-l.dir);
                     let mut k = n.dot(ldir).max(0.0);
+                    if let (Some((power, sc)), true) = (spec, k > 0.0) {
+                        let h = (ldir + eye).unit().unwrap_or(n);
+                        let s = n.dot(h).max(0.0).powf(power as f64);
+                        shine = shine + v3(l.light.color.x * sc[0] as f64, l.light.color.y * sc[1] as f64, l.light.color.z * sc[2] as f64) * s;
+                    }
                     // D3DRMLIGHT_SPOT: full within the umbra's cone, none
                     // outside the penumbra's, between in between.
                     if kind == 2 {
@@ -1178,7 +1203,7 @@ fn lit(color: [f32; 4], p: Vec3, n: Vec3, lights: &[Placed]) -> [f32; 4] {
         };
         sum = sum + l.light.color * k;
     }
-    [(color[0] as f64 * sum.x) as f32, (color[1] as f64 * sum.y) as f32, (color[2] as f64 * sum.z) as f32, color[3]]
+    [(color[0] as f64 * sum.x + shine.x) as f32, (color[1] as f64 * sum.y + shine.y) as f32, (color[2] as f64 * sum.z + shine.z) as f32, color[3]]
 }
 
 /// Draws screen `id`'s scene on its back buffer (`Render`): cleared to the
@@ -1268,13 +1293,17 @@ fn triangles(s: &Store, scene: &Scene) -> Vec<Tri> {
         .collect();
     let camera = frames.iter().find(|(h, _)| *h == scene.camera).map_or(Mat4::IDENTITY, |(_, w)| *w);
     let view = camera.inverse();
-    let linear = scene.texture_quality % 2 == 1;
+    // (the way back to the camera, for specular highlights)
+    let eye = (-camera.axis(2)).unit().unwrap_or(v3(0.0, 0.0, -1.0));
+    // (D3DRMTEXTURE_LINEAR alone: RC.EXE with RapidQ's d3drm.dll draws the
+    // mipmap qualities, LINEARMIP* too, magnified as NEAREST — probes pt_*)
+    let linear = scene.texture_quality == 1;
     let mut out = Vec::new();
     for (h, world) in &frames {
         let Some(Ent::Frame(f)) = s.ents.get(*h) else { continue };
         for &v in &f.visuals {
             match s.ents.get(v) {
-                Some(Ent::Mesh(m)) => mesh_triangles(m, world, &view, &lights, linear, &mut out),
+                Some(Ent::Mesh(m)) => mesh_triangles(m, world, &view, &lights, linear, eye, &mut out),
                 Some(Ent::Shadow(sh)) => shadow_triangles(s, sh, world, &view, camera.origin(), &lights, &mut out),
                 _ => {}
             }
@@ -1324,7 +1353,8 @@ fn shadow_triangles(s: &Store, sh: &Shadow, world: &Mat4, view: &Mat4, eye: Vec3
     }
 }
 
-fn mesh_triangles(m: &Mesh, world: &Mat4, view: &Mat4, lights: &[Placed], linear: bool, out: &mut Vec<Tri>) {
+#[allow(clippy::too_many_arguments)]
+fn mesh_triangles(m: &Mesh, world: &Mat4, view: &Mat4, lights: &[Placed], linear: bool, eye: Vec3, out: &mut Vec<Tri>) {
     let fill = match m.quality & FILL_MASK {
         FILL_SOLID => Fill::Solid,
         FILL_WIREFRAME => Fill::Wireframe,
@@ -1362,14 +1392,14 @@ fn mesh_triangles(m: &Mesh, world: &Mat4, view: &Mat4, lights: &[Placed], linear
         if fill == Fill::Solid && cam_n.dot(cp[f.idx[0]]) >= 0.0 {
             continue;
         }
-        let flat = if light_on { lit(f.color, center, n, lights) } else { f.color };
+        let flat = if light_on { lit(f.color, center, n, lights, f.spec, eye) } else { f.color };
         let corner = |k: usize| -> [f32; 4] {
             if !light_on || !gouraud {
                 return flat;
             }
             let i = f.idx[k];
             let vn = f.nidx.get(k).and_then(|&j| given.get(j)).copied().or_else(|| vnormals[i].unit()).unwrap_or(n);
-            lit(f.color, wp[i], vn, lights)
+            lit(f.color, wp[i], vn, lights, f.spec, eye)
         };
         let uv = |k: usize| m.uvs.get(f.idx[k]).copied().unwrap_or([0.0; 2]);
         let texture = if m.uvs.len() == m.verts.len() { f.texture.as_ref().or(m.texture.as_ref()) } else { None };

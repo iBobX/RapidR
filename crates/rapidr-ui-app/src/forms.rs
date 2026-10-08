@@ -200,19 +200,30 @@ pub fn centered<R: Program + Windows>(rt: R, name: &str) -> (i64, i64) {
 // ----------------------------------------------------- show and hide --
 
 /// A form's kernel side, made the first time (OnLoad once, the first
-/// OnPaint waiting for its window to show).
-pub fn build_form<P: Program>(p: P, name: &str) {
+/// OnPaint waiting for its window to show); whether it was made now —
+/// then, once its window shows, [`window_made`].
+pub fn build_form<P: Program>(p: P, name: &str) -> bool {
     let name = lower(name);
     if !st(|s| s.built.insert(name.clone())) {
-        return;
+        return false;
     }
     p.fire(&name, "onload");
-    p.form_built(&name);
     let size = (p.get(&name, "width").to_i64(), p.get(&name, "height").to_i64());
     st(|s| {
         s.sizes.insert(name.clone(), size);
         s.first_paint.insert(name)
     });
+    true
+}
+
+/// A form's window made and shown the first time, before its OnShow: its
+/// QDXSCREENs are set up (OnInitialize, OnInitializeSurface). On the window
+/// shown, as RapidQ's: RapidQ's 3DPong runs its game loop (DoEvents)
+/// inside OnInitializeSurface, its window showing the game.
+fn window_made<P: Program>(p: P, name: &str, made: bool) {
+    if made {
+        p.form_built(&lower(name));
+    }
 }
 
 /// OnResize as the VCL fires it (RC.EXE, probes 2026-10-08): when a form's
@@ -340,8 +351,9 @@ pub fn show<R: Program + Windows>(rt: R, name: &str) {
         push_op(WindowOp::Show(lower(name)));
         return;
     }
-    build_form(rt, name);
+    let made = build_form(rt, name);
     show_window(rt, name);
+    window_made(rt, name, made);
     first_show_resize(rt, name, !was_built);
     rt.fire(name, "onshow");
     first_show_resize(rt, name, !was_built);
@@ -431,7 +443,7 @@ pub fn begin_modal<R: Program + Windows>(rt: R, name: &str) {
     rt.store(&name, "modalresult", v_int(0));
     push_modal(&name);
     let first = !form_window_exists(&name);
-    build_form(rt, &name);
+    let made = build_form(rt, &name);
     if rt.get(&name, "_center").to_i64() != 0 {
         let p = centered(rt, &name);
         push_op(WindowOp::Position(name.clone(), p));
@@ -442,6 +454,7 @@ pub fn begin_modal<R: Program + Windows>(rt: R, name: &str) {
     } else {
         show_window(rt, &name);
     }
+    window_made(rt, &name, made);
     first_show_resize(rt, &name, first);
     rt.fire(&name, "onshow");
     first_show_resize(rt, &name, first);

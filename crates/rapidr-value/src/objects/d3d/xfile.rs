@@ -1559,7 +1559,7 @@ AnimationSet Walk {
                         }
                     }
                     println!(
-                        "{name:58} {format} frames {:2} meshes {:2} | vertices {:6} faces {:6} normals {:6} uv {:6} colors {:5} materials {:3} | bounds {lo:?} {hi:?} | {}",
+                        "{name:58} {format} frames {:2} meshes {:2} | vertices {:6} faces {:6} normals {:6} uv {:6} colors {:5} materials {:3} | bounds {lo:?} {hi:?} | specular {:?} | {}",
                         file.frames.len(),
                         file.meshes.len(),
                         flat.positions.len(),
@@ -1568,6 +1568,7 @@ AnimationSet Walk {
                         flat.texcoords.len(),
                         flat.colors.len(),
                         flat.materials.len(),
+                        flat.materials.iter().filter(|m| m.power > 0.0 && m.specular.iter().any(|c| *c > 0.0)).map(|m| (m.power, m.specular, m.emissive)).take(2).collect::<Vec<_>>(),
                         textures.into_iter().collect::<Vec<_>>().join(" "),
                     );
                     if flat.positions.is_empty() || flat.faces.is_empty() {

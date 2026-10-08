@@ -101,11 +101,50 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   components, desktop and web.
 - Native builds: a CREATE inside a SUB that sets its object's `Font.Name`
   compiles (RapidQ's `3DPong_aDelic2.bas`).
-- Of the corpus's 32 DirectX programs 28 compile (19 before); the 4 left
-  don't compile in RapidQ either (two include files the corpus lacks, a
-  typo, an unknown type) or call kernel32 — docs/directx-plan.md, "The
-  corpus's DirectX programs", has each program's state, RapidR's captures on
-  the desktop and the web, and RapidQ's own windows.
+- **RapidQ's own Direct3D, seen at last**: RapidQ's examples ship the
+  `d3drm.dll` Windows dropped after XP; beside it RC.EXE's programs run in
+  the Windows 11 VM, and RapidR's 3D was compared with RapidQ's for the first
+  time — the corpus's programs (windowed copies of the full-screen ones),
+  probes, and every `.X` model of the corpus. What it showed is fixed:
+  **D3DRM makes a zero vector unit as (1, 0, 0)** — `SetRotation(0, 0, 0, a)`
+  turns about x (RapidQ's `Lights_pyramid.bas` tumbles), a camera whose up
+  is (0, 0, 0) is the one with up (1, 0, 0) (`RapidQ_D3D.inc`'s QD3DCAMERA:
+  `3DPong` sees its court as RapidQ did); **texture filtering** only for
+  D3DRMTEXTURE_LINEAR (the mipmap qualities draw nearest); and **specular highlights** from
+  a `.X` material's power and specular colour (RapidQ's `myearth.x`).
+- **The `.X` models**: all 55 of the corpus (42 different; text and binary)
+  draw as RapidQ's D3DRM draws them — a gallery beside RC.EXE's captures.
+- **A type nothing defines is RC.EXE's error**, in its words for each place
+  (`Unknown data type QBITMAPEX`, `Unknown type FOOBAR`, `… is not a valid
+  data type for your FUNCTION`, `Create Method only works for QObjects, not
+  …`, `You can only extend QObjects`); RapidR accepted any name.
+- **An object's name as a type**: `DIM x AS Lst` after `DIM Lst AS
+  QSTRINGLIST` makes another QSTRINGLIST, `SUB S(p AS Lst)` takes one (RapidQ's
+  `Choosecolor.bas`: `Sender AS BUTTON`).
+- **`$DEFINE` matches in any case**, as RC.EXE (`$DEFINE GLint integer`, then
+  `AS glInt`; RAPIDQ2.INC's BOOLEAN), but leaves a member's name after a
+  `.`, an object TYPE's fields and a CREATE block's properties alone
+  (RAPIDQ2.INC's TRANSPARENT and its `Transparent` field).
+- **A QDXSCREEN is set up on its shown window** (OnInitialize,
+  OnInitializeSurface once the form's window shows, before OnShow): RapidQ's
+  3DPong runs its game loop inside OnInitializeSurface, and its native
+  build never showed a window.
+- **`WITH TF.Bar` in a TYPE's own code** reaches the field's object (it set
+  the form's Width: RapidQ's `newform.bas` shrank to nothing).
+- **A field store into an element of an array of objects** (`arr(1).x = 5`
+  for a TYPE EXTENDS QOBJECT) and `WITH arr(b)` are RC.EXE's
+  errors (`Expected = but got "("`), as RapidQ's `WIP_asteroids3D.bas`
+  stops.
+- A routine named after its object (`FUNCTION Screen.GetPixelDepth` in
+  RAPIDQ2.INC) counts as called, so the Windows API it calls is reported when
+  the program compiles, not when it runs.
+- Of the corpus's 32 DirectX programs (19 compiled before this work), RapidR
+  compiles and runs the 26 RC.EXE compiles that call no Windows API; the
+  rest don't compile in RapidQ either (two include files the corpus lacks,
+  a syntax error, QBITMAPEX) or call the Windows API (RAPIDQ2.INC's
+  `SetLastError`, `GetDC`) — docs/directx-plan.md, "The corpus's DirectX
+  programs", has the before / after table, RapidR's captures (interpreted,
+  native, the web) beside RapidQ's.
 
 ### Legal
 - **A review of RapidQ's terms, rights and trademarks, and of everything
