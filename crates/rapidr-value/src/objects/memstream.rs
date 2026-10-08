@@ -53,7 +53,8 @@ impl FileSink {
 }
 
 /// Methods that change a stream (refused on a file opened for reading).
-pub const WRITE_METHODS: &[&str] = &["writestr", "writebinstr", "writeline", "writenum", "write", "copyfrom", "extractres"];
+pub const WRITE_METHODS: &[&str] =
+    &["writestr", "writebinstr", "writeline", "writenum", "write", "writebyte", "copyfrom", "extractres", "memcopyfrom", "saveudtarray", "writeudt"];
 
 /// Largest stream allowed, so `Mem.Size = 1E12` fails cleanly.
 const MAX_SIZE: usize = 1 << 31;
@@ -183,7 +184,9 @@ impl MemStream {
             // RapidR extension: the whole content as a string.
             "text" => v_str(&self.text()),
             "linecount" => v_int(self.line_count()),
-            // There are no raw memory addresses in RapidR.
+            // (RapidQ's SetSize is a property only written: RC.EXE reads
+            // it as nothing)
+            "setsize" => v_str(""),
             _ => return None,
         })
     }
@@ -191,7 +194,8 @@ impl MemStream {
     pub fn set(&mut self, prop: &str, val: &Value) -> bool {
         match prop {
             "position" => self.set_position(val.to_i64()),
-            "size" => self.set_size(val.to_i64()),
+            // (QMEMORYSTREAM's `SetSize = n`, RC.EXE: Size's other name)
+            "size" | "setsize" => self.set_size(val.to_i64()),
             _ => return false,
         }
         true
@@ -269,6 +273,20 @@ impl MemStream {
                 v_int(self.pos)
             }
             "eof" => v_int(if self.at_end() { -1 } else { 0 }),
+            // QFILESTREAM's ReadByte / WriteByte (RC.EXE): one byte, its
+            // low 8 bits written; past the end ReadByte gives 26 (^Z, DOS's
+            // end of file) and leaves Position.
+            "writebyte" => {
+                self.write(&[arg(0).to_i64() as u8]);
+                Value::Null
+            }
+            "readbyte" => match self.index() {
+                Some(i) => {
+                    self.pos += 1;
+                    v_int(self.data[i] as i64)
+                }
+                None => v_int(26),
+            },
             // `Mem.ExtractRes(Resource(0))`: the resource's bytes, written
             // at the position (rapidr_value::resources).
             "extractres" => {

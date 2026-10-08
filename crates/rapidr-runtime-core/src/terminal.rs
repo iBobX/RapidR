@@ -168,6 +168,26 @@ mod imp {
     }
 
     pub fn line_mode() {}
+
+    /// The console shows the escape sequences RapidR prints for CLS,
+    /// LOCATE and COLOR (Windows' console only does once asked to — RapidQ
+    /// drew with the console's own functions, so its programs looked right
+    /// there).
+    pub fn start() {
+        use windows_sys::Win32::System::Console::{
+            GetConsoleMode, GetStdHandle, SetConsoleMode, ENABLE_PROCESSED_OUTPUT, ENABLE_VIRTUAL_TERMINAL_PROCESSING, STD_OUTPUT_HANDLE,
+        };
+        // SAFETY: the process's standard output handle (or an invalid one,
+        // which the console calls refuse), its mode read into a local and
+        // set with one more flag; no memory is shared.
+        unsafe {
+            let h = GetStdHandle(STD_OUTPUT_HANDLE);
+            let mut mode = 0u32;
+            if GetConsoleMode(h, &mut mode) != 0 {
+                SetConsoleMode(h, mode | ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+            }
+        }
+    }
 }
 
 #[cfg(not(any(unix, windows)))]
@@ -179,6 +199,16 @@ mod imp {
         false
     }
     pub fn line_mode() {}
+}
+
+/// Once, as the program starts: the terminal ready for what the program
+/// prints (Windows' console told to show escape sequences).
+pub fn start() {
+    #[cfg(windows)]
+    {
+        static ONCE: std::sync::Once = std::sync::Once::new();
+        ONCE.call_once(imp::start);
+    }
 }
 
 /// Reads the keys pressed so far into INKEY$'s queue.

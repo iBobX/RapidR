@@ -14,7 +14,13 @@
 //!   → the size as RapidQ stores it; of anything else → `__sizeof(x, "TYPE")`
 //!   at run time (a STRING: its length; a TYPE: its fields, packed);
 //! * `RTLMOVEMEMORY(dest, src, n)` (variables passed by reference) →
-//!   `MEMCPY(VARPTR(dest), VARPTR(src), n)`.
+//!   `MEMCPY(VARPTR(dest), VARPTR(src), n)`, when the program doesn't
+//!   DECLARE a routine of that name itself;
+//! * a call to a `DECLARE … LIB` routine: a variable given for a STRING or
+//!   a BYREF parameter becomes its address (`VARPTR(x)`), so the DLL writes
+//!   into the variable's mirror and the copy-back after the statement
+//!   updates the variable (docs/windows-dll-calls.md §1); `PEEK` / `POKE`
+//!   count as memory calls.
 //!
 //! A program without any of these is left untouched.
 
@@ -25,11 +31,24 @@ use rapidr_diagnostics::TextSpan;
 
 /// Builtins that read or write memory: statements with them refresh and
 /// copy back the mirrors in scope.
-const MEMORY_CALLS: &[&str] = &["memcpy", "memset", "memcmp", "__cstring"];
+const MEMORY_CALLS: &[&str] = &["memcpy", "memset", "memcmp", "__cstring", "peek", "poke"];
+
+/// Methods that read or write memory (QMEMORYSTREAM's): `Mem.MemCopyTo(
+/// VARPTR(i), 4)` changes `i`, so the statement copies the mirrors back.
+const MEMORY_METHODS: &[&str] = &["memcopyfrom", "memcopyto"];
+
+fn is_memory_method(callee: &Expression) -> bool {
+    matches!(callee, Expression::MemberAccess(m) if MEMORY_METHODS.iter().any(|n| m.member.eq_ignore_ascii_case(n)))
+}
 
 fn key(name: &str) -> String {
     crate::strip_type_suffix(&name.to_ascii_lowercase()).to_string()
 }
+
+/// What a `CODEPTR(Proc)` handed to a DLL becomes (followed by the
+/// routine's name): `rapidr_value::dll::CALLBACK_MARKER`, which the runtime
+/// answers with a clear error (docs/windows-dll-calls.md §1).
+pub const DLL_CALLBACK_MARKER: &str = "\u{0}rapidr-callback:";
 
 fn ident(span: TextSpan, name: &str) -> Expression {
     Expression::Identifier(Identifier { span, name: name.into() })
@@ -164,8 +183,9 @@ struct Pass<'a> {
     /// "" for the main program, else the routine's name (lowercase).
     routine: String,
     routines: &'a HashSet<String>,
-    /// Functions of DLLs (DECLARE … LIB): a call may write memory.
-    dlls: &'a HashSet<String>,
+    /// Routines of DLLs (DECLARE … LIB) and their parameters: a call may
+    /// write memory, and its STRING / BYREF variables are passed by address.
+    dlls: &'a HashMap<String, Vec<Parameter>>,
     /// Mirrors of this scope (its locals) and of the globals, by key.
     mirrors: Vec<Mirror>,
 }
@@ -300,8 +320,9 @@ impl Pass<'_> {
                 if let Expression::FunctionCall(fc) = x {
                     if let Some(n) = callee_name(&fc.callee) {
                         let n = key(&n);
-                        *found |= MEMORY_CALLS.contains(&n.as_str()) || self.routines.contains(&n) || self.dlls.contains(&n);
+                        *found |= MEMORY_CALLS.contains(&n.as_str()) || self.routines.contains(&n) || self.dlls.contains_key(&n);
                     }
+                    *found |= is_memory_method(&fc.callee);
                 }
             });
         };
@@ -309,8 +330,9 @@ impl Pass<'_> {
             Statement::Call(c) => {
                 if let Some(n) = callee_name(&c.callee) {
                     let n = key(&n);
-                    found |= MEMORY_CALLS.contains(&n.as_str()) || self.routines.contains(&n) || self.dlls.contains(&n);
+                    found |= MEMORY_CALLS.contains(&n.as_str()) || self.routines.contains(&n) || self.dlls.contains_key(&n);
                 }
+                found |= is_memory_method(&c.callee);
                 for a in &c.args {
                     check(a, &mut found);
                 }
@@ -338,18 +360,81 @@ impl Pass<'_> {
     /// the statements that use memory.
     fn block(&mut self, stmts: &mut Vec<Statement>) {
         self.address_refs(stmts);
+        self.dll_arguments(stmts);
         // Expressions everywhere (nested blocks included).
         walk_expressions_mut(stmts, true, &mut |e| self.expr(e));
-        // `RTLMOVEMEMORY dest, src, n` → `MEMCPY VARPTR(dest), VARPTR(src), n`.
+        // `RTLMOVEMEMORY dest, src, n` → `MEMCPY VARPTR(dest), VARPTR(src), n`
+        // — unless the program DECLAREs (or defines) a routine of that name:
+        // then it is that DLL's routine, called on Windows as declared
+        // (`BYVAL dest AS LONG` takes an address, not a variable).
+        let own = self.dlls.contains_key("rtlmovememory") || self.routines.contains("rtlmovememory");
         walk_statements_mut(stmts, &mut |s| {
             if let Statement::Call(c) = s {
-                if callee_name(&c.callee).is_some_and(|n| n == "rtlmovememory") && c.args.len() == 3 {
+                if !own && callee_name(&c.callee).is_some_and(|n| n == "rtlmovememory") && c.args.len() == 3 {
                     let span = c.span;
                     c.callee = ident(span, "MEMCPY");
                     for i in 0..2 {
                         let a = c.args[i].clone();
                         c.args[i] = self.varptr(span, a);
                     }
+                }
+            }
+        });
+    }
+
+    /// A variable given to a DLL routine for a STRING or a BYREF parameter
+    /// goes by address — `VARPTR(x)`, a mirror the DLL writes into and the
+    /// statement's copy-back reads (RapidQ passes the string's characters
+    /// and a BYREF number's address). A TYPE is a live block already; a
+    /// value or an expression gets a buffer of the call's own.
+    fn dll_arguments(&self, stmts: &mut Vec<Statement>) {
+        let dlls = self.dlls;
+        let by_address = |args: &mut Vec<Expression>, params: &[Parameter]| {
+            for (a, p) in args.iter_mut().zip(params) {
+                // `CODEPTR(Proc)` / `CALLBACK(Proc)` handed to a DLL (a
+                // window procedure, an enumeration callback): the marker
+                // the runtime answers with "callbacks aren't supported
+                // yet", instead of a number the DLL would jump to.
+                if let Expression::FunctionCall(fc) = &*a {
+                    if callee_name(&fc.callee).is_some_and(|n| matches!(key(&n).as_str(), "codeptr" | "callback")) {
+                        let target = match fc.args.first() {
+                            Some(Expression::Identifier(id)) => id.name.clone(),
+                            Some(Expression::MemberAccess(m)) => member_path(&Expression::MemberAccess(m.clone())),
+                            _ => String::new(),
+                        };
+                        *a = text(fc.span, &format!("{DLL_CALLBACK_MARKER}{target}"));
+                        continue;
+                    }
+                }
+                let t = p.type_name.to_ascii_uppercase();
+                let string = t.starts_with("STRING");
+                // (RapidQ's QRECT / QNOTIFYICONDATA are objects the runtime
+                // hands over by address itself: rapidr_runtime_core::ffi)
+                if !(string || p.by_ref) || matches!(t.as_str(), "QRECT" | "RRECT" | "QNOTIFYICONDATA" | "RNOTIFYICONDATA") {
+                    continue;
+                }
+                let variable = match &*a {
+                    Expression::Identifier(id) => !id.name.starts_with("__") && id.name != OMITTED_ARGUMENT && !dlls.contains_key(&key(&id.name)),
+                    Expression::MemberAccess(_) => true,
+                    _ => false,
+                };
+                if variable {
+                    let span = statement_expr_span(a);
+                    *a = call(span, "VARPTR", vec![a.clone()]);
+                }
+            }
+        };
+        walk_statements_mut(stmts, &mut |s| {
+            if let Statement::Call(c) = s {
+                if let Some(params) = callee_name(&c.callee).and_then(|n| dlls.get(&key(&n))) {
+                    by_address(&mut c.args, params);
+                }
+            }
+        });
+        walk_expressions_mut(stmts, true, &mut |e| {
+            if let Expression::FunctionCall(fc) = e {
+                if let Some(params) = callee_name(&fc.callee).and_then(|n| dlls.get(&key(&n))) {
+                    by_address(&mut fc.args, params);
                 }
             }
         });
@@ -442,6 +527,14 @@ impl Pass<'_> {
     }
 }
 
+fn statement_expr_span(e: &Expression) -> TextSpan {
+    match e {
+        Expression::Identifier(id) => id.span,
+        Expression::MemberAccess(m) => m.span,
+        _ => TextSpan::default(),
+    }
+}
+
 /// Where a statement is (for the statements added around it).
 fn statement_span(s: &Statement) -> TextSpan {
     match s {
@@ -472,20 +565,18 @@ fn member_path(e: &Expression) -> String {
     }
 }
 
-/// Whether `program` uses any of the memory functions.
+/// Whether `program` uses any of the memory functions (or calls a DLL).
 fn uses_memory(program: &Program) -> bool {
     let found = std::cell::Cell::new(false);
     walk(
         &program.statements,
-        &mut |s| {
-            if let Statement::Call(c) = s {
-                if callee_name(&c.callee).is_some_and(|n| n == "rtlmovememory") {
-                    found.set(true);
-                }
-            }
+        &mut |s| match s {
+            Statement::Call(c) if callee_name(&c.callee).is_some_and(|n| matches!(key(&n).as_str(), "rtlmovememory" | "poke")) => found.set(true),
+            Statement::Declare(d) if d.lib.is_some() => found.set(true),
+            _ => {}
         },
         &mut |e| match e {
-            Expression::FunctionCall(fc) if callee_name(&fc.callee).is_some_and(|n| matches!(key(&n).as_str(), "varptr" | "udtptr" | "sizeof")) => found.set(true),
+            Expression::FunctionCall(fc) if callee_name(&fc.callee).is_some_and(|n| matches!(key(&n).as_str(), "varptr" | "udtptr" | "sizeof" | "peek")) => found.set(true),
             Expression::Unary(u) if u.operator == UnaryOperator::Ref => found.set(true),
             _ => {}
         },
@@ -519,15 +610,90 @@ fn for_each_routine(stmts: &mut [Statement], f: &mut dyn FnMut(&str, &[Parameter
     }
 }
 
+/// RapidQ's built-ins that are Windows' message functions — `SENDMESSAGE
+/// hWnd, uMsg, wParam, lParam` (Windows' SendMessage), `POSTMESSAGE` (its
+/// PostMessage), `KILLMESSAGE hWnd, uMsg` (the message taken off the queue:
+/// PeekMessage with PM_REMOVE) — as calls of user32's own functions, the
+/// DECLAREs a program would write (docs/windows-dll-calls.md §1): made on
+/// Windows, the clear "runs on Windows only" error elsewhere. A program
+/// that DECLAREs or defines a routine of that name keeps its own.
+const MESSAGE_BUILTINS: &[(&str, &str, &str, &[&str])] = &[
+    ("sendmessage", "__rq_sendmessage", "SendMessageA", &["hWnd", "uMsg", "wParam", "lParam"]),
+    ("postmessage", "__rq_postmessage", "PostMessageA", &["hWnd", "uMsg", "wParam", "lParam"]),
+    ("killmessage", "__rq_killmessage", "PeekMessageA", &["lpMsg$", "hWnd", "wMsgFilterMin", "wMsgFilterMax", "wRemoveMsg"]),
+];
+
+fn message_builtins(program: &mut Program) {
+    let mut own = HashSet::new();
+    walk(
+        &program.statements,
+        &mut |s| match s {
+            Statement::Declare(d) => {
+                own.insert(key(&d.name));
+            }
+            Statement::Subroutine(r) => {
+                own.insert(key(&r.name));
+            }
+            Statement::Function(f) => {
+                own.insert(key(&f.name));
+            }
+            _ => {}
+        },
+        &mut |_| {},
+    );
+    let wanted: Vec<_> = MESSAGE_BUILTINS.iter().filter(|(n, ..)| !own.contains(*n)).collect();
+    if wanted.is_empty() {
+        return;
+    }
+    let mut used: HashSet<&str> = HashSet::new();
+    let rename = |callee: &mut Expression, args: &mut Vec<Expression>, used: &mut HashSet<&'static str>| {
+        let Some(n) = callee_name(callee).map(|n| key(&n)) else { return };
+        let Some((name, internal, ..)) = wanted.iter().find(|(b, ..)| *b == n) else { return };
+        used.insert(name);
+        let span = statement_expr_span(callee);
+        *callee = ident(span, internal);
+        if *name == "killmessage" && args.len() == 2 {
+            // PeekMessage(MSG buffer, hWnd, uMsg, uMsg, PM_REMOVE)
+            let m = args[1].clone();
+            *args = vec![call(span, "SPACE$", vec![int(span, 64)]), args[0].clone(), m.clone(), m, int(span, 1)];
+        }
+    };
+    walk_statements_mut(&mut program.statements, &mut |s| {
+        if let Statement::Call(c) = s {
+            rename(&mut c.callee, &mut c.args, &mut used);
+        }
+    });
+    walk_expressions_mut(&mut program.statements, true, &mut |e| {
+        if let Expression::FunctionCall(fc) = e {
+            rename(&mut fc.callee, &mut fc.args, &mut used);
+        }
+    });
+    for (name, internal, alias, params) in MESSAGE_BUILTINS.iter().rev() {
+        if !used.contains(name) {
+            continue;
+        }
+        let span = TextSpan::default();
+        let params = params
+            .iter()
+            .map(|p| Parameter { span, name: p.trim_end_matches('$').into(), type_name: if p.ends_with('$') { "STRING".into() } else { "LONG".into() }, by_ref: false, is_array: false })
+            .collect();
+        program.statements.insert(
+            0,
+            Statement::Declare(DeclareStatement { span, is_function: true, name: (*internal).into(), lib: Some("\"user32\"".into()), alias: Some(format!("\"{alias}\"")), params, return_type: Some("LONG".into()) }),
+        );
+    }
+}
+
 /// Lowers the memory functions of `program` (see the module docs).
 pub fn lower(program: &Program) -> Program {
-    if !uses_memory(program) {
-        return program.clone();
-    }
     let mut program = program.clone();
+    message_builtins(&mut program);
+    if !uses_memory(&program) {
+        return program;
+    }
     let mut types = HashMap::new();
     let mut routines = HashSet::new();
-    let mut dlls = HashSet::new();
+    let mut dlls: HashMap<String, Vec<Parameter>> = HashMap::new();
     let mut main = Vec::new();
     for s in &program.statements {
         match s {
@@ -535,7 +701,7 @@ pub fn lower(program: &Program) -> Program {
                 types.insert(t.name.to_ascii_uppercase(), t.fields.clone());
             }
             Statement::Declare(d) if d.lib.is_some() => {
-                dlls.insert(key(&d.name));
+                dlls.insert(key(&d.name), d.params.clone());
                 main.push(s.clone());
             }
             Statement::Subroutine(r) => {

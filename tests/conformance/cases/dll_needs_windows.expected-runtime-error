@@ -1,0 +1,4 @@
+'GetTickCount'
+(kernel32)
+runs on Windows only
+use TIMER

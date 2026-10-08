@@ -165,6 +165,13 @@ for (const name of cases) {
   const text = readFileSync(src, "utf8");
   const xfailLine = text.split("\n")[0].match(/^'\s*xfail:\s*([^—-]+)/i);
   const xfail = new Set(xfailLine ? xfailLine[1].split(",").map((s) => s.trim().toLowerCase()) : []);
+  // `' skip-on: win32` (a process.platform name): a case whose outcome is
+  // another on that system (a Windows DLL call succeeds there) isn't run.
+  const skipLine = text.split("\n")[0].match(/^'\s*skip-on:\s*([^—-]+)/i);
+  if (skipLine && skipLine[1].split(",").map((s) => s.trim().toLowerCase()).includes(process.platform)) {
+    console.log(`SKIP     ${name} (not on ${process.platform})`);
+    continue;
+  }
   const expPath = join(CASES, `${name}.expected`);
   const errPath = join(CASES, `${name}.expected-error`);
   const expected = existsSync(expPath) ? readFileSync(expPath, "utf8") : "";

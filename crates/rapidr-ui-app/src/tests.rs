@@ -227,6 +227,22 @@ fn a_form_shows_once_built_and_paints_after_onshow() {
 }
 
 #[test]
+fn a_centred_form_opens_in_the_middle_when_it_shows() {
+    // (RC.EXE: Center leaves Left / Top until the form shows, then the
+    // screen's middle by the form's outer Width × Height)
+    form_with_button();
+    forms::center(Mem, "f");
+    assert_eq!((Mem.get("f", "left").to_i64(), Mem.get("f", "top").to_i64()), (10, 20));
+    forms::show(Mem, "f");
+    assert_eq!((Mem.get("f", "left").to_i64(), Mem.get("f", "top").to_i64()), ((1920 - 300) / 2, (1080 - 200) / 2));
+    assert_eq!(take_ops(), [WindowOp::Show("f".into())], "the window opens there");
+    // (shown: Center moves it at once)
+    Mem.store("f", "width", v_int(500));
+    forms::center(Mem, "f");
+    assert_eq!(take_ops(), [WindowOp::Position("f".into(), ((1920 - 500) / 2, (1080 - 200) / 2))]);
+}
+
+#[test]
 fn onclose_action_decides() {
     form_with_button();
     forms::show(Mem, "f");
@@ -347,18 +363,6 @@ fn a_modal_form_is_a_wait_the_vm_serves() {
     assert_eq!(waits::turn(), Some(Wait::Once(now)));
     assert_eq!(waits::pop(), Some(Wait::Once(now)));
     assert_eq!(waits::turn(), None);
-}
-
-#[test]
-fn center_before_the_first_show_modal_centres_it() {
-    // (RapidQ: Form.Center, then ShowModal — the window is made where its
-    // Left / Top say, so they are the centred place before it shows)
-    form_with_button();
-    forms::center(Mem, "f");
-    forms::begin_modal(Mem, "f");
-    let (x, y) = forms::centered(Mem, "f");
-    assert_ne!((x, y), (10, 20));
-    assert_eq!((Mem.get("f", "left").to_i64(), Mem.get("f", "top").to_i64()), (x, y));
 }
 
 /// The handlers queued so far run, as an interpreter runs them after the

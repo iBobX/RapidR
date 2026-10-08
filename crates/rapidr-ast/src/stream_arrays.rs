@@ -15,7 +15,9 @@
 //! `Write` / `Read(var)`.
 //!
 //! `Stream.Read(x)` / `Stream.Write(x)` of a declared numeric `x` likewise
-//! read and write that type's bytes (a SHORT: 2).
+//! read and write that type's bytes (a SHORT: 2). `Stream.SaveUDTArray(t.f)`
+//! / `LoadUDTArray(t.f)` get the array field's declared type as a second
+//! argument.
 
 use std::collections::HashMap;
 
@@ -44,6 +46,14 @@ fn kind_of_suffix(name: &str) -> Option<i64> {
     }
 }
 
+/// `STRING * n`'s type name as `rapidr_value::memory::Kind::of` reads it.
+fn with_len(type_name: &str, fixed_len: Option<usize>) -> String {
+    match fixed_len {
+        Some(n) => format!("STRING*{n}"),
+        None => type_name.to_string(),
+    }
+}
+
 /// Declared element types: lowercase name → type name.
 type Scope = HashMap<String, String>;
 
@@ -53,7 +63,7 @@ fn declare(scope: &mut Scope, stmts: &[Statement]) {
         &mut |s| {
             if let Statement::Dim(d) = s {
                 for v in &d.declarators {
-                    scope.insert(v.name.to_ascii_lowercase(), d.type_name.clone());
+                    scope.insert(v.name.to_ascii_lowercase(), with_len(&d.type_name, d.fixed_len));
                 }
             }
         },
@@ -65,6 +75,9 @@ struct Pass {
     globals: Scope,
     /// TYPE fields by name (`This.vertex(i, j, 0)`).
     fields: Scope,
+    /// TYPE fields by TYPE and name (lowercase `type.field`), for a field
+    /// two TYPEs both have.
+    typed_fields: Scope,
     counter: usize,
 }
 
@@ -141,12 +154,41 @@ impl Pass {
         })
     }
 
+    /// `Stream.SaveUDTArray(t.field)` / `LoadUDTArray(t.field)` (RC.EXE:
+    /// one argument, a TYPE's array field): the field's declared type added
+    /// as a second argument, so the runtime lays the elements out as RapidQ
+    /// does (`rapidr_value::objects::stream_ops`).
+    fn udt_array(&self, c: &CallStatement, scope: &Scope) -> Option<Statement> {
+        let [x] = c.args.as_slice() else { return None };
+        let name = match x {
+            Expression::Identifier(id) => &id.name,
+            Expression::MemberAccess(ma) => &ma.member,
+            _ => return None,
+        };
+        let k = name.to_ascii_lowercase();
+        let declared = |n: &str| scope.get(n).or_else(|| self.globals.get(n));
+        let t = match x {
+            Expression::MemberAccess(ma) => {
+                let owner = match ma.object.as_ref() {
+                    Expression::Identifier(id) => declared(&id.name.to_ascii_lowercase()),
+                    _ => None,
+                };
+                owner.and_then(|o| self.typed_fields.get(&format!("{}.{k}", o.to_ascii_lowercase()))).or_else(|| self.fields.get(&k))
+            }
+            _ => declared(&k),
+        }?;
+        let mut call = c.clone();
+        call.args.push(Expression::Literal(Literal { span: c.span, value: LiteralValue::String(t.clone()) }));
+        Some(Statement::Call(call))
+    }
+
     fn rewrite(&mut self, c: &CallStatement, scope: &Scope) -> Option<Statement> {
         let Expression::MemberAccess(m) = &c.callee else { return None };
         let load = match m.member.to_ascii_lowercase().as_str() {
             "savearray" => false,
             "loadarray" => true,
             "read" | "write" => return self.read_write(c, m, scope),
+            "saveudtarray" | "loadudtarray" => return self.udt_array(c, scope),
             _ => return None,
         };
         let [element, count] = c.args.as_slice() else { return None };
@@ -224,7 +266,7 @@ pub fn lower(program: &Program) -> Program {
         &program.statements,
         &mut |s| {
             if let Statement::Call(CallStatement { callee: Expression::MemberAccess(m), .. }) = s {
-                found |= ["savearray", "loadarray", "read", "write"].iter().any(|n| m.member.eq_ignore_ascii_case(n));
+                found |= ["savearray", "loadarray", "read", "write", "saveudtarray", "loadudtarray"].iter().any(|n| m.member.eq_ignore_ascii_case(n));
             }
         },
         &mut |_| {},
@@ -234,20 +276,22 @@ pub fn lower(program: &Program) -> Program {
     }
     let mut globals = Scope::new();
     let mut fields = Scope::new();
+    let mut typed_fields = Scope::new();
     let mut main = Vec::new();
     for s in &program.statements {
         match s {
             Statement::Subroutine(_) | Statement::Function(_) => {}
             Statement::Type(t) => {
                 for f in &t.fields {
-                    fields.insert(f.name.to_ascii_lowercase(), f.type_name.clone());
+                    fields.insert(f.name.to_ascii_lowercase(), with_len(&f.type_name, f.fixed_len));
+                    typed_fields.insert(format!("{}.{}", t.name.to_ascii_lowercase(), f.name.to_ascii_lowercase()), with_len(&f.type_name, f.fixed_len));
                 }
             }
             other => main.push(other.clone()),
         }
     }
     declare(&mut globals, &main);
-    let mut pass = Pass { globals, fields, counter: 0 };
+    let mut pass = Pass { globals, fields, typed_fields, counter: 0 };
     let mut program = program.clone();
     pass.block(&mut program.statements, &Scope::new());
     program

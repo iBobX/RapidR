@@ -23,6 +23,24 @@ pub fn rp_print(items: &[Value], newline: bool) {
     track_print_column(&text);
 }
 
+/// `POKE [#page,] address, byte`: a change on the screen page is printed.
+pub fn rp_poke(args: &[Value]) -> Value {
+    let text = crate::value::memory::rp_poke_text(args);
+    if !text.is_empty() {
+        rp_print(&[Value::String(text)], false);
+    }
+    Value::Null
+}
+
+/// `PCOPY from, to`: a copy onto the screen page is printed.
+pub fn rp_pcopy(from: &Value, to: &Value) -> Value {
+    let text = crate::value::memory::rp_pcopy_text(from, to);
+    if !text.is_empty() {
+        rp_print(&[Value::String(text)], false);
+    }
+    Value::Null
+}
+
 /// Width of a PRINT zone (`PRINT a, b`), as in QBasic and VB.
 pub const PRINT_ZONE_WIDTH: usize = 14;
 

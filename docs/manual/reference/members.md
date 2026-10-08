@@ -2855,9 +2855,9 @@ A file opened to read and write: lines, numbers, strings, arrays and UDTs, at a 
 | Method | |
 |---|---|
 | `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
-| `CopyFrom(Stream, Bytes AS INTEGER)` *(not yet)* | Copies `Bytes` bytes from another stream into this one. |
+| `CopyFrom(Stream, Bytes AS INTEGER)` | Copies `Bytes` bytes from another stream into this one. |
 | `ExtractRes(Resource AS LONG)` | Writes the program's embedded resource number `Resource` into the stream. |
-| `LoadArray(Array)` *(not yet)* | Reads an array's elements from the stream. |
+| `LoadArray(Array, NumElements AS LONG)` | Reads an array's elements from the stream. |
 | `Open(FileName AS STRING, Method AS INTEGER)` | Opens what the component works with: a media file or device, a file stream in a mode, a serial port, the clipboard, or a listening socket on a port. |
 | `Read(variable)` | Reads data: up to `NumBytes` from a socket (returned), `Count` bytes from a serial port into a stream, or a variable's worth from a stream into it. |
 | `ReadLine AS STRING` | Reads one line of text, without its line end. |
@@ -2865,7 +2865,7 @@ A file opened to read and write: lines, numbers, strings, arrays and UDTs, at a 
 | `ReadBinStr(n) AS STRING` | Reads `n` bytes from the stream and returns them as a string. |
 | `ReadStr(n) AS STRING` | Reads `n` characters from the stream. |
 | `ReadUDT(MyType)` | Reads a user-defined type variable from the stream, field by field. |
-| `SaveArray(Array)` *(not yet)* | Writes an array's elements to the stream. |
+| `SaveArray(Array, NumElements AS LONG)` | Writes an array's elements to the stream. |
 | `Seek(Position AS INTEGER, From AS INTEGER)` | Moves the current position: a stream's to `Position` from its start, current place or end; a player's to a time in seconds. |
 | `Write(variable)` | Writes data: `NumBytes` of a message to a socket, `Count` bytes of a stream to a serial port, or a variable to a stream. |
 | `WriteLine(S AS STRING)` | Writes text followed by a line end. |
@@ -2879,10 +2879,10 @@ A file opened to read and write: lines, numbers, strings, arrays and UDTs, at a 
 | `ReadAll` *(RapidR)* | Returns the rest of the stream as text. |
 | `Writeln` *(RapidR)* | Writes text followed by a line end. Same as `WriteLine`. |
 | `Readln` *(RapidR)* | Reads one line of text, without its line end. Same as `ReadLine`. |
-| `LoadUdtArray` *(not yet)* | Reads an array of user-defined types from the stream. |
-| `ReadByte` *(not yet)* | Reads one byte from the socket or stream. |
-| `SaveUdtArray` *(not yet)* | Writes an array of user-defined types to the stream. |
-| `WriteByte` *(not yet)* | Writes one byte to the socket or stream. |
+| `LoadUdtArray(ArrayField)` | Reads every element of a TYPE's array field (`Mem.LoadUDTArray(t.Items)`) from Position, laid out as RapidQ does; the stream must hold them all. |
+| `ReadByte AS BYTE` | Reads one byte at Position (26, DOS's end-of-file mark, past the end). |
+| `SaveUdtArray(ArrayField)` | Writes every element of a TYPE's array field (`Mem.SaveUDTArray(t.Items)`) at Position, laid out as RapidQ does. |
+| `WriteByte(Byte AS BYTE)` | Writes one byte (the value's low 8 bits) at Position. |
 
 <a id="rstringlist"></a>
 ## RSTRINGLIST (QSTRINGLIST)
@@ -3077,24 +3077,25 @@ A stream in memory: write and read text, numbers and binary data as in a file, w
 | `Pointer` (read-only) | int |  | The address of the stream's memory; read-only. |
 | `Position` | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
 | `Size` | int |  | A size: of a font, in points; of a file, stream, sound or download, in bytes; of an array, its number of values. |
+| `SetSize` (write-only) | int |  | Size's other name in RapidQ (`Mem.SetSize = 0`), only written. |
 | `FileName` *(RapidR)* | string |  | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
 | `Text` *(RapidR)* | string |  | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
 
 | Method | |
 |---|---|
 | `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
-| `CopyFrom(Stream, Bytes AS INTEGER)` *(not yet)* | Copies `Bytes` bytes from another stream into this one. |
+| `CopyFrom(Stream, Bytes AS INTEGER)` | Copies `Bytes` bytes from another stream into this one. |
 | `ExtractRes(Resource AS LONG)` | Writes the program's embedded resource number `Resource` into the stream. |
-| `LoadArray(Array)` *(not yet)* | Reads an array's elements from the stream. |
-| `MemCopyFrom(Address AS LONG, Bytes AS LONG)` *(not yet)* | Copies `Bytes` bytes from memory address `Address` into the stream. |
-| `MemCopyTo(Address AS LONG, Bytes AS LONG)` *(not yet)* | Copies `Bytes` bytes of the stream to memory address `Address`. |
+| `LoadArray(Array, NumElements AS LONG)` | Reads an array's elements from the stream. |
+| `MemCopyFrom(Address AS LONG, Bytes AS LONG)` | Copies Bytes bytes from Address (VARPTR of a variable, an element, a TYPE, a stream's Pointer) into the stream at Position. |
+| `MemCopyTo(Address AS LONG, Bytes AS LONG)` | Copies Bytes bytes from Position to Address (VARPTR of a variable, an element, a TYPE); Position moves on by Bytes. |
 | `Read(variable)` | Reads data: up to `NumBytes` from a socket (returned), `Count` bytes from a serial port into a stream, or a variable's worth from a stream into it. |
 | `ReadLine AS STRING` | Reads one line of text, without its line end. |
 | `ReadNum(Num_Type) AS DOUBLE` | Reads a number stored in binary as the type given (`Num_Byte`, `Num_Long`, `Num_Double` …). |
 | `ReadStr(n) AS STRING` | Reads `n` characters from the stream. |
 | `ReadBinStr(n) AS STRING` | Reads `n` bytes from the stream and returns them as a string. |
 | `ReadUDT(MyType)` | Reads a user-defined type variable from the stream, field by field. |
-| `SaveArray(Array)` *(not yet)* | Writes an array's elements to the stream. |
+| `SaveArray(Array, NumElements AS LONG)` | Writes an array's elements to the stream. |
 | `Seek(Position AS INTEGER, From AS INTEGER)` | Moves the current position: a stream's to `Position` from its start, current place or end; a player's to a time in seconds. |
 | `Write(variable)` | Writes data: `NumBytes` of a message to a socket, `Count` bytes of a stream to a serial port, or a variable to a stream. |
 | `WriteLine(S AS STRING)` | Writes text followed by a line end. |
@@ -3106,9 +3107,8 @@ A stream in memory: write and read text, numbers and binary data as in a file, w
 | `Writeln` *(RapidR)* | Writes text followed by a line end. Same as `WriteLine`. |
 | `Readln` *(RapidR)* | Reads one line of text, without its line end. Same as `ReadLine`. |
 | `Clear` | Empties the stream: `Size` and `Position` 0. |
-| `LoadUdtArray` *(not yet)* | Reads an array of user-defined types from the stream. |
-| `SaveUdtArray` *(not yet)* | Writes an array of user-defined types to the stream. |
-| `SetSize` *(not yet)* | Sets the stream's size in bytes, cutting or growing it. |
+| `LoadUdtArray(ArrayField)` | Reads every element of a TYPE's array field (`Mem.LoadUDTArray(t.Items)`) from Position, laid out as RapidQ does; the stream must hold them all. |
+| `SaveUdtArray(ArrayField)` | Writes every element of a TYPE's array field (`Mem.SaveUDTArray(t.Items)`) at Position, laid out as RapidQ does. |
 
 <a id="rbitmap"></a>
 ## RBITMAP (QBITMAP)
@@ -4959,7 +4959,7 @@ The screen: its size and work area, the mouse's position, the monitors, the mous
 |---|---|---|---|
 | `ConsoleX` (read-only) | int |  | The console's width in characters (80); read-only. |
 | `ConsoleY` (read-only) | int |  | The console's height in lines (25); read-only. |
-| `Cursors` (read-only) | int |  | A mouse pointer's handle, `Cursors(i)` by its `crXXX` number; read-only. |
+| `Cursors` | int |  | The cursor handles by cursor code: Cursors(i) = a handle from LoadCursorFromFile or LoadCursor (Windows) makes Cursor = i show it; 0 puts the standard cursor back. Reading gives the handle in use (Windows; 0 on other systems, which have no cursor handles). |
 | `Height` (read-only) | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `MouseX` (read-only) | int |  | The mouse pointer's X on the screen, in pixels; read-only. |
 | `MouseY` (read-only) | int |  | The mouse pointer's Y on the screen, in pixels; read-only. |

@@ -188,11 +188,30 @@ pub fn icon_of<P: Program>(p: P, name: &str) -> Option<Icon> {
     Some(Icon { width: w as u32, height: h as u32, rgba })
 }
 
-/// A form's position centred on the screen.
+/// A form's position centred on the screen: its outer Width × Height, as
+/// Left / Top are (RC.EXE: a 300 × 200 form on a 1920 × 1012 screen shows
+/// at 810, 406).
 pub fn centered<R: Program + Windows>(rt: R, name: &str) -> (i64, i64) {
     let (sw, sh) = rt.screen();
-    let (w, h) = form_window_size(rt, name);
+    let (w, h) = (rt.get(name, "width").to_i64(), rt.get(name, "height").to_i64());
     ((sw - w) / 2, (sh - h) / 2)
+}
+
+/// A form asked to be centred (`Center`) shown the first time: its Left /
+/// Top set to the screen's middle now, so the window opens there. RapidQ
+/// centres a form when it shows, not when `Center` runs (RC.EXE: Left / Top
+/// read 0 until `Show`, then the centred place).
+fn place_centered<R: Program + Windows>(rt: R, name: &str) {
+    if rt.get(name, "_center").to_i64() == 0 {
+        return;
+    }
+    let (x, y) = centered(rt, name);
+    applying(|| {
+        rt.quietly(&mut || {
+            rt.set(name, "left", v_int(x));
+            rt.set(name, "top", v_int(y));
+        })
+    });
 }
 
 // ----------------------------------------------------- show and hide --
@@ -306,6 +325,9 @@ pub fn show<R: Program + Windows>(rt: R, name: &str) {
         push_op(WindowOp::Show(lower(name)));
         return;
     }
+    if !was_built {
+        place_centered(rt, name);
+    }
     build_form(rt, name);
     show_window(rt, name);
     rt.fire(name, "onshow");
@@ -394,19 +416,13 @@ pub fn begin_modal<R: Program + Windows>(rt: R, name: &str) {
     let name = lower(name);
     rt.store(&name, "modalresult", v_int(0));
     push_modal(&name);
-    build_form(rt, &name);
-    if rt.get(&name, "_center").to_i64() != 0 {
+    if window_shown(&name).is_none() {
+        place_centered(rt, &name);
+    } else if rt.get(&name, "_center").to_i64() != 0 {
         let p = centered(rt, &name);
         push_op(WindowOp::Position(name.clone(), p));
-        // (its Left / Top too: a window made by the Show below takes them —
-        // the Position above only moves one that was made already)
-        applying(|| {
-            rt.quietly(&mut || {
-                rt.set(&name, "left", v_int(p.0));
-                rt.set(&name, "top", v_int(p.1));
-            })
-        });
     }
+    build_form(rt, &name);
     if form_shown(&name) {
         push_op(WindowOp::Show(name.clone()));
         rt.flush();

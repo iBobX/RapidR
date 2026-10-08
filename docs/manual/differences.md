@@ -28,15 +28,29 @@ change what an existing program does.
 
 ## What RapidR doesn't do
 
-- **Windows API calls.** `DECLARE … LIB "user32"` (kernel32, gdi32, …)
-  is a compile error: RapidR runs on macOS, Linux and in browsers too, and
-  doesn't emulate Windows. The message names RapidR's portable equivalent
-  when there is one (`GetTickCount` → `TIMER`). Calls into your own shared
-  libraries work in native builds (the interpreter refuses them with a
-  clear message). A few Windows
-  calls RapidQ programs commonly make are kept working on every platform
-  because they have a clear meaning: `Shell_NotifyIcon` (the tray), the
-  registry (QREGISTRY), `joyGetPosEx` names QDXJOYSTICK.
+- **Windows API calls off Windows.** A program that calls Windows' DLLs
+  (`DECLARE … LIB "user32"`, kernel32, gdi32, …, and RapidQ's
+  `SENDMESSAGE`, `POSTMESSAGE`, `KILLMESSAGE`) makes those calls **when it
+  runs on Windows**, natively and interpreted (see the language guide). On
+  macOS, Linux and the web it compiles and runs until the first such call,
+  which stops it with an error naming the function and, when there is one,
+  RapidR's portable equivalent (`GetTickCount` → `TIMER`). RapidR doesn't
+  emulate Windows. A few Windows calls RapidQ programs commonly make keep
+  working on every platform because they have a clear meaning:
+  `Shell_NotifyIcon` (the tray), the registry (QREGISTRY), `joyGetPosEx`
+  names QDXJOYSTICK.
+- **What a 64-bit Windows program can't do.** RapidR programs are 64-bit:
+  a 32-bit DLL shipped with an old program can't be loaded (the error says
+  so; a 64-bit build of the DLL is needed), x86 machine code a program
+  writes and runs through `CallWindowProc` can't run, and a TYPE whose
+  fields hold pointers or handles as `LONG` doesn't match the 64-bit layout
+  Windows expects for that structure. SUBs handed to a DLL as callbacks
+  (`CODEPTR` for a window procedure, an enumeration) aren't supported yet.
+  A control's `Handle` is RapidR's own number (RapidR draws its controls),
+  so Windows messages sent to it go nowhere; a form's `Handle` is its real
+  window. On a high-DPI screen the coordinates Windows' functions take and
+  give are the screen's pixels, where RapidQ (not DPI-aware) got scaled
+  ones.
 - **OLE / COM** (`QOLECONTAINER`, `QOLEOBJECT`): programs that declare
   them compile; their methods do nothing and print a warning.
 - RapidQ's undocumented `QD3DANIMATION` / `QD3DANIMATIONSET` (in its keyword
