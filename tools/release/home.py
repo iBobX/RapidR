@@ -18,6 +18,8 @@ checkout holds. It needs cargo and the network (or cargo's cache). It writes
                         may name a crate the home doesn't have); crates/patches/… the crates.io crates
                         RapidR replaces (the [patch.crates-io] above)
     .cargo/config.toml  the web runtime's SQLite flags (rapidr build --web)
+    design/…            the files the crates include from outside their own
+                        folders (the program icon's masters, the icon inventory)
     tools/wasm-ar.sh
     vendor/             `cargo vendor` of their crates.io dependencies; a crate
                         no build on this OS (nor the web) compiles keeps only
@@ -74,6 +76,42 @@ def runtime_crates(src):
             if packages[dep["pkg"]]["source"] is None and any(k.get("kind") in (None, "build") for k in dep["dep_kinds"]):
                 stack.append(dep["pkg"])
     return sorted(os.path.relpath(os.path.dirname(packages[p]["manifest_path"]), src) for p in seen)
+
+
+INCLUDE = re.compile(r'\binclude(?:_str|_bytes)?!\(\s*(?:concat!\(\s*env!\("CARGO_MANIFEST_DIR"\)\s*,\s*)?"([^"]+)"')
+
+
+def outside_includes(src, crates):
+    """The files the shipped crates' sources include from outside their own
+    folders (include_str!("../../../design/…")), as paths relative to the
+    source: the home keeps them where the crates expect them. Files inside
+    another crate's folder are left (a test reading a neighbour's source)."""
+    found = set()
+    src = os.path.realpath(src)
+    for c in crates:
+        root = os.path.realpath(os.path.join(src, c))
+        for base, _, files in os.walk(root):
+            for name in files:
+                if not name.endswith(".rs"):
+                    continue
+                path = os.path.join(base, name)
+                with open(path, errors="ignore") as f:
+                    text = f.read()
+                for m in INCLUDE.finditer(text):
+                    rel = m.group(1)
+                    full = os.path.normpath(root + rel if rel.startswith("/") else os.path.join(base, rel))
+                    if full.startswith(root + os.sep) or not full.startswith(src + os.sep) or not os.path.isfile(full):
+                        continue
+                    d = os.path.dirname(full)
+                    in_crate = False
+                    while d != src and len(d) > len(src):
+                        if os.path.exists(os.path.join(d, "Cargo.toml")):
+                            in_crate = True
+                            break
+                        d = os.path.dirname(d)
+                    if not in_crate:
+                        found.add(os.path.relpath(full, src))
+    return sorted(found)
 
 
 DEV_SECTION = re.compile(r"^\s*\[(?:target\.[^\]]+\.)?dev-dependencies(?:\.[^\]]+)?\]\s*$")
@@ -241,6 +279,10 @@ def main():
         shutil.copytree(os.path.join(src, c), os.path.join(out, c), ignore=shutil.ignore_patterns("target"))
         if c in crates:
             strip_dev_dependencies(os.path.join(out, c, "Cargo.toml"))
+    # (the files they include from outside: the icon masters, the manual's icon inventory)
+    for f in outside_includes(src, crates):
+        os.makedirs(os.path.dirname(os.path.join(out, f)), exist_ok=True)
+        shutil.copy2(os.path.join(src, f), os.path.join(out, f))
     write_workspace(src, out, crates)
     shutil.copy2(os.path.join(src, "Cargo.lock"), os.path.join(out, "Cargo.lock"))
     for f in [".cargo/config.toml", "tools/wasm-ar.sh"]:

@@ -95,8 +95,9 @@ if ($kind -eq "sdk") {
         Check "--target $other" { Test-Path "$T\work\other\hello.exe" }
         if ($other -eq "windows-x86_64") { Check "the x64 executable runs (emulated)" { (Out-Of "$T\work\other\hello.exe" @("x")) -match "hello x" } }
     }
-    $env:RAPIDR_CAPTURE = "$T\work\ide"; $env:RAPIDR_CAPTURE_DELAY = "0.5"; $env:RAPIDR_TEST_DUMP = "statusbar.caption"
-    Check "the IDE starts (headless)" { (Out-Of $R @("ide")) -match "statusbar.caption=Ready" }
+    $env:RAPIDR_CAPTURE = "$T\work\ide"; $env:RAPIDR_CAPTURE_DELAY = "0.5"; $env:RAPIDR_TEST_DUMP = "Studio.caption"
+    Check "the IDE starts (headless)" { (Out-Of $R @("ide")) -match "Studio.caption=RapidR Studio" }
+    Check "the IDE opens a file" { (Out-Of $R @("ide", "$T\work\hello.bas")) -match "Studio.caption=hello - RapidR Studio" }
     Remove-Item env:RAPIDR_CAPTURE, env:RAPIDR_CAPTURE_DELAY, env:RAPIDR_TEST_DUMP
     if ($Native) {
         Write-Host "== native builds: rapidr setup, then the shipped LLVM-MinGW (a throwaway rustup and cargo home, offline)"

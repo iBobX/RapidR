@@ -180,8 +180,8 @@ if [ "$KIND" = sdk ]; then
         check "--target macos-x86_64: the x86_64 slice (not run)" test "$(lipo -archs "$W/intel/hello" 2>/dev/null)" = x86_64
     fi
     check "its THIRD-PARTY-NOTICES.txt beside it (the install's)" grep -q "Rust standard library" "$W/THIRD-PARTY-NOTICES.txt"
-    check "the IDE starts (headless)" has "$(RAPIDR_CAPTURE="$W/ide" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=statusbar.caption "$R" ide 2>&1)" "statusbar.caption=Ready"
-    check "the IDE opens a file" has "$(RAPIDR_CAPTURE="$W/ide" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=statusbar.caption "$R" ide "$W/hello.bas" 2>&1)" "Opened: $W/hello.bas"
+    check "the IDE starts (headless)" has "$(RAPIDR_CAPTURE="$W/ide" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=Studio.caption "$R" ide 2>&1)" "Studio.caption=RapidR Studio"
+    check "the IDE opens a file" has "$(RAPIDR_CAPTURE="$W/ide" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=Studio.caption "$R" ide "$W/hello.bas" 2>&1)" "Studio.caption=hello - RapidR Studio"
     if [ "${SMOKE_NATIVE:-1}" = 1 ] && [ -x "$CARGO_BIN/cargo" ]; then
         echo "== rapidr setup and a native build: a throwaway rustup and cargo home, offline, the shipped sources"
         # (the user's own Rust is never touched: its default, read before and after)
