@@ -13,7 +13,9 @@ checkout holds. It needs cargo and the network (or cargo's cache). It writes
     Cargo.lock          the repository's, pruned to them (the versions RapidR
                         is tested with)
     crates/…            rapidr-runtime-core, rapidr-runtime-web and the RapidR
-                        crates they use; crates/patches/… the crates.io crates
+                        crates they use (their [dev-dependencies] removed: the
+                        home is compiled against, not tested, and a dev-dependency
+                        may name a crate the home doesn't have); crates/patches/… the crates.io crates
                         RapidR replaces (the [patch.crates-io] above)
     .cargo/config.toml  the web runtime's SQLite flags (rapidr build --web)
     tools/wasm-ar.sh
@@ -30,6 +32,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -71,6 +74,31 @@ def runtime_crates(src):
             if packages[dep["pkg"]]["source"] is None and any(k.get("kind") in (None, "build") for k in dep["dep_kinds"]):
                 stack.append(dep["pkg"])
     return sorted(os.path.relpath(os.path.dirname(packages[p]["manifest_path"]), src) for p in seen)
+
+
+DEV_SECTION = re.compile(r"^\s*\[(?:target\.[^\]]+\.)?dev-dependencies(?:\.[^\]]+)?\]\s*$")
+ANY_SECTION = re.compile(r"^\s*\[")
+
+
+def strip_dev_dependencies(manifest):
+    """A shipped crate's Cargo.toml without its [dev-dependencies] sections
+    (target-specific and per-crate tables too): the home is compiled
+    against, never tested, and a dev-dependency may name a crate (or a
+    workspace dependency) the home's workspace doesn't have — Cargo reads
+    every member's manifest whole, and fails on it."""
+    with open(manifest) as f:
+        lines = f.read().splitlines(keepends=True)
+    kept, skipping = [], False
+    for line in lines:
+        if ANY_SECTION.match(line):
+            skipping = bool(DEV_SECTION.match(line))
+        if not skipping:
+            kept.append(line)
+    text = "".join(kept)
+    if tomllib.loads(text).get("dev-dependencies") or any("dev-dependencies" in v for v in tomllib.loads(text).get("target", {}).values()):
+        sys.exit(f"{manifest}: dev-dependencies left after stripping (written as an inline table?)")
+    with open(manifest, "w") as f:
+        f.write(text)
 
 
 def toml_value(v):
@@ -211,6 +239,8 @@ def main():
     crates = runtime_crates(src)
     for c in crates + [spec["path"] for spec in patches(src).values()]:
         shutil.copytree(os.path.join(src, c), os.path.join(out, c), ignore=shutil.ignore_patterns("target"))
+        if c in crates:
+            strip_dev_dependencies(os.path.join(out, c, "Cargo.toml"))
     write_workspace(src, out, crates)
     shutil.copy2(os.path.join(src, "Cargo.lock"), os.path.join(out, "Cargo.lock"))
     for f in [".cargo/config.toml", "tools/wasm-ar.sh"]:
