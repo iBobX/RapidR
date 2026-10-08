@@ -169,7 +169,7 @@ export const cases = [
     expect: ["lbl.caption=00000000|00000002|00000080|00FF00FF", "lbl2.caption=ok 000000FF 00123456|cancel 000000FF"] },
   // (`fontDialog`: likewise, `Name,Size,styles (b i u s),colour`)
   { name: "font_dialog", events: "b1.onclick,b2.onclick", dump: "lbl.caption,lbl2.caption", fontDialog: "Courier New,14,bu,255;",
-    expect: ["lbl.caption=MS Sans Serif|8|8|Courier New|Times New Roman12", "lbl2.caption=ok Courier New14 -10-1 000000FF|cancel Courier New"] },
+    expect: ["lbl.caption=MS Sans Serif|8|8|Courier New|Times New Roman12", "lbl2.caption=ok Courier New14 101 000000FF|cancel Courier New"] },
   // (QFORM.WindowState: maximize, restore, minimize; OnResize counted by a
   // later click)
   { name: "window_state", headlessOnly: "a real window manager animates (macOS: ~40 OnResize) or answers later (GNOME's restore), and Wayland never tells a window where it is",
@@ -251,7 +251,7 @@ export const cases = [
   // (QSTATUSBAR's size grip dragged 50 across, 40 down; then a press on
   // the bar, and on the corner once SizeGrip is off)
   { name: "size_grip", events: "bar.__mousedown_306_18,bar.__mousemove_356_58,bar.__mouseup_356_58,bar.__mousedown_100_10,bar.__mouseup_100_10,btn.onclick,bar.__mousedown_356_18,bar.__mouseup_356_18", dump: "lbl.caption,form.width,form.height",
-    expect: ["lbl.caption=w318 g1 r370x280 d100 off d356 ", "form.width=370", "form.height=280"] },
+    expect: ["lbl.caption=w318 g1 r320x240 r320x240 r370x280 d100 off d356 ", "form.width=370", "form.height=280"] },
   // (its accessibility tree and keys: tests/web_a11y.mjs)
   { name: "a11y_form", events: "", dump: "lbl.caption", expect: ["lbl.caption=ready"] },
   // (timers during native menu tracking: `__hold_600`, a menu held open

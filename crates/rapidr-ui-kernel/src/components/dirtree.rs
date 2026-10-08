@@ -88,6 +88,9 @@ impl ComponentKind for DirTreeBox {
             fresh
         });
         if let (true, Some(i)) = (fresh, sel) {
+            // (the bar's range first: a position past an unknown range
+            // would stay at the top)
+            let _ = vscroll(cx.id, w - 4, h - 4, rows.len() as i64 * ROW, ROW);
             let mid = (i as i64 * ROW - (h - 4) / 2 + ROW / 2).max(0);
             scroll_into_view(cx.id, mid, mid + h - 4, h - 4);
         }

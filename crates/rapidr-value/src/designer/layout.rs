@@ -381,6 +381,12 @@ impl LayoutStore for Layout {
     fn key(&self, name: &str) -> String {
         name.to_lowercase()
     }
+    /// (a designed form is laid out as its program lays it out before the
+    /// form shows: the CREATE blocks' order — crate::layout's
+    /// align_controls_unshown)
+    fn unshown(&self, _parent: &str) -> bool {
+        true
+    }
     fn children_of(&self, parent: &str) -> Vec<String> {
         self.order.iter().filter(|k| self.comps.get(*k).is_some_and(|c| c.parent == parent)).cloned().collect()
     }
@@ -534,7 +540,8 @@ mod tests {
 
     #[test]
     fn aligned_children_and_scroll_bars_as_the_runtime() {
-        // scratch probe align1.bas, as RapidR lays it out (changed first)
+        // scratch probe align1.bas, as RapidQ lays it out at the first Show
+        // (RC.EXE: the splitter made first is left of the tree)
         let mut form = comp("Form", "QFORM", &[("Width", "400"), ("Height", "300")]);
         for (n, t, props) in [
             ("Sp", "QSPLITTER", vec![("Align", "alLeft")]),
@@ -549,8 +556,8 @@ mod tests {
         let d = FormDesign::from_subtree(form);
         let mut l = Layout::of(&d);
         let r = |l: &Layout, n: &str| l.rect(d.find(n).unwrap()).unwrap();
-        assert_eq!(r(&l, "Sp"), Rect::new(200, 30, 3, 225));
-        assert_eq!(r(&l, "Tree"), Rect::new(0, 30, 200, 225));
+        assert_eq!(r(&l, "Sp"), Rect::new(0, 30, 3, 225));
+        assert_eq!(r(&l, "Tree"), Rect::new(3, 30, 200, 225));
         assert_eq!(r(&l, "Bar"), Rect::new(0, 0, 381, 30));
         assert_eq!(r(&l, "Ed"), Rect::new(203, 30, 178, 225));
         assert_eq!(l.form_client_size(), (381, 269));

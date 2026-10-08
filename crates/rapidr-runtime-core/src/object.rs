@@ -702,7 +702,9 @@ fn set_property(name: &str, prop: &str, val: Value) {
         crate::ui::canvas_redraw(name);
         // (a form's is fired below, once its size really changed)
         if !rapidr_value::objects::is_form_surface(name) && canvas_size_before != Some(rp_comp_get(name, &prop_lower).to_i64()) {
+            if shown_once(name) {
             rapidr_value::events::post_paint(name);
+        }
         }
     }
     // A form's new size: it paints again (drawn on its surface, or its
@@ -712,7 +714,9 @@ fn set_property(name: &str, prop: &str, val: Value) {
         if rapidr_value::mdi::is_mdi(name) {
             crate::mdi::resized(name);
         }
-        rapidr_value::events::post_paint(name);
+        if shown_once(name) {
+            rapidr_value::events::post_paint(name);
+        }
     }
     // A QIMAGE's AutoSize / Stretch / Center, or its size with Stretch.
     if matches!(prop_lower.as_str(), "autosize" | "stretch" | "center" | "width" | "height") && rapidr_value::objects::is_picture(name) {
@@ -1400,6 +1404,13 @@ pub fn rp_fire_event(name: &str, event: &str) {
     if event == "onclick" {
         button_modal_result(name);
     }
+}
+
+/// Whether the form `name` is on has been shown (ui-app's forms mark its
+/// first Show): before it, nothing has a window to paint — the first
+/// Show paints it all.
+fn shown_once(name: &str) -> bool {
+    form_of(name).is_some_and(|f| rp_comp_get(&f, "__shownonce").to_bool())
 }
 
 /// The form a component is on (itself for a form).

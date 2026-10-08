@@ -842,7 +842,9 @@ fn set_property(name: &str, prop: &str, val: Value) {
     } else if matches!(lprop.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(&uname) {
         crate::kernel_web::redraw();
         if !rapidr_value::objects::is_form_surface(&uname) && canvas_size_before != Some(rp_comp_get_stored(name, &lprop).to_i64()) {
+            if shown_once(&uname) {
             rapidr_value::events::post_paint(&uname);
+        }
         }
     }
     // A form's new size: it paints again.
@@ -852,7 +854,9 @@ fn set_property(name: &str, prop: &str, val: Value) {
         if rapidr_value::mdi::is_mdi(&uname) {
             crate::mdi_web::resized(&uname);
         }
-        rapidr_value::events::post_paint(&uname);
+        if shown_once(&uname) {
+            rapidr_value::events::post_paint(&uname);
+        }
     }
     // A child window's frame shows its title and whether it's active.
     if matches!(lprop.as_str(), "caption" | "active" | "childstate") && rp_comp_type(&uname) == "RMDICHILD" {
@@ -2055,6 +2059,13 @@ pub fn rp_fire_event(name: &str, event: &str) {
     if event == "onclick" {
         button_modal_result(name);
     }
+}
+
+/// Whether the form `name` is on has been shown (ui-app's forms mark its
+/// first Show): before it, nothing has a window to paint — the first
+/// Show paints it all.
+fn shown_once(name: &str) -> bool {
+    form_of(name).is_some_and(|f| rp_comp_get_stored(&f, "__shownonce").to_bool())
 }
 
 /// The form a component is on (itself for a form).
