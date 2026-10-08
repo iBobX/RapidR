@@ -308,7 +308,7 @@ in any modern terminal and in the IDE's output panel.
 | `$MACRO NAME(x) = text` | a macro with parameters |
 | `$APPTYPE CONSOLE \| GUI \| CGI \| WEB` | the program's kind |
 | `$RESOURCE NAME AS "file"` | a file built into the program (`RESOURCE(n)`, `EXTRACTRESOURCE`, pictures) |
-| `$OPTION ICON "file.ico"` | the program's icon |
+| `$OPTION ICON "file.ico"` | the program's icon: its windows' and the built app's ([Building apps](building-apps.md)) |
 | `$ESCAPECHARS ON` | escape sequences in this file's strings |
 | `$TYPECHECK ON` / `OFF` (`$OPTION EXPLICIT`: ON) | every variable must be declared (DIM, CONST, a parameter): an undeclared one stored into is RapidQ's `Undeclared identifier x`, read is its `Undefined symbol X` |
 | `$OPTIMIZE` | accepted |

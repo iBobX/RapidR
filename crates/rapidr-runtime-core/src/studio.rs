@@ -57,6 +57,32 @@ impl Host for Desktop {
     fn list_files(self, folder: &str) -> Vec<String> {
         Desktop::files_in(folder)
     }
+
+    fn rapidr(self) -> Option<PathBuf> {
+        runtime().ok()
+    }
+
+    fn reveal(self, path: &str) -> Result<(), String> {
+        let p = std::path::Path::new(path);
+        if !p.exists() {
+            return Err(format!("{path}: not there"));
+        }
+        let mut cmd = if cfg!(target_os = "macos") {
+            let mut c = std::process::Command::new("open");
+            c.arg("-R").arg(p);
+            c
+        } else if cfg!(windows) {
+            let mut c = std::process::Command::new("explorer");
+            c.arg(format!("/select,{}", path.replace('/', "\\")));
+            c
+        } else {
+            // (the folder it's in: what every Linux file manager opens)
+            let mut c = std::process::Command::new("xdg-open");
+            c.arg(p.parent().filter(|d| !d.as_os_str().is_empty()).unwrap_or(std::path::Path::new(".")));
+            c
+        };
+        cmd.spawn().map(|_| ()).map_err(|e| format!("can't show {path}: {e}"))
+    }
 }
 
 impl Desktop {
@@ -90,5 +116,5 @@ pub fn poll() -> bool {
 
 /// Whether a program session is running.
 pub fn running() -> bool {
-    rapidr_studio::session::any_running()
+    rapidr_studio::session::any_running() || rapidr_studio::build::any()
 }

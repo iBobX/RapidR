@@ -87,12 +87,15 @@ const DOCK: &[&str] = &["savelayout", "resetlayout", "cascade", "tilehorizontal"
 
 /// (I2) RDIFFVIEW's (crate::objects::diffview): `N = Diff.NextHunk`.
 const DIFF: &[&str] = &["acceptall", "rejectall", "nexthunk", "previoushunk"];
+/// (I1 / L-PANELS) RapidR Studio's panels' (crate::panels): `Insp.ExpandAll`,
+/// `OK = Tree.Save`, `Console.FindNext`.
+const PANELS: &[&str] = &["expandall", "collapseall", "clearproperties", "save", "projecttext", "clearproblems", "findnext"];
 
 /// (I1) RPROGRAMSESSION's: `IF Session.Start THEN`.
 const SESSION: &[&str] = &["start", "stop", "pause", "continue", "stepin", "stepover", "stepout"];
 
 /// (I1) RPROJECT's: `IF Project.Save THEN`.
-const PROJECT: &[&str] = &["save"];
+const PROJECT: &[&str] = &["save", "build", "stopbuild", "reveal"];
 
 /// The web's own components.
 const WEB: &[&str] = &[
@@ -128,6 +131,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
         "RTABCONTROL" => &[TABS],
         "RDOCKMANAGER" => &[DOCK],
         "RDIFFVIEW" => &[DIFF],
+        "RPROPERTYINSPECTOR" | "RTOOLBOX" | "RPROJECTTREE" | "ROUTPUTCONSOLE" | "RCOMMANDPALETTE" | "RTOOLBAR" => &[PANELS],
         "RDOWNLOAD" | "RCDAUDIO" | "RCOMPORT" | "RMIDI" | "RWAVE" | "RVIDEO" => &[IO],
         "RWEBVIEW" | "RDOM" | "RJAVASCRIPT" | "RWEBSTORAGE" | "RWEBAUDIO" | "RWEBVIDEO" | "RWEBNOTIFICATION"
         | "RWEBGEOLOCATION" | "RROUTER" => &[WEB],
@@ -138,7 +142,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
 /// Whether `member` (lowercase) is any type's method read without
 /// parentheses — the quick test before the type is looked up.
 pub fn is_value_method_name(member: &str) -> bool {
-    [ANY, DATABASE, NETWORK, STREAM, JSON, STRING_LIST, DRAWING, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, DIFF, SESSION, PROJECT]
+    [ANY, DATABASE, NETWORK, STREAM, JSON, STRING_LIST, DRAWING, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, DIFF, SESSION, PROJECT, PANELS]
         .iter()
         .any(|list| list.contains(&member))
 }

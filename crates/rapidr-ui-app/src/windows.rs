@@ -35,6 +35,9 @@ pub enum WindowOp {
     /// The window covers the screen without a frame (a QDXSCREEN's
     /// FullScreen); the system's new size comes back as a resize.
     Fullscreen(String),
+    /// (L-PANELS) `Comp.SetFocus`: form, component — the keyboard to it
+    /// (a command palette's Show puts it in its search box).
+    Focus(String, String),
 }
 
 /// A window's picture (RGBA, straight): a form's IcoHandle / Icon, else

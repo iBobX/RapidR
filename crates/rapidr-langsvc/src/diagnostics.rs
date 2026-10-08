@@ -61,9 +61,33 @@ pub fn compile(parsed: &Parsed) -> Vec<FileDiagnostic> {
     // 4. The bytecode compiler, on the same program and text.
     let library_lines: Vec<bool> = tools.preprocessed.line_map.iter().map(|(file, _)| file.as_deref().is_some_and(|f| f != parsed.root)).collect();
     match rapidr_bcgen::compile_program_diagnostics(&parsed.program, Some(source), &library_lines) {
-        Ok(_) => Vec::new(),
+        Ok(_) => missing_icons(parsed),
         Err(errors) => errors.iter().filter_map(|d| at_pre(parsed, d)).collect(),
     }
+}
+
+/// 5. `$OPTION ICON` files that aren't there: RC.EXE's `ICON file x does
+/// not exist.` at the directive, as the build reports it after compiling.
+/// (Not on the web: there the project's assets hold the icon, checked when
+/// the program is built.)
+fn missing_icons(parsed: &Parsed) -> Vec<FileDiagnostic> {
+    if cfg!(target_arch = "wasm32") {
+        return Vec::new();
+    }
+    let resources = &parsed.tools.preprocessed.resources;
+    resources
+        .iter()
+        .filter(|r| r.path.is_none())
+        .filter_map(|r| {
+            let (file, line) = r.icon_directive.as_ref()?;
+            let file = PathBuf::from(file);
+            let text = parsed.file_text(&file)?;
+            let index = LineIndex::new(text);
+            let start = index.line_start(line.saturating_sub(1)).unwrap_or(0);
+            let end = start + index.line_text(text, line.saturating_sub(1)).len();
+            Some(FileDiagnostic { file, start, end: end.max(start), severity: Severity::Error, message: format!("ICON file {} does not exist.", r.file), code: None })
+        })
+        .collect()
 }
 
 /// A diagnostic whose span counts bytes of the preprocessed text.

@@ -2,21 +2,16 @@
 ' command table), the tool bar, the dock manager with its panes and the
 ' documents area, the status bar — and the command palette.
 '
-' Every pane is a public component registered in the dock manager by name,
-' so a richer component replaces one by taking its name (docs/ide-plan.md
-' I1): ProjectTree (RProjectTree), ToolboxTree (RToolbox), PropGrid
-' (RPropertyInspector), OutlineTree, OutputBox (ROutputConsole),
-' ProblemsView, ImmediateBox (RImmediateWindow); documents are CodeDoc(i)
-' (RCodeEditor) and DesignDoc(i) (RFormDesigner) — see panes.inc.
+' Every pane is a public component registered in the dock manager by name
+' (docs/ide-plan.md I1): ProjectTree (RPROJECTTREE), Toolbox (RTOOLBOX),
+' Inspector (RPROPERTYINSPECTOR), OutlineTree, OutputBox (ROUTPUTCONSOLE:
+' the output, the build log and the problems), ImmediateBox
+' (RImmediateWindow, I6); the tool bar is an RTOOLBAR and the command
+' palette an RCOMMANDPALETTE (panels.inc); documents are CodeDoc(i)
+' (RCodeEditor) and DesignDoc(i) (the designer) — see panes.inc.
 
-DIM FileIcons AS QIMAGELIST
-FileIcons.Width = 16: FileIcons.Height = 16
-DIM ToolIcons AS QIMAGELIST
-ToolIcons.Width = 16: ToolIcons.Height = 16
 DIM SymbolIcons AS QIMAGELIST
 SymbolIcons.Width = 16: SymbolIcons.Height = 16
-DIM MarkIcons AS QIMAGELIST
-MarkIcons.Width = 16: MarkIcons.Height = 16
 DIM ExampleIcons AS QIMAGELIST
 ExampleIcons.Width = 16: ExampleIcons.Height = 16
 
@@ -40,14 +35,11 @@ CREATE Studio AS QFORM
   OnKeyDown = StudioKey
   CREATE MainMenu AS QMAINMENU
   END CREATE
-  CREATE ToolBar AS QPANEL
+  CREATE ToolBar AS RTOOLBAR
     Align = 1: Height = 40
-    BevelOuter = 0
+    ButtonSize = 30
     AccessibleName = "Tool bar"
-  END CREATE
-  CREATE ToolLine AS QPANEL
-    Align = 1: Height = 1
-    BevelOuter = 0
+    OnButtonClick = ToolClicked
   END CREATE
   CREATE Status AS QSTATUSBAR
     AccessibleName = "Status"
@@ -60,23 +52,29 @@ CREATE Studio AS QFORM
   END CREATE
 
   ' ---- tool panes ----
-  CREATE ProjectTree AS QTREEVIEW
+  CREATE ProjectTree AS RPROJECTTREE
     Width = 250: Height = 300
-    Images = FileIcons
     AccessibleName = "Project"
-    OnDblClick = ProjectTreeOpen
+    OnOpen = ProjectNodeOpen
+    OnSelect = ProjectNodeSelect
+    OnNewFile = ProjectNewFile
+    OnRename = ProjectRename
+    OnDelete = ProjectDelete
+    OnMove = ProjectMove
   END CREATE
-  CREATE ToolboxTree AS QTREEVIEW
+  CREATE Toolbox AS RTOOLBOX
     Width = 250: Height = 300
-    Images = ToolIcons
     AccessibleName = "Toolbox"
+    OnPick = ToolboxPick
+    OnSelect = ToolboxSelect
+    OnDragStart = ToolboxDragStart
+    OnDragDrop = ToolboxDrop
   END CREATE
-  CREATE PropGrid AS QSTRINGGRID
+  CREATE Inspector AS RPROPERTYINSPECTOR
     Width = 290: Height = 340
-    ColCount = 2: RowCount = 2
-    FixedCols = 1: FixedRows = 0
-    DefaultRowHeight = 22
     AccessibleName = "Properties"
+    OnPropertyChange = InspectorChanged
+    OnEventDblClick = InspectorEvent
   END CREATE
   CREATE OutlineTree AS QTREEVIEW
     Width = 290: Height = 260
@@ -84,20 +82,10 @@ CREATE Studio AS QFORM
     AccessibleName = "Outline"
     OnDblClick = OutlineOpen
   END CREATE
-  CREATE OutputBox AS QRICHEDIT
+  CREATE OutputBox AS ROUTPUTCONSOLE
     Width = 700: Height = 190
-    ReadOnly = 1
-    WordWrap = 0
     AccessibleName = "Output"
-  END CREATE
-  CREATE ProblemsView AS QLISTVIEW
-    Width = 700: Height = 190
-    ViewStyle = 3
-    RowSelect = 1
-    ReadOnly = 1
-    SmallImages = MarkIcons
-    AccessibleName = "Problems"
-    OnDblClick = ProblemOpen
+    OnLinkClick = OutputLink
   END CREATE
   CREATE ImmediateBox AS QRICHEDIT
     Width = 700: Height = 190
@@ -164,26 +152,16 @@ CREATE Studio AS QFORM
       Caption = "Examples"
     END CREATE
   END CREATE
+
+  ' ---- the command palette (Ctrl+Shift+P): over the window's top ----
+  CREATE Palette AS RCOMMANDPALETTE
+    Width = 600
+    Placeholder = "Type a command, :line, or an example"
+    AccessibleName = "Command Palette"
+    OnCommand = PaletteCommand
+  END CREATE
 END CREATE
 
-' ---- the command palette (Ctrl+Shift+P) -----------------------------------------
-CREATE Palette AS QFORM
-  Caption = "Command Palette"
-  Width = 560: Height = 360
-  BorderStyle = 4
-  KeyPreview = 1
-  OnKeyDown = PaletteKey
-  CREATE PaletteEdit AS QEDIT
-    Left = 8: Top = 8: Width = 528: Height = 24
-    AccessibleName = "Type a command"
-    OnChange = PaletteChanged
-  END CREATE
-  CREATE PaletteList AS QLISTBOX
-    Left = 8: Top = 40: Width = 528: Height = 276
-    AccessibleName = "Commands"
-    OnDblClick = PalettePicked
-  END CREATE
-END CREATE
 
 ' ---- File > New Project ---------------------------------------------------------------
 CREATE NewDialog AS QFORM

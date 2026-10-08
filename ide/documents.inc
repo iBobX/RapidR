@@ -3,12 +3,6 @@
 ' the active one: its outline (RLanguageService), its problems, its form's
 ' properties.
 
-DIM FormName AS STRING
-DIM FormType AS STRING
-DIM FormCaption AS STRING
-DIM PropKey(60) AS STRING
-DIM PropValue(60) AS STRING
-DIM PropCount AS INTEGER
 DIM OutlineLine(400) AS INTEGER
 DIM OutlineCount AS INTEGER
 
@@ -40,53 +34,8 @@ FUNCTION Unquote(v AS STRING) AS STRING
   IF LEFT$(v, 1) = CHR$(34) AND RIGHT$(v, 1) = CHR$(34) AND LEN(v) >= 2 THEN Result = MID$(v, 2, LEN(v) - 2) ELSE Result = v
 END FUNCTION
 
-' ---- the form a file creates: its properties (until S-PANELS' inspector) -----------
-' Its first top-level CREATE … AS QFORM: the form's own assignments for the
-' Properties pane. The designer itself reads the code (designer.inc:
-' DesignRead — rapidr-designer's Document behind RDESIGNSURFACE's Source).
-
-SUB ScanForm(d AS INTEGER)
-  DIM n AS INTEGER, i AS INTEGER, s AS STRING, u AS STRING, k AS INTEGER, depth AS INTEGER
-  DIM nm AS STRING, ty AS STRING, j AS INTEGER, part AS STRING, parts AS INTEGER
-  DIM inForm AS INTEGER, formDepth AS INTEGER
-  FormName = "": FormType = "": FormCaption = ""
-  PropCount = 0
-  depth = 0
-  n = CodeDoc(d).LineCount
-  FOR i = 0 TO n - 1
-    s = LTRIM$(RTRIM$(CodeDoc(d).Line(i)))
-    u = UCASE$(s)
-    IF LEFT$(u, 7) = "CREATE " AND INSTR(u, " AS ") > 0 THEN
-      k = INSTR(u, " AS ")
-      nm = RTRIM$(MID$(s, 8, k - 8))
-      ty = UCASE$(LTRIM$(RTRIM$(MID$(s, k + 4))))
-      depth = depth + 1
-      IF FormName = "" AND (ty = "QFORM" OR ty = "RFORM") THEN
-        FormName = nm: FormType = ty: inForm = 1: formDepth = depth
-        PropKey(0) = "Name": PropValue(0) = nm
-        PropKey(1) = "Type": PropValue(1) = ty
-        PropCount = 2
-      END IF
-    ELSEIF LEFT$(u, 10) = "END CREATE" THEN
-      IF inForm AND depth = formDepth THEN inForm = 0
-      IF depth > 0 THEN depth = depth - 1
-    ELSEIF inForm AND s <> "" AND LEFT$(s, 1) <> "'" THEN
-      parts = TALLY(s, ":") + 1
-      FOR j = 1 TO parts
-        part = FIELD$(s, ":", j)
-        IF depth = formDepth THEN
-          k = INSTR(part, "=")
-          IF k > 1 AND PropCount < 60 THEN
-            PropKey(PropCount) = LTRIM$(RTRIM$(LEFT$(part, k - 1)))
-            PropValue(PropCount) = LTRIM$(RTRIM$(MID$(part, k + 1)))
-            IF UCASE$(PropKey(PropCount)) = "CAPTION" THEN FormCaption = Unquote(PropValue(PropCount))
-            PropCount = PropCount + 1
-          END IF
-        END IF
-      NEXT
-    END IF
-  NEXT
-END SUB
+' (S-PANELS: the stand-in scanner of the form's properties is gone: the
+' inspector follows the designer, which reads the code — designer.inc)
 
 ' ---- the outline (RLanguageService) ------------------------------------------------
 
@@ -154,15 +103,8 @@ SUB FillProblems(d AS INTEGER)
     k = 2
     IF sev = "error" THEN k = 0: errs = errs + 1
     IF sev = "warning" THEN k = 1: warns = warns + 1
-    AddProblem k, FIELD$(row, CHR$(9), 4), FileTitle(FIELD$(row, CHR$(9), 5)), VAL(FIELD$(row, CHR$(9), 2))
-    ProblemLine(ProblemsView.ItemCount - 1) = VAL(FIELD$(row, CHR$(9), 2))
+    AddProblem k, FIELD$(row, CHR$(9), 4), FIELD$(row, CHR$(9), 5), VAL(FIELD$(row, CHR$(9), 2)), VAL(FIELD$(row, CHR$(9), 3))
   NEXT
-  IF n = 0 THEN AddProblem 3, "No problems", FileTitle(DocFile(d)), 0
-  IF errs + warns = 0 THEN
-    Dock.PaneTitle("problemsview", "Problems")
-  ELSE
-    Dock.PaneTitle("problemsview", "Problems (" + LTRIM$(STR$(errs + warns)) + ")")
-  END IF
 END SUB
 
 ' The active document's outline, problems and properties again.
@@ -171,14 +113,12 @@ SUB AnalyzeActive
   d = ActiveCode
   IF d >= 0 THEN
     Lang.Update DocFile(d), CodeDoc(d).Text
-    ScanForm d
     IF DocHasForm(d) THEN DesignRead d
-  ELSE
-    PropCount = 0
   END IF
   FillOutline d
   FillProblems d
-  ShowProperties FormName
+  ' (S-PANELS: the inspector follows the active form's designer)
+  InspectActive
 END SUB
 
 ' ---- opening, saving, closing ---------------------------------------------------------
@@ -215,6 +155,8 @@ SUB DocTitles(d AS INTEGER)
   DIM t AS STRING
   t = FileTitle(DocFile(d))
   IF DocDirty(d) THEN t = t + " *"
+  ' (S-PANELS: the project tree marks a file with changes not saved)
+  ProjectTree.FileModified DocFile(d), DocDirty(d)
   Dock.PaneTitle("codedoc(" + LTRIM$(STR$(d)) + ")", t)
   IF DocHasForm(d) THEN Dock.PaneTitle("designdoc(" + LTRIM$(STR$(d)) + ")", t + " [Design]")
 END SUB
@@ -241,7 +183,6 @@ SUB OpenDocument(Path AS STRING)
   DocKind(d) = "code"
   DocOpen(d) = 1
   DocDirty(d) = 0
-  ScanForm d
   DesignDoc(d).OnSourceEdit = DesignSourceEdit
   DesignDoc(d).OnChange = DesignChanged
   DesignDoc(d).OnDblClick = DesignDblClick
@@ -306,4 +247,6 @@ END SUB
 SUB AnalyzerTick
   Analyzer.Enabled = 0
   AnalyzeActive
+  ' (S-PANELS: the project tree lists the form's components as the code has them)
+  ProjectFileChanged ActiveCode
 END SUB

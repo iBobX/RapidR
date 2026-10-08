@@ -124,6 +124,15 @@ SITES = {
     ("crates/rapidr-value/src/objects/glass.rs", "*"): "RGLASSFRAME",
     ("crates/rapidr-value/src/objects/icons.rs", "call"): "RBITMAP RIMAGELIST",
     ("crates/rapidr-value/src/dock/runtime.rs", "*"): "RDOCKMANAGER",
+    # (I1 / L-PANELS: RapidR Studio's panels)
+    ("crates/rapidr-value/src/panels/inspector.rs", "*"): "RPROPERTYINSPECTOR",
+    # (a designed component's laid-out Left, Top, Width, Height: any component)
+    ("crates/rapidr-value/src/panels/inspector/designer_model.rs", "fallback"): "*",
+    ("crates/rapidr-value/src/panels/toolbox.rs", "*"): "RTOOLBOX",
+    ("crates/rapidr-value/src/panels/project_tree.rs", "*"): "RPROJECTTREE",
+    ("crates/rapidr-value/src/panels/console.rs", "*"): "ROUTPUTCONSOLE",
+    ("crates/rapidr-value/src/panels/toolbar.rs", "*"): "RTOOLBAR",
+    ("crates/rapidr-value/src/panels/palette.rs", "*"): "RCOMMANDPALETTE",
     ("crates/rapidr-value/src/objects/grid.rs", "*"): "RSTRINGGRID",
     ("crates/rapidr-value/src/objects/header.rs", "call", "member"): "HEADERSECTION",
     ("crates/rapidr-value/src/objects/header.rs", "*"): "RHEADER",
