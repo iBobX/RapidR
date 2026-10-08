@@ -1825,7 +1825,9 @@ fn open_file(id: &str, path: &str, mode: i64) -> Result<Value, String> {
     let create = mode == 65535;
     let writable = create || mode == 1 || mode == 2;
     let native = NATIVE_FILES.with(std::cell::Cell::get);
-    let data = if create { Vec::new() } else { read_file(path)? };
+    // (RC.EXE: a file that can't be opened stops the program — Delphi's
+    // EFOpenError "Cannot open file x.", EFCreateError "Cannot create file x.")
+    let data = if create { Vec::new() } else { read_file(path).map_err(|_| crate::exception(&format!("Cannot open file {path}.")))? };
     #[cfg(not(target_arch = "wasm32"))]
     let handle = if native && writable {
         let mut options = std::fs::OpenOptions::new();
@@ -1833,12 +1835,12 @@ fn open_file(id: &str, path: &str, mode: i64) -> Result<Value, String> {
         if create {
             options.create(true).truncate(true);
         }
-        Some(options.open(path).map_err(|e| format!("can't open {path}: {e}"))?)
+        Some(options.open(path).map_err(|_| crate::exception(&format!("Cannot {} file {path}.", if create { "create" } else { "open" })))?)
     } else {
         None
     };
     if create && !native {
-        write_file(path, &[])?;
+        write_file(path, &[]).map_err(|_| crate::exception(&format!("Cannot create file {path}.")))?;
     }
     let sink = memstream::FileSink {
         path: path.to_string(),

@@ -1182,6 +1182,9 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             #[cfg(feature = "gui")]
             crate::ui::text_push(name);
             return result.unwrap_or_else(|e| {
+                if let Some(m) = rapidr_value::exception_message(&e) {
+                    crate::value::runtime_error(m);
+                }
                 eprintln!("[rapidr] {name}.{method}: {e}");
                 v_null()
             });
@@ -1243,6 +1246,10 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             crate::ui::list_refresh(name);
         }
         return result.unwrap_or_else(|e| {
+            // (a RapidQ exception: the program stops, as RC.EXE's)
+            if let Some(m) = rapidr_value::exception_message(&e) {
+                crate::value::runtime_error(m);
+            }
             eprintln!("[rapidr] {name}.{method}: {e}");
             v_null()
         });

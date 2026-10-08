@@ -358,6 +358,11 @@ pub(crate) fn web_store_file(path: &str, bytes: Vec<u8>) {
 }
 
 fn object_error(name: &str, what: &str, e: &str) {
+    // (a RapidQ exception: the host stops the program, as RC.EXE's)
+    if let Some(m) = rapidr_value::exception_message(e) {
+        rapidr_value::raise(m);
+        return;
+    }
     web_sys::console::warn_1(&JsValue::from_str(&format!("[rapidr] {name}.{what}: {e}")));
 }
 
