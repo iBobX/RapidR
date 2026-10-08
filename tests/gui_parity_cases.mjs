@@ -41,10 +41,10 @@ export const cases = [
   // last come first, a disabled command is skipped.
   { name: "panel_toolbox", events: "box.__mousedown_60_15,box.__mouseup_60_15,box.__key_66,box.__key_85,box.__key_84,box.__key_13,box.__key_27,box.__key_27,box.__mousedown_100_133,box.__mousemove_150_133,box.__mousemove_400_150,box.__mouseup_400_150,box.__mousedown_100_133,box.__mousemove_150_133,box.__mouseup_500_80,box.__mousedown_100_40,box.__mouseup_100_40,breport.onclick",
     dump: "lbl.caption,info.caption",
-    expect: ["lbl.caption= pick:QBUTTON sel:QLABEL drag:QLABEL drop:QLABEL>surface@108,118 drag:QLABEL drop:QLABEL>inner@28,28", "info.caption=29 RMEMO QLABEL []"] },
+    expect: ["lbl.caption= pick:QBUTTON sel:QLABEL drag:QLABEL drop:QLABEL>surface@108,118 drag:QLABEL drop:QLABEL>inner@28,28", "info.caption=32 RMEMO QLABEL []"] },
   { name: "panel_toolbox_keys", events: "box.__key_40,box.__key_40,box.__key_40,box.__key_40,box.__key_76,box.__key_37,box.__key_37,box.__key_40,box.__key_39,box.__key_35,box.__key_36,box.__key_13,breport.onclick",
     dump: "lbl.caption,info.caption",
-    expect: ["lbl.caption= sel:QFORM sel:QBUTTON sel:QLABEL sel:QFORMMDI sel:RCOMMANDPALETTE", "info.caption=29 RMEMO RCOMMANDPALETTE []"] },
+    expect: ["lbl.caption= sel:QFORM sel:QBUTTON sel:QLABEL sel:QFORMMDI sel:RLANGUAGESERVICE", "info.caption=32 RMEMO RLANGUAGESERVICE []"] },
   { name: "panel_palette", events: "bopen.onclick,pal.__key_83,pal.__key_65,pal.__key_40,pal.__key_13,bopen.onclick,pal.__key_27,bopen.onclick,edit1.__mousedown_5_5,edit1.__mouseup_5_5,bopen.onclick,pal.__mousedown_100_81,pal.__mouseup_100_81,bopen.onclick,pal.__key_83,breport.onclick",
     dump: "lbl.caption,info.caption",
     expect: ["lbl.caption= first:file.save run:file.saveall first:file.saveall cancel first:file.saveall cancel first:file.saveall run:file.save first:file.save", "info.caption=3 file.save [s] -1 5"] },
@@ -64,7 +64,7 @@ export const cases = [
   // its Hint typed, OkButton picked again, its top anchor pin turned off,
   // the program's own Speed (AddProperty) typed; the surface's GetProp
   // reads what the inspector wrote.
-  { name: "panel_inspector_designer", events: "insp.__mousedown_200_148,insp.__mouseup_200_148,insp.__enter,surface.__mousedown_40_66,surface.__mouseup_40_66,insp.__key_72,insp.__key_73,insp.__key_113,insp.__enter,surface.__mousedown_40_26,surface.__mouseup_40_26,insp.__key_65,insp.__key_78,insp.__key_67,insp.__key_39,insp.__key_40,insp.__key_32,insp.__key_83,insp.__key_80,insp.__key_69,insp.__key_113,insp.__key_57,insp.__key_13,breport.onclick",
+  { name: "panel_inspector_designer", events: "insp.__mousedown_200_148,insp.__mouseup_200_148,insp.__enter,surface.__mousedown_40_108,surface.__mouseup_40_108,insp.__key_72,insp.__key_73,insp.__key_113,insp.__enter,surface.__mousedown_40_70,surface.__mouseup_40_70,insp.__key_65,insp.__key_78,insp.__key_67,insp.__key_39,insp.__key_40,insp.__key_32,insp.__key_83,insp.__key_80,insp.__key_69,insp.__key_113,insp.__key_57,insp.__key_13,breport.onclick",
     dump: "log.caption",
     expect: ["log.caption=Caption=Renamed | Hint=Renamed | Anchors=akLeft | Speed=9 | [QBUTTON Renamed akLeft Renamed 9]"] },
   // RPROJECTTREE (I1 / L-PANELS, rapidr_value::panels::project_tree): a
