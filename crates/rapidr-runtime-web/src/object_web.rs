@@ -1991,7 +1991,7 @@ fn dialog_web_method(name: &str, comp_type: &str, method: &str, args: &[Value]) 
             if let Some(window) = web_sys::window() {
                 if let Ok(Some(fname)) = window.prompt_with_message_and_default("Font name:", &req.font.name) {
                     if let Ok(Some(fsize)) = window.prompt_with_message_and_default("Font size (pt):", &req.font.size.to_string()) {
-                        let mut font = req.font.clone();
+                        let mut font = req.answer();
                         font.name = fname;
                         if let Ok(n) = fsize.parse::<i64>() {
                             font.size = n;

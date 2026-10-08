@@ -425,7 +425,7 @@ impl Dialog {
         let color_index = s.colors.iter().position(|(_, c)| *c == font.color).map_or(-1, |i| i as i64);
         let unselected = s.unselected;
         // (a system colour kept: the sample in the theme's ink for it)
-        let ink = s.req.system_ink.filter(|(low, _)| *low == font.color).map(|(_, ink)| ink);
+        let ink = s.req.system.filter(|sc| sc.shown == font.color).map(|sc| sc.ink);
         for (k, (part, index)) in [("font", font_index), ("style", style), ("size", size_index)].into_iter().enumerate() {
             let id = self.child(part);
             self.set(&id, "itemindex", Value::Integer(if unselected[k] { -1 } else { index }));
@@ -498,7 +498,7 @@ impl Dialog {
             Kind::Message => Answer::Button(Some(0)),
             Kind::Input => Answer::Text(Some(self.store.get(&self.child("field"), "text").to_string_val())),
             Kind::Color { state, .. } => Answer::Color(Some(state.color), state.custom),
-            Kind::Font(s) => Answer::Font(Some(s.req.font.clone())),
+            Kind::Font(s) => Answer::Font(Some(s.req.answer())),
         }
     }
 
@@ -519,7 +519,7 @@ impl Dialog {
             "apply" if matches!(ev, KernelEvent::Click(_)) => {
                 self.read_font(None);
                 if let Kind::Font(s) = &self.kind {
-                    self.applied = Some(s.req.font.clone());
+                    self.applied = Some(s.req.answer());
                 }
             }
             _ => return false,
@@ -968,6 +968,20 @@ mod tests {
         other.font.name = "Comic Sans MS".into();
         let d2 = Dialog::font(5, "Font", other, &all);
         assert_eq!(store::int(&d2.store, "rapidr:dlg5:font", "itemindex", -1), 1);
+        // (Color clWindowText, as a new dialog's: Black in the list, no
+        // Custom; kept, OK answers clWindowText; another picked, that one)
+        let sys = fd::request(&|p| if p == "color" { Value::Integer(rapidr_value::component_defaults::CL_WINDOW_TEXT) } else { Value::Null });
+        let mut d3 = Dialog::font(6, "Font", sys, &all);
+        assert_eq!(store::int(&d3.store, "rapidr:dlg6:color", "itemindex", -1), 0);
+        assert_eq!(rapidr_value::objects::get("rapidr:dlg6:color", "itemcount").map(|v| v.to_i64()), Some(16));
+        let mut f3 = ui(&d3);
+        assert_eq!(click(&mut d3, &mut f3, &mut ts, "ok"), Some(Answer::Font(Some(Font { color: rapidr_value::component_defaults::CL_WINDOW_TEXT, ..chosen.clone() }))));
+        let sys = fd::request(&|p| if p == "color" { Value::Integer(rapidr_value::component_defaults::CL_WINDOW_TEXT) } else { Value::Null });
+        let mut d4 = Dialog::font(7, "Font", sys, &all);
+        d4.set("rapidr:dlg7:color", "itemindex", Value::Integer(9));
+        let mut f4 = ui(&d4);
+        assert!(d4.font_event(&KernelEvent::Change("rapidr:dlg7:color".into())));
+        assert_eq!(click(&mut d4, &mut f4, &mut ts, "ok"), Some(Answer::Font(Some(Font { color: 0x0000FF, ..chosen.clone() }))));
     }
 
     #[test]

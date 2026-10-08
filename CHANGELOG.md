@@ -652,6 +652,12 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   their low 32 bits past 8 digits; QFONTDIALOG's colours (clWindowText at
   first, system colours kept). RapidQ IDE's `.rqw` window programs are part
   of the corpus now.
+- **The font dialog names a system colour by its colour**: given clWindowText (a new
+  QFONTDIALOG's Color, and every font that hasn't set one) its colour list showed "Custom"; it
+  shows "Black" now (clWindow "White"; one that isn't among the 16, such as clBtnFace, stays
+  Custom), the sample drawn in the theme's text colour, and OK keeps Color clWindowText unless
+  another colour is picked — so a label given the font back still follows the theme. (RapidQ's
+  dialog shows Custom: a deliberate difference.)
 - **`QFONTDIALOG.SetFont(Label.Font)` / `GetFont(Label.Font)`** change and
   read the component's own font, and `Label2.Font = Label.Font` copies it
   (an addition: RapidQ's compiler refuses a component's Font there).
