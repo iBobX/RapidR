@@ -799,11 +799,11 @@ impl Theme {
     }
 
     /// Text the program left uncoloured, drawn on `background`: the theme's
-    /// text — or, on a colour the program chose where that wouldn't read,
-    /// black or white, whichever reads better. (The classic look keeps
-    /// RapidQ's black everywhere, as RapidQ does.)
+    /// text — or, on a colour where that wouldn't read as text (WCAG AA,
+    /// 4.5:1), black or white, whichever reads better. (The classic look
+    /// keeps RapidQ's black everywhere, as RapidQ does.)
     pub fn text_on(&self, background: u32) -> u32 {
-        if !self.fluent() || contrast(self.text, background) >= 3.0 {
+        if !self.fluent() || contrast(self.text, background) >= 4.5 {
             return self.text;
         }
         if contrast(0x000000, background) >= contrast(0xFFFFFF, background) { 0x000000 } else { 0xFFFFFF }
@@ -1096,6 +1096,13 @@ mod tests {
         assert_eq!(RAPIDR_DARK.text_on(RAPIDR_DARK.face), RAPIDR_DARK.text);
         assert_eq!(RAPIDR_DARK.text_on(0xFFFFFF), 0x000000);
         assert_eq!(RAPIDR.text_on(0x000080), 0xFFFFFF);
+        // (a gauge's percentage on the accent: white, not Ink at 3.5:1)
+        assert_eq!(RAPIDR.text_on(RAPIDR.accent), 0xFFFFFF);
+        for t in ALL.iter().filter(|t| t.fluent()) {
+            for bg in [t.accent, t.face, t.window, 0x808080, 0xFFFF00, 0x0000FF] {
+                assert!(contrast(t.text_on(bg), bg) >= 4.5, "{}: on {bg:06X}", t.name);
+            }
+        }
         assert_eq!(bgr(0x0078D7), 0xD77800);
     }
 

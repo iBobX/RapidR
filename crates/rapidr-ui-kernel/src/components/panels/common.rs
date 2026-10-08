@@ -441,8 +441,14 @@ mod tests {
         for t in rapidr_value::theme::ALL {
             let l = look(t);
             let c = rapidr_icons::contrast;
-            assert!(c(l.text, l.body) >= 4.5, "{}: text on body", t.name);
-            assert!(c(l.section_text, l.section) >= 4.5, "{}: heading", t.name);
+            // (WCAG AA everywhere, AAA in high contrast)
+            let need = if t.contrast { 7.0 } else { 4.5 };
+            assert!(c(l.text, l.body) >= need, "{}: text on body", t.name);
+            assert!(c(l.section_text, l.section) >= need, "{}: heading", t.name);
+            if t.contrast {
+                assert!(c(l.selected_text, l.selected) >= need, "{}: selection", t.name);
+                assert!(c(l.link, l.body) >= need, "{}: links", t.name);
+            }
             // (classic: Windows' own highlight, 4.499 : 1 with white)
             assert!(c(l.selected_text, l.selected) >= 4.45, "{}: selection", t.name);
             assert!(c(l.dim, l.body) >= 3.0, "{}: dimmed values", t.name);

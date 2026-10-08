@@ -959,6 +959,9 @@ mod tests {
 
     #[test]
     fn tabs_links_selection_search_and_copy() {
+        // (the places below are the classic look's: named, as RapidR's is
+        // every program's default)
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
         let s = store("con1");
         let mut ts = TextSystem::new();
         model::remove("con1");
