@@ -18,7 +18,8 @@ import { chromium } from "playwright";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = dirname(HERE);
-const URL_BASE = process.env.RAPIDR_STUDIO_URL || "http://127.0.0.1:18473";
+// (STUDIO_WEB_URL: each lane serves its own build on its own port)
+const URL_BASE = (process.env.STUDIO_WEB_URL || process.env.RAPIDR_STUDIO_URL || "http://127.0.0.1:18473/").replace(/\/+$/, "");
 const RAPIDR = process.env.RAPIDR || join(ROOT, "rapidr");
 const WORK = join(ROOT, "tests", "results", "studio-flows");
 const filters = process.argv.slice(2);
