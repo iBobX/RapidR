@@ -552,11 +552,19 @@ impl ComponentKind for Design {
             maximized: false,
             icon: crate::frame::icon_of(&view.store, &form_id),
         };
-        p.at((fx, fy), |p| crate::frame::paint_into(p, &look, (fw, fh)));
-        let (ix, iy) = crate::frame::inset(shown.border, true);
-        let (ox, oy) = (fx + ix, fy + iy);
-        let face = color_of(&view.store, &form_id).unwrap_or(t.face);
-        {
+        // (in the look the surface's Theme names — Studio's "Preview in
+        // classic" — else the surface's own)
+        let preview = with_design(cx.id, |d| d.theme.clone()).filter(|n| !n.trim().is_empty()).and_then(|n| match rapidr_value::theme::choose(&n) {
+            rapidr_value::theme::Choice::Theme(t) => Some(t),
+            _ => None,
+        });
+        let id = cx.id;
+        let text = &mut *cx.text;
+        let mut draw_form = |p: &mut Painter| {
+            p.at((fx, fy), |p| crate::frame::paint_into(p, &look, (fw, fh)));
+            let (ix, iy) = crate::frame::inset(shown.border, true);
+            let (ox, oy) = (fx + ix, fy + iy);
+            let face = color_of(&view.store, &form_id).unwrap_or(p.theme().face);
             let View { ui, store, form, .. } = &mut *view;
             let f = ui.get_or_insert_with(|| {
                 let mut f = FormUi::build_unfocused(store, form, true);
@@ -567,14 +575,19 @@ impl ComponentKind for Design {
             let (iw, ih) = (f.client.0, f.client.1 + f.menu_offset);
             let (gw, gh) = f.client;
             // (the grid's dots on the form's face, under its components)
-            let dots = with_design(cx.id, |d| d.grid_ops(gw, gh, face)).unwrap_or_default();
+            let dots = with_design(id, |d| d.grid_ops(gw, gh, face)).unwrap_or_default();
             p.at((ox, oy), |p| {
                 p.clipped((0, 0, iw, ih), |p| {
                     let mut under = |p: &mut Painter| p.ops(dots.iter().cloned());
-                    f.paint_into(store, cx.text, p, &mut under);
+                    f.paint_into(store, text, p, &mut under);
                 });
             });
+        };
+        match preview {
+            Some(theme) => p.in_theme(theme, draw_form),
+            None => draw_form(p),
         }
+
         // the tray strip of non-visual components
         if let Some((tx, ty, tw, th)) = shown.tray_rect {
             let (sx, sy) = shown.client;

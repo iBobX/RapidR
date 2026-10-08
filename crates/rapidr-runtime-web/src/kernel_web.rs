@@ -248,6 +248,7 @@ fn ensure() {
     if host::installed() {
         return;
     }
+    crate::globals_web::start_theme();
     host::install(&STORE, Rc::new(turn));
     host::set_overlay_types(crate::overlay_web::TYPES);
     crate::fonts_web::install();
@@ -769,6 +770,8 @@ pub fn set_test_env(vars: &JsValue) {
         }
     }
     testhooks::set_vars(out);
+    // (the test's RAPIDR_THEME: what a program that names none is drawn in)
+    rapidr_value::theme::set_user_choice(testhooks::var("RAPIDR_THEME"));
 }
 
 /// The test's end: `RAPIDR_TEST_DUMP`'s lines, each shown window's

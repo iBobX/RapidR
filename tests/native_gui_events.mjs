@@ -176,7 +176,9 @@ function run(bin, events, dump, resize = "", split = "", fileDialog = undefined,
     // directory, not the checkout)
     ...(cwd ? { cwd } : {}),
     encoding: "utf8",
-    env: { ...process.env, ...answer, RAPIDR_CAPTURE: join(WORK, "window"), RAPIDR_TEST_EVENTS: events, RAPIDR_TEST_DUMP: dump, RAPIDR_TEST_RESIZE: resize, RAPIDR_TEST_SPLIT: split, ...extra },
+    // (RapidQ's look, named: the cases check pixels against RC.EXE's —
+    // the classic theme, as `$THEME classic` asks for it)
+    env: { RAPIDR_THEME: "classic", ...process.env, ...answer, RAPIDR_CAPTURE: join(WORK, "window"), RAPIDR_TEST_EVENTS: events, RAPIDR_TEST_DUMP: dump, RAPIDR_TEST_RESIZE: resize, RAPIDR_TEST_SPLIT: split, ...extra },
   }).split("\n").filter((l) => l.includes("=")).join("\n");
 }
 

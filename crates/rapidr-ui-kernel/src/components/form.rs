@@ -105,6 +105,8 @@ mod tests {
 
     #[test]
     fn panel_group_box_and_status_bar_draw_and_describe() {
+        // (RapidQ's look, checked op for op: the classic theme, named)
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
         let mut s = MemStore::new();
         s.add("pform", "RFORM", None);
         s.add("ppanel", "RPANEL", Some("pform")).set("ppanel", "caption", v_str("Hi"));

@@ -73,6 +73,10 @@ impl ComponentKind for DirTreeBox {
         "RDIRTREE"
     }
 
+    fn field(&self) -> bool {
+        true
+    }
+
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
         sunken(p, w, h, background(cx));
@@ -122,7 +126,7 @@ impl ComponentKind for DirTreeBox {
                     let mark = if focused { t.highlight } else { t.unfocused_strong };
                     if selected {
                         if t.fluent() {
-                            p.round((tx, top + 1, tw + 4, ROW - 2), 2.0, Some(mark), None, 1.0);
+                            super::list::selected_row(p, (tx - 2, top, tw + 8, ROW), focused);
                         } else {
                             p.fill((tx, top + 1, tw + 4, ROW - 2), mark);
                         }
@@ -132,10 +136,10 @@ impl ComponentKind for DirTreeBox {
                     } else if selected && focused {
                         t.highlight_text
                     } else {
-                        ink(cx.store, cx.id, &font, true, if selected { mark } else { super::list::background(cx) })
+                        ink(cx.store, cx.id, &font, true, if selected && !t.fluent() { mark } else if selected { t.unfocused } else { super::list::background(cx) })
                     };
                     p.text((tx + 2, top, tw + 2, ROW), &row.name, &font, color, Place::Left);
-                    if selected && focused {
+                    if selected && focused && !t.fluent() {
                         p.focus((tx, top + 1, tw + 4, ROW - 2));
                     }
                 }

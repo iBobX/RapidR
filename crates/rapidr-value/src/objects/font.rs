@@ -19,16 +19,23 @@ impl Font {
     /// negative size is pixels already. What text is drawn and measured at
     /// (TextWidth) on every runtime.
     pub fn pixel_size(&self) -> i64 {
-        if self.size < 0 {
+        let default_face = super::text::is_default_face(&self.name);
+        let px = if self.size < 0 {
             (-self.size).min(1_000)
         } else {
             // (MS Sans Serif is a bitmap font: 9, 11 and 13 points show its
             // 8, 10 and 12, RapidQ's capture)
             let points = match self.size {
-                9 | 11 | 13 if super::text::family_name(&self.name) == "RapidR Sans" => self.size - 1,
+                9 | 11 | 13 if default_face || self.name.trim().eq_ignore_ascii_case("rapidr sans") => self.size - 1,
                 p => p,
             };
             (points.clamp(1, 1_000) * 96 + 36) / 72
+        };
+        // (RapidQ's default font in the theme's face, at its size there:
+        // RapidR's look's Inter a little larger than MS Sans Serif)
+        match crate::theme::current().ui_face {
+            Some((_, scale)) if default_face => ((px as f64 * scale).round() as i64).clamp(1, 1_000),
+            _ => px,
         }
     }
 }

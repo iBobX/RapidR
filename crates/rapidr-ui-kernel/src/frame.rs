@@ -15,10 +15,10 @@ use std::sync::Arc;
 
 use rapidr_value::layout::{FORM_BORDER, FORM_CAPTION};
 use rapidr_value::objects::font::Font;
-use rapidr_value::objects::ops::{Place, Rect};
 
 use crate::display::{DisplayList, Picture};
 use crate::paint::Painter;
+use crate::window_frame::{self, Button, Chrome, Metrics};
 
 /// A form's window frame: what the window system (the desktop's) or a
 /// kernel-drawn frame shows.
@@ -70,9 +70,6 @@ pub struct Look {
     pub icon: Option<(Arc<Picture>, u64)>,
 }
 
-/// A button's width on the title bar.
-const BUTTON_W: i64 = 28;
-
 /// Where the inside (the client area) starts in the window: (left, top)
 /// — `caption`: with its title bar.
 pub fn inset(border: bool, caption: bool) -> (i64, i64) {
@@ -106,33 +103,19 @@ pub enum Part {
     None,
 }
 
-/// The title bar buttons shown: (slot, part) from the right — close, then
-/// maximize and minimize (both shown when either is: the other greyed, as
-/// Windows draws them); none without the system menu.
-fn buttons(f: Frame) -> Vec<(i64, Part)> {
+/// The title bar buttons shown, from the right — close, then maximize and
+/// minimize (both shown when either is: the other greyed, as Windows draws
+/// them); none without the system menu — and whether each is enabled.
+fn buttons(f: Frame) -> Vec<(Button, bool)> {
     let mut b = Vec::new();
     if f.close {
-        b.push((0, Part::Close));
+        b.push((Button::Close, true));
         if f.minimize || f.maximize {
-            b.push((1, Part::Maximize));
-            b.push((2, Part::Minimize));
+            b.push((Button::Maximize, f.maximize));
+            b.push((Button::Minimize, f.minimize));
         }
     }
     b
-}
-
-/// Title bar button `slot`'s rectangle (from the right) in a `w` wide window.
-fn button_rect(w: i64, slot: i64) -> Rect {
-    (w - FORM_BORDER - (slot + 1) * BUTTON_W, FORM_BORDER + 3, BUTTON_W - 2, FORM_CAPTION - 6)
-}
-
-fn enabled(look: &Look, part: Part) -> bool {
-    match part {
-        Part::Close => look.frame.close,
-        Part::Maximize => look.frame.maximize,
-        Part::Minimize => look.frame.minimize,
-        _ => false,
-    }
 }
 
 /// The window's frame drawn, `size` its whole size (logical), for a screen
@@ -145,101 +128,53 @@ pub fn paint(look: &Look, size: (i64, i64), scale: f64) -> DisplayList {
     list
 }
 
-/// [`paint`] with `p`: the frame with (0, 0) the window's top left.
+/// [`paint`] with `p`: the frame with (0, 0) the window's top left — the
+/// kernel's window frame (`window_frame`, a QFORMMDI child's too) in the
+/// current theme: RapidR's title bar and thin glyph buttons, or Windows'
+/// classic one with its 16 × 14 buttons, in the same 1-pixel border and
+/// 29-pixel title bar.
 pub fn paint_into(p: &mut Painter, look: &Look, size: (i64, i64)) {
     if !look.border {
         return;
     }
-    let (w, h) = size;
     let t = p.theme();
-    let (bar, ink) = if look.active { (t.caption, t.caption_text) } else { (t.inactive_caption, t.inactive_caption_text) };
-    p.fill((0, 0, w, h), t.face);
-    p.frame((0, 0, w, h), if t.fluent() { if look.active { t.caption } else { t.border } } else { t.dark_shadow });
     if !look.caption {
         // (HideTitleBar: the border alone)
+        let (w, h) = size;
+        p.fill((0, 0, w, h), t.face);
+        p.frame((0, 0, w, h), if t.fluent() { if look.active { t.caption } else { t.border } } else { t.dark_shadow });
         return;
     }
-    let (bx, by, bw, bh) = (FORM_BORDER, FORM_BORDER, (w - 2 * FORM_BORDER).max(0), FORM_CAPTION);
-    p.fill((bx, by, bw, bh), bar);
-    let shown = buttons(look.frame);
-    // (the icon, 16 × 16, then the title after it)
-    let mut text_x = bx + 8;
-    if let Some((picture, revision)) = &look.icon {
-        p.picture("rapidr:frame-icon", *revision, picture.clone(), (bx + 6, by + (bh - 16) / 2, 16, 16));
-        text_x += 20;
-    }
-    let room = (bw - shown.len() as i64 * BUTTON_W - 10 - (text_x - bx - 8)).max(0);
-    let font = Font { name: "Arial".into(), size: 9, color: rapidr_value::theme::bgr(ink) as i64, styles: 1 };
-    p.clipped((text_x - 2, by, room, bh), |p| p.text((text_x, by, room, bh), &look.title, &font, ink, Place::Left));
-    for (slot, part) in shown {
-        let r = button_rect(w, slot);
-        if r.0 <= bx + 6 {
-            continue;
-        }
-        let on = enabled(look, part);
-        let glyph_ink = if t.fluent() { ink } else if on { t.text } else { t.gray_text };
-        if !t.fluent() {
-            p.fill(r, t.face);
-            p.edge(r, &[t.light, t.face], &[t.dark_shadow, t.shadow]);
-        }
-        glyph(p, part, r, look.maximized, if on { glyph_ink } else { t.gray_text });
-    }
+    // (the classic look's title in Windows' caption font, MS Sans Serif
+    // bold; RapidR's in the chrome font, semibold)
+    let base = if t.fluent() { rapidr_value::ide_theme::chrome_font(t) } else { Font::default() };
+    let chrome = Chrome {
+        title: look.title.clone(),
+        active: look.active,
+        maximized: look.maximized,
+        buttons: buttons(look.frame),
+        hot: None,
+        pressed: None,
+        icon: look.icon.as_ref().map(|(picture, revision)| ("rapidr:frame-icon".to_string(), *revision, picture.clone())),
+        font: Font { styles: base.styles | 1, ..base },
+    };
+    window_frame::paint(p, size, &chrome, &Metrics::window(t, look.maximized));
 }
 
-/// A title bar button's glyph (×, □ / restore, _), as a QFORMMDI child's.
-fn glyph(p: &mut Painter, part: Part, (x, y, w, h): Rect, maximized: bool, ink: u32) {
-    let fluent = p.fluent();
-    let (cx, cy) = (x + w / 2, y + h / 2);
-    let (fx, fy) = (cx as f64, cy as f64);
-    match part {
-        Part::Close if fluent => {
-            p.stroke(&[(fx - 4.0, fy - 4.0), (fx + 4.0, fy + 4.0)], ink, 1.0);
-            p.stroke(&[(fx - 4.0, fy + 4.0), (fx + 4.0, fy - 4.0)], ink, 1.0);
-        }
-        Part::Close => {
-            for d in [0.0, 1.0] {
-                let (l, t) = ((cx - 4) as f64 + d, (cy - 4) as f64);
-                p.line((l + 0.5, t + 0.5), (l + 7.5, t + 7.5), ink);
-                p.line((l + 0.5, t + 7.5), (l + 7.5, t + 0.5), ink);
-            }
-        }
-        Part::Maximize if maximized => {
-            for (bx, by) in [(cx - 2, cy - 5), (cx - 5, cy - 2)] {
-                if !fluent {
-                    p.fill((bx, by, 7, 7), p.theme().face);
-                }
-                p.edge((bx, by, 7, 7), &[ink], &[ink]);
-                p.fill((bx, by + 1, 7, 1), ink);
-            }
-        }
-        Part::Maximize if fluent => p.ring((cx - 4, cy - 4, 9, 9), 1.5, ink, 1.0),
-        Part::Maximize => {
-            p.edge((cx - 5, cy - 5, 10, 9), &[ink], &[ink]);
-            p.fill((cx - 5, cy - 4, 10, 1), ink);
-        }
-        Part::Minimize if fluent => p.fill((cx - 4, cy, 9, 1), ink),
-        Part::Minimize => p.fill((cx - 4, cy + 2, 7, 2), ink),
-        _ => {}
-    }
-}
-
-/// The part of `look`'s frame (whole size `size`) at (x, y), logical.
+/// The part of `look`'s frame (whole size `size`) at (x, y), logical; a
+/// greyed button is the title bar's.
 pub fn hit(look: &Look, size: (i64, i64), x: f64, y: f64) -> Part {
     if !look.border || !look.caption {
         return Part::None;
     }
-    let (w, _) = size;
-    let (xi, yi) = (x.floor() as i64, y.floor() as i64);
-    if !(FORM_BORDER..FORM_BORDER + FORM_CAPTION).contains(&yi) {
-        return Part::None;
+    let m = Metrics::window(rapidr_value::theme::current(), look.maximized);
+    match window_frame::hit(&m, size.0, &buttons(look.frame), x, y) {
+        window_frame::Part::Button(Button::Close) => Part::Close,
+        window_frame::Part::Button(Button::Maximize) => Part::Maximize,
+        window_frame::Part::Button(Button::Minimize) => Part::Minimize,
+        window_frame::Part::Title => Part::Title,
+        window_frame::Part::None => Part::None,
     }
-    for (slot, part) in buttons(look.frame) {
-        let (bx, by, bw, bh) = button_rect(w, slot);
-        if xi >= bx && xi < bx + bw && yi >= by && yi < by + bh {
-            return if enabled(look, part) { part } else { Part::None };
-        }
-    }
-    Part::Title
 }
 
 /// A form's icon as its frame shows it (its IcoHandle / Icon, else the
@@ -278,17 +213,26 @@ mod tests {
 
     #[test]
     fn buttons_and_the_title_bar() {
+        // RapidR's look: buttons 40 wide across the title bar
+        rapidr_value::theme::set(&rapidr_value::theme::RAPIDR);
         let l = look();
         assert_eq!(hit(&l, (320, 240), 315.0, 15.0), Part::Close);
-        assert_eq!(hit(&l, (320, 240), 287.0, 15.0), Part::Maximize);
-        assert_eq!(hit(&l, (320, 240), 259.0, 15.0), Part::Minimize);
+        assert_eq!(hit(&l, (320, 240), 270.0, 15.0), Part::Maximize);
+        assert_eq!(hit(&l, (320, 240), 230.0, 15.0), Part::Minimize);
         assert_eq!(hit(&l, (320, 240), 40.0, 15.0), Part::Title);
         assert_eq!(hit(&l, (320, 240), 40.0, 100.0), Part::None);
         // (a dialog's frame: a close box only)
         let d = Look { frame: Frame { resizable: false, close: true, minimize: false, maximize: false }, ..look() };
-        assert_eq!(hit(&d, (320, 240), 287.0, 15.0), Part::Title);
+        assert_eq!(hit(&d, (320, 240), 270.0, 15.0), Part::Title);
         let list = paint(&l, (320, 240), 1.0);
         assert!(!list.items.is_empty());
+        // the classic look: Windows' 16 × 14 buttons in the same frame
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
+        assert_eq!(hit(&l, (320, 240), 310.0, 15.0), Part::Close);
+        assert_eq!(hit(&l, (320, 240), 310.0, 4.0), Part::Title);
+        assert_eq!(hit(&l, (320, 240), 290.0, 15.0), Part::Maximize);
+        assert_eq!(hit(&l, (320, 240), 274.0, 15.0), Part::Minimize);
+        assert_eq!(hit(&l, (320, 240), 250.0, 15.0), Part::Title);
     }
 
     #[test]

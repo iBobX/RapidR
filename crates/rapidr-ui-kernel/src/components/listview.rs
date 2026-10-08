@@ -123,6 +123,10 @@ impl ComponentKind for ListViewBox {
         "RLISTVIEW"
     }
 
+    fn field(&self) -> bool {
+        true
+    }
+
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         setup(cx);
         drop_editor(cx);

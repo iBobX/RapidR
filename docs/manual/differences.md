@@ -103,6 +103,11 @@ with RapidQ's compiler.
   the browser.
 - High-DPI drawing, screen-reader accessibility and themes for every
   program, old ones included.
+- Programs are drawn in RapidR's own look by default (RapidR Studio's:
+  light, dark or high contrast as the system is set, the default font in
+  Inter); `$THEME Classic` draws RapidQ's exact Windows look. Sizes,
+  places and the colours a program reads back are RapidQ's in every look
+  ([Themes](components.md#themes)).
 - The RapidR Runtime with file types; standalone executables that need
   no Rust.
 - Every build carries its third-party notices.

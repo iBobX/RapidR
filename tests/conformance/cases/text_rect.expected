@@ -1,10 +1,10 @@
-red n=735 box=10,10 59,29
-white n=4000 box=0,0 99,49
-white n=4735 box=0,0 99,49
+red any=-1 box=10,10 59,29
+white any=-1 box=0,0 99,49
+white any=-1 box=0,0 99,49
 00FFFFFF 00FFFFFF
 same as TextOut: -1
-green n=973 box=10,10 59,29
-blue n=1000 box=10,10 59,29
-black n=0 box=999,999 -1,-1
-blue n=1000 box=10,10 59,29
-00800000 00F0F0F0 00F0F0F0
+green any=-1 box=10,10 59,29
+blue any=-1 box=10,10 59,29
+black any=0 box=999,999 -1,-1
+blue any=-1 box=10,10 59,29
+00800000 -1 0

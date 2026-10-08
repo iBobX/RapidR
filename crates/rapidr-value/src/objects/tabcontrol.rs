@@ -163,7 +163,9 @@ impl TabControl {
         if self.tab_height > 0 {
             return self.tab_height;
         }
-        let fh = text_size("Ag", font).1.max(1);
+        // (the tabs' sizes are RapidQ's in every theme: measured as RC.EXE
+        // measures, whatever face the theme draws their text in)
+        let fh = crate::theme::rapidq_metrics(|| text_size("Ag", font).1.max(1));
         fh + SELECTED + if self.button_style { 6 } else { 3 }
     }
 
@@ -171,7 +173,7 @@ impl TabControl {
         if self.tab_width > 0 {
             return self.tab_width;
         }
-        text_size(&self.tabs[i], font).0 + 2 * PAD_X
+        crate::theme::rapidq_metrics(|| text_size(&self.tabs[i], font).0) + 2 * PAD_X
     }
 
     fn layout(&self, w: i64, h: i64, font: &Font) -> Layout {
@@ -457,7 +459,9 @@ impl TabControl {
         // selected tab.
         let sel = usize::try_from(self.index).ok().and_then(|s| l.items.get(s)).filter(|it| it.shown);
         if let Some((fx, fy, fw, fh)) = l.frame {
-            let gap = |side: Side| sel.filter(|it| it.side == side).map(|it| {
+            // (RapidR's look: the frame unbroken, the selected tab's
+            // underline on it)
+            let gap = |side: Side| sel.filter(|it| it.side == side && !th.fluent()).map(|it| {
                 let r = Self::selected_rect(it);
                 (r.0 + 1, (r.0 + r.2 - 1).min(l.clip))
             });
@@ -533,7 +537,10 @@ impl TabControl {
             out.push(Op::Text { rect: tr, text: self.tabs[it.index].clone(), angle: self.text_angle(), font: text_font.clone(), color });
             if selected && focused {
                 let (fx, fy, fw, fh) = (it.rect.0 + 3, ty + 3, it.rect.2 - 6, it.rect.3 - 6);
-                if fw > 0 && fh > 0 {
+                if fw > 0 && fh > 0 && th.fluent() {
+                    let (x, y, w, h) = self.map(&l, (it.rect.0 + 1, ty + 2, it.rect.2 - 2, it.rect.3 - 4));
+                    out.push(Op::Ring { rect: (x, y, w, h), radius: th.radius, color: th.focus, width: th.focus_width });
+                } else if fw > 0 && fh > 0 {
                     out.push(Op::Focus { rect: self.map(&l, (fx, fy, fw, fh)) });
                 }
             }
@@ -627,12 +634,12 @@ impl TabControl {
         let (outer, inner_from, inner_to) = if near { (y, y + 2, y + h) } else { (y + h - 1, y, y + h - 2) };
         fill(if near { (x + 1, y + 1, w - 2, h - 1) } else { (x + 1, y, w - 2, h - 1) }, back);
         if th.fluent() {
+            // (RapidR's look: tabs as words on the strip, the selected one
+            // underlined in the accent where it meets its page)
+            let _ = (outer, inner_from, inner_to);
             if selected {
-                fill((x + 1, outer, w - 2, 1), th.border);
-                let (from, to) = if near { (y + 1, y + h) } else { (y, y + h - 1) };
-                fill((x, from, 1, to - from), th.border);
-                fill((x + w - 1, from, 1, to - from), th.border);
-                fill((x + 1, if near { outer + 1 } else { outer - 2 }, w - 2, 2), th.accent);
+                let inner = if near { y + h - 2 } else { y };
+                fill((x + 4, inner, (w - 8).max(2), 2), th.accent);
             }
             return;
         }
@@ -850,6 +857,8 @@ mod tests {
 
     #[test]
     fn layout_metrics_and_clicks() {
+        // (RapidQ's metrics, which every theme lays tabs out in)
+        crate::theme::set(&crate::theme::CLASSIC);
         let font = Font::default();
         let mut t = tc(&["One", "Two", "Three"]);
         let fh = text_size("Ag", &font).1;
@@ -877,6 +886,8 @@ mod tests {
 
     #[test]
     fn tab_rects_are_where_clicks_select() {
+        // (RapidQ's metrics, which every theme lays tabs out in)
+        crate::theme::set(&crate::theme::CLASSIC);
         let font = Font::default();
         let mut t = tc(&["One", "Two", "Three"]);
         let fh = text_size("Ag", &font).1;

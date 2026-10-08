@@ -23,7 +23,9 @@ SUB Count (Col AS LONG, Label AS STRING)
       END IF
     NEXT
   NEXT
-  PRINT Label; " n="; N; " box="; X1; ","; Y1; " "; X2; ","; Y2
+  ' (how many pixels depends on the letters' shapes: whether any, and
+  ' where they reach)
+  PRINT Label; " any="; N > 0; " box="; X1; ","; Y1; " "; X2; ","; Y2
 END SUB
 
 R.Left = 10: R.Top = 10: R.Right = 60: R.Bottom = 30
@@ -69,4 +71,4 @@ CREATE Form AS QFORM
 END CREATE
 R.Left = 5: R.Top = 5: R.Right = 25: R.Bottom = 15
 C.TextRect(R, 6, 6, "Hi", &HFFFFFF, &H800000)
-PRINT HEX$(C.Pixel(24, 14)); " "; HEX$(C.Pixel(25, 15)); " "; HEX$(C.Pixel(4, 4))
+PRINT HEX$(C.Pixel(24, 14)); " "; C.Pixel(25, 15) = C.Pixel(4, 4); " "; C.Pixel(4, 4) = &H800000

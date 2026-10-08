@@ -696,6 +696,11 @@ impl WebHost {
                 let size = frame::outer(w.inside, look.border, look.caption);
                 let shown_size = if w.minimized { (MIN_WIDTH, frame::inset(look.border, look.caption).1 + rapidr_value::layout::FORM_BORDER) } else { size };
                 let list = frame::paint(&look, shown_size, scale);
+                // (the window's corners and its shadow on the page)
+                let (radius, inside, shadow) = frame::css(&look);
+                let _ = w.frame.style().set_property("border-radius", &radius);
+                let _ = w.frame.style().set_property("box-shadow", &shadow);
+                let _ = w.client.style().set_property("border-radius", &inside);
                 let (dw, dh) = rapidr_ui_render::canvas::device_size(&list);
                 if w.frame.width() != dw || w.frame.height() != dh {
                     w.frame.set_width(dw);
