@@ -156,6 +156,20 @@ const CASES = [
       "inspector.rows": /^OnKeyDown=NameEditKeyDown$/m,
     },
   },
+  // (S-PANELS) Typed values and a reset: Default as RapidQ writes a
+  // Boolean, a colour constant, Width put back to its default (its
+  // assignment taken out of the line); the Events page offers the file's
+  // SUBs.
+  {
+    name: "inspector-typed",
+    open: "examples/gui/pantry.rr",
+    do: "wait,view.designer,pick:AddBtn,prop:Default=True,prop:Color=clRed,reset:Width,wait",
+    delay: 6,
+    dump: {
+      "codedoc(0).text": /    CREATE AddBtn AS QBUTTON\n        Caption = "&Add to shelf": Left = 314: Top = 252\n        OnClick = AddItem\n        Default = 1\n        Color = clRed\n/,
+      "inspector.rows": /^Default=True$[\s\S]*^Width=75$/m,
+    },
+  },
   // (S-PANELS) The toolbox: Enter on QCHECKBOX adds one to the form (its
   // CREATE block in the code), selected in the inspector.
   {

@@ -439,6 +439,7 @@ END SUB
 '   tool:<TYPE>          the toolbox's Enter on that component
 '   prop:<Prop>=<value>  the inspector's row set as a user sets it
 '   page:<properties|events>, filter:<text>  the inspector's page, its search
+'   reset:<Prop>         the inspector's row put back to its default
 '   event:<OnX>          an event's row double-clicked
 '   focus:<pane>         Dock.FocusPane
 '   search:<text>        the toolbox's search box
@@ -460,6 +461,7 @@ FUNCTION PanelStep(Stp AS STRING) AS INTEGER
         IF Inspector.SetValue(LEFT$(arg, k - 1), MID$(arg, k + 1)) = 0 THEN OutputLine "(" + Stp + ": refused)"
       END IF
     CASE "page": Inspector.Page = arg
+    CASE "reset": Inspector.ResetValue arg
     CASE "filter": Inspector.Filter = arg
     CASE "event": InspectorEvent arg
     CASE "focus": Dock.FocusPane(arg)

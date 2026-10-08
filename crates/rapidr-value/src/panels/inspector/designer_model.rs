@@ -169,11 +169,59 @@ impl Subject for DesignerModelSubject {
         .flatten()
     }
 
+    /// The SUBs of the code an RDESIGNSURFACE designs, as
+    /// `Name(parameters)` (the Events page offers those that fit).
+    fn subs(&self, _host: &dyn Host) -> Option<Vec<String>> {
+        let Source::Surface(name) = &self.source else { return None };
+        let text = crate::objects::with_design_mut(name, |s| s.get("source").map(|v| v.to_string_val())).flatten()?;
+        Some(sub_headers(&text))
+    }
+
     fn components(&self, _host: &dyn Host) -> Vec<(String, String)> {
         self.with(|d| {
             let root = d.design.root();
             d.design.ids().into_iter().filter(|&id| id != root).filter_map(|id| d.design.node(id)).map(|n| (n.name.clone(), n.type_written.clone())).collect()
         })
         .unwrap_or_default()
+    }
+}
+
+/// The SUBs a program's text defines, as `Name(parameters)` (the
+/// parameters' names: `Key, Shift`).
+pub fn sub_headers(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for line in text.lines() {
+        let t = line.trim_start();
+        if t.len() < 4 || !t[..4].eq_ignore_ascii_case("sub ") {
+            continue;
+        }
+        let rest = t[4..].trim();
+        let (name, params) = match rest.find('(') {
+            Some(i) => (rest[..i].trim(), rest[i + 1..].rsplit_once(')').map_or("", |p| p.0)),
+            None => (rest.split_whitespace().next().unwrap_or(""), ""),
+        };
+        if name.is_empty() || !name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+            continue;
+        }
+        let names: Vec<String> = params
+            .split(',')
+            .map(|p| p.trim())
+            .filter(|p| !p.is_empty())
+            .map(|p| {
+                let p = p.strip_prefix("BYREF ").or_else(|| p.strip_prefix("byref ")).unwrap_or(p);
+                p.split_whitespace().next().unwrap_or("").to_string()
+            })
+            .collect();
+        out.push(format!("{name}({})", names.join(", ")));
+    }
+    out
+}
+
+#[cfg(test)]
+mod sub_tests {
+    #[test]
+    fn sub_headers_of_a_program() {
+        let t = "DECLARE SUB A\nSUB Greet\nEND SUB\n  sub Key (BYREF K AS WORD, Shift AS INTEGER)\nFUNCTION F(x)\n";
+        assert_eq!(super::sub_headers(t), ["Greet()", "Key(K, Shift)"]);
     }
 }

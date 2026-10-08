@@ -40,10 +40,10 @@ const SCENES = [
   { name: "palette", open: "", do: "view.commandPalette" },
   // (S-PANELS: the panels on a form program — the project tree, the
   // toolbox, the inspector following the designer, the console)
-  { name: "panels", open: "examples/gui/pantry.rr", do: "wait,view.designer,pick:AddBtn" },
-  { name: "events", open: "examples/gui/pantry.rr", do: "wait,view.designer,pick:NameEdit,page:events" },
-  { name: "toolbox-search", open: "examples/gui/pantry.rr", do: "wait,search:chart" },
-  { name: "palette-line", open: "examples/gui/pantry.rr", do: "wait,palette::12" },
+  { name: "panels", open: "examples/gui/pantry.rr", do: "wait,view.designer,pick:AddBtn", delay: 6 },
+  { name: "events", open: "examples/gui/pantry.rr", do: "wait,view.designer,pick:NameEdit,page:events", delay: 6 },
+  { name: "toolbox-search", open: "examples/gui/pantry.rr", do: "wait,search:chart", delay: 5 },
+  { name: "palette-line", open: "examples/gui/pantry.rr", do: "wait,palette::12", delay: 5 },
   // (I4) The designer: notepad.bas's form after its right edge was dragged,
   // a QBUTTON placed and moved — real input through the kernel (selection,
   // handles, anchor pins, the form's grips drawn)
