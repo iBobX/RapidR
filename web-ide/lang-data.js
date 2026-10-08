@@ -1853,7 +1853,7 @@ const COMPONENT_REGISTRY = {
         name: 'RDESIGNSURFACE',
         description: 'RapidR\'s form designer: places components on a grid, lets the user select, move and resize them, and keeps their properties. The IDE is built on it.',
         rapidq: null,
-        props: ['width', 'height', 'left', 'top', 'compcount', 'visible', 'formcaption', 'parent', 'count', 'selcount', 'previewwidth', 'previewheight', 'showguides', 'snaptogrid', 'gridsize', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
+        props: ['width', 'height', 'left', 'top', 'compcount', 'visible', 'formcaption', 'theme', 'parent', 'count', 'selcount', 'previewwidth', 'previewheight', 'showguides', 'snaptogrid', 'gridsize', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
         methods: ['addcomponent', 'removecomponent', 'clearall', 'selectcomp', 'getname', 'setname', 'gettype', 'getprop', 'setprop', 'setcompbounds', 'getcompx', 'getcompy', 'getcompw', 'getcomph', 'undo', 'redo', 'alignselection', 'selectadd', 'show', 'hide'],
         events: ['onselect', 'ondblclick', 'onmove', 'onbgclick'],
         methodSignatures: {
@@ -1886,6 +1886,7 @@ const COMPONENT_REGISTRY = {
             'compcount': 'The number of components on the design surface.',
             'visible': 'Whether the control or form is shown.',
             'formcaption': 'The caption of the form being designed.',
+            'theme': 'The look the designed form is drawn in (any name `$THEME` takes; "": the surface\'s own): `classic` shows it as RapidQ drew it.',
             'parent': 'The component it sits in (a form, panel, tab control …) or belongs to.',
             'count': 'How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components.',
             'selcount': 'How many components are selected (Shift / Ctrl+click, a rubber band).',
@@ -4602,7 +4603,7 @@ const COMPONENT_REGISTRY = {
         name: 'RPROGRAMSESSION',
         description: 'A run of a program under development, as an IDE runs it: in its own process on the desktop (its forms real windows), in a sandboxed frame on the web. Start, stop, pause, step, breakpoints, evaluate; its output and its stops come as events.',
         rapidq: null,
-        props: ['program', 'args', 'debug', 'breakonerror', 'state', 'currentfile', 'currentline', 'exitcode', 'error'],
+        props: ['program', 'args', 'debug', 'breakonerror', 'theme', 'state', 'currentfile', 'currentline', 'exitcode', 'error'],
         methods: ['start', 'stop', 'pause', 'continue', 'stepin', 'stepover', 'stepout', 'setbreakpoint', 'clearbreakpoint', 'evaluate', 'input'],
         events: ['onoutput', 'onstopped', 'oncontinue', 'onexit', 'onformshown'],
         methodSignatures: {
@@ -4623,6 +4624,7 @@ const COMPONENT_REGISTRY = {
             'args': 'Its command line arguments, as COMMAND$ reads them (spaces separate them, quotes keep spaces).',
             'debug': 'Run under the debugger: breakpoints stop it, stepping works.',
             'breakonerror': 'Stop at the statement of a run-time error.',
+            'theme': 'The look the program is drawn in when it names none (any name `$THEME` takes; "" its default, RapidR\'s look): `classic` previews it as RapidQ drew it.',
             'state': '"stopped", "running" or "paused".',
             'currentfile': 'Where the program is paused: its file.',
             'currentline': 'Where the program is paused: its line (from 1; 0 when not paused).',
@@ -4895,7 +4897,7 @@ const DIRECTIVES = [
     { name: 'OPTIMIZE', description: 'RapidQ\'s optimizer switch; accepted, with nothing for RapidR to change.', snippet: 'OPTIMIZE' },
     { name: 'ESCAPECHARS', description: '`ON`: strings in this file understand escapes (`\\n`, `\\t`, `\\"`, `\\\\`, `\\x41`); `OFF` (the default) reads them as written.', snippet: 'ESCAPECHARS' },
     { name: 'OPTION', description: 'Program options: `ICON "file"` the program\'s icon, `DECIMAL` VAL\'s decimal character, `BYREF` parameters by reference, `EXPLICIT` as `$TYPECHECK ON`, `INKEY$ TRAPALL`, `DIM type`.', snippet: 'OPTION' },
-    { name: 'THEME', description: 'The look the program\'s windows are drawn in: `Classic` (the default), `Modern`, `Dark`, `HighContrast` or `Auto`.', snippet: 'THEME' },
+    { name: 'THEME', description: 'The look the program\'s windows are drawn in. `RapidR` (the default, also with no `$THEME`): RapidR\'s own look, as RapidR Studio has it — light, dark or high contrast as the system is set, Inter for the default font; `RapidR Light`, `RapidR Dark`, `RapidR High Contrast` choose one. `Classic`: RapidQ\'s Windows look, exactly. The older names stay: `Modern`, `Dark` and `HighContrast` are RapidR\'s light, dark and high-contrast looks; `System`, `Light`, `Windows`, `Win95`, `Win98` and `Win2K` the classic one. A theme changes how things are drawn, never a size or a place; the colours a program sets are drawn as it set them, the system colours (`clBtnFace` …) are the theme\'s.', snippet: 'THEME' },
 ];
 
 export { COMPONENT_REGISTRY, BUILTIN_FUNCTIONS, KEYWORDS, TYPE_KEYWORDS, DIRECTIVES };

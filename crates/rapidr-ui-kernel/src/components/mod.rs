@@ -294,7 +294,7 @@ pub trait ComponentKind: Sync {
 
     /// A box of text or items (a text box, a list, a grid, a tree …): in
     /// RapidR's look, the focus is the theme's ring around the whole box,
-    /// drawn over what it painted ([`Painter::field_focus`]). Others draw
+    /// drawn over what it painted ([`Painter::items_focus`]). Others draw
     /// their own focus.
     fn field(&self) -> bool {
         false

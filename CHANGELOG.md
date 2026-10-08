@@ -7,6 +7,48 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Look
+- **RapidR's look is every program's default** (`$THEME rapidr`, or no
+  `$THEME` at all): RapidR Studio's own look, one set of tokens for Studio
+  and programs, made from the brand palette (Ink, Paper, RapidR Blue, Blue
+  Deep, Blue on Dark, Slate, Mist, Board; `docs/theme-tokens.md` maps every
+  token). Light, dark (on the brand's Ink) and high contrast, following the
+  system's setting — and its changes — unless the program names one;
+  `Application.Theme` reads `rapidr light`, `rapidr dark`, `rapidr high
+  contrast` or `classic`. RapidQ's default font is drawn in Inter at MS Sans
+  Serif's 11 pixels (chosen by the clipping audit: 26 more of the RapidQ
+  corpus' 539 fixed-size captions clip at 11 px, 56 at 12, 78 at 13); fonts
+  a program names keep their face.
+- Refined controls: 5-pixel corners on controls, 8 on menus, drop-down
+  lists and windows; soft shadows under menus, drop-down lists and tooltips
+  (a new `Op::Shadow`, the same on the desktop and the web) and around a web
+  page's windows; buttons with a hairline rim a step darker along the
+  bottom; one focus ring (2 pixels, RapidR Blue) on text boxes, buttons and
+  combo boxes, a 1-pixel accent border on lists, trees and grids; the
+  selection in the accent while a list has the focus, grey without it;
+  grids with light lines, a tinted selection, the current cell ringed and
+  text centred in its row; tabs as words underlined in the accent.
+- **Sizes never change between themes**: an AutoSize label's and a tab's
+  sizes are measured as RC.EXE measures them in every theme (the text runs
+  on rather than being cut where Inter is wider). `tests/theme_geometry.mjs`
+  runs every GUI program of `examples/` (and, with `--corpus`, RapidQ's own
+  examples) in all four looks and compares every component's place.
+- **`$THEME classic`** is RapidQ's look, and a web page's window frame in it
+  has Windows' own 16 × 14 caption buttons (they were 26 × 23, huge at 2×).
+  The web frame is now the kernel's (`window_frame`), as QFORMMDI's children
+  are on every runtime. The classic names stay classic (`System`, `Light`,
+  `Windows`, `Win95` …); `modern`, `dark` and `highcontrast` are RapidR's
+  light, dark and high-contrast looks.
+- RapidR Studio: **Preview in Classic** (View menu, tool bar, command
+  palette; saved with the settings) runs the program and draws the designer
+  in RapidQ's look without editing the source (`RPROGRAMSESSION.Theme`,
+  `RDESIGNSURFACE.Theme`). Studio's status bar is quiet at rest and takes a
+  state's colour while the program runs, pauses or fails.
+- RC.EXE pixel comparisons (`tests/native_gui_events.mjs`, the kernel's unit
+  tests that check ops) name the classic theme explicitly; the visual
+  gallery's themes are `classic`, `rapidr-light`, `rapidr-dark`,
+  `rapidr-high-contrast`.
+
 ### Legal
 - **A review of RapidQ's terms, rights and trademarks, and of everything
   RapidR takes from RapidQ** (`docs/legal/rapidq-review.md`): RapidQ's

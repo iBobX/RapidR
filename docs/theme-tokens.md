@@ -65,7 +65,7 @@ The brand palette (`design/brand/README.md`, the Pencil design `design/rapidr-br
 | `highlight` / `highlight_text` (clHighlight) | the selection in a focused list, tree, text | RapidR Blue / white (5.2:1) | RapidR Blue / white |
 | `unfocused` | the selection when the list hasn't the focus | `#E3E8F1` | `ink(150)` |
 | `selected` / `selected_text` | a soft selection: a grid's selected cells, the row under the mouse in a drop-down list, a menu's highlighted item | `mix(white, Blue, 120‰)` / Ink | `mix(ink(15), Blue, 300‰)` / white |
-| `focus` | the focus ring (2 px, inside the control) | RapidR Blue (4.9:1 on Paper) | Blue on Dark |
+| `focus` | the focus: a 2-pixel ring inside a text box, a button, a combo box; a list, tree or grid gets a 1-pixel border in it, its selection in the accent saying the rest; a memo filling its window none | RapidR Blue (4.9:1 on Paper) | Blue on Dark |
 | `hot_text` (clHotLight) | links, a hot-tracked tab | Blue Deep (7.6:1 on white) | Blue on Dark |
 
 ### Elevation and shape

@@ -8,14 +8,14 @@
 // an AutoSize label, a tab — is measured as RC.EXE measures it in every
 // theme, whatever face the theme draws it in).
 //
-//   node tests/theme_geometry.mjs [--corpus] [filter …]
+//   node tests/theme_geometry.mjs [--corpus] [filter …]   (filter `corpus/`: the corpus alone)
 //
 // Needs ./rapidr (cargo build --release -p rapidr-cli) and the runner
 // (built here: cargo build -p rapidr-runner-stub --profile runner). Nothing
 // reaches a printer or the user's registry; programs that need a network,
 // a device or input to show a window are skipped (no window, no tree).
 import { execFileSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -48,8 +48,14 @@ function programs(dir) {
 }
 const sources = [...programs(join(ROOT, "examples"))];
 if (corpus) {
+  // (a copy, run from there: the corpus is read only, and its programs may
+  // write beside themselves)
   const dir = join(process.env.RAPIDQ_DIR || join(homedir(), "Downloads/Rapidq"), "examples");
-  if (existsSync(dir)) sources.push(...programs(dir));
+  if (existsSync(dir)) {
+    const copy = join(WORK, "corpus");
+    cpSync(dir, copy, { recursive: true });
+    sources.push(...programs(copy));
+  }
 }
 
 // Every node's place, by its path in the tree (role and name).

@@ -1895,6 +1895,7 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `CompCount` | int |  | The number of components on the design surface. |
 | `Visible` | int |  | Whether the control or form is shown. |
 | `FormCaption` | string |  | The caption of the form being designed. |
+| `Theme` | string |  | The look the designed form is drawn in (any name `$THEME` takes; "": the surface's own): `classic` shows it as RapidQ drew it. |
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `Count` | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
 | `SelCount` (read-only) | int |  | How many components are selected (Shift / Ctrl+click, a rubber band). |
@@ -4556,6 +4557,7 @@ A run of a program under development, as an IDE runs it: in its own process on t
 | `Args` | string |  | Its command line arguments, as COMMAND$ reads them (spaces separate them, quotes keep spaces). |
 | `Debug` | bool | True | Run under the debugger: breakpoints stop it, stepping works. |
 | `BreakOnError` | bool | False | Stop at the statement of a run-time error. |
+| `Theme` | string |  | The look the program is drawn in when it names none (any name `$THEME` takes; "" its default, RapidR's look): `classic` previews it as RapidQ drew it. |
 | `State` (read-only) | string |  | "stopped", "running" or "paused". |
 | `CurrentFile` (read-only) | string |  | Where the program is paused: its file. |
 | `CurrentLine` (read-only) | int |  | Where the program is paused: its line (from 1; 0 when not paused). |
@@ -4631,7 +4633,7 @@ The running program: its file and folder, title, icon, hint settings, RapidR's T
 | `ShowHint` | bool |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Title` | string |  | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
 | `Path` (read-only) | string |  | The folder the program's executable is in; read-only. |
-| `Theme` *(RapidR)* | string |  | The look RapidR draws with: `classic`, `modern`, `dark` or `highcontrast`; reads as the theme in use. |
+| `Theme` *(RapidR)* | string |  | The look the program is drawn in now, by name: `rapidr light`, `rapidr dark`, `rapidr high contrast` or `classic`. Setting it takes any name `$THEME` takes (`rapidr`: RapidR's look as the system is). |
 
 | Method | |
 |---|---|

@@ -243,15 +243,26 @@ impl<'a> Painter<'a> {
         }
     }
 
-    /// The keyboard focus on a field `w` × `h` (a [`ComponentKind::field`]):
-    /// RapidR's look rings the whole box in the theme's focus colour, two
-    /// pixels (the text is three in). The classic look draws its own focus.
-    ///
-    /// [`ComponentKind::field`]: crate::components::ComponentKind::field
+    /// The keyboard focus on a text box `w` × `h`: RapidR's look rings the
+    /// whole box in the theme's focus colour, two pixels (the text is three
+    /// in). The classic look draws its own focus.
     pub fn field_focus(&mut self, w: i64, h: i64) {
         let t = self.theme;
         if t.fluent() {
             self.ring((0, 0, w, h), t.radius, t.focus, t.focus_width.min(2.0));
+        }
+    }
+
+    /// The keyboard focus on a box of items (a [`ComponentKind::field`]: a
+    /// list, a tree, a grid): its border in the focus colour — its
+    /// selection, the accent's while it has the focus, says the rest (high
+    /// contrast: the theme's thick ring).
+    ///
+    /// [`ComponentKind::field`]: crate::components::ComponentKind::field
+    pub fn items_focus(&mut self, w: i64, h: i64) {
+        let t = self.theme;
+        if t.fluent() {
+            self.ring((0, 0, w, h), t.radius, t.focus, if t.contrast { 2.0 } else { 1.0 });
         }
     }
 
@@ -663,7 +674,7 @@ impl FormUi {
                     let mut cx = Cx { store, text: ts, id: &node.id, rect: node.abs, font: store.font(&node.id), state, ui: &mut node.ui, events: &mut events, scale, system_corner };
                     kind.paint(&mut cx, p);
                     if state.focused && kind.field() {
-                        p.field_focus(w, h);
+                        p.items_focus(w, h);
                     }
                 }
             });
