@@ -185,6 +185,10 @@ impl ComponentKind for Tree {
         "RTREEVIEW"
     }
 
+    fn field(&self) -> bool {
+        true
+    }
+
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         drop_editor(cx);
         let (w, h) = (cx.width(), cx.height());
@@ -208,6 +212,11 @@ impl ComponentKind for Tree {
             p.clipped((0, 0, cw, h - 4), |p| {
                 for row in &rows_all {
                     let mid = row.top + row.height / 2;
+                    // (RapidR's look: the selection across the row, under
+                    // its lines, icon and text)
+                    if p.fluent() && row.selected && (focused || !hide) {
+                        super::list::selected_row(p, (0, row.top, cw, row.height), focused);
+                    }
                     if show_lines {
                         for &x in &row.through {
                             dotted_v(p, x, row.top, row.top + row.height - 1);
@@ -240,18 +249,16 @@ impl ComponentKind for Tree {
                         t.gray_text
                     } else if shown && focused {
                         t.highlight_text
+                    } else if shown && t.fluent() {
+                        t.text
                     } else {
                         ink(cx.store, cx.id, &font, true, if shown { t.unfocused } else { back })
                     };
-                    if shown {
-                        if t.fluent() {
-                            p.round(tr, 2.0, Some(if focused { t.highlight } else { t.unfocused }), None, 1.0);
-                        } else {
-                            p.fill(tr, if focused { t.highlight } else { t.unfocused });
-                        }
+                    if shown && !t.fluent() {
+                        p.fill(tr, if focused { t.highlight } else { t.unfocused });
                     }
                     p.text((x + 2, row.top, tw + 2, row.height), &text, &font, color, Place::Left);
-                    if shown && focused {
+                    if shown && focused && !t.fluent() {
                         p.focus(tr);
                     }
                 }

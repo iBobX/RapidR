@@ -15,7 +15,7 @@ Every output RapidR builds gets a `THIRD-PARTY-NOTICES.txt`:
 |---|---|---|
 | Native desktop executable | `rapidr build x.bas` | beside the executable |
 | Interpreted desktop executable | `rapidr build x.bas --interp [--target <os>-<arch>]` | beside the executable |
-| Web bundle (bytecode) | `rapidr bundle-bc x.bas`, `rapidr build --web --interp`, the web IDE's **Build** | in the zip's root; `index.html` has a comment and a `<link rel="license">` to it |
+| Web bundle (bytecode) | `rapidr bundle-bc x.bas`, `rapidr build --web --interp` | in the zip's root; `index.html` has a comment and a `<link rel="license">` to it |
 | Native web build | `rapidr build x.bas --web` | in `x_web/`, linked the same way |
 | Bytecode | `rapidr build-bc x.bas` | none needed: a `.rrbc` holds only the program; the RapidR Runtime that runs it carries its own notices |
 | RapidR itself | the installers | `share/doc/rapidr/THIRD-PARTY-NOTICES.txt` (plus `LICENSE`, `NOTICE`, `LEGAL.md`, `LICENSES.md`, `THIRD_PARTY_NOTICES.md`) |
@@ -63,8 +63,8 @@ release time by the same code (`tools/release/stage.py`):
 `share/doc/rapidr/THIRD-PARTY-NOTICES.txt` for RapidR itself. So
 interpreted executables and web bundles get their notices with no Rust and no
 network. `tools/build_web_artifacts.sh` writes `target/web/THIRD-PARTY-NOTICES.txt`
-next to the web runtime, where the web IDE takes it for its bundles (it
-refuses to build a bundle without it).
+next to the web runtime, where `rapidr bundle-bc` and RapidR Studio's web
+build (`tools/build_studio_web.sh`, into its `runtime/`) take it.
 
 **No change to programs.** The notices are a file beside the output, not a
 command-line switch inside it: a RapidQ program sees exactly the
@@ -145,9 +145,8 @@ loads nothing from third-party servers (a program can, of course, with
 permissive list, §4); `rapidrw` the
 desktop launcher. The SDK also ships the runners and web runtime (with their
 notices, §1), the runtime's Rust sources and its crates.io dependencies'
-sources (`vendor/`: each crate with its own licence files; crates only other
-platforms compile are cut down to their `Cargo.toml` and licence files), and
-the web IDE adds Monaco (LICENSES.md §1).
+ sources (`vendor/`: each crate with its own licence files; crates only other
+platforms compile are cut down to their `Cargo.toml` and licence files).
 
 ## 3. Components that aren't crates
 
@@ -160,7 +159,13 @@ the web IDE adds Monaco (LICENSES.md §1).
   asks that the copyright notice and licence go with the fonts (the notices
   file carries `OFL-1.1.txt`, whose header has them); forbids selling the
   fonts by themselves; and lets a Modified Version not use a Reserved Font
-  Name. RapidR doesn't modify or subset them, so they keep their names.
+  Name. The Regular faces are compiled in whole and unmodified, so they keep
+  their names. Their designed Bold, Italic and Bold Italic faces (the same
+  2.1.5 release, SHA-256 `7191c669…25d0`) are subset to the Latin scripts and
+  unhinted, hence Modified Versions: renamed "RapidR Text Sans / Serif /
+  Mono" (`tools/fonts/make_liberation_styles.py`), glyph outlines and
+  copyright lines unchanged, the licence named in each file. RapidR Sans
+  (Regular and Bold) is the same kind of derivative of Liberation Sans.
 - **Noto fallback fonts** (`fonts/fallback/`, Stage W7): Noto Sans 2.015,
   Noto Sans Symbols 2.003 and Symbols 2 2.008 (in the repository,
   unmodified), Noto Sans SC and KR from Noto CJK Sans 2.004 and Noto Color
@@ -352,15 +357,13 @@ and trademarks, in [legal/rapidq-review.md](legal/rapidq-review.md)
   data in three fixtures were replaced too, and the manual quotes in
   comments and docs were paraphrased. About eight of RC.EXE's short error
   messages are reproduced for compatibility (legal/rapidq-review.md §8).
-- **Vendored JavaScript**: Monaco Editor 0.52.2 (MIT, Microsoft), which
-  bundles DOMPurify (Apache-2.0 or MPL-2.0), marked (MIT) and the codicon
-  icon font (CC-BY-4.0, Microsoft): credited in LICENSES.md. Only the web
-  IDE ships it, never a user's program.
-- **Fonts named by the web IDE**: its font picker lists Inter, Roboto,
-  Montserrat, Nunito, Playfair Display and Fira Code among the families a
-  program may ask for. They are names only: no web-font service is
-  contacted, and the IDE's own pages use the system's font stack (open
-  question 3, settled).
+- **Vendored JavaScript**: none. The old HTML web IDE vendored the Monaco
+  editor (MIT, with DOMPurify, marked and the codicon font); it was deleted
+  on 2026-10-08 (RapidR Studio, drawn by the UI kernel, is the web IDE).
+- **Fonts named by the web IDE**: the old HTML IDE's font picker listed
+  Inter, Roboto, Montserrat, Nunito, Playfair Display and Fira Code as
+  names only (that IDE is deleted). No web-font service is contacted:
+  RapidR Studio draws with RapidR's own fonts (open question 3, settled).
 - **Media fixtures**: every `.avi`, `.mid`, `.wav`, `.dxg` and `.bmp` under
   `tests/` is regenerated byte for byte by the repository's scripts
   (`tools/make_avi_fixtures.py`, `make_media_fixture.py`, `make_dx_fixture.py`);

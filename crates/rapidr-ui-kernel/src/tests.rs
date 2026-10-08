@@ -54,6 +54,8 @@ fn demo_store() -> MemStore {
 
 /// The demo form's kernel side, painted once at 1x (as a shown window is).
 fn setup() -> (MemStore, FormUi, TextSystem) {
+    // (RapidQ's look, checked op for op: the classic theme, named)
+    rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
     let store = demo_store();
     let mut ts = TextSystem::new();
     let mut f = FormUi::build(&store, "form", false);
@@ -431,6 +433,8 @@ fn read_only_max_length_and_char_case_apply_to_typing() {
 
 #[test]
 fn display_list_of_a_simple_form() {
+    // (RapidQ's look, checked op for op: the classic theme, named)
+    rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
     let mut s = MemStore::new();
     s.add("f", "RFORM", None).set("f", "clientwidth", v_int(200)).set("f", "clientheight", v_int(80)).set("f", "color", v_int(0xFFFFFF));
     s.add("l", "RLABEL", Some("f")).set("l", "caption", v_str("&Hello")).set("l", "left", v_int(8)).set("l", "top", v_int(8));
@@ -604,6 +608,8 @@ fn kinds_agree_with_the_shared_rules() {
 /// wide as `TextWidth` (`text::text_size`) measures it.
 #[test]
 fn text_measurement_matches_text_width() {
+    // (RapidQ's look, checked op for op: the classic theme, named)
+    rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
     let mut ts = TextSystem::new();
     let strings = ["Hello, World", "AVAWAY To Ty", "Grüße, ñandú", "office fi fl", "1234567890", "Wally's iiii MMMM", "OK"];
     for (name, size, styles) in [("Arial", 10, 0), ("Times New Roman", 12, 0), ("Courier New", 9, 0), ("MS Sans Serif", 8, 0), ("Arial", 14, 2), ("Arial", -16, 0)] {
@@ -614,9 +620,8 @@ fn text_measurement_matches_text_width() {
             assert!((f64::from(w) - expected as f64).abs() <= 0.5 + 1e-3, "{name} {size}: {s:?} parley {w} vs TextWidth {expected}");
         }
     }
-    // bold (synthesized from the regular faces): MS Sans Serif's and
-    // Arial's a pixel wider a character in both (letter spacing in the
-    // layout, the room the heavier letters take)
+    // bold (the faces' own designs: RapidR Sans Bold, Liberation Sans Bold):
+    // laid out as wide as `TextWidth` measures them
     let bold = Font { styles: 1, ..Font::default() };
     let arial_bold = Font { name: "Arial".into(), size: 10, styles: 1, color: 0 };
     for s in strings {
@@ -846,20 +851,37 @@ fn every_theme_draws_the_main_components_in_its_own_colours() {
 #[test]
 fn a_theme_changes_no_geometry() {
     use rapidr_value::theme::ALL;
-    // (where each component is drawn, clipped to it: the same in every
-    // theme, as the mouse and the program find it)
+    // (where each component is — as the mouse, a screen reader and the
+    // program find it — the same in every theme)
     let s = themed_store();
-    let clips = |dump: &str| dump.lines().filter(|l| l.starts_with("clip ")).map(str::to_string).collect::<Vec<_>>();
-    let first = clips(&themed_dump(&s, ALL[0]));
+    let rects = |t: &'static rapidr_value::theme::Theme| {
+        let was = rapidr_value::theme::current();
+        rapidr_value::theme::set(t);
+        let mut ts = TextSystem::new();
+        let mut f = FormUi::build(&s, "tf", false);
+        let _ = f.paint(&s, &mut ts, 1.0);
+        let tree = f.access_tree(&s, &mut ts);
+        rapidr_value::theme::set(was);
+        fn walk(n: &rapidr_value::objects::a11y::AccessNode, out: &mut Vec<(String, (i64, i64, i64, i64))>) {
+            out.push((n.name.clone(), n.bounds));
+            n.children.iter().for_each(|c| walk(c, out));
+        }
+        let mut out = Vec::new();
+        walk(&tree, &mut out);
+        out
+    };
+    let first = rects(ALL[0]);
     assert!(first.len() > 10);
     for t in &ALL[1..] {
-        assert_eq!(clips(&themed_dump(&s, t)), first, "{}", t.name);
+        assert_eq!(rects(t), first, "{}", t.name);
     }
 }
 
 #[test]
 fn switching_the_theme_repaints_in_the_new_one() {
-    use rapidr_value::theme::{self, CLASSIC, DARK};
+    // (RapidQ's look, checked op for op: the classic theme, named)
+    rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
+    use rapidr_value::theme::{self, CLASSIC, RAPIDR_DARK as DARK};
     let s = themed_store();
     let mut ts = TextSystem::new();
     let mut f = FormUi::build(&s, "tf", false);
@@ -869,5 +891,75 @@ fn switching_the_theme_repaints_in_the_new_one() {
     theme::set(&CLASSIC);
     // (the edit's box: white, then the dark theme's window, rounded)
     assert!(before.contains("fill 0,0 120x22 #ffffff @8,48"), "{before}");
-    assert!(after.contains(&format!("round 0,0 120x22 r4 fill #{:06x}", DARK.window)), "{after}");
+    assert!(after.contains(&format!("round 0,0 120x22 r{} fill #{:06x}", DARK.radius, DARK.window)), "{after}");
+}
+
+/// The built-in face (by its place in `BUILTIN_FACES`) each run of a laid-out
+/// text is drawn from: (text of the run, index).
+fn run_faces(ts: &mut TextSystem, text: &str, font: &Font) -> Vec<(String, usize)> {
+    let faces = rapidr_value::objects::text::BUILTIN_FACES;
+    let layout = ts.layout(text, font, 0, 1.0);
+    let mut out = Vec::new();
+    for line in layout.lines() {
+        for item in line.items() {
+            if let parley::PositionedLayoutItem::GlyphRun(r) = item {
+                let run = r.run();
+                let data = run.font().data.data();
+                let at = faces.iter().position(|(d, _)| *d == data).expect("a built-in face");
+                out.push((text[run.text_range()].trim().to_string(), at));
+            }
+        }
+    }
+    out.retain(|(t, _)| !t.is_empty());
+    out
+}
+
+/// Bold, italic and bold italic requests find the faces' own designs
+/// (Liberation's Bold, Italic, Bold Italic; RapidR Sans Bold), not the
+/// Regular letters made heavier; a character those faces lack (Greek,
+/// Cyrillic) comes from the family's Regular face.
+#[test]
+fn styled_text_is_drawn_from_the_designed_faces() {
+    // (the indices into BUILTIN_FACES: Sans, Serif, Mono, RapidR Sans,
+    // RapidR Sans Bold, then the nine Liberation styles in Sans, Serif, Mono
+    // order)
+    let mut ts = TextSystem::new();
+    let text = "Hello \u{3b1}\u{3b2}\u{3b3} \u{436}\u{43e}";
+    for (name, styles, latin, regular) in [
+        ("Arial", 0u8, 0, 0),
+        ("Arial", 1, 5, 0),
+        ("Arial", 2, 6, 0),
+        ("Arial", 3, 7, 0),
+        ("Times New Roman", 1, 8, 1),
+        ("Times New Roman", 2, 9, 1),
+        ("Times New Roman", 3, 10, 1),
+        ("Courier New", 1, 11, 2),
+        ("Courier New", 2, 12, 2),
+        ("Courier New", 3, 13, 2),
+        ("MS Sans Serif", 0, 3, 3),
+        ("MS Sans Serif", 1, 4, 3),
+    ] {
+        let font = Font { name: name.into(), size: 12, styles: styles.into(), color: 0 };
+        let runs = run_faces(&mut ts, text, &font);
+        assert_eq!(runs.first(), Some(&("Hello".to_string(), latin)), "{name} {styles}: {runs:?}");
+        assert!(runs.iter().skip(1).all(|(_, at)| *at == regular), "{name} {styles}: Greek and Cyrillic from the Regular face: {runs:?}");
+    }
+    // Inter's own bold (the semibold)
+    let inter = Font { name: "Inter".into(), size: 12, styles: 1, color: 0 };
+    assert_eq!(run_faces(&mut ts, "Hello", &inter), [("Hello".to_string(), 15)]);
+}
+
+/// A text with a character the designed bold lacks is laid out as wide as
+/// `TextWidth` measures it (the Regular face's advance), bold or not.
+#[test]
+fn bold_text_with_characters_the_bold_face_lacks_measures_the_same() {
+    let mut ts = TextSystem::new();
+    for (name, styles) in [("Arial", 1u8), ("Arial", 3), ("Times New Roman", 1), ("Courier New", 1), ("MS Sans Serif", 1)] {
+        let font = Font { name: name.into(), size: 12, styles: styles.into(), color: 0 };
+        for s in ["Hello \u{3b1}\u{3b2}\u{3b3}", "\u{41f}\u{440}\u{438}\u{432}\u{435}\u{442} Pantry", "\u{5d0}\u{5d1} x"] {
+            let (w, _) = ts.measure(s, &font);
+            let expected = text_size(s, &font).0;
+            assert!((f64::from(w) - expected as f64).abs() <= 0.5 + 1e-3, "{name} {styles}: {s:?} parley {w} vs TextWidth {expected}");
+        }
+    }
 }

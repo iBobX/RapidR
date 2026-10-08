@@ -15,9 +15,7 @@
 //! writes `<dir>/desktop*/<form>@<scale>x.rgba`: width and height (u32,
 //! little endian), then the pixels as RGBA.
 
-use std::sync::Arc;
-
-use parley::fontique::{Blob, Collection, CollectionOptions};
+use parley::fontique::{Collection, CollectionOptions};
 use rapidr_ui_host_web::forms;
 use rapidr_ui_kernel::{FormUi, TextSystem};
 
@@ -28,9 +26,7 @@ fn text_system(system_fonts: bool) -> TextSystem {
         return TextSystem::new();
     }
     let mut font_cx = parley::FontContext { collection: Collection::new(CollectionOptions { shared: false, system_fonts: false }), source_cache: Default::default() };
-    for data in rapidr_value::objects::text::BUILTIN_FONTS {
-        font_cx.collection.register_fonts(Blob::new(Arc::new(data)), None);
-    }
+    rapidr_ui_kernel::text::register_builtin_fonts(&mut font_cx.collection);
     TextSystem { font_cx, layout_cx: parley::LayoutContext::new(), generation: 0 }
 }
 

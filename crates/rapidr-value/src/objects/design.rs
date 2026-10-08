@@ -432,6 +432,9 @@ pub struct DesignSurface {
     pub show_selection: bool,
     /// The rubber band being drawn (form coordinates).
     band: Option<LRect>,
+    /// The look the designed form is drawn in (Theme: `$THEME`'s names;
+    /// "" the surface's own) — RapidR Studio's "Preview in classic".
+    pub theme: String,
     /// The program's source, when Source was given (else the form is the
     /// one made through the API).
     source: Option<Attached>,
@@ -504,6 +507,7 @@ impl Default for DesignSurface {
             typing: None,
             laid: RefCell::new(None),
             previewed: RefCell::new(None),
+            theme: String::new(),
         }
     }
 }
@@ -1716,6 +1720,7 @@ impl DesignSurface {
         Some(match prop {
             "compcount" | "count" => v_int(self.ids().len() as i64),
             "formcaption" => v_str(&self.form_caption),
+            "theme" => v_str(&self.theme),
             "selcount" => v_int(self.designer.selection.len() as i64),
             "selindex" => v_int(self.selection().map_or(-1, |i| i as i64)),
             "previewwidth" => v_int(self.preview.map_or(0, |p| p.0)),
@@ -1740,6 +1745,7 @@ impl DesignSurface {
     pub fn set(&mut self, prop: &str, val: &Value) -> bool {
         match prop {
             "formcaption" => self.form_caption = val.to_string_val(),
+            "theme" => self.theme = val.to_string_val(),
             // (0 ends the preview)
             "previewwidth" | "previewheight" => {
                 let v = val.to_i64();

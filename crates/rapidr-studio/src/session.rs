@@ -15,6 +15,7 @@
 //! | Member | |
 //! |---|---|
 //! | `Program`, `Args`, `Debug`, `BreakOnError` | what to run (a source file), its arguments (one string, as COMMAND$ reads them), under the debugger (default True), stop at a run-time error |
+//! | `Theme` | the look a program that names none is drawn in (`$THEME`'s names; "" its default, RapidR's look): Studio's "Preview in classic" sets `classic` |
 //! | `State` | `stopped`, `running`, `paused` |
 //! | `CurrentFile`, `CurrentLine`, `ExitCode`, `Error` | where it is paused; its last exit code; why Start failed |
 //! | `StopReason`, `StopMessage` | why it paused (`breakpoint`, `step`, `pause`, `entry`, `exception`); a run-time error's message |
@@ -78,6 +79,8 @@ struct Model {
     /// A frame or watch refresh in flight: OnVariables(0) when done.
     refreshing: bool,
     next_eval: i64,
+    /// The look a program that names none is drawn in ($THEME's names).
+    theme: String,
 }
 
 impl Model {
@@ -208,6 +211,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "globalsref" => Value::Integer(i64::from(GLOBALS_REF)),
             "watches" => Value::String(m.watches.iter().map(|w| format!("{w}\n")).collect()),
             "browserurl" => Value::String(browser::url(name)),
+            "theme" => Value::String(m.theme.clone()),
             _ => return None,
         })
     })
@@ -242,6 +246,7 @@ pub fn set<H: Host>(_host: H, name: &str, prop: &str, v: &Value) -> bool {
                 }
             }
             "state" | "currentfile" | "currentline" | "exitcode" | "error" | "stopreason" | "stopmessage" | "localsref" | "globalsref" | "browserurl" => {}
+            "theme" => m.theme = v.to_string_val(),
             _ => return false,
         }
         true
@@ -256,11 +261,11 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
     };
     Some(match method {
         "start" => {
-            let (program, run_args, running) = with(name, |m| (m.session.program.clone(), m.session.args.clone(), m.session.state() != State::Stopped));
+            let (program, run_args, theme, running) = with(name, |m| (m.session.program.clone(), m.session.args.clone(), m.theme.clone(), m.session.state() != State::Stopped));
             if running {
                 return Some(r(Err("the program is running already".into())));
             }
-            let started = host.launch(&program, &run_args).and_then(|t| with(name, |m| {
+            let started = host.launch(&program, &run_args, &theme).and_then(|t| with(name, |m| {
                 m.forget();
                 m.session.start(t)
             }));

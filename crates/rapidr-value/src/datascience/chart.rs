@@ -228,7 +228,7 @@ impl Ink {
         let (bg, fg) = (theme.window, theme.text);
         // (high contrast: text and axes in the text colour itself, gridlines
         // plainly visible)
-        if theme.name == "highcontrast" {
+        if theme.contrast {
             return Ink { bg, fg, axis: fg, grid: mix(fg, bg, 0.6), muted: fg };
         }
         Ink { bg, fg, axis: mix(fg, bg, 0.55), grid: mix(fg, bg, if theme.dark { 0.82 } else { 0.9 }), muted: mix(fg, bg, 0.3) }

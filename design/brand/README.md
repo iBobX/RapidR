@@ -102,7 +102,7 @@ Normal text needs 4.5:1 for AA; large text (24 px, or 18.7 px bold) and graphics
 | `macos/*.icns` | `RapidR.icns` (IDE), `RapidR-Runtime.icns`, `RapidR-Source.icns` (.rr), `BASIC-Source.icns` (.bas), `RapidR-Program.icns` (.rrbc), `RapidR-App.icns` (the program icon: compiled apps). Each has 16 to 512 px at @1x and @2x |
 | `windows/*.ico` | `rapidr-ide.ico`, `rapidr-runtime.ico`, `rapidr-source.ico`, `basic-source.ico`, `rapidr-program.ico`, `rapidr-app.ico` (the program icon). Each has 16, 20, 24, 32, 40, 48, 64 and 256 px, as PNG-compressed entries (Windows Vista and later) |
 | `linux/hicolor/` | A freedesktop icon-theme tree (16, 22, 24, 32, 48, 64, 128, 256, 512 and `scalable`). App icons are `apps/rapidr-ide`, `apps/rapidr-runtime` and `apps/rapidr-app` (the program icon). MIME icons are `mimetypes/text-x-rapidr`, `text-x-rapidq-basic` and `application-x-rapidr-bytecode`, matching `tools/release/linux/rapidr.xml` |
-| `web/` | `favicon.svg`, `favicon-32.png`, `apple-touch-icon.png` (180 px) and `icon-512.png`. The web IDE serves copies from `web-ide/icons/` |
+| `web/` | `favicon.svg`, `favicon-32.png`, `apple-touch-icon.png` (180 px) and `icon-512.png`. RapidR Studio's web page serves copies (`tools/build_studio_web.sh` puts them in its `icons/`) |
 | `preview.png` | Every icon at every size; hinted sizes are also shown magnified (rows: IDE, Runtime, program, .rr, .bas, .rrbc) |
 
 ### GitHub: `github/`

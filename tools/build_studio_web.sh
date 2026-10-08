@@ -14,6 +14,7 @@
 #                              rapidr-webview.html)
 #   _headers, .htaccess        the hosts' response headers (ide/web)
 #   ide/assets/                the start page's brand (RapidR's lockups)
+#   icons/                     the page's icons (design/brand/icons/web)
 #   examples/                  RapidR's examples, as the Welcome page lists them
 #
 # The runtime is built first (tools/build_web_artifacts.sh) unless
@@ -52,6 +53,9 @@ cp -R target/web/fonts "$OUT/runtime/fonts"
 # (the start page's brand: ide/assets, read from --home as on the desktop)
 mkdir -p "$OUT/ide/assets"
 cp ide/assets/* "$OUT/ide/assets/"
+# (the page's icons: the browser's tab, a phone's home screen)
+mkdir -p "$OUT/icons"
+cp design/brand/icons/web/favicon.svg design/brand/icons/web/favicon-32.png design/brand/icons/web/apple-touch-icon.png "$OUT/icons/"
 # (the examples: sources and their data files)
 mkdir -p "$OUT/examples"
 (cd examples && find . -type f ! -name 'ide.rr' ! -name '*.md' -print0 | while IFS= read -r -d '' f; do

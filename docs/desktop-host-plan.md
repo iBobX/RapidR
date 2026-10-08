@@ -224,7 +224,7 @@ Cargo resolves **one lockfile per workspace for all targets**. Target-gated depe
 
 1. Bump `wasm-bindgen` in `crates/rapidr-runtime-web/Cargo.toml`, `interpreter/rapidr-vm-host-web/Cargo.toml` and `interpreter/rapidr-compiler-wasm/Cargo.toml` to the prototype's resolved 0.2.129 (≥ 0.2.127 for wgpu 30), together with js-sys / web-sys 0.3.106 and the matching wasm-bindgen-futures.
 2. In `generate_cargo_toml_web`, change `=0.2.118` to `=0.2.129`. Update the README's `cargo install wasm-bindgen-cli --version 0.2.129` and the buildserver's environment.
-3. Run `tools/build_web_artifacts.sh` (wasm-pack fetches the matching CLI itself), then regress.sh's web stages: web_conformance, web_gui_parity at 1× and 2×, web_ide_*, web_bundle_*, web_vm_yield, web_end_timer.
+3. Run `tools/build_web_artifacts.sh` (wasm-pack fetches the matching CLI itself), then regress.sh's web stages: web_conformance, web_gui_parity at 1× and 2×, the web runtime's suites (`web_*`), web_bundle_*, web_vm_yield, web_end_timer.
 4. Add `crates/rapidr-ui-kernel` and `crates/rapidr-ui-host-winit` as members. Remove the prototype from `exclude` once its code is absorbed, and delete its `Cargo.lock`.
 5. Check that `cargo tree -i wasm-bindgen --target wasm32-unknown-unknown` shows one version, and that `cargo tree -p rapidr-runtime-web --target wasm32-unknown-unknown` contains no wgpu, winit or vello. Add `cargo check -p rapidr-ui-kernel --target wasm32-unknown-unknown` to the unit stage.
 

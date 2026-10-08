@@ -210,6 +210,8 @@ mod tests {
 
     #[test]
     fn gauges_and_bars_show_their_position() {
+        // (RapidQ's look, checked op for op: the classic theme, named)
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
         let mut s = MemStore::new();
         s.add("pgform", "RFORM", None);
         s.add("pgg", "RPROGRESSBAR", Some("pgform")).set("pgg", "position", v_int(25)).set("pgg", "width", v_int(102)).set("pgg", "height", v_int(20));

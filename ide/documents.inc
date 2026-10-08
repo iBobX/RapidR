@@ -193,6 +193,7 @@ SUB OpenDocument(Path AS STRING)
   DesignRead d
   DocHasForm(d) = Flag(DesignDoc(d).FormName <> "")
   title = FileTitle(Path)
+  DesignDoc(d).Theme = PreviewTheme
   IF DocHasForm(d) THEN Dock.AddPane(DesignDoc(d), title + " [Design]", "documents", "form")
   Dock.AddPane(CodeDoc(d), title, "documents", "code")
   ActiveDoc = d

@@ -45,7 +45,7 @@ properties = [
   { name = "ShowHint", type = "bool" },
   { name = "Title", type = "string" },
   { name = "Path", type = "string", access = "read" },
-  { name = "Theme", type = "string", origin = "rapidr" },
+  { name = "Theme", type = "string", origin = "rapidr", doc = "The look the program is drawn in now, by name: `rapidr light`, `rapidr dark`, `rapidr high contrast` or `classic`. Setting it takes any name `$THEME` takes (`rapidr`: RapidR's look as the system is)." },
   { name = "KeysPending", type = "int", access = "read", origin = "rapidr", doc = "How many keystrokes sent with SendKeys are still waiting to reach the program's windows." },
 ]
 methods = [

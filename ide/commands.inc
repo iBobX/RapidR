@@ -136,6 +136,7 @@ SUB DefineCommands
   AddCmd "view.theme.highcontrast", "RapidR &High Contrast", "View/Theme", "", "", "", "-"
   AddSep "View/Theme"
   AddCmd "view.theme.classic", "&Classic (RapidQ's Windows)", "View/Theme", "", "", "", "-"
+  DefinePreviewCommands
   AddSubmenu "View", "Documents", "&Documents As"
   AddCmd "view.documents.mdi", "&Windows (MDI)", "View/Documents", "", "", "", "-"
   AddCmd "view.documents.tabs", "&Tabs", "View/Documents", "", "", "", "-"
@@ -336,6 +337,7 @@ SUB UpdateCommands
   CheckCmd "view.theme.classic", ThemeChoice = "classic"
   CheckCmd "view.documents.mdi", DocumentMode = "mdi"
   CheckCmd "view.documents.tabs", DocumentMode = "tabs"
+  CheckCmd "view.previewClassic", PreviewClassic
 END SUB
 
 SUB MenuPicked(Sender AS QMENUITEM)

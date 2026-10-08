@@ -7,9 +7,8 @@
 #
 #   tools/release/web.sh [site folder]      (default: target/studio-web, built now)
 #
-# The legacy HTML / Monaco IDE (web-ide/) is not shipped (docs/ide-plan.md
-# I1; docs/security-audit.md SEC-17): it stays in the tree only as the test
-# harness its suites still load, until it is deleted.
+# (RapidR Studio is the only web IDE: the old HTML / Monaco one is gone,
+# docs/security-audit.md SEC-17.)
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 cd "$ROOT"
@@ -25,7 +24,6 @@ for f in index.html studio.js run.html studio.rrbc runtime/rapidrintr.js runtime
 done
 # (the fallback fonts beside the interpreter, as every web build has them)
 [ -d "$SITE/runtime/fonts" ] || die "no $SITE/runtime/fonts: tools/build_web_artifacts.sh makes them"
-case "$SITE" in web-ide|web-ide/*|./web-ide*) die "web-ide/ is no longer shipped (docs/security-audit.md SEC-17)";; esac
 
 NAME="rapidr-web-$VERSION"
 STAGE="$WORK/web/$NAME"
