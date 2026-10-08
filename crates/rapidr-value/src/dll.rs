@@ -98,6 +98,24 @@ fn hint_for(a: &str) -> Option<&'static str> {
     })
 }
 
+/// What a `CODEPTR(Proc)` / `CALLBACK(Proc)` argument of a DLL call
+/// becomes, followed by the routine's name (`rapidr_ast::memory`'s
+/// `DLL_CALLBACK_MARKER`): the DLL would call it, which RapidR can't do yet.
+pub const CALLBACK_MARKER: &str = "\u{0}rapidr-callback:";
+
+/// The error for a SUB or FUNCTION handed to a DLL as a callback.
+pub fn callback_error(name: &str, routine: &str) -> String {
+    format!("'{name}' is given CODEPTR({routine}), a callback the DLL would call back into the program; RapidR doesn't pass SUBs and FUNCTIONs to DLLs yet")
+}
+
+/// A library of macOS's or Linux's own format, named as such (`LIB
+/// "libfoo.dylib"`, `"libm.so.6"`): RapidR's addition, loaded on those
+/// systems. Anything else a DECLARE names is a Windows DLL.
+pub fn is_unix_library(lib: &str) -> bool {
+    let name = lib.trim_matches('"').rsplit(['\\', '/']).next().unwrap_or(lib).to_ascii_lowercase();
+    name.ends_with(".dylib") || name.ends_with(".so") || name.contains(".so.")
+}
+
 /// The error for a call into a Windows DLL on a system that isn't Windows
 /// (`web` for the browser, which can't load any DLL).
 pub fn needs_windows_error(lib: &str, name: &str, web: bool) -> String {
@@ -105,8 +123,10 @@ pub fn needs_windows_error(lib: &str, name: &str, web: bool) -> String {
     let hint = windows_api_hint(name).map(|h| format!(". For every system, {h}")).unwrap_or_default();
     if web {
         format!("'{name}' is a function of a DLL ({base}): this program calls Windows itself, and the web can't load DLLs, so it runs on Windows only{hint}")
-    } else {
+    } else if is_windows_system_library(lib) {
         format!("'{name}' is a Windows function ({base}): this program calls Windows itself, so it runs on Windows only{hint}")
+    } else {
+        format!("'{name}' is a function of {base}.dll, a Windows DLL: this program calls a DLL, so it runs on Windows only{hint}")
     }
 }
 
@@ -210,6 +230,10 @@ mod tests {
         assert_eq!(windows_api_hint("LoadCursorFromFileA"), None);
         let e = needs_windows_error("user32", "GetDC", false);
         assert!(e.starts_with("'GetDC' is a Windows function (user32): this program calls Windows itself, so it runs on Windows only. For every system, draw"), "{e}");
+        let e = needs_windows_error("FreeImage.dll", "FreeImage_Load", false);
+        assert_eq!(e, "'FreeImage_Load' is a function of freeimage.dll, a Windows DLL: this program calls a DLL, so it runs on Windows only");
+        assert!(is_unix_library("libSystem.B.dylib") && is_unix_library("/usr/lib/libm.so.6") && is_unix_library("libz.so"));
+        assert!(!is_unix_library("zlib") && !is_unix_library("mylib.dll") && !is_unix_library("user32"));
     }
 
     #[test]

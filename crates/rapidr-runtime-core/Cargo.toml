@@ -51,7 +51,7 @@ rapidr-ui-host-winit = { workspace = true, optional = true }
 # A crash inside a DLL a program called ends it with a message (ffi.rs):
 # Microsoft's windows-sys (MIT OR Apache-2.0).
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_System_Diagnostics_Debug"] }
+windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_System_Diagnostics_Debug", "Win32_System_Kernel"] }
 
 [target.'cfg(unix)'.dependencies]
 # INKEY$: the terminal read a key at a time (terminal.rs); QDXJOYSTICK's

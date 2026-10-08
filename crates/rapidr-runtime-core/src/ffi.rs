@@ -19,7 +19,6 @@
 
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::ffi::{c_char, CStr};
 
 use libloading::Library;
 
@@ -35,6 +34,8 @@ thread_local! {
 
 /// The function being called, for the crash filter's message.
 static CALLING: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+/// The last function called, for a crash after it returned.
+static LAST_CALL: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
 
 fn library_error(lib: &str, e: &libloading::Error) -> String {
     let text = e.to_string();
@@ -57,13 +58,13 @@ fn with_library<T>(lib: &str, f: impl FnOnce(&Library) -> Result<T, String>) -> 
     LOADED.with(|l| {
         let mut l = l.borrow_mut();
         if !l.contains_key(&key) {
+            // (Windows resolves a bare name to name.dll; elsewhere only a
+            // `.dylib` / `.so` named in full gets here: `dll_call`)
             let name = lib.trim_matches('"');
-            // Windows resolves a bare name to name.dll; the other systems
-            // need the extension spelled out.
-            let path = if cfg!(windows) || name.contains('.') { name.to_string() } else { format!("{name}.{}", if cfg!(target_os = "macos") { "dylib" } else { "so" }) };
             // SAFETY: loading a library runs its initialisers — what the
-            // program asked for with DECLARE … LIB.
-            let library = unsafe { Library::new(&path) }.map_err(|e| library_error(name, &e))?;
+            // program asked for with DECLARE … LIB (the author's power, as
+            // in RapidQ; the web has no ffi at all).
+            let library = unsafe { Library::new(name) }.map_err(|e| library_error(name, &e))?;
             l.insert(key.clone(), library);
         }
         f(l.get(&key).expect("loaded"))
@@ -82,17 +83,47 @@ fn temp_number(v: &Value, type_name: &str) -> Vec<u8> {
     let mut b = Vec::new();
     memory::encode(v, &memory::Kind::of(type_name), &mut b);
     b.resize(dll::numeric_size(type_name).max(b.len()).max(8), 0);
+    b.resize(b.len() + TEMP_SLACK, 0);
     b
 }
 
+/// Zeros after each buffer of a call's own (a string given by value, a
+/// BYREF number given as a value): an API told a bigger size than the text
+/// it was given (`GetWindowsDirectory("", 260)`) writes into them, not past
+/// the buffer. The program's own variables go through their blocks, whose
+/// pages have room of their own (`memory::reserve_for`).
+const TEMP_SLACK: usize = 4096;
+
+/// The longest C string read from an address a DLL returned (`AS STRING`
+/// results): a pointer to text with no NUL stops there.
+const MAX_RESULT_STRING: usize = 1 << 20;
+
 /// Calls `name` (its exported name) of `lib` with `args` as `spec` says.
 pub fn dll_call(lib: &str, name: &str, spec: &str, args: &[Value]) -> Result<Value, String> {
-    if !cfg!(windows) && dll::is_windows_system_library(lib) {
+    // Windows' DLLs (and any other DLL a RapidQ program names) on another
+    // system: the error that names the function. Only a library of the
+    // system's own format, named in full, loads there (RapidR's addition).
+    if !cfg!(windows) && !dll::is_unix_library(lib) {
         return Err(dll::needs_windows_error(lib, name, false));
     }
     let spec = Spec::parse(spec);
-    if args.len() > spec.params.len() || args.len() > 16 {
-        return Err(format!("'{name}' takes {} arguments, {} given", spec.params.len(), args.len()));
+    // (every parameter gets its argument: a missing one would leave the
+    // callee reading a register or stack slot nobody set)
+    if args.len() != spec.params.len() {
+        let n = spec.params.len();
+        return Err(format!("'{name}' takes {n} argument{}, {} given (its DECLARE)", if n == 1 { "" } else { "s" }, args.len()));
+    }
+    if args.len() > 16 {
+        return Err(format!("'{name}': RapidR calls DLL functions of up to 16 arguments; this one has {}", args.len()));
+    }
+    // (a SUB or FUNCTION handed over as a callback: refused before the DLL
+    // could jump to it)
+    for a in args {
+        if let Value::String(s) = a {
+            if let Some(routine) = s.strip_prefix(dll::CALLBACK_MARKER) {
+                return Err(dll::callback_error(name, routine));
+            }
+        }
     }
     for (p, a) in spec.params.iter().zip(args) {
         if p.is_float() && p.type_name != "DOUBLE" {
@@ -125,6 +156,7 @@ pub fn dll_call(lib: &str, name: &str, spec: &str, args: &[Value]) -> Result<Val
             Value::String(s) => {
                 let mut b = string_to_bytes(s);
                 b.push(0);
+                b.resize(b.len() + TEMP_SLACK, 0);
                 temps.push(b);
                 Slot::Int(temps.last_mut().unwrap().as_mut_ptr() as i64)
             }
@@ -152,17 +184,32 @@ pub fn dll_call(lib: &str, name: &str, spec: &str, args: &[Value]) -> Result<Val
     }
 
     let raw = with_library(lib, |library| {
-        // SAFETY: the symbol is called through the signature the DECLARE
-        // describes; the pointer type is fixed by `call_table`.
+        // SAFETY: looking a symbol up only reads the library's export
+        // table; the address is used as a function by `call_table` below.
         let sym: libloading::Symbol<*const ()> = unsafe { library.get(name.as_bytes()) }.map_err(|_| {
             format!("{} has no function '{name}' (the DECLARE's ALIAS must be the exported name; many Windows functions end in A or W)", dll::library_base(lib) + ".dll")
         })?;
         let ptr = *sym;
-        *CALLING.lock().unwrap_or_else(|e| e.into_inner()) = format!("{name} in {}", dll::library_base(lib));
+        let what = format!("{name} in {}", dll::library_base(lib));
+        *LAST_CALL.lock().unwrap_or_else(|e| e.into_inner()) = what.clone();
+        *CALLING.lock().unwrap_or_else(|e| e.into_inner()) = what;
         install_crash_filter();
-        // SAFETY: a foreign function with the arguments its declaration
-        // asks for; the program takes RapidQ's risk that they are right.
+        // SAFETY: a foreign function called with exactly the arguments its
+        // DECLARE lists (the count checked above), each in the declared
+        // type's slot: an integer register / stack slot, or a float one for
+        // a DOUBLE. Whether the DECLARE matches the real function is the
+        // program's responsibility, as in RapidQ (a wrong one is the
+        // author's bug). Pointers in the slots are the program's own memory:
+        // materialised blocks (kept for the process's life) or this call's
+        // `temps` (alive until after the call). A crash inside is reported
+        // by the crash filter, naming the call.
         let r = unsafe { call_table(ptr, &slots, spec.returns_float()) };
+        // (an AS STRING result is read while the call is still named, so an
+        // address that isn't readable is reported as this call's crash)
+        let r = r.map(|raw| match raw {
+            Raw::Int(n) if spec.return_type == "STRING" && n != 0 => Raw::Text(read_c_string(n as usize)),
+            other => other,
+        });
         CALLING.lock().unwrap_or_else(|e| e.into_inner()).clear();
         r
     })?;
@@ -173,17 +220,9 @@ pub fn dll_call(lib: &str, name: &str, spec: &str, args: &[Value]) -> Result<Val
 
     Ok(match (raw, spec.return_type.as_str()) {
         (Raw::Float(d), _) => v_dbl(d),
+        (Raw::Text(t), _) => v_str(&t),
         (Raw::Int(_), "") => v_null(),
-        (Raw::Int(n), "STRING") => {
-            if n == 0 {
-                v_str("")
-            } else {
-                // SAFETY: the DLL returned a C string's address (as the
-                // DECLARE says); read to its NUL.
-                let c = unsafe { CStr::from_ptr(n as *const c_char) };
-                v_str(&crate::value::objects::codec::bytes_to_string(c.to_bytes()))
-            }
-        }
+        (Raw::Int(_), "STRING") => v_str(""),
         (Raw::Int(n), "INT64") => v_int(n),
         (Raw::Int(n), "BYTE") => v_int((n & 0xFF) as i64),
         (Raw::Int(n), "WORD") => v_int((n & 0xFFFF) as i64),
@@ -207,6 +246,26 @@ fn narrow(v: i64, p: &Param) -> i64 {
 enum Raw {
     Int(i64),
     Float(f64),
+    /// An `AS STRING` result's text.
+    Text(String),
+}
+
+/// The text at `addr` (a DLL's `AS STRING` result) up to its NUL, at most
+/// [`MAX_RESULT_STRING`] bytes.
+fn read_c_string(addr: usize) -> String {
+    let mut bytes = Vec::new();
+    for i in 0..MAX_RESULT_STRING {
+        // SAFETY: the DLL returned this as a C string's address (the
+        // DECLARE says AS STRING); it is read a byte at a time up to its
+        // NUL and never past MAX_RESULT_STRING bytes. An address that isn't
+        // readable faults, and the crash filter names the call.
+        let b = unsafe { std::ptr::read_volatile((addr + i) as *const u8) };
+        if b == 0 {
+            break;
+        }
+        bytes.push(b);
+    }
+    crate::value::objects::codec::bytes_to_string(&bytes)
 }
 
 macro_rules! slot_type {
@@ -226,8 +285,12 @@ macro_rules! slot_value {
 /// Calls `ptr` as `fn(types…) -> ret` with the slots named.
 macro_rules! call_as {
     ($ptr:expr, $slots:expr, $ret:ty; $($k:ident $i:expr),*) => {{
-        let f: unsafe extern "system" fn($(slot_type!($k)),*) -> $ret = std::mem::transmute($ptr);
-        f($(slot_value!($slots, $k, $i)),*)
+        // SAFETY: (`call_table`'s contract) `$ptr` is an exported function's
+        // address and this is the signature the slots describe; a function
+        // pointer and a data pointer have the same size on every target.
+        let f: unsafe extern "system" fn($(slot_type!($k)),*) -> $ret = unsafe { std::mem::transmute($ptr) };
+        // SAFETY: as above — the call the DECLARE describes.
+        unsafe { f($(slot_value!($slots, $k, $i)),*) }
     }};
 }
 
@@ -317,10 +380,13 @@ fn install_crash_filter() {
     static ONCE: Once = Once::new();
     unsafe extern "system" fn filter(info: *const EXCEPTION_POINTERS) -> i32 {
         let what = CALLING.lock().map(|c| c.clone()).unwrap_or_default();
-        if what.is_empty() {
-            // (not during a DLL call: Windows' own handling)
+        let last = LAST_CALL.lock().map(|c| c.clone()).unwrap_or_default();
+        if what.is_empty() && last.is_empty() {
+            // (no DLL called yet: Windows' own handling)
             return 0;
         }
+        // SAFETY: Windows hands the filter a valid EXCEPTION_POINTERS (or
+        // null, which `as_ref` turns into None) for the exception's time.
         let detail = unsafe { info.as_ref().and_then(|i| i.ExceptionRecord.as_ref()) }.map(|r| {
             let code = r.ExceptionCode as u32;
             let name = match code {
@@ -337,7 +403,14 @@ fn install_crash_filter() {
                 name
             }
         });
-        eprintln!("run-time error: the call to {what} crashed ({}); an argument wasn't the pointer or handle the function expects", detail.unwrap_or_default());
+        let detail = detail.unwrap_or_default();
+        if what.is_empty() {
+            // (after a call: a DLL kept a pointer or a callback and used it
+            // later, e.g. a window procedure set with SetWindowLong)
+            eprintln!("run-time error: the program crashed ({detail}) after calling DLL functions (the last: {last}); a DLL kept a pointer or a callback that wasn't valid");
+        } else {
+            eprintln!("run-time error: the call to {what} crashed ({detail}); an argument wasn't the pointer or handle the function expects");
+        }
         1 // EXCEPTION_EXECUTE_HANDLER: the process ends
     }
     ONCE.call_once(|| {
@@ -381,6 +454,10 @@ mod tests {
         }
         let e = dll_call("nosuchlib", "F", "|", &[]).unwrap_err();
         assert!(e.contains("nosuchlib"), "{e}");
+        if !cfg!(windows) {
+            // Any DLL a RapidQ program names, not only Windows' own.
+            assert_eq!(e, "'F' is a function of nosuchlib.dll, a Windows DLL: this program calls a DLL, so it runs on Windows only");
+        }
     }
 
     #[test]
@@ -408,5 +485,16 @@ mod tests {
         // A function the library doesn't have.
         let e = dll_call(lib, "no_such_function_xyz", "LONG|", &[]).unwrap_err();
         assert!(e.contains("no function 'no_such_function_xyz'"), "{e}");
+        // An AS STRING result: the text at the address returned (here
+        // inside this call's own copy of the argument).
+        assert_eq!(dll_call(lib, "strstr", "STRING|STRING:v,STRING:v", &[v_str("hello"), v_str("ll")]).unwrap(), v_str("llo"));
+        assert_eq!(dll_call(lib, "strstr", "STRING|STRING:v,STRING:v", &[v_str("hello"), v_str("xy")]).unwrap(), v_str(""));
+        // Each parameter gets its argument, no more and no fewer.
+        let e = dll_call(lib, "abs", "LONG|LONG:v", &[]).unwrap_err();
+        assert_eq!(e, "'abs' takes 1 argument, 0 given (its DECLARE)");
+        assert!(dll_call(lib, "abs", "LONG|LONG:v", &[v_int(1), v_int(2)]).is_err());
+        // A SUB handed over as a callback is refused before the call.
+        let e = dll_call(lib, "abs", "LONG|LONG:v", &[v_str(&format!("{}WndProc", dll::CALLBACK_MARKER))]).unwrap_err();
+        assert!(e.starts_with("'abs' is given CODEPTR(WndProc), a callback"), "{e}");
     }
 }

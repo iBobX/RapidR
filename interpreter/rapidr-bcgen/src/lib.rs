@@ -3098,6 +3098,19 @@ mod tests {
         assert!(consts.iter().any(|s| s == "|LONG:v"), "{consts:?}");
     }
 
+    /// `CODEPTR(Proc)` handed to a DLL becomes the callback marker the
+    /// runtime refuses (rapidr_ast::memory and rapidr_value::dll agree on it).
+    #[test]
+    fn codeptr_to_a_dll_is_the_callback_marker() {
+        assert_eq!(rapidr_ast::memory::DLL_CALLBACK_MARKER, rapidr_value::dll::CALLBACK_MARKER);
+        let src = "DECLARE FUNCTION EnumWindows LIB \"user32\" ALIAS \"EnumWindows\" (lpEnumFunc AS LONG, lParam AS LONG) AS LONG\n\
+                   FUNCTION EnumProc(h AS LONG, l AS LONG) AS LONG\n  EnumProc = 1\nEND FUNCTION\n\
+                   x = EnumWindows(CODEPTR(EnumProc), 0)\n";
+        let compiled = compile_program_with_source(&parse(src), Some(src)).expect("compiles");
+        let consts: Vec<String> = compiled.module.consts.iter().filter_map(|c| match c { Const::Str(s) => Some(s.clone()), _ => None }).collect();
+        assert!(consts.iter().any(|s| s.starts_with(rapidr_value::dll::CALLBACK_MARKER) && s.to_ascii_lowercase().ends_with("enumproc")), "{consts:?}");
+    }
+
     #[test]
     fn print_string() {
         let h = run(r#"PRINT "hello""#);

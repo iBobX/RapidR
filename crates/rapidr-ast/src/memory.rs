@@ -36,6 +36,11 @@ fn key(name: &str) -> String {
     crate::strip_type_suffix(&name.to_ascii_lowercase()).to_string()
 }
 
+/// What a `CODEPTR(Proc)` handed to a DLL becomes (followed by the
+/// routine's name): `rapidr_value::dll::CALLBACK_MARKER`, which the runtime
+/// answers with a clear error (docs/windows-dll-calls.md §1).
+pub const DLL_CALLBACK_MARKER: &str = "\u{0}rapidr-callback:";
+
 fn ident(span: TextSpan, name: &str) -> Expression {
     Expression::Identifier(Identifier { span, name: name.into() })
 }
@@ -371,6 +376,21 @@ impl Pass<'_> {
         let dlls = self.dlls;
         let by_address = |args: &mut Vec<Expression>, params: &[Parameter]| {
             for (a, p) in args.iter_mut().zip(params) {
+                // `CODEPTR(Proc)` / `CALLBACK(Proc)` handed to a DLL (a
+                // window procedure, an enumeration callback): the marker
+                // the runtime answers with "callbacks aren't supported
+                // yet", instead of a number the DLL would jump to.
+                if let Expression::FunctionCall(fc) = &*a {
+                    if callee_name(&fc.callee).is_some_and(|n| matches!(key(&n).as_str(), "codeptr" | "callback")) {
+                        let target = match fc.args.first() {
+                            Some(Expression::Identifier(id)) => id.name.clone(),
+                            Some(Expression::MemberAccess(m)) => member_path(&Expression::MemberAccess(m.clone())),
+                            _ => String::new(),
+                        };
+                        *a = text(fc.span, &format!("{DLL_CALLBACK_MARKER}{target}"));
+                        continue;
+                    }
+                }
                 let t = p.type_name.to_ascii_uppercase();
                 let string = t.starts_with("STRING");
                 if !(string || p.by_ref) {
