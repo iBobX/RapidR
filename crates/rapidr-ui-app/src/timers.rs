@@ -57,22 +57,39 @@ pub fn start_all<P: Program>(p: P) {
     }
 }
 
-fn interval<P: Program>(p: P, name: &str) -> Duration {
-    if let Some(d) = p.timer_period(name) {
-        return d;
+/// Windows' timer tick: a QTIMER (Delphi's TTimer, SetTimer) fires on it,
+/// so its period is its Interval rounded up to whole ticks — RC.EXE's
+/// builds in Windows 11 count about 50 ticks a second at Interval 1, 27 at
+/// 20, 14 at 50, 8 at 100.
+const WINDOWS_TICK_US: u64 = 15_625;
+
+/// A QTIMER's period: its Interval (at least Windows' 10 ms) rounded up to
+/// Windows' timer ticks; `None` for an Interval of 0 or less — such a
+/// timer never fires (RC.EXE), as Delphi's TTimer.
+pub fn timer_period(interval_ms: i64) -> Option<Duration> {
+    if interval_ms <= 0 {
+        return None;
     }
-    let ms = p.get(name, "interval").to_i64();
-    Duration::from_millis(if ms > 0 { ms as u64 } else { 1000 })
+    let us = (interval_ms.clamp(10, 0x7FFF_FFFF) as u64) * 1000;
+    Some(Duration::from_micros(us.div_ceil(WINDOWS_TICK_US) * WINDOWS_TICK_US))
+}
+
+fn interval<P: Program>(p: P, name: &str) -> Option<Duration> {
+    if let Some(d) = p.timer_period(name) {
+        return Some(d);
+    }
+    timer_period(p.get(name, "interval").to_i64())
 }
 
 /// Starts timer `name` ticking if it's enabled and isn't already (it
 /// fires while the program waits: a modal form, DOEVENTS).
 pub fn schedule<P: Program>(p: P, name: &str) {
     let name = name.to_lowercase();
+    let Some(period) = interval(p, &name) else { return };
     if p.get(&name, "enabled").to_i64() == 0 || !tm(|s| s.scheduled.insert(name.clone())) {
         return;
     }
-    let at = p.now() + interval(p, &name);
+    let at = p.now() + period;
     tm(|s| {
         s.gen += 1;
         let g = s.gen;
@@ -175,7 +192,12 @@ pub fn fire_due_then<P: Program>(p: P, then: impl Fn()) -> bool {
 
 /// Timer `name` (its handler over) due again an Interval from now.
 fn rearm<P: Program>(p: P, name: String) {
-    let at = p.now() + interval(p, &name);
+    // (an Interval of 0 now: it stops)
+    let Some(period) = interval(p, &name) else {
+        tm(|s| s.scheduled.remove(&name));
+        return;
+    };
+    let at = p.now() + period;
     tm(|s| {
         s.gen += 1;
         let g = s.gen;

@@ -25,10 +25,14 @@ print, or start other programs are not run.
 
 What counts as wrong, per run: a RapidR run-time error, a panic, a crash
 (a signal), a hang (the time limit, unless the program waits for a key or a
-line as RapidQ's would), RapidR's own warnings (`[rapidr] …` on stderr), a
-console program whose output isn't RapidQ's (when RC.EXE's output of it is
-in --golden: tools/rapidq_truth.py corpus --write-golden), a GUI program
-that shows no window, or one whose every window is a single colour.
+line as RapidQ's would — or RC.EXE's build of it ran into the limit too, as
+tools/rapidq_truth.py corpus found), RapidR's own warnings (`[rapidr] …`,
+`[WARN] …`), a console program whose output isn't RapidQ's (when RC.EXE's
+output of it is in --golden: tools/rapidq_truth.py corpus --write-golden), a
+GUI program that shows no window, or one whose every window is a single
+colour. Console programs also run in a terminal (a pseudo-terminal, typed
+Enter, a number, q, Escape …): a run-time error, panic or warning there
+counts too ("(terminal)").
 
 The problems are grouped by cause (messages with their numbers and names
 taken out) and written, with the counts, to --report. Programs that need
@@ -74,6 +78,8 @@ GUI = re.compile(r"\bQ(FORM|FORMEX|FORMMDI|DOCKFORM)\b|\bR(FORM|FORMMDI)\b", re.
 APPTYPE_CONSOLE = truth.APPTYPE_CONSOLE
 # (a console program that waits for a key or a line: RapidQ's waits too)
 WAITS = re.compile(r"\binkey\$|\binput\$|\bget\$|^\s*input\b|\bsleep\b|\bconsole\.(input|inkey)", re.I | re.M)
+# (output that depends on random numbers or the clock: not compared)
+VARIES = re.compile(r"\b(rnd|randomize|timer|time\$|date\$|tickcount|gettickcount)\b", re.I)
 LANES = ("portable", "dll", "directx", "ole", "hardware")
 
 
@@ -108,6 +114,61 @@ def bmp_info(path):
         return w, abs(h), len(colours)
     except Exception:
         return 0, 0, 0
+
+
+def png_colours(path):
+    """How many colours (up to 2) a PNG has — RC.EXE's window captures
+    (tools/corpus_rc_shots.sh: 8-bit RGB or RGBA, not interlaced)."""
+    import zlib
+    try:
+        b = open(path, "rb").read()
+        w, h, depth, ctype = struct.unpack(">IIBB", b[16:26])
+        if depth != 8 or ctype not in (2, 6):
+            return 0
+        data, i = b"", 8
+        while i < len(b):
+            n, kind = struct.unpack(">I4s", b[i:i + 8])
+            if kind == b"IDAT":
+                data += b[i + 8:i + 8 + n]
+            i += 12 + n
+        raw = zlib.decompress(data)
+        bpp = 3 if ctype == 2 else 4
+        stride = w * bpp
+        prev = bytearray(stride)
+        colours = set()
+        for y in range(h):
+            f, line = raw[y * (stride + 1)], bytearray(raw[y * (stride + 1) + 1:(y + 1) * (stride + 1)])
+            for x in range(stride):
+                a = line[x - bpp] if x >= bpp else 0
+                up = prev[x]
+                c = prev[x - bpp] if x >= bpp else 0
+                if f == 1:
+                    line[x] = (line[x] + a) & 255
+                elif f == 2:
+                    line[x] = (line[x] + up) & 255
+                elif f == 3:
+                    line[x] = (line[x] + (a + up) // 2) & 255
+                elif f == 4:
+                    pa, pb, pc = abs(up - c), abs(a - c), abs(a + up - 2 * c)
+                    line[x] = (line[x] + (a if pa <= pb and pa <= pc else up if pb <= pc else c)) & 255
+            for x in range(0, stride, bpp * 5):
+                colours.add(bytes(line[x:x + 3]))
+            if len(colours) > 1:
+                return 2
+            prev = line
+        return len(colours)
+    except Exception:
+        return 0
+
+
+def rc_windows(name):
+    """RC.EXE's captures of program `name` (tools/corpus_rc_shots.sh), or
+    None when it wasn't run there."""
+    d = os.path.join(WORK, "rc-shots")
+    listed = os.path.join(d, "programs.txt")
+    if not os.path.exists(listed) or name not in open(listed).read().split():
+        return None
+    return sorted(os.path.join(d, f) for f in os.listdir(d) if f.startswith(name + "-") and f.endswith(".png"))
 
 
 def run(cmd, cwd, env, timeout, stdin=None):
@@ -236,7 +297,7 @@ def judge(p, backend, code, out, err, timed_out, caps, golden):
     elif rt:
         problems.append(("run-time error", rt[len("run-time error:"):].strip()))
     elif timed_out:
-        if p["console"] and WAITS.search(p["text"]):
+        if p["console"] and (WAITS.search(p["text"]) or p.get("rc") == "timeout"):
             pass  # (waits for the keyboard, as RapidQ's does)
         else:
             problems.append(("hang", "no end within the time limit" + (" (a GUI program: the capture never came)" if not p["console"] else "")))
@@ -259,7 +320,7 @@ def judge(p, backend, code, out, err, timed_out, caps, golden):
                 w, h, n = bmp_info(c)
                 if n <= 1:
                     problems.append(("blank window", f"{w}x{h} all one colour"))
-    if golden is not None and p["console"] and not timed_out and not rt and not panic:
+    if golden is not None and p["console"] and not timed_out and not rt and not panic and not VARIES.search(p["text"]):
         if truth.norm(out) != golden:
             problems.append(("wrong output", "differs from RC.EXE's"))
     return problems
@@ -324,6 +385,8 @@ def programs(args):
                     src = os.path.join(d, f)
                     results[os.path.relpath(src, args.examples)] = corpus.compile_one(src, env)[1]
     corpus.CORPUS_ROOT = os.path.abspath(args.examples)
+    rc_json = os.path.join(truth.WORK, "corpus", "rc.json")
+    rc_runs = json.load(open(rc_json)) if os.path.exists(rc_json) else {}
     progs = []
     for rel, errors in sorted(results.items()):
         if errors:
@@ -343,8 +406,13 @@ def programs(args):
             p["skip"] = "starts other programs"
         g = os.path.join(args.golden, p["name"] + ".expected")
         p["golden"] = g if os.path.exists(g) else None
+        # (how RC.EXE's build of it ran, when tools/rapidq_truth.py corpus
+        # ran it: a console program that waits for input there too)
+        p["rc"] = rc_runs.get(p["name"], {}).get("status")
         i = os.path.join(args.golden, p["name"] + ".input")
         p["input"] = i if os.path.exists(i) else None
+        if args.kind and ("console" if p["console"] else "gui") != args.kind:
+            continue
         progs.append(p)
     return progs
 
@@ -472,6 +540,29 @@ def merge(paths):
     for path in paths:
         for e in json.load(open(path)):
             by.setdefault(e["program"], {}).update(e)
+    # (a console program RC.EXE's build ran into the time limit too waits
+    # for input: not a hang — sweeps made before RC.EXE's runs were known)
+    rc_json = os.path.join(truth.WORK, "corpus", "rc.json")
+    rc_runs = json.load(open(rc_json)) if os.path.exists(rc_json) else {}
+    for e in by.values():
+        # (RC.EXE's build of it shows no window, or only windows of one
+        # colour, too: not a problem of RapidR's)
+        rc = rc_windows(name_of(e["program"]))
+        if rc is not None:
+            e["rc_windows"] = len(rc)
+            for b in ("vm", "native"):
+                if b in e and not rc:
+                    e[b]["problems"] = [x for x in e[b]["problems"] if x[0] != "no window"]
+                if b in e and rc and all(png_colours(f) == 1 for f in rc):
+                    e[b]["problems"] = [x for x in e[b]["problems"] if x[0] != "blank window"]
+        varies = VARIES.search(truth.program_text(os.path.join(RAPIDQ, "examples", e["program"])))
+        for b in ("vm", "native"):
+            if varies and b in e:
+                e[b]["problems"] = [x for x in e[b]["problems"] if x[0] != "wrong output"]
+        if e.get("kind") == "console" and rc_runs.get(name_of(e["program"]), {}).get("status") == "timeout":
+            for b in ("vm", "native"):
+                if b in e:
+                    e[b]["problems"] = [x for x in e[b]["problems"] if x[0] != "hang"]
     return [by[k] for k in sorted(by)]
 
 
@@ -493,6 +584,7 @@ def main():
     ap.add_argument("--report")
     ap.add_argument("--label", default="")
     ap.add_argument("--before")
+    ap.add_argument("--kind", choices=["console", "gui"], help="only console or only GUI programs")
     ap.add_argument("--merge", nargs="+", metavar="JSON", help="no runs: the report from these sweeps (e.g. one per backend) put together")
     args = ap.parse_args()
     args.backends = [b.strip() for b in args.backend.split(",") if b.strip()]

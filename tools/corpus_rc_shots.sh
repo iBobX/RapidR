@@ -3,7 +3,8 @@
 # (tools/corpus_run.py): each GUI program built by RC.EXE in the Parallels
 # Windows VM and run there, its windows captured at 1× by
 # tools/windows/rc_shots.ps1, the PNGs saved as
-# tests/conformance/.work/corpus-run/rc-shots/<name>-<n>.png (the corpus and
+# tests/conformance/.work/corpus-run/rc-shots/<name>-<n>.png, the programs
+# run listed in its programs.txt (the corpus and
 # what it shows stay on this machine: never committed).
 #
 #   tools/corpus_rc_shots.sh [filter …]     (parts of the programs' paths)
@@ -77,4 +78,7 @@ for line in open(log, encoding="utf-8", errors="replace"):
 print(f"{prog}: {saved} window(s)")
 PY
   rm -f "$log"
+  echo "$name" >> "$out/programs.txt"
 done < "$work.list"
+# (the programs RC.EXE ran here: tools/corpus_run.py compares their windows)
+sort -u -o "$out/programs.txt" "$out/programs.txt"
