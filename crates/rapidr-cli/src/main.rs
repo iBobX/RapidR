@@ -14,13 +14,14 @@ mod lang;
 mod macos;
 mod launch;
 mod notices;
+mod package;
 mod setup;
 
 use home::Home;
 
 /// The subcommands (a first argument that is one isn't a file).
 const SUBCOMMANDS: &[&str] = &[
-    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "lsp", "dap", "__dialog",
+    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "__dialog",
 ];
 
 /// `--log <file> <command…>`: this rapidr again with the command, its
@@ -91,7 +92,7 @@ fn main() -> ExitCode {
                     _ => {}
                 }
             }
-            return build_source_file(&file, None, release, web, interp, None, None);
+            return build_source_file(&file, None, release, web, interp, None, None, &package::Options::default());
         }
     }
 
@@ -121,6 +122,7 @@ fn main() -> ExitCode {
         (Some("notices"), _) => notices::command(&args[1..]),
         (Some("lang"), _) => lang::command(&args[1..]),
         (Some("__dialog"), Some(path)) => launch::run_dialog(&path),
+        (Some("install-app"), Some(dir)) => package::install_app(Path::new(&dir)),
         (Some("lsp"), _) => rapidr_lsp::run_stdio(),
         (Some("dap"), _) => rapidr_dap::run_stdio(),
         (Some("parse"), Some(path)) => parse_source_file(&path),
@@ -137,7 +139,38 @@ fn main() -> ExitCode {
             let mut interp = false;
             let mut target = None;
             let mut csp = None;
-            let mut iter = rest.iter();
+            let mut app = package::Options::default();
+            // (the app's options: --icon, --name, --bundle-id, --app-version,
+            // --company, --project, --bundle / --no-bundle, RC.EXE's -g<icon>)
+            let mut others = Vec::new();
+            let mut i = 0;
+            while i < rest.len() {
+                match app.take(&rest, &mut i) {
+                    Ok(true) => {}
+                    Ok(false) => others.push(rest[i].clone()),
+                    Err(e) => {
+                        eprintln!("{e}");
+                        return ExitCode::from(2);
+                    }
+                }
+                i += 1;
+            }
+            // `rapidr build app.rrproj`: its main file, with its settings
+            let mut path = path;
+            if path.to_ascii_lowercase().ends_with(".rrproj") {
+                match package::project_for(Path::new(&path), Some(&path)) {
+                    Ok(Some((dir, project))) => {
+                        app.project = Some(path.clone());
+                        path = dir.join(&project.main).to_string_lossy().into_owned();
+                    }
+                    Ok(None) => unreachable!("an explicit project"),
+                    Err(e) => {
+                        eprintln!("{e}");
+                        return ExitCode::from(1);
+                    }
+                }
+            }
+            let mut iter = others.iter();
             while let Some(arg) = iter.next() {
                 match arg.as_str() {
                     "--target" => target = iter.next().cloned(),
@@ -169,7 +202,7 @@ fn main() -> ExitCode {
                 eprintln!("--csp: only web builds (--web) have a Content-Security-Policy");
                 return ExitCode::from(2);
             }
-            build_source_file(&path, output_dir, release.unwrap_or(interp), web, interp, target, csp)
+            build_source_file(&path, output_dir, release.unwrap_or(interp), web, interp, target, csp, &app)
         }
         (Some("build-bc"), Some(path)) => {
             let mut out: Option<String> = None;
@@ -222,8 +255,12 @@ fn main() -> ExitCode {
             eprintln!("  rapidr preprocess <file.rr>");
             eprintln!("  rapidr lex <file.rr>");
             eprintln!("  rapidr codegen <file.rr> [output_dir]");
-            eprintln!("  rapidr build <file.rr> [output_dir] [--release|-r] [--debug|-d] [--web|-w] [--interp|-i] [--target <os>-<arch>]");
+            eprintln!("  rapidr build <file.rr|app.rrproj> [output_dir] [--release|-r] [--debug|-d] [--web|-w] [--interp|-i] [--target <os>-<arch>]");
             eprintln!("        [--csp \"connect-src https://api.example.com; …\"]  (web) sources the page's Content-Security-Policy adds");
+            eprintln!("        [--icon <.icns|.ico|.png|.svg>] [--name <app name>] [--bundle-id <id>] [--app-version <1.0>] [--company <name>]");
+            eprintln!("        [--bundle|--no-bundle] [--project <app.rrproj>] [-g<icon.ico>]   A GUI program becomes Name.app (macOS),");
+            eprintln!("        an .exe with its icon and version (Windows), Name.AppDir (Linux)");
+            eprintln!("  rapidr install-app <Name.AppDir>                 Linux: the app in your applications menu, with its icon");
             eprintln!("  rapidr build-bc <file.rr> [-o out.rrbc]          Compile to bytecode");
             eprintln!("  rapidr run-bc <file.rrbc> [args]                 Run bytecode (stub host)");
             eprintln!("  rapidr bundle-bc <file.rr> [-o out.zip] [--csp …]  Build static web bundle");
@@ -429,12 +466,27 @@ fn build_source_file(
     interp: bool,
     target: Option<String>,
     csp: Option<String>,
+    app: &package::Options,
 ) -> ExitCode {
     // Detect web target from $APPTYPE or --web flag
     let app_type = preprocess_file(path, PreprocessOptions::default())
         .ok()
         .and_then(|r| r.app_type);
     let is_web = web || app_type.as_deref() == Some("WEB");
+
+    // The app it becomes (Name.app, the .exe's icon, Name.AppDir), decided
+    // first: a bad icon or version fails before a long build.
+    let plan = if is_web {
+        None
+    } else {
+        match app_plan(path, &target.clone().unwrap_or_else(home::host_target), app) {
+            Ok(p) => Some(p),
+            Err(e) => {
+                eprintln!("{e}");
+                return ExitCode::from(1);
+            }
+        }
+    };
 
     // Native means compiled: what the Rust backend can't compile yet is an
     // error, never a silent switch to the interpreter.
@@ -450,7 +502,7 @@ fn build_source_file(
         return if is_web {
             build_interp_web(path, output_dir, csp.as_deref())
         } else {
-            build_interp_desktop(path, output_dir, release, target)
+            build_interp_desktop(path, output_dir, release, target, plan.as_ref().expect("a desktop build's app"))
         };
     }
 
@@ -475,11 +527,23 @@ fn build_source_file(
     if is_web {
         build_web(path, &out_dir, stem, release, csp.as_deref())
     } else {
-        build_desktop(path, &out_dir, stem, release)
+        build_desktop(path, &out_dir, stem, release, plan.as_ref().expect("a desktop build's app"))
     }
 }
 
-fn build_desktop(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitCode {
+/// The app a desktop build of `path` for `target` makes (package.rs).
+fn app_plan(path: &str, target: &str, opts: &package::Options) -> Result<package::Plan, String> {
+    let system = rapidr_package::System::of_target(target).ok_or_else(|| format!("--target {target}: not a desktop system (macos, windows or linux)"))?;
+    let project = package::project_for(Path::new(path), opts.project.as_deref())?;
+    // (the program's own errors come from the build itself)
+    let pre = preprocess_file(path, PreprocessOptions::default()).ok();
+    let option_icon = pre.as_ref().and_then(|p| rapidr_preprocessor::Resource::option_icon(&p.resources)).and_then(|r| r.path.clone());
+    let console = compile_to_bytecode(path).map(|c| c.module.app_type.wants_console()).unwrap_or(false);
+    let stem = Path::new(path).file_stem().and_then(|s| s.to_str()).unwrap_or("program");
+    package::plan(stem, system, console, opts, project.as_ref(), option_icon.as_deref())
+}
+
+fn build_desktop(path: &str, out_dir: &Path, stem: &str, release: bool, plan: &package::Plan) -> ExitCode {
     let source_path = Path::new(path);
     let profile = if release { "release" } else { "debug" };
     println!("\nBuilding with cargo ({profile})...");
@@ -525,7 +589,6 @@ fn build_desktop(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitC
             let exe = std::env::consts::EXE_SUFFIX;
             let mut built_binary = target_root.join(profile).join(format!("{binary_name}{exe}"));
             let dest_dir = source_path.parent().unwrap_or(Path::new("."));
-            let dest_binary = dest_dir.join(format!("{stem}{exe}"));
             if universal {
                 // (the two slices made one: lipo, which macOS' command line tools have —
                 // the linker Rust uses comes with them)
@@ -538,28 +601,19 @@ fn build_desktop(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitC
                 }
             }
 
-            if built_binary.exists() {
-                if let Err(e) = fs::copy(&built_binary, &dest_binary) {
-                    eprintln!("Warning: could not copy binary: {e}");
-                } else {
-                    // Make it executable on Unix
-                    #[cfg(unix)]
-                    {
-                        use std::os::unix::fs::PermissionsExt;
-                        let _ = fs::set_permissions(&dest_binary, fs::Permissions::from_mode(0o755));
-                    }
-                    println!("Binary: {}", dest_binary.display());
-                }
-            }
-            // The open-source notices the program ships with (notices.rs)
-            match notices::write(dest_dir, &notices::Kind::Desktop(home::host_target())) {
-                Ok(p) => println!("Notices: {}", p.display()),
+            // The program made into its app, with the open-source notices it
+            // ships with (package.rs, notices.rs)
+            let binary = match fs::read(&built_binary) {
+                Ok(b) => b,
                 Err(e) => {
-                    eprintln!("{}", notices::missing(&e));
+                    eprintln!("{}: {e}", built_binary.display());
                     return ExitCode::from(1);
                 }
+            };
+            if let Err(e) = package::finish(plan, &binary, None, dest_dir, &notices::Kind::Desktop(home::host_target())) {
+                eprintln!("{e}");
+                return ExitCode::from(1);
             }
-
             println!("Build succeeded!");
             ExitCode::SUCCESS
         }
@@ -809,17 +863,14 @@ fn compile_to_bytecode(path: &str) -> Result<rapidr_bcgen::Compiled, String> {
     Ok(compiled)
 }
 
-/// The `$RESOURCE` files of a program, as (name, absolute path); an error
-/// names one that wasn't found (as RapidQ's compiler does) — an optional one
-/// (`$OPTION ICON`) that isn't there has an empty path: built in empty.
+/// The `$RESOURCE` files of a program (and `$OPTION ICON`'s), as (name,
+/// absolute path); an error names one that wasn't found, as RapidQ's
+/// compiler does.
 fn resource_files(pre: &rapidr_preprocessor::PreprocessResult) -> Result<Vec<(String, String)>, String> {
     pre.resources
         .iter()
         .map(|r| {
-            if r.optional && r.path.is_none() {
-                return Ok((r.name.clone(), String::new()));
-            }
-            let path = r.path.as_ref().ok_or_else(|| format!("$RESOURCE {}: file not found: '{}'", r.name, r.file))?;
+            let path = r.path.as_ref().ok_or_else(|| r.not_found())?;
             let abs = path.canonicalize().map_err(|e| format!("$RESOURCE {}: {}: {e}", r.name, path.display()))?;
             Ok((r.name.clone(), abs.to_string_lossy().into_owned()))
         })
@@ -1057,6 +1108,7 @@ fn build_interp_desktop(
     output_dir: Option<String>,
     release: bool,
     target: Option<String>,
+    plan: &package::Plan,
 ) -> ExitCode {
     // 1. Compile source → bytecode.
     let compiled = match compile_to_bytecode(path) {
@@ -1098,30 +1150,22 @@ fn build_interp_desktop(
         eprintln!("create_dir_all {}: {e}", dest_dir.display());
         return ExitCode::from(1);
     }
-    let dest = dest_dir.join(format!("{stem}{}", home::exe_suffix(&target)));
+    let _ = stem;
 
-    // 4. Attach payload.
-    if let Err(e) = attach_payload(&stub, &rrbc, &dest) {
-        eprintln!("attach_payload: {e}");
-        return ExitCode::from(1);
-    }
-
-    println!(
-        "Built interpreted binary: {} ({} bytes total, {} bytes payload)",
-        dest.display(),
-        fs::metadata(&dest).map(|m| m.len()).unwrap_or(0),
-        rrbc.len(),
-    );
-    // 5. The open-source notices it ships with (the same file as a native
-    //    build's for this target: notices.rs).
-    match notices::write(&dest_dir, &notices::Kind::Desktop(target)) {
-        Ok(p) => println!("Notices: {}", p.display()),
+    // 4. The runner and the program made into its app (package.rs): the
+    //    bytecode after the runner, or in a macOS app's resources; with the
+    //    open-source notices it ships with (the same as a native build's
+    //    for this target: notices.rs).
+    match package::finish(plan, &stub, Some(&rrbc), &dest_dir, &notices::Kind::Desktop(target)) {
+        Ok(made) => {
+            println!("Built interpreted program: {} ({} bytes of bytecode)", made.executable.display(), rrbc.len());
+            ExitCode::SUCCESS
+        }
         Err(e) => {
-            eprintln!("{}", notices::missing(&e));
-            return ExitCode::from(1);
+            eprintln!("{e}");
+            ExitCode::from(1)
         }
     }
-    ExitCode::SUCCESS
 }
 
 /// `rapidr build --web --interp <file.rr>` — compile to bytecode and
@@ -1143,33 +1187,6 @@ fn build_interp_web(path: &str, output_dir: Option<String>, csp: Option<&str>) -
     }
     let out_path = out_dir.join(format!("{stem}-web.zip"));
     bundle_bc_file(path, Some(out_path.to_string_lossy().into_owned()), None, None, csp)
-}
-
-/// Append `[rrbc bytes][magic 8B "RRBCEXE1"][u32 LE length]` to a copy
-/// of `stub`. The result is a fully self-contained executable that, on
-/// startup, slices off its own payload and runs it via
-/// `rapidr-vm-host-native`.
-fn attach_payload(stub: &[u8], rrbc: &[u8], dest: &Path) -> Result<(), String> {
-    fs::write(dest, stub).map_err(|e| format!("write {}: {e}", dest.display()))?;
-
-    use std::io::Write;
-    let mut f = std::fs::OpenOptions::new()
-        .append(true)
-        .open(dest)
-        .map_err(|e| format!("open {}: {e}", dest.display()))?;
-    f.write_all(rrbc).map_err(|e| format!("write payload: {e}"))?;
-    f.write_all(b"RRBCEXE1").map_err(|e| format!("write magic: {e}"))?;
-    let len = u32::try_from(rrbc.len())
-        .map_err(|_| "bytecode payload exceeds 4 GiB".to_string())?;
-    f.write_all(&len.to_le_bytes()).map_err(|e| format!("write len: {e}"))?;
-    drop(f);
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = fs::set_permissions(dest, fs::Permissions::from_mode(0o755));
-    }
-    Ok(())
 }
 
 /// The runner stub `--interp` executables start from: `rapidrintr-runner`,

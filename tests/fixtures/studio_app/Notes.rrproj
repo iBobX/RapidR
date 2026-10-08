@@ -1,0 +1,22 @@
+# RapidR Studio project (format 2)
+
+format = 2
+name = "Notes"
+main = "main.rr"
+
+[[files]]
+path = "main.rr"
+kind = "form"
+
+[[files]]
+path = "note.svg"
+kind = "resource"
+
+[build]
+icon = "note.svg"
+app_name = "Notes"
+bundle_id = "dev.rapidr.test.notes"
+version = "1.2.0"
+company = "RapidR Tests"
+targets = ["bytecode"]
+release = false

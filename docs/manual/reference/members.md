@@ -4534,6 +4534,15 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `MainFile` | string |  | The file the program starts from (relative to the folder). |
 | `FileCount` (read-only) | int |  | How many files the project has. |
 | `CompatMode` | string |  | "rapidq" for a RapidQ-compatible project (RapidR's extensions reported), else "". |
+| `Icon` | string |  | The app's icon file (.icns, .ico, .png or .svg), relative to the folder; "" for the main file's $OPTION ICON, else RapidR's icon for programs. |
+| `AppName` | string |  | The app's name, as Finder, Explorer and the applications menu show it; "" for the project's Name. |
+| `BundleID` | string |  | The app's reverse-DNS identifier (com.example.notepad); "" for dev.rapidr.app.<name>. |
+| `Version` | string |  | The app's version: up to four numbers with dots (1.0, 2.3.1); "" for 1.0. |
+| `Company` | string |  | Who makes the app (Windows' company name, the copyright line). |
+| `BuildKind` | string |  | How Build makes the program: "native" (compiled with Rust) or "interpreted" (RapidR's runner and the program's bytecode; no Rust needed). |
+| `Building` (read-only) | int |  | True while a Build runs. |
+| `FileManager` (read-only) | string |  | What this system calls the file manager Reveal opens: "Finder", "File Explorer" or "Files" ("" on the web). |
+| `BuiltPath` (read-only) | string |  | What the last Build made: the .app, the .exe or the AppDir ("" until one succeeds). |
 
 | Method | |
 |---|---|
@@ -4547,10 +4556,16 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `File(Index AS INTEGER) AS STRING` | File Index's path, relative to the folder (from 0). |
 | `FileKind(Index AS INTEGER) AS STRING` | File Index's kind: module, form, include, resource, asset or data. |
 | `FullPath(Index AS INTEGER) AS STRING` | File Index's path to open it with (the folder's and its own). |
+| `Build([Kind AS STRING]) AS INTEGER` | Makes the program into an app for this computer's system with rapidr build: Name.app on macOS, the .exe with its icon and version on Windows, Name.AppDir on Linux. Kind is "native" or "interpreted" (else BuildKind). Runs in the background: OnBuildOutput gives its lines, OnBuildDone its end. True when it started; Error says why not (on the web there is nothing to run it). |
+| `StopBuild` | Stops the Build that is running. |
+| `Reveal([Path AS STRING]) AS INTEGER` | Shows Path (else what the last Build made) selected in Finder, Explorer or the Linux file manager. |
+| `IconPreview([Size AS INTEGER]) AS STRING` | Draws the app's icon (Icon, else RapidR's) as a Size-pixel PNG (128 by default) in the project's .rapidr folder and gives its path, for a QIMAGE to show; "" when the icon can't be read (Error says why). |
 
 | Event | |
 |---|---|
 | `OnChange` | The project was opened, saved, closed, or its files changed. |
+| `OnBuildOutput(Text AS STRING)` | A line rapidr build printed while Build runs. |
+| `OnBuildDone(Code AS INTEGER, Path AS STRING)` | Build ended: Code 0 when it worked, and Path is what it made (the .app, .exe or AppDir). |
 
 <a id="rlanguageservice"></a>
 ## RLANGUAGESERVICE

@@ -126,6 +126,7 @@ SUB DefineCommands
   AddCmd "run.restart", "R&estart", "Run", "Ctrl+Shift+F5", "", "session", ""
   AddSep "Run"
   AddCmd "run.build", "&Build", "Run", "Ctrl+Shift+B", "", "project", ""
+  AddCmd "run.reveal", "Reveal in " + Proj.FileManager, "Run", "", "", "project", ""
 
   ' ---- Debug ----
   AddCmd "run.continue", "&Continue", "Debug", "F5", "", "paused", ""

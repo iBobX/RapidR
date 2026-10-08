@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- A test app's own icon (tests/studio_flows.mjs, docs/manual/building-apps.md): a note pad. Made for RapidR's tests; MIT. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2BC48A"/>
+      <stop offset="1" stop-color="#0B7B5E"/>
+    </linearGradient>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bg)"/>
+  <rect x="262" y="210" width="500" height="620" rx="48" fill="#FFFFFF"/>
+  <rect x="262" y="210" width="500" height="110" rx="48" fill="#FFB224"/>
+  <rect x="262" y="270" width="500" height="50" fill="#FFB224"/>
+  <rect x="330" y="400" width="364" height="34" rx="17" fill="#B9C2D4"/>
+  <rect x="330" y="490" width="300" height="34" rx="17" fill="#B9C2D4"/>
+  <rect x="330" y="580" width="340" height="34" rx="17" fill="#B9C2D4"/>
+  <rect x="330" y="670" width="220" height="34" rx="17" fill="#B9C2D4"/>
+</svg>
