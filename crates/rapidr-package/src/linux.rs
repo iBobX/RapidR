@@ -47,8 +47,8 @@ pub fn desktop_entry(info: &AppInfo, exec: &str, icon: &str) -> String {
     out.push_str(&format!("Terminal={}\n", info.console));
     out.push_str("Categories=Utility;\n");
     // (the windows a program opens are its: GNOME and KDE match them by
-    // their app ID / WM_CLASS, the executable's name)
-    out.push_str(&format!("StartupWMClass={}\n", entry(&info.exe)));
+    // their app ID / WM_CLASS, which AppRun sets to the bundle ID)
+    out.push_str(&format!("StartupWMClass={}\n", entry(&info.bundle_id)));
     out.push_str(&format!("X-AppImage-Version={}\n", entry(info.version.trim())));
     out
 }
@@ -63,7 +63,7 @@ fn exec_quoted(path: &Path) -> String {
     }
 }
 
-const APPRUN: &str = "#!/bin/sh\n# Starts the program inside this AppDir (made by `rapidr build`).\nHERE=\"$(dirname \"$(readlink -f \"$0\")\")\"\nexec \"$HERE/usr/bin/@EXE@\" \"$@\"\n";
+const APPRUN: &str = "#!/bin/sh\n# Starts the program inside this AppDir (made by `rapidr build`).\nHERE=\"$(dirname \"$(readlink -f \"$0\")\")\"\n# (the windows' app ID: the desktop entry's, so the dock shows the app's icon)\nexport RAPIDR_APP_ID=\"@ID@\"\nexec \"$HERE/usr/bin/@EXE@\" \"$@\"\n";
 
 #[cfg(unix)]
 fn executable(path: &Path) -> Result<(), String> {
@@ -102,7 +102,7 @@ pub fn write(folder: &Path, app: &AppDir) -> Result<PathBuf, String> {
         write(path.join("usr/bin").join(name), bytes)?;
     }
     let apprun = path.join("AppRun");
-    write(apprun.clone(), APPRUN.replace("@EXE@", &info.exe).as_bytes())?;
+    write(apprun.clone(), APPRUN.replace("@EXE@", &info.exe).replace("@ID@", id).as_bytes())?;
     executable(&apprun)?;
     let desktop = desktop_entry(info, &info.exe, id);
     write(path.join(format!("{id}.desktop")), desktop.as_bytes())?;
@@ -180,10 +180,11 @@ mod tests {
             assert!(path.join(f).is_file(), "{f}");
         }
         let desktop = std::fs::read_to_string(path.join(format!("{id}.desktop"))).unwrap();
-        for want in ["Name=Note Pad\n", "Comment=Edits text\n", "Exec=notepad %F\n", &format!("Icon={id}\n"), "Terminal=false\n", "StartupWMClass=notepad\n"] {
+        for want in ["Name=Note Pad\n", "Comment=Edits text\n", "Exec=notepad %F\n", &format!("Icon={id}\n"), "Terminal=false\n", "StartupWMClass=dev.rapidr.app.note-pad\n"] {
             assert!(desktop.contains(want), "{want}\n{desktop}");
         }
-        assert!(std::fs::read_to_string(path.join("AppRun")).unwrap().contains("usr/bin/notepad"));
+        let apprun = std::fs::read_to_string(path.join("AppRun")).unwrap();
+        assert!(apprun.contains("usr/bin/notepad") && apprun.contains("RAPIDR_APP_ID=\"dev.rapidr.app.note-pad\""), "{apprun}");
 
         let home = dir.join("home");
         let written = install(&path, &home).unwrap();
