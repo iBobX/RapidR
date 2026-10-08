@@ -755,6 +755,7 @@ events = [
 
 [[component]]
 name = "RDIFFVIEW"
+display = "DiffView"
 visual = true
 size = [500, 300]
 default_event = "OnHunkChange"

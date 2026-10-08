@@ -606,7 +606,17 @@ fn run_step(
     step: impl FnOnce(&mut Vm<'static, WebHost>, &Module) -> Result<(), VmError>,
 ) -> (Result<(), VmError>, bool) {
     dialog::enter_vm();
-    let result = step(&mut session.vm, &session.module);
+    let mut result = step(&mut session.vm, &session.module);
+    // (a breakpoint whose condition, hit count or log message says go on:
+    // on at once, as the desktop's debugger does)
+    while matches!(result, Err(VmError::Paused)) {
+        let Some(end) = session.end.as_mut() else { break };
+        if end.at_breakpoint(&mut session.vm, &session.module, &mut emit) {
+            break;
+        }
+        end.resumed();
+        result = session.vm.resume(&session.module);
+    }
     dialog::leave_vm();
     match &result {
         Err(VmError::Yielded) => {

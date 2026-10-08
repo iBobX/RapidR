@@ -53,6 +53,83 @@ pub struct ProgramEnd {
     entry_pending: bool,
     /// The program has started (`start` came).
     pub started: bool,
+    /// The breakpoints as the IDE set them, where they landed, and their
+    /// hits: what decides whether a breakpoint stops ([`Self::at_breakpoint`]).
+    breakpoints: Vec<Placed>,
+    /// Why the program stopped beyond its reason (a condition that failed
+    /// to evaluate): the next `stopped` event's description.
+    note: Option<String>,
+}
+
+/// A breakpoint where it landed, with its condition, hit count, log
+/// message and how often it was reached with its condition true.
+#[derive(Debug, Clone)]
+struct Placed {
+    file: String,
+    line: u32,
+    condition: Option<String>,
+    hit: Option<String>,
+    log: Option<String>,
+    hits: u32,
+}
+
+impl Placed {
+    fn same_rules(&self, other: &Placed) -> bool {
+        self.line == other.line && self.condition == other.condition && self.hit == other.hit && self.log == other.log && self.file.eq_ignore_ascii_case(&other.file)
+    }
+}
+
+/// Whether hit `hits` (from 1) of a breakpoint satisfies its hit count
+/// `rule`: `N` or `= N` (the Nth hit only), `>= N`, `> N`, `< N`, `<= N`,
+/// `% N` (every Nth). A rule that doesn't read as one of these always
+/// does.
+pub fn hit_matches(rule: &str, hits: u32) -> bool {
+    let r = rule.trim();
+    let (op, rest) = ["==", ">=", "<=", "=", ">", "<", "%"].iter().find_map(|op| r.strip_prefix(op).map(|rest| (*op, rest))).unwrap_or(("=", r));
+    let Ok(n) = rest.trim().parse::<u32>() else { return true };
+    match op {
+        ">=" => hits >= n,
+        "<=" => hits <= n,
+        ">" => hits > n,
+        "<" => hits < n,
+        "%" => n == 0 || hits % n == 0,
+        _ => hits == n,
+    }
+}
+
+/// A logpoint's message: each `{expression}` replaced by its value (`{{`
+/// and `}}` are braces), `eval` giving the value's text.
+pub fn interpolate(message: &str, mut eval: impl FnMut(&str) -> String) -> String {
+    let mut out = String::new();
+    let mut chars = message.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '{' if chars.peek() == Some(&'{') => {
+                chars.next();
+                out.push('{');
+            }
+            '}' if chars.peek() == Some(&'}') => {
+                chars.next();
+                out.push('}');
+            }
+            '{' => {
+                let mut expr = String::new();
+                let mut depth = 0;
+                for c in chars.by_ref() {
+                    match c {
+                        '{' => depth += 1,
+                        '}' if depth == 0 => break,
+                        '}' => depth -= 1,
+                        _ => {}
+                    }
+                    expr.push(c);
+                }
+                out.push_str(&eval(expr.trim()));
+            }
+            c => out.push(c),
+        }
+    }
+    out
 }
 
 impl ProgramEnd {
@@ -78,8 +155,54 @@ impl ProgramEnd {
             Some((file, line)) => (file, Some(line)),
             None => (None, None),
         };
-        let description = (vm.stop_reason == StopReason::Exception).then(|| vm.stop_error.clone()).flatten();
+        let description = match vm.stop_reason {
+            StopReason::Exception => vm.stop_error.clone(),
+            _ => self.note.take(),
+        };
         Event::new(EventBody::Stopped { reason: reason.into(), file, line, description })
+    }
+
+    /// At a breakpoint's stop: whether the program stops there. The
+    /// breakpoint's condition is evaluated in the stopped frame (false: it
+    /// goes on, the hit not counted), then its hit count is checked, then a
+    /// logpoint prints its message (`output` gets the event) and goes on.
+    /// A condition that fails to evaluate stops, saying why. Other stops
+    /// (a step, a pause, an error) always stop.
+    pub fn at_breakpoint<H: Host + ?Sized>(&mut self, vm: &mut Vm<'_, H>, module: &Module, output: &mut dyn FnMut(Event)) -> bool {
+        if vm.stop_reason != StopReason::Breakpoint || self.entry_pending {
+            return true;
+        }
+        let Some(top) = vm.frames.len().checked_sub(1) else { return true };
+        let Some((Some(file), line)) = vm.frame_location(module, top) else { return true };
+        let name = |f: &str| f.rsplit(['/', '\\']).next().unwrap_or(f).to_ascii_lowercase();
+        let Some(i) = self.breakpoints.iter().position(|b| b.line == line && name(&b.file) == name(&file)) else { return true };
+        if let Some(cond) = self.breakpoints[i].condition.clone().filter(|c| !c.trim().is_empty()) {
+            match self.evaluate(vm, module, Some(top), &cond) {
+                Ok(v) if !v.to_bool() => return false,
+                Ok(_) => {}
+                Err(e) => {
+                    self.note = Some(format!("The breakpoint's condition `{cond}` failed: {e}"));
+                    return true;
+                }
+            }
+        }
+        self.breakpoints[i].hits += 1;
+        let b = self.breakpoints[i].clone();
+        if let Some(rule) = b.hit.as_deref().filter(|r| !r.trim().is_empty()) {
+            if !hit_matches(rule, b.hits) {
+                return false;
+            }
+        }
+        if let Some(message) = b.log.as_deref().filter(|m| !m.is_empty()) {
+            let text = interpolate(message, |expr| match self.evaluate(vm, module, Some(top), expr) {
+                Ok(Value::String(s)) => s,
+                Ok(v) => rapidr_value::format::print_text(&v),
+                Err(e) => format!("<{e}>"),
+            });
+            output(Event::new(EventBody::Output { stream: "stdout".into(), text: text + "\n" }));
+            return false;
+        }
+        true
     }
 
     /// Serves one request on `vm` running `module` (`paused`: stopped at a
@@ -114,6 +237,19 @@ impl ProgramEnd {
             Command::SetBreakpoints { file, breakpoints } => {
                 let lines: Vec<u32> = breakpoints.iter().map(|b| b.line).collect();
                 let placed = vm.set_file_breakpoints(module, &file, &lines);
+                // (their rules, where they landed; a breakpoint whose rules
+                // didn't change keeps its hits)
+                let old: Vec<Placed> = self.breakpoints.iter().filter(|b| b.file.eq_ignore_ascii_case(&file)).cloned().collect();
+                self.breakpoints.retain(|b| !b.file.eq_ignore_ascii_case(&file));
+                for (b, at) in breakpoints.iter().zip(&placed) {
+                    if let Some(at) = *at {
+                        let mut p = Placed { file: file.clone(), line: at, condition: b.condition.clone(), hit: b.hit.clone(), log: b.log.clone(), hits: 0 };
+                        if let Some(o) = old.iter().find(|o| o.same_rules(&p)) {
+                            p.hits = o.hits;
+                        }
+                        self.breakpoints.push(p);
+                    }
+                }
                 // (a program that asks for breakpoints is debugged)
                 if !lines.is_empty() && !self.started {
                     vm.debug_mode = true;
@@ -437,6 +573,12 @@ impl BlockingDebugger {
 
 impl<H: Host + ?Sized> Debugger<H> for BlockingDebugger {
     fn stopped(&mut self, vm: &mut Vm<'_, H>, module: &Module, _stop: &StopInfo) -> Resume {
+        // (a breakpoint whose condition, hit count or log says go on)
+        let send = &self.send;
+        if !self.end.at_breakpoint(vm, module, &mut |e| send(&e)) {
+            self.end.resumed();
+            return Resume::Continue;
+        }
         let event = self.end.stopped_event(vm, module);
         (self.send)(&event);
         loop {
@@ -606,5 +748,75 @@ mod tests {
         assert!(matches!(by_re(7), EventBody::Evaluate { ref result, .. } if result == "42"), "{:?}", by_re(7));
         // (the main program's frame has none of them)
         assert!(names(8).iter().all(|(n, _)| n != "hits" && n != "p" && !n.contains("__") && !n.contains("::")), "{:?}", names(8));
+    }
+
+    #[test]
+    fn hit_counts_and_messages() {
+        assert!(hit_matches("3", 3) && !hit_matches("3", 4) && !hit_matches("= 3", 2));
+        assert!(hit_matches(">= 2", 2) && hit_matches(">2", 3) && !hit_matches("> 2", 2));
+        assert!(hit_matches("% 3", 6) && !hit_matches("%3", 5) && hit_matches("<= 1", 1) && !hit_matches("< 1", 1));
+        assert!(hit_matches("whatever", 1));
+        assert_eq!(interpolate("i = {i}, {{x}} {a + 1}", |e| format!("[{e}]")), "i = [i], {x} [a + 1]");
+    }
+
+    /// A condition, a hit count and a logpoint, decided where the program
+    /// stops (desktop): the loop's line stops only when `i > 2` and only
+    /// from its second such hit (i = 4); the logpoint prints every pass and
+    /// never stops; a condition that can't be evaluated stops and says so.
+    #[test]
+    fn conditions_hit_counts_and_logpoints() {
+        let src = "total = 0\nFOR i = 1 TO 5\n  total = total + i\n  x = i * 10\nNEXT\nzz = 1\nPRINT total\n";
+        let m = compile_program(src);
+        let (tx, rx) = mpsc::channel();
+        let sent: Rc<RefCell<Vec<Event>>> = Rc::default();
+        let log = sent.clone();
+        let mut dbg = BlockingDebugger::new(rx, Box::new(move |e| log.borrow_mut().push(e.clone())));
+        let mut host = StubHost::default();
+        let mut vm = Vm::new(&mut host);
+        let bps = vec![
+            SourceBreakpoint { line: 3, condition: Some("i > 2".into()), hit: Some(">= 2".into()), log: None },
+            SourceBreakpoint { line: 4, condition: None, hit: None, log: Some("pass {i}: {total}".into()) },
+            SourceBreakpoint { line: 6, condition: Some("nosuch(".into()), hit: None, log: None },
+        ];
+        tx.send(req(1, Command::SetBreakpoints { file: "prog.bas".into(), breakpoints: bps })).unwrap();
+        tx.send(req(2, Command::Start { program: None, args: vec![], debug: true, stop_on_entry: false, break_on_error: false })).unwrap();
+        assert_eq!(dbg.until_start(&mut vm, &m), Some(false));
+        for (seq, c) in [
+            (3, Command::Evaluate { expr: "i".into(), frame: None, context: None }),
+            (4, Command::Continue),
+            (5, Command::Evaluate { expr: "i".into(), frame: None, context: None }),
+            (6, Command::Continue),
+            (7, Command::Continue),
+        ] {
+            tx.send(req(seq, c)).unwrap();
+        }
+        vm.debug_mode = true;
+        vm.debugger = Some(Box::new(dbg));
+        vm.run(&m).unwrap();
+        drop(vm);
+        assert_eq!(host.output.trim(), "15");
+        let sent = sent.borrow();
+        let by_re = |re: u64| sent.iter().find(|e| e.re == Some(re)).map(|e| e.body.clone()).unwrap();
+        // (the first stop: i = 4 — the hits were i = 3 (1st) and i = 4 (2nd))
+        assert!(matches!(by_re(3), EventBody::Evaluate { ref result, .. } if result == "4"), "{:?}", by_re(3));
+        assert!(matches!(by_re(5), EventBody::Evaluate { ref result, .. } if result == "5"), "{:?}", by_re(5));
+        let stops: Vec<(u32, Option<String>)> = sent
+            .iter()
+            .filter_map(|e| match &e.body {
+                EventBody::Stopped { line, description, .. } if e.re.is_none() => Some((line.unwrap_or(0), description.clone())),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(stops.len(), 3, "{stops:?}");
+        assert_eq!((stops[0].0, stops[1].0, stops[2].0), (3, 3, 6));
+        assert!(stops[2].1.as_deref().is_some_and(|d| d.contains("nosuch(")), "{stops:?}");
+        let logs: String = sent
+            .iter()
+            .filter_map(|e| match &e.body {
+                EventBody::Output { text, .. } => Some(text.clone()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(logs, "pass 1: 1\npass 2: 3\npass 3: 6\npass 4: 10\npass 5: 15\n");
     }
 }
