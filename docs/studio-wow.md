@@ -415,7 +415,7 @@ Lanes in flight (the designer, the panels / inspector, the code editor, the them
 | ID | State | Evidence |
 |---|---|---|
 | WEL-1 | partial | The Welcome page with Start, Recent and example cards works (`ide/panes.inc` `FillExamples`, `LayOutWelcome`; `tests/studio_shell.mjs`). There are no live thumbnails (cards show a file icon) and no ▶ Run on the cards. |
-| WEL-2 | partial | Two templates, `console` and `gui` (`crates/rapidr-project/src/project.rs:224` `TEMPLATES`), picked from a combo box (`ide/window.inc` `NewKind`). There is no gallery, no thumbnails and no RapidQ-compatible option. |
+| WEL-2 | partial | (S-SHELL-2) Five templates in `TEMPLATES` (`gui`, `console`, `rapidq` — main.bas, compat on —, `data`, `mdi`), each compiled and run headless; File > New Project shows them as a gallery of cards (`ide/workspace.inc`). The cards have icons, not thumbnails of their forms, and the `templates` flow (create → run on both hosts) isn't written. |
 | WEL-3 | partial | No setup dialogs; the theme follows the system (`ide_theme`). The "no network on first run" check doesn't exist. |
 | DES-1 | missing | RDESIGNSURFACE draws placeholders (`crates/rapidr-value/src/objects/design.rs`; L-DMODEL's results: "WYSIWYG is L-DVIEW's"). |
 | DES-2 | partial | Multi-select, 8 handles and nudging exist in the surface model (`objects/design.rs` on `rapidr_value::designer`; demo `examples/form_designer.bas`). In Studio nothing is connected: `DesignSelected` is empty (`ide/shell.inc`), the surface has no event handlers in `ide/documents.inc`, and `ScanForm` rebuilds it from a text scan (`DesignDoc(d).ClearAll`), so no change reaches the code. |
@@ -471,8 +471,8 @@ Lanes in flight (the designer, the panels / inspector, the code editor, the them
 | BLD-4 | missing | No Project Options UI (`project.options` prints a line). |
 | CMD-1 | done | The palette: commands, examples, `:N` (`ide/window.inc` `Palette`; `tests/studio_flows.mjs` `palette`). Fuzzy matching is to be checked. |
 | CMD-2 | missing | No quick open for files, symbols or components. |
-| CMD-3 | missing | No Find in Files. |
-| HLP-1 | missing | `help.contents` is "not there yet". The docs exist (`crates/rapidr-lang/data`, `docs/manual/reference`). |
+| CMD-3 | done | (S-SHELL-2) Ctrl+Shift+F: the Search pane (`ide/search.inc`), RPROJECT `Find` / `Replace` on the code editor's own search (case, whole word, regex), open documents searched as their editors have them, results by file linking to the line, Replace All (one edit a file). `tests/studio_flows.mjs` `find-in-files` (3 hits in a project and its include), both hosts. |
+| HLP-1 | done | (S-SHELL-2) F1: the Help pane with the registry's entry (RLANGUAGESERVICE `Help`: title, syntax, kind / type / default / origin / runtimes, doc, a component's members) for the word at the caret (a member of `Name.`'s component), the inspector's row, the toolbox's item, the designer's component; Insert types the syntax. `help`, `help-f1` flows. No example in the entry (the registry has none yet). |
 | HLP-2 | missing | No hovers in Studio (see ED-4, INS-5, TBX-4). |
 | AI-1 | missing | No `rapidr mcp` (`crates/rapidr-cli/src/main.rs`). |
 | THM-1 | partial | RapidR light, dark, high contrast and classic follow the system at start (`ide/commands.inc` `view.theme.*`); following a change live is open (ROADMAP Phase 1 themes item). |

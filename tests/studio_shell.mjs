@@ -62,11 +62,12 @@ const SCENES = [
   // (S-SHELL-2) Documents as tabs: a form's file side by side (Design |
   // Code), another file in a second group on the right; Find in Files'
   // results; F1's Help pane.
+  // (examples without $INCLUDE: on the web the language service and the
+  // designer don't read includes from the page's store yet)
   {
     name: "workspace",
-    open: "tests/fixtures/studio_split/main.rr",
-    webFiles: ["tests/fixtures/studio_split/main.rr", "tests/fixtures/studio_split/greeting.inc"],
-    do: "wait,view:Split,open:greeting.inc,view.splitVertically",
+    open: "examples/gui/hello_form.rr",
+    do: "wait,view:Split,open:menus.rr,view.splitVertically",
     delay: 5,
   },
   {
@@ -76,9 +77,8 @@ const SCENES = [
   },
   {
     name: "search",
-    open: "tests/fixtures/studio_split/main.rr",
-    webFiles: ["tests/fixtures/studio_split/main.rr", "tests/fixtures/studio_split/greeting.inc"],
-    do: "wait,find:SayGreeting,help:QBUTTON",
+    open: "examples/gui/hello_form.rr",
+    do: "wait,find:Greet,help:QBUTTON",
     delay: 5,
   },
 ];
