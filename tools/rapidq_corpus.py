@@ -70,8 +70,9 @@ DLL_RE = re.compile(r"^\s*DECLARE\s+(SUB|FUNCTION)\s+\S+\s+LIB\b", re.I | re.M)
 
 
 INCLUDE_RE = re.compile(r'^\s*\$INCLUDE\s+["<]([^">]+)[">]', re.I | re.M)
-# (DOS-era port I/O and raw memory: no modern system lets a program do it)
-HARDWARE_RE = re.compile(r"\bINP\s*\(|^\s*OUT\s+[^=]|\bPOKE\s", re.I | re.M)
+# (DOS-era port I/O: no modern system lets a program do it. RapidQ's PEEK /
+# POKE are the console's screen pages, not memory: RapidR has them)
+HARDWARE_RE = re.compile(r"\bINP\s*\(|^\s*OUT\s+[^=]", re.I | re.M)
 
 
 # Programs whose source isn't valid RapidQ (checked one by one, 2026-10-03):
@@ -127,7 +128,7 @@ CORPUS_ROOT = None
 def category(path, errors):
     """What a program needs: 'portable' (only the API the Windows and Linux
     RapidQ shared), 'dll' (Windows DLL calls), 'directx', 'ole', or
-    'hardware' (DOS-era port I/O, raw memory) or 'incomplete' (an include
+    'hardware' (DOS-era port I/O) or 'incomplete' (an include
     or resource missing from the corpus)."""
     src = program_text(path)
     if OLE_RE.search(src):

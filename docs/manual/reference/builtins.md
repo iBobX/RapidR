@@ -13,8 +13,6 @@ The builtins every runtime implements (native builds, the interpreter and the we
 | `MEMCMP(ptr1, ptr2, count)` | Compares `count` bytes at two addresses: true (-1) when they are the same, 0 when not (unlike C's memcmp). |
 | `MEMCPY(dest, source, count)` | Copies `count` bytes from one address to another (addresses from `VARPTR`, `UDTPTR` or a stream's `Pointer`); in RapidR a bad address is a run-time error, never a crash. |
 | `MEMSET(ptr, byte, count)` | Sets `count` bytes from an address to one byte value. |
-| `PEEK([#PageNum,] address)` *(not yet)* | Reads the byte at a memory address. |
-| `POKE [#PageNum,] address, byte` *(not yet)* | Writes a byte to a memory address. |
 | `SIZEOF (Var(Index))` | The size in bytes of a variable, array element, array, type or TYPE, as RapidQ lays it out in memory. |
 | `UBOUND(ArrayName[, Dimension])` | The highest index of an array, in its first dimension or the one given (1 the first). |
 | `UDTPTR(Variable)` | The address of a TYPE variable's fields, for `MEMCPY` and the other memory builtins. |
@@ -37,7 +35,9 @@ The builtins every runtime implements (native builds, the interpreter and the we
 | `INPUT$(NumChars)` | Waits for `NumChars` keys to be pressed and returns them as a string. |
 | `ISCONSOLE` *(not yet)* | True when the program is running as a console program. |
 | `LOCATE [Y%][, X%][, cursor]` | Moves the console cursor to row `Y`, column `X` (1 the first); a value left out keeps the current one. |
-| `PCOPY source, dest` *(not yet)* | Copies one console screen page to another. |
+| `PCOPY source, dest` | Copies a console page onto another: page 0 is the screen, 1 to 7 are off screen (`PCOPY 0, 1` keeps the screen, `PCOPY 1, 0` shows it again). |
+| `PEEK([PageNum,] address)` | Reads the console's screen as QBasic's screen memory: at an even address a cell's character code, at the odd one after it its attribute (background × 16 + foreground); address `(Row - 1) * 160 + (Col - 1) * 2`, 0 to 3999 (80 × 25). Page 0, the screen, unless a page 1 to 7 is given first. |
+| `POKE [PageNum,] address, byte` | Writes a console cell as QBasic's screen memory: at an even address its character code, at the odd one after it its attribute (background × 16 + foreground); address `(Row - 1) * 160 + (Col - 1) * 2`, 0 to 3999 (80 × 25). On page 0, the screen, it shows at once; on a page 1 to 7 given first, when PCOPY copies it to the screen. |
 | `POS(0)` | The console cursor's column, 1 being the first. |
 | `SETCONSOLETITLE(Title$)` | Sets the title of the console (terminal) window. |
 | `TAB(Column)` | In `PRINT`: spaces up to console column `Column` (1 the first); past it already, that column on the next line. |

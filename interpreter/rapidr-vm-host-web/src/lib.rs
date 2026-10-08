@@ -211,6 +211,10 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         "color" => { rp_print(&[v_str(&rapidr_value::console::color(&a0, &a1))], false); v_null() }
         "locate" => { rp_print(&[v_str(&rapidr_value::console::locate(&a0, &a1))], false); v_null() }
         "csrlin" => rapidr_value::console::csrlin(),
+        // (the console's pages: PEEK / POKE take an optional page first)
+        "poke" => { rp_print(&[v_str(&rapidr_value::console::poke(args))], false); v_null() }
+        "peek" => rapidr_value::console::peek(args),
+        "pcopy" => { rp_print(&[v_str(&rapidr_value::console::pcopy(&a0, &a1))], false); v_null() }
         "pos" => rapidr_value::console::pos(),
         "shl" => rapidr_value::rp_shl(&a0, &a1),
         "shr" => rapidr_value::rp_shr(&a0, &a1),

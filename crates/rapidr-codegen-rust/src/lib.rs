@@ -3089,6 +3089,10 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "locate" => Some(format!("{{ rp_print(&[v_str(&console::locate(&{a0}, &{a1}))], false); v_null() }}")),
         "csrlin" => Some("console::csrlin()".to_string()),
         "pos" => Some("console::pos()".to_string()),
+        // (the console's pages: PEEK / POKE take an optional page first)
+        "poke" => Some(format!("{{ rp_print(&[v_str(&console::poke(&[{}]))], false); v_null() }}", args.iter().map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", "))),
+        "peek" => Some(format!("console::peek(&[{}])", args.iter().map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", "))),
+        "pcopy" => Some(format!("{{ rp_print(&[v_str(&console::pcopy(&{a0}, &{a1}))], false); v_null() }}")),
         "shl" => Some(format!("rp_shl(&{a0}, &{a1})")),
         "inv" => Some(format!("rp_inv(&{a0}, &{a1})")),
         "shr" => Some(format!("rp_shr(&{a0}, &{a1})")),

@@ -652,6 +652,13 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   their low 32 bits past 8 digits; QFONTDIALOG's colours (clWindowText at
   first, system colours kept). RapidQ IDE's `.rqw` window programs are part
   of the corpus now.
+- **RapidQ's console pages: PEEK, POKE and PCOPY** (manual chapter 6.3): the 80 × 25
+  console as QBasic's screen memory — a cell's character at `(Row - 1) * 160 + (Col - 1) * 2`,
+  its attribute (background × 16 + foreground) at the next address — on the screen (page 0,
+  a POKE shows at once) or an off-screen page 1 to 7, and PCOPY to copy one onto another.
+  What PRINT, CLS, COLOR and LOCATE put on the screen is what PEEK reads. They were refused
+  as "raw memory access", so RapidQ's console example `3DBOX` didn't compile; it runs now
+  on the interpreter, native builds and the web (`rapidq_console_pages`).
 - **The font dialog names a system colour by its colour**: given clWindowText (a new
   QFONTDIALOG's Color, and every font that hasn't set one) its colour list showed "Custom"; it
   shows "Black" now (clWindow "White"; one that isn't among the 16, such as clBtnFace, stays
