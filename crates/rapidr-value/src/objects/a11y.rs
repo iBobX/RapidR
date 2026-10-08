@@ -325,6 +325,8 @@ pub const PART_MENU: u64 = 5;
 pub const PART_EDITOR: u64 = 6;
 /// A dropped-down list (a grid's gcsList column) and its items.
 pub const PART_POPUP: u64 = 7;
+/// A component's live region (RDESIGNSURFACE: what its last change did).
+pub const PART_STATUS: u64 = 8;
 
 /// A component's stable node id: FNV-1a of its lowercase id, kept off the
 /// top byte (parts mix their kind there) and never 0.

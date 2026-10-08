@@ -546,7 +546,7 @@ pub fn place_of<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, comp: &
 /// would be. A held pump ([`ScriptInput::Hold`]) is the host's own: false.
 pub fn script_input<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, input: ScriptInput) -> bool {
     match input {
-        ScriptInput::Key { comp, vk } => script_key(p, desk, store, &comp, vk),
+        ScriptInput::Key { comp, vk, state } => script_key(p, desk, store, &comp, vk, state),
         ScriptInput::Mouse { comp, kind, x, y } => script_mouse(p, desk, store, &comp, kind, x, y),
         ScriptInput::DblClick { comp, x, y } => {
             // (press, release, press, release: the second press within
@@ -569,16 +569,17 @@ pub fn script_input<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, inp
 }
 
 /// `comp.__key_N`: the component focused, the key pressed and released.
-fn script_key<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, comp: &str, vk: i64) {
+fn script_key<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, comp: &str, vk: i64, state: i64) {
     let Some(form) = p.form_of(comp) else { return };
     let comp = comp.to_lowercase();
-    let text = rapidr_value::input::text_of_vk(vk);
+    let mods = Mods { shift: state & 256 != 0, ctrl: state & 16 != 0, alt: state & 1 != 0, ..Mods::NONE };
+    let text = if mods.ctrl || mods.alt { String::new() } else { rapidr_value::input::text_of_vk(vk) };
     if let Some(f) = desk.forms.get_mut(&form) {
         f.ui.sync(store);
         f.ui.focus_id(store, &comp);
     }
-    desk.key_down(store, &form, vk, &text, Mods::NONE, Source::Script);
-    desk.key_up(&form, vk, Mods::NONE, Source::Script);
+    desk.key_down(store, &form, vk, &text, mods, Source::Script);
+    desk.key_up(&form, vk, mods, Source::Script);
 }
 
 /// `comp.__mousedown_x_y` …: the mouse at (x, y) in the component (hit
@@ -650,6 +651,23 @@ pub fn cursor_at(desk: &Desktop, store: &dyn Store, form: &str, (x, y): (f64, f6
         "RSPLITTER" => Cursor::SizeWE,
         "RHEADER" if rapidr_value::objects::with_header(&n.id, |h| h.on_grip(lx)).unwrap_or(false) => Cursor::SizeWE,
         "RLISTVIEW" if rapidr_value::objects::with_listview(&n.id, |l| l.on_grip(lx, ly)).unwrap_or(false) => Cursor::SizeWE,
+        // (I4: the designer's handles, the form's edges, the placing tool)
+        "RDESIGNSURFACE" => {
+            use rapidr_value::objects::design::Pointer;
+            let p = rapidr_value::objects::with_design(&n.id, |d| {
+                let (ox, oy) = d.client_origin();
+                d.pointer_at(lx - ox, ly - oy)
+            });
+            match p.unwrap_or(Pointer::Default) {
+                Pointer::Default => Cursor::Default,
+                Pointer::Move => Cursor::Move,
+                Pointer::SizeWE => Cursor::SizeWE,
+                Pointer::SizeNS => Cursor::SizeNS,
+                Pointer::SizeNWSE => Cursor::SizeNWSE,
+                Pointer::SizeNESW => Cursor::SizeNESW,
+                Pointer::Cross => Cursor::Cross,
+            }
+        }
         _ => Cursor::Default,
     }
 }

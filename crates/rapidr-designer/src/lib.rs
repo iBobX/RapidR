@@ -285,6 +285,13 @@ impl Document {
         !self.redo.is_empty()
     }
 
+    /// Forgets the undo / redo history (the text was changed elsewhere:
+    /// its edits' places are gone).
+    pub fn clear_history(&mut self) {
+        self.undo.clear();
+        self.redo.clear();
+    }
+
     /// Applies a transaction's inverse; returns the inverse's own record.
     /// (A record `(patch, removed)`: `start..end` held `removed` and now
     /// holds `insert`.)

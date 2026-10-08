@@ -251,6 +251,8 @@ impl FormUi {
             return;
         }
         let hit = self.hit(x, y);
+        // (I4: a component dragged in from a toolbox, over a designer)
+        crate::components::design::drop_move(self, store, hit, x, y, mods.alt);
         if hit != self.hover {
             if let Some(old) = self.hover {
                 self.mouse_to(store, ts, old, MouseIn { kind: MouseKind::Leave, x, y, button: Button::Left, mods, inside: false, captured: false, clicks: 0 });
@@ -295,6 +297,10 @@ impl FormUi {
             return;
         }
         let hit = self.hit(x, y);
+        // (I4: a component dragged in from a toolbox, dropped on a designer)
+        if button == Button::Left {
+            crate::components::design::drop_up(self, store, hit, x, y, mods.alt);
+        }
         let captured = self.capture.take();
         let target = match captured {
             Some(c) => c,
@@ -406,7 +412,7 @@ impl FormUi {
         let shortcut = mods.command || mods.ctrl;
         let mut handled = false;
         // (a memo with WantTabs takes a plain Tab: components/memo.rs)
-        if vk == 9 && !shortcut && !mods.alt && !crate::components::memo::takes_tab(self, store) {
+        if vk == 9 && !shortcut && !mods.alt && !crate::components::memo::takes_tab(self, store) && !crate::components::design::takes_tab(self, store) {
             self.move_focus(store, mods.shift);
             handled = true;
         } else if mods.alt && !mods.ctrl && (65..=90).contains(&vk) {

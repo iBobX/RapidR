@@ -173,12 +173,24 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     // (the kernel's tree has it)
     crate::kernel_web::created(&name_clone);
     install_object_hooks();
+    // (I4) a design surface reads its Source with the designer (rapidr-studio)
+    if type_name.eq_ignore_ascii_case("RDESIGNSURFACE") {
+        rapidr_studio::design::install();
+    }
     if rapidr_value::objects::create(name, type_name) {
         rapidr_value::objects::set_file_io(web_read_file, web_write_file);
         // (the I/O and media lane's: their devices, a QDOWNLOAD's gauge)
         if rapidr_value::objects::rqlib::is_type(type_name) {
             crate::io_web::created(name, type_name);
         }
+    }
+}
+
+/// (I4) What an RDESIGNSURFACE's call left to hear (OnSourceEdit, OnChange,
+/// OnSelect …), fired.
+fn design_events(name: &str) {
+    for e in rapidr_value::objects::take_design_events(name) {
+        rp_fire_event_args(name, e.event(), &e.args());
     }
 }
 
@@ -686,6 +698,9 @@ fn set_property(name: &str, prop: &str, val: Value) {
         if picture {
             picture_changed(&uname);
         }
+        if rapidr_value::objects::is_design(name) {
+            design_events(name);
+        }
         // A QFILELISTBOX's directory changed: OnChange.
         if lprop == "directory" && rapidr_value::objects::is_file_list(name) {
             rp_fire_event(&uname, "onchange");
@@ -699,6 +714,9 @@ fn set_property(name: &str, prop: &str, val: Value) {
             crate::kernel_web::tree_refresh(&uname);
         } else {
             crate::kernel_web::redraw();
+        }
+        if rapidr_value::objects::is_design(name) {
+            design_events(name);
         }
         return;
     }

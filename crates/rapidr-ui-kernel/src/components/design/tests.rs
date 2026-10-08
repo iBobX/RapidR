@@ -92,6 +92,8 @@ fn the_mouse_selects_moves_and_clears_with_the_designers_events() {
         let _ = rapidr_value::designer::Command::SetProp { node: root, name: "BorderStyle".into(), value: Some("0".into()) }.apply(&mut d.designer.design);
     });
     s.call("ds", "addcomponent", &[v_str("RBUTTON"), v_str("Button1"), v_int(16), v_int(16), v_int(80), v_int(24)]);
+    // (what the call left to hear, heard: the runtimes fire it after the call)
+    rapidr_value::objects::take_design_events("ds");
     let mut f = FormUi::build(&s, "df", false);
     let mut ts = TextSystem::new();
     drop(f.paint(&s, &mut ts, 1.0));
@@ -110,9 +112,9 @@ fn the_mouse_selects_moves_and_clears_with_the_designers_events() {
     f.mouse_move(&s, &mut ts, 53.5, 56.5, Mods::NONE);
     f.mouse_up(&s, &mut ts, 53.5, 56.5, rapidr_value::input::Button::Left, Mods::NONE);
     let events = f.take_events();
-    assert_eq!(fired(events.clone()), [("onselect".to_string(), vec![0]), ("onmove".to_string(), vec![0, 32, 24, 80, 24])]);
+    assert_eq!(fired(events.clone()), [("onselect".to_string(), vec![0]), ("onmove".to_string(), vec![0, 32, 24, 80, 24]), ("onchange".to_string(), vec![])]);
     assert!(!events.iter().any(|e| matches!(e, KernelEvent::Click(_))), "no OnClick");
-    assert_eq!(f.focus.map(|i| f.nodes[i].id.clone()).as_deref(), Some("ed"), "the focus stays");
+    assert_eq!(f.focus.map(|i| f.nodes[i].id.clone()).as_deref(), Some("ds"), "the designer takes the focus (its keys)");
     // the background, then a double click on the button
     f.mouse_down(&s, &mut ts, 160.5, 140.5, rapidr_value::input::Button::Left, Mods::NONE);
     f.mouse_up(&s, &mut ts, 160.5, 140.5, rapidr_value::input::Button::Left, Mods::NONE);

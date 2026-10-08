@@ -25,17 +25,30 @@
 //!   click's second press), or clears the selection (OnBgClick with the
 //!   point); a drag moves or resizes (OnMove at each step); the release
 //!   ends it. The designed components never see it.
-//! - It takes **no focus and no keys**, fires no OnClick, and the program
-//!   hears no OnMouseDown / Move / Up of it: runtime-core drops those.
+//! - **The placing tool** (PlaceType) shows where the new component would
+//!   go under the mouse; a click places it at its default size, a drag
+//!   draws its rectangle. A component **dragged in** from elsewhere
+//!   (DragComponent: a toolbox) shows the same over any design surface the
+//!   mouse crosses, and is added where the mouse is let go ([`drop_move`],
+//!   [`drop_up`], called by the kernel's input before the component under
+//!   the mouse hears it).
+//! - **The keyboard** (it takes the focus): arrows nudge, Shift by the grid,
+//!   Ctrl / ⌘ resize; Delete; Tab / Shift+Tab through the components; Esc;
+//!   Enter (the default event's handler); Ctrl / ⌘ + Z, Y, A, C, X, V, D.
+//! - What the surface's model leaves to hear (OnSelect, OnSourceEdit,
+//!   OnChange …) is fired after each of these; it fires no OnClick, and the
+//!   program hears no OnMouseDown / Move / Up of it: runtime-core drops
+//!   those.
 //!
 //! A screen reader sees a list box whose options are the designed
-//! components ("Button1 (RBUTTON)"), the selected ones selected; clicking
-//! one selects it (OnSelect).
+//! components ("Button1 (QBUTTON), 16, 24, 75 × 25"), the selected ones
+//! selected; clicking one selects it (OnSelect); a live region (a status)
+//! says what each change did.
 
 use std::collections::HashMap;
 
 use rapidr_value::designer::{FormDesign, Item};
-use rapidr_value::objects::a11y::{node_id, part_id, AccessNode, Action, Role, PART_ITEM};
+use rapidr_value::objects::a11y::{node_id, part_id, AccessNode, Action, Role, PART_ITEM, PART_STATUS};
 use rapidr_value::objects::design::{DesignEvent, DesignSurface, TrayItem, TRAY_ICON};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Op, Place, Rect};
@@ -43,7 +56,8 @@ use rapidr_value::objects::{with_design, with_design_mut};
 use rapidr_value::{input::Button, v_int, v_str, Value};
 
 use super::list::{act, ListAction};
-use super::{ComponentKind, Cx, MouseIn, MouseKind, MouseOut};
+use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseKind, MouseOut};
+use crate::input::Clipboard;
 use crate::a11y::AccessValue;
 use crate::paint::{color_of, Painter};
 use crate::store::{MemStore, Store};
@@ -53,8 +67,15 @@ pub struct Design;
 
 /// What the program hears, queued (after the pump, as its handlers run).
 fn heard(cx: &mut Cx, e: DesignEvent) {
-    let args = e.args().into_iter().map(v_int).collect();
-    act(cx, ListAction::Fire(e.event().to_string(), args));
+    act(cx, ListAction::Fire(e.event().to_string(), e.args()));
+}
+
+/// Everything the surface's model left to hear, queued (and the change
+/// hook told).
+fn drain(cx: &mut Cx) {
+    for e in rapidr_value::objects::take_design_events(cx.id) {
+        heard(cx, e);
+    }
 }
 
 // ------------------------------------------------- the design-time store --
@@ -475,7 +496,7 @@ impl ComponentKind for Design {
     }
 
     fn focusable(&self, _store: &dyn Store, _id: &str) -> bool {
-        false
+        true
     }
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
@@ -504,6 +525,18 @@ impl ComponentKind for Design {
         let t = p.theme();
         // the backdrop
         p.fill((0, 0, w, h), t.shadow);
+        // (no form in the source: the surface says so)
+        if let Some(text) = with_design(cx.id, |d| d.empty_text()).flatten() {
+            let font = rapidr_value::objects::design::tray_font();
+            let lines: Vec<&str> = text.lines().collect();
+            let lh = 20;
+            let top = (h - lh * lines.len() as i64) / 2;
+            for (k, line) in lines.iter().enumerate() {
+                p.text((16, top + k as i64 * lh, (w - 32).max(0), lh), line, &font, t.text, Place::Center);
+            }
+            cx.ui.design = Some(view);
+            return;
+        }
         // the form's window: its frame, then its inside (menu bar, client)
         let (fx, fy, fw, fh) = shown.form;
         let form_id = view.form.clone();
@@ -561,14 +594,22 @@ impl ComponentKind for Design {
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
-        let out = MouseOut { press: false, focus: Some(false) };
-        if m.button != Button::Left {
-            return out;
-        }
+        let out = MouseOut { press: false, focus: Some(true) };
         let (w, h) = (cx.width(), cx.height());
         with_design_mut(cx.id, |d| d.set_size(w, h));
         let (ox, oy) = with_design(cx.id, |d| d.client_origin()).unwrap_or((0, 0));
         let (x, y) = (m.x.floor() as i64 - ox, m.y.floor() as i64 - oy);
+        if m.kind == MouseKind::Leave {
+            with_design_mut(cx.id, |d| d.mouse_leave());
+            return out;
+        }
+        if m.kind == MouseKind::Move && !m.captured {
+            with_design_mut(cx.id, |d| d.mouse_hover(x, y, m.mods.alt));
+            return out;
+        }
+        if m.button != Button::Left {
+            return out;
+        }
         // (Shift / Ctrl / Cmd+click: in or out of the selection; Alt /
         // Option: no snapping)
         let add = m.mods.shift || m.mods.ctrl || m.mods.command;
@@ -582,9 +623,30 @@ impl ComponentKind for Design {
             _ => None,
         };
         if let Some(e) = e.flatten() {
+            let notify = [e.clone()];
+            rapidr_value::objects::design::notify(cx.id, &notify);
             heard(cx, e);
         }
+        drain(cx);
         out
+    }
+
+    fn key(&self, cx: &mut Cx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
+        let ctrl = k.mods.ctrl || k.mods.command;
+        let handled = match (ctrl, k.vk) {
+            // Copy / Cut: the CREATE blocks' text on the clipboard
+            (true, 67) | (true, 88) => {
+                let text = with_design_mut(cx.id, |d| if k.vk == 67 { d.copy() } else { d.cut() }).flatten();
+                if let Some(t) = &text {
+                    clip.set_text(t);
+                }
+                text.is_some()
+            }
+            _ if k.mods.alt => false,
+            _ => with_design_mut(cx.id, |d| d.key(k.vk, k.mods.shift, ctrl)).unwrap_or(false),
+        };
+        drain(cx);
+        handled
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
@@ -601,7 +663,8 @@ impl ComponentKind for Design {
                 .enumerate()
                 .map(|(i, c)| {
                     let (x, y, w, h) = tray.iter().find(|t| t.index == i).map_or(c.bounds(), |t| t.rect);
-                    (format!("{} ({})", c.name, c.type_name), (x + ox, y + oy, w, h), sel.contains(&i))
+                    let place = if c.visual { format!(", {}, {}, {} × {}", c.x, c.y, c.w, c.h) } else { String::new() };
+                    (format!("{} ({}){place}", c.name, c.type_name), (x + ox, y + oy, w, h), sel.contains(&i))
                 })
                 .collect::<Vec<_>>()
         })
@@ -614,6 +677,14 @@ impl ComponentKind for Design {
             o.bounds = (x0 + x, y0 + y, w, h);
             n.children.push(o);
         }
+        // (what the last change did, said politely)
+        let said = with_design(cx.id, |d| d.announcement.clone()).unwrap_or_default();
+        if !said.is_empty() {
+            let mut live = AccessNode::new(part_id(cx.id, PART_STATUS, 0), Role::Status);
+            live.name = said;
+            live.bounds = (x0, y0 + cx.rect.3 - 1, 1, 1);
+            n.children.push(live);
+        }
         n
     }
 
@@ -621,10 +692,75 @@ impl ComponentKind for Design {
         let (Action::Click, Some(i)) = (action, part) else { return false };
         let picked = with_design_mut(cx.id, |d| d.select(i));
         if picked == Some(true) {
-            heard(cx, DesignEvent::Select(i));
+            heard(cx, DesignEvent::Select(i as i64));
         }
         true
     }
+}
+
+// ------------------------------------- a component dragged in (a toolbox) --
+
+/// The mouse moved to (x, y) of its form while a component is being
+/// dragged in (`design::begin_drop`): the design surface under it (`hit`)
+/// shows where it would go; the others show nothing.
+pub fn drop_move(ui: &mut FormUi, store: &dyn Store, hit: Option<usize>, x: f64, y: f64, free: bool) {
+    let Some(ty) = rapidr_value::objects::design::drop_pending() else { return };
+    let over = hit.filter(|&i| store.type_of(&ui.nodes[i].id) == "RDESIGNSURFACE");
+    for i in 0..ui.nodes.len() {
+        let id = ui.nodes[i].id.clone();
+        if store.type_of(&id) != "RDESIGNSURFACE" {
+            continue;
+        }
+        let (rx, ry, _, _) = ui.nodes[i].rect;
+        let (ox, oy) = with_design(&id, |d| d.client_origin()).unwrap_or((0, 0));
+        let (cx, cy) = (x.floor() as i64 - rx - ox, y.floor() as i64 - ry - oy);
+        with_design_mut(&id, |d| {
+            if over == Some(i) && !d.no_form() {
+                let (cw, ch) = d.client_size();
+                d.ghost = (cx >= 0 && cy >= 0 && cx < cw && cy < ch).then(|| (d.new_rect(&ty, cx, cy, free), ty.clone()));
+            } else if d.place_type.is_empty() {
+                d.ghost = None;
+            }
+        });
+    }
+    ui.dirty = true;
+}
+
+/// The mouse let go at (x, y) while a component was being dragged in: added
+/// where the design surface under it showed it (its events queued); the
+/// drag ends wherever it was let go.
+pub fn drop_up(ui: &mut FormUi, store: &dyn Store, hit: Option<usize>, x: f64, y: f64, free: bool) {
+    let Some(ty) = rapidr_value::objects::design::drop_pending() else { return };
+    rapidr_value::objects::design::end_drop();
+    for i in 0..ui.nodes.len() {
+        let id = ui.nodes[i].id.clone();
+        if store.type_of(&id) != "RDESIGNSURFACE" {
+            continue;
+        }
+        if hit == Some(i) {
+            let (rx, ry, _, _) = ui.nodes[i].rect;
+            let (ox, oy) = with_design(&id, |d| d.client_origin()).unwrap_or((0, 0));
+            let (cx, cy) = (x.floor() as i64 - rx - ox, y.floor() as i64 - ry - oy);
+            with_design_mut(&id, |d| {
+                let r = d.new_rect(&ty, cx, cy, free);
+                d.ghost = None;
+                d.add_at(&ty, (r.left, r.top), Some(r))
+            });
+            for e in rapidr_value::objects::take_design_events(&id) {
+                ui.events.push(crate::input::KernelEvent::List(id.clone(), ListAction::Fire(e.event().to_string(), e.args())));
+            }
+            ui.focus = Some(i);
+        } else {
+            with_design_mut(&id, |d| d.ghost = None);
+        }
+    }
+    ui.dirty = true;
+}
+
+/// Whether the focused component is a design surface with a form (it takes
+/// Tab: the next component, not the next control).
+pub fn takes_tab(ui: &FormUi, store: &dyn Store) -> bool {
+    ui.focus.is_some_and(|f| store.type_of(&ui.nodes[f].id) == "RDESIGNSURFACE" && with_design(&ui.nodes[f].id, |d| !d.no_form() && d.get("compcount").is_some_and(|c| c.to_i64() > 0)).unwrap_or(false))
 }
 
 #[cfg(test)]

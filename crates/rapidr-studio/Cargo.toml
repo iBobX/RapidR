@@ -13,3 +13,5 @@ rapidr-value.workspace = true
 rapidr-project.workspace = true
 rapidr-session.workspace = true
 rapidr-langsvc.workspace = true
+rapidr-designer.workspace = true
+rapidr-preprocessor.workspace = true
