@@ -26,6 +26,7 @@ pub mod terminal;
 /// The I/O and media objects' devices (QCOMPORT, QDOWNLOAD, …).
 pub(crate) mod io;
 pub(crate) mod serial;
+pub(crate) mod serial_list;
 pub(crate) mod media;
 pub use rapidr_value as value;
 

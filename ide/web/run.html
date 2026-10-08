@@ -147,6 +147,8 @@
       // (for tests and tools: read a property the way the program does)
       window.__rapidr_rt = rt;
       await rt.default({ module_or_path: data.runtimeWasm });
+      // (Studio's "Preview in classic": the look of a program that names none)
+      if (data.theme && rt.rapidr_set_theme) rt.rapidr_set_theme(data.theme);
       send({ __rapidr_status: "preview ready — running" });
 
       if (data.run) {

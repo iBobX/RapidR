@@ -95,6 +95,16 @@ On a web page the address goes after `?` in the page's address
 (`index.html?http://127.0.0.1:8000/forecast.json`); serve the page from the
 same server, or from one that allows it (CORS).
 
+### iot/ — boards on a serial port (ESP32, Arduino)
+
+Plug the board in by USB first. [Serial ports and IoT boards](../docs/manual/serial-ports.md) says more.
+
+| Example | What it shows | Runs on | Try |
+|---------|---------------|---------|-----|
+| [esp32_monitor.rr](iot/esp32_monitor.rr) | `RComPort` for IoT boards: the serial ports in a combo box with their USB adapters (`FillList`), connect at 115200, **Reset** the board through DTR / RTS, its boot log and output line by line (`OnLine`), adapters plugged in and out (`OnPortsChanged`). Never writes to the board | run · interp · native · web | `rapidr run iot/esp32_monitor.rr` |
+
+In a browser (Chrome, Edge) the first Connect asks which port to use.
+
 ### rapidq/ — RapidQ programs, unchanged
 
 | Example | What it shows | Runs on | Try |

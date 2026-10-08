@@ -79,7 +79,8 @@ for (const c of cases.filter((c) => !only.length || only.some((f) => c.name.incl
     rmSync(dir, { recursive: true, force: true });
     mkdirSync(dir, { recursive: true });
     const env = {
-      ...process.env, RAPIDR_TEST_CLIPBOARD: "1", RAPIDR_PRINT_TO: join(WORK, "prints"), RAPIDR_REGISTRY: join(WORK, "registry.reg"), RAPIDR_SCALE: String(scale),
+      // (RapidQ's look, named, as tests/native_gui_events.mjs runs the cases)
+      RAPIDR_THEME: "classic", ...process.env, RAPIDR_TEST_CLIPBOARD: "1", RAPIDR_PRINT_TO: join(WORK, "prints"), RAPIDR_REGISTRY: join(WORK, "registry.reg"), RAPIDR_SCALE: String(scale),
       RAPIDR_CAPTURE: join(dir, "window"), RAPIDR_TEST_A11Y: join(dir, "a11y.json"), RAPIDR_TEST_EVENTS: c.events, RAPIDR_TEST_DUMP: c.dump,
       RAPIDR_TEST_RESIZE: c.resize || "", RAPIDR_TEST_SPLIT: c.split || "", ...answers(c),
     };

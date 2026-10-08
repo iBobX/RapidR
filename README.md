@@ -29,7 +29,8 @@ ground up in pure Rust — compatible with RapidQ, not a copy of it.
   RapidR's names are the ones it writes; RapidQ's names (`QFORM`, `QBUTTON` …)
   work too.
 - **RapidR's own UI kernel** draws every window, the same on every system:
-  the classic Windows look by default, modern / dark / high-contrast themes,
+  RapidR Studio's look by default (light, dark or high contrast, as the
+  system is set), RapidQ's exact classic look with `$THEME Classic`,
   sharp on high-DPI screens, accessible to screen readers and the keyboard.
 - **The web on the same kernel**: a program's windows drawn on a canvas
   (their pixels and accessibility trees checked against the desktop's),
