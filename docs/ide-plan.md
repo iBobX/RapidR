@@ -977,7 +977,7 @@ Found and fixed by the real-input runs (all hosts): a window shown from a modal 
 **Plug-in points.**
 - L-PANELS: the panes are named in `ide/panes.inc` `SetUpDock` (`projecttree`, `toolboxtree`, `propgrid`, `outlinetree`, `outputbox`, `problemsview`, `immediatebox`, `welcome`) — a public component replaces a stand-in by taking its pane name; `ShowProperties` is where the inspector is fed.
 - L-EDVIEW: `CodeDoc(d)` (RCODEEDITOR) per document in `ide/documents.inc` (`OpenDocument`, `CodeChanged`, `SaveDocument`).
-- L-DMODEL / L-SYNC: `DesignDoc(d)` (RDESIGNSURFACE) is still filled by the stand-in scanner `ScanForm`; the plug point comment there says how rapidr-designer's `Document` takes over once RDESIGNSURFACE has source members (`Source` ← `open_bytes` / `set_text`, an `OnSourceEdit` per `TextPatch` from `sync()`, Undo / Redo through the document). Not wired in this step: RDESIGNSURFACE has no source-text API yet, and the live sync policy is L-SYNC's.
+- L-DMODEL / L-SYNC: ~~`DesignDoc(d)` filled by the stand-in scanner `ScanForm`~~ — done by S-DESIGN (2026-10-08, below): `DesignDoc(d).Source` reads the file through rapidr-designer's `Document`.
 - I3: RLANGUAGESERVICE (`Lang.Update`, `Outline`, `Diagnostics`) in `AnalyzeActive`.
 
 **Next.**
@@ -985,3 +985,79 @@ Found and fixed by the real-input runs (all hosts): a window shown from a modal 
 - The designer and the property grid / toolbox stand-ins (L-DVIEW, L-PANELS); MDI windows' drop shadow; the web's top-level kernel frame in RapidR's look; the examples list read from the examples folder; `--interp` runners and native builds without the studio components; a Studio-only wasm (or a feature) to take the 0.7 MB back from programs' pages; web-ide/ and examples/ide.rr deleted once Studio covers them.
 
 **Shared files touched** (minimal): `Cargo.toml`, `Cargo.lock`, `.gitignore`; rapidr-value `lib.rs`, `globals.rs` (ThemeColor), `theme.rs` (rapidr names), `ide_theme.rs` (new), `objects/{code,text,font,textedit,memo,menu,tree,mod}.rs`, `members.rs`, `mdi.rs` (`child_state`, `set_child_title`), `dock/{geometry,look,runtime}.rs`; rapidr-ui-kernel `components/{mod,coolbtn,mdi,dock,tree,image,statusbar,menubar}.rs`, `tooltip.rs` (new), `tree.rs`, `input.rs`, `focus.rs`, `tick.rs`, `paint.rs`, `lib.rs`, `dialogs.rs` (chrome font), `text/{mod,editor}.rs`; rapidr-ui-app `desktop.rs` (modal input), `file_dialog.rs`, `lists.rs`; rapidr-ui-host-winit `winit_host.rs` (modal focus, Wayland hide, synthetic keys), `menu.rs`, `dialogs.rs`; rapidr-ui-host-web `host.rs`; runtime-core `Cargo.toml`, `lib.rs`, `object.rs`, `studio.rs` (new), `ui/kernel.rs`, `ui/kernel/dialogs.rs`; runtime-web `Cargo.toml`, `lib.rs`, `object_web.rs`, `globals_web.rs`, `file_picker_web.rs`, `kernel_web.rs`, `studio_web.rs` (new); vm-host-native / vm-host-web; rapidr-session `process.rs` (`spawn_with_env`); rapidr-cli `Cargo.toml`, `main.rs`, `launch.rs`, `notices.rs`; registry `forms.toml`, `globals.toml`, `dialogs.toml`, `studio.toml` (new) and the generated docs / `web-ide/lang-data.js`; `docs/ide-components.md`; `tests/gui_parity_cases.mjs` (dock_manager's pane sizes under the 28 px header); `tools/real_input.py`; `tools/release/{prepare.sh,stage.py}`; `tools/third_party_notices.py`, `LICENSES.md`, `THIRD_PARTY_NOTICES.md`; icons (`design/icons/inventory.toml`, `tools/planned.py`, the generated set); `CHANGELOG.md`; this section. Not touched: ROADMAP.md, regress.sh.
+
+### I4 / S-DESIGN results — the designer in RapidR Studio (2026-10-08)
+
+Robert tried the preview (`development` @ `bb23d078`): forms showed too tall and couldn't be resized, the toolbox added nothing, the designer drew boxes, "basically nothing works". This lane made Studio's [Design] document work, on top of L-DVIEW's WYSIWYG drawing (whose WIP it finished).
+
+**What works, on the desktop and the web (the same kernel code, byte-identical captures):**
+- **The source is the form.** A file's [Design] tab is an RDESIGNSURFACE reading the file's text (`Source`): every top-level CREATE block goes through rapidr-designer's `Document`, and the form designed is the one `FormName` names, else the file's first QFORM. It shows at its own Width × Height (or RapidQ's default for the type) in its frame, with its title bar, main menu bar, aligned and anchored children, and the non-visual components in a tray strip. The stand-in scanner's designer part (`ScanForm`'s children, placeholder boxes) is deleted.
+- **WYSIWYG**: each component is drawn by the kernel's own component from a design-time store (L-DVIEW). `tools/visual/designer_wysiwyg.py` compares the designer's form with the running program's capture: notepad.bas and hello_form.rr, RapidR light and dark, 1× and 2× — **8 of 8 pixel-identical**.
+- **Resize the form**: drag its right edge, bottom edge or corner (sizing pointers, grips drawn, a live `W × H` readout). Anchored and aligned children follow live through the runtimes' layout engine. Letting go writes Width / Height into the CREATE block (ClientWidth / ClientHeight where the block uses those), and each component its Anchors moved where the resize put it, as Delphi's designer does. It is one undo step. The form's Constraints are obeyed.
+- **Add components**:
+  - **The placing tool** (`PlaceType`): a dashed ghost with the type and size follows the mouse. A click places the component at its default size, on the grid. A drag draws its rectangle. Shift keeps the tool armed; Escape disarms it.
+  - **Drag and drop** (`DragComponent`): the kernel routes the drag to any design surface it crosses (ghost shown) and adds the component where it is let go.
+  - **`AddComponent(Type, X, Y)`**: -1, -1 means a free cascade spot in the selection's container (Enter on a toolbox item).
+  - Visual components go into the panel, group box or scroll box under the point. Non-visual ones go to the tray, and QMENUITEMs go under the selected menu.
+  - Names are Delphi's (Button1, Button2 …), unique in the whole file, not only in the form (a `DIM Button1` makes the new one Button2).
+  - **Typing right after adding writes the Caption / Text** (Delphi). Backspace corrects it; Enter or Escape ends it.
+- **Select, move, resize**: click, Shift / Ctrl / ⌘-click, rubber band, eight handles, anchor pins. A move snaps to the grid and smart guides, with a live `X, Y` / `W × H` readout; Alt turns snapping off. **Dropping on another container reparents** (the CREATE block moves into it, with the target highlighted). The mouse wheel scrolls a form larger than the pane.
+- **Keyboard** (the surface takes the focus):
+  - arrows nudge 1 px, Shift+arrows by the grid, Ctrl / ⌘+arrows resize;
+  - Delete / Backspace delete;
+  - Tab / Shift+Tab go through the components;
+  - Escape stops placing, then cancels a drag, then goes to the parent;
+  - Enter is the double click (the default event's handler);
+  - Ctrl / ⌘ + Z, Y, Shift+Z, A, C, X, V, D work (Copy puts the CREATE blocks' text on the clipboard).
+- **Screen readers**: each component is a list option named "Button1 (QBUTTON), 16, 24, 75 × 25". A polite live region (`StatusText`) says what each change did: added, moved to, resized, anchor on / off, the form's new size, undone.
+- **Two-way sync**: each change is the smallest text edit (`Document::sync`), sent to the code editor as **OnSourceEdit(StartLine, StartCol, EndLine, EndCol, Text)** (0-based lines, character columns: the contract agreed with S-PANELS and S-EDITOR). Studio's interim applier (`ide/designer.inc` `DesignSourceEdit`, SelStart / SelLength / SelText) gives way to S-EDITOR's ApplyPatches at integration. Code edits reach the designer after the analyzer's pause (`DesignRead`: `Source` set again, a no-op when it is the same text). While the code doesn't parse, the designer keeps the last good form, read-only, under a banner ("The code has errors at line N").
+- **Undo / redo through the Document**: the exact bytes come back (scripted: resize, add, move, undo × 3 → the file's text, on both hosts). An edit typed in the code editor starts the designer's history over (its edits' places are gone). One history shared with the editor's own undo is S-EDITOR's ApplyPatches and later work.
+- **Double-click → handler**: `CreateHandler(Name, Event)` on S-PANELS' `Document::create_handler` (one undo step). Studio jumps to `HandlerLine`.
+- **Format menu**: align lefts / centres / rights / tops / middles / bottoms, same width / height / size, space evenly across / down, centre in the parent, bring to front / send to back (`Arrange(How)`). **View ▸ Code (F7) / Designer (Shift+F7)**. Edit's Undo / Redo / Cut / Copy / Paste / Delete / Select All / Duplicate act on the designer when it is the active document.
+
+**The API for the other panes** (RDESIGNSURFACE, in the registry; `rapidr_value::objects::design`):
+
+| Member | |
+|---|---|
+| `Source` (string), `SourceFile` | the program's text (set it to read, read it back as the designer left it); the file's path for `$INCLUDE`s, set first |
+| `FormName` | the form designed (set it to design another form of the file) |
+| `PlaceType` (string) | the toolbox's click: the next click / drag on the form places one |
+| `DragComponent(Type)` | the toolbox's mouse-down: dropped wherever the mouse is let go on a surface |
+| `AddComponent(Type, X, Y)` → index | Enter / double-click in the toolbox (X, Y = -1, -1: a free spot in the selection's container) |
+| `SelIndex`, `SelectName(Name)`, `SelectAll`, `GetName(i)`, `SelCount` | the selection (the inspector, the project tree) |
+| `DeleteSelection`, `CopySelection` → text, `CutSelection`, `Paste`, `Duplicate`, `Arrange(How)`, `ResizeForm(W, H)` | commands |
+| `Undo`, `Redo`, `CanUndo`, `CanRedo` | through the Document (exact bytes) |
+| `CreateHandler(Name, Event)` → SUB, `HandlerLine` | the event handler, made and wired, or found |
+| `StatusText` | the live region's text |
+| `OnSourceEdit(StartLine, StartCol, EndLine, EndCol, Text)`, `OnChange`, `OnSelect(Index)` (-1: the form), `OnDblClick(Index)` | events |
+
+From Rust (S-PANELS' inspector): edit `with_design_mut(name, |s| { s.designer.set_property(…); s.commit() })`. Then fire `rapidr_value::objects::take_design_events(name)` (it also calls the change hook). `objects::design::set_change_hook(fn(&str))` tells the inspector when a surface's form or selection changed. The surface holds the Document behind the `SourceDoc` trait (rapidr-value), which `rapidr_studio::design` implements on rapidr-designer and installs when a runtime makes an RDESIGNSURFACE. The runtimes fire what a call leaves (`design_events`), and the kernel fires what the mouse and keys leave.
+
+**Tests.**
+- `rapidr-studio` `design::tests`: 9 cases: the first QFORM at its size; resize + add + undo to the exact text with the editor's line/col edits applied; names unique across the file; no form; double-click handler; reparenting into a panel; the keyboard (Tab, nudge, resize, Escape, typing a caption, Delete, Ctrl+Z); code with errors read-only.
+- `rapidr-value` `objects::design::tests`: 6 cases (the form's edges written with the anchored button, one undo).
+- `rapidr-ui-kernel` `components::design::tests`: the events through the kernel; the designer takes the focus.
+- `tests/studio_flows.mjs`: two new cases, `designer` and `designer-undo`, with real kernel input on both hosts. Notepad's right edge is dragged 60 px, a QBUTTON placed and moved; the code has `Width = 540` and Button1's CREATE block; undo × 3 equals the file. `tests/studio_shell.mjs`: a `designer` scene (four themes × 1× / 2×, desktop vs web byte for byte). A new test hook, `__key_N_S` (a key with RapidQ's Shift state: `__key_90_16` is Ctrl+Z), lives in rapidr-ui-app's script.
+- Real input on macOS (`scratch/real.sh` in the lane's worktree, `tools/real_input.py`): ghost, click-to-place, bottom-edge resize, drag and ⌘Z. This found two bugs, both fixed: a stuck ⌘ kept the placing tool armed (now only Shift does), and a press outside the form placed a component outside it (now refused).
+
+**Benchmarked against Delphi and Xcode** (docs/studio-wow.md's DES items):
+- **Done**: DES-1, -2, -4, -5 (except one history with the editor), -6, -7 (in Studio; the model's 40 / 40 parity stands), -8, -9, -10 (in the designer), -11, -12, -14 (the tray, non-visual components added to it).
+- **Missing**: DES-3 (the drawing is done; there is no `guides` capture case yet), DES-13 (menu and Tab-order editors), DES-15 (I7), DES-16 (Preview in classic: needs L-THEME's override for the surface).
+- **Worse than Xcode / Delphi, noted**:
+  - no zoom (only scroll);
+  - no on-canvas inline caption editing (typing after adding covers new components);
+  - tray links aren't drawn;
+  - a top-level non-visual CREATE outside the form (notepad's dialogs) isn't in the tray;
+  - a file without a form says so but can't add one yet.
+
+**Shared files touched**:
+- rapidr-value `objects/{design,mod,a11y}.rs`, `designer/mod.rs` (`has_applied`);
+- rapidr-ui-kernel `components/design.rs` (+ tests), `input.rs` (drop routing, Tab, hover repaint);
+- rapidr-ui-app `desktop.rs` (the designer's pointer, `__key_N_S`), `script.rs`, `testhooks.rs`, `windows.rs`;
+- runtime-core `object.rs`, runtime-web `object_web.rs` (install the reader, fire the surface's events);
+- rapidr-studio (`design.rs` new, `Cargo.toml`);
+- rapidr-designer `lib.rs` (`clear_history`, `error_line`);
+- the registry `display.toml` (RDESIGNSURFACE's members), the generated `members.md` / `lang-data.js`;
+- `ide/{designer.inc (new), documents.inc, commands.inc, decl.inc, shell.inc, studio.rr}`;
+- `tests/studio_flows.mjs`, `tests/studio_shell.mjs`; this section; `CHANGELOG.md`.
+
