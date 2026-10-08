@@ -8,6 +8,19 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **Serial ports for ESP32 / Arduino / IoT boards** (RComPort, RapidQ's QCOMPORT; RapidQ's members
+  unchanged, RapidR's extras added, the same in native builds, the interpreter and the browser):
+  **ListPorts** with each port's USB vendor / product IDs, description, maker and serial number
+  (IOKit on macOS, SetupAPI on Windows, sysfs on Linux, Web Serial's granted ports in the browser;
+  CP210x, CH340, FTDI, ESP32 USB JTAG/serial … named from their IDs where the system says nothing),
+  **FillList** fills a list or combo box; the **DTR / RTS** lines set and read back, **CTS / DSR /
+  CD / RI** read, **SendBreak**; **ReadLine**(Timeout) with a configurable **LineEnd** and
+  **HasLine**, the **OnLine** event; **OnPortsChanged**(Added, Removed) when a USB adapter is plugged
+  in or out. Closing a port in the browser now closes the Web Serial port (it can be opened again).
+  Tested on a real ESP32 (an M5StickC Plus on FTDI): reset through DTR / RTS, its ROM boot log read,
+  interpreted, native and in Chrome. Example: `examples/iot/esp32_monitor.rr`; manual: "Serial
+  ports and IoT boards"; `tools/esp32_check.sh` checks a real board by hand (never writes to it);
+  the scripted test ports gain `esp32` (a board that prints its boot log when reset).
 - **RapidR Studio's panels as public components** (docs/ide-plan.md I1, L-PANELS), the same on the
   desktop, in native builds and on the web: **RPROPERTYINSPECTOR** (Delphi's object inspector: typed
   editors from the language registry, a visual Anchors pin editor, colours, fonts, lists, the Events

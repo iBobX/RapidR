@@ -1,0 +1,168 @@
+' esp32_monitor.rr: a serial monitor for an ESP32 (or any board on a USB
+' serial adapter) — pick the port, connect at 115200, reset the board and
+' watch what it prints.
+'
+'   rapidr run iot/esp32_monitor.rr
+'
+' RComPort (RapidQ's QCOMPORT) with RapidR's extras for IoT boards:
+'   - FillList puts the serial ports in the combo box, each with what the
+'     system says of its USB adapter (CP2102N, CH340, FTDI, USB JTAG/serial);
+'   - OnPortsChanged fires when an adapter is plugged in or out;
+'   - OnLine gets each whole line the board prints;
+'   - DTR and RTS move the modem lines: on ESP32 boards they drive the chip's
+'     EN (reset) and IO0 (boot mode) pins through two transistors.
+'
+' Reset holds EN low through RTS while DTR stays clear, so IO0 stays high:
+' the board restarts into its own program and its ROM prints the boot log
+' ("rst:0x1 (POWERON_RESET),boot:0x13 …"). Nothing is ever written to the
+' board.
+'
+' In the browser (Chrome, Edge) the first Connect asks which port to use:
+' Web Serial lets a page open only the ports its user picked.
+
+DECLARE SUB Refresh
+DECLARE SUB ConnectClick
+DECLARE SUB ResetClick
+DECLARE SUB ClearClick
+DECLARE SUB GotLine(Received AS STRING)
+DECLARE SUB PortsChanged(Added AS STRING, Removed AS STRING)
+DECLARE SUB Opened
+DECLARE SUB Closed
+DECLARE SUB ComError(Message AS STRING)
+DECLARE SUB ShowState
+
+DIM Board AS RComPort
+DIM Mono AS RFont
+Mono.Name = "Courier New"
+Mono.Size = 10
+
+CREATE Form AS RForm
+    Caption = "ESP32 monitor"
+    Width = 720
+    Height = 460
+    Center
+    CREATE PortLbl AS RLabel
+        Caption = "Port": Left = 10: Top = 14: Width = 34
+    END CREATE
+    CREATE Ports AS RComboBox
+        Left = 46: Top = 10: Width = 330
+    END CREATE
+    CREATE RefreshBtn AS RButton
+        Caption = "Refresh": Left = 382: Top = 9: Width = 70
+        OnClick = Refresh
+    END CREATE
+    CREATE Speed AS RComboBox
+        AddItems "9600", "57600", "115200", "230400", "460800", "921600"
+        ItemIndex = 2
+        Left = 458: Top = 10: Width = 80
+    END CREATE
+    CREATE ConnectBtn AS RButton
+        Caption = "&Connect": Left = 544: Top = 9: Width = 80
+        OnClick = ConnectClick
+    END CREATE
+    CREATE ResetBtn AS RButton
+        Caption = "&Reset": Left = 630: Top = 9: Width = 70
+        Enabled = 0
+        OnClick = ResetClick
+    END CREATE
+    CREATE Log AS RRichEdit
+        Left = 10: Top = 42: Width = 690: Height = 340
+        PlainText = 1
+        ReadOnly = 1
+        WordWrap = 0
+        ScrollBars = 3
+        Font = Mono
+    END CREATE
+    CREATE State AS RLabel
+        Caption = "Not connected": Left = 10: Top = 392: Width = 600
+    END CREATE
+    CREATE ClearBtn AS RButton
+        Caption = "C&lear": Left = 630: Top = 388: Width = 70
+        OnClick = ClearClick
+    END CREATE
+END CREATE
+
+Board.OnLine = GotLine
+Board.OnPortsChanged = PortsChanged
+Board.OnOpen = Opened
+Board.OnClose = Closed
+Board.OnComError = ComError
+
+SUB Refresh
+    IF Board.FillList(Ports) = 0 THEN State.Caption = "No serial port: plug the board in (or, in a browser, Connect to pick it)"
+END SUB
+
+SUB ShowState
+    IF Board.Connected THEN
+        State.Caption = "Connected to " + Board.Port + " at " + STR$(Board.BaudRate) + "   DTR " + STR$(Board.DTR) + "  RTS " + STR$(Board.RTS)
+    ELSE
+        State.Caption = "Not connected"
+    END IF
+END SUB
+
+SUB ConnectClick
+    IF Board.Connected THEN
+        Board.Close
+        EXIT SUB
+    END IF
+    ' (no port listed yet — a browser that wasn't given one: COM1 asks)
+    IF Ports.ItemIndex >= 0 AND Board.PortCount > 0 THEN
+        Board.Port = Board.PortName(Ports.ItemIndex)
+    ELSE
+        Board.Port = "COM1"
+    END IF
+    Board.BaudRate = VAL(Speed.Item(Speed.ItemIndex))
+    Board.Open
+END SUB
+
+SUB ResetClick
+    ' EN low (RTS set, DTR clear: IO0 stays high), then released
+    Board.DTR = 0
+    Board.RTS = 1
+    SLEEP 0.1
+    Board.RTS = 0
+    Log.AddStrings "--- reset ---"
+    ShowState
+END SUB
+
+SUB ClearClick
+    Log.Clear
+END SUB
+
+SUB GotLine(Received AS STRING)
+    Log.AddStrings Received
+END SUB
+
+SUB PortsChanged(Added AS STRING, Removed AS STRING)
+    IF Added <> "" THEN Log.AddStrings "--- plugged in: " + Added + " ---"
+    IF Removed <> "" THEN Log.AddStrings "--- unplugged: " + Removed + " ---"
+    IF Board.Connected AND INSTR(Removed, Board.Port) > 0 THEN Board.Close
+    Refresh
+END SUB
+
+SUB Opened
+    ConnectBtn.Caption = "&Disconnect"
+    ResetBtn.Enabled = 1
+    Ports.Enabled = 0
+    Speed.Enabled = 0
+    Log.AddStrings "--- connected to " + Board.Port + " ---"
+    ShowState
+    Refresh
+END SUB
+
+SUB Closed
+    ConnectBtn.Caption = "&Connect"
+    ResetBtn.Enabled = 0
+    Ports.Enabled = 1
+    Speed.Enabled = 1
+    Log.AddStrings "--- disconnected ---"
+    ShowState
+END SUB
+
+SUB ComError(Message AS STRING)
+    State.Caption = Message
+END SUB
+
+Refresh
+Form.ShowModal
+IF Board.Connected THEN Board.Close
