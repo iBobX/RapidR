@@ -101,7 +101,7 @@ const CASES = [
     open: "examples/gui/hello_form.rr",
     do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:form.capt,key:Tab,type: = \"Hi\",key:Enter,type:dim y as string,key:Escape,key:Enter",
     delay: 8,
-    dump: { "codedoc(0).text": /\nform\.Caption = "Hi"\nDIM y AS STRING\n$|\nform\.Caption = "Hi"\nDIM y AS STRING\n?$/, "codedoc(0).completionitems": /^$/ },
+    dump: { "codedoc(0).text": /\nForm\.Caption = "Hi"\nDIM y AS STRING\n?$/, "codedoc(0).completionitems": /^$/ },
   },
   {
     // Tab on a selected block indents every line by the file's unit (4

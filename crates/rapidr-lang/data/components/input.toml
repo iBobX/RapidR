@@ -638,6 +638,7 @@ properties = [
   { name = "CompletionTrigger", type = "string", doc = "Characters that open completion by themselves (\".\")." },
   { name = "LanguageService", type = "bool", doc = "RapidR's language service answers completion, hovers, signatures and problems (where the runtime carries it: rapidr run, RapidR Studio); off, the program answers the request events." },
   { name = "KeywordCase", type = "string", doc = "The language's words' case as you type: \"upper\" (DIM x AS INTEGER), \"lower\", \"proper\" or \"preserve\"." },
+  { name = "IdentifierCase", type = "string", doc = "The program's own names as you type: \"preserve\" (as typed) or \"declaration\" (as declared — form.caption becomes Form.Caption — and components' members as RapidQ spells them)." },
   { name = "FileName", type = "string", design = false, doc = "The file it was loaded from or saved to (the language service knows it by this name)." },
   { name = "LineEnding", type = "string", design = false, doc = "The file's line breaks SaveToFile writes: \"CRLF\", \"LF\" or \"CR\" (LoadFromFile keeps the file's)." },
   { name = "Encoding", type = "string", access = "read", design = false, doc = "How the file was stored: \"UTF-8\", \"UTF-8 BOM\" or \"Latin-1\" (SaveToFile writes it back the same)." },

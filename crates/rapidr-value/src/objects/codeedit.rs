@@ -154,6 +154,9 @@ pub struct Options {
     /// The language's words' case as the user types: `upper`, `lower`,
     /// `proper`, `preserve`.
     pub keyword_case: String,
+    /// The program's own names as typed (`preserve`) or as declared
+    /// (`declaration`, VB's: `form.caption` → `Form.Caption`).
+    pub identifier_case: String,
     pub font_name: String,
     /// Points (10 = 13 pixels, as Font.Size).
     pub font_size: i64,
@@ -175,6 +178,7 @@ impl Default for Options {
             completion_trigger: ".".into(),
             language_service: true,
             keyword_case: "upper".into(),
+            identifier_case: "preserve".into(),
             font_name: crate::objects::text::CODE_FACE.into(),
             font_size: 10,
             auto_close: true,
@@ -1076,6 +1080,7 @@ impl CodeEditor {
             "completiontrigger" => v_str(&self.opts.completion_trigger),
             "languageservice" => flag(self.opts.language_service),
             "keywordcase" => v_str(&self.opts.keyword_case),
+            "identifiercase" => v_str(&self.opts.identifier_case),
             "filename" => v_str(&self.file_name),
             "fontname" => v_str(&self.opts.font_name),
             "fontsize" => v_int(self.opts.font_size),
@@ -1183,6 +1188,10 @@ impl CodeEditor {
             "keywordcase" => {
                 let v = val.to_string_val().trim().to_lowercase();
                 self.opts.keyword_case = if matches!(v.as_str(), "upper" | "lower" | "proper" | "preserve") { v } else { "preserve".into() };
+            }
+            "identifiercase" => {
+                let v = val.to_string_val().trim().to_lowercase();
+                self.opts.identifier_case = if v == "declaration" { v } else { "preserve".into() };
             }
             "filename" => self.file_name = val.to_string_val(),
             "fontname" => self.opts.font_name = val.to_string_val(),

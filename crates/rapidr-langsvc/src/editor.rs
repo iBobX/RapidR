@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 
 use rapidr_editor::service as ed;
 
-use crate::case::{self, CaseScope, KeywordCase};
+use crate::case::{self, CaseScope, IdentifierCase, KeywordCase};
 use crate::{Analysis, CompletionKind, Options, OutlineKind, Severity, TokenKind};
 
 /// The language id of RapidQ / RapidR BASIC in `rapidr_editor::Languages`.
@@ -43,12 +43,14 @@ impl EditorService {
         &mut self.analysis
     }
 
-    /// The keyword case asked for, in the analysis's options (only when it
-    /// changes: new options drop every analysis).
-    fn set_keyword_case(&mut self, keywords: KeywordCase) {
-        if self.analysis.options().case.keywords != keywords {
+    /// The case asked for, in the analysis's options (only when it changes:
+    /// new options drop every analysis).
+    fn set_case(&mut self, keywords: KeywordCase, identifiers: IdentifierCase) {
+        let now = &self.analysis.options().case;
+        if now.keywords != keywords || now.identifiers != identifiers {
             let mut options = self.analysis.options().clone();
             options.case.keywords = keywords;
+            options.case.identifiers = identifiers;
             self.analysis.set_options(options);
         }
     }
@@ -241,9 +243,12 @@ impl ed::LanguageService for EditorService {
     fn case_edits(&mut self, file: &str, offset: usize, ch: char, case: &str) -> Vec<ed::Edit> {
         // (the case the editor asks is the one formatting uses from now on;
         // `preserve` too: off)
-        let Some(keywords) = KeywordCase::parse(case) else { return Vec::new() };
-        self.set_keyword_case(keywords);
-        if keywords == KeywordCase::Preserve {
+        // (`upper+declaration`: the program's names as declared too)
+        let (kw, ids) = case.split_once('+').unwrap_or((case, "preserve"));
+        let Some(keywords) = KeywordCase::parse(kw) else { return Vec::new() };
+        let identifiers = IdentifierCase::parse(ids).unwrap_or_default();
+        self.set_case(keywords, identifiers);
+        if keywords == KeywordCase::Preserve && identifiers == IdentifierCase::Preserve {
             return Vec::new();
         }
         self.analysis.case_edits(&path(file), CaseScope::Typed { offset, ch }).into_iter().map(edit).collect()

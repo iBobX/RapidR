@@ -26,6 +26,28 @@ FUNCTION EditorCommand(Id AS STRING) AS INTEGER
   END SELECT
 END FUNCTION
 
+' ---- the editor's settings (Studio's: HKCU\Software\RapidR\Studio) ----------------------
+' KeywordCase: upper (DIM x AS INTEGER, the default), lower, proper or preserve;
+' IdentifierCase: declaration (the program's names as declared, VB's — the
+' default) or preserve. VS Code's rapidr.keywordCase / rapidr.identifierCase.
+DIM EditorKeywordCase AS STRING
+DIM EditorIdentifierCase AS STRING
+
+SUB EditorSettings(d AS INTEGER)
+  IF EditorKeywordCase = "" THEN
+    EditorKeywordCase = "upper": EditorIdentifierCase = "declaration"
+    Reg.RootKey = HKCU
+    IF Reg.KeyExists(STUDIO_KEY) THEN
+      Reg.OpenKey(STUDIO_KEY, 0)
+      IF Reg.ValueExists("KeywordCase") THEN EditorKeywordCase = Reg.ReadString("KeywordCase")
+      IF Reg.ValueExists("IdentifierCase") THEN EditorIdentifierCase = Reg.ReadString("IdentifierCase")
+      Reg.CloseKey
+    END IF
+  END IF
+  CodeDoc(d).KeywordCase = EditorKeywordCase
+  CodeDoc(d).IdentifierCase = EditorIdentifierCase
+END SUB
+
 ' ---- the status bar: the caret, the file's encoding and line breaks ---------------------
 SUB CodeCaretMoved(Line AS INTEGER, Column AS INTEGER)
   Status.Panel(2).Caption = "Ln " + LTRIM$(STR$(Line)) + ", Col " + LTRIM$(STR$(Column))
