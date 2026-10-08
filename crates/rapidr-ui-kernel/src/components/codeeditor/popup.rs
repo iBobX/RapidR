@@ -478,6 +478,6 @@ mod tests {
         let f = ui_font();
         let lines = wrap("one two three four five six seven", &f, 60);
         assert!(lines.len() > 2);
-        assert!(subsequence("showmodal", "smd"));
+        assert_eq!(rapidr_value::objects::codeedit::match_tier("ShowModal", "smd"), Some(4));
     }
 }

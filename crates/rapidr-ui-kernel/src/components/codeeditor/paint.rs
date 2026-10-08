@@ -686,18 +686,21 @@ fn paint_gutter(x: &mut Ctx, p: &mut Painter) {
             const ORDER: [&str; 10] = ["breakpoint", "breakpoint.conditional", "breakpoint.log", "breakpoint.disabled", "current", "frame", "exception", "bookmark", "error", "warning"];
             let marker = ORDER.into_iter().find(|k| kinds.iter().any(|m| m == k)).map(str::to_string).or_else(|| kinds.first().cloned());
             // (the debugger's line over a breakpoint: the arrow on the dot)
-            let here = ["current", "exception"].into_iter().find(|k| kinds.iter().any(|m| m == k));
-            let here_color = if here == Some("exception") { sc.error } else { sc.current_statement };
+            let here = ["exception", "current", "frame"].into_iter().find(|k| kinds.iter().any(|m| m == k));
+            let here_color = match here {
+                Some("exception") => sc.error,
+                Some("frame") => sc.line_number,
+                _ => sc.current_statement,
+            };
             let dot = (icon_rect.0 + 2, icon_rect.1 + 2, 12, 12);
             match marker.as_deref() {
                 Some("breakpoint") => {
                     p.op(Op::Round { rect: dot, radius: 6.0, fill: Some(sc.breakpoint), stroke: None, width: 1.0 });
                 }
-                // (a condition or hit count: the dot with a bar across, VS Code's)
+                // (a condition or hit count: the dot with a bar across)
                 Some("breakpoint.conditional") => {
                     p.op(Op::Round { rect: dot, radius: 6.0, fill: Some(sc.breakpoint), stroke: None, width: 1.0 });
-                    p.fill((dot.0 + 3, dot.1 + 4, 6, 1), sc.gutter);
-                    p.fill((dot.0 + 3, dot.1 + 7, 6, 1), sc.gutter);
+                    p.fill((dot.0 + 3, dot.1 + 5, 6, 2), sc.gutter);
                 }
                 // (a logpoint: a diamond)
                 Some("breakpoint.log") => {
@@ -708,8 +711,8 @@ fn paint_gutter(x: &mut Ctx, p: &mut Painter) {
                 Some("breakpoint.disabled") => {
                     p.op(Op::Round { rect: dot, radius: 6.0, fill: None, stroke: Some(sc.line_number), width: 1.5 });
                 }
-                Some("current") | Some("exception") => {}
-                Some("frame") => arrow(p, icon_rect, sc.line_number),
+                // (the arrows: drawn below, over any dot)
+                Some("current") | Some("exception") | Some("frame") => {}
                 Some("bookmark") => {
                     let (bx, by) = (icon_rect.0 as f64 + 4.0, icon_rect.1 as f64 + 2.0);
                     p.op(Op::Polygon { points: vec![(bx, by), (bx + 8.0, by), (bx + 8.0, by + 12.0), (bx + 4.0, by + 9.0), (bx, by + 12.0)], color: sc.bookmark });

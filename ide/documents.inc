@@ -178,6 +178,10 @@ SUB OpenDocument(Path AS STRING)
   CodeDoc(d).Tag = d
   CodeDoc(d).OnChange = CodeChanged
   CodeDoc(d).OnCaretMove = CodeCaretMoved
+  CodeDoc(d).OnNavigate = CodeNavigate
+  CodeDoc(d).OnReferences = CodeReferences
+  CodeDoc(d).OnFileEdits = CodeFileEdits
+  EditorSettings d
   Loading = 0
   DocFile(d) = Path
   DocKind(d) = "code"

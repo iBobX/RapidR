@@ -836,7 +836,10 @@ SUB AddWatchCommand
   d = ActiveCode
   IF d >= 0 THEN
     e = CodeDoc(d).SelText
-    IF e = "" OR INSTR(e, CHR$(10)) > 0 THEN e = ExprAt(CodeDoc(d).Line(CodeDoc(d).CaretLine - 1), CodeDoc(d).CaretColumn)
+    IF e = "" OR INSTR(e, CHR$(10)) > 0 THEN
+      e = CodeDoc(d).WordAt(CodeDoc(d).CaretLine, CodeDoc(d).CaretColumn)
+      IF NotAValue(e) THEN e = ""
+    END IF
   END IF
   IF e <> "" THEN
     AddWatch e
@@ -946,46 +949,24 @@ END SUB
 
 ' ---- data tips: a resting mouse's value while paused -----------------------------------------------
 
-' (an identifier's character: letters, digits, _ and the type suffixes)
-FUNCTION IsWordChar(c AS STRING) AS INTEGER
-  Result = Flag(c <> "" AND INSTR("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_$%&!#", c) > 0)
-END FUNCTION
-
-' The expression under column Col (from 1) of a line: the word there with
-' what it's a member of (Edit1.Text, a.b.c), no further right than the word.
-FUNCTION ExprAt(Text AS STRING, Col AS INTEGER) AS STRING
-  DIM a AS INTEGER, b AS INTEGER, c AS STRING
-  IF Col < 1 OR Col > LEN(Text) + 1 THEN EXIT FUNCTION
-  b = Col
-  IF IsWordChar(MID$(Text, b, 1)) = 0 THEN b = b - 1
-  IF b < 1 THEN EXIT FUNCTION
-  IF IsWordChar(MID$(Text, b, 1)) = 0 THEN EXIT FUNCTION
-  DO WHILE b < LEN(Text)
-    IF IsWordChar(MID$(Text, b + 1, 1)) = 0 THEN EXIT DO
-    b = b + 1
-  LOOP
-  a = b
-  DO WHILE a > 1
-    c = MID$(Text, a - 1, 1)
-    IF IsWordChar(c) = 0 AND c <> "." THEN EXIT DO
-    a = a - 1
-  LOOP
-  DO WHILE MID$(Text, a, 1) = "."
-    a = a + 1
-  LOOP
-  IF a > b THEN EXIT FUNCTION
-  Result = MID$(Text, a, b - a + 1)
-  ' (a number or a word of the language isn't a value to show)
-  IF INSTR("0123456789", LEFT$(Result, 1)) > 0 THEN Result = ""
-  IF INSTR("|IF|THEN|ELSE|ELSEIF|END|SUB|FUNCTION|DIM|AS|FOR|TO|NEXT|DO|LOOP|WHILE|WEND|SELECT|CASE|AND|OR|NOT|MOD|XOR|CREATE|PRINT|RETURN|EXIT|STEP|UNTIL|INTEGER|STRING|DOUBLE|SINGLE|LONG|BYTE|WORD|DWORD|SHORT|CALL|GOTO|GOSUB|", "|" + UCASE$(Result) + "|") > 0 THEN Result = ""
+' (a name the editor found — WordAt — that isn't a value to show: none, a
+' number, a word of the language)
+FUNCTION NotAValue(Name AS STRING) AS INTEGER
+  Result = 1
+  IF Name = "" THEN EXIT FUNCTION
+  IF INSTR("0123456789", LEFT$(Name, 1)) > 0 THEN EXIT FUNCTION
+  IF INSTR("|IF|THEN|ELSE|ELSEIF|END|SUB|FUNCTION|DIM|AS|FOR|TO|NEXT|DO|LOOP|WHILE|WEND|SELECT|CASE|AND|OR|NOT|MOD|XOR|CREATE|PRINT|RETURN|EXIT|STEP|UNTIL|INTEGER|STRING|DOUBLE|SINGLE|LONG|BYTE|WORD|DWORD|SHORT|CALL|GOTO|GOSUB|", "|" + UCASE$(Name) + "|") > 0 THEN EXIT FUNCTION
+  Result = 0
 END FUNCTION
 
 SUB CodeHoverRequest(LineNo AS INTEGER, ColNo AS INTEGER, Sender AS RCODEEDITOR)
   DIM d AS INTEGER, e AS STRING
   IF RunState <> "paused" THEN EXIT SUB
   d = Sender.Tag
-  e = ExprAt(Sender.Line(LineNo - 1), ColNo)
-  IF e = "" THEN EXIT SUB
+  ' (the dotted name there — Edit1.Text — lines and columns from 1, as
+  ' OnHoverRequest gives them; a number or a word of the language isn't a value)
+  e = Sender.WordAt(LineNo, ColNo)
+  IF NotAValue(e) THEN EXIT SUB
   HoverDoc = d
   HoverExpr = e
   HoverEvalId = Session.Evaluate("? " + e)

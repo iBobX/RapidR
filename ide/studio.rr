@@ -19,8 +19,8 @@
 '                  properties, output
 '   documents.inc  documents: code, designer, outline, problems, properties
 '   designer.inc   the form designer: the code it edits, its commands
-'   editor.inc     the code editor's commands, the designer's patches, typing steps
 '   project.inc    the project, settings
+'   editor.inc     the code editor's commands, settings, typing steps
 '   debug.inc      running it, debugging it: breakpoints, stepping, the
 '                  Variables / Watch / Call Stack / Breakpoints panes
 '   build.inc      Build (the app for this system), Reveal, the app's settings
@@ -34,8 +34,8 @@ $INCLUDE "panes.inc"
 $INCLUDE "panels.inc"
 $INCLUDE "documents.inc"
 $INCLUDE "designer.inc"
-$INCLUDE "editor.inc"
 $INCLUDE "project.inc"
+$INCLUDE "editor.inc"
 $INCLUDE "debug.inc"
 $INCLUDE "build.inc"
 $INCLUDE "chrome.inc"

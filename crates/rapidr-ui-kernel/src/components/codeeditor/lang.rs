@@ -60,12 +60,15 @@ pub fn after_edit(x: &mut Ctx, typed: Option<char>) {
     let head = x.c.doc.selections().primary().head;
     let served = served(x);
     // keyword case, as the word ends
-    if served && x.c.opts.keyword_case != "preserve" && x.c.doc.selections().len() == 1 {
+    let names = x.c.opts.identifier_case == "declaration";
+    if served && (x.c.opts.keyword_case != "preserve" || names) && x.c.doc.selections().len() == 1 {
         let triggers = service::with(|s| s.case_triggers()).unwrap_or(&[]);
-        if triggers.contains(&ch) && word_wants_case(x, head - ch.len_utf8()) {
+        // (Enter: the line left is cased whole, as VB does; else the word
+        // just finished)
+        if triggers.contains(&ch) && (ch == '\n' || word_wants_case(x, head - ch.len_utf8())) {
             sync(x);
             let file = x.file();
-            let case = x.c.opts.keyword_case.clone();
+            let case = if names { format!("{}+declaration", x.c.opts.keyword_case) } else { x.c.opts.keyword_case.clone() };
             let edits = service::with(|s| s.case_edits(&file, head, ch, &case)).unwrap_or_default();
             apply_service_edits(x, edits, EditKind::Command);
         }
@@ -114,6 +117,11 @@ fn word_wants_case(x: &mut Ctx, end: usize) -> bool {
         "lower" => word.to_ascii_lowercase(),
         _ => String::new(),
     };
+    // (the program's names as declared: any word outside strings and
+    // comments — the service knows which are names)
+    if x.c.opts.identifier_case == "declaration" && !tokens.iter().any(|t| t.kind.is_literal() && (t.start as usize) <= col && col < t.end as usize) {
+        return true;
+    }
     if !cased.is_empty() && cased == word {
         return false;
     }

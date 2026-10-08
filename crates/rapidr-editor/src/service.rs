@@ -295,7 +295,9 @@ pub trait LanguageService {
     fn format(&mut self, file: &str, indent: &str) -> Vec<Edit>;
     /// After the user typed `ch` ending at `offset`: the edits that put the
     /// word (or, for a line break, the line) just finished in the keyword
-    /// case `case` (`upper`, `lower`, `proper`; `preserve`: none).
+    /// case `case` (`upper`, `lower`, `proper`; `preserve`: none), and with
+    /// `+declaration` after it (`upper+declaration`) the program's own
+    /// names as their declarations spell them.
     fn case_edits(&mut self, file: &str, offset: usize, ch: char, case: &str) -> Vec<Edit>;
     /// The characters after which [`LanguageService::case_edits`] is asked.
     fn case_triggers(&self) -> &'static [char];

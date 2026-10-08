@@ -324,13 +324,14 @@ impl FormUi {
     /// Paragraph `para`'s layout of node `id`'s editor (a memo has one per
     /// paragraph).
     pub fn editor_layout_at(&self, id: &str, para: usize) -> Option<&parley::Layout<crate::text::Ink>> {
-        let n = self.node(id);
-        if let Some(code) = n.and_then(|n| n.ui.code.as_ref()) {
-            // (a code editor's rows: `para` is the layout's cache slot)
-            return code.cache.layout(para);
-        }
-        match n {
-            Some(n) => n.ui.edit.as_ref()?.para_layout(para),
+        match self.node(id) {
+            Some(n) => {
+                if let Some(code) = &n.ui.code {
+                    // (a code editor's rows: `para` is the layout's cache slot)
+                    return code.cache.layout(para);
+                }
+                n.ui.edit.as_ref()?.para_layout(para)
+            }
             // (a component of a form shown in a designer on this one)
             None => self.nodes.iter().filter_map(|n| n.ui.design.as_ref()).find_map(|v| v.editor_layout_at(id, para)),
         }

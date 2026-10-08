@@ -528,6 +528,18 @@ fn build(program: &Program, source: Option<&str>, recorder: Recorder) -> Semanti
         }
     }
 
+    // `DECLARE SUB Greet` before its SUB: a declaration of the same routine
+    // (find references lists it, a rename changes it)
+    for stmt in &program.statements {
+        if let Statement::Declare(d) = stmt {
+            if d.lib.is_none() {
+                if let (Some(&id), Some(span)) = (b.names.get(&(0, name_key(&d.name), false)), b.name_span(d.span, &d.name)) {
+                    b.reference(span, id, Access::Declare);
+                }
+            }
+        }
+    }
+
     // DIM types as written (the compiler's passes turn a TYPE's instances
     // into variants), by where they're declared.
     let mut written: HashMap<usize, String> = HashMap::new();

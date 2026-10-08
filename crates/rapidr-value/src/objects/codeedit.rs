@@ -13,7 +13,8 @@
 //! characters (a line break counts one), AddStrings, Clear, SelectAll,
 //! ClearSelection, Modified, ReadOnly, MaxLength, CharCase, GetSubList,
 //! GotoSub, GotoLine (0-based), the clipboard methods, LoadFromFile /
-//! SaveToFile; the program's changes fire no OnChange.
+//! SaveToFile; the program's changes fire no OnChange (ApplyPatches, Undo
+//! and Redo, new, do: the editor holds a designer's history too).
 //!
 //! **What's new counts lines and columns from 1**, as the status bar shows
 //! them (CaretLine, CaretColumn, AddCursor, ReplaceRange, Fold, AddMarker,
@@ -161,6 +162,9 @@ pub struct Options {
     /// The language's words' case as the user types: `upper`, `lower`,
     /// `proper`, `preserve`.
     pub keyword_case: String,
+    /// The program's own names as typed (`preserve`) or as declared
+    /// (`declaration`, VB's: `form.caption` → `Form.Caption`).
+    pub identifier_case: String,
     pub font_name: String,
     /// Points (10 = 13 pixels, as Font.Size).
     pub font_size: i64,
@@ -183,6 +187,7 @@ impl Default for Options {
             language_service: true,
             debug_hover: false,
             keyword_case: "upper".into(),
+            identifier_case: "preserve".into(),
             font_name: crate::objects::text::CODE_FACE.into(),
             font_size: 10,
             auto_close: true,
@@ -205,6 +210,10 @@ pub struct CodeEditor {
     /// Modified, as RapidR always kept it: set by the user's edits and
     /// SelText, cleared by setting Text and by loading or saving.
     pub modified: bool,
+    /// A program call changed the text in a way that tells the program
+    /// (ApplyPatches, Undo, Redo): the runtime fires OnChange after it
+    /// ([`super::take_code_change`]).
+    pub program_change: bool,
     pub max_length: i64,
     pub char_case: i64,
     /// `Language` as the program set it (an id, or a definition file's
@@ -261,6 +270,38 @@ impl Default for CodeEditor {
 }
 
 /// `s` with CR LF and lone CRs as '\n'.
+/// A patch's text as ApplyPatches gets it: `\n`, `\t`, `\r` and `\\`.
+fn unescape_patch(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut it = s.chars();
+    while let Some(c) = it.next() {
+        if c != '\\' {
+            out.push(c);
+            continue;
+        }
+        match it.next() {
+            Some('n') => out.push('\n'),
+            Some('t') => out.push('\t'),
+            Some('r') => out.push('\r'),
+            Some(o) => out.push(o),
+            None => out.push('\\'),
+        }
+    }
+    out
+}
+
+/// The byte of 0-based `line`, character column `col` in `text` ('\n'
+/// breaks); None past the line's end or the text's last line.
+fn patch_offset(text: &str, (line, col): (usize, usize)) -> Option<usize> {
+    let start = if line == 0 { 0 } else { text.match_indices('\n').nth(line - 1)?.0 + 1 };
+    let rest = &text[start..];
+    let line_text = &rest[..rest.find('\n').unwrap_or(rest.len())];
+    if col == line_text.chars().count() {
+        return Some(start + line_text.len());
+    }
+    line_text.char_indices().nth(col).map(|(i, _)| start + i)
+}
+
 fn normalize_breaks(s: &str) -> String {
     if s.contains('\r') {
         s.replace("\r\n", "\n").replace('\r', "\n")
@@ -379,6 +420,7 @@ impl CodeEditor {
             revision: 0,
             reveal: 0,
             modified: false,
+            program_change: false,
             max_length: 0,
             char_case: 0,
             language_set: String::new(),
@@ -824,11 +866,40 @@ impl CodeEditor {
             Some(m) if m.note == note => return,
             Some(m) => m.note = note.to_string(),
             None => {
-                self.markers.push(Marker { at, kind, note: note.to_string() });
+                self.markers.push(Marker { at, kind: kind.clone(), note: note.to_string() });
                 self.markers.sort_by_key(|m| m.at);
             }
         }
+        // (a line shows one note: the newest replaces the others there)
+        if !note.is_empty() {
+            for m in self.markers.iter_mut().filter(|m| m.at == at && m.kind != kind) {
+                m.note.clear();
+            }
+        }
         self.changed();
+    }
+
+    /// The dotted name under 1-based (`line`, `col`): the word there and
+    /// the `a.b.` before it (`Form.Caption` on `Caption`, `Form` on
+    /// `Form`); empty off a word.
+    pub fn word_at_line_col(&self, line: i64, col: i64) -> String {
+        let at = self.at_line_col(line, col);
+        let Some(word) = self.doc.word_at(at) else { return String::new() };
+        let buf = self.doc.buffer();
+        let start = buf.line_start(buf.line_of(at));
+        let text = buf.line_text(buf.line_of(at));
+        let (mut from, to) = (word.start - start, word.end - start);
+        // (back over `.name` links: `Item.Sub.` before the word)
+        loop {
+            let before = &text[..from];
+            let Some(dot) = before.strip_suffix('.') else { break };
+            let name_start = dot.char_indices().rev().take_while(|&(_, c)| c.is_alphanumeric() || c == '_' || "$%&!#".contains(c)).last().map(|(i, _)| i);
+            match name_start {
+                Some(i) if dot[i..].starts_with(|c: char| c.is_alphabetic() || c == '_') => from = i,
+                _ => break,
+            }
+        }
+        text[from..to].to_string()
     }
 
     pub fn remove_marker(&mut self, line: i64, kind: &str) -> bool {
@@ -954,7 +1025,7 @@ impl CodeEditor {
     /// then any case), then on its word starts (`ss` → SelStart, `gsl` →
     /// GetSubList), then anywhere together, then anywhere in order; among
     /// equals, the ones accepted lately first, then the service's group,
-    /// then the shorter, then A–Z.
+    /// then A–Z (VS Code's order).
     pub fn completion_shown(&self) -> Vec<usize> {
         let Some(list) = &self.completion else { return Vec::new() };
         let head = self.doc.selections().primary().head;
@@ -981,7 +1052,7 @@ impl CodeEditor {
             // (nothing typed yet: the service's order — groups, then A–Z)
             ranked.sort_by(|a, b| a.2.cmp(&b.2).then_with(|| a.4.cmp(&b.4)));
         } else {
-            ranked.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)).then(a.3.cmp(&b.3)).then_with(|| a.4.cmp(&b.4)));
+            ranked.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)).then_with(|| a.4.cmp(&b.4)));
         }
         ranked.into_iter().map(|r| r.5).collect()
     }
@@ -1095,6 +1166,7 @@ impl CodeEditor {
             "completiontrigger" => v_str(&self.opts.completion_trigger),
             "languageservice" => flag(self.opts.language_service),
             "keywordcase" => v_str(&self.opts.keyword_case),
+            "identifiercase" => v_str(&self.opts.identifier_case),
             "filename" => v_str(&self.file_name),
             "fontname" => v_str(&self.opts.font_name),
             "fontsize" => v_int(self.opts.font_size),
@@ -1204,6 +1276,10 @@ impl CodeEditor {
                 let v = val.to_string_val().trim().to_lowercase();
                 self.opts.keyword_case = if matches!(v.as_str(), "upper" | "lower" | "proper" | "preserve") { v } else { "preserve".into() };
             }
+            "identifiercase" => {
+                let v = val.to_string_val().trim().to_lowercase();
+                self.opts.identifier_case = if v == "declaration" { v } else { "preserve".into() };
+            }
             "filename" => self.file_name = val.to_string_val(),
             "fontname" => self.opts.font_name = val.to_string_val(),
             "fontsize" => self.opts.font_size = val.to_i64().clamp(4, 96),
@@ -1278,11 +1354,13 @@ impl CodeEditor {
             "undo" => {
                 if self.doc.undo() {
                     self.after_history();
+                    self.program_change = true;
                 }
             }
             "redo" => {
                 if self.doc.redo() {
                     self.after_history();
+                    self.program_change = true;
                 }
             }
             "find" => {
@@ -1290,9 +1368,20 @@ impl CodeEditor {
                 return Some(flag(found));
             }
             "findnext" | "findprevious" => {
-                let Some((text, opts)) = self.last_find.clone() else { return Some(flag(false)) };
+                // (nothing searched yet: the selection, else the word at the caret — F3's)
+                let p = self.doc.selections().primary();
+                let here = if p.is_empty() { self.doc.word_at(p.head).map(|r| self.doc.slice(r).into_owned()) } else { Some(self.doc.slice(p.range()).into_owned()) };
+                let Some((text, opts)) = self.last_find.clone().or(here.map(|w| (w, String::new()))) else { return Some(flag(false)) };
                 let found = self.find(&text, &opts, method == "findnext");
                 return Some(flag(found));
+            }
+            "gotomatchingbracket" => {
+                let head = self.doc.selections().primary().head;
+                let Some((_, other)) = self.doc.matching_bracket(head) else { return Some(flag(false)) };
+                self.doc.set_selections(Selections::caret(other));
+                self.reveal += 1;
+                self.changed();
+                return Some(flag(true));
             }
             "replace" => {
                 let q = SearchQuery::with_options(arg(0), &arg(2));
@@ -1345,16 +1434,11 @@ impl CodeEditor {
                 });
             }
             "applyedits" => return Some(flag(self.apply_edits_json(&arg(0)))),
-            // (RapidR Studio's designer: RDESIGNSURFACE's OnSourceEdit, lines
-            // from 0, columns in characters; Join: part of the undo step
-            // before)
-            "applypatch" => {
-                let a = self.at_line_col(num(0, 0) + 1, num(1, 0) + 1);
-                let b = self.at_line_col(num(2, 0) + 1, num(3, 0) + 1);
-                let t = normalize_breaks(&arg(4));
-                let join = args.get(5).is_some_and(|v| v.to_i64() != 0);
-                let (a, b) = (a.min(b), a.max(b));
-                return Some(flag(self.program_edit(|d| d.apply_patch(a..b, &t, join, 0).is_ok())));
+            // (RapidR Studio's designer: one change's OnSourceEdit patches,
+            // one undo step; Continues: part of the step before)
+            "applypatches" => {
+                let continues = args.get(1).is_some_and(|v| v.to_i64() != 0);
+                return Some(flag(self.apply_patches(&arg(0), continues)));
             }
             "setdiagnostics" => {
                 let diags = self.parse_diagnostics(&arg(0));
@@ -1376,6 +1460,7 @@ impl CodeEditor {
                 let items = Self::parse_items(&arg(0));
                 self.show_completion(items, false, None);
             }
+            "wordat" => return Some(v_str(&self.word_at_line_col(num(0, 1), num(1, 1)))),
             "showhover" => {
                 let text = arg(0);
                 let at = self.hover_request.unwrap_or(self.doc.selections().primary().head);
@@ -1506,6 +1591,40 @@ impl CodeEditor {
         n(ok).map(|c| self.byte_of(c.max(0) as usize))
     }
 
+    /// ApplyPatches: RDESIGNSURFACE's OnSourceEdit patches of one change,
+    /// one per line — `StartLine<TAB>StartCol<TAB>EndLine<TAB>EndCol<TAB>Text`,
+    /// lines from 0, columns in characters, each in the text the ones before
+    /// left, Text escaped (`\n`, `\t`, `\r`, `\\`) — applied as one undo
+    /// step (`continues`: part of the step before). The carets keep their
+    /// places in the text around them; OnChange once. False, and nothing
+    /// changed, when a patch's range isn't in the text (or a line isn't a
+    /// patch).
+    pub fn apply_patches(&mut self, patches: &str, continues: bool) -> bool {
+        let mut list = Vec::new();
+        for line in patches.split('\n').map(|l| l.strip_suffix('\r').unwrap_or(l)).filter(|l| !l.is_empty()) {
+            let mut f = line.splitn(5, '\t');
+            let mut num = || f.next().and_then(|v| v.trim().parse::<usize>().ok());
+            let (Some(sl), Some(sc), Some(el), Some(ec)) = (num(), num(), num(), num()) else { return false };
+            let text = normalize_breaks(&unescape_patch(f.next().unwrap_or("")));
+            list.push(((sl, sc), (el, ec), text));
+        }
+        if list.is_empty() {
+            return true;
+        }
+        // (every range checked on a copy first: all or nothing)
+        let mut copy = self.doc.text().to_string();
+        let mut ranges = Vec::with_capacity(list.len());
+        for (a, b, text) in &list {
+            let (Some(a), Some(b)) = (patch_offset(&copy, *a), patch_offset(&copy, *b)) else { return false };
+            let (a, b) = (a.min(b), a.max(b));
+            copy.replace_range(a..b, text);
+            ranges.push(a..b);
+        }
+        let ok = self.program_edit(|d| list.iter().zip(ranges).enumerate().all(|(i, ((_, _, text), r))| d.apply_patch(r, text, continues || i > 0, 0).is_ok()));
+        self.program_change = true;
+        ok
+    }
+
     /// ApplyEdits(Json): `[{"line", "column", "endLine", "endColumn",
     /// "text"}]` (or `start` / `end` character offsets), one undo step;
     /// refused whole (False) when two overlap.
@@ -1595,6 +1714,31 @@ mod tests {
     }
     fn n(v: Option<Value>) -> i64 {
         v.unwrap().to_i64()
+    }
+
+    /// The debugger's calls (S-DEBUG): WordAt's dotted names, AddMarker's
+    /// notes (one per line, the newest), DebugHover.
+    #[test]
+    fn the_debuggers_calls() {
+        let mut c = CodeEditor::new();
+        c.set("text", &v_str("Form.Caption = \"x\"\n  a$ = Item.Sub.Name$ + 1\nPRINT 2"));
+        let w = |c: &mut CodeEditor, l: i64, col: i64| s(c.call("wordat", &[v_int(l), v_int(col)]));
+        assert_eq!(w(&mut c, 1, 8), "Form.Caption");
+        assert_eq!(w(&mut c, 1, 2), "Form");
+        assert_eq!(w(&mut c, 2, 3), "a$");
+        assert_eq!(w(&mut c, 2, 18), "Item.Sub.Name$");
+        assert_eq!(w(&mut c, 2, 14), "Item.Sub");
+        assert_eq!(w(&mut c, 3, 7), "");
+        c.call("addmarker", &[v_int(2), v_str("breakpoint")]);
+        c.call("addmarker", &[v_int(2), v_str("exception"), v_str("Division by zero")]);
+        let notes = |c: &CodeEditor| c.markers_on(1).map(|m| format!("{}={}", m.kind, m.note)).collect::<Vec<_>>().join(",");
+        assert_eq!(notes(&c), "breakpoint=,exception=Division by zero");
+        c.call("addmarker", &[v_int(2), v_str("breakpoint"), v_str("hit 3")]);
+        assert_eq!(notes(&c), "breakpoint=hit 3,exception=");
+        assert!(n(c.call("hasmarker", &[v_int(2), v_str("exception")])) != 0);
+        assert_eq!(n(c.get("debughover")), 0);
+        c.set("debughover", &v_int(-1));
+        assert!(n(c.get("debughover")) != 0);
     }
 
     /// The `code_editor` GUI case's answers, as the old model gave them.
@@ -1725,39 +1869,51 @@ mod tests {
         assert_eq!(labels(&c), "SelStart", "on the word starts");
         c.call("undo", &[]);
         c.call("inserttext", &[v_str("s")]);
-        assert_eq!(labels(&c), "Show\nSelStart\nShowHint\nSelLength", "shorter first among equals");
+        assert_eq!(labels(&c), "SelLength\nSelStart\nShow\nShowHint", "A–Z among equals");
         c.note_accepted("SelLength");
         assert_eq!(labels(&c).lines().next(), Some("SelLength"), "accepted lately: first");
         assert_eq!(s(c.get("completionselected")), "SelLength");
     }
 
-    /// RapidR Studio's designer contract: OnSourceEdit's patches (lines
-    /// from 0, character columns) applied in order; the ones joined undo
-    /// with the first as one step; the caret keeps its place in the text.
+    /// RapidR Studio's designer contract (S-DESIGN-2's shared undo):
+    /// ApplyPatches gets one change's OnSourceEdit patches (lines from 0,
+    /// character columns, each in the text the ones before left, Text
+    /// escaped) as one undo step, or joined to the step before; the caret
+    /// keeps its place in the text; OnChange once; all or nothing.
     #[test]
     fn designer_patches_undo_as_one_step() {
         let mut c = CodeEditor::new();
-        c.set("text", &v_str("CREATE Form AS QFORM\n    Width = 340\n    Caption = \"é\"\nEND CREATE"));
+        let first = "CREATE Form AS QFORM\n    Width = 340\n    Caption = \"é\"\nEND CREATE";
+        c.set("text", &v_str(first));
         c.call("gotolinecolumn", &[v_int(4), v_int(1)]);
         let caret = n(c.get("selstart"));
-        // a drag: Width changes, then a Left line is added
-        assert_eq!(n(c.call("applypatch", &[v_int(1), v_int(12), v_int(1), v_int(15), v_str("360"), v_int(0)])), -1);
-        assert_eq!(n(c.call("applypatch", &[v_int(2), v_int(15), v_int(2), v_int(16), v_str("ü"), v_int(1)])), -1);
-        assert_eq!(n(c.call("applypatch", &[v_int(1), v_int(15), v_int(1), v_int(15), v_str("\n    Left = 8"), v_int(1)])), -1);
+        let patches = |c: &mut CodeEditor, p: &str, continues: i64| n(c.call("applypatches", &[v_str(p), v_int(continues)]));
+        // a drag: Width changes, a caption, then a Left line is added
+        assert_eq!(patches(&mut c, "1\t12\t1\t15\t360\n2\t15\t2\t16\tü\n1\t15\t1\t15\t\\n    Left = 8", 0), -1);
         assert_eq!(s(c.get("text")), "CREATE Form AS QFORM\n    Width = 360\n    Left = 8\n    Caption = \"ü\"\nEND CREATE");
+        assert!(std::mem::take(&mut c.program_change), "OnChange is fired after it");
         assert_eq!(n(c.get("caretline")), 5, "the caret stays on END CREATE");
         assert_eq!(n(c.get("selstart")), caret + 13);
-        // the next action: its own step
-        c.call("applypatch", &[v_int(2), v_int(11), v_int(2), v_int(12), v_str("9"), v_int(0)]);
+        // the next action: its own step; a caption typed after it: joined
+        assert_eq!(patches(&mut c, "2\t11\t2\t12\t9", 0), -1);
+        assert_eq!(patches(&mut c, "3\t15\t3\t16\ta\\\\b\\tc", 1), -1);
+        assert!(s(c.get("text")).contains("Left = 9\n    Caption = \"a\\b\tc\""));
         c.call("undo", &[]);
-        assert!(s(c.get("text")).contains("Left = 8"));
+        assert!(c.program_change, "Undo: OnChange");
+        assert!(s(c.get("text")).contains("Left = 8\n    Caption = \"ü\""), "the joined step undone whole");
         c.call("undo", &[]);
-        assert_eq!(s(c.get("text")), "CREATE Form AS QFORM\n    Width = 340\n    Caption = \"é\"\nEND CREATE", "the first action undone whole");
+        assert_eq!(s(c.get("text")), first, "the first action undone whole");
         c.call("redo", &[]);
         assert!(s(c.get("text")).contains("Width = 360\n    Left = 8"));
         // (ends given the wrong way round are put in order)
-        assert_eq!(n(c.call("applypatch", &[v_int(0), v_int(1), v_int(0), v_int(0), v_str("c"), v_int(0)])), -1);
+        assert_eq!(patches(&mut c, "0\t1\t0\t0\tc", 0), -1);
         assert!(s(c.get("text")).starts_with("cREATE"));
+        // a range off the text: nothing changes
+        let before = s(c.get("text"));
+        assert_eq!(patches(&mut c, "0\t0\t0\t1\tC\n9\t0\t9\t0\tx", 0), 0);
+        assert_eq!(patches(&mut c, "0\t40\t0\t41\tx", 0), 0);
+        assert_eq!(patches(&mut c, "not a patch", 0), 0);
+        assert_eq!(s(c.get("text")), before);
     }
 
     #[test]

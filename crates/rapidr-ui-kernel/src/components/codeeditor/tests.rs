@@ -95,6 +95,39 @@ fn typing_multi_carets_undo_and_events() {
     assert!(text("ce2").starts_with("    \n    a = 1"), "{:?}", text("ce2"));
 }
 
+/// A snippet's stops (docs/studio-wow.md ED-8): `sub` and Tab gives the
+/// skeleton with its name selected; typed over, Tab goes to the
+/// parameters, then into the body — the stops follow the typing (they
+/// were once moved through their own insertion and lost).
+#[test]
+fn snippets_go_from_stop_to_stop() {
+    let (mut s, mut f, mut ts) = code_form("ce9", "");
+    s.set("ce9", "languageservice", v_int(0));
+    with_code_mut("ce9", |c| c.opts.language_service = false);
+    f.paint(&s, &mut ts, 1.0);
+    f.focus_id(&s, "ce9");
+    let _ = f.take_events();
+    typed(&mut f, &s, &mut ts, "su");
+    // (no service: the program's list — the language's snippets come with it)
+    s.call("ce9", "showcompletion", &[v_str("SUB\tkeyword")]);
+    with_code_mut("ce9", |c| {
+        let mut sn = rapidr_editor::service::Completion::new("sub", rapidr_editor::service::CompletionKind::Snippet);
+        sn.insert = Some("SUB ${1:Name}(${2})\n\t$0\nEND SUB".into());
+        sn.snippet = true;
+        c.completion.as_mut().unwrap().items.insert(0, sn);
+    });
+    key(&mut f, &s, &mut ts, 9, "", Mods::NONE);
+    let sel = || with_code("ce9", |c| { let p = c.doc.selections().primary(); c.doc.slice(p.start()..p.end()).into_owned() }).unwrap();
+    assert_eq!(sel(), "Name");
+    typed(&mut f, &s, &mut ts, "Go");
+    key(&mut f, &s, &mut ts, 9, "", Mods::NONE);
+    typed(&mut f, &s, &mut ts, "n");
+    assert!(text("ce9").starts_with("SUB Go(n)\n"), "{:?}", text("ce9"));
+    key(&mut f, &s, &mut ts, 9, "", Mods::NONE);
+    typed(&mut f, &s, &mut ts, "x");
+    assert!(text("ce9").contains("\n    x\nEND SUB") || text("ce9").contains("\n\tx\nEND SUB"), "the body: {:?}", text("ce9"));
+}
+
 #[test]
 fn folds_hide_lines_and_completion_from_the_program() {
     let (mut s, mut f, mut ts) = code_form("ce3", "SUB A\n  PRINT 1\n  PRINT 2\nEND SUB\nx = 1\n");
@@ -275,4 +308,28 @@ fn the_language_service_completes_cases_and_diagnoses() {
     let list = f.paint(&s, &mut ts, 1.0);
     let squiggle = list.items.iter().any(|i| matches!(i, Item::Op { op: rapidr_value::objects::ops::Op::Stroke { .. }, .. }));
     assert!(squiggle, "the problem is underlined");
+}
+
+/// The designer's changes through ApplyPatches (S-DESIGN-2's shared
+/// undo): each a step of the editor's own history, Ctrl+Z typed in the
+/// editor takes them back one at a time to the text as loaded — and then
+/// there is nothing left to undo.
+#[test]
+fn designer_patches_are_the_editors_undo_steps() {
+    let first = "CREATE Form AS QFORM\n    Width = 340\nEND CREATE\n";
+    let (mut s, mut f, mut ts) = code_form("ce9", first);
+    f.paint(&s, &mut ts, 1.0);
+    f.focus_id(&s, "ce9");
+    s.call("ce9", "applypatches", &[v_str("1\t12\t1\t15\t360"), v_int(0)]);
+    s.call("ce9", "applypatches", &[v_str("1\t15\t1\t15\t\\n    Left = 8\n2\t11\t2\t12\t9"), v_int(0)]);
+    s.call("ce9", "applypatches", &[v_str("1\t12\t1\t15\t400"), v_int(0)]);
+    assert_eq!(text("ce9"), "CREATE Form AS QFORM\n    Width = 400\n    Left = 9\nEND CREATE\n");
+    f.paint(&s, &mut ts, 1.0);
+    let cmd = Mods { command: true, ctrl: true, ..Mods::NONE };
+    for _ in 0..3 {
+        key(&mut f, &s, &mut ts, 90, "", cmd);
+        f.paint(&s, &mut ts, 1.0);
+    }
+    assert_eq!(text("ce9"), first);
+    assert!(!with_code("ce9", |c| c.doc.can_undo()).unwrap(), "nothing left to undo");
 }

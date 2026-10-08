@@ -199,7 +199,7 @@ impl Desktop {
     /// Runs the shown forms' deadlines due at `now` (what they change is
     /// drawn again; their events queued).
     pub fn tick(&mut self, store: &dyn Store, now: Instant) {
-        let due: Vec<String> = self.forms.iter().filter(|(_, f)| f.shown && f.ui.next_wake().is_some_and(|at| at <= now)).map(|(k, _)| k.clone()).collect();
+        let due: Vec<String> = self.forms.iter().filter(|(_, f)| f.shown && (f.ui.pending() || f.ui.next_wake().is_some_and(|at| at <= now))).map(|(k, _)| k.clone()).collect();
         for id in due {
             let Desktop { forms, text, .. } = self;
             if let Some(f) = forms.get_mut(&id) {

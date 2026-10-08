@@ -267,10 +267,13 @@ pub fn accept_completion(x: &mut Ctx) -> bool {
         let Ok(set) = rapidr_editor::ChangeSet::new(vec![rapidr_editor::transaction::Change::new(start..end, exp.text.clone())], len) else { return false };
         let first = exp.stops.first().map(|r| (start + r.start, start + r.end)).unwrap_or((start + exp.text.len(), start + exp.text.len()));
         let _ = x.c.doc.apply(set, Selections::single(Selection::new(first.0, first.1)), EditKind::Command, now_ms());
+        // (the insertion's own marks first: the stops are already where
+        // the text has them, not to be moved through it again)
+        x.ui.snippet = None;
+        edited(x, None);
         let stops: Vec<(usize, usize)> = exp.stops.iter().map(|r| (start + r.start, start + r.end)).collect();
         x.c.anchors = stops.iter().flat_map(|&(a, b)| [(a, true), (b, false)]).collect();
         x.ui.snippet = (stops.len() > 1).then_some(super::SnippetSession { stops, current: 0 });
-        edited(x, None);
     } else {
         let len = x.c.doc.len_bytes();
         let Ok(set) = rapidr_editor::ChangeSet::new(vec![rapidr_editor::transaction::Change::new(start..end, text.clone())], len) else { return false };

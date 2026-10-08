@@ -548,6 +548,12 @@ pub fn with_code_mut<R>(id: &str, f: impl FnOnce(&mut codeedit::CodeEditor) -> R
     })?
 }
 
+/// Whether an RCODEEDITOR's last call changed its text in a way the program
+/// hears (ApplyPatches, Undo, Redo): the runtime then fires its OnChange.
+pub fn take_code_change(id: &str) -> bool {
+    with_code_mut(id, |c| std::mem::take(&mut c.program_change)).unwrap_or(false)
+}
+
 /// Whether `id` is an RDIFFVIEW.
 pub fn is_diff(id: &str) -> bool {
     with(id, |o| matches!(o, Object::Diff(_))).unwrap_or(false)

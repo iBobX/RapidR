@@ -534,7 +534,7 @@ pub fn takes_focus(type_name: &str) -> bool {
     matches!(
         type_name.to_ascii_uppercase().as_str(),
         "RBUTTON" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RCODEEDITOR" | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RLISTVIEW" | "RTREEVIEW" | "RDIRTREE" | "RSTRINGGRID" | "RTABCONTROL" | "RTRACKBAR" | "RUPDOWN"
-            | "RSCROLLBAR" | "RDESIGNSURFACE" | "RDIFFVIEW"
+            | "RSCROLLBAR" | "RDIFFVIEW" | "RDESIGNSURFACE"
         // (I1 / L-PANELS: RapidR Studio's panels)
         | "RPROPERTYINSPECTOR" | "RTOOLBOX" | "RPROJECTTREE" | "ROUTPUTCONSOLE" | "RCOMMANDPALETTE"
     )

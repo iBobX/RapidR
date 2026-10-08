@@ -122,18 +122,6 @@ pub(crate) fn case_edits(s: &Snapshot, file: &Path, text: &str, scope: CaseScope
     if options.keywords == KeywordCase::Preserve && options.identifiers == IdentifierCase::Preserve {
         return Vec::new();
     }
-    // (the analysis's tokens when it was made of this text; typing, from an
-    // older one: today's text lexed again — the lexer alone, quick — and the
-    // older model for the program's names)
-    let fresh;
-    let lf = match s.parsed.lossless(file) {
-        Some(lf) if lf.text == text => lf,
-        Some(_) if s.is_stale() => {
-            fresh = rapidr_lexer::lex_lossless(text);
-            &fresh
-        }
-        _ => return Vec::new(),
-    };
     let index = LineIndex::new(text);
     let (from, to) = match scope {
         CaseScope::Range { start, end } => (start, end.min(text.len())),
@@ -151,6 +139,31 @@ pub(crate) fn case_edits(s: &Snapshot, file: &Path, text: &str, scope: CaseScope
                 (at, at)
             }
         }
+    };
+    // (the analysis's tokens when it was made of this text; typing, from an
+    // older one: today's lines being cased lexed again — the lexer alone, on
+    // them only, so a key costs the same in a long file — and the older
+    // model for the program's names)
+    let fresh;
+    let lf = match s.parsed.lossless(file) {
+        Some(lf) if lf.text == text => lf,
+        Some(_) if s.is_stale() => {
+            let (first, _) = index.line_col(from);
+            let (last, _) = index.line_col(to);
+            let ws = index.line_start(first).unwrap_or(0);
+            let we = index.line_end(text, last).min(text.len()).max(ws);
+            let mut w = rapidr_lexer::lex_lossless(&text[ws..we]);
+            for t in &mut w.tokens {
+                t.span.start += ws;
+                t.span.end += ws;
+            }
+            let mut kinds = vec![LineKind::Code; first];
+            kinds.append(&mut w.line_kinds);
+            w.line_kinds = kinds;
+            fresh = w;
+            &fresh
+        }
+        _ => return Vec::new(),
     };
     let word_only = matches!(scope, CaseScope::Typed { ch, .. } if ch != '\n');
     let mut c = Caser { s, file, text, index: &index, options, out: Vec::new() };
