@@ -72,8 +72,8 @@ pub fn windows_order(a: &str, b: &str) -> std::cmp::Ordering {
 impl FileSource {
     /// The items for the directory as it is now.
     pub fn list(&self) -> Vec<String> {
-        let mut dirs = Vec::new();
-        let mut files = Vec::new();
+        let mut dirs: Vec<String> = Vec::new();
+        let mut files: Vec<String> = Vec::new();
         #[cfg(not(target_arch = "wasm32"))]
         let hidden_ok = self.types & (1 << FT_HIDDEN) != 0;
         #[cfg(not(target_arch = "wasm32"))]
