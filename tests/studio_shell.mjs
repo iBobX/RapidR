@@ -37,6 +37,20 @@ const SCENES = [
   // dialog, the second shown)
   { name: "newproject", open: "", do: "file.newProject", window: 2 },
   { name: "palette", open: "", do: "view.commandPalette", window: 2 },
+  // (I4) The designer: notepad.bas's form after its right edge was dragged,
+  // a QBUTTON placed and moved — real input through the kernel (selection,
+  // handles, anchor pins, the form's grips drawn)
+  {
+    name: "designer",
+    open: "examples/rapidq/notepad.bas",
+    do: "view.documents.tabs,view.designer,designer.place.QBUTTON",
+    delay: 4,
+    events: [
+      "__mousedown_100_120", "__mouseup_100_120",
+      "__mousedown_491_250", "__mousemove_521_250", "__mousemove_551_250", "__mouseup_551_250",
+      "__mousedown_110_130", "__mousemove_130_150", "__mousemove_150_170", "__mouseup_150_170",
+    ].map((e) => `designdoc(0).${e}`).join(","),
+  },
 ];
 
 mkdirSync(OUT, { recursive: true });
@@ -96,6 +110,8 @@ function runDesktop(scene, theme, scale) {
     env: {
       ...process.env,
       RAPIDR_CAPTURE: join(dir, "window"),
+      ...(scene.delay ? { RAPIDR_CAPTURE_DELAY: String(scene.delay) } : {}),
+      ...(scene.events ? { RAPIDR_TEST_EVENTS: scene.events } : {}),
       RAPIDR_SCALE: String(scale),
       RAPIDR_MENU: "window",
       RAPIDR_TEST_A11Y: join(dir, "a11y.json"),
@@ -114,7 +130,11 @@ async function runWeb(browser, scene, theme, scale) {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   try {
-    await page.addInitScript(() => { window.RAPIDR_STUDIO_TEST = { RAPIDR_CAPTURE: "web" }; });
+    await page.addInitScript((env) => { window.RAPIDR_STUDIO_TEST = env; }, {
+      RAPIDR_CAPTURE: "web",
+      ...(scene.delay ? { RAPIDR_CAPTURE_DELAY: String(scene.delay) } : {}),
+      ...(scene.events ? { RAPIDR_TEST_EVENTS: scene.events } : {}),
+    });
     const q = new URLSearchParams({ theme, window: "normal", fresh: "" });
     if (scene.open) q.set("open", scene.open);
     if (scene.do) q.set("do", scene.do);

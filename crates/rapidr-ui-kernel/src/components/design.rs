@@ -622,7 +622,7 @@ impl ComponentKind for Design {
         // Option: no snapping)
         let add = m.mods.shift || m.mods.ctrl || m.mods.command;
         let e = match m.kind {
-            MouseKind::Down => with_design_mut(cx.id, |d| d.mouse_down_with(x, y, m.clicks >= 2, add)),
+            MouseKind::Down => with_design_mut(cx.id, |d| d.mouse_down_keys(x, y, m.clicks >= 2, add, m.mods.shift)),
             MouseKind::Move if m.captured => with_design_mut(cx.id, |d| d.mouse_drag_with(x, y, m.mods.alt)),
             MouseKind::Up => with_design_mut(cx.id, |d| {
                 d.mouse_up();
@@ -770,6 +770,13 @@ pub fn drop_up(ui: &mut FormUi, store: &dyn Store, hit: Option<usize>, x: f64, y
         }
     }
     ui.dirty = true;
+}
+
+/// Whether node `i` is a design surface whose placing tool shows under the
+/// mouse (it's drawn again as the mouse moves).
+pub fn follows_mouse(ui: &FormUi, store: &dyn Store, i: usize) -> bool {
+    let id = &ui.nodes[i].id;
+    store.type_of(id) == "RDESIGNSURFACE" && with_design(id, |d| !d.place_type.is_empty() || d.ghost.is_some()).unwrap_or(false)
 }
 
 /// Whether the focused component is a design surface with a form (it takes

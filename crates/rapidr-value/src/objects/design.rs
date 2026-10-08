@@ -1173,6 +1173,11 @@ impl DesignSurface {
         } else {
             (d.root(), (0, 0))
         };
+        let (cw, ch) = self.client_size();
+        if visual && (at.0 < 0 || at.1 < 0 || at.0 >= cw || at.1 >= ch) {
+            self.say("A component goes inside the form");
+            return None;
+        }
         let r = match rect {
             Some(r) if r.width >= 4 && r.height >= 4 => r,
             _ => self.new_rect(type_name, at.0, at.1, rect.is_some()),
@@ -1320,16 +1325,24 @@ impl DesignSurface {
     /// or out of the selection), or the background (nothing selected,
     /// OnBgClick, a rubber band).
     pub fn mouse_down_with(&mut self, x: i64, y: i64, double: bool, add: bool) -> Option<DesignEvent> {
+        self.mouse_down_keys(x, y, double, add, add)
+    }
+
+    /// The same, saying whether Shift is held (`shift`: the placing tool
+    /// stays armed for another, as in Delphi's designer; Ctrl / ⌘ don't).
+    pub fn mouse_down_keys(&mut self, x: i64, y: i64, double: bool, add: bool, shift: bool) -> Option<DesignEvent> {
         self.guides.clear();
         self.typing = None;
         if self.no_form() || self.read_only() {
             return None;
         }
-        if !self.place_type.is_empty() {
+        let (cw, ch) = self.client_size();
+        let inside = x >= 0 && y >= 0 && x < cw && y < ch;
+        if !self.place_type.is_empty() && inside {
             let (sx, sy) = (self.snap_point(x), self.snap_point(y));
             self.start_drag(Grip::Place, sx, sy);
             if let Some(d) = &mut self.drag {
-                d.keep = add;
+                d.keep = shift;
             }
             self.ghost = Some((LRect::new(sx, sy, 0, 0), self.place_type.clone()));
             return None;

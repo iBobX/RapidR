@@ -274,7 +274,8 @@ impl FormUi {
         if let Some(i) = target {
             let captured = self.capture.is_some();
             self.mouse_to(store, ts, i, MouseIn { kind: MouseKind::Move, x, y, button: Button::Left, mods, inside: hit == Some(i), captured, clicks: 0 });
-            if captured {
+            // (I4: a designer's placing tool follows the mouse)
+            if captured || crate::components::design::follows_mouse(self, store, i) {
                 self.dirty = true;
             }
         }
