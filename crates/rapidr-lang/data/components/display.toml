@@ -3,6 +3,7 @@ group = "Display and drawing"
 
 [[component]]
 name = "RLABEL"
+display = "Label"
 rapidq = "QLABEL"
 visual = true
 size = [65, 17]
@@ -57,6 +58,7 @@ events = [
 
 [[component]]
 name = "RIMAGE"
+display = "Image"
 rapidq = "QIMAGE"
 visual = true
 size = [105, 105]
@@ -130,6 +132,7 @@ events = [
 
 [[component]]
 name = "RCANVAS"
+display = "Canvas"
 rapidq = "QCANVAS"
 visual = true
 size = [105, 105]
@@ -206,6 +209,7 @@ events = [
 
 [[component]]
 name = "RHEADER"
+display = "Header"
 rapidq = "QHEADER"
 visual = true
 size = [320, 17]
@@ -286,6 +290,7 @@ events = [
 
 [[component]]
 name = "RPROGRESS"
+display = "Progress"
 visual = true
 size = [200, 25]
 sets = ["layout", "a11y"]
@@ -311,6 +316,7 @@ events = []
 
 [[component]]
 name = "RPROGRESSBAR"
+display = "ProgressBar"
 rapidq = "QGAUGE"
 visual = true
 size = [100, 100]
@@ -348,6 +354,7 @@ events = []
 
 [[component]]
 name = "RDESIGNSURFACE"
+display = "DesignSurface"
 visual = true
 size = [640, 480]
 default_event = "OnSelect"
@@ -425,6 +432,7 @@ events = [
 
 [[component]]
 name = "RDIGDISPLAY"
+display = "DigDisplay"
 rapidq = "QDIGDISPLAY"
 from = "QDigDisplay.inc"
 visual = true

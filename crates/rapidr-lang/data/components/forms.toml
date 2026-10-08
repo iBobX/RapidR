@@ -3,6 +3,7 @@ group = "Forms and containers"
 
 [[component]]
 name = "RFORM"
+display = "Form"
 rapidq = "QFORM"
 visual = true
 container = true
@@ -110,6 +111,7 @@ events = [
 
 [[component]]
 name = "RFORMMDI"
+display = "FormMDI"
 rapidq = "QFORMMDI"
 from = "RAPIDQ2.INC"
 visual = true
@@ -169,6 +171,7 @@ events = [
 
 [[component]]
 name = "RPANEL"
+display = "Panel"
 rapidq = "QPANEL"
 visual = true
 container = true
@@ -221,6 +224,7 @@ events = [
 
 [[component]]
 name = "RTABCONTROL"
+display = "TabControl"
 rapidq = "QTABCONTROL"
 visual = true
 container = true
@@ -284,6 +288,7 @@ events = [
 
 [[component]]
 name = "RTOOLBAR"
+display = "ToolBar"
 visual = true
 container = true
 size = [0, 32]
@@ -312,6 +317,7 @@ events = [
 
 [[component]]
 name = "RSTATUSBAR"
+display = "StatusBar"
 rapidq = "QSTATUSBAR"
 visual = true
 container = true
@@ -358,6 +364,7 @@ events = [
 
 [[component]]
 name = "RSPLITTER"
+display = "Splitter"
 rapidq = "QSPLITTER"
 visual = true
 size = [3, 200]
@@ -391,6 +398,7 @@ events = [
 
 [[component]]
 name = "RSCROLLBOX"
+display = "ScrollBox"
 rapidq = "QSCROLLBOX"
 visual = true
 container = true
@@ -446,6 +454,7 @@ events = [
 
 [[component]]
 name = "RGROUPBOX"
+display = "GroupBox"
 rapidq = "QGROUPBOX"
 visual = true
 container = true
@@ -489,6 +498,7 @@ events = [
 
 [[component]]
 name = "RBEVEL"
+display = "Bevel"
 rapidq = "QBEVEL"
 from = "QBevel.inc"
 visual = true
@@ -535,6 +545,7 @@ events = [
 
 [[component]]
 name = "RGLASSFRAME"
+display = "GlassFrame"
 rapidq = "QGLASSFRAME"
 visual = true
 container = true
@@ -573,6 +584,7 @@ events = [
 
 [[component]]
 name = "RDOCKMANAGER"
+display = "DockManager"
 visual = true
 container = true
 size = [400, 300]

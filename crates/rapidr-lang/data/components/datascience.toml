@@ -3,6 +3,7 @@ group = "Data science"
 
 [[component]]
 name = "RNUM"
+display = "Num"
 visual = false
 doc = "A numeric array in NumPy's style: make ranges, zeros or lists, then sum, average, sort, compute element-wise and do linear algebra on them. RapidR's own."
 properties = [
@@ -123,6 +124,7 @@ events = []
 
 [[component]]
 name = "RDATAFRAME"
+display = "DataFrame"
 visual = false
 doc = "A table of named columns in pandas' style: read CSV or JSON, select, filter, sort, group and join, compute statistics, show it in a grid. RapidR's own."
 properties = [
@@ -211,6 +213,7 @@ events = []
 
 [[component]]
 name = "RPLOT"
+display = "Plot"
 visual = true
 size = [640, 480]
 sets = ["layout", "a11y"]
