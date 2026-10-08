@@ -428,6 +428,32 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   2026-10-06 should be cloned again.
 
 ### Fixed
+- **Text in RapidQ's default font was cramped, letters running together**
+  ("program", "start", "Bread", "Price", "Right-click" in labels, edits,
+  grids and status bars; worst on a Retina or 150 % screen and on the web).
+  RapidR Sans, the font RapidR draws MS Sans Serif with, had Liberation's
+  letters made larger twice over (12 % instead of 6 %) and squeezed into MS
+  Sans Serif's bitmap widths (an r is 3 pixels there): "Br", "pr", "ar"
+  overlapped by up to a pixel, and 816 of 2,028 letter pairs were closer
+  than half a pixel at 8 pt. Now every letter is Liberation's own shape, all
+  one size (95 %, never narrowed, no letter smaller than the next), with at
+  least 0.8 of a pixel between letters: 47 pairs are closer than half a
+  pixel (Liberation Sans itself, Arial's spacing, has 85) — the cross-bars
+  of t and f, the points of A, V, w. Readability comes first: r, x, y, j,
+  C, the brackets, & and % are a pixel wider than RapidQ's bitmap, so text
+  measures a little wider than in RapidQ — "program" 40 pixels (RapidQ 38),
+  "start" 21 (20), "Password:" 50 (49), "Right-click" and "Notepad -
+  untitled" unchanged, a long sentence about 1–2 % (TextWidth and AutoSize
+  report what is drawn); tab stops stay RapidQ's. New gallery cases `hello`,
+  `spacing` and `words` with RC.EXE's captures beside them, and
+  `tools/visual/words.py` (word by word, old | new | RC.EXE, 1×, 1.5×, 2×).
+- **Bold Arial ran together too** (a web window's title, "Pantry"; a
+  chart's bold title): its bold is the regular letter made heavier, about a
+  pixel wider at 12 px, which ate the space between letters. Each bold
+  character now takes half a pixel more at 12 px, as Windows' Arial Bold
+  is wider than its regular (TextWidth too; RC.EXE: Arial 9 bold "Pantry"
+  37 pixels, RapidR 38, before 36).
+
 - **Every component now starts with RapidQ's values, on every runtime.**
   Reading a property right after creating a component gave nothing for 252
   properties that RapidQ gives a value — a button's Cursor, Kind,
