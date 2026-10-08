@@ -198,9 +198,25 @@ pub struct Resource {
     pub name: String,
     pub file: String,
     pub path: Option<PathBuf>,
-    /// Built in if it's there, empty if not (`$OPTION ICON`'s icon: a
-    /// missing one leaves the default icon rather than failing the build).
-    pub optional: bool,
+    /// `$OPTION ICON`'s icon: the file and line of the directive (`None`: a
+    /// `$RESOURCE`), for RapidQ's error when it isn't there.
+    pub icon_directive: Option<(String, usize)>,
+}
+
+impl Resource {
+    /// What the compiler says when the file isn't there: RC.EXE's
+    /// `ICON file x does not exist.` at the directive's line for an icon.
+    pub fn not_found(&self) -> String {
+        match &self.icon_directive {
+            Some((file, line)) => format!("{file}:{line}:1: ICON file {} does not exist.", self.file),
+            None => format!("$RESOURCE {}: file not found: '{}'", self.name, self.file),
+        }
+    }
+
+    /// The last `$OPTION ICON`'s icon (RapidQ: the last one wins).
+    pub fn option_icon(resources: &[Resource]) -> Option<&Resource> {
+        resources.iter().rev().find(|r| r.icon_directive.is_some())
+    }
 }
 
 /// Handle of the first resource (`RESOURCE(0)`); RapidQ's handles are the
@@ -585,22 +601,25 @@ fn preprocess_with_state(
             continue;
         }
 
-        // `$OPTION ICON "app.ico"`: the program's icon — built in as a
-        // resource and made the application's (every form's without its
-        // own). An icon that isn't there leaves the default one.
+        // `$OPTION ICON "app.ico"` (or unquoted): the program's icon — the
+        // executable's (rapidr build), built in as a resource and made the
+        // application's (every form's without its own). As RC.EXE: one that
+        // isn't there is an error (`ICON file x does not exist.`, when the
+        // program is compiled), and the last one wins.
         if upper_line.starts_with("$OPTION") && upper_line["$OPTION".len()..].trim_start().starts_with("ICON") {
-            let file = line.find('"').and_then(|a| line[a + 1..].find('"').map(|b| line[a + 1..a + 1 + b].to_string()));
-            // (resolved here on the desktop; the web finds it in the project's assets)
-            let text = match file {
-                Some(file) => {
-                    let handle = RESOURCE_BASE + state.resources.len() as i64;
-                    let path = resolve_include_path(base_dir, &file, &[]);
-                    state.resources.push(Resource { name: "RAPIDR_OPTION_ICON".into(), file, path, optional: true });
-                    format!("CONST RAPIDR_OPTION_ICON = {handle} : Application.IcoHandle = RAPIDR_OPTION_ICON")
-                }
-                None => String::new(),
+            let after = line.trim_start()["$OPTION".len()..].trim_start()["ICON".len()..].trim();
+            let file = match after.strip_prefix('"') {
+                Some(rest) => rest.split('"').next().unwrap_or("").to_string(),
+                None => strip_inline_comment(after).trim().to_string(),
             };
-            emit!(out, LineKind::Directive, generated(text));
+            // (resolved here on the desktop; the web finds it in the project's assets)
+            let handle = RESOURCE_BASE + state.resources.len() as i64;
+            let path = if file.trim().is_empty() { None } else { resolve_include_path(base_dir, &file, &[]) };
+            let n = state.resources.iter().filter(|r| r.icon_directive.is_some()).count();
+            let name = if n == 0 { "RAPIDR_OPTION_ICON".to_string() } else { format!("RAPIDR_OPTION_ICON_{}", n + 1) };
+            let at = (file_label.clone().unwrap_or_else(|| "<source>".into()), line_number);
+            state.resources.push(Resource { name: name.clone(), file, path, icon_directive: Some(at) });
+            emit!(out, LineKind::Directive, generated(format!("CONST {name} = {handle} : Application.IcoHandle = {name}")));
             continue;
         }
 
@@ -623,7 +642,7 @@ fn preprocess_with_state(
                 };
                 let handle = RESOURCE_BASE + state.resources.len() as i64;
                 let path = resolve_include_path(base_dir, &file, &[]);
-                state.resources.push(Resource { name: name.clone(), file, path, optional: false });
+                state.resources.push(Resource { name: name.clone(), file, path, icon_directive: None });
                 consts.push(format!("CONST {name} = {handle}"));
             }
             emit!(out, LineKind::Directive, generated(consts.join(" : ")));
@@ -1388,6 +1407,27 @@ mod tests {
         // Several on a line.
         let result = preprocess_source("$resource T0 as \"a:b.bmp\" : $resource T1 as \"c.bmp\" ' tiles", ".", None, PreprocessOptions::default()).unwrap();
         assert_eq!(result.source, "CONST T0 = 65536 : CONST T1 = 65537");
+    }
+
+    #[test]
+    fn option_icon_as_rc_exe() {
+        // quoted or not, lower case; the last one wins; each is checked
+        let src = "$option icon \"a.ico\"\nPRINT 1\n$OPTION ICON b.ico ' the program's\n$OPTION ICON \"\"";
+        let result = preprocess_source(src, ".", Some(std::path::PathBuf::from("p.bas")), PreprocessOptions::default()).unwrap();
+        let icons: Vec<_> = result.resources.iter().map(|r| (r.name.as_str(), r.file.as_str(), r.icon_directive.clone())).collect();
+        assert_eq!(
+            icons,
+            [
+                ("RAPIDR_OPTION_ICON", "a.ico", Some(("p.bas".to_string(), 1))),
+                ("RAPIDR_OPTION_ICON_2", "b.ico", Some(("p.bas".to_string(), 3))),
+                ("RAPIDR_OPTION_ICON_3", "", Some(("p.bas".to_string(), 4))),
+            ]
+        );
+        assert!(result.source.contains("CONST RAPIDR_OPTION_ICON_2 = 65537 : Application.IcoHandle = RAPIDR_OPTION_ICON_2"));
+        assert_eq!(super::Resource::option_icon(&result.resources).unwrap().icon_directive.as_ref().unwrap().1, 4);
+        // RC.EXE's messages
+        assert_eq!(result.resources[1].not_found(), "p.bas:3:1: ICON file b.ico does not exist.");
+        assert_eq!(result.resources[2].not_found(), "p.bas:4:1: ICON file  does not exist.");
     }
 
     #[test]

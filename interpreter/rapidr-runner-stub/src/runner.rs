@@ -33,6 +33,19 @@ fn read_appended_payload() -> Option<Vec<u8>> {
     Some(payload)
 }
 
+/// A macOS app's program: `rapidr build` puts it in the bundle's resources
+/// (`Name.app/Contents/Resources/<exe>.rrbc`), not after the executable —
+/// data after a Mach-O's end would break its code signature.
+fn read_bundled_program() -> Option<Vec<u8>> {
+    let exe = env::current_exe().ok()?;
+    let name = exe.file_name()?.to_string_lossy().into_owned();
+    let macos = exe.parent()?;
+    if macos.file_name()? != "MacOS" {
+        return None;
+    }
+    std::fs::read(macos.parent()?.join("Resources").join(format!("{name}.rrbc"))).ok()
+}
+
 fn read_external_bytecode(path: &str) -> Result<Vec<u8>, String> {
     std::fs::read(path).map_err(|e| format!("read {path}: {e}"))
 }
@@ -55,7 +68,7 @@ development."
 pub fn main() -> ExitCode {
     let args: Vec<String> = env::args().skip(1).collect();
 
-    let bytes = if let Some(payload) = read_appended_payload() {
+    let bytes = if let Some(payload) = read_appended_payload().or_else(read_bundled_program) {
         payload
     } else {
         match args.first().map(|s| s.as_str()) {

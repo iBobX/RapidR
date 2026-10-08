@@ -79,9 +79,24 @@ pub struct Build {
     /// `CONSOLE`, `GUI`, `CGI`, `WEB`...; empty = the main file's `$APPTYPE`.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub apptype: String,
-    /// The program's icon (a project path).
+    /// The program's icon (a project path): `.icns`, `.ico`, `.png` or
+    /// `.svg`; empty = the main file's `$OPTION ICON`, else RapidR's.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub icon: String,
+    /// The app's name (the `.app`, the Dock, Explorer); empty = the
+    /// project's name.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub app_name: String,
+    /// Reverse-DNS identifier (macOS' bundle ID, Linux' desktop entry);
+    /// empty = `dev.rapidr.app.<name>`.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub bundle_id: String,
+    /// The app's version (`1.0`, `2.3.1`); empty = 1.0.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub version: String,
+    /// Who makes it (Windows' CompanyName, the copyright line).
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub company: String,
     /// The UI theme the program starts with.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub theme: String,
@@ -517,6 +532,10 @@ mod tests {
         p.add_file("data/people.csv", FileKind::Data);
         p.build.apptype = "GUI".into();
         p.build.icon = "app.ico".into();
+        p.build.app_name = "Demo App".into();
+        p.build.bundle_id = "com.example.demo".into();
+        p.build.version = "2.1".into();
+        p.build.company = "Example Ltd".into();
         p.build.targets = vec!["native".into(), "web".into()];
         p.build.release = true;
         p.run.args = vec!["-v".into(), "a b".into()];
