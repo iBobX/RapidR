@@ -37,6 +37,8 @@ DIM BpFilling AS INTEGER
 ' ---- the debugger's panes ---------------------------------------------------------------
 DIM VarsTree AS QTREEVIEW
 DIM WatchPanel AS QPANEL
+DIM WatchStrip AS QPANEL
+DIM WatchLabel AS QLABEL
 DIM WatchEdit AS QEDIT
 DIM WatchTree AS QTREEVIEW
 DIM StackTree AS QTREEVIEW
@@ -1149,8 +1151,16 @@ SUB SetUpDebug
   WatchPanel.Width = 440: WatchPanel.Height = 190
   WatchPanel.BevelOuter = 0
   WatchPanel.AccessibleName = "Watch"
-  WatchEdit.Parent = WatchPanel
-  WatchEdit.Align = 1
+  ' (a strip at the top: "Add" and the box an expression is typed in)
+  WatchStrip.Parent = WatchPanel
+  WatchStrip.Align = 1
+  WatchStrip.Height = 30
+  WatchStrip.BevelOuter = 0
+  WatchLabel.Parent = WatchStrip
+  WatchLabel.Left = 6: WatchLabel.Top = 7: WatchLabel.Width = 88
+  WatchLabel.Caption = "&Add a watch:"
+  WatchEdit.Parent = WatchStrip
+  WatchEdit.Left = 96: WatchEdit.Top = 4: WatchEdit.Width = 260
   WatchEdit.Hint = "Add a watch: an expression, then Enter"
   WatchEdit.AccessibleName = "Add a watch"
   WatchEdit.OnKeyDown = WatchEditKey
@@ -1195,12 +1205,12 @@ SUB SetUpDebug
   BpLogLabel.Left = 262: BpLogLabel.Top = 7: BpLogLabel.Width = 26
   BpLogLabel.Caption = "&Log"
   BpLogEdit.Parent = BpStrip
-  BpLogEdit.Left = 290: BpLogEdit.Top = 4: BpLogEdit.Width = 150
+  BpLogEdit.Left = 290: BpLogEdit.Top = 4: BpLogEdit.Width = 116
   BpLogEdit.Hint = "A logpoint: prints this ({expr} shows a value) and goes on"
   BpLogEdit.AccessibleName = "Log message"
   BpLogEdit.OnKeyDown = BpEditKey
   BpOnCheck.Parent = BpStrip
-  BpOnCheck.Left = 448: BpOnCheck.Top = 6: BpOnCheck.Width = 50
+  BpOnCheck.Left = 414: BpOnCheck.Top = 6: BpOnCheck.Width = 46
   BpOnCheck.Caption = "On"
   BpOnCheck.OnClick = BpOnClicked
   DebugTree BpTree, "Breakpoints"

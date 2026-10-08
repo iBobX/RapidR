@@ -10,7 +10,7 @@
 # http://localhost:8765 (or RAPIDR_URL) for the browser tests (Playwright);
 # for the studio and perf stages, RapidR Studio for the web built
 # (tools/build_studio_web.sh) and served on http://127.0.0.1:18473 (or
-# RAPIDR_STUDIO_URL).
+# STUDIO_WEB_URL: each lane its own port).
 # Run one at a time.
 #
 #   tools/regress.sh                  every stage, then the build caches go
@@ -39,7 +39,7 @@ for a in "$@"; do if [ "$a" = --clean ]; then CLEAN=1; else STAGES+=("$a"); fi; 
 want() { [[ " ${STAGES[*]} " == *" $1 "* ]]; }
 # (the browser tests need the repo served: RAPIDR_URL, else port 8765)
 if want web || want examples; then curl -s -o /dev/null "${RAPIDR_URL:-http://localhost:8765}/" || { echo "serve the repo on ${RAPIDR_URL:-http://localhost:8765} first (python3 -m http.server 8765 --bind 127.0.0.1)"; exit 1; }; fi
-if want studio || want perf; then curl -s -o /dev/null "${RAPIDR_STUDIO_URL:-http://127.0.0.1:18473}/index.html" || { echo "build and serve Studio for the web on ${RAPIDR_STUDIO_URL:-http://127.0.0.1:18473} first (tools/build_studio_web.sh; python3 -m http.server -d target/studio-web 18473 --bind 127.0.0.1)"; exit 1; }; fi
+if want studio || want perf; then curl -s -o /dev/null "${STUDIO_WEB_URL:-${RAPIDR_STUDIO_URL:-http://127.0.0.1:18473/}}index.html" || { echo "build and serve Studio for the web on ${STUDIO_WEB_URL:-http://127.0.0.1:18473/} first (tools/build_studio_web.sh; python3 -m http.server -d target/studio-web 18473 --bind 127.0.0.1)"; exit 1; }; fi
 if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test result: FAILED|panicked|^error" | head -5
   # (the UI kernel and the program glue stay GUI-free: they must build for
   # the browser too)

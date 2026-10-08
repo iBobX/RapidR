@@ -611,7 +611,13 @@ fn run_step(
     // on at once, as the desktop's debugger does)
     while matches!(result, Err(VmError::Paused)) {
         let Some(end) = session.end.as_mut() else { break };
-        if end.at_breakpoint(&mut session.vm, &session.module, &mut emit) {
+        // (a logpoint's line goes out as PRINT's does, so it keeps its place
+        // among the program's own output; anything else is queued)
+        let mut out = |event: Message| match &event.body {
+            EventBody::Output { text, .. } => rp_print(&[v_str(text.trim_end_matches('\n'))], true),
+            _ => emit(event),
+        };
+        if end.at_breakpoint(&mut session.vm, &session.module, &mut out) {
             break;
         }
         end.resumed();

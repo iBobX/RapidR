@@ -82,6 +82,7 @@ SUB AskNew
   NewName.Text = "MyProgram"
   NewKind.ItemIndex = 0
   NewFolder.Text = DefaultFolder
+  NewDialog.Center
   NewDialog.ShowModal
 END SUB
 

@@ -22,7 +22,7 @@ import { chromium } from "playwright";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = dirname(HERE);
-const URL_BASE = process.env.RAPIDR_STUDIO_URL || "http://127.0.0.1:18473";
+const URL_BASE = (process.env.STUDIO_WEB_URL || process.env.RAPIDR_STUDIO_URL || "http://127.0.0.1:18473/").replace(/\/+$/, "");
 const RAPIDR = process.env.RAPIDR || join(ROOT, "rapidr");
 const WORK = join(ROOT, "tests", "results", "studio-perf");
 const BASELINE = join(HERE, "studio_perf_baseline.json");
