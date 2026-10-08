@@ -96,9 +96,10 @@ pub(crate) fn int_arg(args: &[Value], i: usize, default: i64) -> i64 {
     args.get(i).map_or(default, Value::to_i64)
 }
 
-/// RapidQ's True / False (-1 / 0).
+/// True / False as RapidQ's components read them (1 / 0: RAPIDQ.INC's
+/// True, docs/rapidq-ground-truth.md "Values at creation").
 pub(crate) fn flag(b: bool) -> Value {
-    Value::Integer(if b { -1 } else { 0 })
+    Value::Integer(i64::from(b))
 }
 
 /// A path with `/` separators.

@@ -441,6 +441,7 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   Windows, the P of a Ctrl+Shift+P that opened a window).
 - `RDOCKMANAGER.PaneTitle` of a document that wasn't the active MDI window
   renamed the active one.
+>>>>>>> development
 - **Debugger: a SUB's own variables showed up in Globals under made-up
   names.** A SUB's STATIC variables and the variables a SUB uses before
   the main program does (RapidQ keeps those between calls) were listed in
