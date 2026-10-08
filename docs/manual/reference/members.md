@@ -4594,7 +4594,7 @@ An object inspector in the style of Delphi's: the properties of a component (or 
 | `NameWidth` | int | 120 | The width of the names' column, in pixels (the user drags the line between the columns). |
 | `Selected` | string | `""` | The property (or event) whose row is selected; setting it selects that row. |
 | `RowCount` (read-only) | int |  | How many rows are shown now (the categories' headings included). |
-| `TargetType` (read-only) | string |  | The inspected component's type as the program writes it (RButton), or "" when several of different types are inspected. |
+| `TargetType` (read-only) | string |  | The inspected component's type: as its code writes it for a designer's component, RapidR's name (RButton) for a running program's; "" when several of different types are inspected. |
 | `Rows` (read-only) | string |  | Every row shown, one a line, as Row gives them ("Name=Value", a category heading as "[Name]"). |
 | `Doc` (read-only) | string |  | What the selected row is, in words, as the inspector shows it under the rows: a property's description, an event's with its parameters. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |

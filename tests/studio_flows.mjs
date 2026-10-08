@@ -249,6 +249,14 @@ const CASES = [
     delay: 5,
     dump: { "proj.kind": /^file$/, "proj.mainfile": /^greeter\.rqw$/, "proj.filecount": /^2$/, "designdoc(0).formname": /^Form$/, "lang.errorcount": /^0$/ },
   },
+  {
+    name: "run-rq",
+    open: "tests/fixtures/rapidq_import/count.rq",
+    webFiles: ["tests/fixtures/rapidq_import/count.rq"],
+    do: "run.start,wait,wait,wait",
+    delay: 5,
+    dump: { "outputbox.text": /1: one\n2: two\n3: three[\s\S]*ended, exit code 0/, "session.exitcode": /^0$/, "proj.mainfile": /^count\.rq$/ },
+  },
   // (R-NAMES) File > Import RapidQ Project or File: a copy of a RapidQ
   // program (a .rqw with an include in a folder of its own) with RapidR's
   // names, proved to compile to the same bytecode, opened as a project with

@@ -1,0 +1,9 @@
+' count.rq: a console program saved with one of RapidQ's other source
+' extensions (.rq): RapidR Studio opens and runs it as it is.
+$APPTYPE CONSOLE
+DIM Words AS QSTRINGLIST
+DIM i AS INTEGER
+Words.AddItems "one", "two", "three"
+FOR i = 0 TO Words.ItemCount - 1
+    PRINT STR$(i + 1) + ": " + Words.Item(i)
+NEXT

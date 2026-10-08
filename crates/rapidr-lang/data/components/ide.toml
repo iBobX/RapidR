@@ -25,7 +25,7 @@ properties = [
   { name = "NameWidth", type = "int", default = 120, doc = "The width of the names' column, in pixels (the user drags the line between the columns)." },
   { name = "Selected", type = "string", default = "", design = false, doc = "The property (or event) whose row is selected; setting it selects that row." },
   { name = "RowCount", type = "int", access = "read", design = false, doc = "How many rows are shown now (the categories' headings included)." },
-  { name = "TargetType", type = "string", access = "read", design = false, doc = "The inspected component's type as the program writes it (RButton), or \"\" when several of different types are inspected." },
+  { name = "TargetType", type = "string", access = "read", design = false, doc = "The inspected component's type: as its code writes it for a designer's component, RapidR's name (RButton) for a running program's; \"\" when several of different types are inspected." },
   { name = "Rows", type = "string", access = "read", design = false, doc = "Every row shown, one a line, as Row gives them (\"Name=Value\", a category heading as \"[Name]\")." },
   { name = "Doc", type = "string", access = "read", design = false, doc = "What the selected row is, in words, as the inspector shows it under the rows: a property's description, an event's with its parameters." },
   { name = "Height", type = "int" },
