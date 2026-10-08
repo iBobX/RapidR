@@ -453,7 +453,7 @@ doc = "`ON`: strings in this file understand escapes (`\\n`, `\\t`, `\\\"`, `\\\
 [[directive]]
 name = "$OPTION"
 syntax = "$OPTION ICON \"file\" | DECIMAL | BYREF | INKEY$ TRAPALL | EXPLICIT …"
-doc = "Program options: `ICON \"file\"` the program's icon, `DECIMAL` VAL's decimal character, `BYREF` parameters by reference, `EXPLICIT` as `$TYPECHECK ON`, `INKEY$ TRAPALL`, `DIM type`."
+doc = "Program options: `ICON \"file\"` the program's icon (the executable's, and its windows'; a file that isn't there is a compile error; the last `ICON` wins; RapidQ takes a 766-byte 32 × 32 .ico, RapidR also any .ico, .icns, .png or .svg), `DECIMAL` VAL's decimal character, `BYREF` parameters by reference, `EXPLICIT` as `$TYPECHECK ON`, `INKEY$ TRAPALL`, `DIM type`."
 
 [[directive]]
 name = "$THEME"

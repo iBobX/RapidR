@@ -18,6 +18,8 @@ Three concepts were drawn first. They are compared in [`concepts.png`](concepts.
 
 The Runtime gets the same tile in Ink, with the play-triangle counter lit up in Run Amber: the same R, now running.
 
+Programs built with RapidR (`rapidr build`) get the **program icon** until they have their own: the Runtime's Ink tile with an app window drawn in white and the Run triangle in amber inside it — made with RapidR, running. It is what Finder, Explorer and the Linux menus show for a compiled app ([docs/manual/building-apps.md](../../docs/manual/building-apps.md)).
+
 ## Palette
 
 | Name | Hex | Use |
@@ -28,7 +30,7 @@ The Runtime gets the same tile in Ink, with the play-triangle counter lit up in 
 | Blue Deep | `#1E3FD8` | Blue text on light, `.rr` labels |
 | Blue on Dark | `#6E93FF` | Blue text on Ink (the lockup's final R on dark) |
 | Spark Cyan | `#19C6E6` | End of the brand gradient; accents on dark |
-| Run Amber | `#FFB224` | The Runtime and compiled programs (`.rrbc`); "Run" |
+| Run Amber | `#FFB224` | The Runtime and compiled programs (`.rrbc`, the program icon); "Run" |
 | BASIC Teal | `#12B48A` | The generic `.bas` source icon (graphics only) |
 | BASIC Teal Deep | `#0B7B5E` | Teal text on light |
 | Slate | `#5B6478` | Secondary text on light |
@@ -92,16 +94,16 @@ Normal text needs 4.5:1 for AA; large text (24 px, or 18.7 px bold) and graphics
 
 | Path | Contents |
 |---|---|
-| `svg/app-ide-macos.svg`, `svg/app-runtime-macos.svg` | macOS masters (1024 grid, Apple's 824 px rounded-square tile with continuous corners, and the drop shadow) |
-| `svg/app-ide-full.svg`, `svg/app-runtime-full.svg` | Windows and Linux masters (tile fills 92 % of the canvas) |
+| `svg/app-ide-macos.svg`, `svg/app-runtime-macos.svg`, `svg/app-program-macos.svg` | macOS masters (1024 grid, Apple's 824 px rounded-square tile with continuous corners, and the drop shadow) |
+| `svg/app-ide-full.svg`, `svg/app-runtime-full.svg`, `svg/app-program-full.svg` | Windows and Linux masters (tile fills 92 % of the canvas) |
 | `svg/app-*-16/20/22/24/32.svg`, `svg/app-*-mac32.svg` | Hand-hinted small sizes, drawn on the pixel grid (`mac32` keeps the Apple margin at 32 px) |
 | `svg/file-rr.svg`, `svg/file-bas.svg`, `svg/file-rrbc.svg` (and `-16`…`-32`) | File types: `.rr` RapidR source, `.bas` generic BASIC source, `.rrbc` compiled program. Masters and hinted small sizes |
 | `svg/web-touch-icon.svg` | Full-bleed, opaque master for `apple-touch-icon` |
-| `macos/*.icns` | `RapidR.icns` (IDE), `RapidR-Runtime.icns`, `RapidR-Source.icns` (.rr), `BASIC-Source.icns` (.bas), `RapidR-Program.icns` (.rrbc). Each has 16 to 512 px at @1x and @2x |
-| `windows/*.ico` | `rapidr-ide.ico`, `rapidr-runtime.ico`, `rapidr-source.ico`, `basic-source.ico`, `rapidr-program.ico`. Each has 16, 20, 24, 32, 40, 48, 64 and 256 px, as PNG-compressed entries (Windows Vista and later) |
-| `linux/hicolor/` | A freedesktop icon-theme tree (16, 22, 24, 32, 48, 64, 128, 256, 512 and `scalable`). App icons are `apps/rapidr-ide` and `apps/rapidr-runtime`. MIME icons are `mimetypes/text-x-rapidr`, `text-x-rapidq-basic` and `application-x-rapidr-bytecode`, matching `tools/release/linux/rapidr.xml` |
+| `macos/*.icns` | `RapidR.icns` (IDE), `RapidR-Runtime.icns`, `RapidR-Source.icns` (.rr), `BASIC-Source.icns` (.bas), `RapidR-Program.icns` (.rrbc), `RapidR-App.icns` (the program icon: compiled apps). Each has 16 to 512 px at @1x and @2x |
+| `windows/*.ico` | `rapidr-ide.ico`, `rapidr-runtime.ico`, `rapidr-source.ico`, `basic-source.ico`, `rapidr-program.ico`, `rapidr-app.ico` (the program icon). Each has 16, 20, 24, 32, 40, 48, 64 and 256 px, as PNG-compressed entries (Windows Vista and later) |
+| `linux/hicolor/` | A freedesktop icon-theme tree (16, 22, 24, 32, 48, 64, 128, 256, 512 and `scalable`). App icons are `apps/rapidr-ide`, `apps/rapidr-runtime` and `apps/rapidr-app` (the program icon). MIME icons are `mimetypes/text-x-rapidr`, `text-x-rapidq-basic` and `application-x-rapidr-bytecode`, matching `tools/release/linux/rapidr.xml` |
 | `web/` | `favicon.svg`, `favicon-32.png`, `apple-touch-icon.png` (180 px) and `icon-512.png`. The web IDE serves copies from `web-ide/icons/` |
-| `preview.png` | Every icon at every size; hinted sizes are also shown magnified |
+| `preview.png` | Every icon at every size; hinted sizes are also shown magnified (rows: IDE, Runtime, program, .rr, .bas, .rrbc) |
 
 ### GitHub: `github/`
 
@@ -122,6 +124,7 @@ GitHub uses this image when the repository link is shared (on Slack, X, Discord 
 - `concepts.png`, `concepts/`: the three original concepts, kept for the record.
 - `src/`: the Python that wrote the masters and builds the exports.
   - `marks.py`: the mark geometry.
+  - `icons.py` also draws the program icon (`app_icon("program", …)`, `SMALL_WIN` for the hinted sizes); `rapidr build` embeds its SVG masters (crates/rapidr-package).
   - `icons.py`, `logo.py`, `github.py`, `concepts.py`: the masters.
   - `export.py`: the PNG, `.icns` and `.ico` builds.
   - `brandkit.py`: path maths, the squircle, and text-to-outline.

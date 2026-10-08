@@ -33,6 +33,37 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   and the release notes.
 
 ### Added
+- **Every build is an app for its system, with an icon** (`rapidr build`,
+  `crates/rapidr-package`, docs/manual/building-apps.md). A program with
+  windows becomes `Name.app` on macOS (Info.plist with its name, bundle ID,
+  version, `NSHighResolutionCapable`, `LSMinimumSystemVersion`; its icon as
+  `.icns` from 16 to 1024 px; signed ad hoc so it opens on Apple silicon;
+  an interpreted program's bytecode in `Contents/Resources`), an `.exe`
+  with its icon (16 to 256 px) and version information on Windows, and
+  `Name.AppDir` on Linux (desktop entry, hicolor icons 16 to 512 px;
+  `rapidr install-app` puts it in the applications menu). Console programs
+  stay plain executables (`--bundle` makes apps of them; `--no-bundle`
+  keeps any program a plain executable). Native and interpreted builds
+  alike, cross builds too: the resources are written in pure Rust (editpe,
+  BSD-2-Clause), so a Mac makes a Windows `.exe`'s icon.
+- **The icon**: `--icon`, the project's `[build] icon` (`.rrproj`, with
+  `app_name`, `bundle_id`, `version`, `company`), `$OPTION ICON`, RC.EXE's
+  `-g<icon>` — in that order — as `.icns`, `.ico`, `.png` or `.svg`, made
+  into every size each system wants (clear errors for files that aren't
+  pictures, a note for small ones). Without one, RapidR's new **program
+  icon** (`design/brand`: the Runtime's Ink tile, an app window, the amber
+  Run triangle; `RapidR-App.icns`, `rapidr-app.ico`, `apps/rapidr-app`).
+  `rapidr build app.rrproj` builds a project's main file with its settings.
+- **RapidR Studio: Run > Build makes the app** for the system Studio runs on
+  (RPROJECT.Build: `rapidr build` in the background, its lines in Output),
+  **Run > Reveal in Finder / File Explorer / Files**, and **Project >
+  Project Options**: the app's name, bundle ID, version, company, icon (with
+  a preview) and native or interpreted build, saved in the project
+  (`ide/build.inc`; RPROJECT's Icon, AppName, BundleID, Version, Company,
+  BuildKind, Building, BuiltPath, FileManager, Build, StopBuild, Reveal,
+  IconPreview, OnBuildOutput, OnBuildDone).
+- `tools/studio_app.sh`: RapidR Studio as `RapidR Studio.app` from a
+  checkout (its icon in the Dock, this checkout's Studio).
 - **RapidR Studio: the IDE's shell** (`ide/`, docs/ide-plan.md I1 /
   L-SHELL + L-WEB). One RapidR program on RapidR's public components — the
   same bytecode on the desktop (`rapidr ide [file]`) and in the browser
@@ -243,6 +274,12 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   - `tools/regress.sh unit` checks that everything is up to date.
 
 ### Changed
+- **`$OPTION ICON` as RapidQ's compiler has it** (checked against RC.EXE):
+  an icon file that isn't there is a compile error, `ICON file x does not
+  exist.` (it used to leave the default icon); the file name may be
+  unquoted; with several, the last one wins. The icon is now also the built
+  executable's / app's. RapidR still takes any `.ico` (RapidQ only 766-byte
+  32 × 32 ones), `.icns`, `.png` and `.svg`.
 - **`rapidr ide` opens RapidR Studio** (`ide/studio.rr`; an install's
   `ide/rapidr-ide.rrbc` is compiled from it); the old `examples/ide.rr`
   and the HTML web IDE stay until Studio reaches their features

@@ -3957,6 +3957,7 @@ name = "rapidr-studio"
 version = "2.117.0"
 dependencies = [
  "rapidr-langsvc",
+ "rapidr-package",
  "rapidr-project",
  "rapidr-session",
  "rapidr-value",

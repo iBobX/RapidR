@@ -4549,9 +4549,9 @@ const COMPONENT_REGISTRY = {
         name: 'RPROJECT',
         description: 'A RapidR project: a .rrproj file (format 2, or the web IDE\'s v1 projects), or a .bas / .rr file with the files it $INCLUDEs, RapidQ\'s way. Lists the project\'s files and their kinds, adds and removes files, saves the project file, and makes new projects from templates. RapidR Studio is built on it.',
         rapidq: null,
-        props: ['filename', 'folder', 'kind', 'error', 'name', 'mainfile', 'filecount', 'compatmode'],
-        methods: ['open', 'openfolder', 'save', 'new', 'addfile', 'removefile', 'close', 'file', 'filekind', 'fullpath'],
-        events: ['onchange'],
+        props: ['filename', 'folder', 'kind', 'error', 'name', 'mainfile', 'filecount', 'compatmode', 'icon', 'appname', 'bundleid', 'version', 'company', 'buildkind', 'building', 'builtpath'],
+        methods: ['open', 'openfolder', 'save', 'new', 'addfile', 'removefile', 'close', 'file', 'filekind', 'fullpath', 'build', 'stopbuild', 'reveal', 'iconpreview'],
+        events: ['onchange', 'onbuildoutput', 'onbuilddone'],
         methodSignatures: {
             'open': { sig: 'Open(Path AS STRING) AS INTEGER', desc: 'Opens a .rrproj, or a .bas / .rr / .inc file with what it includes. True when it opened; Error says why not.' },
             'openfolder': { sig: 'OpenFolder(Folder AS STRING) AS INTEGER', desc: 'Opens the project of a folder: its .rrproj, else its main source (main.rr / main.bas, the one named as the folder, the one with a form). True when it opened.' },
@@ -4563,6 +4563,10 @@ const COMPONENT_REGISTRY = {
             'file': { sig: 'File(Index AS INTEGER) AS STRING', desc: 'File Index\'s path, relative to the folder (from 0).' },
             'filekind': { sig: 'FileKind(Index AS INTEGER) AS STRING', desc: 'File Index\'s kind: module, form, include, resource, asset or data.' },
             'fullpath': { sig: 'FullPath(Index AS INTEGER) AS STRING', desc: 'File Index\'s path to open it with (the folder\'s and its own).' },
+            'build': { sig: 'Build([Kind AS STRING]) AS INTEGER', desc: 'Makes the program into an app for this computer\'s system with rapidr build: Name.app on macOS, the .exe with its icon and version on Windows, Name.AppDir on Linux. Kind is "native" or "interpreted" (else BuildKind). Runs in the background: OnBuildOutput gives its lines, OnBuildDone its end. True when it started; Error says why not (on the web there is nothing to run it).' },
+            'stopbuild': { sig: 'StopBuild', desc: 'Stops the Build that is running.' },
+            'reveal': { sig: 'Reveal([Path AS STRING]) AS INTEGER', desc: 'Shows Path (else what the last Build made) selected in Finder, Explorer or the Linux file manager.' },
+            'iconpreview': { sig: 'IconPreview([Size AS INTEGER]) AS STRING', desc: 'Draws the app\'s icon (Icon, else RapidR\'s) as a Size-pixel PNG (128 by default) in the project\'s .rapidr folder and gives its path, for a QIMAGE to show; "" when the icon can\'t be read (Error says why).' },
         },
         propDocs: {
             'filename': 'The .rrproj file ("" for a source file opened without one).',
@@ -4573,9 +4577,19 @@ const COMPONENT_REGISTRY = {
             'mainfile': 'The file the program starts from (relative to the folder).',
             'filecount': 'How many files the project has.',
             'compatmode': '"rapidq" for a RapidQ-compatible project (RapidR\'s extensions reported), else "".',
+            'icon': 'The app\'s icon file (.icns, .ico, .png or .svg), relative to the folder; "" for the main file\'s $OPTION ICON, else RapidR\'s icon for programs.',
+            'appname': 'The app\'s name, as Finder, Explorer and the applications menu show it; "" for the project\'s Name.',
+            'bundleid': 'The app\'s reverse-DNS identifier (com.example.notepad); "" for dev.rapidr.app.<name>.',
+            'version': 'The app\'s version: up to four numbers with dots (1.0, 2.3.1); "" for 1.0.',
+            'company': 'Who makes the app (Windows\' company name, the copyright line).',
+            'buildkind': 'How Build makes the program: "native" (compiled with Rust) or "interpreted" (RapidR\'s runner and the program\'s bytecode; no Rust needed).',
+            'building': 'True while a Build runs.',
+            'builtpath': 'What the last Build made: the .app, the .exe or the AppDir ("" until one succeeds).',
         },
         eventSignatures: {
             'onchange': { sig: 'OnChange', desc: 'The project was opened, saved, closed, or its files changed.' },
+            'onbuildoutput': { sig: 'OnBuildOutput(Text AS STRING)', desc: 'A line rapidr build printed while Build runs.' },
+            'onbuilddone': { sig: 'OnBuildDone(Code AS INTEGER, Path AS STRING)', desc: 'Build ended: Code 0 when it worked, and Path is what it made (the .app, .exe or AppDir).' },
         },
     },
     RLANGUAGESERVICE: {
@@ -4894,7 +4908,7 @@ const DIRECTIVES = [
     { name: 'TYPECHECK', description: '`ON`: from here, storing into a variable never declared (DIM, CONST, a parameter) is a compile error; `OFF` turns the check off.', snippet: 'TYPECHECK' },
     { name: 'OPTIMIZE', description: 'RapidQ\'s optimizer switch; accepted, with nothing for RapidR to change.', snippet: 'OPTIMIZE' },
     { name: 'ESCAPECHARS', description: '`ON`: strings in this file understand escapes (`\\n`, `\\t`, `\\"`, `\\\\`, `\\x41`); `OFF` (the default) reads them as written.', snippet: 'ESCAPECHARS' },
-    { name: 'OPTION', description: 'Program options: `ICON "file"` the program\'s icon, `DECIMAL` VAL\'s decimal character, `BYREF` parameters by reference, `EXPLICIT` as `$TYPECHECK ON`, `INKEY$ TRAPALL`, `DIM type`.', snippet: 'OPTION' },
+    { name: 'OPTION', description: 'Program options: `ICON "file"` the program\'s icon (the executable\'s, and its windows\'; a file that isn\'t there is a compile error; the last `ICON` wins; RapidQ takes a 766-byte 32 × 32 .ico, RapidR also any .ico, .icns, .png or .svg), `DECIMAL` VAL\'s decimal character, `BYREF` parameters by reference, `EXPLICIT` as `$TYPECHECK ON`, `INKEY$ TRAPALL`, `DIM type`.', snippet: 'OPTION' },
     { name: 'THEME', description: 'The look the program\'s windows are drawn in: `Classic` (the default), `Modern`, `Dark`, `HighContrast` or `Auto`.', snippet: 'THEME' },
 ];
 

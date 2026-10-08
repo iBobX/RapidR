@@ -13,3 +13,5 @@ rapidr-value.workspace = true
 rapidr-project.workspace = true
 rapidr-session.workspace = true
 rapidr-langsvc.workspace = true
+# RPROJECT.IconPreview: the project's icon drawn as rapidr build draws it
+rapidr-package.workspace = true

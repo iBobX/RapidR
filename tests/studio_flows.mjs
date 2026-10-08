@@ -11,7 +11,7 @@
 //   node tests/studio_flows.mjs [filter…]
 
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
@@ -67,6 +67,29 @@ const CASES = [
     dump: { "proj.mainfile": /^dialogs\.rr$/, "studio.caption": /^dialogs - RapidR Studio$/ },
   },
   {
+    // Run > Build: the app for this system (interpreted: the project says),
+    // with the project's own icon; on the web Build says it's the desktop's
+    name: "build-app",
+    open: "tests/fixtures/studio_app/Notes.rrproj",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_app/Notes.rrproj", "tests/fixtures/studio_app/main.rr", "tests/fixtures/studio_app/note.svg"],
+    do: "run.build",
+    // (cargo checks the runner first: a minute on a busy machine)
+    delay: 90,
+    dump: { "proj.builtpath": /(Notes\.app|Notes\.AppDir|main\.exe)$/, "outputbox.text": /icon: .*note\.svg[\s\S]*Built /, "proj.building": /^0$/ },
+    webDump: { "outputbox.text": /Can't build: Build makes apps in RapidR Studio on the desktop/, "proj.builtpath": /^$/ },
+  },
+  {
+    // Project > Project Options: the app's name, ID, version, icon (previewed)
+    name: "app-options",
+    open: "tests/fixtures/studio_app/Notes.rrproj",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_app/Notes.rrproj", "tests/fixtures/studio_app/main.rr", "tests/fixtures/studio_app/note.svg"],
+    do: "project.options",
+    delay: 4,
+    dump: { "appnameedit.text": /^Notes$/, "appversionedit.text": /^1\.2\.0$/, "appiconedit.text": /^note\.svg$/, "appiconnote.caption": /every size/ },
+  },
+  {
     name: "palette",
     open: "",
     do: "view.commandPalette",
@@ -81,7 +104,11 @@ function runDesktop(c) {
   mkdirSync(dir, { recursive: true });
   const args = ["run", "ide/studio.rr", "--home", ".", "--fresh", "--theme", "rapidr-light"];
   if (c.do) args.push("--do", c.do);
-  if (c.open && c.copy) {
+  if (c.open && c.copyDir) {
+    // (the project's whole folder: Build writes the app beside it)
+    cpSync(join(ROOT, dirname(c.open)), join(dir, "project"), { recursive: true });
+    args.push(join(dir, "project", c.open.split("/").pop()));
+  } else if (c.open && c.copy) {
     const to = join(dir, c.open.split("/").pop());
     copyFileSync(join(ROOT, c.open), to);
     args.push(to);
@@ -90,7 +117,7 @@ function runDesktop(c) {
   }
   const r = spawnSync(RAPIDR, args, {
     cwd: ROOT,
-    timeout: 90000,
+    timeout: Math.max(90000, c.delay * 1000 + 60000),
     encoding: "utf8",
     env: {
       ...process.env,
@@ -134,7 +161,7 @@ async function runWeb(browser, c) {
     await page.addInitScript((env) => { window.RAPIDR_STUDIO_TEST = env; }, {
       RAPIDR_CAPTURE: "web",
       RAPIDR_CAPTURE_DELAY: String(c.delay),
-      RAPIDR_TEST_DUMP: Object.keys(c.dump).join(","),
+      RAPIDR_TEST_DUMP: Object.keys(c.webDump || c.dump).join(","),
       ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: c.folder } : {}),
     });
     const q = new URLSearchParams({ theme: "rapidr-light", fresh: "", window: "normal" });
@@ -143,7 +170,7 @@ async function runWeb(browser, c) {
     await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
     await page.waitForFunction(() => window.rr && window.rr.rapidr_test_results(), null, { timeout: 90000, polling: 200 });
     const results = JSON.parse(await page.evaluate(() => window.rr.rapidr_test_results()));
-    return { dump: parseDump(results.dump.join("\n"), Object.keys(c.dump)), errors };
+    return { dump: parseDump(results.dump.join("\n"), Object.keys(c.webDump || c.dump)), errors };
   } finally {
     await page.close();
   }
@@ -164,7 +191,7 @@ for (const c of CASES.filter((c) => !filters.length || filters.some((f) => c.nam
   check("desktop", runDesktop(c), c);
   try {
     const web = await runWeb(browser, c);
-    check("web", web.dump, c);
+    check("web", web.dump, c.webDump ? { ...c, dump: c.webDump } : c);
     if (web.errors.length) console.log(`  (page errors: ${web.errors.join("; ")})`);
   } catch (e) {
     failed++;
