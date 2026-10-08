@@ -1,9 +1,12 @@
 ' A QCANVAS's pixels through the shared bitmap model. Where nothing is drawn it
-' shows its parent's colour (here the form's clBtnFace, F0F0F0), whatever its
-' own Color — RapidQ's QCANVAS is a TPaintBox (RC.EXE: docs/rapidq-ground-truth.md).
+' shows its parent's colour (here the form's, F0F0F0), whatever its own
+' Color — RapidQ's QCANVAS is a TPaintBox (RC.EXE: docs/rapidq-ground-truth.md).
+' The form's colour is RapidQ's clBtnFace on Windows 11 given as RGB, so the
+' case reads the same in every theme (clBtnFace itself is what the theme draws).
 CREATE Form AS QFORM
     Width = 300
     Height = 200
+    Color = &HF0F0F0
     CREATE Canvas1 AS QCANVAS
         Left = 10
         Top = 10
