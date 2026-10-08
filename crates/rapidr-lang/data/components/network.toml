@@ -146,7 +146,7 @@ aliases = ["COMPORT"]
 visual = false
 where = "desktop (serial2); web (Web Serial)"
 default_event = "OnRxChar"
-doc = "A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then read and write strings. Web Serial in the browser."
+doc = "A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then read and write strings. Web Serial in the browser. RapidR adds what IoT boards (ESP32, Arduino) need: the ports listed with their USB IDs, the DTR / RTS lines (a board's reset), whole lines in and an event when an adapter is plugged in or out."
 properties = [
   { name = "BytesNotRead", type = "int", access = "read", design = false },
   { name = "BytesNotWritten", type = "int", access = "read", design = false },
@@ -163,6 +163,15 @@ properties = [
   { name = "InQue", type = "int", access = "read", design = false },
   { name = "OutQue", type = "int", access = "read", design = false },
   { name = "PendingIO", type = "int", access = "read", design = false },
+  { name = "DTR", type = "int", default = 1, design = false, origin = "rapidr", doc = "The Data Terminal Ready line: 1 set, 0 clear. It changes at once on an open port, else at Open; until set it follows DcbFlags (set). Many boards wire it, with RTS, to their reset and boot pins." },
+  { name = "RTS", type = "int", default = 1, design = false, origin = "rapidr", doc = "The Request To Send line: 1 set, 0 clear. It changes at once on an open port, else at Open; until set it follows DcbFlags (set). With hardware flow control the port drives it." },
+  { name = "CTS", type = "int", access = "read", design = false, origin = "rapidr", doc = "The Clear To Send line the other end drives: 1 when set (0 while the port is closed)." },
+  { name = "DSR", type = "int", access = "read", design = false, origin = "rapidr", doc = "The Data Set Ready line the other end drives: 1 when set (0 while the port is closed)." },
+  { name = "CD", type = "int", access = "read", design = false, origin = "rapidr", doc = "The Carrier Detect line: 1 when set (0 while the port is closed)." },
+  { name = "RI", type = "int", access = "read", design = false, origin = "rapidr", doc = "The Ring Indicator line: 1 when set (0 while the port is closed)." },
+  { name = "LineEnd", type = "string", design = false, origin = "rapidr", doc = "What ends a line for ReadLine and OnLine: CHR$(10) unless set. With CHR$(10) a CR just before it is dropped too, so lines ending CR LF or LF both read clean." },
+  { name = "HasLine", type = "int", access = "read", design = false, origin = "rapidr", doc = "1 when a whole line has arrived (ReadLine returns it at once)." },
+  { name = "PortCount", type = "int", access = "read", design = false, origin = "rapidr", doc = "How many ports ListPorts found (it looks first when it hasn't yet)." },
 ]
 methods = [
   { name = "AbortAllIO" },
@@ -177,6 +186,16 @@ methods = [
   { name = "WriteString", params = "Str AS STRING, Wait AS INTEGER" },
   { name = "AddFlowControl" },
   { name = "DelFlowControl" },
+  { name = "ListPorts", returns = "INTEGER", value = true, origin = "rapidr", doc = "Looks at the serial ports there are now and returns how many; PortName, PortDescription and the others read them, 0 being the first. On the desktop every port the system has, a USB adapter's IDs and names with it; in the browser the ports the page was allowed (COM1, COM2 …)." },
+  { name = "PortName", params = "Index AS INTEGER", returns = "STRING", origin = "rapidr", doc = "Port Index's name as Port takes it (COM3, /dev/cu.usbserial-1420, /dev/ttyUSB0); empty past the last." },
+  { name = "PortDescription", params = "Index AS INTEGER", returns = "STRING", origin = "rapidr", doc = "What port Index is: the system's name for its device (CP2102N USB to UART Bridge Controller), else the USB chip its IDs name (CH340 USB to serial); empty when nothing says." },
+  { name = "PortManufacturer", params = "Index AS INTEGER", returns = "STRING", origin = "rapidr", doc = "Who made port Index's USB device, as the device says (empty when not USB)." },
+  { name = "PortSerialNumber", params = "Index AS INTEGER", returns = "STRING", origin = "rapidr", doc = "Port Index's USB device's serial number (empty when it has none): it tells two boards of the same kind apart." },
+  { name = "PortVendorID", params = "Index AS INTEGER", returns = "INTEGER", origin = "rapidr", doc = "Port Index's USB vendor ID (&H10C4 Silicon Labs, &H1A86 WCH, &H0403 FTDI, &H303A Espressif); 0 when not USB." },
+  { name = "PortProductID", params = "Index AS INTEGER", returns = "INTEGER", origin = "rapidr", doc = "Port Index's USB product ID; 0 when not USB." },
+  { name = "FillList", params = "Control", returns = "INTEGER", origin = "rapidr", doc = "Looks at the ports again and puts them in a list box or combo box, one item each (the name, then the description in brackets) in PortName's order, selecting Port's; returns how many. Port = PortName(Combo.ItemIndex) then picks one." },
+  { name = "ReadLine", params = "[Timeout AS INTEGER]", returns = "STRING", value = true, origin = "rapidr", doc = "The next whole line that has arrived, without its LineEnd, waiting up to Timeout ms for one (1000 without it; 0 doesn't wait). Empty when none came in time: what part of a line has arrived stays for the next read." },
+  { name = "SendBreak", params = "[Duration AS INTEGER]", origin = "rapidr", doc = "Holds the line in a break for Duration ms (250 without it)." },
 ]
 events = [
   { name = "OnBreak", missing = true },
@@ -189,6 +208,8 @@ events = [
   { name = "OnRxChar", params = "InQue AS INTEGER" },
   { name = "OnTxEmpty", missing = true },
   { name = "OnError", params = "Message AS STRING" },
+  { name = "OnLine", params = "Received AS STRING", origin = "rapidr", doc = "Fires for each whole line that arrives, without its LineEnd (the line is read: ReadString and ReadLine don't see it). The runtime looks every 50 ms." },
+  { name = "OnPortsChanged", params = "Added AS STRING, Removed AS STRING", origin = "rapidr", doc = "Fires when serial ports come or go, a USB adapter plugged in or out: the names added and removed, a CR LF between two. The runtime looks about once a second (the browser says at once)." },
 ]
 
 [[component]]
