@@ -530,9 +530,10 @@ pub struct DesignSurface {
     /// The next change's edits continue the step before (a caption typed
     /// right after adding: one undo step with the add).
     continues: bool,
-    /// A component just dropped or placed (client coordinates): the kernel
-    /// settles it in (a 100 ms animation).
-    dropped: Option<Rect>,
+    /// A component just dropped or placed: its name, and whether the
+    /// kernel has yet to start settling it in (a 100 ms animation drawn
+    /// where it is now).
+    dropped: Option<(String, bool)>,
     /// Where the mouse last was (client coordinates): zoom's fixed point.
     pointer: Option<(i64, i64)>,
     /// A scroll bar's thumb held: across (0) or down (1), where the press
@@ -1557,13 +1558,23 @@ impl DesignSurface {
     pub fn add_dropped(&mut self, type_name: &str, at: (i64, i64), rect: Option<LRect>) -> Option<usize> {
         let i = self.add_at(type_name, at, rect)?;
         let id = self.ids().get(i).copied();
-        self.dropped = id.and_then(|id| self.rect_of(id)).filter(|_| id.is_some_and(|id| self.on_form(id))).map(|r| (r.left, r.top, r.width, r.height));
+        self.dropped = id.filter(|&id| self.on_form(id)).and_then(|id| self.designer.design.node(id)).map(|n| (n.name.clone(), true));
         Some(i)
     }
 
-    /// The component just dropped, once (the kernel's animation).
-    pub fn take_dropped(&mut self) -> Option<Rect> {
-        self.dropped.take()
+    /// Whether a component was just dropped, once (the kernel's animation
+    /// starts).
+    pub fn take_dropped(&mut self) -> bool {
+        self.dropped.as_mut().is_some_and(|(_, new)| std::mem::take(new))
+    }
+
+    /// Where the component last dropped is now (surface pixels from the
+    /// client area's origin, zoomed): the settling follows it.
+    pub fn dropped_view_rect(&self) -> Option<Rect> {
+        let (name, _) = self.dropped.as_ref()?;
+        let id = self.designer.design.find(name)?;
+        let r = self.rect_of(id)?;
+        Some(self.view_rect((r.left, r.top, r.width, r.height)))
     }
 
     /// Where the mouse last was on the surface (zoom keeps that point).

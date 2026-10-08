@@ -81,6 +81,9 @@ const SCENES = [
   // (S-DESIGN-2) The menu editor on hello_form's new menu bar: File made,
   // its menu open, Open… being given its ShortCut
   { name: "designer-menu", open: "examples/gui/hello_form.rr", do: "view.documents.tabs,view.designer,designer.menuEditor", delay: 4, events: typed("&File{Enter}&Open...{Tab}{Ctrl+O}") },
+  // (S-DESIGN-2) A component placed with the toolbox's tool: its 100 ms
+  // settling over by the capture, on both hosts
+  { name: "designer-drop", open: "examples/gui/hello_form.rr", do: "view.documents.tabs,view.designer,designer.place.QBUTTON", delay: 4, events: click(40, 120) },
   // (S-DESIGN-2) The Tab-order editor: the badges, GreetButton clicked first
   { name: "designer-taborder", open: "examples/gui/hello_form.rr", do: "view.documents.tabs,view.designer,designer.tabOrder", delay: 4, events: click(150, 60) },
   // (S-DESIGN-2) A caption edited in place (a slow click, then typing)
@@ -88,10 +91,10 @@ const SCENES = [
   // (S-DESIGN-2) Smart guides while Answer is held
   { name: "designer-guides", open: "examples/gui/hello_form.rr", do: "view.documents.tabs,view.designer", delay: 4, events: [`__mousedown_${at(100, 100)}`, `__mousemove_${at(104, 104)}`, `__mousemove_${at(103, 106)}`].map((e) => `designdoc(0).${e}`).join(",") },
   // (S-DESIGN-2) Zoomed to 150 %, notepad's dialogs in its tray, SaveDialog selected
-  { name: "designer-zoom", open: "examples/rapidq/notepad.bas", do: "view.documents.tabs,view.designer,designer.zoomIn,designer.zoomIn,designer.zoomIn,pick:SaveDialog", delay: 4 },
+  { name: "designer-zoom", open: "examples/rapidq/notepad.bas", do: "view.documents.tabs,view.designer,designer.zoomIn,designer.zoomIn,designer.zoomIn,pick:SaveDialog,wait", delay: 6 },
   // (S-DESIGN-2) A console program's designer: "Add a Form", then one added
   { name: "designer-empty", open: "examples/basics/hello.rr", do: "view.documents.tabs,view.designer", delay: 4 },
-  { name: "designer-addform", open: "examples/basics/hello.rr", do: "view.documents.tabs,view.designer,project.addForm,designer.add.QBUTTON", delay: 4 },
+  { name: "designer-addform", open: "examples/basics/hello.rr", do: "view.documents.tabs,view.designer,project.addForm,designer.add.QBUTTON,wait", delay: 6 },
   // (the code editor with the completion list open and its docs beside it:
   // typed through the kernel's keys, S-EDITOR)
   { name: "editor", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:dim y as string,key:Escape,key:Enter,type:form.c", delay: 6 },

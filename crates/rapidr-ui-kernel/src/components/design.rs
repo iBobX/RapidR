@@ -377,9 +377,8 @@ pub struct View {
     /// The component being placed, drawn faded where it would go: its
     /// type and size, and the little form it is drawn from.
     ghost: Option<(String, (i64, i64), DesignStore, FormUi)>,
-    /// A component just dropped: its place (client coordinates) and when —
-    /// it settles in for [`SETTLE`].
-    settle: Option<(Rect, crate::tick::Instant)>,
+    /// When a component was just dropped: it settles in for [`SETTLE`].
+    settle: Option<crate::tick::Instant>,
 }
 
 /// How long a dropped component takes to settle in (docs/studio-wow.md
@@ -542,8 +541,7 @@ struct Shown {
     open_top: Option<usize>,
     /// The component being placed: where (client coordinates) and its type.
     ghost: Option<(rapidr_value::layout::Rect, String)>,
-    /// A component just dropped (client coordinates, and on the surface).
-    added: Option<Rect>,
+    /// Where the component last dropped is now on the surface.
     view_added: Option<Rect>,
 }
 
@@ -591,7 +589,7 @@ impl ComponentKind for Design {
         with_design_mut(cx.id, |d| d.set_size(w, h));
         let Some(mut shown) = with_design_mut(cx.id, |d| {
             let (menus, open_top) = shown_menus(d);
-            let added = d.take_dropped();
+            let view_added = d.dropped_view_rect();
             Shown {
                 changed: (view.built.as_ref() != Some(&d.designer.design)).then(|| d.designer.design.clone()),
                 title: d.title(),
@@ -607,8 +605,7 @@ impl ComponentKind for Design {
                 menus,
                 open_top,
                 ghost: d.ghost.clone(),
-                view_added: added.map(|r| d.view_rect(r)),
-                added,
+                view_added,
             }
         }) else {
             cx.ui.design = Some(view);
@@ -718,15 +715,13 @@ impl ComponentKind for Design {
         });
         // a component just dropped settles in: a fading wash and a ring
         // closing on it
-        if let Some(added) = shown.added {
-            view.settle = Some((added, crate::tick::now()));
-        }
-        if let Some(((x, y, w, h), at)) = view.settle {
+        if let Some(at) = view.settle {
             let k = crate::tick::now().saturating_duration_since(at).as_secs_f64() / SETTLE.as_secs_f64();
-            if k >= 1.0 || rapidr_value::theme::reduced_motion() {
+            if k >= 1.0 || rapidr_value::theme::reduced_motion() || shown.view_added.is_none() {
                 view.settle = None;
             } else {
-                let (vx, vy, vw, vh) = shown.view_added.unwrap_or((x, y, w, h));
+                // (where the component is now: it follows a move)
+                let (vx, vy, vw, vh) = shown.view_added.unwrap_or_default();
                 let ease = 1.0 - (1.0 - k) * (1.0 - k);
                 let ring = ((1.0 - ease) * 6.0).round() as i64;
                 p.at(shown.client, |p| {
@@ -815,6 +810,8 @@ impl ComponentKind for Design {
             rapidr_value::objects::design::notify(cx.id, &notify);
             heard(cx, e);
         }
+        let id = cx.id.to_string();
+        settle_if_dropped(&id, &mut cx.ui.design, &mut cx.ui.wake);
         drain(cx);
         out
     }
@@ -932,6 +929,17 @@ pub fn drop_move(ui: &mut FormUi, store: &dyn Store, hit: Option<usize>, x: f64,
 /// The mouse let go at (x, y) while a component was being dragged in: added
 /// where the design surface under it showed it (its events queued); the
 /// drag ends wherever it was let go.
+/// A component was just dropped on surface `id` (the placing tool, a drag
+/// let go): its settling starts now — timed from the drop, not from the
+/// next paint — and a frame is asked for.
+fn settle_if_dropped(id: &str, design: &mut Option<Box<View>>, wake: &mut Option<crate::tick::Instant>) {
+    if with_design_mut(id, |d| d.take_dropped()).unwrap_or(false) {
+        let now = crate::tick::now();
+        design.get_or_insert_with(|| Box::new(View::new())).settle = Some(now);
+        *wake = Some(now);
+    }
+}
+
 pub fn drop_up(ui: &mut FormUi, store: &dyn Store, hit: Option<usize>, x: f64, y: f64, free: bool) {
     let Some(ty) = rapidr_value::objects::design::drop_pending() else { return };
     rapidr_value::objects::design::end_drop();
@@ -948,6 +956,8 @@ pub fn drop_up(ui: &mut FormUi, store: &dyn Store, hit: Option<usize>, x: f64, y
                 d.ghost = None;
                 d.add_dropped(&ty, (r.left, r.top), Some(r))
             });
+            let nu = &mut ui.nodes[i].ui;
+            settle_if_dropped(&id, &mut nu.design, &mut nu.wake);
             for e in rapidr_value::objects::take_design_events(&id) {
                 ui.events.push(crate::input::KernelEvent::List(id.clone(), ListAction::Fire(e.event().to_string(), e.args())));
             }
