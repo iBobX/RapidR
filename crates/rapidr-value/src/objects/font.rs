@@ -97,6 +97,8 @@ impl Font {
             return true;
         }
         match prop {
+            // (`F.AddStyles = fsItalic`: RapidQ takes the method so too)
+            "addstyles" | "delstyles" => self.set_style(val.to_i64(), prop == "addstyles"),
             "name" => self.name = val.to_string_val(),
             "size" => self.size = val.to_i64(),
             "color" => self.color = val.to_i64(),

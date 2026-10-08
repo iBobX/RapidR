@@ -215,6 +215,13 @@ pub fn rp_component_array(kind: &str, name: &str, bounds: &[(i64, i64)]) -> Valu
 
 /// Set a property on a registered component.
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
+    // (`Label.Font.AddStyles = fsBold`: RapidQ takes the method so too)
+    if let Some(changes) = rapidr_value::objects::font::component_style_call(&prop.to_ascii_lowercase(), std::slice::from_ref(&val)) {
+        for (p, v) in changes {
+            rp_comp_set(name, p, v);
+        }
+        return;
+    }
     // (a font style keeps 1 or 0, RapidQ's: rapidr_value::objects::font)
     let val = rapidr_value::objects::font::component_style(prop, &val).map_or(val, |(_, _, v)| v);
     // (the program's first font change of a component: the font it had from

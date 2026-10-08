@@ -309,23 +309,34 @@ pub fn show<R: Program + Windows>(rt: R, name: &str) {
     build_form(rt, name);
     show_window(rt, name);
     fire_shown(rt, name);
-    after_show(rt, name);
 }
 
 /// A form's window shows: OnShow — the first time with an OnResize before
 /// and after it (RC.EXE's builds: `resize, show, resize` at the first Show
 /// or ShowModal, its size set before that firing none; shown again later,
 /// only OnShow).
-fn fire_shown<P: Program>(p: P, name: &str) {
-    let first = !p.get(name, "__shownonce").to_bool();
+///
+/// Then, once OnShow's handler has run (queued behind it in the
+/// interpreter), [`after_show`]: the first paints reach what the handler
+/// made too (RapidQ's Sokoban builder makes its canvases in OnShow).
+fn fire_shown<R: Program + Windows>(rt: R, name: &str) {
+    let first = !rt.get(name, "__shownonce").to_bool();
     if first {
-        p.store(&lower(name), "__shownonce", v_bool(true));
-        p.fire(name, "onresize");
+        rt.store(&lower(name), "__shownonce", v_bool(true));
+        rt.fire(name, "onresize");
     }
-    p.fire(name, "onshow");
-    if first {
-        p.fire(name, "onresize");
-    }
+    let form = name.to_string();
+    rt.fire_then(
+        name,
+        "onshow",
+        &[],
+        Box::new(move |_| {
+            if first {
+                rt.fire(&form, "onresize");
+            }
+            after_show(rt, &form);
+        }),
+    );
 }
 
 /// `Form.Visible = True`: its Show; a form not built yet (its own CREATE)
@@ -422,7 +433,6 @@ pub fn begin_modal<R: Program + Windows>(rt: R, name: &str) {
         show_window(rt, &name);
     }
     fire_shown(rt, &name);
-    after_show(rt, &name);
     timers::start_all(rt);
 }
 
