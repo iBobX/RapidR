@@ -245,7 +245,7 @@ impl Gpu {
         });
         let max_side = limits.max_texture_dimension_2d.min(16384);
         Ok(Gpu {
-            white: tex_layout_group(&device, &queue, &tex_layout, &samplers[0], &white_picture()),
+            white: group(&device, &tex_layout, &upload(&device, &queue, &white_picture(), max_side), &samplers[0]),
             device,
             queue,
             adapter: name,
@@ -292,8 +292,9 @@ impl Gpu {
         let key = Rc::as_ptr(picture) as usize;
         let alive = self.textures.get(&key).and_then(|t| t.picture.upgrade()).is_some_and(|p| Rc::ptr_eq(&p, picture));
         if !alive {
-            let nearest = tex_layout_group(&self.device, &self.queue, &self.tex_layout, &self.samplers[0], picture);
-            let linear = tex_layout_group(&self.device, &self.queue, &self.tex_layout, &self.samplers[1], picture);
+            let view = upload(&self.device, &self.queue, picture, self.max_side);
+            let nearest = group(&self.device, &self.tex_layout, &view, &self.samplers[0]);
+            let linear = group(&self.device, &self.tex_layout, &view, &self.samplers[1]);
             self.textures.insert(key, GpuTexture { picture: Rc::downgrade(picture), nearest, linear });
         }
         let t = &self.textures[&key];
@@ -314,16 +315,23 @@ fn white_picture() -> Bitmap {
     b
 }
 
-/// `picture` (RapidQ's &HBBGGRR) as a texture, with `sampler`.
-fn tex_layout_group(device: &wgpu::Device, queue: &wgpu::Queue, layout: &wgpu::BindGroupLayout, sampler: &wgpu::Sampler, picture: &Bitmap) -> wgpu::BindGroup {
-    let (w, h) = (picture.img.width.max(1) as u32, picture.img.height.max(1) as u32);
+/// `picture` (RapidQ's &HBBGGRR) as a texture — a picture larger than the
+/// GPU takes (`max_side`) reduced to fit, nearest.
+fn upload(device: &wgpu::Device, queue: &wgpu::Queue, picture: &Bitmap, max_side: u32) -> wgpu::TextureView {
+    let (pw, ph) = (picture.img.width, picture.img.height);
+    let whole = pw > 0 && ph > 0 && picture.img.pixels.len() >= pw * ph;
+    let (w, h) = if whole { ((pw as u32).min(max_side), (ph as u32).min(max_side)) } else { (1, 1) };
     let mut rgba = Vec::with_capacity(w as usize * h as usize * 4);
-    if picture.img.pixels.len() >= (w * h) as usize {
-        for &p in &picture.img.pixels[..(w * h) as usize] {
-            rgba.extend_from_slice(&[(p & 0xFF) as u8, (p >> 8 & 0xFF) as u8, (p >> 16 & 0xFF) as u8, 255]);
+    if whole {
+        for y in 0..h as usize {
+            let row = y * ph / h as usize * pw;
+            for x in 0..w as usize {
+                let p = picture.img.pixels[row + x * pw / w as usize];
+                rgba.extend_from_slice(&[(p & 0xFF) as u8, (p >> 8 & 0xFF) as u8, (p >> 16 & 0xFF) as u8, 255]);
+            }
         }
     } else {
-        rgba.resize(w as usize * h as usize * 4, 255);
+        rgba.resize(4, 255);
     }
     let size = wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 };
     let texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -342,11 +350,15 @@ fn tex_layout_group(device: &wgpu::Device, queue: &wgpu::Queue, layout: &wgpu::B
         wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(w * 4), rows_per_image: Some(h) },
         size,
     );
-    let view = texture.create_view(&Default::default());
+    texture.create_view(&Default::default())
+}
+
+/// A texture with a sampler, as the shader's group 1.
+fn group(device: &wgpu::Device, layout: &wgpu::BindGroupLayout, view: &wgpu::TextureView, sampler: &wgpu::Sampler) -> wgpu::BindGroup {
     device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: Some("d3d texture"),
         layout,
-        entries: &[wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&view) }, wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(sampler) }],
+        entries: &[wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(view) }, wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(sampler) }],
     })
 }
 
@@ -417,7 +429,8 @@ impl Renderer for Gpu {
         let a = -front / (back - front);
         let b = front * back / (back - front);
         let picture = list.background_image.clone().filter(|i| i.img.width > 0 && i.img.height > 0);
-        let (iw, ih) = picture.as_ref().map_or((1, 1), |i| (i.img.width as u32, i.img.height as u32));
+        // (the picture as uploaded: reduced to the GPU's largest side)
+        let (iw, ih) = picture.as_ref().map_or((1, 1), |i| ((i.img.width as u32).min(self.max_side), (i.img.height as u32).min(self.max_side)));
         let mut u = Vec::with_capacity(32);
         for f in [2.0 * k / f64::from(w), 2.0 * k / f64::from(h), a, b] {
             u.extend_from_slice(&(f as f32).to_le_bytes());

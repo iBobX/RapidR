@@ -186,6 +186,9 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   model and the probes look as before (and as RC.EXE's beside them), and
   the web's pictures equal the desktop's. The web runtime grows by 2.6 MB
   (WebGL 2 through wgpu).
+- **One OnResize for one resize in the browser**: dragging a window's edge
+  or a status bar's size grip fired OnResize for the new width and again
+  for the new height; now once, as on the desktop.
 - **`WITH v.R … END WITH`** on a QRECT field of an object reaches the field
   (`.Bottom = 99` stored into `v.R`), as RC.EXE does; RapidR stopped with
   "nested member-access store not yet supported".

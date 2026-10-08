@@ -61,7 +61,7 @@ fn what_the_gpu_draws() {
     assert!(px.iter().all(|&p| p == 0x302010), "in front of the front plane: nothing, the background");
     // A triangle through the front plane: the part behind it shows.
     let px = draw(&mut gpu, W, H, 0, vec![tri([[-0.2, 0.2, 0.5], [3.0, 0.2, 6.0], [-0.2, -3.0, 6.0]], [1.0; 4])]);
-    assert!(px.iter().any(|&p| p == 0xFFFFFF) && px.iter().any(|&p| p == 0));
+    assert!(px.contains(&0xFFFFFF) && px.contains(&0));
 
     // Half red blended over green, without hiding what's behind.
     let px = draw(&mut gpu, W, H, 0, vec![at(5.0, [0.0, 1.0, 0.0, 1.0]), at(4.0, [1.0, 0.0, 0.0, 0.5])]);
@@ -106,6 +106,17 @@ fn what_the_gpu_draws() {
     points.fill = Fill::Points;
     let px = draw(&mut gpu, W, H, 0, vec![points]);
     assert_eq!(px.iter().filter(|&&p| p == 0xFFFF00).count(), 3, "three corners");
+
+    // A picture wider than the GPU takes: reduced to fit, still drawn.
+    let wide = picture(gpu.max_side() + 3, 2, |x, _| if x * 2 < gpu.max_side() { 0x0000FF } else { 0x00FF00 });
+    let mut t = at(5.0, [1.0; 4]);
+    t.uv = Some([[0.0, 0.0], [1.0, 0.0], [0.5, 1.0]]);
+    t.texture = Some(wide.clone());
+    let px = draw(&mut gpu, W, H, 0, vec![t]);
+    assert!(px.contains(&0x0000FF) && px.contains(&0x00FF00), "both halves");
+    let l = RenderList { view: View { width: W, height: H, front: 1.0, back: 100.0, field: 0.5 }, background: 0, background_image: Some(wide), tris: vec![] };
+    let px = gpu.render(&l).expect("render");
+    assert_eq!((px[0], px[W - 1]), (0x0000FF, 0x00FF00), "the background picture too");
 
     // The background picture: a texel a pixel as the pixel lands in it.
     let pic = picture(7, 5, |x, y| (x as u32 * 36) | (y as u32 * 50) << 8 | 0x80 << 16);
