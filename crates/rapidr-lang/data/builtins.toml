@@ -21,6 +21,7 @@ internal = [
   "__inkey_trapall",
   "__input_value",
   "__lastoftype",
+  "__lone_equals",
   "__lprint",
   "__mem_refresh",
   "__mem_sync",

@@ -1,0 +1,11 @@
+' QD3DANIMATION and QD3DANIMATIONSET (RC.EXE's: Parent and no other
+' member; arrays of them allowed, unlike QD3DMESH's) and QD3DMESH's
+' MaxY / MinY, empty on a mesh with nothing in it.
+$APPTYPE CONSOLE
+DIM A AS QD3DANIMATION
+DIM S AS QD3DANIMATIONSET
+DIM AA(3) AS QD3DANIMATION
+DIM SS(3) AS QD3DANIMATIONSET
+DIM M AS QD3DMESH
+PRINT M.MaxY; " "; M.MinY
+PRINT "ok"

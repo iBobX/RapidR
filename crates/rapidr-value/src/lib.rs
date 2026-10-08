@@ -143,6 +143,15 @@ pub fn note_made(type_name: &str, made: Made) {
     });
 }
 
+/// `__lone_equals(x)` (rapidr_ast::lone_equals): `= x` with nothing before
+/// the `=`, as RapidQ's compiler reads it — a number is itself, text is "".
+pub fn rp_lone_equals(v: &Value) -> Value {
+    match v {
+        Value::String(_) => v_str(""),
+        other => other.clone(),
+    }
+}
+
 /// `__lastoftype(type)` (rapidr_ast::type_values): a component type's name
 /// used as a value is, as in RapidQ, the object of that type created last
 /// (`Parent = QFORM` → the newest form) — a component's id (lowercase, the
@@ -972,6 +981,7 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
         }
         "__null" => return Some(Ok(Value::Null)),
         "__lastoftype" => return Some(Ok(rp_last_of_type(&arg(0)))),
+        "__lone_equals" => return Some(Ok(rp_lone_equals(&arg(0)))),
         "__environ_set" => return Some(Ok(builtins::rp_environ_set(&arg(0)))),
         // The system tray (rapidr_ast::tray_calls): Shell_NotifyIcon.
         "__shell_notifyicon" => return Some(Ok(tray::shell_notify_icon_builtin(&arg(0), &arg(1)))),

@@ -1164,20 +1164,24 @@ impl RustCodegen {
                         return;
                     }
                 }
-                // `RichEdit.SelAttributes.Color = c`: the object's `sub.prop`.
-                if let Expression::MemberAccess(inner) = ma.object.as_ref() {
-                    if matches!(inner.object.as_ref(), Expression::Identifier(id) if id.name != "_with_") {
-                        let receiver = self.receiver(&inner.object);
-                        let value = self.owned_expr(&a.value);
-                        self.write_indent();
-                        let _ = writeln!(
-                            self.output,
-                            "rp_comp_set({receiver}, \"{}.{}\", {value});",
-                            inner.member.to_lowercase(),
-                            ma.member.to_lowercase()
-                        );
-                        return;
-                    }
+            }
+        }
+        // `RichEdit.SelAttributes.Color = c`: the object's `sub.prop` — in a
+        // CREATE block too (a CREATE inside a SUB: its `Font.Name = …` reads
+        // `B.Font.Name` on the routine's own B).
+        if let Expression::MemberAccess(ma) = &a.target {
+            if let Expression::MemberAccess(inner) = ma.object.as_ref() {
+                if matches!(inner.object.as_ref(), Expression::Identifier(id) if id.name != "_with_") {
+                    let receiver = self.receiver(&inner.object);
+                    let value = self.owned_expr(&a.value);
+                    self.write_indent();
+                    let _ = writeln!(
+                        self.output,
+                        "rp_comp_set({receiver}, \"{}.{}\", {value});",
+                        inner.member.to_lowercase(),
+                        ma.member.to_lowercase()
+                    );
+                    return;
                 }
             }
         }
@@ -3104,6 +3108,7 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "__null" => Some("v_null()".to_string()),
         // A component type's name as a value (rapidr_ast::type_values).
         "__lastoftype" => Some(format!("rp_last_of_type(&{a0})")),
+        "__lone_equals" => Some(format!("rp_lone_equals(&{a0})")),
         // The system tray (rapidr_ast::tray_calls).
         "__shell_notifyicon" => Some(format!("tray::shell_notify_icon_builtin(&{a0}, &{a1})")),
         // Stores into declared numeric types (rapidr_ast::numeric).

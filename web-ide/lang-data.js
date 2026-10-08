@@ -3786,8 +3786,8 @@ const COMPONENT_REGISTRY = {
         name: 'RD3DFRAME',
         description: 'A node of a Direct3D retained-mode scene: it has a position, orientation and motion, and holds meshes, lights and child frames. RapidR draws the scene with its own renderer.',
         rapidq: 'QD3DFRAME',
-        props: ['fogcolor', 'fogmode', 'parent'],
-        methods: ['addframe', 'addlight', 'addscale', 'addvisual', 'createframe', 'deleteframe', 'deletelight', 'deletevisual', 'load', 'lookat', 'move', 'setbackgroundimage', 'setbackgroundrgb', 'setfogparams', 'setorientation', 'setposition', 'setrotation', 'settexture', 'setvelocity', 'fogenabled'],
+        props: ['fogcolor', 'fogenabled', 'fogmode', 'parent'],
+        methods: ['addframe', 'addlight', 'addscale', 'addvisual', 'createframe', 'deleteframe', 'deletelight', 'deletevisual', 'load', 'lookat', 'move', 'setbackgroundimage', 'setbackgroundrgb', 'setfogparams', 'setorientation', 'setposition', 'setrotation', 'settexture', 'setvelocity'],
         events: [],
         methodSignatures: {
             'addframe': { sig: 'AddFrame(Frame AS QD3DFRAME)', desc: 'Makes frame `Frame` a child of this frame, so it moves with it.' },
@@ -3809,10 +3809,10 @@ const COMPONENT_REGISTRY = {
             'setrotation': { sig: 'SetRotation(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE, Theta AS DOUBLE)', desc: 'Sets the frame spinning around the axis (`X`, `Y`, `Z`), `Theta` radians each time step of `Move`.' },
             'settexture': { sig: 'SetTexture(Tex AS QD3DTEXTURE)', desc: 'Puts texture `Tex` on the frame or mesh.' },
             'setvelocity': { sig: 'SetVelocity', desc: 'Sets the velocity (`X`, `Y`, `Z`) a frame moves by each time step of `Move`; a DirectX screen sets its camera\'s.' },
-            'fogenabled': { sig: 'FogEnabled', desc: 'Turns fog on or off in the frame\'s scene.' },
         },
         propDocs: {
             'fogcolor': 'The colour of the frame\'s fog.',
+            'fogenabled': 'Whether the frame\'s fog is on (1) or off (0). RapidR keeps it; its renderer draws no fog.',
             'fogmode': 'How the fog thickens with distance: linear, exponential or exponential squared.',
             'parent': 'The component it sits in (a form, panel, tab control …) or belongs to.',
         },
@@ -3970,6 +3970,36 @@ const COMPONENT_REGISTRY = {
             'x': 'An X: the vector\'s component, the joystick\'s first axis (0 to 65535, 32767 at rest), or the mouse pointer\'s on the screen.',
             'y': 'A Y: the vector\'s component, the joystick\'s second axis (0 to 65535, 32767 at rest, growing downward), or the mouse pointer\'s on the screen.',
             'z': 'A Z: the vector\'s component, or the joystick\'s third axis (0 to 65535, 32767 at rest).',
+        },
+        eventSignatures: {
+        },
+    },
+    RD3DANIMATION: {
+        name: 'RD3DANIMATION',
+        description: 'Direct3D\'s keyframe animation, as RapidQ declares it: a handle with a Parent and no other member. Nothing in RapidQ makes or plays one.',
+        rapidq: 'QD3DANIMATION',
+        props: ['parent'],
+        methods: [],
+        events: [],
+        methodSignatures: {
+        },
+        propDocs: {
+            'parent': 'The component it sits in (a form, panel, tab control …) or belongs to.',
+        },
+        eventSignatures: {
+        },
+    },
+    RD3DANIMATIONSET: {
+        name: 'RD3DANIMATIONSET',
+        description: 'Direct3D\'s set of animations, as RapidQ declares it: a handle with a Parent and no other member. Nothing in RapidQ makes or plays one.',
+        rapidq: 'QD3DANIMATIONSET',
+        props: ['parent'],
+        methods: [],
+        events: [],
+        methodSignatures: {
+        },
+        propDocs: {
+            'parent': 'The component it sits in (a form, panel, tab control …) or belongs to.',
         },
         eventSignatures: {
         },
@@ -4715,6 +4745,8 @@ COMPONENT_REGISTRY['QD3DTEXTURE'] = COMPONENT_REGISTRY.RD3DTEXTURE;
 COMPONENT_REGISTRY['QD3DVISUAL'] = COMPONENT_REGISTRY.RD3DVISUAL;
 COMPONENT_REGISTRY['QD3DWRAP'] = COMPONENT_REGISTRY.RD3DWRAP;
 COMPONENT_REGISTRY['QD3DVECTOR'] = COMPONENT_REGISTRY.RD3DVECTOR;
+COMPONENT_REGISTRY['QD3DANIMATION'] = COMPONENT_REGISTRY.RD3DANIMATION;
+COMPONENT_REGISTRY['QD3DANIMATIONSET'] = COMPONENT_REGISTRY.RD3DANIMATIONSET;
 
 const BUILTIN_FUNCTIONS = [
     { name: 'ABS', description: 'The absolute value of a number; an integer stays an integer.', signature: 'ABS(Number)', snippet: 'ABS' },
@@ -4901,7 +4933,7 @@ const DIRECTIVES = [
 export { COMPONENT_REGISTRY, BUILTIN_FUNCTIONS, KEYWORDS, TYPE_KEYWORDS, DIRECTIVES };
 
 // Pretty display name for an upper-case component key (RBUTTON -> RButton).
-const _NAME_MAP = { RFORM:'RForm', QFORM:'QForm', RFORMMDI:'RFormMDI', QFORMMDI:'QFormMDI', RPANEL:'RPanel', QPANEL:'QPanel', RTABCONTROL:'RTabControl', QTABCONTROL:'QTabControl', RTOOLBAR:'RToolBar', RSTATUSBAR:'RStatusBar', QSTATUSBAR:'QStatusBar', RSPLITTER:'RSplitter', QSPLITTER:'QSplitter', RSCROLLBOX:'RScrollBox', QSCROLLBOX:'QScrollBox', RGROUPBOX:'RGroupBox', QGROUPBOX:'QGroupBox', RBEVEL:'RBevel', QBEVEL:'QBevel', RGLASSFRAME:'RGlassFrame', QGLASSFRAME:'QGlassFrame', RDOCKMANAGER:'Rdockmanager', RBUTTON:'RButton', QBUTTON:'QButton', REDIT:'REdit', QEDIT:'QEdit', RCHECKBOX:'RCheckBox', QCHECKBOX:'QCheckBox', RRADIOBUTTON:'RRadioButton', QRADIOBUTTON:'QRadioButton', RCOMBOBOX:'RComboBox', QCOMBOBOX:'QComboBox', RRICHEDIT:'RRichEdit', QRICHEDIT:'QRichEdit', RMEMO:'RMemo', RSCROLLBAR:'RScrollBar', QSCROLLBAR:'QScrollBar', RUPDOWN:'RUpDown', RDATETIMEPICKER:'RDateTimePicker', RTRACKBAR:'RTrackBar', QTRACKBAR:'QTrackBar', RCODEEDITOR:'RCodeEditor', RCOOLBTN:'RCoolBtn', QCOOLBTN:'QCoolBtn', ROVALBTN:'ROvalBtn', QOVALBTN:'QOvalBtn', RLABEL:'RLabel', QLABEL:'QLabel', RIMAGE:'RImage', QIMAGE:'QImage', RCANVAS:'RCanvas', QCANVAS:'QCanvas', RHEADER:'RHeader', QHEADER:'QHeader', RPROGRESS:'RProgress', RPROGRESSBAR:'RProgressBar', QGAUGE:'QGauge', RDESIGNSURFACE:'RDesignSurface', RDIGDISPLAY:'RDigDisplay', QDIGDISPLAY:'QDigDisplay', RLISTBOX:'RListBox', QLISTBOX:'QListBox', RFILELISTBOX:'RFileListBox', QFILELISTBOX:'QFileListBox', RDIRTREE:'RDirTree', QDIRTREE:'QDirTree', RSTRINGGRID:'RStringGrid', QSTRINGGRID:'QStringGrid', RTREEVIEW:'RTreeView', QTREEVIEW:'QTreeView', QOUTLINE:'QOutline', RLISTVIEW:'RListView', QLISTVIEW:'QListView', RMAINMENU:'RMainMenu', QMAINMENU:'QMainMenu', RMENUITEM:'RMenuItem', QMENUITEM:'QMenuItem', RPOPUPMENU:'RPopupMenu', QPOPUPMENU:'QPopupMenu', ROPENDIALOG:'ROpenDialog', QOPENDIALOG:'QOpenDialog', RSAVEDIALOG:'RSaveDialog', QSAVEDIALOG:'QSaveDialog', RFILEDIALOG:'RFileDialog', QFILEDIALOG:'QFileDialog', RCOLORDIALOG:'RColorDialog', QCOLORDIALOG:'QColorDialog', RFONTDIALOG:'RFontDialog', QFONTDIALOG:'QFontDialog', RTIMER:'RTimer', QTIMER:'QTimer', RRECT:'RRect', QRECT:'QRect', RFILESTREAM:'RFileStream', QFILESTREAM:'QFileStream', RSTRINGLIST:'RStringList', QSTRINGLIST:'QStringList', RPRINTER:'RPrinter', QPRINTER:'QPrinter', RREGISTRY:'RRegistry', QREGISTRY:'QRegistry', RJSON:'RJson', RFONT:'RFont', QFONT:'QFont', RMEMORYSTREAM:'RMemoryStream', QMEMORYSTREAM:'QMemoryStream', RBITMAP:'RBitmap', QBITMAP:'QBitmap', RIMAGELIST:'RImageList', QIMAGELIST:'QImageList', RNOTIFYICONDATA:'RNotifyIconData', QNOTIFYICONDATA:'QNotifyIconData', RSQLITE:'RSQLite', RMYSQL:'RMySQL', QMYSQL:'QMySQL', RSOCKET:'RSocket', QSOCKET:'QSocket', RSERVERSOCKET:'RServerSocket', RHTTP:'RHttp', RCGI:'RCGI', QCGI:'QCGI', RCOMPORT:'RComPort', QCOMPORT:'QComPort', COMPORT:'COMPORT', RDOWNLOAD:'RDownload', QDOWNLOAD:'QDownload', RMIDI:'RMIDI', QMIDI:'QMIDI', RWAVE:'RWave', QWAVE:'QWave', RVIDEO:'RVideo', QVIDEO:'QVideo', RCDAUDIO:'RCDAudio', QCDAUDIO:'QCDAudio', RDXSCREEN:'RDXScreen', QDXSCREEN:'QDXScreen', RDXIMAGELIST:'RDXImageList', QDXIMAGELIST:'QDXImageList', RDXTIMER:'RDXTimer', QDXTIMER:'QDXTimer', RDXSOUND:'RDXSound', QDXSOUND:'QDXSound', RDXJOYSTICK:'RDXJoystick', QDXJOYSTICK:'QDXJoystick', RD3DFRAME:'RD3DFrame', QD3DFRAME:'QD3DFrame', RD3DMESHBUILDER:'RD3DMeshBuilder', QD3DMESHBUILDER:'QD3DMeshBuilder', RD3DMESH:'RD3DMesh', QD3DMESH:'QD3DMesh', RD3DFACE:'RD3DFace', QD3DFACE:'QD3DFace', RD3DLIGHT:'RD3DLight', QD3DLIGHT:'QD3DLight', RD3DTEXTURE:'RD3DTexture', QD3DTEXTURE:'QD3DTexture', RD3DVISUAL:'RD3DVisual', QD3DVISUAL:'QD3DVisual', RD3DWRAP:'RD3DWrap', QD3DWRAP:'QD3DWrap', RD3DVECTOR:'RD3DVector', QD3DVECTOR:'QD3DVector', RNUM:'RNum', RDATAFRAME:'RDataFrame', RPLOT:'RPlot', RWEBVIEW:'RWebView', RDOM:'RDOM', RJAVASCRIPT:'RJavaScript', RWEBSTORAGE:'RWebStorage', RWEBAUDIO:'RWebAudio', RWEBVIDEO:'RWebVideo', RWEBNOTIFICATION:'RWebNotification', RWEBGEOLOCATION:'RWebGeolocation', RROUTER:'RRouter', RPROJECT:'Rproject', RLANGUAGESERVICE:'Rlanguageservice', RPROGRAMSESSION:'Rprogramsession' };
+const _NAME_MAP = { RFORM:'RForm', QFORM:'QForm', RFORMMDI:'RFormMDI', QFORMMDI:'QFormMDI', RPANEL:'RPanel', QPANEL:'QPanel', RTABCONTROL:'RTabControl', QTABCONTROL:'QTabControl', RTOOLBAR:'RToolBar', RSTATUSBAR:'RStatusBar', QSTATUSBAR:'QStatusBar', RSPLITTER:'RSplitter', QSPLITTER:'QSplitter', RSCROLLBOX:'RScrollBox', QSCROLLBOX:'QScrollBox', RGROUPBOX:'RGroupBox', QGROUPBOX:'QGroupBox', RBEVEL:'RBevel', QBEVEL:'QBevel', RGLASSFRAME:'RGlassFrame', QGLASSFRAME:'QGlassFrame', RDOCKMANAGER:'Rdockmanager', RBUTTON:'RButton', QBUTTON:'QButton', REDIT:'REdit', QEDIT:'QEdit', RCHECKBOX:'RCheckBox', QCHECKBOX:'QCheckBox', RRADIOBUTTON:'RRadioButton', QRADIOBUTTON:'QRadioButton', RCOMBOBOX:'RComboBox', QCOMBOBOX:'QComboBox', RRICHEDIT:'RRichEdit', QRICHEDIT:'QRichEdit', RMEMO:'RMemo', RSCROLLBAR:'RScrollBar', QSCROLLBAR:'QScrollBar', RUPDOWN:'RUpDown', RDATETIMEPICKER:'RDateTimePicker', RTRACKBAR:'RTrackBar', QTRACKBAR:'QTrackBar', RCODEEDITOR:'RCodeEditor', RCOOLBTN:'RCoolBtn', QCOOLBTN:'QCoolBtn', ROVALBTN:'ROvalBtn', QOVALBTN:'QOvalBtn', RLABEL:'RLabel', QLABEL:'QLabel', RIMAGE:'RImage', QIMAGE:'QImage', RCANVAS:'RCanvas', QCANVAS:'QCanvas', RHEADER:'RHeader', QHEADER:'QHeader', RPROGRESS:'RProgress', RPROGRESSBAR:'RProgressBar', QGAUGE:'QGauge', RDESIGNSURFACE:'RDesignSurface', RDIGDISPLAY:'RDigDisplay', QDIGDISPLAY:'QDigDisplay', RLISTBOX:'RListBox', QLISTBOX:'QListBox', RFILELISTBOX:'RFileListBox', QFILELISTBOX:'QFileListBox', RDIRTREE:'RDirTree', QDIRTREE:'QDirTree', RSTRINGGRID:'RStringGrid', QSTRINGGRID:'QStringGrid', RTREEVIEW:'RTreeView', QTREEVIEW:'QTreeView', QOUTLINE:'QOutline', RLISTVIEW:'RListView', QLISTVIEW:'QListView', RMAINMENU:'RMainMenu', QMAINMENU:'QMainMenu', RMENUITEM:'RMenuItem', QMENUITEM:'QMenuItem', RPOPUPMENU:'RPopupMenu', QPOPUPMENU:'QPopupMenu', ROPENDIALOG:'ROpenDialog', QOPENDIALOG:'QOpenDialog', RSAVEDIALOG:'RSaveDialog', QSAVEDIALOG:'QSaveDialog', RFILEDIALOG:'RFileDialog', QFILEDIALOG:'QFileDialog', RCOLORDIALOG:'RColorDialog', QCOLORDIALOG:'QColorDialog', RFONTDIALOG:'RFontDialog', QFONTDIALOG:'QFontDialog', RTIMER:'RTimer', QTIMER:'QTimer', RRECT:'RRect', QRECT:'QRect', RFILESTREAM:'RFileStream', QFILESTREAM:'QFileStream', RSTRINGLIST:'RStringList', QSTRINGLIST:'QStringList', RPRINTER:'RPrinter', QPRINTER:'QPrinter', RREGISTRY:'RRegistry', QREGISTRY:'QRegistry', RJSON:'RJson', RFONT:'RFont', QFONT:'QFont', RMEMORYSTREAM:'RMemoryStream', QMEMORYSTREAM:'QMemoryStream', RBITMAP:'RBitmap', QBITMAP:'QBitmap', RIMAGELIST:'RImageList', QIMAGELIST:'QImageList', RNOTIFYICONDATA:'RNotifyIconData', QNOTIFYICONDATA:'QNotifyIconData', RSQLITE:'RSQLite', RMYSQL:'RMySQL', QMYSQL:'QMySQL', RSOCKET:'RSocket', QSOCKET:'QSocket', RSERVERSOCKET:'RServerSocket', RHTTP:'RHttp', RCGI:'RCGI', QCGI:'QCGI', RCOMPORT:'RComPort', QCOMPORT:'QComPort', COMPORT:'COMPORT', RDOWNLOAD:'RDownload', QDOWNLOAD:'QDownload', RMIDI:'RMIDI', QMIDI:'QMIDI', RWAVE:'RWave', QWAVE:'QWave', RVIDEO:'RVideo', QVIDEO:'QVideo', RCDAUDIO:'RCDAudio', QCDAUDIO:'QCDAudio', RDXSCREEN:'RDXScreen', QDXSCREEN:'QDXScreen', RDXIMAGELIST:'RDXImageList', QDXIMAGELIST:'QDXImageList', RDXTIMER:'RDXTimer', QDXTIMER:'QDXTimer', RDXSOUND:'RDXSound', QDXSOUND:'QDXSound', RDXJOYSTICK:'RDXJoystick', QDXJOYSTICK:'QDXJoystick', RD3DFRAME:'RD3DFrame', QD3DFRAME:'QD3DFrame', RD3DMESHBUILDER:'RD3DMeshBuilder', QD3DMESHBUILDER:'QD3DMeshBuilder', RD3DMESH:'RD3DMesh', QD3DMESH:'QD3DMesh', RD3DFACE:'RD3DFace', QD3DFACE:'QD3DFace', RD3DLIGHT:'RD3DLight', QD3DLIGHT:'QD3DLight', RD3DTEXTURE:'RD3DTexture', QD3DTEXTURE:'QD3DTexture', RD3DVISUAL:'RD3DVisual', QD3DVISUAL:'QD3DVisual', RD3DWRAP:'RD3DWrap', QD3DWRAP:'QD3DWrap', RD3DVECTOR:'RD3DVector', QD3DVECTOR:'QD3DVector', RD3DANIMATION:'RD3Danimation', QD3DANIMATION:'QD3Danimation', RD3DANIMATIONSET:'RD3Danimationset', QD3DANIMATIONSET:'QD3Danimationset', RNUM:'RNum', RDATAFRAME:'RDataFrame', RPLOT:'RPlot', RWEBVIEW:'RWebView', RDOM:'RDOM', RJAVASCRIPT:'RJavaScript', RWEBSTORAGE:'RWebStorage', RWEBAUDIO:'RWebAudio', RWEBVIDEO:'RWebVideo', RWEBNOTIFICATION:'RWebNotification', RWEBGEOLOCATION:'RWebGeolocation', RROUTER:'RRouter', RPROJECT:'Rproject', RLANGUAGESERVICE:'Rlanguageservice', RPROGRAMSESSION:'Rprogramsession' };
 export function prettyComponentName(upper) {
   if (!upper) return upper;
   const u = String(upper).toUpperCase();

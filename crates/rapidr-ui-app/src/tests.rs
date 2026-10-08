@@ -216,13 +216,14 @@ fn form_with_button() {
 fn a_form_shows_once_built_and_paints_after_onshow() {
     form_with_button();
     forms::show(Mem, "F");
-    assert_eq!(fired(), ["f.onload", "F.onshow", "f.onpaint", "b.onpaint"]);
+    // (OnResize on each side of OnShow as the window is made: RC.EXE)
+    assert_eq!(fired(), ["f.onload", "F.onresize", "F.onshow", "F.onresize", "f.onpaint", "b.onpaint"]);
     assert_eq!(take_ops(), [WindowOp::Show("f".into())]);
     assert_eq!(world(|w| w.flushes), 1, "the window exists before OnShow");
     assert_eq!((forms::window_shown("f"), forms::form_scale(Mem, "f")), (Some(true), 1.0));
     // (shown again: on top, nothing fired)
     forms::show(Mem, "f");
-    assert_eq!(fired().len(), 4);
+    assert_eq!(fired().len(), 6);
     assert_eq!(take_ops(), [WindowOp::Show("f".into())]);
 }
 
@@ -268,7 +269,7 @@ fn a_user_resize_follows_the_constraints() {
     let (fw, fh) = rapidr_value::layout::form_frame(2);
     assert_eq!((Mem.get("f", "width").to_i64(), Mem.get("f", "height").to_i64()), (400, 300 + fh));
     assert_eq!(take_ops(), [WindowOp::Size("f".into(), (400 - fw, 300))]);
-    assert_eq!(fired()[4..], ["f.onresize", "f.onpaint"]);
+    assert_eq!(fired()[6..], ["f.onresize", "f.onpaint"]);
     // (a move is the runtime's, not the program's: no window command back)
     dispatch::dispatch(Mem, KernelEvent::Moved("f".into(), 5, 6));
     assert_eq!((Mem.get("f", "left").to_i64(), Mem.get("f", "top").to_i64()), (5, 6));
@@ -448,4 +449,28 @@ fn the_headless_maximize_takes_the_work_area_and_comes_back() {
     Mem.store("f", "windowstate", v_int(rapidr_value::window_state::WS_NORMAL));
     forms::set_window_state(Mem, "f", rapidr_value::window_state::WS_MAXIMIZED);
     assert_eq!(bounds(), [10, 20, 300, 200]);
+}
+
+#[test]
+fn onresize_as_the_vcl_fires_it() {
+    // (RC.EXE: none before the window exists, two around OnShow, then one
+    // for each change of size — shown or hidden — none for a move, the same
+    // size or a second Show)
+    form_with_button();
+    Mem.store("f", "width", v_int(310));
+    forms::apply_geometry(Mem, "f");
+    assert!(fired().iter().all(|e| !e.ends_with("onresize")));
+    forms::show(Mem, "f");
+    let count = |w: &str| fired().iter().filter(|e| e.as_str() == w).count();
+    assert_eq!(count("f.onresize"), 2);
+    forms::apply_geometry(Mem, "f");
+    Mem.store("f", "left", v_int(50));
+    forms::move_form(Mem, "f");
+    assert_eq!(count("f.onresize"), 2);
+    forms::hide(Mem, "f");
+    Mem.store("f", "width", v_int(350));
+    forms::apply_geometry(Mem, "f");
+    assert_eq!(count("f.onresize"), 3);
+    forms::show(Mem, "f");
+    assert_eq!(count("f.onresize"), 3);
 }

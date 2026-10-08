@@ -1,6 +1,7 @@
 //! RapidQ's Direct3D objects (manual, Appendix B: QD3DFRAME, QD3DMESHBUILDER,
 //! QD3DMESH, QD3DFACE, QD3DLIGHT, QD3DTEXTURE, QD3DWRAP, QD3DVECTOR,
-//! QD3DVISUAL, and QDXSCREEN's 3D methods; chapter 13; docs/directx-plan.md
+//! QD3DVISUAL, QD3DANIMATION, QD3DANIMATIONSET, and QDXSCREEN's 3D methods;
+//! chapter 13; docs/directx-plan.md
 //! stages D3–D4): Direct3D Retained Mode's scene, kept here for every
 //! runtime and drawn by the software rasterizer (`raster.rs`) into the
 //! QDXSCREEN's back buffer at `Render` — so 2D drawing after it, `Pixel`
@@ -50,7 +51,7 @@ use super::directx::DxScreen;
 use crate::{v_int, Value};
 
 /// RapidR's names for the QD3D* types.
-pub const TYPES: &[&str] = &["RD3DFRAME", "RD3DMESHBUILDER", "RD3DMESH", "RD3DFACE", "RD3DLIGHT", "RD3DTEXTURE", "RD3DVISUAL", "RD3DWRAP", "RD3DVECTOR"];
+pub const TYPES: &[&str] = &["RD3DFRAME", "RD3DMESHBUILDER", "RD3DMESH", "RD3DFACE", "RD3DLIGHT", "RD3DTEXTURE", "RD3DVISUAL", "RD3DWRAP", "RD3DVECTOR", "RD3DANIMATION", "RD3DANIMATIONSET"];
 
 // D3DRMRENDERQUALITY's parts (RapidQ_D3D.inc).
 const SHADE_MASK: i64 = 7;
@@ -74,6 +75,12 @@ enum Kind {
     Visual,
     Wrap,
     Vector,
+    /// QD3DANIMATION / QD3DANIMATIONSET: RC.EXE knows them with one member,
+    /// Parent, and nothing makes or plays one (no QDXSCREEN method creates
+    /// them, RapidQ's manual and examples never use them) — a handle that
+    /// refers to nothing, as QD3DTEXTURE's before LoadTexture.
+    Animation,
+    AnimationSet,
 }
 
 fn kind_of(type_name: &str) -> Option<Kind> {
@@ -87,6 +94,8 @@ fn kind_of(type_name: &str) -> Option<Kind> {
         "RD3DVISUAL" => Kind::Visual,
         "RD3DWRAP" => Kind::Wrap,
         "RD3DVECTOR" => Kind::Vector,
+        "RD3DANIMATION" => Kind::Animation,
+        "RD3DANIMATIONSET" => Kind::AnimationSet,
         _ => return None,
     })
 }
@@ -625,6 +634,19 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
             })),
             (Kind::MeshBuilder | Kind::Mesh, "facecount") => Some(v_int(r.handle.and_then(|h| s.mesh(h)).map_or(0, |m| m.faces.len() as i64))),
             (Kind::MeshBuilder | Kind::Mesh, "vertexcount") => Some(v_int(r.handle.and_then(|h| s.mesh(h)).map_or(0, |m| m.verts.len() as i64))),
+            // QD3DMESH's MaxY / MinY (RC.EXE's, read-only): the highest and
+            // lowest Y of its vertices, in the mesh's own space; a mesh with
+            // none reads empty (RC.EXE prints nothing for a new QD3DMESH).
+            (Kind::Mesh, "maxy" | "miny") => {
+                let ys: Vec<f64> = r.handle.and_then(|h| s.mesh(h)).map(|m| m.verts.iter().map(|v| v.y).collect()).unwrap_or_default();
+                Some(if ys.is_empty() {
+                    crate::v_str("")
+                } else if prop == "maxy" {
+                    Value::Double(ys.iter().copied().fold(f64::MIN, f64::max))
+                } else {
+                    Value::Double(ys.iter().copied().fold(f64::MAX, f64::min))
+                })
+            }
             _ => None,
         }
     })
@@ -658,7 +680,7 @@ pub fn call(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, Stri
         Kind::Face => face_call(r.handle, method, args),
         Kind::Light => light_call(r.handle, method, args),
         Kind::Wrap => wrap_call(r.handle, method, args),
-        Kind::Texture | Kind::Visual | Kind::Vector => None,
+        Kind::Texture | Kind::Visual | Kind::Vector | Kind::Animation | Kind::AnimationSet => None,
     }?;
     Some(res.map(|_| Value::Null))
 }
@@ -1021,11 +1043,16 @@ fn wrap_call(h: Option<usize>, method: &str, args: &[Value]) -> Option<Result<()
     })
 }
 
-/// Texture coordinates for every vertex of `m` from wrap `w` (D3DRM's
-/// formulas: the wrap's frame — origin, z along `dir`, y along `up` — then
-/// flat: u = su·x − ou, v = −sv·y − ov; cylinder: u = su·θ/2π − ou around
-/// the up axis, v = −sv·y − ov; sphere (and chrome): u = su·θ/2π − ou,
-/// v = sv·φ/π − ov with φ from the up axis).
+/// Texture coordinates for every vertex of `m` from wrap `w`, as RapidQ's
+/// D3DRM computes them (RC.EXE with RapidQ's d3drm.dll in the Windows VM:
+/// RapidR's probe scenes captured — docs/directx-plan.md, "D3DRM's wraps").
+/// In the wrap's frame (origin, z along `dir`, y along `up`, x to the
+/// right):
+/// - flat: u = su·x − ou, v = sv·y − ov (v grows upward);
+/// - cylinder: the axis is `dir`; u = su·θ/2π − ou with θ the angle around
+///   it from `up` (towards x), v = sv·z − ov, the distance along it;
+/// - sphere (and chrome): u as the cylinder's, v = sv·φ/π − ov with φ the
+///   angle from `dir`.
 fn apply_wrap(w: &Wrap, m: &mut Mesh) {
     let frame = Mat4::oriented(w.dir, w.up, w.origin).inverse();
     let (ou, ov) = w.offset;
@@ -1035,17 +1062,14 @@ fn apply_wrap(w: &Wrap, m: &mut Mesh) {
         .iter()
         .map(|v| {
             let p = frame.point(*v);
+            let around = || p.x.atan2(p.y).rem_euclid(std::f64::consts::TAU) / std::f64::consts::TAU;
             let (u, vv) = match w.kind {
-                0 => (su * p.x - ou, -sv * p.y - ov),
-                1 => {
-                    let theta = p.x.atan2(p.z).rem_euclid(std::f64::consts::TAU);
-                    (su * theta / std::f64::consts::TAU - ou, -sv * p.y - ov)
-                }
+                0 => (su * p.x - ou, sv * p.y - ov),
+                1 => (su * around() - ou, sv * p.z - ov),
                 _ => {
-                    let theta = p.x.atan2(p.z).rem_euclid(std::f64::consts::TAU);
                     let r = p.len().max(1e-12);
-                    let phi = (p.y / r).clamp(-1.0, 1.0).acos();
-                    (su * theta / std::f64::consts::TAU - ou, sv * phi / std::f64::consts::PI - ov)
+                    let phi = (p.z / r).clamp(-1.0, 1.0).acos();
+                    (su * around() - ou, sv * phi / std::f64::consts::PI - ov)
                 }
             };
             [u as f32, vv as f32]
@@ -1419,6 +1443,48 @@ mod tests {
         sc("move", &[d(1.0)]);
         render("t_dx", &mut screen);
         assert_eq!(screen.back.pixel(20, 15), Some(0), "the back isn't drawn");
+    }
+
+    /// The wraps' texture coordinates as RapidQ's D3DRM computed them in
+    /// RapidR's probe scenes (RC.EXE in the VM, docs/directx-plan.md).
+    #[test]
+    fn wraps_as_d3drm() {
+        let uv = |kind: i64, offset: (f64, f64), scale: (f64, f64), p: Vec3| {
+            let w = Wrap { kind, origin: v3(0.0, 0.0, 0.0), dir: v3(0.0, 0.0, 1.0), up: v3(0.0, 1.0, 0.0), offset, scale };
+            let mut m = Mesh { verts: vec![p], ..Mesh::default() };
+            apply_wrap(&w, &mut m);
+            let [u, v] = m.uvs[0];
+            ((u * 1000.0).round() / 1000.0, (v * 1000.0).round() / 1000.0)
+        };
+        // flat: u along x, v along y — upward
+        assert_eq!(uv(0, (0.25, 0.0), (1.0, 1.0), v3(-1.0, 1.0, 3.0)), (-1.25, 1.0));
+        assert_eq!(uv(0, (0.0, 0.0), (0.5, 2.0), v3(1.0, -1.0, 3.0)), (0.5, -2.0));
+        // cylinder: around the direction from up (towards x), v along it
+        assert_eq!(uv(1, (0.0, 0.0), (1.0, 1.0), v3(1.0, 0.0, 3.0)), (0.25, 3.0));
+        assert_eq!(uv(1, (0.25, 0.1), (2.0, 0.5), v3(0.0, 1.0, 2.0)), (-0.25, 0.9));
+        // sphere: u the same, v the angle from the direction over π
+        assert_eq!(uv(2, (0.0, 0.0), (1.0, 1.0), v3(0.0, -1.0, 0.0)), (0.5, 0.5));
+    }
+
+    #[test]
+    fn a_meshs_highest_and_lowest_y_and_animations() {
+        for (id, t) in [("t_my_mb", "RD3DMESHBUILDER"), ("t_my_m", "RD3DMESH"), ("t_my_face", "RD3DFACE"), ("t_my_a", "RD3DANIMATION"), ("t_my_s", "RD3DANIMATIONSET")] {
+            assert!(create(id, t), "{t}");
+        }
+        // (a QD3DMESH with nothing in it reads empty, as RC.EXE prints it)
+        assert_eq!(get("t_my_m", "maxy").unwrap().to_string_val(), "");
+        let mut screen = DxScreen::default();
+        screen_call("t_my_dx", &mut screen, "createmeshbuilder", &[v_str("t_my_mb")]).unwrap().unwrap();
+        screen_call("t_my_dx", &mut screen, "createface", &[v_str("t_my_face")]).unwrap().unwrap();
+        for (x, y) in [(0.0, -2.0), (1.0, 3.5), (1.0, 0.0)] {
+            call_ok("t_my_face", "addvertex", &[d(x), d(y), d(0.0)]);
+        }
+        call_ok("t_my_mb", "addface", &[v_str("t_my_face")]);
+        call_ok("t_my_mb", "createmesh", &[v_str("t_my_m")]);
+        assert_eq!((get("t_my_m", "maxy").unwrap().to_f64(), get("t_my_m", "miny").unwrap().to_f64()), (3.5, -2.0));
+        // (QD3DMESHBUILDER has no MaxY in RC.EXE; the animations are handles)
+        assert!(get("t_my_mb", "maxy").is_none());
+        assert!(call("t_my_a", "settime", &[]).is_none() && exists("t_my_s"));
     }
 
     #[test]

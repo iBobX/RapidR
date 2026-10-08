@@ -6,7 +6,14 @@
 
 use crate::value::{v_int, v_str, Value};
 /// `RESOURCE(n)`, `RESOURCECOUNT`, `EXTRACTRESOURCE` (shared, rapidr_value::resources).
-pub use crate::value::resources::{rp_extractresource, rp_resource, rp_resourcecount};
+pub use crate::value::resources::{rp_resource, rp_resourcecount};
+
+/// `EXTRACTRESOURCE`: into the page's files, which it may be the first to
+/// use (a program's first statements extract what it then loads).
+pub fn rp_extractresource(handle: &Value, file: &Value) {
+    crate::object_web::install_file_hooks();
+    crate::value::resources::rp_extractresource(handle, file)
+}
 use wasm_bindgen::prelude::*;
 
 fn warn(msg: &str) {

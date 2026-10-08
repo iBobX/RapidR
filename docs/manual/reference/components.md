@@ -149,6 +149,8 @@ Every component RapidR creates, by what it is for. A RapidQ name and its R name 
 | <img src="../icons/light/components/d3dvisual.svg" width="20" height="20" alt=""> | [`RD3DVISUAL`](members.md#rd3dvisual) | `QD3DVISUAL` | RapidQ | everywhere |
 | <img src="../icons/light/components/d3dwrap.svg" width="20" height="20" alt=""> | [`RD3DWRAP`](members.md#rd3dwrap) | `QD3DWRAP` | RapidQ | everywhere |
 | <img src="../icons/light/components/d3dvector.svg" width="20" height="20" alt=""> | [`RD3DVECTOR`](members.md#rd3dvector) | `QD3DVECTOR` | RapidQ | everywhere |
+| <img src="../icons/light/components/d3danimation.svg" width="20" height="20" alt=""> | [`RD3DANIMATION`](members.md#rd3danimation) | `QD3DANIMATION` | RapidQ | everywhere |
+| <img src="../icons/light/components/d3danimationset.svg" width="20" height="20" alt=""> | [`RD3DANIMATIONSET`](members.md#rd3danimationset) | `QD3DANIMATIONSET` | RapidQ | everywhere |
 
 ## Data science
 
@@ -193,9 +195,7 @@ RapidQ has these objects (RC.EXE knows them); RapidR doesn't yet. Variables of t
 
 - `QOLECONTAINER`: Hosts an embedded OLE object (a document or control of another program) on a form. Planned: RapidR doesn't have it yet.
 - `QOLEOBJECT`: Drives a COM / OLE automation object (another program's) by calling its methods by name. Planned: RapidR doesn't have it yet.
-- `QD3DANIMATION`: A Direct3D keyframe animation of a frame's position and orientation. Planned: RapidR doesn't have it yet.
-- `QD3DANIMATIONSET`: A set of Direct3D animations played together. Planned: RapidR doesn't have it yet.
 - `QTHREAD`: Runs its OnExecute code in a background thread. Planned: RapidR doesn't have it yet.
 - `QTRANSIMAGE`: A picture with a transparent colour that can shape and size its form to it. Planned: RapidR doesn't have it yet.
 
-101 components; 74 of them have a RapidQ name.
+103 components; 76 of them have a RapidQ name.

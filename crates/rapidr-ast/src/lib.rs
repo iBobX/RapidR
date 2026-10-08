@@ -9,6 +9,7 @@ pub mod for_locals;
 pub mod memory;
 pub mod type_values;
 pub mod library;
+pub mod method_equals;
 pub mod tray_calls;
 
 /// A name without its type suffix (`n%` → `n`, `w??` → `w`).
@@ -285,6 +286,10 @@ pub struct TypeStatement {
     pub span: TextSpan,
     pub name: String,
     pub extends: Option<String>,
+    /// `EXTENDS` (or the manual's `AS`) was written, QOBJECT included —
+    /// `extends` leaves QOBJECT out (a plain TYPE with methods), but RapidQ
+    /// takes its data-type objects (QRECT …) as fields only in an object.
+    pub object_base: bool,
     pub fields: Vec<TypeField>,
     pub methods: Vec<Statement>,
     pub constructor: Vec<Statement>,
@@ -775,6 +780,7 @@ pub fn dotted_fields(program: &Program) -> Program {
                 span: t.span,
                 name: nested_name.clone(),
                 extends: None,
+                object_base: false,
                 fields: group,
                 methods: Vec::new(),
                 constructor: Vec::new(),
@@ -1507,6 +1513,8 @@ pub fn is_read_only_value(type_name: &str, property: &str) -> bool {
         // (RC.EXE: `N.CBSIZE is a read-only value.`, `G.HANDLE is …`)
         "RNOTIFYICONDATA" => &["cbSize"],
         "RGLASSFRAME" => &["Handle"],
+        // (`M.MAXY is a read-only value.`)
+        "RD3DMESH" => &["MaxY", "MinY"],
         // (QCOMPORT's: `C.CONNECTED is a read-only value.`)
         "RCOMPORT" => &["Connected", "Handle", "InQue", "OutQue", "PendingIO"],
         _ => &[],
@@ -1515,7 +1523,8 @@ pub fn is_read_only_value(type_name: &str, property: &str) -> bool {
 }
 
 /// The members RapidQ's compiler knows for its data types QRECT and
-/// QNOTIFYICONDATA and for QGLASSFRAME (RC.EXE's own member table; any
+/// QNOTIFYICONDATA, for QGLASSFRAME and for QD3DANIMATION /
+/// QD3DANIMATIONSET (RC.EXE's own member table; any
 /// other is its `Member X not part of class Y`), lowercase. QGLASSFRAME
 /// also takes RapidR's additions every visible component has
 /// (AccessibleName, AccessibleDescription, Anchors).
@@ -1523,6 +1532,8 @@ pub fn fixed_members(type_name: &str) -> Option<&'static [&'static str]> {
     Some(match canonical_type_name(type_name).to_ascii_uppercase().as_str() {
         "RRECT" => &["left", "top", "right", "bottom"],
         "RNOTIFYICONDATA" => &["cbsize", "hwnd", "uid", "uflags", "ucallbackmessage", "hicon", "sztip"],
+        // (RC.EXE's QD3DANIMATION and QD3DANIMATIONSET: Parent alone)
+        "RD3DANIMATION" | "RD3DANIMATIONSET" => &["parent"],
         "RGLASSFRAME" => &[
             "left", "top", "width", "height", "clientwidth", "clientheight", "color", "enabled", "visible", "showhint", "hint",
             "popupmenu", "cursor", "handle", "align", "moveable", "transparency", "transparentcolor", "onclick", "ondblclick",
@@ -1534,15 +1545,63 @@ pub fn fixed_members(type_name: &str) -> Option<&'static [&'static str]> {
     })
 }
 
+/// `= x` with nothing before the `=`: what RapidQ's compiler makes of it
+/// (RC.EXE, probes 2026-10-08) — a number is itself (`x = = 5` stores 5,
+/// `v.Bar = 2 * 3, 4` passes 6), text is "" (`s$ = = "hi"` stores "",
+/// `L.AddItems = "a"` adds an empty line). It is how `Obj.Method = a, b`
+/// passes its first argument. A call of `__lone_equals` (rapidr_value).
+pub fn lone_equals(span: TextSpan, operand: Expression) -> Expression {
+    Expression::FunctionCall(FunctionCallExpression {
+        span,
+        callee: Box::new(Expression::Identifier(Identifier { span, name: "__lone_equals".into() })),
+        args: vec![operand],
+    })
+}
+
+/// The TYPEs a program makes objects of (their names, uppercase). RapidQ's
+/// compiler compiles a TYPE where a DIM (or CREATE) makes one — its errors
+/// name the section `V.FOO` after the variable — so a TYPE no DIM makes is
+/// never compiled at all: its methods may call routines nobody declared,
+/// its fields may be QRECTs in a plain TYPE (RC.EXE, probes 2026-10-08;
+/// RapidQ's `direct3d/Lights_pyramid.bas` carries such a TYPE). A parameter
+/// `p AS T` makes none. Counted generously: a type named by any DIM or
+/// CREATE, by any TYPE's field or EXTENDS, or used as a template.
+pub fn instantiated_types(program: &Program) -> std::collections::HashSet<String> {
+    let mut out = std::collections::HashSet::new();
+    let base = |t: &str| t.split('<').next().unwrap_or("").trim().to_ascii_uppercase();
+    walk(
+        &program.statements,
+        &mut |s| match s {
+            Statement::Dim(d) => {
+                out.insert(base(&d.type_name));
+            }
+            Statement::Create(c) => {
+                out.insert(base(&c.type_name));
+            }
+            Statement::Type(t) => {
+                out.extend(t.fields.iter().map(|f| base(&f.type_name)));
+                if let Some(e) = &t.extends {
+                    out.insert(base(e));
+                }
+            }
+            _ => {}
+        },
+        &mut |_| {},
+    );
+    out
+}
+
 /// RapidQ's errors about its data types and fixed-member objects
 /// ([`fixed_members`]), in its compiler's words:
 /// - `Member WIDTH not part of class R` — a member it doesn't have (`R` the
 ///   object, the member's whole dotted path: `FONT.NAME`);
 /// - `Component assignment is not yet supported.` — `R2 = R` of a QRECT or
 ///   QNOTIFYICONDATA;
-/// - `Datatype QRECT not supported in STRUCT` — one in a TYPE without
-///   EXTENDS (RC.EXE refuses every component there; RapidR's own programs
-///   keep composing TYPEs of components, so only these two are refused).
+/// - `Datatype QRECT not supported in STRUCT` — one in a TYPE or STRUCT
+///   without EXTENDS (RC.EXE refuses every component there; RapidR's own
+///   programs keep composing TYPEs of components, so only these two are
+///   refused). With `EXTENDS QOBJECT` (or any base) it is a field like
+///   any object's.
 fn fixed_member_checks(program: &Program, outside_types: &[Statement], component_types: &std::collections::HashMap<String, String>) -> Vec<(TextSpan, String)> {
     use std::collections::HashMap as Map;
     let mut out = Vec::new();
@@ -1551,26 +1610,69 @@ fn fixed_member_checks(program: &Program, outside_types: &[Statement], component
         let c = canonical_type_name(t).to_ascii_uppercase();
         c.strip_prefix('R').map_or(c.clone(), |rest| format!("Q{rest}"))
     };
+    let made = instantiated_types(program);
     for s in &program.statements {
         if let Statement::Type(t) = s {
-            if t.extends.is_none() {
+            if t.extends.is_none() && !t.object_base && made.contains(&t.name.to_ascii_uppercase()) {
                 for f in t.fields.iter().filter(|f| is_record(&f.type_name)) {
                     out.push((f.span, format!("Datatype {} not supported in STRUCT", rapidq_name(&f.type_name))));
                 }
             }
         }
     }
+    // The QRECT / QNOTIFYICONDATA fields of TYPEs (`TYPE T EXTENDS QOBJECT
+    // … R AS QRECT`) and the variables DIMmed as those TYPEs: `v.R` is a
+    // QRECT as `r` is (RC.EXE: `v.R = r2` and `v.R.Width` are refused alike).
+    let mut record_fields: Map<(String, String), String> = Map::new();
+    for s in &program.statements {
+        if let Statement::Type(t) = s {
+            for f in t.fields.iter().filter(|f| is_record(&f.type_name) && f.array_size.is_none()) {
+                record_fields.insert((t.name.to_ascii_uppercase(), f.name.to_ascii_lowercase()), f.type_name.clone());
+            }
+        }
+    }
+    let mut typed_vars: Map<String, String> = Map::new();
+    if !record_fields.is_empty() {
+        walk(
+            outside_types,
+            &mut |s| {
+                if let Statement::Dim(d) = s {
+                    let t = d.type_name.trim().to_ascii_uppercase();
+                    if record_fields.keys().any(|(ty, _)| *ty == t) {
+                        for v in &d.declarators {
+                            typed_vars.insert(strip_type_suffix(&v.name).to_ascii_lowercase(), t.clone());
+                        }
+                    }
+                }
+            },
+            &mut |_| {},
+        );
+    }
+    // (the record a member access names: `r`, or `v.R` of such a TYPE)
+    let record_of = |e: &Expression| -> Option<String> {
+        match e {
+            Expression::Identifier(i) => component_types.get(&i.name.to_ascii_lowercase()).filter(|k| is_record(k)).cloned(),
+            Expression::MemberAccess(m) => {
+                let Expression::Identifier(root) = m.object.as_ref() else { return None };
+                let t = typed_vars.get(&strip_type_suffix(&root.name).to_ascii_lowercase())?;
+                record_fields.get(&(t.clone(), m.member.to_ascii_lowercase())).cloned()
+            }
+            _ => None,
+        }
+    };
     // (the longest member chain on each use of an object: `g.Font.Name`)
     let mut chains: Map<(usize, usize), (TextSpan, String, String)> = Map::new();
     walk(
         outside_types,
         &mut |s| {
             if let Statement::Assignment(a) = s {
-                if let (Expression::Identifier(t), Expression::Identifier(v)) = (&a.target, &a.value) {
-                    let kind = |n: &str| component_types.get(&n.to_ascii_lowercase());
-                    if kind(&t.name).is_some_and(|k| is_record(k)) && kind(&v.name).is_some() {
-                        out.push((a.span, "Component assignment is not yet supported.".to_string()));
-                    }
+                let kind = |n: &str| component_types.get(&n.to_ascii_lowercase());
+                let value_is_object = match &a.value {
+                    Expression::Identifier(v) => kind(&v.name).is_some(),
+                    other => record_of(other).is_some(),
+                };
+                if record_of(&a.target).is_some() && value_is_object {
+                    out.push((a.span, "Component assignment is not yet supported.".to_string()));
                 }
             }
         },
@@ -1583,12 +1685,24 @@ fn fixed_member_checks(program: &Program, outside_types: &[Statement], component
                 object = inner.object.as_ref();
             }
             let Expression::Identifier(root) = object else { return };
-            let Some(members) = component_types.get(&root.name.to_ascii_lowercase()).and_then(|t| fixed_members(t)) else { return };
             path.reverse();
+            // (a record field's members: `v.R.Width` — the first is the field)
+            let (members, skip) = match component_types.get(&root.name.to_ascii_lowercase()).and_then(|t| fixed_members(t)) {
+                Some(members) => (members, 0),
+                None => {
+                    let Some(t) = typed_vars.get(&strip_type_suffix(&root.name).to_ascii_lowercase()) else { return };
+                    let Some(field_type) = record_fields.get(&(t.clone(), path[0].to_ascii_lowercase())) else { return };
+                    if path.len() < 2 {
+                        return;
+                    }
+                    let Some(members) = fixed_members(field_type) else { return };
+                    (members, 1)
+                }
+            };
             let joined = path.join(".");
             let key = (root.span.start, root.span.end);
             if chains.get(&key).is_none_or(|(_, _, p)| p.len() < joined.len()) {
-                let first_known = members.contains(&path[0].to_ascii_lowercase().as_str());
+                let first_known = members.contains(&path[skip].to_ascii_lowercase().as_str());
                 // (a known member's own members — `G.Parent.Caption` — are the
                 // other object's business)
                 if !first_known {
@@ -1934,6 +2048,40 @@ pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
                 }
             }
             _ => {}
+        },
+        &mut |_| {},
+    );
+    // (`L.Sorted = 1, 2`: the parser made it a call — `Obj.Method = a, b`
+    // — but a property takes one value: RC.EXE's `Expected end-of-line but
+    // got ,`)
+    walk(
+        &outside_types,
+        &mut |s| {
+            let Statement::Call(c) = s else { return };
+            let Expression::MemberAccess(m) = &c.callee else { return };
+            let Expression::Identifier(root) = m.object.as_ref() else { return };
+            let lone = matches!(c.args.first(), Some(Expression::FunctionCall(f)) if matches!(f.callee.as_ref(), Expression::Identifier(i) if i.name == "__lone_equals"));
+            if c.args.len() < 2 || !lone {
+                return;
+            }
+            let Some(t) = component_types.get(&root.name.to_ascii_lowercase()) else { return };
+            if rapidr_lang::component(&canonical_type_name(t)).is_some_and(|k| k.property(&m.member).is_some() && k.method(&m.member).is_none()) {
+                out.push((c.span, "Expected end-of-line but got ,".to_string()));
+            }
+        },
+        &mut |_| {},
+    );
+    // (`L.Clear = 1`: a method that takes nothing can't be "assigned")
+    walk(
+        &outside_types,
+        &mut |s| {
+            let Statement::Assignment(a) = s else { return };
+            let Expression::MemberAccess(m) = &a.target else { return };
+            let Expression::Identifier(root) = m.object.as_ref() else { return };
+            let Some(t) = component_types.get(&root.name.to_ascii_lowercase()) else { return };
+            if method_equals::method_params(program, t, &m.member) == Some(0) {
+                out.push((a.span, "Expected end-of-line but got =".to_string()));
+            }
         },
         &mut |_| {},
     );

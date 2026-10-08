@@ -7,6 +7,37 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### RapidQ's DirectX and Direct3D examples (checked against RC.EXE)
+- **QRECT (and QNOTIFYICONDATA, QFONT) as a field of an object**: `TYPE T
+  EXTENDS QOBJECT … R AS QRECT` compiles and behaves as RapidQ's — each
+  instance its own record, by reference to SUBs, through This in the TYPE's
+  code; `Datatype QRECT not supported in STRUCT` only for a TYPE / STRUCT
+  without EXTENDS, as RC.EXE says it. 8 of RapidQ's Direct3D examples (their
+  `RapidQ_D3D.inc`) compile again.
+- **A TYPE no DIM makes isn't compiled**, as in RapidQ: its methods may call
+  what isn't declared (RapidQ's `Lights_pyramid.bas`).
+- **`Obj.Method = a, b, c`** calls the method (RapidQ's `QMORP.BAS`), `= a`
+  passing a number as itself and text as ""; RC.EXE's errors for a property
+  or a method taking nothing.
+- **OnResize** fires as RapidQ fires it: around OnShow when a form's window
+  is made, then for every change of its size (it fired only for the user's
+  drag) — RapidQ's `CoolGauge.bas` shows its whole gauge.
+- **QBITMAP.PixelFormat** reads the loaded BMP's (8-bit 3, 24-bit 6), as
+  RapidQ's terrain examples check.
+- **QD3DANIMATION and QD3DANIMATIONSET** (RC.EXE's: Parent only, arrays
+  allowed), **QD3DMESH.MaxY / MinY** (read-only), **QD3DFRAME.FogEnabled**
+  a property.
+- **A full-screen QDXSCREEN covers its form** (DirectDraw's exclusive mode):
+  the picture fills the window, letterboxed, over the form's other
+  components, desktop and web.
+- Native builds: a CREATE inside a SUB that sets its object's `Font.Name`
+  compiles (RapidQ's `3DPong_aDelic2.bas`).
+- Of the corpus's 32 DirectX programs 28 compile (19 before); the 4 left
+  don't compile in RapidQ either (two include files the corpus lacks, a
+  typo, an unknown type) or call kernel32 — docs/directx-plan.md, "The
+  corpus's DirectX programs", has each program's state, RapidR's captures on
+  the desktop and the web, and RapidQ's own windows.
+
 ### Legal
 - **A review of RapidQ's terms, rights and trademarks, and of everything
   RapidR takes from RapidQ** (`docs/legal/rapidq-review.md`): RapidQ's

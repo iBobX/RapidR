@@ -213,6 +213,7 @@ mod tests {
             span: span(),
             name: "QCoolForm".into(),
             extends: Some("RFORM".into()),
+            object_base: true,
             fields: vec![],
             methods: vec![],
             constructor: vec![assign(member(ident("b"), "Parent"), ident("QCoolForm")), assign(ident("x"), ident("QFORM"))],

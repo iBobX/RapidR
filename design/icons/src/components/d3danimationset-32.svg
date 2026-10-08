@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Direct3D animation set</title>
+  <defs><mask id="m1" maskUnits="userSpaceOnUse" x="0" y="0" width="32" height="32"><rect width="32" height="32" fill="white"/><path d="M11 12L19 16V25L11 29L3 25V16L11 12Z" fill="black" stroke="black" stroke-width="3.4"/></mask></defs>
+  <g mask="url(#m1)"><path d="M21 3L29 8V17L21 21L13 17V8L21 3Z" fill="#EBE4FD" stroke="#6F42E5"/><path d="M13 8L21 12L29 8M21 12V21" stroke="#6F42E5"/></g>
+  <path d="M11 12L19 16V25L11 29L3 25V16L11 12Z" fill="#EBE4FD" stroke="#6F42E5"/>
+  <path d="M3 16L11 20L19 16M11 20V29" stroke="#6F42E5"/>
+</svg>
