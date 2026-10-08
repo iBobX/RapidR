@@ -192,6 +192,8 @@ mod tests {
 
     #[test]
     fn a_group_is_its_parents_radio_buttons() {
+        // (RapidQ's look, checked op for op: the classic theme, named)
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
         let mut s = MemStore::new();
         s.add("rbform", "RFORM", None);
         s.add("rbpanel", "RPANEL", Some("rbform")).set("rbpanel", "left", v_int(0)).set("rbpanel", "top", v_int(100));

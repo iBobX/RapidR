@@ -140,11 +140,12 @@ impl FormUi {
             y = (self.tip.at.1 - h - 28).max(0);
         }
         let ink = if t.fluent() {
-            if t.ring_fields {
+            if t.contrast {
                 p.fill((x, y, w, h), 0x000000);
                 p.frame((x, y, w, h), t.text);
             } else {
-                p.round((x, y, w, h), 5.0, Some(t.menu), Some(t.border), 1.0);
+                p.elevate((x, y, w, h), t.radius, 6.0);
+                p.round((x, y, w, h), t.radius, Some(t.menu), Some(t.border), 1.0);
             }
             t.menu_text
         } else {

@@ -123,14 +123,19 @@ pub static BUILTIN_FACES: [(&[u8], Option<&str>); 18] = [
 pub fn family_name(name: &str) -> &'static str {
     let n = name.to_ascii_lowercase();
     let n = n.trim();
-    if n == "inter" || n.starts_with("inter ") {
+    if n == "rapidr sans" {
+        // (the classic look's face by its own name: in every theme)
+        "RapidR Sans"
+    } else if is_default_face(n) {
+        // (RapidQ's default font: the theme's face for it — Inter in
+        // RapidR's look, RapidR Sans in the classic one)
+        crate::theme::current().ui_face.map_or("RapidR Sans", |(face, _)| face)
+    } else if n == "inter" || n.starts_with("inter ") {
         "Inter"
     } else if n.starts_with("jetbrains mono") || n == "jetbrainsmono" {
         "JetBrains Mono"
     } else if n.contains("courier") || n.contains("mono") || n.contains("fixed") || n.contains("terminal") || n.contains("console") {
         "Liberation Mono"
-    } else if n == "ms sans serif" || n == "microsoft sans serif" || n == "sans serif" || n.starts_with("ms shell dlg") || n == "ms sans" || n == "helv" {
-        "RapidR Sans"
     } else if n.contains("sans") {
         "Liberation Sans"
     } else if n.contains("times") || n.contains("serif") || n.contains("roman") || n.contains("georgia") {
@@ -138,6 +143,14 @@ pub fn family_name(name: &str) -> &'static str {
     } else {
         "Liberation Sans"
     }
+}
+
+/// Whether a QFONT's name is RapidQ's default font — MS Sans Serif (and
+/// Microsoft Sans Serif, MS Shell Dlg, "Sans Serif", Helv) or no name:
+/// what the theme draws in its own face ([`crate::theme::Theme::ui_face`]).
+pub fn is_default_face(name: &str) -> bool {
+    let n = name.trim().to_ascii_lowercase();
+    n.is_empty() || n == "ms sans serif" || n == "microsoft sans serif" || n == "sans serif" || n.starts_with("ms shell dlg") || n == "ms sans" || n == "helv"
 }
 
 /// A built-in face for a font's name and styles: its file, and which of the
@@ -484,12 +497,32 @@ pub fn text_out(bmp: &mut Bitmap, x: i64, y: i64, text: &str, font: &Font, color
 mod tests {
     #[test]
     fn sans_serif_names_are_sans() {
+        crate::theme::set(&crate::theme::CLASSIC);
         assert_eq!(super::family_name("MS Sans Serif"), "RapidR Sans");
         assert_eq!(super::family_name("Microsoft Sans Serif"), "RapidR Sans");
         assert_eq!(super::family_name("Arial"), "Liberation Sans");
         assert_eq!(super::family_name("Comic Sans MS"), "Liberation Sans");
         assert_eq!(super::family_name("Times New Roman"), "Liberation Serif");
         assert_eq!(super::family_name("Courier New"), "Liberation Mono");
+        assert_eq!(super::family_name(""), "RapidR Sans");
+    }
+
+    #[test]
+    fn rapidrs_look_draws_the_default_font_in_inter() {
+        use super::super::font::Font;
+        // RapidQ's default font (named, or not named) in Inter, at MS Sans
+        // Serif's pixels; the fonts a program names are the same in every
+        // theme
+        crate::theme::set(&crate::theme::RAPIDR);
+        for n in ["MS Sans Serif", "ms shell dlg 2", "Microsoft Sans Serif", ""] {
+            assert_eq!(super::family_name(n), "Inter", "{n}");
+        }
+        assert_eq!(super::family_name("Arial"), "Liberation Sans");
+        assert_eq!(super::family_name("Courier New"), "Liberation Mono");
+        let px = |name: &str, size: i64| Font { name: name.into(), size, color: 0, styles: 0 }.pixel_size();
+        assert_eq!((px("MS Sans Serif", 8), px("MS Sans Serif", 9), px("MS Sans Serif", 10), px("Arial", 8), px("Inter", 10)), (11, 11, 13, 11, 13));
+        crate::theme::set(&crate::theme::CLASSIC);
+        assert_eq!((px("MS Sans Serif", 8), px("MS Sans Serif", 9), px("MS Sans Serif", 10), px("Arial", 8)), (11, 11, 13, 11));
     }
 
     use super::*;
