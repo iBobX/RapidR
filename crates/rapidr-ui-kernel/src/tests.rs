@@ -1038,6 +1038,9 @@ fn run_faces(ts: &mut TextSystem, text: &str, font: &Font) -> Vec<(String, usize
 /// Cyrillic) comes from the family's Regular face.
 #[test]
 fn styled_text_is_drawn_from_the_designed_faces() {
+    // (RapidQ's look: MS Sans Serif is RapidR Sans there — RapidR's own
+    // look draws the default font in Inter)
+    rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
     // (the indices into BUILTIN_FACES: Sans, Serif, Mono, RapidR Sans,
     // RapidR Sans Bold, then the nine Liberation styles in Sans, Serif, Mono
     // order)
@@ -1071,6 +1074,9 @@ fn styled_text_is_drawn_from_the_designed_faces() {
 /// `TextWidth` measures it (the Regular face's advance), bold or not.
 #[test]
 fn bold_text_with_characters_the_bold_face_lacks_measures_the_same() {
+    // (RapidQ's look: MS Sans Serif is RapidR Sans there — RapidR's own
+    // look draws the default font in Inter)
+    rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
     let mut ts = TextSystem::new();
     for (name, styles) in [("Arial", 1u8), ("Arial", 3), ("Times New Roman", 1), ("Courier New", 1), ("MS Sans Serif", 1)] {
         let font = Font { name: name.into(), size: 12, styles: styles.into(), color: 0 };

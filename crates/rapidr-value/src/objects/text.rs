@@ -622,6 +622,9 @@ mod tests {
     /// widths, no spacing added.
     #[test]
     fn bold_and_italic_widths_are_rc_exes() {
+        // (RapidQ's look: MS Sans Serif is RapidR Sans there — RapidR's own
+        // look draws the default font in Inter, whose widths are its own)
+        crate::theme::set(&crate::theme::CLASSIC);
         for (name, size, styles, text, rc) in [
             // Arial Bold (Liberation Sans Bold): 37 and 39 where the regular
             // letters drawn heavier with a bit of spacing made 38 and 40
