@@ -99,6 +99,15 @@ fn notepad_becomes_an_app_that_opens() {
     let _ = Command::new("pkill").arg("-f").arg(exe.to_string_lossy().as_ref()).status();
     assert!(title.contains("Notepad - untitled"), "the app's window: {title:?}");
 
+    // a program named with a digit (3dcube.bas -> 3dcube.app): codesign took the relative
+    // `3dcube.app` for a process id ("No such process")
+    std::fs::copy(dir.join("notepad.bas"), dir.join("3dnote.bas")).unwrap();
+    let out = Command::new(rapidr()).args(["build", "3dnote.bas", "--interp"]).current_dir(&dir).output().unwrap();
+    let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    assert!(out.status.success(), "rapidr build 3dnote.bas:\n{text}");
+    assert!(text.contains("Signed (ad hoc)"), "{text}");
+    assert!(Command::new("codesign").args(["--verify", "--strict"]).arg(dir.join("3dnote.app")).status().unwrap().success(), "codesign -v 3dnote.app");
+
     // a console program stays a plain executable
     std::fs::write(dir.join("hello.bas"), "$APPTYPE CONSOLE\nPRINT \"hi\"\n").unwrap();
     let out = Command::new(rapidr()).args(["build", "hello.bas", "--interp"]).current_dir(&dir).output().unwrap();
