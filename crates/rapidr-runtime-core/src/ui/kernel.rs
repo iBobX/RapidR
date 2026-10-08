@@ -1021,12 +1021,15 @@ fn capture_and_end(prefix: &str) -> ! {
         let mut trees = Vec::new();
         let mut shots = Vec::new();
         for f in &order {
-            if a11y.is_some() {
-                trees.extend(desk.access_json(&RtStore, f));
-            }
             if let Some(px) = rapidr_ui_host_winit::capture(desk, &RtStore, f) {
                 let title = desk.forms.get(f).map(|w| w.spec.title.clone()).unwrap_or_default();
                 shots.push((title, px));
+            }
+            // (after the capture's paint: the tree as drawn — a console
+            // scrolled to its end, the focus where the last frame put it —
+            // as on the web, which paints every frame)
+            if a11y.is_some() {
+                trees.extend(desk.access_json(&RtStore, f));
             }
         }
         (trees, shots)

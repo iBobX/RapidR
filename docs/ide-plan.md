@@ -1138,7 +1138,11 @@ S-DESIGN made the designer work; this lane took it toward docs/studio-wow.md's b
 - `tests/studio_flows.mjs`, new cases on both hosts: `designer-menu` (typed through the kernel: `&File`, Enter, `&Open...`, Tab, Ctrl+O, `-`, `E&xit` → the exact QMAINMENU / QMENUITEM text), `designer-taborder`, `designer-caption` (slow click, typed, Enter), `designer-guides` (a guide held), `designer-zoom` (two commands, then Ctrl+− and Ctrl+=), `designer-tray` (SaveDialog inspected), `designer-addform` (a console program gets Form1 and a button), `designer-undo-interleave` (designer, typed code, designer; Undo from the code takes back only the last), `designer-undo-all` (three Undos: the file's exact bytes), `designer-redo`. The test hooks' `__key_N_256` now types Shift's character (`&` is Shift+7; `text_of_vk_shifted`).
 - `tests/studio_shell.mjs`: scenes `designer-menu`, `-taborder`, `-caption`, `-guides`, `-zoom`, `-empty`, `-addform` (each theme, 1× and 2×, desktop vs web).
 
-RESULTS_PLACEHOLDER
+**Results** (this worktree, the web build served on its own port: `STUDIO_WEB_URL`, which both scripts now read):
+- `tests/studio_flows.mjs`: **189 of 189 checks pass, desktop and web** (every case, the new ones included).
+- `tests/studio_shell.mjs designer` (the eight designer scenes plus S-DESIGN's, RapidR light and dark, 1× and 2×): **36 of 36 captures byte-identical desktop / web**; accessibility trees 28 of 36 equal — `designer-zoom` and `designer-addform` differ only in which node holds the focus (the desktop reports the window, the web the designer) after a selection made by a command; left for the kernel / host lane.
+- Two harness fixes found on the way: the desktop wrote its accessibility trees *before* the capture's paint (a console not yet scrolled to its end) — now after it (runtime-core `ui/kernel.rs`); and a drop's settling was timed from its first paint, which a headless host makes only at the capture — now from the drop itself (and it follows the component as it moves).
+- Captures: `scratch/captures/` (BMP: `<scene>-<theme>@<s>x-desktop / -web`, and side by side) and `scratch/captures-png/`, `scratch/flows/` (PNG), in this lane's worktree.
 
 **Benchmarked (docs/studio-wow.md's DES items; the gap table updated):**
 - Done: DES-1 … DES-14 (DES-10 now one history with the code; DES-13 both editors; DES-14 with the program's own dialogs), DES-17 (P1, done early).
