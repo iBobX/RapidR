@@ -51,7 +51,7 @@ const SCENES = [
   {
     name: "designer",
     open: "examples/rapidq/notepad.bas",
-    do: "view.documents.tabs,view.designer,designer.place.QBUTTON",
+    do: "view.designer,designer.place.QBUTTON",
     delay: 4,
     events: [
       "__mousedown_100_120", "__mouseup_100_120",
@@ -62,6 +62,28 @@ const SCENES = [
   // (the code editor with the completion list open and its docs beside it:
   // typed through the kernel's keys, S-EDITOR)
   { name: "editor", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:dim y as string,key:Escape,key:Enter,type:form.c", delay: 6 },
+  // (S-SHELL-2) Documents as tabs: a form's file side by side (Design |
+  // Code), another file in a second group on the right; Find in Files'
+  // results; F1's Help pane.
+  // (examples without $INCLUDE: on the web the language service and the
+  // designer don't read includes from the page's store yet)
+  {
+    name: "workspace",
+    open: "examples/gui/hello_form.rr",
+    do: "wait,view:Split,open:menus.rr,view.splitVertically",
+    delay: 5,
+  },
+  {
+    name: "design-tab",
+    open: "examples/gui/hello_form.rr",
+    delay: 4,
+  },
+  {
+    name: "search",
+    open: "examples/gui/hello_form.rr",
+    do: "wait,find:Greet,help:QBUTTON",
+    delay: 5,
+  },
 ];
 
 mkdirSync(OUT, { recursive: true });
@@ -141,6 +163,8 @@ async function runWeb(browser, scene, theme, scale) {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   try {
+    const files = (scene.webFiles || []).map((f) => ({ path: f, text: readFileSync(join(ROOT, f), "utf8") }));
+    await page.addInitScript((files) => { window.RAPIDR_STUDIO_TEST_FILES = files; }, files);
     await page.addInitScript((env) => { window.RAPIDR_STUDIO_TEST = env; }, {
       RAPIDR_CAPTURE: "web",
       ...(scene.delay ? { RAPIDR_CAPTURE_DELAY: String(scene.delay) } : {}),

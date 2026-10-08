@@ -12,8 +12,10 @@
 '   ImmediateBox  "Immediate"   with Output       RImmediateWindow (I6)
 '   VarsTree, WatchPanel, StackTree, BpPanel      beside Output: Variables,
 '                 Watch, Call Stack, Breakpoints (debug.inc SetUpDebug)
-'   CodeDoc(i)    a source file                   RCodeEditor    (L-EDVIEW)
-'   DesignDoc(i)  a file's form                   RFormDesigner  (L-DMODEL / L-DVIEW)
+'   CodeDoc(i)    a source file's tab             RCodeEditor    (L-EDVIEW)
+'   DesignDoc(i)  its form: the tab's Design view RDESIGNSURFACE (workspace.inc)
+'   SearchPane    "Search"      with Project      Find in Files  (search.inc)
+'   HelpPane      "Help"        with Properties   F1             (search.inc)
 
 SUB SetUpDock
   Dock.AddPane(ProjectTree, "Project", "left", "explorer")

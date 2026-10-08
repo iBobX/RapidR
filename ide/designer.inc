@@ -30,6 +30,16 @@ SUB DesignRead(d AS INTEGER)
   DesignDoc(d).Source = CodeDoc(d).Text
 END SUB
 
+' (character offset of line l, column c in document d's code: the code
+' editor's SelStart; Find in Files' results)
+FUNCTION CodeOffset(d AS INTEGER, l AS INTEGER, c AS INTEGER) AS INTEGER
+  DIM k AS INTEGER, o AS INTEGER
+  FOR k = 0 TO l - 1
+    o = o + LEN(CodeDoc(d).Line(k)) + 1
+  NEXT
+  Result = o + c
+END FUNCTION
+
 ' The designer changed the code: each OnSourceEdit patch (lines from 0,
 ' columns in characters, in the text the ones before left) is kept until
 ' the change's OnChange, then the code editor applies them all as one undo

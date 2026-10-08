@@ -23,7 +23,7 @@ use std::cell::Cell;
 
 use super::geometry::{self, Slot};
 use super::manager::{self, docs_name, parse_where, Event, Outcome, User};
-use super::{DocumentMode, Rect, Target};
+use super::{DocumentMode, Rect, Side, Target};
 use crate::mdi;
 use crate::objects::font::Font;
 use crate::Value;
@@ -219,6 +219,51 @@ pub fn rt_method<R: Runtime>(rt: R, dock: &str, method: &str, args: &[Value]) ->
             }
             return Some(Value::Null);
         }
+        // (tabbed documents) AddView(Document, Component, Caption): one of
+        // the document's views, on its tab strip's switch
+        "addview" => {
+            let (doc, comp) = (name(0), component_arg(&arg(1)).to_ascii_lowercase());
+            let out = manager::with_mut(dock, |m| m.add_view(&doc, &comp, &s(2)));
+            // (a view's component lives in the document area)
+            let docs = docs_name(dock);
+            if rt.exists(&docs) && !rt.get(&comp, "parent").to_string_val().eq_ignore_ascii_case(&docs) {
+                rt.set(&comp, "parent", Value::String(docs));
+            }
+            Outcome { changed: false, ..out }
+        }
+        // DocumentView(Name[, View]): the view shown, by caption ("Split":
+        // the first two side by side)
+        "documentview" => {
+            let p = name(0);
+            if args.len() < 2 {
+                return Some(Value::String(manager::with(dock, |m| m.pane(&p).map(|i| i.view_caption())).flatten().unwrap_or_default()));
+            }
+            let v = manager::with(dock, |m| m.view_named(&p, &s(1))).flatten();
+            match v {
+                Some(v) => manager::with_mut(dock, |m| m.set_view(&p, v)),
+                None => Outcome::default(),
+            }
+        }
+        // DocumentModified(Name[, Modified]): a dot on its tab
+        "documentmodified" => {
+            let p = name(0);
+            if args.len() < 2 {
+                return Some(int(if manager::with(dock, |m| m.pane(&p).is_some_and(|i| i.modified)).unwrap_or(false) { -1 } else { 0 }));
+            }
+            let on = arg(1).to_bool();
+            manager::with_mut(dock, |m| {
+                if let Some(i) = m.panes.iter_mut().find(|i| i.name == p) {
+                    i.modified = on;
+                }
+                m.touch();
+            });
+            Outcome::default()
+        }
+        // SplitDocument(Name, Side): a new group of documents on that side
+        "splitdocument" => match Side::parse(&s(1)) {
+            Some(side) => manager::with_mut(dock, |m| m.split_document(&name(0), side)),
+            None => Outcome::default(),
+        },
         "nextdocument" => manager::with_mut(dock, |m| m.next_document(false)),
         "previousdocument" => manager::with_mut(dock, |m| m.next_document(true)),
         // (the documents' MDI client: QFORMMDI's arrangements)
@@ -258,6 +303,7 @@ pub fn rt_get(dock: &str, prop: &str) -> Option<Value> {
             "activepane" => Value::String(m.active_pane.as_ref().map(|a| m.pane(a).map_or(a.clone(), |i| i.given.clone())).unwrap_or_default()),
             "panecount" => Value::Integer(m.panes.len() as i64),
             "documentcount" => Value::Integer(m.layout.documents.len() as i64),
+            "documentgroupcount" => Value::Integer(if m.layout.documents.is_empty() { 0 } else { m.layout.group_count() as i64 }),
             "layout" => Value::String(m.save()),
             _ => return None,
         })
@@ -401,6 +447,7 @@ fn close_next<R: Runtime>(rt: R, dock: String, mut rest: Vec<String>) {
     }
     let name = given(&dock, &doc);
     let d = dock.clone();
+    let views: Vec<String> = manager::with(&dock, |m| m.pane(&doc).map(|i| i.views.iter().map(|v| v.0.clone()).collect())).flatten().unwrap_or_default();
     rt.fire_then(
         &dock,
         "ondocumentclose",
@@ -414,6 +461,9 @@ fn close_next<R: Runtime>(rt: R, dock: String, mut rest: Vec<String>) {
                     mdi::close(&docs, &doc);
                 }
                 rt.set(&doc, "visible", int(0));
+                for v in views {
+                    hide(rt, &v);
+                }
                 finish(rt, &d, out);
             }
             close_next(rt, d, rest);
@@ -424,7 +474,9 @@ fn close_next<R: Runtime>(rt: R, dock: String, mut rest: Vec<String>) {
 /// Focuses the first component in pane `pane`'s component that takes the
 /// focus (itself first).
 fn focus_pane<R: Runtime>(rt: R, dock: &str, pane: &str) {
-    let _ = dock;
+    // (a document with views: the shown view's component)
+    let shown = manager::with(dock, |m| m.pane(pane).filter(|i| !i.views.is_empty()).and_then(|i| i.shown_components().last().cloned())).flatten();
+    let pane = shown.as_deref().unwrap_or(pane);
     fn first<R: Runtime>(rt: R, name: &str, t: &str, depth: usize) -> Option<String> {
         // (Visible and Enabled never set: true, as the kernel reads them)
         let on = |prop: &str| match rt.get(name, prop) {
@@ -538,21 +590,45 @@ fn apply_now<R: Runtime>(rt: R, dock: &str) {
                 }
             }
         }
+        // (each document's components: its own, its views')
+        let comps = |p: &str| -> (Vec<String>, Vec<String>) {
+            manager::with(dock, |m| {
+                m.pane(p).map(|i| {
+                    let mut all = vec![i.name.clone()];
+                    all.extend(i.views.iter().map(|v| v.0.clone()).filter(|v| *v != i.name));
+                    (all, i.shown_components())
+                })
+            })
+            .flatten()
+            .unwrap_or_else(|| (vec![p.to_string()], vec![p.to_string()]))
+        };
         for (k, p) in layout.documents.iter().enumerate() {
             placed.push(p.clone());
-            if !rt.get(p, "parent").to_string_val().eq_ignore_ascii_case(&docs) {
-                rt.set(p, "parent", Value::String(docs.clone()));
+            let (all, shown) = comps(p);
+            for c in &all {
+                if !rt.get(c, "parent").to_string_val().eq_ignore_ascii_case(&docs) {
+                    rt.set(c, "parent", Value::String(docs.clone()));
+                }
             }
             if mdi_on {
+                // (an MDI window holds the document's own component)
+                for c in all.iter().filter(|c| *c != p) {
+                    hide(rt, c);
+                }
                 if mdi::child_index(&docs, p).is_none() {
                     let title = manager::with(dock, |m| m.pane(p).map(|i| i.title.clone())).flatten().unwrap_or_default();
                     let h = crate::handles::handle_of(p);
                     let _ = mdi::call(&docs, "addchild", &[int(h), Value::String(title), int(k as i64), int(0), int(0), int(0), int(0), int(-1)], client, &crate::handles::name_of);
                 }
-            } else if layout.active_document == Some(k) {
-                place(rt, p, &docs, d.content);
-            } else {
-                hide(rt, p);
+                continue;
+            }
+            // (tabbed: the shown document of each group in its group's places)
+            let gr = d.groups.iter().find(|g| g.shown().map(String::as_str) == Some(p.as_str()));
+            for c in &all {
+                match (gr, shown.iter().position(|x| x == c)) {
+                    (Some(g), Some(i)) if i < g.places.len() => place(rt, c, &docs, g.places[i]),
+                    _ => hide(rt, c),
+                }
             }
         }
         if mdi_on {

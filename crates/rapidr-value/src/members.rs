@@ -109,7 +109,7 @@ const WEB: &[&str] = &[
 
 /// The I/O and media objects' (objects::rqlib): `IF Download.LeechFile`,
 /// `IF CD.Open`.
-const IO: &[&str] = &["leechfile", "check", "open"];
+const IO: &[&str] = &["leechfile", "check", "open", "listports", "readline"];
 
 /// The methods of type `t` (RapidR's uppercase `R…` name) beyond [`ANY`].
 fn methods_of(t: &str) -> &'static [&'static [&'static str]] {

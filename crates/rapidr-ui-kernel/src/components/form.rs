@@ -194,4 +194,106 @@ mod tests {
         let actions: Vec<mdi::Action> = container(&f.take_events()).into_iter().filter_map(mdi_of).collect();
         assert_eq!(actions, vec![mdi::Action::Close, mdi::Action::Activate, mdi::Action::Move(l + 10, t + 5)]);
     }
+
+    /// Tabbed documents: a tab dragged to a group's right quarter splits it,
+    /// along the strip reorders, a view switch's segment shows that view,
+    /// the splitter between groups drags.
+    #[test]
+    fn document_tabs_drag_to_split_and_switch_views() {
+        use rapidr_value::dock::manager::{self, DocView, User};
+        use rapidr_value::dock::{DocTarget, DocumentMode, Side};
+        let mut s = MemStore::new();
+        s.add("kf", "RFORM", None);
+        s.add("kd", "RDOCKMANAGER", Some("kf"));
+        place(&mut s, "kd", (0, 0, 800, 500));
+        manager::with_mut("kd", |m| {
+            m.resize((800, 500), &rapidr_value::objects::font::Font::default());
+            m.layout.mode = DocumentMode::Tabs;
+            for d in ["one", "two", "three"] {
+                m.add_pane(d, d, "documents", "code");
+            }
+            m.add_view("one", "onedesign", "Design");
+            m.add_view("one", "one", "Code");
+            m.layout.select("one");
+            m.touch();
+        });
+        let d = manager::with_mut("kd", |m| m.geometry().documents.clone()).unwrap();
+        s.add("kd__docs", "RDOCKDOCS", Some("kd")).set("kd__docs", "__dock", v_str("kd"));
+        place(&mut s, "kd__docs", d.rect);
+        let mut ts = TextSystem::new();
+        let mut f = FormUi::build(&s, "kf", false);
+        drop(f.paint(&s, &mut ts, 1.0));
+        let dock_of = |c: Container| if let Container::Dock { action, .. } = c { Some(action) } else { None };
+        let gr = d.groups[0].clone();
+        let at = |r: (i64, i64, i64, i64), dx: i64, dy: i64| ((d.rect.0 + r.0 + dx) as f64 + 0.5, (d.rect.1 + r.1 + dy) as f64 + 0.5);
+        // (tab "three" dragged to the group's right quarter)
+        let (x, y) = at(gr.tabs[2].rect, 20, 10);
+        let (tx, ty) = at(gr.content, gr.content.2 - 30, gr.content.3 / 2);
+        f.mouse_down(&s, &mut ts, x, y, Button::Left, NONE);
+        f.mouse_move(&s, &mut ts, x + 20.0, y + 40.0, NONE);
+        f.mouse_move(&s, &mut ts, tx, ty, NONE);
+        let preview = manager::with("kd", |m| m.ui.doc_drag.as_ref().and_then(|dd| dd.preview)).flatten();
+        assert_eq!(preview.map(|p| p.2), Some(gr.content.2 / 2), "the half it would take, outlined");
+        f.mouse_up(&s, &mut ts, tx, ty, Button::Left, NONE);
+        let acts: Vec<User> = container(&f.take_events()).into_iter().filter_map(dock_of).collect();
+        assert_eq!(acts, vec![User::Select("three".into()), User::MoveDocument("three".into(), DocTarget::Split { anchor: "one".into(), side: Side::Right })]);
+        // (along the strip: before the first tab)
+        let (x, y) = at(gr.tabs[1].rect, 20, 10);
+        let (bx, by) = at(gr.tabs[0].rect, 4, 10);
+        f.mouse_down(&s, &mut ts, x, y, Button::Left, NONE);
+        f.mouse_move(&s, &mut ts, bx, by, NONE);
+        f.mouse_up(&s, &mut ts, bx, by, Button::Left, NONE);
+        let acts: Vec<User> = container(&f.take_events()).into_iter().filter_map(dock_of).collect();
+        assert_eq!(acts.last(), Some(&User::MoveDocument("two".into(), DocTarget::Into { anchor: "one".into(), index: 0 })));
+        // (the switch's "Code" segment)
+        let (cx, cy) = at(gr.switch[1].2, 5, 5);
+        f.mouse_down(&s, &mut ts, cx, cy, Button::Left, NONE);
+        f.mouse_up(&s, &mut ts, cx, cy, Button::Left, NONE);
+        let acts: Vec<User> = container(&f.take_events()).into_iter().filter_map(dock_of).collect();
+        assert_eq!(acts, vec![User::View("one".into(), DocView::One(1))]);
+    }
+
+    /// A QFORMMDI child sizes by any edge or corner (Windows' sizing
+    /// border), never under the least size; a maximized one doesn't.
+    #[test]
+    fn mdi_children_resize_by_every_edge_and_corner() {
+        let names = |h: i64| Some(format!("red({h})"));
+        mdi::register("rform");
+        let mut s = MemStore::new();
+        s.add("rform", "RFORM", None);
+        mdi::call("rform", "AddChild", &[v_int(0), v_str("One"), v_int(0), v_int(0), v_int(0), v_int(0), v_int(0), v_int(-1)], (600, 400), &names).unwrap();
+        let fr = mdi::frames("rform")[0].clone();
+        let name = mdi::frame_name("rform", &fr.component);
+        s.add(&name, "RMDICHILD", Some("rform")).set(&name, "caption", v_str("One")).set(&name, "__form", v_str("rform")).set(&name, "__component", v_str(&fr.component));
+        place(&mut s, &name, (fr.rect.left, fr.rect.top, fr.rect.width, fr.rect.height));
+        let mut ts = TextSystem::new();
+        let mut f = FormUi::build(&s, "rform", false);
+        drop(f.paint(&s, &mut ts, 1.0));
+        let (l, t, w, h) = f.node(&name).unwrap().abs;
+        fn drag(s: &MemStore, ts: &mut TextSystem, f: &mut FormUi, from: (i64, i64), by: (i64, i64)) -> Vec<mdi::Action> {
+            let mdi_of = |c: Container| if let Container::Mdi { action, .. } = c { Some(action) } else { None };
+            let (x, y) = (from.0 as f64 + 0.5, from.1 as f64 + 0.5);
+            f.mouse_down(s, ts, x, y, Button::Left, NONE);
+            f.mouse_move(s, ts, x + by.0 as f64, y + by.1 as f64, NONE);
+            f.mouse_up(s, ts, x + by.0 as f64, y + by.1 as f64, Button::Left, NONE);
+            container(&f.take_events()).into_iter().filter_map(mdi_of).filter(|a| *a != mdi::Action::Activate).collect()
+        }
+        // each edge from its middle, each corner
+        assert_eq!(drag(&s, &mut ts, &mut f, (l, t + h / 2), (-20, 7)), [mdi::Action::Resize(l - 20, t, w + 20, h)]);
+        assert_eq!(drag(&s, &mut ts, &mut f, (l + w - 1, t + h / 2), (30, 0)), [mdi::Action::Resize(l, t, w + 30, h)]);
+        assert_eq!(drag(&s, &mut ts, &mut f, (l + w / 2, t), (0, -10)), [mdi::Action::Resize(l, t - 10, w, h + 10)]);
+        assert_eq!(drag(&s, &mut ts, &mut f, (l + w / 2, t + h - 1), (5, 25)), [mdi::Action::Resize(l, t, w, h + 25)]);
+        assert_eq!(drag(&s, &mut ts, &mut f, (l, t), (10, 10)), [mdi::Action::Resize(l + 10, t + 10, w - 10, h - 10)]);
+        assert_eq!(drag(&s, &mut ts, &mut f, (l + w - 1, t), (10, -10)), [mdi::Action::Resize(l, t - 10, w + 10, h + 10)]);
+        assert_eq!(drag(&s, &mut ts, &mut f, (l, t + h - 1), (-10, 10)), [mdi::Action::Resize(l - 10, t, w + 10, h + 10)]);
+        assert_eq!(drag(&s, &mut ts, &mut f, (l + w - 1, t + h - 1), (15, 15)), [mdi::Action::Resize(l, t, w + 15, h + 15)]);
+        // (never smaller than Windows' least)
+        assert_eq!(drag(&s, &mut ts, &mut f, (l + w - 1, t + h - 1), (-2000, -2000)), [mdi::Action::Resize(l, t, mdi::MIN_TRACK.0, mdi::MIN_TRACK.1)]);
+        // (inside the border: the title bar moves it, the client does nothing)
+        assert_eq!(drag(&s, &mut ts, &mut f, (l + 30, t + 10), (4, 4)), [mdi::Action::Move(l + 4, t + 4)]);
+        // (maximized: no sizing border)
+        s.set(&name, "childstate", v_int(2));
+        f.sync(&s);
+        assert!(!drag(&s, &mut ts, &mut f, (l, t + h / 2), (-20, 0)).iter().any(|a| matches!(a, mdi::Action::Resize(..))));
+    }
 }

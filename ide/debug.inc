@@ -143,10 +143,6 @@ FUNCTION FolderOf(Path AS STRING) AS STRING
 END FUNCTION
 
 ' (the code document d's pane)
-FUNCTION CodePane(d AS INTEGER) AS STRING
-  Result = "codedoc(" + Num(d) + ")"
-END FUNCTION
-
 ' ---- breakpoints ----------------------------------------------------------------------------
 
 FUNCTION FindBreakpoint(InFile AS STRING, LineNo AS INTEGER) AS INTEGER
@@ -454,7 +450,7 @@ SUB ShowLocation(InFile AS STRING, LineNo AS INTEGER, Kind AS STRING)
     d = DocOf(p)
   END IF
   IF d < 0 THEN EXIT SUB
-  Dock.FocusPane(CodePane(d))
+  Dock.FocusPane(DocPane(d))
   CodeDoc(d).GotoLine LineNo - 1
   IF Kind = "exception" THEN
     CodeDoc(d).AddMarker LineNo, Kind, Session.StopMessage
@@ -508,7 +504,7 @@ SUB GoToFirstProblem
     IF FIELD$(row, CHR$(9), 1) = "error" THEN
       ShowLocation FIELD$(row, CHR$(9), 5), VAL(FIELD$(row, CHR$(9), 2)), ""
       IF FIELD$(row, CHR$(9), 5) = "" THEN
-        Dock.FocusPane(CodePane(d))
+        Dock.FocusPane(DocPane(d))
         CodeDoc(d).GotoLine VAL(FIELD$(row, CHR$(9), 2)) - 1
       END IF
       EXIT SUB
@@ -1050,7 +1046,7 @@ FUNCTION DebugStep(Stp AS STRING) AS INTEGER
   SELECT CASE verb
     CASE "line"
       IF d >= 0 THEN
-        Dock.FocusPane(CodePane(d))
+        Dock.FocusPane(DocPane(d))
         CodeDoc(d).GotoLine VAL(arg) - 1
       END IF
     CASE "watch"

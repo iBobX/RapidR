@@ -58,6 +58,8 @@ SUB RunCommand(Id AS STRING)
   IF DesignCommand(Id) THEN EXIT SUB
   ' (Run's and Debug's: debug.inc)
   IF DebugCommand(Id) THEN EXIT SUB
+  ' (the documents' views and groups, Find in Files, Help: workspace.inc, search.inc)
+  IF WorkspaceCommand(Id) THEN EXIT SUB
   SELECT CASE Id
     ' ---- file ----
     CASE "file.newProject": AskNew
@@ -87,17 +89,12 @@ SUB RunCommand(Id AS STRING)
     CASE "view.output": OutputBox.Page = "output": Dock.FocusPane("outputbox")
     CASE "view.problems": OutputBox.Page = "problems": Dock.FocusPane("outputbox")
     CASE "view.immediate": Dock.FocusPane("immediatebox")
-    CASE "view.welcome": Dock.ShowPane("welcome"): Dock.FocusPane("welcome")
     CASE "view.theme.rapidr": SetTheme "rapidr"
     CASE "view.theme.light": SetTheme "rapidr light"
     CASE "view.theme.dark": SetTheme "rapidr dark"
     CASE "view.theme.highcontrast": SetTheme "rapidr high contrast"
     CASE "view.theme.classic": SetTheme "classic"
     CASE "view.previewClassic": TogglePreviewClassic
-    CASE "view.documents.mdi"
-      DocumentMode = "mdi": Dock.DocumentMode = "mdi": UpdateCommands
-    CASE "view.documents.tabs"
-      DocumentMode = "tabs": Dock.DocumentMode = "tabs": UpdateCommands
     CASE "view.layout": Dock.ResetLayout
     CASE "view.settings": ShowPalette "View: "
     CASE "view.keyboardShortcuts": ShowShortcuts
@@ -110,14 +107,10 @@ SUB RunCommand(Id AS STRING)
     CASE "run.build": BuildProject
     CASE "run.reveal": RevealBuild
     ' ---- window ----
-    CASE "window.cascade": Dock.Cascade
-    CASE "window.tileHorizontally": Dock.TileHorizontal
-    CASE "window.tileVertically": Dock.TileVertical
     CASE "window.next": Dock.NextDocument
     CASE "window.previous": Dock.PreviousDocument
     ' ---- help ----
     CASE "help.about": ShowAbout
-    CASE "help.examples": Dock.ShowPane("welcome"): Dock.FocusPane("welcome")
     CASE ELSE
       IF EditorCommand(Id) = 0 THEN OutputLine "(" + Id + ": not there yet)"
   END SELECT
@@ -131,6 +124,11 @@ SUB StudioResize
 END SUB
 
 SUB StudioClose(Action AS INTEGER)
+  ' (changes not saved: asked first; Cancel keeps Studio open)
+  IF AskToSaveAll = 0 THEN
+    Action = 0
+    EXIT SUB
+  END IF
   StopProgram
   Session.StopBrowser
   SaveSettings
@@ -148,15 +146,11 @@ SUB PaneChanged(Name AS STRING)
 END SUB
 
 SUB DocumentActivated(Name AS STRING)
-  DIM d AS INTEGER, k AS STRING, was AS INTEGER
-  k = LCASE$(Name)
+  DIM d AS INTEGER, was AS INTEGER
   was = ActiveDoc
-  FOR d = 0 TO DocCount - 1
-    IF DocOpen(d) THEN
-      IF k = "codedoc(" + LTRIM$(STR$(d)) + ")" THEN ActiveDoc = d: DocKind(d) = "code"
-      IF k = "designdoc(" + LTRIM$(STR$(d)) + ")" THEN ActiveDoc = d: DocKind(d) = "design"
-    END IF
-  NEXT
+  ' (its view — Design, Code — says DocKind: workspace.inc)
+  d = DocOfPane(Name)
+  IF d >= 0 THEN ActiveDoc = d
   IF ActiveDoc <> was THEN AnalyzeActive
   IF ActiveDoc >= 0 THEN EditorFacts ActiveDoc
   UpdateCommands
@@ -168,10 +162,13 @@ SUB DocumentClosing(Name AS STRING, Cancel AS INTEGER)
   k = LCASE$(Name)
   FOR d = 0 TO DocCount - 1
     IF DocOpen(d) AND k = "codedoc(" + LTRIM$(STR$(d)) + ")" THEN
-      IF DocDirty(d) THEN SaveDocument d
+      ' (its changes: Save / Don't Save / Cancel keeps it open)
+      IF AskToSave(d) = 0 THEN
+        Cancel = 1
+        EXIT SUB
+      END IF
       DocOpen(d) = 0
       Lang.Close DocFile(d)
-      IF DocHasForm(d) THEN Dock.ClosePane("designdoc(" + LTRIM$(STR$(d)) + ")")
       IF ActiveDoc = d THEN ActiveDoc = -1
     END IF
   NEXT
@@ -230,7 +227,6 @@ SUB StartStudio
     END IF
     i = i + 1
   WEND
-  DocumentMode = "mdi"
   DefaultFolder = HomeDir + "projects"
   IF fresh = 0 THEN LoadSettings
   ' (RapidR's look by default, following the system)
@@ -247,8 +243,9 @@ SUB StartStudio
   SetUpPanels
   SetUpDock
   SetUpDebug
+  SetUpDocuments
+  SetUpSearch
   IF SavedLayout <> "" THEN Dock.LoadLayout(SavedLayout)
-  Dock.DocumentMode = DocumentMode
   FillExamples
   FillPalette
   FillRecent
@@ -256,8 +253,6 @@ SUB StartStudio
   FillProjectTree
   InspectActive
   OutputLine "RapidR Studio is ready."
-  ' (alone, the start page fills the documents area)
-  Dock.DocumentState("welcome", 2)
   LayOutWelcome
   ApplyPreview
   IF startFile <> "" THEN OpenProject startFile

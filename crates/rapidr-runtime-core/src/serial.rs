@@ -16,7 +16,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
-use rapidr_value::objects::comport::{self, Flow, Link, PortError, Ports, Settings};
+use rapidr_value::objects::comport::{self, Flow, Link, PortError, PortInfo, Ports, Settings, Signals};
 
 /// Installs the ports, once (when the first QCOMPORT is made).
 pub fn install() {
@@ -96,6 +96,10 @@ impl Ports for SystemPorts {
         let mut p = opened.map_err(|e| port_error(&e))?;
         Ok(Box::new(SystemLink::start(&mut p).map_err(|e| port_error(&e))?))
     }
+
+    fn list(&self) -> Vec<PortInfo> {
+        crate::serial_list::ports()
+    }
 }
 
 /// What the reader thread put in.
@@ -144,6 +148,11 @@ impl Drop for SystemLink {
     }
 }
 
+/// A modem line's change refused: the port's error, else nothing.
+fn line(r: std::io::Result<()>) -> Result<(), PortError> {
+    r.map_err(|e| port_error(&e))
+}
+
 impl Link for SystemLink {
     fn write(&mut self, bytes: &[u8]) -> Result<(), PortError> {
         self.port.write_all(bytes).map_err(|e| port_error(&e))?;
@@ -167,6 +176,35 @@ impl Link for SystemLink {
         }
         if output {
             let _ = self.port.discard_output_buffer();
+        }
+    }
+    fn set_dtr(&mut self, on: bool) -> Result<(), PortError> {
+        line(self.port.set_dtr(on))
+    }
+    fn set_rts(&mut self, on: bool) -> Result<(), PortError> {
+        line(self.port.set_rts(on))
+    }
+    fn signals(&mut self) -> Signals {
+        let p = &self.port;
+        Signals { cts: p.read_cts().unwrap_or(false), dsr: p.read_dsr().unwrap_or(false), cd: p.read_cd().unwrap_or(false), ri: p.read_ri().unwrap_or(false) }
+    }
+    fn send_break(&mut self, ms: u64) -> Result<(), PortError> {
+        line(self.port.set_break(true))?;
+        std::thread::sleep(Duration::from_millis(ms));
+        line(self.port.set_break(false))
+    }
+    fn line_length(&mut self, end: &[u8], wait_ms: u64) -> Option<usize> {
+        let deadline = std::time::Instant::now() + Duration::from_millis(wait_ms);
+        let mut q = self.inbox.bytes.lock().unwrap();
+        loop {
+            if let Some(n) = comport::find_end(q.iter(), end) {
+                return Some(n);
+            }
+            let left = deadline.saturating_duration_since(std::time::Instant::now());
+            if left.is_zero() {
+                return None;
+            }
+            q = self.inbox.arrived.wait_timeout(q, left).unwrap().0;
         }
     }
 }

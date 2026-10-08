@@ -26,6 +26,9 @@
 '   build.inc      Build (the app for this system), Reveal, the app's settings
 '   chrome.inc     the look in the current theme, the status bar
 '   preview.inc    "Preview in Classic": Run and the designer in RapidQ's look
+'   search.inc     Find in Files (Ctrl+Shift+F), the Help pane (F1)
+'   workspace.inc  documents as tabs: Design | Code, split groups, the
+'                  layout and open files kept
 '   shell.inc      RunCommand, the events, start-up
 
 $INCLUDE "decl.inc"
@@ -41,6 +44,8 @@ $INCLUDE "editor.inc"
 $INCLUDE "debug.inc"
 $INCLUDE "build.inc"
 $INCLUDE "chrome.inc"
+$INCLUDE "search.inc"
+$INCLUDE "workspace.inc"
 $INCLUDE "shell.inc"
 
 StartStudio

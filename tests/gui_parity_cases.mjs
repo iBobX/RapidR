@@ -191,6 +191,12 @@ export const cases = [
     expect: ["lbl.caption=late clicked", "late.__shown=1", "inner.__shown=1", "inner.caption=inside"] },
   { name: "mdi_children", events: "badd.onclick,btile.onclick,bclose.onclick,ball.onclick", dump: "lbl.caption,geo.caption,ed(1).__shown,ed(0).__shown",
     expect: ["lbl.caption=A0 A1 A2 A0 C0 A2 C2 A1 C1 |n1|Two|i1|free-1-1|get10", "geo.caption=209,25,200,361|206|vis0-1", "ed(1).__shown=1", "ed(0).__shown=0"] },
+  // (S-SHELL-2) A QFORMMDI child sized by the mouse as Windows' MDI
+  // children are: its right edge, its bottom-right corner, its top-left
+  // corner (the opposite edges stay), then past Windows' least size
+  // (136 × 39) — each change an OnChildResize.
+  { name: "mdi_child_edges", events: "badd.onclick,form__mdi__ed.__mousedown_299_100,form__mdi__ed.__mousemove_329_100,form__mdi__ed.__mouseup_329_100,form__mdi__ed.__mousedown_329_199,form__mdi__ed.__mousemove_339_219,form__mdi__ed.__mouseup_339_219,form__mdi__ed.__mousedown_1_1,form__mdi__ed.__mousemove_11_11,form__mdi__ed.__mouseup_11_11,form__mdi__ed.__mousedown_329_209,form__mdi__ed.__mousemove_0_0,form__mdi__ed.__mouseup_0_0,breport.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=50,40,136,39|r4"] },
   { name: "timer_default", events: "", dump: "lbl.caption,t.enabled",
     expect: ["lbl.caption=ticking", "t.enabled=-1"] },
   { name: "coolbtn_group", events: "b.onclick,b.onclick,d.onclick,e.onclick,e.onclick,setter.onclick", dump: "lbl.caption",
