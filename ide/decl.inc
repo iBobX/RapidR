@@ -72,7 +72,6 @@ DIM ThemeName AS STRING
 ' dark or high contrast; the default — "rapidr light", "rapidr dark",
 ' "rapidr high contrast", "classic"; ThemeName is the theme drawn)
 DIM ThemeChoice AS STRING
-DIM DocumentMode AS STRING
 DIM StateText AS STRING
 
 DECLARE SUB RunCommand(Id AS STRING)
@@ -122,6 +121,21 @@ DECLARE SUB RecentPicked(Sender AS QLABEL)
 DECLARE SUB StudioKey(Key AS INTEGER, Shift AS INTEGER)
 DECLARE SUB LayOutWelcome
 DECLARE SUB MacroTick
+' (workspace.inc, search.inc)
+DECLARE FUNCTION DocPane(d AS INTEGER) AS STRING
+DECLARE SUB AddDocumentTab(d AS INTEGER)
+DECLARE SUB CodeTyped(d AS INTEGER)
+DECLARE SUB SetUpDocuments
+DECLARE SUB SetUpSearch
+DECLARE SUB ApplySearchChrome
+DECLARE SUB ShowWelcome
+DECLARE FUNCTION AskToSave(d AS INTEGER) AS INTEGER
+DECLARE FUNCTION AskToSaveAll AS INTEGER
+DECLARE SUB SaveSession
+DECLARE SUB LoadSession
+DECLARE SUB RestoreSession(Path AS STRING)
+DECLARE FUNCTION WorkspaceCommand(Id AS STRING) AS INTEGER
+DECLARE FUNCTION SearchCommand(Id AS STRING) AS INTEGER
 
 ' ---- Studio's services: public components (rapidr-studio) ----
 DIM Proj AS RPROJECT

@@ -117,6 +117,7 @@ SUB ApplyChrome
   NEXT
   LoadWelcomeIcons
   ImmediateBox.Font = MonoFont
+  ApplySearchChrome
   ApplyState
 END SUB
 

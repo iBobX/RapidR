@@ -2,7 +2,7 @@
 //! geometry, the compass, the manager's methods and the keyboard's move.
 
 use super::geometry::{self, Button, Guide, Hit, Slot, GAP, HEADER, STRIP};
-use super::manager::{parse_where, Manager, User};
+use super::manager::{parse_where, DocView, Manager, User};
 use super::*;
 use crate::objects::font::Font;
 
@@ -160,7 +160,7 @@ fn geometry_places_groups_splitters_strips_and_documents() {
     assert_eq!((output.tabs.len(), output.active), (2, 1));
     let d = g.documents.as_ref().unwrap();
     assert_eq!(d.rect, (DEFAULT_SIDE + GAP, 0, 1000 - 2 * DEFAULT_SIDE - 2 * GAP, 700 - DEFAULT_BOTTOM - GAP));
-    assert!(d.tabs.is_empty(), "MDI: no tabs");
+    assert!(d.groups.is_empty(), "MDI: no tabs");
     // (a splitter between explorer and the middle, hit a pixel either side)
     assert_eq!(g.hit(DEFAULT_SIDE - 1, 300), Some(Hit::Splitter(0)));
     assert_eq!(g.hit(DEFAULT_SIDE + 2, 300), Some(Hit::Splitter(0)));
@@ -180,9 +180,205 @@ fn geometry_places_groups_splitters_strips_and_documents() {
     m.touch();
     let g = m.geometry().clone();
     let d = g.documents.as_ref().unwrap();
-    assert_eq!((d.tabs.len(), d.content.1), (2, geometry::DOC_TABS));
-    assert!(d.tabs.iter().all(|t| t.close.is_some()));
-    assert_eq!(d.hit(d.tabs[1].rect.0 + 3, 10), Some(geometry::DocHit::Tab(1)));
+    assert_eq!(d.groups.len(), 1);
+    let gr = &d.groups[0];
+    assert_eq!((gr.tabs.len(), gr.content.1), (2, geometry::DOC_TABS));
+    assert!(gr.tabs.iter().all(|t| t.close.is_some()));
+    assert_eq!(d.hit(gr.tabs[1].rect.0 + 3, 10), Some(geometry::DocHit::Tab(0, 1)));
+}
+
+/// Tabbed documents in an IDE's layout (four documents).
+fn tabbed() -> Manager {
+    let mut m = ide();
+    m.layout.mode = DocumentMode::Tabs;
+    m.add_pane("Form2", "Form2.rr", "documents", "form");
+    m.add_pane("Module2", "Module2.rr", "documents", "code");
+    m.touch();
+    m
+}
+
+#[test]
+fn documents_split_into_groups_and_join_again() {
+    let mut m = tabbed();
+    assert_eq!(m.layout.group_count(), 1);
+    // (dragged to the right of its group: a new group there, it active)
+    m.user(User::MoveDocument("module2".into(), DocTarget::Split { anchor: "form1".into(), side: Side::Right }));
+    assert_eq!(m.layout.group_count(), 2);
+    assert_eq!(m.layout.documents, ["form1", "module1", "form2", "module2"]);
+    assert_eq!(m.active_document().as_deref(), Some("module2"));
+    let g = m.geometry().clone();
+    let d = g.documents.as_ref().unwrap();
+    assert_eq!(d.groups.len(), 2);
+    assert_eq!(d.splitters.len(), 1);
+    // (side by side, the room shared alike)
+    let (a, b) = (d.groups[0].rect, d.groups[1].rect);
+    assert_eq!((a.1, b.1, a.3, b.3), (0, 0, d.rect.3, d.rect.3));
+    assert!((a.2 - b.2).abs() <= 1 && a.2 + b.2 + GAP == d.rect.2, "{a:?} {b:?}");
+    // (a new document goes to the active group)
+    m.add_pane("Module3", "Module3.rr", "documents", "code");
+    assert_eq!(m.layout.groups.groups()[1].1, ["module2", "module3"]);
+    // (below the second group: a column in the row's second place)
+    m.user(User::MoveDocument("module3".into(), DocTarget::Split { anchor: "module2".into(), side: Side::Bottom }));
+    assert_eq!(m.layout.group_count(), 3);
+    assert!(matches!(&m.layout.groups, DocNode::Split { axis: Axis::Row, children, .. } if matches!(children[1], DocNode::Split { axis: Axis::Column, .. })));
+    // (into the first group's strip at tab 1)
+    m.user(User::MoveDocument("module3".into(), DocTarget::Into { anchor: "form1".into(), index: 1 }));
+    assert_eq!(m.layout.group_count(), 2);
+    assert_eq!(m.layout.groups.groups()[0].1, ["form1", "module3", "module1", "form2"]);
+    // (the last of a group closed: the group goes, the other is active)
+    m.layout.select("module2");
+    let out = m.close_document("module2");
+    assert_eq!(m.layout.group_count(), 1);
+    assert!(out.events.iter().any(|e| e.name == "ondocumentactivate"));
+    // (beside its own lone group: nothing)
+    assert!(!m.layout.move_document("form1", &DocTarget::Split { anchor: "form1".into(), side: Side::Left }) || m.layout.group_count() == 2);
+}
+
+#[test]
+fn a_tab_reorders_in_its_strip() {
+    let mut m = tabbed();
+    m.user(User::MoveDocument("form1".into(), DocTarget::Into { anchor: "form1".into(), index: 3 }));
+    assert_eq!(m.layout.documents, ["module1", "form2", "form1", "module2"]);
+    assert_eq!(m.active_document().as_deref(), Some("form1"));
+    m.user(User::MoveDocument("module2".into(), DocTarget::Into { anchor: "form1".into(), index: 0 }));
+    assert_eq!(m.layout.documents, ["module2", "module1", "form2", "form1"]);
+}
+
+#[test]
+fn drops_over_a_group_split_it_or_join_it() {
+    let mut m = tabbed();
+    let g = m.geometry().clone();
+    let d = g.documents.clone().unwrap();
+    let gr = &d.groups[0];
+    let (cx, cy, cw, ch) = gr.content;
+    // (the right quarter: a new group on the right, the outline its half)
+    let (t, preview, bar) = d.drop_at("form1", cx + cw - 10, cy + ch / 2).unwrap();
+    assert_eq!(t, DocTarget::Split { anchor: "form1".into(), side: Side::Right });
+    assert_eq!(preview, Some((cx + cw - cw / 2, cy, cw / 2, ch)));
+    assert!(bar.is_none());
+    // (the bottom quarter)
+    assert_eq!(d.drop_at("form1", cx + cw / 2, cy + ch - 5).unwrap().0, DocTarget::Split { anchor: "form1".into(), side: Side::Bottom });
+    // (the middle of its own group: nowhere)
+    assert!(d.drop_at("form1", cx + cw / 2, cy + ch / 2).is_none());
+    // (the strip: between tabs, the bar there)
+    let t2 = gr.tabs[2].rect;
+    let (t, _, bar) = d.drop_at("form1", t2.0 + 3, t2.1 + 5).unwrap();
+    assert_eq!(t, DocTarget::Into { anchor: "form1".into(), index: 2 });
+    assert_eq!(bar.map(|b| b.0), Some(t2.0 - 2));
+    // (two groups: the middle of the other joins it)
+    m.user(User::MoveDocument("module2".into(), DocTarget::Split { anchor: "form1".into(), side: Side::Right }));
+    let g = m.geometry().clone();
+    let d = g.documents.clone().unwrap();
+    let (cx, cy, cw, ch) = d.groups[1].content;
+    assert_eq!(d.drop_at("form1", cx + cw / 2, cy + ch / 2).unwrap().0, DocTarget::Into { anchor: "module2".into(), index: 1 });
+    // (its lone document's own group: no split beside itself)
+    assert!(d.drop_at("module2", cx + cw - 5, cy + ch / 2).is_none());
+}
+
+#[test]
+fn group_splitters_share_the_room_by_weight() {
+    let mut m = tabbed();
+    m.user(User::MoveDocument("module2".into(), DocTarget::Split { anchor: "form1".into(), side: Side::Right }));
+    let g = m.geometry().clone();
+    let d = g.documents.clone().unwrap();
+    let sp = d.splitters[0].clone();
+    let hit = d.hit(sp.rect.0 + 1, sp.rect.1 + 100);
+    assert_eq!(hit, Some(geometry::DocHit::Splitter(0)));
+    let start = d.extents[0].1.clone();
+    m.user(User::DocSplit { path: sp.path.clone(), extents: vec![start[0] + 100, start[1] - 100], done: true });
+    let g = m.geometry().clone();
+    let d2 = g.documents.clone().unwrap();
+    assert_eq!(d2.groups[0].rect.2, start[0] + 100);
+    // (resized: the same shares)
+    m.resize((1500, 700), &Font::default());
+    let g = m.geometry().clone();
+    let d3 = g.documents.clone().unwrap();
+    let r = d3.groups[0].rect.2 as f64 / (d3.groups[0].rect.2 + d3.groups[1].rect.2) as f64;
+    let r0 = (start[0] + 100) as f64 / (start[0] + start[1]) as f64;
+    assert!((r - r0).abs() < 0.01, "{r} {r0}");
+    assert_eq!(geometry::weighted(&[1, 1, 2], 400), vec![100, 100, 200]);
+    assert_eq!(geometry::weighted(&[1, 1000], 1000).iter().min(), Some(&geometry::MIN_EXTENT));
+}
+
+#[test]
+fn views_switch_and_sit_side_by_side() {
+    let mut m = tabbed();
+    m.add_view("form1", "form1design", "Design");
+    m.add_view("form1", "form1", "Code");
+    m.layout.select("form1");
+    m.touch();
+    let g = m.geometry().clone();
+    let d = g.documents.clone().unwrap();
+    let gr = &d.groups[0];
+    // (Design | Code | side by side at the strip's right)
+    assert_eq!(gr.switch.iter().map(|s| s.1.as_str()).collect::<Vec<_>>(), ["Design", "Code", "Side by Side"]);
+    assert!(gr.switch.last().unwrap().2 .0 + gr.switch.last().unwrap().2 .2 <= gr.rect.0 + gr.rect.2);
+    assert!(gr.tabs.iter().all(|t| t.rect.0 + t.rect.2 < gr.switch[0].2 .0));
+    assert_eq!(m.pane("form1").unwrap().shown_components(), ["form1design"]);
+    assert_eq!(d.hit(gr.switch[1].2 .0 + 4, gr.switch[1].2 .1 + 4), Some(geometry::DocHit::View(0, 1)));
+    // (Code: OnDocumentView, the editor shown)
+    let out = m.user(User::View("form1".into(), DocView::One(1)));
+    assert_eq!(out.events[0].name, "ondocumentview");
+    assert_eq!(out.events[0].args[1], crate::Value::String("Code".into()));
+    assert_eq!(out.focus.as_deref(), Some("form1"));
+    assert_eq!(m.pane("form1").unwrap().view_caption(), "Code");
+    // (side by side: two places, the splitter between)
+    m.set_view("form1", m.view_named("form1", "split").unwrap());
+    let g = m.geometry().clone();
+    let gr = g.documents.clone().unwrap().groups[0].clone();
+    assert_eq!(gr.places.len(), 2);
+    let vs = gr.view_splitter.unwrap();
+    assert_eq!(gr.places[0].0 + gr.places[0].2, vs.0);
+    assert_eq!(vs.0 + GAP, gr.places[1].0);
+    m.user(User::ViewRatio("form1".into(), 300, true));
+    let g = m.geometry().clone();
+    let gr = g.documents.clone().unwrap().groups[0].clone();
+    assert_eq!(gr.places[0].2, (gr.content.2 - GAP) * 300 / 1000);
+    assert_eq!(m.document_of_view("form1design").as_deref(), Some("form1"));
+    // (the view and its share kept in the layout's text, back with OnDocumentView)
+    let text = m.save();
+    assert!(text.ends_with("view form1 split 300\n"), "{text}");
+    let mut n = tabbed();
+    n.add_view("form1", "form1design", "Design");
+    n.add_view("form1", "form1", "Code");
+    let out = n.load(&text);
+    assert_eq!(out.events.iter().map(|e| e.name).collect::<Vec<_>>(), ["ondocumentview"]);
+    assert_eq!((n.pane("form1").unwrap().view, n.pane("form1").unwrap().view_ratio), (DocView::Split, 300));
+    assert_eq!(n.save(), text);
+    // (FocusPane on a view shows it; side by side, it stays so)
+    let out = n.focus_pane("form1design");
+    assert_eq!((out.focus.as_deref(), n.pane("form1").unwrap().view), (Some("form1design"), DocView::Split));
+    n.set_view("form1", DocView::One(1));
+    let out = n.focus_pane("form1design");
+    assert_eq!((out.focus.as_deref(), n.pane("form1").unwrap().view), (Some("form1design"), DocView::First));
+    assert_eq!(out.events[0].name, "ondocumentview");
+    // (a document without views has no switch)
+    m.layout.select("module1");
+    m.touch();
+    assert!(m.geometry().documents.clone().unwrap().groups[0].switch.is_empty());
+}
+
+#[test]
+fn split_groups_round_trip_as_text() {
+    let mut m = tabbed();
+    m.user(User::MoveDocument("module2".into(), DocTarget::Split { anchor: "form1".into(), side: Side::Right }));
+    m.user(User::MoveDocument("form2".into(), DocTarget::Split { anchor: "module2".into(), side: Side::Bottom }));
+    let text = m.save();
+    assert!(text.contains("groups split row\n  1000 group "), "{text}");
+    let mut n = tabbed();
+    assert_eq!(n.load(&text).value, Some(crate::Value::Integer(-1)));
+    assert_eq!(n.layout.groups, m.layout.groups);
+    assert_eq!(n.layout.documents, m.layout.documents);
+    assert_eq!(n.active_document(), m.active_document());
+    assert_eq!(n.save(), text);
+    // (a layout without groups: one group, as before)
+    let plain = tabbed().save();
+    assert!(!plain.contains("groups"), "{plain}");
+    // (documents the text doesn't know join the active group)
+    let mut k = tabbed();
+    k.add_pane("Extra", "Extra.rr", "documents", "code");
+    k.load(&text);
+    assert!(k.layout.documents.contains(&"extra".to_string()) && k.layout.group_count() == 3, "{:?}", k.layout.groups);
 }
 
 #[test]

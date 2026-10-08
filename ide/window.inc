@@ -46,6 +46,7 @@ CREATE Studio AS QFORM
   END CREATE
   CREATE Dock AS RDOCKMANAGER
     Align = 5
+    DocumentMode = "tabs"
     OnPaneChange = PaneChanged
     OnDocumentActivate = DocumentActivated
     OnDocumentClose = DocumentClosing

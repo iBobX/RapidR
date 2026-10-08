@@ -710,12 +710,16 @@ pub fn group_ops(m: &Manager, gr: &Group, t: &Theme, font: &Font, active: bool) 
 // ------------------------------------------------------------ documents --
 
 /// The document area (its own coordinates): the workspace behind MDI
-/// windows, or the tabs (tabbed mode).
+/// windows, or the groups of tabs (tabbed mode): each group's strip of
+/// tabs (the shown one joined to its page, the accent along its top in
+/// the active group; a dot for a change not saved, the close button on
+/// the shown tab and under the mouse), the shown document's view switch,
+/// the splitters between groups and between a document's two views.
 pub fn documents_ops(m: &Manager, d: &Documents, t: &Theme, font: &Font) -> Vec<Op> {
     let p = palette(t);
     let mut ops = Vec::new();
     let (w, h) = (d.rect.2, d.rect.3);
-    if d.tabs.is_empty() {
+    if d.groups.is_empty() {
         fill(&mut ops, (0, 0, w, h), p.workspace);
         if p.contrast {
             frame(&mut ops, (0, 0, w, h), p.border, 1);
@@ -728,67 +732,151 @@ pub fn documents_ops(m: &Manager, d: &Documents, t: &Theme, font: &Font) -> Vec<
     };
     let titles = m.titles();
     let strip = geometry::DOC_TABS;
-    fill(&mut ops, (0, 0, w, strip), p.doc_strip);
-    fill(&mut ops, (0, strip, w, h - strip), p.body);
-    // (the strip's bottom line, under the tabs but the shown one)
-    fill(&mut ops, (0, strip - 1, w, 1), p.border);
-    let active = m.layout.active_document;
-    for (i, tab) in d.tabs.iter().enumerate() {
-        let shown = active == Some(i);
-        let (x, y, tw, th) = tab.rect;
-        let hot = matches!(hover, Some(DocHit::Tab(k)) | Some(DocHit::Close(k)) if k == i);
-        if p.classic {
-            if shown {
-                fill(&mut ops, (x, y + 2, tw, th - 2), t.face);
-                ops.push(Op::Edge { rect: (x, y + 2, tw, th + 1), light: vec![t.light], dark: vec![t.dark_shadow, t.shadow] });
+    fill(&mut ops, (0, 0, w, h), p.ground);
+    let active_doc = m.active_document();
+    let dragging = m.ui.doc_drag.as_ref().filter(|dd| dd.started).map(|dd| dd.pane.clone());
+    for (g, gr) in d.groups.iter().enumerate() {
+        let (gx, gy, gw, gh) = gr.rect;
+        let active_group = active_doc.as_ref().is_some_and(|a| gr.docs.contains(a));
+        fill(&mut ops, (gx, gy, gw, strip), p.doc_strip);
+        fill(&mut ops, (gx, gy + strip, gw, gh - strip), p.body);
+        // (the strip's bottom line, under the tabs but the shown one)
+        fill(&mut ops, (gx, gy + strip - 1, gw, 1), p.border);
+        for (i, tab) in gr.tabs.iter().enumerate() {
+            let shown = gr.active == i;
+            let (x, y, tw, th) = tab.rect;
+            let hot = matches!(hover, Some(DocHit::Tab(a, k)) | Some(DocHit::Close(a, k)) if a == g && k == i);
+            let lifted = dragging.as_deref() == Some(tab.pane.as_str());
+            if p.classic {
+                if shown {
+                    fill(&mut ops, (x, y + 2, tw, th - 2), t.face);
+                    ops.push(Op::Edge { rect: (x, y + 2, tw, th + 1), light: vec![t.light], dark: vec![t.dark_shadow, t.shadow] });
+                } else {
+                    fill(&mut ops, (x + tw, y + 7, 1, th - 13), t.shadow);
+                    if hot {
+                        fill(&mut ops, (x, y + 4, tw, th - 5), p.doc_tab_hover);
+                    }
+                }
+            } else if shown {
+                fill(&mut ops, (x, y, tw, th), p.doc_tab);
+                frame(&mut ops, (x, y, tw, th + 1), p.border, 1);
+                fill(&mut ops, (x + 1, y + th - 1, tw - 2, 1), p.doc_tab);
+                if active_group {
+                    fill(&mut ops, (x, y, tw, if p.contrast { 3 } else { 2 }), p.accent);
+                }
             } else {
-                fill(&mut ops, (x + tw, y + 7, 1, th - 13), t.shadow);
-                if hot {
-                    fill(&mut ops, (x, y + 4, tw, th - 5), p.doc_tab_hover);
+                if hot || lifted {
+                    fill(&mut ops, (x, y, tw, th - 1), p.doc_tab_hover);
+                }
+                // (a short divider between unshown tabs)
+                fill(&mut ops, (x + tw, y + 8, 1, th - 16), p.border);
+            }
+            let ink = if p.classic {
+                if shown || hot {
+                    t.text
+                } else {
+                    t.gray_text
+                }
+            } else if (shown && active_group) || hot {
+                p.title_active
+            } else if shown {
+                p.title
+            } else {
+                p.tab_text
+            };
+            let mut tx = x + 12;
+            let ic = titles.icon(&tab.pane);
+            if !ic.is_empty() {
+                icon(&mut ops, &ic, tx, y + (th - 16) / 2, ink, p.accent);
+                tx += 22;
+            }
+            let close = tab.close.unwrap_or((x + tw, y, 0, 0));
+            let room = close.0 - tx - 4;
+            let title = fitted(&titles.title(&tab.pane), font, room);
+            text(&mut ops, (tx, y, room.max(0), th), &title, font, ink, Place::Left, 0);
+            // (a change not saved: a dot, the close button under the mouse;
+            // else the close button on the shown tab and under the mouse)
+            let modified = titles.modified(&tab.pane);
+            if hot || (shown && !modified) {
+                let over = hover == Some(DocHit::Close(g, i));
+                if over && !p.classic {
+                    ops.push(Op::Round { rect: close, radius: if p.contrast { 0.0 } else { 4.0 }, fill: Some(p.button_hover), stroke: if p.contrast { Some(p.hot_outline) } else { None }, width: 1.0 });
+                }
+                glyph(&mut ops, Button::Close, close, if over { p.title_active } else { p.glyph }, true);
+            } else if modified {
+                let (cx, cy) = (close.0 + close.2 / 2, close.1 + close.3 / 2);
+                ops.push(Op::Round { rect: (cx - 4, cy - 4, 8, 8), radius: 4.0, fill: Some(if shown { p.title_active } else { p.glyph }), stroke: None, width: 0.0 });
+            }
+        }
+        // (the shown document's view switch)
+        if !gr.switch.is_empty() {
+            let shown = gr.shown().cloned().unwrap_or_default();
+            let now = titles.view(&shown);
+            let (x0, y0) = (gr.switch[0].2 .0, gr.switch[0].2 .1);
+            let last = gr.switch.last().unwrap().2;
+            let all = (x0, y0, last.0 + last.2 - x0, geometry::SWITCH_H);
+            let radius = if p.contrast || p.classic { 0.0 } else { 5.0 };
+            ops.push(Op::Round { rect: all, radius, fill: Some(p.ground), stroke: Some(p.border), width: 1.0 });
+            for (k, (v, caption, r)) in gr.switch.iter().enumerate() {
+                let on = v.index() == now.index();
+                let over = hover == Some(DocHit::View(g, k));
+                let seg = (r.0 + 2, r.1 + 2, r.2 - 4, r.3 - 4);
+                if on {
+                    ops.push(Op::Round { rect: seg, radius: (radius - 1.5).max(0.0), fill: Some(if p.contrast { p.accent } else { p.doc_tab }), stroke: if p.contrast || p.classic { None } else { Some(p.border) }, width: 1.0 });
+                } else if over {
+                    ops.push(Op::Round { rect: seg, radius: (radius - 1.5).max(0.0), fill: Some(p.button_hover), stroke: if p.contrast { Some(p.hot_outline) } else { None }, width: 1.0 });
+                }
+                let ink = if p.contrast && on { 0x000000 } else if on || over { p.title_active } else { p.tab_text };
+                if *v == super::manager::DocView::Split {
+                    // (two panes side by side)
+                    let (cx, cy) = (r.0 + r.2 / 2, r.1 + r.3 / 2);
+                    frame(&mut ops, (cx - 7, cy - 5, 14, 11), ink, 1);
+                    fill(&mut ops, (cx, cy - 5, 1, 11), ink);
+                } else {
+                    text(&mut ops, *r, caption, font, ink, Place::Center, 0);
                 }
             }
-        } else if shown {
-            fill(&mut ops, (x, y, tw, th), p.doc_tab);
-            frame(&mut ops, (x, y, tw, th + 1), p.border, 1);
-            fill(&mut ops, (x + 1, y + th - 1, tw - 2, 1), p.doc_tab);
-            fill(&mut ops, (x, y, tw, if p.contrast { 3 } else { 2 }), p.accent);
-        } else {
+        }
+        // (two views side by side: the splitter between them)
+        if let Some(vs) = gr.view_splitter {
+            let hot = matches!(hover, Some(DocHit::ViewSplitter(a)) if a == g) || m.ui.doc_split.as_ref().is_some_and(|s| s.views_of == Some(g));
+            fill(&mut ops, vs, p.ground);
             if hot {
-                fill(&mut ops, (x, y, tw, th - 1), p.doc_tab_hover);
+                fill(&mut ops, (vs.0 + vs.2 / 2 - 1, vs.1, 2, vs.3), p.splitter_hot);
             }
-            // (a short divider between unshown tabs)
-            fill(&mut ops, (x + tw, y + 8, 1, th - 16), p.border);
         }
-        // (classic: black on the face, the unshown ones grey)
-        let ink = if p.classic {
-            if shown || hot {
-                t.text
-            } else {
-                t.gray_text
-            }
-        } else if shown || hot {
-            p.title_active
+        if p.contrast {
+            frame(&mut ops, gr.rect, if active_group { p.accent } else { p.border }, 1);
+        }
+    }
+    // (the splitters between groups: hot under the mouse or held)
+    for (i, sp) in d.splitters.iter().enumerate() {
+        let held = m.ui.doc_split.as_ref().is_some_and(|s| s.views_of.is_none() && s.splitter == i);
+        if held || hover == Some(DocHit::Splitter(i)) {
+            let (x, y, w, h) = sp.rect;
+            let r = if sp.axis == super::Axis::Row { (x + w / 2 - 1, y, 2, h) } else { (x, y + h / 2 - 1, w, 2) };
+            fill(&mut ops, r, p.splitter_hot);
+        }
+    }
+    ops
+}
+
+/// Over the documents while a tab is dragged: where it would go (the
+/// outline of the group or half it lands in, or the bar between tabs).
+pub fn documents_overlay_ops(m: &Manager, t: &Theme) -> Vec<Op> {
+    let p = palette(t);
+    let mut ops = Vec::new();
+    let Some(dd) = m.ui.doc_drag.as_ref().filter(|d| d.started) else { return ops };
+    if let Some(r) = dd.preview {
+        let (x, y, w, h) = r;
+        if p.contrast {
+            frame(&mut ops, r, p.guide_hot, 3);
         } else {
-            p.tab_text
-        };
-        let mut tx = x + 12;
-        let ic = titles.icon(&tab.pane);
-        if !ic.is_empty() {
-            icon(&mut ops, &ic, tx, y + (th - 16) / 2, ink, p.accent);
-            tx += 22;
+            ops.push(Op::Round { rect: (x + 2, y + 2, w - 4, h - 4), radius: 4.0, fill: Some(p.preview), stroke: Some(p.guide_hot), width: 2.0 });
         }
-        let close = tab.close.unwrap_or((x + tw, y, 0, 0));
-        let room = close.0 - tx - 4;
-        let title = fitted(&titles.title(&tab.pane), font, room);
-        text(&mut ops, (tx, y, room.max(0), th), &title, font, ink, Place::Left, 0);
-        // (the close button: shown on the shown tab and under the mouse)
-        if shown || hot {
-            let over = hover == Some(DocHit::Close(i));
-            if over && !p.classic {
-                ops.push(Op::Round { rect: close, radius: if p.contrast { 0.0 } else { 4.0 }, fill: Some(p.button_hover), stroke: if p.contrast { Some(p.hot_outline) } else { None }, width: 1.0 });
-            }
-            glyph(&mut ops, Button::Close, close, if over { p.title_active } else { p.glyph }, true);
-        }
+    }
+    if let Some(b) = dd.bar {
+        fill(&mut ops, b, p.guide_hot);
     }
     ops
 }
