@@ -21,7 +21,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use parley::fontique::{Blob, GenericFamily};
+use parley::fontique::{Blob, Collection, FontInfoOverride, GenericFamily};
 use parley::{FontContext, FontFamily, FontFamilyName, FontFeatures, FontStyle, FontWeight, Layout, LayoutContext, LineHeight, StyleProperty};
 use rapidr_value::objects::font::Font;
 
@@ -97,9 +97,7 @@ impl Default for TextSystem {
 impl TextSystem {
     pub fn new() -> Self {
         let mut font_cx = FontContext::new();
-        for data in rapidr_value::objects::text::BUILTIN_FONTS {
-            font_cx.collection.register_fonts(Blob::new(Arc::new(data)), None);
-        }
+        register_builtin_fonts(&mut font_cx.collection);
         TextSystem { font_cx, layout_cx: LayoutContext::new(), generation: 0 }
     }
 
@@ -141,6 +139,19 @@ impl TextSystem {
     }
 }
 
+/// Registers RapidR's built-in faces (`rapidr_value::objects::text::BUILTIN_FACES`):
+/// Liberation's Regular faces whole, their designed Bold, Italic and Bold
+/// Italic (renamed files, cut to the Latin scripts) as members of the same
+/// families, RapidR Sans and its Bold, Inter, JetBrains Mono. A bold request
+/// finds the bold face; a character it lacks is looked for in the family's
+/// Regular, made bold by the renderer.
+pub fn register_builtin_fonts(collection: &mut Collection) {
+    for (data, family) in rapidr_value::objects::text::BUILTIN_FACES {
+        let info = family.map(|family_name| FontInfoOverride { family_name: Some(family_name), ..FontInfoOverride::default() });
+        collection.register_fonts(Blob::new(Arc::new(data)), info);
+    }
+}
+
 /// The parley family name of the built-in face standing for a QFONT name.
 pub fn family(name: &str) -> &'static str {
     rapidr_value::objects::text::family_name(name)
@@ -172,9 +183,9 @@ pub fn styles(font: &Font, color: u32) -> Vec<StyleProperty<'static, Ink>> {
         // emboldened again on top)
         out.push(StyleProperty::FontWeight(if face == "Inter" { FontWeight::SEMI_BOLD } else { FontWeight::BOLD }));
         // (as wide as `text_size` measures it: MS Sans Serif's bold a pixel
-        // wider a character)
+        // wider a character, at every size)
         let spacing = rapidr_value::objects::text::bold_spacing(font);
-        if spacing > 0.0 {
+        if spacing != 0.0 {
             out.push(StyleProperty::LetterSpacing(spacing));
         }
     }

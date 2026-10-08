@@ -35,13 +35,24 @@ As a modified version under the OFL it is renamed (Liberation is a Reserved
 Font Name) and stays under the OFL; crates/rapidr-value/fonts/README.md says
 so.
 
-    python3 tools/fonts/make_rapidr_sans.py
+    python3 tools/fonts/make_rapidr_sans.py [<liberation-fonts-ttf-2.1.5 folder>]
 
-writes crates/rapidr-value/fonts/RapidRSans-Regular.ttf (needs fontTools).
+writes crates/rapidr-value/fonts/RapidRSans-Regular.ttf (needs fontTools). Given
+the folder of the Liberation fonts 2.1.5 release (the official
+liberation-fonts-ttf-2.1.5.tar.gz, unpacked; fonts/README.md has its
+SHA-256), it makes RapidRSans-Bold.ttf too: the same, from Liberation Sans
+Bold, with each character one pixel wider than the regular's — what RC.EXE
+measures for MS Sans Serif Bold at 8 pt (TextWidth of every character in
+Windows-1252: regular + 1) — so a bold caption is as wide as RapidQ's, in a
+real bold face instead of the regular one drawn heavier. The bold face is
+cut to the Latin scripts (the regular face has the rest, which a bold
+caption then draws heavier, as before).
 """
 import math
 import os
+import sys
 
+from fontTools import subset
 from fontTools.pens.recordingPen import DecomposingRecordingPen
 from fontTools.pens.filterPen import FilterPen
 from fontTools.pens.ttGlyphPen import TTGlyphPen
@@ -53,6 +64,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 FONTS = os.path.join(HERE, "..", "..", "crates", "rapidr-value", "fonts")
 SOURCE = os.path.join(FONTS, "LiberationSans-Regular.ttf")
 TARGET = os.path.join(FONTS, "RapidRSans-Regular.ttf")
+TARGET_BOLD = os.path.join(FONTS, "RapidRSans-Bold.ttf")
+# The Latin scripts (what tools/fonts/make_liberation_styles.py keeps too):
+# Basic Latin, Latin-1, Latin Extended-A, general punctuation, currency,
+# letterlike, arrows, minus, geometric shapes and box drawing.
+LATIN = "U+0020-007E,U+00A0-017F,U+0192,U+0218-021B,U+02C6-02DD,U+2000-206F,U+20A0-20CF,U+2100-215F,U+2190-21FF,U+2212,U+2215,U+221E,U+2248,U+2260-2265,U+25A0-25FF,U+2500-257F,U+FFFD"
 
 # MS Sans Serif 8 pt at 96 dpi (em 11 pixels): RapidQ's TextWidth(CHR$(c))
 # for c = 32 … 255 (0: no character there in Windows-1252).
@@ -66,6 +82,9 @@ WIDTHS = [int(w) for w in """
 6 6 6 6 6 6 10 6 6 6 6 6 2 4 4 4 6 6 6 6 6 6 6 6 6 6 6 6 6 5 6 5
 """.split()]
 assert len(WIDTHS) == 224
+# MS Sans Serif Bold 8 pt: RC.EXE's TextWidth of every character is the
+# regular's plus one pixel (measured for 32 … 255, tests/visual/README.md).
+BOLD_WIDTHS = [w + 1 if w else 0 for w in WIDTHS]
 EM_PX = 11
 ASCENT_PX, DESCENT_PX = 11, 2
 # The letters' size: Liberation's outlines, all of them scaled by this one
@@ -153,8 +172,8 @@ def stem_shift(g, glyf, px, lo, hi):
     return min(span, key=lambda s: (round(cost(s)), abs(s))) if span else round((lo + hi) / 2)
 
 
-def main():
-    font = TTFont(SOURCE)
+def main(src=SOURCE, out=TARGET, widths=WIDTHS, bold=False):
+    font = TTFont(src)
     # (an em of 2200 units: 200 a pixel at 11 pixels, so every width and
     # the line metrics are whole units — a line exactly 13 pixels high)
     scale_upem(font, EM_PX * 200)
@@ -164,7 +183,7 @@ def main():
     cmap = font.getBestCmap()
     # (Liberation's outlines, from a copy of their own: a glyph set reads the
     # glyf table as it is, and the one being made changes as it goes)
-    source = TTFont(SOURCE)
+    source = TTFont(src)
     scale_upem(source, upm)
     original = source.getGlyphSet()
 
@@ -188,7 +207,7 @@ def main():
     px = upm / EM_PX
     report = []
     done = set()
-    for i, width in enumerate(WIDTHS):
+    for i, width in enumerate(widths):
         code = 32 + i
         if width == 0 or code in KEEP_LIBERATION:
             continue
@@ -249,15 +268,16 @@ def main():
     os2.fsSelection |= 1 << 7  # USE_TYPO_METRICS
     os2.xAvgCharWidth = round(sum(hmtx[n][0] for n in done) / max(1, len(done)))
 
+    style = "Bold" if bold else "Regular"
     names = {
         0: "Digitized data copyright (c) 2010 Google Corporation. Copyright (c) 2012 Red Hat, Inc. "
         "Modified for RapidR (2026): character widths and vertical metrics.",
         1: "RapidR Sans",
-        2: "Regular",
-        3: "RapidR Sans Regular (from Liberation Sans 2.1.5)",
-        4: "RapidR Sans",
+        2: style,
+        3: f"RapidR Sans {style} (from Liberation Sans 2.1.5)",
+        4: "RapidR Sans" if not bold else "RapidR Sans Bold",
         5: "Version 1.0 (Liberation Sans 2.1.5)",
-        6: "RapidRSans-Regular",
+        6: f"RapidRSans-{style}",
         10: "Liberation Sans (SIL OFL 1.1) with MS Sans Serif 8 pt's character widths and line metrics, "
         "so forms laid out for RapidQ's default font fit.",
         13: "Licensed under the SIL Open Font License, Version 1.1",
@@ -271,9 +291,15 @@ def main():
     font["head"].fontRevision = 1.0
     # (reproducible: the source's dates)
     font.recalcTimestamp = False
-    font.save(TARGET)
-    print(f"wrote {TARGET}: {len(done)} characters fitted, {os.path.getsize(TARGET)} bytes")
+    font.save(out)
+    if bold:
+        # (the Latin scripts only; the regular face has the rest)
+        subset.main([out, f"--unicodes={LATIN}", "--layout-features=kern,locl,mark,mkmk,ccmp,case", "--no-hinting",
+                     "--name-IDs=*", "--name-languages=*", "--notdef-outline", f"--output-file={out}"])
+    print(f"wrote {out}: {len(done)} characters fitted, {os.path.getsize(out)} bytes")
 
 
 if __name__ == "__main__":
     main()
+    if len(sys.argv) > 1:
+        main(os.path.join(sys.argv[1], "LiberationSans-Bold.ttf"), TARGET_BOLD, BOLD_WIDTHS, bold=True)
