@@ -103,14 +103,14 @@ methods = [
   { name = "ClearBreakpoints", params = "[File AS STRING]", returns = "INTEGER", doc = "Removes a file's breakpoints (every file's when none is given)." },
   { name = "RunToCursor", params = "File AS STRING, Line AS INTEGER", returns = "INTEGER", doc = "The program stops at that line once (a paused one goes on to it; a stopped one stops there once started)." },
   { name = "StackTrace", returns = "STRING", value = true, test = "skip: needs a paused program", doc = "The call stack as the last stop fetched it, the innermost first: a line each, its name, file and line tab-separated." },
-  { name = "Variables", params = "Ref AS INTEGER", returns = "STRING", value = true, test = "skip: needs a paused program", doc = "Ref's values as fetched (LocalsRef, GlobalsRef, a value's children after Expand): a line each, its name, value, type, children's reference (0: none) and count, tab-separated." },
+  { name = "Variables", params = "Ref AS INTEGER", returns = "STRING", test = "skip: needs a paused program", doc = "Ref's values as fetched (LocalsRef, GlobalsRef, a value's children after Expand): a line each, its name, value, type, children's reference (0: none) and count, tab-separated." },
   { name = "WatchValues", returns = "STRING", value = true, test = "skip: needs a paused program", doc = "Each watch with its value at this stop: a line each, its expression, value, type and children's reference, tab-separated." },
   { name = "Expand", params = "Ref AS INTEGER", test = "skip: needs a paused program", doc = "Fetches a value's children (an array's elements, a TYPE's fields, a component's properties): OnVariables(Ref) when they're in." },
   { name = "Evaluate", params = "Expr AS STRING, [Context AS STRING]", returns = "INTEGER", test = "skip: needs a paused program", doc = "Evaluates in the selected frame of the paused program: its answer comes as OnEvaluate(Id, Result) with the Id returned. Context \"repl\" (the Immediate window's): \"? expression\" gives its value, a statement runs." },
   { name = "SetVariable", params = "Name AS STRING, Value AS STRING", returns = "INTEGER", test = "skip: needs a paused program", doc = "A variable of the selected frame set to an expression's value: OnEvaluate(Id, NewValue), then the values again (OnVariables(0))." },
   { name = "Input", params = "Text AS STRING", returns = "INTEGER", doc = "A line for the program's INPUT." },
-  { name = "RunInBrowser", returns = "INTEGER", test = "skip: opens a browser", doc = "Program's web build served on this machine (127.0.0.1, an address nobody can guess) and opened in the default browser (the desktop's; on the web, Error says to run it here). Its lines come as OnOutput; BrowserURL says where it is." },
-  { name = "StopBrowser", doc = "Ends what RunInBrowser serves." },
+  { name = "RunInBrowser", returns = "INTEGER", value = true, test = "skip: opens a browser", doc = "Program's web build served on this machine (127.0.0.1, an address nobody can guess) and opened in the default browser (the desktop's; on the web, Error says to run it here). Its lines come as OnOutput; BrowserURL says where it is." },
+  { name = "StopBrowser", value = true, doc = "Ends what RunInBrowser serves." },
 ]
 events = [
   { name = "OnOutput", params = "Text AS STRING", doc = "The program printed Text (PRINT, errors, logpoints)." },

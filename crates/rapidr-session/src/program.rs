@@ -343,7 +343,8 @@ impl ProgramEnd {
                         let properties = props
                             .into_iter()
                             .map(|(name, v)| {
-                                let (value, kind, reference) = self.render_in(vm, &v);
+                                // (a property's text is a value, not a component it names)
+                                let (value, kind, reference) = self.render(&v);
                                 Variable { name, value, kind, reference, count: 0 }
                             })
                             .collect();
@@ -445,10 +446,13 @@ impl ProgramEnd {
         } else {
             return Err(format!("no variables {reference}"));
         }
+        // (a component's properties: their text is a value — a Caption that
+        // happens to name a component isn't that component)
+        let properties = (COMPONENT_REF..CHILDREN_REF).contains(&reference);
         Ok(named
             .into_iter()
             .map(|(name, v)| {
-                let (value, kind, reference) = self.render_in(vm, &v);
+                let (value, kind, reference) = if properties { self.render(&v) } else { self.render_in(vm, &v) };
                 let count = match &v {
                     Value::Array(a) => a.borrow().data.len() as u32,
                     Value::Object(o) => o.names.len() as u32,

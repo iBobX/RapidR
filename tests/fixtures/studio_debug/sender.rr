@@ -1,0 +1,16 @@
+' sender.rr: a SUB given a component, as an event handler is (its Sender):
+' the debugger's Variables open it to its properties (tests/studio_flows.mjs)
+CREATE Main AS QFORM
+  Caption = "Sender"
+  Width = 300: Height = 160
+  CREATE Greet AS QBUTTON
+    Caption = "Greet"
+    Left = 20: Top = 20: Width = 120
+  END CREATE
+END CREATE
+
+SUB Clicked(Sender AS QBUTTON)
+  PRINT "clicked "; Sender.Caption
+END SUB
+
+Clicked Greet

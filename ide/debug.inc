@@ -914,6 +914,7 @@ SUB ImmediateKey(Key AS INTEGER, Shift AS INTEGER)
     IF ImmAt < 0 THEN ImmAt = 0
     IF ImmAt > ImmCount THEN ImmAt = ImmCount
     ImmediateBox.Line(n - 1) = ImmHistory(ImmAt)
+    ImmediateBox.SelStart = LEN(ImmediateBox.Text)
     Key = 0
     EXIT SUB
   END IF
@@ -1085,6 +1086,16 @@ FUNCTION DebugStep(Stp AS STRING) AS INTEGER
     CASE "frame"
       StackTree.ItemIndex = VAL(arg)
       StackPicked
+    CASE "expand"
+      ' (expand:<path> — a value in Variables opened, as a click on its + does)
+      FOR k = 0 TO VarsTree.ItemCount - 1
+        IF k > MAXVARITEMS THEN EXIT FOR
+        IF VarItemPath(k) = arg THEN
+          VarsExpanding k, 1
+          VarsTree.Expand k, 0
+          EXIT FOR
+        END IF
+      NEXT
     CASE "perf"
       ' (perf:report — the run's and the steps' times, docs/studio-wow.md §3.15)
       OutputLine "[perf] f5-form=" + Num(PerfForm) + " step=" + Num(PerfStep)

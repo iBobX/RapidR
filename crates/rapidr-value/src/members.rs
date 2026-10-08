@@ -92,7 +92,7 @@ const DIFF: &[&str] = &["acceptall", "rejectall", "nexthunk", "previoushunk"];
 const PANELS: &[&str] = &["expandall", "collapseall", "clearproperties", "save", "projecttext", "clearproblems", "findnext"];
 
 /// (I1) RPROGRAMSESSION's: `IF Session.Start THEN`.
-const SESSION: &[&str] = &["start", "stop", "pause", "continue", "stepin", "stepover", "stepout"];
+const SESSION: &[&str] = &["start", "stop", "pause", "continue", "stepin", "stepover", "stepout", "stacktrace", "watchvalues", "runinbrowser", "stopbrowser"];
 
 /// (I1) RPROJECT's: `IF Project.Save THEN`.
 const PROJECT: &[&str] = &["save", "build", "stopbuild", "reveal"];

@@ -431,7 +431,19 @@ Captured output: `scratchpad/supply/{deny.txt,audit.txt,audit.json,cargo-tree-ad
   Studio's DOM, storage or files; what it can do is draw where its windows
   are, as a program's windows can cover the IDE on the desktop. While a
   button is held in the frame (a window dragged) it is shown whole; the
-  first click outside its windows after that reaches Studio again.
+  first click outside its windows after that reaches Studio again. The
+  frame stacks just over Studio's main window and under Studio's dialogs
+  and menus (z-index 10, after the main window in the page; Studio's
+  dialogs are 11 and up; while a Studio pop-up is open the frame goes
+  under it), so the program can't cover a Studio prompt or menu the user
+  is answering — no clickjacking of Studio's own dialogs.
+- Run in Browser (`rapidr serve`, S-DEBUG): the program's web build is
+  served from memory on 127.0.0.1 only, under a random 128-bit path
+  (`/<token>/`); anything else is 404, a `Host` that isn't its own loopback
+  address is refused (421: DNS rebinding), only GET / HEAD are answered,
+  `index.html` carries the bundle's Content-Security-Policy, every reply
+  `nosniff` and `no-store`. The server ends when its standard input closes
+  (Studio went away). tests/run_in_browser.mjs checks each of these.
 - Every page RapidR emits carries a CSP derived from the components used (SEC-15);
   `object-src 'none'`, `base-uri 'none'`, `'unsafe-eval'` only for `RJavaScript`.
 - `RWEBVIEW` / `RDOM` default to the isolating option (no `allow-same-origin` on

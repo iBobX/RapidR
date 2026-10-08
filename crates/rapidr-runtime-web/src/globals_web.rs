@@ -114,7 +114,13 @@ impl Platform for Web {
     }
 
     fn exe_path(&self) -> String {
-        web_sys::window().and_then(|w| w.location().pathname().ok()).unwrap_or_default()
+        // (a page that runs a program it names — RapidR Studio's run frame —
+        // says its path: RAPIDR_EXE_PATH; else the page's own)
+        let window = web_sys::window();
+        if let Some(p) = window.as_ref().and_then(|w| js_sys::Reflect::get(w, &"RAPIDR_EXE_PATH".into()).ok()).and_then(|v| v.as_string()) {
+            return p;
+        }
+        window.and_then(|w| w.location().pathname().ok()).unwrap_or_default()
     }
 
     fn terminate(&self) {

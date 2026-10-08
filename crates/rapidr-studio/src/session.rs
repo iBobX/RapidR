@@ -207,9 +207,6 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "localsref" => Value::Integer(i64::from(m.locals_ref())),
             "globalsref" => Value::Integer(i64::from(GLOBALS_REF)),
             "watches" => Value::String(m.watches.iter().map(|w| format!("{w}\n")).collect()),
-            // (read without parentheses, as a property)
-            "stacktrace" => m.stack_text(),
-            "watchvalues" => m.watch_text(),
             "browserurl" => Value::String(browser::url(name)),
             _ => return None,
         })

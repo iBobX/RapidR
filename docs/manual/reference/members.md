@@ -2608,6 +2608,7 @@ A tree of nodes the user expands, collapses and selects, with a picture per node
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `Count` *(RapidR)* | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
 | `SelectedItem` *(RapidR)* | string |  | The selected tree node's text. |
+| `Text` *(RapidR)* (read-only) | string |  | Every node as text: a line each, a tab per level before it (what LoadFromFile reads). |
 | `Selected` *(RapidR)* | int |  | Whether item i is selected, `Selected(i)`; setting it selects or deselects. |
 | `TopItem` | any |  | The node shown at the top of the tree. |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
@@ -5027,19 +5028,27 @@ RapidR's language service, the one rapidr lsp and the VS Code extension use: a B
 <a id="rprogramsession"></a>
 ## RPROGRAMSESSION
 
-A run of a program under development, as an IDE runs it: in its own process on the desktop (its forms real windows), in a sandboxed frame on the web. Start, stop, pause, step, breakpoints, evaluate; its output and its stops come as events.
+A run of a program under development, as an IDE runs it: in its own process on the desktop (its forms real windows), in a sandboxed frame on the web. Start, stop, pause, step, breakpoints (with conditions, hit counts and log messages), the call stack, variables, watches and evaluation; its output and its stops come as events. What the debugger shows is fetched at each stop before OnStopped, so it can be read at once.
 
 | Property | Type | Default | |
 |---|---|---|---|
 | `Program` | string |  | The source file to run (saved). |
 | `Args` | string |  | Its command line arguments, as COMMAND$ reads them (spaces separate them, quotes keep spaces). |
 | `Debug` | bool | True | Run under the debugger: breakpoints stop it, stepping works. |
-| `BreakOnError` | bool | False | Stop at the statement of a run-time error. |
+| `BreakOnError` | bool | False | Stop at the statement of a run-time error (StopReason "exception", StopMessage the error). |
+| `StopOnEntry` | bool | False | Stop at the program's first statement when it starts. |
 | `State` (read-only) | string |  | "stopped", "running" or "paused". |
 | `CurrentFile` (read-only) | string |  | Where the program is paused: its file. |
 | `CurrentLine` (read-only) | int |  | Where the program is paused: its line (from 1; 0 when not paused). |
+| `StopReason` (read-only) | string |  | Why it paused: "breakpoint", "step", "pause", "entry" or "exception". |
+| `StopMessage` (read-only) | string |  | A run-time error's message, when that's why it paused. |
 | `ExitCode` (read-only) | int |  | The last run's exit code. |
 | `Error` (read-only) | string |  | Why the last Start (or another request) failed. |
+| `Frame` | int |  | The call stack's selected frame (0: where it is paused; 1 its caller …). Setting it fetches that frame's locals and the watches again, then OnVariables(0). |
+| `LocalsRef` (read-only) | int |  | The selected frame's locals, for Variables. |
+| `GlobalsRef` (read-only) | int |  | The program's globals, for Variables. |
+| `Watches` | string |  | The watch expressions, one a line: evaluated at every stop (WatchValues). |
+| `BrowserURL` (read-only) | string |  | Where RunInBrowser serves the program (on this machine only), once it does. |
 
 | Method | |
 |---|---|
@@ -5050,18 +5059,29 @@ A run of a program under development, as an IDE runs it: in its own process on t
 | `StepIn AS INTEGER` | Runs one statement, into a SUB or FUNCTION it calls. |
 | `StepOver AS INTEGER` | Runs one statement, a call whole. |
 | `StepOut AS INTEGER` | Runs to the end of the SUB or FUNCTION and stops after its call. |
-| `SetBreakpoint(File AS STRING, Line AS INTEGER, [Condition AS STRING]) AS INTEGER` | A breakpoint at a line (from 1) of a file, with a condition or not. |
+| `SetBreakpoint(File AS STRING, Line AS INTEGER, [Condition AS STRING], [HitCount AS STRING], [LogMessage AS STRING]) AS INTEGER` | A breakpoint at a line (from 1) of a file, or its rules changed. Condition: it stops only when that is true. HitCount: only on that hit (3), or >= 3, > 3, <= 3, < 3, % 3 (every third). LogMessage: a logpoint, which prints the message ({expression} shows its value) and goes on. |
 | `ClearBreakpoint(File AS STRING, Line AS INTEGER) AS INTEGER` | Removes a breakpoint. |
-| `Evaluate(Expr AS STRING) AS STRING` | Evaluates in the paused program: "? expression" gives its value, a statement runs (the Immediate window's). |
+| `ClearBreakpoints([File AS STRING]) AS INTEGER` | Removes a file's breakpoints (every file's when none is given). |
+| `RunToCursor(File AS STRING, Line AS INTEGER) AS INTEGER` | The program stops at that line once (a paused one goes on to it; a stopped one stops there once started). |
+| `StackTrace AS STRING` | The call stack as the last stop fetched it, the innermost first: a line each, its name, file and line tab-separated. |
+| `Variables(Ref AS INTEGER) AS STRING` | Ref's values as fetched (LocalsRef, GlobalsRef, a value's children after Expand): a line each, its name, value, type, children's reference (0: none) and count, tab-separated. |
+| `WatchValues AS STRING` | Each watch with its value at this stop: a line each, its expression, value, type and children's reference, tab-separated. |
+| `Expand(Ref AS INTEGER)` | Fetches a value's children (an array's elements, a TYPE's fields, a component's properties): OnVariables(Ref) when they're in. |
+| `Evaluate(Expr AS STRING, [Context AS STRING]) AS INTEGER` | Evaluates in the selected frame of the paused program: its answer comes as OnEvaluate(Id, Result) with the Id returned. Context "repl" (the Immediate window's): "? expression" gives its value, a statement runs. |
+| `SetVariable(Name AS STRING, Value AS STRING) AS INTEGER` | A variable of the selected frame set to an expression's value: OnEvaluate(Id, NewValue), then the values again (OnVariables(0)). |
 | `Input(Text AS STRING) AS INTEGER` | A line for the program's INPUT. |
+| `RunInBrowser AS INTEGER` | Program's web build served on this machine (127.0.0.1, an address nobody can guess) and opened in the default browser (the desktop's; on the web, Error says to run it here). Its lines come as OnOutput; BrowserURL says where it is. |
+| `StopBrowser` | Ends what RunInBrowser serves. |
 
 | Event | |
 |---|---|
-| `OnOutput(Text AS STRING)` | The program printed Text (PRINT, errors). |
-| `OnStopped(Reason AS STRING, File AS STRING, Line AS INTEGER)` | The program paused: at a breakpoint, a step's end, a pause, a run-time error. |
+| `OnOutput(Text AS STRING)` | The program printed Text (PRINT, errors, logpoints). |
+| `OnStopped(Reason AS STRING, File AS STRING, Line AS INTEGER)` | The program paused: at a breakpoint, a step's end, a pause, a run-time error. The call stack, the locals, the globals and the watches are in. |
 | `OnContinue` | A paused program goes on. |
 | `OnExit(Code AS INTEGER)` | The program ended, with its exit code. |
 | `OnFormShown(Id AS STRING)` | The program showed a form. |
+| `OnVariables(Ref AS INTEGER)` | Values fetched: Ref's children (Expand), or 0 — the selected frame's locals and the watches again (Frame, Watches, SetVariable, a statement evaluated). |
+| `OnEvaluate(Id AS INTEGER, Result AS STRING)` | An Evaluate's or SetVariable's answer ("error: …" when it failed). |
 
 <a id="screen"></a>
 ## Screen

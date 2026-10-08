@@ -114,7 +114,19 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
     let file = PathBuf::from(slashes(&text_arg(args, 0)));
     Some(match method {
         "update" => {
-            with(name, |s| s.analysis().update(file, text_arg(args, 1)));
+            let text = text_arg(args, 1);
+            let included = stored_includes(&file, &text);
+            with(name, |s| {
+                let a = s.analysis();
+                a.update(file, text);
+                // (the files it includes that only the runtime's store has —
+                // the web's: the analysis reads the disk itself)
+                for (path, t) in included {
+                    if a.text(&path).is_none() {
+                        a.update(path, t);
+                    }
+                }
+            });
             Value::Null
         }
         "close" => {
@@ -147,6 +159,33 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
         })),
         _ => return None,
     })
+}
+
+/// The files `text` (of `file`) includes, and theirs, that aren't on a disk
+/// the analysis can read but are in the runtime's store (the web page's):
+/// their paths beside `file` and their text.
+fn stored_includes(file: &Path, text: &str) -> Vec<(PathBuf, String)> {
+    let mut out: Vec<(PathBuf, String)> = Vec::new();
+    let mut todo: Vec<(PathBuf, String)> = vec![(file.to_path_buf(), text.to_string())];
+    while let Some((from, src)) = todo.pop() {
+        let folder = crate::folder_of(&slashes(&from.to_string_lossy()));
+        for line in src.lines() {
+            let t = line.trim_start();
+            if !t.get(..8).is_some_and(|h| h.eq_ignore_ascii_case("$include")) {
+                continue;
+            }
+            let Some(name) = t[8..].split('"').nth(1).or_else(|| t[8..].split(['<', '>']).nth(1)) else { continue };
+            let path = PathBuf::from(crate::join(&folder, name));
+            if out.len() >= 64 || path.exists() || out.iter().any(|(p, _)| *p == path) {
+                continue;
+            }
+            if let Ok(t) = crate::read_text(&path.to_string_lossy()) {
+                out.push((path.clone(), t.clone()));
+                todo.push((path, t));
+            }
+        }
+    }
+    out
 }
 
 /// (for the tests: a file's outline as the component gives it)

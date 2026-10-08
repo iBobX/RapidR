@@ -139,6 +139,9 @@
       // (the program's command line — COMMAND$(n), CommandCount — is its
       // own, never this frame's query string, which is the IDE's)
       window.RAPIDR_ARGS = Array.isArray(data.args) ? data.args.map(String) : [];
+      // (its own path — Application.ExeName, a message's caption: its
+      // Title — the program's, not this frame's run.html)
+      if (typeof data.session?.program === "string") window.RAPIDR_EXE_PATH = data.session.program;
       installStorage(data.storage);
 
       const url = URL.createObjectURL(new Blob([data.runtimeJs], { type: "text/javascript" }));

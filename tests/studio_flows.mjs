@@ -91,69 +91,72 @@ async function floatingWindows(page, scale, record) {
 // (S-DEBUG: the debugger's program and the file it includes)
 const DEBUG_FILES = ["tests/fixtures/studio_debug/counter.rr", "tests/fixtures/studio_debug/tally.inc"];
 
-// (the web) Modal dialogs stay on top: the program's modal message is over
-// its own form, whole and clickable (Enter closes it); then Studio's own
-// modal dialog (File > New Project, Ctrl+N) opened while the program's
-// window floats over Studio is over that window — and a Studio menu too.
-async function modalsOnTop(page, scale, record) {
-  const frame = () => page.frames().find((f) => f.url().endsWith("/run.html"));
+// (the web) Modal dialogs stay on top. The program's modal message is over
+// its own form, whole over Studio and answered with Enter (programModal).
+// Studio's own modal dialog (File > New Project, from the case's commands)
+// opened while the program's window floats over Studio is over that window
+// (studioModal: the frame stacks under Studio's dialogs).
+const hitPage = (page, x, y) => page.evaluate(([x, y]) => {
+  const el = document.elementFromPoint(x, y);
+  if (!el) return "none";
+  if (el.tagName === "IFRAME") return "program";
+  const w = el.closest(".rr-kwin");
+  return w ? "studio:" + w.getAttribute("data-rr-form") : "studio";
+}, [x, y]);
+const runFrame = (page) => page.frames().find((f) => f.url().endsWith("/run.html"));
+const programWindows = (page) => runFrame(page).evaluate(() => [...document.querySelectorAll(".rr-kwin")].filter((w) => getComputedStyle(w).display !== "none").map((w) => {
+  const r = w.getBoundingClientRect();
+  return { form: w.getAttribute("data-rr-form"), z: Number(getComputedStyle(w).zIndex) || 0, x: r.left, y: r.top, w: r.width, h: r.height };
+}));
+
+async function programModal(page, scale, record) {
   await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
   await page.waitForTimeout(800);
-  const wins = () => frame().evaluate(() => [...document.querySelectorAll(".rr-kwin")].filter((w) => getComputedStyle(w).display !== "none").map((w) => {
-    const r = w.getBoundingClientRect();
-    return { form: w.getAttribute("data-rr-form"), z: Number(getComputedStyle(w).zIndex) || 0, x: r.left, y: r.top, w: r.width, h: r.height };
-  }));
-  const hitPage = (x, y) => page.evaluate(([x, y]) => {
-    const el = document.elementFromPoint(x, y);
-    if (!el) return "none";
-    if (el.tagName === "IFRAME") return "program";
-    const w = el.closest(".rr-kwin");
-    return w ? "studio:" + w.getAttribute("data-rr-form") : "studio";
-  }, [x, y]);
-  const hitFrame = (x, y) => frame().evaluate(([x, y]) => {
+  const hitFrame = (x, y) => runFrame(page).evaluate(([x, y]) => {
     const el = document.elementFromPoint(x, y);
     const w = el && el.closest(".rr-kwin");
     return w ? w.getAttribute("data-rr-form") : "none";
   }, [x, y]);
-  let list = await wins();
+  let list = await programWindows(page);
   record("", list.length === 2, `the program shows its form and its message (${list.map((w) => w.form).join(", ")})`);
   const top = [...list].sort((a, b) => b.z - a.z)[0];
   const form = list.find((w) => w !== top);
   const cx = Math.round(top.x + top.w / 2), cy = Math.round(top.y + top.h / 2);
   record("", form && top.z > form.z && (await hitFrame(cx, cy)) === top.form, `the message is over the program's form (z ${top.z} > ${form && form.z})`);
   const corners = [[top.x + 3, top.y + 3], [top.x + top.w - 4, top.y + top.h - 4]];
-  const hits = await Promise.all(corners.map(([x, y]) => hitPage(x, y)));
+  const hits = await Promise.all(corners.map(([x, y]) => hitPage(page, x, y)));
   record("", hits.every((h) => h === "program"), `the message shows whole over Studio (corners: ${hits.join(", ")})`);
   await page.screenshot({ path: join(WORK, `program-modal@${scale}x.png`) });
   await page.mouse.click(cx, cy);
   await page.keyboard.press("Enter");
   await page.waitForTimeout(600);
-  list = await wins();
+  list = await programWindows(page);
   record("", list.length === 1, `Enter closed the message (${list.map((w) => w.form).join(", ")})`);
-  // (Studio's own modal dialog over the program's window)
-  const prog = list[0];
-  await page.mouse.click(5, page.viewportSize().height - 5);
-  await page.keyboard.press(process.platform === "darwin" ? "Meta+N" : "Control+N");
-  await page.waitForTimeout(800);
-  const dialog = await page.evaluate(() => {
+}
+
+async function studioModal(page, scale, record) {
+  await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+  await page.waitForFunction(() => {
     const w = document.querySelector('body > .rr-kwin[data-rr-form="newdialog"]');
-    if (!w || getComputedStyle(w).display === "none") return null;
-    const r = w.getBoundingClientRect();
+    return w && getComputedStyle(w).display !== "none";
+  }, null, { timeout: 30000 });
+  await page.waitForTimeout(500);
+  const [prog] = await programWindows(page);
+  const dialog = await page.evaluate(() => {
+    const r = document.querySelector('body > .rr-kwin[data-rr-form="newdialog"]').getBoundingClientRect();
     return { x: r.left, y: r.top, w: r.width, h: r.height };
   });
-  if (!dialog) {
-    record("", false, "Studio's New Project dialog opened (Ctrl+N)");
-    return;
-  }
-  // (a point of the dialog over the program's window, if they overlap; else its centre)
+  // (a point of the dialog over the program's window)
   const ox = Math.max(dialog.x, prog.x) + 6, oy = Math.max(dialog.y, prog.y) + 6;
-  const overlaps = ox < Math.min(dialog.x + dialog.w, prog.x + prog.w) && oy < Math.min(dialog.y + dialog.h, prog.y + prog.h);
-  const at = overlaps ? [ox, oy] : [dialog.x + dialog.w / 2, dialog.y + dialog.h / 2];
-  const hit = await hitPage(at[0], at[1]);
-  record("", hit === "studio:newdialog", `Studio's New Project dialog is over the program's window (${overlaps ? "they overlap" : "apart"}: ${hit})`);
+  const overlaps = ox < Math.min(dialog.x + dialog.w, prog.x + prog.w) - 6 && oy < Math.min(dialog.y + dialog.h, prog.y + prog.h) - 6;
+  record("", overlaps, `Studio's New Project dialog and the program's window overlap (${JSON.stringify(dialog)} / ${JSON.stringify(prog)})`);
+  const hit = await hitPage(page, ox, oy);
+  record("", hit === "studio:newdialog", `Studio's dialog is over the program's window where they overlap (${hit})`);
+  // (and the program's window still over Studio's main window beside the dialog)
+  const beside = [prog.x + 4, prog.y + prog.h - 4];
+  const inDialog = beside[0] >= dialog.x && beside[0] < dialog.x + dialog.w && beside[1] >= dialog.y && beside[1] < dialog.y + dialog.h;
+  if (!inDialog) record("", (await hitPage(page, beside[0], beside[1])) === "program", "the program's window is still over Studio's window");
   await page.screenshot({ path: join(WORK, `studio-modal-over-program@${scale}x.png`) });
-  await page.keyboard.press("Escape");
-  await page.waitForTimeout(400);
 }
 
 // Each case: what Studio opens and does (`do`: its commands; `events`:
@@ -227,7 +230,20 @@ const CASES = [
     maximized: true,
     viewport: { width: 1440, height: 900 },
     scales: [1, 2],
-    web: modalsOnTop,
+    web: programModal,
+    dump: { "session.error": /^$/ },
+  },
+  {
+    // Studio's own modal dialog opened while the program runs: over the
+    // program's window (the desktop's are windows of their own)
+    name: "studio-modal-over-program",
+    open: "examples/gui/themes.rr",
+    do: "run.start,wait,wait,wait,wait,wait,file.newProject",
+    delay: 5,
+    maximized: true,
+    viewport: { width: 1440, height: 900 },
+    scales: [1, 2],
+    web: studioModal,
     dump: { "session.error": /^$/ },
   },
   {
@@ -470,6 +486,32 @@ const CASES = [
     },
   },
   {
+    // a component (a handler's Sender) in Variables opens to its
+    // properties, as the program reads them
+    name: "debug-component-properties",
+    open: "tests/fixtures/studio_debug/sender.rr",
+    webFiles: ["tests/fixtures/studio_debug/sender.rr"],
+    do: "line:13,debug.toggleBreakpoint,run.start,wait,wait,wait,expand:L/Sender,wait,wait",
+    delay: 7,
+    scales: [1, 2],
+    capture: true,
+    dump: {
+      "session.currentline": /^13$/,
+      "varstree.text": /^Locals\n\tSender = "Greet" \(QBUTTON\)\n\t\t[\s\S]*Caption = "Greet"[\s\S]*Width = 120/,
+    },
+  },
+  {
+    // a click in the gutter's marker column (line 6: 100–120 px down the
+    // editor) sets a breakpoint there, as F9 does; F5 stops at it
+    name: "debug-gutter-click",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    events: "codedoc(0).__mousedown_12_110,codedoc(0).__mouseup_12_110",
+    do: "wait,wait,run.start,wait,wait,wait",
+    delay: 6,
+    dump: { "bptree.text": /^counter\.rr:6$/, "session.state": /^paused$/, "session.currentline": /^6$/ },
+  },
+  {
     // F11 into AddUp: tally.inc opens at its line (the editor follows the
     // program into another file); F10 twice: the local k and the watch on it
     // change; the stack has both files
@@ -707,6 +749,18 @@ const record = (name, ok, what) => {
   ok ? passed++ : failed++;
   console.log(`${ok ? "✓" : "✗"} ${name}: ${what}`);
 };
+// (docs/studio-wow.md §4.3: no Run or Debug command falls through to
+// RunCommand's "(… : not there yet)": each id of the command table's Run and
+// Debug menus has its CASE in debug.inc's DebugCommand or shell.inc's
+// RunCommand)
+if (!filters.length || filters.some((f) => "commands-handled".includes(f))) {
+  const table = readFileSync(join(ROOT, "ide/commands.inc"), "utf8");
+  const handlers = readFileSync(join(ROOT, "ide/debug.inc"), "utf8") + readFileSync(join(ROOT, "ide/shell.inc"), "utf8");
+  const ids = [...table.matchAll(/AddCmd "([^"]+)", "[^"]*", "(Run|Debug)"/g)].map((m) => m[1]);
+  const missing = ids.filter((id) => !new RegExp(`CASE "${id.replace(/\./g, "\\.")}"`).test(handlers));
+  record("commands-handled", ids.length >= 15 && missing.length === 0, `every Run / Debug command is handled (${ids.length} commands${missing.length ? "; missing: " + missing.join(", ") : ""})`);
+}
+
 for (const c of CASES.filter((c) => !filters.length || filters.some((f) => c.name.includes(f)))) {
   for (const scale of c.capture ? c.scales || [1] : [1]) check(c.capture && scale > 1 ? `desktop @${scale}x` : "desktop", runDesktop(c, scale), c);
   for (const scale of c.scales || [1]) {
