@@ -3085,21 +3085,20 @@ enum Terminator {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// `&H80000001` is a 32-bit integer in RapidQ: from &H80000000 to
-/// &HFFFFFFFF, negative (RC.EXE: `&H80000001 SHL 1` is 2).
-fn signed_32(n: i64) -> i64 {
-    if (0x8000_0000..=0xFFFF_FFFF).contains(&n) {
-        n as u32 as i32 as i64
-    } else {
-        n
+/// A hex number as RapidQ reads it: a 32-bit integer, &H80000000 to
+/// &HFFFFFFFF negative (RC.EXE: `&H80000001 SHL 1` is 2), and past 8 digits
+/// its low 32 bits (RC.EXE: `&H123456789` is 591751049).
+fn hex_32(hex: &str) -> Option<i64> {
+    let mut n = 0u32;
+    for c in hex.chars() {
+        n = (n << 4) | c.to_digit(16)?;
     }
+    Some(i64::from(n as i32))
 }
 
 fn parse_number_literal(lexeme: &str) -> LiteralValue {
     if let Some(hex) = lexeme.strip_prefix("0x") {
-        i64::from_str_radix(hex, 16)
-            .map(|n| LiteralValue::Integer(signed_32(n)))
-            .unwrap_or_else(|_| LiteralValue::String(lexeme.to_string()))
+        hex_32(hex).map(LiteralValue::Integer).unwrap_or_else(|| LiteralValue::String(lexeme.to_string()))
     } else if let Some(oct) = lexeme.strip_prefix("0o") {
         i64::from_str_radix(oct, 8)
             .map(LiteralValue::Integer)

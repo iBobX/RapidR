@@ -381,7 +381,7 @@ def programs(args):
         results = {}
         for d, _, fs in os.walk(args.examples):
             for f in fs:
-                if f.lower().endswith(".bas"):
+                if f.lower().endswith(corpus.PROGRAM_EXTS):
                     src = os.path.join(d, f)
                     results[os.path.relpath(src, args.examples)] = corpus.compile_one(src, env)[1]
     corpus.CORPUS_ROOT = os.path.abspath(args.examples)

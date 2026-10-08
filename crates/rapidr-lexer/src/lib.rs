@@ -970,11 +970,21 @@ impl<'src> Lexer<'src> {
     ) -> Token {
         self.advance_char();
         let prefix = self.advance_char().unwrap();
+        // (RC.EXE reads `&HH1` as &H1: RapidQ's keyboard example declares
+        // `VK_LBUTTON = &HH1`)
+        if matches!(prefix, 'H' | 'h') {
+            while matches!(self.current_char(), Some('H' | 'h')) {
+                self.advance_char();
+            }
+        }
         let digit_start = self.index;
 
         while let Some(ch) = self.current_char() {
             let valid = match prefix {
-                'H' | 'h' => ch.is_ascii_hexdigit(),
+                // (RC.EXE reads `?` and `@` in a hex number as the digit 0:
+                // `&HFFFF0000???` in RapidQ's CommCtrl.inc is &HFFFF0000000,
+                // `&H1?` is 16)
+                'H' | 'h' => ch.is_ascii_hexdigit() || matches!(ch, '?' | '@'),
                 'O' | 'o' => matches!(ch, '0'..='7'),
                 'B' | 'b' => matches!(ch, '0' | '1'),
                 _ => false,
@@ -1003,7 +1013,7 @@ impl<'src> Lexer<'src> {
         }
         let digits = &self.source[digit_start..digits_end];
         let normalized = match prefix {
-            'H' | 'h' => format!("0x{digits}"),
+            'H' | 'h' => format!("0x{}", digits.replace(['?', '@'], "0")),
             'O' | 'o' => format!("0o{digits}"),
             'B' | 'b' => format!("0b{digits}"),
             _ => unreachable!(),
