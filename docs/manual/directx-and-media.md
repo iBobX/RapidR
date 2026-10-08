@@ -62,7 +62,7 @@ own texts), `Volume`, their `Timer` and `OnChange`. A program that
 
 | Object | |
 |---|---|
-| `QCOMPORT` | a serial port (RAPIDQ2.INC's): `Port`, `BaudRate`, `DataBits`, `Parity`, `StopBits`, `Open`, `Close`, `ReadString`, `WriteString`, `OnRxChar`, `OnComError`, … — serial2 on the desktop (nothing to install on Linux), Web Serial in the browser |
+| `QCOMPORT` | a serial port (RAPIDQ2.INC's): `Port`, `BaudRate`, `DataBits`, `Parity`, `StopBits`, `Open`, `Close`, `ReadString`, `WriteString`, `OnRxChar`, `OnComError`, … — serial2 on the desktop (nothing to install on Linux), Web Serial in the browser; RapidR's extras for IoT boards (ListPorts, DTR / RTS, ReadLine, OnLine, OnPortsChanged) in [Serial ports and IoT boards](serial-ports.md) |
 | `QSOCKET` / `RSOCKET`, `RSERVERSOCKET` | TCP client and server (the browser: WebSocket client only) |
 | `RHTTP` | HTTP(S) `Get` and `Post` |
 | `QDOWNLOAD` | `Qdownload.inc`'s `LeechFile`: a file from a web server into a variable or a file, with progress; port 443 is HTTPS, redirects are followed, and the program's windows keep working while it waits |

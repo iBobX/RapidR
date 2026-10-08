@@ -1,0 +1,20 @@
+ports 2 count 2
+0 COM2 [] 00000000:00000000  
+1 COM5 [CP2102N USB to UART Bridge Controller] 000010C4:0000EA60 Silicon Labs 0001
+past the end [] 0
+closed: dtr 1 rts 1 cts 0 dsr 0
+error [There was an error reading data from the Comm Port.  The handle is invalid.]
+open: dtr 1 rts 0 cts 0 dsr 1 cd 1 ri 0
+set: dtr 0 rts 1 cts 1 dsr 0
+hasline 1
+[one] [two] [] inque 3 hasline 0
+[three] [four]
+esp32 inque 0
+in reset inque 0
+| ets Jun  8 2016 00:22:57
+| 
+| rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+| configsip: 0, SPIWP:0xee
+| mode:DIO, clock div:2
+| entry 0x400805e4
+| Hello from ESP32
