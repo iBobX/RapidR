@@ -43,6 +43,19 @@ pub enum Item {
     /// `op` drawn with its (0, 0) at `origin` (logical pixels).
     Op { origin: (i64, i64), op: Op },
     Text(TextItem),
+    /// From here on the ops are drawn at another scale, their (0, 0) at a
+    /// place on the device (`None`: back to the list's own): a part of the
+    /// window magnified — the form designer's zoom — at the screen's
+    /// resolution, so as crisp as the rest.
+    Zoom(Option<Zoom>),
+}
+
+/// A magnified part of a display list: device pixels per logical pixel,
+/// and where its logical (0, 0) is on the device.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Zoom {
+    pub scale: f64,
+    pub at: (f64, f64),
 }
 
 /// A picture a component made while painting (a list view's rows, an
@@ -76,6 +89,7 @@ impl DisplayList {
         for item in &self.items {
             let line = match item {
                 Item::Op { origin: (ox, oy), op } => format!("{} @{ox},{oy}", op_line(op)),
+                Item::Zoom(z) => format!("zoom {z:?}\n"),
                 Item::Text(t) => format!(
                     "editor {}#{} @{:.1},{:.1} sel {} caret {}",
                     t.node,
@@ -129,5 +143,7 @@ fn op_line(op: &Op) -> String {
         Op::ClipPush { rect: r } => format!("clip {}", rect(*r)),
         Op::ClipPolygon { points } => format!("clip polygon {} points", points.len()),
         Op::ClipPop => "unclip".to_string(),
+        Op::Fade { alpha } => format!("fade {alpha}"),
+        Op::FadePop => "unfade".to_string(),
     }
 }

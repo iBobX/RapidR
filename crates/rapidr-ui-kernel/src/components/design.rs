@@ -374,11 +374,57 @@ pub struct View {
     /// The form's id in the store.
     form: String,
     ui: Option<FormUi>,
+    /// The component being placed, drawn faded where it would go: its
+    /// type and size, and the little form it is drawn from.
+    ghost: Option<(String, (i64, i64), DesignStore, FormUi)>,
+    /// A component just dropped: its place (client coordinates) and when —
+    /// it settles in for [`SETTLE`].
+    settle: Option<(Rect, crate::tick::Instant)>,
 }
+
+/// How long a dropped component takes to settle in (docs/studio-wow.md
+/// §4: 100 ms; nothing animates under reduced motion).
+pub const SETTLE: std::time::Duration = std::time::Duration::from_millis(100);
+
+/// How opaque the ghost of a component being placed is (60 %).
+const GHOST_ALPHA: u8 = 153;
 
 impl View {
     fn new() -> View {
-        View { built: None, store: DesignStore::new(), form: String::new(), ui: None }
+        View { built: None, store: DesignStore::new(), form: String::new(), ui: None, ghost: None, settle: None }
+    }
+
+    /// The ghost of a component of `ty` (`w` × `h`): the kernel's own
+    /// component, in a form of its own, its caption its type's name.
+    fn ghost_of(&mut self, surface: &str, ty: &str, (w, h): (i64, i64)) -> Option<(&DesignStore, &mut FormUi)> {
+        let canonical = rapidr_value::designer::model::canonical_type(ty);
+        if !drawn(&canonical) || w <= 0 || h <= 0 {
+            return None;
+        }
+        if self.ghost.as_ref().is_none_or(|g| g.0 != canonical || g.1 != (w, h)) {
+            if let Some((_, _, mut old, _)) = self.ghost.take() {
+                old.clear();
+            }
+            let mut store = DesignStore::new();
+            let form = format!("{}:__ghostform", surface.to_lowercase());
+            let comp = format!("{}:__ghost", surface.to_lowercase());
+            store.create(&form, "RFORM", None);
+            for (prop, v) in [("width", w), ("height", h), ("borderstyle", 0)] {
+                store.set(&form, "RFORM", prop, v_int(v));
+            }
+            store.create(&comp, &canonical, Some(&form));
+            for (prop, v) in [("left", 0), ("top", 0), ("width", w), ("height", h)] {
+                store.set(&comp, &canonical, prop, v_int(v));
+            }
+            if let Some((prop, label)) = rapidr_value::objects::design::sample_caption(&canonical) {
+                store.set(&comp, &canonical, &prop.to_ascii_lowercase(), v_str(&label));
+            }
+            let mut ui = FormUi::build_unfocused(&store, &form, true);
+            ui.blinks = false;
+            self.ghost = Some((canonical, (w, h), store, ui));
+        }
+        let g = self.ghost.as_mut()?;
+        Some((&g.2, &mut g.3))
     }
 
     /// The design-time store (what the designed form is drawn from).
@@ -484,10 +530,49 @@ struct Shown {
     border: bool,
     form: Rect,
     client: (i64, i64),
+    /// The client area's (0, 0) in the form's window (its frame, its menu).
+    inset: (i64, i64),
+    zoom: f64,
     tray: Vec<TrayItem>,
     tray_rect: Option<Rect>,
     chrome: Vec<Op>,
     placed: Vec<Placed>,
+    /// The menu editor's open menus (client coordinates), the bar item open.
+    menus: Vec<ShownPanel>,
+    open_top: Option<usize>,
+    /// The component being placed: where (client coordinates) and its type.
+    ghost: Option<(rapidr_value::layout::Rect, String)>,
+    /// A component just dropped (client coordinates, and on the surface).
+    added: Option<Rect>,
+    view_added: Option<Rect>,
+}
+
+/// An open menu of the menu editor, as drawn.
+struct ShownPanel {
+    parent_name: String,
+    rect: Rect,
+    hot: Option<usize>,
+    placeholder: bool,
+}
+
+/// The menu editor's open menus and the bar item open, from the model.
+fn shown_menus(d: &DesignSurface) -> (Vec<ShownPanel>, Option<usize>) {
+    use rapidr_value::objects::design::menus::Slot;
+    let Some(v) = d.menu_view() else { return (Vec::new(), None) };
+    let design = &d.designer.design;
+    let sel = d.designer.selection.primary();
+    let panels = v
+        .panels
+        .iter()
+        .map(|p| ShownPanel {
+            parent_name: design.node(p.parent).map(|n| n.name.clone()).unwrap_or_default(),
+            rect: p.rect,
+            hot: p.rows.iter().position(|r| sel.is_some_and(|s| r.slot == Slot::Item(s)) && !d.editing_slot(r.slot)),
+            placeholder: p.placeholder,
+        })
+        .collect();
+    let open_top = d.menu_open.first().and_then(|o| v.bar.iter().position(|b| b.slot == Slot::Item(*o)));
+    (panels, open_top)
 }
 
 impl ComponentKind for Design {
@@ -504,16 +589,27 @@ impl ComponentKind for Design {
         let mut view = cx.ui.design.take().unwrap_or_else(|| Box::new(View::new()));
         // (the surface sizes a form made through the API)
         with_design_mut(cx.id, |d| d.set_size(w, h));
-        let Some(mut shown) = with_design(cx.id, |d| Shown {
-            changed: (view.built.as_ref() != Some(&d.designer.design)).then(|| d.designer.design.clone()),
-            title: d.title(),
-            border: d.border(),
-            form: d.form_rect(),
-            client: d.client_origin(),
-            tray: d.tray(),
-            tray_rect: d.tray_rect(),
-            chrome: d.chrome_ops(),
-            placed: placed(d),
+        let Some(mut shown) = with_design_mut(cx.id, |d| {
+            let (menus, open_top) = shown_menus(d);
+            let added = d.take_dropped();
+            Shown {
+                changed: (view.built.as_ref() != Some(&d.designer.design)).then(|| d.designer.design.clone()),
+                title: d.title(),
+                border: d.border(),
+                form: d.form_rect(),
+                client: d.client_origin(),
+                inset: d.client_inset(),
+                zoom: d.zoom,
+                tray: d.tray(),
+                tray_rect: d.tray_rect(),
+                chrome: d.chrome_ops(),
+                placed: placed(d),
+                menus,
+                open_top,
+                ghost: d.ghost.clone(),
+                view_added: added.map(|r| d.view_rect(r)),
+                added,
+            }
         }) else {
             cx.ui.design = Some(view);
             return;
@@ -534,10 +630,18 @@ impl ComponentKind for Design {
             for (k, line) in lines.iter().enumerate() {
                 p.text((16, top + k as i64 * lh, (w - 32).max(0), lh), line, &font, t.text, Place::Center);
             }
+            // (and offers it: "Add a form")
+            if let Some(b) = with_design(cx.id, |d| d.add_form_button()).flatten() {
+                p.round(b, t.radius.max(4.0), Some(t.accent), None, 0.0);
+                p.text(b, "Add a Form", &font, t.window, Place::Center);
+            }
             cx.ui.design = Some(view);
             return;
         }
-        // the form's window: its frame, then its inside (menu bar, client)
+        // the form's window, magnified by the zoom (at the screen's
+        // resolution): its frame, its inside (menu bar, client), the open
+        // menus of the menu editor, the ghost of what is being placed, the
+        // tray
         let (fx, fy, fw, fh) = shown.form;
         let form_id = view.form.clone();
         let look = crate::frame::Look {
@@ -551,44 +655,90 @@ impl ComponentKind for Design {
             maximized: false,
             icon: crate::frame::icon_of(&view.store, &form_id),
         };
-        p.at((fx, fy), |p| crate::frame::paint_into(p, &look, (fw, fh)));
-        let (ix, iy) = crate::frame::inset(shown.border);
-        let (ox, oy) = (fx + ix, fy + iy);
         let face = color_of(&view.store, &form_id).unwrap_or(t.face);
-        {
-            let View { ui, store, form, .. } = &mut *view;
-            let f = ui.get_or_insert_with(|| {
-                let mut f = FormUi::build_unfocused(store, form, true);
-                f.blinks = false;
-                f
-            });
-            f.sync(store);
-            let (iw, ih) = (f.client.0, f.client.1 + f.menu_offset);
-            let (gw, gh) = f.client;
-            // (the grid's dots on the form's face, under its components)
-            let dots = with_design(cx.id, |d| d.grid_ops(gw, gh, face)).unwrap_or_default();
-            p.at((ox, oy), |p| {
-                p.clipped((0, 0, iw, ih), |p| {
-                    let mut under = |p: &mut Painter| p.ops(dots.iter().cloned());
-                    f.paint_into(store, cx.text, p, &mut under);
+        let (ix, iy) = crate::frame::inset(shown.border);
+        let (cix, ciy) = shown.inset;
+        let surface = cx.id.to_string();
+        let text = &mut *cx.text;
+        p.zoomed((fx, fy), shown.zoom, |p| {
+            crate::frame::paint_into(p, &look, (fw, fh));
+            {
+                let View { ui, store, form, .. } = &mut *view;
+                let f = ui.get_or_insert_with(|| {
+                    let mut f = FormUi::build_unfocused(store, form, true);
+                    f.blinks = false;
+                    f
                 });
-            });
-        }
-        // the tray strip of non-visual components
-        if let Some((tx, ty, tw, th)) = shown.tray_rect {
-            let (sx, sy) = shown.client;
-            p.at((sx, sy), |p| {
-                p.fill((tx, ty, tw, th), t.face);
-                p.frame((tx, ty, tw, th), if t.fluent() { t.border } else { t.shadow });
-                let font = rapidr_value::objects::design::tray_font();
-                for item in &shown.tray {
-                    let (x, y, iw, ih) = item.rect;
-                    p.icon(&item.type_name, (x + 4, y + (ih - TRAY_ICON) / 2, TRAY_ICON, TRAY_ICON), None, false);
-                    p.text((x + 4 + TRAY_ICON + 4, y, iw - TRAY_ICON - 8, ih), &item.name, &font, t.text, Place::Left);
+                f.sync(store);
+                // (the menu editor's open bar item shows open)
+                f.menus.open_top = shown.open_top;
+                let (iw, ih) = (f.client.0, f.client.1 + f.menu_offset);
+                let (gw, gh) = f.client;
+                // (the grid's dots on the form's face, under its components)
+                let dots = with_design(&surface, |d| d.grid_ops(gw, gh, face)).unwrap_or_default();
+                p.at((ix, iy), |p| {
+                    p.clipped((0, 0, iw, ih), |p| {
+                        let mut under = |p: &mut Painter| p.ops(dots.iter().cloned());
+                        f.paint_into(store, text, p, &mut under);
+                    });
+                });
+            }
+            // the menu editor's open menus, in the form's own look
+            p.at((cix, ciy), |p| {
+                for panel in &shown.menus {
+                    let items = if panel.placeholder { Vec::new() } else { super::menubar::items(&key(&surface, &panel.parent_name)) };
+                    super::menubar::paint_panel(p, panel.rect, &items, panel.hot);
                 }
             });
+            // the ghost of what is being placed: the component itself, faded
+            if let Some((r, ty)) = &shown.ghost {
+                if let Some((gstore, gui)) = view.ghost_of(&surface, ty, (r.width, r.height)) {
+                    p.at((cix + r.left, ciy + r.top), |p| {
+                        p.op(Op::Fade { alpha: GHOST_ALPHA });
+                        gui.paint_into(gstore, text, p, &mut |_| {});
+                        p.op(Op::FadePop);
+                    });
+                }
+            } else if let Some((_, _, mut old, _)) = view.ghost.take() {
+                old.clear();
+            }
+            // the tray strip of non-visual components
+            if let Some((tx, ty, tw, th)) = shown.tray_rect {
+                p.at((cix, ciy), |p| {
+                    p.fill((tx, ty, tw, th), t.face);
+                    p.frame((tx, ty, tw, th), if t.fluent() { t.border } else { t.shadow });
+                    let font = rapidr_value::objects::design::tray_font();
+                    for item in &shown.tray {
+                        let (x, y, iw, ih) = item.rect;
+                        p.icon(&item.type_name, (x + 4, y + (ih - TRAY_ICON) / 2, TRAY_ICON, TRAY_ICON), None, false);
+                        p.text((x + 4 + TRAY_ICON + 4, y, iw - TRAY_ICON - 8, ih), &item.name, &font, t.text, Place::Left);
+                    }
+                });
+            }
+        });
+        // a component just dropped settles in: a fading wash and a ring
+        // closing on it
+        if let Some(added) = shown.added {
+            view.settle = Some((added, crate::tick::now()));
         }
-        // the designer's chrome over everything
+        if let Some(((x, y, w, h), at)) = view.settle {
+            let k = crate::tick::now().saturating_duration_since(at).as_secs_f64() / SETTLE.as_secs_f64();
+            if k >= 1.0 || rapidr_value::theme::reduced_motion() {
+                view.settle = None;
+            } else {
+                let (vx, vy, vw, vh) = shown.view_added.unwrap_or((x, y, w, h));
+                let ease = 1.0 - (1.0 - k) * (1.0 - k);
+                let ring = ((1.0 - ease) * 6.0).round() as i64;
+                p.at(shown.client, |p| {
+                    p.op(Op::Fade { alpha: ((1.0 - ease) * 110.0) as u8 });
+                    p.fill((vx, vy, vw, vh), t.accent);
+                    p.op(Op::FadePop);
+                    p.frame((vx - ring - 1, vy - ring - 1, vw + 2 * ring + 2, vh + 2 * ring + 2), t.accent);
+                });
+                cx.ui.wake = Some(crate::tick::now() + std::time::Duration::from_millis(16));
+            }
+        }
+        // the designer's chrome over everything (at its own size)
         p.at(shown.client, |p| p.ops(shown.chrome));
         // (the code has errors: a banner says why nothing can change)
         if let Some(text) = with_design(cx.id, |d| d.banner()).flatten() {
@@ -605,8 +755,16 @@ impl ComponentKind for Design {
         let out = MouseOut { press: false, focus: Some(true) };
         let (w, h) = (cx.width(), cx.height());
         with_design_mut(cx.id, |d| d.set_size(w, h));
-        let (ox, oy) = with_design(cx.id, |d| d.client_origin()).unwrap_or((0, 0));
-        let (x, y) = (m.x.floor() as i64 - ox, m.y.floor() as i64 - oy);
+        let (x, y) = with_design(cx.id, |d| d.client_point(m.x, m.y)).unwrap_or((0, 0));
+        // (no form: the empty state's "Add a form")
+        if m.kind == MouseKind::Down && m.button == Button::Left {
+            let b = with_design(cx.id, |d| d.add_form_button()).flatten();
+            if b.is_some_and(|(bx, by, bw, bh)| m.x >= bx as f64 && m.y >= by as f64 && m.x < (bx + bw) as f64 && m.y < (by + bh) as f64) {
+                with_design_mut(cx.id, |d| d.add_form(""));
+                drain(cx);
+                return out;
+            }
+        }
         if m.kind == MouseKind::Leave {
             with_design_mut(cx.id, |d| d.mouse_leave());
             return out;
@@ -643,21 +801,30 @@ impl ComponentKind for Design {
         let ctrl = k.mods.ctrl || k.mods.command;
         let handled = match (ctrl, k.vk) {
             // Copy / Cut: the CREATE blocks' text on the clipboard
-            (true, 67) | (true, 88) => {
+            (true, 67) | (true, 88) if with_design(cx.id, |d| d.editing.is_none()).unwrap_or(true) => {
                 let text = with_design_mut(cx.id, |d| if k.vk == 67 { d.copy() } else { d.cut() }).flatten();
                 if let Some(t) = &text {
                     clip.set_text(t);
                 }
                 text.is_some()
             }
-            _ if k.mods.alt => false,
-            _ => with_design_mut(cx.id, |d| d.key(k.vk, k.text, k.mods.shift, ctrl)).unwrap_or(false),
+            _ => with_design_mut(cx.id, |d| d.key_alt(k.vk, k.text, k.mods.shift, ctrl, k.mods.alt)).unwrap_or(false),
         };
         drain(cx);
         handled
     }
 
     fn wheel(&self, cx: &mut Cx, dx: f64, dy: f64, mods: crate::input::Mods) -> bool {
+        // (Ctrl / ⌘ + the wheel, or a pinch: zoom, the point under the
+        // mouse staying put)
+        if mods.ctrl || mods.command {
+            return with_design_mut(cx.id, |d| {
+                let factor = (-dy * 0.25).exp2();
+                let at = d.last_pointer();
+                d.set_zoom(d.zoom * factor, at)
+            })
+            .unwrap_or(false);
+        }
         // (Shift turns the wheel sideways, as Windows' scroll views do)
         let (dx, dy) = if mods.shift && dx == 0.0 { (dy, 0.0) } else { (dx, dy) };
         let step = 48.0;
@@ -677,7 +844,7 @@ impl ComponentKind for Design {
                 .iter()
                 .enumerate()
                 .map(|(i, c)| {
-                    let (x, y, w, h) = tray.iter().find(|t| t.index == i).map_or(c.bounds(), |t| t.rect);
+                    let (x, y, w, h) = d.view_rect(tray.iter().find(|t| t.index == i).map_or(c.bounds(), |t| t.rect));
                     let place = if c.visual { format!(", {}, {}, {} × {}", c.x, c.y, c.w, c.h) } else { String::new() };
                     (format!("{} ({}){place}", c.name, c.type_name), (x + ox, y + oy, w, h), sel.contains(&i))
                 })
@@ -727,8 +894,7 @@ pub fn drop_move(ui: &mut FormUi, store: &dyn Store, hit: Option<usize>, x: f64,
             continue;
         }
         let (rx, ry, _, _) = ui.nodes[i].abs;
-        let (ox, oy) = with_design(&id, |d| d.client_origin()).unwrap_or((0, 0));
-        let (cx, cy) = (x.floor() as i64 - rx - ox, y.floor() as i64 - ry - oy);
+        let (cx, cy) = with_design(&id, |d| d.client_point(x - rx as f64, y - ry as f64)).unwrap_or((0, 0));
         with_design_mut(&id, |d| {
             if over == Some(i) && !d.no_form() {
                 let (cw, ch) = d.client_size();
@@ -754,12 +920,11 @@ pub fn drop_up(ui: &mut FormUi, store: &dyn Store, hit: Option<usize>, x: f64, y
         }
         if hit == Some(i) {
             let (rx, ry, _, _) = ui.nodes[i].abs;
-            let (ox, oy) = with_design(&id, |d| d.client_origin()).unwrap_or((0, 0));
-            let (cx, cy) = (x.floor() as i64 - rx - ox, y.floor() as i64 - ry - oy);
+            let (cx, cy) = with_design(&id, |d| d.client_point(x - rx as f64, y - ry as f64)).unwrap_or((0, 0));
             with_design_mut(&id, |d| {
                 let r = d.new_rect(&ty, cx, cy, free);
                 d.ghost = None;
-                d.add_at(&ty, (r.left, r.top), Some(r))
+                d.add_dropped(&ty, (r.left, r.top), Some(r))
             });
             for e in rapidr_value::objects::take_design_events(&id) {
                 ui.events.push(crate::input::KernelEvent::List(id.clone(), ListAction::Fire(e.event().to_string(), e.args())));

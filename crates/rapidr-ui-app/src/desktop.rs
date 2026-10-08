@@ -626,6 +626,12 @@ pub fn cursor_at(desk: &Desktop, store: &dyn Store, form: &str, (x, y): (f64, f6
     const CR_VSPLIT: i64 = -15;
     let Some(f) = desk.forms.get(form) else { return Cursor::Default };
     let node = f.ui.hover.and_then(|i| f.ui.nodes.get(i));
+    // (I4: a component dragged in from the toolbox — "not allowed" but
+    // over a designer's form, where it would go)
+    if rapidr_value::objects::design::drop_pending().is_some() {
+        let ok = f.ui.nodes.iter().filter(|n| n.type_name == "RDESIGNSURFACE").any(|n| rapidr_value::objects::with_design(&n.id, |d| d.ghost.is_some()).unwrap_or(false));
+        return if ok { Cursor::Default } else { Cursor::NoDrop };
+    }
     // (the input lane's: a status bar's size grip is the window's sizing
     // corner — Windows' HTBOTTOMRIGHT arrow, whatever the bar's Cursor)
     let grip = rapidr_value::layout::STATUS_GRIP;
@@ -655,8 +661,8 @@ pub fn cursor_at(desk: &Desktop, store: &dyn Store, form: &str, (x, y): (f64, f6
         "RDESIGNSURFACE" => {
             use rapidr_value::objects::design::Pointer;
             let p = rapidr_value::objects::with_design(&n.id, |d| {
-                let (ox, oy) = d.client_origin();
-                d.pointer_at(lx - ox, ly - oy)
+                let (cx, cy) = d.client_point(lx as f64, ly as f64);
+                d.pointer_at(cx, cy)
             });
             match p.unwrap_or(Pointer::Default) {
                 Pointer::Default => Cursor::Default,

@@ -48,6 +48,12 @@ impl Canvas for CpuCanvas<'_> {
     fn pop_clip(&mut self) {
         self.ctx.pop_clip();
     }
+    fn push_fade(&mut self, alpha: f32) {
+        self.ctx.push_opacity_layer(alpha);
+    }
+    fn pop_fade(&mut self) {
+        self.ctx.pop_layer();
+    }
     fn glyphs(&mut self, run: &GlyphRun, glyphs: &[(u32, f32, f32)]) {
         self.ctx.set_transform(run.transform);
         self.ctx.set_paint(color(run.rgb));

@@ -272,6 +272,35 @@ impl Document {
         out
     }
 
+    /// A new form for a file (one without a form, or another): `CREATE name
+    /// AS QFORM` with a Caption and RapidQ's starting size, and the line that
+    /// shows it (`name.ShowModal`), at the end of the file in its own style —
+    /// one undo step. The edit made.
+    pub fn add_form(&mut self, name: &str) -> Vec<TextPatch> {
+        let eol = self.style.eol.clone();
+        let indent = if self.text.lines().any(|l| l.starts_with([' ', '\t']) && !l.trim().is_empty()) { self.style.indent.clone() } else { "    ".to_string() };
+        let mut insert = String::new();
+        if !self.text.is_empty() {
+            if !self.text.ends_with('\n') {
+                insert.push_str(&eol);
+            }
+            if !self.text.ends_with(&format!("{eol}{eol}")) && self.text.trim() != "" {
+                insert.push_str(&eol);
+            }
+        }
+        let tree = rapidr_value::designer::Subtree::new(name, "QFORM", &[("Caption", rapidr_value::designer::value::write_str(name)), ("Width", "320".into()), ("Height", "240".into())]);
+        insert.push_str(&write_create(&tree, "", &Style { indent, eol: eol.clone() }));
+        insert.push_str(&format!("{eol}{name}.ShowModal{eol}"));
+        let at = self.text.len();
+        let p = TextPatch { start: at, end: at, insert };
+        self.text.push_str(&p.insert);
+        self.undo.push(vec![(p.clone(), String::new())]);
+        self.redo.clear();
+        let prev = self.previous();
+        self.reread(&prev);
+        vec![p]
+    }
+
     /// Undoes the last text transaction: the exact bytes come back.
     pub fn undo(&mut self) -> bool {
         let Some(t) = self.undo.pop() else { return false };

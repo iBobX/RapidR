@@ -866,3 +866,19 @@ mod tests {
         assert_eq!(bgr(0x0078D7), 0xD77800);
     }
 }
+
+thread_local! {
+    static REDUCED_MOTION: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Whether the user asked the system for reduced motion (the host says so:
+/// [`set_reduced_motion`]): RapidR's own animations — the designer's drop,
+/// the dock's flyout — then don't run (docs/studio-wow.md §4).
+pub fn reduced_motion() -> bool {
+    REDUCED_MOTION.with(|r| r.get())
+}
+
+/// The host tells the system's reduced-motion setting.
+pub fn set_reduced_motion(on: bool) {
+    REDUCED_MOTION.with(|r| r.set(on));
+}
