@@ -1,12 +1,18 @@
-before size 3 pos 3
-after from size 11 pos 11
-first xyz
-num 11 22
-mid size 11 pos 5
-to pos 11
-00220
-to0 pos 4 8568
-i 22
-back 1234567
-self 22018
-zero pos 3 i 1234567
+a 7 10
+[012ABCD789]
+b 13 13
+[012ABCD7CDEFG]
+c 6 [2ABCxxxxxx]
+d 8 9 258 -1 7
+e 12 12
+f 77
+h 1 12
+o 2 12
+k 2.500000000 8
+g 12 10 56 57 0 0 122
+z 0
+n -1 zzzzzz
+p -1
+s 4 0
+[0123]
+t 8 4

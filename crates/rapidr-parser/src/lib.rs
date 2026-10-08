@@ -2971,6 +2971,11 @@ impl<'a> Parser<'a> {
         if matches!(self.peek_kind(), Some(TokenType::ByVal | TokenType::ByRef)) && !matches!(self.peek_kind_at(1), Some(TokenType::Comma | TokenType::RParen)) {
             self.advance();
         }
+        // `PEEK(#1, addr)`, `POKE #1, addr, b`: a console page's number
+        // (RapidQ marks it with `#`; the value is the page).
+        if self.peek_kind() == Some(TokenType::Hash) && !matches!(self.peek_kind_at(1), Some(TokenType::Comma | TokenType::RParen)) {
+            self.advance();
+        }
         self.parse_expression()
     }
 

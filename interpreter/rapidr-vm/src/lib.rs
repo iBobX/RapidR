@@ -79,7 +79,9 @@ impl std::fmt::Display for VmError {
             VmError::BadStringIndex(i) => write!(f, "bad string index {i}"),
             VmError::BadLocalSlot(s) => write!(f, "bad local slot {s}"),
             VmError::Truncated => write!(f, "truncated bytecode"),
-            VmError::HostError(s) => write!(f, "host error: {s}"),
+            // (a builtin's error is the program's run-time error, worded as
+            // native builds word it)
+            VmError::HostError(s) => write!(f, "run-time error: {s}"),
             VmError::Runtime(s) => write!(f, "run-time error: {s}"),
             VmError::Halted => write!(f, "halted"),
             VmError::Paused => write!(f, "paused"),

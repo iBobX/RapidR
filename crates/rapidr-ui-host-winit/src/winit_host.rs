@@ -489,6 +489,12 @@ impl Shim<'_> {
     /// Runs the program's window commands.
     fn apply(&mut self, el: &ActiveEventLoop) {
         self.note_monitor(el);
+        // (the program changed a Cursor, or Screen.Cursors, while the mouse
+        // stays still — a timer animating Form.Cursor: the pointer follows)
+        let over: Vec<(String, (f64, f64))> = self.s.wins.iter().filter(|(_, w)| w.pointer.is_some()).map(|(f, w)| (f.clone(), w.cursor)).collect();
+        for (f, at) in over {
+            self.pointer(el, &f, at);
+        }
         // (a modal window takes the keyboard back from a window below it,
         // in front of it again — Windows keeps a modal dialog over its
         // disabled owner)
@@ -771,6 +777,17 @@ impl Shim<'_> {
             apply_shape(&window, f, &spec);
         }
         window.request_redraw();
+        // (`Form.Handle` is the window's HWND from now on, so Windows API
+        // calls get the real window: docs/windows-dll-calls.md §3)
+        #[cfg(target_os = "windows")]
+        {
+            use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+            if let Ok(h) = window.window_handle() {
+                if let RawWindowHandle::Win32(w) = h.as_raw() {
+                    rapidr_value::handles::set_native(f, w.hwnd.get() as i64);
+                }
+            }
+        }
         let outline = outline_of(f, &spec);
         self.s.wins.insert(f.to_string(), Win { window, surface, access, sent: a11y::Sent::default(), cursor: (0.0, 0.0), pointer: None, ime: false, fullscreen: false, outline, passes: None });
     }
@@ -884,11 +901,23 @@ impl Shim<'_> {
 
     /// The pointer over form `f`'s window at `at` (platform.rs), set when
     /// it changes.
-    fn pointer(&mut self, f: &str, at: (f64, f64)) {
+    fn pointer(&mut self, el: &ActiveEventLoop, f: &str, at: (f64, f64)) {
         let c = crate::platform::cursor_at(self.desk, self.store, f, at);
         if let Some(w) = self.s.wins.get_mut(f) {
             if w.pointer != Some(c) {
                 w.pointer = Some(c);
+                // (C-SYS) a cursor the program loaded through Windows
+                // (Screen.Cursors(i) = LoadCursorFromFile(…)): its pixels
+                #[cfg(target_os = "windows")]
+                if let rapidr_value::input::Cursor::Custom(h) = c {
+                    if let Some(custom) = crate::wincursor::custom(el, h) {
+                        w.window.set_cursor_visible(true);
+                        w.window.set_cursor(custom);
+                        return;
+                    }
+                }
+                #[cfg(not(target_os = "windows"))]
+                let _ = el;
                 match crate::platform::cursor_icon(c) {
                     Some(icon) => {
                         w.window.set_cursor_visible(true);
@@ -1123,7 +1152,7 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
                 }
                 let m = self.mods();
                 self.desk.mouse_move(store, &f, x, y, m, Source::User);
-                self.pointer(&f, (x, y));
+                self.pointer(_el, &f, (x, y));
                 self.after_input(&f);
             }
             WindowEvent::MouseInput { state, button: b, .. } => {

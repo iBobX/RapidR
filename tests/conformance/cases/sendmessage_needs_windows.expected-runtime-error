@@ -1,0 +1,3 @@
+'SendMessageA'
+(user32)
+runs on Windows only

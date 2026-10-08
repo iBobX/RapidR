@@ -72,6 +72,8 @@ pub fn windows_order(a: &str, b: &str) -> std::cmp::Ordering {
 impl FileSource {
     /// The items for the directory as it is now.
     pub fn list(&self) -> Vec<String> {
+        // (the web build has no directory to read: no directory there)
+        #[cfg_attr(target_arch = "wasm32", allow(unused_mut))]
         let mut dirs: Vec<String> = Vec::new();
         let mut files: Vec<String> = Vec::new();
         #[cfg(not(target_arch = "wasm32"))]

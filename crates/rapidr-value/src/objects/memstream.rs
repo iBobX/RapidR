@@ -53,11 +53,8 @@ impl FileSink {
 }
 
 /// Methods that change a stream (refused on a file opened for reading).
-pub const WRITE_METHODS: &[&str] = &["writestr", "writebinstr", "writeline", "writenum", "write", "writebyte", "copyfrom", "memcopyfrom", "extractres"];
-
-/// What `ReadByte` gives at the end of the stream: RapidQ's value there
-/// (RC.EXE: 26, the old end-of-file character), the position unchanged.
-pub const READ_BYTE_AT_END: i64 = 26;
+pub const WRITE_METHODS: &[&str] =
+    &["writestr", "writebinstr", "writeline", "writenum", "write", "writebyte", "copyfrom", "extractres", "memcopyfrom", "saveudtarray", "writeudt"];
 
 /// Largest stream allowed, so `Mem.Size = 1E12` fails cleanly.
 const MAX_SIZE: usize = 1 << 31;
@@ -187,7 +184,9 @@ impl MemStream {
             // RapidR extension: the whole content as a string.
             "text" => v_str(&self.text()),
             "linecount" => v_int(self.line_count()),
-            // There are no raw memory addresses in RapidR.
+            // (RapidQ's SetSize is a property only written: RC.EXE reads
+            // it as nothing)
+            "setsize" => v_str(""),
             _ => return None,
         })
     }
@@ -195,7 +194,7 @@ impl MemStream {
     pub fn set(&mut self, prop: &str, val: &Value) -> bool {
         match prop {
             "position" => self.set_position(val.to_i64()),
-            // (`Mem.SetSize = n`: RC.EXE takes it as a property, Size's twin)
+            // (QMEMORYSTREAM's `SetSize = n`, RC.EXE: Size's other name)
             "size" | "setsize" => self.set_size(val.to_i64()),
             _ => return false,
         }
@@ -274,20 +273,20 @@ impl MemStream {
                 v_int(self.pos)
             }
             "eof" => v_int(if self.at_end() { -1 } else { 0 }),
-            // One byte (QFILESTREAM): its low 8 bits written; read back as
-            // 0..255, or RapidQ's 26 past the end.
+            // QFILESTREAM's ReadByte / WriteByte (RC.EXE): one byte, its
+            // low 8 bits written; past the end ReadByte gives 26 (^Z, DOS's
+            // end of file) and leaves Position.
             "writebyte" => {
                 self.write(&[arg(0).to_i64() as u8]);
                 Value::Null
             }
-            "readbyte" => match self.read(1).first() {
-                Some(&b) => v_int(i64::from(b)),
-                None => v_int(READ_BYTE_AT_END),
+            "readbyte" => match self.index() {
+                Some(i) => {
+                    self.pos += 1;
+                    v_int(self.data[i] as i64)
+                }
+                None => v_int(26),
             },
-            // RC.EXE's class table has them, but its compiler takes only a
-            // TYPE field as their one argument and the program then does
-            // nothing with the stream: the same here.
-            "saveudtarray" | "loadudtarray" => Value::Null,
             // `Mem.ExtractRes(Resource(0))`: the resource's bytes, written
             // at the position (rapidr_value::resources).
             "extractres" => {

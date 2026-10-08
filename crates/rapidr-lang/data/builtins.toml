@@ -15,6 +15,7 @@ internal = [
   "__data_label",
   "__data_reset",
   "__decimal",
+  "__dll_call",
   "__environ_set",
   "__getfield",
   "__gui_register_timer",
@@ -435,8 +436,7 @@ doc = "The next key pressed, or \"\" when none is waiting; it doesn't wait. Spec
 name = "INP"
 syntax = "INP(Address)"
 group = "System"
-missing = true
-doc = "Reads a byte from a hardware I/O port (a DOS-era facility)."
+doc = "Reads a byte from a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error, as it did under RapidQ on Windows."
 
 [[builtin]]
 name = "INPUT$"
@@ -448,8 +448,7 @@ doc = "Waits for `NumChars` keys to be pressed and returns them as a string."
 name = "INPW"
 syntax = "INPW(Address)"
 group = "System"
-missing = true
-doc = "Reads a 16-bit word from a hardware I/O port (a DOS-era facility)."
+doc = "Reads a 16-bit word from a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error."
 
 [[builtin]]
 name = "INSERT$"
@@ -499,8 +498,7 @@ doc = "Deletes a file."
 name = "KILLMESSAGE"
 syntax = "KILLMESSAGE hWnd, Message"
 group = "System"
-missing = true
-doc = "Removes pending messages of one kind from a window's message queue."
+doc = "Removes pending messages of one kind from a window's message queue (Windows' PeekMessage with PM_REMOVE). Windows only: on macOS, Linux and the web it stops the program with an error saying so. Only a form's Handle is a real window; a control's Handle names no window, so nothing happens there."
 
 [[builtin]]
 name = "LBOUND"
@@ -665,15 +663,13 @@ doc = "Opens a file for `INPUT`, `OUTPUT`, `APPEND`, `BINARY` or `RANDOM` access
 name = "OUT"
 syntax = "OUT(Address, bytevalue)"
 group = "System"
-missing = true
-doc = "Writes a byte to a hardware I/O port (a DOS-era facility)."
+doc = "Writes a byte to a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error, as it did under RapidQ on Windows."
 
 [[builtin]]
 name = "OUTW"
 syntax = "OUTW(Address, wordvalue)"
 group = "System"
-missing = true
-doc = "Writes a 16-bit word to a hardware I/O port (a DOS-era facility)."
+doc = "Writes a 16-bit word to a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error."
 
 [[builtin]]
 name = "PARAMSTR$"
@@ -703,15 +699,13 @@ doc = "In a `SUBI` or `FUNCTIONI`: how many numeric arguments it was called with
 name = "PCOPY"
 syntax = "PCOPY source, dest"
 group = "Console"
-missing = true
-doc = "Copies one console screen page to another."
+doc = "Copies one console page (0 is the screen, 1 to 7 are off-screen buffers) onto another."
 
 [[builtin]]
 name = "PEEK"
 syntax = "PEEK([#PageNum,] address)"
 group = "Arrays and memory"
-missing = true
-doc = "Reads the byte at a memory address."
+doc = "Reads one byte: of a console page (addresses 0 to 3999 of page 0 are the screen, an even address a cell's character, the odd one after it its colour attribute), or of the program's own memory at an address from VARPTR and the like. Any other address is a run-time error."
 
 [[builtin]]
 name = "PI"
@@ -738,8 +732,7 @@ doc = "Plays a WAV file or `$RESOURCE` in the background (`SND_ASYNC`), waiting 
 name = "POKE"
 syntax = "POKE [#PageNum,] address, byte"
 group = "Arrays and memory"
-missing = true
-doc = "Writes a byte to a memory address."
+doc = "Writes one byte: into a console page (on page 0 it shows at once), or into the program's own memory at an address from VARPTR and the like. Any other address is a run-time error."
 
 [[builtin]]
 name = "POS"
@@ -751,8 +744,7 @@ doc = "The console cursor's column, 1 being the first."
 name = "POSTMESSAGE"
 syntax = "POSTMESSAGE(Handle, uMsg, wParam, lParam)"
 group = "System"
-missing = true
-doc = "Puts a Windows message in a window's queue and returns without waiting for it to be handled."
+doc = "Puts a Windows message in a window's queue and returns without waiting for it to be handled (Windows' PostMessage). Windows only: on macOS, Linux and the web it stops the program with an error saying so. Only a form's Handle is a real window; a control's Handle names no window, so the message goes nowhere."
 
 [[builtin]]
 name = "RANDOMIZE"
@@ -871,8 +863,7 @@ doc = "Moves to a byte of a file opened with `OPEN`: the next read or write is t
 name = "SENDMESSAGE"
 syntax = "SENDMESSAGE(Handle, uMsg, wParam, lParam)"
 group = "System"
-missing = true
-doc = "Sends a Windows message to a window and waits for the result its window procedure returns."
+doc = "Sends a Windows message to a window and waits until its window procedure has handled it (Windows' SendMessage). Windows only: on macOS, Linux and the web it stops the program with an error saying so. Only a form's Handle is a real window; a control's Handle names no window, so the message goes nowhere — use the control's own properties and methods."
 
 [[builtin]]
 name = "SETCAPTURE"

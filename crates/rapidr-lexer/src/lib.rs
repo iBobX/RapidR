@@ -970,34 +970,35 @@ impl<'src> Lexer<'src> {
     ) -> Token {
         self.advance_char();
         let prefix = self.advance_char().unwrap();
-        // (RC.EXE reads `&HH1` as &H1: RapidQ's keyboard example declares
-        // `VK_LBUTTON = &HH1`)
-        if matches!(prefix, 'H' | 'h') {
-            while matches!(self.current_char(), Some('H' | 'h')) {
-                self.advance_char();
-            }
-        }
         let digit_start = self.index;
 
+        // RapidQ's `&H` takes the whole alphanumeric run and keeps its hex
+        // digits — `&hHE` is 14, `&hG1` 1, a bare `&h` 0, `&HH1` 1
+        // (RapidQ's keyboard example's VK_LBUTTON) — and reads `?` and `@`
+        // as the digit 0 (`&HFFFF0000???` in RapidQ's CommCtrl.inc is
+        // &HFFFF0000000, `&H1?` 16): RC.EXE. `&O` / `&B` are RapidR's own.
+        let mut hex_digits = String::new();
         while let Some(ch) = self.current_char() {
             let valid = match prefix {
-                // (RC.EXE reads `?` and `@` in a hex number as the digit 0:
-                // `&HFFFF0000???` in RapidQ's CommCtrl.inc is &HFFFF0000000,
-                // `&H1?` is 16)
-                'H' | 'h' => ch.is_ascii_hexdigit() || matches!(ch, '?' | '@'),
+                'H' | 'h' => ch.is_ascii_alphanumeric() || matches!(ch, '?' | '@'),
                 'O' | 'o' => matches!(ch, '0'..='7'),
                 'B' | 'b' => matches!(ch, '0' | '1'),
                 _ => false,
             };
 
             if valid {
+                if ch.is_ascii_hexdigit() {
+                    hex_digits.push(ch);
+                } else if matches!(ch, '?' | '@') {
+                    hex_digits.push('0');
+                }
                 self.advance_char();
             } else {
                 break;
             }
         }
 
-        if digit_start == self.index {
+        if digit_start == self.index && !matches!(prefix, 'H' | 'h') {
             let span = TextSpan::new(start, self.index);
             self.error("Invalid prefixed number literal", span, line, column);
             return Token::new(TokenType::Error, self.source[start..self.index].to_string(), span, line, column);
@@ -1013,7 +1014,7 @@ impl<'src> Lexer<'src> {
         }
         let digits = &self.source[digit_start..digits_end];
         let normalized = match prefix {
-            'H' | 'h' => format!("0x{}", digits.replace(['?', '@'], "0")),
+            'H' | 'h' => format!("0x{}", if hex_digits.is_empty() { "0" } else { hex_digits.as_str() }),
             'O' | 'o' => format!("0o{digits}"),
             'B' | 'b' => format!("0b{digits}"),
             _ => unreachable!(),
@@ -1385,7 +1386,7 @@ mod tests {
 
     #[test]
     fn recovers_from_errors() {
-        let (tokens, errors) = Lexer::new("a = 1 ` b\nc = &HZ\nd = \"open", None).tokenize_recovering();
+        let (tokens, errors) = Lexer::new("a = 1 ` b\nc = &OZ\nd = \"open", None).tokenize_recovering();
         let kinds: Vec<TokenType> = tokens.iter().map(|t| t.kind).collect();
         use TokenType::*;
         assert_eq!(kinds, [Identifier, Eq, Number, Error, Identifier, Newline, Identifier, Eq, Error, Identifier, Newline, Identifier, Eq, StringLit, Eof]);

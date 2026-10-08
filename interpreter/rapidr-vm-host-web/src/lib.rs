@@ -57,6 +57,24 @@ impl Host for WebHost {
             self.has_components = true;
             HAS_COMPONENTS.with(|h| h.set(true));
         }
+        // A DLL's routine: the web can't load one (docs/windows-dll-calls.md).
+        if key == "__dll_call" {
+            let s = |i: usize| args.get(i).map(Value::to_string_val).unwrap_or_default();
+            return Err(rapidr_value::dll::needs_windows_error(&s(0), &s(1), true));
+        }
+        // POKE / PCOPY: a change on the screen page is printed.
+        if key == "poke" || key == "pcopy" {
+            let text = if key == "poke" {
+                rapidr_value::memory::poke_args(args)?
+            } else {
+                let a = |i: usize| args.get(i).cloned().unwrap_or_else(v_null);
+                rapidr_value::console::pcopy(&a(0), &a(1))?
+            };
+            if !text.is_empty() {
+                self.print(&text)?;
+            }
+            return Ok(v_null());
+        }
         if key == "lbound" || key == "ubound" {
             let arr = args.first().cloned().unwrap_or_else(v_null);
             let dim = args.get(1).map(|v| v.to_i64()).unwrap_or(1);
@@ -333,6 +351,9 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         // Array
         "lbound" => rp_lbound(&[a0]),
         "ubound" => rp_ubound(&[a0]),
+        // (POKE / PCOPY / a DLL call are answered in `call_builtin`, where
+        // an error can be reported; listed for the registry)
+        "poke" | "pcopy" | "__dll_call" => v_null(),
 
         // File / dir (browser stubs)
         "freefile" => rp_freefile(),
@@ -541,6 +562,9 @@ fn start_session(session: Session) {
     EVENTS.with(|q| q.borrow_mut().clear());
     DEFERRED.with(|q| q.borrow_mut().clear());
     HAS_COMPONENTS.with(|h| h.set(false));
+    // (a new program starts on a cleared console: the cursor, the colour,
+    // the pages PEEK reads)
+    rapidr_value::console::reset();
     FINALIZED.with(|f| f.set(false));
     SESSION.with(|s| {
         if let Ok(mut slot) = s.try_borrow_mut() {

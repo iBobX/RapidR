@@ -1,4 +1,3 @@
-' xfail: codegen — native builds call a dotted SUB / FUNCTION with C-SYS-2's dotted_routine (crates/rapidr-codegen-rust): remove this line when that lane is merged
 ' SUBs and FUNCTIONs named with a dot, as RapidQ lets a program name them
 ' (RapidQ's 3DBOX example: SUB Draw.3DBox, called Draw.3DBox 1, 1, ...):
 ' a call is the routine's, not a method of an object; a FUNCTION returns

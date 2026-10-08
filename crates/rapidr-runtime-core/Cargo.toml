@@ -49,11 +49,14 @@ rapidr-session = { workspace = true, optional = true }
 rapidr-ui-app = { workspace = true, optional = true }
 rapidr-ui-host-winit = { workspace = true, optional = true }
 
-# QCOMPORT on Windows: ListPorts (serial_list.rs: SetupAPI's ports with
-# their USB IDs) and OnBreak (serial.rs: ClearCommError) — serial2's own
-# windows-sys (MIT OR Apache-2.0), more of its modules.
+# Windows: a crash inside a DLL a program called ends it with a message,
+# 64-bit pointers checked, 32-bit resource DLLs opened as data (ffi.rs), the
+# console shown escape sequences (terminal.rs), QCOMPORT's ListPorts
+# (serial_list.rs: SetupAPI's ports with their USB IDs) and OnBreak
+# (serial.rs: ClearCommError) — Microsoft's
+# windows-sys (MIT OR Apache-2.0), the version serial2 uses.
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Devices_DeviceAndDriverInstallation", "Win32_Devices_Communication", "Win32_System_Registry", "Win32_Foundation"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Diagnostics_Debug", "Win32_System_Kernel", "Win32_System_LibraryLoader", "Win32_System_Memory", "Win32_System_Console", "Win32_Devices_DeviceAndDriverInstallation", "Win32_Devices_Communication", "Win32_System_Registry"] }
 
 [target.'cfg(unix)'.dependencies]
 # INKEY$: the terminal read a key at a time (terminal.rs); QDXJOYSTICK's

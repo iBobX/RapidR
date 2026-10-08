@@ -19,6 +19,13 @@
 //! address of its characters, TYPE fields packed in order) and decodes the
 //! bytes back. An address outside every block, or past a block's end, or of
 //! something that no longer exists, is a run-time error — never a crash.
+//!
+//! On Windows the same addresses are real (docs/windows-dll-calls.md §2):
+//! around a DLL call every live block is *materialised* — its bytes written
+//! into pages reserved at the block's own address (`backing`) — and read
+//! back afterwards, so a VARPTR address, or one inside a structure, is a
+//! pointer the DLL can use. `PEEK` / `POKE` read and write one byte of a
+//! block (or of a console page: `console`), on every runtime.
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
@@ -376,6 +383,7 @@ fn find(addr: i64) -> Result<(i64, Target), String> {
                 }
                 Ok((base, b.target.clone()))
             }
+            _ if crate::dll::is_pointer_stand_in(addr) => Err(format!("address {addr} is memory a DLL returned (a 64-bit pointer kept in a LONG), not the program's own: PEEK, POKE, MEMCPY and the like only reach the program's memory (VARPTR of a variable, an array element, a TYPE, or a stream's Pointer); hand the pointer back to the DLL instead")),
             _ => Err(format!("address {addr} isn't memory of this program (use VARPTR of a variable, an array element, a TYPE, or a stream's Pointer)")),
         }
     })
@@ -456,8 +464,23 @@ pub fn read(addr: i64, n: usize) -> Result<Vec<u8>, String> {
     Ok(bytes[off..off + n].to_vec())
 }
 
+/// Checks that `n` bytes can be written at `addr` (inside one block of the
+/// program's, before its end — a stream's grows), before they are made.
+pub fn check_room(addr: i64, n: usize) -> Result<(), String> {
+    let (base, t) = find(addr)?;
+    let off = (addr - base) as usize;
+    let len = match &t {
+        Target::Stream(_) => return Ok(()),
+        _ => match element_size(&t) {
+            Some((array, _, size)) => array.borrow().data.len() * size,
+            None => contents(&t).len(),
+        },
+    };
+    check_end(addr, off, n, len)
+}
+
 fn check_end(addr: i64, off: usize, n: usize, len: usize) -> Result<(), String> {
-    if off + n > len {
+    if off.checked_add(n).is_none_or(|end| end > len) {
         return Err(format!("{n} bytes at address {addr} run past the end of its memory ({} bytes left)", len.saturating_sub(off)));
     }
     Ok(())
@@ -702,6 +725,218 @@ pub fn udt_from_bytes(v: &Value, bytes: &[u8]) -> usize {
 
 
 // ---------------------------------------------------------------------------
+// Real memory for the blocks (a DLL call's pointers)
+// ---------------------------------------------------------------------------
+
+/// Real bytes for a block, for the time a DLL may use them: at the block's
+/// own address where the system lets us put them, else in a buffer of ours.
+struct Backing {
+    ptr: *mut u8,
+    len: usize,
+    /// The buffer when the pages couldn't be at the address.
+    _own: Option<Box<[u8]>>,
+}
+
+thread_local! {
+    static BACKINGS: RefCell<HashMap<i64, Backing>> = RefCell::new(HashMap::new());
+}
+
+/// Windows: the pages at `base` (64 KB-granular reservations below 2 GB,
+/// which a 64-bit program has free; the block's pages committed inside).
+#[cfg(windows)]
+fn pages_at(base: i64, len: usize) -> Option<*mut u8> {
+    use windows_sys::Win32::System::Memory::{VirtualAlloc, MEM_COMMIT, MEM_RESERVE, PAGE_READWRITE};
+    thread_local! {
+        static RESERVED: RefCell<std::collections::HashSet<i64>> = RefCell::new(std::collections::HashSet::new());
+    }
+    const GRANULE: i64 = 0x1_0000;
+    let first = base & !(GRANULE - 1);
+    let last = (base + len as i64 - 1) & !(GRANULE - 1);
+    let mut chunk = first;
+    while chunk <= last {
+        let done = RESERVED.with(|r| r.borrow().contains(&chunk));
+        if !done {
+            // SAFETY: reserving address space at a fixed address; failure
+            // (the range is taken) is reported, nothing is touched.
+            let p = unsafe { VirtualAlloc(chunk as *const core::ffi::c_void, GRANULE as usize, MEM_RESERVE, PAGE_READWRITE) };
+            if p.is_null() {
+                return None;
+            }
+            RESERVED.with(|r| r.borrow_mut().insert(chunk));
+        }
+        chunk += GRANULE;
+    }
+    // SAFETY: committing pages inside our own reservation.
+    let p = unsafe { VirtualAlloc(base as *const core::ffi::c_void, len, MEM_COMMIT, PAGE_READWRITE) };
+    (!p.is_null()).then_some(p as *mut u8)
+}
+
+#[cfg(not(windows))]
+fn pages_at(_base: i64, _len: usize) -> Option<*mut u8> {
+    None
+}
+
+/// The real memory of the block at `base` (`reserved` bytes).
+fn backing_of(base: i64, reserved: usize) -> (*mut u8, usize) {
+    BACKINGS.with(|b| {
+        let mut b = b.borrow_mut();
+        if let Some(k) = b.get(&base) {
+            return (k.ptr, k.len);
+        }
+        let k = match pages_at(base, reserved) {
+            Some(ptr) => Backing { ptr, len: reserved, _own: None },
+            None => {
+                let mut own = vec![0u8; reserved].into_boxed_slice();
+                Backing { ptr: own.as_mut_ptr(), len: reserved, _own: Some(own) }
+            }
+        };
+        let out = (k.ptr, k.len);
+        b.insert(base, k);
+        out
+    })
+}
+
+/// The length of the plain variable whose address `addr` is (a VARPTR'd
+/// LONG, a string's characters): `None` for anything else, or an address
+/// inside a block.
+pub fn variable_len(addr: i64) -> Option<usize> {
+    match find(addr) {
+        Ok((base, Target::Mirror(m))) if base == addr => Some(m.borrow().bytes.len()),
+        _ => None,
+    }
+}
+
+/// A block as a DLL sees it during a call.
+pub struct Materialized {
+    base: i64,
+    ptr: *mut u8,
+    /// The real memory's length (the block's reserved bytes).
+    len: usize,
+    bytes: Vec<u8>,
+    /// What didn't fit the block's real memory (a variable that grew past
+    /// the room its address was given with): kept as it was.
+    tail: Vec<u8>,
+}
+
+/// Writes every live block's bytes into its real memory, for a DLL call.
+pub fn materialize() -> Vec<Materialized> {
+    let live: Vec<(i64, usize, Target)> = SPACE.with(|s| {
+        s.borrow().blocks.iter().filter(|(_, b)| alive(&b.target)).map(|(&base, b)| (base, b.reserved, b.target.clone())).collect()
+    });
+    let mut out = Vec::with_capacity(live.len());
+    for (base, reserved, target) in live {
+        let mut bytes = contents(&target);
+        let (ptr, len) = backing_of(base, reserved);
+        let tail = if bytes.len() > len { bytes.split_off(len) } else { Vec::new() };
+        // SAFETY: `ptr` has `len` writable bytes (ours: committed pages or
+        // a buffer), and `bytes` is at most `len` long.
+        unsafe {
+            std::ptr::copy_nonoverlapping(bytes.as_ptr(), ptr, bytes.len());
+            std::ptr::write_bytes(ptr.add(bytes.len()), 0, len - bytes.len());
+        }
+        out.push(Materialized { base, ptr, len, bytes, tail });
+    }
+    out
+}
+
+/// The pointer a DLL gets for `addr`, after [`materialize`]: the real
+/// memory of its block, at the same offset.
+pub fn real_pointer(addr: i64, blocks: &[Materialized]) -> Option<usize> {
+    let (base, _) = find(addr).ok()?;
+    let m = blocks.iter().find(|m| m.base == base)?;
+    Some(m.ptr as usize + (addr - base) as usize)
+}
+
+/// How many bytes of real memory there are from `addr` (a pointer
+/// [`real_pointer`] gave) to the end of its block's: what a DLL may write
+/// there without leaving the program's memory.
+pub fn room_at(addr: i64, blocks: &[Materialized]) -> usize {
+    let Ok((base, _)) = find(addr) else { return 0 };
+    blocks.iter().find(|m| m.base == base).map_or(0, |m| m.len.saturating_sub((addr - base) as usize))
+}
+
+/// After the call: what the DLL wrote goes back into the arrays, TYPEs,
+/// variables and streams the blocks view.
+pub fn read_back(blocks: Vec<Materialized>) {
+    for m in blocks {
+        let n = m.bytes.len();
+        // SAFETY: `n` bytes were written at `ptr` by `materialize`, and the
+        // memory stays ours.
+        let now = unsafe { std::slice::from_raw_parts(m.ptr, n) };
+        if now != m.bytes.as_slice() {
+            if let Ok((_, t)) = find(m.base) {
+                let mut all = now.to_vec();
+                all.extend_from_slice(&m.tail);
+                set_contents(&t, &all);
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// PEEK / POKE
+// ---------------------------------------------------------------------------
+
+fn bad_address(a: i64) -> String {
+    if crate::dll::is_pointer_stand_in(a) {
+        // (the same words as any memory function's)
+        return find(a).err().unwrap_or_default();
+    }
+    format!("address {a} isn't memory of this program: the console's pages are addresses 0 to 3999 (PEEK [#page,] address), and VARPTR gives a variable's address")
+}
+
+/// `PEEK([#page,] address)`: a byte of a console page (an address below
+/// 4000) or of the program's memory (a VARPTR address).
+pub fn peek(page: Option<&Value>, addr: &Value) -> Result<Value, String> {
+    let a = addr.to_i64();
+    if crate::console::is_page_address(a) {
+        return crate::console::peek(page.unwrap_or(&Value::Integer(0)), addr);
+    }
+    if a < FIRST {
+        return Err(bad_address(a));
+    }
+    read(a, 1).map(|b| Value::Integer(b[0] as i64))
+}
+
+/// `POKE [#page,] address, byte`: returns what to print (a change on the
+/// screen page), nothing for memory.
+pub fn poke(page: Option<&Value>, addr: &Value, byte: &Value) -> Result<String, String> {
+    let a = addr.to_i64();
+    if crate::console::is_page_address(a) {
+        return crate::console::poke(page.unwrap_or(&Value::Integer(0)), addr, byte);
+    }
+    if a < FIRST {
+        return Err(bad_address(a));
+    }
+    write(a, &[byte.to_i64() as u8]).map(|_| String::new())
+}
+
+/// The arguments of PEEK as written: `(address)` or `(page, address)`.
+pub fn peek_args(args: &[Value]) -> Result<Value, String> {
+    match args {
+        [addr] => peek(None, addr),
+        [page, addr] => peek(Some(page), addr),
+        _ => Err("PEEK takes an address, or a page and an address".into()),
+    }
+}
+
+/// The arguments of POKE as written: `address, byte` or `page, address, byte`.
+pub fn poke_args(args: &[Value]) -> Result<String, String> {
+    match args {
+        [addr, byte] => poke(None, addr, byte),
+        [page, addr, byte] => poke(Some(page), addr, byte),
+        _ => Err("POKE takes an address and a byte, or a page, an address and a byte".into()),
+    }
+}
+
+/// `INP(port)`, `OUT port, value` (and INPW / OUTW): hardware ports, which
+/// no modern system lets a program touch (RapidQ's own fail on every
+/// Windows since 2000).
+pub fn port_io_error(name: &str) -> String {
+    format!("{name} reads or writes a hardware port, which a program can't do on a modern system (RapidQ's {name} fails on every Windows since 2000 too)")
+}
+
+// ---------------------------------------------------------------------------
 // Entry points: the VM hosts (`shared`) and native builds (`rp_*`)
 // ---------------------------------------------------------------------------
 
@@ -733,6 +968,8 @@ pub fn shared(key: &str, args: &[Value]) -> Option<Result<Value, String>> {
         "__sizeof" => Ok(Value::Integer(sizeof_value(&arg(0), &s(1)))),
         "__sizeof_type" => Ok(Value::Integer(size_of_type(&s(0)).unwrap_or(0) as i64)),
         "__cstring" => address_of(&arg(0)).and_then(c_string).map(Value::String),
+        "peek" => peek_args(args),
+        "inp" | "out" | "inpw" | "outw" => Err(port_io_error(&key.to_ascii_uppercase())),
         "memcpy" => memcpy(&arg(0), &arg(1), &arg(2)).map(|_| Value::Null),
         "memset" => memset(&arg(0), &arg(1), &arg(2)).map(|_| Value::Null),
         "memcmp" => memcmp(&arg(0), &arg(1), &arg(2)),
@@ -741,7 +978,7 @@ pub fn shared(key: &str, args: &[Value]) -> Option<Result<Value, String>> {
 }
 
 /// The builtins [`shared`] handles.
-pub const BUILTINS: &[&str] = &["__varptr_var", "__varptr_elem", "__mem_refresh", "__mem_sync", "__sizeof", "__sizeof_type", "__cstring", "memcpy", "memset", "memcmp"];
+pub const BUILTINS: &[&str] = &["__varptr_var", "__varptr_elem", "__mem_refresh", "__mem_sync", "__sizeof", "__sizeof_type", "__cstring", "peek", "inp", "out", "inpw", "outw", "memcpy", "memset", "memcmp"];
 
 fn or_fail<T>(r: Result<T, String>) -> T {
     r.unwrap_or_else(|e| crate::runtime_error(&e))
@@ -788,6 +1025,26 @@ pub fn rp_memset(dest: &Value, byte: &Value, n: &Value) -> Value {
 
 pub fn rp_memcmp(a: &Value, b: &Value, n: &Value) -> Value {
     or_fail(memcmp(a, b, n))
+}
+
+pub fn rp_peek(args: &[Value]) -> Value {
+    or_fail(peek_args(args))
+}
+
+/// `POKE` in a native build: the text a change on the screen page needs
+/// printed (the runtime prints it).
+pub fn rp_poke_text(args: &[Value]) -> String {
+    or_fail(poke_args(args))
+}
+
+/// `PCOPY from, to` in a native build: the text a copy onto the screen
+/// page needs printed.
+pub fn rp_pcopy_text(from: &Value, to: &Value) -> String {
+    or_fail(crate::console::pcopy(from, to))
+}
+
+pub fn rp_port_io(name: &str) -> Value {
+    crate::runtime_error(&port_io_error(name))
 }
 
 #[cfg(test)]
@@ -865,5 +1122,39 @@ mod tests {
             address_of(&r).unwrap()
         };
         assert!(read(gone, 4).unwrap_err().contains("no longer exists"));
+    }
+
+    #[test]
+    fn peek_and_poke_on_memory_and_pages() {
+        let p = varptr_var("main:n", &v_int(0x0403_0201), "LONG").unwrap();
+        let a = p.to_i64();
+        assert_eq!(peek(None, &v_int(a)).unwrap(), v_int(1));
+        assert_eq!(peek(None, &v_int(a + 3)).unwrap(), v_int(4));
+        assert_eq!(poke(None, &v_int(a + 1), &v_int(0xFF)).unwrap(), "");
+        assert_eq!(sync("main:n", &v_int(0x0403_0201), "LONG").to_i64(), 0x0403_FF01);
+        assert!(peek(None, &v_int(a + 4)).unwrap_err().contains("past the end"));
+        // Below the blocks and above the pages: refused with the reason.
+        assert!(peek(None, &v_int(5000)).unwrap_err().contains("console's pages"));
+        assert!(poke(None, &v_int(-1), &v_int(0)).is_err());
+        // A page address goes to the console.
+        assert_eq!(poke(Some(&v_int(3)), &v_int(10), &v_int(9)).unwrap(), "");
+        assert_eq!(peek(Some(&v_int(3)), &v_int(10)).unwrap(), v_int(9));
+        assert!(peek_args(&[]).is_err());
+    }
+
+    #[test]
+    fn materialized_blocks_round_trip() {
+        let a = rp_new_array(&[(0, 3)], v_int(7));
+        let p = varptr_element(&a, "LONG", &[0]).unwrap().to_i64();
+        let blocks = materialize();
+        let ptr = real_pointer(p + 4, &blocks).unwrap() as *mut u8;
+        // SAFETY: inside the block's real memory (16 bytes of LONGs).
+        unsafe {
+            assert_eq!(std::slice::from_raw_parts(ptr, 4), &7i32.to_le_bytes());
+            std::ptr::copy_nonoverlapping(9i32.to_le_bytes().as_ptr(), ptr, 4);
+        }
+        assert!(real_pointer(12345, &blocks).is_none());
+        read_back(blocks);
+        assert_eq!((a.rp_get(&[0]).to_i64(), a.rp_get(&[1]).to_i64()), (7, 9));
     }
 }

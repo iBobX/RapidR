@@ -193,11 +193,26 @@ PRINT Square(1.5)             ' 2.250000000
 - `SUBI` / `FUNCTIONI` take any number of arguments, read with
   `ParamVal(i)`, `ParamValCount`, `ParamStr$(i)`, `ParamStrCount`.
 - Function pointers: `BIND p TO MySub`, `CALLFUNC p, args`, `CODEPTR(MySub)`.
-- `DECLARE … LIB "file"` calls a function in a shared library (`.dll`,
-  `.so`, `.dylib`) in native builds; the interpreter and the web refuse it
-  with a clear message. Windows API calls (`LIB "kernel32"`, `"user32"`,
-  …) are compile errors that name RapidR's portable alternative: RapidR
-  runs on every platform and doesn't emulate Windows.
+- `DECLARE … LIB "user32"` (any DLL) calls the DLL's function **on
+  Windows**, in native builds and interpreted, with RapidQ's rules: a
+  number goes by value unless `BYREF`, a `STRING` and a `TYPE` by address
+  (what the DLL writes shows in the variable), `VARPTR` addresses are real
+  pointers for the call. Up to 16 arguments, of which up to 8 `DOUBLE` /
+  `SINGLE`. A 64-bit pointer a DLL returns or writes into a `LONG` is kept
+  as a 32-bit stand-in that turns back into the pointer when given to a
+  DLL again. RapidQ's `SENDMESSAGE`, `POSTMESSAGE` and `KILLMESSAGE` are
+  user32's functions the same way. On macOS, Linux and the web the program
+  compiles and stops at the first such call with an error that names the
+  function (and RapidR's portable equivalent when there is one); a
+  library of the system's own (`LIB "libfoo.dylib"`, `"libfoo.so"`) loads
+  there. With `RAPIDR_SANDBOX` set no library is loaded at all.
+  docs/windows-dll-calls.md has the details.
+- `PEEK` / `POKE` / `PCOPY` work on the console's pages as in RapidQ
+  (page 0 is the screen: even addresses a cell's character, odd ones its
+  colour), and — RapidR's addition — `PEEK` / `POKE` on the program's own
+  memory through `VARPTR`, on every system. Any other address is a
+  run-time error, never a read of the process. `INP` / `OUT` (hardware
+  ports) are a run-time error, as on every Windows since 2000.
 
 ## TYPEs and objects
 

@@ -40,6 +40,7 @@ pub mod menu;
 pub mod ops;
 pub mod printer;
 pub mod record;
+pub mod stream_ops;
 pub mod rqlib;
 pub mod synth;
 pub mod text;
@@ -1413,33 +1414,9 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             with(id, |o| if let Object::Stream(m) = o { m.write(&bytes) });
             Some(Ok(Value::Null))
         }
-        // MemCopyFrom(Address, Bytes): the memory's bytes written at the
-        // position; MemCopyTo(Address, Bytes): the bytes at the position
-        // written to memory (rapidr_value::memory: an address of the
-        // program's own, never raw memory). Both move the position on.
-        ("stream", "memcopyfrom") => {
-            let n = arg(1).to_i64();
-            if n <= 0 {
-                return Some(Ok(Value::Null));
-            }
-            let bytes = match crate::memory::read(arg(0).to_i64(), n as usize) {
-                Ok(b) => b,
-                Err(e) => return Some(Err(e)),
-            };
-            with(id, |o| if let Object::Stream(m) = o { m.write(&bytes) });
-            Some(Ok(Value::Null))
-        }
-        ("stream", "memcopyto") => {
-            let n = arg(1).to_i64();
-            if n <= 0 {
-                return Some(Ok(Value::Null));
-            }
-            let bytes = with(id, |o| match o {
-                Object::Stream(m) => m.read(n as usize),
-                _ => Vec::new(),
-            })?;
-            Some(crate::memory::write(arg(0).to_i64(), &bytes).map(|_| Value::Null))
-        }
+        // QMEMORYSTREAM's MemCopyFrom / MemCopyTo (address, bytes) and the
+        // streams' SaveUDTArray / LoadUDTArray: stream_ops.rs.
+        ("stream", "memcopyfrom" | "memcopyto" | "saveudtarray" | "loadudtarray") => Some(stream_ops::call(id, &method, args)),
         // (`Image.Load file`: RapidR's other name)
         ("bitmap", "loadfromfile" | "load") => Some(read_file(&arg(0).to_string_val()).and_then(|bytes| {
             with(id, |o| match o {

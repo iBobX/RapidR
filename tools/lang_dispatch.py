@@ -87,6 +87,8 @@ SITES = {
     ("crates/rapidr-value/src/font_dialog.rs", "alias"): "RFONTDIALOG",
     ("crates/rapidr-value/src/font_dialog.rs", "call"): "RFONTDIALOG",
     ("crates/rapidr-value/src/globals.rs", "file_rec"): "FILEREC",
+    # (QMEMORYSTREAM's MemCopyFrom / MemCopyTo, the streams' Save / LoadUDTArray)
+    ("crates/rapidr-value/src/objects/stream_ops.rs", "call"): "RFILESTREAM RMEMORYSTREAM",
     ("crates/rapidr-value/src/globals.rs", "hint_setting"): "APPLICATION",
     # (form members: HideTitleBar, ShapeForm, QFORM's MDI members, StartDrag)
     ("crates/rapidr-runtime-core/src/form_members.rs", "method"): "RFORM RFORMMDI RBUTTON RCOOLBTN ROVALBTN",

@@ -79,5 +79,5 @@ pub mod prelude {
     pub use crate::ui::{set_theme, gui_register_timer};
 
     #[cfg(feature = "ffi")]
-    pub use crate::ffi::{ffi_call, ffi_unload};
+    pub use crate::ffi::{dll_call, ffi_unload, rp_dll_call};
 }
