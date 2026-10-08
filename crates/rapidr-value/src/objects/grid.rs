@@ -61,9 +61,27 @@ pub enum CellDraw {
     Pixel(i64, i64, u32),
     Text(i64, i64, String, u32, Option<u32>),
     Image(i64, i64, Bitmap),
+    /// `Paint(x, y, c, borderc)`: a flood fill from (x, y) with c up to the
+    /// border colour, on the pixels drawn so far (only a raster can show
+    /// it: the runtimes draw a cell or item that has one as pixels).
+    Flood(i64, i64, u32, u32),
 }
 
 impl CellDraw {
+    /// The same drawing `dx`, `dy` pixels away.
+    pub fn moved(self, dx: i64, dy: i64) -> CellDraw {
+        match self {
+            CellDraw::Line(x1, y1, x2, y2, c) => CellDraw::Line(x1 + dx, y1 + dy, x2 + dx, y2 + dy, c),
+            CellDraw::Rect(x1, y1, x2, y2, c) => CellDraw::Rect(x1 + dx, y1 + dy, x2 + dx, y2 + dy, c),
+            CellDraw::Fill(x1, y1, x2, y2, c) => CellDraw::Fill(x1 + dx, y1 + dy, x2 + dx, y2 + dy, c),
+            CellDraw::Ellipse(x1, y1, x2, y2, c, fill) => CellDraw::Ellipse(x1 + dx, y1 + dy, x2 + dx, y2 + dy, c, fill),
+            CellDraw::Pixel(x, y, c) => CellDraw::Pixel(x + dx, y + dy, c),
+            CellDraw::Text(x, y, text, c, bg) => CellDraw::Text(x + dx, y + dy, text, c, bg),
+            CellDraw::Image(x, y, b) => CellDraw::Image(x + dx, y + dy, b),
+            CellDraw::Flood(x, y, c, border) => CellDraw::Flood(x + dx, y + dy, c, border),
+        }
+    }
+
     /// Paints this onto `bmp` (whose top left is the cell's), text in
     /// `font`: the same pixels on every platform.
     pub fn paint(&self, bmp: &mut Bitmap, font: &super::font::Font) {
@@ -80,8 +98,33 @@ impl CellDraw {
             CellDraw::Pixel(x, y, c) => bmp.pset(*x, *y, *c),
             CellDraw::Text(x, y, text, c, bg) => super::text::text_out(bmp, *x, *y, text, font, *c, *bg),
             CellDraw::Image(x, y, src) => bmp.draw(*x, *y, src),
+            CellDraw::Flood(x, y, c, border) => bmp.flood_fill(*x, *y, *c, *border),
         }
     }
+}
+
+/// A drawing call on a grid or a list (RapidQ's methods: `Line`,
+/// `Rectangle`, `FillRect`, `Circle`, `Pset`, `TextOut`, and `Paint(x, y,
+/// c, borderc)`, its flood fill): the point it's anchored at and the op, in
+/// the control's coordinates. `None`: not one of them (`Draw` needs the
+/// source image: rapidr_value::objects; `Paint` with fewer arguments is a
+/// repaint).
+pub fn owner_draw_op(method: &str, args: &[Value]) -> Option<((i64, i64), CellDraw)> {
+    let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
+    let c = |i: usize| crate::objects::color_bgr(n(i));
+    let optional = |i: usize| args.get(i).map(Value::to_i64).filter(|v| *v >= 0 || (*v as u32) & 0xFF00_0000 == 0x8000_0000).map(crate::objects::color_bgr);
+    let at = (n(0), n(1));
+    Some(match method {
+        "line" => (at, CellDraw::Line(n(0), n(1), n(2), n(3), c(4))),
+        "rectangle" => (at, CellDraw::Rect(n(0), n(1), n(2), n(3), c(4))),
+        "fillrect" => (at, CellDraw::Fill(n(0), n(1), n(2), n(3), c(4))),
+        "circle" => (at, CellDraw::Ellipse(n(0), n(1), n(2), n(3), c(4), optional(5))),
+        "pset" => (at, CellDraw::Pixel(n(0), n(1), c(2))),
+        // TextOut(x, y, text, color, background (-1: transparent)).
+        "textout" => (at, CellDraw::Text(n(0), n(1), args.get(2).map(Value::to_string_val).unwrap_or_default(), c(3), optional(4))),
+        "paint" if args.len() >= 3 => (at, CellDraw::Flood(n(0), n(1), c(2), c(3))),
+        _ => return None,
+    })
 }
 
 /// Most rows / columns a grid can have, and most cells in all.
@@ -212,7 +255,7 @@ fn index(v: Option<&Value>) -> Option<usize> {
 }
 
 fn flag(on: bool) -> Value {
-    v_int(if on { -1 } else { 0 })
+    v_int(on as i64)
 }
 
 impl StringGrid {
@@ -641,24 +684,10 @@ impl StringGrid {
     }
 
     /// The owner-drawing methods (except `Draw`, which needs the source
-    /// image: rapidr_value::objects).
+    /// image: rapidr_value::objects): [`owner_draw_op`]'s.
     fn draw(&mut self, method: &str, args: &[Value]) -> bool {
-        let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
-        let c = |i: usize| crate::objects::color_bgr(n(i));
-        let optional = |i: usize| args.get(i).map(Value::to_i64).filter(|v| *v >= 0 || (*v as u32) & 0xFF00_0000 == 0x8000_0000).map(crate::objects::color_bgr);
-        match method {
-            "line" => self.record(n(0), n(1), |l, t| CellDraw::Line(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4))),
-            "rectangle" => self.record(n(0), n(1), |l, t| CellDraw::Rect(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4))),
-            "fillrect" => self.record(n(0), n(1), |l, t| CellDraw::Fill(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4))),
-            "circle" => self.record(n(0), n(1), |l, t| CellDraw::Ellipse(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4), optional(5))),
-            "pset" => self.record(n(0), n(1), |l, t| CellDraw::Pixel(n(0) - l, n(1) - t, c(2))),
-            // TextOut(x, y, text, color, background (-1: transparent)).
-            "textout" => {
-                let text = args.get(2).map(|v| v.to_string_val()).unwrap_or_default();
-                self.record(n(0), n(1), |l, t| CellDraw::Text(n(0) - l, n(1) - t, text, c(3), optional(4)))
-            }
-            _ => return false,
-        }
+        let Some(((x, y), op)) = owner_draw_op(method, args) else { return false };
+        self.record(x, y, |l, t| op.moved(-l, -t));
         true
     }
 

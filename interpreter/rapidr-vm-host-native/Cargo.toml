@@ -17,6 +17,8 @@ full = ["gui", "network", "database", "ffi", "datascience"]
 # `rapidr run --session`: the program's end of RapidR Studio's session
 # protocol (the rapidr CLI; never in a program's own runner).
 session = ["dep:rapidr-session"]
+# RapidR Studio's components (rapidr-runtime-core's `studio`): the CLI's.
+studio = ["rapidr-runtime-core/studio"]
 
 [dependencies]
 rapidr-value = { workspace = true }

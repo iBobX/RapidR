@@ -219,7 +219,7 @@ pub fn set_file_io(reader: FileReader, writer: FileWriter) {
     NATIVE_FILES.with(|n| n.set(false));
 }
 
-pub(crate) fn read_file(path: &str) -> Result<Vec<u8>, String> {
+pub fn read_file(path: &str) -> Result<Vec<u8>, String> {
     if let Some(bytes) = crate::resources::read_path(path) {
         return bytes;
     }
@@ -227,7 +227,7 @@ pub(crate) fn read_file(path: &str) -> Result<Vec<u8>, String> {
     reader(path)
 }
 
-pub(crate) fn write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
+pub fn write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
     let writer = FILE_IO.with(|io| io.borrow().1);
     writer(path, bytes)
 }
@@ -728,7 +728,7 @@ pub struct DxControl {
     pub height: i64,
     /// AutoSize (True unless set).
     pub autosize: bool,
-    /// AllowStretch (True unless set).
+    /// AllowStretch (False unless set: RC.EXE reads 0).
     pub stretch: bool,
     pub fullscreen: bool,
 }
@@ -752,7 +752,7 @@ pub fn dxscreen_control(id: &str, props: PropReader) -> DxControl {
         width: props(id, "width").to_i64(),
         height: props(id, "height").to_i64(),
         autosize: flag("autosize", true),
-        stretch: flag("allowstretch", true),
+        stretch: flag("allowstretch", false),
         fullscreen: flag("fullscreen", false),
     }
 }
@@ -907,7 +907,7 @@ pub fn is_drawing_method(method: &str) -> bool {
     matches!(
         method,
         "pset" | "line" | "rectangle" | "fillrect" | "circle" | "roundrect" | "paint" | "draw" | "copyrect" | "stretchdraw"
-            | "textout" | "textwidth" | "textheight" | "pixel" | "cls" | "clear" | "drawtext" | "fillcircle" | "ellipse" | "setpixel"
+            | "textout" | "textwidth" | "textheight" | "pixel" | "cls" | "clear" | "drawtext" | "fillcircle" | "ellipse" | "setpixel" | "rect"
     )
 }
 
@@ -1150,21 +1150,32 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         let path = arg(0).to_string_val();
         return Some(if method == "loadfromfile" {
             read_file(&path).map(|bytes| {
-                let text: String = bytes.iter().map(|&b| char::from(b)).collect();
                 with(id, |o| {
                     if let Object::Text(t) = o {
+                        // (RapidR's code editor reads a UTF-8 source as
+                        // UTF-8 — its BOM off — as the compiler does; any
+                        // other file, and every RapidQ text box, a byte a
+                        // character)
+                        let body = bytes.strip_prefix(b"\xEF\xBB\xBF".as_slice()).unwrap_or(&bytes);
+                        let utf8 = if t.code { std::str::from_utf8(body).ok() } else { None };
+                        t.utf8 = utf8.is_some_and(|s| !s.is_ascii());
+                        let text: String = match utf8 {
+                            Some(s) => s.to_string(),
+                            None => bytes.iter().map(|&b| char::from(b)).collect(),
+                        };
                         t.set_text(&text);
                     }
                 });
                 Value::Null
             })
         } else {
-            let text = with(id, |o| match o {
-                Object::Text(t) => t.text(),
-                _ => String::new(),
+            let (text, utf8) = with(id, |o| match o {
+                Object::Text(t) => (t.text(), t.utf8),
+                _ => (String::new(), false),
             })
             .unwrap_or_default();
-            write_file(&path, &text.chars().map(|c| c as u32 as u8).collect::<Vec<u8>>()).map(|_| Value::Null)
+            let bytes = if utf8 { text.into_bytes() } else { text.chars().map(|c| c as u32 as u8).collect::<Vec<u8>>() };
+            write_file(&path, &bytes).map(|_| Value::Null)
         });
     }
     // QSTRINGLIST AddList(Other): the other list's strings appended.
@@ -1278,7 +1289,8 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             with(id, |o| if let Object::Stream(m) = o { m.write(&bytes) });
             Some(Ok(Value::Null))
         }
-        ("bitmap", "loadfromfile") => Some(read_file(&arg(0).to_string_val()).and_then(|bytes| {
+        // (`Image.Load file`: RapidR's other name)
+        ("bitmap", "loadfromfile" | "load") => Some(read_file(&arg(0).to_string_val()).and_then(|bytes| {
             with(id, |o| match o {
                 Object::Bitmap(b) => b.load_bmp_bytes(&bytes),
                 _ => Ok(()),

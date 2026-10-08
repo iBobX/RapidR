@@ -1,0 +1,31 @@
+size10 pos10
+len7 pos10 [68 69 70 71 72 73 74 ]
+len20 pos10 [68 69 70 71 72 73 74 32 32 32 32 32 32 32 32 32 32 32 32 32 ]
+len5 pos10 [32 32 32 32 32 ]
+len0 pos4 []
+len0 pos4 []
+set 20: pos20 size10
+len3 pos20 [32 32 32 ]
+set -3: pos-3
+len4 pos-3 [32 32 32 32 ]
+write at -3: size10 pos-3
+seek -7: pos-7
+seek end+5: pos15
+len2 pos10 [73 74 ]
+len0 pos10 []
+len0 pos14 []
+readnum19017 pos10
+len4 pos10 [73 74 32 32 ]
+write at 12: size13 pos13
+len4 pos13 [74 0 0 90 ]
+pos 9, size 4: pos13 size4
+size 6: pos4 size6
+pos 2, size 3: pos2 size3
+pos 1, size 20: pos1 size20
+len2 pos6 [101 102 ]
+file set 9: pos9 size6
+file write at 9: size10 pos10
+file readnum26213 pos8
+file set -2: pos8
+file seek -5: pos8
+file seek end+3: pos13
