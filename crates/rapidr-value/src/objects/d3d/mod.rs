@@ -2,10 +2,11 @@
 //! QD3DMESH, QD3DFACE, QD3DLIGHT, QD3DTEXTURE, QD3DWRAP, QD3DVECTOR,
 //! QD3DVISUAL, QD3DANIMATION, QD3DANIMATIONSET, and QDXSCREEN's 3D methods;
 //! chapter 13; docs/directx-plan.md
-//! stages D3–D4): Direct3D Retained Mode's scene, kept here for every
-//! runtime and drawn by the software rasterizer (`raster.rs`) into the
-//! QDXSCREEN's back buffer at `Render` — so 2D drawing after it, `Pixel`
-//! and `Flip` work as with the 2D layer.
+//! stages D3–D5): Direct3D Retained Mode's scene, kept here for every
+//! runtime, lit here as D3DRM lit it, and drawn at `Render` by the GPU
+//! (`renderer`: the runtime's wgpu, `rapidr-d3d-gpu`) into the QDXSCREEN's
+//! back buffer — so 2D drawing after it, `Pixel` and `Flip` work as with
+//! the 2D layer.
 //!
 //! - **Handles, as COM's interfaces.** A QD3D* variable holds a reference
 //!   to a scene object: `DXScreen.CreateFrame(F)` makes a new frame and
@@ -36,7 +37,7 @@
 //!   plane 5000 (the manual's View.SetBack note).
 
 pub mod math;
-pub mod raster;
+pub mod renderer;
 pub mod xfile;
 
 use std::cell::RefCell;
@@ -44,7 +45,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use math::{v3, Mat4, Vec3};
-use raster::{Fill, Tri};
+use renderer::{Fill, RenderList, Tri, View};
 
 use super::bitmap::Bitmap;
 use super::directx::DxScreen;
@@ -1210,56 +1211,78 @@ fn lit(color: [f32; 4], p: Vec3, n: Vec3, lights: &[Placed], spec: Option<(f32, 
     [(color[0] as f64 * sum.x + shine.x) as f32, (color[1] as f64 * sum.y + shine.y) as f32, (color[2] as f64 * sum.z + shine.z) as f32, color[3]]
 }
 
-/// Draws screen `id`'s scene on its back buffer (`Render`): cleared to the
-/// background, then every visual of every frame, from the camera.
-pub fn render(id: &str, screen: &mut DxScreen) {
-    let scale = super::bitmap::display_scale().max(1);
-    let (w, h) = (screen.back.img.width, screen.back.img.height);
-    if w == 0 || h == 0 {
-        return;
+/// Says `msg` on stderr, once per message (a program renders many frames).
+pub(crate) fn warn(msg: &str) {
+    thread_local! {
+        static SAID: RefCell<std::collections::HashSet<String>> = RefCell::new(std::collections::HashSet::new());
     }
-    let (dw, dh) = (w * scale, h * scale);
+    if SAID.with(|s| s.borrow_mut().insert(msg.to_string())) {
+        eprintln!("[rapidr] {msg}");
+    }
+}
+
+/// What screen `id`'s `Render` draws on a target of `dw` × `dh` pixels:
+/// its scene lit, in drawing order — the opaque triangles, then (with
+/// D3DRMRENDERMODE_BLENDEDTRANSPARENCY) the translucent ones far to near.
+pub fn render_list(id: &str, screen: &DxScreen, dw: usize, dh: usize) -> RenderList {
     let (tris, scene) = store(|s| {
         let scene = s.scene(id);
         (triangles(s, &scene), scene)
     });
     let bg = scene.background;
     let bgc = (bg[2].clamp(0.0, 1.0) * 255.0) as u32 * 0x10000 + ((bg[1].clamp(0.0, 1.0) * 255.0) as u32) * 0x100 + (bg[0].clamp(0.0, 1.0) * 255.0) as u32;
-    let mut color = vec![bgc; dw * dh];
-    if let Some(img) = scene.background_image.as_deref().filter(|i| i.img.width > 0 && i.img.height > 0) {
-        for y in 0..dh {
-            for x in 0..dw {
-                color[y * dw + x] = img.img.pixels[(y * img.img.height / dh) * img.img.width + x * img.img.width / dw];
-            }
-        }
-    }
-    let mut depth = vec![0.0f32; dw * dh];
-    let view = raster::View { width: dw, height: dh, front: screen.view_front.max(1e-3), back: screen.view_back.max(screen.view_front + 1e-3), field: 0.5 };
-    let mut target = raster::Target { width: dw, height: dh, color: &mut color, depth: &mut depth };
     let blended = scene.render_mode & BLENDED != 0;
-    let (mut opaque, mut clear): (Vec<&Tri>, Vec<&Tri>) = tris.iter().partition(|t| !blended || t.c.iter().all(|c| c[3] >= 0.999));
+    let (mut ordered, mut clear): (Vec<Tri>, Vec<Tri>) = tris.into_iter().partition(|t| !blended || t.c.iter().all(|c| c[3] >= 0.999));
     clear.sort_by(|a, b| {
         let z = |t: &Tri| t.p.iter().map(|p| p.z).sum::<f64>();
         z(b).partial_cmp(&z(a)).unwrap_or(std::cmp::Ordering::Equal)
     });
-    opaque.extend(clear);
-    for t in opaque {
-        raster::draw(&mut target, &view, t);
+    ordered.extend(clear);
+    let view = View { width: dw, height: dh, front: screen.view_front.max(1e-3), back: screen.view_back.max(screen.view_front + 1e-3), field: 0.5 };
+    RenderList { view, background: bgc, background_image: scene.background_image.clone(), tris: ordered }
+}
+
+/// Draws screen `id`'s scene on its back buffer (`Render`): cleared to the
+/// background, then every visual of every frame, from the camera — lit
+/// here as D3DRM lit it, rasterized by the GPU (`renderer`).
+pub fn render(id: &str, screen: &mut DxScreen) {
+    let scale = super::bitmap::display_scale().max(1);
+    let (w, h) = (screen.back.img.width, screen.back.img.height);
+    if w == 0 || h == 0 {
+        return;
     }
+    // (drawn at the screen's device scale, or the largest the GPU takes)
+    let has_gpu = renderer::ready();
+    let side = renderer::max_side();
+    let mut s_draw = scale;
+    while s_draw > 1 && w.max(h) * s_draw > side {
+        s_draw -= 1;
+    }
+    let (dw, dh) = (w * s_draw, h * s_draw);
+    let list = render_list(id, screen, dw, dh);
+    let bgc = list.background;
+    let color = if has_gpu { renderer::draw(&list) } else { None }.unwrap_or_else(|| vec![bgc; dw * dh]);
     // What the screen shows at its scale, and the pixels programs read.
     let back = &mut screen.back;
     if scale > 1 {
+        let (hw, hh) = (w * scale, h * scale);
         if let Some(hi) = back.display_mut() {
-            if hi.img.width == dw && hi.img.height == dh {
-                hi.img.pixels.copy_from_slice(&color);
+            if hi.img.width == hw && hi.img.height == hh {
+                for y in 0..hh {
+                    for x in 0..hw {
+                        hi.img.pixels[y * hw + x] = color[(y * dh / hh) * dw + x * dw / hw];
+                    }
+                }
                 if let Some(a) = hi.alpha.as_mut() {
                     a.iter_mut().for_each(|v| *v = 255);
                 }
             }
         }
+    }
+    if s_draw > 1 {
         for y in 0..h {
             for x in 0..w {
-                back.img.pixels[y * w + x] = color[(y * scale + scale / 2) * dw + x * scale + scale / 2];
+                back.img.pixels[y * w + x] = color[(y * s_draw + s_draw / 2) * dw + x * s_draw + s_draw / 2];
             }
         }
     } else {
@@ -1435,50 +1458,6 @@ mod tests {
         Value::Double(v)
     }
 
-    /// A lit square facing the camera fills the middle of the view in its
-    /// colour times the light's; its back isn't drawn; with no light it's
-    /// black; Move turns its frame.
-    #[test]
-    fn a_lit_face_in_the_middle() {
-        let mut screen = DxScreen::default();
-        screen.call("init", &[v_int(40), v_int(30)]);
-        crate::objects::directx::initialize(&mut screen, 40, 30, true);
-        for (id, t) in [("t_mb", "RD3DMESHBUILDER"), ("t_f", "RD3DFRAME"), ("t_face", "RD3DFACE"), ("t_light", "RD3DLIGHT"), ("t_lf", "RD3DFRAME")] {
-            create(id, t);
-        }
-        let sc = |m: &str, a: &[Value]| screen_call("t_dx", &mut DxScreen::default(), m, a).unwrap().unwrap();
-        sc("createframe", &[v_str("t_f")]);
-        sc("createframe", &[v_str("t_lf")]);
-        sc("createmeshbuilder", &[v_str("t_mb")]);
-        sc("createface", &[v_str("t_face")]);
-        // A square at z = 5 (the camera at the origin looks along +z),
-        // clockwise from the camera: its front.
-        for (x, y) in [(-1.0, 1.0), (1.0, 1.0), (1.0, -1.0), (-1.0, -1.0)] {
-            call_ok("t_face", "addvertex", &[d(x), d(y), d(0.0)]);
-        }
-        call_ok("t_face", "setcolorrgb", &[d(1.0), d(0.5), d(0.0)]);
-        assert_eq!(get("t_face", "vertexcount").unwrap().to_i64(), 4);
-        call_ok("t_mb", "addface", &[v_str("t_face")]);
-        call_ok("t_mb", "setquality", &[v_int(LIGHT_ON + FILL_SOLID)]);
-        assert_eq!(get("t_mb", "facecount").unwrap().to_i64(), 1);
-        call_ok("t_f", "addvisual", &[v_str("t_mb")]);
-        call_ok("t_f", "setposition", &[d(0.0), d(0.0), d(5.0)]);
-        // No light: black.
-        render("t_dx", &mut screen);
-        assert_eq!(screen.back.pixel(20, 15), Some(0));
-        // A white directional light pointing along +z (at the face's front).
-        sc("createlightrgb", &[v_int(3), d(1.0), d(1.0), d(1.0), v_str("t_light")]);
-        call_ok("t_lf", "addlight", &[v_str("t_light")]);
-        render("t_dx", &mut screen);
-        assert_eq!(screen.back.pixel(20, 15), Some(0x0080FF), "orange: (1, 0.5, 0) under white");
-        assert_eq!(screen.back.pixel(1, 1), Some(0), "the background");
-        // Turned half a turn about y by Move: its back faces the camera.
-        call_ok("t_f", "setrotation", &[d(0.0), d(1.0), d(0.0), d(std::f64::consts::PI)]);
-        sc("move", &[d(1.0)]);
-        render("t_dx", &mut screen);
-        assert_eq!(screen.back.pixel(20, 15), Some(0), "the back isn't drawn");
-    }
-
     /// The wraps' texture coordinates as RapidQ's D3DRM computed them in
     /// RapidR's probe scenes (RC.EXE in the VM, docs/directx-plan.md).
     #[test]
@@ -1546,67 +1525,11 @@ mod tests {
         assert!(call("t_f9", "setposition", &[]).is_none(), "not a QD3D object");
     }
 
+    /// QDXSCREEN.SetVelocity is the camera's; Move moves it. (What a
+    /// Render draws is checked on the GPU: rapidr-d3d-gpu's tests.)
     #[test]
-    fn shadows_and_the_cameras_velocity() {
-        let mut screen = DxScreen::default();
-        screen.call("init", &[v_int(40), v_int(30)]);
-        crate::objects::directx::initialize(&mut screen, 40, 30, true);
-        for (id, t) in [
-            ("t_s_floor", "RD3DMESHBUILDER"),
-            ("t_s_box", "RD3DMESHBUILDER"),
-            ("t_s_face", "RD3DFACE"),
-            ("t_s_ff", "RD3DFRAME"),
-            ("t_s_bf", "RD3DFRAME"),
-            ("t_s_lf", "RD3DFRAME"),
-            ("t_s_amb", "RD3DLIGHT"),
-            ("t_s_lamp", "RD3DLIGHT"),
-            ("t_s_shadow", "RD3DVISUAL"),
-        ] {
-            create(id, t);
-        }
+    fn the_cameras_velocity() {
         let sc = |m: &str, a: &[Value]| screen_call("t_s_dx", &mut DxScreen::default(), m, a).unwrap().unwrap();
-        for f in ["t_s_ff", "t_s_bf", "t_s_lf"] {
-            sc("createframe", &[v_str(f)]);
-        }
-        // A white floor at y = -1 (its top towards the camera) ...
-        sc("createmeshbuilder", &[v_str("t_s_floor")]);
-        sc("createface", &[v_str("t_s_face")]);
-        for (x, z) in [(-3.0, 8.0), (3.0, 8.0), (3.0, 2.0), (-3.0, 2.0)] {
-            call_ok("t_s_face", "addvertex", &[d(x), d(-1.0), d(z)]);
-        }
-        call_ok("t_s_floor", "addface", &[v_str("t_s_face")]);
-        call_ok("t_s_ff", "addvisual", &[v_str("t_s_floor")]);
-        // ... a small square above it, a white ambient light and a point
-        // light above the square.
-        sc("createmeshbuilder", &[v_str("t_s_box")]);
-        sc("createface", &[v_str("t_s_face")]);
-        for (x, z) in [(-0.5, 5.5), (0.5, 5.5), (0.5, 4.5), (-0.5, 4.5)] {
-            call_ok("t_s_face", "addvertex", &[d(x), d(1.5), d(z)]);
-        }
-        call_ok("t_s_box", "addface", &[v_str("t_s_face")]);
-        call_ok("t_s_bf", "addvisual", &[v_str("t_s_box")]);
-        sc("createlightrgb", &[v_int(0), d(1.0), d(1.0), d(1.0), v_str("t_s_amb")]);
-        sc("addlight", &[v_str("t_s_amb")]);
-        sc("createlightrgb", &[v_int(1), d(1.0), d(1.0), d(1.0), v_str("t_s_lamp")]);
-        call_ok("t_s_lf", "addlight", &[v_str("t_s_lamp")]);
-        call_ok("t_s_lf", "setposition", &[d(0.0), d(3.0), d(5.0)]);
-        render("t_s_dx", &mut screen);
-        // (the floor under the square: (0, -1, 5), at (20, 23))
-        assert_eq!(screen.back.pixel(20, 23), Some(0xFFFFFF), "no shadow yet");
-        // The square's shadow on the floor's plane, from the point light:
-        // 4 / 1.5 times the square's size, under it.
-        sc("createshadow", &[v_str("t_s_box"), v_str("t_s_lamp"), d(0.0), d(-1.0), d(0.0), d(0.0), d(1.0), d(0.0), v_str("t_s_shadow")]);
-        call_ok("t_s_bf", "addvisual", &[v_str("t_s_shadow")]);
-        render("t_s_dx", &mut screen);
-        assert_eq!(screen.back.pixel(20, 23), Some(0), "in the shadow");
-        assert_eq!(screen.back.pixel(36, 23), Some(0xFFFFFF), "(2, -1, 5): beside it");
-        // From an ambient light: none.
-        call_ok("t_s_bf", "deletevisual", &[v_str("t_s_shadow")]);
-        let none = screen_call("t_s_dx", &mut DxScreen::default(), "createshadow", &[v_str("t_s_box"), v_str("t_s_amb"), d(0.0), d(-1.0), d(0.0), d(0.0), d(1.0), d(0.0), v_str("t_s_shadow")]);
-        assert!(matches!(none, Some(Ok(_))));
-        call_ok("t_s_bf", "addvisual", &[v_str("t_s_shadow")]);
-        render("t_s_dx", &mut screen);
-        assert_eq!(screen.back.pixel(20, 23), Some(0xFFFFFF));
         // QDXSCREEN.SetVelocity: the camera's; Move moves it.
         sc("setvelocity", &[d(0.0), d(0.0), d(1.0), v_int(0)]);
         sc("move", &[d(2.0)]);

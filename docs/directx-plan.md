@@ -1,6 +1,6 @@
 # RapidR DirectX: RapidQ's QDX* / QD3D* objects on the UI kernel and wgpu
 
-RapidQ's DirectX objects are the next compatibility block after the portable API (ROADMAP Phase 1: "DirectX objects on wgpu (desktop and web)"). This plan lists every DirectX object RapidQ has, what the RapidQ corpus actually uses, and how each maps onto RapidR — without Win32 emulation, with permissive dependencies only, the same on native builds, the interpreter and the web. The first slice (the 2D layer: QDXSCREEN, QDXIMAGELIST, QDXTIMER) is done; its results are at the end.
+RapidQ's DirectX objects are the next compatibility block after the portable API (ROADMAP Phase 1: "DirectX objects on wgpu (desktop and web)"). This plan lists every DirectX object RapidQ has, what the RapidQ corpus actually uses, and how each maps onto RapidR — without Win32 emulation, with permissive dependencies only, the same on native builds, the interpreter and the web. Every stage is done; the results are at the end. Direct3D draws on **wgpu** on every system — Metal, Direct3D 12 (WARP without a GPU), Vulkan or OpenGL, and WebGL 2 in a browser: RapidQ's `d3drm.dll` left Windows after XP, so no system has the original anyway (stage D5).
 
 ## 0. Key findings that shape the plan
 
@@ -82,12 +82,7 @@ Files loaded by the 3D programs: `.x` 15 uses, `.bmp` textures 8.
 - **`.X` loading**: a parser of DirectX's text and binary formats (templates, `Header`, `Frame`, `FrameTransformMatrix`, `Mesh` + `MeshNormals` / `MeshTextureCoords` / `MeshMaterialList` / `Material` / `TextureFilename`, `MeshVertexColors`), in Rust (no crate covers both formats under a permissive licence), tested on hand-written files. MeshBuilder.Load takes the meshes merged (CONV3DS `-m` files), Frame.Load the hierarchy.
 - QD3DVECTOR is a TYPE-like value (X / Y / Z unions DVX / DVY / DVZ), QD3DFACE / QD3DLIGHT / QD3DWRAP / QD3DTEXTURE handles into the scene.
 
-**The renderer** writes into the QDXSCREEN's back buffer at `Render` (and at `ForceUpdate`'s rectangle), so the 2D drawing after it, `Pixel`, Flip and captures need nothing new. Two implementations behind one trait (`fn render(&Scene, &mut Bitmap /* back buffer, at the display scale */)`), as the desktop already has vello and vello_cpu:
-
-1. **A software rasterizer** (`rapidr-d3d-soft`, pure Rust): perspective-correct, z-buffered triangles with flat / Gouraud shading, point-sampled or bilinear textures (texture quality), alpha blending, wireframe and points. It is the reference (captures and goldens exact, as every other GUI test), the headless host's and the CPU renderer's path, and **the web's path without WebGPU** (Firefox on Linux and Android in 2026, and every page today: the web host plan's renderer is the CPU). The corpus's scenes are small enough for it at full frame rate at 1× and 2× (to be measured in D4; budget: ≤ 4 ms for 2,000 textured triangles at 640 × 480 on one core).
-2. **wgpu** (`rapidr-d3d-gpu`, behind a `gpu` feature; **parked** after D4's measurements — "Stage D5: parked" below): the same scene as vertex / index buffers, a WGSL pipeline per render mode, lights as a uniform block; rendered offscreen and read back into the back buffer (desktop: synchronous `device.poll`; the web's WebGPU: the readback's `mapAsync` suspends the VM at `Render` as the VM already suspends for ShowModal). Chosen as the desktop host chooses vello — the GPU when wgpu finds an adapter, the software rasterizer otherwise, `RAPIDR_RENDERER=cpu|gpu` to force, captures on the CPU — and held to the matrix's tolerance against the reference.
-
-**Recommendation**: build the scene model and the software rasterizer first (D3, D4): they are needed whatever else exists (tests, no-GPU machines, the web without WebGPU), they make the 3D programs run on all three runtimes at once, and they fix the semantics. Then wgpu (D5), the user's chosen translation layer, as the accelerated path for the desktop and WebGPU, adopted when its captures match the reference within tolerance and measurements show it pays (large windows at 2× / 3×). This is the "one implementation" rule as the desktop host keeps it: one model, two renderers required by the platforms, not an old path kept as a fallback. (If the user prefers wgpu first, D5 can go before D4; the GUI tests then need a GPU, and the web without WebGPU shows no 3D until D4.)
+**The renderer** writes into the QDXSCREEN's back buffer at `Render` (and at `ForceUpdate`'s rectangle), so the 2D drawing after it, `Pixel`, Flip and captures need nothing new. D3DRM's model — the frames' matrices, the lighting per face or per vertex, culling, wraps, shadows, the drawing order — stays in `rapidr_value::objects::d3d` (as `d3drm.dll` itself did that work on the CPU), the same on every runtime; it hands the renderer a list of lit triangles in the camera's space (`d3d::renderer::RenderList`). **The renderer is wgpu** (`crates/rapidr-d3d-gpu`, stage D5): it projects them through D3DRM's viewport, fills them (perspective-correct colours and texture coordinates, a depth buffer of 1/z, textures nearest or bilinear and repeating, alpha blending, wireframes and points) into a texture the size of the back buffer at the display scale, and reads the pixels back — Metal on macOS, Direct3D 12 on Windows (WARP where there's no GPU), Vulkan or OpenGL on Linux, **WebGL 2 in a browser** (its read-back is synchronous, as a `Render`'s must be: the program goes on with the pixels at once, and a native web build can't wait for a promise; WebGPU's read-back is asynchronous only). One implementation: the software rasterizer of stage D4 was the reference the GPU was compared against, then deleted.
 
 ### 2.3 Sound: QDXSOUND (done: "Stage D2 results" below)
 
@@ -103,14 +98,13 @@ Everything here is MIT / Apache-2.0 / BSD / Zlib, allowed by `deny.toml`; `cargo
 
 | Component | Stage | Licence | Notes |
 |---|---|---|---|
-| RapidR's own code (directx.rs, `.DXG` and `.X` parsers, the software rasterizer) | D1–D4 | MIT (RapidR's) | |
+| RapidR's own code (directx.rs, `.DXG` and `.X` parsers, the scene and its lighting, the wgpu renderer and its shader) | D1–D5 | MIT (RapidR's) | |
 | rapidr-value's image decoders (png, jpeg-decoder, resvg / tiny-skia) | D1, D3 | MIT OR Apache-2.0, BSD-3-Clause | already shipped |
-| wgpu, wgpu-core, wgpu-hal, wgpu-types, naga (30.0.1, the workspace lock's, through vello) | D5 | MIT OR Apache-2.0 | already shipped by the desktop host |
-| bytemuck | D5 | Zlib OR Apache-2.0 OR MIT | already shipped |
+| wgpu, wgpu-core, wgpu-hal, wgpu-types, naga (30.0.1, the workspace lock's, through vello) | D5 | MIT OR Apache-2.0 | already shipped by the desktop host; in the web runtime now too (WebGL 2: wgpu's `webgl` feature, with glow 0.17 — MIT OR Apache-2.0 — and wgpu-core-deps-wasm, the one crate new to the lock) |
 | glam (optional; the math can stay hand-written) | D3 | MIT OR Apache-2.0 | to add only if used |
 | rodio, cpal, hound (rodio's WAV decoder) | D2 | MIT OR Apache-2.0 / Apache-2.0 | already shipped (`audio`) |
 | gilrs, gilrs-core | D6 | MIT OR Apache-2.0 | new; on Linux it links the system's libudev dynamically (LGPL-2.1+, a system library like libc, through the MIT `libudev-sys`), on macOS IOKit, on Windows the `windows` crate (MIT OR Apache-2.0); version pinned and `cargo deny` run when adopted |
-| web-sys (Gamepad, WebGPU, Web Audio bindings) | D2, D5, D6 | MIT OR Apache-2.0 | already shipped; new features only |
+| web-sys (Gamepad, WebGL 2, Web Audio bindings) | D2, D5, D6 | MIT OR Apache-2.0 | already shipped; new features only |
 
 No RapidQ example file is shipped or used by the tests: the slice's `.DXG` fixture is RapidR's own drawing (`tools/make_dx_fixture.py`).
 
@@ -127,7 +121,7 @@ A session is one focused agent session ending in a green commit.
 | D2 | QDXSOUND on rodio and Web Audio (§2.3); `sound/*.bas` | **done** (results below) |
 | D3 | The scene model and the `.X` loader (§2.2), with unit tests over hand-written text and binary files; QD3D* types in the compilers' tables, `RapidQ_D3D.inc` compiling | **done** (results below) |
 | D4 | The software rasterizer; `Render` / `ForceUpdate`; goldens; the 20 3D corpus programs run on the three runtimes and compared by eye with RapidQ's look | **done but the comparison with RapidQ** (results below) |
-| D5 | The wgpu renderer (desktop GPU, WebGPU with VM suspension at the readback), selection and `RAPIDR_RENDERER`; tolerance tests against D4 | **parked** (see "Stage D5: parked" below) |
+| D5 | Direct3D on wgpu everywhere (Metal, Direct3D 12, Vulkan, OpenGL; WebGL 2 in a browser), read back into the back buffer; compared with D4's rasterizer, which then went | **done** (results below) |
 | D6 | QDXJOYSTICK (RapidQ's, plus RapidR's additions) on gilrs, evdev and the Gamepad API; the winmm error names it | **done** (results below) |
 
 Total about 15–19 sessions after D1. D3 → D4 → D5 are in order; D1b, D2 and D6 are independent lanes.
@@ -135,7 +129,7 @@ Total about 15–19 sessions after D1. D3 → D4 → D5 are in order; D1b, D2 an
 ### 3.1 Tests
 
 - **GUI fixtures** in `tests/gui_parity_cases.mjs`, run by `tests/native_gui_events.mjs` (native and interpreted, 1× and `RAPIDR_SCALE=2`) and `tests/web_gui_parity.mjs` (`RAPIDR_DPR=1` and `2`): dumps of what the program reads (`Pixel`, sizes, event order, FrameRate's presence) and, new with D1, **`pixels`**: colours read from the desktop capture at given points, and a `webCheck` reading the page's canvas. CPU paths are exact.
-- **The GPU path** (D5): a capture of each 3D fixture by both renderers, at most 0.5 % of pixels off by more than 8 per channel (the desktop matrix's rule), plus an exact-pixel test of the software rasterizer.
+- **The GPU** (D5): the 3D fixtures' pixels exact on the desktop (native, interpreted, 1× and 2×) and the web's captures byte-identical to the desktop's (WebGL 2 against Metal); `crates/rapidr-d3d-gpu/tests/` checks what the GPU draws (depth, clipping, colours past 1, textures, blending, wireframes, points, the background picture).
 - **Unit tests** in the models: Flip / colours / TextRect / AutoSize (`objects::directx::tests`), the kernel component's revision caching (`components::dxscreen::tests`), the `.DXG` parser on a hand-made stream; D3: the `.X` parser, frame transforms, Move, wraps; D4: rasterizer edge cases (clipping, z ties, texture wrap).
 - **The corpus** (by eye, at 1× and 2×): `directx/*`, `Mouse/select2dx.bas`, `imageLibrary/mgplist.bas`, then `direct3d/*`, against RapidQ's screenshots where the phatcode mirror has them.
 
@@ -144,8 +138,8 @@ Total about 15–19 sessions after D1. D3 → D4 → D5 are in order; D1b, D2 an
 1. **D3DRM's exact semantics** (the most serious): its lighting (RGB vs ramp model), `Move` / SetRotation's per-tick quaternion steps, the left-handed coordinate system and camera conventions, CreateShadow's projection, wrap formulas. Mitigation: Microsoft's D3DRM documentation describes most formulas; implement the model against it and compare the corpus by eye; record each judgement in the model's docs.
 2. **The manual's gaps for 2D**: whether Pixel / FillRect take &HBBGGRR (chosen, as the manual's Line example and the corpus's colours suggest) or a device colour like Fill; Init vs AutoSize (chosen from DelphiX and `mgplist.bas`). Mitigation: the choices are in one model (`directx.rs`), documented, easy to flip if RapidQ evidence turns up.
 3. **`.X` edge cases** (binary token streams, templates with restrictions, files written by old exporters). Mitigation: a tolerant parser that skips unknown templates; the 55 corpus files as a smoke set.
-4. **CPU cost at high DPI**: a 640 × 480 screen at 3× is 2.8 M pixels a frame for Fill + conversion; 3D at 3× quadruples the rasterizer's work. Mitigation: measure in D4; the wgpu path (D5); damage tracking in the hosts (web plan W9).
-5. **WebGPU readback latency** (async): one frame of delay at `Render` on the web's GPU path. Mitigation: the software path is the web's default.
+4. **CPU cost at high DPI**: a 640 × 480 screen at 3× is 2.8 M pixels a frame for Fill + conversion; 3D at 3× quadruples the rasterizer's work. Mitigation: measure in D4; the wgpu path (D5, done: Park.x at 2× in 5.3 ms a frame, 2.4 of them the lighting on the CPU); damage tracking in the hosts (web plan W9).
+5. **WebGPU readback latency** (async): a `Render` must hand its pixels back before the program goes on. Resolved in D5: the web draws on WebGL 2 through wgpu, whose read-back is synchronous.
 6. **Timers and frame pacing**: Interval 0 is a 16 ms timer, not the display's vsync (a 120 Hz screen still gets 60 OnTimers). Mitigation: a host frame callback (winit's redraw, the browser's requestAnimationFrame) could drive QDXTIMER later; programs only see FrameRate.
 
 ---
@@ -206,7 +200,7 @@ Open: WAV only (DirectSound's buffers were PCM; `rodio` could decode more); 8-bi
 
 ## Stages D3–D4 results (2026-10-05) — the scene, the `.X` loader, the software rasterizer
 
-Code: `crates/rapidr-value/src/objects/d3d/` — `mod.rs` (the scene store, the QD3D* objects' API, QDXSCREEN's 3D methods, lighting, shadows, `render`), `math.rs` (Direct3D's left-handed row-vector math), `raster.rs` (the rasterizer), `xfile.rs` (the `.X` parser, std only). The QD3D* types are RapidR components RD3DFRAME, RD3DMESHBUILDER, RD3DMESH, RD3DFACE, RD3DLIGHT, RD3DTEXTURE, RD3DVISUAL, RD3DWRAP, RD3DVECTOR (both compilers; off the not-yet list) with no window of their own on any runtime; `objects::{get, set, call}` route them to `d3d`, and QDXSCREEN's 3D method names to `d3d::screen_call` with the screen's back buffer. Every runtime runs the same code; the web's DOM runtime needed only the types listed.
+Code: `crates/rapidr-value/src/objects/d3d/` — `mod.rs` (the scene store, the QD3D* objects' API, QDXSCREEN's 3D methods, lighting, shadows, `render`), `math.rs` (Direct3D's left-handed row-vector math), `raster.rs` (the rasterizer; replaced by the GPU in D5), `xfile.rs` (the `.X` parser, std only). The QD3D* types are RapidR components RD3DFRAME, RD3DMESHBUILDER, RD3DMESH, RD3DFACE, RD3DLIGHT, RD3DTEXTURE, RD3DVISUAL, RD3DWRAP, RD3DVECTOR (both compilers; off the not-yet list) with no window of their own on any runtime; `objects::{get, set, call}` route them to `d3d`, and QDXSCREEN's 3D method names to `d3d::screen_call` with the screen's back buffer. Every runtime runs the same code; the web's DOM runtime needed only the types listed.
 
 What's there:
 
@@ -236,11 +230,28 @@ Measured (risk 4): `direct3d/Park.x` (16,586 vertices, 29,174 faces, lit, at 640
 
 Open (then): comparing with RapidQ itself (done 2026-10-08, below); the include library's QD3DCAMERA / QD3DPRIMITIVE / QD3DCLONEMESH programs (they're BASIC on top of these objects, to be run).
 
-## Stage D5: parked (2026-10-05)
+## Stage D5 results (2026-10-08) — Direct3D on wgpu, everywhere
 
-The software rasterizer stays the only 3D renderer. D4's measurement (Park.x, 29k faces: 4.4 ms a frame at 1×, 8.1 ms at 2×) leaves no speed to win that a program would notice, and a second renderer would cost what the "one implementation" rule exists to avoid: two paths to keep in step and test against each other (tolerances instead of exact pixels), a GPU readback for every `Pixel`, the VM suspended at `Render` for WebGPU's asynchronous readback — while the software path already runs the same everywhere: deterministic captures, the web without WebGPU, and machines whose only GPU is a software one (Windows' WARP, where vello crashed on the Windows 11 VM).
+The decision (Robert, 2026-10-08): RapidQ's Direct3D runs on **wgpu** on every system — Metal, Direct3D 12, Vulkan — including Windows, where `d3drm.dll` has been gone since XP. It replaced the parking of 2026-10-05 (the software rasterizer, D4, as the only renderer).
 
-**Revisit when** a real program measurably needs it: a RapidQ or RapidR program whose `Render` takes long enough to drop its frame rate (over ~16 ms a frame at the scale it runs) on hardware users have — measured, with the program named here. Until then no `rapidr-d3d-gpu` crate and no `RAPIDR_RENDERER` switch.
+Code:
+
+- `crates/rapidr-value/src/objects/d3d/renderer.rs` (new): what a `Render` hands the GPU — `RenderList` (the view, the background colour and picture, the lit triangles in drawing order: `Tri`, `Fill`, `View`), the `Renderer` trait, and the runtime's renderer made at the first `Render` (`set_renderer_factory`; never dropped at the thread's end — the GPU goes with the process). `d3d::render_list` is what `render` draws; `render` copies the pixels into the back buffer (and its high-DPI layer), drawing at a smaller scale only if the GPU can't take the target's size. Without a GPU, a `Render` shows the background and says why once on stderr.
+- `crates/rapidr-d3d-gpu` (new): the renderer — one WGSL shader (`d3d.wgsl`: D3DRM's projection, a depth of 1/z, the colour times the texel; the background picture a texel a pixel), four pipelines (solid, blended, wireframe, points), textures uploaded once per picture and dropped with it, the target and its read-back buffer kept while the size is. The best adapter, else the system's software one (`force_fallback_adapter`: WARP, llvmpipe); in a browser a WebGL 2 context on a canvas of its own, its fences told to finish at once (`GlFenceBehavior::AutoFinish`: WebGL's `getBufferSubData` read-back is synchronous). wgpu's errors are said on stderr, never a panic.
+- The runtimes install it when a QDXSCREEN is made: runtime-core (`gui` feature; the interpreter and native builds), the web runtime.
+- `raster.rs` (D4's software rasterizer) is deleted; its tests became the GPU's (`crates/rapidr-d3d-gpu/tests/draw.rs`, `scene.rs`).
+
+Why WebGL 2 and not WebGPU in the browser: a `Render` must hand its pixels back before the program's next statement (`DXScreen.Render: DXScreen.TextOut(…): DXScreen.Flip`, `Pixel`), and WebGPU's read-back (`mapAsync`) only completes on a later turn of the page — the VM could be suspended there, but a native web build (Rust compiled to wasm) can't. WebGL 2 is in every browser; wgpu draws on it with the same shader (naga translates it to GLSL ES).
+
+Checked:
+
+- **Against the software rasterizer** before it went (the same `RenderList`s, `differing` pixels by more than 8 in a channel): depth and the front plane 0 of 19,200 pixels; Gouraud colours past 1, 10 of 30,000; textures nearest and bilinear, 160 of 43,200 (texel edges); blending 0; wireframes and points 56 of 19,200; the background picture 0; a ball of 2,304 triangles 0 — the same numbers on the Mac's Metal (Apple M4 Max), the Ubuntu VM's OpenGL (virgl) and its software Vulkan (lavapipe: a Linux machine without a GPU), and the Windows 11 VM's Direct3D 12 on WARP ("Microsoft Basic Render Driver", its only adapter — where vello crashed).
+- **The GUI tests** `d3d_scene`, `d3d_xfile`, `dx_screen`, `dx_more`: the pixels programs read and the captures' colours exact, native and interpreted at 1× and 2×; in the browser (WebGL 2), every window byte-identical to the desktop's at DPR 1 and 2.
+- **The corpus** (capture runs kept outside the repository: the 15 Direct3D programs, the windowed copies, the 42 `.X` models of the gallery, the 30 probes — interpreted on the desktop, and in the browser; 10 natively): the gallery and probes, still pictures, differ from the software rasterizer's captures by 0 – 0.1 % of their pixels (edges), and by up to 4 % where a model has faces in one plane (`Park.x`, `plane.x`, `temple.x`: which face shows where they overlap — the GPU's choice matches RapidQ's on `Park.x`, the light blue walls); the browser's from the desktop's by 0 – 1.6 % (texel edges on WebGL). The animated programs differ only by their moment. Side by side with RC.EXE's captures: the same.
+- **Speed**: `Park.x` (15,877 triangles drawn) — a whole `Render` (lit on the CPU, drawn, read back) 3.4 – 3.7 ms at 640 × 480, 3.7 – 5.3 ms at 1280 × 960 on the Mac, where the software rasterizer took 8.2 and 16.5 ms (the lighting, on the CPU as D3DRM did it, is 2 – 2.9 ms of it).
+- **The web runtime** grows by 2.6 MB (15.0 → 17.6 MB of wasm: wgpu-core, its GL layer, naga, glow).
+
+Open: the lighting is the CPU's share of a frame now (a GPU vertex stage could take it; D3DRM's own was CPU code too); a Linux machine with no GPU driver at all (no Mesa) has no adapter — its 3D shows the background, with the message.
 
 ## Stage D6 results (2026-10-05) — QDXJOYSTICK
 

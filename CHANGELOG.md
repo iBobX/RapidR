@@ -171,6 +171,24 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - A `security` stage in `tools/regress.sh`, with a regression test for each.
 
 ### RapidQ's DirectX and Direct3D examples (checked against RC.EXE)
+- **Direct3D draws on the GPU, on every system**: a QDXSCREEN's `Render` is
+  rasterized by wgpu — Metal on macOS, Direct3D 12 on Windows (its WARP
+  where there's no GPU), Vulkan or OpenGL on Linux, and WebGL 2 in the
+  browser — and read back into the screen's back buffer, so the FPS text
+  drawn after it, `Pixel` and `Flip` work as before. Windows has had no
+  `d3drm.dll` since XP, so this is how RapidQ's Direct3D programs run there
+  too. D3DRM's own model (frames, lighting per face or vertex, wraps,
+  shadows) is unchanged and shared by every runtime; the software
+  rasterizer it replaces was the reference it was checked against, then
+  removed (one renderer). RapidQ's largest model (`Park.x`, 16,000
+  triangles drawn) takes 3.7 ms a frame at 640 × 480 and 5.3 ms at twice
+  that, against 8.2 and 16.5 on the CPU; the corpus's programs, every `.X`
+  model and the probes look as before (and as RC.EXE's beside them), and
+  the web's pictures equal the desktop's. The web runtime grows by 2.6 MB
+  (WebGL 2 through wgpu).
+- **`WITH v.R … END WITH`** on a QRECT field of an object reaches the field
+  (`.Bottom = 99` stored into `v.R`), as RC.EXE does; RapidR stopped with
+  "nested member-access store not yet supported".
 - **QRECT (and QNOTIFYICONDATA, QFONT) as a field of an object**: `TYPE T
   EXTENDS QOBJECT … R AS QRECT` compiles and behaves as RapidQ's — each
   instance its own record, by reference to SUBs, through This in the TYPE's

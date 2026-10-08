@@ -31,13 +31,16 @@ models (text and binary — every model of RapidQ's examples loads), lights
 (ambient, directional, point, spot), the camera, textures, wraps,
 shadows and blended transparency, lit flat or Gouraud.
 
-RapidR draws 3D with its own software rasterizer: the same pixels on every
-system and in the browser, sharp at any display scale, and fast enough for
-RapidQ's programs (a 29,000-face model renders in about 4 ms a frame). Fog
-is accepted and has no effect (RapidQ's manual: "Don't expect this to
-work!"). RapidQ's 3D can no longer be compared with RapidQ itself (Windows
-dropped Direct3D Retained Mode after XP), so where its documentation is
-silent RapidR follows Direct3D's.
+RapidR draws 3D on the GPU through wgpu — Metal on macOS, Direct3D 12 on
+Windows (its WARP software adapter where there's no GPU), Vulkan or OpenGL
+on Linux, WebGL 2 in the browser — sharp at any display scale and fast
+(RapidQ's largest model, 16,000 triangles, about 4 ms a frame), then hands
+the picture to the screen's back buffer, so text drawn after `Render`,
+`Pixel` and `Flip` work as in RapidQ. Fog is accepted and has no effect
+(RapidQ's manual: "Don't expect this to work!"). Windows dropped Direct3D
+Retained Mode after XP, but RapidQ's examples carry the `d3drm.dll` it
+needs, and RapidR's 3D was compared with RapidQ's own beside it; where both
+are silent RapidR follows Direct3D's documentation.
 
 ## Sound and music
 

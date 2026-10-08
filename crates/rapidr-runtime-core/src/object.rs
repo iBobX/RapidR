@@ -188,6 +188,11 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         c.borrow_mut().insert(name_lower, comp);
     });
     rapidr_value::objects::create(name, type_name);
+    // (the DirectX lane's: QDXSCREEN's Render draws on the GPU — wgpu)
+    #[cfg(feature = "gui")]
+    if type_name.eq_ignore_ascii_case("RDXSCREEN") {
+        rapidr_d3d_gpu::install();
+    }
     // (the DirectX lane's: QDXSOUND plays on the sound device)
     if type_name.eq_ignore_ascii_case("RDXSOUND") {
         crate::sound::install_dx_device();
