@@ -413,7 +413,7 @@ impl FormUi {
         if vk == 9 && !shortcut && !mods.alt && !crate::components::memo::takes_tab(self, store) {
             self.move_focus(store, mods.shift);
             handled = true;
-        } else if mods.alt && !mods.ctrl && (65..=90).contains(&vk) {
+        } else if mods.alt && !mods.ctrl && (65..=90).contains(&vk) && !crate::components::codeeditor::find_takes_alt(self, vk) {
             let letter = (vk as u8 + 32) as char;
             handled = self.mnemonic(store, ts, letter) || self.menu_mnemonic(store, letter);
         } else if let Some(f) = self.focus {

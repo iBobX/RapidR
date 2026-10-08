@@ -363,6 +363,13 @@ pub trait ComponentKind: Sync {
     /// Its deadline came (it set `NodeUi::wake`; tick.rs).
     fn tick(&self, _cx: &mut Cx) {}
 
+    /// Whether its model holds work for its view that can't wait for the
+    /// next frame (a code editor's requests from the program: OpenFind,
+    /// TriggerCompletion …): ticked now, painted or not (tick.rs).
+    fn pending(&self, _id: &str) -> bool {
+        false
+    }
+
     /// A tooltip of its own at (x, y) of it (tooltip.rs): a cut-short title,
     /// a button's name; `None`: its Hint, if ShowHint.
     fn tip_at(&self, _store: &dyn crate::store::Store, _id: &str, _x: f64, _y: f64) -> Option<String> {

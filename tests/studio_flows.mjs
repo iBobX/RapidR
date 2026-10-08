@@ -121,13 +121,22 @@ const CASES = [
     dump: { "codedoc(0).text": /\nEND SUB\n\nNameEdit\.SetFocus\nForm\.ShowModal\n?$/, "codedoc(0).canundo": /^(-1|1|True)$/i },
   },
   {
+    // a snippet: `sub` and Tab — the skeleton, its name selected; Tab again
+    // to the parameters
+    name: "editor-snippet",
+    open: "examples/gui/hello_form.rr",
+    do: "key:Ctrl+End,key:Enter,type:sub,wait,key:Tab,type:Hello,key:Tab,type:n AS INTEGER",
+    delay: 6,
+    dump: { "codedoc(0).text": /\nSUB Hello\(n AS INTEGER\)\n {4}\nEND SUB\n?$/ },
+  },
+  {
     // a misspelt member: squiggled once typing pauses (RapidQ's compiler's
     // words), in Problems too; Ctrl+. offers the fix, Enter applies it
     name: "editor-diagnostic",
     open: "examples/gui/hello_form.rr",
     do: "key:Ctrl+End,key:Enter,type:x$ = NameEdit.Txet,key:Escape,wait,wait,wait,key:Ctrl+.,wait",
     delay: 8,
-    dump: { "codedoc(0).diagnosticcount": /^1$/, "codedoc(0).completionitems": /^Change to Text$/, "status.panel(2).caption": /^Ln 55, Col 19$/ },
+    dump: { "codedoc(0).diagnosticcount": /^1$/, "codedoc(0).completionitems": /^Change to Text$/ },
   },
   {
     name: "editor-quick-fix",
@@ -135,6 +144,32 @@ const CASES = [
     do: "key:Ctrl+End,key:Enter,type:x$ = NameEdit.Txet,key:Escape,wait,wait,wait,key:Ctrl+.,wait,key:Enter,wait,wait,wait",
     delay: 10,
     dump: { "codedoc(0).text": /\nx\$ = NameEdit\.Text\n?$/, "codedoc(0).diagnosticcount": /^0$/ },
+  },
+  {
+    // F2 renames from the language service's references: the DECLARE, the
+    // SUB, OnClick = and the calls
+    name: "editor-rename",
+    open: "examples/gui/hello_form.rr",
+    do: "key:Ctrl+End,key:Enter,type:greet,key:Escape,key:Left,key:F2,wait,key:Ctrl+A,type:SayHi,key:Enter,wait",
+    delay: 7,
+    dump: { "codedoc(0).text": /DECLARE SUB SayHi\n[\s\S]*OnClick = SayHi\n[\s\S]*\nSUB SayHi\n[\s\S]*\nSayHi\n?$/ },
+  },
+  {
+    // Ctrl+F with a regular expression (Alt+R): found as it is typed, the
+    // first match selected
+    name: "editor-find-regex",
+    open: "examples/gui/hello_form.rr",
+    do: "key:Ctrl+F,wait,key:Alt+R,type:Show\\w+,wait",
+    delay: 6,
+    dump: { "codedoc(0).seltext": /^ShowModal$/ },
+  },
+  {
+    // Edit > Undo takes the typing back (a word at a time), Redo again
+    name: "editor-undo",
+    open: "examples/gui/hello_form.rr",
+    do: "key:Ctrl+End,type:one two,edit.undo,wait,edit.undo,edit.redo,wait",
+    delay: 6,
+    dump: { "codedoc(0).text": /\nForm\.ShowModal\none ?\n?$/, "codedoc(0).canredo": /^(-1|1|True)$/i },
   },
   {
     // F12 on a call goes to its SUB

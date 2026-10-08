@@ -1444,6 +1444,7 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `TriggerCompletion` | Opens completion at the caret, as Ctrl+Space does. |
 | `TriggerSignature` | Opens signature help at the caret, as Ctrl+Shift+Space does. |
 | `TriggerHover([Line AS INTEGER], Column AS INTEGER])` | Shows the hover at a place (the caret's when none is given). |
+| `QuickFix` | Lists the language service's fixes for the problem at the caret (or on its line), as Ctrl+. (Cmd+. on a Mac) does: a misspelt member's nearest names, a RapidR name RapidQ doesn't know. Enter or Tab applies the one picked, as one undo step. |
 | `FormatDocument` | Re-indents the text and cases its words (the language service's; Shift+Alt+F). |
 | `GotoDefinition` | Jumps to the declaration of what's at the caret (F12); in another file, OnNavigate. |
 | `FindReferences` | Selects every use of what's at the caret here and tells OnReferences (Shift+F12). |

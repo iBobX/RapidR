@@ -467,6 +467,10 @@ impl ComponentKind for CodeEditor {
         input::tick(cx);
     }
 
+    fn pending(&self, id: &str) -> bool {
+        with_code(id, |c| !c.requests.is_empty()).unwrap_or(false)
+    }
+
     fn context_menu(&self, cx: &mut Cx) -> Option<MenuState> {
         with_view(cx, |x| {
             let has = x.c.doc.selections().iter().any(|s| !s.is_empty());
@@ -488,6 +492,17 @@ impl ComponentKind for CodeEditor {
 /// program can give it to the focus with WantTabs = False).
 pub fn takes_tab(store: &dyn Store, id: &str) -> bool {
     crate::store::flag(store, id, "wanttabs", true) && with_code(id, |c| !c.doc.read_only).unwrap_or(false)
+}
+
+/// Whether the focused code editor's find box takes Alt+`vk` (its
+/// toggles: C case, W whole word, R regex, L in the selection) before the
+/// form's mnemonics and menus — as VS Code's find widget does.
+pub fn find_takes_alt(f: &crate::tree::FormUi, vk: i64) -> bool {
+    matches!(vk, 67 | 76 | 82 | 87)
+        && f.focus.is_some_and(|i| {
+            let n = &f.nodes[i];
+            n.type_name == "RCODEEDITOR" && n.ui.code.as_ref().is_some_and(|c| c.find.is_some())
+        })
 }
 
 /// Scroll bars' area client size (for the tests).

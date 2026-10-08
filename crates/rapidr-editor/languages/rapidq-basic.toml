@@ -149,3 +149,19 @@ description = "SELECT CASE"
 prefix = "create"
 body = "CREATE ${1:Form} AS ${2:QFORM}\n\t$0\nEND CREATE"
 description = "CREATE … END CREATE"
+[[snippets]]
+prefix = "type"
+body = "TYPE ${1:Name}\n\t${2:Field} AS ${3:INTEGER}$0\nEND TYPE"
+description = "TYPE … END TYPE"
+[[snippets]]
+prefix = "while"
+body = "WHILE ${1:condition}\n\t$0\nWEND"
+description = "WHILE … WEND"
+[[snippets]]
+prefix = "do"
+body = "DO\n\t$0\nLOOP UNTIL ${1:condition}"
+description = "DO … LOOP UNTIL"
+[[snippets]]
+prefix = "with"
+body = "WITH ${1:Form}\n\t.$0\nEND WITH"
+description = "WITH … END WITH"

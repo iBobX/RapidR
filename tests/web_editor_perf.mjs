@@ -6,7 +6,7 @@
 // frame's work and when it ended.
 //
 // Usage (repo root, after tools/build_web_artifacts.sh, the repo served on
-// RAPIDR_URL or http://localhost:8765):  node tests/web_editor_perf.mjs [--quick] [--dpr 2]
+// RAPIDR_URL or http://localhost:8765):  node tests/web_editor_perf.mjs [--quick] [--lines N] [--dpr 2]
 // Exits 1 when a target is missed (web: open ≤ 800 ms, typing p50 ≤ 16 ms
 // and p99 ≤ 33 ms, every scrolled frame's work ≤ 33 ms).
 
@@ -17,7 +17,7 @@ const args = process.argv.slice(2);
 const quick = args.includes("--quick");
 const dpr = Number(args[args.indexOf("--dpr") + 1]) || 2;
 const runtime = args.includes("--rt") ? args[args.indexOf("--rt") + 1] : "target/web";
-const LINES = quick ? 20000 : 200000;
+const LINES = Number(args[args.indexOf("--lines") + 1]) || (quick ? 20000 : 200000);
 
 // The same generated BASIC as the desktop's benchmark (codeeditor_bench).
 function basicSource(lines) {
@@ -99,7 +99,9 @@ await page.evaluate(() => {
   window.__keys = [];
   window.addEventListener("keydown", () => window.__keys.push(Date.now()), true);
 });
-const text = "x = total + 1";
+// (a file the language service answers for — ≤ 4 MB — gets a member after a
+// dot too: completion, signature help and keyword case as it types)
+const text = big.length <= 4 << 20 ? "dim x as integer: x = Sender.Tag + LEN(name$)" : "x = total + 1";
 const latencies = [];
 for (let round = 0; round < (quick ? 4 : 10); round++) {
   for (const ch of [...text, "Enter"]) {

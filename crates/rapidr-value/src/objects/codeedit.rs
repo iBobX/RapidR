@@ -936,7 +936,7 @@ impl CodeEditor {
     /// then any case), then on its word starts (`ss` → SelStart, `gsl` →
     /// GetSubList), then anywhere together, then anywhere in order; among
     /// equals, the ones accepted lately first, then the service's group,
-    /// then the shorter, then A–Z.
+    /// then A–Z (VS Code's order).
     pub fn completion_shown(&self) -> Vec<usize> {
         let Some(list) = &self.completion else { return Vec::new() };
         let head = self.doc.selections().primary().head;
@@ -963,7 +963,7 @@ impl CodeEditor {
             // (nothing typed yet: the service's order — groups, then A–Z)
             ranked.sort_by(|a, b| a.2.cmp(&b.2).then_with(|| a.4.cmp(&b.4)));
         } else {
-            ranked.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)).then(a.3.cmp(&b.3)).then_with(|| a.4.cmp(&b.4)));
+            ranked.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)).then_with(|| a.4.cmp(&b.4)));
         }
         ranked.into_iter().map(|r| r.5).collect()
     }
@@ -1705,7 +1705,7 @@ mod tests {
         assert_eq!(labels(&c), "SelStart", "on the word starts");
         c.call("undo", &[]);
         c.call("inserttext", &[v_str("s")]);
-        assert_eq!(labels(&c), "Show\nSelStart\nShowHint\nSelLength", "shorter first among equals");
+        assert_eq!(labels(&c), "SelLength\nSelStart\nShow\nShowHint", "A–Z among equals");
         c.note_accepted("SelLength");
         assert_eq!(labels(&c).lines().next(), Some("SelLength"), "accepted lately: first");
         assert_eq!(s(c.get("completionselected")), "SelLength");
