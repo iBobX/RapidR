@@ -2,8 +2,9 @@
 """A CycloneDX 1.5 SBOM (JSON) of what a RapidR release ships, from the real
 dependency graph — the same list THIRD_PARTY_NOTICES.md is made from
 (tools/third_party_notices.py: the workspace's normal dependencies), plus the
-non-Cargo pieces LICENSES.md credits (the web IDE's Monaco editor, the
-Liberation fonts).
+non-Cargo pieces LICENSES.md credits that a release ships (the Liberation
+fonts). The legacy web IDE's Monaco editor isn't shipped: the web bundle is
+RapidR Studio's (docs/security-audit.md SEC-17).
 
     python3 tools/release/sbom.py --out dist/<ver>/rapidr-<ver>.cdx.json
 
@@ -27,15 +28,6 @@ def notices():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
-
-
-def monaco_version():
-    """The vendored Monaco's version, from its loader's header (` * Version: 0.52.2(…)`)."""
-    with open(os.path.join(ROOT, "web-ide", "vendor", "monaco", "vs", "loader.js"), encoding="utf-8") as f:
-        m = re.search(r"Version: ([0-9][0-9.]*)", f.read(2000))
-    if not m:
-        raise SystemExit("no version in web-ide/vendor/monaco/vs/loader.js")
-    return m.group(1)
 
 
 def vscode_extension_packages():
@@ -85,16 +77,6 @@ def main():
         components.append(c)
     # (credited by hand in LICENSES.md: not Cargo packages)
     components += [
-        {
-            "type": "library",
-            "bom-ref": f"pkg:npm/monaco-editor@{monaco_version()}",
-            "name": "monaco-editor",
-            "version": monaco_version(),
-            "purl": f"pkg:npm/monaco-editor@{monaco_version()}",
-            "licenses": [{"license": {"id": "MIT"}}],
-            "description": "the web IDE's editor (web-ide/vendor/monaco)",
-            "externalReferences": [{"type": "vcs", "url": "https://github.com/microsoft/monaco-editor"}],
-        },
         {
             "type": "data",
             "bom-ref": "liberation-fonts@2.1.5",

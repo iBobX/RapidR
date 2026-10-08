@@ -12,6 +12,7 @@
 //! - `RAPIDR_TEST_RESIZE=w,h`: the frontmost form resized (Width, Height)
 //!   as a user dragging its border would, before the events.
 //! - `RAPIDR_TEST_SPLIT=splitter:delta`: a QSPLITTER dragged by `delta`.
+//! - `RAPIDR_TEST_NOFOCUS=1`: forms show with nothing focused ([`no_focus`]).
 //! - `RAPIDR_TEST_FILE_DIALOG=a;b`: what Open/Save dialogs pick (empty:
 //!   Cancel).
 //! - `RAPIDR_TEST_COLOR_DIALOG=255;` / `RAPIDR_TEST_FONT_DIALOG=…`: what
@@ -48,6 +49,13 @@ pub fn var(name: &str) -> Option<String> {
         return found;
     }
     std::env::var(name).ok()
+}
+
+/// `RAPIDR_TEST_NOFOCUS=1`: forms show with nothing focused (no focus
+/// rectangle, caret or AutoSelect), as RapidR Studio's designer shows them —
+/// what `tools/visual/designer_wysiwyg.py` compares the designer with.
+pub fn no_focus() -> bool {
+    var("RAPIDR_TEST_NOFOCUS").is_some_and(|v| !v.is_empty() && v != "0")
 }
 
 /// A GUI test drives the program (`RAPIDR_CAPTURE` or `RAPIDR_TEST_EVENTS`):
@@ -117,6 +125,9 @@ pub enum Action {
     /// `__key_N`: virtual key N pressed and released with the component
     /// focused.
     Key(i64),
+    /// (I4) `__key_N_S`: virtual key N with RapidQ's Shift state S held
+    /// (ssShift 256, ssCtrl 16, ssAlt 1, added: `__key_90_16` is Ctrl+Z).
+    KeyWith(i64, i64),
     /// `__mousedown_x_y`, `__mouseup_x_y`, `__mousemove_x_y`: the mouse at
     /// (x, y) in the component (a press is a single click).
     Mouse(Mouse, i64, i64),
@@ -169,7 +180,10 @@ pub fn parse_event(item: &str) -> Option<TestEvent> {
         .into_iter()
         .find_map(|(p, kind)| nums(p).and_then(|n| <[i64; 2]>::try_from(n).ok()).map(|[x, y]| (kind, x, y)));
     let double = nums("__dblclick_").and_then(|n| <[i64; 2]>::try_from(n).ok());
-    let action = if let Some(i) = one("__node_") {
+    let key_with = nums("__key_").and_then(|n| <[i64; 2]>::try_from(n).ok());
+    let action = if let Some([vk, state]) = key_with {
+        Action::KeyWith(vk, state)
+    } else if let Some(i) = one("__node_") {
         Action::Node(i)
     } else if event == "__edit" {
         Action::Edit
@@ -368,7 +382,8 @@ mod tests {
     #[test]
     fn numbers_that_dont_parse_are_skipped() {
         assert_eq!(act("e.__key_65_x"), Action::Key(65));
-        assert_eq!(act("e.__key_1_2"), Action::Ignored);
+        assert_eq!(act("e.__key_90_16"), Action::KeyWith(90, 16));
+        assert_eq!(act("e.__key_1_2_3"), Action::Ignored);
         assert_eq!(act("e.__key_"), Action::Ignored);
         assert_eq!(act("c.__mousedown_5"), Action::Ignored);
         assert_eq!(act("c.__mousewheel_1_2"), Action::Ignored);

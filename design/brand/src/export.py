@@ -23,16 +23,17 @@ ICONS = os.path.join(BRAND, "icons")
 APPS = {
     "ide": ("app-ide-macos", "app-ide-full"),
     "runtime": ("app-runtime-macos", "app-runtime-full"),
+    "program": ("app-program-macos", "app-program-full"),
 }
 FILES = ("rr", "bas", "rrbc")
 HINTED = (16, 20, 22, 24, 32)
 
 # Names the release packaging uses.
-MAC_NAMES = {"ide": "RapidR", "runtime": "RapidR-Runtime",
+MAC_NAMES = {"ide": "RapidR", "runtime": "RapidR-Runtime", "program": "RapidR-App",
              "rr": "RapidR-Source", "bas": "BASIC-Source", "rrbc": "RapidR-Program"}
-WIN_NAMES = {"ide": "rapidr-ide", "runtime": "rapidr-runtime",
+WIN_NAMES = {"ide": "rapidr-ide", "runtime": "rapidr-runtime", "program": "rapidr-app",
              "rr": "rapidr-source", "bas": "basic-source", "rrbc": "rapidr-program"}
-LINUX = {"ide": ("apps", "rapidr-ide"), "runtime": ("apps", "rapidr-runtime"),
+LINUX = {"ide": ("apps", "rapidr-ide"), "runtime": ("apps", "rapidr-runtime"), "program": ("apps", "rapidr-app"),
          "rr": ("mimetypes", "text-x-rapidr"), "bas": ("mimetypes", "text-x-rapidq-basic"),
          "rrbc": ("mimetypes", "application-x-rapidr-bytecode")}
 

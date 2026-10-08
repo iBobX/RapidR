@@ -1,6 +1,6 @@
 // PRINT output on the page of an exported web bundle: the bundle's loader
-// installs web-ide/bundle_console.js, which renders what the program prints
-// (CLS / COLOR / LOCATE included) with web-ide/ansi_screen.js.
+// installs bundle_console.js (interpreter/rapidr-webbundle/web), which renders
+// what the program prints (CLS / COLOR / LOCATE included) with ansi_screen.js.
 //
 // Usage (repo root, after building ./rapidr and tools/build_web_artifacts.sh,
 // with the repo served on http://localhost:8765):  node tests/web_bundle_console.mjs

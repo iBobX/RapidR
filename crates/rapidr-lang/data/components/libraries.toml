@@ -5,6 +5,7 @@ group = "Libraries"
 
 [[component]]
 name = "QOLECONTAINER"
+display = "OleContainer"
 rapidq = "QOLECONTAINER"
 kind = "planned"
 visual = true
@@ -50,6 +51,7 @@ events = [
 
 [[component]]
 name = "QOLEOBJECT"
+display = "OleObject"
 rapidq = "QOLEOBJECT"
 kind = "planned"
 visual = false
@@ -68,6 +70,7 @@ events = []
 
 [[component]]
 name = "QDOCKFORM"
+display = "DockForm"
 rapidq = "QDOCKFORM"
 from = "QDockForm.inc"
 kind = "library"
@@ -113,6 +116,7 @@ events = [
 
 [[component]]
 name = "QDIRLISTVIEW"
+display = "DirListView"
 rapidq = "QDIRLISTVIEW"
 from = "QDirListView.inc"
 kind = "library"
@@ -193,6 +197,7 @@ events = [
 
 [[component]]
 name = "QTHREAD"
+display = "Thread"
 rapidq = "QTHREAD"
 kind = "planned"
 visual = false
@@ -210,6 +215,7 @@ events = [
 
 [[component]]
 name = "QTRANSIMAGE"
+display = "TransImage"
 rapidq = "QTRANSIMAGE"
 kind = "planned"
 visual = true

@@ -3,6 +3,7 @@ group = "Direct3D (retained mode)"
 
 [[component]]
 name = "RD3DFRAME"
+display = "D3DFrame"
 rapidq = "QD3DFRAME"
 visual = false
 doc = "A node of a Direct3D retained-mode scene: it has a position, orientation and motion, and holds meshes, lights and child frames. RapidR draws the scene with its own renderer."
@@ -37,6 +38,7 @@ events = []
 
 [[component]]
 name = "RD3DMESHBUILDER"
+display = "D3DMeshBuilder"
 rapidq = "QD3DMESHBUILDER"
 visual = false
 doc = "Builds a 3D mesh: load a `.X` model or add vertices and faces, then scale, colour and texture it before adding it to a frame."
@@ -65,6 +67,7 @@ events = []
 
 [[component]]
 name = "RD3DMESH"
+display = "D3DMesh"
 rapidq = "QD3DMESH"
 visual = false
 doc = "A finished 3D mesh, made by a mesh builder, ready to add to frames."
@@ -80,6 +83,7 @@ events = []
 
 [[component]]
 name = "RD3DFACE"
+display = "D3DFace"
 rapidq = "QD3DFACE"
 visual = false
 doc = "One polygon of a 3D mesh: its vertices and colour, added to a mesh builder."
@@ -98,6 +102,7 @@ events = []
 
 [[component]]
 name = "RD3DLIGHT"
+display = "D3DLight"
 rapidq = "QD3DLIGHT"
 visual = false
 doc = "A light in the 3D scene (ambient, directional, point or spot), with its colour, range and cone."
@@ -114,6 +119,7 @@ events = []
 
 [[component]]
 name = "RD3DTEXTURE"
+display = "D3DTexture"
 rapidq = "QD3DTEXTURE"
 visual = false
 doc = "A picture laid onto 3D meshes as their surface."
@@ -125,6 +131,7 @@ events = []
 
 [[component]]
 name = "RD3DVISUAL"
+display = "D3DVisual"
 rapidq = "QD3DVISUAL"
 visual = false
 doc = "Something a 3D frame can show (a mesh or a mesh builder), as Direct3D's visual."
@@ -136,6 +143,7 @@ events = []
 
 [[component]]
 name = "RD3DWRAP"
+display = "D3DWrap"
 rapidq = "QD3DWRAP"
 visual = false
 doc = "How a texture is laid over a mesh (flat, cylinder, sphere or chrome), applied to it with Apply or ApplyRelative."
@@ -148,6 +156,7 @@ events = []
 
 [[component]]
 name = "RD3DVECTOR"
+display = "D3DVector"
 rapidq = "QD3DVECTOR"
 visual = false
 doc = "A 3D vector (X, Y, Z), for positions and directions in the 3D scene."
@@ -164,6 +173,7 @@ events = []
 
 [[component]]
 name = "RD3DANIMATION"
+display = "D3DAnimation"
 rapidq = "QD3DANIMATION"
 visual = false
 doc = "Direct3D's keyframe animation, as RapidQ declares it: a handle with a Parent and no other member. Nothing in RapidQ makes or plays one."
@@ -175,6 +185,7 @@ events = []
 
 [[component]]
 name = "RD3DANIMATIONSET"
+display = "D3DAnimationSet"
 rapidq = "QD3DANIMATIONSET"
 visual = false
 doc = "Direct3D's set of animations, as RapidQ declares it: a handle with a Parent and no other member. Nothing in RapidQ makes or plays one."

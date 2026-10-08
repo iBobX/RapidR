@@ -26,11 +26,6 @@ RLANGUAGESERVICE = "languageservice"
 # The IDE's public components (docs/ide-components.md §3) and the linked data
 # components of stage I7 (§4), RAI (Phase 5).
 RFORMDESIGNER = "formdesigner"
-RPROPERTYINSPECTOR = "propertyinspector"
-RPROJECTTREE = "projecttree"
-RTOOLBOX = "toolbox"
-ROUTPUTCONSOLE = "outputconsole"
-RCOMMANDPALETTE = "commandpalette"
 RDIFFVIEW = "diffview"
 RCOMPONENTTRAY = "componenttray"
 RTABORDEREDITOR = "tabordereditor"

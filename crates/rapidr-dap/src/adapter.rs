@@ -407,9 +407,8 @@ impl<W: Write> Adapter<W> {
             _ => std::env::current_dir().map_err(|e| e.to_string())?,
         };
         let program = base.join(&program);
-        if !program.is_file() {
-            return Err(format!("{}: no such file", program.display()));
-        }
+        // (a launch names a RapidR program, never another file: SEC-18)
+        crate::confine::check_program(&program)?;
         self.program_dir = program.parent().map(Path::to_path_buf);
         self.remember_path(&program);
         // (the files it includes, as the preprocessor finds them)
@@ -426,11 +425,17 @@ impl<W: Write> Adapter<W> {
         };
         let mut command = crate::program_end_command(&program, &launch.args).map_err(|e| format!("rapidr: {e}"))?;
         command.current_dir(&cwd).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
-        for (name, value) in &launch.env {
+        // (the program's environment as the launch asks, but never what
+        // makes a process load other code: SEC-18, confine::env_allowed)
+        let (env, refused) = crate::confine::debuggee_env(&launch.env);
+        for (name, value) in &env {
             match value {
                 Some(v) => command.env(name, v),
                 None => command.env_remove(name),
             };
+        }
+        if !refused.is_empty() {
+            self.output("console", &format!("rapidr dap: not passed to the program (they change how a process loads code, or aren't variable names): {}\n", refused.join(", ")));
         }
         let mut child = command.spawn().map_err(|e| format!("{}: {e}", program.display()))?;
         let stdout = child.stdout.take().expect("piped stdout");
