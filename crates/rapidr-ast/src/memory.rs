@@ -408,7 +408,9 @@ impl Pass<'_> {
                 }
                 let t = p.type_name.to_ascii_uppercase();
                 let string = t.starts_with("STRING");
-                if !(string || p.by_ref) {
+                // (RapidQ's QRECT / QNOTIFYICONDATA are objects the runtime
+                // hands over by address itself: rapidr_runtime_core::ffi)
+                if !(string || p.by_ref) || matches!(t.as_str(), "QRECT" | "RRECT" | "QNOTIFYICONDATA" | "RNOTIFYICONDATA") {
                     continue;
                 }
                 let variable = match &*a {

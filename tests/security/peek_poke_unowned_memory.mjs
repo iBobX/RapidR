@@ -78,6 +78,27 @@ refused("memcpy_to_unowned", "DIM n AS LONG\nMEMCPY 12345678, VARPTR(n), 4", "is
 refused("memcpy_overrun", "DIM n AS LONG\nDIM m AS LONG\nMEMCPY VARPTR(m), VARPTR(n), 64", "past the end");
 refused("memset_unowned", "MEMSET 99999999, 0, 16", "isn't memory of this program");
 refused("varptr_string_unowned", "x$ = VARPTR$(305419896)", "isn't memory of this program");
+// QMEMORYSTREAM's MemCopyFrom / MemCopyTo: the same model. An object
+// method's error is reported and the program goes on (as every RapidR
+// object method's); nothing is copied, Position stays.
+function reported(name, src, want, out) {
+  const bas = join(dir, `${name}.bas`), rrbc = join(dir, `${name}.rrbc`);
+  writeFileSync(bas, `PRINT "before"\n${src}\n`);
+  const c = spawnSync(RAPIDR, ["build-bc", bas, "-o", rrbc], { encoding: "utf8", env });
+  if (c.status !== 0) return check(name, false, `(didn't compile: ${c.stderr.trim()})`);
+  const r = spawnSync(RAPIDR, ["run-bc", rrbc], { encoding: "utf8", env, timeout: 30_000 });
+  const err = r.stderr || "";
+  check(
+    `${name}: refused, nothing copied`,
+    r.status === 0 && r.signal === null && r.stdout.includes(out) && err.includes(want),
+    `(status ${r.status}, signal ${r.signal}, stdout ${JSON.stringify(r.stdout)}, stderr ${JSON.stringify(err.trim())})`,
+  );
+}
+reported("memcopyfrom_kuser_shared", "DIM M AS QMEMORYSTREAM\nM.MemCopyFrom(&H7FFE0000, 16)\nPRINT \"size\"; M.Size", "isn't memory of this program", "size0");
+reported("memcopyto_top_of_2gb", "DIM M AS QMEMORYSTREAM\nM.WriteStr(\"abcd\", 4)\nM.Position = 0\nM.MemCopyTo(&H7FFFFFF0, 4)\nPRINT \"pos\"; M.Position", "isn't memory of this program", "pos0");
+reported("memcopyto_overrun", "DIM n AS LONG\nDIM M AS QMEMORYSTREAM\nM.WriteStr(STRING$(64, 65), 64)\nM.Position = 0\nM.MemCopyTo(VARPTR(n), 64)\nPRINT \"n\"; n", "past the end", "n0");
+reported("memcopyfrom_pointer_stand_in", "DIM M AS QMEMORYSTREAM\nM.MemCopyFrom(&HD1E00000, 4)\nPRINT \"size\"; M.Size", "memory a DLL returned", "size0");
+reported("memcopyto_huge_count", "DIM n AS LONG\nDIM M AS QMEMORYSTREAM\nM.MemCopyTo(VARPTR(n), 1E15)\nPRINT \"n\"; n", "more than a stream holds", "n0");
 // Hardware ports: always a run-time error.
 refused("inp_port", "x = INP(&H378)", "hardware port");
 // A DLL call where there are no Windows DLLs: the error names the function.

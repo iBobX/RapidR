@@ -641,6 +641,17 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   2026-10-06 should be cloned again.
 
 ### Fixed
+- **`Form.Center` centres the window** when the form shows (`Show`,
+  `ShowModal`), as RC.EXE does: Left / Top read 0 until then and the
+  screen's middle after, by the form's outer Width × Height (RC.EXE and
+  RapidR both put a 300 × 200 form at 714, 401 on the VM's screen). Every
+  centred form opened in the screen's top-left corner, on every desktop
+  (the position was sent before the window existed).
+- RapidQ's QRECT given to a DLL (`GetClientRect(hWnd, r AS QRECT)`) is a
+  RECT, and what the DLL wrote is in the QRECT after the call (the
+  record's name went over as a string); a QNOTIFYICONDATA, whose handles
+  are 64 bits in Windows' 64-bit structure, is refused with an error that
+  says so.
 - A routine defined with a dotted name (`SUB Draw.3DBox`, RapidQ's
   console/3dbox example) is called in native builds as in the interpreter
   and RC.EXE (it went to an object method and printed a warning).

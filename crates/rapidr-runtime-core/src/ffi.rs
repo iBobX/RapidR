@@ -25,6 +25,7 @@ use libloading::Library;
 use crate::value::dll::{self, Param, Spec};
 use crate::value::memory;
 use crate::value::objects::codec::string_to_bytes;
+use crate::value::objects::{self, record};
 use crate::value::{v_dbl, v_int, v_null, v_str, Value};
 
 thread_local! {
@@ -211,9 +212,27 @@ pub fn dll_call(lib: &str, name: &str, spec: &str, args: &[Value]) -> Result<Val
     // BYREF LONGs that are a variable of their own: where a DLL may write a
     // 64-bit pointer (a handle's or an object's out-parameter)
     let mut out_longs: Vec<usize> = Vec::new();
+    // QRECTs handed over: (the record, its RECT among `temps`).
+    let mut rects: Vec<(String, usize)> = Vec::new();
     for (i, a) in args.iter().enumerate() {
         let p = &spec.params[i];
         let slot = match a {
+            // RapidQ's QRECT (`GetClientRect(h, r AS QRECT)`): a RECT of its
+            // four LONGs — the same on 64-bit Windows — what the DLL wrote
+            // stored back into it after the call. (A QNOTIFYICONDATA's
+            // handles are 64 bits wide there: refused, not passed wrong;
+            // Shell_NotifyIcon itself is RapidR's tray, rapidr_value::tray.)
+            Value::String(id) if objects::is_record(id) => {
+                let fields = objects::with_record(id, |r| (r.kind, ["left", "top", "right", "bottom"].map(|f| r.number(f)))).unwrap_or((record::Kind::NotifyIconData, [0; 4]));
+                if fields.0 != record::Kind::Rect {
+                    return Err(format!("'{name}': a QNOTIFYICONDATA can't be handed to a DLL by a 64-bit program (Windows' NOTIFYICONDATA has 64-bit handles there); declare a TYPE with the fields the function expects"));
+                }
+                let mut b: Vec<u8> = fields.1.iter().flat_map(|&n| (n as i32).to_le_bytes()).collect();
+                b.resize(b.len() + TEMP_SLACK, 0);
+                temps.push(b);
+                rects.push((id.clone(), temps.len() - 1));
+                Slot::Int(temps.last_mut().unwrap().as_mut_ptr() as i64)
+            }
             Value::String(s) => {
                 let mut b = string_to_bytes(s);
                 b.push(0);
@@ -318,6 +337,12 @@ pub fn dll_call(lib: &str, name: &str, spec: &str, args: &[Value]) -> Result<Val
     }
     // What the DLL wrote into the program's memory.
     memory::read_back(blocks);
+    for (id, t) in &rects {
+        for (k, f) in ["left", "top", "right", "bottom"].iter().enumerate() {
+            let n = i32::from_le_bytes(temps[*t][k * 4..k * 4 + 4].try_into().unwrap_or([0; 4]));
+            objects::set(id, f, &v_int(n as i64));
+        }
+    }
     // (BYREF numbers given as values: nothing to write back to)
     drop(temps);
 
@@ -905,6 +930,18 @@ mod tests {
         let e = dll_call(lib, "abs", "LONG|LONG:v", &[]).unwrap_err();
         assert_eq!(e, "'abs' takes 1 argument, 0 given (its DECLARE)");
         assert!(dll_call(lib, "abs", "LONG|LONG:v", &[v_int(1), v_int(2)]).is_err());
+        // A QRECT: a RECT of four LONGs, what the library wrote stored back
+        // into the record (memset fills its 16 bytes; strlen sees them).
+        assert!(objects::create("ffi_r", "RRECT"));
+        objects::set("ffi_r", "left", &v_int(65)).unwrap().unwrap();
+        assert_eq!(dll_call(lib, "strlen", "LONG|QRECT:v", &[v_str("ffi_r")]).unwrap(), v_int(1));
+        dll_call(lib, "memset", "LONG|QRECT:v,LONG:v,LONG:v", &[v_str("ffi_r"), v_int(1), v_int(16)]).unwrap();
+        for f in ["left", "top", "right", "bottom"] {
+            assert_eq!(objects::get("ffi_r", f).unwrap(), v_int(0x0101_0101), "{f}");
+        }
+        assert!(objects::create("ffi_n", "RNOTIFYICONDATA"));
+        let e = dll_call(lib, "strlen", "LONG|QNOTIFYICONDATA:v", &[v_str("ffi_n")]).unwrap_err();
+        assert!(e.contains("QNOTIFYICONDATA can't be handed to a DLL"), "{e}");
         // A SUB handed over as a callback is refused before the call.
         let e = dll_call(lib, "abs", "LONG|LONG:v", &[v_str(&format!("{}WndProc", dll::CALLBACK_MARKER))]).unwrap_err();
         assert!(e.starts_with("'abs' is given CODEPTR(WndProc), a callback"), "{e}");

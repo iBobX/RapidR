@@ -87,6 +87,14 @@ within 32 bits for exactly this: `GetDC`, `LoadCursorFromFile`,
 - x86 machine code a program wrote into a string or a buffer and runs with
   `CallWindowProc(VARPTR(code$), …)` (RapidQ's way to run assembler) can't
   run in a 64-bit program: a clear run-time error before Windows is called.
+- RapidQ's own QRECT given to a DLL (`GetClientRect(hWnd, r AS QRECT)`,
+  `include/qfocus.inc`, `commctrl32.inc`) is a RECT of its four LONGs —
+  the same on 64-bit Windows — and what the DLL wrote is stored back into
+  it (before, the record's name went over as a string and the API wrote
+  into a copy). A QNOTIFYICONDATA has 64-bit handles in Windows' 64-bit
+  NOTIFYICONDATA, so handing one to a DLL is refused with an error that
+  says so; `Shell_NotifyIcon` itself is RapidR's tray on every system
+  (`rapidr_value::tray`).
 - A TYPE is passed with RapidQ's packed 32-bit layout. Structures whose
   fields Windows' 64-bit version widens — pointers and handles declared as
   LONG (`TCITEM.pszText`, `SECURITY_ATTRIBUTES.lpSecurityDescriptor`,
@@ -180,6 +188,44 @@ including the web (the memory model is shared, no real memory is involved).
 block, and a page outside 0–7, is a run-time error that says so — never a
 crash. (RapidQ reads whatever lies there: `PEEK(100000)` printed 0.)
 
+**QMEMORYSTREAM's MemCopyFrom / MemCopyTo** (RC.EXE: `memcopy` probes,
+`tests/conformance/cases/memstream_memcopy.bas`) are the same model seen
+from a stream: `Mem.MemCopyFrom(addr, n)` writes n bytes from `addr` at
+Position (a gap past the end zero-filled, nothing before the start) and
+moves Position on; `Mem.MemCopyTo(addr, n)` copies n bytes from Position to
+`addr` — zeros for bytes past the data, where RapidQ copied whatever
+followed its buffer — and moves Position by n, past the end too, and back
+for a negative n, which copies nothing (all as RC.EXE). `addr` must be the
+program's own memory (VARPTR of a variable, an element, a TYPE, a
+stream's Pointer); the count is checked against that block *before*
+anything is copied, and the statement copies the variable's mirror back,
+as MEMCPY's does. `SaveUDTArray` / `LoadUDTArray` (one argument, a TYPE's
+array field: `Mem.SaveUDTArray(t.Items)`) write and read every element as
+RapidQ lays them out; loading more than the stream holds is RapidQ's
+"Stream read error". Where RapidQ raised an exception and ended (an address
+it couldn't read, that read error) RapidR reports the error, as its object
+methods do, and copies nothing.
+
+Memory a DLL allocated (`GlobalLock`, `HeapAlloc`: a stand-in, §1) isn't
+the program's, so PEEK, POKE, MEMCPY and MemCopyFrom / MemCopyTo refuse it
+by name — Robert's decision: RapidR's own memory functions never touch
+memory they can't check. A program reaches it the way a C program does,
+through the DLL, as it declares: on Windows
+
+```
+DECLARE SUB CopyMemory LIB "kernel32" ALIAS "RtlMoveMemory" _
+    (BYVAL Dest AS LONG, BYVAL Src AS LONG, BYVAL n AS LONG)
+CopyMemory VARPTR(buffer$), p, 5     ' p: GlobalLock's pointer
+```
+
+copies between the DLL's memory and the program's (`VARPTR` is real there,
+the stand-in turns back into the pointer). A program that DECLAREs a
+routine named `RtlMoveMemory` gets that DLL routine; RapidR's own
+`RTLMOVEMEMORY dest, src, n` (MEMCPY of the two variables, on every
+system) is only for a program that doesn't declare it — before, the
+rewrite also took declared ones and copied `BYVAL VARPTR(…)` arguments
+between temporaries without a word.
+
 `INP` / `OUT` / `INPW` / `OUTW` (hardware ports) are a run-time error on
 every system — as on every Windows since 2000, where RapidQ's own INP
 raises `EPrivilege` — not a compile error: the program runs up to that
@@ -231,6 +277,19 @@ What can't work, and says so by failing the Windows way (the API returns
   handler returns: `SetWindowPos` then `Form.Left` in the same SUB reads
   the old value, a later event the new one.
 
+### Cursors a program loads through Windows
+
+`Screen.Cursors(i) = LoadCursorFromFile("x.cur")` (or `LoadCursor` of a
+resource DLL's cursor) stores the HCURSOR as RapidQ's TScreen.Cursors does,
+and a form or control with `Cursor = i` shows it: on Windows the winit host
+makes a cursor of that HCURSOR's pixels and hot spot (`wincursor.rs`;
+an `.ani` file shows its first frame), so a `.cur` looks as it does under
+RapidQ — checked against RC.EXE's build in the VM (§6): a `.cur` shown over
+a form, and `cursors/animated`, which loads twelve cursors from a resource
+DLL and steps `Form.Cursor` through them on a timer. `Screen.Cursors(i) = 0` puts the standard one back. On the other
+systems `LoadCursorFromFile` is a Windows function: the "Windows only"
+error, as every DLL call.
+
 ## 4. The lexer: `&hHE`
 
 RC.EXE reads a hex literal as the alphanumeric run after `&H` with the
@@ -248,6 +307,9 @@ RapidR's lexer does the same. (`&O` / `&B` aren't RapidQ's: `&oO7` printed
   the block's address), `materialize` / `read_back` around a call;
   PEEK / POKE on managed memory.
 - `rapidr_value::console` — the console pages, PEEK / POKE / PCOPY there.
+- `rapidr_value::objects::stream_ops` — MemCopyFrom / MemCopyTo,
+  SaveUDTArray / LoadUDTArray on the block registry; `rapidr_ast::stream_arrays`
+  gives the UDT array field's type.
 - `rapidr_runtime_core::ffi` — `dll_call(lib, alias, spec, args)`: loading,
   marshalling, the signature table, the crash filter. Native builds call
   it as `ffi::rp_dll_call`; the native VM host as the `__dll_call` builtin.
@@ -263,7 +325,9 @@ RapidR's lexer does the same. (`&O` / `&B` aren't RapidQ's: `&oO7` printed
   (`.expected-runtime-error`), `inp_port_error`, `dll_needs_windows`
   (skipped on Windows by its `' skip-on: win32` marker, where the call
   succeeds), `dll_missing_library`, `sendmessage_needs_windows`,
-  `sendmessage_declared`, `dotted_routine_calls`; unit tests in
+  `sendmessage_declared`, `dotted_routine_calls`, `dll_rtlmovememory_declared`,
+  `memstream_memcopy`, `stream_udt_arrays`, `filestream_bytes` (the
+  streams' expected output is RC.EXE's); unit tests in
   `rapidr_runtime_core::ffi` (the C library called with integers, doubles,
   SINGLEs, 11-argument mixes, a pointer written into a BYREF LONG) run on
   macOS and in the Windows 11 VM; `tests/security/peek_poke_unowned_memory.mjs`

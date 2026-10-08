@@ -325,7 +325,10 @@ that what RapidR itself hands a DLL is sized and alive, and that a sandboxed
 run can't call a DLL at all. The §6 checklist, item by item, has the answers;
 the regression tests are `tests/security/peek_poke_unowned_memory.mjs` (run by
 `tools/regress.sh security`) and the unit tests of `rapidr_runtime_core::ffi`
-and `rapidr_value::{memory, handles}` (on macOS and in the Windows 11 VM).
+and `rapidr_value::{memory, handles, objects::stream_ops}` (on macOS and in the
+Windows 11 VM). Second pass (same day): the streams' MemCopyFrom / MemCopyTo /
+UDT arrays on the same checked model, and a DECLAREd RtlMoveMemory no longer
+rewritten into RapidR's own copy (§6).
 
 What remains open: the IDE / MCP half of the gate (SEC-10's "native-privileged"
 project flag and its confirmation) — the runtime half, `RAPIDR_SANDBOX`, is in
@@ -505,6 +508,21 @@ For `crates/rapidr-runtime-core/src/ffi.rs`, `crates/rapidr-value/src/memory.rs`
       reported as that call's crash. No `CStr::from_ptr`.
 - [x] POKE (and MEMCPY / MEMSET) into a block is bounds-checked against what
       the block holds ("past the end").
+- [x] QMEMORYSTREAM's MemCopyFrom / MemCopyTo and the streams' SaveUDTArray /
+      LoadUDTArray (added in the second pass, `objects::stream_ops`) go
+      through the same block registry: the address is looked up (a DLL's
+      stand-in refused by name), the byte count checked against the block
+      *before* any buffer is made (`memory::check_room`; counts over 2 GB
+      refused, `usize` overflow impossible: `check_end` adds with
+      `checked_add`), a stream grows within its own limit. Tested by
+      `objects::stream_ops`'s unit tests (an unowned address, a run past the
+      end, 2^40 bytes) and `tests/security/peek_poke_unowned_memory.mjs`.
+- [x] A program that DECLAREs `RtlMoveMemory` gets the DLL's routine, as
+      declared — the program author's explicit power on Windows, the
+      "Windows only" error elsewhere; RapidR's own RTLMOVEMEMORY (managed
+      MEMCPY) is only for programs that don't declare it. That is the one
+      way to reach memory a DLL allocated, and it is the author's
+      declaration, not RapidR's.
 
 **Call ABI / signatures**
 - [x] The DECLARE's types pick the signature: each argument in an integer or a
