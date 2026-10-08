@@ -250,7 +250,7 @@ fn main() -> ExitCode {
             eprintln!("  rapidr notices [<os>-<arch>|web|tools-<os>] [-o FILE]  The third-party notices builds carry");
             eprintln!("  rapidr lsp                                       The language server (LSP, stdio): editors' IntelliSense");
             eprintln!("  rapidr dap                                       The debug adapter (DAP, stdio): editors' debugger");
-            eprintln!("  rapidr lang export --json|--prompt|--web-ide|--manual|--all  What the language registry generates");
+            eprintln!("  rapidr lang export --json|--prompt|--manual|--all  What the language registry generates");
             eprintln!("  rapidr lang conformance <dir> [--target desktop|web]  The registry's conformance programs");
             eprintln!("  rapidr import-rapidq <file|folder|.rrproj> [-o OUT_DIR] [--include DIR]  A copy of a RapidQ program with RapidR's names, and a report");
             eprintln!("  rapidr upgrade-names <file> [--dry-run]          RapidR's names in one of your own files (--dry-run: the diff only)");

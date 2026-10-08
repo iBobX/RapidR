@@ -1,4 +1,3 @@
-' xfail: web — the browser's output isn't a terminal: ANSI escape codes are dropped
 ' Console statements (RapidQ appendix C) as ANSI escape sequences: CLS,
 ' COLOR fg[, bg] (QBasic numbers), LOCATE row, col with omitted values,
 ' CSRLIN / POS(0), bare TIMER, and omitted arguments (INSTR(, a, b)).

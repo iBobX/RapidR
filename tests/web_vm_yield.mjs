@@ -1,54 +1,48 @@
 // The web VM gives the page a turn every few milliseconds (VmError::Yielded,
 // interpreter/rapidr-vm-host-web): a program that never waits — a busy
 // loop, a long computation — keeps running, and the page stays responsive
-// (it repaints, the IDE's Stop works). Program semantics don't change:
+// (it repaints, a debugger's requests are answered). Program semantics don't change:
 // events that arrive meanwhile wait until the program waits (DoEvents,
 // ShowModal, the end of main), as on the desktop.
-//   1. `cpuhog: GOTO cpuhog`: the IDE and the preview answer within a
-//      second, Stop stops it, and a new program then runs.
+//   1. `cpuhog: GOTO cpuhog`: the page answers within a second and
+//      repaints, the program can be stopped, and a new program then runs.
 //   2. A loop updating a label and printing a counter, then END: the final
 //      output is right, and intermediate states were visible meanwhile
 //      (the label's caption, printed lines, repaints).
 //   3. A click while main is busy runs its handler only once main waits
 //      (ShowModal) — or, in a loop with DoEvents, at a DoEvents.
+//   4. A busy handler: the page takes a second click, run after the first.
+//   5. The debugger (the session protocol, tests/web_run.mjs): a breakpoint
+//      after a long loop, Step Over a SUB that loops long.
 //
 // Usage (repo root, after tools/build_web_artifacts.sh, with the repo served
 // on http://localhost:8765):  node tests/web_vm_yield.mjs
-// (On the kernel host the preview's form is a window the kernel draws: the
-// test reads its accessibility mirror and clicks as the user does,
-// tests/web_kernel_page.mjs.)
+// (The program runs on the runtime's own page, tests/web_run.mjs; its form
+// is a window the kernel draws: the test reads its accessibility mirror and
+// clicks as the user does, tests/web_kernel_page.mjs.)
 
 import { chromium } from "playwright";
 import * as k from "./web_kernel_page.mjs";
+import { openRunner } from "./web_run.mjs";
 
-const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 let failed = 0;
 const ok = (cond, msg) => { console.log(`${cond ? "✓" : "✗"} ${msg}`); if (!cond) failed++; };
 
 const browser = await chromium.launch();
-const page = await browser.newPage();
-const pageErrors = [];
-page.on("pageerror", (e) => pageErrors.push(e.message));
-await page.goto(`${URL_BASE}/web-ide/index.html`, { waitUntil: "load" });
-await page.waitForFunction(() => document.getElementById("status")?.textContent?.includes("ready"), { timeout: 15000 });
+const r = await openRunner(browser);
+const page = r.page;
+const pageErrors = r.pageErrors;
 
-/// The output tab's lines (it also lists the program run: compare whole lines).
-const output = () => page.evaluate(() => (document.querySelector('.obody[data-tab="output"]')?.innerText || "").split("\n").map((l) => l.trim()));
-const errors = () => page.evaluate(() => document.querySelector('.obody[data-tab="errors"]')?.innerText || "");
-/// Runs `lines` in the IDE preview (the program as written, no designer form).
+/// The output's lines.
+const output = async () => r.lines.map((l) => l.trim());
+const errors = async () => r.errors();
+/// Runs `lines` as written on the runtime's page (tests/web_run.mjs).
 async function run(lines) {
-  await page.evaluate((src) => {
-    window.RapidR.runCommand("run.stop");
-    document.querySelector('.obody[data-tab="output"]').textContent = "";
-    window.RapidR.state.project.rawSource = src;
-    window.RapidR.runCommand("run.start");
-  }, lines.join("\n") + "\n");
+  await r.run(lines.join("\n") + "\n");
 }
-const frameOf = () => page.frames().find((f) => f.url().includes("preview.html"));
-/// The preview's frame (once the run has loaded it).
+/// The program's page (its windows).
 async function preview() {
-  for (let waited = 0; !frameOf() && waited < 10000; waited += 100) await page.waitForTimeout(100);
-  return frameOf();
+  return page;
 }
 /// How long `promise` takes, in ms (Infinity after `limit` ms).
 async function latency(promise, limit = 5000) {
@@ -69,12 +63,10 @@ await run(['PRINT "hog start"', "cpuhog: GOTO cpuhog"]);
 ok(await waitFor(async () => (await output()).includes("hog start")), "the busy program started");
 await page.waitForTimeout(500);
 const ideMs = await latency(page.evaluate(() => 1));
-ok(ideMs < 1000, `the IDE answers while the program runs (${ideMs} ms)`);
-const frameMs = await latency((await preview()).evaluate(() => 1));
-ok(frameMs < 1000, `the preview answers while the program runs (${frameMs} ms)`);
+ok(ideMs < 1000, `the page answers while the program runs (${ideMs} ms)`);
 const frames = await (await preview()).evaluate(() => new Promise((r) => { let n = 0; const t0 = performance.now(); const f = () => (performance.now() - t0 < 500 ? (n++, requestAnimationFrame(f)) : r(n)); requestAnimationFrame(f); })).catch(() => 0);
-ok(frames >= 10, `the preview repaints while the program runs (${frames} frames in 0.5 s)`);
-const stopMs = await latency(page.evaluate(() => window.RapidR.runCommand("run.stop")));
+ok(frames >= 10, `the page repaints while the program runs (${frames} frames in 0.5 s)`);
+const stopMs = await latency(r.stop());
 ok(stopMs < 1000, `Stop works while the program runs (${stopMs} ms)`);
 await run(['PRINT "second run "; 6 * 7']);
 ok(await waitFor(async () => (await output()).includes("second run 42")), "a new program runs after the stopped one");
@@ -108,7 +100,7 @@ for (let i = 0; i < 40 && !(await output()).includes("[RapidR] Program ended.");
   if (c) captions.add(c);
   // (sampled before the output is read: a sample taken after the END —
   // the output then says so — doesn't count)
-  const done = await (await preview()).evaluate(() => window.__rapidr_rt.rapidr_main_done()).catch(() => "?");
+  const done = await (await preview()).evaluate(() => window.rr.rapidr_main_done()).catch(() => "?");
   const lines = await output();
   if (!lines.includes("[RapidR] Program ended.")) mainDone.add(done);
   for (const l of lines) if (l.startsWith("tick")) printed.add(l);
@@ -119,7 +111,7 @@ ok(out2.includes("done counting") && out2.includes("[RapidR] Program ended."), `
 ok([...captions].filter((c) => c.startsWith("count")).length >= 3, `the label's caption was seen changing while the loop ran (${[...captions].slice(0, 5).join(" | ")} …)`);
 ok(printed.size >= 2, `printed lines came while the loop ran (${printed.size} seen before the end)`);
 ok(mainDone.has(false) && !mainDone.has(true), `main isn't done while it runs between time slices (${[...mainDone]})`);
-ok((await (await preview()).evaluate(() => window.__rapidr_rt.rapidr_main_done())) === true, "main is done after END");
+ok((await (await preview()).evaluate(() => window.rr.rapidr_main_done())) === true, "main is done after END");
 ok(out2.includes("partial line") && !out2.includes("part"), "a line printed across time slices stays one line");
 ok(!(await errors()).includes("error"), "no run-time error");
 
@@ -194,46 +186,39 @@ await k.waitFor(await preview(), "Button1", 10000);
 await k.click(await preview(), "Button1");
 await page.waitForTimeout(200);
 const handlerMs = await latency(k.click(await preview(), "Button1", null, { timeout: 1500 }));
-ok(handlerMs < 1000, `the preview takes a click while a handler runs (${handlerMs} ms)`);
+ok(handlerMs < 1000, `the page takes a click while a handler runs (${handlerMs} ms)`);
 ok(await waitFor(async () => (await output()).includes("end2"), 8000), "both clicks' handlers ran");
 const handlerLines = (await output()).filter((l) => /^(start|end)\d$/.test(l));
 ok(handlerLines.join() === "start1,end1,start2,end2", `one handler after the other (${handlerLines.join()})`);
 
 // 5. The debugger: a breakpoint after a long loop, and Step Over a SUB that
 // loops long, while the program runs on between time slices.
-await page.evaluate(() => {
-  window.RapidR.runCommand("run.stop");
-  document.querySelector('.obody[data-tab="output"]').textContent = "";
-  delete window.RapidR.state.project.rawSource;
-  const form = window.RapidR.state.project.forms[0];
-  form.code = { handlers: {}, source: [
-    "DIM n AS INTEGER",
-    "SUB Spin",
-    "  FOR i = 1 TO 300000: n = n + 1: NEXT",
-    "END SUB",
-    "FOR i = 1 TO 300000: n = n + 1: NEXT",
-    'PRINT "after loop"; n',
-    "Spin",
-    'PRINT "after spin"; n',
-  ].join("\n") };
-  window.RapidR.state.breakpoints.clear();
-  window.RapidR.state.breakpoints.add(`${form.id}:6`);
-});
-await page.click("#btn-debug");
-const paused = () => page.waitForFunction(() => window.RapidR.state.isDebugging && window.RapidR.state.isDebugPaused, null, { timeout: 20000 }).then(() => true, () => false);
-ok(await paused(), "the debugger stops at the breakpoint after the long loop");
-ok((await page.evaluate(() => window.RapidR.state.currentPausedLineInFile)) === 6, `… on its line (${await page.evaluate(() => window.RapidR.state.currentPausedLineInFile)})`);
-await page.click("#btn-stepover");
-ok(await paused(), "Step Over");
-await page.click("#btn-stepover");
+await r.debug([
+  "DIM n AS INTEGER",
+  "SUB Spin",
+  "  FOR i = 1 TO 300000: n = n + 1: NEXT",
+  "END SUB",
+  "FOR i = 1 TO 300000: n = n + 1: NEXT",
+  'PRINT "after loop"; n',
+  "Spin",
+  'PRINT "after spin"; n',
+].join("\n"), { breakpoints: [6] });
+let stop = await r.waitStopped();
+ok(!!stop, "the debugger stops at the breakpoint after the long loop");
+ok(stop?.line === 6, `… on its line (${stop?.line})`);
+r.send({ type: "stepOver" });
+await page.waitForTimeout(50);
+ok(!!(await r.waitStopped()), "Step Over");
+r.send({ type: "stepOver" });
 await page.waitForTimeout(50);
 const debugMs = await latency(page.evaluate(() => 1));
-ok(debugMs < 1000, `the IDE answers while the stepped SUB runs (${debugMs} ms)`);
-ok(await paused(), "Step Over a SUB that loops long stops after it");
-ok((await page.evaluate(() => window.RapidR.state.currentPausedLineInFile)) === 8, `… on the next line (${await page.evaluate(() => window.RapidR.state.currentPausedLineInFile)})`);
+ok(debugMs < 1000, `the page answers while the stepped SUB runs (${debugMs} ms)`);
+stop = await r.waitStopped();
+ok(!!stop, "Step Over a SUB that loops long stops after it");
+ok(stop?.line === 8, `… on the next line (${stop?.line})`);
 const debugOut = await output();
 ok(debugOut.includes("after loop300000") && !debugOut.some((l) => l.startsWith("after spin")), `output so far (${JSON.stringify(debugOut.slice(-3))})`);
-await page.click(".tb.stop");
+r.send({ type: "stop" });
 
 ok(pageErrors.length === 0, `no page errors (${pageErrors.join(" / ")})`);
 await browser.close();

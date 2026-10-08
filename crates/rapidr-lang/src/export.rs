@@ -1,7 +1,6 @@
 //! Everything generated from the registry: `rapidr lang export`.
 //!
 //! - [`json`]: the whole registry as JSON (the IDE's completion data);
-//! - [`web_ide_js`]: the web IDE's `lang-data.js` (until web-ide/ goes);
 //! - [`manual`]: the user manual's reference pages (docs/manual/reference);
 //! - [`prompt`]: the language section of the AI system prompt.
 
@@ -208,203 +207,6 @@ pub fn json() -> String {
     out.push_str("}\n");
     out
 }
-
-// --- the JS language data (VS Code, the web IDE) ---------------------------------
-
-/// A JS single-quoted string.
-fn js_str(s: &str) -> String {
-    let mut out = String::from("'");
-    for c in s.chars() {
-        match c {
-            '\'' => out.push_str("\\'"),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            c => out.push(c),
-        }
-    }
-    out.push('\'');
-    out
-}
-
-/// A snippet's placeholder text for a parameter (VS Code / Monaco syntax).
-fn snippet(name: &str, params: &[Param]) -> String {
-    let escaped = name.replace('$', "\\\\$");
-    let required: Vec<&Param> = params.iter().filter(|p| !p.optional).collect();
-    if required.is_empty() {
-        return escaped;
-    }
-    let args = required.iter().enumerate().map(|(i, p)| format!("${{{}:{}}}", i + 1, p.name.trim_end_matches("()"))).collect::<Vec<_>>().join(", ");
-    format!("{escaped}({args})")
-}
-
-/// Components keyed by every name programs write (RapidR's and RapidQ's),
-/// as the old hand-written files had them: lowercase member names, a
-/// signature and description per method.
-fn component_registry_js() -> String {
-    let mut out = String::from("const COMPONENT_REGISTRY = {\n");
-    for c in COMPONENTS.iter().filter(|c| c.kind == Kind::Component) {
-        let lower = |n: &str| js_str(&n.to_ascii_lowercase());
-        let live = |missing: bool| !missing;
-        let props: Vec<String> = c.properties.iter().filter(|p| live(p.missing)).map(|p| lower(p.name)).collect();
-        let methods: Vec<String> = c.methods.iter().filter(|m| live(m.missing)).map(|m| lower(m.name)).collect();
-        let events: Vec<String> = c.events.iter().filter(|e| live(e.missing)).map(|e| lower(e.name)).collect();
-        let _ = writeln!(out, "    {}: {{", c.name);
-        // (the component's RapidR name: its entry is also under its RapidQ
-        // name and aliases, below — QFORM's entry says it is RFORM)
-        let _ = writeln!(out, "        name: {},", js_str(c.name));
-        let _ = writeln!(out, "        description: {},", js_str(c.doc));
-        let _ = writeln!(out, "        rapidq: {},", c.rapidq.map_or("null".into(), js_str));
-        let _ = writeln!(out, "        props: [{}],", props.join(", "));
-        let _ = writeln!(out, "        methods: [{}],", methods.join(", "));
-        let _ = writeln!(out, "        events: [{}],", events.join(", "));
-        let _ = writeln!(out, "        methodSignatures: {{");
-        for m in c.methods.iter().filter(|m| live(m.missing)) {
-            let _ = writeln!(out, "            {}: {{ sig: {}, desc: {} }},", lower(m.name), js_str(&m.signature()), js_str(m.doc));
-        }
-        let _ = writeln!(out, "        }},");
-        let _ = writeln!(out, "        propDocs: {{");
-        for p in c.properties.iter().filter(|p| live(p.missing)) {
-            let _ = writeln!(out, "            {}: {},", lower(p.name), js_str(p.doc));
-        }
-        let _ = writeln!(out, "        }},");
-        let _ = writeln!(out, "        eventSignatures: {{");
-        for e in c.events.iter().filter(|e| live(e.missing)) {
-            let _ = writeln!(out, "            {}: {{ sig: {}, desc: {} }},", lower(e.name), js_str(&e.signature()), js_str(e.doc));
-        }
-        let _ = writeln!(out, "        }},");
-        let _ = writeln!(out, "    }},");
-    }
-    out.push_str("};\n");
-    out.push_str("// RapidQ's names for the same components (QBUTTON is RBUTTON).\n");
-    for c in COMPONENTS.iter().filter(|c| c.kind == Kind::Component) {
-        for q in c.rapidq.iter().chain(c.aliases.iter()) {
-            if !q.eq_ignore_ascii_case(c.name) {
-                let _ = writeln!(out, "COMPONENT_REGISTRY[{}] = COMPONENT_REGISTRY.{};", js_str(q), c.name);
-            }
-        }
-    }
-    out
-}
-
-fn builtins_js() -> String {
-    let mut out = String::from("const BUILTIN_FUNCTIONS = [\n");
-    for b in BUILTINS.iter().filter(|b| !b.missing) {
-        let sig = if b.syntax.is_empty() { format!("{}{}", b.name, params_text(b.params)) } else { b.syntax.to_string() };
-        let _ = writeln!(
-            out,
-            "    {{ name: {}, description: {}, signature: {}, snippet: {} }},",
-            js_str(b.name),
-            js_str(b.doc),
-            js_str(&sig),
-            js_str(&snippet(b.name, b.params))
-        );
-    }
-    out.push_str("];\n");
-    out
-}
-
-fn keywords_js() -> String {
-    let mut words: Vec<String> = STATEMENTS.iter().map(|s| s.name.to_string()).collect();
-    words.extend(KEYWORDS.iter().map(|k| k.name.to_string()));
-    for w in ["END IF", "END SUB", "END FUNCTION", "END SELECT", "END TYPE", "END CREATE", "END WITH", "CASE ELSE", "EXIT FOR", "EXIT DO", "EXIT WHILE", "EXIT SUB", "EXIT FUNCTION", "TRUE", "FALSE"] {
-        words.push(w.to_string());
-    }
-    words.sort();
-    words.dedup();
-    let mut out = String::from("const KEYWORDS = [\n");
-    for chunk in words.chunks(10) {
-        let _ = writeln!(out, "    {},", chunk.iter().map(|w| js_str(w)).collect::<Vec<_>>().join(", "));
-    }
-    out.push_str("];\n\nconst TYPE_KEYWORDS = [\n");
-    for t in TYPE_NAMES {
-        let _ = writeln!(out, "    {{ name: {}, description: {} }},", js_str(t.name), js_str(t.doc));
-    }
-    out.push_str("];\n\nconst DIRECTIVES = [\n");
-    for d in DIRECTIVES {
-        let bare = d.name.trim_start_matches('$');
-        let _ = writeln!(out, "    {{ name: {}, description: {}, snippet: {} }},", js_str(bare), js_str(d.doc), js_str(bare));
-    }
-    out.push_str("];\n");
-    out
-}
-
-const JS_HEADER: &str = "// Generated by `rapidr lang export` from the language registry (crates/rapidr-lang/data).\n// Do not edit: change the registry and run `rapidr lang export --all`.\n\n";
-
-/// The web IDE's language data (web-ide/lang-data.js), with its helpers.
-pub fn web_ide_js() -> String {
-    let names = COMPONENTS
-        .iter()
-        .filter(|c| c.kind == Kind::Component)
-        .flat_map(|c| std::iter::once(c.name).chain(c.rapidq).chain(c.aliases.iter().copied()))
-        .map(|n| format!("{n}:{}", js_str(&pretty_name(n))))
-        .collect::<Vec<_>>()
-        .join(", ");
-    format!(
-        "{JS_HEADER}{}\n{}\n{}\nexport {{ COMPONENT_REGISTRY, BUILTIN_FUNCTIONS, KEYWORDS, TYPE_KEYWORDS, DIRECTIVES }};\n\n{}",
-        component_registry_js(),
-        builtins_js(),
-        keywords_js(),
-        WEB_IDE_HELPERS.replace("@NAMES@", &names)
-    )
-}
-
-/// `RBUTTON` → `RButton`, `QBUTTON` → `QButton`: the prefix letter and
-/// the words of the name.
-pub fn pretty_name(upper: &str) -> String {
-    if !upper.starts_with(['R', 'Q']) || upper.len() < 2 {
-        return upper.to_string();
-    }
-    const WORDS: &[&str] = &[
-        "Form", "MDI", "Button", "Label", "Edit", "Panel", "Check", "Box", "Radio", "Combo", "List", "File", "Dir", "Tree", "Timer", "Image", "Canvas",
-        "Header", "Rect", "String", "Grid", "Tab", "Control", "View", "Main", "Menu", "Item", "Popup", "Open", "Save", "Dialog", "Color", "Font", "Tool",
-        "Bar", "Status", "Progress", "Rich", "Memo", "Scroll", "Up", "Down", "Date", "Time", "Picker", "Stream", "Track", "Printer", "Registry",
-        "Splitter", "SQLite", "MySQL", "Socket", "Server", "Http", "Num", "Data", "Frame", "Plot", "Design", "Surface", "Code", "Editor", "Group",
-        "Cool", "Btn", "Oval", "Json", "DX", "Screen", "Sound", "Joystick", "D3D", "Mesh", "Builder", "Face", "Light", "Texture", "Visual", "Wrap",
-        "Vector", "Memory", "Bitmap", "Notify", "Icon", "Bevel", "Dig", "Display", "Glass", "CGI", "Com", "Port", "Download", "MIDI", "Wave", "Video",
-        "CD", "Audio", "Gauge", "Outline", "Web", "DOM", "JavaScript", "Storage", "Notification", "Geolocation", "Router",
-    ];
-    let rest = &upper[1..];
-    let mut out = upper[..1].to_string();
-    let mut i = 0;
-    'outer: while i < rest.len() {
-        if let Some(w) = WORDS.iter().filter(|w| rest[i..].to_ascii_uppercase().starts_with(&w.to_ascii_uppercase())).max_by_key(|w| w.len()) {
-            out.push_str(w);
-            i += w.len();
-            continue 'outer;
-        }
-        out.push_str(&rest[i..].to_ascii_lowercase());
-        break;
-    }
-    out
-}
-
-const WEB_IDE_HELPERS: &str = r#"// Pretty display name for an upper-case component key (RBUTTON -> RButton).
-const _NAME_MAP = { @NAMES@ };
-export function prettyComponentName(upper) {
-  if (!upper) return upper;
-  const u = String(upper).toUpperCase();
-  return _NAME_MAP[u] || (u[0] + u.slice(1).toLowerCase());
-}
-
-// Heuristic variable→type resolver. Scans DIM/CREATE/AS lines.
-export function resolveVariableType(text, varName) {
-  if (!text || !varName) return null;
-  const v = varName.replace(/[.\[\]()$#%&!]+$/, "");
-  // CREATE Foo AS RButton
-  let re = new RegExp("\\bCREATE\\s+" + v + "\\s+AS\\s+(\\w+)", "i");
-  let m = re.exec(text);
-  if (m) return m[1].toUpperCase();
-  // DIM Foo AS RButton
-  re = new RegExp("\\bDIM\\s+" + v + "\\s+AS\\s+(\\w+)", "i");
-  m = re.exec(text);
-  if (m) return m[1].toUpperCase();
-  // GLOBAL Foo AS RButton
-  re = new RegExp("\\bGLOBAL\\s+" + v + "\\s+AS\\s+(\\w+)", "i");
-  m = re.exec(text);
-  if (m) return m[1].toUpperCase();
-  return null;
-}
-"#;
 
 // --- the user manual's reference pages ---------------------------------------------
 
@@ -669,11 +471,7 @@ fn data_science_page() -> String {
 /// the repository's root, text). `rapidr lang export --all` writes them;
 /// tests/generated.rs fails when one is out of date.
 pub fn generated_files() -> Vec<(String, String)> {
-    let mut files = vec![
-        ("web-ide/lang-data.js".to_string(), web_ide_js()),
-    ];
-    files.extend(manual().into_iter().map(|(name, text)| (format!("docs/manual/reference/{name}"), text)));
-    files
+    manual().into_iter().map(|(name, text)| (format!("docs/manual/reference/{name}"), text)).collect()
 }
 
 /// The user manual's reference pages: (file name in docs/manual/reference, text).
@@ -750,20 +548,10 @@ mod tests {
     }
 
     #[test]
-    fn pretty_names() {
-        assert_eq!(pretty_name("RBUTTON"), "RButton");
-        assert_eq!(pretty_name("RSTRINGGRID"), "RStringGrid");
-        assert_eq!(pretty_name("RDXSCREEN"), "RDXScreen");
-        assert_eq!(pretty_name("QBUTTON"), "QButton");
-        assert_eq!(pretty_name("COMPORT"), "COMPORT");
-    }
-
-    #[test]
     fn exports_are_whole() {
         let j = json();
         assert!(j.starts_with("{\"registry\":1"));
         assert!(j.contains("\"name\":\"RBUTTON\""));
-        assert!(web_ide_js().contains("export function resolveVariableType"));
         assert!(manual().iter().any(|(n, t)| *n == "components.md" && t.contains("[`RForm`](members.md#rform) | `QFORM`")));
         assert!(manual().iter().any(|(n, t)| *n == "members.md" && t.contains("## RButton <small>(RapidQ name: QBUTTON)</small>")));
         assert!(prompt().contains("### RButton (RapidQ name: QBUTTON)"));
