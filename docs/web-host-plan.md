@@ -178,9 +178,9 @@ RWEBVIEW (an `<iframe>`, sandboxed as today), RDOM (the program's elements), RWE
 
 ### 3.9 The IDE
 
-(Now planned in full in [docs/ide-plan.md](ide-plan.md): the IDE is rebuilt on new public components, and `examples/ide.rr` and `web-ide/` are deleted at its stage I1's parity.)
+(Now planned in full in [docs/ide-plan.md](ide-plan.md): the IDE is rebuilt on new public components, and `examples/ide.rr` is deleted at its stage I1's parity; the HTML / Monaco web IDE was deleted on 2026-10-08.)
 
-The Phase 3 MDI IDE is written once and runs on the kernel on both hosts: `examples/ide.rr` already runs on `RAPIDR_HOST=kernel` (designer, code editor, property grid, the event editor). On the web the same program runs in the page instead of the DOM IDE (`web-ide/`, ~9,900 lines of JS / HTML / CSS) and the program under test runs in the workspace as MDI windows rather than a preview iframe. The code editor is the kernel's RCODEEDITOR; Monaco (MIT) retires when the kernel editor has the language service's UI (completion list, signature help, hover, diagnostics' squiggles) — the Phase 3 language-service crate built native and wasm feeds both. The DOM IDE is deleted with the DOM runtime (§5, no long-term fallback).
+The Phase 3 MDI IDE is written once and runs on the kernel on both hosts: `examples/ide.rr` already runs on `RAPIDR_HOST=kernel` (designer, code editor, property grid, the event editor). On the web the same program runs in the page instead of the DOM IDE (~9,900 lines of JS / HTML / CSS, deleted 2026-10-08) and the program under test runs in the workspace as MDI windows rather than a preview iframe. The code editor is the kernel's RCODEEDITOR; Monaco (MIT) retires when the kernel editor has the language service's UI (completion list, signature help, hover, diagnostics' squiggles) — the Phase 3 language-service crate built native and wasm feeds both. The DOM IDE is deleted with the DOM runtime (§5, no long-term fallback).
 
 ### 3.10 Mobile (Phase 7)
 
@@ -539,7 +539,7 @@ The user's direction (2026-10-05): no opt-in. The kernel host becomes the defaul
 - the fallback fonts, so CJK and symbols don't regress (W7);
 - every suite ported to the kernel host: `web_ide_*`, `web_bundle_*` and `web_end_timer` look for the DOM host's elements.
 
-The HTML / Monaco web IDE (`web-ide/`) stays for now, as the test harness and the only web IDE, running its preview on the kernel host. It retires when the kernel-drawn MDI IDE (ROADMAP's IDE phase, §3.9) runs in the page.
+The HTML / Monaco web IDE was deleted on 2026-10-08: RapidR Studio, drawn by the UI kernel, is the web IDE. The runtime's browser suites run programs on its own page (`tests/web_run.mjs`) and on Studio's run frame (`tests/studio_run_frame.mjs`); the old IDE's features Studio doesn't have yet are listed in docs/studio-wow.md §7.
 
 ---
 
@@ -688,9 +688,9 @@ The wasm shrank from 10.63 to 10.21 MB.
 **Open after W11.**
 - `dialog_timers` on the kernel host gives the desktop's dump in most runs but stays off the web cases: its ticks are counted in tens of milliseconds, and the open file dialog's step misses now and then. Its real bug is fixed: a SLEEP now holds the program whole, as the desktop's does (`dialog_web::sleep`). The timers that fell due meanwhile fire once the program waits. They no longer run inside the program on its way out of the SLEEP, where a handler's MESSAGEBOX couldn't wait (it answered 0).
 - An open menu's items aren't in the accessibility tree (desktop and web alike).
-- Ad-hoc scripts outside `regress.sh` still look for DOM-host elements: `corpus_web_compare.mjs`, `debug_e2e_event_handling.mjs`, `_q.mjs`.
+- ~~Ad-hoc scripts outside `regress.sh` still look for DOM-host elements~~: `corpus_web_compare.mjs` runs on the runtime's own page (`tests/web_run.mjs`); `debug_e2e_event_handling.mjs` and `_q.mjs` were deleted with the HTML IDE (2026-10-08).
 
-**The web IDE** (`web-ide/`) runs its preview and builds on the kernel host. Retiring the HTML / Monaco IDE in favour of the kernel-drawn MDI IDE (§3.9, ROADMAP's IDE phase) needs:
+**The web IDE** is RapidR Studio on the kernel host (`tools/build_studio_web.sh`); the HTML / Monaco IDE was retired and deleted on 2026-10-08. What its retirement needed:
 - the MDI IDE's program runs in the page;
 - the program under test runs in the workspace as MDI windows rather than in the preview frame;
 - the code editor has the language service's UI;

@@ -84,7 +84,7 @@ crates/                  the compiler, the runtimes, the UI kernel, the CLI
 interpreter/             the bytecode format, generator, VM and its hosts
 tests/                   conformance cases, GUI fixtures, browser suites
 tools/                   test drivers, ground-truth tools, release scripts
-web-ide/                 the web IDE (HTML/JS + Monaco) — to be replaced by the kernel IDE
+ide/                     RapidR Studio: its shell (a RapidR program) and its web page (ide/web)
 examples/                example programs (examples/README.md); ide.rr is the desktop IDE
 docs/                    plans and references; docs/manual/ is the user manual
 design/brand/            logo, icons, banner (original artwork, MIT)

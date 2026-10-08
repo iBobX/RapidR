@@ -3,17 +3,19 @@
 // drives them: real mouse clicks on the canvases, real keys into the
 // accessibility mirror's fields.
 //
-//   1. Chromium (File System Access): the IDE shows the browser's
-//      showOpenFilePicker / showSaveFilePicker for its preview frame (an
-//      opaque origin may not show them). Headless Chromium can't show the
-//      system's sheet, so the IDE page's pickers are replaced by ones that
+//   1. Chromium (File System Access), in RapidR Studio: Studio's page
+//      shows the browser's showOpenFilePicker / showSaveFilePicker for the
+//      program's sandboxed run frame (an opaque origin may not show them;
+//      ide/web/studio.js frameFiles). Headless Chromium can't show the
+//      system's sheet, so the page's pickers are replaced by ones that
 //      behave as Chromium's do — they throw SecurityError without the user's
 //      gesture, AbortError on Cancel — over real files in a temporary folder:
 //      Notepad (examples/rapidq/notepad.bas) opens a file from the disk, the
 //      user edits it, saves it, and the file on the disk has the new text.
 //      The Filter becomes the pickers' file types; Cancel returns 0.
 //   2. Execute with no gesture left (from a timer): a kernel-drawn box
-//      whose button opens the picker.
+//      whose button opens the picker (on the runtime's own page,
+//      tests/web_run.mjs, as 3).
 //   3. A browser without File System Access (Firefox, Safari: the pickers
 //      removed): Open is the page's file input (every file selectable when
 //      the Filter has "All files"); Save asks for the name in a kernel box,
@@ -23,16 +25,20 @@
 //      Shift+Tab cycle inside it; Enter presses its default button, Escape
 //      cancels; the focus goes back to Notepad's editor when it closes.
 //
-// Usage (repo root, after tools/build_web_artifacts.sh, with the repo served
-// on RAPIDR_URL, default http://localhost:8765):  node tests/web_file_dialogs.mjs
+// Usage (repo root, after tools/build_web_artifacts.sh and
+// tools/build_studio_web.sh, with the repo served on RAPIDR_URL, default
+// http://localhost:8765; Studio on RAPIDR_STUDIO_URL, default its build
+// there):  node tests/web_file_dialogs.mjs
 
 import { chromium } from "playwright";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, basename } from "node:path";
 import * as k from "./web_kernel_page.mjs";
+import { openRunner } from "./web_run.mjs";
 
 const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
+const STUDIO_URL = process.env.RAPIDR_STUDIO_URL || `${URL_BASE}/target/studio-web`;
 let failed = 0;
 const ok = (cond, msg) => { console.log(`${cond ? "✓" : "✗"} ${msg}`); if (!cond) failed++; };
 const SHOTS = process.env.RAPIDR_SHOTS || "scratch";
@@ -42,7 +48,7 @@ const notepad = readFileSync(new URL("../examples/rapidq/notepad.bas", import.me
 
 // ------------------------------------------------------------- the pickers --
 
-// What the IDE page's pickers answer next (a path in `dir`, or null:
+// What the page's pickers answer next (a path in `dir`, or null:
 // Cancel), and what they were asked.
 const answers = [];
 const calls = [];
@@ -72,12 +78,16 @@ const MOCK = `(() => {
 })();`;
 const NO_FSA = `window.showOpenFilePicker = undefined; window.showSaveFilePicker = undefined;`;
 
-async function open(fsa) {
+// A browser with (`fsa`) or without File System Access: `studio` — RapidR
+// Studio running Notepad in its run frame (`run` gives that frame) — or the
+// runtime's own page (`run` runs a program there).
+async function open(fsa, studio = false) {
   const browser = await chromium.launch();
   const context = await browser.newContext({ acceptDownloads: true });
-  const page = await context.newPage();
-  const errors = [];
-  page.on("pageerror", (e) => errors.push(e.message));
+  const r = studio ? null : await openRunner(context);
+  const page = r ? r.page : await context.newPage();
+  const errors = r ? r.pageErrors : [];
+  if (!r) page.on("pageerror", (e) => errors.push(e.message));
   page.on("dialog", async (d) => { errors.push("browser dialog " + d.type()); await d.dismiss(); });
   await page.exposeFunction("__rr_pick", (op, opts, active) => {
     calls.push({ op, opts: JSON.parse(opts), active });
@@ -89,21 +99,25 @@ async function open(fsa) {
   await page.addInitScript(fsa ? MOCK : NO_FSA);
   page.on("console", (m) => { if (process.env.DEBUG_RR) console.log("console:", m.type(), m.text()); });
   page.on("requestfailed", (r) => console.log("requestfailed", r.url(), r.failure()?.errorText));
-  await page.goto(`${URL_BASE}/web-ide/index.html`, { waitUntil: "load" });
-  // (the IDE's runtime loaded and its first project made; the status bar
-  // says "ready" only for a moment)
-  await page.waitForFunction(() => window.RapidR?.state?.wasmReady && window.RapidR.state.activeFormId, null, { timeout: 60000 });
-  return { browser, page, errors };
+  return { browser, page, errors, r };
 }
 
-async function run(page, source) {
-  await page.evaluate((src) => { window.RapidR.state.project.forms[0].code = { handlers: {}, source: src }; window.RapidR.runCommand("run.start"); }, source);
+// Studio, Notepad open and run (F5): the run frame.
+async function studioRun(page) {
+  const q = new URLSearchParams({ theme: "rapidr-light", fresh: "", window: "normal", open: "examples/rapidq/notepad.bas", do: "run.start" });
+  await page.goto(`${STUDIO_URL}/index.html?${q}`, { waitUntil: "load" });
   let frame;
-  for (let i = 0; i < 100 && !frame; i++) {
+  for (let i = 0; i < 300 && !frame; i++) {
     await page.waitForTimeout(100);
-    frame = page.frames().find((f) => f.url().includes("preview.html"));
+    frame = page.frames().find((f) => f.url().includes("run.html"));
   }
   return frame;
+}
+
+// `source` run on the runtime's page: the page is the program's.
+async function run(r, source) {
+  await r.run(source);
+  return r.page;
 }
 
 // (a real click on Notepad's File menu, then on its item `row` (0 New,
@@ -129,9 +143,10 @@ const crlf = (s) => s.replace(/\r?\n/g, "\r\n");
 
 // ======================================================= 1. Chromium, FSA --
 {
-  const { browser, page, errors } = await open(true);
-  const frame = await run(page, notepad);
-  await k.waitFor(frame, "Editor");
+  const { browser, page, errors } = await open(true, true);
+  const frame = await studioRun(page);
+  ok(!!frame, "Studio runs Notepad in its run frame");
+  await k.waitFor(frame, "Editor", 30000);
   const path = join(dir, "hello.txt");
   writeFileSync(path, "Hello from the disk.\r\nSecond line.");
 
@@ -189,11 +204,18 @@ const crlf = (s) => s.replace(/\r?\n/g, "\r\n");
   // (the page is unchanged by its pickers: no in-page dialog of its own)
   ok(!(await frame.evaluate(() => !!document.querySelector(".rr-dialog, .rr-file-dialog"))), "no in-page file dialog");
   await page.screenshot({ path: `${SHOTS}/web_file_dialogs_fsa.png` });
+  ok(errors.length === 0, `no page errors (${errors.join("; ")})`);
+  await browser.close();
+}
 
+// ================================ 2. no gesture left (the runtime's page) --
+{
+  const { browser, page, errors, r } = await open(true);
+  const path = join(dir, "hello.txt");
   // 2. Execute with no gesture left: the box whose button opens the picker.
   calls.length = 0;
   answers.push([path]);
-  const frame2 = await run(page, [
+  const frame2 = await run(r, [
     '$INCLUDE "RAPIDQ.INC"',
     'CREATE Dlg AS QOPENDIALOG',
     '  Filter = "Pictures|*.bmp;*.ico|Text|*.txt"',
@@ -234,8 +256,8 @@ const crlf = (s) => s.replace(/\r?\n/g, "\r\n");
 
 // ============================================ 3. no File System Access ----
 {
-  const { browser, page, errors } = await open(false);
-  const frame = await run(page, notepad);
+  const { browser, page, errors, r } = await open(false);
+  const frame = await run(r, notepad);
   await k.waitFor(frame, "Editor");
   const path = join(dir, "plain.txt");
   writeFileSync(path, "From a file input.");

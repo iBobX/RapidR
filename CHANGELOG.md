@@ -7,6 +7,19 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Changed
+- **Real bold and italic faces** instead of the regular letters drawn heavier and slanted: Liberation
+  2.1.5's own Bold, Italic and Bold Italic (Sans, Serif, Mono; SIL OFL 1.1, from the official release,
+  SHA-256 checked) are built in, cut to the Latin scripts without hinting (36-39 KB each) and renamed
+  "RapidR Text Sans / Serif / Mono" as the licence asks; RapidR Sans has a Bold of its own (MS Sans
+  Serif Bold's widths, a pixel wider a character, and its two-pixel stems). Bold Arial text is as wide
+  as Arial Bold's ("Pantry" 9 pt bold 37 pixels, "Hello" 12 pt bold 39, as RC.EXE measures), italic is a
+  designed italic; a character the styled face lacks (Greek, Cyrillic, ...) is drawn from the Regular
+  face, made bold or slanted, as before. The built-in fonts are now in a program once (statics, not
+  copies of consts): the interpreter and the web runtime are 1.3 MB smaller in spite of the new faces.
+  The approved images of fonts, words, spacing and the data-science examples changed with them
+  (bold looked at beside RapidQ's, all themes, 1x and 2x, web identical to the desktop).
+
 ### Added
 - **RapidR Studio's panels as public components** (docs/ide-plan.md I1, L-PANELS), the same on the
   desktop, in native builds and on the web: **RPROPERTYINSPECTOR** (Delphi's object inspector: typed
@@ -47,6 +60,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - Drag the form's right edge, bottom edge or corner to resize it: anchored and aligned components follow live, and the new size (and where the anchors moved them) is written into the CREATE block, one undo step.
 - Add components: click a type then click or draw on the form (`PlaceType`), drag one in (`DragComponent`), or `AddComponent(Type, X, Y)`. Names are unique in the whole file; typing right after adding sets the Caption; dropping on a panel puts it inside.
 - Select, move, resize, delete, copy / paste / duplicate, align and arrange with the mouse or the keyboard; every change is announced to screen readers, written into the code as the smallest edit (`OnSourceEdit`), and undone to the exact bytes. Double-click makes or finds the event handler (`CreateHandler`). While the code has errors the designer is read-only under a banner.
+### Removed: the old HTML / Monaco web IDE
+- **RapidR Studio is the web IDE** (Robert's decision, 2026-10-08): the old HTML / Monaco IDE (`web-ide/`, ~10,000 lines of JS / HTML / CSS plus the vendored Monaco) is deleted, with `rapidr lang export --web-ide` and its generated `lang-data.js`, the brand export's copy of the icons into it, and every reference (regress, docs, release scripts, `tools/lang_seed.py`). Nothing shipped it any more (SEC-17).
+- What a program's run frame needed from that IDE's page is Studio's now (`ide/web/studio.js`): the browser's Open / Save pickers shown for the sandboxed frame (writes only to files the user picked during that run) and the program's RWEBSTORAGE kept per program (1 MB). Studio's web page has RapidR's icons (favicon, home-screen icon).
+- Its browser suites, sorted (docs/studio-wow.md §7): the web runtime's run programs on the runtime's own page (`tests/web_run.mjs`: `web_align`, `web_canvas`, `web_components`, `web_dialogs`, `web_grid`, `web_grid_draw`, `web_lists`, `web_objects`, `web_owner_list`, `web_picture`, `web_reentrant_events`, and the conformance, SQLite, VM-yield, modal-focus and corpus runners) or in Studio's run frame (`tests/studio_run_frame.mjs`: isolation, storage, 1:1 pixels); new `web_debugger`, `web_multiform`, `web_pixels`; new Studio flows `problems` and `run-ansi` (CLS / COLOR / LOCATE in Output). IDE features Studio doesn't have yet are listed against their checklist items (the assets manager is the new PRJ-5); the old IDE's own probes are deleted. `console_ansi` passes on the web (no xfail).
+- Studio: Build with errors shows Output's Problems page (it named a pane that no longer exists).
 ### Security
 - **Every web page RapidR builds has a Content-Security-Policy**, made from
   what the program uses (SEC-15): no inline scripts, `'unsafe-eval'` only for
@@ -541,6 +559,26 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   2026-10-06 should be cloned again.
 
 ### Fixed
+- **RapidQ's examples at run time** (`tools/corpus_run.py`, report in
+  docs/corpus-runtime.md): every example that compiles is run on the
+  interpreter and as a native build, GUI ones captured beside RC.EXE's
+  windows, and what went wrong fixed as RapidQ does it (each checked with
+  RC.EXE): `SLEEP .1`; a program's own `TYPE QToolBar`; `Font.AddStyles` /
+  `DelStyles` on components and on a QBITMAP's font (`= n` too); a form's
+  first Show fires OnResize, OnShow, OnResize; QTIMER on Windows' ticks;
+  RLE4 / RLE8 / 16-bit BMPs; aligned controls placed in RapidQ's order at
+  the first Show and inside a panel's bevels; status panels 50 wide; a
+  QBUTTON's glyph; `ImageList.Handle =`; canvases made in OnShow paint;
+  QSTRINGGRID's FixedColor and owner drawing; a QFILESTREAM that can't open
+  its file stops the program (`Cannot open file x.`); a borderless form
+  never shows scroll bars; QFILELISTBOX's order and `[.]`; hex numbers with
+  `?` / `@` digits (`&HFFFF0000???` in RapidQ's CommCtrl.inc), `&HH1`, and
+  their low 32 bits past 8 digits; QFONTDIALOG's colours (clWindowText at
+  first, system colours kept). RapidQ IDE's `.rqw` window programs are part
+  of the corpus now.
+- **`QFONTDIALOG.SetFont(Label.Font)` / `GetFont(Label.Font)`** change and
+  read the component's own font, and `Label2.Font = Label.Font` copies it
+  (an addition: RapidQ's compiler refuses a component's Font there).
 - **Text in RapidQ's default font was cramped, letters running together**
   ("program", "start", "Bread", "Price", "Right-click" in labels, edits,
   grids and status bars; worst on a Retina or 150 % screen and on the web).
