@@ -467,7 +467,7 @@ def summary(report, backends):
     return out
 
 
-def write_report(path, report, backends, label, before):
+def write_report(path, report, backends, label, before, notes=None):
     now = datetime.date.today().isoformat()
     S = summary(report, backends)
     B = summary(before, backends) if before else None
@@ -505,6 +505,9 @@ def write_report(path, report, backends, label, before):
             continue
         for cause, n in s["causes"].most_common():
             L.append(f"- **{n}** — {cause}: " + ", ".join(f"`{r}`" for r in s["programs"][cause][:12]) + (" …" if n > 12 else ""))
+        L.append("")
+    if notes:
+        L.append(open(notes).read().rstrip())
         L.append("")
     L.append("## Other lanes (not fixed here)")
     L.append("")
@@ -584,6 +587,7 @@ def main():
     ap.add_argument("--report")
     ap.add_argument("--label", default="")
     ap.add_argument("--before")
+    ap.add_argument("--notes", default=os.path.join(ROOT, "tools", "corpus_run_notes.md"), help="a Markdown section the report carries (what was fixed, what stays)")
     ap.add_argument("--kind", choices=["console", "gui"], help="only console or only GUI programs")
     ap.add_argument("--merge", nargs="+", metavar="JSON", help="no runs: the report from these sweeps (e.g. one per backend) put together")
     args = ap.parse_args()
@@ -591,7 +595,7 @@ def main():
     if args.merge:
         report = merge(args.merge)
         before = merge(args.before.split(",")) if args.before else None
-        write_report(args.report, report, args.backends, args.label, before)
+        write_report(args.report, report, args.backends, args.label, before, args.notes if os.path.exists(args.notes) else None)
         print(f"report: {args.report}")
         return
     if not os.path.exists(RAPIDR):
@@ -621,7 +625,7 @@ def main():
         print(f"{b} {group}: ok {s['ok']}/{s['ran']}  " + ", ".join(f"{k} {n}" for k, n in s["kinds"].most_common()))
     if args.report:
         before = merge(args.before.split(",")) if args.before else None
-        write_report(args.report, report, args.backends, args.label, before)
+        write_report(args.report, report, args.backends, args.label, before, args.notes if os.path.exists(args.notes) else None)
         print(f"report: {args.report}")
 
 
