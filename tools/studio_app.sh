@@ -45,7 +45,13 @@ text = text.replace("<string>RapidR</string>\n\t<key>CFBundleDisplayName</key>\n
 text = text.replace("<string>io.github.ibobx.rapidr</string>", "<string>dev.rapidr.studio.checkout</string>")
 env = (f"\t<key>LSEnvironment</key>\n\t<dict>\n\t\t<key>RAPIDR_HOME</key>\n\t\t<string>{x.escape(root)}</string>\n\t</dict>\n")
 text = text.replace("\t<key>CFBundleDocumentTypes</key>", env + "\t<key>CFBundleDocumentTypes</key>", 1)
-assert "RapidR Studio" in text and "LSEnvironment" in text
+# (a checkout's app opens .rr / .bas files when asked, but owns no file
+# type: an installed RapidR keeps them)
+text = text.replace("<string>Owner</string>", "<string>Alternate</string>")
+start = text.find("\t<key>UTExportedTypeDeclarations</key>")
+end = text.find("\n\t</array>\n", start) + len("\n\t</array>\n")
+text = text[:start] + text[end:]
+assert "RapidR Studio" in text and "LSEnvironment" in text and "UTExported" not in text
 open(out, "w").write(text)
 PY
 plutil -lint -s "$OUT/Contents/Info.plist"
