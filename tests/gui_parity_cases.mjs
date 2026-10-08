@@ -316,7 +316,9 @@ export const cases = [
   // RAPIDR_THEME, without the events — the web's run is compared with the
   // events' capture only)
   { name: "themes", events: "btndark.onclick", dump: "lbl.caption",
-    expect: ["lbl.caption=theme classic then dark"], themes: ["modern", "dark", "highcontrast"] },
+    // (the harness names the classic look; `dark`, the old name, is RapidR's
+    // dark look now)
+    expect: ["lbl.caption=theme classic then rapidr dark"], themes: ["rapidr light", "rapidr dark", "rapidr high contrast"] },
   // RPLOT on a form (the UI kernel's component, the one chart renderer): a
   // line chart anchored left / top / right, widened with the form (500 ×
   // 350); a bar chart aligned to the bottom. The click adds a dashed series

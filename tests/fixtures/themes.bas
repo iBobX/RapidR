@@ -1,8 +1,8 @@
-' Kernel themes (docs/desktop-host-plan.md, "Kernel themes"): one form with
-' the main components, which tests/native_gui_events.mjs captures under
-' each theme — classic (RapidQ's, every program's unless it asks for
-' another), modern, dark and highcontrast (RAPIDR_THEME, as a program
-' without $THEME takes it). A button's OnClick switches at run time
+' Kernel themes (docs/theme-tokens.md): one form with the main components,
+' which tests/native_gui_events.mjs captures under each theme — RapidR's
+' look (every program's unless it asks for another) light, dark and high
+' contrast, and classic, RapidQ's (RAPIDR_THEME, as a program without
+' $THEME takes it). A button's OnClick switches at run time
 ' (Application.Theme, RapidR's), and the program reads the theme back;
 ' another opens a pop-up menu (a checked item, a disabled one, a
 ' separator, a submenu) to see the menus drawn.
