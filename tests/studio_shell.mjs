@@ -40,8 +40,8 @@ const SCENES = [
   { name: "palette", open: "", do: "view.commandPalette" },
   // (S-PANELS: the panels on a form program — the project tree, the
   // toolbox, the inspector following the designer, the console)
-  { name: "panels", open: "examples/gui/pantry.rr" },
-  { name: "events", open: "examples/gui/pantry.rr", do: "wait,page:events" },
+  { name: "panels", open: "examples/gui/pantry.rr", do: "wait,view.designer,pick:AddBtn" },
+  { name: "events", open: "examples/gui/pantry.rr", do: "wait,view.designer,pick:NameEdit,page:events" },
   { name: "toolbox-search", open: "examples/gui/pantry.rr", do: "wait,search:chart" },
   { name: "palette-line", open: "examples/gui/pantry.rr", do: "wait,palette::12" },
   // (I4) The designer: notepad.bas's form after its right edge was dragged,
