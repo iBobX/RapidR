@@ -103,7 +103,7 @@ impl ComponentKind for CoolBtn {
             if flat && !is_down && !s.pressed && !(s.hover && s.enabled) {
                 // (a flat button at rest: nothing but its caption)
                 t.face
-            } else if flat && !is_down && !t.ring_fields {
+            } else if flat && !is_down && !t.contrast {
                 // (a tool bar's button: a soft rounded fill, no outline)
                 p.round(r, 6.0, Some(face), None, 1.0);
                 face
@@ -205,6 +205,8 @@ mod tests {
 
     #[test]
     fn a_group_keeps_one_down() {
+        // (RapidQ's look, checked op for op: the classic theme, named)
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
         let mut s = store();
         let mut ts = TextSystem::new();
         let mut f = FormUi::build(&s, "cbform", false);

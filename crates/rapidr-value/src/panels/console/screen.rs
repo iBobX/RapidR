@@ -1,8 +1,8 @@
 //! A console's screen: the lines a program printed, with their colours, as
 //! a terminal keeps them. RapidQ's CLS, COLOR and LOCATE compile to ANSI /
 //! VT escape sequences on every runtime (`crate::console`); this is the
-//! same screen model the web IDE's output panel had (`web-ide/
-//! ansi_screen.js`), moved into Rust so the UI kernel draws a program's
+//! same screen model the old HTML web IDE's output panel had (its
+//! `ansi_screen.js`), moved into Rust so the UI kernel draws a program's
 //! output the same on the desktop and the web:
 //!
 //! - `ESC[r;cH` / `ESC[r;cf` (LOCATE) moves the cursor; moving never makes

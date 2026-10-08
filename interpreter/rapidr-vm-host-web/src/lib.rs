@@ -887,6 +887,14 @@ pub fn rapidr_host() -> String {
     "kernel".into()
 }
 
+/// The look a program that names no theme is drawn in, before it runs
+/// (`$THEME`'s names; as `RAPIDR_THEME` on the desktop): RapidR Studio's
+/// "Preview in classic".
+#[wasm_bindgen]
+pub fn rapidr_set_theme(name: String) {
+    rapidr_value::theme::set_user_choice(Some(name));
+}
+
 /// For GUI tests on the kernel host (as the desktop's test hooks read the
 /// process's environment): `RAPIDR_CAPTURE`, `RAPIDR_TEST_EVENTS`,
 /// `RAPIDR_TEST_DUMP`, `RAPIDR_TEST_RESIZE`, `RAPIDR_TEST_SPLIT` and the

@@ -124,24 +124,33 @@ compiler doesn't know it).
 
 ## Themes
 
-Programs are drawn in Windows' classic look — RapidQ's — unless they ask
-for another:
+Programs are drawn in RapidR's own look — RapidR Studio's — unless they
+ask for another. It follows the system's setting (light, dark or high
+contrast) and is the same on macOS, Windows, Linux and the web.
 
-| `$THEME` / `Application.Theme` | Look |
-|---|---|
-| `Classic` (the default) | Windows' classic look; also `System`, `Windows`, `Win95`, `Win2K`, … |
-| `Modern` | flat, after Windows 11: rounded controls, an accent colour, focus rings, thin scroll bars |
-| `Dark` | the modern look, dark |
-| `HighContrast` | Windows' High Contrast Black: white on black, thick focus rings |
-| `Auto` | the system's: high contrast or dark when it is, else modern |
+| `$THEME` / `Application.Theme =` | Look | `Application.Theme` reads |
+|---|---|---|
+| none, `RapidR`, `Auto` (the default) | RapidR's look as the system is set, and it follows the system when the user switches | `rapidr light`, `rapidr dark` or `rapidr high contrast` |
+| `RapidR Light` (also `Modern`) | RapidR's look, light | `rapidr light` |
+| `RapidR Dark` (also `Dark`) | RapidR's look on the brand's Ink | `rapidr dark` |
+| `RapidR High Contrast` (also `HighContrast`) | Windows' High Contrast Black: white on black, thick focus rings | `rapidr high contrast` |
+| `Classic` (also `System`, `Light`, `Windows`, `Win95`, `Win2K`, …) | RapidQ's exact Windows look | `classic` |
 
-`$THEME Modern` at the top of a program picks one; `Application.Theme =
-"dark"` switches while it runs and reads the theme in use. The
+`$THEME Classic` at the top of a program gives it RapidQ's look exactly;
+`Application.Theme = "rapidr dark"` switches while it runs. The
 `RAPIDR_THEME` environment variable gives a theme to programs that name
-none. A theme changes only how things are drawn — never a size, a place
-or a font — and colours the program sets (`Color`, `Font.Color`) stay its
-own. Older theme names from earlier RapidR versions (`Fluent`, `Aqua`,
-`GTK`, …) still work and map to classic or modern.
+none (RapidR Studio's **Preview in Classic** uses it).
+
+A theme changes only how things are drawn, never a size or a place: a
+component's Left, Top, Width and Height, a form's client area and an
+AutoSize label's size are RapidQ's in every theme. RapidQ's default font
+(MS Sans Serif) is drawn in Inter in RapidR's look, at the same pixel size;
+fonts a program names keep their face. RapidQ's system colours
+(`clBtnFace`, `clWindow`, `clHighlight` …) are the theme's; a colour the
+program sets as RGB (`Color`, `Font.Color`) is painted as written, and
+reading a colour back gives what the program set, as in RapidQ. Text
+contrast meets WCAG AA in every theme and AAA in high contrast. Where each
+colour comes from: [theme tokens](../theme-tokens.md).
 
 ## High-DPI screens
 

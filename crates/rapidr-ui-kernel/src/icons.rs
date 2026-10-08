@@ -59,7 +59,7 @@ impl Painter<'_> {
         if side <= 0 {
             return false;
         }
-        let Some((key, pic)) = picture(name, side as u32, self.scale(), self.theme().name, color, disabled) else { return false };
+        let Some((key, pic)) = picture(name, side as u32, self.scale(), self.theme().icon_palette(), color, disabled) else { return false };
         self.picture(&key, 0, pic, (x + (w - side) / 2, y + (h - side) / 2, side, side));
         true
     }

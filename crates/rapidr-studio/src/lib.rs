@@ -33,9 +33,10 @@ pub trait Host: Copy + 'static {
     /// runtime's other events).
     fn fire(self, name: &str, event: &str, args: &[Value]);
     /// Starts `program` (a source file, as saved) for a session, with its
-    /// arguments: the program's end of the session protocol, waiting for
-    /// `start`.
-    fn launch(self, program: &str, args: &[String]) -> Result<Box<dyn Transport>, String>;
+    /// arguments, drawn in `theme` when one is named (a program that names
+    /// none takes it, as from `RAPIDR_THEME`; "": the default): the
+    /// program's end of the session protocol, waiting for `start`.
+    fn launch(self, program: &str, args: &[String], theme: &str) -> Result<Box<dyn Transport>, String>;
     /// The files directly in `folder` (their names; RPROJECT.OpenFolder):
     /// the disk's on the desktop, the page's store on the web.
     fn list_files(self, folder: &str) -> Vec<String>;
