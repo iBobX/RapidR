@@ -132,6 +132,8 @@ pub struct FileRequest {
     pub filter_index: usize,
     pub dir: Option<String>,
     pub file_name: Option<String>,
+    /// A folder is chosen (QOPENDIALOG.PickFolder, RapidR's).
+    pub folder: bool,
 }
 
 /// What a form's window looks like, as the program set it.
@@ -275,9 +277,17 @@ impl Desktop {
         v.into_iter().map(|(k, _)| k.clone()).collect()
     }
 
-    /// Input may reach form `id` (no modal form, or it's the innermost).
+    /// Input may reach form `id`: no modal form, it's the innermost, or it
+    /// was shown after the innermost went up — Windows' modal loop disables
+    /// the windows there are when it starts; a window shown from it (a
+    /// RapidQ program's `Form2.Show` under `Form.ShowModal`) works.
     pub fn accepts_input(&self, id: &str) -> bool {
-        self.modal.last().is_none_or(|m| m.eq_ignore_ascii_case(id))
+        let Some(m) = self.modal.last() else { return true };
+        if m.eq_ignore_ascii_case(id) {
+            return true;
+        }
+        let z = |name: &str| self.forms.get(&name.to_lowercase()).filter(|f| f.shown).map(|f| f.z);
+        matches!((z(id), z(m)), (Some(a), Some(b)) if a > b)
     }
 
     fn admits(&self, id: &str, src: Source) -> bool {
@@ -653,6 +663,8 @@ pub fn cursor_at(desk: &Desktop, store: &dyn Store, form: &str, (x, y): (f64, f6
     if desk.screen_cursor != 0 {
         return Cursor::of(desk.screen_cursor);
     }
+    const CR_HSPLIT: i64 = -14;
+    const CR_VSPLIT: i64 = -15;
     let Some(f) = desk.forms.get(form) else { return Cursor::Default };
     // (a drag source dragged: nothing takes a drop — RapidQ has no
     // OnDragOver — so the no-drop pointer, as the VCL shows it)
@@ -670,7 +682,11 @@ pub fn cursor_at(desk: &Desktop, store: &dyn Store, form: &str, (x, y): (f64, f6
     }
     let id = node.map_or(f.ui.form.as_str(), |n| n.id.as_str());
     let code = rapidr_ui_kernel::store::int(store, id, "cursor", 0);
-    if code != 0 {
+    // (a QSPLITTER's crHSplit / crVSplit, its Cursor at creation: the
+    // splitter's direction decides, as Delphi's TSplitter swaps them when
+    // its Align changes)
+    let split = node.is_some_and(|n| n.type_name == "RSPLITTER") && matches!(code, CR_HSPLIT | CR_VSPLIT);
+    if code != 0 && !split {
         return Cursor::of(code);
     }
     let Some(n) = node else { return Cursor::Default };

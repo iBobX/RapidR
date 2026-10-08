@@ -847,6 +847,13 @@ impl Bitmap {
                 return Some(v);
             }
         }
+        // A QIMAGE's Clear / Cls: the picture goes (nothing shows).
+        if self.picture && matches!(method, "clear" | "cls") {
+            self.resize(0, 0);
+            self.alpha = None;
+            self.invalidate_display();
+            return Some(Value::Null);
+        }
         let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
         let c = |i: usize| super::color_bgr(n(i));
         match method {

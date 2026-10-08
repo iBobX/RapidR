@@ -13,7 +13,7 @@ rapidr-preprocessor.workspace = true
 rapidr-bcgen.workspace = true
 rapidr-bytecode.workspace = true
 rapidr-vm.workspace = true
-rapidr-vm-host-native = { workspace = true, features = ["full", "session"] }
+rapidr-vm-host-native = { workspace = true, features = ["full", "session", "studio"] }
 rapidr-webbundle.workspace = true
 rapidr-lsp.workspace = true
 rapidr-dap.workspace = true

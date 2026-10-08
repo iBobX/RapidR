@@ -23,7 +23,7 @@ pub use kernel::{
     grid_refresh, tree_refresh, header_refresh, dirtree_refresh, gui_set_caption, gui_apply_font, toggle_down_set,
     schedule_menu_sync, gui_timer_changed,
     // The component tree changed.
-    attach_late, gui_set_visible, gui_set_parent, gui_widget_add_items, gui_widget_clear, stack_widgets,
+    attach_late, gui_set_visible, gui_widget_add_items, gui_widget_clear, stack_widgets,
     ensure_menu_widget,
     // Left / Top / Width / Height (and a form's client size).
     gui_apply_geometry,

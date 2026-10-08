@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Language service</title>
+  <path d="M2.5 1.5H8.5L11.5 4.5V13.5H2.5L2.5 1.5Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M8.5 1.5V4.5H11.5" stroke="#5B6478"/>
+  <path d="M4.5 5.5L7.5 5.5" stroke="#5B6478"/>
+  <path d="M4.5 8.5L6.5 8.5" stroke="#5B6478"/>
+  <circle cx="11.5" cy="11.5" r="3" fill="#E3E9FF" stroke="#2F5BFF"/>
+  <path d="M10.5 11.5L11.5 12.5L12.5 10.5" stroke="#2F5BFF"/>
+</svg>

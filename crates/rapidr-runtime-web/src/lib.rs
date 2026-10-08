@@ -35,6 +35,8 @@ pub mod mdi_web;
 mod form_members_web;
 // (I1: RDOCKMANAGER — rapidr_value::dock)
 pub mod dock_web;
+pub mod studio_web;
+pub use rapidr_studio;
 pub mod network_web;
 pub mod object_web;
 /// The web-only components (RWEBVIEW, RDOM, media) as elements over

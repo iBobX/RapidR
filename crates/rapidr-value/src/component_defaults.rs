@@ -1,16 +1,14 @@
-//! What a new component starts with, as far as both runtimes' registries
-//! already agree (docs/web-host-plan.md, "The component registry: not
-//! unified", step 1 — Stage W3): the desktop's `RpComponent::new`
-//! (runtime-core's `object.rs`) and the web's `rp_create_component`
-//! (`object_web.rs`) both fill a new component's properties from
-//! [`shared`] first, then add what only they give it. Nothing either
-//! runtime gave a component changed: every property here had the same
-//! value in both before.
+//! What a new component starts with, on every runtime: native builds and
+//! the interpreter (runtime-core's `RpComponent::new`) and the web
+//! (`object_web.rs`'s `rp_create_component`) fill a new component's
+//! properties from [`creation`] (docs/web-host-plan.md, "The component
+//! registry", step 2 — Stage W3).
 //!
-//! The rest (a RapidQ default only one runtime gives — the desktop's
-//! QFORM Color and BorderStyle, QLABEL's Visible / Alignment / FontSize, the
-//! web's QCOOLBTN …) is step 2: each difference becomes a conformance case
-//! read on the three runtimes, RapidQ's value decided and moved here.
+//! [`creation`] is the language registry's defaults (`rapidr_lang`: what a
+//! program reads right after CREATE, RapidQ's value checked against RC.EXE —
+//! docs/rapidq-ground-truth.md, "Values at creation"), then [`extras`]: the
+//! few values the registry has no default for. A property is in one of the
+//! two, never both (a test checks).
 //!
 //! Also here: the Color a program reads from a component whose Color it
 //! never set ([`color_read`]) — RapidQ's system colours and ParentColor, as
@@ -18,80 +16,79 @@
 
 use crate::{v_bool, v_int, v_str, Value};
 
-/// The properties both runtimes give a new component of type `type_name`
-/// (any case; a QFILEDIALOG's extras only for `RFILEDIALOG` written so, as
-/// both registries checked), before their own.
-pub fn shared(type_name: &str) -> Vec<(String, Value)> {
+/// The properties a new component of type `type_name` (RapidR's name, any
+/// case) has before the program sets any: the registry's defaults, then
+/// [`extras`] (a docked one's Align too: QSTATUSBAR's alBottom …). Its
+/// Width and Height: `crate::layout::default_size` — the runtimes add those.
+pub fn creation(type_name: &str) -> Vec<(String, Value)> {
+    let mut p = registry(type_name);
+    p.extend(extras(type_name));
+    p
+}
+
+/// The language registry's defaults for `type_name`'s properties, as a
+/// program reads them right after CREATE / DIM. Not here: the members of
+/// RapidR's extension sets (Anchors, MinWidth …: the runtimes answer them),
+/// indexed and write-only properties, a Color [`color_read`] answers while
+/// it's unset (RapidQ's system colours and ParentColor: never stored), and
+/// the [`THEMED`] ones ([`unset_read`] reads them).
+pub fn registry(type_name: &str) -> Vec<(String, Value)> {
+    use rapidr_lang::Access;
+    let Some(c) = rapidr_lang::component(type_name) else {
+        return Vec::new();
+    };
+    let color_rule = color_read(type_name, &Value::Null, || None).is_some();
+    c.properties
+        .iter()
+        .filter(|p| p.set.is_none() && !p.missing && p.indexed == 0 && p.access != Access::Write)
+        .filter(|p| !(color_rule && p.name.eq_ignore_ascii_case("color")) && !themed(type_name, p.name))
+        .filter_map(|p| Some((p.name.to_ascii_lowercase(), value_of(p.default?)?)))
+        .collect()
+}
+
+fn value_of(d: rapidr_lang::DefaultValue) -> Option<Value> {
+    use rapidr_lang::DefaultValue;
+    Some(match d {
+        DefaultValue::Int(i) => v_int(i),
+        DefaultValue::Bool(b) => v_bool(b),
+        DefaultValue::Float(f) => Value::Double(f),
+        DefaultValue::Str(s) => v_str(s),
+        DefaultValue::Expr(e) => v_int(rapidr_lang::eval_constant(e)?),
+    })
+}
+
+/// Properties the theme draws its own way while the program hasn't set them
+/// (a QGAUGE's BackColor: the classic look's white, a modern theme's track),
+/// so a new component doesn't store them; a program reading one unset gets
+/// the registry's default ([`unset_read`]: RapidQ's white).
+pub const THEMED: &[(&str, &str)] = &[("RPROGRESSBAR", "backcolor")];
+
+fn themed(type_name: &str, prop: &str) -> bool {
+    THEMED.iter().any(|(t, p)| t.eq_ignore_ascii_case(type_name) && p.eq_ignore_ascii_case(prop))
+}
+
+/// What a program reads from a [`THEMED`] property it never set: the
+/// registry's default (None: not one of them, the stored value stands).
+pub fn unset_read(type_name: &str, prop: &str) -> Option<Value> {
+    if !themed(type_name, prop) {
+        return None;
+    }
+    rapidr_lang::component(type_name)?.property(prop)?.default.and_then(value_of)
+}
+
+/// What a new component of `type_name` (any case) starts with beyond the
+/// registry's defaults: properties the registry has no default for (RapidR's
+/// own drawing properties, the models' counters, members the registry
+/// doesn't list yet).
+pub fn extras(type_name: &str) -> Vec<(String, Value)> {
     let mut p: Vec<(String, Value)> = Vec::new();
     let mut put = |k: &str, v: Value| p.push((k.to_string(), v));
     match type_name.to_ascii_uppercase().as_str() {
-        "RFORM" => {
-            put("caption", v_str(""));
-            put("left", v_int(100));
-            put("top", v_int(100));
-            // (hidden until shown, as in RapidQ)
-            put("visible", v_bool(false));
-            // (RC.EXE: a new QFORM's Enabled reads 1)
-            put("enabled", v_bool(true));
-            // (the WindowState lane's: wsNormal)
-            put("windowstate", v_int(crate::window_state::WS_NORMAL));
-        }
-        "RBUTTON" | "RLABEL" | "RCHECKBOX" | "RRADIOBUTTON" => {
-            put("caption", v_str(""));
-            put("left", v_int(0));
-            put("top", v_int(0));
-            // (a QLABEL's AutoSize is True until set, RC.EXE: crate::autosize)
-            if type_name.eq_ignore_ascii_case("RLABEL") {
-                put("autosize", v_bool(true));
-            }
-        }
-        "REDIT" | "RMEMO" | "RRICHEDIT" => {
-            put("text", v_str(""));
-            put("left", v_int(0));
-            put("top", v_int(0));
-        }
-        // (items, selection, cells, pictures, pens …: the shared models)
-        "RPANEL" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE" | "RIMAGE" | "RCANVAS" | "RDXSCREEN" | "RSTRINGGRID" | "RTABCONTROL" | "RTREEVIEW"
-        | "RGROUPBOX" | "RSPLITTER" | "RSCROLLBOX" | "RLISTVIEW" | "RTOOLBAR" | "RCODEEDITOR" => {
-            put("left", v_int(0));
-            put("top", v_int(0));
-        }
         // QBEVEL (QBevel.inc's TYPE EXTENDS QPANEL): bsSpacer, bsLowered —
         // no bevels (crate::objects::bevel::qbevel_bevels).
         "RBEVEL" => {
-            put("caption", v_str(""));
-            put("left", v_int(0));
-            put("top", v_int(0));
-            put("visible", v_bool(true));
             put("shape", v_int(0));
             put("style", v_int(0));
-            put("bevelouter", v_int(0));
-            put("bevelinner", v_int(0));
-        }
-        // (I1) RDOCKMANAGER: crate::dock (DocumentMode "mdi": its model's).
-        "RDOCKMANAGER" => {
-            put("left", v_int(0));
-            put("top", v_int(0));
-            put("visible", v_bool(true));
-            put("enabled", v_bool(true));
-            put("align", v_int(0));
-            put("hint", v_str(""));
-        }
-        // QGLASSFRAME (RC.EXE: 105 × 105, Transparency 60, TransparentColor
-        // 0, Moveable 1, Color clBtnFace): crate::objects::glass.
-        "RGLASSFRAME" => {
-            put("left", v_int(0));
-            put("top", v_int(0));
-            put("visible", v_bool(true));
-            put("enabled", v_bool(true));
-            put("transparency", v_int(crate::objects::glass::TRANSPARENCY));
-            put("transparentcolor", v_int(0));
-            put("moveable", v_int(1));
-            put("color", v_int(CL_BTN_FACE));
-            put("hint", v_str(""));
-            put("showhint", v_bool(false));
-            put("align", v_int(0));
-            put("cursor", v_int(0));
         }
         // RPLOT: a chart, shown when it's on a form (the UI kernel's
         // components::plot); its size is its model's (layout::default_size).
@@ -101,71 +98,21 @@ pub fn shared(type_name: &str) -> Vec<(String, Value)> {
             put("visible", v_bool(true));
         }
         // QDIGDISPLAY: a canvas showing its Display (objects::digdisplay).
-        "RDIGDISPLAY" => {
-            put("left", v_int(0));
-            put("top", v_int(0));
-            put("visible", v_bool(true));
-            put("color", v_int(0));
-        }
-        // (the input lane's: its size grip shows — RapidQ's default; docked
-        // at the bottom: layout::default_align)
+        "RDIGDISPLAY" => put("color", v_int(0)),
+        // (docked at the bottom: its Align, the registry's alBottom)
         "RSTATUSBAR" => {
-            put("left", v_int(0));
             put("top", v_int(0));
-            put("sizegrip", v_bool(true));
+            put("panelcount", v_int(0));
         }
-        "RHEADER" => {
-            // Sections: crate::objects::header; a canvas to draw on.
-            put("left", v_int(0));
-            put("top", v_int(0));
-            put("color", v_int(0xF0F0F0));
-        }
-        "RPROGRESS" | "RPROGRESSBAR" => {
-            put("left", v_int(0));
-            put("top", v_int(0));
-            put("min", v_int(0));
-            put("max", v_int(100));
-            put("position", v_int(0));
-        }
-        // QTIMER: Enabled is True by default (manual).
-        "RTIMER" => {
-            put("enabled", v_bool(true));
-            put("interval", v_int(1000));
-        }
-        // (the DirectX lane's) QDXTIMER (manual: Enabled False, ActiveOnly
-        // True; DelphiX's Interval 1000).
-        "RDXTIMER" => {
-            put("enabled", v_bool(false));
-            put("interval", v_int(1000));
-            put("activeonly", v_bool(true));
-        }
-        // (QDXSOUND: its sound's properties are the model's; these
-        // DirectSound streaming settings only kept — manual's defaults)
-        "RDXSOUND" => {
-            put("autoupdate", v_bool(true));
-            put("bufferlength", v_int(1000));
-            put("stickyfocus", v_bool(false));
-        }
-        "RDXJOYSTICK" => put("enabled", v_bool(true)),
-        // (the I/O lane's QCOMPORT: the runtime looks for its OnRxChar like
-        // a timer's ticks — runtime-core io.rs, io_web.rs)
-        "RCOMPORT" => put("enabled", v_bool(true)),
-        // (the media objects' Timer is their model's: media.rs)
-        "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG" => {
-            put("filename", v_str(""));
+        // Sections: crate::objects::header; a canvas to draw on.
+        "RHEADER" => put("color", v_int(0xF0F0F0)),
+        // (the I/O lane's QCOMPORT and the DirectX lane's QDXJOYSTICK: the
+        // runtime looks for their events like a timer's ticks — io.rs,
+        // io_web.rs, directx_web.rs)
+        "RCOMPORT" | "RDXJOYSTICK" => put("enabled", v_bool(true)),
+        "ROPENDIALOG" | "RSAVEDIALOG" => {
             put("filetitle", v_str(""));
-            put("filter", v_str(""));
-            put("filterindex", v_int(1));
-            put("initialdir", v_str(""));
-            put("title", v_str(""));
             put("selcount", v_int(0));
-            if type_name == "RFILEDIALOG" {
-                put("caption", v_str("Open"));
-                put("filter", v_str("All Files|*.*"));
-                put("mode", v_int(0));
-                put("multiselect", v_bool(false));
-                put("warnifoverwrite", v_bool(true));
-            }
         }
         // (the dialogs lane's: RAPIDQ2.INC's QColorDialog — Color 0, Style
         // cdNoFullOpen, its constructor's Colors(1 TO 16))
@@ -183,119 +130,17 @@ pub fn shared(type_name: &str) -> Vec<(String, Value)> {
                 put(k, v);
             }
         }
-        "RFILESTREAM" => {
-            put("filename", v_str(""));
-            put("position", v_int(0));
-        }
-        "RJSON" => {
-            put("text", v_str(""));
-            put("filename", v_str(""));
-            put("count", v_int(0));
-        }
-        // (database.rs / database_web.rs keep the rest)
-        "RSQLITE" => {
-            put("connected", v_int(0));
-            put("db", v_str(""));
-            put("rowcount", v_int(0));
-            put("colcount", v_int(0));
-            put("fieldcount", v_int(0));
-        }
-        _ => {}
-    }
-    p
-}
-
-/// What only the desktop's registry gives a new component of type
-/// `type_name` (any case), after [`shared`]: RapidQ's defaults the web's
-/// DOM host doesn't give (QFORM's Color and BorderStyle, QLABEL's Visible,
-/// Alignment, FontSize …) — step 2 of the registry's path decides each.
-/// The web's kernel host gives them too, so the kernel draws and the program
-/// reads what it does on the desktop.
-pub fn desktop(type_name: &str) -> Vec<(String, Value)> {
-    let mut p: Vec<(String, Value)> = Vec::new();
-    let mut put = |k: &str, v: Value| p.push((k.to_string(), v));
-    match type_name.to_ascii_uppercase().as_str() {
-        "RFORM" => {
-            put("borderstyle", v_int(2));
-        }
-        "RBUTTON" => {
-            put("enabled", v_bool(true));
-            put("visible", v_bool(true));
-        }
-        "RLABEL" => {
-            put("visible", v_bool(true));
-            put("alignment", v_int(0));
-            put("fontcolor", v_int(0));
-        }
-        "REDIT" => {
-            put("enabled", v_bool(true));
-            put("visible", v_bool(true));
-            put("readonly", v_bool(false));
-            put("maxlength", v_int(0));
-        }
-        "RPANEL" => {
-            put("caption", v_str(""));
-            put("visible", v_bool(true));
-        }
-        "RCHECKBOX" => {
-            put("checked", v_int(0));
-            put("enabled", v_bool(true));
-            put("visible", v_bool(true));
-        }
-        "RRADIOBUTTON" => {
-            put("checked", v_int(0));
-        }
-        // Nothing more than both runtimes give them: QCOMBOBOX, QLISTBOX
-        // (items and selection: crate::objects::list), QTIMER
-        // (Enabled True, the manual's), the DirectX lane's QDXTIMER,
-        // QDXSOUND and QDXJOYSTICK, QHEADER, QSTRINGGRID (cells, sizes and
-        // selection: crate::objects::grid), QTABCONTROL,
-        // QPROGRESS, QJSON, QTREEVIEW, the file / colour / font dialogs,
-        // the menus.
-        "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE" | "RTIMER" | "RDXTIMER" | "RDXSOUND" | "RDXJOYSTICK" | "RHEADER" | "RSTRINGGRID" | "RTABCONTROL"
-        | "RPROGRESS" | "RJSON" | "RTREEVIEW" | "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" | "RMAINMENU" | "RPOPUPMENU" => {}
-        "RIMAGE" => {
-            put("stretch", v_bool(false));
-        }
+        "RLABEL" => put("fontcolor", v_int(0)),
         "RCANVAS" => {
             put("pencolor", v_int(0));
             put("penwidth", v_int(1));
             put("brushcolor", v_int(0xFFFFFF));
             put("fontcolor", v_int(0));
         }
-        // (the DirectX lane's)
-        "RDXSCREEN" => {
-            put("visible", v_bool(true));
-        }
         "RDESIGNSURFACE" => {
             put("formcaption", v_str("Form1"));
             put("compcount", v_int(0));
             put("visible", v_bool(true));
-        }
-        "RCODEEDITOR" => {
-            put("text", v_str(""));
-            put("visible", v_bool(true));
-        }
-        "RGROUPBOX" => {
-            put("caption", v_str(""));
-            put("visible", v_bool(true));
-        }
-        "RMENUITEM" => {
-            put("caption", v_str(""));
-            put("enabled", v_bool(true));
-            put("checked", v_bool(false));
-        }
-        "RSTATUSBAR" => {
-            // Docked at the bottom (Align = alBottom) once it has a parent.
-            put("simpletext", v_str(""));
-            put("simplepanel", v_bool(false));
-            put("panelcount", v_int(0));
-        }
-        "RRICHEDIT" | "RMEMO" => {
-            put("readonly", v_bool(false));
-        }
-        "RFILESTREAM" => {
-            put("size", v_int(0));
         }
         "RSTRINGLIST" => {
             put("count", v_int(0));
@@ -304,11 +149,6 @@ pub fn desktop(type_name: &str) -> Vec<(String, Value)> {
         "RTOOLBAR" => {
             put("width", v_int(0));
             put("height", v_int(32));
-        }
-        "RSCROLLBAR" => {
-            put("min", v_int(0));
-            put("max", v_int(100));
-            put("position", v_int(0));
         }
         "RDATETIMEPICKER" => {
             put("date", v_str(""));
@@ -319,11 +159,14 @@ pub fn desktop(type_name: &str) -> Vec<(String, Value)> {
             put("max", v_int(100));
             put("position", v_int(0));
         }
-        "RPRINTER" => {
-            put("title", v_str(""));
-        }
-        // Database components — properties managed by database.rs
+        "RPRINTER" => put("title", v_str("")),
+        // (database.rs / database_web.rs keep the rest)
         "RSQLITE" => {
+            put("connected", v_int(0));
+            put("db", v_str(""));
+            put("rowcount", v_int(0));
+            put("colcount", v_int(0));
+            put("fieldcount", v_int(0));
             put("tablecount", v_int(0));
         }
         "RMYSQL" => {
@@ -360,21 +203,10 @@ pub fn desktop(type_name: &str) -> Vec<(String, Value)> {
             put("timeout", v_int(5000));
             put("usessl", v_int(0));
         }
-        "RSPLITTER" => {
-            put("minsize", v_int(30));
-            put("visible", v_bool(true));
-        }
-        "RSCROLLBOX" => {
-            put("visible", v_bool(true));
-        }
         "RLISTVIEW" => {
             put("itemindex", v_int(-1));
             put("items", v_str(""));
             put("count", v_int(0));
-            put("visible", v_bool(true));
-        }
-        "RPROGRESSBAR" => {
-            put("visible", v_bool(true));
         }
         // (an unknown type: nothing more)
         _ => {}
@@ -393,10 +225,11 @@ pub const CL_WINDOW: i64 = -2147483643;
 /// What `component.Color` reads in a program, as RapidQ has it (RC.EXE on
 /// Windows 11, docs/rapidq-ground-truth.md): the Color the program set
 /// (`stored`, not Null: then None, the runtime's value stands); else for a
-/// QFORM, QPANEL (QBEVEL) clBtnFace; for a QLABEL, QCANVAS or QGROUPBOX its
-/// parent's Color, followed live (Delphi's ParentColor: `parent()` reads
-/// it, None without a parent) and clWindow without one; for the other
-/// components RC.EXE was asked about, clWindow. None too for a type
+/// QFORM, QPANEL (QBEVEL) clBtnFace; for a QLABEL, QCANVAS, QGROUPBOX,
+/// QBUTTON, QSCROLLBOX, QTABCONTROL, QGAUGE or QOVALBTN its parent's Color,
+/// followed live (Delphi's ParentColor: `parent()` reads it, None without a
+/// parent) and clWindow without one; for the other components RC.EXE was
+/// asked about, clWindow. None too for a type
 /// without such a default. The kernel draws a never-set Color as before —
 /// the face for a form or panel, nothing for a label, the parent through a
 /// canvas — which is what these system colours are on screen
@@ -407,8 +240,8 @@ pub fn color_read(type_name: &str, stored: &Value, parent: impl FnOnce() -> Opti
     }
     match type_name.to_ascii_uppercase().as_str() {
         "RFORM" | "RPANEL" | "RBEVEL" => Some(v_int(CL_BTN_FACE)),
-        "RLABEL" | "RCANVAS" | "RGROUPBOX" => Some(parent().unwrap_or_else(|| v_int(CL_WINDOW))),
-        "RBUTTON" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RLISTBOX" | "RCOMBOBOX" | "RSTRINGGRID" | "RSCROLLBOX" | "RTABCONTROL" => Some(v_int(CL_WINDOW)),
+        "RLABEL" | "RCANVAS" | "RGROUPBOX" | "RBUTTON" | "RSCROLLBOX" | "RTABCONTROL" | "RPROGRESSBAR" | "ROVALBTN" => Some(parent().unwrap_or_else(|| v_int(CL_WINDOW))),
+        "REDIT" | "RMEMO" | "RRICHEDIT" | "RLISTBOX" | "RCOMBOBOX" | "RSTRINGGRID" | "RDIRTREE" | "RFILELISTBOX" => Some(v_int(CL_WINDOW)),
         _ => None,
     }
 }
@@ -492,7 +325,7 @@ pub fn form_pixel(shown: bool, client: (i64, i64), x: i64, y: i64, color: i64, c
 /// Whether a component of `type_name` takes its parent's Color while it
 /// has none of its own (Delphi's ParentColor, as RC.EXE shows it).
 pub fn parent_color(type_name: &str) -> bool {
-    matches!(type_name.to_ascii_uppercase().as_str(), "RLABEL" | "RCANVAS" | "RGROUPBOX")
+    matches!(type_name.to_ascii_uppercase().as_str(), "RLABEL" | "RCANVAS" | "RGROUPBOX" | "RBUTTON" | "RSCROLLBOX" | "RTABCONTROL" | "RPROGRESSBAR" | "ROVALBTN")
 }
 
 #[cfg(test)]
@@ -504,16 +337,40 @@ mod tests {
     }
 
     #[test]
-    fn both_runtimes_defaults() {
-        let f = shared("rform");
-        assert_eq!(get(&f, "left"), Some(&v_int(100)));
+    fn defaults_at_creation() {
+        let f = creation("rform");
+        // (RC.EXE: a new QFORM reads Left 0, Top 0, Visible 0, Enabled 1)
+        assert_eq!(get(&f, "left"), Some(&v_int(0)));
         assert_eq!(get(&f, "visible"), Some(&v_bool(false)));
-        assert_eq!(get(&shared("RTIMER"), "interval"), Some(&v_int(1000)));
-        // (a QFILEDIALOG's extras: only for the type written so)
-        assert_eq!(get(&shared("RFILEDIALOG"), "filter"), Some(&v_str("All Files|*.*")));
-        assert_eq!(get(&shared("rfiledialog"), "filter"), Some(&v_str("")));
-        assert!(get(&shared("RCOLORDIALOG"), "colors(16)").is_some());
-        assert!(shared("RUDT").is_empty());
+        assert_eq!(get(&f, "enabled"), Some(&v_bool(true)));
+        assert!(get(&f, "color").is_none(), "an unset Color is color_read's");
+        assert_eq!(get(&creation("RTIMER"), "interval"), Some(&v_int(1000)));
+        assert_eq!(get(&creation("rfiledialog"), "filter"), Some(&v_str("All Files|*.*")));
+        assert_eq!(get(&creation("RBUTTON"), "spacing"), Some(&v_int(4)));
+        assert_eq!(get(&creation("RLISTBOX"), "copymode"), Some(&v_int(0xCC0020)));
+        assert_eq!(get(&creation("RGLASSFRAME"), "color"), Some(&v_int(CL_BTN_FACE)));
+        assert!(get(&creation("RCOLORDIALOG"), "colors(16)").is_some());
+        assert!(creation("RUDT").is_empty());
+        // (a gauge's BackColor: the theme's until set, RapidQ's white when read)
+        assert!(get(&creation("RPROGRESSBAR"), "backcolor").is_none());
+        assert_eq!(unset_read("RPROGRESSBAR", "BackColor"), Some(v_int(0xFFFFFF)));
+        assert_eq!(unset_read("RBUTTON", "spacing"), None);
+    }
+
+    /// One place per default: a property the registry gives a default isn't
+    /// in the hand list too.
+    #[test]
+    fn extras_never_repeat_the_registry() {
+        let mut twice = Vec::new();
+        for t in rapidr_lang::COMPONENT_TYPES {
+            let reg = registry(t);
+            for (k, v) in extras(t) {
+                if let Some(r) = get(&reg, &k) {
+                    twice.push(format!("{t}.{k}: registry {r:?}, extras {v:?}"));
+                }
+            }
+        }
+        assert!(twice.is_empty(), "{twice:#?}");
     }
 
     #[test]
@@ -542,8 +399,11 @@ mod tests {
         assert_eq!(color_read("RLABEL", &Value::Null, || None), Some(v_int(CL_WINDOW)));
         assert_eq!(color_read("RLABEL", &Value::Null, || Some(v_int(0xFF))), Some(v_int(0xFF)));
         assert_eq!(color_read("REDIT", &Value::Null, || Some(v_int(0xFF))), Some(v_int(CL_WINDOW)));
+        // (RC.EXE: a button on a form follows the form's Color, one without a parent reads clWindow)
+        assert_eq!(color_read("RBUTTON", &Value::Null, || Some(v_int(0xFF))), Some(v_int(0xFF)));
+        assert_eq!(color_read("RBUTTON", &Value::Null, || None), Some(v_int(CL_WINDOW)));
         assert_eq!(color_read("RFORM", &v_int(0xFF), || None), None, "the program's");
         assert_eq!(color_read("RTIMER", &Value::Null, || None), None);
-        assert!(get(&desktop("RFORM"), "color").is_none());
+        assert!(get(&creation("RFORM"), "color").is_none());
     }
 }

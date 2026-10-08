@@ -84,7 +84,8 @@ struct Mdi {
 
 impl Default for Mdi {
     fn default() -> Self {
-        Mdi { children: Vec::new(), child_max: 1024, result: true, menu: 0, added: 0 }
+        // (RC.EXE: ChildResult reads 0 until a child closes — close_next sets it)
+        Mdi { children: Vec::new(), child_max: 1024, result: false, menu: 0, added: 0 }
     }
 }
 
@@ -210,6 +211,26 @@ fn raise(m: &mut Mdi, i: usize) -> Vec<Event> {
 
 fn find(m: &Mdi, component: &str) -> Option<usize> {
     m.children.iter().position(|c| c.component.eq_ignore_ascii_case(component))
+}
+
+/// The window state of the child showing `component` (`None`: no child shows it).
+pub fn child_state(form: &str, component: &str) -> Option<State> {
+    with(form, |m| find(m, component).map(|i| m.children[i].state))
+}
+
+/// Sets the title of the child showing `component` (active or not); false
+/// when no child shows it.
+pub fn set_child_title(form: &str, component: &str, title: &str) -> bool {
+    if !is_mdi(form) {
+        return false;
+    }
+    with(form, |m| match find(m, component) {
+        Some(i) => {
+            m.children[i].title = title.to_string();
+            true
+        }
+        None => false,
+    })
 }
 
 /// The program's index of the child showing `component`.
@@ -412,7 +433,7 @@ pub fn get(form: &str, prop: &str) -> Option<Value> {
         Some(match prop.to_ascii_lowercase().as_str() {
             "childcount" => Value::Integer(m.children.len() as i64),
             "childmax" => Value::Integer(m.child_max),
-            "childresult" => Value::Integer(if m.result { -1 } else { 0 }),
+            "childresult" => Value::Integer(m.result as i64),
             "mdimenu" => Value::Integer(m.menu),
             "childcaption" => s(&|c| Value::String(c.title.clone())),
             "childhandle" => s(&|c| Value::Integer(c.handle)),
@@ -713,6 +734,19 @@ mod tests {
 
     fn add(form: &str, h: i64, title: &str) -> Outcome {
         call(form, "AddChild", &[Value::Integer(h), Value::String(title.into()), Value::Integer(h), Value::Integer(0), Value::Integer(0), Value::Integer(0), Value::Integer(0), Value::Integer(-1)], (800, 600), &names).unwrap()
+    }
+
+    #[test]
+    fn a_childs_title_set_by_its_component_leaves_the_active_one() {
+        register("t");
+        add("t", 1, "One");
+        add("t", 2, "Two");
+        assert!(set_child_title("t", "edit(1)", "One *"));
+        let titles: Vec<String> = frames("t").iter().map(|f| f.title.clone()).collect();
+        assert_eq!(titles, vec!["One *".to_string(), "Two".to_string()]);
+        assert!(!set_child_title("t", "edit(9)", "x"));
+        assert!(!set_child_title("not-mdi", "edit(1)", "x"));
+        assert!(!is_mdi("not-mdi"));
     }
 
     #[test]

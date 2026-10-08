@@ -25,7 +25,7 @@ impl ImageList {
             "count" => v_int(self.images.len() as i64),
             "width" => v_int(self.width),
             "height" => v_int(self.height),
-            "masked" => v_int(if self.masked { -1 } else { 0 }),
+            "masked" => v_int(self.masked as i64),
             _ => return None,
         })
     }

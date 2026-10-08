@@ -247,6 +247,16 @@ pub fn call(p: &dyn Platform, name: &str, method: &str, args: &[Value]) -> Optio
             p.minimize();
             v_null()
         }
+        // (RapidR's) A colour of the current theme by name, as a RapidQ
+        // colour (&HBBGGRR): the theme's tokens and the IDE's
+        // (`crate::ide_theme`); -1 for a name no theme has.
+        ("application", "themecolor") => {
+            let name = arg(0).to_string_val();
+            match crate::ide_theme::color_by_name(crate::theme::current(), &name) {
+                Some(rgb) => v_int(i64::from(crate::theme::bgr(rgb))),
+                None => v_int(-1),
+            }
+        }
         ("screen", "getpixeldepth") => v_int(32),
         ("screen", "monitors") => v_int(p.monitors()),
         ("screen", "mousebuttons") => v_int(3),

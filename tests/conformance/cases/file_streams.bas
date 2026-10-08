@@ -1,6 +1,8 @@
 ' QFILESTREAM on the shared stream code (the same methods as QMEMORYSTREAM):
 ' fmCreate/fmOpenRead/fmOpenReadWrite, WriteLine/ReadLine, numbers, Read(var),
 ' EOF as True (-1) so WHILE NOT File.EOF ends, LineCount, Seek, CopyFrom.
+' The .expected is RC.EXE's output (docs/rapidq-ground-truth.md): LineCount
+' counts the LFs, a file's ReadStr(n) and Read(S$) end with one more space.
 $INCLUDE "RAPIDQ.INC"
 F$ = "tests/conformance/.work/file_streams.txt"
 DIM File AS QFILESTREAM

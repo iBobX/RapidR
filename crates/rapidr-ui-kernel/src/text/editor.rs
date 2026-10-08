@@ -207,6 +207,9 @@ pub struct TextEditor {
     size: (f64, f64),
     /// The text system's fonts it was laid out with ([`TextSystem::generation`]).
     generation: u64,
+    /// The theme its syntax colours are from (`theme::generation`): a theme
+    /// switch colours the code again.
+    theme: u64,
 }
 
 impl TextEditor {
@@ -227,6 +230,7 @@ impl TextEditor {
             laid: false,
             size: (0.0, 0.0),
             generation: 0,
+            theme: rapidr_value::theme::generation(),
         }
     }
 
@@ -480,6 +484,11 @@ impl TextEditor {
     fn colour(&mut self) {
         if self.look.syntax == Syntax::None {
             return;
+        }
+        let theme = rapidr_value::theme::generation();
+        if theme != self.theme {
+            self.theme = theme;
+            self.invalidate();
         }
         let mut state = 0;
         for p in &mut self.paras {

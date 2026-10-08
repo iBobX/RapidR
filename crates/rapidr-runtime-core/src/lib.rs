@@ -15,6 +15,8 @@ pub mod mdi;
 mod form_members;
 // (I1: RDOCKMANAGER — rapidr_value::dock)
 pub mod dock;
+#[cfg(feature = "studio")]
+pub mod studio;
 pub mod globals;
 pub mod program;
 pub(crate) mod sound;

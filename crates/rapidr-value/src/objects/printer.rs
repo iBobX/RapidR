@@ -60,14 +60,21 @@ pub struct Printer {
     pub landscape: bool,
     pub copies: i64,
     pub title: String,
+    /// CopyMode (the registry's default: cmSrcCopy, a TCanvas's).
+    pub copy_mode: i64,
     pub printers: Vec<String>,
     pub index: i64,
+}
+
+/// The Printer's CopyMode before the program sets one: the registry's.
+fn default_copy_mode() -> i64 {
+    crate::component_defaults::registry("RPRINTER").into_iter().find(|(k, _)| k == "copymode").map_or(0, |(_, v)| v.to_i64())
 }
 
 impl Default for Printer {
     fn default() -> Self {
         let printers = super::printer_names();
-        Printer { pages: Vec::new(), printing: false, aborted: false, font: Font::default(), landscape: false, copies: 1, title: String::new(), printers, index: 0 }
+        Printer { pages: Vec::new(), printing: false, aborted: false, font: Font::default(), landscape: false, copies: 1, title: String::new(), copy_mode: default_copy_mode(), printers, index: 0 }
     }
 }
 
@@ -127,7 +134,7 @@ impl Printer {
     }
 
     pub fn get(&self, prop: &str) -> Option<Value> {
-        let flag = |b: bool| v_int(if b { -1 } else { 0 });
+        let flag = |b: bool| v_int(b as i64);
         let (w, h) = self.page_size();
         Some(match prop {
             "pagewidth" => v_int(w),
@@ -138,6 +145,7 @@ impl Printer {
             "orientation" => v_int(i64::from(self.landscape)),
             "copies" => v_int(self.copies),
             "title" => v_str(&self.title),
+            "copymode" => v_int(self.copy_mode),
             "printerindex" => v_int(self.index),
             "printerscount" => v_int(self.printers.len() as i64),
             "capabilities.copies" | "capabilities.orientation" | "capabilities.collate" => flag(true),
@@ -151,6 +159,7 @@ impl Printer {
             "orientation" => self.landscape = val.to_i64() == 1,
             "copies" => self.copies = val.to_i64().clamp(1, 999),
             "title" => self.title = val.to_string_val(),
+            "copymode" => self.copy_mode = val.to_i64(),
             "printerindex" => self.index = val.to_i64().clamp(-1, self.printers.len() as i64 - 1).max(0),
             p => return p.strip_prefix("font.").is_some_and(|p| self.font.set(p, val)),
         }

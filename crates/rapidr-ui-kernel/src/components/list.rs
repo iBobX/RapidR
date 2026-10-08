@@ -555,6 +555,9 @@ pub fn replay(p: &mut Painter, ops: &[CellDraw], font: &Font, key: &str) {
                 let (tw, th) = rapidr_value::objects::text::text_size(text, font);
                 p.clipped(area, |p| p.text((*x, *y, tw.max(1) + 2, th.max(1)), text, font, c(*col), Place::TopLeft));
             }
+            // (a flood fill needs pixels: a cell that has one is drawn as a
+            // picture — grid.rs)
+            CellDraw::Flood(..) => {}
         }
     }
 }
@@ -689,6 +692,14 @@ impl ComponentKind for ListBox {
         }
         let rh = l.row_height();
         let (pos, cw, bar) = vscroll(cx.id, iw, ih, l.items.len() as i64 * rh, rh);
+        // (what the program drew on the list, where the list hasn't painted
+        // it over: rapidr_value's ListCanvas)
+        // (on the copy: drawing may read other objects; the model keeps
+        // what it made)
+        let canvas = l.canvas_overlay((cw, ih), pos, rh, background(cx), &font);
+        if canvas.is_some() {
+            with_list_mut(cx.id, |m| m.canvas = l.canvas.clone());
+        }
         p.at((2, 2), |p| {
             p.clipped((0, 0, cw, ih), |p| {
                 let first = (pos / rh).max(0) as usize;
@@ -704,6 +715,12 @@ impl ComponentKind for ListBox {
                     p.text((x, top, cw - x, rh), &text, &font, color, Place::Left);
                     if cx.state.focused && l.item_index == i as i64 {
                         p.focus((0, top, cw, rh));
+                    }
+                }
+                if let Some(c) = &canvas {
+                    let picture = std::sync::Arc::new(picture_of(c.bitmap.clone().display_rgba()));
+                    for &r in &c.rects {
+                        p.clipped(r, |p| p.picture(&format!("{}#canvas", cx.id), c.version, picture.clone(), (0, 0, cw, ih)));
                     }
                 }
             });

@@ -35,7 +35,8 @@ target
 rapidr
 # (the line above is the binary; the VS Code extension's folder has the same name)
 !utilities/vscodeext/rapidr/
-ide
+# (the old IDE built natively: examples/ide; RapidR Studio lives in ide/)
+/examples/ide
 *.compiled
 *.interp
 *.zip

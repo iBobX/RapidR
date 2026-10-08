@@ -254,6 +254,23 @@ impl ComponentKind for DockGroup {
         false
     }
 
+    /// (tooltip.rs) A tab's whole title, a header button's name.
+    fn tip_at(&self, store: &dyn Store, id: &str, x: f64, y: f64) -> Option<String> {
+        let (dock, slot) = slot_of(store, id)?;
+        let font = store.font(&dock);
+        let (w, h) = (store::int(store, id, "width", 0), store::int(store, id, "height", 0));
+        let gr = group_geo(&dock, slot, w, h, &font)?;
+        let titles = manager::with(&dock, |m| { use rapidr_value::dock::geometry::Titles; let t = m.titles(); gr.panes.iter().map(|p| t.title(p)).collect::<Vec<_>>() })?;
+        match gr.hit(x.floor() as i64, y.floor() as i64)? {
+            GroupHit::Button(rapidr_value::dock::geometry::Button::Close) => Some("Close".into()),
+            GroupHit::Button(rapidr_value::dock::geometry::Button::Pin) => Some(if slot == Slot::Flyout { "Dock" } else { "Auto Hide" }.into()),
+            GroupHit::Button(rapidr_value::dock::geometry::Button::Dock) => Some("Dock".into()),
+            GroupHit::Tab(i) => titles.get(i).cloned(),
+            GroupHit::Header => titles.get(gr.active).cloned(),
+            GroupHit::Content => None,
+        }
+    }
+
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let theme = p.theme();
         let Some((dock, slot)) = slot_of(cx.store, cx.id) else {

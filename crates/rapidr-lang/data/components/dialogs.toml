@@ -7,12 +7,13 @@ rapidq = "QOPENDIALOG"
 visual = false
 doc = "The system's Open dialog: Execute shows it and returns whether the user chose a file, then named by FileName. Filter limits the files listed."
 properties = [
-  { name = "Caption", type = "string" },
-  { name = "FileName", type = "string" },
-  { name = "Filter", type = "string" },
+  { name = "PickFolder", type = "bool", default = false, origin = "rapidr", doc = "Execute chooses a folder instead of a file; FileName is the folder (on the web its files are read in, and saving one writes it back)." },
+  { name = "Caption", type = "string", default = "" },
+  { name = "FileName", type = "string", default = "" },
+  { name = "Filter", type = "string", default = "" },
   { name = "FilterIndex", type = "int", default = 1 },
-  { name = "InitialDir", type = "string" },
-  { name = "Title", type = "string", origin = "rapidr" },
+  { name = "InitialDir", type = "string", default = "" },
+  { name = "Title", type = "string", origin = "rapidr", default = "" },
   { name = "DefaultExt", type = "string", origin = "rapidr" },
 ]
 methods = [
@@ -26,12 +27,12 @@ rapidq = "QSAVEDIALOG"
 visual = false
 doc = "The system's Save dialog: Execute shows it and returns whether the user chose a name, then in FileName."
 properties = [
-  { name = "Caption", type = "string" },
-  { name = "FileName", type = "string" },
-  { name = "Filter", type = "string" },
+  { name = "Caption", type = "string", default = "" },
+  { name = "FileName", type = "string", default = "" },
+  { name = "Filter", type = "string", default = "" },
   { name = "FilterIndex", type = "int", default = 1 },
-  { name = "InitialDir", type = "string" },
-  { name = "Title", type = "string", origin = "rapidr" },
+  { name = "InitialDir", type = "string", default = "" },
+  { name = "Title", type = "string", origin = "rapidr", default = "" },
   { name = "DefaultExt", type = "string", origin = "rapidr" },
 ]
 methods = [
@@ -47,20 +48,20 @@ visual = false
 doc = "RAPIDQ2.INC's file dialog: one component for Open and Save (Mode), with several files at once (Files, SelCount) and an overwrite warning."
 properties = [
   { name = "Caption", type = "string", default = "Open" },
-  { name = "DefaultExt", type = "string" },
-  { name = "FileName", type = "string" },
-  { name = "FileTitle", type = "string", access = "read", design = false },
+  { name = "DefaultExt", type = "string", default = "" },
+  { name = "FileName", type = "string", default = "" },
+  { name = "FileTitle", type = "string", access = "read", design = false, default = "" },
   { name = "Files", type = "string", design = false, indexed = 1 },
   { name = "Filter", type = "string", default = "All Files|*.*" },
-  { name = "FilterIndex", type = "int", default = 1 },
-  { name = "InitialDir", type = "string" },
-  { name = "Mode", type = "int" },
+  { name = "FilterIndex", type = "int", default = 0 },
+  { name = "InitialDir", type = "string", default = "" },
+  { name = "Mode", type = "int", default = 0 },
   { name = "MultiSelect", type = "bool", default = false },
   { name = "NoChangeDir", type = "bool", default = false },
   { name = "Parent", type = "int", design = false },
   { name = "SelCount", type = "int", default = 0, access = "read", design = false },
   { name = "WarnIfOverWrite", type = "bool", default = true },
-  { name = "Title", type = "string", origin = "rapidr" },
+  { name = "Title", type = "string", origin = "rapidr", default = "" },
 ]
 methods = [
   { name = "Execute", returns = "VARIANT", value = true, test = "skip: shows the dialog and waits for the user (tests/fixtures/file_dialogs.bas and the colour / font dialog fixtures answer it)" },

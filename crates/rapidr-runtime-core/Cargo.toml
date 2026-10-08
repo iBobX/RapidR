@@ -44,6 +44,8 @@ serial2 = { version = "0.2", features = ["unix"] }
 # The UI kernel, the program glue every host shares and the winit /
 # headless host (`gui`).
 rapidr-ui-kernel = { workspace = true, optional = true }
+rapidr-studio = { workspace = true, optional = true }
+rapidr-session = { workspace = true, optional = true }
 rapidr-ui-app = { workspace = true, optional = true }
 rapidr-ui-host-winit = { workspace = true, optional = true }
 
@@ -78,3 +80,6 @@ datascience = ["dep:rapidr-ui-render", "dep:rapidr-ui-kernel"]
 audio = ["dep:rodio", "dep:nanomp3", "dep:midir"]
 gamepad = ["dep:gilrs"]
 ffi = ["dep:libloading"]
+# RapidR Studio's components (RPROJECT, RLANGUAGESERVICE, RPROGRAMSESSION:
+# rapidr-studio) — the `rapidr` CLI's runtime, not programs' own runners.
+studio = ["dep:rapidr-studio", "dep:rapidr-session"]

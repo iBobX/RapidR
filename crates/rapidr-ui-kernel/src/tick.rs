@@ -84,7 +84,7 @@ impl FormUi {
     pub fn next_wake(&self) -> Option<Instant> {
         let caret = self.wakes.caret.filter(|_| self.blinks && self.editor_focused());
         let nodes = self.nodes.iter().filter_map(|n| n.ui.wake);
-        caret.into_iter().chain(self.wakes.bars).chain(self.hint.wake).chain(nodes).min()
+        caret.into_iter().chain(self.wakes.bars).chain(self.tip_wake()).chain(nodes).min()
     }
 
     /// Runs what's due at `now`: the caret blinks, held scroll bars repeat,
@@ -103,8 +103,8 @@ impl FormUi {
         } else if self.blinks && self.editor_focused() {
             self.wakes.caret = Some(now + BLINK);
         }
-        // (a tooltip shows or goes: hint.rs)
-        self.hint_tick(now);
+        // (a tooltip shows or goes: tooltip.rs)
+        self.tip_tick(now);
         if self.wakes.bars.is_some_and(|at| at <= now) {
             self.wakes.bars = None;
             crate::components::scrollbox::bars_repeat(self, store);

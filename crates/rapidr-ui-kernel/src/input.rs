@@ -169,8 +169,8 @@ impl FormUi {
     pub fn mouse_down(&mut self, store: &dyn Store, ts: &mut TextSystem, x: f64, y: f64, button: Button, mods: Mods) {
         self.dirty = true;
         self.mouse_at = (x, y);
-        // (a press takes the tooltip away: hint.rs)
-        self.hint_cancel();
+        // (a press takes the tooltip away: tooltip.rs)
+        self.tip_hide();
         // (an open menu, the in-window menu bar: components/menubar.rs)
         if self.menu_mouse_down(store, x, y) {
             return;
@@ -292,8 +292,12 @@ impl FormUi {
             self.hover = hit;
             self.dirty = true;
         }
-        // (the application's hint, the tooltip: hint.rs)
+        // (the application's hint: hint.rs)
         self.hint_hover(store, hit, true);
+        // (a hint waits, follows or goes: tooltip.rs)
+        if self.capture.is_none() {
+            self.tip_mouse(store, hit, x, y);
+        }
         let target = match self.capture {
             Some(c) => c,
             None => hit,
@@ -370,6 +374,7 @@ impl FormUi {
     /// The mouse left the window.
     pub fn mouse_leave(&mut self, store: &dyn Store, ts: &mut TextSystem) {
         self.hint_hover(store, None, false);
+        self.tip_hide();
         if let Some(old) = self.hover.take() {
             self.mouse_to(store, ts, old, MouseIn { kind: MouseKind::Leave, x: -1.0, y: -1.0, button: Button::Left, mods: Mods::NONE, inside: false, captured: false, clicks: 0 });
             self.dirty = true;
@@ -382,7 +387,7 @@ impl FormUi {
     /// else the scroll box or form whose bars it's over — Windows 10's
     /// "scroll inactive windows" rule, not the focused control's.
     pub fn mouse_wheel(&mut self, store: &dyn Store, ts: &mut TextSystem, (x, y): (f64, f64), (dx, dy): (f64, f64), mods: Mods) {
-        self.hint_cancel();
+        self.tip_hide();
         if self.menu_open() || crate::components::combo::popup_wheel(self, store, x, y, dy) {
             return;
         }
@@ -418,7 +423,7 @@ impl FormUi {
     pub fn key_down(&mut self, store: &dyn Store, ts: &mut TextSystem, vk: i64, text: &str, mods: Mods, clip: &mut dyn Clipboard) {
         self.dirty = true;
         self.reset_caret();
-        self.hint_cancel();
+        self.tip_hide();
         // (Escape ends a drag: drag.rs)
         if vk == 27 && self.drag_escape() {
             return;
