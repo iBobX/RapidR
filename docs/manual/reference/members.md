@@ -637,7 +637,7 @@ A tinted glass area (UtilMind's Glassy Form): it shades what's under it with its
 <a id="rdockmanager"></a>
 ## RDOCKMANAGER
 
-RapidR's docking area (RapidR Studio is built on it): panes docked at its edges, tabbed together, auto-hidden or floating, around a documents area of MDI windows or tabs. The user drags panes with a docking compass or moves them from the keyboard; the layout saves to text and loads back.
+RapidR's docking area (RapidR Studio is built on it): panes docked at its edges, tabbed together, auto-hidden or floating, around a documents area of MDI windows or tabs. Tabbed documents can be split into groups by dragging a tab to a side, reordered by dragging along the strip, and given views (a Design \| Code switch). The user drags panes with a docking compass or moves them from the keyboard; the layout saves to text and loads back.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -647,6 +647,7 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `ActivePane` | string |  | The active pane's name; setting it shows and focuses that pane. |
 | `PaneCount` (read-only) | int |  | How many panes the manager has (documents included). |
 | `DocumentCount` (read-only) | int |  | How many documents are open. |
+| `DocumentGroupCount` (read-only) | int |  | Tabbed documents: how many groups of tabs the documents area is split into (0 with no documents). |
 | `Layout` | string |  | The whole layout as text: reading it is SaveLayout, setting it LoadLayout. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string | `""` | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -684,6 +685,10 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `PaneState(Name AS STRING) AS STRING` | Where a pane is: "docked", "tabbed", "autohide", "floating", "document" or "hidden". |
 | `PaneVisible(Name AS STRING) AS INTEGER` | True when the pane is placed and shown (not hidden, nor behind another tab). |
 | `DocumentState(Name AS STRING, [State AS INTEGER]) AS INTEGER` | An MDI document's window: 0 normal, 1 minimized, 2 maximized (-1: not an MDI document); with State, it becomes that. |
+| `AddView(Document AS STRING, Component, Caption AS STRING)` | Tabbed documents: makes Component one of a document's views, under Caption. A document with two views or more gets a switch at the right of its tab strip (one segment per view, then side by side) and shows one view at a time, or the first two side by side with a splitter between them. Add the document's own component as a view too. |
+| `DocumentView(Name AS STRING, [View AS STRING]) AS STRING` | Tabbed documents: the caption of the view a document shows ("Split" when its first two views are side by side); with View, shows that view (a caption, or "Split"). |
+| `DocumentModified(Name AS STRING, [Modified AS INTEGER]) AS INTEGER` | Tabbed documents: whether a document's tab shows the dot of a change not saved; with Modified, sets it. |
+| `SplitDocument(Name AS STRING, Side AS STRING)` | Tabbed documents: moves a document into a new group of tabs on a side ("left", "right", "top" or "bottom") of its group, as dragging its tab there does. |
 | `NextDocument` | Activates the next document (Ctrl+Tab). |
 | `PreviousDocument` | Activates the previous document (Ctrl+Shift+Tab). |
 | `Cascade` | Cascades the documents' windows. |
@@ -697,6 +702,7 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `OnDocumentActivate(Name AS STRING)` | A document became the active one. |
 | `OnDocumentClose(Name AS STRING, BYREF Cancel AS INTEGER)` | A document is about to close; set Cancel to keep it open. |
 | `OnLayoutChange` | The layout changed (the user or the program moved, docked, floated or hid a pane). |
+| `OnDocumentView(Name AS STRING, View AS STRING)` | Tabbed documents: a document now shows another view (its caption, or "Split" for side by side). |
 
 <a id="rbutton"></a>
 ## RBUTTON (QBUTTON)
@@ -4862,7 +4868,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `Open(Path AS STRING) AS INTEGER` | Opens a .rrproj, or a .bas / .rr / .inc file with what it includes. True when it opened; Error says why not. |
 | `OpenFolder(Folder AS STRING) AS INTEGER` | Opens the project of a folder: its .rrproj, else its main source (main.rr / main.bas, the one named as the folder, the one with a form). True when it opened. |
 | `Save([Path AS STRING]) AS INTEGER` | Writes the project file (a source file's project becomes <Folder>/<Name>.rrproj, or Path). True when it was written. |
-| `New(Template AS STRING, Name AS STRING, Folder AS STRING) AS INTEGER` | A new project from a template ("console" or "gui"): main.rr and <Name>.rrproj written in Folder. |
+| `New(Template AS STRING, Name AS STRING, Folder AS STRING) AS INTEGER` | A new project from a template ("console", "gui", "rapidq", "data" or "mdi"): the main file (main.rr, or main.bas for "rapidq", which also turns RapidQ compatibility on) and <Name>.rrproj written in Folder. |
 | `AddFile(Path AS STRING, [Kind AS STRING]) AS INTEGER` | Adds a file (its kind from its name, or Kind: module, form, include, resource, asset, data). True when it was added. |
 | `RemoveFile(Path AS STRING) AS INTEGER` | Takes a file out of the project (the file itself stays). True when it was in it. |
 | `Close` | No project is open any more. |
@@ -4873,6 +4879,9 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `StopBuild` | Stops the Build that is running. |
 | `Reveal([Path AS STRING]) AS INTEGER` | Shows Path (else what the last Build made) selected in Finder, Explorer or the Linux file manager. |
 | `IconPreview([Size AS INTEGER]) AS STRING` | Draws the app's icon (Icon, else RapidR's) as a Size-pixel PNG (128 by default) in the project's .rapidr folder and gives its path, for a QIMAGE to show; "" when the icon can't be read (Error says why). |
+| `Find(Pattern AS STRING, Options AS STRING, Text AS STRING) AS STRING` | Find in Files: every match of Pattern in Text, a line each: line, column (both from 1), length, the line's text, separated by tabs. Options: any of "case" (match case), "word" (whole words), "regex" (Pattern is a regular expression), separated by commas. "" with Error set when the pattern is not a valid regular expression. |
+| `Replace(Pattern AS STRING, Options AS STRING, Text AS STRING, With AS STRING) AS STRING` | Text with every match of Pattern (Find's Options) replaced by With; in a regular expression's replacement $1 or ${name} stand for its groups. |
+| `FileText(Path AS STRING) AS STRING` | A file's text (UTF-8, or a byte a character as RapidQ wrote it), from the disk on the desktop and the page's store on the web; Error says why when it can't be read. |
 
 | Event | |
 |---|---|
@@ -4895,6 +4904,7 @@ RapidR's language service, the one rapidr lsp and the VS Code extension use: a B
 | `Update(File AS STRING, Text AS STRING)` | A file's text as the editor has it (saved or not). |
 | `Close(File AS STRING)` | Forgets the editor's text of a file: it is read from its file again. |
 | `Outline(File AS STRING) AS STRING` | The file's outline, a line per item: depth, kind (sub, function, type, field, method, event, component, constant, variable, label), name, detail, line (from 1), separated by tabs. |
+| `Help(Word AS STRING, [OfType AS STRING]) AS STRING` | The language's entry for a word (a component, a function, a statement, a keyword, a constant, a global object; with OfType, a member of that component type), a part a line: its title, its syntax, what it is (kind, type, RapidQ's default, RapidQ's or RapidR's, where it runs), what it does, then a component's members. "" when the word isn't known. |
 | `Diagnostics(File AS STRING) AS STRING` | The file's errors and warnings, a line each: severity (error, warning, note), line, column (from 1), message, file, separated by tabs. |
 
 <a id="rprogramsession"></a>

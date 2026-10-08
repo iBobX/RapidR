@@ -659,6 +659,17 @@ pub fn cursor_at(desk: &Desktop, store: &dyn Store, form: &str, (x, y): (f64, f6
         "RSPLITTER" => Cursor::SizeWE,
         "RHEADER" if rapidr_value::objects::with_header(&n.id, |h| h.on_grip(lx)).unwrap_or(false) => Cursor::SizeWE,
         "RLISTVIEW" if rapidr_value::objects::with_listview(&n.id, |l| l.on_grip(lx, ly)).unwrap_or(false) => Cursor::SizeWE,
+        // (a QFORMMDI child's sizing border: every edge and corner, as Windows')
+        "RMDICHILD" => match rapidr_ui_kernel::components::mdi::edges_at(store, &n.id, n.abs.2, n.abs.3, lx, ly).map(|e| e.pointer()) {
+            Some("we") => Cursor::SizeWE,
+            Some("ns") => Cursor::SizeNS,
+            Some("nwse") => Cursor::SizeNWSE,
+            Some(_) => Cursor::SizeNESW,
+            None => Cursor::Default,
+        },
+        // (the dock manager's splitters, the document area's between groups
+        // and between a document's two views)
+        "RDOCKMANAGER" | "RDOCKDOCS" => rapidr_ui_kernel::components::dock::splitter_cursor(store, &n.type_name, &n.id, lx, ly).map_or(Cursor::Default, |row| if row { Cursor::SizeWE } else { Cursor::SizeNS }),
         // (I4: the designer's handles, the form's edges, the placing tool)
         "RDESIGNSURFACE" => {
             use rapidr_value::objects::design::Pointer;

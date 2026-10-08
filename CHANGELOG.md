@@ -88,6 +88,23 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   **ROUTPUTCONSOLE** (ANSI output, build log, problems, `file:line` links, search), **RTOOLBAR** as
   a real toolbar (icon buttons, toggles, overflow, customizable) and **RCOMMANDPALETTE** (fuzzy
   commands). Example: `examples/studio/panels.rr`.
+### RapidR Studio: documents as tabs, Find in Files, F1 Help, templates
+- **No window inside the window**: Studio's documents are tabs, as in Xcode, VS Code and Delphi —
+  close buttons, a dot for changes not saved, middle click closes, drag along the strip reorders. A
+  file with a form is one tab with a **Design | Code** switch (and both side by side); F12 toggles,
+  F7 / Shift+F7 pick. A tab dragged to a side of the documents splits them into **groups** (or
+  Window ▸ Split Right / Split Down), with drop outlines and splitters. The layout, the open files
+  and each file's view come back when the project is opened again; the window's place too.
+- **RDOCKMANAGER** (tabbed documents): `AddView`, `DocumentView`, `DocumentModified`,
+  `SplitDocument`, `DocumentGroupCount`, `OnDocumentView`; groups and views in `SaveLayout`.
+- **QFORMMDI children resize by every edge and corner** (Windows' sizing border, resize pointers,
+  never under Windows' 136 × 39 least size — read with RC.EXE on Windows 11), desktop and web.
+- **Find in Files** (Ctrl+Shift+F): match case, whole word, regular expressions, results by file
+  linking to the line, Replace All (RPROJECT `Find`, `Replace`, `FileText`).
+- **F1 Help** pane from the language registry (RLANGUAGESERVICE `Help`) for the word at the caret,
+  the inspector's row, the toolbox's item, the designer's component; Insert types the syntax.
+- **New Project gallery**: Form app, Console, RapidQ-compatible form app (main.bas, compat on), Data
+  dashboard, MDI app with menus. Closing a changed file asks Save / Don't Save / Cancel.
 ### RapidR Studio: the panels work
 - **The real panels replace the stand-ins** (`ide/panels.inc`): the tool bar (RTOOLBAR, buttons with
   tooltips), the command palette (RCOMMANDPALETTE), the project tree (RPROJECTTREE), the toolbox
