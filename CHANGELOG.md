@@ -7,6 +7,19 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Changed
+- **Real bold and italic faces** instead of the regular letters drawn heavier and slanted: Liberation
+  2.1.5's own Bold, Italic and Bold Italic (Sans, Serif, Mono; SIL OFL 1.1, from the official release,
+  SHA-256 checked) are built in, cut to the Latin scripts without hinting (36-39 KB each) and renamed
+  "RapidR Text Sans / Serif / Mono" as the licence asks; RapidR Sans has a Bold of its own (MS Sans
+  Serif Bold's widths, a pixel wider a character, and its two-pixel stems). Bold Arial text is as wide
+  as Arial Bold's ("Pantry" 9 pt bold 37 pixels, "Hello" 12 pt bold 39, as RC.EXE measures), italic is a
+  designed italic; a character the styled face lacks (Greek, Cyrillic, ...) is drawn from the Regular
+  face, made bold or slanted, as before. The built-in fonts are now in a program once (statics, not
+  copies of consts): the interpreter and the web runtime are 1.3 MB smaller in spite of the new faces.
+  The approved images of fonts, words, spacing and the data-science examples changed with them
+  (bold looked at beside RapidQ's, all themes, 1x and 2x, web identical to the desktop).
+
 ### Added
 - **RapidR Studio's panels as public components** (docs/ide-plan.md I1, L-PANELS), the same on the
   desktop, in native builds and on the web: **RPROPERTYINSPECTOR** (Delphi's object inspector: typed
