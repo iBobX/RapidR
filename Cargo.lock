@@ -3877,6 +3877,8 @@ dependencies = [
  "nanomp3",
  "rapidr-db",
  "rapidr-lang",
+ "rapidr-session",
+ "rapidr-studio",
  "rapidr-ui-app",
  "rapidr-ui-host-winit",
  "rapidr-ui-kernel",
@@ -3895,6 +3897,7 @@ dependencies = [
  "js-sys",
  "rapidr-db",
  "rapidr-lang",
+ "rapidr-studio",
  "rapidr-ui-app",
  "rapidr-ui-host-web",
  "rapidr-ui-kernel",
@@ -3917,6 +3920,16 @@ dependencies = [
  "rapidr-vm",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "rapidr-studio"
+version = "2.117.0"
+dependencies = [
+ "rapidr-langsvc",
+ "rapidr-project",
+ "rapidr-session",
+ "rapidr-value",
 ]
 
 [[package]]

@@ -101,6 +101,45 @@ pub struct ItemList {
     measured_state: Option<u64>,
     measure_round: u32,
     measures_pending: usize,
+    /// Drawing on a list box that isn't owner-drawn ([`ListCanvas`]).
+    pub canvas: ListCanvas,
+}
+
+/// Drawing on a QLISTBOX that isn't owner-drawn. RapidQ draws on the
+/// control itself (RC.EXE-built programs, seen in the Windows VM: a FillRect
+/// and a Paint on a plain list stay; selecting an item paints that row
+/// again, the rest keeps the drawing): the calls not yet drawn, in the
+/// list's client coordinates, and the pixels they made with what each row
+/// showed under them ([`ItemList::canvas_overlay`]).
+#[derive(Clone, Debug, Default)]
+pub struct ListCanvas {
+    pub pending: Vec<CellDraw>,
+    /// The rows as they were when the first of `pending` was drawn (the
+    /// overlay starts from them: a row changed since was painted again
+    /// over the drawing): items, selection flags, ItemIndex.
+    under: Option<(Vec<String>, Vec<bool>, i64)>,
+    overlay: Option<Overlay>,
+    /// Counts the overlay's changes (the runtimes' picture cache key).
+    pub version: u64,
+}
+
+#[derive(Clone, Debug)]
+struct Overlay {
+    bitmap: Bitmap,
+    /// (size, scroll position, item count) it was made for: any change
+    /// paints the whole list again.
+    made_for: ((i64, i64), i64, usize),
+    /// Per row from the first visible one: (item, its text, selected) as
+    /// drawn under the drawing; None once the list painted the row again.
+    rows: Vec<Option<(usize, String, bool)>>,
+}
+
+/// What [`ItemList::canvas_overlay`] gives a runtime to show.
+pub struct CanvasShown {
+    pub bitmap: Bitmap,
+    pub version: u64,
+    /// The parts of the client area still showing the drawing: (x, y, w, h).
+    pub rects: Vec<(i64, i64, i64, i64)>,
 }
 
 fn index(v: Option<&Value>) -> Option<usize> {
@@ -108,7 +147,7 @@ fn index(v: Option<&Value>) -> Option<usize> {
 }
 
 fn flag(on: bool) -> Value {
-    v_int(if on { -1 } else { 0 })
+    v_int(on as i64)
 }
 
 impl ItemList {
@@ -332,26 +371,68 @@ impl ItemList {
         }
     }
 
-    /// The owner-drawing methods (except `Draw`, which needs the source
-    /// image: rapidr_value::objects).
-    fn draw(&mut self, method: &str, args: &[Value]) -> bool {
-        let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
-        let c = |i: usize| crate::objects::color_bgr(n(i));
-        let optional = |i: usize| args.get(i).map(Value::to_i64).filter(|v| *v >= 0 || (*v as u32) & 0xFF00_0000 == 0x8000_0000).map(crate::objects::color_bgr);
-        match method {
-            "line" => self.record(n(0), n(1), |l, t| CellDraw::Line(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4))),
-            "rectangle" => self.record(n(0), n(1), |l, t| CellDraw::Rect(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4))),
-            "fillrect" => self.record(n(0), n(1), |l, t| CellDraw::Fill(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4))),
-            "circle" => self.record(n(0), n(1), |l, t| CellDraw::Ellipse(n(0) - l, n(1) - t, n(2) - l, n(3) - t, c(4), optional(5))),
-            "pset" => self.record(n(0), n(1), |l, t| CellDraw::Pixel(n(0) - l, n(1) - t, c(2))),
-            // TextOut(x, y, text, color, background (-1: transparent)).
-            "textout" => {
-                let text = args.get(2).map(|v| v.to_string_val()).unwrap_or_default();
-                self.record(n(0), n(1), |l, t| CellDraw::Text(n(0) - l, n(1) - t, text, c(3), optional(4)))
-            }
-            _ => return false,
+
+    /// The drawing on a list box that isn't owner-drawn, for a runtime that
+    /// shows its client area `size` (w, h) scrolled `top` pixels, rows
+    /// `row_h` high, on `background` (&HRRGGBB), text in `font`: the calls
+    /// since the last time put on its pixels (the first time on the rows as
+    /// they look: [`Self::render_item`]), and the parts still showing them —
+    /// a row the list painted again since (its text or selection changed)
+    /// doesn't, ever again; a new size, scroll position or item count
+    /// paints the whole list. None: nothing drawn.
+    pub fn canvas_overlay(&mut self, size: (i64, i64), top: i64, row_h: i64, background: u32, font: &Font) -> Option<CanvasShown> {
+        let made_for = (size, top, self.items.len());
+        if self.canvas.overlay.as_ref().is_some_and(|o| o.made_for != made_for) {
+            self.canvas.overlay = None;
+            self.canvas.under = None;
+            self.canvas.version += 1;
         }
-        true
+        let row_h = row_h.max(1);
+        let first = usize::try_from(top / row_h).unwrap_or(0);
+        if self.canvas.overlay.is_none() && !self.canvas.pending.is_empty() {
+            // (the rows as they were drawn on)
+            let mut under = self.clone();
+            under.canvas = ListCanvas::default();
+            if let Some((items, selected, index)) = self.canvas.under.take() {
+                (under.items, under.selected, under.item_index) = (items, selected, index);
+            }
+            let mut bitmap = Bitmap::default();
+            bitmap.resize(size.0.clamp(1, 10_000), size.1.clamp(1, 10_000));
+            bitmap.fill_rect(0, 0, size.0, size.1, crate::theme::bgr(background));
+            let mut rows = Vec::new();
+            for i in first..under.items.len() {
+                let y = i as i64 * row_h - top;
+                if y >= size.1 {
+                    break;
+                }
+                bitmap.draw(0, y, &under.render_item(i, size.0, font));
+                rows.push(Some((i, under.items[i].clone(), under.is_selected(i))));
+            }
+            self.canvas.overlay = Some(Overlay { bitmap, made_for, rows });
+        }
+        let pending = std::mem::take(&mut self.canvas.pending);
+        let overlay = self.canvas.overlay.as_mut()?;
+        if !pending.is_empty() {
+            pending.iter().for_each(|op| op.paint(&mut overlay.bitmap, font));
+            self.canvas.version += 1;
+        }
+        let mut rects = Vec::new();
+        for row in overlay.rows.iter_mut() {
+            let Some((i, text, selected)) = row.clone() else { continue };
+            let now = (self.items.get(i), if self.multi_select { self.selected.get(i).copied().unwrap_or(false) } else { self.item_index == i as i64 });
+            if now != (Some(&text), selected) {
+                *row = None;
+                continue;
+            }
+            rects.push((0, i as i64 * row_h - top, size.0, row_h));
+        }
+        // (below the last item: the list's empty background, painted again
+        // only with the whole list)
+        let end = self.items.len() as i64 * row_h - top;
+        if end < size.1 {
+            rects.push((0, end.max(0), size.0, size.1 - end.max(0)));
+        }
+        Some(CanvasShown { bitmap: overlay.bitmap.clone(), version: self.canvas.version, rects })
     }
 
     /// Item `i` as a `width` × ItemHeight bitmap: what OnDrawItem drew on
@@ -596,8 +677,25 @@ impl ItemList {
             return self.file_member(method, args);
         }
         let text = |i: usize| args.get(i).map(|v| v.to_string_val()).unwrap_or_default();
-        if self.owner_drawn() && self.draw(method, args) {
+        // Drawing (grid.rs's owner_draw_op; not a QSTRINGLIST's): kept on
+        // its item when the list is owner-drawn (OnDrawItem); on a list box
+        // that isn't, on the list itself until it paints those rows again
+        // (ListCanvas); a combo box that isn't owner-drawn shows none of
+        // it (RC.EXE-built programs: nothing appears).
+        if let (false, Some(((x, y), op))) = (self.plain, super::grid::owner_draw_op(method, args)) {
+            if self.owner_drawn() {
+                self.record(x, y, |l, t| op.moved(-l, -t));
+            } else if !self.combo && self.canvas.pending.len() < 10_000 {
+                if self.canvas.overlay.is_none() && self.canvas.under.is_none() {
+                    self.canvas.under = Some((self.items.clone(), self.selected.clone(), self.item_index));
+                }
+                self.canvas.pending.push(op);
+            }
             return Some(Value::Null);
+        }
+        // (a list box painted again as a whole: its drawing goes)
+        if matches!(method, "repaint" | "refresh" | "update" | "invalidate") || (method == "paint" && args.len() < 3) {
+            self.canvas = ListCanvas { version: self.canvas.version + 1, ..ListCanvas::default() };
         }
         // QSTRINGLIST's names for the same operations.
         let method = if self.plain {
@@ -765,7 +863,7 @@ mod tests {
         l.call("selected", &[v_int(0), v_int(-1)]);
         l.call("selected", &[v_int(2), v_int(-1)]);
         assert_eq!(l.get("selcount").unwrap().to_i64(), 3);
-        assert_eq!(l.call("selected", &[v_int(2)]).unwrap().to_i64(), -1);
+        assert_eq!(l.call("selected", &[v_int(2)]).unwrap().to_i64(), 1);
         assert_eq!(l.call("selected", &[v_int(1)]).unwrap().to_i64(), 0);
     }
 

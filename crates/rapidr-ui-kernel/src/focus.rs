@@ -82,6 +82,8 @@ impl FormUi {
             None => order[0],
         };
         self.set_focus(Some(next));
+        // (the keyboard's focus shows its hint: tooltip.rs)
+        self.tip_focus(store);
     }
 
     /// The focus to `i` (Tab, a mnemonic, `SetFocus`, the form showing …): a

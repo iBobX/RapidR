@@ -170,8 +170,9 @@ mod imp {
             _ => return None,
         };
         let mut mods = Modifiers::empty();
+        // ("Ctrl+" is the command key on a Mac, as its menus' keys are)
         if sc.ctrl {
-            mods |= Modifiers::CONTROL;
+            mods |= if cfg!(target_os = "macos") { Modifiers::META } else { Modifiers::CONTROL };
         }
         if sc.shift {
             mods |= Modifiers::SHIFT;
@@ -193,15 +194,15 @@ mod imp {
             }
             let mid = id_of(form, &id);
             if !menu::children(&id).is_empty() {
-                let sub = Submenu::with_id(mid, &n.caption, n.enabled);
+                let sub = Submenu::with_id(mid, menu::split_caption(&n.caption).0, n.enabled);
                 fill(form, &id, &|item| {
                     sub.append(item).ok();
                 });
                 out(&sub);
             } else if n.checked {
-                out(&CheckMenuItem::with_id(mid, &n.caption, n.enabled, true, accelerator(menu::parse_shortcut(&n.shortcut))));
+                out(&CheckMenuItem::with_id(mid, menu::split_caption(&n.caption).0, n.enabled, true, accelerator(menu::parse_shortcut(&n.shortcut))));
             } else {
-                out(&MenuItem::with_id(mid, &n.caption, n.enabled, accelerator(menu::parse_shortcut(&n.shortcut))));
+                out(&MenuItem::with_id(mid, menu::split_caption(&n.caption).0, n.enabled, accelerator(menu::parse_shortcut(&n.shortcut))));
             }
         }
     }

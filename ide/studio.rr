@@ -1,0 +1,33 @@
+' RapidR Studio: RapidR's IDE (docs/ide-plan.md, I1 / L-SHELL).
+'
+' The shell is a RapidR program on public components (the plan's §3.2,
+' decision D3): the same bytecode runs on the desktop (`rapidr ide`, the
+' winit host) and in the browser (ide/web/index.html, the canvas host). It
+' only assembles components and wires them together; everything with
+' weight is Rust inside a component (the dock manager, the editors, the
+' designer, the project, the program session, the language service).
+'
+'   rapidr ide [file]                    desktop
+'   tools/build_studio_web.sh            the web page (target/studio-web)
+'
+' Files:
+'   decl.inc       shared state, the command table's type, declarations
+'   window.inc     the main window and the command palette
+'   commands.inc   the command table → menus, tool bar, palette; enabling
+'   panes.inc      the dock manager's panes (the plug-in points)
+'   documents.inc  documents: code, designer, outline, problems, properties
+'   project.inc    the project, running it, settings
+'   chrome.inc     the look in the current theme, the status bar
+'   shell.inc      RunCommand, the events, start-up
+
+$INCLUDE "decl.inc"
+$INCLUDE "window.inc"
+$INCLUDE "commands.inc"
+$INCLUDE "panes.inc"
+$INCLUDE "documents.inc"
+$INCLUDE "project.inc"
+$INCLUDE "chrome.inc"
+$INCLUDE "shell.inc"
+
+StartStudio
+Studio.ShowModal

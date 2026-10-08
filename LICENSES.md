@@ -98,6 +98,26 @@ licence texts, per kind of output, are in the `THIRD-PARTY-NOTICES.txt` files
 
 ## 4. Fonts
 
+### Inter 4.1 and JetBrains Mono 2.304 — SIL Open Font License 1.1
+
+`crates/rapidr-value/fonts/` also holds Inter (Regular, SemiBold) and
+JetBrains Mono (Regular, Bold), subset to the Latin scripts and unhinted by
+`tools/fonts/subset_ui_fonts.py` from
+<https://github.com/rsms/inter/releases/tag/v4.1> and
+<https://github.com/JetBrains/JetBrainsMono/releases/tag/v2.304> (the
+archives' SHA-256 in the script). They are RapidR's own UI and code faces
+(docs/ide-plan.md decision D8): RapidR Studio's chrome and code editor, the
+RapidR look's menus and tooltips; programs can name them. Neither declares a
+Reserved Font Name, so the subsets keep their names.
+
+> Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter).
+> Copyright 2020 The JetBrains Mono Project Authors
+> (https://github.com/JetBrains/JetBrainsMono).
+>
+> This Font Software is licensed under the SIL Open Font License, Version
+> 1.1: [`crates/rapidr-value/fonts/Inter-OFL.txt`](crates/rapidr-value/fonts/Inter-OFL.txt),
+> [`crates/rapidr-value/fonts/JetBrainsMono-OFL.txt`](crates/rapidr-value/fonts/JetBrainsMono-OFL.txt).
+
 ### Liberation fonts 2.1.5 — SIL Open Font License 1.1
 
 `crates/rapidr-value/fonts/` holds Liberation Sans, Liberation Serif and

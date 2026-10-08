@@ -369,6 +369,12 @@ pub trait ComponentKind: Sync {
     /// Its deadline came (it set `NodeUi::wake`; tick.rs).
     fn tick(&self, _cx: &mut Cx) {}
 
+    /// A tooltip of its own at (x, y) of it (tooltip.rs): a cut-short title,
+    /// a button's name; `None`: its Hint, if ShowHint.
+    fn tip_at(&self, _store: &dyn crate::store::Store, _id: &str, _x: f64, _y: f64) -> Option<String> {
+        None
+    }
+
     /// A right click let go on it (or the menu key): an edit's context
     /// menu — Undo, Cut, Copy, Paste, Delete, Select All, which of them
     /// apply now — that the kernel shows there; `None`: it has none.

@@ -104,7 +104,8 @@ impl Layout {
             anchors: None,
             constraints: Constraints::default(),
             border_style: None,
-            props: crate::component_defaults::shared(&ty).into_iter().collect(),
+            // (the geometry lives in the fields above)
+            props: crate::component_defaults::creation(&ty).into_iter().filter(|(k, _)| !geometry(k)).collect(),
         };
         self.comps.insert(key.clone(), comp);
         self.order.push(key.clone());

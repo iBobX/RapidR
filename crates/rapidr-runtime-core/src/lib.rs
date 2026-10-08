@@ -15,6 +15,8 @@ pub mod mdi;
 pub mod dock;
 // (I1 / L-PANELS: RapidR Studio's panels — rapidr_value::panels)
 pub mod panels;
+#[cfg(feature = "studio")]
+pub mod studio;
 pub mod globals;
 pub mod program;
 pub(crate) mod sound;

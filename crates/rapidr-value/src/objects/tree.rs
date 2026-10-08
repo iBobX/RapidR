@@ -59,6 +59,9 @@ pub struct TreeView {
     pub show_lines: bool,
     pub show_root: bool,
     pub indent: i64,
+    /// ItemHeight (QOUTLINE's, RapidR's for a tree view): its rows' height;
+    /// 0 — never set — is Windows' [`ROW_HEIGHT`].
+    pub item_height: i64,
     pub read_only: bool,
     pub hide_selection: bool,
     pub sort_type: i64,
@@ -78,6 +81,7 @@ impl Default for TreeView {
             show_lines: true,
             show_root: true,
             indent: 19,
+            item_height: 0,
             read_only: false,
             hide_selection: false,
             sort_type: 0,
@@ -88,7 +92,7 @@ impl Default for TreeView {
 }
 
 fn flag(on: bool) -> Value {
-    v_int(if on { -1 } else { 0 })
+    v_int(on as i64)
 }
 
 fn index(v: Option<&Value>) -> Option<usize> {
@@ -307,6 +311,7 @@ impl TreeView {
             "showlines" => flag(self.show_lines),
             "showroot" => flag(self.show_root),
             "indent" => v_int(self.indent),
+            "itemheight" if self.item_height > 0 => v_int(self.item_height),
             "readonly" => flag(self.read_only),
             "hideselection" => flag(self.hide_selection),
             "sorttype" => v_int(self.sort_type),
@@ -324,6 +329,10 @@ impl TreeView {
             "showlines" => self.show_lines = val.to_bool(),
             "showroot" => self.show_root = val.to_bool(),
             "indent" => self.indent = val.to_i64().clamp(0, 1_000),
+            "itemheight" => {
+                self.item_height = val.to_i64().clamp(0, 400);
+                self.version += 1;
+            }
             "readonly" => self.read_only = val.to_bool(),
             "hideselection" => self.hide_selection = val.to_bool(),
             "sorttype" => {
@@ -562,6 +571,11 @@ impl TreeView {
     fn has_next_sibling(&self, i: usize) -> bool {
         let end = self.subtree_end(i);
         self.nodes.get(end).is_some_and(|n| n.level == self.nodes[i].level)
+    }
+
+    /// Its rows' height: ItemHeight, or Windows' 16.
+    pub fn row_height(&self) -> i64 {
+        if self.item_height > 0 { self.item_height } else { ROW_HEIGHT }
     }
 
     /// The rows shown from TopIndex, `row_height` tall, up to `height`

@@ -23,20 +23,14 @@ pub struct RpComponent {
 
 impl RpComponent {
     pub fn new(type_name: &str) -> Self {
-        // What both runtimes give it, then the desktop's own defaults by
-        // type (rapidr_value::component_defaults, Stage W3).
-        let mut props: HashMap<String, Value> = rapidr_value::component_defaults::shared(type_name).into_iter().collect();
-        props.extend(rapidr_value::component_defaults::desktop(type_name));
+        // What every runtime gives it: the language registry's defaults,
+        // RapidQ's as RC.EXE reads them (rapidr_value::component_defaults).
+        let mut props: HashMap<String, Value> = rapidr_value::component_defaults::creation(type_name).into_iter().collect();
         let tn = type_name.to_uppercase();
         // Its size: RapidQ's, the same on every runtime (rapidr_value::layout).
         if let Some((w, h)) = rapidr_value::layout::default_size(&tn) {
             props.insert("width".into(), v_int(w));
             props.insert("height".into(), v_int(h));
-        }
-        // QSTATUSBAR docks at the bottom, QSPLITTER at the left (layout.rs).
-        let align = rapidr_value::layout::default_align(&tn);
-        if align != rapidr_value::layout::Align::None {
-            props.insert("align".into(), v_int(align.value()));
         }
         Self {
             type_name: tn,
@@ -413,6 +407,11 @@ fn set_property(name: &str, prop: &str, val: Value) {
     }
     // A QFORMMDI's ChildMax, ChildCaption, ChildState, … (mdi.rs).
     if rapidr_value::mdi::is_mdi(name) && crate::mdi::set(name, &prop_lower, &val) {
+        return;
+    }
+    // (I1) RapidR Studio's RPROJECT, RLANGUAGESERVICE, RPROGRAMSESSION (studio.rs).
+    #[cfg(feature = "studio")]
+    if rapidr_studio::is_studio_type(&rp_comp_type(name)) && crate::studio::set(&rp_comp_type(name), name, &prop_lower, &val) {
         return;
     }
     // (I1) An RDOCKMANAGER's DocumentMode, ActiveDocument, … (dock.rs).
@@ -864,6 +863,16 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     if let Some(v) = crate::panels::get(name, &prop_lower) {
         return v;
     }
+    // (I1) RapidR Studio's components (studio.rs).
+    #[cfg(feature = "studio")]
+    {
+        let t = rp_comp_type(name);
+        if rapidr_studio::is_studio_type(&t) {
+            if let Some(v) = crate::studio::get(&t, name, &prop_lower) {
+                return v;
+            }
+        }
+    }
     // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll.rs).
     if let Some(v) = crate::scroll::get(name, &prop_lower) {
         return v;
@@ -969,7 +978,14 @@ pub fn rp_comp_read(name: &str, prop: &str) -> Value {
             return rapidr_value::property_read(rapidr_value::objects::inherited_font_prop(name, flat, &|i, p| rp_comp_get(i, p)));
         }
     }
-    rapidr_value::property_read(rp_comp_get(name, prop))
+    // (a property the theme draws while unset reads the registry's default:
+    // rapidr_value::component_defaults::unset_read)
+    let v = rp_comp_get(name, prop);
+    let v = match v {
+        Value::Null => rapidr_value::component_defaults::unset_read(&rp_comp_type(name), prop).unwrap_or(Value::Null),
+        v => v,
+    };
+    rapidr_value::property_read(v)
 }
 
 /// `x = Obj.Method(…)` in a program: the method's result as RapidQ gives it
@@ -1080,6 +1096,13 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     // A QFORMMDI's AddChild, CascadeChild, … (mdi.rs).
     if rapidr_value::mdi::is_mdi(name) {
         if let Some(v) = crate::mdi::method(name, &method_lower, args) {
+            return v;
+        }
+    }
+    // (I1) RapidR Studio's RPROJECT, RLANGUAGESERVICE, RPROGRAMSESSION (studio.rs).
+    #[cfg(feature = "studio")]
+    if rapidr_studio::is_studio_type(&comp_type) {
+        if let Some(v) = crate::studio::call(&comp_type, name, &method_lower, args) {
             return v;
         }
     }
@@ -1206,8 +1229,11 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     if let Some(v) = indexed_sub_object(name, &method_lower, args) {
         return v;
     }
+    // A QSTATUSBAR's AddPanels / Clear (rapidr_value::statusbar).
     if comp_type == "RSTATUSBAR" {
-        if let Some(v) = statusbar_method(name, &method_lower, args) {
+        let get = |p: &str| rp_comp_get(name, p);
+        let mut set = |p: &str, v: Value| rp_comp_set(name, p, v);
+        if let Some(v) = rapidr_value::statusbar::call(&method_lower, args, &get, &mut set) {
             return v;
         }
     }
@@ -1964,19 +1990,6 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
                 v_null()
             }
         }
-        "setparent" => {
-            let parent = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            #[cfg(feature = "gui")]
-            {
-                crate::ui::gui_set_parent(name, &parent);
-                return v_null();
-            }
-            #[cfg(not(feature = "gui"))]
-            {
-                rp_comp_set(name, "parent", v_str(&parent));
-                v_null()
-            }
-        }
         "clear" => {
             // For ListBox, ComboBox, StringGrid, etc.
             #[cfg(feature = "gui")]
@@ -2031,10 +2044,6 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             if let Some(form) = form_of(name) {
                 rapidr_ui_app::windows::push_op(rapidr_ui_app::WindowOp::Focus(form.to_lowercase(), name.to_lowercase()));
             }
-            v_null()
-        }
-        "click" => {
-            rp_fire_event(name, "onclick");
             v_null()
         }
         // (the title bar's own buttons are the system's: the set is kept,
@@ -2133,25 +2142,6 @@ pub fn get_children_of(parent_name: &str) -> Vec<(String, String)> {
         children.sort_by_key(|c| c.2);
         children.into_iter().map(|(n, t, _)| (n, t)).collect()
     })
-}
-
-/// QSTATUSBAR panels: `AddPanels "Ready", "Line 1"` appends panels, kept as
-/// the component's properties `panel(i).caption` / `panel(i).width` (the
-/// same keys `SB.Panel(i).Caption = …` writes) and `panelcount`; the GUI
-/// draws them.
-fn statusbar_method(name: &str, method: &str, args: &[Value]) -> Option<Value> {
-    match method {
-        "addpanels" => {
-            let mut n = rp_comp_get(name, "panelcount").to_i64().max(0);
-            for a in args {
-                rp_comp_set(name, &format!("panel({n}).caption"), v_str(&a.to_string_val()));
-                n += 1;
-            }
-            rp_comp_set(name, "panelcount", v_int(n));
-            Some(v_null())
-        }
-        _ => None,
-    }
 }
 
 /// Generic storage for indexed sub-object members (see `rp_comp_method`).

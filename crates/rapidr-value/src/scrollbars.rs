@@ -525,7 +525,7 @@ impl Scroller {
 
     /// The program reading AutoScroll, HorzPosition, … (`None`: not one).
     pub fn get(&self, prop: &str) -> Option<Value> {
-        let flag = |b: bool| v_int(if b { -1 } else { 0 });
+        let flag = |b: bool| v_int(b as i64);
         // (a Delphi Boolean: RC.EXE reads a form's AutoScroll as 1)
         if prop == "autoscroll" {
             return Some(v_int(i64::from(self.auto)));

@@ -32,15 +32,24 @@ pub struct Style {
 }
 
 impl Token {
-    /// The editor's style table: keywords dark blue and bold, strings red,
-    /// comments green and italic, numbers maroon, the rest black.
+    /// The editor's style table in the current theme
+    /// (`crate::ide_theme::editor`): in the classic look keywords dark blue
+    /// and bold, strings red, comments green and italic, numbers maroon, the
+    /// rest black (VB6's, as RCODEEDITOR always drew); the modern, dark and
+    /// high contrast looks have their own, readable on their grounds.
     pub fn style(self) -> Style {
+        self.style_in(crate::theme::current())
+    }
+
+    /// The style in theme `t`.
+    pub fn style_in(self, t: &crate::theme::Theme) -> Style {
+        let e = crate::ide_theme::editor(t);
         let (color, bold, italic) = match self {
-            Token::Keyword => (0x0000B4, true, false),
-            Token::String => (0xA31515, false, false),
-            Token::Comment => (0x008000, false, true),
-            Token::Number => (0x800000, false, false),
-            Token::Normal => (0x000000, false, false),
+            Token::Keyword => (e.keyword, e.bold_keywords, false),
+            Token::String => (e.string, false, false),
+            Token::Comment => (e.comment, false, e.italic_comments),
+            Token::Number => (e.number, false, false),
+            Token::Normal => (e.text, false, false),
         };
         Style { color, bold, italic }
     }
@@ -179,7 +188,7 @@ mod tests {
         assert_eq!(line_tokens("dim é AS integer").iter().map(|(_, t)| *t).collect::<Vec<_>>(), [Token::Keyword, Token::Keyword, Token::Keyword]);
         assert_eq!(spans(Syntax::Basic, "' x", 0).1, 0);
         assert!(spans(Syntax::None, "SUB", 0).0.is_empty());
-        assert_eq!(Token::Comment.style(), Style { color: 0x008000, bold: false, italic: true });
+        assert_eq!(Token::Comment.style_in(&crate::theme::CLASSIC), Style { color: 0x008000, bold: false, italic: true });
     }
 
     #[test]

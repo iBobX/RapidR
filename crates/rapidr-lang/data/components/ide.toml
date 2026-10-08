@@ -7,7 +7,7 @@ name = "RPROPERTYINSPECTOR"
 visual = true
 size = [280, 400]
 default_event = "OnPropertyChange"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "An object inspector in the style of Delphi's: the properties of a component (or of every component a designer has selected) as a two-column grid of names and values, by category or A to Z, with a search box and an editor for each kind of value — numbers, text, True / False, a list of constants, a set of flags, colours with a picker, fonts, pictures and files, lists of strings, a component reference, and a visual editor for the four Anchors. A value left at its default is shown dimmed and can be reset; RapidR's own members of a RapidQ component are grouped under \"RapidR extensions\". An Events page lists the component's events and the SUB each one runs."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -61,7 +61,7 @@ name = "RTOOLBOX"
 visual = true
 size = [220, 400]
 default_event = "OnPick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "The palette of components a form designer places, grouped under \"RapidQ\" (the components RapidQ has, shown with their Q names: QBUTTON) and \"RapidR\" (RapidR's own), each with its icon and the name the designer writes. The user searches it, double-clicks a component (or presses Enter) to add it, or drags it onto a designer. Templates — a component with preset properties — have a group of their own."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -101,7 +101,7 @@ name = "RPROJECTTREE"
 visual = true
 size = [240, 360]
 default_event = "OnOpen"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A project's files as a tree (an .rrproj project, or a .bas / .rr file and the files it includes), grouped by kind — forms with the components their CREATE blocks make, modules, includes, resources, assets, data — each with its icon. The user opens a file (double click or Enter), renames it in place (F2), drags it to reorder or into a folder, and deletes it after confirming; the program hears each change and does the work on the disk."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -154,7 +154,7 @@ name = "ROUTPUTCONSOLE"
 visual = true
 size = [480, 180]
 default_event = "OnLinkClick"
-sets = ["layout", "a11y", "generic"]
+sets = ["layout", "a11y"]
 doc = "A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI sequences — with pages for the build log and the problems found. `file:line` places in the text and every problem are links; the user searches the text, and the oldest lines go past MaxLines."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -197,7 +197,7 @@ name = "RCOMMANDPALETTE"
 visual = true
 size = [560, 320]
 default_event = "OnCommand"
-sets = ["a11y", "generic"]
+sets = ["a11y"]
 doc = "A box of commands found by typing: Show opens it over the form, the user types a few letters of a command (in any order of its words, letters skipped), picks one with the arrows and Enter, and OnCommand says which. Each command shows its shortcut; the ones used last come first."
 properties = [
   { name = "Filter", type = "string", default = "", design = false, doc = "What the user typed." },

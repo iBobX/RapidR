@@ -35,6 +35,8 @@ pub mod mdi_web;
 pub mod dock_web;
 // (I1 / L-PANELS: RapidR Studio's panels — rapidr_value::panels)
 pub mod panels_web;
+pub mod studio_web;
+pub use rapidr_studio;
 pub mod network_web;
 pub mod object_web;
 /// The web-only components (RWEBVIEW, RDOM, media) as elements over
