@@ -227,10 +227,10 @@ Each table's columns are: ID | item | the best competitor | RapidR better, concr
 
 | ID | Item | Best competitor | RapidR better | P | Acceptance |
 |---|---|---|---|---|---|
-| RUN-1 | F5 runs | VB6 | Save and run (RapidQ saved on run too) in its own process or sandboxed frame. Output shows ANSI (COLOR, LOCATE). On macOS ⌘R runs too. | P0 | `run-console` (done) + `run-ansi`: COLOR output → coloured runs in `outputbox`. |
-| RUN-2 | Run in browser | — | From desktop Studio, one command serves the web build on loopback (random port, token) and opens the default browser. | P0 | `run-browser`: the page's first form appears ≤ 1.5 s; its capture equals the desktop run's. |
-| RUN-3 | Errors before running | Xojo / Delphi stop at the first error | F5 with errors: Problems is shown and the editor **jumps to the first error**, with no dead run. | P0 | `run-errors`: a broken file + `run.start` → `code.caret` on the error's line. |
-| RUN-4 | Run-time errors | VB6 | Stops at the faulting statement (break on error, done in the VM), with the message and the call stack. The line is highlighted. | P0 | `run-error-stop`: a division by zero in a handler → paused at that line, the `Stopped` reason shown. |
+| RUN-1 | partial | F5 saves and runs in its own process or a sandboxed frame; output goes to Output (`ide/debug.inc` `StartProgram`; `tests/studio_flows.mjs` `run-console`). On the web the program's windows float over the whole page (S-DEBUG, `program-windows-float`). No ⌘R yet. |
+| RUN-2 | done | Run ▸ Run in Browser (`run.browser`): `rapidr serve` builds the web bundle in memory and serves it on 127.0.0.1 under a random path, opened in the default browser (`RPROGRAMSESSION.RunInBrowser`, `BrowserURL`); on the web it runs in place. `tests/run_in_browser.mjs`: the form in the browser in ~0.3–1.2 s (budget 1.5 s), 404 / 421 / 405 refusals. |
+| RUN-3 | done | F5 with errors: Problems shown and the caret at the first error (`GoToFirstProblem`), no dead run. |
+| RUN-4 | done | Stop at runtime errors (Debug ▸ Stop at Run-time Errors, on by default): paused at the faulting line in any file, the line red with the message at its end (`exception` marker), the stack and locals shown, the message in Output (`debug-runtime-error`, both hosts). |
 | RUN-5 | Stop and restart | — | Stop always works (a kill); Restart is ⌃⇧F5. | P0 | A busy-loop program + `run.stop` → stopped ≤ 200 ms. |
 | RUN-6 | Remote run / debug | Xojo's remote debugger | Run and debug on another machine or VM: the session protocol over an authenticated TCP link. | P2 | — |
 
@@ -238,12 +238,12 @@ Each table's columns are: ID | item | the best competitor | RapidR better, concr
 
 | ID | Item | Best competitor | RapidR better | P | Acceptance |
 |---|---|---|---|---|---|
-| DBG-1 | Breakpoints | VB6 / Delphi | F9 or a gutter click, in any file. A condition is set by right-click and edited inline. Breakpoints are kept in `.rapidr/workspace.toml`. | P0 | `breakpoint`: F9 on `Greet`'s line, run, click → paused at it (`session.currentline`); a condition `clicks > 1` stops only on the second click. |
-| DBG-2 | Stepping | — (Xcode stalls while loading symbols) | F10 / F11 / ⇧F11, Run to Cursor (⌃F10), Pause. The current line is highlighted and the editor follows across files. | P0 | `step`: F11 into a SUB in an `$INCLUDE` → that file opens at the line. |
-| DBG-3 | Variables and watches | Delphi's Local Variables / Watches | A Locals / Globals tree; objects expand to their properties; arrays page by 100. A Watch panel evaluated by the VM (fuel-limited). | P0 | `variables`: paused → `variables.locals` includes `Sender`; a watch `clicks*2` updates on the next stop. |
-| DBG-4 | Call stack | All | A panel; clicking a frame shows its locals and line. | P0 | `callstack`: two frames, the second's locals differ. |
-| DBG-5 | Data tips | Delphi / VS Code | Hovering a variable while paused shows its value; objects expand. | P0 | `hover.text` while paused is `= "World"`. |
-| DBG-6 | Immediate | VB6 | `? expr` prints; statements run in the paused frame. Up / Down for history, completion in the line. | P0 | `immediate` (works now when paused: `ide/project.inc` `ImmediateKey`): `? NameEdit.Text` → `World`. |
+| DBG-1 | done | F9 or a click in the gutter, in any file; conditions, hit counts (`3`, `>= 3`, `% 3`), logpoints (`{expr}`), on / off; the Breakpoints pane lists and edits them (Shift+F9); their lines follow edits (`debug-breakpoint`, `debug-gutter-click`, `debug-condition-continue`, `debug-logpoint`, `debug-hit-count`). Not kept in `.rapidr/workspace.toml` yet. |
+| DBG-2 | done | F11 / F10 / Shift+F11, F8, Pause, Run to Cursor (Ctrl+F10, from a stopped program too); the current line is marked and the editor follows the program into an `$INCLUDE`d file (`debug-step-watch`, `debug-run-to-cursor`). |
+| DBG-3 | done | Variables: Locals / Globals trees, arrays, TYPEs and components (a handler's `Sender`) open to their children, kept open from stop to stop; Watch: expressions evaluated by the VM at each stop, expandable (`debug-step-watch`, `debug-component-properties`). |
+| DBG-4 | done | Call Stack: the frames with file:line; picking one shows its line (`frame` marker) and its locals and watches (`debug-hover-frame`). |
+| DBG-5 | done | While paused a resting mouse shows the value under it (`DebugHover`, `OnHoverRequest` → `Evaluate` → `ShowHover`; `debug-hover-frame`). |
+| DBG-6 | done | Immediate: `? expr` prints, statements run in the paused frame (the answer by `OnEvaluate`), Up / Down recall what was typed (`debug-condition-continue`). No completion in the line yet. |
 | DBG-7 | Logpoints, hit counts, set next statement | VS Code / Delphi | — | P1 | — |
 | DBG-8 | Edit-and-continue and hot reload | VB6 (still loved) | I5: a changed SUB applies on save while running; inside a paused SUB if its locals' layout is kept; otherwise "restart needed" with the reason. | P1 | I5 acceptance. |
 | DBG-9 | Inspect element | Xcode's view debugger | Click a control in the running form → it's selected in the designer with its live properties (I5). | P1 | — |
@@ -347,7 +347,7 @@ Every row is measured in `tools/regress.sh perf` on the reference machines of [i
    - Compiler messages in RapidQ's wording with a jump link.
    - Studio's own messages say what happened and what to do: "Can't run: 2 errors — the first is at line 12".
    - Never a raw Rust error or panic text.
-   - The **`(… : not there yet)` fallback in `ide/shell.inc` `RunCommand` must be gone**: every menu command works or is hidden. Commands that fall through today: `edit.undo`, `edit.redo`, `edit.delete`, `edit.find`, `edit.replace`, `project.addForm`, `project.addModule`, `debug.toggleBreakpoint`, `debug.clearBreakpoints`, `debug.addWatch`, `debug.runToCursor`, every `designer.*` (Format), `help.contents`.
+   - The **`(… : not there yet)` fallback in `ide/shell.inc` `RunCommand` must be gone**: every menu command works or is hidden. Commands that fall through today: `edit.undo`, `edit.redo`, `edit.delete`, `edit.find`, `edit.replace`, `project.addForm`, `project.addModule`, every `designer.*` (Format), `help.contents` (the Run and Debug ones work now: S-DEBUG, and `tests/studio_flows.mjs` `commands-handled` keeps it so).
 4. **Keyboard shortcuts per OS.**
    - Windows / Linux: the VB6 / Delphi scheme (F5, F9, F10, F11, F12, F2, F4, Ctrl+…).
    - macOS: ⌘ for Ctrl, plus Xcode's ⌘R run, ⌘. stop, ⌘B build, ⌘, settings, ⌘W close document, ⌘⇧[ / ] for documents, ⌘⇧O quick open, ⌘⇧L library.
@@ -482,7 +482,7 @@ Lanes in flight (the designer, the panels / inspector, the code editor, the them
 | A11Y-2 | partial | The dock, trees and lists have AccessKit / ARIA (`tests/studio_shell.mjs`: trees equal on both hosts); no hands-on screen-reader pass on Studio, no editor text runs. |
 | A11Y-3 | missing | No UI zoom command, no reduced-motion handling. |
 | PERF-1, PERF-2 | done | Measured (ide-plan L-SHELL results). The web's first visit is at the 2.5 s edge. |
-| PERF-3 … PERF-12 | missing | Not measured in Studio. **`tools/regress.sh` has no `studio` or `perf` stage**: `tests/studio_shell.mjs` and `tests/studio_flows.mjs` aren't in the gate. |
+| PERF-3 … PERF-12 | partial | `tools/regress.sh perf` runs `tests/studio_perf.mjs` (both hosts: start, F5 → first form, a step → its line and values; 20 % over `tests/studio_perf_baseline.json` fails) and `tests/run_in_browser.mjs` measures PERF-9; typing, completion, diagnostics, designer drag, build and idle aren't measured in Studio yet. `tools/regress.sh studio` runs `studio_shell`, `studio_flows` and `run_in_browser`. |
 
 **Tally of the 79 P0 items** (PERF-1 … PERF-12 counted as 12): 5 done, 36 partial, 38 missing.
 

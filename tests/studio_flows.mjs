@@ -341,7 +341,48 @@ const CASES = [
     open: "examples/gui/hello_form.rr",
     do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:form.capt,key:Tab,type: = \"Hi\",key:Enter,type:dim y as string,key:Escape,key:Enter",
     delay: 8,
-    dump: { "codedoc(0).text": /\nform\.Caption = "Hi"\nDIM y AS STRING\n$|\nform\.Caption = "Hi"\nDIM y AS STRING\n?$/, "codedoc(0).completionitems": /^$/ },
+    dump: { "codedoc(0).text": /\nForm\.Caption = "Hi"\nDIM y AS STRING\n?$/, "codedoc(0).completionitems": /^$/ },
+  },
+  {
+    // Tab on a selected block indents every line by the file's unit (4
+    // spaces); the selection stays
+    name: "editor-tab-indent",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Shift+Up,key:Shift+Up,key:Tab",
+    delay: 6,
+    dump: { "codedoc(0).text": /\nEND SUB\n\n {4}NameEdit\.SetFocus\n {4}Form\.ShowModal\n?$/, "codedoc(0).sellength": /^3[0-9]$/ },
+  },
+  {
+    // Shift+Tab takes it back out: the text as it was
+    name: "editor-tab-outdent",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Shift+Up,key:Shift+Up,key:Tab,key:Shift+Tab",
+    delay: 6,
+    dump: { "codedoc(0).text": /\nEND SUB\n\nNameEdit\.SetFocus\nForm\.ShowModal\n?$/, "codedoc(0).canundo": /^(-1|1|True)$/i },
+  },
+  {
+    // a misspelt member: squiggled once typing pauses (RapidQ's compiler's
+    // words), in Problems too; Ctrl+. offers the fix, Enter applies it
+    name: "editor-diagnostic",
+    open: "examples/gui/hello_form.rr",
+    do: "key:Ctrl+End,key:Enter,type:x$ = NameEdit.Txet,key:Escape,wait,wait,wait,key:Ctrl+.,wait",
+    delay: 8,
+    dump: { "codedoc(0).diagnosticcount": /^1$/, "codedoc(0).completionitems": /^Change to Text$/ },
+  },
+  {
+    name: "editor-quick-fix",
+    open: "examples/gui/hello_form.rr",
+    do: "key:Ctrl+End,key:Enter,type:x$ = NameEdit.Txet,key:Escape,wait,wait,wait,key:Ctrl+.,wait,key:Enter,wait,wait,wait",
+    delay: 10,
+    dump: { "codedoc(0).text": /\nx\$ = NameEdit\.Text\n?$/, "codedoc(0).diagnosticcount": /^0$/ },
+  },
+  {
+    // F12 on a call goes to its SUB
+    name: "editor-go-to-definition",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:greet,key:Escape,key:Left,key:F12",
+    delay: 6,
+    dump: { "codedoc(0).caretline": /^42$/ },
   },
   // (S-PANELS) The inspector on the designer: pantry's AddBtn selected,
   // its Caption and Width set in the inspector — the code shows them as the
@@ -420,6 +461,109 @@ const CASES = [
     do: "wait,palette:stock",
     delay: 4,
     dump: { "projecttree.filecount": /^1$/, "palette.selected": /^line:21:Stock$/ },
+  },
+  {
+    // a snippet: `sub` and Tab — the skeleton, its name selected; Tab again
+    // to the parameters
+    name: "editor-snippet",
+    open: "examples/gui/hello_form.rr",
+    do: "key:Ctrl+End,key:Enter,type:sub,wait,key:Tab,type:Hello,key:Tab,type:n AS INTEGER",
+    delay: 6,
+    dump: { "codedoc(0).text": /\nSUB Hello\(n AS INTEGER\)\n {4}\nEND SUB\n?$/ },
+  },
+  {
+    // F2 renames from the language service's references: the DECLARE, the
+    // SUB, OnClick = and the calls
+    name: "editor-rename",
+    open: "examples/gui/hello_form.rr",
+    do: "key:Ctrl+End,key:Enter,type:greet,key:Escape,key:Left,key:F2,wait,key:Ctrl+A,type:SayHi,key:Enter,wait",
+    delay: 7,
+    dump: { "codedoc(0).text": /DECLARE SUB SayHi\n[\s\S]*OnClick = SayHi\n[\s\S]*\nSUB SayHi\n[\s\S]*\nSayHi\n?$/ },
+  },
+  {
+    // Ctrl+F with a regular expression (Alt+R): found as it is typed, the
+    // first match selected
+    name: "editor-find-regex",
+    open: "examples/gui/hello_form.rr",
+    do: "key:Ctrl+F,wait,key:Alt+R,type:Show\\w+,wait",
+    delay: 6,
+    dump: { "codedoc(0).seltext": /^ShowModal$/ },
+  },
+  {
+    // Edit > Undo takes the typing back (a word at a time), Redo again
+    name: "editor-undo",
+    open: "examples/gui/hello_form.rr",
+    do: "key:Ctrl+End,type:one two,edit.undo,wait,edit.undo,edit.redo,wait",
+    delay: 6,
+    dump: { "codedoc(0).text": /\nForm\.ShowModal\none ?\n?$/, "codedoc(0).canredo": /^(-1|1|True)$/i },
+  },
+  {
+    // Tab at a line's start: the file's unit (4 spaces, never a tab
+    // glyph); Shift+Tab takes it back
+    name: "editor-tab-line-start",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,key:Tab,type:x,key:Escape",
+    delay: 6,
+    dump: { "codedoc(0).text": /\nForm\.ShowModal\n\n {4}x\n?$/ },
+  },
+  {
+    name: "editor-shift-tab-line-start",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,key:Tab,type:x,key:Escape,key:Shift+Tab",
+    delay: 6,
+    dump: { "codedoc(0).text": /\nForm\.ShowModal\n\nx\n?$/ },
+  },
+  {
+    // hover: the registry's syntax and doc for a RapidQ statement
+    name: "editor-hover",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:ShowMessage \"Hi\",key:Escape,key:Home,key:Right,key:Right,edit.showHover,wait,wait",
+    delay: 6,
+    dump: { "codedoc(0).hovertext": /SHOWMESSAGE|ShowMessage/ },
+  },
+  {
+    // signature help after `(`: the parameters
+    name: "editor-signature",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x$ = MID$(,wait",
+    delay: 6,
+    dump: { "codedoc(0).signaturetext": /MID\$\(/i },
+  },
+  {
+    // Shift+F12: every use selected here (DECLARE, OnClick =, the SUB, the
+    // call) and listed in Output
+    name: "editor-references",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:greet,key:Escape,key:Left,key:Shift+F12,wait",
+    delay: 6,
+    dump: { "codedoc(0).cursorcount": /^4$/, "outputbox.text": /References:[\s\S]*:42:5[\s\S]*4 references/ },
+  },
+  {
+    // Edit > Advanced > Fold All: the CREATE blocks and SUBs folded
+    name: "editor-fold",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),edit.foldAll,wait",
+    delay: 5,
+    dump: { "codedoc(0).foldcount": /^[3-9]$/ },
+  },
+  {
+    // the find box's search, then Edit > Find Next (F3): the next one
+    name: "editor-find-next",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+F,wait,type:Caption,wait,key:Escape,edit.findNext,wait",
+    delay: 6,
+    dump: { "codedoc(0).caretline": /^22$/, "codedoc(0).seltext": /^Caption$/ },
+  },
+  {
+    // (S-DESIGN ↔ S-EDITOR) the designer's two additions came to the code as
+    // two undo steps of the editor's (ApplyPatches): Ctrl+Z twice in the
+    // code gives the file back exactly, and nothing is left to undo
+    name: "designer-code-undo",
+    open: "examples/rapidq/notepad.bas",
+    do: "view.documents.tabs,view.designer,designer.add.QCHECKBOX,designer.add.QBUTTON,wait,view.code,focus:codedoc(0),key:Ctrl+Z,key:Ctrl+Z,wait",
+    delay: 6,
+    dump: { "codedoc(0).canundo": /^(0|False)$/i, "codedoc(0).text": /CREATE Form AS QFORM/ },
+    same: { "codedoc(0).text": "examples/rapidq/notepad.bas" },
   },
   // ---- S-DEBUG: running and debugging (docs/studio-wow.md RUN / DBG) ----
   // counter.rr includes tally.inc (AddUp, the SUB stepped into); oops.rr
@@ -583,151 +727,6 @@ const CASES = [
     env: { RAPIDR_NO_BROWSER: "1" },
     dump: { "session.browserurl": /^http:\/\/127\.0\.0\.1:\d+\/[0-9a-f]{32}\/$/, "outputbox.text": /Serving http:\/\/127\.0\.0\.1/ },
     webDump: { "session.browserurl": /^$/, "outputbox.text": /Studio runs in a browser already[\s\S]*total12/ },
-    dump: { "codedoc(0).text": /\nForm\.Caption = "Hi"\nDIM y AS STRING\n?$/, "codedoc(0).completionitems": /^$/ },
-  },
-  {
-    // Tab on a selected block indents every line by the file's unit (4
-    // spaces); the selection stays
-    name: "editor-tab-indent",
-    open: "examples/gui/hello_form.rr",
-    do: "focus:codedoc(0),key:Ctrl+End,key:Shift+Up,key:Shift+Up,key:Tab",
-    delay: 6,
-    dump: { "codedoc(0).text": /\nEND SUB\n\n {4}NameEdit\.SetFocus\n {4}Form\.ShowModal\n?$/, "codedoc(0).sellength": /^3[0-9]$/ },
-  },
-  {
-    // Shift+Tab takes it back out: the text as it was
-    name: "editor-tab-outdent",
-    open: "examples/gui/hello_form.rr",
-    do: "focus:codedoc(0),key:Ctrl+End,key:Shift+Up,key:Shift+Up,key:Tab,key:Shift+Tab",
-    delay: 6,
-    dump: { "codedoc(0).text": /\nEND SUB\n\nNameEdit\.SetFocus\nForm\.ShowModal\n?$/, "codedoc(0).canundo": /^(-1|1|True)$/i },
-  },
-  {
-    // a snippet: `sub` and Tab — the skeleton, its name selected; Tab again
-    // to the parameters
-    name: "editor-snippet",
-    open: "examples/gui/hello_form.rr",
-    do: "key:Ctrl+End,key:Enter,type:sub,wait,key:Tab,type:Hello,key:Tab,type:n AS INTEGER",
-    delay: 6,
-    dump: { "codedoc(0).text": /\nSUB Hello\(n AS INTEGER\)\n {4}\nEND SUB\n?$/ },
-  },
-  {
-    // a misspelt member: squiggled once typing pauses (RapidQ's compiler's
-    // words), in Problems too; Ctrl+. offers the fix, Enter applies it
-    name: "editor-diagnostic",
-    open: "examples/gui/hello_form.rr",
-    do: "key:Ctrl+End,key:Enter,type:x$ = NameEdit.Txet,key:Escape,wait,wait,wait,key:Ctrl+.,wait",
-    delay: 8,
-    dump: { "codedoc(0).diagnosticcount": /^1$/, "codedoc(0).completionitems": /^Change to Text$/ },
-  },
-  {
-    name: "editor-quick-fix",
-    open: "examples/gui/hello_form.rr",
-    do: "key:Ctrl+End,key:Enter,type:x$ = NameEdit.Txet,key:Escape,wait,wait,wait,key:Ctrl+.,wait,key:Enter,wait,wait,wait",
-    delay: 10,
-    dump: { "codedoc(0).text": /\nx\$ = NameEdit\.Text\n?$/, "codedoc(0).diagnosticcount": /^0$/ },
-  },
-  {
-    // F2 renames from the language service's references: the DECLARE, the
-    // SUB, OnClick = and the calls
-    name: "editor-rename",
-    open: "examples/gui/hello_form.rr",
-    do: "key:Ctrl+End,key:Enter,type:greet,key:Escape,key:Left,key:F2,wait,key:Ctrl+A,type:SayHi,key:Enter,wait",
-    delay: 7,
-    dump: { "codedoc(0).text": /DECLARE SUB SayHi\n[\s\S]*OnClick = SayHi\n[\s\S]*\nSUB SayHi\n[\s\S]*\nSayHi\n?$/ },
-  },
-  {
-    // Ctrl+F with a regular expression (Alt+R): found as it is typed, the
-    // first match selected
-    name: "editor-find-regex",
-    open: "examples/gui/hello_form.rr",
-    do: "key:Ctrl+F,wait,key:Alt+R,type:Show\\w+,wait",
-    delay: 6,
-    dump: { "codedoc(0).seltext": /^ShowModal$/ },
-  },
-  {
-    // Edit > Undo takes the typing back (a word at a time), Redo again
-    name: "editor-undo",
-    open: "examples/gui/hello_form.rr",
-    do: "key:Ctrl+End,type:one two,edit.undo,wait,edit.undo,edit.redo,wait",
-    delay: 6,
-    dump: { "codedoc(0).text": /\nForm\.ShowModal\none ?\n?$/, "codedoc(0).canredo": /^(-1|1|True)$/i },
-  },
-  {
-    // F12 on a call goes to its SUB
-    name: "editor-go-to-definition",
-    open: "examples/gui/hello_form.rr",
-    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:greet,key:Escape,key:Left,key:F12",
-    delay: 6,
-    dump: { "codedoc(0).caretline": /^42$/ },
-  },
-  {
-    // Tab at a line's start: the file's unit (4 spaces, never a tab
-    // glyph); Shift+Tab takes it back
-    name: "editor-tab-line-start",
-    open: "examples/gui/hello_form.rr",
-    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,key:Tab,type:x,key:Escape",
-    delay: 6,
-    dump: { "codedoc(0).text": /\nForm\.ShowModal\n\n {4}x\n?$/ },
-  },
-  {
-    name: "editor-shift-tab-line-start",
-    open: "examples/gui/hello_form.rr",
-    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,key:Tab,type:x,key:Escape,key:Shift+Tab",
-    delay: 6,
-    dump: { "codedoc(0).text": /\nForm\.ShowModal\n\nx\n?$/ },
-  },
-  {
-    // hover: the registry's syntax and doc for a RapidQ statement
-    name: "editor-hover",
-    open: "examples/gui/hello_form.rr",
-    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:ShowMessage \"Hi\",key:Escape,key:Home,key:Right,key:Right,edit.showHover,wait,wait",
-    delay: 6,
-    dump: { "codedoc(0).hovertext": /SHOWMESSAGE|ShowMessage/ },
-  },
-  {
-    // signature help after `(`: the parameters
-    name: "editor-signature",
-    open: "examples/gui/hello_form.rr",
-    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x$ = MID$(,wait",
-    delay: 6,
-    dump: { "codedoc(0).signaturetext": /MID\$\(/i },
-  },
-  {
-    // Shift+F12: every use selected here (DECLARE, OnClick =, the SUB, the
-    // call) and listed in Output
-    name: "editor-references",
-    open: "examples/gui/hello_form.rr",
-    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:greet,key:Escape,key:Left,key:Shift+F12,wait",
-    delay: 6,
-    dump: { "codedoc(0).cursorcount": /^4$/, "outputbox.text": /References:[\s\S]*:42:5[\s\S]*4 references/ },
-  },
-  {
-    // Edit > Advanced > Fold All: the CREATE blocks and SUBs folded
-    name: "editor-fold",
-    open: "examples/gui/hello_form.rr",
-    do: "focus:codedoc(0),edit.foldAll,wait",
-    delay: 5,
-    dump: { "codedoc(0).foldcount": /^[3-9]$/ },
-  },
-  {
-    // the find box's search, then Edit > Find Next (F3): the next one
-    name: "editor-find-next",
-    open: "examples/gui/hello_form.rr",
-    do: "focus:codedoc(0),key:Ctrl+F,wait,type:Caption,wait,key:Escape,edit.findNext,wait",
-    delay: 6,
-    dump: { "codedoc(0).caretline": /^22$/, "codedoc(0).seltext": /^Caption$/ },
-  },
-  {
-    // (S-DESIGN ↔ S-EDITOR) the designer's two additions came to the code as
-    // two undo steps of the editor's (ApplyPatches): Ctrl+Z twice in the
-    // code gives the file back exactly, and nothing is left to undo
-    name: "designer-code-undo",
-    open: "examples/rapidq/notepad.bas",
-    do: "view.documents.tabs,view.designer,designer.add.QCHECKBOX,designer.add.QBUTTON,wait,view.code,focus:codedoc(0),key:Ctrl+Z,key:Ctrl+Z,wait",
-    delay: 6,
-    dump: { "codedoc(0).canundo": /^(0|False)$/i, "codedoc(0).text": /CREATE Form AS QFORM/ },
-    same: { "codedoc(0).text": "examples/rapidq/notepad.bas" },
   },
 ];
 
