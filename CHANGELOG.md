@@ -17,6 +17,31 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   **ROUTPUTCONSOLE** (ANSI output, build log, problems, `file:line` links, search), **RTOOLBAR** as
   a real toolbar (icon buttons, toggles, overflow, customizable) and **RCOMMANDPALETTE** (fuzzy
   commands). Example: `examples/studio/panels.rr`.
+### RapidR Studio: the panels work
+- **The real panels replace the stand-ins** (`ide/panels.inc`): the tool bar (RTOOLBAR, buttons with
+  tooltips), the command palette (RCOMMANDPALETTE), the project tree (RPROJECTTREE), the toolbox
+  (RTOOLBOX), the property inspector (RPROPERTYINSPECTOR) and the output console (ROUTPUTCONSOLE:
+  output, build log, problems with links). Desktop and web byte-identical.
+- **Properties work**: select a component on the form (or in the project tree, or by name in the
+  palette) and the inspector shows its properties as its CREATE block writes them (defaults
+  dimmed; Left / Top / Width / Height as laid out), by category or A–Z, searched, documented under
+  the rows. A change is one undo step in the designer, written into the code as the smallest edit;
+  the code edited reaches the inspector. Values are written as RapidQ needs them: Booleans as 1 / 0,
+  and in a `.bas` program without RAPIDQ.INC a RapidQ constant as its number (RC.EXE reads an
+  undefined `clRed` or `True` as 0).
+- **Events**: double-click an event's row: its SUB is written with the registry's parameters (a
+  DECLARE beside the file's, or the SUB before the form, as RC.EXE needs) and bound, or found; the
+  caret goes inside it. The Events page offers the file's SUBs that fit.
+- **Toolbox**: the registry's components by group with RapidR's icons; search also by what a
+  component is ("chart" finds RPLOT); a card as the tooltip; double-click or Enter adds, a click arms
+  the placing tool, a drag drops on the form.
+- **Project tree**: forms with their components (selecting one selects it in the designer), files
+  with changes marked with a dot, Project > Add Form / Add Module, rename (F2), take out of the
+  project, reorder.
+- **One search** (Ctrl+P, Ctrl+Shift+P): commands, examples, the project's files, the file's
+  symbols and its form's components; `:N` goes to line N (the palette's AddPrefix).
+- Empty panels say what to do (`EmptyText`).
+
 ### RapidR Studio: the form designer works
 - A file's [Design] tab shows its form as the running program shows it, at its own size, read from the code (`RDESIGNSURFACE.Source` on rapidr-designer's Document); the stand-in scanner and its boxes are gone.
 - Drag the form's right edge, bottom edge or corner to resize it: anchored and aligned components follow live, and the new size (and where the anchors moved them) is written into the CREATE block, one undo step.
