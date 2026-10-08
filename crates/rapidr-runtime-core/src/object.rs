@@ -1212,6 +1212,10 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         } else if rapidr_value::objects::is_tabcontrol(name) {
             crate::ui::tab_control_changed(name);
         }
+        // (an RCODEEDITOR's ApplyPatches / Undo / Redo: OnChange)
+        if rapidr_value::objects::is_code(name) && rapidr_value::objects::take_code_change(name) {
+            rp_fire_event(name, "onchange");
+        }
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_dirtree(name) {
             crate::ui::dirtree_refresh(name);

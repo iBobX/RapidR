@@ -1282,6 +1282,10 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         if rapidr_value::objects::is_design(name) {
             design_events(name);
         }
+        // (an RCODEEDITOR's ApplyPatches / Undo / Redo: OnChange)
+        if rapidr_value::objects::is_code(name) && rapidr_value::objects::take_code_change(name) {
+            rp_fire_event(&uname, "onchange");
+        }
         return result.unwrap_or_else(|e| {
             object_error(name, method, &e);
             v_null()

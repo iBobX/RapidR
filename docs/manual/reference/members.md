@@ -1440,15 +1440,16 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `Add` | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
 | `AddItems` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
 | `ClearSelection` | Deletes the selected text. |
-| `Undo` | Undoes the last edit (typing is undone a word at a time). |
-| `Redo` | Does again what Undo undid. |
+| `Undo` | Undoes the last step, the one Ctrl+Z (Cmd+Z) undoes: typing a word or a pause at a time, a command or an ApplyPatches whole. OnChange follows. |
+| `Redo` | Does again what Undo undid (Ctrl+Y, Cmd+Shift+Z). OnChange follows. |
 | `Find(Text AS STRING, Options AS STRING) AS INTEGER` | Selects the next place of Text after the selection; Options: "case", "word", "regex" (comma-separated). True when found. |
-| `FindNext AS INTEGER` | Find's next place. |
-| `FindPrevious AS INTEGER` | Find's previous place. |
+| `FindNext AS INTEGER` | Find's next place (F3): the last search's, or before any the selection's, else the word's at the caret. |
+| `FindPrevious AS INTEGER` | Find's previous place (Shift+F3), as FindNext. |
 | `Replace(Find AS STRING, With AS STRING, Options AS STRING) AS INTEGER` | Replaces the selected place of Find (selecting the next); 1 when it replaced one. A regex's With can say $1. |
 | `ReplaceAll(Find AS STRING, With AS STRING, Options AS STRING) AS INTEGER` | Replaces every place (Options "selection": in the selection), one undo step; how many. |
 | `AddCursor(Line AS INTEGER, Column AS INTEGER)` | Another caret at a line and column (from 1). |
 | `SelectNextOccurrence AS INTEGER` | Adds the next place of the selected word to the selections (Ctrl+D). |
+| `GotoMatchingBracket AS INTEGER` | Puts the caret at the bracket matching the one at it (Ctrl+Shift+\); False when there is none. |
 | `ClearCursors` | Back to the one main caret. |
 | `Fold(Line AS INTEGER) AS INTEGER` | Folds the block at a line (from 1). |
 | `Unfold(Line AS INTEGER) AS INTEGER` | Unfolds the block at a line (from 1). |
@@ -1457,7 +1458,7 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `InsertText(Text AS STRING)` | Types Text at every caret (one undo step). |
 | `ReplaceRange(StartLine AS INTEGER, StartColumn AS INTEGER, EndLine AS INTEGER, EndColumn AS INTEGER, Text AS STRING)` | Replaces the text between two places (lines and columns from 1). |
 | `ApplyEdits(Json AS STRING) AS INTEGER` | Several edits as one undo step: a JSON list of {"line", "column", "endLine", "endColumn", "text"} (or "start" / "end" character offsets). False, and nothing done, when two overlap. |
-| `ApplyPatch(StartLine AS INTEGER, StartCol AS INTEGER, EndLine AS INTEGER, EndCol AS INTEGER, Text AS STRING, [Join AS INTEGER]) AS INTEGER` | Replaces the text between two places with Text — lines from 0, columns counted in characters, as RDESIGNSURFACE's OnSourceEdit gives them — keeping the carets where they were in the text. One undo step, or with Join True part of the step before (a designer action's several patches undone together). False, and nothing changed, for a range that isn't in the text. |
+| `ApplyPatches(Patches AS STRING, [Continues AS INTEGER]) AS INTEGER` | Applies one change's patches as one undo step: RDESIGNSURFACE's OnSourceEdit events heard between its OnSourceStep and its OnChange. One patch per line, its StartLine, StartCol, EndLine, EndCol and Text separated by tabs; lines from 0, columns counted in characters, each patch in the text the ones before it left; in Text, \n is a line break, \t a tab and \\ a backslash. With Continues True the step joins the one before (OnSourceStep's Continues). The carets keep their places in the text around them, and OnChange fires once. False, and nothing changed, when a range isn't in the text. |
 | `SetDiagnostics(Json AS STRING)` | The program's problems, shown as squiggles and in the gutter: a JSON list of {"line", "column", "endLine", "endColumn", "severity" (error, warning, info, hint), "message"}. |
 | `ClearDiagnostics` | Removes the problems shown. |
 | `AddMarker(Line AS INTEGER, Kind AS STRING, [Note AS STRING])` | A gutter marker on a line (from 1) that follows it through edits. Kinds: "breakpoint" (a dot), "breakpoint.conditional" (a dot with a bar), "breakpoint.log" (a diamond), "breakpoint.disabled" (a ring), "current" (the debugger's line: an arrow, the line tinted), "frame" (a caller's line: a grey arrow, a fainter tint), "exception" (an arrow and the line in the error colour), "bookmark", "error", "warning" or a kind of the program's. Note shows as a label after the line's end (a run-time error's message); a line shows one note, the newest. |
@@ -1489,7 +1490,7 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 
 | Event | |
 |---|---|
-| `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
+| `OnChange` | The text changed: the user's edits, and the program's ApplyPatches, Undo and Redo; setting Text or SelText and the other methods fire none. |
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnKeyDown` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |

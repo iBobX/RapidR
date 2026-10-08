@@ -1,6 +1,6 @@
 ' editor.inc: the code documents' editor (RCODEEDITOR on rapidr-editor and
 ' RapidR's language service, docs/ide-plan.md I2 / I3, lane S-EDITOR) —
-' its Edit commands, the designer's source patches, and the scripted
+' its Edit commands, settings, the status bar's facts, and the scripted
 ' flows' typing steps.
 
 ' ---- Edit commands on the active code document -------------------------------------
@@ -22,6 +22,19 @@ FUNCTION EditorCommand(Id AS STRING) AS INTEGER
     CASE "edit.rename": IF d >= 0 THEN CodeDoc(d).OpenFind "rename"
     CASE "edit.triggerCompletion": IF d >= 0 THEN CodeDoc(d).TriggerCompletion
     CASE "edit.quickFix": IF d >= 0 THEN CodeDoc(d).QuickFix
+    CASE "edit.findNext": IF d >= 0 THEN CodeDoc(d).FindNext
+    CASE "edit.findPrevious": IF d >= 0 THEN CodeDoc(d).FindPrevious
+    CASE "edit.indent": IF d >= 0 THEN CodeDoc(d).Indent
+    CASE "edit.outdent": IF d >= 0 THEN CodeDoc(d).Outdent
+    CASE "edit.selectNextOccurrence": IF d >= 0 THEN CodeDoc(d).SelectNextOccurrence
+    CASE "edit.goToBracket": IF d >= 0 THEN CodeDoc(d).GotoMatchingBracket
+    CASE "edit.fold": IF d >= 0 THEN CodeDoc(d).Fold CodeDoc(d).CaretLine
+    CASE "edit.unfold": IF d >= 0 THEN CodeDoc(d).Unfold CodeDoc(d).CaretLine
+    CASE "edit.foldAll": IF d >= 0 THEN CodeDoc(d).FoldAll
+    CASE "edit.unfoldAll": IF d >= 0 THEN CodeDoc(d).UnfoldAll
+    CASE "edit.parameterInfo": IF d >= 0 THEN CodeDoc(d).TriggerSignature
+    CASE "edit.showHover": IF d >= 0 THEN CodeDoc(d).TriggerHover
+    CASE "edit.wordWrap": IF d >= 0 THEN CodeDoc(d).WordWrap = NOT CodeDoc(d).WordWrap
     CASE ELSE: Result = 0
   END SELECT
 END FUNCTION
@@ -78,28 +91,100 @@ SUB EditorFocusTick
   END IF
 END SUB
 
-' ---- the designer's edits to the source -----------------------------------------------
-' RDESIGNSURFACE's OnSourceEdit(StartLine, StartCol, EndLine, EndCol, Text)
-' — one per patch, in order; lines from 0, columns in characters — applied
-' to document d's code with ApplyPatch. The patches of one designer action
-' arrive together, before the next turn of the event loop: the first starts
-' an undo step, the rest join it (PatchJoin, cleared by a timer that fires
-' once they've all been handled), so Edit > Undo takes the whole action back
-' in one step — the code's history is the file's only one (the source is
-' the form), and the designer follows the text it's given back.
-DIM PatchJoin AS INTEGER
+' ---- navigation across files: F12, Shift+F12, F2, Ctrl+S --------------------------------
+' (the document showing Path's code, opened when it isn't; -1: no such file)
+FUNCTION CodeDocOf(Path AS STRING) AS INTEGER
+  DIM p AS STRING
+  p = Path
+  Result = DocOf(p)
+  IF Result < 0 THEN
+    p = ProjectPath(Path)
+    Result = DocOf(p)
+  END IF
+  IF Result < 0 AND FILEEXISTS(p) THEN
+    OpenDocument p
+    Result = DocOf(p)
+  END IF
+END FUNCTION
 
-SUB DesignerSourceEdit(d AS INTEGER, StartLine AS INTEGER, StartCol AS INTEGER, EndLine AS INTEGER, EndCol AS INTEGER, Text AS STRING)
+' F12 found the definition in another file (an $INCLUDE's): there.
+SUB CodeNavigate(File AS STRING, LineNo AS INTEGER, ColNo AS INTEGER, Sender AS RCODEEDITOR)
+  DIM d AS INTEGER
+  d = CodeDocOf(File)
   IF d < 0 THEN EXIT SUB
-  CodeDoc(d).ApplyPatch StartLine, StartCol, EndLine, EndCol, Text, PatchJoin
-  PatchJoin = 1
-  PatchBurst.Enabled = 0
-  PatchBurst.Enabled = 1
+  Dock.FocusPane("codedoc(" + LTRIM$(STR$(d)) + ")")
+  CodeDoc(d).GotoLineColumn LineNo, ColNo
 END SUB
 
-SUB PatchBurstTick
-  PatchBurst.Enabled = 0
-  PatchJoin = 0
+' (a JSON string's value after Key in Item: "" when it isn't there)
+FUNCTION JsonField(Item AS STRING, Key AS STRING) AS STRING
+  DIM k AS INTEGER, e AS INTEGER, c AS STRING
+  k = INSTR(Item, CHR$(34) + Key + CHR$(34) + ":")
+  IF k = 0 THEN EXIT FUNCTION
+  k = k + LEN(Key) + 3
+  IF MID$(Item, k, 1) = CHR$(34) THEN
+    ' (a string: up to its closing quote, \" and \\ read back)
+    e = k + 1
+    DO WHILE e <= LEN(Item)
+      c = MID$(Item, e, 1)
+      IF c = "\" THEN
+        Result = Result + MID$(Item, e + 1, 1)
+        e = e + 2
+      ELSEIF c = CHR$(34) THEN
+        EXIT DO
+      ELSE
+        Result = Result + c
+        e = e + 1
+      END IF
+    LOOP
+  ELSE
+    e = k
+    DO WHILE e <= LEN(Item) AND INSTR(",}]", MID$(Item, e, 1)) = 0
+      e = e + 1
+    LOOP
+    Result = MID$(Item, k, e - k)
+  END IF
+END FUNCTION
+
+' Shift+F12: every use, listed in Output as places to click (this file's
+' are also selected in the editor, as carets).
+SUB CodeReferences(Json AS STRING, Sender AS RCODEEDITOR)
+  DIM rest AS STRING, item AS STRING, k AS INTEGER, n AS INTEGER, f AS STRING, l AS INTEGER, d AS INTEGER, t AS STRING
+  rest = Json
+  OutputLine "References:"
+  DO
+    k = INSTR(rest, "{")
+    IF k = 0 THEN EXIT DO
+    rest = MID$(rest, k)
+    k = INSTR(rest, "}")
+    IF k = 0 THEN EXIT DO
+    item = LEFT$(rest, k)
+    rest = MID$(rest, k + 1)
+    f = JsonField(item, "file")
+    l = VAL(JsonField(item, "line"))
+    t = ""
+    d = DocOf(f)
+    IF d >= 0 AND l > 0 THEN t = "  " + LTRIM$(CodeDoc(d).Line(l - 1))
+    OutputLine "  " + f + ":" + LTRIM$(STR$(l)) + ":" + JsonField(item, "column") + t
+    n = n + 1
+  LOOP
+  IF n = 1 THEN OutputLine "  1 reference" ELSE OutputLine "  " + LTRIM$(STR$(n)) + " references"
+  Dock.ShowPane("outputbox")
+END SUB
+
+' F2 renamed names another file uses: its edits, applied there (opened).
+SUB CodeFileEdits(File AS STRING, Json AS STRING, Sender AS RCODEEDITOR)
+  DIM d AS INTEGER
+  d = CodeDocOf(File)
+  IF d < 0 THEN
+    OutputLine "Rename: " + File + " couldn't be opened"
+    EXIT SUB
+  END IF
+  CodeDoc(d).ApplyEdits Json
+  IF DocDirty(d) = 0 THEN
+    DocDirty(d) = 1
+    DocTitles d
+  END IF
 END SUB
 
 ' ---- the scripted flows' steps (docs/studio-wow.md §0) --------------------------------

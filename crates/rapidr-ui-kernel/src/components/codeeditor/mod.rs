@@ -319,8 +319,7 @@ pub fn sync(x: &mut Ctx) {
         x.ui.cache_key = key;
     }
     x.ui.geo = geometry(x.ui, x.c, x.size.0, x.size.1);
-    let cols = if x.c.opts.word_wrap { ((x.ui.geo.text.2 as f64 - 8.0) / x.ui.metrics.ch).floor().max(8.0) as usize } else { 0 };
-    x.ui.rows.sync(x.c, cols);
+    sync_rows(x);
     if x.c.generation != x.ui.seen_generation {
         x.ui.seen_generation = x.c.generation;
         x.ui.scroll = (0.0, 0.0);
@@ -340,8 +339,18 @@ pub fn sync(x: &mut Ctx) {
     x.ui.seen_revision = x.c.revision;
 }
 
+/// The row table caught up with the text (an edit just made: the lines it
+/// added or took away).
+fn sync_rows(x: &mut Ctx) {
+    let cols = if x.c.opts.word_wrap { ((x.ui.geo.text.2 as f64 - 8.0) / x.ui.metrics.ch).floor().max(8.0) as usize } else { 0 };
+    x.ui.rows.sync(x.c, cols);
+}
+
 /// The bars' ranges and positions for the text now.
 pub fn update_bars(x: &mut Ctx) {
+    // (after an edit in this turn: the rows of the text as it is now — an
+    // undo that took lines away once read past the text's end)
+    sync_rows(x);
     let lh = x.ui.lh();
     let g = x.ui.geo;
     let rows = x.ui.rows.total() as f64;

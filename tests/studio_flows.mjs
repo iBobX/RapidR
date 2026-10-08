@@ -327,6 +327,74 @@ const CASES = [
     delay: 6,
     dump: { "codedoc(0).caretline": /^42$/ },
   },
+  {
+    // Tab at a line's start: the file's unit (4 spaces, never a tab
+    // glyph); Shift+Tab takes it back
+    name: "editor-tab-line-start",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,key:Tab,type:x,key:Escape",
+    delay: 6,
+    dump: { "codedoc(0).text": /\nForm\.ShowModal\n\n {4}x\n?$/ },
+  },
+  {
+    name: "editor-shift-tab-line-start",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,key:Tab,type:x,key:Escape,key:Shift+Tab",
+    delay: 6,
+    dump: { "codedoc(0).text": /\nForm\.ShowModal\n\nx\n?$/ },
+  },
+  {
+    // hover: the registry's syntax and doc for a RapidQ statement
+    name: "editor-hover",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:ShowMessage \"Hi\",key:Escape,key:Home,key:Right,key:Right,edit.showHover,wait,wait",
+    delay: 6,
+    dump: { "codedoc(0).hovertext": /SHOWMESSAGE|ShowMessage/ },
+  },
+  {
+    // signature help after `(`: the parameters
+    name: "editor-signature",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x$ = MID$(,wait",
+    delay: 6,
+    dump: { "codedoc(0).signaturetext": /MID\$\(/i },
+  },
+  {
+    // Shift+F12: every use selected here (DECLARE, OnClick =, the SUB, the
+    // call) and listed in Output
+    name: "editor-references",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:greet,key:Escape,key:Left,key:Shift+F12,wait",
+    delay: 6,
+    dump: { "codedoc(0).cursorcount": /^4$/, "outputbox.text": /References:[\s\S]*:42:5[\s\S]*4 references/ },
+  },
+  {
+    // Edit > Advanced > Fold All: the CREATE blocks and SUBs folded
+    name: "editor-fold",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),edit.foldAll,wait",
+    delay: 5,
+    dump: { "codedoc(0).foldcount": /^[3-9]$/ },
+  },
+  {
+    // the find box's search, then Edit > Find Next (F3): the next one
+    name: "editor-find-next",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+F,wait,type:Caption,wait,key:Escape,edit.findNext,wait",
+    delay: 6,
+    dump: { "codedoc(0).caretline": /^22$/, "codedoc(0).seltext": /^Caption$/ },
+  },
+  {
+    // (S-DESIGN ↔ S-EDITOR) the designer's two additions came to the code as
+    // two undo steps of the editor's (ApplyPatches): Ctrl+Z twice in the
+    // code gives the file back exactly, and nothing is left to undo
+    name: "designer-code-undo",
+    open: "examples/rapidq/notepad.bas",
+    do: "view.documents.tabs,view.designer,designer.add.QCHECKBOX,designer.add.QBUTTON,wait,view.code,focus:codedoc(0),key:Ctrl+Z,key:Ctrl+Z,wait",
+    delay: 6,
+    dump: { "codedoc(0).canundo": /^(0|False)$/i, "codedoc(0).text": /CREATE Form AS QFORM/ },
+    same: { "codedoc(0).text": "examples/rapidq/notepad.bas" },
+  },
 ];
 
 function runDesktop(c) {
