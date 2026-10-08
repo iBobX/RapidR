@@ -37,6 +37,8 @@ SUB FileUndo(d AS INTEGER, Redo AS INTEGER)
   IF DocOpen(d) = 0 THEN EXIT SUB
   IF Redo THEN CodeDoc(d).Redo ELSE CodeDoc(d).Undo
   IF DocHasForm(d) THEN DesignRead d
+  ' (the inspector shows the values undone)
+  InspectActive
   UpdateCommands
 END SUB
 
