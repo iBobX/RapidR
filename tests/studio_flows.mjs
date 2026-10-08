@@ -100,6 +100,16 @@ const CASES = [
       "codedoc(0).text": /Width = 540\n    Height = 340[\s\S]*    CREATE Button1 AS QBUTTON\n        Caption = "Button1"\n        Left = 128\n        Top = 88\n        Width = 75\n        Height = 25\n    END CREATE\nEND CREATE/,
     },
   },
+  // (I4) Enter on a toolbox item: AddComponent through the program (a
+  // method's edits heard as OnSourceEdit on both hosts), named after the
+  // registry's spelling (CheckBox1).
+  {
+    name: "designer-add",
+    open: "examples/rapidq/notepad.bas",
+    do: "view.documents.tabs,view.designer,designer.add.QCHECKBOX",
+    delay: 3,
+    dump: { "designdoc(0).statustext": /^Added CheckBox1 \(QCHECKBOX\)/, "codedoc(0).text": /    CREATE CheckBox1 AS QCHECKBOX\n        Caption = "CheckBox1"\n/ },
+  },
   // (I4) The same, then Ctrl+Z three times: the exact text back.
   {
     name: "designer-undo",

@@ -715,9 +715,6 @@ fn set_property(name: &str, prop: &str, val: Value) {
         } else {
             crate::kernel_web::redraw();
         }
-        if rapidr_value::objects::is_design(name) {
-            design_events(name);
-        }
         return;
     }
     // `Label.Font = Font` (a QFONT): copy the font's settings.
@@ -1251,6 +1248,9 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             crate::kernel_web::tree_refresh(&uname);
         } else {
             crate::kernel_web::redraw();
+        }
+        if rapidr_value::objects::is_design(name) {
+            design_events(name);
         }
         return result.unwrap_or_else(|e| {
             object_error(name, method, &e);
