@@ -129,11 +129,11 @@ fn the_mouse_selects_moves_and_clears_with_the_designers_events() {
 
 #[test]
 fn a_component_dragged_in_from_elsewhere_is_dropped_where_the_mouse_lets_go() {
-    // (a frameless 300 × 200 form read from a program: its client 12 px
+    // (a frameless 300 × 200 form read from a program: its client 24 px
     // into the surface, the surface 10 px into its window)
     let form = Subtree { id: 0, name: "Main".into(), type_written: "QFORM".into(), body: vec![p("Width", "300"), p("Height", "200"), p("BorderStyle", "0")] };
     let (s, mut f, mut ts, _) = shown(form, (360, 260));
-    let at = (10.0 + 12.0 + 41.5, 10.0 + 12.0 + 33.5);
+    let at = (10.0 + 24.0 + 41.5, 10.0 + 24.0 + 33.5);
     // the press elsewhere (a toolbox), the drag over the surface, the release
     rapidr_value::objects::design::begin_drop("QBUTTON");
     f.mouse_move(&s, &mut ts, at.0, at.1, Mods::NONE);

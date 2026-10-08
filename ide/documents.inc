@@ -112,6 +112,7 @@ SUB AnalyzeActive
   DIM d AS INTEGER
   d = ActiveCode
   IF d >= 0 THEN
+    HistNoteCode d
     Lang.Update DocFile(d), CodeDoc(d).Text
     IF DocHasForm(d) THEN DesignRead d
   END IF
@@ -183,6 +184,10 @@ SUB OpenDocument(Path AS STRING)
   DocOpen(d) = 1
   DocDirty(d) = 0
   DesignDoc(d).OnSourceEdit = DesignSourceEdit
+  DesignDoc(d).OnSourceStep = DesignStep
+  DesignDoc(d).OnUndo = DesignUndo
+  DesignDoc(d).SharedUndo = 1
+  HistReset d
   DesignDoc(d).OnChange = DesignChanged
   DesignDoc(d).OnDblClick = DesignDblClick
   DesignRead d

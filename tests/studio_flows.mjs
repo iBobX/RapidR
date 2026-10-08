@@ -24,12 +24,35 @@ const WORK = join(ROOT, "tests", "results", "studio-flows");
 const filters = process.argv.slice(2);
 
 // (I4) The designer's steps on notepad.bas: the placing tool's click, the
-// form's right edge dragged, Button1 dragged.
+// form's right edge dragged, Button1 dragged (the form sits 24 px in on the
+// surface's backdrop).
 const DESIGN_STEPS = [
-  "__mousedown_100_120", "__mouseup_100_120",
-  "__mousedown_491_250", "__mousemove_521_250", "__mousemove_551_250", "__mouseup_551_250",
-  "__mousedown_110_130", "__mousemove_130_150", "__mousemove_150_170", "__mouseup_150_170",
+  "__mousedown_112_132", "__mouseup_112_132",
+  "__mousedown_503_262", "__mousemove_533_262", "__mousemove_563_262", "__mouseup_563_262",
+  "__mousedown_122_142", "__mousemove_142_162", "__mousemove_162_182", "__mouseup_162_182",
 ].map((e) => `designdoc(0).${e}`).join(",");
+
+// (S-DESIGN-2) Keys pressed on the designer: "Ab&" is Shift+A, B, Shift+7
+// (a US keyboard, as the hosts' test hooks type them); {Enter} and the
+// like by name.
+const KEYS = { Enter: "13", Escape: "27", Tab: "9", F2: "113", "Ctrl+O": "79_16", "Ctrl+=": "187_16", "Ctrl+-": "189_16", "Ctrl+0": "48_16" };
+function typed(text) {
+  const out = [];
+  for (const m of text.matchAll(/\{([^}]+)\}|(.)/g)) {
+    if (m[1]) { out.push(KEYS[m[1]]); continue; }
+    const c = m[2];
+    if (/[a-z]/.test(c)) out.push(String(c.toUpperCase().charCodeAt(0)));
+    else if (/[A-Z]/.test(c)) out.push(`${c.charCodeAt(0)}_256`);
+    else if (/[0-9 ]/.test(c)) out.push(String(c.charCodeAt(0)));
+    else if (")!@#$%^&*(".includes(c)) out.push(`${48 + ")!@#$%^&*(".indexOf(c)}_256`);
+    else out.push({ "-": "189", ".": "190" }[c]);
+  }
+  return out.map((k) => `designdoc(0).__key_${k}`).join(",");
+}
+// (the mouse on the designed form: its client area's (x, y), the form's
+// frame 24 px in, its title bar 29 px, a menu bar 28 px)
+const at = (x, y, menu = 0) => `${x + 25}_${y + 54 + menu}`;
+const click = (x, y, menu = 0) => `designdoc(0).__mousedown_${at(x, y, menu)},designdoc(0).__mouseup_${at(x, y, menu)}`;
 
 // Each case: what Studio opens and does (`do`: its commands; `events`:
 // RAPIDR_TEST_EVENTS, input through the kernel), how long it waits before
@@ -211,6 +234,115 @@ const CASES = [
     do: "wait,view.designer,tool:QCHECKBOX,wait",
     delay: 6,
     dump: { "codedoc(0).text": /CREATE CheckBox1 AS QCHECKBOX/i, "inspector.target": /^CheckBox1$/i },
+  },
+  // (S-DESIGN-2) The menu editor, on the form's own menu bar: Format >
+  // Menu Editor gives hello_form a QMAINMENU; typing on its Type Here makes
+  // File (its & mnemonic), Enter goes into its menu: Open… with Ctrl+O typed
+  // in the ShortCut field (Tab), a separator, Exit — each item a QMENUITEM
+  // CREATE block, one undo step.
+  {
+    name: "designer-menu",
+    open: "examples/gui/hello_form.rr",
+    do: "view.documents.tabs,view.designer,designer.menuEditor",
+    events: typed("&File{Enter}&Open...{Tab}{Ctrl+O}{Enter}-{Enter}E&xit{Enter}{Escape}"),
+    delay: 4,
+    dump: {
+      "codedoc(0).text": /    CREATE MainMenu1 AS QMAINMENU\n        CREATE File1 AS QMENUITEM\n            Caption = "&File"\n            CREATE Open1 AS QMENUITEM\n                Caption = "&Open\.\.\."\n                ShortCut = "Ctrl\+O"\n            END CREATE\n            CREATE N1 AS QMENUITEM\n                Caption = "-"\n            END CREATE\n            CREATE Exit1 AS QMENUITEM\n                Caption = "E&xit"\n            END CREATE\n        END CREATE\n    END CREATE\n/,
+    },
+  },
+  // (S-DESIGN-2) The Tab-order editor: GreetButton clicked first, then
+  // NameEdit — only GreetButton's TabOrder written (TabOrder = 0 puts it
+  // first, the others after it in their order, as RapidQ's TabOrder does).
+  {
+    name: "designer-taborder",
+    open: "examples/gui/hello_form.rr",
+    do: "view.documents.tabs,view.designer,designer.tabOrder",
+    events: `${click(150, 60)},${click(150, 22)}`,
+    delay: 4,
+    dump: {
+      "designdoc(0).tabordermode": /^(-1|1|True)$/i,
+      "designdoc(0).statustext": /^NameEdit: Tab order 1$/,
+      "codedoc(0).text": /    CREATE NameEdit AS QEDIT\n        Text = "World"\n        Left = 112: Top = 16: Width = 200\n        OnChange = NameChanged\n    END CREATE\n    CREATE GreetButton AS QBUTTON\n[\s\S]*        OnClick = Greet\n        TabOrder = 0\n    END CREATE/,
+    },
+  },
+  // (S-DESIGN-2) A caption edited in place: GreetButton clicked, then
+  // clicked again (a slow click) — its caption typed over, Enter writes it.
+  {
+    name: "designer-caption",
+    open: "examples/gui/hello_form.rr",
+    do: "view.documents.tabs,view.designer",
+    events: `${click(150, 60)},${click(150, 60)},${typed("Say &hi{Enter}")}`,
+    delay: 4,
+    dump: { "designdoc(0).editing": /^(0|False)$/i, "codedoc(0).text": /    CREATE GreetButton AS QBUTTON\n        Caption = "Say &hi"\n/ },
+  },
+  // (S-DESIGN-2) Smart guides while dragging: Answer held and moved a
+  // little — its left edge lines up with NameLabel's (the capture shows the
+  // guide; the button isn't let go).
+  {
+    name: "designer-guides",
+    open: "examples/gui/hello_form.rr",
+    do: "view.documents.tabs,view.designer",
+    events: [`__mousedown_${at(100, 100)}`, `__mousemove_${at(104, 104)}`, `__mousemove_${at(103, 106)}`].map((e) => `designdoc(0).${e}`).join(","),
+    delay: 4,
+    dump: { "designdoc(0).guides": /^(edge|centre|baseline|margin|spacing \d+) [xy] -?\d+/ },
+  },
+  // (S-DESIGN-2) Zoom: View > Zoom In twice, then Ctrl+− and Ctrl+= on the
+  // designer (110 %, 125 %, 110 %, 125 %).
+  {
+    name: "designer-zoom",
+    open: "examples/rapidq/notepad.bas",
+    do: "view.documents.tabs,view.designer,designer.zoomIn,designer.zoomIn",
+    events: typed("{Ctrl+-}{Ctrl+=}"),
+    delay: 4,
+    dump: { "designdoc(0).zoom": /^125$/, "designdoc(0).statustext": /^Zoom 125 %$/ },
+  },
+  // (S-DESIGN-2) notepad.bas makes its OpenDialog and SaveDialog outside
+  // the form: they show in its tray, and selecting one inspects it.
+  {
+    name: "designer-tray",
+    open: "examples/rapidq/notepad.bas",
+    do: "view.documents.tabs,view.designer,pick:SaveDialog,wait",
+    delay: 4,
+    dump: { "inspector.target": /^SaveDialog$/, "designdoc(0).statustext": /SaveDialog \(QSAVEDIALOG\)/ },
+  },
+  // (S-DESIGN-2) A console program has no form: Project > Add Form gives it
+  // one (its CREATE block and ShowModal at the end), designed at once.
+  {
+    name: "designer-addform",
+    open: "examples/basics/hello.rr",
+    do: "view.documents.tabs,view.designer,project.addForm,designer.add.QBUTTON",
+    delay: 4,
+    dump: {
+      "designdoc(0).formname": /^Form1$/,
+      "codedoc(0).text": /\nCREATE Form1 AS QFORM\n    Caption = "Form1"\n    Width = 320\n    Height = 240\n    CREATE Button1 AS QBUTTON\n[\s\S]*END CREATE\n\nForm1\.ShowModal\n?$/,
+    },
+  },
+  // (S-DESIGN-2) One undo history for the file: a designer change, a
+  // change typed in the code, another designer change; Undo (from the
+  // code) takes back only the last, in the order they were made.
+  {
+    name: "designer-undo-interleave",
+    open: "examples/gui/pantry.rr",
+    do: 'wait,view.designer,pick:AddBtn,prop:Width=120,code:"&Add to shelf"=>"Store it",wait,wait,wait,view.designer,pick:AddBtn,prop:Left=320,wait,view.code,edit.undo,wait',
+    delay: 7,
+    dump: { "codedoc(0).text": /    CREATE AddBtn AS QBUTTON\n        Caption = "Store it": Left = 314: Top = 252: Width = 120\n/ },
+  },
+  // (S-DESIGN-2) …and three Undos: the file's exact text; Redo twice: the
+  // designer's Width and the typed Caption back, in order.
+  {
+    name: "designer-undo-all",
+    open: "examples/gui/pantry.rr",
+    do: 'wait,view.designer,pick:AddBtn,prop:Width=120,code:"&Add to shelf"=>"Store it",wait,wait,wait,view.designer,pick:AddBtn,prop:Left=320,wait,edit.undo,edit.undo,edit.undo,wait',
+    delay: 8,
+    dump: { "codedoc(0).text": /CREATE AddBtn AS QBUTTON/ },
+    same: { "codedoc(0).text": "examples/gui/pantry.rr" },
+  },
+  {
+    name: "designer-redo",
+    open: "examples/gui/pantry.rr",
+    do: 'wait,view.designer,pick:AddBtn,prop:Width=120,code:"&Add to shelf"=>"Store it",wait,wait,wait,view.designer,edit.undo,edit.undo,edit.redo,edit.redo,wait',
+    delay: 8,
+    dump: { "codedoc(0).text": /    CREATE AddBtn AS QBUTTON\n        Caption = "Store it": Left = 314: Top = 252: Width = 120\n/ },
   },
   // (S-PANELS) The project tree lists the form's components; the palette
   // finds a symbol of the file.

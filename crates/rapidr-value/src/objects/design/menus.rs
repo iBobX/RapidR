@@ -506,7 +506,8 @@ impl DesignSurface {
         self.designer.selection.set(main);
         self.menu_open.clear();
         self.selection_changed();
-        self.say("Menu editor: click Type Here on the menu bar and type a caption");
+        // (the bar's Type Here ready: the caption typed at once)
+        self.begin_new_item(main, None, "");
         true
     }
 

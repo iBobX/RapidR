@@ -740,6 +740,16 @@ impl ComponentKind for Design {
         }
         // the designer's chrome over everything (at its own size)
         p.at(shown.client, |p| p.ops(shown.chrome));
+        // the surface's scroll bars, when the form is larger than the view
+        for (track, thumb) in with_design(cx.id, |d| d.scroll_bars()).unwrap_or_default().into_iter().flatten() {
+            let (_, _, tw, th) = thumb;
+            p.op(Op::Fade { alpha: 40 });
+            p.fill(track, t.text);
+            p.op(Op::FadePop);
+            p.op(Op::Fade { alpha: 120 });
+            p.round((thumb.0 + 1, thumb.1 + 1, tw - 2, th - 2), (tw.min(th) - 2) as f64 / 2.0, Some(t.text), None, 0.0);
+            p.op(Op::FadePop);
+        }
         // (the code has errors: a banner says why nothing can change)
         if let Some(text) = with_design(cx.id, |d| d.banner()).flatten() {
             let bg = if t.dark { 0x43_35_19 } else { 0xFF_F4_CE };
@@ -762,6 +772,18 @@ impl ComponentKind for Design {
             if b.is_some_and(|(bx, by, bw, bh)| m.x >= bx as f64 && m.y >= by as f64 && m.x < (bx + bw) as f64 && m.y < (by + bh) as f64) {
                 with_design_mut(cx.id, |d| d.add_form(""));
                 drain(cx);
+                return out;
+            }
+        }
+        // (the surface's own scroll bars: a thumb dragged, the track paged)
+        if m.button == Button::Left {
+            let bar = match m.kind {
+                MouseKind::Down => with_design_mut(cx.id, |d| d.bar_press(m.x, m.y)),
+                MouseKind::Move if m.captured => with_design_mut(cx.id, |d| d.bar_move(m.x, m.y)),
+                MouseKind::Up => with_design_mut(cx.id, |d| d.bar_release()),
+                _ => None,
+            };
+            if bar == Some(true) {
                 return out;
             }
         }
@@ -968,6 +990,16 @@ pub fn follows_mouse(ui: &FormUi, store: &dyn Store, i: usize) -> bool {
 /// Tab: the next component, not the next control).
 pub fn takes_tab(ui: &FormUi, store: &dyn Store) -> bool {
     ui.focus.is_some_and(|f| store.type_of(&ui.nodes[f].id) == "RDESIGNSURFACE" && with_design(&ui.nodes[f].id, |d| !d.no_form() && d.get("compcount").is_some_and(|c| c.to_i64() > 0)).unwrap_or(false))
+}
+
+/// Whether the focused designer is taking a shortcut (the menu editor's
+/// ShortCut field): every key reaches it, before the window's menu
+/// shortcuts (Ctrl+O typed there is the item's, not File > Open).
+pub fn captures_keys(ui: &FormUi, store: &dyn Store) -> bool {
+    ui.focus.is_some_and(|f| {
+        store.type_of(&ui.nodes[f].id) == "RDESIGNSURFACE"
+            && with_design(&ui.nodes[f].id, |d| d.editing.as_ref().is_some_and(|e| e.field == rapidr_value::objects::design::inline::Field::ShortCut)).unwrap_or(false)
+    })
 }
 
 #[cfg(test)]

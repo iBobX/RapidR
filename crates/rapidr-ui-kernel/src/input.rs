@@ -393,7 +393,7 @@ impl FormUi {
         self.menus.alt_alone = vk == 18 && !mods.ctrl && !mods.shift && !self.menus.keyboard && !self.menu_open();
         // (an open menu takes the keys; a main menu's ShortCut is picked
         // before the key reaches anything: components/menubar.rs)
-        if self.menu_key(store, vk, mods) {
+        if !crate::components::design::captures_keys(self, store) && self.menu_key(store, vk, mods) {
             // (an edit's context menu's pick, done now)
             self.edit_commands(store, ts, clip);
             return;

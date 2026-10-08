@@ -581,7 +581,7 @@ fn script_key<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, comp: &st
     let Some(form) = p.form_of(comp) else { return };
     let comp = comp.to_lowercase();
     let mods = Mods { shift: state & 256 != 0, ctrl: state & 16 != 0, alt: state & 1 != 0, ..Mods::NONE };
-    let text = if mods.ctrl || mods.alt { String::new() } else { rapidr_value::input::text_of_vk(vk) };
+    let text = if mods.ctrl || mods.alt { String::new() } else { rapidr_value::input::text_of_vk_shifted(vk, mods.shift) };
     if let Some(f) = desk.forms.get_mut(&form) {
         f.ui.sync(store);
         f.ui.focus_id(store, &comp);

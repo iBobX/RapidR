@@ -1879,7 +1879,7 @@ const COMPONENT_REGISTRY = {
         name: 'RDESIGNSURFACE',
         description: 'RapidR\'s form designer: places components on a grid, lets the user select, move and resize them, and keeps their properties. The IDE is built on it.',
         rapidq: null,
-        props: ['width', 'height', 'left', 'top', 'compcount', 'visible', 'formcaption', 'parent', 'count', 'selcount', 'previewwidth', 'previewheight', 'showguides', 'snaptogrid', 'gridsize', 'showgrid', 'showselection', 'source', 'sourcefile', 'formname', 'selindex', 'placetype', 'canundo', 'canredo', 'statustext', 'handlerline', 'zoom', 'tabordermode', 'sharedundo', 'editing', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
+        props: ['width', 'height', 'left', 'top', 'compcount', 'visible', 'formcaption', 'parent', 'count', 'selcount', 'previewwidth', 'previewheight', 'showguides', 'snaptogrid', 'gridsize', 'showgrid', 'showselection', 'source', 'sourcefile', 'formname', 'selindex', 'placetype', 'canundo', 'canredo', 'statustext', 'guides', 'handlerline', 'zoom', 'tabordermode', 'sharedundo', 'editing', 'anchors', 'minwidth', 'minheight', 'maxwidth', 'maxheight', 'accessiblename', 'accessibledescription'],
         methods: ['addcomponent', 'dragcomponent', 'selectname', 'selectall', 'deleteselection', 'copyselection', 'cutselection', 'paste', 'duplicate', 'arrange', 'resizeform', 'zoomstep', 'zoomtofit', 'editmenu', 'editcaption', 'addform', 'createhandler', 'removecomponent', 'clearall', 'selectcomp', 'getname', 'setname', 'gettype', 'getprop', 'setprop', 'setcompbounds', 'getcompx', 'getcompy', 'getcompw', 'getcomph', 'undo', 'redo', 'alignselection', 'selectadd', 'show', 'hide'],
         events: ['onselect', 'ondblclick', 'onmove', 'onbgclick', 'onsourceedit', 'onchange', 'onsourcestep', 'onundo'],
         methodSignatures: {
@@ -1946,6 +1946,7 @@ const COMPONENT_REGISTRY = {
             'canundo': 'Whether Undo has a change to undo.',
             'canredo': 'Whether Redo has a change to do again.',
             'statustext': 'What the last change did, in words: what a screen reader is told ("Button1 (QBUTTON), 16, 24, 75 × 25").',
+            'guides': 'The smart guides showing while a component is dragged, in words: each one\'s kind (edge, centre, baseline, margin, spacing N), its axis (x for a vertical line, y for a horizontal one) and where it is, comma-separated ("edge x 112, baseline y 30"); empty when none show.',
             'handlerline': 'The line (from 0) of the SUB the last CreateHandler gave: where the code editor\'s caret goes.',
             'zoom': 'How large the designed form shows, in percent (25 to 400): drawn at the screen\'s resolution, so as crisp as at 100, while every position stays in the program\'s pixels. Ctrl (⌘) with + , − and 0 on the designer, Ctrl with the mouse wheel, and a trackpad\'s pinch change it.',
             'tabordermode': 'The Tab-order editor: every component that takes the focus shows its place in the Tab order (2.1: the second inside the third), and clicking components in the order wanted renumbers them, each click written as TabOrder in the code (one undo step). Escape turns it off.',

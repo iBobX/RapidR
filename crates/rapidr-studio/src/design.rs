@@ -601,6 +601,7 @@ mod tests {
         // each change: OnSourceStep, its edits, OnChange
         assert!(!s.key(39, "", false, false), "nothing selected yet");
         s.select_name("A");
+        assert_eq!(s.take_events(), [DesignEvent::Select(0)], "OnSelect: the inspector follows");
         assert!(s.key(39, "", false, false));
         let events = heard(&mut s, &mut editor);
         assert_eq!(events, [DesignEvent::Step(false), DesignEvent::Change]);

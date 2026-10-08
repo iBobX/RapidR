@@ -417,20 +417,20 @@ Lanes in flight (the designer, the panels / inspector, the code editor, the them
 | WEL-1 | partial | The Welcome page with Start, Recent and example cards works (`ide/panes.inc` `FillExamples`, `LayOutWelcome`; `tests/studio_shell.mjs`). There are no live thumbnails (cards show a file icon) and no ▶ Run on the cards. |
 | WEL-2 | partial | Two templates, `console` and `gui` (`crates/rapidr-project/src/project.rs:224` `TEMPLATES`), picked from a combo box (`ide/window.inc` `NewKind`). There is no gallery, no thumbnails and no RapidQ-compatible option. |
 | WEL-3 | partial | No setup dialogs; the theme follows the system (`ide_theme`). The "no network on first run" check doesn't exist. |
-| DES-1 | missing | RDESIGNSURFACE draws placeholders (`crates/rapidr-value/src/objects/design.rs`; L-DMODEL's results: "WYSIWYG is L-DVIEW's"). |
-| DES-2 | partial | Multi-select, 8 handles and nudging exist in the surface model (`objects/design.rs` on `rapidr_value::designer`; demo `examples/form_designer.bas`). In Studio nothing is connected: `DesignSelected` is empty (`ide/shell.inc`), the surface has no event handlers in `ide/documents.inc`, and `ScanForm` rebuilds it from a text scan (`DesignDoc(d).ClearAll`), so no change reaches the code. |
-| DES-3 | partial | Guides, snapping and the 300-component < 2 ms budget are done in the model (`rapidr_value::designer::snap`) and drawn by the surface while dragging. Not usable in Studio (DES-2). |
-| DES-4 | missing | The toolbox is a `QTREEVIEW` with no add handler (`ide/window.inc` `ToolboxTree`, `ide/panes.inc` `FillToolbox`). |
-| DES-5 | partial | `crates/rapidr-designer` `Document` does minimal patches, one text history and the corpus round trip (386 + 27 programs, 0 failures). Studio uses the `ScanForm` string scanner instead (`ide/documents.inc`, "PLUG POINT (L-SYNC)"), and RDESIGNSURFACE has no source-text API. |
-| DES-6 | missing | No double-click handling in Studio; `DesignSelected` is empty. |
-| DES-7 | partial | Pins and the resize preview exist in the surface; anchoring equals the runtime (40 / 40, `crates/rapidr-designer/tests/anchors.rs`). Not wired in Studio; no inspector editor. |
-| DES-8 | partial | `rapidr_value::designer::arrange` is done; the Format commands fall to "not there yet" (`ide/shell.inc` `RunCommand` `CASE ELSE`). |
-| DES-9 | partial | The model and text side reparent; the surface has no drop targets (L-DMODEL's "Left"). |
-| DES-10 | partial | `Document::undo` / `redo` restore bytes (property tests). `edit.undo` / `edit.redo` are "not there yet" in Studio. |
-| DES-11 | partial | `Designer` copy / cut / paste / duplicate exist; not in Studio. |
-| DES-12 | missing | No keyboard placement with announcements (L-DMODEL's "Left"). |
-| DES-13 | partial | `designer::arrange::set_tab_order` exists; the menu editor and both editors' UIs are missing. |
-| DES-14 | missing | No component tray. |
+| DES-1 | done | S-DESIGN: each component drawn by the kernel's own from a design-time store; `tools/visual/designer_wysiwyg.py` 8 / 8 pixel-identical (notepad, hello_form; light, dark; 1×, 2×). |
+| DES-2 | done | S-DESIGN: click, Shift / ⌘-click, rubber band, 8 handles, live readouts, nudges, Alt frees; every change the smallest edit (`studio_flows` `designer`). S-DESIGN-2: the handles and grips keep their size and reach at any zoom. |
+| DES-3 | done | Drawn while dragging (S-DESIGN); S-DESIGN-2's `Guides` property and the `designer-guides` flow / capture (a guide held on both hosts). The 300-component budget is the model's unit test (perf stage not yet). |
+| DES-4 | done | S-DESIGN / S-PANELS: the placing tool (click or draw), drag and drop with a 60 % ghost of the real component and a "not allowed" pointer elsewhere, Enter / double-click (`AddComponent`), Delphi names, typing writes the Caption; a drop settles in for 100 ms (S-DESIGN-2). |
+| DES-5 | done | `Document::sync` edits as OnSourceEdit; code → designer at the analyzer's pause, and when the designer is shown; read-only banner on errors. S-DESIGN-2: one undo history with the code (DES-10). |
+| DES-6 | done | `CreateHandler` (S-DESIGN, S-PANELS' `create_handler`); the caret lands inside. |
+| DES-7 | done | Pins on the canvas and the form's edges / corner with the live preview (S-DESIGN); the model's 40 / 40 parity. |
+| DES-8 | done | The Format menu (`Arrange`), one undo step each. |
+| DES-9 | done | Dropping on a panel / group box / scroll box reparents, target highlighted (S-DESIGN). |
+| DES-10 | done | S-DESIGN-2: one history per file across the designer and the code editor (OnSourceStep / SharedUndo / OnUndo; Studio's interim history until RCODEEDITOR's ApplyPatches / Undo land) — `designer-undo-interleave`, `-undo-all` (exact bytes), `-redo`. |
+| DES-11 | done | Ctrl / ⌘ + C, X, V, D on the designer (CREATE text on the clipboard). |
+| DES-12 | done | Tab / Shift+Tab, Esc to the parent, arrows, Enter, the live region (`StatusText`) announcing each change (S-DESIGN); a keyboard-only five-minutes run is still to script. |
+| DES-13 | done | S-DESIGN-2: the menu editor on the form's own bar (Type Here, `&`, separators, submenus, ShortCut captured, Checked in the gutter, drag to reorder) as QMAINMENU / QMENUITEM CREATE blocks; the Tab-order editor (badges, click in order) writing TabOrder — `designer-menu`, `designer-taborder`. |
+| DES-14 | done | Non-visual components in a tray under the form (S-DESIGN); S-DESIGN-2: the program's own top-level dialogs (notepad's OpenDialog / SaveDialog) too, inspected and edited in their own blocks — `designer-tray`. Links between tray items aren't drawn yet. |
 | DES-15 | missing | There are no `RDATAFILE` / `RDATASOURCE` / `RDBGRID` in the registry (`crates/rapidr-lang/data`); RPLOT is drawn by the kernel (done: L-FRAME) but nothing is live at design time. |
 | DES-16 | missing | "Preview in classic" is approved and waits for L-THEME (ide-plan L-SHELL "Next"). |
 | INS-1 | partial | `Designer::inspect()` gives registry rows, values, `in_code` and `mixed` (L-DMODEL). Studio's Properties pane is a `QSTRINGGRID` listing the form's own CREATE assignments as text (`ide/panes.inc` `ShowProperties`, `ide/documents.inc` `ScanForm`). |

@@ -100,7 +100,14 @@ SUB RunCommand(Id AS STRING)
     CASE "view.keyboardShortcuts": ShowShortcuts
     ' ---- project ----
     CASE "project.addFile": AddFileToProject
-    CASE "project.addForm": AddProjectFile "form"
+    CASE "project.addForm"
+      ' (the file open has no form: one added to it; a project: a new form
+      ' file; a single file: another form in it)
+      IF ActiveDoc >= 0 THEN
+        IF DesignDoc(ActiveDoc).FormName = "" OR Proj.Kind <> "project" THEN d = DesignCommand("designer.addForm") ELSE AddProjectFile "form"
+      ELSE
+        AddProjectFile "form"
+      END IF
     CASE "project.addModule": AddProjectFile "module"
     CASE "project.options": ShowAppSettings
     ' ---- run / debug ----
@@ -159,7 +166,8 @@ SUB DocumentActivated(Name AS STRING)
   FOR d = 0 TO DocCount - 1
     IF DocOpen(d) THEN
       IF k = "codedoc(" + LTRIM$(STR$(d)) + ")" THEN ActiveDoc = d: DocKind(d) = "code"
-      IF k = "designdoc(" + LTRIM$(STR$(d)) + ")" THEN ActiveDoc = d: DocKind(d) = "design"
+      ' (the designer reads what was typed before it changes anything)
+      IF k = "designdoc(" + LTRIM$(STR$(d)) + ")" THEN ActiveDoc = d: DocKind(d) = "design": HistNoteCode d: DesignRead d
     END IF
   NEXT
   IF ActiveDoc <> was THEN AnalyzeActive

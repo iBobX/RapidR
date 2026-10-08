@@ -59,8 +59,11 @@ const GRAB: i64 = 5;
 const MIN_SIZE: i64 = 16;
 /// A handle's size, drawn.
 const HANDLE: i64 = 7;
-/// The backdrop shown around a designed form that has a frame.
-pub const MARGIN: i64 = 12;
+/// The backdrop shown around a designed form that has a frame (Xcode's and
+/// Delphi's canvas: the form sits on it, never in a window of its own).
+pub const MARGIN: i64 = 24;
+/// The surface's own scroll bars' thickness.
+pub const SCROLL_BAR: i64 = 8;
 /// The tray strip under the form: its height, an item's icon, the gap
 /// above it.
 pub const TRAY_H: i64 = 36;
@@ -532,6 +535,9 @@ pub struct DesignSurface {
     dropped: Option<Rect>,
     /// Where the mouse last was (client coordinates): zoom's fixed point.
     pointer: Option<(i64, i64)>,
+    /// A scroll bar's thumb held: across (0) or down (1), where the press
+    /// was, the scroll then.
+    bar_drag: Option<(usize, f64, i64)>,
 }
 
 impl Default for DesignSurface {
@@ -582,6 +588,7 @@ impl Default for DesignSurface {
             continues: false,
             dropped: None,
             pointer: None,
+            bar_drag: None,
         }
     }
 }
@@ -1131,19 +1138,113 @@ impl DesignSurface {
         self.set_zoom((z * 100.0).floor() / 100.0, None)
     }
 
+    /// What the surface shows, scrolled (surface pixels): the form and its
+    /// tray magnified, the backdrop's margin around them, room for the
+    /// form's sizing corner.
+    pub fn content_size(&self) -> (i64, i64) {
+        let m = self.margin();
+        let (w, h) = self.layout().form_size();
+        let tray = if self.tray().is_empty() { 0 } else { TRAY_GAP + TRAY_H };
+        let tw = self.tray_rect().map_or(0, |(_, _, tw, _)| tw);
+        (self.zv(w.max(tw)) + 2 * m + CORNER, self.zv(h + tray) + 2 * m + CORNER)
+    }
+
     /// The surface scrolled by (dx, dy) pixels (the mouse wheel), within
     /// what it shows (the form, its tray, the backdrop's margin); whether
     /// it moved.
     pub fn scroll_by(&mut self, dx: i64, dy: i64) -> bool {
-        let m = self.margin();
-        let (w, h) = self.layout().form_size();
-        let tray = if self.tray().is_empty() { 0 } else { TRAY_GAP + TRAY_H };
-        let (cw, ch) = (self.zv(w) + 2 * m + CORNER, self.zv(h + tray) + 2 * m + CORNER);
+        let (cw, ch) = self.content_size();
         let max = ((cw - self.size.0).max(0), (ch - self.size.1).max(0));
         let to = ((self.scroll.0 + dx).clamp(0, max.0), (self.scroll.1 + dy).clamp(0, max.1));
         let moved = to != self.scroll;
         self.scroll = to;
         moved
+    }
+
+    /// The surface's scroll bars (surface pixels), when what it shows is
+    /// larger than it: for each of across (0) and down (1), the track and
+    /// its thumb — thin bars over the backdrop's edge, as Xcode's canvas
+    /// has.
+    pub fn scroll_bars(&self) -> [Option<(Rect, Rect)>; 2] {
+        let (cw, ch) = self.content_size();
+        let (vw, vh) = self.size;
+        let across = cw > vw;
+        let down = ch > vh;
+        let bar = |len: i64, content: i64, at: i64| -> (i64, i64) {
+            let thumb = ((len as f64) * (len as f64) / (content.max(1) as f64)).round().max(24.0).min(len as f64) as i64;
+            let room = (len - thumb).max(0);
+            let max = (content - len).max(1);
+            (room * at.clamp(0, max) / max, thumb)
+        };
+        let t = SCROLL_BAR;
+        let a = across.then(|| {
+            let len = vw - if down { t } else { 0 };
+            let (pos, th) = bar(len, cw, self.scroll.0);
+            ((0, vh - t, len, t), (pos, vh - t, th, t))
+        });
+        let d = down.then(|| {
+            let len = vh - if across { t } else { 0 };
+            let (pos, th) = bar(len, ch, self.scroll.1);
+            ((vw - t, 0, t, len), (vw - t, pos, t, th))
+        });
+        [a, d]
+    }
+
+    /// A press at (x, y) (surface pixels) on a scroll bar: dragging its
+    /// thumb (or paging toward the press, on the track) begins. Whether it
+    /// was one.
+    pub fn bar_press(&mut self, x: f64, y: f64) -> bool {
+        let inside = |(rx, ry, rw, rh): Rect| x >= rx as f64 && y >= ry as f64 && x < (rx + rw) as f64 && y < (ry + rh) as f64;
+        for (axis, b) in self.scroll_bars().into_iter().enumerate() {
+            let Some((track, thumb)) = b else { continue };
+            if !inside(track) {
+                continue;
+            }
+            if !inside(thumb) {
+                let (page, before) = if axis == 0 { (self.size.0 - 40, x < thumb.0 as f64) } else { (self.size.1 - 40, y < thumb.1 as f64) };
+                let step = if before { -page } else { page };
+                if axis == 0 { self.scroll_by(step, 0) } else { self.scroll_by(0, step) };
+            }
+            self.bar_drag = Some((axis, if axis == 0 { x } else { y }, if axis == 0 { self.scroll.0 } else { self.scroll.1 }));
+            return true;
+        }
+        false
+    }
+
+    /// The thumb dragged to (x, y); whether a bar is being dragged.
+    pub fn bar_move(&mut self, x: f64, y: f64) -> bool {
+        let Some((axis, from, start)) = self.bar_drag else { return false };
+        let (cw, ch) = self.content_size();
+        let (len, content, at) = if axis == 0 { (self.size.0, cw, x) } else { (self.size.1, ch, y) };
+        let ratio = content as f64 / len.max(1) as f64;
+        let to = start + ((at - from) * ratio).round() as i64;
+        if axis == 0 { self.scroll_by(to - self.scroll.0, 0) } else { self.scroll_by(0, to - self.scroll.1) };
+        true
+    }
+
+    /// The thumb let go; whether one was held.
+    pub fn bar_release(&mut self) -> bool {
+        self.bar_drag.take().is_some()
+    }
+
+    /// The guides showing, in words (the Guides property): "edge x 112,
+    /// baseline y 30".
+    pub fn guides_text(&self) -> String {
+        use crate::designer::GuideKind;
+        self.guides
+            .iter()
+            .map(|g| {
+                let kind = match g.kind {
+                    GuideKind::Edge => "edge".to_string(),
+                    GuideKind::Centre => "centre".to_string(),
+                    GuideKind::Baseline => "baseline".to_string(),
+                    GuideKind::Margin => "margin".to_string(),
+                    GuideKind::Spacing(n) => format!("spacing {n}"),
+                };
+                format!("{kind} {} {}", if g.vertical { "x" } else { "y" }, g.at)
+            })
+            .collect::<Vec<_>>()
+            .join(", ")
     }
 
     /// The form's inside below its menu (its scroll bars included).
@@ -2043,6 +2144,7 @@ impl DesignSurface {
             "canundo" => Value::Boolean(self.can_undo()),
             "canredo" => Value::Boolean(self.can_redo()),
             "statustext" => v_str(&self.announcement),
+            "guides" => v_str(&self.guides_text()),
             "handlerline" => v_int(self.handler_line),
             "zoom" => v_int((self.zoom * 100.0).round() as i64),
             "tabordermode" => Value::Boolean(self.tab_order.is_some()),
@@ -2129,15 +2231,26 @@ impl DesignSurface {
     /// is one.
     pub fn select_name(&mut self, name: &str) -> bool {
         if let Some(k) = self.outside.iter().position(|o| o.name.eq_ignore_ascii_case(name)) {
-            return self.select_outside(k);
+            let changed = self.outside_sel != Some(k);
+            let ok = self.select_outside(k);
+            if changed {
+                self.selected_raw = (self.ids().len() + k) as i64;
+                self.outbox.push(DesignEvent::Select(self.selected_raw));
+            }
+            return ok;
         }
         match self.designer.design.find(name).filter(|&id| id != self.designer.design.root()) {
             Some(id) => {
+                let changed = self.outside_sel.is_some() || self.designer.selection.ids() != [id];
                 self.outside_sel = None;
                 self.designer.selection.set(id);
                 self.selected_raw = self.index_of(id).map_or(-1, |i| i as i64);
                 let text = self.describe_comp(id);
                 self.say(text);
+                // (OnSelect: the inspector follows a selection made by name)
+                if changed {
+                    self.outbox.push(DesignEvent::Select(self.selected_raw));
+                }
                 true
             }
             None => false,

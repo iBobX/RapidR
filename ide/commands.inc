@@ -119,7 +119,7 @@ SUB DefineCommands
 
   ' ---- Project ----
   AddCmd "project.addFile", "Add &File...", "Project", "", "", "project", "file.new"
-  AddCmd "project.addForm", "Add F&orm", "Project", "", "", "project", "RFORM"
+  AddCmd "project.addForm", "Add F&orm", "Project", "", "", "addform", "RFORM"
   AddCmd "project.addModule", "Add &Module", "Project", "", "", "project", "files/rr"
   AddCmd "designer.addForm", "Add a Form to This F&ile", "Project", "", "", "document", "RFORM"
   AddSep "Project"
@@ -269,6 +269,8 @@ FUNCTION CmdEnabled(i AS INTEGER) AS INTEGER
   SELECT CASE w
     CASE "": Result = 1
     CASE "project": Result = ProjectOpen
+    ' (Add Form: a new form file in a project, else a form in the file open)
+    CASE "addform": Result = (ProjectOpen <> 0 OR k = "code" OR k = "design")
     CASE "document": Result = (k = "code" OR k = "design")
     CASE "code": Result = (k = "code")
     CASE "design": Result = (k = "design")

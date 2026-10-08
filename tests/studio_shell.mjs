@@ -29,6 +29,25 @@ const SCALES = (process.env.RAPIDR_STUDIO_SCALES || "1,2").split(",").map(Number
 const THEMES = (process.env.RAPIDR_STUDIO_THEMES || "rapidr-light,rapidr-dark,rapidr-high-contrast,classic").split(",");
 const filters = process.argv.slice(2);
 
+// (S-DESIGN-2) Keys typed on the designer and clicks on its form, as in
+// tests/studio_flows.mjs.
+const KEYS = { Enter: "13", Escape: "27", Tab: "9", "Ctrl+O": "79_16" };
+function typed(text) {
+  const out = [];
+  for (const m of text.matchAll(/\{([^}]+)\}|(.)/g)) {
+    if (m[1]) { out.push(KEYS[m[1]]); continue; }
+    const c = m[2];
+    if (/[a-z]/.test(c)) out.push(String(c.toUpperCase().charCodeAt(0)));
+    else if (/[A-Z]/.test(c)) out.push(`${c.charCodeAt(0)}_256`);
+    else if (/[0-9 ]/.test(c)) out.push(String(c.charCodeAt(0)));
+    else if (")!@#$%^&*(".includes(c)) out.push(`${48 + ")!@#$%^&*(".indexOf(c)}_256`);
+    else out.push({ "-": "189", ".": "190" }[c]);
+  }
+  return out.map((k) => `designdoc(0).__key_${k}`).join(",");
+}
+const at = (x, y, menu = 0) => `${x + 25}_${y + 54 + menu}`;
+const click = (x, y, menu = 0) => `designdoc(0).__mousedown_${at(x, y, menu)},designdoc(0).__mouseup_${at(x, y, menu)}`;
+
 // The scenes: what Studio opens.
 const SCENES = [
   { name: "project", open: "examples/gui/hello_form.rr" },
@@ -53,11 +72,25 @@ const SCENES = [
     do: "view.documents.tabs,view.designer,designer.place.QBUTTON",
     delay: 4,
     events: [
-      "__mousedown_100_120", "__mouseup_100_120",
-      "__mousedown_491_250", "__mousemove_521_250", "__mousemove_551_250", "__mouseup_551_250",
-      "__mousedown_110_130", "__mousemove_130_150", "__mousemove_150_170", "__mouseup_150_170",
+      "__mousedown_112_132", "__mouseup_112_132",
+      "__mousedown_503_262", "__mousemove_533_262", "__mousemove_563_262", "__mouseup_563_262",
+      "__mousedown_122_142", "__mousemove_142_162", "__mousemove_162_182", "__mouseup_162_182",
     ].map((e) => `designdoc(0).${e}`).join(","),
   },
+  // (S-DESIGN-2) The menu editor on hello_form's new menu bar: File made,
+  // its menu open, Open… being given its ShortCut
+  { name: "designer-menu", open: "examples/gui/hello_form.rr", do: "view.documents.tabs,view.designer,designer.menuEditor", delay: 4, events: typed("&File{Enter}&Open...{Tab}{Ctrl+O}") },
+  // (S-DESIGN-2) The Tab-order editor: the badges, GreetButton clicked first
+  { name: "designer-taborder", open: "examples/gui/hello_form.rr", do: "view.documents.tabs,view.designer,designer.tabOrder", delay: 4, events: click(150, 60) },
+  // (S-DESIGN-2) A caption edited in place (a slow click, then typing)
+  { name: "designer-caption", open: "examples/gui/hello_form.rr", do: "view.documents.tabs,view.designer", delay: 4, events: `${click(150, 60)},${click(150, 60)},${typed("Say &hi")}` },
+  // (S-DESIGN-2) Smart guides while Answer is held
+  { name: "designer-guides", open: "examples/gui/hello_form.rr", do: "view.documents.tabs,view.designer", delay: 4, events: [`__mousedown_${at(100, 100)}`, `__mousemove_${at(104, 104)}`, `__mousemove_${at(103, 106)}`].map((e) => `designdoc(0).${e}`).join(",") },
+  // (S-DESIGN-2) Zoomed to 150 %, notepad's dialogs in its tray, SaveDialog selected
+  { name: "designer-zoom", open: "examples/rapidq/notepad.bas", do: "view.documents.tabs,view.designer,designer.zoomIn,designer.zoomIn,designer.zoomIn,pick:SaveDialog", delay: 4 },
+  // (S-DESIGN-2) A console program's designer: "Add a Form", then one added
+  { name: "designer-empty", open: "examples/basics/hello.rr", do: "view.documents.tabs,view.designer", delay: 4 },
+  { name: "designer-addform", open: "examples/basics/hello.rr", do: "view.documents.tabs,view.designer,project.addForm,designer.add.QBUTTON", delay: 4 },
 ];
 
 mkdirSync(OUT, { recursive: true });

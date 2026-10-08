@@ -73,11 +73,9 @@ impl DesignerModelSubject {
             }
             // (a change to an RDESIGNSURFACE's model is written into its
             // code at once: `commit`, its edits waiting in its outbox)
-            Source::Surface(name) => crate::objects::with_design_mut(name, |s| {
-                let r = f(&mut s.designer);
-                s.commit();
-                r
-            }),
+            // (an outside component selected in its tray: its own block's;
+            // `with_inspected` commits)
+            Source::Surface(name) => crate::objects::with_design_mut(name, |s| s.with_inspected(f)),
         }
     }
 
@@ -106,6 +104,9 @@ impl DesignerModelSubject {
 
 impl Subject for DesignerModelSubject {
     fn objects(&self, _host: &dyn Host) -> Vec<(String, String)> {
+        if let Source::Surface(name) = &self.source {
+            return crate::objects::with_design(name, |s| s.inspected_objects()).unwrap_or_default();
+        }
         self.with(|d| d.selection.ids().iter().filter_map(|&id| d.design.node(id)).map(|n| (n.name.clone(), n.type_written.clone())).collect()).unwrap_or_default()
     }
 
