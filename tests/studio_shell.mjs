@@ -70,7 +70,7 @@ const SCENES = [
   {
     name: "designer",
     open: "examples/rapidq/notepad.bas",
-    do: "view.documents.tabs,view.designer,designer.place.QBUTTON",
+    do: "view.designer,designer.place.QBUTTON",
     delay: 4,
     events: [
       "__mousedown_112_132", "__mouseup_112_132",
@@ -80,24 +80,46 @@ const SCENES = [
   },
   // (S-DESIGN-2) The menu editor on hello_form's new menu bar: File made,
   // its menu open, Open… being given its ShortCut
-  { name: "designer-menu", open: "examples/gui/hello_form.rr", do: "view.documents.tabs,view.designer,designer.menuEditor", delay: 4, events: typed("&File{Enter}&Open...{Tab}{Ctrl+O}") },
+  { name: "designer-menu", open: "examples/gui/hello_form.rr", do: "wait,view.designer,designer.menuEditor", delay: 4, events: typed("&File{Enter}&Open...{Tab}{Ctrl+O}") },
   // (S-DESIGN-2) A component placed with the toolbox's tool: its 100 ms
   // settling over by the capture, on both hosts
-  { name: "designer-drop", open: "examples/gui/hello_form.rr", do: "view.documents.tabs,view.designer,designer.place.QBUTTON", delay: 4, events: click(40, 120) },
+  { name: "designer-drop", open: "examples/gui/hello_form.rr", do: "wait,view.designer,designer.place.QBUTTON", delay: 4, events: click(40, 120) },
   // (S-DESIGN-2) The Tab-order editor: the badges, GreetButton clicked first
-  { name: "designer-taborder", open: "examples/gui/hello_form.rr", do: "view.documents.tabs,view.designer,designer.tabOrder", delay: 4, events: click(150, 60) },
+  { name: "designer-taborder", open: "examples/gui/hello_form.rr", do: "wait,view.designer,designer.tabOrder", delay: 4, events: click(150, 60) },
   // (S-DESIGN-2) A caption edited in place (a slow click, then typing)
-  { name: "designer-caption", open: "examples/gui/hello_form.rr", do: "view.documents.tabs,view.designer", delay: 4, events: `${click(150, 60)},${click(150, 60)},${typed("Say &hi")}` },
+  { name: "designer-caption", open: "examples/gui/hello_form.rr", do: "wait,view.designer", delay: 4, events: `${click(150, 60)},${click(150, 60)},${typed("Say &hi")}` },
   // (S-DESIGN-2) Smart guides while Answer is held
-  { name: "designer-guides", open: "examples/gui/hello_form.rr", do: "view.documents.tabs,view.designer", delay: 4, events: [`__mousedown_${at(100, 100)}`, `__mousemove_${at(104, 104)}`, `__mousemove_${at(103, 106)}`].map((e) => `designdoc(0).${e}`).join(",") },
+  { name: "designer-guides", open: "examples/gui/hello_form.rr", do: "wait,view.designer", delay: 4, events: [`__mousedown_${at(100, 100)}`, `__mousemove_${at(104, 104)}`, `__mousemove_${at(103, 106)}`].map((e) => `designdoc(0).${e}`).join(",") },
   // (S-DESIGN-2) Zoomed to 150 %, notepad's dialogs in its tray, SaveDialog selected
-  { name: "designer-zoom", open: "examples/rapidq/notepad.bas", do: "view.documents.tabs,view.designer,designer.zoomIn,designer.zoomIn,designer.zoomIn,pick:SaveDialog,wait", delay: 6 },
+  { name: "designer-zoom", open: "examples/rapidq/notepad.bas", do: "wait,view.designer,designer.zoomIn,designer.zoomIn,designer.zoomIn,pick:SaveDialog,wait", delay: 6 },
   // (S-DESIGN-2) A console program's designer: "Add a Form", then one added
-  { name: "designer-empty", open: "examples/basics/hello.rr", do: "view.documents.tabs,view.designer", delay: 4 },
-  { name: "designer-addform", open: "examples/basics/hello.rr", do: "view.documents.tabs,view.designer,project.addForm,designer.add.QBUTTON,wait", delay: 6 },
+  { name: "designer-empty", open: "examples/basics/hello.rr", do: "wait,view.designer", delay: 4 },
+  { name: "designer-addform", open: "examples/basics/hello.rr", do: "wait,view.designer,project.addForm,designer.add.QBUTTON,wait", delay: 6 },
   // (the code editor with the completion list open and its docs beside it:
   // typed through the kernel's keys, S-EDITOR)
   { name: "editor", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:dim y as string,key:Escape,key:Enter,type:form.c", delay: 6 },
+  // (S-SHELL-2) Documents as tabs: a form's file side by side (Design |
+  // Code), another file in a second group on the right; Find in Files'
+  // results; F1's Help pane.
+  // (examples without $INCLUDE: on the web the language service and the
+  // designer don't read includes from the page's store yet)
+  {
+    name: "workspace",
+    open: "examples/gui/hello_form.rr",
+    do: "wait,view:Split,open:menus.rr,view.splitVertically",
+    delay: 5,
+  },
+  {
+    name: "design-tab",
+    open: "examples/gui/hello_form.rr",
+    delay: 4,
+  },
+  {
+    name: "search",
+    open: "examples/gui/hello_form.rr",
+    do: "wait,find:Greet,help:QBUTTON",
+    delay: 5,
+  },
 ];
 
 mkdirSync(OUT, { recursive: true });
@@ -177,6 +199,8 @@ async function runWeb(browser, scene, theme, scale) {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   try {
+    const files = (scene.webFiles || []).map((f) => ({ path: f, text: readFileSync(join(ROOT, f), "utf8") }));
+    await page.addInitScript((files) => { window.RAPIDR_STUDIO_TEST_FILES = files; }, files);
     await page.addInitScript((env) => { window.RAPIDR_STUDIO_TEST = env; }, {
       RAPIDR_CAPTURE: "web",
       ...(scene.delay ? { RAPIDR_CAPTURE_DELAY: String(scene.delay) } : {}),

@@ -297,6 +297,21 @@ pub trait ComponentKind: Sync {
     /// Draws it, with (0, 0) its top left, clipped to it.
     fn paint(&self, cx: &mut Cx, p: &mut Painter);
 
+    /// Where it may draw, in its own pixels: itself (what it paints is
+    /// clipped to it), but an AutoSize label's text a little beyond — its
+    /// size is RapidQ's measure in every theme, its text the theme's face.
+    fn room(&self, _store: &dyn Store, _id: &str, _font: &Font, w: i64, h: i64) -> Rect {
+        (0, 0, w, h)
+    }
+
+    /// A box of text or items (a text box, a list, a grid, a tree …): in
+    /// RapidR's look, the focus is the theme's ring around the whole box,
+    /// drawn over what it painted ([`Painter::items_focus`]). Others draw
+    /// their own focus.
+    fn field(&self) -> bool {
+        false
+    }
+
     fn mouse(&self, _cx: &mut Cx, _m: &MouseIn) -> MouseOut {
         MouseOut::default()
     }

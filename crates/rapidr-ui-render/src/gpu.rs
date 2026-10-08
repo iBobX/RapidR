@@ -19,6 +19,10 @@ impl Canvas for Scene {
     fn fill_path(&mut self, transform: Affine, rgb: u32, path: &BezPath) {
         self.fill(Fill::NonZero, transform, color(rgb), None, path);
     }
+    fn fill_path_alpha(&mut self, rgb: u32, alpha: u8, path: &BezPath) {
+        let c = vello::peniko::Color::from_rgba8((rgb >> 16) as u8, (rgb >> 8) as u8, rgb as u8, alpha);
+        self.fill(Fill::NonZero, Affine::IDENTITY, c, None, path);
+    }
     fn stroke_path(&mut self, width: f64, rgb: u32, path: &BezPath) {
         self.stroke(&Stroke::new(width), Affine::IDENTITY, color(rgb), None, path);
     }

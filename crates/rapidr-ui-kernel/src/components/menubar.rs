@@ -157,7 +157,8 @@ pub fn paint_panel(p: &mut Painter, rect: Rect, items: &[ItemView], hot: Option<
     let t = p.theme();
     p.at((x0, y0), |p| {
         if t.fluent() {
-            p.round((0, 0, w, h), t.radius, Some(t.menu), Some(t.border), 1.0);
+            p.elevate((0, 0, w, h), t.panel_radius(), 10.0);
+            p.round((0, 0, w, h), t.panel_radius(), Some(t.menu), Some(t.border), 1.0);
         } else {
             p.fill((0, 0, w, h), t.menu);
             // (EDGE_RAISED: COLOR_3DLIGHT and white, dark grey and grey)
@@ -868,6 +869,8 @@ mod tests {
     // (the input lane's)
     #[test]
     fn f10_and_a_lone_alt_select_the_bar() {
+        // (RapidQ's look, checked op for op: the classic theme, named)
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
         let (s, mut f, mut ts) = setup("mb4");
         let mut clip = MemClipboard::default();
         // F10: its OnKeyDown, then File selected (no menu yet)
@@ -921,6 +924,8 @@ mod tests {
 
     #[test]
     fn the_bar_is_drawn_with_its_menu() {
+        // (RapidQ's look, checked op for op: the classic theme, named)
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
         let (s, mut f, mut ts) = setup("mb3");
         let list = f.paint(&s, &mut ts, 1.0).dump();
         assert!(list.contains("\"File\""), "{list}");

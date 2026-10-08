@@ -45,7 +45,7 @@ SUB BuildToolBar
   ToolBar.AddSeparator
   AddTool "designer.alignLeft": AddTool "designer.alignTop": AddTool "designer.sameWidth": AddTool "designer.bringToFront"
   ToolBar.AddSeparator
-  AddTool "view.commandPalette": AddTool "view.settings"
+  AddPreviewTool: AddTool "view.commandPalette": AddTool "view.settings"
 END SUB
 
 SUB ToolClicked(Name AS STRING, Command AS STRING)

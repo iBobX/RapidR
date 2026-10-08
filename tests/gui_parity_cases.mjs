@@ -191,6 +191,12 @@ export const cases = [
     expect: ["lbl.caption=late clicked", "late.__shown=1", "inner.__shown=1", "inner.caption=inside"] },
   { name: "mdi_children", events: "badd.onclick,btile.onclick,bclose.onclick,ball.onclick", dump: "lbl.caption,geo.caption,ed(1).__shown,ed(0).__shown",
     expect: ["lbl.caption=A0 A1 A2 A0 C0 A2 C2 A1 C1 |n1|Two|i1|free-1-1|get10", "geo.caption=209,25,200,361|206|vis0-1", "ed(1).__shown=1", "ed(0).__shown=0"] },
+  // (S-SHELL-2) A QFORMMDI child sized by the mouse as Windows' MDI
+  // children are: its right edge, its bottom-right corner, its top-left
+  // corner (the opposite edges stay), then past Windows' least size
+  // (136 × 39) — each change an OnChildResize.
+  { name: "mdi_child_edges", events: "badd.onclick,form__mdi__ed.__mousedown_299_100,form__mdi__ed.__mousemove_329_100,form__mdi__ed.__mouseup_329_100,form__mdi__ed.__mousedown_329_199,form__mdi__ed.__mousemove_339_219,form__mdi__ed.__mouseup_339_219,form__mdi__ed.__mousedown_1_1,form__mdi__ed.__mousemove_11_11,form__mdi__ed.__mouseup_11_11,form__mdi__ed.__mousedown_329_209,form__mdi__ed.__mousemove_0_0,form__mdi__ed.__mouseup_0_0,breport.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=50,40,136,39|r4"] },
   { name: "timer_default", events: "", dump: "lbl.caption,t.enabled",
     expect: ["lbl.caption=ticking", "t.enabled=-1"] },
   { name: "coolbtn_group", events: "b.onclick,b.onclick,d.onclick,e.onclick,e.onclick,setter.onclick", dump: "lbl.caption",
@@ -262,11 +268,13 @@ export const cases = [
   { name: "border_icons", events: "", dump: "form.bordericons", expect: ["form.bordericons=11"],
     // (web: the title bar the page draws, outside the window's capture —
     // each button's glyph, minimize / maximize / close, in the text's ink
-    // or greyed; the title bar's metrics: the host's frame.rs, 28-pixel
-    // buttons from the right edge of a 320-pixel window)
+    // or greyed; the title bar's metrics: the kernel's window_frame.rs in
+    // the classic look the tests run in, Windows' 16 × 14 buttons two
+    // pixels in from the right edge of a 320-pixel window, centred in the
+    // 29-pixel bar)
     webCheck: `(() => { const c = document.querySelector('.rr-kwin[data-rr-form="form"] canvas.rr-kframe'); const s = c.width / parseFloat(c.style.width); const g = c.getContext("2d");
       const ink = ([x, y]) => { const r = g.getImageData(Math.floor((x + 0.5) * s), Math.floor((y + 0.5) * s), 1, 1).data[0]; return r < 0x40 ? "ink" : r >= 0x60 && r <= 0xa0 ? "grey" : r.toString(16); };
-      return [[247, 17], [275, 11], [304, 15]].map(ink).join(","); })()`,
+      return [[272, 17], [288, 11], [308, 14]].map(ink).join(","); })()`,
     webExpect: "ink,grey,ink" },
   { name: "message_dialogs", events: "", dump: "lbl.caption", expect: ["lbl.caption=shown"] },
   // (a message box: its caption, the icon left of the text, the buttons
@@ -406,7 +414,9 @@ export const cases = [
   // RAPIDR_THEME, without the events — the web's run is compared with the
   // events' capture only)
   { name: "themes", events: "btndark.onclick", dump: "lbl.caption",
-    expect: ["lbl.caption=theme classic then dark"], themes: ["modern", "dark", "highcontrast"] },
+    // (the harness names the classic look; `dark`, the old name, is RapidR's
+    // dark look now)
+    expect: ["lbl.caption=theme classic then rapidr dark"], themes: ["rapidr light", "rapidr dark", "rapidr high contrast"] },
   // RPLOT on a form (the UI kernel's component, the one chart renderer): a
   // line chart anchored left / top / right, widened with the form (500 ×
   // 350); a bar chart aligned to the bottom. The click adds a dashed series

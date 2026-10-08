@@ -106,7 +106,7 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         "RFORM" | "RBUTTON" | "RLABEL" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE"
         | "RTIMER" | "RIMAGE" | "RCANVAS" | "RDXSCREEN" | "RDXTIMER" | "RHEADER" | "RSTRINGGRID" | "RPROGRESS" | "RPROGRESSBAR" | "RSQLITE" | "RJSON" | "ROPENDIALOG"
         | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" | "RPANEL" | "RTRACKBAR" | "RWEBVIEW" | "RWEBSTORAGE" | "RWEBNOTIFICATION" | "RNUM"
-        | "RDATAFRAME" | "RCOOLBTN" => {}
+        | "RDATAFRAME" | "RCOOLBTN" | "RTOOLBAR" => {}
         "RDESIGNSURFACE" | "RPLOT" => {
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));

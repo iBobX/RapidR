@@ -20,6 +20,7 @@ where something isn't done yet, it says so.
 | [Databases](databases.md) | RSQLITE and QMYSQL, parameter binding, events |
 | [Data science](data-science.md) | RNUM, RDATAFRAME, RPLOT, RJSON |
 | [DirectX and media](directx-and-media.md) | QDXSCREEN and the Direct3D objects, sound, joysticks, QMIDI / QWAVE / QVIDEO / QCDAUDIO, the system tray, serial ports, CGI, downloads |
+| [Serial ports and IoT boards](serial-ports.md) | RComPort / QCOMPORT: opening ports, listing them with their USB IDs, lines in, plug events, resetting an ESP32 through DTR / RTS, Web Serial |
 | [Differences from RapidQ, and extensions](differences.md) | What RapidR does that RapidQ doesn't, what it does differently on purpose, and what it doesn't do |
 | [Troubleshooting](troubleshooting.md) | Common messages and what to do about them |
 

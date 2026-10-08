@@ -1,5 +1,5 @@
-// Runs the RapidQ example corpus in the browser (the web IDE's wasm compiler
-// and VM) and on the desktop interpreter (`rapidr build --interp`), and
+// Runs the RapidQ example corpus in the browser (the web runtime's wasm
+// compiler and VM, on its own page: tests/web_run.mjs) and on the desktop interpreter (`rapidr build --interp`), and
 // compares what each prints and the forms and components each shows — the
 // web counterpart of tools/corpus_compare.mjs (ROADMAP: the same comparison
 // against the web runtime).
@@ -21,6 +21,8 @@
 // http://localhost:8765. Writes tests/conformance/.work/corpus-web/report.json.
 
 import { chromium } from "playwright";
+import { openRunner } from "./web_run.mjs";
+import * as k from "./web_kernel_page.mjs";
 import { spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
@@ -36,7 +38,6 @@ if (!jsonPath) {
 const EXAMPLES = examplesArg || join(homedir(), "Downloads/Rapidq/examples");
 const INCLUDE = includeArg || join(homedir(), "Downloads/Rapidq/include");
 const WORK = join(ROOT, "tests/conformance/.work/corpus-web");
-const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 const RUN_SECONDS = 20;
 // How long a shown form is left before it's looked at (the desktop
 // capture's RAPIDR_CAPTURE_DELAY).
@@ -112,25 +113,15 @@ writeFileSync(screenProbe, "PRINT Screen.Width; \",\"; Screen.Height\n");
 spawnSync(join(ROOT, "rapidr"), ["build", screenProbe, join(WORK, "screen"), "--interp", "--no-bundle"], { env, encoding: "utf8" });
 const [screenW, screenH] = (spawnSync(join(WORK, "screen", "screen"), [], { env, encoding: "utf8" }).stdout || "1280,720").split(",").map((n) => parseInt(n, 10) || 0);
 const browser = await chromium.launch();
-let page, logs = [], pageErrors = [];
+let r;
 // A program that never yields (a busy loop in the VM) blocks the page: every
 // call into it is bounded, and a blocked page is replaced by a fresh one.
-// (Other failures — a frame gone while the program restarts — fall back.)
 const CALL_MS = 5000;
 const bounded = (p, ms = CALL_MS) => Promise.race([p, new Promise((_, reject) => setTimeout(() => reject(new Error("page unresponsive")), ms))]);
 async function openPage() {
-  if (page) await page.close({ runBeforeUnload: false }).catch(() => {});
-  page = await browser.newPage({ screen: { width: screenW || 1280, height: screenH || 720 } });
-  page.on("pageerror", (e) => pageErrors.push(e.message));
-  // The IDE's Output panel is written through console.log in host.js
-  // (logOutput); its Errors panel through console.error/warn.
-  page.on("console", (m) => {
-    if (!/host\.js/.test(m.location()?.url || "")) return;
-    logs.push({ type: m.type(), text: m.text() });
-  });
-  page.on("dialog", (d) => d.dismiss().catch(() => {}));
-  await page.goto(`${URL_BASE}/web-ide/index.html`, { waitUntil: "load" });
-  await page.waitForFunction(() => document.getElementById("status")?.textContent?.includes("ready"), { timeout: 15000 });
+  if (r) await r.page.close({ runBeforeUnload: false }).catch(() => {});
+  r = await openRunner(browser, { screen: { width: screenW || 1280, height: screenH || 720 } });
+  r.page.on("dialog", (d) => d.dismiss().catch(() => {}));
 }
 await openPage();
 
@@ -147,46 +138,30 @@ async function web(source, dir, comps) {
     }
   };
   walk(dir);
-  await bounded(page.evaluate(() => window.RapidR.runCommand("run.stop")));
-  await page.waitForTimeout(150);
-  logs = [];
-  pageErrors = [];
-  await bounded(page.evaluate(({ src, assets }) => {
-    window.RapidR.state.project.assets = assets;
-    window.RapidR.state.project.rawSource = src;
-    window.RapidR.runCommand("run.start");
-  }, { src: source, assets }));
+  const page = r.page;
+  const compiled = await bounded(r.run(source, { assets }), 30000);
   let firstForm = null, ended = false, waited = 0;
-  for (; waited < RUN_SECONDS * 1000; waited += 250) {
+  for (; compiled && waited < RUN_SECONDS * 1000; waited += 250) {
     await page.waitForTimeout(250);
-    const status = await bounded(page.evaluate(() => document.getElementById("status")?.textContent || ""));
-    if (/compile failed|compile error/.test(status)) break;
-    const frame = page.frames().find((f) => f.url().includes("preview.html"));
-    const shown = frame ? await bounded(frame.evaluate(() => [...document.querySelectorAll(".rr-form")].some((f) => f.offsetWidth > 0)).catch(() => false)) : false;
+    const shown = (await bounded(k.windows(page)).catch(() => [])).length > 0;
     // An INPUT: the desktop's runs read an empty stdin, so an empty line.
     // A SHOWMESSAGE: under the desktop's test hooks it's printed and the
     // program goes on — so here, OK.
-    if (frame) {
-      const message = await bounded(frame.evaluate(() => {
-        // (not a file dialog: the desktop's capture shows that as a window)
-        const dialog = document.querySelector(".rr-dialog:not(.rr-file-dialog)");
-        if (!dialog) return null;
-        const text = dialog.querySelector(".rr-dialog-input") ? null : dialog.querySelector(".rr-dialog-text")?.textContent ?? "";
-        dialog.querySelector(".rr-dialog-button")?.click();
-        return text;
-      }).catch(() => null));
-      if (message !== null) logs.push({ type: "log", text: `[SHOWMESSAGE] ${message}` });
+    const dialog = await bounded(k.dialog(page)).catch(() => null);
+    // (not a file dialog: the desktop's capture shows that as a window)
+    if (dialog && dialog.buttons.length && !/^(Open|Save As)$/.test(dialog.title)) {
+      if (!dialog.input) r.lines.push(`[SHOWMESSAGE] ${dialog.text}`);
+      await bounded(k.clickButton(page, dialog.buttons[0])).catch(() => {});
+      continue;
     }
     if (shown && firstForm === null) firstForm = waited;
     // (its main code done, no form showing: a console program's exit)
-    if (!shown && frame && await bounded(frame.evaluate(() => window.__rapidr_rt?.rapidr_main_done?.() ?? false).catch(() => false))) { ended = true; break; }
+    if (!shown && await bounded(r.mainDone()).catch(() => false)) { ended = true; break; }
     if (firstForm !== null && waited - firstForm >= SETTLE_SECONDS * 1000) break;
   }
-  const status = await bounded(page.evaluate(() => document.getElementById("status")?.textContent || ""));
-  const frame = page.frames().find((f) => f.url().includes("preview.html"));
   // (read as the program reads them: the runtime's rapidr_get_prop)
-  const dump = frame ? await bounded(frame.evaluate((names) => {
-    const rt = window.__rapidr_rt;
+  const dump = compiled ? await bounded(page.evaluate((names) => {
+    const rt = window.rr;
     const out = {};
     for (const [name, type] of names) {
       const props = type === "QFORM" ? ["__shown", "caption", "clientwidth", "clientheight"] : ["__shown", "left", "top", "width", "height"];
@@ -194,9 +169,9 @@ async function web(source, dir, comps) {
     }
     return out;
   }, [...comps]).catch(() => ({}))) : {};
-  const text = logs.filter((l) => l.type === "log" && !l.text.startsWith("------ source ------") && l.text !== "[RapidR] Program ended.").map((l) => l.text).join("\n");
-  const errors = logs.filter((l) => l.type === "error" || l.type === "warning").map((l) => l.text).concat(pageErrors);
-  return { stdout: norm(text), errors, status, ended, timedOut: !ended && firstForm === null, dump };
+  const text = r.lines.filter((l) => l !== "[RapidR] Program ended.").join("\n");
+  const status = compiled ? "ran" : "compile failed";
+  return { stdout: norm(text), errors: r.errs.slice(), status, ended, timedOut: !ended && firstForm === null, dump };
 }
 
 const report = [];

@@ -152,22 +152,21 @@ FUNCTION DocOf(Path AS STRING) AS INTEGER
 END FUNCTION
 
 SUB DocTitles(d AS INTEGER)
-  DIM t AS STRING
-  t = FileTitle(DocFile(d))
-  IF DocDirty(d) THEN t = t + " *"
-  ' (S-PANELS: the project tree marks a file with changes not saved)
+  ' (S-PANELS: the project tree marks a file with changes not saved; its
+  ' tab shows a dot)
   ProjectTree.FileModified DocFile(d), DocDirty(d)
-  Dock.PaneTitle("codedoc(" + LTRIM$(STR$(d)) + ")", t)
-  IF DocHasForm(d) THEN Dock.PaneTitle("designdoc(" + LTRIM$(STR$(d)) + ")", t + " [Design]")
+  Dock.PaneTitle(DocPane(d), FileTitle(DocFile(d)))
+  Dock.DocumentModified(DocPane(d), DocDirty(d))
 END SUB
 
-' Opens a source file as documents: its code, and its form in a designer
-' when it makes one. An open one is brought to the front.
+' Opens a source file as a document — its tab: its code, and its form in a
+' designer when it makes one (workspace.inc). An open one is brought to the
+' front as it is.
 SUB OpenDocument(Path AS STRING)
-  DIM d AS INTEGER, title AS STRING
+  DIM d AS INTEGER
   d = DocOf(Path)
   IF d >= 0 THEN
-    Dock.FocusPane("codedoc(" + LTRIM$(STR$(d)) + ")")
+    Dock.ActiveDocument = DocPane(d)
     EXIT SUB
   END IF
   d = FreeDoc
@@ -195,9 +194,8 @@ SUB OpenDocument(Path AS STRING)
   DesignDoc(d).OnDblClick = DesignDblClick
   DesignRead d
   DocHasForm(d) = Flag(DesignDoc(d).FormName <> "")
-  title = FileTitle(Path)
-  IF DocHasForm(d) THEN Dock.AddPane(DesignDoc(d), title + " [Design]", "documents", "form")
-  Dock.AddPane(CodeDoc(d), title, "documents", "code")
+  DesignDoc(d).Theme = PreviewTheme
+  AddDocumentTab d
   ActiveDoc = d
   AnalyzeActive
   ' (editor.inc: the caret's place, encoding and line breaks; the caret in
@@ -229,9 +227,10 @@ END SUB
 SUB CloseDocument(d AS INTEGER)
   IF d < 0 THEN EXIT SUB
   IF DocOpen(d) = 0 THEN EXIT SUB
+  ' (its changes: Save / Don't Save / Cancel — workspace.inc)
+  IF AskToSave(d) = 0 THEN EXIT SUB
   DocOpen(d) = 0
-  Dock.ClosePane("codedoc(" + LTRIM$(STR$(d)) + ")")
-  IF DocHasForm(d) THEN Dock.ClosePane("designdoc(" + LTRIM$(STR$(d)) + ")")
+  Dock.ClosePane(DocPane(d))
   Lang.Close DocFile(d)
   IF ActiveDoc = d THEN ActiveDoc = -1
   AnalyzeActive
@@ -246,6 +245,7 @@ SUB CodeChanged(Sender AS RCODEEDITOR)
     DocDirty(d) = 1
     DocTitles d
   END IF
+  CodeTyped d
   ' (the problems and the outline follow once typing stops)
   Analyzer.Enabled = 0
   Analyzer.Enabled = 1

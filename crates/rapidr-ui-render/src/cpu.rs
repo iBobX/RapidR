@@ -31,6 +31,11 @@ impl Canvas for CpuCanvas<'_> {
         self.ctx.set_paint(color(rgb));
         self.ctx.fill_path(path);
     }
+    fn fill_path_alpha(&mut self, rgb: u32, alpha: u8, path: &BezPath) {
+        self.ctx.set_transform(Affine::IDENTITY);
+        self.ctx.set_paint(Color::from_rgba8((rgb >> 16) as u8, (rgb >> 8) as u8, rgb as u8, alpha));
+        self.ctx.fill_path(path);
+    }
     fn stroke_path(&mut self, width: f64, rgb: u32, path: &BezPath) {
         self.ctx.set_transform(Affine::IDENTITY);
         self.ctx.set_paint(color(rgb));

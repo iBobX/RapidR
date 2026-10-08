@@ -87,7 +87,15 @@ END SUB
 SUB EditorFocusTick
   EditorFocus.Enabled = 0
   IF FocusDoc >= 0 AND FocusDoc < DocCount THEN
-    IF DocOpen(FocusDoc) THEN Dock.FocusPane("codedoc(" + LTRIM$(STR$(FocusDoc)) + ")")
+    ' (a form's file opens on its designer, Delphi's way: the designer
+    ' takes the keys then; the code's caret when the code is shown)
+    IF DocOpen(FocusDoc) THEN
+      IF DocViewNow(FocusDoc) = "Design" THEN
+        Dock.FocusPane("designdoc(" + LTRIM$(STR$(FocusDoc)) + ")")
+      ELSE
+        Dock.FocusPane("codedoc(" + LTRIM$(STR$(FocusDoc)) + ")")
+      END IF
+    END IF
   END IF
 END SUB
 

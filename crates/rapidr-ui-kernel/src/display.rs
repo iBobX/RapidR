@@ -137,6 +137,7 @@ fn op_line(op: &Op) -> String {
             let c = |c: &Option<u32>| c.map_or("-".into(), |c| format!("#{c:06x}"));
             format!("round {} r{radius} fill {} stroke {} w{width}", rect(*r), c(fill), c(stroke))
         }
+        Op::Shadow { rect: r, radius, size, drop, color, alpha } => format!("shadow {} r{radius} s{size} d{drop} #{color:06x}/{alpha}", rect(*r)),
         Op::Stroke { points, color, width } => format!("stroke {} points #{color:06x} w{width}", points.len()),
         Op::Polygon { points, color } => format!("polygon {} points #{color:06x}", points.len()),
         Op::Image { source, revision, rect: r } => format!("image {source}#{revision} {}", rect(*r)),

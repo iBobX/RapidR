@@ -27,6 +27,9 @@ use vello_cpu::peniko::{Color, FontData};
 pub trait Canvas {
     fn fill_rect(&mut self, transform: Affine, rgb: u32, rect: &KRect);
     fn fill_path(&mut self, transform: Affine, rgb: u32, path: &BezPath);
+    /// A path (device pixels) filled with `rgb` at `alpha` / 255 over what's
+    /// there: a shadow's layers.
+    fn fill_path_alpha(&mut self, rgb: u32, alpha: u8, path: &BezPath);
     /// An outline `width` device pixels wide.
     fn stroke_path(&mut self, width: f64, rgb: u32, path: &BezPath);
     fn push_clip(&mut self, transform: Affine, rect: &KRect);
@@ -223,6 +226,27 @@ impl<'a> Painter<'a> {
         }
     }
 
+    /// A soft shadow (`Op::Shadow`): rounded rectangles grown a device
+    /// pixel at a time out to `size`, each faint, stacked from the
+    /// outermost in — so the shadow darkens evenly toward the shape and
+    /// fades to nothing at `size`, as a blur would, at any scale.
+    fn shadow(&mut self, r: Rect, radius: f64, size: f64, drop: f64, rgb: u32, alpha: u8) {
+        if r.2 <= 0 || r.3 <= 0 || alpha == 0 || size <= 0.0 {
+            return;
+        }
+        let rect = self.device_rect(r) + vello_cpu::kurbo::Vec2::new(0.0, (drop * self.scale).round());
+        let steps = (size * self.scale).round().max(1.0) as usize;
+        let radius = (radius * self.scale).max(0.0);
+        // (each layer's share of the darkest alpha: n layers overlap at the
+        // shape's edge)
+        let per = (f64::from(alpha) / steps as f64).max(1.0);
+        for k in (1..=steps).rev() {
+            let grow = k as f64;
+            let path = RoundedRect::from_rect(rect.inflate(grow, grow), radius + grow).to_path(0.1);
+            self.canvas.fill_path_alpha(rgb, per.round().clamp(1.0, 255.0) as u8, &path);
+        }
+    }
+
     /// Line segments through logical points (`Op::Stroke`), `width`
     /// logical pixels wide, round-joined, smooth.
     fn polyline(&mut self, points: &[(f64, f64)], rgb: u32, width: f64) {
@@ -289,6 +313,7 @@ impl<'a> Painter<'a> {
             Op::Arrow { points, color } => self.polygon(points, *color),
             Op::Checker { rect, a, b } => self.checker(*rect, *a, *b),
             Op::Round { rect, radius, fill, stroke, width } => self.round(*rect, *radius, *fill, *stroke, *width),
+            Op::Shadow { rect, radius, size, drop, color, alpha } => self.shadow(*rect, *radius, *size, *drop, *color, *alpha),
             Op::Stroke { points, color, width } => self.polyline(points, *color, *width),
             Op::Polygon { points, color } => {
                 if points.len() >= 3 {

@@ -652,41 +652,53 @@ impl ComponentKind for Design {
             maximized: false,
             icon: crate::frame::icon_of(&view.store, &form_id),
         };
-        let face = color_of(&view.store, &form_id).unwrap_or(t.face);
+        // (in the look the surface's Theme names — Studio's "Preview in
+        // classic" — else the surface's own)
+        let preview = with_design(cx.id, |d| d.theme.clone()).filter(|n| !n.trim().is_empty()).and_then(|n| match rapidr_value::theme::choose(&n) {
+            rapidr_value::theme::Choice::Theme(t) => Some(t),
+            _ => None,
+        });
         let (ix, iy) = crate::frame::inset(shown.border);
         let (cix, ciy) = shown.inset;
         let surface = cx.id.to_string();
         let text = &mut *cx.text;
         p.zoomed((fx, fy), shown.zoom, |p| {
-            crate::frame::paint_into(p, &look, (fw, fh));
             {
-                let View { ui, store, form, .. } = &mut *view;
-                let f = ui.get_or_insert_with(|| {
-                    let mut f = FormUi::build_unfocused(store, form, true);
-                    f.blinks = false;
-                    f
-                });
-                f.sync(store);
-                // (the menu editor's open bar item shows open)
-                f.menus.open_top = shown.open_top;
-                let (iw, ih) = (f.client.0, f.client.1 + f.menu_offset);
-                let (gw, gh) = f.client;
-                // (the grid's dots on the form's face, under its components)
-                let dots = with_design(&surface, |d| d.grid_ops(gw, gh, face)).unwrap_or_default();
-                p.at((ix, iy), |p| {
-                    p.clipped((0, 0, iw, ih), |p| {
-                        let mut under = |p: &mut Painter| p.ops(dots.iter().cloned());
-                        f.paint_into(store, text, p, &mut under);
+                let mut draw_form = |p: &mut Painter| {
+                    crate::frame::paint_into(p, &look, (fw, fh));
+                    let face = color_of(&view.store, &form_id).unwrap_or(p.theme().face);
+                    let View { ui, store, form, .. } = &mut *view;
+                    let f = ui.get_or_insert_with(|| {
+                        let mut f = FormUi::build_unfocused(store, form, true);
+                        f.blinks = false;
+                        f
                     });
-                });
-            }
-            // the menu editor's open menus, in the form's own look
-            p.at((cix, ciy), |p| {
-                for panel in &shown.menus {
-                    let items = if panel.placeholder { Vec::new() } else { super::menubar::items(&key(&surface, &panel.parent_name)) };
-                    super::menubar::paint_panel(p, panel.rect, &items, panel.hot);
+                    f.sync(store);
+                    // (the menu editor's open bar item shows open)
+                    f.menus.open_top = shown.open_top;
+                    let (iw, ih) = (f.client.0, f.client.1 + f.menu_offset);
+                    let (gw, gh) = f.client;
+                    // (the grid's dots on the form's face, under its components)
+                    let dots = with_design(&surface, |d| d.grid_ops(gw, gh, face)).unwrap_or_default();
+                    p.at((ix, iy), |p| {
+                        p.clipped((0, 0, iw, ih), |p| {
+                            let mut under = |p: &mut Painter| p.ops(dots.iter().cloned());
+                            f.paint_into(store, text, p, &mut under);
+                        });
+                    });
+                    // the menu editor's open menus, in the form's own look
+                    p.at((cix, ciy), |p| {
+                        for panel in &shown.menus {
+                            let items = if panel.placeholder { Vec::new() } else { super::menubar::items(&key(&surface, &panel.parent_name)) };
+                            super::menubar::paint_panel(p, panel.rect, &items, panel.hot);
+                        }
+                    });
+                };
+                match preview {
+                    Some(theme) => p.in_theme(theme, draw_form),
+                    None => draw_form(p),
                 }
-            });
+            }
             // the ghost of what is being placed: the component itself, faded
             if let Some((r, ty)) = &shown.ghost {
                 if let Some((gstore, gui)) = view.ghost_of(&surface, ty, (r.width, r.height)) {

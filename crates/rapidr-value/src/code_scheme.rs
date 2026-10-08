@@ -453,9 +453,10 @@ mod tests {
 
     #[test]
     fn every_theme_has_its_scheme() {
-        for t in theme::ALL {
-            assert_eq!(for_theme(t).name, t.name);
-        }
+        // (each of RapidR's looks takes the scheme of its kind; the classic
+        // look its own)
+        let kinds: Vec<(&str, &str)> = theme::ALL.iter().map(|t| (t.name, for_theme(t).name)).collect();
+        assert_eq!(kinds, [("rapidr light", "modern"), ("rapidr dark", "dark"), ("rapidr high contrast", "highcontrast"), ("classic", "classic")]);
         assert_eq!(resolve("Dark").name, "dark");
         assert_eq!(MODERN.token_named("type.component").color, 0x00796B);
         assert_eq!(MODERN.token_named("keyword.tag").color, MODERN.token_named("keyword").color);

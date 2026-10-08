@@ -1,6 +1,6 @@
 ' QSTRINGGRID cells, sizes, rows/columns and Separator-based streams, checked
 ' natively and interpreted by tests/native_gui_events.mjs (the web runtime
-' draws the same data: tests/web_ide_grid.mjs).
+' draws the same data: tests/web_grid.mjs).
 DECLARE SUB Go
 CREATE Form AS QFORM
   Caption = "Grid": Width = 420: Height = 260

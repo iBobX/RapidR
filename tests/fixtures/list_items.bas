@@ -1,7 +1,7 @@
 ' QLISTBOX / QCOMBOBOX items (Item, ItemCount, ItemIndex, AddItems,
 ' InsertItem, DelItems, Sorted, MultiSelect, Selected, Text), checked
 ' natively and interpreted by tests/native_gui_events.mjs and in the browser
-' by tests/web_ide_lists.mjs.
+' by tests/web_lists.mjs.
 DECLARE SUB Picked
 DECLARE SUB Changed
 CREATE Form AS QFORM

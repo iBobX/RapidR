@@ -368,6 +368,7 @@ properties = [
   { name = "CompCount", type = "int" },
   { name = "Visible", type = "int" },
   { name = "FormCaption", type = "string" },
+  { name = "Theme", type = "string", design = false, doc = "The look the designed form is drawn in (any name `$THEME` takes; \"\": the surface's own): `classic` shows it as RapidQ drew it." },
   { name = "Parent", type = "component", kinds = ["QFORM"], design = false },
   { name = "Count", type = "int" },
   { name = "SelCount", type = "int", access = "read", doc = "How many components are selected (Shift / Ctrl+click, a rubber band)." },
