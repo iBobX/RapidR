@@ -55,32 +55,34 @@ impl Target for HiRes {
     }
 }
 
-const SANS: &[u8] = include_bytes!("../../fonts/LiberationSans-Regular.ttf");
-const RSANS: &[u8] = include_bytes!("../../fonts/RapidRSans-Regular.ttf");
-const SERIF: &[u8] = include_bytes!("../../fonts/LiberationSerif-Regular.ttf");
-const MONO: &[u8] = include_bytes!("../../fonts/LiberationMono-Regular.ttf");
+static SANS: &[u8] = include_bytes!("../../fonts/LiberationSans-Regular.ttf");
+static RSANS: &[u8] = include_bytes!("../../fonts/RapidRSans-Regular.ttf");
+static SERIF: &[u8] = include_bytes!("../../fonts/LiberationSerif-Regular.ttf");
+static MONO: &[u8] = include_bytes!("../../fonts/LiberationMono-Regular.ttf");
+// (statics, not consts: a const's bytes are copied into every place it is
+// used, a static's are in the program once)
 // Their designed Bold, Italic and Bold Italic: Liberation 2.1.5's, cut to
 // the Latin scripts and renamed "RapidR Text …" as the licence asks of a
 // Modified Version (the kernel registers them as members of the Liberation
 // families); RapidR Sans Bold: RapidR Sans' bold, with MS Sans Serif Bold's
 // widths. `tools/fonts/make_liberation_styles.py`, `make_rapidr_sans.py`.
-const RSANS_BOLD: &[u8] = include_bytes!("../../fonts/RapidRSans-Bold.ttf");
-const SANS_BOLD: &[u8] = include_bytes!("../../fonts/RapidRTextSans-Bold.ttf");
-const SANS_ITALIC: &[u8] = include_bytes!("../../fonts/RapidRTextSans-Italic.ttf");
-const SANS_BOLD_ITALIC: &[u8] = include_bytes!("../../fonts/RapidRTextSans-BoldItalic.ttf");
-const SERIF_BOLD: &[u8] = include_bytes!("../../fonts/RapidRTextSerif-Bold.ttf");
-const SERIF_ITALIC: &[u8] = include_bytes!("../../fonts/RapidRTextSerif-Italic.ttf");
-const SERIF_BOLD_ITALIC: &[u8] = include_bytes!("../../fonts/RapidRTextSerif-BoldItalic.ttf");
-const MONO_BOLD: &[u8] = include_bytes!("../../fonts/RapidRTextMono-Bold.ttf");
-const MONO_ITALIC: &[u8] = include_bytes!("../../fonts/RapidRTextMono-Italic.ttf");
-const MONO_BOLD_ITALIC: &[u8] = include_bytes!("../../fonts/RapidRTextMono-BoldItalic.ttf");
+static RSANS_BOLD: &[u8] = include_bytes!("../../fonts/RapidRSans-Bold.ttf");
+static SANS_BOLD: &[u8] = include_bytes!("../../fonts/RapidRTextSans-Bold.ttf");
+static SANS_ITALIC: &[u8] = include_bytes!("../../fonts/RapidRTextSans-Italic.ttf");
+static SANS_BOLD_ITALIC: &[u8] = include_bytes!("../../fonts/RapidRTextSans-BoldItalic.ttf");
+static SERIF_BOLD: &[u8] = include_bytes!("../../fonts/RapidRTextSerif-Bold.ttf");
+static SERIF_ITALIC: &[u8] = include_bytes!("../../fonts/RapidRTextSerif-Italic.ttf");
+static SERIF_BOLD_ITALIC: &[u8] = include_bytes!("../../fonts/RapidRTextSerif-BoldItalic.ttf");
+static MONO_BOLD: &[u8] = include_bytes!("../../fonts/RapidRTextMono-Bold.ttf");
+static MONO_ITALIC: &[u8] = include_bytes!("../../fonts/RapidRTextMono-Italic.ttf");
+static MONO_BOLD_ITALIC: &[u8] = include_bytes!("../../fonts/RapidRTextMono-BoldItalic.ttf");
 // RapidR's own UI and code faces (docs/ide-plan.md D8; fonts/README.md):
 // Inter for an IDE's chrome, JetBrains Mono for code — named by programs
 // that want them ("Inter", "JetBrains Mono"); RapidQ's names never map here.
-const INTER: &[u8] = include_bytes!("../../fonts/Inter-Regular.ttf");
-const INTER_SEMIBOLD: &[u8] = include_bytes!("../../fonts/Inter-SemiBold.ttf");
-const JBMONO: &[u8] = include_bytes!("../../fonts/JetBrainsMono-Regular.ttf");
-const JBMONO_BOLD: &[u8] = include_bytes!("../../fonts/JetBrainsMono-Bold.ttf");
+static INTER: &[u8] = include_bytes!("../../fonts/Inter-Regular.ttf");
+static INTER_SEMIBOLD: &[u8] = include_bytes!("../../fonts/Inter-SemiBold.ttf");
+static JBMONO: &[u8] = include_bytes!("../../fonts/JetBrainsMono-Regular.ttf");
+static JBMONO_BOLD: &[u8] = include_bytes!("../../fonts/JetBrainsMono-Bold.ttf");
 
 /// Longest text drawn in one call (so a huge string can't stall drawing).
 const MAX_CHARS: usize = 10_000;
@@ -93,7 +95,7 @@ const MAX_CHARS: usize = 10_000;
 /// the licence's Reserved Font Name rule) that join the Liberation families
 /// here, so a request for bold "Liberation Sans" finds the bold face. The
 /// kernel looks a character the bold face lacks up in the family's Regular.
-pub const BUILTIN_FACES: [(&[u8], Option<&str>); 18] = [
+pub static BUILTIN_FACES: [(&[u8], Option<&str>); 18] = [
     (SANS, None),
     (SERIF, None),
     (MONO, None),
@@ -526,5 +528,127 @@ mod tests {
         // A background fills the cell.
         text_out(&mut b, 30, 2, "x", &font("Arial", 12), 0, Some(0x00FF00));
         assert_eq!(b.pixel(30, 2), Some(0x00FF00));
+    }
+
+    fn styled(name: &str, size: i64, styles: u8) -> Font {
+        Font { name: name.into(), size, styles, color: 0 }
+    }
+
+    /// RC.EXE's `TextWidth` (tools/rc_probe.sh, scratch/boldprobe-style probe
+    /// on a QBITMAP, Windows 11), bold and italic: the designed faces' own
+    /// widths, no spacing added.
+    #[test]
+    fn bold_and_italic_widths_are_rc_exes() {
+        for (name, size, styles, text, rc) in [
+            // Arial Bold (Liberation Sans Bold): 37 and 39 where the regular
+            // letters drawn heavier with a bit of spacing made 38 and 40
+            ("Arial", 9, 1, "Pantry", 37),
+            ("Arial", 12, 1, "Hello", 39),
+            ("Arial", 12, 3, "Hello", 39),
+            ("Arial", 12, 1, "Pantry", 50),
+            ("Arial", 12, 1, "The quick brown fox jumps over the lazy dog", 342),
+            ("Arial", 10, 1, "Right-click", 66),
+            ("Arial", 14, 1, "Right-click", 97),
+            ("Arial", 18, 1, "Right-click", 123),
+            ("Arial", 12, 2, "Notepad - untitled", 126),
+            ("Arial", 10, 3, "Notepad - untitled", 110),
+            // Times New Roman Bold and Italic
+            ("Times New Roman", 12, 1, "Hello", 36),
+            ("Times New Roman", 14, 1, "Right-click", 90),
+            ("Times New Roman", 12, 2, "Pantry", 44),
+            ("Times New Roman", 12, 3, "Times", 40),
+            // MS Sans Serif (RapidR Sans) Bold, a pixel wider a character
+            ("MS Sans Serif", 8, 1, "Pantry", 36),
+            ("MS Sans Serif", 8, 1, "Hello", 29),
+            ("MS Sans Serif", 8, 1, "Right-click", 61),
+            ("MS Sans Serif", 8, 1, "Notepad - untitled", 102),
+            ("MS Sans Serif", 8, 1, "The quick brown fox jumps over the lazy dog", 254),
+            ("MS Sans Serif", 8, 1, "WAVE Typography 0123456789", 180),
+            ("MS Sans Serif", 8, 1, "mmmmiiiiWWWW", 96),
+            ("MS Sans Serif", 8, 3, "Notepad - untitled", 102),
+        ] {
+            assert_eq!(text_size(text, &styled(name, size, styles)).0, rc, "{name} {size} pt style {styles}: {text:?}");
+        }
+    }
+
+    /// Bold and italic are the faces' own designs: Liberation's for Arial,
+    /// Times New Roman and Courier New, RapidR Sans Bold for MS Sans Serif
+    /// (its italic being the regular slanted, Inter's and JetBrains Mono's
+    /// too); only what a face doesn't design is made by the renderer.
+    #[test]
+    fn styles_come_from_designed_faces() {
+        for (name, bold, italic) in [("Arial", true, true), ("Times New Roman", true, true), ("Courier New", true, true), ("MS Sans Serif", true, false), ("Inter", true, false), ("JetBrains Mono", true, false)] {
+            let s = scaled(&styled(name, 12, 3)).unwrap();
+            assert_eq!((!s.synth_bold, !s.synth_italic), (bold, italic), "{name}");
+        }
+        // the Bold face is a different design, not the Regular's: its "i"
+        // is wider (Arial Bold's 0.278 em against 0.222)
+        let regular = scaled(&styled("Arial", 100, 0)).unwrap();
+        let bold = scaled(&styled("Arial", 100, 1)).unwrap();
+        assert!(bold.advance('i') > regular.advance('i') + 3.0, "{} vs {}", bold.advance('i'), regular.advance('i'));
+        // a regular face has no regular fallback of its own
+        assert!(regular.regular.is_none() && bold.regular.is_some());
+    }
+
+    /// A character the styled faces (cut to the Latin scripts) lack is the
+    /// Regular face's, made bold by the renderer (drawn twice a pixel
+    /// apart) or slanted; its width is the Regular face's.
+    #[test]
+    fn characters_missing_from_a_styled_face_come_from_the_regular_one() {
+        for c in ['\u{3b1}', '\u{416}', '\u{5d0}'] {
+            let bold = scaled(&styled("Arial", 12, 1)).unwrap();
+            let regular = scaled(&styled("Arial", 12, 0)).unwrap();
+            let g = bold.glyph(c).unwrap();
+            assert!(g.bold && !g.slant, "{c}");
+            assert!(bold.face.glyph_index(c).is_none() && g.face.glyph_index(c).is_some(), "{c}: only the Regular face has it");
+            assert_eq!(bold.advance(c), regular.advance(c), "{c}");
+            let italic = scaled(&styled("Arial", 12, 2)).unwrap();
+            let g = italic.glyph(c).unwrap();
+            assert!(!g.bold && g.slant, "{c}");
+        }
+        // and it is drawn: Greek bold has ink, wider than the Greek regular's
+        let ink = |styles| {
+            let mut b = Bitmap::default();
+            b.resize(40, 24);
+            text_out(&mut b, 2, 2, "\u{3b1}\u{3b2}", &styled("Arial", 12, styles), 0, None);
+            b.img.pixels.iter().map(|&p| 255 - (p & 0xFF) as u64).sum::<u64>()
+        };
+        assert!(ink(1) > ink(0), "{} vs {}", ink(1), ink(0));
+        // Latin bold: ink too, and more of it than the regular's
+        let latin = |styles| {
+            let mut b = Bitmap::default();
+            b.resize(60, 24);
+            text_out(&mut b, 2, 2, "Hello", &styled("Arial", 12, styles), 0, None);
+            b.img.pixels.iter().map(|&p| 255 - (p & 0xFF) as u64).sum::<u64>()
+        };
+        assert!(latin(1) > latin(0) * 11 / 10, "{} vs {}", latin(1), latin(0));
+    }
+
+    /// The OFL's Reserved Font Name rule: every built-in file with one of
+    /// Liberation's names (Liberation, Arimo, Tinos, Cousine) in its font name
+    /// is one of the three unmodified Regular files; the nine styled faces
+    /// (subsets) and RapidR Sans are renamed and say what licence they have.
+    #[test]
+    fn modified_faces_are_renamed_and_licensed() {
+        const RESERVED: [&str; 4] = ["liberation", "arimo", "tinos", "cousine"];
+        let name = |face: &ttf_parser::Face, id: u16| face.names().into_iter().find(|n| n.name_id == id && n.is_unicode()).and_then(|n| n.to_string()).unwrap_or_default();
+        let (mut reserved, mut renamed) = (0, 0);
+        for &(data, _) in BUILTIN_FACES.iter() {
+            let face = ttf_parser::Face::parse(data, 0).unwrap();
+            let family = name(&face, 1);
+            let postscript = name(&face, 6);
+            let full = name(&face, 4);
+            let has = |s: &str| RESERVED.iter().any(|r| s.to_lowercase().contains(r));
+            if has(&family) || has(&full) || has(&postscript) {
+                reserved += 1;
+                // (unmodified: still the whole 2.1.5 font, hinting and all)
+                assert!([SANS, SERIF, MONO].contains(&data), "{family}: a Reserved Font Name on a modified face");
+            } else if family.starts_with("RapidR") {
+                renamed += 1;
+                assert!(name(&face, 13).contains("SIL Open Font License"), "{family}: its licence");
+                assert!(name(&face, 0).contains("Red Hat") && name(&face, 0).contains("Google"), "{family}: Liberation's copyright lines");
+            }
+        }
+        assert_eq!((reserved, renamed), (3, 11));
     }
 }

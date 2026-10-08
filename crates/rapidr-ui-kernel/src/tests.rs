@@ -870,3 +870,73 @@ fn switching_the_theme_repaints_in_the_new_one() {
     assert!(before.contains("fill 0,0 120x22 #ffffff @8,48"), "{before}");
     assert!(after.contains(&format!("round 0,0 120x22 r4 fill #{:06x}", DARK.window)), "{after}");
 }
+
+/// The built-in face (by its place in `BUILTIN_FACES`) each run of a laid-out
+/// text is drawn from: (text of the run, index).
+fn run_faces(ts: &mut TextSystem, text: &str, font: &Font) -> Vec<(String, usize)> {
+    let faces = rapidr_value::objects::text::BUILTIN_FACES;
+    let layout = ts.layout(text, font, 0, 1.0);
+    let mut out = Vec::new();
+    for line in layout.lines() {
+        for item in line.items() {
+            if let parley::PositionedLayoutItem::GlyphRun(r) = item {
+                let run = r.run();
+                let data = run.font().data.data();
+                let at = faces.iter().position(|(d, _)| *d == data).expect("a built-in face");
+                out.push((text[run.text_range()].trim().to_string(), at));
+            }
+        }
+    }
+    out.retain(|(t, _)| !t.is_empty());
+    out
+}
+
+/// Bold, italic and bold italic requests find the faces' own designs
+/// (Liberation's Bold, Italic, Bold Italic; RapidR Sans Bold), not the
+/// Regular letters made heavier; a character those faces lack (Greek,
+/// Cyrillic) comes from the family's Regular face.
+#[test]
+fn styled_text_is_drawn_from_the_designed_faces() {
+    // (the indices into BUILTIN_FACES: Sans, Serif, Mono, RapidR Sans,
+    // RapidR Sans Bold, then the nine Liberation styles in Sans, Serif, Mono
+    // order)
+    let mut ts = TextSystem::new();
+    let text = "Hello \u{3b1}\u{3b2}\u{3b3} \u{436}\u{43e}";
+    for (name, styles, latin, regular) in [
+        ("Arial", 0u8, 0, 0),
+        ("Arial", 1, 5, 0),
+        ("Arial", 2, 6, 0),
+        ("Arial", 3, 7, 0),
+        ("Times New Roman", 1, 8, 1),
+        ("Times New Roman", 2, 9, 1),
+        ("Times New Roman", 3, 10, 1),
+        ("Courier New", 1, 11, 2),
+        ("Courier New", 2, 12, 2),
+        ("Courier New", 3, 13, 2),
+        ("MS Sans Serif", 0, 3, 3),
+        ("MS Sans Serif", 1, 4, 3),
+    ] {
+        let font = Font { name: name.into(), size: 12, styles: styles.into(), color: 0 };
+        let runs = run_faces(&mut ts, text, &font);
+        assert_eq!(runs.first(), Some(&("Hello".to_string(), latin)), "{name} {styles}: {runs:?}");
+        assert!(runs.iter().skip(1).all(|(_, at)| *at == regular), "{name} {styles}: Greek and Cyrillic from the Regular face: {runs:?}");
+    }
+    // Inter's own bold (the semibold)
+    let inter = Font { name: "Inter".into(), size: 12, styles: 1, color: 0 };
+    assert_eq!(run_faces(&mut ts, "Hello", &inter), [("Hello".to_string(), 15)]);
+}
+
+/// A text with a character the designed bold lacks is laid out as wide as
+/// `TextWidth` measures it (the Regular face's advance), bold or not.
+#[test]
+fn bold_text_with_characters_the_bold_face_lacks_measures_the_same() {
+    let mut ts = TextSystem::new();
+    for (name, styles) in [("Arial", 1u8), ("Arial", 3), ("Times New Roman", 1), ("Courier New", 1), ("MS Sans Serif", 1)] {
+        let font = Font { name: name.into(), size: 12, styles: styles.into(), color: 0 };
+        for s in ["Hello \u{3b1}\u{3b2}\u{3b3}", "\u{41f}\u{440}\u{438}\u{432}\u{435}\u{442} Pantry", "\u{5d0}\u{5d1} x"] {
+            let (w, _) = ts.measure(s, &font);
+            let expected = text_size(s, &font).0;
+            assert!((f64::from(w) - expected as f64).abs() <= 0.5 + 1e-3, "{name} {styles}: {s:?} parley {w} vs TextWidth {expected}");
+        }
+    }
+}

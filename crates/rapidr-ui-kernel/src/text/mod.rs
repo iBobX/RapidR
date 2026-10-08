@@ -146,7 +146,7 @@ impl TextSystem {
 /// finds the bold face; a character it lacks is looked for in the family's
 /// Regular, made bold by the renderer.
 pub fn register_builtin_fonts(collection: &mut Collection) {
-    for (data, family) in rapidr_value::objects::text::BUILTIN_FACES {
+    for &(data, family) in rapidr_value::objects::text::BUILTIN_FACES.iter() {
         let info = family.map(|family_name| FontInfoOverride { family_name: Some(family_name), ..FontInfoOverride::default() });
         collection.register_fonts(Blob::new(Arc::new(data)), info);
     }

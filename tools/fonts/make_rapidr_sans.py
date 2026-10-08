@@ -44,7 +44,10 @@ SHA-256), it makes RapidRSans-Bold.ttf too: the same, from Liberation Sans
 Bold, with each character one pixel wider than the regular's — what RC.EXE
 measures for MS Sans Serif Bold at 8 pt (TextWidth of every character in
 Windows-1252: regular + 1) — so a bold caption is as wide as RapidQ's, in a
-real bold face instead of the regular one drawn heavier. The bold face is
+real bold face instead of the regular one drawn heavier. Liberation Sans Bold's
+stems are about 1.6 pixels at 8 pt where MS Sans Serif Bold's are 2, so each
+letter is also drawn again EMBOLD (0.35) of a pixel to the right, the two
+contours side by side (one shape under the nonzero fill rule). The bold face is
 cut to the Latin scripts (the regular face has the rest, which a bold
 caption then draws heavier, as before).
 """
@@ -113,6 +116,9 @@ SIDE = 0.25
 # pixels), so nothing is cut off at the bottom of a 13-pixel line: only
 # what lies below the baseline is shortened.
 SHORT = min(SIZE, (DESCENT_PX / EM_PX) / 0.212)
+# The bold's extra weight, in pixels at 8 pt (Liberation Sans Bold's stems are
+# about 1.6 pixels there; MS Sans Serif Bold's are 2).
+EMBOLD = 0.35
 
 
 class Fit(FilterPen):
@@ -187,11 +193,19 @@ def main(src=SOURCE, out=TARGET, widths=WIDTHS, bold=False):
     scale_upem(source, upm)
     original = source.getGlyphSet()
 
+    # (the bold: each letter drawn again EMBOLD of a pixel to the right, the
+    # contours side by side — one shape under the nonzero rule — so a stem
+    # is as heavy as MS Sans Serif Bold's two pixels, which Liberation Sans
+    # Bold's 1.6 are not at this size)
+    heavier = EMBOLD * upm / EM_PX if bold else 0.0
+
     def outline(name, dx=0.0):
         rec = DecomposingRecordingPen(original)
         original[name].draw(rec)
         pen = TTGlyphPen(None)
         rec.replay(Fit(pen, dx))
+        if heavier:
+            rec.replay(Fit(pen, dx + heavier))
         return pen.glyph()
 
     # Every glyph SIZE large, its width too (composites decomposed from the

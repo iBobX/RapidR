@@ -160,7 +160,13 @@ the web IDE adds Monaco (LICENSES.md §1).
   asks that the copyright notice and licence go with the fonts (the notices
   file carries `OFL-1.1.txt`, whose header has them); forbids selling the
   fonts by themselves; and lets a Modified Version not use a Reserved Font
-  Name. RapidR doesn't modify or subset them, so they keep their names.
+  Name. The Regular faces are compiled in whole and unmodified, so they keep
+  their names. Their designed Bold, Italic and Bold Italic faces (the same
+  2.1.5 release, SHA-256 `7191c669…25d0`) are subset to the Latin scripts and
+  unhinted, hence Modified Versions: renamed "RapidR Text Sans / Serif /
+  Mono" (`tools/fonts/make_liberation_styles.py`), glyph outlines and
+  copyright lines unchanged, the licence named in each file. RapidR Sans
+  (Regular and Bold) is the same kind of derivative of Liberation Sans.
 - **Noto fallback fonts** (`fonts/fallback/`, Stage W7): Noto Sans 2.015,
   Noto Sans Symbols 2.003 and Symbols 2 2.008 (in the repository,
   unmodified), Noto Sans SC and KR from Noto CJK Sans 2.004 and Noto Color

@@ -128,7 +128,20 @@ the RapidR runtimes (desktop apps, the interpreter runner and the web
 WebAssembly), which draw text on bitmaps with them; they have the same
 character widths as Arial, Times New Roman and Courier New.
 
-Beside them, **RapidR Sans** (`RapidRSans-Regular.ttf`) is a Modified
+Their designed Bold, Italic and Bold Italic faces (Liberation 2.1.5's own,
+from the same official release archive, SHA-256
+`7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0`) are built
+in too, as nine Modified Versions cut to the Latin scripts without hinting
+(36 to 39 KB each) and renamed **RapidR Text Sans**, **RapidR Text Serif** and
+**RapidR Text Mono** as the OFL requires (Liberation, Arimo, Tinos and
+Cousine are Reserved Font Names; their copyright lines and the licence are
+kept in each file). The glyph outlines are Liberation's, unchanged;
+`tools/fonts/make_liberation_styles.py` makes the files reproducibly. With
+them, bold and italic text is drawn from designed faces as wide as Arial
+Bold's, Times New Roman Bold's and Courier New Bold's instead of the Regular
+letters drawn heavier.
+
+Beside them, **RapidR Sans** (`RapidRSans-Regular.ttf`, `RapidRSans-Bold.ttf`) is a Modified
 Version of Liberation Sans under the same licence, renamed as the OFL
 requires (it carries none of the Reserved Font Names): Liberation Sans with
 each Windows-1252 character as wide as MS Sans Serif's at 8 pt (a few a
