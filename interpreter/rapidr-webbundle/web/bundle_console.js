@@ -44,8 +44,11 @@ export function installConsole() {
   };
 }
 
-// Styles for the panel, added to the page with it.
+// Styles for the panel, added to the page with it. (A coloured run is an
+// inline block, so its background fills the whole line's height, as a
+// console cell's does — no dark gaps between rows of COLOR , 7.)
 export const CONSOLE_CSS = `#rapidr-console { position: fixed; inset: 0; margin: 0; padding: 12px 14px; overflow: auto;
   background: #0c0c0c; color: #cccccc; font: 14px/1.35 ui-monospace, Menlo, Consolas, "Courier New", monospace;
   white-space: pre; z-index: 1000; }
-#rapidr-console.docked { top: auto; height: 30vh; border-top: 1px solid #444; }`;
+#rapidr-console.docked { top: auto; height: 30vh; border-top: 1px solid #444; }
+#rapidr-console span span { display: inline-block; }`;

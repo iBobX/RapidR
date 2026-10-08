@@ -197,6 +197,8 @@ struct RustCodegen {
     reported_goto: bool,
     /// Names of variables declared with DIM at top level.
     top_level_vars: HashSet<String>,
+    /// Module-level variables nobody DIMs (in `top_level_vars` too).
+    implicit_globals: HashSet<String>,
     /// Names of variables declared as arrays (DIM with dimensions).
     array_vars: HashSet<String>,
     /// User-defined TYPE names (lowercase) → struct name for DIM default generation.
@@ -263,6 +265,7 @@ impl RustCodegen {
             loop_label_counter: 0,
             reported_goto: false,
             top_level_vars: HashSet::new(),
+            implicit_globals: HashSet::new(),
             array_vars: HashSet::new(),
             create_stack: Vec::new(),
             current_function: None,
@@ -616,6 +619,11 @@ impl RustCodegen {
                     self.declared_functions.insert(name_lower.clone());
                     self.defined_functions.insert(name_lower.clone());
                     self.defined_functions.insert(strip_type_suffix(&name_lower));
+                    // (a DLL's FUNCTION is called without parentheses too:
+                    // `t = GetTickCount`)
+                    if d.is_function && d.lib.is_some() {
+                        self.returning_functions.insert(strip_type_suffix(&name_lower));
+                    }
                     self.function_param_counts.insert(name_lower, d.params.len());
                 }
                 _ => {}
@@ -646,6 +654,7 @@ impl RustCodegen {
         // the main program and every routine, kept between calls — as in the
         // VM: they join the module-level variables.
         for name in self.implicit_global_names(&program) {
+            self.implicit_globals.insert(name.clone());
             self.top_level_vars.insert(name);
         }
 
@@ -709,6 +718,8 @@ impl RustCodegen {
         let runtime = if self.target == AppTarget::Web { "rapidr_runtime_web" } else { "rapidr_runtime_core" };
         if self.target == AppTarget::Web {
             self.line("rapidr_runtime_web::object_web::install_object_hooks();");
+        } else {
+            self.line("rapidr_runtime_core::terminal::start();");
         }
         for (name, file) in self.resources.clone() {
             self.line(&format!("{runtime}::value::resources::register({name:?}, include_bytes!({file:?}).as_slice());"));
@@ -1405,6 +1416,24 @@ impl RustCodegen {
             }
         }
 
+        // A routine defined with a dotted name (`SUB Draw.3DBox`), called as
+        // `Draw.3DBox 1, 1, …` where `Draw` is no component or variable: the
+        // routine, as RC.EXE and the VM call it (bcgen's `dotted_routine`).
+        let dotted = match &c.callee {
+            Expression::MemberAccess(ma) => self.dotted_routine(ma).map(|n| (n, Vec::new())),
+            Expression::FunctionCall(fc) => match fc.callee.as_ref() {
+                Expression::MemberAccess(ma) => self.dotted_routine(ma).map(|n| (n, fc.args.clone())),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some((name, mut args)) = dotted {
+            args.extend(c.args.iter().cloned());
+            let call = CallStatement { span: c.span, callee: Expression::Identifier(Identifier { span: c.span, name }), args };
+            self.emit_call(&call);
+            return;
+        }
+
         // A method of any other object (`Application.Terminate`,
         // `Printer.Printers(i)`, a component held in a variable), as the VM
         // calls it.
@@ -1470,6 +1499,22 @@ impl RustCodegen {
         };
         self.write_indent();
         let _ = writeln!(self.output, "{call};");
+    }
+
+    /// `Obj.Name` naming the program's SUB / FUNCTION defined as `SUB
+    /// Obj.Name`, when `Obj` is no component and no variable: its full name.
+    fn dotted_routine(&self, ma: &MemberAccessExpression) -> Option<String> {
+        let Expression::Identifier(o) = ma.object.as_ref() else { return None };
+        let obj = strip_type_suffix(&o.name).to_lowercase();
+        // (a name only ever used as `Draw.` is no variable: it isn't DIMmed,
+        // assigned or a parameter — the VM's test)
+        let dimmed = self.top_level_vars.contains(&obj) && !self.implicit_globals.contains(&obj);
+        let assigned = self.assigned_main.contains(&obj) || self.assigned_routine.contains(&obj);
+        if o.name == "_with_" || self.get_component_name(&ma.object).is_some() || dimmed || assigned || self.shadowed.contains(&obj) {
+            return None;
+        }
+        let full = format!("{}.{}", o.name, ma.member);
+        self.defined_functions.contains(&full.to_lowercase()).then_some(full)
     }
 
     /// `f(args)` for the program's routine `name`, with the arguments fitted
@@ -2264,32 +2309,28 @@ impl RustCodegen {
 
         let ret_type_str = d.return_type.as_deref().unwrap_or("");
 
-        // If a LIB is specified, emit a wrapper that calls ffi_call at runtime
+        // A DLL's routine: a stub that calls it as the DECLARE says
+        // (`rp_dll_call`: rapidr_runtime_core::ffi; the web's reports the
+        // error). The spec carries the parameters' types and BYREF.
         if let Some(ref lib_path) = d.lib {
             let lib_clean = lib_path.trim_matches('"');
             let alias_clean = alias.trim_matches('"');
-            let args_list = param_names.iter()
-                .map(|n| format!("{n}.clone()"))
-                .collect::<Vec<_>>()
-                .join(", ");
-
+            let spec = rapidr_value::dll::spec_of(&d.params.iter().map(|p| (p.type_name.clone(), p.by_ref)).collect::<Vec<_>>(), d.return_type.as_deref());
+            let mut all: Vec<String> = vec![format!("v_str({lib_clean:?})"), format!("v_str({alias_clean:?})"), format!("v_str({spec:?})")];
+            all.extend(param_names.iter().map(|n| format!("{n}.clone()")));
+            let args_list = all.join(", ");
+            let _ = ret_type_str;
+            self.write_indent();
             if d.is_function {
-                self.write_indent();
                 let _ = writeln!(self.output, "fn {name}({params_str}) -> Value {{");
-                self.indent += 1;
-                self.write_indent();
-                let _ = writeln!(self.output, "ffi_call(\"{lib_clean}\", \"{alias_clean}\", &[{args_list}], \"{ret_type_str}\")");
-                self.indent -= 1;
-                self.line("}");
             } else {
-                self.write_indent();
                 let _ = writeln!(self.output, "fn {name}({params_str}) {{");
-                self.indent += 1;
-                self.write_indent();
-                let _ = writeln!(self.output, "ffi_call(\"{lib_clean}\", \"{alias_clean}\", &[{args_list}], \"\");");
-                self.indent -= 1;
-                self.line("}");
             }
+            self.indent += 1;
+            self.write_indent();
+            let _ = writeln!(self.output, "rp_dll_call(&[{args_list}]){}", if d.is_function { "" } else { ";" });
+            self.indent -= 1;
+            self.line("}");
             return;
         }
 
@@ -2651,6 +2692,15 @@ impl RustCodegen {
                         return format!("{varname}.rp_index(&{})", args[0]);
                     }
                     return unknown_routine(&id.name);
+                }
+
+                // A FUNCTION defined with a dotted name (`FUNCTION Calc.Sum`),
+                // `Calc.Sum(1, 2)` where `Calc` is no component or variable.
+                if let Expression::MemberAccess(ma) = fc.callee.as_ref() {
+                    if let Some(name) = self.dotted_routine(ma) {
+                        let call = FunctionCallExpression { span: fc.span, callee: Box::new(Expression::Identifier(Identifier { span: fc.span, name })), args: fc.args.clone() };
+                        return self.expr_to_string(&Expression::FunctionCall(call));
+                    }
                 }
 
                 // Check for UDT array field access: r.Names(1) → FunctionCall(MemberAccess(r, Names), [1])
@@ -3216,6 +3266,14 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "memcpy" => Some(format!("memory::rp_memcpy(&{a0}, &{a1}, &{a2})")),
         "memset" => Some(format!("memory::rp_memset(&{a0}, &{a1}, &{a2})")),
         "memcmp" => Some(format!("memory::rp_memcmp(&{a0}, &{a1}, &{a2})")),
+        // PEEK / POKE / PCOPY (console pages and managed memory), the
+        // ports, DLL calls (docs/windows-dll-calls.md)
+        "peek" => Some(format!("memory::rp_peek(&[{}])", args.join(", "))),
+        "poke" => Some(format!("rp_poke(&[{}])", args.join(", "))),
+        "pcopy" => Some(format!("rp_pcopy(&{a0}, &{a1})")),
+        "inp" | "inpw" => Some(format!("memory::rp_port_io(\"{}\")", name.to_uppercase())),
+        "out" | "outw" => Some(format!("memory::rp_port_io(\"{}\")", name.to_uppercase())),
+        "__dll_call" => Some(format!("rp_dll_call(&[{}])", args.join(", "))),
 
         _ => None,
     }

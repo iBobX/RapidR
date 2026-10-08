@@ -628,7 +628,7 @@ fn script_resize<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, w: i64
 /// or list view header's section edge), else the arrow.
 pub fn cursor_at(desk: &Desktop, store: &dyn Store, form: &str, (x, y): (f64, f64)) -> Cursor {
     if desk.screen_cursor != 0 {
-        return Cursor::of(desk.screen_cursor);
+        return Cursor::resolve(desk.screen_cursor);
     }
     const CR_HSPLIT: i64 = -14;
     const CR_VSPLIT: i64 = -15;
@@ -649,7 +649,7 @@ pub fn cursor_at(desk: &Desktop, store: &dyn Store, form: &str, (x, y): (f64, f6
     // its Align changes)
     let split = node.is_some_and(|n| n.type_name == "RSPLITTER") && matches!(code, CR_HSPLIT | CR_VSPLIT);
     if code != 0 && !split {
-        return Cursor::of(code);
+        return Cursor::resolve(code);
     }
     let Some(n) = node else { return Cursor::Default };
     let (lx, ly) = ((x as i64) - n.abs.0, (y as i64) - n.abs.1);

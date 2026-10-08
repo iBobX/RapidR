@@ -40,6 +40,7 @@ pub mod menu;
 pub mod ops;
 pub mod printer;
 pub mod record;
+pub mod stream_ops;
 pub mod rqlib;
 pub mod synth;
 pub mod text;
@@ -1300,6 +1301,9 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             with(id, |o| if let Object::Stream(m) = o { m.write(&bytes) });
             Some(Ok(Value::Null))
         }
+        // QMEMORYSTREAM's MemCopyFrom / MemCopyTo (address, bytes) and the
+        // streams' SaveUDTArray / LoadUDTArray: stream_ops.rs.
+        ("stream", "memcopyfrom" | "memcopyto" | "saveudtarray" | "loadudtarray") => Some(stream_ops::call(id, &method, args)),
         // (`Image.Load file`: RapidR's other name)
         ("bitmap", "loadfromfile" | "load") => Some(read_file(&arg(0).to_string_val()).and_then(|bytes| {
             with(id, |o| match o {

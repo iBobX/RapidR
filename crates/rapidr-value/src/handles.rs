@@ -10,14 +10,43 @@ use std::collections::HashMap;
 struct Handles {
     by_name: HashMap<String, i64>,
     by_handle: HashMap<i64, String>,
+    /// Own handles made so far (a form's later gets its window's instead).
+    made: usize,
 }
 
 thread_local! {
     static HANDLES: RefCell<Handles> = RefCell::new(Handles::default());
 }
 
-/// Handles start here and go up in steps of 4 (as window handles do).
-const FIRST: i64 = 0x0001_0004;
+/// The `n`th of RapidR's own handles (a component's, an icon's) in the
+/// series whose low word starts at `low`: a number that is never a real
+/// window, icon or cursor of the system. Windows' USER handles are an index
+/// into the session's handle table (the low word) with a reuse count (the
+/// high word), and that table holds at most 65,536 entries for the whole
+/// session, so an index near 0xFFFF names nothing — a DLL call given a
+/// control's `Handle` (which has no window of its own: RapidR draws its
+/// controls) fails the Windows way instead of reaching another program's
+/// window. The high word counts 1 to 0x7FFF (a positive LONG); past that the
+/// low word steps down by 4.
+fn own_handle(low: i64, n: usize) -> i64 {
+    let (band, k) = ((n / 0x7FFF) as i64, (n % 0x7FFF) as i64);
+    ((k + 1) << 16) | (low - 4 * band)
+}
+
+/// Which `n` [`own_handle`] made `h` in the series starting at `low`.
+fn own_index(low: i64, h: i64) -> Option<usize> {
+    let (hi, lo) = (h >> 16, h & 0xFFFF);
+    if !(1..=0x7FFF).contains(&hi) || lo > low || (low - lo) % 4 != 0 || (low - lo) / 4 >= BANDS {
+        return None;
+    }
+    usize::try_from((low - lo) / 4 * 0x7FFF + hi - 1).ok()
+}
+
+/// Components' handles: low words 0xFFFC, 0xFFF8, … (16 series).
+const COMPONENTS: i64 = 0xFFFC;
+/// Icons' handles: low words 0xFFBC, 0xFFB8, … (apart from components').
+const ICONS_LOW: i64 = 0xFFBC;
+const BANDS: i64 = 16;
 
 /// The handle of component `name` (made on first use).
 pub fn handle_of(name: &str) -> i64 {
@@ -27,11 +56,31 @@ pub fn handle_of(name: &str) -> i64 {
         if let Some(&n) = h.by_name.get(&key) {
             return n;
         }
-        let n = FIRST + 4 * h.by_name.len() as i64;
+        let n = own_handle(COMPONENTS, h.made);
+        h.made += 1;
         h.by_name.insert(key.clone(), n);
         h.by_handle.insert(n, key);
         n
     })
+}
+
+/// Whether `h` is one of RapidR's own component handles (not a window of
+/// the system's).
+pub fn is_own_handle(h: i64) -> bool {
+    own_index(COMPONENTS, h).is_some()
+}
+
+/// The window system's own handle for component `name` (a form's HWND on
+/// Windows, registered by the host when the window is made): what `Handle`
+/// reads from then on, and what `name_of` maps back, so Windows API calls
+/// get the real window (docs/windows-dll-calls.md §3).
+pub fn set_native(name: &str, handle: i64) {
+    let key = name.to_ascii_lowercase();
+    HANDLES.with(|h| {
+        let mut h = h.borrow_mut();
+        h.by_name.insert(key.clone(), handle);
+        h.by_handle.insert(handle, key);
+    });
 }
 
 /// The component (lowercase name) a handle stands for.
@@ -43,10 +92,9 @@ thread_local! {
     static ICONS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
 }
 
-/// Icon handles start here, apart from components' (RC.EXE's
-/// `Application.Icon` reads as an HICON: a number a QNOTIFYICONDATA's hIcon
-/// takes).
-const FIRST_ICON: i64 = 0x0B00_0004;
+// Icon handles are a series of their own (RC.EXE's `Application.Icon`
+// reads as an HICON: a number a QNOTIFYICONDATA's hIcon takes) — never a
+// real icon of the system either (`own_handle`).
 
 /// The handle `Application.Icon` reads as for icon `source` (a file, a
 /// `$RESOURCE`'s handle as text; "" the application's own): stable, never 0.
@@ -60,14 +108,14 @@ pub fn icon_handle(source: &str) -> i64 {
                 i.len() - 1
             }
         };
-        FIRST_ICON + 4 * n as i64
+        own_handle(ICONS_LOW, n)
     })
 }
 
 /// The icon a handle stands for ("" the application's own).
 pub fn icon_source(handle: i64) -> Option<String> {
-    let n = handle.checked_sub(FIRST_ICON).filter(|d| d % 4 == 0)? / 4;
-    ICONS.with(|i| i.borrow().get(usize::try_from(n).ok()?).cloned())
+    let n = own_index(ICONS_LOW, handle)?;
+    ICONS.with(|i| i.borrow().get(n).cloned())
 }
 
 #[cfg(test)]
@@ -93,5 +141,26 @@ mod tests {
         assert_ne!(handle_of("edit(2)"), a);
         assert_eq!(name_of(a).as_deref(), Some("edit(1)"));
         assert_eq!(name_of(0), None);
+        assert!(is_own_handle(a) && !is_own_handle(0) && !is_own_handle(0x0001_0010));
+    }
+
+    /// RapidR's own handles are never a USER handle Windows could have
+    /// handed out (the table index in the low word stays near 0xFFFF), are
+    /// positive LONGs, and series never meet.
+    #[test]
+    fn own_handles_are_no_windows() {
+        for n in [0usize, 1, 2, 0x7FFE, 0x7FFF, 0x8000, 16 * 0x7FFF - 1] {
+            let h = own_handle(COMPONENTS, n);
+            assert!(h > 0 && h <= i32::MAX as i64, "{h:#x}");
+            assert!((h & 0xFFFF) >= 0xFFC0, "{h:#x}");
+            assert_eq!(own_index(COMPONENTS, h), Some(n));
+            assert_eq!(own_index(ICONS_LOW, h), None);
+            let i = own_handle(ICONS_LOW, n);
+            assert!((i & 0xFFFF) >= 0xFF80 && (i & 0xFFFF) < 0xFFC0, "{i:#x}");
+            assert_eq!(own_index(ICONS_LOW, i), Some(n));
+            assert_eq!(own_index(COMPONENTS, i), None);
+        }
+        assert_eq!(own_handle(COMPONENTS, 0), 0x0001_FFFC);
+        assert_eq!(own_index(COMPONENTS, 0x0001_0010), None);
     }
 }
