@@ -513,6 +513,10 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   2026-10-06 should be cloned again.
 
 ### Fixed
+- **Native builds read TRUE / FALSE as the program defines them**: RAPIDQ.INC's `CONST True = 1`
+  was ignored by native builds (TRUE stayed -1) while the interpreter and the web took it, so
+  `IF Port.Connected = TRUE` failed natively in RapidQ's own ComPort example
+  (`const_true_redefined`).
 - **Text in RapidQ's default font was cramped, letters running together**
   ("program", "start", "Bread", "Price", "Right-click" in labels, edits,
   grids and status bars; worst on a Retina or 150 % screen and on the web).

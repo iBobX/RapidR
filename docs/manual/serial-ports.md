@@ -60,7 +60,9 @@ The desktop lists every port the system has: on macOS the `/dev/cu.*` ports
 USB details from IOKit; on Windows the `COMn` ports with SetupAPI's; on Linux
 the `/dev/tty*` serial ports with sysfs's. The browser lists only the ports the
 page was allowed, as `COM1`, `COM2` …, with their USB IDs (the browser gives no
-names, so the description comes from the IDs).
+names, so the description comes from the IDs). The browser answers a moment after
+the program makes its first RComPort, so a list taken in the program's first
+instant can be empty: `OnPortsChanged` fires when the ports arrive.
 
 ## Plugged in, unplugged
 

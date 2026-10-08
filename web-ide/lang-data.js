@@ -3471,7 +3471,7 @@ const COMPONENT_REGISTRY = {
             'onwritestring': { sig: 'OnWriteString', desc: 'Fires after WriteString has sent its text and waited its Wait milliseconds.' },
             'onrxchar': { sig: 'OnRxChar(InQue AS INTEGER)', desc: 'Fires when bytes arrive at the serial port (InQue: how many are waiting to be read).' },
             'onerror': { sig: 'OnError(Message AS STRING)', desc: 'Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message.' },
-            'online': { sig: 'OnLine(Line AS STRING)', desc: 'Fires for each whole line that arrives, without its LineEnd (the line is read: ReadString and ReadLine don\'t see it). The runtime looks every 50 ms.' },
+            'online': { sig: 'OnLine(Received AS STRING)', desc: 'Fires for each whole line that arrives, without its LineEnd (the line is read: ReadString and ReadLine don\'t see it). The runtime looks every 50 ms.' },
             'onportschanged': { sig: 'OnPortsChanged(Added AS STRING, Removed AS STRING)', desc: 'Fires when serial ports come or go, a USB adapter plugged in or out: the names added and removed, a CR LF between two. The runtime looks about once a second (the browser says at once).' },
         },
     },

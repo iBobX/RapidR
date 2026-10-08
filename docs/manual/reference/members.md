@@ -3494,7 +3494,7 @@ A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then
 | `OnRxChar(InQue AS INTEGER)` | Fires when bytes arrive at the serial port (InQue: how many are waiting to be read). |
 | `OnTxEmpty` *(not yet)* | Fires when the serial port's output buffer has emptied. RapidR accepts a handler for it but never fires it. |
 | `OnError(Message AS STRING)` | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
-| `OnLine(Line AS STRING)` *(RapidR)* | Fires for each whole line that arrives, without its LineEnd (the line is read: ReadString and ReadLine don't see it). The runtime looks every 50 ms. |
+| `OnLine(Received AS STRING)` *(RapidR)* | Fires for each whole line that arrives, without its LineEnd (the line is read: ReadString and ReadLine don't see it). The runtime looks every 50 ms. |
 | `OnPortsChanged(Added AS STRING, Removed AS STRING)` *(RapidR)* | Fires when serial ports come or go, a USB adapter plugged in or out: the names added and removed, a CR LF between two. The runtime looks about once a second (the browser says at once). |
 
 <a id="rdownload"></a>

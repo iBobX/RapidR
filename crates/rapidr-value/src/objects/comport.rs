@@ -36,7 +36,7 @@
 //!   PortVendorID(i), PortProductID(i); FillList(ListOrCombo) — the
 //!   runtime fills the control), the modem lines (DTR and RTS set and read
 //!   back, CTS / DSR / CD / RI read, SendBreak(ms)), whole lines (LineEnd,
-//!   ReadLine(Timeout), HasLine, OnLine(Line)) and OnPortsChanged(Added,
+//!   ReadLine(Timeout), HasLine, OnLine(Received)) and OnPortsChanged(Added,
 //!   Removed) when a USB adapter is plugged in or out (the runtime's looks).
 
 use std::collections::VecDeque;
@@ -702,7 +702,7 @@ impl ComPort {
     /// The runtime's look (while the program handles one of [`EVENTS`];
     /// `handled` says which): OnPortsChanged(Added, Removed) when ports
     /// came or went since the last look at them (about a second ago), each
-    /// whole line arrived as OnLine(Line), and OnRxChar with InQue when
+    /// whole line arrived as OnLine(Received), and OnRxChar with InQue when
     /// more has arrived since it was last told.
     pub fn look(&mut self, handled: &dyn Fn(&str) -> bool) -> Vec<(&'static str, Vec<Value>)> {
         let mut out = Vec::new();

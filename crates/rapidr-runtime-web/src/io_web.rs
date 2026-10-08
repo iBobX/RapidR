@@ -185,6 +185,8 @@ pub fn method(name: &str, method: &str, args: &[Value]) -> Value {
             fire_events(name);
             return v;
         }
+        // (the ports the page was allowed, before they were first read:
+        // the program waits for them)
         if method == "filllist" {
             return fill_list(name, args);
         }
@@ -312,7 +314,9 @@ thread_local! {
     static WEB_SERIAL: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     /// The ports the page was allowed (`getPorts`), as ListPorts lists
     /// them: COM1, COM2 … in Web Serial's order, with their USB IDs. Read
-    /// again when one is plugged in or out, or allowed.
+    /// when the first QCOMPORT is made (`getPorts` answers a moment later:
+    /// a list taken at once is empty, and OnPortsChanged tells when they
+    /// come), and again when one is plugged in or out, or allowed.
     static GRANTED: RefCell<Vec<comport::PortInfo>> = const { RefCell::new(Vec::new()) };
 }
 
