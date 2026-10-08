@@ -72,6 +72,7 @@ corpus = load_tool("rapidq_corpus")
 truth = load_tool("rapidq_truth")
 
 NETWORK = re.compile(r"\b(qsocket|qclientsocket|qserversocket|qmysql|rmysql|qhttp|rhttp|qftp|qsmtp|qpop3|qwebbrowser|qdownload|inet\w*|winsock|wsock32|ws2_32|wininet|urlmon|urldownload\w*|gethostby\w+)\b", re.I)
+SERIAL = re.compile(r"\bAS\s+[QR]?COMPORT\b", re.I)
 PRINTING = truth.PRINTING
 SHELL = truth.SHELL
 GUI = re.compile(r"\bQ(FORM|FORMEX|FORMMDI|DOCKFORM)\b|\bR(FORM|FORMMDI)\b", re.I)
@@ -401,7 +402,11 @@ def programs(args):
         p = {"rel": rel, "name": name_of(rel), "src": src, "text": text,
              "lane": corpus.category(src, []),
              "console": bool(APPTYPE_CONSOLE.search(text)) or not GUI.search(text)}
-        if NETWORK.search(text):
+        # (a serial port may be a real board on this machine: never opened
+        # by a sweep — QCOMPORT's own tests use scripted ports)
+        if SERIAL.search(truth.code(truth.read(src))):
+            p["skip"] = "uses a serial port"
+        elif NETWORK.search(text):
             p["skip"] = "uses the network"
         elif PRINTING.search(text):
             p["skip"] = "prints"
