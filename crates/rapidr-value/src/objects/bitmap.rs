@@ -252,6 +252,33 @@ pub struct Bitmap {
     /// drawing method, a load, a new size, `invalidate_display`): a host
     /// keeps the picture it uploaded until it does ([`Bitmap::revision`]).
     pub(crate) revision: u64,
+    /// A QBITMAP's PixelFormat (Delphi's TPixelFormat: pfDevice 0, pf1bit 1,
+    /// pf4bit 2, pf8bit 3, pf15bit 4, pf16bit 5, pf24bit 6, pf32bit 7):
+    /// pfDevice until a BMP is loaded, then the file's (RC.EXE: a new or
+    /// sized QBITMAP reads 0, one loaded from an 8-bit BMP 3, a 24-bit 6);
+    /// a PixelFormat the program sets reads back. The pixels are kept 32-bit
+    /// whatever it says.
+    pub pixel_format: i64,
+}
+
+/// TPixelFormat of a BMP file's pixels (its bit count; 16 bits: pf15bit
+/// unless its masks say 5-6-5); 0 (pfDevice) for anything else.
+fn bmp_pixel_format(bytes: &[u8]) -> i64 {
+    if bytes.len() < 34 || &bytes[..2] != b"BM" {
+        return 0;
+    }
+    let bits = u16::from_le_bytes([bytes[28], bytes[29]]);
+    let compression = u32::from_le_bytes([bytes[30], bytes[31], bytes[32], bytes[33]]);
+    match bits {
+        1 => 1,
+        4 => 2,
+        8 => 3,
+        16 if compression == 3 && bytes.len() >= 58 && u32::from_le_bytes([bytes[54], bytes[55], bytes[56], bytes[57]]) == 0xF800 => 5,
+        16 => 4,
+        24 => 6,
+        32 => 7,
+        _ => 0,
+    }
 }
 
 /// `img` cut or padded (transparent) to w × h.
@@ -295,6 +322,7 @@ impl Default for Bitmap {
             svg: None,
             redraw: None,
             revision: next_revision(),
+            pixel_format: 0,
         }
     }
 }
@@ -779,6 +807,7 @@ impl Bitmap {
             "bmp" => v_str(&self.data_url()),
             "transparent" => v_int(if self.transparent { -1 } else { 0 }),
             "transparentcolor" => v_int(self.transparent_color as i64),
+            "pixelformat" if !self.picture => v_int(self.pixel_format),
             _ => return None,
         })
     }
@@ -831,6 +860,7 @@ impl Bitmap {
             "height" => self.resize(self.img.width as i64, val.to_i64()),
             "transparent" => self.transparent = val.to_bool(),
             "transparentcolor" => self.transparent_color = super::color_bgr(val.to_i64()),
+            "pixelformat" if !self.picture => self.pixel_format = val.to_i64(),
             _ => return None,
         }
         Some(Ok(()))
@@ -1046,6 +1076,7 @@ impl Bitmap {
         let (img, alpha) = super::codec::decode_raster(bytes)?;
         self.img = img;
         self.alpha = alpha;
+        self.pixel_format = bmp_pixel_format(bytes);
         self.auto_transparent_color();
         Ok(())
     }

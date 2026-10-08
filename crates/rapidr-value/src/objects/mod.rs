@@ -1137,6 +1137,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
                     }
                     b.take_display(&mut src);
                     b.img = src.img;
+                    b.pixel_format = src.pixel_format;
                     // (an image with soft edges has its own transparency)
                     b.alpha = src.alpha;
                     if b.alpha.is_none() {

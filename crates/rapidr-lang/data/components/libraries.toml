@@ -196,32 +196,6 @@ events = [
 ]
 
 [[component]]
-name = "QD3DANIMATION"
-display = "D3DAnimation"
-rapidq = "QD3DANIMATION"
-kind = "planned"
-visual = false
-doc = "A Direct3D keyframe animation of a frame's position and orientation. Planned: RapidR doesn't have it yet."
-properties = [
-  { name = "Parent", type = "any" },
-]
-methods = []
-events = []
-
-[[component]]
-name = "QD3DANIMATIONSET"
-display = "D3DAnimationSet"
-rapidq = "QD3DANIMATIONSET"
-kind = "planned"
-visual = false
-doc = "A set of Direct3D animations played together. Planned: RapidR doesn't have it yet."
-properties = [
-  { name = "Parent", type = "any" },
-]
-methods = []
-events = []
-
-[[component]]
 name = "QTHREAD"
 display = "Thread"
 rapidq = "QTHREAD"

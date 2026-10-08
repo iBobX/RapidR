@@ -104,9 +104,12 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         // Nothing more (and not the generic place and size below): what the
         // registry and the shared models give them.
         "RFORM" | "RBUTTON" | "RLABEL" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE"
-        | "RTIMER" | "RIMAGE" | "RCANVAS" | "RDXSCREEN" | "RDXTIMER" | "RHEADER" | "RSTRINGGRID" | "RPROGRESS" | "RPROGRESSBAR" | "RSQLITE" | "RJSON" | "ROPENDIALOG"
+        | "RTIMER" | "RIMAGE" | "RCANVAS" | "RDXTIMER" | "RHEADER" | "RSTRINGGRID" | "RPROGRESS" | "RPROGRESSBAR" | "RSQLITE" | "RJSON" | "ROPENDIALOG"
         | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" | "RPANEL" | "RTRACKBAR" | "RWEBVIEW" | "RWEBSTORAGE" | "RWEBNOTIFICATION" | "RNUM"
         | "RDATAFRAME" | "RCOOLBTN" | "RTOOLBAR" => {}
+        // (QDXSCREEN's Direct3D: Render draws on the browser's WebGL 2,
+        // through wgpu — made at the first Render)
+        "RDXSCREEN" => rapidr_d3d_gpu::install(),
         "RDESIGNSURFACE" | "RPLOT" => {
             props.insert("left".to_string(), v_int(0));
             props.insert("top".to_string(), v_int(0));
@@ -902,10 +905,7 @@ fn set_property(name: &str, prop: &str, val: Value) {
         if rapidr_value::mdi::is_mdi(&uname) {
             crate::mdi_web::resized(&uname);
         }
-        // (a shown form: OnResize at once, as Windows sends WM_SIZE inside
-        // the change — RC.EXE —, its OnPaint posted)
         if shown_once(&uname) {
-            rp_fire_event(&uname, "onresize");
             rapidr_value::events::post_paint(&uname);
         }
     }

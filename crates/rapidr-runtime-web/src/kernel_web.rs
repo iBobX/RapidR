@@ -873,6 +873,10 @@ pub fn set_prop(name: &str, prop: &str, val: &Value) {
         "visible" => forms::set_visible(Web, name, val.to_bool()),
         "caption" => forms::set_caption(Web, name, &val.to_string_val()),
         "left" | "top" if is_form => forms::move_form(Web, name),
+        // (stored quietly — a user's resize, the layout's own moves: as on
+        // the desktop, whose layout hook skips them, no window resized and
+        // no OnResize for half a size; whoever stored it applies it)
+        "left" | "top" | "width" | "height" if crate::layout_web::is_quiet() => invalidate(),
         "left" | "top" | "width" | "height" => forms::apply_geometry(Web, name),
         "borderstyle" if is_form => forms::set_form_border(Web, name),
         "icon" | "icohandle" if is_form => forms::apply_icon(Web, name),

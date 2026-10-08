@@ -19,9 +19,9 @@ Symbols and Symbols 2, Noto Sans SC and KR), all under the SIL Open Font
 License 1.1. The Noto fonts' chunks ship beside the web runtime with
 their `OFL.txt`.
 
-**569 libraries** under 22 license expressions.
+**570 libraries** under 22 license expressions.
 
-## Apache-2.0 OR MIT (327)
+## Apache-2.0 OR MIT (328)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -307,6 +307,7 @@ their `OFL.txt`.
 | wgpu-core | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
 | wgpu-core-deps-apple | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
 | wgpu-core-deps-emscripten | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
+| wgpu-core-deps-wasm | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
 | wgpu-core-deps-windows-linux-android | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
 | wgpu-hal | 30.0.1 | <https://github.com/gfx-rs/wgpu> |
 | wgpu-naga-bridge | 30.0.1 | <https://github.com/gfx-rs/wgpu> |

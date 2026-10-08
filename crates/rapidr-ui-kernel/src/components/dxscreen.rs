@@ -23,6 +23,22 @@ use crate::store::Store;
 
 pub struct DxScreen;
 
+/// Whether `id` is a QDXSCREEN with FullScreen on: in DirectDraw's
+/// exclusive mode the surface had the whole display, the form's other
+/// windows hidden under it — here it covers its form's whole client area,
+/// over the form's other components ([`stacked`], `FormUi::sync`), and its
+/// picture is scaled into it with its proportions kept.
+pub fn full_screen(store: &dyn Store, id: &str, type_name: &str) -> bool {
+    type_name.eq_ignore_ascii_case("RDXSCREEN") && crate::store::flag(store, id, "fullscreen", false)
+}
+
+/// A form's components with its full-screen QDXSCREENs last (drawn on top).
+pub fn stacked(store: &dyn Store, children: Vec<(String, String)>) -> Vec<(String, String)> {
+    let (full, mut out): (Vec<_>, Vec<_>) = children.into_iter().partition(|(id, t)| full_screen(store, id, t));
+    out.extend(full);
+    out
+}
+
 impl ComponentKind for DxScreen {
     fn name(&self) -> &'static str {
         "RDXSCREEN"

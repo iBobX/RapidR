@@ -1434,7 +1434,23 @@ impl<'a> Parser<'a> {
         }
 
         if self.match_kind(TokenType::Eq) {
+            let value_start = self.pos;
             let value = self.parse_expression()?;
+            // RapidQ's `Obj.Method = a, b, c` (and `Foo = a, b` for a SUB):
+            // a call whose first argument is `= a` (RC.EXE; RapidQ's
+            // `games/qmorp/QMORP.BAS` draws `fenetrejeu.fillrect = 20, 20, …`).
+            // `Obj.Method = a` alone is told apart from a property by its
+            // object's type (rapidr_ast::method_equals).
+            if self.peek_kind() == Some(TokenType::Comma) && matches!(left, Expression::MemberAccess(_) | Expression::Identifier(_)) {
+                // (read again as `= a` reads: `v.Bar = 1 = 1, 4` passes 1)
+                self.pos = value_start - 1;
+                let first = self.parse_unary()?;
+                let mut args = vec![first];
+                while self.match_kind(TokenType::Comma) {
+                    args.push(self.parse_argument()?);
+                }
+                return Some(Statement::Call(CallStatement { span: self.span_from(start), callee: left, args }));
+            }
             return Some(Statement::Assignment(AssignmentStatement {
                 span: self.span_from(start),
                 target: left,
@@ -1976,6 +1992,7 @@ impl<'a> Parser<'a> {
         }
         // `TYPE X EXTENDS QFORM` or the manual's `TYPE X AS QFORM`. QOBJECT is
         // RapidQ's empty base object: a plain TYPE with methods.
+        let object_base = matches!(self.peek_kind(), Some(TokenType::Extends | TokenType::As));
         let extends = if self.match_kind(TokenType::Extends) || self.match_kind(TokenType::As) {
             Some({ let n = self.expect(TokenType::Identifier)?.lexeme.clone(); self.type_ref(&n) })
                 .filter(|base| !base.eq_ignore_ascii_case("QOBJECT") && !base.eq_ignore_ascii_case("ROBJECT"))
@@ -2255,6 +2272,7 @@ impl<'a> Parser<'a> {
             span: self.span_from(start),
             name,
             extends,
+            object_base,
             fields,
             methods,
             constructor,
@@ -2877,6 +2895,19 @@ impl<'a> Parser<'a> {
             Some(TokenType::At) => Some(UnaryOperator::Ref),
             _ => None,
         };
+        // `= x` with nothing before the `=` (`x = = 5`, the argument of
+        // `Obj.Method = a`): RC.EXE reads x — a number as itself, text as ""
+        // (rapidr_ast::lone_equals).
+        if self.peek_kind() == Some(TokenType::Eq) {
+            self.advance();
+            let operand = self.parse_comparison()?;
+            // (an equality after it is read and dropped: `= 1 = 1` is 1)
+            while matches!(self.peek_kind(), Some(TokenType::Eq | TokenType::Neq)) {
+                self.advance();
+                self.parse_comparison()?;
+            }
+            return Some(rapidr_ast::lone_equals(expression_span(&operand), operand));
+        }
         if let Some(op) = op {
             let tok = self.advance()?;
             let operand = self.parse_unary()?;

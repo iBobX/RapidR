@@ -170,6 +170,94 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   checksums with minisign is proposed (docs/security-audit.md §8).
 - A `security` stage in `tools/regress.sh`, with a regression test for each.
 
+### RapidQ's DirectX and Direct3D examples (checked against RC.EXE)
+- **Direct3D draws on the GPU, on every system**: a QDXSCREEN's `Render` is
+  rasterized by wgpu — Metal on macOS, Direct3D 12 on Windows (its WARP
+  where there's no GPU), Vulkan or OpenGL on Linux, and WebGL 2 in the
+  browser — and read back into the screen's back buffer, so the FPS text
+  drawn after it, `Pixel` and `Flip` work as before. Windows has had no
+  `d3drm.dll` since XP, so this is how RapidQ's Direct3D programs run there
+  too. D3DRM's own model (frames, lighting per face or vertex, wraps,
+  shadows) is unchanged and shared by every runtime; the software
+  rasterizer it replaces was the reference it was checked against, then
+  removed (one renderer). RapidQ's largest model (`Park.x`, 16,000
+  triangles drawn) takes 3.7 ms a frame at 640 × 480 and 5.3 ms at twice
+  that, against 8.2 and 16.5 on the CPU; the corpus's programs, every `.X`
+  model and the probes look as before (and as RC.EXE's beside them), and
+  the web's pictures equal the desktop's. The web runtime grows by 2.6 MB
+  (WebGL 2 through wgpu).
+- **One OnResize for one resize in the browser**: dragging a window's edge
+  or a status bar's size grip fired OnResize for the new width and again
+  for the new height; now once, as on the desktop.
+- **`WITH v.R … END WITH`** on a QRECT field of an object reaches the field
+  (`.Bottom = 99` stored into `v.R`), as RC.EXE does; RapidR stopped with
+  "nested member-access store not yet supported".
+- **QRECT (and QNOTIFYICONDATA, QFONT) as a field of an object**: `TYPE T
+  EXTENDS QOBJECT … R AS QRECT` compiles and behaves as RapidQ's — each
+  instance its own record, by reference to SUBs, through This in the TYPE's
+  code; `Datatype QRECT not supported in STRUCT` only for a TYPE / STRUCT
+  without EXTENDS, as RC.EXE says it. 8 of RapidQ's Direct3D examples (their
+  `RapidQ_D3D.inc`) compile again.
+- **A TYPE no DIM makes isn't compiled**, as in RapidQ: its methods may call
+  what isn't declared (RapidQ's `Lights_pyramid.bas`).
+- **`Obj.Method = a, b, c`** calls the method (RapidQ's `QMORP.BAS`), `= a`
+  passing a number as itself and text as ""; RC.EXE's errors for a property
+  or a method taking nothing.
+- **OnResize** fires as RapidQ fires it: around OnShow when a form's window
+  is made, then for every change of its size (it fired only for the user's
+  drag) — RapidQ's `CoolGauge.bas` shows its whole gauge.
+- **QBITMAP.PixelFormat** reads the loaded BMP's (8-bit 3, 24-bit 6), as
+  RapidQ's terrain examples check.
+- **QD3DANIMATION and QD3DANIMATIONSET** (RC.EXE's: Parent only, arrays
+  allowed), **QD3DMESH.MaxY / MinY** (read-only), **QD3DFRAME.FogEnabled**
+  a property.
+- **A full-screen QDXSCREEN covers its form** (DirectDraw's exclusive mode):
+  the picture fills the window, letterboxed, over the form's other
+  components, desktop and web.
+- Native builds: a CREATE inside a SUB that sets its object's `Font.Name`
+  compiles (RapidQ's `3DPong_aDelic2.bas`).
+- **RapidQ's own Direct3D, seen at last**: RapidQ's examples ship the
+  `d3drm.dll` Windows dropped after XP; beside it RC.EXE's programs run in
+  the Windows 11 VM, and RapidR's 3D was compared with RapidQ's for the first
+  time — the corpus's programs (windowed copies of the full-screen ones),
+  probes, and every `.X` model of the corpus. What it showed is fixed:
+  **D3DRM makes a zero vector unit as (1, 0, 0)** — `SetRotation(0, 0, 0, a)`
+  turns about x (RapidQ's `Lights_pyramid.bas` tumbles), a camera whose up
+  is (0, 0, 0) is the one with up (1, 0, 0) (`RapidQ_D3D.inc`'s QD3DCAMERA:
+  `3DPong` sees its court as RapidQ did); colours past 1 held to 1 (RapidQ's
+  `Lights_terrain` sky); **texture filtering** only for
+  D3DRMTEXTURE_LINEAR (the mipmap qualities draw nearest); and **specular highlights** from
+  a `.X` material's power and specular colour (RapidQ's `myearth.x`).
+- **The `.X` models**: all 55 of the corpus (42 different; text and binary)
+  draw as RapidQ's D3DRM draws them — a gallery beside RC.EXE's captures.
+- **A type nothing defines is RC.EXE's error**, in its words for each place
+  (`Unknown data type QBITMAPEX`, `Unknown type FOOBAR`, `… is not a valid
+  data type for your FUNCTION`, `Create Method only works for QObjects, not
+  …`, `You can only extend QObjects`); RapidR accepted any name.
+- **An object's name as a type**: `DIM x AS Lst` after `DIM Lst AS
+  QSTRINGLIST` makes another QSTRINGLIST, `SUB S(p AS Lst)` takes one (RapidQ's
+  `Choosecolor.bas`: `Sender AS BUTTON`).
+- **`$DEFINE` matches in any case**, as RC.EXE (`$DEFINE GLint integer`, then
+  `AS glInt`; RAPIDQ2.INC's BOOLEAN), but leaves a member's name after a
+  `.`, an object TYPE's fields and a CREATE block's properties alone
+  (RAPIDQ2.INC's TRANSPARENT and its `Transparent` field).
+- **A QDXSCREEN is set up on its shown window** (OnInitialize,
+  OnInitializeSurface once the form's window shows, before OnShow): RapidQ's
+  3DPong runs its game loop inside OnInitializeSurface, and its native
+  build never showed a window.
+- **`WITH TF.Bar` in a TYPE's own code** reaches the field's object (it set
+  the form's Width: RapidQ's `newform.bas` shrank to nothing).
+- A routine named after its object (`FUNCTION Screen.GetPixelDepth` in
+  RAPIDQ2.INC) counts as called, so the Windows API it calls is reported when
+  the program compiles, not when it runs.
+- Of the corpus's 32 DirectX programs (19 compiled before this work), RapidR
+  compiles and runs the 26 RC.EXE compiles that call no Windows API; the
+  rest don't compile in RapidQ either (two include files the corpus lacks,
+  a syntax error, QBITMAPEX) or call the Windows API (RAPIDQ2.INC's
+  `SetLastError`, `GetDC`) — docs/directx-plan.md, "The corpus's DirectX
+  programs", has the before / after table, RapidR's captures (interpreted,
+  native, the web) beside RapidQ's.
+
 ### Legal
 - **A review of RapidQ's terms, rights and trademarks, and of everything
   RapidR takes from RapidQ** (`docs/legal/rapidq-review.md`): RapidQ's

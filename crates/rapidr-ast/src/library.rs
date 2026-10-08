@@ -8,6 +8,10 @@
 //!   and kernel32's serial calls. A program that includes one gets
 //!   RapidR's own object of that name instead (rapidr_value::objects::rqlib):
 //!   the TYPE is left out here; the file's constants stay.
+//! - **TYPEs no DIM makes** keep their fields but lose their methods,
+//!   constructor and events: RapidQ's compiler never compiles them
+//!   ([`crate::instantiated_types`]), so what they call needn't exist.
+//! - **`Obj.Method = x`** is a call of the method ([`crate::method_equals`]).
 //! - **`ENVIRON "name=text"`** (the statement) is `__environ_set(…)`;
 //!   `ENVIRON$(name)` stays the function.
 //! - **`CGI.Get(Name, Value)`** sets Value by reference: written
@@ -33,8 +37,18 @@ fn is_library_type(s: &Statement) -> bool {
 }
 
 pub fn lower(program: &Program) -> Program {
-    let mut program = program.clone();
+    let mut program = crate::method_equals::lower(program);
     program.statements.retain(|s| !is_library_type(s));
+    let made = instantiated_types(&program);
+    for s in &mut program.statements {
+        if let Statement::Type(t) = s {
+            if !made.contains(&t.name.to_ascii_uppercase()) {
+                t.methods.clear();
+                t.constructor.clear();
+                t.events.clear();
+            }
+        }
+    }
     let cgis = names_of_type(&program.statements, "RCGI");
     rewrite_blocks(&mut program.statements, &cgis);
     program

@@ -48,6 +48,9 @@ rapidr-studio = { workspace = true, optional = true }
 rapidr-session = { workspace = true, optional = true }
 rapidr-ui-app = { workspace = true, optional = true }
 rapidr-ui-host-winit = { workspace = true, optional = true }
+# QDXSCREEN's Direct3D (Render) on wgpu — the GPU the windows are drawn
+# with (docs/directx-plan.md, stage D5).
+rapidr-d3d-gpu = { workspace = true, optional = true }
 
 # Windows: a crash inside a DLL a program called ends it with a message,
 # 64-bit pointers checked, 32-bit resource DLLs opened as data (ffi.rs), the
@@ -77,7 +80,7 @@ network = ["dep:ureq"]
 # The desktop host: the UI kernel, the host-neutral program glue
 # (rapidr-ui-app) and the winit host (docs/desktop-host-plan.md), reached
 # through `src/ui`; the system clipboard.
-gui = ["dep:rapidr-ui-kernel", "dep:rapidr-ui-app", "dep:rapidr-ui-host-winit", "dep:arboard"]
+gui = ["dep:rapidr-ui-kernel", "dep:rapidr-ui-app", "dep:rapidr-ui-host-winit", "dep:arboard", "dep:rapidr-d3d-gpu"]
 # RNUM, RDATAFRAME, RPLOT: the shared model is rapidr-value's
 # (datascience/), the charts drawn by the kernel's renderer.
 datascience = ["dep:rapidr-ui-render", "dep:rapidr-ui-kernel"]

@@ -1,0 +1,20 @@
+6:5
+Unknown data type QBITMAPEX
+7:5
+Unknown data type FOOBAR
+8:19
+Unknown data type FOOBAR
+9:7
+Unknown type FOOBAR
+10:7
+Unknown data type FOOBAR
+12:1
+FOOBAR is not a valid data type for your FUNCTION
+15:1
+Create Method only works for QObjects, not FOOBAR
+17:1
+You can only extend QObjects
+21:3
+Unknown data type FOOBAR
+24:3
+Datatype FOOBAR not supported in STRUCT

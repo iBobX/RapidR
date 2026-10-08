@@ -479,3 +479,27 @@ fn timer_periods_are_windows_ticks() {
     assert_eq!(timers::timer_period(20), Some(Duration::from_micros(31_250)));
     assert_eq!(timers::timer_period(1000), Some(Duration::from_millis(1000)));
 }
+
+#[test]
+fn onresize_as_the_vcl_fires_it() {
+    // (RC.EXE: none before the window exists, two around OnShow, then one
+    // for each change of size — shown or hidden — none for a move, the same
+    // size or a second Show)
+    form_with_button();
+    Mem.store("f", "width", v_int(310));
+    forms::apply_geometry(Mem, "f");
+    assert!(fired().iter().all(|e| !e.ends_with("onresize")));
+    forms::show(Mem, "f");
+    let count = |w: &str| fired().iter().filter(|e| e.as_str() == w).count();
+    assert_eq!(count("f.onresize"), 2);
+    forms::apply_geometry(Mem, "f");
+    Mem.store("f", "left", v_int(50));
+    forms::move_form(Mem, "f");
+    assert_eq!(count("f.onresize"), 2);
+    forms::hide(Mem, "f");
+    Mem.store("f", "width", v_int(350));
+    forms::apply_geometry(Mem, "f");
+    assert_eq!(count("f.onresize"), 3);
+    forms::show(Mem, "f");
+    assert_eq!(count("f.onresize"), 3);
+}
