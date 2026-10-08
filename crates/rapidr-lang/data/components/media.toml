@@ -3,6 +3,7 @@ group = "Media"
 
 [[component]]
 name = "RMIDI"
+display = "MIDI"
 rapidq = "QMIDI"
 from = "QMidi.inc"
 visual = false
@@ -35,6 +36,7 @@ events = [
 
 [[component]]
 name = "RWAVE"
+display = "Wave"
 rapidq = "QWAVE"
 from = "QWave.inc"
 visual = false
@@ -75,6 +77,7 @@ events = [
 
 [[component]]
 name = "RVIDEO"
+display = "Video"
 rapidq = "QVIDEO"
 from = "QVideo.inc"
 visual = true
@@ -122,6 +125,7 @@ events = [
 
 [[component]]
 name = "RCDAUDIO"
+display = "CDAudio"
 rapidq = "QCDAUDIO"
 from = "Qcdaudio.inc"
 visual = false

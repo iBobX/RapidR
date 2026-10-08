@@ -336,7 +336,7 @@ fn component(ctx: &Ctx, c: &Table, group: &str, global: bool, at: &str) -> Res<(
     keys_allowed(
         c,
         &[
-            "name", "rapidq", "from", "aliases", "kind", "group", "visual", "container", "size", "only", "where", "default_event", "sets", "origin",
+            "name", "display", "rapidq", "from", "aliases", "kind", "group", "visual", "container", "size", "only", "where", "default_event", "sets", "origin",
             "instance_of", "doc", "properties", "methods", "events",
         ],
         at,
@@ -344,6 +344,14 @@ fn component(ctx: &Ctx, c: &Table, group: &str, global: bool, at: &str) -> Res<(
     let name = req(c, "name", at)?;
     let at = &format!("{at}: {name}");
     let rapidq = s(c, "rapidq");
+    // (a component's name in mixed case without its Q / R: `CheckBox`;
+    // a global object's is its name)
+    let display = match s(c, "display") {
+        Some(d) if global || d.eq_ignore_ascii_case(&name[1..]) => d,
+        Some(d) => return Err(format!("{at}: display `{d}` isn't its name without the Q / R")),
+        None if global => name,
+        None => return Err(format!("{at}: `display` (its name in mixed case without the Q / R) is required")),
+    };
     let family = if global { s(c, "origin").unwrap_or("rapidq") } else if rapidq.is_some() { "rapidq" } else { "rapidr" };
     let kind = match (global, s(c, "kind").unwrap_or("component")) {
         (true, "global") => "Kind::Global",
@@ -415,8 +423,9 @@ fn component(ctx: &Ctx, c: &Table, group: &str, global: bool, at: &str) -> Res<(
     };
     let doc = s(c, "doc").unwrap_or("");
     let code = format!(
-        "Component {{ name: {}, rapidq: {}, from: {}, aliases: &[{}], kind: {kind}, group: {}, origin: {}, visual: {}, container: {}, size: {size}, default_event: {}, runtimes: {}, where_note: {}, instance_of: {}, doc: {}, properties: &[{}], methods: &[{}], events: &[{}] }}",
+        "Component {{ name: {}, display: {}, rapidq: {}, from: {}, aliases: &[{}], kind: {kind}, group: {}, origin: {}, visual: {}, container: {}, size: {size}, default_event: {}, runtimes: {}, where_note: {}, instance_of: {}, doc: {}, properties: &[{}], methods: &[{}], events: &[{}] }}",
         lit(name),
+        lit(display),
         opt(rapidq),
         opt(s(c, "from")),
         aliases.iter().map(|a| lit(a)).collect::<Vec<_>>().join(", "),

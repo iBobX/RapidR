@@ -1,38 +1,37 @@
 #!/bin/bash
-# The web IDE as a static bundle: a folder of files any static host serves,
-# zipped (dist/<version>/out/rapidr-web-<version>.zip, one top folder).
+# RapidR Studio for the web as a static bundle: a folder of files any static
+# host serves, zipped (dist/<version>/out/rapidr-web-<version>.zip, one top
+# folder). It is tools/build_studio_web.sh's site (target/studio-web: the
+# page, the shell's bytecode, the web runtime, the examples, the hosts'
+# headers) and the licence files.
 #
-#   tools/release/web.sh [site folder]      (default: web-ide)
+#   tools/release/web.sh [site folder]      (default: target/studio-web, built now)
 #
-# The bundle is the site's git-tracked files as they are, its `runtime/`
-# (the web interpreter, which git doesn't keep) filled from target/web, and
-# the licence files. Nothing here knows what the site is: when the IDE drawn
-# by the UI kernel replaces web-ide/, it is packaged the same way.
+# The legacy HTML / Monaco IDE (web-ide/) is not shipped (docs/ide-plan.md
+# I1; docs/security-audit.md SEC-17): it stays in the tree only as the test
+# harness its suites still load, until it is deleted.
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 cd "$ROOT"
 need zip "the bundle"
-SITE="${1:-web-ide}"
-[ -f target/web/rapidrintr_bg.wasm ] && [ -f target/web/THIRD-PARTY-NOTICES.txt ] || tools/build_web_artifacts.sh
+SITE="${1:-}"
+if [ -z "$SITE" ]; then
+    SITE=target/studio-web
+    [ -f target/web/rapidrintr_bg.wasm ] && [ -f target/web/THIRD-PARTY-NOTICES.txt ] && [ -f target/web/rapidr-webview.html ] || tools/build_web_artifacts.sh
+    bash tools/build_studio_web.sh --no-runtime "$SITE"
+fi
+for f in index.html studio.js run.html studio.rrbc runtime/rapidrintr.js runtime/rapidrintr_bg.wasm runtime/THIRD-PARTY-NOTICES.txt runtime/rapidr-webview.html; do
+    [ -f "$SITE/$f" ] || die "$SITE has no $f: tools/build_studio_web.sh makes the site"
+done
+# (the fallback fonts beside the interpreter, as every web build has them)
+[ -d "$SITE/runtime/fonts" ] || die "no $SITE/runtime/fonts: tools/build_web_artifacts.sh makes them"
+case "$SITE" in web-ide|web-ide/*|./web-ide*) die "web-ide/ is no longer shipped (docs/security-audit.md SEC-17)";; esac
 
 NAME="rapidr-web-$VERSION"
 STAGE="$WORK/web/$NAME"
 rm -rf "$WORK/web" && mkdir -p "$STAGE"
 trap 'rm -rf "$WORK/web"' EXIT
-git ls-files -z "$SITE" | while IFS= read -r -d '' f; do
-    rel="${f#"$SITE"/}"
-    [ -L "$f" ] && continue                      # (runtime/ → target/web: below)
-    mkdir -p "$STAGE/$(dirname "$rel")"
-    cp -p "$f" "$STAGE/$rel"
-done
-mkdir -p "$STAGE/runtime"
-cp target/web/rapidrintr.js target/web/rapidrintr_bg.wasm target/web/THIRD-PARTY-NOTICES.txt "$STAGE/runtime/"
-# (the fallback fonts beside the interpreter, as every web build has them)
-if [ -d target/web/fonts ]; then
-    cp -R target/web/fonts "$STAGE/runtime/fonts"
-elif [ -f tools/fonts.py ]; then
-    die "no target/web/fonts: tools/build_web_artifacts.sh makes them"
-fi
+cp -Rp "$SITE/." "$STAGE/"
 cp LICENSE NOTICE LEGAL.md LICENSES.md THIRD_PARTY_NOTICES.md "$STAGE/"
 rm -f "$OUT/$NAME.zip"
 (cd "$WORK/web" && zip -qr -X "$OUT/$NAME.zip" "$NAME")

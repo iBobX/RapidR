@@ -18,6 +18,8 @@
 <script type="module">
   // (the fallback fonts beside the runtime: crates/rapidr-runtime-web's fonts_web.rs)
   window.RAPIDR_FONTS = new URL("../target/web/fonts/", location.href).href;
+  // (the frame an RWEBVIEW's Html runs in, beside the runtime: overlay_web.rs)
+  window.RAPIDR_WEBVIEW_FRAME = new URL("../target/web/rapidr-webview.html", location.href).href;
   const rt = await import("../target/web/rapidrintr.js");
   await rt.default();
   window.rr = rt;

@@ -725,7 +725,7 @@ fn extras(kind: &Kind, crates: &BTreeSet<&str>, packages: &HashMap<(String, Stri
             declared: "OFL-1.1".into(),
             used: "OFL-1.1".into(),
             url: "https://github.com/liberationfonts/liberation-fonts".into(),
-            note: "Built into the program: Liberation Sans, Serif and Mono unmodified; RapidR Sans is Liberation Sans with MS Sans Serif's character widths and line metrics (renamed, under the same licence). Reserved Font Names: Liberation (and Arimo, Tinos, Cousine). The OFL lets the fonts be bundled with any software, commercial included; the fonts themselves may not be sold on their own.".into(),
+            note: "Built into the program: Liberation Sans, Serif and Mono unmodified; RapidR Sans is Liberation Sans with MS Sans Serif's character widths (a few a pixel wider, for readable text) and line metrics (renamed, under the same licence). Reserved Font Names: Liberation (and Arimo, Tinos, Cousine). The OFL lets the fonts be bundled with any software, commercial included; the fonts themselves may not be sold on their own.".into(),
             blocks: vec![Block { title: "Liberation fonts — OFL-1.1".into(), text: OFL.into() }],
         });
         out.push(Component {

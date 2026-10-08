@@ -1020,7 +1020,7 @@ Robert tried the preview (`development` @ `bb23d078`): forms showed too tall and
   - **Drag and drop** (`DragComponent`): the kernel routes the drag to any design surface it crosses (ghost shown) and adds the component where it is let go.
   - **`AddComponent(Type, X, Y)`**: -1, -1 means a free cascade spot in the selection's container (Enter on a toolbox item).
   - Visual components go into the panel, group box or scroll box under the point. Non-visual ones go to the tray, and QMENUITEMs go under the selected menu.
-  - Names are Delphi's (Button1, Button2 …), unique in the whole file, not only in the form (a `DIM Button1` makes the new one Button2).
+  - Names are Delphi's (Button1, CheckBox1, StringGrid1 …: the registry's new `display` field, each component's mixed-case spelling, which also replaced the language service's hand table), unique in the whole file, not only in the form (a `DIM Button1` makes the new one Button2).
   - **Typing right after adding writes the Caption / Text** (Delphi). Backspace corrects it; Enter or Escape ends it.
 - **Select, move, resize**: click, Shift / Ctrl / ⌘-click, rubber band, eight handles, anchor pins. A move snaps to the grid and smart guides, with a live `X, Y` / `W × H` readout; Alt turns snapping off. **Dropping on another container reparents** (the CREATE block moves into it, with the target highlighted). The mouse wheel scrolls a form larger than the pane.
 - **Keyboard** (the surface takes the focus):
@@ -1057,8 +1057,8 @@ From Rust (S-PANELS' inspector): edit `with_design_mut(name, |s| { s.designer.se
 **Tests.**
 - `rapidr-studio` `design::tests`: 9 cases: the first QFORM at its size; resize + add + undo to the exact text with the editor's line/col edits applied; names unique across the file; no form; double-click handler; reparenting into a panel; the keyboard (Tab, nudge, resize, Escape, typing a caption, Delete, Ctrl+Z); code with errors read-only.
 - `rapidr-value` `objects::design::tests`: 6 cases (the form's edges written with the anchored button, one undo).
-- `rapidr-ui-kernel` `components::design::tests`: the events through the kernel; the designer takes the focus.
-- `tests/studio_flows.mjs`: two new cases, `designer` and `designer-undo`, with real kernel input on both hosts. Notepad's right edge is dragged 60 px, a QBUTTON placed and moved; the code has `Width = 540` and Button1's CREATE block; undo × 3 equals the file. `tests/studio_shell.mjs`: a `designer` scene (four themes × 1× / 2×, desktop vs web byte for byte). A new test hook, `__key_N_S` (a key with RapidQ's Shift state: `__key_90_16` is Ctrl+Z), lives in rapidr-ui-app's script.
+- `rapidr-ui-kernel` `components::design::tests`: the events through the kernel; the designer takes the focus; a component dragged in from elsewhere (its ghost on the grid, dropped where the mouse lets go, Escape cancels) — this test found the ghost cleared by the surface's own hover and the drop placed by the pane-relative rectangle (both fixed).
+- `tests/studio_flows.mjs`: three new cases, `designer`, `designer-add` (AddComponent through the method, CheckBox1) and `designer-undo`, with real kernel input on both hosts. Notepad's right edge is dragged 60 px, a QBUTTON placed and moved; the code has `Width = 540` and Button1's CREATE block; undo × 3 equals the file. `tests/studio_shell.mjs`: a `designer` scene (four themes × 1× / 2×, desktop vs web byte for byte). A new test hook, `__key_N_S` (a key with RapidQ's Shift state: `__key_90_16` is Ctrl+Z), lives in rapidr-ui-app's script.
 - Real input on macOS (`scratch/real.sh` in the lane's worktree, `tools/real_input.py`): ghost, click-to-place, bottom-edge resize, drag and ⌘Z. This found two bugs, both fixed: a stuck ⌘ kept the placing tool armed (now only Shift does), and a press outside the form placed a component outside it (now refused).
 
 **Benchmarked against Delphi and Xcode** (docs/studio-wow.md's DES items):

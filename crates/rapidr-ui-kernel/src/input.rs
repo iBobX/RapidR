@@ -398,6 +398,10 @@ impl FormUi {
             self.edit_commands(store, ts, clip);
             return;
         }
+        // (I4: Escape drops a component being dragged in from a toolbox)
+        if vk == 27 && crate::components::design::drop_cancel(self, store) {
+            return;
+        }
         let chain = self.key_chain();
         self.events.push(KernelEvent::KeyDown { chain: chain.clone(), vk, shift: mods.shift_state(), text: text.to_string() });
         // (the input lane's: F10 selects the in-window menu bar, after its

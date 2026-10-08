@@ -3,6 +3,7 @@ group = "IDE"
 
 [[component]]
 name = "RPROJECT"
+display = "Project"
 visual = false
 default_event = "OnChange"
 doc = "A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a .bas / .rr file with the files it $INCLUDEs, RapidQ's way. Lists the project's files and their kinds, adds and removes files, saves the project file, and makes new projects from templates. RapidR Studio is built on it."
@@ -34,6 +35,7 @@ events = [
 
 [[component]]
 name = "RLANGUAGESERVICE"
+display = "LanguageService"
 visual = false
 doc = "RapidR's language service, the one rapidr lsp and the VS Code extension use: a BASIC file's outline and its diagnostics (the compiler's own messages), as text one item a line, fields separated by tabs. Give it the editor's text with Update."
 properties = [
@@ -50,6 +52,7 @@ events = []
 
 [[component]]
 name = "RPROGRAMSESSION"
+display = "ProgramSession"
 visual = false
 default_event = "OnOutput"
 doc = "A run of a program under development, as an IDE runs it: in its own process on the desktop (its forms real windows), in a sandboxed frame on the web. Start, stop, pause, step, breakpoints, evaluate; its output and its stops come as events."

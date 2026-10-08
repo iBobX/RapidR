@@ -352,8 +352,14 @@ impl FormDesign {
         (1..).map(|n| format!("{base}{n}")).find(|n| self.find(n).is_none()).unwrap_or_default()
     }
 
-    /// The name a new component of this type gets (`QBUTTON` → `Button1`).
+    /// The name a new component of this type gets, after its name in
+    /// mixed case as the registry spells it (`QBUTTON` → `Button1`,
+    /// `QCHECKBOX` → `CheckBox1`, `QSTRINGGRID` → `StringGrid1`), as Delphi
+    /// and VB name them.
     pub fn new_name(&self, type_written: &str) -> String {
+        if let Some(c) = rapidr_lang::component(type_written) {
+            return self.unique_name(c.display);
+        }
         let t = type_written.to_ascii_uppercase();
         let short = t.strip_prefix('Q').or_else(|| t.strip_prefix('R')).unwrap_or(&t);
         let mut base: String = short.chars().take(1).collect();

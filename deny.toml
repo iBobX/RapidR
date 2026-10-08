@@ -9,17 +9,20 @@
 all-features = false
 
 [advisories]
-# Vulnerabilities and unsound crates always fail. Unmaintained crates fail
-# unless listed here with a justification.
+# Vulnerabilities, unsound and unmaintained crates fail (cargo-deny reports
+# unsound ones only when told to: memmap2 0.9.10, SEC-20) unless listed here
+# with a justification. .cargo/audit.toml keeps cargo-audit in step.
 unmaintained = "all"
+unsound = "all"
 ignore = [
-    # proc-macro-error2: compile-time only, pulled in by mysql-common-derive
-    # (mysql 25). Never runs in shipped apps. Revisit on the next mysql upgrade.
-    { id = "RUSTSEC-2026-0173", reason = "build-time proc-macro via mysql-common-derive; not in shipped code" },
-    # ttf-parser 0.25 is unmaintained (informational, no vulnerability):
-    # rapidr-value reads the built-in Liberation fonts with it
-    # (objects/text.rs), winit's Wayland title bars through ab_glyph.
-    # skrifa, already in the tree through parley and vello, is the way off.
+    # ttf-parser 0.25 is unmaintained (informational, no vulnerability;
+    # docs/security-audit.md SEC-20). It never sees untrusted data:
+    # rapidr-value reads only the fonts built into RapidR with it
+    # (objects/text.rs `face_data`: include_bytes!, pinned by
+    # tests/security/supply_chain.mjs), and winit's Wayland title bars
+    # (sctk-adwaita → ab_glyph) the system's own fonts. skrifa, already in
+    # the tree through parley and vello, is the way off; revisit when
+    # sctk-adwaita moves.
     { id = "RUSTSEC-2026-0192", reason = "unmaintained, no known vulnerability; rapidr-value's font reader (objects/text.rs)" },
 ]
 

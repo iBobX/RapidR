@@ -37,7 +37,7 @@ their `OFL.txt`.
 | alsa | 0.9.1 | <https://github.com/diwic/alsa-rs> |
 | android-activity | 0.6.1 | <https://github.com/rust-mobile/android-activity> |
 | android_system_properties | 0.1.5 | <https://github.com/nical/android_system_properties> |
-| anyhow | 1.0.102 | <https://github.com/dtolnay/anyhow> |
+| anyhow | 1.0.104 | <https://github.com/dtolnay/anyhow> |
 | arboard | 3.6.1 | <https://github.com/1Password/arboard> |
 | arc-swap | 1.9.2 | <https://github.com/vorner/arc-swap> |
 | arrayvec | 0.7.6 | <https://github.com/bluss/arrayvec> |
@@ -172,7 +172,7 @@ their `OFL.txt`.
 | lock_api | 0.4.14 | <https://github.com/Amanieu/parking_lot> |
 | log | 0.4.29 | <https://github.com/rust-lang/log> |
 | lsp-server | 0.10.0 | <https://github.com/rust-lang/rust-analyzer/tree/master/lib/lsp-server> |
-| memmap2 | 0.9.10 | <https://github.com/RazrFalcon/memmap2-rs> |
+| memmap2 | 0.9.11 | <https://github.com/RazrFalcon/memmap2-rs> |
 | mime | 0.3.17 | <https://github.com/hyperium/mime> |
 | muda | 0.21.0 | <https://github.com/tauri-apps/muda> |
 | mysql | 28.0.3 | <https://github.com/blackbeam/rust-mysql-simple> |

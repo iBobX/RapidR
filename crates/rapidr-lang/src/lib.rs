@@ -224,6 +224,11 @@ pub struct Event {
 pub struct Component {
     /// RapidR's name (upper case: `RBUTTON`); a global object's as written (`Screen`).
     pub name: &'static str,
+    /// Its name in mixed case without the Q / R, as RapidQ's documentation
+    /// spells its classes (`CheckBox`, `StringGrid`, `DXScreen`): what a
+    /// designer names new ones after (CheckBox1) and how tools show it
+    /// ([`Component::pretty`]); a global object's name.
+    pub display: &'static str,
     /// RapidQ's name, when RapidQ has the component.
     pub rapidq: Option<&'static str>,
     /// The include file RapidQ's name comes from, when it isn't RC.EXE's own.
@@ -486,6 +491,19 @@ impl Component {
     /// (docs/q-and-r-components.md §4).
     pub fn written_name(&self) -> &'static str {
         self.rapidq.unwrap_or(self.name)
+    }
+
+    /// One of its names (`QCHECKBOX`, `rcheckbox`) in mixed case
+    /// (`QCheckBox`, `RCheckBox`); a name that isn't Q / R + its stem (an
+    /// alias) as it is.
+    pub fn pretty(&self, written: &str) -> String {
+        if self.kind == Kind::Global {
+            return self.display.to_string();
+        }
+        match written.split_at_checked(1) {
+            Some((first, rest)) if rest.eq_ignore_ascii_case(self.display) => format!("{}{}", first.to_ascii_uppercase(), self.display),
+            _ => written.to_string(),
+        }
     }
 
     /// Its global object's component, for an instance (Printer → RPRINTER).

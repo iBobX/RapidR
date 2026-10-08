@@ -1459,6 +1459,10 @@ impl DesignSurface {
     /// The mouse moved over the surface with no button down (`free`: Alt):
     /// the placing tool's ghost follows it.
     pub fn mouse_hover(&mut self, x: i64, y: i64, free: bool) {
+        // (a component dragged in: the kernel's drop routing shows its ghost)
+        if drop_pending().is_some() {
+            return;
+        }
         if self.place_type.is_empty() || self.no_form() {
             self.ghost = None;
             return;

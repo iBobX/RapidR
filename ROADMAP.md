@@ -90,7 +90,7 @@ Other notes: ~84 unit tests for ~40k LoC; no cross-backend conformance tests.
 | SEC-08 | Review | ~~23 `unsafe` in web host; event dispatcher stores leaked raw `*mut Vm` → possible aliasing/UB on re-entrant events~~ fixed in v2.30.0: events are queued and run by the VM itself; the VM and both hosts `#![forbid(unsafe_code)]`. Remaining: 68 `unsafe` in FFI | `crates/rapidr-runtime-core/src/ffi.rs` | Document invariants; Miri |
 | SEC-09 | Gap | ~~No cargo-deny~~ (done v2.8.4); no fuzzing, no SECURITY.md; IDE loads Google Fonts (third-party) | — | Phase 0 + Phase 6 |
 | SEC-11 | High | Build server preview path traversal: `dir.join(rel).starts_with(dir)` does not catch `..` → arbitrary file read | `crates/rapidr-buildserver/src/main.rs` (`serve_preview_path`) | Reject any non-`Normal` path component |
-| SEC-12 | Medium | `RWebView.HTML` uses `srcdoc` with default sandbox `allow-scripts allow-same-origin` → HTML runs with the app's origin | `crates/rapidr-runtime-web/src/gui_web.rs` (`"html"` prop, iframe creation ~:2201) | Drop `allow-same-origin` for `srcdoc` content by default; opt-in property |
+| SEC-12 | ~~Medium~~ fixed (SEC-15 pass) | `RWebView.HTML` uses `srcdoc` with default sandbox `allow-scripts allow-same-origin` → HTML runs with the app's origin | `crates/rapidr-runtime-web/src/gui_web.rs` (`"html"` prop, iframe creation ~:2201) | Drop `allow-same-origin` for `srcdoc` content by default; opt-in property |
 | SEC-13 | Low | IDE preview: `RHttp` to relative URLs needs CORS headers from the IDE's server now that the preview is opaque-origin; origin-bound browser APIs (notifications) may be unavailable in preview | `web-ide/preview.html` | Document; optionally proxy same-server requests through the IDE bridge (needs async RHttp) |
 | SEC-10 | Gap | `$INCLUDE` resolves arbitrary paths; projects with `RUSTSTART` / `DECLARE … LIB` get no warning on open/build | `crates/rapidr-preprocessor/src/lib.rs` | Confine includes to project root in IDE/MCP contexts; "native-privileged" project flag + confirmation |
 
@@ -125,7 +125,13 @@ Missing: compiler diagnostics as editor markers, ~~undo/redo~~ (done v2.9.0), im
 - [x] Track all of `tests/` in git (generated outputs ignored)
 - [ ] Run the web IDE Playwright suites in CI (wasm-pack build + static server + Playwright)
 - [x] SEC-07: SQL parameter binding (SQLite, MySQL, web SQLite) — `Query(sql, values…)`, `AddParam`, `ClearParams`; the web runs SQLite itself (wasm) instead of its imitation (v2.114.0)
-- [ ] CSP generated per bundle from components used (e.g. `'unsafe-eval'` only if `RJavaScript` is used; `connect-src` for `RHttp`/`RAI` hosts; `frame-src` for `RWebView`)
+- [x] CSP generated per bundle from components used (`'unsafe-eval'` only with RJAVASCRIPT; `connect-src https: wss:` with RHTTP / RSOCKET / RDOWNLOAD, plus the origins the program spells out; `frame-src` only with RWEBVIEW; `object-src 'none'`, `base-uri 'none'`); the author's additions by `--csp`; `_headers` / `.htaccess` with the same policy plus `frame-ancestors` (SEC-15, docs/security-audit.md)
+- [x] SEC-12: RWEBVIEW's frame defaults to no `allow-same-origin` (its `Sandbox` is the opt-in), and its Html runs in `rapidr-webview.html`, a frame of its own, not in an `srcdoc` that would inherit the page's policy (SEC-15)
+- [x] SEC-16: the project's and its files' names escaped for where they go (HTML text / attribute, JS string, URL, file name); no name is written into a script (loader.js and start.js are fixed files)
+- [x] SEC-17: the release's web bundle is RapidR Studio's (`tools/release/web.sh` → `tools/build_studio_web.sh`); program bundles carry nothing of `web-ide/` (rapidr-webbundle's own `web/` files)
+- [x] SEC-18: `rapidr lsp` reads only the workspace folders and the open documents' folders; `rapidr dap` launches only RapidR programs and passes no loader variables (`LD_*`, `DYLD_*`, `PATH` …); `rapidr mcp`'s authentication designed (docs/security-audit.md §7)
+- [x] SEC-20: memmap2 0.9.11, anyhow 1.0.104, `unsound = "all"` in deny.toml, stale ignore gone, `.cargo/audit.toml`; ttf-parser parses only RapidR's built-in fonts (pinned by tests/security/supply_chain.mjs)
+- [ ] Sign `SHA256SUMS` (minisign proposed, docs/security-audit.md §8): Robert to decide on the key
 - [ ] Single language registry → generate `lang-data.js`, VS Code data, manual sections (planned as the IDE's stage I0, [docs/ide-plan.md](docs/ide-plan.md))
 
 ## Phase 1 — RapidQ & VB compatibility (~6–8 weeks)

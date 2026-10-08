@@ -126,3 +126,36 @@ fn the_mouse_selects_moves_and_clears_with_the_designers_events() {
     let json = tree.to_json();
     assert!(json.contains("Button1 (RBUTTON)") && json.contains("\"listbox\""), "{json}");
 }
+
+#[test]
+fn a_component_dragged_in_from_elsewhere_is_dropped_where_the_mouse_lets_go() {
+    // (a frameless 300 × 200 form read from a program: its client 12 px
+    // into the surface, the surface 10 px into its window)
+    let form = Subtree { id: 0, name: "Main".into(), type_written: "QFORM".into(), body: vec![p("Width", "300"), p("Height", "200"), p("BorderStyle", "0")] };
+    let (s, mut f, mut ts, _) = shown(form, (360, 260));
+    let at = (10.0 + 12.0 + 41.5, 10.0 + 12.0 + 33.5);
+    // the press elsewhere (a toolbox), the drag over the surface, the release
+    rapidr_value::objects::design::begin_drop("QBUTTON");
+    f.mouse_move(&s, &mut ts, at.0, at.1, Mods::NONE);
+    let ghost = rapidr_value::objects::with_design("ds", |d| d.ghost.clone()).flatten();
+    assert_eq!(ghost.map(|(r, t)| (r.left, r.top, t)), Some((40, 32, "QBUTTON".to_string())), "the ghost on the grid");
+    f.mouse_up(&s, &mut ts, at.0, at.1, rapidr_value::input::Button::Left, Mods::NONE);
+    assert!(rapidr_value::objects::design::drop_pending().is_none(), "the drag ended");
+    assert_eq!(rapidr_value::objects::with_design("ds", |d| (d.ids().len(), d.root_name())), Some((1, "Main".to_string())));
+    assert_eq!(rapidr_value::objects::with_design_mut("ds", |d| d.call("getcompx", &[v_int(0)])).flatten(), Some(v_int(40)));
+    let events: Vec<String> = f
+        .take_events()
+        .into_iter()
+        .filter_map(|e| match e {
+            KernelEvent::List(id, ListAction::Fire(ev, _)) if id == "ds" => Some(ev),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(events, ["onchange", "onselect"]);
+    // Escape drops a drag without adding
+    rapidr_value::objects::design::begin_drop("QEDIT");
+    let mut clip = crate::MemClipboard::default();
+    f.key_down(&s, &mut ts, 27, "", Mods::NONE, &mut clip);
+    assert!(rapidr_value::objects::design::drop_pending().is_none());
+    assert_eq!(rapidr_value::objects::with_design("ds", |d| d.ids().len()), Some(1));
+}
