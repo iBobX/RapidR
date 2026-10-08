@@ -424,6 +424,8 @@ impl Dialog {
         let size_index = s.sizes.iter().position(|v| *v == font.size).map_or(-1, |i| i as i64);
         let color_index = s.colors.iter().position(|(_, c)| *c == font.color).map_or(-1, |i| i as i64);
         let unselected = s.unselected;
+        // (a system colour kept: the sample in the theme's ink for it)
+        let ink = s.req.system_ink.filter(|(low, _)| *low == font.color).map(|(_, ink)| ink);
         for (k, (part, index)) in [("font", font_index), ("style", style), ("size", size_index)].into_iter().enumerate() {
             let id = self.child(part);
             self.set(&id, "itemindex", Value::Integer(if unselected[k] { -1 } else { index }));
@@ -436,7 +438,7 @@ impl Dialog {
         self.set(&id, "itemindex", Value::Integer(color_index));
         // (the sample in the font: its Font properties)
         let sample = self.child("sample");
-        for (p, v) in fd::properties(&font) {
+        for (p, v) in fd::properties(&Font { color: ink.unwrap_or(font.color), ..font }) {
             self.set(&sample, p, v);
         }
     }

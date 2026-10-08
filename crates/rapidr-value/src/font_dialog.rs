@@ -65,6 +65,11 @@ pub struct Request {
     pub max: i64,
     /// The options' bits (bit n: option n on).
     pub options: i64,
+    /// The font's colour was a system colour (clWindowText …): its low
+    /// bytes (`font.color`, what the colour list shows: "Custom") and the
+    /// colour the theme draws it in — the sample's ink while the user
+    /// keeps it (black on RapidQ's look, readable on a dark one).
+    pub system_ink: Option<(i64, i64)>,
 }
 
 impl Request {
@@ -127,12 +132,18 @@ pub fn request(get: &dyn Fn(&str) -> Value) -> Request {
             styles |= 1 << i;
         }
     }
+    let raw = either("color", "fontcolor").to_i64();
+    let system_ink = (raw as u32 & 0xFF00_0000 == 0x8000_0000).then(|| (raw & 0xFF_FFFF, i64::from(crate::objects::color_bgr(raw))));
     let options = match get("options") {
         Value::Null => DEFAULT_OPTIONS,
         v => v.to_i64(),
     };
     Request {
-        font: Font { name: if name.trim().is_empty() { defaults.name } else { name }, size: if size > 0 { size } else { defaults.size }, color: crate::objects::color_bgr(either("color", "fontcolor").to_i64()) as i64, styles },
+        // (the colour as ChooseFont takes it, a COLORREF: a system colour
+        // isn't looked up — RC.EXE's dialog shows clWindowText, and
+        // clWindow too, as "Custom", the swatch its low bytes, black)
+        font: Font { name: if name.trim().is_empty() { defaults.name } else { name }, size: if size > 0 { size } else { defaults.size }, color: either("color", "fontcolor").to_i64() & 0xFF_FFFF, styles },
+        system_ink,
         min: get("minfontsize").to_i64(),
         max: get("maxfontsize").to_i64(),
         options,
@@ -328,7 +339,8 @@ mod tests {
         let p = store(defaults());
         let get = |k: &str| p.get(k).cloned().unwrap_or(Value::Null);
         let r = request(&get);
-        assert_eq!(r.font, Font::default());
+        // (Color clWindowText at first: the dialog's "Custom", its low bytes)
+        assert_eq!(r.font, Font { color: 8, ..Font::default() });
         assert!(r.has(FD_EFFECTS) && !r.has(FD_APPLY_BUTTON));
         assert_eq!(r.sizes(), SIZES.to_vec());
         assert_eq!(get("fontcount").to_i64(), 8);
@@ -391,6 +403,12 @@ mod tests {
         assert_eq!(color_index(0x0000FF), Some(9));
         r.font.color = 0x123456;
         assert_eq!(r.colors().last().map(|(n, c)| (n.as_str(), *c)), Some(("Custom", 0x123456)));
+        // (a system colour: "Custom", its low bytes — RC.EXE's dialog; black
+        // itself is Black)
+        let sys = request(&|p| if p == "color" { v_int(crate::component_defaults::CL_WINDOW_TEXT) } else { Value::Null });
+        assert_eq!(sys.colors().last().map(|(n, c)| (n.as_str(), *c)), Some(("Custom", 8)));
+        let black = request(&|p| if p == "color" { v_int(0) } else { Value::Null });
+        assert_eq!(black.colors().len(), COLORS.len());
         assert_eq!(parse_answer("Courier New, 14, bu, 255"), Some(Font { name: "Courier New".into(), size: 14, color: 255, styles: 0b101 }));
         assert_eq!(parse_answer(" "), None);
         assert_eq!(alias("name"), Some("fontname"));
