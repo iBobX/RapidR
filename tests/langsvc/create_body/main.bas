@@ -10,7 +10,7 @@ END CREATE
 Form.|
 Btn.Cap|tion = "Again"
 Form.Show|Modal
-'! 1 hover has "QButton.Caption" "property of QButton"
+'! 1 hover has "QButton.Caption" "of QButton*"
 '! 2 completion has Caption Left OnClick CREATE
 '! 2 completion lacks PRINT Form MID$
 '! 3 completion has Caption ShowModal OnClose Width
