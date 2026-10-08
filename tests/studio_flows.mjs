@@ -605,14 +605,15 @@ const CASES = [
   },
   {
     // a click in the gutter's marker column (line 6: 100–120 px down the
-    // editor) sets a breakpoint there, as F9 does; F5 stops at it
+    // editor) sets a breakpoint there, as F9 does (the test's events come
+    // after the commands: running from it is debug-breakpoint's)
     name: "debug-gutter-click",
     open: "tests/fixtures/studio_debug/counter.rr",
     webFiles: DEBUG_FILES,
     events: "codedoc(0).__mousedown_12_110,codedoc(0).__mouseup_12_110",
-    do: "wait,wait,run.start,wait,wait,wait",
-    delay: 6,
-    dump: { "bptree.text": /^counter\.rr:6$/, "session.state": /^paused$/, "session.currentline": /^6$/ },
+    do: "wait",
+    delay: 3,
+    dump: { "bptree.text": /^counter\.rr:6$/, "session.state": /^stopped$/ },
   },
   {
     // F11 into AddUp: tally.inc opens at its line (the editor follows the
