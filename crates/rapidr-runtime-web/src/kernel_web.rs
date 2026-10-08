@@ -285,6 +285,10 @@ fn sync() {
 /// The events the host queued, each dispatched to completion (a kernel-drawn
 /// dialog's to it, the program's as its events).
 fn dispatch_pending() {
+    // (the paints a new size posted: rapidr_value::events::post_paint)
+    for name in rapidr_value::events::take_posted_paints() {
+        crate::object_web::rp_fire_event(&name, "onpaint");
+    }
     loop {
         let events = host::with(|h, _| std::mem::take(&mut h.desk.events)).unwrap_or_default();
         if events.is_empty() {

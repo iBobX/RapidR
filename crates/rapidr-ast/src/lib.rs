@@ -2269,6 +2269,10 @@ pub fn create_property_reads(program: &Program) -> Program {
                                 for arg in &mut call.args {
                                     walk_expression_mut(arg, read);
                                 }
+                                // (`Font.AddStyles(fsBold)`: the object's Font)
+                                if let Expression::MemberAccess(m) = &mut call.callee {
+                                    walk_expression_mut(&mut m.object, read);
+                                }
                             }
                             other => walk_expressions_mut(std::slice::from_mut(other), false, read),
                         }
@@ -2373,6 +2377,32 @@ pub fn component_type_reference(name: &str, own_types: &[String]) -> String {
     }
 }
 
+thread_local! {
+    /// The TYPEs of the program being compiled whose names RapidR would
+    /// otherwise take for one of its components (upper case):
+    /// [`set_program_types`].
+    static PROGRAM_TYPES: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// The program being parsed defines these TYPEs (the parser, before it
+/// parses a program): a name among them that RapidR's Q-to-R rule would
+/// make a RapidR component (`TYPE QToolBar EXTENDS QPanel`, RapidQ's
+/// QToolbar example — RapidQ has no QTOOLBAR) stays the program's TYPE.
+/// RapidQ's own component names can't be TYPE names in RapidQ, and the
+/// include libraries' (QBEVEL, QDIGDISPLAY) are decided by the parser.
+pub fn set_program_types(names: &[String]) {
+    let mine: Vec<String> = names
+        .iter()
+        .map(|n| n.to_ascii_uppercase())
+        .filter(|n| !is_include_library_component(n) && n.strip_prefix('Q').is_some_and(|rest| rapidr_lang::component(&format!("R{rest}")).is_some_and(|c| c.rapidq.is_none())))
+        .collect();
+    PROGRAM_TYPES.with(|t| *t.borrow_mut() = mine);
+}
+
+fn is_program_type(upper: &str) -> bool {
+    PROGRAM_TYPES.with(|t| t.borrow().iter().any(|n| n == upper))
+}
+
 /// RapidQ names its components QForm, QButton, …; RapidR's are RForm,
 /// RButton, …. Maps a RapidQ component name to RapidR's (uppercase), and
 /// leaves every other type name unchanged.
@@ -2384,6 +2414,11 @@ pub fn canonical_type_name(type_name: &str) -> String {
     }
     // (an include library's component: the parser decided already)
     if is_include_library_component(&upper) {
+        return type_name.to_string();
+    }
+    // (the program's own TYPE QTOOLBAR — RapidQ has none, RapidR's prefix
+    // rule would make it RTOOLBAR: the program's TYPE, as in RapidQ)
+    if is_program_type(&upper) {
         return type_name.to_string();
     }
     if let Some(rest) = upper.strip_prefix('Q') {

@@ -300,6 +300,10 @@ pub fn step(max_wait: Option<Duration>) {
 /// The events the host queued, handled (each to completion; a handler may
 /// step again).
 fn dispatch_pending() {
+    // (the paints a new size posted: rapidr_value::events::post_paint)
+    for name in rapidr_value::events::take_posted_paints() {
+        crate::object::rp_fire_event(&name, "onpaint");
+    }
     for e in with_kern(|k| std::mem::take(&mut k.desk.events)).unwrap_or_default() {
         match e {
             // (a kernel-drawn dialog's: never the program's)

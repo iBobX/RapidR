@@ -379,10 +379,12 @@ impl<'src> Lexer<'src> {
                     ));
                 }
                 // `.5` is a number (`SetRGBA(.1, 1, .1, .7)`), not a WITH
-                // member, unless it follows a value (`a.5` stays a member).
+                // member, unless it follows a value right after it (`a.5`
+                // stays a member; `SLEEP .1` — RapidQ's examples — sleeps a
+                // tenth of a second).
                 '.' if matches!(self.peek_char(1), Some('0'..='9'))
                     && !tokens.last().is_some_and(|t| {
-                        matches!(t.kind, TokenType::Identifier | TokenType::RParen | TokenType::RBracket | TokenType::Number | TokenType::String)
+                        t.span.end == start && matches!(t.kind, TokenType::Identifier | TokenType::RParen | TokenType::RBracket | TokenType::Number | TokenType::String)
                     }) =>
                 {
                     tokens.push(self.lex_decimal_number(start, line, column));

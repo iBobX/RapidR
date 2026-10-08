@@ -303,3 +303,33 @@ pub fn modal_result(stored: i64) -> i64 {
     }
 }
 
+
+// ---------------------------------------------------------------------------
+// OnPaint for a new size: posted, as Windows posts WM_PAINT
+// ---------------------------------------------------------------------------
+
+thread_local! {
+    /// Components whose new size asks them to paint, oldest first, not yet
+    /// told (each once).
+    static PAINTS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+}
+
+/// A canvas or form `name` changed size: its OnPaint comes when the program
+/// next lets its windows work (ShowModal, DOEVENTS, the end of the main
+/// program …: the runtimes' [`take_posted_paints`]) — not while the program
+/// is still setting things up, as RapidQ's comes in the message loop
+/// (RapidQ's Splitter example draws bitmaps it makes after its form).
+pub fn post_paint(name: &str) {
+    PAINTS.with(|p| {
+        let mut p = p.borrow_mut();
+        if !p.iter().any(|n| n.eq_ignore_ascii_case(name)) {
+            p.push(name.to_string());
+        }
+    });
+}
+
+/// The posted paints, oldest first (the queue emptied): fire each one's
+/// OnPaint now.
+pub fn take_posted_paints() -> Vec<String> {
+    PAINTS.with(|p| std::mem::take(&mut *p.borrow_mut()))
+}

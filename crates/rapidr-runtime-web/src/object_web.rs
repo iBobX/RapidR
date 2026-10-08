@@ -406,6 +406,16 @@ pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
 }
 
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
+    // (a font style keeps 1 or 0, RapidQ's: rapidr_value::objects::font)
+    let val = rapidr_value::objects::font::component_style(prop, &val).map_or(val, |(_, _, v)| v);
+    // (the program's first font change of a component: the font it had from
+    // its parents becomes its own — Delphi's ParentFont ends)
+    let t = rp_comp_type(name);
+    if !t.is_empty() && !rapidr_value::objects::TYPES.contains(&t.as_str()) {
+        for (p, v) in rapidr_value::objects::own_font_from_parents(name, prop, &|i, p| rp_comp_get(i, p)) {
+            set_property(name, p, v);
+        }
+    }
     // (a Color or a Parent changed: the canvases' backdrops follow)
     let backdrops = prop.eq_ignore_ascii_case("color") || prop.eq_ignore_ascii_case("parent");
     // (an AutoSize QLABEL's Caption, WordWrap, AutoSize, font or Parent: it
@@ -714,7 +724,7 @@ fn set_property(name: &str, prop: &str, val: Value) {
 
     // `Form.Font.Size = 12` and `FontSize = 12` are one property (as on the
     // desktop): the flat name is what drawing and the DOM read.
-    for (dotted, flat) in [("font.name", "fontname"), ("font.size", "fontsize"), ("font.bold", "fontbold"), ("font.italic", "fontitalic"), ("font.color", "fontcolor")] {
+    for (dotted, flat) in [("font.name", "fontname"), ("font.size", "fontsize"), ("font.bold", "fontbold"), ("font.italic", "fontitalic"), ("font.underline", "fontunderline"), ("font.strikeout", "fontstrikeout"), ("font.color", "fontcolor")] {
         if lprop == dotted {
             rp_comp_set(name, flat, val.clone());
         } else if lprop == flat {
@@ -832,7 +842,7 @@ fn set_property(name: &str, prop: &str, val: Value) {
     } else if matches!(lprop.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(&uname) {
         crate::kernel_web::redraw();
         if !rapidr_value::objects::is_form_surface(&uname) && canvas_size_before != Some(rp_comp_get_stored(name, &lprop).to_i64()) {
-            rp_fire_event(&uname, "onpaint");
+            rapidr_value::events::post_paint(&uname);
         }
     }
     // A form's new size: it paints again.
@@ -842,7 +852,7 @@ fn set_property(name: &str, prop: &str, val: Value) {
         if rapidr_value::mdi::is_mdi(&uname) {
             crate::mdi_web::resized(&uname);
         }
-        rp_fire_event(&uname, "onpaint");
+        rapidr_value::events::post_paint(&uname);
     }
     // A child window's frame shows its title and whether it's active.
     if matches!(lprop.as_str(), "caption" | "active" | "childstate") && rp_comp_type(&uname) == "RMDICHILD" {
@@ -1146,6 +1156,13 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     // HideTitleBar, ShapeForm, QFORM's MDI methods, StartDrag (form_members_web.rs).
     if let Some(v) = crate::form_members_web::method(name, &rp_comp_type(&uname), &lmethod, args) {
         return v;
+    }
+    // `Label.Font.AddStyles(fsBold)` / `DelStyles`: the component's styles.
+    if let Some(changes) = rapidr_value::objects::font::component_style_call(&lmethod, args) {
+        for (p, v) in changes {
+            rp_comp_set(name, p, v);
+        }
+        return v_null();
     }
     // (the I/O and media lane's: io_web.rs)
     if let Some((sub, member)) = crate::io_web::sub_component(name, &lmethod) {

@@ -345,7 +345,7 @@ mod tests {
         let font = crate::objects::font_properties("fd_test_font").unwrap();
         let f = |k: &str| font.iter().find(|(p, _)| *p == k).unwrap().1.clone();
         // (GetFont took the QFONT's styles: italic, no longer underlined)
-        assert_eq!((f("fontname").to_string_val().as_str(), f("fontstrikeout").to_i64(), f("fontitalic").to_i64(), f("fontunderline").to_i64()), ("Verdana", -1, -1, 0));
+        assert_eq!((f("fontname").to_string_val().as_str(), f("fontstrikeout").to_i64(), f("fontitalic").to_i64(), f("fontunderline").to_i64()), ("Verdana", 1, 1, 0));
         crate::objects::remove("fd_test_font");
     }
 

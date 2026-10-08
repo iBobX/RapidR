@@ -215,6 +215,16 @@ pub fn rp_component_array(kind: &str, name: &str, bounds: &[(i64, i64)]) -> Valu
 
 /// Set a property on a registered component.
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
+    // (a font style keeps 1 or 0, RapidQ's: rapidr_value::objects::font)
+    let val = rapidr_value::objects::font::component_style(prop, &val).map_or(val, |(_, _, v)| v);
+    // (the program's first font change of a component: the font it had from
+    // its parents becomes its own — Delphi's ParentFont ends)
+    let t = rp_comp_type(name);
+    if !t.is_empty() && !rapidr_value::objects::TYPES.contains(&t.as_str()) {
+        for (p, v) in rapidr_value::objects::own_font_from_parents(name, prop, &|i, p| rp_comp_get(i, p)) {
+            set_property(name, p, v);
+        }
+    }
     // (a Color or a Parent changed: the canvases' backdrops follow)
     let backdrops = prop.eq_ignore_ascii_case("color") || prop.eq_ignore_ascii_case("parent");
     // (an AutoSize QLABEL's Caption, WordWrap, AutoSize, font or Parent: it
@@ -568,6 +578,8 @@ fn set_property(name: &str, prop: &str, val: Value) {
         ("font.size", "fontsize"),
         ("font.bold", "fontbold"),
         ("font.italic", "fontitalic"),
+        ("font.underline", "fontunderline"),
+        ("font.strikeout", "fontstrikeout"),
         ("font.color", "fontcolor"),
     ];
     for &(dotted, flat) in aliases {
@@ -690,7 +702,7 @@ fn set_property(name: &str, prop: &str, val: Value) {
         crate::ui::canvas_redraw(name);
         // (a form's is fired below, once its size really changed)
         if !rapidr_value::objects::is_form_surface(name) && canvas_size_before != Some(rp_comp_get(name, &prop_lower).to_i64()) {
-            rp_fire_event(name, "onpaint");
+            rapidr_value::events::post_paint(name);
         }
     }
     // A form's new size: it paints again (drawn on its surface, or its
@@ -700,7 +712,7 @@ fn set_property(name: &str, prop: &str, val: Value) {
         if rapidr_value::mdi::is_mdi(name) {
             crate::mdi::resized(name);
         }
-        rp_fire_event(name, "onpaint");
+        rapidr_value::events::post_paint(name);
     }
     // A QIMAGE's AutoSize / Stretch / Center, or its size with Stretch.
     if matches!(prop_lower.as_str(), "autosize" | "stretch" | "center" | "width" | "height") && rapidr_value::objects::is_picture(name) {
@@ -1037,6 +1049,13 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     // HideTitleBar, ShapeForm, QFORM's MDI methods, StartDrag (form_members.rs).
     if let Some(v) = crate::form_members::method(name, &comp_type, &method_lower, args) {
         return v;
+    }
+    // `Label.Font.AddStyles(fsBold)` / `DelStyles`: the component's styles.
+    if let Some(changes) = rapidr_value::objects::font::component_style_call(&method_lower, args) {
+        for (p, v) in changes {
+            rp_comp_set(name, p, v);
+        }
+        return v_null();
     }
     // A file dialog's Files(i): the folder (0), then the picked names.
     // (the I/O and media lane's: QCGI, QCOMPORT, QDOWNLOAD … — io.rs)

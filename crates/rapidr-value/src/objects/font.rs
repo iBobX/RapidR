@@ -45,9 +45,37 @@ pub const FONT_NAMES: &[&str] = &["Arial", "Courier New", "Times New Roman", "MS
 
 const STYLE_NAMES: [&str; 4] = ["bold", "italic", "underline", "strikeout"];
 
+/// A component's font styles as flat properties, by style number (fsBold 0 …
+/// fsStrikeOut 3), and as the program writes them (`Label.Font.Bold`).
+const COMPONENT_STYLES: [(&str, &str); 4] = [("fontbold", "font.bold"), ("fontitalic", "font.italic"), ("fontunderline", "font.underline"), ("fontstrikeout", "font.strikeout")];
+
+/// A component's font style set (`Label.Font.Underline = 5`, `FontBold =
+/// -1`): its flat and dotted property names and the value RapidQ keeps —
+/// 1 for anything but 0 (RC.EXE reads `Font.Bold` back as 1 after
+/// `= -1`). `None`: not a style.
+pub fn component_style(prop: &str, val: &Value) -> Option<(&'static str, &'static str, Value)> {
+    let prop = prop.to_ascii_lowercase();
+    let (flat, dotted) = COMPONENT_STYLES.iter().find(|(f, d)| *f == prop || *d == prop)?;
+    Some((flat, dotted, v_int(i64::from(val.to_bool()))))
+}
+
+/// `Label.Font.AddStyles(fsBold, …)` / `DelStyles(…)` on a component (the
+/// runtimes get `font.addstyles`): the styles' flat properties and their
+/// new value, 1 or 0; numbers outside fsBold … fsStrikeOut change nothing
+/// (RC.EXE). `None`: not one of them.
+pub fn component_style_call(method: &str, args: &[Value]) -> Option<Vec<(&'static str, Value)>> {
+    let on = match method {
+        "font.addstyles" => 1,
+        "font.delstyles" => 0,
+        _ => return None,
+    };
+    Some(args.iter().filter_map(|a| usize::try_from(a.to_i64()).ok().and_then(|i| COMPONENT_STYLES.get(i)).map(|(flat, _)| (*flat, v_int(on)))).collect())
+}
+
 impl Font {
+    /// A style as RapidQ reads it: 1 on, 0 off (RC.EXE).
     fn flag(&self, style: usize) -> Value {
-        v_int(if self.styles & 1 << style != 0 { -1 } else { 0 })
+        v_int(i64::from(self.styles & 1 << style != 0))
     }
 
     pub fn get(&self, prop: &str) -> Option<Value> {
@@ -124,11 +152,13 @@ mod tests {
     fn styles() {
         let mut f = Font::default();
         f.call("addstyles", &[v_int(0), v_int(1)]);
-        assert_eq!((f.get("bold").unwrap().to_i64(), f.get("italic").unwrap().to_i64()), (-1, -1));
+        assert_eq!((f.get("bold").unwrap().to_i64(), f.get("italic").unwrap().to_i64()), (1, 1));
         f.call("delstyles", &[v_int(0)]);
         assert_eq!(f.get("bold").unwrap().to_i64(), 0);
         f.set("underline", &v_int(-1));
         assert_eq!(f.styles, 0b110);
         assert_eq!(f.call("fontname", &[v_int(0)]).unwrap().to_string_val(), "Arial");
+        assert_eq!(component_style("Font.Underline", &v_int(5)), Some(("fontunderline", "font.underline", v_int(1))));
+        assert_eq!(component_style_call("font.addstyles", &[v_int(0), v_int(7), v_int(3)]), Some(vec![("fontbold", v_int(1)), ("fontstrikeout", v_int(1))]));
     }
 }

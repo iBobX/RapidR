@@ -831,6 +831,26 @@ pub fn inherited_font_prop(id: &str, flat: &str, props: &dyn Fn(&str, &str) -> V
     }
 }
 
+/// The font properties a component takes as its own before the program
+/// first changes one of them (`prop`, any spelling): Delphi's ParentFont
+/// ends there, so the font it had from its parents stays its own and a
+/// parent's later change doesn't reach it (RC.EXE: a label made bold, then
+/// `Form.Font.AddStyles(fsItalic)` — the form italic, the label not).
+/// Empty when `prop` isn't a font name, size or style, or the component
+/// already has its own font (`__ownfont`, which the list then sets).
+pub fn own_font_from_parents(id: &str, prop: &str, props: &dyn Fn(&str, &str) -> Value) -> Vec<(&'static str, Value)> {
+    if font_flat_name(prop).is_none() || props(id, "__ownfont").to_bool() {
+        return Vec::new();
+    }
+    let mut out: Vec<(&'static str, Value)> = ["fontname", "fontsize", "fontbold", "fontitalic", "fontunderline", "fontstrikeout"]
+        .into_iter()
+        .filter(|f| matches!(props(id, f), Value::Null))
+        .map(|f| (f, inherited_font_prop(id, f, props)))
+        .collect();
+    out.push(("__ownfont", crate::v_bool(true)));
+    out
+}
+
 /// The flat property a component's font property is kept as (`font.name`,
 /// `fontname` → `fontname`; size, bold, italic, underline, strikeout), for
 /// [`inherited_font_prop`]; None for the colour (read its own way) and the

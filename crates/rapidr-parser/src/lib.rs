@@ -58,6 +58,10 @@ pub fn parse_tokens_recovering(tokens: &[Token]) -> (Program, Vec<Diagnostic>) {
     let structs = retag_structs(tokens);
     let tokens = structs.as_deref().unwrap_or(tokens);
     let retagged = retag_routine_names(tokens);
+    // (the program's TYPE names, before anything names a type: one called
+    // like a RapidR-only component stays the program's — rapidr_ast)
+    let type_names: Vec<String> = tokens.windows(2).filter(|w| w[0].kind == TokenType::Type && w[1].kind == TokenType::Identifier).map(|w| w[1].lexeme.clone()).collect();
+    rapidr_ast::set_program_types(&type_names);
     let mut parser = Parser::new(retagged.as_deref().unwrap_or(tokens));
     let program = parser.parse_program();
     (program, parser.diagnostics)
