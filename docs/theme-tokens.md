@@ -74,7 +74,7 @@ The brand palette (`design/brand/README.md`, the Pencil design `design/rapidr-br
 |---|---|---|
 | `radius` (controls) | 5 px | 5 px |
 | `panel_radius()` (menus, drop-down lists, windows on the page) | 8 px | 8 px |
-| `shadow_ink` / `shadow_alpha` (menus, drop-down lists, tooltips, web windows) | Ink at 46 / 255 | black at 140 / 255 |
+| `shadow_ink` / `shadow_alpha` (menus, drop-down lists, tooltips, web windows) | Ink at 38 / 255 | black at 140 / 255 |
 | a raised control's rim | its border a step darker along the bottom | the same, toward black |
 
 High contrast is Windows' High Contrast Black (white on black, cyan selection, yellow focus and hover, green disabled text), every control framed, 3-pixel focus rings, no shadows; it passes 7:1 for every text pair. Classic is RapidQ's Windows look, untouched.

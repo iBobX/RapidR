@@ -391,7 +391,7 @@ pub const RAPIDR: Theme = Theme {
     radius: 5.0,
     focus_width: 2.0,
     shadow_ink: INK,
-    shadow_alpha: 46,
+    shadow_alpha: 38,
 };
 
 /// RapidR's look, dark: the brand's Ink as the ground — surfaces one ramp

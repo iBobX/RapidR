@@ -58,11 +58,12 @@ if (corpus) {
   }
 }
 
-// Every node's place, by its path in the tree (role and name).
+// Every node's place, by its path in the tree (its role and where it is: a
+// name may be a score or a clock).
 function places(json) {
   const out = [];
   const walk = (n, path) => {
-    const here = `${path}/${n.role}:${n.name}`;
+    const here = `${path}/${n.role}`;
     out.push(`${here} ${n.bounds.join(",")}`);
     (n.children || []).forEach((c, i) => walk(c, `${here}#${i}`));
   };
