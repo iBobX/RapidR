@@ -862,7 +862,18 @@ fn apply_state(window: &Window, state: i64) {
 }
 
 fn icon(icon: Option<&crate::Icon>) -> Option<winit::window::Icon> {
-    let i = icon?;
+    let Some(i) = icon else {
+        // (Windows: a program without an icon of its own shows its .exe's,
+        // the MAINICON `rapidr build` writes — in the title bar and on the
+        // taskbar as in Explorer; none there, Windows' default)
+        #[cfg(windows)]
+        {
+            use winit::platform::windows::IconExtWindows;
+            return winit::window::Icon::from_resource_name("MAINICON", None).ok();
+        }
+        #[cfg(not(windows))]
+        return None;
+    };
     winit::window::Icon::from_rgba(i.rgba.clone(), i.width, i.height).ok()
 }
 

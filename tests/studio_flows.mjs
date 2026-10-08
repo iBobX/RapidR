@@ -168,7 +168,7 @@ async function runWeb(browser, c) {
     if (c.do) q.set("do", c.do);
     if (c.open) q.set("open", c.open);
     await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
-    await page.waitForFunction(() => window.rr && window.rr.rapidr_test_results(), null, { timeout: 90000, polling: 200 });
+    await page.waitForFunction(() => window.rr && window.rr.rapidr_test_results(), null, { timeout: Math.max(90000, c.delay * 1000 + 60000), polling: 200 });
     const results = JSON.parse(await page.evaluate(() => window.rr.rapidr_test_results()));
     return { dump: parseDump(results.dump.join("\n"), Object.keys(c.webDump || c.dump)), errors };
   } finally {
