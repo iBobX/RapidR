@@ -270,6 +270,8 @@ def base_env(args, work):
     for hook in ("RAPIDR_TEST_MESSAGE_DIALOG", "RAPIDR_TEST_FILE_DIALOG", "RAPIDR_TEST_COLOR_DIALOG", "RAPIDR_TEST_FONT_DIALOG"):
         env[hook] = ""
     env["RAPIDR_CAPTURE_DELAY"] = str(args.delay)
+    # (RapidQ's look, to set beside RC.EXE's windows; --theme another)
+    env["RAPIDR_THEME"] = args.theme
     return env
 
 
@@ -581,6 +583,7 @@ def main():
     ap.add_argument("--golden", default=truth.GOLDEN)
     ap.add_argument("--timeout", type=int, default=30)
     ap.add_argument("--delay", type=float, default=2.0)
+    ap.add_argument("--theme", default="classic", help="the look programs run in (RAPIDR_THEME; classic: RapidQ's, as RC.EXE's windows)")
     ap.add_argument("--no-pty", dest="pty", action="store_false", help="console programs only with no input, not in a terminal too")
     ap.add_argument("--pty-timeout", type=float, default=9.0)
     ap.add_argument("--cargo-target", default=os.path.join(ROOT, "tests", "conformance", ".work", "cargo-target"))
