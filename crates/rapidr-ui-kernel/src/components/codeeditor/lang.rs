@@ -217,6 +217,19 @@ pub fn request_signature(x: &mut Ctx) {
     x.fire("onsignaturerequest", vec![v_int(line as i64), v_int(col as i64)]);
 }
 
+/// A resting mouse's hover at byte `at`: with `DebugHover` (a debugger's
+/// data tips) the program is asked first — OnHoverRequest, answered with
+/// ShowHover; otherwise as [`hover`].
+pub fn mouse_hover(x: &mut Ctx, at: usize) {
+    if x.c.opts.debug_hover && x.c.doc.word_at(at).is_some() {
+        x.c.hover_request = Some(at);
+        let (line, col) = x.c.line_col(at);
+        x.fire("onhoverrequest", vec![v_int(line as i64), v_int(col as i64)]);
+        return;
+    }
+    hover(x, at);
+}
+
 /// A hover at byte `at`: the problems there, then the service's (or the
 /// program's: OnHoverRequest).
 pub fn hover(x: &mut Ctx, at: usize) {
@@ -400,7 +413,7 @@ pub fn tick(x: &mut Ctx, at: Instant) {
     if let Some((t, pos)) = x.ui.service.hover_at {
         if t <= at {
             x.ui.service.hover_at = None;
-            hover(x, pos);
+            mouse_hover(x, pos);
         }
     }
 }

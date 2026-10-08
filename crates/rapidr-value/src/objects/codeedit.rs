@@ -66,12 +66,16 @@ pub struct Diagnostic {
 }
 
 /// A gutter marker on the line starting at byte `at`: `breakpoint`,
-/// `current` (the debugger's line), `error`, `warning`, `bookmark` or the
-/// program's own kind.
+/// `breakpoint.conditional`, `breakpoint.log`, `breakpoint.disabled`,
+/// `current` (the debugger's line, tinted across), `frame` (a caller's
+/// line, while the call stack shows it), `exception`, `error`, `warning`,
+/// `bookmark` or the program's own kind. `note`: a message shown at the
+/// line's end (a run-time error's, AddMarker's third argument).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Marker {
     pub at: usize,
     pub kind: String,
+    pub note: String,
 }
 
 /// The completion list showing: its items, the bytes the chosen one
@@ -151,6 +155,9 @@ pub struct Options {
     pub completion_trigger: String,
     /// The built-in language service answers (where the runtime has one).
     pub language_service: bool,
+    /// `DebugHover`: a resting mouse asks the program (OnHoverRequest)
+    /// before the language service — a debugger's data tips while paused.
+    pub debug_hover: bool,
     /// The language's words' case as the user types: `upper`, `lower`,
     /// `proper`, `preserve`.
     pub keyword_case: String,
@@ -174,6 +181,7 @@ impl Default for Options {
             rulers: Vec::new(),
             completion_trigger: ".".into(),
             language_service: true,
+            debug_hover: false,
             keyword_case: "upper".into(),
             font_name: crate::objects::text::CODE_FACE.into(),
             font_size: 10,
@@ -803,14 +811,24 @@ impl CodeEditor {
     // ---- markers, diagnostics ----
 
     pub fn add_marker(&mut self, line: i64, kind: &str) {
+        self.add_marker_note(line, kind, "");
+    }
+
+    /// A marker with a note shown at the line's end (a new note replaces
+    /// the marker's old one).
+    pub fn add_marker_note(&mut self, line: i64, kind: &str, note: &str) {
         let at = self.at_line_col(line, 1);
         let kind = kind.trim().to_lowercase();
         let kind = if kind.is_empty() { "bookmark".to_string() } else { kind };
-        if !self.markers.iter().any(|m| m.at == at && m.kind == kind) {
-            self.markers.push(Marker { at, kind });
-            self.markers.sort_by_key(|m| m.at);
-            self.changed();
+        match self.markers.iter_mut().find(|m| m.at == at && m.kind == kind) {
+            Some(m) if m.note == note => return,
+            Some(m) => m.note = note.to_string(),
+            None => {
+                self.markers.push(Marker { at, kind, note: note.to_string() });
+                self.markers.sort_by_key(|m| m.at);
+            }
         }
+        self.changed();
     }
 
     pub fn remove_marker(&mut self, line: i64, kind: &str) -> bool {
@@ -1067,6 +1085,7 @@ impl CodeEditor {
             "showminimap" => flag(self.opts.show_minimap),
             "showwhitespace" => flag(self.opts.show_whitespace),
             "highlightcurrentline" => flag(self.opts.highlight_current_line),
+            "debughover" => flag(self.opts.debug_hover),
             "rulers" => v_str(&self.opts.rulers.iter().map(u32::to_string).collect::<Vec<_>>().join(",")),
             "caretline" => v_int(self.line_col(p.head).0 as i64),
             "caretcolumn" => v_int(self.line_col(p.head).1 as i64),
@@ -1167,6 +1186,7 @@ impl CodeEditor {
             "showminimap" => self.opts.show_minimap = b,
             "showwhitespace" => self.opts.show_whitespace = b,
             "highlightcurrentline" => self.opts.highlight_current_line = b,
+            "debughover" => self.opts.debug_hover = b,
             "rulers" => {
                 self.opts.rulers = val.to_string_val().split([',', ' ', ';']).filter_map(|s| s.trim().parse::<u32>().ok()).filter(|&c| c > 0).collect();
             }
@@ -1343,7 +1363,7 @@ impl CodeEditor {
                 self.diagnostics.sort_by_key(|d| (d.start, d.end));
             }
             "cleardiagnostics" => self.diagnostics.clear(),
-            "addmarker" => self.add_marker(num(0, 1), &arg(1)),
+            "addmarker" => self.add_marker_note(num(0, 1), &arg(1), &arg(2)),
             "removemarker" => return Some(flag(self.remove_marker(num(0, 1), &arg(1)))),
             "clearmarkers" => self.clear_markers(&arg(0)),
             "getmarkers" => return Some(v_str(&self.marker_lines(&arg(0)).iter().map(usize::to_string).collect::<Vec<_>>().join(","))),
