@@ -120,6 +120,15 @@ pub trait Subject {
     /// type) — the form's (a designer's), or the program's.
     fn components(&self, host: &dyn Host) -> Vec<(String, String)>;
 
+    /// What property `prop` of `object` is while it isn't set (`get` gave
+    /// `None`), when the subject knows better than the registry's default:
+    /// a designer's laid-out Left / Top / Width / Height (a component's
+    /// size by its type, an aligned one's place). Shown dimmed, as a
+    /// default.
+    fn fallback(&self, _host: &dyn Host, _object: &str, _prop: &str) -> Option<Value> {
+        None
+    }
+
     /// The SUBs an event may run, as `Name(parameters)` (a designer reads
     /// its source; `None`: the inspector's Handlers property says).
     fn subs(&self, _host: &dyn Host) -> Option<Vec<String>> {

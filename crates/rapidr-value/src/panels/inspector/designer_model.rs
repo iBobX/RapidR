@@ -71,7 +71,13 @@ impl DesignerModelSubject {
                 let r = f(&mut m.borrow_mut());
                 Some(r)
             }
-            Source::Surface(name) => crate::objects::with_design_mut(name, |s| f(&mut s.designer)),
+            // (a change to an RDESIGNSURFACE's model is written into its
+            // code at once: `commit`, its edits waiting in its outbox)
+            Source::Surface(name) => crate::objects::with_design_mut(name, |s| {
+                let r = f(&mut s.designer);
+                s.commit();
+                r
+            }),
         }
     }
 
@@ -85,8 +91,16 @@ impl DesignerModelSubject {
         .flatten()
     }
 
-    fn put(&self, prop: &str, typed: Option<&str>) -> Result<(), String> {
-        self.with(|d| d.set_property(prop, typed).map_err(|e| format!("{e:?}"))).unwrap_or_else(|| Err("No designer".into()))
+    fn put(&self, host: &dyn Host, prop: &str, typed: Option<&str>) -> Result<(), String> {
+        let r = self.with(|d| d.set_property(prop, typed).map_err(|e| format!("{e:?}"))).unwrap_or_else(|| Err("No designer".into()));
+        // (an RDESIGNSURFACE's edits heard by the program — OnSourceEdit
+        // for the code editor, then OnChange — as its own changes are)
+        if let Source::Surface(name) = &self.source {
+            for e in crate::objects::take_design_events(name) {
+                host.fire(name, e.event(), &e.args());
+            }
+        }
+        r
     }
 }
 
@@ -114,17 +128,17 @@ impl Subject for DesignerModelSubject {
     }
 
     fn set(&self, _host: &dyn Host, _objects: &[String], prop: &str, value: &Value) -> Result<(), String> {
-        self.put(prop, Some(&value.to_string_val()))
+        self.put(_host, prop, Some(&value.to_string_val()))
     }
 
     /// The selection is the designer's: the value as the program writes it
     /// becomes one command over all of it.
     fn set_source(&self, _host: &dyn Host, _objects: &[String], prop: &str, _value: &Value, source: &str) -> Result<(), String> {
-        self.put(prop, Some(source))
+        self.put(_host, prop, Some(source))
     }
 
     fn reset(&self, _host: &dyn Host, _objects: &[String], prop: &str) {
-        let _ = self.put(prop, None);
+        let _ = self.put(_host, prop, None);
     }
 
     fn handler(&self, _host: &dyn Host, object: &str, event: &str) -> Option<String> {
@@ -132,7 +146,27 @@ impl Subject for DesignerModelSubject {
     }
 
     fn set_handler(&self, _host: &dyn Host, _objects: &[String], event: &str, sub: &str) {
-        let _ = self.put(event, if sub.is_empty() { None } else { Some(sub) });
+        let _ = self.put(_host, event, if sub.is_empty() { None } else { Some(sub) });
+    }
+
+    /// Left, Top, Width, Height not written in the CREATE block: as the
+    /// designer lays the component out (its type's size, its Align).
+    fn fallback(&self, _host: &dyn Host, object: &str, prop: &str) -> Option<Value> {
+        let p = prop.to_ascii_lowercase();
+        if !matches!(p.as_str(), "left" | "top" | "width" | "height") {
+            return None;
+        }
+        self.with(|d| {
+            let id = d.design.find(object)?;
+            let r = d.layout().rect(id)?;
+            Some(Value::Integer(match p.as_str() {
+                "left" => r.left,
+                "top" => r.top,
+                "width" => r.width,
+                _ => r.height,
+            }))
+        })
+        .flatten()
     }
 
     fn components(&self, _host: &dyn Host) -> Vec<(String, String)> {

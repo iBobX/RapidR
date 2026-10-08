@@ -81,7 +81,9 @@ pub fn read(host: &dyn Host, subject: Option<&dyn Subject>, custom: &[Custom]) -
                 prop.is_default = prop.parts.iter().all(|q| q.is_default);
                 prop.value = Some(Value::String(prop.text()));
             } else {
-                fill(&mut prop, names.iter().map(|o| s.get(host, o, p.name)).collect());
+                let set: Vec<Option<Value>> = names.iter().map(|o| s.get(host, o, p.name)).collect();
+                let fallbacks: Vec<Option<Value>> = names.iter().zip(&set).map(|(o, v)| if v.is_none() { s.fallback(host, o, p.name) } else { None }).collect();
+                fill_with(&mut prop, set, fallbacks);
             }
             snap.props.push(prop);
         }
@@ -122,10 +124,21 @@ pub fn read(host: &dyn Host, subject: Option<&dyn Subject>, custom: &[Custom]) -
 /// Gives `prop` the components' values `read` (`None`: not set there):
 /// its value when they agree, whether it's the default.
 fn fill(prop: &mut Prop, read: Vec<Option<Value>>) {
+    let n = read.len();
+    fill_with(prop, read, vec![None; n]);
+}
+
+/// [`fill`], each component's value while unset being its `fallbacks`'
+/// (the subject's: a designer's laid-out size) when it has one.
+fn fill_with(prop: &mut Prop, read: Vec<Option<Value>>, fallbacks: Vec<Option<Value>>) {
     let kind = prop.kind.clone();
     let norm: Vec<Option<Value>> = read.iter().map(|v| v.as_ref().and_then(|v| values::normalize(&kind, v))).collect();
     let fallback = prop.default.clone().unwrap_or_else(|| kind.empty());
-    let shown: Vec<Value> = norm.iter().map(|v| v.clone().unwrap_or_else(|| fallback.clone())).collect();
+    let shown: Vec<Value> = norm
+        .iter()
+        .enumerate()
+        .map(|(i, v)| v.clone().or_else(|| fallbacks.get(i).cloned().flatten().and_then(|f| values::normalize(&kind, &f))).unwrap_or_else(|| fallback.clone()))
+        .collect();
     prop.value = match shown.first() {
         Some(first) if shown.iter().all(|v| values::same(&kind, v, first)) => Some(first.clone()),
         Some(_) => None,
@@ -134,4 +147,10 @@ fn fill(prop: &mut Prop, read: Vec<Option<Value>>) {
     // (at its default: never set, or set to the registry's default — a
     // property without one: its type's empty value)
     prop.is_default = norm.iter().zip(&shown).all(|(set, v)| set.is_none() || values::same(&kind, v, &fallback));
+    // (unset, shown as laid out: that value is the row's default too)
+    if prop.is_default {
+        if let Some(f) = fallbacks.first().cloned().flatten().and_then(|f| values::normalize(&kind, &f)) {
+            prop.default = Some(f);
+        }
+    }
 }

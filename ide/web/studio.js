@@ -137,6 +137,15 @@ function frameMessage(e) {
     if (event && event.type === "exited") closeFrame();
   } else if (d.__rapidr_font) {
     const { id, file } = d.__rapidr_font;
+    // The sandboxed program frame controls `file`; it must name a font file
+    // inside runtime/fonts/, never reach out of it (SEC-14). Allow only a
+    // plain file name (letters, digits, `_`, `-`, `.`) with no path separator
+    // and no `..`, so this bridge can't become a same-origin read primitive
+    // for the frame (web-ide/host.js once checked `file` the same way).
+    if (typeof file !== "string" || !/^[\w.-]+$/.test(file) || file.includes("..")) {
+      if (run.port) run.port.postMessage({ __rapidr_font_reply: { id, bytes: null } });
+      return;
+    }
     fetch(new URL("runtime/fonts/" + file, location.href))
       .then((r) => (r.ok ? r.arrayBuffer() : null))
       .then((bytes) => run.port && run.port.postMessage({ __rapidr_font_reply: { id, bytes } }, bytes ? [bytes] : []))

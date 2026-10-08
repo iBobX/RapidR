@@ -291,9 +291,12 @@ export const cases = [
     expect: ["lbl.caption=35x19 28x16"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
-  // (Stage 10: the IDE's components)
+  // (Stage 10: the IDE's components) The designed form is drawn in its
+  // frame 12 pixels into the surface (I4 L-DVIEW): its client area starts
+  // at (13, 42) of the surface; the events' places are the surface's, what
+  // the designer hears its form's (the timer is in the tray strip).
   { name: "design_surface",
-    events: "ds.__mousedown_30_30,ds.__mousemove_43_36,ds.__mouseup_43_36,ds.__mousedown_113_47,ds.__mousemove_130_60,ds.__mouseup_130_60,ds.__mousedown_250_100,ds.__mouseup_250_100,ds.__dblclick_150_20,btn.onclick",
+    events: "ds.__mousedown_43_72,ds.__mousemove_56_78,ds.__mouseup_56_78,ds.__mousedown_126_89,ds.__mousemove_143_102,ds.__mouseup_143_102,ds.__mousedown_263_142,ds.__mouseup_263_142,ds.__dblclick_163_62,btn.onclick",
     dump: "lbl.caption,log.caption",
     expect: ["lbl.caption=4|Main|Label1|RCHECKBOX|Button1||3|Tick|32,24,96,40|208|&H00FFFF|Label1|Other|300", "log.caption=s0/m0:32,24,80,24/m0:32,24,96,40/b250,100/s2/d2/"] },
   { name: "code_editor", events: "btn.onclick", dump: "lbl.caption",

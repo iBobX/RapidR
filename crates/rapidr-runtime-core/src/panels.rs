@@ -78,6 +78,12 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
 
 /// Sets a panel's property in its model: whether it was the model's.
 pub fn set(name: &str, prop: &str, val: &Value) -> bool {
+    // (an inspector given a designer: the designer's changes and selections
+    // reach every inspector following it — rapidr_value::objects::design's
+    // change hook, told as the surface's events go out)
+    if prop == "designer" {
+        rapidr_value::objects::design::set_change_hook(designer_changed);
+    }
     runtime::rt_set(Desktop, name, prop, val)
 }
 

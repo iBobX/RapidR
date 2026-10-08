@@ -18,6 +18,7 @@
 '   panels.inc     the panels: tool bar, palette, project, toolbox,
 '                  properties, output
 '   documents.inc  documents: code, designer, outline, problems, properties
+'   designer.inc   the form designer: the code it edits, its commands
 '   project.inc    the project, running it, settings
 '   chrome.inc     the look in the current theme, the status bar
 '   shell.inc      RunCommand, the events, start-up
@@ -28,6 +29,7 @@ $INCLUDE "commands.inc"
 $INCLUDE "panes.inc"
 $INCLUDE "panels.inc"
 $INCLUDE "documents.inc"
+$INCLUDE "designer.inc"
 $INCLUDE "project.inc"
 $INCLUDE "chrome.inc"
 $INCLUDE "shell.inc"

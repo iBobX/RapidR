@@ -55,9 +55,10 @@ pub fn prop_key(name: &str) -> String {
 }
 
 /// RapidR's name of a type as written (`QBUTTON` → `RBUTTON`, `QGAUGE` →
-/// `RPROGRESSBAR`); upper case as written when the registry doesn't know it.
+/// `RPROGRESSBAR`, `QMEMO` → `RMEMO` as the compilers read it); upper case
+/// as written when the registry doesn't know it.
 pub fn canonical_type(written: &str) -> String {
-    match rapidr_lang::component(written) {
+    match rapidr_lang::resolve_component(written) {
         Some(c) => c.name.to_string(),
         None => written.to_ascii_uppercase(),
     }

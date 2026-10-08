@@ -17,6 +17,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   **ROUTPUTCONSOLE** (ANSI output, build log, problems, `file:line` links, search), **RTOOLBAR** as
   a real toolbar (icon buttons, toggles, overflow, customizable) and **RCOMMANDPALETTE** (fuzzy
   commands). Example: `examples/studio/panels.rr`.
+### RapidR Studio: the form designer works
+- A file's [Design] tab shows its form as the running program shows it, at its own size, read from the code (`RDESIGNSURFACE.Source` on rapidr-designer's Document); the stand-in scanner and its boxes are gone.
+- Drag the form's right edge, bottom edge or corner to resize it: anchored and aligned components follow live, and the new size (and where the anchors moved them) is written into the CREATE block, one undo step.
+- Add components: click a type then click or draw on the form (`PlaceType`), drag one in (`DragComponent`), or `AddComponent(Type, X, Y)`. Names are unique in the whole file; typing right after adding sets the Caption; dropping on a panel puts it inside.
+- Select, move, resize, delete, copy / paste / duplicate, align and arrange with the mouse or the keyboard; every change is announced to screen readers, written into the code as the smallest edit (`OnSourceEdit`), and undone to the exact bytes. Double-click makes or finds the event handler (`CreateHandler`). While the code has errors the designer is read-only under a banner.
 
 ### Legal
 - **A review of RapidQ's terms, rights and trademarks, and of everything

@@ -139,7 +139,7 @@ SUB PaletteCommand(Id AS STRING)
     d = ActiveDesign
     IF d >= 0 THEN
       Dock.FocusPane("designdoc(" + LTRIM$(STR$(d)) + ")")
-      IF DesignIndex(d, MID$(Id, 6)) >= 0 THEN DesignDoc(d).SelectComp DesignIndex(d, MID$(Id, 6))
+      DesignDoc(d).SelectName MID$(Id, 6)
     END IF
   ELSEIF LEFT$(Id, 1) = ":" THEN
     d = ActiveCode
@@ -177,22 +177,10 @@ FUNCTION ProjectPath(Path AS STRING) AS STRING
   END IF
 END FUNCTION
 
-' (the designer component of document d named Name: its index, -1 if none)
-FUNCTION DesignIndex(d AS INTEGER, Name AS STRING) AS INTEGER
-  DIM i AS INTEGER
-  Result = -1
-  FOR i = 0 TO DesignDoc(d).Count - 1
-    IF LCASE$(DesignDoc(d).GetName(i)) = LCASE$(Name) THEN
-      Result = i
-      EXIT FUNCTION
-    END IF
-  NEXT
-END FUNCTION
-
 ' Opened (double click, Enter): a file — its documents; a form's component —
 ' its form in the designer, that component selected.
 SUB ProjectNodeOpen(Path AS STRING)
-  DIM d AS INTEGER, comp AS STRING, k AS INTEGER
+  DIM d AS INTEGER, comp AS STRING
   IF Path = "" OR RIGHT$(Path, 1) = "/" THEN EXIT SUB
   OpenDocument ProjectPath(Path)
   IF INSTR(Path, "#") = 0 THEN EXIT SUB
@@ -201,19 +189,17 @@ SUB ProjectNodeOpen(Path AS STRING)
   IF d < 0 THEN EXIT SUB
   IF DocHasForm(d) = 0 THEN EXIT SUB
   Dock.FocusPane("designdoc(" + LTRIM$(STR$(d)) + ")")
-  k = DesignIndex(d, comp)
-  IF k >= 0 THEN DesignDoc(d).SelectComp k
+  DesignDoc(d).SelectName comp
 END SUB
 
 ' Selected: a component of the open form is selected in its designer too.
 SUB ProjectNodeSelect(Path AS STRING)
-  DIM d AS INTEGER, k AS INTEGER
+  DIM d AS INTEGER
   IF INSTR(Path, "#") = 0 THEN EXIT SUB
   d = DocOf(ProjectPath(Path))
   IF d < 0 THEN EXIT SUB
   IF DocHasForm(d) = 0 THEN EXIT SUB
-  k = DesignIndex(d, MID$(Path, INSTR(Path, "#") + 1))
-  IF k >= 0 THEN DesignDoc(d).SelectComp k
+  DesignDoc(d).SelectName MID$(Path, INSTR(Path, "#") + 1)
 END SUB
 
 ' Project > Add Form / Add Module: a new file in the tree, its name typed
@@ -312,15 +298,7 @@ END SUB
 ' RapidQ's and RapidR's components as the registry groups them, with
 ' RapidR's icons, found by typing; each adds itself to the active form.
 
-' (the document whose form the designer shows now, -1 if none)
-FUNCTION ActiveDesign AS INTEGER
-  DIM d AS INTEGER
-  Result = -1
-  d = ActiveCode
-  IF d >= 0 THEN
-    IF DocHasForm(d) THEN Result = d
-  END IF
-END FUNCTION
+' (ActiveDesign, the active document's designer: designer.inc)
 
 ' Double click or Enter: added in the selected container, at a free place.
 SUB ToolboxPick(TypeName AS STRING)
@@ -392,9 +370,12 @@ SUB InspectorEvent(EventName AS STRING)
   comp = Inspector.Target
   IF comp = "" OR INSTR(comp, ",") > 0 THEN EXIT SUB
   sb = DesignDoc(d).CreateHandler(comp, EventName)
-  IF sb = "" THEN EXIT SUB
+  IF sb = "" THEN
+    OutputLine "Designer: " + DesignDoc(d).StatusText
+    EXIT SUB
+  END IF
   Dock.FocusPane("codedoc(" + LTRIM$(STR$(d)) + ")")
-  CodeDoc(d).GotoLine DesignDoc(d).HandlerLine
+  IF DesignDoc(d).HandlerLine >= 0 THEN CodeDoc(d).GotoLine DesignDoc(d).HandlerLine
 END SUB
 
 ' ---- the output console --------------------------------------------------------------
@@ -462,6 +443,7 @@ END SUB
 '   focus:<pane>         Dock.FocusPane
 '   search:<text>        the toolbox's search box
 '   palette:<text>       the command palette, opened with that typed
+'   pick:<Name>          a component selected in the active designer
 ' True when Stp was one of these.
 FUNCTION PanelStep(Stp AS STRING) AS INTEGER
   DIM k AS INTEGER, verb AS STRING, arg AS STRING
@@ -482,6 +464,23 @@ FUNCTION PanelStep(Stp AS STRING) AS INTEGER
     CASE "event": InspectorEvent arg
     CASE "focus": Dock.FocusPane(arg)
     CASE "search": Toolbox.Filter = arg
+    CASE "code"
+      ' (code:<old>=><new>: the first <old> in the active code replaced, as
+      ' typed over a selection)
+      k = INSTR(arg, "=>")
+      IF k > 1 AND ActiveCode >= 0 THEN
+        verb = LEFT$(arg, k - 1)
+        IF INSTR(CodeDoc(ActiveCode).Text, verb) > 0 THEN
+          CodeDoc(ActiveCode).SelStart = INSTR(CodeDoc(ActiveCode).Text, verb) - 1
+          CodeDoc(ActiveCode).SelLength = LEN(verb)
+          CodeDoc(ActiveCode).SelText = MID$(arg, k + 2)
+          ' (as the editor's OnChange after a user's typing)
+          CodeChanged CodeDoc(ActiveCode)
+        END IF
+      END IF
+    CASE "pick"
+      ' (a component selected in the active designer, by its name)
+      IF ActiveDesign >= 0 THEN DesignDoc(ActiveDesign).SelectName arg
     CASE "palette": ShowPalette arg
     CASE ELSE: Result = 0
   END SELECT
