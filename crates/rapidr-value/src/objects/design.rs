@@ -314,11 +314,15 @@ pub trait SourceDoc {
     fn name_taken(&self, name: &str) -> bool;
     /// What the parser reported (the text doesn't compile as it is).
     fn diagnostics(&self) -> Vec<String>;
+    /// The first error's line (from 1) when the text doesn't parse.
+    fn error_line(&self) -> Option<usize> {
+        None
+    }
     /// The handler of `component`'s `event` ("": its type's default
     /// event) — the SUB `OnX = …` names, else a new one written with its
     /// wiring (one undo step): the SUB's name, the line (from 0) the caret
-    /// goes to, the edits (`rapidr-designer`'s `Document::create_handler`).
-    fn create_handler(&mut self, _form: usize, _component: &str, _event: &str) -> Result<(String, usize, Vec<SourceEdit>), String> {
+    /// goes to (`None`: not in this file), the edits (`rapidr-designer`'s `Document::create_handler`).
+    fn create_handler(&mut self, _form: usize, _component: &str, _event: &str) -> Result<(String, Option<usize>, Vec<SourceEdit>), String> {
         Err("handlers aren't available here".into())
     }
 }
@@ -389,6 +393,8 @@ struct Drag {
     moved: bool,
     /// (the placing tool) Shift held: it stays armed after this one.
     keep: bool,
+    /// Where the mouse is now.
+    last: (i64, i64),
 }
 
 /// The surface: the designed form (the designer model: its components, the
@@ -404,6 +410,8 @@ pub struct DesignSurface {
     selected_raw: i64,
     /// The surface's size.
     size: (i64, i64),
+    /// How far it's scrolled (a form bigger than the surface).
+    scroll: (i64, i64),
     /// The form fills the surface (a form made through the API); else it
     /// has its own size (a form read from a program).
     pub fit: bool,
@@ -441,8 +449,16 @@ pub struct DesignSurface {
     pub ghost: Option<(LRect, String)>,
     /// What a screen reader is told last (the surface's live region).
     pub announcement: String,
+    /// The container a drag would move the selection into (highlighted).
+    drop_target: Option<NodeId>,
+    /// The code doesn't parse (its first error's line): the designer
+    /// shows the last good state, read-only, under a banner.
+    pub code_error: Option<usize>,
     /// Copy / Cut's components (Paste's).
     clip: Option<crate::designer::Clip>,
+    /// A component just added whose Caption / Text the keyboard types:
+    /// it, the property, what's typed so far.
+    typing: Option<(NodeId, &'static str, String)>,
     /// HandlerLine: where CreateHandler's SUB is (its caret's line, from 0;
     /// -1: none).
     pub handler_line: i64,
@@ -464,6 +480,7 @@ impl Default for DesignSurface {
             form_caption: "Form1".into(),
             selected_raw: -1,
             size: (640, 480),
+            scroll: (0, 0),
             fit: true,
             drag: None,
             guides: Vec::new(),
@@ -480,8 +497,11 @@ impl Default for DesignSurface {
             place_type: String::new(),
             ghost: None,
             announcement: String::new(),
+            drop_target: None,
+            code_error: None,
             clip: None,
             handler_line: -1,
+            typing: None,
             laid: RefCell::new(None),
             previewed: RefCell::new(None),
         }
@@ -534,6 +554,7 @@ impl DesignSurface {
     /// A drag, the preview, the guides, the ghost all gone.
     fn forget_gestures(&mut self) {
         self.drag = None;
+        self.drop_target = None;
         self.preview = None;
         self.guides.clear();
         self.band = None;
@@ -548,21 +569,40 @@ impl DesignSurface {
     /// its first QFORM. The same text again changes nothing; another text
     /// is read again, the selection kept where its components still are.
     pub fn open_source(&mut self, text: &str) -> bool {
-        match &self.source {
+        let first = match &self.source {
             Some(a) => {
                 if !a.doc.borrow_mut().set_text(text) {
                     return true;
                 }
+                false
             }
             None => {
                 let Some(read) = reader() else { return false };
                 let doc = read(text, &self.source_file);
                 self.source = Some(Attached { doc: Rc::new(RefCell::new(doc)), form: None });
                 self.designer.selection.clear();
+                true
             }
+        };
+        // (code with errors: the last good form stays, read-only)
+        self.code_error = self.source.as_ref().and_then(|a| a.doc.borrow().error_line());
+        if let Some(line) = self.code_error.filter(|_| !first) {
+            self.forget_gestures();
+            self.say(format!("The code has errors at line {line}: the designer is read-only until they are fixed"));
+            return true;
         }
         self.pick_form(false);
         true
+    }
+
+    /// The designer can't change the form now (the code has errors).
+    pub fn read_only(&self) -> bool {
+        self.code_error.is_some()
+    }
+
+    /// The banner over the designer, when the code has errors.
+    pub fn banner(&self) -> Option<String> {
+        self.code_error.map(|line| format!("The code has errors at line {line}. The designer shows the form as it last compiled and changes nothing until they are fixed."))
     }
 
     /// The form the surface designs, chosen again (`fresh`: another form —
@@ -626,6 +666,12 @@ impl DesignSurface {
         if !self.designer.has_applied() {
             return;
         }
+        // (the code has errors: nothing is written — the change is dropped)
+        if self.read_only() {
+            while self.designer.undo() {}
+            self.designer.take_applied();
+            return;
+        }
         let d = self.designer.clone();
         self.designer.take_applied();
         if let Some(Attached { doc, form: Some(form) }) = self.source.clone() {
@@ -650,7 +696,7 @@ impl DesignSurface {
         let r = doc.borrow_mut().create_handler(form, name, event);
         match r {
             Ok((sub, line, edits)) => {
-                self.handler_line = line as i64;
+                self.handler_line = line.map_or(-1, |l| l as i64);
                 if !edits.is_empty() {
                     self.reload(false);
                     self.outbox.extend(edits.into_iter().map(DesignEvent::SourceEdit));
@@ -841,14 +887,29 @@ impl DesignSurface {
     pub fn form_rect(&self) -> Rect {
         let m = self.margin();
         let (w, h) = self.layout().form_size();
-        (m, m, w, h)
+        (m - self.scroll.0, m - self.scroll.1, w, h)
     }
 
     /// Where the form's client area (0, 0) is on the surface.
     pub fn client_origin(&self) -> (i64, i64) {
         let m = self.margin();
         let (ix, iy) = self.inset();
-        (m + ix, m + iy + self.menu_height())
+        (m + ix - self.scroll.0, m + iy + self.menu_height() - self.scroll.1)
+    }
+
+    /// The surface scrolled by (dx, dy) pixels (the mouse wheel), within
+    /// what it shows (the form, its tray, the backdrop's margin); whether
+    /// it moved.
+    pub fn scroll_by(&mut self, dx: i64, dy: i64) -> bool {
+        let m = self.margin();
+        let (w, h) = self.layout().form_size();
+        let tray = if self.tray().is_empty() { 0 } else { TRAY_GAP + TRAY_H };
+        let (cw, ch) = (w + 2 * m + CORNER, h + 2 * m + tray + CORNER);
+        let max = ((cw - self.size.0).max(0), (ch - self.size.1).max(0));
+        let to = ((self.scroll.0 + dx).clamp(0, max.0), (self.scroll.1 + dy).clamp(0, max.1));
+        let moved = to != self.scroll;
+        self.scroll = to;
+        moved
     }
 
     /// The form's inside below its menu (its scroll bars included).
@@ -900,6 +961,7 @@ impl DesignSurface {
         }
         self.size = (w, h);
         if !self.fit {
+            self.scroll_by(0, 0);
             return;
         }
         let m = self.margin();
@@ -1037,11 +1099,18 @@ impl DesignSurface {
     /// coordinates) goes into — the topmost panel, group box, scroll box …
     /// there, else the form — and where its children's (0, 0) is.
     pub fn container_at(&self, x: i64, y: i64) -> (NodeId, (i64, i64)) {
+        self.container_at_except(x, y, &[])
+    }
+
+    /// The same, leaving out `moving` and what's inside them (a drag's
+    /// drop target).
+    fn container_at_except(&self, x: i64, y: i64, moving: &[NodeId]) -> (NodeId, (i64, i64)) {
         let d = &self.designer.design;
         let mut best = (d.root(), (0, 0));
         for c in self.components() {
             let inside = x >= c.x && y >= c.y && x < c.x + c.w && y < c.y + c.h;
-            if c.visual && inside && d.node(c.id).is_some_and(|n| n.is_container() && !n.is_form()) {
+            let moved = moving.iter().any(|&m| d.is_within(c.id, m));
+            if c.visual && inside && !moved && d.node(c.id).is_some_and(|n| n.is_container() && !n.is_form()) {
                 best = (c.id, (c.x, c.y));
             }
         }
@@ -1084,7 +1153,7 @@ impl DesignSurface {
     /// can't go there (a form on a form, a menu item without a menu, no
     /// form to put it on).
     pub fn add_at(&mut self, type_name: &str, at: (i64, i64), rect: Option<LRect>) -> Option<usize> {
-        if self.no_form() {
+        if self.no_form() || self.read_only() {
             return None;
         }
         let canonical = crate::designer::model::canonical_type(type_name);
@@ -1125,6 +1194,9 @@ impl DesignSurface {
         self.selection_changed();
         let what = self.describe_comp(id);
         self.say(format!("Added {what}"));
+        // (typing now writes its Caption / Text, as Delphi's designer does)
+        let prop = rapidr_lang::component(&canonical).and_then(|c| ["Caption", "Text"].into_iter().find(|p| c.property(p).is_some()));
+        self.typing = prop.map(|p| (id, p, String::new()));
         self.index_of(id)
     }
 
@@ -1249,7 +1321,8 @@ impl DesignSurface {
     /// OnBgClick, a rubber band).
     pub fn mouse_down_with(&mut self, x: i64, y: i64, double: bool, add: bool) -> Option<DesignEvent> {
         self.guides.clear();
-        if self.no_form() {
+        self.typing = None;
+        if self.no_form() || self.read_only() {
             return None;
         }
         if !self.place_type.is_empty() {
@@ -1329,7 +1402,7 @@ impl DesignSurface {
         } else {
             start.first().map_or((0, 0), |(_, r)| (x - r.left, y - r.top))
         };
-        self.drag = Some(Drag { grip, from: (x, y), offset, now: start.clone(), start, moved: false, keep: false });
+        self.drag = Some(Drag { grip, from: (x, y), offset, now: start.clone(), start, moved: false, keep: false, last: (x, y) });
     }
 
     /// The siblings the dragged components line up with: the primary's
@@ -1389,6 +1462,8 @@ impl DesignSurface {
     }
 
     fn drag_to(&mut self, drag: &mut Drag, x: i64, y: i64, free: bool) -> Option<DesignEvent> {
+        drag.last = (x, y);
+        self.drop_target = None;
         match drag.grip {
             Grip::Tray => None,
             Grip::FormCorner | Grip::FormRight | Grip::FormBottom => {
@@ -1473,6 +1548,12 @@ impl DesignSurface {
                 if grip == Grip::Move {
                     let (dx, dy) = (to.left - r0.left, to.top - r0.top);
                     drag.now = drag.start.iter().map(|&(id, r)| (id, LRect::new(r.left + dx, r.top + dy, r.width, r.height))).collect();
+                    // (over another container: it's where they'll go)
+                    let moving: Vec<NodeId> = drag.start.iter().map(|(id, _)| *id).collect();
+                    let (target, _) = self.container_at_except(x, y, &moving);
+                    if Some(target) != self.designer.design.parent(primary) {
+                        self.drop_target = Some(target);
+                    }
                 } else {
                     drag.now = drag.start.iter().map(|&(id, r)| (id, if id == primary { to } else { r })).collect();
                 }
@@ -1495,6 +1576,7 @@ impl DesignSurface {
     pub fn mouse_up(&mut self) {
         self.guides.clear();
         self.band = None;
+        self.drop_target = None;
         let Some(drag) = self.drag.take() else { return };
         match drag.grip {
             g if g.form() => {
@@ -1520,9 +1602,23 @@ impl DesignSurface {
                 let l = self.designer.layout();
                 let d = &self.designer.design;
                 let mut cmds = Vec::new();
+                // (dropped on another container: they go into it — the
+                // CREATE blocks move — placed where they were let go)
+                let moving: Vec<NodeId> = drag.start.iter().map(|(id, _)| *id).collect();
+                let into = (g == Grip::Move).then(|| self.container_at_except(drag.last.0, drag.last.1, &moving));
                 for (id, abs) in &drag.now {
                     let (Some(old), o) = (l.rect(*id), l.origin(d, *id)) else { continue };
-                    cmds.extend(arrange::set_rect(*id, old, LRect::new(abs.left - o.0, abs.top - o.1, abs.width, abs.height)));
+                    match into {
+                        Some((target, (tx, ty))) if Some(target) != d.parent(*id) && !moving.iter().any(|&m| m != *id && d.is_within(*id, m)) => {
+                            cmds.push(Command::Move { node: *id, parent: target, index: usize::MAX });
+                            // (its place in the new parent: every value written)
+                            let new = LRect::new(abs.left - tx, abs.top - ty, abs.width, abs.height);
+                            for (p, v) in [("Left", new.left), ("Top", new.top)] {
+                                cmds.push(Command::SetProp { node: *id, name: p.into(), value: Some(v.to_string()) });
+                            }
+                        }
+                        _ => cmds.extend(arrange::set_rect(*id, old, LRect::new(abs.left - o.0, abs.top - o.1, abs.width, abs.height))),
+                    }
                 }
                 let _ = self.designer.execute(Command::Batch(cmds));
                 self.commit();
@@ -1539,7 +1635,7 @@ impl DesignSurface {
     fn form_rect_designed(&self) -> Rect {
         let m = self.margin();
         let (w, h) = self.laid_out().form_size();
-        (m, m, w, h)
+        (m - self.scroll.0, m - self.scroll.1, w, h)
     }
 
     /// The form resized to `w` × `h` (its Width / Height, frame included;
@@ -1792,9 +1888,31 @@ impl DesignSurface {
     /// and redo, + A selects all, + D duplicates, + V pastes (Copy and Cut
     /// are [`DesignSurface::copy`] / [`DesignSurface::cut`]: the host puts
     /// their text on the clipboard).
-    pub fn key(&mut self, vk: i64, shift: bool, ctrl: bool) -> bool {
-        if self.no_form() {
+    pub fn key(&mut self, vk: i64, text: &str, shift: bool, ctrl: bool) -> bool {
+        if self.no_form() || self.read_only() {
             return false;
+        }
+        // (right after adding a component: what's typed is its Caption /
+        // Text; Backspace takes a character back, Enter or Escape ends it)
+        if let Some((id, prop, mut typed)) = self.typing.take().filter(|(id, _, _)| self.designer.selection.primary() == Some(*id)) {
+            let printable = !ctrl && !text.is_empty() && text.chars().all(|c| !c.is_control());
+            if printable || (vk == 8 && !typed.is_empty()) {
+                if vk == 8 {
+                    typed.pop();
+                } else {
+                    typed.push_str(text);
+                }
+                let _ = self.designer.execute(Command::SetProp { node: id, name: prop.to_string(), value: Some(value::write_str(&typed)) });
+                self.commit();
+                self.say(format!("{prop}: {typed}"));
+                self.typing = Some((id, prop, typed));
+                return true;
+            }
+            if vk != 13 && vk != 27 {
+                self.typing = Some((id, prop, typed));
+            } else {
+                return true;
+            }
         }
         let d = &self.designer.design;
         match vk {
@@ -2055,6 +2173,11 @@ impl DesignSurface {
         }
         if let Some(b) = self.band {
             d.rect((b.left, b.top, b.width, b.height), t.accent);
+        }
+        // the container a drag goes into
+        if let Some(r) = self.drop_target.and_then(|id| self.rect_of(id)) {
+            d.rect((r.left - 1, r.top - 1, r.width + 2, r.height + 2), t.accent);
+            d.rect((r.left - 2, r.top - 2, r.width + 4, r.height + 4), t.accent);
         }
         // where a new component would go: a dashed outline, its type above
         if let Some((r, ty)) = &self.ghost {

@@ -590,6 +590,14 @@ impl ComponentKind for Design {
         }
         // the designer's chrome over everything
         p.at(shown.client, |p| p.ops(shown.chrome));
+        // (the code has errors: a banner says why nothing can change)
+        if let Some(text) = with_design(cx.id, |d| d.banner()).flatten() {
+            let bg = if t.dark { 0x43_35_19 } else { 0xFF_F4_CE };
+            p.fill((0, 0, w, 28), bg);
+            p.fill((0, 27, w, 1), t.shadow);
+            let font = rapidr_value::objects::design::tray_font();
+            p.text((10, 0, (w - 20).max(0), 28), &text, &font, t.text, Place::Left);
+        }
         cx.ui.design = Some(view);
     }
 
@@ -643,10 +651,17 @@ impl ComponentKind for Design {
                 text.is_some()
             }
             _ if k.mods.alt => false,
-            _ => with_design_mut(cx.id, |d| d.key(k.vk, k.mods.shift, ctrl)).unwrap_or(false),
+            _ => with_design_mut(cx.id, |d| d.key(k.vk, k.text, k.mods.shift, ctrl)).unwrap_or(false),
         };
         drain(cx);
         handled
+    }
+
+    fn wheel(&self, cx: &mut Cx, dx: f64, dy: f64, mods: crate::input::Mods) -> bool {
+        // (Shift turns the wheel sideways, as Windows' scroll views do)
+        let (dx, dy) = if mods.shift && dx == 0.0 { (dy, 0.0) } else { (dx, dy) };
+        let step = 48.0;
+        with_design_mut(cx.id, |d| d.scroll_by((dx * step).round() as i64, (dy * step).round() as i64)).unwrap_or(false)
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {

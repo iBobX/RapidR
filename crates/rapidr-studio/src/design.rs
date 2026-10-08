@@ -138,6 +138,16 @@ impl SourceDoc for Doc {
     fn diagnostics(&self) -> Vec<String> {
         self.doc.diagnostics().to_vec()
     }
+
+    fn error_line(&self) -> Option<usize> {
+        self.doc.error_line()
+    }
+
+    fn create_handler(&mut self, form: usize, component: &str, event: &str) -> Result<(String, Option<usize>, Vec<SourceEdit>), String> {
+        let before = self.doc.text().to_string();
+        let h = self.doc.create_handler(form, component, event)?;
+        Ok((h.sub, h.line, edits_of(before, &h.patches)))
+    }
 }
 
 #[cfg(test)]
@@ -238,6 +248,103 @@ mod tests {
         s.open_source("PRINT 1\n");
         assert!(s.no_form() && s.empty_text().is_some());
         assert_eq!(s.add_at("QBUTTON", (8, 8), None), None);
+    }
+
+    #[test]
+    fn a_double_click_makes_the_handler() {
+        let mut s = surface();
+        let mut editor = NOTEPAD.to_string();
+        let sub = s.create_handler("Ok", "").expect("a handler");
+        assert_eq!(sub, "OkClick");
+        let edits: Vec<SourceEdit> = s.take_events().into_iter().filter_map(|e| match e {
+            rapidr_value::objects::design::DesignEvent::SourceEdit(e) => Some(e),
+            _ => None,
+        }).collect();
+        apply(&mut editor, &edits);
+        assert!(editor.contains("OnClick = OkClick") && editor.contains("SUB OkClick"), "{editor}");
+        assert_eq!(s.get("source").unwrap().to_string_val(), editor);
+        let line = s.handler_line as usize;
+        assert!(editor.lines().nth(line).is_some(), "the caret's line is in the text");
+        assert!(s.undo());
+        assert_eq!(s.get("source").unwrap().to_string_val(), NOTEPAD);
+    }
+
+    const PANEL: &str = "CREATE F AS QFORM\n  Width = 400: Height = 300\n  CREATE Panel1 AS QPANEL\n    Left = 200: Top = 10: Width = 150: Height = 150\n  END CREATE\n  CREATE B AS QBUTTON\n    Left = 10: Top = 10\n  END CREATE\nEND CREATE\n";
+
+    fn edits(s: &mut DesignSurface) -> Vec<SourceEdit> {
+        s.take_events()
+            .into_iter()
+            .filter_map(|e| match e {
+                rapidr_value::objects::design::DesignEvent::SourceEdit(e) => Some(e),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn dropped_on_a_panel_it_goes_into_it() {
+        install();
+        let mut s = DesignSurface::default();
+        s.open_source(PANEL);
+        let mut editor = PANEL.to_string();
+        s.mouse_down(15, 15, false);
+        s.mouse_drag(225, 45);
+        s.mouse_drag(230, 50);
+        s.mouse_up();
+        apply(&mut editor, &edits(&mut s));
+        let panel_end = editor.find("  END CREATE\n  CREATE B").or_else(|| editor.find("    CREATE B"));
+        assert!(editor.contains("    CREATE B AS QBUTTON"), "nested in the panel: {editor}");
+        assert!(panel_end.is_some());
+        assert_eq!(s.get("source").unwrap().to_string_val(), editor);
+        assert!(s.undo());
+        assert_eq!(s.get("source").unwrap().to_string_val(), PANEL);
+    }
+
+    #[test]
+    fn the_keyboard_designs() {
+        install();
+        let mut s = DesignSurface::default();
+        s.open_source(PANEL);
+        // Tab to the panel, Shift+arrow by the grid, Ctrl+arrow resizes
+        assert!(s.key(9, "", false, false));
+        assert_eq!(s.root_name(), "F");
+        assert!(s.announcement.starts_with("Panel1 (QPANEL), 200, 10"), "{}", s.announcement);
+        assert!(s.key(39, "", true, false));
+        assert!(s.key(40, "", false, true));
+        let text = s.get("source").unwrap().to_string_val();
+        assert!(text.contains("Left = 208") && text.contains("Height = 151"), "{text}");
+        // Escape: the form; Delete with nothing selected does nothing
+        assert!(s.key(27, "", false, false));
+        assert_eq!(s.selection(), None);
+        // a new label: typing writes its Caption
+        let i = s.add_at("QLABEL", (16, 200), None).unwrap();
+        for c in ["O", "K"] {
+            assert!(s.key(0, c, false, false));
+        }
+        let text = s.get("source").unwrap().to_string_val();
+        assert!(text.contains("Caption = \"OK\""), "{text}");
+        assert_eq!(s.call("getname", &[rapidr_value::v_int(i as i64)]).unwrap().to_string_val(), "Label1");
+        // Delete removes it; Ctrl+Z brings it back
+        assert!(s.key(13, "", false, false));
+        assert!(s.key(46, "", false, false));
+        assert!(!s.get("source").unwrap().to_string_val().contains("Label1"));
+        assert!(s.key(90, "", false, true));
+        assert!(s.get("source").unwrap().to_string_val().contains("Label1"));
+    }
+
+    #[test]
+    fn code_with_errors_keeps_the_last_good_form_read_only() {
+        let mut s = surface();
+        let broken = NOTEPAD.replace("Form.ShowModal", "IF x THEN\nPRINT (");
+        s.open_source(&broken);
+        assert_eq!(s.code_error, Some(17));
+        assert!(s.banner().unwrap().contains("line 17"));
+        assert_eq!(s.form_rect().2, 480, "the last good form");
+        assert_eq!(s.add_at("QBUTTON", (8, 8), None), None, "read-only");
+        assert!(!s.key(46, "", false, false));
+        s.open_source(NOTEPAD);
+        assert_eq!(s.code_error, None);
+        assert!(s.add_at("QBUTTON", (8, 8), None).is_some());
     }
 
     #[test]
