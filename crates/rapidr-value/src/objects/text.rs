@@ -162,6 +162,17 @@ pub fn bold_spacing(font: &Font) -> f32 {
     if font.styles & 1 != 0 && family_name(&font.name) == "RapidR Sans" { 1.0 } else { 0.0 }
 }
 
+/// GDI's tmAveCharWidth as Windows gives it for a font without a width
+/// table — the width of `x` — where tab stops fall (DT_EXPANDTABS, a list's
+/// TabWidth). MS Sans Serif's x is 5 pixels at 8 pt: RapidR Sans draws its
+/// x a pixel wider (fonts/README.md) but keeps RapidQ's tab stops.
+pub fn average_char_width(font: &Font) -> i64 {
+    if family_name(&font.name) == "RapidR Sans" {
+        return ((5.0 * pixel_size(font) / 11.0).round() as i64).max(1);
+    }
+    text_size("x", font).0.max(1)
+}
+
 /// `TextWidth` / `TextHeight` of `text` in `font`, in pixels.
 pub fn text_size(text: &str, font: &Font) -> (i64, i64) {
     let Some(s) = scaled(font) else { return (0, 0) };

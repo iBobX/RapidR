@@ -2,6 +2,8 @@
 ' they are tightest — r after a round or upright letter, capitals before
 ' lower case — in a label, a bold label, an edit, a rich edit, a string
 ' grid and a status bar (the text editor and the label lay text out apart).
+DIM Bold AS QFONT
+Bold.AddStyles(fsBold)
 CREATE Form AS QFORM
   Caption = "Notepad - untitled": Left = 40: Top = 40: Width = 400: Height = 260
   CREATE L1 AS QLABEL
@@ -9,7 +11,6 @@ CREATE Form AS QFORM
   END CREATE
   CREATE L2 AS QLABEL
     Caption = "Notepad - untitled  Bread  Price  program  start": Left = 8: Top = 28: Width = 380
-    Font.AddStyles(fsBold)
   END CREATE
   CREATE E1 AS QEDIT
     Text = "Right-click me for the pop-up menu.": Left = 8: Top = 48: Width = 380
@@ -27,4 +28,5 @@ CREATE Form AS QFORM
     SimpleText = "Ready"
   END CREATE
 END CREATE
+L2.Font = Bold
 Form.ShowModal
