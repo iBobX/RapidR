@@ -131,10 +131,6 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   build never showed a window.
 - **`WITH TF.Bar` in a TYPE's own code** reaches the field's object (it set
   the form's Width: RapidQ's `newform.bas` shrank to nothing).
-- **A field store into an element of an array of objects** (`arr(1).x = 5`
-  for a TYPE EXTENDS QOBJECT) and `WITH arr(b)` are RC.EXE's
-  errors (`Expected = but got "("`), as RapidQ's `WIP_asteroids3D.bas`
-  stops.
 - A routine named after its object (`FUNCTION Screen.GetPixelDepth` in
   RAPIDQ2.INC) counts as called, so the Windows API it calls is reported when
   the program compiles, not when it runs.

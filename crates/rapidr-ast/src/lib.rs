@@ -1666,64 +1666,6 @@ pub fn object_name_types(program: &Program) -> Program {
     program
 }
 
-/// RapidQ's compiler can't store into a field of an element of an array of
-/// objects (a TYPE EXTENDS QOBJECT): `arr(1).x = 5` is RC.EXE's `Expected =
-/// but got "("` (as for a QRECT array's, which is refused anyway: `Array of
-/// QRECT is not supported!`), and `WITH arr(b)` its
-/// `Expected end-of-line but got (` (probes 2026-10-08; RapidQ's
-/// `games/WIP_asteroids3D.bas` stops so). Reading `arr(1).x` is fine, as are
-/// a plain TYPE's arrays and a component's (`L(1).Sorted = 1`).
-fn object_array_store_checks(program: &Program) -> Vec<(TextSpan, String)> {
-    let objects: std::collections::HashSet<String> = program
-        .statements
-        .iter()
-        .filter_map(|s| match s {
-            Statement::Type(t) if t.extends.is_some() || t.object_base => Some(t.name.to_ascii_uppercase()),
-            _ => None,
-        })
-        .collect();
-    let is_object = |t: &str| objects.contains(&t.trim().to_ascii_uppercase());
-    let mut arrays: std::collections::HashSet<String> = std::collections::HashSet::new();
-    walk(
-        &program.statements,
-        &mut |s| {
-            if let Statement::Dim(d) = s {
-                if is_object(&d.type_name) {
-                    arrays.extend(d.declarators.iter().filter(|v| !v.dimensions.is_empty()).map(|v| strip_type_suffix(&v.name).to_ascii_lowercase()));
-                }
-            }
-        },
-        &mut |_| {},
-    );
-    let mut out = Vec::new();
-    if arrays.is_empty() {
-        return out;
-    }
-    // (`arr(1)` reads as a call until the arrays are known)
-    let named = |e: &Expression| matches!(e, Expression::Identifier(i) if arrays.contains(&strip_type_suffix(&i.name).to_ascii_lowercase()));
-    let element = |e: &Expression| match e {
-        Expression::ArrayAccess(a) => named(&a.array),
-        Expression::FunctionCall(f) => named(&f.callee),
-        _ => false,
-    };
-    walk(
-        &program.statements,
-        &mut |s| match s {
-            Statement::Assignment(a) => {
-                if let Expression::MemberAccess(m) = &a.target {
-                    if element(&m.object) {
-                        out.push((a.span, "Expected = but got \"(\"".to_string()));
-                    }
-                }
-            }
-            Statement::With(w) if element(&w.object) => out.push((w.span, "Expected end-of-line but got (".to_string())),
-            _ => {}
-        },
-        &mut |_| {},
-    );
-    out
-}
-
 /// RapidQ's errors for a type name nothing defines (RC.EXE, probes
 /// 2026-10-08), each in its compiler's words:
 /// - `DIM b AS QBITMAPEX` (in a SUB too, arrays too, and a field of a TYPE
@@ -2291,7 +2233,6 @@ pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
         &mut |_| {},
     );
     out.extend(unknown_type_checks(program, &outside_types));
-    out.extend(object_array_store_checks(program));
     out.extend(fixed_member_checks(program, &outside_types, &component_types));
     out.extend(registry_member_checks(program, &outside_types, &component_types));
     let mut global_dims = HashSet::new();

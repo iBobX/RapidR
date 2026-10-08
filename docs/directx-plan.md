@@ -269,9 +269,42 @@ Tests: `tests/fixtures/dx_joystick.bas` (case `dx_joystick`, its gamepad the cas
 
 "Before": RapidR before this work (19 compiled). RC.EXE: RapidQ's compiler in the VM (an include path written as `\rapidq\include\…` doesn't exist in the VM — those two compile in a RapidQ installed at `C:\rapidq`). "Runs": RapidR's interpreted and native builds and the web (the UI kernel on a canvas), captured; "vs RapidQ": RapidR's window beside RC.EXE's.
 
-TABLE
+| Program | Before | RC.EXE | RapidR now (interp · native · web) | Beside RapidQ's window |
+|---|---|---|---|---|
+| `Gauge/CoolGauge.bas` | runs | runs | runs · runs · runs | the same gauge (its whole canvas since OnResize fires as the VCL) |
+| `Mouse/select2dx.bas` | runs | runs | runs · runs · runs | the same |
+| `OpenGL/OGL_Demo1.bas` | include missing | include missing (`gl.inc`) | refused alike | — |
+| `OpenGL/OGL_Demo2.bas` | include missing | include missing (`Windows.inc` at `\rapidq\include`) | refused (`glBMP.inc` missing) | — |
+| `OpenGL/QGLobject3.bas` | `unsupported function call target` | `Unknown data type QBITMAPEX` | refused alike (RC.EXE's words) | — |
+| `direct3d/3DPong_aDelic2.bas` | QRECT in STRUCT | runs (full screen: the VM can't change the display mode) | interp: refused (RAPIDQ2.INC's `GetDC` / `GetDeviceCaps`, the DLL lane) · native: builds | windowed copy `pong_win` / `pong_still`: the same court, camera, lights and HUD (its textures are random) |
+| `direct3d/3DXplusV2_2.bas` | runs | runs (full screen) | runs · runs · runs | windowed copy `3dx_win`: the same |
+| `direct3d/3dConvert/xview2.bas` | kernel32 (DLL lane) | runs | interp: refused (`SetLastError`, the DLL lane) · native: runs | native: the same form |
+| `direct3d/3d_clock/3d_orologio.bas` | QRECT in STRUCT | runs (full screen) | runs · runs · runs | windowed copy `clock_win`: the same room, clock and light |
+| `direct3d/Lights_pyramid.bas` | QRECT in STRUCT | runs | runs · runs · runs | the same pyramid, now tumbling as RapidQ's (`lp_*`) |
+| `direct3d/Lights_terrain.bas` | QRECT in STRUCT | runs (with RapidQ at `C:\rapidq`) | runs · runs · runs | asks for a height map first in both |
+| `direct3d/RQ_3DTerrain.bas` | QRECT in STRUCT | runs | runs · runs · runs | the same empty scene until a map is opened |
+| `direct3d/alphablend/D3D.BAS` | runs | runs | runs · runs · runs | the same translucent egg |
+| `direct3d/circularScreen/Circular3DScreen.bas` | QRECT in STRUCT | runs | runs · runs · runs | the same curved screen |
+| `direct3d/lights_motion.bas` | QRECT in STRUCT | runs | runs · runs · runs | asks for a model first in both; Park.x drawn as RapidQ draws it (gallery) |
+| `direct3d/shadows/SHADOW.BAS` | runs | runs | runs · runs · runs | the same ball and shadow (bounce phase differs) |
+| `direct3d/smooth_move.bas` | runs | runs | runs · runs · runs | the same |
+| `direct3d/wrap/WRAP.BAS` | runs | runs | runs · runs · runs | the same chrome egg (turn phase differs) |
+| `direct3d/xview/xview.bas` | runs | runs | runs · runs · runs | the same viewer; tiger.x drawn alike (gallery) |
+| `direct3d/xview/xview2.bas` | runs | runs | runs · runs · runs | the same viewer |
+| `directx/3dcube.bas` | runs | runs | runs · runs · runs | the same cube (colours by the face shown; its 8-bit palette not modelled) |
+| `directx/dxball.bas` | runs | runs | runs · runs · runs | the same |
+| `directx/scroll/dx.bas` | runs | runs | runs · runs · runs | the same |
+| `directx/shooter/shooter.bas` | runs | runs | runs · runs · runs | the same |
+| `directx/starfield/stars.bas` | runs | runs | runs · runs · runs | the same |
+| `forms/newform/newform.bas` | runs (its form shrank to nothing once OnResize fired) | runs | runs · runs · runs | the same Cool Form, its title bar drawn |
+| `games/WIP_asteroids3D.bas` | QRECT in STRUCT | `Expected = but got "("` (line 267: a field store into an array of objects) | refused (`shoy`, a typo, line 303: RapidR stores into an object array's element, an addition) | — |
+| `games/qmorp/QMORP.BAS` | `Expected end-of-line but got ,` | runs | runs · runs · runs | the same board |
+| `graphics/image_test.bas` | runs | runs (with RapidQ at `C:\rapidq`) | runs · runs · runs | both stop at the missing `C:\Rapidq\MRIview\mri1.bmp` (RapidQ: an exception box) |
+| `imageLibrary/mgplist.bas` | runs | runs | runs · runs · runs | the same |
+| `sound/QDXSound.bas` | runs | runs | runs · runs · runs | the same |
+| `sound/qdxsound2.bas` | runs | runs | runs · runs · runs | the same |
 
-Totals: RC.EXE compiles 28 of the 32 (two of them only with RapidQ installed at `C:\rapidq`); RapidR compiled 19 before, and now 26 interpreted (the 28 but the two calling the Windows API: RAPIDQ2.INC's `SetLastError`, `GetDC` / `GetDeviceCaps` — the DLL lane) and 28 native; the 4 neither compiles are refused by both, RapidR's errors now RC.EXE's for QBITMAPEX and WIP_asteroids3D's first error.
+Totals: RC.EXE compiles 28 of the 32 (two of them only with RapidQ installed at `C:\rapidq`); RapidR compiled 19 before, and now 26 interpreted (the 28 but the two calling the Windows API: RAPIDQ2.INC's `SetLastError`, `GetDC` / `GetDeviceCaps` — the DLL lane) and 28 native; the 4 neither compiles are refused by both, RapidR's error now RC.EXE's for QBITMAPEX.
 
 ### What the comparison found (changed)
 
@@ -280,7 +313,7 @@ Totals: RC.EXE compiles 28 of the 32 (two of them only with RapidQ installed at 
 - **Specular highlights**: a `.X` material's power and specular colour, D3DRM's way — (n · h)^power, the viewer at infinity behind the camera (no D3DRMRENDERMODE_VIEWDEPENDENTSPECULAR) — RapidQ's `xview/myearth.x`.
 - **A QDXSCREEN is set up on its shown window**: OnInitialize and OnInitializeSurface fire once the form's window is made and shown, before its OnShow (they fired before the window existed). RapidQ's 3DPong runs its whole game loop (DoEvents) inside OnInitializeSurface: its native build never showed its window.
 - **`WITH TF.Bar` in a TYPE's own code** reaches the field's object (`.Width = …` set the form's Width: RapidQ's `forms/newform/newform.bas` shrank its form to nothing once OnResize fired as the VCL fires it). `with_this_field`.
-- RC.EXE's own errors where RapidR's differed or were missing: an unknown type (`unknown_type_errors`), a field store into an element of an array of objects (`object_array_stores`: WIP_asteroids3D's first error), `$DEFINE` in any case (`define_any_case`), an object's name as a type (`object_name_types`) — docs/rapidq-ground-truth.md.
+- RC.EXE's own errors where RapidR's differed or were missing: an unknown type (`unknown_type_errors`), `$DEFINE` in any case (`define_any_case`), an object's name as a type (`object_name_types`) — docs/rapidq-ground-truth.md.
 
 ### The `.X` gallery
 
