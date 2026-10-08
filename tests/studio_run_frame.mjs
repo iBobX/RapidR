@@ -18,7 +18,6 @@
 // RAPIDR_STUDIO_URL):  node tests/studio_run_frame.mjs
 
 import { chromium } from "playwright";
-import * as k from "./web_kernel_page.mjs";
 
 const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 const STUDIO_URL = process.env.RAPIDR_STUDIO_URL || `${URL_BASE}/target/studio-web`;
@@ -69,7 +68,9 @@ async function studio({ files = [], open, dpr = 1 }) {
   await page.goto(`${STUDIO_URL}/index.html?${q}`, { waitUntil: "load" });
   return { page, errors };
 }
-const output = (page) => k.text(page, "OutputBox").then((t) => t ?? "");
+// (Output's text as Studio reads it: ROUTPUTCONSOLE's Text, the screen
+// its program printed)
+const output = (page) => page.evaluate(() => { try { return String(window.rr.rapidr_get_prop("OutputBox", "text") ?? ""); } catch { return ""; } });
 const runFrame = (page) => page.frames().find((f) => f.url().includes("run.html"));
 async function until(fn, ms = 30000) {
   for (let waited = 0; waited < ms; waited += 100) {
