@@ -54,6 +54,25 @@ impl Host for NativeHost {
         if let Some(result) = rapidr_value::shared_builtin(&key, args) {
             return result;
         }
+        // A DLL's routine (rapidr_runtime_core::ffi): the real call on
+        // Windows, the error elsewhere.
+        if key == "__dll_call" {
+            let s = |i: usize| args.get(i).map(Value::to_string_val).unwrap_or_default();
+            return rapidr_runtime_core::ffi::dll_call(&s(0), &s(1), &s(2), args.get(3..).unwrap_or(&[]));
+        }
+        // POKE / PCOPY: a change on the screen page is printed.
+        if key == "poke" || key == "pcopy" {
+            let text = if key == "poke" {
+                rapidr_value::memory::poke_args(args)?
+            } else {
+                let a = |i: usize| args.get(i).cloned().unwrap_or_else(v_null);
+                rapidr_value::console::pcopy(&a(0), &a(1))?
+            };
+            if !text.is_empty() {
+                self.print(&text)?;
+            }
+            return Ok(v_null());
+        }
         if key == "lbound" || key == "ubound" {
             let arr = args.first().cloned().unwrap_or_else(v_null);
             let dim = args.get(1).map(|v| v.to_i64()).unwrap_or(1);
@@ -306,6 +325,9 @@ fn call_builtin_native(name: &str, args: &[Value]) -> Value {
         // --- Array ---
         "lbound" => rp_lbound(&[a0]),
         "ubound" => rp_ubound(&[a0]),
+        // (POKE / PCOPY / a DLL call are answered in `call_builtin`, where
+        // an error can be reported; listed for the registry)
+        "poke" | "pcopy" | "__dll_call" => v_null(),
 
         // --- File / directory ---
         "freefile" => rp_freefile(),

@@ -1,281 +1,412 @@
-//! FFI module — load shared libraries (.dylib on macOS, .dll on Windows, .so on Linux)
-//! and call functions from them at runtime.
+//! `DECLARE … LIB`: calling a DLL's function (docs/windows-dll-calls.md §1).
 //!
-//! Usage from RapidR:
-//!   DECLARE FUNCTION MyFunc LIB "mylib.dylib" ALIAS "actual_func_name" (a AS INTEGER) AS INTEGER
-//!   result = MyFunc(42)
+//! Both compilers lower a call to a DECLAREd LIB routine to
+//! `__dll_call(lib, alias, spec, args…)`; native builds reach [`rp_dll_call`],
+//! the interpreter's native host [`dll_call`]. The spec
+//! (`rapidr_value::dll::Spec`) carries the DECLARE's types: what RapidQ
+//! passes by value (numbers, unless BYREF) and by address (strings, TYPEs,
+//! BYREF numbers).
 //!
-//! Calling convention notes:
-//!   On x86_64 (SysV/Windows) and ARM64, integer and pointer arguments travel in integer
-//!   registers (rdi/rsi/… or x0/x1/…) while floating-point (f64/f32) arguments travel in
-//!   separate float registers (xmm0/xmm1/… or d0/d1/…).  The return value likewise lives in
-//!   either an integer register (rax / x0) or a float register (xmm0 / d0) depending on the
-//!   declared C return type.
+//! Pointers are the program's own memory: before the call every live block
+//! of `rapidr_value::memory` is materialised at its address (real pages on
+//! Windows), an argument that is an address inside one becomes that
+//! pointer, and afterwards what the DLL wrote is read back.
 //!
-//!   To honour this ABI correctly, the Rust `extern "C"` function pointer type used for each
-//!   call must exactly list `i64` for integer/pointer parameters and `f64` for double parameters
-//!   (and the same for the return type).  The comprehensive dispatch matrix below handles all
-//!   combinations of up to 4 parameters, each of which can be `i64` or `f64`, with either an
-//!   `i64` or `f64` return type.
+//! The call itself goes through a table of exact `extern "system"`
+//! signatures (the one convention 64-bit Windows has; "C" elsewhere): up to
+//! 16 integer arguments, and DOUBLE arguments in calls of up to 4 — no C
+//! library, no assembler.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::ffi::{c_char, CStr, CString};
+use std::ffi::{c_char, CStr};
 
-use libloading::{Library, Symbol};
+use libloading::Library;
 
+use crate::value::dll::{self, Param, Spec};
+use crate::value::memory;
+use crate::value::objects::codec::string_to_bytes;
 use crate::value::{v_dbl, v_int, v_null, v_str, Value};
 
-// Cached loaded libraries (by path)
 thread_local! {
-    static LOADED_LIBS: RefCell<HashMap<String, Library>> = RefCell::new(HashMap::new());
+    /// Loaded libraries by their lowercase name.
+    static LOADED: RefCell<HashMap<String, Library>> = RefCell::new(HashMap::new());
 }
 
-/// Load a shared library if not already loaded
-fn ensure_lib(lib_path: &str) -> Result<(), String> {
-    LOADED_LIBS.with(|libs| {
-        let mut map = libs.borrow_mut();
-        if !map.contains_key(lib_path) {
-            match unsafe { Library::new(lib_path) } {
-                Ok(lib) => { map.insert(lib_path.to_string(), lib); Ok(()) }
-                Err(e) => Err(format!("Failed to load library '{}': {}", lib_path, e))
-            }
-        } else {
-            Ok(())
+/// The function being called, for the crash filter's message.
+static CALLING: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+
+fn library_error(lib: &str, e: &libloading::Error) -> String {
+    let text = e.to_string();
+    #[cfg(windows)]
+    {
+        if text.contains("os error 193") {
+            return format!("'{lib}' is a 32-bit DLL; RapidR programs are 64-bit, so Windows can't load it (a 64-bit build of that DLL is needed)");
         }
+        if text.contains("os error 126") {
+            return format!("can't find the DLL '{lib}' (LIB \"{lib}\"): it isn't one of Windows' and isn't beside the program");
+        }
+    }
+    format!("can't load the library '{lib}': {text}")
+}
+
+/// The library `lib` names, loaded once (Windows' own search: `"user32"`,
+/// `"user32.dll"`, a path).
+fn with_library<T>(lib: &str, f: impl FnOnce(&Library) -> Result<T, String>) -> Result<T, String> {
+    let key = lib.trim_matches('"').to_ascii_lowercase();
+    LOADED.with(|l| {
+        let mut l = l.borrow_mut();
+        if !l.contains_key(&key) {
+            let name = lib.trim_matches('"');
+            // Windows resolves a bare name to name.dll; the other systems
+            // need the extension spelled out.
+            let path = if cfg!(windows) || name.contains('.') { name.to_string() } else { format!("{name}.{}", if cfg!(target_os = "macos") { "dylib" } else { "so" }) };
+            // SAFETY: loading a library runs its initialisers — what the
+            // program asked for with DECLARE … LIB.
+            let library = unsafe { Library::new(&path) }.map_err(|e| library_error(name, &e))?;
+            l.insert(key.clone(), library);
+        }
+        f(l.get(&key).expect("loaded"))
     })
 }
 
-/// Raw result from the C call, before conversion to a RapidR Value.
-enum RawResult {
+/// A marshalled argument: an integer slot or a float slot.
+enum Slot {
     Int(i64),
-    Dbl(f64),
+    Float(f64),
 }
 
-/// Call an FFI function with the given arguments.
-/// This is the generic entry point used by codegen-generated DECLARE stubs.
-///
-/// `lib_path`: path to the shared library (e.g., "libm.dylib")
-/// `func_name`: the actual exported function name (the ALIAS)
-/// `args`: the arguments from RapidR
-/// `ret_type`: expected return type ("INTEGER", "DOUBLE", "STRING", or "")
-pub fn ffi_call(lib_path: &str, func_name: &str, args: &[Value], ret_type: &str) -> Value {
-    if let Err(e) = ensure_lib(lib_path) {
-        eprintln!("[ERROR] FFI: {}", e);
-        return v_null();
+/// The bytes of a BYREF number the program passed as a value (not an
+/// address): the DLL gets a buffer holding it.
+fn temp_number(v: &Value, type_name: &str) -> Vec<u8> {
+    let mut b = Vec::new();
+    memory::encode(v, &memory::Kind::of(type_name), &mut b);
+    b.resize(dll::numeric_size(type_name).max(b.len()).max(8), 0);
+    b
+}
+
+/// Calls `name` (its exported name) of `lib` with `args` as `spec` says.
+pub fn dll_call(lib: &str, name: &str, spec: &str, args: &[Value]) -> Result<Value, String> {
+    if !cfg!(windows) && dll::is_windows_system_library(lib) {
+        return Err(dll::needs_windows_error(lib, name, false));
+    }
+    let spec = Spec::parse(spec);
+    if args.len() > spec.params.len() || args.len() > 16 {
+        return Err(format!("'{name}' takes {} arguments, {} given", spec.params.len(), args.len()));
+    }
+    for (p, a) in spec.params.iter().zip(args) {
+        if p.is_float() && p.type_name != "DOUBLE" {
+            return Err(format!("'{name}': a {} passed by value isn't supported; declare the parameter AS DOUBLE", p.type_name));
+        }
+        if p.is_float() && args.len() > 4 {
+            return Err(format!("'{name}': DOUBLE arguments are supported in calls of up to 4 arguments"));
+        }
+        if matches!(a, Value::String(_)) && p.is_float() {
+            return Err(format!("'{name}': a string was given for the DOUBLE parameter"));
+        }
     }
 
-    LOADED_LIBS.with(|libs| {
-        let map = libs.borrow();
-        let lib = match map.get(lib_path) {
-            Some(l) => l,
-            None => return v_null(),
+    // Addresses of the TYPEs and arrays passed (their blocks exist before
+    // the blocks are materialised).
+    let mut addresses: Vec<Option<i64>> = Vec::with_capacity(args.len());
+    for a in args {
+        addresses.push(match a {
+            Value::Object(_) | Value::Array(_) => Some(memory::address_of(a)?),
+            _ => None,
+        });
+    }
+    let blocks = memory::materialize();
+    // Buffers of this call's own: C strings, BYREF numbers given as values.
+    let mut temps: Vec<Vec<u8>> = Vec::new();
+    let mut slots: Vec<Slot> = Vec::with_capacity(args.len());
+    for (i, a) in args.iter().enumerate() {
+        let p = &spec.params[i];
+        let slot = match a {
+            Value::String(s) => {
+                let mut b = string_to_bytes(s);
+                b.push(0);
+                temps.push(b);
+                Slot::Int(temps.last_mut().unwrap().as_mut_ptr() as i64)
+            }
+            Value::Object(_) | Value::Array(_) => {
+                let addr = addresses[i].unwrap_or(0);
+                Slot::Int(memory::real_pointer(addr, &blocks).ok_or_else(|| format!("'{name}': the TYPE passed for '{}' has no memory", p.type_name))? as i64)
+            }
+            _ if p.is_float() => Slot::Float(a.to_f64()),
+            _ => {
+                let v = a.to_i64();
+                if let Some(ptr) = memory::real_pointer(v, &blocks) {
+                    Slot::Int(ptr as i64)
+                } else if p.by_ref || (p.is_string() && v != 0) {
+                    // (a BYREF number given as a value: a buffer with it;
+                    // a STRING parameter given a number that isn't an
+                    // address: the same, so the DLL can't read address 64)
+                    temps.push(temp_number(a, &p.type_name));
+                    Slot::Int(temps.last_mut().unwrap().as_mut_ptr() as i64)
+                } else {
+                    Slot::Int(narrow(v, p))
+                }
+            }
         };
+        slots.push(slot);
+    }
 
-        let n = args.len();
-        if n > 4 {
-            eprintln!(
-                "[WARN] FFI: function '{}' has {} args (max 4 supported; use RUSTSTART/RUSTEND for more)",
-                func_name, n
-            );
-            return v_null();
-        }
+    let raw = with_library(lib, |library| {
+        // SAFETY: the symbol is called through the signature the DECLARE
+        // describes; the pointer type is fixed by `call_table`.
+        let sym: libloading::Symbol<*const ()> = unsafe { library.get(name.as_bytes()) }.map_err(|_| {
+            format!("{} has no function '{name}' (the DECLARE's ALIAS must be the exported name; many Windows functions end in A or W)", dll::library_base(lib) + ".dll")
+        })?;
+        let ptr = *sym;
+        *CALLING.lock().unwrap_or_else(|e| e.into_inner()) = format!("{name} in {}", dll::library_base(lib));
+        install_crash_filter();
+        // SAFETY: a foreign function with the arguments its declaration
+        // asks for; the program takes RapidQ's risk that they are right.
+        let r = unsafe { call_table(ptr, &slots, spec.returns_float()) };
+        CALLING.lock().unwrap_or_else(|e| e.into_inner()).clear();
+        r
+    })?;
+    // What the DLL wrote into the program's memory.
+    memory::read_back(blocks);
+    // (BYREF numbers given as values: nothing to write back to)
+    drop(temps);
 
-        // Keep CString values alive for the entire duration of the FFI call.
-        let mut c_strings: Vec<CString> = Vec::new();
-
-        // Prepare two parallel arrays: integer values (i64) and float values (f64).
-        // `af[idx]` is true when args[idx] is a RapidR Double — those must be passed in
-        // float registers, so we will use `f64` in the function-pointer type for that slot.
-        let mut i_args = [0i64; 4];
-        let mut f_args = [0f64; 4];
-        let mut af = [false; 4];
-
-        // An address the program got from VARPTR / Pointer / a UDT
-        // (rapidr_value::memory) isn't real memory: the DLL gets a real
-        // buffer with those bytes, copied back after the call.
-        let mut buffers: Vec<(usize, i64, Vec<u8>)> = args
-            .iter()
-            .enumerate()
-            .filter_map(|(idx, a)| match a {
-                Value::Integer(v) if crate::value::memory::is_issued(*v) => {
-                    let mut bytes = crate::value::memory::bytes_from(*v).ok()?;
-                    let len = bytes.len();
-                    // (a NUL after the bytes, for C strings)
-                    bytes.push(0);
-                    bytes.truncate(len + 1);
-                    Some((idx, *v, bytes))
-                }
-                _ => None,
-            })
-            .collect();
-
-        for (idx, arg) in args.iter().enumerate() {
-            match arg {
-                Value::Integer(_) if buffers.iter().any(|(i, _, _)| *i == idx) => {
-                    let buf = buffers.iter_mut().find(|(i, _, _)| *i == idx).map(|(_, _, b)| b.as_mut_ptr()).unwrap_or(std::ptr::null_mut());
-                    i_args[idx] = buf as i64;
-                    f_args[idx] = i_args[idx] as f64;
-                }
-                Value::Integer(v) => { i_args[idx] = *v; f_args[idx] = *v as f64; }
-                Value::Double(v)  => { i_args[idx] = v.to_bits() as i64; f_args[idx] = *v; af[idx] = true; }
-                Value::Boolean(v) => { let b = if *v { 1i64 } else { 0i64 }; i_args[idx] = b; f_args[idx] = b as f64; }
-                Value::String(v)  => {
-                    let cs = CString::new(v.as_str()).unwrap_or_default();
-                    i_args[idx] = cs.as_ptr() as i64;
-                    f_args[idx] = i_args[idx] as f64; // pointer as float (meaningless, but fills the slot)
-                    c_strings.push(cs);
-                }
-                _ => {}
+    Ok(match (raw, spec.return_type.as_str()) {
+        (Raw::Float(d), _) => v_dbl(d),
+        (Raw::Int(_), "") => v_null(),
+        (Raw::Int(n), "STRING") => {
+            if n == 0 {
+                v_str("")
+            } else {
+                // SAFETY: the DLL returned a C string's address (as the
+                // DECLARE says); read to its NUL.
+                let c = unsafe { CStr::from_ptr(n as *const c_char) };
+                v_str(&crate::value::objects::codec::bytes_to_string(c.to_bytes()))
             }
         }
-
-        // For ABI purposes, STRING return behaves like INTEGER (both use the integer return register).
-        let abi_is_dbl = matches!(
-            ret_type.to_ascii_uppercase().as_str(),
-            "DOUBLE" | "SINGLE" | "CURRENCY"
-        );
-
-        // Convenience bindings so match arms are concise.
-        let (i0, i1, i2, i3) = (i_args[0], i_args[1], i_args[2], i_args[3]);
-        let (f0, f1, f2, f3) = (f_args[0], f_args[1], f_args[2], f_args[3]);
-        let (a0, a1, a2, a3) = (af[0], af[1], af[2], af[3]);
-
-        // Macro: look up the symbol and call it.  Returns Result<RawResult, String> so the
-        // closure below can use `?` for clean error propagation.
-        macro_rules! call_sym {
-            // 0-arg form
-            ($ft:ty, $res:path) => {{
-                let s: Symbol<$ft> = unsafe { lib.get(func_name.as_bytes()) }
-                    .map_err(|e| format!("symbol '{}' not found: {}", func_name, e))?;
-                Ok($res(unsafe { s() }))
-            }};
-            // 1+-arg form
-            ($ft:ty, $res:path, $($arg:expr),+) => {{
-                let s: Symbol<$ft> = unsafe { lib.get(func_name.as_bytes()) }
-                    .map_err(|e| format!("symbol '{}' not found: {}", func_name, e))?;
-                Ok($res(unsafe { s($($arg),+) }))
-            }};
-        }
-
-        // Comprehensive dispatch: (arg_count, a0_is_f64, a1_is_f64, a2_is_f64, a3_is_f64, return_is_f64)
-        // Each arm uses the exact extern "C" fn signature so the compiler emits the correct
-        // integer- vs. float-register usage for both parameters and return value.
-        let raw_result: Result<RawResult, String> = (|| {
-            match (n, a0, a1, a2, a3, abi_is_dbl) {
-                // ── 0 arguments ──────────────────────────────────────────────────────────────
-                (0, _, _, _, _, false) => call_sym!(unsafe extern "C" fn() -> i64, RawResult::Int),
-                (0, _, _, _, _, true)  => call_sym!(unsafe extern "C" fn() -> f64, RawResult::Dbl),
-
-                // ── 1 argument ───────────────────────────────────────────────────────────────
-                (1, false, _, _, _, false) => call_sym!(unsafe extern "C" fn(i64) -> i64, RawResult::Int, i0),
-                (1, false, _, _, _, true)  => call_sym!(unsafe extern "C" fn(i64) -> f64, RawResult::Dbl, i0),
-                (1, true,  _, _, _, false) => call_sym!(unsafe extern "C" fn(f64) -> i64, RawResult::Int, f0),
-                (1, true,  _, _, _, true)  => call_sym!(unsafe extern "C" fn(f64) -> f64, RawResult::Dbl, f0),
-
-                // ── 2 arguments ──────────────────────────────────────────────────────────────
-                (2, false, false, _, _, false) => call_sym!(unsafe extern "C" fn(i64, i64) -> i64, RawResult::Int, i0, i1),
-                (2, false, false, _, _, true)  => call_sym!(unsafe extern "C" fn(i64, i64) -> f64, RawResult::Dbl, i0, i1),
-                (2, false, true,  _, _, false) => call_sym!(unsafe extern "C" fn(i64, f64) -> i64, RawResult::Int, i0, f1),
-                (2, false, true,  _, _, true)  => call_sym!(unsafe extern "C" fn(i64, f64) -> f64, RawResult::Dbl, i0, f1),
-                (2, true,  false, _, _, false) => call_sym!(unsafe extern "C" fn(f64, i64) -> i64, RawResult::Int, f0, i1),
-                (2, true,  false, _, _, true)  => call_sym!(unsafe extern "C" fn(f64, i64) -> f64, RawResult::Dbl, f0, i1),
-                (2, true,  true,  _, _, false) => call_sym!(unsafe extern "C" fn(f64, f64) -> i64, RawResult::Int, f0, f1),
-                (2, true,  true,  _, _, true)  => call_sym!(unsafe extern "C" fn(f64, f64) -> f64, RawResult::Dbl, f0, f1),
-
-                // ── 3 arguments ──────────────────────────────────────────────────────────────
-                (3, false, false, false, _, false) => call_sym!(unsafe extern "C" fn(i64, i64, i64) -> i64, RawResult::Int, i0, i1, i2),
-                (3, false, false, false, _, true)  => call_sym!(unsafe extern "C" fn(i64, i64, i64) -> f64, RawResult::Dbl, i0, i1, i2),
-                (3, false, false, true,  _, false) => call_sym!(unsafe extern "C" fn(i64, i64, f64) -> i64, RawResult::Int, i0, i1, f2),
-                (3, false, false, true,  _, true)  => call_sym!(unsafe extern "C" fn(i64, i64, f64) -> f64, RawResult::Dbl, i0, i1, f2),
-                (3, false, true,  false, _, false) => call_sym!(unsafe extern "C" fn(i64, f64, i64) -> i64, RawResult::Int, i0, f1, i2),
-                (3, false, true,  false, _, true)  => call_sym!(unsafe extern "C" fn(i64, f64, i64) -> f64, RawResult::Dbl, i0, f1, i2),
-                (3, false, true,  true,  _, false) => call_sym!(unsafe extern "C" fn(i64, f64, f64) -> i64, RawResult::Int, i0, f1, f2),
-                (3, false, true,  true,  _, true)  => call_sym!(unsafe extern "C" fn(i64, f64, f64) -> f64, RawResult::Dbl, i0, f1, f2),
-                (3, true,  false, false, _, false) => call_sym!(unsafe extern "C" fn(f64, i64, i64) -> i64, RawResult::Int, f0, i1, i2),
-                (3, true,  false, false, _, true)  => call_sym!(unsafe extern "C" fn(f64, i64, i64) -> f64, RawResult::Dbl, f0, i1, i2),
-                (3, true,  false, true,  _, false) => call_sym!(unsafe extern "C" fn(f64, i64, f64) -> i64, RawResult::Int, f0, i1, f2),
-                (3, true,  false, true,  _, true)  => call_sym!(unsafe extern "C" fn(f64, i64, f64) -> f64, RawResult::Dbl, f0, i1, f2),
-                (3, true,  true,  false, _, false) => call_sym!(unsafe extern "C" fn(f64, f64, i64) -> i64, RawResult::Int, f0, f1, i2),
-                (3, true,  true,  false, _, true)  => call_sym!(unsafe extern "C" fn(f64, f64, i64) -> f64, RawResult::Dbl, f0, f1, i2),
-                (3, true,  true,  true,  _, false) => call_sym!(unsafe extern "C" fn(f64, f64, f64) -> i64, RawResult::Int, f0, f1, f2),
-                (3, true,  true,  true,  _, true)  => call_sym!(unsafe extern "C" fn(f64, f64, f64) -> f64, RawResult::Dbl, f0, f1, f2),
-
-                // ── 4 arguments ──────────────────────────────────────────────────────────────
-                (4, false, false, false, false, false) => call_sym!(unsafe extern "C" fn(i64, i64, i64, i64) -> i64, RawResult::Int, i0, i1, i2, i3),
-                (4, false, false, false, false, true)  => call_sym!(unsafe extern "C" fn(i64, i64, i64, i64) -> f64, RawResult::Dbl, i0, i1, i2, i3),
-                (4, false, false, false, true,  false) => call_sym!(unsafe extern "C" fn(i64, i64, i64, f64) -> i64, RawResult::Int, i0, i1, i2, f3),
-                (4, false, false, false, true,  true)  => call_sym!(unsafe extern "C" fn(i64, i64, i64, f64) -> f64, RawResult::Dbl, i0, i1, i2, f3),
-                (4, false, false, true,  false, false) => call_sym!(unsafe extern "C" fn(i64, i64, f64, i64) -> i64, RawResult::Int, i0, i1, f2, i3),
-                (4, false, false, true,  false, true)  => call_sym!(unsafe extern "C" fn(i64, i64, f64, i64) -> f64, RawResult::Dbl, i0, i1, f2, i3),
-                (4, false, false, true,  true,  false) => call_sym!(unsafe extern "C" fn(i64, i64, f64, f64) -> i64, RawResult::Int, i0, i1, f2, f3),
-                (4, false, false, true,  true,  true)  => call_sym!(unsafe extern "C" fn(i64, i64, f64, f64) -> f64, RawResult::Dbl, i0, i1, f2, f3),
-                (4, false, true,  false, false, false) => call_sym!(unsafe extern "C" fn(i64, f64, i64, i64) -> i64, RawResult::Int, i0, f1, i2, i3),
-                (4, false, true,  false, false, true)  => call_sym!(unsafe extern "C" fn(i64, f64, i64, i64) -> f64, RawResult::Dbl, i0, f1, i2, i3),
-                (4, false, true,  false, true,  false) => call_sym!(unsafe extern "C" fn(i64, f64, i64, f64) -> i64, RawResult::Int, i0, f1, i2, f3),
-                (4, false, true,  false, true,  true)  => call_sym!(unsafe extern "C" fn(i64, f64, i64, f64) -> f64, RawResult::Dbl, i0, f1, i2, f3),
-                (4, false, true,  true,  false, false) => call_sym!(unsafe extern "C" fn(i64, f64, f64, i64) -> i64, RawResult::Int, i0, f1, f2, i3),
-                (4, false, true,  true,  false, true)  => call_sym!(unsafe extern "C" fn(i64, f64, f64, i64) -> f64, RawResult::Dbl, i0, f1, f2, i3),
-                (4, false, true,  true,  true,  false) => call_sym!(unsafe extern "C" fn(i64, f64, f64, f64) -> i64, RawResult::Int, i0, f1, f2, f3),
-                (4, false, true,  true,  true,  true)  => call_sym!(unsafe extern "C" fn(i64, f64, f64, f64) -> f64, RawResult::Dbl, i0, f1, f2, f3),
-                (4, true,  false, false, false, false) => call_sym!(unsafe extern "C" fn(f64, i64, i64, i64) -> i64, RawResult::Int, f0, i1, i2, i3),
-                (4, true,  false, false, false, true)  => call_sym!(unsafe extern "C" fn(f64, i64, i64, i64) -> f64, RawResult::Dbl, f0, i1, i2, i3),
-                (4, true,  false, false, true,  false) => call_sym!(unsafe extern "C" fn(f64, i64, i64, f64) -> i64, RawResult::Int, f0, i1, i2, f3),
-                (4, true,  false, false, true,  true)  => call_sym!(unsafe extern "C" fn(f64, i64, i64, f64) -> f64, RawResult::Dbl, f0, i1, i2, f3),
-                (4, true,  false, true,  false, false) => call_sym!(unsafe extern "C" fn(f64, i64, f64, i64) -> i64, RawResult::Int, f0, i1, f2, i3),
-                (4, true,  false, true,  false, true)  => call_sym!(unsafe extern "C" fn(f64, i64, f64, i64) -> f64, RawResult::Dbl, f0, i1, f2, i3),
-                (4, true,  false, true,  true,  false) => call_sym!(unsafe extern "C" fn(f64, i64, f64, f64) -> i64, RawResult::Int, f0, i1, f2, f3),
-                (4, true,  false, true,  true,  true)  => call_sym!(unsafe extern "C" fn(f64, i64, f64, f64) -> f64, RawResult::Dbl, f0, i1, f2, f3),
-                (4, true,  true,  false, false, false) => call_sym!(unsafe extern "C" fn(f64, f64, i64, i64) -> i64, RawResult::Int, f0, f1, i2, i3),
-                (4, true,  true,  false, false, true)  => call_sym!(unsafe extern "C" fn(f64, f64, i64, i64) -> f64, RawResult::Dbl, f0, f1, i2, i3),
-                (4, true,  true,  false, true,  false) => call_sym!(unsafe extern "C" fn(f64, f64, i64, f64) -> i64, RawResult::Int, f0, f1, i2, f3),
-                (4, true,  true,  false, true,  true)  => call_sym!(unsafe extern "C" fn(f64, f64, i64, f64) -> f64, RawResult::Dbl, f0, f1, i2, f3),
-                (4, true,  true,  true,  false, false) => call_sym!(unsafe extern "C" fn(f64, f64, f64, i64) -> i64, RawResult::Int, f0, f1, f2, i3),
-                (4, true,  true,  true,  false, true)  => call_sym!(unsafe extern "C" fn(f64, f64, f64, i64) -> f64, RawResult::Dbl, f0, f1, f2, i3),
-                (4, true,  true,  true,  true,  false) => call_sym!(unsafe extern "C" fn(f64, f64, f64, f64) -> i64, RawResult::Int, f0, f1, f2, f3),
-                (4, true,  true,  true,  true,  true)  => call_sym!(unsafe extern "C" fn(f64, f64, f64, f64) -> f64, RawResult::Dbl, f0, f1, f2, f3),
-
-                _ => Err(format!("FFI: unsupported arg count {} for '{}'", n, func_name)),
-            }
-        })();
-
-        // c_strings is still live here; drop happens after this point.
-        drop(c_strings);
-        // What the DLL wrote into the buffers goes back to the program's memory.
-        for (_, addr, bytes) in buffers.drain(..) {
-            let n = bytes.len() - 1;
-            let _ = crate::value::memory::write(addr, &bytes[..n]);
-        }
-
-        match raw_result {
-            Err(e) => { eprintln!("[ERROR] {}", e); v_null() }
-            Ok(raw) => {
-                match ret_type.to_ascii_uppercase().as_str() {
-                    "INTEGER" | "LONG" | "INT64" | "DWORD" | "WORD" | "BYTE" => {
-                        v_int(match raw { RawResult::Int(n) => n, RawResult::Dbl(d) => d as i64 })
-                    }
-                    "DOUBLE" | "SINGLE" | "CURRENCY" => {
-                        v_dbl(match raw { RawResult::Dbl(d) => d, RawResult::Int(n) => n as f64 })
-                    }
-                    "STRING" => {
-                        let ptr = match raw { RawResult::Int(n) => n, RawResult::Dbl(d) => d as i64 };
-                        if ptr == 0 {
-                            v_str("".into())
-                        } else {
-                            let cstr = unsafe { CStr::from_ptr(ptr as *const c_char) };
-                            v_str(&cstr.to_string_lossy())
-                        }
-                    }
-                    _ => match raw { RawResult::Int(n) => v_int(n), RawResult::Dbl(d) => v_dbl(d) },
-                }
-            }
-        }
+        (Raw::Int(n), "INT64") => v_int(n),
+        (Raw::Int(n), "BYTE") => v_int((n & 0xFF) as i64),
+        (Raw::Int(n), "WORD") => v_int((n & 0xFFFF) as i64),
+        (Raw::Int(n), "SHORT") => v_int(n as i16 as i64),
+        // (a 32-bit result: the register's upper bits are undefined)
+        (Raw::Int(n), _) => v_int(n as i32 as i64),
     })
 }
 
-/// Unload a specific library
-pub fn ffi_unload(lib_path: &str) {
-    LOADED_LIBS.with(|libs| {
-        libs.borrow_mut().remove(lib_path);
+/// A by-value number as its declared size (the callee reads that many
+/// bits; a LONG's sign extends so -1 is `HWND_TOPMOST` and `INFINITE`).
+fn narrow(v: i64, p: &Param) -> i64 {
+    match p.type_name.as_str() {
+        "BYTE" => v & 0xFF,
+        "WORD" => v & 0xFFFF,
+        "SHORT" => v as i16 as i64,
+        _ => v,
+    }
+}
+
+enum Raw {
+    Int(i64),
+    Float(f64),
+}
+
+macro_rules! slot_type {
+    (I) => { i64 };
+    (F) => { f64 };
+}
+
+macro_rules! slot_value {
+    ($slots:expr, I, $i:expr) => {
+        match $slots[$i] { Slot::Int(n) => n, Slot::Float(f) => f.to_bits() as i64 }
+    };
+    ($slots:expr, F, $i:expr) => {
+        match $slots[$i] { Slot::Float(f) => f, Slot::Int(n) => n as f64 }
+    };
+}
+
+/// Calls `ptr` as `fn(types…) -> ret` with the slots named.
+macro_rules! call_as {
+    ($ptr:expr, $slots:expr, $ret:ty; $($k:ident $i:expr),*) => {{
+        let f: unsafe extern "system" fn($(slot_type!($k)),*) -> $ret = std::mem::transmute($ptr);
+        f($(slot_value!($slots, $k, $i)),*)
+    }};
+}
+
+/// The all-integer signatures (0 to 16 arguments) for one result type.
+macro_rules! int_table {
+    ($ptr:expr, $s:expr, $ret:ty) => {
+        match $s.len() {
+            0 => call_as!($ptr, $s, $ret;),
+            1 => call_as!($ptr, $s, $ret; I 0),
+            2 => call_as!($ptr, $s, $ret; I 0, I 1),
+            3 => call_as!($ptr, $s, $ret; I 0, I 1, I 2),
+            4 => call_as!($ptr, $s, $ret; I 0, I 1, I 2, I 3),
+            5 => call_as!($ptr, $s, $ret; I 0, I 1, I 2, I 3, I 4),
+            6 => call_as!($ptr, $s, $ret; I 0, I 1, I 2, I 3, I 4, I 5),
+            7 => call_as!($ptr, $s, $ret; I 0, I 1, I 2, I 3, I 4, I 5, I 6),
+            8 => call_as!($ptr, $s, $ret; I 0, I 1, I 2, I 3, I 4, I 5, I 6, I 7),
+            9 => call_as!($ptr, $s, $ret; I 0, I 1, I 2, I 3, I 4, I 5, I 6, I 7, I 8),
+            10 => call_as!($ptr, $s, $ret; I 0, I 1, I 2, I 3, I 4, I 5, I 6, I 7, I 8, I 9),
+            11 => call_as!($ptr, $s, $ret; I 0, I 1, I 2, I 3, I 4, I 5, I 6, I 7, I 8, I 9, I 10),
+            12 => call_as!($ptr, $s, $ret; I 0, I 1, I 2, I 3, I 4, I 5, I 6, I 7, I 8, I 9, I 10, I 11),
+            13 => call_as!($ptr, $s, $ret; I 0, I 1, I 2, I 3, I 4, I 5, I 6, I 7, I 8, I 9, I 10, I 11, I 12),
+            14 => call_as!($ptr, $s, $ret; I 0, I 1, I 2, I 3, I 4, I 5, I 6, I 7, I 8, I 9, I 10, I 11, I 12, I 13),
+            15 => call_as!($ptr, $s, $ret; I 0, I 1, I 2, I 3, I 4, I 5, I 6, I 7, I 8, I 9, I 10, I 11, I 12, I 13, I 14),
+            _ => call_as!($ptr, $s, $ret; I 0, I 1, I 2, I 3, I 4, I 5, I 6, I 7, I 8, I 9, I 10, I 11, I 12, I 13, I 14, I 15),
+        }
+    };
+}
+
+/// The signatures with DOUBLE arguments (up to 4 arguments; each slot an
+/// integer or a float register) for one result type.
+macro_rules! mixed_table {
+    ($ptr:expr, $s:expr, $ret:ty) => {{
+        let f = |i: usize| matches!($s.get(i), Some(Slot::Float(_)));
+        match ($s.len(), f(0), f(1), f(2), f(3)) {
+            (1, true, _, _, _) => call_as!($ptr, $s, $ret; F 0),
+            (2, false, true, _, _) => call_as!($ptr, $s, $ret; I 0, F 1),
+            (2, true, false, _, _) => call_as!($ptr, $s, $ret; F 0, I 1),
+            (2, true, true, _, _) => call_as!($ptr, $s, $ret; F 0, F 1),
+            (3, false, false, true, _) => call_as!($ptr, $s, $ret; I 0, I 1, F 2),
+            (3, false, true, false, _) => call_as!($ptr, $s, $ret; I 0, F 1, I 2),
+            (3, false, true, true, _) => call_as!($ptr, $s, $ret; I 0, F 1, F 2),
+            (3, true, false, false, _) => call_as!($ptr, $s, $ret; F 0, I 1, I 2),
+            (3, true, false, true, _) => call_as!($ptr, $s, $ret; F 0, I 1, F 2),
+            (3, true, true, false, _) => call_as!($ptr, $s, $ret; F 0, F 1, I 2),
+            (3, true, true, true, _) => call_as!($ptr, $s, $ret; F 0, F 1, F 2),
+            (4, false, false, false, true) => call_as!($ptr, $s, $ret; I 0, I 1, I 2, F 3),
+            (4, false, false, true, false) => call_as!($ptr, $s, $ret; I 0, I 1, F 2, I 3),
+            (4, false, false, true, true) => call_as!($ptr, $s, $ret; I 0, I 1, F 2, F 3),
+            (4, false, true, false, false) => call_as!($ptr, $s, $ret; I 0, F 1, I 2, I 3),
+            (4, false, true, false, true) => call_as!($ptr, $s, $ret; I 0, F 1, I 2, F 3),
+            (4, false, true, true, false) => call_as!($ptr, $s, $ret; I 0, F 1, F 2, I 3),
+            (4, false, true, true, true) => call_as!($ptr, $s, $ret; I 0, F 1, F 2, F 3),
+            (4, true, false, false, false) => call_as!($ptr, $s, $ret; F 0, I 1, I 2, I 3),
+            (4, true, false, false, true) => call_as!($ptr, $s, $ret; F 0, I 1, I 2, F 3),
+            (4, true, false, true, false) => call_as!($ptr, $s, $ret; F 0, I 1, F 2, I 3),
+            (4, true, false, true, true) => call_as!($ptr, $s, $ret; F 0, I 1, F 2, F 3),
+            (4, true, true, false, false) => call_as!($ptr, $s, $ret; F 0, F 1, I 2, I 3),
+            (4, true, true, false, true) => call_as!($ptr, $s, $ret; F 0, F 1, I 2, F 3),
+            (4, true, true, true, false) => call_as!($ptr, $s, $ret; F 0, F 1, F 2, I 3),
+            (4, true, true, true, true) => call_as!($ptr, $s, $ret; F 0, F 1, F 2, F 3),
+            _ => int_table!($ptr, $s, $ret),
+        }
+    }};
+}
+
+/// Calls `ptr` with `slots` and reads the result from the integer or the
+/// float register.
+///
+/// # Safety
+/// `ptr` must be a function of the convention and arity `slots` describes.
+unsafe fn call_table(ptr: *const (), slots: &[Slot], float_result: bool) -> Result<Raw, String> {
+    let mixed = slots.iter().any(|s| matches!(s, Slot::Float(_)));
+    Ok(match (mixed, float_result) {
+        (false, false) => Raw::Int(int_table!(ptr, slots, i64)),
+        (false, true) => Raw::Float(int_table!(ptr, slots, f64)),
+        (true, false) => Raw::Int(mixed_table!(ptr, slots, i64)),
+        (true, true) => Raw::Float(mixed_table!(ptr, slots, f64)),
+    })
+}
+
+/// A crash inside a DLL (a pointer that wasn't one) ends the program with
+/// a message naming the call, instead of vanishing.
+#[cfg(windows)]
+fn install_crash_filter() {
+    use std::sync::Once;
+    use windows_sys::Win32::System::Diagnostics::Debug::{SetUnhandledExceptionFilter, EXCEPTION_POINTERS};
+    static ONCE: Once = Once::new();
+    unsafe extern "system" fn filter(info: *const EXCEPTION_POINTERS) -> i32 {
+        let what = CALLING.lock().map(|c| c.clone()).unwrap_or_default();
+        if what.is_empty() {
+            // (not during a DLL call: Windows' own handling)
+            return 0;
+        }
+        let detail = unsafe { info.as_ref().and_then(|i| i.ExceptionRecord.as_ref()) }.map(|r| {
+            let code = r.ExceptionCode as u32;
+            let name = match code {
+                0xC000_0005 => "access violation".to_string(),
+                0xC000_001D => "illegal instruction".to_string(),
+                0xC000_008C | 0xC000_008E | 0xC000_0094 => "arithmetic fault".to_string(),
+                0xC000_00FD => "stack overflow".to_string(),
+                c => format!("exception {c:#010X}"),
+            };
+            if code == 0xC000_0005 && r.NumberParameters >= 2 {
+                let rw = if r.ExceptionInformation[0] == 0 { "reading" } else { "writing" };
+                format!("{name} {rw} address {:#x}", r.ExceptionInformation[1])
+            } else {
+                name
+            }
+        });
+        eprintln!("run-time error: the call to {what} crashed ({}); an argument wasn't the pointer or handle the function expects", detail.unwrap_or_default());
+        1 // EXCEPTION_EXECUTE_HANDLER: the process ends
+    }
+    ONCE.call_once(|| {
+        // SAFETY: installing a process-wide filter; it runs only when an
+        // exception reaches the top.
+        unsafe { SetUnhandledExceptionFilter(Some(filter)) };
     });
+}
+
+#[cfg(not(windows))]
+fn install_crash_filter() {}
+
+/// `__dll_call(lib, alias, spec, args…)` in a native build.
+pub fn rp_dll_call(args: &[Value]) -> Value {
+    let s = |i: usize| args.get(i).map(Value::to_string_val).unwrap_or_default();
+    match dll_call(&s(0), &s(1), &s(2), args.get(3..).unwrap_or(&[])) {
+        Ok(v) => v,
+        Err(e) => crate::value::runtime_error(&e),
+    }
+}
+
+/// Unload a library (`UNLOADLIBRARY`).
+pub fn ffi_unload(lib: &str) {
+    LOADED.with(|l| {
+        l.borrow_mut().remove(&lib.trim_matches('"').to_ascii_lowercase());
+    });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn windows_libraries_need_windows_elsewhere() {
+        let r = dll_call("user32", "GetDC", "LONG|LONG:v", &[v_int(0)]);
+        if cfg!(windows) {
+            assert!(r.is_ok());
+        } else {
+            let e = r.unwrap_err();
+            assert!(e.starts_with("'GetDC' is a Windows function (user32)"), "{e}");
+        }
+        let e = dll_call("nosuchlib", "F", "|", &[]).unwrap_err();
+        assert!(e.contains("nosuchlib"), "{e}");
+    }
+
+    #[test]
+    fn narrowing_and_temps() {
+        assert_eq!(narrow(-1, &Param { type_name: "BYTE".into(), by_ref: false }), 255);
+        assert_eq!(narrow(-1, &Param { type_name: "WORD".into(), by_ref: false }), 65535);
+        assert_eq!(narrow(70000, &Param { type_name: "SHORT".into(), by_ref: false }), 4464);
+        assert_eq!(narrow(-1, &Param { type_name: "LONG".into(), by_ref: false }), -1);
+        assert_eq!(&temp_number(&v_int(64), "LONG")[..4], &64i32.to_le_bytes());
+    }
+
+    /// The system's C library (every system has one): the table calls
+    /// integer, pointer and double functions correctly.
+    #[test]
+    fn calls_the_c_library() {
+        let lib = if cfg!(windows) { "msvcrt" } else if cfg!(target_os = "macos") { "libSystem.B.dylib" } else { "libc.so.6" };
+        assert_eq!(dll_call(lib, "abs", "LONG|LONG:v", &[v_int(-7)]).unwrap(), v_int(7));
+        assert_eq!(dll_call(lib, "floor", "DOUBLE|DOUBLE:v", &[v_dbl(2.7)]).unwrap(), v_dbl(2.0));
+        assert_eq!(dll_call(lib, "strlen", "LONG|STRING:v", &[v_str("hello")]).unwrap(), v_int(5));
+        // A program's own buffer filled by the library (strcpy into a
+        // VARPTR'd string), read back into the variable.
+        let dest = memory::varptr_var("main:s", &v_str("          "), "STRING").unwrap();
+        dll_call(lib, "strcpy", "LONG|LONG:v,STRING:v", &[dest.clone(), v_str("abc")]).unwrap();
+        assert_eq!(memory::sync("main:s", &v_str("          "), "STRING").to_string_val(), "abc\0      ");
+        // A function the library doesn't have.
+        let e = dll_call(lib, "no_such_function_xyz", "LONG|", &[]).unwrap_err();
+        assert!(e.contains("no function 'no_such_function_xyz'"), "{e}");
+    }
 }

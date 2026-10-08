@@ -26,6 +26,31 @@ fn print_hook(text: &str) {
     }
 }
 
+/// `__dll_call(lib, alias, spec, args…)` on the web: no DLL can be
+/// loaded (docs/windows-dll-calls.md §1).
+pub fn rp_dll_call(args: &[Value]) -> Value {
+    let s = |i: usize| args.get(i).map(Value::to_string_val).unwrap_or_default();
+    crate::value::runtime_error(&crate::value::dll::needs_windows_error(&s(0), &s(1), true))
+}
+
+/// `POKE [#page,] address, byte`: a change on the screen page is printed.
+pub fn rp_poke(args: &[Value]) -> Value {
+    let text = crate::value::memory::rp_poke_text(args);
+    if !text.is_empty() {
+        rp_print(&[Value::String(text)], false);
+    }
+    Value::Null
+}
+
+/// `PCOPY from, to`: a copy onto the screen page is printed.
+pub fn rp_pcopy(from: &Value, to: &Value) -> Value {
+    let text = crate::value::memory::rp_pcopy_text(from, to);
+    if !text.is_empty() {
+        rp_print(&[Value::String(text)], false);
+    }
+    Value::Null
+}
+
 pub fn rp_print(items: &[Value], newline: bool) {
     let mut parts = Vec::new();
     for item in items {

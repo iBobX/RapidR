@@ -671,6 +671,17 @@ impl Shim<'_> {
             self.desk.scale_changed(f, scale);
         }
         window.request_redraw();
+        // (`Form.Handle` is the window's HWND from now on, so Windows API
+        // calls get the real window: docs/windows-dll-calls.md §3)
+        #[cfg(target_os = "windows")]
+        {
+            use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+            if let Ok(h) = window.window_handle() {
+                if let RawWindowHandle::Win32(w) = h.as_raw() {
+                    rapidr_value::handles::set_native(f, w.hwnd.get() as i64);
+                }
+            }
+        }
         self.s.wins.insert(f.to_string(), Win { window, surface, access, sent: a11y::Sent::default(), cursor: (0.0, 0.0), pointer: None, ime: false, fullscreen: false });
     }
 

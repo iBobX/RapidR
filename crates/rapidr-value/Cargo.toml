@@ -26,6 +26,9 @@ ttf-parser = { version = "0.25", default-features = false, features = ["std"] }
 # already in the tree.
 [target.'cfg(windows)'.dependencies]
 windows-registry = "0.6.1"
+# Real pages at a block's address around a DLL call (memory.rs): Microsoft's
+# windows-sys (MIT OR Apache-2.0), already in the tree through winit.
+windows-sys = { version = "0.52", features = ["Win32_System_Memory"] }
 
 [features]
 # Bitmap.LoadIcon and ImageList.AddIcon: RapidR's icon set in programs (the

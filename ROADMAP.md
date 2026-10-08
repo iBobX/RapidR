@@ -132,8 +132,11 @@ Missing: compiler diagnostics as editor markers, ~~undo/redo~~ (done v2.9.0), im
 
 **Direction (2026-09-25):** no Windows-only compatibility. RapidQ's own
 features (built-ins, components, console, dialogs) are mapped to portable
-Rust implementations on desktop and web. Calls into Windows DLLs stay a
-clear error (naming a RapidR equivalent when one exists). Any library we
+Rust implementations on desktop and web. **Revised 2026-10-08:** a
+program that calls Windows' own DLLs (`DECLARE … LIB "user32"`) runs on
+Windows — the DLL is really called, in native builds and the interpreter —
+and stops with a clear error naming the function and that it needs Windows
+on macOS, Linux and the web ([docs/windows-dll-calls.md](docs/windows-dll-calls.md)). Any library we
 add must be open source with a permissive license (`deny.toml`) and be
 credited: `THIRD_PARTY_NOTICES.md` (generated, checked in CI), README and
 the IDE's About dialog.
@@ -167,7 +170,7 @@ Next up, in order:
 - [x] Licence compliance for users: every output carries a generated `THIRD-PARTY-NOTICES.txt` (native / interpreted executables beside them, web builds in their root, linked from index.html) with every licence text, from the build's real graph (`rapidr notices`, offline in an install); `LEGAL.md` (what users may do, what to ship, trademarks, no warranty), `docs/licensing.md` (per-output tables, licence obligations, codecs and patents); RapidQ-derived library bodies and manual-example tests rewritten; `tools/regress.sh legal` (cargo deny, the notices for every kind). Open: a professional review before the first release (docs/licensing.md §8)
 - [x] Legal hardening: nothing copyleft, cryptographic or data-licensed in any program — HTTPS on the OS's TLS (Security.framework, SChannel, the system's OpenSSL 3 on Linux; ring/rustls/webpki-roots gone), MP3 by nanomp3 (symphonia's MPL gone), charts' text in Liberation Sans via ab_glyph (font-kit, dwrote, option-ext, FreeType gone), winit's KDE blur bindings replaced by RapidR's stand-in (`crates/patches/wayland-protocols-plasma`); shipped graphs allow only the permissive list (deny.toml, notices.rs `ALLOWED`/`BANNED`, check_notices.py), `regress.sh legal` exits 1 on any violation. Open: AT-SPI interface names (docs/licensing.md §8.1)
 - [x] RapidQ review (`docs/legal/rapidq-review.md`): RapidQ's terms and rights (freeware; rights sold to REAL Software, now Xojo, in 2000), trademark searches, the law on re-implementing it, RC.EXE as a black box; full-history provenance scan (no RapidQ file ever committed); built-in RAPIDQ.INC constants regrouped by public origin (same names and values, pinned); the last example-derived test code, fixture data and manual quotes rewritten; CONTRIBUTING.md, NOTICE, `docs/legal/clean-room.md`. Open for the owner: keep or rename "RapidR", `rapidr.dev`, a DNPI filing, GitHub's cache of the rewritten commits (review §13)
-- [x] Windows DLL calls: error says RapidR doesn't emulate Windows and names the portable equivalent (SHELL, RCANVAS, RSQLITE, RSOCKET, …) (v2.17.0)
+- [x] Windows DLL calls: error says RapidR doesn't emulate Windows and names the portable equivalent (SHELL, RCANVAS, RSQLITE, RSOCKET, …) (v2.17.0); **since 2026-10-08 the call is made on Windows** (native and interpreted, RapidQ's DECLARE rules checked against RC.EXE: numbers by value unless BYREF, strings and TYPEs by address, pointers into the program's own memory, `Form.Handle` the real HWND) and the error — with the hint — is a run-time one on the other systems, so such programs compile everywhere ([docs/windows-dll-calls.md](docs/windows-dll-calls.md)). Open: callbacks (`CODEPTR` to a DLL), per-control HWNDs (RapidR draws its own controls), the sweep of the 169 DLL-calling corpus programs on Windows
 - [x] Console: `CLS`, `COLOR`, `LOCATE`, `CSRLIN`, `POS` as ANSI sequences on both backends; the IDE Output panel renders them (web-ide/ansi_screen.js) (v2.17.0)
 - [x] Web bundles: an on-page console for programs that PRINT (`web-ide/bundle_console.js` + `ansi_screen.js`, CLI and IDE bundles) (v2.21.0)
 - [x] Omitted arguments (`INSTR(, a, b)`, `COLOR , 1`); builtins without parentheses (`TIMER`, `CSRLIN`, …) in the VM too (v2.17.0)
@@ -315,8 +318,9 @@ Next up, in order:
 - [x] `FUNCTIONI`/`SUBI`, `SHL`/`SHR`, `DATA`/`READ`/`RESTORE`, `SWAP`, `$ESCAPECHARS`, function pointers (VM) (v2.16.0)
 - [x] `INV`, empty arguments `INSTR(,a,b)`, console `LOCATE`/`CLS`/`COLOR`/`CSRLIN`, `REDIM` (keeps data) (verified v2.55.0). `VARPTR` / `MEMCPY` / `MEMSET`: memory-safe virtual memory (v2.56.0)
 - [x] Codegen: function pointers (v2.24.0)
-- [ ] SUB/FUNCTION pointers as Win32 callbacks (native FFI)
-- [ ] Win32 shim table for top ~50 `DECLARE … LIB "user32"/"kernel32"/"shell32"` calls; clear warnings for the rest
+- [ ] SUB/FUNCTION pointers as Win32 callbacks (`CODEPTR` handed to a DLL: window procedures, enumeration callbacks)
+- [x] ~~Win32 shim table~~ — not needed: the DLLs themselves are called on Windows; the hint table (`rapidr_value::dll::windows_api_hint`) names the portable way in the non-Windows error
+- [x] PEEK / POKE / PCOPY as RapidQ's console pages (checked on screen with RC.EXE) plus PEEK / POKE on the program's own memory (VARPTR), the same on every runtime; INP / OUT a run-time error; `&hHE` read as RC.EXE does
 - [ ] VB6: `On Error GoTo/Resume Next`, `Optional`, `ParamArray`, `Property Get/Let/Set`, `Enum`, `Static`, `ReDim Preserve`, `For Each`, `_` continuation, `Select Case Is/To`, `Like`
 - [ ] Modern `TRY/CATCH`
 - [ ] Runtime errors carry source line on both backends

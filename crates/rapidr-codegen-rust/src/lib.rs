@@ -616,6 +616,11 @@ impl RustCodegen {
                     self.declared_functions.insert(name_lower.clone());
                     self.defined_functions.insert(name_lower.clone());
                     self.defined_functions.insert(strip_type_suffix(&name_lower));
+                    // (a DLL's FUNCTION is called without parentheses too:
+                    // `t = GetTickCount`)
+                    if d.is_function && d.lib.is_some() {
+                        self.returning_functions.insert(strip_type_suffix(&name_lower));
+                    }
                     self.function_param_counts.insert(name_lower, d.params.len());
                 }
                 _ => {}
@@ -2269,32 +2274,28 @@ impl RustCodegen {
 
         let ret_type_str = d.return_type.as_deref().unwrap_or("");
 
-        // If a LIB is specified, emit a wrapper that calls ffi_call at runtime
+        // A DLL's routine: a stub that calls it as the DECLARE says
+        // (`rp_dll_call`: rapidr_runtime_core::ffi; the web's reports the
+        // error). The spec carries the parameters' types and BYREF.
         if let Some(ref lib_path) = d.lib {
             let lib_clean = lib_path.trim_matches('"');
             let alias_clean = alias.trim_matches('"');
-            let args_list = param_names.iter()
-                .map(|n| format!("{n}.clone()"))
-                .collect::<Vec<_>>()
-                .join(", ");
-
+            let spec = rapidr_value::dll::spec_of(&d.params.iter().map(|p| (p.type_name.clone(), p.by_ref)).collect::<Vec<_>>(), d.return_type.as_deref());
+            let mut all: Vec<String> = vec![format!("v_str({lib_clean:?})"), format!("v_str({alias_clean:?})"), format!("v_str({spec:?})")];
+            all.extend(param_names.iter().map(|n| format!("{n}.clone()")));
+            let args_list = all.join(", ");
+            let _ = ret_type_str;
+            self.write_indent();
             if d.is_function {
-                self.write_indent();
                 let _ = writeln!(self.output, "fn {name}({params_str}) -> Value {{");
-                self.indent += 1;
-                self.write_indent();
-                let _ = writeln!(self.output, "ffi_call(\"{lib_clean}\", \"{alias_clean}\", &[{args_list}], \"{ret_type_str}\")");
-                self.indent -= 1;
-                self.line("}");
             } else {
-                self.write_indent();
                 let _ = writeln!(self.output, "fn {name}({params_str}) {{");
-                self.indent += 1;
-                self.write_indent();
-                let _ = writeln!(self.output, "ffi_call(\"{lib_clean}\", \"{alias_clean}\", &[{args_list}], \"\");");
-                self.indent -= 1;
-                self.line("}");
             }
+            self.indent += 1;
+            self.write_indent();
+            let _ = writeln!(self.output, "rp_dll_call(&[{args_list}]){}", if d.is_function { "" } else { ";" });
+            self.indent -= 1;
+            self.line("}");
             return;
         }
 
@@ -3219,6 +3220,14 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "memcpy" => Some(format!("memory::rp_memcpy(&{a0}, &{a1}, &{a2})")),
         "memset" => Some(format!("memory::rp_memset(&{a0}, &{a1}, &{a2})")),
         "memcmp" => Some(format!("memory::rp_memcmp(&{a0}, &{a1}, &{a2})")),
+        // PEEK / POKE / PCOPY (console pages and managed memory), the
+        // ports, DLL calls (docs/windows-dll-calls.md)
+        "peek" => Some(format!("memory::rp_peek(&[{}])", args.join(", "))),
+        "poke" => Some(format!("rp_poke(&[{}])", args.join(", "))),
+        "pcopy" => Some(format!("rp_pcopy(&{a0}, &{a1})")),
+        "inp" | "inpw" => Some(format!("memory::rp_port_io(\"{}\")", name.to_uppercase())),
+        "out" | "outw" => Some(format!("memory::rp_port_io(\"{}\")", name.to_uppercase())),
+        "__dll_call" => Some(format!("rp_dll_call(&[{}])", args.join(", "))),
 
         _ => None,
     }

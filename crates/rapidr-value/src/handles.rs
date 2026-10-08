@@ -34,6 +34,19 @@ pub fn handle_of(name: &str) -> i64 {
     })
 }
 
+/// The window system's own handle for component `name` (a form's HWND on
+/// Windows, registered by the host when the window is made): what `Handle`
+/// reads from then on, and what `name_of` maps back, so Windows API calls
+/// get the real window (docs/windows-dll-calls.md §3).
+pub fn set_native(name: &str, handle: i64) {
+    let key = name.to_ascii_lowercase();
+    HANDLES.with(|h| {
+        let mut h = h.borrow_mut();
+        h.by_name.insert(key.clone(), handle);
+        h.by_handle.insert(handle, key);
+    });
+}
+
 /// The component (lowercase name) a handle stands for.
 pub fn name_of(handle: i64) -> Option<String> {
     HANDLES.with(|h| h.borrow().by_handle.get(&handle).cloned())

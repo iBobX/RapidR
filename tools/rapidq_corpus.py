@@ -66,7 +66,7 @@ DLL_RE = re.compile(r"^\s*DECLARE\s+(SUB|FUNCTION)\s+\S+\s+LIB\b", re.I | re.M)
 
 INCLUDE_RE = re.compile(r'^\s*\$INCLUDE\s+["<]([^">]+)[">]', re.I | re.M)
 # (DOS-era port I/O and raw memory: no modern system lets a program do it)
-HARDWARE_RE = re.compile(r"\bINP\s*\(|^\s*OUT\s+[^=]|\bPOKE\s", re.I | re.M)
+HARDWARE_RE = re.compile(r"\bINP\s*\(|^\s*OUT\s+[^=]", re.I | re.M)
 
 
 # Programs whose source isn't valid RapidQ (checked one by one, 2026-10-03):
@@ -129,13 +129,16 @@ def category(path, errors):
         return "ole"
     if DIRECTX_RE.search(src):
         return "directx"
-    if any("Windows API function" in e or "external DLL function" in e for e in errors) or DLL_RE.search(src):
+    # (DLL calls compile everywhere since docs/windows-dll-calls.md; the
+    # programs run on Windows, and say so elsewhere)
+    if DLL_RE.search(src):
         return "dll"
     # (an include that isn't in the corpus at all: the program can't build
     # anywhere, RapidQ included)
     if any(e.startswith("Include file not found") or "file not found" in e for e in errors):
         return "incomplete"
-    if errors and HARDWARE_RE.search(src):
+    # (port I/O compiles too, and stops the program at the INP / OUT)
+    if HARDWARE_RE.search(src):
         return "hardware"
     rel = os.path.relpath(path, CORPUS_ROOT) if CORPUS_ROOT else path
     if errors and rel in NOT_RAPIDQ:

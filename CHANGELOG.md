@@ -33,6 +33,26 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   and the release notes.
 
 ### Added
+- **Windows DLL calls on Windows** ([docs/windows-dll-calls.md](docs/windows-dll-calls.md)):
+  a RapidQ program that declares routines of Windows' DLLs (`DECLARE
+  FUNCTION GetDC LIB "user32" …`) calls them when it runs on Windows, in
+  native builds and in the interpreter, with RapidQ's rules checked
+  against RC.EXE (numbers by value unless BYREF, strings and TYPEs by
+  address, what the DLL writes seen in the variable); on macOS, Linux and
+  the web the call is a run-time error that names the function, says it
+  needs Windows and gives the portable alternative where there is one.
+  Such programs compile everywhere (the compiler refused them before).
+- **One address space**: around a DLL call the program's memory (VARPTR
+  addresses, TYPEs, streams, the strings inside structures) is real at
+  its own addresses on Windows, so an API fills the program's buffer.
+- **`Form.Handle` is the window's HWND** on Windows once the form is shown
+  (SetWindowPos, SetForegroundWindow, GetDC on a form work).
+- **PEEK / POKE / PCOPY** as RapidQ's (the console's pages, checked on
+  screen with RC.EXE) plus RapidR's own: PEEK / POKE on the program's
+  memory through VARPTR, on every runtime including the web, with a clear
+  error for any other address. INP / OUT are a run-time error, as on every
+  Windows since 2000.
+- `&hHE` is 14, as RC.EXE reads it (the non-hex letters dropped).
 - **RapidR Studio: the IDE's shell** (`ide/`, docs/ide-plan.md I1 /
   L-SHELL + L-WEB). One RapidR program on RapidR's public components — the
   same bytecode on the desktop (`rapidr ide [file]`) and in the browser
