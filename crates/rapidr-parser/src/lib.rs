@@ -382,6 +382,7 @@ impl<'a> Parser<'a> {
         declared_parameters(&mut body);
         pack_variadic_calls(&mut body, &self.variadic);
         input_chars(&mut body);
+        dotted_consts(&mut body);
         if !self.data_items.is_empty() {
             let mut init = data_table_init(&self.data_items, &self.data_labels);
             init.append(&mut body);
@@ -980,7 +981,14 @@ impl<'a> Parser<'a> {
     fn parse_const(&mut self) -> Option<ConstStatement> {
         let start = self.pos;
         self.expect(TokenType::Const)?;
-        let name = self.expect(TokenType::Identifier)?.lexeme.clone();
+        let mut name = self.expect(TokenType::Identifier)?.lexeme.clone();
+        // (a dotted name: `CONST Application.Path = …` — RC.EXE takes it,
+        // and `Application.Path` reads the constant: dotted_consts)
+        while self.peek_kind() == Some(TokenType::Dot) && self.tokens.get(self.pos + 1).is_some_and(|t| t.kind != TokenType::Eq && t.lexeme.starts_with(|c: char| c.is_alphanumeric() || c == '_')) {
+            self.advance();
+            name.push('.');
+            name.push_str(&self.advance()?.lexeme);
+        }
         let declared_type = if self.match_kind(TokenType::As) {
             Some(self.advance()?.lexeme.clone())
         } else {
@@ -1453,6 +1461,22 @@ impl<'a> Parser<'a> {
                 }));
             }
             return None;
+        }
+
+        // `SLEEP(T * 11.2) / 600`: a parenthesised start of the first
+        // argument, not the call's own parentheses (RC.EXE sleeps T * 11.2
+        // / 600 seconds) — the arguments read again from the `(`.
+        if let Expression::FunctionCall(fc) = &left {
+            let operator = matches!(
+                self.peek_kind(),
+                Some(TokenType::Plus | TokenType::Minus | TokenType::Star | TokenType::Slash | TokenType::Backslash | TokenType::Caret | TokenType::Mod | TokenType::Ampersand)
+            );
+            if operator && fc.args.len() == 1 && matches!(fc.callee.as_ref(), Expression::Identifier(_)) && self.tokens.get(start + 1).is_some_and(|t| t.kind == TokenType::LParen) {
+                let callee = fc.callee.as_ref().clone();
+                self.pos = start + 1;
+                let args = self.parse_argument_list_without_parens()?;
+                return Some(Statement::Call(CallStatement { span: self.span_from(start), callee, args }));
+            }
         }
 
         let args = self.parse_argument_list_without_parens()?;
@@ -3016,6 +3040,17 @@ impl<'a> Parser<'a> {
                     value: parse_number_literal(&tok.lexeme),
                 }))
             }
+            // `&` stuck to decimal digits where a value starts: the number
+            // (RC.EXE: `&0` is 0, `&10` 10 — RapidQ's music examples have
+            // `CONST Null=&0`)
+            TokenType::Ampersand
+                if self.peek_kind_at(1) == Some(TokenType::Number)
+                    && self.tokens.get(self.pos + 1).is_some_and(|n| n.span.start == self.tokens[self.pos].span.end && n.lexeme.starts_with(|c: char| c.is_ascii_digit())) =>
+            {
+                let amp = self.advance()?;
+                let tok = self.advance()?;
+                Some(Expression::Literal(Literal { span: TextSpan::new(amp.span.start, tok.span.end), value: parse_number_literal(&tok.lexeme) }))
+            }
             TokenType::StringLit => {
                 let tok = self.advance()?;
                 Some(Expression::Literal(Literal {
@@ -3281,6 +3316,56 @@ fn input_chars(body: &mut Vec<Statement>) {
             body.extend(p.parse_program().statements);
         }
     }
+    // A bare `INPUT$` (`a = INPUT$`, RapidQ's examples' wait before they
+    // end) reads a line, as INPUT does (RC.EXE: "hello" typed, "hello"
+    // returned) — unless the program has a variable of that name.
+    let mut variable = own;
+    rapidr_ast::walk(
+        body,
+        &mut |s| match s {
+            Statement::Assignment(a) if is_input(&a.target) => variable = true,
+            Statement::Dim(d) if d.declarators.iter().any(|v| v.name.eq_ignore_ascii_case("INPUT$")) => variable = true,
+            _ => {}
+        },
+        &mut |_| {},
+    );
+    if !variable {
+        walk_expressions_mut(body, true, &mut |e| {
+            if is_input(e) {
+                let span = expression_span(e);
+                *e = call_expr(span, "input_func", Vec::new());
+            }
+        });
+    }
+}
+
+/// A CONST named with a dot (`CONST Application.Path = LEFT$(…)`, RapidQ's
+/// music examples): `Application.Path` reads the constant — RC.EXE's
+/// output — not the object's member.
+fn dotted_consts(body: &mut [Statement]) {
+    let mut names = Vec::new();
+    rapidr_ast::walk(
+        body,
+        &mut |s| {
+            if let Statement::Const(c) = s {
+                if c.name.contains('.') {
+                    names.push(c.name.clone());
+                }
+            }
+        },
+        &mut |_| {},
+    );
+    if names.is_empty() {
+        return;
+    }
+    walk_expressions_mut(body, true, &mut |e| {
+        let Expression::MemberAccess(m) = e else { return };
+        let Expression::Identifier(o) = m.object.as_ref() else { return };
+        let full = format!("{}.{}", o.name, m.member);
+        if let Some(name) = names.iter().find(|n| n.eq_ignore_ascii_case(&full)) {
+            *e = ident(m.span, name);
+        }
+    });
 }
 
 fn ident(span: TextSpan, name: &str) -> Expression {

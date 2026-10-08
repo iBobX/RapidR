@@ -2470,6 +2470,30 @@ pub(crate) fn for_each_block_mut(stmts: &mut Vec<Statement>, f: &mut dyn FnMut(&
     f(stmts);
 }
 
+/// A FUNCTION RapidQ lets a program name with a dot (`FUNCTION
+/// Calc.Twice`) returns what its body assigns to that name (`Calc.Twice =
+/// N * 2`, as to any function's name): the assignment's target is the
+/// function's own name, not a member `Twice` of an object `Calc`.
+pub fn dotted_function_results(program: &Program) -> Program {
+    let mut out = program.clone();
+    walk_statements_mut(&mut out.statements, &mut |s| {
+        let Statement::Function(f) = s else { return };
+        if !f.name.contains('.') {
+            return;
+        }
+        let name = f.name.clone();
+        walk_statements_mut(&mut f.body, &mut |s| {
+            let Statement::Assignment(a) = s else { return };
+            let Expression::MemberAccess(m) = &a.target else { return };
+            let Expression::Identifier(o) = m.object.as_ref() else { return };
+            if format!("{}.{}", o.name, m.member).eq_ignore_ascii_case(&name) {
+                a.target = Expression::Identifier(Identifier { span: m.span, name: name.clone() });
+            }
+        });
+    });
+    out
+}
+
 /// `DIM x AS QRegistry` (a RapidQ object RapidR has no component for) inside
 /// a SUB, FUNCTION or TYPE method: `x` refers to an object of its own name,
 /// as it does in the main program, in both backends — so its properties

@@ -57,6 +57,8 @@ pub fn generate_with_resources(program: &Program, target: AppTarget, resources: 
     let tray = rapidr_ast::tray_calls::lower(program);
     let program = &tray;
     let program = rapidr_ast::type_values::lower(&rapidr_ast::stream_arrays::lower(&rapidr_ast::memory::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::init_arrays(&rapidr_ast::create_property_reads(&rapidr_ast::option_dim(&rapidr_ast::dotted_fields(&rapidr_ast::templates(&rapidr_ast::quicksort(&rapidr_ast::for_locals::lower(&rapidr_ast::suffix_vars::lower(&rapidr_ast::hoist_routines(program)))))), &|n| builtin_function_call(n, &[]).is_some() || is_object_builtin(n))))))))));
+    // (`FUNCTION Calc.Twice` returns what's assigned to `Calc.Twice`)
+    let program = rapidr_ast::dotted_function_results(&program);
     let program = rapidr_ast::objects::lower(&program, &|n| builtin_function_call(n, &[]).is_some() || is_object_builtin(n));
     // Stores into declared numeric types convert (rapidr_ast::numeric).
     let program = rapidr_ast::numeric::lower(program);
