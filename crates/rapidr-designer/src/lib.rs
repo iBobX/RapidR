@@ -766,3 +766,7 @@ fn const_value(e: &Expression, known: &std::collections::BTreeMap<String, i64>) 
 
 #[cfg(test)]
 mod tests;
+
+// (event handlers made from the designer and the inspector: S-PANELS)
+mod handlers;
+pub use handlers::{default_event, params_text, Handler};

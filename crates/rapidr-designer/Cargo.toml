@@ -24,3 +24,7 @@ proptest = { version = "1.11", default-features = false, features = ["std"] }
 # captures (examples/design_capture.rs, tests/wysiwyg.rs).
 rapidr-ui-kernel = { workspace = true }
 rapidr-ui-render = { workspace = true, features = ["png"] }
+# (tests/handlers.rs: the code written compiles on both backends)
+rapidr-lexer.workspace = true
+rapidr-bcgen.workspace = true
+rapidr-codegen-rust.workspace = true
