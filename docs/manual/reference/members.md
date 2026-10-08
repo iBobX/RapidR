@@ -4593,7 +4593,7 @@ The screen: its size and work area, the mouse's position, the monitors, the mous
 |---|---|---|---|
 | `ConsoleX` (read-only) | int |  | The console's width in characters (80); read-only. |
 | `ConsoleY` (read-only) | int |  | The console's height in lines (25); read-only. |
-| `Cursors` (read-only) | int |  | A mouse pointer's handle, `Cursors(i)` by its `crXXX` number; read-only. |
+| `Cursors` | int |  | The cursor handles by cursor code: Cursors(i) = a handle from LoadCursorFromFile or LoadCursor (Windows) makes Cursor = i show it; 0 puts the standard cursor back. Reading gives the handle in use (Windows; 0 on other systems, which have no cursor handles). |
 | `Height` (read-only) | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `MouseX` (read-only) | int |  | The mouse pointer's X on the screen, in pixels; read-only. |
 | `MouseY` (read-only) | int |  | The mouse pointer's Y on the screen, in pixels; read-only. |
