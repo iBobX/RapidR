@@ -308,8 +308,24 @@ pub fn show<R: Program + Windows>(rt: R, name: &str) {
     }
     build_form(rt, name);
     show_window(rt, name);
-    rt.fire(name, "onshow");
+    fire_shown(rt, name);
     after_show(rt, name);
+}
+
+/// A form's window shows: OnShow — the first time with an OnResize before
+/// and after it (RC.EXE's builds: `resize, show, resize` at the first Show
+/// or ShowModal, its size set before that firing none; shown again later,
+/// only OnShow).
+fn fire_shown<P: Program>(p: P, name: &str) {
+    let first = !p.get(name, "__shownonce").to_bool();
+    if first {
+        p.store(&lower(name), "__shownonce", v_bool(true));
+        p.fire(name, "onresize");
+    }
+    p.fire(name, "onshow");
+    if first {
+        p.fire(name, "onresize");
+    }
 }
 
 /// `Form.Visible = True`: its Show; a form not built yet (its own CREATE)
@@ -405,7 +421,7 @@ pub fn begin_modal<R: Program + Windows>(rt: R, name: &str) {
     } else {
         show_window(rt, &name);
     }
-    rt.fire(&name, "onshow");
+    fire_shown(rt, &name);
     after_show(rt, &name);
     timers::start_all(rt);
 }
