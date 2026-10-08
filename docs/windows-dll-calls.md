@@ -262,4 +262,83 @@ RapidR's lexer does the same. (`&O` / `&B` aren't RapidQ's: `&oO7` printed
 - Conformance: `peek_poke_memory`, `peek_poke_pages`, `peek_bad_address`
   (`.expected-runtime-error`), `inp_port_error`, `dll_needs_windows`
   (skipped on Windows by its `' skip-on: win32` marker, where the call
-  succeeds), `dll_missing_library`.
+  succeeds), `dll_missing_library`, `sendmessage_needs_windows`,
+  `sendmessage_declared`, `dotted_routine_calls`; unit tests in
+  `rapidr_runtime_core::ffi` (the C library called with integers, doubles,
+  SINGLEs, 11-argument mixes, a pointer written into a BYREF LONG) run on
+  macOS and in the Windows 11 VM; `tests/security/peek_poke_unowned_memory.mjs`
+  (SEC-19).
+
+## 6. RapidQ's corpus on Windows (2026-10-08)
+
+The 175 programs of RapidQ's examples that declare DLL routines (in their
+own source or an include they pull in) were built and run in the Windows
+11 VM (ARM64), interpreted and as native builds, each for three seconds
+with its windows captured; programs that would print, write the registry,
+install fonts, start other programs, inject keystrokes or shut the machine
+down were only built. The same set ran interpreted on macOS. The table of
+every program is in [windows-dll-corpus.md](windows-dll-corpus.md);
+`tools/dll_breadth.py` reruns it (the list: `tools/dll_corpus_list.py`).
+
+| | before this pass | after |
+|---|---|---|
+| compile | 115 | 126 (SENDMESSAGE / POSTMESSAGE / KILLMESSAGE) |
+| run 3 s without an error, interpreted | 73 | 81 |
+| run 3 s without an error, native | — | 77 (6 more don't build natively: codegen gaps that aren't about DLLs; two checked with the build from before this pass, which fails the same way) |
+| only built (would print, touch the system) | 22 | 24 |
+| macOS | | every run that reaches a DLL call stops with the "runs on Windows only" error; none crashes |
+
+What still stops the others, most common first:
+
+1. **Callbacks** — a SUB handed to Windows to call back (`SetWindowLong(…,
+   GWL_WNDPROC, CODEPTR(WndProc))`, a window class of the program's own,
+   RapidQ's `CallBack_4.inc` forwarders): `MinToTaskbar`, `ColorButton`,
+   `titlebtn`, `NewWndProcDemo`, `TestNoMouse`, `ManageGridEditing`,
+   `purewindows/wnd` — 15 corpus programs use `CODEPTR`, most of them for
+   a DLL.
+   Needs C → RapidR trampolines and a way for the interpreter to run a
+   handler while Windows waits for its result (§1; ROADMAP).
+2. **x86 machine code** run through `CallWindowProc` (RapidQ's assembler
+   trick): `ReverseStringDemo_1`, `TestRqAsmUtils`, `GetDllsFuncList`,
+   `AlphaTest2` — can't run in a 64-bit program; a clear error.
+3. **DLLs that aren't there or are 32-bit** — see below.
+4. **TYPEs with pointer or handle fields** declared LONG, which 64-bit
+   Windows reads 8 bytes wide: `QTabVertical` (TCITEM), `Pipe`
+   (SECURITY_ATTRIBUTES), `testAVItoBMP` (a PAVIFILE written into a TYPE
+   field). A layout translation (the fields Windows widens, by the SDK's
+   names) would make these work; it isn't RapidQ's own behaviour to invent,
+   so it waits for a decision.
+5. Four programs wait longer than the three seconds (two sound programs, a
+   browser-window resizer, the own-window-class one above), one stops on an
+   unrelated object error (`jpeg_Blend`).
+
+The compile failures that remain aren't about DLLs: 10 includes the corpus
+doesn't have, 7 `QRECT` fields in a TYPE (RC.EXE's own "Datatype %s not
+supported in STRUCT" — those DirectX programs don't compile under RapidQ
+either), and code that isn't RapidQ's (other BASICs' syntax, typos).
+
+**32-bit DLLs** a RapidQ program ships, which no 64-bit program can load
+(RapidR says "… is a 32-bit DLL"): `PASCAL.DLL` (`dll/simple/DLL.BAS`),
+`STKIT432.DLL` (`System/CreateShellLink.bas`, `reminder/reminder.bas`),
+`IO.DLL` (`io/IO_RQ.bas`, which names it `c:\rapid-q\IO.DLL`),
+`NVIEWLIB.DLL` (`graphics/Picview.bas`, `QHTML` ×4), `JPEG.DLL`
+(`graphics/LoadJPG.bas`), `RqUtils.dll` (`asm/TestRqUtilsDll.Bas`),
+`sqlite3.dll` / `zlibwapi.dll` / `hexconvert` (`Database/SQL_blobs`,
+`zlib/z_test.bas`, `zlib/zunzip.bas`), `FileSearch_FB_DLL`
+(`files/FileSearch.bas`), `d3drm.dll` (8 Direct3D programs: Direct3D
+Retained Mode, which left Windows with Vista — RapidR's own QD3D objects
+replace it). `RAPIDQ32.DLL` (`Compile/rapidq_boosta.bas`) isn't in the
+corpus at all. A 64-bit build of each would load; for most RapidR has a
+component of its own (RSQLITE, RIMAGE, the zip functions). A 32-bit DLL
+that only holds resources (`cursors/animated/CURSORS.DLL`) works: it is
+opened as data for its cursors.
+
+**The console.** `console/3dbox/3DBOX.BAS` (CLS, COLOR, LOCATE, a dotted
+SUB name, POKE into the screen's last attribute) draws the same boxes,
+colours and status line as RC.EXE's build on Windows, interpreted and
+native, on macOS and on the web. One difference remains: RapidQ's console
+shows bytes 128–255 in the console's DOS code page (437: `┌─┐│└┘`), where
+RapidR shows them as Latin-1 (`ÚÄ¿³ÀÙ`), as a RapidQ program's strings
+are read. Mapping console output through code page 437 would match RapidQ
+for box-drawing programs and change accented text in console programs;
+that choice is open.
