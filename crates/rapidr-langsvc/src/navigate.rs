@@ -29,7 +29,8 @@ pub(crate) fn definition(s: &Snapshot, file: &Path, text: &str, offset: usize, o
         let candidates = std::iter::once(base).chain(options.include_dirs.iter().cloned());
         for dir in candidates {
             let p = dir.join(name);
-            if p.is_file() {
+            let allowed = options.roots.as_ref().is_none_or(|roots| rapidr_preprocessor::is_within(&p, roots) || options.include_dirs.iter().any(|d| rapidr_preprocessor::is_within(&p, std::slice::from_ref(d))));
+            if allowed && p.is_file() {
                 return vec![Location { file: p, start: 0, end: 0 }];
             }
         }

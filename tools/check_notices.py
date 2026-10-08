@@ -226,7 +226,7 @@ def main():
 
         print("== interpreted executable")
         out = os.path.join(tmp, "interp")
-        if run([rapidr, "build", src, out, "--interp"], tmp, env):
+        if run([rapidr, "build", src, out, "--interp", "--no-bundle"], tmp, env):
             exe = os.path.join(out, "hello" + (".exe" if host.startswith("windows") else ""))
             check(os.path.isfile(exe), "the executable is built")
             path = os.path.join(out, NOTICES)
@@ -259,7 +259,7 @@ def main():
             os.makedirs(os.path.dirname(nsrc))
             with open(nsrc, "w") as f:
                 f.write('PRINT "hello"\n')
-            if run([rapidr, "build", nsrc], tmp, env):
+            if run([rapidr, "build", nsrc, "--no-bundle"], tmp, env):
                 path = os.path.join(tmp, "native", NOTICES)
                 check(os.path.isfile(path), f"{NOTICES} beside the native executable")
                 if os.path.isfile(path):

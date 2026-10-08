@@ -1,0 +1,5 @@
+$INCLUDE "RAPIDQ.INC"
+$INCLUDE "panel_project_util.inc"
+$INCLUDE "panel_project_form.rr"
+
+Form1.ShowModal

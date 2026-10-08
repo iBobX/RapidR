@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build the combined RapidR web wasm package (compiler + runtime) used by
-# both `rapidr bundle-bc` (per-app static bundles) and the in-browser
-# IDE under web-ide/.
+# both `rapidr bundle-bc` (per-app static bundles) and RapidR Studio on the
+# web (tools/build_studio_web.sh).
 #
 # Output: target/web/{rapidrintr.js, rapidrintr_bg.wasm, *.d.ts}
 set -euo pipefail
@@ -29,6 +29,10 @@ wasm-pack build interpreter/rapidr-vm-host-web \
     --out-dir "$ROOT/target/web" \
     --out-name rapidrintr \
     --release
+
+# The frame an RWEBVIEW's Html runs in (docs/security-audit.md SEC-15): beside
+# the runtime, as every web build has it beside its page.
+cp interpreter/rapidr-webbundle/web/rapidr-webview.html target/web/
 
 # The fallback fonts (fonts/fallback, docs/web-host-plan.md §3.7): Noto's
 # chunks beside the runtime, loaded by a page as its text needs them. The

@@ -945,6 +945,27 @@ Property tests: 200 random command sequences on the model (undo all = the start,
 
 **Left** (L-DVIEW, L-SYNC, L-PANELS): WYSIWYG drawing of the real components; containers as drop targets on the surface (the model and the text side reparent already); keyboard placement with announcements; the menu and Tab-order editors; the live sync policy (debounce, read-only banner, "set in code" rows); rename through I3; a tab control's page area in the replay (its whole size today).
 
+### I1 / L-PANELS results — the panels (2026-10-06)
+
+**RPropertyInspector, RToolbox, RProjectTree, ROutputConsole, RToolBar (a real kernel kind now) and RCommandPalette**, public components on every runtime: models in `crates/rapidr-value/src/panels/` (GUI-free, wasm), drawn and driven by the UI kernel (`crates/rapidr-ui-kernel/src/components/panels/`, one look from the theme's tokens in `common.rs`), one runtime glue for both runtimes (`panels/runtime.rs`'s `Runtime` trait; `runtime-core/src/panels.rs`, `runtime-web/src/panels_web.rs`, `Container::Panel`). Their API is the registry's (`crates/rapidr-lang/data/components/ide.toml`, RTOOLBAR in `forms.toml`; summarized in [ide-components.md](ide-components.md) §3.4–3.8); a property can name its inspector editor (`editor`: strings, columns, file, picture, multiline, sql, expression).
+
+- **Inspector**: rows from the registry by category or A–Z, fuzzy search, typed editors (numbers, text, Boolean, enums in a dropped list, sets, colours with an inline picker, fonts, pictures / files, lists of lines, columns, component references), the **Anchors pin editor** (four pins, mouse and keyboard, a sentence saying what the anchoring does), defaults dimmed and reset, "RapidR extensions" with a badge, the Events page (double click raises OnEventDblClick; a dropped list of fitting SUBs), multi-selection, the program's own properties (AddProperty).
+- **The inspector ↔ designer interface** (`panels/subject.rs`): a `Subject` gives the objects, reads a property (`None`: the default applies), sets it (`set_source`: as the program writes it), resets it, binds handlers. Live components (`Live`), RDESIGNSURFACE, and the designer model (`inspector::designer_model::DesignerModelSubject` over `rapidr_value::designer::Designer`, each change one undoable `set_property`). A designer component: `designer_model::attach(name, designer)`, `designer_model::register("RFORMDESIGNER")` once, `inspector::designer_changed(host, name)` after each selection change or command.
+- **Toolbox**: "RapidQ" / "RapidR" and their groups from `rapidr_icons::TOOLBOX_GROUPS`, our icons, the names the designer writes, fuzzy search, double click / Enter (OnPick), drag with a ghost over the form → OnDragDrop on the component under the drop, templates.
+- **Project tree**: `.rrproj` / implicit projects through the runtime's file hooks (or `LoadText` / `SetFileText`), files by kind and folder, forms opening into their CREATE blocks' components, rename in place, delete with an inline confirmation, drag (and Alt+arrows) to reorder; the program does the disk work in the events.
+- **Console**: `web-ide/ansi_screen.js`'s screen model in Rust (colours, CLS, LOCATE, K, split escapes, MaxLines), Output / Build / Problems pages, `file:line` links, search with "3 of 12", line selection and copy, virtualized (100,000 lines written in 0.36 s).
+- **Toolbar**: icon buttons, toggles, separators, captions, an overflow menu (customizable: which buttons show, kept in `Layout`); still a container for programs that place buttons on it (they draw as before).
+- **Command palette**: over the top of its form, fuzzy over "Category: Title", recently used first, key caps for shortcuts, OnCommand / OnCancel.
+- **Accessibility**: each panel describes its rows, nodes, tabs, buttons, pins and editors (Grid / Tree / ListBox / Dialog / Group roles, names, values, levels, states) and performs Click / Focus / Expand / Collapse / SetValue on them; everything works from the keyboard.
+
+**Tests.** GUI cases (`tests/gui_parity_cases.mjs`): `panels_smoke`, `panel_inspector`, `panel_inspector_designer`, `panel_toolbox`, `panel_toolbox_keys`, `panel_palette`, `panel_project`, `panel_project_files`, `panel_console`, `panel_toolbar` — native and interpreted agree, and on the web every expected line, windows byte-identical to the desktop's and accessibility trees equal, at 1× and 2× (12 of 12 windows each). Unit tests for every model (fuzzy ranking, rows, registry rows and value formats, the ANSI screen, links, the CREATE scanner, rename / reorder, palette order, the designer adapter's undo) and the look's contrast in every theme. The demo `examples/studio/panels.rr` (every panel docked by an RDOCKMANAGER, the inspector following an RDESIGNSURFACE) runs on all four runtimes in `tests/examples_run.mjs`.
+
+**Looked at.** `tools/panels_gallery.mjs` (a fixture in each theme at 1× and 2×, desktop | web side by side): the demo in classic, modern, dark and high contrast; each panel's states (the Anchors editor and colour picker open, the Events page, a multi-selection; the palette open with marks; the toolbox searched and dragging; the tree's rename, delete confirmation and drag; the console's colours, problems and search; the toolbar's overflow menu).
+
+**Shared files touched.** `crates/rapidr-lang/build.rs`, `src/lib.rs` (`Property::editor`), `data/components/forms.toml` (RTOOLBAR); `crates/rapidr-value/Cargo.toml` (rapidr-project), `lib.rs`, `component_defaults.rs`, `layout.rs` (sizes), `members.rs` (value methods), `objects/a11y.rs` (roles, focus); kernel `components/mod.rs` (KINDS ×6), `form.rs` (`Container::Panel`), `list.rs` (`focus_left` reaches the panels; `begin_edit_selecting`), `combo.rs` (`set_hot`, `hot_item`), `tree.rs` (a shown palette / a dragging toolbox stacked last); `rapidr-ui-app` `lists.rs` (a dropped list's pick for a panel; RDESIGNSURFACE presses tell inspectors), `windows.rs` / `desktop.rs` (`WindowOp::Focus`: SetFocus reaches the kernel on the desktop); runtime-core `lib.rs`, `object.rs` (set / get / method / after-set hooks, `all_components`, `font.underline` / `font.strikeout`), `ui/program.rs`; runtime-web `lib.rs`, `object_web.rs`, `kernel_web.rs`; `design/icons/inventory.toml` (five planned components exist now); `tools/lang_dispatch.py` (SITES); `tests/gui_parity_cases.mjs`, `tests/examples_run.mjs`, `examples/README.md`; generated: `crates/rapidr-icons/src/generated.rs`, `docs/manual/…`, `web-ide/lang-data.js`. Not touched: ROADMAP, regress.sh, Cargo.toml.
+
+**Open.** (1) The kernel has no tooltips: the toolbar's hints and the toolbox's docs reach screen readers only. (2) On live components an event's SUB picked in the inspector is named but not bound while the program runs (binding works through a designer); handlers bound at compile time don't show. (3) QBUTTON / QFORM mark `Font` as not design-time, so the font editor shows only where the registry says so. (4) One pixel of bold tab text at 2× differs by one level between desktop and web (the known wasm text rounding). (5) After the palette hides, the focus isn't given back to the previous control. (6) No Align picker yet (Align is an enum row). (7) Found: `_` line continuation and `""` inside strings aren't RapidQ syntax and compile silently to something else (a compat lane may want an error).
+
 ### I1 / L-SHELL + L-WEB results — RapidR Studio's shell (2026-10-06)
 
 **RapidR Studio is one RapidR program** (`ide/studio.rr` and its includes, D3) on RapidR's public components and UI kernel: the same bytecode runs on the desktop (`rapidr ide [file]`, winit + vello) and in the browser (`tools/build_studio_web.sh` → `target/studio-web`, the kernel on a canvas).
@@ -977,7 +998,7 @@ Found and fixed by the real-input runs (all hosts): a window shown from a modal 
 **Plug-in points.**
 - L-PANELS: the panes are named in `ide/panes.inc` `SetUpDock` (`projecttree`, `toolboxtree`, `propgrid`, `outlinetree`, `outputbox`, `problemsview`, `immediatebox`, `welcome`) — a public component replaces a stand-in by taking its pane name; `ShowProperties` is where the inspector is fed.
 - L-EDVIEW: `CodeDoc(d)` (RCODEEDITOR) per document in `ide/documents.inc` (`OpenDocument`, `CodeChanged`, `SaveDocument`).
-- L-DMODEL / L-SYNC: `DesignDoc(d)` (RDESIGNSURFACE) is still filled by the stand-in scanner `ScanForm`; the plug point comment there says how rapidr-designer's `Document` takes over once RDESIGNSURFACE has source members (`Source` ← `open_bytes` / `set_text`, an `OnSourceEdit` per `TextPatch` from `sync()`, Undo / Redo through the document). Not wired in this step: RDESIGNSURFACE has no source-text API yet, and the live sync policy is L-SYNC's.
+- L-DMODEL / L-SYNC: ~~`DesignDoc(d)` filled by the stand-in scanner `ScanForm`~~ — done by S-DESIGN (2026-10-08, below): `DesignDoc(d).Source` reads the file through rapidr-designer's `Document`.
 - I3: RLANGUAGESERVICE (`Lang.Update`, `Outline`, `Diagnostics`) in `AnalyzeActive`.
 
 **Next.**
@@ -985,3 +1006,107 @@ Found and fixed by the real-input runs (all hosts): a window shown from a modal 
 - The designer and the property grid / toolbox stand-ins (L-DVIEW, L-PANELS); MDI windows' drop shadow; the web's top-level kernel frame in RapidR's look; the examples list read from the examples folder; `--interp` runners and native builds without the studio components; a Studio-only wasm (or a feature) to take the 0.7 MB back from programs' pages; web-ide/ and examples/ide.rr deleted once Studio covers them.
 
 **Shared files touched** (minimal): `Cargo.toml`, `Cargo.lock`, `.gitignore`; rapidr-value `lib.rs`, `globals.rs` (ThemeColor), `theme.rs` (rapidr names), `ide_theme.rs` (new), `objects/{code,text,font,textedit,memo,menu,tree,mod}.rs`, `members.rs`, `mdi.rs` (`child_state`, `set_child_title`), `dock/{geometry,look,runtime}.rs`; rapidr-ui-kernel `components/{mod,coolbtn,mdi,dock,tree,image,statusbar,menubar}.rs`, `tooltip.rs` (new), `tree.rs`, `input.rs`, `focus.rs`, `tick.rs`, `paint.rs`, `lib.rs`, `dialogs.rs` (chrome font), `text/{mod,editor}.rs`; rapidr-ui-app `desktop.rs` (modal input), `file_dialog.rs`, `lists.rs`; rapidr-ui-host-winit `winit_host.rs` (modal focus, Wayland hide, synthetic keys), `menu.rs`, `dialogs.rs`; rapidr-ui-host-web `host.rs`; runtime-core `Cargo.toml`, `lib.rs`, `object.rs`, `studio.rs` (new), `ui/kernel.rs`, `ui/kernel/dialogs.rs`; runtime-web `Cargo.toml`, `lib.rs`, `object_web.rs`, `globals_web.rs`, `file_picker_web.rs`, `kernel_web.rs`, `studio_web.rs` (new); vm-host-native / vm-host-web; rapidr-session `process.rs` (`spawn_with_env`); rapidr-cli `Cargo.toml`, `main.rs`, `launch.rs`, `notices.rs`; registry `forms.toml`, `globals.toml`, `dialogs.toml`, `studio.toml` (new) and the generated docs / `web-ide/lang-data.js`; `docs/ide-components.md`; `tests/gui_parity_cases.mjs` (dock_manager's pane sizes under the 28 px header); `tools/real_input.py`; `tools/release/{prepare.sh,stage.py}`; `tools/third_party_notices.py`, `LICENSES.md`, `THIRD_PARTY_NOTICES.md`; icons (`design/icons/inventory.toml`, `tools/planned.py`, the generated set); `CHANGELOG.md`; this section. Not touched: ROADMAP.md, regress.sh.
+
+### I4 / S-DESIGN results — the designer in RapidR Studio (2026-10-08)
+
+Robert tried the preview (`development` @ `bb23d078`): forms showed too tall and couldn't be resized, the toolbox added nothing, the designer drew boxes, "basically nothing works". This lane made Studio's [Design] document work, on top of L-DVIEW's WYSIWYG drawing (whose WIP it finished).
+
+**What works, on the desktop and the web (the same kernel code, byte-identical captures):**
+- **The source is the form.** A file's [Design] tab is an RDESIGNSURFACE reading the file's text (`Source`): every top-level CREATE block goes through rapidr-designer's `Document`, and the form designed is the one `FormName` names, else the file's first QFORM. It shows at its own Width × Height (or RapidQ's default for the type) in its frame, with its title bar, main menu bar, aligned and anchored children, and the non-visual components in a tray strip. The stand-in scanner's designer part (`ScanForm`'s children, placeholder boxes) is deleted.
+- **WYSIWYG**: each component is drawn by the kernel's own component from a design-time store (L-DVIEW). `tools/visual/designer_wysiwyg.py` compares the designer's form with the running program's capture: notepad.bas and hello_form.rr, RapidR light and dark, 1× and 2× — **8 of 8 pixel-identical**.
+- **Resize the form**: drag its right edge, bottom edge or corner (sizing pointers, grips drawn, a live `W × H` readout). Anchored and aligned children follow live through the runtimes' layout engine. Letting go writes Width / Height into the CREATE block (ClientWidth / ClientHeight where the block uses those), and each component its Anchors moved where the resize put it, as Delphi's designer does. It is one undo step. The form's Constraints are obeyed.
+- **Add components**:
+  - **The placing tool** (`PlaceType`): a dashed ghost with the type and size follows the mouse. A click places the component at its default size, on the grid. A drag draws its rectangle. Shift keeps the tool armed; Escape disarms it.
+  - **Drag and drop** (`DragComponent`): the kernel routes the drag to any design surface it crosses (ghost shown) and adds the component where it is let go.
+  - **`AddComponent(Type, X, Y)`**: -1, -1 means a free cascade spot in the selection's container (Enter on a toolbox item).
+  - Visual components go into the panel, group box or scroll box under the point. Non-visual ones go to the tray, and QMENUITEMs go under the selected menu.
+  - Names are Delphi's (Button1, CheckBox1, StringGrid1 …: the registry's new `display` field, each component's mixed-case spelling, which also replaced the language service's hand table), unique in the whole file, not only in the form (a `DIM Button1` makes the new one Button2).
+  - **Typing right after adding writes the Caption / Text** (Delphi). Backspace corrects it; Enter or Escape ends it.
+- **Select, move, resize**: click, Shift / Ctrl / ⌘-click, rubber band, eight handles, anchor pins. A move snaps to the grid and smart guides, with a live `X, Y` / `W × H` readout; Alt turns snapping off. **Dropping on another container reparents** (the CREATE block moves into it, with the target highlighted). The mouse wheel scrolls a form larger than the pane.
+- **Keyboard** (the surface takes the focus):
+  - arrows nudge 1 px, Shift+arrows by the grid, Ctrl / ⌘+arrows resize;
+  - Delete / Backspace delete;
+  - Tab / Shift+Tab go through the components;
+  - Escape stops placing, then cancels a drag, then goes to the parent;
+  - Enter is the double click (the default event's handler);
+  - Ctrl / ⌘ + Z, Y, Shift+Z, A, C, X, V, D work (Copy puts the CREATE blocks' text on the clipboard).
+- **Screen readers**: each component is a list option named "Button1 (QBUTTON), 16, 24, 75 × 25". A polite live region (`StatusText`) says what each change did: added, moved to, resized, anchor on / off, the form's new size, undone.
+- **Two-way sync**: each change is the smallest text edit (`Document::sync`), sent to the code editor as **OnSourceEdit(StartLine, StartCol, EndLine, EndCol, Text)** (0-based lines, character columns: the contract agreed with S-PANELS and S-EDITOR). Studio's interim applier (`ide/designer.inc` `DesignSourceEdit`, SelStart / SelLength / SelText) gives way to S-EDITOR's ApplyPatches at integration. Code edits reach the designer after the analyzer's pause (`DesignRead`: `Source` set again, a no-op when it is the same text). While the code doesn't parse, the designer keeps the last good form, read-only, under a banner ("The code has errors at line N").
+- **Undo / redo through the Document**: the exact bytes come back (scripted: resize, add, move, undo × 3 → the file's text, on both hosts). An edit typed in the code editor starts the designer's history over (its edits' places are gone). One history shared with the editor's own undo is S-EDITOR's ApplyPatches and later work.
+- **Double-click → handler**: `CreateHandler(Name, Event)` on S-PANELS' `Document::create_handler` (one undo step). Studio jumps to `HandlerLine`.
+- **Format menu**: align lefts / centres / rights / tops / middles / bottoms, same width / height / size, space evenly across / down, centre in the parent, bring to front / send to back (`Arrange(How)`). **View ▸ Code (F7) / Designer (Shift+F7)**. Edit's Undo / Redo / Cut / Copy / Paste / Delete / Select All / Duplicate act on the designer when it is the active document.
+
+**The API for the other panes** (RDESIGNSURFACE, in the registry; `rapidr_value::objects::design`):
+
+| Member | |
+|---|---|
+| `Source` (string), `SourceFile` | the program's text (set it to read, read it back as the designer left it); the file's path for `$INCLUDE`s, set first |
+| `FormName` | the form designed (set it to design another form of the file) |
+| `PlaceType` (string) | the toolbox's click: the next click / drag on the form places one |
+| `DragComponent(Type)` | the toolbox's mouse-down: dropped wherever the mouse is let go on a surface |
+| `AddComponent(Type, X, Y)` → index | Enter / double-click in the toolbox (X, Y = -1, -1: a free spot in the selection's container) |
+| `SelIndex`, `SelectName(Name)`, `SelectAll`, `GetName(i)`, `SelCount` | the selection (the inspector, the project tree) |
+| `DeleteSelection`, `CopySelection` → text, `CutSelection`, `Paste`, `Duplicate`, `Arrange(How)`, `ResizeForm(W, H)` | commands |
+| `Undo`, `Redo`, `CanUndo`, `CanRedo` | through the Document (exact bytes) |
+| `CreateHandler(Name, Event)` → SUB, `HandlerLine` | the event handler, made and wired, or found |
+| `StatusText` | the live region's text |
+| `OnSourceEdit(StartLine, StartCol, EndLine, EndCol, Text)`, `OnChange`, `OnSelect(Index)` (-1: the form), `OnDblClick(Index)` | events |
+
+From Rust (S-PANELS' inspector): edit `with_design_mut(name, |s| { s.designer.set_property(…); s.commit() })`. Then fire `rapidr_value::objects::take_design_events(name)` (it also calls the change hook). `objects::design::set_change_hook(fn(&str))` tells the inspector when a surface's form or selection changed. The surface holds the Document behind the `SourceDoc` trait (rapidr-value), which `rapidr_studio::design` implements on rapidr-designer and installs when a runtime makes an RDESIGNSURFACE. The runtimes fire what a call leaves (`design_events`), and the kernel fires what the mouse and keys leave.
+
+**Tests.**
+- `rapidr-studio` `design::tests`: 9 cases: the first QFORM at its size; resize + add + undo to the exact text with the editor's line/col edits applied; names unique across the file; no form; double-click handler; reparenting into a panel; the keyboard (Tab, nudge, resize, Escape, typing a caption, Delete, Ctrl+Z); code with errors read-only.
+- `rapidr-value` `objects::design::tests`: 6 cases (the form's edges written with the anchored button, one undo).
+- `rapidr-ui-kernel` `components::design::tests`: the events through the kernel; the designer takes the focus; a component dragged in from elsewhere (its ghost on the grid, dropped where the mouse lets go, Escape cancels) — this test found the ghost cleared by the surface's own hover and the drop placed by the pane-relative rectangle (both fixed).
+- `tests/studio_flows.mjs`: three new cases, `designer`, `designer-add` (AddComponent through the method, CheckBox1) and `designer-undo`, with real kernel input on both hosts. Notepad's right edge is dragged 60 px, a QBUTTON placed and moved; the code has `Width = 540` and Button1's CREATE block; undo × 3 equals the file. `tests/studio_shell.mjs`: a `designer` scene (four themes × 1× / 2×, desktop vs web byte for byte). A new test hook, `__key_N_S` (a key with RapidQ's Shift state: `__key_90_16` is Ctrl+Z), lives in rapidr-ui-app's script.
+- Real input on macOS (`scratch/real.sh` in the lane's worktree, `tools/real_input.py`): ghost, click-to-place, bottom-edge resize, drag and ⌘Z. This found two bugs, both fixed: a stuck ⌘ kept the placing tool armed (now only Shift does), and a press outside the form placed a component outside it (now refused).
+
+**Benchmarked against Delphi and Xcode** (docs/studio-wow.md's DES items):
+- **Done**: DES-1, -2, -4, -5 (except one history with the editor), -6, -7 (in Studio; the model's 40 / 40 parity stands), -8, -9, -10 (in the designer), -11, -12, -14 (the tray, non-visual components added to it).
+- **Missing**: DES-3 (the drawing is done; there is no `guides` capture case yet), DES-13 (menu and Tab-order editors), DES-15 (I7), DES-16 (Preview in classic: needs L-THEME's override for the surface).
+- **Worse than Xcode / Delphi, noted**:
+  - no zoom (only scroll);
+  - no on-canvas inline caption editing (typing after adding covers new components);
+  - tray links aren't drawn;
+  - a top-level non-visual CREATE outside the form (notepad's dialogs) isn't in the tray;
+  - a file without a form says so but can't add one yet.
+
+**Shared files touched**:
+- rapidr-value `objects/{design,mod,a11y}.rs`, `designer/mod.rs` (`has_applied`);
+- rapidr-ui-kernel `components/design.rs` (+ tests), `input.rs` (drop routing, Tab, hover repaint);
+- rapidr-ui-app `desktop.rs` (the designer's pointer, `__key_N_S`), `script.rs`, `testhooks.rs`, `windows.rs`;
+- runtime-core `object.rs`, runtime-web `object_web.rs` (install the reader, fire the surface's events);
+- rapidr-studio (`design.rs` new, `Cargo.toml`);
+- rapidr-designer `lib.rs` (`clear_history`, `error_line`);
+- the registry `display.toml` (RDESIGNSURFACE's members), the generated `members.md` / `lang-data.js`;
+- `ide/{designer.inc (new), documents.inc, commands.inc, decl.inc, shell.inc, studio.rr}`;
+- `tests/studio_flows.mjs`, `tests/studio_shell.mjs`; this section; `CHANGELOG.md`.
+
+### I1 / S-PANELS results — the panels in RapidR Studio (2026-10-08)
+
+Robert tried the preview (`development` @ `bb23d078`): "properties don't work", "none of the toolbox can be added to the form", "basically nothing works" — Studio's panes were stand-ins (a QSTRINGGRID of the form's own assignments, QTREEVIEWs, a QRICHEDIT, a QFORM palette). This lane put L-PANELS' public components into Studio and made them work with S-DESIGN's designer and the code, on the desktop and the web.
+
+**What works (desktop and web, the same bytecode):**
+- **The panels** (`ide/panels.inc`; the stand-ins and the `ScanForm` scanner deleted): RTOOLBAR from the command table (enabled with the commands, hints as tooltips), RCOMMANDPALETTE over the window, RPROJECTTREE, RTOOLBOX, RPROPERTYINSPECTOR, ROUTPUTCONSOLE (output with ANSI, the build log, the problems — the language service's diagnostics — with links; its tabs in the chrome font). Empty panels say what to do (`EmptyText`).
+- **Properties, both ways.** `Inspector.Designer = DesignDoc(d)` follows the active form's designer: what is selected there (on the form, in the project tree, or found by name in the palette) shows by category or A–Z, searched, the selected row's doc under the rows; values as the CREATE block writes them, defaults dimmed, unset Left / Top / Width / Height as the designer lays them out (`Subject::fallback`), mixed values blank for a multi-selection. A change is one `Designer::set_property` on the surface's model, committed into the code at once (`DesignSurface::commit`) and heard as the surface's own OnSourceEdit / OnChange, so the code editor gets the smallest edit (`Caption = "Go": Left = 314: Top = 252: Width = 120` on AddBtn's own line) and Undo gives the exact bytes back. A code edit reaches the designer (S-DESIGN's `DesignRead`) and every inspector following it (`objects::design`'s change hook).
+- **Written as RapidQ needs it** (RC.EXE, compile-only and a console probe): Booleans as `1` / `0` (a line in words keeps them); in a `.bas` / `.inc` program that doesn't define them, a RapidQ property's constants as numbers (`Color = &H0000FF`, `Align = 5`) — without RAPIDQ.INC RC.EXE reads `True` and `clRed` as empty variables, 0. RapidR programs and RapidR's own properties keep the names.
+- **Events**: a double click on an event's row (and S-DESIGN's double click on a component) goes through `rapidr_designer::Document::create_handler` (new, this lane): the SUB the CREATE block names, else a SUB written with the registry's parameters — a `DECLARE SUB` after the file's last one and the SUB at the end, or the SUB just before the form — and bound, in one undo step; the caret lands inside. RC.EXE compiles both layouts and checks no handler's parameters; it refuses a SUB defined only after the CREATE that names it (RapidR accepts it: a compat task). The Events page's list offers the file's SUBs that fit.
+- **Toolbox**: the registry's groups and RapidR's icons; fuzzy search, also by a component's doc ("chart" → RPLOT); each item's card as its tooltip (what it is, RapidQ's or RapidR's, desktop / web only); double click / Enter → `AddComponent(T, -1, -1)`, a click → `PlaceType`, a drag → `DragComponent` (S-DESIGN's surface).
+- **Project tree**: the project (or the file and its includes) by kind, forms with their components (selecting one selects it in the designer), unsaved files marked (`FileModified`), Project ▸ Add Form / Add Module (named in place, written, added, opened), rename (the file, the project and its documents follow), take out of the project (the file kept), reorder (saved).
+- **One search**: the palette (Ctrl+Shift+P, and View ▸ Go to Anything, Ctrl+P) holds the commands, the examples, the project's files, the active file's symbols and its form's components; `:N` goes to line N (`AddPrefix`).
+
+**Tests.**
+- `tests/studio_flows.mjs` (both hosts): `inspector-edits-code`, `inspector-undo` (the exact bytes), `code-edits-inspector`, `inspector-event-handler`, `inspector-typed` (Default = 1, Color, a reset taking Width out of the line), `toolbox-add`, `tree-and-search`, beside the shell's and the designer's cases — **82 of 82 checks pass, desktop and web** (after merging development @ 7ed6e58b).
+- `tests/studio_shell.mjs`: new scenes `panels` (AddBtn inspected), `events`, `toolbox-search`, `palette-line`; with the existing ones, RapidR light and dark at 1× and 2× — **35 of 36 captures byte-identical desktop / web, accessibility trees 36 of 36 equal**; the one left is a single pixel one level apart in the palette's placeholder text, dark, 1× (the known wasm text rounding).
+- `crates/rapidr-designer/tests/handlers.rs` (both layouts, names, undo, outputs compiled by both backends; the outputs RC.EXE-compiled and native-built), `tests/spelling.rs` (1 / 0, numbers for undefined constants); unit tests for the palette's prefixes, the toolbox's doc search, the inspector's SUB list.
+- `tests/gui_parity_cases.mjs`: the inspector-on-designer case clicks where the WYSIWYG form puts its components; the toolbox counts Studio's service components (32).
+
+**Captures** (this worktree's `scratch/captures/`: `<scene>-<theme>@<s>x-desktop.bmp`, `-web.bmp` and side by side).
+
+**Benchmarked (docs/studio-wow.md, my areas):**
+- Done: INS-1 (but "set in code, line N"), INS-2, INS-3, INS-6, TBX-1, TBX-2, TBX-3 (with S-DESIGN), TBX-4, CMD-1, PRJ-1.
+- Partial: INS-4 (the model and the panel's own GUI case; no Studio flow selects two components yet), INS-5 (the doc under the rows; no F1 / Help pane), PRJ-2 (no `$INCLUDE` rewrite on rename; taking out keeps the file, no trash), CMD-2 (files, symbols, components, commands, examples; no docs `?` or settings).
+- Missing: CMD-3 (Find in Files), HLP-1.
+- Worse than Delphi / Xcode, noted: no tooltips over truncated inspector values; the inspector's Rows are flat text for tests (no per-row "set in code" yet); no keyboard shortcut to jump from a toolbox item to its help.
+
+**Shared files touched.** `crates/rapidr-designer` (`handlers.rs` new, `lib.rs`, `Cargo.toml` dev-deps, `tests/handlers.rs`, `tests/spelling.rs`, the `.bas` / `.inc` flag in `reread`); rapidr-value `designer/{inspect,model}.rs` (spelling), `panels/{subject,palette,toolbox,project_tree.rs,project_tree/model.rs}`, `panels/inspector/{mod,read,designer_model}.rs`; rapidr-ui-kernel `components/panels/{common,console,toolbar,toolbox,inspector/*,project_tree/draw}.rs`; runtime-core `panels.rs`; runtime-web `panels_web.rs`, `object_web.rs` (a surface's method calls fire its events: an S-DESIGN glue gap); the registry `ide.toml` and the generated docs / `web-ide/lang-data.js`; `tools/lang_dispatch.py`; `ide/{panels.inc (new), window.inc, commands.inc, decl.inc, panes.inc, documents.inc, shell.inc, project.inc, chrome.inc, studio.rr}`; `tests/{studio_flows,studio_shell,gui_parity_cases}.mjs`; `docs/ide-components.md`, `docs/rapidq-ground-truth.md`, this section, `CHANGELOG.md`, ROADMAP (one tick).

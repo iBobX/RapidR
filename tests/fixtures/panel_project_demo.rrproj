@@ -1,0 +1,17 @@
+# RapidR Studio project (format 2)
+
+format = 2
+name = "Demo"
+main = "panel_project_main.rr"
+
+[[files]]
+path = "panel_project_main.rr"
+kind = "module"
+
+[[files]]
+path = "panel_project_form.rr"
+kind = "form"
+
+[[files]]
+path = "panel_project_util.inc"
+kind = "include"

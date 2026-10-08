@@ -6,8 +6,9 @@ remote CI — and how to publish it on GitHub. The scripts are in
 
 A release has, for each platform, the **SDK** (the IDE, the compiler, the
 runtime, the runtime's sources for native builds) and the **Runtime** alone
-(runs programs, like a JRE), plus the web IDE, checksums, an SBOM and the
-release notes:
+(runs programs, like a JRE), plus RapidR Studio for the web
+(`tools/release/web.sh`: tools/build_studio_web.sh's site), checksums, an
+SBOM and the release notes:
 
 | | SDK | Runtime |
 |---|---|---|
@@ -247,8 +248,9 @@ their authors', to ship as they like.
   installing (`InfoBeforeFile`), after the MIT licence page. See
   `docs/licensing.md`. A crate offered under a choice that includes LGPL
   (r-efi: MIT OR Apache-2.0 OR LGPL-2.1+) is used under MIT.
-- JS / wasm: Monaco (MIT) in the web IDE; the wasm-bindgen glue (MIT /
-  Apache-2.0) — `LICENSES.md`. Fonts: Liberation (OFL-1.1).
+- JS / wasm: the wasm-bindgen glue (MIT / Apache-2.0) — `LICENSES.md`.
+  (Monaco is no longer shipped: the web bundle is RapidR Studio's,
+  docs/security-audit.md SEC-17.) Fonts: Liberation (OFL-1.1).
 - New here: `rapidr-launcher` uses objc2, objc2-foundation, objc2-app-kit
   (MIT, already in the tree through winit); the CLI uses sha2, libc
   (MIT / Apache-2.0, already in the tree).
