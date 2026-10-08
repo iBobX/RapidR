@@ -74,6 +74,11 @@ if want web; then
   echo "== web"; for t in tests/web_ide_*.mjs tests/debug_e2e_*.mjs tests/web_session.mjs tests/web_bundle_*.mjs tests/web_file_dialogs.mjs tests/web_modal_focus.mjs tests/web_end_timer.mjs tests/web_main_end.mjs tests/web_vm_yield.mjs tests/web_overlays.mjs tests/web_fonts.mjs tests/web_webapi.mjs tests/web_sqlite.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "ASSERT|Error|✗"; }
   done
+  # Security regressions that need no browser (docs/security-audit.md).
+  echo "== security"; for t in tests/security/*.mjs; do
+    [ -e "$t" ] || continue
+    out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "FAIL|Error"; }
+  done
 fi
 # Licences and notices (LEGAL.md, docs/licensing.md): a licence outside
 # deny.toml's allowlist (permissive only) or a replaced crate (its [bans])
