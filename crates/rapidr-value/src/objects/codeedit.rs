@@ -66,12 +66,16 @@ pub struct Diagnostic {
 }
 
 /// A gutter marker on the line starting at byte `at`: `breakpoint`,
-/// `current` (the debugger's line), `error`, `warning`, `bookmark` or the
-/// program's own kind.
+/// `breakpoint.conditional`, `breakpoint.log`, `breakpoint.disabled`,
+/// `current` (the debugger's line, tinted across), `frame` (a caller's
+/// line, while the call stack shows it), `exception`, `error`, `warning`,
+/// `bookmark` or the program's own kind. `note`: a message shown at the
+/// line's end (a run-time error's, AddMarker's third argument).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Marker {
     pub at: usize,
     pub kind: String,
+    pub note: String,
 }
 
 /// The completion list showing: its items, the bytes the chosen one
@@ -151,6 +155,9 @@ pub struct Options {
     pub completion_trigger: String,
     /// The built-in language service answers (where the runtime has one).
     pub language_service: bool,
+    /// `DebugHover`: a resting mouse asks the program (OnHoverRequest)
+    /// before the language service — a debugger's data tips while paused.
+    pub debug_hover: bool,
     /// The language's words' case as the user types: `upper`, `lower`,
     /// `proper`, `preserve`.
     pub keyword_case: String,
@@ -177,6 +184,7 @@ impl Default for Options {
             rulers: Vec::new(),
             completion_trigger: ".".into(),
             language_service: true,
+            debug_hover: false,
             keyword_case: "upper".into(),
             identifier_case: "preserve".into(),
             font_name: crate::objects::text::CODE_FACE.into(),
@@ -807,14 +815,53 @@ impl CodeEditor {
     // ---- markers, diagnostics ----
 
     pub fn add_marker(&mut self, line: i64, kind: &str) {
+        self.add_marker_note(line, kind, "");
+    }
+
+    /// A marker with a note shown at the line's end (a new note replaces
+    /// the marker's old one).
+    pub fn add_marker_note(&mut self, line: i64, kind: &str, note: &str) {
         let at = self.at_line_col(line, 1);
         let kind = kind.trim().to_lowercase();
         let kind = if kind.is_empty() { "bookmark".to_string() } else { kind };
-        if !self.markers.iter().any(|m| m.at == at && m.kind == kind) {
-            self.markers.push(Marker { at, kind });
-            self.markers.sort_by_key(|m| m.at);
-            self.changed();
+        match self.markers.iter_mut().find(|m| m.at == at && m.kind == kind) {
+            Some(m) if m.note == note => return,
+            Some(m) => m.note = note.to_string(),
+            None => {
+                self.markers.push(Marker { at, kind: kind.clone(), note: note.to_string() });
+                self.markers.sort_by_key(|m| m.at);
+            }
         }
+        // (a line shows one note: the newest replaces the others there)
+        if !note.is_empty() {
+            for m in self.markers.iter_mut().filter(|m| m.at == at && m.kind != kind) {
+                m.note.clear();
+            }
+        }
+        self.changed();
+    }
+
+    /// The dotted name under 1-based (`line`, `col`): the word there and
+    /// the `a.b.` before it (`Form.Caption` on `Caption`, `Form` on
+    /// `Form`); empty off a word.
+    pub fn word_at_line_col(&self, line: i64, col: i64) -> String {
+        let at = self.at_line_col(line, col);
+        let Some(word) = self.doc.word_at(at) else { return String::new() };
+        let buf = self.doc.buffer();
+        let start = buf.line_start(buf.line_of(at));
+        let text = buf.line_text(buf.line_of(at));
+        let (mut from, to) = (word.start - start, word.end - start);
+        // (back over `.name` links: `Item.Sub.` before the word)
+        loop {
+            let before = &text[..from];
+            let Some(dot) = before.strip_suffix('.') else { break };
+            let name_start = dot.char_indices().rev().take_while(|&(_, c)| c.is_alphanumeric() || c == '_' || "$%&!#".contains(c)).last().map(|(i, _)| i);
+            match name_start {
+                Some(i) if dot[i..].starts_with(|c: char| c.is_alphabetic() || c == '_') => from = i,
+                _ => break,
+            }
+        }
+        text[from..to].to_string()
     }
 
     pub fn remove_marker(&mut self, line: i64, kind: &str) -> bool {
@@ -1071,6 +1118,7 @@ impl CodeEditor {
             "showminimap" => flag(self.opts.show_minimap),
             "showwhitespace" => flag(self.opts.show_whitespace),
             "highlightcurrentline" => flag(self.opts.highlight_current_line),
+            "debughover" => flag(self.opts.debug_hover),
             "rulers" => v_str(&self.opts.rulers.iter().map(u32::to_string).collect::<Vec<_>>().join(",")),
             "caretline" => v_int(self.line_col(p.head).0 as i64),
             "caretcolumn" => v_int(self.line_col(p.head).1 as i64),
@@ -1172,6 +1220,7 @@ impl CodeEditor {
             "showminimap" => self.opts.show_minimap = b,
             "showwhitespace" => self.opts.show_whitespace = b,
             "highlightcurrentline" => self.opts.highlight_current_line = b,
+            "debughover" => self.opts.debug_hover = b,
             "rulers" => {
                 self.opts.rulers = val.to_string_val().split([',', ' ', ';']).filter_map(|s| s.trim().parse::<u32>().ok()).filter(|&c| c > 0).collect();
             }
@@ -1352,7 +1401,7 @@ impl CodeEditor {
                 self.diagnostics.sort_by_key(|d| (d.start, d.end));
             }
             "cleardiagnostics" => self.diagnostics.clear(),
-            "addmarker" => self.add_marker(num(0, 1), &arg(1)),
+            "addmarker" => self.add_marker_note(num(0, 1), &arg(1), &arg(2)),
             "removemarker" => return Some(flag(self.remove_marker(num(0, 1), &arg(1)))),
             "clearmarkers" => self.clear_markers(&arg(0)),
             "getmarkers" => return Some(v_str(&self.marker_lines(&arg(0)).iter().map(usize::to_string).collect::<Vec<_>>().join(","))),
@@ -1365,6 +1414,7 @@ impl CodeEditor {
                 let items = Self::parse_items(&arg(0));
                 self.show_completion(items, false, None);
             }
+            "wordat" => return Some(v_str(&self.word_at_line_col(num(0, 1), num(1, 1)))),
             "showhover" => {
                 let text = arg(0);
                 let at = self.hover_request.unwrap_or(self.doc.selections().primary().head);
@@ -1584,6 +1634,31 @@ mod tests {
     }
     fn n(v: Option<Value>) -> i64 {
         v.unwrap().to_i64()
+    }
+
+    /// The debugger's calls (S-DEBUG): WordAt's dotted names, AddMarker's
+    /// notes (one per line, the newest), DebugHover.
+    #[test]
+    fn the_debuggers_calls() {
+        let mut c = CodeEditor::new();
+        c.set("text", &v_str("Form.Caption = \"x\"\n  a$ = Item.Sub.Name$ + 1\nPRINT 2"));
+        let w = |c: &mut CodeEditor, l: i64, col: i64| s(c.call("wordat", &[v_int(l), v_int(col)]));
+        assert_eq!(w(&mut c, 1, 8), "Form.Caption");
+        assert_eq!(w(&mut c, 1, 2), "Form");
+        assert_eq!(w(&mut c, 2, 3), "a$");
+        assert_eq!(w(&mut c, 2, 18), "Item.Sub.Name$");
+        assert_eq!(w(&mut c, 2, 14), "Item.Sub");
+        assert_eq!(w(&mut c, 3, 7), "");
+        c.call("addmarker", &[v_int(2), v_str("breakpoint")]);
+        c.call("addmarker", &[v_int(2), v_str("exception"), v_str("Division by zero")]);
+        let notes = |c: &CodeEditor| c.markers_on(1).map(|m| format!("{}={}", m.kind, m.note)).collect::<Vec<_>>().join(",");
+        assert_eq!(notes(&c), "breakpoint=,exception=Division by zero");
+        c.call("addmarker", &[v_int(2), v_str("breakpoint"), v_str("hit 3")]);
+        assert_eq!(notes(&c), "breakpoint=hit 3,exception=");
+        assert!(n(c.call("hasmarker", &[v_int(2), v_str("exception")])) != 0);
+        assert_eq!(n(c.get("debughover")), 0);
+        c.set("debughover", &v_int(-1));
+        assert!(n(c.get("debughover")) != 0);
     }
 
     /// The `code_editor` GUI case's answers, as the old model gave them.

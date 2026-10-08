@@ -354,6 +354,23 @@ fn paint_text(x: &mut Ctx, p: &mut Painter, caret_on: bool) {
             }
         }
     }
+    // the debugger's line (tinted across), a caller's (fainter), a run-time
+    // error's (the error's colour)
+    for sh in shown.iter() {
+        let kinds: Vec<&str> = x.c.markers_on(sh.row.line).map(|m| m.kind.as_str()).collect();
+        let tint = if kinds.contains(&"exception") {
+            Some(blend(sc.error, sc.background, 0.22))
+        } else if kinds.contains(&"current") {
+            Some(sc.current_statement_line)
+        } else if kinds.contains(&"frame") {
+            Some(blend(sc.current_statement_line, sc.background, 0.5))
+        } else {
+            None
+        };
+        if let Some(c) = tint {
+            dev_fill(p, (dev_l, row_dev(sh.top), dev_r, row_dev(sh.top + lh)), c);
+        }
+    }
     // rulers
     for &col in &x.c.opts.rulers {
         let rx = (text_x0 + f64::from(col) * ch_dev).round();
@@ -451,6 +468,28 @@ fn paint_text(x: &mut Ctx, p: &mut Painter, caret_on: bool) {
             Severity::Hint => sc.hint,
         };
         squiggle(x, p, &shown, a, b, color, sev == Severity::Hint, lh);
+    }
+    // markers' notes at their lines' ends (a run-time error's message):
+    // a rounded label after the text, in the error's colours
+    let font = x.ui.font.clone();
+    let lx = |v: f64| v / s - ox as f64;
+    for sh in &shown {
+        let last = shown.iter().rfind(|o| o.row.line == sh.row.line).map_or(sh.index, |o| o.index);
+        if sh.index != last {
+            continue;
+        }
+        let Some(m) = x.c.markers_on(sh.row.line).find(|m| !m.note.is_empty()) else { continue };
+        let note = m.note.lines().next().unwrap_or("").to_string();
+        let warn = m.kind == "warning";
+        let end = sh.line_start + sh.row.range.end;
+        let x0 = lx(caret_x(x.ui, sh, end)).round() as i64 + 24;
+        let (tw, th) = rapidr_value::objects::text::text_size(&note, &font);
+        let top = sh.top.round() as i64;
+        let h = (lh.round() as i64 - 2).max(th);
+        let (fg, bg) = if warn { (sc.warning, blend(sc.warning, sc.background, 0.16)) } else { (sc.error, blend(sc.error, sc.background, 0.16)) };
+        let rect = (x0, top + 1, tw + 16, h);
+        p.op(Op::Round { rect, radius: 3.0, fill: Some(bg), stroke: Some(blend(fg, sc.background, 0.5)), width: 1.0 });
+        p.text((x0 + 8, top + 1 + (h - th) / 2, tw + 4, th), &note, &font, fg, Place::TopLeft);
     }
     // folded lines' "…" boxes
     let folded: Vec<usize> = x.c.folded.iter().copied().collect();
@@ -644,15 +683,33 @@ fn paint_gutter(x: &mut Ctx, p: &mut Painter) {
             // markers (the strongest first), else the line's worst problem
             let kinds: Vec<String> = x.c.markers_on(line).map(|m| m.kind.clone()).collect();
             let icon_rect = (g.glyph_x + 1, top + (lh as i64 - 16) / 2, 16, 16);
-            let marker = ["current", "breakpoint", "bookmark", "error", "warning"].into_iter().find(|k| kinds.iter().any(|m| m == k)).map(str::to_string).or_else(|| kinds.first().cloned());
+            const ORDER: [&str; 10] = ["breakpoint", "breakpoint.conditional", "breakpoint.log", "breakpoint.disabled", "current", "frame", "exception", "bookmark", "error", "warning"];
+            let marker = ORDER.into_iter().find(|k| kinds.iter().any(|m| m == k)).map(str::to_string).or_else(|| kinds.first().cloned());
+            // (the debugger's line over a breakpoint: the arrow on the dot)
+            let here = ["current", "exception"].into_iter().find(|k| kinds.iter().any(|m| m == k));
+            let here_color = if here == Some("exception") { sc.error } else { sc.current_statement };
+            let dot = (icon_rect.0 + 2, icon_rect.1 + 2, 12, 12);
             match marker.as_deref() {
                 Some("breakpoint") => {
-                    p.op(Op::Round { rect: (icon_rect.0 + 2, icon_rect.1 + 2, 12, 12), radius: 6.0, fill: Some(sc.breakpoint), stroke: None, width: 1.0 });
-                    if kinds.iter().any(|k| k == "current") {
-                        arrow(p, icon_rect, sc.current_statement);
-                    }
+                    p.op(Op::Round { rect: dot, radius: 6.0, fill: Some(sc.breakpoint), stroke: None, width: 1.0 });
                 }
-                Some("current") => arrow(p, icon_rect, sc.current_statement),
+                // (a condition or hit count: the dot with a bar across, VS Code's)
+                Some("breakpoint.conditional") => {
+                    p.op(Op::Round { rect: dot, radius: 6.0, fill: Some(sc.breakpoint), stroke: None, width: 1.0 });
+                    p.fill((dot.0 + 3, dot.1 + 4, 6, 1), sc.gutter);
+                    p.fill((dot.0 + 3, dot.1 + 7, 6, 1), sc.gutter);
+                }
+                // (a logpoint: a diamond)
+                Some("breakpoint.log") => {
+                    let (cxp, cyp) = (icon_rect.0 as f64 + 8.0, icon_rect.1 as f64 + 8.0);
+                    p.op(Op::Polygon { points: vec![(cxp, cyp - 6.0), (cxp + 6.0, cyp), (cxp, cyp + 6.0), (cxp - 6.0, cyp)], color: sc.breakpoint });
+                }
+                // (switched off: a ring)
+                Some("breakpoint.disabled") => {
+                    p.op(Op::Round { rect: dot, radius: 6.0, fill: None, stroke: Some(sc.line_number), width: 1.5 });
+                }
+                Some("current") | Some("exception") => {}
+                Some("frame") => arrow(p, icon_rect, sc.line_number),
                 Some("bookmark") => {
                     let (bx, by) = (icon_rect.0 as f64 + 4.0, icon_rect.1 as f64 + 2.0);
                     p.op(Op::Polygon { points: vec![(bx, by), (bx + 8.0, by), (bx + 8.0, by + 12.0), (bx + 4.0, by + 9.0), (bx, by + 12.0)], color: sc.bookmark });
@@ -677,8 +734,9 @@ fn paint_gutter(x: &mut Ctx, p: &mut Painter) {
                     _ => {}
                 },
             }
-            if line == head_line && kinds.iter().any(|k| k == "current") {
+            if here.is_some() {
                 // (the debugger's line: tinted across the text too — paint_text drew it under)
+                arrow(p, icon_rect, here_color);
             }
             // changes since the save
             match x.ui.changes.at(line) {

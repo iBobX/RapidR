@@ -525,21 +525,6 @@ pub fn gui_show_visible(name: &str) {
     forms::show_visible(Rt, name);
 }
 
-/// `Component.SetFocus`: the keyboard focus to it — its form's focused
-/// component, as the web runtime does (kernel_web.rs). A component of a
-/// form not shown yet: nothing (its form's first one gets the focus).
-pub fn gui_set_focus(name: &str) {
-    let Some(form) = crate::object::form_of(name) else { return };
-    let (form, id) = (form.to_lowercase(), name.to_lowercase());
-    with_kern(|k| {
-        if let Some(f) = k.desk.forms.get_mut(&form) {
-            f.ui.sync(&RtStore);
-            f.ui.focus_id(&RtStore, &id);
-            f.ui.dirty = true;
-        }
-    });
-}
-
 /// Hides a form's window (no OnClose).
 pub fn gui_hide(name: &str) {
     forms::hide(Rt, name);
