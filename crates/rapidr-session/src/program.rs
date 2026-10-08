@@ -17,13 +17,7 @@ use rapidr_vm::{Debugger, Host, Resume, StopInfo, StopReason, Vm, EVAL_FUEL};
 
 use crate::protocol::{Command, Event, EventBody, PlacedBreakpoint, Request, ScopeInfo, StackFrame, Variable};
 
-/// `variables { ref }` of the globals.
-pub const GLOBALS_REF: u32 = 1;
-/// `variables { ref }` of frame `i`'s locals: this plus `i`.
-pub const LOCALS_REF: u32 = 1_000;
-/// Children of a value shown in a stop (an array's elements, an object's
-/// fields): this plus the value's index; valid until the program goes on.
-pub const CHILDREN_REF: u32 = 1_000_000;
+pub use crate::protocol::{CHILDREN_REF, COMPONENT_REF, GLOBALS_REF, LOCALS_REF};
 /// Elements of an array shown when `variables` doesn't say how many.
 pub const PAGE: u32 = 100;
 
@@ -49,6 +43,8 @@ pub enum Control {
 pub struct ProgramEnd {
     /// Values whose children were offered in this stop.
     children: Vec<Value>,
+    /// Components offered in this stop (their properties: COMPONENT_REF).
+    components: Vec<String>,
     /// The next stop is the entry's (`stopOnEntry`).
     entry_pending: bool,
     /// The program has started (`start` came).
@@ -140,6 +136,7 @@ impl ProgramEnd {
     /// The program goes on: the references of the last stop are gone.
     pub fn resumed(&mut self) {
         self.children.clear();
+        self.components.clear();
     }
 
     /// The `stopped` event for where the VM stopped now.
@@ -311,7 +308,7 @@ impl ProgramEnd {
                     self.run(vm, module, frame, text, true).map(|_| (String::new(), String::new(), 0))
                 } else {
                     let text = text.strip_prefix('?').unwrap_or(text);
-                    self.evaluate(vm, module, frame, text).map(|v| self.render(&v))
+                    self.evaluate(vm, module, frame, text).map(|v| self.render_in(vm, &v))
                 };
                 let event = match result {
                     Ok((result, kind, reference)) => Event::reply(seq, EventBody::Evaluate { result, kind, reference }),
@@ -326,7 +323,7 @@ impl ProgramEnd {
                     .and_then(|_| self.evaluate(vm, module, frame, &name))
                 {
                     Ok(v) => {
-                        let (result, kind, reference) = self.render(&v);
+                        let (result, kind, reference) = self.render_in(vm, &v);
                         Event::reply(seq, EventBody::Evaluate { result, kind, reference })
                     }
                     Err(e) => Event::error(seq, e),
@@ -341,13 +338,12 @@ impl ProgramEnd {
                 (reply(event), Control::None)
             }
             Command::Properties { object } => {
-                let event = match vm.host.component_properties(&object) {
-                    Some((kind, mut props)) => {
-                        props.sort_by(|a, b| a.0.cmp(&b.0));
+                let event = match component_properties(vm, &object) {
+                    Some((kind, props)) => {
                         let properties = props
                             .into_iter()
                             .map(|(name, v)| {
-                                let (value, kind, reference) = self.render(&v);
+                                let (value, kind, reference) = self.render_in(vm, &v);
                                 Variable { name, value, kind, reference, count: 0 }
                             })
                             .collect();
@@ -393,7 +389,7 @@ impl ProgramEnd {
         vm.evaluate(&snippet.module, snippet.function, frame, write_back, EVAL_FUEL).map(drop).map_err(|e| e.to_string())
     }
 
-    fn variables<H: Host + ?Sized>(&mut self, vm: &Vm<'_, H>, module: &Module, reference: u32, start: u32, count: u32) -> Result<Vec<Variable>, String> {
+    fn variables<H: Host + ?Sized>(&mut self, vm: &mut Vm<'_, H>, module: &Module, reference: u32, start: u32, count: u32) -> Result<Vec<Variable>, String> {
         let mut named: Vec<(String, Value)> = Vec::new();
         if reference == GLOBALS_REF {
             // (only the program's globals: a routine's STATICs and its own
@@ -405,7 +401,11 @@ impl ProgramEnd {
                 }
             }
             named.sort_by_key(|(n, _)| n.to_ascii_lowercase());
-        } else if (LOCALS_REF..CHILDREN_REF).contains(&reference) {
+        } else if (COMPONENT_REF..CHILDREN_REF).contains(&reference) {
+            let id = self.components.get((reference - COMPONENT_REF) as usize).cloned().ok_or("that component is gone (the program went on)")?;
+            let (_, props) = component_properties(vm, &id).ok_or_else(|| format!("{id}: no such component"))?;
+            named = props;
+        } else if (LOCALS_REF..COMPONENT_REF).contains(&reference) {
             let i = (reference - LOCALS_REF) as usize;
             let frame = vm.frames.get(i).ok_or_else(|| format!("no frame {i}"))?;
             let names = module.functions.get(frame.fn_index as usize).map(|f| &f.local_names[..]).unwrap_or(&[]);
@@ -448,7 +448,7 @@ impl ProgramEnd {
         Ok(named
             .into_iter()
             .map(|(name, v)| {
-                let (value, kind, reference) = self.render(&v);
+                let (value, kind, reference) = self.render_in(vm, &v);
                 let count = match &v {
                     Value::Array(a) => a.borrow().data.len() as u32,
                     Value::Object(o) => o.names.len() as u32,
@@ -476,10 +476,54 @@ impl ProgramEnd {
         }
     }
 
+    /// [`Self::render`], and a string naming one of the program's
+    /// components (a handler's `Sender`) shown as that component: its type,
+    /// its properties as children.
+    fn render_in<H: Host + ?Sized>(&mut self, vm: &mut Vm<'_, H>, v: &Value) -> (String, String, u32) {
+        if let Value::String(s) = v {
+            let id = s.as_str();
+            if !id.is_empty() && id.len() <= 64 && id.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '(' | ')' | '.')) {
+                if let Some(kind) = vm.host.component_type(id) {
+                    let shown = rapidr_lang::component(&kind).map_or(kind.clone(), |c| c.written_name().to_string());
+                    let index = match self.components.iter().position(|c| c.eq_ignore_ascii_case(id)) {
+                        Some(i) => i,
+                        None => {
+                            self.components.push(id.to_string());
+                            self.components.len() - 1
+                        }
+                    };
+                    return (format!("{} ({shown})", quoted(id)), shown, COMPONENT_REF + index as u32);
+                }
+            }
+        }
+        self.render(v)
+    }
+
     fn child(&mut self, v: &Value) -> u32 {
         self.children.push(v.clone());
         CHILDREN_REF + (self.children.len() - 1) as u32
     }
+}
+
+/// A component's type (its Q name when it has one) and its properties as
+/// the language registry lists them, each read through the host as the
+/// program reads it (`None`: not a component).
+#[allow(clippy::type_complexity)]
+fn component_properties<H: Host + ?Sized>(vm: &mut Vm<'_, H>, id: &str) -> Option<(String, Vec<(String, Value)>)> {
+    let kind = vm.host.component_type(id)?;
+    let comp = rapidr_lang::component(&kind);
+    let shown = comp.map_or(kind.clone(), |c| c.written_name().to_string());
+    let mut props = Vec::new();
+    for p in comp.map(|c| c.properties).unwrap_or(&[]) {
+        if p.indexed > 0 || p.missing || p.access == rapidr_lang::Access::Write {
+            continue;
+        }
+        if let Ok(v) = vm.host.get_prop(id, p.name) {
+            props.push((p.name.to_string(), v));
+        }
+    }
+    props.sort_by_key(|(n, _)| n.to_ascii_lowercase());
+    Some((shown, props))
 }
 
 /// Compiler-made names (`__for_end1`, the result slot) aren't shown.

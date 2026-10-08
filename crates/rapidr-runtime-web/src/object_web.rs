@@ -2517,15 +2517,6 @@ pub fn timer_names() -> Vec<String> {
     COMPONENTS.with(|c| c.borrow().iter().filter(|(_, comp)| matches!(comp.type_name.as_str(), "RTIMER" | "RDXTIMER" | "RDXJOYSTICK" | "RCOMPORT" | "RMIDI" | "RWAVE" | "RVIDEO" | "RCDAUDIO")).map(|(n, _)| n.clone()).collect())
 }
 
-pub fn rp_comp_get_all_properties(name: &str) -> Option<(String, std::collections::HashMap<String, Value>)> {
-    let uname = name.to_uppercase();
-    COMPONENTS.with(|c| {
-        c.borrow().get(&uname).map(|comp| {
-            (comp.type_name.clone(), comp.properties.clone())
-        })
-    })
-}
-
 /// Offers `text` to the user as a file download via Blob + object URL.
 /// Content and filename are passed as data, never spliced into JS source.
 fn trigger_download(filename: &str, mime: &str, text: &str) {

@@ -115,8 +115,8 @@ impl Host for WebHost {
         Ok(rp_comp_call(id, method, args))
     }
 
-    fn component_properties(&mut self, id: &str) -> Option<(String, Vec<(String, Value)>)> {
-        obj::rp_comp_get_all_properties(id).map(|(kind, props)| (kind, props.into_iter().collect()))
+    fn component_type(&mut self, id: &str) -> Option<String> {
+        Some(obj::rp_comp_type(id)).filter(|t| !t.is_empty())
     }
 
     fn register_event(&mut self, id: &str, event: &str, handler_fn_index: u32) -> Result<(), String> {

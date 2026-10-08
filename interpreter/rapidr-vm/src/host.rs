@@ -82,10 +82,9 @@ pub trait Host {
     fn pump_serving(&self) -> Option<fn(&mut dyn FnMut()) -> Option<Value>> {
         None
     }
-    /// A component's type and properties as the runtime holds them, for
-    /// the debugger (`None`: not a component, or the host can't list them).
-    #[allow(clippy::type_complexity)]
-    fn component_properties(&mut self, _id: &str) -> Option<(String, Vec<(String, Value)>)> {
+    /// The type (`RBUTTON` …) of the program's component `id`, for the
+    /// debugger (`None`: no such component, or the host has none).
+    fn component_type(&mut self, _id: &str) -> Option<String> {
         None
     }
 }
