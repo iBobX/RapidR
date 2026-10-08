@@ -47,6 +47,15 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - Drag the form's right edge, bottom edge or corner to resize it: anchored and aligned components follow live, and the new size (and where the anchors moved them) is written into the CREATE block, one undo step.
 - Add components: click a type then click or draw on the form (`PlaceType`), drag one in (`DragComponent`), or `AddComponent(Type, X, Y)`. Names are unique in the whole file; typing right after adding sets the Caption; dropping on a panel puts it inside.
 - Select, move, resize, delete, copy / paste / duplicate, align and arrange with the mouse or the keyboard; every change is announced to screen readers, written into the code as the smallest edit (`OnSourceEdit`), and undone to the exact bytes. Double-click makes or finds the event handler (`CreateHandler`). While the code has errors the designer is read-only under a banner.
+- The menu editor on the form's own menu bar (Format ▸ Menu Editor): Type Here, `&` mnemonics, separators, submenus, ShortCut typed as the keys pressed, Checked, drag to reorder; each item a QMENUITEM CREATE block, one undo step.
+- The Tab-order editor (Format ▸ Tab Order): click the components in the order wanted; each click writes `TabOrder`.
+- Captions edited in place with F2 or a second, slower click (a double click still makes the event handler).
+- Zoom from 25 % to 400 %: View ▸ Zoom, Ctrl / ⌘ + = − 0, Ctrl / ⌘ + the wheel, a trackpad's pinch; crisp at any zoom, the program's pixels unchanged.
+- The tray also shows the dialogs a program creates outside its form (notepad's OpenDialog and SaveDialog), inspected and edited like the rest.
+- A file without a form offers "Add a Form" (and Project ▸ Add Form): `CREATE Form1 AS QFORM` and `Form1.ShowModal` written at its end.
+- Dragging from the toolbox shows the component itself at 60 % and a "not allowed" pointer outside a designer; a drop settles in for 100 ms. The form sits on the designer's backdrop with its own scroll bars, never clipped.
+- One undo history per file: the designer's changes are the code editor's undo steps (`OnSourceStep`, `SharedUndo`, `OnUndo`; RCODEEDITOR's `ApplyPatches`), so typing in the code no longer clears them and Undo goes back in the order things were done.
+- Fixed: RCODEEDITOR's OnChange now fires after `ApplyPatches`, `Undo` and `Redo` on the desktop and the web (a code editor took the text edits' path, which returned first).
 ### Security
 - **Every web page RapidR builds has a Content-Security-Policy**, made from
   what the program uses (SEC-15): no inline scripts, `'unsafe-eval'` only for
