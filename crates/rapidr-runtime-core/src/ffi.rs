@@ -175,6 +175,10 @@ pub fn dll_call(lib: &str, name: &str, spec: &str, args: &[Value]) -> Result<Val
                     // address: the same, so the DLL can't read address 64)
                     temps.push(temp_number(a, &p.type_name));
                     Slot::Int(temps.last_mut().unwrap().as_mut_ptr() as i64)
+                } else if let Some(real) = pointer_of_handle(v) {
+                    // (a 64-bit pointer a DLL returned earlier, which the
+                    // program holds as its 32-bit stand-in)
+                    Slot::Int(real)
                 } else {
                     Slot::Int(narrow(v, p))
                 }
@@ -204,6 +208,8 @@ pub fn dll_call(lib: &str, name: &str, spec: &str, args: &[Value]) -> Result<Val
         // `temps` (alive until after the call). A crash inside is reported
         // by the crash filter, naming the call.
         let r = unsafe { call_table(ptr, &slots, spec.returns_float()) };
+        #[cfg(windows)]
+        let r = r.map(|raw| resource_dll_fallback(lib, name, args, raw));
         // (an AS STRING result is read while the call is still named, so an
         // address that isn't readable is reported as this call's crash)
         let r = r.map(|raw| match raw {
@@ -227,9 +233,70 @@ pub fn dll_call(lib: &str, name: &str, spec: &str, args: &[Value]) -> Result<Val
         (Raw::Int(n), "BYTE") => v_int((n & 0xFF) as i64),
         (Raw::Int(n), "WORD") => v_int((n & 0xFFFF) as i64),
         (Raw::Int(n), "SHORT") => v_int(n as i16 as i64),
-        // (a 32-bit result: the register's upper bits are undefined)
-        (Raw::Int(n), _) => v_int(n as i32 as i64),
+        // (a 32-bit result; a 64-bit pointer declared AS LONG — LoadLibrary,
+        // GlobalAlloc, GetProcAddress — gets a 32-bit stand-in)
+        (Raw::Int(n), _) => v_int(long_result(n)),
     })
+}
+
+/// 64-bit pointers DLLs returned for 32-bit results, by stand-in.
+static POINTERS: std::sync::Mutex<Vec<i64>> = std::sync::Mutex::new(Vec::new());
+
+/// The first stand-in (-1073741824): negative LONGs no API hands out as a
+/// count or a flag, outside the program's own addresses (`memory`: 1 MB to
+/// 2 GB) and below Windows' 32-bit handles.
+const HANDLE_BASE: i64 = 0xC000_0000u32 as i32 as i64;
+const MAX_HANDLES: usize = 1 << 24;
+
+/// A DLL's result as RapidQ's 32-bit LONG: the value, when it is one (a
+/// number, a handle — Windows keeps USER / GDI / kernel handles within 32
+/// bits); a 64-bit pointer becomes a stand-in that turns back into the
+/// pointer when the program hands it to a DLL again.
+fn long_result(n: i64) -> i64 {
+    let low = n as i32 as i64;
+    if low == n || (n >> 32) == 0 {
+        return low;
+    }
+    let mut p = POINTERS.lock().unwrap_or_else(|e| e.into_inner());
+    let i = match p.iter().position(|&q| q == n) {
+        Some(i) => i,
+        None if p.len() < MAX_HANDLES => {
+            p.push(n);
+            p.len() - 1
+        }
+        None => return low,
+    };
+    HANDLE_BASE + i as i64
+}
+
+/// The pointer a stand-in from [`long_result`] stands for.
+fn pointer_of_handle(v: i64) -> Option<i64> {
+    let i = usize::try_from(v - HANDLE_BASE).ok()?;
+    POINTERS.lock().unwrap_or_else(|e| e.into_inner()).get(i).copied()
+}
+
+/// `LoadLibrary` of a 32-bit DLL (one shipped with an old program) fails in
+/// a 64-bit program. When it only holds resources — cursors, icons,
+/// bitmaps, as RapidQ's cursor examples' CURSORS.DLL — it opens for them
+/// (`LoadLibraryEx` as an image resource), so `LoadCursor(hInst, …)` works;
+/// its code can't run (GetProcAddress finds nothing).
+#[cfg(windows)]
+fn resource_dll_fallback(lib: &str, name: &str, args: &[Value], raw: Raw) -> Raw {
+    use windows_sys::Win32::Foundation::{GetLastError, ERROR_BAD_EXE_FORMAT};
+    use windows_sys::Win32::System::LibraryLoader::{LoadLibraryExW, LOAD_LIBRARY_AS_DATAFILE, LOAD_LIBRARY_AS_IMAGE_RESOURCE};
+    if !matches!(raw, Raw::Int(0)) || dll::library_base(lib) != "kernel32" || !matches!(name.to_ascii_lowercase().as_str(), "loadlibrarya" | "loadlibraryw") {
+        return raw;
+    }
+    // SAFETY: reads the calling thread's last-error value.
+    if unsafe { GetLastError() } != ERROR_BAD_EXE_FORMAT {
+        return raw;
+    }
+    let Some(path) = args.first().map(Value::to_string_val) else { return raw };
+    let wide: Vec<u16> = path.encode_utf16().chain(std::iter::once(0)).collect();
+    // SAFETY: a NUL-terminated UTF-16 path that lives across the call; the
+    // flags map the file's resources only, running none of its code.
+    let h = unsafe { LoadLibraryExW(wide.as_ptr(), 0, LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE) };
+    Raw::Int(h as i64)
 }
 
 /// A by-value number as its declared size (the callee reads that many
@@ -467,6 +534,15 @@ mod tests {
         assert_eq!(narrow(70000, &Param { type_name: "SHORT".into(), by_ref: false }), 4464);
         assert_eq!(narrow(-1, &Param { type_name: "LONG".into(), by_ref: false }), -1);
         assert_eq!(&temp_number(&v_int(64), "LONG")[..4], &64i32.to_le_bytes());
+        // 32-bit results stay themselves; a 64-bit pointer gets a stand-in
+        // that turns back into it.
+        assert_eq!((long_result(7), long_result(-1), long_result(0xFFFF_FFFF), long_result(0x8000_0001)), (7, -1, -1, -2147483647));
+        let p = 0x7FF8_1234_0000_i64;
+        let h = long_result(p);
+        assert!(h < 0 && h >= HANDLE_BASE, "{h}");
+        assert_eq!((long_result(p), pointer_of_handle(h)), (h, Some(p)));
+        assert_eq!(pointer_of_handle(-1), None);
+        assert_eq!(pointer_of_handle(12345), None);
     }
 
     /// The system's C library (every system has one): the table calls

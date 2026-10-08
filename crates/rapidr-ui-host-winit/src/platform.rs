@@ -45,7 +45,7 @@ pub fn buttons(frame: Frame) -> WindowButtons {
 pub fn cursor_icon(c: Cursor) -> Option<CursorIcon> {
     Some(match c {
         Cursor::None => return None,
-        Cursor::Default | Cursor::Arrow => CursorIcon::Default,
+        Cursor::Default | Cursor::Arrow | Cursor::Custom(_) => CursorIcon::Default,
         Cursor::Cross => CursorIcon::Crosshair,
         Cursor::IBeam => CursorIcon::Text,
         Cursor::Move => CursorIcon::Move,

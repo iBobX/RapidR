@@ -31,6 +31,9 @@ pub mod tracking;
 // (the system tray: rapidr_value::tray)
 pub mod tray;
 pub mod winit_host;
+// (C-SYS: Screen.Cursors' Windows cursors)
+#[cfg(target_os = "windows")]
+mod wincursor;
 
 use std::task::Waker;
 use std::time::Duration;

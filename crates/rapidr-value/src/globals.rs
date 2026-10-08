@@ -246,6 +246,20 @@ pub fn call(p: &dyn Platform, name: &str, method: &str, args: &[Value]) -> Optio
                 None => v_int(-1),
             }
         }
+        // Screen.Cursors(i) (an indexed property: `(i)` reads, `(i) = h`
+        // arrives as `(i, h)`): the cursor handles by cursor code, as
+        // RC.EXE keeps them — what the program stored, else the system's
+        // cursor for that code (Windows; there are no handles elsewhere:
+        // 0); storing 0 puts the standard one back.
+        ("screen", "cursors") => {
+            let code = arg(0).to_i64();
+            if args.len() >= 2 {
+                crate::input::set_screen_cursor(code, arg(1).to_i64());
+                v_null()
+            } else {
+                v_int(crate::input::screen_cursor(code).unwrap_or_else(|| system_cursor_handle(code)))
+            }
+        }
         ("screen", "getpixeldepth") => v_int(32),
         ("screen", "monitors") => v_int(p.monitors()),
         ("screen", "mousebuttons") => v_int(3),
@@ -253,6 +267,40 @@ pub fn call(p: &dyn Platform, name: &str, method: &str, args: &[Value]) -> Optio
         ("screen", "mouseswap") => v_bool(false),
         _ => return None,
     })
+}
+
+/// Windows' own cursor for RapidQ's cursor code `code` (`crHourGlass` the
+/// wait cursor …; crNone 0; the codes Windows has no cursor for, and the
+/// custom ones the program didn't set, the arrow — RC.EXE reads 0 and 1 as
+/// the arrow's handle).
+#[cfg(windows)]
+fn system_cursor_handle(code: i64) -> i64 {
+    use windows_sys::Win32::UI::WindowsAndMessaging::LoadCursorW;
+    let id: u16 = match code {
+        -1 => return 0,
+        -3 => 32515,        // IDC_CROSS
+        -4 => 32513,        // IDC_IBEAM
+        -5 => 32646,        // IDC_SIZEALL
+        -6 => 32643,        // IDC_SIZENESW
+        -7 | -15 => 32645,  // IDC_SIZENS
+        -8 => 32642,        // IDC_SIZENWSE
+        -9 | -14 => 32644,  // IDC_SIZEWE
+        -10 => 32516,       // IDC_UPARROW
+        -11 | -17 => 32514, // IDC_WAIT
+        -13 | -18 => 32648, // IDC_NO
+        -19 => 32650,       // IDC_APPSTARTING
+        -20 => 32651,       // IDC_HELP
+        -21 => 32649,       // IDC_HAND
+        _ => 32512,         // IDC_ARROW
+    };
+    // SAFETY: a system cursor by its predefined id (MAKEINTRESOURCE): no
+    // module, nothing owned; the handle is shared and never freed.
+    unsafe { LoadCursorW(0, id as usize as *const u16) as i64 }
+}
+
+#[cfg(not(windows))]
+fn system_cursor_handle(_code: i64) -> i64 {
+    0
 }
 
 #[cfg(test)]
