@@ -1550,8 +1550,16 @@ AnimationSet Walk {
                 Ok(file) => {
                     let flat = flatten(&file);
                     let textures: std::collections::BTreeSet<&str> = flat.materials.iter().filter_map(|m| m.texture.as_deref()).collect();
+                    // (the model's bounds, as the frame's own space has them)
+                    let (mut lo, mut hi) = ([f32::MAX; 3], [f32::MIN; 3]);
+                    for p in &flat.positions {
+                        for i in 0..3 {
+                            lo[i] = lo[i].min(p[i]);
+                            hi[i] = hi[i].max(p[i]);
+                        }
+                    }
                     println!(
-                        "{name:58} {format} frames {:2} meshes {:2} | vertices {:6} faces {:6} normals {:6} uv {:6} colors {:5} materials {:3} | {}",
+                        "{name:58} {format} frames {:2} meshes {:2} | vertices {:6} faces {:6} normals {:6} uv {:6} colors {:5} materials {:3} | bounds {lo:?} {hi:?} | {}",
                         file.frames.len(),
                         file.meshes.len(),
                         flat.positions.len(),

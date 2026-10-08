@@ -93,7 +93,7 @@ fn record_program(program: &Program, source: Option<&str>) -> semantic::Recorder
 fn compile_recording(program: &Program, source: Option<&str>, library_lines: &[bool], recorder: Option<semantic::Recorder>) -> (Result<Compiled, Vec<Diagnostic>>, Option<semantic::Recorder>) {
     // (RapidQ's library objects RapidR implements, ENVIRON statements:
     // rapidr_ast::library — native builds run it first too)
-    let program = &rapidr_ast::library::lower(program);
+    let program = &rapidr_ast::object_name_types(&rapidr_ast::library::lower(program));
     // Objects → plain routines and builtins, the same pass native builds
     // run (rapidr_ast::objects), so both backends treat objects alike.
     // (the system tray: Shell_NotifyIcon and a form's WndProc —
@@ -2913,10 +2913,16 @@ fn reachable_routines(program: &Program) -> HashSet<String> {
                     Statement::Create(c) => stmt_names.push(c.type_name.clone()),
                     _ => {}
                 },
-                &mut |e| {
-                    if let Expression::Identifier(id) = e {
-                        names.push(id.name.clone());
+                &mut |e| match e {
+                    Expression::Identifier(id) => names.push(id.name.clone()),
+                    // (`Screen.GetPixelDepth`: RAPIDQ2.INC's `FUNCTION
+                    // Screen.GetPixelDepth` — a routine named with its object)
+                    Expression::MemberAccess(m) => {
+                        if let Expression::Identifier(id) = m.object.as_ref() {
+                            names.push(format!("{}.{}", id.name, m.member));
+                        }
                     }
+                    _ => {}
                 },
             );
             names.extend(stmt_names);

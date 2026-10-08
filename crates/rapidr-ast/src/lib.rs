@@ -1591,6 +1591,153 @@ pub fn instantiated_types(program: &Program) -> std::collections::HashSet<String
     out
 }
 
+/// An object's name used as a type (RC.EXE, probes 2026-10-08): after `DIM
+/// Lst AS QSTRINGLIST`, `DIM x AS Lst` makes a new QSTRINGLIST and `SUB S(p
+/// AS Lst)` takes one — the object's own type, as if it were written
+/// (RapidQ's `graphics/Choosecolor.bas` has `SUB ButtonClick (Sender AS
+/// BUTTON)` after `CREATE Button AS QBUTTON`). A variable of a plain type
+/// isn't one (`SUB S(p AS N)` after `DIM n AS INTEGER`: `Unknown type N`).
+/// Rewritten here, before both backends and [`rapidq_checks`] read types:
+/// the main program's objects (DIM or CREATE of a component or a TYPE), a
+/// name no type has.
+pub fn object_name_types(program: &Program) -> Program {
+    use std::collections::{HashMap, HashSet};
+    let types: HashSet<String> = program
+        .statements
+        .iter()
+        .filter_map(|s| match s {
+            Statement::Type(t) => Some(t.name.to_ascii_uppercase()),
+            _ => None,
+        })
+        .collect();
+    let is_type = |t: &str| {
+        let base = t.split('<').next().unwrap_or("").trim();
+        !base.is_empty() && (rapidr_lang::type_name(base).is_some() || rapidr_lang::resolve_component(base).is_some() || types.contains(&base.to_ascii_uppercase()))
+    };
+    let is_object_type = |t: &str| {
+        let base = t.split('<').next().unwrap_or("").trim();
+        rapidr_lang::resolve_component(base).is_some() || types.contains(&base.to_ascii_uppercase())
+    };
+    // (the main program's objects, CREATEs nested in CREATEs too)
+    let mut objects: HashMap<String, String> = HashMap::new();
+    fn collect(stmts: &[Statement], objects: &mut HashMap<String, String>, is_object_type: &dyn Fn(&str) -> bool) {
+        for s in stmts {
+            match s {
+                Statement::Dim(d) if is_object_type(&d.type_name) => {
+                    for v in d.declarators.iter().filter(|v| v.dimensions.is_empty()) {
+                        objects.entry(strip_type_suffix(&v.name).to_ascii_uppercase()).or_insert_with(|| d.type_name.clone());
+                    }
+                }
+                Statement::Create(c) => {
+                    if is_object_type(&c.type_name) {
+                        objects.entry(c.name.to_ascii_uppercase()).or_insert_with(|| c.type_name.clone());
+                    }
+                    collect(&c.body, objects, is_object_type);
+                }
+                _ => {}
+            }
+        }
+    }
+    collect(&program.statements, &mut objects, &is_object_type);
+    let mut program = program.clone();
+    if objects.is_empty() {
+        return program;
+    }
+    let resolve = |t: &mut String| {
+        if !is_type(t) {
+            if let Some(real) = objects.get(&t.trim().to_ascii_uppercase()) {
+                *t = real.clone();
+            }
+        }
+    };
+    walk_statements_mut(&mut program.statements, &mut |s| match s {
+        Statement::Dim(d) => resolve(&mut d.type_name),
+        Statement::Subroutine(r) => r.params.iter_mut().for_each(|p| resolve(&mut p.type_name)),
+        Statement::Function(f) => {
+            f.params.iter_mut().for_each(|p| resolve(&mut p.type_name));
+            if let Some(t) = f.return_type.as_mut() {
+                resolve(t);
+            }
+        }
+        Statement::Declare(d) => d.params.iter_mut().for_each(|p| resolve(&mut p.type_name)),
+        Statement::Type(t) => t.fields.iter_mut().for_each(|f| resolve(&mut f.type_name)),
+        _ => {}
+    });
+    program
+}
+
+/// RapidQ's errors for a type name nothing defines (RC.EXE, probes
+/// 2026-10-08), each in its compiler's words:
+/// - `DIM b AS QBITMAPEX` (in a SUB too, arrays too, and a field of a TYPE
+///   EXTENDS QOBJECT): `Unknown data type QBITMAPEX`;
+/// - a SUB's or FUNCTION's parameter: `Unknown type FOOBAR`;
+/// - a FUNCTION's result: `FOOBAR is not a valid data type for your FUNCTION`;
+/// - `CREATE q AS FOOBAR`: `Create Method only works for QObjects, not FOOBAR`;
+/// - `TYPE T EXTENDS FOOBAR`: `You can only extend QObjects`;
+/// - a field of a plain TYPE: `Datatype FOOBAR not supported in STRUCT`.
+///
+/// A name is known when it is a built-in type (RapidR's own INT64 & co.
+/// too: additions), a component of the registry (RapidQ's, RapidR's, the
+/// planned ones) or a TYPE of the program; a template's TYPE is checked
+/// where it is used. A TYPE no DIM makes isn't compiled by RapidQ (see
+/// [`instantiated_types`]): its fields and code aren't checked. Not copied:
+/// RC.EXE also refuses `DIM v AS T` above `TYPE T` (one pass); RapidR
+/// knows every TYPE of the program wherever it stands.
+fn unknown_type_checks(program: &Program, outside_types: &[Statement]) -> Vec<(TextSpan, String)> {
+    let mut user: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for s in &program.statements {
+        if let Statement::Type(t) = s {
+            user.insert(t.name.to_ascii_uppercase());
+        }
+    }
+    let known = |t: &str| -> bool {
+        let base = t.split('<').next().unwrap_or("").trim();
+        base.is_empty()
+            || rapidr_lang::type_name(base).is_some()
+            || rapidr_lang::resolve_component(base).is_some()
+            || user.contains(&base.to_ascii_uppercase())
+    };
+    let upper = |t: &str| t.trim().to_ascii_uppercase();
+    let mut out = Vec::new();
+    let made = instantiated_types(program);
+    let check_params = |params: &[Parameter], out: &mut Vec<(TextSpan, String)>| {
+        for p in params.iter().filter(|p| !known(&p.type_name)) {
+            out.push((p.span, format!("Unknown type {}", upper(&p.type_name))));
+        }
+    };
+    let on_stmt = |s: &Statement, out: &mut Vec<(TextSpan, String)>| match s {
+        Statement::Dim(d) if !known(&d.type_name) => out.push((d.span, format!("Unknown data type {}", upper(&d.type_name)))),
+        Statement::Create(c) if !known(&c.type_name) => out.push((c.span, format!("Create Method only works for QObjects, not {}", upper(&c.type_name)))),
+        Statement::Subroutine(r) => check_params(&r.params, out),
+        Statement::Function(f) => {
+            check_params(&f.params, out);
+            if let Some(t) = f.return_type.as_deref().filter(|t| !known(t)) {
+                out.push((f.span, format!("{} is not a valid data type for your FUNCTION", upper(t))));
+            }
+        }
+        _ => {}
+    };
+    walk(outside_types, &mut |s| on_stmt(s, &mut out), &mut |_| {});
+    for s in &program.statements {
+        let Statement::Type(t) = s else { continue };
+        if !t.template_params.is_empty() || !made.contains(&t.name.to_ascii_uppercase()) {
+            continue;
+        }
+        if t.extends.as_deref().is_some_and(|b| !known(b)) {
+            out.push((t.span, "You can only extend QObjects".to_string()));
+        }
+        let object = t.extends.is_some() || t.object_base;
+        // (a field `OnFoo AS EVENT(Template)`: RapidQ's custom events)
+        for f in t.fields.iter().filter(|f| !known(&f.type_name) && !f.type_name.eq_ignore_ascii_case("EVENT")) {
+            let message = if object { format!("Unknown data type {}", upper(&f.type_name)) } else { format!("Datatype {} not supported in STRUCT", upper(&f.type_name)) };
+            out.push((f.span, message));
+        }
+        walk(&t.methods, &mut |s| on_stmt(s, &mut out), &mut |_| {});
+        walk(&t.constructor, &mut |s| on_stmt(s, &mut out), &mut |_| {});
+    }
+    out
+}
+
 /// RapidQ's errors about its data types and fixed-member objects
 /// ([`fixed_members`]), in its compiler's words:
 /// - `Member WIDTH not part of class R` — a member it doesn't have (`R` the
@@ -2085,6 +2232,7 @@ pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
         },
         &mut |_| {},
     );
+    out.extend(unknown_type_checks(program, &outside_types));
     out.extend(fixed_member_checks(program, &outside_types, &component_types));
     out.extend(registry_member_checks(program, &outside_types, &component_types));
     let mut global_dims = HashSet::new();
