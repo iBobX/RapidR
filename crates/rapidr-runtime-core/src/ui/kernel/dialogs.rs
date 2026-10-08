@@ -90,6 +90,7 @@ pub(super) fn ask_files(id: u64, form: Option<&str>, req: &Request) {
         filter_index: req.filter_index,
         dir: req.dir.clone(),
         file_name: req.file_name.clone(),
+        folder: req.folder,
     };
     with_kern(|k| k.desk.cmds.push(HostCmd::FileDialog { id, form: form.map(str::to_string), req: host_req }));
 }

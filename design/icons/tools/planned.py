@@ -143,6 +143,17 @@ def programsession(g):
     arrowhead(g, 5, 16, -1, 0, 3.5, c="blue")
 
 
+@icon("languageservice", C, "Language service")
+def languageservice(g):
+    page(g, 3.5, 2.5, 13, 17, fold=4, c="ink", fill="paper")
+    g.line(6.5, 9, 11.5, 9, c="ink")
+    g.line(6.5, 12.5, 10.5, 12.5, c="ink")
+    if g.size != 16:
+        g.line(6.5, 16, 9, 16, c="ink")
+    g.circle(17, 16.5, 4.5, c="blue", fill="blue-tint")
+    g.poly([(14.9, 16.6), (16.4, 18.1), (19.1, 15.2)], c="blue")
+
+
 @icon("project", C, "Project")
 def project(g):
     folder(g, 2.5, 4, 19, 15, c="blue", fill="blue-tint")

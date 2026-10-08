@@ -702,7 +702,9 @@ fn pick_files(id: u64, req: Request, gestured: bool) {
         FILES.with(|f| f.borrow_mut().insert(id, wait));
         later();
     };
-    if req.save {
+    if req.folder {
+        crate::file_picker_web::open_folder(gestured, done);
+    } else if req.save {
         crate::file_picker_web::save(&req, gestured, done);
     } else {
         crate::file_picker_web::open(&req, gestured, done);
@@ -933,10 +935,6 @@ pub fn method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Opti
                     }
                 });
             }
-        }
-        (_, "setparent") if !args.is_empty() => {
-            rp_comp_set(name, "parent", Value::String(args[0].to_string_val()));
-            restructure();
         }
         _ => return None,
     }

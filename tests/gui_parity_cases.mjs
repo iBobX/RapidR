@@ -38,7 +38,7 @@ export const cases = [
   { name: "dock_manager", events: "dock.__mousedown_300_352,dock.__mouseup_300_352,dock.__mousedown_265_200,dock.__mousemove_285_200,dock.__mousemove_305_200,dock.__mouseup_305_200,dock.__mousedown_12_40,dock.__mouseup_12_40,dock.__mousedown_12_40,dock.__mouseup_12_40,dock.__mousedown_700_12,dock.__mousemove_710_20,dock.__mousemove_164_296,dock.__mouseup_164_296,bmove.onclick,dock.__key_37,dock.__key_13,props.__key_117,bsave.onclick,btabs.onclick,breport.onclick",
     dump: "lbl.caption,info.caption",
     expect: ["lbl.caption=- p:output L p:props p:props L p:output L p:output p:explorer L p:props L [hidden autohide] L loaded same L c:doc1 c:doc2 a:doc1 p:doc2 L p:props L",
-      "info.caption=tabs 6 explorer output doc1 | docked floating docked docked autohide document | 280x495 298x304"],
+      "info.caption=tabs 6 explorer output doc1 | docked floating docked docked autohide document | 280x493 298x302"],
     pixels: [[150, 5, "808080"], [306, 200, "f0f0f0"]], clientWidth: 898 },
   // QGLASSFRAME: the default black glass over the form's face (60 % see-
   // through), red glass at 50 over a cyan panel; Moveable: the form
@@ -117,6 +117,15 @@ export const cases = [
     expect: ["lbl.caption=paints2|255|14737632|35|338"] },
   { name: "owner_list", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=r2 0:1;1:1;2:0; 0,48,180,72 h24"] },
+  // RapidQ's drawing methods on lists and a grid (an RC.EXE-built program of
+  // this layout, seen in Windows): owner-drawn items and a cell with
+  // Rectangle and Paint's flood fill inside it (blue), a plain list box
+  // drawn on (magenta flood) whose newly selected row is painted again, a
+  // plain combo box drawn on (nothing shows).
+  { name: "list_drawing", events: "btn.onclick,sel.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=drawn selected1"],
+    pixels: [[22, 25, "0000ff"], [13, 13, "ffffff"], [300, 20, "ff00ff"], [300, 32, "0078d7"], [300, 100, "ff00ff"], [290, 90, "000000"],
+      [420, 20, "0000ff"], [430, 64, "ffffff"], [98, 190, "0000ff"]], clientWidth: 600 },
   { name: "dotted_paint", events: "", dump: "lbl.caption",
     expect: ["lbl.caption=painted 255"] },
   { name: "event_answers", events: "show.onclick,dlg.__close,dlg2.__close,grid.__cell_2_2,grid.__cell_3_1,g2.__cell_2_1,g2.__cell_1_2,code.onclick",

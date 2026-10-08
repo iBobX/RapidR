@@ -266,8 +266,15 @@ pub fn step(max_wait: Option<Duration>) {
     if rapidr_ui_app::dialogs::tasks_open() {
         at_most(rapidr_ui_app::dialogs::TASK_STEP);
     }
+    // (RapidR Studio's program sessions: their output heard every 20 ms)
+    #[cfg(feature = "studio")]
+    if crate::studio::running() {
+        at_most(Duration::from_millis(20));
+    }
     let queued = crate::object::rp_vm_events_queued();
     pump(t);
+    #[cfg(feature = "studio")]
+    crate::studio::poll();
     crate::object::rp_run_deferred();
     dispatch_pending();
     // (the system tray's clicks: the form's WndProc)
@@ -479,9 +486,6 @@ pub fn gui_set_caption(name: &str, text: &str) {
 // ----------------------------------------------- the facade: structure --
 
 pub fn attach_late(_name: &str) {
-    restructure();
-}
-pub fn gui_set_parent(_child: &str, _parent: &str) {
     restructure();
 }
 pub fn gui_widget_add_items(_name: &str, _items: &str) {
@@ -844,8 +848,8 @@ pub fn canvas_method(name: &str, method: &str, _args: &[Value]) -> Value {
 }
 
 /// A QIMAGE's methods the shared model leaves to the runtime (the
-/// surfaces lane's): a plot's picture (LoadFromPlot), Clear, and a file
-/// the model couldn't read (it reads BMP, PNG, JPEG, ICO and SVG).
+/// surfaces lane's): a plot's picture (LoadFromPlot) and a file the model
+/// couldn't read (it reads BMP, PNG, JPEG, ICO and SVG).
 pub fn image_method(name: &str, method: &str, args: &[Value]) -> Value {
     match method {
         "loadfromfile" | "load" => {
@@ -870,14 +874,6 @@ pub fn image_method(name: &str, method: &str, args: &[Value]) -> Value {
                 let _ = args;
                 eprintln!("[WARN] datascience not compiled — loadfromplot unavailable");
             }
-        }
-        // (the picture goes: nothing shows)
-        "clear" | "cls" => {
-            rapidr_value::objects::with_picture(name, |b| {
-                b.resize(0, 0);
-                b.alpha = None;
-                b.invalidate_display();
-            });
         }
         _ => eprintln!("[WARN] RImage.{method}() not implemented"),
     }

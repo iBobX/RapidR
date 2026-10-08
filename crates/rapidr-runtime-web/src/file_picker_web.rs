@@ -272,6 +272,140 @@ pub fn open(req: &Request, gestured: bool, done: impl FnOnce(Picked) + 'static) 
     input_open(&accept, multi, done);
 }
 
+/// (RapidR's QOPENDIALOG.PickFolder) A folder: `showDirectoryPicker`
+/// where the page may show it — every file in it (and its folders, not
+/// hidden ones, at most 4,000 files of up to 32 MB) read into the page's
+/// store as `<folder>/<path>`, each written back through its own handle —,
+/// else `<input webkitdirectory>` (read only: writes stay in the browser).
+/// The answer is the folder's name.
+pub fn open_folder(gestured: bool, done: impl FnOnce(Picked) + 'static) {
+    if !gestured && !gesture_active() {
+        done(Picked::NeedsGesture);
+        return;
+    }
+    if let Some(f) = direct("showDirectoryPicker") {
+        let opts = Object::new();
+        set(&opts, "mode", &JsValue::from_str("readwrite"));
+        let p = match f.call1(&JsValue::UNDEFINED, &opts) {
+            Ok(v) => v.dyn_into::<Promise>().unwrap_or_else(|v| Promise::resolve(&v)),
+            Err(e) => Promise::reject(&e),
+        };
+        spawn_local(async move {
+            match JsFuture::from(p).await {
+                Ok(dir) => {
+                    let name = get(&dir, "name").as_string().unwrap_or_else(|| "folder".into());
+                    let mut count = 0usize;
+                    if let Err(e) = walk_folder(dir, name.clone(), 0, &mut count).await {
+                        warn(&format!("can't read the folder picked: {}", error_name(&e)));
+                    }
+                    done(Picked::Files(vec![name]));
+                }
+                Err(e) => match error_name(&e).as_str() {
+                    "AbortError" => done(Picked::Cancelled),
+                    _ if wants_gesture(&e, gestured) => done(Picked::NeedsGesture),
+                    _ => input_folder(done),
+                },
+            }
+        });
+        return;
+    }
+    input_folder(done);
+}
+
+/// The files of folder handle `dir` into the store under `prefix`.
+fn walk_folder(dir: JsValue, prefix: String, depth: u32, count: &mut usize) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), JsValue>> + '_>> {
+    Box::pin(async move {
+        let values = get(&dir, "values").dyn_into::<Function>().map_err(|_| JsValue::from_str("no values()"))?;
+        let it = values.call0(&dir)?;
+        loop {
+            let step = JsFuture::from(call(&it, "next", &[])).await?;
+            if get(&step, "done").as_bool() == Some(true) {
+                return Ok(());
+            }
+            let h = get(&step, "value");
+            let kind = get(&h, "kind").as_string().unwrap_or_default();
+            let name = get(&h, "name").as_string().unwrap_or_default();
+            if name.starts_with('.') {
+                continue;
+            }
+            let path = format!("{prefix}/{name}");
+            if kind == "file" {
+                let file = JsFuture::from(call(&h, "getFile", &[])).await?;
+                if get(&file, "size").as_f64().unwrap_or(0.0) > 32.0 * 1024.0 * 1024.0 {
+                    continue;
+                }
+                let buffer = JsFuture::from(call(&file, "arrayBuffer", &[])).await?;
+                keep(&path, Uint8Array::new(&buffer).to_vec(), Some(Target::Handle(h.clone())));
+                *count += 1;
+                if *count >= 4000 {
+                    return Ok(());
+                }
+            } else if kind == "directory" && depth < 8 && name != "target" && name != "node_modules" {
+                walk_folder(h, path, depth + 1, count).await?;
+            }
+        }
+    })
+}
+
+/// A folder through `<input type=file webkitdirectory>` (its files read
+/// in, not written back).
+fn input_folder(done: impl FnOnce(Picked) + 'static) {
+    let doc = crate::page_web::document();
+    let Ok(input) = doc.create_element("input").map(|e| e.unchecked_into::<web_sys::HtmlInputElement>()) else {
+        done(Picked::Cancelled);
+        return;
+    };
+    input.set_type("file");
+    let _ = input.set_attribute("webkitdirectory", "");
+    input.set_class_name("rr-file-input");
+    let _ = input.style().set_property("display", "none");
+    if let Some(body) = doc.body() {
+        let _ = body.append_child(&input);
+    }
+    let done: Once = Rc::new(RefCell::new(Some(Box::new(done))));
+    let changed = {
+        let (done, source) = (done.clone(), input.clone());
+        Closure::<dyn FnMut()>::new(move || {
+            let Some(done) = done.borrow_mut().take() else { return };
+            let files: Vec<web_sys::File> = source.files().map(|l| (0..l.length()).filter_map(|i| l.item(i)).collect()).unwrap_or_default();
+            source.remove();
+            spawn_local(async move {
+                let mut root = String::new();
+                for file in files.into_iter().take(4000) {
+                    let rel = get(&file, "webkitRelativePath").as_string().unwrap_or_else(|| file.name());
+                    if root.is_empty() {
+                        root = rel.split('/').next().unwrap_or("folder").to_string();
+                    }
+                    let Ok(buffer) = JsFuture::from(file.array_buffer()).await else { continue };
+                    keep(&rel, Uint8Array::new(&buffer).to_vec(), None);
+                }
+                done(if root.is_empty() { Picked::Cancelled } else { Picked::Files(vec![root]) });
+            });
+        })
+    };
+    let cancelled = {
+        let (done, source) = (done.clone(), input.clone());
+        Closure::<dyn FnMut()>::new(move || {
+            source.remove();
+            if let Some(done) = done.borrow_mut().take() {
+                done(Picked::Cancelled);
+            }
+        })
+    };
+    let _ = input.add_event_listener_with_callback("change", changed.as_ref().unchecked_ref());
+    let _ = input.add_event_listener_with_callback("cancel", cancelled.as_ref().unchecked_ref());
+    changed.forget();
+    cancelled.forget();
+    input.click();
+}
+
+/// A file into the page's store (RapidR Studio's page restoring the files
+/// it keeps: `rapidr_store_file`), written back through `handle` when one
+/// is given (a FileSystemFileHandle).
+pub fn keep_file(name: &str, bytes: Vec<u8>, handle: Option<JsValue>) {
+    keep(name, bytes, handle.filter(|h| h.is_object()).map(Target::Handle));
+}
+
 /// Whether a picker's failure `e` is the browser's "no user gesture" —
 /// a SecurityError or NotAllowedError before the user gave one through
 /// the host's box (`gestured`: after it, the picker isn't allowed here at

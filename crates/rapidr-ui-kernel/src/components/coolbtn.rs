@@ -103,6 +103,10 @@ impl ComponentKind for CoolBtn {
             if flat && !is_down && !s.pressed && !(s.hover && s.enabled) {
                 // (a flat button at rest: nothing but its caption)
                 t.face
+            } else if flat && !is_down && !t.ring_fields {
+                // (a tool bar's button: a soft rounded fill, no outline)
+                p.round(r, 6.0, Some(face), None, 1.0);
+                face
             } else {
                 p.round(r, t.radius, Some(face), Some(if is_down { face } else { t.border }), 1.0);
                 face

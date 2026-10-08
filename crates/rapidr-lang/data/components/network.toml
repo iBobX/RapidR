@@ -56,7 +56,7 @@ name = "RSERVERSOCKET"
 visual = false
 only = "desktop"
 default_event = "OnClientConnect"
-doc = "A TCP server: listens on a port, accepts clients and exchanges data with them. RapidR's own; desktop only."
+doc = "A TCP server: listens on a port, accepts clients and exchanges data with them. RapidR's own; desktop only: a web page can't listen for network connections (a browser lets it open WebSockets and HTTP requests, never a port of its own)."
 properties = [
   { name = "Host", type = "string" },
   { name = "Port", type = "int" },

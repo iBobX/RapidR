@@ -94,6 +94,8 @@ pub struct FormUi {
     pub(crate) surface: Option<crate::components::canvas::Shown>,
     /// Its deadlines (the caret's blink, held scroll bars): tick.rs.
     pub wakes: crate::tick::Wakes,
+    /// Its tooltip (a Hint shown): tooltip.rs.
+    pub tip: crate::tooltip::TipUi,
     /// The caret blinks (the host turns it off for captures: a headless
     /// host draws it steadily on).
     pub blinks: bool,
@@ -166,6 +168,7 @@ impl FormUi {
             events: Vec::new(),
             surface: None,
             wakes: Default::default(),
+            tip: Default::default(),
             blinks: true,
             system_corner: false,
             last_click: None,

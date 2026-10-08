@@ -213,6 +213,26 @@ fn find(m: &Mdi, component: &str) -> Option<usize> {
     m.children.iter().position(|c| c.component.eq_ignore_ascii_case(component))
 }
 
+/// The window state of the child showing `component` (`None`: no child shows it).
+pub fn child_state(form: &str, component: &str) -> Option<State> {
+    with(form, |m| find(m, component).map(|i| m.children[i].state))
+}
+
+/// Sets the title of the child showing `component` (active or not); false
+/// when no child shows it.
+pub fn set_child_title(form: &str, component: &str, title: &str) -> bool {
+    if !is_mdi(form) {
+        return false;
+    }
+    with(form, |m| match find(m, component) {
+        Some(i) => {
+            m.children[i].title = title.to_string();
+            true
+        }
+        None => false,
+    })
+}
+
 /// The program's index of the child showing `component`.
 pub fn child_index(form: &str, component: &str) -> Option<i64> {
     with(form, |m| find(m, component).map(|i| m.children[i].index))
@@ -691,6 +711,19 @@ mod tests {
 
     fn add(form: &str, h: i64, title: &str) -> Outcome {
         call(form, "AddChild", &[Value::Integer(h), Value::String(title.into()), Value::Integer(h), Value::Integer(0), Value::Integer(0), Value::Integer(0), Value::Integer(0), Value::Integer(-1)], (800, 600), &names).unwrap()
+    }
+
+    #[test]
+    fn a_childs_title_set_by_its_component_leaves_the_active_one() {
+        register("t");
+        add("t", 1, "One");
+        add("t", 2, "Two");
+        assert!(set_child_title("t", "edit(1)", "One *"));
+        let titles: Vec<String> = frames("t").iter().map(|f| f.title.clone()).collect();
+        assert_eq!(titles, vec!["One *".to_string(), "Two".to_string()]);
+        assert!(!set_child_title("t", "edit(9)", "x"));
+        assert!(!set_child_title("not-mdi", "edit(1)", "x"));
+        assert!(!is_mdi("not-mdi"));
     }
 
     #[test]
