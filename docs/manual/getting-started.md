@@ -23,20 +23,113 @@ system-wide).
 | Linux x86_64 / aarch64 | `rapidr-2.117.0-linux-<arch>.tar.gz` or `rapidr_2.117.0_<amd64\|arm64>.deb` | `rapidr-runtime-…` | Ubuntu 22.04, Debian 12 or newer (OpenSSL 3) |
 | Web | `rapidr-web-2.117.0.zip`: the web IDE, for any static web host | | a current browser |
 
-- **Windows**: run the installer. It installs into
-  `%LOCALAPPDATA%\Programs\RapidR`, adds *RapidR IDE* to the Start menu and,
-  if you leave the box ticked, `rapidr` to your PATH. It shows RapidR's
-  licence and LEGAL.md first. A box (off by default) makes RapidR the
-  default program for `.bas` files.
+- **Windows**: see [Install on Windows](#install-on-windows) below.
 - **macOS**: open the disk image and drag *RapidR* (and/or *RapidR
   Runtime*) to Applications. The command line is inside the app:
   `/Applications/RapidR.app/Contents/MacOS/rapidr setup` offers to link
   `rapidr` into `/usr/local/bin` or `~/.local/bin`.
-- **Linux**: `sudo apt install ./rapidr_2.117.0_amd64.deb`, or unpack the
-  `.tar.gz` and run `./install.sh` (into `~/.local`, no root; the folder
-  also works as it is: `bin/rapidr`). `~/.local/lib/rapidr/uninstall.sh`
-  removes it. Programs need the system's OpenSSL 3 (`libssl3`), ALSA,
-  fontconfig and xkbcommon — part of every current desktop distribution.
+- **Linux**: see [Install on Ubuntu or Debian](#install-on-ubuntu-or-debian-the-deb-package)
+  below for the `.deb`. The `.tar.gz` installs for your user only, with no
+  root: unpack it and run `./install.sh` (into `~/.local`; the folder also
+  works as it is: `bin/rapidr`). `~/.local/lib/rapidr/uninstall.sh` removes
+  it. Programs need the system's OpenSSL 3 (`libssl3`), ALSA, fontconfig
+  and xkbcommon, which every current desktop distribution has.
+
+### Install on Windows
+
+1. **Pick the right file.** Open *Settings > System > About* and look at
+   *System type*: "64-bit operating system, x64-based processor" needs
+   `RapidR-2.117.0-windows-x64-setup.exe`; "ARM-based processor" (for
+   example Windows 11 in a Mac's virtual machine, or a Snapdragon PC) needs
+   `RapidR-2.117.0-windows-arm64-setup.exe`. To only run programs, take the
+   `RapidR-Runtime-…` file of the same kind instead.
+2. **Run the installer** (double-click it). You are not asked for an
+   administrator password: RapidR installs for your user, into
+   `%LOCALAPPDATA%\Programs\RapidR`. The first time, Windows may say
+   "Windows protected your PC" because this release isn't code-signed: choose
+   **More info**, then **Run anyway** (see [Unsigned downloads](#unsigned-downloads)).
+3. **Read and accept** RapidR's licence, read the legal notes (LEGAL.md),
+   and click **Next** (a page for the install folder shows up the first
+   time; the default is fine).
+4. **Choose the options** on the "Select Additional Tasks" page:
+   - *Add rapidr to PATH (for the command line)* is ticked. Leave it so
+     `rapidr` works in any Command Prompt or PowerShell window you open
+     afterwards (windows that were already open don't see it).
+   - *Open .bas files with RapidR by default* is off. Tick it if RapidR
+     should open your RapidQ `.bas` files when you double-click them. Files
+     ending in `.rrbc` and `.rr` always belong to RapidR.
+5. **Click Install**, then **Finish**.
+
+The SDK adds **RapidR IDE** to the Start menu: open the menu, type "RapidR",
+and press Enter to start the IDE. To check the command line, open a new
+Command Prompt and type:
+
+```
+rapidr version
+```
+
+```
+RapidR 2.117.0
+```
+
+Then try the first program below (`rapidr run hello.bas`).
+
+To remove RapidR: *Settings > Apps > Installed apps*, find "RapidR 2.117.0",
+and choose **Uninstall**. It takes away the files, the Start menu entry, the
+file types and the PATH entry. The programs you wrote are yours and stay.
+
+### Install on Ubuntu or Debian (the .deb package)
+
+The `.deb` is the install for Ubuntu 22.04 or newer and Debian 12 or newer.
+It is system-wide, so it asks for your password (`sudo`).
+
+1. **Pick the right file.** In a terminal, run `dpkg --print-architecture`.
+   It prints `amd64` (most PCs; take `rapidr_2.117.0_amd64.deb`) or `arm64`
+   (Raspberry Pi 4 and 5, ARM servers, Ubuntu in a Mac's virtual machine;
+   take `rapidr_2.117.0_arm64.deb`). To only run programs, take
+   `rapidr-runtime_2.117.0_<arch>.deb` instead.
+2. **Install it with apt**, from the folder you downloaded it to. Keep the
+   `./` in front of the name: it tells apt that this is a file, and apt then
+   fetches whatever RapidR needs (OpenSSL 3, fontconfig and a few more) by
+   itself:
+
+   ```sh
+   cd ~/Downloads
+   sudo apt install ./rapidr_2.117.0_arm64.deb
+   ```
+
+3. **Check it:**
+
+   ```sh
+   rapidr version
+   ```
+
+   ```
+   RapidR 2.117.0
+   ```
+
+4. **Start the IDE** from the applications menu (*RapidR IDE*, under
+   Development), or from a terminal with `rapidr ide`. `rapidr run hello.bas`
+   runs a program (the first program below). In the file manager,
+   double-clicking a compiled `.rrbc` program runs it; a `.rr` or `.bas`
+   source file offers *RapidR IDE* under *Open With*.
+
+What the package puts where: the `rapidr` command in `/usr/bin`; RapidR's
+other files (the runtime's sources for native builds, the IDE, a few example
+programs) in `/usr/lib/rapidr`; the licence, the notices and this manual
+(`manual/`) in `/usr/share/doc/rapidr`; and the menu entry, file types and
+icons in the system's usual places.
+
+The SDK package (`rapidr`) and the Runtime package (`rapidr-runtime`) are
+alternatives: installing one removes the other, because both provide the
+`rapidr` command. To remove RapidR entirely:
+
+```sh
+sudo apt remove rapidr
+```
+
+If you would rather not use `sudo`, the `.tar.gz` installs under your own
+folder (`./install.sh`, above).
 
 ### Unsigned downloads
 

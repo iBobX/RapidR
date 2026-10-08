@@ -71,6 +71,17 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   failed on macOS with "3dcube.app: No such process": `codesign --verify` reads a relative
   argument starting with a digit as a process id. The app is now signed and verified by its
   absolute path (a test builds a digit-named app in the current folder, signs and verifies it).
+- **The release's home** ships the files its crates include from outside their folders (the program
+  icon masters, the icon inventory) and drops the crates' `[dev-dependencies]`: the vendored
+  workspace failed to build on Linux and Windows. The Windows installers (x64, arm64) and the Linux
+  packages (`.deb` and `.tar.gz`, x86_64 and aarch64) build from it; the Linux ones pass their smoke tests.
+
+### Documentation
+- **Manual: installing** on Windows (which installer, each page of the wizard, the PATH and `.bas`
+  options, uninstalling) and on Ubuntu or Debian (`sudo apt install ./rapidr_<ver>_<arch>.deb`, what
+  goes where, SDK and Runtime packages replace each other, removing it), with the matching
+  troubleshooting entries; **building apps**: the app's name (digits first, the bundle ID it makes,
+  checking a signature by hand).
 
 ### Added
 - **Serial ports for ESP32 / Arduino / IoT boards** (RComPort, RapidQ's QCOMPORT; RapidQ's members

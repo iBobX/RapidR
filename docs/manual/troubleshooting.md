@@ -15,6 +15,19 @@ needs OpenSSL 3: Ubuntu 22.04 or Debian 12 and newer (`sudo apt install
 libssl3`). Ubuntu 20.04 and Debian 11 have only OpenSSL 1.1 and aren't
 supported.
 
+**Windows: "This app can't run on your PC"** — you have the installer for
+the other kind of processor. Look at *Settings > System > About > System
+type* and take the `x64` or the `arm64` installer to match
+(see [Install on Windows](getting-started.md#install-on-windows)).
+
+**Linux: `apt` says `Unable to locate package rapidr_2.117.0_amd64.deb`** —
+put `./` in front of the file name (`sudo apt install
+./rapidr_2.117.0_amd64.deb`) so apt reads it as a file in this folder.
+
+**Linux: `dpkg` says "package architecture (amd64) does not match system
+(arm64)"** — wrong file for this machine. `dpkg --print-architecture` says
+which one to take (`amd64` or `arm64`).
+
 **`rapidr: command not found`** — run `rapidr setup` from the install
 (macOS: `/Applications/RapidR.app/Contents/MacOS/rapidr setup`) to link it
 into your PATH; on Windows, tick "Add rapidr to PATH" in the installer.
@@ -31,6 +44,12 @@ the internet asks once; the answer is remembered for that exact file.
 **`Failed to run cargo … Native builds compile with Rust`** — run
 `rapidr setup`. Native builds are the only ones that need Rust: `rapidr
 run`, `build --interp` and `bundle-bc` don't.
+
+**macOS: `codesign … 3dcube.app: No such process`** — `codesign` reads a
+name that starts with a digit as a process number. `rapidr build` now
+passes the app's full path and signs it fine; when you run `codesign`
+yourself, write `./3dcube.app` (see [The app's
+name](building-apps.md#the-apps-name)).
 
 **The first native build takes minutes** — it compiles RapidR's runtime
 once; later builds reuse it (keep `CARGO_TARGET_DIR` if you set one).
