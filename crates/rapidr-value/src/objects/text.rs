@@ -156,21 +156,25 @@ pub fn ascent(font: &Font) -> f32 {
 
 /// The space a bold character takes beyond its regular width, in pixels:
 /// one for MS Sans Serif (RapidR Sans) — Windows' MS Sans Serif Bold is a
-/// pixel wider a character, RapidQ's capture shows. Liberation Sans and
-/// Serif have no bold of their own here: their bold is the regular letter
+/// pixel wider a character, RapidQ's capture shows. Liberation Sans has no
+/// bold of its own here: its bold is the regular letter
 /// made heavier (the renderer's embolden, about a pixel wider at 12 px),
-/// and each character takes that much more room — else the heavier letters
-/// eat the space between them ("Pantry" in a bold Arial title ran
-/// together). None for the monospaced and the faces with a bold of their
-/// own (their bold is the regular advance, one pixel more for the whole
-/// text).
+/// and each character takes half that much more room, a 24th of the size —
+/// about as much as Windows' Arial Bold is wider than its regular
+/// (RC.EXE: Arial 9 bold "Pantry" 37 pixels, regular 34;
+/// Arial 12 bold "Hello" 39, regular 36). With none, the heavier letters
+/// ate the space between them ("Pantry" in a bold web title ran together).
+/// None for the others — Times New Roman's bold is as wide as its regular
+/// in RC.EXE (bold "Times" 41 pixels at 12 pt), Courier's columns stay — and
+/// the faces with a bold of their own (their bold is the regular advance,
+/// one pixel more for the whole text).
 pub fn bold_spacing(font: &Font) -> f32 {
     if font.styles & 1 == 0 {
         return 0.0;
     }
     match family_name(&font.name) {
         "RapidR Sans" => 1.0,
-        "Liberation Sans" | "Liberation Serif" => (pixel_size(font) / 12.0).round().max(1.0),
+        "Liberation Sans" => pixel_size(font) / 24.0,
         _ => 0.0,
     }
 }

@@ -413,10 +413,12 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   report what is drawn); tab stops stay RapidQ's. New gallery cases `hello`,
   `spacing` and `words` with RC.EXE's captures beside them, and
   `tools/visual/words.py` (word by word, old | new | RC.EXE, 1×, 1.5×, 2×).
-- **Bold Arial and Times New Roman ran together too** (a web window's
-  title, "Pantry"; a chart's bold title): their bold is the regular letter
-  made heavier, about a pixel wider at 12 px, which ate the space between
-  letters. Each bold character now takes that pixel more (TextWidth too).
+- **Bold Arial ran together too** (a web window's title, "Pantry"; a
+  chart's bold title): its bold is the regular letter made heavier, about a
+  pixel wider at 12 px, which ate the space between letters. Each bold
+  character now takes half a pixel more at 12 px, as Windows' Arial Bold
+  is wider than its regular (TextWidth too; RC.EXE: Arial 9 bold "Pantry"
+  37 pixels, RapidR 38, before 36).
 
 - **Every component now starts with RapidQ's values, on every runtime.**
   Reading a property right after creating a component gave nothing for 252
