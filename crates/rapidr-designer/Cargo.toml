@@ -19,3 +19,7 @@ rapidr-lang.workspace = true
 [dev-dependencies]
 # Property tests (MIT OR Apache-2.0; dev-only, never shipped).
 proptest = { version = "1.11", default-features = false, features = ["std"] }
+# (tests/handlers.rs: the code written compiles on both backends)
+rapidr-lexer.workspace = true
+rapidr-bcgen.workspace = true
+rapidr-codegen-rust.workspace = true
