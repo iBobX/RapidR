@@ -778,6 +778,10 @@ fn set_property(name: &str, prop: &str, val: Value) {
     if matches!(prop_lower.as_str(), "icon" | "icohandle") && matches!(rp_comp_type(name).as_str(), "RFORM" | "RFORMMDI") {
         crate::ui::gui_apply_icon(name);
     }
+    #[cfg(feature = "gui")]
+    if prop_lower == "modified" && matches!(rp_comp_type(name).as_str(), "RFORM" | "RFORMMDI") {
+        crate::ui::gui_set_modified(name);
+    }
     // A form with / without its frame (bsNone): the window and its inside.
     if prop_lower == "borderstyle" && rp_comp_type(name) == "RFORM" {
         #[cfg(feature = "gui")]

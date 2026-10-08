@@ -197,7 +197,7 @@ if [ "$KIND" = sdk ]; then
         check "setup installs RapidR's toolchain beside, the defaults unchanged" test "$(rust_state)" = "$before"
         check "setup: native builds ready" grep -q "native builds ready" setup.log || tail -5 setup.log
         printf '$APPTYPE CONSOLE\nPRINT "native "; 6 * 7\n' > native.bas
-        PATH="$CARGO_BIN:$BASE_PATH" CARGO_TARGET_DIR="$T/native-target" "$R" build native.bas > native.log 2>&1
+        PATH="$CARGO_BIN:$BASE_PATH" CARGO_TARGET_DIR="$T/native-target" RAPIDR_BUILD_CACHE="$T/build-cache" "$R" build native.bas --debug > native.log 2>&1
         check "rapidr build (native)" has "$(./native 2>&1)" "native 42" || tail -5 native.log
         if [[ "$ART" == *.dmg ]]; then
             # (a debug build is this Mac's architecture only; release builds are

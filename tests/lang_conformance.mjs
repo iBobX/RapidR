@@ -127,7 +127,7 @@ function native(programs) {
   writeFileSync(src, programs.map((p) => p.source).join("\n"));
   // (the conformance suite's build cache: the runtime crates built once)
   const target = resolve(process.env.CONFORMANCE_WORK || join(ROOT, "tests/conformance/.work"), "cargo-target");
-  const b = run(RAPIDR, ["build", src, join(dir, "lang_all_rust"), "--no-bundle"], { timeout: 1_800_000, env: { ...ENV, CARGO_TARGET_DIR: target } });
+  const b = run(RAPIDR, ["build", src, dir, "--no-bundle", "--debug"], { timeout: 1_800_000, env: { ...ENV, CARGO_TARGET_DIR: target, RAPIDR_BUILD_CACHE: resolve(target, "..", "build-cache") } });
   const bin = join(dir, "lang_all" + EXE);
   if (!b.ok || !existsSync(bin)) {
     dropBuild(target, "lang_all");

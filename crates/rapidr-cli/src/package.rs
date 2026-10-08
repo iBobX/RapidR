@@ -33,6 +33,11 @@ pub struct Options {
     /// `--project <file.rrproj>` (else the one beside the source naming it
     /// as its main file)
     pub project: Option<String>,
+    /// `--output <folder>` / `-o <folder>`: where the app goes
+    pub output: Option<String>,
+    /// `--keep-rust` / `--no-keep-rust`: a native build's generated Rust
+    /// left beside the app (`<program>-rust-source`), or deleted
+    pub keep_rust: Option<bool>,
 }
 
 impl Options {
@@ -55,6 +60,9 @@ impl Options {
             "--app-version" => self.version = Some(value("--app-version")?),
             "--company" => self.company = Some(value("--company")?),
             "--project" => self.project = Some(value("--project")?),
+            "--output" | "-o" => self.output = Some(value(flag)?),
+            "--keep-rust" => self.keep_rust = Some(true),
+            "--no-keep-rust" => self.keep_rust = Some(false),
             "--bundle" => self.bundle = Some(true),
             "--no-bundle" => self.bundle = Some(false),
             _ if (arg.starts_with("-g") || arg.starts_with("-G")) && !arg.starts_with("--") => {
@@ -303,7 +311,7 @@ mod tests {
 
     #[test]
     fn options_from_the_command_line() {
-        let a = args(&["--icon", "a.png", "--name=Note Pad", "-gc:\\x.ico", "--no-bundle", "--app-version", "2.0", "other"]);
+        let a = args(&["--icon", "a.png", "--name=Note Pad", "-gc:\\x.ico", "--no-bundle", "--app-version", "2.0", "other", "-o", "dist", "--keep-rust"]);
         let mut o = Options::default();
         let mut i = 0;
         let mut rest = Vec::new();
@@ -318,6 +326,7 @@ mod tests {
         assert_eq!(o.rc_icon.as_deref(), Some("c:\\x.ico"));
         assert_eq!(o.version.as_deref(), Some("2.0"));
         assert_eq!(o.bundle, Some(false));
+        assert_eq!((o.output.as_deref(), o.keep_rust), (Some("dist"), Some(true)));
         assert_eq!(rest, ["other"]);
         // RC.EXE: `-g` with nothing after it
         let mut i = 0;

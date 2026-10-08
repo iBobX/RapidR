@@ -1,0 +1,8 @@
+' main.rr: RapidR Studio's save-prompt test (tests/studio_flows.mjs): the
+' questions asked before changes would be lost - this file and other.inc
+' changed, then Studio quit or the document closed.
+
+$INCLUDE "other.inc"
+
+PRINT "ONE"
+ShowOther

@@ -176,6 +176,18 @@ pub fn host_arch_target() -> String {
     }
 }
 
+/// A target as people say it: `macOS`, `macOS (arm64)`, `Windows (x86_64)`.
+pub fn system_name(target: &str) -> String {
+    let (os, arch) = target.split_once('-').unwrap_or((target, ""));
+    let os = match os {
+        "macos" => "macOS",
+        "windows" => "Windows",
+        "linux" => "Linux",
+        other => other,
+    };
+    if arch.is_empty() { os.to_string() } else { format!("{os} ({arch})") }
+}
+
 /// `.exe` for Windows targets.
 pub fn exe_suffix(target: &str) -> &'static str {
     if target.starts_with("windows-") {

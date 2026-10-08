@@ -38,6 +38,9 @@ pub enum WindowOp {
     /// (L-PANELS) `Comp.SetFocus`: form, component — the keyboard to it
     /// (a command palette's Show puts it in its search box).
     Focus(String, String),
+    /// `Form.Modified` (RapidR's): the window has changes not saved —
+    /// macOS' close button shows its dot; a page asks before it's left.
+    Modified(String, bool),
 }
 
 /// A window's picture (RGBA, straight): a form's IcoHandle / Icon, else

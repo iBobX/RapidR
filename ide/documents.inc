@@ -157,6 +157,9 @@ SUB DocTitles(d AS INTEGER)
   ProjectTree.FileModified DocFile(d), DocDirty(d)
   Dock.PaneTitle(DocPane(d), FileTitle(DocFile(d)))
   Dock.DocumentModified(DocPane(d), DocDirty(d))
+  ' (Studio's window: the dot in macOS' close button, the browser's
+  ' question before the page is left)
+  UpdateModified
 END SUB
 
 ' Opens a source file as a document — its tab: its code, and its form in a

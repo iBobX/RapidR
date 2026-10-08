@@ -349,6 +349,18 @@ fn a_modal_form_is_a_wait_the_vm_serves() {
     assert_eq!(waits::turn(), None);
 }
 
+#[test]
+fn center_before_the_first_show_modal_centres_it() {
+    // (RapidQ: Form.Center, then ShowModal — the window is made where its
+    // Left / Top say, so they are the centred place before it shows)
+    form_with_button();
+    forms::center(Mem, "f");
+    forms::begin_modal(Mem, "f");
+    let (x, y) = forms::centered(Mem, "f");
+    assert_ne!((x, y), (10, 20));
+    assert_eq!((Mem.get("f", "left").to_i64(), Mem.get("f", "top").to_i64()), (x, y));
+}
+
 /// The handlers queued so far run, as an interpreter runs them after the
 /// turn that queued them (each continuation with its handler's arguments).
 fn run_queued() {

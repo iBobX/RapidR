@@ -23,6 +23,10 @@ const URL_BASE = (process.env.STUDIO_WEB_URL || process.env.RAPIDR_STUDIO_URL ||
 const RAPIDR = process.env.RAPIDR || join(ROOT, "rapidr");
 const WORK = join(ROOT, "tests", "results", "studio-flows");
 const filters = process.argv.slice(2);
+// (STUDIO_FLOWS_HOSTS=desktop or web: one host only)
+const HOSTS = (process.env.STUDIO_FLOWS_HOSTS || "desktop,web").split(",");
+// (the save prompts' project: a file and the one it includes)
+const SAVE_FILES = ["tests/fixtures/studio_save/main.rr", "tests/fixtures/studio_save/other.inc"];
 
 // (I4) The designer's steps on notepad.bas: the placing tool's click, the
 // form's right edge dragged, Button1 dragged.
@@ -302,6 +306,108 @@ const CASES = [
     delay: 4,
     dump: { "helptitle.caption": /^QLABEL\.Caption$/, "helpwhat.caption": /^Property of QLABEL/ },
   },
+  // (S-BUILD) The questions before changes would be lost (prompts.inc),
+  // each button: one document changed and Studio quit — Save (Enter)
+  // writes it and quits, Don't Save quits and leaves the file as it was,
+  // Cancel (Escape) keeps Studio open with the change; several changed —
+  // Save All (Enter), Discard Changes, Review Changes... (each asked:
+  // Save, then Don't Save), Cancel (Escape); a document closed — Don't
+  // Save closes it, Studio stays. `quit`: Studio must have quit (the
+  // desktop's process ended, the web page's program ended) before the
+  // test's dump; `files`: what each file holds afterwards.
+  {
+    name: "quit-save",
+    open: "tests/fixtures/studio_save/main.rr",
+    copyDir: true,
+    webFiles: SAVE_FILES,
+    do: 'wait,code:"ONE"=>"ONE saved",file.exit',
+    events: "promptsave.__key_13",
+    delay: 4,
+    quit: true,
+    dump: {},
+    files: { "main.rr": /PRINT "ONE saved"/ },
+  },
+  {
+    name: "quit-dont-save",
+    open: "tests/fixtures/studio_save/main.rr",
+    copyDir: true,
+    webFiles: SAVE_FILES,
+    do: 'wait,code:"ONE"=>"ONE lost",file.exit',
+    events: "promptdont.__mousedown_12_12,promptdont.__mouseup_12_12",
+    delay: 4,
+    quit: true,
+    dump: {},
+    files: { "main.rr": /^(?![\s\S]*"ONE lost")[\s\S]*PRINT "ONE"/ },
+  },
+  {
+    name: "quit-cancel",
+    open: "tests/fixtures/studio_save/main.rr",
+    copyDir: true,
+    webFiles: SAVE_FILES,
+    do: 'wait,code:"ONE"=>"ONE kept",file.exit',
+    events: "promptsave.__key_27",
+    delay: 4,
+    dump: { "saveprompt.visible": /^0$/, "studio.modified": /^(1|-1|True)$/i, "codedoc(0).text": /PRINT "ONE kept"/, "dock.documentcount": /^1$/ },
+    files: { "main.rr": /^(?![\s\S]*"ONE kept")[\s\S]*PRINT "ONE"/ },
+  },
+  {
+    name: "quit-many-save-all",
+    open: "tests/fixtures/studio_save/main.rr",
+    copyDir: true,
+    webFiles: SAVE_FILES,
+    do: 'wait,code:"ONE"=>"ONE all",open:other.inc,wait,code:"TWO"=>"TWO all",file.exit',
+    events: "promptsave.__key_13",
+    delay: 5,
+    quit: true,
+    dump: {},
+    files: { "main.rr": /PRINT "ONE all"/, "other.inc": /PRINT "TWO all"/ },
+  },
+  {
+    name: "quit-many-discard",
+    open: "tests/fixtures/studio_save/main.rr",
+    copyDir: true,
+    webFiles: SAVE_FILES,
+    do: 'wait,code:"ONE"=>"ONE gone",open:other.inc,wait,code:"TWO"=>"TWO gone",file.exit',
+    events: "promptdont.__mousedown_12_12,promptdont.__mouseup_12_12",
+    delay: 5,
+    quit: true,
+    dump: {},
+    files: { "main.rr": /^(?![\s\S]*"ONE gone")[\s\S]*PRINT "ONE"/, "other.inc": /^(?![\s\S]*"TWO gone")[\s\S]*PRINT "TWO"/ },
+  },
+  {
+    name: "quit-many-review",
+    open: "tests/fixtures/studio_save/main.rr",
+    copyDir: true,
+    webFiles: SAVE_FILES,
+    do: 'wait,code:"ONE"=>"ONE reviewed",open:other.inc,wait,code:"TWO"=>"TWO dropped",file.exit',
+    events: "promptreview.__mousedown_12_12,promptreview.__mouseup_12_12,promptsave.__key_13,promptdont.__mousedown_12_12,promptdont.__mouseup_12_12",
+    delay: 5,
+    quit: true,
+    dump: {},
+    files: { "main.rr": /PRINT "ONE reviewed"/, "other.inc": /^(?![\s\S]*"TWO dropped")[\s\S]*PRINT "TWO"/ },
+  },
+  {
+    name: "quit-many-cancel",
+    open: "tests/fixtures/studio_save/main.rr",
+    copyDir: true,
+    webFiles: SAVE_FILES,
+    do: 'wait,code:"ONE"=>"ONE stays",open:other.inc,wait,code:"TWO"=>"TWO stays",file.exit',
+    events: "promptcancel.__mousedown_12_12,promptcancel.__mouseup_12_12",
+    delay: 5,
+    dump: { "saveprompt.visible": /^0$/, "dock.documentcount": /^2$/, "studio.modified": /^(1|-1|True)$/i, "prompttitle.caption": /^You have 2 documents with unsaved changes/ },
+    files: { "main.rr": /^(?![\s\S]*"ONE stays")/, "other.inc": /^(?![\s\S]*"TWO stays")/ },
+  },
+  {
+    name: "close-dont-save",
+    open: "tests/fixtures/studio_save/main.rr",
+    copyDir: true,
+    webFiles: SAVE_FILES,
+    do: 'wait,code:"ONE"=>"ONE closed",file.close',
+    events: "promptdont.__mousedown_12_12,promptdont.__mouseup_12_12",
+    delay: 4,
+    dump: { "dock.documentcount": /^0$/, "studio.modified": /^(0|False)$/i, "prompttitle.caption": /^Do you want to save the changes you made to main\.rr\?$/ },
+    files: { "main.rr": /^(?![\s\S]*"ONE closed")[\s\S]*PRINT "ONE"/ },
+  },
   // (S-PANELS) The project tree lists the form's components; the palette
   // finds a symbol of the file.
   {
@@ -330,6 +436,9 @@ function runDesktop(c) {
   } else if (c.open) {
     args.push(c.open);
   }
+  // (studio.caption: always asked for — no line of the dump at all means
+  // Studio had quit before it)
+  const keys = [...Object.keys(c.dump), "studio.caption"];
   const run = (args, delay) => spawnSync(RAPIDR, args, {
     cwd: ROOT,
     timeout: Math.max(90000, delay * 1000 + 60000),
@@ -339,7 +448,7 @@ function runDesktop(c) {
       RAPIDR_CAPTURE: join(dir, "window"),
       RAPIDR_CAPTURE_DELAY: String(delay),
       RAPIDR_MENU: "window",
-      RAPIDR_TEST_DUMP: Object.keys(c.dump).join(","),
+      RAPIDR_TEST_DUMP: keys.join(","),
       ...(c.events ? { RAPIDR_TEST_EVENTS: c.events } : {}),
       RAPIDR_PRINT_TO: join(WORK, "prints"),
       RAPIDR_REGISTRY: join(WORK, `${c.name}.reg`),
@@ -356,7 +465,14 @@ function runDesktop(c) {
     if (c.restart.do) again.splice(again.length - 1, 0, "--do", c.restart.do);
     r = run(again, c.restart.delay || c.delay);
   }
-  return parseDump(r.stdout || "", Object.keys(c.dump));
+  const dump = parseDump(r.stdout || "", keys);
+  const quit = r.status === 0 && !r.error && Object.keys(dump).length === 0;
+  const files = {};
+  for (const f of Object.keys(c.files || {})) {
+    const p = c.copyDir ? join(dir, "project", f) : join(dir, f);
+    files[f] = existsSync(p) ? readFileSync(p, "utf8") : undefined;
+  }
+  return { dump, quit, files };
 }
 
 // "name=value" lines, a value running on to the next "name=" line.
@@ -392,10 +508,16 @@ async function runWebPage(ctx, c, last) {
   try {
     const files = (c.webFiles || []).map((f) => ({ path: f, text: readFileSync(join(ROOT, f), "utf8") }));
     await page.addInitScript((files) => { window.RAPIDR_STUDIO_TEST_FILES = files; }, files);
+    // (what Studio writes to the page's store, kept for the test: the
+    // last text of each file)
+    await page.addInitScript(() => {
+      window.__rrWrites = {};
+      window.RAPIDR_FILE_SINK = (path, bytes) => { window.__rrWrites[path] = new TextDecoder().decode(bytes); };
+    });
     await page.addInitScript((env) => { window.RAPIDR_STUDIO_TEST = env; }, {
       RAPIDR_CAPTURE: "web",
       RAPIDR_CAPTURE_DELAY: String(c.delay),
-      RAPIDR_TEST_DUMP: Object.keys(c.webDump || c.dump).join(","),
+      RAPIDR_TEST_DUMP: [...Object.keys(c.webDump || c.dump), "studio.caption"].join(","),
       ...(c.events ? { RAPIDR_TEST_EVENTS: c.events } : {}),
       ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: c.folder } : {}),
     });
@@ -404,9 +526,19 @@ async function runWebPage(ctx, c, last) {
     if (c.do) q.set("do", c.do);
     if (c.open) q.set("open", c.open);
     await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
-    await page.waitForFunction(() => window.rr && window.rr.rapidr_test_results(), null, { timeout: Math.max(90000, c.delay * 1000 + 60000), polling: 200 });
-    const results = JSON.parse(await page.evaluate(() => window.rr.rapidr_test_results()));
-    return { dump: parseDump(results.dump.join("\n"), Object.keys(c.webDump || c.dump)), errors };
+    // (the test's end, or — Studio quit — the program's)
+    await page.waitForFunction(() => window.rr && (window.rr.rapidr_test_results() || window.rr.rapidr_main_done()), null, { timeout: Math.max(90000, c.delay * 1000 + 60000), polling: 200 });
+    const raw = await page.evaluate(() => window.rr.rapidr_test_results());
+    const quit = !raw && (await page.evaluate(() => window.rr.rapidr_main_done()));
+    const results = raw ? JSON.parse(raw) : { dump: [] };
+    const writes = await page.evaluate(() => window.__rrWrites);
+    const out = {};
+    for (const f of Object.keys(c.files || {})) {
+      const path = (c.webFiles || []).find((w) => w.endsWith("/" + f) || w === f);
+      const written = Object.entries(writes).find(([p]) => p.endsWith("/" + f) || p === f);
+      out[f] = written ? written[1] : path ? readFileSync(join(ROOT, path), "utf8") : undefined;
+    }
+    return { dump: parseDump(results.dump.join("\n"), [...Object.keys(c.webDump || c.dump), "studio.caption"]), quit, files: out, errors };
   } finally {
     await page.close();
     if (last) await ctx.close();
@@ -416,7 +548,19 @@ async function runWebPage(ctx, c, last) {
 mkdirSync(WORK, { recursive: true });
 const browser = await chromium.launch();
 let passed = 0, failed = 0;
-const check = (label, dump, c) => {
+const check = (label, run, c) => {
+  const dump = run.dump;
+  if (c.quit !== undefined || c.files) {
+    const ok = !!run.quit === !!c.quit;
+    ok ? passed++ : failed++;
+    console.log(`${ok ? "✓" : "✗"} ${c.name} (${label}): Studio ${c.quit ? "quit" : "stayed open"}${ok ? "" : ` (it ${run.quit ? "quit" : "didn't quit"})`}`);
+  }
+  for (const [f, re] of Object.entries(c.files || {})) {
+    const v = run.files[f];
+    const ok = v !== undefined && re.test(v.replace(/\r\n/g, "\n"));
+    ok ? passed++ : failed++;
+    console.log(`${ok ? "✓" : "✗"} ${c.name} (${label}): ${f} ${ok ? "" : `= ${JSON.stringify(v)} (wanted ${re})`}`);
+  }
   for (const [k, re] of Object.entries(c.dump)) {
     const v = dump[k];
     const ok = v !== undefined && re.test(v);
@@ -432,15 +576,59 @@ const check = (label, dump, c) => {
   }
 };
 for (const c of CASES.filter((c) => !filters.length || filters.some((f) => c.name.includes(f)))) {
-  check("desktop", runDesktop(c), c);
+  if (HOSTS.includes("desktop")) check("desktop", runDesktop(c), c);
+  if (!HOSTS.includes("web")) continue;
   try {
     const web = await runWeb(browser, c);
-    check("web", web.dump, c.webDump ? { ...c, dump: c.webDump } : c);
+    check("web", web, c.webDump ? { ...c, dump: c.webDump } : c);
     if (web.errors.length) console.log(`  (page errors: ${web.errors.join("; ")})`);
   } catch (e) {
     failed++;
     console.log(`✗ ${c.name} (web): ${e.message.split("\n")[0]}`);
   }
+}
+
+// (S-BUILD) The web page asks before it's left (the browser's own "Leave
+// site?": beforeunload) while a document has changes not saved —
+// Studio.Modified — and not once they're saved. The page is used for real
+// first (a click: browsers ask only on a page the user touched).
+async function beforeUnload(label, steps, want) {
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  try {
+    const files = SAVE_FILES.map((f) => ({ path: f, text: readFileSync(join(ROOT, f), "utf8") }));
+    await page.addInitScript((files) => {
+      window.RAPIDR_STUDIO_TEST_FILES = files;
+      // (no test script: Studio runs as the user's)
+      window.RAPIDR_STUDIO_TEST = {};
+      window.RAPIDR_FILE_SINK = () => {};
+    }, files);
+    const q = new URLSearchParams({ theme: "rapidr-light", window: "normal", fresh: "", do: steps, open: SAVE_FILES[0] });
+    await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.rr && /ONE x/.test(window.rr.rapidr_get_prop("codedoc(0)", "text")), null, { timeout: 60000, polling: 200 });
+    await page.waitForTimeout(1500);
+    const modified = await page.evaluate(() => window.rr.rapidr_get_prop("studio", "modified"));
+    await page.mouse.click(700, 300);
+    let asked = false;
+    page.on("dialog", async (d) => {
+      if (d.type() === "beforeunload") asked = true;
+      await d.dismiss();
+    });
+    await page.close({ runBeforeUnload: true });
+    await new Promise((r) => setTimeout(r, 1500));
+    const ok = asked === want;
+    ok ? passed++ : failed++;
+    console.log(`${ok ? "✓" : "✗"} beforeunload-${label} (web): leaving the page ${want ? "asks first" : "doesn't ask"}${ok ? "" : ` (asked: ${asked}, Studio.Modified = ${modified})`}`);
+  } catch (e) {
+    failed++;
+    console.log(`✗ beforeunload-${label} (web): ${e.message.split("\n")[0]}`);
+  } finally {
+    await ctx.close();
+  }
+}
+if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "beforeunload".includes(f)))) {
+  await beforeUnload("changed", 'wait,code:"ONE"=>"ONE x"', true);
+  await beforeUnload("saved", 'wait,code:"ONE"=>"ONE x",file.save', false);
 }
 await browser.close();
 console.log(`\nRapidR Studio flows: ${passed} checks passed, ${failed} failed`);

@@ -42,7 +42,7 @@ message names, or RapidR's components.
 
 **`'x' is an external DLL function (DECLARE ... LIB); the bytecode
 interpreter can't call DLLs yet`** — calls into your own libraries work
-in native builds (`rapidr build --release`).
+in native builds (`rapidr build`).
 
 **`RUSTSTART ... RUSTEND blocks only work in native builds`** — as it says.
 

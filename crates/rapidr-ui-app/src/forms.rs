@@ -398,6 +398,14 @@ pub fn begin_modal<R: Program + Windows>(rt: R, name: &str) {
     if rt.get(&name, "_center").to_i64() != 0 {
         let p = centered(rt, &name);
         push_op(WindowOp::Position(name.clone(), p));
+        // (its Left / Top too: a window made by the Show below takes them —
+        // the Position above only moves one that was made already)
+        applying(|| {
+            rt.quietly(&mut || {
+                rt.set(&name, "left", v_int(p.0));
+                rt.set(&name, "top", v_int(p.1));
+            })
+        });
     }
     if form_shown(&name) {
         push_op(WindowOp::Show(name.clone()));
@@ -466,6 +474,19 @@ pub fn apply_icons<P: Program>(p: P) {
     for f in built_forms() {
         apply_icon(p, &f);
     }
+}
+
+/// `Form.Modified` (RapidR's): its window says it has changes not saved.
+pub fn set_modified<P: Program>(p: P, name: &str) {
+    if is_form(p, name) {
+        push_op(WindowOp::Modified(lower(name), p.get(name, "modified").to_bool()));
+    }
+}
+
+/// Whether a window that shows has changes not saved (Form.Modified):
+/// what a page asks about before it's left.
+pub fn any_modified(desk: &crate::desktop::Desktop) -> bool {
+    desk.forms.values().any(|f| f.shown && f.spec.modified)
 }
 
 /// A caption: a form's is its window's title.

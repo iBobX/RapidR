@@ -41,6 +41,7 @@ properties = [
   { name = "FontColor", type = "color", origin = "rapidr" },
   { name = "Enabled", type = "int", default = true },
   { name = "HelpFile", type = "string", origin = "rapidr" },
+  { name = "Modified", type = "bool", default = false, design = false, origin = "rapidr", doc = "True while what the window shows has changes not saved: macOS draws a dot in its close button, and in a browser leaving the page (closing the tab, reloading) asks first, with the browser's own question. Set it when a document changes, False again once it is saved." },
   { name = "PenColor", type = "color", origin = "rapidr" },
   { name = "BrushColor", type = "color", origin = "rapidr" },
   { name = "FontName", type = "string", origin = "rapidr" },

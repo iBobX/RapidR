@@ -385,7 +385,9 @@ def rapidr_native(p, base):
     env = run_env(base)
     target = os.path.join(ROOT, "tests", "conformance", ".work", "cargo-target")
     env["CARGO_TARGET_DIR"] = target
-    code, out, err = run([RAPIDR, "build", p["staged"], os.path.join(base, "native", p["name"]), "--no-bundle"], d, env, None, 900)
+    env["RAPIDR_BUILD_CACHE"] = os.path.join(ROOT, "tests", "conformance", ".work", "build-cache")
+    # (a debug build, quick to compile, beside the staged program)
+    code, out, err = run([RAPIDR, "build", p["staged"], d, "--no-bundle", "--debug"], d, env, None, 900)
     exe = os.path.join(d, p["name"] + EXE)
     if code != 0 or not os.path.exists(exe):
         drop_build(target, p["name"])
@@ -394,7 +396,6 @@ def rapidr_native(p, base):
     code, out, err = run([exe], d, env, stdin if os.path.exists(stdin) else None, 20)
     os.remove(exe)
     drop_build(target, p["name"])
-    shutil.rmtree(os.path.join(base, "native", p["name"]), ignore_errors=True)
     return ("ran" if code == 0 else f"exit {code} {err.strip()[:200]}"), out
 
 

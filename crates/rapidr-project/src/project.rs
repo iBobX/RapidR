@@ -102,8 +102,29 @@ pub struct Build {
     pub theme: String,
     /// What to build: `native`, `bytecode`, `web`, ...
     pub targets: Vec<String>,
-    /// Build optimized (release) rather than for debugging.
-    pub release: bool,
+    /// Where the app goes (a project path); empty = [`DEFAULT_OUTPUT`].
+    /// (`rapidr build` and Studio's Build make release builds: optimized,
+    /// what is shipped. Run in Studio is the one for debugging.)
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub output: String,
+    /// A native build also leaves the Rust RapidR generated beside the app
+    /// (`<program>-rust-source`); by default it's deleted.
+    #[serde(skip_serializing_if = "is_false")]
+    pub keep_rust: bool,
+}
+
+/// A project's output folder when it names none: `build`, in its folder.
+pub const DEFAULT_OUTPUT: &str = "build";
+
+fn is_false(b: &bool) -> bool {
+    !*b
+}
+
+impl Build {
+    /// The output folder (a project path): its own, else `build`.
+    pub fn output_folder(&self) -> &str {
+        if self.output.trim().is_empty() { DEFAULT_OUTPUT } else { self.output.trim() }
+    }
 }
 
 /// `[run]`: how the IDE runs the program.
@@ -736,7 +757,8 @@ mod tests {
         p.build.version = "2.1".into();
         p.build.company = "Example Ltd".into();
         p.build.targets = vec!["native".into(), "web".into()];
-        p.build.release = true;
+        p.build.output = "dist/app".into();
+        p.build.keep_rust = true;
         p.run.args = vec!["-v".into(), "a b".into()];
         p.run.cwd = "data".into();
         p.run.separate_windows = true;
@@ -814,7 +836,7 @@ mod tests {
             FileKind::Resource,
             "kind from extension"
         );
-        assert!(p.build.release);
+        assert_eq!(p.build, Build::default(), "release = true (format 2's first files): every build is a release build now");
     }
 
     #[test]

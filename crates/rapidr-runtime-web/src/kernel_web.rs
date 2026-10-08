@@ -610,6 +610,7 @@ impl Windows for Web {
             icon: None,
             frame: rapidr_ui_app::desktop::Frame { resizable: false, close: true, minimize: false, maximize: false },
             state: 0,
+            modified: false,
         };
         host::with(|hst, store| {
             hst.desk.ensure_form(store, id, false, spec);
@@ -865,6 +866,10 @@ pub fn set_prop(name: &str, prop: &str, val: &Value) {
         "left" | "top" | "width" | "height" => forms::apply_geometry(Web, name),
         "borderstyle" if is_form => forms::set_form_border(Web, name),
         "icon" | "icohandle" if is_form => forms::apply_icon(Web, name),
+        "modified" if is_form => {
+            ask_before_leaving();
+            forms::set_modified(Web, name);
+        }
         "windowstate" if is_form => {
             let now = val.to_i64();
             let from = STATES.with(|s| s.borrow_mut().insert(lower(name), now)).unwrap_or(rapidr_value::window_state::WS_NORMAL);
@@ -875,6 +880,29 @@ pub fn set_prop(name: &str, prop: &str, val: &Value) {
         _ => invalidate(),
     }
     schedule();
+}
+
+/// The page asks before it's left (closed, reloaded, navigated away) while
+/// a window that shows has changes not saved (Form.Modified): the
+/// browser's own "Leave site?" (`beforeunload`; a page can't word it).
+/// The listener is added the first time a form says it has changes.
+fn ask_before_leaving() {
+    thread_local! {
+        static ADDED: Cell<bool> = const { Cell::new(false) };
+    }
+    if ADDED.with(|a| a.replace(true)) {
+        return;
+    }
+    let Some(w) = web_sys::window() else { return };
+    let cb = wasm_bindgen::closure::Closure::<dyn FnMut(web_sys::Event)>::new(move |e: web_sys::Event| {
+        let modified = host::with(|h, _| forms::any_modified(&h.desk)).unwrap_or(false);
+        if modified {
+            e.prevent_default();
+            let _ = js_sys::Reflect::set(&e, &"returnValue".into(), &"".into());
+        }
+    });
+    let _ = w.add_event_listener_with_callback("beforeunload", cb.as_ref().unchecked_ref());
+    cb.forget();
 }
 
 /// What only the GUI knows of a property: a form's Visible is whether its

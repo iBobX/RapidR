@@ -99,7 +99,7 @@ PRINT "Hi from "; name
 ```sh
 rapidr run hello.bas                   # run it (the RapidR Runtime)
 rapidr build hello.bas --interp        # a standalone executable, no Rust needed
-rapidr build hello.bas --release       # a native executable (Rust: rapidr setup)
+rapidr build hello.bas                 # a native executable, optimized (Rust: rapidr setup)
 rapidr bundle-bc hello.bas -o hello-web.zip   # a web bundle for any static host
 ```
 

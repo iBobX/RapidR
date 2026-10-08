@@ -21,6 +21,7 @@
 '   designer.inc   the form designer: the code it edits, its commands
 '   project.inc    the project, running it, settings
 '   build.inc      Build (the app for this system), Reveal, the app's settings
+'   prompts.inc    Save / Don't Save / Cancel before changes would be lost
 '   chrome.inc     the look in the current theme, the status bar
 '   preview.inc    "Preview in Classic": Run and the designer in RapidQ's look
 '   search.inc     Find in Files (Ctrl+Shift+F), the Help pane (F1)
@@ -39,6 +40,7 @@ $INCLUDE "documents.inc"
 $INCLUDE "designer.inc"
 $INCLUDE "project.inc"
 $INCLUDE "build.inc"
+$INCLUDE "prompts.inc"
 $INCLUDE "chrome.inc"
 $INCLUDE "search.inc"
 $INCLUDE "workspace.inc"

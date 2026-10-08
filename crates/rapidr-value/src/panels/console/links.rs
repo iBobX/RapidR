@@ -45,6 +45,20 @@ fn number(chars: &[char], at: usize) -> Option<(i64, usize)> {
     Some((n.parse().ok()?, j))
 }
 
+/// A screen line's links: its hyperlinks (OSC 8: `file` the URI, line 0),
+/// and the places its text names outside them, in order.
+pub fn of_line(line: &super::screen::Line) -> Vec<Link> {
+    let mut out: Vec<Link> = line.links().iter().map(|(start, end, uri)| Link { start: *start, end: *end, file: uri.clone(), line: 0, col: 0 }).collect();
+    let hyper = out.len();
+    for l in find(line.text()) {
+        if !out[..hyper].iter().any(|h| l.start < h.end && h.start < l.end) {
+            out.push(l);
+        }
+    }
+    out.sort_by_key(|l| l.start);
+    out
+}
+
 /// The links in `text`, in order.
 pub fn find(text: &str) -> Vec<Link> {
     let chars: Vec<char> = text.chars().collect();

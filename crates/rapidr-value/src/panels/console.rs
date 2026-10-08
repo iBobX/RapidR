@@ -449,11 +449,16 @@ impl Console {
         (!lines.is_empty()).then(|| lines.join("\n"))
     }
 
+    /// The links on page `p`'s line `i` (from 0): its hyperlinks and the
+    /// places its text names (none on the Problems page: its rows are).
+    pub fn links_of(&self, p: Page, i: usize) -> Vec<links::Link> {
+        self.screen(p).and_then(|s| s.line(i)).map(links::of_line).unwrap_or_default()
+    }
+
     /// The link at absolute line `line`, character `at` of the shown page.
     pub fn link_at(&self, line: u64, at: usize) -> Option<(links::Link, Match)> {
         let i = line.checked_sub(self.first(self.page))? as usize;
-        let text = self.line_text(self.page, i)?;
-        links::find(&text).into_iter().find(|l| (l.start..l.end).contains(&at)).map(|l| {
+        self.links_of(self.page, i).into_iter().find(|l| (l.start..l.end).contains(&at)).map(|l| {
             let m = Match { line, start: l.start, end: l.end };
             (l, m)
         })
@@ -662,6 +667,14 @@ mod tests {
         assert_eq!((l.file.as_str(), l.line), ("Main.rr", 12));
         assert_eq!((m.start, m.end), (4, 14));
         assert!(c.link_at(1, 1).is_none());
+        // (a hyperlink on the build page — Studio's "Reveal in Finder" —
+        // and a place after it on the same line)
+        c.add_build_line("Built. \x1b]8;;reveal:/x/Notes.app\x1b\\Reveal in Finder\x1b]8;;\x1b\\ or main.rr:3");
+        c.show(Page::Build);
+        let (l, m) = c.link_at(c.first(Page::Build), 9).unwrap();
+        assert_eq!((l.file.as_str(), l.line, m.start, m.end), ("reveal:/x/Notes.app", 0, 7, 23));
+        let links = c.links_of(Page::Build, 0);
+        assert_eq!(links.iter().map(|l| l.file.as_str()).collect::<Vec<_>>(), ["reveal:/x/Notes.app", "main.rr"]);
     }
 
     #[test]

@@ -244,11 +244,12 @@ function runDesktop(c, runtime) {
   }
   const native = runtime === "native";
   const out = join(work, `${stem}-${runtime}`);
-  const build = spawn(RAPIDR, ["build", src, out, "--no-bundle", ...(native ? [] : ["--interp"])], {
-    cwd: work, env: env({ CARGO_TARGET_DIR: CARGO_TARGET }), timeout: 1800000,
+  // (a native build: debug, quick to compile; either kind's executable in
+  // the output folder)
+  const build = spawn(RAPIDR, ["build", src, out, "--no-bundle", ...(native ? ["--debug"] : ["--interp"])], {
+    cwd: work, env: env({ CARGO_TARGET_DIR: CARGO_TARGET, RAPIDR_BUILD_CACHE: join(dirname(CARGO_TARGET), "build-cache") }), timeout: 1800000,
   });
-  // (a native build copies the executable next to the source)
-  const exe = native ? join(work, `${stem}${EXE}`) : join(out, `${stem}${EXE}`);
+  const exe = join(out, `${stem}${EXE}`);
   let r;
   if (!build.ok || !existsSync(exe)) r = { out: build.out.split("\n").filter((l) => /^error|error:/.test(l)).slice(0, 8).join("\n") || build.out.slice(-800), ok: false, why: ` (build failed${build.why})` };
   else r = spawn(exe, args(c), runOpts);

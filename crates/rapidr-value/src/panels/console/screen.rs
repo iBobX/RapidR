@@ -13,6 +13,11 @@
 //! - `ESC[K` erases from the cursor to the line's end;
 //! - `ESC[…m` sets the colours: 30–37 / 90–97 the text's, 40–47 / 100–107
 //!   the background's, 39 / 49 / 0 back to the theme's;
+//! - `ESC]8;;URI ESC\ text ESC]8;; ESC\` (OSC 8, terminals' hyperlinks;
+//!   BEL ends one too) makes `text` a link to URI: the console shows it as
+//!   a link and clicking it gives OnLinkClick the URI (RapidR Studio's
+//!   build log: "Reveal in Finder"); other OSC sequences (a window title)
+//!   are dropped whole;
 //! - `\r` goes to the line's start, `\n` down a line, a tab to the next
 //!   column of 8, a backspace one back; an escape split across writes waits
 //!   for its end;
@@ -45,6 +50,8 @@ pub struct Line {
     /// Its length in characters.
     len: usize,
     runs: Vec<(usize, Attr)>,
+    /// Its hyperlinks (OSC 8): first character, past the last, the URI.
+    links: Vec<(usize, usize, String)>,
 }
 
 impl Line {
@@ -68,6 +75,11 @@ impl Line {
 
     pub fn is_empty(&self) -> bool {
         self.len == 0
+    }
+
+    /// Its hyperlinks (OSC 8): (first character, past the last, URI).
+    pub fn links(&self) -> &[(usize, usize, String)] {
+        &self.links
     }
 
     /// Its runs of one colour: (first character, past the last, colours).
@@ -115,6 +127,18 @@ impl Line {
         self.set_cells(&cells[..col]);
     }
 
+    /// Characters `start..end` a link to `uri` (what was linked there
+    /// before is cut out of it).
+    fn link(&mut self, start: usize, end: usize, uri: &str) {
+        let end = end.min(self.len);
+        if start >= end {
+            return;
+        }
+        self.links.retain(|(a, b, _)| *b <= start || *a >= end);
+        self.links.push((start, end, uri.to_string()));
+        self.links.sort_by_key(|l| l.0);
+    }
+
     fn cells(&self) -> Vec<(char, Attr)> {
         let mut out = Vec::with_capacity(self.len);
         for (start, end, attr) in self.spans() {
@@ -124,10 +148,17 @@ impl Line {
     }
 
     fn set_cells(&mut self, cells: &[(char, Attr)]) {
+        // (the links stay where they were, cut to the new length)
+        let mut links = std::mem::take(&mut self.links);
         *self = Line::default();
         for &(c, a) in cells {
             self.push(c, a);
         }
+        links.retain_mut(|l| {
+            l.1 = l.1.min(self.len);
+            l.0 < l.1
+        });
+        self.links = links;
     }
 }
 
@@ -141,6 +172,9 @@ pub struct Screen {
     attr: Attr,
     /// An escape sequence split across writes.
     pending: String,
+    /// An open hyperlink (OSC 8): its URI, and where it started (line,
+    /// column).
+    link: Option<(String, usize, usize)>,
     /// The most lines kept (MaxLines).
     pub max: usize,
     /// How many lines went (past `max`, or cleared): line `i` of the
@@ -159,7 +193,7 @@ impl Default for Screen {
 
 impl Screen {
     pub fn new(max: usize) -> Screen {
-        Screen { lines: VecDeque::new(), row: 0, col: 0, attr: Attr::default(), pending: String::new(), max: max.max(1), first: 0, rev: 0 }
+        Screen { lines: VecDeque::new(), row: 0, col: 0, attr: Attr::default(), pending: String::new(), link: None, max: max.max(1), first: 0, rev: 0 }
     }
 
     pub fn len(&self) -> usize {
@@ -200,6 +234,7 @@ impl Screen {
         self.col = 0;
         self.attr = Attr::default();
         self.pending.clear();
+        self.link = None;
         self.rev += 1;
     }
 
@@ -226,6 +261,30 @@ impl Screen {
                         self.pending = s[i..].iter().collect();
                         break;
                     };
+                    if next == ']' {
+                        // (an OSC: up to BEL or ESC \)
+                        let mut j = i + 2;
+                        let mut end = None;
+                        while j < s.len() {
+                            if s[j] == '\x07' {
+                                end = Some(j + 1);
+                                break;
+                            }
+                            if s[j] == '\x1b' && s.get(j + 1) == Some(&'\\') {
+                                end = Some(j + 2);
+                                break;
+                            }
+                            j += 1;
+                        }
+                        let Some(end) = end else {
+                            self.pending = s[i..].iter().collect();
+                            break;
+                        };
+                        let body: String = s[i + 2..j].iter().collect();
+                        self.osc(&body);
+                        i = end;
+                        continue;
+                    }
                     if next != '[' {
                         // (not a CSI: the escape alone is dropped)
                         i += 1;
@@ -277,6 +336,26 @@ impl Screen {
         self.col += 1;
     }
 
+    /// An OSC sequence: OSC 8's hyperlinks (`8;params;URI`, an empty URI
+    /// ends the link); the others (a title) do nothing.
+    fn osc(&mut self, body: &str) {
+        let mut parts = body.splitn(3, ';');
+        if parts.next() != Some("8") {
+            return;
+        }
+        let uri = parts.nth(1).unwrap_or("");
+        // (the link open until now: the text written on its line since)
+        if let Some((open, row, col)) = self.link.take() {
+            let end = if self.row == row { self.col } else { usize::MAX };
+            if let Some(line) = self.lines.get_mut(row) {
+                line.link(col, end, &open);
+            }
+        }
+        if !uri.is_empty() {
+            self.link = Some((uri.to_string(), self.row, self.col));
+        }
+    }
+
     fn csi(&mut self, params: &str, fin: char) {
         let nums: Vec<Option<i64>> = params.split(';').map(|p| p.trim().parse::<i64>().ok()).collect();
         let n = |k: usize| nums.get(k).copied().flatten();
@@ -323,6 +402,9 @@ impl Screen {
         self.lines.drain(..drop);
         self.first += drop as u64;
         self.row = self.row.saturating_sub(drop);
+        if let Some(l) = self.link.as_mut() {
+            l.1 = l.1.saturating_sub(drop);
+        }
     }
 }
 
@@ -424,6 +506,25 @@ mod tests {
         s.set_max(1);
         assert_eq!(s.text(), "more");
         assert_eq!(s.first, 5);
+    }
+
+    #[test]
+    fn hyperlinks() {
+        // OSC 8, ended by ESC \ and by BEL; a title's OSC dropped whole
+        let s = screen(&["Built. \x1b]8;;reveal:/x/Notes.app\x1b\\Reveal in Finder\x1b]8;;\x1b\\ done\n\x1b]0;a title\x07next \x1b]8;id=1;https://rapidr.dev\x07site\x1b]8;;\x07"]);
+        assert_eq!(s.text(), "Built. Reveal in Finder done\nnext site");
+        assert_eq!(s.line(0).unwrap().links(), [(7, 23, "reveal:/x/Notes.app".to_string())]);
+        assert_eq!(s.line(1).unwrap().links(), [(5, 9, "https://rapidr.dev".to_string())]);
+        // (split across writes; written over: the link stays where it was)
+        let mut s = screen(&["\x1b]8;;a", "b\x1b\\", "link", "\x1b]8;;\x1b", "\\ after"]);
+        assert_eq!(s.line(0).unwrap().links(), [(0, 4, "ab".to_string())]);
+        s.write("\rL");
+        assert_eq!(s.text(), "Link after");
+        assert_eq!(s.line(0).unwrap().links(), [(0, 4, "ab".to_string())]);
+        // (a link never closed is none: its end says where it ends)
+        let s = screen(&["x \x1b]8;;u\x1b\\open\nnext"]);
+        assert_eq!(s.line(0).unwrap().links(), []);
+        assert_eq!(s.text(), "x open\nnext");
     }
 
     #[test]

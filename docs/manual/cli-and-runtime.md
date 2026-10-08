@@ -28,8 +28,10 @@ One command, `rapidr`, is the compiler, the build tool and the runtime.
 ```sh
 rapidr build prog.bas --interp             # standalone, the interpreter inside
 rapidr build prog.bas --interp --target windows-x86_64
-rapidr build prog.bas --release            # native
-rapidr build prog.bas                      # native, debug (quicker to build)
+rapidr build prog.bas                      # native: a release build, optimized
+rapidr build prog.bas --debug              # native, for debugging (quicker to build)
+rapidr build prog.bas dist                 # the app in dist/
+rapidr build prog.bas --keep-rust          # and the generated Rust in prog-rust-source/
 rapidr build prog.bas --web                # native code for the browser
 rapidr build prog.bas --web --interp       # web bundle: prog-web.zip
 ```
@@ -37,17 +39,21 @@ rapidr build prog.bas --web --interp       # web bundle: prog-web.zip
 | Flag | |
 |---|---|
 | `--interp`, `-i` | the bytecode interpreter: no Rust needed |
-| `--release`, `-r` / `--debug`, `-d` | native builds: optimized / quick (the default for `build`; the bare `rapidr prog.bas` shortcut is optimized) |
+| `--release`, `-r` / `--debug`, `-d` | optimized, what you ship (the default) / quick to compile, for debugging |
+| `[output folder]`, `--output <folder>`, `-o <folder>` | where the app goes: else the project's output folder (`build`), else the source's folder |
+| `--keep-rust` / `--no-keep-rust` | a native build also leaves the Rust it generated in `<output>/prog-rust-source/` (with a README) / deletes it (the default; a project's `keep_rust` says otherwise) |
 | `--web`, `-w` | for the browser (also when the program says `$APPTYPE WEB`) |
 | `--icon`, `--name`, `--bundle-id`, `--app-version`, `--company`, `--project`, `--bundle` / `--no-bundle`, `-g<icon>` | the app it becomes and its icon: [Building apps and their icons](building-apps.md) |
 | `--target <os>-<arch>` | an interpreted build for another architecture, from the runners the SDK ships: on Windows `windows-x86_64` and `windows-aarch64`; on macOS `macos` (universal, the default), `macos-arm64`, `macos-x86_64`; on Linux the machine's own (`linux-x86_64` or `linux-aarch64`). A source checkout builds the runner it needs with cargo |
 
-Where things go (beside the source unless you name an output folder):
+Where things go — the output folder: the one you name, else the project's
+(`[build] output`, `build` by default) when the program has a `.rrproj`, else
+the source's own folder (RapidQ's way). It gets only what you ship:
 
 | Build | Output |
 |---|---|
 | `--interp` | `prog` (`prog.exe` on Windows) — on macOS universal (Apple silicon and Intel) by default; a program with windows becomes `prog.app` (macOS) or `prog.AppDir` (Linux), and every `.exe` gets its icon ([Building apps](building-apps.md)) |
-| native | the same, and the generated Rust project in `prog_rust/` |
+| native | the same (the generated Rust and cargo's files stay in the build cache: below) |
 | `--web` | `prog_web/`: `index.html`, the program's `.wasm` and `.js` |
 | `--web --interp`, `bundle-bc` | `prog-web.zip` |
 
@@ -70,11 +76,20 @@ A native build translates the program to Rust and compiles it with cargo:
   needed, and programs need no DLL beside them. `RAPIDR_TOOLCHAIN=msvc`
   (with `rapidr setup --toolchain msvc`) uses Microsoft's toolchain
   instead.
-- macOS: `--release` builds both Apple silicon and Intel and joins them
-  when Rust has both targets (`rapidr setup` adds them); a debug build is
-  this Mac's architecture only.
-- Builds honour `CARGO_TARGET_DIR`. A native build of the full runtime
-  takes a few minutes the first time; later ones reuse it.
+- macOS: a release build has both Apple silicon and Intel joined in one
+  executable when Rust has both targets (`rapidr setup` adds them); a debug
+  build is this Mac's architecture only.
+- Where a build happens: the build cache, outside the output folder —
+  `~/Library/Caches/RapidR/build` (macOS), `%LOCALAPPDATA%\RapidR\Cache\build`
+  (Windows), `$XDG_CACHE_HOME/rapidr/build` or `~/.cache/rapidr/build`
+  (Linux), or `RAPIDR_BUILD_CACHE`. The Rust generated for the program is
+  written there and deleted after the build (`--keep-rust` copies it beside
+  the app first); cargo's target folder there is shared by every program,
+  so RapidR's runtime compiles once (a few minutes) and later builds take
+  seconds; each program's own files in it are removed once its app is made.
+  Another RapidR version gets its own; one unused for 30 days is removed.
+  The whole cache is safe to delete. `CARGO_TARGET_DIR` names another
+  target folder.
 
 ## The RapidR Runtime
 

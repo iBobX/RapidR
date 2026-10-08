@@ -76,6 +76,8 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "version" => Value::String(m.project.build.version.clone()),
             "company" => Value::String(m.project.build.company.clone()),
             "buildkind" => Value::String(build_kind(&m.project).to_string()),
+            "outputfolder" => Value::String(m.project.build.output.clone()),
+            "keeprust" => flag(m.project.build.keep_rust),
             "building" => flag(crate::build::building(name)),
             "builtpath" => Value::String(m.built.clone()),
             // (Reveal's: what the system calls its file manager)
@@ -106,6 +108,8 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             "bundleid" => m.project.build.bundle_id = v.to_string_val().trim().to_string(),
             "version" => m.project.build.version = v.to_string_val().trim().to_string(),
             "company" => m.project.build.company = v.to_string_val().trim().to_string(),
+            "outputfolder" => m.project.build.output = project_path(&m.folder, v.to_string_val().trim()),
+            "keeprust" => m.project.build.keep_rust = v.to_i64() != 0 || v.to_string_val().eq_ignore_ascii_case("true"),
             "buildkind" => {
                 let kind = if v.to_string_val().trim().eq_ignore_ascii_case("interpreted") { "bytecode" } else { "native" };
                 m.project.build.targets.retain(|t| !matches!(t.to_ascii_lowercase().as_str(), "native" | "bytecode" | "interpreted" | "interp"));
@@ -258,10 +262,13 @@ fn build_args(name: &str, kind: &str) -> Result<(Vec<String>, String), String> {
         if m.kind.is_empty() {
             return Err("no project is open".to_string());
         }
-        let main = join(&m.folder, &m.project.main);
+        // (in full: the build runs in the project's folder, and Studio may
+        // have opened it by a relative path)
+        let folder = full(&m.folder);
+        let main = join(&folder, &m.project.main);
         let mut args = vec!["build".to_string(), main];
         if m.kind == "project" && !m.file_name.is_empty() {
-            args.extend(["--project".to_string(), m.file_name.clone()]);
+            args.extend(["--project".to_string(), full(&m.file_name)]);
         }
         let b = &m.project.build;
         let mut put = |flag: &str, v: &str| {
@@ -274,14 +281,28 @@ fn build_args(name: &str, kind: &str) -> Result<(Vec<String>, String), String> {
         put("--app-version", &b.version);
         put("--company", &b.company);
         if !b.icon.trim().is_empty() {
-            put("--icon", &join(&m.folder, &b.icon));
+            put("--icon", &join(&folder, &b.icon));
         }
         let kind = if kind.is_empty() { build_kind(&m.project) } else { kind };
         if kind.eq_ignore_ascii_case("interpreted") {
             args.push("--interp".into());
         }
-        Ok((args, m.folder.clone()))
+        // (the app in the project's output folder, `build` by default, a
+        // single file's project too; its generated Rust kept or not)
+        args.extend(["--output".to_string(), join(&folder, b.output_folder())]);
+        args.push(if b.keep_rust { "--keep-rust" } else { "--no-keep-rust" }.to_string());
+        Ok((args, folder))
     })
+}
+
+/// A path in full (relative ones from the current folder); as it is where
+/// there is no file system (the web).
+fn full(path: &str) -> String {
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Ok(p) = std::path::absolute(path) {
+        return slashes(&p.to_string_lossy());
+    }
+    path.to_string()
 }
 
 /// The project's icon (its own, else RapidR's default for programs) as a
@@ -470,10 +491,18 @@ mod tests {
         let (args, cwd) = build_args("p1", "").unwrap();
         assert_eq!(cwd, d);
         assert_eq!(args[..2], ["build".to_string(), format!("{d}/main.bas")]);
-        for want in ["--project", "--name", "Main App", "--app-version", "2.0", "--icon", &format!("{d}/art/app.svg"), "--interp"] {
+        for want in ["--project", "--name", "Main App", "--app-version", "2.0", "--icon", &format!("{d}/art/app.svg"), "--interp", "--output", &format!("{d}/build"), "--no-keep-rust"] {
             assert!(args.iter().any(|a| a == want), "{want}: {args:?}");
         }
         assert!(!build_args("p1", "native").unwrap().0.contains(&"--interp".to_string()));
+        // (the output folder and the Rust source: the project's)
+        set("outputfolder", &format!("{d}/dist/mac"));
+        assert!(super::set("p1", "keeprust", &Value::Integer(-1)));
+        assert_eq!((get("outputfolder"), get("keeprust")), ("dist/mac".into(), "1".into()));
+        let args = build_args("p1", "").unwrap().0;
+        assert!(args.windows(2).any(|w| w[0] == "--output" && w[1] == format!("{d}/dist/mac")) && args.contains(&"--keep-rust".to_string()), "{args:?}");
+        set("outputfolder", "");
+        assert!(super::set("p1", "keeprust", &Value::Integer(0)));
         // (no icon file yet: Error says so; RapidR's default draws)
         assert_eq!(call("iconpreview", &[Value::Integer(64)]).to_string_val(), "");
         assert!(!get("error").is_empty());
