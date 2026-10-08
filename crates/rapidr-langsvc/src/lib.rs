@@ -56,6 +56,12 @@ pub struct Options {
     /// Automatic case of the language's words and the program's names
     /// (on typing and in formatting).
     pub case: CaseOptions,
+    /// Confined to these folders (the language server's workspace and the
+    /// folders of the files the editor opened; docs/security-audit.md
+    /// SEC-18): a file elsewhere is never read from the disk — not as a
+    /// document asked about, not as an `$INCLUDE`. `None`: no confinement
+    /// (RapidR Studio, which opens a project's own files).
+    pub roots: Option<Vec<PathBuf>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -270,13 +276,39 @@ impl Analysis {
         self.diagnostics.clear();
     }
 
-    /// The text of a file: the editor's, else the disk's.
+    /// The text of a file: the editor's, else the disk's (inside the
+    /// roots, when confined).
     pub fn text(&self, file: &Path) -> Option<String> {
-        self.docs.get(file).cloned().or_else(|| rapidr_preprocessor::read_source(file).ok())
+        self.docs.get(file).cloned().or_else(|| self.readable(file).then(|| rapidr_preprocessor::read_source(file).ok()).flatten())
+    }
+
+    /// Whether `file` may be read from the disk ([`Options::roots`]).
+    pub fn readable(&self, file: &Path) -> bool {
+        self.options.roots.as_ref().is_none_or(|roots| rapidr_preprocessor::is_within(file, roots))
+    }
+
+    /// The folders the analysis may read from now on (confined: see
+    /// [`Options::roots`]).
+    pub fn set_roots(&mut self, roots: Vec<PathBuf>) {
+        if self.options.roots.as_ref() != Some(&roots) {
+            self.options.roots = Some(roots);
+            self.snapshots.clear();
+            self.diagnostics.clear();
+        }
     }
 
     fn preprocess_options(&self) -> rapidr_preprocessor::PreprocessOptions {
-        rapidr_preprocessor::PreprocessOptions { include_dirs: self.options.include_dirs.clone(), ..Default::default() }
+        // (confined: the roots, and the include folders the editor and the
+        // environment name — RapidQ's include\ — are readable)
+        let confine_to = self.options.roots.as_ref().map(|roots| {
+            let mut all = roots.clone();
+            all.extend(self.options.include_dirs.iter().cloned());
+            if let Some(paths) = std::env::var_os("RAPIDR_INCLUDE_PATH") {
+                all.extend(std::env::split_paths(&paths));
+            }
+            all
+        });
+        rapidr_preprocessor::PreprocessOptions { include_dirs: self.options.include_dirs.clone(), confine_to, ..Default::default() }
     }
 
     /// The analysis `file` is answered from: the program it is the main

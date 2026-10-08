@@ -91,7 +91,7 @@ fn main() -> ExitCode {
                     _ => {}
                 }
             }
-            return build_source_file(&file, None, release, web, interp, None);
+            return build_source_file(&file, None, release, web, interp, None, None);
         }
     }
 
@@ -136,10 +136,12 @@ fn main() -> ExitCode {
             let mut web = false;
             let mut interp = false;
             let mut target = None;
+            let mut csp = None;
             let mut iter = rest.iter();
             while let Some(arg) = iter.next() {
                 match arg.as_str() {
                     "--target" => target = iter.next().cloned(),
+                    "--csp" => csp = iter.next().cloned(),
                     "--release" | "-r" => release = Some(true),
                     "--debug" | "-d" => release = Some(false),
                     "--web" | "-w" => web = true,
@@ -163,7 +165,11 @@ fn main() -> ExitCode {
                 eprintln!("--target: only interpreted builds (--interp) pick a target; native builds are for this machine");
                 return ExitCode::from(2);
             }
-            build_source_file(&path, output_dir, release.unwrap_or(interp), web, interp, target)
+            if csp.is_some() && !web {
+                eprintln!("--csp: only web builds (--web) have a Content-Security-Policy");
+                return ExitCode::from(2);
+            }
+            build_source_file(&path, output_dir, release.unwrap_or(interp), web, interp, target, csp)
         }
         (Some("build-bc"), Some(path)) => {
             let mut out: Option<String> = None;
@@ -181,16 +187,18 @@ fn main() -> ExitCode {
             let mut out: Option<String> = None;
             let mut wasm: Option<String> = None;
             let mut js: Option<String> = None;
+            let mut csp: Option<String> = None;
             let mut iter = rest.iter();
             while let Some(a) = iter.next() {
                 match a.as_str() {
                     "-o" | "--output" => { out = iter.next().cloned(); }
                     "--wasm" => { wasm = iter.next().cloned(); }
                     "--js" => { js = iter.next().cloned(); }
+                    "--csp" => { csp = iter.next().cloned(); }
                     _ => {}
                 }
             }
-            bundle_bc_file(&path, out, wasm, js)
+            bundle_bc_file(&path, out, wasm, js, csp.as_deref())
         }
         _ => {
             eprintln!("Usage:");
@@ -215,9 +223,10 @@ fn main() -> ExitCode {
             eprintln!("  rapidr lex <file.rr>");
             eprintln!("  rapidr codegen <file.rr> [output_dir]");
             eprintln!("  rapidr build <file.rr> [output_dir] [--release|-r] [--debug|-d] [--web|-w] [--interp|-i] [--target <os>-<arch>]");
+            eprintln!("        [--csp \"connect-src https://api.example.com; …\"]  (web) sources the page's Content-Security-Policy adds");
             eprintln!("  rapidr build-bc <file.rr> [-o out.rrbc]          Compile to bytecode");
             eprintln!("  rapidr run-bc <file.rrbc> [args]                 Run bytecode (stub host)");
-            eprintln!("  rapidr bundle-bc <file.rr> [-o out.zip]          Build static web bundle");
+            eprintln!("  rapidr bundle-bc <file.rr> [-o out.zip] [--csp …]  Build static web bundle");
             eprintln!("        [--wasm rapidrintr.wasm] [--js rapidrintr.js]");
             ExitCode::from(2)
         }
@@ -419,6 +428,7 @@ fn build_source_file(
     web: bool,
     interp: bool,
     target: Option<String>,
+    csp: Option<String>,
 ) -> ExitCode {
     // Detect web target from $APPTYPE or --web flag
     let app_type = preprocess_file(path, PreprocessOptions::default())
@@ -438,7 +448,7 @@ fn build_source_file(
     if interp {
         // Bytecode pipeline: skip Rust codegen entirely.
         return if is_web {
-            build_interp_web(path, output_dir)
+            build_interp_web(path, output_dir, csp.as_deref())
         } else {
             build_interp_desktop(path, output_dir, release, target)
         };
@@ -463,7 +473,7 @@ fn build_source_file(
     };
 
     if is_web {
-        build_web(path, &out_dir, stem, release)
+        build_web(path, &out_dir, stem, release, csp.as_deref())
     } else {
         build_desktop(path, &out_dir, stem, release)
     }
@@ -606,9 +616,16 @@ fn cargo_for_programs() -> Result<process::Command, String> {
     Ok(cargo)
 }
 
-fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitCode {
+fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool, csp: Option<&str>) -> ExitCode {
     let source_path = Path::new(path);
     let profile = if release { "release" } else { "debug" };
+    let needs = match web_needs(path, csp) {
+        Ok(n) => n,
+        Err(e) => {
+            eprintln!("{e}");
+            return ExitCode::from(2);
+        }
+    };
 
     // Step 1: Compile with cargo for wasm32-unknown-unknown
     println!("\nBuilding WASM ({profile})...");
@@ -708,11 +725,13 @@ fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitCode 
             println!("  - {}", name);
         }
     }
-    let html = generate_html_shell(stem, &wasm_module, &assets);
-    if let Err(e) = fs::write(web_out.join("index.html"), &html) {
-        eprintln!("Cannot write index.html: {e}");
-        return ExitCode::from(1);
+    for (name, text) in rapidr_webbundle::native_site_files(stem, &wasm_module, &assets, &needs, &notices::html_head_lines()) {
+        if let Err(e) = fs::write(web_out.join(&name), text) {
+            eprintln!("Cannot write {name}: {e}");
+            return ExitCode::from(1);
+        }
     }
+    println!("Content-Security-Policy: {}", rapidr_webbundle::content_security_policy(&needs));
     // (the fallback fonts beside the page: loaded as its text needs them)
     let fonts = fallback_fonts_dir().map(|d| fallback_fonts(&d)).unwrap_or_default();
     if !fonts.is_empty() {
@@ -738,38 +757,16 @@ fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool) -> ExitCode 
     ExitCode::SUCCESS
 }
 
-fn generate_html_shell(title: &str, wasm_module: &str, assets: &std::collections::HashMap<String, String>) -> String {
-    let css = rapidr_webbundle::PAGE_CSS;
-    let mut assets_script = String::new();
-    if !assets.is_empty() {
-        assets_script.push_str("  <script>\n    window.__rapidr_assets = {\n");
-        for (name, base64) in assets {
-            let escaped_name = name.replace('"', "\\\"");
-            assets_script.push_str(&format!("      \"{}\": \"{}\",\n", escaped_name, base64));
-            assets_script.push_str(&format!("      \"assets/{}\": \"{}\",\n", escaped_name, base64));
-        }
-        assets_script.push_str("    };\n  </script>\n");
+/// What a web program's page must allow (its Content-Security-Policy,
+/// docs/security-audit.md SEC-15): the components and URLs its source
+/// names, `$INCLUDE`s expanded, plus the author's `--csp` additions.
+fn web_needs(path: &str, csp: Option<&str>) -> Result<rapidr_webbundle::WebNeeds, String> {
+    let source = preprocess_file(path, PreprocessOptions::default()).map(|r| r.source).map_err(|e| e.to_string())?;
+    let mut needs = rapidr_webbundle::WebNeeds::scan(&source);
+    if let Some(spec) = csp {
+        needs.add_extra(spec)?;
     }
-    let notices = notices::html_head_lines();
-    format!(
-        r#"<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{title}</title>
-{notices}  <style>{css}</style>
-{assets_script}</head>
-<body>
-  <pre id="rr-console"></pre>
-  <script type="module">
-    import init from './{wasm_module}.js';
-    init();
-  </script>
-</body>
-</html>
-"#
-    )
+    Ok(needs)
 }
 
 // ---------------- Bytecode (rapidrintr) ----------------
@@ -887,6 +884,7 @@ fn bundle_bc_file(
     output: Option<String>,
     wasm_path: Option<String>,
     js_path: Option<String>,
+    csp: Option<&str>,
 ) -> ExitCode {
     // 1. Compile source to bytecode.
     let compiled = match compile_to_bytecode(path) {
@@ -895,6 +893,10 @@ fn bundle_bc_file(
     };
     for w in &compiled.warnings { eprintln!("warning: {w}"); }
     let rrbc = compiled.module.to_bytes();
+    let needs = match web_needs(path, csp) {
+        Ok(n) => n,
+        Err(e) => { eprintln!("{e}"); return ExitCode::from(2); }
+    };
 
     let stem = Path::new(path)
         .file_stem()
@@ -953,6 +955,7 @@ fn bundle_bc_file(
         assets: Some(&assets),
         fonts: &fallback_fonts(&wasm_p.parent().unwrap_or(Path::new(".")).join("fonts")),
         notices: &notices_text,
+        needs: &needs,
     }) {
         Ok(b) => b,
         Err(e) => { eprintln!("bundle error: {e}"); return ExitCode::from(1); }
@@ -963,6 +966,7 @@ fn bundle_bc_file(
     if let Err(e) = fs::write(&out_path, &bundle) {
         eprintln!("write {out_path}: {e}"); return ExitCode::from(1);
     }
+    println!("Content-Security-Policy: {}", rapidr_webbundle::content_security_policy(&needs));
     println!(
         "wrote {} ({} bytes) — unzip and serve via any static host",
         out_path,
@@ -1123,7 +1127,7 @@ fn build_interp_desktop(
 /// `rapidr build --web --interp <file.rr>` — compile to bytecode and
 /// emit a static web bundle (`<stem>-web.zip`). Delegates to the same
 /// pipeline as `bundle-bc`.
-fn build_interp_web(path: &str, output_dir: Option<String>) -> ExitCode {
+fn build_interp_web(path: &str, output_dir: Option<String>, csp: Option<&str>) -> ExitCode {
     let stem = Path::new(path)
         .file_stem()
         .and_then(|s| s.to_str())
@@ -1138,7 +1142,7 @@ fn build_interp_web(path: &str, output_dir: Option<String>) -> ExitCode {
         return ExitCode::from(1);
     }
     let out_path = out_dir.join(format!("{stem}-web.zip"));
-    bundle_bc_file(path, Some(out_path.to_string_lossy().into_owned()), None, None)
+    bundle_bc_file(path, Some(out_path.to_string_lossy().into_owned()), None, None, csp)
 }
 
 /// Append `[rrbc bytes][magic 8B "RRBCEXE1"][u32 LE length]` to a copy

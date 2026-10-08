@@ -12,6 +12,34 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - Drag the form's right edge, bottom edge or corner to resize it: anchored and aligned components follow live, and the new size (and where the anchors moved them) is written into the CREATE block, one undo step.
 - Add components: click a type then click or draw on the form (`PlaceType`), drag one in (`DragComponent`), or `AddComponent(Type, X, Y)`. Names are unique in the whole file; typing right after adding sets the Caption; dropping on a panel puts it inside.
 - Select, move, resize, delete, copy / paste / duplicate, align and arrange with the mouse or the keyboard; every change is announced to screen readers, written into the code as the smallest edit (`OnSourceEdit`), and undone to the exact bytes. Double-click makes or finds the event handler (`CreateHandler`). While the code has errors the designer is read-only under a banner.
+### Security
+- **Every web page RapidR builds has a Content-Security-Policy**, made from
+  what the program uses (SEC-15): no inline scripts, `'unsafe-eval'` only for
+  RJAVASCRIPT, frames only for RWEBVIEW, other servers only for the network
+  components and the addresses the program spells out; `rapidr build --web
+  --csp "…"` (and `bundle-bc --csp`) adds the author's own. Builds also write
+  `_headers` and `.htaccess` with the same policy, `frame-ancestors 'self'`,
+  `nosniff`, COOP and CORP. A program showing someone else's markup through
+  RDOM no longer runs its scripts.
+- **RWEBVIEW's page runs at an origin of its own** (SEC-12): the frame's
+  default sandbox leaves `allow-same-origin` out (`Sandbox` opts in), and its
+  `Html` runs in `rapidr-webview.html`, a frame every web build ships, with
+  its scripts working as before.
+- **Names in built pages are escaped for where they go** (SEC-16): a project
+  or file named like markup or script is text in the page; no name is
+  written into a script any more.
+- **The release's web bundle is RapidR Studio** (SEC-17): `tools/release/web.sh`
+  ships `tools/build_studio_web.sh`'s site; programs' bundles no longer carry
+  any of the old web IDE's files.
+- **`rapidr lsp` reads only the workspace** the editor opened (and the
+  folders of the files it opened); **`rapidr dap`** launches only RapidR
+  programs and never passes loader variables (`LD_PRELOAD`, `DYLD_*`,
+  `PATH`, …) to them (SEC-18). The authentication `rapidr mcp` will need is
+  designed (docs/security-audit.md §7).
+- Supply chain (SEC-20): memmap2 0.9.11, anyhow 1.0.104; cargo-deny fails on
+  unsound crates; `cargo deny` and `cargo audit` clean. Signing the release
+  checksums with minisign is proposed (docs/security-audit.md §8).
+- A `security` stage in `tools/regress.sh`, with a regression test for each.
 
 ### Legal
 - **A review of RapidQ's terms, rights and trademarks, and of everything

@@ -67,15 +67,15 @@ without the author opting in, or where an isolation boundary leaks.
 Ranked severity × likelihood. IDs continue ROADMAP's `SEC-` series (last used
 SEC-13).
 
-| ID | Sev | Area | One line |
-|---|---|---|---|
-| SEC-14 | **High** | Web sandbox | Studio's font bridge let the sandboxed program frame read any same-origin IDE file (fixed in this pass) |
-| SEC-15 | Medium | Web program | Deployed web bundle (`rapidr build --web`) ships **no CSP**; `RWEBVIEW` srcdoc keeps `allow-same-origin allow-scripts` by default (SEC-12 still open in the kernel host) |
-| SEC-16 | Medium | Build output | `render_index_html` / `render_loader_js` / asset-map interpolate the project name and asset names into HTML+JS with no (or `"`-only) escaping → injection in the built bundle |
-| SEC-17 | Medium | Legacy web IDE | `web-ide/` (Monaco IDE) is still the shipped web artifact (`tools/release/web.sh`) and still `include_str!`'d into every bundle; it carries the pre-SEC-05/escaping `innerHTML` sinks and a permissive `.htaccess` |
-| SEC-18 | Low | Local service | `rapidr lsp` / `rapidr dap` accept `file://` URIs to any path and read/stat them; no project confinement (acceptable for an editor-spawned stdio server, but worth stating) |
-| SEC-19 | Low | FFI (in progress) | The DLL-call / VARPTR / PEEK-POKE lane is unimplemented-but-present risk; see the review checklist in §6 |
-| SEC-20 | Low | Supply chain | 3 informational RustSec advisories reachable in shipped binaries (`ttf-parser`, `memmap2`, and `anyhow` which is not actually linked); one stale `deny.toml` ignore |
+| ID | Sev | Area | One line | Status |
+|---|---|---|---|---|
+| SEC-14 | **High** | Web sandbox | Studio's font bridge let the sandboxed program frame read any same-origin IDE file (fixed in this pass) | **Fixed** (audit pass) |
+| SEC-15 | Medium | Web program | Deployed web bundle (`rapidr build --web`) ships **no CSP**; `RWEBVIEW` srcdoc keeps `allow-same-origin allow-scripts` by default (SEC-12 still open in the kernel host) | **Fixed** (SEC-FIX pass, 2026-10-08) |
+| SEC-16 | Medium | Build output | `render_index_html` / `render_loader_js` / asset-map interpolate the project name and asset names into HTML+JS with no (or `"`-only) escaping → injection in the built bundle | **Fixed** (SEC-FIX pass) |
+| SEC-17 | Medium | Legacy web IDE | `web-ide/` (Monaco IDE) is still the shipped web artifact (`tools/release/web.sh`) and still `include_str!`'d into every bundle; it carries the pre-SEC-05/escaping `innerHTML` sinks and a permissive `.htaccess` | **Fixed** (SEC-FIX pass): not shipped, not embedded; the tree keeps it as a test harness until deletion |
+| SEC-18 | Low | Local service | `rapidr lsp` / `rapidr dap` accept `file://` URIs to any path and read/stat them; no project confinement (acceptable for an editor-spawned stdio server, but worth stating) | **Fixed** (SEC-FIX pass); `rapidr mcp`'s authentication designed (§7) |
+| SEC-19 | Low | FFI (in progress) | The DLL-call / VARPTR / PEEK-POKE lane is unimplemented-but-present risk; see the review checklist in §6 | Open (its own lane) |
+| SEC-20 | Low | Supply chain | 3 informational RustSec advisories reachable in shipped binaries (`ttf-parser`, `memmap2`, and `anyhow` which is not actually linked); one stale `deny.toml` ignore | **Fixed** (SEC-FIX pass); checksum signing proposed (§8), the key is Robert's decision |
 
 Positives confirmed (no finding): the Studio preview frame runs at an **opaque
 origin** (no `allow-same-origin`), with a private `MessageChannel` handshake that
@@ -158,6 +158,9 @@ dependency-free so it runs in `tools/regress.sh`. Add it to the `web` stage of
 
 ### SEC-15 — Medium — Deployed web program has no CSP; RWEBVIEW keeps `allow-same-origin`
 
+**Status: fixed** in the SEC-FIX pass (2026-10-08) — §9.1; what a program can
+opt into, §9.2.
+
 **Location:** `interpreter/rapidr-webbundle/src/lib.rs:125` (`render_index_html` —
 no CSP meta); `crates/rapidr-runtime-web/src/overlay_web.rs:89` and `:163-164`
 (RWEBVIEW iframe `sandbox`).
@@ -208,6 +211,8 @@ and srcdoc iframes have no `allow-same-origin` unless opted in.
 
 ### SEC-16 — Medium — Project name and asset names injected into the built bundle
 
+**Status: fixed** in the SEC-FIX pass — §9.3.
+
 **Location:** `interpreter/rapidr-webbundle/src/lib.rs:125-160` (`render_index_html`
 `<title>{title}`), `:161-180` (`render_loader_js`, `project_name` into JS string
 and template literals), `:131-134` (asset map: `escaped_name = name.replace('"',
@@ -244,6 +249,9 @@ escaped forms only.
 
 ### SEC-17 — Medium — The legacy Monaco web IDE is still shipped and still embedded
 
+**Status: fixed** in the SEC-FIX pass — §9.4 (with what still depends on
+`web-ide/`).
+
 **Location:** `tools/release/web.sh:15` (`SITE="${1:-web-ide}"` — the release web
 artifact is `web-ide/`); `interpreter/rapidr-webbundle/src/lib.rs:69-70`
 (`include_str!("../../../web-ide/{bundle_console,ansi_screen}.js")` — pulled into
@@ -276,6 +284,11 @@ wildcard-CORS `.htaccess` (scope it, or rely on same-origin). Per the project's
 ---
 
 ### SEC-18 — Low — LSP/DAP read arbitrary paths from `file://` URIs
+
+**Status: fixed** in the SEC-FIX pass — §9.5; the authentication `rapidr mcp`
+will need, §7. (The pass went further than "no change for LSP/DAP now":
+confinement is cheap, and a project's own files — `$INCLUDE`s,
+`.vscode/launch.json` — are untrusted data.)
 
 **Location:** `crates/rapidr-lsp/src/lib.rs:576` (`uri_to_path`) and the many
 `uri_to_path` call sites; `crates/rapidr-dap/src/adapter.rs:~405` (`start_program`
@@ -317,6 +330,9 @@ sandboxed-run path** (AI-initiated runs, extension VMs, the web).
 ---
 
 ### SEC-20 — Low — Supply chain
+
+**Status: fixed** in the SEC-FIX pass — §9.6; signing `SHA256SUMS`, proposed in
+§8 (the key is Robert's decision).
 
 `cargo deny check` (advisory DB 2026-10-07, 633 crates) and `cargo audit` both
 exit clean. Three informational RustSec advisories remain, none with a CVSS score:
@@ -484,3 +500,263 @@ For `crates/rapidr-runtime-core/src/ffi.rs` and the new VARPTR/PEEK/POKE opcodes
       or refuses to call it.
 - [ ] Add a SEC-id and a CHANGELOG line when it lands; add a test that the
       native-privileged flag is required.
+
+---
+
+## 7. `rapidr mcp`: the authentication it needs (design, SEC-18)
+
+`rapidr lsp` and `rapidr dap` are stdio servers an editor starts; their only
+client is that editor. `rapidr mcp` (docs/ide-ai.md §4) is different: it
+relays an AI client to a *running* IDE, so the IDE must listen for it, and
+anything that can reach that listener can drive the IDE (read the project,
+edit, build, run). What it must have before it ships:
+
+**Who can connect: the user, and only the user.**
+- The IDE listens on a **per-user local socket, never a network port**: a Unix
+  domain socket in the user's runtime directory (`$XDG_RUNTIME_DIR/rapidr/`,
+  macOS `$TMPDIR/rapidr-<uid>/`), in a folder made `0700` and checked to be
+  the user's own (not a link, owner = the user) before use, the socket itself
+  `0600`; on Windows a named pipe with a DACL granting only the current user's
+  SID, created with `FILE_FLAG_FIRST_PIPE_INSTANCE` and
+  `PIPE_REJECT_REMOTE_CLIENTS`.
+- On accept, the peer's identity is checked too (`getpeereid` /
+  `SO_PEERCRED`; on Windows the client process's token SID): another user's
+  process is closed at once.
+
+**What it must prove: a token.**
+- **256 random bits** from the OS, new each time the server starts, written
+  to a `0600` file beside the socket — created with `O_CREAT | O_EXCL` at that
+  mode (never chmod after), removed when the server stops. `rapidr mcp` (the
+  stdio relay) reads it and sends it as the first message; the IDE compares
+  it in constant time and closes a connection that doesn't send it within a
+  few seconds or sends it wrong. The token is never in a command line, an
+  environment variable, a log or a URL.
+- The optional loopback HTTP transport (off by default) takes the same token
+  as `Authorization: Bearer`, and keeps the build server's guards: bound to
+  `127.0.0.1` only, `Host` must be `127.0.0.1:<port>` / `localhost:<port>`
+  (DNS rebinding), any `Origin` other than none or the IDE's own refused, no
+  CORS headers granted. One guard module, shared with `rapidr-buildserver`
+  (SEC-01 / SEC-11), so the checks can't drift apart.
+- The web IDE's bridge (`rapidr mcp --web`, experimental) pairs by a code the
+  bridge shows and the user types into the page, then the same token.
+
+**What an authenticated client may do: still not everything.**
+- **Files**: every file tool resolves its path against the project's root and
+  refuses anything outside it — `..`, absolute paths, and links that leave
+  it, checked on the real path (`rapidr_preprocessor::is_within`, the check
+  the language server uses since this pass) — and `$INCLUDE`s are analysed
+  with the same confinement (`PreprocessOptions::confine_to`).
+- **Environment**: a client never sets the environment of anything the IDE
+  runs (contrast DAP's `env`, now allow-listed: §9.5); a run gets the
+  project's own settings only.
+- **Tiers**: the per-client permission tiers of docs/ide-ai.md §5 (read auto
+  / edit with checkpoint / run sandboxed with no network / anything else
+  asks), shown live in the MCP panel, with an audit log of every call.
+- **No native power**: an MCP-initiated run never gets `DECLARE … LIB`,
+  `RUSTSTART` or (later) VARPTR / PEEK / POKE (SEC-10, SEC-19).
+- **Limits**: request size, results truncated with a cursor, a rate limit per
+  client.
+
+Tests to land with it: a connection without the token, with a wrong one, and
+from another user is closed; the token file's mode and `O_EXCL`; `Host` /
+`Origin` probes on the HTTP transport; a file tool asked for `../x`, an
+absolute path and a link out of the project; a client-supplied environment
+ignored.
+
+---
+
+## 8. Signing `SHA256SUMS` (proposal, SEC-20 — the key is Robert's decision)
+
+Today `tools/release/finish.sh` writes `SHA256SUMS` beside the packages: it
+proves a download matches the list, not that the list is RapidR's. Proposal:
+sign the list with **minisign**.
+
+- **Why minisign**: one small Ed25519 signature file (`SHA256SUMS.minisig`),
+  a public key that fits on one line, a trusted comment (the version) inside
+  the signature, and one tool to run. Licences, all permissive: the
+  reference tool `minisign` (Frank Denis) is **ISC**; the Rust ports
+  (`rsign2`, the `minisign` crate) are **MIT**; `minisign-verify` (verifying
+  only, no dependencies) is **MIT**. OpenBSD's `signify` is the same idea
+  (ISC). Nothing is copyleft, and nothing enters a user's program.
+- **Not chosen**: GnuPG (a GPL tool — only run, never linked, but heavy, and
+  keyring handling is easy to get wrong); Sigstore `cosign` (Apache-2.0)
+  keyless signing ties each release to an online identity provider and a
+  public transparency log — at odds with releases made locally, by hand.
+- **How it would work** (nothing done yet, no key made):
+  1. Robert makes the key once, offline: `minisign -G -p rapidr.pub -s
+     <private key file>`, with a passphrase. The private key never enters the
+     repository, a CI system or a VM; two offline backups.
+  2. The public key is published where a download isn't: the repository
+     (`SECURITY.md`, `rapidr.pub`), rapidr.dev, the release notes.
+  3. `finish.sh`, after writing `SHA256SUMS`: `minisign -S -m SHA256SUMS -t
+     "RapidR <version>"` (it asks for the passphrase) → `SHA256SUMS.minisig`,
+     uploaded with the release.
+  4. Users: `minisign -V -m SHA256SUMS -P <public key>`, then
+     `shasum -a 256 -c SHA256SUMS`.
+  5. Later, if `rapidr setup` or an updater downloads anything of RapidR's,
+     it verifies with `minisign-verify` and the public key built in.
+- **Robert decides**: whether to sign at all; who holds the key and its
+  backups; the passphrase; what happens if the key is lost or leaks (a new
+  key announced on rapidr.dev and in the repository, the old one listed as
+  revoked).
+
+---
+
+## 9. The fix pass (SEC-FIX, 2026-10-08)
+
+Every fix has a regression test under `tests/security/`, run by
+`tools/regress.sh security` (a stage of its own, in the default run); each was
+seen to fail without the fix and pass with it. The browser's half runs in the
+web stage.
+
+| Test | Covers | Without the fix |
+|---|---|---|
+| `tests/security/web_bundle_injection.rs` (built into rapidr-webbundle's tests) | SEC-15: a policy on every page; SEC-16: hostile project and asset names; SEC-17: nothing of the IDE in a bundle | there was neither a policy nor escaping (`render_index_html` interpolated names as they were) |
+| `tests/web_bundle_csp.mjs` (browser, web stage) | a real bundle under its policy: RDOM markup's `<img onerror>` stopped; RWEBVIEW's script runs in an opaque frame and can't reach the page; RJAVASCRIPT's Eval works; a file name made of markup is text; a plain program runs with no violation | 11 checks fail with the pre-fix `rapidr`: `window.__pwned = 1`, and the hostile name breaks `loader.js` ("missing ) after argument list") |
+| `tests/web_overlays.mjs` (updated) | RWEBVIEW sandboxed without `allow-same-origin`, its page at origin `null` | the old frame was same-origin (its `contentDocument` was readable) |
+| `tests/security/web_shipping.mjs` | SEC-17: what ships; SEC-12: RWEBVIEW's defaults | `web.sh` defaulted to `web-ide`; `include_str!` of web-ide files; `allow-same-origin` in the default sandbox |
+| `tests/security/lsp_workspace_confinement.rs` (rapidr-lsp's tests) | SEC-18: a never-opened file outside the workspace, a `..` URI and an `$INCLUDE` outside read nothing; the workspace's own files still work | the outside file's outline (`LeakedSecretName`) and the outside include's SUB came back |
+| `tests/security/dap_launch_confinement.rs` (rapidr-dap's tests) | SEC-18: loader variables never reach the debuggee; a launch names only a RapidR program | `LD_PRELOAD` / `DYLD_INSERT_LIBRARIES` passed; a key file accepted as `program` |
+| `tests/security/supply_chain.mjs` | SEC-20: versions, deny.toml, the ttf-parser ground, `cargo deny` / `cargo audit` clean | memmap2 0.9.10 (and `cargo deny` silent about it), the stale ignore |
+
+### 9.1 SEC-15 — a policy on every page (and SEC-12)
+
+- `rapidr-webbundle` makes each page's **Content-Security-Policy** from what
+  the program uses (`csp.rs`: `WebNeeds::scan` of the preprocessed source —
+  the component types it names and the URLs it spells out). A plain program
+  gets `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src
+  'self' 'unsafe-inline'; img-src / media-src / font-src 'self' data: blob:;
+  connect-src 'self' data: blob:; frame-src 'none'; worker-src 'self' blob:;
+  manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action
+  'self'`. Inline styles stay allowed (the kernel's host and `RDOM.CssStyle`
+  set them; a style runs no code). The bundle pages (`rapidr bundle-bc`,
+  `build --web --interp`) and the native `rapidr build --web` page both have
+  it, and both builds print the policy they made.
+- No page has an inline script any more: `loader.js` (bundles) and `start.js`
+  (native builds) are fixed files; the program's name is a `<meta>` they
+  read; the project's files are `rapidr-assets.js`.
+- Each build also writes `_headers` (Netlify, Cloudflare Pages) and
+  `.htaccess` (Apache): the same policy plus `frame-ancestors 'self'`, on
+  `index.html` only, and on every file `X-Content-Type-Options: nosniff`,
+  `Referrer-Policy: strict-origin-when-cross-origin`,
+  `Cross-Origin-Opener-Policy: same-origin` and
+  `Cross-Origin-Resource-Policy: same-origin`. No COEP: the runtime uses no
+  SharedArrayBuffer, and `require-corp` would stop a program showing
+  pictures and media from other sites. No CORS. On nginx, the same headers as
+  `add_header` lines (the policy in `location = /index.html`).
+- **RWEBVIEW (SEC-12)**: its frame's default sandbox is now `allow-scripts
+  allow-forms allow-popups allow-modals allow-downloads` — no
+  `allow-same-origin`, so the page it shows runs at an opaque origin, away
+  from the program's page, storage and cookies. Its **Html** no longer goes
+  into an `srcdoc` (which would inherit the page's policy: the Html's own
+  scripts would stop, or the page's policy would have to be weakened): it
+  runs in `rapidr-webview.html`, a small file every web build ships beside
+  the page, which takes the HTML once, only from its parent window, and
+  writes it as its document — its scripts run under that frame's rules, not
+  the page's. With scripts not allowed (a `Sandbox` without
+  `allow-scripts`) the Html is an `srcdoc` (markup only). `Url` / `Navigate`
+  are as before; `Html` and `Url` read back what the program set.
+- RapidQ programs see no change: RWEBVIEW, RDOM and RJAVASCRIPT are RapidR's
+  own web components; no RapidQ component is affected.
+
+### 9.2 What a web program can opt into, and how
+
+| To… | Do this |
+|---|---|
+| let RWEBVIEW's page use the program's origin (its storage, its DOM) | `Web.Sandbox = "allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"` before setting `Html` / `Url` — that page then *is* the program, as far as the browser is concerned |
+| show an RWEBVIEW page with no scripts at all | `Web.Sandbox = ""` (or any list without `allow-scripts`) |
+| call a server whose address the program builds at run time, or an `http://` / `ws://` one | `rapidr build --web --csp "connect-src http://192.168.1.10:8080"` (also `rapidr bundle-bc … --csp …`, `build --web --interp`) |
+| load a script from a CDN through RJAVASCRIPT | `--csp "script-src https://cdn.example.com"` |
+| show an `http://` site in RWEBVIEW | `--csp "frame-src http://intranet.local"` |
+| anything else | `--csp` takes any directive the policy has (`default-src script-src style-src img-src font-src media-src connect-src frame-src worker-src manifest-src object-src base-uri form-action`) and source expressions; an unknown directive, or a source with `;`, `,`, quotes or markup in it, is an error, never dropped silently. The built `index.html` (and `_headers` / `.htaccess`) are the author's to edit, too |
+
+Allowed without asking, by component: RJAVASCRIPT → `'unsafe-eval'`;
+RWEBVIEW → `frame-src 'self' https:`; RHTTP / RSOCKET / RDOWNLOAD (Q or R) →
+`connect-src https: wss:`; RDOM / RWEBVIEW → `img-src https:`; RWEBAUDIO /
+RWEBVIDEO / RVIDEO → `media-src https:`; an `http(s)://` or `ws(s)://`
+origin written in the program → that origin. A page never allows inline
+scripts unless its author asks with `--csp`.
+
+### 9.3 SEC-16 — names, escaped for where they go
+
+`rapidr-webbundle::escape`: `html` (text and quoted attributes: `& < > " '`),
+`js_string` (a JSON string that stays one inside `<script>`: `<`, `>`, `&`,
+`'`, U+2028 / U+2029 and control characters escaped), `url_component`,
+`file_name` (the `.rrbc`'s name in the bundle: no separator, no leading dot,
+never `..`). The title is HTML text; the program's file name an attribute;
+asset names are only in `rapidr-assets.js`, as string literals; no name is
+written into a script. Font file names in a bundle go through `file_name`
+too.
+
+### 9.4 SEC-17 — what ships
+
+- `tools/release/web.sh` ships **RapidR Studio's web build**
+  (`tools/build_studio_web.sh` → `target/studio-web`, with the RWEBVIEW frame
+  and Studio's own `_headers` / `.htaccess`: no CORS, `frame-ancestors
+  'self'` on `index.html`) and refuses `web-ide/`. The SBOM no longer lists
+  Monaco (not shipped).
+- Program bundles carry only `rapidr-webbundle`'s own files (`web/`:
+  `bundle_console.js`, `ansi_screen.js`, `loader.js`, `start.js`,
+  `rapidr-webview.html`); nothing is `include_str!`'d from `web-ide/`.
+- `web-ide/` is **not deleted** (no more work on it; Studio replaces it).
+  As nothing ships it any more, its `.htaccess` (wildcard CORS) and its
+  `escapeHtml` were left as they are. What still depends on it:
+  - Tests that load `web-ide/index.html` as their page: `tests/web_ide_*.mjs`
+    (24 suites), `tests/debug_e2e_*.mjs`, `tests/web_conformance.mjs`,
+    `tests/lang_conformance.mjs` (its web backend), `tests/web_sqlite.mjs`,
+    `tests/web_vm_yield.mjs`, `tests/web_modal_focus.mjs`,
+    `tests/web_file_dialogs.mjs`, `tests/visual_smoke.mjs`,
+    `tests/corpus_web_compare.mjs`, `tests/_q.mjs`, `tests/_webprobe.mjs`,
+    `tests/capture_assets_explorer_screenshot.mjs`.
+  - Generated data: `rapidr lang export --web-ide` / `--all` writes
+    `web-ide/lang-data.js` (`crates/rapidr-cli/src/lang.rs`,
+    `crates/rapidr-lang/src/export.rs`); `tools/lang_seed.py` reads it.
+  - `design/brand/src/export.py` writes the brand's icons into `web-ide/icons`.
+  - `tools/release/macos.sh` lists `web-ide` among the paths that must not
+    change after `prepare.sh` (harmless).
+  - Docs and comments: `LICENSES.md` (Monaco, now "not shipped"; `zip.js`),
+    `COMPILER_MANUAL.md`, ROADMAP, docs/ide-plan.md, docs/web-host-plan.md,
+    `crates/rapidr-project/src/v1.rs` (the v1 project format's origin), a
+    comment in `ide/web/studio.js`, `.claude/launch.json` (a server named
+    "web-ide").
+  - `bundle_console.js` and `ansi_screen.js` exist twice until `web-ide/`
+    goes: its copies serve the old IDE's own Build; the bundles' are
+    `interpreter/rapidr-webbundle/web/`.
+
+### 9.5 SEC-18 — LSP and DAP confined
+
+- `rapidr lsp` reads from the disk only inside the **workspace folders the
+  client opened** (`workspaceFolders`, else `rootUri` / `rootPath`, kept
+  current by `workspace/didChangeWorkspaceFolders`) and the **folders of the
+  documents it opened**, plus the include folders it is given
+  (`initializationOptions.includeDirs`, `RAPIDR_INCLUDE_PATH`). A request
+  about any other file answers nothing; an `$INCLUDE` resolving elsewhere is
+  the diagnostic "Include file outside the workspace". The check is on the
+  real path (links and `..` resolved: `rapidr_preprocessor::is_within`).
+  Builds and `rapidr run` are unchanged (RapidQ's include rules: any file the
+  program names); RapidR Studio's analysis isn't confined (it opens the
+  project's own files).
+- `rapidr dap`: a launch's `program` must be a `.bas`, `.rr` or `.rrbc` file;
+  its `env` reaches the program only for plain variable names that aren't the
+  loaders' (`LD_*`, `DYLD_*`, `_RLD*`, `LIBPATH`, `SHLIB_PATH`, `GCONV_PATH`,
+  `LOCPATH`, `PATH`, `PATHEXT`, `COMSPEC`, `__COMPAT_LAYER`); refused names are
+  said in the debug console.
+
+### 9.6 SEC-20 — supply chain
+
+- `memmap2` 0.9.10 → **0.9.11** (RUSTSEC-2026-0186); `anyhow` → 1.0.104
+  (RUSTSEC-2026-0190).
+- `deny.toml`: `unsound = "all"` (without it cargo-deny didn't report
+  memmap2's unsoundness — checked: with it, the old lockfile fails); the
+  stale RUSTSEC-2026-0173 ignore is gone. `.cargo/audit.toml` ignores what
+  deny.toml ignores, for the same reason.
+- `ttf-parser` (RUSTSEC-2026-0192: unmaintained, no vulnerability) **does not
+  affect us** as a security matter: it only ever parses fonts built into
+  RapidR (`rapidr-value`'s `face_data`, `include_bytes!`) and, on Linux
+  Wayland, the system's own fonts for winit's title bars; no program's or
+  project's font reaches it. Kept and ignored with that reason, pinned by
+  `tests/security/supply_chain.mjs` (any other use of `ttf_parser` fails it).
+  The way off is skrifa (already in the tree); it can't leave completely
+  until winit's `sctk-adwaita` does.
+- `cargo deny check`: advisories, bans, licences and sources ok.
+  `cargo audit`: no warnings. `THIRD_PARTY_NOTICES.md` regenerated.

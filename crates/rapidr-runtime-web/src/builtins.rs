@@ -16,7 +16,7 @@ pub use crate::value::builtins::*;
 
 /// Hands the exact printed text (partial lines and ANSI sequences
 /// included) to `window.__rapidr_print` if the page defines it; exported web
-/// bundles use it to show a console on the page (web-ide/ansi_screen.js).
+/// bundles use it to show a console on the page (rapidr-webbundle's ansi_screen.js).
 fn print_hook(text: &str) {
     let hook = web_sys::window()
         .and_then(|w| js_sys::Reflect::get(&w, &JsValue::from_str("__rapidr_print")).ok())
