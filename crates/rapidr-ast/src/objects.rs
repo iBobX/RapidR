@@ -984,7 +984,11 @@ impl Lowering<'_> {
                 while let Expression::MemberAccess(m) = root {
                     root = m.object.as_ref();
                 }
-                let this_field = !matches!(&w.object, Expression::Identifier(_)) && matches!(root, Expression::Identifier(id) if self.is_this(&id.name));
+                // (`WITH v.R` — a field of an object a TYPE makes, a QRECT
+                // in RapidQ's direct3d examples: resolved like `v.R.Bottom`,
+                // as RC.EXE takes it)
+                let this_field = !matches!(&w.object, Expression::Identifier(_))
+                    && (matches!(root, Expression::Identifier(id) if self.is_this(&id.name)) || self.object_type(root).is_some_and(|t| self.is_user_type(&t)));
                 if this_field || matches!(&w.object, Expression::Identifier(id) if self.is_this(&id.name)) || self.object_type(&w.object).is_some_and(|t| self.is_user_type(&t)) {
                     let body = resolve_with_body(&w.body, &w.object);
                     return self.body(&body);
