@@ -4,6 +4,7 @@ group = "IDE"
 
 [[component]]
 name = "RPROPERTYINSPECTOR"
+display = "PropertyInspector"
 visual = true
 size = [280, 400]
 default_event = "OnPropertyChange"
@@ -61,6 +62,7 @@ events = [
 
 [[component]]
 name = "RTOOLBOX"
+display = "Toolbox"
 visual = true
 size = [220, 400]
 default_event = "OnPick"
@@ -101,6 +103,7 @@ events = [
 
 [[component]]
 name = "RPROJECTTREE"
+display = "ProjectTree"
 visual = true
 size = [240, 360]
 default_event = "OnOpen"
@@ -156,6 +159,7 @@ events = [
 
 [[component]]
 name = "ROUTPUTCONSOLE"
+display = "OutputConsole"
 visual = true
 size = [480, 180]
 default_event = "OnLinkClick"
@@ -200,6 +204,7 @@ events = [
 
 [[component]]
 name = "RCOMMANDPALETTE"
+display = "CommandPalette"
 visual = true
 size = [560, 320]
 default_event = "OnCommand"

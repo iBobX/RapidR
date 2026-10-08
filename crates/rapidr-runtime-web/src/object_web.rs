@@ -1260,9 +1260,6 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         // (I1 / L-PANELS) A designer's selection or props changed: the
         // inspectors following it read it again.
         if rapidr_value::objects::is_design(name) {
-            // (what the call left to hear — AddComponent's, Undo's,
-            // CreateHandler's OnSourceEdit … — as the desktop fires it)
-            design_events(name);
             crate::panels_web::designer_changed(&uname);
         }
         // (drawn again: a tree's rows built again first)
