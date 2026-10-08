@@ -44,6 +44,10 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   in RapidQ's look without editing the source (`RPROGRAMSESSION.Theme`,
   `RDESIGNSURFACE.Theme`). Studio's status bar is quiet at rest and takes a
   state's colour while the program runs, pauses or fails.
+- Text a program left uncoloured on a colour reads at WCAG AA in RapidR's
+  look (a gauge's percentage white on the accent, the theme's text on the
+  rest); RapidR Studio's panels and icons follow the theme's palette in
+  dark and high contrast (they fell back to the light icons).
 - RC.EXE pixel comparisons (`tests/native_gui_events.mjs`, the kernel's unit
   tests that check ops) name the classic theme explicitly; the visual
   gallery's themes are `classic`, `rapidr-light`, `rapidr-dark`,
@@ -82,6 +86,7 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - **One search** (Ctrl+P, Ctrl+Shift+P): commands, examples, the project's files, the file's
   symbols and its form's components; `:N` goes to line N (the palette's AddPrefix).
 - Empty panels say what to do (`EmptyText`).
+- On the web an RTOOLBAR starts 32 pixels high, as on the desktop.
 
 ### RapidR Studio: the form designer works
 - A file's [Design] tab shows its form as the running program shows it, at its own size, read from the code (`RDESIGNSURFACE.Source` on rapidr-designer's Document); the stand-in scanner and its boxes are gone.
