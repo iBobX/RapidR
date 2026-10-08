@@ -194,13 +194,24 @@ fn design_events(name: &str) {
     }
 }
 
-/// How shared objects print on the web (`Printer.EndDoc`, [`web_print`]).
+/// The runtime's start (before a program runs, and again as components
+/// are created): how shared objects print on the web (`Printer.EndDoc`,
+/// [`web_print`]), QREGISTRY's store, RND's seed, and the code editor's
+/// language service (as the desktop runtime installs it).
 pub fn install_object_hooks() {
     rapidr_value::objects::set_print_hook(web_print);
     // QREGISTRY's keys: the page's local storage.
     rapidr_value::registry::set_io(registry_load, registry_save);
     // RND's first seed (wasm has no clock).
     rapidr_value::builtins::set_entropy(|| (js_sys::Math::random() * 9_007_199_254_740_992.0) as u64);
+    // The code editor's language service, once: this runs again as
+    // components are created.
+    {
+        thread_local!(static LANGSVC: std::cell::Cell<bool> = const { std::cell::Cell::new(false) });
+        if !LANGSVC.with(|done| done.replace(true)) {
+            rapidr_langsvc::editor::install();
+        }
+    }
 }
 
 /// QREGISTRY's store in the page's local storage (`None`: nothing yet, or
@@ -1270,6 +1281,10 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         }
         if rapidr_value::objects::is_design(name) {
             design_events(name);
+        }
+        // (an RCODEEDITOR's ApplyPatches / Undo / Redo: OnChange)
+        if rapidr_value::objects::is_code(name) && rapidr_value::objects::take_code_change(name) {
+            rp_fire_event(&uname, "onchange");
         }
         return result.unwrap_or_else(|e| {
             object_error(name, method, &e);

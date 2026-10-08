@@ -29,6 +29,7 @@ pub(crate) const RAPIDR_ONLY: &str = "rapidr-only";
 pub(crate) const NOT_RAPIDQ_NAME: &str = "not-a-rapidq-name";
 pub(crate) const NOT_IMPLEMENTED: &str = "not-implemented";
 pub(crate) const ONE_RUNTIME: &str = "one-runtime";
+pub(crate) const UNKNOWN_MEMBER: &str = "unknown-member";
 
 const COMPAT: &str = "RapidQ's compiler refuses it (this project is RapidQ-compatible)";
 
@@ -85,7 +86,7 @@ pub(crate) fn check(s: &Snapshot, file: &Path, rapidq_compatible: bool) -> Vec<F
             // `Caption = …` in a CREATE body: a property of the component
             if at_start && next.is_some_and(|n| n.kind == TokenType::Eq) {
                 if let Some(comp) = s.pre_offset(file, t.span.start).and_then(|pre| context::create_at(s, pre)) {
-                    c.member_of(comp, t);
+                    c.member_of(comp, t, true);
                     continue;
                 }
             }
@@ -226,18 +227,21 @@ impl Checker<'_> {
         let line_start = index.line_start(line).unwrap_or(0);
         let chain = chain_before(self.text, line_start, dot);
         let Some(pre) = self.s.pre_offset(self.file, dot) else { return };
-        let comp = match context::resolve_chain(self.s, pre, &chain) {
-            Some(Ty::Component(c)) => c,
+        // (a typo is guessed on a component's member — not inside a TYPE's
+        // methods, where its own fields hide among its base's members, nor
+        // on a TYPE's: those are the TYPE's business)
+        let (comp, guess) = match context::resolve_chain(self.s, pre, &chain) {
+            Some(Ty::Component(c)) => (c, context::enclosing_type(self.s, self.s.model.scope_at(pre)).is_none()),
             Some(Ty::User(u)) if context::user_member(self.s, &u, &t.lexeme).is_none() => match context::base_component(self.s, &u) {
-                Some(c) => c,
+                Some(c) => (c, false),
                 None => return,
             },
             _ => return,
         };
-        self.member_of(comp, t);
+        self.member_of(comp, t, guess);
     }
 
-    fn member_of(&mut self, c: &'static Component, t: &Token) {
+    fn member_of(&mut self, c: &'static Component, t: &Token, guess: bool) {
         let name = &t.lexeme;
         let (origin, missing, runtimes, member) = if let Some(p) = c.property(name) {
             (p.origin, p.missing, p.runtimes, p.name)
@@ -246,6 +250,15 @@ impl Checker<'_> {
         } else if let Some(e) = c.event(name) {
             (e.origin, e.missing, e.runtimes, e.name)
         } else {
+            // (a typo: a member no component has, a letter or two from one
+            // this one has — RapidQ's compiler's words, and its quick fix,
+            // `did_you_mean`; a name some component has is left to the
+            // compiler, as are an include library's components and OLE's
+            // objects, whose members their TYPE or server gives)
+            if guess && c.from.is_none() && !matches!(c.name, "QOLEOBJECT" | "QOLECONTAINER") && is_typo_of_member(c, name) {
+                let class = if c.kind == Kind::Global { c.name.to_ascii_uppercase() } else { c.written_name().to_ascii_uppercase() };
+                self.push(t.span.start, t.span.end, Severity::Warning, UNKNOWN_MEMBER, format!("Member {} not part of class {class}", name.to_ascii_uppercase()));
+            }
             return;
         };
         let owner = if c.kind == Kind::Global { c.name.to_string() } else { pretty_component(c.written_name()) };
@@ -288,7 +301,7 @@ impl Checker<'_> {
 }
 
 /// Fixes for compatibility diagnostics.
-pub(crate) fn actions(diags: &[FileDiagnostic]) -> Vec<CodeAction> {
+pub(crate) fn actions(diags: &[FileDiagnostic], text_of: impl Fn(&Path) -> Option<String>) -> Vec<CodeAction> {
     let mut out = Vec::new();
     for d in diags {
         if d.code.as_deref() == Some(NOT_RAPIDQ_NAME) {
@@ -300,7 +313,90 @@ pub(crate) fn actions(diags: &[FileDiagnostic]) -> Vec<CodeAction> {
                     preferred: true,
                 });
             }
+        } else if let Some((member, class)) = d.message.strip_prefix("Member ").and_then(|r| r.split_once(" not part of class ")) {
+            // (the compiler's "Member X not part of class Y": the members
+            // of Y spelled nearly so — "Did you mean Caption?")
+            if let Some(text) = text_of(&d.file) {
+                out.extend(did_you_mean(d, &text, member.trim(), class.trim()));
+            }
         }
     }
     out
+}
+
+/// "Change to …" for a member a component doesn't have: the ones of its
+/// that are a typo away (at most a third of the letters, 2 at least), the
+/// nearest first, three at most.
+fn did_you_mean(d: &FileDiagnostic, text: &str, member: &str, class: &str) -> Vec<CodeAction> {
+    let Some(c) = rapidr_lang::resolve_component(class).or_else(|| rapidr_lang::component(class)) else { return Vec::new() };
+    if member.is_empty() || !member.chars().all(is_name_char) {
+        return Vec::new();
+    }
+    // (where the member is written: after a dot on the diagnostic's line)
+    let at = d.start.min(text.len());
+    let line_start = text[..at].rfind('\n').map_or(0, |i| i + 1);
+    let line_end = text[at..].find('\n').map_or(text.len(), |i| at + i);
+    let line = text[line_start..line_end].to_ascii_lowercase();
+    let wanted = member.to_ascii_lowercase();
+    let Some(pos) = line.match_indices(&format!(".{wanted}")).map(|(i, _)| i + 1).find(|&i| !line[i + wanted.len()..].starts_with(|ch: char| is_name_char(ch))) else { return Vec::new() };
+    let start = line_start + pos;
+    let names = c.properties.iter().filter(|p| !p.missing).map(|p| p.name).chain(c.methods.iter().filter(|m| !m.missing).map(|m| m.name)).chain(c.events.iter().filter(|e| !e.missing).map(|e| e.name));
+    let limit = (wanted.chars().count() / 3).max(2);
+    let mut near: Vec<(usize, &str)> = names.map(|n| (typo_distance(&n.to_ascii_lowercase(), &wanted), n)).filter(|&(dist, _)| dist <= limit).collect();
+    near.sort();
+    near.dedup_by(|a, b| a.1.eq_ignore_ascii_case(b.1));
+    near.into_iter()
+        .take(3)
+        .enumerate()
+        .map(|(k, (_, name))| CodeAction {
+            title: format!("Change to {name}"),
+            edit: vec![(d.file.clone(), vec![TextEdit { start, end: start + member.len(), text: name.to_string() }])],
+            fixes: Some(d.clone()),
+            preferred: k == 0,
+        })
+        .collect()
+}
+
+/// Whether `name` is no member of any component the registry knows, yet a
+/// typo away from one of `c`'s.
+fn is_typo_of_member(c: &Component, name: &str) -> bool {
+    use std::collections::HashSet;
+    use std::sync::OnceLock;
+    static ALL: OnceLock<HashSet<String>> = OnceLock::new();
+    let all = ALL.get_or_init(|| {
+        rapidr_lang::COMPONENTS
+            .iter()
+            .flat_map(|c| c.properties.iter().map(|p| p.name).chain(c.methods.iter().map(|m| m.name)).chain(c.events.iter().map(|e| e.name)))
+            .map(str::to_ascii_lowercase)
+            .collect()
+    });
+    let wanted = name.to_ascii_lowercase();
+    if all.contains(&wanted) || wanted.len() < 3 {
+        return false;
+    }
+    let limit = (wanted.chars().count() / 3).max(2);
+    c.properties.iter().map(|p| p.name).chain(c.methods.iter().map(|m| m.name)).chain(c.events.iter().map(|e| e.name)).any(|m| typo_distance(&m.to_ascii_lowercase(), &wanted) <= limit)
+}
+
+/// Letters to change, add, drop or swap (two side by side) to make `a` `b`.
+fn typo_distance(a: &str, b: &str) -> usize {
+    let (a, b): (Vec<char>, Vec<char>) = (a.chars().collect(), b.chars().collect());
+    let mut d = vec![vec![0usize; b.len() + 1]; a.len() + 1];
+    for (i, row) in d.iter_mut().enumerate() {
+        row[0] = i;
+    }
+    for j in 0..=b.len() {
+        d[0][j] = j;
+    }
+    for i in 1..=a.len() {
+        for j in 1..=b.len() {
+            let cost = usize::from(a[i - 1] != b[j - 1]);
+            let mut v = (d[i - 1][j] + 1).min(d[i][j - 1] + 1).min(d[i - 1][j - 1] + cost);
+            if i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1] {
+                v = v.min(d[i - 2][j - 2] + 1);
+            }
+            d[i][j] = v;
+        }
+    }
+    d[a.len()][b.len()]
 }

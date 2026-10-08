@@ -199,7 +199,7 @@ impl Desktop {
     /// Runs the shown forms' deadlines due at `now` (what they change is
     /// drawn again; their events queued).
     pub fn tick(&mut self, store: &dyn Store, now: Instant) {
-        let due: Vec<String> = self.forms.iter().filter(|(_, f)| f.shown && f.ui.next_wake().is_some_and(|at| at <= now)).map(|(k, _)| k.clone()).collect();
+        let due: Vec<String> = self.forms.iter().filter(|(_, f)| f.shown && (f.ui.pending() || f.ui.next_wake().is_some_and(|at| at <= now))).map(|(k, _)| k.clone()).collect();
         for id in due {
             let Desktop { forms, text, .. } = self;
             if let Some(f) = forms.get_mut(&id) {
@@ -572,8 +572,23 @@ pub fn script_input<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, inp
         }
         ScriptInput::Resize { w, h } => script_resize(p, desk, store, w, h),
         ScriptInput::Hold(_) => return false,
+        ScriptInput::Stroke(k) => script_stroke(desk, store, &k),
     }
     true
+}
+
+/// A SendKeys keystroke (rapidr_value::send_keys) to the frontmost window
+/// that takes input. `^` is Ctrl as Windows has it — on a Mac the
+/// Command key's shortcuts, Ctrl's word moves — so a script types the same
+/// on every OS and host.
+fn script_stroke(desk: &mut Desktop, store: &dyn Store, k: &rapidr_value::send_keys::Stroke) {
+    let Some(form) = desk.stacking().into_iter().rev().find(|f| desk.accepts_input(f)) else { return };
+    let mods = Mods { shift: k.shift, ctrl: k.ctrl, alt: k.alt, command: k.ctrl, word: k.ctrl };
+    if let Some(f) = desk.forms.get_mut(&form) {
+        f.ui.sync(store);
+    }
+    desk.key_down(store, &form, k.vk, &k.text, mods, Source::Script);
+    desk.key_up(&form, k.vk, mods, Source::Script);
 }
 
 /// `comp.__key_N`: the component focused, the key pressed and released.

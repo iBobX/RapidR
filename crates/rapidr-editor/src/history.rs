@@ -154,6 +154,24 @@ impl History {
         self.sealed = kind == EditKind::Command;
     }
 
+    /// Records a step as part of the current revision whatever made it (a
+    /// group the caller decides: a designer action's several source
+    /// patches), or as a revision of its own when there is none to join —
+    /// at the root, or when the current one has a redo branch. The group
+    /// stays open for the next such step; any other edit starts a new one.
+    pub fn commit_joined(&mut self, step: Step, before: Selections, after: Selections, now_ms: u64) {
+        let cur = self.current;
+        if cur != 0 && self.revisions[cur].last_child.is_none() {
+            let r = &mut self.revisions[cur];
+            r.steps.push(step);
+            r.selections_after = after;
+            r.time_ms = now_ms;
+            self.sealed = true;
+        } else {
+            self.commit(step, before, after, EditKind::Command, now_ms, true);
+        }
+    }
+
     /// Moves to the parent (the caller undoes `revision(old current)`).
     pub fn step_back(&mut self) -> Option<usize> {
         if self.current == 0 {

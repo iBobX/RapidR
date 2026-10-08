@@ -14,10 +14,12 @@ pub mod bevel;
 pub mod bitmap;
 pub mod cgi;
 pub mod code;
+pub mod codeedit;
 pub mod comport;
 pub mod codec;
 pub mod d3d;
 pub mod design;
+pub mod diffview;
 pub mod digdisplay;
 pub mod directx;
 pub mod download;
@@ -86,6 +88,12 @@ enum Object {
     Printer(printer::Printer),
     /// QEDIT's / QRICHEDIT's text and selection; the runtime shows them.
     Text(textedit::TextEdit),
+    /// RCODEEDITOR's document and view state (codeedit.rs); the UI kernel's
+    /// code editor draws and edits it.
+    Code(Box<codeedit::CodeEditor>),
+    /// RDIFFVIEW's texts, hunks and view (diffview.rs); the UI kernel's
+    /// diff view draws it.
+    Diff(Box<diffview::DiffView>),
     /// QTRACKBAR's range, position and ticks; the runtime draws its shapes.
     TrackBar(trackbar::TrackBar),
     /// QTABCONTROL's tabs and selection; the runtime draws its ops.
@@ -284,7 +292,8 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RCOMBOBOX" => Object::List(ItemList::new(true)),
         "REDIT" => Object::Text(textedit::TextEdit::new(false)),
         "RRICHEDIT" | "RMEMO" => Object::Text(textedit::TextEdit::new(true)),
-        "RCODEEDITOR" => Object::Text(textedit::TextEdit::code()),
+        "RCODEEDITOR" => Object::Code(Box::default()),
+        "RDIFFVIEW" => Object::Diff(Box::default()),
         "RTRACKBAR" => Object::TrackBar(trackbar::TrackBar::default()),
         "RTABCONTROL" => Object::TabControl(tabcontrol::TabControl::default()),
         "RREGISTRY" => Object::Registry(crate::registry::Registry::default()),
@@ -512,9 +521,75 @@ pub fn grid_names() -> Vec<String> {
     OBJECTS.with(|o| o.borrow().iter().filter(|(_, v)| matches!(v, Object::Grid(_))).map(|(k, _)| k.clone()).collect())
 }
 
-/// Whether `id` is a QEDIT / QRICHEDIT (its text model is here).
+/// Whether `id` is a QEDIT / QRICHEDIT / QMEMO or an RCODEEDITOR (its text
+/// model is here).
 pub fn is_textedit(id: &str) -> bool {
-    with(id, |o| matches!(o, Object::Text(_))).unwrap_or(false)
+    with(id, |o| matches!(o, Object::Text(_) | Object::Code(_))).unwrap_or(false)
+}
+
+/// Whether `id` is an RCODEEDITOR.
+pub fn is_code(id: &str) -> bool {
+    with(id, |o| matches!(o, Object::Code(_))).unwrap_or(false)
+}
+
+/// Reads an RCODEEDITOR's model.
+pub fn with_code<R>(id: &str, f: impl FnOnce(&codeedit::CodeEditor) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::Code(c) => Some(f(c)),
+        _ => None,
+    })?
+}
+
+/// Changes an RCODEEDITOR's model (the user's input, its view's work).
+pub fn with_code_mut<R>(id: &str, f: impl FnOnce(&mut codeedit::CodeEditor) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::Code(c) => Some(f(c)),
+        _ => None,
+    })?
+}
+
+/// Whether an RCODEEDITOR's last call changed its text in a way the program
+/// hears (ApplyPatches, Undo, Redo): the runtime then fires its OnChange.
+pub fn take_code_change(id: &str) -> bool {
+    with_code_mut(id, |c| std::mem::take(&mut c.program_change)).unwrap_or(false)
+}
+
+/// Whether `id` is an RDIFFVIEW.
+pub fn is_diff(id: &str) -> bool {
+    with(id, |o| matches!(o, Object::Diff(_))).unwrap_or(false)
+}
+
+/// Reads or changes an RDIFFVIEW's model (its view's drawing and input).
+pub fn with_diff<R>(id: &str, f: impl FnOnce(&mut diffview::DiffView) -> R) -> Option<R> {
+    with(id, |o| match o {
+        Object::Diff(d) => Some(f(d)),
+        _ => None,
+    })?
+}
+
+/// A text box's text, selection (characters) and ReadOnly — what screen
+/// readers' mirrors show: a QEDIT's / QMEMO's whole text; an RCODEEDITOR's
+/// window of lines around its caret (`first`: the window's first line's
+/// character offset), so a 10 MB file never goes into a page's element.
+pub fn text_window(id: &str) -> Option<TextWindow> {
+    with(id, |o| match o {
+        Object::Text(t) => Some(TextWindow { text: t.raw(), sel_start: t.sel_start, sel_len: t.sel_len, first: 0, read_only: t.read_only, code: false }),
+        Object::Code(c) => Some(c.text_window(codeedit::CodeEditor::WINDOW_RADIUS)),
+        _ => None,
+    })?
+}
+
+/// What [`text_window`] gives.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct TextWindow {
+    pub text: String,
+    pub sel_start: usize,
+    pub sel_len: usize,
+    /// The character offset of `text`'s start in the whole text.
+    pub first: usize,
+    pub read_only: bool,
+    /// An RCODEEDITOR's window.
+    pub code: bool,
 }
 
 /// QEDIT / QRICHEDIT CopyToClipboard, CutToClipboard, PasteFromClipboard
@@ -524,6 +599,31 @@ pub fn textedit_clipboard(id: &str, method: &str, clip_get: &dyn Fn() -> String,
     let m = method.to_lowercase();
     if !matches!(m.as_str(), "copytoclipboard" | "copy" | "cuttoclipboard" | "cut" | "pastefromclipboard" | "paste") || !is_textedit(id) {
         return None;
+    }
+    if is_code(id) {
+        // (an RCODEEDITOR's: every caret's selection, one undo step)
+        if m.starts_with("paste") {
+            let text = clip_get();
+            with_code_mut(id, |c| {
+                if !c.doc.read_only {
+                    let _ = c.doc.paste(&text.replace("\r\n", "\n"), 0);
+                    c.edited();
+                    c.modified = true;
+                    c.revision += 1;
+                }
+            });
+        } else {
+            let (sel, read_only) = with_code(id, |c| (c.doc.copy_text(), c.doc.read_only)).unwrap_or_default();
+            if !sel.is_empty() {
+                clip_set(&sel);
+            }
+            if m.starts_with("cut") && !read_only {
+                with_code_mut(id, |c| {
+                    c.replace_selection("");
+                });
+            }
+        }
+        return Some(Value::Null);
     }
     if m.starts_with("paste") {
         let text = clip_get();
@@ -996,6 +1096,8 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
         Object::Tree(t) => t.get(&prop),
         Object::Printer(p) => p.get(&prop),
         Object::Text(t) => t.get(&prop),
+        Object::Code(c) => c.get(&prop),
+        Object::Diff(d) => d.get(&prop),
         Object::TrackBar(t) => t.get(&prop),
         Object::TabControl(t) => t.get(&prop),
         Object::Registry(r) => r.get(&prop),
@@ -1105,6 +1207,8 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         Object::Tree(t) => t.set(&prop, val).then_some(Ok(())),
         Object::Printer(p) => p.set(&prop, val).then_some(Ok(())),
         Object::Text(t) => t.set(&prop, val).then_some(Ok(())),
+        Object::Code(c) => c.set(&prop, val).then_some(Ok(())),
+        Object::Diff(d) => d.set(&prop, val).then_some(Ok(())),
         Object::TrackBar(t) => t.set(&prop, val).then_some(Ok(())),
         Object::TabControl(t) => t.set(&prop, val).then_some(Ok(())),
         Object::Registry(r) => r.set(&prop, val).then_some(Ok(())),
@@ -1156,37 +1260,58 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         return Some(Ok(v));
     }
     let arg = |i: usize| args.get(i).cloned().unwrap_or(Value::Null);
+    // RCODEEDITOR: files keep their line breaks and encoding; completion
+    // items may be a QSTRINGLIST.
+    if is_code(id) {
+        match method.as_str() {
+            "loadfromfile" => {
+                let path = arg(0).to_string_val();
+                return Some(read_file(&path).map(|bytes| {
+                    with_code_mut(id, |c| c.load(&path, &bytes));
+                    Value::Null
+                }));
+            }
+            "savetofile" => {
+                let path = arg(0).to_string_val();
+                let path = if path.is_empty() { with_code(id, |c| c.file_name.clone()).unwrap_or_default() } else { path };
+                let bytes = with_code(id, |c| c.saved_bytes()).unwrap_or_default();
+                return Some(write_file(&path, &bytes).map(|_| {
+                    with_code_mut(id, |c| c.saved(&path));
+                    Value::Null
+                }));
+            }
+            "showcompletion" => {
+                let a = arg(0).to_string_val();
+                let items = with_list(&a, |l| l.items.join("\n")).unwrap_or(a);
+                with_code_mut(id, |c| {
+                    let items = codeedit::CodeEditor::parse_items(&items);
+                    c.show_completion(items, false, None);
+                });
+                return Some(Ok(Value::Null));
+            }
+            _ => {}
+        }
+    }
     // QRICHEDIT LoadFromFile / SaveToFile: the text, lines ending CR LF.
     if is_textedit(id) && matches!(method.as_str(), "loadfromfile" | "savetofile") {
         let path = arg(0).to_string_val();
         return Some(if method == "loadfromfile" {
             read_file(&path).map(|bytes| {
+                let text: String = bytes.iter().map(|&b| char::from(b)).collect();
                 with(id, |o| {
                     if let Object::Text(t) = o {
-                        // (RapidR's code editor reads a UTF-8 source as
-                        // UTF-8 — its BOM off — as the compiler does; any
-                        // other file, and every RapidQ text box, a byte a
-                        // character)
-                        let body = bytes.strip_prefix(b"\xEF\xBB\xBF".as_slice()).unwrap_or(&bytes);
-                        let utf8 = if t.code { std::str::from_utf8(body).ok() } else { None };
-                        t.utf8 = utf8.is_some_and(|s| !s.is_ascii());
-                        let text: String = match utf8 {
-                            Some(s) => s.to_string(),
-                            None => bytes.iter().map(|&b| char::from(b)).collect(),
-                        };
                         t.set_text(&text);
                     }
                 });
                 Value::Null
             })
         } else {
-            let (text, utf8) = with(id, |o| match o {
-                Object::Text(t) => (t.text(), t.utf8),
-                _ => (String::new(), false),
+            let text = with(id, |o| match o {
+                Object::Text(t) => t.text(),
+                _ => String::new(),
             })
             .unwrap_or_default();
-            let bytes = if utf8 { text.into_bytes() } else { text.chars().map(|c| c as u32 as u8).collect::<Vec<u8>>() };
-            write_file(&path, &bytes).map(|_| Value::Null)
+            write_file(&path, &text.chars().map(|c| c as u32 as u8).collect::<Vec<u8>>()).map(|_| Value::Null)
         });
     }
     // QSTRINGLIST AddList(Other): the other list's strings appended.
@@ -1217,6 +1342,8 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         Object::Tree(_) => "tree",
         Object::Printer(_) => "printer",
         Object::Text(_) => "text",
+        Object::Code(_) => "code",
+        Object::Diff(_) => "diff",
         Object::TrackBar(_) => "trackbar",
         Object::TabControl(_) => "tabcontrol",
         Object::Registry(_) => "registry",
@@ -1599,6 +1726,8 @@ fn call_object(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, S
         Object::Tree(t) => t.call(method, args),
         Object::Printer(p) => p.call(method, args),
         Object::Text(t) => t.call(method, args),
+        Object::Code(c) => c.call(method, args),
+        Object::Diff(d) => d.call(method, args),
         Object::TrackBar(t) => t.call(method, args),
         Object::TabControl(t) => t.call(method, args),
         Object::Registry(r) => r.call(method, args),

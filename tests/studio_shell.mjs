@@ -91,6 +91,9 @@ const SCENES = [
   // (S-DESIGN-2) A console program's designer: "Add a Form", then one added
   { name: "designer-empty", open: "examples/basics/hello.rr", do: "view.documents.tabs,view.designer", delay: 4 },
   { name: "designer-addform", open: "examples/basics/hello.rr", do: "view.documents.tabs,view.designer,project.addForm,designer.add.QBUTTON", delay: 4 },
+  // (the code editor with the completion list open and its docs beside it:
+  // typed through the kernel's keys, S-EDITOR)
+  { name: "editor", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:dim y as string,key:Escape,key:Enter,type:form.c", delay: 6 },
 ];
 
 mkdirSync(OUT, { recursive: true });

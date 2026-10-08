@@ -111,6 +111,10 @@ pub enum KernelEvent {
     /// What the user did to a list, tree, grid, list view or header that
     /// the program answers (the lists lane's; `components::list`).
     List(String, crate::components::list::ListAction),
+    /// Component `id`'s event `event` (lowercase: `oncaretmove`) with its
+    /// arguments, fired as it is (the IDE's components: RCODEEDITOR's
+    /// OnCaretMove(Line, Column), RDIFFVIEW's OnHunkChange …).
+    Fire { id: String, event: String, args: Vec<rapidr_value::Value> },
 }
 
 impl FormUi {
@@ -166,7 +170,7 @@ impl FormUi {
             return;
         }
         // (an open drop-down list, over everything but menus)
-        if crate::components::combo::popup_mouse_down(self, store, x, y) {
+        if crate::components::combo::popup_mouse_down(self, store, x, y) || crate::components::codeeditor::popup::popup_mouse_down(self, store, ts, x, y) {
             return;
         }
         // (scroll bars take the mouse next, over the components)
@@ -352,7 +356,7 @@ impl FormUi {
     /// else the scroll box or form whose bars it's over — Windows 10's
     /// "scroll inactive windows" rule, not the focused control's.
     pub fn mouse_wheel(&mut self, store: &dyn Store, ts: &mut TextSystem, (x, y): (f64, f64), (dx, dy): (f64, f64), mods: Mods) {
-        if self.menu_open() || crate::components::combo::popup_wheel(self, store, x, y, dy) {
+        if self.menu_open() || crate::components::combo::popup_wheel(self, store, x, y, dy) || crate::components::codeeditor::popup::popup_wheel(self, x, y, dy) {
             return;
         }
         let chain = self.hit(x, y).map(|i| self.ancestry(i)).unwrap_or_default();
@@ -420,7 +424,7 @@ impl FormUi {
         if vk == 9 && !shortcut && !mods.alt && !crate::components::memo::takes_tab(self, store) && !crate::components::design::takes_tab(self, store) {
             self.move_focus(store, mods.shift);
             handled = true;
-        } else if mods.alt && !mods.ctrl && (65..=90).contains(&vk) {
+        } else if mods.alt && !mods.ctrl && (65..=90).contains(&vk) && !crate::components::codeeditor::find_takes_alt(self, vk) {
             let letter = (vk as u8 + 32) as char;
             handled = self.mnemonic(store, ts, letter) || self.menu_mnemonic(store, letter);
         } else if let Some(f) = self.focus {

@@ -103,7 +103,7 @@ impl Request {
 /// Whether a face has fixed-pitch characters (as RapidR draws it: the
 /// built-in Mono stands for these names).
 pub fn is_fixed_pitch(name: &str) -> bool {
-    crate::objects::text::family_name(name) == "Liberation Mono"
+    matches!(crate::objects::text::family_name(name), "Liberation Mono" | crate::objects::text::CODE_FACE)
 }
 
 /// The colour list's index of &HBBGGRR `c` (`None`: not one of the 16).

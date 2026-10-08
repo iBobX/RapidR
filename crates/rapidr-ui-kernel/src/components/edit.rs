@@ -66,22 +66,20 @@ struct Model {
     read_only: bool,
     max_length: i64,
     char_case: i64,
-    /// (a code editor's GotoLine / GotoSub: the caret scrolled into view)
-    reveal: u64,
 }
 
 fn read_model(src: Source, id: &str) -> Option<Model> {
     match src {
-        Source::Text => with_textedit(id, |t| Model { revision: t.revision, text: t.raw(), sel: Some((t.sel_start, t.sel_len)), read_only: t.read_only, max_length: t.max_length, char_case: t.char_case, reveal: t.reveal }),
+        Source::Text => with_textedit(id, |t| Model { revision: t.revision, text: t.raw(), sel: Some((t.sel_start, t.sel_len)), read_only: t.read_only, max_length: t.max_length, char_case: t.char_case }),
         Source::Combo => with_list(id, |l| {
             use std::hash::{Hash, Hasher};
             let mut h = std::collections::hash_map::DefaultHasher::new();
             l.text.hash(&mut h);
-            Model { revision: h.finish(), text: l.text.clone(), sel: None, read_only: false, max_length: 0, char_case: 0, reveal: 0 }
+            Model { revision: h.finish(), text: l.text.clone(), sel: None, read_only: false, max_length: 0, char_case: 0 }
         }),
         Source::InPlace => super::list::editing(id).map(|ed| {
             let (revision, sel) = super::list::edit_shown(id);
-            Model { revision, text: ed.text, sel: Some(sel), read_only: false, max_length: 0, char_case: 0, reveal: 0 }
+            Model { revision, text: ed.text, sel: Some(sel), read_only: false, max_length: 0, char_case: 0 }
         }),
     }
 }
@@ -137,9 +135,6 @@ pub struct EditUi {
     undo: Option<Undo>,
     /// The last change was typing (typing on adds to its undo step).
     typing: bool,
-    /// The model's last scroll-into-view request seen, and whether it waits
-    /// for the view (`memo.rs` scrolls when it knows its size).
-    reveal: (u64, bool),
     /// (the input lane's) A selection the mouse is dragging.
     drag: Option<Drag>,
 }
@@ -167,7 +162,7 @@ impl EditUi {
         bars.auto = false;
         bars.horz.visible = false;
         bars.vert.visible = false;
-        EditUi { ed: TextEditor::new(multi), src, shown: None, scroll: (0.0, 0.0), bars, bar_at: None, undo: None, typing: false, reveal: (0, false), drag: None }
+        EditUi { ed: TextEditor::new(multi), src, shown: None, scroll: (0.0, 0.0), bars, bar_at: None, undo: None, typing: false, drag: None }
     }
 
     /// The text as the editor holds it (a composition included).
@@ -234,12 +229,6 @@ impl EditUi {
         self.menu_state(id)
     }
 
-    /// The program asked for the caret to be scrolled into view (a code
-    /// editor's GotoLine / GotoSub) since the last call.
-    pub(crate) fn take_reveal(&mut self) -> bool {
-        std::mem::take(&mut self.reveal.1)
-    }
-
     /// Shows the model again if the program changed it; laid out for
     /// `look` at `scale` in a view `width` logical pixels wide.
     fn refresh(&mut self, ts: &mut TextSystem, id: &str, look: Look, scale: f32, width: f64) {
@@ -247,9 +236,6 @@ impl EditUi {
         self.ed.set_look(look);
         self.ed.set_width(width);
         if let Some(m) = read_model(self.src, id) {
-            if m.reveal != self.reveal.0 {
-                self.reveal = (m.reveal, true);
-            }
             if self.shown != Some(m.revision) {
                 self.shown = Some(m.revision);
                 if self.ed.composing() || self.ed.text() != m.text {
@@ -714,7 +700,8 @@ pub fn look_of(store: &dyn Store, id: &str, font: &Font, enabled: bool, multi: b
     let mask = if multi { None } else { store::string(store, id, "passwordchar").chars().next() };
     let align = Align::from_prop(store::int(store, id, "alignment", 0));
     let wrap = multi && store::flag(store, id, "wordwrap", true);
-    Look { font: font.clone(), color, mask, align, wrap, ..Look::default() }
+    let tab = if multi { crate::text::editor::tab_stops(font, store.type_of(id).eq_ignore_ascii_case("RRICHEDIT")) } else { 0.0 };
+    Look { font: font.clone(), color, mask, align, wrap, tab }
 }
 
 /// Node `ui`'s editor (made the first time), showing the model, laid out
@@ -916,7 +903,7 @@ impl Spec {
         let look = match src {
             Source::InPlace => {
                 let color = crate::paint::ink(cx.store, cx.id, &cx.font, true, rapidr_value::theme::current().window);
-                Look { font: cx.font.clone(), color, mask: None, align: Align::Left, wrap: false, syntax: rapidr_value::objects::code::Syntax::None }
+                Look { font: cx.font.clone(), color, mask: None, align: Align::Left, wrap: false, tab: 0.0 }
             }
             _ => look_of(cx.store, cx.id, &cx.font, cx.state.enabled, false),
         };

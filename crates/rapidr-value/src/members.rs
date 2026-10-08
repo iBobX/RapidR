@@ -78,13 +78,15 @@ const DESIGN: &[&str] = &[
 
 const GRID: &[&str] = &["cell", "cells", "setcell", "setsuggestions"];
 
-const CODE_EDITOR: &[&str] = &["getsublist", "gotosub", "gotoline"];
+const CODE_EDITOR: &[&str] = &["getsublist", "gotosub", "gotoline", "copytext", "findnext", "findprevious", "selectnextoccurrence", "gotomatchingbracket", "getmarkers"];
 
 const TABS: &[&str] = &["addtabs", "tab"];
 
 /// (I1) RDOCKMANAGER's (crate::dock): `L$ = Dock.SaveLayout`.
 const DOCK: &[&str] = &["savelayout", "resetlayout", "cascade", "tilehorizontal", "tilevertical", "arrangeicons", "nextdocument", "previousdocument"];
 
+/// (I2) RDIFFVIEW's (crate::objects::diffview): `N = Diff.NextHunk`.
+const DIFF: &[&str] = &["acceptall", "rejectall", "nexthunk", "previoushunk"];
 /// (I1 / L-PANELS) RapidR Studio's panels' (crate::panels): `Insp.ExpandAll`,
 /// `OK = Tree.Save`, `Console.FindNext`.
 const PANELS: &[&str] = &["expandall", "collapseall", "clearproperties", "save", "projecttext", "clearproblems", "findnext"];
@@ -128,6 +130,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
         "RCODEEDITOR" => &[CODE_EDITOR],
         "RTABCONTROL" => &[TABS],
         "RDOCKMANAGER" => &[DOCK],
+        "RDIFFVIEW" => &[DIFF],
         "RPROPERTYINSPECTOR" | "RTOOLBOX" | "RPROJECTTREE" | "ROUTPUTCONSOLE" | "RCOMMANDPALETTE" | "RTOOLBAR" => &[PANELS],
         "RDOWNLOAD" | "RCDAUDIO" | "RCOMPORT" | "RMIDI" | "RWAVE" | "RVIDEO" => &[IO],
         "RWEBVIEW" | "RDOM" | "RJAVASCRIPT" | "RWEBSTORAGE" | "RWEBAUDIO" | "RWEBVIDEO" | "RWEBNOTIFICATION"
@@ -139,7 +142,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
 /// Whether `member` (lowercase) is any type's method read without
 /// parentheses — the quick test before the type is looked up.
 pub fn is_value_method_name(member: &str) -> bool {
-    [ANY, DATABASE, NETWORK, STREAM, JSON, STRING_LIST, DRAWING, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, SESSION, PROJECT, PANELS]
+    [ANY, DATABASE, NETWORK, STREAM, JSON, STRING_LIST, DRAWING, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, DIFF, SESSION, PROJECT, PANELS]
         .iter()
         .any(|list| list.contains(&member))
 }

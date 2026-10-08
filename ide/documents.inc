@@ -112,7 +112,6 @@ SUB AnalyzeActive
   DIM d AS INTEGER
   d = ActiveCode
   IF d >= 0 THEN
-    HistNoteCode d
     Lang.Update DocFile(d), CodeDoc(d).Text
     IF DocHasForm(d) THEN DesignRead d
   END IF
@@ -178,6 +177,11 @@ SUB OpenDocument(Path AS STRING)
   CodeDoc(d).LoadFromFile Path
   CodeDoc(d).Tag = d
   CodeDoc(d).OnChange = CodeChanged
+  CodeDoc(d).OnCaretMove = CodeCaretMoved
+  CodeDoc(d).OnNavigate = CodeNavigate
+  CodeDoc(d).OnReferences = CodeReferences
+  CodeDoc(d).OnFileEdits = CodeFileEdits
+  EditorSettings d
   Loading = 0
   DocFile(d) = Path
   DocKind(d) = "code"
@@ -187,7 +191,6 @@ SUB OpenDocument(Path AS STRING)
   DesignDoc(d).OnSourceStep = DesignStep
   DesignDoc(d).OnUndo = DesignUndo
   DesignDoc(d).SharedUndo = 1
-  HistReset d
   DesignDoc(d).OnChange = DesignChanged
   DesignDoc(d).OnDblClick = DesignDblClick
   DesignRead d
@@ -197,6 +200,10 @@ SUB OpenDocument(Path AS STRING)
   Dock.AddPane(CodeDoc(d), title, "documents", "code")
   ActiveDoc = d
   AnalyzeActive
+  ' (editor.inc: the caret's place, encoding and line breaks; the caret in
+  ' the code, ready to type, as an editor opens a file)
+  EditorFacts d
+  FocusCodeSoon d
   OutputLine "Opened " + Path
   UpdateCommands
 END SUB

@@ -46,7 +46,7 @@ pub use kernel::{
     // Methods drawn by the host.
     canvas_method, image_method, tree_method,
     // The IDE's components: RDESIGNSURFACE's Show / Hide (its model, and
-    // RCODEEDITOR's, are rapidr_value::objects' design and textedit).
+    // RCODEEDITOR's, are rapidr_value::objects' design and codeedit).
     design_surface_method,
     // `$THEME name`, and a QTIMER the program made (generated programs call
     // both through the prelude).

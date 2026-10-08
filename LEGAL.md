@@ -62,9 +62,11 @@ system's OpenSSL 3, which every current distribution installs).
   one, is GPL — RapidR's built-in CGI support means you don't need it).
 - **If you change RapidR itself** and ship the changed runtime, keep the MIT
   notice (the notices file already does).
-- **The built-in fonts** (Liberation Sans, Serif and Mono; on Linux also
+- **The built-in fonts** (Liberation Sans, Serif and Mono, and JetBrains
+  Mono, the code editor's; on Linux also
   Cantarell, for window titles on GNOME's Wayland) are inside your program
-  unmodified, under the SIL Open Font License: fine for any program,
+  (unmodified; JetBrains Mono as the Latin subset Google Fonts distributes),
+  under the SIL Open Font License: fine for any program,
   commercial included. Don't extract them to sell on their own, and if you
   change them, give your version another name.
 - **On Linux**, your program uses the system's OpenSSL 3 library

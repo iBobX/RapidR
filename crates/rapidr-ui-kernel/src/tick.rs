@@ -77,14 +77,22 @@ impl FormUi {
 
     /// Whether the focused component shows a caret.
     pub fn editor_focused(&self) -> bool {
-        self.focus.is_some_and(|f| self.nodes[f].ui.edit.is_some())
+        self.focus.is_some_and(|f| self.nodes[f].ui.edit.is_some() || self.nodes[f].ui.code.is_some())
     }
 
     /// When something is due next (`None`: nothing waits).
     pub fn next_wake(&self) -> Option<Instant> {
         let caret = self.wakes.caret.filter(|_| self.blinks && self.editor_focused());
         let nodes = self.nodes.iter().filter_map(|n| n.ui.wake);
-        caret.into_iter().chain(self.wakes.bars).chain(self.tip_wake()).chain(nodes).min()
+        // (a component with work waiting: now)
+        let pending = self.pending().then(now);
+        caret.into_iter().chain(self.wakes.bars).chain(self.tip_wake()).chain(nodes).chain(pending).min()
+    }
+
+    /// Whether a component has work waiting for its view (`pending`): the
+    /// form is ticked at once, painted or not.
+    pub fn pending(&self) -> bool {
+        self.nodes.iter().any(|n| n.kind.is_some_and(|k| k.pending(&n.id)))
     }
 
     /// Runs what's due at `now`: the caret blinks, held scroll bars repeat,
@@ -110,7 +118,8 @@ impl FormUi {
             crate::components::scrollbox::bars_repeat(self, store);
         }
         for i in 0..self.nodes.len() {
-            if self.nodes[i].ui.wake.is_some_and(|at| at <= now) {
+            let pending = self.nodes[i].kind.is_some_and(|k| k.pending(&self.nodes[i].id));
+            if pending || self.nodes[i].ui.wake.is_some_and(|at| at <= now) {
                 self.nodes[i].ui.wake = None;
                 self.dirty = true;
                 self.with_cx(store, ts, i, |k, cx| k.tick(cx));

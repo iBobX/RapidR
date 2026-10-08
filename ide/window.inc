@@ -99,6 +99,11 @@ CREATE Studio AS QFORM
     Enabled = 0
     OnTimer = MacroTick
   END CREATE
+  CREATE EditorFocus AS QTIMER
+    Interval = 1
+    Enabled = 0
+    OnTimer = EditorFocusTick
+  END CREATE
   CREATE Analyzer AS QTIMER
     Interval = 600
     Enabled = 0

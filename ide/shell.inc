@@ -132,7 +132,7 @@ SUB RunCommand(Id AS STRING)
     CASE "help.about": ShowAbout
     CASE "help.examples": Dock.ShowPane("welcome"): Dock.FocusPane("welcome")
     CASE ELSE
-      OutputLine "(" + Id + ": not there yet)"
+      IF EditorCommand(Id) = 0 THEN OutputLine "(" + Id + ": not there yet)"
   END SELECT
 END SUB
 
@@ -167,10 +167,11 @@ SUB DocumentActivated(Name AS STRING)
     IF DocOpen(d) THEN
       IF k = "codedoc(" + LTRIM$(STR$(d)) + ")" THEN ActiveDoc = d: DocKind(d) = "code"
       ' (the designer reads what was typed before it changes anything)
-      IF k = "designdoc(" + LTRIM$(STR$(d)) + ")" THEN ActiveDoc = d: DocKind(d) = "design": HistNoteCode d: DesignRead d
+      IF k = "designdoc(" + LTRIM$(STR$(d)) + ")" THEN ActiveDoc = d: DocKind(d) = "design": DesignRead d
     END IF
   NEXT
   IF ActiveDoc <> was THEN AnalyzeActive
+  IF ActiveDoc >= 0 THEN EditorFacts ActiveDoc
   UpdateCommands
 END SUB
 
@@ -285,6 +286,8 @@ END SUB
 ' runs; the tests drive Studio this way, through the very commands.
 SUB MacroTick
   DIM k AS INTEGER, id AS STRING
+  ' (keys a step sent still being typed: the next step waits for them)
+  IF Application.KeysPending > 0 THEN EXIT SUB
   IF DoList = "" THEN
     Macro.Enabled = 0
     EXIT SUB
@@ -298,6 +301,7 @@ SUB MacroTick
     DoList = ""
   END IF
   id = LTRIM$(RTRIM$(id))
+  IF EditorStep(id) THEN EXIT SUB
   IF id <> "" AND id <> "wait" THEN
     OutputLine "> " + id
     ' (S-PANELS: the panels' test steps, tool: prop: …, else a command)

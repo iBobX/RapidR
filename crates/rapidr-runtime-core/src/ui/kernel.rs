@@ -895,8 +895,8 @@ pub fn tree_method(name: &str, method: &str, args: &[Value]) -> Value {
 // ---------------------------------------------- the IDE's components --
 //
 // (Stage 10) RDESIGNSURFACE and RCODEEDITOR keep their state in the shared
-// models (rapidr_value::objects::design, a TextEdit in code mode), which the
-// kernel's components draw and drive (components/design.rs, codeedit.rs):
+// models (rapidr_value::objects::design and codeedit), which the
+// kernel's components draw and drive (components/design.rs, codeeditor/):
 // only a design surface's Show / Hide is left here.
 
 pub fn design_surface_method(name: &str, method: &str, _args: &[Value]) -> Value {
