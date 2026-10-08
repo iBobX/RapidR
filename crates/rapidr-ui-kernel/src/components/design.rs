@@ -726,7 +726,7 @@ pub fn drop_move(ui: &mut FormUi, store: &dyn Store, hit: Option<usize>, x: f64,
         if store.type_of(&id) != "RDESIGNSURFACE" {
             continue;
         }
-        let (rx, ry, _, _) = ui.nodes[i].rect;
+        let (rx, ry, _, _) = ui.nodes[i].abs;
         let (ox, oy) = with_design(&id, |d| d.client_origin()).unwrap_or((0, 0));
         let (cx, cy) = (x.floor() as i64 - rx - ox, y.floor() as i64 - ry - oy);
         with_design_mut(&id, |d| {
@@ -753,7 +753,7 @@ pub fn drop_up(ui: &mut FormUi, store: &dyn Store, hit: Option<usize>, x: f64, y
             continue;
         }
         if hit == Some(i) {
-            let (rx, ry, _, _) = ui.nodes[i].rect;
+            let (rx, ry, _, _) = ui.nodes[i].abs;
             let (ox, oy) = with_design(&id, |d| d.client_origin()).unwrap_or((0, 0));
             let (cx, cy) = (x.floor() as i64 - rx - ox, y.floor() as i64 - ry - oy);
             with_design_mut(&id, |d| {
@@ -770,6 +770,26 @@ pub fn drop_up(ui: &mut FormUi, store: &dyn Store, hit: Option<usize>, x: f64, y
         }
     }
     ui.dirty = true;
+}
+
+/// Escape while a component is being dragged in: the drag ends, nothing
+/// added; whether there was one.
+pub fn drop_cancel(ui: &mut FormUi, store: &dyn Store) -> bool {
+    if rapidr_value::objects::design::drop_pending().is_none() {
+        return false;
+    }
+    rapidr_value::objects::design::end_drop();
+    for n in &ui.nodes {
+        if store.type_of(&n.id) == "RDESIGNSURFACE" {
+            with_design_mut(&n.id, |d| {
+                if d.place_type.is_empty() {
+                    d.ghost = None;
+                }
+            });
+        }
+    }
+    ui.dirty = true;
+    true
 }
 
 /// Whether node `i` is a design surface whose placing tool shows under the
