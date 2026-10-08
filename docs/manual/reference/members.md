@@ -3881,6 +3881,7 @@ A node of a Direct3D retained-mode scene: it has a position, orientation and mot
 | Property | Type | Default | |
 |---|---|---|---|
 | `FogColor` | color |  | The colour of the frame's fog. |
+| `FogEnabled` | int |  | Whether the frame's fog is on (1) or off (0). RapidR keeps it; its renderer draws no fog. |
 | `FogMode` | int |  | How the fog thickens with distance: linear, exponential or exponential squared. |
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 
@@ -3905,7 +3906,6 @@ A node of a Direct3D retained-mode scene: it has a position, orientation and mot
 | `SetRotation(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE, Theta AS DOUBLE)` | Sets the frame spinning around the axis (`X`, `Y`, `Z`), `Theta` radians each time step of `Move`. |
 | `SetTexture(Tex AS QD3DTEXTURE)` | Puts texture `Tex` on the frame or mesh. |
 | `SetVelocity` *(RapidR)* | Sets the velocity (`X`, `Y`, `Z`) a frame moves by each time step of `Move`; a DirectX screen sets its camera's. |
-| `FogEnabled` | Turns fog on or off in the frame's scene. |
 
 <a id="rd3dmeshbuilder"></a>
 ## RD3DMESHBUILDER (QD3DMESHBUILDER)
@@ -4025,6 +4025,24 @@ A 3D vector (X, Y, Z), for positions and directions in the 3D scene.
 | `X` | float |  | An X: the vector's component, the joystick's first axis (0 to 65535, 32767 at rest), or the mouse pointer's on the screen. |
 | `Y` | float |  | A Y: the vector's component, the joystick's second axis (0 to 65535, 32767 at rest, growing downward), or the mouse pointer's on the screen. |
 | `Z` | float |  | A Z: the vector's component, or the joystick's third axis (0 to 65535, 32767 at rest). |
+
+<a id="rd3danimation"></a>
+## RD3DANIMATION (QD3DANIMATION)
+
+Direct3D's keyframe animation, as RapidQ declares it: a handle with a Parent and no other member. Nothing in RapidQ makes or plays one.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+
+<a id="rd3danimationset"></a>
+## RD3DANIMATIONSET (QD3DANIMATIONSET)
+
+Direct3D's set of animations, as RapidQ declares it: a handle with a Parent and no other member. Nothing in RapidQ makes or plays one.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 
 <a id="rnum"></a>
 ## RNUM

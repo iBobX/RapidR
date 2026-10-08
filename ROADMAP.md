@@ -167,8 +167,9 @@ desktop and the web. OLE / COM stays last (Windows-only builds).
   - [x] D1: QDXSCREEN 2D (back buffer, Flip, drawing, Init / AutoSize / AllowStretch, set-up events), QDXIMAGELIST (`.DXG` libraries), QDXTIMER (Interval 0, FrameRate) on native, interpreted and web (`dx_screen` fixture)
   - [x] D1b: FullScreen, ActiveOnly, Rotate, View.*, Cursor, a screen added to a shown form, the screen font (MS Sans Serif 8) (`dx_more` fixture)
   - [x] D2: QDXSOUND (rodio / Web Audio) (`dx_sound` fixture)
-  - [x] D3–D4: the QD3D* scene and API, the `.X` loader, the software rasterizer, shadows (`d3d_scene`, `d3d_xfile` fixtures; RapidQ's own look can't be compared: `d3drm.dll` left Windows with Vista) (v2.116.0)
-  - [ ] D5: the wgpu renderer — **parked** (the software rasterizer is fast enough: Park.x, 29k faces, 4.4 ms at 1×, 8.1 ms at 2×; revisit when a real program measurably needs it — docs/directx-plan.md "Stage D5: parked")
+  - [x] D3–D4: the QD3D* scene and API, the `.X` loader, the software rasterizer, shadows (`d3d_scene`, `d3d_xfile` fixtures; compared with RapidQ's own since C-DX) (v2.116.0)
+  - [x] C-DX: RapidQ's 32 DirectX / Direct3D corpus programs against RC.EXE run with the `d3drm.dll` RapidQ's examples ship — QRECT fields in objects, TYPEs no DIM makes, `Obj.Method = a, b`, OnResize as the VCL, D3DRM's zero vectors and wraps, specular highlights, every `.X` model drawn as D3DRM draws it, RC.EXE's unknown-type errors, `$DEFINE` in any case; 26 compile interpreted (19 before), 28 native, the 4 RC.EXE refuses refused alike (docs/directx-plan.md, "The corpus's DirectX programs"). Open: RAPIDQ2.INC's Windows API calls (the DLL lane), HideTitleBar
+  - [x] D5: Direct3D on wgpu everywhere — Metal, Direct3D 12 (WARP without a GPU), Vulkan / OpenGL, WebGL 2 in the browser; the scene read back into the QDXSCREEN's back buffer; the software rasterizer compared, then removed (docs/directx-plan.md "Stage D5 results")
   - [x] D6: joysticks — RapidQ's undocumented QDXJOYSTICK (IsLeft … Button(n), Update; found in RC.EXE) plus RapidR's X / Buttons / POV / events, on gilrs (Windows, macOS), evdev (Linux) and the Gamepad API (`dx_joystick` fixture)
 
 Next up, in order:

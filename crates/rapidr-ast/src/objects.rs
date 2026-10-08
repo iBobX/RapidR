@@ -977,7 +977,19 @@ impl Lowering<'_> {
             Statement::Call(c) => self.call_statement(c),
             Statement::Dim(d) => self.dim(d),
             Statement::With(w) => {
-                if matches!(&w.object, Expression::Identifier(id) if self.is_this(&id.name)) || self.object_type(&w.object).is_some_and(|t| self.is_user_type(&t)) {
+                // (`WITH TF.Bar` in TF's own code — a field of This: its
+                // `.Width = …` must reach the field's object, as RapidQ's
+                // newform.bas's title bar does; resolved like `TF.Bar.Width`)
+                let mut root = &w.object;
+                while let Expression::MemberAccess(m) = root {
+                    root = m.object.as_ref();
+                }
+                // (`WITH v.R` — a field of an object a TYPE makes, a QRECT
+                // in RapidQ's direct3d examples: resolved like `v.R.Bottom`,
+                // as RC.EXE takes it)
+                let this_field = !matches!(&w.object, Expression::Identifier(_))
+                    && (matches!(root, Expression::Identifier(id) if self.is_this(&id.name)) || self.object_type(root).is_some_and(|t| self.is_user_type(&t)));
+                if this_field || matches!(&w.object, Expression::Identifier(id) if self.is_this(&id.name)) || self.object_type(&w.object).is_some_and(|t| self.is_user_type(&t)) {
                     let body = resolve_with_body(&w.body, &w.object);
                     return self.body(&body);
                 }

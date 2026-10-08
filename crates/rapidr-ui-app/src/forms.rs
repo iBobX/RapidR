@@ -37,6 +37,8 @@ struct Forms {
     /// (the WindowState lane's) The bounds a maximized form goes back to
     /// (the headless host's maximize: `simulate_state`).
     normal_bounds: HashMap<String, rapidr_value::window_state::Bounds>,
+    /// Each built form's Width × Height its OnResize last told of.
+    sizes: HashMap<String, (i64, i64)>,
 }
 
 thread_local! {
@@ -217,15 +219,58 @@ fn place_centered<R: Program + Windows>(rt: R, name: &str) {
 // ----------------------------------------------------- show and hide --
 
 /// A form's kernel side, made the first time (OnLoad once, the first
-/// OnPaint waiting for its window to show).
-pub fn build_form<P: Program>(p: P, name: &str) {
+/// OnPaint waiting for its window to show); whether it was made now —
+/// then, once its window shows, [`window_made`].
+pub fn build_form<P: Program>(p: P, name: &str) -> bool {
     let name = lower(name);
     if !st(|s| s.built.insert(name.clone())) {
-        return;
+        return false;
     }
     p.fire(&name, "onload");
-    p.form_built(&name);
-    st(|s| s.first_paint.insert(name));
+    let size = (p.get(&name, "width").to_i64(), p.get(&name, "height").to_i64());
+    st(|s| {
+        s.sizes.insert(name.clone(), size);
+        s.first_paint.insert(name)
+    });
+    true
+}
+
+/// A form's window made and shown the first time, before its OnShow: its
+/// QDXSCREENs are set up (OnInitialize, OnInitializeSurface). On the window
+/// shown, as RapidQ's: RapidQ's 3DPong runs its game loop (DoEvents)
+/// inside OnInitializeSurface, its window showing the game.
+fn window_made<P: Program>(p: P, name: &str, made: bool) {
+    if made {
+        p.form_built(&lower(name));
+    }
+}
+
+/// OnResize as the VCL fires it (RC.EXE, probes 2026-10-08): when a form's
+/// window is first made and shown — OnResize, OnShow, OnResize again
+/// ([`show`], [`begin_modal`]); later whenever its size changes while the
+/// window exists, shown or hidden, the program's change or the user's
+/// ([`apply_geometry`]); never before the window exists (a Width set before
+/// Show), nor for a Left / Top, a size set to what it is, a second Show.
+fn first_show_resize<P: Program>(p: P, name: &str, first: bool) {
+    if first {
+        p.fire(name, "onresize");
+    }
+}
+
+/// A built form's size changed: its OnResize.
+fn resized<P: Program>(p: P, name: &str) {
+    let name = lower(name);
+    let size = (p.get(&name, "width").to_i64(), p.get(&name, "height").to_i64());
+    let changed = st(|s| match s.sizes.get_mut(&name) {
+        Some(old) if *old != size => {
+            *old = size;
+            true
+        }
+        _ => false,
+    });
+    if changed {
+        p.fire(&name, "onresize");
+    }
 }
 
 /// The form's window shown (made the first time), before its OnShow: the
@@ -328,9 +373,12 @@ pub fn show<R: Program + Windows>(rt: R, name: &str) {
     if !was_built {
         place_centered(rt, name);
     }
-    build_form(rt, name);
+    let made = build_form(rt, name);
     show_window(rt, name);
+    window_made(rt, name, made);
+    first_show_resize(rt, name, !was_built);
     rt.fire(name, "onshow");
+    first_show_resize(rt, name, !was_built);
     after_show(rt, name);
 }
 
@@ -416,20 +464,24 @@ pub fn begin_modal<R: Program + Windows>(rt: R, name: &str) {
     let name = lower(name);
     rt.store(&name, "modalresult", v_int(0));
     push_modal(&name);
+    let first = !form_window_exists(&name);
     if window_shown(&name).is_none() {
         place_centered(rt, &name);
     } else if rt.get(&name, "_center").to_i64() != 0 {
         let p = centered(rt, &name);
         push_op(WindowOp::Position(name.clone(), p));
     }
-    build_form(rt, &name);
+    let made = build_form(rt, &name);
     if form_shown(&name) {
         push_op(WindowOp::Show(name.clone()));
         rt.flush();
     } else {
         show_window(rt, &name);
     }
+    window_made(rt, &name, made);
+    first_show_resize(rt, &name, first);
     rt.fire(&name, "onshow");
+    first_show_resize(rt, &name, first);
     after_show(rt, &name);
     timers::start_all(rt);
 }
@@ -440,6 +492,7 @@ pub fn begin_modal<R: Program + Windows>(rt: R, name: &str) {
 pub fn apply_geometry<P: Program>(p: P, name: &str) {
     if is_form(p, name) && window_shown(name).is_some() {
         push_op(WindowOp::Size(lower(name), form_window_size(p, name)));
+        resized(p, name);
     }
     invalidate();
 }
@@ -521,8 +574,8 @@ pub fn form_resized<P: Program>(p: P, form: &str, w: i64, h: i64) {
         p.set(form, "height", v_int(h));
     });
     p.client_changed(form);
+    // (OnResize: apply_geometry's)
     apply_geometry(p, form);
-    p.fire(form, "onresize");
     p.fire(form, "onpaint");
 }
 

@@ -206,8 +206,10 @@ impl FormUi {
         // (a QFORMMDI's child frames in their stacking order)
         // (and a dock manager's slid-out pane over its groups)
         // (and a shown command palette, a toolbox dragging, over their neighbours)
+        // (and a full-screen QDXSCREEN over everything on its form)
         let children = components::dock::stacked(parent_id, components::mdi::stacked(parent_id, store.children(parent_id)));
         let children = components::panels::palette::stacked(parent_id, components::panels::toolbox::stacked(parent_id, children));
+        let children = if parent.is_none() { components::dxscreen::stacked(store, children) } else { children };
         for (id, type_name) in children {
             let type_name = type_name.to_ascii_uppercase();
             if !placed(&type_name) {
@@ -243,6 +245,11 @@ impl FormUi {
             let n = &mut self.nodes[i];
             n.rect = rect;
             n.abs = (origin.0 + rect.0, origin.1 + rect.1, rect.2.max(0), rect.3.max(0));
+            // (a full-screen QDXSCREEN on the form: the whole of it, as
+            // DirectDraw's exclusive mode had the whole display)
+            if n.parent.is_none() && components::dxscreen::full_screen(store, &id, &type_name) {
+                n.abs = (0, self.menu_offset, self.client.0.max(0), (self.client.1 - self.menu_offset).max(0));
+            }
             n.shown = shown && on(store, &id, "visible");
             n.enabled = enabled && on(store, &id, "enabled");
         }

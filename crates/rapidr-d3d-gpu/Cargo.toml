@@ -1,0 +1,28 @@
+[package]
+name = "rapidr-d3d-gpu"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+description = "RapidQ's Direct3D (QDXSCREEN's Render) on wgpu: Metal, Vulkan, Direct3D 12 and OpenGL on the desktop, WebGL 2 in a browser"
+
+# docs/directx-plan.md, stage D5. The scene and its lighting stay
+# rapidr-value's (objects::d3d: Direct3D Retained Mode's model, the same on
+# every runtime); this crate rasterizes what a Render hands it and reads the
+# pixels back into the QDXSCREEN's back buffer.
+
+[dependencies]
+rapidr-value = { workspace = true }
+
+# wgpu (MIT OR Apache-2.0): the version and features vello already brings
+# to the desktop (rapidr-ui-host-winit) — Metal, Vulkan, Direct3D 12, GL.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+wgpu = "30"
+pollster = "0.4"
+
+# In a browser: WebGL 2 only, whose read-back is synchronous (WebGPU's
+# isn't, and a Render must hand its pixels back before the program goes on).
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wgpu = { version = "30", default-features = false, features = ["webgl", "wgsl", "std"] }
+web-sys = { version = "0.3.106", features = ["Window", "Document", "Element", "HtmlCanvasElement"] }
+wasm-bindgen = "0.2.129"

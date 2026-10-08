@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fmt;
 use std::fs;
@@ -98,6 +98,16 @@ struct PpState {
     /// include file starts with it off, and the includer's setting comes back
     /// after the include).
     escape_chars: bool,
+    /// Inside `TYPE … EXTENDS …` (or STRUCT): the fields declared so far
+    /// (lower case), whose names aren't `$DEFINE`d words there — where
+    /// they're declared and where the TYPE's code names them (RC.EXE:
+    /// RAPIDQ2.INC defines TRANSPARENT 1, and its QMenuEx has a field
+    /// `Transparent` its CONSTRUCTOR sets; a plain TYPE's are replaced).
+    object_fields: Option<HashSet<String>>,
+    /// How deep in CREATE blocks this line is: a property set there
+    /// (`Transparent = True`) keeps its name (RC.EXE: RapidQ's 3DPong sets
+    /// a QBITMAP's Transparent with RAPIDQ2.INC's TRANSPARENT defined).
+    create_depth: usize,
     /// RapidR's libraries put before the program (`RAPIDR_LIBRARIES`' file
     /// names, upper case): their RapidQ include files aren't read.
     libraries: Vec<String>,
@@ -127,6 +137,8 @@ impl PpState {
             app_type: None,
             resources: Vec::new(),
             escape_chars: false,
+            object_fields: None,
+            create_depth: 0,
             libraries: Vec::new(),
             files: Vec::new(),
             follow_includes: true,
@@ -798,8 +810,21 @@ fn preprocess_with_state(
             }
         }
 
+        let words: Vec<&str> = upper_line.split_whitespace().take(3).collect();
+        if matches!(words.first(), Some(&"TYPE") | Some(&"STRUCT")) && upper_line.contains(" EXTENDS ") {
+            state.object_fields = Some(HashSet::new());
+        } else if words.first() == Some(&"END") && matches!(words.get(1), Some(&"TYPE") | Some(&"STRUCT")) {
+            state.object_fields = None;
+        } else if let (Some(fields), Some(name), Some(&"AS")) = (state.object_fields.as_mut(), words.first(), words.get(1)) {
+            fields.insert(name.to_ascii_lowercase());
+        }
+        let in_create = state.create_depth > 0 || words.first() == Some(&"CREATE");
+        if words.first() == Some(&"CREATE") {
+            state.create_depth += 1;
+        }
+        state.create_depth = state.create_depth.saturating_sub(upper_line.matches("END CREATE").count());
         if !state.defines.is_empty() && !upper_line.contains('$') {
-            substitute_defines_outside_strings(&mut processed_line, &state.defines);
+            substitute_defines_outside_strings(&mut processed_line, &state.defines, state.object_fields.as_ref(), in_create);
         }
 
         emit!(out, LineKind::Code, processed_line);
@@ -1328,8 +1353,17 @@ fn split_macro_args(args: &str) -> Vec<String> {
 }
 
 /// `$DEFINE`d symbols → their values, outside string literals (each part
-/// between `"`s of the line as written, longest symbols first).
-fn substitute_defines_outside_strings(line: &mut MappedText, defines: &HashMap<String, String>) {
+/// between `"`s of the line as written, longest symbols first), as RC.EXE
+/// replaces them (probes 2026-10-08): in any case (`$DEFINE GLint integer`
+/// makes `DIM b AS glInt` an INTEGER; RAPIDQ2.INC defines BOOLEAN and
+/// writes `AS boolean`), but not a member's name after a `.`
+/// (`v.Transparent`) nor, inside a `TYPE … EXTENDS`, one of its fields'
+/// names (`kept`, lower case: RAPIDQ2.INC's `$DEFINE TRANSPARENT 1` and
+/// QFormEx's `Transparent AS INTEGER`).
+///
+/// In a CREATE block (`in_create`) a statement's assignment target is the
+/// object's property: its name stays too.
+fn substitute_defines_outside_strings(line: &mut MappedText, defines: &HashMap<String, String>, kept: Option<&HashSet<String>>, in_create: bool) {
     let mut sorted = defines.iter().collect::<Vec<_>>();
     sorted.sort_by(|left, right| right.0.len().cmp(&left.0.len()));
 
@@ -1346,13 +1380,36 @@ fn substitute_defines_outside_strings(line: &mut MappedText, defines: &HashMap<S
     for (part_start, part_end) in parts.into_iter().rev() {
         let mut part_end = part_end;
         for (symbol, value) in &sorted {
-            let found = identifier_occurrences(&line.text[part_start..part_end], symbol);
+            if kept.is_some_and(|k| k.contains(&symbol.to_ascii_lowercase())) {
+                continue;
+            }
+            let text = &line.text[part_start..part_end];
+            let found: Vec<_> = define_occurrences(text, symbol).into_iter().filter(|at| !(in_create && is_assignment_target(text, at))).collect();
             for at in found.iter().rev() {
                 line.replace(part_start + at.start..part_start + at.end, value);
             }
             part_end = part_end + found.len() * value.len() - found.len() * symbol.len();
         }
     }
+}
+
+/// Whether the word at `at` starts a statement (the line's start or after a
+/// `:`) and is assigned to (`Name = …`).
+fn is_assignment_target(text: &str, at: &std::ops::Range<usize>) -> bool {
+    let before = text[..at.start].trim_end();
+    let after = text[at.end..].trim_start();
+    (before.is_empty() || before.ends_with(':')) && after.starts_with('=') && !after.starts_with("==")
+}
+
+/// Where `symbol` stands as a whole identifier in `line`, in any case and
+/// not after a `.` ([`substitute_defines_outside_strings`]).
+fn define_occurrences(line: &str, symbol: &str) -> Vec<std::ops::Range<usize>> {
+    // (ASCII case folding keeps every byte offset)
+    let folded = line.to_ascii_lowercase();
+    identifier_occurrences(&folded, &symbol.to_ascii_lowercase())
+        .into_iter()
+        .filter(|at| !folded[..at.start].trim_end().ends_with('.'))
+        .collect()
 }
 
 /// Where `symbol` stands as a whole identifier in `line` (left to right,
@@ -1411,6 +1468,25 @@ mod tests {
     fn simple_define_substitution() {
         let result = preprocess("$DEFINE VERSION 2\nPRINT VERSION");
         assert!(result.contains("PRINT 2"));
+    }
+
+    #[test]
+    fn define_matches_any_case() {
+        // (RC.EXE: `$DEFINE Foo 5` then `PRINT foo` prints 5; `foox` and
+        // "foo" in a string are left alone)
+        let result = preprocess("$DEFINE Foo 5\nPRINT foo + FOO\nPRINT \"foo\"; foox");
+        assert!(result.contains("PRINT 5 + 5"), "{result}");
+        assert!(result.contains("PRINT \"foo\"; foox"), "{result}");
+        // (a member's name, and a field's of an object TYPE, stay)
+        let result = preprocess("$DEFINE TRANSPARENT 1\nTYPE T EXTENDS QOBJECT\n  Transparent AS INTEGER\n  CONSTRUCTOR\n    Transparent = 2\n  END CONSTRUCTOR\nEND TYPE\nTYPE P\n  transparent AS INTEGER\nEND TYPE\nv.Transparent = transparent");
+        assert!(result.contains("    Transparent = 2"), "{result}");
+        assert!(result.contains("  Transparent AS INTEGER"), "{result}");
+        assert!(result.contains("  1 AS INTEGER"), "{result}");
+        assert!(result.contains("v.Transparent = 1"), "{result}");
+        // (a property set in a CREATE block keeps its name)
+        let result = preprocess("$DEFINE TRANSPARENT 1\nCREATE B AS QBITMAP\n  Transparent = TRANSPARENT\nEND CREATE\nTransparent = 3");
+        assert!(result.contains("  Transparent = 1"), "{result}");
+        assert!(result.contains("\n1 = 3"), "{result}");
     }
 
     #[test]

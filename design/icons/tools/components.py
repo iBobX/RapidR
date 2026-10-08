@@ -760,6 +760,26 @@ def d3dvector(g):
     g.poly([(11.5, 5), (19, 5), (19, 12.5)], c="violet")
 
 
+@icon("d3danimation", C, "Direct3D animation")
+def d3danimation(g):
+    # a cube (the animated frame) under a motion arc with its keyframes
+    with g.sub(-0.4, 6.4, 0.72):
+        cube(g)
+    g.path("M9 5 Q18 0.5 20.5 10.5", c="violet")
+    arrowhead(g, 20.5, 11, 0.25, 1, 3, c="violet")
+    g.dot(9, 5, 1.5, fill="ink")
+
+
+@icon("d3danimationset", C, "Direct3D animation set")
+def d3danimationset(g):
+    # two cubes, one behind the other: a set of animations
+    with g.sub(7, 0.9, 0.7):
+        cube(g)
+    with g.sub(0.2, 6.8, 0.7):
+        g.cut(lambda m: m.path("M12 3 L20 7.5 V16.5 L12 21 L4 16.5 V7.5 Z", c="fg", fill="fg"), gap=0.5)
+        cube(g)
+
+
 # ---- data science ------------------------------------------------------------------------
 
 @icon("num", C, "RNUM (numeric array)")

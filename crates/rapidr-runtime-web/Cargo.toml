@@ -16,6 +16,8 @@ rapidr-ui-app = { workspace = true }
 rapidr-ui-host-web = { path = "../rapidr-ui-host-web", default-features = false }
 # RSQLITE: SQLite itself, compiled to wasm (shared with the desktop runtime)
 rapidr-db = { workspace = true }
+# QDXSCREEN's Direct3D: Render on WebGL 2 through wgpu (docs/directx-plan.md)
+rapidr-d3d-gpu = { workspace = true }
 # RPLOT's charts: the UI kernel's renderer, the desktop's (chart.rs)
 rapidr-ui-render = { workspace = true }
 # RapidR Studio's components: RPROJECT, RLANGUAGESERVICE, RPROGRAMSESSION

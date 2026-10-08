@@ -1550,8 +1550,16 @@ AnimationSet Walk {
                 Ok(file) => {
                     let flat = flatten(&file);
                     let textures: std::collections::BTreeSet<&str> = flat.materials.iter().filter_map(|m| m.texture.as_deref()).collect();
+                    // (the model's bounds, as the frame's own space has them)
+                    let (mut lo, mut hi) = ([f32::MAX; 3], [f32::MIN; 3]);
+                    for p in &flat.positions {
+                        for i in 0..3 {
+                            lo[i] = lo[i].min(p[i]);
+                            hi[i] = hi[i].max(p[i]);
+                        }
+                    }
                     println!(
-                        "{name:58} {format} frames {:2} meshes {:2} | vertices {:6} faces {:6} normals {:6} uv {:6} colors {:5} materials {:3} | {}",
+                        "{name:58} {format} frames {:2} meshes {:2} | vertices {:6} faces {:6} normals {:6} uv {:6} colors {:5} materials {:3} | bounds {lo:?} {hi:?} | specular {:?} | {}",
                         file.frames.len(),
                         file.meshes.len(),
                         flat.positions.len(),
@@ -1560,6 +1568,7 @@ AnimationSet Walk {
                         flat.texcoords.len(),
                         flat.colors.len(),
                         flat.materials.len(),
+                        flat.materials.iter().filter(|m| m.power > 0.0 && m.specular.iter().any(|c| *c > 0.0)).map(|m| (m.power, m.specular, m.emissive)).take(2).collect::<Vec<_>>(),
                         textures.into_iter().collect::<Vec<_>>().join(" "),
                     );
                     if flat.positions.is_empty() || flat.faces.is_empty() {

@@ -13,6 +13,7 @@ members = [
     "crates/rapidr-codegen-rust",
     "crates/rapidr-buildserver",
     "crates/rapidr-value",
+    "crates/rapidr-d3d-gpu",
     "crates/rapidr-db",
     "crates/rapidr-ui-kernel",
     "crates/rapidr-ui-render",
@@ -60,6 +61,7 @@ rapidr-runtime-core = { path = "crates/rapidr-runtime-core" }
 rapidr-runtime-web = { path = "crates/rapidr-runtime-web" }
 rapidr-codegen-rust = { path = "crates/rapidr-codegen-rust" }
 rapidr-value = { path = "crates/rapidr-value" }
+rapidr-d3d-gpu = { path = "crates/rapidr-d3d-gpu" }
 rapidr-db = { path = "crates/rapidr-db" }
 rapidr-ui-kernel = { path = "crates/rapidr-ui-kernel" }
 rapidr-icons = { path = "crates/rapidr-icons" }

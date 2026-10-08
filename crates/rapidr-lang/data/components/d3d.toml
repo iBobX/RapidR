@@ -9,6 +9,7 @@ visual = false
 doc = "A node of a Direct3D retained-mode scene: it has a position, orientation and motion, and holds meshes, lights and child frames. RapidR draws the scene with its own renderer."
 properties = [
   { name = "FogColor", type = "color" },
+  { name = "FogEnabled", type = "int", doc = "Whether the frame's fog is on (1) or off (0). RapidR keeps it; its renderer draws no fog." },
   { name = "FogMode", type = "int" },
   { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL"], design = false },
 ]
@@ -32,7 +33,6 @@ methods = [
   { name = "SetRotation", params = "X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE, Theta AS DOUBLE" },
   { name = "SetTexture", params = "Tex AS QD3DTEXTURE" },
   { name = "SetVelocity", origin = "rapidr" },
-  { name = "FogEnabled" },
 ]
 events = []
 
@@ -167,6 +167,30 @@ properties = [
   { name = "X", type = "float" },
   { name = "Y", type = "float" },
   { name = "Z", type = "float" },
+]
+methods = []
+events = []
+
+[[component]]
+name = "RD3DANIMATION"
+display = "D3DAnimation"
+rapidq = "QD3DANIMATION"
+visual = false
+doc = "Direct3D's keyframe animation, as RapidQ declares it: a handle with a Parent and no other member. Nothing in RapidQ makes or plays one."
+properties = [
+  { name = "Parent", type = "component", kinds = ["QFORM"], design = false },
+]
+methods = []
+events = []
+
+[[component]]
+name = "RD3DANIMATIONSET"
+display = "D3DAnimationSet"
+rapidq = "QD3DANIMATIONSET"
+visual = false
+doc = "Direct3D's set of animations, as RapidQ declares it: a handle with a Parent and no other member. Nothing in RapidQ makes or plays one."
+properties = [
+  { name = "Parent", type = "component", kinds = ["QFORM"], design = false },
 ]
 methods = []
 events = []
