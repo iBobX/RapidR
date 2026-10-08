@@ -424,7 +424,7 @@ The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate wind
 
 **I1 — Shell** (L, 16–22 sessions)
 - [ ] RDockManager: docked / tabbed / auto-hide / floating panels, layouts saved and restored, all by keyboard; the documents area an MDI client on `rapidr_value::mdi` (cascade / tile) or tabs
-- [ ] RProjectTree, RToolbox (groups "RapidQ" and "RapidR", names as the designer writes them), RPropertyInspector (typed editors from the registry, RapidR extensions badged, Events tab), ROutputConsole (ANSI), RCommandPalette, a real RToolBar kind
+- [x] RProjectTree, RToolbox (groups "RapidQ" and "RapidR", names as the designer writes them), RPropertyInspector (typed editors from the registry, RapidR extensions badged, Events tab), ROutputConsole (ANSI), RCommandPalette, a real RToolBar kind — in RapidR Studio, properties two-way with the designer and the code (S-PANELS, 2026-10-08)
 - [ ] The shell (`ide/`, a RapidR program on public components only), commands and shortcuts (VB6 / Delphi scheme), settings, modern / dark / high-contrast themes with editor colours, vector icons, OFL fonts
 - [ ] Run / Stop / Build through `RProgramSession` / `RProject` on both hosts (Build: `RPROJECT.Build` makes the app for the desktop it runs on, B-PKG; the web shows the program instead)
 - [ ] Web: the IDE page on the canvas host, IndexedDB / OPFS autosave, File System Access open / save, zip import / export, web bundle build

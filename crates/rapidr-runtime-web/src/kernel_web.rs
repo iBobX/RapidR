@@ -214,6 +214,8 @@ impl Program for Web {
             Container::Mdi { form, component, action } => crate::mdi_web::user(&form, &component, action),
             // (I1: RDOCKMANAGER — dock_web.rs)
             Container::Dock { id, action } => crate::dock_web::user(&id, action),
+            // (I1 / L-PANELS — panels_web.rs)
+            Container::Panel { id, action } => crate::panels_web::user(&id, action),
             Container::Resize { .. } => {}
         }
         invalidate();

@@ -3,33 +3,6 @@
 
 ' ---- the project ---------------------------------------------------------------------
 
-SUB FillProjectTree
-  DIM i AS INTEGER, k AS INTEGER, p AS STRING, ext AS STRING
-  ProjectTree.Clear
-  FileIcons.Clear
-  IF ProjectOpen = 0 THEN
-    ProjectTree.AddItems "No project open"
-    TreeIcon ProjectTree, 0, FileIcon("files/folder")
-    EXIT SUB
-  END IF
-  ProjectTree.AddItems Proj.Name
-  TreeIcon ProjectTree, 0, FileIcon("files/rrproj")
-  TreePath(0) = ""
-  FOR i = 0 TO Proj.FileCount - 1
-    p = Proj.File(i)
-    ProjectTree.AddChildItems 0, p
-    k = ProjectTree.ItemCount - 1
-    ext = FileExt(p)
-    IF Proj.FileKind(i) = "form" THEN
-      TreeIcon ProjectTree, k, FileIcon("RFORM")
-    ELSE
-      TreeIcon ProjectTree, k, FileIcon("files/" + ext)
-    END IF
-    IF k < 200 THEN TreePath(k) = Proj.FullPath(i)
-  NEXT
-  ProjectTree.FullExpand
-END SUB
-
 ' Opens a project (.rrproj) or a source file (with what it includes) and
 ' its main file's documents.
 SUB OpenProject(Path AS STRING)
@@ -152,13 +125,6 @@ SUB SaveProjectFile
   END IF
 END SUB
 
-SUB ProjectTreeOpen
-  DIM i AS INTEGER
-  i = ProjectTree.ItemIndex
-  IF i <= 0 OR i >= 200 THEN EXIT SUB
-  IF TreePath(i) <> "" THEN OpenDocument TreePath(i)
-END SUB
-
 ' ---- running the program (RProgramSession) -----------------------------------------------
 
 SUB StartProgram(WithDebugger AS INTEGER)
@@ -168,10 +134,12 @@ SUB StartProgram(WithDebugger AS INTEGER)
   AnalyzeActive
   IF Lang.ErrorCount > 0 THEN
     SetState "error", "Can't run: the program has errors"
-    Dock.FocusPane("problemsview")
+    OutputBox.Page = "problems"
+    Dock.FocusPane("outputbox")
     EXIT SUB
   END IF
-  OutputBox.Clear
+  OutputBox.Clear "output"
+  OutputBox.Page = "output"
   Dock.ShowPane("outputbox")
   Session.Program = ProjectMain
   Session.Debug = WithDebugger
@@ -189,8 +157,7 @@ SUB StopProgram
 END SUB
 
 SUB ProgramOutput(Text AS STRING)
-  OutputBox.SelStart = LEN(OutputBox.Text)
-  OutputBox.SelText = Text
+  OutputBox.Write Text
 END SUB
 
 SUB ProgramStopped(Reason AS STRING, InFile AS STRING, LineNo AS INTEGER)

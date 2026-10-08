@@ -15,7 +15,12 @@ END SUB
 
 ' (its button on the tool bar; BuildToolBar)
 SUB AddPreviewTool
-  AddTool "view.previewClassic"
+  DIM i AS INTEGER
+  i = CmdIndex("view.previewClassic")
+  IF i < 0 THEN EXIT SUB
+  ToolBar.AddToggle Cmd(i).Id, CmdIcon(i), PlainTitle(Cmd(i).Title), Cmd(i).Id
+  Cmd(i).Tool = 1
+  ToolBar.ButtonDown Cmd(i).Id, Flag(PreviewClassic)
 END SUB
 
 ' The look the program under development is drawn in: RapidQ's while the
@@ -33,7 +38,7 @@ SUB ApplyPreview
   CheckCmd "view.previewClassic", PreviewClassic
   i = CmdIndex("view.previewClassic")
   IF i >= 0 THEN
-    IF Cmd(i).Tool >= 0 THEN TB(Cmd(i).Tool).Down = Flag(PreviewClassic)
+    IF Cmd(i).Tool >= 0 THEN ToolBar.ButtonDown Cmd(i).Id, Flag(PreviewClassic)
   END IF
 END SUB
 

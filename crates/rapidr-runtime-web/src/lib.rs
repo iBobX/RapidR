@@ -33,6 +33,8 @@ pub mod layout_web;
 pub mod mdi_web;
 // (I1: RDOCKMANAGER — rapidr_value::dock)
 pub mod dock_web;
+// (I1 / L-PANELS: RapidR Studio's panels — rapidr_value::panels)
+pub mod panels_web;
 pub mod studio_web;
 pub use rapidr_studio;
 pub mod network_web;

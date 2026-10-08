@@ -140,6 +140,13 @@ pub fn begin_edit_typed(id: &str, edit: InPlace) {
     show(id, (n, 0));
 }
 
+/// (I1 / L-PANELS) Starts editing with characters `sel` (start, length)
+/// selected: a project tree's file name without its extension.
+pub fn begin_edit_selecting(id: &str, edit: InPlace, sel: (usize, usize)) {
+    EDITING.with(|e| e.borrow_mut().insert(id.to_lowercase(), edit));
+    show(id, sel);
+}
+
 pub fn editing(id: &str) -> Option<InPlace> {
     EDITING.with(|e| e.borrow().get(&id.to_lowercase()).cloned())
 }
@@ -275,6 +282,8 @@ pub(crate) fn focus_left(id: &str, type_name: &str, events: &mut Vec<KernelEvent
         "RTREEVIEW" => events.push(KernelEvent::List(id, ListAction::TreeEdited(ed.target.0, ed.text))),
         "RSTRINGGRID" => events.push(KernelEvent::List(id, ListAction::GridStore(ed.text))),
         "RLISTVIEW" => events.extend(super::listview::edited(&id, ed)),
+        // (I1 / L-PANELS: a panel's search box or value editor)
+        t if rapidr_value::panels::is_panel(t) => events.extend(super::panels::focus_left(&id, t, ed)),
         _ => {}
     }
 }
