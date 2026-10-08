@@ -13,6 +13,8 @@ One command, `rapidr`, is the compiler, the build tool and the runtime.
 | `rapidr ide [file]` | The IDE (SDK) |
 | `rapidr build <file> [outdir] [flags]` | Build an executable or a web build (below) |
 | `rapidr <file.rr\|.bas> [flags]` | Shortcut for `build`, optimized by default |
+| `rapidr build <app.rrproj>` | Build a project's main file with its app settings |
+| `rapidr install-app <Name.AppDir>` | Linux: put a built app in your applications menu |
 | `rapidr build-bc <file> [-o out.rrbc]` | Compile to bytecode, for the Runtime |
 | `rapidr bundle-bc <file> [-o out.zip]` | A static web bundle (a `.zip`) |
 | `rapidr setup [--check] [--yes] [--no-path]` | Install the Rust native builds use; put `rapidr` on PATH |
@@ -37,19 +39,20 @@ rapidr build prog.bas --web --interp       # web bundle: prog-web.zip
 | `--interp`, `-i` | the bytecode interpreter: no Rust needed |
 | `--release`, `-r` / `--debug`, `-d` | native builds: optimized / quick (the default for `build`; the bare `rapidr prog.bas` shortcut is optimized) |
 | `--web`, `-w` | for the browser (also when the program says `$APPTYPE WEB`) |
+| `--icon`, `--name`, `--bundle-id`, `--app-version`, `--company`, `--project`, `--bundle` / `--no-bundle`, `-g<icon>` | the app it becomes and its icon: [Building apps and their icons](building-apps.md) |
 | `--target <os>-<arch>` | an interpreted build for another architecture, from the runners the SDK ships: on Windows `windows-x86_64` and `windows-aarch64`; on macOS `macos` (universal, the default), `macos-arm64`, `macos-x86_64`; on Linux the machine's own (`linux-x86_64` or `linux-aarch64`). A source checkout builds the runner it needs with cargo |
 
 Where things go (beside the source unless you name an output folder):
 
 | Build | Output |
 |---|---|
-| `--interp` | `prog` (`prog.exe` on Windows) — on macOS universal (Apple silicon and Intel) by default |
-| native | `prog` / `prog.exe`, and the generated Rust project in `prog_rust/` |
+| `--interp` | `prog` (`prog.exe` on Windows) — on macOS universal (Apple silicon and Intel) by default; a program with windows becomes `prog.app` (macOS) or `prog.AppDir` (Linux), and every `.exe` gets its icon ([Building apps](building-apps.md)) |
+| native | the same, and the generated Rust project in `prog_rust/` |
 | `--web` | `prog_web/`: `index.html`, the program's `.wasm` and `.js` |
 | `--web --interp`, `bundle-bc` | `prog-web.zip` |
 
-Every build also writes **`THIRD-PARTY-NOTICES.txt`** beside the executable
-or into the web build: the notices and licence texts of everything inside
+Every build also writes **`THIRD-PARTY-NOTICES.txt`** beside the executable,
+inside the app (`Contents/Resources`, the AppDir) or into the web build: the notices and licence texts of everything inside
 it, made from the build's real dependency graph. Ship it with the program;
 that is all the licences ask ([LEGAL.md](../../LEGAL.md)).
 

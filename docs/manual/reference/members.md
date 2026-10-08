@@ -302,10 +302,11 @@ A row of tabs: the user picks one (TabIndex) and the program shows what belongs 
 <a id="rtoolbar"></a>
 ## RTOOLBAR
 
-A strip along the top of a form that holds tool buttons. RapidR's own.
+A strip of tool buttons, usually along the top of a form: icon buttons (RapidR's icons or the program's pictures) with tooltips, separators, toggles, and a menu for the buttons that don't fit. With Customizable the user picks which buttons show. RapidR's own; components placed on it sit after its buttons, as on any container.
 
 | Property | Type | Default | |
 |---|---|---|---|
+| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
@@ -317,15 +318,40 @@ A strip along the top of a form that holds tool buttons. RapidR's own.
 | `ShowHint` | int |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `Font` | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `ButtonSize` | int | 28 | The buttons' width and height in pixels (the icon is drawn in the middle, 16 or 20 pixels). |
+| `ShowCaptions` | bool | False | Whether each button shows its caption beside its icon. |
+| `Customizable` | bool | False | The user can choose which buttons show, from the toolbar's menu (its overflow button). |
+| `ButtonCount` (read-only) | int |  | How many buttons and separators it has. |
+| `Layout` | string |  | Which buttons the user hid, as text to keep and set back (Customizable): their names, a comma between. |
+| `ClickedButton` (read-only) | string |  | The name of the button the last click was on, for OnClick to read (empty when the strip itself was clicked). |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
 
 | Method | |
 |---|---|
 | `Repaint` | Redraws the component. |
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `AddButton(Name AS STRING, Icon AS STRING, Hint AS STRING, [Command AS STRING], [Caption AS STRING])` | Adds an icon button: Icon is one of RapidR's icons ("save", "run", a command id such as "file.save") or a picture file; Hint its tooltip (and what a screen reader calls it); Command what OnClick reports besides the name. |
+| `AddToggle(Name AS STRING, Icon AS STRING, Hint AS STRING, [Command AS STRING], [Caption AS STRING])` | Adds a button that stays down when clicked, until clicked again. |
+| `AddSeparator([Name AS STRING])` | Adds a thin line between groups of buttons (named, to be removed by RemoveButton). |
+| `RemoveButton(Name AS STRING)` | Takes a button (or a separator, by its name) off the toolbar. |
+| `Clear` | Removes every button. |
+| `Button(Index AS INTEGER) AS STRING` | Button Index's name (from 0; a separator's is "-"). |
+| `ButtonEnabled(Name AS STRING, [On AS INTEGER]) AS INTEGER` | Whether a button can be clicked; with On, sets it. |
+| `ButtonDown(Name AS STRING, [On AS INTEGER]) AS INTEGER` | Whether a toggle is down; with On, sets it. |
+| `ButtonVisible(Name AS STRING, [On AS INTEGER]) AS INTEGER` | Whether a button shows; with On, sets it. |
+| `ButtonHint(Name AS STRING, [Hint AS STRING]) AS STRING` | A button's tooltip; with Hint, sets it. |
 
 | Event | |
 |---|---|
-| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
+| `OnClick` | A button or the strip was clicked (after OnButtonClick): ClickedButton says which button. |
+| `OnButtonClick(Name AS STRING, Command AS STRING)` | A button was clicked (or a toggle turned, ButtonDown already the new state; or picked from the menu of the buttons that don't fit): its name and command. |
 
 <a id="rstatusbar"></a>
 ## RSTATUSBAR (QSTATUSBAR)
@@ -1367,6 +1393,7 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `CompletionTrigger` | string |  | Characters that open completion by themselves ("."). |
 | `LanguageService` | bool |  | RapidR's language service answers completion, hovers, signatures and problems (where the runtime carries it: rapidr run, RapidR Studio); off, the program answers the request events. |
 | `KeywordCase` | string |  | The language's words' case as you type: "upper" (DIM x AS INTEGER), "lower", "proper" or "preserve". |
+| `IdentifierCase` | string |  | The program's own names as you type: "preserve" (as typed) or "declaration" (as declared — form.caption becomes Form.Caption — and components' members as RapidQ spells them). |
 | `FileName` | string |  | The file it was loaded from or saved to (the language service knows it by this name). |
 | `LineEnding` | string |  | The file's line breaks SaveToFile writes: "CRLF", "LF" or "CR" (LoadFromFile keeps the file's). |
 | `Encoding` (read-only) | string |  | How the file was stored: "UTF-8", "UTF-8 BOM" or "Latin-1" (SaveToFile writes it back the same). |
@@ -2052,6 +2079,17 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `ShowGuides` | bool | True | Whether a drag snaps to and shows smart guides: siblings' edges, centres and baselines, the form's centre lines, margins, equal spacing (Alt suspends snapping). |
 | `SnapToGrid` | bool | True | Whether moves and resizes snap to the grid where no guide is near. |
 | `GridSize` | int | 8 | The grid's step in pixels. |
+| `ShowGrid` | bool | True | Whether the grid's dots show on the designed form. |
+| `ShowSelection` | bool | True | Whether the designer's own marks show: the selection's frames and handles, the anchor pins, the form's sizing grips. Off: the designed form alone, as the running program shows it. |
+| `Source` | string |  | The program's source text. Setting it reads the file's forms and shows the one FormName names (else its first QFORM) at its own size, drawn as the running program draws it; setting the same text again changes nothing. From then on every change made in the designer is written back into this text as the smallest edits (OnSourceEdit), and reading Source gives the text as they left it. Set it again whenever the code is edited elsewhere. |
+| `SourceFile` | string |  | The source's file name, set before Source: its $INCLUDE files are found from there. |
+| `FormName` | string |  | The name of the form being designed ("" when the source creates none). Setting it designs that form of the source instead. |
+| `SelIndex` | int |  | The index of the selected component (the first selected); -1 when nothing is, which means the form itself. |
+| `PlaceType` | string |  | The placing tool: a component type ("QBUTTON"). The next click on the form places one at its default size, or a drag draws its rectangle; Shift keeps the tool for another. Escape or "" turns it off. |
+| `CanUndo` (read-only) | int |  | Whether Undo has a change to undo. |
+| `CanRedo` (read-only) | int |  | Whether Redo has a change to do again. |
+| `StatusText` (read-only) | string |  | What the last change did, in words: what a screen reader is told ("Button1 (QBUTTON), 16, 24, 75 × 25"). |
+| `HandlerLine` (read-only) | int |  | The line (from 0) of the SUB the last CreateHandler gave: where the code editor's caret goes. |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -2062,7 +2100,18 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 
 | Method | |
 |---|---|
-| `AddComponent` | Puts a component on the design surface: `AddComponent(Type, Name, X, Y, W, H)`. |
+| `AddComponent(Type AS STRING, X AS INTEGER, Y AS INTEGER)` | Adds a new component of Type at (X, Y) of the form's inside, into the panel, group box or scroll box there, at its default size, named as Delphi names them (Button1, Button2 …) and written into Source as a CREATE block. X and Y of -1 put it at a free spot in the selected container (Enter on a toolbox item). Returns its index, or -1 when it can't go there. (AddComponent(Type, Name, X, Y, W, H), the older form, adds to a designer without a source.) |
+| `DragComponent(Type AS STRING)` | Starts dragging a new component of Type in from elsewhere, from a toolbox's mouse-down: while the button stays down, any design surface the mouse moves over shows where it would go, and letting go there adds it (as AddComponent). Letting go anywhere else does nothing. |
+| `SelectName(Name AS STRING) AS INTEGER` | Selects the component called Name; True if there is one. |
+| `SelectAll` | Selects every component on the form. |
+| `DeleteSelection AS INTEGER` | Deletes the selected components (one undo step). |
+| `CopySelection AS STRING` | Keeps the selected components for Paste and returns their CREATE blocks as text, for the clipboard. |
+| `CutSelection AS STRING` | CopySelection, then DeleteSelection. |
+| `Paste AS INTEGER` | Adds the components copied last into the selected container: names kept unique, event handlers not bound. |
+| `Duplicate AS INTEGER` | Copies the selected components beside themselves, one grid step away. |
+| `Arrange(How AS STRING) AS INTEGER` | The Format menu on the selection, one undo step: "left", "center", "right", "top", "middle", "bottom" (to the first selected), "samewidth", "sameheight", "samesize", "spaceh", "spacev" (equal gaps), "centerh", "centerv" (in the parent), "front", "back". |
+| `ResizeForm(Width AS INTEGER, Height AS INTEGER) AS INTEGER` | Gives the designed form this Width and Height, as dragging its edge does: the size written into its CREATE block, and the components its Anchors move written where they go. |
+| `CreateHandler(Name AS STRING, Event AS STRING) AS STRING` | The SUB handling component Name's Event ("": its default event): the one its CREATE block names, else a new one written with the event's parameters and wired (one undo step). Returns the SUB's name; HandlerLine says where it is. |
 | `RemoveComponent` | Removes the component at the index given from the design surface. |
 | `ClearAll` | Removes every component from the design surface. |
 | `SelectComp` | Selects the component at the index given on the design surface (-1: none). |
@@ -2076,7 +2125,7 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `GetCompY` | Returns the top position of the component at the index given on the design surface. |
 | `GetCompW` | Returns the width of the component at the index given on the design surface. |
 | `GetCompH` | Returns the height of the component at the index given on the design surface. |
-| `Undo AS INTEGER` | Undoes the last change to the designed form (a move, a resize, a property, an added or removed component); True if there was one. |
+| `Undo AS INTEGER` | Undoes the last change to the designed form (a move, a resize, a property, an added or removed component); True if there was one. With a Source, the exact text before it comes back (OnSourceEdit). |
 | `Redo AS INTEGER` | Does again the last change undone; True if there was one. |
 | `AlignSelection(How AS STRING)` | Lines the selected components up with the first selected: "left", "center", "right", "top", "middle" or "bottom" (one undo step). |
 | `SelectAdd(Index AS INTEGER)` | Adds component Index to the selection (as Shift+click). |
@@ -2085,10 +2134,12 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 
 | Event | |
 |---|---|
-| `OnSelect(Index AS INTEGER)` | Fires when the user selects a designed component on the design surface (Index: which). |
+| `OnSelect(Index AS INTEGER)` | A component was selected (pressed, Tab, added); -1: nothing, the form itself. |
 | `OnDblClick(Index AS INTEGER)` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnMove(Index AS INTEGER, X AS INTEGER, Y AS INTEGER, W AS INTEGER, H AS INTEGER)` | Fires when the user moved or resized a designed component on the design surface (Index, and its new X, Y, W, H). |
 | `OnBgClick(X AS INTEGER, Y AS INTEGER)` | Fires when the user presses the design surface's empty background (X, Y: where); nothing is selected afterwards. |
+| `OnSourceEdit(StartLine AS INTEGER, StartCol AS INTEGER, EndLine AS INTEGER, EndCol AS INTEGER, Text AS STRING)` | The designer changed Source: the text from (StartLine, StartCol) to (EndLine, EndCol) is replaced by Text (lines and columns from 0, columns in characters). One change's edits come in order, each in the text as the ones before left it: applied to the code editor in turn, it holds Source again. |
+| `OnChange` | The designed form changed (after its OnSourceEdit events). |
 
 <a id="rdigdisplay"></a>
 ## RDIGDISPLAY (QDIGDISPLAY)
@@ -4390,7 +4441,7 @@ An embedded web page or HTML (an iframe): URL, HTML, Sandbox. Web only.
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
 | `Html` | string |  | The HTML the web view shows as its page, or the element holds. |
 | `Url` | string |  | The address: the page the web view shows, or the HTTP request's. |
-| `Sandbox` | string |  | What the page in the web view may do (the iframe's `sandbox`, such as `allow-scripts`). |
+| `Sandbox` | string |  | What the page in the web view may do: the iframe's `sandbox` tokens. Unset, `allow-scripts allow-forms allow-popups allow-modals allow-downloads` — the page runs its scripts at an origin of its own, never the program's; add `allow-same-origin` to let it use the program's origin (its storage and page), or set `""` to allow nothing. Set it before `Html` / `Url`. |
 | `ToolTip` | string |  | The element's tooltip (its `title`). |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
@@ -4644,6 +4695,271 @@ Hash routes for single-page web apps: Navigate, Back, Forward and OnRouteChange.
 |---|---|
 | `OnRouteChange` | Fires when the page's route (the URL's # part) changes, by Navigate, Back, Forward or the browser. |
 
+<a id="rpropertyinspector"></a>
+## RPROPERTYINSPECTOR
+
+An object inspector in the style of Delphi's: the properties of a component (or of every component a designer has selected) as a two-column grid of names and values, by category or A to Z, with a search box and an editor for each kind of value — numbers, text, True / False, a list of constants, a set of flags, colours with a picker, fonts, pictures and files, lists of strings, a component reference, and a visual editor for the four Anchors. A value left at its default is shown dimmed and can be reset; RapidR's own members of a RapidQ component are grouped under "RapidR extensions". An Events page lists the component's events and the SUB each one runs.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
+| `Target` | string | `""` | The component inspected: its name (or Handle). Several names separated by commas inspect them together: only the properties they all have are shown, and a change goes to every one of them. While the inspector follows a Designer, it reads the names of the components selected there. |
+| `Designer` | component |  | A form designer whose selection the inspector follows: what the user selects there is inspected, and a change is made in the designer. |
+| `View` | string | `"categories"` | How the rows are ordered: "categories" (grouped, the default) or "alphabetic". |
+| `Page` | string | `"properties"` | The page shown: "properties" or "events". |
+| `Filter` | string | `""` | The search box's text: only the rows whose name matches it are shown. |
+| `ShowEvents` | bool | True | Whether the Events page can be shown (its tab is there). |
+| `ShowRapidRExtensions` | bool | True | Whether RapidR's own members of a RapidQ component are shown (under "RapidR extensions", with a badge). |
+| `ReadOnly` | bool | False | Values are shown but can't be changed. |
+| `Handlers` | string | `""` | The SUBs an event can run, one per line as `Name(parameters)`: the Events page offers those whose parameters fit the event. |
+| `EmptyText` | string | `""` | What the description under the rows says while nothing is inspected ("Select a component on the form"). |
+| `NameWidth` | int | 120 | The width of the names' column, in pixels (the user drags the line between the columns). |
+| `Selected` | string | `""` | The property (or event) whose row is selected; setting it selects that row. |
+| `RowCount` (read-only) | int |  | How many rows are shown now (the categories' headings included). |
+| `TargetType` (read-only) | string |  | The inspected component's type as the program writes it (QBUTTON), or "" when several of different types are inspected. |
+| `Rows` (read-only) | string |  | Every row shown, one a line, as Row gives them ("Name=Value", a category heading as "[Name]"). |
+| `Doc` (read-only) | string |  | What the selected row is, in words, as the inspector shows it under the rows: a property's description, an event's with its parameters. |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Visible` | bool | True | Whether the control or form is shown. |
+| `Font` | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+
+| Method | |
+|---|---|
+| `Refresh` | Reads the inspected components' values again (after the program changed them). |
+| `ExpandAll` | Opens every category and every row with parts (a set, a font). |
+| `CollapseAll` | Closes every category and every row with parts. |
+| `Expand(Name AS STRING)` | Opens a category or a row with parts. |
+| `Collapse(Name AS STRING)` | Closes a category or a row with parts. |
+| `Value(Prop AS STRING) AS STRING` | A property's value as the inspector shows it ("alClient", "akLeft, akTop", "&H0000FF"). |
+| `SetValue(Prop AS STRING, Value AS STRING) AS INTEGER` | Changes a property as if the user had typed Value into its row (the same checks, then OnPropertyChange). True when the value was taken. |
+| `ResetValue(Prop AS STRING)` | Puts a property back to its default value. |
+| `IsDefault(Prop AS STRING) AS INTEGER` | True when a property has its default value. |
+| `EditValue(Prop AS STRING)` | Selects a property's row and starts its editor, as a double click would. |
+| `AddProperty(Name AS STRING, Type AS STRING, Value AS STRING, [Category AS STRING])` | Shows a property of the program's own (an object the registry doesn't know): Type is "int", "float", "string", "bool", "color", "file", "picture", "strings" (a line per row), "columns", "component", a list of constants separated by "\|" (one of them) or "set:" and flags separated by "\|" (any of them). Value is its value now, and its default (shown dimmed while it has it); Category groups it ("Misc" when left out). Its changes come to OnPropertyChange only. |
+| `ClearProperties` | Removes the properties AddProperty gave. |
+| `Row(Index AS INTEGER) AS STRING` | What row Index (from 0) shows, as "Name=Value" (a category heading as "[Name]"). |
+
+| Event | |
+|---|---|
+| `OnPropertyChange(Prop AS STRING, Value AS STRING)` | The user changed a property (or picked the SUB an event runs): its name and the new value as the program writes it. |
+| `OnEventDblClick(Event AS STRING)` | The user double-clicked an event's row: the program creates (or shows) its handler. |
+| `OnEditorRequest(Prop AS STRING)` | The user asked for a property's own editor (its "…" button) where the inspector has none: the program shows one. |
+| `OnSelect(Prop AS STRING)` | The selected row changed. |
+
+<a id="rtoolbox"></a>
+## RTOOLBOX
+
+The palette of components a form designer places, grouped under "RapidQ" (the components RapidQ has, shown with their Q names: QBUTTON) and "RapidR" (RapidR's own), each with its icon and the name the designer writes. The user searches it, double-clicks a component (or presses Enter) to add it, or drags it onto a designer. Templates — a component with preset properties — have a group of their own.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
+| `Filter` | string | `""` | The search box's text: only the components whose names match it are shown. |
+| `ShowNames` | string | `"as-written"` | How components are named: "as-written" (RapidQ's components by their Q names, the others by their R names — what the designer writes), "rapidr" (every one by its R name) or "titles" (in words: "Button"). |
+| `Selected` | string | `""` | The selected component's type as the designer writes it (QBUTTON), or a template's name. |
+| `Count` (read-only) | int |  | How many components are shown now: the filter applied, a closed group's left out (Item counts the same ones). |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Visible` | bool | True | Whether the control or form is shown. |
+| `Font` | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+
+| Method | |
+|---|---|
+| `Item(Index AS INTEGER) AS STRING` | The component shown at Index (from 0) as the designer writes it. |
+| `Expand(Group AS STRING)` | Opens a group ("RapidQ", "Standard", "Data Science" …). |
+| `Collapse(Group AS STRING)` | Closes a group. |
+| `ExpandAll` | Opens every group. |
+| `CollapseAll` | Closes every group. |
+| `AddTemplate(Name AS STRING, Source AS STRING, [Icon AS STRING])` | Adds a template to the Templates group: Source is the CREATE block it places (a component with its properties set), Icon a built-in icon or component name. |
+| `RemoveTemplate(Name AS STRING)` | Takes a template out of the Templates group. |
+| `Template(Name AS STRING) AS STRING` | A template's CREATE block. |
+
+| Event | |
+|---|---|
+| `OnPick(Type AS STRING)` | The user chose a component to add (double click, Enter): its type as the designer writes it, or a template's name. |
+| `OnSelect(Type AS STRING)` | The selected component changed. |
+| `OnDragStart(Type AS STRING)` | The user started dragging a component out of the toolbox. |
+| `OnDragDrop(Type AS STRING, Target AS STRING, X AS INTEGER, Y AS INTEGER)` | A dragged component was let go over component Target, the deepest one shown there on the toolbox's form (its name in lower case), at (X, Y) in Target's own pixels; over the bare form Target is "" and (X, Y) is in the form's client area. Let go over the toolbox itself, nothing is dropped. |
+
+<a id="rprojecttree"></a>
+## RPROJECTTREE
+
+A project's files as a tree (an .rrproj project, or a .bas / .rr file and the files it includes), grouped by kind — forms with the components their CREATE blocks make, modules, includes, resources, assets, data — each with its icon. The user opens a file (double click or Enter), renames it in place (F2), drags it to reorder or into a folder, and deletes it after confirming; the program hears each change and does the work on the disk.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
+| `Project` | string | `""` | The project's file (.rrproj, or a .bas / .rr file): setting it reads the project and shows it. |
+| `ProjectName` (read-only) | string |  | The project's name. |
+| `ShowFiles` | bool | True | Whether the files are shown (grouped by kind). |
+| `ShowForms` | bool | True | Whether forms are shown with the components their CREATE blocks make. |
+| `ShowComponents` | bool | True | Whether a form's components are listed under it. |
+| `Selected` | string | `""` | The selected node: a file's path, `path#Component` for a form's component, a folder's path ending in `/`, "" for the project or a group. |
+| `FileCount` (read-only) | int |  | How many files the project has. |
+| `EmptyText` | string | `""` | What it says while no project is shown ("No project" when empty): what to do, such as "Open a project or a file". |
+| `Modified` | bool |  | The project changed since it was read or saved. |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Visible` | bool | True | Whether the control or form is shown. |
+| `Font` | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+
+| Method | |
+|---|---|
+| `Refresh` | Reads the project's files again (forms' components included). |
+| `LoadText(Text AS STRING, Path AS STRING) AS INTEGER` | Shows a project from its file's text (where there are no files to read: the web). Path is its file's name. True when it was read. |
+| `SetFileText(Path AS STRING, Text AS STRING)` | Gives a file's text (what the editor has, or a file the web can't read), so a form's components are listed from it. |
+| `File(Index AS INTEGER) AS STRING` | File Index's path (from 0), in the project's order. |
+| `FileKind(Path AS STRING) AS STRING` | A file's kind: "module", "form", "include", "resource", "asset" or "data". |
+| `AddFile(Path AS STRING, [Kind AS STRING]) AS INTEGER` | Adds a file to the project (its kind from its extension when Kind is left out). True when it was added. |
+| `RemoveFile(Path AS STRING) AS INTEGER` | Takes a file out of the project (the disk is left alone). |
+| `FileModified(Path AS STRING, [On AS INTEGER]) AS INTEGER` | Whether a file has changes not saved yet (an editor's): with On, sets it — such a file is marked with a dot after its name. |
+| `NewFile(Kind AS STRING, [Name AS STRING]) AS STRING` | Adds a new file of a kind with a free name (Form2.rr …) and starts renaming it: its path. |
+| `Rename([Path AS STRING], [NewName AS STRING])` | Renames a file (OnRename may cancel); without NewName the user types the name in place. |
+| `Delete([Path AS STRING])` | Asks the user to confirm, then takes the file out of the project (OnDelete may cancel). |
+| `Reveal(Path AS STRING)` | Opens the groups above a file (or `path#Component`), selects it and scrolls to it. |
+| `Save AS INTEGER` | Writes the project file (.rrproj). True when it was written. |
+| `ProjectText AS STRING` | The project file's text as Save writes it. |
+| `ExpandAll` | Opens every group and folder. |
+| `CollapseAll` | Closes every group and folder. |
+
+| Event | |
+|---|---|
+| `OnOpen(Path AS STRING)` | The user opened a node (double click, Enter): a file's path, or `path#Component`. |
+| `OnSelect(Path AS STRING)` | The user selected another node (Path as Selected gives it). |
+| `OnRename(OldPath AS STRING, NewPath AS STRING, BYREF Cancel AS INTEGER)` | A file is being renamed: set Cancel to refuse. The program renames the file on the disk. |
+| `OnDelete(Path AS STRING, BYREF Cancel AS INTEGER)` | The user confirmed taking a file out of the project: set Cancel to keep it. The program deletes it from the disk if it wants to. |
+| `OnMove(Path AS STRING, NewPath AS STRING, Index AS INTEGER)` | The user dragged a file: to another place in the order (Index, from 0) or into another folder (NewPath). |
+| `OnNewFile(Path AS STRING, Kind AS STRING)` | NewFile added a file and the user named it. |
+
+<a id="routputconsole"></a>
+## ROUTPUTCONSOLE
+
+A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI sequences — with pages for the build log and the problems found. `file:line` places in the text and every problem are links; the user searches the text, and the oldest lines go past MaxLines.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
+| `Page` | string | `"output"` | The page shown: "output", "build" or "problems". |
+| `MaxLines` | int | 5000 | The most lines a page keeps: older ones go. |
+| `Filter` | string | `""` | The search box's text: matches are marked and the first is shown. |
+| `ShowTabs` | bool | True | Whether the pages' tabs (and the search box) are shown above the text. |
+| `EmptyText` | string | `""` | What the Output page says while it has nothing ("Press F5 to run"). |
+| `AutoScroll` | bool | True | New output scrolls the page to its end (unless the user scrolled up). |
+| `LineCount` (read-only) | int |  | How many lines the shown page has. |
+| `ProblemCount` (read-only) | int |  | How many problems the Problems page lists. |
+| `Text` (read-only) | string |  | The shown page's text, without colours. |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Visible` | bool | True | Whether the control or form is shown. |
+| `Font` | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+
+| Method | |
+|---|---|
+| `Write(Text AS STRING)` | Adds output to the Output page, ANSI sequences understood (colours, CLS, LOCATE). |
+| `WriteLine(Text AS STRING)` | Write, then a new line. |
+| `Clear([Page AS STRING])` | Empties a page (the shown one when Page is left out). |
+| `AddBuildLine(Text AS STRING)` | Adds a line to the Build page. |
+| `AddProblem(File AS STRING, Line AS INTEGER, Column AS INTEGER, Severity AS STRING, Message AS STRING)` | Adds a problem (Severity "error", "warning" or "info") to the Problems page. |
+| `ClearProblems` | Empties the Problems page. |
+| `Line(Index AS INTEGER) AS STRING` | The shown page's line Index (from 0), without colours. |
+| `Find(Text AS STRING) AS INTEGER` | Searches the shown page (as the search box does): how many matches; the first is shown. |
+| `FindNext AS INTEGER` | Shows the next match: its line, -1 when there is none. |
+
+| Event | |
+|---|---|
+| `OnLinkClick(File AS STRING, Line AS INTEGER)` | The user clicked a `file:line` place or a problem (or pressed Enter on it). |
+| `OnPageChange(Page AS STRING)` | The user showed another page. |
+
+<a id="rcommandpalette"></a>
+## RCOMMANDPALETTE
+
+A box of commands found by typing: Show opens it over the form, the user types a few letters of a command (in any order of its words, letters skipped), picks one with the arrows and Enter, and OnCommand says which. Each command shows its shortcut; the ones used last come first.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Filter` | string | `""` | What the user typed. |
+| `Placeholder` | string | `"Type a command"` | The grey text in the empty search box. |
+| `Count` (read-only) | int |  | How many commands match what was typed. |
+| `CommandCount` (read-only) | int |  | How many commands it has. |
+| `Selected` | string | `""` | The highlighted command's id. |
+| `MaxRows` | int | 10 | The most commands shown at once (more scroll). |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Visible` | bool | False | Whether the control or form is shown. |
+| `Font` | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+
+| Method | |
+|---|---|
+| `AddCommand(Id AS STRING, Title AS STRING, [Shortcut AS STRING], [Category AS STRING], [Icon AS STRING])` | Adds a command (or changes the one with that Id): its title, its shortcut as shown ("Ctrl+Shift+P"), a category put before the title ("File: "), an icon. |
+| `RemoveCommand(Id AS STRING)` | Takes a command out of the palette. |
+| `Clear` | Removes every command. |
+| `CommandEnabled(Id AS STRING, [On AS INTEGER]) AS INTEGER` | Whether a command can be picked; with On, sets it (a disabled one is shown dimmed). |
+| `Command(Index AS INTEGER) AS STRING` | The id of the command shown at Index (from 0) for what was typed. |
+| `Show` | Opens the palette at the top of its form, centred (as wide as Width, at most the form's width less 32 pixels), over every other component, empty, with the keyboard in it; the commands used last come first. |
+| `Hide` | Closes it. |
+| `AddPrefix(Prefix AS STRING, Title AS STRING)` | Typing Prefix first (":", "#" …) shows one command made from what follows it in place of the list: its title is Title with {} replaced by that text ("Go to line {}"), its id Prefix and the text (":42"), which OnCommand gives. An empty Title removes the prefix. |
+
+| Event | |
+|---|---|
+| `OnCommand(Id AS STRING)` | The user picked a command (Enter or a click): the palette has closed. |
+| `OnCancel` | The user closed the palette without picking (Escape). |
+
 <a id="rproject"></a>
 ## RPROJECT
 
@@ -4659,6 +4975,15 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `MainFile` | string |  | The file the program starts from (relative to the folder). |
 | `FileCount` (read-only) | int |  | How many files the project has. |
 | `CompatMode` | string |  | "rapidq" for a RapidQ-compatible project (RapidR's extensions reported), else "". |
+| `Icon` | string |  | The app's icon file (.icns, .ico, .png or .svg), relative to the folder; "" for the main file's $OPTION ICON, else RapidR's icon for programs. |
+| `AppName` | string |  | The app's name, as Finder, Explorer and the applications menu show it; "" for the project's Name. |
+| `BundleID` | string |  | The app's reverse-DNS identifier (com.example.notepad); "" for dev.rapidr.app.<name>. |
+| `Version` | string |  | The app's version: up to four numbers with dots (1.0, 2.3.1); "" for 1.0. |
+| `Company` | string |  | Who makes the app (Windows' company name, the copyright line). |
+| `BuildKind` | string |  | How Build makes the program: "native" (compiled with Rust) or "interpreted" (RapidR's runner and the program's bytecode; no Rust needed). |
+| `Building` (read-only) | int |  | True while a Build runs. |
+| `FileManager` (read-only) | string |  | What this system calls the file manager Reveal opens: "Finder", "File Explorer" or "Files" ("" on the web). |
+| `BuiltPath` (read-only) | string |  | What the last Build made: the .app, the .exe or the AppDir ("" until one succeeds). |
 
 | Method | |
 |---|---|
@@ -4672,10 +4997,16 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `File(Index AS INTEGER) AS STRING` | File Index's path, relative to the folder (from 0). |
 | `FileKind(Index AS INTEGER) AS STRING` | File Index's kind: module, form, include, resource, asset or data. |
 | `FullPath(Index AS INTEGER) AS STRING` | File Index's path to open it with (the folder's and its own). |
+| `Build([Kind AS STRING]) AS INTEGER` | Makes the program into an app for this computer's system with rapidr build: Name.app on macOS, the .exe with its icon and version on Windows, Name.AppDir on Linux. Kind is "native" or "interpreted" (else BuildKind). Runs in the background: OnBuildOutput gives its lines, OnBuildDone its end. True when it started; Error says why not (on the web there is nothing to run it). |
+| `StopBuild` | Stops the Build that is running. |
+| `Reveal([Path AS STRING]) AS INTEGER` | Shows Path (else what the last Build made) selected in Finder, Explorer or the Linux file manager. |
+| `IconPreview([Size AS INTEGER]) AS STRING` | Draws the app's icon (Icon, else RapidR's) as a Size-pixel PNG (128 by default) in the project's .rapidr folder and gives its path, for a QIMAGE to show; "" when the icon can't be read (Error says why). |
 
 | Event | |
 |---|---|
 | `OnChange` | The project was opened, saved, closed, or its files changed. |
+| `OnBuildOutput(Text AS STRING)` | A line rapidr build printed while Build runs. |
+| `OnBuildDone(Code AS INTEGER, Path AS STRING)` | Build ended: Code 0 when it worked, and Path is what it made (the .app, .exe or AppDir). |
 
 <a id="rlanguageservice"></a>
 ## RLANGUAGESERVICE

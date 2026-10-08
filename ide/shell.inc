@@ -25,8 +25,7 @@ END SUB
 ' (the palette's line mode: ":42" goes to line 42)
 SUB GoToLine
   IF ActiveCode < 0 THEN EXIT SUB
-  ShowPalette
-  PaletteEdit.Text = ":"
+  ShowPalette ":"
 END SUB
 
 SUB SaveDocumentAs
@@ -52,25 +51,17 @@ SUB AddFileToProject
   END IF
 END SUB
 
-SUB BuildProject
-  SaveAll
-  AnalyzeActive
-  IF Lang.ErrorCount = 0 THEN
-    OutputLine "Build: " + FileTitle(ProjectMain) + " compiles (no errors)."
-  ELSE
-    OutputLine "Build: " + LTRIM$(STR$(Lang.ErrorCount)) + " errors (see Problems)."
-  END IF
-END SUB
-
 SUB RunCommand(Id AS STRING)
   DIM d AS INTEGER
   d = ActiveCode
+  ' (the designer's commands, and Edit's on a designer: designer.inc)
+  IF DesignCommand(Id) THEN EXIT SUB
   SELECT CASE Id
     ' ---- file ----
     CASE "file.newProject": AskNew
     CASE "file.open": AskOpen
     CASE "file.openFolder": AskOpenFolder
-    CASE "file.openExample": ShowPalette: PaletteEdit.Text = "Example"
+    CASE "file.openExample": ShowPalette "Example"
     CASE "file.save": SaveDocument d
     CASE "file.saveAs": SaveDocumentAs
     CASE "file.saveAll": SaveAll: SaveProjectFile
@@ -85,13 +76,14 @@ SUB RunCommand(Id AS STRING)
     CASE "edit.selectAll": IF d >= 0 THEN CodeDoc(d).SelectAll
     CASE "edit.goToLine": GoToLine
     ' ---- view ----
-    CASE "view.commandPalette": ShowPalette
+    CASE "view.commandPalette": ShowPalette ""
+    CASE "view.quickOpen": ShowPalette ""
     CASE "view.project": Dock.FocusPane("projecttree")
-    CASE "view.toolbox": Dock.FocusPane("toolboxtree")
-    CASE "view.properties": Dock.FocusPane("propgrid")
+    CASE "view.toolbox": Dock.FocusPane("toolbox")
+    CASE "view.properties": Dock.FocusPane("inspector")
     CASE "view.outline": Dock.FocusPane("outlinetree")
-    CASE "view.output": Dock.FocusPane("outputbox")
-    CASE "view.problems": Dock.FocusPane("problemsview")
+    CASE "view.output": OutputBox.Page = "output": Dock.FocusPane("outputbox")
+    CASE "view.problems": OutputBox.Page = "problems": Dock.FocusPane("outputbox")
     CASE "view.immediate": Dock.FocusPane("immediatebox")
     CASE "view.welcome": Dock.ShowPane("welcome"): Dock.FocusPane("welcome")
     CASE "view.theme.rapidr": SetTheme "rapidr"
@@ -104,11 +96,13 @@ SUB RunCommand(Id AS STRING)
     CASE "view.documents.tabs"
       DocumentMode = "tabs": Dock.DocumentMode = "tabs": UpdateCommands
     CASE "view.layout": Dock.ResetLayout
-    CASE "view.settings": ShowPalette: PaletteEdit.Text = "View: "
+    CASE "view.settings": ShowPalette "View: "
     CASE "view.keyboardShortcuts": ShowShortcuts
     ' ---- project ----
     CASE "project.addFile": AddFileToProject
-    CASE "project.options": OutputLine "Project: " + Proj.FileName + " (" + LTRIM$(STR$(Proj.FileCount)) + " files, main " + Proj.MainFile + ")"
+    CASE "project.addForm": AddProjectFile "form"
+    CASE "project.addModule": AddProjectFile "module"
+    CASE "project.options": ShowAppSettings
     ' ---- run / debug ----
     CASE "run.start": StartProgram 1
     CASE "run.withoutDebugging": StartProgram 0
@@ -120,6 +114,7 @@ SUB RunCommand(Id AS STRING)
     CASE "debug.stepOver": IF RunState = "paused" THEN Session.StepOver
     CASE "debug.stepOut": IF RunState = "paused" THEN Session.StepOut
     CASE "run.build": BuildProject
+    CASE "run.reveal": RevealBuild
     ' ---- window ----
     CASE "window.cascade": Dock.Cascade
     CASE "window.tileHorizontally": Dock.TileHorizontal
@@ -192,7 +187,7 @@ SUB WelcomeLink(Sender AS QLABEL)
   SELECT CASE Sender.Tag
     CASE 1: RunCommand "file.newProject"
     CASE 2: RunCommand "file.open"
-    CASE 3: ShowPalette: PaletteEdit.Text = "Example"
+    CASE 3: ShowPalette "Example"
     CASE ELSE: RunCommand "view.commandPalette"
   END SELECT
 END SUB
@@ -207,17 +202,6 @@ SUB OutlineOpen
   IF i < 0 OR i >= OutlineCount OR d < 0 THEN EXIT SUB
   Dock.FocusPane("codedoc(" + LTRIM$(STR$(d)) + ")")
   CodeDoc(d).GotoLine OutlineLine(i)
-END SUB
-
-SUB ProblemOpen
-  DIM i AS INTEGER, d AS INTEGER
-  i = ProblemsView.ItemIndex
-  d = ActiveCode
-  IF i < 0 OR d < 0 THEN EXIT SUB
-  IF ProblemLine(i) > 0 THEN
-    Dock.FocusPane("codedoc(" + LTRIM$(STR$(d)) + ")")
-    CodeDoc(d).GotoLine ProblemLine(i) - 1
-  END IF
 END SUB
 
 ' ---- start-up ----------------------------------------------------------------------
@@ -264,23 +248,22 @@ SUB StartStudio
   Session.OnStopped = ProgramStopped
   Session.OnContinue = ProgramContinued
   Session.OnExit = ProgramExited
+  SetUpBuild
   DefineCommands
   BuildMenus
   BuildToolBar
   SetUpStatus
-  SetUpProblems
+  SetUpPanels
   SetUpDock
   IF SavedLayout <> "" THEN Dock.LoadLayout(SavedLayout)
   Dock.DocumentMode = DocumentMode
-  FillToolbox
   FillExamples
+  FillPalette
   FillRecent
   ApplyChrome
   FillProjectTree
-  ShowProperties ""
+  InspectActive
   OutputLine "RapidR Studio is ready."
-  ClearProblems
-  AddProblem 3, "No problems", "", 0
   ' (alone, the start page fills the documents area)
   Dock.DocumentState("welcome", 2)
   LayOutWelcome
@@ -313,6 +296,7 @@ SUB MacroTick
   IF EditorStep(id) THEN EXIT SUB
   IF id <> "" AND id <> "wait" THEN
     OutputLine "> " + id
-    RunCommand id
+    ' (S-PANELS: the panels' test steps, tool: prop: …, else a command)
+    IF PanelStep(id) = 0 THEN RunCommand id
   END IF
 END SUB

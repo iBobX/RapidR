@@ -16,6 +16,10 @@ resvg ={ version = "0.48.1", default-features = false }
 # RapidR's own icons (objects/icons.rs: Bitmap.LoadIcon, ImageList.AddIcon;
 # feature `icons`).
 rapidr-icons = { workspace = true, optional = true }
+# (L-PANELS, docs/ide-plan.md I1) The project file the project tree shows
+# (.rrproj, TOML; wasm-safe). The inspector and the toolbox read the
+# registry above.
+rapidr-project = { workspace = true }
 # JPEG pictures (objects/codec.rs); no threads, so it builds for the web too.
 jpeg-decoder = { version = "0.3", default-features = false }
 # Text on bitmaps (objects/text.rs): reads the built-in Liberation fonts.

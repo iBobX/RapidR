@@ -81,18 +81,47 @@ pub fn default_text(d: &DefaultValue) -> String {
 }
 
 /// How a value typed for a property of type `ty` is written: strings in
-/// quotes (unless already a literal), Booleans as `True` / `False`, the
-/// rest as typed (numbers, constants, `&H` colours).
+/// quotes (unless already a literal), Booleans as `1` / `0` (RapidQ's
+/// own spelling, and what works without RAPIDQ.INC: there `True` is an
+/// undeclared variable, 0 — docs/rapidq-ground-truth.md), the rest as typed
+/// (numbers, constants, `&H` colours).
 pub fn format_value(ty: Type, typed: &str) -> String {
+    format_value_as(ty, typed, None)
+}
+
+/// [`format_value`] for a line already written as `was`: a Boolean keeps
+/// its words (`True` / `False`) when the line has them.
+pub fn format_value_as(ty: Type, typed: &str, was: Option<&str>) -> String {
     let t = typed.trim();
     match ty {
         Type::String | Type::Picture | Type::Resource if !(t.starts_with('"') && t.ends_with('"') && t.len() >= 2) => super::value::write_str(typed),
-        Type::Bool => match t.to_ascii_lowercase().as_str() {
-            "1" | "-1" | "true" | "yes" => "True".into(),
-            "0" | "false" | "no" => "False".into(),
-            _ => t.into(),
-        },
+        Type::Bool => {
+            let words = was.is_some_and(|w| matches!(w.trim().to_ascii_lowercase().as_str(), "true" | "false"));
+            match t.to_ascii_lowercase().as_str() {
+                "1" | "-1" | "true" | "yes" => if words { "True" } else { "1" }.into(),
+                "0" | "false" | "no" => if words { "False" } else { "0" }.into(),
+                _ => t.into(),
+            }
+        }
         _ => t.into(),
+    }
+}
+
+/// A RapidQ property's constants (`clRed`, `alClient`, `fsBold + fsItalic`)
+/// in a RapidQ program that doesn't define them (no RAPIDQ.INC) written as
+/// their number (a colour as `&H` BGR), as RC.EXE needs them.
+fn spelled_for(d: &FormDesign, p: &rapidr_lang::Property, v: String) -> String {
+    if p.origin != Origin::RapidQ || !matches!(p.ty, Type::Enum | Type::Color | Type::Set) {
+        return v;
+    }
+    let names: Vec<&str> = v.split(['+', '|']).map(str::trim).filter(|s| s.starts_with(|c: char| c.is_ascii_alphabetic())).collect();
+    if names.is_empty() || names.iter().all(|n| d.writable_constant(n)) {
+        return v;
+    }
+    match rapidr_lang::eval_constant(&v) {
+        Some(n) if p.ty == Type::Color && n >= 0 => format!("&H{n:06X}"),
+        Some(n) => n.to_string(),
+        None => v,
     }
 }
 
@@ -151,7 +180,7 @@ pub fn set_value(d: &FormDesign, sel: &[NodeId], prop: &str, typed: Option<&str>
         let reg = n.component().and_then(|c| c.property(prop));
         // (an existing line keeps its spelling: the command finds it by key)
         let name = n.props().rev().find(|p| super::model::prop_key(&p.name) == super::model::prop_key(prop)).map(|p| p.name.clone()).or_else(|| reg.map(|p| p.name.to_string())).unwrap_or_else(|| prop.to_string());
-        let value = typed.map(|t| reg.map_or_else(|| t.trim().to_string(), |p| format_value(p.ty, t)));
+        let value = typed.map(|t| reg.map_or_else(|| t.trim().to_string(), |p| spelled_for(d, p, format_value_as(p.ty, t, n.prop(prop)))));
         if n.prop(prop).map(str::to_string) == value {
             continue;
         }
@@ -201,6 +230,8 @@ mod tests {
         let cmd = set_value(&d, &[b1], "Anchors", Some("akLeft + akTop + akRight"));
         cmd.apply(&mut d).unwrap();
         assert_eq!(d.node(b1).unwrap().int("anchors"), Some(7));
-        assert_eq!(format_value(Type::Bool, "yes"), "True");
+        assert_eq!(format_value(Type::Bool, "yes"), "1");
+        assert_eq!(format_value(Type::Bool, "False"), "0");
+        assert_eq!(format_value_as(Type::Bool, "1", Some("False")), "True", "a line in words keeps them");
     }
 }

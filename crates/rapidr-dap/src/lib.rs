@@ -11,6 +11,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 mod adapter;
+pub mod confine;
 pub mod dap;
 pub mod session_wire;
 

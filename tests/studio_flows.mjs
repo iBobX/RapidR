@@ -11,7 +11,7 @@
 //   node tests/studio_flows.mjs [filter…]
 
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
@@ -23,8 +23,18 @@ const RAPIDR = process.env.RAPIDR || join(ROOT, "rapidr");
 const WORK = join(ROOT, "tests", "results", "studio-flows");
 const filters = process.argv.slice(2);
 
-// Each case: what Studio opens and does, how long it waits before the
-// properties are read, and what each must say (a regular expression).
+// (I4) The designer's steps on notepad.bas: the placing tool's click, the
+// form's right edge dragged, Button1 dragged.
+const DESIGN_STEPS = [
+  "__mousedown_100_120", "__mouseup_100_120",
+  "__mousedown_491_250", "__mousemove_521_250", "__mousemove_551_250", "__mouseup_551_250",
+  "__mousedown_110_130", "__mousemove_130_150", "__mousemove_150_170", "__mouseup_150_170",
+].map((e) => `designdoc(0).${e}`).join(",");
+
+// Each case: what Studio opens and does (`do`: its commands; `events`:
+// RAPIDR_TEST_EVENTS, input through the kernel), how long it waits before
+// the properties are read, and what each must say (a regular expression;
+// `same`: equal to a file's text, line ends as the editor keeps them).
 const CASES = [
   {
     name: "run-console",
@@ -67,11 +77,149 @@ const CASES = [
     dump: { "proj.mainfile": /^dialogs\.rr$/, "studio.caption": /^dialogs - RapidR Studio$/ },
   },
   {
+    // Run > Build: the app for this system (interpreted: the project says),
+    // with the project's own icon; on the web Build says it's the desktop's
+    name: "build-app",
+    open: "tests/fixtures/studio_app/Notes.rrproj",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_app/Notes.rrproj", "tests/fixtures/studio_app/main.rr", "tests/fixtures/studio_app/note.svg"],
+    do: "run.build",
+    // (cargo checks the runner first: a minute on a busy machine)
+    delay: 90,
+    dump: { "proj.builtpath": /(Notes\.app|Notes\.AppDir|main\.exe)$/, "outputbox.text": /icon: .*note\.svg[\s\S]*Built /, "proj.building": /^0$/ },
+    webDump: { "outputbox.text": /Can't build: Build makes apps in RapidR Studio on the desktop/, "proj.builtpath": /^$/ },
+  },
+  {
+    // Project > Project Options: the app's name, ID, version, icon (previewed)
+    name: "app-options",
+    open: "tests/fixtures/studio_app/Notes.rrproj",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_app/Notes.rrproj", "tests/fixtures/studio_app/main.rr", "tests/fixtures/studio_app/note.svg"],
+    do: "project.options",
+    delay: 4,
+    dump: { "appnameedit.text": /^Notes$/, "appversionedit.text": /^1\.2\.0$/, "appiconedit.text": /^note\.svg$/, "appiconnote.caption": /every size/ },
+  },
+  {
     name: "palette",
     open: "",
     do: "view.commandPalette",
     delay: 3,
-    dump: { "palette.visible": /^(-1|1|True)$/i, "palettelist.itemcount": /^[1-9]\d+$/ },
+    dump: { "palette.count": /^[1-9]\d+$/, "palette.commandcount": /^[1-9]\d+$/ },
+  },
+  // (I4) The designer on the source: notepad.bas's form at its own size;
+  // its right edge dragged 60 px (Width written), a QBUTTON placed from the
+  // toolbox's tool (Button1's CREATE block written), then moved by 40, 40
+  // (snapped); every step real input through the kernel (the mouse at
+  // surface coordinates: the form's frame starts 12 px in).
+  {
+    name: "designer",
+    open: "examples/rapidq/notepad.bas",
+    do: "view.documents.tabs,view.designer,designer.place.QBUTTON",
+    events: DESIGN_STEPS,
+    delay: 4,
+    dump: {
+      "designdoc(0).formname": /^Form$/,
+      "designdoc(0).statustext": /^Button1 \(QBUTTON\), 128, 88, 75 × 25$/,
+      "codedoc(0).text": /Width = 540\n    Height = 340[\s\S]*    CREATE Button1 AS QBUTTON\n        Caption = "Button1"\n        Left = 128\n        Top = 88\n        Width = 75\n        Height = 25\n    END CREATE\nEND CREATE/,
+    },
+  },
+  // (I4) Enter on a toolbox item: AddComponent through the program (a
+  // method's edits heard as OnSourceEdit on both hosts), named after the
+  // registry's spelling (CheckBox1).
+  {
+    name: "designer-add",
+    open: "examples/rapidq/notepad.bas",
+    do: "view.documents.tabs,view.designer,designer.add.QCHECKBOX",
+    delay: 3,
+    dump: { "designdoc(0).statustext": /^Added CheckBox1 \(QCHECKBOX\)/, "codedoc(0).text": /    CREATE CheckBox1 AS QCHECKBOX\n        Caption = "CheckBox1"\n/ },
+  },
+  // (I4) The same, then Ctrl+Z three times: the exact text back.
+  {
+    name: "designer-undo",
+    open: "examples/rapidq/notepad.bas",
+    do: "view.documents.tabs,view.designer,designer.place.QBUTTON",
+    events: DESIGN_STEPS + ",designdoc(0).__key_90_16,designdoc(0).__key_90_16,designdoc(0).__key_90_16",
+    delay: 4,
+    dump: { "designdoc(0).canundo": /^(0|False)$/i, "codedoc(0).text": /CREATE Form AS QFORM/ },
+    same: { "codedoc(0).text": "examples/rapidq/notepad.bas" },
+  },
+  // (S-PANELS) The inspector on the designer: pantry's AddBtn selected,
+  // its Caption and Width set in the inspector — the code shows them as the
+  // smallest edit (the values on their line) and the inspector reads them
+  // back.
+  {
+    name: "inspector-edits-code",
+    open: "examples/gui/pantry.rr",
+    do: "wait,view.designer,pick:AddBtn,prop:Caption=Go,prop:Width=120,wait",
+    delay: 6,
+    dump: {
+      "inspector.target": /^AddBtn$/,
+      "inspector.rows": /^Caption=Go$[\s\S]*^Width=120$/m,
+      "codedoc(0).text": /    CREATE AddBtn AS QBUTTON\n        Caption = "Go": Left = 314: Top = 252: Width = 120\n        OnClick = AddItem\n/,
+    },
+  },
+  // (S-PANELS) …then Undo twice on the designer: the exact text back.
+  {
+    name: "inspector-undo",
+    open: "examples/gui/pantry.rr",
+    do: "wait,view.designer,pick:AddBtn,prop:Caption=Go,prop:Width=120,wait,edit.undo,edit.undo,wait",
+    delay: 7,
+    dump: { "designdoc(0).canundo": /^(0|False)$/i, "inspector.rows": /^Caption=&Add to shelf$[\s\S]*^Width=110$/m, "codedoc(0).text": /CREATE AddBtn AS QBUTTON/ },
+    same: { "codedoc(0).text": "examples/gui/pantry.rr" },
+  },
+  // (S-PANELS) The code edited (a Caption typed over): the designer reads
+  // it and the inspector shows it.
+  {
+    name: "code-edits-inspector",
+    open: "examples/gui/pantry.rr",
+    do: 'wait,view.designer,pick:AddBtn,code:"&Add to shelf"=>"Store it",wait,wait,wait',
+    delay: 7,
+    dump: { "inspector.rows": /^Caption=Store it$/m, "designdoc(0).source": /Caption = "Store it": Left = 314/ },
+  },
+  // (S-PANELS) An event's row double-clicked in the inspector: its SUB
+  // written with the registry's parameters (a DECLARE beside pantry's, the
+  // SUB at the end), bound in the CREATE block, the caret inside it.
+  {
+    name: "inspector-event-handler",
+    open: "examples/gui/pantry.rr",
+    do: "wait,view.designer,pick:NameEdit,page:events,event:OnKeyDown,wait",
+    delay: 6,
+    dump: {
+      "codedoc(0).text": /DECLARE SUB AddItem\nDECLARE SUB NameEditKeyDown \(Key AS WORD, Shift AS INTEGER\)\n[\s\S]*OnKeyDown = NameEditKeyDown\n[\s\S]*\nSUB NameEditKeyDown \(Key AS WORD, Shift AS INTEGER\)\n    \nEND SUB\n?$/,
+      "inspector.rows": /^OnKeyDown=NameEditKeyDown$/m,
+    },
+  },
+  // (S-PANELS) Typed values and a reset: Default as RapidQ writes a
+  // Boolean, a colour constant, Width put back to its default (its
+  // assignment taken out of the line); the Events page offers the file's
+  // SUBs.
+  {
+    name: "inspector-typed",
+    open: "examples/gui/pantry.rr",
+    do: "wait,view.designer,pick:AddBtn,prop:Default=True,prop:Color=clRed,reset:Width,wait",
+    delay: 6,
+    dump: {
+      "codedoc(0).text": /    CREATE AddBtn AS QBUTTON\n        Caption = "&Add to shelf": Left = 314: Top = 252\n        OnClick = AddItem\n        Default = 1\n        Color = clRed\n/,
+      "inspector.rows": /^Default=True$[\s\S]*^Width=75$/m,
+    },
+  },
+  // (S-PANELS) The toolbox: Enter on QCHECKBOX adds one to the form (its
+  // CREATE block in the code), selected in the inspector.
+  {
+    name: "toolbox-add",
+    open: "examples/gui/pantry.rr",
+    do: "wait,view.designer,tool:QCHECKBOX,wait",
+    delay: 6,
+    dump: { "codedoc(0).text": /CREATE CheckBox1 AS QCHECKBOX/i, "inspector.target": /^CheckBox1$/i },
+  },
+  // (S-PANELS) The project tree lists the form's components; the palette
+  // finds a symbol of the file.
+  {
+    name: "tree-and-search",
+    open: "examples/gui/pantry.rr",
+    do: "wait,palette:stock",
+    delay: 4,
+    dump: { "projecttree.filecount": /^1$/, "palette.selected": /^line:21:Stock$/ },
   },
   // ---- the code editor (S-EDITOR; docs/studio-wow.md ED-1 … ED-8): typed
   // through the kernel's keyboard path (Application.SendKeys), IntelliSense
@@ -187,7 +335,11 @@ function runDesktop(c) {
   mkdirSync(dir, { recursive: true });
   const args = ["run", "ide/studio.rr", "--home", ".", "--fresh", "--theme", "rapidr-light"];
   if (c.do) args.push("--do", c.do);
-  if (c.open && c.copy) {
+  if (c.open && c.copyDir) {
+    // (the project's whole folder: Build writes the app beside it)
+    cpSync(join(ROOT, dirname(c.open)), join(dir, "project"), { recursive: true });
+    args.push(join(dir, "project", c.open.split("/").pop()));
+  } else if (c.open && c.copy) {
     const to = join(dir, c.open.split("/").pop());
     copyFileSync(join(ROOT, c.open), to);
     args.push(to);
@@ -196,7 +348,7 @@ function runDesktop(c) {
   }
   const r = spawnSync(RAPIDR, args, {
     cwd: ROOT,
-    timeout: 90000,
+    timeout: Math.max(90000, c.delay * 1000 + 60000),
     encoding: "utf8",
     env: {
       ...process.env,
@@ -204,6 +356,7 @@ function runDesktop(c) {
       RAPIDR_CAPTURE_DELAY: String(c.delay),
       RAPIDR_MENU: "window",
       RAPIDR_TEST_DUMP: Object.keys(c.dump).join(","),
+      ...(c.events ? { RAPIDR_TEST_EVENTS: c.events } : {}),
       RAPIDR_PRINT_TO: join(WORK, "prints"),
       RAPIDR_REGISTRY: join(WORK, `${c.name}.reg`),
       ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: join(ROOT, c.folder) } : {}),
@@ -240,16 +393,17 @@ async function runWeb(browser, c) {
     await page.addInitScript((env) => { window.RAPIDR_STUDIO_TEST = env; }, {
       RAPIDR_CAPTURE: "web",
       RAPIDR_CAPTURE_DELAY: String(c.delay),
-      RAPIDR_TEST_DUMP: Object.keys(c.dump).join(","),
+      RAPIDR_TEST_DUMP: Object.keys(c.webDump || c.dump).join(","),
+      ...(c.events ? { RAPIDR_TEST_EVENTS: c.events } : {}),
       ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: c.folder } : {}),
     });
     const q = new URLSearchParams({ theme: "rapidr-light", fresh: "", window: "normal" });
     if (c.do) q.set("do", c.do);
     if (c.open) q.set("open", c.open);
     await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
-    await page.waitForFunction(() => window.rr && window.rr.rapidr_test_results(), null, { timeout: 90000, polling: 200 });
+    await page.waitForFunction(() => window.rr && window.rr.rapidr_test_results(), null, { timeout: Math.max(90000, c.delay * 1000 + 60000), polling: 200 });
     const results = JSON.parse(await page.evaluate(() => window.rr.rapidr_test_results()));
-    return { dump: parseDump(results.dump.join("\n"), Object.keys(c.dump)), errors };
+    return { dump: parseDump(results.dump.join("\n"), Object.keys(c.webDump || c.dump)), errors };
   } finally {
     await page.close();
   }
@@ -265,12 +419,19 @@ const check = (label, dump, c) => {
     ok ? passed++ : failed++;
     console.log(`${ok ? "✓" : "✗"} ${c.name} (${label}): ${k} ${ok ? "" : `= ${JSON.stringify(v)} (wanted ${re})`}`);
   }
+  for (const [k, file] of Object.entries(c.same || {})) {
+    const want = readFileSync(join(ROOT, file), "utf8").replace(/\r\n/g, "\n").replace(/\n+$/, "");
+    const v = dump[k];
+    const ok = v !== undefined && v.replace(/\n+$/, "") === want;
+    ok ? passed++ : failed++;
+    console.log(`${ok ? "✓" : "✗"} ${c.name} (${label}): ${k} ${ok ? `equals ${file}` : `differs from ${file}`}`);
+  }
 };
 for (const c of CASES.filter((c) => !filters.length || filters.some((f) => c.name.includes(f)))) {
   check("desktop", runDesktop(c), c);
   try {
     const web = await runWeb(browser, c);
-    check("web", web.dump, c);
+    check("web", web.dump, c.webDump ? { ...c, dump: c.webDump } : c);
     if (web.errors.length) console.log(`  (page errors: ${web.errors.join("; ")})`);
   } catch (e) {
     failed++;

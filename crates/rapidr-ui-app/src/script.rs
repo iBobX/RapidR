@@ -92,7 +92,8 @@ fn run_event<R: Program + Windows>(rt: R, e: TestEvent) {
             }
             rt.fire(&e.comp, event)
         }
-        Action::Key(vk) => rt.script_input(ScriptInput::Key { comp, vk }),
+        Action::Key(vk) => rt.script_input(ScriptInput::Key { comp, vk, state: 0 }),
+        Action::KeyWith(vk, state) => rt.script_input(ScriptInput::Key { comp, vk, state }),
         Action::Mouse(kind, x, y) => rt.script_input(ScriptInput::Mouse { comp, kind, x, y }),
         Action::DblClick(x, y) => rt.script_input(ScriptInput::DblClick { comp, x, y }),
         Action::Close => forms::close(rt, &e.comp),

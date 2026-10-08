@@ -255,6 +255,8 @@ impl FormUi {
             return;
         }
         let hit = self.hit(x, y);
+        // (I4: a component dragged in from a toolbox, over a designer)
+        crate::components::design::drop_move(self, store, hit, x, y, mods.alt);
         if hit != self.hover {
             if let Some(old) = self.hover {
                 self.mouse_to(store, ts, old, MouseIn { kind: MouseKind::Leave, x, y, button: Button::Left, mods, inside: false, captured: false, clicks: 0 });
@@ -276,7 +278,8 @@ impl FormUi {
         if let Some(i) = target {
             let captured = self.capture.is_some();
             self.mouse_to(store, ts, i, MouseIn { kind: MouseKind::Move, x, y, button: Button::Left, mods, inside: hit == Some(i), captured, clicks: 0 });
-            if captured {
+            // (I4: a designer's placing tool follows the mouse)
+            if captured || crate::components::design::follows_mouse(self, store, i) {
                 self.dirty = true;
             }
         }
@@ -299,6 +302,10 @@ impl FormUi {
             return;
         }
         let hit = self.hit(x, y);
+        // (I4: a component dragged in from a toolbox, dropped on a designer)
+        if button == Button::Left {
+            crate::components::design::drop_up(self, store, hit, x, y, mods.alt);
+        }
         let captured = self.capture.take();
         let target = match captured {
             Some(c) => c,
@@ -395,6 +402,10 @@ impl FormUi {
             self.edit_commands(store, ts, clip);
             return;
         }
+        // (I4: Escape drops a component being dragged in from a toolbox)
+        if vk == 27 && crate::components::design::drop_cancel(self, store) {
+            return;
+        }
         let chain = self.key_chain();
         self.events.push(KernelEvent::KeyDown { chain: chain.clone(), vk, shift: mods.shift_state(), text: text.to_string() });
         // (the input lane's: F10 selects the in-window menu bar, after its
@@ -410,7 +421,7 @@ impl FormUi {
         let shortcut = mods.command || mods.ctrl;
         let mut handled = false;
         // (a memo with WantTabs takes a plain Tab: components/memo.rs)
-        if vk == 9 && !shortcut && !mods.alt && !crate::components::memo::takes_tab(self, store) {
+        if vk == 9 && !shortcut && !mods.alt && !crate::components::memo::takes_tab(self, store) && !crate::components::design::takes_tab(self, store) {
             self.move_focus(store, mods.shift);
             handled = true;
         } else if mods.alt && !mods.ctrl && (65..=90).contains(&vk) && !crate::components::codeeditor::find_takes_alt(self, vk) {

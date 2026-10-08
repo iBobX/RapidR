@@ -25,7 +25,6 @@ END TYPE
 
 CONST MAXCMDS = 200
 CONST MAXMENUS = 240
-CONST MAXTOOLS = 40
 CONST MAXDOCS = 32
 
 DIM Cmd(MAXCMDS) AS StudioCommand
@@ -40,14 +39,6 @@ DIM MenuName(40) AS STRING
 DIM MenuItemOf(40) AS INTEGER
 DIM MenuCount AS INTEGER
 
-' The tool bar: its buttons, their icons, the lines between groups.
-DIM TB(MAXTOOLS) AS QCOOLBTN
-DIM TBIcon(MAXTOOLS) AS QBITMAP
-DIM TBCmd(MAXTOOLS) AS INTEGER
-DIM TBCount AS INTEGER
-DIM TBSep(12) AS QPANEL
-DIM TBSepCount AS INTEGER
-DIM TBNextX AS INTEGER
 
 ' ---- documents ---------------------------------------------------------------
 ' Each open document is a pane of the dock manager's documents area: a code
@@ -69,8 +60,6 @@ DIM HomeDir AS STRING
 DIM ProjectName AS STRING
 DIM ProjectMain AS STRING
 DIM ProjectFile AS STRING
-DIM TreePath(200) AS STRING
-DIM ProblemLine(400) AS INTEGER
 DIM RecentList AS STRING
 DIM SavedLayout AS STRING
 DIM DefaultFolder AS STRING
@@ -89,21 +78,34 @@ DIM StateText AS STRING
 DECLARE SUB RunCommand(Id AS STRING)
 DECLARE SUB LayOutDialogs
 DECLARE SUB MenuPicked(Sender AS QMENUITEM)
-DECLARE SUB ToolPicked(Sender AS QCOOLBTN)
+DECLARE SUB ToolClicked(Name AS STRING, Command AS STRING)
 DECLARE SUB StudioResize
 DECLARE SUB StudioClose(Action AS INTEGER)
 DECLARE SUB PaneChanged(Name AS STRING)
 DECLARE SUB DocumentActivated(Name AS STRING)
 DECLARE SUB DocumentClosing(Name AS STRING, Cancel AS INTEGER)
 DECLARE SUB WelcomeLink(Sender AS QLABEL)
-DECLARE SUB ProjectTreeOpen
+DECLARE SUB ProjectNodeOpen(Path AS STRING)
+DECLARE SUB ProjectNodeSelect(Path AS STRING)
+DECLARE SUB ProjectNewFile(Path AS STRING, Kind AS STRING)
+DECLARE SUB ProjectRename(OldPath AS STRING, NewPath AS STRING, Cancel AS INTEGER)
+DECLARE SUB ProjectDelete(Path AS STRING, Cancel AS INTEGER)
+DECLARE SUB ProjectMove(Path AS STRING, NewPath AS STRING, Index AS INTEGER)
+DECLARE SUB ToolboxPick(TypeName AS STRING)
+DECLARE SUB ToolboxSelect(TypeName AS STRING)
+DECLARE SUB ToolboxDragStart(TypeName AS STRING)
+DECLARE SUB ToolboxDrop(TypeName AS STRING, Target AS STRING, X AS INTEGER, Y AS INTEGER)
+DECLARE SUB InspectorChanged(Prop AS STRING, Value AS STRING)
+DECLARE SUB InspectorEvent(EventName AS STRING)
+DECLARE SUB OutputLink(InFile AS STRING, LineNo AS INTEGER)
 DECLARE SUB DesignSelected(Index AS INTEGER)
+DECLARE SUB DesignSourceEdit(StartLine AS INTEGER, StartCol AS INTEGER, EndLine AS INTEGER, EndCol AS INTEGER, Text AS STRING, Sender AS RDESIGNSURFACE)
+DECLARE SUB DesignChanged(Sender AS RDESIGNSURFACE)
+DECLARE SUB DesignDblClick(Index AS INTEGER, Sender AS RDESIGNSURFACE)
+DECLARE SUB DesignRead(d AS INTEGER)
+DECLARE FUNCTION DesignCommand(Id AS STRING) AS INTEGER
 DECLARE SUB OutlineOpen
-DECLARE SUB ProblemOpen
-DECLARE SUB PaletteChanged
-DECLARE SUB PaletteKey(Key AS INTEGER, Shift AS INTEGER)
-DECLARE SUB PaletteListKey(Key AS INTEGER, Shift AS INTEGER)
-DECLARE SUB PalettePicked
+DECLARE SUB PaletteCommand(Id AS STRING)
 DECLARE SUB CodeChanged(Sender AS RCODEEDITOR)
 DECLARE SUB AnalyzerTick
 DECLARE SUB ProgramOutput(Text AS STRING)

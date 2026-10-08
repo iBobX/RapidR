@@ -1,0 +1,17 @@
+[package]
+name = "rapidr-package"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+description = "What `rapidr build` makes a program into: a macOS .app, a Windows .exe with its icon and version, a Linux AppDir; program icons from .icns, .ico, .png or .svg"
+
+# Pure Rust, for every host: a Mac builds a Windows .exe's resources and a
+# Linux AppDir as well as its own .app (only code signing needs macOS).
+[dependencies]
+# Draws SVG icons and decodes / encodes PNG (MIT OR Apache-2.0; already in
+# the tree: rapidr-value draws pictures with it).
+resvg = { version = "0.48.1", default-features = false }
+# A Windows executable's resources: its icon group and version information
+# (BSD-2-Clause; without its `image` feature: RapidR writes the .ico itself).
+editpe = { version = "0.2.4", default-features = false, features = ["std"] }

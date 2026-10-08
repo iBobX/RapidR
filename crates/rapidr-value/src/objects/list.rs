@@ -452,7 +452,7 @@ impl ItemList {
                 let color = crate::theme::bgr(if selected { th.highlight_text } else { th.text });
                 let text = self.items.get(i).map_or("", String::as_str);
                 // Tabs go on to the TabWidth stops.
-                let avg = super::text::text_size("x", font).0;
+                let avg = super::text::average_char_width(font);
                 let mut x = 2;
                 for (k, part) in text.split('\t').enumerate() {
                     if k > 0 {

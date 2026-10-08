@@ -372,6 +372,8 @@ pub const PART_MENU: u64 = 5;
 pub const PART_EDITOR: u64 = 6;
 /// A dropped-down list (a grid's gcsList column) and its items.
 pub const PART_POPUP: u64 = 7;
+/// A component's live region (RDESIGNSURFACE: what its last change did).
+pub const PART_STATUS: u64 = 8;
 
 /// A component's stable node id: FNV-1a of its lowercase id, kept off the
 /// top byte (parts mix their kind there) and never 0.
@@ -501,6 +503,15 @@ pub fn role_of(type_name: &str) -> Role {
         "RDOCKGROUP" | "RDOCKDOCS" => Role::Group,
         // (I2: its hunks as groups with Accept / Reject buttons)
         "RDIFFVIEW" => Role::Group,
+        // (I1 / L-PANELS: RapidR Studio's panels — rapidr_value::panels; the
+        // kernel describes their rows, tabs and buttons)
+        "RPROPERTYINSPECTOR" => Role::Grid,
+        "RTOOLBOX" | "RPROJECTTREE" => Role::Tree,
+        // (a console: its tabs, its search box, its page — a read-only
+        // multiline text, or the problems' list — inside)
+        "ROUTPUTCONSOLE" => Role::Group,
+        "RTOOLBAR" => Role::Group,
+        "RCOMMANDPALETTE" => Role::Dialog,
         "RSTATUSBAR" => Role::Status,
         "RSPLITTER" => Role::Splitter,
         // (and a kernel-drawn message box's icon)
@@ -523,7 +534,9 @@ pub fn takes_focus(type_name: &str) -> bool {
     matches!(
         type_name.to_ascii_uppercase().as_str(),
         "RBUTTON" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RCODEEDITOR" | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RLISTVIEW" | "RTREEVIEW" | "RDIRTREE" | "RSTRINGGRID" | "RTABCONTROL" | "RTRACKBAR" | "RUPDOWN"
-            | "RSCROLLBAR" | "RDIFFVIEW"
+            | "RSCROLLBAR" | "RDIFFVIEW" | "RDESIGNSURFACE"
+        // (I1 / L-PANELS: RapidR Studio's panels)
+        | "RPROPERTYINSPECTOR" | "RTOOLBOX" | "RPROJECTTREE" | "ROUTPUTCONSOLE" | "RCOMMANDPALETTE"
     )
 }
 

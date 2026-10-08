@@ -227,9 +227,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.102"
+version = "1.0.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
+checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
 name = "arboard"
@@ -1011,6 +1011,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be1e0bca6c3637f992fc1cc7cbc52a78c1ef6db076dbf1059c4323d6a2048376"
 
 [[package]]
+name = "debug-ignore"
+version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ffe7ed1d93f4553003e20b629abe9085e1e81b1429520f897f8f8860bc6dfc21"
+
+[[package]]
 name = "derive_utils"
 version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1145,6 +1151,20 @@ name = "dtor"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "edf234dd1594d6dd434a8fb8cada51ddbbc593e40e4a01556a0b31c62da2775b"
+
+[[package]]
+name = "editpe"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de488f8727e67269a918bcb5b35b1b9ee59b2ae2859743ffdd6288de9701c5e6"
+dependencies = [
+ "debug-ignore",
+ "foldhash 0.2.0",
+ "indexmap",
+ "log",
+ "thiserror 2.0.18",
+ "zerocopy",
+]
 
 [[package]]
 name = "either"
@@ -2398,9 +2418,9 @@ checksum = "f8ca58f447f06ed17d5fc4043ce1b10dd205e060fb3ce5b979b8ed8e59ff3f79"
 
 [[package]]
 name = "memmap2"
-version = "0.9.10"
+version = "0.9.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "714098028fe011992e1c3962653c96b2d578c4b4bce9036e15ff220319b1e0e3"
+checksum = "d1219ed1b7f229ee7104d281dd01d6802fe28bb6e95d292942c4daacdeb798c0"
 dependencies = [
  "libc",
 ]
@@ -3683,8 +3703,10 @@ dependencies = [
  "rapidr-langsvc",
  "rapidr-lexer",
  "rapidr-lsp",
+ "rapidr-package",
  "rapidr-parser",
  "rapidr-preprocessor",
+ "rapidr-project",
  "rapidr-session",
  "rapidr-vm",
  "rapidr-vm-host-native",
@@ -3740,10 +3762,15 @@ version = "2.117.0"
 dependencies = [
  "proptest",
  "rapidr-ast",
+ "rapidr-bcgen",
+ "rapidr-codegen-rust",
  "rapidr-diagnostics",
  "rapidr-lang",
+ "rapidr-lexer",
  "rapidr-parser",
  "rapidr-preprocessor",
+ "rapidr-ui-kernel",
+ "rapidr-ui-render",
  "rapidr-value",
 ]
 
@@ -3831,6 +3858,14 @@ dependencies = [
  "rapidr-langsvc",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "rapidr-package"
+version = "2.117.0"
+dependencies = [
+ "editpe",
+ "resvg",
 ]
 
 [[package]]
@@ -3929,7 +3964,10 @@ dependencies = [
 name = "rapidr-studio"
 version = "2.117.0"
 dependencies = [
+ "rapidr-designer",
  "rapidr-langsvc",
+ "rapidr-package",
+ "rapidr-preprocessor",
  "rapidr-project",
  "rapidr-session",
  "rapidr-value",
@@ -4019,6 +4057,7 @@ dependencies = [
  "rapidr-editor",
  "rapidr-icons",
  "rapidr-lang",
+ "rapidr-project",
  "resvg",
  "serde_json",
  "ttf-parser",

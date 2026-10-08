@@ -19,9 +19,9 @@ Symbols and Symbols 2, Noto Sans SC and KR), all under the SIL Open Font
 License 1.1. The Noto fonts' chunks ship beside the web runtime with
 their `OFL.txt`.
 
-**567 libraries** under 22 license expressions.
+**569 libraries** under 22 license expressions.
 
-## Apache-2.0 OR MIT (326)
+## Apache-2.0 OR MIT (327)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -37,7 +37,7 @@ their `OFL.txt`.
 | alsa | 0.9.1 | <https://github.com/diwic/alsa-rs> |
 | android-activity | 0.6.1 | <https://github.com/rust-mobile/android-activity> |
 | android_system_properties | 0.1.5 | <https://github.com/nical/android_system_properties> |
-| anyhow | 1.0.102 | <https://github.com/dtolnay/anyhow> |
+| anyhow | 1.0.104 | <https://github.com/dtolnay/anyhow> |
 | arboard | 3.6.1 | <https://github.com/1Password/arboard> |
 | arc-swap | 1.9.2 | <https://github.com/vorner/arc-swap> |
 | arrayvec | 0.7.6 | <https://github.com/bluss/arrayvec> |
@@ -88,6 +88,7 @@ their `OFL.txt`.
 | ctor | 0.10.1 | <https://github.com/mmastrac/rust-ctor> |
 | dasp_sample | 0.11.0 | <https://github.com/rustaudio/sample.git> |
 | data-url | 0.3.2 | <https://github.com/servo/rust-url> |
+| debug-ignore | 1.0.5 | <https://github.com/sunshowers-code/debug-ignore> |
 | derive_utils | 0.15.1 | <https://github.com/taiki-e/derive_utils> |
 | digest | 0.10.7 | <https://github.com/RustCrypto/traits> |
 | displaydoc | 0.2.5 | <https://github.com/yaahc/displaydoc> |
@@ -172,7 +173,7 @@ their `OFL.txt`.
 | lock_api | 0.4.14 | <https://github.com/Amanieu/parking_lot> |
 | log | 0.4.29 | <https://github.com/rust-lang/log> |
 | lsp-server | 0.10.0 | <https://github.com/rust-lang/rust-analyzer/tree/master/lib/lsp-server> |
-| memmap2 | 0.9.10 | <https://github.com/RazrFalcon/memmap2-rs> |
+| memmap2 | 0.9.11 | <https://github.com/RazrFalcon/memmap2-rs> |
 | mime | 0.3.17 | <https://github.com/hyperium/mime> |
 | muda | 0.21.0 | <https://github.com/tauri-apps/muda> |
 | mysql | 28.0.3 | <https://github.com/blackbeam/rust-mysql-simple> |
@@ -643,6 +644,13 @@ their `OFL.txt`.
 | r-efi | 5.3.0 | <https://github.com/r-efi/r-efi> |
 | r-efi | 6.0.0 | <https://github.com/r-efi/r-efi> |
 
+## BSD-2-Clause (2)
+
+| Library | Version | Upstream |
+|---|---|---|
+| arrayref | 0.3.9 | <https://github.com/droundy/arrayref> |
+| editpe | 0.2.4 | <https://github.com/Systemcluster/editpe> |
+
 ## BSL-1.0 (2)
 
 | Library | Version | Upstream |
@@ -685,12 +693,6 @@ their `OFL.txt`.
 | Library | Version | Upstream |
 |---|---|---|
 | ryu | 1.0.23 | <https://github.com/dtolnay/ryu> |
-
-## BSD-2-Clause (1)
-
-| Library | Version | Upstream |
-|---|---|---|
-| arrayref | 0.3.9 | <https://github.com/droundy/arrayref> |
 
 ## MIT AND BSD-3-Clause (1)
 

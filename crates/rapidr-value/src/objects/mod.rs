@@ -717,6 +717,17 @@ pub fn with_design_mut<R>(id: &str, f: impl FnOnce(&mut design::DesignSurface) -
     })?
 }
 
+/// What an RDESIGNSURFACE's last calls (or its mouse and keys) left for the
+/// program to hear, oldest first; the change hook told
+/// (`design::set_change_hook`).
+pub fn take_design_events(id: &str) -> Vec<design::DesignEvent> {
+    let events = with_design_mut(id, |d| d.take_events()).unwrap_or_default();
+    if !events.is_empty() {
+        design::notify(id, &events);
+    }
+    events
+}
+
 /// Reads a QSTRINGGRID's data (to draw it).
 pub fn with_grid<R>(id: &str, f: impl FnOnce(&StringGrid) -> R) -> Option<R> {
     with(id, |o| match o {

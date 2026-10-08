@@ -25,9 +25,10 @@ texts (`utilities/vscodeext/rapidr/scripts/notices.js` makes it).
 
 ## 1. Monaco Editor 0.52.2 — MIT License
 
-Vendored under `web-ide/vendor/monaco/` and used by the in-browser IDE (only
-the IDE: never a program you build) for source editing, syntax highlighting,
-and IntelliSense.
+Vendored under `web-ide/vendor/monaco/` in the source tree, for the legacy
+in-browser IDE that remains only as a test harness until it is deleted. No
+release package ships it (the web bundle is RapidR Studio's, drawn by the UI
+kernel), and it is never part of a program you build.
 
 > The MIT License (MIT)
 >
@@ -130,8 +131,9 @@ character widths as Arial, Times New Roman and Courier New.
 Beside them, **RapidR Sans** (`RapidRSans-Regular.ttf`) is a Modified
 Version of Liberation Sans under the same licence, renamed as the OFL
 requires (it carries none of the Reserved Font Names): Liberation Sans with
-each Windows-1252 character as wide as MS Sans Serif's at 8 pt and MS Sans
-Serif's line metrics — the face RapidR draws RapidQ's default font with.
+each Windows-1252 character as wide as MS Sans Serif's at 8 pt (a few a
+pixel wider, so its letters don't run together) and MS Sans Serif's line
+metrics — the face RapidR draws RapidQ's default font with.
 `tools/fonts/make_rapidr_sans.py` makes it; the widths are measurements of
 RapidQ's `TextWidth`, no Microsoft font data
 (`crates/rapidr-value/fonts/README.md`).

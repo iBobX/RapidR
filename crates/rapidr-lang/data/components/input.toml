@@ -3,6 +3,7 @@ group = "Buttons and input"
 
 [[component]]
 name = "RBUTTON"
+display = "Button"
 rapidq = "QBUTTON"
 visual = true
 size = [75, 25]
@@ -61,6 +62,7 @@ events = [
 
 [[component]]
 name = "REDIT"
+display = "Edit"
 rapidq = "QEDIT"
 visual = true
 size = [121, 21]
@@ -126,6 +128,7 @@ events = [
 
 [[component]]
 name = "RCHECKBOX"
+display = "CheckBox"
 rapidq = "QCHECKBOX"
 visual = true
 size = [97, 17]
@@ -168,6 +171,7 @@ events = [
 
 [[component]]
 name = "RRADIOBUTTON"
+display = "RadioButton"
 rapidq = "QRADIOBUTTON"
 visual = true
 size = [113, 17]
@@ -209,6 +213,7 @@ events = [
 
 [[component]]
 name = "RCOMBOBOX"
+display = "ComboBox"
 rapidq = "QCOMBOBOX"
 visual = true
 size = [145, 25]
@@ -294,6 +299,7 @@ events = [
 
 [[component]]
 name = "RRICHEDIT"
+display = "RichEdit"
 rapidq = "QRICHEDIT"
 visual = true
 size = [185, 89]
@@ -376,6 +382,7 @@ events = [
 
 [[component]]
 name = "RMEMO"
+display = "Memo"
 visual = true
 size = [185, 89]
 default_event = "OnChange"
@@ -431,6 +438,7 @@ events = [
 
 [[component]]
 name = "RSCROLLBAR"
+display = "ScrollBar"
 rapidq = "QSCROLLBAR"
 visual = true
 size = [121, 17]
@@ -475,6 +483,7 @@ events = [
 
 [[component]]
 name = "RUPDOWN"
+display = "UpDown"
 visual = true
 default_event = "OnChange"
 doc = "Two arrow buttons that step Position up or down between Min and Max, often beside an edit. RapidR's own."
@@ -506,6 +515,7 @@ events = [
 
 [[component]]
 name = "RDATETIMEPICKER"
+display = "DateTimePicker"
 visual = true
 default_event = "OnChange"
 doc = "A field for a date and a time (Date, Time), with OnChange when the user changes either. RapidR's own."
@@ -540,6 +550,7 @@ events = [
 
 [[component]]
 name = "RTRACKBAR"
+display = "TrackBar"
 rapidq = "QTRACKBAR"
 visual = true
 size = [150, 45]
@@ -587,6 +598,7 @@ events = [
 
 [[component]]
 name = "RCODEEDITOR"
+display = "CodeEditor"
 visual = true
 size = [400, 300]
 default_event = "OnChange"
@@ -744,6 +756,7 @@ events = [
 
 [[component]]
 name = "RDIFFVIEW"
+display = "DiffView"
 visual = true
 size = [500, 300]
 default_event = "OnHunkChange"
@@ -794,6 +807,7 @@ events = [
 
 [[component]]
 name = "RCOOLBTN"
+display = "CoolBtn"
 rapidq = "QCOOLBTN"
 visual = true
 size = [25, 25]
@@ -844,6 +858,7 @@ events = [
 
 [[component]]
 name = "ROVALBTN"
+display = "OvalBtn"
 rapidq = "QOVALBTN"
 visual = true
 size = [100, 50]

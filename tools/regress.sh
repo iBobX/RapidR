@@ -12,7 +12,8 @@
 #
 #   tools/regress.sh                  every stage, then the build caches go
 #   tools/regress.sh gui web          only these stages (unit, conformance,
-#                                     examples, gui, visual, web, perf, legal),
+#                                     examples, gui, visual, web, perf, security,
+#                                     legal),
 #                                     caches kept
 #   tools/regress.sh --clean          (with stages) remove the caches after
 cd "$(dirname "$0")/.."
@@ -29,7 +30,7 @@ export RAPIDR_PRINT_TO="$PWD/$W/prints"
 export RAPIDR_REGISTRY="$PWD/$W/registry.reg"
 STAGES=(); CLEAN=0
 for a in "$@"; do if [ "$a" = --clean ]; then CLEAN=1; else STAGES+=("$a"); fi; done
-[ ${#STAGES[@]} -eq 0 ] && { STAGES=(unit conformance examples gui visual web perf legal); CLEAN=1; }
+[ ${#STAGES[@]} -eq 0 ] && { STAGES=(unit conformance examples gui visual web perf security legal); CLEAN=1; }
 # (what's inside $W: it may be a link to a build volume)
 [ $CLEAN = 1 ] && trap 'rm -rf "$W"/* target/debug target/wasm32-unknown-unknown/debug' EXIT
 want() { [[ " ${STAGES[*]} " == *" $1 "* ]]; }
@@ -74,6 +75,19 @@ if want web; then
   echo "== web"; for t in tests/web_ide_*.mjs tests/debug_e2e_*.mjs tests/web_session.mjs tests/web_bundle_*.mjs tests/web_file_dialogs.mjs tests/web_modal_focus.mjs tests/web_end_timer.mjs tests/web_main_end.mjs tests/web_vm_yield.mjs tests/web_overlays.mjs tests/web_fonts.mjs tests/web_webapi.mjs tests/web_sqlite.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "ASSERT|Error|✗"; }
   done
+fi
+# Security regressions (docs/security-audit.md; tests/security/): the
+# browser-free scripts, and the Rust ones each crate compiles from there
+# (its `security_regressions` module) — the web bundle's policy and
+# escaping, the language server's and the debug adapter's confinement. The
+# browser's side is in the web stage (tests/web_bundle_csp.mjs,
+# tests/web_overlays.mjs).
+if want security; then echo "== security"
+  for t in tests/security/*.mjs; do
+    out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "FAIL|Error"; }
+  done
+  out=$(CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-3}" cargo test -q -p rapidr-webbundle -p rapidr-lsp -p rapidr-dap security_ 2>&1) || { echo "cargo security tests: FAILED"; echo "$out" | grep -E "panicked|FAILED|^error" | head -5; }
+  echo "(security done)"
 fi
 # Licences and notices (LEGAL.md, docs/licensing.md): a licence outside
 # deny.toml's allowlist (permissive only) or a replaced crate (its [bans])

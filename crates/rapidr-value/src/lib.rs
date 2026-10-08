@@ -23,6 +23,8 @@ pub mod handles;
 pub mod tray;
 pub mod mdi;
 pub mod dock;
+// (I1 / L-PANELS: RapidR Studio's panels as public components)
+pub mod panels;
 pub mod events;
 pub mod input;
 pub mod send_keys;

@@ -3,6 +3,7 @@ group = "Databases"
 
 [[component]]
 name = "RSQLITE"
+display = "SQLite"
 visual = false
 default_event = "OnConnect"
 doc = "A SQLite database: Connect opens a file (or `:memory:`), Query runs SQL with `?` parameters, FetchRow walks the rows. RapidR's own; also in the browser."
@@ -36,6 +37,7 @@ events = [
 
 [[component]]
 name = "RMYSQL"
+display = "MySQL"
 rapidq = "QMYSQL"
 visual = false
 only = "desktop"

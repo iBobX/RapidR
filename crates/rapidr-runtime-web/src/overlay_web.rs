@@ -14,11 +14,89 @@
 //! An RDOM whose Parent isn't a kernel component (none, or another RDOM by
 //! ParentId / AppendTo) stays where the program put it in the page.
 
+use std::cell::RefCell;
+use std::collections::HashMap;
+
 use rapidr_value::{v_null, v_str, Value};
-use wasm_bindgen::JsCast;
-use web_sys::{HtmlElement, HtmlMediaElement};
+use wasm_bindgen::prelude::Closure;
+use wasm_bindgen::{JsCast, JsValue};
+use web_sys::{HtmlElement, HtmlIFrameElement, HtmlMediaElement};
 
 use crate::object_web::{rp_comp_get_stored, rp_comp_type};
+
+/// An RWEBVIEW's frame by default (docs/security-audit.md SEC-12 / SEC-15):
+/// its page runs its scripts, forms, pop-ups and dialogs, but at an opaque
+/// origin — never with the program's page's origin, storage or DOM. A
+/// program that wants that sets `Sandbox` itself (e.g. adding
+/// `allow-same-origin`); `Sandbox = ""` allows nothing.
+pub const WEBVIEW_SANDBOX: &str = "allow-scripts allow-forms allow-popups allow-modals allow-downloads";
+
+/// The file an RWEBVIEW's Html runs in, beside the page
+/// (interpreter/rapidr-webbundle/web/rapidr-webview.html, which every web
+/// build ships); a page elsewhere names it in `window.RAPIDR_WEBVIEW_FRAME`.
+pub const WEBVIEW_FRAME: &str = "rapidr-webview.html";
+
+thread_local! {
+    /// Each RWEBVIEW's Html (what `.Html` reads), and whether its frame
+    /// still waits to be given it.
+    static FRAME_HTML: RefCell<HashMap<String, (String, bool)>> = RefCell::new(HashMap::new());
+}
+
+/// Where the RWEBVIEW frame file is, as an absolute URL.
+fn webview_frame_url() -> String {
+    let named = web_sys::window()
+        .and_then(|w| js_sys::Reflect::get(&w, &JsValue::from_str("RAPIDR_WEBVIEW_FRAME")).ok())
+        .and_then(|v| v.as_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| WEBVIEW_FRAME.to_string());
+    let base = document().base_uri().ok().flatten().unwrap_or_default();
+    web_sys::Url::new_with_base(&named, &base).map(|u| u.href()).unwrap_or(named)
+}
+
+/// An RWEBVIEW shows `html`. With scripts allowed, it runs in the RWEBVIEW
+/// frame file — its own rules, at the frame's (opaque) origin — rather than
+/// in an `srcdoc`, which would inherit the page's Content-Security-Policy;
+/// with scripts not allowed, as `srcdoc` (only markup, nothing runs).
+fn show_html(name: &str, f: &HtmlIFrameElement, html: &str) {
+    let key = name.to_uppercase();
+    let scripts = f.get_attribute("sandbox").is_none_or(|s| s.split_ascii_whitespace().any(|t| t.eq_ignore_ascii_case("allow-scripts")));
+    if !scripts {
+        FRAME_HTML.with(|m| m.borrow_mut().insert(key, (html.to_string(), false)));
+        let _ = f.remove_attribute("src");
+        f.set_srcdoc(html);
+        return;
+    }
+    let _ = f.remove_attribute("srcdoc");
+    FRAME_HTML.with(|m| m.borrow_mut().insert(key.clone(), (html.to_string(), true)));
+    if f.get_attribute("data-rr-frame").is_none() {
+        let _ = f.set_attribute("data-rr-frame", "1");
+        let frame = f.clone();
+        let on_load = Closure::<dyn FnMut()>::new(move || {
+            // (the frame file loaded, and it's still what the frame shows —
+            // never a page the program or its Html went to)
+            if frame.src() != webview_frame_url() {
+                return;
+            }
+            let html = FRAME_HTML.with(|m| m.borrow_mut().get_mut(&key).and_then(|(h, waiting)| std::mem::take(waiting).then(|| h.clone())));
+            if let (Some(html), Some(win)) = (html, frame.content_window()) {
+                let msg = js_sys::Object::new();
+                let _ = js_sys::Reflect::set(&msg, &JsValue::from_str("__rapidr_webview_html"), &JsValue::from_str(&html));
+                // (an opaque origin can't be named: any origin, this one window)
+                let _ = win.post_message(&msg, "*");
+            }
+        });
+        let _ = f.add_event_listener_with_callback("load", on_load.as_ref().unchecked_ref());
+        on_load.forget();
+    }
+    f.set_src(&webview_frame_url());
+}
+
+/// An RWEBVIEW goes to `url`: its Html is no longer what it shows.
+fn navigate(name: &str, f: &HtmlIFrameElement, url: &str) {
+    FRAME_HTML.with(|m| m.borrow_mut().remove(&name.to_uppercase()));
+    let _ = f.remove_attribute("srcdoc");
+    f.set_src(url);
+}
 
 /// The components the host places as DOM elements over its canvases.
 pub const TYPES: &[&str] = &["RWEBVIEW", "RDOM", "RWEBAUDIO", "RWEBVIDEO"];
@@ -84,9 +162,11 @@ pub fn create(name: &str, type_name: &str) {
     let _ = el.set_attribute("data-rr-type", &t);
     match t.as_str() {
         "RWEBVIEW" => {
-            // (sandboxed as the DOM runtime's: the page it shows runs its
-            // scripts, never the program's origin's privileges)
-            let _ = el.set_attribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads");
+            // (sandboxed: the page it shows runs its scripts, never with the
+            // program's origin — WEBVIEW_SANDBOX — unless the program's own
+            // Sandbox says otherwise)
+            let sandbox = stored(name, "sandbox").map_or_else(|| WEBVIEW_SANDBOX.to_string(), |v| v.to_string_val());
+            let _ = el.set_attribute("sandbox", &sandbox);
             let _ = el.style().set_property("border", "1px solid #aaa");
             let _ = el.style().set_property("background", "white");
         }
@@ -151,13 +231,13 @@ pub fn set_prop(name: &str, prop: &str, val: &Value) -> bool {
     let s = val.to_string_val();
     let media = el.dyn_ref::<HtmlMediaElement>();
     match prop {
-        "html" => match el.dyn_ref::<web_sys::HtmlIFrameElement>() {
-            Some(f) => f.set_srcdoc(&s),
+        "html" => match el.dyn_ref::<HtmlIFrameElement>() {
+            Some(f) => show_html(name, f, &s),
             None => el.set_inner_html(&s),
         },
         "url" => {
-            if let Some(f) = el.dyn_ref::<web_sys::HtmlIFrameElement>() {
-                f.set_src(&s);
+            if let Some(f) = el.dyn_ref::<HtmlIFrameElement>() {
+                navigate(name, f, &s);
             }
         }
         "sandbox" => {
@@ -251,12 +331,14 @@ pub fn get_prop(name: &str, prop: &str) -> Option<Value> {
         "cssclass" => v_str(&el.class_name()),
         "cssstyle" => v_str(&el.get_attribute("style").unwrap_or_default()),
         "tagname" => v_str(&el.tag_name().to_lowercase()),
-        "url" => match el.dyn_ref::<web_sys::HtmlIFrameElement>() {
+        "url" => match el.dyn_ref::<HtmlIFrameElement>() {
+            // (showing its Html, the frame file isn't a Url of the program's)
+            Some(_) if FRAME_HTML.with(|m| m.borrow().contains_key(&name.to_uppercase())) => v_str(""),
             Some(f) => v_str(&f.src()),
             None => v_str(&el.get_attribute("src").unwrap_or_default()),
         },
-        "html" => match el.dyn_ref::<web_sys::HtmlIFrameElement>() {
-            Some(f) => v_str(&f.srcdoc()),
+        "html" => match el.dyn_ref::<HtmlIFrameElement>() {
+            Some(_) => v_str(&FRAME_HTML.with(|m| m.borrow().get(&name.to_uppercase()).map(|(h, _)| h.clone())).unwrap_or_default()),
             None => v_str(&el.get_attribute("srcdoc").unwrap_or_default()),
         },
         "volume" => Value::Double(media?.volume()),
@@ -275,13 +357,13 @@ pub fn method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Opti
     let el = element(name);
     match (comp_type, method) {
         ("RWEBVIEW", "sethtml") => {
-            if let Some(f) = el.as_ref().and_then(|e| e.dyn_ref::<web_sys::HtmlIFrameElement>()) {
-                f.set_srcdoc(&arg(0));
+            if let Some(f) = el.as_ref().and_then(|e| e.dyn_ref::<HtmlIFrameElement>()) {
+                show_html(name, f, &arg(0));
             }
         }
         ("RWEBVIEW", "navigate") => {
-            if let Some(f) = el.as_ref().and_then(|e| e.dyn_ref::<web_sys::HtmlIFrameElement>()) {
-                f.set_src(&arg(0));
+            if let Some(f) = el.as_ref().and_then(|e| e.dyn_ref::<HtmlIFrameElement>()) {
+                navigate(name, f, &arg(0));
             }
         }
         ("RDOM", "create") => {}
