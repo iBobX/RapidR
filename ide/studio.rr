@@ -29,6 +29,7 @@
 '                  layout and open files kept
 '   shell.inc      RunCommand, the events, start-up
 
+$INCLUDE "RAPIDQ.INC"   ' mbYes, mrYes, mtWarning … (without it they are 0)
 $INCLUDE "decl.inc"
 $INCLUDE "preview.inc"
 $INCLUDE "window.inc"
