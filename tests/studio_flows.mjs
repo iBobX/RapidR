@@ -56,7 +56,7 @@ const CASES = [
     open: "examples/gui/hello_form.rr",
     do: "view.theme.dark,view.documents.tabs",
     delay: 3,
-    dump: { "application.theme": /^dark$/, "dock.documentmode": /^tabs$/ },
+    dump: { "application.theme": /^rapidr dark$/, "dock.documentmode": /^tabs$/ },
   },
   {
     // (the desktop works on a copy: Save All writes the project file)
