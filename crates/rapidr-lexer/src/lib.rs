@@ -1380,7 +1380,7 @@ mod tests {
 
     #[test]
     fn recovers_from_errors() {
-        let (tokens, errors) = Lexer::new("a = 1 ` b\nc = &HZ\nd = \"open", None).tokenize_recovering();
+        let (tokens, errors) = Lexer::new("a = 1 ` b\nc = &OZ\nd = \"open", None).tokenize_recovering();
         let kinds: Vec<TokenType> = tokens.iter().map(|t| t.kind).collect();
         use TokenType::*;
         assert_eq!(kinds, [Identifier, Eq, Number, Error, Identifier, Newline, Identifier, Eq, Error, Identifier, Newline, Identifier, Eq, StringLit, Eof]);

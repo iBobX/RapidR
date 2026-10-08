@@ -15,6 +15,7 @@ internal = [
   "__data_label",
   "__data_reset",
   "__decimal",
+  "__dll_call",
   "__environ_set",
   "__getfield",
   "__gui_register_timer",
@@ -435,8 +436,7 @@ doc = "The next key pressed, or \"\" when none is waiting; it doesn't wait. Spec
 name = "INP"
 syntax = "INP(Address)"
 group = "System"
-missing = true
-doc = "Reads a byte from a hardware I/O port (a DOS-era facility)."
+doc = "Reads a byte from a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error, as it did under RapidQ on Windows."
 
 [[builtin]]
 name = "INPUT$"
@@ -448,8 +448,7 @@ doc = "Waits for `NumChars` keys to be pressed and returns them as a string."
 name = "INPW"
 syntax = "INPW(Address)"
 group = "System"
-missing = true
-doc = "Reads a 16-bit word from a hardware I/O port (a DOS-era facility)."
+doc = "Reads a 16-bit word from a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error."
 
 [[builtin]]
 name = "INSERT$"
@@ -665,15 +664,13 @@ doc = "Opens a file for `INPUT`, `OUTPUT`, `APPEND`, `BINARY` or `RANDOM` access
 name = "OUT"
 syntax = "OUT(Address, bytevalue)"
 group = "System"
-missing = true
-doc = "Writes a byte to a hardware I/O port (a DOS-era facility)."
+doc = "Writes a byte to a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error, as it did under RapidQ on Windows."
 
 [[builtin]]
 name = "OUTW"
 syntax = "OUTW(Address, wordvalue)"
 group = "System"
-missing = true
-doc = "Writes a 16-bit word to a hardware I/O port (a DOS-era facility)."
+doc = "Writes a 16-bit word to a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error."
 
 [[builtin]]
 name = "PARAMSTR$"
@@ -703,15 +700,13 @@ doc = "In a `SUBI` or `FUNCTIONI`: how many numeric arguments it was called with
 name = "PCOPY"
 syntax = "PCOPY source, dest"
 group = "Console"
-missing = true
-doc = "Copies one console screen page to another."
+doc = "Copies one console page (0 is the screen, 1 to 7 are off-screen buffers) onto another."
 
 [[builtin]]
 name = "PEEK"
 syntax = "PEEK([#PageNum,] address)"
 group = "Arrays and memory"
-missing = true
-doc = "Reads the byte at a memory address."
+doc = "Reads one byte: of a console page (addresses 0 to 3999 of page 0 are the screen, an even address a cell's character, the odd one after it its colour attribute), or of the program's own memory at an address from VARPTR and the like. Any other address is a run-time error."
 
 [[builtin]]
 name = "PI"
@@ -738,8 +733,7 @@ doc = "Plays a WAV file or `$RESOURCE` in the background (`SND_ASYNC`), waiting 
 name = "POKE"
 syntax = "POKE [#PageNum,] address, byte"
 group = "Arrays and memory"
-missing = true
-doc = "Writes a byte to a memory address."
+doc = "Writes one byte: into a console page (on page 0 it shows at once), or into the program's own memory at an address from VARPTR and the like. Any other address is a run-time error."
 
 [[builtin]]
 name = "POS"

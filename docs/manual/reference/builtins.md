@@ -13,8 +13,8 @@ The builtins every runtime implements (native builds, the interpreter and the we
 | `MEMCMP(ptr1, ptr2, count)` | Compares `count` bytes at two addresses: true (-1) when they are the same, 0 when not (unlike C's memcmp). |
 | `MEMCPY(dest, source, count)` | Copies `count` bytes from one address to another (addresses from `VARPTR`, `UDTPTR` or a stream's `Pointer`); in RapidR a bad address is a run-time error, never a crash. |
 | `MEMSET(ptr, byte, count)` | Sets `count` bytes from an address to one byte value. |
-| `PEEK([#PageNum,] address)` *(not yet)* | Reads the byte at a memory address. |
-| `POKE [#PageNum,] address, byte` *(not yet)* | Writes a byte to a memory address. |
+| `PEEK([#PageNum,] address)` | Reads one byte: of a console page (addresses 0 to 3999 of page 0 are the screen, an even address a cell's character, the odd one after it its colour attribute), or of the program's own memory at an address from VARPTR and the like. Any other address is a run-time error. |
+| `POKE [#PageNum,] address, byte` | Writes one byte: into a console page (on page 0 it shows at once), or into the program's own memory at an address from VARPTR and the like. Any other address is a run-time error. |
 | `SIZEOF (Var(Index))` | The size in bytes of a variable, array element, array, type or TYPE, as RapidQ lays it out in memory. |
 | `UBOUND(ArrayName[, Dimension])` | The highest index of an array, in its first dimension or the one given (1 the first). |
 | `UDTPTR(Variable)` | The address of a TYPE variable's fields, for `MEMCPY` and the other memory builtins. |
@@ -37,7 +37,7 @@ The builtins every runtime implements (native builds, the interpreter and the we
 | `INPUT$(NumChars)` | Waits for `NumChars` keys to be pressed and returns them as a string. |
 | `ISCONSOLE` *(not yet)* | True when the program is running as a console program. |
 | `LOCATE [Y%][, X%][, cursor]` | Moves the console cursor to row `Y`, column `X` (1 the first); a value left out keeps the current one. |
-| `PCOPY source, dest` *(not yet)* | Copies one console screen page to another. |
+| `PCOPY source, dest` | Copies one console page (0 is the screen, 1 to 7 are off-screen buffers) onto another. |
 | `POS(0)` | The console cursor's column, 1 being the first. |
 | `SETCONSOLETITLE(Title$)` | Sets the title of the console (terminal) window. |
 | `TAB(Column)` | In `PRINT`: spaces up to console column `Column` (1 the first); past it already, that column on the next line. |
@@ -199,16 +199,16 @@ RapidQ programs get these from include files or DECLAREs (RapidQ's compiler does
 | `DATE$` *bare* | Today's local date as text, `MM-DD-YYYY`. |
 | `DOEVENTS` | Lets pending window events, timers and repaints run, so a long loop keeps the program's windows responsive. |
 | `ENVIRON StringExpression` | `ENVIRON "NAME=value"` sets a variable in the program's environment; `ENVIRON$("NAME")` reads one ("" when unset). |
-| `INP(Address)` *(not yet)* | Reads a byte from a hardware I/O port (a DOS-era facility). |
-| `INPW(Address)` *(not yet)* | Reads a 16-bit word from a hardware I/O port (a DOS-era facility). |
+| `INP(Address)` | Reads a byte from a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error, as it did under RapidQ on Windows. |
+| `INPW(Address)` | Reads a 16-bit word from a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error. |
 | `KILLMESSAGE hWnd, Message` *(not yet)* | Removes pending messages of one kind from a window's message queue. |
 | `LFLUSH` | Sends what `LPRINT` has printed so far to the printer as one job; what is left at the program's end is printed then. |
 | `LIBRARYINST(DLLName)` *(not yet)* | Loads a DLL and returns its instance handle, 0 when it can't be loaded: a way to test whether a library is present. |
 | `LPRINT [Expression][;\|,][...]` | Prints to the printer as `PRINT` prints to the console; `LFLUSH` sends the job. RapidR makes each job a PDF for the system's printer. |
 | `MOUSEX` *bare* | The mouse pointer's horizontal position, relative to the active form's client area. |
 | `MOUSEY` *bare* | The mouse pointer's vertical position, relative to the active form's client area. |
-| `OUT(Address, bytevalue)` *(not yet)* | Writes a byte to a hardware I/O port (a DOS-era facility). |
-| `OUTW(Address, wordvalue)` *(not yet)* | Writes a 16-bit word to a hardware I/O port (a DOS-era facility). |
+| `OUT(Address, bytevalue)` | Writes a byte to a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error, as it did under RapidQ on Windows. |
+| `OUTW(Address, wordvalue)` | Writes a 16-bit word to a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error. |
 | `POSTMESSAGE(Handle, uMsg, wParam, lParam)` *(not yet)* | Puts a Windows message in a window's queue and returns without waiting for it to be handled. |
 | `RUN command$` | Starts a program (a command line) without waiting for it; returns its process ID, 0 when it couldn't start. |
 | `SENDMESSAGE(Handle, uMsg, wParam, lParam)` *(not yet)* | Sends a Windows message to a window and waits for the result its window procedure returns. |
