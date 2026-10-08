@@ -135,8 +135,10 @@ runs, but their methods do nothing there and print a warning.
 
 ## The web IDE
 
-`rapidr-web-2.117.0.zip` is the web IDE: a folder for any static host
-(open its `index.html` through a web server). It has a form designer, a
-code editor (Monaco), Run (the program runs in a sandboxed frame of the
-page), Build (downloads a bundle like `bundle-bc`'s) and a debugger. It
-compiles in the browser; nothing is sent anywhere.
+`rapidr-web-2.117.0.zip` is the web IDE: RapidR Studio, the same program
+as on the desktop, drawn by the UI kernel on the page — a folder for any
+static host (open its `index.html` through a web server). It has the form
+designer, the code editor, the project tree, the inspector, the toolbox
+and Run (the program runs in a sandboxed frame of the page). It compiles
+in the browser; nothing is sent anywhere. Building apps and web bundles is
+the desktop's for now (Studio's Build, `rapidr bundle-bc`).
