@@ -4538,6 +4538,7 @@ An object inspector in the style of Delphi's: the properties of a component (or 
 | `ShowRapidRExtensions` | bool | True | Whether RapidR's own members of a RapidQ component are shown (under "RapidR extensions", with a badge). |
 | `ReadOnly` | bool | False | Values are shown but can't be changed. |
 | `Handlers` | string | `""` | The SUBs an event can run, one per line as `Name(parameters)`: the Events page offers those whose parameters fit the event. |
+| `EmptyText` | string | `""` | What the description under the rows says while nothing is inspected ("Select a component on the form"). |
 | `NameWidth` | int | 120 | The width of the names' column, in pixels (the user drags the line between the columns). |
 | `Selected` | string | `""` | The property (or event) whose row is selected; setting it selects that row. |
 | `RowCount` (read-only) | int |  | How many rows are shown now (the categories' headings included). |
@@ -4646,6 +4647,7 @@ A project's files as a tree (an .rrproj project, or a .bas / .rr file and the fi
 | `ShowComponents` | bool | True | Whether a form's components are listed under it. |
 | `Selected` | string | `""` | The selected node: a file's path, `path#Component` for a form's component, a folder's path ending in `/`, "" for the project or a group. |
 | `FileCount` (read-only) | int |  | How many files the project has. |
+| `EmptyText` | string | `""` | What it says while no project is shown ("No project" when empty): what to do, such as "Open a project or a file". |
 | `Modified` | bool |  | The project changed since it was read or saved. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -4704,6 +4706,7 @@ A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI
 | `MaxLines` | int | 5000 | The most lines a page keeps: older ones go. |
 | `Filter` | string | `""` | The search box's text: matches are marked and the first is shown. |
 | `ShowTabs` | bool | True | Whether the pages' tabs (and the search box) are shown above the text. |
+| `EmptyText` | string | `""` | What the Output page says while it has nothing ("Press F5 to run"). |
 | `AutoScroll` | bool | True | New output scrolls the page to its end (unless the user scrolled up). |
 | `LineCount` (read-only) | int |  | How many lines the shown page has. |
 | `ProblemCount` (read-only) | int |  | How many problems the Problems page lists. |

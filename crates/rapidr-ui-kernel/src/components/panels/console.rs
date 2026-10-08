@@ -331,6 +331,13 @@ impl Console {
         let focused = cx.state.focused && editing(cx.id).is_none();
         let sel = s.view.selection();
         let font = &g.mono;
+        // (EmptyText while the page is empty: what to do — "Press F5 to run")
+        if s.lines.is_empty() || s.lines.iter().all(|(_, line)| line.text().is_empty()) {
+            let empty = crate::store::string(cx.store, cx.id, "emptytext");
+            if !empty.trim().is_empty() && s.page == Page::Output {
+                common::wrapped_center(p, (bx + 12, by + 12, (cw - 24).max(0), bh), &empty, &chrome(cx), l.dim);
+            }
+        }
         p.clipped((bx, by, cw, bh), |p| {
             for (abs, line) in &s.lines {
                 let i = (abs - s.first) as i64;

@@ -458,3 +458,30 @@ mod tests {
         assert!(cut.ends_with('…') && text_size(&cut, &f).0 <= 60, "{cut}");
     }
 }
+
+/// `text` wrapped to `r`'s width, each line centred, from `r`'s top (an
+/// empty panel's "what to do").
+pub fn wrapped_center(p: &mut Painter, r: Rect, text: &str, font: &Font, color: u32) {
+    let (x, y, w, h) = r;
+    let lh = rapidr_value::objects::text::text_size("Ag", font).1.max(1) + 2;
+    let mut lines: Vec<String> = Vec::new();
+    for para in text.split('\n') {
+        let mut cur = String::new();
+        for word in para.split_whitespace() {
+            let next = if cur.is_empty() { word.to_string() } else { format!("{cur} {word}") };
+            if !cur.is_empty() && rapidr_value::objects::text::text_size(&next, font).0 > w {
+                lines.push(std::mem::replace(&mut cur, word.to_string()));
+            } else {
+                cur = next;
+            }
+        }
+        lines.push(cur);
+    }
+    for (i, line) in lines.iter().enumerate() {
+        let ly = y + i as i64 * lh;
+        if ly + lh > y + h {
+            break;
+        }
+        p.text((x, ly, w, lh), line, font, color, rapidr_value::objects::ops::Place::Center);
+    }
+}

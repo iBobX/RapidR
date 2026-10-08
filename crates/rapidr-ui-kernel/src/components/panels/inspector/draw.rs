@@ -25,6 +25,8 @@ pub struct Ctx<'a> {
     pub editing: Option<&'a str>,
     pub searching: bool,
     pub enabled: bool,
+    /// EmptyText: what the footer says while nothing is inspected.
+    pub empty: &'a str,
 }
 
 /// `font` in bold.
@@ -127,7 +129,9 @@ pub fn footer(p: &mut Painter, r: Rect, m: &Inspector, rows: &[Row], c: &Ctx) {
         return;
     }
     let Some(row) = sel else {
-        let hint = if !m.designer.is_empty() && m.snap.objects.is_empty() {
+        let hint = if m.snap.objects.is_empty() && m.snap.props.is_empty() && !c.empty.trim().is_empty() {
+            c.empty
+        } else if !m.designer.is_empty() && m.snap.objects.is_empty() {
             "Select a component on the form."
         } else if m.snap.objects.is_empty() && m.snap.props.is_empty() {
             "Set Target (a component's name) or Designer to inspect."

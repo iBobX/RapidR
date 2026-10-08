@@ -258,6 +258,7 @@ SUB StartStudio
   BuildMenus
   BuildToolBar
   SetUpStatus
+  SetUpPanels
   SetUpDock
   IF SavedLayout <> "" THEN Dock.LoadLayout(SavedLayout)
   Dock.DocumentMode = DocumentMode

@@ -48,7 +48,10 @@ pub(super) fn paint(cx: &mut Cx, p: &mut Painter) {
     let Some(m) = with(cx.id, Clone::clone) else { return };
     let g = geo(cx, &l, m.confirm.is_some());
     if !m.loaded {
-        p.text((g.area.0, g.area.1, g.area.2, (g.area.3).min(ROW * 3)), "No project", &font, l.dim, Place::Center);
+        // (EmptyText: what to do, the program's — "No project" else)
+        let empty = crate::store::string(cx.store, cx.id, "emptytext");
+        let text = if empty.trim().is_empty() { "No project".to_string() } else { empty };
+        common::wrapped_center(p, (g.area.0 + 12, g.area.1 + 12, (g.area.2 - 24).max(0), g.area.3), &text, &font, l.dim);
         return;
     }
     let rows = m.rows();

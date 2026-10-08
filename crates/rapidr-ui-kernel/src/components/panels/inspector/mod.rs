@@ -793,7 +793,8 @@ impl ComponentKind for Inspector {
         let searching = editing.as_deref() == Some(SEARCH);
         let value_edit = editing.as_deref().filter(|k| *k != SEARCH);
         let font = cx.font.clone();
-        let c = draw::Ctx { id: cx.id, l: &l, font: &font, focused: cx.state.focused, editing: value_edit, searching, enabled: cx.state.enabled };
+        let empty = crate::store::string(cx.store, cx.id, "emptytext");
+        let c = draw::Ctx { id: cx.id, l: &l, font: &font, focused: cx.state.focused, editing: value_edit, searching, enabled: cx.state.enabled, empty: &empty };
         draw::header(p, &v.g, &v.m, &c);
         if let Some(t) = v.g.tabs {
             let hover = match v.m.ui.hover {

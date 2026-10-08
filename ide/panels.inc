@@ -437,6 +437,14 @@ END SUB
 
 ' ---- the look ----------------------------------------------------------------------------
 
+' (what each panel says while it has nothing to show)
+SUB SetUpPanels
+  ProjectTree.EmptyText = "No project open. File > New Project (Ctrl+N), or Open (Ctrl+O)."
+  Inspector.EmptyText = "Select a component on a form to see its properties."
+  OutputBox.EmptyText = "Press F5 to run the program; its output shows here."
+  Toolbox.Hint = "Double-click or press Enter to add a component to the form; drag it to place it."
+END SUB
+
 SUB ApplyPanelFonts
   ProjectTree.Font = UIFont
   Toolbox.Font = UIFont
