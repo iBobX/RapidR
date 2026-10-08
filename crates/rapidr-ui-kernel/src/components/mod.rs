@@ -45,8 +45,9 @@ pub mod dxscreen;
 // (RapidQ's QGLASSFRAME)
 pub mod glass;
 // (Stage 10: the IDE's)
-pub mod codeedit;
+pub mod codeeditor;
 pub mod design;
+pub mod diffview;
 // (I1: RapidR Studio's docking)
 pub mod dock;
 // (the data-science lane's: RPLOT on a form)
@@ -99,7 +100,7 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RRICHEDIT", &richedit::RichEdit),
     // (Stage 10: the IDE's)
     ("RDESIGNSURFACE", &design::Design),
-    ("RCODEEDITOR", &codeedit::CodeEditor),
+    ("RCODEEDITOR", &codeeditor::CodeEditor),
     // (the dialogs lane's: what only a kernel-drawn dialog draws)
     ("RDLGPART", &crate::dialogs::Part),
     // (the DirectX lane's)
@@ -113,6 +114,8 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RDOCKMANAGER", &dock::DockManager),
     ("RDOCKGROUP", &dock::DockGroup),
     ("RDOCKDOCS", &dock::DockDocs),
+    // (I2: the diff view — rapidr_value::objects::diffview)
+    ("RDIFFVIEW", &diffview::DiffViewBox),
     // (the data-science lane's: a chart on a form — rapidr_value::datascience)
     ("RPLOT", &plot::Plot),
 ];

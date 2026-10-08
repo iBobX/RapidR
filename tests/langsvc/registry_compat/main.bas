@@ -3,7 +3,7 @@ DIM L AS QLISTBOX
 DIM n AS RNUM
 DIM p AS QPLOT
 Form.ShapeForm "a.bmp", 0
-L.Circle 1, 2, 3, 4, 0, 0
+L.Clear
 Form.Anchors = 0
 BEEP
 x = Screen.W|idth

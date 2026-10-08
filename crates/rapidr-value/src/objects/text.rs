@@ -61,27 +61,34 @@ const INTER: &[u8] = include_bytes!("../../fonts/Inter-Regular.ttf");
 const INTER_SEMIBOLD: &[u8] = include_bytes!("../../fonts/Inter-SemiBold.ttf");
 const JBMONO: &[u8] = include_bytes!("../../fonts/JetBrainsMono-Regular.ttf");
 const JBMONO_BOLD: &[u8] = include_bytes!("../../fonts/JetBrainsMono-Bold.ttf");
+/// The code editor's comments (RCODEEDITOR's schemes draw them italic).
+const JBMONO_ITALIC: &[u8] = include_bytes!("../../fonts/JetBrainsMono-Italic.ttf");
+
+/// The code editor's face (RCODEEDITOR, RDIFFVIEW): what [`family_name`]
+/// gives for "JetBrains Mono", and the shaper's family name.
+pub const CODE_FACE: &str = "JetBrains Mono";
 
 /// Longest text drawn in one call (so a huge string can't stall drawing).
 const MAX_CHARS: usize = 10_000;
 
 /// The built-in faces' files (Liberation Sans, Serif, Mono, RapidR Sans,
-/// Inter regular and semibold, JetBrains Mono regular and bold): what the
-/// UI kernel registers with its text shaper, so its captions are drawn from
-/// the very fonts `TextWidth` measures.
-pub const BUILTIN_FONTS: [&[u8]; 8] = [SANS, SERIF, MONO, RSANS, INTER, INTER_SEMIBOLD, JBMONO, JBMONO_BOLD];
+/// Inter regular and semibold, JetBrains Mono regular, bold and italic):
+/// what the UI kernel registers with its text shaper, so its captions are
+/// drawn from the very fonts `TextWidth` measures.
+pub const BUILTIN_FONTS: [&[u8]; 9] = [SANS, SERIF, MONO, RSANS, INTER, INTER_SEMIBOLD, JBMONO, JBMONO_BOLD, JBMONO_ITALIC];
 
 /// The built-in face standing for a QFONT's name, by its family name:
-/// MS Sans Serif (RapidQ's default; Microsoft Sans Serif, MS Shell Dlg,
-/// "Sans Serif"): "RapidR Sans"; Courier / mono: "Liberation Mono"; Times /
-/// serif / Roman: "Liberation Serif"; anything else: "Liberation Sans".
+/// JetBrains: RapidR's code font; MS Sans Serif (RapidQ's default;
+/// Microsoft Sans Serif, MS Shell Dlg, "Sans Serif"): "RapidR Sans";
+/// Courier / mono: "Liberation Mono"; Times / serif / Roman: "Liberation
+/// Serif"; anything else: "Liberation Sans".
 pub fn family_name(name: &str) -> &'static str {
     let n = name.to_ascii_lowercase();
     let n = n.trim();
     if n == "inter" || n.starts_with("inter ") {
         "Inter"
     } else if n.starts_with("jetbrains mono") || n == "jetbrainsmono" {
-        "JetBrains Mono"
+        CODE_FACE
     } else if n.contains("courier") || n.contains("mono") || n.contains("fixed") || n.contains("terminal") || n.contains("console") {
         "Liberation Mono"
     } else if n == "ms sans serif" || n == "microsoft sans serif" || n == "sans serif" || n.starts_with("ms shell dlg") || n == "ms sans" || n == "helv" {
@@ -391,6 +398,7 @@ mod tests {
         assert_eq!(super::family_name("Comic Sans MS"), "Liberation Sans");
         assert_eq!(super::family_name("Times New Roman"), "Liberation Serif");
         assert_eq!(super::family_name("Courier New"), "Liberation Mono");
+        assert_eq!(super::family_name("JetBrains Mono"), super::CODE_FACE);
     }
 
     use super::*;

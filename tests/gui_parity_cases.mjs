@@ -40,6 +40,17 @@ export const cases = [
     expect: ["lbl.caption=- p:output L p:props p:props L p:output L p:output p:explorer L p:props L [hidden autohide] L loaded same L c:doc1 c:doc2 a:doc1 p:doc2 L p:props L",
       "info.caption=tabs 6 explorer output doc1 | docked floating docked docked autohide document | 280x493 298x302"],
     pixels: [[150, 5, "808080"], [306, 200, "f0f0f0"]], clientWidth: 898 },
+  // RDIFFVIEW (I2, rapidr_value::objects::diffview): two versions of a
+  // program, three hunks. A click on the first hunk's Accept button (pressed
+  // and let go on it), F7 to the second hunk, Backspace rejects it (the
+  // third becomes the current one); OnHunkChange(Index, Accepted) hears
+  // both; HunkState, CurrentHunk, the counts and ResultText (CR LF in the
+  // right text read as LF; the undecided hunk counts as rejected); then
+  // inline mode (the capture).
+  { name: "diff_view", events: "diff.__mousedown_510_32,diff.__mouseup_510_32,diff.__key_118,diff.__key_8,btn.onclick",
+    dump: "lbl.caption,info.caption",
+    expect: ["lbl.caption=hunks3 cur0 | 0:1 1:0 | states1-10 | cur2 acc1 rej1",
+      'info.caption=SUB Greet(Name AS STRING)/  PRINT "Hello, "; Name; "!"/END SUB//SUB Count/  FOR I = 1 TO 10/    PRINT I/  NEXT I/END SUB'] },
   // QGLASSFRAME: the default black glass over the form's face (60 % see-
   // through), red glass at 50 over a cyan panel; Moveable: the form
   // follows a drag on it (20, 10), a glass not Moveable doesn't; clicks.

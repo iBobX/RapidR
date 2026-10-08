@@ -141,6 +141,7 @@ pub fn default_size(type_name: &str) -> Option<(i64, i64)> {
         // RapidR's own
         "RPROGRESS" => (200, 25),
         "RCODEEDITOR" | "RWEBVIEW" => (400, 300),
+        "RDIFFVIEW" => (500, 300),
         "RDESIGNSURFACE" => (640, 480),
         // (the chart model's own size: datascience::plot)
         "RPLOT" => (640, 480),

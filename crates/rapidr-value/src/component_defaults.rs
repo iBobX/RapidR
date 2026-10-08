@@ -273,7 +273,7 @@ pub fn is_windowed(type_name: &str) -> bool {
         type_name.to_ascii_uppercase().as_str(),
         "RPANEL" | "RBEVEL" | "RBUTTON" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RLISTBOX" | "RCOMBOBOX" | "RSTRINGGRID" | "RSCROLLBOX" | "RTABCONTROL"
             | "RGROUPBOX" | "RCHECKBOX" | "RRADIOBUTTON" | "RLISTVIEW" | "RTREEVIEW" | "RFILELISTBOX" | "RDIRTREE" | "RSTATUSBAR" | "RTRACKBAR"
-            | "RSCROLLBAR" | "RPROGRESSBAR" | "RHEADER" | "RDXSCREEN" | "RCODEEDITOR" | "RFORM"
+            | "RSCROLLBAR" | "RPROGRESSBAR" | "RHEADER" | "RDXSCREEN" | "RCODEEDITOR" | "RDIFFVIEW" | "RFORM"
     )
 }
 

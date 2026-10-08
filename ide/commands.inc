@@ -83,6 +83,15 @@ SUB DefineCommands
   AddCmd "edit.find", "&Find...", "Edit", "Ctrl+F", "", "code", ""
   AddCmd "edit.replace", "R&eplace...", "Edit", "Ctrl+H", "", "code", ""
   AddCmd "edit.goToLine", "&Go to Line...", "Edit", "Ctrl+G", "", "code", ""
+  ' (editor.inc: the editor's own keys, shown)
+  AddSep "Edit"
+  AddCmd "edit.triggerCompletion", "Complete &Word", "Edit", "", "Ctrl+Space", "code", "-"
+  AddCmd "edit.quickFix", "&Quick Fix...", "Edit", "", "Ctrl+.", "code", "-"
+  AddCmd "edit.goToDefinition", "Go to &Definition", "Edit", "", "F12", "code", "-"
+  AddCmd "edit.findReferences", "Find Re&ferences", "Edit", "", "Shift+F12", "code", "-"
+  AddCmd "edit.rename", "Re&name Symbol...", "Edit", "", "F2", "code", "-"
+  AddCmd "edit.toggleComment", "Toggle &Comment", "Edit", "", "Ctrl+/", "code", "-"
+  AddCmd "edit.format", "F&ormat Document", "Edit", "", "Shift+Alt+F", "code", "-"
 
   ' ---- View ----
   AddCmd "view.commandPalette", "Command &Palette...", "View", "Ctrl+Shift+P", "", "", ""

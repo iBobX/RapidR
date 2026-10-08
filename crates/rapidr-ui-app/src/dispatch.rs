@@ -55,6 +55,7 @@ pub fn dispatch<R: Program + Windows>(rt: R, ev: KernelEvent) {
         }
         KernelEvent::List(id, action) => lists::dispatch(rt, &id, action),
         KernelEvent::Container(c) => container_event(rt, c),
+        KernelEvent::Fire { id, event, args } => rt.fire_args(&id, &event, &args),
     }
 }
 

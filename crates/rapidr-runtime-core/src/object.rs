@@ -535,7 +535,7 @@ fn set_property(name: &str, prop: &str, val: Value) {
             picture_changed(name);
         }
         #[cfg(feature = "gui")]
-        if rapidr_value::objects::is_canvas(name) || rapidr_value::objects::is_trackbar(name) || rapidr_value::objects::is_design(name) {
+        if rapidr_value::objects::is_canvas(name) || rapidr_value::objects::is_trackbar(name) || rapidr_value::objects::is_design(name) || rapidr_value::objects::is_diff(name) {
             crate::ui::redraw_widget(name);
         }
         if rapidr_value::objects::is_design(name) {
@@ -1187,7 +1187,7 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             if method_lower == "flip" {
                 crate::ui::redraw_widget(name);
             }
-        } else if rapidr_value::objects::is_trackbar(name) || rapidr_value::objects::is_design(name) {
+        } else if rapidr_value::objects::is_trackbar(name) || rapidr_value::objects::is_design(name) || rapidr_value::objects::is_diff(name) {
             crate::ui::redraw_widget(name);
         }
         if rapidr_value::objects::is_design(name) {
@@ -2036,6 +2036,8 @@ fn gui_generic_method(name: &str, comp_type: &str, method: &str, args: &[Value])
             v_null()
         }
         "setfocus" | "focus" => {
+            #[cfg(feature = "gui")]
+            crate::ui::gui_set_focus(name);
             v_null()
         }
         // (the title bar's own buttons are the system's: the set is kept,

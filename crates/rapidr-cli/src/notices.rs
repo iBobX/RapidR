@@ -746,6 +746,15 @@ fn extras(kind: &Kind, crates: &BTreeSet<&str>, packages: &HashMap<(String, Stri
             note: "Built into the program, subset to the Latin scripts (tools/fonts/subset_ui_fonts.py): RapidR's code font (the code editor in the RapidR look, RapidR Studio's consoles) and a face programs can name. No Reserved Font Name is declared. The OFL lets the font be bundled with any software, commercial included; the font itself may not be sold on its own.".into(),
             blocks: vec![Block { title: "JetBrains Mono — OFL-1.1".into(), text: JBMONO_OFL.into() }],
         });
+        out.push(Component {
+            name: "JetBrains Mono (Italic)".into(),
+            version: "2.211".into(),
+            declared: "OFL-1.1".into(),
+            used: "OFL-1.1".into(),
+            url: "https://github.com/JetBrains/JetBrainsMono".into(),
+            note: "Built into the program: the code editor's comments. The variable italic's Latin subset as Google Fonts distributes it, converted from WOFF2 to TrueType (glyphs unchanged). No Reserved Font Name is declared. The OFL lets the font be bundled with any software, commercial included; the font itself may not be sold on its own.".into(),
+            blocks: vec![Block { title: "JetBrains Mono — OFL-1.1".into(), text: JBMONO_OFL.into() }],
+        });
     }
     // (the web runtime's fallback fonts: shipped beside it, fonts/)
     if matches!(kind, Kind::Web) {

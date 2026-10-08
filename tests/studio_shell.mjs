@@ -51,6 +51,9 @@ const SCENES = [
       "__mousedown_110_130", "__mousemove_130_150", "__mousemove_150_170", "__mouseup_150_170",
     ].map((e) => `designdoc(0).${e}`).join(","),
   },
+  // (the code editor with the completion list open and its docs beside it:
+  // typed through the kernel's keys, S-EDITOR)
+  { name: "editor", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:dim y as string,key:Escape,key:Enter,type:form.c", delay: 6 },
 ];
 
 mkdirSync(OUT, { recursive: true });

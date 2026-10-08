@@ -120,6 +120,77 @@ const CASES = [
     dump: { "designdoc(0).canundo": /^(0|False)$/i, "codedoc(0).text": /CREATE Form AS QFORM/ },
     same: { "codedoc(0).text": "examples/rapidq/notepad.bas" },
   },
+  // ---- the code editor (S-EDITOR; docs/studio-wow.md ED-1 … ED-8): typed
+  // through the kernel's keyboard path (Application.SendKeys), IntelliSense
+  // from RapidR's language service ----
+  {
+    // `form.` lists QFORM's members: properties, then methods, then events,
+    // each A–Z
+    name: "editor-completion",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:form.,wait,wait",
+    delay: 6,
+    dump: { "codedoc(0).completionitems": /^AccessibleDescription\n[\s\S]*\nCaption\n[\s\S]*\nWidth\n[\s\S]*\nShowModal\n[\s\S]*\nOnClick\n/ },
+  },
+  {
+    // typing narrows it, best match first: on the word starts (`sm` →
+    // ShowModal) before letters anywhere
+    name: "editor-completion-fuzzy",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:form.sm,wait",
+    delay: 6,
+    dump: { "codedoc(0).completionselected": /^ShowModal$/ },
+  },
+  {
+    // Tab accepts the selected item; the language's words in upper case as
+    // they're typed (rapidr.keywordCase = upper)
+    name: "editor-accept-and-case",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:form.capt,key:Tab,type: = \"Hi\",key:Enter,type:dim y as string,key:Escape,key:Enter",
+    delay: 8,
+    dump: { "codedoc(0).text": /\nform\.Caption = "Hi"\nDIM y AS STRING\n$|\nform\.Caption = "Hi"\nDIM y AS STRING\n?$/, "codedoc(0).completionitems": /^$/ },
+  },
+  {
+    // Tab on a selected block indents every line by the file's unit (4
+    // spaces); the selection stays
+    name: "editor-tab-indent",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Shift+Up,key:Shift+Up,key:Tab",
+    delay: 6,
+    dump: { "codedoc(0).text": /\nEND SUB\n\n {4}NameEdit\.SetFocus\n {4}Form\.ShowModal\n?$/, "codedoc(0).sellength": /^3[0-9]$/ },
+  },
+  {
+    // Shift+Tab takes it back out: the text as it was
+    name: "editor-tab-outdent",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Shift+Up,key:Shift+Up,key:Tab,key:Shift+Tab",
+    delay: 6,
+    dump: { "codedoc(0).text": /\nEND SUB\n\nNameEdit\.SetFocus\nForm\.ShowModal\n?$/, "codedoc(0).canundo": /^(-1|1|True)$/i },
+  },
+  {
+    // a misspelt member: squiggled once typing pauses (RapidQ's compiler's
+    // words), in Problems too; Ctrl+. offers the fix, Enter applies it
+    name: "editor-diagnostic",
+    open: "examples/gui/hello_form.rr",
+    do: "key:Ctrl+End,key:Enter,type:x$ = NameEdit.Txet,key:Escape,wait,wait,wait,key:Ctrl+.,wait",
+    delay: 8,
+    dump: { "codedoc(0).diagnosticcount": /^1$/, "codedoc(0).completionitems": /^Change to Text$/, "status.panel(2).caption": /^Ln 55, Col 19$/ },
+  },
+  {
+    name: "editor-quick-fix",
+    open: "examples/gui/hello_form.rr",
+    do: "key:Ctrl+End,key:Enter,type:x$ = NameEdit.Txet,key:Escape,wait,wait,wait,key:Ctrl+.,wait,key:Enter,wait,wait,wait",
+    delay: 10,
+    dump: { "codedoc(0).text": /\nx\$ = NameEdit\.Text\n?$/, "codedoc(0).diagnosticcount": /^0$/ },
+  },
+  {
+    // F12 on a call goes to its SUB
+    name: "editor-go-to-definition",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:greet,key:Escape,key:Left,key:F12",
+    delay: 6,
+    dump: { "codedoc(0).caretline": /^42$/ },
+  },
 ];
 
 function runDesktop(c) {

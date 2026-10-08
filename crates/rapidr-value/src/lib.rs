@@ -25,6 +25,7 @@ pub mod mdi;
 pub mod dock;
 pub mod events;
 pub mod input;
+pub mod send_keys;
 pub mod globals;
 pub mod file_dialog;
 pub mod format;
@@ -37,6 +38,8 @@ pub mod designer;
 pub mod members;
 pub mod scrollbars;
 pub mod theme;
+// (I2) The code editor's colour schemes, one per theme.
+pub mod code_scheme;
 pub mod ide_theme;
 pub mod registry;
 pub mod resources;

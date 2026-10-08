@@ -235,6 +235,7 @@ SUB OpenDocument(Path AS STRING)
   CodeDoc(d).LoadFromFile Path
   CodeDoc(d).Tag = d
   CodeDoc(d).OnChange = CodeChanged
+  CodeDoc(d).OnCaretMove = CodeCaretMoved
   Loading = 0
   DocFile(d) = Path
   DocKind(d) = "code"
@@ -251,6 +252,10 @@ SUB OpenDocument(Path AS STRING)
   Dock.AddPane(CodeDoc(d), title, "documents", "code")
   ActiveDoc = d
   AnalyzeActive
+  ' (editor.inc: the caret's place, encoding and line breaks; the caret in
+  ' the code, ready to type, as an editor opens a file)
+  EditorFacts d
+  FocusCodeSoon d
   OutputLine "Opened " + Path
   UpdateCommands
 END SUB

@@ -41,8 +41,10 @@ for a in sys.argv[2:]:
     elif kind=="w":
         time.sleep(float(arg))
     elif kind=="k":
-        parts=arg.split("+"); code=int(parts[-1]); flags=0
-        for m in parts[:-1]:
+        # k:cmd+shift+code or k:code+cmd+shift (modifiers held; the number is the key code)
+        parts=arg.split("+"); code=int(next(p for p in parts if p.isdigit())); flags=0
+        for m in parts:
+            if m.isdigit(): continue
             flags|={"cmd":Quartz.kCGEventFlagMaskCommand,"shift":Quartz.kCGEventFlagMaskShift,"ctrl":Quartz.kCGEventFlagMaskControl,"alt":Quartz.kCGEventFlagMaskAlternate}[m]
         for d in (True,False):
             e=Quartz.CGEventCreateKeyboardEvent(None,code,d)

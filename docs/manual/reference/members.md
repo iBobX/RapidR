@@ -1318,7 +1318,7 @@ A slider: the user drags its thumb to pick a Position between Min and Max, along
 <a id="rcodeeditor"></a>
 ## RCODEEDITOR
 
-A code editor for BASIC: line numbers, syntax colours, and a list of the program's SUBs and FUNCTIONs to jump to. RapidR's own; the IDE's editor.
+RapidR Studio's code editor: syntax colours from a language definition (BASIC by default; SQL, JSON, HTML … or your own), line numbers, folding, several carets, find and replace, word wrap, a minimap, markers, problems and IntelliSense (completion, hovers, signatures) from RapidR's language service where the runtime carries it, or from the program through its request events. What it always answered counts lines from 0 (Line, GotoLine, WhereX, WhereY); what's new counts lines and columns from 1.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -1328,18 +1328,55 @@ A code editor for BASIC: line numbers, syntax colours, and a list of the program
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
 | `Visible` | int | True | Whether the control or form is shown. |
-| `Enabled` | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Font` | font |  | The font of the text, a QFONT; assigning one copies it. |
-| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontSize` | int |  | The code's size in points (10 = 13 pixels); Ctrl+= / Ctrl+- and Ctrl+wheel change it. |
+| `FontName` | string |  | The code's font (JetBrains Mono, built in). |
 | `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `ReadOnly` | int |  | Stops the user changing the text or items; they can still select and copy. |
-| `WordWrap` | int |  | Wraps long lines at the control's edge. |
+| `WordWrap` | int |  | Long lines break at the view's width (Alt+Z turns it on and off). |
 | `SelStart` | int |  | Where the selection starts: a character offset from 0 in text, the start of a track bar's highlighted range. |
 | `SelLength` | int |  | The number of characters selected. |
 | `SelText` | string |  | The selected text; setting it replaces the selection. |
 | `Line` | string |  | A line of the text, `Line(i)` from 0. |
 | `LineCount` | int |  | The number of lines of text (on a tree, of nodes). |
+| `WhereX` (read-only) | int |  | The caret's column, from 0. |
+| `WhereY` (read-only) | int |  | The caret's line, from 0. |
+| `Modified` | bool |  | The text changed since it was set, loaded or saved (undoing back to the saved text clears it). |
+| `MaxLength` | int |  | The most characters the user can type (0: no limit). |
+| `CharCase` | int |  | Turns typed text to `ecUpperCase` or `ecLowerCase`; `ecNormal` leaves it as typed. |
+| `WantTabs` | bool |  | Tab types (indents) in the editor rather than moving the focus on (True by default). |
+| `Language` | string |  | The language its colours, brackets, indentation and folding follow: an id ("rapidq-basic", "sql", "json", "html", "css", "javascript", "markdown", "toml", "rust", "csv", "plaintext"), a file name whose extension says, or a language definition file (.toml). |
+| `ColorScheme` | string |  | "auto" (the theme's) or a scheme's name: "classic", "modern", "dark", "highcontrast". |
+| `TabSize` | int |  | Columns per tab stop (4). |
+| `InsertSpaces` | bool |  | Tab inserts spaces (True) or a tab character. |
+| `AutoClose` | bool |  | Typing an opening bracket or quote types its closing one too. |
+| `AutoIndent` | bool |  | A new line keeps the indentation, one level more after SUB, IF … THEN, FOR … |
+| `ShowLineNumbers` | bool |  | The gutter numbers the lines. |
+| `ShowFolding` | bool |  | The gutter has fold arrows (SUB … END SUB, CREATE … END CREATE …). |
+| `ShowMinimap` | bool |  | A small picture of the whole text at the right, its view's part marked; click or drag it to scroll. |
+| `ShowWhitespace` | bool |  | Spaces show as dots, tabs as arrows. |
+| `HighlightCurrentLine` | bool |  | The caret's line is tinted. |
+| `Rulers` | string |  | Columns with a vertical line, comma-separated ("80,120"). |
+| `CaretLine` | int |  | The caret's line, from 1; setting it moves the caret there. |
+| `CaretColumn` | int |  | The caret's column (a character of the line), from 1. |
+| `CursorCount` (read-only) | int |  | How many carets there are. |
+| `CanUndo` (read-only) | bool |  | Undo has something to undo. |
+| `CanRedo` (read-only) | bool |  | Redo has something to do again. |
+| `CompletionTrigger` | string |  | Characters that open completion by themselves ("."). |
+| `LanguageService` | bool |  | RapidR's language service answers completion, hovers, signatures and problems (where the runtime carries it: rapidr run, RapidR Studio); off, the program answers the request events. |
+| `KeywordCase` | string |  | The language's words' case as you type: "upper" (DIM x AS INTEGER), "lower", "proper" or "preserve". |
+| `FileName` | string |  | The file it was loaded from or saved to (the language service knows it by this name). |
+| `LineEnding` | string |  | The file's line breaks SaveToFile writes: "CRLF", "LF" or "CR" (LoadFromFile keeps the file's). |
+| `Encoding` (read-only) | string |  | How the file was stored: "UTF-8", "UTF-8 BOM" or "Latin-1" (SaveToFile writes it back the same). |
+| `DiagnosticCount` (read-only) | int |  | How many problems it shows. |
+| `CompletionItems` (read-only) | string |  | The completion list as it shows now, one label a line, best match first (empty while it's closed). |
+| `CompletionSelected` (read-only) | string |  | The completion list's selected label (what Tab or Enter would insert); empty while it's closed. |
+| `HoverText` (read-only) | string |  | The hover showing now (its Markdown), empty when none is. |
+| `SignatureText` (read-only) | string |  | The signature help showing now (the call's signature), empty when none is. |
+| `FoldCount` (read-only) | int |  | How many places are folded. |
+| `Outline` (read-only) | string |  | The file's outline, one entry a line: kind, name, line (from 1) and depth, tab-separated — the language service's (SUBs, FUNCTIONs, TYPEs and their members, the CREATE tree), else the SUBs and FUNCTIONs. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
 | `ShowHint` | int |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
@@ -1361,8 +1398,8 @@ A code editor for BASIC: line numbers, syntax colours, and a list of the program
 | `CopyToClipboard` | Copies the selected text to the clipboard. |
 | `CutToClipboard` | Moves the selected text to the clipboard. |
 | `PasteFromClipboard` | Inserts the clipboard's text at the caret, replacing the selection. |
-| `LoadFromFile` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
-| `SaveToFile` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
+| `LoadFromFile` | Loads a file: its line breaks and encoding are remembered, its language taken from its name unless Language was set. |
+| `SaveToFile` | Saves the text (to its FileName when none is given) with the file's own line breaks and encoding; clears Modified. |
 | `AddStrings` | Appends the strings given, each as a new line. |
 | `GotoSub` | Moves the caret to the SUB or FUNCTION of the name given. |
 | `GotoLine` | Moves the caret to the line given and scrolls it into view. |
@@ -1375,12 +1412,123 @@ A code editor for BASIC: line numbers, syntax colours, and a list of the program
 | `Add` | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
 | `AddItems` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
 | `ClearSelection` | Deletes the selected text. |
+| `Undo` | Undoes the last edit (typing is undone a word at a time). |
+| `Redo` | Does again what Undo undid. |
+| `Find(Text AS STRING, Options AS STRING) AS INTEGER` | Selects the next place of Text after the selection; Options: "case", "word", "regex" (comma-separated). True when found. |
+| `FindNext AS INTEGER` | Find's next place. |
+| `FindPrevious AS INTEGER` | Find's previous place. |
+| `Replace(Find AS STRING, With AS STRING, Options AS STRING) AS INTEGER` | Replaces the selected place of Find (selecting the next); 1 when it replaced one. A regex's With can say $1. |
+| `ReplaceAll(Find AS STRING, With AS STRING, Options AS STRING) AS INTEGER` | Replaces every place (Options "selection": in the selection), one undo step; how many. |
+| `AddCursor(Line AS INTEGER, Column AS INTEGER)` | Another caret at a line and column (from 1). |
+| `SelectNextOccurrence AS INTEGER` | Adds the next place of the selected word to the selections (Ctrl+D). |
+| `ClearCursors` | Back to the one main caret. |
+| `Fold(Line AS INTEGER) AS INTEGER` | Folds the block at a line (from 1). |
+| `Unfold(Line AS INTEGER) AS INTEGER` | Unfolds the block at a line (from 1). |
+| `FoldAll` | Folds every block (Ctrl+K Ctrl+0). |
+| `UnfoldAll` | Unfolds every block (Ctrl+K Ctrl+J). |
+| `InsertText(Text AS STRING)` | Types Text at every caret (one undo step). |
+| `ReplaceRange(StartLine AS INTEGER, StartColumn AS INTEGER, EndLine AS INTEGER, EndColumn AS INTEGER, Text AS STRING)` | Replaces the text between two places (lines and columns from 1). |
+| `ApplyEdits(Json AS STRING) AS INTEGER` | Several edits as one undo step: a JSON list of {"line", "column", "endLine", "endColumn", "text"} (or "start" / "end" character offsets). False, and nothing done, when two overlap. |
+| `ApplyPatch(StartLine AS INTEGER, StartCol AS INTEGER, EndLine AS INTEGER, EndCol AS INTEGER, Text AS STRING, [Join AS INTEGER]) AS INTEGER` | Replaces the text between two places with Text — lines from 0, columns counted in characters, as RDESIGNSURFACE's OnSourceEdit gives them — keeping the carets where they were in the text. One undo step, or with Join True part of the step before (a designer action's several patches undone together). False, and nothing changed, for a range that isn't in the text. |
+| `SetDiagnostics(Json AS STRING)` | The program's problems, shown as squiggles and in the gutter: a JSON list of {"line", "column", "endLine", "endColumn", "severity" (error, warning, info, hint), "message"}. |
+| `ClearDiagnostics` | Removes the problems shown. |
+| `AddMarker(Line AS INTEGER, Kind AS STRING)` | A gutter marker on a line (from 1) that follows it through edits: "breakpoint", "current" (the debugger's line), "bookmark", "error", "warning" or a kind of the program's. |
+| `RemoveMarker(Line AS INTEGER, [Kind AS STRING]) AS INTEGER` | Removes the marker of Kind (every kind when empty) from a line; True when there was one. |
+| `ClearMarkers([Kind AS STRING])` | Removes every marker of Kind (all when empty). |
+| `GetMarkers([Kind AS STRING]) AS STRING` | The lines (from 1) with a marker of Kind (any when empty), comma-separated. |
+| `HasMarker(Line AS INTEGER, [Kind AS STRING]) AS INTEGER` | Whether a line (from 1) has a marker of Kind (any when empty). |
+| `ShowCompletion(Items)` | Shows a completion list at the caret: lines of tab-separated label, kind, detail and text to insert (a string or a QSTRINGLIST), or JSON. The answer to OnCompletionRequest. |
+| `ShowHover(Text AS STRING)` | Shows a hover where OnHoverRequest asked (a fenced ``` block shows as code). |
+| `ShowSignature(Text AS STRING, ActiveParam AS INTEGER)` | Shows signature help over the caret, the parameter ActiveParam (from 0) marked. |
+| `HidePopups` | Closes the completion list, the hover and signature help. |
+| `TriggerCompletion` | Opens completion at the caret, as Ctrl+Space does. |
+| `TriggerSignature` | Opens signature help at the caret, as Ctrl+Shift+Space does. |
+| `TriggerHover([Line AS INTEGER], Column AS INTEGER])` | Shows the hover at a place (the caret's when none is given). |
+| `FormatDocument` | Re-indents the text and cases its words (the language service's; Shift+Alt+F). |
+| `GotoDefinition` | Jumps to the declaration of what's at the caret (F12); in another file, OnNavigate. |
+| `FindReferences` | Selects every use of what's at the caret here and tells OnReferences (Shift+F12). |
+| `Rename(NewName AS STRING)` | Renames what's at the caret everywhere it's used (F2); other files' edits come through OnFileEdits. |
+| `OpenFind([Mode AS STRING])` | Opens the find box: "find", "replace", "goto" (a line) or "rename". |
+| `GotoLineColumn(Line AS INTEGER, Column AS INTEGER)` | The caret at a line and column (from 1), scrolled into view. |
+| `ToggleComment` | Comments the caret's lines out, or back in (Ctrl+/). |
+| `Indent` | Indents the lines with a caret one level (Ctrl+]). |
+| `Outdent` | Takes the lines with a caret one level out (Ctrl+[). |
+| `CopyText AS STRING` | What Copy would put on the clipboard (the selections, or the caret's line). |
+| `BeginUpdate` | Many changes to come: the view waits for EndUpdate. |
+| `EndUpdate` | The changes are done: the view shows them. |
 
 | Event | |
 |---|---|
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
+| `OnKeyDown` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
+| `OnKeyUp` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
+| `OnKeyPress` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
+| `OnCaretMove(Line AS INTEGER, Column AS INTEGER)` | The user moved the caret (line and column from 1). |
+| `OnSelectionChange` | The user changed the selections. |
+| `OnGutterClick(Line AS INTEGER, Area AS STRING)` | A click in the gutter: Area is "marker" (where breakpoints go), "number" or "fold". |
+| `OnCompletionRequest(Line AS INTEGER, Column AS INTEGER, Prefix AS STRING)` | Completion is wanted and no language service answers: answer with ShowCompletion. |
+| `OnHoverRequest(Line AS INTEGER, Column AS INTEGER)` | The mouse rests on the text and no language service answers: answer with ShowHover. |
+| `OnSignatureRequest(Line AS INTEGER, Column AS INTEGER)` | Signature help is wanted (after ( or ,) and no language service answers: answer with ShowSignature. |
+| `OnSave` | Ctrl+S (Cmd+S) in the editor. |
+| `OnNavigate(File AS STRING, Line AS INTEGER, Column AS INTEGER)` | Go to definition found it in another file: open it there. |
+| `OnReferences(Json AS STRING)` | Find references' places: a JSON list of {"file", "line", "column"}. |
+| `OnFileEdits(File AS STRING, Json AS STRING)` | A rename's edits to another file (ApplyEdits' JSON with "start" / "end" byte offsets). |
+
+<a id="rdiffview"></a>
+## RDIFFVIEW
+
+Two texts compared line by line, the way a code review shows them: side by side or in one column, the removed lines tinted on one side and the added lines on the other, the changed characters marked, in the language's syntax colours. Each run of changes (a hunk) has Accept and Reject buttons; ResultText is the text the decisions give. RapidR's own; RapidR Studio's assistant and "compare with saved" use it.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `LeftText` | string | `""` | The original text (the left side). Setting it or RightText compares the two again: every hunk starts undecided. CR LF and lone CR line breaks become LF. |
+| `RightText` | string | `""` | The changed text (the right side), compared with LeftText. |
+| `Language` | string | `"rapidq-basic"` | How the text is coloured: a language id ("rapidq-basic", "sql", "json" …), a file name whose extension says ("query.sql"), or a language definition file (.toml). Reading it gives the id. |
+| `Mode` | string | `"split"` | "split" shows the two texts side by side, "inline" in one column (a hunk's removed lines, then its added ones). The line at the top of the view stays there when it changes. |
+| `HunkCount` (read-only) | int |  | How many hunks there are: runs of changed lines between unchanged ones (two changes with no unchanged line between them are one hunk). |
+| `CurrentHunk` | int |  | The hunk the keyboard works on, from 0 (-1 when there are none). Setting it scrolls that hunk into view. |
+| `ResultText` (read-only) | string |  | LeftText with every accepted hunk's lines replaced by RightText's. An undecided hunk counts as rejected: its left lines stay. |
+| `AcceptedCount` (read-only) | int |  | How many hunks are accepted. |
+| `RejectedCount` (read-only) | int |  | How many hunks are rejected. |
+| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Visible` | bool | True | Whether the control or form is shown. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
+| `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
+| `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
+| `Font` (write-only) | font |  | The font of the text, a QFONT; assigning one copies it. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+
+| Method | |
+|---|---|
+| `AcceptHunk(Index AS INTEGER)` | Accepts hunk Index (from 0): its right-side lines go into ResultText. Fires no OnHunkChange (only the user's decisions do). |
+| `RejectHunk(Index AS INTEGER)` | Rejects hunk Index (from 0): its left-side lines stay in ResultText. |
+| `AcceptAll` | Accepts every hunk: ResultText is then RightText. |
+| `RejectAll` | Rejects every hunk: ResultText is then LeftText. |
+| `HunkState(Index AS INTEGER) AS INTEGER` | Hunk Index's state: 1 accepted, -1 rejected, 0 undecided (and 0 for an index out of range). |
+| `NextHunk AS INTEGER` | Makes the next hunk the current one (after the last, the first) and scrolls it into view, as F7 does; gives its index (-1: no hunks). |
+| `PreviousHunk AS INTEGER` | Makes the previous hunk the current one (before the first, the last) and scrolls it into view, as Shift+F7 does; gives its index. |
+| `SetFocus` | Gives the view the keyboard: F7 / Shift+F7 (or Alt+Down / Alt+Up) go from hunk to hunk, Enter or Ctrl+Y accepts the current one, Backspace or Ctrl+N rejects it, the arrows, Page Up / Page Down, Home and End scroll. |
+| `Repaint` | Draws the view again. |
+
+| Event | |
+|---|---|
+| `OnHunkChange(Index AS INTEGER, Accepted AS INTEGER)` | The user accepted (Accepted = True) or rejected (False) hunk Index, with its button, a key or a screen reader. The program's own AcceptHunk / RejectHunk / AcceptAll / RejectAll don't fire it. |
+| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnKeyDown` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyUp` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyPress` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
@@ -4656,6 +4804,7 @@ The running program: its file and folder, title, icon, hint settings, RapidR's T
 | `Title` | string |  | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
 | `Path` (read-only) | string |  | The folder the program's executable is in; read-only. |
 | `Theme` *(RapidR)* | string |  | The look RapidR draws with: `classic`, `modern`, `dark` or `highcontrast`; reads as the theme in use. |
+| `KeysPending` *(RapidR)* (read-only) | int |  | How many keystrokes sent with SendKeys are still waiting to reach the program's windows. |
 
 | Method | |
 |---|---|
@@ -4665,6 +4814,7 @@ The running program: its file and folder, title, icon, hint settings, RapidR's T
 | `Minimize` | Minimizes the program's windows. |
 | `Terminate` | Ends it: stops the thread, or ends the program. |
 | `ThemeColor(Name AS STRING) AS LONG` *(RapidR)* | A colour of the current theme by name, as a RapidQ colour (&HBBGGRR): the theme's own ("face", "window", "accent" …) and an IDE's ("toolbar", "statusbar", "statusbar.running", "page.link", "editor.keyword" …); -1 for a name no theme has. Read it again after setting Theme. |
+| `SendKeys(Keys AS STRING) AS INTEGER` *(RapidR)* | Sends keystrokes to the program's own frontmost window, as if typed: one per turn of the event loop, through the same keyboard path as the user's keys (focus, shortcuts, OnKeyDown / OnKeyPress). Visual Basic's notation: + Shift, ^ Ctrl, % Alt (for the next key or a group in parentheses), ~ Enter, {TAB}, {ENTER}, {BS}, {DEL}, {ESC}, {UP}, {DOWN}, {LEFT}, {RIGHT}, {HOME}, {END}, {PGUP}, {PGDN}, {INS}, {F1} to {F16}, {+} {^} {%} {~} {(} {)} {{} {}} for those characters, {KEY n} for n presses. False, and nothing sent, when Keys is malformed. |
 | `GetPriority` *(not yet)* | Returns the program's process priority. |
 | `SetPriority(Priority AS LONG) AS VARIANT` *(not yet)* | Sets the program's process priority. |
 

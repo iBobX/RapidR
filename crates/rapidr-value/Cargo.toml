@@ -20,6 +20,12 @@ rapidr-icons = { workspace = true, optional = true }
 jpeg-decoder = { version = "0.3", default-features = false }
 # Text on bitmaps (objects/text.rs): reads the built-in Liberation fonts.
 ttf-parser = { version = "0.25", default-features = false, features = ["std"] }
+# RCODEEDITOR's model (objects/codeedit.rs): the editor's document — rope,
+# selections, undo tree, search, language definitions (GUI-free, wasm-safe).
+rapidr-editor = { workspace = true }
+# Its JSON arguments (ApplyEdits, SetDiagnostics, ShowCompletion; MIT OR
+# Apache-2.0, already in the tree).
+serde_json = "1"
 
 # QREGISTRY on Windows: Windows' own registry (registry.rs). Microsoft's
 # windows-rs (MIT OR Apache-2.0); its windows-link / -result / -strings are

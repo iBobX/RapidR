@@ -75,6 +75,7 @@ rapidr-vm-host-web = { path = "interpreter/rapidr-vm-host-web" }
 rapidr-compiler-wasm = { path = "interpreter/rapidr-compiler-wasm" }
 rapidr-webbundle = { path = "interpreter/rapidr-webbundle" }
 rapidr-langsvc = { path = "crates/rapidr-langsvc" }
+rapidr-editor = { path = "crates/rapidr-editor" }
 rapidr-studio = { path = "crates/rapidr-studio" }
 rapidr-designer = { path = "crates/rapidr-designer" }
 rapidr-lsp = { path = "crates/rapidr-lsp" }

@@ -71,6 +71,9 @@ pub enum ScriptInput {
     /// (timers during native menu tracking) `__hold_ms`: the next pump held,
     /// as a native menu the user keeps open would hold it.
     Hold(i64),
+    /// (`Application.SendKeys`, rapidr_value::send_keys) A keystroke to
+    /// the frontmost window that takes input, pressed and released.
+    Stroke(rapidr_value::send_keys::Stroke),
 }
 
 /// What the glue asks of the host its windows are on. runtime-core

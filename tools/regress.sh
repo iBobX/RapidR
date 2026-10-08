@@ -13,7 +13,7 @@
 #   tools/regress.sh                  every stage, then the build caches go
 #   tools/regress.sh gui web          only these stages (unit, conformance,
 #                                     examples, gui, visual, web, security,
-#                                     legal),
+#                                     perf, legal),
 #                                     caches kept
 #   tools/regress.sh --clean          (with stages) remove the caches after
 cd "$(dirname "$0")/.."
@@ -30,7 +30,7 @@ export RAPIDR_PRINT_TO="$PWD/$W/prints"
 export RAPIDR_REGISTRY="$PWD/$W/registry.reg"
 STAGES=(); CLEAN=0
 for a in "$@"; do if [ "$a" = --clean ]; then CLEAN=1; else STAGES+=("$a"); fi; done
-[ ${#STAGES[@]} -eq 0 ] && { STAGES=(unit conformance examples gui visual web security legal); CLEAN=1; }
+[ ${#STAGES[@]} -eq 0 ] && { STAGES=(unit conformance examples gui visual web security perf legal); CLEAN=1; }
 # (what's inside $W: it may be a link to a build volume)
 [ $CLEAN = 1 ] && trap 'rm -rf "$W"/* target/debug target/wasm32-unknown-unknown/debug' EXIT
 want() { [[ " ${STAGES[*]} " == *" $1 "* ]]; }
@@ -95,6 +95,12 @@ fi
 # kind of output keeps to the permissive list and carries a
 # THIRD-PARTY-NOTICES.txt listing every crate in it. Any of these failing
 # fails the run (exit 1).
+# (the editor's performance, docs/ide-plan.md §6.2: the model's and the
+# view's benchmarks on a 200,000-line / 10 MB file — each exits 1 on a
+# missed target)
+if want perf; then echo "== perf"
+  cargo run -q --release -p rapidr-editor --example editor_bench 2>&1 | grep -E "MISSED|targets met|missed"
+  cargo run -q --release -p rapidr-ui-render --example codeeditor_bench 2>&1 | grep -E "MISSED|targets met|missed"; fi
 LEGAL_FAILED=0
 if want legal; then echo "== legal"
   out=$(cargo deny check licenses bans 2>&1) || { LEGAL_FAILED=1; echo "$out" | grep -E "^error" -A8 | head -40; }

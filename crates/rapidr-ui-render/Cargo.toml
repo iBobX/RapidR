@@ -34,3 +34,7 @@ vello_cpu = { version = "0.3", default-features = false, features = ["std", "tex
 glifo = { version = "0.4", default-features = false, features = ["std"] }
 # (feature gpu) GPU vector drawing on wgpu 30 (MIT OR Apache-2.0).
 vello = { version = "0.11", optional = true }
+
+[dev-dependencies]
+# (the code editor benchmark's --service: RapidR's language service answering)
+rapidr-langsvc = { workspace = true }

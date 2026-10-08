@@ -30,36 +30,15 @@ SUB DesignRead(d AS INTEGER)
   DesignDoc(d).Source = CodeDoc(d).Text
 END SUB
 
-' (character offset of line l, column c in document d's code: the code
-' editor's SelStart)
-FUNCTION CodeOffset(d AS INTEGER, l AS INTEGER, c AS INTEGER) AS INTEGER
-  DIM k AS INTEGER, o AS INTEGER
-  FOR k = 0 TO l - 1
-    o = o + LEN(CodeDoc(d).Line(k)) + 1
-  NEXT
-  Result = o + c
-END FUNCTION
-
-' The designer changed the code: the edit applied to the code editor (the
-' caret kept where it was in the text around it).
+' The designer changed the code: the edit applied to the code editor
+' (editor.inc's ApplyPatch: the caret keeps its place in the text, one
+' designer action one undo step).
 SUB DesignSourceEdit(StartLine AS INTEGER, StartCol AS INTEGER, EndLine AS INTEGER, EndCol AS INTEGER, Text AS STRING, Sender AS RDESIGNSURFACE)
-  DIM d AS INTEGER, a AS INTEGER, b AS INTEGER, caret AS INTEGER
+  DIM d AS INTEGER
   d = Sender.Tag
   IF d < 0 OR d >= DocCount THEN EXIT SUB
   IF DocOpen(d) = 0 THEN EXIT SUB
-  a = CodeOffset(d, StartLine, StartCol)
-  b = CodeOffset(d, EndLine, EndCol)
-  caret = CodeDoc(d).SelStart
-  CodeDoc(d).SelStart = a
-  CodeDoc(d).SelLength = b - a
-  CodeDoc(d).SelText = Text
-  IF caret >= b THEN
-    caret = caret + LEN(Text) - (b - a)
-  ELSEIF caret > a THEN
-    caret = a
-  END IF
-  CodeDoc(d).SelStart = caret
-  CodeDoc(d).SelLength = 0
+  DesignerSourceEdit d, StartLine, StartCol, EndLine, EndCol, Text
   ' (the file has changes; the outline and problems follow)
   IF DocDirty(d) = 0 THEN
     DocDirty(d) = 1

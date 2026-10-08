@@ -17,6 +17,7 @@
 '   panes.inc      the dock manager's panes (the plug-in points)
 '   documents.inc  documents: code, designer, outline, problems, properties
 '   designer.inc   the form designer: the code it edits, its commands
+'   editor.inc     the code editor's commands, the designer's patches, typing steps
 '   project.inc    the project, running it, settings
 '   chrome.inc     the look in the current theme, the status bar
 '   shell.inc      RunCommand, the events, start-up
@@ -27,6 +28,7 @@ $INCLUDE "commands.inc"
 $INCLUDE "panes.inc"
 $INCLUDE "documents.inc"
 $INCLUDE "designer.inc"
+$INCLUDE "editor.inc"
 $INCLUDE "project.inc"
 $INCLUDE "chrome.inc"
 $INCLUDE "shell.inc"

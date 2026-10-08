@@ -181,23 +181,26 @@ fn member_hover(s: &Snapshot, ty: &Ty, member: &str) -> Option<String> {
         Ty::Component(c) => {
             let owner = pretty_component(c.written_name());
             let (code, kind, doc, notes) = if let Some(p) = c.property(member) {
-                let mut kind = match p.access {
+                let kind = match p.access {
                     rapidr_lang::Access::Read => format!("{} property (read only)", p.ty.as_str()),
                     rapidr_lang::Access::Write => format!("{} property (write only)", p.ty.as_str()),
                     rapidr_lang::Access::ReadWrite => format!("{} property", p.ty.as_str()),
                 };
-                if let Some(d) = p.default {
-                    kind.push_str(&format!(", {}", default_text(d)));
-                }
+                // (RapidQ's value at creation after the owner: "string
+                // property of QButton · default """)
+                let kind = match p.default {
+                    Some(d) => format!("{kind} of {owner}* · *{}", default_text(d)),
+                    None => format!("{kind} of {owner}"),
+                };
                 let notes = compat::notes(p.origin, c.origin, p.missing, p.runtimes, p.from);
                 (format!("{owner}.{}", p.name), kind, p.doc, notes)
             } else if let Some(m) = c.method(member) {
-                (format!("{owner}.{}", m.signature()), "method".to_string(), m.doc, compat::notes(m.origin, c.origin, m.missing, m.runtimes, m.from))
+                (format!("{owner}.{}", m.signature()), format!("method of {owner}"), m.doc, compat::notes(m.origin, c.origin, m.missing, m.runtimes, m.from))
             } else {
                 let e = c.event(member)?;
-                (format!("{owner}.{}", e.signature()), "event".to_string(), e.doc, compat::notes(e.origin, c.origin, e.missing, e.runtimes, e.from))
+                (format!("{owner}.{}", e.signature()), format!("event of {owner}"), e.doc, compat::notes(e.origin, c.origin, e.missing, e.runtimes, e.from))
             };
-            let mut md = format!("```rapidr\n{code}\n```\n*{kind} of {owner}*");
+            let mut md = format!("```rapidr\n{code}\n```\n*{kind}*");
             let text = with_notes(doc, &notes);
             if !text.is_empty() {
                 md.push_str("\n\n");

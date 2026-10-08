@@ -577,6 +577,8 @@ impl FormUi {
         if !self.popups_apart {
             // (an open drop-down list, over them)
             crate::components::combo::paint_popup(self, store, ts, p);
+            // (code editors' completion, hovers, signatures)
+            crate::components::codeeditor::popup::paint_popups(self, store, ts, p);
             // (open menus over everything)
             self.paint_menus(store, p);
             // (a tooltip over them)
@@ -595,6 +597,7 @@ impl FormUi {
         let mut list = DisplayList { size: (w, h + self.menu_offset), scale, ..Default::default() };
         let mut p = Painter::new(&mut list);
         crate::components::combo::paint_popup(self, store, ts, &mut p);
+        crate::components::codeeditor::popup::paint_popups(self, store, ts, &mut p);
         self.paint_menus(store, &mut p);
         self.paint_tip(&mut p);
         list

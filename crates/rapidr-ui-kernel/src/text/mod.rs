@@ -34,7 +34,7 @@ pub use editor::{Align, Look, Pos, RunStyle, Span, TextEditor};
 pub struct Ink(pub u32);
 
 /// GDI's TextOut: no kerning, no ligatures.
-pub const FEATURES: &str = "\"kern\" off, \"liga\" off, \"clig\" off";
+pub const FEATURES: &str = "\"kern\" off, \"liga\" off, \"clig\" off, \"calt\" off";
 
 /// The font database and parley's scratch space, shared by every component
 /// of every form (making either is costly).
@@ -157,7 +157,13 @@ pub fn styles(font: &Font, color: u32) -> Vec<StyleProperty<'static, Ink>> {
     let face = family(&font.name);
     // (then the fallback fonts and the system's for what Liberation lacks:
     // symbols, CJK, emoji)
-    let mut names = vec![FontFamilyName::Named(Cow::Borrowed(face)), FontFamilyName::Generic(generic(face))];
+    let mut names = vec![FontFamilyName::Named(Cow::Borrowed(face))];
+    // (the code font's Latin subset: then the built-in mono, so columns
+    // stay even)
+    if face == rapidr_value::objects::text::CODE_FACE {
+        names.push(FontFamilyName::Named(Cow::Borrowed("Liberation Mono")));
+    }
+    names.push(FontFamilyName::Generic(generic(face)));
     FALLBACKS.with(|f| names.extend(f.borrow().iter().map(|n| FontFamilyName::Named(Cow::Owned(n.clone())))));
     names.extend([FontFamilyName::Generic(GenericFamily::SystemUi), FontFamilyName::Generic(GenericFamily::Emoji)]);
     let mut out = vec![
@@ -194,7 +200,7 @@ pub fn styles(font: &Font, color: u32) -> Vec<StyleProperty<'static, Ink>> {
 /// doesn't have).
 fn generic(face: &str) -> GenericFamily {
     match face {
-        "Liberation Mono" | "JetBrains Mono" => GenericFamily::Monospace,
+        "Liberation Mono" | rapidr_value::objects::text::CODE_FACE => GenericFamily::Monospace,
         "Liberation Serif" => GenericFamily::Serif,
         _ => GenericFamily::SansSerif,
     }
