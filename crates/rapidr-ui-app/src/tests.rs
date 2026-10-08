@@ -215,15 +215,18 @@ fn form_with_button() {
 #[test]
 fn a_form_shows_once_built_and_paints_after_onshow() {
     form_with_button();
+    let _ = rapidr_value::events::take_posted_paints();
     forms::show(Mem, "F");
-    // (the first Show: OnResize, OnShow, OnResize — RC.EXE)
-    assert_eq!(fired(), ["f.onload", "F.onresize", "F.onshow", "F.onresize", "f.onpaint", "b.onpaint"]);
+    // (the first Show: OnResize, OnShow, OnResize — RC.EXE; the first
+    // OnPaints posted, for the program's next wait)
+    assert_eq!(fired(), ["f.onload", "F.onresize", "F.onshow", "F.onresize"]);
+    assert_eq!(rapidr_value::events::take_posted_paints(), ["f", "b"]);
     assert_eq!(take_ops(), [WindowOp::Show("f".into())]);
     assert_eq!(world(|w| w.flushes), 1, "the window exists before OnShow");
     assert_eq!((forms::window_shown("f"), forms::form_scale(Mem, "f")), (Some(true), 1.0));
     // (shown again: on top, nothing fired)
     forms::show(Mem, "f");
-    assert_eq!(fired().len(), 6);
+    assert_eq!(fired().len(), 4);
     assert_eq!(take_ops(), [WindowOp::Show("f".into())]);
 }
 
@@ -285,7 +288,7 @@ fn a_user_resize_follows_the_constraints() {
     let (fw, fh) = rapidr_value::layout::form_frame(2);
     assert_eq!((Mem.get("f", "width").to_i64(), Mem.get("f", "height").to_i64()), (400, 300 + fh));
     assert_eq!(take_ops(), [WindowOp::Size("f".into(), (400 - fw, 300))]);
-    assert_eq!(fired()[6..], ["f.onresize", "f.onpaint"]);
+    assert_eq!(fired()[4..], ["f.onresize", "f.onpaint"]);
     // (a move is the runtime's, not the program's: no window command back)
     dispatch::dispatch(Mem, KernelEvent::Moved("f".into(), 5, 6));
     assert_eq!((Mem.get("f", "left").to_i64(), Mem.get("f", "top").to_i64()), (5, 6));

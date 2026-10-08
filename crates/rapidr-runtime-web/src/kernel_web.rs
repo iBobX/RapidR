@@ -1185,6 +1185,11 @@ pub fn doevents() -> bool {
     }
     rapidr_ui_app::timers::start_all(Web);
     forms::show_pending(Web);
+    // (the paints posted meanwhile — a form's first, a new size's — come
+    // now, as the desktop's DOEVENTS delivers them: RC.EXE's WM_PAINT)
+    for name in rapidr_value::events::take_posted_paints() {
+        crate::object_web::rp_fire_event(&name, "onpaint");
+    }
     let now = rapidr_ui_kernel::tick::now();
     let due = rapidr_ui_app::timers::next_due().is_some_and(|at| at <= now);
     // (or the time slice is over: the page gets its turn — painting, input —

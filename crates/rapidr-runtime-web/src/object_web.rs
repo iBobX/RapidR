@@ -902,7 +902,10 @@ fn set_property(name: &str, prop: &str, val: Value) {
         if rapidr_value::mdi::is_mdi(&uname) {
             crate::mdi_web::resized(&uname);
         }
+        // (a shown form: OnResize at once, as Windows sends WM_SIZE inside
+        // the change — RC.EXE —, its OnPaint posted)
         if shown_once(&uname) {
+            rp_fire_event(&uname, "onresize");
             rapidr_value::events::post_paint(&uname);
         }
     }

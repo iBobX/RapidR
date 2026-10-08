@@ -761,7 +761,11 @@ fn set_property(name: &str, prop: &str, val: Value) {
         if rapidr_value::mdi::is_mdi(name) {
             crate::mdi::resized(name);
         }
+        // (a shown form: OnResize at once, as Windows sends WM_SIZE inside
+        // the change — RC.EXE: `F.Height = …` logs Resize before the next
+        // statement —, its OnPaint posted)
         if shown_once(name) {
+            rp_fire_event(name, "onresize");
             rapidr_value::events::post_paint(name);
         }
     }

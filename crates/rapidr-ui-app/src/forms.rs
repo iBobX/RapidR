@@ -276,8 +276,11 @@ pub fn hide_window(name: &str) {
 }
 
 /// A form's window shown: drawn at its screen's scale from now on, then
-/// (the first time) its OnPaint — as Windows' WM_PAINT comes once a window
-/// shows, after OnShow.
+/// (the first time) its OnPaint — posted, as Windows posts WM_PAINT: it
+/// comes when the program next lets its windows work (DOEVENTS,
+/// ShowModal's wait, the end of the main program), after the statements
+/// that follow the Show (RC.EXE: `Resize Show Resize`, then `Paint` at the
+/// DOEVENTS).
 pub fn after_show<R: Program + Windows>(rt: R, name: &str) {
     let name = lower(name);
     let host_scale = rt.window_scale(&name);
@@ -285,18 +288,19 @@ pub fn after_show<R: Program + Windows>(rt: R, name: &str) {
     rapidr_value::objects::bitmap::set_display_scale(scale);
     st(|s| s.scales.insert(name.clone(), scale));
     if st(|s| s.first_paint.remove(&name)) {
-        fire_first_paint(rt, &name);
+        post_first_paint(rt, &name);
     }
 }
 
-/// OnPaint for `parent` and the canvases on it, depth first.
-pub fn fire_first_paint<P: Program>(p: P, parent: &str) {
-    p.fire(parent, "onpaint");
+/// OnPaint for `parent` and the canvases on it, depth first — posted
+/// (`rapidr_value::events::post_paint`, each once while it waits).
+fn post_first_paint<P: Program>(p: P, parent: &str) {
+    rapidr_value::events::post_paint(parent);
     for (child, type_name) in p.children(parent) {
         if type_name.eq_ignore_ascii_case("RCANVAS") {
-            p.fire(&child, "onpaint");
+            rapidr_value::events::post_paint(&child);
         } else {
-            fire_first_paint(p, &child);
+            post_first_paint(p, &child);
         }
     }
 }
@@ -616,7 +620,9 @@ pub fn scale_changed<R: Program + Windows>(rt: R, form: &str, scale: f64) {
     if changed {
         rapidr_value::objects::bitmap::set_display_scale(scale);
         rt.fire(form, "onscalechanged");
-        fire_first_paint(rt, form);
+        // (posted: one paint when the form's first is still waiting — the
+        // window's scale told just after it showed)
+        post_first_paint(rt, form);
     }
 }
 
