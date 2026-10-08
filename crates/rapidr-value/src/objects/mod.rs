@@ -1954,6 +1954,31 @@ pub fn font_properties(id: &str) -> Option<Vec<(&'static str, Value)>> {
     })?
 }
 
+/// (RapidR's) A component's own Font as a program reads `Label.Font`: a
+/// value that stands for it where a QFONT goes — QFONTDIALOG's GetFont /
+/// SetFont, `Other.Font = Label.Font`. (RC.EXE refuses a component's Font
+/// there at compile time, "Wrong type L.FONT": RapidQ programs pass a
+/// QFONT, which works as before.)
+pub fn component_font_ref(component: &str) -> Value {
+    v_str(&format!("{component}.Font"))
+}
+
+/// The component a [`component_font_ref`] stands for.
+pub fn font_ref_component(v: &str) -> Option<&str> {
+    let (c, f) = v.rsplit_once('.')?;
+    (f == "Font" && !c.is_empty()).then_some(c)
+}
+
+/// A component's font as flat properties (FontName, FontSize, FontColor,
+/// FontBold …), `read` reading its `Font.*` as the program does (its own,
+/// else its parent's: ParentFont).
+pub fn component_font_properties(read: &dyn Fn(&str) -> Value) -> Vec<(&'static str, Value)> {
+    [("fontname", "font.name"), ("fontsize", "font.size"), ("fontcolor", "font.color"), ("fontbold", "font.bold"), ("fontitalic", "font.italic"), ("fontunderline", "font.underline"), ("fontstrikeout", "font.strikeout")]
+        .into_iter()
+        .map(|(flat, dotted)| (flat, read(dotted)))
+        .collect()
+}
+
 /// `DIM lbl(1 TO 3) AS QLABEL`: an array holding one object id per element,
 /// `lbl(1)`, `lbl(2)`, … (`grid(0,1)` for more dimensions), and those ids in
 /// order. Runtimes create a component for each id.

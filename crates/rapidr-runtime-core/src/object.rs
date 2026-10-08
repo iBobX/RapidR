@@ -288,6 +288,14 @@ pub fn program_color(name: &str) -> Value {
 /// Every QCANVAS shows its parent's colour where nothing is drawn, as
 /// RapidQ's (a TPaintBox) does whatever its own Color: their models'
 /// backdrops made the parents' colours again.
+/// Component `name` exists, has a Font of its own (not a QFONT, a stream
+/// or another value object) and keeps no other value as `Font`: its
+/// `Font` reads as [`rapidr_value::objects::component_font_ref`].
+fn is_component_font(name: &str) -> bool {
+    let t = rp_comp_type(name);
+    !t.is_empty() && !rapidr_value::objects::TYPES.contains(&t.as_str()) && matches!(rp_comp_get(name, "font"), Value::Null)
+}
+
 /// What `name.Font.Color` reads in a program: the one the program set,
 /// else its parent's (ParentFont), else clWindowText — RapidQ's, as RC.EXE
 /// reads it (rapidr_value::component_defaults::font_color_read).
@@ -589,9 +597,15 @@ fn set_property(name: &str, prop: &str, val: Value) {
         }
         return;
     }
-    // `Label.Font = Font` (a QFONT): copy the font's settings.
+    // `Label.Font = Font` (a QFONT): copy the font's settings; (RapidR's)
+    // `Label.Font = Other.Font` too.
     if prop_lower == "font" {
-        if let Some(props) = rapidr_value::objects::font_properties(&val.to_string_val()) {
+        let text = val.to_string_val();
+        let props = rapidr_value::objects::font_properties(&text).or_else(|| {
+            let other = rapidr_value::objects::font_ref_component(&text).filter(|c| is_component_font(c))?;
+            Some(rapidr_value::objects::component_font_properties(&|p| rp_comp_read(other, p)))
+        });
+        if let Some(props) = props {
             for (flat, v) in props {
                 rp_comp_set(name, flat, v);
             }
@@ -1019,6 +1033,10 @@ pub fn rp_comp_read(name: &str, prop: &str) -> Value {
             return rapidr_value::property_read(rapidr_value::objects::inherited_font_prop(name, flat, &|i, p| rp_comp_get(i, p)));
         }
     }
+    // (RapidR's) `Label.Font` itself: its font, passed where a QFONT goes
+    if prop.eq_ignore_ascii_case("font") && is_component_font(name) {
+        return rapidr_value::objects::component_font_ref(name);
+    }
     // (a property the theme draws while unset reads the registry's default:
     // rapidr_value::component_defaults::unset_read)
     let v = rp_comp_get(name, prop);
@@ -1127,6 +1145,20 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     // AddOptions, DelOptions, GetFont(F), SetFont(F), FontName(i).
     if comp_type == "RFONTDIALOG" {
         let get = |p: &str| rp_comp_get(name, p);
+        // (RapidR's) GetFont / SetFont of a component's own Font
+        let target = args.first().map(Value::to_string_val);
+        if let Some(c) = target.as_deref().and_then(rapidr_value::objects::font_ref_component).filter(|c| is_component_font(c) && matches!(method_lower.as_str(), "getfont" | "setfont")) {
+            if method_lower == "getfont" {
+                for (p, v) in rapidr_value::font_dialog::taken(&rapidr_value::objects::component_font_properties(&|p| rp_comp_read(c, p))) {
+                    rp_comp_set(name, p, v);
+                }
+            } else {
+                for (p, v) in rapidr_value::font_dialog::chosen(&get) {
+                    rp_comp_set(c, &format!("font.{p}"), v);
+                }
+            }
+            return v_null();
+        }
         let mut set = |p: &str, v: Value| rp_comp_set(name, p, v);
         if let Some(v) = rapidr_value::font_dialog::call(&method_lower, args, &get, &mut set) {
             return v;

@@ -2812,8 +2812,8 @@ const COMPONENT_REGISTRY = {
             'addoptions': { sig: 'AddOptions(Items, …)', desc: 'Turns on the option flags given.' },
             'deloptions': { sig: 'DelOptions(Items, …)', desc: 'Turns off the option flags given.' },
             'execute': { sig: 'Execute AS VARIANT', desc: 'Opens the font dialog. Returns 1 if a font was chosen, 0 if cancelled. Read .FontName / .FontSize / .FontColor / .FontStyle for the result.' },
-            'getfont': { sig: 'GetFont(F AS QFONT)', desc: 'Takes font `F`\'s name, size, colour and styles into the dialog (what it shows first when Execute opens it); SetFont gives the dialog\'s back to a QFONT.' },
-            'setfont': { sig: 'SetFont(F AS QFONT)', desc: 'Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size.' },
+            'getfont': { sig: 'GetFont(F AS QFONT)', desc: 'Takes font `F`\'s name, size, colour and styles into the dialog (what it shows first when Execute opens it); SetFont gives the dialog\'s back to a QFONT. RapidR also takes a component\'s own font here (`GetFont(Label.Font)`), which RapidQ\'s compiler refuses.' },
+            'setfont': { sig: 'SetFont(F AS QFONT)', desc: 'Gives font `F` the dialog\'s name, size, colour and styles (after Execute). RapidR also takes a component\'s own font (`SetFont(Label.Font)` changes the label), which RapidQ\'s compiler refuses.' },
         },
         propDocs: {
             'color': 'The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked.',

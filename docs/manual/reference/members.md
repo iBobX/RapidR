@@ -2795,8 +2795,8 @@ A font picker: Execute shows it and returns 1 when the user chooses a font, then
 | `AddOptions(Items, …)` | Turns on the option flags given. |
 | `DelOptions(Items, …)` | Turns off the option flags given. |
 | `Execute AS VARIANT` | Opens the font dialog. Returns 1 if a font was chosen, 0 if cancelled. Read .FontName / .FontSize / .FontColor / .FontStyle for the result. |
-| `GetFont(F AS QFONT)` | Takes font `F`'s name, size, colour and styles into the dialog (what it shows first when Execute opens it); SetFont gives the dialog's back to a QFONT. |
-| `SetFont(F AS QFONT)` | Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size. |
+| `GetFont(F AS QFONT)` | Takes font `F`'s name, size, colour and styles into the dialog (what it shows first when Execute opens it); SetFont gives the dialog's back to a QFONT. RapidR also takes a component's own font here (`GetFont(Label.Font)`), which RapidQ's compiler refuses. |
+| `SetFont(F AS QFONT)` | Gives font `F` the dialog's name, size, colour and styles (after Execute). RapidR also takes a component's own font (`SetFont(Label.Font)` changes the label), which RapidQ's compiler refuses. |
 
 | Event | |
 |---|---|

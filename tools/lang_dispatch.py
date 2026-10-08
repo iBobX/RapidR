@@ -100,6 +100,8 @@ SITES = {
     # (I4: the designer model replays CREATE blocks through that layout)
     ("crates/rapidr-value/src/designer/layout.rs", "stored"): "*",
     ("crates/rapidr-value/src/designer/layout.rs", "set"): "*",
+    # (a panel's inside, its bevels: BorderStyle read for objects::bevel)
+    ("crates/rapidr-value/src/designer/layout.rs", "client_rect"): "RPANEL",
     ("crates/rapidr-value/src/layout.rs", "default_property"): "*",
     ("crates/rapidr-value/src/autosize.rs", "resizes"): "RLABEL",
     ("crates/rapidr-value/src/mdi.rs", "call"): "RFORMMDI",

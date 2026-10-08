@@ -157,10 +157,11 @@ pub fn properties(font: &Font) -> Vec<(&'static str, Value)> {
     ]
 }
 
-/// Its properties at first: TFontDialog's (the default QFONT, Options
-/// [fdEffects], no size limits) and FontCount.
+/// Its properties at first: TFontDialog's (the default QFONT, Color
+/// clWindowText as RC.EXE reads it, Options [fdEffects], no size limits)
+/// and FontCount.
 pub fn defaults() -> Vec<(&'static str, Value)> {
-    let mut out = properties(&Font::default());
+    let mut out = properties(&Font { color: crate::component_defaults::CL_WINDOW_TEXT, ..Font::default() });
     out.extend([("minfontsize", v_int(0)), ("maxfontsize", v_int(0)), ("options", v_int(DEFAULT_OPTIONS)), ("fontcount", v_int(FONT_NAMES.len() as i64))]);
     out
 }
@@ -207,17 +208,14 @@ pub fn call(method: &str, args: &[Value], get: &dyn Fn(&str) -> Value, set: &mut
         "getfont" => {
             let id = args.first().map(Value::to_string_val).unwrap_or_default();
             if let Some(props) = crate::objects::font_properties(&id) {
-                let font = crate::objects::font_from_props(&id, &|_, p| props.iter().find(|(k, _)| *k == p).map_or(Value::Null, |(_, v)| v.clone()));
-                for (p, v) in properties(&font) {
+                for (p, v) in taken(&props) {
                     set(p, v);
                 }
             }
         }
         "setfont" => {
             let id = args.first()?.to_string_val();
-            let font = request(get).font;
-            let flag = |i: usize| v_int(if font.styles & 1 << i != 0 { -1 } else { 0 });
-            for (p, v) in [("name", v_str(&font.name)), ("size", v_int(font.size)), ("color", v_int(font.color)), ("bold", flag(0)), ("italic", flag(1)), ("underline", flag(2)), ("strikeout", flag(3))] {
+            for (p, v) in chosen(get) {
                 crate::objects::set(&id, p, &v);
             }
         }
@@ -228,6 +226,36 @@ pub fn call(method: &str, args: &[Value], get: &dyn Fn(&str) -> Value, set: &mut
         _ => return None,
     }
     Some(Value::Null)
+}
+
+/// `GetFont(F)`: the dialog's properties for a font whose flat properties
+/// are `props` (FontName, FontSize, FontColor, FontBold …, as a QFONT's
+/// [`crate::objects::font_properties`] or a component's
+/// [`crate::objects::component_font_properties`]). The colour is kept as it
+/// is (clWindowText stays clWindowText: RC.EXE reads it back so).
+pub fn taken(props: &[(&str, Value)]) -> Vec<(&'static str, Value)> {
+    let of = |k: &str| props.iter().find(|(p, _)| *p == k).map_or(Value::Null, |(_, v)| v.clone());
+    let defaults = Font::default();
+    let name = of("fontname").to_string_val();
+    let size = of("fontsize").to_i64();
+    let (name, size) = (if name.trim().is_empty() { defaults.name } else { name }, if size > 0 { size } else { defaults.size });
+    let color = of("fontcolor").to_i64();
+    let mut out = vec![("name", v_str(&name)), ("size", v_int(size)), ("color", v_int(color)), ("fontname", v_str(&name)), ("fontsize", v_int(size)), ("fontcolor", v_int(color))];
+    out.extend(STYLE_PROPS.iter().map(|p| (*p, v_int(if of(p).to_bool() { -1 } else { 0 }))));
+    out
+}
+
+/// `SetFont(F)`: what the dialog gives font `F`, as QFONT members (Name,
+/// Size, Color as the dialog keeps it, Bold, Italic, Underline, StrikeOut).
+pub fn chosen(get: &dyn Fn(&str) -> Value) -> Vec<(&'static str, Value)> {
+    let font = request(get).font;
+    let color = match get("color") {
+        Value::Null => get("fontcolor"),
+        v => v,
+    };
+    let color = if matches!(color, Value::Null) { crate::component_defaults::CL_WINDOW_TEXT } else { color.to_i64() };
+    let flag = |i: usize| v_int(if font.styles & 1 << i != 0 { -1 } else { 0 });
+    vec![("name", v_str(&font.name)), ("size", v_int(font.size)), ("color", v_int(color)), ("bold", flag(0)), ("italic", flag(1)), ("underline", flag(2)), ("strikeout", flag(3))]
 }
 
 /// Where the dialog's parts go (logical pixels), after Windows' ChooseFont.
