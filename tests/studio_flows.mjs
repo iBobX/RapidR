@@ -23,8 +23,18 @@ const RAPIDR = process.env.RAPIDR || join(ROOT, "rapidr");
 const WORK = join(ROOT, "tests", "results", "studio-flows");
 const filters = process.argv.slice(2);
 
-// Each case: what Studio opens and does, how long it waits before the
-// properties are read, and what each must say (a regular expression).
+// (I4) The designer's steps on notepad.bas: the placing tool's click, the
+// form's right edge dragged, Button1 dragged.
+const DESIGN_STEPS = [
+  "__mousedown_100_120", "__mouseup_100_120",
+  "__mousedown_491_250", "__mousemove_521_250", "__mousemove_551_250", "__mouseup_551_250",
+  "__mousedown_110_130", "__mousemove_130_150", "__mousemove_150_170", "__mouseup_150_170",
+].map((e) => `designdoc(0).${e}`).join(",");
+
+// Each case: what Studio opens and does (`do`: its commands; `events`:
+// RAPIDR_TEST_EVENTS, input through the kernel), how long it waits before
+// the properties are read, and what each must say (a regular expression;
+// `same`: equal to a file's text, line ends as the editor keeps them).
 const CASES = [
   {
     name: "run-console",
@@ -73,6 +83,43 @@ const CASES = [
     delay: 3,
     dump: { "palette.visible": /^(-1|1|True)$/i, "palettelist.itemcount": /^[1-9]\d+$/ },
   },
+  // (I4) The designer on the source: notepad.bas's form at its own size;
+  // its right edge dragged 60 px (Width written), a QBUTTON placed from the
+  // toolbox's tool (Button1's CREATE block written), then moved by 40, 40
+  // (snapped); every step real input through the kernel (the mouse at
+  // surface coordinates: the form's frame starts 12 px in).
+  {
+    name: "designer",
+    open: "examples/rapidq/notepad.bas",
+    do: "view.documents.tabs,view.designer,designer.place.QBUTTON",
+    events: DESIGN_STEPS,
+    delay: 4,
+    dump: {
+      "designdoc(0).formname": /^Form$/,
+      "designdoc(0).statustext": /^Button1 \(QBUTTON\), 128, 88, 75 × 25$/,
+      "codedoc(0).text": /Width = 540\n    Height = 340[\s\S]*    CREATE Button1 AS QBUTTON\n        Caption = "Button1"\n        Left = 128\n        Top = 88\n        Width = 75\n        Height = 25\n    END CREATE\nEND CREATE/,
+    },
+  },
+  // (I4) Enter on a toolbox item: AddComponent through the program (a
+  // method's edits heard as OnSourceEdit on both hosts), named after the
+  // registry's spelling (CheckBox1).
+  {
+    name: "designer-add",
+    open: "examples/rapidq/notepad.bas",
+    do: "view.documents.tabs,view.designer,designer.add.QCHECKBOX",
+    delay: 3,
+    dump: { "designdoc(0).statustext": /^Added CheckBox1 \(QCHECKBOX\)/, "codedoc(0).text": /    CREATE CheckBox1 AS QCHECKBOX\n        Caption = "CheckBox1"\n/ },
+  },
+  // (I4) The same, then Ctrl+Z three times: the exact text back.
+  {
+    name: "designer-undo",
+    open: "examples/rapidq/notepad.bas",
+    do: "view.documents.tabs,view.designer,designer.place.QBUTTON",
+    events: DESIGN_STEPS + ",designdoc(0).__key_90_16,designdoc(0).__key_90_16,designdoc(0).__key_90_16",
+    delay: 4,
+    dump: { "designdoc(0).canundo": /^(0|False)$/i, "codedoc(0).text": /CREATE Form AS QFORM/ },
+    same: { "codedoc(0).text": "examples/rapidq/notepad.bas" },
+  },
 ];
 
 function runDesktop(c) {
@@ -98,6 +145,7 @@ function runDesktop(c) {
       RAPIDR_CAPTURE_DELAY: String(c.delay),
       RAPIDR_MENU: "window",
       RAPIDR_TEST_DUMP: Object.keys(c.dump).join(","),
+      ...(c.events ? { RAPIDR_TEST_EVENTS: c.events } : {}),
       RAPIDR_PRINT_TO: join(WORK, "prints"),
       RAPIDR_REGISTRY: join(WORK, `${c.name}.reg`),
       ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: join(ROOT, c.folder) } : {}),
@@ -135,6 +183,7 @@ async function runWeb(browser, c) {
       RAPIDR_CAPTURE: "web",
       RAPIDR_CAPTURE_DELAY: String(c.delay),
       RAPIDR_TEST_DUMP: Object.keys(c.dump).join(","),
+      ...(c.events ? { RAPIDR_TEST_EVENTS: c.events } : {}),
       ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: c.folder } : {}),
     });
     const q = new URLSearchParams({ theme: "rapidr-light", fresh: "", window: "normal" });
@@ -158,6 +207,13 @@ const check = (label, dump, c) => {
     const ok = v !== undefined && re.test(v);
     ok ? passed++ : failed++;
     console.log(`${ok ? "✓" : "✗"} ${c.name} (${label}): ${k} ${ok ? "" : `= ${JSON.stringify(v)} (wanted ${re})`}`);
+  }
+  for (const [k, file] of Object.entries(c.same || {})) {
+    const want = readFileSync(join(ROOT, file), "utf8").replace(/\r\n/g, "\n").replace(/\n+$/, "");
+    const v = dump[k];
+    const ok = v !== undefined && v.replace(/\n+$/, "") === want;
+    ok ? passed++ : failed++;
+    console.log(`${ok ? "✓" : "✗"} ${c.name} (${label}): ${k} ${ok ? `equals ${file}` : `differs from ${file}`}`);
   }
 };
 for (const c of CASES.filter((c) => !filters.length || filters.some((f) => c.name.includes(f)))) {

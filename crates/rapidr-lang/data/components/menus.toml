@@ -3,6 +3,7 @@ group = "Menus"
 
 [[component]]
 name = "RMAINMENU"
+display = "MainMenu"
 rapidq = "QMAINMENU"
 visual = false
 doc = "A form's menu bar; its menus and commands are QMENUITEMs."
@@ -23,6 +24,7 @@ events = []
 
 [[component]]
 name = "RMENUITEM"
+display = "MenuItem"
 rapidq = "QMENUITEM"
 visual = false
 default_event = "OnClick"
@@ -56,6 +58,7 @@ events = [
 
 [[component]]
 name = "RPOPUPMENU"
+display = "PopupMenu"
 rapidq = "QPOPUPMENU"
 visual = false
 default_event = "OnPopup"

@@ -65,6 +65,8 @@ END SUB
 SUB RunCommand(Id AS STRING)
   DIM d AS INTEGER
   d = ActiveCode
+  ' (the designer's commands, and Edit's on a designer: designer.inc)
+  IF DesignCommand(Id) THEN EXIT SUB
   SELECT CASE Id
     ' ---- file ----
     CASE "file.newProject": AskNew

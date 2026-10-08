@@ -3,6 +3,7 @@ group = "Web only"
 
 [[component]]
 name = "RWEBVIEW"
+display = "WebView"
 visual = true
 size = [400, 300]
 only = "web"
@@ -35,6 +36,7 @@ events = [
 
 [[component]]
 name = "RDOM"
+display = "DOM"
 visual = true
 size = [100, 25]
 only = "web"
@@ -84,6 +86,7 @@ events = [
 
 [[component]]
 name = "RJAVASCRIPT"
+display = "JavaScript"
 visual = false
 only = "web"
 doc = "Runs JavaScript in the page: Eval a piece of code or Call a function. Web only."
@@ -96,6 +99,7 @@ events = []
 
 [[component]]
 name = "RWEBSTORAGE"
+display = "WebStorage"
 visual = false
 only = "web"
 doc = "Keeps strings by key in the browser's localStorage or sessionStorage. Web only."
@@ -114,6 +118,7 @@ events = []
 
 [[component]]
 name = "RWEBAUDIO"
+display = "WebAudio"
 visual = true
 size = [100, 25]
 only = "web"
@@ -155,6 +160,7 @@ events = [
 
 [[component]]
 name = "RWEBVIDEO"
+display = "WebVideo"
 visual = true
 size = [100, 25]
 only = "web"
@@ -199,6 +205,7 @@ events = [
 
 [[component]]
 name = "RWEBNOTIFICATION"
+display = "WebNotification"
 visual = false
 only = "web"
 doc = "Shows the browser's notifications, once the user allows them (RequestPermission). Web only."
@@ -214,6 +221,7 @@ events = []
 
 [[component]]
 name = "RWEBGEOLOCATION"
+display = "WebGeolocation"
 visual = false
 only = "web"
 doc = "Reads the device's position (Latitude, Longitude, Accuracy) from the browser. Web only."
@@ -232,6 +240,7 @@ events = []
 
 [[component]]
 name = "RROUTER"
+display = "Router"
 visual = false
 only = "web"
 default_event = "OnRouteChange"
