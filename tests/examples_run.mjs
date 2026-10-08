@@ -54,6 +54,8 @@ const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 //   events / dump: a GUI program's test hooks (see tests/gui_parity_cases.mjs)
 //   fileDialog / messageDialog / colorDialog / fontDialog: the dialogs' answers
 //   expect:  lines that must be in the output (stdout, or the dump)
+//   env:     environment it runs with (the tests' scripted devices; on the
+//            web the page's RAPIDR_TEST_COMPORT)
 //   timeout: ms (default 60000)
 // (`wait(c, n)`: n clicks on a component that does nothing with them — the
 // hooks fire an event every 50 ms, so the program's timers run meanwhile)
@@ -126,6 +128,10 @@ export const cases = [
     expect: ["Forecast for Harbour Town (updated 2026-10-06 06:00)", "  Tuesday   10 to 15 C, showers", "Warmest: Monday"] },
   { file: "network/download.rr", runtimes: ["run", "interp", "native", "web"], args: ["{http}/examples/network/forecast.json"], events: "fetchbtn.onclick", dump: "info.caption",
     expect: ["info.caption=Saved 290 bytes of examples/network/forecast.json"] },
+  // iot/: a scripted ESP32 (RAPIDR_TEST_COMPORT's `esp32`: DTR / RTS reset it, it prints a boot log)
+  { file: "iot/esp32_monitor.rr", runtimes: ["run", "interp", "native", "web"], env: { RAPIDR_TEST_COMPORT: "COM5:esp32" },
+    events: `connectbtn.onclick,${wait("state", 2)},resetbtn.onclick,${wait("state", 6)}`, dump: "ports.text,state.caption,log.linecount",
+    expect: ["ports.text=COM5 (CP2102N USB to UART Bridge Controller)", "state.caption=Connected to COM5 at 115200   DTR 0  RTS 0", "log.linecount=9"] },
   // rapidq/: RapidQ's own way, Q names, as RC.EXE compiles it
   { file: "rapidq/notepad.bas", runtimes: ["run", "interp", "native", "web"], events: "saveitem.onclick,newitem.onclick,openitem.onclick", dump: "form.caption,editor.linecount",
     fileDialog: "note.txt;note.txt", expect: ["form.caption=Notepad - note.txt", "editor.linecount=3"] },
@@ -220,7 +226,7 @@ function runDesktop(c, runtime) {
   const work = workCopy(c, runtime);
   const src = join(work, basename(c.file));
   const stem = basename(c.file, extname(c.file));
-  const runEnv = env(hooks(c, work));
+  const runEnv = env({ ...hooks(c, work), ...(c.env || {}) });
   const runOpts = { cwd: work, env: runEnv, input: c.input || "", timeout: c.timeout || 60000 };
   if (runtime === "run") {
     const r = spawn(RAPIDR, ["run", src, ...args(c)], runOpts);
@@ -269,10 +275,11 @@ async function runWeb(c) {
     const dir = join(EXAMPLES, dirname(c.file));
     const assets = Object.fromEntries(readdirSync(dir).filter((f) => statSync(join(dir, f)).isFile() && ![".rr", ".bas", ".md"].includes(extname(f).toLowerCase()))
       .map((f) => [f, "data:application/octet-stream;base64," + readFileSync(join(dir, f)).toString("base64")]));
-    const env = { ...hooks(c, "web"), ...(isGui(c) ? { RAPIDR_CAPTURE: "web" } : {}) };
+    const env = { ...hooks(c, "web"), ...(isGui(c) ? { RAPIDR_CAPTURE: "web" } : {}), ...(c.env || {}) };
     await page.evaluate(({ source, assets, env, gui }) => {
       window.__rapidr_assets = assets;
       window.RAPIDR_TEST_MIDI = ""; window.RAPIDR_TEST_WAVE_IN = "tone:440";
+      if (env.RAPIDR_TEST_COMPORT) window.RAPIDR_TEST_COMPORT = env.RAPIDR_TEST_COMPORT;
       const bc = window.rr.compile(source, "example", assets);
       if (gui) window.rr.rapidr_set_test_env(env);
       window.rr.rapidr_run_bc(bc);

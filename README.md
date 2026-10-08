@@ -27,7 +27,8 @@ ground up in pure Rust — compatible with RapidQ, not a copy of it.
   QMIDI / QWAVE / QVIDEO, and RapidQ's DirectX 2D and Direct3D objects
   (reimplemented by RapidR on its own renderer).
 - **RapidR's own UI kernel** draws every window, the same on every system:
-  RapidQ's classic look by default, modern / dark / high-contrast themes,
+  RapidR Studio's look by default (light, dark or high contrast, as the
+  system is set), RapidQ's exact classic look with `$THEME Classic`,
   sharp on high-DPI screens, accessible to screen readers and the keyboard.
 - **The web on the same kernel**: a program's windows drawn on a canvas
   (their pixels and accessibility trees checked against the desktop's),
@@ -226,8 +227,7 @@ any vendor it names ([LEGAL.md](LEGAL.md)). Contributions follow
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
 RapidR stands on the shoulders of open-source software: winit, wgpu, vello,
-parley and AccessKit (the UI), wasm-bindgen, the Monaco editor (the web
-IDE), plotters, SQLite and hundreds of Rust crates. The
+parley and AccessKit (the UI), wasm-bindgen, plotters, SQLite and hundreds of Rust crates. The
 full list, with licenses and links, is in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) (generated from the
 dependency graph) and [LICENSES.md](LICENSES.md) (vendored JavaScript and

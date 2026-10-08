@@ -18,6 +18,10 @@ impl ComponentKind for FileListBox {
     fn name(&self) -> &'static str {
         "RFILELISTBOX"
     }
+
+    fn field(&self) -> bool {
+        true
+    }
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         ListBox.paint(cx, p)
     }

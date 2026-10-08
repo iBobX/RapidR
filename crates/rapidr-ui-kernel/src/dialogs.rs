@@ -889,6 +889,8 @@ mod tests {
 
     #[test]
     fn color_dialog_editor() {
+        // (RapidQ's look, checked op for op: the classic theme, named)
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
         let mut ts = TextSystem::new();
         // cdFullOpen: the editor shows red's HLS and RGB
         let mut d = Dialog::color(7, "Color", ColorState::new(0x0000FF, cd::DEFAULT_CUSTOM, cd::CD_FULL_OPEN));

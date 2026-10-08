@@ -44,10 +44,10 @@ OUT = os.path.join(VIS, "out")
 GOLDEN = os.path.join(VIS, "golden")
 RAPIDQ = os.path.join(VIS, "rapidq")
 RAPIDR = os.environ.get("RAPIDR_BIN", os.path.join(ROOT, "rapidr"))
-THEMES = ["classic", "modern", "dark", "highcontrast"]
+THEMES = ["classic", "rapidr-light", "rapidr-dark", "rapidr-high-contrast"]
 SCALES = [1, 2]
 # What's approved (and checked): classic at both scales, the others at 1×.
-GOLDEN_SCALES = {"classic": [1, 2], "modern": [1], "dark": [1], "highcontrast": [1]}
+GOLDEN_SCALES = {"classic": [1, 2], "rapidr-light": [1], "rapidr-dark": [1], "rapidr-high-contrast": [1]}
 # A pixel is the same when no channel differs by more than this (the
 # renderer is deterministic; this only forgives a platform's rounding).
 TOLERANCE = 3

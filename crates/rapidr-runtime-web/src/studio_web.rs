@@ -53,7 +53,7 @@ impl Host for Web {
         rp_fire_event_args(name, event, args);
     }
 
-    fn launch(self, program: &str, args: &[String]) -> Result<Box<dyn Transport>, String> {
+    fn launch(self, program: &str, args: &[String], theme: &str) -> Result<Box<dyn Transport>, String> {
         if program.is_empty() {
             return Err("no program to run".into());
         }
@@ -64,7 +64,7 @@ impl Host for Web {
         for a in args {
             js_args.push(&JsValue::from_str(a));
         }
-        host_call("run", &[js_sys::Uint8Array::from(bytes.as_slice()).into(), JsValue::from_str(program), js_args.into()])?;
+        host_call("run", &[js_sys::Uint8Array::from(bytes.as_slice()).into(), JsValue::from_str(program), js_args.into(), JsValue::from_str(theme)])?;
         Ok(Box::new(ChannelTransport::new(
             |json| host_call("send", &[JsValue::from_str(json)]).map(drop),
             || {

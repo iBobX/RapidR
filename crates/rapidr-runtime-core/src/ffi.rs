@@ -425,8 +425,8 @@ fn resource_dll_fallback(lib: &str, name: &str, args: &[Value], raw: Raw) -> Raw
     let wide: Vec<u16> = path.encode_utf16().chain(std::iter::once(0)).collect();
     // SAFETY: a NUL-terminated UTF-16 path that lives across the call; the
     // flags map the file's resources only, running none of its code.
-    let h = unsafe { LoadLibraryExW(wide.as_ptr(), 0, LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE) };
-    Raw::Int(h as i64)
+    let h = unsafe { LoadLibraryExW(wide.as_ptr(), std::ptr::null_mut(), LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE) };
+    Raw::Int(h as usize as i64)
 }
 
 /// A by-value number as its declared size (the callee reads that many

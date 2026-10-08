@@ -373,10 +373,11 @@ mod tests {
         assert_eq!(get(&p, "application", "helpfile").unwrap().to_string_val(), "x.hlp");
         call(&p, "application", "terminate", &[]);
         assert!(*p.ended.borrow());
-        // (RapidR's Theme: the platform's theme drawn now — the classic look
-        // until one is named; setting it is the platform's to apply)
-        assert_eq!(get(&p, "application", "theme").unwrap().to_string_val(), "classic");
+        // (RapidR's Theme: the platform's theme drawn now — RapidR's look,
+        // light until the system says otherwise, until one is named;
+        // setting it is the platform's to apply)
+        assert_eq!(get(&p, "application", "theme").unwrap().to_string_val(), "rapidr light");
         assert!(set(&p, "application", "theme", &v_str("dark")));
-        assert_eq!(get(&p, "application", "theme").unwrap().to_string_val(), "classic");
+        assert_eq!(get(&p, "application", "theme").unwrap().to_string_val(), "rapidr light");
     }
 }

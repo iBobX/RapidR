@@ -3,7 +3,7 @@
 ' (ColumnList, which OnListDropDown may change: its S comes back) whose
 ' pick goes through OnSetEditText, and column sizing
 ' (goColSizing). Driven with the mouse
-' by tests/web_ide_grid_draw.mjs.
+' by tests/web_grid_draw.mjs.
 DECLARE SUB DrawCell (Col%, Row%, State%, Rect AS QRECT)
 DECLARE SUB SetText (Col%, Row%, Value$)
 DECLARE SUB ListDrop (Col%, Row%, BYREF S AS STRING)

@@ -1921,6 +1921,7 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `CompCount` | int |  | The number of components on the design surface. |
 | `Visible` | int |  | Whether the control or form is shown. |
 | `FormCaption` | string |  | The caption of the form being designed. |
+| `Theme` | string |  | The look the designed form is drawn in (any name `$THEME` takes; "": the surface's own): `classic` shows it as RapidQ drew it. |
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `Count` | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
 | `SelCount` (read-only) | int |  | How many components are selected (Shift / Ctrl+click, a rubber band). |
@@ -3428,7 +3429,7 @@ For CGI programs behind a web server (qcgi.inc): the request's CGI variables as 
 <a id="rcomport"></a>
 ## RCOMPORT (QCOMPORT)
 
-A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then read and write strings. Web Serial in the browser.
+A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then read and write strings. Web Serial in the browser. RapidR adds what IoT boards (ESP32, Arduino) need: the ports listed with their USB IDs, the DTR / RTS lines (a board's reset), whole lines in and an event when an adapter is plugged in or out.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -3447,6 +3448,15 @@ A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then
 | `InQue` (read-only) | int |  | Bytes waiting in the receive buffer now; read-only. |
 | `OutQue` (read-only) | int |  | Bytes waiting in the send buffer now; read-only. |
 | `PendingIO` (read-only) | int |  | Writes still pending: always 0, as RapidR's I/O never stays pending; read-only. |
+| `DTR` *(RapidR)* | int | 1 | The Data Terminal Ready line: 1 set, 0 clear. It changes at once on an open port, else at Open; until set it follows DcbFlags (set). Many boards wire it, with RTS, to their reset and boot pins. |
+| `RTS` *(RapidR)* | int | 1 | The Request To Send line: 1 set, 0 clear. It changes at once on an open port, else at Open; until set it follows DcbFlags (set). With hardware flow control the port drives it. |
+| `CTS` *(RapidR)* (read-only) | int |  | The Clear To Send line the other end drives: 1 when set (0 while the port is closed). |
+| `DSR` *(RapidR)* (read-only) | int |  | The Data Set Ready line the other end drives: 1 when set (0 while the port is closed). |
+| `CD` *(RapidR)* (read-only) | int |  | The Carrier Detect line: 1 when set (0 while the port is closed). |
+| `RI` *(RapidR)* (read-only) | int |  | The Ring Indicator line: 1 when set (0 while the port is closed). |
+| `LineEnd` *(RapidR)* | string |  | What ends a line for ReadLine and OnLine: CHR$(10) unless set. With CHR$(10) a CR just before it is dropped too, so lines ending CR LF or LF both read clean. |
+| `HasLine` *(RapidR)* (read-only) | int |  | 1 when a whole line has arrived (ReadLine returns it at once). |
+| `PortCount` *(RapidR)* (read-only) | int |  | How many ports ListPorts found (it looks first when it hasn't yet). |
 
 | Method | |
 |---|---|
@@ -3462,6 +3472,16 @@ A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then
 | `WriteString(Str AS STRING, Wait AS INTEGER)` | Writes a string: to the serial port (waiting when `Wait` is true), or as a named value of the open registry key. |
 | `AddFlowControl` | Turns on flow-control options of the serial port. |
 | `DelFlowControl` | Turns off flow-control options of the serial port. |
+| `ListPorts AS INTEGER` *(RapidR)* | Looks at the serial ports there are now and returns how many; PortName, PortDescription and the others read them, 0 being the first. On the desktop every port the system has, a USB adapter's IDs and names with it; in the browser the ports the page was allowed (COM1, COM2 …). |
+| `PortName(Index AS INTEGER) AS STRING` *(RapidR)* | Port Index's name as Port takes it (COM3, /dev/cu.usbserial-1420, /dev/ttyUSB0); empty past the last. |
+| `PortDescription(Index AS INTEGER) AS STRING` *(RapidR)* | What port Index is: the system's name for its device (CP2102N USB to UART Bridge Controller), else the USB chip its IDs name (CH340 USB to serial); empty when nothing says. |
+| `PortManufacturer(Index AS INTEGER) AS STRING` *(RapidR)* | Who made port Index's USB device, as the device says (empty when not USB). |
+| `PortSerialNumber(Index AS INTEGER) AS STRING` *(RapidR)* | Port Index's USB device's serial number (empty when it has none): it tells two boards of the same kind apart. |
+| `PortVendorID(Index AS INTEGER) AS INTEGER` *(RapidR)* | Port Index's USB vendor ID (&H10C4 Silicon Labs, &H1A86 WCH, &H0403 FTDI, &H303A Espressif); 0 when not USB. |
+| `PortProductID(Index AS INTEGER) AS INTEGER` *(RapidR)* | Port Index's USB product ID; 0 when not USB. |
+| `FillList(Control) AS INTEGER` *(RapidR)* | Looks at the ports again and puts them in a list box or combo box, one item each (the name, then the description in brackets) in PortName's order, selecting Port's; returns how many. Port = PortName(Combo.ItemIndex) then picks one. |
+| `ReadLine([Timeout AS INTEGER]) AS STRING` *(RapidR)* | The next whole line that has arrived, without its LineEnd, waiting up to Timeout ms for one (1000 without it; 0 doesn't wait). Empty when none came in time: what part of a line has arrived stays for the next read. |
+| `SendBreak([Duration AS INTEGER])` *(RapidR)* | Holds the line in a break for Duration ms (250 without it). |
 
 | Event | |
 |---|---|
@@ -3475,6 +3495,8 @@ A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then
 | `OnRxChar(InQue AS INTEGER)` | Fires when bytes arrive at the serial port (InQue: how many are waiting to be read). |
 | `OnTxEmpty` *(not yet)* | Fires when the serial port's output buffer has emptied. RapidR accepts a handler for it but never fires it. |
 | `OnError(Message AS STRING)` | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
+| `OnLine(Received AS STRING)` *(RapidR)* | Fires for each whole line that arrives, without its LineEnd (the line is read: ReadString and ReadLine don't see it). The runtime looks every 50 ms. |
+| `OnPortsChanged(Added AS STRING, Removed AS STRING)` *(RapidR)* | Fires when serial ports come or go, a USB adapter plugged in or out: the names added and removed, a CR LF between two. The runtime looks about once a second (the browser says at once). |
 
 <a id="rdownload"></a>
 ## RDOWNLOAD (QDOWNLOAD)
@@ -4886,6 +4908,7 @@ A run of a program under development, as an IDE runs it: in its own process on t
 | `Args` | string |  | Its command line arguments, as COMMAND$ reads them (spaces separate them, quotes keep spaces). |
 | `Debug` | bool | True | Run under the debugger: breakpoints stop it, stepping works. |
 | `BreakOnError` | bool | False | Stop at the statement of a run-time error. |
+| `Theme` | string |  | The look the program is drawn in when it names none (any name `$THEME` takes; "" its default, RapidR's look): `classic` previews it as RapidQ drew it. |
 | `State` (read-only) | string |  | "stopped", "running" or "paused". |
 | `CurrentFile` (read-only) | string |  | Where the program is paused: its file. |
 | `CurrentLine` (read-only) | int |  | Where the program is paused: its line (from 1; 0 when not paused). |
@@ -4961,7 +4984,7 @@ The running program: its file and folder, title, icon, hint settings, RapidR's T
 | `ShowHint` | bool |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Title` | string |  | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
 | `Path` (read-only) | string |  | The folder the program's executable is in; read-only. |
-| `Theme` *(RapidR)* | string |  | The look RapidR draws with: `classic`, `modern`, `dark` or `highcontrast`; reads as the theme in use. |
+| `Theme` *(RapidR)* | string |  | The look the program is drawn in now, by name: `rapidr light`, `rapidr dark`, `rapidr high contrast` or `classic`. Setting it takes any name `$THEME` takes (`rapidr`: RapidR's look as the system is). |
 
 | Method | |
 |---|---|
