@@ -592,6 +592,10 @@ fn set_property(name: &str, prop: &str, val: Value) {
     if rp_comp_type(&uname) == "RDOCKMANAGER" && crate::dock_web::set(name, &lprop, &val) {
         return;
     }
+    // (I1 / L-PANELS) A panel's Target, Filter, Page, … (panels_web.rs).
+    if rapidr_value::panels::is_panel(&rp_comp_type(&uname)) && crate::panels_web::set(name, &lprop, &val) {
+        return;
+    }
     // (the dialogs lane's) A QFONTDIALOG's Name / Size / Color are its flat
     // FontName / FontSize / FontColor too: one value, as on the desktop.
     if let Some(other) = rapidr_value::font_dialog::alias(&lprop).filter(|_| rp_comp_type(&uname) == "RFONTDIALOG") {
@@ -729,7 +733,7 @@ fn set_property(name: &str, prop: &str, val: Value) {
 
     // `Form.Font.Size = 12` and `FontSize = 12` are one property (as on the
     // desktop): the flat name is what drawing and the DOM read.
-    for (dotted, flat) in [("font.name", "fontname"), ("font.size", "fontsize"), ("font.bold", "fontbold"), ("font.italic", "fontitalic"), ("font.color", "fontcolor")] {
+    for (dotted, flat) in [("font.name", "fontname"), ("font.size", "fontsize"), ("font.bold", "fontbold"), ("font.italic", "fontitalic"), ("font.color", "fontcolor"), ("font.underline", "fontunderline"), ("font.strikeout", "fontstrikeout")] {
         if lprop == dotted {
             rp_comp_set(name, flat, val.clone());
         } else if lprop == flat {
@@ -841,6 +845,8 @@ fn set_property(name: &str, prop: &str, val: Value) {
     crate::layout_web::after_set(&uname, &lprop);
     // (I1) A dock manager or its floating window resized: its panes placed.
     crate::dock_web::after_set(&uname, &lprop);
+    // (I1 / L-PANELS) An inspector showing it follows (panels_web.rs).
+    crate::panels_web::after_set(&uname, &lprop);
     // A QCANVAS's new size (its surface follows).
     if matches!(lprop.as_str(), "width" | "height") && rapidr_value::objects::is_header(&uname) {
         crate::kernel_web::redraw();
@@ -992,6 +998,10 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
         if let Some(v) = rapidr_value::dock::runtime::rt_get(name, &lprop) {
             return v;
         }
+    }
+    // (I1 / L-PANELS) A panel's RowCount, Count, LineCount, … (panels_web.rs).
+    if let Some(v) = crate::panels_web::get(name, &lprop) {
+        return v;
     }
     // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll_web.rs).
     if let Some(v) = crate::scroll_web::get(name, &lprop) {
@@ -1186,6 +1196,10 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             return v;
         }
     }
+    // (I1 / L-PANELS) A panel's AddButton, AddCommand, Write, … (panels_web.rs).
+    if let Some(v) = crate::panels_web::method(name, &lmethod, args) {
+        return v;
+    }
 
     // Indexed sub-objects (`SB.Panel(0).Width = 100` → method
     // `panel.width=` with (0, 100); reading → `panel.width` with (0)): kept
@@ -1242,6 +1256,11 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
                 return v_null();
             }
             picture_changed(&uname);
+        }
+        // (I1 / L-PANELS) A designer's selection or props changed: the
+        // inspectors following it read it again.
+        if rapidr_value::objects::is_design(name) {
+            crate::panels_web::designer_changed(&uname);
         }
         // (drawn again: a tree's rows built again first)
         if rapidr_value::objects::is_tree(name) {
@@ -2439,6 +2458,15 @@ pub(crate) fn update_timer(name: &str) {
 /// member is some component's method: the language registry's
 /// (crates/rapidr-lang), as the desktop runtime's.
 pub use rapidr_lang::{is_component_method, is_component_type};
+
+/// Every component: (name, type), in creation order.
+pub fn all_components() -> Vec<(String, String)> {
+    COMPONENTS.with(|c| {
+        let mut all: Vec<(String, String, u32)> = c.borrow().iter().map(|(n, comp)| (n.clone(), comp.type_name.clone(), comp.creation_order)).collect();
+        all.sort_by_key(|c| c.2);
+        all.into_iter().map(|(n, t, _)| (n, t)).collect()
+    })
+}
 
 pub fn get_children_of(parent_name: &str) -> Vec<(String, String)> {
     let uname = parent_name.to_uppercase();

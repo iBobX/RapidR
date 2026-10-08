@@ -104,7 +104,7 @@ const CASES = [
     open: "",
     do: "view.commandPalette",
     delay: 3,
-    dump: { "palette.visible": /^(-1|1|True)$/i, "palettelist.itemcount": /^[1-9]\d+$/ },
+    dump: { "palette.count": /^[1-9]\d+$/, "palette.commandcount": /^[1-9]\d+$/ },
   },
   // (I4) The designer on the source: notepad.bas's form at its own size;
   // its right edge dragged 60 px (Width written), a QBUTTON placed from the
@@ -142,6 +142,84 @@ const CASES = [
     delay: 4,
     dump: { "designdoc(0).canundo": /^(0|False)$/i, "codedoc(0).text": /CREATE Form AS QFORM/ },
     same: { "codedoc(0).text": "examples/rapidq/notepad.bas" },
+  },
+  // (S-PANELS) The inspector on the designer: pantry's AddBtn selected,
+  // its Caption and Width set in the inspector — the code shows them as the
+  // smallest edit (the values on their line) and the inspector reads them
+  // back.
+  {
+    name: "inspector-edits-code",
+    open: "examples/gui/pantry.rr",
+    do: "wait,view.designer,pick:AddBtn,prop:Caption=Go,prop:Width=120,wait",
+    delay: 6,
+    dump: {
+      "inspector.target": /^AddBtn$/,
+      "inspector.rows": /^Caption=Go$[\s\S]*^Width=120$/m,
+      "codedoc(0).text": /    CREATE AddBtn AS QBUTTON\n        Caption = "Go": Left = 314: Top = 252: Width = 120\n        OnClick = AddItem\n/,
+    },
+  },
+  // (S-PANELS) …then Undo twice on the designer: the exact text back.
+  {
+    name: "inspector-undo",
+    open: "examples/gui/pantry.rr",
+    do: "wait,view.designer,pick:AddBtn,prop:Caption=Go,prop:Width=120,wait,edit.undo,edit.undo,wait",
+    delay: 7,
+    dump: { "designdoc(0).canundo": /^(0|False)$/i, "inspector.rows": /^Caption=&Add to shelf$[\s\S]*^Width=110$/m, "codedoc(0).text": /CREATE AddBtn AS QBUTTON/ },
+    same: { "codedoc(0).text": "examples/gui/pantry.rr" },
+  },
+  // (S-PANELS) The code edited (a Caption typed over): the designer reads
+  // it and the inspector shows it.
+  {
+    name: "code-edits-inspector",
+    open: "examples/gui/pantry.rr",
+    do: 'wait,view.designer,pick:AddBtn,code:"&Add to shelf"=>"Store it",wait,wait,wait',
+    delay: 7,
+    dump: { "inspector.rows": /^Caption=Store it$/m, "designdoc(0).source": /Caption = "Store it": Left = 314/ },
+  },
+  // (S-PANELS) An event's row double-clicked in the inspector: its SUB
+  // written with the registry's parameters (a DECLARE beside pantry's, the
+  // SUB at the end), bound in the CREATE block, the caret inside it.
+  {
+    name: "inspector-event-handler",
+    open: "examples/gui/pantry.rr",
+    do: "wait,view.designer,pick:NameEdit,page:events,event:OnKeyDown,wait",
+    delay: 6,
+    dump: {
+      "codedoc(0).text": /DECLARE SUB AddItem\nDECLARE SUB NameEditKeyDown \(Key AS WORD, Shift AS INTEGER\)\n[\s\S]*OnKeyDown = NameEditKeyDown\n[\s\S]*\nSUB NameEditKeyDown \(Key AS WORD, Shift AS INTEGER\)\n    \nEND SUB\n?$/,
+      "inspector.rows": /^OnKeyDown=NameEditKeyDown$/m,
+    },
+  },
+  // (S-PANELS) Typed values and a reset: Default as RapidQ writes a
+  // Boolean, a colour constant, Width put back to its default (its
+  // assignment taken out of the line); the Events page offers the file's
+  // SUBs.
+  {
+    name: "inspector-typed",
+    open: "examples/gui/pantry.rr",
+    do: "wait,view.designer,pick:AddBtn,prop:Default=True,prop:Color=clRed,reset:Width,wait",
+    delay: 6,
+    dump: {
+      "codedoc(0).text": /    CREATE AddBtn AS QBUTTON\n        Caption = "&Add to shelf": Left = 314: Top = 252\n        OnClick = AddItem\n        Default = 1\n        Color = clRed\n/,
+      "inspector.rows": /^Default=True$[\s\S]*^Width=75$/m,
+    },
+  },
+  // (S-PANELS) The toolbox: Enter on QCHECKBOX adds one to the form (its
+  // CREATE block in the code), selected in the inspector.
+  {
+    name: "toolbox-add",
+    open: "examples/gui/pantry.rr",
+    do: "wait,view.designer,tool:QCHECKBOX,wait",
+    delay: 6,
+    dump: { "codedoc(0).text": /CREATE CheckBox1 AS QCHECKBOX/i, "inspector.target": /^CheckBox1$/i },
+  },
+  // (S-PANELS) The project tree lists the form's components; the palette
+  // finds a symbol of the file.
+  {
+    name: "tree-and-search",
+    open: "examples/gui/pantry.rr",
+    do: "wait,palette:stock",
+    delay: 4,
+    dump: { "projecttree.filecount": /^1$/, "palette.selected": /^line:21:Stock$/ },
   },
 ];
 

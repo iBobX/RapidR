@@ -4050,6 +4050,7 @@ dependencies = [
  "proptest",
  "rapidr-icons",
  "rapidr-lang",
+ "rapidr-project",
  "resvg",
  "ttf-parser",
  "windows-registry",

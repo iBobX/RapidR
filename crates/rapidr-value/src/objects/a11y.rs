@@ -454,6 +454,15 @@ pub fn role_of(type_name: &str) -> Role {
         "RGROUPBOX" | "RHEADER" => Role::Group,
         // (I1: a dock manager's groups and its document area — rapidr_value::dock)
         "RDOCKGROUP" | "RDOCKDOCS" => Role::Group,
+        // (I1 / L-PANELS: RapidR Studio's panels — rapidr_value::panels; the
+        // kernel describes their rows, tabs and buttons)
+        "RPROPERTYINSPECTOR" => Role::Grid,
+        "RTOOLBOX" | "RPROJECTTREE" => Role::Tree,
+        // (a console: its tabs, its search box, its page — a read-only
+        // multiline text, or the problems' list — inside)
+        "ROUTPUTCONSOLE" => Role::Group,
+        "RTOOLBAR" => Role::Group,
+        "RCOMMANDPALETTE" => Role::Dialog,
         "RSTATUSBAR" => Role::Status,
         "RSPLITTER" => Role::Splitter,
         // (and a kernel-drawn message box's icon)
@@ -477,6 +486,8 @@ pub fn takes_focus(type_name: &str) -> bool {
         type_name.to_ascii_uppercase().as_str(),
         "RBUTTON" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RCODEEDITOR" | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RLISTVIEW" | "RTREEVIEW" | "RDIRTREE" | "RSTRINGGRID" | "RTABCONTROL" | "RTRACKBAR" | "RUPDOWN"
             | "RSCROLLBAR" | "RDESIGNSURFACE"
+        // (I1 / L-PANELS: RapidR Studio's panels)
+        | "RPROPERTYINSPECTOR" | "RTOOLBOX" | "RPROJECTTREE" | "ROUTPUTCONSOLE" | "RCOMMANDPALETTE"
     )
 }
 
