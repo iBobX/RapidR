@@ -150,17 +150,55 @@ function frameMessage(e) {
       .then((r) => (r.ok ? r.arrayBuffer() : null))
       .then((bytes) => run.port && run.port.postMessage({ __rapidr_font_reply: { id, bytes } }, bytes ? [bytes] : []))
       .catch(() => run.port && run.port.postMessage({ __rapidr_font_reply: { id, bytes: null } }));
+  } else if (d.__rapidr_windows && typeof d.__rapidr_windows === "object") {
+    clipToWindows(d.__rapidr_windows);
   } else if (d.__rapidr_console) {
     const { level, text } = d.__rapidr_console;
     window.rr.studio_session_incoming(JSON.stringify({ type: "output", stream: level === "error" ? "stderr" : "stdout", text: text + "\n" }));
   }
 }
 
+// The program's windows over the whole page: its frame covers Studio's
+// viewport and is clipped to the windows' rectangles (the frame reports
+// them). clip-path also decides where the pointer lands, so a click outside
+// the program's windows reaches Studio; while a button is held in the frame
+// (a window dragged or resized) the whole frame shows, then it's clipped
+// again. Rectangles are all the frame says about its windows; they're
+// checked and kept inside the page.
+// (no windows: one transparent pixel in the corner, not none — a frame
+// clipped away entirely counts as hidden, and the browser stops its
+// animation frames, so its first window would never be drawn)
+const NO_WINDOWS = "path('M0 0h1v1h-1Z')";
+
+function clipToWindows(w) {
+  if (!run.frame) return;
+  if (typeof w.held === "boolean") run.held = w.held;
+  if (Array.isArray(w.rects)) {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    run.rects = w.rects
+      .slice(0, 256)
+      .filter((r) => Array.isArray(r) && r.length === 4 && r.every(Number.isFinite))
+      .map(([x, y, rw, rh]) => {
+        const l = Math.max(0, Math.min(vw, x)), t = Math.max(0, Math.min(vh, y));
+        return [l, t, Math.max(0, Math.min(vw, x + rw) - l), Math.max(0, Math.min(vh, y + rh) - t)];
+      })
+      .filter((r) => r[2] > 0 && r[3] > 0);
+    // (for the tests: where the program's windows are)
+    window.RAPIDR_STUDIO_RUN_RECTS = run.rects;
+  }
+  const rects = run.rects || [];
+  let clip = NO_WINDOWS;
+  if (run.held) clip = "none";
+  else if (rects.length) clip = "path('" + rects.map(([x, y, rw, rh]) => "M" + x + " " + y + "h" + rw + "v" + rh + "h" + -rw + "Z").join("") + "')";
+  run.frame.style.clipPath = clip;
+}
+
 function closeFrame() {
   run.generation++;
   if (run.port) run.port.close();
   if (run.box) run.box.remove();
-  Object.assign(run, { box: null, frame: null, port: null, ready: false, queue: [] });
+  Object.assign(run, { box: null, frame: null, port: null, ready: false, queue: [], rects: [], held: false });
+  window.RAPIDR_STUDIO_RUN_RECTS = [];
 }
 
 window.RAPIDR_STUDIO_HOST = {
@@ -174,6 +212,8 @@ window.RAPIDR_STUDIO_HOST = {
     frame.setAttribute("sandbox", "allow-scripts allow-modals allow-downloads");
     frame.setAttribute("title", "The running program");
     frame.src = "run.html";
+    // (clipped to nothing until the program's windows say where they are)
+    frame.style.clipPath = NO_WINDOWS;
     box.appendChild(frame);
     document.body.appendChild(box);
     Object.assign(run, { box, frame });

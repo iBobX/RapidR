@@ -31,6 +31,63 @@ const DESIGN_STEPS = [
   "__mousedown_110_130", "__mousemove_130_150", "__mousemove_150_170", "__mouseup_150_170",
 ].map((e) => `designdoc(0).${e}`).join(",");
 
+// (the web) The running program's windows float over the whole page, as
+// the desktop's are windows of their own: its window dragged by its title
+// bar (real mouse input) to each edge of the page lands there whole —
+// Studio's frame shows every pixel of it (the clip covers it, the corners
+// hit the program), a point beside it still hits Studio, the whole frame
+// shows while the button is held. A capture at each edge.
+async function floatingWindows(page, scale, record) {
+  const vp = page.viewportSize();
+  const frame = () => page.frames().find((f) => f.url().endsWith("/run.html"));
+  await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+  await page.waitForTimeout(500);
+  const win = async () => frame().evaluate(() => {
+    const r = document.querySelector(".rr-kwin").getBoundingClientRect();
+    return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) };
+  });
+  const hit = (x, y) => page.evaluate(([x, y]) => {
+    const el = document.elementFromPoint(x, y);
+    return el && el.tagName === "IFRAME" ? "program" : "studio";
+  }, [x, y]);
+  const first = await win();
+  record("", first.w > 100 && first.h > 100 && first.x > 0 && first.y > 0, `the program's window shows on the page, centred (${JSON.stringify(first)})`);
+  const edges = {
+    left: (w) => ({ x: 0, y: w.y }),
+    right: (w) => ({ x: vp.width - w.w, y: w.y }),
+    top: (w) => ({ x: w.x, y: 0 }),
+    bottom: (w) => ({ x: w.x, y: vp.height - w.h }),
+  };
+  for (const [edge, to] of Object.entries(edges)) {
+    const w = await win();
+    const target = to(w);
+    // (the title bar's middle, then the mouse moved by as much as the window should)
+    const from = { x: w.x + Math.round(w.w / 2), y: w.y + 12 };
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    const steps = 8;
+    for (let i = 1; i <= steps; i++) {
+      await page.mouse.move(from.x + ((target.x - w.x) * i) / steps, from.y + ((target.y - w.y) * i) / steps);
+      if (i === steps / 2) {
+        const clip = await page.evaluate(() => document.querySelector("#studio-run iframe").style.clipPath);
+        record("", clip === "none", `${edge}: while dragging the whole frame shows (clip ${clip})`);
+      }
+    }
+    await page.mouse.up();
+    await page.waitForTimeout(400);
+    const now = await win();
+    record("", Math.abs(now.x - target.x) <= 2 && Math.abs(now.y - target.y) <= 2, `${edge}: the window is at the edge (${JSON.stringify(now)}, wanted ${JSON.stringify(target)})`);
+    const inside = now.x >= 0 && now.y >= 0 && now.x + now.w <= vp.width && now.y + now.h <= vp.height;
+    const corners = [[now.x + 3, now.y + 3], [now.x + now.w - 4, now.y + 3], [now.x + 3, now.y + now.h - 4], [now.x + now.w - 4, now.y + now.h - 4]];
+    const hits = await Promise.all(corners.map(([x, y]) => hit(x, y)));
+    record("", inside && hits.every((h) => h === "program"), `${edge}: nothing of it is cut off (corners: ${hits.join(", ")})`);
+    // (a point beside the window: Studio's)
+    const beside = edge === "right" ? [now.x - 40, now.y + now.h / 2] : edge === "bottom" ? [now.x + now.w / 2, now.y - 40] : edge === "left" ? [now.x + now.w + 40, now.y + now.h / 2] : [now.x + now.w / 2, now.y + now.h + 40];
+    record("", (await hit(beside[0], beside[1])) === "studio", `${edge}: Studio gets the clicks beside it`);
+    await page.screenshot({ path: join(WORK, `program-windows-${edge}@${scale}x.png`) });
+  }
+}
+
 // Each case: what Studio opens and does (`do`: its commands; `events`:
 // RAPIDR_TEST_EVENTS, input through the kernel), how long it waits before
 // the properties are read, and what each must say (a regular expression;
@@ -75,6 +132,21 @@ const CASES = [
     do: "file.openFolder,wait,wait",
     delay: 4,
     dump: { "proj.mainfile": /^dialogs\.rr$/, "studio.caption": /^dialogs - RapidR Studio$/ },
+  },
+  // (the program's windows over the whole page: floatingWindows, at 1x and
+  // 2x; on the desktop they are windows of their own — the program's
+  // window is shown and captured there, then it ends)
+  {
+    name: "program-windows-float",
+    open: "examples/gui/themes.rr",
+    do: "run.start",
+    delay: 4,
+    maximized: true,
+    viewport: { width: 1440, height: 900 },
+    scales: [1, 2],
+    web: floatingWindows,
+    desktopFiles: ["window-program-1.bmp"],
+    dump: { "session.exitcode": /^0$/, "session.error": /^$/ },
   },
   {
     name: "palette",
@@ -222,7 +294,10 @@ function runDesktop(c) {
       ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: join(ROOT, c.folder) } : {}),
     },
   });
-  return parseDump(r.stdout || "", Object.keys(c.dump));
+  const dump = parseDump(r.stdout || "", Object.keys(c.dump));
+  // (files the run must leave: the program's own window captured)
+  for (const f of c.desktopFiles || []) dump["file " + f] = existsSync(join(dir, f)) ? "there" : "missing";
+  return dump;
 }
 
 // "name=value" lines, a value running on to the next "name=" line.
@@ -243,8 +318,8 @@ function parseDump(text, names) {
   return out;
 }
 
-async function runWeb(browser, c) {
-  const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+async function runWeb(browser, c, scale = 1, record = () => {}) {
+  const page = await browser.newPage({ viewport: c.viewport || { width: 1920, height: 1080 }, deviceScaleFactor: scale });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   try {
@@ -257,12 +332,16 @@ async function runWeb(browser, c) {
       ...(c.events ? { RAPIDR_TEST_EVENTS: c.events } : {}),
       ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: c.folder } : {}),
     });
-    const q = new URLSearchParams({ theme: "rapidr-light", fresh: "", window: "normal" });
+    const q = new URLSearchParams({ theme: "rapidr-light", fresh: "" });
+    // (Studio a 1280 x 800 window on the page, unless the case has it fill the page)
+    if (!c.maximized) q.set("window", "normal");
     if (c.do) q.set("do", c.do);
     if (c.open) q.set("open", c.open);
     await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
     await page.waitForFunction(() => window.rr && window.rr.rapidr_test_results(), null, { timeout: 90000, polling: 200 });
     const results = JSON.parse(await page.evaluate(() => window.rr.rapidr_test_results()));
+    // (what the case does on the page itself: real mouse input)
+    if (c.web) await c.web(page, scale, record);
     return { dump: parseDump(results.dump.join("\n"), Object.keys(c.dump)), errors };
   } finally {
     await page.close();
@@ -273,6 +352,11 @@ mkdirSync(WORK, { recursive: true });
 const browser = await chromium.launch();
 let passed = 0, failed = 0;
 const check = (label, dump, c) => {
+  for (const f of label === "desktop" ? c.desktopFiles || [] : []) {
+    const ok = dump["file " + f] === "there";
+    ok ? passed++ : failed++;
+    console.log((ok ? "✓ " : "✗ ") + c.name + " (desktop): " + f + (ok ? " written" : " missing"));
+  }
   for (const [k, re] of Object.entries(c.dump)) {
     const v = dump[k];
     const ok = v !== undefined && re.test(v);
@@ -287,15 +371,22 @@ const check = (label, dump, c) => {
     console.log(`${ok ? "✓" : "✗"} ${c.name} (${label}): ${k} ${ok ? `equals ${file}` : `differs from ${file}`}`);
   }
 };
+const record = (name, ok, what) => {
+  ok ? passed++ : failed++;
+  console.log(`${ok ? "✓" : "✗"} ${name}: ${what}`);
+};
 for (const c of CASES.filter((c) => !filters.length || filters.some((f) => c.name.includes(f)))) {
   check("desktop", runDesktop(c), c);
-  try {
-    const web = await runWeb(browser, c);
-    check("web", web.dump, c);
-    if (web.errors.length) console.log(`  (page errors: ${web.errors.join("; ")})`);
-  } catch (e) {
-    failed++;
-    console.log(`✗ ${c.name} (web): ${e.message.split("\n")[0]}`);
+  for (const scale of c.scales || [1]) {
+    const label = c.scales ? `web @${scale}x` : "web";
+    try {
+      const web = await runWeb(browser, c, scale, (name, ok, what) => record(`${c.name} (${label})`, ok, what));
+      check(label, web.dump, c);
+      if (web.errors.length) console.log(`  (page errors: ${web.errors.join("; ")})`);
+    } catch (e) {
+      failed++;
+      console.log(`✗ ${c.name} (${label}): ${e.message.split("\n")[0]}`);
+    }
   }
 }
 await browser.close();

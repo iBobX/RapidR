@@ -422,6 +422,16 @@ Captured output: `scratchpad/supply/{deny.txt,audit.txt,audit.json,cargo-tree-ad
   pickers and storage are off unless the lane grants them (`filePickers:false`,
   `storage:{}` — holds); no bridge proxies a same-origin fetch on a
   frame-supplied path.
+- The program's windows float over all of Studio (S-DEBUG, 2026-10-08): the
+  frame covers the page and Studio clips it (`clip-path`, which also decides
+  where the pointer lands) to the window rectangles the frame reports
+  (`__rapidr_windows` over the private port). The frame only *reports*
+  rectangles; Studio checks them as data (at most 256, finite numbers,
+  clamped to the page) and applies them itself. The frame gains no access to
+  Studio's DOM, storage or files; what it can do is draw where its windows
+  are, as a program's windows can cover the IDE on the desktop. While a
+  button is held in the frame (a window dragged) it is shown whole; the
+  first click outside its windows after that reaches Studio again.
 - Every page RapidR emits carries a CSP derived from the components used (SEC-15);
   `object-src 'none'`, `base-uri 'none'`, `'unsafe-eval'` only for `RJavaScript`.
 - `RWEBVIEW` / `RDOM` default to the isolating option (no `allow-same-origin` on
