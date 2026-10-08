@@ -71,13 +71,15 @@
         "id": "rapidr",
         "aliases": [
           "RapidR",
-          "RapidQ",
           "rapidr"
         ],
         "extensions": [
           ".rr",
           ".bas",
-          ".inc"
+          ".inc",
+          ".rqw",
+          ".rqb",
+          ".rq"
         ],
         "configuration": "./language-configuration.json",
         "icon": {

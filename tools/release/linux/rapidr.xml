@@ -19,5 +19,8 @@
     <comment>RapidQ BASIC source</comment>
     <sub-class-of type="text/plain"/>
     <glob pattern="*.bas" weight="60"/>
+    <glob pattern="*.rqw"/>
+    <glob pattern="*.rqb"/>
+    <glob pattern="*.rq"/>
   </mime-type>
 </mime-info>

@@ -147,7 +147,7 @@ fn component_json(c: &Component) -> String {
         .s("kind", c.kind.as_str())
         .s("group", c.group)
         .s("origin", c.origin.as_str())
-        .s("written", c.written_name())
+        .s("spelling", &c.spelling())
         .b("visual", c.visual)
         .b("container", c.container);
     let o = match c.size {
@@ -462,14 +462,14 @@ fn component_icon(name: &str) -> String {
 
 fn components_page() -> String {
     let mut out = String::from(MD_HEADER);
-    out.push_str("# Components: RapidQ's and RapidR's names\n\n");
+    out.push_str("# Components\n\n");
     out.push_str(
-        "Every component RapidR creates, by what it is for. A RapidQ name and its R name are the same component (same properties, methods, events and behaviour); a program may use either and mix them freely. A name with no RapidQ name is RapidR's own. Unless the last column says otherwise, a component works in native builds, interpreted programs and the browser. Each component's members: [members.md](members.md). The icons are RapidR's own (the IDE's toolbox shows the same ones); every icon is in the [icon catalog](../icons/index.html).\n\n",
+        "Every component RapidR creates, by what it is for, under RapidR's name (`RButton`), the way RapidR writes it. Names are not case-sensitive (`RBUTTON` is `RButton`). RapidR also runs RapidQ programs: a component RapidQ has is also known by its RapidQ name (the *RapidQ name* column), and a program may use either name and mix them; both are the same component (same properties, methods, events and behaviour). A component with no RapidQ name is RapidR's own. Unless the last column says otherwise, a component works in native builds, interpreted programs and the browser. Each component's members: [members.md](members.md). The icons are RapidR's own (the IDE's toolbox shows the same ones); every icon is in the [icon catalog](../icons/index.html). `rapidr import-rapidq` converts a copy of a RapidQ program to RapidR's names.\n\n",
     );
     let mut total = 0;
     let mut rq = 0;
     for g in groups() {
-        let _ = write!(out, "## {g}\n\n| | RapidR name | RapidQ name | From | Where |\n|---|---|---|---|---|\n");
+        let _ = write!(out, "## {g}\n\n| | Component | RapidQ name | From | Where |\n|---|---|---|---|---|\n");
         for c in COMPONENTS.iter().filter(|c| c.kind == Kind::Component && c.group == g) {
             total += 1;
             let mut names: Vec<String> = c.rapidq.iter().chain(c.aliases.iter()).map(|n| format!("`{n}`")).collect();
@@ -478,17 +478,17 @@ fn components_page() -> String {
                 rq += 1;
             }
             let from = if c.rapidq.is_some() { c.from.unwrap_or("RapidQ") } else { "RapidR" };
-            let _ = writeln!(out, "| {} | [`{}`](members.md#{}) | {} | {from} | {} |", component_icon(c.name), c.name, c.name.to_ascii_lowercase(), if names.is_empty() { "—".into() } else { names.join(", ") }, where_text(c));
+            let _ = writeln!(out, "| {} | [`{}`](members.md#{}) | {} | {from} | {} |", component_icon(c.name), c.spelling(), c.name.to_ascii_lowercase(), if names.is_empty() { "—".into() } else { names.join(", ") }, where_text(c));
         }
         out.push('\n');
     }
-    out.push_str("## RapidQ's include libraries built in\n\nA program that names these (or includes the library) gets RapidR's own implementation, written in BASIC on RapidR's components, on every runtime:\n\n");
+    out.push_str("## RapidQ's include libraries built in\n\nA program that names these (or includes the library) gets RapidR's own implementation, written in BASIC on RapidR's components, on every runtime. They keep the names RapidQ's include libraries gave them:\n\n");
     for c in COMPONENTS.iter().filter(|c| c.kind == Kind::Library) {
-        let _ = writeln!(out, "- `{}` (RapidQ's `{}`)", c.name, c.from.unwrap_or(""));
+        let _ = writeln!(out, "- `{}` (RapidQ's `{}`)", c.spelling(), c.from.unwrap_or(""));
     }
     out.push_str("\n## Not implemented\n\nRapidQ has these objects (RC.EXE knows them); RapidR doesn't yet. Variables of the OLE types compile as generic objects whose methods print a warning:\n\n");
     for c in COMPONENTS.iter().filter(|c| c.kind == Kind::Planned) {
-        let _ = writeln!(out, "- `{}`: {}", c.name, md(c.doc));
+        let _ = writeln!(out, "- `{}`: {}", c.spelling(), md(c.doc));
     }
     let _ = write!(out, "\n{total} components; {rq} of them have a RapidQ name.\n");
     out
@@ -498,12 +498,12 @@ fn members_page() -> String {
     let mut out = String::from(MD_HEADER);
     out.push_str("# Components' members\n\n");
     out.push_str(
-        "Every property, method and event of every component, from the language registry. *(RapidR)* marks a RapidR extension of a RapidQ component (RapidQ's compiler doesn't know it); *not yet* marks a RapidQ member RapidR doesn't implement yet; *desktop* / *web* one that only that runtime has. A Q name and its R name have the same members.\n\n",
+        "Every property, method and event of every component, from the language registry, under RapidR's names. *(RapidR)* marks a RapidR extension of a component RapidQ has too (RapidQ's compiler doesn't know it); *not yet* marks a RapidQ member RapidR doesn't implement yet; *desktop* / *web* one that only that runtime has. A component's RapidQ name, when it has one, has the same members.\n\n",
     );
     for c in COMPONENTS.iter().filter(|c| c.kind == Kind::Component).chain(GLOBALS.iter()).chain(ITEMS.iter()) {
         let title = match c.rapidq {
-            Some(q) if q != c.name => format!("{} ({q})", c.name),
-            _ => c.name.to_string(),
+            Some(q) if q != c.name => format!("{} <small>(RapidQ name: {q})</small>", c.spelling()),
+            _ => c.spelling(),
         };
         let _ = write!(out, "<a id=\"{}\"></a>\n## {title}\n\n{}\n\n", c.name.to_ascii_lowercase(), md(c.doc));
         let flags = |origin: Origin, missing: bool, rt: Runtimes| -> String {
@@ -695,7 +695,7 @@ pub fn manual() -> Vec<(&'static str, String)> {
 pub fn prompt() -> String {
     let mut out = String::new();
     out.push_str("# The RapidR language (generated from its registry)\n\n");
-    out.push_str("RapidR runs RapidQ BASIC programs and extends them. Names are case-insensitive. A component has a RapidQ name (QBUTTON) and a RapidR name (RBUTTON): the same component; write RapidQ's name for RapidQ's components and the R name for RapidR-only ones. Members marked [R] are RapidR extensions (RapidQ's own compiler refuses them); [missing] ones aren't implemented yet: don't use them.\n\n");
+    out.push_str("RapidR is a BASIC compatible with RapidQ: it runs RapidQ programs unchanged and extends them. Names are case-insensitive. Write components with RapidR's names (RButton, RForm, RStringGrid). A component RapidQ has is also known by its RapidQ name (QBUTTON), the same component: keep the names a file already uses, and write RapidQ's names only in a project that must also compile with RapidQ's own compiler. Members marked [R] are RapidR extensions (RapidQ's own compiler refuses them); [missing] ones aren't implemented yet: don't use them.\n\n");
     out.push_str("## Statements\n\n");
     for s in STATEMENTS {
         let _ = writeln!(out, "- {}{}", s.syntax, if s.origin == Origin::RapidR { " [R]" } else { "" });
@@ -712,8 +712,8 @@ pub fn prompt() -> String {
     out.push_str("\n## Components\n\n");
     for c in COMPONENTS.iter().filter(|c| c.kind == Kind::Component) {
         let names = match c.rapidq {
-            Some(q) => format!("{q} / {}", c.name),
-            None => c.name.to_string(),
+            Some(q) => format!("{} (RapidQ name: {q})", c.spelling()),
+            None => c.spelling(),
         };
         let _ = writeln!(out, "### {names}{}\n{}", if c.runtimes == Runtimes::Web { " (web only)" } else { "" }, c.doc);
         let tag = |o: Origin| if o == Origin::RapidR && c.origin == Origin::RapidQ { "[R]" } else { "" };
@@ -764,7 +764,9 @@ mod tests {
         assert!(j.starts_with("{\"registry\":1"));
         assert!(j.contains("\"name\":\"RBUTTON\""));
         assert!(web_ide_js().contains("export function resolveVariableType"));
-        assert!(manual().iter().any(|(n, t)| *n == "components.md" && t.contains("`RFORM`")));
-        assert!(prompt().contains("QBUTTON / RBUTTON"));
+        assert!(manual().iter().any(|(n, t)| *n == "components.md" && t.contains("[`RForm`](members.md#rform) | `QFORM`")));
+        assert!(manual().iter().any(|(n, t)| *n == "members.md" && t.contains("## RButton <small>(RapidQ name: QBUTTON)</small>")));
+        assert!(prompt().contains("### RButton (RapidQ name: QBUTTON)"));
+        assert!(j.contains("\"spelling\":\"RButton\""));
     }
 }

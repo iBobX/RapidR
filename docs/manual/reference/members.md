@@ -2,10 +2,10 @@
 
 # Components' members
 
-Every property, method and event of every component, from the language registry. *(RapidR)* marks a RapidR extension of a RapidQ component (RapidQ's compiler doesn't know it); *not yet* marks a RapidQ member RapidR doesn't implement yet; *desktop* / *web* one that only that runtime has. A Q name and its R name have the same members.
+Every property, method and event of every component, from the language registry, under RapidR's names. *(RapidR)* marks a RapidR extension of a component RapidQ has too (RapidQ's compiler doesn't know it); *not yet* marks a RapidQ member RapidR doesn't implement yet; *desktop* / *web* one that only that runtime has. A component's RapidQ name, when it has one, has the same members.
 
 <a id="rform"></a>
-## RFORM (QFORM)
+## RForm <small>(RapidQ name: QFORM)</small>
 
 A window: the top-level container of a program's components, with its caption, border, menu and events. Show shows it; ShowModal shows it and waits until it closes.
 
@@ -117,7 +117,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `OnLoad` *(RapidR)* | Fires when the content has loaded: the web view's page, a file read in the browser. |
 
 <a id="rformmdi"></a>
-## RFORMMDI (QFORMMDI)
+## RFormMDI <small>(RapidQ name: QFORMMDI)</small>
 
 An MDI parent window (RAPIDQ2.INC's): a form whose child windows open, tile, cascade and minimize inside it (AddChild, CascadeChild …).
 
@@ -175,7 +175,7 @@ An MDI parent window (RAPIDQ2.INC's): a form whose child windows open, tile, cas
 | `OnChildResize(handleChild AS LONG, index AS LONG, titleChild AS STRING)` | Fires when an MDI child window is resized, maximized or restored (handleChild: its handle, index: its number, titleChild: its caption). |
 
 <a id="rpanel"></a>
-## RPANEL (QPANEL)
+## RPanel <small>(RapidQ name: QPANEL)</small>
 
 A container with raised or lowered bevels and an optional caption, to group components and, with Align, build toolbars and side areas.
 
@@ -232,7 +232,7 @@ A container with raised or lowered bevels and an optional caption, to group comp
 | `WndProc` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
 
 <a id="rtabcontrol"></a>
-## RTABCONTROL (QTABCONTROL)
+## RTabControl <small>(RapidQ name: QTABCONTROL)</small>
 
 A row of tabs: the user picks one (TabIndex) and the program shows what belongs to it, usually in OnChange.
 
@@ -300,7 +300,7 @@ A row of tabs: the user picks one (TabIndex) and the program shows what belongs 
 | `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 
 <a id="rtoolbar"></a>
-## RTOOLBAR
+## RToolBar
 
 A strip of tool buttons, usually along the top of a form: icon buttons (RapidR's icons or the program's pictures) with tooltips, separators, toggles, and a menu for the buttons that don't fit. With Customizable the user picks which buttons show. RapidR's own; components placed on it sit after its buttons, as on any container.
 
@@ -354,7 +354,7 @@ A strip of tool buttons, usually along the top of a form: icon buttons (RapidR's
 | `OnButtonClick(Name AS STRING, Command AS STRING)` | A button was clicked (or a toggle turned, ButtonDown already the new state; or picked from the menu of the buttons that don't fit): its name and command. |
 
 <a id="rstatusbar"></a>
-## RSTATUSBAR (QSTATUSBAR)
+## RStatusBar <small>(RapidQ name: QSTATUSBAR)</small>
 
 The bar at the bottom of a window that shows status text, as one simple text or as several panels.
 
@@ -405,7 +405,7 @@ The bar at the bottom of a window that shows status text, as one simple text or 
 | `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 
 <a id="rsplitter"></a>
-## RSPLITTER (QSPLITTER)
+## RSplitter <small>(RapidQ name: QSPLITTER)</small>
 
 A bar the user drags to resize the aligned component beside it, between the panes of a window.
 
@@ -442,7 +442,7 @@ A bar the user drags to resize the aligned component beside it, between the pane
 | `OnMoved` | Fires when the user finishes dragging the splitter. |
 
 <a id="rscrollbox"></a>
-## RSCROLLBOX (QSCROLLBOX)
+## RScrollBox <small>(RapidQ name: QSCROLLBOX)</small>
 
 A container that scrolls: components beyond its edges are reached with its scroll bars.
 
@@ -502,7 +502,7 @@ A container that scrolls: components beyond its edges are reached with its scrol
 | `OnResize` | Fires when the control's size changes, by the user, the program or its alignment. |
 
 <a id="rgroupbox"></a>
-## RGROUPBOX (QGROUPBOX)
+## RGroupBox <small>(RapidQ name: QGROUPBOX)</small>
 
 A captioned frame around related components; the radio buttons in it form one choice.
 
@@ -550,7 +550,7 @@ A captioned frame around related components; the radio buttons in it form one ch
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 
 <a id="rbevel"></a>
-## RBEVEL (QBEVEL)
+## RBevel <small>(RapidQ name: QBEVEL)</small>
 
 A box with raised or lowered 3D edges (QBevel.inc), to frame or group components.
 
@@ -600,7 +600,7 @@ A box with raised or lowered 3D edges (QBevel.inc), to frame or group components
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 
 <a id="rglassframe"></a>
-## RGLASSFRAME (QGLASSFRAME)
+## RGlassFrame <small>(RapidQ name: QGLASSFRAME)</small>
 
 A tinted glass area (UtilMind's Glassy Form): it shades what's under it with its colour at Transparency, and drags its form when Moveable.
 
@@ -635,7 +635,7 @@ A tinted glass area (UtilMind's Glassy Form): it shades what's under it with its
 | `OnMouseUp` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 
 <a id="rdockmanager"></a>
-## RDOCKMANAGER
+## RDockManager
 
 RapidR's docking area (RapidR Studio is built on it): panes docked at its edges, tabbed together, auto-hidden or floating, around a documents area of MDI windows or tabs. The user drags panes with a docking compass or moves them from the keyboard; the layout saves to text and loads back.
 
@@ -699,7 +699,7 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `OnLayoutChange` | The layout changed (the user or the program moved, docked, floated or hid a pane). |
 
 <a id="rbutton"></a>
-## RBUTTON (QBUTTON)
+## RButton <small>(RapidQ name: QBUTTON)</small>
 
 A push button: the user clicks it to run its OnClick handler. It can show a picture and be the form's Default or Cancel button.
 
@@ -763,7 +763,7 @@ A push button: the user clicks it to run its OnClick handler. It can show a pict
 | `WndProc` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
 
 <a id="redit"></a>
-## REDIT (QEDIT)
+## REdit <small>(RapidQ name: QEDIT)</small>
 
 A one-line text box to type and edit text in, with an optional input mask, password character and length limit.
 
@@ -834,7 +834,7 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 
 <a id="rcheckbox"></a>
-## RCHECKBOX (QCHECKBOX)
+## RCheckBox <small>(RapidQ name: QCHECKBOX)</small>
 
 A box with a caption that the user ticks on or off (Checked).
 
@@ -882,7 +882,7 @@ A box with a caption that the user ticks on or off (Checked).
 | `WndProc` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
 
 <a id="rradiobutton"></a>
-## RRADIOBUTTON (QRADIOBUTTON)
+## RRadioButton <small>(RapidQ name: QRADIOBUTTON)</small>
 
 One choice of several: checking it unchecks the other radio buttons in the same container.
 
@@ -929,7 +929,7 @@ One choice of several: checking it unchecks the other radio buttons in the same 
 | `WndProc` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
 
 <a id="rcombobox"></a>
-## RCOMBOBOX (QCOMBOBOX)
+## RComboBox <small>(RapidQ name: QCOMBOBOX)</small>
 
 A drop-down list, with or without a box to type in; the user picks one item (ItemIndex, Text).
 
@@ -1020,7 +1020,7 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | `WndProc` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
 
 <a id="rrichedit"></a>
-## RRICHEDIT (QRICHEDIT)
+## RRichEdit <small>(RapidQ name: QRICHEDIT)</small>
 
 A multi-line text editor with fonts, colours and alignment per selection, that loads and saves rich text (RTF) or plain text.
 
@@ -1108,7 +1108,7 @@ A multi-line text editor with fonts, colours and alignment per selection, that l
 | `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 
 <a id="rmemo"></a>
-## RMEMO
+## RMemo
 
 A multi-line plain-text editor with word wrap and scroll bars. RapidR's own.
 
@@ -1170,7 +1170,7 @@ A multi-line plain-text editor with word wrap and scroll bars. RapidR's own.
 | `OnKeyPress` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 
 <a id="rscrollbar"></a>
-## RSCROLLBAR (QSCROLLBAR)
+## RScrollBar <small>(RapidQ name: QSCROLLBAR)</small>
 
 A horizontal or vertical scroll bar the user moves to pick a Position between Min and Max.
 
@@ -1220,7 +1220,7 @@ A horizontal or vertical scroll bar the user moves to pick a Position between Mi
 | `OnScroll(ScrollCode AS BYTE, ScrollPos AS LONG)` | Fires when the user scrolls: a scroll bar (ScrollCode: the kind of move; ScrollPos: the new position), or a web element's content. |
 
 <a id="rupdown"></a>
-## RUPDOWN
+## RUpDown
 
 Two arrow buttons that step Position up or down between Min and Max, often beside an edit. RapidR's own.
 
@@ -1253,7 +1253,7 @@ Two arrow buttons that step Position up or down between Min and Max, often besid
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 
 <a id="rdatetimepicker"></a>
-## RDATETIMEPICKER
+## RDateTimePicker
 
 A field for a date and a time (Date, Time), with OnChange when the user changes either. RapidR's own.
 
@@ -1289,7 +1289,7 @@ A field for a date and a time (Date, Time), with OnChange when the user changes 
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 
 <a id="rtrackbar"></a>
-## RTRACKBAR (QTRACKBAR)
+## RTrackBar <small>(RapidQ name: QTRACKBAR)</small>
 
 A slider: the user drags its thumb to pick a Position between Min and Max, along tick marks.
 
@@ -1342,7 +1342,7 @@ A slider: the user drags its thumb to pick a Position between Min and Max, along
 | `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 
 <a id="rcodeeditor"></a>
-## RCODEEDITOR
+## RCodeEditor
 
 A code editor for BASIC: line numbers, syntax colours, and a list of the program's SUBs and FUNCTIONs to jump to. RapidR's own; the IDE's editor.
 
@@ -1412,7 +1412,7 @@ A code editor for BASIC: line numbers, syntax colours, and a list of the program
 | `OnKeyPress` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 
 <a id="rcoolbtn"></a>
-## RCOOLBTN (QCOOLBTN)
+## RCoolBtn <small>(RapidQ name: QCOOLBTN)</small>
 
 A flat toolbar button with a caption and a picture; with GroupIndex it stays down, as a toggle or one of a group.
 
@@ -1468,7 +1468,7 @@ A flat toolbar button with a caption and a picture; with GroupIndex it stays dow
 | `OnMouseUp` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 
 <a id="rovalbtn"></a>
-## ROVALBTN (QOVALBTN)
+## ROvalBtn <small>(RapidQ name: QOVALBTN)</small>
 
 A round button with its own colours, highlight and shadow; like a cool button, it can stay down as a toggle.
 
@@ -1530,7 +1530,7 @@ A round button with its own colours, highlight and shadow; like a cool button, i
 | `WndProc` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
 
 <a id="rlabel"></a>
-## RLABEL (QLABEL)
+## RLabel <small>(RapidQ name: QLABEL)</small>
 
 Text on a form that the user reads but doesn't edit, with alignment, word wrap, an angle and 3D styles.
 
@@ -1590,7 +1590,7 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 | `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
 
 <a id="rimage"></a>
-## RIMAGE (QIMAGE)
+## RImage <small>(RapidQ name: QIMAGE)</small>
 
 Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the program can also draw on it like a canvas.
 
@@ -1669,7 +1669,7 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 
 <a id="rcanvas"></a>
-## RCANVAS (QCANVAS)
+## RCanvas <small>(RapidQ name: QCANVAS)</small>
 
 A surface to draw on: lines, shapes, text and pictures, usually redrawn in its OnPaint handler.
 
@@ -1751,7 +1751,7 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 
 <a id="rheader"></a>
-## RHEADER (QHEADER)
+## RHeader <small>(RapidQ name: QHEADER)</small>
 
 A row of headings (sections) the user can click and resize, as above a list's columns.
 
@@ -1837,7 +1837,7 @@ A row of headings (sections) the user can click and resize, as above a list's co
 | `OnSectionTrack(Index AS INTEGER, Width AS INTEGER, State AS INTEGER)` | Fires while the user drags a header section's border (Index: the section, Width: its new width, State: begin, move or end of the drag). |
 
 <a id="rprogress"></a>
-## RPROGRESS
+## RProgress
 
 Windows' classic progress bar: a sunken bar filled in blocks from Min to Max at Position. RapidR's own; RPROGRESSBAR is RapidQ's gauge.
 
@@ -1866,7 +1866,7 @@ Windows' classic progress bar: a sunken bar filled in blocks from Min to Max at 
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
 
 <a id="rprogressbar"></a>
-## RPROGRESSBAR (QGAUGE)
+## RProgressBar <small>(RapidQ name: QGAUGE)</small>
 
 RapidQ's gauge (QGAUGE): shows progress from Min to Max at Position as a bar, a pie, a needle or the percentage.
 
@@ -1908,7 +1908,7 @@ RapidQ's gauge (QGAUGE): shows progress from Min to Max at Position as a bar, a 
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 
 <a id="rdesignsurface"></a>
-## RDESIGNSURFACE
+## RDesignSurface
 
 RapidR's form designer: places components on a grid, lets the user select, move and resize them, and keeps their properties. The IDE is built on it.
 
@@ -1992,7 +1992,7 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `OnChange` | The designed form changed (after its OnSourceEdit events). |
 
 <a id="rdigdisplay"></a>
-## RDIGDISPLAY (QDIGDISPLAY)
+## RDigDisplay <small>(RapidQ name: QDIGDISPLAY)</small>
 
 A seven-segment LED display (QDigDisplay.inc) showing the digits and signs of its Display text, as on a clock or a counter.
 
@@ -2051,7 +2051,7 @@ A seven-segment LED display (QDigDisplay.inc) showing the digits and signs of it
 | `OnPaint` | Fires when the control must be drawn again; drawing done here survives covering, resizing and theme changes. |
 
 <a id="rlistbox"></a>
-## RLISTBOX (QLISTBOX)
+## RListBox <small>(RapidQ name: QLISTBOX)</small>
 
 A list of text items the user picks one or several of; it can be sorted, in columns or drawn by the program.
 
@@ -2151,7 +2151,7 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `OnChange` *(RapidR)* | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 
 <a id="rfilelistbox"></a>
-## RFILELISTBOX (QFILELISTBOX)
+## RFileListBox <small>(RapidQ name: QFILELISTBOX)</small>
 
 A list of the files in a folder that match Mask, for picking a file.
 
@@ -2220,7 +2220,7 @@ A list of the files in a folder that match Mask, for picking a file.
 | `OnEnter` *(not yet)* | Fires when the list gets the keyboard focus. RapidR doesn't fire it yet. |
 
 <a id="rdirtree"></a>
-## RDIRTREE (QDIRTREE)
+## RDirTree <small>(RapidQ name: QDIRTREE)</small>
 
 A tree of drives and folders for picking a folder (Directory).
 
@@ -2274,7 +2274,7 @@ A tree of drives and folders for picking a folder (Directory).
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 
 <a id="rstringgrid"></a>
-## RSTRINGGRID (QSTRINGGRID)
+## RStringGrid <small>(RapidQ name: QSTRINGGRID)</small>
 
 A grid of text cells in rows and columns, with fixed heading rows and columns, in-place editing and per-column styles.
 
@@ -2402,7 +2402,7 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `OnChange` *(RapidR)* | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 
 <a id="rtreeview"></a>
-## RTREEVIEW (QTREEVIEW)
+## RTreeView <small>(RapidQ name: QTREEVIEW)</small>
 
 A tree of nodes the user expands, collapses and selects, with a picture per node and in-place editing.
 
@@ -2521,7 +2521,7 @@ A tree of nodes the user expands, collapses and selects, with a picture per node
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 
 <a id="rlistview"></a>
-## RLISTVIEW (QLISTVIEW)
+## RListView <small>(RapidQ name: QLISTVIEW)</small>
 
 A list of items with columns of sub-items, shown as icons, a list or a report with headings; checkboxes and sorting.
 
@@ -2606,7 +2606,7 @@ A list of items with columns of sub-items, shown as icons, a list or a report wi
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 
 <a id="rmainmenu"></a>
-## RMAINMENU (QMAINMENU)
+## RMainMenu <small>(RapidQ name: QMAINMENU)</small>
 
 A form's menu bar; its menus and commands are QMENUITEMs.
 
@@ -2626,7 +2626,7 @@ A form's menu bar; its menus and commands are QMENUITEMs.
 | `Clear` *(RapidR)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 
 <a id="rmenuitem"></a>
-## RMENUITEM (QMENUITEM)
+## RMenuItem <small>(RapidQ name: QMENUITEM)</small>
 
 One menu entry: a command (OnClick), a checkable option, a separator ("-") or a submenu holding more items.
 
@@ -2660,7 +2660,7 @@ One menu entry: a command (OnClick), a checkable option, a separator ("-") or a 
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 
 <a id="rpopupmenu"></a>
-## RPOPUPMENU (QPOPUPMENU)
+## RPopupMenu <small>(RapidQ name: QPOPUPMENU)</small>
 
 A context menu, shown when the user right-clicks a component whose PopupMenu it is, or by Popup.
 
@@ -2688,7 +2688,7 @@ A context menu, shown when the user right-clicks a component whose PopupMenu it 
 | `OnPopup` | Fires just before the popup menu opens; the place to enable, check or change its items. |
 
 <a id="ropendialog"></a>
-## ROPENDIALOG (QOPENDIALOG)
+## ROpenDialog <small>(RapidQ name: QOPENDIALOG)</small>
 
 The system's Open dialog: Execute shows it and returns whether the user chose a file, then named by FileName. Filter limits the files listed.
 
@@ -2708,7 +2708,7 @@ The system's Open dialog: Execute shows it and returns whether the user chose a 
 | `Execute AS VARIANT` | Runs the component's action: a dialog shows itself, waits, and returns true when the user confirms. |
 
 <a id="rsavedialog"></a>
-## RSAVEDIALOG (QSAVEDIALOG)
+## RSaveDialog <small>(RapidQ name: QSAVEDIALOG)</small>
 
 The system's Save dialog: Execute shows it and returns whether the user chose a name, then in FileName.
 
@@ -2727,7 +2727,7 @@ The system's Save dialog: Execute shows it and returns whether the user chose a 
 | `Execute AS VARIANT` | Runs the component's action: a dialog shows itself, waits, and returns true when the user confirms. |
 
 <a id="rfiledialog"></a>
-## RFILEDIALOG (QFILEDIALOG)
+## RFileDialog <small>(RapidQ name: QFILEDIALOG)</small>
 
 RAPIDQ2.INC's file dialog: one component for Open and Save (Mode), with several files at once (Files, SelCount) and an overwrite warning.
 
@@ -2754,7 +2754,7 @@ RAPIDQ2.INC's file dialog: one component for Open and Save (Mode), with several 
 | `Execute AS VARIANT` | Runs the component's action: a dialog shows itself, waits, and returns true when the user confirms. |
 
 <a id="rcolordialog"></a>
-## RCOLORDIALOG (QCOLORDIALOG)
+## RColorDialog <small>(RapidQ name: QCOLORDIALOG)</small>
 
 A colour picker (RAPIDQ2.INC's): Execute shows it and returns 1 when the user picks a colour, then in Color; Colors holds the 16 custom colours.
 
@@ -2772,7 +2772,7 @@ A colour picker (RAPIDQ2.INC's): Execute shows it and returns 1 when the user pi
 | `Execute AS VARIANT` | Opens the colour picker. Returns 1 if a colour was selected, 0 if cancelled. Selected value is in .Color. |
 
 <a id="rfontdialog"></a>
-## RFONTDIALOG (QFONTDIALOG)
+## RFontDialog <small>(RapidQ name: QFONTDIALOG)</small>
 
 A font picker: Execute shows it and returns 1 when the user chooses a font, then in Name, Size, Color and the styles; GetFont and SetFont trade it with a QFONT.
 
@@ -2803,7 +2803,7 @@ A font picker: Execute shows it and returns 1 when the user chooses a font, then
 | `OnApply` | Fires when the user presses the font dialog's Apply button; the dialog's font properties already hold the font shown. |
 
 <a id="rtimer"></a>
-## RTIMER (QTIMER)
+## RTimer <small>(RapidQ name: QTIMER)</small>
 
 Runs its OnTimer handler every Interval milliseconds while Enabled.
 
@@ -2818,7 +2818,7 @@ Runs its OnTimer handler every Interval milliseconds while Enabled.
 | `OnTimer(Sender AS QTIMER)` | Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits. |
 
 <a id="rrect"></a>
-## RRECT (QRECT)
+## RRect <small>(RapidQ name: QRECT)</small>
 
 A rectangle (Left, Top, Right, Bottom), as drawing methods and event handlers pass one.
 
@@ -2830,7 +2830,7 @@ A rectangle (Left, Top, Right, Bottom), as drawing methods and event handlers pa
 | `Bottom` | int | 0 | The rectangle's bottom edge, in pixels. |
 
 <a id="rfilestream"></a>
-## RFILESTREAM (QFILESTREAM)
+## RFileStream <small>(RapidQ name: QFILESTREAM)</small>
 
 A file opened to read and write: lines, numbers, strings, arrays and UDTs, at a Position that Seek moves.
 
@@ -2877,7 +2877,7 @@ A file opened to read and write: lines, numbers, strings, arrays and UDTs, at a 
 | `WriteByte` *(not yet)* | Writes one byte to the socket or stream. |
 
 <a id="rstringlist"></a>
-## RSTRINGLIST (QSTRINGLIST)
+## RStringList <small>(RapidQ name: QSTRINGLIST)</small>
 
 A list of strings in memory: add, insert, delete, sort and find them, load and save them as text.
 
@@ -2925,7 +2925,7 @@ A list of strings in memory: add, insert, delete, sort and find them, load and s
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 
 <a id="rprinter"></a>
-## RPRINTER (QPRINTER)
+## RPrinter <small>(RapidQ name: QPRINTER)</small>
 
 A printer: BeginDoc, draw pages with the canvas methods and NewPage, then EndDoc. The `Printer` global object is one.
 
@@ -2970,7 +2970,7 @@ A printer: BeginDoc, draw pages with the canvas methods and NewPage, then EndDoc
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 
 <a id="rregistry"></a>
-## RREGISTRY (QREGISTRY)
+## RRegistry <small>(RapidQ name: QREGISTRY)</small>
 
 Reads and writes settings as keys and values: Windows' registry on Windows, a per-user store on other systems and the web.
 
@@ -3009,7 +3009,7 @@ Reads and writes settings as keys and values: Windows' registry on Windows, a pe
 | `WriteBinary` | Writes a binary value under a name in the open key. |
 
 <a id="rjson"></a>
-## RJSON
+## RJson
 
 Parses and builds JSON: get and set values by dotted path, list keys, pretty-print, load and save files. RapidR's own.
 
@@ -3034,7 +3034,7 @@ Parses and builds JSON: get and set values by dotted path, list keys, pretty-pri
 | `Clear` | Clears the stored JSON data. |
 
 <a id="rfont"></a>
-## RFONT (QFONT)
+## RFont <small>(RapidQ name: QFONT)</small>
 
 A font (name, size, colour, bold, italic …) to give to components and drawing.
 
@@ -3059,7 +3059,7 @@ A font (name, size, colour, bold, italic …) to give to components and drawing.
 | `DelStyles(Items, …)` | Turns off the font styles given. |
 
 <a id="rmemorystream"></a>
-## RMEMORYSTREAM (QMEMORYSTREAM)
+## RMemoryStream <small>(RapidQ name: QMEMORYSTREAM)</small>
 
 A stream in memory: write and read text, numbers and binary data as in a file, with no file.
 
@@ -3103,7 +3103,7 @@ A stream in memory: write and read text, numbers and binary data as in a file, w
 | `SetSize` *(not yet)* | Sets the stream's size in bytes, cutting or growing it. |
 
 <a id="rbitmap"></a>
-## RBITMAP (QBITMAP)
+## RBitmap <small>(RapidQ name: QBITMAP)</small>
 
 A picture in memory to draw on and draw from: load and save images, draw with the canvas methods.
 
@@ -3154,7 +3154,7 @@ A picture in memory to draw on and draw from: load and save images, draw with th
 | `LoadIcon(Name AS STRING, [Size AS INTEGER], [Theme AS STRING])` *(RapidR)* | Loads one of RapidR's own icons (an icon name such as "run", a component type, a command id), Size pixels square (16 if left out), in the current theme's colours or Theme's; crisp at every screen scale. |
 
 <a id="rimagelist"></a>
-## RIMAGELIST (QIMAGELIST)
+## RImageList <small>(RapidQ name: QIMAGELIST)</small>
 
 A list of same-size pictures (bitmaps or icons), drawn by index; list views and trees take their pictures from one.
 
@@ -3189,7 +3189,7 @@ A list of same-size pictures (bitmaps or icons), drawn by index; list views and 
 | `AddIcon(Name AS STRING, [Theme AS STRING])` *(RapidR)* | Adds one of RapidR's own icons (an icon name, a component type or a command id) at the list's Width × Height, in the current theme's colours or Theme's. |
 
 <a id="rnotifyicondata"></a>
-## RNOTIFYICONDATA (QNOTIFYICONDATA)
+## RNotifyIconData <small>(RapidQ name: QNOTIFYICONDATA)</small>
 
 Describes a system tray icon (its icon, tip and messages) for `Shell_NotifyIcon`, which RapidR keeps working on every system.
 
@@ -3204,7 +3204,7 @@ Describes a system tray icon (its icon, tip and messages) for `Shell_NotifyIcon`
 | `szTip` | string |  | The tooltip text of the tray icon. |
 
 <a id="rsqlite"></a>
-## RSQLITE
+## RSQLite
 
 A SQLite database: Connect opens a file (or `:memory:`), Query runs SQL with `?` parameters, FetchRow walks the rows. RapidR's own; also in the browser.
 
@@ -3239,7 +3239,7 @@ A SQLite database: Connect opens a file (or `:memory:`), Query runs SQL with `?`
 | `OnError(Message AS STRING)` | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
 
 <a id="rmysql"></a>
-## RMYSQL (QMYSQL)
+## RMySQL <small>(RapidQ name: QMYSQL)</small>
 
 A client for a MySQL or MariaDB server: connect, run queries and walk the rows they return. Desktop only (a browser has no raw TCP).
 
@@ -3292,7 +3292,7 @@ A client for a MySQL or MariaDB server: connect, run queries and walk the rows t
 | `OnError(Message AS STRING)` *(RapidR)* | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
 
 <a id="rsocket"></a>
-## RSOCKET (QSOCKET)
+## RSocket <small>(RapidQ name: QSOCKET)</small>
 
 A TCP client socket: connect to a host and port, then read and write text or bytes. In the browser it connects over WebSocket.
 
@@ -3342,7 +3342,7 @@ A TCP client socket: connect to a host and port, then read and write text or byt
 | `OnError(Message AS STRING)` *(RapidR)* | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
 
 <a id="rserversocket"></a>
-## RSERVERSOCKET
+## RServerSocket
 
 A TCP server: listens on a port, accepts clients and exchanges data with them. RapidR's own; desktop only: a web page can't listen for network connections (a browser lets it open WebSockets and HTTP requests, never a port of its own).
 
@@ -3370,7 +3370,7 @@ A TCP server: listens on a port, accepts clients and exchanges data with them. R
 | `OnError` | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
 
 <a id="rhttp"></a>
-## RHTTP
+## RHttp
 
 An HTTP(S) client: Get or Post a URL, then read StatusCode, ResponseText and ResponseHeaders. RapidR's own.
 
@@ -3391,7 +3391,7 @@ An HTTP(S) client: Get or Post a URL, then read StatusCode, ResponseText and Res
 | `Post` | Sends form data to a URL in an HTTP POST and returns the response body. |
 
 <a id="rcgi"></a>
-## RCGI (QCGI)
+## RCGI <small>(RapidQ name: QCGI)</small>
 
 For CGI programs behind a web server (qcgi.inc): the request's CGI variables as properties, and Parse / Get for its form fields.
 
@@ -3426,7 +3426,7 @@ For CGI programs behind a web server (qcgi.inc): the request's CGI variables as 
 | `Get(Name AS STRING, BYREF Value AS STRING) AS INTEGER` | Reads by key or index: an array element, a list's string, a stored value or a CGI variable; an HTTP client fetches a URL and returns the response body. |
 
 <a id="rcomport"></a>
-## RCOMPORT (QCOMPORT)
+## RComPort <small>(RapidQ name: QCOMPORT)</small>
 
 A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then read and write strings. Web Serial in the browser.
 
@@ -3477,7 +3477,7 @@ A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then
 | `OnError(Message AS STRING)` | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
 
 <a id="rdownload"></a>
-## RDOWNLOAD (QDOWNLOAD)
+## RDownload <small>(RapidQ name: QDOWNLOAD)</small>
 
 Downloads a file over HTTP(S) into a variable or a file, with progress (Qdownload.inc).
 
@@ -3504,7 +3504,7 @@ Downloads a file over HTTP(S) into a variable or a file, with progress (Qdownloa
 | `Speed` | Returns a transfer's speed in bytes a second, from two `TIME$` values and the bytes moved. |
 
 <a id="rmidi"></a>
-## RMIDI (QMIDI)
+## RMIDI <small>(RapidQ name: QMIDI)</small>
 
 Plays a standard MIDI file (QMidi.inc) on the system's MIDI output, or on RapidR's own synthesizer where there is none.
 
@@ -3536,7 +3536,7 @@ Plays a standard MIDI file (QMidi.inc) on the system's MIDI output, or on RapidR
 | `OnChange(position AS LONG)` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 
 <a id="rwave"></a>
-## RWAVE (QWAVE)
+## RWave <small>(RapidQ name: QWAVE)</small>
 
 Plays, records and saves WAV sound (QWave.inc).
 
@@ -3576,7 +3576,7 @@ Plays, records and saves WAV sound (QWave.inc).
 | `OnChange(position AS LONG)` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 
 <a id="rvideo"></a>
-## RVIDEO (QVIDEO)
+## RVideo <small>(RapidQ name: QVIDEO)</small>
 
 Plays an AVI video with its sound (QVideo.inc), on a form or in a window of its own.
 
@@ -3622,7 +3622,7 @@ Plays an AVI video with its sound (QVideo.inc), on a form or in a window of its 
 | `OnChange(position AS LONG, timePos AS LONG)` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 
 <a id="rcdaudio"></a>
-## RCDAUDIO (QCDAUDIO)
+## RCDAudio <small>(RapidQ name: QCDAUDIO)</small>
 
 Plays audio CDs (Qcdaudio.inc). RapidR answers as a computer with no CD drive.
 
@@ -3657,7 +3657,7 @@ Plays audio CDs (Qcdaudio.inc). RapidR answers as a computer with no CD drive.
 | `OnChange(track AS INTEGER, time AS STRING)` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 
 <a id="rdxscreen"></a>
-## RDXSCREEN (QDXSCREEN)
+## RDXScreen <small>(RapidQ name: QDXSCREEN)</small>
 
 A DirectX drawing surface on a form, for games and animation: draw the next frame off screen, then Flip to show it. It also holds the Direct3D scene and camera.
 
@@ -3752,7 +3752,7 @@ A DirectX drawing surface on a form, for games and animation: draw the next fram
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 
 <a id="rdximagelist"></a>
-## RDXIMAGELIST (QDXIMAGELIST)
+## RDXImageList <small>(RapidQ name: QDXIMAGELIST)</small>
 
 A library of pictures for a DirectX screen, loaded from DelphiX `.DXG` image lists and drawn with their transparency.
 
@@ -3768,7 +3768,7 @@ A library of pictures for a DirectX screen, loaded from DelphiX `.DXG` image lis
 | `LoadFromStream(Stream AS QFILESTREAM)` | Loads the component's contents from an open stream. |
 
 <a id="rdxtimer"></a>
-## RDXTIMER (QDXTIMER)
+## RDXTimer <small>(RapidQ name: QDXTIMER)</small>
 
 A frame timer for DirectX animation: OnTimer fires at FrameRate (Interval 0: once a frame), optionally only while the program is active.
 
@@ -3784,7 +3784,7 @@ A frame timer for DirectX animation: OnTimer fires at FrameRate (Interval 0: onc
 | `OnTimer` | Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits. |
 
 <a id="rdxsound"></a>
-## RDXSOUND (QDXSOUND)
+## RDXSound <small>(RapidQ name: QDXSOUND)</small>
 
 A WAV sound played DirectSound's way: at its Frequency, Volume and Pan, once or looped.
 
@@ -3812,7 +3812,7 @@ A WAV sound played DirectSound's way: at its Frequency, Volume and Pan, once or 
 | `RecreateBuf` *(not yet)* | Makes the sound buffer again after the device lost it. |
 
 <a id="rdxjoystick"></a>
-## RDXJOYSTICK (QDXJOYSTICK)
+## RDXJoystick <small>(RapidQ name: QDXJOYSTICK)</small>
 
 A joystick or gamepad: Update reads its state into IsLeft, IsUp, `Button(n)` …; RapidR adds the axes, the POV hat and which pad (Index).
 
@@ -3846,7 +3846,7 @@ A joystick or gamepad: Update reads its state into IsLeft, IsUp, `Button(n)` …
 | `OnMove` *(RapidR)* | Fires when the joystick's position changes (X, Y and the other axes read the new values). |
 
 <a id="rd3dframe"></a>
-## RD3DFRAME (QD3DFRAME)
+## RD3DFrame <small>(RapidQ name: QD3DFRAME)</small>
 
 A node of a Direct3D retained-mode scene: it has a position, orientation and motion, and holds meshes, lights and child frames. RapidR draws the scene with its own renderer.
 
@@ -3880,7 +3880,7 @@ A node of a Direct3D retained-mode scene: it has a position, orientation and mot
 | `FogEnabled` | Turns fog on or off in the frame's scene. |
 
 <a id="rd3dmeshbuilder"></a>
-## RD3DMESHBUILDER (QD3DMESHBUILDER)
+## RD3DMeshBuilder <small>(RapidQ name: QD3DMESHBUILDER)</small>
 
 Builds a 3D mesh: load a `.X` model or add vertices and faces, then scale, colour and texture it before adding it to a frame.
 
@@ -3908,7 +3908,7 @@ Builds a 3D mesh: load a `.X` model or add vertices and faces, then scale, colou
 | `SetColorRGB` *(RapidR)* | Sets the color from `R`, `G`, `B` (0 to 1). |
 
 <a id="rd3dmesh"></a>
-## RD3DMESH (QD3DMESH)
+## RD3DMesh <small>(RapidQ name: QD3DMESH)</small>
 
 A finished 3D mesh, made by a mesh builder, ready to add to frames.
 
@@ -3923,7 +3923,7 @@ A finished 3D mesh, made by a mesh builder, ready to add to frames.
 | `SetColorRGB` *(RapidR)* | Sets the color from `R`, `G`, `B` (0 to 1). |
 
 <a id="rd3dface"></a>
-## RD3DFACE (QD3DFACE)
+## RD3DFace <small>(RapidQ name: QD3DFACE)</small>
 
 One polygon of a 3D mesh: its vertices and colour, added to a mesh builder.
 
@@ -3941,7 +3941,7 @@ One polygon of a 3D mesh: its vertices and colour, added to a mesh builder.
 | `SetRGBA` *(RapidR)* | Sets the mesh's color from `R`, `G`, `B` and its opacity `A` (0 to 1). |
 
 <a id="rd3dlight"></a>
-## RD3DLIGHT (QD3DLIGHT)
+## RD3DLight <small>(RapidQ name: QD3DLIGHT)</small>
 
 A light in the 3D scene (ambient, directional, point or spot), with its colour, range and cone.
 
@@ -3957,7 +3957,7 @@ A light in the 3D scene (ambient, directional, point or spot), with its colour, 
 | `SetUmbra(Angle AS DOUBLE)` | Sets the angle of the spotlight's cone of full brightness. |
 
 <a id="rd3dtexture"></a>
-## RD3DTEXTURE (QD3DTEXTURE)
+## RD3DTexture <small>(RapidQ name: QD3DTEXTURE)</small>
 
 A picture laid onto 3D meshes as their surface.
 
@@ -3966,7 +3966,7 @@ A picture laid onto 3D meshes as their surface.
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 
 <a id="rd3dvisual"></a>
-## RD3DVISUAL (QD3DVISUAL)
+## RD3DVisual <small>(RapidQ name: QD3DVISUAL)</small>
 
 Something a 3D frame can show (a mesh or a mesh builder), as Direct3D's visual.
 
@@ -3975,7 +3975,7 @@ Something a 3D frame can show (a mesh or a mesh builder), as Direct3D's visual.
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 
 <a id="rd3dwrap"></a>
-## RD3DWRAP (QD3DWRAP)
+## RD3DWrap <small>(RapidQ name: QD3DWRAP)</small>
 
 How a texture is laid over a mesh (flat, cylinder, sphere or chrome), applied to it with Apply or ApplyRelative.
 
@@ -3985,7 +3985,7 @@ How a texture is laid over a mesh (flat, cylinder, sphere or chrome), applied to
 | `ApplyRelative(F AS QD3DFRAME, M AS QD3DMESH)` | Applies the texture wrap to mesh `M`, measured relative to frame `F`. |
 
 <a id="rd3dvector"></a>
-## RD3DVECTOR (QD3DVECTOR)
+## RD3DVector <small>(RapidQ name: QD3DVECTOR)</small>
 
 A 3D vector (X, Y, Z), for positions and directions in the 3D scene.
 
@@ -3999,7 +3999,7 @@ A 3D vector (X, Y, Z), for positions and directions in the 3D scene.
 | `Z` | float |  | A Z: the vector's component, or the joystick's third axis (0 to 65535, 32767 at rest). |
 
 <a id="rnum"></a>
-## RNUM
+## RNum
 
 A numeric array in NumPy's style: make ranges, zeros or lists, then sum, average, sort, compute element-wise and do linear algebra on them. RapidR's own.
 
@@ -4120,7 +4120,7 @@ A numeric array in NumPy's style: make ranges, zeros or lists, then sum, average
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 
 <a id="rdataframe"></a>
-## RDATAFRAME
+## RDataFrame
 
 A table of named columns in pandas' style: read CSV or JSON, select, filter, sort, group and join, compute statistics, show it in a grid. RapidR's own.
 
@@ -4209,7 +4209,7 @@ A table of named columns in pandas' style: read CSV or JSON, select, filter, sor
 | `Display` | Fills an RStringGrid with the DataFrame's column names and rows. Same as `ToGrid`. |
 
 <a id="rplot"></a>
-## RPLOT
+## RPlot
 
 A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots with labels, legends and notes, on a form (drawn crisp at any screen scale, the same on the desktop and the web) or saved as a picture. RapidR's own.
 
@@ -4275,7 +4275,7 @@ A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots
 | `Yscale(type)` | "linear" or "log" (kept with the chart; drawn linear). |
 
 <a id="rwebview"></a>
-## RWEBVIEW
+## RWebView
 
 An embedded web page or HTML (an iframe): URL, HTML, Sandbox. Web only.
 
@@ -4368,7 +4368,7 @@ An HTML element of the program's own: its HTML, CSS classes, style and attribute
 | `OnScroll` | Fires when the user scrolls: a scroll bar (ScrollCode: the kind of move; ScrollPos: the new position), or a web element's content. |
 
 <a id="rjavascript"></a>
-## RJAVASCRIPT
+## RJavaScript
 
 Runs JavaScript in the page: Eval a piece of code or Call a function. Web only.
 
@@ -4378,7 +4378,7 @@ Runs JavaScript in the page: Eval a piece of code or Call a function. Web only.
 | `Call(Function AS STRING, [Args, …])` | Calls a global JavaScript function by name with the other arguments, and returns its result. |
 
 <a id="rwebstorage"></a>
-## RWEBSTORAGE
+## RWebStorage
 
 Keeps strings by key in the browser's localStorage or sessionStorage. Web only.
 
@@ -4396,7 +4396,7 @@ Keeps strings by key in the browser's localStorage or sessionStorage. Web only.
 | `HasKey(Key AS STRING)` | Returns true when the storage has a value under the key given. |
 
 <a id="rwebaudio"></a>
-## RWEBAUDIO
+## RWebAudio
 
 An HTML5 audio player: Src, Volume, Loop, Play, Pause, Seek. Web only.
 
@@ -4443,7 +4443,7 @@ An HTML5 audio player: Src, Volume, Loop, Play, Pause, Seek. Web only.
 | `OnTimeUpdate` | Fires as the audio or video's CurrentTime advances while it plays. |
 
 <a id="rwebvideo"></a>
-## RWEBVIDEO
+## RWebVideo
 
 An HTML5 video player on the form: Src, Volume, Play, Pause, Seek, FullScreen. Web only.
 
@@ -4493,7 +4493,7 @@ An HTML5 video player on the form: Src, Volume, Play, Pause, Seek, FullScreen. W
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 
 <a id="rwebnotification"></a>
-## RWEBNOTIFICATION
+## RWebNotification
 
 Shows the browser's notifications, once the user allows them (RequestPermission). Web only.
 
@@ -4508,7 +4508,7 @@ Shows the browser's notifications, once the user allows them (RequestPermission)
 | `RequestPermission` | Asks the user's permission to show notifications. |
 
 <a id="rwebgeolocation"></a>
-## RWEBGEOLOCATION
+## RWebGeolocation
 
 Reads the device's position (Latitude, Longitude, Accuracy) from the browser. Web only.
 
@@ -4526,7 +4526,7 @@ Reads the device's position (Latitude, Longitude, Accuracy) from the browser. We
 | `ClearWatch` | Stops the position watch WatchPosition started. |
 
 <a id="rrouter"></a>
-## RROUTER
+## RRouter
 
 Hash routes for single-page web apps: Navigate, Back, Forward and OnRouteChange. Web only.
 
@@ -4546,7 +4546,7 @@ Hash routes for single-page web apps: Navigate, Back, Forward and OnRouteChange.
 | `OnRouteChange` | Fires when the page's route (the URL's # part) changes, by Navigate, Back, Forward or the browser. |
 
 <a id="rpropertyinspector"></a>
-## RPROPERTYINSPECTOR
+## RPropertyInspector
 
 An object inspector in the style of Delphi's: the properties of a component (or of every component a designer has selected) as a two-column grid of names and values, by category or A to Z, with a search box and an editor for each kind of value — numbers, text, True / False, a list of constants, a set of flags, colours with a picker, fonts, pictures and files, lists of strings, a component reference, and a visual editor for the four Anchors. A value left at its default is shown dimmed and can be reset; RapidR's own members of a RapidQ component are grouped under "RapidR extensions". An Events page lists the component's events and the SUB each one runs.
 
@@ -4610,7 +4610,7 @@ An object inspector in the style of Delphi's: the properties of a component (or 
 | `OnSelect(Prop AS STRING)` | The selected row changed. |
 
 <a id="rtoolbox"></a>
-## RTOOLBOX
+## RToolbox
 
 The palette of components a form designer places, grouped under "RapidQ" (the components RapidQ has, shown with their Q names: QBUTTON) and "RapidR" (RapidR's own), each with its icon and the name the designer writes. The user searches it, double-clicks a component (or presses Enter) to add it, or drags it onto a designer. Templates — a component with preset properties — have a group of their own.
 
@@ -4657,7 +4657,7 @@ The palette of components a form designer places, grouped under "RapidQ" (the co
 | `OnDragDrop(Type AS STRING, Target AS STRING, X AS INTEGER, Y AS INTEGER)` | A dragged component was let go over component Target, the deepest one shown there on the toolbox's form (its name in lower case), at (X, Y) in Target's own pixels; over the bare form Target is "" and (X, Y) is in the form's client area. Let go over the toolbox itself, nothing is dropped. |
 
 <a id="rprojecttree"></a>
-## RPROJECTTREE
+## RProjectTree
 
 A project's files as a tree (an .rrproj project, or a .bas / .rr file and the files it includes), grouped by kind — forms with the components their CREATE blocks make, modules, includes, resources, assets, data — each with its icon. The user opens a file (double click or Enter), renames it in place (F2), drags it to reorder or into a folder, and deletes it after confirming; the program hears each change and does the work on the disk.
 
@@ -4719,7 +4719,7 @@ A project's files as a tree (an .rrproj project, or a .bas / .rr file and the fi
 | `OnNewFile(Path AS STRING, Kind AS STRING)` | NewFile added a file and the user named it. |
 
 <a id="routputconsole"></a>
-## ROUTPUTCONSOLE
+## ROutputConsole
 
 A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI sequences — with pages for the build log and the problems found. `file:line` places in the text and every problem are links; the user searches the text, and the oldest lines go past MaxLines.
 
@@ -4770,7 +4770,7 @@ A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI
 | `OnPageChange(Page AS STRING)` | The user showed another page. |
 
 <a id="rcommandpalette"></a>
-## RCOMMANDPALETTE
+## RCommandPalette
 
 A box of commands found by typing: Show opens it over the form, the user types a few letters of a command (in any order of its words, letters skipped), picks one with the arrows and Enter, and OnCommand says which. Each command shows its shortcut; the ones used last come first.
 
@@ -4811,7 +4811,7 @@ A box of commands found by typing: Show opens it over the form, the user types a
 | `OnCancel` | The user closed the palette without picking (Escape). |
 
 <a id="rproject"></a>
-## RPROJECT
+## RProject
 
 A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a .bas / .rr file with the files it $INCLUDEs, RapidQ's way. Lists the project's files and their kinds, adds and removes files, saves the project file, and makes new projects from templates. RapidR Studio is built on it.
 
@@ -4859,7 +4859,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `OnBuildDone(Code AS INTEGER, Path AS STRING)` | Build ended: Code 0 when it worked, and Path is what it made (the .app, .exe or AppDir). |
 
 <a id="rlanguageservice"></a>
-## RLANGUAGESERVICE
+## RLanguageService
 
 RapidR's language service, the one rapidr lsp and the VS Code extension use: a BASIC file's outline and its diagnostics (the compiler's own messages), as text one item a line, fields separated by tabs. Give it the editor's text with Update.
 
@@ -4876,7 +4876,7 @@ RapidR's language service, the one rapidr lsp and the VS Code extension use: a B
 | `Diagnostics(File AS STRING) AS STRING` | The file's errors and warnings, a line each: severity (error, warning, note), line, column (from 1), message, file, separated by tabs. |
 
 <a id="rprogramsession"></a>
-## RPROGRAMSESSION
+## RProgramSession
 
 A run of a program under development, as an IDE runs it: in its own process on the desktop (its forms real windows), in a sandboxed frame on the web. Start, stop, pause, step, breakpoints, evaluate; its output and its stops come as events.
 

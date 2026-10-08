@@ -88,7 +88,7 @@ pub fn open(path: &Path) -> Result<Opened, ProjectError> {
                 Project::from_toml(&text).map(Opened::Project)
             }
         }
-        "bas" | "rr" | "inc" => Project::implicit(path).map(Opened::Implicit),
+        "bas" | "rr" | "inc" | "rqw" | "rqb" | "rq" => Project::implicit(path).map(Opened::Implicit),
         _ => Err(ProjectError::UnsupportedFile(path.display().to_string())),
     }
 }

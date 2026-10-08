@@ -133,7 +133,8 @@ mod mac {
         // says where in RAPIDR_HOME, through its Info.plist's LSEnvironment)
         let has_ide = rapidr.parent().is_some_and(|d| d.join("../lib/rapidr/ide/rapidr-ide.rrbc").is_file())
             || std::env::var_os("RAPIDR_HOME").is_some_and(|h| PathBuf::from(h).join("ide/studio.rr").is_file());
-        let is_source = file.is_some_and(|f| f.extension().is_some_and(|e| e.eq_ignore_ascii_case("rr") || e.eq_ignore_ascii_case("bas")));
+        // (rapidr_preprocessor::SOURCE_EXTENSIONS: RapidR's and RapidQ's sources)
+        let is_source = file.is_some_and(|f| f.extension().and_then(|e| e.to_str()).is_some_and(|e| ["rr", "bas", "rqw", "rqb", "rq", "inc"].iter().any(|x| x.eq_ignore_ascii_case(e))));
         let mut cmd = Command::new(&rapidr);
         match file {
             Some(f) if has_ide && is_source => cmd.arg("ide").arg(f),

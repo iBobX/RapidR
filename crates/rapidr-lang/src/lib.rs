@@ -486,9 +486,26 @@ impl Component {
         self.property(name).is_some() || self.method(name).is_some() || self.event(name).is_some()
     }
 
-    /// The name the IDE writes for a new one: RapidQ's for RapidQ's
-    /// components (a RapidQ program stays one), RapidR's for its own
-    /// (docs/q-and-r-components.md §4).
+    /// How RapidR writes it: its R name in mixed case (`RButton`,
+    /// `RStringGrid`, `RDXScreen`), the preferred spelling everywhere —
+    /// docs, completion, hovers, the RapidQ importer
+    /// (docs/q-and-r-components.md §1). A component RapidR has no R name for
+    /// (an include library's TYPE, a planned one: `QDockForm`) and a global
+    /// object (`Screen`) as they are named.
+    pub fn spelling(&self) -> String {
+        self.pretty(self.name)
+    }
+
+    /// Its RapidQ name in mixed case (`QButton`), when RapidQ has it.
+    pub fn rapidq_spelling(&self) -> Option<String> {
+        self.rapidq.map(|q| self.pretty(q))
+    }
+
+    /// The name a RapidQ-style file is written with: RapidQ's for RapidQ's
+    /// components (upper case, as RapidQ's own programs write them), RapidR's
+    /// for its own. RapidR Studio's designer and toolbox write it until they
+    /// follow each file's own style (docs/ide-plan.md, R-NAMES phase 2);
+    /// everything else writes [`Component::spelling`].
     pub fn written_name(&self) -> &'static str {
         self.rapidq.unwrap_or(self.name)
     }
@@ -635,6 +652,14 @@ mod tests {
         assert!(resolve_component("QNOTHING").is_none());
         assert_eq!(b.written_name(), "QBUTTON");
         assert_eq!(component("RPLOT").unwrap().written_name(), "RPLOT");
+        assert_eq!(b.spelling(), "RButton");
+        assert_eq!(b.rapidq_spelling().as_deref(), Some("QButton"));
+        assert_eq!(component("QSTRINGGRID").unwrap().spelling(), "RStringGrid");
+        assert_eq!(component("QGAUGE").unwrap().spelling(), "RProgressBar");
+        assert_eq!(component("RPLOT").unwrap().spelling(), "RPlot");
+        assert_eq!(component("RPLOT").unwrap().rapidq_spelling(), None);
+        assert_eq!(component("QDOCKFORM").unwrap().spelling(), "QDockForm");
+        assert_eq!(global("screen").unwrap().spelling(), "Screen");
     }
 
     #[test]

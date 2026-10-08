@@ -369,7 +369,7 @@ impl Analysis {
     pub fn completions(&mut self, file: &Path, offset: usize) -> Completions {
         let Some(text) = self.text(file) else { return Completions::default() };
         let Some(s) = self.snapshot(file) else { return Completions::default() };
-        complete::completions(&s, file, &text, offset)
+        complete::completions(&s, file, &text, offset, self.options.rapidq_compatible)
     }
 
     pub fn hover(&mut self, file: &Path, offset: usize) -> Option<Hover> {

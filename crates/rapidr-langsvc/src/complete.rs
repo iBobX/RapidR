@@ -12,7 +12,7 @@ use crate::context::{self, line_context, pretty_component, Place, Ty};
 use crate::model::{name_key, ScopeKind, SymbolKind};
 use crate::{Completion, CompletionKind, Completions, Snapshot};
 
-pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize) -> Completions {
+pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize, rapidq_compatible: bool) -> Completions {
     let lc = line_context(text, offset);
     let pre = s.pre_offset(file, lc.word_start).unwrap_or(0);
     let mut out = Out::default();
@@ -31,7 +31,7 @@ pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize) 
                 });
             }
         }
-        Place::AfterAs => types(s, &mut out),
+        Place::AfterAs => types(s, &mut out, rapidq_compatible),
         Place::Label => {
             let scope = s.model.scope_at(pre);
             for sym in &s.model.symbols {
@@ -138,10 +138,11 @@ pub(crate) fn with_notes(doc: &str, notes: &str) -> String {
     }
 }
 
-/// Types after `AS`: RapidQ's components under RapidQ's names, RapidR's
-/// own under RapidR's (docs/q-and-r-components.md), the program's TYPEs,
-/// the built-in types.
-fn types(s: &Snapshot, out: &mut Out) {
+/// Types after `AS`: the components under RapidR's names (`RButton`) —
+/// in a RapidQ-compatible project RapidQ's components under RapidQ's
+/// (`QButton`), which RapidQ's compiler knows — the program's TYPEs, the
+/// built-in types (docs/q-and-r-components.md).
+fn types(s: &Snapshot, out: &mut Out, rapidq_compatible: bool) {
     for t in rapidr_lang::TYPE_NAMES {
         out.push(Completion {
             label: t.name.to_string(),
@@ -160,11 +161,12 @@ fn types(s: &Snapshot, out: &mut Out) {
     }
     // (RapidQ's components RapidR doesn't have yet aren't offered)
     for c in rapidr_lang::COMPONENTS.iter().filter(|c| c.kind != Kind::Planned) {
-        let label = pretty_component(c.written_name());
-        let detail = match (c.rapidq, c.from) {
-            (Some(_), Some(inc)) => format!("RapidQ component from {inc} (RapidR: {})", pretty_component(c.name)),
-            (Some(_), None) => format!("RapidQ component (RapidR: {})", pretty_component(c.name)),
-            (None, _) => "RapidR component".to_string(),
+        let (label, detail) = match (c.rapidq_spelling(), c.from) {
+            (Some(q), _) if c.kind != Kind::Component => (q, format!("RapidQ's, from {}", c.from.unwrap_or("RapidQ"))),
+            (Some(q), _) if rapidq_compatible => (q, format!("RapidR name: {}", c.spelling())),
+            (Some(_), Some(inc)) => (c.spelling(), format!("RapidQ name: {} (from {inc})", c.written_name())),
+            (Some(_), None) => (c.spelling(), format!("RapidQ name: {}", c.written_name())),
+            (None, _) => (c.spelling(), "RapidR's own component".to_string()),
         };
         out.push(Completion {
             label,
@@ -187,8 +189,9 @@ pub(crate) fn component_doc(c: &Component) -> Option<String> {
         doc.push_str("\n\n");
     }
     match c.rapidq {
-        Some(q) => doc.push_str(&format!("RapidQ's **{}**, RapidR's **{}**: one component under two names.", pretty_component(q), pretty_component(c.name))),
-        None => doc.push_str(&format!("**{}** is RapidR's own (RapidQ doesn't have it).", pretty_component(c.name))),
+        Some(q) if c.kind == Kind::Component => doc.push_str(&format!("**{}** — RapidQ name: {q} (one component under two names).", c.spelling())),
+        Some(q) => doc.push_str(&format!("**{}**: RapidQ's {q}, under its RapidQ name.", c.spelling())),
+        None => doc.push_str(&format!("**{}** is RapidR's own (RapidQ doesn't have it).", c.spelling())),
     }
     let notes = compat::notes(Origin::RapidQ, Origin::RapidQ, c.kind == Kind::Planned, c.runtimes, c.from);
     if !notes.is_empty() {
@@ -238,7 +241,7 @@ pub(crate) fn members(s: &Snapshot, ty: &Ty, out: &mut Out, events_as_assignment
 }
 
 fn component_members(c: &Component, out: &mut Out, in_create: bool) {
-    let owner = pretty_component(c.written_name());
+    let owner = c.spelling();
     let doc = |text: &str, origin, runtimes, from| Some(with_notes(text, &compat::notes(origin, c.origin, false, runtimes, from)));
     // (what RapidR doesn't answer yet isn't offered; in a CREATE body,
     // what can be set)
@@ -305,7 +308,7 @@ fn names(s: &Snapshot, pre: usize, out: &mut Out) {
             SymbolKind::Sub | SymbolKind::Function | SymbolKind::External => {
                 context::routine_statement(&s.parsed.program, &sym.name).map(crate::signature::routine_label).map(|(l, _)| l)
             }
-            SymbolKind::Component => sym.ty.as_deref().map(|t| pretty_component(rapidr_lang::resolve_component(t).map_or(t, |c| c.written_name()))),
+            SymbolKind::Component => sym.ty.as_deref().map(|t| rapidr_lang::resolve_component(t).map_or_else(|| pretty_component(t), |c| c.spelling())),
             _ => sym.ty.as_ref().map(|t| format!("AS {t}")),
         };
         out.push(simple(&sym.name, kind, detail, sort));

@@ -42,6 +42,10 @@ pub struct ToolsParse {
     pub preprocessor_diagnostics: usize,
     /// Each file of `preprocessed.origins.files` (same index), lossless.
     pub files: Vec<LosslessFile>,
+    /// The tokens the parser read as type names (`AS QBUTTON`, `EXTENDS
+    /// QFORM`), as spans of the preprocessed text, in order
+    /// ([`crate::parse_tokens_with_type_names`]).
+    pub type_names: Vec<TextSpan>,
 }
 
 /// A span of a source file.
@@ -120,7 +124,7 @@ pub fn parse_source_for_tools(source: &str, base_dir: impl AsRef<Path>, file_pat
 
 fn finish(preprocessed: PreprocessResult, errors: Vec<rapidr_preprocessor::PreprocessError>, label: Option<String>) -> ToolsParse {
     let (tokens, lex_errors) = Lexer::new(&preprocessed.source, label).tokenize_recovering();
-    let (program, parse_diagnostics) = crate::parse_tokens_recovering(&tokens);
+    let (program, parse_diagnostics, type_names) = crate::parse_tokens_with_type_names(&tokens);
     let mut diagnostics: Vec<Diagnostic> = errors.into_iter().map(|e| e.diagnostic).collect();
     let preprocessor_diagnostics = diagnostics.len();
     diagnostics.extend(lex_errors.into_iter().map(|e| e.diagnostic));
@@ -131,5 +135,5 @@ fn finish(preprocessed: PreprocessResult, errors: Vec<rapidr_preprocessor::Prepr
         .iter()
         .map(|f| LosslessFile::lex_with_line_kinds(&f.text, &f.lines, f.path.as_ref().map(|p| p.display().to_string())))
         .collect();
-    ToolsParse { preprocessed, tokens, program, diagnostics, preprocessor_diagnostics, files }
+    ToolsParse { preprocessed, tokens, program, diagnostics, preprocessor_diagnostics, files, type_names }
 }

@@ -180,6 +180,18 @@ impl PpState {
     }
 }
 
+/// The extensions of BASIC source files, without the dot: RapidR's `.rr`,
+/// `.bas`, RapidQ's window programs (`.rqw`), libraries of functions
+/// (`.rqb`) and of TYPEs (`.rq`), and include files (`.inc`). Each is a
+/// program `rapidr run` / `build` / `build-bc` take, and a file `$INCLUDE`
+/// reads (an include may have any extension).
+pub const SOURCE_EXTENSIONS: &[&str] = &["rr", "bas", "rqw", "rqb", "rq", "inc"];
+
+/// Whether `path` has one of [`SOURCE_EXTENSIONS`] (any case).
+pub fn is_source_path(path: &Path) -> bool {
+    path.extension().and_then(|e| e.to_str()).is_some_and(|e| SOURCE_EXTENSIONS.iter().any(|x| x.eq_ignore_ascii_case(e)))
+}
+
 /// Reads a source file. RapidQ programs are usually Windows-1252 (ANSI), not
 /// UTF-8; bytes that aren't valid UTF-8 are decoded as Windows-1252.
 pub fn read_source(path: &Path) -> std::io::Result<String> {
@@ -1086,6 +1098,12 @@ fn builtin_include(include_file: &str) -> Option<String> {
             .collect::<Vec<_>>()
             .join(" : "),
     )
+}
+
+/// What `$INCLUDE "RAPIDQ.INC"` gives when no such file is found: the
+/// constants of [`RAPIDQ_INC_CONSTANTS`], as one line of BASIC.
+pub fn rapidq_inc_text() -> String {
+    builtin_include("RAPIDQ.INC").unwrap_or_default()
 }
 
 fn strip_inline_comment(input: &str) -> &str {

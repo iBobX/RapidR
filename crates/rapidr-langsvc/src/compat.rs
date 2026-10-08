@@ -7,8 +7,9 @@
 //! - in a RapidQ-compatible project: RapidR's extensions, which RapidQ's
 //!   compiler refuses — components, members of RapidQ's components,
 //!   builtins, statements, directives, types and constants of RapidR's
-//!   origin — and Q-prefixed names RapidQ doesn't have (`QPLOT`: RapidR
-//!   reads it as RPLOT), with a fix.
+//!   origin — Q-prefixed names RapidQ doesn't have (`QPLOT`: RapidR
+//!   reads it as RPLOT) and RapidR's names of RapidQ's components
+//!   (`RButton`: RapidQ's compiler knows QBUTTON), with fixes.
 //!
 //! The file is read as the compiler's lexer reads it (the parser for
 //! tools' lossless tokens); names are resolved by the compiler's model.
@@ -27,6 +28,7 @@ use crate::{CodeAction, FileDiagnostic, Snapshot, TextEdit};
 
 pub(crate) const RAPIDR_ONLY: &str = "rapidr-only";
 pub(crate) const NOT_RAPIDQ_NAME: &str = "not-a-rapidq-name";
+pub(crate) const RAPIDR_NAME: &str = "rapidr-name";
 pub(crate) const NOT_IMPLEMENTED: &str = "not-implemented";
 pub(crate) const ONE_RUNTIME: &str = "one-runtime";
 
@@ -201,15 +203,20 @@ impl Checker<'_> {
             self.not_implemented(start, end, shown.clone());
         } else if written.starts_with('Q') && !is_rapidq_name {
             if self.compat {
-                self.push(start, end, Severity::Warning, NOT_RAPIDQ_NAME, format!("RapidQ has no {written}: RapidR reads it as {}", pretty_component(c.name)));
+                self.push(start, end, Severity::Warning, NOT_RAPIDQ_NAME, format!("RapidQ has no {written}: RapidR reads it as {}", c.spelling()));
             }
+        } else if self.compat && c.origin == Origin::RapidQ && c.kind == Kind::Component && !is_rapidq_name {
+            // (`RBUTTON` in a RapidQ-compatible project: RapidQ's compiler
+            // knows the component by its RapidQ name only)
+            let q = c.rapidq.unwrap_or(c.name);
+            self.push(start, end, Severity::Warning, RAPIDR_NAME, format!("{shown} is RapidR's name: RapidQ's compiler knows it as {q}"));
         } else if c.origin == Origin::RapidR && self.compat {
             self.push(
                 start,
                 end,
                 Severity::Warning,
                 RAPIDR_ONLY,
-                format!("{} is RapidR's own component: RapidQ doesn't have it (this project is RapidQ-compatible)", pretty_component(c.name)),
+                format!("{} is RapidR's own component: RapidQ doesn't have it (this project is RapidQ-compatible)", c.spelling()),
             );
         }
         self.one_runtime(start, end, shown, c.runtimes);
@@ -248,7 +255,8 @@ impl Checker<'_> {
         } else {
             return;
         };
-        let owner = if c.kind == Kind::Global { c.name.to_string() } else { pretty_component(c.written_name()) };
+        // (in a RapidQ-compatible project, under RapidQ's name)
+        let owner = if self.compat { c.rapidq_spelling().unwrap_or_else(|| c.spelling()) } else { c.spelling() };
         let what = format!("{owner}.{member}");
         let (start, end) = (t.span.start, t.span.end);
         if missing {
@@ -291,7 +299,7 @@ impl Checker<'_> {
 pub(crate) fn actions(diags: &[FileDiagnostic]) -> Vec<CodeAction> {
     let mut out = Vec::new();
     for d in diags {
-        if d.code.as_deref() == Some(NOT_RAPIDQ_NAME) {
+        if matches!(d.code.as_deref(), Some(NOT_RAPIDQ_NAME | RAPIDR_NAME)) {
             if let Some(name) = d.message.rsplit(' ').next() {
                 out.push(CodeAction {
                     title: format!("Write {name}"),

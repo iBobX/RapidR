@@ -21,6 +21,7 @@ members = [
     "crates/rapidr-launcher",
     "crates/rapidr-editor",
     "crates/rapidr-project",
+    "crates/rapidr-import",
     "crates/rapidr-session",
     "crates/rapidr-icons",
     "crates/rapidr-langsvc",
@@ -67,6 +68,7 @@ rapidr-ui-render = { path = "crates/rapidr-ui-render" }
 rapidr-ui-app = { path = "crates/rapidr-ui-app" }
 rapidr-ui-host-winit = { path = "crates/rapidr-ui-host-winit" }
 rapidr-project = { path = "crates/rapidr-project" }
+rapidr-import = { path = "crates/rapidr-import" }
 rapidr-session = { path = "crates/rapidr-session" }
 rapidr-bytecode = { path = "interpreter/rapidr-bytecode" }
 rapidr-vm = { path = "interpreter/rapidr-vm" }

@@ -436,7 +436,8 @@ pub fn kind_for_path(path: &str) -> FileKind {
         .is_some_and(|first| first.eq_ignore_ascii_case("assets"))
         && path.contains('/');
     match extension(&path).as_str() {
-        "rr" | "bas" => FileKind::Module,
+        // (RapidQ's `.rqw` window programs, `.rqb` / `.rq` libraries)
+        "rr" | "bas" | "rqw" | "rqb" | "rq" => FileKind::Module,
         "inc" => FileKind::Include,
         "ico" | "bmp" | "png" | "jpg" | "jpeg" | "gif" | "wav" | "mid" | "midi" | "avi" => {
             if in_assets {

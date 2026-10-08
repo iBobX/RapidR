@@ -10,6 +10,7 @@ use rapidr_preprocessor::{preprocess_file, PreprocessOptions};
 
 mod examples;
 mod home;
+mod import;
 mod lang;
 mod macos;
 mod launch;
@@ -21,7 +22,7 @@ use home::Home;
 
 /// The subcommands (a first argument that is one isn't a file).
 const SUBCOMMANDS: &[&str] = &[
-    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "__dialog",
+    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "import-rapidq", "upgrade-names", "__dialog",
 ];
 
 /// `--log <file> <command…>`: this rapidr again with the command, its
@@ -69,7 +70,7 @@ fn main() -> ExitCode {
         return run_logged(&args[1..]);
     }
 
-    // Shortcuts: `rapidr [--release|--debug] [--web] [--interp] <file.rr|.bas>`
+    // Shortcuts: `rapidr [--release|--debug] [--web] [--interp] <file.rr|.bas|.rqw|…>`
     // builds it; `rapidr <file.rrbc> [args]` and a `#!/usr/bin/env rapidr`
     // script (`rapidr script.rr [args]`) run it.
     if let Some(at) = args.iter().position(|a| !a.starts_with('-')) {
@@ -79,7 +80,7 @@ fn main() -> ExitCode {
         if !is_subcommand && (lower.ends_with(".rrbc") || is_script(&file)) {
             return launch::run(&file, args[at + 1..].to_vec(), launch::From::Command);
         }
-        if !is_subcommand && (lower.ends_with(".rr") || lower.ends_with(".bas")) {
+        if !is_subcommand && rapidr_preprocessor::is_source_path(Path::new(&lower)) {
             let mut release = true; // default to release
             let mut web = false;
             let mut interp = false;
@@ -121,6 +122,8 @@ fn main() -> ExitCode {
         (Some("setup"), _) => setup::setup(&args[1..]),
         (Some("notices"), _) => notices::command(&args[1..]),
         (Some("lang"), _) => lang::command(&args[1..]),
+        (Some("import-rapidq"), _) => import::import_rapidq(&args[1..]),
+        (Some("upgrade-names"), _) => import::upgrade_names(&args[1..]),
         (Some("__dialog"), Some(path)) => launch::run_dialog(&path),
         (Some("install-app"), Some(dir)) => package::install_app(Path::new(&dir)),
         (Some("lsp"), _) => rapidr_lsp::run_stdio(),
@@ -237,7 +240,7 @@ fn main() -> ExitCode {
             eprintln!("Usage:");
             eprintln!("  rapidr version");
             eprintln!("  rapidr --log <file> <command…>                     The command's output in a file");
-            eprintln!("  rapidr run <file.rrbc|.rr|.bas> [args]             Run a program (the RapidR Runtime)");
+            eprintln!("  rapidr run <file.rrbc|.rr|.bas|.rqw> [args]        Run a program (the RapidR Runtime)");
             eprintln!("  rapidr run --session <file> [args]               Run it under the IDE's session protocol (stdio)");
             eprintln!("  rapidr open <file> [args]                        Run it as opening it from the desktop does");
             eprintln!("  rapidr info <file>                               Its app type, format and the runtime it needs");
@@ -249,6 +252,8 @@ fn main() -> ExitCode {
             eprintln!("  rapidr dap                                       The debug adapter (DAP, stdio): editors' debugger");
             eprintln!("  rapidr lang export --json|--prompt|--web-ide|--manual|--all  What the language registry generates");
             eprintln!("  rapidr lang conformance <dir> [--target desktop|web]  The registry's conformance programs");
+            eprintln!("  rapidr import-rapidq <file|folder|.rrproj> [-o OUT_DIR] [--include DIR]  A copy of a RapidQ program with RapidR's names, and a report");
+            eprintln!("  rapidr upgrade-names <file> [--dry-run]          RapidR's names in one of your own files (--dry-run: the diff only)");
             eprintln!("  rapidr about");
             eprintln!("  rapidr [--release|--debug] [--web] [--interp] <file.rr>  Build source file");
             eprintln!("  rapidr parse <file.rr>");
