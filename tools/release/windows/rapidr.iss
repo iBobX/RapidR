@@ -137,7 +137,7 @@ Root: HKA; Subkey: "Software\Classes\RapidR.RapidQSource\shell\run"; ValueType: 
 Root: HKA; Subkey: "Software\Classes\RapidR.RapidQSource\shell\run\command"; ValueType: string; ValueName: ""; ValueData: """{app}\bin\rapidrw.exe"" ""%1"""
 #if Kind == "sdk"
 Root: HKA; Subkey: "Software\Classes\RapidR.RapidQSource\shell"; ValueType: string; ValueName: ""; ValueData: "open"
-Root: HKA; Subkey: "Software\Classes\RapidR.RapidQSource\shell\open"; ValueType: string; ValueName: ""; ValueData: "&Open in RapidR IDE"
+Root: HKA; Subkey: "Software\Classes\RapidR.RapidQSource\shell\open"; ValueType: string; ValueName: ""; ValueData: "&Open in RapidR Studio"
 Root: HKA; Subkey: "Software\Classes\RapidR.RapidQSource\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\bin\rapidrw.exe"" --ide ""%1"""
 #else
 Root: HKA; Subkey: "Software\Classes\RapidR.RapidQSource\shell"; ValueType: string; ValueName: ""; ValueData: "run"

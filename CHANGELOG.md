@@ -22,6 +22,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   **Visible** / **ShowHint** as check boxes, True for any non-zero value (a running program's form
   showed "-1").
 - Manual: building-apps.md "Build a web app".
+### Installers: RapidQ file types, leaner vendored sources (FINAL-PKG)
+- `.rqw`, `.rqb` and `.rq` open in RapidR Studio like `.bas` (macOS document type, Windows "Open with" and the
+  `basdefault` task, Linux MIME type); the Windows entry is named "Open in RapidR Studio".
+- The vendored crates the packages ship leave out their tests, benches, examples, test data and any prebuilt
+  `.dll`/`.exe`/`.so`/`.dylib` (`tools/release/home.py`); what the build compiles is unchanged.
 
 ### RapidR Studio speaks RapidR's names, and imports RapidQ programs (R-NAMES, phase 2)
 - **File ▸ Import RapidQ Project or File…** (and **Import RapidQ Folder…**): pick a RapidQ program
