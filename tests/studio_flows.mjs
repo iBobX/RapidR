@@ -12,7 +12,8 @@
 
 import { spawnSync } from "node:child_process";
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { createServer } from "node:http";
+import { dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
@@ -307,7 +308,34 @@ const CASES = [
     // (cargo checks the runner first: a minute on a busy machine)
     delay: 90,
     dump: { "proj.builtpath": /(Notes\.app|Notes\.AppDir|main\.exe)$/, "outputbox.text": /icon: .*note\.svg[\s\S]*Built .* \(interpreted\) in \d+ s/, "proj.building": /^0$/ },
-    webDump: { "outputbox.text": /Can't build: Build makes apps in RapidR Studio on the desktop/, "proj.builtpath": /^$/ },
+    webDump: { "outputbox.text": /Can't build: Build Native App and Build Interpreted App make apps in RapidR Studio on the desktop/, "proj.builtpath": /^$/ },
+  },
+  // Run > Build Web App: the program as a web app, <project>-web.zip (the
+  // desktop runs `rapidr build --web --interp`; the web page zips it itself
+  // and downloads it). The web case checks the download: its files, then
+  // the unzipped app served and run.
+  {
+    name: "build-web-app",
+    open: "tests/fixtures/studio_app/Notes.rrproj",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_app/Notes.rrproj", "tests/fixtures/studio_app/main.rr", "tests/fixtures/studio_app/note.svg"],
+    do: "run.buildWeb",
+    delay: 25,
+    dump: { "proj.builtpath": /Notes-web\.zip$/, "outputbox.text": /Web: .*Notes-web\.zip[\s\S]*Built Notes-web\.zip — unzip on any web host/, "proj.building": /^0$/ },
+    webDump: { "outputbox.text": /✓ Built Notes-web\.zip — unzip on any web host/, "proj.builtpath": /^Notes-web\.zip$/, "proj.building": /^0$/ },
+    web: (page, scale, record) => builtWebApp(page, record, "Notes-web.zip", ["main.rrbc"]),
+  },
+  // (an example with its data file: the CSV the program loads goes in the zip)
+  {
+    name: "build-web-app-data",
+    open: "examples/data/dataframe.rr",
+    copyDir: true,
+    webFiles: ["examples/data/dataframe.rr", "examples/data/staff.csv"],
+    do: "run.buildWeb",
+    delay: 25,
+    dump: { "proj.builtpath": /dataframe-web\.zip$/ },
+    webDump: { "outputbox.text": /✓ Built dataframe-web\.zip — unzip on any web host/ },
+    web: (page, scale, record) => builtWebApp(page, record, "dataframe-web.zip", ["dataframe.rrbc", "rapidr-assets.js"]),
   },
   // (NO-RUST) A computer without Rust (RAPIDR_NO_RUST=1 says so): Build
   // Native App asks first (prompts.inc) — Enter is Build Interpreted Instead
@@ -1086,6 +1114,7 @@ const CASES = [
     name: "run-with-data",
     open: "examples/data/dataframe.rr",
     copyDir: true,
+    copyDir: true,
     do: "run.start,wait,wait,wait",
     delay: 6,
     // (the desktop: its own process, which under the capture test ends
@@ -1624,6 +1653,54 @@ function parseDump(text, names) {
   return out;
 }
 
+// (Build Web App) The download the page made: sound, with the files a web
+// host needs; unzipped and served, the app runs.
+async function builtWebApp(page, record, zipName, wantFiles) {
+  const got = await Promise.all(page.__downloads || []);
+  record("", got.length === 1 && got[0].name === zipName, `Build Web App downloads ${zipName} (got: ${got.map((g) => g.name).join(", ") || "nothing"})`);
+  if (got.length !== 1) return;
+  const zip = got[0].path;
+  const t = spawnSync("unzip", ["-t", zip], { encoding: "utf8" });
+  record("", t.status === 0, "the zip is sound (unzip -t: every file's checksum)");
+  const names = spawnSync("unzip", ["-Z1", zip], { encoding: "utf8" }).stdout.split("\n").filter(Boolean);
+  const want = ["index.html", "loader.js", "rapidrintr.js", "rapidrintr_bg.wasm", "THIRD-PARTY-NOTICES.txt", "fonts/index.json", "_headers", ...wantFiles];
+  const missing = want.filter((n) => !names.includes(n));
+  record("", missing.length === 0, `the zip has the page, the runtime, the program's bytecode and its files (${names.length} files${missing.length ? "; missing: " + missing.join(", ") : ""})`);
+  const dir = join(WORK, "served-" + zipName.replace(/\W/g, ""));
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  spawnSync("unzip", ["-q", zip, "-d", dir]);
+  const html = existsSync(join(dir, "index.html")) ? readFileSync(join(dir, "index.html"), "utf8") : "";
+  record("", /Content-Security-Policy/.test(html) && /rapidr-program/.test(html), "its page carries the program's strict policy");
+  // (served as any static web host would, on a port of its own)
+  const types = { ".html": "text/html", ".js": "text/javascript", ".wasm": "application/wasm", ".json": "application/json", ".txt": "text/plain" };
+  const server = createServer((req, res) => {
+    const path = join(dir, decodeURIComponent(new URL(req.url, "http://x").pathname).replace(/\.\.+/g, ""));
+    if (!existsSync(path) || !path.startsWith(dir) || path === dir) {
+      res.writeHead(404).end();
+      return;
+    }
+    res.writeHead(200, { "content-type": types[extname(path)] || "application/octet-stream" }).end(readFileSync(path));
+  });
+  await new Promise((r) => server.listen(0, "127.0.0.1", r));
+  const app = await page.context().newPage();
+  const errors = [];
+  app.on("pageerror", (e) => errors.push(e.message));
+  try {
+    await app.goto(`http://127.0.0.1:${server.address().port}/index.html`, { waitUntil: "load" });
+    await app.waitForFunction(() => document.getElementById("rapidr-status")?.textContent === "" && document.querySelector(".rr-kwin"), null, { timeout: 60000, polling: 200 });
+    await app.waitForTimeout(500);
+    await app.screenshot({ path: join(WORK, zipName.replace(/\.zip$/, "") + "-served.png") });
+    record("", errors.length === 0, `the unzipped app runs from a web server: its window is on the page${errors.length ? " (errors: " + errors.join("; ") + ")" : ""}`);
+  } catch (e) {
+    const status = await app.evaluate(() => document.getElementById("rapidr-status")?.textContent).catch(() => "");
+    record("", false, `the unzipped app runs from a web server (${e.message.split("\n")[0]}; page says: ${status})`);
+  } finally {
+    await app.close();
+    server.close();
+  }
+}
+
 async function runWeb(browser, c, scale = 1, record = () => {}) {
   const opts = { viewport: c.viewport || { width: 1920, height: 1080 }, deviceScaleFactor: scale };
   if (!c.restart) return runWebPage(await browser.newContext(opts), c, true, scale, record);
@@ -1637,6 +1714,9 @@ async function runWebPage(ctx, c, last, scale, record) {
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
+  // (what the page offers as downloads: Build Web App's zip)
+  page.__downloads = [];
+  page.on("download", (d) => page.__downloads.push((async () => ({ name: d.suggestedFilename(), path: await d.path() }))()));
   try {
     const files = (c.webFiles || []).map((f) => ({ path: f, text: readFileSync(join(ROOT, f), "utf8") }));
     await page.addInitScript((files) => { window.RAPIDR_STUDIO_TEST_FILES = files; }, files);
@@ -1659,7 +1739,8 @@ async function runWebPage(ctx, c, last, scale, record) {
     if (!c.maximized) q.set("window", "normal");
     // (the program's files are in the page's store: imported from there;
     // {dir}: the case's own folder in the page's store)
-    const steps = c.do ? c.do.replaceAll("{dir}", `/flows/${c.name}`) : "";
+    const doSteps = c.webDo ?? c.do;
+    const steps = doSteps ? doSteps.replaceAll("{dir}", `/flows/${c.name}`) : "";
     if (c.importFrom) q.set("do", `import:${c.importFrom}` + (steps ? "," + steps : ""));
     else if (steps) q.set("do", steps);
     if (c.open) q.set("open", c.open);

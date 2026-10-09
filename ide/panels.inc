@@ -40,6 +40,8 @@ SUB BuildToolBar
   AddTool "edit.cut": AddTool "edit.copy": AddTool "edit.paste": AddTool "edit.find"
   ToolBar.AddSeparator
   AddTool "run.start": AddTool "run.withoutDebugging": AddTool "run.pause": AddTool "run.stop": AddTool "run.build"
+  ' (the web's Build is Build Web App: the desktop's Build row isn't there)
+  IF Proj.FileManager = "" THEN AddTool "run.buildWeb"
   ToolBar.AddSeparator
   AddTool "debug.stepInto": AddTool "debug.stepOver": AddTool "debug.stepOut": AddTool "debug.toggleBreakpoint"
   ToolBar.AddSeparator

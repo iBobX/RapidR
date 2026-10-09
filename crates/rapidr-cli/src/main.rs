@@ -544,7 +544,7 @@ fn build_source_file(
         }
         // Bytecode pipeline: skip Rust codegen entirely.
         return if is_web {
-            build_interp_web(path, &out.dir, csp.as_deref())
+            build_interp_web(path, &out.dir, csp.as_deref(), app.project.as_deref())
         } else {
             build_interp_desktop(path, &out.dir, release, target, plan.as_ref().expect("a desktop build's app"))
         };
@@ -1253,10 +1253,11 @@ fn build_interp_desktop(
 }
 
 /// `rapidr build --web --interp <file.rr>` — compile to bytecode and
-/// emit a static web bundle (`<stem>-web.zip`). Delegates to the same
-/// pipeline as `bundle-bc`.
-fn build_interp_web(path: &str, out_dir: &Path, csp: Option<&str>) -> ExitCode {
-    let stem = Path::new(path)
+/// emit a static web bundle (`<name>-web.zip`: `name` is the project's
+/// file's name (`--project`), else the program's). Delegates to the same
+/// pipeline as `bundle-bc`; the line "Web: <zip>" says what it made.
+fn build_interp_web(path: &str, out_dir: &Path, csp: Option<&str>, project: Option<&str>) -> ExitCode {
+    let stem = Path::new(project.unwrap_or(path))
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("program")
@@ -1266,7 +1267,11 @@ fn build_interp_web(path: &str, out_dir: &Path, csp: Option<&str>) -> ExitCode {
         return ExitCode::from(1);
     }
     let out_path = out_dir.join(format!("{stem}-web.zip"));
-    bundle_bc_file(path, Some(out_path.to_string_lossy().into_owned()), None, None, csp)
+    let code = bundle_bc_file(path, Some(out_path.to_string_lossy().into_owned()), None, None, csp);
+    if code == ExitCode::SUCCESS {
+        println!("Web: {}", out_path.display());
+    }
+    code
 }
 
 /// The runner stub `--interp` executables start from: `rapidrintr-runner`,
@@ -1345,7 +1350,7 @@ fn collect_assets(source_path: &Path) -> std::collections::HashMap<String, Strin
                 if asset_exts.contains(&ext_lower.as_str()) {
                     if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
                         if let Ok(bytes) = fs::read(&path) {
-                            let mime = mime_type_from_ext(&ext_lower);
+                            let mime = rapidr_webbundle::mime_for(filename);
                             let encoded_base64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
                             let data_url = format!("data:{};base64,{}", mime, encoded_base64);
                             assets.insert(filename.to_string(), data_url);
@@ -1356,18 +1361,4 @@ fn collect_assets(source_path: &Path) -> std::collections::HashMap<String, Strin
         }
     }
     assets
-}
-
-fn mime_type_from_ext(ext: &str) -> &'static str {
-    match ext {
-        "png" => "image/png",
-        "jpg" | "jpeg" => "image/jpeg",
-        "gif" => "image/gif",
-        "bmp" => "image/bmp",
-        "csv" => "text/csv",
-        "txt" => "text/plain",
-        "wav" => "audio/wav",
-        "mp3" => "audio/mpeg",
-        _ => "application/octet-stream",
-    }
 }

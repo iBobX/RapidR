@@ -54,6 +54,14 @@ pub trait Host: Copy + 'static {
     fn rapidr(self) -> Option<std::path::PathBuf> {
         None
     }
+    /// Makes `program` (its main file) a web app, `<stem>-web.zip`, for
+    /// component `name`: the web page's own build (the desktop runs
+    /// `rapidr build --web --interp`). Returns at once; the build's lines and
+    /// its end come back through [`build::web_output`] and
+    /// [`build::web_done`].
+    fn build_web(self, _name: &str, _program: &str, _stem: &str) -> Result<(), String> {
+        Err("Build Web App is RapidR Studio's (on the web, and on the desktop with `rapidr`)".into())
+    }
     /// Shows `path` selected in the system's file manager (Finder,
     /// Explorer, the Linux one): RPROJECT.Reveal.
     fn reveal(self, _path: &str) -> Result<(), String> {

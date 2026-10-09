@@ -358,7 +358,130 @@ window.RAPIDR_STUDIO_HOST = {
     closeFrame();
     if (had && window.rr) window.rr.studio_session_ended(0);
   },
+  // Run > Build Web App (.zip): the program's own files (its page with its
+  // policy, the loader, the bytecode, its data files: made by the runtime
+  // from the same template the CLI's `rapidr bundle-bc` uses) with the web
+  // runtime, the notices and the fonts (beside this page, in runtime/),
+  // zipped here and offered as a download. The log and the end go back to
+  // the runtime (studio_build_output / studio_build_done), never inside this
+  // call.
+  buildWeb(name, zipName, pageFiles) {
+    buildWebApp(name, zipName, pageFiles);
+  },
 };
+
+async function buildWebApp(name, zipName, pageFiles) {
+  await null;
+  const out = (line) => window.rr.studio_build_output(name, line);
+  const get = async (path, what) => {
+    const r = await fetch(new URL("runtime/" + path, location.href));
+    if (!r.ok) throw new Error(what + " (" + path + "): " + r.status);
+    return new Uint8Array(await r.arrayBuffer());
+  };
+  try {
+    out("Building " + zipName + ": the program's bytecode with the web runtime");
+    const files = pageFiles.map(([n, b]) => [n, b]);
+    const [js, wasm, notices, fontIndex] = await Promise.all([
+      get("rapidrintr.js", "the runtime"), get("rapidrintr_bg.wasm", "the runtime"),
+      get("THIRD-PARTY-NOTICES.txt", "the notices"), get("fonts/index.json", "the fonts"),
+    ]);
+    files.push(["rapidrintr.js", js], ["rapidrintr_bg.wasm", wasm], ["THIRD-PARTY-NOTICES.txt", notices], ["fonts/index.json", fontIndex]);
+    // (the fonts the index names, plain file names only, and their licence)
+    const chunks = new Set(JSON.parse(new TextDecoder().decode(fontIndex)).chunks.map((c) => c.file));
+    chunks.add("OFL.txt");
+    for (const f of chunks) {
+      if (typeof f !== "string" || !/^[\w.-]+$/.test(f) || f.includes("..")) throw new Error("a font file named " + f);
+    }
+    await Promise.all([...chunks].map(async (f) => files.push(["fonts/" + f, await get("fonts/" + f, "a font")])));
+    const blob = zipStored(files);
+    for (const [n] of pageFiles) out("  " + n);
+    out("  + the runtime, the notices and " + chunks.size + " font files");
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = zipName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    out("Saved " + zipName + " (" + (blob.size / 1048576).toFixed(1) + " MB) to the browser's downloads");
+    window.rr.studio_build_done(name, 0, zipName);
+  } catch (e) {
+    out("\x1b[31m" + ((e && e.message) || e) + "\x1b[0m");
+    window.rr.studio_build_done(name, 1, "");
+  }
+}
+
+// ---- a .zip, stored (no compression, no dependency) -----------------------
+// files: [name, Uint8Array]. Local headers, the data, the central directory,
+// the end record; names UTF-8. The sizes stay far below 4 GB, so no zip64.
+
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+function zipStored(files) {
+  const enc = new TextEncoder();
+  const now = new Date();
+  const time = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+  const date = ((Math.max(now.getFullYear(), 1980) - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  const parts = [];
+  const central = [];
+  let offset = 0;
+  for (const [name, data] of files) {
+    const nameBytes = enc.encode(name);
+    const crc = crc32(data);
+    const local = new DataView(new ArrayBuffer(30));
+    local.setUint32(0, 0x04034b50, true);
+    local.setUint16(4, 20, true);
+    local.setUint16(6, 0x0800, true); // (UTF-8 names)
+    local.setUint16(8, 0, true); // (stored)
+    local.setUint16(10, time, true);
+    local.setUint16(12, date, true);
+    local.setUint32(14, crc, true);
+    local.setUint32(18, data.length, true);
+    local.setUint32(22, data.length, true);
+    local.setUint16(26, nameBytes.length, true);
+    local.setUint16(28, 0, true);
+    parts.push(local.buffer, nameBytes, data);
+    const entry = new DataView(new ArrayBuffer(46));
+    entry.setUint32(0, 0x02014b50, true);
+    entry.setUint16(4, 20, true);
+    entry.setUint16(6, 20, true);
+    entry.setUint16(8, 0x0800, true);
+    entry.setUint16(10, 0, true);
+    entry.setUint16(12, time, true);
+    entry.setUint16(14, date, true);
+    entry.setUint32(16, crc, true);
+    entry.setUint32(20, data.length, true);
+    entry.setUint32(24, data.length, true);
+    entry.setUint16(28, nameBytes.length, true);
+    entry.setUint32(42, offset, true);
+    central.push(entry.buffer, nameBytes);
+    offset += 30 + nameBytes.length + data.length;
+  }
+  let size = 0;
+  for (const c of central) size += c.byteLength;
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true);
+  end.setUint16(8, files.length, true);
+  end.setUint16(10, files.length, true);
+  end.setUint32(12, size, true);
+  end.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, end.buffer], { type: "application/zip" });
+}
 
 main().catch((e) => {
   console.error(e);

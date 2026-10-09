@@ -95,6 +95,9 @@ pub fn format_value_as(ty: Type, typed: &str, was: Option<&str>) -> String {
     let t = typed.trim();
     match ty {
         Type::String | Type::Picture | Type::Resource if !(t.starts_with('"') && t.ends_with('"') && t.len() >= 2) => super::value::write_str(typed),
+        // (an INTEGER that is a Boolean — a form's Enabled: the inspector's
+        // check box types True or False)
+        Type::Int if matches!(t.to_ascii_lowercase().as_str(), "true" | "false") => format_value_as(Type::Bool, typed, was),
         Type::Bool => {
             let words = was.is_some_and(|w| matches!(w.trim().to_ascii_lowercase().as_str(), "true" | "false"));
             match t.to_ascii_lowercase().as_str() {
@@ -268,6 +271,8 @@ mod tests {
         assert_eq!(d.node(b1).unwrap().int("anchors"), Some(7));
         assert_eq!(format_value(Type::Bool, "yes"), "1");
         assert_eq!(format_value(Type::Bool, "False"), "0");
+        assert_eq!(format_value(Type::Int, "True"), "1", "a Boolean kept as an INTEGER");
+        assert_eq!(format_value(Type::Int, "42"), "42");
         assert_eq!(format_value_as(Type::Bool, "1", Some("False")), "True", "a line in words keeps them");
         // a font's parts, each as its type
         for (part, typed, written) in [("Font.Name", "Arial", "\"Arial\""), ("Font.Size", "12", "12"), ("Font.Bold", "True", "1"), ("Font.Color", "clBlue", "clBlue")] {

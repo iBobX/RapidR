@@ -3983,6 +3983,7 @@ dependencies = [
  "rapidr-ui-kernel",
  "rapidr-ui-render",
  "rapidr-value",
+ "rapidr-webbundle",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",

@@ -1063,6 +1063,24 @@ pub fn studio_session_incoming(json: &str) {
     run_idle_events();
 }
 
+/// (RapidR Studio's page) A line of Build Web App's log, for component
+/// `name` (its `OnBuildOutput`).
+#[wasm_bindgen]
+pub fn studio_build_output(name: &str, line: &str) {
+    rapidr_runtime_web::rapidr_studio::build::web_output(name, line);
+    rapidr_runtime_web::studio_web::poll();
+    run_idle_events();
+}
+
+/// (RapidR Studio's page) Build Web App ended: `code` 0 is made (`made`: the
+/// file; its `OnBuildDone`).
+#[wasm_bindgen]
+pub fn studio_build_done(name: &str, code: i32, made: &str) {
+    rapidr_runtime_web::rapidr_studio::build::web_done(name, code, made);
+    rapidr_runtime_web::studio_web::poll();
+    run_idle_events();
+}
+
 /// (RapidR Studio's page) The program's frame ended (closed, or it failed
 /// to start).
 #[wasm_bindgen]

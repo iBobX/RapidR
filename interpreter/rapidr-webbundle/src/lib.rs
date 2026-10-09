@@ -30,8 +30,10 @@ pub mod csp;
 pub mod escape;
 
 use std::collections::HashMap;
+#[cfg(feature = "zip")]
 use std::io::{Cursor, Write};
 
+#[cfg(feature = "zip")]
 use zip::{write::FileOptions, CompressionMethod, ZipWriter};
 
 pub use csp::{content_security_policy, header_policy, WebNeeds};
@@ -95,48 +97,76 @@ pub const WEBVIEW_FRAME_HTML: &str = include_str!("../web/rapidr-webview.html");
 /// The project's files, for the runtime (`window.__rapidr_assets`).
 pub const ASSETS_FILE: &str = "rapidr-assets.js";
 
-/// The bundle's files, by name (what [`build_bundle`] zips; `rapidr serve`
-/// serves them from memory).
-pub fn bundle_files(inputs: &BundleInputs<'_>) -> Result<Vec<(String, Vec<u8>)>, String> {
+/// The files that are the program's own, by name: its page (with its
+/// policy), the loader, the bytecode, the project's files, the console, the
+/// RWEBVIEW frame and the hosts' configuration. [`bundle_files`] adds the
+/// runtime, the notices and the fonts; RapidR Studio on the web has those
+/// beside its own page and adds them itself.
+pub fn page_files(project_name: &str, rrbc: &[u8], title: Option<&str>, assets: Option<&HashMap<String, String>>, needs: &WebNeeds) -> Vec<(String, Vec<u8>)> {
     let mut out: Vec<(String, Vec<u8>)> = Vec::new();
     let mut add = |name: &str, data: &[u8]| out.push((name.to_string(), data.to_vec()));
-    let title = inputs.title.unwrap_or(inputs.project_name);
-    let rrbc_name = format!("{}.rrbc", escape::file_name(inputs.project_name));
-    let assets = inputs.assets.filter(|a| !a.is_empty());
-    let html = render_index_html(title, &rrbc_name, assets.is_some(), inputs.needs);
+    let title = title.unwrap_or(project_name);
+    let rrbc_name = format!("{}.rrbc", escape::file_name(project_name));
+    let assets = assets.filter(|a| !a.is_empty());
+    let html = render_index_html(title, &rrbc_name, assets.is_some(), needs);
 
     add("index.html", html.as_bytes());
     add("loader.js", LOADER_JS.as_bytes());
+    add(&rrbc_name, rrbc);
+    if let Some(assets) = assets {
+        add(ASSETS_FILE, render_assets_js(assets).as_bytes());
+    }
+    add("bundle_console.js", BUNDLE_CONSOLE_JS.as_bytes());
+    add("ansi_screen.js", ANSI_SCREEN_JS.as_bytes());
+    add(WEBVIEW_FRAME_FILE, WEBVIEW_FRAME_HTML.as_bytes());
+    for (name, text) in host_config_files(needs) {
+        add(name, text.as_bytes());
+    }
+    out
+}
+
+/// The bundle's files, by name (what [`build_bundle`] zips; `rapidr serve`
+/// serves them from memory).
+pub fn bundle_files(inputs: &BundleInputs<'_>) -> Result<Vec<(String, Vec<u8>)>, String> {
+    let mut out = page_files(inputs.project_name, inputs.rrbc, inputs.title, inputs.assets, inputs.needs);
+    let mut add = |name: &str, data: &[u8]| out.push((name.to_string(), data.to_vec()));
     add("rapidrintr.js", inputs.rapidrintr_js.as_bytes());
     // wasm-bindgen's generated `rapidrintr.js` expects to fetch
     // `rapidrintr_bg.wasm` (the conventional `_bg` suffix), so we
     // ship the binary under that name even though the build script
     // produces it as `rapidrintr.wasm`.
     add("rapidrintr_bg.wasm", inputs.rapidrintr_wasm);
-    add(&rrbc_name, inputs.rrbc);
-    if let Some(assets) = assets {
-        add(ASSETS_FILE, render_assets_js(assets).as_bytes());
-    }
     // The bundle redistributes RapidR's runtime: its licence and the
     // open-source notices travel with it.
     if inputs.notices.trim().is_empty() {
         return Err(format!("{NOTICES_FILE} is empty: a bundle isn't shipped without its notices"));
     }
     add(NOTICES_FILE, inputs.notices.as_bytes());
-    add("bundle_console.js", BUNDLE_CONSOLE_JS.as_bytes());
-    add("ansi_screen.js", ANSI_SCREEN_JS.as_bytes());
-    add(WEBVIEW_FRAME_FILE, WEBVIEW_FRAME_HTML.as_bytes());
-    for (name, text) in host_config_files(inputs.needs) {
-        add(name, text.as_bytes());
-    }
     for (name, data) in inputs.fonts {
         add(&format!("fonts/{}", escape::file_name(name)), data);
     }
     Ok(out)
 }
 
+/// A file's media type from its name, for the data URL a project's file is
+/// kept under (`rapidr-assets.js`).
+pub fn mime_for(name: &str) -> &'static str {
+    match name.rsplit('.').next().map(str::to_ascii_lowercase).as_deref() {
+        Some("png") => "image/png",
+        Some("jpg" | "jpeg") => "image/jpeg",
+        Some("gif") => "image/gif",
+        Some("bmp") => "image/bmp",
+        Some("csv") => "text/csv",
+        Some("txt") => "text/plain",
+        Some("wav") => "audio/wav",
+        Some("mp3") => "audio/mpeg",
+        _ => "application/octet-stream",
+    }
+}
+
 /// Build the ZIP bytes: [`bundle_files`], the binaries stored, the text
 /// deflated.
+#[cfg(feature = "zip")]
 pub fn build_bundle(inputs: &BundleInputs<'_>) -> Result<Vec<u8>, String> {
     let files = bundle_files(inputs)?;
     let mut buf = Cursor::new(Vec::<u8>::new());
@@ -153,6 +183,7 @@ pub fn build_bundle(inputs: &BundleInputs<'_>) -> Result<Vec<u8>, String> {
     Ok(buf.into_inner())
 }
 
+#[cfg(feature = "zip")]
 fn write_file<W: Write + std::io::Seek>(
     zw: &mut ZipWriter<W>,
     name: &str,
@@ -324,6 +355,22 @@ mod tests {
         }
     }
 
+    #[test]
+    fn the_pages_own_files_are_the_programs() {
+        let needs = WebNeeds::default();
+        let mut assets = HashMap::new();
+        assets.insert("data.csv".to_string(), format!("data:{};base64,YQ==", mime_for("data.CSV")));
+        let files = page_files("demo", b"RRBC", None, Some(&assets), &needs);
+        let names: Vec<&str> = files.iter().map(|(n, _)| n.as_str()).collect();
+        for want in ["index.html", "loader.js", "demo.rrbc", "rapidr-assets.js", "bundle_console.js", "ansi_screen.js", "rapidr-webview.html", "_headers", ".htaccess"] {
+            assert!(names.contains(&want), "missing {want} in {names:?}");
+        }
+        // (the runtime, the notices and the fonts are the bundle's)
+        assert!(!names.contains(&"rapidrintr_bg.wasm") && !names.contains(&NOTICES_FILE), "{names:?}");
+        assert_eq!(mime_for("a.csv"), "text/csv");
+    }
+
+    #[cfg(feature = "zip")]
     #[test]
     fn bundle_contains_expected_entries() {
         let needs = WebNeeds::default();

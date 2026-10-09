@@ -46,6 +46,9 @@ impl Kind {
             (_, Some("file")) => Kind::File { picture: false },
             (_, Some("picture")) => Kind::File { picture: true },
             (T::String | T::Any, Some(e)) => Kind::Editor(e.to_string()),
+            // (RapidQ declares these as INTEGERs, set to 1 or -1 and 0: they are
+            // Booleans — a check box that shows any non-zero as True)
+            (T::Int, _) if matches!(p.name, "Enabled" | "Visible" | "ShowHint") => Kind::Bool,
             (T::Int, _) => Kind::Int,
             (T::Float, _) => Kind::Float,
             (T::String | T::Any, _) => Kind::Text,
