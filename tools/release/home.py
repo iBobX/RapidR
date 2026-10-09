@@ -261,6 +261,7 @@ def stub_unneeded(vendor, needed):
 # source file of the crate includes it (include_str! and friends).
 DROP_DIRS = {"tests", "test-data", "testdata", "test_data", "benches", "fuzz"}
 # (examples/ stays: a crate's docs may include_str! them, as winnow's do)
+INCLUDE_ANY = re.compile(r"\binclude(?:_str|_bytes)?!")
 INCLUDE_RE = re.compile(r'include(?:_str|_bytes)?!\s*\(\s*"([^"]+)"')
 DROP_SUFFIXES = (".dll", ".exe", ".so", ".dylib", ".lib", ".a", ".o", ".obj")
 
@@ -281,10 +282,15 @@ def trim_needed(vendor, needed):
         keep = {os.path.normpath(t) for t in stub_targets(manifest)}
         # (files the crate's sources include stay, whatever their folder)
         included = set()
+        kept_dirs = set()
         for base, dirs, names in os.walk(path):
             for name in names:
                 if name.endswith(".rs"):
                     text = open(os.path.join(base, name), encoding="utf-8", errors="replace").read()
+                    if INCLUDE_ANY.search(text):
+                        # (a folder an including source names stays whole: zerocopy's docs
+                        # build the file names with concat!)
+                        kept_dirs.update(d for d in DROP_DIRS if re.search(r'["/]' + d + r'/', text))
                     for inc in INCLUDE_RE.findall(text):
                         included.add(os.path.normpath(os.path.relpath(os.path.join(base, inc), path)))
         with open(os.path.join(path, ".cargo-checksum.json")) as f:
@@ -295,7 +301,7 @@ def trim_needed(vendor, needed):
             if not (any(p in DROP_DIRS for p in parts[:-1]) or rel.lower().endswith(DROP_SUFFIXES)):
                 continue
             full = os.path.join(path, rel)
-            if not os.path.isfile(full) or os.path.normpath(rel) in included:
+            if not os.path.isfile(full) or os.path.normpath(rel) in included or any(p in kept_dirs for p in parts[:-1]):
                 continue
             saved += os.path.getsize(full)
             if os.path.normpath(rel) in keep:
