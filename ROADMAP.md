@@ -458,7 +458,9 @@ The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate wind
 
 **I6 — Debugger** (M, 8–12 sessions; the basic part in the first release)
 - [x] Basic: breakpoints in any file with conditions, step in / over / out, pause, run to cursor, call stack, locals / globals / watches evaluated by the VM, data tips, break on runtime error, the immediate window (S-DEBUG, 2026-10-08: desktop and web)
-- [ ] Hit counts, logpoints; frames opened in the data preview
+- [x] Pause while the program waits for its events, breakpoints placed where the program stops, breakpoints and watches kept with the project, values set in place (S-DEBUG, 2026-10-08: desktop and web)
+- [x] Hit counts, logpoints (S-DEBUG)
+- [ ] Frames opened in the data preview (with I7)
 - [ ] `rapidr dap` for VS Code and other DAP clients
 
 **I7 — Linked data and data science** (L, 18–26 sessions; the core in the first release)

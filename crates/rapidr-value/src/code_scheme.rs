@@ -453,8 +453,16 @@ mod tests {
 
     #[test]
     fn every_theme_has_its_scheme() {
+        // (RapidR's looks take the scheme of their kind: L-THEME named the
+        // themes, the schemes kept S-EDITOR's names)
         for t in theme::ALL {
-            assert_eq!(for_theme(t).name, t.name);
+            let want = match t.name {
+                "rapidr light" => "modern",
+                "rapidr dark" => "dark",
+                "rapidr high contrast" => "highcontrast",
+                other => other,
+            };
+            assert_eq!(for_theme(t).name, want, "{}", t.name);
         }
         assert_eq!(resolve("Dark").name, "dark");
         assert_eq!(MODERN.token_named("type.component").color, 0x00796B);

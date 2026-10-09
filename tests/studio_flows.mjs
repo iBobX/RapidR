@@ -388,14 +388,14 @@ const CASES = [
     // words), in Problems too; Ctrl+. offers the fix, Enter applies it
     name: "editor-diagnostic",
     open: "examples/gui/hello_form.rr",
-    do: "key:Ctrl+End,key:Enter,type:x$ = NameEdit.Txet,key:Escape,wait,wait,wait,key:Ctrl+.,wait",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x$ = NameEdit.Txet,key:Escape,wait,wait,wait,key:Ctrl+.,wait",
     delay: 8,
     dump: { "codedoc(0).diagnosticcount": /^1$/, "codedoc(0).completionitems": /^Change to Text$/ },
   },
   {
     name: "editor-quick-fix",
     open: "examples/gui/hello_form.rr",
-    do: "key:Ctrl+End,key:Enter,type:x$ = NameEdit.Txet,key:Escape,wait,wait,wait,key:Ctrl+.,wait,key:Enter,wait,wait,wait",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x$ = NameEdit.Txet,key:Escape,wait,wait,wait,key:Ctrl+.,wait,key:Enter,wait,wait,wait",
     delay: 10,
     dump: { "codedoc(0).text": /\nx\$ = NameEdit\.Text\n?$/, "codedoc(0).diagnosticcount": /^0$/ },
   },
@@ -557,7 +557,7 @@ const CASES = [
     // to the parameters
     name: "editor-snippet",
     open: "examples/gui/hello_form.rr",
-    do: "key:Ctrl+End,key:Enter,type:sub,wait,key:Tab,type:Hello,key:Tab,type:n AS INTEGER",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:sub,wait,key:Tab,type:Hello,key:Tab,type:n AS INTEGER",
     delay: 6,
     dump: { "codedoc(0).text": /\nSUB Hello\(n AS INTEGER\)\n {4}\nEND SUB\n?$/ },
   },
@@ -566,7 +566,7 @@ const CASES = [
     // SUB, OnClick = and the calls
     name: "editor-rename",
     open: "examples/gui/hello_form.rr",
-    do: "key:Ctrl+End,key:Enter,type:greet,key:Escape,key:Left,key:F2,wait,key:Ctrl+A,type:SayHi,key:Enter,wait",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:greet,key:Escape,key:Left,key:F2,wait,key:Ctrl+A,type:SayHi,key:Enter,wait",
     delay: 7,
     dump: { "codedoc(0).text": /DECLARE SUB SayHi\n[\s\S]*OnClick = SayHi\n[\s\S]*\nSUB SayHi\n[\s\S]*\nSayHi\n?$/ },
   },
@@ -575,7 +575,7 @@ const CASES = [
     // first match selected
     name: "editor-find-regex",
     open: "examples/gui/hello_form.rr",
-    do: "key:Ctrl+F,wait,key:Alt+R,type:Show\\w+,wait",
+    do: "focus:codedoc(0),key:Ctrl+F,wait,key:Alt+R,type:Show\\w+,wait",
     delay: 6,
     dump: { "codedoc(0).seltext": /^ShowModal$/ },
   },
@@ -583,7 +583,7 @@ const CASES = [
     // Edit > Undo takes the typing back (a word at a time), Redo again
     name: "editor-undo",
     open: "examples/gui/hello_form.rr",
-    do: "key:Ctrl+End,type:one two,edit.undo,wait,edit.undo,edit.redo,wait",
+    do: "focus:codedoc(0),key:Ctrl+End,type:one two,edit.undo,wait,edit.undo,edit.redo,wait",
     delay: 6,
     dump: { "codedoc(0).text": /\nForm\.ShowModal\none ?\n?$/, "codedoc(0).canredo": /^(-1|1|True)$/i },
   },
@@ -841,6 +841,50 @@ const CASES = [
       "bptree.text": /^counter\.rr:6  when i = 2$/,
       "watchtree.text": /^total \* 10 = 20$/,
       "session.currentline": /^6$/,
+    },
+  },
+  {
+    // a value set in place, as Xcode's and VS Code's variables are: F2 on
+    // Globals' total, 100 typed, Enter — the paused program has it (the
+    // values and a watch fetched again), and it runs on with it
+    name: "debug-set-value",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,debug.toggleBreakpoint,watch:total + 1,run.start,wait,wait,wait,varpick:G/total,key:F2,type:100,key:Enter,wait,wait,wait,line:6,debug.toggleBreakpoint,run.start,wait,wait,wait",
+    delay: 9,
+    dump: {
+      "outputbox.text": /total112[\s\S]*ended, exit code 0/,
+    },
+  },
+  {
+    // …and while it's still paused: the tree and the watch show it
+    name: "debug-set-value-shown",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,debug.toggleBreakpoint,watch:total + 1,run.start,wait,wait,wait,varpick:G/total,key:F2,type:100,key:Enter,wait,wait,wait",
+    delay: 7,
+    dump: {
+      "varstree.text": /^Locals\n\t\(none\)\nGlobals\n\ti = 1\n\ttotal = 100$/,
+      "watchtree.text": /^total \+ 1 = 101$/,
+    },
+  },
+  {
+    // the whole paused session, to look at (docs/studio-wow.md DBG): into
+    // AddUp in tally.inc, two steps; the Call Stack in the toolbox's place
+    // beside Variables, the line marked, a data tip on total
+    name: "debug-paused-session",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,debug.toggleBreakpoint,watch:total + k,run.start,wait,wait,wait,debug.stepInto,wait,debug.stepOver,wait,debug.stepOver,wait,view.variables,hover:5:5,wait,wait",
+    delay: 9,
+    scales: [1, 2],
+    capture: true,
+    dump: {
+      "session.currentline": /^4$/,
+      "codedoc(1).hovertext": /^```\ntotal = 0\n```$/,
+      "stacktree.text": /^AddUp\s+tally\.inc:4\n\(the program\)\s+counter\.rr:6$/,
+      "varstree.text": /^Locals\n\tn = 1\n\tk = 0\nGlobals\n\ti = 1\n\ttotal = 0$/,
+      "dock.layout": /^    180 tabs 0 stacktree$/m,
     },
   },
   {

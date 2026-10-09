@@ -59,14 +59,7 @@ pub fn code_font(styles: u8) -> Font {
 /// pixels, unrounded.
 pub fn code_advance() -> f64 {
     static ADVANCE: std::sync::OnceLock<f64> = std::sync::OnceLock::new();
-    *ADVANCE.get_or_init(|| {
-        let face = ttf_parser::Face::parse(super::text::BUILTIN_FACES[3].0, 0).ok();
-        face.and_then(|f| {
-            let g = f.glyph_index('0')?;
-            Some(f64::from(f.glyph_hor_advance(g)?) * CODE_PX as f64 / f64::from(f.units_per_em()))
-        })
-        .unwrap_or(7.8)
-    })
+    *ADVANCE.get_or_init(|| super::text::code_advance(CODE_PX as f64).unwrap_or(7.8))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

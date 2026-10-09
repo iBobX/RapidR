@@ -246,6 +246,8 @@ SUB StartStudio
   SetUpDocuments
   SetUpSearch
   IF SavedLayout <> "" THEN Dock.LoadLayout(SavedLayout)
+  ' (a layout kept while a program was paused: the toolbox back)
+  DebugLayoutLoaded
   FillExamples
   FillPalette
   FillRecent

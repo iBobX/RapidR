@@ -182,7 +182,8 @@ in a canvas. See [The web](web.md).
   itself: a form designer, a code editor with BASIC colours, Run. It is an
   early version; the full IDE (RapidR Studio: IntelliSense, a debugger,
   linked data components, AI assistance) is being built
-  ([docs/ide-plan.md](../ide-plan.md)).
+  ([docs/ide-plan.md](../ide-plan.md)). Its debugger works today:
+  [Debugging in RapidR Studio](debugging.md).
 - **The web IDE** (`rapidr-web-2.117.0.zip`, any static host): RapidR
   Studio in the browser — the designer, the code editor and Run — with no
   server-side code (apps and web bundles are built on the desktop for now).

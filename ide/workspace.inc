@@ -379,4 +379,5 @@ SUB RestoreSession(Path AS STRING)
     IF d >= 0 THEN lay = REPLACESUBSTR$(lay, "codedoc(#" + LTRIM$(STR$(i)) + ")", DocPane(d))
   NEXT
   Dock.LoadLayout(lay)
+  DebugLayoutLoaded
 END SUB

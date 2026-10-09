@@ -23,7 +23,7 @@ SUB SetUpDock
   Dock.AddPane(Inspector, "Properties", "right", "properties")
   Dock.AddPane(OutlineTree, "Outline", "bottom:inspector", "outline")
   Dock.AddPane(OutputBox, "Output", "bottom:documents", "output")
-  Dock.AddPane(ImmediateBox, "Immediate", "tab:outputbox", "components/immediatewindow")
+  Dock.AddPane(ImmediateBox, "Immediate", "tab:outputbox", "immediate")
   Dock.AddPane(Welcome, "Welcome", "documents", "list")
   Dock.ShowPane("outputbox")
 END SUB

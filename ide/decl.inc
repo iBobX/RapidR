@@ -129,6 +129,10 @@ DECLARE SUB WatchExpanding(Index AS INTEGER, AllowExpansion AS INTEGER)
 DECLARE SUB WatchCollapsed(Index AS INTEGER)
 DECLARE SUB WatchEditKey(Key AS INTEGER, Shift AS INTEGER)
 DECLARE SUB WatchTreeKey(Key AS INTEGER, Shift AS INTEGER)
+DECLARE SUB VarsEditing(Index AS INTEGER, AllowEdit AS INTEGER)
+DECLARE SUB VarsEdited(Index AS INTEGER, S AS STRING)
+DECLARE SUB WatchEditing(Index AS INTEGER, AllowEdit AS INTEGER)
+DECLARE SUB WatchEdited(Index AS INTEGER, S AS STRING)
 DECLARE SUB StackPicked
 DECLARE SUB BpTreeClick
 DECLARE SUB BpTreeOpen
@@ -182,6 +186,9 @@ DECLARE SUB LayoutChanged
 DECLARE SUB SaveDebugState
 DECLARE SUB LoadDebugState
 DECLARE SUB DebugStateChanged
+DECLARE SUB DebugSideBar(IsOn AS INTEGER)
+DECLARE SUB DebugLayoutLoaded
+DECLARE SUB ImmAnswer(Text AS STRING)
 DECLARE SUB BreakpointPlaced(InFile AS STRING, LineNo AS INTEGER, NewLine AS INTEGER)
 ' (Studio's settings were read: not --fresh)
 DIM SettingsRead AS INTEGER

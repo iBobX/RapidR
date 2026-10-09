@@ -347,6 +347,30 @@ pub fn icon(ops: &mut Vec<Op>, name: &str, x: i64, y: i64, color: u32, accent: u
                 fill(ops, (x + 5, y + 3 + k * 4, 10, 2), color);
             }
         }
+        // (a debugger's panes, in the ink alone as Output's: a value in braces,
+        // an eye, the frames stacked, a breakpoint's tag, a prompt that answers)
+        "variables" | "locals" => {
+            line(ops, &[(5.5, 2.5), (4.0, 3.5), (4.0, 7.0), (2.5, 8.0), (4.0, 9.0), (4.0, 12.5), (5.5, 13.5)], 1.2);
+            line(ops, &[(10.5, 2.5), (12.0, 3.5), (12.0, 7.0), (13.5, 8.0), (12.0, 9.0), (12.0, 12.5), (10.5, 13.5)], 1.2);
+            fill(ops, (x + 7, y + 7, 2, 2), color);
+        }
+        "watch" | "eye" => {
+            line(ops, &[(1.0, 8.0), (4.0, 4.8), (8.0, 3.6), (12.0, 4.8), (15.0, 8.0), (12.0, 11.2), (8.0, 12.4), (4.0, 11.2), (1.0, 8.0)], 1.2);
+            ops.push(Op::Round { rect: (x + 6, y + 6, 4, 4), radius: 2.0, fill: Some(color), stroke: None, width: 0.0 });
+        }
+        "callstack" | "stack" | "frames" => {
+            fill(ops, (x + 1, y + 2, 14, 3), color);
+            ops.push(Op::Round { rect: (x + 1, y + 7, 11, 3), radius: 1.0, fill: None, stroke: Some(color), width: 1.0 });
+            ops.push(Op::Round { rect: (x + 1, y + 12, 8, 3), radius: 1.0, fill: None, stroke: Some(color), width: 1.0 });
+        }
+        "breakpoint" | "breakpointlist" => {
+            ops.push(Op::Polygon { points: [(2.0, 4.0), (11.0, 4.0), (14.5, 8.0), (11.0, 12.0), (2.0, 12.0)].iter().map(|(a, b)| (fx + a, fy + b)).collect(), color });
+        }
+        "immediate" | "repl" | "evaluate" => {
+            line(ops, &[(2.5, 4.5), (6.0, 8.0), (2.5, 11.5)], 1.3);
+            fill(ops, (x + 8, y + 6, 6, 1), color);
+            fill(ops, (x + 8, y + 9, 6, 1), color);
+        }
         _ => {}
     }
 }

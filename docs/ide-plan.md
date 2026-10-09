@@ -1176,8 +1176,19 @@ Robert's bug first: on the web, the running program's windows were clipped by a 
 
 **Benchmarked (docs/studio-wow.md):** done — RUN-2, RUN-3, RUN-4, DBG-1 … DBG-6 (DBG-7's logpoints and hit counts too); partial — RUN-1 (no ⌘R), PERF (start, F5 → form, step measured; typing, completion, designer, build, idle not yet).
 
+**Second round (2026-10-08, after S-SHELL-2's document tabs):**
+- **Pause while the program waits for its events** (its ShowModal, a dialog — no code runs): it stops at once at the line that waits, "Waiting for events" beside it (a note in the information's colour), its variables and stack shown; going on lets the wait go on, Step Over stops after it, Step Into at the next handler. Desktop: under a debugger the program's waits turn every 50 ms (`rp_set_debug_poll`) and the VM serves the interrupt there (`Vm::wait_point`); web: the frame's VM is stopped where it waits (`idle_stop`). While stopped, the web program's events and timers wait, as the desktop's do.
+- **Breakpoints placed by the program**: one on a comment, a blank line or a DIM moves to the line the program stops at; one with no code after it is drawn as a ring and says it never stops (`OnBreakpointPlaced(File, Line, NewLine)`, from the `setBreakpoints` reply).
+- **Kept**: the project's breakpoints (rules and on / off) and watches are in Studio's settings by project file — saved a moment after they change, back when the project opens again (the per-user store, as S-SHELL-2 keeps the layout; `.rapidr/workspace.toml` is the format's place when Studio moves its session there).
+- **Values set in place**: F2 (or a click on the selected item) on a value in Variables or Watch; what's typed is an expression, set in the paused program (`SetVariable`: a local, a global, an element, a field, a property), every value fetched again; F2 on a watch edits its expression.
+- **The paused session's look**: the Call Stack takes the toolbox's place at a run's first stop, beside Variables (Xcode's debug navigator, VS Code's Run view), and gives it back at the end; the debugger's panes have icons of their own (variables, watch, call stack, breakpoint, immediate); a data tip is as wide as its value; TriggerHover gives the data tip while paused; the status bar's Ln / Col follow the debugger's line.
+- After merging S-EDITOR with S-SHELL-2 here: a form's file opens on its designer (the caret's focus no longer turns it to its code); F12 in the code is Go to Definition (ED-6), from the designer it still goes to the code — Robert may prefer F12 as Delphi's toggle everywhere. The kernel's and the value crate's font and scheme tests pin the look they measure (L-THEME made RapidR's look the default).
+
+**Tests (second round):** `tests/studio_flows.mjs` `debug-pause-waiting`, `debug-placed`, `debug-kept` (Studio started again on the same settings), `debug-set-value`, `debug-set-value-shown`, `debug-paused-session` (captures), desktop and web; rapidr-session `a_pause_while_the_program_waits_stops_at_the_waiting_line`.
+
+**Captures** (this worktree): `tests/results/studio-flows/debug-paused-session-{desktop,web}@{1,2}x.png` (breakpoint hit in another file, Call Stack beside Variables, a data tip), `debug-pause-waiting-{desktop,web}@{1,2}x.png`.
+
 **Left.**
-- Breakpoints and watches aren't kept in `.rapidr/workspace.toml` yet (first five minutes, step 14).
-- A breakpoint on a line without code (a `NEXT`) lands on the next line with code in the VM; the gutter still shows it where it was set (the session's placed lines aren't read back yet).
-- Watch values aren't editable in place (SetVariable is there); no completion in Immediate.
+- No completion in Immediate; Set Next Statement (DBG-7) not there.
 - Ctrl+N and other browser-reserved keys don't reach Studio on the web (the browser keeps them): the menus and the palette do.
+- A desktop program captured under a test ends once its window has been captured, so a flow can't continue a paused program and pause it again there (the unit test does).

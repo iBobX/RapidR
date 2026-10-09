@@ -1,0 +1,9 @@
+DIM people AS INTEGER
+
+SUB Share(Amount AS INTEGER)
+  PRINT "each gets "; Amount \ people
+END SUB
+
+PRINT "before"
+Share 10
+PRINT "after"

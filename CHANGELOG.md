@@ -88,6 +88,34 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   **ROUTPUTCONSOLE** (ANSI output, build log, problems, `file:line` links, search), **RTOOLBAR** as
   a real toolbar (icon buttons, toggles, overflow, customizable) and **RCOMMANDPALETTE** (fuzzy
   commands). Example: `examples/studio/panels.rr`.
+### RapidR Studio: the debugger
+- **Run and debug on both hosts, the same way**: F5 runs the project under the debugger (its own
+  process on the desktop, a sandboxed frame on the web), Ctrl+F5 without it, Stop, Restart, Run in
+  Browser (desktop: `rapidr serve` on 127.0.0.1 under a random path). On the web the program's
+  windows float over the whole page and can be dragged to every edge, never clipped.
+- **Breakpoints**: F9 or a click in the gutter, in any file; conditions, hit counts, logpoints
+  (`{expr}`), on / off, each its own marker; the Breakpoints pane lists and edits them. One on a line
+  without code moves to the line the program stops at (one after the last code says it never
+  stops). The project's breakpoints and watches come back when it is opened again.
+- **Paused**: the line marked, in whichever file; Step Into / Over / Out (F11 / F10 / Shift+F11),
+  Run to Cursor, Pause — which stops a program waiting for its events (its ShowModal, a dialog) at
+  once, at the line that waits. Run-time errors stop at their line, the message beside it.
+- **Variables, Watch, Call Stack, Immediate, data tips**: locals and globals, arrays, TYPEs and
+  components open to their children; F2 sets a value in place and the program runs on with it; the
+  Call Stack takes the toolbox's place while paused (picking a frame shows its line and locals);
+  `? expr` and statements in Immediate; a resting mouse shows a value.
+- RPROGRAMSESSION: `StopOnEntry`, `StopReason`, `StopMessage`, `Frame`, `LocalsRef`, `GlobalsRef`,
+  `Watches`, `BrowserURL`; `SetBreakpoint`, `ClearBreakpoints`, `RunToCursor`, `StackTrace`,
+  `Variables`, `WatchValues`, `Expand`, `Evaluate`, `SetVariable`, `RunInBrowser`, `StopBrowser`;
+  `OnVariables`, `OnEvaluate`, `OnBreakpointPlaced`. RCODEEDITOR's TriggerHover gives the data tip
+  while paused; a hover is as wide as its text.
+- The Immediate pane answers every line under it, however fast lines are typed (it ran the last
+  line, not the caret's, and kept only the newest answer).
+- Manual: **Debugging in RapidR Studio** (`docs/manual/debugging.md`), step by step with
+  screenshots made again by `tools/manual/shots.mjs` (scenes in `tools/manual/scenes/`).
+- Fixed: RDIFFVIEW's columns measured with JetBrains Mono again (a merge had them measure RapidR
+  Sans); the supply-chain check follows the bold faces' code (ttf-parser still parses only the
+  built-in fonts).
 ### RapidR Studio: documents as tabs, Find in Files, F1 Help, templates
 - **No window inside the window**: Studio's documents are tabs, as in Xcode, VS Code and Delphi —
   close buttons, a dot for changes not saved, middle click closes, drag along the strip reorders. A

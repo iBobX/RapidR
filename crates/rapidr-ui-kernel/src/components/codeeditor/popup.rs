@@ -200,6 +200,20 @@ fn blocks_height(bl: &[(bool, String)], width: i64, code_px: i64) -> i64 {
     bl.iter().map(|(code, s)| if *code { s.lines().count() as i64 * lh_code + 6 } else { wrap(&plain(s), &ui, width).len() as i64 * lh_ui + 6 }).sum()
 }
 
+/// The width text blocks want: their longest line (prose unwrapped), so a
+/// short hover — a debugger's data tip, "total = 0" — is as narrow as it.
+fn blocks_width(bl: &[(bool, String)], code_px: i64) -> i64 {
+    let (ui, cf) = (ui_font(), code_font(code_px));
+    bl.iter()
+        .flat_map(|(code, s)| {
+            let f = if *code { &cf } else { &ui };
+            let text = if *code { s.clone() } else { plain(s) };
+            text.lines().map(|l| text_size(l, f).0).collect::<Vec<_>>()
+        })
+        .max()
+        .unwrap_or(0)
+}
+
 /// Draws text blocks in `r`.
 fn draw_blocks(p: &mut Painter, sc: &Scheme, lang: &str, bl: &[(bool, String)], r: Rect, code_px: i64) {
     let ui = ui_font();
@@ -305,7 +319,8 @@ fn paint_one(c: &Model, ui: &CodeUi, abs: (i64, i64), scale: f64, client: (i64, 
     if let Some(h) = &c.hover {
         if let Some((ax, top, bottom)) = anchor(c, ui, abs, scale, h.start) {
             let bl = blocks(&h.text);
-            let w = 480.min(client.0 - 8).max(160);
+            // (as wide as its text, 160 to 480 pixels)
+            let w = (blocks_width(&bl, code_px) + 24).clamp(160, 480).min(client.0 - 8).max(160);
             let hh = (blocks_height(&bl, w - 20, code_px) + 10).min(320);
             let y = if top - hh - 2 >= 0 { top - hh - 2 } else { bottom + 2 };
             let x = ax.clamp(0, (client.0 - w).max(0));

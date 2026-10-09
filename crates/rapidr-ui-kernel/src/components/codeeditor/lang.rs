@@ -225,9 +225,9 @@ pub fn request_signature(x: &mut Ctx) {
     x.fire("onsignaturerequest", vec![v_int(line as i64), v_int(col as i64)]);
 }
 
-/// A resting mouse's hover at byte `at`: with `DebugHover` (a debugger's
-/// data tips) the program is asked first — OnHoverRequest, answered with
-/// ShowHover; otherwise as [`hover`].
+/// A resting mouse's hover at byte `at` (or TriggerHover's, the keys'):
+/// with `DebugHover` (a debugger's data tips) the program is asked first —
+/// OnHoverRequest, answered with ShowHover; otherwise as [`hover`].
 pub fn mouse_hover(x: &mut Ctx, at: usize) {
     if x.c.opts.debug_hover && x.c.doc.word_at(at).is_some() {
         x.c.hover_request = Some(at);

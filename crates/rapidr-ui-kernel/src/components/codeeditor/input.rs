@@ -1065,7 +1065,9 @@ fn requests(x: &mut Ctx) {
             Request::Completion => lang::request_completion(x, true),
             Request::Signature => lang::request_signature(x),
             Request::QuickFix => lang::quick_fix(x),
-            Request::Hover(at) => lang::hover(x, at),
+            // (TriggerHover, Ctrl+K Ctrl+I: as a resting mouse — a debugger's
+            // data tip first while DebugHover is on)
+            Request::Hover(at) => lang::mouse_hover(x, at),
             Request::Format => {
                 if lang::format(x) {
                     edited(x, None);

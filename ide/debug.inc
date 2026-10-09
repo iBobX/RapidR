@@ -78,7 +78,11 @@ DIM FrameCount AS INTEGER
 ' (what Studio asked the session to evaluate: the Immediate window's line,
 ' a data tip's expression and the editor it shows in)
 DIM ImmEvalId AS INTEGER
+DIM ImmPending AS STRING
 DIM HoverEvalId AS INTEGER
+' (a value set from Variables or Watch: its expression, for the answer)
+DIM SetVarId AS INTEGER
+DIM SetVarExpr AS STRING
 DIM HoverDoc AS INTEGER
 DIM HoverExpr AS STRING
 ' (the Immediate window's lines typed, for Up / Down)
@@ -88,6 +92,8 @@ DIM ImmAt AS INTEGER
 ' (where the program is paused, its file as Studio opened it)
 DIM PausedFile AS STRING
 DIM PausedLine AS INTEGER
+' (the run's first stop brought the Call Stack forward; its end, the toolbox)
+DIM StackShown AS INTEGER
 DIM BreakOnErrors AS INTEGER
 ' (the budgets' measures, ms: F5 to the program's first form, a step to its
 ' line shown with its values; -1 not measured)
@@ -553,6 +559,24 @@ SUB GoToFirstProblem
   NEXT
 END SUB
 
+' The Call Stack in the Toolbox's place (On), or the Toolbox back: a run's
+' first stop, its end.
+SUB DebugSideBar(IsOn AS INTEGER)
+  StackShown = IsOn
+  IF IsOn THEN
+    Dock.ShowPane("stacktree")
+    Dock.HidePane("toolbox")
+  ELSE
+    Dock.ShowPane("toolbox")
+    Dock.HidePane("stacktree")
+  END IF
+END SUB
+
+' (a layout kept while a program was paused: the toolbox back in its place)
+SUB DebugLayoutLoaded
+  IF StackShown = 0 AND Dock.PaneVisible("stacktree") THEN DebugSideBar 0
+END SUB
+
 ' (a new run places every breakpoint again: the code may have changed)
 SUB ResetNeverBreakpoints
   DIM i AS INTEGER, any AS INTEGER
@@ -652,6 +676,7 @@ SUB ProgramStopped(Reason AS STRING, InFile AS STRING, LineNo AS INTEGER)
   FillCallStack
   FillVariables
   FillWatches
+  IF StackShown = 0 THEN DebugSideBar 1
   Studio.SetFocus
   ' (a step's command to its line shown with its values: PerfStep)
   IF StepStarted > 0 THEN
@@ -675,6 +700,7 @@ SUB ProgramExited(Code AS INTEGER)
   IF Code = 0 THEN SetState "stopped", "Ready" ELSE SetState "error", "Ended with exit code " + Num(Code)
   ClearPausedMarks
   ClearDebugPanes
+  IF StackShown THEN DebugSideBar 0
 END SUB
 
 ' ---- Variables and Watch: trees of values ----------------------------------------------------
@@ -849,6 +875,132 @@ SUB SessionVariables(Ref AS INTEGER)
   FillWatches
 END SUB
 
+' ---- values set in place ------------------------------------------------------------------------
+' F2 (or a click on the selected item) on a value in Variables or Watch
+' edits it, as Xcode's and VS Code's variables do: what's typed — an
+' expression — is set in the paused program (SetVariable: the frame's
+' local, a global, an array's element, a TYPE's field, a component's
+' property), then every value is fetched again. The item reads
+' "name = value": what follows " = " is the new value (all of it, when the
+' " = " went). A watch's own line edits its expression (paused or not).
+
+' (the expression an item stands for: its path's names joined, an array's
+' element "(3)" on its array, a field or a property after a dot; Base the
+' watch's expression)
+FUNCTION PathExpr(Path AS STRING, Base AS STRING) AS STRING
+  DIM n AS INTEGER, k AS INTEGER, part AS STRING, e AS STRING
+  n = TALLY(Path, "/")
+  e = Base
+  FOR k = 2 TO n + 1
+    part = FIELD$(Path, "/", k)
+    IF e = "" THEN
+      e = part
+    ELSEIF LEFT$(part, 1) = "(" THEN
+      e = e + part
+    ELSE
+      e = e + "." + part
+    END IF
+  NEXT
+  Result = e
+END FUNCTION
+
+' (an item's name: its path's last part)
+FUNCTION PathName(Path AS STRING) AS STRING
+  Result = MID$(Path, RINSTR(Path, "/") + 1)
+END FUNCTION
+
+' (what was typed for the value: after "name = ", or the whole text)
+FUNCTION TypedValue(Text AS STRING) AS STRING
+  DIM k AS INTEGER
+  k = INSTR(Text, " = ")
+  IF k > 0 THEN Result = MID$(Text, k + 3) ELSE Result = Text
+  Result = LTRIM$(RTRIM$(Result))
+END FUNCTION
+
+' (a watch's expression a value's place can be named from: a name, its
+' fields and elements — not "a + b")
+FUNCTION PlainWatch(Expr AS STRING) AS INTEGER
+  DIM i AS INTEGER, c AS STRING
+  Result = Flag(Expr <> "")
+  FOR i = 1 TO LEN(Expr)
+    c = MID$(Expr, i, 1)
+    IF INSTR("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.()$%&!#,", c) = 0 THEN Result = 0
+  NEXT
+END FUNCTION
+
+' (watch k's expression, from 1)
+FUNCTION WatchExpr(k AS INTEGER) AS STRING
+  Result = FIELD$(Session.Watches, CHR$(10), k)
+END FUNCTION
+
+SUB SetValue(Expr AS STRING, Value AS STRING)
+  IF Expr = "" OR Value = "" OR RunState <> "paused" THEN EXIT SUB
+  SetVarExpr = Expr
+  SetVarId = Session.SetVariable(Expr, Value)
+END SUB
+
+' (a value without children, in a paused program: Locals' and Globals'
+' headers, "(none)", arrays, TYPEs and objects aren't)
+SUB VarsEditing(Index AS INTEGER, AllowEdit AS INTEGER)
+  DIM p AS STRING
+  AllowEdit = 0
+  IF RunState <> "paused" OR Index < 0 OR Index > MAXVARITEMS THEN EXIT SUB
+  p = VarItemPath(Index)
+  IF VarItemRef(Index) = 0 AND INSTR(p, "/") > 0 AND RIGHT$(p, 1) <> "/" THEN AllowEdit = 1
+END SUB
+
+SUB VarsEdited(Index AS INTEGER, S AS STRING)
+  DIM v AS STRING
+  IF Index < 0 OR Index > MAXVARITEMS THEN EXIT SUB
+  v = TypedValue(S)
+  S = ValueText(PathName(VarItemPath(Index)), v)
+  SetValue PathExpr(VarItemPath(Index), ""), v
+END SUB
+
+SUB WatchEditing(Index AS INTEGER, AllowEdit AS INTEGER)
+  DIM p AS STRING
+  AllowEdit = 0
+  IF Index < 0 OR Index > MAXVARITEMS THEN EXIT SUB
+  p = WatchItemPath(Index)
+  IF LEFT$(p, 1) <> "W" THEN EXIT SUB
+  IF INSTR(p, "/") = 0 THEN
+    ' (a watch's expression: always)
+    AllowEdit = 1
+  ELSEIF RunState = "paused" AND WatchItemRef(Index) = 0 THEN
+    AllowEdit = PlainWatch(WatchExpr(VAL(MID$(p, 2))))
+  END IF
+END SUB
+
+SUB WatchEdited(Index AS INTEGER, S AS STRING)
+  DIM p AS STRING, k AS INTEGER, n AS INTEGER, e AS STRING, acc AS STRING, i AS INTEGER, v AS STRING
+  IF Index < 0 OR Index > MAXVARITEMS THEN EXIT SUB
+  p = WatchItemPath(Index)
+  k = VAL(MID$(p, 2))
+  IF INSTR(p, "/") = 0 THEN
+    ' (its expression: what's before its value's " = ", or all of it)
+    e = S
+    IF RINSTR(e, " = ") > 0 THEN e = LEFT$(e, RINSTR(e, " = ") - 1)
+    e = LTRIM$(RTRIM$(e))
+    n = TALLY(Session.Watches, CHR$(10))
+    FOR i = 1 TO n
+      IF i <> k THEN
+        acc = acc + WatchExpr(i) + CHR$(10)
+      ELSEIF e <> "" THEN
+        acc = acc + e + CHR$(10)
+      END IF
+    NEXT
+    Session.Watches = acc
+    WatchOpen = ""
+    FillWatches
+    S = WatchTree.Item(Index).Text
+    DebugStateChanged
+  ELSE
+    v = TypedValue(S)
+    S = ValueText(PathName(p), v)
+    SetValue PathExpr(p, WatchExpr(k)), v
+  END IF
+END SUB
+
 ' ---- Watch ------------------------------------------------------------------------------------
 
 SUB AddWatch(Expr AS STRING)
@@ -980,7 +1132,10 @@ SUB ImmediateKey(Key AS INTEGER, Shift AS INTEGER)
     EXIT SUB
   END IF
   IF Key <> 13 THEN EXIT SUB
-  typed = ImmediateBox.Line(n - 1)
+  ' (the caret's line — typed at the end, or an earlier one run again; its
+  ' answer and a fresh line come below the text when it's in)
+  typed = ImmediateBox.Line(TALLY(LEFT$(ImmediateBox.Text, ImmediateBox.SelStart), CHR$(10)))
+  Key = 0
   IF LTRIM$(typed) = "" THEN EXIT SUB
   IF ImmCount < 50 THEN
     ImmHistory(ImmCount) = typed
@@ -989,15 +1144,37 @@ SUB ImmediateKey(Key AS INTEGER, Shift AS INTEGER)
   ImmAt = ImmCount
   IF RunState = "paused" THEN
     ImmEvalId = Session.Evaluate(typed, "repl")
+    ImmPending = ImmPending + "|" + Num(ImmEvalId) + "|"
   ELSE
-    ImmediateBox.AddStrings "(the program isn't paused: F9 sets a breakpoint, Debug > Pause stops it)"
+    ImmAnswer "(the program isn't paused: F9 sets a breakpoint, Debug > Pause stops it)"
   END IF
+END SUB
+
+' (an answer below the text — none for a statement — then a fresh line,
+' the caret on it)
+SUB ImmAnswer(Text AS STRING)
+  DIM t AS STRING
+  t = ImmediateBox.Text
+  IF t <> "" AND RIGHT$(t, 1) <> CHR$(10) THEN t = t + CHR$(10)
+  IF Text <> "" THEN t = t + Text + CHR$(10)
+  ImmediateBox.Text = t
+  ImmediateBox.SelStart = LEN(ImmediateBox.Text)
 END SUB
 
 ' (an evaluation's answer: the Immediate window's, or a data tip's)
 SUB SessionEvaluated(Id AS INTEGER, Answer AS STRING)
-  IF Id = ImmEvalId THEN
-    IF Answer <> "" THEN ImmediateBox.AddStrings Answer
+  IF Id = SetVarId THEN
+    SetVarId = -1
+    IF LEFT$(Answer, 6) = "error:" THEN
+      SetState RunState, "Can't set " + SetVarExpr + ": " + LTRIM$(MID$(Answer, 7))
+      OutputAfterProgram "Can't set " + SetVarExpr + ": " + LTRIM$(MID$(Answer, 7))
+    ELSE
+      SetState RunState, SetVarExpr + " = " + Answer
+    END IF
+  ELSEIF INSTR(ImmPending, "|" + Num(Id) + "|") > 0 THEN
+    ' (every line's answer, however fast they were typed)
+    ImmPending = REPLACESUBSTR$(ImmPending, "|" + Num(Id) + "|", "")
+    ImmAnswer Answer
   ELSEIF Id = HoverEvalId THEN
     IF LEFT$(Answer, 6) <> "error:" AND HoverDoc >= 0 AND HoverDoc < DocCount THEN
       IF DocOpen(HoverDoc) THEN CodeDoc(HoverDoc).ShowHover "```" + CHR$(10) + HoverExpr + " = " + Answer + CHR$(10) + "```"
@@ -1112,6 +1289,15 @@ FUNCTION DebugStep(Stp AS STRING) AS INTEGER
     CASE "watch"
       WatchEdit.Text = arg
       WatchEditKey 13, 0
+    CASE "varpick"
+      ' (varpick:<path>: Variables' item at that path selected, the tree
+      ' focused — then key:F2 edits it)
+      FOR k = 0 TO VarsTree.ItemCount - 1
+        IF k <= MAXVARITEMS THEN
+          IF LCASE$(VarItemPath(k)) = LCASE$(arg) THEN VarsTree.ItemIndex = k
+        END IF
+      NEXT
+      Dock.FocusPane("varstree")
     CASE "bpcond", "bphit", "bplog", "bpoff"
       IF BpPicked >= 0 THEN
         IF verb = "bpcond" THEN BpCondEdit.Text = arg
@@ -1121,7 +1307,8 @@ FUNCTION DebugStep(Stp AS STRING) AS INTEGER
         ApplyBreakpointEdits
       END IF
     CASE "hover"
-      IF d >= 0 THEN CodeHoverRequest VAL(FIELD$(arg, ":", 1)), VAL(FIELD$(arg, ":", 2)), CodeDoc(d)
+      ' (as a resting mouse there: the editor's hover request, at that place)
+      IF d >= 0 THEN CodeDoc(d).TriggerHover VAL(FIELD$(arg, ":", 1)), VAL(FIELD$(arg, ":", 2))
     CASE "frame"
       StackTree.ItemIndex = VAL(arg)
       StackPicked
@@ -1186,6 +1373,7 @@ SUB SetUpDebug
   BpPicked = -1
   ImmEvalId = -1
   HoverEvalId = -1
+  SetVarId = -1
   Session.OnOutput = ProgramOutput
   Session.OnStopped = ProgramStopped
   Session.OnContinue = ProgramContinued
@@ -1203,6 +1391,10 @@ SUB SetUpDebug
   DebugTree VarsTree, "Variables"
   VarsTree.OnExpanding = VarsExpanding
   VarsTree.OnCollapsed = VarsCollapsed
+  ' (a value set in place: F2)
+  VarsTree.ReadOnly = 0
+  VarsTree.OnEditing = VarsEditing
+  VarsTree.OnEdited = VarsEdited
 
   WatchPanel.Parent = Studio
   WatchPanel.Width = 440: WatchPanel.Height = 190
@@ -1227,6 +1419,9 @@ SUB SetUpDebug
   WatchTree.OnExpanding = WatchExpanding
   WatchTree.OnCollapsed = WatchCollapsed
   WatchTree.OnKeyDown = WatchTreeKey
+  WatchTree.ReadOnly = 0
+  WatchTree.OnEditing = WatchEditing
+  WatchTree.OnEdited = WatchEdited
 
   DebugTree StackTree, "Call Stack"
   StackTree.ShowRoot = 0
@@ -1280,10 +1475,15 @@ SUB SetUpDebug
   BpTree.OnDblClick = BpTreeOpen
   BpTree.OnKeyDown = BpTreeKey
 
-  Dock.AddPane(VarsTree, "Variables", "right:outputbox", "components/variablesview")
-  Dock.AddPane(WatchPanel, "Watch", "tab:varstree", "actions/watch")
-  Dock.AddPane(StackTree, "Call Stack", "tab:varstree", "components/callstackview")
-  Dock.AddPane(BpPanel, "Breakpoints", "tab:varstree", "components/breakpointlist")
+  Dock.AddPane(VarsTree, "Variables", "right:outputbox", "variables")
+  Dock.AddPane(WatchPanel, "Watch", "tab:varstree", "watch")
+  ' (the call stack in the toolbox's place while the program runs — a
+  ' paused program needs no toolbox —, beside Variables, as Xcode's debug
+  ' navigator and VS Code's Run view take the side bar: DebugSideBar)
+  Dock.AddPane(StackTree, "Call Stack", "tab:toolbox", "callstack")
+  Dock.AddPane(BpPanel, "Breakpoints", "tab:varstree", "breakpoint")
+  Dock.HidePane("stacktree")
+  Dock.ShowPane("toolbox")
   Dock.ShowPane("varstree")
   WidenDebugPanes
   FillVariables

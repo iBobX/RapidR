@@ -90,6 +90,14 @@ static JBMONO_ITALIC: &[u8] = include_bytes!("../../fonts/JetBrainsMono-Italic.t
 /// gives for "JetBrains Mono", and the shaper's family name.
 pub const CODE_FACE: &str = "JetBrains Mono";
 
+/// The code face's advance (every glyph's: JetBrains Mono is monospaced)
+/// at `px` pixels, unrounded — RDIFFVIEW's columns.
+pub fn code_advance(px: f64) -> Option<f64> {
+    let f = ttf_parser::Face::parse(JBMONO, 0).ok()?;
+    let g = f.glyph_index('0')?;
+    Some(f64::from(f.glyph_hor_advance(g)?) * px / f64::from(f.units_per_em()))
+}
+
 /// Longest text drawn in one call (so a huge string can't stall drawing).
 const MAX_CHARS: usize = 10_000;
 
@@ -579,6 +587,8 @@ mod tests {
     /// widths, no spacing added.
     #[test]
     fn bold_and_italic_widths_are_rc_exes() {
+        // (MS Sans Serif as RapidQ draws it: the classic look's RapidR Sans)
+        crate::theme::set(&crate::theme::CLASSIC);
         for (name, size, styles, text, rc) in [
             // Arial Bold (Liberation Sans Bold): 37 and 39 where the regular
             // letters drawn heavier with a bit of spacing made 38 and 40
