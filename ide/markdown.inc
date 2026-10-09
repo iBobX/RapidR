@@ -32,12 +32,11 @@ FUNCTION OpenMarkdownFile(Path AS STRING) AS INTEGER
 END FUNCTION
 
 ' Document d opened: a Markdown file's preview shows the code editor's
-' text, which isn't coloured as BASIC.
+' text, which isn't coloured as BASIC. (Any other file keeps the language
+' its name gives the code editor — rapidr-basic for BASIC, with the
+' language service: S-EDITOR's ids; "basic" was the old editor's.)
 SUB OpenMarkdown(d AS INTEGER)
-  IF DocIsMd(d) = 0 THEN
-    CodeDoc(d).Language = "basic"
-    EXIT SUB
-  END IF
+  IF DocIsMd(d) = 0 THEN EXIT SUB
   CodeDoc(d).Language = "markdown"
   MdDoc(d).Tag = d
   MdDoc(d).AccessibleName = FileTitle(DocFile(d))

@@ -466,8 +466,10 @@ const CASES = [
       "inspector.__cursor_120_80": /^text$/,
       "dock.__cursor_241_200": /^col-resize$/,
       "dock.__cursor_600_499": /^row-resize$/,
-      "designdoc(0).__cursor_344_294": /^move$/,
-      "designdoc(0).__cursor_328_294": /^nwse-resize$/,
+      // (AddBtn at 314, 252 of the form's client, which S-DESIGN-2's canvas
+      // puts at 25, 54 of the surface: its body, its top-left handle)
+      "designdoc(0).__cursor_355_306": /^move$/,
+      "designdoc(0).__cursor_339_306": /^nwse-resize$/,
     },
   },
   // (S-PANELS) …then Undo twice on the designer: the exact text back.
