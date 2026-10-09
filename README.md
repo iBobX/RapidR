@@ -60,21 +60,23 @@ Each system has two packages:
 | **Web** | `rapidr-web-2.117.0.zip`: the web IDE, for any static host | |
 
 - **Windows**: run the installer (per user, no administrator rights). It
-  adds *RapidR IDE* to the Start menu and, if you keep the box ticked,
+  adds *RapidR Studio* to the Start menu and, if you keep the box ticked,
   `rapidr` to your PATH.
 - **macOS**: drag *RapidR* (and/or *RapidR Runtime*) to Applications. Then
-  `/Applications/RapidR.app/Contents/MacOS/rapidr setup` offers to put
+  `/Applications/RapidR Studio.app/Contents/MacOS/rapidr setup` offers to put
   `rapidr` on your PATH.
 - **Linux**: `sudo apt install ./rapidr_2.117.0_amd64.deb`, or unpack the
   `.tar.gz` and run `./install.sh` (into `~/.local`, no root). Linux needs
   OpenSSL 3 (HTTPS uses the system's), hence Ubuntu 22.04 / Debian 12 and
   newer.
 
-**The downloads aren't code-signed yet.** macOS: the first time,
-right-click the app and choose **Open** (or System Settings > Privacy &
-Security > **Open Anyway**). Windows: if SmartScreen says "Windows
-protected your PC", choose **More info > Run anyway**. Check downloads
-against `SHA256SUMS` (`shasum -a 256 -c SHA256SUMS`).
+**The downloads aren't code-signed yet.** macOS: the first time, it says
+“RapidR Studio” Not Opened: click **Done**, then System Settings > Privacy &
+Security > **Open Anyway** (right-click > Open no longer works on current
+macOS). Windows: SmartScreen says "Windows protected your PC": **More info >
+Run anyway**. Check downloads against `SHA256SUMS`
+(`shasum -a 256 -c SHA256SUMS --ignore-missing`). Step by step, with
+screenshots: [docs/manual/getting-started.md](docs/manual/getting-started.md).
 
 **Rust is needed only for native builds.** Running programs, the IDE,
 standalone interpreted executables and web bundles need nothing else. For

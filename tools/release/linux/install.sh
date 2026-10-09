@@ -2,8 +2,8 @@
 # Installs this RapidR for you alone — no root: the files into ~/.local
 # (bin/rapidr, lib/rapidr, share/doc/rapidr), RapidR's file types and their
 # applications into ~/.local/share (mime/, applications/), and makes them the
-# defaults: a .rrbc runs on a double click; a .rr / .bas opens in the IDE
-# (with the SDK; "Open With > RapidR Runtime" runs it).
+# defaults: a .rrbc runs on a double click; a .rr / .bas / .rrproj opens in
+# RapidR Studio (with the SDK; "Open With > RapidR Runtime" runs a source file).
 #
 #   ./install.sh                 PREFIX=~/.local, XDG_DATA_HOME, XDG_CONFIG_HOME are honoured
 #   ~/.local/lib/rapidr/uninstall.sh      removes all of it
@@ -49,7 +49,7 @@ command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -q -t "$DAT
 if command -v xdg-mime >/dev/null; then
     xdg-mime default rapidr-runtime.desktop application/x-rapidr-bytecode
     if [ "$KIND" = sdk ]; then
-        xdg-mime default rapidr-ide.desktop text/x-rapidr text/x-rapidq-basic
+        xdg-mime default rapidr-ide.desktop text/x-rapidr text/x-rapidq-basic application/x-rapidr-project
     else
         xdg-mime default rapidr-runtime.desktop text/x-rapidr text/x-rapidq-basic
     fi

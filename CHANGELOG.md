@@ -222,6 +222,33 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   folder. All 30 examples open and run from Studio on the web.
 - **RPLOT.Clear keeps the chart's size** (as Matplotlib's `clf`): a chart on a form no longer jumps to
   640 × 480 when cleared.
+- **`rapidr build` of a program whose name starts with a digit** (`3dcube.bas` -> `3dcube.app`)
+  failed on macOS with "3dcube.app: No such process": `codesign --verify` reads a relative
+  argument starting with a digit as a process id. The app is now signed and verified by its
+  absolute path (a test builds a digit-named app in the current folder, signs and verifies it).
+- **The release's home** ships the files its crates include from outside their folders (the program
+  icon masters, the icon inventory) and drops the crates' `[dev-dependencies]`: the vendored
+  workspace failed to build on Linux and Windows. The Windows installers (x64, arm64) and the Linux
+  packages (`.deb` and `.tar.gz`, x86_64 and aarch64) build from it; the Linux ones pass their smoke tests.
+
+### Release packages
+- **"RapidR Studio" everywhere**: the macOS app is `RapidR Studio.app` (it was `RapidR.app`; the VS Code
+  extension finds both), the Windows Start menu entry and the "Open in" actions, and the Linux menu entry
+  say RapidR Studio.
+- **Project files (`.rrproj`) open in RapidR Studio** on a double click: a file type on Windows (SDK
+  installer), macOS (Studio.app's document types; `rapidrw` hands them to `rapidr ide`) and Linux (a
+  shared-mime-info type and the menu entry's MimeType). The smoke tests check them, the menu entry's
+  name and the Start menu entry (and that uninstalling removes them).
+- `tools/release/README.md`: the release flow in one page (one entry script per system, where the files
+  land, the checks, the signing hooks, the fresh-user journey); `macos.sh`'s header documents the
+  Developer ID and notarization hooks.
+
+### Documentation
+- **Manual: installing** on Windows (which installer, each page of the wizard, the PATH and `.bas`
+  options, uninstalling) and on Ubuntu or Debian (`sudo apt install ./rapidr_<ver>_<arch>.deb`, what
+  goes where, SDK and Runtime packages replace each other, removing it), with the matching
+  troubleshooting entries; **building apps**: the app's name (digits first, the bundle ID it makes,
+  checking a signature by hand).
 
 ### Added
 - **The CSV Explorer** (`examples/data/csv_explorer.rr`, the first example on Studio's Welcome page):

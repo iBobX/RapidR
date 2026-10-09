@@ -3,6 +3,11 @@
 # dist/<ver>/out/: each package carries the licence files, then SHA256SUMS.
 #
 #   tools/release/finish.sh
+#
+# Signing the checksums with minisign is OFF unless you give it a key (this script never
+# creates one): RAPIDR_MINISIGN_KEY=<path of your minisign secret key> (made once with
+# `minisign -G`; it asks for the key's password) writes SHA256SUMS.minisig beside SHA256SUMS.
+# People then check a download with `minisign -Vm SHA256SUMS -P <your public key>`.
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 cd "$OUT"
@@ -37,3 +42,12 @@ rm -f SHA256SUMS
 shasum -a 256 $(ls | grep -v -e '^SHA256SUMS$' -e '^RELEASE_NOTES.md$') > SHA256SUMS
 cat SHA256SUMS
 du -sh "$OUT"
+if [ -n "${RAPIDR_MINISIGN_KEY:-}" ]; then
+    step "SHA256SUMS.minisig (minisign, $RAPIDR_MINISIGN_KEY)"
+    need minisign "brew install minisign"
+    rm -f SHA256SUMS.minisig
+    minisign -S -s "$RAPIDR_MINISIGN_KEY" -m SHA256SUMS -t "RapidR $VERSION"
+    ls -l SHA256SUMS.minisig
+else
+    echo "(SHA256SUMS.minisig: not made — RAPIDR_MINISIGN_KEY isn't set)"
+fi

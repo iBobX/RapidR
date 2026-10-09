@@ -56,6 +56,33 @@ output = "dist"             # the output folder ("build" when it isn't said)
 keep_rust = true            # the generated Rust beside the app (not kept when it isn't said)
 ```
 
+### The app's name
+
+The name Finder, Explorer and the applications menu show (and, on a Mac, the
+`.app`'s file name) is the source file's (`notepad.bas` makes `notepad.app`),
+unless the project or `--name` gives another one:
+
+```sh
+rapidr build 3dcube.bas --interp                 # 3dcube.app (macOS)
+rapidr build 3dcube.bas --interp --name "3D Cube"    # "3D Cube.app"
+```
+
+- A name can be anything that can be a file name, **including one that
+  starts with a digit** (`3dcube`, `2048`, `8ball`). Only `/`, `\` and `:`
+  are refused, because on a Mac and in a Linux AppDir the name is also a
+  folder's.
+- The bundle ID (macOS) and the Linux desktop entry's name come from the
+  name: everything but letters and digits becomes a hyphen, in lower case,
+  so "3D Cube" is `dev.rapidr.app.3d-cube`. A name with no letters or digits
+  at all (Japanese, for example) gets `dev.rapidr.app.program`: give it a
+  `--bundle-id` of your own (`com.example.cube`).
+- On a Mac, when you check a signature by hand with `codesign --verify`,
+  write `./3dcube.app` (or the full path) for a name that starts with a
+  digit: `codesign` takes `3dcube.app` for a process number and answers
+  "No such process". Older versions of `rapidr build` stopped with that
+  message for such a name; now `rapidr build` hands `codesign` the full path
+  and signs and checks the app.
+
 ## Icons
 
 Where the icon comes from, the first one there wins:
@@ -100,7 +127,8 @@ RapidR takes any of the formats above.
 - The app is signed ad hoc (`codesign --sign -`): it opens on the Mac that
   built it, and Apple silicon Macs run it. To give it to others, sign it with
   your Developer ID and notarize it (`codesign`, `xcrun notarytool`); a
-  downloaded unsigned app opens with right-click > Open.
+  downloaded unsigned app is allowed once in System Settings > Privacy &
+  Security > Open Anyway (see [Install on macOS](getting-started.md#install-on-macos)).
 - An interpreted app keeps the program's bytecode in
   `Contents/Resources/<name>.rrbc` (data after a signed executable would
   break its signature).

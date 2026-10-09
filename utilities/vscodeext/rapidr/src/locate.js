@@ -47,7 +47,7 @@ function expandHome(p, home, P) {
 
 /**
  * What `rapidr.path` may name: the executable; the folder it's in (or an
- * install prefix with bin/); RapidR.app on macOS.
+ * install prefix with bin/); RapidR Studio.app (or an older RapidR.app) on macOS.
  */
 function candidatesForSetting(value, ctx) {
     const P = pathFor(ctx.platform);
@@ -80,6 +80,9 @@ function installPlaces(ctx) {
     switch (ctx.platform) {
         case 'darwin':
             return [
+                '/Applications/RapidR Studio.app/Contents/MacOS/rapidr',
+                P.join(home, 'Applications', 'RapidR Studio.app', 'Contents', 'MacOS', 'rapidr'),
+                // (before 2.118 the app was called RapidR.app)
                 '/Applications/RapidR.app/Contents/MacOS/rapidr',
                 P.join(home, 'Applications', 'RapidR.app', 'Contents', 'MacOS', 'rapidr'),
                 '/usr/local/bin/rapidr',

@@ -13,9 +13,13 @@ checkout holds. It needs cargo and the network (or cargo's cache). It writes
     Cargo.lock          the repository's, pruned to them (the versions RapidR
                         is tested with)
     crates/…            rapidr-runtime-core, rapidr-runtime-web and the RapidR
-                        crates they use; crates/patches/… the crates.io crates
+                        crates they use (their [dev-dependencies] removed: the
+                        home is compiled against, not tested, and a dev-dependency
+                        may name a crate the home doesn't have); crates/patches/… the crates.io crates
                         RapidR replaces (the [patch.crates-io] above)
     .cargo/config.toml  the web runtime's SQLite flags (rapidr build --web)
+    design/…            the files the crates include from outside their own
+                        folders (the program icon's masters, the icon inventory)
     tools/wasm-ar.sh
     vendor/             `cargo vendor` of their crates.io dependencies; a crate
                         no build on this OS (nor the web) compiles keeps only
@@ -30,6 +34,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -71,6 +76,67 @@ def runtime_crates(src):
             if packages[dep["pkg"]]["source"] is None and any(k.get("kind") in (None, "build") for k in dep["dep_kinds"]):
                 stack.append(dep["pkg"])
     return sorted(os.path.relpath(os.path.dirname(packages[p]["manifest_path"]), src) for p in seen)
+
+
+INCLUDE = re.compile(r'\binclude(?:_str|_bytes)?!\(\s*(?:concat!\(\s*env!\("CARGO_MANIFEST_DIR"\)\s*,\s*)?"([^"]+)"')
+
+
+def outside_includes(src, crates):
+    """The files the shipped crates' sources include from outside their own
+    folders (include_str!("../../../design/…")), as paths relative to the
+    source: the home keeps them where the crates expect them. Files inside
+    another crate's folder are left (a test reading a neighbour's source)."""
+    found = set()
+    src = os.path.realpath(src)
+    for c in crates:
+        root = os.path.realpath(os.path.join(src, c))
+        for base, _, files in os.walk(root):
+            for name in files:
+                if not name.endswith(".rs"):
+                    continue
+                path = os.path.join(base, name)
+                with open(path, errors="ignore") as f:
+                    text = f.read()
+                for m in INCLUDE.finditer(text):
+                    rel = m.group(1)
+                    full = os.path.normpath(root + rel if rel.startswith("/") else os.path.join(base, rel))
+                    if full.startswith(root + os.sep) or not full.startswith(src + os.sep) or not os.path.isfile(full):
+                        continue
+                    d = os.path.dirname(full)
+                    in_crate = False
+                    while d != src and len(d) > len(src):
+                        if os.path.exists(os.path.join(d, "Cargo.toml")):
+                            in_crate = True
+                            break
+                        d = os.path.dirname(d)
+                    if not in_crate:
+                        found.add(os.path.relpath(full, src))
+    return sorted(found)
+
+
+DEV_SECTION = re.compile(r"^\s*\[(?:target\.[^\]]+\.)?dev-dependencies(?:\.[^\]]+)?\]\s*$")
+ANY_SECTION = re.compile(r"^\s*\[")
+
+
+def strip_dev_dependencies(manifest):
+    """A shipped crate's Cargo.toml without its [dev-dependencies] sections
+    (target-specific and per-crate tables too): the home is compiled
+    against, never tested, and a dev-dependency may name a crate (or a
+    workspace dependency) the home's workspace doesn't have — Cargo reads
+    every member's manifest whole, and fails on it."""
+    with open(manifest) as f:
+        lines = f.read().splitlines(keepends=True)
+    kept, skipping = [], False
+    for line in lines:
+        if ANY_SECTION.match(line):
+            skipping = bool(DEV_SECTION.match(line))
+        if not skipping:
+            kept.append(line)
+    text = "".join(kept)
+    if tomllib.loads(text).get("dev-dependencies") or any("dev-dependencies" in v for v in tomllib.loads(text).get("target", {}).values()):
+        sys.exit(f"{manifest}: dev-dependencies left after stripping (written as an inline table?)")
+    with open(manifest, "w") as f:
+        f.write(text)
 
 
 def toml_value(v):
@@ -211,6 +277,12 @@ def main():
     crates = runtime_crates(src)
     for c in crates + [spec["path"] for spec in patches(src).values()]:
         shutil.copytree(os.path.join(src, c), os.path.join(out, c), ignore=shutil.ignore_patterns("target"))
+        if c in crates:
+            strip_dev_dependencies(os.path.join(out, c, "Cargo.toml"))
+    # (the files they include from outside: the icon masters, the manual's icon inventory)
+    for f in outside_includes(src, crates):
+        os.makedirs(os.path.dirname(os.path.join(out, f)), exist_ok=True)
+        shutil.copy2(os.path.join(src, f), os.path.join(out, f))
     write_workspace(src, out, crates)
     shutil.copy2(os.path.join(src, "Cargo.lock"), os.path.join(out, "Cargo.lock"))
     for f in [".cargo/config.toml", "tools/wasm-ar.sh"]:

@@ -98,7 +98,7 @@ The extension highlights RapidR syntax (RapidQ-compatible programs included), wi
 
 | Setting | Default | |
 |---|---|---|
-| `rapidr.path` | (empty) | The `rapidr` executable, the folder it is in, or `RapidR.app`. When empty, the extension looks on `PATH`, then in the usual install places, then in a RapidR source checkout open in the workspace. |
+| `rapidr.path` | (empty) | The `rapidr` executable, the folder it is in, or `RapidR Studio.app`. When empty, the extension looks on `PATH`, then in the usual install places, then in a RapidR source checkout open in the workspace. |
 | `rapidr.rapidqCompatible` | `false` | Warn about everything RapidQ doesn't have. |
 | `rapidr.keywordCase` | `upper` | The case of keywords, types, directives and builtins: `upper`, `lower`, `proper` (`Dim x As Integer`) or `preserve` (off). |
 | `rapidr.identifierCase` | `preserve` | `declaration`: write your names as declared, and members as RapidR spells them (`Form.Caption`). |
@@ -114,7 +114,7 @@ The commands above, and also:
 
 ## Troubleshooting
 
-- **"RapidR was not found."** Install RapidR, or choose **Locate rapidr…** and pick the executable. On macOS, you can pick `RapidR.app`. On Windows, the installer puts it in `%LOCALAPPDATA%\Programs\RapidR\bin\rapidr.exe`.
+- **"RapidR was not found."** Install RapidR, or choose **Locate rapidr…** and pick the executable. On macOS, you can pick `RapidR Studio.app`. On Windows, the installer puts it in `%LOCALAPPDATA%\Programs\RapidR\bin\rapidr.exe`.
 - **No completion or diagnostics.** Run **RapidR: Show Language Server Output**. A RapidR older than the language server has no `rapidr lsp`, so update RapidR.
 - **Untrusted workspaces.** In an untrusted workspace, the extension ignores the workspace's `rapidr.path` and doesn't run a `rapidr` built inside it.
 

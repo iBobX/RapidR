@@ -15,6 +15,11 @@
     <sub-class-of type="text/plain"/>
     <glob pattern="*.rr"/>
   </mime-type>
+  <mime-type type="application/x-rapidr-project">
+    <comment>RapidR project</comment>
+    <sub-class-of type="text/plain"/>
+    <glob pattern="*.rrproj"/>
+  </mime-type>
   <mime-type type="text/x-rapidq-basic">
     <comment>RapidQ BASIC source</comment>
     <sub-class-of type="text/plain"/>

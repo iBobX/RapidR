@@ -27,11 +27,11 @@ The extension's version is RapidR's version. Each RapidR release ships a matchin
 
 It checks these places in order:
 
-1. The **`rapidr.path`** setting. This can name the executable, the folder it is in, an install prefix (with `bin/`), or `RapidR.app` on macOS. If it is set and wrong, the extension says so and doesn't fall back to another `rapidr`.
+1. The **`rapidr.path`** setting. This can name the executable, the folder it is in, an install prefix (with `bin/`), or `RapidR Studio.app` on macOS. If it is set and wrong, the extension says so and doesn't fall back to another `rapidr`.
 2. The `RAPIDR_PATH` environment variable (for development and tests).
 3. **`PATH`**. The extension searches it like `which` / `where` (with `PATHEXT` on Windows) and starts no process to do so.
 4. The **install places**:
-   - macOS: `/Applications/RapidR.app/Contents/MacOS/rapidr` and `~/Applications/…`, `/usr/local/bin`, `/opt/homebrew/bin`, `~/.local/bin`.
+   - macOS: `/Applications/RapidR Studio.app/Contents/MacOS/rapidr` (or an older `RapidR.app`) and `~/Applications/…`, `/usr/local/bin`, `/opt/homebrew/bin`, `~/.local/bin`.
    - Linux: `/usr/bin/rapidr`, `/usr/local/bin/rapidr`, `~/.local/bin/rapidr`.
    - Windows: `%LOCALAPPDATA%\Programs\RapidR\bin\rapidr.exe`, `%ProgramFiles%\RapidR\bin\rapidr.exe`.
 5. A **RapidR source checkout** open in the workspace: `./rapidr`, `target/release/rapidr`, `target/debug/rapidr`. This applies in trusted workspaces only.
