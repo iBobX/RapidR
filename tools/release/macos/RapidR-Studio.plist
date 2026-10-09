@@ -1,15 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- RapidR.app: the IDE and the SDK (tools/release/macos.sh). Its executable
-     is rapidrw (crates/rapidr-launcher): a .rr / .bas Finder opens goes to
-     `rapidr ide`. The source types are RapidR's (exported here); running them
-     is RapidR Runtime.app's "Open With" action. -->
+<!-- RapidR Studio.app: the IDE and the SDK (tools/release/macos.sh). Its
+     executable is rapidrw (crates/rapidr-launcher): a .rr / .bas / .rrproj Finder
+     opens goes to `rapidr ide`. The source and project types are RapidR's
+     (exported here); running a source file is RapidR Runtime.app's "Open With"
+     action. -->
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key>
-	<string>RapidR</string>
+	<string>RapidR Studio</string>
 	<key>CFBundleDisplayName</key>
-	<string>RapidR</string>
+	<string>RapidR Studio</string>
 	<key>CFBundleIdentifier</key>
 	<string>io.github.ibobx.rapidr</string>
 	<key>CFBundleExecutable</key>
@@ -50,6 +51,20 @@
 		</dict>
 		<dict>
 			<key>CFBundleTypeName</key>
+			<string>RapidR project</string>
+			<key>CFBundleTypeIconFile</key>
+			<string>RapidR-Source</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>io.github.ibobx.rapidr.project</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
 			<string>RapidQ BASIC source</string>
 			<key>CFBundleTypeIconFile</key>
 			<string>BASIC-Source</string>
@@ -82,6 +97,26 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>rr</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>io.github.ibobx.rapidr.project</string>
+			<key>UTTypeIconFile</key>
+			<string>RapidR-Source</string>
+			<key>UTTypeDescription</key>
+			<string>RapidR project</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+				<string>public.plain-text</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>rrproj</string>
 				</array>
 			</dict>
 		</dict>

@@ -1,12 +1,25 @@
 #!/bin/bash
-# macOS: RapidR.app (the IDE, the CLI, the SDK) and RapidR Runtime.app (runs
-# programs: .rrbc on a double click, "Open With" on .rr / .bas), universal
-# (arm64 + x86_64), in two disk images:
+# macOS: RapidR Studio.app (the IDE, the `rapidr` command, the SDK) and RapidR
+# Runtime.app (runs programs: .rrbc on a double click, "Open With" on .rr / .bas),
+# universal (arm64 + x86_64), in two disk images:
 #
 #   dist/<ver>/out/RapidR-<ver>-macos-universal.dmg          both apps
 #   dist/<ver>/out/RapidR-Runtime-<ver>-macos-universal.dmg  the runtime only
 #
-#   tools/release/macos.sh [--sign "Developer ID Application: Name (TEAMID)"] [--notarize <notarytool keychain profile>]
+# Each image opens on the apps, an Applications alias (drag the app onto it) and
+# the licence files (LICENSE, NOTICE, LEGAL.md, LICENSES.md, THIRD_PARTY_NOTICES.md).
+# The `rapidr` command line is inside the app (Contents/MacOS/rapidr); its first
+# run of `rapidr setup` offers to link it into /usr/local/bin or ~/.local/bin.
+#
+#   tools/release/macos.sh      (inputs: prepare.sh's dist/<ver>/prep/; run on the Mac)
+#   tools/release/macos.sh --sign "Developer ID Application: Name (TEAMID)" --notarize <profile>
+#
+# Signing hooks (Robert's Developer ID; this script never creates a key):
+#   --sign "<identity>"     signs inside-out with the hardened runtime and a timestamp,
+#                           then the disk images (an identity from `security find-identity -v -p codesigning`)
+#   --notarize <profile>    submits each .dmg with `xcrun notarytool` and staples the ticket
+#                           (a keychain profile made once: `xcrun notarytool store-credentials <profile>`)
+#   Without them the apps are signed ad hoc: see docs/release-packaging.md ("Signing and notarization").
 #
 # Every executable in the apps is universal — the CLI, the launcher and the one
 # runner `--interp` executables start from (runners/macos/) — built for macOS
@@ -86,7 +99,7 @@ make_app() {
     cp design/brand/icons/macos/*.icns "$app/Contents/Resources/"
 }
 step "apps"
-make_app "RapidR" "$W/sdk" RapidR.plist
+make_app "RapidR Studio" "$W/sdk" RapidR-Studio.plist
 make_app "RapidR Runtime" "$W/runtime" RapidR-Runtime.plist
 
 # Inside out: every executable, then the bundle. A Developer ID signs with
@@ -121,11 +134,11 @@ scan() {
     [ $bad = 0 ] || die "$app has executables that aren't universal"
 }
 step "every executable universal"
-scan "$W/apps/RapidR.app"
+scan "$W/apps/RapidR Studio.app"
 scan "$W/apps/RapidR Runtime.app"
 
 step "sign (${SIGN:-ad hoc})"
-sign "$W/apps/RapidR.app"
+sign "$W/apps/RapidR Studio.app"
 sign "$W/apps/RapidR Runtime.app"
 
 make_dmg() {
@@ -148,5 +161,5 @@ make_dmg() {
     echo "wrote $OUT/$file ($(du -h "$OUT/$file" | cut -f1))"
 }
 step "disk images"
-make_dmg "RapidR-$VERSION-macos-$ARCH.dmg" "RapidR $VERSION" "RapidR" "RapidR Runtime"
+make_dmg "RapidR-$VERSION-macos-$ARCH.dmg" "RapidR $VERSION" "RapidR Studio" "RapidR Runtime"
 make_dmg "RapidR-Runtime-$VERSION-macos-$ARCH.dmg" "RapidR Runtime $VERSION" "RapidR Runtime"

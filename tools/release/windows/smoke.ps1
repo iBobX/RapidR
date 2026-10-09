@@ -159,7 +159,11 @@ if ($Associations) {
     Check ".bas is not RapidR's by default (unticked)" { (Get-ItemProperty "HKCU:\Software\Classes\.bas" -ErrorAction SilentlyContinue)."(default)" -ne "RapidR.BasicSource" }
 }
 Check "source: a Run action" { (Get-ItemProperty "HKCU:\Software\Classes\RapidR.Source\shell\run\command")."(default)" -like "*rapidrw.exe*" }
-if ($kind -eq "sdk") { Check "... opened in the IDE" { (Get-ItemProperty "HKCU:\Software\Classes\RapidR.Source\shell\open\command")."(default)" -like "*--ide*" } }
+if ($kind -eq "sdk") {
+    Check "... opened in RapidR Studio" { (Get-ItemProperty "HKCU:\Software\Classes\RapidR.Source\shell\open\command")."(default)" -like "*--ide*" }
+    Check ".rrproj is a RapidR project, opened in Studio" { ((Get-ItemProperty "HKCU:\Software\Classes\.rrproj")."(default)" -eq "RapidR.Project") -and ((Get-ItemProperty "HKCU:\Software\Classes\RapidR.Project\shell\open\command")."(default)" -like "*--ide*%1*") }
+    Check "the Start menu has RapidR Studio" { Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\RapidR Studio.lnk" }
+}
 Check "the icons" { (Test-Path "$T\app\share\icons\rapidr-program.ico") -and (Test-Path "$T\app\share\icons\basic-source.ico") -and ((Get-ItemProperty "HKCU:\Software\Classes\RapidR.Program\DefaultIcon")."(default)" -like "*rapidr-program.ico*") }
 
 Write-Host "== uninstall"
@@ -167,7 +171,8 @@ Set-Location $env:TEMP
 Start-Process -Wait -FilePath "$T\app\unins000.exe" -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART")
 Start-Sleep -Seconds 2
 Check "files removed" { -not (Test-Path "$T\app\bin\rapidr.exe") -and -not (Test-Path "$T\app\lib") }
-Check "file types removed" { -not (Test-Path "HKCU:\Software\Classes\RapidR.Program") -and -not (Test-Path "HKCU:\Software\Classes\RapidR.Source") -and -not (Test-Path "HKCU:\Software\Classes\RapidR.BasicSource") -and ((Get-ItemProperty "HKCU:\Software\Classes\.rrbc" -ErrorAction SilentlyContinue)."(default)" -ne "RapidR.Program") }
+Check "the Start menu entry is gone" { -not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\RapidR Studio.lnk") }
+Check "file types removed" { -not (Test-Path "HKCU:\Software\Classes\RapidR.Project") -and -not (Test-Path "HKCU:\Software\Classes\RapidR.Program") -and -not (Test-Path "HKCU:\Software\Classes\RapidR.Source") -and -not (Test-Path "HKCU:\Software\Classes\RapidR.BasicSource") -and ((Get-ItemProperty "HKCU:\Software\Classes\.rrbc" -ErrorAction SilentlyContinue)."(default)" -ne "RapidR.Program") }
 Check "PATH as before" { [Environment]::GetEnvironmentVariable("Path", "User") -eq $pathBefore }
 Remove-Item -Recurse -Force $T -ErrorAction SilentlyContinue
 if ($script:fail) { Write-Host "== smoke test FAILED"; exit 1 } else { Write-Host "== smoke test passed"; exit 0 }

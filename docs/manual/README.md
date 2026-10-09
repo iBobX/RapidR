@@ -47,6 +47,6 @@ Elsewhere:
 The RapidR SDK installs this manual with its other documents: on Windows in
 `share\doc\rapidr\manual` under the install folder
 (`%LOCALAPPDATA%\Programs\RapidR`), on macOS inside the app
-(`RapidR.app/Contents/Resources/doc/manual`), on Linux in
+(`RapidR Studio.app/Contents/Resources/doc/manual`), on Linux in
 `/usr/share/doc/rapidr/manual` (the `.deb`) or
 `~/.local/share/doc/rapidr/manual` (the `.tar.gz`'s `install.sh`).

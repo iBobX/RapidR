@@ -53,6 +53,16 @@ describe('findRapidr', () => {
         assert.deepStrictEqual(r, { path: 'C:\\Tools\\RapidR\\rapidr.exe', source: 'PATH' });
     });
 
+    it('finds RapidR Studio.app, and the older RapidR.app', () => {
+        assert.strictEqual(findRapidr({ env: {}, platform: 'darwin', home: '/Users/u', ...fake(['/Applications/RapidR Studio.app/Contents/MacOS/rapidr']) }).path,
+            '/Applications/RapidR Studio.app/Contents/MacOS/rapidr');
+        assert.strictEqual(findRapidr({ env: {}, platform: 'darwin', home: '/Users/u', ...fake(['/Applications/RapidR.app/Contents/MacOS/rapidr']) }).path,
+            '/Applications/RapidR.app/Contents/MacOS/rapidr');
+        const fs = fake(['/Applications/RapidR Studio.app/Contents/MacOS/rapidr'], ['/Applications/RapidR Studio.app']);
+        assert.strictEqual(findRapidr({ setting: '/Applications/RapidR Studio.app', env: {}, platform: 'darwin', home: '/Users/u', ...fs }).path,
+            '/Applications/RapidR Studio.app/Contents/MacOS/rapidr');
+    });
+
     it('finds the installs', () => {
         assert.strictEqual(findRapidr({ env: {}, platform: 'darwin', home: '/Users/u', ...fake(['/Users/u/Applications/RapidR.app/Contents/MacOS/rapidr']) }).path,
             '/Users/u/Applications/RapidR.app/Contents/MacOS/rapidr');

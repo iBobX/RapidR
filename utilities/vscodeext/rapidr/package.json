@@ -306,7 +306,7 @@
           "type": "string",
           "default": "",
           "scope": "machine-overridable",
-          "markdownDescription": "The `rapidr` executable (or the folder it is in, or `RapidR.app`). Empty: found on `PATH`, then in the usual install places, then in a RapidR source checkout open in the workspace (`target/release`, `target/debug`)."
+          "markdownDescription": "The `rapidr` executable (or the folder it is in, or `RapidR Studio.app`). Empty: found on `PATH`, then in the usual install places, then in a RapidR source checkout open in the workspace (`target/release`, `target/debug`)."
         },
         "rapidr.rapidqCompatible": {
           "type": "boolean",

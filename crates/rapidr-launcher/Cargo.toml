@@ -7,7 +7,7 @@ license.workspace = true
 description = "The desktop's way into the RapidR Runtime: Windows' windowed launcher (rapidrw.exe) and the macOS apps' launcher"
 
 # Windows: rapidrw.exe, next to rapidr.exe (the file types' launcher).
-# macOS: the executable of RapidR.app and RapidR Runtime.app (it receives
+# macOS: the executable of RapidR Studio.app and RapidR Runtime.app (it receives
 # the files Finder opens and hands them on).
 [[bin]]
 name = "rapidrw"

@@ -58,10 +58,10 @@ Each system has two packages:
 | **Web** | `rapidr-web-2.117.0.zip`: the web IDE, for any static host | |
 
 - **Windows**: run the installer (per user, no administrator rights). It
-  adds *RapidR IDE* to the Start menu and, if you keep the box ticked,
+  adds *RapidR Studio* to the Start menu and, if you keep the box ticked,
   `rapidr` to your PATH.
 - **macOS**: drag *RapidR* (and/or *RapidR Runtime*) to Applications. Then
-  `/Applications/RapidR.app/Contents/MacOS/rapidr setup` offers to put
+  `/Applications/RapidR Studio.app/Contents/MacOS/rapidr setup` offers to put
   `rapidr` on your PATH.
 - **Linux**: `sudo apt install ./rapidr_2.117.0_amd64.deb`, or unpack the
   `.tar.gz` and run `./install.sh` (into `~/.local`, no root). Linux needs

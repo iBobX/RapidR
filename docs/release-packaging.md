@@ -12,7 +12,7 @@ SBOM and the release notes:
 
 | | SDK | Runtime |
 |---|---|---|
-| macOS (universal) | `RapidR-<ver>-macos-universal.dmg` (RapidR.app + RapidR Runtime.app) | `RapidR-Runtime-<ver>-macos-universal.dmg` |
+| macOS (universal) | `RapidR-<ver>-macos-universal.dmg` (RapidR Studio.app + RapidR Runtime.app) | `RapidR-Runtime-<ver>-macos-universal.dmg` |
 | Windows x64, ARM64 | `RapidR-<ver>-windows-<x64\|arm64>-setup.exe` | `RapidR-Runtime-<ver>-windows-<arch>-setup.exe` |
 | Linux x86_64, aarch64 | `rapidr-<ver>-linux-<arch>.tar.gz`, `rapidr_<ver>_<amd64\|arm64>.deb` | `rapidr-runtime-…tar.gz`, `rapidr-runtime_…deb` |
 | Web | `rapidr-web-<ver>.zip` | |
@@ -46,7 +46,7 @@ share/doc/rapidr/                LICENSE, NOTICE, LEGAL.md, LICENSES.md, THIRD_P
 share/icons/                     the apps' and file types' icons (Windows: .ico; Linux: hicolor 16–512 + scalable)
 ```
 
-On macOS `bin/` is `RapidR.app/Contents/MacOS/` and `lib/` is
+On macOS `bin/` is `RapidR Studio.app/Contents/MacOS/` and `lib/` is
 `Contents/lib/` (codesign accepts it, strict); the `.deb` installs
 `/usr/bin/rapidr` and `/usr/lib/rapidr`; Windows `%LOCALAPPDATA%\Programs\RapidR`;
 the `.tar.gz`'s `install.sh` `~/.local`.
@@ -100,7 +100,7 @@ source replacement, nothing downloaded).
 
 ### macOS: universal, nothing Intel-only
 
-Every executable in RapidR.app and RapidR Runtime.app is universal (arm64 +
+Every executable in RapidR Studio.app and RapidR Runtime.app is universal (arm64 +
 x86_64): `rapidr`, `rapidrw`, and the **one** runner interpreted executables
 start from (`lib/rapidr/runners/macos/`). Apple silicon runs the arm64 slice,
 Intel Macs the x86_64 one. Nothing in the apps is Intel-only: macOS 28 drops
@@ -156,10 +156,11 @@ msvc` (MSVC runtime linked statically; the SDK then ships no toolchain).
 | | double click | secondary action |
 |---|---|---|
 | `.rrbc` (a compiled program) | runs (`rapidr open`) | |
-| `.rr`, `.bas` (source) | opens in the IDE (SDK; the Runtime alone: runs) | Run (Windows: the Run verb; macOS / Linux: Open With > RapidR Runtime) |
+| `.rr`, `.bas` (source) | opens in RapidR Studio (SDK; the Runtime alone: runs) | Run (Windows: the Run verb; macOS / Linux: Open With > RapidR Runtime) |
+| `.rrproj` (a project; SDK only) | opens in RapidR Studio | |
 
 - **Windows** (`tools/release/windows/rapidr.iss`): `HKCU\Software\Classes`
-  ProgIDs `RapidR.Program` and `RapidR.Source` with open / run verbs and
+  ProgIDs `RapidR.Program`, `RapidR.Source` and (SDK) `RapidR.Project` with open / run verbs and
   RapidR's document icon; per user, no admin; the uninstaller removes them.
   `.rrbc` and `.rr` are always RapidR's. `.bas` is other BASICs' too: RapidR is
   always listed under its "Open with", and becomes its default only when the
@@ -171,7 +172,7 @@ msvc` (MSVC runtime linked statically; the SDK then ships no toolchain).
   executables for Windows are built from the windowed runner
   (`rapidrintr-runnerw.exe`) when the program isn't a console one — no
   console window opens with a GUI program, as RapidQ's.
-- **macOS** (`tools/release/macos/*.plist`): RapidR.app exports the `rr` and
+- **macOS** (`tools/release/macos/*.plist`): RapidR Studio.app exports the `rr`, `rrproj` and
   `bas` types (`UTExportedTypeDeclarations`) and edits them
   (`CFBundleDocumentTypes`, Owner); RapidR Runtime.app owns `rrbc` and is the
   Alternate handler of `rr` / `bas`. Finder hands an app the files it opens as
@@ -182,7 +183,7 @@ msvc` (MSVC runtime linked statically; the SDK then ships no toolchain).
   it.
 - **Linux** (`tools/release/linux/`): shared-mime-info types
   `application/x-rapidr-bytecode` (`*.rrbc`, magic `RRBC`), `text/x-rapidr`,
-  `text/x-rapidq-basic`; `rapidr-runtime.desktop` (`rapidr open %f`) and
+  `application/x-rapidr-project` (`*.rrproj`), `text/x-rapidq-basic`; `rapidr-runtime.desktop` (`rapidr open %f`) and
   `rapidr-ide.desktop` (`rapidr ide %f`) with their MimeType; defaults set with
   `xdg-mime`. The `.deb` puts them in `/usr/share` (dpkg's triggers update the
   databases); the `.tar.gz`'s `install.sh` in `~/.local/share`, and

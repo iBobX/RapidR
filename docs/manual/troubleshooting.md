@@ -29,7 +29,7 @@ put `./` in front of the file name (`sudo apt install
 which one to take (`amd64` or `arm64`).
 
 **`rapidr: command not found`** — run `rapidr setup` from the install
-(macOS: `/Applications/RapidR.app/Contents/MacOS/rapidr setup`) to link it
+(macOS: `/Applications/RapidR Studio.app/Contents/MacOS/rapidr setup`) to link it
 into your PATH; on Windows, tick "Add rapidr to PATH" in the installer.
 
 **"This program needs RapidR Runtime x.y.z or newer"** — the program was

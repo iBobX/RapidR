@@ -76,6 +76,18 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   workspace failed to build on Linux and Windows. The Windows installers (x64, arm64) and the Linux
   packages (`.deb` and `.tar.gz`, x86_64 and aarch64) build from it; the Linux ones pass their smoke tests.
 
+### Release packages
+- **"RapidR Studio" everywhere**: the macOS app is `RapidR Studio.app` (it was `RapidR.app`; the VS Code
+  extension finds both), the Windows Start menu entry and the "Open in" actions, and the Linux menu entry
+  say RapidR Studio.
+- **Project files (`.rrproj`) open in RapidR Studio** on a double click: a file type on Windows (SDK
+  installer), macOS (Studio.app's document types; `rapidrw` hands them to `rapidr ide`) and Linux (a
+  shared-mime-info type and the menu entry's MimeType). The smoke tests check them, the menu entry's
+  name and the Start menu entry (and that uninstalling removes them).
+- `tools/release/README.md`: the release flow in one page (one entry script per system, where the files
+  land, the checks, the signing hooks, the fresh-user journey); `macos.sh`'s header documents the
+  Developer ID and notarization hooks.
+
 ### Documentation
 - **Manual: installing** on Windows (which installer, each page of the wizard, the PATH and `.bas`
   options, uninstalling) and on Ubuntu or Debian (`sudo apt install ./rapidr_<ver>_<arch>.deb`, what

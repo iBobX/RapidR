@@ -26,7 +26,7 @@ system-wide).
 - **Windows**: see [Install on Windows](#install-on-windows) below.
 - **macOS**: open the disk image and drag *RapidR* (and/or *RapidR
   Runtime*) to Applications. The command line is inside the app:
-  `/Applications/RapidR.app/Contents/MacOS/rapidr setup` offers to link
+  `/Applications/RapidR Studio.app/Contents/MacOS/rapidr setup` offers to link
   `rapidr` into `/usr/local/bin` or `~/.local/bin`.
 - **Linux**: see [Install on Ubuntu or Debian](#install-on-ubuntu-or-debian-the-deb-package)
   below for the `.deb`. The `.tar.gz` installs for your user only, with no
@@ -60,7 +60,7 @@ system-wide).
      ending in `.rrbc` and `.rr` always belong to RapidR.
 5. **Click Install**, then **Finish**.
 
-The SDK adds **RapidR IDE** to the Start menu: open the menu, type "RapidR",
+The SDK adds **RapidR Studio** to the Start menu: open the menu, type "RapidR",
 and press Enter to start the IDE. To check the command line, open a new
 Command Prompt and type:
 
@@ -108,11 +108,11 @@ It is system-wide, so it asks for your password (`sudo`).
    RapidR 2.117.0
    ```
 
-4. **Start the IDE** from the applications menu (*RapidR IDE*, under
+4. **Start the IDE** from the applications menu (*RapidR Studio*, under
    Development), or from a terminal with `rapidr ide`. `rapidr run hello.bas`
    runs a program (the first program below). In the file manager,
    double-clicking a compiled `.rrbc` program runs it; a `.rr` or `.bas`
-   source file offers *RapidR IDE* under *Open With*.
+   source file, or a `.rrproj` project, opens in *RapidR Studio* (under *Open With* for `.rr` and `.bas`).
 
 What the package puts where: the `rapidr` command in `/usr/bin`; RapidR's
 other files (the runtime's sources for native builds, the IDE, a few example
@@ -270,8 +270,9 @@ in a canvas. See [The web](web.md).
 
 ## The IDEs
 
-- **The desktop IDE** (SDK: Start menu > RapidR IDE, the RapidR app on
-  macOS, *RapidR IDE* on Linux, or `rapidr ide [file]`) is written in RapidR
+- **The desktop IDE** (SDK: Start menu > RapidR Studio, *RapidR Studio* in
+  Applications on macOS, *RapidR Studio* in the applications menu on Linux, or
+  `rapidr ide [file]`) is written in RapidR
   itself: a form designer, a code editor with BASIC colours, Run. It is an
   early version; the full IDE (RapidR Studio: IntelliSense, a debugger,
   linked data components, AI assistance) is being built
