@@ -97,7 +97,7 @@ const got = await frame.evaluate(() => {
 ok(!got.missing && got.role === "status", `status bars rendered (${got.role})`);
 ok(JSON.stringify(got.texts) === JSON.stringify(["Ready", "Line 42", "INS"]), `three panels with their captions (${JSON.stringify(got.texts)})`);
 ok(got.first === 150, `Panel(0).Width = 150 (${got.first})`);
-ok(got.second === 100, `default panel width 100 (${got.second})`);
+ok(got.second === 50, `default panel width 50 (RC.EXE's; Delphi's TStatusPanel) (${got.second})`);
 ok(got.simple === "<b>plain</b>" && !got.simpleBold, `SimpleText shown as plain text, never markup (${got.simple})`);
 
 // The list view is drawn on the window's canvas from the shared model
