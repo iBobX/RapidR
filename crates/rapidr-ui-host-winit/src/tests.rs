@@ -96,6 +96,9 @@ fn window_states() {
 
 #[test]
 fn captures_are_device_pixels_on_the_cpu() {
+    // (RapidQ's look: the button's Windows face; RapidR's own look is the
+    // default since L-THEME)
+    rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
     let s = store();
     let mut d = desk(&s);
     for (scale, w, h) in [(1.0, 200, 100), (2.0, 400, 200)] {
