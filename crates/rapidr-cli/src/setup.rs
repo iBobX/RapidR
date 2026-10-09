@@ -21,7 +21,8 @@
 //!   `.tar.gz`): a link in `/usr/local/bin` or `~/.local/bin` (`--no-path`:
 //!   not offered).
 //!
-//! `rapidr setup --check` only reports.
+//! `rapidr setup --check` only reports; `rapidr setup --rust` answers only
+//! whether native builds can run (exit 0 yes, 1 no: Studio asks it).
 
 use std::env;
 use std::io::{IsTerminal, Write};
@@ -40,6 +41,29 @@ fn rustc_version(toolchain: Option<&str>) -> Option<String> {
     let text = String::from_utf8_lossy(&out.stdout);
     text.split_whitespace().nth(1).map(str::to_string)
 }
+
+/// Whether native builds can run here: the Rust they use answers (an
+/// install's own toolchain, else the user's `rustc`). `RAPIDR_NO_RUST=1`
+/// says "no Rust" without touching the machine, for testing the paths a
+/// machine without it takes (Studio's dialog, the build's message).
+pub fn native_ready() -> bool {
+    if no_rust_forced(env::var("RAPIDR_NO_RUST").ok().as_deref()) {
+        return false;
+    }
+    let home = Home::find();
+    let msvc = env::var("RAPIDR_TOOLCHAIN").is_ok_and(|t| t == "msvc");
+    let rust = home.as_ref().and_then(|h| h.release.as_ref()).map(|r| r.rust.clone()).unwrap_or_default();
+    let tc = (!rust.is_empty()).then(|| toolchain_name(&rust, env::consts::OS, env::consts::ARCH, msvc));
+    rustc_version(tc.as_deref()).is_some()
+}
+
+/// RAPIDR_NO_RUST is set to something but "" or 0.
+fn no_rust_forced(value: Option<&str>) -> bool {
+    value.is_some_and(|v| !v.is_empty() && v != "0")
+}
+
+/// What a native build says when there is no Rust.
+pub const NEEDS_RUST: &str = "Native builds need Rust (it is free). Run `rapidr setup` to install it, or build without it: add --interp (an interpreted app runs the program's bytecode).";
 
 /// The toolchains rustup has (`rustup toolchain list`), or None: no rustup.
 fn rustup_toolchains() -> Option<Vec<String>> {
@@ -130,6 +154,17 @@ pub fn setup(args: &[String]) -> ExitCode {
     if !["gnullvm", "msvc"].contains(&toolchain) {
         eprintln!("--toolchain {toolchain}: gnullvm (LLVM-MinGW, open source) or msvc (Microsoft's C++ Build Tools)");
         return ExitCode::from(2);
+    }
+
+    // `--rust`: only whether native builds are ready (exit 0), for Studio
+    if args.iter().any(|a| a == "--rust") {
+        return if native_ready() {
+            println!("native builds: ready");
+            ExitCode::SUCCESS
+        } else {
+            println!("native builds: need Rust (rapidr setup)");
+            ExitCode::from(1)
+        };
     }
 
     let home = Home::find();
@@ -349,6 +384,13 @@ mod tests {
     fn only_installs(cmd: &[String]) {
         assert!(matches!(cmd.get(..2).map(|v| v.join(" ")).as_deref(), Some("toolchain install") | Some("target add")), "rustup {cmd:?}");
         assert!(!cmd.iter().any(|a| ["default", "set", "update", "uninstall", "remove", "override", "self", "--default-host"].contains(&a.as_str())), "rustup {cmd:?}");
+    }
+
+    #[test]
+    fn no_rust_can_be_said_for_testing() {
+        assert!(no_rust_forced(Some("1")) && no_rust_forced(Some("yes")));
+        assert!(!no_rust_forced(None) && !no_rust_forced(Some("")) && !no_rust_forced(Some("0")));
+        assert!(NEEDS_RUST.contains("--interp") && NEEDS_RUST.contains("rapidr setup"));
     }
 
     #[test]

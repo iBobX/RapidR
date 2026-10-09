@@ -259,7 +259,7 @@ fn main() -> ExitCode {
             eprintln!("  rapidr run --session <file> [args]               Run it under the IDE's session protocol (stdio)");
             eprintln!("  rapidr open <file> [args]                        Run it as opening it from the desktop does");
             eprintln!("  rapidr info <file>                               Its app type, format and the runtime it needs");
-            eprintln!("  rapidr setup [--check] [--yes] [--toolchain gnullvm|msvc]  Rust for native builds, rapidr on PATH");
+            eprintln!("  rapidr setup [--check|--rust] [--yes] [--toolchain gnullvm|msvc]  Rust for native builds, rapidr on PATH");
             eprintln!("  rapidr ide [file.rr]                             The IDE");
             eprintln!("  rapidr examples [copy <name|all> [folder]]       The example programs: listed, or copied to a folder");
             eprintln!("  rapidr notices [<os>-<arch>|web|tools-<os>] [-o FILE]  The third-party notices builds carry");
@@ -521,6 +521,10 @@ fn build_source_file(
     // Native means compiled: what the Rust backend can't compile yet is an
     // error, never a silent switch to the interpreter.
     if !interp {
+        if !setup::native_ready() {
+            eprintln!("{}", setup::NEEDS_RUST);
+            return ExitCode::from(1);
+        }
         if let Some(gap) = parser_parse_file(path).ok().as_ref().and_then(rapidr_codegen_rust::native_gap) {
             eprintln!("{path}: error: {gap}, which native builds don't compile yet. Run it with the interpreter (rapidr build-bc / run-bc, or --interp).");
             return ExitCode::from(1);

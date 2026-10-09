@@ -98,7 +98,7 @@ const PANELS: &[&str] = &["expandall", "collapseall", "clearproperties", "save",
 const SESSION: &[&str] = &["start", "stop", "pause", "continue", "stepin", "stepover", "stepout", "stacktrace", "watchvalues", "runinbrowser", "stopbrowser"];
 
 /// (I1) RPROJECT's: `IF Project.Save THEN`.
-const PROJECT: &[&str] = &["save", "build", "stopbuild", "reveal"];
+const PROJECT: &[&str] = &["save", "build", "stopbuild", "reveal", "rustready", "installrust"];
 
 /// The web's own components.
 const WEB: &[&str] = &[

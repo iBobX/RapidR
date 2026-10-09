@@ -19,7 +19,7 @@ One command, `rapidr`, is the compiler, the build tool and the runtime.
 | `rapidr bundle-bc <file> [-o out.zip]` | A static web bundle (a `.zip`) |
 | `rapidr import-rapidq <file\|folder\|.rrproj> [out_dir]` | Write a converted copy of a RapidQ program with RapidR's names, and a report (`rapidr-import-report.md`), in `out_dir` (also `-o out_dir`; else `<name>-rapidr` beside it). The original is untouched, and each program is proved to compile to the same bytecode. RapidR Studio's File ▸ Import RapidQ Project or File… does the same |
 | `rapidr upgrade-names <file> [--dry-run]` | The same conversion in place, for RapidR's own files; `--dry-run` prints a diff and changes nothing |
-| `rapidr setup [--check] [--yes] [--no-path]` | Install the Rust native builds use; put `rapidr` on PATH |
+| `rapidr setup [--check] [--yes] [--no-path]` | Install the Rust native builds use; put `rapidr` on PATH. `rapidr setup --rust` only answers whether native builds can run (exit code 0 yes, 1 no); a native `rapidr build` without Rust stops and says to use `--interp` or run `rapidr setup` |
 | `rapidr notices [<os>-<arch>\|web\|tools-<os>] [-o file]` | Print the third-party notices a kind of build carries |
 | `rapidr about`, `rapidr version` | |
 | `rapidr --log <file> <command…>` | A command's output (and cargo's) in a file |

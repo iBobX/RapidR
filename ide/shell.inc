@@ -119,7 +119,9 @@ SUB RunCommand(Id AS STRING)
     CASE "project.addModule": AddProjectFile "module"
     CASE "project.options": ShowAppSettings
     ' ---- run / debug ----
-    CASE "run.build": BuildProject
+    CASE "run.build": BuildProject ""
+    CASE "run.buildNative": BuildProject "native"
+    CASE "run.buildInterpreted": BuildProject "interpreted"
     CASE "run.reveal": RevealBuild
     ' ---- window ----
     CASE "window.next": Dock.NextDocument

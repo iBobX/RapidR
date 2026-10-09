@@ -166,6 +166,8 @@ SUB DefineCommands
   AddCmd "run.browser", "Run in &Browser", "Run", "", "", "project", "groups/web"
   AddSep "Run"
   AddCmd "run.build", "&Build", "Run", "Ctrl+Shift+B", "", "project", ""
+  AddCmd "run.buildNative", "Build &Native App", "Run", "", "", "project", "run.build"
+  AddCmd "run.buildInterpreted", "Build &Interpreted App", "Run", "", "", "project", "run.build"
   AddCmd "run.reveal", "Reveal the &App", "Run", "", "", "project", ""
 
   ' ---- Debug ----

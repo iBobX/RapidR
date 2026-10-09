@@ -306,8 +306,82 @@ const CASES = [
     do: "run.build",
     // (cargo checks the runner first: a minute on a busy machine)
     delay: 90,
-    dump: { "proj.builtpath": /(Notes\.app|Notes\.AppDir|main\.exe)$/, "outputbox.text": /icon: .*note\.svg[\s\S]*Built /, "proj.building": /^0$/ },
+    dump: { "proj.builtpath": /(Notes\.app|Notes\.AppDir|main\.exe)$/, "outputbox.text": /icon: .*note\.svg[\s\S]*Built .* \(interpreted\) in \d+ s/, "proj.building": /^0$/ },
     webDump: { "outputbox.text": /Can't build: Build makes apps in RapidR Studio on the desktop/, "proj.builtpath": /^$/ },
+  },
+  // (NO-RUST) A computer without Rust (RAPIDR_NO_RUST=1 says so): Build
+  // Native App asks first (prompts.inc) — Enter is Build Interpreted Instead
+  // (the app, "(interpreted)" in the log), Cancel builds nothing, Install
+  // Rust... runs `rapidr setup` and the log says it ended; Run > Build with
+  // a native project asks the same, and with an interpreted one just builds.
+  {
+    name: "build-native-no-rust-interpreted",
+    open: "tests/fixtures/studio_app/Notes.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    env: { RAPIDR_NO_RUST: "1" },
+    do: "run.buildNative",
+    events: "promptsave.__key_13",
+    // (the events fire at the end of the delay and the dump follows at once:
+    // the build has begun, as interpreted; its end, "(interpreted) in N s",
+    // is build-app's)
+    delay: 8,
+    dump: { "prompttitle.caption": /^Native builds need Rust/, "promptsave.caption": /^&Build Interpreted Instead$/, "promptdont.caption": /^&Install Rust\.\.\.$/, "saveprompt.visible": /^0$/, "outputbox.text": /^Building main\.rr: interpreted, release/ },
+  },
+  {
+    name: "build-native-no-rust-cancel",
+    open: "tests/fixtures/studio_app/Notes.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    env: { RAPIDR_NO_RUST: "1" },
+    do: "run.buildNative,wait",
+    events: "promptcancel.__mousedown_12_12,promptcancel.__mouseup_12_12",
+    delay: 6,
+    dump: { "prompttitle.caption": /^Native builds need Rust/, "saveprompt.visible": /^0$/, "proj.builtpath": /^$/, "proj.building": /^0$/, "outputbox.text": /^(?![\s\S]*(Built|Building))/ },
+  },
+  {
+    name: "build-native-no-rust-install",
+    open: "tests/fixtures/studio_app/Notes.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    env: { RAPIDR_NO_RUST: "1" },
+    do: "run.buildNative",
+    events: "promptdont.__mousedown_12_12,promptdont.__mouseup_12_12",
+    delay: 8,
+    // (a source checkout: setup only reports the Rust the machine has)
+    dump: { "proj.builtpath": /^$/, "outputbox.text": /^RapidR \d/ },
+  },
+  {
+    name: "build-default-native-no-rust",
+    open: "tests/fixtures/studio_app_native/Notes.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    env: { RAPIDR_NO_RUST: "1" },
+    do: "run.build,wait",
+    events: "promptcancel.__mousedown_12_12,promptcancel.__mouseup_12_12",
+    delay: 6,
+    dump: { "prompttitle.caption": /^Native builds need Rust/, "proj.buildkind": /^native$/, "proj.builtpath": /^$/, "proj.building": /^0$/ },
+  },
+  {
+    // Project Options: the Compiled choice says Rust is missing
+    name: "app-options-no-rust",
+    open: "tests/fixtures/studio_app_native/Notes.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    env: { RAPIDR_NO_RUST: "1" },
+    do: "project.options",
+    delay: 4,
+    dump: { "appkind.text": /^Compiled \(Rust not installed\)$/, "appkindnote.caption": /^Rust is free/ },
+  },
+  {
+    // Project Options: Rust is there (this machine's): the Compiled choice as it was
+    name: "app-options-with-rust",
+    open: "tests/fixtures/studio_app_native/Notes.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    do: "project.options",
+    delay: 4,
+    dump: { "appkind.text": /^Compiled \(native: needs Rust\)$/ },
   },
   {
     // Project > Project Options: the app's name, ID, version, icon (previewed)
@@ -1502,6 +1576,7 @@ function runDesktop(c, scale = 1) {
       ...(c.events ? { RAPIDR_TEST_EVENTS: c.events } : {}),
       RAPIDR_PRINT_TO: join(WORK, "prints"),
       RAPIDR_REGISTRY: join(WORK, `${c.name}.reg`),
+      ...(c.env || {}),
       ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: join(ROOT, c.folder) } : {}),
     },
   });
@@ -1667,7 +1742,7 @@ for (const c of CASES.filter((c) => !filters.length || filters.some((f) => c.nam
   if (HOSTS.includes("desktop")) {
     for (const scale of c.capture ? c.scales || [1] : [1]) check(c.capture && scale > 1 ? `desktop @${scale}x` : "desktop", runDesktop(c, scale), c);
   }
-  if (!HOSTS.includes("web")) continue;
+  if (!HOSTS.includes("web") || c.desktopOnly) continue;
   for (const scale of c.scales || [1]) {
     const label = c.scales ? `web @${scale}x` : "web";
     try {
