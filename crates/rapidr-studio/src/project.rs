@@ -333,6 +333,9 @@ fn build_args(name: &str, kind: &str) -> Result<(Vec<String>, String), String> {
         let kind = if kind.is_empty() { build_kind(&m.project) } else { kind };
         if kind.eq_ignore_ascii_case("interpreted") {
             args.push("--interp".into());
+        } else if kind.eq_ignore_ascii_case("web") {
+            // (a web app: the bytecode and the web runtime, a .zip)
+            args.extend(["--web".to_string(), "--interp".to_string()]);
         }
         // (the app in the project's output folder, `build` by default, a
         // single file's project too; its generated Rust kept or not)
@@ -340,6 +343,24 @@ fn build_args(name: &str, kind: &str) -> Result<(Vec<String>, String), String> {
         args.push(if b.keep_rust { "--keep-rust" } else { "--no-keep-rust" }.to_string());
         Ok((args, folder))
     })
+}
+
+/// The web build the page makes (Build Web App): the project's main file, as
+/// `<name>-web.zip` — the name of its project's file, else of the program.
+fn web_build<H: Host>(host: H, name: &str) -> Result<(), String> {
+    let (main, stem) = with(name, |m| {
+        if m.kind.is_empty() {
+            return Err("no project is open".to_string());
+        }
+        let main = join(&full(&m.folder), &m.project.main);
+        let named = if m.kind == "project" && !m.file_name.is_empty() { m.file_name.as_str() } else { main.as_str() };
+        let file = slashes(named);
+        let file = file.rsplit('/').next().unwrap_or("").to_string();
+        let stem = file.rsplit_once('.').map_or(file.clone(), |(s, _)| s.to_string());
+        Ok((main, if stem.is_empty() { "program".to_string() } else { stem }))
+    })?;
+    crate::build::web_start(name)?;
+    host.build_web(name, &main, &stem).inspect_err(|_| crate::build::stop(name))
 }
 
 /// A path in full (relative ones from the current folder); as it is where
@@ -441,10 +462,16 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
         "file" => Value::String(with(name, |m| m.project.file(i.max(0) as usize).filter(|_| i >= 0).map(|f| f.path.clone()).unwrap_or_default())),
         "filekind" => Value::String(with(name, |m| m.project.file(i.max(0) as usize).filter(|_| i >= 0).map(|f| kind_name(f.kind).to_string()).unwrap_or_default())),
         "build" => {
-            let started = build_args(name, &s(0)).and_then(|(args, cwd)| {
-                let rapidr = host.rapidr().ok_or("Build makes apps in RapidR Studio on the desktop (macOS, Windows, Linux); on the web, Run shows the program")?;
-                crate::build::start(name, rapidr, &args, &cwd)
-            });
+            let kind = s(0);
+            let started = if kind.eq_ignore_ascii_case("web") && host.rapidr().is_none() {
+                // (the web page builds the web app itself)
+                web_build(host, name)
+            } else {
+                build_args(name, &kind).and_then(|(args, cwd)| {
+                    let rapidr = host.rapidr().ok_or("Build Native App and Build Interpreted App make apps in RapidR Studio on the desktop (macOS, Windows, Linux); on the web, Build Web App makes a web app and Run shows the program")?;
+                    crate::build::start(name, rapidr, &args, &cwd)
+                })
+            };
             let ok = started.is_ok();
             with(name, |m| {
                 m.error = started.err().unwrap_or_default();

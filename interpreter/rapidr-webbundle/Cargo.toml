@@ -6,5 +6,11 @@ edition.workspace = true
 license.workspace = true
 description = "Build a downloadable static-hostable web bundle (.zip) from a .rrbc + rapidrintr.wasm/js."
 
+[features]
+# (the zip writer: the CLI's; RapidR Studio on the web makes the page's files
+# only and zips them itself)
+default = ["zip"]
+zip = ["dep:zip"]
+
 [dependencies]
-zip = { version = "0.6", default-features = false, features = ["deflate"] }
+zip = { version = "0.6", default-features = false, features = ["deflate"], optional = true }

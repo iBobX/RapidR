@@ -26,6 +26,9 @@ rapidr-ui-render = { workspace = true }
 rapidr-langsvc = { workspace = true }
 # RapidR Studio's components: RPROJECT, RLANGUAGESERVICE, RPROGRAMSESSION
 rapidr-studio = { workspace = true }
+# Build Web App: the page of a web build, its policy and files (no zip: the
+# page zips them)
+rapidr-webbundle = { workspace = true }
 wasm-bindgen = "0.2.129"
 wasm-bindgen-futures = "0.4.79"
 js-sys = "0.3.106"

@@ -122,6 +122,7 @@ SUB RunCommand(Id AS STRING)
     CASE "run.build": BuildProject ""
     CASE "run.buildNative": BuildProject "native"
     CASE "run.buildInterpreted": BuildProject "interpreted"
+    CASE "run.buildWeb": BuildProject "web"
     CASE "run.reveal": RevealBuild
     ' ---- window ----
     CASE "window.next": Dock.NextDocument

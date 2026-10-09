@@ -80,6 +80,13 @@ fn values_are_spelled_three_ways() {
     assert_eq!(values::parse(&Kind::Color, "&H00FF00"), Ok(Value::Integer(0xFF00)));
     assert_eq!(values::parse(&Kind::Bool, "yes"), Ok(Value::Integer(-1)));
     assert_eq!(values::display(&Kind::Bool, &v_str("False")), "False");
+    // (RapidQ's 1 / -1 / 0: any non-zero is True)
+    assert_eq!(values::display(&Kind::Bool, &Value::Integer(-1)), "True");
+    assert_eq!(values::display(&Kind::Bool, &Value::Integer(1)), "True");
+    assert_eq!(values::display(&Kind::Bool, &Value::Integer(0)), "False");
+    assert_eq!(values::display(&Kind::Bool, &v_str("-1")), "True");
+    let enabled = rapidr_lang::component("RForm").and_then(|c| c.property("Enabled")).expect("RForm.Enabled");
+    assert_eq!(Kind::of(enabled), Some(Kind::Bool), "a form's Enabled is declared an INTEGER, shown as a check box");
     assert!(values::parse(&Kind::Int, "12x").is_err());
     assert_eq!(values::parse(&Kind::Int, "&H10"), Ok(Value::Integer(16)));
     assert_eq!(values::display(&Kind::Float, &Value::Double(2.5)), "2.5");

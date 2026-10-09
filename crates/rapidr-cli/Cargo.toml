@@ -14,7 +14,7 @@ rapidr-bcgen.workspace = true
 rapidr-bytecode.workspace = true
 rapidr-vm.workspace = true
 rapidr-vm-host-native = { workspace = true, features = ["full", "session", "studio"] }
-rapidr-webbundle.workspace = true
+rapidr-webbundle = { workspace = true, features = ["zip"] }
 rapidr-lsp.workspace = true
 # The code editor's IntelliSense in programs run here (RapidR Studio's
 # RCODEEDITOR): the language service, installed at start (main.rs)

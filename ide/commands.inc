@@ -165,10 +165,18 @@ SUB DefineCommands
   AddCmd "run.restart", "R&estart", "Run", "Ctrl+Shift+F5", "", "session", ""
   AddCmd "run.browser", "Run in &Browser", "Run", "", "", "project", "groups/web"
   AddSep "Run"
-  AddCmd "run.build", "&Build", "Run", "Ctrl+Shift+B", "", "project", ""
-  AddCmd "run.buildNative", "Build &Native App", "Run", "", "", "project", "run.build"
-  AddCmd "run.buildInterpreted", "Build &Interpreted App", "Run", "", "", "project", "run.build"
-  AddCmd "run.reveal", "Reveal the &App", "Run", "", "", "project", ""
+  IF Proj.FileManager = "" THEN
+    ' (the web has no file manager: apps for a computer are the desktop
+    ' Studio's to build; here the program becomes a web app, a .zip that any
+    ' web host serves)
+    AddCmd "run.buildWeb", "&Build Web App (.zip)", "Run", "Ctrl+Shift+B", "", "project", "run.build"
+  ELSE
+    AddCmd "run.build", "&Build", "Run", "Ctrl+Shift+B", "", "project", ""
+    AddCmd "run.buildNative", "Build &Native App", "Run", "", "", "project", "run.build"
+    AddCmd "run.buildInterpreted", "Build &Interpreted App", "Run", "", "", "project", "run.build"
+    AddCmd "run.buildWeb", "Build &Web App", "Run", "", "", "project", "groups/web"
+    AddCmd "run.reveal", "Reveal the &App", "Run", "", "", "project", ""
+  END IF
 
   ' ---- Debug ----
   AddCmd "run.continue", "&Continue", "Debug", "F5", "", "paused", ""

@@ -7,6 +7,22 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Build Web App (WEB-BUILD)
+- **Run > Build Web App (.zip)** in RapidR Studio on the web: the program compiled to bytecode and
+  zipped with the web runtime, its page and strict per-program Content-Security-Policy (the same
+  template and policy `rapidr bundle-bc` uses: one `rapidr-webbundle`), the notices, the fallback
+  fonts and the project's files (a CSV, pictures), downloaded as `<project>-web.zip`: unzip on any
+  web host. The page zips it itself (a stored `.zip`, no library, nothing from a CDN). The Output
+  panel says "✓ Built Notes-web.zip — unzip on any web host". The web page's Run menu no longer
+  lists Build, Build Native App, Build Interpreted App and Reveal (those make apps for a computer).
+- **Run > Build Web App** in RapidR Studio on the desktop: `rapidr build --web --interp` into the
+  project's output folder as `<project>-web.zip` (the log's "Web:" line is a link, with Reveal in
+  Finder / File Explorer / Files).
+- The inspector shows a form's **Enabled** (declared an INTEGER by RapidQ, 1 or -1 and 0) and
+  **Visible** / **ShowHint** as check boxes, True for any non-zero value (a running program's form
+  showed "-1").
+- Manual: building-apps.md "Build a web app".
+
 ### RapidR Studio speaks RapidR's names, and imports RapidQ programs (R-NAMES, phase 2)
 - **File ▸ Import RapidQ Project or File…** (and **Import RapidQ Folder…**): pick a RapidQ program
   (`.bas`, `.rqw`, `.rqb`, `.rq` or `.inc`, with the files it includes) or a folder; Studio writes

@@ -181,6 +181,48 @@ writes its desktop entry and icons under `~/.local/share` (the menu starts
 it from where the AppDir is: install it again after moving it). Tools such
 as appimagetool pack an AppDir into one AppImage file.
 
+## Build a web app
+
+A web app is your program and the RapidR web runtime in one `.zip`. Unzip it
+on any web host (GitHub Pages, a shared host, an `nginx` folder) and the
+program runs in the visitor's browser, with nothing to install. It is a
+static site: no server program is needed.
+
+```sh
+rapidr build hello_form.rr --web --interp    # hello_form-web.zip
+rapidr bundle-bc hello_form.rr -o site.zip   # the same, named as you like
+```
+
+**In RapidR Studio**, choose **Run > Build Web App** (on the web page:
+**Run > Build Web App (.zip)**, Ctrl+Shift+B). The program is saved, checked
+and compiled; the Output panel's **Build** page lists what goes in, and ends
+with "✓ Built hello_form-web.zip — unzip on any web host". On the desktop the
+zip is written to the project's output folder (`build` beside the project
+file) and the last line has **Reveal in Finder** (File Explorer, Files); on
+the web page the browser downloads it. The zip is named after the project
+(`Notes-web.zip` for `Notes.rrproj`), else after the program.
+
+![RapidR Studio on the web: the Run menu lists Run, Run Without Debugging, Stop, Restart, Run in Browser and Build Web App (.zip), with Ctrl+Shift+B](images/build-web/run-menu.png)
+
+![The Output panel's Build page after Build Web App: the files that go in, "Saved Notes-web.zip", and the green line "Built Notes-web.zip — unzip on any web host"](images/build-web/build-page.png)
+
+What is in the zip:
+
+| File | What it is |
+|---|---|
+| `index.html` | the page: it names the program and carries its Content-Security-Policy, which allows only what the program uses (a program that never uses `RHTTP` can't reach a server) |
+| `<program>.rrbc` | your program, compiled |
+| `rapidrintr.js`, `rapidrintr_bg.wasm`, `loader.js` | the web runtime and what starts it |
+| `rapidr-assets.js` | the project's own files (a CSV the program loads, pictures), when there are some |
+| `fonts/` | the fallback fonts, loaded only for characters the built-in fonts lack |
+| `THIRD-PARTY-NOTICES.txt` | the open-source notices that travel with the runtime |
+| `_headers`, `.htaccess` | the same safe headers, for hosts that read them |
+
+To try it before you upload, unzip it and serve the folder:
+`python3 -m http.server -d hello_form-web 8000`, then open
+`http://127.0.0.1:8000/`. (Opening `index.html` from the disk doesn't work:
+browsers don't let a page load WebAssembly from `file://`.)
+
 ## In RapidR Studio
 
 - **Run > Build** (Ctrl+Shift+B, and the Build button on the tool bar)
@@ -211,8 +253,11 @@ as appimagetool pack an AppDir into one AppImage file.
   the Rust is deleted after the build; on, it is left in
   `<output>/<program>-rust-source` to read). They are saved in the project
   file.
-- On the web, Build isn't there: the web page runs programs, it doesn't
-  build apps.
+- **Run > Build Web App** makes the program a web app (see
+  [Build a web app](#build-a-web-app)). On the web page this is the Build
+  command: **Run > Build Web App (.zip)**. The web page doesn't make apps for
+  a computer (Build Native App, Build Interpreted App, Reveal): those are in
+  RapidR Studio on the desktop.
 
 ### RapidR Studio as an app, from a source checkout
 

@@ -82,6 +82,33 @@ impl Host for Web {
         )))
     }
 
+    fn build_web(self, name: &str, program: &str, stem: &str) -> Result<(), String> {
+        let compile = COMPILER.with(Cell::get).ok_or("no compiler on this page")?;
+        let files = rapidr_studio::project::program_files(program)?;
+        let bytes = compile(&files.main, files.sources.clone(), &files.data)?;
+        // (what the program uses decides its page's policy, as the CLI's does)
+        let source = files.sources.iter().map(|(_, t)| t.as_str()).collect::<Vec<_>>().join("
+");
+        let needs = rapidr_webbundle::WebNeeds::scan(&source);
+        let mut assets = std::collections::HashMap::new();
+        for (path, data) in &files.data {
+            assets.insert(path.clone(), format!("data:{};base64,{}", rapidr_webbundle::mime_for(path), rapidr_value::objects::codec::base64_encode(data)));
+        }
+        let program_name = files.main.rsplit_once('.').map_or(files.main.as_str(), |(s, _)| s);
+        let page = rapidr_webbundle::page_files(program_name, &bytes, None, Some(&assets), &needs);
+        // (the page's files as [name, bytes] pairs: its script adds the
+        // runtime, the notices and the fonts, zips them and offers the file)
+        let list = js_sys::Array::new();
+        for (file, data) in &page {
+            let pair = js_sys::Array::new();
+            pair.push(&JsValue::from_str(file));
+            pair.push(&js_sys::Uint8Array::from(data.as_slice()));
+            list.push(&pair);
+        }
+        host_call("buildWeb", &[JsValue::from_str(name), JsValue::from_str(&format!("{stem}-web.zip")), list.into()])?;
+        Ok(())
+    }
+
     fn list_files(self, folder: &str) -> Vec<String> {
         crate::object_web::stored_names_in(folder)
     }

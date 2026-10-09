@@ -305,7 +305,9 @@ SUB BuildLine(Text AS STRING)
 END SUB
 
 ' Run > Build (Kind ""): the project's own choice (Project Options);
-' Build Native App / Build Interpreted App: that one. A native build without
+' Build Native App / Build Interpreted App: that one; Build Web App ("web"): a
+' .zip for any web host (the desktop's rapidr build --web --interp, the web page's
+' own zipper). A native build without
 ' Rust asks first: build interpreted instead, install Rust, or cancel.
 SUB BuildProject(Kind AS STRING)
   DIM answer AS STRING
@@ -352,7 +354,7 @@ SUB BuildOutput(Text AS STRING)
   IF k > 0 THEN
     head = LEFT$(Text, k - 1)
     path = MID$(Text, k + 2)
-    IF (head = "App" OR head = "AppDir" OR head = "Executable" OR head = "Rust source" OR head = "Output folder") AND Proj.FileManager <> "" THEN
+    IF (head = "App" OR head = "AppDir" OR head = "Executable" OR head = "Web" OR head = "Rust source" OR head = "Output folder") AND Proj.FileManager <> "" THEN
       BuildLine head + ": " + Hyperlink(path, "reveal:" + path)
       EXIT SUB
     END IF
@@ -390,7 +392,16 @@ SUB BuildDone(Code AS INTEGER, Built AS STRING)
     END IF
     EXIT SUB
   END IF
-  IF Code = 0 THEN
+  IF Code = 0 AND BuildMode = "web" THEN
+    ' (a web app: the .zip any web host serves, unzipped)
+    BuildLine ""
+    IF Proj.FileManager = "" THEN
+      BuildLine CHR$(27) + "[32m" + "✓ Built " + FileTitle(Built) + " — unzip on any web host" + CHR$(27) + "[0m"
+    ELSE
+      BuildLine CHR$(27) + "[32m" + "✓ Built " + FileTitle(Built) + " — unzip on any web host" + CHR$(27) + "[0m   " + Hyperlink("Reveal in " + Proj.FileManager, "reveal:" + Built)
+    END IF
+    SetState "stopped", "Built " + FileTitle(Built)
+  ELSEIF Code = 0 THEN
     BuildLine ""
     BuildLine CHR$(27) + "[32m" + "✓ Built " + FileTitle(Built) + " (" + BuildMode + ") in " + took + " s" + CHR$(27) + "[0m   " + Hyperlink("Reveal in " + Proj.FileManager, "reveal:" + Built)
     SetState "stopped", "Built " + FileTitle(Built)
