@@ -368,7 +368,7 @@ impl Console {
                         p.ring(r, 2.0, if l.contrast { l.focus } else { l.warning }, if l.contrast { 2.0 } else { 1.5 });
                     }
                 }
-                let links = rapidr_value::panels::console::links::find(line.text());
+                let links = rapidr_value::panels::console::links::of_line(line);
                 let default_ink = if selected && focused { l.selected_text } else { l.text };
                 for (a, b, attr) in spans {
                     // (cut where links start and end: a link in the link colour)
@@ -508,8 +508,7 @@ impl Console {
                 return c.problems.get(at as usize).map(|p| (p.file.clone(), p.line));
             }
             let i = at.checked_sub(c.first(page))? as usize;
-            let text = c.line_text(page, i)?;
-            rapidr_value::panels::console::links::find(&text).into_iter().next().map(|k| (k.file, k.line))
+            c.links_of(page, i).into_iter().next().map(|k| (k.file, k.line))
         })
         .flatten();
         if let Some((file, line)) = link {

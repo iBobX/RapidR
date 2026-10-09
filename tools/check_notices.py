@@ -219,7 +219,7 @@ def main():
     host = host_target()
 
     with tempfile.TemporaryDirectory(prefix="rapidr-notices-") as tmp:
-        env = dict(os.environ, RAPIDR_PRINT_TO=os.path.join(tmp, "prints"), RAPIDR_REGISTRY=os.path.join(tmp, "registry.reg"), RAPIDR_HOME=ROOT)
+        env = dict(os.environ, RAPIDR_PRINT_TO=os.path.join(tmp, "prints"), RAPIDR_REGISTRY=os.path.join(tmp, "registry.reg"), RAPIDR_HOME=ROOT, RAPIDR_BUILD_CACHE=os.path.join(tmp, "build-cache"))
         src = os.path.join(tmp, "hello.bas")
         with open(src, "w") as f:
             f.write('PRINT "hello"\n')
@@ -259,7 +259,7 @@ def main():
             os.makedirs(os.path.dirname(nsrc))
             with open(nsrc, "w") as f:
                 f.write('PRINT "hello"\n')
-            if run([rapidr, "build", nsrc, "--no-bundle"], tmp, env):
+            if run([rapidr, "build", nsrc, "--no-bundle", "--debug"], tmp, env):
                 path = os.path.join(tmp, "native", NOTICES)
                 check(os.path.isfile(path), f"{NOTICES} beside the native executable")
                 if os.path.isfile(path):
@@ -273,7 +273,7 @@ def main():
             os.makedirs(os.path.dirname(wsrc))
             with open(wsrc, "w") as f:
                 f.write('PRINT "hello"\n')
-            if run([rapidr, "build", wsrc, "--web"], tmp, env):
+            if run([rapidr, "build", wsrc, "--web", "--debug"], tmp, env):
                 d = os.path.join(tmp, "webn", "hello_web")
                 check(os.path.isfile(os.path.join(d, NOTICES)), f"{NOTICES} in the web build's folder")
                 check(NOTICES in open(os.path.join(d, "index.html")).read(), "index.html links it")

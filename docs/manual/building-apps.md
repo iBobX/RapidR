@@ -2,7 +2,10 @@
 
 `rapidr build` makes a program into a proper app for its system, with an
 icon: the one you give it, or RapidR's own for compiled programs. RapidR
-Studio's **Run > Build** does the same.
+Studio's **Run > Build** does the same. A build is a release build —
+optimized, what you ship (`--debug` makes a quick one for debugging) — and
+its output folder gets only the app: the Rust a native build generates and
+cargo's files stay in RapidR's build cache ([The CLI](cli-and-runtime.md#native-builds)).
 
 | System | A program with windows | A console program |
 |---|---|---|
@@ -19,8 +22,9 @@ interpreted builds (`--interp`) make the same apps. Cross builds do too:
 ```sh
 rapidr build notepad.bas --interp          # macOS: notepad.app
 rapidr build notepad.bas --interp --icon art/notepad.png --name Notepad --app-version 2.1
-rapidr build Notepad.rrproj                # the project's main file, with its settings
+rapidr build Notepad.rrproj                # the project's main file, with its settings: build/Notepad.app
 rapidr build notepad.bas --no-bundle       # just the executable, no icon
+rapidr build notepad.bas dist --keep-rust  # dist/notepad.app and dist/notepad-rust-source/
 ```
 
 ## The app's details
@@ -34,6 +38,8 @@ rapidr build notepad.bas --no-bundle       # just the executable, no icon
 | `--company <name>` | `company` | Who makes it: Windows' company name and the copyright line | none |
 | `--bundle` / `--no-bundle` | | An app even for a console program / only the executable | |
 | `--project <file.rrproj>` | | The project whose settings to use | the `.rrproj` beside the source that names it as its main file |
+| `[output folder]`, `--output <folder>` | `output` | Where the app goes (a folder of the project's) | the project's `build`; without a project the source's folder |
+| `--keep-rust` / `--no-keep-rust` | `keep_rust` | A native build also leaves its generated Rust in `<output>/<program>-rust-source` (with a README saying what it is) | deleted |
 
 The command line wins over the project, and the project over the source.
 A project file carries them like this:
@@ -46,6 +52,8 @@ bundle_id = "com.example.notepad"
 version = "2.1"
 company = "Example Ltd"
 targets = ["bytecode"]      # Studio's Build: interpreted ("native" compiles with Rust)
+output = "dist"             # the output folder ("build" when it isn't said)
+keep_rust = true            # the generated Rust beside the app (not kept when it isn't said)
 ```
 
 ## Icons
@@ -122,14 +130,23 @@ as appimagetool pack an AppDir into one AppImage file.
 
 ## In RapidR Studio
 
-- **Run > Build** (Ctrl+Shift+B) builds the project's app for the system
-  Studio runs on; what `rapidr build` prints goes to Output, and the last
-  line names the app.
-- **Run > Reveal in Finder** (File Explorer, Files) shows it.
+- **Run > Build** (Ctrl+Shift+B) builds the project's app — a release
+  build — for the system Studio runs on, into the project's output folder
+  (`build` beside the project file, or the one Project Options names). What
+  `rapidr build` prints goes to the Output panel's **Build** page as it
+  comes: the app's path and the kept Rust source are links, and the last
+  line, "✓ Built Notepad.app in 12 s", has **Reveal in Finder** (File
+  Explorer, Files) — a click shows the app selected. A build that fails says
+  so in red, after cargo's errors. Run (F5) is the one for debugging: it runs
+  the program under Studio's debugger, no build needed.
+- **Run > Reveal in Finder** shows the last app built.
 - **Project > Project Options** sets the app's name, bundle ID, version,
-  company and icon (with a preview, as the app will have it), and whether
-  Build compiles it natively or makes it interpreted (no Rust needed). They
-  are saved in the project file.
+  company and icon (with a preview, as the app will have it); whether
+  Build compiles it natively or makes it interpreted (no Rust needed); the
+  output folder; and **Keep the generated Rust source** (off by default:
+  the Rust is deleted after the build; on, it is left in
+  `<output>/<program>-rust-source` to read). They are saved in the project
+  file.
 - On the web, Build isn't there: the web page runs programs, it doesn't
   build apps.
 

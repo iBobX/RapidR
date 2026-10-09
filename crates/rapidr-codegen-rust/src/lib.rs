@@ -3334,6 +3334,16 @@ debug = "line-tables-only"
 [profile.dev.package."*"]
 debug = false
 
+# A release build is what is shipped: optimized, without symbol tables
+# (a smaller app).
+[profile.release]
+strip = true
+
+# The generated code's own warnings (an import it didn't need, extra
+# parentheses) are RapidR's to fix, not the program's author's: not shown.
+[lints.rust]
+unused = "allow"
+
 [dependencies]
 rapidr-runtime-core = {{ path = "{runtime_path}" }}
 
@@ -3356,6 +3366,10 @@ edition = "2021"
 
 [lib]
 crate-type = ["cdylib"]
+
+# (the generated code's own warnings: RapidR's to fix, not shown)
+[lints.rust]
+unused = "allow"
 
 [dependencies]
 rapidr-runtime-web = {{ path = "{runtime_web_path}" }}

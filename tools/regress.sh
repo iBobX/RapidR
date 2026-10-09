@@ -29,6 +29,9 @@ mkdir -p "$W/prints"
 export RAPIDR_PRINT_TO="$PWD/$W/prints"
 # …nor the user's QREGISTRY store: a scratch one.
 export RAPIDR_REGISTRY="$PWD/$W/registry.reg"
+# …nor the user's build cache (`rapidr build`'s generated Rust and cargo's
+# target folder): one in here, gone with the rest.
+export RAPIDR_BUILD_CACHE="$PWD/$W/build-cache"
 STAGES=(); CLEAN=0
 for a in "$@"; do if [ "$a" = --clean ]; then CLEAN=1; else STAGES+=("$a"); fi; done
 [ ${#STAGES[@]} -eq 0 ] && { STAGES=(unit conformance examples gui visual web security legal); CLEAN=1; }

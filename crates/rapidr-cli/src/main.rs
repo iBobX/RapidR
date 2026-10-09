@@ -8,6 +8,7 @@ use rapidr_lexer::lex_file as lexer_lex_file;
 use rapidr_parser::parse_file as parser_parse_file;
 use rapidr_preprocessor::{preprocess_file, PreprocessOptions};
 
+mod cache;
 mod examples;
 mod home;
 mod lang;
@@ -83,16 +84,18 @@ fn main() -> ExitCode {
             let mut release = true; // default to release
             let mut web = false;
             let mut interp = false;
+            let mut app = package::Options::default();
             for arg in &args {
                 match arg.as_str() {
                     "--release" | "-r" => release = true,
                     "--debug" | "-d" => release = false,
                     "--web" | "-w" => web = true,
                     "--interp" | "-i" => interp = true,
+                    "--keep-rust" => app.keep_rust = Some(true),
                     _ => {}
                 }
             }
-            return build_source_file(&file, None, release, web, interp, None, None, &package::Options::default());
+            return build_source_file(&file, None, release, web, interp, None, None, &app);
         }
     }
 
@@ -189,11 +192,16 @@ fn main() -> ExitCode {
                         }
                         eprintln!("note: --host kernel is no longer needed: the UI kernel is RapidR's only desktop host");
                     }
-                    _ => output_dir = Some(arg.clone()),
+                    _ if output_dir.is_none() && app.output.is_none() => output_dir = Some(arg.clone()),
+                    _ => {
+                        eprintln!("{arg}: one output folder only (rapidr build <file> [output folder])");
+                        return ExitCode::from(2);
+                    }
                 }
             }
-            // Native builds default to a quick debug compile; interpreted
-            // ones to the optimized runner (built once, then reused).
+            // A build is a release build: optimized, what is shipped (the
+            // interpreted ones on the stripped runner). `--debug` builds for
+            // debugging: quicker to compile, slower to run.
             if target.is_some() && !interp {
                 eprintln!("--target: only interpreted builds (--interp) pick a target; native builds are for this machine");
                 return ExitCode::from(2);
@@ -202,7 +210,7 @@ fn main() -> ExitCode {
                 eprintln!("--csp: only web builds (--web) have a Content-Security-Policy");
                 return ExitCode::from(2);
             }
-            build_source_file(&path, output_dir, release.unwrap_or(interp), web, interp, target, csp, &app)
+            build_source_file(&path, output_dir.or(app.output.clone()), release.unwrap_or(true), web, interp, target, csp, &app)
         }
         (Some("build-bc"), Some(path)) => {
             let mut out: Option<String> = None;
@@ -255,7 +263,10 @@ fn main() -> ExitCode {
             eprintln!("  rapidr preprocess <file.rr>");
             eprintln!("  rapidr lex <file.rr>");
             eprintln!("  rapidr codegen <file.rr> [output_dir]");
-            eprintln!("  rapidr build <file.rr|app.rrproj> [output_dir] [--release|-r] [--debug|-d] [--web|-w] [--interp|-i] [--target <os>-<arch>]");
+            eprintln!("  rapidr build <file.rr|app.rrproj> [output folder | --output <folder>] [--debug|-d] [--web|-w] [--interp|-i] [--target <os>-<arch>]");
+            eprintln!("        A release build (optimized) by default; --debug a quick one for debugging. The output folder: the project's");
+            eprintln!("        (`build`), else the source's. It gets only the app: the generated Rust and cargo's files stay in the build cache");
+            eprintln!("        [--keep-rust|--no-keep-rust]  a native build's generated Rust also in <output>/<program>-rust-source");
             eprintln!("        [--csp \"connect-src https://api.example.com; …\"]  (web) sources the page's Content-Security-Policy adds");
             eprintln!("        [--icon <.icns|.ico|.png|.svg>] [--name <app name>] [--bundle-id <id>] [--app-version <1.0>] [--company <name>]");
             eprintln!("        [--bundle|--no-bundle] [--project <app.rrproj>] [-g<icon.ico>]   A GUI program becomes Name.app (macOS),");
@@ -321,7 +332,6 @@ fn lex_source_file(path: &str) -> ExitCode {
     }
 }
 
-/// Generate Rust source code from a .rr file into an output directory.
 /// Whether the program (with what it includes) uses one of RapidR Studio's
 /// components: a native build then takes the runtime's `studio` feature.
 fn uses_studio_components(path: &str) -> bool {
@@ -332,24 +342,42 @@ fn uses_studio_components(path: &str) -> bool {
     text.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|w| matches!(w, "RPROJECT" | "RLANGUAGESERVICE" | "RPROGRAMSESSION"))
 }
 
+/// `rapidr codegen <file> [folder]`: the Rust project for a program, in
+/// `<file>_rust` beside it (or the folder), to read or build by hand.
 fn codegen_source_file(path: &str, output_dir: Option<String>) -> ExitCode {
-    codegen_source_file_inner(path, output_dir, false)
+    let source_path = Path::new(path);
+    let stem = source_path.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
+    let out_dir = match &output_dir {
+        Some(d) => PathBuf::from(d),
+        None => source_path.parent().unwrap_or(Path::new(".")).join(format!("{stem}_rust")),
+    };
+    match generate_rust_project(path, &out_dir, false) {
+        Ok(made) => {
+            println!("Generated Rust project ({}) in {}", if made.web { "web" } else { "desktop" }, out_dir.display());
+            println!("  {}/Cargo.toml", out_dir.display());
+            println!("  {}/src/{}", out_dir.display(), made.source_file);
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("{e}");
+            ExitCode::from(1)
+        }
+    }
 }
 
-fn codegen_source_file_inner(path: &str, output_dir: Option<String>, force_web: bool) -> ExitCode {
-    let source_path = Path::new(path);
-    let stem = source_path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("output");
+/// What [`generate_rust_project`] wrote.
+struct Generated {
+    web: bool,
+    /// `main.rs` (desktop) or `lib.rs` (web, a cdylib)
+    source_file: &'static str,
+}
 
-    let out_dir = match &output_dir {
-        Some(d) => Path::new(d.as_str()).to_path_buf(),
-        None => source_path
-            .parent()
-            .unwrap_or(Path::new("."))
-            .join(format!("{stem}_rust")),
-    };
+/// The Rust project for the program `path`, written in `out_dir`:
+/// `Cargo.toml`, `Cargo.lock` (the workspace's: the versions RapidR is
+/// tested with), `src/main.rs` (`lib.rs` on the web). A file that holds the
+/// same text already is left as it is (cargo sees no change).
+fn generate_rust_project(path: &str, out_dir: &Path, force_web: bool) -> Result<Generated, String> {
+    let stem = Path::new(path).file_stem().and_then(|s| s.to_str()).unwrap_or("output");
     let src_dir = out_dir.join("src");
 
     // RapidR's home: the runtime crates and the lockfile (home.rs)
@@ -358,48 +386,21 @@ fn codegen_source_file_inner(path: &str, output_dir: Option<String>, force_web: 
     // Preprocess to detect $APPTYPE
     let pre = preprocess_file(path, PreprocessOptions::default()).ok();
     let app_type = pre.as_ref().and_then(|r| r.app_type.clone());
-    let resources = match pre.as_ref().map(resource_files).transpose() {
-        Ok(r) => r.unwrap_or_default(),
-        Err(e) => {
-            eprintln!("{e}");
-            return ExitCode::from(1);
-        }
-    };
+    let resources = pre.as_ref().map(resource_files).transpose()?.unwrap_or_default();
 
-    let target = if force_web || app_type.as_deref() == Some("WEB") {
-        AppTarget::Web
-    } else {
-        AppTarget::Desktop
-    };
-
-    let runtime_path = if target == AppTarget::Web {
-        workspace_root
-            .as_ref()
-            .map(|r| r.join("crates/rapidr-runtime-web"))
-            .unwrap_or_else(|| Path::new("crates/rapidr-runtime-web").to_path_buf())
-    } else {
-        workspace_root
-            .as_ref()
-            .map(|r| r.join("crates/rapidr-runtime-core"))
-            .unwrap_or_else(|| Path::new("crates/rapidr-runtime-core").to_path_buf())
-    };
+    let target = if force_web || app_type.as_deref() == Some("WEB") { AppTarget::Web } else { AppTarget::Desktop };
+    let crate_dir = if target == AppTarget::Web { "crates/rapidr-runtime-web" } else { "crates/rapidr-runtime-core" };
+    let runtime_path = workspace_root.as_ref().map(|r| r.join(crate_dir)).unwrap_or_else(|| PathBuf::from(crate_dir));
 
     // Parse
-    let program = match parser_parse_file(path) {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!("Parse error: {e}");
-            return ExitCode::from(1);
-        }
-    };
+    let program = parser_parse_file(path).map_err(|e| format!("Parse error: {e}"))?;
 
     // The same checks as the bytecode compiler (unknown SUBs, missing
     // labels, …), with positions, so both backends reject the same programs.
     if let Err(errors) = compile_to_bytecode(path) {
         let native: Vec<&str> = errors.lines().filter(|l| rapidr_bcgen::error_applies_to_native_builds(l)).collect();
         if !native.is_empty() {
-            eprintln!("{}", native.join("\n"));
-            return ExitCode::from(1);
+            return Err(native.join("\n"));
         }
     }
 
@@ -418,46 +419,55 @@ fn codegen_source_file_inner(path: &str, output_dir: Option<String>, force_web: 
             toml
         }
     };
+    fs::create_dir_all(&src_dir).map_err(|e| format!("Cannot create {}: {e}", src_dir.display()))?;
     // (the workspace's lockfile, so wgpu, vello, winit — and on the web the
     // UI kernel's vello_cpu and parley — are the versions RapidR is tested
     // with, not whatever is newest)
     if let Some(lock) = workspace_root.as_ref().map(|r| r.join("Cargo.lock")).filter(|l| l.exists()) {
-        if fs::create_dir_all(&out_dir).is_ok() {
-            if let Err(e) = fs::copy(&lock, out_dir.join("Cargo.lock")) {
-                eprintln!("Warning: could not copy {}: {e}", lock.display());
-            }
+        if let Err(e) = fs::read(&lock).and_then(|bytes| cache::write_if_changed(&out_dir.join("Cargo.lock"), &bytes)) {
+            eprintln!("Warning: could not copy {}: {e}", lock.display());
         }
     }
 
-    // Write output
-    if let Err(e) = fs::create_dir_all(&src_dir) {
-        eprintln!("Cannot create output directory: {e}");
-        return ExitCode::from(1);
-    }
-
     // For web, the generated code goes in lib.rs (cdylib); for desktop, main.rs
-    let source_filename = if target == AppTarget::Web { "lib.rs" } else { "main.rs" };
-    if let Err(e) = fs::write(src_dir.join(source_filename), &rust_source) {
-        eprintln!("Cannot write {}: {e}", source_filename);
-        return ExitCode::from(1);
-    }
-    if let Err(e) = fs::write(out_dir.join("Cargo.toml"), &cargo_toml) {
-        eprintln!("Cannot write Cargo.toml: {e}");
-        return ExitCode::from(1);
-    }
-
-    let target_label = if target == AppTarget::Web { "web" } else { "desktop" };
-    println!("Generated Rust project ({}) in {}", target_label, out_dir.display());
-    println!("  {}/Cargo.toml", out_dir.display());
-    println!("  {}/src/{}", out_dir.display(), source_filename);
-    ExitCode::SUCCESS
+    let source_file = if target == AppTarget::Web { "lib.rs" } else { "main.rs" };
+    cache::write_if_changed(&src_dir.join(source_file), rust_source.as_bytes()).map_err(|e| format!("Cannot write {source_file}: {e}"))?;
+    cache::write_if_changed(&out_dir.join("Cargo.toml"), cargo_toml.as_bytes()).map_err(|e| format!("Cannot write Cargo.toml: {e}"))?;
+    Ok(Generated { web: target == AppTarget::Web, source_file })
 }
 
-/// Generate Rust source and then run `cargo build` on it.
-///
-/// `interp = true` switches the desktop path to **bytecode + stub
-/// runner** (single self-contained exe) and the `--web` path to a
-/// `bundle-bc`-style static zip.
+/// Where a build puts what it makes, and whether a native build leaves
+/// its generated Rust there too.
+struct Output {
+    dir: PathBuf,
+    keep_rust: bool,
+}
+
+/// The output folder: the command line's (`[output folder]`, `--output`),
+/// else the project's (`[build] output`, `build` by default: a project path),
+/// else the source's own folder — RC.EXE's way, the executable beside the
+/// program. `--keep-rust` / `--no-keep-rust`, else the project's `keep_rust`.
+fn output_of(path: &str, explicit: Option<&str>, app: &package::Options) -> Result<Output, String> {
+    let project = package::project_for(Path::new(path), app.project.as_deref())?;
+    let dir = match (explicit, &project) {
+        (Some(d), _) => PathBuf::from(d),
+        (None, Some((folder, p))) => folder.join(p.build.output_folder()),
+        (None, None) => Path::new(path).parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new(".")).to_path_buf(),
+    };
+    let keep_rust = app.keep_rust.unwrap_or_else(|| project.as_ref().is_some_and(|(_, p)| p.build.keep_rust));
+    // (said in full: what the build prints names where things are)
+    let dir = std::path::absolute(&dir).unwrap_or(dir);
+    Ok(Output { dir, keep_rust })
+}
+
+/// `rapidr build`: the program made into what is shipped, in the output
+/// folder ([`output_of`]) — a native build compiled with Rust in the build
+/// cache (cache.rs: the generated Rust and cargo's files never in the
+/// output folder), an interpreted one (`interp`) the runner with the
+/// program's bytecode; for the web (`web`, `$APPTYPE WEB`) a site folder or
+/// (interpreted) a zip. `release`: optimized (the default); else a quick
+/// debug compile.
+#[allow(clippy::too_many_arguments)]
 fn build_source_file(
     path: &str,
     output_dir: Option<String>,
@@ -473,6 +483,13 @@ fn build_source_file(
         .ok()
         .and_then(|r| r.app_type);
     let is_web = web || app_type.as_deref() == Some("WEB");
+    let out = match output_of(path, output_dir.as_deref(), app) {
+        Ok(o) => o,
+        Err(e) => {
+            eprintln!("{e}");
+            return ExitCode::from(1);
+        }
+    };
 
     // The app it becomes (Name.app, the .exe's icon, Name.AppDir), decided
     // first: a bad icon or version fails before a long build.
@@ -497,38 +514,81 @@ fn build_source_file(
         }
     }
 
+    let file = Path::new(path).file_name().map(|f| f.to_string_lossy().into_owned()).unwrap_or_else(|| path.to_string());
+    let kind = if interp { "interpreted" } else { "native" };
+    let profile = if release { "release (optimized)" } else { "debug" };
+    let what = if is_web { "for the web".to_string() } else { format!("for {}", home::system_name(&target.clone().unwrap_or_else(home::host_target))) };
+    println!("Building {file}: {kind}, {profile}, {what}");
+    println!("Output folder: {}", out.dir.display());
+
     if interp {
+        if out.keep_rust {
+            println!("(an interpreted build has no Rust source to keep: the program is its bytecode)");
+        }
         // Bytecode pipeline: skip Rust codegen entirely.
         return if is_web {
-            build_interp_web(path, output_dir, csp.as_deref())
+            build_interp_web(path, &out.dir, csp.as_deref())
         } else {
-            build_interp_desktop(path, output_dir, release, target, plan.as_ref().expect("a desktop build's app"))
+            build_interp_desktop(path, &out.dir, release, target, plan.as_ref().expect("a desktop build's app"))
         };
     }
 
-    let result = codegen_source_file_inner(path, output_dir.clone(), is_web);
-    if result != ExitCode::SUCCESS {
-        return result;
+    // The Rust, generated in the build cache: never in the output folder
+    let cache = match cache::open() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("{e}");
+            return ExitCode::from(1);
+        }
+    };
+    let stem = Path::new(path).file_stem().and_then(|s| s.to_str()).unwrap_or("output");
+    let project_dir = cache.project_dir(Path::new(path), &rapidr_codegen_rust::crate_name(stem));
+    println!("Generating Rust...");
+    if let Err(e) = generate_rust_project(path, &project_dir, is_web) {
+        eprintln!("{e}");
+        let _ = fs::remove_dir_all(&project_dir);
+        return ExitCode::from(1);
     }
 
-    let source_path = Path::new(path);
-    let stem = source_path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("output");
-    let out_dir = match &output_dir {
-        Some(d) => Path::new(d.as_str()).to_path_buf(),
-        None => source_path
-            .parent()
-            .unwrap_or(Path::new("."))
-            .join(format!("{stem}_rust")),
+    let result = if is_web {
+        build_web(path, &project_dir, &cache, stem, release, csp.as_deref(), &out.dir)
+    } else {
+        build_desktop(&project_dir, &cache, stem, release, plan.as_ref().expect("a desktop build's app"), &out.dir)
     };
 
-    if is_web {
-        build_web(path, &out_dir, stem, release, csp.as_deref())
-    } else {
-        build_desktop(path, &out_dir, stem, release, plan.as_ref().expect("a desktop build's app"))
+    // The generated Rust: beside the app when asked for, else gone
+    if out.keep_rust {
+        let to = out.dir.join(format!("{stem}-rust-source"));
+        match keep_rust_source(path, &project_dir, &to) {
+            Ok(()) => println!("Rust source: {}", to.display()),
+            Err(e) => eprintln!("Cannot keep the Rust source in {}: {e}", to.display()),
+        }
+    } else if result != ExitCode::SUCCESS {
+        println!("(`--keep-rust` keeps the Rust RapidR generated, to look at it)");
     }
+    let _ = fs::remove_dir_all(&project_dir);
+    if result == ExitCode::SUCCESS {
+        println!("Build succeeded!");
+    }
+    result
+}
+
+/// `--keep-rust`: the generated project copied to `to`, with a README that
+/// says what it is.
+fn keep_rust_source(path: &str, project_dir: &Path, to: &Path) -> std::io::Result<()> {
+    cache::copy_project(project_dir, to)?;
+    let file = Path::new(path).file_name().map(|f| f.to_string_lossy().into_owned()).unwrap_or_default();
+    fs::write(
+        to.join("README.txt"),
+        format!(
+            "The Rust that RapidR {} generated from {file} (rapidr build --keep-rust).\n\
+             \n\
+             It is rebuilt from the program at every build: change the program, not this.\n\
+             To build it by hand: `cargo build --release` in this folder. It compiles\n\
+             against RapidR's runtime where Cargo.toml says (this computer's RapidR).\n",
+            env!("CARGO_PKG_VERSION")
+        ),
+    )
 }
 
 /// The app a desktop build of `path` for `target` makes (package.rs).
@@ -543,29 +603,85 @@ fn app_plan(path: &str, target: &str, opts: &package::Options) -> Result<package
     package::plan(stem, system, console, opts, project.as_ref(), option_icon.as_deref())
 }
 
-fn build_desktop(path: &str, out_dir: &Path, stem: &str, release: bool, plan: &package::Plan) -> ExitCode {
-    let source_path = Path::new(path);
-    let profile = if release { "release" } else { "debug" };
-    println!("\nBuilding with cargo ({profile})...");
-    let mut cargo_args = vec!["build"];
-    if release {
-        cargo_args.push("--release");
-    }
+/// Cargo run on the generated project in `project_dir`, its target folder
+/// the cache's: what it prints passed on (the "Compiling" lines, the
+/// errors), its JSON messages read for what it made. `None` when it
+/// couldn't run or failed (said already).
+fn cargo_build(project_dir: &Path, cache: &cache::Cache, args: &[&str], envs: &[(&str, &str)]) -> Option<cache::Artifacts> {
+    use std::io::BufRead;
     let mut cargo = match cargo_for_programs() {
         Ok(c) => c,
         Err(e) => {
             eprintln!("{e}");
-            return ExitCode::from(1);
+            return None;
         }
     };
+    let first = !cache.target.exists();
+    cargo
+        .args(args)
+        .arg("--message-format=json-render-diagnostics")
+        .current_dir(project_dir)
+        .env("CARGO_TARGET_DIR", &cache.target)
+        .stdout(process::Stdio::piped());
+    // (the program's own files are removed after each build: cargo's
+    // incremental state for it would only be written to be thrown away)
+    if env::var_os("CARGO_INCREMENTAL").is_none() {
+        cargo.env("CARGO_INCREMENTAL", "0");
+    }
+    for (k, v) in envs {
+        cargo.env(k, v);
+    }
+    if first {
+        println!("(the first build compiles RapidR's runtime: a few minutes; the next ones reuse it from the build cache, {})", cache.dir.display());
+    }
+    let mut child = match cargo.spawn() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Failed to run cargo: {e}\nNative builds compile with Rust: `rapidr setup` installs it.");
+            return None;
+        }
+    };
+    let manifest = project_dir.join("Cargo.toml");
+    let mut made = cache::Artifacts::default();
+    if let Some(out) = child.stdout.take() {
+        for line in std::io::BufReader::new(out).lines().map_while(Result::ok) {
+            if line.starts_with('{') {
+                made.take(&line, &manifest);
+            } else {
+                println!("{line}");
+            }
+        }
+    }
+    match child.wait() {
+        Ok(s) if s.success() => Some(made),
+        Ok(s) => {
+            eprintln!("Build failed with {s}");
+            made.remove();
+            None
+        }
+        Err(e) => {
+            eprintln!("cargo: {e}");
+            made.remove();
+            None
+        }
+    }
+}
+
+fn build_desktop(project_dir: &Path, cache: &cache::Cache, stem: &str, release: bool, plan: &package::Plan, dest_dir: &Path) -> ExitCode {
+    let profile = if release { "release" } else { "debug" };
+    let mut cargo_args = vec!["build"];
+    if release {
+        cargo_args.push("--release");
+    }
     // macOS: a release build is universal (arm64 + x86_64) when Rust has
     // both targets — what's shipped runs on every Mac —, for macOS from
     // DEPLOYMENT_TARGET on (macos.rs); a debug build is this Mac's only (half
     // the build time while developing)
     let universal = release && cfg!(target_os = "macos") && macos::rust_has_both_targets(home::rust_command("rustc"));
+    let mut envs = Vec::new();
     if cfg!(target_os = "macos") {
         if env::var_os("MACOSX_DEPLOYMENT_TARGET").is_none() {
-            cargo.env("MACOSX_DEPLOYMENT_TARGET", macos::DEPLOYMENT_TARGET);
+            envs.push(("MACOSX_DEPLOYMENT_TARGET", macos::DEPLOYMENT_TARGET));
         }
         if universal {
             for t in macos::TRIPLES {
@@ -575,54 +691,43 @@ fn build_desktop(path: &str, out_dir: &Path, stem: &str, release: bool, plan: &p
             println!("(this Mac's architecture only: `rustup target add aarch64-apple-darwin x86_64-apple-darwin` makes universal executables)");
         }
     }
-    let status = cargo.args(&cargo_args).current_dir(out_dir).status();
+    println!("Compiling with cargo ({profile})...");
+    let Some(made) = cargo_build(project_dir, cache, &cargo_args, &envs) else { return ExitCode::from(1) };
 
-    match status {
-        Ok(s) if s.success() => {
-            // Copy the built binary to the same directory as the .rr source
-            let binary_name = rapidr_codegen_rust::crate_name(stem);
-            let target_root = match std::env::var_os("CARGO_TARGET_DIR") {
-                Some(p) => PathBuf::from(p),
-                None => out_dir.join("target"),
-            };
-            // (`.exe` on Windows)
-            let exe = std::env::consts::EXE_SUFFIX;
-            let mut built_binary = target_root.join(profile).join(format!("{binary_name}{exe}"));
-            let dest_dir = source_path.parent().unwrap_or(Path::new("."));
-            if universal {
-                // (the two slices made one: lipo, which macOS' command line tools have —
-                // the linker Rust uses comes with them)
-                built_binary = target_root.join(format!("{binary_name}-universal"));
-                let slices: Vec<PathBuf> = macos::TRIPLES.iter().map(|t| target_root.join(t).join(profile).join(&binary_name)).collect();
-                let lipo = process::Command::new("lipo").arg("-create").args(&slices).arg("-output").arg(&built_binary).status();
-                if !lipo.is_ok_and(|s| s.success()) {
-                    eprintln!("lipo -create failed: the slices are in {}", target_root.display());
-                    return ExitCode::from(1);
-                }
+    let finished = (|| -> Result<(), String> {
+        let binary = if universal {
+            // (the two slices made one: lipo, which macOS' command line tools
+            // have — the linker Rust uses comes with them)
+            let slices: Vec<&PathBuf> = macos::TRIPLES.iter().filter_map(|t| made.executables.iter().find(|e| e.components().any(|c| c.as_os_str() == *t))).collect();
+            if slices.len() != macos::TRIPLES.len() {
+                return Err(format!("cargo didn't say where it put both slices ({:?})", made.executables));
             }
-
-            // The program made into its app, with the open-source notices it
-            // ships with (package.rs, notices.rs)
-            let binary = match fs::read(&built_binary) {
-                Ok(b) => b,
-                Err(e) => {
-                    eprintln!("{}: {e}", built_binary.display());
-                    return ExitCode::from(1);
-                }
-            };
-            if let Err(e) = package::finish(plan, &binary, None, dest_dir, &notices::Kind::Desktop(home::host_target())) {
-                eprintln!("{e}");
-                return ExitCode::from(1);
+            // (made in the target folder, beside the slices: gone with them)
+            let fat = cache.target.join(format!("{}-universal-{}", rapidr_codegen_rust::crate_name(stem), process::id()));
+            let lipo = process::Command::new("lipo").arg("-create").args(&slices).arg("-output").arg(&fat).status();
+            let bytes = fs::read(&fat).map_err(|e| format!("{}: {e}", fat.display()));
+            let _ = fs::remove_file(&fat);
+            if !lipo.is_ok_and(|s| s.success()) {
+                return Err("lipo -create failed: macOS' command line tools make universal executables".into());
             }
-            println!("Build succeeded!");
-            ExitCode::SUCCESS
-        }
-        Ok(s) => {
-            eprintln!("Build failed with {s}");
-            ExitCode::from(1)
-        }
+            bytes?
+        } else {
+            let exe = made.executables.first().ok_or("cargo didn't say where it put the executable")?;
+            fs::read(exe).map_err(|e| format!("{}: {e}", exe.display()))?
+        };
+        // The program made into its app, with the open-source notices it
+        // ships with (package.rs, notices.rs)
+        println!("Making the app...");
+        package::finish(plan, &binary, None, dest_dir, &notices::Kind::Desktop(home::host_target()))?;
+        Ok(())
+    })();
+    // (the program's own files in the shared target folder: gone; the
+    // runtime stays built for the next build)
+    made.remove();
+    match finished {
+        Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("Failed to run cargo: {e}\nNative builds compile with Rust: `rapidr setup` installs it.");
+            eprintln!("{e}");
             ExitCode::from(1)
         }
     }
@@ -670,7 +775,10 @@ fn cargo_for_programs() -> Result<process::Command, String> {
     Ok(cargo)
 }
 
-fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool, csp: Option<&str>) -> ExitCode {
+/// A web build: the program compiled to WebAssembly in the build cache, its
+/// site (`index.html`, the wasm and its JavaScript, the fonts, the notices)
+/// written to `<output folder>/<program>_web`.
+fn build_web(path: &str, project_dir: &Path, cache: &cache::Cache, stem: &str, release: bool, csp: Option<&str>, dest_dir: &Path) -> ExitCode {
     let source_path = Path::new(path);
     let profile = if release { "release" } else { "debug" };
     let needs = match web_needs(path, csp) {
@@ -682,23 +790,16 @@ fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool, csp: Option<
     };
 
     // Step 1: Compile with cargo for wasm32-unknown-unknown
-    println!("\nBuilding WASM ({profile})...");
-    let mut cargo_args = vec!["build", "--target", "wasm32-unknown-unknown"];
+    println!("Compiling WebAssembly with cargo ({profile})...");
+    let mut cargo_args: Vec<String> = ["build", "--target", "wasm32-unknown-unknown"].map(String::from).to_vec();
     if release {
-        cargo_args.push("--release");
+        cargo_args.push("--release".into());
     }
-    let mut cargo = match cargo_for_programs() {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("{e}");
-            return ExitCode::from(1);
-        }
-    };
-    cargo.args(&cargo_args).current_dir(out_dir);
+    let mut envs: Vec<(&str, String)> = Vec::new();
     // (wasm SIMD: the UI kernel's CPU renderer on simd128, as the web
     // runtime's own build — every 2026 browser has it)
     if env::var_os("RUSTFLAGS").is_none() {
-        cargo.env("RUSTFLAGS", "-C target-feature=+simd128");
+        envs.push(("RUSTFLAGS", "-C target-feature=+simd128".into()));
     }
     // SQLite's C sources go into the wasm (RSQLITE), compiled as the
     // workspace compiles them (its .cargo/config.toml, wherever the program
@@ -707,66 +808,46 @@ fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool, csp: Option<
     if let Some(root) = Home::find().map(|h| h.root) {
         let config = root.join(".cargo/config.toml");
         if config.exists() {
-            cargo.arg("--config").arg(config);
+            cargo_args.push("--config".into());
+            cargo_args.push(config.to_string_lossy().into_owned());
         }
         let ar = root.join("tools/wasm-ar.sh");
         if cfg!(unix) && ar.exists() && env::var_os("AR_wasm32_unknown_unknown").is_none() {
-            cargo.env("AR_wasm32_unknown_unknown", ar);
+            envs.push(("AR_wasm32_unknown_unknown", ar.to_string_lossy().into_owned()));
         }
     }
-    let status = cargo.status();
-
-    match status {
-        Ok(s) if !s.success() => {
-            eprintln!("WASM build failed with {s}");
-            return ExitCode::from(1);
+    let args: Vec<&str> = cargo_args.iter().map(String::as_str).collect();
+    let envs: Vec<(&str, &str)> = envs.iter().map(|(k, v)| (*k, v.as_str())).collect();
+    let Some(made) = cargo_build(project_dir, cache, &args, &envs) else { return ExitCode::from(1) };
+    let result = web_site(source_path, &made, stem, &needs, dest_dir);
+    made.remove();
+    match result {
+        Ok(web_out) => {
+            println!("Web build: {}", web_out.display());
+            println!("  {}/index.html", web_out.display());
+            println!("  {}/{}", web_out.display(), notices::FILE_NAME);
+            println!("\nServe with: python3 -m http.server -d {} 8080", web_out.display());
+            ExitCode::SUCCESS
         }
         Err(e) => {
-            eprintln!("Failed to run cargo: {e}");
-            return ExitCode::from(1);
+            eprintln!("{e}");
+            ExitCode::from(1)
         }
-        _ => {}
     }
+}
+
+/// The web build's site in `<dest_dir>/<stem>_web` from the wasm cargo made.
+fn web_site(source_path: &Path, made: &cache::Artifacts, stem: &str, needs: &rapidr_webbundle::WebNeeds, dest_dir: &Path) -> Result<PathBuf, String> {
+    let wasm_file = made.files.iter().find(|f| f.extension().is_some_and(|e| e == "wasm")).ok_or("cargo didn't say where it put the .wasm")?;
+    let web_out = dest_dir.join(format!("{stem}_web"));
+    fs::create_dir_all(&web_out).map_err(|e| format!("Cannot create web output directory: {e}"))?;
 
     // Step 2: Run wasm-bindgen to generate JS glue
-    let target_root = match std::env::var_os("CARGO_TARGET_DIR") {
-        Some(p) => PathBuf::from(p),
-        None => out_dir.join("target"),
-    };
-    let wasm_file = target_root
-        .join("wasm32-unknown-unknown")
-        .join(profile)
-        .join(format!("{}.wasm", rapidr_codegen_rust::crate_name(stem).replace('-', "_")));
-
-    let dest_dir = source_path.parent().unwrap_or(Path::new("."));
-    let web_out = dest_dir.join(format!("{stem}_web"));
-    if let Err(e) = fs::create_dir_all(&web_out) {
-        eprintln!("Cannot create web output directory: {e}");
-        return ExitCode::from(1);
-    }
-
     println!("Running wasm-bindgen...");
-    let wb_status = process::Command::new("wasm-bindgen")
-        .args([
-            "--out-dir",
-            &web_out.to_string_lossy(),
-            "--target",
-            "web",
-            "--no-typescript",
-            &wasm_file.to_string_lossy(),
-        ])
-        .status();
-
+    let wb_status = process::Command::new("wasm-bindgen").arg("--out-dir").arg(&web_out).args(["--target", "web", "--no-typescript"]).arg(wasm_file).status();
     match wb_status {
-        Ok(s) if !s.success() => {
-            eprintln!("wasm-bindgen failed with {s}");
-            return ExitCode::from(1);
-        }
-        Err(e) => {
-            eprintln!("Failed to run wasm-bindgen: {e}");
-            eprintln!("  Install with: cargo install wasm-bindgen-cli --version 0.2.129");
-            return ExitCode::from(1);
-        }
+        Ok(s) if !s.success() => return Err(format!("wasm-bindgen failed with {s}")),
+        Err(e) => return Err(format!("Failed to run wasm-bindgen: {e}\n  Install with: cargo install wasm-bindgen-cli --version 0.2.129")),
         _ => {}
     }
 
@@ -779,36 +860,21 @@ fn build_web(path: &str, out_dir: &Path, stem: &str, release: bool, csp: Option<
             println!("  - {}", name);
         }
     }
-    for (name, text) in rapidr_webbundle::native_site_files(stem, &wasm_module, &assets, &needs, &notices::html_head_lines()) {
-        if let Err(e) = fs::write(web_out.join(&name), text) {
-            eprintln!("Cannot write {name}: {e}");
-            return ExitCode::from(1);
-        }
+    for (name, text) in rapidr_webbundle::native_site_files(stem, &wasm_module, &assets, needs, &notices::html_head_lines()) {
+        fs::write(web_out.join(&name), text).map_err(|e| format!("Cannot write {name}: {e}"))?;
     }
-    println!("Content-Security-Policy: {}", rapidr_webbundle::content_security_policy(&needs));
+    println!("Content-Security-Policy: {}", rapidr_webbundle::content_security_policy(needs));
     // (the fallback fonts beside the page: loaded as its text needs them)
     let fonts = fallback_fonts_dir().map(|d| fallback_fonts(&d)).unwrap_or_default();
     if !fonts.is_empty() {
         let dir = web_out.join("fonts");
-        if let Err(e) = fs::create_dir_all(&dir).and_then(|_| fonts.iter().try_for_each(|(n, data)| fs::write(dir.join(n), data))) {
-            eprintln!("Cannot write the fallback fonts: {e}");
-            return ExitCode::from(1);
-        }
+        fs::create_dir_all(&dir)
+            .and_then(|_| fonts.iter().try_for_each(|(n, data)| fs::write(dir.join(n), data)))
+            .map_err(|e| format!("Cannot write the fallback fonts: {e}"))?;
     }
     // The open-source notices the page ships with (index.html links them)
-    if let Err(e) = notices::write(&web_out, &notices::Kind::Web) {
-        eprintln!("{}", notices::missing(&e));
-        return ExitCode::from(1);
-    }
-
-    println!("Web build: {}", web_out.display());
-    println!("  {}/index.html", web_out.display());
-    println!("  {}/{}", web_out.display(), notices::FILE_NAME);
-    println!("  {}/{}_bg.wasm", web_out.display(), wasm_module);
-    println!("  {}/{}.js", web_out.display(), wasm_module);
-    println!("\nServe with: python3 -m http.server -d {} 8080", web_out.display());
-    println!("Build succeeded!");
-    ExitCode::SUCCESS
+    notices::write(&web_out, &notices::Kind::Web).map_err(|e| notices::missing(&e))?;
+    Ok(web_out)
 }
 
 /// What a web program's page must allow (its Content-Security-Policy,
@@ -1105,7 +1171,7 @@ fn locate_rapidrintr_artifacts() -> Option<(PathBuf, PathBuf)> {
 /// bytecode + 12-byte footer to a copy of `rapidrintr-runner`.
 fn build_interp_desktop(
     path: &str,
-    output_dir: Option<String>,
+    dest_dir: &Path,
     release: bool,
     target: Option<String>,
     plan: &package::Plan,
@@ -1135,30 +1201,14 @@ fn build_interp_desktop(
         Err(e) => { eprintln!("{e}"); return ExitCode::from(1); }
     };
 
-    // 3. Choose destination — same convention as compiled mode: drop
-    //    the binary alongside the source file (or in `output_dir`).
-    let source_path = Path::new(path);
-    let stem = source_path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("output");
-    let dest_dir = match &output_dir {
-        Some(d) => Path::new(d.as_str()).to_path_buf(),
-        None => source_path.parent().unwrap_or(Path::new(".")).to_path_buf(),
-    };
-    if let Err(e) = fs::create_dir_all(&dest_dir) {
-        eprintln!("create_dir_all {}: {e}", dest_dir.display());
-        return ExitCode::from(1);
-    }
-    let _ = stem;
-
     // 4. The runner and the program made into its app (package.rs): the
     //    bytecode after the runner, or in a macOS app's resources; with the
     //    open-source notices it ships with (the same as a native build's
     //    for this target: notices.rs).
-    match package::finish(plan, &stub, Some(&rrbc), &dest_dir, &notices::Kind::Desktop(target)) {
+    match package::finish(plan, &stub, Some(&rrbc), dest_dir, &notices::Kind::Desktop(target)) {
         Ok(made) => {
             println!("Built interpreted program: {} ({} bytes of bytecode)", made.executable.display(), rrbc.len());
+            println!("Build succeeded!");
             ExitCode::SUCCESS
         }
         Err(e) => {
@@ -1171,17 +1221,13 @@ fn build_interp_desktop(
 /// `rapidr build --web --interp <file.rr>` — compile to bytecode and
 /// emit a static web bundle (`<stem>-web.zip`). Delegates to the same
 /// pipeline as `bundle-bc`.
-fn build_interp_web(path: &str, output_dir: Option<String>, csp: Option<&str>) -> ExitCode {
+fn build_interp_web(path: &str, out_dir: &Path, csp: Option<&str>) -> ExitCode {
     let stem = Path::new(path)
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("program")
         .to_string();
-    let out_dir = match &output_dir {
-        Some(d) => Path::new(d.as_str()).to_path_buf(),
-        None => Path::new(path).parent().unwrap_or(Path::new(".")).to_path_buf(),
-    };
-    if let Err(e) = fs::create_dir_all(&out_dir) {
+    if let Err(e) = fs::create_dir_all(out_dir) {
         eprintln!("create_dir_all {}: {e}", out_dir.display());
         return ExitCode::from(1);
     }

@@ -153,31 +153,61 @@ FUNCTION WorkspaceCommand(Id AS STRING) AS INTEGER
 END FUNCTION
 
 ' Document d's changes, before it closes: saved, dropped, or the close
-' called off (Save / Don't Save / Cancel); 0 when the user cancelled.
+' called off — Save (Enter), Don't Save, Cancel (Escape): prompts.inc. The
+' document is brought to the front first: the question is about what shows.
+' 0 when the user cancelled.
 FUNCTION AskToSave(d AS INTEGER) AS INTEGER
   Result = 1
   IF d < 0 THEN EXIT FUNCTION
   IF DocOpen(d) = 0 OR DocDirty(d) = 0 THEN EXIT FUNCTION
-  SELECT CASE MESSAGEDLG("Do you want to save the changes you made to " + FileTitle(DocFile(d)) + "?", mtWarning, mbYes OR mbNo OR mbCancel, 0)
-    CASE mrYes
+  Dock.ActiveDocument = DocPane(d)
+  SELECT CASE AskSave("Do you want to save the changes you made to " + FileTitle(DocFile(d)) + "?", "Your changes will be lost if you don't save them.", 0)
+    CASE PROMPT_SAVE
       SaveDocument d
-    CASE mrNo
+    CASE PROMPT_DONT
       DocDirty(d) = 0
+      UpdateModified
     CASE ELSE
       Result = 0
   END SELECT
 END FUNCTION
 
 ' Every document's changes before Studio closes; 0 when the user cancelled.
+' One document changed: its own question. Several: Save All (Enter), Review
+' Changes... (each one asked: a Cancel there stops quitting), Discard
+' Changes, Cancel (Escape).
 FUNCTION AskToSaveAll AS INTEGER
-  DIM d AS INTEGER
+  DIM d AS INTEGER, n AS INTEGER, one AS INTEGER
   Result = 1
   FOR d = 0 TO DocCount - 1
-    IF AskToSave(d) = 0 THEN
-      Result = 0
-      EXIT FUNCTION
+    IF DocOpen(d) AND DocDirty(d) THEN
+      n = n + 1
+      one = d
     END IF
   NEXT
+  IF n = 0 THEN EXIT FUNCTION
+  IF n = 1 THEN
+    Result = AskToSave(one)
+    EXIT FUNCTION
+  END IF
+  SELECT CASE AskSave("You have " + LTRIM$(STR$(n)) + " documents with unsaved changes. Do you want to save them before quitting?", "Review Changes asks about each one. If you discard them, all your changes will be lost.", 1)
+    CASE PROMPT_SAVE
+      SaveAll
+    CASE PROMPT_DONT
+      FOR d = 0 TO DocCount - 1
+        DocDirty(d) = 0
+      NEXT
+      UpdateModified
+    CASE PROMPT_REVIEW
+      FOR d = 0 TO DocCount - 1
+        IF AskToSave(d) = 0 THEN
+          Result = 0
+          EXIT FUNCTION
+        END IF
+      NEXT
+    CASE ELSE
+      Result = 0
+  END SELECT
 END FUNCTION
 
 ' Window > Next Area (F6 in the panes themselves): the project, the

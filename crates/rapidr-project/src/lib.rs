@@ -31,8 +31,8 @@ pub use error::ProjectError;
 pub use implicit::{implicit_from_resolver, implicit_from_sources, include_targets};
 pub use project::{
     basic_string, defines_form, kind_for_file, kind_for_path, kind_for_source, normalize_path, Ai,
-    Build, Compat, CompatLevel, DataAccess, Designer, FileKind, Project, ProjectFile, Run, FORMAT,
-    HEADER, TEMPLATES,
+    Build, Compat, CompatLevel, DataAccess, Designer, FileKind, Project, ProjectFile, Run,
+    DEFAULT_OUTPUT, FORMAT, HEADER, TEMPLATES,
 };
 pub use v1::{
     decode_base64, decode_data_url, import_v1, import_v1_file, is_v1_json, sanitize_file_name,

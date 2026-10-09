@@ -21,7 +21,9 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 const WORK = join(ROOT, "tests/conformance/.work/web_main_end");
 const SRC = join(ROOT, "tests/fixtures/main_end_show.bas");
-const rapidr = (...args) => execFileSync(join(ROOT, "rapidr"), args, { cwd: ROOT, stdio: "ignore" });
+// (the native web build's generated Rust and cargo's files in the work
+// folder's build cache, not the user's)
+const rapidr = (...args) => execFileSync(join(ROOT, "rapidr"), args, { cwd: ROOT, stdio: "ignore", env: { ...process.env, RAPIDR_BUILD_CACHE: process.env.RAPIDR_BUILD_CACHE || join(ROOT, "tests/conformance/.work/build-cache") } });
 
 let failed = 0;
 const ok = (cond, msg) => { console.log(`${cond ? "✓" : "✗"} ${msg}`); if (!cond) failed++; };
@@ -32,7 +34,7 @@ rapidr("bundle-bc", SRC, "-o", join(WORK, "app.zip"), "--wasm", join(ROOT, "targ
 execFileSync("unzip", ["-q", "-o", join(WORK, "app.zip"), "-d", join(WORK, "site")]);
 // (a web build is written next to its source: build a copy here)
 copyFileSync(SRC, join(WORK, "main_end_show.bas"));
-rapidr("build", join(WORK, "main_end_show.bas"), join(WORK, "compiled"), "--web");
+rapidr("build", join(WORK, "main_end_show.bas"), "--web", "--debug");
 
 const builds = {
   interpreted: `${URL_BASE}/tests/conformance/.work/web_main_end/site/index.html`,

@@ -386,6 +386,9 @@ impl WebHost {
                 }
                 HostCmd::Resize { form, w, h } => self.desk.resized(&form, w, h),
                 HostCmd::Fullscreen(f) => self.set_state(store, &f, rapidr_value::window_state::WS_MAXIMIZED),
+                // (Form.Modified: the page's beforeunload reads it from the
+                // forms when the page is being left — runtime-web)
+                HostCmd::Modified(_) => {}
             }
         }
         // (z-order, and the active window's frame)

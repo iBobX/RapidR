@@ -81,6 +81,8 @@ pub enum HostCmd {
     /// FullScreen); the system's new size comes back as a resize. The
     /// headless host leaves it to runtime-core.
     Fullscreen(String),
+    /// [`WindowSpec::modified`] again (Form.Modified).
+    Modified(String),
 }
 
 pub use crate::windows::Icon;
@@ -122,6 +124,9 @@ pub struct WindowSpec {
     /// (the WindowState lane's) wsNormal 0, wsMinimized 1, wsMaximized 2:
     /// how the program asked it to show.
     pub state: i64,
+    /// Form.Modified: changes not saved (macOS' close button shows its
+    /// dot; the web asks before the page is left).
+    pub modified: bool,
 }
 
 pub struct Form {
@@ -465,6 +470,14 @@ impl Desktop {
                 }
             }
             WindowOp::Minimize(f) => self.cmds.push(HostCmd::Minimize(f)),
+            WindowOp::Modified(f, m) => {
+                if let Some(w) = self.form(&f) {
+                    if w.spec.modified != m {
+                        w.spec.modified = m;
+                        self.cmds.push(HostCmd::Modified(f));
+                    }
+                }
+            }
             WindowOp::Popup(form, menu, x, y) => self.cmds.push(HostCmd::Popup { form, menu, x, y }),
             WindowOp::State(f, state) => {
                 if let Some(w) = self.form(&f) {
@@ -532,6 +545,7 @@ pub fn window_spec<P: Program>(p: P, name: &str) -> WindowSpec {
         frame: frame(p, name),
         // (the WindowState lane's)
         state: rapidr_value::window_state::of(p.get(name, "windowstate").to_i64()),
+        modified: p.get(name, "modified").to_bool(),
     }
 }
 

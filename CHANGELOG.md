@@ -8,6 +8,35 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Changed
+- **`rapidr build` and Studio's Build make the release build, and the output folder gets only the app**
+  (Robert: a build left the generated Rust, cargo's files and a debug executable beside the program).
+  A build is optimized by default (on macOS universal: Apple silicon and Intel; symbol tables stripped:
+  `hello_form.app` 62 MB before, 50 MB now); `--debug` asks for a quick one, and Studio's Run (F5)
+  stays the one for debugging. The output folder is the one named (`rapidr build prog.bas dist`,
+  `--output`), else the project's (`[build] output`, `build` by default), else the source's (RC.EXE's
+  way). The generated Rust and cargo's target folder live in the **build cache**
+  (`~/Library/Caches/RapidR/build`, `%LOCALAPPDATA%\RapidR\Cache\build`, `~/.cache/rapidr/build`,
+  `RAPIDR_BUILD_CACHE`): the Rust is deleted after the build, the program's own files in the shared
+  target too, the compiled runtime stays — a GUI program's universal release build took 6 min the
+  first time and 22 s the next (before: the debug build in `hello_form_rust/`, 1.7 GB beside the
+  source, every time). A RapidR version gets its own cache; one unused for 30 days is removed.
+  **Keep the generated Rust source** (`--keep-rust`, `[build] keep_rust`, Project Options; off by
+  default) leaves it in `<output>/<program>-rust-source` with a README. The generated code's own
+  warnings are no longer printed. `rapidr codegen` still writes `<program>_rust` for those who want it.
+- **Studio's Build log**: the Output panel's Build page shows `rapidr build` as it runs; the app's
+  path and the kept Rust source are links, and "✓ Built Notes.app in 27 s — Reveal in Finder" (File
+  Explorer, Files) shows the app selected; a failed build says so in red. The console takes
+  terminals' OSC 8 hyperlinks (any program's output may carry them; OnLinkClick gets the URI).
+  **Project Options** has the output folder and Keep the generated Rust source, says what Build makes
+  (a release build; Run is for debugging), and the Rust source option is off for interpreted builds.
+- **Save prompts as macOS and Xcode ask them**: "Do you want to save the changes you made to main.rr?"
+  with Save (Enter), Don't Save and Cancel (Escape); quitting with several documents changed asks once:
+  Save All (Enter), Review Changes… (each document in turn), Discard Changes, Cancel. Windows gets
+  Save / Don't Save / Cancel in its own order. Every choice quits or stays as it says, on the desktop
+  and on the web, where the page then says "RapidR Studio has closed" with a button to open it again.
+- **`Form.Modified`** (RapidR's): a window with changes not saved — macOS draws the dot in its close
+  button, and a web page asks before it's left (the browser's own "Leave site?", `beforeunload`).
+  Studio sets it while a document has changes.
 - **Real bold and italic faces** instead of the regular letters drawn heavier and slanted: Liberation
   2.1.5's own Bold, Italic and Bold Italic (Sans, Serif, Mono; SIL OFL 1.1, from the official release,
   SHA-256 checked) are built in, cut to the Latin scripts without hinting (36-39 KB each) and renamed

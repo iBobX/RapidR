@@ -545,6 +545,19 @@ pub fn apply_icons<P: Program>(p: P) {
     }
 }
 
+/// `Form.Modified` (RapidR's): its window says it has changes not saved.
+pub fn set_modified<P: Program>(p: P, name: &str) {
+    if is_form(p, name) {
+        push_op(WindowOp::Modified(lower(name), p.get(name, "modified").to_bool()));
+    }
+}
+
+/// Whether a window that shows has changes not saved (Form.Modified):
+/// what a page asks about before it's left.
+pub fn any_modified(desk: &crate::desktop::Desktop) -> bool {
+    desk.forms.values().any(|f| f.shown && f.spec.modified)
+}
+
 /// A caption: a form's is its window's title.
 pub fn set_caption<P: Program>(p: P, name: &str, text: &str) {
     if is_form(p, name) {

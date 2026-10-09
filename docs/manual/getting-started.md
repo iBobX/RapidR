@@ -145,7 +145,7 @@ are the same component (see [Components](components.md)). `$INCLUDE
 | A compiled program for the RapidR Runtime | `rapidr build-bc prog.bas -o prog.rrbc` | nothing |
 | A standalone executable (the interpreter inside) | `rapidr build prog.bas --interp` | nothing |
 | …for the other Windows architecture, or one macOS slice | `rapidr build prog.bas --interp --target windows-aarch64` | nothing (the SDK ships those runners) |
-| A native executable | `rapidr build prog.bas --release` | Rust (`rapidr setup`) |
+| A native executable | `rapidr build prog.bas` | Rust (`rapidr setup`) |
 | A web bundle (a `.zip` for any static host) | `rapidr bundle-bc prog.bas -o prog-web.zip` | nothing |
 
 Every build writes `THIRD-PARTY-NOTICES.txt` beside the executable (or into
@@ -157,8 +157,10 @@ components inside ask for ([LEGAL.md](../../LEGAL.md)).
   is universal by default.
 - A native build translates the program to Rust and compiles it: the
   fastest programs and the smallest executables. `rapidr build prog.bas`
-  alone is a quick debug build; `--release` is the optimized one. The
-  generated Rust project is kept in `prog_rust/` beside the source.
+  is the optimized release build, the one you ship; `--debug` compiles
+  quicker for debugging. The output folder gets only the app: the
+  generated Rust is deleted after the build unless you ask for it
+  (`--keep-rust`, or Studio's Project Options).
 - Native and interpreted builds behave the same: the conformance suite runs
   every case both ways, and on the web.
 

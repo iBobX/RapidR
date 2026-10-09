@@ -19,4 +19,3 @@ bundle_id = "dev.rapidr.test.notes"
 version = "1.2.0"
 company = "RapidR Tests"
 targets = ["bytecode"]
-release = false

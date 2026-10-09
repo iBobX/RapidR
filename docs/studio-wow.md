@@ -372,8 +372,8 @@ Every row is measured in `tools/regress.sh perf` on the reference machines of [i
    - Tooltips with the shortcut.
    - The caret blink follows the OS setting.
    - The window position and size are restored.
-   - An "unsaved changes" prompt on close (Save / Don't Save / Cancel, OS order).
-   - The title shows the project and a dirty dot.
+   - An "unsaved changes" prompt on close (Save / Don't Save / Cancel, OS order). (done: S-BUILD, `ide/prompts.inc` — Enter saves, Escape cancels; quitting with several documents changed: Save All / Review Changes… / Discard Changes / Cancel; `tests/studio_flows.mjs` `quit-*`, `close-dont-save`, both hosts)
+   - The title shows the project and a dirty dot. (partial: the tab's dot; macOS' close button through `Form.Modified`, which also makes the web page ask before it's left — `beforeunload-*`)
    - Autosave on the web (done: OPFS).
    - Crash recovery on the desktop (P1).
 
@@ -468,9 +468,9 @@ Lanes in flight (the designer, the panels / inspector, the code editor, the them
 | DBG-5 | missing | No data tips. |
 | DBG-6 | partial | `? expr` and statements work when paused (`ide/project.inc` `ImmediateKey`); no history and no completion. |
 | BLD-1 | missing | `run.build` only checks that the program compiles (`ide/shell.inc` `BuildProject`). The CLI already builds interpreted executables per target (`rapidr build --interp --target`; runners in `crates/rapidr-cli/src/home.rs`). |
-| BLD-2 | missing | Not from Studio (the CLI's `rapidr build` works). |
+| BLD-2 | partial | (S-BUILD) Run > Build is the release build (native, or interpreted as the project says) into the project's output folder, nothing else there (the generated Rust and cargo's files in the build cache; Keep the generated Rust source in Project Options); cargo's log on the Output panel's Build page with links to the app and Reveal in Finder (`ide/build.inc`). Compile errors don't go to Problems yet. |
 | BLD-3 | missing | Not from Studio (the CLI's `rapidr build --web` works). |
-| BLD-4 | missing | No Project Options UI (`project.options` prints a line). |
+| BLD-4 | partial | Project Options (B-PKG, S-BUILD): the app's name, bundle ID, version, company, icon with its preview, native or interpreted, the output folder, Keep the generated Rust source; saved in the `.rrproj` and used by `rapidr build` too. The theme isn't there yet. |
 | CMD-1 | done | The palette: commands, examples, `:N` (`ide/window.inc` `Palette`; `tests/studio_flows.mjs` `palette`). Fuzzy matching is to be checked. |
 | CMD-2 | missing | No quick open for files, symbols or components. |
 | CMD-3 | done | (S-SHELL-2) Ctrl+Shift+F: the Search pane (`ide/search.inc`), RPROJECT `Find` / `Replace` on the code editor's own search (case, whole word, regex), open documents searched as their editors have them, results by file linking to the line, Replace All (one edit a file). `tests/studio_flows.mjs` `find-in-files` (3 hits in a project and its include), both hosts. |

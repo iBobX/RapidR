@@ -44,6 +44,23 @@ async function main() {
   }
   say("");
   rt.rapidr_run_bc(new Uint8Array(bytes));
+  // (File > Exit: Studio's program ended — the page says so, and a button
+  // opens Studio again, as a reload does)
+  const watch = setInterval(() => {
+    if (!rt.rapidr_main_done()) return;
+    clearInterval(watch);
+    const closed = document.getElementById("studio-closed");
+    if (!closed) return;
+    closed.classList.add("shown");
+    const again = document.getElementById("studio-reopen");
+    again.addEventListener("click", () => {
+      // (without the commands a link ran at the start: ?do=)
+      const u = new URL(location.href);
+      u.searchParams.delete("do");
+      location.href = u.toString();
+    });
+    again.focus();
+  }, 400);
   // (cold start, page load to the shell running: docs/ide-plan.md §6.2)
   window.RAPIDR_STUDIO_STARTED = performance.now() - t0;
 }

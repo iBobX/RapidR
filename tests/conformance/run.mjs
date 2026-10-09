@@ -105,8 +105,10 @@ function runCodegen(name, src, input, progArgs) {
     const resources = join(CASES, folder);
     if (existsSync(resources)) cpSync(resources, join(dir, folder), { recursive: true });
   }
-  const env = { ...process.env, CARGO_TARGET_DIR: join(WORK, "cargo-target") };
-  const c = run(RAPIDR, ["build", rr, join(dir, `${name}_rust`), "--no-bundle"], { env, timeout: 600_000 });
+  // (a debug build — quick to compile — into the case's folder; the
+  // generated Rust in the work folder's build cache, gone after)
+  const env = { ...process.env, CARGO_TARGET_DIR: join(WORK, "cargo-target"), RAPIDR_BUILD_CACHE: join(WORK, "build-cache") };
+  const c = run(RAPIDR, ["build", rr, dir, "--no-bundle", "--debug"], { env, timeout: 600_000 });
   const bin = join(dir, `${name}${EXE}`);
   if (!c.ok || !existsSync(bin)) {
     dropBuild(env.CARGO_TARGET_DIR, name);

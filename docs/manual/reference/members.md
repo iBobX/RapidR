@@ -40,6 +40,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `Enabled` | int | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `HelpFile` *(RapidR)* | string |  | The help file the program opens for F1. |
+| `Modified` *(RapidR)* | bool | False | True while what the window shows has changes not saved: macOS draws a dot in its close button, and in a browser leaving the page (closing the tab, reloading) asks first, with the browser's own question. Set it when a document changes, False again once it is saved. |
 | `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
 | `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
 | `FontName` *(RapidR)* | string |  | On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
@@ -4877,6 +4878,8 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `Version` | string |  | The app's version: up to four numbers with dots (1.0, 2.3.1); "" for 1.0. |
 | `Company` | string |  | Who makes the app (Windows' company name, the copyright line). |
 | `BuildKind` | string |  | How Build makes the program: "native" (compiled with Rust) or "interpreted" (RapidR's runner and the program's bytecode; no Rust needed). |
+| `OutputFolder` | string |  | Where Build puts the app: a folder relative to the project's ("" for build). It gets only what is shipped: the generated Rust and the compiler's files stay in RapidR's build cache. |
+| `KeepRust` | int |  | True: a native Build also leaves the Rust RapidR generated beside the app, in <program>-rust-source (with a README). False, the default: it is deleted. |
 | `Building` (read-only) | int |  | True while a Build runs. |
 | `FileManager` (read-only) | string |  | What this system calls the file manager Reveal opens: "Finder", "File Explorer" or "Files" ("" on the web). |
 | `BuiltPath` (read-only) | string |  | What the last Build made: the .app, the .exe or the AppDir ("" until one succeeds). |
@@ -4893,7 +4896,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `File(Index AS INTEGER) AS STRING` | File Index's path, relative to the folder (from 0). |
 | `FileKind(Index AS INTEGER) AS STRING` | File Index's kind: module, form, include, resource, asset or data. |
 | `FullPath(Index AS INTEGER) AS STRING` | File Index's path to open it with (the folder's and its own). |
-| `Build([Kind AS STRING]) AS INTEGER` | Makes the program into an app for this computer's system with rapidr build: Name.app on macOS, the .exe with its icon and version on Windows, Name.AppDir on Linux. Kind is "native" or "interpreted" (else BuildKind). Runs in the background: OnBuildOutput gives its lines, OnBuildDone its end. True when it started; Error says why not (on the web there is nothing to run it). |
+| `Build([Kind AS STRING]) AS INTEGER` | Makes the program into an app for this computer's system with rapidr build — a release build, optimized — in OutputFolder: Name.app on macOS, the .exe with its icon and version on Windows, Name.AppDir on Linux. Kind is "native" or "interpreted" (else BuildKind). Runs in the background: OnBuildOutput gives its lines, OnBuildDone its end. True when it started; Error says why not (on the web there is nothing to run it). |
 | `StopBuild` | Stops the Build that is running. |
 | `Reveal([Path AS STRING]) AS INTEGER` | Shows Path (else what the last Build made) selected in Finder, Explorer or the Linux file manager. |
 | `IconPreview([Size AS INTEGER]) AS STRING` | Draws the app's icon (Icon, else RapidR's) as a Size-pixel PNG (128 by default) in the project's .rapidr folder and gives its path, for a QIMAGE to show; "" when the icon can't be read (Error says why). |

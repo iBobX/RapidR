@@ -573,6 +573,11 @@ pub fn gui_apply_icon(name: &str) {
     forms::apply_icon(Rt, name);
 }
 
+/// Form.Modified (RapidR's): macOS' close button shows its dot.
+pub fn gui_set_modified(name: &str) {
+    forms::set_modified(Rt, name);
+}
+
 /// `Application.Icon` changed: every form without its own.
 pub fn gui_apply_icons() {
     forms::apply_icons(Rt);

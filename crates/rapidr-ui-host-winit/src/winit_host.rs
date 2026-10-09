@@ -539,6 +539,12 @@ impl Shim<'_> {
                 }
                 // (the DirectX lane's: borderless over the whole screen —
                 // its Resized follows)
+                // (Form.Modified: macOS' close button shows its dot)
+                HostCmd::Modified(f) => {
+                    if let (Some(w), Some(k)) = (self.s.wins.get(&f), self.desk.forms.get(&f)) {
+                        document_edited(&w.window, k.spec.modified);
+                    }
+                }
                 HostCmd::Fullscreen(f) => {
                     if let Some(w) = self.s.wins.get_mut(&f) {
                         if !w.fullscreen {
@@ -672,6 +678,9 @@ impl Shim<'_> {
         // (the WindowState lane's: shown minimized)
         if spec.state == 1 {
             window.set_minimized(true);
+        }
+        if spec.modified {
+            document_edited(&window, true);
         }
         let scale = self.s.forced.unwrap_or_else(|| window.scale_factor());
         let mut moved_scale = false;
@@ -1122,4 +1131,16 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
             _ => {}
         }
     }
+}
+
+/// A window with changes not saved (Form.Modified): macOS draws a dot in its
+/// close button (NSWindow's documentEdited); the other systems show nothing.
+fn document_edited(window: &winit::window::Window, edited: bool) {
+    #[cfg(target_os = "macos")]
+    {
+        use winit::platform::macos::WindowExtMacOS;
+        window.set_document_edited(edited);
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = (window, edited);
 }

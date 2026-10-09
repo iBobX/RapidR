@@ -123,13 +123,11 @@ function build(name, interp) {
   if (PREBUILT) return join(PREBUILT, `${name}-${interp ? "interp" : "native"}${EXE}`);
   const out = join(WORK, `${name}-${interp ? "interp" : "native"}`);
   mkdirSync(out, { recursive: true });
-  const args = ["build", join(ROOT, `tests/fixtures/${name}.bas`), out, "--no-bundle", ...(interp ? ["--interp"] : [])];
-  execFileSync(join(ROOT, `rapidr${EXE}`), args, { cwd: ROOT, stdio: "ignore", env: { ...process.env, CARGO_TARGET_DIR: CARGO_TARGET } });
-  // Native builds also copy the executable (and its THIRD-PARTY-NOTICES.txt)
-  // next to the source; don't leave them there.
-  rmSync(join(ROOT, `tests/fixtures/${name}${EXE}`), { force: true });
-  if (!interp) rmSync(join(ROOT, "tests/fixtures/THIRD-PARTY-NOTICES.txt"), { force: true });
-  return interp ? join(out, `${name}${EXE}`) : join(CARGO_TARGET, "debug", `${name}${EXE}`);
+  // (native: a debug build, quick to compile; either kind's executable in
+  // its output folder, the generated Rust in a build cache beside the target)
+  const args = ["build", join(ROOT, `tests/fixtures/${name}.bas`), out, "--no-bundle", ...(interp ? ["--interp"] : ["--debug"])];
+  execFileSync(join(ROOT, `rapidr${EXE}`), args, { cwd: ROOT, stdio: "ignore", env: { ...process.env, CARGO_TARGET_DIR: CARGO_TARGET, RAPIDR_BUILD_CACHE: join(dirname(CARGO_TARGET), "build-cache") } });
+  return join(out, `${name}${EXE}`);
 }
 
 // (`colorDialog` / `fontDialog` / `messageDialog`: what the colour / font
