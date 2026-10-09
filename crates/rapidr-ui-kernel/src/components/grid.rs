@@ -151,6 +151,15 @@ fn cell_rect(l: &Layout, c: usize, r: usize) -> Option<Rect> {
     Some((2 + x, 2 + y, w, h))
 }
 
+/// The in-place editor's box over cell (c, r): the cell less the square of
+/// its list / ellipsis button at the right, which shows beside the editor
+/// (RapidQ's), not under it.
+fn editor_box(g: &StringGrid, l: &Layout, c: usize, r: usize) -> Option<Rect> {
+    let (x, y, w, h) = cell_rect(l, c, r)?;
+    let button = if has_ellipsis(g, c, r) || ((g.col, g.row) == (c as i64, r as i64) && g.list_items(c, r).is_some()) { h.min(w) } else { 0 };
+    Some((x, y, w - button, h))
+}
+
 /// Whether (c, r) shows an ellipsis button.
 fn has_ellipsis(g: &StringGrid, c: usize, r: usize) -> bool {
     let fixed = r < g.fixed_rows() || c < g.fixed_cols();
@@ -241,7 +250,7 @@ impl Grid {
     fn edit_rect(cx: &Cx) -> Option<Rect> {
         let (c, r) = editing(cx.id)?.target;
         let g = with_grid(cx.id, |g| g.clone())?;
-        cell_rect(&layout(cx.id, &g, cx.width(), cx.height()), c, r)
+        editor_box(&g, &layout(cx.id, &g, cx.width(), cx.height()), c, r)
     }
 }
 
@@ -411,7 +420,7 @@ impl ComponentKind for Grid {
             p.ops(l.bars.clone());
         });
         // (the cell's editor over it, in the cells' area)
-        if let Some(r) = editing(cx.id).and_then(|ed| cell_rect(&l, ed.target.0, ed.target.1)) {
+        if let Some(r) = editing(cx.id).and_then(|ed| editor_box(&g, &l, ed.target.0, ed.target.1)) {
             p.clipped((2, 2, l.inner.0, l.inner.1), |p| paint_editor(cx, p, r));
         }
     }
