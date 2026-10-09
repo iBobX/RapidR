@@ -2,7 +2,7 @@
 
 # RapidR
 
-[![Release](https://img.shields.io/github/v/release/iBobX/RapidR?label=release)](https://github.com/iBobX/RapidR/releases)
+[![Release](https://img.shields.io/github/v/release/iBobX/RapidR?include_prereleases&label=release)](https://github.com/iBobX/RapidR/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/written%20in-Rust-orange.svg)](https://www.rust-lang.org/)
 [![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-support%20RapidR-5F7FFF?logo=buymeacoffee&logoColor=white)](https://www.buymeacoffee.com/roanbema)
