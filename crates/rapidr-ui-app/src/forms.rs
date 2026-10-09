@@ -243,6 +243,9 @@ fn window_made<P: Program>(p: P, name: &str, made: bool) {
     if made {
         p.form_built(&lower(name));
     }
+    // (shown once: the runtimes' layout places a control aligned from now
+    // on as RapidQ does on a shown form, and a new size posts its OnPaint)
+    p.store(&lower(name), "__shownonce", v_bool(true));
 }
 
 /// OnResize as the VCL fires it (RC.EXE, probes 2026-10-08): when a form's

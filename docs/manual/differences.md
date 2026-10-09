@@ -82,6 +82,20 @@ something defined instead, and says so:
   with real system menus, dialogs and clipboard where users expect them.
 - Documents printed with `Printer` / `LPRINT` are PDFs sent to the system's
   printer (see [Components](components.md#the-global-objects)).
+- **The font dialog names a system colour.** A font that never set a colour
+  (a new `RFontDialog`, most components' fonts) has `clWindowText`. RapidQ's
+  dialog lists it as "Custom"; RapidR's shows "Black" (`clWindow` "White"),
+  and pressing OK without picking another colour keeps `clWindowText`, so the
+  text keeps following the theme:
+
+  ```basic
+  FontDlg.GetFont(Label1.Font)     ' the list shows Black
+  IF FontDlg.Execute THEN FontDlg.SetFont(Label1.Font)
+  ```
+- **Console box characters.** RapidQ's console shows characters 128 to 255
+  in the old DOS code page (`CHR$(201)` is ╔); RapidR's console shows the
+  program's text as it is (`CHR$(201)` is É), so box-drawing examples
+  written for DOS (`3DBOX`, `BATTLE`) show letters where RapidQ drew lines.
 
 ## Extensions
 

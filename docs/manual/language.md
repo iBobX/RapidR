@@ -311,7 +311,27 @@ In a browser, files are the page's own (see [The web](web.md)).
 `CLS`, `COLOR fg, bg`, `LOCATE row, col`, `CSRLIN`, `POS(0)`, `INPUT
 [prompt,] var`, `INKEY$`, `INPUT$(n)`, `SLEEP seconds` (`SLEEP 0.5`), `BEEP`,
 `SOUND`. Colours and positions are written as ANSI sequences, so they work
-in any modern terminal and in the IDE's output panel.
+in any modern terminal and in the IDE's output panel. A bare `INPUT$`
+(no count) reads a whole line, as RapidQ's does — old programs end with
+`a = INPUT$` to wait before the window closes.
+
+### Older RapidQ forms that still work
+
+RapidQ's compiler took a few forms that look odd today; RapidR takes them
+the same way:
+
+```basic
+SUB Draw.Box (X AS INTEGER)       ' a dot in a SUB / FUNCTION name
+    PRINT "box"; X
+END SUB
+FUNCTION Calc.Twice (N AS INTEGER) AS INTEGER
+    Calc.Twice = N * 2            ' the result, assigned to the whole name
+END FUNCTION
+CONST Null = &0                   ' & before plain digits: the number (0)
+CONST App.Name = "Demo"           ' a dot in a CONST name, read as App.Name
+Draw.Box 1
+SLEEP(Calc.Twice(3)) / 10         ' (…) starts the argument: SLEEP 0.6
+```
 
 ## The preprocessor
 

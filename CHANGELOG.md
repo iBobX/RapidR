@@ -789,6 +789,12 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   their low 32 bits past 8 digits; QFONTDIALOG's colours (clWindowText at
   first, system colours kept). RapidQ IDE's `.rqw` window programs are part
   of the corpus now.
+- **A form's first OnPaint comes when the program next waits** (DOEVENTS, ShowModal), after
+  `OnResize`, `OnShow`, `OnResize` — not inside `Show` — as RC.EXE sends it; a scale change no
+  longer paints twice; the web's DOEVENTS delivers the paints too (`rapidq_form_show_events`).
+- **RapidR Studio's panel components read true as 1** (`ShowTabs`, `ShowFiles`, `ShowEvents`,
+  `ShowCaptions` …: they read -1, against the language registry and RapidQ's rule) and
+  RTOOLBAR reads its Anchors (akLeft + akTop) like the other visual components.
 - **RapidQ program forms RC.EXE takes, found running the corpus' `.rqb` / `.rq` programs**
   (each checked with RC.EXE; conformance cases `rapidq_dotted_routines`,
   `rapidq_const_forms`, `rapidq_input_bare`): a FUNCTION named with a dot returns what's
