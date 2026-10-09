@@ -257,14 +257,17 @@ def stub_unneeded(vendor, needed):
 
 # What a compiled-against crate doesn't need: its tests, benchmarks, examples,
 # fuzz targets and test data, and any prebuilt binary (.dll/.exe/.so/.dylib/…)
-# inside it. Dropped from the vendored sources the packages ship.
-DROP_DIRS = {"tests", "test-data", "testdata", "test_data", "benches", "fuzz", "examples"}
+# inside it. Dropped from the vendored sources the packages ship, unless a
+# source file of the crate includes it (include_str! and friends).
+DROP_DIRS = {"tests", "test-data", "testdata", "test_data", "benches", "fuzz"}
+# (examples/ stays: a crate's docs may include_str! them, as winnow's do)
+INCLUDE_RE = re.compile(r'include(?:_str|_bytes)?!\s*\(\s*"([^"]+)"')
 DROP_SUFFIXES = (".dll", ".exe", ".so", ".dylib", ".lib", ".a", ".o", ".obj")
 
 
 def trim_needed(vendor, needed):
-    """Of the crates a build compiles, remove their tests, benches, examples,
-    test data and prebuilt binaries (a file the manifest names as a target
+    """Of the crates a build compiles, remove their tests, benches, fuzz
+    targets, test data and prebuilt binaries (a file the manifest names as a target
     stays, empty: a manifest naming a missing file doesn't load). The checksum
     file is rewritten to match. Returns the bytes saved."""
     saved = 0
@@ -276,6 +279,14 @@ def trim_needed(vendor, needed):
         if (pkg["name"], pkg["version"]) not in needed:
             continue
         keep = {os.path.normpath(t) for t in stub_targets(manifest)}
+        # (files the crate's sources include stay, whatever their folder)
+        included = set()
+        for base, dirs, names in os.walk(path):
+            for name in names:
+                if name.endswith(".rs"):
+                    text = open(os.path.join(base, name), encoding="utf-8", errors="replace").read()
+                    for inc in INCLUDE_RE.findall(text):
+                        included.add(os.path.normpath(os.path.relpath(os.path.join(base, inc), path)))
         with open(os.path.join(path, ".cargo-checksum.json")) as f:
             checksum = json.load(f)
         files = checksum["files"]
@@ -284,7 +295,7 @@ def trim_needed(vendor, needed):
             if not (any(p in DROP_DIRS for p in parts[:-1]) or rel.lower().endswith(DROP_SUFFIXES)):
                 continue
             full = os.path.join(path, rel)
-            if not os.path.isfile(full):
+            if not os.path.isfile(full) or os.path.normpath(rel) in included:
                 continue
             saved += os.path.getsize(full)
             if os.path.normpath(rel) in keep:
@@ -343,7 +354,7 @@ def main():
     saved = stub_unneeded(os.path.join(out, "vendor"), needed)
     print(f"vendor: {len(needed)} crates for {args.os} + web; {saved / 1e6:.0f} MB of others' sources left out", file=sys.stderr)
     trimmed = trim_needed(os.path.join(out, "vendor"), needed)
-    print(f"vendor: {trimmed / 1e6:.0f} MB of the needed crates' tests, benches, examples and prebuilt binaries left out", file=sys.stderr)
+    print(f"vendor: {trimmed / 1e6:.0f} MB of the needed crates' tests, benches, test data and prebuilt binaries left out", file=sys.stderr)
 
     version = tomllib.load(open(os.path.join(src, "Cargo.toml"), "rb"))["workspace"]["package"]["version"]
     with open(os.path.join(out, "release.toml"), "w") as f:
