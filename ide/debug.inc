@@ -37,23 +37,23 @@ DIM BpPicked AS INTEGER
 DIM BpFilling AS INTEGER
 
 ' ---- the debugger's panes ---------------------------------------------------------------
-DIM VarsTree AS QTREEVIEW
-DIM WatchPanel AS QPANEL
-DIM WatchStrip AS QPANEL
-DIM WatchLabel AS QLABEL
-DIM WatchEdit AS QEDIT
-DIM WatchTree AS QTREEVIEW
-DIM StackTree AS QTREEVIEW
-DIM BpPanel AS QPANEL
-DIM BpTree AS QTREEVIEW
-DIM BpStrip AS QPANEL
-DIM BpCondLabel AS QLABEL
-DIM BpCondEdit AS QEDIT
-DIM BpHitLabel AS QLABEL
-DIM BpHitEdit AS QEDIT
-DIM BpLogLabel AS QLABEL
-DIM BpLogEdit AS QEDIT
-DIM BpOnCheck AS QCHECKBOX
+DIM VarsTree AS RTreeView
+DIM WatchPanel AS RPanel
+DIM WatchStrip AS RPanel
+DIM WatchLabel AS RLabel
+DIM WatchEdit AS REdit
+DIM WatchTree AS RTreeView
+DIM StackTree AS RTreeView
+DIM BpPanel AS RPanel
+DIM BpTree AS RTreeView
+DIM BpStrip AS RPanel
+DIM BpCondLabel AS RLabel
+DIM BpCondEdit AS REdit
+DIM BpHitLabel AS RLabel
+DIM BpHitEdit AS REdit
+DIM BpLogLabel AS RLabel
+DIM BpLogEdit AS REdit
+DIM BpOnCheck AS RCheckBox
 
 ' The trees' items: what each shows (the variables' reference: its children,
 ' 0 none; its path, so what was open stays open from stop to stop).
@@ -100,7 +100,7 @@ DIM BreakOnErrors AS INTEGER
 DIM PerfForm AS INTEGER
 DIM PerfStep AS INTEGER
 DIM StepStarted AS DOUBLE
-DIM PerfReady AS QTIMER
+DIM PerfReady AS RTimer
 PerfReady.Interval = 1
 PerfReady.Enabled = 0
 PerfReady.OnTimer = PerfReadyTick
@@ -361,7 +361,7 @@ SUB DebugDocOpened(d AS INTEGER)
   CodeDoc(d).DebugHover = Flag(RunState = "paused")
 END SUB
 
-SUB CodeGutterClick(LineNo AS INTEGER, Area AS STRING, Sender AS RCODEEDITOR)
+SUB CodeGutterClick(LineNo AS INTEGER, Area AS STRING, Sender AS RCodeEditor)
   IF Area = "marker" THEN ToggleBreakpointAt Sender.Tag, LineNo
 END SUB
 
@@ -1214,7 +1214,7 @@ FUNCTION NotAValue(Name AS STRING) AS INTEGER
   Result = 0
 END FUNCTION
 
-SUB CodeHoverRequest(LineNo AS INTEGER, ColNo AS INTEGER, Sender AS RCODEEDITOR)
+SUB CodeHoverRequest(LineNo AS INTEGER, ColNo AS INTEGER, Sender AS RCodeEditor)
   DIM d AS INTEGER, e AS STRING
   IF RunState <> "paused" THEN EXIT SUB
   d = Sender.Tag
@@ -1351,7 +1351,7 @@ END FUNCTION
 
 ' ---- set-up -------------------------------------------------------------------------------------
 
-SUB DebugTree(t AS QTREEVIEW, Title AS STRING)
+SUB DebugTree(t AS RTreeView, Title AS STRING)
   t.Parent = Studio
   t.Width = 440: t.Height = 190
   t.ReadOnly = 1

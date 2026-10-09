@@ -393,7 +393,7 @@ mod tests {
         let mut p = store(defaults());
         let mut run = |p: &mut HashMap<String, Value>, m: &str, args: &[Value]| {
             let snapshot = p.clone();
-            let mut set = |k: &str, v: Value| {
+            let set = |k: &str, v: Value| {
                 p.insert(k.to_string(), v);
             };
             call(m, args, &|k| snapshot.get(k).cloned().unwrap_or(Value::Null), &mut set)

@@ -6,7 +6,7 @@
 ' system's order: Windows' Save first; macOS' and the others' Don't Save
 ' apart on the left, the default on the right.
 
-DECLARE SUB PromptPick(Sender AS QBUTTON)
+DECLARE SUB PromptPick(Sender AS RButton)
 
 CONST PROMPT_CANCEL = 0
 CONST PROMPT_SAVE = 1
@@ -14,46 +14,46 @@ CONST PROMPT_DONT = 2
 CONST PROMPT_REVIEW = 3
 
 DIM PromptAnswer AS INTEGER
-DIM PromptIconBmp AS QBITMAP
+DIM PromptIconBmp AS RBitmap
 DIM PromptIconLoaded AS INTEGER
 
-CREATE SavePrompt AS QFORM
+CREATE SavePrompt AS RForm
   Caption = "RapidR Studio"
   Width = 480: Height = 200
   BorderStyle = 3
   ' (Save first: it has the keyboard when the question shows)
-  CREATE PromptSave AS QBUTTON
+  CREATE PromptSave AS RButton
     Caption = "&Save": Tag = 1
     Default = 1
     OnClick = PromptPick
   END CREATE
-  CREATE PromptReview AS QBUTTON
+  CREATE PromptReview AS RButton
     Caption = "&Review Changes...": Tag = 3
     OnClick = PromptPick
   END CREATE
-  CREATE PromptDont AS QBUTTON
+  CREATE PromptDont AS RButton
     Caption = "Do&n't Save": Tag = 2
     OnClick = PromptPick
   END CREATE
-  CREATE PromptCancel AS QBUTTON
+  CREATE PromptCancel AS RButton
     Caption = "Cancel": Tag = 0
     Cancel = 1
     OnClick = PromptPick
   END CREATE
-  CREATE PromptIcon AS QIMAGE
+  CREATE PromptIcon AS RImage
     Left = 20: Top = 20: Width = 56: Height = 56
     Stretch = 1
     AccessibleName = "RapidR Studio"
   END CREATE
-  CREATE PromptTitle AS QLABEL
+  CREATE PromptTitle AS RLabel
     WordWrap = 1: AutoSize = 0
   END CREATE
-  CREATE PromptText AS QLABEL
+  CREATE PromptText AS RLabel
     WordWrap = 1: AutoSize = 0
   END CREATE
 END CREATE
 
-SUB PromptPick(Sender AS QBUTTON)
+SUB PromptPick(Sender AS RButton)
   PromptAnswer = Sender.Tag
   SavePrompt.Close
 END SUB

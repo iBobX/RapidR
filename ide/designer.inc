@@ -25,7 +25,7 @@
 DIM DesignCont(MAXDOCS) AS INTEGER
 
 ' A designer change begins (OnSourceStep): its patches follow, then OnChange.
-SUB DesignStep(Continues AS INTEGER, Sender AS RDESIGNSURFACE)
+SUB DesignStep(Continues AS INTEGER, Sender AS RDesignSurface)
   DIM d AS INTEGER
   d = Sender.Tag
   IF d < 0 OR d >= DocCount THEN EXIT SUB
@@ -45,7 +45,7 @@ SUB FileUndo(d AS INTEGER, Redo AS INTEGER)
 END SUB
 
 ' Ctrl+Z / Ctrl+Y on the designer (OnUndo, SharedUndo): the file's history.
-SUB DesignUndo(Redo AS INTEGER, Sender AS RDESIGNSURFACE)
+SUB DesignUndo(Redo AS INTEGER, Sender AS RDesignSurface)
   FileUndo Sender.Tag, Redo
 END SUB
 

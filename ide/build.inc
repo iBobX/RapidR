@@ -82,30 +82,30 @@ CREATE AppDialog AS RForm
     AddItems "Compiled (native: needs Rust)", "Interpreted (no Rust needed)"
     OnChange = AppBuildChanged
   END CREATE
-  CREATE AppKindNote AS QLABEL
+  CREATE AppKindNote AS RLabel
     Left = 120: Top = 276: Width = 320: Height = 32
     WordWrap = 1: AutoSize = 0
     Caption = "A release build: optimized, what you ship. Run (F5) runs the program to debug it."
   END CREATE
-  CREATE AppOutputLabel AS QLABEL
+  CREATE AppOutputLabel AS RLabel
     Left = 16: Top = 316: Width = 90: Caption = "&Output folder:"
   END CREATE
-  CREATE AppOutputEdit AS QEDIT
+  CREATE AppOutputEdit AS REdit
     Left = 120: Top = 312: Width = 284
     AccessibleName = "Output folder: where Build puts the app"
     OnChange = AppBuildChanged
   END CREATE
-  CREATE AppOutputBtn AS QBUTTON
+  CREATE AppOutputBtn AS RButton
     Left = 410: Top = 311: Width = 30: Caption = "..."
     AccessibleName = "Choose the output folder"
     OnClick = AppOutputBrowse
   END CREATE
-  CREATE AppKeepRust AS QCHECKBOX
+  CREATE AppKeepRust AS RCheckBox
     Left = 120: Top = 346: Width = 320
     Caption = "&Keep the generated Rust source"
     OnClick = AppBuildChanged
   END CREATE
-  CREATE AppKeepNote AS QLABEL
+  CREATE AppKeepNote AS RLabel
     Left = 140: Top = 368: Width = 300: Height = 32
     WordWrap = 1: AutoSize = 0
     Caption = ""

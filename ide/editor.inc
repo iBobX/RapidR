@@ -124,7 +124,7 @@ FUNCTION CodeDocOf(Path AS STRING) AS INTEGER
 END FUNCTION
 
 ' F12 found the definition in another file (an $INCLUDE's): there.
-SUB CodeNavigate(File AS STRING, LineNo AS INTEGER, ColNo AS INTEGER, Sender AS RCODEEDITOR)
+SUB CodeNavigate(File AS STRING, LineNo AS INTEGER, ColNo AS INTEGER, Sender AS RCodeEditor)
   DIM d AS INTEGER
   d = CodeDocOf(File)
   IF d < 0 THEN EXIT SUB
@@ -164,7 +164,7 @@ END FUNCTION
 
 ' Shift+F12: every use, listed in Output as places to click (this file's
 ' are also selected in the editor, as carets).
-SUB CodeReferences(Json AS STRING, Sender AS RCODEEDITOR)
+SUB CodeReferences(Json AS STRING, Sender AS RCodeEditor)
   DIM rest AS STRING, item AS STRING, k AS INTEGER, n AS INTEGER, f AS STRING, l AS INTEGER, d AS INTEGER, t AS STRING
   rest = Json
   OutputLine "References:"
@@ -189,7 +189,7 @@ SUB CodeReferences(Json AS STRING, Sender AS RCODEEDITOR)
 END SUB
 
 ' F2 renamed names another file uses: its edits, applied there (opened).
-SUB CodeFileEdits(File AS STRING, Json AS STRING, Sender AS RCODEEDITOR)
+SUB CodeFileEdits(File AS STRING, Json AS STRING, Sender AS RCodeEditor)
   DIM d AS INTEGER
   d = CodeDocOf(File)
   IF d < 0 THEN
