@@ -2,7 +2,7 @@
   "name": "rapidr",
   "displayName": "RapidR",
   "description": "RapidR BASIC (RapidQ-compatible): IntelliSense, diagnostics, go to definition, rename, formatting and debugging, through RapidR's own language server and debug adapter.",
-  "version": "2.117.0",
+  "version": "2.118.0",
   "publisher": "rapidr",
   "license": "MIT",
   "author": "Ruta Internet SRL",
