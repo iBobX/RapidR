@@ -255,6 +255,52 @@ def stub_unneeded(vendor, needed):
     return saved
 
 
+# What a compiled-against crate doesn't need: its tests, benchmarks, examples,
+# fuzz targets and test data, and any prebuilt binary (.dll/.exe/.so/.dylib/…)
+# inside it. Dropped from the vendored sources the packages ship.
+DROP_DIRS = {"tests", "test-data", "testdata", "test_data", "benches", "fuzz", "examples"}
+DROP_SUFFIXES = (".dll", ".exe", ".so", ".dylib", ".lib", ".a", ".o", ".obj")
+
+
+def trim_needed(vendor, needed):
+    """Of the crates a build compiles, remove their tests, benches, examples,
+    test data and prebuilt binaries (a file the manifest names as a target
+    stays, empty: a manifest naming a missing file doesn't load). The checksum
+    file is rewritten to match. Returns the bytes saved."""
+    saved = 0
+    for d in sorted(os.listdir(vendor)):
+        path = os.path.join(vendor, d)
+        with open(os.path.join(path, "Cargo.toml"), "rb") as f:
+            manifest = tomllib.load(f)
+        pkg = manifest["package"]
+        if (pkg["name"], pkg["version"]) not in needed:
+            continue
+        keep = {os.path.normpath(t) for t in stub_targets(manifest)}
+        with open(os.path.join(path, ".cargo-checksum.json")) as f:
+            checksum = json.load(f)
+        files = checksum["files"]
+        for rel in sorted(files):
+            parts = os.path.normpath(rel).split(os.sep)
+            if not (any(p in DROP_DIRS for p in parts[:-1]) or rel.lower().endswith(DROP_SUFFIXES)):
+                continue
+            full = os.path.join(path, rel)
+            if not os.path.isfile(full):
+                continue
+            saved += os.path.getsize(full)
+            if os.path.normpath(rel) in keep:
+                open(full, "wb").close()
+                files[rel] = hashlib.sha256(b"").hexdigest()
+            else:
+                os.remove(full)
+                del files[rel]
+        for base, dirs, names in os.walk(path, topdown=False):
+            if base != path and not os.listdir(base):
+                os.rmdir(base)
+        with open(os.path.join(path, ".cargo-checksum.json"), "w") as f:
+            json.dump(checksum, f)
+    return saved
+
+
 def rust_version():
     out = subprocess.check_output(["rustc", "--version"]).decode()
     return out.split()[1]
@@ -296,6 +342,8 @@ def main():
     needed = needed_packages(out, TARGETS[args.os] + [WEB])
     saved = stub_unneeded(os.path.join(out, "vendor"), needed)
     print(f"vendor: {len(needed)} crates for {args.os} + web; {saved / 1e6:.0f} MB of others' sources left out", file=sys.stderr)
+    trimmed = trim_needed(os.path.join(out, "vendor"), needed)
+    print(f"vendor: {trimmed / 1e6:.0f} MB of the needed crates' tests, benches, examples and prebuilt binaries left out", file=sys.stderr)
 
     version = tomllib.load(open(os.path.join(src, "Cargo.toml"), "rb"))["workspace"]["package"]["version"]
     with open(os.path.join(out, "release.toml"), "w") as f:
