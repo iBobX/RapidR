@@ -107,28 +107,29 @@ await page.waitForTimeout(300);
 // (the drop-down as the accessibility mirror describes it)
 const listed = await frame2.evaluate(() => [...document.querySelectorAll('[role="listbox"] [role="option"], [role="menu"] [role="menuitem"]')].map((o) => o.getAttribute("aria-label") ?? o.textContent));
 ok(JSON.stringify(listed) === JSON.stringify(["red", "blue", "green", "pink"]), `the gcsList drop-down lists ColumnList, as OnListDropDown's S left it (${JSON.stringify(listed)})`);
-// (the drop-down as drawn: a box hanging from the cell, its left border a
-// dark line; each item's text a band of dark pixels inside it)
+// (the drop-down as drawn: a box hanging from the cell; each item's text a
+// band of dark pixels inside it)
 const dropDown = () => frame2.evaluate(({ a }) => {
   const el = document.getElementById("rr-grid");
   const canvas = el.closest(".rr-kwin").querySelector("canvas.rr-kclient");
   const c = canvas.getBoundingClientRect(), g = el.getBoundingClientRect(), s = canvas.width / c.width;
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  // (dark: the frame, clWindowFrame 646464 in the classic look, and text)
+  // (dark: an item's text; the box's frame is the theme's — light in
+  // RapidR's look, so only the text is looked for, in the cell's width
+  // below the cell: nothing else is drawn there but the cells' lines)
   const dark = (x, y) => { const d = ctx.getImageData(Math.floor((g.left - c.left + x + 0.5) * s), Math.floor((g.top - c.top + y + 0.5) * s), 1, 1).data; return (d[0] + d[1] + d[2]) / 3 < 110; };
   const top = a.y + a.height;
-  let height = 0;
-  while (height < 200 && dark(a.x, top + height)) height++;
-  if (height < 10) return { height, bands: [] };
   const bands = [];
   let start = -1;
-  for (let y = top + 2; y < top + height - 1; y++) {
+  for (let y = top + 2; y < top + 120; y++) {
     let ink = false;
     for (let x = a.x + 2; x < a.x + a.width - 2 && !ink; x++) ink = dark(x, y);
     if (ink && start < 0) start = y;
     if (!ink && start >= 0) { bands.push((start + y) / 2); start = -1; }
   }
-  if (start >= 0) bands.push((start + top + height - 1) / 2);
+  if (start >= 0) bands.push((start + top + 120) / 2);
+  // (the height: from the cell to the last item's end)
+  const height = bands.length ? Math.round(bands[bands.length - 1] + 5 - top) : 0;
   return { height, bands };
 }, { a });
 let dd = await dropDown();
