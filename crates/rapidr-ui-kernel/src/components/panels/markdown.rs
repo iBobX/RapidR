@@ -526,10 +526,14 @@ fn lay_out(cx: &mut Cx, theme: &'static Theme) -> (i64, Vec<Op>) {
     Laid::shape(cx, theme);
     let scale = cx.scale;
     let Some(m) = cx.ui.markdown.as_mut() else { return (0, Vec::new()) };
-    // (the full width; less the bar's when the text is taller than the view)
-    m.flow(bw as f64, scale, &f);
-    if m.height > bh as f64 {
-        m.flow((bw - rapidr_value::scrollbars::BAR) as f64, scale, &f);
+    // (the full width; less the bar's when the text is taller than the view
+    // — kept so while it still is)
+    let narrow = (bw - rapidr_value::scrollbars::BAR) as f64;
+    if !(m.flowed_at == narrow && m.height > bh as f64) {
+        m.flow(bw as f64, scale, &f);
+        if m.height > bh as f64 {
+            m.flow(narrow, scale, &f);
+        }
     }
     let scroll_to = model::with_mut(cx.id, |md| md.scroll_to.take());
     if let Some(k) = scroll_to {
@@ -885,4 +889,120 @@ thread_local! {
 /// (no in-place editor)
 pub fn focus_left(_id: &str, _ed: crate::components::list::InPlace) -> Vec<KernelEvent> {
     Vec::new()
+}
+
+#[cfg(test)]
+mod tests {
+    use rapidr_value::input::Button;
+    use rapidr_value::objects::a11y::Role;
+    use rapidr_value::panels::markdown as model;
+    use rapidr_value::panels::User;
+    use rapidr_value::v_int;
+
+    use crate::components::form::Container;
+    use crate::input::MemClipboard;
+    use crate::{FormUi, KernelEvent, MemStore, Mods, TextSystem};
+
+    const TEXT: &str = "# Title\n\nSee [the docs](https://example.com) and [more](#more).\n\n- one\n- two\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n## More\n\nend\n";
+
+    fn setup(id: &str) -> (MemStore, FormUi, TextSystem) {
+        let mut s = MemStore::new();
+        s.add("mform", "RFORM", None);
+        s.add(id, "RMARKDOWNVIEW", Some("mform")).set(id, "width", v_int(500)).set(id, "height", v_int(300));
+        model::remove(id);
+        model::with_mut(id, |m| m.set_text(TEXT));
+        let mut ts = TextSystem::new();
+        let mut f = FormUi::build(&s, "mform", false);
+        f.paint(&s, &mut ts, 1.0);
+        (s, f, ts)
+    }
+
+    fn spot(f: &FormUi, id: &str, k: usize) -> super::Spot {
+        f.node(id).and_then(|n| n.ui.markdown.as_ref()).map(|m| m.spots[k]).expect("laid out")
+    }
+
+    #[test]
+    fn laid_out_drawn_and_described() {
+        let (s, mut f, mut ts) = setup("md1");
+        let list = f.paint(&s, &mut ts, 1.0);
+        // (every paragraph and both markers drawn as text: 10 paragraphs + 2)
+        assert_eq!(list.items.iter().filter(|i| matches!(i, crate::display::Item::Text(t) if t.node == "md1")).count(), 12);
+        // (headings above paragraphs, list items indented)
+        let (h, p, li) = (spot(&f, "md1", 0), spot(&f, "md1", 1), spot(&f, "md1", 2));
+        assert!(h.y < p.y && p.y < li.y && li.x > p.x, "{h:?} {p:?} {li:?}");
+        // (the table's cells side by side)
+        let (a, b) = (spot(&f, "md1", 4), spot(&f, "md1", 5));
+        assert!((a.y - b.y).abs() < 0.5 && b.x > a.x + a.w);
+        let tree = f.access_tree(&s, &mut ts);
+        let doc = &tree.children[0];
+        assert_eq!(doc.role, Role::Document);
+        let roles: Vec<Role> = doc.children.iter().map(|n| n.role).collect();
+        assert_eq!(roles, vec![Role::Heading, Role::Label, Role::List, Role::Table, Role::Heading, Role::Label]);
+        assert_eq!(doc.children[0].level, Some(1));
+        assert_eq!(doc.children[1].children.iter().map(|l| (l.role, l.name.as_str())).collect::<Vec<_>>(), vec![(Role::Link, "the docs"), (Role::Link, "more")]);
+        assert_eq!(doc.children[2].children[1].role, Role::ListItem);
+        assert_eq!(doc.children[3].children[1].children[1].name, "2");
+        model::remove("md1");
+    }
+
+    #[test]
+    fn links_selection_and_copy() {
+        let (s, mut f, mut ts) = setup("md2");
+        // a click on "the docs": OnLinkClick with its target
+        let p = spot(&f, "md2", 1);
+        let x = p.x + 40.0;
+        let y = p.y + p.h / 2.0;
+        f.mouse_down(&s, &mut ts, x, y, Button::Left, Mods::NONE);
+        f.mouse_up(&s, &mut ts, x, y, Button::Left, Mods::NONE);
+        let events: Vec<User> = f
+            .take_events()
+            .into_iter()
+            .filter_map(|e| match e {
+                KernelEvent::Container(Container::Panel { action, .. }) => Some(action),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(events, vec![User::Markdown(model::User::Link("https://example.com".into()))]);
+        // a drag from the title's start into "See": selected, Ctrl+C copies it
+        let h = spot(&f, "md2", 0);
+        f.mouse_down(&s, &mut ts, h.x + 0.5, h.y + h.h / 2.0, Button::Left, Mods::NONE);
+        f.mouse_move(&s, &mut ts, p.x + 2.0, y, Mods::NONE);
+        f.mouse_up(&s, &mut ts, p.x + 2.0, y, Button::Left, Mods::NONE);
+        let mut clip = MemClipboard::default();
+        let ctrl = Mods { ctrl: true, ..Mods::NONE };
+        f.key_down(&s, &mut ts, 67, "", ctrl, &mut clip);
+        assert!(clip.0.as_deref().is_some_and(|t| t.starts_with("Title\n")), "{:?}", clip.0);
+        // Ctrl+A, Ctrl+C: everything, a table's row by tabs
+        f.key_down(&s, &mut ts, 65, "", ctrl, &mut clip);
+        f.key_down(&s, &mut ts, 67, "", ctrl, &mut clip);
+        assert_eq!(clip.0.as_deref(), Some("Title\nSee the docs and more.\none\ntwo\nA\tB\n1\t2\nMore\nend"));
+        model::remove("md2");
+    }
+
+    /// A long text (the RapidQ corpus's import report is ~7,700 lines) is
+    /// laid out once and drawn by what's in view.
+    #[test]
+    fn a_long_text_lays_out_quickly() {
+        let mut big = String::from("# Report\n\n| Program | Result |\n|---|---|\n");
+        for i in 0..400 {
+            big.push_str(&format!("| `dir/program{i}.bas` | yes: identical bytecode |\n"));
+        }
+        big.push('\n');
+        for i in 0..6000 {
+            big.push_str(&format!("- line {i}, column 3: `QBUTTON` → `RButton`\n"));
+        }
+        let (s, mut f, mut ts) = setup("md3");
+        model::with_mut("md3", |m| m.set_text(&big));
+        let t0 = std::time::Instant::now();
+        let list = f.paint(&s, &mut ts, 2.0);
+        let first = t0.elapsed();
+        let t1 = std::time::Instant::now();
+        f.paint(&s, &mut ts, 2.0);
+        let again = t1.elapsed();
+        eprintln!("long text: first paint {first:?}, next {again:?}");
+        // (only what's in view is drawn)
+        assert!(list.items.iter().filter(|i| matches!(i, crate::display::Item::Text(_))).count() < 80);
+        assert!(again < first);
+        model::remove("md3");
+    }
 }

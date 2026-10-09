@@ -23,6 +23,7 @@ where something isn't done yet, it says so.
 | [Serial ports and IoT boards](serial-ports.md) | RComPort / QCOMPORT: opening ports, listing them with their USB IDs, lines in, plug events, resetting an ESP32 through DTR / RTS, Web Serial |
 | [Differences from RapidQ, and extensions](differences.md) | What RapidR does that RapidQ doesn't, what it does differently on purpose, and what it doesn't do |
 | [Troubleshooting](troubleshooting.md) | Common messages and what to do about them |
+| [Markdown files and RMarkdownView](markdown.md) | `.md` files formatted in RapidR Studio (Preview \| Source), and Markdown shown in your own programs |
 
 Reference tables, generated from RapidR's language registry (`rapidr lang
 export --manual`):

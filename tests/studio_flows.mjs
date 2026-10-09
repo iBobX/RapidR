@@ -302,6 +302,42 @@ const CASES = [
     delay: 4,
     dump: { "helptitle.caption": /^QLABEL\.Caption$/, "helpwhat.caption": /^Property of QLABEL/ },
   },
+  // (MD-VIEW) A Markdown file opens formatted: its tab shows Preview (the
+  // switch's first view: no "view" line in the layout), the RMarkdownView
+  // has its text read (headings, links), the outline lists its headings,
+  // and the language service leaves it alone.
+  {
+    name: "markdown-preview",
+    open: "tests/fixtures/markdown/rapidr-import-report.md",
+    webFiles: ["tests/fixtures/markdown/rapidr-import-report.md"],
+    do: "wait",
+    delay: 4,
+    dump: {
+      "dock.layout": /^(?![\s\S]*^view codedoc\(0\))[\s\S]*^documents \d+ (welcome )?codedoc\(0\)$/m,
+      "mddoc(0).plaintext": /^RapidQ import: greeter\.rqw\nA copy of greeter\/greeter\.rqw in [\s\S]*^Program\tCompiled as the original\ngreeter\.rqw\tyes: identical bytecode$/m,
+      "mddoc(0).headings": /^1\tRapidQ import: greeter\.rqw\trapidq-import-greeterrqw\t1\n2\tPrograms\tprograms\t9\n/,
+      "outlinetree.itemcount": /^7$/,
+      "lang.errorcount": /^0$/,
+    },
+  },
+  // (MD-VIEW) The switch: F7 (View > Code) shows the source, an edit there
+  // shows in the preview, Shift+F7 (View > Designer) goes back to Preview;
+  // a link to another file opens it, in Preview too.
+  {
+    name: "markdown-switch",
+    open: "tests/fixtures/markdown/sample.md",
+    webFiles: ["tests/fixtures/markdown/sample.md", "tests/fixtures/markdown/notes.md"],
+    do: "wait,view.code,code:## Lists=>## Shopping lists,wait,view.designer,wait",
+    events: "mddoc(0).__item_2",
+    delay: 5,
+    dump: {
+      "codedoc(0).text": /^## Shopping lists$/m,
+      "mddoc(0).headings": /^2\tShopping lists\tshopping-lists\t7$/m,
+      "dock.layout": /^documents \d+ (welcome )?codedoc\(0\) codedoc\(1\)$(?![\s\S]*^view codedoc\(0\) 1)/m,
+      "dock.activedocument": /^codedoc\(1\)$/,
+      "mddoc(1).plaintext": /^Notes\nA second Markdown file/,
+    },
+  },
   // (S-PANELS) The project tree lists the form's components; the palette
   // finds a symbol of the file.
   {
