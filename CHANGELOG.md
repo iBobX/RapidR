@@ -7,6 +7,17 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Triage of the full regression run (TRIAGE)
+- A grid cell's editor no longer covers its **list / ellipsis button**: in a gcsEllipsis or gcsList
+  column the editor box stops where the button starts, so the "..." (or the arrow) shows beside
+  the editor, as RapidQ's (it had been drawn under the editor since the button moved to the
+  editor-only rule).
+- `Project.RustReady` reads without brackets (`IF Proj.RustReady`), like the other Project
+  methods that return a value.
+- `examples/form_designer.bas` is now `examples/studio/form_designer.rr`, in the examples' index and
+  test table. The stale test expectations of themes, RC.EXE's defaults and the grid's editor-only
+  button were brought up to date.
+
 ### Build Web App (WEB-BUILD)
 - **Run > Build Web App (.zip)** in RapidR Studio on the web: the program compiled to bytecode and
   zipped with the web runtime, its page and strict per-program Content-Security-Policy (the same
@@ -773,7 +784,7 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   one undo step each. New members: `Undo`, `Redo`, `AlignSelection(How)`,
   `SelectAdd(Index)`, `SelCount`, `PreviewWidth` / `PreviewHeight`,
   `ShowGuides`, `SnapToGrid`, `GridSize`. Its chrome follows the theme.
-  `examples/form_designer.bas` shows it. Existing programs' calls answer as
+  `examples/studio/form_designer.rr` shows it. Existing programs' calls answer as
   before.
 
 - **An RPLOT on a form shows its chart, the same on the desktop and the

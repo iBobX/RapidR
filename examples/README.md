@@ -56,6 +56,7 @@ The **Runs on** column lists the ways each example is tested on (by
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
 | [panels.rr](studio/panels.rr) | The IDE's public components docked together: a toolbar, the toolbox, the project tree, a designer with the property inspector following it (Anchors' pin editor), the output console, the command palette | run · interp · native · web | `rapidr run studio/panels.rr` |
+| [form_designer.rr](studio/form_designer.rr) | The designer surface alone (`RDesignSurface`): click, Shift+click and drag components, smart guides, the anchor pins, undo and redo, the form's resize preview | run · interp · native · web | `rapidr run studio/form_designer.rr` |
 
 ### graphics/ and directx/ — drawing
 

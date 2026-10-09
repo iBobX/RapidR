@@ -30,6 +30,7 @@ const page = r.page;
 const pageErrors = r.pageErrors;
 await r.run([
     '$INCLUDE "RAPIDQ.INC"',
+    '$THEME classic',
     'CREATE Form AS QFORM',
     '  Width = 300',
     '  Height = 220',
@@ -91,6 +92,7 @@ ok(pageErrors.length === 0, `no page errors (${pageErrors.join("; ")})`);
 // handler draws stays on the canvas.
 await r.run([
     '$INCLUDE "RAPIDQ.INC"',
+    '$THEME classic',
     'DECLARE SUB PaintIt',
     'DECLARE SUB Again',
     'DIM paints AS INTEGER',
@@ -140,6 +142,7 @@ ok(red && red.join(",") === "255,0,0", `what OnPaint drew is on the canvas (${re
 // canvas; a click on a control over the drawing still reaches the control.)
 await r.run([
     '$INCLUDE "RAPIDQ.INC"',
+    '$THEME classic',
     'DECLARE SUB FormPaint',
     'DECLARE SUB Pressed',
     'CREATE Win AS QFORM',

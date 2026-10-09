@@ -157,11 +157,13 @@ ok(grid && grid[5][1] === "<b>plain</b>", `cell text is plain text, never markup
 const ell = await button("grid", g0[2][3]);
 const fixedEll = await button("grid", g0[0][3]);
 const plainCell = await button("grid", g0[2][2]);
-ok(ell.dots && ell.back === fixedBack && !fixedEll.dots && !plainCell.dots && plainCell.back === "255,255,255",
-  `ellipsis column has a button (not in the fixed row) (${JSON.stringify({ ell, fixedEll, plainCell })})`);
+// (a list / ellipsis column's button shows in the cell's editor only —
+// RC.EXE's windows —: no cell at rest has one drawn)
+ok(!ell.dots && ell.back === "255,255,255" && !fixedEll.dots && !plainCell.dots && plainCell.back === "255,255,255",
+  `an ellipsis column draws no button on cells at rest (${JSON.stringify({ ell, fixedEll, plainCell })})`);
 const ide = await cells("ide");
 const ideDots = ide && ide[1] && ide[1][2] ? await button("ide", ide[1][2]) : null;
-ok(ide && ide[1]?.[2]?.text === "..." && ideDots?.dots && ideDots.back === fixedBack, `RapidR "..." cell shows a button (${JSON.stringify(ideDots)})`);
+ok(ide && ide[1]?.[2]?.text === "..." && ideDots && !ideDots.dots, `RapidR "..." cell: its text, and no button at rest (${JSON.stringify(ideDots)})`);
 
 // Selecting: a click selects and fires OnSelectCell; fixed cells don't.
 await clickCell(g0, 2, 4);
@@ -206,6 +208,15 @@ lbl = await label();
 ok(lbl === "edit1,4=Ana|Ana", `Enter stores the cell and fires OnSetEditText (${lbl})`);
 const after = texts(await cells("grid"));
 ok(after && after[4][1] === "Ana", `edited text drawn (${after && after[4][1]})`);
+
+// The ellipsis cell's editor (double-click) has the button: a square with
+// the "..." in it beside the editor box; Escape closes the editor.
+await clickCell(g0, 3, 2, null, { clickCount: 2 });
+await page.waitForTimeout(300);
+const ellEdited = await button("grid", g0[2][3]);
+ok(ellEdited.dots, `the ellipsis cell being edited shows its button (${JSON.stringify(ellEdited)})`);
+await page.keyboard.press("Escape");
+await page.waitForTimeout(300);
 
 // Ellipsis button: a click at the cell's right edge.
 await clickCell(g0, 3, 2, [g0[2][3].w - 6, g0[2][3].h / 2]);

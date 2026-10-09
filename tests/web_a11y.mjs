@@ -60,6 +60,8 @@ const ROLES = {
   // (a toggle button: aria-pressed for the kernel's checked)
   button: ["button"],
   checkbox: ["checkbox"], radio: ["radio"], textbox: ["textbox"],
+  // (the output console's text: a <textarea>, Chrome's textbox)
+  "textbox-multiline": ["textbox"],
   slider: ["slider"], spinbutton: ["spinbutton"], progressbar: ["progressbar"],
   tablist: ["tablist"], tab: ["tab"], listbox: ["listbox"], option: ["option"],
   combobox: ["combobox"],
@@ -146,7 +148,7 @@ function compare(k, w) {
   // Values: a text box's text (its line breaks a textarea's "\n"; a
   // password's by its length: the browser masks it with its own
   // character), a combo box's, a gauge's percentage.
-  if (k.value !== undefined && ["textbox", "combobox"].includes(role)) {
+  if (k.value !== undefined && ["textbox", "textbox-multiline", "combobox"].includes(role)) {
     const kv = k.value.replace(/\r\n?/g, "\n");
     const wv = String(w.value?.value ?? "");
     const same = kv === wv || /^(\*+|•+)$/.test(kv) && [...kv].length === [...wv].length;
@@ -173,7 +175,10 @@ function compare(k, w) {
   const we = prop(w, "expanded");
   if (ke !== undefined && we !== ke) out.push(`expanded ${ke} ≠ ${we}`);
   if (ke === undefined && we !== undefined) out.push(`expanded ${we} (kernel: not expandable)`);
+  // (ARIA has no read-only row — aria-readonly is for text boxes, grids and
+  // combo boxes —: the inspector's read-only rows are the kernel's alone)
   for (const [s, p] of [["readonly", "readonly"], ["multiline", "multiline"], ["modal", "modal"]]) {
+    if (s === "readonly" && role === "row") continue;
     if (!!prop(w, p) !== has(s)) out.push(has(s) ? `not ${s}` : s);
   }
   if (k.level !== undefined && Number(prop(w, "level")) !== k.level) out.push(`level ${k.level} ≠ ${prop(w, "level")}`);
@@ -291,11 +296,13 @@ async function keys() {
   // (the device pixels at a component's place, to compare)
   const drawn = async (name) => (await k.pixels(page, name)).data.join(",");
   /// Whether pixels `b` are `a` with a ring drawn on them: every pixel that
-  /// differs on the edge of the box the differences make (a logical pixel
-  /// thick: `s` device pixels), the box most of the component's size.
+  /// differs on the edge of the box the differences make (up to four logical
+  /// pixels thick, `s` device pixels each: RapidR's look draws the theme's
+  /// focus width, 2, and a thin ring inside it on the Default button's
+  /// accent), the box most of the component's size.
   const ring = (a, b) => {
     const pa = a.split(","), pb = b.split(",");
-    const { width, height } = okBox, s = Math.ceil(okBox.scale);
+    const { width, height } = okBox, s = Math.ceil(okBox.scale) * 4;
     const diff = [];
     for (let i = 0; i < pa.length; i += 4) if (pa[i] !== pb[i] || pa[i + 1] !== pb[i + 1] || pa[i + 2] !== pb[i + 2]) diff.push([(i / 4) % width, Math.floor(i / 4 / width)]);
     if (!diff.length) return false;
