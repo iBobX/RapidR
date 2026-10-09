@@ -42,6 +42,10 @@ pub struct ToolsParse {
     pub preprocessor_diagnostics: usize,
     /// Each file of `preprocessed.origins.files` (same index), lossless.
     pub files: Vec<LosslessFile>,
+    /// The tokens the parser read as type names (`AS QBUTTON`, `EXTENDS
+    /// QFORM`), as spans of the preprocessed text, in order
+    /// ([`crate::parse_tokens_with_type_names`]).
+    pub type_names: Vec<TextSpan>,
 }
 
 /// A span of a source file.
@@ -100,6 +104,25 @@ impl ToolsParse {
             })
             .collect()
     }
+
+    /// How file `file` writes the names of RapidQ's components (its type
+    /// names: `AS QBUTTON`, `EXTENDS RForm`), the program's own TYPEs left
+    /// out — the style RapidR Studio's designer and completion write new
+    /// code in (`NameCounts::writing_style`, docs/ide-plan.md R-NAMES).
+    pub fn name_counts(&self, file: FileId) -> rapidr_lang::NameCounts {
+        let own: Vec<&str> = self.program.statements.iter().filter_map(|s| if let rapidr_ast::Statement::Type(t) = s { Some(t.name.as_str()) } else { None }).collect();
+        let mut counts = rapidr_lang::NameCounts::default();
+        for span in &self.type_names {
+            let Some(written) = self.preprocessed.source.get(span.start..span.end) else { continue };
+            if own.iter().any(|t| t.eq_ignore_ascii_case(written)) {
+                continue;
+            }
+            if self.locate(*span).is_some_and(|l| l.exact && l.file == file) {
+                counts.count(written);
+            }
+        }
+        counts
+    }
 }
 
 /// Parses the program in `path` for tools (see the module documentation).
@@ -120,7 +143,7 @@ pub fn parse_source_for_tools(source: &str, base_dir: impl AsRef<Path>, file_pat
 
 fn finish(preprocessed: PreprocessResult, errors: Vec<rapidr_preprocessor::PreprocessError>, label: Option<String>) -> ToolsParse {
     let (tokens, lex_errors) = Lexer::new(&preprocessed.source, label).tokenize_recovering();
-    let (program, parse_diagnostics) = crate::parse_tokens_recovering(&tokens);
+    let (program, parse_diagnostics, type_names) = crate::parse_tokens_with_type_names(&tokens);
     let mut diagnostics: Vec<Diagnostic> = errors.into_iter().map(|e| e.diagnostic).collect();
     let preprocessor_diagnostics = diagnostics.len();
     diagnostics.extend(lex_errors.into_iter().map(|e| e.diagnostic));
@@ -131,5 +154,5 @@ fn finish(preprocessed: PreprocessResult, errors: Vec<rapidr_preprocessor::Prepr
         .iter()
         .map(|f| LosslessFile::lex_with_line_kinds(&f.text, &f.lines, f.path.as_ref().map(|p| p.display().to_string())))
         .collect();
-    ToolsParse { preprocessed, tokens, program, diagnostics, preprocessor_diagnostics, files }
+    ToolsParse { preprocessed, tokens, program, diagnostics, preprocessor_diagnostics, files, type_names }
 }

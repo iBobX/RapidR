@@ -1,8 +1,8 @@
 ' RTOOLBOX by the keyboard (docs/ide-components.md 3.6): Down to the
-' first components (OnSelect each), "l" goes to QLABEL (type-ahead), Left
+' first components (OnSelect each), "l" goes to RLabel (type-ahead), Left
 ' to its group and Left again closes it, Down to the next group, Right to
-' its first component, End to the last one, Home to "RapidQ", Enter
-' closes it (fewer components shown).
+' its first component, End to the last one, Home to "Standard", Enter
+' opens it again (every component shown).
 DIM log AS STRING
 
 SUB Picked (T AS STRING)

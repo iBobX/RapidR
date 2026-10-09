@@ -29,6 +29,14 @@ FUNCTION FileExt(Path AS STRING) AS STRING
   IF i > 0 THEN Result = LCASE$(MID$(Path, i + 1)) ELSE Result = ""
 END FUNCTION
 
+' (a BASIC source — RapidR's .rr, RapidQ's .bas / .rqw / .rqb / .rq, an
+' .inc: the language service reads these; a report or a data file isn't)
+FUNCTION IsBasicFile(Path AS STRING) AS INTEGER
+  SELECT CASE FileExt(Path)
+    CASE "rr", "bas", "inc", "rqw", "rqb", "rq": Result = 1
+  END SELECT
+END FUNCTION
+
 ' (a string literal's text, quotes off)
 FUNCTION Unquote(v AS STRING) AS STRING
   IF LEFT$(v, 1) = CHR$(34) AND RIGHT$(v, 1) = CHR$(34) AND LEN(v) >= 2 THEN Result = MID$(v, 2, LEN(v) - 2) ELSE Result = v
@@ -111,6 +119,10 @@ END SUB
 SUB AnalyzeActive
   DIM d AS INTEGER
   d = ActiveCode
+  ' (not BASIC: no outline, no problems)
+  IF d >= 0 THEN
+    IF IsBasicFile(DocFile(d)) = 0 THEN d = -1
+  END IF
   IF d >= 0 THEN
     Lang.Update DocFile(d), CodeDoc(d).Text
     IF DocHasForm(d) THEN DesignRead d
@@ -239,7 +251,7 @@ SUB CloseDocument(d AS INTEGER)
   UpdateCommands
 END SUB
 
-SUB CodeChanged(Sender AS RCODEEDITOR)
+SUB CodeChanged(Sender AS RCodeEditor)
   DIM d AS INTEGER
   IF Loading THEN EXIT SUB
   d = Sender.Tag

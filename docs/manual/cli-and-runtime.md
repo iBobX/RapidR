@@ -6,7 +6,7 @@ One command, `rapidr`, is the compiler, the build tool and the runtime.
 
 | Command | |
 |---|---|
-| `rapidr run <file> [args]` | Run a program: a `.rrbc`, or a `.rr` / `.bas` source (compiled in memory first). This is the RapidR Runtime. |
+| `rapidr run <file> [args]` | Run a program: a `.rrbc`, or a source (`.rr` / `.bas`, or RapidQ's other source extensions `.rqw`, `.rqb` and `.rq`; compiled in memory first). This is the RapidR Runtime. |
 | `rapidr <file.rrbc> [args]` | The same, for a compiled program (and for `#!/usr/bin/env rapidr` scripts) |
 | `rapidr open <file> [args]` | Run it as a double click does: a downloaded file asks first, a console program gets a terminal |
 | `rapidr info <file>` | The program's kind, bytecode format and the oldest runtime it needs |
@@ -17,6 +17,8 @@ One command, `rapidr`, is the compiler, the build tool and the runtime.
 | `rapidr install-app <Name.AppDir>` | Linux: put a built app in your applications menu |
 | `rapidr build-bc <file> [-o out.rrbc]` | Compile to bytecode, for the Runtime |
 | `rapidr bundle-bc <file> [-o out.zip]` | A static web bundle (a `.zip`) |
+| `rapidr import-rapidq <file\|folder\|.rrproj> [out_dir]` | Write a converted copy of a RapidQ program with RapidR's names, and a report (`rapidr-import-report.md`), in `out_dir` (also `-o out_dir`; else `<name>-rapidr` beside it). The original is untouched, and each program is proved to compile to the same bytecode. RapidR Studio's File ▸ Import RapidQ Project or File… does the same |
+| `rapidr upgrade-names <file> [--dry-run]` | The same conversion in place, for RapidR's own files; `--dry-run` prints a diff and changes nothing |
 | `rapidr setup [--check] [--yes] [--no-path]` | Install the Rust native builds use; put `rapidr` on PATH |
 | `rapidr notices [<os>-<arch>\|web\|tools-<os>] [-o file]` | Print the third-party notices a kind of build carries |
 | `rapidr about`, `rapidr version` | |
@@ -117,7 +119,7 @@ directly. It is the same interpreter inside `--interp` executables.
   | File | Double click | Also |
   |---|---|---|
   | `.rrbc` | runs | |
-  | `.rr`, `.bas` | opens in the IDE (with only the Runtime: runs) | Windows: *Run*; macOS / Linux: *Open With > RapidR Runtime* |
+  | `.rr`, `.bas` (and RapidQ's `.rqw`, `.rqb`, `.rq`) | opens in the IDE (with only the Runtime: runs) | Windows: *Run*; macOS / Linux: *Open With > RapidR Runtime* |
 
   On Windows `.bas` becomes RapidR's by default only if you tick the
   installer's box (other BASICs use `.bas` too); RapidR is always listed
@@ -164,7 +166,7 @@ run from. `rapidr setup --check` prints which.
 | `RAPIDR_THEME=name` | the theme for programs that name none ([Components](components.md#themes)) |
 | `RAPIDR_RENDERER=cpu\|gpu` | force drawing on the CPU or the GPU (by default the GPU, or the CPU when the only GPU is a software one) |
 | `RAPIDR_PRINT_TO=<file or folder>` | printed documents go there as PDFs instead of to a printer |
-| `RAPIDR_REGISTRY=<file>` | QREGISTRY keeps its keys in this file instead of the system's (Windows' registry; a per-user store elsewhere) |
+| `RAPIDR_REGISTRY=<file>` | RRegistry keeps its keys in this file instead of the system's (Windows' registry; a per-user store elsewhere) |
 | `RAPIDR_CONFIG_DIR=<folder>` | your RapidR folder (the trusted-files list) |
 | `RAPIDR_HOME=<folder>` | RapidR's home (above) |
 | `RAPIDR_TOOLCHAIN=msvc` | Windows native builds with Microsoft's toolchain |

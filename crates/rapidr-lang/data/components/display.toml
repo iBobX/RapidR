@@ -110,10 +110,10 @@ methods = [
   { name = "Repaint", missing = true },
   { name = "Rotate", params = "xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER", missing = true },
   { name = "RoundRect", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER" },
-  { name = "StretchDraw", params = "Rect AS QRECT, BMP" },
+  { name = "StretchDraw", params = "Rect AS RRect, BMP" },
   { name = "TextHeight", params = "Text AS STRING", returns = "WORD" },
   { name = "TextWidth", params = "Text AS STRING", returns = "WORD" },
-  { name = "TextRect", params = "Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", missing = true },
+  { name = "TextRect", params = "Rect AS RRect, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", missing = true },
   { name = "TextOut", params = "x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER" },
   { name = "LoadFromFile", origin = "rapidr" },
   { name = "SaveToFile", origin = "rapidr" },
@@ -179,10 +179,10 @@ methods = [
   { name = "Repaint" },
   { name = "Rotate", params = "xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER", missing = true },
   { name = "RoundRect", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER" },
-  { name = "StretchDraw", params = "Rect AS QRECT, BMP" },
+  { name = "StretchDraw", params = "Rect AS RRect, BMP" },
   { name = "TextHeight", params = "Text AS STRING", returns = "WORD" },
   { name = "TextWidth", params = "Text AS STRING", returns = "WORD" },
-  { name = "TextRect", params = "Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", missing = true },
+  { name = "TextRect", params = "Rect AS RRect, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", missing = true },
   { name = "TextOut", params = "x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER" },
   { name = "Cls", origin = "rapidr", doc = "Clears the canvas using the current Color." },
   { name = "FillCircle", params = "x, y, radius, [color]", origin = "rapidr", doc = "Draws a filled circle." },
@@ -259,10 +259,10 @@ methods = [
   { name = "Rectangle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER" },
   { name = "Repaint" },
   { name = "RoundRect", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER" },
-  { name = "StretchDraw", params = "Rect AS QRECT, BMP" },
+  { name = "StretchDraw", params = "Rect AS RRect, BMP" },
   { name = "TextHeight", params = "Text AS STRING", returns = "WORD" },
   { name = "TextWidth", params = "Text AS STRING", returns = "WORD" },
-  { name = "TextRect", params = "Rect AS QRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", missing = true },
+  { name = "TextRect", params = "Rect AS RRect, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", missing = true },
   { name = "TextOut", params = "x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER" },
   { name = "Refresh", value = true, origin = "rapidr" },
   { name = "Update", origin = "rapidr" },
@@ -278,7 +278,7 @@ methods = [
   { name = "AddSection", origin = "rapidr" },
 ]
 events = [
-  { name = "OnDrawSection", params = "Index AS INTEGER, Pressed AS INTEGER, Rect AS QRECT" },
+  { name = "OnDrawSection", params = "Index AS INTEGER, Pressed AS INTEGER, Rect AS RRect" },
   { name = "OnMouseDown", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
@@ -321,7 +321,7 @@ rapidq = "QGAUGE"
 visual = true
 size = [100, 100]
 sets = ["layout", "a11y"]
-doc = "RapidQ's gauge (QGAUGE): shows progress from Min to Max at Position as a bar, a pie, a needle or the percentage."
+doc = "RapidQ's gauge (RProgressBar): shows progress from Min to Max at Position as a bar, a pie, a needle or the percentage."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "BackColor", type = "color", default = 16777215 },
@@ -379,14 +379,14 @@ properties = [
   { name = "GridSize", type = "int", default = 8, doc = "The grid's step in pixels." },
   { name = "ShowGrid", type = "bool", default = true, doc = "Whether the grid's dots show on the designed form." },
   { name = "ShowSelection", type = "bool", default = true, doc = "Whether the designer's own marks show: the selection's frames and handles, the anchor pins, the form's sizing grips. Off: the designed form alone, as the running program shows it." },
-  { name = "Source", type = "string", design = false, doc = "The program's source text. Setting it reads the file's forms and shows the one FormName names (else its first QFORM) at its own size, drawn as the running program draws it; setting the same text again changes nothing. From then on every change made in the designer is written back into this text as the smallest edits (OnSourceEdit), and reading Source gives the text as they left it. Set it again whenever the code is edited elsewhere." },
+  { name = "Source", type = "string", design = false, doc = "The program's source text. Setting it reads the file's forms and shows the one FormName names (else its first RForm) at its own size, drawn as the running program draws it; setting the same text again changes nothing. From then on every change made in the designer is written back into this text as the smallest edits (OnSourceEdit), and reading Source gives the text as they left it. Set it again whenever the code is edited elsewhere." },
   { name = "SourceFile", type = "string", design = false, doc = "The source's file name, set before Source: its $INCLUDE files are found from there." },
   { name = "FormName", type = "string", design = false, doc = "The name of the form being designed (\"\" when the source creates none). Setting it designs that form of the source instead." },
   { name = "SelIndex", type = "int", design = false, doc = "The index of the selected component (the first selected); -1 when nothing is, which means the form itself." },
-  { name = "PlaceType", type = "string", design = false, doc = "The placing tool: a component type (\"QBUTTON\"). The next click on the form places one at its default size, or a drag draws its rectangle; Shift keeps the tool for another. Escape or \"\" turns it off." },
+  { name = "PlaceType", type = "string", design = false, doc = "The placing tool: a component type (\"RButton\"). The next click on the form places one at its default size, or a drag draws its rectangle; Shift keeps the tool for another. Escape or \"\" turns it off." },
   { name = "CanUndo", type = "int", access = "read", design = false, doc = "Whether Undo has a change to undo." },
   { name = "CanRedo", type = "int", access = "read", design = false, doc = "Whether Redo has a change to do again." },
-  { name = "StatusText", type = "string", access = "read", design = false, doc = "What the last change did, in words: what a screen reader is told (\"Button1 (QBUTTON), 16, 24, 75 × 25\")." },
+  { name = "StatusText", type = "string", access = "read", design = false, doc = "What the last change did, in words: what a screen reader is told (\"Button1 (RButton), 16, 24, 75 × 25\")." },
   { name = "HandlerLine", type = "int", access = "read", design = false, doc = "The line (from 0) of the SUB the last CreateHandler gave: where the code editor's caret goes." },
 ]
 methods = [

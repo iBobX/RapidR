@@ -16,68 +16,68 @@ DECLARE SUB AppBuildChanged
 DECLARE SUB AppSettingsOk
 DECLARE SUB AppSettingsCancel
 
-DIM AppIconBmp AS QBITMAP
+DIM AppIconBmp AS RBitmap
 DIM BuildStarted AS DOUBLE
 
 ' ---- Project > Project Options -------------------------------------------------------
-CREATE AppDialog AS QFORM
+CREATE AppDialog AS RForm
   Caption = "Project Options"
   Width = 520: Height = 480
   BorderStyle = 3
-  CREATE AppIconImage AS QIMAGE
+  CREATE AppIconImage AS RImage
     Left = 16: Top = 16: Width = 64: Height = 64
     Stretch = 1
     AccessibleName = "The app's icon"
   END CREATE
-  CREATE AppIconNote AS QLABEL
+  CREATE AppIconNote AS RLabel
     Left = 96: Top = 16: Width = 330: Height = 40
     WordWrap = 1: AutoSize = 0
     Caption = ""
   END CREATE
-  CREATE AppNameLabel AS QLABEL
+  CREATE AppNameLabel AS RLabel
     Left = 16: Top = 100: Width = 90: Caption = "App &name:"
   END CREATE
-  CREATE AppNameEdit AS QEDIT
+  CREATE AppNameEdit AS REdit
     Left = 120: Top = 96: Width = 320
   END CREATE
-  CREATE AppIdLabel AS QLABEL
+  CREATE AppIdLabel AS RLabel
     Left = 16: Top = 130: Width = 90: Caption = "&Bundle ID:"
   END CREATE
-  CREATE AppIdEdit AS QEDIT
+  CREATE AppIdEdit AS REdit
     Left = 120: Top = 126: Width = 320
   END CREATE
-  CREATE AppVersionLabel AS QLABEL
+  CREATE AppVersionLabel AS RLabel
     Left = 16: Top = 160: Width = 90: Caption = "&Version:"
   END CREATE
-  CREATE AppVersionEdit AS QEDIT
+  CREATE AppVersionEdit AS REdit
     Left = 120: Top = 156: Width = 320
   END CREATE
-  CREATE AppCompanyLabel AS QLABEL
+  CREATE AppCompanyLabel AS RLabel
     Left = 16: Top = 190: Width = 90: Caption = "&Company:"
   END CREATE
-  CREATE AppCompanyEdit AS QEDIT
+  CREATE AppCompanyEdit AS REdit
     Left = 120: Top = 186: Width = 320
   END CREATE
-  CREATE AppIconLabel AS QLABEL
+  CREATE AppIconLabel AS RLabel
     Left = 16: Top = 220: Width = 90: Caption = "&Icon:"
   END CREATE
-  CREATE AppIconEdit AS QEDIT
+  CREATE AppIconEdit AS REdit
     Left = 120: Top = 216: Width = 250
   END CREATE
-  CREATE AppIconBtn AS QBUTTON
+  CREATE AppIconBtn AS RButton
     Left = 376: Top = 215: Width = 30: Caption = "..."
     AccessibleName = "Choose the icon file"
     OnClick = AppIconBrowse
   END CREATE
-  CREATE AppIconReset AS QBUTTON
+  CREATE AppIconReset AS RButton
     Left = 410: Top = 215: Width = 30: Caption = "x"
     AccessibleName = "Use RapidR's icon"
     OnClick = AppIconDefault
   END CREATE
-  CREATE AppKindLabel AS QLABEL
+  CREATE AppKindLabel AS RLabel
     Left = 16: Top = 250: Width = 90: Caption = "B&uild:"
   END CREATE
-  CREATE AppKind AS QCOMBOBOX
+  CREATE AppKind AS RComboBox
     Left = 120: Top = 246: Width = 320
     AddItems "Compiled (native: needs Rust)", "Interpreted (no Rust needed)"
     OnChange = AppBuildChanged
@@ -110,12 +110,12 @@ CREATE AppDialog AS QFORM
     WordWrap = 1: AutoSize = 0
     Caption = ""
   END CREATE
-  CREATE AppOk AS QBUTTON
+  CREATE AppOk AS RButton
     Left = 254: Top = 410: Width = 84: Caption = "OK"
     Default = 1
     OnClick = AppSettingsOk
   END CREATE
-  CREATE AppNo AS QBUTTON
+  CREATE AppNo AS RButton
     Left = 346: Top = 410: Width = 84: Caption = "Cancel"
     Cancel = 1
     OnClick = AppSettingsCancel

@@ -316,7 +316,7 @@ const CASES = [
     delay: 4,
     dump: {
       "designdoc(0).formname": /^Form$/,
-      "designdoc(0).statustext": /^Button1 \(QBUTTON\), 128, 88, 75 × 25$/,
+      "designdoc(0).statustext": /^Button1 \(RButton\), 128, 88, 75 × 25$/,
       "codedoc(0).text": /Width = 540\n    Height = 340[\s\S]*    CREATE Button1 AS QBUTTON\n        Caption = "Button1"\n        Left = 128\n        Top = 88\n        Width = 75\n        Height = 25\n    END CREATE\nEND CREATE/,
     },
   },
@@ -328,7 +328,7 @@ const CASES = [
     open: "examples/rapidq/notepad.bas",
     do: "view.designer,designer.add.QCHECKBOX",
     delay: 3,
-    dump: { "designdoc(0).statustext": /^Added CheckBox1 \(QCHECKBOX\)/, "codedoc(0).text": /    CREATE CheckBox1 AS QCHECKBOX\n        Caption = "CheckBox1"\n/ },
+    dump: { "designdoc(0).statustext": /^Added CheckBox1 \(RCheckBox\)/, "codedoc(0).text": /    CREATE CheckBox1 AS QCHECKBOX\n        Caption = "CheckBox1"\n/ },
   },
   // (I4) The same, then Ctrl+Z three times: the exact text back.
   {
@@ -423,7 +423,7 @@ const CASES = [
     dump: {
       "inspector.target": /^AddBtn$/,
       "inspector.rows": /^Caption=Go$[\s\S]*^Width=120$/m,
-      "codedoc(0).text": /    CREATE AddBtn AS QBUTTON\n        Caption = "Go": Left = 314: Top = 252: Width = 120\n        OnClick = AddItem\n/,
+      "codedoc(0).text": /    CREATE AddBtn AS RButton\n        Caption = "Go": Left = 314: Top = 252: Width = 120\n        OnClick = AddItem\n/,
     },
   },
   // (S-PANELS) …then Undo twice on the designer: the exact text back.
@@ -432,7 +432,7 @@ const CASES = [
     open: "examples/gui/pantry.rr",
     do: "wait,view.designer,pick:AddBtn,prop:Caption=Go,prop:Width=120,wait,edit.undo,edit.undo,wait",
     delay: 7,
-    dump: { "designdoc(0).canundo": /^(0|False)$/i, "inspector.rows": /^Caption=&Add to shelf$[\s\S]*^Width=110$/m, "codedoc(0).text": /CREATE AddBtn AS QBUTTON/ },
+    dump: { "designdoc(0).canundo": /^(0|False)$/i, "inspector.rows": /^Caption=&Add to shelf$[\s\S]*^Width=110$/m, "codedoc(0).text": /CREATE AddBtn AS RButton/ },
     same: { "codedoc(0).text": "examples/gui/pantry.rr" },
   },
   // (S-PANELS) The code edited (a Caption typed over): the designer reads
@@ -467,18 +467,61 @@ const CASES = [
     do: "wait,view.designer,pick:AddBtn,prop:Default=True,prop:Color=clRed,reset:Width,wait",
     delay: 6,
     dump: {
-      "codedoc(0).text": /    CREATE AddBtn AS QBUTTON\n        Caption = "&Add to shelf": Left = 314: Top = 252\n        OnClick = AddItem\n        Default = 1\n        Color = clRed\n/,
+      "codedoc(0).text": /    CREATE AddBtn AS RButton\n        Caption = "&Add to shelf": Left = 314: Top = 252\n        OnClick = AddItem\n        Default = 1\n        Color = clRed\n/,
       "inspector.rows": /^Default=True$[\s\S]*^Width=75$/m,
     },
   },
   // (S-PANELS) The toolbox: Enter on QCHECKBOX adds one to the form (its
   // CREATE block in the code), selected in the inspector.
+  // (R-NAMES) The toolbox shows RapidR's names and gives RButton's kind of
+  // name whatever was asked (QCHECKBOX here); the designer writes it in the
+  // file's own style: pantry.rr writes RapidR's names, so RCheckBox.
   {
     name: "toolbox-add",
     open: "examples/gui/pantry.rr",
     do: "wait,view.designer,tool:QCHECKBOX,wait",
     delay: 6,
-    dump: { "codedoc(0).text": /CREATE CheckBox1 AS QCHECKBOX/i, "inspector.target": /^CheckBox1$/i },
+    dump: { "codedoc(0).text": /    CREATE CheckBox1 AS RCheckBox\n(?![\s\S]*QCHECKBOX)/, "inspector.target": /^CheckBox1$/i, "toolbox.shownames": /^rapidr$/, "toolbox.selected": /^RCheckBox$/ },
+  },
+  // (R-NAMES) RapidQ's other source extensions open as they are: a .rqw
+  // (RapidQ's names, an include in a folder of its own) — its form in the
+  // designer, the language service reading the include (on the web too).
+  {
+    name: "open-rqw",
+    open: "tests/fixtures/rapidq_import/greeter.rqw",
+    webFiles: ["tests/fixtures/rapidq_import/greeter.rqw", "tests/fixtures/rapidq_import/include/shapes.inc"],
+    do: "wait,view.designer,wait",
+    delay: 5,
+    dump: { "proj.kind": /^file$/, "proj.mainfile": /^greeter\.rqw$/, "proj.filecount": /^2$/, "designdoc(0).formname": /^Form$/, "lang.errorcount": /^0$/ },
+  },
+  {
+    name: "run-rq",
+    open: "tests/fixtures/rapidq_import/count.rq",
+    webFiles: ["tests/fixtures/rapidq_import/count.rq"],
+    do: "run.start,wait,wait,wait",
+    delay: 5,
+    dump: { "outputbox.text": /1: one\n2: two\n3: three[\s\S]*ended, exit code 0/, "session.exitcode": /^0$/, "proj.mainfile": /^count\.rq$/ },
+  },
+  // (R-NAMES) File > Import RapidQ Project or File: a copy of a RapidQ
+  // program (a .rqw with an include in a folder of its own) with RapidR's
+  // names, proved to compile to the same bytecode, opened as a project with
+  // the RapidQ-compatible setting off, its report beside the code.
+  {
+    name: "import-rapidq",
+    importFrom: "tests/fixtures/rapidq_import/greeter.rqw",
+    webFiles: ["tests/fixtures/rapidq_import/greeter.rqw", "tests/fixtures/rapidq_import/include/shapes.inc"],
+    do: "wait",
+    delay: 6,
+    dump: {
+      "proj.importsummary": /^1 program\(s\), 2 source file\(s\) \(2 changed, 7 name\(s\)\)[\s\S]*: 1 identical, 0 different/,
+      "proj.mainfile": /^greeter\.rqw$/,
+      "proj.filecount": /^2$/,
+      "proj.compatmode": /^$/,
+      "proj.importreport": /greeter-rapidr\/rapidr-import-report\.md$/,
+      "codedoc(0).text": /^(?![\s\S]*AS Q[A-Z])[\s\S]*DECLARE SUB SayHello \(Sender AS RButton\)[\s\S]*CREATE Form AS RForm[\s\S]*CREATE NameEdit AS REdit/,
+      "codedoc(1).text": /^# RapidQ import: greeter\.rqw[\s\S]*\| `greeter\.rqw` \| yes: identical bytecode \|[\s\S]*`QBUTTON` → `RButton`/,
+      "lang.errorcount": /^0$/,
+    },
   },
   // (S-SHELL-2) Documents are tabs, never windows: a form's file is one
   // tab with the Design | Code switch (no MDI window, no "[Design]"
@@ -545,7 +588,7 @@ const CASES = [
     open: "examples/gui/hello_form.rr",
     do: 'wait,view.code,code:Answer.Caption=>Answer.Caption,help.contents',
     delay: 4,
-    dump: { "helptitle.caption": /^QLABEL\.Caption$/, "helpwhat.caption": /^Property of QLABEL/ },
+    dump: { "helptitle.caption": /^RLabel\.Caption$/, "helpwhat.caption": /^Property of RLabel/ },
   },
   // (S-BUILD) The questions before changes would be lost (prompts.inc),
   // each button: one document changed and Studio quit — Save (Enter)
@@ -1030,7 +1073,12 @@ function runDesktop(c, scale = 1) {
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   const args = ["run", "ide/studio.rr", "--home", ".", "--fresh", "--theme", "rapidr-light"];
-  if (c.do) args.push("--do", c.do);
+  // (R-NAMES: a RapidQ program's folder copied here, imported from there —
+  // the import writes its copy beside it)
+  if (c.importFrom) {
+    cpSync(join(ROOT, dirname(c.importFrom)), join(dir, "src"), { recursive: true });
+    args.push("--do", `import:${join(dir, "src", c.importFrom.split("/").pop())}` + (c.do ? "," + c.do : ""));
+  } else if (c.do) args.push("--do", c.do);
   if (c.open && c.copyDir) {
     // (the project's whole folder: Build writes the app beside it)
     cpSync(join(ROOT, dirname(c.open)), join(dir, "project"), { recursive: true });
@@ -1140,7 +1188,9 @@ async function runWebPage(ctx, c, last, scale, record) {
     if (c.fresh !== false) q.set("fresh", "");
     // (Studio a 1280 x 800 window on the page, unless the case has it fill the page)
     if (!c.maximized) q.set("window", "normal");
-    if (c.do) q.set("do", c.do);
+    // (the program's files are in the page's store: imported from there)
+    if (c.importFrom) q.set("do", `import:${c.importFrom}` + (c.do ? "," + c.do : ""));
+    else if (c.do) q.set("do", c.do);
     if (c.open) q.set("open", c.open);
     await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
     // (the test's end, or — Studio quit — the program's)

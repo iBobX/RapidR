@@ -1,5 +1,5 @@
-' sprites.rr: DirectX 2D the RapidQ way — a QDXSCREEN, sprites from a
-' QDXIMAGELIST and a QDXTIMER moving them, a frame at a time.
+' sprites.rr: DirectX 2D, RapidQ-compatible — an RDXScreen, sprites from an
+' RDXImageList and an RDXTimer moving them, a frame at a time.
 '
 '   rapidr run sprites.rr
 '
@@ -22,28 +22,28 @@ DIM vx(MAXBALLS) AS DOUBLE, vy(MAXBALLS) AS DOUBLE
 DIM balls AS INTEGER
 DIM frames AS LONG
 
-DIM Timer AS QDXTIMER
+DIM Timer AS RDXTimer
 Timer.Interval = 16          ' about 60 frames a second
 Timer.OnTimer = Frame
 
-CREATE Form AS QFORM
+CREATE Form AS RForm
     Caption = "DirectX sprites"
     ClientWidth = W + 20
     ClientHeight = H + 60
     Center
-    CREATE Screen AS QDXSCREEN
+    CREATE Screen AS RDXScreen
         Left = 10: Top = 10: Width = W: Height = H
         Init(W, H)
         OnMouseDown = AddBall
-        CREATE Sprites AS QDXIMAGELIST
+        CREATE Sprites AS RDXImageList
             LoadFromResource(SPRITE_FILE)
         END CREATE
     END CREATE
-    CREATE PauseBtn AS QBUTTON
+    CREATE PauseBtn AS RButton
         Caption = "&Pause": Left = 10: Top = H + 20: Width = 80
         OnClick = PauseGo
     END CREATE
-    CREATE Info AS QLABEL
+    CREATE Info AS RLabel
         Left = 100: Top = H + 24: Width = W - 90
     END CREATE
 END CREATE

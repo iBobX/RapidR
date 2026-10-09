@@ -1,9 +1,9 @@
 ' RTOOLBOX (RapidR Studio's toolbox, docs/ide-components.md 3.6): the
-' components a designer places, under "RapidQ" and "RapidR". The user
-' searches "but" and presses Enter (OnPick QBUTTON), clears the search,
-' drags QLABEL onto a panel and onto a panel inside it (OnDragStart,
-' OnDragDrop with the target and the point in its own pixels), then
-' closes the RapidQ group (fewer components shown).
+' components a designer places, under RapidR's names, grouped by purpose.
+' The user searches "but" and presses Enter (OnPick RButton), clears the
+' search, drags RLabel onto a panel and onto a panel inside it
+' (OnDragStart, OnDragDrop with the target and the point in its own
+' pixels), then closes the Standard group (fewer components shown).
 DIM log AS STRING
 
 SUB Picked (T AS STRING)

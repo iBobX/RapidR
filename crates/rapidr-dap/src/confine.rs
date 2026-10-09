@@ -8,13 +8,13 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 /// The files a launch may name as its `program`: what `rapidr run` runs.
-pub const PROGRAM_EXTENSIONS: &[&str] = &["bas", "rr", "rrbc"];
+pub const PROGRAM_EXTENSIONS: &[&str] = &["bas", "rr", "rqw", "rqb", "rq", "inc", "rrbc"];
 
 /// Whether `program` is a RapidR program (by its extension) that exists.
 pub fn check_program(program: &Path) -> Result<(), String> {
     let ext = program.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase).unwrap_or_default();
     if !PROGRAM_EXTENSIONS.contains(&ext.as_str()) {
-        return Err(format!("{}: not a RapidR program (rapidr dap debugs .bas, .rr and .rrbc files)", program.display()));
+        return Err(format!("{}: not a RapidR program (rapidr dap debugs .bas, .rr, .rqw, .rqb, .rq, .inc and .rrbc files)", program.display()));
     }
     if !program.is_file() {
         return Err(format!("{}: no such file", program.display()));

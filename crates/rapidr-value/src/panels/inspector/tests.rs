@@ -94,7 +94,11 @@ fn rows_come_from_the_registry() {
     host.set("Button1", "caption", v_str("OK"));
     inspect(&host, "insp", "Button1");
     let m = with("insp", Clone::clone).unwrap();
-    assert_eq!(m.snap.type_name, "QBUTTON");
+    // (a running program's component under RapidR's name, RapidQ's a note: R-NAMES)
+    assert_eq!(m.snap.type_name, "RButton");
+    assert_eq!(super::type_label("QBUTTON", false), "RButton (RapidQ name: QBUTTON)");
+    assert_eq!(super::type_label("rbutton", true), "RButton");
+    assert_eq!(super::type_label("RPLOT", false), "RPlot", "RapidR's own: no note");
     // (design-time, read-write, not indexed: Caption yes; Handle, Parent, Font no)
     let names: Vec<&str> = m.snap.props.iter().map(|p| p.name.as_str()).collect();
     assert!(names.contains(&"Caption") && names.contains(&"Anchors") && names.contains(&"Align"));

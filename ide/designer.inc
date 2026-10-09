@@ -6,11 +6,13 @@
 '
 ' The surface's entry points for the other panes (docs/ide-plan.md, "I4 /
 ' S-DESIGN results"):
-'   DesignDoc(d).PlaceType = "QBUTTON"         the toolbox's click: the next
+'   DesignDoc(d).PlaceType = "RButton"         the toolbox's click: the next
 '                                              click or drag on the form places one
-'   DesignDoc(d).DragComponent "QBUTTON"       the toolbox's mouse-down: dropped
+'   DesignDoc(d).DragComponent "RButton"       the toolbox's mouse-down: dropped
 '                                              where the mouse is let go
-'   DesignDoc(d).AddComponent "QBUTTON", -1, -1   Enter on a toolbox item
+'   DesignDoc(d).AddComponent "RButton", -1, -1   Enter on a toolbox item
+' (any of a component's names; the designer writes it in the file's own
+' style: RButton, or QBUTTON in a file written with RapidQ's names)
 '   DesignDoc(d).CreateHandler(Name, Event)    a handler made or found
 '   DesignDoc(d).SelectName Name, .SelIndex, .GetName(i), OnSelect, OnChange
 
@@ -55,14 +57,14 @@ FUNCTION PatchText(Text AS STRING) AS STRING
   Result = REPLACESUBSTR$(Result, CHR$(9), "\t")
 END FUNCTION
 
-SUB DesignSourceEdit(StartLine AS INTEGER, StartCol AS INTEGER, EndLine AS INTEGER, EndCol AS INTEGER, Text AS STRING, Sender AS RDESIGNSURFACE)
+SUB DesignSourceEdit(StartLine AS INTEGER, StartCol AS INTEGER, EndLine AS INTEGER, EndCol AS INTEGER, Text AS STRING, Sender AS RDesignSurface)
   DIM d AS INTEGER
   d = Sender.Tag
   IF d < 0 OR d >= DocCount THEN EXIT SUB
   DesignPatches(d) = DesignPatches(d) + STR$(StartLine) + CHR$(9) + STR$(StartCol) + CHR$(9) + STR$(EndLine) + CHR$(9) + STR$(EndCol) + CHR$(9) + PatchText(Text) + CHR$(10)
 END SUB
 
-SUB DesignChanged(Sender AS RDESIGNSURFACE)
+SUB DesignChanged(Sender AS RDesignSurface)
   DIM d AS INTEGER
   d = Sender.Tag
   IF d >= 0 AND d < DocCount THEN
@@ -76,7 +78,7 @@ END SUB
 
 ' A component double-clicked (or Enter on it): its default event's handler
 ' — made and wired when there's none — in the code editor.
-SUB DesignDblClick(Index AS INTEGER, Sender AS RDESIGNSURFACE)
+SUB DesignDblClick(Index AS INTEGER, Sender AS RDesignSurface)
   DIM d AS INTEGER, nm AS STRING, s AS STRING
   d = Sender.Tag
   nm = Sender.GetName(Index)
@@ -104,12 +106,12 @@ FUNCTION DesignCommand(Id AS STRING) AS INTEGER
       EXIT FUNCTION
   END SELECT
   IF LEFT$(Id, 14) = "designer.place" THEN
-    ' (designer.place.QBUTTON: the placing tool, as the toolbox's click)
+    ' (designer.place.RButton: the placing tool, as the toolbox's click)
     IF d >= 0 THEN DesignDoc(d).PlaceType = MID$(Id, 16)
     EXIT FUNCTION
   END IF
   IF LEFT$(Id, 12) = "designer.add" THEN
-    ' (designer.add.QBUTTON: added at a free spot, as Enter on the toolbox)
+    ' (designer.add.RButton: added at a free spot, as Enter on the toolbox)
     IF d >= 0 THEN DesignDoc(d).AddComponent MID$(Id, 14), -1, -1
     EXIT FUNCTION
   END IF

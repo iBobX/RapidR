@@ -191,7 +191,8 @@ fn row(p: &mut Painter, g: &Geo, l: &Look, m: &Model, n: &Node, r: Rect, ink: u3
             let shown = common::elide(name, &f, room);
             p.text((tx, y, room.max(0), h), &shown, &f, ink, Place::Left);
             if nw + 12 < room {
-                let rest = format!(": {ty}");
+                // (RapidR's name, whatever the code wrote: R-NAMES)
+                let rest = format!(": {}", rapidr_value::objects::design::shown_type(ty));
                 let left = room - nw;
                 p.text((tx + nw, y, left, h), &common::elide(&rest, font, left), font, dim, Place::Left);
             }

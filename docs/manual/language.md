@@ -1,6 +1,6 @@
 # The language
 
-RapidR's language is RapidQ's BASIC. This chapter is a working summary,
+RapidR's language is a RapidQ-compatible BASIC. This chapter is a working summary,
 with the rules where RapidQ (and so RapidR) differs from QBasic, VB or other
 BASICs — those are the ones that surprise people. Every example here was
 run with RapidR 2.117.0; native builds, the interpreter and the web give the
@@ -11,7 +11,9 @@ RapidR also accepts some syntax RapidQ doesn't (VB's `#If`, `ON ERROR`,
 
 ## Source files
 
-- Extensions `.bas` (RapidQ's) and `.rr` (RapidR's) are the same language.
+- Extensions `.bas` and `.rr` are the same language. The other extensions
+  RapidQ's editors saved programs with are accepted too: `.rqw`, `.rqb` and
+  `.rq` (run, built, opened in RapidR Studio and `$INCLUDE`d like a `.bas`).
   A file is read as UTF-8; one that isn't valid UTF-8 is read as
   Windows-1252 (ANSI), as RapidQ's programs usually are.
 - **Case doesn't matter** in keywords, names, components and builtins.
@@ -101,7 +103,7 @@ From the loosest: `OR`, `XOR` · `AND` · `NOT` · comparisons (`=`, `<>`,
   `DEC x [, n]`.
 - `@var` passes a variable by reference.
 
-## Printing numbers: RapidQ's rules
+## Printing numbers: the rules RapidQ has
 
 RapidR prints numbers exactly as RapidQ does (checked against RapidQ's
 compiler, RC.EXE):
@@ -249,29 +251,29 @@ l.Bump 1
 PRINT l.Shout                 ' COUNTER=101
 ```
 
-- `TYPE TMyButton EXTENDS QBUTTON` makes a component of your own, with
+- `TYPE TMyButton EXTENDS RButton` makes a component of your own, with
   `EVENT OnSomething … END EVENT` blocks.
 - `WITH obj … END WITH` and `.Member` inside it.
-- Arrays of TYPEs and of components: `DIM lbl(1 TO 3) AS QLABEL`.
+- Arrays of TYPEs and of components: `DIM lbl(1 TO 3) AS RLabel`.
 
 ## Components
 
 ```basic
-CREATE Form AS QFORM
+CREATE Form AS RForm
     Caption = "Title"
-    CREATE Btn AS QBUTTON
+    CREATE Btn AS RButton
         Caption = "OK"
         OnClick = OkClick
     END CREATE
 END CREATE
-DIM Font AS QFONT             ' a non-visual object
+DIM Font AS RFont             ' a non-visual object
 ```
 
 See [Components and objects](components.md).
 
 ## Strings
 
-The builtins are RapidQ's: `LEFT$`, `MID$`, `RIGHT$`, `INSTR`, `RINSTR`,
+The builtins are the ones RapidQ has: `LEFT$`, `MID$`, `RIGHT$`, `INSTR`, `RINSTR`,
 `UCASE$`, `LCASE$`, `TRIM$`, `REPLACE$` (overwrites at a position),
 `REPLACESUBSTR$` (find and replace), `INSERT$`, `DELETE$`, `REVERSE$`,
 `FIELD$`, `TALLY`, `STRING$`, `SPACE$`, `CHR$`, `ASC`, `HEX$`, `BIN$`,
@@ -299,10 +301,11 @@ CLOSE #f
 PRINT FILEEXISTS("notes.txt"), FILELEN("notes.txt")
 ```
 
-RapidQ's stream objects do the same with methods: `QFILESTREAM` (`Open`,
+The stream objects do the same with methods: `RFileStream` (RapidQ's
+`QFILESTREAM`: `Open`,
 `ReadLine`, `WriteLine`, `ReadNum`, `WriteNum`, `Read`, `Write`, `Seek`,
-`Size`, `Position`, `SaveArray`, `LoadArray`, …), `QMEMORYSTREAM` and
-`QSTRINGLIST` (`LoadFromFile`, `SaveToFile`). `DIR$`, `KILL`, `MKDIR`,
+`Size`, `Position`, `SaveArray`, `LoadArray`, …), `RMemoryStream` and
+`RStringList` (`LoadFromFile`, `SaveToFile`). `DIR$`, `KILL`, `MKDIR`,
 `RMDIR`, `RENAME`, `CHDIR`, `CURDIR$` and `DIREXISTS` work with folders.
 In a browser, files are the page's own (see [The web](web.md)).
 

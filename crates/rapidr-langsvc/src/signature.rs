@@ -6,7 +6,7 @@ use std::path::Path;
 
 use rapidr_ast::{Parameter, Statement};
 
-use crate::context::{self, chain_before, pretty_component, Ty};
+use crate::context::{self, chain_before, Ty};
 use crate::model::SymbolKind;
 use rapidr_lang::Param;
 use crate::text::{is_name_char, is_suffix_char, LineIndex};
@@ -211,7 +211,7 @@ fn member_signature(s: &Snapshot, ty: &Ty, name: &str) -> Option<Signature> {
     match ty {
         Ty::Component(c) => {
             let m = c.method(name)?;
-            let mut sig = params_signature(&format!("{}.{}", pretty_component(c.written_name()), m.name), m.params, m.doc);
+            let mut sig = params_signature(&format!("{}.{}", c.spelling(), m.name), m.params, m.doc);
             if let Some(r) = m.returns {
                 sig.label.push_str(" AS ");
                 sig.label.push_str(r);

@@ -1,4 +1,4 @@
-' canvas.rr: drawing on a QCANVAS — a little bar chart drawn in OnPaint,
+' canvas.rr: drawing on an RCanvas — a little bar chart drawn in OnPaint,
 ' and dots where the mouse clicks.
 '
 '   rapidr run canvas.rr
@@ -25,21 +25,21 @@ FOR i = 1 TO 6
     READ months(i), sales(i)
 NEXT
 
-CREATE Form AS QFORM
+CREATE Form AS RForm
     Caption = "Canvas"
     Width = 380
     Height = 300
     Center
-    CREATE Chart AS QCANVAS
+    CREATE Chart AS RCanvas
         Left = 10: Top = 10: Width = 350: Height = 210
         OnPaint = PaintChart
         OnMouseDown = AddDot
     END CREATE
-    CREATE ClearBtn AS QBUTTON
+    CREATE ClearBtn AS RButton
         Caption = "&Clear dots": Left = 10: Top = 230: Width = 100
         OnClick = ClearDots
     END CREATE
-    CREATE Info AS QLABEL
+    CREATE Info AS RLabel
         Left = 124: Top = 234: Width = 240
         Caption = "Click the chart to add dots."
     END CREATE

@@ -1,6 +1,7 @@
-"""The toolbox's groups (RToolbox, docs/ide-plan.md I1): RapidQ's (Standard,
-Additional, Dialogs, System, Media, DirectX, Direct3D) and RapidR's (Data,
-Data Science, Web, AI, IDE, Templates), each in its family's hue."""
+"""The toolbox's groups (RToolbox, docs/ide-plan.md I1), by purpose
+(Standard, Additional, Dialogs, System, Network, Data, Data Science, Media,
+DirectX, Direct3D, Web, AI, IDE, Templates), each in its family's hue; and
+RapidR's own mark."""
 
 import math
 
@@ -9,14 +10,6 @@ from motifs import cylinder, star4, cube_iso
 from planned import rglyph
 
 GR = "groups"
-
-
-@icon("rapidq", GR, "RapidQ components")
-def rapidq(g):
-    # a classic raised (3D) button: RapidQ's era, drawn our way
-    g.rect(3, 4, 18, 16, r=1, c="ink", fill="shade")
-    g.path("M5.5 17.5 V6.5 H18.5", c="paper") if g.size != 16 else None
-    g.path("M5.5 17.5 H18.5 V6.5", c="ink")
 
 
 @icon("rapidr", GR, "RapidR components")
@@ -130,7 +123,7 @@ def templates(g):
     g.rect(8.5, 9, 7, 7, r=1.5, c="blue", fill="blue-tint")
 
 
-@icon("controls", GR, "Controls (RapidR's)")
+@icon("controls", GR, "Controls")
 def controls(g):
     g.rect(2.5, 4, 19, 7, r=2, c="blue", fill="blue-tint")
     g.line(6, 7.5, 12, 7.5, c="blue")

@@ -979,7 +979,7 @@ impl ComponentKind for Inspector {
         if n.name.is_empty() {
             n.name = match v.m.snap.objects.as_slice() {
                 [] => "Properties".into(),
-                [(name, ty)] => format!("Properties of {name} ({ty})"),
+                [(name, ty)] => format!("Properties of {name} ({})", rapidr_value::panels::inspector::type_label(ty, false)),
                 more => format!("Properties of {} components", more.len()),
             };
         }

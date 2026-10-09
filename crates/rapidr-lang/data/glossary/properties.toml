@@ -186,10 +186,10 @@ FlatSeperators = { category = "Appearance", doc = "With flat tab buttons, draws 
 FocusButtons = { category = "Behavior", doc = "Lets the tab buttons take the keyboard focus." }
 FogColor = { category = "Drawing", doc = "The colour of the frame's fog." }
 FogMode = { category = "Drawing", doc = "How the fog thickens with distance: linear, exponential or exponential squared." }
-Font = { category = "Font", doc = "The font of the text, a QFONT; assigning one copies it." }
+Font = { category = "Font", doc = "The font of the text, an RFont; assigning one copies it." }
 FontColor = { category = "Font", doc = "RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR." }
 FontCount = { category = "Font", doc = "The number of fonts installed; read-only." }
-FontName = { category = "Font", doc = "On a font dialog or QFONT, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`." }
+FontName = { category = "Font", doc = "On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`." }
 Fonts = { category = "Font", doc = "A printer font's name, `Fonts(i)` from 0; read-only." }
 FontsCount = { category = "Font", doc = "The number of printer fonts; read-only." }
 FontSize = { category = "Font", doc = "RapidR's shortcut for `Font.Size`, in points." }
@@ -483,7 +483,7 @@ TileMode = { category = "Window", doc = "How `Tile` lays out the MDI children: s
 Time = { category = "Data", doc = "The time picked in the date-time picker, a file's time (`FileRec`), or the CD's position, as text." }
 Timeout = { category = "Network", doc = "How long to wait for the network, in milliseconds." }
 TimePosition = { category = "Media", doc = "The position on the CD, as text; read-only." }
-Timer = { category = "Media", doc = "The media object's own QTIMER, which reads its position and fires `OnChange` while it plays." }
+Timer = { category = "Media", doc = "The media object's own RTimer, which reads its position and fires `OnChange` while it plays." }
 Title = { category = "Window", doc = "The title of a dialog, the application (task bar), a print job, a notification or a plot." }
 TitleColor = { category = "Appearance", doc = "The colour of the dock form's title text, as &HBBGGRR." }
 ToolTip = { category = "Help", doc = "The element's tooltip (its `title`)." }

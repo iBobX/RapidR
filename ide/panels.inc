@@ -210,20 +210,23 @@ SUB AddProjectFile(Kind AS STRING)
   ProjectTree.NewFile Kind
 END SUB
 
-' (a new file's first text: a form, or an empty module)
+' (a new file's first text: a form — RapidR's RForm, RapidQ's QFORM in a
+' RapidQ-compatible project: R-NAMES —, or an empty module)
 FUNCTION NewFileText(Path AS STRING, Kind AS STRING) AS STRING
-  DIM nm AS STRING, nl AS STRING
+  DIM nm AS STRING, nl AS STRING, ty AS STRING
   nl = CHR$(13) + CHR$(10)
   nm = BaseName(Path)
+  ty = "RForm"
+  IF Proj.CompatMode = "rapidq" THEN ty = "QFORM"
   IF Kind = "form" THEN
-    Result = "' " + FileTitle(Path) + nl + nl + "CREATE " + nm + " AS QFORM" + nl + "    Caption = " + CHR$(34) + nm + CHR$(34) + nl + "    Width = 320: Height = 240" + nl + "END CREATE" + nl
+    Result = "' " + FileTitle(Path) + nl + nl + "CREATE " + nm + " AS " + ty + nl + "    Caption = " + CHR$(34) + nm + CHR$(34) + nl + "    Width = 320: Height = 240" + nl + "END CREATE" + nl
   ELSE
     Result = "' " + FileTitle(Path) + nl
   END IF
 END FUNCTION
 
 SUB ProjectNewFile(Path AS STRING, Kind AS STRING)
-  DIM full AS STRING, f AS QFILESTREAM
+  DIM full AS STRING, f AS RFileStream
   full = ProjectPath(Path)
   IF FILEEXISTS(full) = 0 THEN
     f.Open(full, 65535)
@@ -295,8 +298,9 @@ SUB ProjectFileChanged(d AS INTEGER)
 END SUB
 
 ' ---- the toolbox ----------------------------------------------------------------
-' RapidQ's and RapidR's components as the registry groups them, with
-' RapidR's icons, found by typing; each adds itself to the active form.
+' The components under RapidR's names, grouped by purpose, with RapidR's
+' icons, found by typing; each adds itself to the active form (written in
+' that file's own style: the designer).
 
 ' (ActiveDesign, the active document's designer: designer.inc)
 
@@ -460,7 +464,10 @@ FUNCTION PanelStep(Stp AS STRING) AS INTEGER
   arg = MID$(Stp, k + 1)
   Result = 1
   SELECT CASE verb
-    CASE "tool": ToolboxPick UCASE$(arg)
+    CASE "tool"
+      ' (selected in the toolbox, which names it as it shows it: RButton)
+      Toolbox.Selected = arg
+      IF Toolbox.Selected <> "" THEN ToolboxPick Toolbox.Selected ELSE ToolboxPick UCASE$(arg)
     CASE "prop"
       k = INSTR(arg, "=")
       IF k > 1 THEN

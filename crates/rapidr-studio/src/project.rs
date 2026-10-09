@@ -11,6 +11,8 @@
 //! | `AddFile(Path [, Kind])`, `RemoveFile(Path)` → True / False | paths relative to the project's folder (or absolute inside it) |
 //! | `Close` | no project |
 //! | `File(i)`, `FileKind(i)`, `FullPath(i)` | file i (from 0): its project path, kind (`module`, `form`, `include`, `resource`, `asset`, `data`), path to open |
+//! | `ImportRapidQ(Source [, Dest])` → the copy's project file | File ▸ Import RapidQ Project or File… (`crate::import`): a copy of a RapidQ program or folder with RapidR's names, its report and project; "" (Error says why) when it can't |
+//! | `ImportSummary`, `ImportReport` | the last import's summary line and its report's file |
 //! | `FileName`, `Folder`, `Kind` (`project`, `file`, `v1`, "" none), `Error` | read-only |
 //! | `Name`, `MainFile`, `CompatMode` (`"rapidq"` or "") | read / write |
 //! | `FileCount` | read-only |
@@ -37,6 +39,13 @@ struct Model {
 
 thread_local! {
     static PROJECTS: RefCell<HashMap<String, Model>> = RefCell::new(HashMap::new());
+    /// The last import's (summary, report file), by component: kept when a
+    /// project is opened (the copy is, next).
+    static IMPORTED: RefCell<HashMap<String, (String, String)>> = RefCell::new(HashMap::new());
+}
+
+fn imported(name: &str) -> (String, String) {
+    IMPORTED.with(|i| i.borrow().get(&name.to_ascii_lowercase()).cloned().unwrap_or_default())
 }
 
 fn with<R>(name: &str, f: impl FnOnce(&mut Model) -> R) -> R {
@@ -80,6 +89,8 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "keeprust" => flag(m.project.build.keep_rust),
             "building" => flag(crate::build::building(name)),
             "builtpath" => Value::String(m.built.clone()),
+            "importsummary" => Value::String(imported(name).0),
+            "importreport" => Value::String(imported(name).1),
             // (Reveal's: what the system calls its file manager)
             "filemanager" => Value::String(if cfg!(target_arch = "wasm32") { "" } else if cfg!(target_os = "macos") { "Finder" } else if cfg!(windows) { "File Explorer" } else { "Files" }.into()),
             _ => return None,
@@ -115,7 +126,7 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
                 m.project.build.targets.retain(|t| !matches!(t.to_ascii_lowercase().as_str(), "native" | "bytecode" | "interpreted" | "interp"));
                 m.project.build.targets.insert(0, kind.to_string());
             }
-            "filename" | "folder" | "kind" | "error" | "filecount" | "building" | "builtpath" | "filemanager" => {}
+            "filename" | "folder" | "kind" | "error" | "filecount" | "building" | "builtpath" | "filemanager" | "importsummary" | "importreport" => {}
             _ => return false,
         }
         true
@@ -147,7 +158,7 @@ pub fn main_of_folder(folder: &str, files: &[String]) -> Option<String> {
     if let Some(p) = projects.first() {
         return Some((*p).clone());
     }
-    let mut sources: Vec<&String> = files.iter().filter(|f| matches!(ext(f).as_str(), "rr" | "bas")).collect();
+    let mut sources: Vec<&String> = files.iter().filter(|f| matches!(ext(f).as_str(), "rr" | "bas" | "rqw" | "rqb" | "rq")).collect();
     sources.sort_by_key(|f| {
         let s = stem(f);
         let form = read_text(&join(folder, f)).map(|t| rapidr_project::defines_form(&t)).unwrap_or(false);
@@ -209,7 +220,8 @@ fn open(m: &mut Model, path: &str) -> Result<(), String> {
                 (Project::from_toml(&text).map_err(|e| e.to_string())?, "project", path.clone())
             }
         }
-        "bas" | "rr" | "inc" => {
+        // (RapidR's and RapidQ's sources: rapidr_preprocessor::SOURCE_EXTENSIONS)
+        "bas" | "rr" | "inc" | "rqw" | "rqb" | "rq" => {
             let main = path.rsplit('/').next().unwrap_or(&path).to_string();
             let resolve = |rel: &str| -> Option<(String, String)> { read_text(&join(&folder, rel)).ok().map(|t| (rel.to_string(), t)) };
             if !exists(&path) {
@@ -418,6 +430,18 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             flag(ok)
         }
         "iconpreview" => Value::String(icon_preview(name, int_arg(args, 0, 128).clamp(16, 1024) as u32)),
+        // (File > Import RapidQ Project or File: a copy, never the original)
+        "importrapidq" => {
+            let r = crate::import::import(host, &s(0), &s(1));
+            with(name, |m| m.error = r.as_ref().err().cloned().unwrap_or_default());
+            match r {
+                Ok(i) => {
+                    IMPORTED.with(|x| x.borrow_mut().insert(name.to_ascii_lowercase(), (i.summary.clone(), i.report.clone())));
+                    Value::String(i.project)
+                }
+                Err(_) => Value::String(String::new()),
+            }
+        }
         // (Find in Files) Find(Pattern, Options, Text): the matches of one
         // text, a line each; Replace(Pattern, Options, Text, With): the text
         // replaced; FileText(Path): a file's text (the disk's, the web's store)

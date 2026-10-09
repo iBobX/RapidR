@@ -30,13 +30,20 @@ original implementation, written from the ground up in pure Rust.
 >   and more print exactly what RapidQ prints, on all three runtimes.
 > - **The whole language and every RapidQ object but OLE**: TYPEs with
 >   methods and inheritance, GOTO / GOSUB, DATA / READ, `$RESOURCE`, the
->   visual components, dialogs, menus, QREGISTRY, the printer, sockets,
->   QMYSQL, the tray icon, QCGI, QCOMPORT, QMIDI, QWAVE, QVIDEO, the include
->   libraries' components (QFORMMDI, QBEVEL, QDIGDISPLAY, …) built in — and
->   DirectX, Direct3D retained mode included, everywhere, the browser too.
-> - **RapidQ's look on macOS, Windows and Linux**, drawn by RapidR's own UI
->   kernel: sharp on high-DPI screens, readable by screen readers, with
->   themes (`$THEME Dark`, `Modern`, …) when you want them.
+>   visual components, dialogs, menus, `RRegistry`, the printer, sockets,
+>   `RMySQL`, the tray icon, `RCGI`, `RComPort`, `RMIDI`, `RWave`, `RVideo`,
+>   the include libraries' components (`RFormMDI`, `RBevel`, `RDigDisplay`,
+>   …) built in — and DirectX, Direct3D retained mode included, everywhere,
+>   the browser too.
+> - **RapidR's own names, and RapidQ's too.** New code is written with
+>   `RForm`, `RButton`, `RStringGrid` …; your RapidQ programs keep their
+>   `QFORM`, `QBUTTON`, `QSTRINGGRID` … and they are the same components
+>   (RapidQ's names, accepted everywhere). `rapidr import-rapidq` writes a
+>   copy of a RapidQ program with RapidR's names, and a report of what it
+>   changed; your original stays as it is.
+> - **The classic Windows look on macOS, Windows and Linux**, drawn by
+>   RapidR's own UI kernel: sharp on high-DPI screens, readable by screen
+>   readers, with themes (`$THEME Dark`, `Modern`, …) when you want them.
 > - **New things, without changing what RapidQ programs do**: SQLite with
 >   parameter binding, JSON and HTTP, data frames, arrays and charts
 >   (`RDataFrame`, `RNum`, `RPlot`), responsive layouts.
@@ -64,7 +71,7 @@ original implementation, written from the ground up in pure Rust.
 > → Rust → an executable), a bytecode VM (the RapidR Runtime, also as
 > standalone executables, no toolchain needed) and the browser (the VM and
 > runtime as WebAssembly). Every window is drawn by RapidR's own UI kernel
-> (winit, vello, parley, AccessKit) — RapidQ's classic Windows look on
+> (winit, vello, parley, AccessKit) — the classic Windows look on
 > macOS, Windows, Linux and a canvas in the browser, compared pixel by
 > pixel and accessibility tree by tree across them — and DirectX / Direct3D
 > programs run on its own software rasterizer. Extensions: SQLite
@@ -88,18 +95,20 @@ original implementation, written from the ground up in pure Rust.
 > **Highlights**
 >
 > - **RapidQ compatibility, checked against RapidQ's own compiler**: the
->   whole language, every RapidQ object but OLE, DirectX and Direct3D
+>   whole language, every RapidQ object but OLE (under RapidR's own names
+>   such as `RForm` and `RButton`; RapidQ's `QFORM` and `QBUTTON` work too,
+>   and `rapidr import-rapidq` converts a program), DirectX and Direct3D
 >   retained mode; the 123 programs of RapidQ's example corpus that use the
 >   API its Windows and Linux versions shared all compile and run alike
 >   natively and interpreted.
-> - **RapidR's own UI kernel** on the desktop and the web: RapidQ's look
->   everywhere, themes, high-DPI, screen-reader accessibility, responsive
->   layouts.
+> - **RapidR's own UI kernel** on the desktop and the web: the classic
+>   Windows look everywhere, themes, high-DPI, screen-reader accessibility,
+>   responsive layouts.
 > - **The RapidR Runtime and installers** for Windows (x64, ARM64), macOS
 >   (universal) and Linux (x86_64, aarch64), and the web IDE as a static
 >   `.zip`. Programs run and standalone executables build with no Rust
 >   installed; `rapidr setup` installs Rust once for native builds.
-> - **Extensions**: `RSQLite` and QMYSQL with parameter binding, `RNum`,
+> - **Extensions**: `RSQLite` and `RMySQL` with parameter binding, `RNum`,
 >   `RDataFrame`, `RPlot`, `RJson`, `RHttp`, and web-only components.
 > - **Your programs are yours**: every build writes its
 >   `THIRD-PARTY-NOTICES.txt`; RapidR is MIT, everything it ships is

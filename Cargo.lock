@@ -3699,6 +3699,7 @@ dependencies = [
  "rapidr-bytecode",
  "rapidr-codegen-rust",
  "rapidr-dap",
+ "rapidr-import",
  "rapidr-lang",
  "rapidr-langsvc",
  "rapidr-lexer",
@@ -3816,6 +3817,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rapidr-import"
+version = "2.117.0"
+dependencies = [
+ "rapidr-ast",
+ "rapidr-bcgen",
+ "rapidr-diagnostics",
+ "rapidr-lang",
+ "rapidr-lexer",
+ "rapidr-parser",
+ "rapidr-preprocessor",
+ "rapidr-project",
+]
+
+[[package]]
 name = "rapidr-lang"
 version = "2.117.0"
 dependencies = [
@@ -3886,6 +3901,7 @@ version = "2.117.0"
 dependencies = [
  "rapidr-ast",
  "rapidr-diagnostics",
+ "rapidr-lang",
  "rapidr-lexer",
  "rapidr-preprocessor",
 ]
@@ -3982,6 +3998,7 @@ version = "2.117.0"
 dependencies = [
  "rapidr-designer",
  "rapidr-editor",
+ "rapidr-import",
  "rapidr-lang",
  "rapidr-langsvc",
  "rapidr-package",

@@ -192,17 +192,11 @@ def inventory(icons):
         groups.append((gid, g["title"], ref, g.get("parent", ""), members))
     for t in sorted(all_types - set(seen)):
         errors.append(f"component {t} is in no toolbox group")
-    # (RapidQ's groups hold RapidQ's components, RapidR's the rest)
-    # (the language registry says which components have a RapidQ name)
-    q_named = {t for t, q in registry.components() if q}
-    def has_q_name(t):
-        return t in q_named
+    # (no group is named after RapidQ or RapidR: R-NAMES — the toolbox
+    # groups by purpose, an item's card says where it comes from)
     for gid, title, ref, parent, members in groups:
-        for mbr in members:
-            if parent == "rapidq" and not has_q_name(mbr):
-                errors.append(f"toolbox group {gid} is RapidQ's but {mbr} has no RapidQ name: put it under rapidr")
-            if parent == "rapidr" and has_q_name(mbr) and mbr in types:
-                errors.append(f"toolbox group {gid} is RapidR's but {mbr} is RapidQ's (Q{mbr[1:]}): put it under rapidq")
+        if "rapidq" in gid.lower() or "rapidq" in title.lower() or gid in ("rapidr",):
+            errors.append(f"toolbox group {gid}: groups are by purpose, not by origin (R-NAMES)")
     if errors:
         fail("inventory:\n  " + "\n  ".join(errors))
     return components, tables, groups

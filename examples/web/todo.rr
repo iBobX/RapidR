@@ -1,11 +1,11 @@
 ' todo.rr: a to-do list for the web that remembers itself — the tasks are
-' kept in the browser's storage (RWEBSTORAGE), so they are there again when
+' kept in the browser's storage (RWebStorage), so they are there again when
 ' the page is opened next time.
 '
 '   rapidr build todo.rr --web          (a folder to put on any web server)
 '   rapidr bundle-bc todo.rr -o todo.zip
 '
-' RWEBSTORAGE is one of RapidR's web components: Set(key, value), Get(key),
+' RWebStorage is one of RapidR's web components: Set(key, value), Get(key),
 ' HasKey(key), Remove(key), Keys. StorageType "local" (the default) keeps
 ' the values for good, "session" until the tab closes.
 $APPTYPE WEB
@@ -14,29 +14,29 @@ DECLARE SUB AddTask
 DECLARE SUB DoneTask
 DECLARE SUB Save
 
-CREATE Store AS RWEBSTORAGE
+CREATE Store AS RWebStorage
     StorageType = "local"
 END CREATE
 
-CREATE Form AS QFORM
+CREATE Form AS RForm
     Caption = "To do"
     Width = 360
     Height = 330
     Center
-    CREATE TaskEdit AS QEDIT
+    CREATE TaskEdit AS REdit
         Left = 12: Top = 12: Width = 240: Text = "Water the plants"
     END CREATE
-    CREATE AddBtn AS QBUTTON
+    CREATE AddBtn AS RButton
         Caption = "&Add": Left = 260: Top = 10: Width = 80: OnClick = AddTask
         Default = 1
     END CREATE
-    CREATE Tasks AS QLISTBOX
+    CREATE Tasks AS RListBox
         Left = 12: Top = 44: Width = 328: Height = 200
     END CREATE
-    CREATE DoneBtn AS QBUTTON
+    CREATE DoneBtn AS RButton
         Caption = "&Done": Left = 12: Top = 252: Width = 80: OnClick = DoneTask
     END CREATE
-    CREATE Info AS QLABEL
+    CREATE Info AS RLabel
         Left = 104: Top = 256: Width = 236
     END CREATE
 END CREATE

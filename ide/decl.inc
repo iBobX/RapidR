@@ -32,7 +32,7 @@ DIM CmdCount AS INTEGER
 
 ' The menus: every item (top menus, submenus, commands, separators) is one
 ' of these, made from the table at start-up.
-DIM MI(MAXMENUS) AS QMENUITEM
+DIM MI(MAXMENUS) AS RMenuItem
 DIM MICount AS INTEGER
 ' (the menus by category name, "File", "View/Theme" …, and their item)
 DIM MenuName(40) AS STRING
@@ -43,8 +43,8 @@ DIM MenuCount AS INTEGER
 ' ---- documents ---------------------------------------------------------------
 ' Each open document is a pane of the dock manager's documents area: a code
 ' editor for a source file, a designer for a file's form, the start page.
-DIM CodeDoc(MAXDOCS) AS RCODEEDITOR
-DIM DesignDoc(MAXDOCS) AS RDESIGNSURFACE
+DIM CodeDoc(MAXDOCS) AS RCodeEditor
+DIM DesignDoc(MAXDOCS) AS RDesignSurface
 DIM DocFile(MAXDOCS) AS STRING
 DIM DocKind(MAXDOCS) AS STRING
 DIM DocOpen(MAXDOCS) AS INTEGER
@@ -76,14 +76,14 @@ DIM StateText AS STRING
 
 DECLARE SUB RunCommand(Id AS STRING)
 DECLARE SUB LayOutDialogs
-DECLARE SUB MenuPicked(Sender AS QMENUITEM)
+DECLARE SUB MenuPicked(Sender AS RMenuItem)
 DECLARE SUB ToolClicked(Name AS STRING, Command AS STRING)
 DECLARE SUB StudioResize
 DECLARE SUB StudioClose(Action AS INTEGER)
 DECLARE SUB PaneChanged(Name AS STRING)
 DECLARE SUB DocumentActivated(Name AS STRING)
 DECLARE SUB DocumentClosing(Name AS STRING, Cancel AS INTEGER)
-DECLARE SUB WelcomeLink(Sender AS QLABEL)
+DECLARE SUB WelcomeLink(Sender AS RLabel)
 DECLARE SUB ProjectNodeOpen(Path AS STRING)
 DECLARE SUB ProjectNodeSelect(Path AS STRING)
 DECLARE SUB ProjectNewFile(Path AS STRING, Kind AS STRING)
@@ -98,14 +98,14 @@ DECLARE SUB InspectorChanged(Prop AS STRING, Value AS STRING)
 DECLARE SUB InspectorEvent(EventName AS STRING)
 DECLARE SUB OutputLink(InFile AS STRING, LineNo AS INTEGER)
 DECLARE SUB DesignSelected(Index AS INTEGER)
-DECLARE SUB DesignSourceEdit(StartLine AS INTEGER, StartCol AS INTEGER, EndLine AS INTEGER, EndCol AS INTEGER, Text AS STRING, Sender AS RDESIGNSURFACE)
-DECLARE SUB DesignChanged(Sender AS RDESIGNSURFACE)
-DECLARE SUB DesignDblClick(Index AS INTEGER, Sender AS RDESIGNSURFACE)
+DECLARE SUB DesignSourceEdit(StartLine AS INTEGER, StartCol AS INTEGER, EndLine AS INTEGER, EndCol AS INTEGER, Text AS STRING, Sender AS RDesignSurface)
+DECLARE SUB DesignChanged(Sender AS RDesignSurface)
+DECLARE SUB DesignDblClick(Index AS INTEGER, Sender AS RDesignSurface)
 DECLARE SUB DesignRead(d AS INTEGER)
 DECLARE FUNCTION DesignCommand(Id AS STRING) AS INTEGER
 DECLARE SUB OutlineOpen
 DECLARE SUB PaletteCommand(Id AS STRING)
-DECLARE SUB CodeChanged(Sender AS RCODEEDITOR)
+DECLARE SUB CodeChanged(Sender AS RCodeEditor)
 DECLARE SUB AnalyzerTick
 DECLARE SUB ProgramOutput(Text AS STRING)
 DECLARE SUB ProgramStopped(Reason AS STRING, InFile AS STRING, LineNo AS INTEGER)
@@ -142,9 +142,9 @@ DECLARE SUB BpOnClicked
 DECLARE SUB NewBrowse
 DECLARE SUB NewCreate
 DECLARE SUB NewCancel
-DECLARE SUB CardPicked(Sender AS QPANEL)
-DECLARE SUB CardLabelPicked(Sender AS QLABEL)
-DECLARE SUB RecentPicked(Sender AS QLABEL)
+DECLARE SUB CardPicked(Sender AS RPanel)
+DECLARE SUB CardLabelPicked(Sender AS RLabel)
+DECLARE SUB RecentPicked(Sender AS RLabel)
 DECLARE SUB StudioKey(Key AS INTEGER, Shift AS INTEGER)
 DECLARE SUB LayOutWelcome
 DECLARE SUB MacroTick
@@ -203,9 +203,9 @@ DECLARE FUNCTION WorkspaceCommand(Id AS STRING) AS INTEGER
 DECLARE FUNCTION SearchCommand(Id AS STRING) AS INTEGER
 
 ' ---- Studio's services: public components (rapidr-studio) ----
-DIM Proj AS RPROJECT
-DIM Lang AS RLANGUAGESERVICE
-DIM Session AS RPROGRAMSESSION
-DIM Reg AS QREGISTRY
-DIM OpenDlg AS QOPENDIALOG
-DIM SaveDlg AS QSAVEDIALOG
+DIM Proj AS RProject
+DIM Lang AS RLanguageService
+DIM Session AS RProgramSession
+DIM Reg AS RRegistry
+DIM OpenDlg AS ROpenDialog
+DIM SaveDlg AS RSaveDialog

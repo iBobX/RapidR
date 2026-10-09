@@ -7,7 +7,6 @@ use std::path::{Path, PathBuf};
 use rapidr_ast::Statement;
 use rapidr_diagnostics::TextSpan;
 
-use crate::context::pretty_component;
 use crate::model::{name_key, Access, SymbolId, SymbolKind};
 use crate::text::{is_name_char, is_suffix_char, LineIndex};
 use crate::{modifiers, Location, Options, OutlineItem, OutlineKind, SemanticToken, Snapshot, TextEdit, TokenKind, WorkspaceEdit};
@@ -233,8 +232,8 @@ fn outline_statement(s: &Snapshot, file: &Path, st: &Statement, out: &mut Vec<Ou
             }
         }
         Statement::Create(c) => {
-            // (RapidQ's components under RapidQ's names, RapidR's own under RapidR's)
-            let shown = rapidr_lang::resolve_component(&c.type_name).map_or(c.type_name.clone(), |comp| pretty_component(comp.written_name()));
+            // (the component under RapidR's name)
+            let shown = rapidr_lang::resolve_component(&c.type_name).map_or(c.type_name.clone(), |comp| comp.spelling());
             if let Some(mut it) = item(s, file, c.span, &c.name, OutlineKind::Component, Some(shown)) {
                 for inner in &c.body {
                     if let Statement::Create(_) = inner {

@@ -124,103 +124,103 @@ CONST DESIGN_H = 480
 ' ============================================================
 ' IDE WIDGET DECLARATIONS
 ' ============================================================
-DIM IDE AS RFORM
+DIM IDE AS RForm
 
 ' --- Menus ---
-DIM MainMenu AS RMAINMENU
-DIM FileMenu AS RMENUITEM
-DIM NewItem AS RMENUITEM
-DIM OpenItem AS RMENUITEM
-DIM SaveItem AS RMENUITEM
-DIM SaveAsItem AS RMENUITEM
-DIM SepFile1 AS RMENUITEM
-DIM ExitItem AS RMENUITEM
-DIM EditMenu AS RMENUITEM
-DIM DeleteItem AS RMENUITEM
-DIM ViewMenu AS RMENUITEM
-DIM ViewCodeItem AS RMENUITEM
-DIM ViewDesignItem AS RMENUITEM
-DIM RunMenu AS RMENUITEM
-DIM RunStartItem AS RMENUITEM
-DIM SepRun1 AS RMENUITEM
-DIM RunBuildItem AS RMENUITEM
-DIM RunCodegenItem AS RMENUITEM
-DIM ToolsMenu AS RMENUITEM
-DIM ToolsColorItem AS RMENUITEM
-DIM ToolsFontItem AS RMENUITEM
-DIM ToolsVSCodeItem AS RMENUITEM
-DIM ToolsSettingsItem AS RMENUITEM
-DIM HelpMenu AS RMENUITEM
-DIM HelpAboutItem AS RMENUITEM
+DIM MainMenu AS RMainMenu
+DIM FileMenu AS RMenuItem
+DIM NewItem AS RMenuItem
+DIM OpenItem AS RMenuItem
+DIM SaveItem AS RMenuItem
+DIM SaveAsItem AS RMenuItem
+DIM SepFile1 AS RMenuItem
+DIM ExitItem AS RMenuItem
+DIM EditMenu AS RMenuItem
+DIM DeleteItem AS RMenuItem
+DIM ViewMenu AS RMenuItem
+DIM ViewCodeItem AS RMenuItem
+DIM ViewDesignItem AS RMenuItem
+DIM RunMenu AS RMenuItem
+DIM RunStartItem AS RMenuItem
+DIM SepRun1 AS RMenuItem
+DIM RunBuildItem AS RMenuItem
+DIM RunCodegenItem AS RMenuItem
+DIM ToolsMenu AS RMenuItem
+DIM ToolsColorItem AS RMenuItem
+DIM ToolsFontItem AS RMenuItem
+DIM ToolsVSCodeItem AS RMenuItem
+DIM ToolsSettingsItem AS RMenuItem
+DIM HelpMenu AS RMenuItem
+DIM HelpAboutItem AS RMenuItem
 
 ' --- Toolbar ---
-DIM ToolbarPanel AS RPANEL
+DIM ToolbarPanel AS RPanel
 
 ' --- Standard component buttons ---
-DIM BtnPtr AS RBUTTON
-DIM BtnAddLabel AS RBUTTON
-DIM BtnAddEdit AS RBUTTON
-DIM BtnAddButton AS RBUTTON
-DIM BtnAddCheck AS RBUTTON
-DIM BtnAddRadio AS RBUTTON
-DIM BtnAddCombo AS RBUTTON
-DIM BtnAddList AS RBUTTON
-DIM BtnAddPanel AS RBUTTON
-DIM BtnAddGroup AS RBUTTON
+DIM BtnPtr AS RButton
+DIM BtnAddLabel AS RButton
+DIM BtnAddEdit AS RButton
+DIM BtnAddButton AS RButton
+DIM BtnAddCheck AS RButton
+DIM BtnAddRadio AS RButton
+DIM BtnAddCombo AS RButton
+DIM BtnAddList AS RButton
+DIM BtnAddPanel AS RButton
+DIM BtnAddGroup AS RButton
 
 ' --- Advanced component buttons ---
-DIM BtnAddProgress AS RBUTTON
-DIM BtnAddTimer AS RBUTTON
-DIM BtnAddRichEdit AS RBUTTON
-DIM BtnAddCanvas AS RBUTTON
-DIM BtnAddTree AS RBUTTON
-DIM BtnAddImage AS RBUTTON
-DIM BtnAddTrack AS RBUTTON
-DIM BtnAddSplitter AS RBUTTON
-DIM BtnAddGrid AS RBUTTON
-DIM BtnAddScroll AS RBUTTON
+DIM BtnAddProgress AS RButton
+DIM BtnAddTimer AS RButton
+DIM BtnAddRichEdit AS RButton
+DIM BtnAddCanvas AS RButton
+DIM BtnAddTree AS RButton
+DIM BtnAddImage AS RButton
+DIM BtnAddTrack AS RButton
+DIM BtnAddSplitter AS RButton
+DIM BtnAddGrid AS RButton
+DIM BtnAddScroll AS RButton
 
 ' --- Database buttons ---
-DIM BtnAddMySQL AS RBUTTON
-DIM BtnAddSQLite AS RBUTTON
+DIM BtnAddMySQL AS RButton
+DIM BtnAddSQLite AS RButton
 
 ' --- New component buttons ---
-DIM BtnAddCoolBtn AS RBUTTON
-DIM BtnAddOvalBtn AS RBUTTON
-DIM BtnAddJSON AS RBUTTON
+DIM BtnAddCoolBtn AS RButton
+DIM BtnAddOvalBtn AS RButton
+DIM BtnAddJSON AS RButton
 
 ' --- Action buttons ---
-DIM BtnSave AS RBUTTON
-DIM BtnRun AS RBUTTON
-DIM BtnCode AS RBUTTON
-DIM BtnBuild AS RBUTTON
+DIM BtnSave AS RButton
+DIM BtnRun AS RButton
+DIM BtnCode AS RButton
+DIM BtnBuild AS RButton
 
 ' --- Left panel: Project Explorer ---
-DIM ProjectTree AS RTREEVIEW
-DIM LeftPanelLabel AS RLABEL
+DIM ProjectTree AS RTreeView
+DIM LeftPanelLabel AS RLabel
 
 ' --- Center: Design Surface + Code Editor ---
-DIM DesignSurface AS RDESIGNSURFACE
-DIM CodeEditor AS RCODEEDITOR
+DIM DesignSurface AS RDesignSurface
+DIM CodeEditor AS RCodeEditor
 
 ' --- Right panel: Properties ---
-DIM ObjCombo AS RCOMBOBOX
-DIM BtnProps AS RBUTTON
-DIM BtnEvts AS RBUTTON
-DIM PropGrid AS RSTRINGGRID
-DIM EvtGrid AS RSTRINGGRID
+DIM ObjCombo AS RComboBox
+DIM BtnProps AS RButton
+DIM BtnEvts AS RButton
+DIM PropGrid AS RStringGrid
+DIM EvtGrid AS RStringGrid
 
 ' --- Bottom: Output & Status ---
-DIM OutputPanel AS RPANEL
-DIM ErrorList AS RLISTBOX
-DIM StatusBar AS RLABEL
+DIM OutputPanel AS RPanel
+DIM ErrorList AS RListBox
+DIM StatusBar AS RLabel
 
 ' --- Dialogs ---
-DIM OpenDlg AS ROPENDIALOG
-DIM SaveDlg AS RSAVEDIALOG
-DIM ColorDlg AS RCOLORDIALOG
-DIM FontDlg AS RFONTDIALOG
-DIM Config AS RJSON
+DIM OpenDlg AS ROpenDialog
+DIM SaveDlg AS RSaveDialog
+DIM ColorDlg AS RColorDialog
+DIM FontDlg AS RFontDialog
+DIM Config AS RJson
 
 ' --- Error tracking ---
 DIM ErrorLines(200) AS INTEGER
@@ -1850,8 +1850,8 @@ END SUB
 SUB LoadProjectFile(FileToOpen AS STRING)
     IF FileToOpen <> "" THEN
         ProjectFile = FileToOpen
-        DIM FS AS RFILESTREAM
-        CREATE FS AS RFILESTREAM
+        DIM FS AS RFileStream
+        CREATE FS AS RFileStream
         END CREATE
         FS.Open(ProjectFile)
         DIM Content AS STRING
@@ -1878,8 +1878,8 @@ SUB SaveProject
             EXIT SUB
         END IF
     END IF
-    DIM FS AS RFILESTREAM
-    CREATE FS AS RFILESTREAM
+    DIM FS AS RFileStream
+    CREATE FS AS RFileStream
     END CREATE
     FS.Open(ProjectFile, 65535)
     FS.WriteLn(CodeEditor.Text)
@@ -1893,8 +1893,8 @@ SUB SaveAsProject
     SaveDlg.Title = "Save RapidR Project As"
     IF SaveDlg.Execute THEN
         ProjectFile = SaveDlg.FileName
-        DIM FS AS RFILESTREAM
-        CREATE FS AS RFILESTREAM
+        DIM FS AS RFileStream
+        CREATE FS AS RFileStream
         END CREATE
         FS.Open(ProjectFile, 65535)
         FS.WriteLn(CodeEditor.Text)
@@ -1920,8 +1920,8 @@ SUB CompileAndRun
     DIM TmpFile AS STRING
     TmpFile = TempDir + "/" + TmpName + ".rr"
 
-    DIM FS AS RFILESTREAM
-    CREATE FS AS RFILESTREAM
+    DIM FS AS RFileStream
+    CREATE FS AS RFileStream
     END CREATE
     FS.Open(TmpFile, 65535)
     FS.WriteLn(Code)
@@ -1992,8 +1992,8 @@ SUB BuildStandalone
         END IF
     END IF
 
-    DIM FS AS RFILESTREAM
-    CREATE FS AS RFILESTREAM
+    DIM FS AS RFileStream
+    CREATE FS AS RFileStream
     END CREATE
     FS.Open(ProjectFile, 65535)
     FS.WriteLn(Code)
@@ -2068,8 +2068,8 @@ SUB OpenInVSCode
         GenerateCode
         DIM TmpFile AS STRING
         TmpFile = TempDir + "/rapidr_vscode_temp.rr"
-        DIM FS AS RFILESTREAM
-        CREATE FS AS RFILESTREAM
+        DIM FS AS RFileStream
+        CREATE FS AS RFileStream
         END CREATE
         FS.Open(TmpFile, 65535)
         FS.WriteLn(CodeEditor.Text)
@@ -2115,8 +2115,8 @@ END FUNCTION
 
 ' A log's lines in the error list (or Fallback when it is empty)
 SUB ShowLog(LogFile AS STRING, Fallback AS STRING)
-    DIM LogStream AS RFILESTREAM
-    CREATE LogStream AS RFILESTREAM
+    DIM LogStream AS RFileStream
+    CREATE LogStream AS RFileStream
     END CREATE
     LogStream.Open(LogFile)
     DIM LogText AS STRING
@@ -2362,14 +2362,14 @@ END SUB
 ' EVENT EDITOR DIALOG
 ' ============================================================
 
-CREATE EventEditorDlg AS RFORM
+CREATE EventEditorDlg AS RForm
     Caption = "Event Editor"
     Width = 620
     Height = 520
     OnShow = EventEditorOnShow
     Center
 
-    CREATE lblEvtHeader AS RLABEL
+    CREATE lblEvtHeader AS RLabel
         Left = 10 : Top = 10
         Width = 596 : Height = 20
         Caption = "SUB EventHandler"
@@ -2377,12 +2377,12 @@ CREATE EventEditorDlg AS RFORM
         Font.Size = 11
     END CREATE
 
-    CREATE edtEvtCode AS RCODEEDITOR
+    CREATE edtEvtCode AS RCodeEditor
         Left = 10 : Top = 34
         Width = 596 : Height = 400
     END CREATE
 
-    CREATE lblEvtFooter AS RLABEL
+    CREATE lblEvtFooter AS RLabel
         Left = 10 : Top = 438
         Width = 596 : Height = 20
         Caption = "END SUB"
@@ -2390,14 +2390,14 @@ CREATE EventEditorDlg AS RFORM
         Font.Size = 11
     END CREATE
 
-    CREATE btnEvtOK AS RBUTTON
+    CREATE btnEvtOK AS RButton
         Left = 420 : Top = 462
         Width = 90 : Height = 28
         Caption = "OK"
         OnClick = EventEditorOK
     END CREATE
 
-    CREATE btnEvtCancel AS RBUTTON
+    CREATE btnEvtCancel AS RButton
         Left = 516 : Top = 462
         Width = 90 : Height = 28
         Caption = "Cancel"
@@ -2409,7 +2409,7 @@ END CREATE
 ' CREATE IDE FORM — VB6-Style Layout
 ' ============================================================
 
-CREATE IDE AS RFORM
+CREATE IDE AS RForm
     Caption = "RapidR Visual IDE v1.2"
     Width = 1200
     Height = 820
@@ -2417,91 +2417,91 @@ CREATE IDE AS RFORM
     OnKeyDown = IDEKeyDown
 
     ' === MENU BAR ===
-    CREATE MainMenu AS RMAINMENU
-        CREATE FileMenu AS RMENUITEM
+    CREATE MainMenu AS RMainMenu
+        CREATE FileMenu AS RMenuItem
             Caption = "&File"
-            CREATE NewItem AS RMENUITEM
+            CREATE NewItem AS RMenuItem
                 Caption = "&New Project"
                 OnClick = NewProject
             END CREATE
-            CREATE OpenItem AS RMENUITEM
+            CREATE OpenItem AS RMenuItem
                 Caption = "&Open..."
                 OnClick = OpenProject
             END CREATE
-            CREATE SaveItem AS RMENUITEM
+            CREATE SaveItem AS RMenuItem
                 Caption = "&Save"
                 OnClick = SaveProject
             END CREATE
-            CREATE SaveAsItem AS RMENUITEM
+            CREATE SaveAsItem AS RMenuItem
                 Caption = "Save &As..."
                 OnClick = SaveAsProject
             END CREATE
-            CREATE SepFile1 AS RMENUITEM
+            CREATE SepFile1 AS RMenuItem
                 Caption = "-"
             END CREATE
-            CREATE ExitItem AS RMENUITEM
+            CREATE ExitItem AS RMenuItem
                 Caption = "E&xit"
                 OnClick = ExitIDE
             END CREATE
         END CREATE
-        CREATE EditMenu AS RMENUITEM
+        CREATE EditMenu AS RMenuItem
             Caption = "&Edit"
-            CREATE DeleteItem AS RMENUITEM
+            CREATE DeleteItem AS RMenuItem
                 Caption = "&Delete"
                 OnClick = DeleteSelected
             END CREATE
         END CREATE
-        CREATE ViewMenu AS RMENUITEM
+        CREATE ViewMenu AS RMenuItem
             Caption = "&View"
-            CREATE ViewCodeItem AS RMENUITEM
+            CREATE ViewCodeItem AS RMenuItem
                 Caption = "&Code"
                 OnClick = ShowCodeView
             END CREATE
-            CREATE ViewDesignItem AS RMENUITEM
+            CREATE ViewDesignItem AS RMenuItem
                 Caption = "&Design"
                 OnClick = ShowDesignView
             END CREATE
         END CREATE
-        CREATE RunMenu AS RMENUITEM
+        CREATE RunMenu AS RMenuItem
             Caption = "&Run"
-            CREATE RunStartItem AS RMENUITEM
+            CREATE RunStartItem AS RMenuItem
                 Caption = "&Start (Compile && Run)"
                 OnClick = CompileAndRun
             END CREATE
-            CREATE SepRun1 AS RMENUITEM
+            CREATE SepRun1 AS RMenuItem
                 Caption = "-"
             END CREATE
-            CREATE RunBuildItem AS RMENUITEM
+            CREATE RunBuildItem AS RMenuItem
                 Caption = "&Build Standalone EXE"
                 OnClick = BuildStandalone
             END CREATE
-            CREATE RunCodegenItem AS RMENUITEM
+            CREATE RunCodegenItem AS RMenuItem
                 Caption = "&Generate Code"
                 OnClick = RunCodegen
             END CREATE
         END CREATE
-        CREATE ToolsMenu AS RMENUITEM
+        CREATE ToolsMenu AS RMenuItem
             Caption = "&Tools"
-            CREATE ToolsColorItem AS RMENUITEM
+            CREATE ToolsColorItem AS RMenuItem
                 Caption = "&Color Picker..."
                 OnClick = ToolsPickColor
             END CREATE
-            CREATE ToolsFontItem AS RMENUITEM
+            CREATE ToolsFontItem AS RMenuItem
                 Caption = "&Font Picker..."
                 OnClick = ToolsPickFont
             END CREATE
-            CREATE ToolsVSCodeItem AS RMENUITEM
+            CREATE ToolsVSCodeItem AS RMenuItem
                 Caption = "Open in &VS Code"
                 OnClick = OpenInVSCode
             END CREATE
-            CREATE ToolsSettingsItem AS RMENUITEM
+            CREATE ToolsSettingsItem AS RMenuItem
                 Caption = "&Settings..."
                 OnClick = ShowSettings
             END CREATE
         END CREATE
-        CREATE HelpMenu AS RMENUITEM
+        CREATE HelpMenu AS RMenuItem
             Caption = "&Help"
-            CREATE HelpAboutItem AS RMENUITEM
+            CREATE HelpAboutItem AS RMenuItem
                 Caption = "&About RapidR IDE"
                 OnClick = ShowAbout
             END CREATE
@@ -2509,198 +2509,198 @@ CREATE IDE AS RFORM
     END CREATE
 
     ' === COMPONENT PALETTE (Below menu bar) ===
-    CREATE ToolbarPanel AS RPANEL
+    CREATE ToolbarPanel AS RPanel
         Left = 0 : Top = 30
         Width = 1200 : Height = 84
     END CREATE
 
     ' --- Row 1: Standard controls ---
-    CREATE BtnPtr AS RBUTTON
+    CREATE BtnPtr AS RButton
         Caption = "Ptr"
         Left = 4 : Top = 34 : Width = 40 : Height = 24
         OnClick = SetToolPointer
     END CREATE
-    CREATE BtnAddLabel AS RBUTTON
+    CREATE BtnAddLabel AS RButton
         Caption = "Lbl"
         Left = 46 : Top = 34 : Width = 42 : Height = 24
         OnClick = SetToolLabel
     END CREATE
-    CREATE BtnAddEdit AS RBUTTON
+    CREATE BtnAddEdit AS RButton
         Caption = "Edit"
         Left = 90 : Top = 34 : Width = 44 : Height = 24
         OnClick = SetToolEdit
     END CREATE
-    CREATE BtnAddButton AS RBUTTON
+    CREATE BtnAddButton AS RButton
         Caption = "Btn"
         Left = 136 : Top = 34 : Width = 42 : Height = 24
         OnClick = SetToolButton
     END CREATE
-    CREATE BtnAddCheck AS RBUTTON
+    CREATE BtnAddCheck AS RButton
         Caption = "Chk"
         Left = 180 : Top = 34 : Width = 42 : Height = 24
         OnClick = SetToolCheck
     END CREATE
-    CREATE BtnAddRadio AS RBUTTON
+    CREATE BtnAddRadio AS RButton
         Caption = "Rad"
         Left = 224 : Top = 34 : Width = 42 : Height = 24
         OnClick = SetToolRadio
     END CREATE
-    CREATE BtnAddCombo AS RBUTTON
+    CREATE BtnAddCombo AS RButton
         Caption = "Cmb"
         Left = 268 : Top = 34 : Width = 46 : Height = 24
         OnClick = SetToolCombo
     END CREATE
-    CREATE BtnAddList AS RBUTTON
+    CREATE BtnAddList AS RButton
         Caption = "List"
         Left = 316 : Top = 34 : Width = 44 : Height = 24
         OnClick = SetToolList
     END CREATE
-    CREATE BtnAddPanel AS RBUTTON
+    CREATE BtnAddPanel AS RButton
         Caption = "Pnl"
         Left = 362 : Top = 34 : Width = 38 : Height = 24
         OnClick = SetToolPanel
     END CREATE
-    CREATE BtnAddGroup AS RBUTTON
+    CREATE BtnAddGroup AS RButton
         Caption = "Grp"
         Left = 402 : Top = 34 : Width = 42 : Height = 24
         OnClick = SetToolGroup
     END CREATE
 
     ' --- Row 2: Advanced controls ---
-    CREATE BtnAddProgress AS RBUTTON
+    CREATE BtnAddProgress AS RButton
         Caption = "Prg"
         Left = 4 : Top = 60 : Width = 42 : Height = 24
         OnClick = SetToolProgress
     END CREATE
-    CREATE BtnAddTimer AS RBUTTON
+    CREATE BtnAddTimer AS RButton
         Caption = "Tmr"
         Left = 48 : Top = 60 : Width = 42 : Height = 24
         OnClick = SetToolTimer
     END CREATE
-    CREATE BtnAddRichEdit AS RBUTTON
+    CREATE BtnAddRichEdit AS RButton
         Caption = "Rich"
         Left = 92 : Top = 60 : Width = 46 : Height = 24
         OnClick = SetToolRichEdit
     END CREATE
-    CREATE BtnAddCanvas AS RBUTTON
+    CREATE BtnAddCanvas AS RButton
         Caption = "Cvs"
         Left = 140 : Top = 60 : Width = 42 : Height = 24
         OnClick = SetToolCanvas
     END CREATE
-    CREATE BtnAddTree AS RBUTTON
+    CREATE BtnAddTree AS RButton
         Caption = "Tree"
         Left = 184 : Top = 60 : Width = 46 : Height = 24
         OnClick = SetToolTree
     END CREATE
-    CREATE BtnAddImage AS RBUTTON
+    CREATE BtnAddImage AS RButton
         Caption = "Img"
         Left = 232 : Top = 60 : Width = 42 : Height = 24
         OnClick = SetToolImage
     END CREATE
-    CREATE BtnAddTrack AS RBUTTON
+    CREATE BtnAddTrack AS RButton
         Caption = "Trk"
         Left = 276 : Top = 60 : Width = 42 : Height = 24
         OnClick = SetToolTrack
     END CREATE
-    CREATE BtnAddSplitter AS RBUTTON
+    CREATE BtnAddSplitter AS RButton
         Caption = "Spl"
         Left = 320 : Top = 60 : Width = 36 : Height = 24
         OnClick = SetToolSplitter
     END CREATE
-    CREATE BtnAddGrid AS RBUTTON
+    CREATE BtnAddGrid AS RButton
         Caption = "Grid"
         Left = 358 : Top = 60 : Width = 46 : Height = 24
         OnClick = SetToolGrid
     END CREATE
-    CREATE BtnAddScroll AS RBUTTON
+    CREATE BtnAddScroll AS RButton
         Caption = "Scrl"
         Left = 406 : Top = 60 : Width = 44 : Height = 24
         OnClick = SetToolScroll
     END CREATE
 
     ' --- Database buttons ---
-    CREATE BtnAddMySQL AS RBUTTON
+    CREATE BtnAddMySQL AS RButton
         Caption = "SQL"
         Left = 454 : Top = 34 : Width = 44 : Height = 24
         OnClick = SetToolMySQL
     END CREATE
-    CREATE BtnAddSQLite AS RBUTTON
+    CREATE BtnAddSQLite AS RButton
         Caption = "Lite"
         Left = 500 : Top = 34 : Width = 44 : Height = 24
         OnClick = SetToolSQLite
     END CREATE
 
     ' --- Data Science buttons ---
-    CREATE BtnAddNum AS RBUTTON
+    CREATE BtnAddNum AS RButton
         Caption = "Num"
         Left = 454 : Top = 60 : Width = 44 : Height = 24
         OnClick = SetToolNum
     END CREATE
-    CREATE BtnAddDF AS RBUTTON
+    CREATE BtnAddDF AS RButton
         Caption = "DFrm"
         Left = 500 : Top = 60 : Width = 50 : Height = 24
         OnClick = SetToolDataFrame
     END CREATE
-    CREATE BtnAddPlot AS RBUTTON
+    CREATE BtnAddPlot AS RButton
         Caption = "Plot"
         Left = 552 : Top = 60 : Width = 44 : Height = 24
         OnClick = SetToolPlot
     END CREATE
 
     ' --- Special component buttons ---
-    CREATE BtnAddCoolBtn AS RBUTTON
+    CREATE BtnAddCoolBtn AS RButton
         Caption = "Cool"
         Left = 554 : Top = 34 : Width = 44 : Height = 24
         OnClick = SetToolCoolBtn
     END CREATE
-    CREATE BtnAddOvalBtn AS RBUTTON
+    CREATE BtnAddOvalBtn AS RButton
         Caption = "Oval"
         Left = 600 : Top = 60 : Width = 44 : Height = 24
         OnClick = SetToolOvalBtn
     END CREATE
-    CREATE BtnAddJSON AS RBUTTON
+    CREATE BtnAddJSON AS RButton
         Caption = "JSON"
         Left = 600 : Top = 34 : Width = 48 : Height = 24
         OnClick = SetToolJSON
     END CREATE
 
     ' --- Action buttons (right side of toolbar) ---
-    CREATE BtnSave AS RBUTTON
+    CREATE BtnSave AS RButton
         Caption = "Save"
         Left = 720 : Top = 34 : Width = 50 : Height = 24
         OnClick = SaveProject
     END CREATE
-    CREATE BtnRun AS RBUTTON
+    CREATE BtnRun AS RButton
         Caption = "Run"
         Left = 772 : Top = 34 : Width = 42 : Height = 24
         OnClick = CompileAndRun
     END CREATE
-    CREATE BtnCode AS RBUTTON
+    CREATE BtnCode AS RButton
         Caption = "Code >"
         Left = 816 : Top = 34 : Width = 54 : Height = 24
         OnClick = ToggleCodeView
     END CREATE
-    CREATE BtnBuild AS RBUTTON
+    CREATE BtnBuild AS RButton
         Caption = "Build"
         Left = 872 : Top = 34 : Width = 50 : Height = 24
         OnClick = BuildStandalone
     END CREATE
 
     ' === LEFT PANEL: Project Explorer (200px wide) ===
-    CREATE LeftPanelLabel AS RLABEL
+    CREATE LeftPanelLabel AS RLabel
         Left = 4 : Top = 118
         Width = 190 : Height = 16
         Caption = "Project Explorer"
     END CREATE
 
-    CREATE ProjectTree AS RTREEVIEW
+    CREATE ProjectTree AS RTreeView
         Left = 4 : Top = 136
         Width = 190 : Height = 340
         OnClick = ProjectTreeClick
     END CREATE
 
     ' === CENTER: Design Surface (embedded, MDI-style) ===
-    CREATE DesignSurface AS RDESIGNSURFACE
+    CREATE DesignSurface AS RDesignSurface
         Left = 200 : Top = 118
         Width = 700 : Height = 540
         FormCaption = "Form1"
@@ -2711,34 +2711,34 @@ CREATE IDE AS RFORM
     END CREATE
 
     ' === CENTER: Code Editor (same area, hidden in design mode) ===
-    CREATE CodeEditor AS RCODEEDITOR
+    CREATE CodeEditor AS RCodeEditor
         Left = 200 : Top = 118
         Width = 700 : Height = 540
         Visible = 0
     END CREATE
 
     ' === RIGHT PANEL: Object Combo + Properties/Events ===
-    CREATE ObjCombo AS RCOMBOBOX
+    CREATE ObjCombo AS RComboBox
         Style = 2   ' csDropDownList: pick from the list only
         Left = 906 : Top = 118
         Width = 288 : Height = 24
         OnChange = ObjComboChange
     END CREATE
 
-    CREATE BtnProps AS RBUTTON
+    CREATE BtnProps AS RButton
         Left = 906 : Top = 146
         Width = 142 : Height = 24
         Caption = "Properties"
         OnClick = ShowPropsGrid
     END CREATE
-    CREATE BtnEvts AS RBUTTON
+    CREATE BtnEvts AS RButton
         Left = 1052 : Top = 146
         Width = 142 : Height = 24
         Caption = "Events"
         OnClick = ShowEvtsGrid
     END CREATE
 
-    CREATE PropGrid AS RSTRINGGRID
+    CREATE PropGrid AS RStringGrid
         RowCount = 0            ' filled with AddRow
         AddOptions 10, 13       ' goEditing, goAlwaysShowEditor
         Left = 906 : Top = 174
@@ -2749,7 +2749,7 @@ CREATE IDE AS RFORM
         OnDblClick = PropGridDblClick
     END CREATE
 
-    CREATE EvtGrid AS RSTRINGGRID
+    CREATE EvtGrid AS RStringGrid
         RowCount = 0            ' filled with AddRow
         AddOptions 10, 13       ' goEditing, goAlwaysShowEditor
         Left = 906 : Top = 174
@@ -2762,12 +2762,12 @@ CREATE IDE AS RFORM
     END CREATE
 
     ' === BOTTOM PANEL: Error List ===
-    CREATE OutputPanel AS RPANEL
+    CREATE OutputPanel AS RPanel
         Left = 0 : Top = 662
         Width = 1200 : Height = 90
     END CREATE
 
-    CREATE ErrorList AS RLISTBOX
+    CREATE ErrorList AS RListBox
         Left = 4 : Top = 666
         Width = 1190 : Height = 80
         Visible = 0
@@ -2775,7 +2775,7 @@ CREATE IDE AS RFORM
     END CREATE
 
     ' === STATUS BAR ===
-    CREATE StatusBar AS RLABEL
+    CREATE StatusBar AS RLabel
         Left = 0 : Top = 756
         Width = 1200 : Height = 22
         Caption = "Ready — RapidR Visual IDE v1.2"
@@ -2783,20 +2783,20 @@ CREATE IDE AS RFORM
 END CREATE
 
 ' === Dialogs (non-visual, outside form) ===
-CREATE OpenDlg AS ROPENDIALOG
+CREATE OpenDlg AS ROpenDialog
 END CREATE
 
-CREATE SaveDlg AS RSAVEDIALOG
+CREATE SaveDlg AS RSaveDialog
 END CREATE
 
-CREATE ColorDlg AS RCOLORDIALOG
+CREATE ColorDlg AS RColorDialog
 END CREATE
 
-CREATE FontDlg AS RFONTDIALOG
+CREATE FontDlg AS RFontDialog
 END CREATE
 
 ' === Non-visual data components ===
-CREATE Config AS RJSON
+CREATE Config AS RJson
 END CREATE
 
 ' === Post-CREATE initialization ===

@@ -1,9 +1,9 @@
 //! How the designer writes CREATE blocks it makes (a component added from
 //! the toolbox, pasted, duplicated): `CREATE Name AS Type`, one property per
 //! line indented one step in, nested CREATEs, `END CREATE` — in the file's
-//! own indentation and line ends. Names follow docs/q-and-r-components.md:
-//! a new RapidQ component under its Q name (QBUTTON), a RapidR-only one
-//! under its R name (RPLOT).
+//! own indentation and line ends. Names follow docs/q-and-r-components.md
+//! and the file's own style (R-NAMES): RapidR's names (`RButton`), or, in a
+//! file written with RapidQ's names, RapidQ's (`QBUTTON`) — never mixed.
 
 use super::model::{FormDesign, SubItem, Subtree};
 use crate::layout::Rect;
@@ -63,12 +63,13 @@ fn write_into(out: &mut String, tree: &Subtree, base: &str, style: &Style) {
 }
 
 /// A new component of `type_name` (any of its names) at `rect`: named as
-/// Delphi names them (`Button1`), written under its RapidQ name when
-/// RapidQ has it, with its Caption (its name, where it has one) and its
-/// Left / Top / Width / Height.
+/// Delphi names them (`Button1`), written in the file's style
+/// ([`FormDesign::names`]: `RButton`, or `QBUTTON` in a RapidQ-style
+/// file), with its Caption (its name, where it has one) and its Left / Top
+/// / Width / Height.
 pub fn new_component(design: &FormDesign, type_name: &str, rect: Rect) -> Subtree {
     let comp = rapidr_lang::component(type_name);
-    let written = comp.map_or_else(|| type_name.to_ascii_uppercase(), |c| c.written_name().to_string());
+    let written = comp.map_or_else(|| type_name.to_ascii_uppercase(), |c| c.name_in(design.names()));
     let name = design.new_name(&written);
     let mut props: Vec<(&str, String)> = Vec::new();
     if comp.is_some_and(|c| c.property("Caption").is_some()) {
@@ -92,7 +93,12 @@ mod tests {
     fn blocks_in_the_files_style() {
         let d = FormDesign::new("Form1", "QFORM");
         let t = new_component(&d, "RBUTTON", Rect::new(8, 16, 75, 25));
-        assert_eq!(t.type_written, "QBUTTON", "RapidQ's name for a RapidQ component");
+        assert_eq!(t.type_written, "QBUTTON", "RapidQ's name in a form written with RapidQ's names");
+        let r = FormDesign::new("Form1", "RForm");
+        assert_eq!(new_component(&r, "QBUTTON", Rect::new(8, 16, 75, 25)).type_written, "RButton", "RapidR's names otherwise");
+        let mut said = FormDesign::new("Form1", "QFORM");
+        said.set_names(rapidr_lang::NameStyle::RapidR);
+        assert_eq!(new_component(&said, "QLABEL", Rect::new(0, 0, 10, 10)).type_written, "RLabel", "the file's style first");
         let text = write_create(&t, "  ", &Style { indent: "    ".into(), eol: "\r\n".into() });
         assert_eq!(text, "  CREATE Button1 AS QBUTTON\r\n      Caption = \"Button1\"\r\n      Left = 8\r\n      Top = 16\r\n      Width = 75\r\n      Height = 25\r\n  END CREATE\r\n");
         let plot = new_component(&d, "RPLOT", Rect::new(0, 0, 600, 400));

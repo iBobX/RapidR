@@ -2,9 +2,9 @@
 //! `rapidr_value::panels::toolbox` (the web draws the same).
 //!
 //! At the top a search box (an in-place editor over it while the user
-//! types: the filter follows each key); under it the groups — "RapidQ"
-//! and "RapidR" as headings, their groups with a chevron, the components
-//! with their icons — or, while searching, the matches flat with their
+//! types: the filter follows each key); under it the groups by purpose
+//! (Standard, Additional, Dialogs …) as headings with a chevron, the
+//! components under RapidR's names with their icons — or, while searching, the matches flat with their
 //! group dimmed beside them, best first. The keyboard: in the list the
 //! arrows, Home / End, Page Up / Down move, Left / Right close and open
 //! groups (or go to the parent / first child), Enter picks (OnPick) or

@@ -16,7 +16,7 @@ methods = [
   { name = "AddItems", params = "Items ...", value = true },
   { name = "DelIndex", params = "index AS LONG" },
   { name = "DelItems", params = "Items ..." },
-  { name = "Insert", params = "I AS INTEGER, Item AS QMENUITEM" },
+  { name = "Insert", params = "I AS INTEGER, Item AS RMenuItem" },
   { name = "Add", origin = "rapidr" },
   { name = "Clear", value = true, origin = "rapidr" },
 ]
@@ -48,7 +48,7 @@ methods = [
   { name = "AddItems", params = "Items ...", value = true },
   { name = "DelIndex", params = "index AS LONG" },
   { name = "DelItems", params = "Items ..." },
-  { name = "Insert", params = "I AS INTEGER, Item AS QMENUITEM" },
+  { name = "Insert", params = "I AS INTEGER, Item AS RMenuItem" },
   { name = "Clear", value = true, origin = "rapidr" },
   { name = "Add", origin = "rapidr" },
 ]
@@ -75,7 +75,7 @@ methods = [
   { name = "AddItems", params = "Items ...", value = true },
   { name = "DelIndex", params = "index AS LONG" },
   { name = "DelItems", params = "Items ..." },
-  { name = "Insert", params = "I AS INTEGER, Item AS QMENUITEM" },
+  { name = "Insert", params = "I AS INTEGER, Item AS RMenuItem" },
   { name = "Popup", params = "X AS INTEGER, Y AS INTEGER" },
   { name = "Clear", value = true, origin = "rapidr" },
   { name = "Add", origin = "rapidr" },

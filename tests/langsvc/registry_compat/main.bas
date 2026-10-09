@@ -13,6 +13,7 @@ LOCATE 1, |2
 DIM T AS QTREEVIEW
 z = T.Item(0).|
 OPEN "f.txt" FOR INPUT AS #1
+DIM r AS RBUTTON
 '! 5 completion has Text Expanded ImageIndex
 '! diagnostic main.bas:15:1 "OPEN is a RapidR extension: RapidQ's compiler refuses it (this project is RapidQ-compatible)"
 '! options rapidq-compatible
@@ -21,6 +22,7 @@ OPEN "f.txt" FOR INPUT AS #1
 '! diagnostic main.bas:8:1 "BEEP is a RapidR extension: RapidQ's compiler refuses it (this project is RapidQ-compatible)"
 '! diagnostic main.bas:3:10 "RNum is RapidR's own component: RapidQ doesn't have it (this project is RapidQ-compatible)"
 '! diagnostic main.bas:4:10 "RapidQ has no QPLOT: RapidR reads it as RPlot"
+'! diagnostic main.bas:16:10 "RButton is RapidR's name: RapidQ's compiler knows it as QBUTTON"
 '! 1 hover has "Screen.Width" "read only"
 '! 2 completion has Width Height MouseX
 '! 3 hover has "not implemented"

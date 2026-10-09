@@ -6,19 +6,19 @@ name, with its aliases and where it works: [reference/data-science.md](reference
 
 | Component | |
 |---|---|
-| `RNUM` | a one-dimensional array of numbers, in the manner of NumPy |
-| `RDATAFRAME` | a table, in the manner of pandas |
-| `RPLOT` | charts shown in a QIMAGE or saved as PNG, in the manner of Matplotlib |
-| `RJSON` | JSON documents |
+| `RNum` | a one-dimensional array of numbers, in the manner of NumPy |
+| `RDataFrame` | a table, in the manner of pandas |
+| `RPlot` | charts shown in an RImage or saved as PNG, in the manner of Matplotlib |
+| `RJson` | JSON documents |
 
-RNUM, RDATAFRAME and RPLOT are one implementation (RapidR's own, in pure
+RNum, RDataFrame and RPlot are one implementation (RapidR's own, in pure
 Rust, with no data library underneath) that native builds, interpreted
 programs and the browser all run, so every member gives the same result
 everywhere — charts included: they're drawn by the UI kernel, as the
 windows are, so a chart is the same pixels on the desktop and in a
 browser.
 
-## RNUM
+## RNum
 
 ```basic
 DIM a AS RNum
@@ -50,7 +50,7 @@ values as `"1,2,3"`, settable), `Shape` (`(3,)`), `NDim`, `DType`, and the
 aggregates `Sum`, `Mean`, `Min`, `Max`, `Std`. Numbers print as RapidR
 prints them (`0.1 + 0.2` is `0.3`).
 
-## RDATAFRAME
+## RDataFrame
 
 ```basic
 DIM df AS RDataFrame
@@ -61,7 +61,7 @@ df.sort "name", 1                      ' 1 ascending, 0 descending
 PRINT df.cell(0, 1)                    ' row 0, column 1 (or its name): the text, "30"
 df.print                               ' the frame as a table, below
 df.savetocsv "older.csv"
-df.togrid "Grid1"                      ' fill a QSTRINGGRID with it (headers and cells)
+df.togrid "Grid1"                      ' fill an RStringGrid with it (headers and cells)
 ```
 
 `Print` (and `PRINT df.ToString`) shows the frame as a plain-text table, the
@@ -104,9 +104,9 @@ and numbers worked out once), so big tables are quick: a million-row CSV
 40–200 ms on a 2024 laptop — about twice that in a browser
 (`cargo run --release -p rapidr-value --example frame_bench`).
 
-## RPLOT
+## RPlot
 
-A chart's data are RNUM components, named by their names:
+A chart's data are RNum components, named by their names:
 
 ```basic
 DIM x AS RNum
@@ -136,7 +136,7 @@ colour)`, `legend`, `grid`, `xlim` / `ylim`, `xscale` / `yscale` (`"log"`),
 `YLabel`, `Grid`, `Legend`, `Width`, `Height` (pixels; under 100, inches at
 the chart's `DPI`), `DPI`, `Count` (the series).
 
-Data are RNUM components or numbers written in place (`"35,25,40"`) — and
+Data are RNum components or numbers written in place (`"35,25,40"`) — and
 an x can be **names**: bars over their categories, several bar series side
 by side in each.
 
@@ -147,8 +147,8 @@ plt.legend
 ```
 
 Colours are the CSS names (`steelblue`, `royalblue`, `coral`, … all 148),
-`#RGB` / `#RRGGBB`, `C0` … `C9` (the palette's), or RapidQ colour numbers
-(`RGB(255, 0, 0)`); series without one take the next of a ten-colour
+`#RGB` / `#RRGGBB`, `C0` … `C9` (the palette's), or colour numbers
+(`RGB(255, 0, 0)` makes one); series without one take the next of a ten-colour
 palette made for charts. The look: ticks at round steps — whole numbers
 for whole-number data (months 1, 2, 3, never 1.5) —, light horizontal
 gridlines (`Grid = 1`: both ways; `Grid = 0`: none), a legend drawn as the
@@ -157,13 +157,13 @@ points, pies with their percentages and names, and the current theme's
 colours (`$THEME dark` draws dark charts, high contrast plain ones). Text
 is the UI kernel's: the built-in Liberation Sans, the same on every system.
 
-To show a chart in a window: `Image1.LoadFromPlot plt` (a QIMAGE). It's
+To show a chart in a window: `Image1.LoadFromPlot plt` (an RImage). It's
 crisp at any screen scale — a 2× screen gets the chart drawn at 2× — while
 the picture's `Pixel`s stay the chart's own size. `savefig "chart.png", 2`
 writes the PNG at twice the chart's size (on the web, among the page's
 files: the program can read it back or offer it as a download).
 
-## RJSON
+## RJson
 
 ```basic
 DIM j AS RJson
@@ -176,5 +176,5 @@ PRINT j.Stringify                ' {"a":{"b":[1,2,3]},"count":5}
 
 `Parse`, `Get(path)`, `Set path, value`, `Has`, `Remove`, `Keys`,
 `Stringify`, `Prettify`, `LoadFile`, `SaveFile`. (Remember that `""`
-inside a string isn't a quote in RapidQ's BASIC: write `CHR$(34)`, or use
+inside a string isn't a quote in RapidQ-compatible BASIC: write `CHR$(34)`, or use
 `$ESCAPECHARS ON` and `\"`.)

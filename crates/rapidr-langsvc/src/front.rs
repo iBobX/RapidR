@@ -112,6 +112,12 @@ impl Parsed {
         self.paths.get(file).copied().or_else(|| self.tools.file_id(file))
     }
 
+    /// How `file` writes the names of RapidQ's components (R-NAMES: what
+    /// completion offers there).
+    pub fn name_counts(&self, file: &Path) -> rapidr_lang::NameCounts {
+        self.file_id(file).map(|id| self.tools.name_counts(id)).unwrap_or_default()
+    }
+
     /// The name this parse knows `file` by.
     pub fn file_key(&self, file: &Path) -> Option<&Path> {
         let id = self.file_id(file)?;

@@ -486,11 +486,39 @@ impl Component {
         self.property(name).is_some() || self.method(name).is_some() || self.event(name).is_some()
     }
 
-    /// The name the IDE writes for a new one: RapidQ's for RapidQ's
-    /// components (a RapidQ program stays one), RapidR's for its own
-    /// (docs/q-and-r-components.md §4).
+    /// How RapidR writes it: its R name in mixed case (`RButton`,
+    /// `RStringGrid`, `RDXScreen`), the preferred spelling everywhere —
+    /// docs, completion, hovers, the RapidQ importer
+    /// (docs/q-and-r-components.md §1). A component RapidR has no R name for
+    /// (an include library's TYPE, a planned one: `QDockForm`) and a global
+    /// object (`Screen`) as they are named.
+    pub fn spelling(&self) -> String {
+        self.pretty(self.name)
+    }
+
+    /// Its RapidQ name in mixed case (`QButton`), when RapidQ has it.
+    pub fn rapidq_spelling(&self) -> Option<String> {
+        self.rapidq.map(|q| self.pretty(q))
+    }
+
+    /// The name a RapidQ-style file is written with: RapidQ's for RapidQ's
+    /// components (upper case, as RapidQ's own programs write them), RapidR's
+    /// for its own. Only code added to a file written with RapidQ's names
+    /// uses it ([`Component::name_in`]); everything else writes
+    /// [`Component::spelling`].
     pub fn written_name(&self) -> &'static str {
         self.rapidq.unwrap_or(self.name)
+    }
+
+    /// The name code added to a file is written with, in the file's own
+    /// style (docs/ide-plan.md, R-NAMES): RapidR's (`RButton`), or, in a
+    /// file written with RapidQ's names, RapidQ's (`QBUTTON`) — so a file
+    /// never mixes the two.
+    pub fn name_in(&self, style: NameStyle) -> String {
+        match style {
+            NameStyle::RapidQ => self.written_name().to_string(),
+            _ => self.spelling(),
+        }
     }
 
     /// One of its names (`QCHECKBOX`, `rcheckbox`) in mixed case
@@ -509,6 +537,59 @@ impl Component {
     /// Its global object's component, for an instance (Printer → RPRINTER).
     pub fn instance_component(&self) -> Option<&'static Component> {
         self.instance_of.and_then(component)
+    }
+}
+
+/// How a file writes the names of the components RapidQ has too: what
+/// RapidR Studio's designer and completion follow, so a file never mixes
+/// the two (docs/ide-plan.md, R-NAMES). Counted over the file's type names
+/// ([`NameCounts`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum NameStyle {
+    /// RapidQ's names (`QBUTTON`): a RapidQ program — or a file using
+    /// more of RapidQ's names than RapidR's.
+    RapidQ,
+    /// RapidR's names (`RButton`), or none yet: RapidR's default.
+    #[default]
+    RapidR,
+    /// Both (as many of each, or counted without deciding).
+    Mixed,
+}
+
+/// How many of a file's type names name one of RapidQ's components by
+/// RapidQ's name (`QBUTTON`) and by RapidR's (`RButton`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct NameCounts {
+    pub rapidq: usize,
+    pub rapidr: usize,
+}
+
+impl NameCounts {
+    /// Counts one name as written (`QBUTTON`, `RButton`, `QGauge`): a name
+    /// of a RapidQ component, one way or the other; anything else is left.
+    pub fn count(&mut self, written: &str) {
+        let Some(c) = component(written).filter(|c| c.rapidq.is_some() && c.kind == Kind::Component) else { return };
+        if written.eq_ignore_ascii_case(c.name) {
+            self.rapidr += 1;
+        } else {
+            self.rapidq += 1;
+        }
+    }
+
+    /// Strictly what the file has: RapidQ's names only, RapidR's only (or
+    /// none), or both.
+    pub fn style(&self) -> NameStyle {
+        match (self.rapidq, self.rapidr) {
+            (0, _) => NameStyle::RapidR,
+            (_, 0) => NameStyle::RapidQ,
+            _ => NameStyle::Mixed,
+        }
+    }
+
+    /// The style new code is written in: the names the file uses most,
+    /// RapidR's on a tie (and in a new or empty file).
+    pub fn writing_style(&self) -> NameStyle {
+        if self.rapidq > self.rapidr { NameStyle::RapidQ } else { NameStyle::RapidR }
     }
 }
 
@@ -635,6 +716,33 @@ mod tests {
         assert!(resolve_component("QNOTHING").is_none());
         assert_eq!(b.written_name(), "QBUTTON");
         assert_eq!(component("RPLOT").unwrap().written_name(), "RPLOT");
+        assert_eq!(b.spelling(), "RButton");
+        assert_eq!(b.rapidq_spelling().as_deref(), Some("QButton"));
+        assert_eq!(component("QSTRINGGRID").unwrap().spelling(), "RStringGrid");
+        assert_eq!(component("QGAUGE").unwrap().spelling(), "RProgressBar");
+        assert_eq!(component("RPLOT").unwrap().spelling(), "RPlot");
+        assert_eq!(component("RPLOT").unwrap().rapidq_spelling(), None);
+        assert_eq!(component("QDOCKFORM").unwrap().spelling(), "QDockForm");
+        assert_eq!(global("screen").unwrap().spelling(), "Screen");
+        assert_eq!(b.name_in(NameStyle::RapidR), "RButton");
+        assert_eq!(b.name_in(NameStyle::Mixed), "RButton");
+        assert_eq!(b.name_in(NameStyle::RapidQ), "QBUTTON");
+        assert_eq!(component("RPLOT").unwrap().name_in(NameStyle::RapidQ), "RPLOT");
+    }
+
+    #[test]
+    fn name_styles_count_rapidq_components_only() {
+        let mut n = NameCounts::default();
+        assert_eq!((n.style(), n.writing_style()), (NameStyle::RapidR, NameStyle::RapidR));
+        for w in ["QFORM", "QButton", "qgauge", "RPLOT", "INTEGER", "QNOTHING"] {
+            n.count(w);
+        }
+        assert_eq!(n, NameCounts { rapidq: 3, rapidr: 0 }, "RPLOT is RapidR's own: no style");
+        assert_eq!((n.style(), n.writing_style()), (NameStyle::RapidQ, NameStyle::RapidQ));
+        for w in ["RButton", "RFORM", "rlabel"] {
+            n.count(w);
+        }
+        assert_eq!((n.style(), n.writing_style()), (NameStyle::Mixed, NameStyle::RapidR), "a tie: RapidR's");
     }
 
     #[test]

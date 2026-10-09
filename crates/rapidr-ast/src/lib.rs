@@ -2670,8 +2670,9 @@ pub fn component_type_reference(name: &str, own_types: &[String]) -> String {
 }
 
 /// RapidQ names its components QForm, QButton, …; RapidR's are RForm,
-/// RButton, …. Maps a RapidQ component name to RapidR's (uppercase), and
-/// leaves every other type name unchanged.
+/// RButton, …. Maps a RapidQ component name to RapidR's, and RapidR's in any
+/// case to the same (upper case: `QPANEL`, `RPanel` → `RPANEL`), and leaves
+/// every other type name unchanged.
 pub fn canonical_type_name(type_name: &str) -> String {
     let upper = type_name.to_ascii_uppercase();
     // (RAPIDQ2.INC's `$DEFINE QCOMPORT COMPORT`: rapidr_ast::library)
@@ -2696,6 +2697,11 @@ pub fn canonical_type_name(type_name: &str) -> String {
         if is_component_type_name(&r_name) {
             return r_name;
         }
+    }
+    // (RapidR's own name in any case — `RPanel`, `rpanel` — is the same
+    // component as RapidQ's QPANEL, spelled as the compilers spell it)
+    if is_component_type_name(&upper) {
+        return upper;
     }
     type_name.to_string()
 }

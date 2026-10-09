@@ -2,8 +2,8 @@
 
 | Component | Database | Where |
 |---|---|---|
-| `RSQLITE` (RapidR's) | SQLite itself (rusqlite; compiled to WebAssembly in the browser) | everywhere |
-| `QMYSQL` / `RMYSQL` (RapidQ's) | a MySQL or MariaDB server | desktop (browsers can't open raw TCP connections) |
+| `RSQLite` (RapidR's) | SQLite itself (rusqlite; compiled to WebAssembly in the browser) | everywhere |
+| `RMySQL` (RapidQ name: `QMYSQL`) | a MySQL or MariaDB server | desktop (browsers can't open raw TCP connections) |
 
 Both share one model for results, parameters and events: what works with
 one works with the other.
@@ -11,7 +11,7 @@ one works with the other.
 ## SQLite
 
 ```basic
-DIM db AS RSQLITE
+DIM db AS RSQLite
 db.OnError = DbError
 db.Connect "app.db"                      ' a file; ":memory:" for none
 db.Query "CREATE TABLE IF NOT EXISTS people (name TEXT, age INTEGER)"
@@ -60,10 +60,10 @@ placeholders, or the query is an error and doesn't run.
 
 ## MySQL
 
-RapidQ's QMYSQL, with its members:
+`RMySQL` (RapidQ's `QMYSQL`), with its members:
 
 ```basic
-DIM my AS QMYSQL
+DIM my AS RMySQL
 IF my.Connect("localhost", "user", "password") THEN
     my.SelectDB "shop"
     my.Query "SELECT id, name FROM items WHERE price < ?", 10

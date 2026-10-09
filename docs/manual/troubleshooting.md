@@ -81,7 +81,7 @@ x)` gives `10000000000`.
 rule). Use `ROUND` (which is `INT(x + 0.5)`) when you mean rounding.
 
 **A string with `""` in it comes out wrong** — `""` isn't an escaped quote
-in RapidQ's BASIC. Use `CHR$(34)` or `$ESCAPECHARS ON` and `\"`.
+in RapidQ-compatible BASIC. Use `CHR$(34)` or `$ESCAPECHARS ON` and `\"`.
 
 **`ON ERROR GOTO` doesn't catch an error** — it's accepted and ignored;
 run-time errors end the program with their message and line.
@@ -96,7 +96,7 @@ desktop). The program goes on.
 — RapidR draws on the CPU when the only GPU is a software one; if
 detection fails, set `RAPIDR_RENDERER=cpu`.
 
-**The program looks different from RapidQ's Windows look** — programs use
+**The program looks different from the classic Windows look** — programs use
 the classic look unless they set `$THEME`; check for a `RAPIDR_THEME`
 variable in your environment.
 
@@ -106,8 +106,8 @@ variable in your environment.
 (`python3 -m http.server -d folder 8080`); browsers don't load WebAssembly
 from `file://`.
 
-**QMYSQL / RSERVERSOCKET do nothing in the browser** — browsers can't open
-raw TCP connections. Call a server of yours through RHTTP.
+**RMySQL / RServerSocket do nothing in the browser** — browsers can't open
+raw TCP connections. Call a server of yours through RHttp.
 
 **A file the program reads isn't found on the web** — files beside the
 program are built into the page only with the listed extensions (`.csv`,

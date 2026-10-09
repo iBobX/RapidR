@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-  <title>Controls (RapidR's)</title>
+  <title>Controls</title>
   <path d="M2.5 2.5H13.5A1 1 0 0 1 14.5 3.5V6.5A1 1 0 0 1 13.5 7.5H2.5A1 1 0 0 1 1.5 6.5V3.5A1 1 0 0 1 2.5 2.5Z" fill="#E3E9FF" stroke="#2F5BFF"/>
   <path d="M3.5 4.5L8.5 4.5" stroke="#2F5BFF"/>
   <path d="M1.5 11.5L14.5 11.5" stroke="#5B6478"/>

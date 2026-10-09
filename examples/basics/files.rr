@@ -1,5 +1,5 @@
 ' files.rr: writing and reading text files, the BASIC way and with a
-' QFILESTREAM.
+' RFileStream.
 '
 '   rapidr run files.rr
 '
@@ -34,8 +34,8 @@ WHILE NOT EOF(1)
 WEND
 CLOSE #1
 
-' The same file through a QFILESTREAM: open it, read every line
-DIM fs AS QFILESTREAM
+' The same file through an RFileStream: open it, read every line
+DIM fs AS RFileStream
 fs.Open(LOGFILE, fmOpenRead)
 PRINT "First line again: " + fs.ReadLine
 PRINT "Stream size: " + STR$(fs.Size)

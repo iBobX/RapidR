@@ -50,8 +50,9 @@ PRINT "Longest name: " + IIF(LEN(names(1)) >= LEN(names(4)), names(1), names(4))
 PRINT "Initials: " + LEFT$(names(1), 1) + LEFT$(names(2), 1) + LEFT$(names(3), 1) + LEFT$(names(4), 1)
 PRINT "Where is 'art'? In Earth at " + STR$(INSTR(names(3), "art"))
 
-' An object TYPE: fields, a constructor and methods (RapidQ's EXTENDS QOBJECT)
-TYPE Counter EXTENDS QOBJECT
+' An object TYPE: fields, a constructor and methods (RObject is the base object;
+' RapidQ's name for it is QOBJECT)
+TYPE Counter EXTENDS RObject
     Count AS INTEGER
     Step AS INTEGER
 

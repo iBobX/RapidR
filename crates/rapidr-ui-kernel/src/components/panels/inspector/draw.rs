@@ -8,7 +8,7 @@ use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Place, Rect};
 use rapidr_value::objects::text::text_size;
 use rapidr_value::panels::inspector::values::{self, Kind};
-use rapidr_value::panels::inspector::{Hover, Inspector, Row, RowKind};
+use rapidr_value::panels::inspector::{type_label, Hover, Inspector, Row, RowKind};
 
 use super::super::common::{self, mix, Look};
 use super::geo::{self, Geo, Part};
@@ -57,12 +57,14 @@ pub fn header(p: &mut Painter, g: &Geo, m: &Inspector, c: &Ctx) {
         1 => (objects[0].0.clone(), objects[0].1.clone()),
         n => (format!("{n} components"), if m.snap.type_name.is_empty() { "mixed types".into() } else { m.snap.type_name.clone() }),
     };
+    // (RapidR's name, RapidQ's as a note: R-NAMES)
+    let (long, short) = if objects.is_empty() || kind == "mixed types" { (kind.clone(), kind.clone()) } else { (type_label(&kind, false), type_label(&kind, true)) };
     if l.classic {
-        // (Delphi's object selector: a sunken white box, "Button1: QBUTTON")
+        // (Delphi's object selector: a sunken white box, "Button1: RButton")
         let r = (x + 4, y + 4, w - 8, h - 8);
         p.fill(r, l.field);
         p.sunken_edge(r);
-        let text = if kind.is_empty() { title } else { format!("{title}: {kind}") };
+        let text = if short.is_empty() { title } else { format!("{title}: {short}") };
         let b = bold(c.font);
         p.text((r.0 + 6, r.1, r.2 - 8, r.3), &common::elide(&text, &b, r.2 - 8), &b, l.text, Place::Left);
         return;
@@ -78,7 +80,9 @@ pub fn header(p: &mut Painter, g: &Geo, m: &Inspector, c: &Ctx) {
     p.text((tx, y, room, h), &common::elide(&title, &b, room), &b, if objects.is_empty() { l.dim } else { l.text }, Place::Left);
     if !kind.is_empty() && tw + 8 < room {
         let kx = tx + tw + 8;
-        p.text((kx, y, x + w - kx - 6, h), &common::elide(&kind, c.font, x + w - kx - 6), c.font, l.dim, Place::Left);
+        let space = x + w - kx - 6;
+        let shown = if text_size(&long, c.font).0 <= space { long } else { short };
+        p.text((kx, y, space, h), &common::elide(&shown, c.font, space), c.font, l.dim, Place::Left);
     }
     common::hline(p, x, y + h - 1, w, l.line);
 }

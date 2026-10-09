@@ -48,6 +48,13 @@ pub fn default_event(type_name: &str) -> Option<&'static str> {
 /// An event's parameters as a SUB header writes them
 /// (`Key AS WORD, Shift AS INTEGER`; `BYREF Action AS INTEGER`).
 pub fn params_text(ev: &rapidr_lang::Event) -> String {
+    params_text_in(ev, rapidr_lang::NameStyle::RapidR)
+}
+
+/// [`params_text`] in a file's style: a component type under RapidR's name
+/// (`R AS RRect`), or RapidQ's in a file written with RapidQ's names
+/// (`R AS QRECT`) — never mixed (R-NAMES).
+pub fn params_text_in(ev: &rapidr_lang::Event, style: rapidr_lang::NameStyle) -> String {
     ev.params
         .iter()
         .map(|p| {
@@ -58,7 +65,10 @@ pub fn params_text(ev: &rapidr_lang::Event) -> String {
             s.push_str(p.name);
             if !p.ty.is_empty() {
                 s.push_str(" AS ");
-                s.push_str(p.ty);
+                match rapidr_lang::component(p.ty) {
+                    Some(c) => s.push_str(&c.name_in(style)),
+                    None => s.push_str(p.ty),
+                }
             }
             s
         })
@@ -68,8 +78,8 @@ pub fn params_text(ev: &rapidr_lang::Event) -> String {
 
 /// The header of SUB `name` for `ev` (`SUB Button1Click`,
 /// `SUB Edit1KeyDown (Key AS WORD, Shift AS INTEGER)`).
-fn header(keyword: &str, name: &str, ev: &rapidr_lang::Event) -> String {
-    let p = params_text(ev);
+fn header(keyword: &str, name: &str, ev: &rapidr_lang::Event, style: rapidr_lang::NameStyle) -> String {
+    let p = params_text_in(ev, style);
     if p.is_empty() {
         format!("{keyword} {name}")
     } else {
@@ -168,7 +178,9 @@ impl Document {
             return Ok(Handler { sub, event: ev.name.to_string(), line, patches, created: false });
         }
 
-        // (2) the SUB itself (and its DECLARE), in the same undo step
+        // (2) the SUB itself (and its DECLARE), in the same undo step, its
+        // parameters' types in the file's style
+        let style = self.forms.get(form).map(|f| f.synced.names()).unwrap_or_default();
         let eol = self.style.eol.clone();
         let indent = self.style.indent.clone();
         let form_start = self.forms.get(form).and_then(|f| f.spans(f.synced.root())).map(|s| s.lines.0).ok_or("The form's CREATE block is gone")?;
@@ -185,18 +197,18 @@ impl Document {
                 if !(self.text.ends_with("\n\n") || self.text.ends_with("\n\r\n")) {
                     body.push_str(&eol);
                 }
-                body.push_str(&format!("{h}{eol}{indent}{eol}END SUB{eol}", h = header("SUB", &sub, ev)));
+                body.push_str(&format!("{h}{eol}{indent}{eol}END SUB{eol}", h = header("SUB", &sub, ev, style)));
                 inserts.push(TextPatch { start: end, end, insert: body });
                 let mut decl = String::new();
                 if !self.text[..after_declares].ends_with('\n') {
                     decl.push_str(&eol);
                 }
-                decl.push_str(&header("DECLARE SUB", &sub, ev));
+                decl.push_str(&header("DECLARE SUB", &sub, ev, style));
                 decl.push_str(&eol);
                 inserts.push(TextPatch { start: after_declares, end: after_declares, insert: decl });
             }
             None => {
-                let body = format!("{h}{eol}{indent}{eol}END SUB{eol}{eol}", h = header("SUB", &sub, ev));
+                let body = format!("{h}{eol}{indent}{eol}END SUB{eol}{eol}", h = header("SUB", &sub, ev, style));
                 inserts.push(TextPatch { start: form_start, end: form_start, insert: body });
             }
         }

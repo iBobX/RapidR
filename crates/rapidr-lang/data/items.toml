@@ -4,7 +4,7 @@
 [[object]]
 name = "TreeNode"
 kind = "item"
-doc = "One node of a QTREEVIEW (`Tree.Item(i)`, counted from 0 in display order): its text, pictures, state and place in the tree."
+doc = "One node of an RTreeView (`Tree.Item(i)`, counted from 0 in display order): its text, pictures, state and place in the tree."
 properties = [
   { name = "Text", type = "string", category = "Data", doc = "The node's caption." },
   { name = "ImageIndex", type = "int", category = "Appearance", doc = "The picture (from the tree's Images list) shown beside the node; -1 for none." },
@@ -27,7 +27,7 @@ events = []
 [[object]]
 name = "HeaderSection"
 kind = "item"
-doc = "One section of a QHEADER (`Header.Sections(i)`, from 0): its caption, width limits, alignment and whether it can be clicked."
+doc = "One section of an RHeader (`Header.Sections(i)`, from 0): its caption, width limits, alignment and whether it can be clicked."
 properties = [
   { name = "Caption", type = "string", category = "Appearance", doc = "The section's text." },
   { name = "Text", type = "string", category = "Appearance", doc = "The same as Caption." },
@@ -46,7 +46,7 @@ events = []
 [[object]]
 name = "StatusPanel"
 kind = "item"
-doc = "One panel of a QSTATUSBAR (`StatusBar.Panel(i)`, from 0)."
+doc = "One panel of an RStatusBar (`StatusBar.Panel(i)`, from 0)."
 properties = [
   { name = "Caption", type = "string", category = "Appearance", doc = "The panel's text." },
   { name = "Width", type = "int", category = "Layout", doc = "The panel's width in pixels (the last panel takes what's left)." },
@@ -57,7 +57,7 @@ events = []
 [[object]]
 name = "ListItem"
 kind = "item"
-doc = "One row of a QLISTVIEW (`ListView.Item(i)`, from 0): its caption, check box and pictures; its other columns are SubItem(i, j)."
+doc = "One row of an RListView (`ListView.Item(i)`, from 0): its caption, check box and pictures; its other columns are SubItem(i, j)."
 properties = [
   { name = "Caption", type = "string", category = "Data", doc = "The row's first column." },
   { name = "Checked", type = "bool", category = "Behavior", doc = "Whether the row's check box is ticked (with CheckBoxes)." },
@@ -72,7 +72,7 @@ events = []
 [[object]]
 name = "ListColumn"
 kind = "item"
-doc = "One column of a QLISTVIEW in report view (`ListView.Column(i)`, from 0)."
+doc = "One column of an RListView in report view (`ListView.Column(i)`, from 0)."
 properties = [
   { name = "Caption", type = "string", category = "Appearance", doc = "The column's heading." },
   { name = "Width", type = "int", category = "Layout", doc = "The column's width in pixels." },

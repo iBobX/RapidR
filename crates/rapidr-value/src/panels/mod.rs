@@ -7,7 +7,7 @@
 //! | Type | Model | What it is |
 //! |---|---|---|
 //! | RPROPERTYINSPECTOR | [`inspector`] | Delphi's object inspector: typed editors from the language registry, categories / A–Z, search, Anchors' pin editor, the Events page, multi-selection |
-//! | RTOOLBOX | [`toolbox`] | the registry's components under "RapidQ" and "RapidR", with our icons; search, drag, double click |
+//! | RTOOLBOX | [`toolbox`] | the registry's components under RapidR's names, grouped by purpose (Standard, Additional, Dialogs …), with our icons; search, drag, double click |
 //! | RPROJECTTREE | [`project_tree`] | an `.rrproj` project's files by kind, forms with their components |
 //! | ROUTPUTCONSOLE | [`console`] | a program's output with ANSI (CLS, COLOR, LOCATE), the build log, problems |
 //! | RTOOLBAR | [`toolbar`] | icon buttons, separators, toggles, an overflow menu, customizable |

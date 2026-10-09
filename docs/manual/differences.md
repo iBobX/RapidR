@@ -6,6 +6,20 @@ implementation, written from the ground up in pure Rust, that is
 behaves exactly as in RapidQ; RapidR's extensions are additive and never
 change what an existing program does.
 
+## Names
+
+RapidR's components have their own names — `RForm`, `RButton`,
+`RStringGrid` … — which RapidR Studio, the examples and this manual use.
+**RapidQ's names (`QFORM`, `QBUTTON` …) are accepted everywhere, silently,
+always**: an old program runs unchanged, and both names can be mixed in one
+program. Each RapidQ name is its R name (`QBUTTON` = `RButton`), except
+`QGAUGE` = `RProgressBar`, `QOUTLINE` = `RTreeView` and `COMPORT` =
+`RComPort` ([the full list](reference/components.md)). RapidR's own
+components (`RPlot`, `RSQLite`, `RJson` …) have only an R name. RapidQ's
+other source extensions, `.rqw`, `.rqb` and `.rq`, are read like `.bas`.
+To move a program to RapidR's names, [import it](importing-rapidq.md): a
+converted copy, proved to compile exactly as the original, with a report.
+
 ## How compatibility is checked
 
 - **RapidQ's own compiler is the ground truth.** RC.EXE (Rapid-Q 2006)
@@ -37,8 +51,8 @@ change what an existing program does.
   RapidR's portable equivalent (`GetTickCount` → `TIMER`). RapidR doesn't
   emulate Windows. A few Windows calls RapidQ programs commonly make keep
   working on every platform because they have a clear meaning:
-  `Shell_NotifyIcon` (the tray), the registry (QREGISTRY), `joyGetPosEx`
-  names QDXJOYSTICK.
+  `Shell_NotifyIcon` (the tray), the registry (RRegistry), `joyGetPosEx`
+  names RDXJoystick.
 - **What a 64-bit Windows program can't do.** RapidR programs are 64-bit:
   a 32-bit DLL shipped with an old program can't be loaded (the error says
   so; a 64-bit build of the DLL is needed), x86 machine code a program
@@ -69,7 +83,7 @@ something defined instead, and says so:
 - Memory functions (`VARPTR`, `MEMCPY`, `MEMSET`, `MEMCMP`) are
   memory-safe: addresses are views of the program's own data; a bad one is
   a run-time error.
-- A QDXJOYSTICK with no joystick reads "not connected" rather than
+- An RDXJoystick with no joystick reads "not connected" rather than
   raising RapidQ's list-index error.
 - Windows on every system are drawn by RapidR in Windows' classic look,
   with real system menus, dialogs and clipboard where users expect them.
@@ -101,7 +115,7 @@ with RapidQ's compiler.
   ([Components](components.md#rapidrs-additions-to-every-component)).
 - SQL parameter binding (`Query sql, values…`, `AddParam`): no SQL injection.
 - SVG images wherever RapidQ takes a bitmap.
-- QDXJOYSTICK's axes, buttons and events; QMIDI without a system
+- RDXJoystick's axes, buttons and events; QMIDI without a system
   synthesizer.
 
 **Runtimes and tooling**

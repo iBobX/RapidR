@@ -30,7 +30,7 @@
 | Statement | |
 |---|---|
 | `TYPE name [EXTENDS type] … END TYPE (also STRUCT … END STRUCT)` | Defines a record type: fields, and optionally methods, a CONSTRUCTOR, events and a parent type to inherit from (`EXTENDS`). `STRUCT` is another name for it. |
-| `TYPE name EXTENDS QOBJECT \| component` | Makes a TYPE inherit another TYPE's members, or makes it a component of your own built on a RapidQ component (`EXTENDS QBUTTON`). |
+| `TYPE name EXTENDS QOBJECT \| component` | Makes a TYPE inherit another TYPE's members, or makes it a component of your own built on a RapidQ component (`EXTENDS RButton`). |
 | `PROPERTY SET name(value AS type) … END PROPERTY` | In a TYPE: the routine that runs when a program assigns to the property `name`, given the value assigned. |
 | `EVENT(member) … END EVENT` | In a TYPE that extends a component: the code run when the component's event happens (`EVENT OnClick … END EVENT`). |
 | `CONSTRUCTOR … END CONSTRUCTOR` | In a TYPE: code that runs when a variable of the type is created, to set its fields' first values. |
@@ -177,7 +177,7 @@
 | `DOUBLE` | 64-bit floating-point number, about 15 significant digits. Suffix `#`. |
 | `STRING` | Text of any length, counted in characters; `STRING * n` always holds n characters. Suffix `$`. |
 | `VARIANT` | Holds whatever is stored in it: a number, text or object. An undeclared variable is one. |
-| `QOBJECT` | The base type of objects: `TYPE name EXTENDS QOBJECT` makes a TYPE with methods, a constructor and inheritance. |
+| `QOBJECT` | The base type of objects: `TYPE name EXTENDS RObject` makes a TYPE with methods, a constructor and inheritance. |
 | `INT64` *(RapidR)* | 64-bit signed integer, -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807. |
 | `CURRENCY` *(RapidR)* | A number for amounts of money; RapidR keeps it as a 64-bit floating-point number. |
 | `ROBJECT` *(RapidR)* | RapidR's name for QOBJECT, the base type of objects: `TYPE name EXTENDS ROBJECT`. |

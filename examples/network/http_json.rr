@@ -1,5 +1,5 @@
-' http_json.rr: fetching a JSON document over HTTP with RHTTP and reading
-' it with RJSON — a three-day forecast.
+' http_json.rr: fetching a JSON document over HTTP with RHttp and reading
+' it with RJson — a three-day forecast.
 '
 '   python3 -m http.server 8000        (in this folder: serves forecast.json)
 '   rapidr run http_json.rr
@@ -14,7 +14,7 @@ DIM url AS STRING
 url = COMMAND$
 IF url = "" THEN url = "http://127.0.0.1:8000/forecast.json"
 
-DIM web AS RHTTP
+DIM web AS RHttp
 DIM body AS STRING
 web.Timeout = 5000
 PRINT "Fetching " + url
@@ -24,7 +24,7 @@ IF web.StatusCode <> 200 THEN
     END
 END IF
 
-DIM fc AS RJSON
+DIM fc AS RJson
 IF fc.Parse(body) = 0 THEN
     PRINT "The answer isn't JSON."
     END

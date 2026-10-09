@@ -1,4 +1,4 @@
-' json.rr: reading and writing JSON with RJSON — parse text, read values
+' json.rr: reading and writing JSON with RJson — parse text, read values
 ' by their path, change them, write the result back out.
 '
 '   rapidr run json.rr
@@ -8,7 +8,7 @@
 ' JSON text below uses ' and swaps it with REPLACESUBSTR$.)
 $APPTYPE CONSOLE
 
-DIM Order AS RJSON
+DIM Order AS RJson
 DIM text AS STRING
 text = "{'id': 1042, 'customer': {'name': 'Ada', 'city': 'London'}, 'items': ['tea', 'scones', 'jam'], 'paid': false}"
 text = REPLACESUBSTR$(text, "'", CHR$(34))
@@ -34,7 +34,7 @@ PRINT "Now paid: " + Order.Get("paid") + ", to " + Order.Get("customer.city") + 
 ' indented to a file, LoadFile reads one
 PRINT "As text: " + STR$(LEN(Order.Stringify)) + " characters"
 Order.SaveFile("order.tmp.json")
-DIM Copy AS RJSON
+DIM Copy AS RJson
 Copy.LoadFile("order.tmp.json")
 PRINT "Read back: delivery in the " + Copy.Get("delivery.slot") + ", for " + Copy.Get("customer.name")
 KILL "order.tmp.json"

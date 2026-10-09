@@ -26,6 +26,8 @@ rapidr-lang.workspace = true
 rapidr-package.workspace = true
 # a program's project (`.rrproj`): its app name, icon, version
 rapidr-project.workspace = true
+# `rapidr import-rapidq` / `upgrade-names`: RapidR's names in RapidQ programs
+rapidr-import.workspace = true
 base64 = "0.22"
 # Downloaded files are remembered by content (SHA-256)
 sha2 = "0.10"

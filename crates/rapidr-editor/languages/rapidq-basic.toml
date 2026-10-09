@@ -1,12 +1,13 @@
-# RapidQ / RapidR BASIC. Its keyword groups come from the compiler's lists
+# RapidR BASIC (RapidQ's dialect and RapidR's: one language; the id keeps
+# its first name). Its keyword groups come from the compiler's lists
 # (src/lang/basic.rs; later the language registry), added when it loads.
 # BASIC's semantic colours (which names are SUBs, components, locals) come
 # from the language service's semantic tokens, on top of these.
 
 [language]
 id = "rapidq-basic"
-name = "RapidQ / RapidR BASIC"
-extensions = ["bas", "rr", "inc", "rq"]
+name = "RapidR BASIC"
+extensions = ["rr", "bas", "inc", "rqw", "rqb", "rq"]
 case_insensitive = true
 line_comment = ["'", "REM "]
 word = '[A-Za-z_][A-Za-z0-9_]*[$%&!#]?'

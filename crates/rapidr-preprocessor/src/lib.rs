@@ -73,14 +73,36 @@ fn real_path(path: &Path) -> Option<PathBuf> {
     }
 }
 
-/// The virtual file `include_file` names ([`PreprocessOptions::virtual_files`]).
-fn find_virtual<'a>(files: &'a [(String, String)], include_file: &str) -> Option<&'a (String, String)> {
+/// The virtual file `include_file` names ([`PreprocessOptions::virtual_files`]):
+/// the one named so, else the one at that path from the including file's
+/// folder `base_dir` (`include\Win.inc` beside it, `..\lib\x.inc`), else
+/// the first of that file name.
+fn find_virtual<'a>(files: &'a [(String, String)], include_file: &str, base_dir: &Path) -> Option<&'a (String, String)> {
     let wanted = include_file.trim().replace('\\', "/");
     let base = wanted.rsplit('/').next().unwrap_or(&wanted).to_string();
+    let joined = normal_path(&format!("{}/{wanted}", base_dir.to_string_lossy().replace('\\', "/")));
     files
         .iter()
         .find(|(name, _)| name.replace('\\', "/").eq_ignore_ascii_case(&wanted))
+        .or_else(|| (!base_dir.as_os_str().is_empty()).then(|| files.iter().find(|(name, _)| normal_path(name).eq_ignore_ascii_case(&joined))).flatten())
         .or_else(|| files.iter().find(|(name, _)| name.replace('\\', "/").rsplit('/').next().is_some_and(|b| b.eq_ignore_ascii_case(&base))))
+}
+
+/// A '/'-separated path with `.` and `..` resolved (as text: no file
+/// system).
+fn normal_path(path: &str) -> String {
+    let path = path.replace('\\', "/");
+    let mut parts: Vec<&str> = Vec::new();
+    for part in path.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => {
+                parts.pop();
+            }
+            p => parts.push(p),
+        }
+    }
+    format!("{}{}", if path.starts_with('/') { "/" } else { "" }, parts.join("/"))
 }
 
 /// State shared by a file and everything it includes: a `$DEFINE` or `$MACRO`
@@ -190,6 +212,18 @@ impl PpState {
     fn is_defined(&self, symbol: &str) -> bool {
         self.defines.keys().any(|key| key.eq_ignore_ascii_case(symbol))
     }
+}
+
+/// The extensions of BASIC source files, without the dot: RapidR's `.rr`,
+/// `.bas`, RapidQ's window programs (`.rqw`), libraries of functions
+/// (`.rqb`) and of TYPEs (`.rq`), and include files (`.inc`). Each is a
+/// program `rapidr run` / `build` / `build-bc` take, and a file `$INCLUDE`
+/// reads (an include may have any extension).
+pub const SOURCE_EXTENSIONS: &[&str] = &["rr", "bas", "rqw", "rqb", "rq", "inc"];
+
+/// Whether `path` has one of [`SOURCE_EXTENSIONS`] (any case).
+pub fn is_source_path(path: &Path) -> bool {
+    path.extension().and_then(|e| e.to_str()).is_some_and(|e| SOURCE_EXTENSIONS.iter().any(|x| x.eq_ignore_ascii_case(e)))
 }
 
 /// Reads a source file. RapidQ programs are usually Windows-1252 (ANSI), not
@@ -742,7 +776,7 @@ fn preprocess_with_state(
                 }
                 continue;
             }
-            let virtual_file = find_virtual(&state.virtual_files, &include_file).cloned();
+            let virtual_file = find_virtual(&state.virtual_files, &include_file, base_dir).cloned();
             let include_path = match virtual_file.as_ref().map(|(name, _)| PathBuf::from(name)).or_else(|| resolve_include_path(base_dir, &include_file, &state.include_dirs)) {
                 Some(path) => path,
                 None => {
@@ -1111,6 +1145,12 @@ fn builtin_include(include_file: &str) -> Option<String> {
             .collect::<Vec<_>>()
             .join(" : "),
     )
+}
+
+/// What `$INCLUDE "RAPIDQ.INC"` gives when no such file is found: the
+/// constants of [`RAPIDQ_INC_CONSTANTS`], as one line of BASIC.
+pub fn rapidq_inc_text() -> String {
+    builtin_include("RAPIDQ.INC").unwrap_or_default()
 }
 
 fn strip_inline_comment(input: &str) -> &str {
@@ -1686,6 +1726,14 @@ mod tests {
         assert_eq!(result.source, "PRINT 1\nSUB Hi\nEND SUB\nHi\n");
         let origins: Vec<(String, usize)> = result.line_map.iter().map(|(f, l)| (f.as_ref().unwrap().display().to_string(), *l)).collect();
         assert_eq!(origins, [("lib/Inner.inc".to_string(), 1), ("util.inc".into(), 2), ("util.inc".into(), 3), ("main.bas".into(), 2), ("main.bas".into(), 3)]);
+        // (by its path from the including file's folder before its name
+        // alone: two files of one name)
+        let options = PreprocessOptions {
+            virtual_files: vec![("/p/x.inc".into(), "PRINT 1".into()), ("/p/include/x.inc".into(), "PRINT 2".into()), ("/q/y.inc".into(), "PRINT 3".into())],
+            ..Default::default()
+        };
+        let r = preprocess_source("$INCLUDE \"include\\X.INC\"\n$INCLUDE \"../q/y.inc\"\n", "/p", Some(std::path::PathBuf::from("/p/main.bas")), options).unwrap();
+        assert_eq!(r.source, "PRINT 2\nPRINT 3\n");
     }
 
     #[test]

@@ -25,7 +25,7 @@ properties = [
   { name = "NameWidth", type = "int", default = 120, doc = "The width of the names' column, in pixels (the user drags the line between the columns)." },
   { name = "Selected", type = "string", default = "", design = false, doc = "The property (or event) whose row is selected; setting it selects that row." },
   { name = "RowCount", type = "int", access = "read", design = false, doc = "How many rows are shown now (the categories' headings included)." },
-  { name = "TargetType", type = "string", access = "read", design = false, doc = "The inspected component's type as the program writes it (QBUTTON), or \"\" when several of different types are inspected." },
+  { name = "TargetType", type = "string", access = "read", design = false, doc = "The inspected component's type: as its code writes it for a designer's component, RapidR's name (RButton) for a running program's; \"\" when several of different types are inspected." },
   { name = "Rows", type = "string", access = "read", design = false, doc = "Every row shown, one a line, as Row gives them (\"Name=Value\", a category heading as \"[Name]\")." },
   { name = "Doc", type = "string", access = "read", design = false, doc = "What the selected row is, in words, as the inspector shows it under the rows: a property's description, an event's with its parameters." },
   { name = "Height", type = "int" },
@@ -67,12 +67,12 @@ visual = true
 size = [220, 400]
 default_event = "OnPick"
 sets = ["layout", "a11y"]
-doc = "The palette of components a form designer places, grouped under \"RapidQ\" (the components RapidQ has, shown with their Q names: QBUTTON) and \"RapidR\" (RapidR's own), each with its icon and the name the designer writes. The user searches it, double-clicks a component (or presses Enter) to add it, or drags it onto a designer. Templates — a component with preset properties — have a group of their own."
+doc = "The palette of components a form designer places, under RapidR's names (RButton; an item's card gives RapidQ's name where RapidQ has one), grouped by purpose (Standard, Additional, Dialogs, System, Network, Data …), each with its icon. The user searches it (by any of a component's names, or words of what it does), double-clicks a component (or presses Enter) to add it, or drags it onto a designer, which writes it in its file's own style. Templates — a component with preset properties — have a group of their own."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "Filter", type = "string", default = "", design = false, doc = "The search box's text: only the components whose names match it are shown." },
-  { name = "ShowNames", type = "string", default = "as-written", doc = "How components are named: \"as-written\" (RapidQ's components by their Q names, the others by their R names — what the designer writes), \"rapidr\" (every one by its R name) or \"titles\" (in words: \"Button\")." },
-  { name = "Selected", type = "string", default = "", design = false, doc = "The selected component's type as the designer writes it (QBUTTON), or a template's name." },
+  { name = "ShowNames", type = "string", default = "rapidr", doc = "How components are named: \"rapidr\" (RapidR's names: RButton), \"rapidq\" (as a file written with RapidQ's names writes them: QBUTTON for RapidQ's components, RapidR's names for the others) or \"titles\" (in words: \"Button\")." },
+  { name = "Selected", type = "string", default = "", design = false, doc = "The selected component's type under RapidR's name (RButton), or a template's name." },
   { name = "Count", type = "int", access = "read", design = false, doc = "How many components are shown now: the filter applied, a closed group's left out (Item counts the same ones)." },
   { name = "Height", type = "int" },
   { name = "Hint", type = "string" },
@@ -85,8 +85,8 @@ properties = [
   { name = "Font", type = "font" },
 ]
 methods = [
-  { name = "Item", params = "Index AS INTEGER", returns = "STRING", doc = "The component shown at Index (from 0) as the designer writes it." },
-  { name = "Expand", params = "Group AS STRING", doc = "Opens a group (\"RapidQ\", \"Standard\", \"Data Science\" …)." },
+  { name = "Item", params = "Index AS INTEGER", returns = "STRING", doc = "The component shown at Index (from 0), under RapidR's name (RButton), or a template's name." },
+  { name = "Expand", params = "Group AS STRING", doc = "Opens a group (\"Standard\", \"Data Science\" …, by its title or id)." },
   { name = "Collapse", params = "Group AS STRING", doc = "Closes a group." },
   { name = "ExpandAll", value = true, doc = "Opens every group." },
   { name = "CollapseAll", value = true, doc = "Closes every group." },
@@ -95,7 +95,7 @@ methods = [
   { name = "Template", params = "Name AS STRING", returns = "STRING", doc = "A template's CREATE block." },
 ]
 events = [
-  { name = "OnPick", params = "Type AS STRING", doc = "The user chose a component to add (double click, Enter): its type as the designer writes it, or a template's name." },
+  { name = "OnPick", params = "Type AS STRING", doc = "The user chose a component to add (double click, Enter): its type under RapidR's name (RButton: a designer writes it in its file's own style), or a template's name." },
   { name = "OnSelect", params = "Type AS STRING", doc = "The selected component changed." },
   { name = "OnDragStart", params = "Type AS STRING", doc = "The user started dragging a component out of the toolbox." },
   { name = "OnDragDrop", params = "Type AS STRING, Target AS STRING, X AS INTEGER, Y AS INTEGER", doc = "A dragged component was let go over component Target, the deepest one shown there on the toolbox's form (its name in lower case), at (X, Y) in Target's own pixels; over the bare form Target is \"\" and (X, Y) is in the form's client area. Let go over the toolbox itself, nothing is dropped." },

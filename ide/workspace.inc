@@ -23,9 +23,9 @@ DIM SessionFiles AS STRING
 
 DECLARE SUB DocumentViewChanged(Name AS STRING, View AS STRING)
 DECLARE SUB SaveSoon
-DECLARE SUB DesignPicked(Index AS INTEGER, Sender AS RDESIGNSURFACE)
+DECLARE SUB DesignPicked(Index AS INTEGER, Sender AS RDesignSurface)
 
-DIM LayoutSaver AS QTIMER
+DIM LayoutSaver AS RTimer
 
 ' (document d's pane: its code editor's name)
 FUNCTION DocPane(d AS INTEGER) AS STRING
@@ -91,7 +91,7 @@ SUB DocumentViewChanged(Name AS STRING, View AS STRING)
 END SUB
 
 ' (side by side: the designer clicked makes Format and Edit the designer's)
-SUB DesignPicked(Index AS INTEGER, Sender AS RDESIGNSURFACE)
+SUB DesignPicked(Index AS INTEGER, Sender AS RDesignSurface)
   DIM d AS INTEGER
   d = Sender.Tag
   IF d < 0 OR d >= DocCount THEN EXIT SUB
@@ -242,16 +242,16 @@ END SUB
 ' A card each (its icon, its name, what it makes; RPROJECT's New writes it):
 ' a click picks one, a double click (or Enter) makes the project.
 
-DIM TplCard(TPLS) AS QPANEL
-DIM TplIcon(TPLS) AS QIMAGE
-DIM TplBmp(TPLS) AS QBITMAP
-DIM TplTitle(TPLS) AS QLABEL
-DIM TplText(TPLS) AS QLABEL
+DIM TplCard(TPLS) AS RPanel
+DIM TplIcon(TPLS) AS RImage
+DIM TplBmp(TPLS) AS RBitmap
+DIM TplTitle(TPLS) AS RLabel
+DIM TplText(TPLS) AS RLabel
 DIM TplIconName(TPLS) AS STRING
 
-DECLARE SUB TemplateClicked(Sender AS QPANEL)
-DECLARE SUB TemplateLabelClicked(Sender AS QLABEL)
-DECLARE SUB TemplateChosen(Sender AS QLABEL)
+DECLARE SUB TemplateClicked(Sender AS RPanel)
+DECLARE SUB TemplateLabelClicked(Sender AS RLabel)
+DECLARE SUB TemplateChosen(Sender AS RLabel)
 
 SUB AddTemplate(i AS INTEGER, Id AS STRING, Icon AS STRING, Title AS STRING, What AS STRING)
   TplId(i) = Id
@@ -313,15 +313,15 @@ SUB PickTemplate(i AS INTEGER)
   NEXT
 END SUB
 
-SUB TemplateClicked(Sender AS QPANEL)
+SUB TemplateClicked(Sender AS RPanel)
   PickTemplate Sender.Tag
 END SUB
 
-SUB TemplateLabelClicked(Sender AS QLABEL)
+SUB TemplateLabelClicked(Sender AS RLabel)
   PickTemplate Sender.Tag
 END SUB
 
-SUB TemplateChosen(Sender AS QLABEL)
+SUB TemplateChosen(Sender AS RLabel)
   PickTemplate Sender.Tag
   NewCreate
 END SUB

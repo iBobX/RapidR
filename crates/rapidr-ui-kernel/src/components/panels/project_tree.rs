@@ -577,7 +577,7 @@ impl ComponentKind for ProjectTree {
         for (i, r) in rows.iter().enumerate() {
             let mut item = AccessNode::new(part_id(cx.id, PART_ITEM, i), Role::TreeItem);
             item.name = match &r.kind {
-                NodeKind::Component { name, ty, .. } => format!("{name}, {ty}"),
+                NodeKind::Component { name, ty, .. } => format!("{name}, {}", rapidr_value::objects::design::shown_type(ty)),
                 _ => r.label.clone(),
             };
             item.description = match &r.kind {

@@ -189,7 +189,7 @@ Each table's columns are: ID | item | the best competitor | RapidR better, concr
 
 | ID | Item | Best competitor | RapidR better | P | Acceptance |
 |---|---|---|---|---|---|
-| TBX-1 | From the registry | Delphi's palette; Xojo's Library | Every component the registry knows (not a hand list), grouped "RapidQ" (Standard, Additional, Dialogs, System, Media) and "RapidR" (Data, Data Science, Web, AI, IDE), with D8 icons and names as written (QBUTTON, RPLOT). | P0 | `toolbox-registry`: the item count equals `rapidr lang export --json`'s visual + tray components (minus `planned`). |
+| TBX-1 | From the registry | Delphi's palette; Xojo's Library | Every component the registry knows (not a hand list), grouped by purpose (Standard, Additional, Dialogs, System, Network, Data, Data Science, Media, DirectX, Direct3D, Web, AI, IDE), with D8 icons and RapidR's names (RButton, RPlot; the card gives RapidQ's name). | P0 | `toolbox-registry`: the item count equals `rapidr lang export --json`'s visual + tray components (minus `planned`). |
 | TBX-2 | Search | Xcode's Library (⌘⇧L) filter; Delphi 13 | Type to filter by name, Q / R name and doc words ("chart" finds RPLOT). Enter adds the first match. | P0 | `toolbox-search`: `focus:toolbox,type:chart` → first item RPLOT. |
 | TBX-3 | Add | — | See DES-4: double-click, Enter, drag, click then draw. Non-visual components go to the tray. | P0 | DES-4 cases. |
 | TBX-4 | Hover card | Xcode's Library detail pane | Icon, one-line doc, origin, "desktop only" / "web only" flags, a "Help" link. | P0 | `hover.text` on an item is non-empty and includes the origin. |

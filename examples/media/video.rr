@@ -1,10 +1,10 @@
-' video.rr: an AVI video on a form with QVIDEO — Play, Pause, a frame
+' video.rr: an AVI video on a form with RVideo — Play, Pause, a frame
 ' counter.
 '
 '   rapidr run video.rr
 '
-' QVIDEO is RapidQ's QVideo.inc object (built into RapidR, with its own
-' decoders: uncompressed, RLE, Video 1, Cinepak, Motion JPEG). Its Parent is
+' RVideo (RapidQ's QVIDEO, from its QVideo.inc) is built into RapidR, with its own
+' decoders: uncompressed, RLE, Video 1, Cinepak, Motion JPEG. Its Parent is
 ' the window it plays in; Left, Top, Width and Height place the picture.
 ' clip.avi (a bouncing ball, 24 frames) was made by
 ' tools/make_example_media.py.
@@ -16,22 +16,22 @@ DECLARE SUB PlayIt
 DECLARE SUB PauseIt
 DECLARE SUB Changed (Position AS LONG, TimePos AS LONG)
 
-DIM Video AS QVIDEO
+DIM Video AS RVideo
 Video.Timer.Interval = 50
 Video.OnChange = Changed
 
-CREATE Form AS QFORM
+CREATE Form AS RForm
     Caption = "Video"
     Width = 300
     Height = 270
     Center
-    CREATE PlayBtn AS QBUTTON
+    CREATE PlayBtn AS RButton
         Caption = "&Play": Left = 12: Top = 12: Width = 80: OnClick = PlayIt
     END CREATE
-    CREATE PauseBtn AS QBUTTON
+    CREATE PauseBtn AS RButton
         Caption = "P&ause": Left = 100: Top = 12: Width = 80: OnClick = PauseIt
     END CREATE
-    CREATE Info AS QLABEL
+    CREATE Info AS RLabel
         Left = 12: Top = 210: Width = 270
     END CREATE
 END CREATE

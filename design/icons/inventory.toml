@@ -271,90 +271,64 @@ module = "module"
 resource = "resource"
 
 [toolbox-groups]
-# docs/ide-plan.md I1 (RToolbox): "RapidQ" and "RapidR", and their groups.
-# members: component types; every component type (and planned component)
-# is in exactly one group. A group under "rapidq" holds only components
-# RapidQ has (RC.EXE's names and its include libraries': the language
-# registry's `rapidq` names, crates/rapidr-lang/data/components), shown with their Q names; every other
-# component is under "rapidr" (build.py checks both).
-[toolbox-groups.rapidq]
-icon = "rapidq"
-title = "RapidQ"
-[toolbox-groups.rapidr]
-icon = "rapidr"
-title = "RapidR"
+# docs/ide-plan.md I1 (RToolbox) and R-NAMES (2026-10-08): the groups by
+# purpose, in this order, every component under RapidR's name (an item's
+# card gives RapidQ's name where RapidQ has one; no group is named after
+# RapidQ or RapidR). members: component types; every component type (and
+# planned component) is in exactly one group (build.py checks it).
 [toolbox-groups.standard]
 icon = "standard"
 title = "Standard"
-parent = "rapidq"
-members = "RFORM RBUTTON RLABEL REDIT RCHECKBOX RRADIOBUTTON RCOMBOBOX RLISTBOX RGROUPBOX RPANEL RIMAGE RSCROLLBAR RMAINMENU RMENUITEM RPOPUPMENU RTIMER"
+members = "RFORM RBUTTON RLABEL REDIT RMEMO RCHECKBOX RRADIOBUTTON RCOMBOBOX RLISTBOX RGROUPBOX RPANEL RIMAGE RSCROLLBAR RMAINMENU RMENUITEM RPOPUPMENU RTIMER"
 [toolbox-groups.additional]
 icon = "additional"
 title = "Additional"
-parent = "rapidq"
-members = "RFORMMDI RCOOLBTN ROVALBTN RRICHEDIT RSTRINGGRID RLISTVIEW RTREEVIEW RTABCONTROL RHEADER RTRACKBAR RPROGRESSBAR RSTATUSBAR RSPLITTER RSCROLLBOX RCANVAS RFILELISTBOX RDIRTREE RBEVEL RDIGDISPLAY RGLASSFRAME"
+members = "RFORMMDI RCOOLBTN ROVALBTN RRICHEDIT RSTRINGGRID RLISTVIEW RTREEVIEW RTABCONTROL RHEADER RTRACKBAR RPROGRESSBAR RPROGRESS RUPDOWN RDATETIMEPICKER RTOOLBAR RSTATUSBAR RSPLITTER RSCROLLBOX RCANVAS RFILELISTBOX RDIRTREE RBEVEL RDIGDISPLAY RGLASSFRAME"
 [toolbox-groups.dialogs]
 icon = "dialogs"
 title = "Dialogs"
-parent = "rapidq"
 members = "ROPENDIALOG RSAVEDIALOG RFILEDIALOG RCOLORDIALOG RFONTDIALOG"
 [toolbox-groups.system]
 icon = "system"
 title = "System"
-parent = "rapidq"
-members = "RFONT RBITMAP RIMAGELIST RSTRINGLIST RFILESTREAM RMEMORYSTREAM RREGISTRY RPRINTER RRECT RNOTIFYICONDATA RSOCKET RCOMPORT RCGI RDOWNLOAD RMYSQL"
+members = "RFONT RBITMAP RIMAGELIST RSTRINGLIST RFILESTREAM RMEMORYSTREAM RREGISTRY RPRINTER RRECT RNOTIFYICONDATA"
+[toolbox-groups.network]
+icon = "network"
+title = "Network"
+members = "RSOCKET RSERVERSOCKET RHTTP RDOWNLOAD RCGI RCOMPORT"
+[toolbox-groups.data]
+icon = "data"
+title = "Data"
+members = "RSQLITE RMYSQL RJSON RDBCONNECTION RDATAFILE RDBQUERY RDBTABLE RDATASOURCE RDBGRID RDBEDIT RDBLABEL RDBMEMO RDBCHECKBOX RDBCOMBOBOX RDBLOOKUPCOMBO RDBNAVIGATOR"
+[toolbox-groups.datascience]
+icon = "datascience"
+title = "Data Science"
+members = "RNUM RDATAFRAME RPLOT RDFFILTER RDFSORT RDFGROUP RDFJOIN RDFCOMPUTE RDFSELECT RDFLIMIT RDATAPREVIEW"
 [toolbox-groups.media]
 icon = "media"
 title = "Media"
-parent = "rapidq"
 members = "RMIDI RWAVE RVIDEO RCDAUDIO"
 [toolbox-groups.directx]
 icon = "directx"
 title = "DirectX"
-parent = "rapidq"
 members = "RDXSCREEN RDXIMAGELIST RDXTIMER RDXSOUND RDXJOYSTICK"
 [toolbox-groups.direct3d]
 icon = "direct3d"
 title = "Direct3D"
-parent = "rapidq"
 members = "RD3DFRAME RD3DMESHBUILDER RD3DMESH RD3DFACE RD3DLIGHT RD3DTEXTURE RD3DVISUAL RD3DWRAP RD3DVECTOR RD3DANIMATION RD3DANIMATIONSET"
-[toolbox-groups.controls]
-icon = "controls"
-title = "Controls"
-parent = "rapidr"
-members = "RMEMO RUPDOWN RDATETIMEPICKER RTOOLBAR RPROGRESS"
-[toolbox-groups.network]
-icon = "network"
-title = "Network"
-parent = "rapidr"
-members = "RHTTP RSERVERSOCKET"
-[toolbox-groups.data]
-icon = "data"
-title = "Data"
-parent = "rapidr"
-members = "RSQLITE RJSON RDBCONNECTION RDATAFILE RDBQUERY RDBTABLE RDATASOURCE RDBGRID RDBEDIT RDBLABEL RDBMEMO RDBCHECKBOX RDBCOMBOBOX RDBLOOKUPCOMBO RDBNAVIGATOR"
-[toolbox-groups.datascience]
-icon = "datascience"
-title = "Data Science"
-parent = "rapidr"
-members = "RNUM RDATAFRAME RPLOT RDFFILTER RDFSORT RDFGROUP RDFJOIN RDFCOMPUTE RDFSELECT RDFLIMIT RDATAPREVIEW"
 [toolbox-groups.web]
 icon = "web"
 title = "Web"
-parent = "rapidr"
 members = "RWEBVIEW RDOM RJAVASCRIPT RWEBSTORAGE RWEBAUDIO RWEBVIDEO RWEBNOTIFICATION RWEBGEOLOCATION RROUTER"
 [toolbox-groups.ai]
 icon = "ai"
 title = "AI"
-parent = "rapidr"
 members = "RAI RAICHAT"
 [toolbox-groups.ide]
 icon = "ide"
 title = "IDE"
-parent = "rapidr"
 members = "RCODEEDITOR RDESIGNSURFACE RDOCKMANAGER RFORMDESIGNER RPROPERTYINSPECTOR RPROJECTTREE RTOOLBOX ROUTPUTCONSOLE RCOMMANDPALETTE RDIFFVIEW RCOMPONENTTRAY RTABORDEREDITOR RMENUEDITOR RPROGRAMVIEW RPROGRAMSESSION RPROJECT RLANGUAGESERVICE RBREAKPOINTLIST RCALLSTACKVIEW RVARIABLESVIEW RIMMEDIATEWINDOW"
 [toolbox-groups.templates]
 icon = "templates"
 title = "Templates"
-parent = "rapidr"
 members = ""
