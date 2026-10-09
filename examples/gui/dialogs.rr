@@ -13,42 +13,42 @@ DECLARE SUB PickColour
 DECLARE SUB PickFont
 DECLARE SUB Ask
 
-CREATE OpenDlg AS QOPENDIALOG
+CREATE OpenDlg AS ROpenDialog
     Caption = "Open a text file"
     Filter = "Text files|*.txt|All files|*.*"
 END CREATE
-CREATE ColourDlg AS QCOLORDIALOG
+CREATE ColourDlg AS RColorDialog
 END CREATE
-CREATE FontDlg AS QFONTDIALOG
+CREATE FontDlg AS RFontDialog
 END CREATE
-DIM ChosenFont AS QFONT
+DIM ChosenFont AS RFont
 
-CREATE Form AS QFORM
+CREATE Form AS RForm
     Caption = "Dialogs"
     Width = 360
     Height = 230
     Center
-    CREATE OpenBtn AS QBUTTON
+    CREATE OpenBtn AS RButton
         Caption = "&Open...": Left = 12: Top = 12: Width = 100
         OnClick = OpenFile
     END CREATE
-    CREATE ColourBtn AS QBUTTON
+    CREATE ColourBtn AS RButton
         Caption = "&Colour...": Left = 12: Top = 44: Width = 100
         OnClick = PickColour
     END CREATE
-    CREATE FontBtn AS QBUTTON
+    CREATE FontBtn AS RButton
         Caption = "&Font...": Left = 12: Top = 76: Width = 100
         OnClick = PickFont
     END CREATE
-    CREATE AskBtn AS QBUTTON
+    CREATE AskBtn AS RButton
         Caption = "&Ask...": Left = 12: Top = 108: Width = 100
         OnClick = Ask
     END CREATE
-    CREATE Sample AS QPANEL
+    CREATE Sample AS RPanel
         Caption = "Sample text": Left = 126: Top = 12: Width = 210: Height = 120
         BevelOuter = bvLowered
     END CREATE
-    CREATE Answer AS QLABEL
+    CREATE Answer AS RLabel
         Caption = "Pick something.": Left = 12: Top = 150: Width = 330
     END CREATE
 END CREATE

@@ -111,7 +111,7 @@ const report = [];
 for (const rel of programs) {
   const src0 = join(EXAMPLES, rel);
   const text = readFileSync(src0, "latin1");
-  const name = rel.replace(/[\/ ]/g, "_").replace(/\.bas$/i, "");
+  const name = rel.replace(/[\/ ]/g, "_").replace(/\.(bas|rqw|rqb|rq)$/i, "");
   const entry = { program: rel };
   report.push(entry);
   if (NETWORK.test(text)) {

@@ -43,7 +43,7 @@ web-sys = { version = "0.3.106", features = [
     "Node", "NamedNodeMap", "Attr", "CssStyleDeclaration", "DomRect", "DomStringMap", "EventTarget", "Event",
     "AddEventListenerOptions", "MouseEvent", "PointerEvent", "WheelEvent", "KeyboardEvent", "InputEvent",
     "CompositionEvent", "ClipboardEvent", "DataTransfer", "FocusEvent", "FocusOptions", "MediaQueryList",
-    "Navigator", "Clipboard", "HtmlHeadElement",
+    "Navigator", "Clipboard", "HtmlHeadElement", "DragEvent", "FileList", "File", "Blob",
 ] }
 # (feature "gpu") vello on wgpu's WebGPU backend (MIT OR Apache-2.0): its
 # surfaces and devices; rapidr-ui-render's vello.

@@ -79,6 +79,7 @@ SITES = {
     ("crates/rapidr-runtime-web/src/overlay_web.rs", "get_prop"): WEB,
     ("crates/rapidr-runtime-web/src/overlay_web.rs", "method"): WEB,
     # --- the shared models
+    ("crates/rapidr-value/src/autosize.rs", "resizes"): "RLABEL",
     ("crates/rapidr-value/src/data.rs", "builtin"): "-",
     ("crates/rapidr-value/src/input.rs", "vk_of_key"): "-",
     ("crates/rapidr-value/src/lib.rs", "shared_builtin"): "-",
@@ -86,6 +87,14 @@ SITES = {
     ("crates/rapidr-value/src/font_dialog.rs", "alias"): "RFONTDIALOG",
     ("crates/rapidr-value/src/font_dialog.rs", "call"): "RFONTDIALOG",
     ("crates/rapidr-value/src/globals.rs", "file_rec"): "FILEREC",
+    # (QMEMORYSTREAM's MemCopyFrom / MemCopyTo, the streams' Save / LoadUDTArray)
+    ("crates/rapidr-value/src/objects/stream_ops.rs", "call"): "RFILESTREAM RMEMORYSTREAM",
+    ("crates/rapidr-value/src/globals.rs", "hint_setting"): "APPLICATION",
+    # (form members: HideTitleBar, ShapeForm, QFORM's MDI members, StartDrag)
+    ("crates/rapidr-runtime-core/src/form_members.rs", "method"): "RFORM RFORMMDI RBUTTON RCOOLBTN ROVALBTN",
+    ("crates/rapidr-runtime-core/src/form_members.rs", "get"): "RFORM RFORMMDI",
+    ("crates/rapidr-runtime-web/src/form_members_web.rs", "method"): "RFORM RFORMMDI RBUTTON RCOOLBTN ROVALBTN",
+    ("crates/rapidr-runtime-web/src/form_members_web.rs", "get"): "RFORM RFORMMDI",
     ("crates/rapidr-value/src/layout.rs", "with"): "*",
     # (the layout engine every runtime and the designer run; a label's AutoSize)
     ("crates/rapidr-value/src/layout.rs", "after_set"): "*",
@@ -93,6 +102,8 @@ SITES = {
     # (I4: the designer model replays CREATE blocks through that layout)
     ("crates/rapidr-value/src/designer/layout.rs", "stored"): "*",
     ("crates/rapidr-value/src/designer/layout.rs", "set"): "*",
+    # (a panel's inside, its bevels: BorderStyle read for objects::bevel)
+    ("crates/rapidr-value/src/designer/layout.rs", "client_rect"): "RPANEL",
     ("crates/rapidr-value/src/layout.rs", "default_property"): "*",
     ("crates/rapidr-value/src/autosize.rs", "resizes"): "RLABEL",
     ("crates/rapidr-value/src/mdi.rs", "call"): "RFORMMDI",
@@ -115,6 +126,7 @@ SITES = {
     ("crates/rapidr-value/src/objects/d3d/mod.rs", "face_call"): "RD3DFACE",
     ("crates/rapidr-value/src/objects/d3d/mod.rs", "light_call"): "RD3DLIGHT",
     ("crates/rapidr-value/src/objects/design.rs", "*"): "RDESIGNSURFACE",
+    ("crates/rapidr-value/src/objects/diffview.rs", "*"): "RDIFFVIEW",
     ("crates/rapidr-value/src/objects/directx.rs", "DxScreen"): "RDXSCREEN",
     ("crates/rapidr-value/src/objects/directx.rs", "DxSound"): "RDXSOUND",
     ("crates/rapidr-value/src/objects/dirtree.rs", "*"): "RDIRTREE",
@@ -132,6 +144,7 @@ SITES = {
     ("crates/rapidr-value/src/panels/console.rs", "*"): "ROUTPUTCONSOLE",
     ("crates/rapidr-value/src/panels/toolbar.rs", "*"): "RTOOLBAR",
     ("crates/rapidr-value/src/panels/palette.rs", "*"): "RCOMMANDPALETTE",
+    ("crates/rapidr-value/src/panels/markdown.rs", "*"): "RMARKDOWNVIEW",
     ("crates/rapidr-value/src/objects/grid.rs", "*"): "RSTRINGGRID",
     ("crates/rapidr-value/src/objects/header.rs", "call", "member"): "HEADERSECTION",
     ("crates/rapidr-value/src/objects/header.rs", "*"): "RHEADER",
@@ -147,6 +160,8 @@ SITES = {
     ("crates/rapidr-value/src/objects/printer.rs", "*"): "RPRINTER",
     ("crates/rapidr-value/src/objects/tabcontrol.rs", "*"): "RTABCONTROL",
     ("crates/rapidr-value/src/objects/textedit.rs", "*"): TEXTS,
+    ("crates/rapidr-value/src/objects/codeedit.rs", "*"): "RCODEEDITOR",
+    ("crates/rapidr-value/src/autosize.rs", "resizes"): "RLABEL",
     ("crates/rapidr-value/src/objects/trackbar.rs", "*"): "RTRACKBAR",
     ("crates/rapidr-value/src/objects/tree.rs", "item"): "TREENODE",
     ("crates/rapidr-value/src/objects/tree.rs", "*"): "RTREEVIEW",

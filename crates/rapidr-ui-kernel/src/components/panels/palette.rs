@@ -10,7 +10,7 @@
 //! click runs a command (the palette closes first, then OnCommand),
 //! Escape or the focus leaving closes it (OnCancel).
 
-use rapidr_value::input::Button;
+use rapidr_value::input::{Button, Cursor};
 use rapidr_value::objects::a11y::{part_id, AccessNode, Action, Role, PART_ITEM};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Place, Rect};
@@ -362,6 +362,15 @@ impl ComponentKind for Palette {
         for k in 1..=4 {
             let c = common::mix(l.shadow, under, 0.55 + 0.11 * k as f64);
             p.ring((-k, -k + 1, w + 2 * k, h + 2 * k), 8.0 + k as f64, c, 1.0);
+        }
+    }
+
+    /// The search box: the I-beam.
+    fn pointer(&self, cx: &mut Cx, x: i64, y: i64) -> Cursor {
+        if inside(editor_box(text_area(search_rect(cx.width()))), x, y) {
+            Cursor::IBeam
+        } else {
+            Cursor::Default
         }
     }
 

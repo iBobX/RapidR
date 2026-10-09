@@ -10,6 +10,8 @@
 '   OutputBox     "Output"      bottom            ROUTPUTCONSOLE: output, build,
 '                                                 problems (panels.inc)
 '   ImmediateBox  "Immediate"   with Output       RImmediateWindow (I6)
+'   VarsTree, WatchPanel, StackTree, BpPanel      beside Output: Variables,
+'                 Watch, Call Stack, Breakpoints (debug.inc SetUpDebug)
 '   CodeDoc(i)    a source file's tab             RCodeEditor    (L-EDVIEW)
 '   DesignDoc(i)  its form: the tab's Design view RDESIGNSURFACE (workspace.inc)
 '   SearchPane    "Search"      with Project      Find in Files  (search.inc)
@@ -21,7 +23,7 @@ SUB SetUpDock
   Dock.AddPane(Inspector, "Properties", "right", "properties")
   Dock.AddPane(OutlineTree, "Outline", "bottom:inspector", "outline")
   Dock.AddPane(OutputBox, "Output", "bottom:documents", "output")
-  Dock.AddPane(ImmediateBox, "Immediate", "tab:outputbox", "debug")
+  Dock.AddPane(ImmediateBox, "Immediate", "tab:outputbox", "immediate")
   Dock.AddPane(Welcome, "Welcome", "documents", "list")
   Dock.ShowPane("outputbox")
 END SUB
@@ -31,20 +33,20 @@ END SUB
 ' Examples: RapidR's own, as cards in a grid that follows the page's width
 ' (each also in the command palette, for the keyboard).
 
-DIM StartIcon(4) AS QIMAGE
-DIM StartBmp(4) AS QBITMAP
-DIM StartLink(4) AS QLABEL
+DIM StartIcon(4) AS RImage
+DIM StartBmp(4) AS RBitmap
+DIM StartLink(4) AS RLabel
 DIM StartIconName(4) AS STRING
-DIM RecentLink(6) AS QLABEL
-DIM ExCard(16) AS QPANEL
-DIM ExIcon(16) AS QIMAGE
-DIM ExBmp(16) AS QBITMAP
-DIM ExTitle(16) AS QLABEL
-DIM ExText(16) AS QLABEL
+DIM RecentLink(6) AS RLabel
+DIM ExCard(16) AS RPanel
+DIM ExIcon(16) AS RImage
+DIM ExBmp(16) AS RBitmap
+DIM ExTitle(16) AS RLabel
+DIM ExText(16) AS RLabel
 DIM ExampleFile(16) AS STRING
 DIM ExampleWhat(16) AS STRING
 DIM ExampleCount AS INTEGER
-DIM LogoBmp AS QBITMAP
+DIM LogoBmp AS RBitmap
 
 SUB AddStart(k AS INTEGER, Icon AS STRING, Caption AS STRING)
   StartIcon(k).Parent = Welcome
@@ -89,16 +91,18 @@ END SUB
 SUB FillExamples
   AddStart 0, "file.newProject", "New Project..."
   AddStart 1, "file.open", "Open Project or File..."
-  AddStart 2, "RFORM", "Open an Example"
-  AddStart 3, "view.commandPalette", "All Commands"
+  AddStart 2, "file.import", "Import a RapidQ Program..."
+  AddStart 3, "RFORM", "Open an Example"
+  AddStart 4, "view.commandPalette", "All Commands"
   ExampleCount = 0
+  AddExample "data/csv_explorer.rr", "Drop a CSV, see it charted"
   AddExample "gui/hello_form.rr", "A form, a button, its OnClick"
   AddExample "gui/menus.rr", "Main and pop-up menus"
   AddExample "gui/dialogs.rr", "Open, save, colour, font"
   AddExample "gui/pantry.rr", "A list and a grid together"
   AddExample "gui/themes.rr", "The themes, switched live"
   AddExample "data/dataframe.rr", "A data frame and a chart"
-  AddExample "rapidq/notepad.bas", "RapidQ's notepad, as it was"
+  AddExample "rapidq/notepad.bas", "A program in RapidQ's style"
   AddExample "basics/hello.rr", "PRINT, FOR, SUB, FUNCTION"
   LayOutWelcome
 END SUB
@@ -112,7 +116,7 @@ SUB LoadWelcomeIcons
     LogoBmp.LoadFromFile HomeDir + "ide/assets/rapidr-lockup.svg"
   END IF
   WelcomeLogo.BMPHandle = LogoBmp
-  FOR k = 0 TO 3
+  FOR k = 0 TO 4
     StartBmp(k).LoadIcon StartIconName(k), 16
     StartIcon(k).BMPHandle = StartBmp(k)
   NEXT
@@ -149,7 +153,7 @@ SUB FillRecent
   IF n > 6 THEN n = 6
   FOR i = 0 TO 5
     RecentLink(i).Parent = Welcome
-    RecentLink(i).Left = 48: RecentLink(i).Top = 326 + i * 24: RecentLink(i).Width = 230: RecentLink(i).Height = 20
+    RecentLink(i).Left = 48: RecentLink(i).Top = 354 + i * 24: RecentLink(i).Width = 230: RecentLink(i).Height = 20
     RecentLink(i).Cursor = -21
     RecentLink(i).Tag = i
     RecentLink(i).OnClick = RecentPicked
@@ -165,14 +169,14 @@ SUB FillRecent
   RecentNone.Visible = Flag(n = 0)
 END SUB
 
-SUB CardPicked(Sender AS QPANEL)
+SUB CardPicked(Sender AS RPanel)
   OpenProject HomeDir + "examples/" + ExampleFile(Sender.Tag)
 END SUB
 
-SUB CardLabelPicked(Sender AS QLABEL)
+SUB CardLabelPicked(Sender AS RLabel)
   OpenProject HomeDir + "examples/" + ExampleFile(Sender.Tag)
 END SUB
 
-SUB RecentPicked(Sender AS QLABEL)
+SUB RecentPicked(Sender AS RLabel)
   OpenProject FIELD$(RecentList, CHR$(10), Sender.Tag + 1)
 END SUB

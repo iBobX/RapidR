@@ -206,7 +206,9 @@ def corpus_programs(filters):
     progs, skipped = [], []
     for d, _, fs in sorted(os.walk(examples)):
         for f in sorted(fs):
-            if not f.lower().endswith(".bas"):
+            # (.rqw: RapidQ IDE's window programs; .rqb, .rq: programs too —
+            # BASIC as .bas)
+            if not f.lower().endswith((".bas", ".rqw", ".rqb", ".rq")):
                 continue
             src = os.path.join(d, f)
             rel = os.path.relpath(src, examples)

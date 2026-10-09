@@ -230,7 +230,10 @@ impl Mirror {
             return;
         }
         let Some(comp) = focused else { return };
-        let Some((raw, s, l)) = rapidr_value::objects::with_textedit(comp, |t| (t.raw(), t.sel_start, t.sel_len)) else { return };
+        // (a code editor's: the lines around its caret — a page never holds
+        // a 10 MB file — and the selection in them)
+        let Some(w) = rapidr_value::objects::text_window(comp) else { return };
+        let (raw, s, l) = (w.text, w.sel_start, w.sel_len);
         let utf16 = |chars: usize| raw.chars().take(chars).map(char::len_utf16).sum::<usize>() as u32;
         let (start, end) = (utf16(s), utf16(s + l));
         if let Some(i) = target.dyn_ref::<web_sys::HtmlInputElement>() {

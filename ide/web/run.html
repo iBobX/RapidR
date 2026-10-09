@@ -139,6 +139,9 @@
       // (the program's command line — COMMAND$(n), CommandCount — is its
       // own, never this frame's query string, which is the IDE's)
       window.RAPIDR_ARGS = Array.isArray(data.args) ? data.args.map(String) : [];
+      // (its own path — Application.ExeName, a message's caption: its
+      // Title — the program's, not this frame's run.html)
+      if (typeof data.session?.program === "string") window.RAPIDR_EXE_PATH = data.session.program;
       installStorage(data.storage);
 
       const url = URL.createObjectURL(new Blob([data.runtimeJs], { type: "text/javascript" }));
@@ -163,6 +166,52 @@
           sessionEvent({ type: "exited", code: 1 });
         }
       }
+    }
+
+    // ---- the program's windows float over the whole of Studio ----
+    // This frame covers Studio's viewport; Studio clips it (clip-path, which
+    // also decides where clicks land) to the program's windows, so they move
+    // anywhere on the page and Studio takes every click outside them. The
+    // windows' rectangles go to Studio as they change; while a mouse button
+    // is held in here (a window dragged or resized) Studio shows the whole
+    // frame, so nothing is cut while it moves. Only rectangles leave the
+    // frame — never its content — and Studio keeps them inside its page.
+    let lastRects = "";
+    let rectsSoon = false;
+    function windowRects() {
+      const out = [];
+      for (const w of document.querySelectorAll(".rr-kwin")) {
+        if (getComputedStyle(w).display === "none") continue;
+        // (the window, its frame canvas with the shadow, its grips, an open
+        // menu's or list's popup reaching past it)
+        for (const el of [w, ...w.querySelectorAll(":scope > canvas, :scope > .rr-kgrip")]) {
+          if (el !== w && getComputedStyle(el).display === "none") continue;
+          const r = el.getBoundingClientRect();
+          if (r.width < 1 || r.height < 1) continue;
+          const x = Math.floor(r.left), y = Math.floor(r.top);
+          out.push([x, y, Math.ceil(r.right) - x, Math.ceil(r.bottom) - y]);
+        }
+      }
+      return out;
+    }
+    function sendRects() {
+      rectsSoon = false;
+      const rects = windowRects();
+      const key = JSON.stringify(rects);
+      if (key === lastRects) return;
+      lastRects = key;
+      send({ __rapidr_windows: { rects } });
+    }
+    function rectsChanged() {
+      if (rectsSoon) return;
+      rectsSoon = true;
+      requestAnimationFrame(sendRects);
+    }
+    new MutationObserver(rectsChanged).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ["style", "class", "width", "height"] });
+    window.addEventListener("resize", rectsChanged);
+    window.addEventListener("pointerdown", () => send({ __rapidr_windows: { held: true } }), true);
+    for (const up of ["pointerup", "pointercancel"]) {
+      window.addEventListener(up, () => { send({ __rapidr_windows: { held: false } }); rectsChanged(); }, true);
     }
 
     let booted = false;

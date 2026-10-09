@@ -210,32 +210,55 @@ SUB AddProjectFile(Kind AS STRING)
   ProjectTree.NewFile Kind
 END SUB
 
-' (a new file's first text: a form, or an empty module)
-FUNCTION NewFileText(Path AS STRING, Kind AS STRING) AS STRING
-  DIM nm AS STRING, nl AS STRING
-  nl = CHR$(13) + CHR$(10)
-  nm = BaseName(Path)
-  IF Kind = "form" THEN
-    Result = "' " + FileTitle(Path) + nl + nl + "CREATE " + nm + " AS QFORM" + nl + "    Caption = " + CHR$(34) + nm + CHR$(34) + nl + "    Width = 320: Height = 240" + nl + "END CREATE" + nl
-  ELSE
-    Result = "' " + FileTitle(Path) + nl
-  END IF
-END FUNCTION
-
+' A new project file (Project > Add Form / Add Module, named in the tree):
+' written with its first text — a form in the program's own names
+' (`CREATE Form2 AS RForm`), a module — added to the project, brought into
+' the program by the main file's `$INCLUDE` (one undo step in its editor:
+' RapidQ's way of making a program of several files), and opened: a form on
+' its designer.
 SUB ProjectNewFile(Path AS STRING, Kind AS STRING)
-  DIM full AS STRING, f AS QFILESTREAM
+  DIM full AS STRING, f AS RFileStream, dm AS INTEGER, mainText AS STRING, t AS STRING, patch AS STRING
   full = ProjectPath(Path)
+  ' (the main program as its editor has it)
+  dm = DocOf(ProjectMain)
+  IF dm >= 0 THEN mainText = CodeDoc(dm).Text ELSE mainText = Proj.FileText(ProjectMain)
   IF FILEEXISTS(full) = 0 THEN
+    ' (the toolbox's RFormMDI: an MDI main window)
+    IF Kind = "form" AND PendingFormKind = "formmdi" THEN t = Proj.NewFileText(Path, "formmdi", mainText) ELSE t = Proj.NewFileText(Path, Kind, mainText)
     f.Open(full, 65535)
-    f.WriteStr(NewFileText(Path, Kind), LEN(NewFileText(Path, Kind)))
+    f.WriteStr(t, LEN(t))
     f.Close
   END IF
-  IF Proj.AddFile(full) THEN
-    SaveProjectFile
+  IF Proj.AddFile(full, Kind) THEN
+    IF Proj.Kind = "project" THEN SaveProjectFile
   ELSE
     OutputLine "Can't add " + Path + ": " + Proj.Error
   END IF
+  IF (Kind = "form" OR Kind = "module") AND LCASE$(full) <> LCASE$(ProjectMain) THEN
+    patch = Proj.IncludeEdit(mainText, full)
+    IF patch <> "" THEN
+      IF dm < 0 THEN
+        OpenDocument ProjectMain
+        dm = DocOf(ProjectMain)
+      END IF
+      IF dm >= 0 THEN
+        CodeDoc(dm).ApplyPatches patch, 0
+        ProjectFileChanged dm
+        OutputLine FileTitle(ProjectMain) + " includes " + FileTitle(full) + " ($INCLUDE): its forms are made when the program starts"
+      END IF
+    END IF
+  END IF
   OpenDocument full
+  IF Kind = "form" THEN
+    IF PendingFormHint <> "" THEN
+      SetState RunState, REPLACESUBSTR$(PendingFormHint, "{form}", BaseName(full))
+      OutputLine REPLACESUBSTR$(PendingFormHint, "{form}", BaseName(full))
+    ELSE
+      SetState RunState, BaseName(full) + " added: drop components on it; show it with " + BaseName(full) + ".Show"
+    END IF
+  END IF
+  PendingFormKind = ""
+  PendingFormHint = ""
 END SUB
 
 ' Renamed in place (F2): the file on the disk, the project, its documents.
@@ -259,7 +282,29 @@ SUB ProjectRename(OldPath AS STRING, NewPath AS STRING, Cancel AS INTEGER)
     DocFile(d) = n
     DocTitles d
   END IF
-  IF LCASE$(o) = LCASE$(ProjectMain) THEN ProjectMain = n
+  IF LCASE$(o) = LCASE$(ProjectMain) THEN
+    ProjectMain = n
+  ELSE
+    IncludeFollows o, n
+  END IF
+END SUB
+
+' (a file of the program renamed or moved: the main file's $INCLUDE names
+' it again — one undo step in its editor)
+SUB IncludeFollows(OldPath AS STRING, NewPath AS STRING)
+  DIM dm AS INTEGER, mainText AS STRING, patch AS STRING
+  dm = DocOf(ProjectMain)
+  IF dm >= 0 THEN mainText = CodeDoc(dm).Text ELSE mainText = Proj.FileText(ProjectMain)
+  patch = Proj.IncludeRenameEdit(mainText, OldPath, NewPath)
+  IF patch = "" THEN EXIT SUB
+  IF dm < 0 THEN
+    OpenDocument ProjectMain
+    dm = DocOf(ProjectMain)
+  END IF
+  IF dm < 0 THEN EXIT SUB
+  CodeDoc(dm).ApplyPatches patch, 0
+  ProjectFileChanged dm
+  OutputLine FileTitle(ProjectMain) + " includes " + FileTitle(NewPath) + " now"
 END SUB
 
 ' Taken out of the project (confirmed in the tree): its documents close; the
@@ -275,7 +320,26 @@ SUB ProjectDelete(Path AS STRING, Cancel AS INTEGER)
   CloseDocument DocOf(p)
   Proj.RemoveFile p
   SaveProjectFile
+  IncludeLeaves p
   SetState RunState, FileTitle(p) + " taken out of the project (still on the disk)"
+END SUB
+
+' (a file taken out of the project: the main file no longer includes it —
+' one undo step in its editor)
+SUB IncludeLeaves(Path AS STRING)
+  DIM dm AS INTEGER, patch AS STRING
+  dm = DocOf(ProjectMain)
+  IF dm < 0 THEN
+    IF Proj.IncludeRemoveEdit(Proj.FileText(ProjectMain), Path) = "" THEN EXIT SUB
+    OpenDocument ProjectMain
+    dm = DocOf(ProjectMain)
+  END IF
+  IF dm < 0 THEN EXIT SUB
+  patch = Proj.IncludeRemoveEdit(CodeDoc(dm).Text, Path)
+  IF patch = "" THEN EXIT SUB
+  CodeDoc(dm).ApplyPatches patch, 0
+  ProjectFileChanged dm
+  OutputLine FileTitle(ProjectMain) + " no longer includes " + FileTitle(Path)
 END SUB
 
 ' Dragged to another place (or folder): the project keeps the tree's order.
@@ -292,17 +356,55 @@ END SUB
 SUB ProjectFileChanged(d AS INTEGER)
   IF ProjectOpen = 0 OR d < 0 THEN EXIT SUB
   ProjectTree.SetFileText DocFile(d), CodeDoc(d).Text
+  DesignNames d
+END SUB
+
+' (the names the program's other files give their components: document d's
+' designer never names a new one so — a RapidQ program's names are global)
+SUB DesignNames(d AS INTEGER)
+  IF ProjectOpen = 0 OR d < 0 THEN EXIT SUB
+  IF DocOpen(d) = 0 THEN EXIT SUB
+  DesignDoc(d).ReservedNames = ProjectTree.ComponentNames(DocFile(d))
 END SUB
 
 ' ---- the toolbox ----------------------------------------------------------------
-' RapidQ's and RapidR's components as the registry groups them, with
-' RapidR's icons, found by typing; each adds itself to the active form.
+' The components under RapidR's names, grouped by purpose, with RapidR's
+' icons, found by typing; each adds itself to the active form (written in
+' that file's own style: the designer).
 
 ' (ActiveDesign, the active document's designer: designer.inc)
+
+' ---- a form from the toolbox: a document, not a component (Delphi, Xojo) --
+' RForm (or RFormMDI) clicked, double-clicked or dragged adds a form FILE
+' to the program — Project > Add Form — never a form inside a form.
+
+FUNCTION IsFormType(TypeName AS STRING) AS INTEGER
+  DIM t AS STRING
+  t = UCASE$(TypeName)
+  Result = Flag(t = "RFORM" OR t = "QFORM" OR t = "RFORMMDI" OR t = "QFORMMDI")
+END FUNCTION
+
+' (Hint: what the status bar says once it is added — "" the usual)
+SUB AddFormOfType(TypeName AS STRING, Hint AS STRING)
+  IF ProjectOpen = 0 THEN
+    SetState RunState, "Open or make a project first (File > New Project)"
+    EXIT SUB
+  END IF
+  ' (a click then a double click: one form)
+  IF PendingFormKind <> "" AND ABS(TIMER - PendingFormAt) < 1.5 THEN EXIT SUB
+  IF UCASE$(TypeName) = "RFORMMDI" OR UCASE$(TypeName) = "QFORMMDI" THEN PendingFormKind = "formmdi" ELSE PendingFormKind = "form"
+  PendingFormHint = Hint
+  PendingFormAt = TIMER
+  AddProjectFile "form"
+END SUB
 
 ' Double click or Enter: added in the selected container, at a free place.
 SUB ToolboxPick(TypeName AS STRING)
   DIM d AS INTEGER
+  IF IsFormType(TypeName) THEN
+    AddFormOfType TypeName, ""
+    EXIT SUB
+  END IF
   d = ActiveDesign
   IF d < 0 THEN
     SetState "stopped", "Open a form to add a " + TypeName
@@ -315,6 +417,10 @@ END SUB
 ' A click: the designer places one where the form is clicked (or drawn).
 SUB ToolboxSelect(TypeName AS STRING)
   DIM d AS INTEGER
+  IF IsFormType(TypeName) THEN
+    AddFormOfType TypeName, ""
+    EXIT SUB
+  END IF
   d = ActiveDesign
   IF d >= 0 THEN DesignDoc(d).PlaceType = TypeName
 END SUB
@@ -322,14 +428,37 @@ END SUB
 ' A drag out of the toolbox: the designer follows it (its guides) and drops it.
 SUB ToolboxDragStart(TypeName AS STRING)
   DIM d AS INTEGER
+  ' (a form isn't dropped into the designer: ToolboxDrop adds its file)
+  IF IsFormType(TypeName) THEN EXIT SUB
   d = ActiveDesign
   IF d >= 0 THEN DesignDoc(d).DragComponent TypeName
 END SUB
 
 ' (let go over a designer that didn't take the drag itself: added there)
 SUB ToolboxDrop(TypeName AS STRING, Target AS STRING, X AS INTEGER, Y AS INTEGER)
-  DIM d AS INTEGER
+  DIM d AS INTEGER, ft AS STRING
   d = ActiveDesign
+  IF IsFormType(TypeName) THEN
+    ' (let go on a designed form: a new window all the same, and why)
+    IF d >= 0 THEN
+      IF LCASE$(Target) = "designdoc(" + LTRIM$(STR$(d)) + ")" THEN
+        ft = UCASE$(DesignDoc(d).FormType)
+        IF ft = "RFORMMDI" OR ft = "QFORMMDI" THEN
+          ' (a child window, RapidQ's way: a panel on the MDI form, AddChild)
+          ft = DesignDoc(d).AddMdiChild()
+          IF ft <> "" THEN
+            SetState RunState, DesignDoc(d).StatusText
+            OutputLine DesignDoc(d).StatusText
+          END IF
+        ELSE
+          AddFormOfType TypeName, "A form can't go inside a form: {form} was added as a new window. For child windows, make " + DesignDoc(d).FormName + " an RFormMDI."
+        END IF
+        EXIT SUB
+      END IF
+    END IF
+    AddFormOfType TypeName, ""
+    EXIT SUB
+  END IF
   IF d < 0 THEN EXIT SUB
   IF LCASE$(Target) = "designdoc(" + LTRIM$(STR$(d)) + ")" THEN DesignDoc(d).AddComponent TypeName, X, Y
 END SUB
@@ -375,7 +504,14 @@ SUB InspectorEvent(EventName AS STRING)
     EXIT SUB
   END IF
   Dock.FocusPane("codedoc(" + LTRIM$(STR$(d)) + ")")
-  IF DesignDoc(d).HandlerLine >= 0 THEN CodeDoc(d).GotoLine DesignDoc(d).HandlerLine
+  IF DesignDoc(d).HandlerLine >= 0 THEN CaretAtHandler d, DesignDoc(d).HandlerLine
+END SUB
+
+' (the caret at the end of line L of document d's code — a new handler's
+' indented body line: typing starts there)
+SUB CaretAtHandler(d AS INTEGER, L AS INTEGER)
+  CodeDoc(d).GotoLine L
+  CodeDoc(d).GotoLineColumn L + 1, LEN(CodeDoc(d).Line(L)) + 1
 END SUB
 
 ' ---- the output console --------------------------------------------------------------
@@ -430,6 +566,9 @@ SUB SetUpPanels
   Inspector.EmptyText = "Select a component on a form to see its properties."
   OutputBox.EmptyText = "Press F5 to run the program; its output shows here."
   Toolbox.Hint = "Double-click or press Enter to add a component to the form; drag it to place it."
+  ' (RapidR's names: RButton, RLabel …; the designer writes each file in
+  ' its own — a form written with RapidQ's names gets QBUTTON)
+  Toolbox.ShowNames = "rapidr"
 END SUB
 
 SUB ApplyPanelFonts
@@ -451,6 +590,10 @@ END SUB
 '   search:<text>        the toolbox's search box
 '   palette:<text>       the command palette, opened with that typed
 '   pick:<Name>          a component selected in the active designer
+'   newproject:<template>|<folder>|<name>   File > New Project's Create
+'   rename:<file>|<new name>   F2 in the project tree, the name typed
+'   remove:<file>        Delete in the project tree (it asks first)
+'   drop:<TYPE>|<target> a toolbox item let go over a pane
 ' True when Stp was one of these.
 FUNCTION PanelStep(Stp AS STRING) AS INTEGER
   DIM k AS INTEGER, verb AS STRING, arg AS STRING
@@ -460,7 +603,10 @@ FUNCTION PanelStep(Stp AS STRING) AS INTEGER
   arg = MID$(Stp, k + 1)
   Result = 1
   SELECT CASE verb
-    CASE "tool": ToolboxPick UCASE$(arg)
+    CASE "tool"
+      ' (selected in the toolbox, which names it as it shows it: RButton)
+      Toolbox.Selected = arg
+      IF Toolbox.Selected <> "" THEN ToolboxPick Toolbox.Selected ELSE ToolboxPick UCASE$(arg)
     CASE "prop"
       k = INSTR(arg, "=")
       IF k > 1 THEN
@@ -490,6 +636,23 @@ FUNCTION PanelStep(Stp AS STRING) AS INTEGER
       ' (a component selected in the active designer, by its name)
       IF ActiveDesign >= 0 THEN DesignDoc(ActiveDesign).SelectName arg
     CASE "palette": ShowPalette arg
+    CASE "drop"
+      ' (drop:<TYPE>|<target>: a toolbox item let go over a pane — designdoc(0) …)
+      ToolboxDrop UCASE$(FIELD$(arg, "|", 1)), FIELD$(arg, "|", 2), 40, 40
+    CASE "remove"
+      ' (remove:<file>: Delete in the project tree — it asks first)
+      ProjectTree.Delete arg
+    CASE "rename"
+      ' (rename:<file>|<new name>: F2 in the project tree, the name typed)
+      ProjectTree.Rename FIELD$(arg, "|", 1), FIELD$(arg, "|", 2)
+    CASE "newproject"
+      ' (newproject:<template>|<folder>|<name>: File > New Project's Create)
+      NewName.Text = FIELD$(arg, "|", 3)
+      NewFolder.Text = FIELD$(arg, "|", 2)
+      FOR k = 0 TO TPLS - 1
+        IF TplId(k) = FIELD$(arg, "|", 1) THEN PickTemplate k
+      NEXT
+      NewCreate
     CASE ELSE: Result = 0
   END SELECT
 END FUNCTION

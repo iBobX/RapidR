@@ -19,6 +19,7 @@ internal = [
   "__environ_set",
   "__getfield",
   "__gui_register_timer",
+  "__console_cp437",
   "__inkey_trapall",
   "__input_value",
   "__lastoftype",

@@ -51,7 +51,7 @@ case "$ART" in
         hdiutil attach -quiet -nobrowse -readonly -mountpoint "$MNT" "$ART" || { echo "cannot mount"; exit 1; }
         cp -R "$MNT"/*.app "$T/Applications/"
         hdiutil detach -quiet "$MNT"; rmdir "$MNT"; MNT=""
-        if [ -d "$T/Applications/RapidR.app" ]; then APP="$T/Applications/RapidR.app"; else APP="$T/Applications/RapidR Runtime.app"; fi
+        if [ -d "$T/Applications/RapidR Studio.app" ]; then APP="$T/Applications/RapidR Studio.app"; else APP="$T/Applications/RapidR Runtime.app"; fi
         BIN="$APP/Contents/MacOS"
         for app in "$T/Applications"/*.app; do
             check "$(basename "$app"): signature valid" codesign --verify --deep --strict "$app"
@@ -71,10 +71,14 @@ for k in ("UTExportedTypeDeclarations","UTImportedTypeDeclarations"):
             check "Runtime.app runs .rr/.bas (Open With)" has "$t" "rapidq-source Viewer Alternate"
             check "Runtime.app declares rrbc" has "$t" "exported rrbc"
         fi
-        if [ -f "$T/Applications/RapidR.app/Contents/Info.plist" ]; then
-            t="$(types "$T/Applications/RapidR.app/Contents/Info.plist")"
-            check "RapidR.app edits .rr/.bas (Owner)" has "$t" "source Editor Owner"
-            check "RapidR.app declares rr and bas" has "$t" "exported bas"
+        if [ -f "$T/Applications/RapidR Studio.app/Contents/Info.plist" ]; then
+            S="$T/Applications/RapidR Studio.app/Contents/Info.plist"
+            t="$(types "$S")"
+            check "RapidR Studio.app edits .rr/.bas (Owner)" has "$t" "source Editor Owner"
+            check "RapidR Studio.app edits projects (Owner)" has "$t" "project Editor Owner"
+            check "RapidR Studio.app declares rr, bas and rrproj" has "$t" "exported rrproj"
+            check "RapidR Studio.app is named RapidR Studio" test "$(plutil -extract CFBundleDisplayName raw "$S")" = "RapidR Studio"
+            check "the app carries the licence and the notices" test -f "$APP/Contents/Resources/doc/LICENSE" -a -f "$APP/Contents/Resources/doc/THIRD-PARTY-NOTICES.txt"
         fi
         ;;
     *.tar.gz)
@@ -85,6 +89,10 @@ for k in ("UTExportedTypeDeclarations","UTImportedTypeDeclarations"):
         check "installed: bin/rapidr, lib/rapidr" test -x "$BIN/rapidr" -a -f "$T/prefix/lib/rapidr/release.toml"
         check "LEGAL.md and the notices installed" test -f "$T/prefix/share/doc/rapidr/LEGAL.md" -a -f "$T/prefix/share/doc/rapidr/THIRD-PARTY-NOTICES.txt"
         check "MIME types registered" test -f "$XDG_DATA_HOME/mime/packages/rapidr.xml"
+        if [ -f "$XDG_DATA_HOME/applications/rapidr-ide.desktop" ]; then
+            check "the menu entry is RapidR Studio" grep -q "^Name=RapidR Studio" "$XDG_DATA_HOME/applications/rapidr-ide.desktop"
+            check "Studio opens projects (*.rrproj)" grep -q 'pattern="\*.rrproj"' "$XDG_DATA_HOME/mime/packages/rapidr.xml"
+        fi
         check "rapidr-runtime.desktop runs with the installed rapidr" grep -q "^Exec=$T/prefix/bin/rapidr open %f" "$XDG_DATA_HOME/applications/rapidr-runtime.desktop"
         if command -v update-mime-database >/dev/null; then
             check "MIME database knows *.rrbc" grep -q "rrbc" "$XDG_DATA_HOME/mime/globs2"
@@ -100,6 +108,12 @@ for k in ("UTExportedTypeDeclarations","UTImportedTypeDeclarations"):
         check ".deb: package, version, depends" has "$info" "^Depends: .*libc6"
         check ".deb: MIME types and desktop files" test -f "$T/root/usr/share/mime/packages/rapidr.xml" -a -f "$T/root/usr/share/applications/rapidr-runtime.desktop"
         check ".deb: desktop file runs /usr/bin/rapidr" grep -q "^Exec=/usr/bin/rapidr open %f" "$T/root/usr/share/applications/rapidr-runtime.desktop"
+        check ".deb: the licence, the notices and the manual are in /usr/share/doc" test -f "$T/root/usr/share/doc/rapidr/copyright" -o -f "$T/root/usr/share/doc/rapidr-runtime/copyright"
+        if [ -f "$T/root/usr/share/applications/rapidr-ide.desktop" ]; then
+            check ".deb: the menu entry is RapidR Studio" grep -q "^Name=RapidR Studio" "$T/root/usr/share/applications/rapidr-ide.desktop"
+            check ".deb: Studio opens projects (*.rrproj)" grep -q "application/x-rapidr-project" "$T/root/usr/share/applications/rapidr-ide.desktop"
+            check ".deb: the project file type is declared" grep -q 'pattern="\*.rrproj"' "$T/root/usr/share/mime/packages/rapidr.xml"
+        fi
         BIN="$T/root/usr/bin"
         ;;
     *) echo "unknown artifact"; exit 2 ;;
@@ -180,8 +194,8 @@ if [ "$KIND" = sdk ]; then
         check "--target macos-x86_64: the x86_64 slice (not run)" test "$(lipo -archs "$W/intel/hello" 2>/dev/null)" = x86_64
     fi
     check "its THIRD-PARTY-NOTICES.txt beside it (the install's)" grep -q "Rust standard library" "$W/THIRD-PARTY-NOTICES.txt"
-    check "the IDE starts (headless)" has "$(RAPIDR_CAPTURE="$W/ide" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=statusbar.caption "$R" ide 2>&1)" "statusbar.caption=Ready"
-    check "the IDE opens a file" has "$(RAPIDR_CAPTURE="$W/ide" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=statusbar.caption "$R" ide "$W/hello.bas" 2>&1)" "Opened: $W/hello.bas"
+    check "the IDE starts (headless)" has "$(RAPIDR_CAPTURE="$W/ide" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=Studio.caption "$R" ide 2>&1)" "Studio.caption=RapidR Studio"
+    check "the IDE opens a file" has "$(RAPIDR_CAPTURE="$W/ide" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=Studio.caption "$R" ide "$W/hello.bas" 2>&1)" "Studio.caption=hello - RapidR Studio"
     if [ "${SMOKE_NATIVE:-1}" = 1 ] && [ -x "$CARGO_BIN/cargo" ]; then
         echo "== rapidr setup and a native build: a throwaway rustup and cargo home, offline, the shipped sources"
         # (the user's own Rust is never touched: its default, read before and after)

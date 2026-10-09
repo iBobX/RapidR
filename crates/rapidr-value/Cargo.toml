@@ -24,6 +24,16 @@ rapidr-project = { workspace = true }
 jpeg-decoder = { version = "0.3", default-features = false }
 # Text on bitmaps (objects/text.rs): reads the built-in Liberation fonts.
 ttf-parser = { version = "0.25", default-features = false, features = ["std"] }
+# RCODEEDITOR's model (objects/codeedit.rs): the editor's document — rope,
+# selections, undo tree, search, language definitions (GUI-free, wasm-safe).
+rapidr-editor = { workspace = true }
+# Its JSON arguments (ApplyEdits, SetDiagnostics, ShowCompletion; MIT OR
+# Apache-2.0, already in the tree).
+serde_json = "1"
+# Markdown (panels/markdown.rs: RMARKDOWNVIEW, RapidR Studio's .md preview):
+# CommonMark with GitHub's tables (MIT; pure Rust, wasm-safe). No default
+# features: no HTML writer, no command-line parser.
+pulldown-cmark = { version = "0.13.4", default-features = false }
 
 # QREGISTRY on Windows: Windows' own registry (registry.rs). Microsoft's
 # windows-rs (MIT OR Apache-2.0); its windows-link / -result / -strings are

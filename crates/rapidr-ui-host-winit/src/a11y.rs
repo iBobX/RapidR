@@ -5,9 +5,9 @@
 
 use std::collections::HashMap;
 
-use accesskit::{Action as AAction, ActionData, ActionRequest, Affine, Node, NodeId, Orientation as AOrientation, Rect as ARect, Role as ARole, Toggled, TreeId, TreeInfo, TreeUpdate};
+use accesskit::{Action as AAction, ActionData, ActionRequest, Affine, Node, NodeId, Orientation as AOrientation, Rect as ARect, Role as ARole, TextDirection, TextPosition, TextSelection, Toggled, TreeId, TreeInfo, TreeUpdate};
 use rapidr_ui_kernel::AccessValue;
-use rapidr_value::objects::a11y::{AccessNode, Action, Orientation, Role};
+use rapidr_value::objects::a11y::{AccessNode, Action, Orientation, Role, TextInfo, TextPos};
 
 fn role(r: Role) -> ARole {
     match r {
@@ -40,6 +40,12 @@ fn role(r: Role) -> ARole {
         Role::SpinButton => ARole::SpinButton,
         Role::Splitter => ARole::Splitter,
         Role::Status => ARole::Status,
+        Role::Document => ARole::Document,
+        Role::Heading => ARole::Heading,
+        Role::List => ARole::List,
+        Role::ListItem => ARole::ListItem,
+        Role::Table => ARole::Table,
+        Role::Link => ARole::Link,
         Role::Unknown => ARole::Unknown,
     }
 }
@@ -121,10 +127,51 @@ fn node(n: &AccessNode) -> Node {
         a.add_action(act);
     }
     a.set_bounds(bounds(n.bounds));
+    // (a text field's text runs: its first children, AccessKit's text)
+    if let Some(t) = &n.text {
+        // (the runs inherit it: without it, no character's bounds)
+        a.set_text_direction(TextDirection::LeftToRight);
+        for r in &t.runs {
+            a.push_child(NodeId(r.id));
+        }
+        if let Some((anchor, focus)) = t.selection {
+            let at = |p: TextPos| t.runs.get(p.run).map(|r| TextPosition { node: NodeId(r.id), character_index: p.char_index.min(r.char_lengths.len()) });
+            if let (Some(anchor), Some(focus)) = (at(anchor), at(focus)) {
+                a.set_text_selection(TextSelection { anchor, focus });
+            }
+        }
+    }
     for c in &n.children {
         a.push_child(NodeId(c.id));
     }
     a
+}
+
+/// A text field's runs as AccessKit's text run nodes (a long line's pieces
+/// linked as one line).
+fn text_runs(t: &TextInfo, out: &mut Vec<(NodeId, Node)>) {
+    for (i, r) in t.runs.iter().enumerate() {
+        let mut a = Node::new(ARole::TextRun);
+        a.set_value(r.text.as_str());
+        a.set_bounds(bounds(r.bounds));
+        a.set_character_lengths(r.char_lengths.clone());
+        if r.char_positions.len() == r.char_lengths.len() && r.char_widths.len() == r.char_lengths.len() && !r.char_lengths.is_empty() {
+            a.set_character_positions(r.char_positions.clone());
+            a.set_character_widths(r.char_widths.clone());
+        }
+        if !r.word_starts.is_empty() {
+            a.set_word_starts(r.word_starts.clone());
+        }
+        if r.continues {
+            if let Some(next) = t.runs.get(i + 1) {
+                a.set_next_on_line(NodeId(next.id));
+            }
+        }
+        if let Some(prev) = i.checked_sub(1).and_then(|p| t.runs.get(p)).filter(|p| p.continues) {
+            a.set_previous_on_line(NodeId(prev.id));
+        }
+        out.push((NodeId(r.id), a));
+    }
 }
 
 fn flatten(n: &AccessNode, out: &mut Vec<(NodeId, Node)>, focus: &mut Option<NodeId>) {
@@ -132,6 +179,9 @@ fn flatten(n: &AccessNode, out: &mut Vec<(NodeId, Node)>, focus: &mut Option<Nod
         *focus = Some(NodeId(n.id));
     }
     out.push((NodeId(n.id), node(n)));
+    if let Some(t) = &n.text {
+        text_runs(t, out);
+    }
     for c in &n.children {
         flatten(c, out, focus);
     }
@@ -230,5 +280,93 @@ mod tests {
         let button = node(&AccessNode { name: "OK".into(), ..AccessNode::new(2, Role::Button) });
         assert_eq!(button.label(), Some("OK"));
         assert_eq!(button.value(), None);
+    }
+
+    /// A code editor's node: "Dim a\r\n\tb = a + 1\n" plus a 300-character
+    /// last line, the caret selecting "a + 1" backwards.
+    fn editor() -> AccessNode {
+        use rapidr_value::objects::a11y::{TextRun, TextPos};
+        fn run(id: u64, text: &str, brk: &str, continues: bool) -> TextRun {
+            let mut lengths: Vec<u8> = text.chars().map(|c| c.len_utf8() as u8).collect();
+            if !brk.is_empty() {
+                lengths.push(brk.len() as u8);
+            }
+            let n = lengths.len();
+            TextRun {
+                id,
+                text: format!("{text}{brk}"),
+                bounds: (10, 20 + id as i64 * 18, 8 * n as i64, 18),
+                char_positions: (0..n).map(|i| i as f32 * 8.0).collect(),
+                char_widths: vec![8.0; n],
+                char_lengths: lengths,
+                word_starts: vec![0],
+                continues,
+            }
+        }
+        let long = "x".repeat(300);
+        let mut n = AccessNode::new(1, Role::MultilineTextInput);
+        n.states.focused = true;
+        n.value = Some(format!("Dim a\r\n\tb = a + 1\n{long}"));
+        n.text = Some(Box::new(TextInfo {
+            runs: vec![run(10, "Dim a", "\r\n", false), run(11, "\tb = a + 1", "\n", false), run(12, &long[..250], "", true), run(13, &long[250..], "", false)],
+            selection: Some((TextPos { run: 1, char_index: 10 }, TextPos { run: 1, char_index: 5 })),
+        }));
+        n.children.push(AccessNode::new(2, Role::Status));
+        let mut root = AccessNode::new(0, Role::Window);
+        root.children.push(n);
+        root
+    }
+
+    #[test]
+    fn a_text_fields_runs_are_its_text_by_character_and_line() {
+        let mut sent = Sent::default();
+        let up = update(&editor(), 1.0, &mut sent, true).unwrap();
+        let by_id: HashMap<NodeId, &Node> = up.nodes.iter().map(|(id, n)| (*id, n)).collect();
+        // the runs are the field's first children, before its other parts
+        let field = by_id[&NodeId(1)];
+        assert_eq!(field.children(), &[NodeId(10), NodeId(11), NodeId(12), NodeId(13), NodeId(2)]);
+        let runs: Vec<&Node> = (10..14).map(|i| by_id[&NodeId(i)]).collect();
+        assert!(runs.iter().all(|r| r.role() == ARole::TextRun));
+        // each run's character lengths add up to its text; joined, the value
+        for r in &runs {
+            let sum: usize = r.character_lengths().iter().map(|&l| l as usize).sum();
+            assert_eq!(sum, r.value().unwrap().len());
+            assert_eq!(r.character_positions().map(<[f32]>::len), Some(r.character_lengths().len()));
+        }
+        assert_eq!(runs[0].character_lengths().last(), Some(&2), "a CR LF break is one character");
+        let joined: String = runs.iter().map(|r| r.value().unwrap()).collect();
+        assert_eq!(Some(joined.as_str()), field.value());
+        // a long line's pieces are one line
+        assert_eq!(runs[2].next_on_line(), Some(NodeId(13)));
+        assert_eq!(runs[3].previous_on_line(), Some(NodeId(12)));
+        assert_eq!(runs[1].next_on_line(), None);
+        // the selection points into the second line's run
+        let sel = field.text_selection().unwrap();
+        assert_eq!((sel.anchor.node, sel.anchor.character_index), (NodeId(11), 10));
+        assert_eq!((sel.focus.node, sel.focus.character_index), (NodeId(11), 5));
+    }
+
+    #[test]
+    fn a_screen_reader_reads_the_runs_lines_and_selection() {
+        // (the tree as the platform adapters read it: AccessKit's consumer)
+        let mut sent = Sent::default();
+        let up = update(&editor(), 1.0, &mut sent, true).unwrap();
+        let tree = accesskit_consumer::Tree::new(up, true);
+        let field = tree.state().focus().unwrap();
+        assert!(field.supports_text_ranges());
+        let long = "x".repeat(300);
+        assert_eq!(field.document_range().text(), format!("Dim a\r\n\tb = a + 1\n{long}"));
+        assert_eq!(field.line_range_from_index(0).unwrap().text(), "Dim a\r\n");
+        assert_eq!(field.line_range_from_index(1).unwrap().text(), "\tb = a + 1\n");
+        assert_eq!(field.line_range_from_index(2).unwrap().text(), long, "the pieces read as one line");
+        let sel = field.text_selection().unwrap();
+        assert_eq!(sel.text(), "a + 1");
+        // where it's drawn: characters 5 to 10 of the run at (10, 218), 8 wide
+        let boxes = sel.bounding_boxes();
+        assert_eq!(boxes.len(), 1);
+        assert_eq!((boxes[0].x0, boxes[0].x1, boxes[0].y0), (10.0 + 40.0, 10.0 + 80.0, 218.0));
+        let focus = field.text_selection_focus().unwrap();
+        assert_eq!(focus.to_line_index(), 1);
+        assert_eq!(focus.to_global_usv_index(), "Dim a\r\n\tb = ".chars().count());
     }
 }

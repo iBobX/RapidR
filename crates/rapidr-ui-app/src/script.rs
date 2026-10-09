@@ -44,9 +44,35 @@ pub fn start(capture: Capture, next: Instant) {
     sc(|s| *s = Some(Script { events: capture.events.clone().into(), capture, next, started: false, finished: false }));
 }
 
-/// When the test's next step may run (`None`: no test).
+/// When the test's next step may run, or the next keystroke SendKeys
+/// queued is delivered (`None`: neither).
 pub fn next_step() -> Option<Instant> {
-    sc(|s| s.as_ref().map(|s| s.next))
+    let keys = (rapidr_value::send_keys::pending() > 0).then(rapidr_ui_kernel::tick::now);
+    [sc(|s| s.as_ref().map(|s| s.next)), keys].into_iter().flatten().min()
+}
+
+/// SendKeys' next keystroke delivered (one per turn, each after the
+/// handlers the one before fired have run); whether there was one.
+fn send_key<R: Program + Windows>(rt: R) -> bool {
+    if rt.in_host_callback() {
+        return false;
+    }
+    let Some(k) = rapidr_value::send_keys::next() else { return false };
+    rt.script_input(ScriptInput::Stroke(k));
+    rt.dispatch_pending();
+    true
+}
+
+/// A handler waits for the user's input in place — a native build's
+/// StartDrag, moving its control until the mouse is let go: the script's
+/// next steps (that input) come meanwhile, as the user's would, rather
+/// than after the handler.
+pub fn input_awaited(now: Instant) {
+    sc(|s| {
+        if let Some(sc) = s.as_mut() {
+            sc.next = sc.next.min(now + Duration::from_millis(50));
+        }
+    });
 }
 
 /// Whether `name` shows: visible up to its form, whose window shows.
@@ -83,6 +109,8 @@ fn run_event<R: Program + Windows>(rt: R, e: TestEvent) {
         Action::Mouse(kind, x, y) => rt.script_input(ScriptInput::Mouse { comp, kind, x, y }),
         Action::DblClick(x, y) => rt.script_input(ScriptInput::DblClick { comp, x, y }),
         Action::Close => forms::close(rt, &e.comp),
+        // (RapidR's OnDropFiles: RAPIDR_TEST_DROP's files on the form)
+        Action::Drop => forms::files_dropped(rt, &rt.form_of(&comp).unwrap_or(comp), &testhooks::drop_files()),
         Action::Ignored => {}
         // (timers during native menu tracking: the next pump held, as a menu
         // the user keeps open would hold it)
@@ -112,6 +140,11 @@ fn run_event<R: Program + Windows>(rt: R, e: TestEvent) {
 /// moment after the last) the dump, the accessibility trees, the captures,
 /// and the end.
 pub fn step<R: Program + Windows>(rt: R) {
+    // (Application.SendKeys' keystrokes go first: a test's next event waits
+    // for them)
+    if send_key(rt) {
+        return;
+    }
     let now = rt.now();
     let due = sc(|s| s.as_ref().is_some_and(|sc| sc.next <= now));
     // (nor while the program waits for work in the background — a
@@ -176,9 +209,24 @@ pub fn step<R: Program + Windows>(rt: R) {
     }
 }
 
+/// What `RAPIDR_TEST_DUMP`'s `comp.prop` prints: the property as the program
+/// reads it; `__cursor_x_y`, the mouse pointer at (x, y) of the component
+/// (the mouse moved there as the user's; the CSS name: `col-resize`,
+/// `text`, `default` …).
+pub fn dump_value<R: Program + Windows>(rt: R, comp: &str, prop: &str) -> String {
+    let at = prop.strip_prefix("__cursor_").and_then(|n| n.split_once('_')).and_then(|(x, y)| Some((x.parse::<i64>().ok()?, y.parse::<i64>().ok()?)));
+    match at {
+        Some((x, y)) => {
+            rt.script_input(ScriptInput::Cursor { comp: comp.to_lowercase(), x, y });
+            crate::desktop::take_probe().to_string()
+        }
+        None => rt.get(comp, prop).to_string_val(),
+    }
+}
+
 /// `RAPIDR_TEST_DUMP`'s lines, then the host's captures and the end.
 fn capture_and_end<R: Program + Windows>(rt: R) {
-    testhooks::print_dump(|c| shown_up(rt, c), |comp, prop| rt.get(comp, prop).to_string_val());
+    testhooks::print_dump(|c| shown_up(rt, c), |comp, prop| dump_value(rt, comp, prop));
     let prefix = sc(|s| s.as_ref().map(|sc| sc.capture.prefix.clone())).unwrap_or_default();
     // (the script is over: a host whose process can't exit — a page —
     // comes back here)

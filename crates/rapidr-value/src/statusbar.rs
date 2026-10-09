@@ -5,6 +5,10 @@
 
 use crate::{v_int, v_str, Value};
 
+/// A status panel's width before the program sets one (RC.EXE; Delphi's
+/// TStatusPanel).
+pub const PANEL_WIDTH: i64 = 50;
+
 /// A QSTATUSBAR method on its properties (`get` / `set`): `AddPanels
 /// "Ready", "Line 1"` appends panels; `Clear` removes them all (RC.EXE:
 /// panels added after it start again at Panel(0)). `None`: not one of
@@ -15,6 +19,8 @@ pub fn call(method: &str, args: &[Value], get: &dyn Fn(&str) -> Value, set: &mut
             let mut n = get("panelcount").to_i64().max(0);
             for a in args {
                 set(&format!("panel({n}).caption"), v_str(&a.to_string_val()));
+                // (a new panel is 50 pixels wide: RC.EXE reads Panel(i).Width 50)
+                set(&format!("panel({n}).width"), v_int(PANEL_WIDTH));
                 n += 1;
             }
             set("panelcount", v_int(n));
@@ -52,5 +58,6 @@ mod tests {
         call("addpanels", &[v_str("three")], &get, &mut set);
         assert_eq!((get("panelcount").to_i64(), get("panel(0).caption").to_string_val()), (1, "three".to_string()));
         assert!(matches!(get("panel(1).width"), Value::Null));
+        assert_eq!(get("panel(0).width").to_i64(), PANEL_WIDTH);
     }
 }

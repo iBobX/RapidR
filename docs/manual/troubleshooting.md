@@ -2,21 +2,42 @@
 
 ## Installing and starting
 
-**macOS: "RapidR can't be opened because Apple cannot check it…"** — this
-release isn't signed. Right-click the app, choose **Open**, then **Open**
-again (or System Settings > Privacy & Security > **Open Anyway**). Once is
-enough.
+**macOS: “RapidR Studio” Not Opened — Apple could not verify it is free of
+malware** — this release isn't signed. Click **Done**, open **System Settings >
+Privacy & Security**, scroll to *Security* and click **Open Anyway** next to
+“RapidR Studio” was blocked (then your password or Touch ID). Once is enough.
+Right-click > Open doesn't work on macOS 15 and newer. In the Terminal:
+`xattr -dr com.apple.quarantine "/Applications/RapidR Studio.app"`. With
+screenshots: [Install on macOS](getting-started.md#install-on-macos).
 
-**Windows: "Windows protected your PC"** — SmartScreen, for the same
-reason: **More info > Run anyway**.
+**Windows: "Windows protected your PC"** — SmartScreen, for the same reason.
+Click **More info**, then **Run anyway**
+([Install on Windows](getting-started.md#install-on-windows)).
+
+**Linux: `N: Download is performed unsandboxed as root as file … couldn't be
+accessed by user '_apt'`** — apt's note about a `.deb` in your home folder.
+It is harmless: the install went on.
 
 **Linux: `error while loading shared libraries: libssl.so.3`** — RapidR
 needs OpenSSL 3: Ubuntu 22.04 or Debian 12 and newer (`sudo apt install
 libssl3`). Ubuntu 20.04 and Debian 11 have only OpenSSL 1.1 and aren't
 supported.
 
+**Windows: "This app can't run on your PC"** — you have the installer for
+the other kind of processor. Look at *Settings > System > About > System
+type* and take the `x64` or the `arm64` installer to match
+(see [Install on Windows](getting-started.md#install-on-windows)).
+
+**Linux: `apt` says `Unable to locate package rapidr_2.117.0_amd64.deb`** —
+put `./` in front of the file name (`sudo apt install
+./rapidr_2.117.0_amd64.deb`) so apt reads it as a file in this folder.
+
+**Linux: `dpkg` says "package architecture (amd64) does not match system
+(arm64)"** — wrong file for this machine. `dpkg --print-architecture` says
+which one to take (`amd64` or `arm64`).
+
 **`rapidr: command not found`** — run `rapidr setup` from the install
-(macOS: `/Applications/RapidR.app/Contents/MacOS/rapidr setup`) to link it
+(macOS: `/Applications/RapidR Studio.app/Contents/MacOS/rapidr setup`) to link it
 into your PATH; on Windows, tick "Add rapidr to PATH" in the installer.
 
 **"This program needs RapidR Runtime x.y.z or newer"** — the program was
@@ -31,6 +52,12 @@ the internet asks once; the answer is remembered for that exact file.
 **`Failed to run cargo … Native builds compile with Rust`** — run
 `rapidr setup`. Native builds are the only ones that need Rust: `rapidr
 run`, `build --interp` and `bundle-bc` don't.
+
+**macOS: `codesign … 3dcube.app: No such process`** — `codesign` reads a
+name that starts with a digit as a process number. `rapidr build` now
+passes the app's full path and signs it fine; when you run `codesign`
+yourself, write `./3dcube.app` (see [The app's
+name](building-apps.md#the-apps-name)).
 
 **The first native build takes minutes** — it compiles RapidR's runtime
 once; later builds reuse it (keep `CARGO_TARGET_DIR` if you set one).
@@ -81,7 +108,7 @@ x)` gives `10000000000`.
 rule). Use `ROUND` (which is `INT(x + 0.5)`) when you mean rounding.
 
 **A string with `""` in it comes out wrong** — `""` isn't an escaped quote
-in RapidQ's BASIC. Use `CHR$(34)` or `$ESCAPECHARS ON` and `\"`.
+in RapidQ-compatible BASIC. Use `CHR$(34)` or `$ESCAPECHARS ON` and `\"`.
 
 **`ON ERROR GOTO` doesn't catch an error** — it's accepted and ignored;
 run-time errors end the program with their message and line.
@@ -96,7 +123,7 @@ desktop). The program goes on.
 — RapidR draws on the CPU when the only GPU is a software one; if
 detection fails, set `RAPIDR_RENDERER=cpu`.
 
-**The program looks different from RapidQ's Windows look** — programs use
+**The program looks different from the classic Windows look** — programs use
 the classic look unless they set `$THEME`; check for a `RAPIDR_THEME`
 variable in your environment.
 
@@ -106,8 +133,8 @@ variable in your environment.
 (`python3 -m http.server -d folder 8080`); browsers don't load WebAssembly
 from `file://`.
 
-**QMYSQL / RSERVERSOCKET do nothing in the browser** — browsers can't open
-raw TCP connections. Call a server of yours through RHTTP.
+**RMySQL / RServerSocket do nothing in the browser** — browsers can't open
+raw TCP connections. Call a server of yours through RHttp.
 
 **A file the program reads isn't found on the web** — files beside the
 program are built into the page only with the listed extensions (`.csv`,

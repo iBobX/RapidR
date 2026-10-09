@@ -1,0 +1,13 @@
+DIM total AS INTEGER
+DIM i AS INTEGER
+
+SUB AddUp(n AS INTEGER)
+  DIM k AS INTEGER
+  k = n * 2
+  total = total + k
+END SUB
+
+FOR i = 1 TO 3
+  AddUp i
+NEXT
+PRINT "total = "; total

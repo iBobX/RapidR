@@ -126,11 +126,11 @@ mod tests {
         // the group box: etched, its caption without the &
         assert!(dump.contains("#a0a0a0/#ffffff #ffffff/#a0a0a0 @0,70"), "{dump}");
         assert!(dump.contains("\"Group\""), "{dump}");
-        // the status bar: the first panel 100 wide by default, the last the
+        // the status bar: the first panel 50 wide by default (RC.EXE), the last the
         // rest — up to the size grip (the input lane's: a sizeable form, the
         // bar docked at the bottom)
-        assert!(dump.contains("edge 1,2 98x21 #a0a0a0 #ffffff @0,140"), "{dump}");
-        assert!(dump.contains("edge 101,2 182x21 #a0a0a0 #ffffff @0,140"), "{dump}");
+        assert!(dump.contains("edge 1,2 48x21 #a0a0a0 #ffffff @0,140"), "{dump}");
+        assert!(dump.contains("edge 51,2 232x21 #a0a0a0 #ffffff @0,140"), "{dump}");
         let tree = f.access_tree(&s, &mut ts);
         let roles: Vec<(Role, String)> = tree.children.iter().map(|n| (n.role, n.name.clone())).collect();
         // (the status bar: a polite live region, as the web's role=status)

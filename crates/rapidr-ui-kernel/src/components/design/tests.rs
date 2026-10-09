@@ -124,16 +124,16 @@ fn the_mouse_selects_moves_and_clears_with_the_designers_events() {
     assert_eq!(fired(f.take_events()), [("onbgclick".to_string(), vec![150, 120]), ("onselect".to_string(), vec![0]), ("ondblclick".to_string(), vec![0])]);
     let tree = f.access_tree(&s, &mut ts);
     let json = tree.to_json();
-    assert!(json.contains("Button1 (RBUTTON)") && json.contains("\"listbox\""), "{json}");
+    assert!(json.contains("Button1 (RButton)") && json.contains("\"listbox\""), "RapidR's name: {json}");
 }
 
 #[test]
 fn a_component_dragged_in_from_elsewhere_is_dropped_where_the_mouse_lets_go() {
-    // (a frameless 300 × 200 form read from a program: its client 12 px
+    // (a frameless 300 × 200 form read from a program: its client 24 px
     // into the surface, the surface 10 px into its window)
     let form = Subtree { id: 0, name: "Main".into(), type_written: "QFORM".into(), body: vec![p("Width", "300"), p("Height", "200"), p("BorderStyle", "0")] };
     let (s, mut f, mut ts, _) = shown(form, (360, 260));
-    let at = (10.0 + 12.0 + 41.5, 10.0 + 12.0 + 33.5);
+    let at = (10.0 + 24.0 + 41.5, 10.0 + 24.0 + 33.5);
     // the press elsewhere (a toolbox), the drag over the surface, the release
     rapidr_value::objects::design::begin_drop("QBUTTON");
     f.mouse_move(&s, &mut ts, at.0, at.1, Mods::NONE);
@@ -158,4 +158,105 @@ fn a_component_dragged_in_from_elsewhere_is_dropped_where_the_mouse_lets_go() {
     f.key_down(&s, &mut ts, 27, "", Mods::NONE, &mut clip);
     assert!(rapidr_value::objects::design::drop_pending().is_none());
     assert_eq!(rapidr_value::objects::with_design("ds", |d| d.ids().len()), Some(1));
+}
+
+#[test]
+fn a_drop_settles_in_and_is_gone_after_100_ms() {
+    let form = Subtree { id: 0, name: "Main".into(), type_written: "QFORM".into(), body: vec![p("Width", "300"), p("Height", "200"), p("BorderStyle", "0")] };
+    let (s, mut f, mut ts, _) = shown(form, (360, 260));
+    let t0 = std::time::Instant::now();
+    crate::tick::set_test_now(Some(t0));
+    let at = (10.0 + 24.0 + 41.5, 10.0 + 24.0 + 33.5);
+    rapidr_value::objects::design::begin_drop("QBUTTON");
+    f.mouse_move(&s, &mut ts, at.0, at.1, Mods::NONE);
+    f.mouse_up(&s, &mut ts, at.0, at.1, rapidr_value::input::Button::Left, Mods::NONE);
+    let fades = |l: &DisplayList| l.items.iter().filter(|i| matches!(i, Item::Op { op: Op::Fade { alpha }, .. } if *alpha <= 110 && *alpha != 40)).count();
+    let first = f.paint(&s, &mut ts, 1.0);
+    assert!(fades(&first) >= 1, "the wash drawn as it lands");
+    assert!(f.next_wake().is_some(), "a frame asked for");
+    // 50 ms on: still settling; 120 ms on: gone
+    crate::tick::set_test_now(Some(t0 + std::time::Duration::from_millis(50)));
+    f.tick(&s, &mut ts, crate::tick::now());
+    assert!(fades(&f.paint(&s, &mut ts, 1.0)) >= 1);
+    crate::tick::set_test_now(Some(t0 + std::time::Duration::from_millis(120)));
+    f.tick(&s, &mut ts, crate::tick::now());
+    let last = f.paint(&s, &mut ts, 1.0);
+    crate::tick::set_test_now(None);
+    assert_eq!(fades(&last), 0, "settled");
+}
+
+/// The settling eases out: the wash fades and the ring closes in, frame by
+/// frame, from the drop; with the system's reduced motion there is none.
+#[test]
+fn a_drop_settles_with_easing_and_not_with_reduced_motion() {
+    let form = Subtree { id: 0, name: "Main".into(), type_written: "QFORM".into(), body: vec![p("Width", "300"), p("Height", "200"), p("BorderStyle", "0")] };
+    // (the wash's alpha and the ring's size in a frame)
+    let wash = |l: &DisplayList| l.items.iter().filter_map(|i| match i { Item::Op { op: Op::Fade { alpha }, .. } if *alpha <= 110 && *alpha != 40 => Some(*alpha), _ => None }).max();
+    let drop_at = |f: &mut FormUi, s: &MemStore, ts: &mut TextSystem| {
+        let at = (10.0 + 24.0 + 41.5, 10.0 + 24.0 + 33.5);
+        rapidr_value::objects::design::begin_drop("QBUTTON");
+        f.mouse_move(s, ts, at.0, at.1, Mods::NONE);
+        f.mouse_up(s, ts, at.0, at.1, rapidr_value::input::Button::Left, Mods::NONE);
+    };
+    let (s, mut f, mut ts, _) = shown(form.clone(), (360, 260));
+    let t0 = std::time::Instant::now();
+    crate::tick::set_test_now(Some(t0));
+    drop_at(&mut f, &s, &mut ts);
+    let mut alphas = Vec::new();
+    for ms in [0u64, 25, 50, 75, 95] {
+        crate::tick::set_test_now(Some(t0 + std::time::Duration::from_millis(ms)));
+        f.tick(&s, &mut ts, crate::tick::now());
+        alphas.push(wash(&f.paint(&s, &mut ts, 1.0)).unwrap_or(0));
+    }
+    assert!(alphas.windows(2).all(|w| w[1] < w[0]), "fading frame by frame: {alphas:?}");
+    assert!(alphas[0] >= 100 && *alphas.last().unwrap() < 20, "{alphas:?}");
+    // reduced motion: placed at once
+    rapidr_value::theme::set_reduced_motion(true);
+    let (s, mut f, mut ts, _) = shown(form, (360, 260));
+    crate::tick::set_test_now(Some(t0));
+    drop_at(&mut f, &s, &mut ts);
+    let quiet = wash(&f.paint(&s, &mut ts, 1.0));
+    rapidr_value::theme::set_reduced_motion(false);
+    crate::tick::set_test_now(None);
+    assert_eq!(quiet, None, "no settling with reduced motion");
+}
+
+/// The form designer's pointer: the four arrows over the selected component
+/// (and while it is dragged), a handle's sizing arrows, the cross with the
+/// placing tool, the arrow on the background.
+#[test]
+fn the_designers_pointer_follows_what_the_mouse_is_over() {
+    use rapidr_value::input::{Button, Cursor};
+    let mut s = MemStore::new();
+    s.add("df", "RFORM", None).set("df", "clientwidth", v_int(400)).set("df", "clientheight", v_int(300));
+    s.add("ds", "RDESIGNSURFACE", Some("df")).set("ds", "left", v_int(10)).set("ds", "top", v_int(20)).set("ds", "width", v_int(200)).set("ds", "height", v_int(160));
+    rapidr_value::objects::with_design_mut("ds", |d| {
+        let root = d.designer.design.root();
+        let _ = rapidr_value::designer::Command::SetProp { node: root, name: "BorderStyle".into(), value: Some("0".into()) }.apply(&mut d.designer.design);
+    });
+    s.call("ds", "addcomponent", &[v_str("RBUTTON"), v_str("Button1"), v_int(16), v_int(16), v_int(80), v_int(24)]);
+    rapidr_value::objects::take_design_events("ds");
+    let mut f = FormUi::build(&s, "df", false);
+    let mut ts = TextSystem::new();
+    drop(f.paint(&s, &mut ts, 1.0));
+    fn at(f: &mut FormUi, s: &MemStore, ts: &mut TextSystem, x: f64, y: f64) -> Cursor {
+        f.mouse_move(s, ts, x, y, Mods::NONE);
+        f.pointer_at(s, ts, x, y)
+    }
+    // (Button1 sits at 26..106 × 36..60 of the window)
+    // (added: selected; the background clears the selection)
+    assert_eq!(at(&mut f, &s, &mut ts, 60.5, 48.5), Cursor::Move);
+    f.mouse_down(&s, &mut ts, 150.5, 140.5, Button::Left, Mods::NONE);
+    f.mouse_up(&s, &mut ts, 150.5, 140.5, Button::Left, Mods::NONE);
+    assert_eq!(at(&mut f, &s, &mut ts, 60.5, 48.5), Cursor::Default, "not selected: the arrow");
+    f.mouse_down(&s, &mut ts, 60.5, 48.5, Button::Left, Mods::NONE);
+    f.mouse_up(&s, &mut ts, 60.5, 48.5, Button::Left, Mods::NONE);
+    assert_eq!(at(&mut f, &s, &mut ts, 60.5, 48.5), Cursor::Move, "selected: its body moves it");
+    assert_eq!(at(&mut f, &s, &mut ts, 150.5, 140.5), Cursor::Default, "the background");
+    // (a handle: the corner's diagonal)
+    let corner = (0..40).flat_map(|dy| (0..40).map(move |dx| (100.5 + dx as f64 * 0.5, 54.5 + dy as f64 * 0.5))).find(|&(x, y)| at(&mut f, &s, &mut ts, x, y) == Cursor::SizeNWSE);
+    assert!(corner.is_some(), "the bottom right handle");
+    // (the placing tool armed: the cross)
+    rapidr_value::objects::with_design_mut("ds", |d| d.place_type = "RBUTTON".into());
+    assert_eq!(at(&mut f, &s, &mut ts, 150.5, 140.5), Cursor::Cross);
 }

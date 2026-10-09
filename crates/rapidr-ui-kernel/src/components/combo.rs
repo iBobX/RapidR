@@ -14,7 +14,7 @@
 
 use std::cell::RefCell;
 
-use rapidr_value::input::Button;
+use rapidr_value::input::{Button, Cursor};
 use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::ops::{Place, Rect};
 use rapidr_value::objects::{with_list, with_list_mut};
@@ -422,6 +422,17 @@ impl ComponentKind for ComboBox {
         let (cxm, cym) = (bx as f64 + bw as f64 / 2.0 + d, by as f64 + bh as f64 / 2.0 + d);
         let arrow = if s.enabled { t.text } else { t.gray_text };
         p.op(rapidr_value::objects::ops::Op::Arrow { points: [(cxm - 4.0, cym - 2.0), (cxm + 4.0, cym - 2.0), (cxm, cym + 2.0)], color: arrow });
+    }
+
+    /// An editable box's text takes the I-beam; its button and a fixed
+    /// box the arrow.
+    fn pointer(&self, cx: &mut Cx, x: i64, _y: i64) -> Cursor {
+        let (w, h) = (cx.width(), box_height(cx));
+        if editable(cx.store, cx.id) && x < button_rect(w, h).0 {
+            Cursor::IBeam
+        } else {
+            Cursor::Default
+        }
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {

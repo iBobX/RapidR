@@ -75,7 +75,7 @@ fn replace() {
 #[test]
 fn basic_folds() {
     let src = "SUB A\n  IF x THEN\n    y\n  END IF\n  IF z THEN w\n  ' SUB in a comment\n  s = \"FOR i\"\nEND SUB\nRUSTSTART\nfn f() {\n}\nRUSTEND\nCREATE F AS QFORM\nEND CREATE";
-    let mut d = doc("rapidq-basic", src);
+    let mut d = doc("rapidr-basic", src);
     let folds = d.fold_ranges();
     let f = |s, e, kind| FoldRange { start_line: s, end_line: e, kind };
     assert_eq!(folds, [f(0, 7, FoldKind::Marker), f(1, 3, FoldKind::Marker), f(8, 11, FoldKind::Embedded), f(12, 13, FoldKind::Marker)]);
@@ -93,7 +93,7 @@ fn bracket_and_indent_folds() {
 
 #[test]
 fn brackets() {
-    let mut d = doc("rapidq-basic", "x = f(a(1), \")\" , b) ' (\ny = (\n2)");
+    let mut d = doc("rapidr-basic", "x = f(a(1), \")\" , b) ' (\ny = (\n2)");
     // from the open bracket and just after it
     assert_eq!(d.matching_bracket(5), Some((5, 19)));
     assert_eq!(d.matching_bracket(6), Some((5, 19)));

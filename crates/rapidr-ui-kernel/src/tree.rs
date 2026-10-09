@@ -21,6 +21,8 @@ use crate::store::{self, Store};
 pub struct NodeUi {
     /// A QEDIT's parley editor.
     pub edit: Option<Box<EditUi>>,
+    /// An RCODEEDITOR's view (components/codeeditor).
+    pub code: Option<Box<crate::components::codeeditor::CodeUi>>,
     /// A track bar's thumb being dragged.
     pub dragging: bool,
     /// The part pressed (an up-down's arrow: 0 up, 1 down).
@@ -33,6 +35,8 @@ pub struct NodeUi {
     /// (I4 L-DVIEW) An RDESIGNSURFACE's designed form: its design-time
     /// store and the form's own tree (components/design.rs).
     pub design: Option<Box<crate::components::design::View>>,
+    /// An RMARKDOWNVIEW's text laid out (components/panels/markdown.rs).
+    pub markdown: Option<Box<crate::components::panels::markdown::Laid>>,
 }
 
 pub struct Node {
@@ -113,6 +117,12 @@ pub struct FormUi {
     /// own elements over the window's drawing (the web's RWEBVIEW …) puts
     /// them on a layer above those.
     pub popups_apart: bool,
+    /// Where the mouse last was (logical, the window's inside).
+    pub(crate) mouse_at: (f64, f64),
+    /// A button dragged or moved (drag.rs).
+    pub(crate) drag: Option<crate::drag::Drag>,
+    /// The application's hint and the tooltip (hint.rs).
+    pub(crate) hint: crate::hint::HintUi,
 }
 
 /// Visible / Enabled as the runtimes keep them (-1, True, "0" …).
@@ -140,8 +150,10 @@ impl FormUi {
     pub fn build(store: &dyn Store, form: &str, menu_in_window: bool) -> FormUi {
         let mut f = FormUi::build_unfocused(store, form, menu_in_window);
         f.focus = f.tab_order(store).first().copied();
-        // (a QEDIT focused as the form shows selects its text: AutoSelect)
+        // (the first focus is entered: a list's OnEnter as its form shows;
+        // a QEDIT focused then selects its text: AutoSelect)
         if let Some(i) = f.focus {
+            f.entered(i);
             crate::focus::select_on_entry(&f.nodes[i].id, &f.nodes[i].type_name);
         }
         f
@@ -174,6 +186,9 @@ impl FormUi {
             last_click: None,
             wheel_rest: (0.0, 0.0),
             popups_apart: false,
+            mouse_at: (0.0, 0.0),
+            drag: None,
+            hint: Default::default(),
         };
         f.rebuild(store);
         f
@@ -330,7 +345,17 @@ impl FormUi {
     /// paragraph).
     pub fn editor_layout_at(&self, id: &str, para: usize) -> Option<&parley::Layout<crate::text::Ink>> {
         match self.node(id) {
-            Some(n) => n.ui.edit.as_ref()?.para_layout(para),
+            Some(n) => {
+                if let Some(code) = &n.ui.code {
+                    // (a code editor's rows: `para` is the layout's cache slot)
+                    return code.cache.layout(para);
+                }
+                match (&n.ui.edit, &n.ui.markdown) {
+                    (Some(e), _) => e.para_layout(para),
+                    (None, Some(m)) => m.layout(para),
+                    (None, None) => None,
+                }
+            }
             // (a component of a form shown in a designer on this one)
             None => self.nodes.iter().filter_map(|n| n.ui.design.as_ref()).find_map(|v| v.editor_layout_at(id, para)),
         }
@@ -351,5 +376,5 @@ pub fn client_size(store: &dyn Store, form: &str, menu: i64) -> (i64, i64) {
     }
     let (dw, dh) = rapidr_value::layout::default_size("RFORM").unwrap_or((320, 240));
     let (w, h) = (store::int(store, form, "width", dw), store::int(store, form, "height", dh));
-    rapidr_value::layout::form_client_size(w, h, store::int(store, form, "borderstyle", 2), menu)
+    rapidr_value::layout::form_client_size(w, h, rapidr_value::layout::frame_style(form, store::int(store, form, "borderstyle", 2)), menu)
 }

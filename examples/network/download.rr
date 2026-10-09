@@ -1,32 +1,32 @@
-' download.rr: downloading a file with QDOWNLOAD, a gauge following it.
-' QDOWNLOAD is RapidQ's Qdownload.inc object, built into RapidR.
+' download.rr: downloading a file with RDownload, a gauge following it.
+' RDownload (RapidQ's QDOWNLOAD, from its Qdownload.inc) is built into RapidR.
 '
 '   python3 -m http.server 8000        (in this folder)
 '   rapidr run download.rr
 '   rapidr run download.rr http://127.0.0.1:8000/forecast.json
 '
-' QDOWNLOAD speaks HTTP to Server:Port for File. OutDevice 2 saves into
-' OutFile (1 keeps it in OutVar); StateDevice 2 moves its StateGauge (a
-' QGAUGE we put on the form). LeechFile downloads, the form still answering.
+' RDownload speaks HTTP to Server:Port for File. OutDevice 2 saves into
+' OutFile (1 keeps it in OutVar); StateDevice 2 moves its StateGauge (an
+' RProgressBar we put on the form). LeechFile downloads, the form still answering.
 $INCLUDE "RAPIDQ.INC"
 $INCLUDE "qdownload.inc"
 
 DECLARE SUB Fetch
 
-DIM Getter AS QDOWNLOAD
+DIM Getter AS RDownload
 
-CREATE Form AS QFORM
+CREATE Form AS RForm
     Caption = "Download"
     Width = 420
     Height = 170
     Center
-    CREATE UrlEdit AS QEDIT
+    CREATE UrlEdit AS REdit
         Left = 10: Top = 12: Width = 300
     END CREATE
-    CREATE FetchBtn AS QBUTTON
+    CREATE FetchBtn AS RButton
         Caption = "&Download": Left = 318: Top = 10: Width = 84: OnClick = Fetch
     END CREATE
-    CREATE Info AS QLABEL
+    CREATE Info AS RLabel
         Left = 10: Top = 80: Width = 390
         Caption = "Ready"
     END CREATE

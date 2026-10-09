@@ -24,7 +24,7 @@ pub struct Snapshot {
 pub fn shown_properties(c: &'static rapidr_lang::Component) -> impl Iterator<Item = (&'static rapidr_lang::Property, Kind)> {
     c.properties
         .iter()
-        .filter(|p| p.design && p.access == rapidr_lang::Access::ReadWrite && p.indexed == 0 && !p.missing)
+        .filter(|p| p.design && crate::designer::inspect::designable(p) && p.indexed == 0 && !p.missing)
         .filter_map(|p| Kind::of(p).map(|k| (p, k)))
 }
 

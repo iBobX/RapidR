@@ -266,6 +266,11 @@ pub fn step(max_wait: Option<Duration>) {
     if rapidr_ui_app::dialogs::tasks_open() {
         at_most(rapidr_ui_app::dialogs::TASK_STEP);
     }
+    // (a program under the IDE's debugger: its requests heard while it
+    // waits — rapidr-vm's `wait_point`)
+    if crate::object::rp_debug_poll() {
+        at_most(crate::object::DEBUG_POLL_STEP);
+    }
     // (RapidR Studio's program sessions: their output heard every 20 ms)
     #[cfg(feature = "studio")]
     if crate::studio::running() {
@@ -300,6 +305,10 @@ pub fn step(max_wait: Option<Duration>) {
 /// The events the host queued, handled (each to completion; a handler may
 /// step again).
 fn dispatch_pending() {
+    // (the paints a new size posted: rapidr_value::events::post_paint)
+    for name in rapidr_value::events::take_posted_paints() {
+        crate::object::rp_fire_event(&name, "onpaint");
+    }
     for e in with_kern(|k| std::mem::take(&mut k.desk.events)).unwrap_or_default() {
         match e {
             // (a kernel-drawn dialog's: never the program's)
@@ -569,6 +578,41 @@ pub fn gui_set_form_border(name: &str) {
     forms::set_form_border(Rt, name);
 }
 
+/// `Form.HideTitleBar` / `ShowTitleBar` (rapidr_ui_app::forms::set_title_bar).
+pub fn gui_title_bar(name: &str, show: bool) {
+    forms::set_title_bar(Rt, &lower(name), show);
+}
+
+/// `Form.ShapeForm`: the window's outline changed (rapidr_value::shape).
+pub fn gui_shape_changed(name: &str) {
+    rapidr_ui_app::windows::push_op(WindowOp::Shape(lower(name)));
+    invalidate();
+}
+
+/// `X.StartDrag` (rapidr_value::drag): the control moves with the mouse
+/// while a button is held, and this returns when it's let go — a native
+/// build steps until then; the interpreter is left a wait it serves
+/// (`Wait::Drag`). Nothing held: returns at once.
+pub fn gui_start_drag(name: &str) {
+    if !started() || held() {
+        return;
+    }
+    let Some(form) = forms::start_drag(Rt, &lower(name)) else { return };
+    if waits::cooperative() {
+        waits::start(Wait::Drag(form));
+        return;
+    }
+    // (a GUI test's script plays the mouse meanwhile)
+    script::input_awaited(rapidr_ui_kernel::tick::now());
+    while form_dragging(&form) && forms::form_shown(&form) {
+        step(None);
+    }
+}
+
+fn form_dragging(form: &str) -> bool {
+    with_kern(|k| k.desk.forms.get(form).is_some_and(|f| f.ui.dragging())).unwrap_or(false)
+}
+
 pub fn gui_apply_icon(name: &str) {
     forms::apply_icon(Rt, name);
 }
@@ -828,7 +872,7 @@ pub fn mouse_in_form() -> (i64, i64) {
     let top = with_kern(|k| k.desk.stacking().last().and_then(|f| k.desk.forms.get(f).map(|w| (f.clone(), w.spec.position.unwrap_or((0, 0)))))).flatten();
     match top {
         Some((f, (x, y))) => {
-            let (fw, fh) = rapidr_value::layout::form_frame(rp_comp_get(&f, "borderstyle").to_i64());
+            let (fw, fh) = rapidr_value::layout::form_frame(rapidr_value::layout::frame_style(&f, rp_comp_get(&f, "borderstyle").to_i64()));
             (mx - x - fw / 2, my - y - (fh - fw / 2) - i64::from(menu_offset(&f)))
         }
         None => (mx, my),
@@ -900,14 +944,21 @@ pub fn tree_method(name: &str, method: &str, args: &[Value]) -> Value {
 // ---------------------------------------------- the IDE's components --
 //
 // (Stage 10) RDESIGNSURFACE and RCODEEDITOR keep their state in the shared
-// models (rapidr_value::objects::design, a TextEdit in code mode), which the
-// kernel's components draw and drive (components/design.rs, codeedit.rs):
+// models (rapidr_value::objects::design and codeedit), which the
+// kernel's components draw and drive (components/design.rs, codeeditor/):
 // only a design surface's Show / Hide is left here.
 
 pub fn design_surface_method(name: &str, method: &str, _args: &[Value]) -> Value {
     match method {
         "show" => gui_show(name),
         "hide" => gui_hide(name),
+        // (the kernel's focus to it, as the web's SetFocus: RapidR Studio's
+        // Dock.FocusPane on a document's Design view)
+        "setfocus" | "focus" => {
+            if let Some(form) = crate::object::form_of(name) {
+                push_op(WindowOp::Focus(form.to_lowercase(), name.to_lowercase()));
+            }
+        }
         _ => eprintln!("[WARN] DesignSurface.{method}() not implemented"),
     }
     v_null()
@@ -1026,12 +1077,15 @@ fn capture_and_end(prefix: &str) -> ! {
         let mut trees = Vec::new();
         let mut shots = Vec::new();
         for f in &order {
-            if a11y.is_some() {
-                trees.extend(desk.access_json(&RtStore, f));
-            }
             if let Some(px) = rapidr_ui_host_winit::capture(desk, &RtStore, f) {
                 let title = desk.forms.get(f).map(|w| w.spec.title.clone()).unwrap_or_default();
                 shots.push((title, px));
+            }
+            // (after the capture's paint: the tree as drawn — a console
+            // scrolled to its end, the focus where the last frame put it —
+            // as on the web, which paints every frame)
+            if a11y.is_some() {
+                trees.extend(desk.access_json(&RtStore, f));
             }
         }
         (trees, shots)
@@ -1108,6 +1162,12 @@ impl Windows for Rt {
     }
     fn popup_open(self, form: &str) -> bool {
         menus::popup_open(form)
+    }
+    fn start_move(self, form: &str, comp: &str) -> bool {
+        with_kern(|k| k.desk.forms.get_mut(form).is_some_and(|f| f.ui.start_move(comp))).unwrap_or(false)
+    }
+    fn dragging(self, form: &str) -> bool {
+        form_dragging(form)
     }
     fn open_dialog(self, id: &str, title: &str, size: (i64, i64)) {
         dialogs::open_window(id, title, size);

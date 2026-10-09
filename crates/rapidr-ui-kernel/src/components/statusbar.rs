@@ -26,6 +26,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
+use rapidr_value::input::Cursor;
 use rapidr_value::layout::{self, STATUS_GRIP};
 use rapidr_value::objects::a11y::AccessNode;
 use rapidr_value::objects::ops::{Place, Rect};
@@ -67,7 +68,7 @@ pub fn panels(store: &dyn Store, id: &str, w: i64, h: i64) -> Vec<(Rect, String)
     let mut x = 1;
     for i in 0..count {
         let width = store::int(store, id, &format!("panel({i}).width"), 0);
-        let pw = if i == count - 1 { (w + 1 - x).max(0) } else if width > 0 { width.min(10_000) } else { 100 };
+        let pw = if i == count - 1 { (w + 1 - x).max(0) } else if width > 0 { width.min(10_000) } else { rapidr_value::statusbar::PANEL_WIDTH };
         out.push((boxed(x, pw), store::string(store, id, &format!("panel({i}).caption"))));
         x += pw;
     }
@@ -141,6 +142,12 @@ pub(crate) fn grip_drag(f: &mut FormUi, x: f64, y: f64) -> bool {
     true
 }
 
+/// (the input lane's) Whether form `f`'s size grip is held (the pointer
+/// stays the sizing arrow wherever the mouse goes).
+pub(crate) fn grip_held(f: &FormUi) -> bool {
+    GRIP.with(|g| g.borrow().contains_key(&f.form))
+}
+
 /// (the input lane's) A release: the grip let go. Whether one was held.
 pub(crate) fn grip_up(f: &mut FormUi) -> bool {
     GRIP.with(|g| g.borrow_mut().remove(&f.form)).is_some()
@@ -189,6 +196,17 @@ impl ComponentKind for StatusBar {
         // off and resizes from it itself; the square stays the grip's)
         if has_grip(cx.store, cx.id) && !cx.system_corner {
             paint_grip(p, w, h);
+        }
+    }
+
+    /// The size grip's corner: the window's sizing arrow (Windows'
+    /// HTBOTTOMRIGHT), whatever the bar's Cursor.
+    fn pointer(&self, cx: &mut Cx, x: i64, y: i64) -> Cursor {
+        let (w, h) = (cx.width(), cx.height());
+        if x >= w - STATUS_GRIP && y >= h - STATUS_GRIP && has_grip(cx.store, cx.id) {
+            Cursor::SizeNWSE
+        } else {
+            Cursor::Default
         }
     }
 

@@ -21,11 +21,13 @@ ground up in pure Rust — compatible with RapidQ, not a copy of it.
 - **Three runtimes, one behaviour.** Native code (via generated Rust), a
   bytecode interpreter (the RapidR Runtime, and standalone executables) and
   the browser (WebAssembly). The same conformance suite runs on all three.
-- **Every RapidQ object but OLE**: forms and every visual component, the
-  dialogs, menus, grids, list and tree views, MDI, the tray icon,
-  QREGISTRY, the printer, sockets, MySQL, CGI, serial ports, downloads,
-  QMIDI / QWAVE / QVIDEO, and RapidQ's DirectX 2D and Direct3D objects
-  (reimplemented by RapidR on its own renderer).
+- **Every RapidQ object but OLE**: forms and every visual component
+  (`RForm`, `RButton`, `RStringGrid` …), the dialogs, menus, grids, list and
+  tree views, MDI, the tray icon, `RRegistry`, the printer, sockets, MySQL,
+  CGI, serial ports, downloads, `RMIDI` / `RWave` / `RVideo`, and the DirectX
+  2D and Direct3D objects (reimplemented by RapidR on its own renderer).
+  RapidR's names are the ones it writes; RapidQ's names (`QFORM`, `QBUTTON` …)
+  work too.
 - **RapidR's own UI kernel** draws every window, the same on every system:
   RapidR Studio's look by default (light, dark or high contrast, as the
   system is set), RapidQ's exact classic look with `$THEME Classic`,
@@ -33,7 +35,7 @@ ground up in pure Rust — compatible with RapidQ, not a copy of it.
 - **The web on the same kernel**: a program's windows drawn on a canvas
   (their pixels and accessibility trees checked against the desktop's),
   from a static `.zip` you can host anywhere.
-- **Extensions**: SQLite with parameter binding, RJSON, RHTTP, data
+- **Extensions**: SQLite with parameter binding, `RJson`, `RHttp`, data
   science (`RNum`, `RDataFrame`, `RPlot`), responsive layouts (`Anchors`),
   web-only components.
 - **Your programs are yours**: MIT-licensed, and every build ships the
@@ -58,21 +60,23 @@ Each system has two packages:
 | **Web** | `rapidr-web-2.117.0.zip`: the web IDE, for any static host | |
 
 - **Windows**: run the installer (per user, no administrator rights). It
-  adds *RapidR IDE* to the Start menu and, if you keep the box ticked,
+  adds *RapidR Studio* to the Start menu and, if you keep the box ticked,
   `rapidr` to your PATH.
 - **macOS**: drag *RapidR* (and/or *RapidR Runtime*) to Applications. Then
-  `/Applications/RapidR.app/Contents/MacOS/rapidr setup` offers to put
+  `/Applications/RapidR Studio.app/Contents/MacOS/rapidr setup` offers to put
   `rapidr` on your PATH.
 - **Linux**: `sudo apt install ./rapidr_2.117.0_amd64.deb`, or unpack the
   `.tar.gz` and run `./install.sh` (into `~/.local`, no root). Linux needs
   OpenSSL 3 (HTTPS uses the system's), hence Ubuntu 22.04 / Debian 12 and
   newer.
 
-**The downloads aren't code-signed yet.** macOS: the first time,
-right-click the app and choose **Open** (or System Settings > Privacy &
-Security > **Open Anyway**). Windows: if SmartScreen says "Windows
-protected your PC", choose **More info > Run anyway**. Check downloads
-against `SHA256SUMS` (`shasum -a 256 -c SHA256SUMS`).
+**The downloads aren't code-signed yet.** macOS: the first time, it says
+“RapidR Studio” Not Opened: click **Done**, then System Settings > Privacy &
+Security > **Open Anyway** (right-click > Open no longer works on current
+macOS). Windows: SmartScreen says "Windows protected your PC": **More info >
+Run anyway**. Check downloads against `SHA256SUMS`
+(`shasum -a 256 -c SHA256SUMS --ignore-missing`). Step by step, with
+screenshots: [docs/manual/getting-started.md](docs/manual/getting-started.md).
 
 **Rust is needed only for native builds.** Running programs, the IDE,
 standalone interpreted executables and web bundles need nothing else. For
@@ -103,28 +107,27 @@ rapidr build hello.bas                 # a native executable, optimized (Rust: r
 rapidr bundle-bc hello.bas -o hello-web.zip   # a web bundle for any static host
 ```
 
-A window — a plain RapidQ program, which RapidQ's compiler builds too:
+A window:
 
 ```basic
-$INCLUDE "RAPIDQ.INC"
-DECLARE SUB ButtonClick (Sender AS QBUTTON)
+DECLARE SUB ButtonClick (Sender AS RButton)
 
-CREATE Form AS QFORM
+CREATE Form AS RForm
     Caption = "Hello"
     Width = 320 : Height = 160
     Center
-    CREATE Label1 AS QLABEL
+    CREATE Label1 AS RLabel
         Caption = "Not clicked yet"
         Left = 20 : Top = 20
     END CREATE
-    CREATE Button1 AS QBUTTON
+    CREATE Button1 AS RButton
         Caption = "Click me"
         Left = 20 : Top = 60
         OnClick = ButtonClick
     END CREATE
 END CREATE
 
-SUB ButtonClick (Sender AS QBUTTON)
+SUB ButtonClick (Sender AS RButton)
     Label1.Caption = "Clicked!"
 END SUB
 
@@ -136,6 +139,15 @@ unzipped and served (`python3 -m http.server -d form 8080`), shows the same
 window in a browser. Every build writes `THIRD-PARTY-NOTICES.txt` beside
 the executable (or into the bundle): ship it with your program.
 
+### Bringing a RapidQ program over
+
+RapidQ programs run as they are (`.bas`, `.rqw`, `.rqb`, `.rq`). To move one to
+RapidR's own names (`RForm` for `QFORM`, and so on), run
+`rapidr import-rapidq form.bas -o converted`. It writes a converted copy, and
+a report (`rapidr-import-report.md`) of every change it made. Your original is
+left untouched, and each program is proved to compile to the same bytecode
+before and after.
+
 Next: **[the user manual](docs/manual/README.md)** and
 **[the examples](examples/README.md)**.
 
@@ -143,13 +155,13 @@ Next: **[the user manual](docs/manual/README.md)** and
 
 | | |
 |---|---|
-| **The language** | RapidQ's BASIC: SUBs, FUNCTIONs, TYPEs with methods, constructors, events and inheritance, `CREATE` blocks, `WITH`, `GOSUB`, `DATA`, `$INCLUDE` / `$DEFINE` / `$MACRO` / `$RESOURCE`, function pointers, memory functions (memory-safe), console statements — plus VB's `#If`, `i++`, `+=` |
-| **Components** | Every RapidQ component and object except OLE, under both names: RapidQ's `QFORM` and RapidR's `RFORM` are one component, and a program can mix them ([reference](docs/manual/reference/components.md)) |
+| **The language** | a RapidQ-compatible BASIC: SUBs, FUNCTIONs, TYPEs with methods, constructors, events and inheritance, `CREATE` blocks, `WITH`, `GOSUB`, `DATA`, `$INCLUDE` / `$DEFINE` / `$MACRO` / `$RESOURCE`, function pointers, memory functions (memory-safe), console statements — plus VB's `#If`, `i++`, `+=` |
+| **Components** | Every RapidQ component and object except OLE, written with RapidR's names (`RForm`, `RButton` …); RapidQ's names (`QFORM`, `QBUTTON` …) are the same components, and a program can mix them ([reference](docs/manual/reference/components.md)) |
 | **UI** | RapidR's own UI kernel on winit, vello, parley and AccessKit: the same look everywhere, Windows' classic look or `$THEME Modern` / `Dark` / `HighContrast`, high-DPI, keyboard and screen readers (VoiceOver, Narrator, NVDA; ARIA on the web), `Anchors` and size constraints |
-| **DirectX & media** | QDXSCREEN, QDXIMAGELIST, QDXTIMER, QDXSOUND, QDXJOYSTICK (gamepads), Direct3D retained mode (`.X` models, lights, textures, shadows) on the GPU through wgpu (Metal, Direct3D 12, Vulkan, WebGL 2); QMIDI with a built-in synthesizer, QWAVE, QVIDEO (AVI), MP3 / Ogg / FLAC / WAV |
+| **DirectX & media** | `RDXScreen`, `RDXImageList`, `RDXTimer`, `RDXSound`, `RDXJoystick` (gamepads), Direct3D retained mode (`.X` models, lights, textures, shadows) on the GPU through wgpu (Metal, Direct3D 12, Vulkan, WebGL 2); `RMIDI` with a built-in synthesizer, `RWave`, `RVideo` (AVI), MP3 / Ogg / FLAC / WAV |
 | **The web** | the UI kernel on a canvas; SQLite in WebAssembly; web-only components (`RWebView`, `RDOM`, `RJavaScript`, `RWebStorage`, …); a web IDE that compiles in the browser |
-| **Databases** | `RSQLite` (SQLite itself, everywhere) and RapidQ's `QMySQL`, with `?` parameter binding |
-| **Data science** | `RNum` (arrays), `RDataFrame` (tables), `RPlot` (charts as PNG or in a `QImage`), `RJson` — one implementation on every runtime |
+| **Databases** | `RSQLite` (SQLite itself, everywhere) and `RMySQL`, with `?` parameter binding |
+| **Data science** | `RNum` (arrays), `RDataFrame` (tables), `RPlot` (charts as PNG or in an `RImage`), `RJson` — one implementation on every runtime |
 | **The RapidR Runtime** | runs `.rrbc` programs and sources directly; file associations per user; bytecode that says which runtime it needs; `#!/usr/bin/env rapidr` scripts |
 | **Builds** | native (Rust; universal on macOS), standalone interpreted executables with no Rust needed (on Windows for x64 and ARM64 alike, on macOS universal), web bundles, `--web` native WebAssembly |
 

@@ -20,3 +20,14 @@ rapidr-designer.workspace = true
 rapidr-preprocessor.workspace = true
 # RPROJECT.IconPreview: the project's icon drawn as rapidr build draws it
 rapidr-package.workspace = true
+# File > Import RapidQ Project or File: the engine of `rapidr import-rapidq`
+rapidr-import.workspace = true
+
+[dev-dependencies]
+# (tests: every component of the toolbox added to a form, and the program
+# written compiles to bytecode and to Rust)
+rapidr-icons.workspace = true
+rapidr-lexer.workspace = true
+rapidr-parser.workspace = true
+rapidr-bcgen.workspace = true
+rapidr-codegen-rust.workspace = true

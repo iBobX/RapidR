@@ -19,6 +19,8 @@ pub struct Look {
     pub active: bool,
     /// A frame at all (BorderStyle <> bsNone).
     pub border: bool,
+    /// Its title bar (`HideTitleBar` takes it away: the border alone).
+    pub caption: bool,
     pub frame: Frame,
     pub maximized: bool,
     /// The theme's generation (`rapidr_value::theme::generation`): drawn
@@ -33,7 +35,7 @@ impl Look {
     /// The kernel's look.
     fn kernel(&self) -> kframe::Look {
         let icon = self.icon.as_ref().map(|i| (std::sync::Arc::new(Picture { width: i.width as usize, height: i.height as usize, rgba: i.rgba.clone() }), kframe::icon_revision(&i.rgba)));
-        kframe::Look { title: self.title.clone(), active: self.active, border: self.border, frame: self.frame, maximized: self.maximized, icon }
+        kframe::Look { title: self.title.clone(), active: self.active, border: self.border, caption: self.caption, frame: self.frame, maximized: self.maximized, icon }
     }
 }
 
@@ -75,7 +77,7 @@ mod tests {
 
     #[test]
     fn rounded_and_lifted_in_rapidrs_look_flat_in_the_classic_one() {
-        let l = Look { title: "Form1".into(), active: true, border: true, frame: Frame::default(), maximized: false, theme: 0, icon: None };
+        let l = Look { title: "Form1".into(), active: true, border: true, caption: true, frame: Frame::default(), maximized: false, theme: 0, icon: None };
         rapidr_value::theme::set(&rapidr_value::theme::RAPIDR);
         assert_ne!(css(&l).2, "none");
         assert_eq!(css(&Look { maximized: true, ..l.clone() }).2, "none");

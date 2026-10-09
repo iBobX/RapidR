@@ -48,6 +48,7 @@ pub fn dispatch<R: Program + Windows>(rt: R, ev: KernelEvent) {
         }
         KernelEvent::Moved(f, x, y) => forms::form_moved(rt, &f, x, y),
         KernelEvent::ScaleChanged(f, scale) => forms::scale_changed(rt, &f, scale),
+        KernelEvent::DropFiles(f, files) => forms::files_dropped(rt, &f, &files),
         KernelEvent::MenuPick(item) => menus::picked(rt, &item),
         KernelEvent::Set { id, prop, value } => {
             rt.set(&id, &prop, v_int(value));
@@ -55,6 +56,20 @@ pub fn dispatch<R: Program + Windows>(rt: R, ev: KernelEvent) {
         }
         KernelEvent::List(id, action) => lists::dispatch(rt, &id, action),
         KernelEvent::Container(c) => container_event(rt, c),
+        KernelEvent::Fire { id, event, args } => rt.fire_args(&id, &event, &args),
+        KernelEvent::Hint(long) => hint(rt, &long),
+    }
+}
+
+/// The application's hint changed to `long` (the mouse moved onto another
+/// component): OnHint of the form it was bound on last, when it changed
+/// (`rapidr_value::hints`: RapidQ's Application.OnHint).
+fn hint<P: Program>(p: P, long: &str) {
+    if !rapidr_value::hints::change(long) {
+        return;
+    }
+    if let Some(form) = rapidr_value::hints::receiver() {
+        p.fire_args(&form, "onhint", &[rapidr_value::v_str(long)]);
     }
 }
 

@@ -1,11 +1,12 @@
 ' files.rr: writing and reading text files, the BASIC way and with a
-' QFILESTREAM.
+' RFileStream.
 '
 '   rapidr run files.rr
 '
 ' OPEN … FOR OUTPUT / APPEND / INPUT AS #n, PRINT #n and LINE INPUT #n are
 ' classic BASIC; FILEEXISTS, FILELEN and KILL look after files.
 $APPTYPE CONSOLE
+$INCLUDE "RAPIDQ.INC"   ' fmOpenRead, fmCreate …
 
 CONST LOGFILE = "shopping.txt"
 
@@ -34,8 +35,8 @@ WHILE NOT EOF(1)
 WEND
 CLOSE #1
 
-' The same file through a QFILESTREAM: open it, read every line
-DIM fs AS QFILESTREAM
+' The same file through an RFileStream: open it, read every line
+DIM fs AS RFileStream
 fs.Open(LOGFILE, fmOpenRead)
 PRINT "First line again: " + fs.ReadLine
 PRINT "Stream size: " + STR$(fs.Size)

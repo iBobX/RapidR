@@ -1,6 +1,6 @@
 # Components and objects
 
-A RapidQ program builds its windows from **components** — forms, buttons,
+A RapidR program builds its windows from **components** — forms, buttons,
 lists, grids, timers — and uses **objects** that have no window (fonts,
 bitmaps, streams, string lists, databases). RapidR has every component and
 object RapidQ has except OLE (QOLECONTAINER, QOLEOBJECT), and adds its own.
@@ -8,25 +8,33 @@ object RapidQ has except OLE (QOLECONTAINER, QOLEOBJECT), and adds its own.
 The full list, with both names and where each runs:
 [reference/components.md](reference/components.md).
 
-## Q names and R names
+## RapidQ's names
 
-RapidQ calls its components `QFORM`, `QBUTTON`, `QSTRINGGRID`, …; RapidR
-calls the same components `RFORM`, `RBUTTON`, `RSTRINGGRID`, …. **Both names
-are one component**: the same properties, methods, events, defaults, look
-and behaviour, on every runtime. A few RapidQ names map to another R name:
-`QGAUGE` is `RPROGRESSBAR`, `QOUTLINE` (Windows 3.1's tree) is `RTREEVIEW`,
-RAPIDQ2.INC's `COMPORT` is `RCOMPORT`.
+RapidR's components are written `RButton`, `RForm`, `RStringGrid`, …. A
+RapidQ program's `QBUTTON`, `QFORM`, `QSTRINGGRID`, … are the same
+components (the RapidQ names), accepted everywhere. **Both names are one
+component**: the same properties, methods, events, defaults, look and
+behaviour, on every runtime. A few RapidQ names map to another R name:
+`QGAUGE` is `RProgressBar`, `QOUTLINE` (Windows 3.1's tree) is `RTreeView`,
+and RAPIDQ2.INC's `COMPORT` is `RComPort`.
 
-- Mix them freely: a `QFORM` can hold an `RPLOT`, an `RFORM` a `QBUTTON`;
-  `DIM`, `CREATE`, `EXTENDS`, parameters (`Sender AS QBUTTON`) and arrays
+- Mix them freely: an `RForm` can hold a `QBUTTON`, a `QFORM` an `RPlot`;
+  `DIM`, `CREATE`, `EXTENDS`, parameters (`Sender AS RButton`) and arrays
   accept either name.
-- **RapidR-only components** have only an R name: `RSQLITE`, `RJSON`,
-  `RHTTP`, `RNUM`, `RDATAFRAME`, `RPLOT`, `RCODEEDITOR`, the web components
-  (`RWEBVIEW`, `RDOM`, …) and others.
-- A program that only uses RapidQ's components and members stays a plain
-  RapidQ program, which RapidQ's own compiler still builds.
+- **RapidR-only components** have only an R name: `RSQLite`, `RJson`,
+  `RHttp`, `RNum`, `RDataFrame`, `RPlot`, `RCodeEditor`, the web components
+  (`RWebView`, `RDOM`, …) and others.
+- A program written with RapidQ's names, using only RapidQ's components and
+  members, stays a plain RapidQ program, which RapidQ's own compiler still
+  builds. To bring one over to RapidR's names, import it (RapidR Studio's
+  File ▸ Import RapidQ Project or File…, or `rapidr import-rapidq`): a
+  converted copy and a report, the original left alone —
+  [Importing RapidQ programs](importing-rapidq.md).
+- RapidR Studio shows RapidR's names (the toolbox, the inspector, Help,
+  completion); what it adds to a file written with RapidQ's names is written
+  with RapidQ's names, so a file never mixes them.
 - Because a leading Q is read as R whenever the R component exists,
-  `QPLOT` is accepted and means `RPLOT`, though RapidQ has no QPLOT. Prefer
+  `QPLOT` is accepted and means `RPlot`, though RapidQ has no QPLOT. Prefer
   the R name for RapidR's own components.
 
 More on how the two families coexist (and how the planned IDE writes them):
@@ -35,21 +43,21 @@ More on how the two families coexist (and how the planned IDE writes them):
 ## Making components
 
 ```basic
-CREATE Form AS QFORM                 ' a component and its children
+CREATE Form AS RForm                 ' a component and its children
     Caption = "Orders"
     Width = 400 : Height = 300
     Center
-    CREATE Grid AS QSTRINGGRID
+    CREATE Grid AS RStringGrid
         Align = alClient
         ColCount = 3
     END CREATE
 END CREATE
 
-DIM Font AS QFONT                    ' an object, or a component made later
+DIM Font AS RFont                    ' an object, or a component made later
 Font.Name = "Arial" : Font.Size = 12
-DIM Extra AS QBUTTON
+DIM Extra AS RButton
 Extra.Parent = Form                  ' put on the form at run time
-DIM Labels(1 TO 3) AS QLABEL         ' arrays of components
+DIM Labels(1 TO 3) AS RLabel         ' arrays of components
 ```
 
 Inside `CREATE … END CREATE`, `Name = value` sets the component's property
@@ -64,11 +72,11 @@ DB.FetchRow`, `IF Dlg.Execute THEN`); RapidR does the same.
 An event property names a SUB:
 
 ```basic
-CREATE Button1 AS QBUTTON
+CREATE Button1 AS RButton
     OnClick = ButtonClick
 END CREATE
 
-SUB ButtonClick (Sender AS QBUTTON)
+SUB ButtonClick (Sender AS RButton)
     ShowMessage "Clicked " + Sender.Caption
 END SUB
 ```
@@ -81,6 +89,13 @@ END SUB
 - Events run when the program waits: during `ShowModal`, `DOEVENTS` or a
   dialog. The program ends when its main code does, as in RapidQ: forms
   still open close with it and their timers stop.
+- A form's first `Show` (or `ShowModal`) fires `OnResize`, `OnShow`,
+  `OnResize`, as RapidQ does — lay a form out in `OnResize` and it is right
+  when it appears. `OnPaint` comes after, when the program next waits. A size
+  the program sets on a shown form (`Width`, `Height`, `ClientWidth`) fires
+  `OnResize` at once; a new position fires nothing.
+- True / false properties read `1` or `0` (RapidQ's rule), RapidR Studio's
+  panel components too (`Console.ShowTabs`, `Tree.ShowFiles`).
 
 ```basic
 Form.ShowModal          ' shows the form and waits until it closes
@@ -121,6 +136,58 @@ compiler doesn't know it).
 | `Form.Scale`, `Screen.Scale`, `OnScaleChanged` | how fine the screen is (2 on a Retina screen, 1.5 at 150 %) |
 | `Application.Theme`, `$THEME` | the look (below) |
 | `AutoComplete` on an edit | the browser's autofill hint, on the web |
+| `Form.OnDropFiles (Files AS STRING)` | files dragged from the computer and dropped on the window (below) |
+
+### Files dropped on a form
+
+`OnDropFiles` (RapidR's; RapidQ has no such event) hears files dragged from
+Finder, File Explorer or a Linux file manager — in a browser, from the
+computer — and dropped anywhere on the form's window. `Files` holds their
+paths, one a line (`CHR$(10)` between them), in the order they came; a drop
+of several files is one event. Open each as any file. In a browser a
+dropped file is read into the program's own files under its name, so
+`Files` holds names (`sales.csv`) the program opens the same way. A form
+without the handler ignores drops.
+
+```basic
+CREATE Form AS RFORM
+    Caption = "Drop files here"
+    OnDropFiles = Dropped
+    CREATE Info AS RLABEL
+        Left = 8: Top = 8: Width = 300
+    END CREATE
+END CREATE
+
+SUB Dropped (Files AS STRING)
+    DIM i AS INTEGER
+    FOR i = 1 TO TALLY(Files, CHR$(10)) + 1
+        Info.Caption = Info.Caption + FIELD$(Files, CHR$(10), i) + "  "
+    NEXT
+END SUB
+
+Form.ShowModal
+```
+
+The [CSV Explorer](data-science.md#tutorial-the-csv-explorer) example opens
+the CSV file dropped on it.
+
+## The mouse pointer
+
+Every component shows the pointer its user expects, without a line of code:
+the I-beam over a text box, memo, rich edit and a combo box's text; the
+column-resize pointer (a double arrow with a bar) over a `RSPLITTER` between
+two columns and over a grid's, list view's or header's column edge (row-resize
+for a splitter between two rows and for a grid's row edge with `goRowSizing`); the diagonal and straight sizing arrows over
+the edges and corners of a `RFORMMDI` child window; the sizing corner over a
+status bar's grip. Studio's panels follow the same rule: the line between the
+name and value columns of the property inspector, the splitters between
+panels and between split editors, the handles of the form designer, links in
+the Output panel, and a tab, file or toolbox item being carried (a closed
+hand). In RapidR's look the divider you can drag also lights up under the
+mouse. Set the component's `Cursor` (`crHandPoint`, `crSizeWE`, …) and your
+choice wins, exactly as in RapidQ; `crDefault` (0) means "the component's own".
+On the desktop this is the system's cursor, on the web the page's cursor; they
+agree.
 
 ## Themes
 
@@ -154,11 +221,11 @@ colour comes from: [theme tokens](../theme-tokens.md).
 
 ## High-DPI screens
 
-A program's coordinates are RapidQ's pixels (1/96 inch, as Windows at 100 %)
-on every screen, so old layouts stay as they were; everything is drawn at
+A program's coordinates are logical pixels (1/96 inch, as RapidQ's, and as
+Windows at 100 %) on every screen, so old layouts stay as they were; everything is drawn at
 the screen's real resolution — text, lines, shapes, pictures and SVG images
 (accepted wherever RapidQ takes a bitmap) — so it is sharp on Retina and
-4K screens. `Screen.PixelsPerInch` reads RapidQ's 96; `Screen.Scale`
+4K screens. `Screen.PixelsPerInch` reads 96; `Screen.Scale`
 tells the real ratio.
 
 ## Accessibility

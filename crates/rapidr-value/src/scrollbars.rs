@@ -86,12 +86,23 @@ pub struct Scroller {
     /// Set: it is one scroll bar on its own (a QSCROLLBAR), drawn by the
     /// same code as a container's bars.
     pub alone: Option<Alone>,
+    /// A form without a frame (BorderStyle bsNone): no bar ever shows —
+    /// RC.EXE's borderless forms keep their whole client area whatever
+    /// lies past it ([`bare`]).
+    pub bare: bool,
 }
 
 impl Default for Scroller {
     fn default() -> Self {
-        Scroller { auto: true, horz: Axis::default(), vert: Axis::default(), pressed: None, drag: None, revision: 0, alone: None }
+        Scroller { auto: true, horz: Axis::default(), vert: Axis::default(), pressed: None, drag: None, revision: 0, alone: None, bare: false }
     }
+}
+
+/// Whether a container of type `type_name` with BorderStyle `border_style`
+/// (`Null`: unset, bsSizeable) is a form without a frame: its bars never
+/// show ([`Scroller::bare`]).
+pub fn bare(type_name: &str, border_style: &Value) -> bool {
+    type_name.eq_ignore_ascii_case("RFORM") && !matches!(border_style, Value::Null) && border_style.to_i64() == 0
 }
 
 /// A scroll bar on its own (a QSCROLLBAR, Delphi's TScrollBar): set on a
@@ -261,8 +272,8 @@ impl Scroller {
             self.vert.range = (bottom + bottom_edge + self.vert.margin).clamp(0, MAX_RANGE);
         }
         // (each bar shown takes room from the other's side)
-        let mut v = self.vert.visible && self.vert.range > h;
-        let hz = self.horz.visible && self.horz.range > w - if v { BAR } else { 0 };
+        let mut v = !self.bare && self.vert.visible && self.vert.range > h;
+        let hz = !self.bare && self.horz.visible && self.horz.range > w - if v { BAR } else { 0 };
         if hz && !v {
             v = self.vert.visible && self.vert.range > h - BAR;
         }
@@ -691,6 +702,11 @@ mod tests {
         assert_eq!(s.update(300, 200, &[child(10, 10, 100, 50)]), (0, 0));
         assert!(!s.vert.shown && !s.horz.shown);
         assert_eq!(s.client(300, 200), (300, 200));
+        // (a form without a frame: never a bar — RC.EXE)
+        let mut bare = Scroller { bare: true, ..Scroller::default() };
+        bare.update(300, 200, &[child(500, 500, 75, 25)]);
+        assert!(!bare.vert.shown && !bare.horz.shown);
+        assert_eq!(bare.client(300, 200), (300, 200));
         // a button below the bottom: a vertical bar, the client narrower
         let kids = [child(10, 10, 100, 50), child(10, 400, 80, 25)];
         s.update(300, 200, &kids);

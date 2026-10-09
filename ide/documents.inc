@@ -29,6 +29,14 @@ FUNCTION FileExt(Path AS STRING) AS STRING
   IF i > 0 THEN Result = LCASE$(MID$(Path, i + 1)) ELSE Result = ""
 END FUNCTION
 
+' (a BASIC source — RapidR's .rr, RapidQ's .bas / .rqw / .rqb / .rq, an
+' .inc: the language service reads these; a report or a data file isn't)
+FUNCTION IsBasicFile(Path AS STRING) AS INTEGER
+  SELECT CASE FileExt(Path)
+    CASE "rr", "bas", "inc", "rqw", "rqb", "rq": Result = 1
+  END SELECT
+END FUNCTION
+
 ' (a string literal's text, quotes off)
 FUNCTION Unquote(v AS STRING) AS STRING
   IF LEFT$(v, 1) = CHR$(34) AND RIGHT$(v, 1) = CHR$(34) AND LEN(v) >= 2 THEN Result = MID$(v, 2, LEN(v) - 2) ELSE Result = v
@@ -92,10 +100,18 @@ END SUB
 ' ---- problems (RLanguageService's diagnostics: the compiler's messages) ----------
 
 SUB FillProblems(d AS INTEGER)
+  IF d < 0 THEN
+    ClearProblems
+    EXIT SUB
+  END IF
+  FillProblemsOf DocFile(d)
+END SUB
+
+' (a file's problems — the main file's: the whole program's)
+SUB FillProblemsOf(Path AS STRING)
   DIM text AS STRING, n AS INTEGER, i AS INTEGER, row AS STRING, sev AS STRING, k AS INTEGER, errs AS INTEGER, warns AS INTEGER
   ClearProblems
-  IF d < 0 THEN EXIT SUB
-  text = Lang.Diagnostics(DocFile(d))
+  text = Lang.Diagnostics(Path)
   n = TALLY(text, CHR$(10))
   FOR i = 1 TO n
     row = FIELD$(text, CHR$(10), i)
@@ -111,6 +127,10 @@ END SUB
 SUB AnalyzeActive
   DIM d AS INTEGER
   d = ActiveCode
+  ' (not BASIC: no outline, no problems)
+  IF d >= 0 THEN
+    IF IsBasicFile(DocFile(d)) = 0 THEN d = -1
+  END IF
   IF d >= 0 THEN
     Lang.Update DocFile(d), CodeDoc(d).Text
     IF DocHasForm(d) THEN DesignRead d
@@ -119,6 +139,10 @@ SUB AnalyzeActive
   FillProblems d
   ' (S-PANELS: the inspector follows the active form's designer)
   InspectActive
+  ' (a Markdown file's outline: its headings — markdown.inc)
+  IF ActiveCode >= 0 THEN
+    IF DocIsMd(ActiveCode) THEN MarkdownOutline ActiveCode
+  END IF
 END SUB
 
 ' ---- opening, saving, closing ---------------------------------------------------------
@@ -179,20 +203,40 @@ SUB OpenDocument(Path AS STRING)
   CodeDoc(d).LoadFromFile Path
   CodeDoc(d).Tag = d
   CodeDoc(d).OnChange = CodeChanged
+  CodeDoc(d).OnCaretMove = CodeCaretMoved
+  CodeDoc(d).OnNavigate = CodeNavigate
+  CodeDoc(d).OnReferences = CodeReferences
+  CodeDoc(d).OnFileEdits = CodeFileEdits
+  EditorSettings d
   Loading = 0
   DocFile(d) = Path
   DocKind(d) = "code"
   DocOpen(d) = 1
   DocDirty(d) = 0
   DesignDoc(d).OnSourceEdit = DesignSourceEdit
+  DesignDoc(d).OnSourceStep = DesignStep
+  DesignDoc(d).OnUndo = DesignUndo
+  DesignDoc(d).SharedUndo = 1
   DesignDoc(d).OnChange = DesignChanged
   DesignDoc(d).OnDblClick = DesignDblClick
   DesignRead d
   DocHasForm(d) = Flag(DesignDoc(d).FormName <> "")
   DesignDoc(d).Theme = PreviewTheme
+  ' (a Markdown file: shown formatted too — markdown.inc)
+  DocIsMd(d) = IsMarkdownFile(Path)
+  OpenMarkdown d
   AddDocumentTab d
   ActiveDoc = d
+  ' (debug.inc: its breakpoints, the paused line, data tips)
+  DebugDocOpened d
+  ' (the project tree lists its components; the others' names are kept
+  ' from its designer)
+  ProjectFileChanged d
   AnalyzeActive
+  ' (editor.inc: the caret's place, encoding and line breaks; the caret in
+  ' the code, ready to type, as an editor opens a file)
+  EditorFacts d
+  FocusCodeSoon d
   OutputLine "Opened " + Path
   UpdateCommands
 END SUB
@@ -228,7 +272,7 @@ SUB CloseDocument(d AS INTEGER)
   UpdateCommands
 END SUB
 
-SUB CodeChanged(Sender AS RCODEEDITOR)
+SUB CodeChanged(Sender AS RCodeEditor)
   DIM d AS INTEGER
   IF Loading THEN EXIT SUB
   d = Sender.Tag

@@ -6,7 +6,10 @@ Usage (repo root, after building ./rapidr):
     python3 tools/rapidq_corpus.py <corpus-dir> [--include <rapidq include dir>]
                                    [--json out.json] [--show N] [--grep TEXT]
 
-Each .bas file is compiled with `rapidr build-bc`. Errors are normalised
+Each program (.bas, and the other names RapidQ's programs have: the IDE's
+window programs .rqw, .rqb and .rq — none of the corpus' is $INCLUDEd by
+another; a few are libraries of SUBs, which compile and do nothing, as with
+RC.EXE) is compiled with `rapidr build-bc`. Errors are normalised
 (line/column and quoted names stripped) and grouped, so the report shows which
 missing features block the most programs. `--grep` lists the files (and first
 matching error) for one error pattern.
@@ -22,6 +25,9 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# (the programs: .bas, and .rqw — RapidQ IDE's window programs —, .rqb and
+# .rq, which RapidQ's programs are also saved as)
+PROGRAM_EXTS = (".bas", ".rqw", ".rqb", ".rq")
 ERROR_RE = re.compile(r"^(?P<file>.*?):(?P<line>\d+):(?P<col>\d+): error: (?P<msg>.*)$")
 
 
@@ -165,7 +171,7 @@ def main():
         os.path.join(d, f)
         for d, _, fs in os.walk(args.corpus)
         for f in fs
-        if f.lower().endswith(".bas")
+        if f.lower().endswith(PROGRAM_EXTS)
     )
     results = {}
     by_first = collections.Counter()   # programs whose FIRST error is this

@@ -1,0 +1,8 @@
+' counter.rr: RapidR Studio's debugger flows (tests/studio_flows.mjs)
+DIM total AS INTEGER
+DIM i AS INTEGER
+$INCLUDE "tally.inc"
+FOR i = 1 TO 3
+  AddUp i
+NEXT
+PRINT "total"; total

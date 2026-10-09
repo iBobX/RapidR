@@ -205,7 +205,7 @@ methods = [
   { name = "ToString", value = true, doc = "The frame as a text table." },
   { name = "Show", value = true },
   { name = "Print", value = true, doc = "Prints the frame as a text table." },
-  { name = "ToGrid", params = "gridName", value = true, doc = "Fills a QSTRINGGRID: the header row, then the cells." },
+  { name = "ToGrid", params = "gridName", value = true, doc = "Fills an RStringGrid: the header row, then the cells." },
   { name = "To_grid", value = true },
   { name = "Display", value = true },
 ]

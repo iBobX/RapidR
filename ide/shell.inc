@@ -10,7 +10,7 @@ FUNCTION ActiveCode AS INTEGER
 END FUNCTION
 
 SUB ShowAbout
-  SHOWMESSAGE "RapidR Studio (RapidR 2.117.0)" + CHR$(13) + CHR$(10) + "RapidQ programs, made modern: desktop and web from one source." + CHR$(13) + CHR$(10) + CHR$(13) + CHR$(10) + "Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence."
+  SHOWMESSAGE "RapidR Studio (RapidR 2.117.0)" + CHR$(13) + CHR$(10) + "Runs RapidQ programs, and takes them further: desktop and web from one source." + CHR$(13) + CHR$(10) + CHR$(13) + CHR$(10) + "Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence."
 END SUB
 
 SUB ShowShortcuts
@@ -34,7 +34,7 @@ SUB SaveDocumentAs
   IF d < 0 THEN EXIT SUB
   SaveDlg.Caption = "Save As"
   SaveDlg.FileName = FileTitle(DocFile(d))
-  SaveDlg.Filter = "RapidR sources (*.rr;*.bas;*.inc)|*.rr;*.bas;*.inc|All files|*.*"
+  SaveDlg.Filter = "RapidR sources (*.rr;*.bas;*.rqw;*.rqb;*.rq;*.inc)|*.rr;*.bas;*.rqw;*.rqb;*.rq;*.inc|All files|*.*"
   IF SaveDlg.Execute THEN
     DocFile(d) = SaveDlg.FileName
     SaveDocument d
@@ -54,8 +54,12 @@ END SUB
 SUB RunCommand(Id AS STRING)
   DIM d AS INTEGER
   d = ActiveCode
+  ' (View's and Edit's on a Markdown file's Preview | Source: markdown.inc)
+  IF MarkdownCommand(Id) THEN EXIT SUB
   ' (the designer's commands, and Edit's on a designer: designer.inc)
   IF DesignCommand(Id) THEN EXIT SUB
+  ' (Run's and Debug's: debug.inc)
+  IF DebugCommand(Id) THEN EXIT SUB
   ' (the documents' views and groups, Find in Files, Help: workspace.inc, search.inc)
   IF WorkspaceCommand(Id) THEN EXIT SUB
   SELECT CASE Id
@@ -64,6 +68,8 @@ SUB RunCommand(Id AS STRING)
     CASE "file.open": AskOpen
     CASE "file.openFolder": AskOpenFolder
     CASE "file.openExample": ShowPalette "Example"
+    CASE "file.importRapidQ": AskImportRapidQ
+    CASE "file.importRapidQFolder": AskImportRapidQFolder
     CASE "file.save": SaveDocument d
     CASE "file.saveAs": SaveDocumentAs
     CASE "file.saveAll": SaveAll: SaveProjectFile
@@ -98,19 +104,21 @@ SUB RunCommand(Id AS STRING)
     CASE "view.keyboardShortcuts": ShowShortcuts
     ' ---- project ----
     CASE "project.addFile": AddFileToProject
-    CASE "project.addForm": AddProjectFile "form"
+    CASE "project.addForm"
+      ' (the file open makes no form: one added to it; else a new form file
+      ' of the program, its main file including it — Delphi's File > New >
+      ' Form)
+      d = ActiveCode
+      IF d >= 0 AND DesignDoc(d).FormName = "" THEN
+        d = DesignCommand("designer.addForm")
+      ELSEIF ProjectOpen THEN
+        AddProjectFile "form"
+      ELSE
+        SetState "stopped", "Open or make a project first (File > New Project)"
+      END IF
     CASE "project.addModule": AddProjectFile "module"
     CASE "project.options": ShowAppSettings
     ' ---- run / debug ----
-    CASE "run.start": StartProgram 1
-    CASE "run.withoutDebugging": StartProgram 0
-    CASE "run.stop": StopProgram
-    CASE "run.restart": StopProgram: StartProgram 1
-    CASE "run.continue": Session.Continue
-    CASE "run.pause": Session.Pause
-    CASE "debug.stepInto": IF RunState = "paused" THEN Session.StepIn
-    CASE "debug.stepOver": IF RunState = "paused" THEN Session.StepOver
-    CASE "debug.stepOut": IF RunState = "paused" THEN Session.StepOut
     CASE "run.build": BuildProject ""
     CASE "run.buildNative": BuildProject "native"
     CASE "run.buildInterpreted": BuildProject "interpreted"
@@ -121,7 +129,12 @@ SUB RunCommand(Id AS STRING)
     ' ---- help ----
     CASE "help.about": ShowAbout
     CASE ELSE
-      OutputLine "(" + Id + ": not there yet)"
+      ' (a test step: import:<file or folder> — imported without the dialog)
+      IF LEFT$(Id, 7) = "import:" THEN
+        ImportRapidQ MID$(Id, 8)
+      ELSEIF EditorCommand(Id) = 0 THEN
+        OutputLine "(" + Id + ": not there yet)"
+      END IF
   END SELECT
 END SUB
 
@@ -138,7 +151,8 @@ SUB StudioClose(Action AS INTEGER)
     Action = 0
     EXIT SUB
   END IF
-  IF RunState <> "stopped" THEN Session.Stop
+  StopProgram
+  Session.StopBrowser
   SaveSettings
 END SUB
 
@@ -159,7 +173,11 @@ SUB DocumentActivated(Name AS STRING)
   ' (its view — Design, Code — says DocKind: workspace.inc)
   d = DocOfPane(Name)
   IF d >= 0 THEN ActiveDoc = d
-  IF ActiveDoc <> was THEN AnalyzeActive
+  IF ActiveDoc <> was THEN
+    AnalyzeActive
+    DesignNames ActiveDoc
+  END IF
+  IF ActiveDoc >= 0 THEN EditorFacts ActiveDoc
   UpdateCommands
 END SUB
 
@@ -182,11 +200,12 @@ SUB DocumentClosing(Name AS STRING, Cancel AS INTEGER)
   UpdateCommands
 END SUB
 
-SUB WelcomeLink(Sender AS QLABEL)
+SUB WelcomeLink(Sender AS RLabel)
   SELECT CASE Sender.Tag
     CASE 1: RunCommand "file.newProject"
     CASE 2: RunCommand "file.open"
-    CASE 3: ShowPalette "Example"
+    CASE 3: RunCommand "file.importRapidQ"
+    CASE 4: ShowPalette "Example"
     CASE ELSE: RunCommand "view.commandPalette"
   END SELECT
 END SUB
@@ -199,6 +218,7 @@ SUB OutlineOpen
   i = OutlineTree.ItemIndex
   d = ActiveCode
   IF i < 0 OR i >= OutlineCount OR d < 0 THEN EXIT SUB
+  IF MarkdownOutlineOpen(d, i) THEN EXIT SUB
   Dock.FocusPane("codedoc(" + LTRIM$(STR$(d)) + ")")
   CodeDoc(d).GotoLine OutlineLine(i)
 END SUB
@@ -242,10 +262,6 @@ SUB StartStudio
   RunState = "stopped"
   StateText = "Ready"
   ActiveDoc = -1
-  Session.OnOutput = ProgramOutput
-  Session.OnStopped = ProgramStopped
-  Session.OnContinue = ProgramContinued
-  Session.OnExit = ProgramExited
   SetUpBuild
   DefineCommands
   BuildMenus
@@ -253,9 +269,12 @@ SUB StartStudio
   SetUpStatus
   SetUpPanels
   SetUpDock
+  SetUpDebug
   SetUpDocuments
   SetUpSearch
   IF SavedLayout <> "" THEN Dock.LoadLayout(SavedLayout)
+  ' (a layout kept while a program was paused: the toolbox back)
+  DebugLayoutLoaded
   FillExamples
   FillPalette
   FillRecent
@@ -276,6 +295,8 @@ END SUB
 ' runs; the tests drive Studio this way, through the very commands.
 SUB MacroTick
   DIM k AS INTEGER, id AS STRING
+  ' (keys a step sent still being typed: the next step waits for them)
+  IF Application.KeysPending > 0 THEN EXIT SUB
   IF DoList = "" THEN
     Macro.Enabled = 0
     EXIT SUB
@@ -289,9 +310,12 @@ SUB MacroTick
     DoList = ""
   END IF
   id = LTRIM$(RTRIM$(id))
+  IF EditorStep(id) THEN EXIT SUB
   IF id <> "" AND id <> "wait" THEN
     OutputLine "> " + id
     ' (S-PANELS: the panels' test steps, tool: prop: …, else a command)
-    IF PanelStep(id) = 0 THEN RunCommand id
+    IF PanelStep(id) = 0 THEN
+      IF DebugStep(id) = 0 THEN RunCommand id
+    END IF
   END IF
 END SUB

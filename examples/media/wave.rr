@@ -1,9 +1,9 @@
-' wave.rr: playing a WAV sound with QWAVE, and making one — a sound
+' wave.rr: playing a WAV sound with RWave, and making one — a sound
 ' recorded from the microphone for a second, saved and played back.
 '
 '   rapidr run wave.rr
 '
-' QWAVE is RapidQ's QWave.inc object (built into RapidR). Open / Play /
+' RWave (RapidQ's QWAVE, from its QWave.inc) is built into RapidR. Open / Play /
 ' Stop play a file; New, Lenght (the library's spelling) and Record record
 ' one, Save writes it. The first recording asks the system for the
 ' microphone. chime.wav was made by tools/make_example_media.py.
@@ -16,27 +16,27 @@ DECLARE SUB RecordOne
 DECLARE SUB PlayMine
 DECLARE SUB Changed (Position AS LONG)
 
-DIM Wave AS QWAVE
+DIM Wave AS RWave
 DIM recording AS INTEGER
 Wave.Timer.Interval = 50
 Wave.OnChange = Changed
 
-CREATE Form AS QFORM
+CREATE Form AS RForm
     Caption = "Sounds"
     Width = 330
     Height = 150
     Center
-    CREATE ChimeBtn AS QBUTTON
+    CREATE ChimeBtn AS RButton
         Caption = "&Chime": Left = 12: Top = 12: Width = 90: OnClick = PlayChime
     END CREATE
-    CREATE RecordBtn AS QBUTTON
+    CREATE RecordBtn AS RButton
         Caption = "&Record 1 s": Left = 112: Top = 12: Width = 90: OnClick = RecordOne
     END CREATE
-    CREATE MineBtn AS QBUTTON
+    CREATE MineBtn AS RButton
         Caption = "&Play mine": Left = 212: Top = 12: Width = 90: OnClick = PlayMine
         Enabled = 0
     END CREATE
-    CREATE Info AS QLABEL
+    CREATE Info AS RLabel
         Left = 12: Top = 56: Width = 300
     END CREATE
 END CREATE

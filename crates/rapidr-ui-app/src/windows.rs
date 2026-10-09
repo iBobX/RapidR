@@ -24,6 +24,10 @@ pub enum WindowOp {
     Position(String, (i64, i64)),
     /// A frame and title bar (BorderStyle <> bsNone).
     Border(String, bool),
+    /// The title bar hidden (`HideTitleBar`: true) or shown again.
+    TitleBar(String, bool),
+    /// The window's outline changed (`ShapeForm`: `rapidr_value::shape`).
+    Shape(String),
     Icon(String, Option<Icon>),
     Minimize(String),
     /// A pop-up menu shown by the host (form, menu, x, y in its inside).
@@ -67,6 +71,10 @@ pub enum ScriptInput {
     /// (the input lane's) `comp.__dblclick_x_y`: a double click at (x, y)
     /// in the component.
     DblClick { comp: String, x: i64, y: i64 },
+    /// `comp.__cursor_x_y` in `RAPIDR_TEST_DUMP`: the mouse moved to (x, y)
+    /// in the component, and the pointer there noted (its CSS name:
+    /// `col-resize`, `text` …; `desktop::take_probe`).
+    Cursor { comp: String, x: i64, y: i64 },
     /// (the lists lane's) The component's own step (`__item_i`, `__node_i`,
     /// `__toggle_i`, `__cell_c_r`, `__edit`, `__enter`, `__escape`:
     /// `FormUi::test_action`) on form `form`.
@@ -77,6 +85,9 @@ pub enum ScriptInput {
     /// (timers during native menu tracking) `__hold_ms`: the next pump held,
     /// as a native menu the user keeps open would hold it.
     Hold(i64),
+    /// (`Application.SendKeys`, rapidr_value::send_keys) A keystroke to
+    /// the frontmost window that takes input, pressed and released.
+    Stroke(rapidr_value::send_keys::Stroke),
 }
 
 /// What the glue asks of the host its windows are on. runtime-core
@@ -140,6 +151,17 @@ pub trait Windows: Copy + 'static {
     /// lasts that long: `waits::Wait::Menu`). A host whose pop-up menus
     /// never hold the program has none to say.
     fn popup_open(self, _form: &str) -> bool {
+        false
+    }
+    /// `X.StartDrag` on form `form`: component `comp` moves with the mouse
+    /// while a button is held (the kernel's `FormUi::start_move`); whether
+    /// it does. A host without the kernel's forms has none to move.
+    fn start_move(self, _form: &str, _comp: &str) -> bool {
+        false
+    }
+    /// Whether a drag or a StartDrag move goes on in form `form` (a wait
+    /// for one lasts that long: `waits::Wait::Drag`).
+    fn dragging(self, _form: &str) -> bool {
         false
     }
 

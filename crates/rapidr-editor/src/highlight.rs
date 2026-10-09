@@ -9,8 +9,9 @@
 //! until — past every edited line — a line ends in the state it ended in
 //! before: the rest of the file is then known to be unchanged.
 //!
-//! States are stacks interned to `u32` numbers ([`StateId`]), as
-//! `rapidr_value::objects::code::spans` carries them from line to line.
+//! States are stacks interned to `u32` numbers ([`StateId`]), carried from
+//! line to line by the view that draws the code (`rapidr-ui-kernel`'s
+//! `components::codeeditor`).
 
 use std::collections::HashMap;
 use std::ops::Range;
@@ -231,9 +232,10 @@ impl Highlighter {
         self.restyled.take()
     }
 
-    /// `rapidr_value::objects::code::spans`'s contract: a line's tokens from
-    /// a state, and the state it leaves (states as this highlighter interns
-    /// them).
+    /// A line's tokens from a state, and the state it leaves (states as
+    /// this highlighter interns them): how the code editor's view
+    /// (`rapidr-ui-kernel`'s `components::codeeditor`) colours a line that
+    /// isn't in the document, such as a hover's code.
     pub fn line_spans(&mut self, line: &str, state: StateId) -> (Vec<Token>, StateId) {
         let mut stack = self.stack(state).to_vec();
         let mut out = Vec::new();

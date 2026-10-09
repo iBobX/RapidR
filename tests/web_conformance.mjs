@@ -14,11 +14,13 @@
 
 import { chromium } from "playwright";
 import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { openRunner } from "./web_run.mjs";
 
 const CASES = join(dirname(fileURLToPath(import.meta.url)), "conformance/cases");
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const filters = process.argv.slice(2);
 const norm = (s) => s.replace(/\r\n/g, "\n").split("\n").map((l) => l.trimEnd()).join("\n").trimEnd();
 
@@ -40,7 +42,14 @@ const assets = ["resource_files", "picture_files", "video_files"].map((d) => joi
 
 let passed = 0, failed = 0, xfail = 0, xpass = 0;
 for (const name of names) {
-  const source = readFileSync(join(CASES, name + ".bas"), "utf8");
+  // (a case whose file isn't UTF-8 — RapidQ's, Windows-1252 — reaches the
+  // page as the desktop preprocesses it: its text decoded so, and the
+  // `$OPTION CONSOLE CP437` line it gets; the page is handed text)
+  const bytes = readFileSync(join(CASES, name + ".bas"));
+  let source = bytes.toString("utf8");
+  if (source.includes("\uFFFD")) {
+    source = execFileSync(join(ROOT, "rapidr"), ["preprocess", join(CASES, name + ".bas")], { encoding: "utf8" });
+  }
   const marker = /^'\s*xfail:\s*([^—\-\n]*)/i.exec(source.split("\n")[0]);
   const expectedFail = !!marker && /\bweb\b/i.test(marker[1]);
   const expected = norm(readFileSync(join(CASES, name + ".expected"), "utf8"));

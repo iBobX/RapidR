@@ -10,7 +10,7 @@
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 
-use rapidr_value::{v_bool, v_int};
+use rapidr_value::{v_bool, v_int, Value};
 
 use crate::windows::{invalidate, push_op, Icon, WindowOp};
 use crate::{timers, Program, Windows};
@@ -179,7 +179,7 @@ pub fn menu_offset<R: Program + Windows>(rt: R, form: &str) -> i32 {
 /// A form's window inside: Width / Height less the frame the window
 /// system draws (the in-window menu included).
 pub fn form_window_size<P: Program>(p: P, name: &str) -> (i64, i64) {
-    let (fw, fh) = rapidr_value::layout::form_frame(p.get(name, "borderstyle").to_i64());
+    let (fw, fh) = rapidr_value::layout::form_frame(frame_style(p, name));
     ((p.get(name, "width").to_i64() - fw).clamp(1, 100_000), (p.get(name, "height").to_i64() - fh).clamp(1, 100_000))
 }
 
@@ -243,6 +243,9 @@ fn window_made<P: Program>(p: P, name: &str, made: bool) {
     if made {
         p.form_built(&lower(name));
     }
+    // (shown once: the runtimes' layout places a control aligned from now
+    // on as RapidQ does on a shown form, and a new size posts its OnPaint)
+    p.store(&lower(name), "__shownonce", v_bool(true));
 }
 
 /// OnResize as the VCL fires it (RC.EXE, probes 2026-10-08): when a form's
@@ -305,7 +308,7 @@ pub fn fullscreen<R: Program + Windows>(rt: R, name: &str) {
     rt.flush();
     if rt.headless() {
         let (sw, sh) = rt.screen();
-        let (fw, fh) = rapidr_value::layout::form_frame(rt.get(name, "borderstyle").to_i64());
+        let (fw, fh) = rapidr_value::layout::form_frame(frame_style(rt, name));
         let (iw, ih) = ((sw - fw).max(1), (sh - fh).max(1));
         rt.system_resized(name, (iw, ih), (0, 0));
         push_op(WindowOp::Size(name.to_string(), (iw, ih)));
@@ -321,8 +324,11 @@ pub fn hide_window(name: &str) {
 }
 
 /// A form's window shown: drawn at its screen's scale from now on, then
-/// (the first time) its OnPaint — as Windows' WM_PAINT comes once a window
-/// shows, after OnShow.
+/// (the first time) its OnPaint — posted, as Windows posts WM_PAINT: it
+/// comes when the program next lets its windows work (DOEVENTS,
+/// ShowModal's wait, the end of the main program), after the statements
+/// that follow the Show (RC.EXE: `Resize Show Resize`, then `Paint` at the
+/// DOEVENTS).
 pub fn after_show<R: Program + Windows>(rt: R, name: &str) {
     let name = lower(name);
     let host_scale = rt.window_scale(&name);
@@ -330,18 +336,19 @@ pub fn after_show<R: Program + Windows>(rt: R, name: &str) {
     rapidr_value::objects::bitmap::set_display_scale(scale);
     st(|s| s.scales.insert(name.clone(), scale));
     if st(|s| s.first_paint.remove(&name)) {
-        fire_first_paint(rt, &name);
+        post_first_paint(rt, &name);
     }
 }
 
-/// OnPaint for `parent` and the canvases on it, depth first.
-pub fn fire_first_paint<P: Program>(p: P, parent: &str) {
-    p.fire(parent, "onpaint");
+/// OnPaint for `parent` and the canvases on it, depth first — posted
+/// (`rapidr_value::events::post_paint`, each once while it waits).
+fn post_first_paint<P: Program>(p: P, parent: &str) {
+    rapidr_value::events::post_paint(parent);
     for (child, type_name) in p.children(parent) {
         if type_name.eq_ignore_ascii_case("RCANVAS") {
-            p.fire(&child, "onpaint");
+            rapidr_value::events::post_paint(&child);
         } else {
-            fire_first_paint(p, &child);
+            post_first_paint(p, &child);
         }
     }
 }
@@ -469,6 +476,14 @@ pub fn begin_modal<R: Program + Windows>(rt: R, name: &str) {
         place_centered(rt, &name);
     } else if rt.get(&name, "_center").to_i64() != 0 {
         let p = centered(rt, &name);
+        // (Left / Top too: a window made by this Show takes its place from
+        // them — the op alone is for a window that exists)
+        applying(|| {
+            rt.quietly(&mut || {
+                rt.set(&name, "left", v_int(p.0));
+                rt.set(&name, "top", v_int(p.1));
+            })
+        });
         push_op(WindowOp::Position(name.clone(), p));
     }
     let made = build_form(rt, &name);
@@ -523,10 +538,50 @@ pub fn move_form<P: Program>(p: P, name: &str) {
     push_op(WindowOp::Position(lower(name), at));
 }
 
-/// `Form.BorderStyle`: bsNone (0) takes away the window's frame.
+/// `Form.BorderStyle`: bsNone (0) takes away the window's frame. (A new
+/// BorderStyle shows a hidden title bar again, as RapidQ's runtime makes
+/// the window's style anew: the window keeps its size.)
 pub fn set_form_border<P: Program>(p: P, name: &str) {
+    let hidden = rapidr_value::layout::title_bar_hidden(name);
+    rapidr_value::layout::set_title_bar_hidden(name, false, 0);
     if window_shown(name).is_some() {
         push_op(WindowOp::Border(lower(name), p.get(name, "borderstyle").to_i64() != 0));
+        if hidden {
+            push_op(WindowOp::TitleBar(lower(name), false));
+        }
+    }
+    apply_geometry(p, name);
+}
+
+/// The frame code of form `name`'s frame computations: its BorderStyle,
+/// or `layout::FRAME_NO_CAPTION` while its title bar is hidden.
+pub fn frame_style<P: Program>(p: P, name: &str) -> i64 {
+    rapidr_value::layout::frame_style(name, p.get(name, "borderstyle").to_i64())
+}
+
+/// `X.StartDrag` (`rapidr_value::drag`): control `comp` moves with the
+/// mouse while a button is held on its form — the form whose move the
+/// caller waits for (`waits::Wait::Drag`), or `None`: nothing moves (no
+/// button held, a type without StartDrag).
+pub fn start_drag<R: Program + Windows>(rt: R, comp: &str) -> Option<String> {
+    if !rapidr_value::drag::can_start_drag(&rt.type_of(comp)) {
+        return None;
+    }
+    let form = rt.form_of(comp)?.to_lowercase();
+    rt.start_move(&form, &comp.to_lowercase()).then_some(form)
+}
+
+/// `Form.HideTitleBar` / `ShowTitleBar` (`show`): the window without (or
+/// with again) its title bar — its client area keeps its size, its Height
+/// loses (gets back) the title bar's, as RapidQ's runtime does
+/// (`rapidr_value::layout::title_bar_height_change`). No OnResize: the
+/// inside didn't change.
+pub fn set_title_bar<P: Program>(p: P, name: &str, show: bool) {
+    let border_style = p.get(name, "borderstyle").to_i64();
+    let Some(height) = rapidr_value::layout::title_bar_height_change(name, show, border_style, p.get(name, "height").to_i64()) else { return };
+    p.quietly(&mut || p.set(name, "height", v_int(height)));
+    if window_shown(name).is_some() {
+        push_op(WindowOp::TitleBar(lower(name), !show));
     }
     apply_geometry(p, name);
 }
@@ -571,7 +626,7 @@ pub fn set_caption<P: Program>(p: P, name: &str, text: &str) {
 /// Constraints), its aligned and anchored children are laid out again,
 /// OnResize and OnPaint fire.
 pub fn form_resized<P: Program>(p: P, form: &str, w: i64, h: i64) {
-    let (fw, fh) = rapidr_value::layout::form_frame(p.get(form, "borderstyle").to_i64());
+    let (fw, fh) = rapidr_value::layout::form_frame(frame_style(p, form));
     let asked = (w + fw, h + fh);
     let (w, h) = p.constraints(form).size(asked.0, asked.1);
     let same = p.get(form, "width").to_i64() == w && p.get(form, "height").to_i64() == h;
@@ -603,6 +658,15 @@ pub fn form_moved<P: Program>(p: P, form: &str, x: i64, y: i64) {
     });
 }
 
+/// (RapidR's) Files dropped on a form's window: its OnDropFiles(Files), the
+/// paths one a line (`CHR$(10)` between them), in the order they came.
+pub fn files_dropped<P: Program>(p: P, form: &str, files: &[String]) {
+    let files: Vec<&str> = files.iter().map(|f| f.trim_end_matches(['\r', '\n'])).filter(|f| !f.is_empty()).collect();
+    if !files.is_empty() {
+        p.fire_args(&lower(form), "ondropfiles", &[Value::String(files.join("\n"))]);
+    }
+}
+
 /// A form's window moved to a screen with another scale: told
 /// (OnScaleChanged) and drawn again at it (OnPaint).
 pub fn scale_changed<R: Program + Windows>(rt: R, form: &str, scale: f64) {
@@ -616,7 +680,9 @@ pub fn scale_changed<R: Program + Windows>(rt: R, form: &str, scale: f64) {
     if changed {
         rapidr_value::objects::bitmap::set_display_scale(scale);
         rt.fire(form, "onscalechanged");
-        fire_first_paint(rt, form);
+        // (posted: one paint when the form's first is still waiting — the
+        // window's scale told just after it showed)
+        post_first_paint(rt, form);
     }
 }
 
@@ -665,7 +731,7 @@ pub fn simulate_state<R: Program + Windows>(rt: R, name: &str, from: i64, to: i6
         }
     });
     let Some((left, top, w, h)) = bounds else { return };
-    let (fw, fh) = rapidr_value::layout::form_frame(get("borderstyle"));
+    let (fw, fh) = rapidr_value::layout::form_frame(rapidr_value::layout::frame_style(name, get("borderstyle")));
     let (iw, ih) = ((w - fw).max(1), (h - fh).max(1));
     rt.system_resized(name, (iw, ih), (left, top));
     push_op(WindowOp::Size(name.to_string(), (iw, ih)));

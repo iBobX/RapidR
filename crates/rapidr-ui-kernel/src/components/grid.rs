@@ -12,7 +12,8 @@
 //! or a drag selects a range (goRangeSelect); a fixed row's cell dragged
 //! moves its column (goColMoving), a fixed column's its row
 //! (goRowMoving); a fixed row's cell border dragged sizes the column
-//! (goColSizing); the arrows move the selection; with goEditing, Enter,
+//! (goColSizing), a fixed column's cell border dragged sizes the row
+//! (goRowSizing); the arrows move the selection; with goEditing, Enter,
 //! F2, typing or a double click edit the cell in place, and Enter stores
 //! it (OnSetEditText, OnChange).
 //!
@@ -22,6 +23,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
+use rapidr_value::input::Cursor;
 use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::grid::{CellDraw, StringGrid, GCS_ELLIPSIS, GO_ALWAYS_SHOW_EDITOR, GO_COL_MOVING, GO_COL_SIZING, GO_FIXED_HORZ_LINE, GO_FIXED_VERT_LINE, GO_HORZ_LINE, GO_ROW_MOVING, GO_ROW_SIZING, GO_VERT_LINE};
 use rapidr_value::objects::ops::{Op, Place, Rect};
@@ -46,6 +48,8 @@ enum Drag {
     Move(bool, usize),
     /// Column `col` sized from x, its width then.
     Size(usize, i64, i64),
+    /// Row `row` sized from y, its height then (goRowSizing).
+    SizeRow(usize, i64, i64),
 }
 
 thread_local! {
@@ -261,6 +265,14 @@ impl ComponentKind for Grid {
         let font = cx.font.clone();
         let text_color = ink(cx.store, cx.id, &font, true, t.window);
         let (fc, fr) = (g.fixed_cols(), g.fixed_rows());
+        // (FixedColor: the fixed cells' fill, clBtnFace until set)
+        let fixed_fill = match cx.store.get(cx.id, "fixedcolor") {
+            v @ (rapidr_value::Value::Integer(_) | rapidr_value::Value::Double(_)) => crate::text::bgr_to_rgb(v.to_i64()),
+            _ => t.face,
+        };
+        // (the cell being edited: its list / ellipsis button shows — RapidQ
+        // shows them in the cell's editor only)
+        let edited = editing(cx.id).map(|ed| ed.target);
         p.at((2, 2), |p| {
             p.clipped((0, 0, l.inner.0, l.inner.1), |p| {
                 // (the lines: what the cells leave between them)
@@ -292,7 +304,7 @@ impl ComponentKind for Grid {
                         let text = g.cell(c, r).to_string();
                         let ellipsis = has_ellipsis(&g, c, r);
                         let list = (g.col, g.row) == (c as i64, r as i64) && g.list_items(c, r).is_some();
-                        let button = if ellipsis || list { rh.min(cw) } else { 0 };
+                        let button = if (ellipsis || list) && edited == Some((c, r)) { rh.min(cw) } else { 0 };
                         // (RapidR's look: the selection a tint of the accent —
                         // grey without the focus — the current cell ringed)
                         let (sel_fill, sel_ink) = if !t.fluent() {
@@ -304,7 +316,7 @@ impl ComponentKind for Grid {
                         };
                         p.clipped(rect, |p| {
                             if fixed {
-                                p.fill(rect, t.face);
+                                p.fill(rect, fixed_fill);
                                 if !t.fluent() {
                                     p.thin_raised(rect);
                                 }
@@ -369,18 +381,30 @@ impl ComponentKind for Grid {
                                         h.finish()
                                     };
                                     p.picture(&format!("{}#cell{c},{r}", cx.id), revision, picture_of(b.display_rgba()), rect);
-                                } else {
-                                    p.at((x, y), |p| replay(p, ops, &font, &format!("{}#cell{c},{r}", cx.id)));
                                 }
                             }
-                            if current && !fixed && !g.has_option(rapidr_value::objects::grid::GO_ROW_SELECT) {
+                        });
+                        // (after what OnDrawCell drew, which isn't clipped to the cell)
+                        if current && !fixed && !g.has_option(rapidr_value::objects::grid::GO_ROW_SELECT) {
+                            p.clipped(rect, |p| {
                                 if t.fluent() {
                                     p.ring(rect, 2.0, t.focus, 2.0);
                                 } else {
                                     p.focus(rect);
                                 }
-                            }
-                        });
+                            });
+                        }
+                    }
+                }
+                // (what OnDrawCell drew, over the cells and not clipped to
+                // its own: a handler may draw over its neighbours — RapidQ's
+                // mergeGrid example draws one text across two cells, from
+                // the second cell's handler)
+                for &(r, y, _) in &l.rows {
+                    for &(c, x, _) in &l.cols {
+                        if let Some(ops) = g.owner_drawing.get(&(c, r)).filter(|ops| !ops.iter().any(|op| matches!(op, CellDraw::Flood(..)))) {
+                            p.at((x, y), |p| replay(p, ops, &font, &format!("{}#cell{c},{r}", cx.id)));
+                        }
                     }
                 }
             });
@@ -389,6 +413,35 @@ impl ComponentKind for Grid {
         // (the cell's editor over it, in the cells' area)
         if let Some(r) = editing(cx.id).and_then(|ed| cell_rect(&l, ed.target.0, ed.target.1)) {
             p.clipped((2, 2, l.inner.0, l.inner.1), |p| paint_editor(cx, p, r));
+        }
+    }
+
+    /// A fixed row's cell border with goColSizing (or a column being
+    /// sized): the column resize pointer; a fixed column's cell border with
+    /// goRowSizing (or a row being sized): the row resize pointer; a cell
+    /// being edited: the I-beam.
+    fn pointer(&self, cx: &mut Cx, x: i64, y: i64) -> Cursor {
+        match DRAGS.with(|d| d.borrow().get(cx.id).copied()) {
+            Some(Drag::Size(..)) => return Cursor::ColResize,
+            Some(Drag::SizeRow(..)) => return Cursor::RowResize,
+            _ => {}
+        }
+        let Some(g) = with_grid(cx.id, |g| g.clone()) else { return Cursor::Default };
+        let l = layout(cx.id, &g, cx.width(), cx.height());
+        if editing(cx.id).and_then(|ed| cell_rect(&l, ed.target.0, ed.target.1)).is_some_and(|(rx, ry, rw, rh)| x >= rx && y >= ry && x < rx + rw && y < ry + rh) {
+            return Cursor::IBeam;
+        }
+        // (the press's own test: a fixed row's cell, within 2 pixels of a
+        // column's right edge)
+        let on_edge = cell_at(&l, x, y).is_some_and(|((_, r), _)| r < g.fixed_rows()) && l.cols.iter().any(|&(_, s, sz)| (x - 2 - (s + sz)).abs() <= 2);
+        if on_edge && g.has_option(GO_COL_SIZING) {
+            return Cursor::ColResize;
+        }
+        let on_row_edge = cell_at(&l, x, y).is_some_and(|((c, _), _)| c < g.fixed_cols()) && l.rows.iter().any(|&(_, s, sz)| (y - 2 - (s + sz)).abs() <= 2);
+        if on_row_edge && g.has_option(GO_ROW_SIZING) {
+            Cursor::RowResize
+        } else {
+            Cursor::Default
         }
     }
 
@@ -458,7 +511,13 @@ impl ComponentKind for Grid {
                         return MouseOut::default();
                     }
                 }
-                let _ = GO_ROW_SIZING;
+                // (a fixed column's cell border: the row sized)
+                if c < fc && g.has_option(GO_ROW_SIZING) {
+                    if let Some(&(sr, _, sh)) = l.rows.iter().find(|&&(_, s, sz)| (y - 2 - (s + sz)).abs() <= 2) {
+                        DRAGS.with(|d| d.borrow_mut().insert(id.clone(), Drag::SizeRow(sr, y, sh)));
+                        return MouseOut::default();
+                    }
+                }
                 if r < fr && c >= fc && g.has_option(GO_COL_MOVING) {
                     DRAGS.with(|d| d.borrow_mut().insert(id.clone(), Drag::Move(true, c)));
                     return MouseOut::default();
@@ -511,6 +570,13 @@ impl ComponentKind for Grid {
                         }
                     });
                 }
+                Some(Drag::SizeRow(r, from, height)) => {
+                    with_grid_mut(&id, |g| {
+                        if let Some(rh) = g.row_heights.get_mut(r) {
+                            *rh = (height + y - from).max(0);
+                        }
+                    });
+                }
                 _ => {}
             },
             MouseKind::Up => match DRAGS.with(|d| d.borrow_mut().remove(&id)) {
@@ -520,7 +586,7 @@ impl ComponentKind for Grid {
                         with_grid_mut(&id, |g| if cols { g.move_col(from, to) } else { g.move_row(from, to) });
                     }
                 }
-                Some(Drag::Size(..)) | Some(Drag::Range) | None => {}
+                Some(Drag::Size(..)) | Some(Drag::SizeRow(..)) | Some(Drag::Range) | None => {}
             },
             _ => {}
         }

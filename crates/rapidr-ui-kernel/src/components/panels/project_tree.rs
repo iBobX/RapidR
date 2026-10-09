@@ -17,7 +17,7 @@ mod draw;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use rapidr_value::input::Button;
+use rapidr_value::input::{Button, Cursor};
 use rapidr_value::objects::a11y::{part_id, AccessNode, Action, Role, PART_ITEM};
 use rapidr_value::objects::ops::Rect;
 use rapidr_value::panels::project_tree::{model, with, with_mut, Confirm, Drag, DropAt, Node, NodeKind, ProjectTree as Model, User};
@@ -453,6 +453,17 @@ impl ComponentKind for ProjectTree {
         list::vscroll_wheel(cx.id, dy, g.area.2, g.area.3)
     }
 
+    /// A file being dragged onto a folder: the closed hand; a name being
+    /// edited: the I-beam.
+    fn pointer(&self, cx: &mut Cx, x: i64, y: i64) -> Cursor {
+        if with(cx.id, |md| md.drag.as_ref().is_some_and(|d| d.active)) == Some(true) {
+            return Cursor::Grabbing;
+        }
+        let Some(confirming) = with(cx.id, |md| md.confirm.is_some()) else { return Cursor::Default };
+        let g = geo(cx, &look(rapidr_value::theme::current()), confirming);
+        Self::edit_rect(cx, &g).map_or(Cursor::Default, |r| list::editor_pointer(cx, r, x, y))
+    }
+
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
         Self::sync_edit(cx);
         let l = look(rapidr_value::theme::current());
@@ -577,7 +588,7 @@ impl ComponentKind for ProjectTree {
         for (i, r) in rows.iter().enumerate() {
             let mut item = AccessNode::new(part_id(cx.id, PART_ITEM, i), Role::TreeItem);
             item.name = match &r.kind {
-                NodeKind::Component { name, ty, .. } => format!("{name}, {ty}"),
+                NodeKind::Component { name, ty, .. } => format!("{name}, {}", rapidr_value::objects::design::shown_type(ty)),
                 _ => r.label.clone(),
             };
             item.description = match &r.kind {

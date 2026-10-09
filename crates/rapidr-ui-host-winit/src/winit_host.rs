@@ -30,7 +30,46 @@ use winit::platform::pump_events::{EventLoopExtPumpEvents, PumpStatus};
 use winit::window::{Window, WindowId};
 
 use crate::menu::NativeMenus;
-use crate::{a11y, Desktop, Host, HostCmd, HostEvent, RendererKind, Source};
+use crate::{a11y, Desktop, Host, HostCmd, HostEvent, RendererKind, Source, WindowSpec};
+
+/// Whether form `f`'s window has the system's frame: a frame (BorderStyle
+/// <> bsNone) with its title bar (not `HideTitleBar`), and no outline of
+/// its own (`ShapeForm`: the outline is its edge — shape.rs).
+fn decorated(f: &str, spec: &WindowSpec) -> bool {
+    spec.border && !spec.no_caption && rapidr_value::shape::get(f).is_none()
+}
+
+/// The frame code of a window's spec (`rapidr_value::layout::form_frame`).
+fn frame_style(spec: &WindowSpec) -> i64 {
+    match (spec.border, spec.no_caption) {
+        (false, _) => 0,
+        (true, true) => rapidr_value::layout::FRAME_NO_CAPTION,
+        (true, false) => 2,
+    }
+}
+
+/// Form `f`'s outline in its window's inside, if it has one — what the
+/// host follows the mouse with on macOS (`WinitHost::follow_outlines`).
+fn outline_of(f: &str, spec: &WindowSpec) -> Option<Vec<(i64, i64, i64, i64)>> {
+    if cfg!(target_os = "macos") {
+        crate::shape::rects_of(f, frame_style(spec))
+    } else {
+        None
+    }
+}
+
+/// Form `f`'s outline on its window (shape.rs), where its accounted frame
+/// puts the inside.
+fn apply_shape(window: &Window, f: &str, spec: &WindowSpec) {
+    let rects = crate::shape::rects_of(f, frame_style(spec));
+    if !crate::shape::apply(window, rects.as_deref(), window.scale_factor()) && rects.is_some() {
+        eprintln!("[rapidr] {f}.ShapeForm: this window system can't give a window an outline (Wayland): it keeps its rectangle");
+    }
+}
+
+/// How often the host looks where the mouse is while a window has an
+/// outline (macOS: `WinitHost::follow_outlines`).
+const OUTLINE_LOOK: Duration = Duration::from_millis(50);
 
 pub enum UserEvent {
     AccessKit(accesskit_winit::Event),
@@ -76,6 +115,11 @@ struct Win {
     /// (the DirectX lane's) Made full screen (a QDXSCREEN's FullScreen;
     /// there's no way back).
     fullscreen: bool,
+    /// (ShapeForm) Its outline in its inside (logical), and whether the
+    /// mouse goes through it now — macOS, where the host follows the mouse
+    /// to let it through outside the outline (shape.rs).
+    outline: Option<Vec<(i64, i64, i64, i64)>>,
+    passes: Option<bool>,
 }
 
 struct State {
@@ -213,8 +257,36 @@ fn software_gpu_only(instance: &wgpu::Instance) -> bool {
     adapters.iter().all(|a| a.get_info().device_type == wgpu::DeviceType::Cpu)
 }
 
+impl WinitHost {
+    /// (ShapeForm, macOS) A window with an outline takes the mouse only
+    /// over it: the system would let every click through its transparent
+    /// window, or none, so the host looks where the mouse is (every pump,
+    /// and at least every 50 ms while there's an outline) and lets it
+    /// through — or not — accordingly. Whether any window has one.
+    fn follow_outlines(&mut self) -> bool {
+        let mut any = false;
+        let mouse = crate::platform::global_mouse();
+        for w in self.state.wins.values_mut() {
+            let Some(rects) = &w.outline else { continue };
+            any = true;
+            let Some((mx, my)) = mouse else { continue };
+            let Ok(at) = w.window.inner_position() else { continue };
+            let at = at.to_logical::<f64>(w.window.scale_factor());
+            let (x, y) = (mx - at.x, my - at.y);
+            let over = rects.iter().any(|&(rx, ry, rw, rh)| x >= rx as f64 && x < (rx + rw) as f64 && y >= ry as f64 && y < (ry + rh) as f64);
+            if w.passes != Some(!over) {
+                let _ = w.window.set_cursor_hittest(over);
+                w.passes = Some(!over);
+            }
+        }
+        any
+    }
+}
+
 impl Host for WinitHost {
     fn pump(&mut self, timeout: Option<Duration>, desk: &mut Desktop, store: &dyn Store) {
+        // (ShapeForm on macOS: the mouse let through outside an outline)
+        let timeout = if self.follow_outlines() { Some(timeout.map_or(OUTLINE_LOOK, |t| t.min(OUTLINE_LOOK))) } else { timeout };
         // Forms the program changed since the last pump: drawn again.
         for (f, w) in &self.state.wins {
             if desk.forms.get(f).is_some_and(|k| k.shown && k.ui.dirty) {
@@ -490,11 +562,21 @@ impl Shim<'_> {
                 }
                 HostCmd::Border(f) => {
                     if let (Some(w), Some(k)) = (self.s.wins.get(&f), self.desk.forms.get_mut(&f)) {
-                        w.window.set_decorations(k.spec.border);
+                        w.window.set_decorations(decorated(&f, &k.spec));
                         w.window.set_resizable(k.spec.frame.resizable);
                         w.window.set_enabled_buttons(crate::platform::buttons(k.spec.frame));
-                        k.ui.system_corner = system_corner(k.spec.border);
+                        k.ui.system_corner = system_corner(decorated(&f, &k.spec));
                         k.ui.dirty = true;
+                    }
+                }
+                HostCmd::Shape(f) => {
+                    if let (Some(w), Some(k)) = (self.s.wins.get_mut(&f), self.desk.forms.get_mut(&f)) {
+                        w.window.set_decorations(decorated(&f, &k.spec));
+                        k.ui.system_corner = system_corner(decorated(&f, &k.spec));
+                        k.ui.dirty = true;
+                        apply_shape(&w.window, &f, &k.spec);
+                        w.outline = outline_of(&f, &k.spec);
+                        w.passes = None;
                     }
                 }
                 HostCmd::Icon(f) => {
@@ -628,7 +710,7 @@ impl Shim<'_> {
         let mut attrs = Window::default_attributes()
             .with_title(spec.title.as_str())
             .with_visible(false)
-            .with_decorations(spec.border)
+            .with_decorations(decorated(f, &spec))
             .with_resizable(spec.frame.resizable)
             .with_enabled_buttons(crate::platform::buttons(spec.frame))
             .with_inner_size(self.inner_size(spec.size.0, spec.size.1, 1.0))
@@ -694,10 +776,14 @@ impl Shim<'_> {
             }
             k.ui.dirty = true;
             k.state = spec.state;
-            k.ui.system_corner = system_corner(spec.border);
+            k.ui.system_corner = system_corner(decorated(f, &spec));
         }
         if moved_scale {
             self.desk.scale_changed(f, scale);
+        }
+        // (an outline ShapeForm gave it before it showed)
+        if rapidr_value::shape::get(f).is_some() {
+            apply_shape(&window, f, &spec);
         }
         window.request_redraw();
         // (`Form.Handle` is the window's HWND from now on, so Windows API
@@ -711,7 +797,8 @@ impl Shim<'_> {
                 }
             }
         }
-        self.s.wins.insert(f.to_string(), Win { window, surface, access, sent: a11y::Sent::default(), cursor: (0.0, 0.0), pointer: None, ime: false, fullscreen: false });
+        let outline = outline_of(f, &spec);
+        self.s.wins.insert(f.to_string(), Win { window, surface, access, sent: a11y::Sent::default(), cursor: (0.0, 0.0), pointer: None, ime: false, fullscreen: false, outline, passes: None });
     }
 
     /// The window's surface: the GPU's unless it has none (or the CPU was
@@ -867,7 +954,7 @@ impl Shim<'_> {
         if w.fullscreen {
             return;
         }
-        let framed = self.desk.forms.get(f).is_some_and(|k| k.spec.border);
+        let framed = self.desk.forms.get(f).is_some_and(|k| decorated(f, &k.spec));
         let now = if w.window.is_minimized() == Some(true) {
             1
         } else if !framed {
@@ -998,6 +1085,13 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
             WindowEvent::Resized(size) => {
                 self.size_applied(&f, size);
                 self.note_state(&f);
+                // (the outline stays where it is — macOS' mask follows the
+                // view's new size)
+                if rapidr_value::shape::get(&f).is_some() {
+                    if let (Some(w), Some(k)) = (self.s.wins.get(&f), self.desk.forms.get(&f)) {
+                        apply_shape(&w.window, &f, &k.spec);
+                    }
+                }
             }
             WindowEvent::Moved(p) => {
                 if let Some(w) = self.s.wins.get(&f) {
@@ -1086,6 +1180,14 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
                 }
                 self.after_input(&f);
             }
+            // (a trackpad's pinch: the wheel with Ctrl, as the browsers send
+            // it — what zooms, zooms: the form designer)
+            WindowEvent::PinchGesture { delta, .. } => {
+                let at = self.s.wins.get(&f).map_or((0.0, 0.0), |w| w.cursor);
+                let m = Mods { ctrl: true, ..self.mods() };
+                self.desk.mouse_wheel(store, &f, at, (0.0, -delta * 4.0), m, Source::User);
+                self.after_input(&f);
+            }
             WindowEvent::MouseWheel { delta, .. } => {
                 // (winit: positive moves the content right / down, i.e. the
                 // view up; RapidR's notches are positive down. A touchpad's
@@ -1126,6 +1228,12 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
             }
             WindowEvent::Ime(Ime::Commit(text)) => {
                 self.desk.ime_commit(store, &f, &text, Source::User);
+                self.after_input(&f);
+            }
+            // (RapidR's OnDropFiles: the system gives the files of one drop
+            // one at a time; the program hears them together)
+            WindowEvent::DroppedFile(path) => {
+                self.desk.files_dropped(&f, &path.to_string_lossy());
                 self.after_input(&f);
             }
             _ => {}

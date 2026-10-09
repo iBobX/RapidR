@@ -143,6 +143,18 @@ impl SourceDoc for Doc {
         self.doc.error_line()
     }
 
+    fn add_form(&mut self, name: &str) -> Vec<SourceEdit> {
+        let before = self.doc.text().to_string();
+        let patches = self.doc.add_form(name);
+        edits_of(before, &patches)
+    }
+
+    fn insert_after_form(&mut self, form: usize, line: &str) -> Vec<SourceEdit> {
+        let before = self.doc.text().to_string();
+        let patches = self.doc.insert_after_form(form, line);
+        edits_of(before, &patches)
+    }
+
     fn create_handler(&mut self, form: usize, component: &str, event: &str) -> Result<(String, Option<usize>, Vec<SourceEdit>), String> {
         let before = self.doc.text().to_string();
         let h = self.doc.create_handler(form, component, event)?;
@@ -308,7 +320,7 @@ mod tests {
         // Tab to the panel, Shift+arrow by the grid, Ctrl+arrow resizes
         assert!(s.key(9, "", false, false));
         assert_eq!(s.root_name(), "F");
-        assert!(s.announcement.starts_with("Panel1 (QPANEL), 200, 10"), "{}", s.announcement);
+        assert!(s.announcement.starts_with("Panel1 (RPanel), 200, 10"), "RapidR's name, the code QPANEL: {}", s.announcement);
         assert!(s.key(39, "", true, false));
         assert!(s.key(40, "", false, true));
         let text = s.get("source").unwrap().to_string_val();
@@ -345,6 +357,411 @@ mod tests {
         s.open_source(NOTEPAD);
         assert_eq!(s.code_error, None);
         assert!(s.add_at("QBUTTON", (8, 8), None).is_some());
+    }
+
+    // ---- S-DESIGN-2: the tray's outside components, the menu editor, Tab
+    // order, captions in place, a new form, zoom, the shared history ----
+
+    use rapidr_value::objects::design::DesignEvent;
+
+    /// The events' edits applied to `editor`; the other events.
+    fn heard(s: &mut DesignSurface, editor: &mut String) -> Vec<DesignEvent> {
+        let events = s.take_events();
+        let edits: Vec<SourceEdit> = events.iter().filter_map(|e| if let DesignEvent::SourceEdit(e) = e { Some(e.clone()) } else { None }).collect();
+        apply(editor, &edits);
+        events.into_iter().filter(|e| !matches!(e, DesignEvent::SourceEdit(_))).collect()
+    }
+
+    fn type_keys(s: &mut DesignSurface, text: &str) {
+        for c in text.chars() {
+            let vk = rapidr_value::input::vk_of_char(c.to_ascii_uppercase()).unwrap_or(0);
+            assert!(s.key(vk, &c.to_string(), c.is_ascii_uppercase(), false), "typed {c}");
+        }
+    }
+
+    const NOTEPAD_BAS: &str = include_str!("../../../examples/rapidq/notepad.bas");
+
+    #[test]
+    fn dialogs_made_outside_the_form_are_in_its_tray() {
+        install();
+        let mut s = DesignSurface::default();
+        assert!(s.open_source(NOTEPAD_BAS));
+        let mut editor = NOTEPAD_BAS.to_string();
+        let tray = s.tray();
+        let names: Vec<&str> = tray.iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(names, ["OpenDialog", "SaveDialog"], "the program's dialogs, beside the form");
+        let n = s.ids().len();
+        assert_eq!((tray[0].index, tray[1].index), (n, n + 1), "their indexes after the form's components");
+        assert_eq!(s.call("gettype", &[rapidr_value::v_int(n as i64 + 1)]).unwrap().to_string_val(), "QSAVEDIALOG");
+        // a click on one selects it: the inspector shows it, its change goes into its own block
+        let (x, y, _, _) = tray[0].rect;
+        assert_eq!(s.mouse_down(x + 3, y + 3, false), Some(DesignEvent::Select(n as i64)));
+        s.mouse_up();
+        assert_eq!(s.selection(), Some(n));
+        assert_eq!(s.inspected_objects(), [("OpenDialog".to_string(), "QOPENDIALOG".to_string())]);
+        let rows = s.with_inspected(|d| d.inspect().properties.iter().map(|r| r.name.to_string()).collect::<Vec<_>>());
+        assert!(rows.iter().any(|r| r == "Filter"), "{rows:?}");
+        s.with_inspected(|d| d.set_property("Filter", Some("\"BASIC (*.bas)|*.bas\"")).unwrap());
+        heard(&mut s, &mut editor);
+        assert!(editor.contains("CREATE OpenDialog AS QOPENDIALOG\n    Filter = \"BASIC (*.bas)|*.bas\"\nEND CREATE"), "{editor}");
+        assert_eq!(s.get("source").unwrap().to_string_val(), editor);
+        assert_eq!(s.selection(), Some(n), "still selected");
+        assert!(s.select_name("SaveDialog") && s.selection() == Some(n + 1));
+        assert!(s.undo());
+        heard(&mut s, &mut editor);
+        assert_eq!(editor, NOTEPAD_BAS);
+    }
+
+    const MENU_FORM: &str = "CREATE Form1 AS QFORM\n    Caption = \"Menus\"\n    Width = 320\n    Height = 240\n    CREATE MainMenu1 AS QMAINMENU\n    END CREATE\nEND CREATE\n\nForm1.ShowModal\n";
+
+    #[test]
+    fn a_menu_is_built_in_place() {
+        install();
+        let mut s = DesignSurface::default();
+        s.open_source(MENU_FORM);
+        let mut editor = MENU_FORM.to_string();
+        // the empty bar offers Type Here
+        assert!(s.menu_active());
+        let v = s.menu_view().unwrap();
+        assert_eq!(v.bar.len(), 1);
+        let (x, y, _, _) = v.bar[0].rect;
+        assert!(y < 0, "on the bar, above the client area");
+        s.mouse_down(x + 4, y + 4, false);
+        s.mouse_up();
+        assert!(s.editing.is_some());
+        type_keys(&mut s, "&File");
+        assert!(s.key(13, "", false, false));
+        // the File item is there, its menu open, its Type Here being typed
+        let file = s.designer.design.find("File1").expect("named as Delphi names it");
+        assert_eq!(s.menu_open, vec![file]);
+        assert!(s.editing.is_some());
+        type_keys(&mut s, "&Open...");
+        // Tab: the ShortCut field takes Ctrl+O
+        assert!(s.key(9, "", false, false));
+        assert!(s.key(79, "", false, true));
+        assert!(s.key(13, "", false, false));
+        assert!(s.key(27, "", false, false), "Escape leaves the next Type Here");
+        heard(&mut s, &mut editor);
+        let want = "    CREATE MainMenu1 AS QMAINMENU\n        CREATE File1 AS QMENUITEM\n            Caption = \"&File\"\n            CREATE Open1 AS QMENUITEM\n                Caption = \"&Open...\"\n                ShortCut = \"Ctrl+O\"\n            END CREATE\n        END CREATE\n    END CREATE\n";
+        assert!(editor.contains(want), "{editor}");
+        assert_eq!(s.get("source").unwrap().to_string_val(), editor);
+        // a separator and Exit; then Exit dragged above the separator
+        let open = s.designer.design.find("Open1").unwrap();
+        s.designer.selection.set(open);
+        let r = s.menu_slot_rect(rapidr_value::objects::design::menus::Slot::New { parent: file, before: None }).unwrap();
+        s.mouse_down(r.0 + 30, r.1 + 5, false);
+        s.mouse_up();
+        type_keys(&mut s, "-");
+        assert!(s.key(13, "", false, false));
+        type_keys(&mut s, "E&xit");
+        assert!(s.key(13, "", false, false));
+        assert!(s.key(27, "", false, false));
+        heard(&mut s, &mut editor);
+        assert!(editor.contains("CREATE N1 AS QMENUITEM\n                Caption = \"-\"") && editor.contains("CREATE Exit1 AS QMENUITEM"), "{editor}");
+        let exit = s.designer.design.find("Exit1").unwrap();
+        let n1 = s.designer.design.find("N1").unwrap();
+        let er = s.menu_slot_rect(rapidr_value::objects::design::menus::Slot::Item(exit)).unwrap();
+        let nr = s.menu_slot_rect(rapidr_value::objects::design::menus::Slot::Item(n1)).unwrap();
+        s.mouse_down(er.0 + 30, er.1 + 5, false);
+        s.mouse_drag(er.0 + 30, er.1 - 4);
+        s.mouse_drag(nr.0 + 30, nr.1 + 2);
+        s.mouse_up();
+        heard(&mut s, &mut editor);
+        let (e, n) = (editor.find("CREATE Exit1").unwrap(), editor.find("CREATE N1").unwrap());
+        assert!(e < n, "Exit moved above the separator: {editor}");
+        // the gutter of a selected item toggles Checked; F2 edits it
+        s.designer.selection.set(open);
+        let or = s.menu_slot_rect(rapidr_value::objects::design::menus::Slot::Item(open)).unwrap();
+        s.mouse_down(or.0 + 4, or.1 + 5, false);
+        s.mouse_up();
+        heard(&mut s, &mut editor);
+        assert!(editor.contains("ShortCut = \"Ctrl+O\"\n                Checked = 1"), "{editor}");
+        assert!(s.key(113, "", false, false));
+        assert!(s.key(36, "", false, false));
+        assert!(s.key(46, "", false, false));
+        assert!(s.key(13, "", false, false));
+        heard(&mut s, &mut editor);
+        assert!(editor.contains("Caption = \"Open...\""), "{editor}");
+        // every step undone: the exact text
+        while s.undo() {
+            heard(&mut s, &mut editor);
+        }
+        assert_eq!(editor, MENU_FORM);
+    }
+
+    const BUTTONS: &str = "CREATE F AS QFORM\n  Width = 400: Height = 300\n  CREATE A AS QBUTTON\n    Left = 10: Top = 10\n  END CREATE\n  CREATE B AS QBUTTON\n    Left = 10: Top = 50\n  END CREATE\n  CREATE C AS QBUTTON\n    Left = 10: Top = 90\n  END CREATE\nEND CREATE\n";
+
+    #[test]
+    fn tab_order_by_clicks() {
+        install();
+        let mut s = DesignSurface::default();
+        s.open_source(BUTTONS);
+        let mut editor = BUTTONS.to_string();
+        assert!(s.set("tabordermode", &rapidr_value::Value::Boolean(true)));
+        let nums: Vec<String> = s.tab_numbers().into_iter().map(|(_, n)| n).collect();
+        assert_eq!(nums, ["0", "1", "2"]);
+        s.mouse_down(20, 100, false);
+        s.mouse_up();
+        s.mouse_down(20, 20, false);
+        s.mouse_up();
+        heard(&mut s, &mut editor);
+        let c = s.designer.design.find("C").unwrap();
+        assert_eq!(s.tab_numbers()[0], (c, "0".to_string()), "C first");
+        assert!(editor.contains("TabOrder = 0") && editor.contains("TabOrder = 1"), "{editor}");
+        assert!(s.chrome_ops().iter().any(|o| matches!(o, rapidr_value::objects::ops::Op::Text { text, .. } if text == "2")), "the badges drawn");
+        assert!(s.key(27, "", false, false));
+        assert!(s.tab_order.is_none());
+        while s.undo() {
+            heard(&mut s, &mut editor);
+        }
+        assert_eq!(editor, BUTTONS);
+    }
+
+    #[test]
+    fn captions_edited_in_place() {
+        install();
+        let mut s = DesignSurface::default();
+        s.open_source(BUTTONS);
+        let mut editor = BUTTONS.to_string();
+        // a click selects; a second (slow) click on it edits; a double click doesn't
+        s.mouse_down(20, 20, false);
+        s.mouse_up();
+        assert!(s.editing.is_none());
+        s.mouse_down(20, 20, false);
+        s.mouse_up();
+        assert!(s.editing.is_some(), "a slow click edits");
+        assert_eq!(s.mouse_down(20, 20, true), Some(DesignEvent::DblClick(0)), "the double click is the handler's");
+        assert!(s.editing.is_none());
+        s.mouse_up();
+        // F2: the caption selected, typing replaces it, Enter writes it once
+        assert!(s.key(113, "", false, false));
+        type_keys(&mut s, "Go");
+        assert!(s.key(13, "", false, false));
+        let events = heard(&mut s, &mut editor);
+        assert!(editor.contains("    Left = 10: Top = 10\n    Caption = \"Go\"\n"), "{editor}");
+        assert_eq!(events.iter().filter(|e| matches!(e, DesignEvent::Step(_))).count(), 1, "one step");
+        // Escape leaves it as it was
+        assert!(s.key(113, "", false, false));
+        type_keys(&mut s, "No");
+        assert!(s.key(27, "", false, false));
+        assert!(heard(&mut s, &mut editor).is_empty());
+        assert!(s.undo());
+        heard(&mut s, &mut editor);
+        assert_eq!(editor, BUTTONS);
+    }
+
+    #[test]
+    fn a_form_for_a_file_without_one() {
+        install();
+        let mut s = DesignSurface::default();
+        let text = "' a console program\nPRINT \"Hello\"\n";
+        s.open_source(text);
+        assert!(s.no_form() && s.add_form_button().is_some());
+        let mut editor = text.to_string();
+        assert!(s.key(13, "", false, false), "Enter adds one");
+        heard(&mut s, &mut editor);
+        // (RapidR's names: the file isn't written with RapidQ's)
+        assert_eq!(editor, "' a console program\nPRINT \"Hello\"\n\nCREATE Form1 AS RForm\n    Caption = \"Form1\"\n    Width = 320\n    Height = 240\nEND CREATE\n\nForm1.ShowModal\n");
+        assert!(!s.no_form() && s.root_name() == "Form1");
+        assert_eq!(s.form_rect().2, 320);
+        assert!(s.add_at("QBUTTON", (8, 8), None).is_some(), "designed at once");
+        heard(&mut s, &mut editor);
+        assert!(editor.contains("    CREATE Button1 AS RButton\n"), "{editor}");
+        // a name taken goes on to the next
+        let mut t = DesignSurface::default();
+        t.open_source("DIM Form1 AS INTEGER\n");
+        assert_eq!(t.add_form("").as_deref(), Some("Form2"));
+    }
+
+    /// The program compiles to bytecode and to Rust (a designer's edit
+    /// never breaks it).
+    fn compiles(text: &str, what: &str) {
+        let tokens = rapidr_lexer::Lexer::new(text, Some("main.rr".into())).tokenize().unwrap_or_else(|e| panic!("{what}: lexer: {e}\n{text}"));
+        let program = rapidr_parser::parse_tokens(&tokens).unwrap_or_else(|e| panic!("{what}: parser: {e}\n{text}"));
+        rapidr_bcgen::compile_program_with_source(&program, Some(text)).unwrap_or_else(|e| panic!("{what}: bytecode: {e}\n{text}"));
+        assert_eq!(rapidr_codegen_rust::native_gap(&program), None, "{what}: native");
+    }
+
+    /// Every component the toolbox offers goes onto a form (Enter on the
+    /// toolbox: a free spot, the registry's creation size), written in the
+    /// form's own names (RapidR's or RapidQ's, never mixed), and the program
+    /// still compiles on both backends; a second one lands beside the first,
+    /// never on it.
+    #[test]
+    fn every_toolbox_component_can_be_added() {
+        install();
+        let mut tried = 0;
+        for (form_type, rapidq) in [("RForm", false), ("QFORM", true)] {
+            let text = format!("CREATE Form1 AS {form_type}\n    Caption = \"All\"\n    Width = 640\n    Height = 480\nEND CREATE\n\nForm1.ShowModal\n");
+            for group in rapidr_icons::TOOLBOX_GROUPS {
+                for &ty in group.members {
+                    let Some(c) = rapidr_lang::component(ty).filter(|c| c.kind == rapidr_lang::Kind::Component) else { continue };
+                    // (the form itself: Add Form; a menu item: inside a menu)
+                    if matches!(ty, "RFORM" | "RFORMMDI" | "RMENUITEM") {
+                        continue;
+                    }
+                    let mut s = DesignSurface::default();
+                    assert!(s.open_source(&text));
+                    s.set_size(1200, 900);
+                    let mut editor = text.clone();
+                    let at = s.free_spot(ty);
+                    let first = s.add_at(ty, at, None).unwrap_or_else(|| panic!("{ty}: not added ({})", s.get("statustext").unwrap().to_string_val()));
+                    heard(&mut s, &mut editor);
+                    let written = s.call("gettype", &[rapidr_value::v_int(first as i64)]).unwrap().to_string_val();
+                    let want = if rapidq { c.written_name().to_string() } else { c.pretty(c.name) };
+                    assert_eq!(written, want, "{ty} in a {form_type}");
+                    assert!(editor.contains(&format!(" AS {want}\n")), "{ty}: {editor}");
+                    compiles(&editor, &format!("{ty} in a {form_type}"));
+                    if c.visual {
+                        let (x1, y1) = (s.call("getcompx", &[rapidr_value::v_int(first as i64)]).unwrap().to_i64(), s.call("getcompy", &[rapidr_value::v_int(first as i64)]).unwrap().to_i64());
+                        let (w1, h1) = (s.call("getcompw", &[rapidr_value::v_int(first as i64)]).unwrap().to_i64(), s.call("getcomph", &[rapidr_value::v_int(first as i64)]).unwrap().to_i64());
+                        let (fw, fh) = s.client_size();
+                        assert!(x1 >= 0 && y1 >= 0 && x1 + w1 <= fw && y1 + h1 <= fh, "{ty}: inside the form ({x1}, {y1}, {w1}, {h1})");
+                        // (the registry's creation size; an aligned one — a header,
+                        // a status bar — the width or height of the form's inside)
+                        // (one RapidQ makes 0 x 0 — a QVIDEO — gets a size it can be seen
+                        // and picked at)
+                        // (one larger than the form: as large as fits)
+                        // (a label: its caption's size — RapidQ's AutoSize)
+                        if let Some((cw, ch)) = c.size.filter(|&(w, h)| w > 0 && h > 0 && ty != "RLABEL") {
+                            assert!(w1 == i64::from(cw) || w1 == fw || w1 == fw - x1 - 8, "{ty}: width {w1}, the registry's {cw}");
+                            assert!(h1 == i64::from(ch) || h1 == fh || h1 == fh - y1 - 8, "{ty}: height {h1}, the registry's {ch}");
+                        }
+                        // (nothing selected: a container takes what is added into itself)
+                        s.set("selindex", &rapidr_value::v_int(-1));
+                        let at = s.free_spot(ty);
+                        if let Some(second) = s.add_at(ty, at, None) {
+                            heard(&mut s, &mut editor);
+                            let i = rapidr_value::v_int(second as i64);
+                            let (x2, y2) = (s.call("getcompx", &[i.clone()]).unwrap().to_i64(), s.call("getcompy", &[i]).unwrap().to_i64());
+                            let overlaps = x2 < x1 + w1 && x1 < x2 + w1 && y2 < y1 + h1 && y1 < y2 + h1;
+                            assert!(!overlaps || w1 * 2 > 640 || h1 * 2 > 480, "{ty}: the second on the first ({x1},{y1}) ({x2},{y2})");
+                            compiles(&editor, &format!("two {ty}s"));
+                        }
+                    }
+                    tried += 1;
+                }
+            }
+        }
+        assert!(tried > 100, "{tried}");
+    }
+
+    /// Nothing selected, the inspector shows the form itself — its
+    /// properties and its events (Delphi's) — and a handler made for one of
+    /// the form's events is written and bound as a component's is.
+    #[test]
+    fn the_form_itself_is_inspected_with_its_events() {
+        install();
+        let mut s = DesignSurface::default();
+        let text = "CREATE Form1 AS RForm\n    Caption = \"One\"\nEND CREATE\n\nForm1.ShowModal\n";
+        assert!(s.open_source(text));
+        let mut editor = text.to_string();
+        assert_eq!(s.inspected_objects(), [("Form1".to_string(), "RForm".to_string())]);
+        let events = s.with_inspected(|d| d.inspect().events.iter().map(|e| e.name.to_string()).collect::<Vec<_>>());
+        for e in ["OnShow", "OnClose", "OnResize", "OnPaint", "OnKeyDown", "OnMouseDown"] {
+            assert!(events.iter().any(|x| x == e), "{e} in {events:?}");
+        }
+        s.with_inspected(|d| d.set_property("Caption", Some("Two")).unwrap());
+        heard(&mut s, &mut editor);
+        assert!(editor.contains("    Caption = \"Two\"\n"), "{editor}");
+        assert!(s.selection().is_none(), "still nothing selected");
+        let sub = s.call("createhandler", &[rapidr_value::v_str("Form1"), rapidr_value::v_str("OnShow")]).unwrap().to_string_val();
+        heard(&mut s, &mut editor);
+        assert_eq!(sub, "Form1Show");
+        assert!(editor.contains("SUB Form1Show") && editor.contains("    OnShow = Form1Show\n"), "{editor}");
+        compiles(&editor, "a form's OnShow handler");
+    }
+
+    /// RForm dropped on an RFormMDI: a child window RapidQ's way — a panel
+    /// on the MDI form (QFORMMDI's children are components) and its AddChild
+    /// after the form — the program compiles; undone, the exact text.
+    #[test]
+    fn a_child_window_of_an_mdi_form() {
+        install();
+        let mut s = DesignSurface::default();
+        let text = "CREATE Main AS RFormMDI\n    Caption = \"Main\"\n    Width = 500\n    Height = 360\nEND CREATE\n\nMain.ShowModal\n";
+        assert!(s.open_source(text));
+        let mut editor = text.to_string();
+        assert_eq!(s.add_mdi_child().as_deref(), Some("Form1"));
+        heard(&mut s, &mut editor);
+        assert_eq!(editor, "CREATE Main AS RFormMDI\n    Caption = \"Main\"\n    Width = 500\n    Height = 360\n    CREATE Form1 AS RPanel\n        Left = 0\n        Top = 0\n        Width = 320\n        Height = 240\n    END CREATE\nEND CREATE\nMain.AddChild(Form1.Handle, \"Form1\", 0, 0, 0, 0, 0, 1)\n\nMain.ShowModal\n");
+        compiles(&editor, "an MDI child");
+        assert!(s.add_at("QBUTTON", (8, 8), None).is_some(), "designed on it");
+        // the MDI template's window
+        let (_, files) = rapidr_project::Project::new_from_template("Md", "mdi").unwrap();
+        let mut m = DesignSurface::default();
+        assert!(m.open_source(&files[0].1));
+        assert_eq!(m.add_mdi_child().as_deref(), Some("Form1"), "{}", m.get("statustext").unwrap().to_string_val());
+        // a plain form has none
+        let mut f = DesignSurface::default();
+        f.open_source("CREATE Form1 AS RForm\nEND CREATE\n");
+        assert_eq!(f.add_mdi_child(), None);
+    }
+
+    #[test]
+    fn zoom_keeps_rapidq_pixels() {
+        install();
+        let mut s = DesignSurface::default();
+        s.open_source(BUTTONS);
+        s.set_size(1200, 900);
+        let (ox, oy) = s.client_origin();
+        assert!(s.set("zoom", &rapidr_value::v_int(200)));
+        assert_eq!(s.get("zoom"), Some(rapidr_value::v_int(200)));
+        let (zx, zy) = s.client_origin();
+        assert!(zx > ox && zy > oy, "the frame zoomed too");
+        // the mouse on the surface lands on RapidQ's pixels
+        assert_eq!(s.client_point(zx as f64 + 40.0, zy as f64 + 40.0), (20, 20));
+        assert_eq!(s.mouse_down(20, 20, false), Some(DesignEvent::Select(0)));
+        s.mouse_drag(28, 28);
+        s.mouse_up();
+        let text = s.get("source").unwrap().to_string_val();
+        assert!(text.contains("Left = 16: Top = 1"), "moved 8 of the program's pixels (16 on the surface), snapped: {text}");
+        // the handles keep their size; Ctrl + − / 0 step
+        assert!(s.key(189, "", false, true));
+        assert_eq!(s.get("zoom"), Some(rapidr_value::v_int(175)));
+        assert!(s.key(48, "", false, true));
+        assert_eq!(s.get("zoom"), Some(rapidr_value::v_int(100)));
+        s.set("zoom", &rapidr_value::v_int(1000));
+        assert_eq!(s.get("zoom"), Some(rapidr_value::v_int(400)));
+    }
+
+    #[test]
+    fn one_history_with_the_code_editor() {
+        install();
+        let mut s = DesignSurface::default();
+        s.open_source(BUTTONS);
+        assert!(s.set("sharedundo", &rapidr_value::Value::Boolean(true)));
+        let mut editor = BUTTONS.to_string();
+        // each change: OnSourceStep, its edits, OnChange
+        assert!(!s.key(39, "", false, false), "nothing selected yet");
+        s.select_name("A");
+        assert_eq!(s.take_events(), [DesignEvent::Select(0)], "OnSelect: the inspector follows");
+        assert!(s.key(39, "", false, false));
+        let events = heard(&mut s, &mut editor);
+        assert_eq!(events, [DesignEvent::Step(false), DesignEvent::Change]);
+        // a component added, then its caption typed: one step with the add
+        s.add_at("QLABEL", (100, 100), None).unwrap();
+        let events = heard(&mut s, &mut editor);
+        assert!(events.contains(&DesignEvent::Step(false)));
+        type_keys(&mut s, "Hi");
+        let events = heard(&mut s, &mut editor);
+        assert_eq!(events.iter().filter(|e| matches!(e, DesignEvent::Step(true))).count(), 2, "{events:?}");
+        // Ctrl+Z asks the program: the code editor holds the history
+        assert!(s.key(90, "", false, true));
+        assert_eq!(s.take_events(), [DesignEvent::Undo(false)]);
+        assert!(s.key(89, "", false, true));
+        assert_eq!(s.take_events(), [DesignEvent::Undo(true)]);
+        // the editor undid: the text given back, the designer follows, its selection kept
+        let undone = editor.replace("    Caption = \"Hi\"\n", "");
+        assert!(s.open_source(&undone));
+        assert_eq!(s.root_name(), "F");
+        // typing in the code doesn't stop the designer from writing
+        let typed = undone.replace("Top = 50", "Top = 60");
+        s.open_source(&typed);
+        s.select_name("B");
+        assert!(s.key(40, "", false, false));
+        let text = s.get("source").unwrap().to_string_val();
+        assert!(text.contains("Top = 61"), "{text}");
     }
 
     #[test]

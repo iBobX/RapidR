@@ -117,7 +117,7 @@ pub fn form_area(form: &str) -> (i64, i64) {
         v => v.to_i64(),
     };
     let menu = if has_menu(form) { MENU_HEIGHT } else { 0 };
-    rapidr_value::layout::form_client_size(n("width").to_i64(), n("height").to_i64(), border_style, menu)
+    rapidr_value::layout::form_client_size(n("width").to_i64(), n("height").to_i64(), rapidr_value::layout::frame_style(form, border_style), menu)
 }
 
 /// The Width / Height giving a form this client size.
@@ -127,7 +127,7 @@ pub fn form_outer(form: &str, client_width: i64, client_height: i64) -> (i64, i6
         v => v.to_i64(),
     };
     let menu = if has_menu(form) { MENU_HEIGHT } else { 0 };
-    rapidr_value::layout::form_outer_size(client_width, client_height, border_style, menu)
+    rapidr_value::layout::form_outer_size(client_width, client_height, rapidr_value::layout::frame_style(form, border_style), menu)
 }
 
 /// The client area of `parent` in its children's coordinates: a form's
@@ -153,6 +153,11 @@ pub fn client_rect(parent: &str) -> Rect {
         return Rect::new(0, 0, w, h);
     }
     let n = |p: &str| rp_comp_get_stored(parent, p).to_i64();
+    // (a panel's: inside its bevels — rapidr_value::objects::bevel)
+    if rp_comp_type(parent) == "RPANEL" {
+        let i = rapidr_value::objects::bevel::client_inset(&|p| rp_comp_get_stored(parent, p));
+        return Rect::new(i, i, (n("width") - 2 * i).max(0), (n("height") - 2 * i).max(0));
+    }
     Rect::new(0, 0, n("width"), n("height"))
 }
 
@@ -221,6 +226,11 @@ impl engine::LayoutStore for Rt {
     }
     fn scroll_update(&mut self, name: &str) {
         crate::scroll_web::update(name);
+    }
+    // (RapidQ aligns nothing before the form's first Show: rapidr_value::
+    // layout's align_controls_unshown; ui-app's forms mark the first Show)
+    fn unshown(&self, parent: &str) -> bool {
+        crate::object_web::form_of(parent).is_some_and(|f| !crate::object_web::rp_comp_get_stored(&f, "__shownonce").to_bool())
     }
 }
 

@@ -2,8 +2,8 @@
 # the SDK and the Runtime for x64 and ARM64 (Inno Setup; per user, no admin).
 #
 #   powershell -NoProfile -ExecutionPolicy Bypass -File windows.ps1 -Prep <prepare.sh's prep>
-#       [-Arch x86_64,aarch64] [-Toolchain gnullvm|msvc] [-Sign <certificate subject>]
-#       [-Work %USERPROFILE%\rapidr-release]
+#       [-Arch x86_64,aarch64] [-Toolchain gnullvm|msvc]
+#       [-Sign <certificate subject> | -AzureMetadata <metadata.json>] [-Work %USERPROFILE%\rapidr-release]
 #
 #   -Toolchain  gnullvm (default): Rust's *-pc-windows-gnullvm, linked by LLVM-MinGW — open
 #               source, its output carries no obligations beyond the mingw-w64 runtime's notice
@@ -11,8 +11,17 @@
 #               (lib\rapidr\toolchain): users' native builds need no Visual Studio.
 #               msvc: Visual Studio Build Tools (Microsoft's licence) with the x64 and ARM64 tools;
 #               the SDK then ships no toolchain.
-#   -Sign       a code-signing certificate in the user's store (signtool, Windows SDK). Without
-#               it the installers are unsigned: SmartScreen warns ("More info > Run anyway").
+# Signing is OFF unless you turn it on (the first release ships unsigned: SmartScreen warns,
+# "More info > Run anyway"; docs/manual/getting-started.md says so). This script never creates a
+# key or a certificate. The hooks, either one signs the executables and the installers with
+# signtool (Windows SDK) and a timestamp; from the Mac: `windows-vm.sh build Sign="..."`:
+#   -Sign             the subject of a code-signing certificate in the user's store (env
+#                     RAPIDR_WIN_SIGN_SUBJECT): an OV / EV certificate.
+#   -AzureMetadata    Azure Trusted Signing: the path of its metadata.json (endpoint, account,
+#                     certificate profile; env RAPIDR_WIN_AZURE_METADATA). Signs through the
+#                     Azure.CodeSigning.Dlib.dll (-AzureDlib, env RAPIDR_WIN_AZURE_DLIB; default
+#                     %USERPROFILE%\rapidr-tools\azure-code-signing\bin\<arch>\) with the
+#                     identity `az login` / the environment's AZURE_* variables give.
 #
 # Needs what setup-tools.ps1 installs: Python 3.11+, Inno Setup 6, LLVM-MinGW (both hosts' zips,
 # this machine's unpacked) in %USERPROFILE%\rapidr-tools, Rust's gnullvm toolchain. Builds in
@@ -21,7 +30,9 @@ param(
     [Parameter(Mandatory = $true)][string]$Prep,
     [string[]]$Arch = @("x86_64", "aarch64"),
     [ValidateSet("gnullvm", "msvc")][string]$Toolchain = "gnullvm",
-    [string]$Sign = "",
+    [string]$Sign = $env:RAPIDR_WIN_SIGN_SUBJECT,
+    [string]$AzureMetadata = $env:RAPIDR_WIN_AZURE_METADATA,
+    [string]$AzureDlib = $env:RAPIDR_WIN_AZURE_DLIB,
     [string]$Work = "$env:USERPROFILE\rapidr-release"
 )
 # (Continue: Windows PowerShell turns a native tool's stderr into errors when the output is
@@ -146,13 +157,29 @@ the mingw-w64 runtime: ship COPYING.MinGW-w64-runtime.txt's notices with it (Rap
     return $dir
 }
 
-if ($Sign) {
-    Step "sign the executables ($Sign)"
+# Signs files with the hook the caller turned on (none: nothing), timestamped.
+function Sign-Files([string[]]$files) {
+    if ($Sign -and $AzureMetadata) { throw "-Sign and -AzureMetadata: one of them" }
+    if ($Sign) {
+        Run signtool @(@("sign", "/n", $Sign, "/fd", "sha256", "/tr", "http://timestamp.digicert.com", "/td", "sha256") + $files)
+    } elseif ($AzureMetadata) {
+        if (-not $AzureDlib) {
+            $hostArch = if ("$env:PROCESSOR_IDENTIFIER" -like "ARM*") { "arm64" } else { "x64" }
+            $AzureDlib = "$Tools\azure-code-signing\bin\$hostArch\Azure.CodeSigning.Dlib.dll"
+        }
+        if (-not (Test-Path $AzureDlib)) { throw "Azure Trusted Signing's Azure.CodeSigning.Dlib.dll isn't at $AzureDlib (-AzureDlib)" }
+        Run signtool @(@("sign", "/v", "/fd", "sha256", "/tr", "http://timestamp.acs.microsoft.com", "/td", "sha256", "/dlib", $AzureDlib, "/dmdf", $AzureMetadata) + $files)
+    }
+}
+$signing = [bool]($Sign -or $AzureMetadata)
+
+if ($signing) {
+    Step "sign the executables"
     $files = foreach ($t in $triples.Values) {
         "$env:CARGO_TARGET_DIR\$t\release\rapidr.exe", "$env:CARGO_TARGET_DIR\$t\release\rapidrw.exe",
         "$env:CARGO_TARGET_DIR\$t\runner\rapidrintr-runner.exe", "$env:CARGO_TARGET_DIR\$t\runner\rapidrintr-runnerw.exe"
     }
-    Run signtool @(@("sign", "/n", $Sign, "/fd", "sha256", "/tr", "http://timestamp.digicert.com", "/td", "sha256") + $files)
+    Sign-Files $files
 }
 
 # Every SDK ships both architectures' runners (`rapidr build --interp --target windows-x86_64`).
@@ -174,8 +201,9 @@ foreach ($a in $Arch) {
     }
     Remove-Item -Recurse -Force "$Stage\sdk-$a", "$Stage\runtime-$a", "$Work\toolchains" -ErrorAction SilentlyContinue
 }
-if ($Sign) {
-    Run signtool @(@("sign", "/n", $Sign, "/fd", "sha256", "/tr", "http://timestamp.digicert.com", "/td", "sha256") + (Get-ChildItem "$Out\*-setup.exe").FullName)
+if ($signing) {
+    Step "sign the installers"
+    Sign-Files (Get-ChildItem "$Out\*-setup.exe").FullName
 }
 Remove-Item -Recurse -Force $Stage, "$Work\home"
 Get-ChildItem "$Out\*-setup.exe" | ForEach-Object { "{0}  {1:N1} MB  sha256 {2}" -f $_.Name, ($_.Length / 1MB), (Get-FileHash -Algorithm SHA256 $_.FullName).Hash.ToLower() }

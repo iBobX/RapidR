@@ -28,6 +28,23 @@ so a bold or italic request for "Liberation Sans" finds them; a character
 they lack (Greek, Cyrillic, Hebrew …) comes from the family's Regular face,
 made bold by drawing it twice a pixel apart, or slanted — the fallback.
 
+## JetBrains Mono Italic (the code editor's comments)
+
+`JetBrainsMono-Italic.ttf` is JetBrains Mono 2.211's italic by The
+JetBrains Mono Project Authors (<https://github.com/JetBrains/JetBrainsMono>),
+the variable font (weight axis 100–800) in the Latin subset Google Fonts
+distributes, as packaged by Fontsource
+(`@fontsource-variable/jetbrains-mono` 5.3.0,
+`jetbrains-mono-latin-wght-italic.woff2` SHA-256
+`a8afa085e9ca5e53434e2ee918ba6b65c7dd4dda56509976b36591478c99d62e`),
+converted from WOFF2 to TrueType with fontTools (the glyphs and tables
+unchanged). Licensed under the SIL Open Font License 1.1, which declares no
+Reserved Font Name for it (`JetBrainsMono-OFL.txt`). The code editor
+(RCODEEDITOR, RDIFFVIEW) draws comments with it where its scheme says
+italic; upright and bold code comes from the 2.304 faces below.
+
+## RapidR Sans
+
 **RapidR Sans** (`RapidRSans-Regular.ttf`, `RapidRSans-Bold.ttf`) is a Modified Version of
 Liberation Sans 2.1.5 under the same licence (SIL Open Font License 1.1;
 renamed, as the OFL asks: Liberation is a Reserved Font Name). It is the

@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=RapidR IDE
+Name=RapidR Studio
 GenericName=BASIC IDE
 Comment=Write, run and build RapidR and RapidQ programs
 Exec=@BIN@/rapidr ide %f
@@ -8,4 +8,6 @@ Terminal=false
 Icon=rapidr-ide
 Categories=Development;IDE;
 Keywords=BASIC;RapidQ;RapidR;
-MimeType=text/x-rapidr;text/x-rapidq-basic;
+# (RapidR's windows say app ID "rapidr", the executable's name: the dock then shows Studio's icon)
+StartupWMClass=rapidr
+MimeType=text/x-rapidr;text/x-rapidq-basic;application/x-rapidr-project;

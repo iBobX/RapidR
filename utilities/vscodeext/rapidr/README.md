@@ -1,6 +1,6 @@
 # RapidR for Visual Studio Code
 
-Write, run and debug **RapidQ and RapidR BASIC** programs (`.bas`, `.rr`, `.inc`) in VS Code.
+Write, run and debug **RapidR BASIC** programs (RapidQ-compatible) in VS Code: `.bas`, `.rr`, `.inc`, and RapidQ's own `.rqw`, `.rqb` and `.rq` are recognised too.
 
 [RapidR](https://github.com/iBobX/RapidR) is compatible with RapidQ and written from the ground up in pure Rust. It has a compiler for native executables, an interpreter, and a web runtime. RapidQ programs run unchanged. RapidR adds data science, data components and modern GUI features.
 
@@ -12,10 +12,10 @@ This extension is a thin client. The language intelligence comes from RapidR its
 
 ### IntelliSense that knows your program
 
-The completion list includes the builtins, the keywords, the components with their properties, methods and events, and your own variables, SUBs, FUNCTIONs and TYPEs. It also covers the files you `$INCLUDE`, as the editor has them, saved or not.
+The completion list includes the builtins, the keywords, the components (offered under RapidR's names, such as `RButton`, with "RapidQ name: QBUTTON" as the detail; in a RapidQ-compatible project they are offered under RapidQ's names, with "RapidR name: RButton") with their properties, methods and events, and your own variables, SUBs, FUNCTIONs and TYPEs. It also covers the files you `$INCLUDE`, as the editor has them, saved or not.
 
 ```basic
-CREATE Form AS QFORM
+CREATE Form AS RForm
     Caption = "Hello"
 END CREATE
 
@@ -26,7 +26,7 @@ Form.          ' ← Caption, Width, ShowModal, OnClose, …
 
 ### Hover and signature help
 
-Hover a builtin, a component member or one of your routines to see its signature and documentation. While you type a call, its parameters are shown.
+Hover a builtin, a component ("RButton — RapidQ name: QBUTTON"), a component member or one of your routines to see its signature and documentation. While you type a call, its parameters are shown.
 
 ```basic
 s$ = MID$(text$, 2, 3)     ' MID$(str, start, [length])
@@ -47,7 +47,7 @@ total = 1                  ' Undeclared identifier total
 
 ![Diagnostics](images/diagnostics.png)
 
-Turn on **RapidQ-compatible** (`rapidr.rapidqCompatible`) for programs that must still compile with RapidQ: RapidR's own components are flagged, and a Q-name RapidQ doesn't have (`QPLOT`) gets a quick fix (`RPlot`).
+Turn on **RapidQ-compatible** (`rapidr.rapidqCompatible`) for programs that must still compile with RapidQ: RapidR's own components (`RPlot`, which RapidQ lacks) are flagged, and so are RapidR's names of RapidQ's components ("RButton is RapidR's name: RapidQ's compiler knows it as QBUTTON"), with a quick fix to the RapidQ name.
 
 ### Navigate and refactor
 
@@ -92,13 +92,13 @@ F5 works without a `launch.json`: it debugs the file in the active editor. To gi
 
 ### Syntax highlighting and snippets
 
-The extension highlights RapidQ and RapidR syntax, including every component under both its `Q` and `R` name. It also has snippets for blocks (`if`, `for`, `select`, `sub`, `func`, `type`), forms and components (`createform`, `createbutton`, …), and program skeletons (`rpcons`, `rpgui`).
+The extension highlights RapidR syntax (RapidQ-compatible programs included), with every component under RapidR's name and under its RapidQ name. It also has snippets for blocks (`if`, `for`, `select`, `sub`, `func`, `type`), forms and components (`createform`, `createbutton`, …), and program skeletons (`rpcons`, `rpgui`).
 
 ## Settings
 
 | Setting | Default | |
 |---|---|---|
-| `rapidr.path` | (empty) | The `rapidr` executable, the folder it is in, or `RapidR.app`. When empty, the extension looks on `PATH`, then in the usual install places, then in a RapidR source checkout open in the workspace. |
+| `rapidr.path` | (empty) | The `rapidr` executable, the folder it is in, or `RapidR Studio.app`. When empty, the extension looks on `PATH`, then in the usual install places, then in a RapidR source checkout open in the workspace. |
 | `rapidr.rapidqCompatible` | `false` | Warn about everything RapidQ doesn't have. |
 | `rapidr.keywordCase` | `upper` | The case of keywords, types, directives and builtins: `upper`, `lower`, `proper` (`Dim x As Integer`) or `preserve` (off). |
 | `rapidr.identifierCase` | `preserve` | `declaration`: write your names as declared, and members as RapidR spells them (`Form.Caption`). |
@@ -114,7 +114,7 @@ The commands above, and also:
 
 ## Troubleshooting
 
-- **"RapidR was not found."** Install RapidR, or choose **Locate rapidr…** and pick the executable. On macOS, you can pick `RapidR.app`. On Windows, the installer puts it in `%LOCALAPPDATA%\Programs\RapidR\bin\rapidr.exe`.
+- **"RapidR was not found."** Install RapidR, or choose **Locate rapidr…** and pick the executable. On macOS, you can pick `RapidR Studio.app`. On Windows, the installer puts it in `%LOCALAPPDATA%\Programs\RapidR\bin\rapidr.exe`.
 - **No completion or diagnostics.** Run **RapidR: Show Language Server Output**. A RapidR older than the language server has no `rapidr lsp`, so update RapidR.
 - **Untrusted workspaces.** In an untrusted workspace, the extension ignores the workspace's `rapidr.path` and doesn't run a `rapidr` built inside it.
 

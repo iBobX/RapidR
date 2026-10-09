@@ -108,6 +108,11 @@ pub enum Op {
     /// until the matching [`Op::ClipPop`]: a pie gauge's done part.
     ClipPolygon { points: Vec<(f64, f64)> },
     ClipPop,
+    /// What follows is drawn `alpha` / 255 opaque, as one layer, until the
+    /// matching [`Op::FadePop`] (the form designer's ghost of a component
+    /// being placed).
+    Fade { alpha: u8 },
+    FadePop,
 }
 
 impl From<ModelOp> for Op {

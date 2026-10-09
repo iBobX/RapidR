@@ -42,7 +42,27 @@ thread_local! {
 
 /// Chart `id` as ops `size` logical pixels big, in `theme`.
 pub fn chart_ops(id: &str, size: (i64, i64), theme: &'static Theme) -> Rc<Vec<Op>> {
-    let model = plot::state(id);
+    model_ops(id, plot::state(id), size, theme)
+}
+
+/// (RapidR Studio's designer) What a chart with no data yet shows while its
+/// form is designed — its data come when the program runs: sample bars
+/// under its Title (or "Sample data"), so the designer shows a chart, as
+/// Delphi's and Xojo's do.
+fn design_sample(title: &str) -> plot::Plot {
+    let mut p = plot::Plot { title: if title.trim().is_empty() { "Sample data".into() } else { title.to_string() }, ..plot::Plot::default() };
+    p.series.push(plot::Series {
+        x: (0..5).map(f64::from).collect(),
+        y: vec![4.0, 7.0, 3.0, 8.0, 5.0],
+        label: String::new(),
+        color: plot::PALETTE[0].into(),
+        style: "bar".into(),
+        categories: ["A", "B", "C", "D", "E"].map(String::from).to_vec(),
+    });
+    p
+}
+
+fn model_ops(id: &str, model: plot::Plot, size: (i64, i64), theme: &'static Theme) -> Rc<Vec<Op>> {
     DRAWN.with(|d| {
         let mut d = d.borrow_mut();
         if let Some(c) = d.get(id).filter(|c| c.size == size && std::ptr::eq(c.theme, theme) && c.plot == model) {
@@ -68,7 +88,11 @@ impl ComponentKind for Plot {
         if w <= 0 || h <= 0 {
             return;
         }
-        let ops = chart_ops(cx.id, (w, h), p.theme());
+        let mut model = plot::state(cx.id);
+        if model.series.is_empty() && super::design::designed(cx.id) {
+            model = design_sample(&cx.store.get(cx.id, "title").to_string_val());
+        }
+        let ops = model_ops(cx.id, model, (w, h), p.theme());
         p.ops(ops.iter().cloned());
     }
 
@@ -134,6 +158,23 @@ mod tests {
         plot_method("kp1", "legend", &[], &Quiet);
         let list = f.paint(&s, &mut ts, 1.0);
         assert!(texts(&list).contains(&"trend".to_string()));
+    }
+
+    #[test]
+    fn sample_data_while_designed() {
+        // (on a design surface — `surface:name` — a chart without data
+        // shows sample bars under its Title; a running one stays empty)
+        let mut s = form_with_plot("ds1:plot1");
+        s.set("ds1:plot1", "title", v_str("Sales by month"));
+        let mut ts = TextSystem::new();
+        let mut f = FormUi::build(&s, "f", true);
+        let t = texts(&f.paint(&s, &mut ts, 1.0));
+        for want in ["Sales by month", "A", "E"] {
+            assert!(t.contains(&want.to_string()), "{t:?}");
+        }
+        let s = form_with_plot("kp3");
+        let mut f = FormUi::build(&s, "f", true);
+        assert!(!texts(&f.paint(&s, &mut ts, 1.0)).contains(&"A".to_string()));
     }
 
     #[test]

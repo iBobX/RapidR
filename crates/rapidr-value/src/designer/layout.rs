@@ -194,7 +194,7 @@ impl Layout {
     /// lays out as they do ([`engine::after_set`]).
     fn set(&mut self, key: &str, prop: &str, v: i64) {
         let Some(c) = self.comps.get(key) else { return };
-        let is_form = c.ty == "RFORM";
+        let is_form = super::model::is_form_type(&c.ty);
         match prop {
             "clientwidth" | "clientheight" => {
                 if is_form {
@@ -347,7 +347,7 @@ impl Layout {
     /// A scrolling container's area (as runtime-core's `scroll::area`).
     fn area(&self, key: &str) -> (i64, i64) {
         let Some(c) = self.comps.get(key) else { return (0, 0) };
-        if c.ty == "RFORM" {
+        if super::model::is_form_type(&c.ty) {
             return self.form_area(key);
         }
         let b = if c.ty == "RSCROLLBOX" && c.border_style.unwrap_or(2) != 0 { 2 } else { 0 };
@@ -394,6 +394,12 @@ impl LayoutStore for Layout {
     fn key(&self, name: &str) -> String {
         name.to_lowercase()
     }
+    /// (a designed form is laid out as its program lays it out before the
+    /// form shows: the CREATE blocks' order — crate::layout's
+    /// align_controls_unshown)
+    fn unshown(&self, _parent: &str) -> bool {
+        true
+    }
     fn children_of(&self, parent: &str) -> Vec<String> {
         self.order.iter().filter(|k| self.comps.get(*k).is_some_and(|c| c.parent == parent)).cloned().collect()
     }
@@ -406,6 +412,15 @@ impl LayoutStore for Layout {
             return Rect::new(-hp, -vp, cw.max(hr), ch.max(vr));
         }
         let r = LayoutStore::rect(self, parent);
+        // (a panel's: inside its bevels, as the runtimes —
+        // crate::objects::bevel::client_inset)
+        if let Some(c) = self.comps.get(parent).filter(|c| c.ty == "RPANEL") {
+            let i = crate::objects::bevel::client_inset(&|p| match p {
+                "borderstyle" => c.border_style.map_or(Value::Null, crate::v_int),
+                p => c.props.get(p).cloned().unwrap_or(Value::Null),
+            });
+            return Rect::new(i, i, (r.width - 2 * i).max(0), (r.height - 2 * i).max(0));
+        }
         Rect::new(0, 0, r.width, r.height)
     }
     fn anchor_area(&self, parent: &str) -> (i64, i64) {
@@ -466,7 +481,9 @@ impl LayoutStore for Layout {
                     })
                 })
                 .collect();
+            let bare = self.comps.get(name).is_some_and(|c| c.ty == "RFORM" && c.border_style == Some(0));
             let s = self.scrollers.entry(name.to_string()).or_default();
+            s.bare = bare;
             let before = (s.horz.shown, s.vert.shown);
             let children: Vec<scrollbars::Child> = kids.iter().map(|(_, c)| *c).collect();
             let (dx, dy) = s.update(w, h, &children);
@@ -538,7 +555,8 @@ mod tests {
 
     #[test]
     fn aligned_children_and_scroll_bars_as_the_runtime() {
-        // scratch probe align1.bas, as RapidR lays it out (changed first)
+        // scratch probe align1.bas, as RapidQ lays it out at the first Show
+        // (RC.EXE: the splitter made first is left of the tree)
         let mut form = comp("Form", "QFORM", &[("Width", "400"), ("Height", "300")]);
         for (n, t, props) in [
             ("Sp", "QSPLITTER", vec![("Align", "alLeft")]),
@@ -553,8 +571,8 @@ mod tests {
         let d = FormDesign::from_subtree(form);
         let mut l = Layout::of(&d);
         let r = |l: &Layout, n: &str| l.rect(d.find(n).unwrap()).unwrap();
-        assert_eq!(r(&l, "Sp"), Rect::new(200, 30, 3, 225));
-        assert_eq!(r(&l, "Tree"), Rect::new(0, 30, 200, 225));
+        assert_eq!(r(&l, "Sp"), Rect::new(0, 30, 3, 225));
+        assert_eq!(r(&l, "Tree"), Rect::new(3, 30, 200, 225));
         assert_eq!(r(&l, "Bar"), Rect::new(0, 0, 381, 30));
         assert_eq!(r(&l, "Ed"), Rect::new(203, 30, 178, 225));
         assert_eq!(l.form_client_size(), (381, 269));

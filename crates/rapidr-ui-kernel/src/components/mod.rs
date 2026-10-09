@@ -45,8 +45,9 @@ pub mod dxscreen;
 // (RapidQ's QGLASSFRAME)
 pub mod glass;
 // (Stage 10: the IDE's)
-pub mod codeedit;
+pub mod codeeditor;
 pub mod design;
+pub mod diffview;
 // (I1: RapidR Studio's docking)
 pub mod dock;
 // (I1 / L-PANELS: RapidR Studio's panels — rapidr_value::panels)
@@ -54,7 +55,7 @@ pub mod panels;
 // (the data-science lane's: RPLOT on a form)
 pub mod plot;
 
-use rapidr_value::input::Button;
+use rapidr_value::input::{Button, Cursor};
 use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::Rect;
@@ -101,7 +102,7 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RRICHEDIT", &richedit::RichEdit),
     // (Stage 10: the IDE's)
     ("RDESIGNSURFACE", &design::Design),
-    ("RCODEEDITOR", &codeedit::CodeEditor),
+    ("RCODEEDITOR", &codeeditor::CodeEditor),
     // (the dialogs lane's: what only a kernel-drawn dialog draws)
     ("RDLGPART", &crate::dialogs::Part),
     // (the DirectX lane's)
@@ -115,6 +116,8 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RDOCKMANAGER", &dock::DockManager),
     ("RDOCKGROUP", &dock::DockGroup),
     ("RDOCKDOCS", &dock::DockDocs),
+    // (I2: the diff view — rapidr_value::objects::diffview)
+    ("RDIFFVIEW", &diffview::DiffViewBox),
     // (I1 / L-PANELS: RapidR Studio's panels — rapidr_value::panels)
     ("RPROPERTYINSPECTOR", &panels::inspector::Inspector),
     ("RTOOLBOX", &panels::toolbox::Toolbox),
@@ -122,6 +125,7 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("ROUTPUTCONSOLE", &panels::console::Console),
     ("RTOOLBAR", &panels::toolbar::ToolBar),
     ("RCOMMANDPALETTE", &panels::palette::Palette),
+    ("RMARKDOWNVIEW", &panels::markdown::MarkdownView),
     // (the data-science lane's: a chart on a form — rapidr_value::datascience)
     ("RPLOT", &plot::Plot),
 ];
@@ -313,6 +317,19 @@ pub trait ComponentKind: Sync {
         MouseOut::default()
     }
 
+    /// The mouse pointer over it at (`x`, `y`) of itself (also while it
+    /// holds the mouse captured, wherever that is): what `crDefault` shows
+    /// there, the same hit test as its [`mouse`](Self::mouse). **Every
+    /// component with a part that drags or edits answers here, so every
+    /// program gets the right pointer for free**: a divider's or section
+    /// edge's `ColResize` / `RowResize`, a window edge's or corner's
+    /// diagonal arrows, a text field's `IBeam`, a link's `Hand`, a tab or
+    /// file being carried `Grabbing`. A Cursor the program set on the
+    /// component wins over it (RapidQ), and a disabled one shows the arrow.
+    fn pointer(&self, _cx: &mut Cx, _x: i64, _y: i64) -> Cursor {
+        Cursor::Default
+    }
+
     /// A key while it has the focus: whether it was its (Tab, Enter and
     /// Escape go to the form when it isn't).
     fn key(&self, _cx: &mut Cx, _k: &KeyIn, _clip: &mut dyn Clipboard) -> bool {
@@ -383,6 +400,13 @@ pub trait ComponentKind: Sync {
 
     /// Its deadline came (it set `NodeUi::wake`; tick.rs).
     fn tick(&self, _cx: &mut Cx) {}
+
+    /// Whether its model holds work for its view that can't wait for the
+    /// next frame (a code editor's requests from the program: OpenFind,
+    /// TriggerCompletion …): ticked now, painted or not (tick.rs).
+    fn pending(&self, _id: &str) -> bool {
+        false
+    }
 
     /// A tooltip of its own at (x, y) of it (tooltip.rs): a cut-short title,
     /// a button's name; `None`: its Hint, if ShowHint.

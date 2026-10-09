@@ -9,6 +9,14 @@ fn lang(id: &str) -> Arc<Language> {
     Languages::builtin().get(id).unwrap_or_else(|| panic!("{id} is built in"))
 }
 
+#[test]
+fn basics_old_id_is_an_alias() {
+    // (`rapidq-basic`, the id before it was RapidR's: saved settings and
+    // programs setting RCODEEDITOR's Language keep working)
+    assert_eq!(lang("rapidq-basic").id, "rapidr-basic");
+    assert_eq!(lang("RapidR-Basic").name, "RapidR BASIC");
+}
+
 /// Tokenizes `src` line by line from the root; each line's (text, kind)
 /// pairs, kinds by name.
 fn colour(lang: &Language, src: &str) -> Vec<Vec<(String, String)>> {
@@ -29,11 +37,11 @@ fn has(line: &[(String, String)], text: &str, kind: &str) -> bool {
 #[test]
 fn every_builtin_loads() {
     let ids: Vec<&str> = Languages::builtin().iter().map(|l| l.id.as_str()).collect();
-    for id in ["rapidq-basic", "plaintext", "json", "sql", "csv", "markdown", "html", "css", "javascript", "toml", "rust"] {
+    for id in ["rapidr-basic", "plaintext", "json", "sql", "csv", "markdown", "html", "css", "javascript", "toml", "rust"] {
         assert!(ids.contains(&id), "{id} missing");
     }
     let set = Languages::builtin();
-    assert_eq!(set.for_path("C:\\x\\Prog.BAS").id, "rapidq-basic");
+    assert_eq!(set.for_path("C:\\x\\Prog.BAS").id, "rapidr-basic");
     assert_eq!(set.for_path("a/b/main.rs").id, "rust");
     assert_eq!(set.for_path("Cargo.lock").id, "toml");
     assert_eq!(set.for_path("notes").id, "plaintext");
@@ -42,7 +50,7 @@ fn every_builtin_loads() {
 
 #[test]
 fn basic() {
-    let l = lang("rapidq-basic");
+    let l = lang("rapidr-basic");
     let c = colour(&l, "SUB Foo(x AS INTEGER) ' hi\n  if X1 = &HFF then PRINT \"a\" + LEFT$(s$, 2)\nREM old\n$INCLUDE \"rapidq.inc\"\nDIM f AS QFORM, g AS RBUTTON\nEND SUB");
     assert!(has(&c[0], "SUB", "keyword"));
     assert!(has(&c[0], "Foo", "function"));
@@ -66,7 +74,7 @@ fn basic() {
 
 #[test]
 fn basic_escapes_and_rust_blocks() {
-    let l = lang("rapidq-basic");
+    let l = lang("rapidr-basic");
     let c = colour(&l, "PRINT \"a\\nb\"\n$ESCAPECHARS ON\nPRINT \"a\\nb\"\n$ESCAPECHARS OFF\nPRINT \"a\\nb\"");
     assert!(!c[0].iter().any(|(_, k)| k == "string.escape"));
     assert!(has(&c[2], "\\n", "string.escape"));
@@ -207,7 +215,7 @@ fn hostile_lines_stay_bounded() {
     let mut tokens = Vec::new();
     l.tokenize_line(&"(".repeat(10_000), &mut stack, &mut tokens);
     assert!(stack.len() <= rapidr_editor::lang::MAX_STACK);
-    let basic = lang("rapidq-basic");
+    let basic = lang("rapidr-basic");
     let long = "PRINT 1 ".repeat(200_000);
     let mut stack = Vec::new();
     basic.tokenize_line(&long, &mut stack, &mut tokens);

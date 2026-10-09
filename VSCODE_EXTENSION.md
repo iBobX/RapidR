@@ -1,6 +1,6 @@
 # RapidR for Visual Studio Code
 
-The VS Code extension for RapidR and RapidQ BASIC (`.bas`, `.rr`, `.inc`). Its source is in [`utilities/vscodeext/rapidr/`](utilities/vscodeext/rapidr/), and its Marketplace page is [the extension's README](utilities/vscodeext/rapidr/README.md).
+The VS Code extension for RapidR BASIC, which is compatible with RapidQ (`.bas`, `.rr`, `.inc`, and RapidQ's own `.rqw`, `.rqb` and `.rq`, which it recognises too). Its source is in [`utilities/vscodeext/rapidr/`](utilities/vscodeext/rapidr/), and its Marketplace page is [the extension's README](utilities/vscodeext/rapidr/README.md).
 
 RapidR is compatible with RapidQ and written from the ground up in pure Rust. It has a native compiler, an interpreter and a web runtime. The extension is a **thin client**: it holds no language knowledge of its own.
 
@@ -27,11 +27,11 @@ The extension's version is RapidR's version. Each RapidR release ships a matchin
 
 It checks these places in order:
 
-1. The **`rapidr.path`** setting. This can name the executable, the folder it is in, an install prefix (with `bin/`), or `RapidR.app` on macOS. If it is set and wrong, the extension says so and doesn't fall back to another `rapidr`.
+1. The **`rapidr.path`** setting. This can name the executable, the folder it is in, an install prefix (with `bin/`), or `RapidR Studio.app` on macOS. If it is set and wrong, the extension says so and doesn't fall back to another `rapidr`.
 2. The `RAPIDR_PATH` environment variable (for development and tests).
 3. **`PATH`**. The extension searches it like `which` / `where` (with `PATHEXT` on Windows) and starts no process to do so.
 4. The **install places**:
-   - macOS: `/Applications/RapidR.app/Contents/MacOS/rapidr` and `~/Applications/…`, `/usr/local/bin`, `/opt/homebrew/bin`, `~/.local/bin`.
+   - macOS: `/Applications/RapidR Studio.app/Contents/MacOS/rapidr` (or an older `RapidR.app`) and `~/Applications/…`, `/usr/local/bin`, `/opt/homebrew/bin`, `~/.local/bin`.
    - Linux: `/usr/bin/rapidr`, `/usr/local/bin/rapidr`, `~/.local/bin/rapidr`.
    - Windows: `%LOCALAPPDATA%\Programs\RapidR\bin\rapidr.exe`, `%ProgramFiles%\RapidR\bin\rapidr.exe`.
 5. A **RapidR source checkout** open in the workspace: `./rapidr`, `target/release/rapidr`, `target/debug/rapidr`. This applies in trusted workspaces only.
@@ -40,14 +40,14 @@ The extension then runs `rapidr version`, which prints `RapidR <version>`. If `r
 
 ## Features
 
-- **Completion**: builtins, keywords, components (RapidQ's offered under their `Q` names, RapidR's own under `R` names; both names understood everywhere) and their properties, methods and events, and the program's own variables, constants, SUBs, FUNCTIONs and TYPEs, including those in `$INCLUDE` files (as the editor has them, saved or not). Member completion follows the variable's type, inside `WITH` and `CREATE` too. Completion triggers on `.`.
-- **Hover** with signatures and documentation, and **signature help** (triggered by `(` and `,`).
+- **Completion**: builtins, keywords, components (offered under RapidR's names, `RButton`, `RForm` …, each with "RapidQ name: QBUTTON" as its detail; in a RapidQ-compatible project they are offered under RapidQ's names, with "RapidR name: RButton"; both names are understood everywhere) and their properties, methods and events, and the program's own variables, constants, SUBs, FUNCTIONs and TYPEs, including those in `$INCLUDE` files (as the editor has them, saved or not). Member completion follows the variable's type, inside `WITH` and `CREATE` too. Completion triggers on `.`.
+- **Hover** with signatures and documentation (a component shows as "RButton — RapidQ name: QBUTTON"), and **signature help** (triggered by `(` and `,`).
 - **Go to Definition**, also into `$INCLUDE` files; **Find All References**; **Rename Symbol**.
 - **Outline** and breadcrumbs: SUBs, FUNCTIONs, TYPEs, the CREATE tree.
 - **Format Document**.
-- **Diagnostics** as you type, in RapidQ's compiler wording. With `rapidr.rapidqCompatible` on, what RapidQ doesn't have is reported too: today RapidR's own components and Q-names RapidQ lacks (`QPLOT`, with a quick fix to `RPlot`); members, builtins, statements and directives join when the language registry records each one's origin.
+- **Diagnostics** as you type, in RapidQ's compiler wording. With `rapidr.rapidqCompatible` on, what RapidQ doesn't have is reported too: today RapidR's own components (`RPlot`, with no RapidQ counterpart) and RapidR's names of RapidQ's components (`RButton is RapidR's name: RapidQ's compiler knows it as QBUTTON`, with a quick fix to `QBUTTON`); members, builtins, statements and directives join when the language registry records each one's origin.
 - **Run / Build / Bundle / Debug** commands, on the editor title bar, in the Command Palette, in the explorer's context menu, and in the status bar item's menu.
-- Highlighting, snippets, folding and indentation for RapidQ / RapidR syntax.
+- Highlighting, snippets, folding and indentation for RapidR syntax (RapidQ-compatible programs included).
 
 ### Commands
 

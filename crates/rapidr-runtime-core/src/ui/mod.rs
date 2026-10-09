@@ -31,6 +31,8 @@ pub use kernel::{
     // set; it was `from`).
     gui_show, gui_show_visible, gui_hide, gui_close, gui_center, gui_move_form, gui_set_form_border, gui_apply_icon,
     gui_apply_icons, gui_set_window_state, gui_menu_popup, gui_set_modified,
+    // (form members: HideTitleBar / ShowTitleBar, ShapeForm, StartDrag)
+    gui_title_bar, gui_shape_changed, gui_start_drag,
     // Text between the store and the host's editors.
     text_push, gui_set_text, gui_set_input_value, text_pull, gui_get_text, gui_get_input_value,
     // Waits (DOEVENTS and the VM's pump: [`gui_doevents`], [`gui_pump_wait`]).
@@ -46,7 +48,7 @@ pub use kernel::{
     // Methods drawn by the host.
     canvas_method, image_method, tree_method,
     // The IDE's components: RDESIGNSURFACE's Show / Hide (its model, and
-    // RCODEEDITOR's, are rapidr_value::objects' design and textedit).
+    // RCODEEDITOR's, are rapidr_value::objects' design and codeedit).
     design_surface_method,
     // `$THEME name`, and a QTIMER the program made (generated programs call
     // both through the prelude).

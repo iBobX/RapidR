@@ -52,6 +52,8 @@ pub enum HostCmd {
     Position(String),
     /// [`WindowSpec::border`] again.
     Border(String),
+    /// Its outline (`rapidr_value::shape`, `ShapeForm`) applied.
+    Shape(String),
     /// [`WindowSpec::icon`] again.
     Icon(String),
     Minimize(String),
@@ -118,6 +120,8 @@ pub struct WindowSpec {
     pub position: Option<(i64, i64)>,
     /// A frame and title bar (BorderStyle <> bsNone).
     pub border: bool,
+    /// The title bar hidden (`HideTitleBar`): the frame's border alone.
+    pub no_caption: bool,
     pub icon: Option<Icon>,
     /// Resizing and the title bar's buttons (BorderStyle, BorderIcons).
     pub frame: Frame,
@@ -204,7 +208,7 @@ impl Desktop {
     /// Runs the shown forms' deadlines due at `now` (what they change is
     /// drawn again; their events queued).
     pub fn tick(&mut self, store: &dyn Store, now: Instant) {
-        let due: Vec<String> = self.forms.iter().filter(|(_, f)| f.shown && f.ui.next_wake().is_some_and(|at| at <= now)).map(|(k, _)| k.clone()).collect();
+        let due: Vec<String> = self.forms.iter().filter(|(_, f)| f.shown && (f.ui.pending() || f.ui.next_wake().is_some_and(|at| at <= now))).map(|(k, _)| k.clone()).collect();
         for id in due {
             let Desktop { forms, text, .. } = self;
             if let Some(f) = forms.get_mut(&id) {
@@ -345,6 +349,24 @@ impl Desktop {
         self.route(id, src, |f, ts, _| f.ime_commit(store, ts, text));
     }
 
+    /// (RapidR's) A file dropped on form `id`'s window (the system gives
+    /// several one at a time, in one go): queued with the others of the
+    /// same drop, one OnDropFiles for them all. A modal form's elsewhere
+    /// keeps the drop from reaching the windows under it, as a click.
+    pub fn files_dropped(&mut self, id: &str, path: &str) {
+        let key = id.to_lowercase();
+        if path.is_empty() || !self.forms.contains_key(&key) || !self.admits(&key, Source::User) {
+            return;
+        }
+        if let Some(HostEvent::Kernel(f, KernelEvent::DropFiles(_, files))) = self.events.last_mut() {
+            if *f == key {
+                files.push(path.to_string());
+                return;
+            }
+        }
+        self.events.push(HostEvent::Kernel(key.clone(), KernelEvent::DropFiles(key, vec![path.to_string()])));
+    }
+
     /// The window's close box.
     pub fn close_box(&mut self, id: &str, src: Source) {
         self.route(id, src, |f, _, _| f.close_box());
@@ -463,6 +485,17 @@ impl Desktop {
                     self.cmds.push(HostCmd::Border(f));
                 }
             }
+            WindowOp::TitleBar(f, hidden) => {
+                if let Some(w) = self.form(&f) {
+                    w.spec.no_caption = hidden;
+                    self.cmds.push(HostCmd::Border(f));
+                }
+            }
+            WindowOp::Shape(f) => {
+                if self.form(&f).is_some() {
+                    self.cmds.push(HostCmd::Shape(f));
+                }
+            }
             WindowOp::Icon(f, i) => {
                 if let Some(w) = self.form(&f) {
                     w.spec.icon = i;
@@ -541,6 +574,7 @@ pub fn window_spec<P: Program>(p: P, name: &str) -> WindowSpec {
         size: forms::form_window_size(p, name),
         position: Some((p.get(name, "left").to_i64(), p.get(name, "top").to_i64())),
         border: p.get(name, "borderstyle").to_i64() != 0,
+        no_caption: rapidr_value::layout::title_bar_hidden(name),
         icon: forms::icon_of(p, name),
         frame: frame(p, name),
         // (the WindowState lane's)
@@ -584,10 +618,47 @@ pub fn script_input<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, inp
         ScriptInput::Step { form, comp, step } => {
             desk.test_action(store, &form, &comp, &step);
         }
+        ScriptInput::Cursor { comp, x, y } => {
+            let css = match place_of(p, desk, store, &comp) {
+                Some((form, (ox, oy))) => {
+                    let at = ((ox + x) as f64 + 0.5, (oy + y) as f64 + 0.5);
+                    desk.mouse_move(store, &form, at.0, at.1, Mods::NONE, Source::Script);
+                    cursor_at(desk, store, &form, at).css()
+                }
+                None => "none-found",
+            };
+            PROBE.with(|c| *c.borrow_mut() = css);
+        }
         ScriptInput::Resize { w, h } => script_resize(p, desk, store, w, h),
         ScriptInput::Hold(_) => return false,
+        ScriptInput::Stroke(k) => script_stroke(desk, store, &k),
     }
     true
+}
+
+/// A SendKeys keystroke (rapidr_value::send_keys) to the frontmost window
+/// that takes input. `^` is Ctrl as Windows has it — on a Mac the
+/// Command key's shortcuts, Ctrl's word moves — so a script types the same
+/// on every OS and host.
+fn script_stroke(desk: &mut Desktop, store: &dyn Store, k: &rapidr_value::send_keys::Stroke) {
+    let Some(form) = desk.stacking().into_iter().rev().find(|f| desk.accepts_input(f)) else { return };
+    let mods = Mods { shift: k.shift, ctrl: k.ctrl, alt: k.alt, command: k.ctrl, word: k.ctrl };
+    if let Some(f) = desk.forms.get_mut(&form) {
+        f.ui.sync(store);
+    }
+    desk.key_down(store, &form, k.vk, &k.text, mods, Source::Script);
+    desk.key_up(&form, k.vk, mods, Source::Script);
+}
+
+thread_local! {
+    /// The pointer the last `comp.__cursor_x_y` probe found (its CSS name).
+    static PROBE: std::cell::RefCell<&'static str> = const { std::cell::RefCell::new("") };
+}
+
+/// The pointer the last `ScriptInput::Cursor` probe found: its CSS name
+/// (`col-resize`, `text`, `default` …).
+pub fn take_probe() -> &'static str {
+    PROBE.with(|c| std::mem::take(&mut *c.borrow_mut()))
 }
 
 /// `comp.__key_N`: the component focused, the key pressed and released.
@@ -595,7 +666,7 @@ fn script_key<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, comp: &st
     let Some(form) = p.form_of(comp) else { return };
     let comp = comp.to_lowercase();
     let mods = Mods { shift: state & 256 != 0, ctrl: state & 16 != 0, alt: state & 1 != 0, ..Mods::NONE };
-    let text = if mods.ctrl || mods.alt { String::new() } else { rapidr_value::input::text_of_vk(vk) };
+    let text = if mods.ctrl || mods.alt { String::new() } else { rapidr_value::input::text_of_vk_shifted(vk, mods.shift) };
     if let Some(f) = desk.forms.get_mut(&form) {
         f.ui.sync(store);
         f.ui.focus_id(store, &comp);
@@ -626,7 +697,7 @@ fn script_mouse<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, comp: &
 /// a user dragging its border would.
 fn script_resize<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, w: i64, h: i64) {
     let Some(form) = desk.stacking().last().cloned() else { return };
-    let (fw, fh) = rapidr_value::layout::form_frame(p.get(&form, "borderstyle").to_i64());
+    let (fw, fh) = rapidr_value::layout::form_frame(forms::frame_style(p, &form));
     let (iw, ih) = (w - fw, h - fh);
     if let Some(f) = desk.forms.get_mut(&form) {
         f.ui.sync(store);
@@ -636,71 +707,29 @@ fn script_resize<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, w: i64
 }
 
 /// The pointer over form `form` at `(x, y)` of its inside: Screen.Cursor
-/// (`desk.screen_cursor`), else the Cursor of the component under the
-/// mouse (the form's over its client area); crDefault: the component's
-/// own (an enabled edit's I-beam, a splitter's resize arrows, a header's
-/// or list view header's section edge), else the arrow.
-pub fn cursor_at(desk: &Desktop, store: &dyn Store, form: &str, (x, y): (f64, f64)) -> Cursor {
+/// (`desk.screen_cursor`), else the Cursor the program set on the component
+/// under the mouse (or holding it: a divider being dragged), else what that
+/// component itself shows (`crDefault`: [`rapidr_ui_kernel::FormUi::pointer_at`],
+/// every component's own `pointer`) — an edit's I-beam, a divider's or a
+/// section edge's resize arrows, a window's edges, a link's hand, a carried
+/// tab's closed hand. One rule for the desktop's winit cursor and the web's
+/// CSS cursor.
+pub fn cursor_at(desk: &mut Desktop, store: &dyn Store, form: &str, (x, y): (f64, f64)) -> Cursor {
     if desk.screen_cursor != 0 {
         return Cursor::resolve(desk.screen_cursor);
     }
-    const CR_HSPLIT: i64 = -14;
-    const CR_VSPLIT: i64 = -15;
-    let Some(f) = desk.forms.get(form) else { return Cursor::Default };
-    let node = f.ui.hover.and_then(|i| f.ui.nodes.get(i));
-    // (the input lane's: a status bar's size grip is the window's sizing
-    // corner — Windows' HTBOTTOMRIGHT arrow, whatever the bar's Cursor)
-    let grip = rapidr_value::layout::STATUS_GRIP;
-    if let Some(n) = node.filter(|n| n.type_name == "RSTATUSBAR" && x >= (n.abs.0 + n.abs.2 - grip) as f64 && y >= (n.abs.1 + n.abs.3 - grip) as f64) {
-        if rapidr_ui_kernel::components::statusbar::has_grip(store, &n.id) {
-            return Cursor::SizeNWSE;
-        }
+    let Desktop { forms, text, .. } = desk;
+    let Some(f) = forms.get_mut(form) else { return Cursor::Default };
+    // (a drag source dragged: nothing takes a drop — RapidQ has no
+    // OnDragOver — so the no-drop pointer, as the VCL shows it)
+    if f.ui.dragging_source() {
+        return Cursor::NoDrop;
     }
-    let id = node.map_or(f.ui.form.as_str(), |n| n.id.as_str());
-    let code = rapidr_ui_kernel::store::int(store, id, "cursor", 0);
-    // (a QSPLITTER's crHSplit / crVSplit, its Cursor at creation: the
-    // splitter's direction decides, as Delphi's TSplitter swaps them when
-    // its Align changes)
-    let split = node.is_some_and(|n| n.type_name == "RSPLITTER") && matches!(code, CR_HSPLIT | CR_VSPLIT);
-    if code != 0 && !split {
-        return Cursor::resolve(code);
+    // (I4: a component dragged in from the toolbox — "not allowed" but
+    // over a designer's form, where it would go)
+    if rapidr_value::objects::design::drop_pending().is_some() {
+        let ok = f.ui.nodes.iter().filter(|n| n.type_name == "RDESIGNSURFACE").any(|n| rapidr_value::objects::with_design(&n.id, |d| d.ghost.is_some()).unwrap_or(false));
+        return if ok { Cursor::Default } else { Cursor::NoDrop };
     }
-    let Some(n) = node else { return Cursor::Default };
-    let (lx, ly) = ((x as i64) - n.abs.0, (y as i64) - n.abs.1);
-    match n.type_name.as_str() {
-        "REDIT" | "RMEMO" | "RRICHEDIT" if n.enabled => Cursor::IBeam,
-        "RSPLITTER" if rapidr_ui_kernel::components::splitter::vertical(store, &n.id) => Cursor::SizeNS,
-        "RSPLITTER" => Cursor::SizeWE,
-        "RHEADER" if rapidr_value::objects::with_header(&n.id, |h| h.on_grip(lx)).unwrap_or(false) => Cursor::SizeWE,
-        "RLISTVIEW" if rapidr_value::objects::with_listview(&n.id, |l| l.on_grip(lx, ly)).unwrap_or(false) => Cursor::SizeWE,
-        // (a QFORMMDI child's sizing border: every edge and corner, as Windows')
-        "RMDICHILD" => match rapidr_ui_kernel::components::mdi::edges_at(store, &n.id, n.abs.2, n.abs.3, lx, ly).map(|e| e.pointer()) {
-            Some("we") => Cursor::SizeWE,
-            Some("ns") => Cursor::SizeNS,
-            Some("nwse") => Cursor::SizeNWSE,
-            Some(_) => Cursor::SizeNESW,
-            None => Cursor::Default,
-        },
-        // (the dock manager's splitters, the document area's between groups
-        // and between a document's two views)
-        "RDOCKMANAGER" | "RDOCKDOCS" => rapidr_ui_kernel::components::dock::splitter_cursor(store, &n.type_name, &n.id, lx, ly).map_or(Cursor::Default, |row| if row { Cursor::SizeWE } else { Cursor::SizeNS }),
-        // (I4: the designer's handles, the form's edges, the placing tool)
-        "RDESIGNSURFACE" => {
-            use rapidr_value::objects::design::Pointer;
-            let p = rapidr_value::objects::with_design(&n.id, |d| {
-                let (ox, oy) = d.client_origin();
-                d.pointer_at(lx - ox, ly - oy)
-            });
-            match p.unwrap_or(Pointer::Default) {
-                Pointer::Default => Cursor::Default,
-                Pointer::Move => Cursor::Move,
-                Pointer::SizeWE => Cursor::SizeWE,
-                Pointer::SizeNS => Cursor::SizeNS,
-                Pointer::SizeNWSE => Cursor::SizeNWSE,
-                Pointer::SizeNESW => Cursor::SizeNESW,
-                Pointer::Cross => Cursor::Cross,
-            }
-        }
-        _ => Cursor::Default,
-    }
+    f.ui.pointer_at(store, text, x, y)
 }

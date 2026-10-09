@@ -46,6 +46,17 @@ use crate::designer::{arrange, value, Command, Designer, FormDesign, Guide, Guid
 use crate::layout::{Rect as LRect, FORM_BORDER, FORM_CAPTION, MAIN_MENU_HEIGHT};
 use crate::{v_int, v_str, Value};
 
+/// A component type as the designer's announcements name it: RapidR's
+/// name (`RButton`), whatever the code wrote (R-NAMES).
+pub fn shown_type(written: &str) -> String {
+    rapidr_lang::component(written).map_or_else(|| written.to_string(), |c| c.spelling())
+}
+
+pub mod inline;
+pub mod menus;
+mod outside;
+mod taborder;
+
 /// The grid moves and resizes snap to (and its dots are drawn on).
 pub const GRID: i64 = 8;
 /// How near a handle the mouse grabs it (either way).
@@ -54,8 +65,11 @@ const GRAB: i64 = 5;
 const MIN_SIZE: i64 = 16;
 /// A handle's size, drawn.
 const HANDLE: i64 = 7;
-/// The backdrop shown around a designed form that has a frame.
-pub const MARGIN: i64 = 12;
+/// The backdrop shown around a designed form that has a frame (Xcode's and
+/// Delphi's canvas: the form sits on it, never in a window of its own).
+pub const MARGIN: i64 = 24;
+/// The surface's own scroll bars' thickness.
+pub const SCROLL_BAR: i64 = 8;
 /// The tray strip under the form: its height, an item's icon, the gap
 /// above it.
 pub const TRAY_H: i64 = 36;
@@ -69,6 +83,11 @@ const EDGE_IN: i64 = 3;
 const EDGE_OUT: i64 = 5;
 /// The smallest a dragged form gets.
 const MIN_FORM: i64 = 80;
+/// Zoom's range and the steps Ctrl / ⌘ + and − go through (Xcode's and
+/// Office's).
+pub const MIN_ZOOM: f64 = 0.25;
+pub const MAX_ZOOM: f64 = 4.0;
+pub const ZOOM_STEPS: [f64; 15] = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 4.0];
 
 /// A designed component.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -140,6 +159,8 @@ pub enum Grip {
     Tray,
     /// The placing tool (PlaceType): a new component's rectangle drawn.
     Place,
+    /// A menu item held in the menu editor (dragged: moved elsewhere).
+    MenuItem,
 }
 
 impl Grip {
@@ -206,6 +227,14 @@ pub enum DesignEvent {
     SourceEdit(SourceEdit),
     /// OnChange: the designed form changed (after its OnSourceEdits).
     Change,
+    /// OnSourceStep (Continues): a change's OnSourceEdits follow, as one
+    /// undo step of the file's history — or, `Continues` True, as part of
+    /// the step before (a caption typed right after adding the component).
+    Step(bool),
+    /// OnUndo (Redo): with SharedUndo, Undo (0) or Redo (1) asked on the
+    /// designer (Ctrl+Z, its methods): the program undoes in the code
+    /// editor that holds the file's history, then sets Source again.
+    Undo(bool),
 }
 
 impl DesignEvent {
@@ -218,6 +247,8 @@ impl DesignEvent {
             DesignEvent::Move { .. } => "onmove",
             DesignEvent::SourceEdit(_) => "onsourceedit",
             DesignEvent::Change => "onchange",
+            DesignEvent::Step(_) => "onsourcestep",
+            DesignEvent::Undo(_) => "onundo",
         }
     }
 
@@ -230,6 +261,8 @@ impl DesignEvent {
             DesignEvent::Move { index, x, y, w, h } => vec![v_int(*index as i64), v_int(*x), v_int(*y), v_int(*w), v_int(*h)],
             DesignEvent::SourceEdit(e) => vec![v_int(e.start.0 as i64), v_int(e.start.1 as i64), v_int(e.end.0 as i64), v_int(e.end.1 as i64), v_str(&e.text)],
             DesignEvent::Change => Vec::new(),
+            DesignEvent::Step(c) => vec![v_int(i64::from(*c))],
+            DesignEvent::Undo(r) => vec![v_int(i64::from(*r))],
         }
     }
 }
@@ -324,6 +357,18 @@ pub trait SourceDoc {
     /// goes to (`None`: not in this file), the edits (`rapidr-designer`'s `Document::create_handler`).
     fn create_handler(&mut self, _form: usize, _component: &str, _event: &str) -> Result<(String, Option<usize>, Vec<SourceEdit>), String> {
         Err("handlers aren't available here".into())
+    }
+    /// A new form named `name` written at the end of the file with the
+    /// line that shows it (`rapidr-designer`'s `Document::add_form`): the
+    /// edits (one undo step).
+    /// `line` written right after form `form`'s END CREATE (an MDI child's
+    /// `AddChild`), one undo step.
+    fn insert_after_form(&mut self, _form: usize, _line: &str) -> Vec<SourceEdit> {
+        Vec::new()
+    }
+
+    fn add_form(&mut self, _name: &str) -> Vec<SourceEdit> {
+        Vec::new()
     }
 }
 
@@ -435,6 +480,11 @@ pub struct DesignSurface {
     /// The look the designed form is drawn in (Theme: `$THEME`'s names;
     /// "" the surface's own) — RapidR Studio's "Preview in classic".
     pub theme: String,
+    /// Names the program's other files give their components (a RapidQ
+    /// program's component names are global: Form2's Button1 and Form1's
+    /// would clash): a new component or form is never named one of them
+    /// (ReservedNames; RapidR Studio gives its project's).
+    pub reserved: Vec<String>,
     /// The program's source, when Source was given (else the form is the
     /// one made through the API).
     source: Option<Attached>,
@@ -459,6 +509,9 @@ pub struct DesignSurface {
     pub code_error: Option<usize>,
     /// Copy / Cut's components (Paste's).
     clip: Option<crate::designer::Clip>,
+    /// Where a menu item being dragged would go: under which menu, before
+    /// which item, and the insertion line (client coordinates).
+    menu_drop: Option<(NodeId, Option<NodeId>, Rect)>,
     /// A component just added whose Caption / Text the keyboard types:
     /// it, the property, what's typed so far.
     typing: Option<(NodeId, &'static str, String)>,
@@ -469,11 +522,48 @@ pub struct DesignSurface {
     laid: RefCell<Option<(FormDesign, Rc<Layout>)>>,
     /// The same at the preview's size.
     previewed: RefCell<Option<((i64, i64), Rc<Layout>)>>,
+    /// The view's magnification (Zoom / 100): the form, its tray and the
+    /// ghost drawn this many times larger — at the screen's resolution, so
+    /// crisp — while every coordinate stays RapidQ's pixels; the
+    /// designer's own marks (handles, pins, readouts) keep their size.
+    pub zoom: f64,
+    /// The components the program creates outside the designed form (its
+    /// top-level non-visual CREATE blocks: shown in the tray).
+    outside: Vec<outside::Outside>,
+    /// The one of them selected (the form's selection is empty then).
+    outside_sel: Option<usize>,
+    /// The in-place editor: a caption (F2, a slow click) or a menu item's
+    /// caption and ShortCut (the menu editor).
+    pub editing: Option<inline::InlineEdit>,
+    /// The Tab-order editor (TabOrderMode): the components clicked so far,
+    /// in order.
+    pub tab_order: Option<Vec<NodeId>>,
+    /// The menu editor: the menus open on the designed form (a bar item's,
+    /// then its submenus').
+    pub menu_open: Vec<NodeId>,
+    /// A press on the component already selected alone: let go without a
+    /// move, it edits its caption (a slow click, as Explorer renames).
+    slow: Option<NodeId>,
+    /// SharedUndo: the file's undo history is the code editor's — Undo and
+    /// Redo here ask the program (OnUndo) instead of using the designer's.
+    pub shared_undo: bool,
+    /// The next change's edits continue the step before (a caption typed
+    /// right after adding: one undo step with the add).
+    continues: bool,
+    /// A component just dropped or placed: its name, and whether the
+    /// kernel has yet to start settling it in (a 100 ms animation drawn
+    /// where it is now).
+    dropped: Option<(String, bool)>,
+    /// Where the mouse last was (client coordinates): zoom's fixed point.
+    pointer: Option<(i64, i64)>,
+    /// A scroll bar's thumb held: across (0) or down (1), where the press
+    /// was, the scroll then.
+    bar_drag: Option<(usize, f64, i64)>,
 }
 
 impl Default for DesignSurface {
     fn default() -> Self {
-        let mut design = FormDesign::new("Form", "QFORM");
+        let mut design = FormDesign::new("Form", "RForm");
         let root = design.root();
         for (p, v) in [("Width", "640"), ("Height", "480")] {
             let _ = Command::SetProp { node: root, name: p.into(), value: Some(v.into()) }.apply(&mut design);
@@ -503,11 +593,25 @@ impl Default for DesignSurface {
             drop_target: None,
             code_error: None,
             clip: None,
+            menu_drop: None,
             handler_line: -1,
             typing: None,
             laid: RefCell::new(None),
             previewed: RefCell::new(None),
+            zoom: 1.0,
+            outside: Vec::new(),
+            outside_sel: None,
+            editing: None,
+            tab_order: None,
+            menu_open: Vec::new(),
+            slow: None,
+            shared_undo: false,
+            continues: false,
+            dropped: None,
+            pointer: None,
+            bar_drag: None,
             theme: String::new(),
+            reserved: Vec::new(),
         }
     }
 }
@@ -528,6 +632,15 @@ fn plain_value(text: &str) -> String {
         value::PropValue::Str(s) => s,
         _ => text.to_string(),
     }
+}
+
+/// What a component of this type shows before it is named (the ghost of
+/// one being placed): its caption property and its type's name
+/// (`Button`).
+pub fn sample_caption(type_name: &str) -> Option<(&'static str, String)> {
+    let c = rapidr_lang::component(type_name)?;
+    let prop = ["Caption", "Text"].into_iter().find(|p| c.property(p).is_some())?;
+    Some((prop, c.display.to_string()))
 }
 
 /// The tray's font (its items' names).
@@ -557,6 +670,8 @@ impl DesignSurface {
 
     /// A drag, the preview, the guides, the ghost all gone.
     fn forget_gestures(&mut self) {
+        self.menu_drop = None;
+        self.slow = None;
         self.drag = None;
         self.drop_target = None;
         self.preview = None;
@@ -599,6 +714,85 @@ impl DesignSurface {
         true
     }
 
+    /// AddForm: a form for a file that has none (the designer's empty
+    /// state offers it) — `CREATE Form1 AS QFORM … END CREATE` and
+    /// `Form1.ShowModal` written at the end of the code, one undo step —
+    /// then designed. Its name ("": Form1, Form2 … a name the file
+    /// doesn't use).
+    pub fn add_form(&mut self, name: &str) -> Option<String> {
+        let a = self.source.clone()?;
+        if self.read_only() {
+            return None;
+        }
+        let taken = |n: &str| a.doc.borrow().name_taken(n) || self.reserved(n);
+        let name = match name.trim() {
+            n if !n.is_empty() && !taken(n) => n.to_string(),
+            _ => (1..).map(|k| format!("Form{k}")).find(|n| !taken(n)).unwrap_or_default(),
+        };
+        let edits = a.doc.borrow_mut().add_form(&name);
+        if edits.is_empty() {
+            return None;
+        }
+        self.step_begins();
+        self.outbox.extend(edits.into_iter().map(DesignEvent::SourceEdit));
+        self.want_form = name.clone();
+        self.pick_form(true);
+        self.outbox.push(DesignEvent::Change);
+        self.say(format!("Added {name}: drop components on it"));
+        Some(name)
+    }
+
+    /// A child window for the designed RFormMDI, RapidQ's way (QFORMMDI's
+    /// children are components it shows in child windows): a panel on the
+    /// MDI form, named as a form (Form2), designed here like the rest, and
+    /// `Main.AddChild(Form2.Handle, "Form2", 0, 0, 0, 0, 0, 1)` written
+    /// after the form's END CREATE, so the program opens it as a child
+    /// window when it starts. Its name; `None` when the form isn't an MDI
+    /// main window.
+    pub fn add_mdi_child(&mut self) -> Option<String> {
+        let a = self.source.clone()?;
+        if self.read_only() {
+            return None;
+        }
+        let d = &self.designer.design;
+        let root = d.root();
+        let (form_name, form_type) = d.node(root).map(|n| (n.name.clone(), n.type_written.clone()))?;
+        if crate::designer::model::canonical_type(&form_type) != "RFORMMDI" {
+            return None;
+        }
+        let taken = |n: &str| d.find(n).is_some() || self.reserved(n) || a.doc.borrow().name_taken(n);
+        let name = (1..).map(|k| format!("Form{k}")).find(|n| !taken(n))?;
+        let panel = rapidr_lang::component("RPANEL").map_or_else(|| "RPanel".to_string(), |c| c.name_in(d.names()));
+        let tree = crate::designer::Subtree::new(&name, &panel, &[("Left", "0".into()), ("Top", "0".into()), ("Width", "320".into()), ("Height", "240".into())]);
+        let index = d.node(root).map_or(0, |p| p.body.len());
+        self.designer.execute(Command::Insert { parent: root, index, tree }).ok()?;
+        self.commit();
+        let form = a.form?;
+        let edits = a.doc.borrow_mut().insert_after_form(form, &format!("{form_name}.AddChild({name}.Handle, \"{name}\", 0, 0, 0, 0, 0, 1)"));
+        if !edits.is_empty() {
+            // (the same step as the panel: one undo)
+            self.continues = true;
+            self.step_begins();
+            self.outbox.extend(edits.into_iter().map(DesignEvent::SourceEdit));
+            self.outbox.push(DesignEvent::Change);
+        }
+        self.reload(false);
+        if let Some(id) = self.designer.design.find(&name) {
+            self.designer.selection.set(id);
+        }
+        self.say(format!("{name} is a child window of {form_name}: put its components on it; {form_name}.AddChild opens it when the program starts"));
+        Some(name)
+    }
+
+    /// The empty state's "Add a form" button (surface pixels), when the
+    /// source makes no form.
+    pub fn add_form_button(&self) -> Option<Rect> {
+        (self.no_form() && !self.read_only()).then(|| {
+            let (w, h) = (120, 28);
+            ((self.size.0 - w) / 2, self.size.1 / 2 + 24, w, h)
+        })
+    }
+
     /// The designer can't change the form now (the code has errors).
     pub fn read_only(&self) -> bool {
         self.code_error.is_some()
@@ -615,7 +809,7 @@ impl DesignSurface {
         let Some(a) = &self.source else { return };
         let forms = a.doc.borrow().forms();
         let named = (!self.want_form.is_empty()).then(|| forms.iter().position(|(n, _)| n.eq_ignore_ascii_case(&self.want_form))).flatten();
-        let form = named.or_else(|| forms.iter().position(|(_, t)| crate::designer::model::canonical_type(t) == "RFORM"));
+        let form = named.or_else(|| forms.iter().position(|(_, t)| crate::designer::model::is_form_type(&crate::designer::model::canonical_type(t))));
         let changed = a.form != form;
         if let Some(a) = &mut self.source {
             a.form = form;
@@ -624,8 +818,10 @@ impl DesignSurface {
         match form {
             Some(_) => self.reload(fresh || changed),
             None => {
-                self.designer = Designer::new(FormDesign::new("", "QFORM"));
+                self.designer = Designer::new(FormDesign::new("", "RForm"));
                 self.forget_gestures();
+                self.outside.clear();
+                self.outside_sel = None;
             }
         }
     }
@@ -644,6 +840,8 @@ impl DesignSurface {
             self.forget_gestures();
         }
         self.form_caption = self.root_text("Caption").unwrap_or_else(|| self.root_name());
+        self.refresh_outside();
+        self.menu_open.retain(|&m| self.designer.design.node(m).is_some());
     }
 
     /// The designed form's name ("" with none).
@@ -660,7 +858,7 @@ impl DesignSurface {
 
     /// What the surface says where there is no form to show.
     pub fn empty_text(&self) -> Option<&'static str> {
-        self.no_form().then_some("This file creates no form.\nAdd one with CREATE Form AS QFORM … END CREATE, then come back here.")
+        self.no_form().then_some("This file creates no form.\nAdd a form — or press Enter — to design one here.")
     }
 
     /// The designer's changes since the last commit written into the
@@ -679,6 +877,7 @@ impl DesignSurface {
         let d = self.designer.clone();
         self.designer.take_applied();
         if let Some(Attached { doc, form: Some(form) }) = self.source.clone() {
+            self.step_begins();
             let (edits, after) = doc.borrow_mut().commit(form, d);
             if let Some(mut after) = after {
                 after.selection = self.designer.selection.clone();
@@ -689,6 +888,13 @@ impl DesignSurface {
             self.outbox.extend(edits.into_iter().map(DesignEvent::SourceEdit));
         }
         self.outbox.push(DesignEvent::Change);
+    }
+
+    /// A change's edits begin: OnSourceStep (one undo step, or part of the
+    /// one before when [`DesignSurface::continues`] says so).
+    fn step_begins(&mut self) {
+        let c = std::mem::take(&mut self.continues);
+        self.outbox.push(DesignEvent::Step(c));
     }
 
     /// The handler of component `name`'s `event` ("": the default event):
@@ -703,6 +909,7 @@ impl DesignSurface {
                 self.handler_line = line.map_or(-1, |l| l as i64);
                 if !edits.is_empty() {
                     self.reload(false);
+                    self.step_begins();
                     self.outbox.extend(edits.into_iter().map(DesignEvent::SourceEdit));
                     self.outbox.push(DesignEvent::Change);
                 }
@@ -733,11 +940,18 @@ impl DesignSurface {
 
     fn history_step(&mut self, back: bool) -> bool {
         self.forget_gestures();
+        self.editing = None;
+        // (the file's history is the code editor's: the program undoes there)
+        if self.shared_undo && self.source.is_some() {
+            self.outbox.push(DesignEvent::Undo(!back));
+            return true;
+        }
         match self.source.clone() {
             Some(a) => {
                 let edits = if back { a.doc.borrow_mut().undo() } else { a.doc.borrow_mut().redo() };
                 let Some(edits) = edits else { return false };
                 self.reload(false);
+                self.step_begins();
                 self.outbox.extend(edits.into_iter().map(DesignEvent::SourceEdit));
                 self.outbox.push(DesignEvent::Change);
                 self.say(if back { "Undone" } else { "Redone" });
@@ -777,10 +991,17 @@ impl DesignSurface {
     /// place and size.
     fn describe_comp(&self, id: NodeId) -> String {
         let Some(n) = self.designer.design.node(id) else { return String::new() };
+        let ty = shown_type(&n.type_written);
         match self.rect_of(id).filter(|_| self.on_form(id)) {
-            Some(r) => format!("{} ({}), {}, {}, {} × {}", n.name, n.type_written, r.left, r.top, r.width, r.height),
-            None => format!("{} ({})", n.name, n.type_written),
+            Some(r) => format!("{} ({ty}), {}, {}, {} × {}", n.name, r.left, r.top, r.width, r.height),
+            None => format!("{} ({ty})", n.name),
         }
+    }
+
+    /// "Form1 (RForm), nothing selected".
+    fn describe_none(&self) -> String {
+        let d = &self.designer.design;
+        format!("{} ({}), nothing selected", self.root_name(), d.node(d.root()).map(|n| shown_type(&n.type_written)).unwrap_or_default())
     }
 
     /// The selection changed: OnSelect with the primary's index (-1: none),
@@ -792,7 +1013,7 @@ impl DesignSurface {
         let text = match self.designer.selection.primary() {
             Some(id) if self.designer.selection.len() > 1 => format!("{}, and {} more selected", self.describe_comp(id), self.designer.selection.len() - 1),
             Some(id) => self.describe_comp(id),
-            None => format!("{} ({}), nothing selected", self.root_name(), self.designer.design.node(self.designer.design.root()).map(|n| n.type_written.clone()).unwrap_or_default()),
+            None => self.describe_none(),
         };
         self.say(text);
     }
@@ -811,18 +1032,30 @@ impl DesignSurface {
         self.ids().iter().position(|&i| i == id)
     }
 
-    /// The primary selection's index, when it is one.
+    /// The primary selection's index, when it is one (an outside
+    /// component's: after the form's components).
     pub fn selection(&self) -> Option<usize> {
+        if let Some(k) = self.outside_sel {
+            return Some(self.ids().len() + k);
+        }
         self.designer.selection.primary().and_then(|id| self.index_of(id))
     }
 
     /// The selected components' indexes.
     pub fn selected(&self) -> Vec<usize> {
+        if let Some(k) = self.outside_sel {
+            return vec![self.ids().len() + k];
+        }
         self.designer.selection.ids().iter().filter_map(|&id| self.index_of(id)).collect()
     }
 
     /// Selects component `i` alone (a screen reader's click).
     pub fn select(&mut self, i: usize) -> bool {
+        let n = self.ids().len();
+        if i >= n {
+            return self.select_outside(i - n);
+        }
+        self.outside_sel = None;
         match self.id_of(i as i64) {
             Some(id) => {
                 self.designer.selection.set(id);
@@ -886,34 +1119,204 @@ impl DesignSurface {
         }
     }
 
-    /// The form's window on the surface: where, and its Width × Height (the
-    /// preview's while it shows).
+    /// The form's window on the surface: where (surface pixels), and its
+    /// Width × Height (the preview's while it shows; RapidQ's pixels — on
+    /// the surface it is [`DesignSurface::zoom`] times that).
     pub fn form_rect(&self) -> Rect {
         let m = self.margin();
         let (w, h) = self.layout().form_size();
         (m - self.scroll.0, m - self.scroll.1, w, h)
     }
 
+    /// The form's frame and menu bar above and left of its client area
+    /// (RapidQ's pixels): where the client area's (0, 0) is in its window.
+    pub fn client_inset(&self) -> (i64, i64) {
+        let (ix, iy) = self.inset();
+        (ix, iy + self.menu_height())
+    }
+
     /// Where the form's client area (0, 0) is on the surface.
     pub fn client_origin(&self) -> (i64, i64) {
+        let (fx, fy, _, _) = self.form_rect();
+        let (ix, iy) = self.client_inset();
+        (fx + self.zv(ix), fy + self.zv(iy))
+    }
+
+    /// A length of RapidQ's pixels as the surface shows it (zoomed).
+    pub fn zv(&self, v: i64) -> i64 {
+        (v as f64 * self.zoom).round() as i64
+    }
+
+    /// A rectangle of the client area as the surface shows it, from the
+    /// client area's origin on the surface (zoomed; its edges on whole
+    /// pixels).
+    pub fn view_rect(&self, (x, y, w, h): Rect) -> Rect {
+        let (x0, y0, x1, y1) = (self.zv(x), self.zv(y), self.zv(x + w), self.zv(y + h));
+        (x0, y0, x1 - x0, y1 - y0)
+    }
+
+    /// A distance of the surface's pixels in RapidQ's (a handle's reach at
+    /// any zoom), at least 1.
+    fn reach(&self, v: i64) -> i64 {
+        ((v as f64 / self.zoom).round() as i64).max(1)
+    }
+
+    /// A point of the surface (from the client area's origin) in the form's
+    /// client coordinates: what the mouse points at, at any zoom.
+    pub fn client_point(&self, x: f64, y: f64) -> (i64, i64) {
+        let (ox, oy) = self.client_origin();
+        (((x - ox as f64) / self.zoom).floor() as i64, ((y - oy as f64) / self.zoom).floor() as i64)
+    }
+
+    /// Zoom: the view's magnification (1 = 100 %), kept between 25 % and
+    /// 400 %; the point (`at`: surface pixels, `None`: the form's top left)
+    /// stays where it is. Whether it changed.
+    pub fn set_zoom(&mut self, zoom: f64, at: Option<(f64, f64)>) -> bool {
+        let z = (zoom.clamp(MIN_ZOOM, MAX_ZOOM) * 100.0).round() / 100.0;
+        if (z - self.zoom).abs() < 1e-9 {
+            return false;
+        }
+        let (fx, fy, _, _) = self.form_rect();
+        let (ax, ay) = at.unwrap_or((fx as f64, fy as f64));
+        // (the content point under `at`, before and after)
+        let (cx, cy) = ((ax - fx as f64) / self.zoom, (ay - fy as f64) / self.zoom);
+        self.zoom = z;
+        let (nx, ny) = (fx as f64 + cx * z, fy as f64 + cy * z);
+        self.scroll_by((nx - ax).round() as i64, (ny - ay).round() as i64);
+        self.say(format!("Zoom {} %", (z * 100.0).round()));
+        true
+    }
+
+    /// The next zoom step in (`dir` > 0) or out (< 0); 0: 100 %.
+    pub fn zoom_step(&mut self, dir: i32, at: Option<(f64, f64)>) -> bool {
+        let z = self.zoom;
+        let to = match dir {
+            0 => 1.0,
+            d if d > 0 => ZOOM_STEPS.iter().copied().find(|&s| s > z + 1e-6).unwrap_or(MAX_ZOOM),
+            _ => ZOOM_STEPS.iter().rev().copied().find(|&s| s < z - 1e-6).unwrap_or(MIN_ZOOM),
+        };
+        self.set_zoom(to, at)
+    }
+
+    /// The zoom that shows the whole form (and its tray) in the surface,
+    /// at most 100 %.
+    pub fn zoom_to_fit(&mut self) -> bool {
         let m = self.margin();
-        let (ix, iy) = self.inset();
-        (m + ix - self.scroll.0, m + iy + self.menu_height() - self.scroll.1)
+        let (w, h) = self.layout().form_size();
+        let tray = if self.tray().is_empty() { 0 } else { TRAY_GAP + TRAY_H };
+        let (aw, ah) = ((self.size.0 - 2 * m - CORNER) as f64, (self.size.1 - 2 * m - CORNER) as f64);
+        let z = (aw / w.max(1) as f64).min(ah / (h + tray).max(1) as f64).min(1.0);
+        self.scroll = (0, 0);
+        self.set_zoom((z * 100.0).floor() / 100.0, None)
+    }
+
+    /// What the surface shows, scrolled (surface pixels): the form and its
+    /// tray magnified, the backdrop's margin around them, room for the
+    /// form's sizing corner.
+    pub fn content_size(&self) -> (i64, i64) {
+        let m = self.margin();
+        let (w, h) = self.layout().form_size();
+        let tray = if self.tray().is_empty() { 0 } else { TRAY_GAP + TRAY_H };
+        let tw = self.tray_rect().map_or(0, |(_, _, tw, _)| tw);
+        (self.zv(w.max(tw)) + 2 * m + CORNER, self.zv(h + tray) + 2 * m + CORNER)
     }
 
     /// The surface scrolled by (dx, dy) pixels (the mouse wheel), within
     /// what it shows (the form, its tray, the backdrop's margin); whether
     /// it moved.
     pub fn scroll_by(&mut self, dx: i64, dy: i64) -> bool {
-        let m = self.margin();
-        let (w, h) = self.layout().form_size();
-        let tray = if self.tray().is_empty() { 0 } else { TRAY_GAP + TRAY_H };
-        let (cw, ch) = (w + 2 * m + CORNER, h + 2 * m + tray + CORNER);
+        let (cw, ch) = self.content_size();
         let max = ((cw - self.size.0).max(0), (ch - self.size.1).max(0));
         let to = ((self.scroll.0 + dx).clamp(0, max.0), (self.scroll.1 + dy).clamp(0, max.1));
         let moved = to != self.scroll;
         self.scroll = to;
         moved
+    }
+
+    /// The surface's scroll bars (surface pixels), when what it shows is
+    /// larger than it: for each of across (0) and down (1), the track and
+    /// its thumb — thin bars over the backdrop's edge, as Xcode's canvas
+    /// has.
+    pub fn scroll_bars(&self) -> [Option<(Rect, Rect)>; 2] {
+        let (cw, ch) = self.content_size();
+        let (vw, vh) = self.size;
+        let across = cw > vw;
+        let down = ch > vh;
+        let bar = |len: i64, content: i64, at: i64| -> (i64, i64) {
+            let thumb = ((len as f64) * (len as f64) / (content.max(1) as f64)).round().max(24.0).min(len as f64) as i64;
+            let room = (len - thumb).max(0);
+            let max = (content - len).max(1);
+            (room * at.clamp(0, max) / max, thumb)
+        };
+        let t = SCROLL_BAR;
+        let a = across.then(|| {
+            let len = vw - if down { t } else { 0 };
+            let (pos, th) = bar(len, cw, self.scroll.0);
+            ((0, vh - t, len, t), (pos, vh - t, th, t))
+        });
+        let d = down.then(|| {
+            let len = vh - if across { t } else { 0 };
+            let (pos, th) = bar(len, ch, self.scroll.1);
+            ((vw - t, 0, t, len), (vw - t, pos, t, th))
+        });
+        [a, d]
+    }
+
+    /// A press at (x, y) (surface pixels) on a scroll bar: dragging its
+    /// thumb (or paging toward the press, on the track) begins. Whether it
+    /// was one.
+    pub fn bar_press(&mut self, x: f64, y: f64) -> bool {
+        let inside = |(rx, ry, rw, rh): Rect| x >= rx as f64 && y >= ry as f64 && x < (rx + rw) as f64 && y < (ry + rh) as f64;
+        for (axis, b) in self.scroll_bars().into_iter().enumerate() {
+            let Some((track, thumb)) = b else { continue };
+            if !inside(track) {
+                continue;
+            }
+            if !inside(thumb) {
+                let (page, before) = if axis == 0 { (self.size.0 - 40, x < thumb.0 as f64) } else { (self.size.1 - 40, y < thumb.1 as f64) };
+                let step = if before { -page } else { page };
+                if axis == 0 { self.scroll_by(step, 0) } else { self.scroll_by(0, step) };
+            }
+            self.bar_drag = Some((axis, if axis == 0 { x } else { y }, if axis == 0 { self.scroll.0 } else { self.scroll.1 }));
+            return true;
+        }
+        false
+    }
+
+    /// The thumb dragged to (x, y); whether a bar is being dragged.
+    pub fn bar_move(&mut self, x: f64, y: f64) -> bool {
+        let Some((axis, from, start)) = self.bar_drag else { return false };
+        let (cw, ch) = self.content_size();
+        let (len, content, at) = if axis == 0 { (self.size.0, cw, x) } else { (self.size.1, ch, y) };
+        let ratio = content as f64 / len.max(1) as f64;
+        let to = start + ((at - from) * ratio).round() as i64;
+        if axis == 0 { self.scroll_by(to - self.scroll.0, 0) } else { self.scroll_by(0, to - self.scroll.1) };
+        true
+    }
+
+    /// The thumb let go; whether one was held.
+    pub fn bar_release(&mut self) -> bool {
+        self.bar_drag.take().is_some()
+    }
+
+    /// The guides showing, in words (the Guides property): "edge x 112,
+    /// baseline y 30".
+    pub fn guides_text(&self) -> String {
+        use crate::designer::GuideKind;
+        self.guides
+            .iter()
+            .map(|g| {
+                let kind = match g.kind {
+                    GuideKind::Edge => "edge".to_string(),
+                    GuideKind::Centre => "centre".to_string(),
+                    GuideKind::Baseline => "baseline".to_string(),
+                    GuideKind::Margin => "margin".to_string(),
+                    GuideKind::Spacing(n) => format!("spacing {n}"),
+                };
+                format!("{kind} {} {}", if g.vertical { "x" } else { "y" }, g.at)
+            })
+            .collect::<Vec<_>>()
+            .join(", ")
     }
 
     /// The form's inside below its menu (its scroll bars included).
@@ -923,15 +1326,19 @@ impl DesignSurface {
     }
 
     /// The tray strip under the form (client coordinates): its items, left
-    /// to right; empty when the form has no non-visual component.
+    /// to right — the form's non-visual components, then those its program
+    /// creates outside it (notepad.bas's OpenDialog and SaveDialog, their
+    /// indexes after the form's components); empty when there are none.
     pub fn tray(&self) -> Vec<TrayItem> {
         let d = &self.designer.design;
-        let (ox, oy) = self.client_origin();
-        let (fx, fy, _, fh) = self.form_rect();
-        let top = fy + fh + TRAY_GAP - oy;
-        let mut x = fx - ox + 4;
+        let (ix, iy) = self.client_inset();
+        let (_, _, _, fh) = self.form_rect();
+        let top = fh + TRAY_GAP - iy;
+        let mut x = -ix + 4;
         let font = tray_font();
-        self.ids()
+        let ids = self.ids();
+        let n_ids = ids.len();
+        let mut entries: Vec<(usize, String, String)> = ids
             .into_iter()
             .enumerate()
             .filter_map(|(index, id)| {
@@ -939,10 +1346,17 @@ impl DesignSurface {
                 if n.is_visual() || matches!(n.canonical.as_str(), "RMAINMENU" | "RMENUITEM") {
                     return None;
                 }
-                let w = 4 + TRAY_ICON + 4 + super::text::text_size(&n.name, &font).0 + 8;
+                Some((index, n.name.clone(), n.type_written.clone()))
+            })
+            .collect();
+        entries.extend(self.outside.iter().enumerate().map(|(k, o)| (n_ids + k, o.name.clone(), o.type_name.clone())));
+        entries
+            .into_iter()
+            .map(|(index, name, type_name)| {
+                let w = 4 + TRAY_ICON + 4 + super::text::text_size(&name, &font).0 + 8;
                 let rect = (x, top + 4, w, TRAY_H - 8);
                 x += w + 4;
-                Some(TrayItem { index, name: n.name.clone(), type_name: n.type_written.clone(), rect })
+                TrayItem { index, name, type_name, rect }
             })
             .collect()
     }
@@ -951,10 +1365,10 @@ impl DesignSurface {
     pub fn tray_rect(&self) -> Option<Rect> {
         let items = self.tray();
         let last = items.last()?;
-        let (ox, oy) = self.client_origin();
-        let (fx, fy, fw, fh) = self.form_rect();
-        let w = fw.max(last.rect.0 + last.rect.2 + 4 - (fx - ox));
-        Some((fx - ox, fy + fh + TRAY_GAP - oy, w, TRAY_H))
+        let (ix, iy) = self.client_inset();
+        let (_, _, fw, fh) = self.form_rect();
+        let w = fw.max(last.rect.0 + last.rect.2 + 4 + ix);
+        Some((-ix, fh + TRAY_GAP - iy, w, TRAY_H))
     }
 
     /// The surface's size: a form made through the API fills it (less the
@@ -970,7 +1384,8 @@ impl DesignSurface {
         }
         let m = self.margin();
         let tray = if self.tray().is_empty() { 0 } else { TRAY_GAP + TRAY_H };
-        let (fw, fh) = ((w - 2 * m).max(MIN_SIZE), (h - 2 * m - tray).max(MIN_SIZE));
+        let unzoom = |v: i64| (v as f64 / self.zoom).floor() as i64;
+        let (fw, fh) = (unzoom(w - 2 * m).max(MIN_SIZE), (unzoom(h - 2 * m) - tray).max(MIN_SIZE));
         let root = self.designer.design.root();
         for (p, v) in [("Width", fw), ("Height", fh)] {
             if self.root_int(p) != Some(v) {
@@ -1123,11 +1538,16 @@ impl DesignSurface {
 
     /// A name for a new component of `type_written` that nothing in the
     /// form or the file has (`Button1`, `Button2` …).
+    /// Whether the program's other files name a component `name`.
+    fn reserved(&self, name: &str) -> bool {
+        self.reserved.iter().any(|r| r.eq_ignore_ascii_case(name))
+    }
+
     fn fresh_name(&self, type_written: &str) -> String {
         let d = &self.designer.design;
         let first = d.new_name(type_written);
         let base = first.trim_end_matches(|c: char| c.is_ascii_digit()).to_string();
-        let taken = |n: &str| d.find(n).is_some() || self.source.as_ref().is_some_and(|a| a.doc.borrow().name_taken(n));
+        let taken = |n: &str| d.find(n).is_some() || self.reserved(n) || self.source.as_ref().is_some_and(|a| a.doc.borrow().name_taken(n));
         (1..).map(|k| format!("{base}{k}")).find(|n| !taken(n)).unwrap_or(first)
     }
 
@@ -1161,7 +1581,7 @@ impl DesignSurface {
             return None;
         }
         let canonical = crate::designer::model::canonical_type(type_name);
-        if canonical == "RFORM" || canonical.is_empty() {
+        if crate::designer::model::is_form_type(&canonical) || canonical.is_empty() {
             return None;
         }
         let comp = rapidr_lang::component(&canonical);
@@ -1184,7 +1604,18 @@ impl DesignSurface {
         }
         let r = match rect {
             Some(r) if r.width >= 4 && r.height >= 4 => r,
-            _ => self.new_rect(type_name, at.0, at.1, rect.is_some()),
+            _ => {
+                let mut r = self.new_rect(type_name, at.0, at.1, rect.is_some());
+                // (made larger than where it goes — a 640 x 480 RPLOT on a
+                // small form: as large as fits, a grid step from the edge)
+                if visual {
+                    let area = self.layout().client_of(parent).map_or(self.client_size(), |c| (c.width, c.height));
+                    let g = self.designer.snapper.grid.max(1);
+                    r.width = r.width.min((area.0 - (r.left - origin.0) - g).max(8));
+                    r.height = r.height.min((area.1 - (r.top - origin.1) - g).max(8));
+                }
+                r
+            }
         };
         let local = LRect::new(r.left - origin.0, r.top - origin.1, r.width, r.height);
         let mut tree = crate::designer::text::new_component(d, type_name, local);
@@ -1207,6 +1638,36 @@ impl DesignSurface {
         let prop = rapidr_lang::component(&canonical).and_then(|c| ["Caption", "Text"].into_iter().find(|p| c.property(p).is_some()));
         self.typing = prop.map(|p| (id, p, String::new()));
         self.index_of(id)
+    }
+
+    /// The same, from the mouse (a toolbox's drop, the placing tool): the
+    /// new component settles in where it was let go.
+    pub fn add_dropped(&mut self, type_name: &str, at: (i64, i64), rect: Option<LRect>) -> Option<usize> {
+        let i = self.add_at(type_name, at, rect)?;
+        let id = self.ids().get(i).copied();
+        self.dropped = id.filter(|&id| self.on_form(id)).and_then(|id| self.designer.design.node(id)).map(|n| (n.name.clone(), true));
+        Some(i)
+    }
+
+    /// Whether a component was just dropped, once (the kernel's animation
+    /// starts).
+    pub fn take_dropped(&mut self) -> bool {
+        self.dropped.as_mut().is_some_and(|(_, new)| std::mem::take(new))
+    }
+
+    /// Where the component last dropped is now (surface pixels from the
+    /// client area's origin, zoomed): the settling follows it.
+    pub fn dropped_view_rect(&self) -> Option<Rect> {
+        let (name, _) = self.dropped.as_ref()?;
+        let id = self.designer.design.find(name)?;
+        let r = self.rect_of(id)?;
+        Some(self.view_rect((r.left, r.top, r.width, r.height)))
+    }
+
+    /// Where the mouse last was on the surface (zoom keeps that point).
+    pub fn last_pointer(&self) -> Option<(f64, f64)> {
+        let (ox, oy) = self.client_origin();
+        self.pointer.map(|(x, y)| (ox as f64 + x as f64 * self.zoom, oy as f64 + y as f64 * self.zoom))
     }
 
     /// The selection deleted (one undo step).
@@ -1233,7 +1694,8 @@ impl DesignSurface {
             return None;
         }
         let r = self.rect_of(id)?;
-        let near = |hx: i64, hy: i64| (x - hx).abs() <= GRAB && (y - hy).abs() <= GRAB;
+        let grab = self.reach(GRAB);
+        let near = |hx: i64, hy: i64| (x - hx).abs() <= grab && (y - hy).abs() <= grab;
         let (l, t, rr, b, cx, cy) = (r.left, r.top, r.left + r.width, r.top + r.height, r.left + r.width / 2, r.top + r.height / 2);
         [(rr, b, Grip::Corner), (l, t, Grip::TopLeft), (rr, t, Grip::TopRight), (l, b, Grip::BottomLeft), (rr, cy, Grip::Right), (cx, b, Grip::Bottom), (l, cy, Grip::Left), (cx, t, Grip::Top)]
             .into_iter()
@@ -1255,8 +1717,11 @@ impl DesignSurface {
         if !self.on_form(id) {
             return None;
         }
+        // (the pins keep their size at any zoom: found on the surface)
         let r = self.rect_of(id)?;
-        pins(r).into_iter().find(|(_, p)| x >= p.left && x < p.left + p.width && y >= p.top && y < p.top + p.height).map(|(s, _)| s)
+        let (vx, vy, vw, vh) = self.view_rect((r.left, r.top, r.width, r.height));
+        let (px, py) = (self.zv(x), self.zv(y));
+        pins(LRect::new(vx, vy, vw, vh)).into_iter().find(|(_, p)| px >= p.left && px < p.left + p.width && py >= p.top && py < p.top + p.height).map(|(s, _)| s)
     }
 
     /// The topmost component at (x, y) (its edges included), or the tray
@@ -1274,9 +1739,9 @@ impl DesignSurface {
 
     /// The form's corner grip (the size's), client coordinates.
     fn corner_rect(&self) -> Rect {
-        let (ox, oy) = self.client_origin();
-        let (fx, fy, fw, fh) = self.form_rect();
-        (fx + fw - ox - 3, fy + fh - oy - 3, CORNER + 3, CORNER + 3)
+        let (ix, iy) = self.client_inset();
+        let (_, _, fw, fh) = self.form_rect();
+        (fw - ix - self.reach(3), fh - iy - self.reach(3), self.reach(CORNER + 3), self.reach(CORNER + 3))
     }
 
     /// The form's own sizing grip at (x, y): its corner, its right edge or
@@ -1286,14 +1751,15 @@ impl DesignSurface {
         if !self.show_selection || self.no_form() || self.fit {
             return None;
         }
-        let (ox, oy) = self.client_origin();
-        let (fx, fy, fw, fh) = self.form_rect();
-        let (left, top, right, bottom) = (fx - ox, fy - oy, fx + fw - ox, fy + fh - oy);
+        let (ix, iy) = self.client_inset();
+        let (_, _, fw, fh) = self.form_rect();
+        let (left, top, right, bottom) = (-ix, -iy, fw - ix, fh - iy);
         let (cx, cy, cw, ch) = self.corner_rect();
         if x >= cx && y >= cy && x < cx + cw && y < cy + ch {
             return Some(Grip::FormCorner);
         }
-        let near = |v: i64, edge: i64| v >= edge - EDGE_IN && v <= edge + EDGE_OUT;
+        let (inn, out) = (self.reach(EDGE_IN), self.reach(EDGE_OUT));
+        let near = |v: i64, edge: i64| v >= edge - inn && v <= edge + out;
         match (near(x, right) && y >= top && y <= bottom, near(y, bottom) && x >= left && x <= right) {
             (true, true) => Some(Grip::FormCorner),
             (true, false) => Some(Grip::FormRight),
@@ -1340,6 +1806,19 @@ impl DesignSurface {
         if self.no_form() || self.read_only() {
             return None;
         }
+        // (the in-place editor: a double click's second press drops what a
+        // slow click began; a press in it stays in it; elsewhere it writes)
+        if double && self.editing.is_some() {
+            self.editing = None;
+        }
+        if self.editing.is_some() && self.edit_press(x, y) {
+            return None;
+        }
+        // (the Tab-order editor takes every click)
+        if self.tab_order.is_some() {
+            self.tab_order_click(x, y);
+            return None;
+        }
         let (cw, ch) = self.client_size();
         let inside = x >= 0 && y >= 0 && x < cw && y < ch;
         if !self.place_type.is_empty() && inside {
@@ -1350,6 +1829,10 @@ impl DesignSurface {
             }
             self.ghost = Some((LRect::new(sx, sy, 0, 0), self.place_type.clone()));
             return None;
+        }
+        // (the menu editor: the bar, the open menus, their Type Here)
+        if let Some(e) = self.menu_press(x, y, double, add) {
+            return e;
         }
         if let Some(side) = self.pin_at(x, y) {
             let _ = self.designer.toggle_anchor(side);
@@ -1371,9 +1854,20 @@ impl DesignSurface {
             }
         }
         match self.component_at(x, y) {
+            // (a component the program creates outside the form, in the tray)
+            Some(i) if i >= self.ids().len() => {
+                self.select_outside(i - self.ids().len());
+                self.selected_raw = i as i64;
+                self.start_drag(Grip::Tray, x, y);
+                Some(DesignEvent::Select(i as i64))
+            }
             Some(i) => {
                 let id = self.ids()[i];
+                self.outside_sel = None;
                 let was = self.designer.selection.ids().to_vec();
+                // (pressed again alone and let go without a move: a slow
+                // click, the caption edited in place)
+                self.slow = (!add && !double && was == [id] && self.on_form(id)).then_some(id);
                 if add {
                     self.designer.selection.toggle(id);
                 } else if !self.designer.selection.contains(id) {
@@ -1394,9 +1888,10 @@ impl DesignSurface {
                 Some(if double { DesignEvent::DblClick(i) } else { DesignEvent::Select(i as i64) })
             }
             None => {
+                self.outside_sel = None;
                 if !add {
                     self.designer.selection.clear();
-                    let text = format!("{} ({}), nothing selected", self.root_name(), self.designer.design.node(self.designer.design.root()).map(|n| n.type_written.clone()).unwrap_or_default());
+                    let text = self.describe_none();
                     self.say(text);
                 }
                 self.selected_raw = -1;
@@ -1463,6 +1958,7 @@ impl DesignSurface {
     /// The mouse moved over the surface with no button down (`free`: Alt):
     /// the placing tool's ghost follows it.
     pub fn mouse_hover(&mut self, x: i64, y: i64, free: bool) {
+        self.pointer = Some((x, y));
         // (a component dragged in: the kernel's drop routing shows its ghost)
         if drop_pending().is_some() {
             return;
@@ -1487,6 +1983,10 @@ impl DesignSurface {
         self.drop_target = None;
         match drag.grip {
             Grip::Tray => None,
+            Grip::MenuItem => {
+                self.menu_drag(drag, x, y);
+                None
+            }
             Grip::FormCorner | Grip::FormRight | Grip::FormBottom => {
                 let (_, _, fw, fh) = self.form_rect_designed();
                 let w = if drag.grip == Grip::FormBottom { fw } else { (x + drag.offset.0).max(MIN_FORM) };
@@ -1612,11 +2112,17 @@ impl DesignSurface {
                 if !drag.keep {
                     self.place_type.clear();
                 }
-                self.add_at(&ty, drag.from, rect);
+                self.add_dropped(&ty, drag.from, rect);
             }
             Grip::Band => {
                 if drag.moved {
                     self.selection_changed();
+                }
+            }
+            Grip::MenuItem => self.menu_release(drag),
+            Grip::Move if !drag.moved => {
+                if self.slow.take().is_some_and(|s| self.designer.selection.ids() == [s]) {
+                    self.begin_edit();
                 }
             }
             g if g.moves() && drag.moved => {
@@ -1721,6 +2227,7 @@ impl DesignSurface {
             "compcount" | "count" => v_int(self.ids().len() as i64),
             "formcaption" => v_str(&self.form_caption),
             "theme" => v_str(&self.theme),
+            "reservednames" => v_str(&self.reserved.join(",")),
             "selcount" => v_int(self.designer.selection.len() as i64),
             "selindex" => v_int(self.selection().map_or(-1, |i| i as i64)),
             "previewwidth" => v_int(self.preview.map_or(0, |p| p.0)),
@@ -1733,11 +2240,20 @@ impl DesignSurface {
             "source" => v_str(&self.source.as_ref().map(|a| a.doc.borrow().text()).unwrap_or_default()),
             "sourcefile" => v_str(&self.source_file),
             "formname" => v_str(&self.root_name()),
+            "formtype" => v_str(&{
+                let d = &self.designer.design;
+                d.node(d.root()).map(|n| n.type_written.clone()).unwrap_or_default()
+            }),
             "placetype" => v_str(&self.place_type),
             "canundo" => Value::Boolean(self.can_undo()),
             "canredo" => Value::Boolean(self.can_redo()),
             "statustext" => v_str(&self.announcement),
+            "guides" => v_str(&self.guides_text()),
             "handlerline" => v_int(self.handler_line),
+            "zoom" => v_int((self.zoom * 100.0).round() as i64),
+            "tabordermode" => Value::Boolean(self.tab_order.is_some()),
+            "sharedundo" => Value::Boolean(self.shared_undo),
+            "editing" => Value::Boolean(self.editing.is_some()),
             _ => return None,
         })
     }
@@ -1746,6 +2262,7 @@ impl DesignSurface {
         match prop {
             "formcaption" => self.form_caption = val.to_string_val(),
             "theme" => self.theme = val.to_string_val(),
+            "reservednames" => self.reserved = val.to_string_val().split([',', '\n', ';']).map(str::trim).filter(|n| !n.is_empty()).map(str::to_string).collect(),
             // (0 ends the preview)
             "previewwidth" | "previewheight" => {
                 let v = val.to_i64();
@@ -1774,6 +2291,11 @@ impl DesignSurface {
                     self.say(format!("Placing {t}: click or draw on the form, Escape to stop"));
                 }
             }
+            "zoom" => {
+                self.set_zoom(val.to_i64() as f64 / 100.0, None);
+            }
+            "tabordermode" => self.set_tab_order_mode(val.to_bool()),
+            "sharedundo" => self.shared_undo = val.to_bool(),
             "selindex" => {
                 self.selected_raw = val.to_i64();
                 match self.id_of(val.to_i64()) {
@@ -1788,12 +2310,15 @@ impl DesignSurface {
 
     /// Where a component added by keyboard (Enter on a toolbox item,
     /// AddComponent with no place) goes: the selection's container (the
-    /// selection itself when it is one), at the first free step of a
-    /// cascade from its top left (client coordinates).
+    /// selection itself when it is one), at the first place in reading order
+    /// (top to bottom, left to right, on the grid) where it covers nothing
+    /// already there, a grid step clear of it — beside the last one added,
+    /// under the row when the row is full; when nothing is free, the first
+    /// free step of a cascade from the top left (client coordinates).
     pub fn free_spot(&self, type_name: &str) -> (i64, i64) {
         let d = &self.designer.design;
-        let canonical = crate::designer::model::canonical_type(type_name);
-        let (dw, dh) = crate::layout::default_size(&canonical).unwrap_or((0, 0));
+        // (the size it will be made at: new_rect's)
+        let LRect { width: dw, height: dh, .. } = self.new_rect(type_name, 0, 0, true);
         let container = match self.designer.selection.primary() {
             Some(p) if d.node(p).is_some_and(|n| n.is_container() && !n.is_form()) => p,
             Some(p) => d.parent(p).unwrap_or(d.root()),
@@ -1802,6 +2327,21 @@ impl DesignSurface {
         let (ox, oy) = if container == d.root() { (0, 0) } else { self.rect_of(container).map_or((0, 0), |r| (r.left, r.top)) };
         let area = self.layout().client_of(container).map_or(self.client_size(), |c| (c.width, c.height));
         let g = self.designer.snapper.grid.max(1);
+        let rects: Vec<LRect> = d.children(container).into_iter().filter(|&c| d.node(c).is_some_and(|n| n.is_visual())).filter_map(|c| self.layout().rect(c)).collect();
+        if dw > 0 && dh > 0 {
+            let clear = |x: i64, y: i64| rects.iter().all(|r| x + dw + g <= r.left || r.left + r.width + g <= x || y + dh + g <= r.top || r.top + r.height + g <= y);
+            let mut y = g;
+            while y + dh <= area.1 {
+                let mut x = g;
+                while x + dw <= area.0 {
+                    if clear(x, y) {
+                        return (ox + x, oy + y);
+                    }
+                    x += g;
+                }
+                y += g;
+            }
+        }
         let taken: Vec<(i64, i64)> = d.children(container).into_iter().filter_map(|c| self.layout().rect(c).map(|r| (r.left, r.top))).collect();
         let step = (2 * g).max(8);
         let spot = (0..64)
@@ -1814,12 +2354,27 @@ impl DesignSurface {
     /// Selects the component named `name` (any case) alone; whether there
     /// is one.
     pub fn select_name(&mut self, name: &str) -> bool {
+        if let Some(k) = self.outside.iter().position(|o| o.name.eq_ignore_ascii_case(name)) {
+            let changed = self.outside_sel != Some(k);
+            let ok = self.select_outside(k);
+            if changed {
+                self.selected_raw = (self.ids().len() + k) as i64;
+                self.outbox.push(DesignEvent::Select(self.selected_raw));
+            }
+            return ok;
+        }
         match self.designer.design.find(name).filter(|&id| id != self.designer.design.root()) {
             Some(id) => {
+                let changed = self.outside_sel.is_some() || self.designer.selection.ids() != [id];
+                self.outside_sel = None;
                 self.designer.selection.set(id);
                 self.selected_raw = self.index_of(id).map_or(-1, |i| i as i64);
                 let text = self.describe_comp(id);
                 self.say(text);
+                // (OnSelect: the inspector follows a selection made by name)
+                if changed {
+                    self.outbox.push(DesignEvent::Select(self.selected_raw));
+                }
                 true
             }
             None => false,
@@ -1912,8 +2467,55 @@ impl DesignSurface {
     /// are [`DesignSurface::copy`] / [`DesignSurface::cut`]: the host puts
     /// their text on the clipboard).
     pub fn key(&mut self, vk: i64, text: &str, shift: bool, ctrl: bool) -> bool {
+        self.key_alt(vk, text, shift, ctrl, false)
+    }
+
+    /// The same with Alt / Option's state: the in-place editor first (a
+    /// ShortCut field takes Alt+ keys), the Tab-order editor, zoom (Ctrl /
+    /// ⌘ + = − 0), F2, the menu editor's keys, then the designer's.
+    pub fn key_alt(&mut self, vk: i64, text: &str, shift: bool, ctrl: bool, alt: bool) -> bool {
+        // (no form: Enter adds one, as the empty state says)
+        if self.no_form() && vk == 13 && !ctrl && !alt {
+            return self.add_form("").is_some();
+        }
         if self.no_form() || self.read_only() {
             return false;
+        }
+        if self.editing.is_some() {
+            return self.edit_key(vk, text, shift, ctrl, alt);
+        }
+        if alt {
+            return false;
+        }
+        if self.tab_order.is_some() {
+            if vk == 27 {
+                self.set_tab_order_mode(false);
+                return true;
+            }
+            return matches!(vk, 9 | 13 | 37..=40 | 46 | 8);
+        }
+        if ctrl {
+            let dir = match vk {
+                187 | 107 => Some(1),
+                189 | 109 => Some(-1),
+                48 | 96 => Some(0),
+                _ => None,
+            };
+            if let Some(dir) = dir {
+                self.zoom_step(dir, None);
+                return true;
+            }
+        }
+        if vk == 113 && !ctrl {
+            return self.begin_edit();
+        }
+        if vk == 27 && !self.menu_open.is_empty() && self.drag.is_none() {
+            self.menu_open.clear();
+            self.say("Menu closed");
+            return true;
+        }
+        if !matches!(vk, 46 | 8 | 13 | 27) && self.menu_key(vk, text, ctrl) {
+            return true;
         }
         // (right after adding a component: what's typed is its Caption /
         // Text; Backspace takes a character back, Enter or Escape ends it)
@@ -1926,6 +2528,8 @@ impl DesignSurface {
                     typed.push_str(text);
                 }
                 let _ = self.designer.execute(Command::SetProp { node: id, name: prop.to_string(), value: Some(value::write_str(&typed)) });
+                // (one undo step with the add: Delphi's)
+                self.continues = true;
                 self.commit();
                 self.say(format!("{prop}: {typed}"));
                 self.typing = Some((id, prop, typed));
@@ -2050,8 +2654,25 @@ impl DesignSurface {
                 begin_drop(&text(0));
                 Value::Null
             }
+            "getname" | "gettype" if index >= self.ids().len() as i64 => {
+                let o = self.outside.get((index - self.ids().len() as i64) as usize);
+                v_str(&o.map_or(String::new(), |o| if method == "getname" { o.name.clone() } else { o.type_name.clone() }))
+            }
             "getname" => v_str(&comp(self).map_or(String::new(), |c| c.name)),
             "gettype" => v_str(&comp(self).map_or(String::new(), |c| c.type_written)),
+            // ZoomStep(Direction): 1 in, -1 out, 0 back to 100 %
+            "zoomstep" => Value::Boolean(self.zoom_step(int(0, 0).signum() as i32, None)),
+            "zoomtofit" => Value::Boolean(self.zoom_to_fit()),
+            // EditMenu: the menu editor on the form's main menu (one added
+            // when it has none)
+            "editmenu" => Value::Boolean(self.edit_menu()),
+            // EditCaption: F2's — the selection's caption edited in place
+            "editcaption" => Value::Boolean(self.begin_edit()),
+            // AddForm(Name): a form for a file without one
+            "addform" => v_str(&self.add_form(&text(0)).unwrap_or_default()),
+            // AddMdiChild: a child window of the designed RFormMDI (a panel
+            // and its AddChild), its name ("" when the form isn't one)
+            "addmdichild" => v_str(&self.add_mdi_child().unwrap_or_default()),
             "getcompx" => v_int(rect(self).map_or(0, |r| r.left)),
             "getcompy" => v_int(rect(self).map_or(0, |r| r.top)),
             "getcompw" => v_int(rect(self).map_or(0, |r| r.width)),
@@ -2152,36 +2773,40 @@ impl DesignSurface {
         d.ops
     }
 
-    /// The designer's chrome over the drawn form, in client coordinates: the
-    /// selection framed with the primary's eight handles and anchor pins
-    /// (unless [`DesignSurface::show_selection`] is off), the guides, the
-    /// rubber band, the form's corner grip and the preview's size — in the
-    /// theme's tokens.
+    /// The designer's chrome over the drawn form, from the client area's
+    /// origin on the surface, in the surface's pixels (the form's places
+    /// zoomed, the marks themselves at their own size): the selection
+    /// framed with the primary's eight handles and anchor pins (unless
+    /// [`DesignSurface::show_selection`] is off), the guides, the rubber
+    /// band, the form's corner grip and the preview's size — in the theme's
+    /// tokens.
     pub fn chrome_ops(&self) -> Vec<Op> {
         let t = crate::theme::current();
         let mut d = Draw::default();
-        if self.show_selection {
+        let v = |r: Rect| self.view_rect(r);
+        if self.show_selection && self.tab_order.is_none() {
             let comps = self.components();
             let tray = self.tray();
             for (k, &i) in self.selected().iter().enumerate() {
-                let Some(c) = comps.get(i) else { continue };
-                if c.visual {
-                    d.rect(c.bounds(), t.accent);
+                if let Some(c) = comps.get(i).filter(|c| c.visual) {
+                    let r = v(c.bounds());
+                    d.rect(r, t.accent);
                     if k == 0 {
-                        d.handles(c.bounds(), t.accent, t.window);
+                        d.handles(r, t.accent, t.window);
                     } else {
-                        d.corners(c.bounds(), t.accent);
+                        d.corners(r, t.accent);
                     }
                 } else if let Some(item) = tray.iter().find(|x| x.index == i) {
-                    d.rect(item.rect, t.accent);
+                    d.rect(v(item.rect), t.accent);
                 }
             }
-            if self.show_pins && self.drag.as_ref().is_none_or(|g| !g.moved) {
+            if self.show_pins && self.drag.as_ref().is_none_or(|g| !g.moved) && self.editing.is_none() {
                 if let Some(id) = self.designer.selection.primary().filter(|&id| self.on_form(id)) {
                     if let (Some(i), Some(n)) = (self.index_of(id), self.designer.design.node(id)) {
                         let anchors = n.int("Anchors").unwrap_or(crate::layout::DEFAULT_ANCHORS);
                         if let Some(c) = comps.get(i) {
-                            for (side, p) in pins(LRect::new(c.x, c.y, c.w, c.h)) {
+                            let (x, y, w, h) = v(c.bounds());
+                            for (side, p) in pins(LRect::new(x, y, w, h)) {
                                 d.pin(p, anchors & side.bit() != 0, side, t.accent, t.window, t.border_strong);
                             }
                         }
@@ -2191,44 +2816,48 @@ impl DesignSurface {
         }
         if self.show_guides {
             for g in &self.guides {
-                d.guide(g, t.accent);
+                let shown = Guide { at: self.zv(g.at), from: self.zv(g.from), to: self.zv(g.to), ..*g };
+                d.guide(&shown, (g.to - g.from).abs(), t.accent);
             }
         }
         if let Some(b) = self.band {
-            d.rect((b.left, b.top, b.width, b.height), t.accent);
+            d.rect(v((b.left, b.top, b.width, b.height)), t.accent);
         }
         // the container a drag goes into
         if let Some(r) = self.drop_target.and_then(|id| self.rect_of(id)) {
-            d.rect((r.left - 1, r.top - 1, r.width + 2, r.height + 2), t.accent);
-            d.rect((r.left - 2, r.top - 2, r.width + 4, r.height + 4), t.accent);
+            let (x, y, w, h) = v((r.left, r.top, r.width, r.height));
+            d.rect((x - 1, y - 1, w + 2, h + 2), t.accent);
+            d.rect((x - 2, y - 2, w + 4, h + 4), t.accent);
         }
-        // where a new component would go: a dashed outline, its type above
+        // where a new component would go (the kernel draws the component
+        // itself, faded): its outline, its type and size above
         if let Some((r, ty)) = &self.ghost {
-            d.dashed((r.left, r.top, r.width.max(1), r.height.max(1)), t.accent);
+            let (x, y, w, h) = v((r.left, r.top, r.width.max(1), r.height.max(1)));
+            d.dashed((x, y, w.max(1), h.max(1)), t.accent);
             let label = if r.width > 0 && r.height > 0 { format!("{ty}  {} × {}", r.width, r.height) } else { ty.clone() };
-            d.pill(r.left, r.top - 20, &label, t.accent, t.window);
+            d.pill(x, y - 20, &label, t.accent, t.window);
         }
         // the live readout of a move or resize
         if let Some(g) = self.drag.as_ref().filter(|g| g.moved && g.grip.moves()) {
             if let Some(&(id, r)) = g.now.first() {
                 let o = self.layout().origin(&self.designer.design, id);
                 let label = if g.grip == Grip::Move { format!("{}, {}", r.left - o.0, r.top - o.1) } else { format!("{} × {}", r.width, r.height) };
-                d.pill(r.left, r.top + r.height + 8, &label, t.accent, t.window);
+                let (x, y, _, h) = v((r.left, r.top, r.width, r.height));
+                d.pill(x, y + h + 8, &label, t.accent, t.window);
             }
         }
-        if self.show_selection && !self.no_form() {
+        if self.show_selection && !self.no_form() && self.tab_order.is_none() {
             // the form's sizing grips: its corner, the middles of its right
             // and bottom edges
-            let (ox, oy) = self.client_origin();
-            let (fx, fy, fw, fh) = self.form_rect();
-            let (right, bottom) = (fx + fw - ox, fy + fh - oy);
-            let (top, left) = (fy - oy, fx - ox);
-            let (x, y, _, _) = self.corner_rect();
-            d.corner_grip((x + 3, y + 3, CORNER, CORNER), t.accent);
-            let form_selected = self.designer.selection.is_empty();
+            let (ix, iy) = self.client_inset();
+            let (_, _, fw, fh) = self.form_rect();
+            let (left, top, w, h) = v((-ix, -iy, fw, fh));
+            let (right, bottom) = (left + w, top + h);
+            d.corner_grip((right, bottom, CORNER, CORNER), t.accent);
+            let form_selected = self.designer.selection.is_empty() && self.outside_sel.is_none();
             let (edge, fill) = if form_selected { (t.accent, t.window) } else { (t.border_strong, t.window) };
             let half = HANDLE / 2;
-            for (hx, hy) in [(right + 2, top + fh / 2), (left + fw / 2, bottom + 2)] {
+            for (hx, hy) in [(right + 2, top + h / 2), (left + w / 2, bottom + 2)] {
                 d.fill((hx - half, hy - half, HANDLE, HANDLE), edge);
                 d.fill((hx - half + 1, hy - half + 1, HANDLE - 2, HANDLE - 2), fill);
             }
@@ -2236,6 +2865,11 @@ impl DesignSurface {
                 d.pill(right - 70, bottom + 10, &format!("{pw} × {ph}"), t.accent, t.window);
             }
         }
+        self.tab_order_ops(&mut d.ops);
+        if self.show_selection && self.tab_order.is_none() {
+            self.menu_ops(&mut d.ops);
+        }
+        self.edit_ops(&mut d.ops);
         d.ops
     }
 }
@@ -2249,7 +2883,7 @@ fn grip_pointer(g: Grip) -> Pointer {
         Grip::TopRight | Grip::BottomLeft => Pointer::SizeNESW,
         Grip::Move => Pointer::Move,
         Grip::Place => Pointer::Cross,
-        Grip::Band | Grip::Tray => Pointer::Default,
+        Grip::Band | Grip::Tray | Grip::MenuItem => Pointer::Default,
     }
 }
 
@@ -2374,7 +3008,8 @@ impl Draw {
 
     /// A guide: a line in the accent; margins and equal gaps with their
     /// distance.
-    fn guide(&mut self, g: &Guide, accent: u32) {
+    /// (`length`: the guide's length in RapidQ's pixels, a margin's label)
+    fn guide(&mut self, g: &Guide, length: i64, accent: u32) {
         let (a, b) = (g.from.min(g.to), g.from.max(g.to));
         if g.vertical {
             self.line((g.at, a), (g.at, b), accent);
@@ -2382,7 +3017,7 @@ impl Draw {
             self.line((a, g.at), (b, g.at), accent);
         }
         let label = match g.kind {
-            GuideKind::Margin => Some((b - a).to_string()),
+            GuideKind::Margin => Some(length.to_string()),
             GuideKind::Spacing(px) => Some(px.to_string()),
             _ => None,
         };

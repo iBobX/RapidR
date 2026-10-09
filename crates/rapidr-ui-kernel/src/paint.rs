@@ -50,11 +50,35 @@ pub struct Painter<'a> {
     list: &'a mut DisplayList,
     origin: (i64, i64),
     theme: &'static Theme,
+    /// Inside [`Painter::zoomed`]: its magnification and where its (0, 0)
+    /// is on the device.
+    zoom: Option<crate::display::Zoom>,
 }
 
 impl<'a> Painter<'a> {
     pub fn new(list: &'a mut DisplayList) -> Self {
-        Painter { list, origin: (0, 0), theme: theme::current() }
+        Painter { list, origin: (0, 0), theme: theme::current(), zoom: None }
+    }
+
+    /// Draws what `f` draws magnified `zoom` times, with its (0, 0) at
+    /// `origin` (from the current origin): at the device's resolution (its
+    /// scale is the list's times `zoom`), so text and lines stay crisp.
+    pub fn zoomed(&mut self, origin: (i64, i64), zoom: f64, f: impl FnOnce(&mut Painter)) {
+        // (at 100 %: drawn as anything else is)
+        if (zoom - 1.0).abs() < 1e-9 {
+            self.at(origin, f);
+            return;
+        }
+        let at = self.device_point(origin.0, origin.1);
+        let z = crate::display::Zoom { scale: self.scale() * zoom, at };
+        let (was_origin, was_zoom) = (self.origin, self.zoom);
+        self.list.items.push(Item::Zoom(Some(z)));
+        self.origin = (0, 0);
+        self.zoom = Some(z);
+        f(self);
+        self.origin = was_origin;
+        self.zoom = was_zoom;
+        self.list.items.push(Item::Zoom(was_zoom));
     }
 
     /// The theme it draws with.
@@ -90,7 +114,7 @@ impl<'a> Painter<'a> {
 
     /// Device pixels per logical pixel.
     pub fn scale(&self) -> f64 {
-        self.list.scale
+        self.zoom.map_or(self.list.scale, |z| z.scale)
     }
 
     pub fn origin(&self) -> (i64, i64) {
@@ -443,7 +467,8 @@ impl<'a> Painter<'a> {
     /// A logical point (from the origin) on the device's pixel grid.
     pub fn device_point(&self, x: i64, y: i64) -> (f64, f64) {
         let s = self.scale();
-        (((self.origin.0 + x) as f64 * s).round(), ((self.origin.1 + y) as f64 * s).round())
+        let (ax, ay) = self.zoom.map_or((0.0, 0.0), |z| z.at);
+        (ax + ((self.origin.0 + x) as f64 * s).round(), ay + ((self.origin.1 + y) as f64 * s).round())
     }
 }
 
@@ -655,6 +680,8 @@ impl FormUi {
         if !self.popups_apart {
             // (an open drop-down list, over them)
             crate::components::combo::paint_popup(self, store, ts, p);
+            // (code editors' completion, hovers, signatures)
+            crate::components::codeeditor::popup::paint_popups(self, store, ts, p);
             // (open menus over everything)
             self.paint_menus(store, p);
             // (a tooltip over them)
@@ -673,6 +700,7 @@ impl FormUi {
         let mut list = DisplayList { size: (w, h + self.menu_offset), scale, ..Default::default() };
         let mut p = Painter::new(&mut list);
         crate::components::combo::paint_popup(self, store, ts, &mut p);
+        crate::components::codeeditor::popup::paint_popups(self, store, ts, &mut p);
         self.paint_menus(store, &mut p);
         self.paint_tip(&mut p);
         list

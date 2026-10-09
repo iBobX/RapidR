@@ -1,0 +1,12 @@
+size 4 pos 4
+65 66 44 255
+pos 4
+at end 26 pos 4
+again 26 eof -1
+setsize 10 pos 0
+setsize 2
+all: size 4 pos 4 from pos 4
+two: size 6 pos 6 from pos 3
+6566442556644
+file: size 3 from pos 3
+AB,

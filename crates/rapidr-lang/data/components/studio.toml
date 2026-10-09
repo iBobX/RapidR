@@ -6,7 +6,7 @@ name = "RPROJECT"
 display = "Project"
 visual = false
 default_event = "OnChange"
-doc = "A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a .bas / .rr file with the files it $INCLUDEs, RapidQ's way. Lists the project's files and their kinds, adds and removes files, saves the project file, and makes new projects from templates. RapidR Studio is built on it."
+doc = "A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a source file (.rr, or RapidQ's .bas, .rqw, .rqb, .rq) with the files it $INCLUDEs, RapidQ's way. Lists the project's files and their kinds, adds and removes files, saves the project file, and makes new projects from templates. RapidR Studio is built on it."
 properties = [
   { name = "FileName", type = "string", access = "read", design = false, doc = "The .rrproj file (\"\" for a source file opened without one)." },
   { name = "Folder", type = "string", access = "read", design = false, doc = "The project's folder: its files' paths are relative to it." },
@@ -27,6 +27,8 @@ properties = [
   { name = "Building", type = "int", access = "read", design = false, doc = "True while a Build runs." },
   { name = "FileManager", type = "string", access = "read", design = false, doc = "What this system calls the file manager Reveal opens: \"Finder\", \"File Explorer\" or \"Files\" (\"\" on the web)." },
   { name = "BuiltPath", type = "string", access = "read", design = false, doc = "What the last Build made: the .app, the .exe or the AppDir (\"\" until one succeeds)." },
+  { name = "ImportSummary", type = "string", access = "read", design = false, doc = "The last ImportRapidQ's summary: how many programs, files and names, and how many compile to the same bytecode as their originals." },
+  { name = "ImportReport", type = "string", access = "read", design = false, doc = "The last ImportRapidQ's report (rapidr-import-report.md in the copy): every name changed by file, line and column, what was left and why, each program's proof." },
 ]
 methods = [
   { name = "Open", params = "Path AS STRING", returns = "INTEGER", test = "skip: needs a project file", doc = "Opens a .rrproj, or a .bas / .rr / .inc file with what it includes. True when it opened; Error says why not." },
@@ -44,10 +46,15 @@ methods = [
   { name = "InstallRust", returns = "INTEGER", value = true, test = "skip: installs Rust", doc = "Installs Rust with rapidr setup --yes --no-path (the free toolchain native builds need), in the background like Build: OnBuildOutput gives its lines, OnBuildDone its end. True when it started; Error says why not." },
   { name = "StopBuild", value = true, test = "skip: needs a running build", doc = "Stops the Build that is running." },
   { name = "Reveal", params = "[Path AS STRING]", returns = "INTEGER", value = true, test = "skip: opens the file manager", doc = "Shows Path (else what the last Build made) selected in Finder, Explorer or the Linux file manager." },
-  { name = "IconPreview", params = "[Size AS INTEGER]", returns = "STRING", test = "skip: writes a file", doc = "Draws the app's icon (Icon, else RapidR's) as a Size-pixel PNG (128 by default) in the project's .rapidr folder and gives its path, for a QIMAGE to show; \"\" when the icon can't be read (Error says why)." },
+  { name = "ImportRapidQ", params = "Source AS STRING, [Dest AS STRING]", returns = "STRING", test = "skip: writes a copy of a program", doc = "Imports a RapidQ program — a .bas, .rqw, .rqb, .rq or .inc file and the files it includes, or a folder of them — as a copy with RapidR's names (QBUTTON becomes RButton) in Dest (else <name>-rapidr beside it, the next free name): each program proved to compile to the same bytecode as its original, a report (ImportReport) and a project for the copy (the RapidQ-compatible setting off). The original is only read. Gives the copy's project file to Open; \"\" when it can't (Error says why). On the web, Source is a file or folder in the page's store (one the user picked)." },
+  { name = "IconPreview", params = "[Size AS INTEGER]", returns = "STRING", test = "skip: writes a file", doc = "Draws the app's icon (Icon, else RapidR's) as a Size-pixel PNG (128 by default) in the project's .rapidr folder and gives its path, for an RImage to show; \"\" when the icon can't be read (Error says why)." },
   { name = "Find", params = "Pattern AS STRING, Options AS STRING, Text AS STRING", returns = "STRING", value = true, doc = "Find in Files: every match of Pattern in Text, a line each: line, column (both from 1), length, the line's text, separated by tabs. Options: any of \"case\" (match case), \"word\" (whole words), \"regex\" (Pattern is a regular expression), separated by commas. \"\" with Error set when the pattern is not a valid regular expression." },
   { name = "Replace", params = "Pattern AS STRING, Options AS STRING, Text AS STRING, With AS STRING", returns = "STRING", doc = "Text with every match of Pattern (Find's Options) replaced by With; in a regular expression's replacement $1 or ${name} stand for its groups." },
   { name = "FileText", params = "Path AS STRING", returns = "STRING", doc = "A file's text (UTF-8, or a byte a character as RapidQ wrote it), from the disk on the desktop and the page's store on the web; Error says why when it can't be read." },
+  { name = "NewFileText", params = "Path AS STRING, Kind AS STRING, MainText AS STRING", returns = "STRING", doc = "The text a new project file starts with (Project > Add Form / Add Module): for Kind \"form\" a form named as the file (`CREATE Form2 AS RForm`; \"formmdi\": an MDI main window, `RFormMDI`; or QFORM when MainText — the main program — is written with RapidQ's names or the project is RapidQ-compatible) with its Caption and size; for \"module\" a comment naming it; \"\" for other kinds. Line ends as MainText's." },
+  { name = "IncludeRenameEdit", params = "MainText AS STRING, OldPath AS STRING, NewPath AS STRING", returns = "STRING", doc = "The main program's `$INCLUDE` of project file OldPath changed to name NewPath (the file renamed or moved), as one RCODEEDITOR.ApplyPatches line: only the path is replaced; \"\" when MainText doesn't include it." },
+  { name = "IncludeRemoveEdit", params = "MainText AS STRING, Path AS STRING", returns = "STRING", doc = "The main program's `$INCLUDE` line of project file Path taken out (the file taken out of the project), as one RCODEEDITOR.ApplyPatches line; \"\" when MainText doesn't include it." },
+  { name = "IncludeEdit", params = "MainText AS STRING, Path AS STRING", returns = "STRING", doc = "The `$INCLUDE` the main program (its text: MainText) needs for project file Path, as one RCODEEDITOR.ApplyPatches line (after its last $INCLUDE, else after its opening directives, else before its first statement; the path relative to the main file's folder); \"\" when it includes it already." },
 ]
 events = [
   { name = "OnChange", doc = "The project was opened, saved, closed, or its files changed." },
@@ -78,18 +85,26 @@ name = "RPROGRAMSESSION"
 display = "ProgramSession"
 visual = false
 default_event = "OnOutput"
-doc = "A run of a program under development, as an IDE runs it: in its own process on the desktop (its forms real windows), in a sandboxed frame on the web. Start, stop, pause, step, breakpoints, evaluate; its output and its stops come as events."
+doc = "A run of a program under development, as an IDE runs it: in its own process on the desktop (its forms real windows), in a sandboxed frame on the web. Start, stop, pause, step, breakpoints (with conditions, hit counts and log messages), the call stack, variables, watches and evaluation; its output and its stops come as events. What the debugger shows is fetched at each stop before OnStopped, so it can be read at once."
 properties = [
   { name = "Program", type = "string", doc = "The source file to run (saved)." },
   { name = "Args", type = "string", doc = "Its command line arguments, as COMMAND$ reads them (spaces separate them, quotes keep spaces)." },
   { name = "Debug", type = "bool", default = true, doc = "Run under the debugger: breakpoints stop it, stepping works." },
-  { name = "BreakOnError", type = "bool", default = false, doc = "Stop at the statement of a run-time error." },
+  { name = "BreakOnError", type = "bool", default = false, doc = "Stop at the statement of a run-time error (StopReason \"exception\", StopMessage the error)." },
+  { name = "StopOnEntry", type = "bool", default = false, doc = "Stop at the program's first statement when it starts." },
   { name = "Theme", type = "string", doc = "The look the program is drawn in when it names none (any name `$THEME` takes; \"\" its default, RapidR's look): `classic` previews it as RapidQ drew it." },
   { name = "State", type = "string", access = "read", design = false, doc = "\"stopped\", \"running\" or \"paused\"." },
   { name = "CurrentFile", type = "string", access = "read", design = false, doc = "Where the program is paused: its file." },
   { name = "CurrentLine", type = "int", access = "read", design = false, doc = "Where the program is paused: its line (from 1; 0 when not paused)." },
+  { name = "StopReason", type = "string", access = "read", design = false, doc = "Why it paused: \"breakpoint\", \"step\", \"pause\", \"entry\" or \"exception\"." },
+  { name = "StopMessage", type = "string", access = "read", design = false, doc = "A run-time error's message, when that's why it paused." },
   { name = "ExitCode", type = "int", access = "read", design = false, doc = "The last run's exit code." },
   { name = "Error", type = "string", access = "read", design = false, doc = "Why the last Start (or another request) failed." },
+  { name = "Frame", type = "int", design = false, doc = "The call stack's selected frame (0: where it is paused; 1 its caller …). Setting it fetches that frame's locals and the watches again, then OnVariables(0)." },
+  { name = "LocalsRef", type = "int", access = "read", design = false, doc = "The selected frame's locals, for Variables." },
+  { name = "GlobalsRef", type = "int", access = "read", design = false, doc = "The program's globals, for Variables." },
+  { name = "Watches", type = "string", design = false, doc = "The watch expressions, one a line: evaluated at every stop (WatchValues)." },
+  { name = "BrowserURL", type = "string", access = "read", design = false, doc = "Where RunInBrowser serves the program (on this machine only), once it does." },
 ]
 methods = [
   { name = "Start", returns = "INTEGER", value = true, test = "skip: runs a program", doc = "Runs Program. True when it started; Error says why not." },
@@ -99,15 +114,28 @@ methods = [
   { name = "StepIn", returns = "INTEGER", value = true, doc = "Runs one statement, into a SUB or FUNCTION it calls." },
   { name = "StepOver", returns = "INTEGER", value = true, doc = "Runs one statement, a call whole." },
   { name = "StepOut", returns = "INTEGER", value = true, doc = "Runs to the end of the SUB or FUNCTION and stops after its call." },
-  { name = "SetBreakpoint", params = "File AS STRING, Line AS INTEGER, [Condition AS STRING]", returns = "INTEGER", doc = "A breakpoint at a line (from 1) of a file, with a condition or not." },
+  { name = "SetBreakpoint", params = "File AS STRING, Line AS INTEGER, [Condition AS STRING], [HitCount AS STRING], [LogMessage AS STRING]", returns = "INTEGER", doc = "A breakpoint at a line (from 1) of a file, or its rules changed. Condition: it stops only when that is true. HitCount: only on that hit (3), or >= 3, > 3, <= 3, < 3, % 3 (every third). LogMessage: a logpoint, which prints the message ({expression} shows its value) and goes on." },
   { name = "ClearBreakpoint", params = "File AS STRING, Line AS INTEGER", returns = "INTEGER", doc = "Removes a breakpoint." },
-  { name = "Evaluate", params = "Expr AS STRING", returns = "STRING", test = "skip: needs a paused program", doc = "Evaluates in the paused program: \"? expression\" gives its value, a statement runs (the Immediate window's)." },
+  { name = "ClearBreakpoints", params = "[File AS STRING]", returns = "INTEGER", doc = "Removes a file's breakpoints (every file's when none is given)." },
+  { name = "RunToCursor", params = "File AS STRING, Line AS INTEGER", returns = "INTEGER", doc = "The program stops at that line once (a paused one goes on to it; a stopped one stops there once started)." },
+  { name = "StackTrace", returns = "STRING", value = true, test = "skip: needs a paused program", doc = "The call stack as the last stop fetched it, the innermost first: a line each, its name, file and line tab-separated." },
+  { name = "Variables", params = "Ref AS INTEGER", returns = "STRING", test = "skip: needs a paused program", doc = "Ref's values as fetched (LocalsRef, GlobalsRef, a value's children after Expand): a line each, its name, value, type, children's reference (0: none) and count, tab-separated." },
+  { name = "WatchValues", returns = "STRING", value = true, test = "skip: needs a paused program", doc = "Each watch with its value at this stop: a line each, its expression, value, type and children's reference, tab-separated." },
+  { name = "Expand", params = "Ref AS INTEGER", test = "skip: needs a paused program", doc = "Fetches a value's children (an array's elements, a TYPE's fields, a component's properties): OnVariables(Ref) when they're in." },
+  { name = "Evaluate", params = "Expr AS STRING, [Context AS STRING]", returns = "INTEGER", test = "skip: needs a paused program", doc = "Evaluates in the selected frame of the paused program: its answer comes as OnEvaluate(Id, Result) with the Id returned. Context \"repl\" (the Immediate window's): \"? expression\" gives its value, a statement runs." },
+  { name = "SetVariable", params = "Name AS STRING, Value AS STRING", returns = "INTEGER", test = "skip: needs a paused program", doc = "A variable of the selected frame set to an expression's value: OnEvaluate(Id, NewValue), then the values again (OnVariables(0))." },
   { name = "Input", params = "Text AS STRING", returns = "INTEGER", doc = "A line for the program's INPUT." },
+  { name = "RunInBrowser", returns = "INTEGER", value = true, test = "skip: opens a browser", doc = "Program's web build served on this machine (127.0.0.1, an address nobody can guess) and opened in the default browser (the desktop's; on the web, Error says to run it here). Its lines come as OnOutput; BrowserURL says where it is." },
+  { name = "StopBrowser", value = true, doc = "Ends what RunInBrowser serves." },
 ]
 events = [
-  { name = "OnOutput", params = "Text AS STRING", doc = "The program printed Text (PRINT, errors)." },
-  { name = "OnStopped", params = "Reason AS STRING, File AS STRING, Line AS INTEGER", doc = "The program paused: at a breakpoint, a step's end, a pause, a run-time error." },
+  { name = "OnOutput", params = "Text AS STRING", doc = "The program printed Text (PRINT, errors, logpoints)." },
+  { name = "OnStopped", params = "Reason AS STRING, File AS STRING, Line AS INTEGER", doc = "The program paused: at a breakpoint, a step's end, a pause, a run-time error. The call stack, the locals, the globals and the watches are in." },
   { name = "OnContinue", doc = "A paused program goes on." },
   { name = "OnExit", params = "Code AS INTEGER", doc = "The program ended, with its exit code." },
   { name = "OnFormShown", params = "Id AS STRING", doc = "The program showed a form." },
+  { name = "OnVariables", params = "Ref AS INTEGER", doc = "Values fetched: Ref's children (Expand), or 0 — the selected frame's locals and the watches again (Frame, Watches, SetVariable, a statement evaluated)." },
+  { name = "OnEvaluate", params = "Id AS INTEGER, Result AS STRING", doc = "An Evaluate's or SetVariable's answer (\"error: …\" when it failed)." },
+  { name = "OnBreakpointPlaced", params = "File AS STRING, Line AS INTEGER, NewLine AS INTEGER", doc = "The running program placed a breakpoint elsewhere than its line: one on a line without code (a comment, a blank line, a DIM) stops at the next line with code, NewLine; NewLine 0: no code follows it in its file, it never stops." },
 ]
+

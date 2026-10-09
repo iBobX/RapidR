@@ -6,8 +6,10 @@
 '
 '   Design | Code    a file with a form has the switch at the right of its
 '                    tab strip (RDOCKMANAGER's AddView): its designer, its
-'                    code, or both side by side; F12 toggles (Delphi's),
-'                    F7 the code, Shift+F7 the designer
+'                    code, or both side by side; F12 toggles (Delphi's;
+'                    in the code, on a name, it goes to that name's
+'                    definition, VS Code's), F7 the code, Shift+F7 the
+'                    designer
 '   groups           a tab dragged to a side of the area splits it into
 '                    groups (VS Code's editor groups), or Window > Split
 '                    Right / Split Down; the splitters between them drag
@@ -15,16 +17,13 @@
 '                    files are kept in Studio's settings and come back
 '                    when the project is opened again
 
-DIM DocViewNow(MAXDOCS) AS STRING
 DIM SessionProject AS STRING
 DIM SessionFiles AS STRING
 
 DECLARE SUB DocumentViewChanged(Name AS STRING, View AS STRING)
-DECLARE SUB LayoutChanged
 DECLARE SUB SaveSoon
-DECLARE SUB DesignPicked(Index AS INTEGER, Sender AS RDESIGNSURFACE)
 
-DIM LayoutSaver AS QTIMER
+DIM LayoutSaver AS RTimer
 
 ' (document d's pane: its code editor's name)
 FUNCTION DocPane(d AS INTEGER) AS STRING
@@ -39,7 +38,7 @@ FUNCTION DocOfPane(Name AS STRING) AS INTEGER
   Result = -1
   FOR d = 0 TO DocCount - 1
     IF DocOpen(d) THEN
-      IF k = "codedoc(" + LTRIM$(STR$(d)) + ")" OR k = "designdoc(" + LTRIM$(STR$(d)) + ")" THEN
+      IF k = "codedoc(" + LTRIM$(STR$(d)) + ")" OR k = "designdoc(" + LTRIM$(STR$(d)) + ")" OR k = "mddoc(" + LTRIM$(STR$(d)) + ")" THEN
         Result = d
         EXIT FUNCTION
       END IF
@@ -71,6 +70,9 @@ SUB AddDocumentTab(d AS INTEGER)
     DesignDoc(d).OnSelect = DesignPicked
     DocViewNow(d) = "Design"
     DocKind(d) = "design"
+  ELSEIF DocIsMd(d) THEN
+    ' (a Markdown file: Preview | Source — markdown.inc)
+    AddMarkdownTab d
   ELSE
     Dock.AddPane(CodeDoc(d), title, "documents", "code")
     DocViewNow(d) = "Code"
@@ -78,19 +80,22 @@ SUB AddDocumentTab(d AS INTEGER)
   END IF
 END SUB
 
-' (the switch, F12, F7, Shift+F7: what document d shows now)
+' (the switch, F7, Shift+F7: what document d shows now)
 SUB DocumentViewChanged(Name AS STRING, View AS STRING)
   DIM d AS INTEGER
   d = DocOfPane(Name)
   IF d < 0 THEN EXIT SUB
   DocViewNow(d) = View
   IF View = "Code" THEN DocKind(d) = "code" ELSE DocKind(d) = "design"
+  ' (the designer reads what was typed before it changes anything)
+  IF View <> "Code" AND DocHasForm(d) <> 0 THEN DesignRead d
+  IF DocIsMd(d) THEN MarkdownViewShown d, View
   ActiveDoc = d
   UpdateCommands
 END SUB
 
 ' (side by side: the designer clicked makes Format and Edit the designer's)
-SUB DesignPicked(Index AS INTEGER, Sender AS RDESIGNSURFACE)
+SUB DesignPicked(Index AS INTEGER, Sender AS RDesignSurface)
   DIM d AS INTEGER
   d = Sender.Tag
   IF d < 0 OR d >= DocCount THEN EXIT SUB
@@ -102,6 +107,8 @@ END SUB
 
 ' (side by side: typing in the code makes Edit the code's)
 SUB CodeTyped(d AS INTEGER)
+  ' (a Markdown file's preview shows what is typed)
+  IF DocIsMd(d) THEN MdDoc(d).Text = CodeDoc(d).Text
   IF DocViewNow(d) = "Split" AND DocKind(d) <> "code" THEN
     DocKind(d) = "code"
     UpdateCommands
@@ -119,11 +126,20 @@ SUB ShowView(View AS STRING)
   IF View = "Design" THEN Dock.FocusPane("designdoc(" + LTRIM$(STR$(d)) + ")")
 END SUB
 
-' F12: the form, then its code, as Delphi.
+' F12: the form, then its code, as Delphi — and in the code, on a name,
+' that name's definition, as VS Code (Edit > Go to Definition); off a name
+' (or in a file without a form) the toggle.
 SUB ToggleDesign
   DIM d AS INTEGER
   d = ActiveCode
   IF d < 0 THEN EXIT SUB
+  IF DocKind(d) = "code" AND DocViewNow(d) <> "Design" THEN
+    IF CodeDoc(d).WordAt(CodeDoc(d).CaretLine, CodeDoc(d).CaretColumn) <> "" OR DocHasForm(d) = 0 THEN
+      CodeDoc(d).GotoDefinition
+      EXIT SUB
+    END IF
+  END IF
+  IF DocHasForm(d) = 0 THEN EXIT SUB
   IF DocViewNow(d) = "Design" THEN ShowView "Code" ELSE ShowView "Design"
 END SUB
 
@@ -233,16 +249,16 @@ END SUB
 ' A card each (its icon, its name, what it makes; RPROJECT's New writes it):
 ' a click picks one, a double click (or Enter) makes the project.
 
-DIM TplCard(TPLS) AS QPANEL
-DIM TplIcon(TPLS) AS QIMAGE
-DIM TplBmp(TPLS) AS QBITMAP
-DIM TplTitle(TPLS) AS QLABEL
-DIM TplText(TPLS) AS QLABEL
+DIM TplCard(TPLS) AS RPanel
+DIM TplIcon(TPLS) AS RImage
+DIM TplBmp(TPLS) AS RBitmap
+DIM TplTitle(TPLS) AS RLabel
+DIM TplText(TPLS) AS RLabel
 DIM TplIconName(TPLS) AS STRING
 
-DECLARE SUB TemplateClicked(Sender AS QPANEL)
-DECLARE SUB TemplateLabelClicked(Sender AS QLABEL)
-DECLARE SUB TemplateChosen(Sender AS QLABEL)
+DECLARE SUB TemplateClicked(Sender AS RPanel)
+DECLARE SUB TemplateLabelClicked(Sender AS RLabel)
+DECLARE SUB TemplateChosen(Sender AS RLabel)
 
 SUB AddTemplate(i AS INTEGER, Id AS STRING, Icon AS STRING, Title AS STRING, What AS STRING)
   TplId(i) = Id
@@ -304,15 +320,15 @@ SUB PickTemplate(i AS INTEGER)
   NEXT
 END SUB
 
-SUB TemplateClicked(Sender AS QPANEL)
+SUB TemplateClicked(Sender AS RPanel)
   PickTemplate Sender.Tag
 END SUB
 
-SUB TemplateLabelClicked(Sender AS QLABEL)
+SUB TemplateLabelClicked(Sender AS RLabel)
   PickTemplate Sender.Tag
 END SUB
 
-SUB TemplateChosen(Sender AS QLABEL)
+SUB TemplateChosen(Sender AS RLabel)
   PickTemplate Sender.Tag
   NewCreate
 END SUB
@@ -400,4 +416,5 @@ SUB RestoreSession(Path AS STRING)
     IF d >= 0 THEN lay = REPLACESUBSTR$(lay, "codedoc(#" + LTRIM$(STR$(i)) + ")", DocPane(d))
   NEXT
   Dock.LoadLayout(lay)
+  DebugLayoutLoaded
 END SUB

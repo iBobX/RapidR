@@ -31,6 +31,8 @@ pub mod media_web;
 pub mod kernel_web;
 pub mod layout_web;
 pub mod mdi_web;
+// (HideTitleBar, ShapeForm, QFORM's MDI members, StartDrag)
+mod form_members_web;
 // (I1: RDOCKMANAGER — rapidr_value::dock)
 pub mod dock_web;
 // (I1 / L-PANELS: RapidR Studio's panels — rapidr_value::panels)
@@ -79,7 +81,7 @@ pub mod prelude {
         rp_bind_event_5, rp_bind_event_indirect, rp_clear_event_dispatcher,
         rp_set_event_dispatcher, rp_bind_event_closure, rp_bind_event_out, rp_bind_event_indirect_this, rp_comp_call, rp_comp_get, rp_comp_method, rp_comp_read, rp_comp_set, rp_comp_value, rp_component_array,
         rp_create_component, rp_fire_event, rp_fire_event_1, rp_fire_event_2,
-        rp_fire_event_5, rp_comp_get_all_properties,
+        rp_fire_event_5,
     };
 
     // GUI helpers

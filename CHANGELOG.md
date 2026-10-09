@@ -7,7 +7,125 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### RapidR Studio speaks RapidR's names, and imports RapidQ programs (R-NAMES, phase 2)
+- **File ▸ Import RapidQ Project or File…** (and **Import RapidQ Folder…**): pick a RapidQ program
+  (`.bas`, `.rqw`, `.rqb`, `.rq` or `.inc`, with the files it includes) or a folder; Studio writes
+  a **copy** with RapidR's names beside it (`<name>-rapidr`, the next free name), proves each
+  program compiles to the same bytecode as its original, and opens the copy as a project with its
+  report beside the code. The original is only read. On the web it works on the files the user
+  picked (the page's store) with the same engine — the same copy, byte for byte.
+- `rapidr import-rapidq <src> [dest]`: the copy's folder may now follow the source (`-o` still
+  works).
+- **Only RapidR's names in Studio**: the toolbox lists `RButton`, `RLabel`, `RForm` … grouped by
+  purpose (Standard, Additional, Dialogs, System, Network, Data …: no "RapidQ" group any more);
+  an item's card gives its RapidQ name. The inspector's header says "Button1  RButton (RapidQ name:
+  QBUTTON)", the designer tells a screen reader "Button1 (RButton)", F1 Help shows
+  `RButton.Caption`, and completion offers `RButton`. The templates (but "RapidQ program"), Add
+  Form, the About box ("Runs RapidQ programs, and takes them further"), the status bar ("RapidR
+  BASIC"), View ▸ Theme ▸ Classic (Windows) and Studio's own code use RapidR's names (Studio's code
+  converted by the importer: the same bytecode).
+- **A file never mixes the two**: what the designer adds and what completion offers follow the
+  file's own style — RapidR's names, or RapidQ's in a file written with them (a RapidQ program
+  stays RapidQ-style); names already written are never changed.
+- `.rqw`, `.rqb` and `.rq` files open in Studio (File ▸ Open, Open Folder, the language
+  service), and the language service reads a project's include files on the web too.
+- The manual: a new page, [Importing RapidQ programs](docs/manual/importing-rapidq.md) (what
+  changes, the copy, Studio's steps with screenshots, the CLI), and "RapidR's names and RapidQ's
+  names" in Getting started and Differences. Its screenshots are made again by
+  `node tools/manual/shots.mjs` (scenes in `tools/manual/scenes/`).
+
+### RapidR's names everywhere, and a RapidQ importer (R-NAMES, phase 1)
+- **RapidR's names are the default**: `RButton`, `RLabel`, `RForm`, `RStringGrid` … (mixed case) in
+  the examples, the docs and the manual, the new-project template, completion and hovers. RapidQ's
+  names (`QBUTTON`) appear as "RapidQ name: QBUTTON". RapidR is compatible with RapidQ, not a copy
+  of it: **the compilers keep accepting both names**, always, mixed, in any case — old RapidQ
+  programs run unchanged (docs/q-and-r-components.md).
+- **`rapidr import-rapidq <file | folder | project.rrproj> [-o out_dir]`**: a copy of a RapidQ
+  program with RapidR's names, and a report (`rapidr-import-report.md`: every change by file, line
+  and column, and what wasn't converted and why). The original is never touched. Token-aware, on
+  the compiler's own parse: only type names (`AS …`, `EXTENDS …`) change — never strings, comments,
+  your own names (`QButtonCount`), your own TYPEs or `$DEFINE`d names. Includes are followed into
+  the copy; RapidQ's RAPIDQ.INC file stays out (RapidR supplies its constants; the
+  `$INCLUDE "RAPIDQ.INC"` line stays, since the constants come with it). **Each program is proved**:
+  it and its copy compile to the same bytecode, byte for byte. On RapidQ's own 428 example
+  programs, all 175 that RapidR compiles today compile identically after the conversion
+  (`tools/rapidq_import_check.py`).
+- **`rapidr upgrade-names <file> [--dry-run]`**: the same for your own files, in place (`--dry-run`
+  shows the diff); refused if the program would compile differently.
+- **RapidQ's other source extensions, `.rqw`, `.rqb` and `.rq`,** are source files: `rapidr run` / `build` / `build-bc` / the `rapidr file.rqw` shortcut,
+  `$INCLUDE`, projects, `rapidr dap`, the launcher, the VS Code extension and the installers' file
+  associations ("RapidQ BASIC source") know them.
+- The manual's component tables lead with RapidR's names (a *RapidQ name* column); the registry's
+  JSON has each component's `spelling`; the AI prompt says to write RapidR's names.
+- The language service: completion after `AS` lists `RButton` with "RapidQ name: QBUTTON" (in a
+  RapidQ-compatible project RapidQ's names, with "RapidR name: RButton"); hovers say "RButton —
+  RapidQ name: QBUTTON"; a RapidQ-compatible project now also warns on RapidR's names of RapidQ's
+  components ("RButton is RapidR's name: RapidQ's compiler knows it as QBUTTON", with the fix).
+- **Fixed**: `TYPE T EXTENDS RObject` (RapidR's name of RapidQ's QOBJECT) was a syntax error;
+  RapidR's names in mixed case (`EXTENDS RPanel`, `AS REdit`) are now read exactly as RapidQ's
+  (the same bytecode as `QPANEL`).
+### RapidR Studio: the code editor works
+- **IntelliSense in Studio** (desktop and web alike): completion after `.` (members by type, ranked
+  fuzzily, docs beside the list), signature help, hover, F12 (into another file too), Shift+F12
+  (uses selected and listed in Output), F2 rename, squiggles with the Problems panel, Ctrl+. quick
+  fixes, keywords in upper case as you type (`dim` → `DIM`), snippets.
+  - Members after `.` for every kind of object: RapidR's and RapidQ's component names, arrays of
+    components, the program's TYPEs (and TYPEs extending a component), WITH blocks, CREATE bodies.
+  - After `AS`, the file's own style: RapidR's names (`RButton`, `RForm`); RapidQ's (`QButton`)
+    still complete once you start typing one (`QBu…`), after RapidR's, and are always accepted. A
+    file written with RapidQ's names keeps to them.
+  - RAPIDQ.INC's constants (`mbYes`, `clRed`, `fmOpenRead` …) are offered even before the program
+    includes it: choosing one adds `$INCLUDE "RAPIDQ.INC"` at the top in the same undo step.
+  - **F12 is Go to Definition** on a name, in a form's code too; off a name, and in the
+    designer, it switches between the form and its code (Delphi's; F7 / Shift+F7 too).
+- **RAPIDQ.INC constants without the include are flagged** (squiggles, the Problems panel,
+  Ctrl+.): "mbYes is a RAPIDQ.INC constant — add $INCLUDE "RAPIDQ.INC"", a warning — without the
+  include RapidQ reads `mbYes` as a variable that is 0 (Robert's save prompt showed only OK). The
+  quick fix adds the include after the file's header comments. How programs run doesn't change.
+- **The manual's new page [The code editor in RapidR Studio](docs/manual/studio-editor.md)**:
+  completion, Ctrl+Space, parameter info, hover, F12, problems and quick fixes, the shortcuts,
+  with screenshots made again by `node tools/manual/shots.mjs` (scenes in `tools/manual/scenes/`).
+- The code editor's BASIC is `rapidr-basic` ("RapidR BASIC", also in Studio's status bar);
+  `rapidq-basic`, its old id, still works wherever a language id is given (RCODEEDITOR's
+  `Language`, RDIFFVIEW's, saved settings).
+- **Tab no longer types a stray character.** A TAB in any QMEMO / QRICHEDIT was drawn as the font's
+  missing-glyph box; it is now the blank to the next tab stop. In the code editor, Tab / Shift+Tab
+  indent and outdent by the file's unit.
+- **Edit menu**: Find Next / Previous, and Edit ▸ Advanced (indent / outdent lines, select next
+  occurrence, go to matching bracket, fold / unfold, parameter info, hover, word wrap).
+- **RCODEEDITOR**:
+  - `ApplyPatches(Patches, [Continues])` applies a designer change to the code as one undo step of
+    the editor's history;
+  - `GotoMatchingBracket`;
+  - the debugger's marker kinds (breakpoint, conditional, logpoint, disabled, current, frame,
+    exception) with notes at a line's end;
+  - `DebugHover` and `WordAt`;
+  - OnChange after ApplyPatches / Undo / Redo.
+- Fixed: an undo that removed lines could crash the code editor's view.
+- Fixed: the semantic model took the first use of an undeclared name for its declaration (the
+  compiler's own `DIM … AS DOUBLE` for it spans the whole program); INPUT and SWAP now count as
+  storing into their variables.
+- `examples/basics/files.rr` includes RAPIDQ.INC for `fmOpenRead`.
+- Code shows each character: JetBrains Mono's ligatures (`->`, `<=`, `<>`) are off in the code
+  editor and RDIFFVIEW; other text keeps its fonts' contextual alternates (Inter's colon between
+  digits, `0:00.0`, as the approved images have it).
+
 ### Changed
+- **The right mouse pointer everywhere, by default** (Robert: hovering the property inspector's divider
+  didn't change the cursor, so you couldn't tell it drags): every component answers "what pointer is
+  here?" from its own hit test (`ComponentKind::pointer`), so any program gets it with no code, on the
+  desktop (winit's cursor) and the web (the canvas' CSS cursor) alike. Column-resize (`col-resize`)
+  over a `RSPLITTER` between columns (row-resize between rows), a grid's column edge with goColSizing
+  (and, new, goRowSizing: a fixed column's cell border drags the row's height — row-resize), a list view's and a header's section edges, Studio's inspector divider, dock splitters and split
+  editors; the sizing arrows over a `RFORMMDI` child's edges and corners and a status bar's grip; the
+  I-beam over text boxes, memos, rich edits, a code editor's text (not its gutter or bars), an
+  editable combo box's text, an open in-place editor and Studio's search boxes; the hand over links in
+  the Output panel; the form designer's handles, move pointer and placing cross; the closed hand
+  while a dock tab, document tab, project file or toolbox item is being carried. A `Cursor` the program
+  sets still wins (RapidQ); a disabled component shows the arrow; `crHSplit` / `crVSplit` are now the
+  col-resize / row-resize pointers (they were the plain double arrows). In RapidR's look the divider
+  and splitter under the mouse light up in the accent. Test hook: `comp.__cursor_X_Y` in
+  `RAPIDR_TEST_DUMP` prints the CSS name of the pointer at (X, Y) of the component.
 - **`rapidr build` and Studio's Build make the release build, and the output folder gets only the app**
   (Robert: a build left the generated Rust, cargo's files and a debug executable beside the program).
   A build is optimized by default (on macOS universal: Apple silicon and Intel; symbol tables stripped:
@@ -94,7 +212,58 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   tests that check ops) name the classic theme explicitly; the visual
   gallery's themes are `classic`, `rapidr-light`, `rapidr-dark`,
   `rapidr-high-contrast`.
+
+### Fixed
+- **Examples with data files run in RapidR Studio on the web** (Robert: dataframe.rr said "$RESOURCE
+  STAFF_CSV: file not found in the project's assets"). The files a program names — a `$RESOURCE`'s
+  file, a CSV it loads (`"staff.csv"`), any file beside it whose name is written in its source — belong
+  to its project: the project tree lists them (Resources, Assets, Data), and on the web Studio builds
+  the `$RESOURCE`s in from them and gives the others to the program's frame as the files of its
+  folder. All 30 examples open and run from Studio on the web.
+- **RPLOT.Clear keeps the chart's size** (as Matplotlib's `clf`): a chart on a form no longer jumps to
+  640 × 480 when cleared.
+- **`rapidr build` of a program whose name starts with a digit** (`3dcube.bas` -> `3dcube.app`)
+  failed on macOS with "3dcube.app: No such process": `codesign --verify` reads a relative
+  argument starting with a digit as a process id. The app is now signed and verified by its
+  absolute path (a test builds a digit-named app in the current folder, signs and verifies it).
+- **The release's home** ships the files its crates include from outside their folders (the program
+  icon masters, the icon inventory) and drops the crates' `[dev-dependencies]`: the vendored
+  workspace failed to build on Linux and Windows. The Windows installers (x64, arm64) and the Linux
+  packages (`.deb` and `.tar.gz`, x86_64 and aarch64) build from it; the Linux ones pass their smoke tests.
+
+### Release packages
+- **"RapidR Studio" everywhere**: the macOS app is `RapidR Studio.app` (it was `RapidR.app`; the VS Code
+  extension finds both), the Windows Start menu entry and the "Open in" actions, and the Linux menu entry
+  say RapidR Studio.
+- **Project files (`.rrproj`) open in RapidR Studio** on a double click: a file type on Windows (SDK
+  installer), macOS (Studio.app's document types; `rapidrw` hands them to `rapidr ide`) and Linux (a
+  shared-mime-info type and the menu entry's MimeType). The smoke tests check them, the menu entry's
+  name and the Start menu entry (and that uninstalling removes them).
+- `tools/release/README.md`: the release flow in one page (one entry script per system, where the files
+  land, the checks, the signing hooks, the fresh-user journey); `macos.sh`'s header documents the
+  Developer ID and notarization hooks.
+
+### Documentation
+- **Manual: installing** on Windows (which installer, each page of the wizard, the PATH and `.bas`
+  options, uninstalling) and on Ubuntu or Debian (`sudo apt install ./rapidr_<ver>_<arch>.deb`, what
+  goes where, SDK and Runtime packages replace each other, removing it), with the matching
+  troubleshooting entries; **building apps**: the app's name (digits first, the bundle ID it makes,
+  checking a signature by hand).
+
 ### Added
+- **The CSV Explorer** (`examples/data/csv_explorer.rr`, the first example on Studio's Welcome page):
+  drop a CSV file on the window (or Open CSV…, or the built-in sample `shop.csv`) and see it as a
+  table sorted by a click on a heading, filtered by any text, each column's count / min / max / mean,
+  and a live RPLOT bar, line or scatter chart of any two columns — native, interpreted and in a
+  browser alike. The manual's [Data science](docs/manual/data-science.md#tutorial-the-csv-explorer)
+  page walks through it, with screenshots.
+- **`Form.OnDropFiles (Files AS STRING)`** (RapidR's; RapidQ has no file drop event): files dragged
+  from Finder, File Explorer or a file manager — in a browser, from the computer — and dropped on a
+  window; their paths one a line, one event for a drop of several. In a browser each file is read into
+  the program's own files under its name. A form without the handler ignores drops (the browser never
+  replaces the page with the file). Test hook `form.__drop` with `RAPIDR_TEST_DROP=a;b`.
+- **RPLOT in the designer**: a chart with no data yet shows sample bars under its Title, so the form
+  shows where the chart is (dataframe.rr's chart is now an RPLOT on the form).
 - **Studio builds apps without Rust.** Run has **Build Native App** (needs Rust, free) and **Build
   Interpreted App** (no Rust), beside Build (Ctrl+Shift+B), which does what Project Options says.
   On a computer without Rust, Build Native App asks first: Build Interpreted Instead (Enter), Install
@@ -126,6 +295,34 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   **ROUTPUTCONSOLE** (ANSI output, build log, problems, `file:line` links, search), **RTOOLBAR** as
   a real toolbar (icon buttons, toggles, overflow, customizable) and **RCOMMANDPALETTE** (fuzzy
   commands). Example: `examples/studio/panels.rr`.
+### RapidR Studio: the debugger
+- **Run and debug on both hosts, the same way**: F5 runs the project under the debugger (its own
+  process on the desktop, a sandboxed frame on the web), Ctrl+F5 without it, Stop, Restart, Run in
+  Browser (desktop: `rapidr serve` on 127.0.0.1 under a random path). On the web the program's
+  windows float over the whole page and can be dragged to every edge, never clipped.
+- **Breakpoints**: F9 or a click in the gutter, in any file; conditions, hit counts, logpoints
+  (`{expr}`), on / off, each its own marker; the Breakpoints pane lists and edits them. One on a line
+  without code moves to the line the program stops at (one after the last code says it never
+  stops). The project's breakpoints and watches come back when it is opened again.
+- **Paused**: the line marked, in whichever file; Step Into / Over / Out (F11 / F10 / Shift+F11),
+  Run to Cursor, Pause — which stops a program waiting for its events (its ShowModal, a dialog) at
+  once, at the line that waits. Run-time errors stop at their line, the message beside it.
+- **Variables, Watch, Call Stack, Immediate, data tips**: locals and globals, arrays, TYPEs and
+  components open to their children; F2 sets a value in place and the program runs on with it; the
+  Call Stack takes the toolbox's place while paused (picking a frame shows its line and locals);
+  `? expr` and statements in Immediate; a resting mouse shows a value.
+- RPROGRAMSESSION: `StopOnEntry`, `StopReason`, `StopMessage`, `Frame`, `LocalsRef`, `GlobalsRef`,
+  `Watches`, `BrowserURL`; `SetBreakpoint`, `ClearBreakpoints`, `RunToCursor`, `StackTrace`,
+  `Variables`, `WatchValues`, `Expand`, `Evaluate`, `SetVariable`, `RunInBrowser`, `StopBrowser`;
+  `OnVariables`, `OnEvaluate`, `OnBreakpointPlaced`. RCODEEDITOR's TriggerHover gives the data tip
+  while paused; a hover is as wide as its text.
+- The Immediate pane answers every line under it, however fast lines are typed (it ran the last
+  line, not the caret's, and kept only the newest answer).
+- Manual: **Debugging in RapidR Studio** (`docs/manual/debugging.md`), step by step with
+  screenshots made again by `tools/manual/shots.mjs` (scenes in `tools/manual/scenes/`).
+- Fixed: RDIFFVIEW's columns measured with JetBrains Mono again (a merge had them measure RapidR
+  Sans); the supply-chain check follows the bold faces' code (ttf-parser still parses only the
+  built-in fonts).
 ### RapidR Studio: documents as tabs, Find in Files, F1 Help, templates
 - **No window inside the window**: Studio's documents are tabs, as in Xcode, VS Code and Delphi —
   close buttons, a dot for changes not saved, middle click closes, drag along the strip reorders. A
@@ -143,6 +340,23 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   the inspector's row, the toolbox's item, the designer's component; Insert types the syntax.
 - **New Project gallery**: Form app, Console, RapidQ-compatible form app (main.bas, compat on), Data
   dashboard, MDI app with menus. Closing a changed file asks Save / Don't Save / Cancel.
+### RapidR Studio: Markdown files formatted (Preview | Source)
+- **A `.md` file opens formatted** — a README, a RapidQ import's report — with a **Preview |
+  Source | Side by Side** switch on its tab (F12 toggles, F7 the source, Shift+F7 the preview);
+  what is typed in the source shows in the preview at once; the Outline lists the headings (a
+  click scrolls there); a link to another file opens it (a Markdown one in Preview, at its
+  `#heading`), a web link opens in the browser; File > Open takes a `.md` on its own. The source
+  isn't coloured as BASIC (`RCodeEditor.Language`, new, `"basic"` by default). Desktop and web.
+- **`RMarkdownView`**, a public component on the UI kernel (the same on the desktop and the web):
+  CommonMark with GitHub's tables and strikethrough (pulldown-cmark, MIT) laid out with parley —
+  headings, bold / italic / struck out, inline code, nested lists, block quotes, code blocks (BASIC
+  ones coloured), tables, rules, links; scrolls, selects and copies (a table's cells by tabs);
+  light, dark and high contrast; screen readers get its headings (with their level), lists,
+  tables and links (new accessibility roles on AccessKit and the web's ARIA mirror). `Text`,
+  `LoadFromFile`, `OnLinkClick`, `OpenLinks`, `ScrollTo`, `Headings`, `PlainText`, `SelText`.
+  A 7,700-line report lays out in ~80 ms; scrolling draws only what's in view. Manual:
+  docs/manual/markdown.md.
+
 ### RapidR Studio: the panels work
 - **The real panels replace the stand-ins** (`ide/panels.inc`): the tool bar (RTOOLBAR, buttons with
   tooltips), the command palette (RCOMMANDPALETTE), the project tree (RPROJECTTREE), the toolbox
@@ -174,6 +388,27 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - Drag the form's right edge, bottom edge or corner to resize it: anchored and aligned components follow live, and the new size (and where the anchors moved them) is written into the CREATE block, one undo step.
 - Add components: click a type then click or draw on the form (`PlaceType`), drag one in (`DragComponent`), or `AddComponent(Type, X, Y)`. Names are unique in the whole file; typing right after adding sets the Caption; dropping on a panel puts it inside.
 - Select, move, resize, delete, copy / paste / duplicate, align and arrange with the mouse or the keyboard; every change is announced to screen readers, written into the code as the smallest edit (`OnSourceEdit`), and undone to the exact bytes. Double-click makes or finds the event handler (`CreateHandler`). While the code has errors the designer is read-only under a banner.
+- The menu editor on the form's own menu bar (Format ▸ Menu Editor): Type Here, `&` mnemonics, separators, submenus, ShortCut typed as the keys pressed, Checked, drag to reorder; each item a QMENUITEM CREATE block, one undo step.
+- The Tab-order editor (Format ▸ Tab Order): click the components in the order wanted; each click writes `TabOrder`.
+- Captions edited in place with F2 or a second, slower click (a double click still makes the event handler).
+- Zoom from 25 % to 400 %: View ▸ Zoom, Ctrl / ⌘ + = − 0, Ctrl / ⌘ + the wheel, a trackpad's pinch; crisp at any zoom, the program's pixels unchanged.
+- The tray also shows the dialogs a program creates outside its form (notepad's OpenDialog and SaveDialog), inspected and edited like the rest.
+- **Add new forms** (Project ▸ Add Form, as Delphi's File ▸ New ▸ Form): the project tree names the new file (Form2.rr, Enter), it is written as `CREATE Form2 AS RForm` with its Caption and size, added to the project, **included by the main program** (`$INCLUDE "Form2.rr"` after its other includes or its opening directives — one undo step in its editor) and opened on its designer; Project ▸ Add Module the same for a module. A program of several forms runs on every runtime: a button's OnClick with `Form2.Show` shows it (`tests/studio_add_form.mjs`: made in Studio and run, desktop interpreted and native, and in Studio's run frame on the web).
+- Renaming a form or module in the project tree (F2) makes the main file's `$INCLUDE` follow it; taking it out of the project takes its `$INCLUDE` out too (RPROJECT `IncludeRenameEdit`, `IncludeRemoveEdit`). In a RapidQ program (main.bas) new forms and modules are `.bas` files.
+- **RForm in the toolbox adds a form** (Robert's report: clicking it did nothing): click or double-click is Project ▸ Add Form, RFormMDI adds an MDI main window; dragged onto a form it is never nested — a new window, and the status bar says why; dragged onto an RFormMDI it becomes one of its child windows, RapidQ's way: a panel on the MDI form, named as a form, and `Main.AddChild(Form1.Handle, "Form1", 0, 0, 0, 0, 0, 1)` after it (one undo step; `RDESIGNSURFACE.AddMdiChild`). The items' tooltips say so. RFormMDI forms are designed like any form (their menu bar on the canvas).
+- **The form itself in the inspector** (Robert's report: its Events page was empty): with nothing selected the inspector shows the form — its properties and all its events (OnShow, OnClose, OnResize, OnPaint, OnKeyDown, the mouse's …); double-clicking one writes `SUB Form1Show`, binds `OnShow = Form1Show` and goes to it, as for a component.
+- New manual page, [Designing forms in RapidR Studio](docs/manual/designing-forms.md): a tutorial (a program of two forms, step by step, with screenshots made by `tools/manual/shots.mjs`), the toolbox, moving and aligning, the inspector and events, programs of several forms, the code the designer writes.
+- Component names are unique in the whole program (a RapidQ program's names are global): Form2's Button1 makes Form1's next button Button2 (`RDESIGNSURFACE.ReservedNames`, `RPROJECTTREE.ComponentNames`), and a new form file is never named after a component the program has.
+- The designer writes RapidR's names — `RForm`, `RButton`, `RLabel`, `REdit` … — in a file written with them (the toolbox shows them too); a file written with RapidQ's names (`QFORM`) keeps getting RapidQ's, never mixed. New Form, Data and MDI projects start with RapidR's names.
+- A file without a form offers "Add a Form" (and Project ▸ Add Form on it): `CREATE Form1 AS RForm` (QFORM in a RapidQ file) and `Form1.ShowModal` written at its end; its tab gets the Design | Code switch.
+- Every component of the toolbox can be added (a unit test adds each one to a RapidR and a RapidQ form and compiles the program on both backends): Enter / double-click puts it at the first free place in reading order, never on another one, as large as fits when its default size doesn't (a 640 × 480 RPlot on a small form); a new label sizes itself to its caption (RapidQ's AutoSize: no Width written after its Caption).
+- The inspector edits a component's **Font** by its parts (Name, Size, Color, Bold, Italic, Underline, StrikeOut), written as RapidQ's programs write them in a CREATE block (`Font.Name = "Arial"`, `Font.Bold = 1`), drawn at once in the designer. RapidQ's constants a program doesn't define — without RAPIDQ.INC, in a `.rr` file too, where `clYellow` reads as nothing — are written as their numbers (`Color = &H00FFFF`, `Alignment = 2`), so what the inspector sets is what runs.
+- A form or module that the main program includes is analysed as part of the program: Form1 and the main file's SUBs are known in Form2.rr (no false errors, completion of Form1's members), and Run checks the whole program's errors whichever file is shown.
+- On the web, the language service and the designer read `$INCLUDE`d files from the page's files (the preprocessor's source reader), as the desktop reads the disk: no "missing include" error in Studio in a browser.
+- A form's file opens on its designer and the designer takes the keys (the desktop's `SetFocus` on a design surface did nothing); F12 in the code on a name goes to its definition (VS Code), elsewhere it switches between the form and its code (Delphi); the outline names types as the file writes them.
+- Dragging from the toolbox shows the component itself at 60 % and a "not allowed" pointer outside a designer; a drop settles in for 100 ms. The form sits on the designer's backdrop with its own scroll bars, never clipped.
+- One undo history per file: the designer's changes are the code editor's undo steps (`OnSourceStep`, `SharedUndo`, `OnUndo`; RCODEEDITOR's `ApplyPatches`), so typing in the code no longer clears them and Undo goes back in the order things were done.
+- Fixed: RCODEEDITOR's OnChange now fires after `ApplyPatches`, `Undo` and `Redo` on the desktop and the web (a code editor took the text edits' path, which returned first).
 ### Removed: the old HTML / Monaco web IDE
 - **RapidR Studio is the web IDE** (Robert's decision, 2026-10-08): the old HTML / Monaco IDE (`web-ide/`, ~10,000 lines of JS / HTML / CSS plus the vendored Monaco) is deleted, with `rapidr lang export --web-ide` and its generated `lang-data.js`, the brand export's copy of the icons into it, and every reference (regress, docs, release scripts, `tools/lang_seed.py`). Nothing shipped it any more (SEC-17).
 - What a program's run frame needed from that IDE's page is Studio's now (`ide/web/studio.js`): the browser's Open / Save pickers shown for the sandboxed frame (writes only to files the user picked during that run) and the program's RWEBSTORAGE kept per program (1 MB). Studio's web page has RapidR's icons (favicon, home-screen icon).
@@ -403,6 +638,42 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   IconPreview, OnBuildOutput, OnBuildDone).
 - `tools/studio_app.sh`: RapidR Studio as `RapidR Studio.app` from a
   checkout (its icon in the Dock, this checkout's Studio).
+- **Every RapidQ member now works in RapidR.** The 101 RapidQ properties,
+  methods and events that RapidR didn't answer before now work in native
+  builds, the interpreter and the web. Each was checked against RapidQ's own
+  compiler, RC.EXE:
+  - **Streams.** QFILESTREAM has ReadByte and WriteByte. ReadByte gives 26
+    past the end, as RapidQ does. QMEMORYSTREAM has `SetSize = n`,
+    MemCopyFrom and MemCopyTo (with VARPTR or Pointer addresses). CopyFrom
+    reports a stream read error when it asks for more bytes than are left.
+  - **String lists and rich edits.** QSTRINGLIST.LoadFromStream splits lines
+    at CR LF, LF or CR. Its SaveToStream reads the list from the stream,
+    exactly as RapidQ's does. QRICHEDIT has LoadFromStream and SaveToStream.
+    QSTRINGGRID has DeleteColumn, another name for DeleteCol.
+  - **Drawing.** TextRect draws text clipped to a rectangle on forms, images,
+    canvases, bitmaps, headers, the printer, and owner-drawn lists and grids.
+    Rotate turns an image, canvas or bitmap by degrees. QCANVAS has Get and
+    Put, QIMAGELIST has Draw, and QIMAGE has Repaint. Lists, combo boxes and
+    grids take RoundRect, CopyRect, StretchDraw, TextOut, TextWidth and
+    TextHeight in their owner drawing.
+  - **Forms.** HideTitleBar and ShowTitleBar remove and restore the title
+    bar. ShapeForm cuts a window to a bitmap's outline (not on Wayland). A
+    QFORM has Cascade, Tile, Next, Previous and ArrangeIcons. QFORMMDI has
+    ActiveNextChild and ActivePreviousChild.
+  - **Events that never fired now do.** OnHint fires when the mouse brings a
+    new hint, and RapidR now shows tooltips (ShowHint, HintPause,
+    HintColor). OnEnter fires when a list box or file list box gets the
+    focus. OnStartDrag and OnEndDrag fire around a button drag, and
+    StartDrag moves the control with the mouse. QCOMPORT fires OnBreak,
+    OnRing and OnTxEmpty. A control's WndProc can be bound but is never
+    called, as in RapidQ. A form's WndProc still gets its tray icon's
+    messages.
+  - **QMYSQL.** RealConnect, CreateDB, DropDB, Refresh, FetchLengths (with
+    Length), RowBlob, LoadBlob and SaveBlob work. An empty host means this
+    machine, as in RapidQ. EscapeString escapes the way MySQL's C client
+    does.
+  - New conformance cases (most with RC.EXE's own output as the expected
+    output) and new GUI cases for the desktop and the web.
 - **RapidR Studio: the IDE's shell** (`ide/`, docs/ide-plan.md I1 /
   L-SHELL + L-WEB). One RapidR program on RapidR's public components — the
   same bytecode on the desktop (`rapidr ide [file]`) and in the browser
@@ -619,6 +890,10 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   unquoted; with several, the last one wins. The icon is now also the built
   executable's / app's. RapidR still takes any `.ico` (RapidQ only 766-byte
   32 × 32 ones), `.icns`, `.png` and `.svg`.
+- QDXSCREEN.TextRect now uses the same drawing as every other TextRect: a
+  background colour fills the whole rectangle, not just the text.
+- `SetFocus` on the desktop now moves the keyboard focus, as it already did
+  on the web.
 - **`rapidr ide` opens RapidR Studio** (`ide/studio.rr`; an install's
   `ide/rapidr-ide.rrbc` is compiled from it); the old `examples/ide.rr`
   and the HTML web IDE stay until Studio reaches their features
@@ -770,6 +1045,53 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   2026-10-06 should be cloned again.
 
 ### Fixed
+- **RapidQ's examples at run time** (`tools/corpus_run.py`; its report stays
+  on this machine, what it found in `tools/corpus_run_notes.md`): every example that compiles is run on the
+  interpreter and as a native build, GUI ones captured beside RC.EXE's
+  windows, and what went wrong fixed as RapidQ does it (each checked with
+  RC.EXE): `SLEEP .1`; a program's own `TYPE QToolBar`; `Font.AddStyles` /
+  `DelStyles` on components and on a QBITMAP's font (`= n` too); a form's
+  first Show fires OnResize, OnShow, OnResize; QTIMER on Windows' ticks;
+  RLE4 / RLE8 / 16-bit BMPs; aligned controls placed in RapidQ's order at
+  the first Show and inside a panel's bevels; status panels 50 wide; a
+  QBUTTON's glyph; `ImageList.Handle =`; canvases made in OnShow paint;
+  QSTRINGGRID's FixedColor and owner drawing; a QFILESTREAM that can't open
+  its file stops the program (`Cannot open file x.`); a borderless form
+  never shows scroll bars; QFILELISTBOX's order and `[.]`; hex numbers with
+  `?` / `@` digits (`&HFFFF0000???` in RapidQ's CommCtrl.inc), `&HH1`, and
+  their low 32 bits past 8 digits; QFONTDIALOG's colours (clWindowText at
+  first, system colours kept). RapidQ IDE's `.rqw` window programs are part
+  of the corpus now.
+- **RapidQ's console box characters**: a RapidQ program's console shows characters 128 to 255
+  in the DOS code page 437, as RC.EXE's did — `CHR$(201)` ╔, the byte 218 ┌ — so `3DBOX` and
+  `BATTLE` draw their boxes again instead of É, Ú, ³. A RapidQ program is a file that isn't
+  UTF-8, or a `.bas` / `.rqb` / `.rq` / `.rqw` file of plain ASCII; RapidR's own programs (`.rr`,
+  UTF-8 with accented letters) print Unicode as before. Interpreter, native builds and the web
+  (`rapidq_console_cp437`, RC.EXE's bytes).
+- **A form's first OnPaint comes when the program next waits** (DOEVENTS, ShowModal), after
+  `OnResize`, `OnShow`, `OnResize` — not inside `Show` — as RC.EXE sends it; a scale change no
+  longer paints twice; the web's DOEVENTS delivers the paints too (`rapidq_form_show_events`).
+- **RapidR Studio's panel components read true as 1** (`ShowTabs`, `ShowFiles`, `ShowEvents`,
+  `ShowCaptions` …: they read -1, against the language registry and RapidQ's rule) and
+  RTOOLBAR reads its Anchors (akLeft + akTop) like the other visual components.
+- **RapidQ program forms RC.EXE takes, found running the corpus' `.rqb` / `.rq` programs**
+  (each checked with RC.EXE; conformance cases `rapidq_dotted_routines`,
+  `rapidq_const_forms`, `rapidq_input_bare`): a FUNCTION named with a dot returns what's
+  assigned to its whole name (`FUNCTION Calc.Twice` … `Calc.Twice = N * 2`; both backends
+  returned nothing);
+  `&` stuck to decimal digits is the number (`CONST Null=&0`); a CONST may have a dotted
+  name (`CONST Application.Path = …`, read back by that name); a statement whose argument
+  starts in parentheses (`SLEEP(T * 11.2) / 600`); a bare `INPUT$` reads a line, as RC.EXE
+  does (natively it didn't build, interpreted it didn't wait).
+- **The font dialog names a system colour by its colour**: given clWindowText (a new
+  QFONTDIALOG's Color, and every font that hasn't set one) its colour list showed "Custom"; it
+  shows "Black" now (clWindow "White"; one that isn't among the 16, such as clBtnFace, stays
+  Custom), the sample drawn in the theme's text colour, and OK keeps Color clWindowText unless
+  another colour is picked — so a label given the font back still follows the theme. (RapidQ's
+  dialog shows Custom: a deliberate difference.)
+- **`QFONTDIALOG.SetFont(Label.Font)` / `GetFont(Label.Font)`** change and
+  read the component's own font, and `Label2.Font = Label.Font` copies it
+  (an addition: RapidQ's compiler refuses a component's Font there).
 - **`Form.Center` centres the window** when the form shows (`Show`,
   `ShowModal`), as RC.EXE does: Left / Top read 0 until then and the
   screen's middle after, by the form's outer Width × Height (RC.EXE and

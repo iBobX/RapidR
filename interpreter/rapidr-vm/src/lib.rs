@@ -93,6 +93,15 @@ impl std::fmt::Display for VmError {
 
 impl std::error::Error for VmError {}
 
+/// A host call's error: a RapidQ exception (`rapidr_value::exception`) is the
+/// program's run-time error, anything else the host's.
+fn host_error(e: String) -> VmError {
+    match rapidr_value::exception_message(&e) {
+        Some(m) => VmError::Runtime(m.to_string()),
+        None => VmError::HostError(e),
+    }
+}
+
 /// Deepest nesting of SUB/FUNCTION calls, so runaway recursion stops with
 /// an error instead of exhausting memory.
 pub const MAX_CALL_DEPTH: usize = 100_000;
@@ -478,6 +487,50 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         DebugAction::Run
     }
 
+    /// [`Self::interrupt`] raised while the program waits for the window
+    /// system (a ShowModal, a dialog: [`Self::after_host`]'s wait, whose
+    /// host pumps now and then under a debugger): what's pending is served;
+    /// a pause stops at the statement that waits — the program waiting for
+    /// its events, its frames and variables there to see — and goes on as
+    /// the debugger says (Step Over: the line after the wait, once it's
+    /// over; Step Into: the next statement run, an event's handler). False
+    /// when the debugger ends the program.
+    fn wait_point(&mut self, module: &Module, ip: usize) -> bool {
+        self.interrupt.store(false, std::sync::atomic::Ordering::Relaxed);
+        let Some(mut debugger) = self.debugger.take() else { return true };
+        let Some(top) = self.frames.last_mut() else {
+            self.debugger = Some(debugger);
+            return true;
+        };
+        top.ip = ip;
+        let pause = debugger.interrupted(self, module);
+        if !pause || self.frames.is_empty() {
+            self.debugger = Some(debugger);
+            return true;
+        }
+        // (the waiting statement's line: the instruction before `ip`, as a
+        // caller's — `waiting` says so to `frame_location`)
+        let top = self.frames.last_mut().unwrap();
+        let was_waiting = std::mem::replace(&mut top.waiting, true);
+        let line = module.functions[top.fn_index as usize].get_line_for_ip(ip.saturating_sub(1));
+        self.step_mode = StepMode::None;
+        self.stop_reason = StopReason::Pause;
+        self.stop_error = None;
+        let resume = debugger.stopped(self, module, &StopInfo { reason: StopReason::Pause, line, error: None });
+        self.debugger = Some(debugger);
+        if let Some(top) = self.frames.last_mut() {
+            top.waiting = was_waiting;
+        }
+        if resume == Resume::Terminate {
+            return false;
+        }
+        self.apply_resume(resume);
+        if let Some(line) = line {
+            self.last_line = line;
+        }
+        true
+    }
+
     /// How the program goes on from a stop.
     fn apply_resume(&mut self, resume: Resume) {
         let depth = self.frames.len();
@@ -780,7 +833,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let mut args = Vec::with_capacity(argc);
                     for _ in 0..argc { args.push(self.pop()?); }
                     args.reverse();
-                    let r = self.host.call_method(&id, &m, &args).map_err(VmError::HostError)?;
+                    let r = self.host.call_method(&id, &m, &args).map_err(host_error)?;
                     // A method that waits (the web's ShowModal): suspended
                     // until the host resumes with its result.
                     if self.host.suspend_requested() {
@@ -856,7 +909,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     for _ in 0..argc { args.push(self.pop()?); }
                     args.reverse();
                     let id = self.pop_object_id()?;
-                    let r = self.host.call_method(&id, &m, &args).map_err(VmError::HostError)?;
+                    let r = self.host.call_method(&id, &m, &args).map_err(host_error)?;
                     // A method that waits (the web's ShowModal): suspended
                     // until the host resumes with its result.
                     if self.host.suspend_requested() {
@@ -973,6 +1026,11 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             }
             if !waiting {
                 return Ok(true);
+            }
+            // (the IDE's attention while the program waits: a pause stops
+            // here, at the statement that waits)
+            if self.debug_mode && self.debugger.is_some() && self.interrupt.load(std::sync::atomic::Ordering::Relaxed) && !self.wait_point(module, ip) {
+                return Ok(false);
             }
             let turn = match self.pump_wait(module, ip)? {
                 WaitTurn::Pumped(turn) => turn,
@@ -1339,7 +1397,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         let frame = self.frames.get(index)?;
         // (a caller's ip is past the call — or the host operation that ran
         // a handler —: its line is the one before)
-        let ip = if index + 1 < self.frames.len() { frame.ip.saturating_sub(1) } else { frame.ip };
+        // — or a frame waiting in one: a ShowModal, a dialog, INPUT)
+        let ip = if index + 1 < self.frames.len() || frame.waiting { frame.ip.saturating_sub(1) } else { frame.ip };
         let line = module.functions.get(frame.fn_index as usize)?.get_line_for_ip(ip)?;
         Some(match module.source_map.locate(line) {
             Some((file, l)) => (Some(file.to_string()), l),

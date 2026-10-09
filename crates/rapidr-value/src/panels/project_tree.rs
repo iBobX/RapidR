@@ -122,6 +122,9 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
             with_mut(name, |m| m.set_text(&s(0), &s(1)));
             int(0)
         }
+        // ComponentNames(ExceptPath): the names the other files' CREATE
+        // blocks make, separated by commas (a designer's ReservedNames)
+        "componentnames" => Value::String(with(name, |m| m.component_names(&s(0)).join(",")).unwrap_or_default()),
         "file" => {
             let i = arg(0).to_i64();
             Value::String(with(name, |m| usize::try_from(i).ok().and_then(|i| m.project.file(i)).map(|f| f.path.clone())).flatten().unwrap_or_default())

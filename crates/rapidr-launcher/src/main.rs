@@ -5,10 +5,11 @@
 //!   launcher. It asks `rapidr info` the program's `$APPTYPE` and runs
 //!   `rapidr open` in a new console for a console program, with no console
 //!   window for a windowed one. `rapidrw --ide [file]` starts the IDE.
-//! - **macOS** (the executable of `RapidR.app` and `RapidR Runtime.app`):
+//! - **macOS** (the executable of `RapidR Studio.app` and `RapidR Runtime.app`):
 //!   Finder hands an app the files it opens as an Apple event, not as
-//!   arguments; this receives them and hands them on — a source file to the
-//!   IDE (`rapidr ide`, in RapidR.app), anything else to `rapidr open` —
+//!   arguments; this receives them and hands them on — a source file or a
+//!   project (`.rrproj`) to RapidR Studio (`rapidr ide`, in RapidR Studio.app),
+//!   anything else to `rapidr open` —
 //!   replacing itself with the last one (`exec`), so the app in the Dock is
 //!   the program.
 //! - Elsewhere (Linux' `.desktop` files run `rapidr open %f` directly) it
@@ -124,16 +125,17 @@ mod mac {
         }
     }
 
-    /// What opens `file` (none: the app itself was opened): in RapidR.app
-    /// (its home has the IDE) a source file opens in the IDE; anything else
-    /// runs (`rapidr open`).
+    /// What opens `file` (none: the app itself was opened): in RapidR Studio.app
+    /// (its home has the IDE) a source file or a project opens in Studio;
+    /// anything else runs (`rapidr open`).
     pub(crate) fn command(file: Option<&PathBuf>) -> Command {
         let rapidr = super::beside("rapidr");
         // (an install's IDE, or a checkout's: tools/studio_app.sh's dev app
         // says where in RAPIDR_HOME, through its Info.plist's LSEnvironment)
         let has_ide = rapidr.parent().is_some_and(|d| d.join("../lib/rapidr/ide/rapidr-ide.rrbc").is_file())
             || std::env::var_os("RAPIDR_HOME").is_some_and(|h| PathBuf::from(h).join("ide/studio.rr").is_file());
-        let is_source = file.is_some_and(|f| f.extension().is_some_and(|e| e.eq_ignore_ascii_case("rr") || e.eq_ignore_ascii_case("bas")));
+        // (rapidr_preprocessor::SOURCE_EXTENSIONS: RapidR's and RapidQ's sources)
+        let is_source = file.is_some_and(|f| f.extension().and_then(|e| e.to_str()).is_some_and(|e| ["rr", "bas", "rqw", "rqb", "rq", "inc", "rrproj"].iter().any(|x| x.eq_ignore_ascii_case(e))));
         let mut cmd = Command::new(&rapidr);
         match file {
             Some(f) if has_ide && is_source => cmd.arg("ide").arg(f),

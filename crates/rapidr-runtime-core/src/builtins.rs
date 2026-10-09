@@ -18,7 +18,8 @@ pub fn rp_print(items: &[Value], newline: bool) {
     if newline {
         text.push('\n');
     }
-    print!("{text}");
+    // (in RapidQ's code page when the program's file is RapidQ's: console::shown)
+    print!("{}", crate::value::console::shown(&text));
     let _ = io::stdout().flush();
     track_print_column(&text);
 }

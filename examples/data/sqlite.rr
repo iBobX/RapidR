@@ -1,4 +1,4 @@
-' sqlite.rr: a small book catalogue in SQLite with RSQLITE — create a
+' sqlite.rr: a small book catalogue in SQLite with RSQLite — create a
 ' table, insert with parameters, query, update, and see why parameters
 ' matter.
 '
@@ -10,7 +10,7 @@
 ' Connect("books.db") would keep it in a file.
 $APPTYPE CONSOLE
 
-DIM DB AS RSQLITE
+DIM DB AS RSQLite
 
 SUB ShowRows
     DIM i AS INTEGER, line AS STRING

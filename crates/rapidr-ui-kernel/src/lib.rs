@@ -40,8 +40,10 @@ pub mod a11y;
 pub mod components;
 pub mod dialogs;
 pub mod display;
+mod drag;
 mod focus;
 pub mod frame;
+mod hint;
 pub mod icons;
 pub mod input;
 pub mod paint;
@@ -52,6 +54,8 @@ pub mod tooltip;
 pub mod tree;
 pub mod window_frame;
 
+#[cfg(test)]
+mod pointer_tests;
 #[cfg(test)]
 mod tests;
 

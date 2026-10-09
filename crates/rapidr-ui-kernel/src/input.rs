@@ -99,6 +99,10 @@ pub enum KernelEvent {
     Moved(String, i64, i64),
     /// Its screen's scale changed (OnScaleChanged).
     ScaleChanged(String, f64),
+    /// Files dropped on the window (dragged from the system's file manager,
+    /// or a browser's): their paths (on the web, their names in the page's
+    /// files) — OnDropFiles.
+    DropFiles(String, Vec<String>),
     /// A menu item picked (by id): its OnClick.
     MenuPick(String),
     /// A container's action runtime-core carries out (components scrolled,
@@ -111,6 +115,17 @@ pub enum KernelEvent {
     /// What the user did to a list, tree, grid, list view or header that
     /// the program answers (the lists lane's; `components::list`).
     List(String, crate::components::list::ListAction),
+    /// Component `id`'s event `event` (lowercase: `oncaretmove`) with its
+    /// arguments, fired as it is, nothing else to do: the IDE's components
+    /// (RCODEEDITOR's OnCaretMove(Line, Column), RDIFFVIEW's OnHunkChange
+    /// …), a list's OnEnter (focus.rs), a button's OnStartDrag /
+    /// OnEndDrag (drag.rs).
+    Fire { id: String, event: String, args: Vec<rapidr_value::Value> },
+    /// The application's hint is now this (hint.rs): the long part of the
+    /// Hint of the component under the mouse (its parent's when it has
+    /// none; "" over none) — the form OnHint was bound on last hears it
+    /// when it changed (`rapidr_value::hints`).
+    Hint(String),
 }
 
 impl FormUi {
@@ -160,13 +175,15 @@ impl FormUi {
     /// A mouse button pressed at (x, y) of the client area.
     pub fn mouse_down(&mut self, store: &dyn Store, ts: &mut TextSystem, x: f64, y: f64, button: Button, mods: Mods) {
         self.dirty = true;
+        self.mouse_at = (x, y);
+        // (a press takes the tooltip away: tooltip.rs)
         self.tip_hide();
         // (an open menu, the in-window menu bar: components/menubar.rs)
         if self.menu_mouse_down(store, x, y) {
             return;
         }
         // (an open drop-down list, over everything but menus)
-        if crate::components::combo::popup_mouse_down(self, store, x, y) {
+        if crate::components::combo::popup_mouse_down(self, store, x, y) || crate::components::codeeditor::popup::popup_mouse_down(self, store, ts, x, y) {
             return;
         }
         // (scroll bars take the mouse next, over the components)
@@ -181,18 +198,30 @@ impl FormUi {
         if !self.live(target) {
             return;
         }
+        // (a drag source's press is its drag's: drag.rs)
+        if let (Some(i), Button::Left) = (target, button) {
+            if self.drag_press(store, i) {
+                return;
+            }
+        }
         self.capture = Some(target);
         let clicks = self.count_click(target, x, y, button);
         // (the input lane's: Alt isn't pressed alone any more — menubar.rs)
         self.menus.alt_alone = false;
         if let Some(i) = target {
             if button == Button::Left {
+                let mark = self.events.len();
                 let out = self.mouse_to(store, ts, i, MouseIn { kind: MouseKind::Down, x, y, button, mods, inside: true, captured: true, clicks });
                 if out.press {
                     self.pressed = Some(i);
                 }
                 if out.focus.unwrap_or(true) && self.can_focus(store, i) {
+                    let before = self.events.len();
                     self.set_focus_by_click(Some(i));
+                    // (a list's OnEnter before what the press did to it: a
+                    // list box takes the focus before it selects)
+                    let entered: Vec<KernelEvent> = self.events.drain(before..).collect();
+                    self.events.splice(mark..mark, entered);
                 }
             }
         } else if button == Button::Left && clicks >= 2 && clicks.is_multiple_of(2) {
@@ -239,6 +268,18 @@ impl FormUi {
 
     /// The mouse moved to (x, y) of the client area.
     pub fn mouse_move(&mut self, store: &dyn Store, ts: &mut TextSystem, x: f64, y: f64, mods: Mods) {
+        self.mouse_at = (x, y);
+        // (a drag or a StartDrag move takes the mouse: drag.rs)
+        if self.drag.is_some() {
+            let hit = self.hit(x, y);
+            if hit != self.hover {
+                self.hover = hit;
+                self.dirty = true;
+            }
+            self.hint_hover(store, hit, true);
+            self.drag_move(x, y);
+            return;
+        }
         if self.menu_mouse_move(store, x, y) {
             return;
         }
@@ -260,6 +301,8 @@ impl FormUi {
             self.hover = hit;
             self.dirty = true;
         }
+        // (the application's hint: hint.rs)
+        self.hint_hover(store, hit, true);
         // (a hint waits, follows or goes: tooltip.rs)
         if self.capture.is_none() {
             self.tip_mouse(store, hit, x, y);
@@ -287,6 +330,11 @@ impl FormUi {
     /// A mouse button released at (x, y) of the client area.
     pub fn mouse_up(&mut self, store: &dyn Store, ts: &mut TextSystem, x: f64, y: f64, button: Button, mods: Mods) {
         self.dirty = true;
+        self.mouse_at = (x, y);
+        // (a drag's release is its end's: drag.rs)
+        if self.drag_release() {
+            return;
+        }
         if self.menu_mouse_up(store, x, y) {
             return;
         }
@@ -337,8 +385,47 @@ impl FormUi {
         }
     }
 
+    /// The mouse pointer with the mouse at (x, y) of the client area —
+    /// what the hosts show (desktop: winit's cursor icon; web: the canvas'
+    /// CSS cursor). The component holding the mouse answers (a divider
+    /// being dragged keeps its arrows wherever the mouse goes), else the one
+    /// under it, else the form. The program's own Cursor on it wins
+    /// (RapidQ's `crDefault` is what the component itself shows,
+    /// [`ComponentKind::pointer`]); a status bar's size grip, once held,
+    /// keeps the window's sizing arrow.
+    pub fn pointer_at(&mut self, store: &dyn Store, ts: &mut TextSystem, x: f64, y: f64) -> input::Cursor {
+        const CR_HSPLIT: i64 = -14;
+        const CR_VSPLIT: i64 = -15;
+        if crate::components::statusbar::grip_held(self) {
+            return input::Cursor::SizeNWSE;
+        }
+        let node = match self.capture {
+            Some(held) => held,
+            None => self.hit(x, y),
+        };
+        let id = node.map_or(self.form.as_str(), |i| self.nodes[i].id.as_str());
+        let code = crate::store::int(store, id, "cursor", 0);
+        // (a QSPLITTER's crHSplit / crVSplit, its Cursor at creation: the
+        // splitter's direction decides, as Delphi's TSplitter swaps them when
+        // its Align changes)
+        let split = node.is_some_and(|i| self.nodes[i].type_name == "RSPLITTER") && matches!(code, CR_HSPLIT | CR_VSPLIT);
+        if code != 0 && !split {
+            return input::Cursor::resolve(code);
+        }
+        let Some(i) = node else { return input::Cursor::Default };
+        self.with_cx(store, ts, i, |k, cx| {
+            if !cx.state.enabled {
+                return input::Cursor::Default;
+            }
+            let (x0, y0, _, _) = cx.rect;
+            k.pointer(cx, (x - x0 as f64).floor() as i64, (y - y0 as f64).floor() as i64)
+        })
+        .unwrap_or(input::Cursor::Default)
+    }
+
     /// The mouse left the window.
     pub fn mouse_leave(&mut self, store: &dyn Store, ts: &mut TextSystem) {
+        self.hint_hover(store, None, false);
         self.tip_hide();
         if let Some(old) = self.hover.take() {
             self.mouse_to(store, ts, old, MouseIn { kind: MouseKind::Leave, x: -1.0, y: -1.0, button: Button::Left, mods: Mods::NONE, inside: false, captured: false, clicks: 0 });
@@ -352,7 +439,8 @@ impl FormUi {
     /// else the scroll box or form whose bars it's over — Windows 10's
     /// "scroll inactive windows" rule, not the focused control's.
     pub fn mouse_wheel(&mut self, store: &dyn Store, ts: &mut TextSystem, (x, y): (f64, f64), (dx, dy): (f64, f64), mods: Mods) {
-        if self.menu_open() || crate::components::combo::popup_wheel(self, store, x, y, dy) {
+        self.tip_hide();
+        if self.menu_open() || crate::components::combo::popup_wheel(self, store, x, y, dy) || crate::components::codeeditor::popup::popup_wheel(self, x, y, dy) {
             return;
         }
         let chain = self.hit(x, y).map(|i| self.ancestry(i)).unwrap_or_default();
@@ -388,12 +476,16 @@ impl FormUi {
         self.dirty = true;
         self.reset_caret();
         self.tip_hide();
+        // (Escape ends a drag: drag.rs)
+        if vk == 27 && self.drag_escape() {
+            return;
+        }
         // (the input lane's: Alt pressed alone selects the menu bar when it's
         // let go — unless a menu or the bar's selection takes this Alt)
         self.menus.alt_alone = vk == 18 && !mods.ctrl && !mods.shift && !self.menus.keyboard && !self.menu_open();
         // (an open menu takes the keys; a main menu's ShortCut is picked
         // before the key reaches anything: components/menubar.rs)
-        if self.menu_key(store, vk, mods) {
+        if !crate::components::design::captures_keys(self, store) && self.menu_key(store, vk, mods) {
             // (an edit's context menu's pick, done now)
             self.edit_commands(store, ts, clip);
             return;
@@ -420,7 +512,7 @@ impl FormUi {
         if vk == 9 && !shortcut && !mods.alt && !crate::components::memo::takes_tab(self, store) && !crate::components::design::takes_tab(self, store) {
             self.move_focus(store, mods.shift);
             handled = true;
-        } else if mods.alt && !mods.ctrl && (65..=90).contains(&vk) {
+        } else if mods.alt && !mods.ctrl && (65..=90).contains(&vk) && !crate::components::codeeditor::find_takes_alt(self, vk) {
             let letter = (vk as u8 + 32) as char;
             handled = self.mnemonic(store, ts, letter) || self.menu_mnemonic(store, letter);
         } else if let Some(f) = self.focus {

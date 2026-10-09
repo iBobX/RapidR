@@ -1,7 +1,7 @@
 {
   "name": "rapidr",
   "displayName": "RapidR",
-  "description": "RapidR and RapidQ BASIC: IntelliSense, diagnostics, go to definition, rename, formatting and debugging, through RapidR's own language server and debug adapter.",
+  "description": "RapidR BASIC (RapidQ-compatible): IntelliSense, diagnostics, go to definition, rename, formatting and debugging, through RapidR's own language server and debug adapter.",
   "version": "2.117.0",
   "publisher": "rapidr",
   "license": "MIT",
@@ -71,13 +71,15 @@
         "id": "rapidr",
         "aliases": [
           "RapidR",
-          "RapidQ",
           "rapidr"
         ],
         "extensions": [
           ".rr",
           ".bas",
-          ".inc"
+          ".inc",
+          ".rqw",
+          ".rqb",
+          ".rq"
         ],
         "configuration": "./language-configuration.json",
         "icon": {
@@ -306,7 +308,7 @@
           "type": "string",
           "default": "",
           "scope": "machine-overridable",
-          "markdownDescription": "The `rapidr` executable (or the folder it is in, or `RapidR.app`). Empty: found on `PATH`, then in the usual install places, then in a RapidR source checkout open in the workspace (`target/release`, `target/debug`)."
+          "markdownDescription": "The `rapidr` executable (or the folder it is in, or `RapidR Studio.app`). Empty: found on `PATH`, then in the usual install places, then in a RapidR source checkout open in the workspace (`target/release`, `target/debug`)."
         },
         "rapidr.rapidqCompatible": {
           "type": "boolean",

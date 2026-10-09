@@ -22,11 +22,13 @@ CREATE Form AS QFORM
     SimplePanel = 1
     SimpleText = "ready"
   END CREATE
-  CREATE Split AS QSPLITTER
-    OnMoved = Moved
-  END CREATE
   CREATE Tree AS QLISTBOX
     Align = alLeft: Width = 100
+  END CREATE
+  ' (made after the list: RapidQ lays out alLeft controls made before the
+  ' form shows in creation order — RC.EXE — so the splitter is right of it)
+  CREATE Split AS QSPLITTER
+    OnMoved = Moved
   END CREATE
   CREATE Side AS QPANEL
     Align = alRight: Width = 60

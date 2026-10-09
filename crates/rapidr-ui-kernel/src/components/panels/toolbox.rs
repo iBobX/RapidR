@@ -2,9 +2,9 @@
 //! `rapidr_value::panels::toolbox` (the web draws the same).
 //!
 //! At the top a search box (an in-place editor over it while the user
-//! types: the filter follows each key); under it the groups — "RapidQ"
-//! and "RapidR" as headings, their groups with a chevron, the components
-//! with their icons — or, while searching, the matches flat with their
+//! types: the filter follows each key); under it the groups by purpose
+//! (Standard, Additional, Dialogs …) as headings with a chevron, the
+//! components under RapidR's names with their icons — or, while searching, the matches flat with their
 //! group dimmed beside them, best first. The keyboard: in the list the
 //! arrows, Home / End, Page Up / Down move, Left / Right close and open
 //! groups (or go to the parent / first child), Enter picks (OnPick) or
@@ -16,7 +16,7 @@
 //! follows the mouse, and its release over the form fires OnDragDrop on
 //! what is under it.
 
-use rapidr_value::input::Button;
+use rapidr_value::input::{Button, Cursor};
 use rapidr_value::objects::a11y::{part_id, AccessNode, Action, Role, PART_ITEM};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Place, Rect};
@@ -510,6 +510,20 @@ impl ComponentKind for Toolbox {
         }
         common::icon(p, &icon, x + 8, y + (ch - 16) / 2, 16, None, false);
         p.text((x + 30, y, tw + 8, ch), &text, &font, l.text, Place::Left);
+    }
+
+    /// A component being carried to a form: the closed hand (an item at
+    /// rest shows the arrow, as every list's); the search box: the I-beam.
+    fn pointer(&self, cx: &mut Cx, x: i64, y: i64) -> Cursor {
+        if model(cx.id, |mm| mm.drag.as_ref().is_some_and(|d| d.started)) {
+            return Cursor::Grabbing;
+        }
+        let g = geo(cx.width(), cx.height(), &look(rapidr_value::theme::current()));
+        if inside(editor_box(text_area(g.sbox)), x, y) {
+            Cursor::IBeam
+        } else {
+            Cursor::Default
+        }
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {

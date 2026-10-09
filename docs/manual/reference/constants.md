@@ -144,7 +144,7 @@ File attributes for `DIR$` and file searches; faAnyFile matches every file.
 
 ## File stream modes
 
-How a QFILESTREAM opens its file: create it, or open it to read, to write or both.
+How an RFileStream opens its file: create it, or open it to read, to write or both.
 
 `fmCreate` = 65535, `fmOpenRead` = 0, `fmOpenReadWrite` = 2, `fmOpenWrite` = 1
 
@@ -444,7 +444,7 @@ A panel's border styles: none or single.
 
 ## Baud rates
 
-Serial port speeds for a QCOMPORT's BaudRate.
+Serial port speeds for an RComPort's BaudRate.
 
 `br110` = 0, `br115200` = 12, `br1200` = 3, `br14400` = 7, `br19200` = 8, `br2400` = 4, `br300` = 1, `br38400` = 9, `br4800` = 5, `br56000` = 10, `br57600` = 11, `br600` = 2, `br9600` = 6
 
@@ -510,13 +510,13 @@ The type a stream's ReadNum and WriteNum read or write a number as.
 
 ## Parity
 
-Serial port parity for a QCOMPORT's Parity: none, odd, even, mark or space.
+Serial port parity for an RComPort's Parity: none, odd, even, mark or space.
 
 `prEven` = 2, `prMark` = 3, `prNone` = 0, `prOdd` = 1, `prSpace` = 4
 
 ## Stop bits
 
-Serial port stop bits for a QCOMPORT's StopBits: one, one and a half or two.
+Serial port stop bits for an RComPort's StopBits: one, one and a half or two.
 
 `sbOne5StopBits` = 1, `sbOneStopBit` = 0, `sbTwoStopBits` = 2
 

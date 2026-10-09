@@ -399,6 +399,20 @@ fn subject_of(host: &dyn Host, designer: &str, target: &[String]) -> Option<Box<
 }
 
 /// Reads inspector `name`'s subject again (its rows follow).
+/// A component type as the inspector's header names it: RapidR's name
+/// (`RButton`), with RapidQ's as a note when RapidQ has it (`RButton
+/// (RapidQ name: QBUTTON)`) — whatever name the program wrote
+/// (docs/ide-plan.md, R-NAMES). `short`: RapidR's name alone.
+pub fn type_label(type_name: &str, short: bool) -> String {
+    match rapidr_lang::component(type_name) {
+        Some(c) => match c.rapidq.filter(|_| !short && c.kind == rapidr_lang::Kind::Component) {
+            Some(q) => format!("{} (RapidQ name: {q})", c.spelling()),
+            None => c.spelling(),
+        },
+        None => type_name.to_string(),
+    }
+}
+
 pub fn refresh(host: &dyn Host, name: &str) {
     let Some((designer, target, custom)) = with(name, |m| (m.designer.clone(), m.target_names(), m.custom.clone())) else { return };
     let subject = subject_of(host, &designer, &target);

@@ -11,7 +11,7 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::rc::Rc;
 
-use rapidr_value::objects::comport::{self, Flow, Link, PortError, Settings};
+use rapidr_value::objects::comport::{self, Flow, LineEvents, Link, PortError, Settings};
 use rapidr_value::objects::download::{Outcome, Shown};
 use rapidr_value::objects::{media, rqlib};
 use wasm_bindgen::prelude::*;
@@ -376,14 +376,17 @@ impl comport::Ports for WebPorts {
     }
 }
 
-/// An open Web Serial port: what its reader put in, its writer, the lines
-/// its look last read.
+/// An open Web Serial port: what its reader put in (the reader now: a
+/// break ends a reader's stream, and reading goes on with a new one), its
+/// writer, the lines its look last read, and what the line did (a break —
+/// the reader's BreakError —, the ring indicator coming on).
 struct WebLink {
     device: JsValue,
-    reader: JsValue,
+    reader: Rc<RefCell<JsValue>>,
     writer: JsValue,
     inbox: Rc<RefCell<VecDeque<u8>>>,
     signals: Rc<std::cell::Cell<comport::Signals>>,
+    line: Rc<RefCell<LineEvents>>,
     open: Rc<std::cell::Cell<bool>>,
 }
 
@@ -436,6 +439,9 @@ impl Link for WebLink {
     fn line_length(&mut self, end: &[u8], _wait_ms: u64) -> Option<usize> {
         comport::find_end(self.inbox.borrow().iter(), end)
     }
+    fn line_events(&mut self) -> LineEvents {
+        std::mem::take(&mut *self.line.borrow_mut())
+    }
 }
 
 impl Drop for WebLink {
@@ -443,7 +449,7 @@ impl Drop for WebLink {
     /// opened again, here or by another program).
     fn drop(&mut self) {
         self.open.set(false);
-        let (device, reader, writer) = (self.device.clone(), self.reader.clone(), self.writer.clone());
+        let (device, reader, writer) = (self.device.clone(), self.reader.borrow().clone(), self.writer.clone());
         wasm_bindgen_futures::spawn_local(async move {
             let _ = call_promise(&reader, "cancel", &[]).await;
             let _ = call_promise(&reader, "releaseLock", &[]).await;
@@ -533,34 +539,65 @@ async fn open_port(serial: &JsValue, port: &str, s: &Settings) -> Result<Box<dyn
     let get_writer: js_sys::Function = js_sys::Reflect::get(&writable, &"getWriter".into()).and_then(|f| f.dyn_into()).map_err(|_| PortError::NotFound)?;
     let writer = get_writer.call0(&writable).map_err(|_| PortError::NotFound)?;
     let get_reader: js_sys::Function = js_sys::Reflect::get(&readable, &"getReader".into()).and_then(|f| f.dyn_into()).map_err(|_| PortError::NotFound)?;
-    let reader = get_reader.call0(&readable).map_err(|_| PortError::NotFound)?;
+    let reader = Rc::new(RefCell::new(get_reader.call0(&readable).map_err(|_| PortError::NotFound)?));
     let inbox = Rc::new(RefCell::new(VecDeque::new()));
+    let line = Rc::new(RefCell::new(LineEvents::default()));
     let open = Rc::new(std::cell::Cell::new(true));
     let signals = Rc::new(std::cell::Cell::new(comport::Signals::default()));
-    let (into, reading) = (inbox.clone(), reader.clone());
+    let (into, line_in, port, current, reading) = (inbox.clone(), line.clone(), device.clone(), reader.clone(), open.clone());
     wasm_bindgen_futures::spawn_local(async move {
-        while let Ok(chunk) = call_promise(&reading, "read", &[]).await {
-            if js_sys::Reflect::get(&chunk, &"done".into()).ok().and_then(|d| d.as_bool()).unwrap_or(true) {
+        // (a break, a framing error …: the stream ends with that error and
+        // the port's `readable` is a new one — read on from it)
+        loop {
+            let r = current.borrow().clone();
+            let error = loop {
+                match call_promise(&r, "read", &[]).await {
+                    Ok(chunk) => {
+                        if js_sys::Reflect::get(&chunk, &"done".into()).ok().and_then(|d| d.as_bool()).unwrap_or(true) {
+                            break None;
+                        }
+                        if let Ok(v) = js_sys::Reflect::get(&chunk, &"value".into()) {
+                            into.borrow_mut().extend(js_sys::Uint8Array::new(&v).to_vec());
+                        }
+                    }
+                    Err(e) => break Some(js_sys::Reflect::get(&e, &"name".into()).ok().and_then(|n| n.as_string()).unwrap_or_default()),
+                }
+            };
+            let _ = call_promise(&r, "releaseLock", &[]).await;
+            match error.as_deref() {
+                Some("BreakError") => line_in.borrow_mut().breaks += 1,
+                Some("FramingError" | "ParityError" | "BufferOverrunError") => {}
+                _ => break,
+            }
+            if !reading.get() {
                 break;
             }
-            if let Ok(v) = js_sys::Reflect::get(&chunk, &"value".into()) {
-                into.borrow_mut().extend(js_sys::Uint8Array::new(&v).to_vec());
-            }
+            let readable = js_sys::Reflect::get(&port, &"readable".into()).unwrap_or(JsValue::NULL);
+            let Some(get_reader) = js_sys::Reflect::get(&readable, &"getReader".into()).ok().and_then(|f| f.dyn_into::<js_sys::Function>().ok()) else { break };
+            let Ok(next) = get_reader.call0(&readable) else { break };
+            *current.borrow_mut() = next;
         }
     });
     // (the lines the other end drives: `getSignals` is a promise, so read
-    // every 100 ms while the port is open)
-    let (watched, still, lines) = (device.clone(), open.clone(), signals.clone());
+    // every 100 ms while the port is open; the ring indicator coming on is
+    // OnRing)
+    let (watched, still, lines, rang) = (device.clone(), open.clone(), signals.clone(), line.clone());
     wasm_bindgen_futures::spawn_local(async move {
+        let mut ringing = false;
         while still.get() {
             if let Ok(s) = call_promise(&watched, "getSignals", &[]).await {
                 let on = |k: &str| js_sys::Reflect::get(&s, &k.into()).ok().and_then(|v| v.as_bool()).unwrap_or(false);
-                lines.set(comport::Signals { cts: on("clearToSend"), dsr: on("dataSetReady"), cd: on("dataCarrierDetect"), ri: on("ringIndicator") });
+                let now = comport::Signals { cts: on("clearToSend"), dsr: on("dataSetReady"), cd: on("dataCarrierDetect"), ri: on("ringIndicator") };
+                if now.ri && !ringing {
+                    rang.borrow_mut().rings += 1;
+                }
+                ringing = now.ri;
+                lines.set(now);
             }
             sleep_ms(100).await;
         }
     });
-    Ok(Box::new(WebLink { device, reader, writer, inbox, signals, open }))
+    Ok(Box::new(WebLink { device, reader, writer, inbox, signals, line, open }))
 }
 
 /// ReadLine(Timeout) with no whole line there yet: the program waits (the

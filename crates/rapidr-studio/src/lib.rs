@@ -23,6 +23,7 @@ pub mod channel;
 pub mod design;
 pub mod find;
 pub mod help;
+pub mod import;
 pub mod langsvc;
 pub mod project;
 pub mod session;
@@ -42,6 +43,12 @@ pub trait Host: Copy + 'static {
     /// The files directly in `folder` (their names; RPROJECT.OpenFolder):
     /// the disk's on the desktop, the page's store on the web.
     fn list_files(self, folder: &str) -> Vec<String>;
+    /// Every file under `folder`, at any depth (paths relative to it, `/`
+    /// separated): the page's store on the web (RPROJECT.ImportRapidQ reads
+    /// a picked folder from it); the desktop reads the disk itself.
+    fn list_tree(self, _folder: &str) -> Vec<String> {
+        Vec::new()
+    }
     /// The `rapidr` executable RPROJECT.Build runs (`rapidr build`); `None`
     /// where there is none to run (the web).
     fn rapidr(self) -> Option<std::path::PathBuf> {
@@ -159,6 +166,19 @@ pub(crate) fn read_text(path: &str) -> Result<String, String> {
 
 pub(crate) fn write_text(path: &str, text: &str) -> Result<(), String> {
     rapidr_value::objects::write_file(path, text.as_bytes())
+}
+
+/// Where there is no disk (RapidR Studio in a browser), the language
+/// service and the designer read a program's `$INCLUDE`d files through the
+/// runtime's file hooks — the page's store, the site's files — as the
+/// program's run does (`project::program_files`): the web runtime calls this
+/// when it installs its file hooks.
+pub fn install_page_sources() {
+    rapidr_preprocessor::set_source_reader(Some(page_source));
+}
+
+fn page_source(path: &std::path::Path) -> Option<Vec<u8>> {
+    rapidr_value::objects::read_file(&slashes(&path.to_string_lossy())).ok()
 }
 
 #[cfg(test)]

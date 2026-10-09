@@ -45,9 +45,11 @@ once before it runs. On macOS and Linux a script that starts with
 
 <!-- Keep or drop, per what the release is: -->
 **Unsigned downloads:** this release is not code-signed. On macOS, the first
-time, right-click the app and choose Open (or System Settings > Privacy &
-Security > Open Anyway). On Windows, SmartScreen may say "Windows protected
-your PC": choose More info > Run anyway.
+time, "RapidR Studio" Not Opened appears: click Done, then System Settings >
+Privacy & Security > Open Anyway (right-click > Open no longer works on
+current macOS). On Windows, SmartScreen says "Windows protected your PC":
+choose More info > Run anyway. Screenshots of each step: the manual's
+"Getting started".
 
 **Verify a download:** `SHA256SUMS` lists every file's SHA-256
 (`shasum -a 256 -c SHA256SUMS`, or `Get-FileHash` on Windows).

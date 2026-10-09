@@ -1,11 +1,12 @@
 //! RTOOLBOX's model (docs/ide-components.md §3.6, docs/ide-plan.md I1 and
-//! §6.5): the components a form designer places, under "RapidQ" (the
-//! components RapidQ has, by their Q names) and "RapidR" (RapidR's own),
-//! each in its group (`rapidr_icons::TOOLBOX_GROUPS`, design/icons/
-//! inventory.toml's `[toolbox-groups]`), with the program's templates
-//! under RapidR › Templates. Only the components the compilers create
-//! today are shown (`rapidr_lang::is_component_type`): a planned one
-//! (RFORMDESIGNER …) appears when it exists.
+//! §6.5): the components a form designer places, under RapidR's names
+//! (`RButton`: R-NAMES — each item's card gives RapidQ's name where RapidQ
+//! has one), in groups by purpose (`rapidr_icons::TOOLBOX_GROUPS`,
+//! design/icons/inventory.toml's `[toolbox-groups]`: Standard, Additional,
+//! Dialogs …), with the program's templates under Templates. Only the
+//! components the compilers create today are shown
+//! (`rapidr_lang::is_component_type`): a planned one (RFORMDESIGNER …)
+//! appears when it exists.
 //!
 //! The kernel (`rapidr-ui-kernel`'s `components/panels/toolbox.rs`) draws
 //! [`Toolbox::rows`] and changes the UI state here (the filter typed, the
@@ -23,12 +24,13 @@ use crate::Value;
 /// property).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Names {
-    /// What the designer writes: RapidQ's components by their Q names
-    /// (QBUTTON), the others by their R names (RPLOT).
+    /// RapidR's names (`RButton`, `RPlot`): the default (R-NAMES).
     #[default]
-    AsWritten,
-    /// Every one by its R name (RBUTTON).
     RapidR,
+    /// As a file written with RapidQ's names writes them: RapidQ's
+    /// components by their Q names (`QBUTTON`), the others by RapidR's
+    /// (`RPLOT`).
+    RapidQ,
     /// In words (Button).
     Titles,
 }
@@ -36,8 +38,8 @@ pub enum Names {
 impl Names {
     pub fn parse(s: &str) -> Option<Names> {
         match s.trim().to_ascii_lowercase().as_str() {
-            "as-written" | "aswritten" | "written" | "" => Some(Names::AsWritten),
-            "rapidr" | "r" => Some(Names::RapidR),
+            "rapidr" | "r" | "" => Some(Names::RapidR),
+            "rapidq" | "q" | "as-written" | "aswritten" | "written" => Some(Names::RapidQ),
             "titles" | "title" | "words" => Some(Names::Titles),
             _ => None,
         }
@@ -45,8 +47,8 @@ impl Names {
 
     pub fn as_str(self) -> &'static str {
         match self {
-            Names::AsWritten => "as-written",
             Names::RapidR => "rapidr",
+            Names::RapidQ => "rapidq",
             Names::Titles => "titles",
         }
     }
@@ -84,7 +86,7 @@ pub struct Group {
     pub id: &'static str,
     pub title: &'static str,
     pub icon: &'static str,
-    /// Its top group (`None`: it is one, "RapidQ" or "RapidR").
+    /// The group it is in (`None`: a top group — every group today).
     pub parent: Option<&'static str>,
 }
 
@@ -92,7 +94,8 @@ pub struct Group {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Row {
     pub key: Key,
-    /// 1: a top group, 2: a group in it, 3: an item (searching: 1, flat).
+    /// 1: a top group, 2: an item in it (or a group in it, whose items
+    /// are 3); searching: 1, flat.
     pub level: usize,
     /// What the row shows (a group's title, an item's name as ShowNames
     /// says).
@@ -143,8 +146,8 @@ pub struct Toolbox {
 
 crate::panel_models!(Toolbox);
 
-/// The groups in the toolbox's order: "RapidQ" and its groups, then
-/// "RapidR" and its groups.
+/// The groups in the toolbox's order, each top group followed by the
+/// groups in it.
 pub fn groups() -> Vec<Group> {
     let table = group_table();
     let mut out = Vec::new();
@@ -170,19 +173,18 @@ fn group_table() -> Vec<GroupEntry> {
     Vec::new()
 }
 
-/// A component's title in words (its icon's: "Button"), else its name as
-/// written.
+/// A component's title in words (its icon's: "Button"), else its name.
 #[cfg(feature = "icons")]
 fn title_of(type_name: &str) -> String {
     match rapidr_icons::component(type_name) {
         Some(i) => i.title.to_string(),
-        None => written_name(type_name),
+        None => spelling(type_name),
     }
 }
 
 #[cfg(not(feature = "icons"))]
 fn title_of(type_name: &str) -> String {
-    written_name(type_name)
+    spelling(type_name)
 }
 
 /// The components a group shows: its members the compilers create, in the
@@ -191,11 +193,20 @@ pub fn members(group: &str) -> Vec<&'static str> {
     group_table().into_iter().filter(|g| g.0 == group).flat_map(|g| g.4.iter().copied()).filter(|t| rapidr_lang::is_component_type(t)).collect()
 }
 
-/// A component as the designer writes it: QBUTTON for RapidQ's, RPLOT
-/// for RapidR's own.
+/// A component under RapidR's name (`RButton`, `RPlot`): what the
+/// toolbox shows and gives (R-NAMES).
+pub fn spelling(type_name: &str) -> String {
+    match rapidr_lang::component(type_name) {
+        Some(c) => c.spelling(),
+        None => type_name.to_ascii_uppercase(),
+    }
+}
+
+/// A component as a file written with RapidQ's names writes it: QBUTTON
+/// for RapidQ's, RPLOT for RapidR's own.
 pub fn written_name(type_name: &str) -> String {
     match rapidr_lang::component(type_name) {
-        Some(c) => c.written_name().to_string(),
+        Some(c) => c.name_in(rapidr_lang::NameStyle::RapidQ),
         None => type_name.to_ascii_uppercase(),
     }
 }
@@ -233,35 +244,45 @@ pub fn doc_match(filter: &str, type_name: &str) -> bool {
     q.iter().all(|w| words.iter().any(|x| x.starts_with(w.as_str())))
 }
 
-/// An item's card (its tooltip): what it is in a sentence, where it comes
-/// from, where it runs.
+/// An item's card (its tooltip): what it is in a sentence, its RapidQ
+/// name (or that it is RapidR's own), where it runs.
 pub fn card(key: &Key) -> String {
     let Key::Component(t) = key else { return String::new() };
     let Some(c) = rapidr_lang::component(t) else { return String::new() };
-    let from = if c.rapidq.is_some() { "RapidQ's" } else { "RapidR's own" };
+    let from = match c.rapidq {
+        Some(q) => format!("RapidQ name: {q}"),
+        None => "RapidR's own".to_string(),
+    };
     let runs = match c.runtimes {
         rapidr_lang::Runtimes::Desktop => ", desktop only",
         rapidr_lang::Runtimes::Web => ", web only",
         _ => "",
     };
-    format!("{} - {} ({from}{runs})", written_name(t), description(t))
+    // (a form is a document: the toolbox adds a form file for it)
+    let does = match c.name {
+        "RFORM" => " Click or double-click: Project > Add Form, a new form file of the program; dragged onto an RFormMDI: one of its child windows.",
+        "RFORMMDI" => " Click or double-click: a new MDI main window file of the program.",
+        _ => "",
+    };
+    format!("{} - {} ({from}{runs}){does}", c.spelling(), description(t))
 }
 
 impl Toolbox {
     /// A component's name as ShowNames says.
     pub fn name_of(&self, type_name: &str) -> String {
         match self.names {
-            Names::AsWritten => written_name(type_name),
-            Names::RapidR => type_name.to_ascii_uppercase(),
+            Names::RapidR => spelling(type_name),
+            Names::RapidQ => written_name(type_name),
             Names::Titles => title_of(type_name),
         }
     }
 
-    /// What OnPick, OnSelect and Item give for an item: a component as the
-    /// designer writes it, a template's name.
+    /// What OnPick, OnSelect and Item give for an item: a component under
+    /// RapidR's name (`RButton`: the designer writes it in its file's own
+    /// style), a template's name.
     pub fn written(key: &Key) -> String {
         match key {
-            Key::Component(t) => written_name(t),
+            Key::Component(t) => spelling(t),
             Key::Template(n) => n.clone(),
             Key::Group(g) => g.clone(),
         }
@@ -282,24 +303,29 @@ impl Toolbox {
         groups().into_iter().find(|g| g.title.eq_ignore_ascii_case(n) || g.id.eq_ignore_ascii_case(n)).map(|g| g.id)
     }
 
-    /// The items of group `id` (a top group's: of all its groups), in order.
+    /// The items of group `id` (and of the groups in it), in order.
     fn group_items(&self, id: &str) -> Vec<Key> {
-        if id == "templates" {
-            return self.templates.iter().map(|t| Key::Template(t.name.clone())).collect();
-        }
-        let mut out: Vec<Key> = members(id).into_iter().map(|t| Key::Component(t.to_string())).collect();
-        for g in groups().into_iter().filter(|g| g.parent == Some(id)) {
+        let mut out = self.own_items(id);
+        for g in groups_static().iter().filter(|g| g.parent == Some(id)) {
             out.extend(self.group_items(g.id));
         }
         out
+    }
+
+    /// The items group `id` holds itself (not those of the groups in it).
+    fn own_items(&self, id: &str) -> Vec<Key> {
+        if id == "templates" {
+            return self.templates.iter().map(|t| Key::Template(t.name.clone())).collect();
+        }
+        members(id).into_iter().map(|t| Key::Component(t.to_string())).collect()
     }
 
     /// Every item in the toolbox's order, with its group.
     pub fn catalog(&self) -> Vec<(Key, &'static Group)> {
         let gs: &'static [Group] = groups_static();
         let mut out = Vec::new();
-        for g in gs.iter().filter(|g| g.parent.is_some()) {
-            for k in self.group_items(g.id) {
+        for g in gs {
+            for k in self.own_items(g.id) {
                 out.push((k, g));
             }
         }
@@ -368,6 +394,9 @@ impl Toolbox {
             if !open {
                 continue;
             }
+            for k in self.own_items(top.id) {
+                out.push(Row { text: self.text_of(&k), icon: self.icon_of(&k), key: k, level: 2, open: None, count: 0, group: String::new(), marks: Vec::new() });
+            }
             for g in groups_static().iter().filter(|g| g.parent == Some(top.id)) {
                 let items = self.group_items(g.id);
                 if items.is_empty() {
@@ -412,7 +441,8 @@ impl Toolbox {
         self.closed.clear();
         if !open {
             self.closed.extend(groups_static().iter().map(|g| g.id.to_string()));
-            self.cursor = self.cursor.take().map(|c| if c.is_item() { Key::Group("rapidq".into()) } else { c });
+            let first = groups_static().first().map_or_else(String::new, |g| g.id.to_string());
+            self.cursor = self.cursor.take().map(|c| if c.is_item() { Key::Group(first.clone()) } else { c });
         }
     }
 
@@ -550,7 +580,7 @@ pub fn rt_method<R: Runtime>(_rt: R, name: &str, method: &str, args: &[Value]) -
 pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
     match prop {
         "filter" => Some(Value::String(with(name, |t| t.filter.clone()).unwrap_or_default())),
-        "shownames" => Some(Value::String(with(name, |t| t.names.as_str()).unwrap_or("as-written").to_string())),
+        "shownames" => Some(Value::String(with(name, |t| t.names.as_str()).unwrap_or("rapidr").to_string())),
         "selected" => Some(Value::String(with(name, |t| t.selected.as_ref().map(Toolbox::written)).flatten().unwrap_or_default())),
         "count" => Some(Value::Integer(with_mut(name, |t| t.items().len()) as i64)),
         _ => None,
@@ -718,30 +748,39 @@ mod tests {
     #[test]
     fn groups_come_from_the_icons_table() {
         let g = groups();
-        assert_eq!(g[0].id, "rapidq");
-        assert_eq!(g[0].parent, None);
-        assert!(g.iter().any(|x| x.title == "Standard" && x.parent == Some("rapidq")));
-        assert!(g.iter().any(|x| x.title == "Data Science" && x.parent == Some("rapidr")));
-        // (RapidR's group after RapidQ's groups)
-        let r = g.iter().position(|x| x.id == "rapidr").unwrap();
-        assert!(g[..r].iter().all(|x| x.id == "rapidq" || x.parent == Some("rapidq")));
+        // (by purpose, Standard first; no group is named after RapidQ or
+        // RapidR: R-NAMES)
+        assert_eq!(g[0].id, "standard");
+        assert!(g.iter().all(|x| x.parent.is_none()));
+        assert!(g.iter().any(|x| x.title == "Data Science"));
+        assert!(!g.iter().any(|x| x.id == "rapidq" || x.id == "rapidr" || x.title.contains("RapidQ")));
         assert!(members("standard").contains(&"RBUTTON"));
+        assert!(members("standard").contains(&"RMEMO"), "RapidR's own beside RapidQ's, by purpose");
         // (only what the compilers create: the planned designer isn't shown)
         assert!(!members("ide").contains(&"RFORMDESIGNER") || rapidr_lang::is_component_type("RFORMDESIGNER"));
         assert!(members("ide").contains(&"RTOOLBOX"));
     }
 
     #[test]
-    fn names_as_written_rapidr_and_titles() {
+    fn names_rapidr_rapidq_and_titles() {
         let mut t = tb();
+        assert_eq!(t.names, Names::RapidR, "RapidR's names by default");
+        assert_eq!(t.name_of("RBUTTON"), "RButton");
+        assert_eq!(t.name_of("RPLOT"), "RPlot");
+        assert_eq!(t.name_of("RSTRINGGRID"), "RStringGrid");
+        t.names = Names::RapidQ;
         assert_eq!(t.name_of("RBUTTON"), "QBUTTON");
         assert_eq!(t.name_of("RPLOT"), "RPLOT");
-        t.names = Names::RapidR;
-        assert_eq!(t.name_of("RBUTTON"), "RBUTTON");
         t.names = Names::Titles;
         assert_eq!(t.name_of("RBUTTON"), "Button");
-        // (events give what the designer writes, whatever is shown)
-        assert_eq!(Toolbox::written(&Key::Component("RBUTTON".into())), "QBUTTON");
+        assert_eq!(Names::parse("as-written"), Some(Names::RapidQ));
+        assert_eq!(Names::parse(""), Some(Names::RapidR));
+        // (events give RapidR's name, whatever is shown: the designer
+        // writes it in its file's own style)
+        assert_eq!(Toolbox::written(&Key::Component("RBUTTON".into())), "RButton");
+        assert!(card(&Key::Component("RBUTTON".into())).starts_with("RButton - "));
+        assert!(card(&Key::Component("RBUTTON".into())).contains("(RapidQ name: QBUTTON)"));
+        assert!(card(&Key::Component("RPLOT".into())).contains("(RapidR's own"));
         assert_eq!(t.key_of("qbutton"), Some(Key::Component("RBUTTON".into())));
         assert_eq!(t.key_of("RBUTTON"), Some(Key::Component("RBUTTON".into())));
     }
@@ -750,14 +789,14 @@ mod tests {
     fn rows_are_groups_and_items() {
         let mut t = tb();
         let rows = t.rows();
-        assert_eq!(rows[0].key, Key::Group("rapidq".into()));
-        assert_eq!(rows[1].key, Key::Group("standard".into()));
-        assert_eq!(rows[2].level, 3);
+        assert_eq!(rows[0].key, Key::Group("standard".into()));
+        assert_eq!((rows[1].level, rows[1].text.as_str()), (2, "RForm"));
         assert_eq!(t.items()[0], Key::Component("RFORM".into()));
         let all = t.items().len();
-        t.set_open("rapidq", Some(false));
+        let groups = t.rows().iter().filter(|r| r.level == 1).count();
+        t.set_open("standard", Some(false));
         assert!(t.items().len() < all);
-        assert_eq!(t.rows().iter().filter(|r| r.level == 1).count(), 2);
+        assert_eq!(t.rows().iter().filter(|r| r.level == 1).count(), groups);
         t.set_all(false);
         assert_eq!(t.items().len(), 0);
         t.set_all(true);
@@ -793,11 +832,11 @@ mod tests {
     #[test]
     fn type_ahead_goes_to_a_name() {
         let mut t = tb();
-        assert_eq!(t.type_ahead("q"), Some(Key::Component("RFORM".into())));
-        // ("qb": the letters so far)
+        assert_eq!(t.type_ahead("r"), Some(Key::Component("RFORM".into())));
+        // ("rb": the letters so far)
         assert_eq!(t.type_ahead("b"), Some(Key::Component("RBUTTON".into())));
         t.typed.clear();
-        // (a name's Q left out)
+        // (a name's R left out)
         assert_eq!(t.type_ahead("l"), Some(Key::Component("RLABEL".into())));
         assert_eq!(t.type_ahead("i"), Some(Key::Component("RLISTBOX".into())));
         t.typed.clear();
@@ -811,7 +850,7 @@ mod tests {
         t.cursor = Some(Key::Component("RLABEL".into()));
         t.set_open("standard", Some(false));
         assert_eq!(t.cursor, Some(Key::Group("standard".into())));
-        assert_eq!(t.parent_of(&Key::Group("standard".into())), Some(Key::Group("rapidq".into())));
+        assert_eq!(t.parent_of(&Key::Group("standard".into())), None);
         assert_eq!(t.parent_of(&Key::Component("RPLOT".into())), Some(Key::Group("datascience".into())));
     }
 }

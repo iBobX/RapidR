@@ -27,7 +27,12 @@ pub mod dock;
 // (I1 / L-PANELS: RapidR Studio's panels as public components)
 pub mod panels;
 pub mod events;
+// (form members: OnHint, a button's drag, ShapeForm's outline)
+pub mod hints;
+pub mod drag;
+pub mod shape;
 pub mod input;
+pub mod send_keys;
 pub mod globals;
 pub mod file_dialog;
 pub mod format;
@@ -40,6 +45,8 @@ pub mod designer;
 pub mod members;
 pub mod scrollbars;
 pub mod theme;
+// (I2) The code editor's colour schemes, one per theme.
+pub mod code_scheme;
 pub mod ide_theme;
 pub mod registry;
 pub mod resources;
@@ -330,6 +337,38 @@ pub fn v_dbl(n: f64) -> Value {
 pub fn v_str(s: &str) -> Value {
     Value::String(s.to_string())
 }
+/// A RapidQ exception an object's method raises (RC.EXE's programs stop
+/// with its message: `Cannot open file x.txt.` — EFOpenError): the error
+/// text a method returns, marked, so the runtimes stop the program with a
+/// run-time error of that message instead of a warning.
+const EXCEPTION_MARK: &str = "\u{1}exception\u{1}";
+
+/// Marks `message` as a RapidQ exception ([`exception_message`]).
+pub fn exception(message: &str) -> String {
+    format!("{EXCEPTION_MARK}{message}")
+}
+
+/// The message of an error [`exception`] made; `None` for any other error.
+pub fn exception_message(error: &str) -> Option<&str> {
+    error.strip_prefix(EXCEPTION_MARK)
+}
+
+thread_local! {
+    /// An exception raised where no error can be returned (the web
+    /// runtime's object calls): its host takes it ([`take_raised`]).
+    static RAISED: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Raises RapidQ exception `message` for the host to stop the program with.
+pub fn raise(message: &str) {
+    RAISED.with(|r| *r.borrow_mut() = Some(message.to_string()));
+}
+
+/// The exception raised since, if any (taken).
+pub fn take_raised() -> Option<String> {
+    RAISED.with(|r| r.borrow_mut().take())
+}
+
 /// Run-time error in compiled (codegen) programs: report it BASIC-style and
 /// stop, rather than continuing with a wrong value.
 pub fn runtime_error(message: &str) -> ! {
@@ -1028,6 +1067,10 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
     if key == "__quicksort" {
         let idx: Vec<i64> = args.get(2..).unwrap_or(&[]).iter().map(Value::to_i64).collect();
         return Some(Ok(builtins::rp_quicksort(args.first().unwrap_or(&Value::Null), args.get(1).unwrap_or(&Value::Null), &idx)));
+    }
+    if key == "__console_cp437" {
+        console::set_cp437(true);
+        return Some(Ok(Value::Null));
     }
     if key == "__inkey_trapall" {
         return Some(Ok(builtins::rp_inkey_trap_all(args.first().unwrap_or(&Value::Null))));

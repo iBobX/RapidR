@@ -1,5 +1,5 @@
 ' panels.rr: RapidR Studio's panels in a program of your own — the
-' components the IDE is built from, docked by an RDOCKMANAGER: a toolbar,
+' components the IDE is built from, docked by an RDockManager: a toolbar,
 ' the toolbox, the project tree, a form designer with the property
 ' inspector following its selection, the output console and the command
 ' palette (Ctrl+Shift+P, or the toolbar's last button).
@@ -25,38 +25,38 @@ DECLARE SUB KeyPressed (Key AS INTEGER, Shift AS INTEGER)
 
 DIM Count AS INTEGER
 
-CREATE Form AS QFORM
+CREATE Form AS RForm
     Caption = "RapidR Studio panels"
     Width = 1180: Height = 760
     KeyPreview = 1
     OnKeyDown = KeyPressed
     Center
-    CREATE Bar AS RTOOLBAR
+    CREATE Bar AS RToolBar
         Align = alTop
         Height = 36
         OnButtonClick = ButtonClicked
     END CREATE
-    CREATE Dock AS RDOCKMANAGER
+    CREATE Dock AS RDockManager
         Align = alClient
     END CREATE
-    CREATE Box AS RTOOLBOX
+    CREATE Box AS RToolbox
         OnPick = AddComponent
         OnDragDrop = DropComponent
     END CREATE
-    CREATE Tree AS RPROJECTTREE
+    CREATE Tree AS RProjectTree
         OnOpen = OpenNode
     END CREATE
-    CREATE Insp AS RPROPERTYINSPECTOR
+    CREATE Insp AS RPropertyInspector
         OnPropertyChange = PropertyChanged
         OnEventDblClick = EventWanted
     END CREATE
-    CREATE Cons AS ROUTPUTCONSOLE
+    CREATE Cons AS ROutputConsole
         OnLinkClick = LinkClicked
     END CREATE
-    CREATE Designer AS RDESIGNSURFACE
+    CREATE Designer AS RDesignSurface
         FormCaption = "Form1"
     END CREATE
-    CREATE Palette AS RCOMMANDPALETTE
+    CREATE Palette AS RCommandPalette
         OnCommand = RunCommand
     END CREATE
 END CREATE
@@ -93,13 +93,13 @@ P = P + "[[files]]" + NL + "path = " + Q + "Form1.rr" + Q + NL + "kind = " + Q +
 P = P + "[[files]]" + NL + "path = " + Q + "strings.inc" + Q + NL + "kind = " + Q + "include" + Q + NL
 P = P + "[[files]]" + NL + "path = " + Q + "data/names.csv" + Q + NL + "kind = " + Q + "data" + Q + NL
 Tree.LoadText P, "Greeter.rrproj"
-F = "CREATE Form1 AS QFORM" + NL + "  CREATE Greet AS QBUTTON" + NL + "  END CREATE" + NL
-F = F + "  CREATE Answer AS QLABEL" + NL + "  END CREATE" + NL + "END CREATE"
+F = "CREATE Form1 AS RForm" + NL + "  CREATE Greet AS RButton" + NL + "  END CREATE" + NL
+F = F + "  CREATE Answer AS RLabel" + NL + "  END CREATE" + NL + "END CREATE"
 Tree.SetFileText "Form1.rr", F
 Tree.ExpandAll
 
 ' The designer, its first component, and the inspector following it.
-Designer.AddComponent "QBUTTON", "Button1", 24, 24, 96, 28
+Designer.AddComponent "RButton", "Button1", 24, 24, 96, 28
 Designer.SetProp 0, "Caption", "Greet"
 Designer.SelectComp 0
 Insp.Designer = Designer
@@ -112,7 +112,7 @@ Cons.AddBuildLine "Compiling Greeter.rr …"
 Cons.AddBuildLine "Form1.rr:12:5: warning: Answer is never read"
 Cons.AddBuildLine "Built in 0.21 s"
 Cons.AddProblem "Form1.rr", 12, 5, "warning", "Answer is never read"
-Cons.AddProblem "Greeter.rr", 3, 1, "info", "RapidR extension: QPLOT is RPLOT in RapidQ-compatible projects"
+Cons.AddProblem "Greeter.rr", 3, 1, "info", "RapidQ-compatible project: RPlot is RapidR's own component"
 
 ' The layout: the toolbox and the project left, the inspector right, the
 ' console under the designer.
@@ -150,7 +150,7 @@ SUB PropertyChanged (Prop AS STRING, Value AS STRING)
 END SUB
 
 SUB EventWanted (Event AS STRING)
-    Cons.WriteLine "SUB " + Insp.Target + Event + " (Sender AS QBUTTON)  ' (the IDE would write it)"
+    Cons.WriteLine "SUB " + Insp.Target + Event + " (Sender AS RButton)  ' (the IDE would write it)"
 END SUB
 
 SUB LinkClicked (File AS STRING, Line AS INTEGER)

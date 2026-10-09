@@ -3573,6 +3573,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "pulldown-cmark"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9f068eba8e7071c5f9511831b44f32c740d5adf574e990f946ddb53db2f314e"
+dependencies = [
+ "bitflags 2.11.0",
+ "memchr",
+ "unicase",
+]
+
+[[package]]
 name = "quick-xml"
 version = "0.41.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3699,7 +3710,9 @@ dependencies = [
  "rapidr-bytecode",
  "rapidr-codegen-rust",
  "rapidr-dap",
+ "rapidr-import",
  "rapidr-lang",
+ "rapidr-langsvc",
  "rapidr-lexer",
  "rapidr-lsp",
  "rapidr-package",
@@ -3815,6 +3828,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rapidr-import"
+version = "2.117.0"
+dependencies = [
+ "rapidr-ast",
+ "rapidr-bcgen",
+ "rapidr-diagnostics",
+ "rapidr-lang",
+ "rapidr-lexer",
+ "rapidr-parser",
+ "rapidr-preprocessor",
+ "rapidr-project",
+]
+
+[[package]]
 name = "rapidr-lang"
 version = "2.117.0"
 dependencies = [
@@ -3836,6 +3863,7 @@ dependencies = [
  "rapidr-bcgen",
  "rapidr-bytecode",
  "rapidr-diagnostics",
+ "rapidr-editor",
  "rapidr-lang",
  "rapidr-lexer",
  "rapidr-parser",
@@ -3884,6 +3912,7 @@ version = "2.117.0"
 dependencies = [
  "rapidr-ast",
  "rapidr-diagnostics",
+ "rapidr-lang",
  "rapidr-lexer",
  "rapidr-preprocessor",
 ]
@@ -3947,6 +3976,7 @@ dependencies = [
  "rapidr-d3d-gpu",
  "rapidr-db",
  "rapidr-lang",
+ "rapidr-langsvc",
  "rapidr-studio",
  "rapidr-ui-app",
  "rapidr-ui-host-web",
@@ -3964,6 +3994,7 @@ version = "2.117.0"
 dependencies = [
  "rapidr-bcgen",
  "rapidr-bytecode",
+ "rapidr-lang",
  "rapidr-lexer",
  "rapidr-parser",
  "rapidr-value",
@@ -3976,11 +4007,17 @@ dependencies = [
 name = "rapidr-studio"
 version = "2.117.0"
 dependencies = [
+ "rapidr-bcgen",
+ "rapidr-codegen-rust",
  "rapidr-designer",
  "rapidr-editor",
+ "rapidr-icons",
+ "rapidr-import",
  "rapidr-lang",
  "rapidr-langsvc",
+ "rapidr-lexer",
  "rapidr-package",
+ "rapidr-parser",
  "rapidr-preprocessor",
  "rapidr-project",
  "rapidr-session",
@@ -4016,6 +4053,7 @@ name = "rapidr-ui-host-winit"
 version = "2.117.0"
 dependencies = [
  "accesskit",
+ "accesskit_consumer",
  "accesskit_winit",
  "core-foundation-sys",
  "muda",
@@ -4042,6 +4080,7 @@ name = "rapidr-ui-kernel"
 version = "2.117.0"
 dependencies = [
  "parley",
+ "rapidr-editor",
  "rapidr-icons",
  "rapidr-value",
  "web-time",
@@ -4053,6 +4092,7 @@ version = "2.117.0"
 dependencies = [
  "glifo",
  "parley",
+ "rapidr-langsvc",
  "rapidr-ui-kernel",
  "rapidr-value",
  "vello",
@@ -4065,10 +4105,13 @@ version = "2.117.0"
 dependencies = [
  "jpeg-decoder",
  "proptest",
+ "pulldown-cmark",
+ "rapidr-editor",
  "rapidr-icons",
  "rapidr-lang",
  "rapidr-project",
  "resvg",
+ "serde_json",
  "ttf-parser",
  "windows-registry",
  "windows-sys 0.52.0",

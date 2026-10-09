@@ -27,6 +27,18 @@ use serde::{Deserialize, Serialize};
 /// The protocol's version ([`EventBody::Ready`]).
 pub const PROTOCOL_VERSION: u32 = 1;
 
+/// `variables { ref }` of the globals.
+pub const GLOBALS_REF: u32 = 1;
+/// `variables { ref }` of frame `i`'s locals: this plus `i`.
+pub const LOCALS_REF: u32 = 1_000;
+/// A component shown in a stop (a `Sender`, a value naming one): its
+/// properties are this plus the component's index; valid until the
+/// program goes on.
+pub const COMPONENT_REF: u32 = 500_000;
+/// Children of a value shown in a stop (an array's elements, an object's
+/// fields): this plus the value's index; valid until the program goes on.
+pub const CHILDREN_REF: u32 = 1_000_000;
+
 /// A breakpoint the IDE asks for in a file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]

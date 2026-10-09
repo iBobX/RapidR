@@ -14,8 +14,15 @@
 //!   first; likewise left / right). Among equal positions, creation order
 //!   for alTop / alLeft and the reverse for alBottom / alRight (Delphi
 //!   compares with `<` and `>=`). The control whose Align, size or
-//!   visibility just changed comes first. So `Splitter (alLeft)` created before `Tree (alLeft)` ends
-//!   up to the right of the tree, as in RapidQ.
+//!   visibility just changed comes first.
+//! * Before its form is first shown, a control has no window and RapidQ
+//!   aligns nothing (RC.EXE: every Left reads 0 until the Show): the form
+//!   lays out its children then, by the places the program gave them —
+//!   so controls aligned one after another, each a size of its own, sit in
+//!   creation order (QCOOLBTNs alLeft in a tool bar, a QSPLITTER created
+//!   before its alLeft tree is left of it), an alBottom / alRight one
+//!   nearer the edge only when it reaches further ([`align_controls_unshown`]).
+//!   RapidR keeps a form's layout current all along, in that order.
 //! * Invisible controls and those with alNone are left alone.
 //!
 //! RapidR adds Delphi's `Anchors` and `Constraints` (RapidQ had Align
@@ -132,6 +139,9 @@ pub fn default_size(type_name: &str) -> Option<(i64, i64)> {
         "RPROJECTTREE" => (240, 360),
         "ROUTPUTCONSOLE" => (480, 180),
         "RCOMMANDPALETTE" => (560, 320),
+        // (its CREATE gives it the form's width: component_defaults)
+        "RTOOLBAR" => (0, 32),
+        "RMARKDOWNVIEW" => (400, 300),
         "RCOMBOBOX" => (145, 25),
         "RLISTBOX" | "RTREEVIEW" | "RDIRTREE" => (121, 97),
         "RFILELISTBOX" => (145, 97),
@@ -147,6 +157,7 @@ pub fn default_size(type_name: &str) -> Option<(i64, i64)> {
         // RapidR's own
         "RPROGRESS" => (200, 25),
         "RCODEEDITOR" | "RWEBVIEW" => (400, 300),
+        "RDIFFVIEW" => (500, 300),
         "RDESIGNSURFACE" => (640, 480),
         // (the chart model's own size: datascience::plot)
         "RPLOT" => (640, 480),
@@ -171,13 +182,71 @@ pub const FORM_BORDER: i64 = 1;
 pub const MAIN_MENU_HEIGHT: i64 = 28;
 
 /// The frame around a form's inside: (left + right, caption + top +
-/// bottom), for its BorderStyle.
+/// bottom), for its BorderStyle — or [`FRAME_NO_CAPTION`], a frame whose
+/// title bar `HideTitleBar` took away ([`frame_style`]).
 pub fn form_frame(border_style: i64) -> (i64, i64) {
     if border_style == 0 {
         (0, 0)
+    } else if border_style == FRAME_NO_CAPTION {
+        (2 * FORM_BORDER, 2 * FORM_BORDER)
     } else {
         (2 * FORM_BORDER, FORM_CAPTION + 2 * FORM_BORDER)
     }
+}
+
+/// The frame code of a form whose title bar is hidden (`HideTitleBar`):
+/// its border without the caption. Never a BorderStyle the program sets;
+/// [`frame_style`] gives it, and every frame computation here takes it.
+pub const FRAME_NO_CAPTION: i64 = -1;
+
+thread_local! {
+    /// The forms whose title bar `HideTitleBar` hid (lowercase names).
+    static NO_TITLE_BAR: std::cell::RefCell<std::collections::HashSet<String>> = std::cell::RefCell::new(std::collections::HashSet::new());
+}
+
+/// Whether form `form`'s title bar is hidden (`HideTitleBar`, until
+/// `ShowTitleBar` or a new BorderStyle shows it again).
+pub fn title_bar_hidden(form: &str) -> bool {
+    NO_TITLE_BAR.with(|s| s.borrow().contains(&form.to_ascii_lowercase()))
+}
+
+/// Hides (or shows again) form `form`'s title bar; whether that changed
+/// anything. A form without a frame (bsNone) has no title bar to hide.
+pub fn set_title_bar_hidden(form: &str, hidden: bool, border_style: i64) -> bool {
+    let form = form.to_ascii_lowercase();
+    NO_TITLE_BAR.with(|s| {
+        let mut s = s.borrow_mut();
+        if hidden && border_style != 0 {
+            s.insert(form)
+        } else {
+            s.remove(&form)
+        }
+    })
+}
+
+/// The frame code form `form`'s frame computations take: its BorderStyle,
+/// or [`FRAME_NO_CAPTION`] while its title bar is hidden.
+pub fn frame_style(form: &str, border_style: i64) -> i64 {
+    if border_style != 0 && title_bar_hidden(form) {
+        FRAME_NO_CAPTION
+    } else {
+        border_style
+    }
+}
+
+/// `Form.HideTitleBar` / `ShowTitleBar` as RapidQ's runtime does it (RC.EXE
+/// probes, docs/manual: the form's client area keeps its size, the window
+/// loses — or gets back — its title bar's height): the form's new Height,
+/// or `None` when nothing changes (already so, or a bsNone form).
+pub fn title_bar_height_change(form: &str, show: bool, border_style: i64, height: i64) -> Option<i64> {
+    if border_style == 0 {
+        set_title_bar_hidden(form, false, 0);
+        return None;
+    }
+    if !set_title_bar_hidden(form, !show, border_style) {
+        return None;
+    }
+    Some(if show { height + FORM_CAPTION } else { (height - FORM_CAPTION).max(2 * FORM_BORDER) })
 }
 
 /// A form's client size for its Width / Height, BorderStyle and the height
@@ -233,6 +302,19 @@ pub struct Control {
 /// Align, size or visibility just changed, if any. Returns the new
 /// rectangle of every aligned, visible control, as `(index, rect)`.
 pub fn align_controls(client: Rect, controls: &[Control], changed: Option<usize>) -> Vec<(usize, Rect)> {
+    align_with(client, controls, changed, false)
+}
+
+/// [`align_controls`] for a form not shown yet: no control first, and each
+/// one where the program placed it — Left / Top 0 — so equal places keep
+/// creation order, and an alBottom / alRight control goes nearer the edge
+/// only when its far side is further (Delphi's comparison of the controls'
+/// own bounds, RC.EXE's builds at their first Show).
+pub fn align_controls_unshown(client: Rect, controls: &[Control]) -> Vec<(usize, Rect)> {
+    align_with(client, controls, None, true)
+}
+
+fn align_with(client: Rect, controls: &[Control], changed: Option<usize>, unshown: bool) -> Vec<(usize, Rect)> {
     // What's left of the client area, as edges.
     let (mut left, mut top, mut right, mut bottom) = (client.left, client.top, client.right(), client.bottom());
     let mut out = Vec::new();
@@ -248,6 +330,14 @@ pub fn align_controls(client: Rect, controls: &[Control], changed: Option<usize>
                 .iter()
                 .position(|&j| {
                     let o = controls[j].rect;
+                    if unshown {
+                        // (both at Left / Top 0: only a size can tell)
+                        return match align {
+                            Align::Bottom => r.height > o.height,
+                            Align::Right => r.width > o.width,
+                            _ => false,
+                        };
+                    }
                     match align {
                         Align::Top => r.top < o.top,
                         Align::Bottom => r.bottom() >= o.bottom(),
@@ -616,7 +706,7 @@ pub fn splitter_drag(client: Rect, controls: &[Control], splitter: usize, min_si
 /// designer's. Its stores of a laid-out rectangle must not call back into
 /// layout (the runtimes store "quietly").
 pub mod engine {
-    use super::{align_controls, anchor_controls, Align, AnchorRules, Constraints, Control, Rect, DEFAULT_ANCHORS};
+    use super::{align_controls, align_controls_unshown, anchor_controls, Align, AnchorRules, Constraints, Control, Rect, DEFAULT_ANCHORS};
 
     /// A component registry layout works on. Names are the store's own
     /// keys (any case it likes, as long as `children_of` gives the same).
@@ -656,6 +746,12 @@ pub mod engine {
         fn moved(&mut self, _name: &str) {}
         /// A container's children or size changed (its scroll bars follow).
         fn scroll_update(&mut self, _name: &str) {}
+        /// Whether `parent`'s form hasn't been shown yet (its children are
+        /// laid out as RapidQ lays them out at that first Show:
+        /// [`align_controls_unshown`]).
+        fn unshown(&self, _parent: &str) -> bool {
+            false
+        }
     }
 
     /// A container's children and what [`align_controls`] reads of them.
@@ -729,7 +825,8 @@ pub mod engine {
         }
         let (children, controls) = controls_of(s, parent);
         let changed = changed.map(|c| s.key(c)).and_then(|c| children.iter().position(|n| *n == c));
-        let moves: Vec<(String, Rect, bool)> = align_controls(s.client_rect(parent), &controls, changed)
+        let laid = if s.unshown(parent) { align_controls_unshown(s.client_rect(parent), &controls) } else { align_controls(s.client_rect(parent), &controls, changed) };
+        let moves: Vec<(String, Rect, bool)> = laid
             .into_iter()
             .filter(|(i, r)| *r != controls[*i].rect)
             .map(|(i, r)| {
@@ -809,6 +906,23 @@ mod tests {
             rects[i] = r;
         }
         rects
+    }
+
+    #[test]
+    fn before_the_first_show_creation_order() {
+        // (RC.EXE: tool buttons alLeft one after another, a splitter before
+        // its tree; alBottom panels 20 and 30 high — the higher at the
+        // edge; alRight buttons of one width — the first at the edge)
+        let client = Rect::new(0, 0, 400, 300);
+        let buttons = [c(Align::Left, 25, 0, 25, 10), c(Align::Left, 0, 0, 25, 10), c(Align::Left, 0, 0, 30, 10)];
+        let r: Vec<i64> = { let mut v = vec![0; 3]; for (i, x) in align_controls_unshown(client, &buttons) { v[i] = x.left; } v };
+        assert_eq!(r, [0, 25, 50]);
+        let bottoms = [c(Align::Bottom, 0, 280, 400, 20), c(Align::Bottom, 0, 0, 400, 30)];
+        let r: Vec<i64> = { let mut v = vec![0; 2]; for (i, x) in align_controls_unshown(client, &bottoms) { v[i] = x.top; } v };
+        assert_eq!(r, [250, 270]);
+        let rights = [c(Align::Right, 380, 0, 20, 10), c(Align::Right, 0, 0, 20, 10)];
+        let r: Vec<i64> = { let mut v = vec![0; 2]; for (i, x) in align_controls_unshown(client, &rights) { v[i] = x.left; } v };
+        assert_eq!(r, [380, 360]);
     }
 
     #[test]
@@ -896,6 +1010,17 @@ mod tests {
         assert_eq!(form_client_size(400, 300, 0, 0), (400, 300), "bsNone has no frame");
         assert_eq!(form_outer_size(398, 241, 2, 28), (400, 300));
         assert_eq!(form_client_size(1, 1, 2, 0), (0, 0));
+        // (HideTitleBar: the client keeps its size, the window loses the
+        // caption's height — RC.EXE's 300 × 200 form went to 300 × 177,
+        // its 284 × 161 client the same; ShowTitleBar gave the height back)
+        assert_eq!(title_bar_height_change("tbf", false, 2, 300), Some(271));
+        assert_eq!(frame_style("TBF", 2), FRAME_NO_CAPTION);
+        assert_eq!(form_client_size(400, 271, frame_style("tbf", 2), 0), (398, 269));
+        assert_eq!(title_bar_height_change("tbf", false, 2, 271), None, "already hidden");
+        assert_eq!(title_bar_height_change("tbf", true, 2, 271), Some(300));
+        assert_eq!(title_bar_height_change("tbf", true, 2, 300), None, "already shown");
+        assert_eq!(frame_style("tbf", 2), 2);
+        assert_eq!(title_bar_height_change("tbf", false, 0, 300), None, "bsNone has none");
     }
 
     #[test]

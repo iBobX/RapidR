@@ -239,6 +239,18 @@ pub fn editor_mouse(cx: &mut Cx, m: &MouseIn, rect: Rect) -> bool {
     }
 }
 
+/// The pointer over an in-place editor's box `rect` (in the component) while
+/// one is open: the I-beam, else the arrow (the pointer's side of
+/// [`editor_mouse`]).
+pub fn editor_pointer(cx: &Cx, rect: Rect, x: i64, y: i64) -> rapidr_value::input::Cursor {
+    let (rx, ry, rw, rh) = rect;
+    if editing(cx.id).is_some() && x >= rx && y >= ry && x < rx + rw && y < ry + rh {
+        rapidr_value::input::Cursor::IBeam
+    } else {
+        rapidr_value::input::Cursor::Default
+    }
+}
+
 /// The editor goes with the edit (no caret blinking on).
 pub fn drop_editor(cx: &mut Cx) {
     if editing(cx.id).is_none() {
@@ -570,6 +582,30 @@ pub fn replay(p: &mut Painter, ops: &[CellDraw], font: &Font, key: &str) {
                 let pic = picture_of(b.clone().display_rgba());
                 p.picture(&format!("{key}:{k}"), 0, pic, (*x, *y, w, h));
             }
+            // A filled rectangle with corners rounded by a w × h ellipse
+            // (as Bitmap::round_rect).
+            CellDraw::RoundRect(x1, y1, x2, y2, cw, ch, col) => {
+                let (l, t, w, h) = box_of(*x1, *y1, *x2, *y2);
+                let (rx, ry) = ((*cw).clamp(0, w) as f64 / 2.0, (*ch).clamp(0, h) as f64 / 2.0);
+                let (l, t, r, b) = (l as f64, t as f64, (l + w) as f64, (t + h) as f64);
+                let mut points = Vec::with_capacity(4 * 13);
+                for (cx, cy, from) in [(r - rx, t + ry, -90.0), (r - rx, b - ry, 0.0), (l + rx, b - ry, 90.0), (l + rx, t + ry, 180.0)] {
+                    for i in 0..=12 {
+                        let a = f64::to_radians(from + 90.0 * i as f64 / 12.0);
+                        points.push((cx + rx * a.cos(), cy + ry * a.sin()));
+                    }
+                }
+                p.shape(Shape { points, fill: Some(c(*col)), stroke: None });
+            }
+            // Text clipped to its rectangle, which a background fills.
+            CellDraw::TextRect(rect, x, y, text, col, bg) => {
+                let area = box_of(rect.0, rect.1, rect.2, rect.3);
+                if let Some(bg) = bg {
+                    p.fill(area, c(*bg));
+                }
+                let (tw, th) = rapidr_value::objects::text::text_size(text, font);
+                p.clipped(area, |p| p.text((*x, *y, tw.max(1) + 2, th.max(1)), text, font, c(*col), Place::TopLeft));
+            }
             // (a flood fill needs pixels: a cell that has one is drawn as a
             // picture — grid.rs)
             CellDraw::Flood(..) => {}
@@ -870,6 +906,8 @@ mod tests {
         let mut ts = TextSystem::new();
         let mut f = FormUi::build(&s, "f", false);
         drop(f.paint(&s, &mut ts, 1.0));
+        // (a list focused as the form shows: its OnEnter, focus.rs)
+        f.take_events();
         (s, f, ts)
     }
 

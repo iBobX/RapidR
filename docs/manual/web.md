@@ -42,14 +42,19 @@ A browser page has no file system. RapidR gives a program one of its own:
   deleted by `KILL`. They never reach the user's disk unless a dialog
   named them (below).
 - **Other names** are fetched from the page's own server.
+- **Files dropped on a window** (dragged from the computer onto a form
+  that has an `OnDropFiles` handler) are read whole into the program's
+  files under their names; `OnDropFiles` gets those names, and the program
+  opens them as any file. A form without the handler refuses the drop (the
+  browser doesn't replace the page with the file either).
 - Printing opens the browser's print dialog.
 
 ### Open and Save: the user's real files
 
-`QOPENDIALOG`, `QSAVEDIALOG` and `QFILEDIALOG` open the browser's own
+`ROpenDialog`, `RSaveDialog` and `RFileDialog` open the browser's own
 file pickers, as the desktop opens the system's dialogs. The program
 then reads and writes those files with its ordinary file I/O
-(`LoadFromFile`, `SaveToFile`, `QFILESTREAM`, `OPEN … FOR`):
+(`LoadFromFile`, `SaveToFile`, `RFileStream`, `OPEN … FOR`):
 
 - **Open** reads the files picked whole before `Execute` returns. Their
   names are in `FileName` / `Files(…)` — the name only: a browser never
@@ -98,16 +103,16 @@ the files stay in the browser's store.
 - `SLEEP`, `ShowModal`, `INPUT`, message boxes and dialogs wait as they do
   on the desktop; `INPUT` asks in an input box when windows are shown, and
   `PRINT` output appears in a console on the page.
-- **RSQLITE** is SQLite itself, compiled to WebAssembly; `Connect "x.db"`
+- **RSQLite** is SQLite itself, compiled to WebAssembly; `Connect "x.db"`
   opens the project's `x.db` in memory for the session (changes aren't
   saved to the browser's storage yet).
-- **QMYSQL** and **RSERVERSOCKET** don't work in a browser (no raw TCP);
-  call a server of yours with RHTTP instead. **QSOCKET / RSOCKET** connect
-  over WebSocket. **RHTTP** uses the browser's fetch, so the browser's CORS
+- **RMySQL** and **RServerSocket** don't work in a browser (no raw TCP);
+  call a server of yours with RHttp instead. **RSocket** connects over
+  WebSocket. **RHttp** uses the browser's fetch, so the browser's CORS
   rules apply.
-- **QCOMPORT** uses Web Serial, **QDXJOYSTICK** the Gamepad API, **QMIDI**
+- **RComPort** uses Web Serial, **RDXJoystick** the Gamepad API, **RMIDI**
   Web MIDI (or RapidR's own synthesizer through Web Audio), sound Web Audio.
-- **QREGISTRY** keeps its keys in a per-user store, as on macOS and Linux.
+- **RRegistry** keeps its keys in a per-user store, as on macOS and Linux.
 - A web page can't load DLLs or native libraries: a `DECLARE … LIB`
   routine (and `SENDMESSAGE` / `POSTMESSAGE` / `KILLMESSAGE`) stops the
   program with an error naming it when it's called. `RUSTSTART` blocks
@@ -123,14 +128,14 @@ components are (clipped to their parents, hidden with them):
 
 | Component | |
 |---|---|
-| `RWEBVIEW` | an embedded web page or HTML (an iframe): `URL`, `HTML`, `Sandbox` |
+| `RWebView` | an embedded web page or HTML (an iframe): `URL`, `HTML`, `Sandbox` |
 | `RDOM` | an HTML element of your own: `InnerHTML`, `CssClass`, `CssStyle`, `SetAttribute`, `AddClass`, `QuerySelector`, … |
-| `RJAVASCRIPT` | run JavaScript: `Eval(code)`, `Call(function, args…)` |
-| `RWEBSTORAGE` | `localStorage` / `sessionStorage`: `Set`, `Get`, `Remove`, `Clear`, `Keys`, `HasKey` |
-| `RWEBAUDIO`, `RWEBVIDEO` | HTML5 audio and video: `Src`, `Volume`, `Loop`, `Play`, `Pause`, `Stop`, `Seek` |
-| `RWEBNOTIFICATION` | browser notifications: `RequestPermission`, `Show` |
-| `RWEBGEOLOCATION` | the device's position: `GetPosition`, `Latitude`, `Longitude`, `Accuracy` |
-| `RROUTER` | hash routes for single-page apps: `Navigate`, `Back`, `Forward`, `OnRouteChange` |
+| `RJavaScript` | run JavaScript: `Eval(code)`, `Call(function, args…)` |
+| `RWebStorage` | `localStorage` / `sessionStorage`: `Set`, `Get`, `Remove`, `Clear`, `Keys`, `HasKey` |
+| `RWebAudio`, `RWebVideo` | HTML5 audio and video: `Src`, `Volume`, `Loop`, `Play`, `Pause`, `Stop`, `Seek` |
+| `RWebNotification` | browser notifications: `RequestPermission`, `Show` |
+| `RWebGeolocation` | the device's position: `GetPosition`, `Latitude`, `Longitude`, `Accuracy` |
+| `RRouter` | hash routes for single-page apps: `Navigate`, `Back`, `Forward`, `OnRouteChange` |
 
 They exist only in browsers: a desktop program that uses them builds and
 runs, but their methods do nothing there and print a warning.
@@ -142,5 +147,9 @@ as on the desktop, drawn by the UI kernel on the page — a folder for any
 static host (open its `index.html` through a web server). It has the form
 designer, the code editor, the project tree, the inspector, the toolbox
 and Run (the program runs in a sandboxed frame of the page). It compiles
-in the browser; nothing is sent anywhere. Building apps and web bundles is
+in the browser; nothing is sent anywhere. The data files a program names
+go with it when it runs — a `$RESOURCE` file, a CSV it loads
+(`"staff.csv"`): any file beside the program whose name is written in its
+source, as the project tree lists them under Resources, Assets and Data.
+So every example runs in the web IDE as on the desktop. Building apps and web bundles is
 the desktop's for now (Studio's Build, `rapidr bundle-bc`).

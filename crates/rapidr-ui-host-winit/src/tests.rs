@@ -42,9 +42,9 @@ fn a_size_grips_drag_resizes_the_window_as_the_user() {
     h.pump(Some(Duration::ZERO), &mut d, &s);
     // (over it, the sizing arrow; elsewhere on the bar, its own)
     d.mouse_move(&s, "frm", 195.0, 96.0, Mods::NONE, Source::Script);
-    assert_eq!(crate::platform::cursor_at(&d, &s, "frm", (195.0, 96.0)), rapidr_value::input::Cursor::SizeNWSE);
+    assert_eq!(crate::platform::cursor_at(&mut d, &s, "frm", (195.0, 96.0)), rapidr_value::input::Cursor::SizeNWSE);
     d.mouse_move(&s, "frm", 100.0, 90.0, Mods::NONE, Source::Script);
-    assert_eq!(crate::platform::cursor_at(&d, &s, "frm", (100.0, 90.0)), rapidr_value::input::Cursor::Default);
+    assert_eq!(crate::platform::cursor_at(&mut d, &s, "frm", (100.0, 90.0)), rapidr_value::input::Cursor::Default);
     d.events.clear();
     d.mouse_down(&s, "frm", (195.0, 96.0), Button::Left, Mods::NONE, Source::Script);
     d.mouse_move(&s, "frm", 225.0, 116.0, Mods::NONE, Source::Script);
@@ -53,6 +53,27 @@ fn a_size_grips_drag_resizes_the_window_as_the_user() {
     h.pump(Some(Duration::ZERO), &mut d, &s);
     assert_eq!(d.form("frm").map(|f| f.spec.size), Some((230, 120)));
     assert_eq!(d.events, vec![HostEvent::Kernel("frm".into(), KernelEvent::Resized("frm".into(), 230, 120))]);
+}
+
+/// (RapidR's OnDropFiles) The system gives a drop's files one at a time
+/// (winit's DroppedFile): one event for them all, in order; a form that
+/// isn't there, or one under a modal form, hears nothing.
+#[test]
+fn files_dropped_together_are_one_event() {
+    let s = store();
+    let mut d = desk(&s);
+    d.events.clear();
+    d.files_dropped("frm", "/data/a.csv");
+    d.files_dropped("FRM", "/data/b.txt");
+    assert_eq!(d.events, vec![HostEvent::Kernel("frm".into(), KernelEvent::DropFiles("frm".into(), vec!["/data/a.csv".into(), "/data/b.txt".into()]))]);
+    d.files_dropped("nothing", "/data/c.csv");
+    d.files_dropped("frm", "");
+    assert_eq!(d.events.len(), 1);
+    // (a second drop after the program heard the first: an event of its own)
+    d.events.clear();
+    d.files_dropped("dlg", "/data/c.csv");
+    d.files_dropped("frm", "/data/d.csv");
+    assert_eq!(d.events.len(), 2);
 }
 
 #[test]
@@ -96,6 +117,9 @@ fn window_states() {
 
 #[test]
 fn captures_are_device_pixels_on_the_cpu() {
+    // (RapidQ's look: the button's Windows face; RapidR's own look is the
+    // default since L-THEME)
+    rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
     let s = store();
     let mut d = desk(&s);
     for (scale, w, h) in [(1.0, 200, 100), (2.0, 400, 200)] {

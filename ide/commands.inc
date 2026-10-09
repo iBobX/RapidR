@@ -60,6 +60,9 @@ SUB DefineCommands
   AddCmd "file.openFolder", "Open &Folder...", "File", "", "", "", "files/folder-open"
   AddCmd "file.openExample", "Open &Example...", "File", "", "", "", "RFORM"
   AddSep "File"
+  AddCmd "file.importRapidQ", "&Import RapidQ Project or File...", "File", "", "", "", "import"
+  AddCmd "file.importRapidQFolder", "Import RapidQ Fol&der...", "File", "", "", "", "import"
+  AddSep "File"
   AddCmd "file.save", "&Save", "File", "Ctrl+S", "", "document", ""
   AddCmd "file.saveAs", "Save &As...", "File", "", "", "document", "-"
   AddCmd "file.saveAll", "Save A&ll", "File", "Ctrl+Shift+S", "", "project", ""
@@ -84,6 +87,31 @@ SUB DefineCommands
   AddCmd "edit.replace", "R&eplace...", "Edit", "Ctrl+H", "", "code", ""
   AddCmd "edit.findInFiles", "Find in F&iles...", "Edit", "Ctrl+Shift+F", "", "", ""
   AddCmd "edit.goToLine", "&Go to Line...", "Edit", "Ctrl+G", "", "code", ""
+  ' (editor.inc: the editor's own keys, shown)
+  AddCmd "edit.findNext", "Find &Next", "Edit", "", "F3", "code", "-"
+  AddCmd "edit.findPrevious", "Find Pre&vious", "Edit", "", "Shift+F3", "code", "-"
+  AddSubmenu "Edit", "Advanced", "Ad&vanced"
+  AddCmd "edit.indent", "&Indent Lines", "Edit/Advanced", "", "Ctrl+]", "code", "-"
+  AddCmd "edit.outdent", "&Outdent Lines", "Edit/Advanced", "", "Ctrl+[", "code", "-"
+  AddCmd "edit.selectNextOccurrence", "Select Next &Occurrence", "Edit/Advanced", "", "Ctrl+D", "code", "-"
+  AddCmd "edit.goToBracket", "Go to Matching &Bracket", "Edit/Advanced", "", "Ctrl+Shift+\", "code", "-"
+  AddSep "Edit/Advanced"
+  AddCmd "edit.fold", "&Fold", "Edit/Advanced", "", "Ctrl+Shift+[", "code", "-"
+  AddCmd "edit.unfold", "&Unfold", "Edit/Advanced", "", "Ctrl+Shift+]", "code", "-"
+  AddCmd "edit.foldAll", "Fold &All", "Edit/Advanced", "", "", "code", "-"
+  AddCmd "edit.unfoldAll", "Unfold A&ll", "Edit/Advanced", "", "", "code", "-"
+  AddSep "Edit/Advanced"
+  AddCmd "edit.parameterInfo", "&Parameter Info", "Edit/Advanced", "", "Ctrl+Shift+Space", "code", "-"
+  AddCmd "edit.showHover", "Show &Hover", "Edit/Advanced", "", "", "code", "-"
+  AddCmd "edit.wordWrap", "&Word Wrap", "Edit/Advanced", "", "Alt+Z", "code", "-"
+  AddSep "Edit"
+  AddCmd "edit.triggerCompletion", "Complete &Word", "Edit", "", "Ctrl+Space", "code", "-"
+  AddCmd "edit.quickFix", "&Quick Fix...", "Edit", "", "Ctrl+.", "code", "-"
+  AddCmd "edit.goToDefinition", "Go to &Definition", "Edit", "", "F12", "code", "-"
+  AddCmd "edit.findReferences", "Find Re&ferences", "Edit", "", "Shift+F12", "code", "-"
+  AddCmd "edit.rename", "Re&name Symbol...", "Edit", "", "F2", "code", "-"
+  AddCmd "edit.toggleComment", "Toggle &Comment", "Edit", "", "Ctrl+/", "code", "-"
+  AddCmd "edit.format", "F&ormat Document", "Edit", "", "Shift+Alt+F", "code", "-"
 
   ' ---- View ----
   AddCmd "view.commandPalette", "Command &Palette...", "View", "Ctrl+Shift+P", "", "", ""
@@ -96,10 +124,18 @@ SUB DefineCommands
   AddCmd "view.output", "&Output", "View", "", "", "", ""
   AddCmd "view.problems", "Pro&blems", "View", "", "", "", ""
   AddCmd "view.immediate", "&Immediate", "View", "", "", "", "terminal"
+  AddCmd "view.variables", "&Variables", "View", "", "", "", "RVARIABLESVIEW"
+  AddCmd "view.watch", "W&atch", "View", "", "", "", "debug.addWatch"
+  AddCmd "view.callStack", "Call &Stack", "View", "", "", "", "RCALLSTACKVIEW"
+  AddCmd "view.breakpoints", "&Breakpoints", "View", "", "", "", "RBREAKPOINTLIST"
   AddCmd "view.welcome", "&Welcome Page", "View", "", "", "", "help"
   AddSep "View"
   AddCmd "view.code", "&Code", "View", "F7", "", "document", ""
   AddCmd "view.designer", "&Designer", "View", "Shift+F7", "", "document", "components/designsurface"
+  AddCmd "designer.zoomIn", "Zoom &In", "View", "", "Ctrl+=", "design", ""
+  AddCmd "designer.zoomOut", "Zoom O&ut", "View", "", "Ctrl+-", "design", ""
+  AddCmd "designer.zoomReset", "Actual Si&ze", "View", "", "Ctrl+0", "design", "-"
+  AddCmd "designer.zoomToFit", "Zoom to &Fit", "View", "", "", "design", ""
   AddCmd "view.toggleDesigner", "Toggle &Form / Code", "View", "F12", "", "document", "-"
   AddCmd "view.sideBySide", "Designer and Code &Side by Side", "View", "", "", "document", "view.splitVertically"
   AddSep "View"
@@ -109,15 +145,16 @@ SUB DefineCommands
   AddCmd "view.theme.dark", "RapidR &Dark", "View/Theme", "", "", "", "-"
   AddCmd "view.theme.highcontrast", "RapidR &High Contrast", "View/Theme", "", "", "", "-"
   AddSep "View/Theme"
-  AddCmd "view.theme.classic", "&Classic (RapidQ's Windows)", "View/Theme", "", "", "", "-"
+  AddCmd "view.theme.classic", "&Classic (Windows)", "View/Theme", "", "", "", "-"
   DefinePreviewCommands
   AddSep "View"
   AddCmd "view.layout", "&Reset Layout", "View", "", "", "", ""
 
   ' ---- Project ----
   AddCmd "project.addFile", "Add &File...", "Project", "", "", "project", "file.new"
-  AddCmd "project.addForm", "Add F&orm", "Project", "", "", "project", "RFORM"
+  AddCmd "project.addForm", "Add F&orm", "Project", "", "", "addform", "RFORM"
   AddCmd "project.addModule", "Add &Module", "Project", "", "", "project", "files/rr"
+  AddCmd "designer.addForm", "Add a Form to This F&ile", "Project", "", "", "document", "RFORM"
   AddSep "Project"
   AddCmd "project.options", "Project &Options...", "Project", "", "", "project", "settings"
 
@@ -126,6 +163,7 @@ SUB DefineCommands
   AddCmd "run.withoutDebugging", "Run &Without Debugging", "Run", "Ctrl+F5", "", "idle", ""
   AddCmd "run.stop", "&Stop", "Run", "Shift+F5", "", "session", ""
   AddCmd "run.restart", "R&estart", "Run", "Ctrl+Shift+F5", "", "session", ""
+  AddCmd "run.browser", "Run in &Browser", "Run", "", "", "project", "groups/web"
   AddSep "Run"
   AddCmd "run.build", "&Build", "Run", "Ctrl+Shift+B", "", "project", ""
   AddCmd "run.buildNative", "Build &Native App", "Run", "", "", "project", "run.build"
@@ -142,8 +180,11 @@ SUB DefineCommands
   AddCmd "debug.runToCursor", "Run to C&ursor", "Debug", "Ctrl+F10", "", "code", ""
   AddSep "Debug"
   AddCmd "debug.toggleBreakpoint", "Toggle &Breakpoint", "Debug", "F9", "", "code", ""
+  AddCmd "debug.editBreakpoint", "&Edit Breakpoint...", "Debug", "Shift+F9", "", "code", "debug.addConditionalBreakpoint"
   AddCmd "debug.clearBreakpoints", "&Delete All Breakpoints", "Debug", "Ctrl+Shift+F9", "", "project", "-"
-  AddCmd "debug.addWatch", "Add &Watch...", "Debug", "", "", "project", ""
+  AddCmd "debug.addWatch", "Add &Watch", "Debug", "", "", "project", ""
+  AddSep "Debug"
+  AddCmd "debug.breakOnErrors", "Stop at Run-time &Errors", "Debug", "", "", "", "-"
 
   ' ---- Format (the designer's) ----
   AddCmd "designer.alignLeft", "Align &Lefts", "Format", "", "", "design", ""
@@ -164,6 +205,10 @@ SUB DefineCommands
   AddSep "Format"
   AddCmd "designer.bringToFront", "Bring to &Front", "Format", "", "", "design", ""
   AddCmd "designer.sendToBack", "Send to Bac&k", "Format", "", "", "design", ""
+  AddSep "Format"
+  AddCmd "designer.editCaption", "Edit &Caption", "Format", "", "F2", "design", "-"
+  AddCmd "designer.menuEditor", "&Menu Editor", "Format", "", "", "design", ""
+  AddCmd "designer.tabOrder", "Tab &Order", "Format", "", "", "design", ""
 
   ' ---- Tools ----
   AddCmd "view.settings", "&Settings...", "Tools", "", "", "", ""
@@ -262,6 +307,8 @@ FUNCTION CmdEnabled(i AS INTEGER) AS INTEGER
   SELECT CASE w
     CASE "": Result = 1
     CASE "project": Result = ProjectOpen
+    ' (Add Form: a new form file in a project, else a form in the file open)
+    CASE "addform": Result = (ProjectOpen <> 0 OR k = "code" OR k = "design")
     CASE "document": Result = (k = "code" OR k = "design")
     CASE "code": Result = (k = "code")
     CASE "design": Result = (k = "design")
@@ -306,7 +353,7 @@ SUB UpdateCommands
   CheckCmd "view.previewClassic", PreviewClassic
 END SUB
 
-SUB MenuPicked(Sender AS QMENUITEM)
+SUB MenuPicked(Sender AS RMenuItem)
   RunCommand Cmd(Sender.Tag).Id
 END SUB
 

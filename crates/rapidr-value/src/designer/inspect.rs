@@ -137,7 +137,7 @@ pub fn inspect(d: &FormDesign, sel: &[NodeId]) -> Inspected {
     let comps: Vec<_> = nodes.iter().filter_map(|n| n.component()).collect();
     let Some(c0) = comps.first() else { return out };
     let shared = |name: &str| comps.iter().all(|c| c.property(name).is_some());
-    for p in c0.properties.iter().filter(|p| p.design && p.access == rapidr_lang::Access::ReadWrite && p.indexed == 0 && shared(p.name)) {
+    for p in c0.properties.iter().filter(|p| p.design && crate::designer::inspect::designable(p) && p.indexed == 0 && shared(p.name)) {
         let values: Vec<Option<&str>> = nodes.iter().map(|n| n.prop(p.name)).collect();
         let value = values[0].map(str::to_string);
         let in_code = value.as_deref().is_some_and(|v| super::value::read(v) == super::value::PropValue::Code);
@@ -180,13 +180,49 @@ pub fn set_value(d: &FormDesign, sel: &[NodeId], prop: &str, typed: Option<&str>
         let reg = n.component().and_then(|c| c.property(prop));
         // (an existing line keeps its spelling: the command finds it by key)
         let name = n.props().rev().find(|p| super::model::prop_key(&p.name) == super::model::prop_key(prop)).map(|p| p.name.clone()).or_else(|| reg.map(|p| p.name.to_string())).unwrap_or_else(|| prop.to_string());
-        let value = typed.map(|t| reg.map_or_else(|| t.trim().to_string(), |p| spelled_for(d, p, format_value_as(p.ty, t, n.prop(prop)))));
+        let value = typed.map(|t| match (reg, font_part(prop)) {
+            (Some(p), _) => spelled_for(d, p, format_value_as(p.ty, t, n.prop(prop))),
+            // (a font's part — `Font.Name = "Arial"`, `Font.Bold = 1` — as
+            // its own type; a colour's constant as a Color's)
+            (None, Some(ty)) => {
+                let v = format_value_as(ty, t, n.prop(prop));
+                match n.component().and_then(|c| c.property("Color")).filter(|_| ty == Type::Color) {
+                    Some(color) => spelled_for(d, color, v),
+                    None => v,
+                }
+            }
+            (None, None) => t.trim().to_string(),
+        });
         if n.prop(prop).map(str::to_string) == value {
             continue;
         }
         cmds.push(Command::SetProp { node: id, name, value });
     }
     Command::Batch(cmds)
+}
+
+/// The type of a font's part written in a CREATE block (`Font.Name`,
+/// `Font.Size`, `Font.Color`, `Font.Bold` …), when `prop` is one.
+fn font_part(prop: &str) -> Option<Type> {
+    let (font, part) = prop.split_once('.')?;
+    if !font.eq_ignore_ascii_case("font") {
+        return None;
+    }
+    Some(match part.to_ascii_lowercase().as_str() {
+        "name" => Type::String,
+        "size" => Type::Int,
+        "color" => Type::Color,
+        "bold" | "italic" | "underline" | "strikeout" => Type::Bool,
+        _ => return None,
+    })
+}
+
+/// Whether the inspector edits property `p` of a component's CREATE block:
+/// read-write, or a write-only Font — RapidQ's components take a font by
+/// its parts there (`Font.Name = "Arial"`, `Font.Size = 12`, `Font.Color`,
+/// `Font.Bold`: 47 programs of RapidQ's examples set them so).
+pub fn designable(p: &rapidr_lang::Property) -> bool {
+    p.access == rapidr_lang::Access::ReadWrite || (p.ty == rapidr_lang::Type::Font && p.access == rapidr_lang::Access::Write)
 }
 
 #[cfg(test)]
@@ -233,5 +269,10 @@ mod tests {
         assert_eq!(format_value(Type::Bool, "yes"), "1");
         assert_eq!(format_value(Type::Bool, "False"), "0");
         assert_eq!(format_value_as(Type::Bool, "1", Some("False")), "True", "a line in words keeps them");
+        // a font's parts, each as its type
+        for (part, typed, written) in [("Font.Name", "Arial", "\"Arial\""), ("Font.Size", "12", "12"), ("Font.Bold", "True", "1"), ("Font.Color", "clBlue", "clBlue")] {
+            set_value(&d, &[b1], part, Some(typed)).apply(&mut d).unwrap();
+            assert_eq!(d.node(b1).unwrap().prop(part), Some(written), "{part}");
+        }
     }
 }

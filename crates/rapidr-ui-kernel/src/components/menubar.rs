@@ -33,20 +33,10 @@ use crate::paint::{caption, Painter};
 use crate::store::Store;
 use crate::tree::FormUi;
 
-/// A menu item's row in a panel.
-pub const ITEM_H: i64 = 20;
-/// A separator's row.
-pub const SEP_H: i64 = 9;
-/// A panel's frame (a raised edge and a pixel of face).
-pub const BORDER: i64 = 3;
-/// Where the check mark goes, left of the captions.
-pub const GUTTER: i64 = 17;
-/// Right of the captions and ShortCuts (the submenu arrow's place).
-const RIGHT: i64 = 17;
-/// Between the longest caption and the ShortCuts.
-const KEYS_GAP: i64 = 20;
-/// Left and right of a bar item's caption.
-const BAR_PAD: i64 = 7;
+/// A menu's metrics: the shared model's (the form designer's menu editor
+/// measures menus with the same numbers).
+pub use rapidr_value::objects::menu::{BORDER, GUTTER, ITEM_H, SEP_H};
+use rapidr_value::objects::menu::RIGHT;
 
 /// An open menu: the items under `parent` (a menu or an item) in a panel.
 #[derive(Clone, Debug, PartialEq)]
@@ -133,19 +123,13 @@ pub fn items(parent: &str) -> Vec<ItemView> {
 
 /// Menus' font (the system's menu font: RapidQ's menus have no Font).
 pub fn menu_font() -> Font {
-    // (Windows' menu font in the classic look; RapidR's chrome font in its own)
-    rapidr_value::ide_theme::chrome_font(rapidr_value::theme::current())
+    menu::menu_font()
 }
 
 /// A panel's size for its items.
 pub fn panel_size(items: &[ItemView]) -> (i64, i64) {
-    let font = menu_font();
-    let width = |s: &str| text_size(&mnemonic(s).0, &font).0;
-    let captions = items.iter().filter(|i| !i.separator).map(|i| width(&i.caption)).max().unwrap_or(0);
-    let keys = items.iter().filter(|i| !i.keys.is_empty()).map(|i| text_size(&i.keys, &font).0).max();
-    let w = BORDER * 2 + GUTTER + captions + keys.map_or(0, |k| KEYS_GAP + k) + RIGHT;
-    let h = BORDER * 2 + items.iter().map(|i| if i.separator { SEP_H } else { ITEM_H }).sum::<i64>();
-    (w.max(80), h.max(BORDER * 2 + 4))
+    let rows: Vec<(&str, &str, bool)> = items.iter().map(|i| (i.caption.as_str(), i.keys.as_str(), i.separator)).collect();
+    menu::panel_size(&rows)
 }
 
 /// Each item's row in a panel at (0, 0): its top and height.
@@ -256,14 +240,12 @@ impl FormUi {
             return Vec::new();
         }
         let Some(main) = self.main_menu(store) else { return Vec::new() };
-        let font = menu_font();
         let mut x = 0;
         items(&main)
             .into_iter()
             .filter(|i| !i.separator)
             .map(|i| {
-                let pad = if rapidr_value::theme::current().fluent() { BAR_PAD + 3 } else { BAR_PAD };
-                let w = text_size(&mnemonic(&i.caption).0, &font).0 + 2 * pad;
+                let w = menu::bar_item_width(&i.caption);
                 let r = (x, 0, w, self.menu_offset);
                 x += w;
                 (i, r)

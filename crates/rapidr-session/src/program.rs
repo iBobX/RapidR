@@ -17,15 +17,13 @@ use rapidr_vm::{Debugger, Host, Resume, StopInfo, StopReason, Vm, EVAL_FUEL};
 
 use crate::protocol::{Command, Event, EventBody, PlacedBreakpoint, Request, ScopeInfo, StackFrame, Variable};
 
-/// `variables { ref }` of the globals.
-pub const GLOBALS_REF: u32 = 1;
-/// `variables { ref }` of frame `i`'s locals: this plus `i`.
-pub const LOCALS_REF: u32 = 1_000;
-/// Children of a value shown in a stop (an array's elements, an object's
-/// fields): this plus the value's index; valid until the program goes on.
-pub const CHILDREN_REF: u32 = 1_000_000;
+pub use crate::protocol::{CHILDREN_REF, COMPONENT_REF, GLOBALS_REF, LOCALS_REF};
 /// Elements of an array shown when `variables` doesn't say how many.
 pub const PAGE: u32 = 100;
+
+/// A pause's description when the program was waiting for its events (a
+/// ShowModal, a dialog): the `stopped` event's.
+pub const WAITING_NOTE: &str = "Waiting for events";
 
 /// What the host does after a request ([`ProgramEnd::handle`]).
 #[derive(Debug, Clone, PartialEq)]
@@ -49,10 +47,89 @@ pub enum Control {
 pub struct ProgramEnd {
     /// Values whose children were offered in this stop.
     children: Vec<Value>,
+    /// Components offered in this stop (their properties: COMPONENT_REF).
+    components: Vec<String>,
     /// The next stop is the entry's (`stopOnEntry`).
     entry_pending: bool,
     /// The program has started (`start` came).
     pub started: bool,
+    /// The breakpoints as the IDE set them, where they landed, and their
+    /// hits: what decides whether a breakpoint stops ([`Self::at_breakpoint`]).
+    breakpoints: Vec<Placed>,
+    /// Why the program stopped beyond its reason (a condition that failed
+    /// to evaluate): the next `stopped` event's description.
+    note: Option<String>,
+}
+
+/// A breakpoint where it landed, with its condition, hit count, log
+/// message and how often it was reached with its condition true.
+#[derive(Debug, Clone)]
+struct Placed {
+    file: String,
+    line: u32,
+    condition: Option<String>,
+    hit: Option<String>,
+    log: Option<String>,
+    hits: u32,
+}
+
+impl Placed {
+    fn same_rules(&self, other: &Placed) -> bool {
+        self.line == other.line && self.condition == other.condition && self.hit == other.hit && self.log == other.log && self.file.eq_ignore_ascii_case(&other.file)
+    }
+}
+
+/// Whether hit `hits` (from 1) of a breakpoint satisfies its hit count
+/// `rule`: `N` or `= N` (the Nth hit only), `>= N`, `> N`, `< N`, `<= N`,
+/// `% N` (every Nth). A rule that doesn't read as one of these always
+/// does.
+pub fn hit_matches(rule: &str, hits: u32) -> bool {
+    let r = rule.trim();
+    let (op, rest) = ["==", ">=", "<=", "=", ">", "<", "%"].iter().find_map(|op| r.strip_prefix(op).map(|rest| (*op, rest))).unwrap_or(("=", r));
+    let Ok(n) = rest.trim().parse::<u32>() else { return true };
+    match op {
+        ">=" => hits >= n,
+        "<=" => hits <= n,
+        ">" => hits > n,
+        "<" => hits < n,
+        "%" => n == 0 || hits % n == 0,
+        _ => hits == n,
+    }
+}
+
+/// A logpoint's message: each `{expression}` replaced by its value (`{{`
+/// and `}}` are braces), `eval` giving the value's text.
+pub fn interpolate(message: &str, mut eval: impl FnMut(&str) -> String) -> String {
+    let mut out = String::new();
+    let mut chars = message.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '{' if chars.peek() == Some(&'{') => {
+                chars.next();
+                out.push('{');
+            }
+            '}' if chars.peek() == Some(&'}') => {
+                chars.next();
+                out.push('}');
+            }
+            '{' => {
+                let mut expr = String::new();
+                let mut depth = 0;
+                for c in chars.by_ref() {
+                    match c {
+                        '{' => depth += 1,
+                        '}' if depth == 0 => break,
+                        '}' => depth -= 1,
+                        _ => {}
+                    }
+                    expr.push(c);
+                }
+                out.push_str(&eval(expr.trim()));
+            }
+            c => out.push(c),
+        }
+    }
+    out
 }
 
 impl ProgramEnd {
@@ -63,6 +140,7 @@ impl ProgramEnd {
     /// The program goes on: the references of the last stop are gone.
     pub fn resumed(&mut self) {
         self.children.clear();
+        self.components.clear();
     }
 
     /// The `stopped` event for where the VM stopped now.
@@ -78,8 +156,56 @@ impl ProgramEnd {
             Some((file, line)) => (file, Some(line)),
             None => (None, None),
         };
-        let description = (vm.stop_reason == StopReason::Exception).then(|| vm.stop_error.clone()).flatten();
+        let description = match vm.stop_reason {
+            StopReason::Exception => vm.stop_error.clone(),
+            // (paused while it waits: a ShowModal, a dialog — no code runs)
+            StopReason::Pause if vm.frames.last().is_some_and(|f| f.waiting) => Some(WAITING_NOTE.to_string()),
+            _ => self.note.take(),
+        };
         Event::new(EventBody::Stopped { reason: reason.into(), file, line, description })
+    }
+
+    /// At a breakpoint's stop: whether the program stops there. The
+    /// breakpoint's condition is evaluated in the stopped frame (false: it
+    /// goes on, the hit not counted), then its hit count is checked, then a
+    /// logpoint prints its message (`output` gets the event) and goes on.
+    /// A condition that fails to evaluate stops, saying why. Other stops
+    /// (a step, a pause, an error) always stop.
+    pub fn at_breakpoint<H: Host + ?Sized>(&mut self, vm: &mut Vm<'_, H>, module: &Module, output: &mut dyn FnMut(Event)) -> bool {
+        if vm.stop_reason != StopReason::Breakpoint || self.entry_pending {
+            return true;
+        }
+        let Some(top) = vm.frames.len().checked_sub(1) else { return true };
+        let Some((Some(file), line)) = vm.frame_location(module, top) else { return true };
+        let name = |f: &str| f.rsplit(['/', '\\']).next().unwrap_or(f).to_ascii_lowercase();
+        let Some(i) = self.breakpoints.iter().position(|b| b.line == line && name(&b.file) == name(&file)) else { return true };
+        if let Some(cond) = self.breakpoints[i].condition.clone().filter(|c| !c.trim().is_empty()) {
+            match self.evaluate(vm, module, Some(top), &cond) {
+                Ok(v) if !v.to_bool() => return false,
+                Ok(_) => {}
+                Err(e) => {
+                    self.note = Some(format!("The breakpoint's condition `{cond}` failed: {e}"));
+                    return true;
+                }
+            }
+        }
+        self.breakpoints[i].hits += 1;
+        let b = self.breakpoints[i].clone();
+        if let Some(rule) = b.hit.as_deref().filter(|r| !r.trim().is_empty()) {
+            if !hit_matches(rule, b.hits) {
+                return false;
+            }
+        }
+        if let Some(message) = b.log.as_deref().filter(|m| !m.is_empty()) {
+            let text = interpolate(message, |expr| match self.evaluate(vm, module, Some(top), expr) {
+                Ok(Value::String(s)) => s,
+                Ok(v) => rapidr_value::format::print_text(&v),
+                Err(e) => format!("<{e}>"),
+            });
+            output(Event::new(EventBody::Output { stream: "stdout".into(), text: text + "\n" }));
+            return false;
+        }
+        true
     }
 
     /// Serves one request on `vm` running `module` (`paused`: stopped at a
@@ -114,6 +240,19 @@ impl ProgramEnd {
             Command::SetBreakpoints { file, breakpoints } => {
                 let lines: Vec<u32> = breakpoints.iter().map(|b| b.line).collect();
                 let placed = vm.set_file_breakpoints(module, &file, &lines);
+                // (their rules, where they landed; a breakpoint whose rules
+                // didn't change keeps its hits)
+                let old: Vec<Placed> = self.breakpoints.iter().filter(|b| b.file.eq_ignore_ascii_case(&file)).cloned().collect();
+                self.breakpoints.retain(|b| !b.file.eq_ignore_ascii_case(&file));
+                for (b, at) in breakpoints.iter().zip(&placed) {
+                    if let Some(at) = *at {
+                        let mut p = Placed { file: file.clone(), line: at, condition: b.condition.clone(), hit: b.hit.clone(), log: b.log.clone(), hits: 0 };
+                        if let Some(o) = old.iter().find(|o| o.same_rules(&p)) {
+                            p.hits = o.hits;
+                        }
+                        self.breakpoints.push(p);
+                    }
+                }
                 // (a program that asks for breakpoints is debugged)
                 if !lines.is_empty() && !self.started {
                     vm.debug_mode = true;
@@ -175,7 +314,7 @@ impl ProgramEnd {
                     self.run(vm, module, frame, text, true).map(|_| (String::new(), String::new(), 0))
                 } else {
                     let text = text.strip_prefix('?').unwrap_or(text);
-                    self.evaluate(vm, module, frame, text).map(|v| self.render(&v))
+                    self.evaluate(vm, module, frame, text).map(|v| self.render_in(vm, &v))
                 };
                 let event = match result {
                     Ok((result, kind, reference)) => Event::reply(seq, EventBody::Evaluate { result, kind, reference }),
@@ -190,7 +329,7 @@ impl ProgramEnd {
                     .and_then(|_| self.evaluate(vm, module, frame, &name))
                 {
                     Ok(v) => {
-                        let (result, kind, reference) = self.render(&v);
+                        let (result, kind, reference) = self.render_in(vm, &v);
                         Event::reply(seq, EventBody::Evaluate { result, kind, reference })
                     }
                     Err(e) => Event::error(seq, e),
@@ -205,12 +344,12 @@ impl ProgramEnd {
                 (reply(event), Control::None)
             }
             Command::Properties { object } => {
-                let event = match vm.host.component_properties(&object) {
-                    Some((kind, mut props)) => {
-                        props.sort_by(|a, b| a.0.cmp(&b.0));
+                let event = match component_properties(vm, &object) {
+                    Some((kind, props)) => {
                         let properties = props
                             .into_iter()
                             .map(|(name, v)| {
+                                // (a property's text is a value, not a component it names)
                                 let (value, kind, reference) = self.render(&v);
                                 Variable { name, value, kind, reference, count: 0 }
                             })
@@ -257,7 +396,7 @@ impl ProgramEnd {
         vm.evaluate(&snippet.module, snippet.function, frame, write_back, EVAL_FUEL).map(drop).map_err(|e| e.to_string())
     }
 
-    fn variables<H: Host + ?Sized>(&mut self, vm: &Vm<'_, H>, module: &Module, reference: u32, start: u32, count: u32) -> Result<Vec<Variable>, String> {
+    fn variables<H: Host + ?Sized>(&mut self, vm: &mut Vm<'_, H>, module: &Module, reference: u32, start: u32, count: u32) -> Result<Vec<Variable>, String> {
         let mut named: Vec<(String, Value)> = Vec::new();
         if reference == GLOBALS_REF {
             // (only the program's globals: a routine's STATICs and its own
@@ -269,7 +408,11 @@ impl ProgramEnd {
                 }
             }
             named.sort_by_key(|(n, _)| n.to_ascii_lowercase());
-        } else if (LOCALS_REF..CHILDREN_REF).contains(&reference) {
+        } else if (COMPONENT_REF..CHILDREN_REF).contains(&reference) {
+            let id = self.components.get((reference - COMPONENT_REF) as usize).cloned().ok_or("that component is gone (the program went on)")?;
+            let (_, props) = component_properties(vm, &id).ok_or_else(|| format!("{id}: no such component"))?;
+            named = props;
+        } else if (LOCALS_REF..COMPONENT_REF).contains(&reference) {
             let i = (reference - LOCALS_REF) as usize;
             let frame = vm.frames.get(i).ok_or_else(|| format!("no frame {i}"))?;
             let names = module.functions.get(frame.fn_index as usize).map(|f| &f.local_names[..]).unwrap_or(&[]);
@@ -309,10 +452,13 @@ impl ProgramEnd {
         } else {
             return Err(format!("no variables {reference}"));
         }
+        // (a component's properties: their text is a value — a Caption that
+        // happens to name a component isn't that component)
+        let properties = (COMPONENT_REF..CHILDREN_REF).contains(&reference);
         Ok(named
             .into_iter()
             .map(|(name, v)| {
-                let (value, kind, reference) = self.render(&v);
+                let (value, kind, reference) = if properties { self.render(&v) } else { self.render_in(vm, &v) };
                 let count = match &v {
                     Value::Array(a) => a.borrow().data.len() as u32,
                     Value::Object(o) => o.names.len() as u32,
@@ -340,10 +486,54 @@ impl ProgramEnd {
         }
     }
 
+    /// [`Self::render`], and a string naming one of the program's
+    /// components (a handler's `Sender`) shown as that component: its type,
+    /// its properties as children.
+    fn render_in<H: Host + ?Sized>(&mut self, vm: &mut Vm<'_, H>, v: &Value) -> (String, String, u32) {
+        if let Value::String(s) = v {
+            let id = s.as_str();
+            if !id.is_empty() && id.len() <= 64 && id.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '(' | ')' | '.')) {
+                if let Some(kind) = vm.host.component_type(id) {
+                    let shown = rapidr_lang::component(&kind).map_or(kind.clone(), |c| c.written_name().to_string());
+                    let index = match self.components.iter().position(|c| c.eq_ignore_ascii_case(id)) {
+                        Some(i) => i,
+                        None => {
+                            self.components.push(id.to_string());
+                            self.components.len() - 1
+                        }
+                    };
+                    return (format!("{} ({shown})", quoted(id)), shown, COMPONENT_REF + index as u32);
+                }
+            }
+        }
+        self.render(v)
+    }
+
     fn child(&mut self, v: &Value) -> u32 {
         self.children.push(v.clone());
         CHILDREN_REF + (self.children.len() - 1) as u32
     }
+}
+
+/// A component's type (its Q name when it has one) and its properties as
+/// the language registry lists them, each read through the host as the
+/// program reads it (`None`: not a component).
+#[allow(clippy::type_complexity)]
+fn component_properties<H: Host + ?Sized>(vm: &mut Vm<'_, H>, id: &str) -> Option<(String, Vec<(String, Value)>)> {
+    let kind = vm.host.component_type(id)?;
+    let comp = rapidr_lang::component(&kind);
+    let shown = comp.map_or(kind.clone(), |c| c.written_name().to_string());
+    let mut props = Vec::new();
+    for p in comp.map(|c| c.properties).unwrap_or(&[]) {
+        if p.indexed > 0 || p.missing || p.access == rapidr_lang::Access::Write {
+            continue;
+        }
+        if let Ok(v) = vm.host.get_prop(id, p.name) {
+            props.push((p.name.to_string(), v));
+        }
+    }
+    props.sort_by_key(|(n, _)| n.to_ascii_lowercase());
+    Some((shown, props))
 }
 
 /// Compiler-made names (`__for_end1`, the result slot) aren't shown.
@@ -437,6 +627,12 @@ impl BlockingDebugger {
 
 impl<H: Host + ?Sized> Debugger<H> for BlockingDebugger {
     fn stopped(&mut self, vm: &mut Vm<'_, H>, module: &Module, _stop: &StopInfo) -> Resume {
+        // (a breakpoint whose condition, hit count or log says go on)
+        let send = &self.send;
+        if !self.end.at_breakpoint(vm, module, &mut |e| send(&e)) {
+            self.end.resumed();
+            return Resume::Continue;
+        }
         let event = self.end.stopped_event(vm, module);
         (self.send)(&event);
         loop {
@@ -606,5 +802,191 @@ mod tests {
         assert!(matches!(by_re(7), EventBody::Evaluate { ref result, .. } if result == "42"), "{:?}", by_re(7));
         // (the main program's frame has none of them)
         assert!(names(8).iter().all(|(n, _)| n != "hits" && n != "p" && !n.contains("__") && !n.contains("::")), "{:?}", names(8));
+    }
+
+    #[test]
+    fn hit_counts_and_messages() {
+        assert!(hit_matches("3", 3) && !hit_matches("3", 4) && !hit_matches("= 3", 2));
+        assert!(hit_matches(">= 2", 2) && hit_matches(">2", 3) && !hit_matches("> 2", 2));
+        assert!(hit_matches("% 3", 6) && !hit_matches("%3", 5) && hit_matches("<= 1", 1) && !hit_matches("< 1", 1));
+        assert!(hit_matches("whatever", 1));
+        assert_eq!(interpolate("i = {i}, {{x}} {a + 1}", |e| format!("[{e}]")), "i = [i], {x} [a + 1]");
+    }
+
+    /// A condition, a hit count and a logpoint, decided where the program
+    /// stops (desktop): the loop's line stops only when `i > 2` and only
+    /// from its second such hit (i = 4); the logpoint prints every pass and
+    /// never stops; a condition that can't be evaluated stops and says so.
+    #[test]
+    fn conditions_hit_counts_and_logpoints() {
+        let src = "total = 0\nFOR i = 1 TO 5\n  total = total + i\n  x = i * 10\nNEXT\nzz = 1\nPRINT total\n";
+        let m = compile_program(src);
+        let (tx, rx) = mpsc::channel();
+        let sent: Rc<RefCell<Vec<Event>>> = Rc::default();
+        let log = sent.clone();
+        let mut dbg = BlockingDebugger::new(rx, Box::new(move |e| log.borrow_mut().push(e.clone())));
+        let mut host = StubHost::default();
+        let mut vm = Vm::new(&mut host);
+        let bps = vec![
+            SourceBreakpoint { line: 3, condition: Some("i > 2".into()), hit: Some(">= 2".into()), log: None },
+            SourceBreakpoint { line: 4, condition: None, hit: None, log: Some("pass {i}: {total}".into()) },
+            SourceBreakpoint { line: 6, condition: Some("nosuch(".into()), hit: None, log: None },
+        ];
+        tx.send(req(1, Command::SetBreakpoints { file: "prog.bas".into(), breakpoints: bps })).unwrap();
+        tx.send(req(2, Command::Start { program: None, args: vec![], debug: true, stop_on_entry: false, break_on_error: false })).unwrap();
+        assert_eq!(dbg.until_start(&mut vm, &m), Some(false));
+        for (seq, c) in [
+            (3, Command::Evaluate { expr: "i".into(), frame: None, context: None }),
+            (4, Command::Continue),
+            (5, Command::Evaluate { expr: "i".into(), frame: None, context: None }),
+            (6, Command::Continue),
+            (7, Command::Continue),
+        ] {
+            tx.send(req(seq, c)).unwrap();
+        }
+        vm.debug_mode = true;
+        vm.debugger = Some(Box::new(dbg));
+        vm.run(&m).unwrap();
+        drop(vm);
+        assert_eq!(host.output.trim(), "15");
+        let sent = sent.borrow();
+        let by_re = |re: u64| sent.iter().find(|e| e.re == Some(re)).map(|e| e.body.clone()).unwrap();
+        // (the first stop: i = 4 — the hits were i = 3 (1st) and i = 4 (2nd))
+        assert!(matches!(by_re(3), EventBody::Evaluate { ref result, .. } if result == "4"), "{:?}", by_re(3));
+        assert!(matches!(by_re(5), EventBody::Evaluate { ref result, .. } if result == "5"), "{:?}", by_re(5));
+        let stops: Vec<(u32, Option<String>)> = sent
+            .iter()
+            .filter_map(|e| match &e.body {
+                EventBody::Stopped { line, description, .. } if e.re.is_none() => Some((line.unwrap_or(0), description.clone())),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(stops.len(), 3, "{stops:?}");
+        assert_eq!((stops[0].0, stops[1].0, stops[2].0), (3, 3, 6));
+        assert!(stops[2].1.as_deref().is_some_and(|d| d.contains("nosuch(")), "{stops:?}");
+        let logs: String = sent
+            .iter()
+            .filter_map(|e| match &e.body {
+                EventBody::Output { text, .. } => Some(text.clone()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(logs, "pass 1: 1\npass 2: 3\npass 3: 6\npass 4: 10\npass 5: 15\n");
+    }
+
+    /// A host whose ShowModal waits for its events: three turns of the
+    /// window system (`pump`), then the form is closed (its result 1). The
+    /// IDE's pause arrives during the first turn (the reader's interrupt).
+    #[derive(Default)]
+    struct ModalHost {
+        inner: StubHost,
+        started: bool,
+        left: u32,
+        pumps: u32,
+        interrupt: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+    }
+
+    impl Host for ModalHost {
+        fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String> {
+            self.inner.call_builtin(name, args)
+        }
+        fn create_comp(&mut self, kind: &str, id: &str) -> Result<Value, String> {
+            self.inner.create_comp(kind, id)
+        }
+        fn set_prop(&mut self, id: &str, name: &str, value: Value) -> Result<(), String> {
+            self.inner.set_prop(id, name, value)
+        }
+        fn get_prop(&mut self, id: &str, name: &str) -> Result<Value, String> {
+            self.inner.get_prop(id, name)
+        }
+        fn call_method(&mut self, id: &str, method: &str, args: &[Value]) -> Result<Value, String> {
+            if method.eq_ignore_ascii_case("showmodal") {
+                self.started = true;
+                self.left = 3;
+                return Ok(Value::Null);
+            }
+            self.inner.call_method(id, method, args)
+        }
+        fn register_event(&mut self, id: &str, event: &str, handler_fn_index: u32) -> Result<(), String> {
+            self.inner.register_event(id, event, handler_fn_index)
+        }
+        fn print(&mut self, s: &str) -> Result<(), String> {
+            self.inner.print(s)
+        }
+        fn input(&mut self) -> Result<String, String> {
+            self.inner.input()
+        }
+        fn wait_started(&mut self) -> bool {
+            std::mem::take(&mut self.started)
+        }
+        fn pump(&mut self) -> Option<Value> {
+            self.pumps += 1;
+            if self.pumps == 1 {
+                if let Some(flag) = &self.interrupt {
+                    flag.store(true, std::sync::atomic::Ordering::Relaxed);
+                }
+            }
+            if self.left == 0 {
+                return Some(Value::Integer(1));
+            }
+            self.left -= 1;
+            None
+        }
+    }
+
+    /// A pause while the program waits for its events (its ShowModal; no
+    /// code runs): it stops at once at the line that waits, "Waiting for
+    /// events", its variables there; Step Over goes on with the wait and
+    /// stops at the line after it once the form is closed.
+    #[test]
+    fn a_pause_while_the_program_waits_stops_at_the_waiting_line() {
+        let src = "DIM clicks AS INTEGER\nCREATE Main AS QFORM\nEND CREATE\nclicks = 5\nMain.ShowModal\nPRINT clicks\n";
+        let m = compile_program(src);
+        let (tx, rx) = mpsc::channel();
+        let sent: Rc<RefCell<Vec<Event>>> = Rc::default();
+        let log = sent.clone();
+        // (the IDE's side: at each stop, what it asks)
+        let ide = tx.clone();
+        let stops = Rc::new(std::cell::Cell::new(0));
+        let mut dbg = BlockingDebugger::new(
+            rx,
+            Box::new(move |e: &Event| {
+                log.borrow_mut().push(e.clone());
+                if matches!(e.body, EventBody::Stopped { .. }) && e.re.is_none() {
+                    stops.set(stops.get() + 1);
+                    let next = if stops.get() == 1 { Command::StepOver } else { Command::Continue };
+                    ide.send(req(10 * stops.get(), Command::StackTrace)).unwrap();
+                    ide.send(req(10 * stops.get() + 1, Command::Evaluate { expr: "clicks * 2".into(), frame: None, context: None })).unwrap();
+                    ide.send(req(10 * stops.get() + 2, next)).unwrap();
+                }
+            }),
+        );
+        let flag = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let mut host = ModalHost { interrupt: Some(flag.clone()), ..ModalHost::default() };
+        let mut vm = Vm::new(&mut host);
+        vm.interrupt = flag;
+        tx.send(req(1, Command::Start { program: None, args: vec![], debug: true, stop_on_entry: false, break_on_error: false })).unwrap();
+        assert_eq!(dbg.until_start(&mut vm, &m), Some(false));
+        tx.send(req(2, Command::Pause)).unwrap();
+        vm.debugger = Some(Box::new(dbg));
+        vm.run(&m).unwrap();
+        drop(vm);
+        assert_eq!(host.inner.output.trim(), "5");
+        assert_eq!(host.pumps, 4, "the wait went on after the pause");
+        let sent = sent.borrow();
+        let by_re = |re: u64| sent.iter().find(|e| e.re == Some(re)).map(|e| e.body.clone()).unwrap();
+        let stops: Vec<(String, u32, Option<String>)> = sent
+            .iter()
+            .filter_map(|e| match &e.body {
+                EventBody::Stopped { reason, line, description, .. } if e.re.is_none() => Some((reason.clone(), line.unwrap_or(0), description.clone())),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(stops, vec![("pause".to_string(), 5, Some(WAITING_NOTE.to_string())), ("step".to_string(), 6, None)]);
+        let EventBody::StackTrace { frames } = by_re(10) else { panic!("{:?}", by_re(10)) };
+        assert_eq!(frames.iter().map(|f| f.line).collect::<Vec<_>>(), vec![5]);
+        assert!(matches!(by_re(11), EventBody::Evaluate { ref result, .. } if result == "10"), "{:?}", by_re(11));
+        let EventBody::StackTrace { frames } = by_re(20) else { panic!("{:?}", by_re(20)) };
+        assert_eq!(frames.iter().map(|f| f.line).collect::<Vec<_>>(), vec![6]);
     }
 }

@@ -231,37 +231,6 @@ impl DxScreen {
         }
         Some(Value::Null)
     }
-
-    /// `TextRect(Rect, x, y, S$, fc, bc)`: TextOut clipped to the
-    /// rectangle `(l, t, r, b)`.
-    pub fn text_rect(&mut self, (l, t, r, b): (i64, i64, i64, i64), args: &[Value]) {
-        let before = self.back.clone();
-        self.back.call("textout", args);
-        // What the text drew outside the rectangle goes back as it was.
-        let (w, h) = (self.back.img.width as i64, self.back.img.height as i64);
-        let inside = |x: i64, y: i64| x >= l && x < r && y >= t && y < b;
-        for y in 0..h {
-            for x in 0..w {
-                if !inside(x, y) {
-                    let i = (y * w + x) as usize;
-                    self.back.img.pixels[i] = before.img.pixels[i];
-                }
-            }
-        }
-        if let (Some(hi), Some(old)) = (self.back.hi.as_deref_mut(), before.hi.as_deref()) {
-            if (hi.img.width, hi.img.height, hi.scale) == (old.img.width, old.img.height, old.scale) {
-                let s = hi.scale as i64;
-                let hw = hi.img.width as i64;
-                for (i, p) in hi.img.pixels.iter_mut().enumerate() {
-                    let (x, y) = (i as i64 % hw, i as i64 / hw);
-                    if !inside(x.div_euclid(s), y.div_euclid(s)) {
-                        *p = old.img.pixels[i];
-                    }
-                }
-            }
-        }
-        self.back.touch();
-    }
 }
 
 /// Where a screen's picture goes in its control (logical pixels): the
@@ -956,7 +925,9 @@ impl DxSound {
         match method {
             "play" => self.play(id),
             "stop" => self.stop(id),
-            "update" => {}
+            // (DirectSound's buffer made again after the device lost it:
+            // RapidR's sound never loses its buffer — nothing to do)
+            "update" | "recreatebuf" => {}
             _ => return None,
         }
         Some(Value::Null)
@@ -1101,16 +1072,6 @@ mod tests {
         fixed.call("init", &[v_int(32), v_int(16)]);
         initialize(&mut fixed, 183, 94, false);
         assert_eq!((fixed.back.img.width, fixed.back.img.height), (32, 16), "AutoSize off");
-    }
-
-    #[test]
-    fn text_rect_clips() {
-        let mut s = DxScreen::default();
-        s.call("init", &[v_int(60), v_int(20)]);
-        initialize(&mut s, 60, 20, true);
-        s.text_rect((0, 0, 5, 20), &[v_int(0), v_int(0), v_str("WWWW"), v_int(0xFFFFFF), v_int(0xFF)]);
-        assert_eq!(s.back.pixel(2, 2), Some(0xFF), "inside: the text's background");
-        assert_eq!(s.back.pixel(20, 2), Some(0), "outside: as it was");
     }
 
     /// Text in MS Sans Serif 8 by default; View.*; Rotate a quarter turn

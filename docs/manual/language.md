@@ -1,6 +1,6 @@
 # The language
 
-RapidR's language is RapidQ's BASIC. This chapter is a working summary,
+RapidR's language is a RapidQ-compatible BASIC. This chapter is a working summary,
 with the rules where RapidQ (and so RapidR) differs from QBasic, VB or other
 BASICs — those are the ones that surprise people. Every example here was
 run with RapidR 2.117.0; native builds, the interpreter and the web give the
@@ -11,7 +11,9 @@ RapidR also accepts some syntax RapidQ doesn't (VB's `#If`, `ON ERROR`,
 
 ## Source files
 
-- Extensions `.bas` (RapidQ's) and `.rr` (RapidR's) are the same language.
+- Extensions `.bas` and `.rr` are the same language. The other extensions
+  RapidQ's editors saved programs with are accepted too: `.rqw`, `.rqb` and
+  `.rq` (run, built, opened in RapidR Studio and `$INCLUDE`d like a `.bas`).
   A file is read as UTF-8; one that isn't valid UTF-8 is read as
   Windows-1252 (ANSI), as RapidQ's programs usually are.
 - **Case doesn't matter** in keywords, names, components and builtins.
@@ -101,7 +103,7 @@ From the loosest: `OR`, `XOR` · `AND` · `NOT` · comparisons (`=`, `<>`,
   `DEC x [, n]`.
 - `@var` passes a variable by reference.
 
-## Printing numbers: RapidQ's rules
+## Printing numbers: the rules RapidQ has
 
 RapidR prints numbers exactly as RapidQ does (checked against RapidQ's
 compiler, RC.EXE):
@@ -249,29 +251,29 @@ l.Bump 1
 PRINT l.Shout                 ' COUNTER=101
 ```
 
-- `TYPE TMyButton EXTENDS QBUTTON` makes a component of your own, with
+- `TYPE TMyButton EXTENDS RButton` makes a component of your own, with
   `EVENT OnSomething … END EVENT` blocks.
 - `WITH obj … END WITH` and `.Member` inside it.
-- Arrays of TYPEs and of components: `DIM lbl(1 TO 3) AS QLABEL`.
+- Arrays of TYPEs and of components: `DIM lbl(1 TO 3) AS RLabel`.
 
 ## Components
 
 ```basic
-CREATE Form AS QFORM
+CREATE Form AS RForm
     Caption = "Title"
-    CREATE Btn AS QBUTTON
+    CREATE Btn AS RButton
         Caption = "OK"
         OnClick = OkClick
     END CREATE
 END CREATE
-DIM Font AS QFONT             ' a non-visual object
+DIM Font AS RFont             ' a non-visual object
 ```
 
 See [Components and objects](components.md).
 
 ## Strings
 
-The builtins are RapidQ's: `LEFT$`, `MID$`, `RIGHT$`, `INSTR`, `RINSTR`,
+The builtins are the ones RapidQ has: `LEFT$`, `MID$`, `RIGHT$`, `INSTR`, `RINSTR`,
 `UCASE$`, `LCASE$`, `TRIM$`, `REPLACE$` (overwrites at a position),
 `REPLACESUBSTR$` (find and replace), `INSERT$`, `DELETE$`, `REVERSE$`,
 `FIELD$`, `TALLY`, `STRING$`, `SPACE$`, `CHR$`, `ASC`, `HEX$`, `BIN$`,
@@ -299,10 +301,11 @@ CLOSE #f
 PRINT FILEEXISTS("notes.txt"), FILELEN("notes.txt")
 ```
 
-RapidQ's stream objects do the same with methods: `QFILESTREAM` (`Open`,
+The stream objects do the same with methods: `RFileStream` (RapidQ's
+`QFILESTREAM`: `Open`,
 `ReadLine`, `WriteLine`, `ReadNum`, `WriteNum`, `Read`, `Write`, `Seek`,
-`Size`, `Position`, `SaveArray`, `LoadArray`, …), `QMEMORYSTREAM` and
-`QSTRINGLIST` (`LoadFromFile`, `SaveToFile`). `DIR$`, `KILL`, `MKDIR`,
+`Size`, `Position`, `SaveArray`, `LoadArray`, …), `RMemoryStream` and
+`RStringList` (`LoadFromFile`, `SaveToFile`). `DIR$`, `KILL`, `MKDIR`,
 `RMDIR`, `RENAME`, `CHDIR`, `CURDIR$` and `DIREXISTS` work with folders.
 In a browser, files are the page's own (see [The web](web.md)).
 
@@ -311,7 +314,41 @@ In a browser, files are the page's own (see [The web](web.md)).
 `CLS`, `COLOR fg, bg`, `LOCATE row, col`, `CSRLIN`, `POS(0)`, `INPUT
 [prompt,] var`, `INKEY$`, `INPUT$(n)`, `SLEEP seconds` (`SLEEP 0.5`), `BEEP`,
 `SOUND`. Colours and positions are written as ANSI sequences, so they work
-in any modern terminal and in the IDE's output panel.
+in any modern terminal and in the IDE's output panel. A bare `INPUT$`
+(no count) reads a whole line, as RapidQ's does — old programs end with
+`a = INPUT$` to wait before the window closes.
+
+**Box characters.** RapidQ's console showed characters 128 to 255 in the
+old DOS code page 437, so its programs draw boxes with them:
+
+```basic
+PRINT CHR$(201); STRING$(10, 205); CHR$(187)    ' ╔══════════╗
+```
+
+RapidR shows a RapidQ program's console the same way: a file that isn't
+UTF-8 (saved by an old Windows or DOS editor), or a `.bas` / `.rqb` / `.rq`
+/ `.rqw` file of plain ASCII. A RapidR program (a `.rr` file, or any UTF-8
+file with accented letters) prints its text as it is — `CHR$(233)` is é. To
+draw boxes in a RapidR program, write the characters themselves
+(`PRINT "╔══╗"`).
+
+### Older RapidQ forms that still work
+
+RapidQ's compiler took a few forms that look odd today; RapidR takes them
+the same way:
+
+```basic
+SUB Draw.Box (X AS INTEGER)       ' a dot in a SUB / FUNCTION name
+    PRINT "box"; X
+END SUB
+FUNCTION Calc.Twice (N AS INTEGER) AS INTEGER
+    Calc.Twice = N * 2            ' the result, assigned to the whole name
+END FUNCTION
+CONST Null = &0                   ' & before plain digits: the number (0)
+CONST App.Name = "Demo"           ' a dot in a CONST name, read as App.Name
+Draw.Box 1
+SLEEP(Calc.Twice(3)) / 10         ' (…) starts the argument: SLEEP 0.6
+```
 
 ## The preprocessor
 

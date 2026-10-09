@@ -63,6 +63,14 @@ pub enum Role {
     Splitter,
     /// A QSTATUSBAR (a polite live region: what it says is announced).
     Status,
+    /// (RMARKDOWNVIEW) A document read, not edited; its headings (with
+    /// their `level`), lists and their items, tables and links.
+    Document,
+    Heading,
+    List,
+    ListItem,
+    Table,
+    Link,
     Unknown,
 }
 
@@ -99,6 +107,12 @@ impl Role {
             Role::SpinButton => "spinbutton",
             Role::Splitter => "separator",
             Role::Status => "status",
+            Role::Document => "document",
+            Role::Heading => "heading",
+            Role::List => "list",
+            Role::ListItem => "listitem",
+            Role::Table => "table",
+            Role::Link => "link",
             Role::Unknown => "generic",
         }
     }
@@ -187,7 +201,49 @@ pub struct AccessNode {
     pub actions: Vec<Action>,
     /// Logical pixels (the form's client area once the kernel places it).
     pub bounds: Rect,
+    /// A text field's text as screen readers read it by character, word
+    /// and line (AccessKit's text runs; the code editor's), and its
+    /// selection. Not in the JSON dump.
+    pub text: Option<Box<TextInfo>>,
     pub children: Vec<AccessNode>,
+}
+
+/// A text field's text for reading by character, word and line: its runs
+/// in order (their texts joined are the field's value) and the selection.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TextInfo {
+    pub runs: Vec<TextRun>,
+    /// (anchor, focus): where the selection started and the caret.
+    pub selection: Option<(TextPos, TextPos)>,
+}
+
+/// A piece of a line of text (AccessKit's text run): a line, or a long
+/// line's piece (`continues`: the next run is on the same line). A line's
+/// last run ends with its line break, one character.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TextRun {
+    pub id: u64,
+    pub text: String,
+    /// Logical pixels, like the nodes' bounds.
+    pub bounds: Rect,
+    /// Each character's UTF-8 bytes (a CR LF break: one character of 2).
+    pub char_lengths: Vec<u8>,
+    /// Each character's left and advance (logical pixels from the run's
+    /// left); empty when the run isn't laid out (not in view).
+    pub char_positions: Vec<f32>,
+    pub char_widths: Vec<f32>,
+    /// The characters starting words (indices into `char_lengths`, so a
+    /// run holds at most 255 characters).
+    pub word_starts: Vec<u8>,
+    pub continues: bool,
+}
+
+/// A place in a [`TextInfo`]: run `run`'s character `char_index` (its
+/// character count: the run's end).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct TextPos {
+    pub run: usize,
+    pub char_index: usize,
 }
 
 impl AccessNode {
@@ -206,6 +262,7 @@ impl AccessNode {
             states: States::default(),
             actions: Vec::new(),
             bounds: (0, 0, 0, 0),
+            text: None,
             children: Vec::new(),
         }
     }
@@ -215,6 +272,10 @@ impl AccessNode {
     pub fn offset(&mut self, dx: i64, dy: i64) {
         self.bounds.0 += dx;
         self.bounds.1 += dy;
+        for r in self.text.iter_mut().flat_map(|t| t.runs.iter_mut()) {
+            r.bounds.0 += dx;
+            r.bounds.1 += dy;
+        }
         for c in &mut self.children {
             c.offset(dx, dy);
         }
@@ -454,6 +515,8 @@ pub fn role_of(type_name: &str) -> Role {
         "RGROUPBOX" | "RHEADER" => Role::Group,
         // (I1: a dock manager's groups and its document area — rapidr_value::dock)
         "RDOCKGROUP" | "RDOCKDOCS" => Role::Group,
+        // (I2: its hunks as groups with Accept / Reject buttons)
+        "RDIFFVIEW" => Role::Group,
         // (I1 / L-PANELS: RapidR Studio's panels — rapidr_value::panels; the
         // kernel describes their rows, tabs and buttons)
         "RPROPERTYINSPECTOR" => Role::Grid,
@@ -463,6 +526,8 @@ pub fn role_of(type_name: &str) -> Role {
         "ROUTPUTCONSOLE" => Role::Group,
         "RTOOLBAR" => Role::Group,
         "RCOMMANDPALETTE" => Role::Dialog,
+        // (a Markdown text shown: its headings, lists, tables and links inside)
+        "RMARKDOWNVIEW" => Role::Document,
         "RSTATUSBAR" => Role::Status,
         "RSPLITTER" => Role::Splitter,
         // (and a kernel-drawn message box's icon)
@@ -485,9 +550,9 @@ pub fn takes_focus(type_name: &str) -> bool {
     matches!(
         type_name.to_ascii_uppercase().as_str(),
         "RBUTTON" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RCODEEDITOR" | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RLISTVIEW" | "RTREEVIEW" | "RDIRTREE" | "RSTRINGGRID" | "RTABCONTROL" | "RTRACKBAR" | "RUPDOWN"
-            | "RSCROLLBAR" | "RDESIGNSURFACE"
+            | "RSCROLLBAR" | "RDIFFVIEW" | "RDESIGNSURFACE"
         // (I1 / L-PANELS: RapidR Studio's panels)
-        | "RPROPERTYINSPECTOR" | "RTOOLBOX" | "RPROJECTTREE" | "ROUTPUTCONSOLE" | "RCOMMANDPALETTE"
+        | "RPROPERTYINSPECTOR" | "RTOOLBOX" | "RPROJECTTREE" | "ROUTPUTCONSOLE" | "RCOMMANDPALETTE" | "RMARKDOWNVIEW"
     )
 }
 
@@ -588,7 +653,11 @@ pub fn describe(id: &str, type_name: &str, get: Props, size: (i64, i64), font: &
         // (its text: a PasswordChar's characters for a password)
         "REDIT" | "RMEMO" | "RRICHEDIT" | "RCODEEDITOR" => {
             let multi = t != "REDIT";
-            let (value, read_only) = super::with_textedit(id, |e| (e.text(), e.read_only)).unwrap_or_default();
+            // (an RCODEEDITOR's: the lines around its caret, not 10 MB)
+            let (value, read_only) = match super::with_textedit(id, |e| (e.text(), e.read_only)) {
+                Some(v) => v,
+                None => super::text_window(id).map(|w| (w.text, w.read_only)).unwrap_or_default(),
+            };
             n.value = Some(match text(get, "passwordchar").chars().next() {
                 Some(m) if !multi => std::iter::repeat_n(m, value.chars().count()).collect(),
                 _ => value,
@@ -773,7 +842,8 @@ pub enum NameFrom {
 /// caption, asked only then, and only for a control: a label, a panel, a
 /// status bar, a picture are never named by one). Its description is its
 /// AccessibleDescription, else its Hint when the Hint isn't its name (a
-/// tooltip, as a browser reads a title).
+/// tooltip, as a browser reads a title), then what the component described
+/// of itself.
 pub fn apply_name_rule(n: &mut AccessNode, get: Props, label: impl FnOnce() -> Option<(u64, String)>) -> NameFrom {
     let hint = text(get, "hint");
     let given = text(get, "accessiblename");
@@ -797,9 +867,14 @@ pub fn apply_name_rule(n: &mut AccessNode, get: Props, label: impl FnOnce() -> O
             None => NameFrom::Own,
         }
     };
-    n.description = text(get, "accessibledescription");
+    // (what the component says of itself — a code editor's line and
+    // column — after it)
+    let own = std::mem::replace(&mut n.description, text(get, "accessibledescription"));
     if n.description.is_empty() && from != NameFrom::Hint {
         n.description = hint;
+    }
+    if !own.is_empty() {
+        n.description = if n.description.is_empty() { own } else { format!("{}. {own}", n.description) };
     }
     from
 }

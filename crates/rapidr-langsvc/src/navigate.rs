@@ -7,7 +7,6 @@ use std::path::{Path, PathBuf};
 use rapidr_ast::Statement;
 use rapidr_diagnostics::TextSpan;
 
-use crate::context::pretty_component;
 use crate::model::{name_key, Access, SymbolId, SymbolKind};
 use crate::text::{is_name_char, is_suffix_char, LineIndex};
 use crate::{modifiers, Location, Options, OutlineItem, OutlineKind, SemanticToken, Snapshot, TextEdit, TokenKind, WorkspaceEdit};
@@ -30,14 +29,21 @@ pub(crate) fn definition(s: &Snapshot, file: &Path, text: &str, offset: usize, o
         for dir in candidates {
             let p = dir.join(name);
             let allowed = options.roots.as_ref().is_none_or(|roots| rapidr_preprocessor::is_within(&p, roots) || options.include_dirs.iter().any(|d| rapidr_preprocessor::is_within(&p, std::slice::from_ref(d))));
-            if allowed && p.is_file() {
+            if allowed && rapidr_preprocessor::source_exists(&p) {
                 return vec![Location { file: p, start: 0, end: 0 }];
             }
         }
         return Vec::new();
     }
     let Some(id) = symbol_at(s, file, offset) else { return Vec::new() };
-    s.model.symbols[id].decl.and_then(|d| s.locate(d)).into_iter().collect()
+    if let Some(d) = s.model.symbols[id].decl {
+        return s.locate(d).into_iter().collect();
+    }
+    // (RapidQ's implicit variable, never declared: where it is first
+    // stored, else where it is first used)
+    let mut uses = s.model.references_to(id);
+    let first = s.model.references_to(id).find(|r| r.access == Access::Write).or_else(|| uses.next());
+    first.and_then(|r| s.locate(r.span)).into_iter().collect()
 }
 
 pub(crate) fn references(s: &Snapshot, file: &Path, offset: usize, include_declaration: bool) -> Vec<Location> {
@@ -233,8 +239,8 @@ fn outline_statement(s: &Snapshot, file: &Path, st: &Statement, out: &mut Vec<Ou
             }
         }
         Statement::Create(c) => {
-            // (RapidQ's components under RapidQ's names, RapidR's own under RapidR's)
-            let shown = rapidr_lang::resolve_component(&c.type_name).map_or(c.type_name.clone(), |comp| pretty_component(comp.written_name()));
+            // (the component under RapidR's name)
+            let shown = rapidr_lang::resolve_component(&c.type_name).map_or(c.type_name.clone(), |comp| comp.spelling());
             if let Some(mut it) = item(s, file, c.span, &c.name, OutlineKind::Component, Some(shown)) {
                 for inner in &c.body {
                     if let Statement::Create(_) = inner {

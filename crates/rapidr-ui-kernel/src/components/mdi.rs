@@ -14,6 +14,7 @@
 
 use std::cell::RefCell;
 
+use rapidr_value::input::Cursor;
 use rapidr_value::mdi::{self, Action, BORDER, TITLE_HEIGHT};
 use rapidr_value::objects::a11y::AccessNode;
 use rapidr_value::objects::font::Font;
@@ -88,6 +89,25 @@ impl ComponentKind for ChildFrame {
             ..Chrome::default()
         };
         window_frame::paint(p, (cx.width(), cx.height()), &chrome, &Metrics::mdi());
+    }
+
+    /// A child's sizing border, every edge and corner as Windows': ↔ ↕ ⤡ ⤢
+    /// — kept while one is being dragged, wherever the mouse goes. (A
+    /// maximized or minimized child has none; its title bar, being moved,
+    /// keeps the arrow.)
+    fn pointer(&self, cx: &mut Cx, x: i64, y: i64) -> Cursor {
+        let held = DRAG.with(|d| d.borrow().as_ref().filter(|d| d.frame == cx.id).map(|d| d.edges));
+        let edges = match held {
+            Some(edges) => edges,
+            None => edges_at(cx.store, cx.id, cx.width(), cx.height(), x, y),
+        };
+        match edges.map(|e| e.pointer()) {
+            Some("we") => Cursor::SizeWE,
+            Some("ns") => Cursor::SizeNS,
+            Some("nwse") => Cursor::SizeNWSE,
+            Some(_) => Cursor::SizeNESW,
+            None => Cursor::Default,
+        }
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {

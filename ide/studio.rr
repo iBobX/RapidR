@@ -19,7 +19,10 @@
 '                  properties, output
 '   documents.inc  documents: code, designer, outline, problems, properties
 '   designer.inc   the form designer: the code it edits, its commands
-'   project.inc    the project, running it, settings
+'   project.inc    the project, settings
+'   editor.inc     the code editor's commands, settings, typing steps
+'   debug.inc      running it, debugging it: breakpoints, stepping, the
+'                  Variables / Watch / Call Stack / Breakpoints panes
 '   build.inc      Build (the app for this system), Reveal, the app's settings
 '   prompts.inc    Save / Don't Save / Cancel before changes would be lost
 '   chrome.inc     the look in the current theme, the status bar
@@ -27,6 +30,7 @@
 '   search.inc     Find in Files (Ctrl+Shift+F), the Help pane (F1)
 '   workspace.inc  documents as tabs: Design | Code, split groups, the
 '                  layout and open files kept
+'   markdown.inc   .md files formatted: Preview | Source, links, outline
 '   shell.inc      RunCommand, the events, start-up
 
 $INCLUDE "RAPIDQ.INC"   ' mbYes, mrYes, mtWarning … (without it they are 0)
@@ -39,11 +43,14 @@ $INCLUDE "panels.inc"
 $INCLUDE "documents.inc"
 $INCLUDE "designer.inc"
 $INCLUDE "project.inc"
+$INCLUDE "editor.inc"
+$INCLUDE "debug.inc"
 $INCLUDE "build.inc"
 $INCLUDE "prompts.inc"
 $INCLUDE "chrome.inc"
 $INCLUDE "search.inc"
 $INCLUDE "workspace.inc"
+$INCLUDE "markdown.inc"
 $INCLUDE "shell.inc"
 
 StartStudio

@@ -6,13 +6,48 @@
 '
 ' The surface's entry points for the other panes (docs/ide-plan.md, "I4 /
 ' S-DESIGN results"):
-'   DesignDoc(d).PlaceType = "QBUTTON"         the toolbox's click: the next
+'   DesignDoc(d).PlaceType = "RButton"         the toolbox's click: the next
 '                                              click or drag on the form places one
-'   DesignDoc(d).DragComponent "QBUTTON"       the toolbox's mouse-down: dropped
+'   DesignDoc(d).DragComponent "RButton"       the toolbox's mouse-down: dropped
 '                                              where the mouse is let go
-'   DesignDoc(d).AddComponent "QBUTTON", -1, -1   Enter on a toolbox item
+'   DesignDoc(d).AddComponent "RButton", -1, -1   Enter on a toolbox item
+' (any of a component's names; the designer writes it in the file's own
+' style: RButton, or QBUTTON in a file written with RapidQ's names)
 '   DesignDoc(d).CreateHandler(Name, Event)    a handler made or found
 '   DesignDoc(d).SelectName Name, .SelIndex, .GetName(i), OnSelect, OnChange
+
+' ---- one undo history per file (docs/ide-plan.md, "The shared undo") ------
+' The designer's changes and what is typed in the code are steps of ONE
+' history, the code editor's (RCODEEDITOR's ApplyPatches / Undo / Redo):
+' each designer change is one step (OnSourceStep says whether it joins the
+' step before), and Undo / Redo on the designer (SharedUndo: OnUndo) undo
+' there, the designer reading the code again.
+DIM DesignCont(MAXDOCS) AS INTEGER
+
+' A designer change begins (OnSourceStep): its patches follow, then OnChange.
+SUB DesignStep(Continues AS INTEGER, Sender AS RDesignSurface)
+  DIM d AS INTEGER
+  d = Sender.Tag
+  IF d < 0 OR d >= DocCount THEN EXIT SUB
+  DesignCont(d) = Flag(Continues)
+END SUB
+
+' Undo (Redo False) or Redo in document d's one history: the code
+' editor's; the designer follows.
+SUB FileUndo(d AS INTEGER, Redo AS INTEGER)
+  IF d < 0 OR d >= DocCount THEN EXIT SUB
+  IF DocOpen(d) = 0 THEN EXIT SUB
+  IF Redo THEN CodeDoc(d).Redo ELSE CodeDoc(d).Undo
+  IF DocHasForm(d) THEN DesignRead d
+  ' (the inspector shows the values undone)
+  InspectActive
+  UpdateCommands
+END SUB
+
+' Ctrl+Z / Ctrl+Y on the designer (OnUndo, SharedUndo): the file's history.
+SUB DesignUndo(Redo AS INTEGER, Sender AS RDesignSurface)
+  FileUndo Sender.Tag, Redo
+END SUB
 
 ' (the active document's designer, -1: none)
 FUNCTION ActiveDesign AS INTEGER
@@ -31,7 +66,7 @@ SUB DesignRead(d AS INTEGER)
 END SUB
 
 ' (character offset of line l, column c in document d's code: the code
-' editor's SelStart)
+' editor's SelStart; Find in Files' results)
 FUNCTION CodeOffset(d AS INTEGER, l AS INTEGER, c AS INTEGER) AS INTEGER
   DIM k AS INTEGER, o AS INTEGER
   FOR k = 0 TO l - 1
@@ -40,42 +75,60 @@ FUNCTION CodeOffset(d AS INTEGER, l AS INTEGER, c AS INTEGER) AS INTEGER
   Result = o + c
 END FUNCTION
 
-' The designer changed the code: the edit applied to the code editor (the
-' caret kept where it was in the text around it).
-SUB DesignSourceEdit(StartLine AS INTEGER, StartCol AS INTEGER, EndLine AS INTEGER, EndCol AS INTEGER, Text AS STRING, Sender AS RDESIGNSURFACE)
-  DIM d AS INTEGER, a AS INTEGER, b AS INTEGER, caret AS INTEGER
+' The designer changed the code: each OnSourceEdit patch (lines from 0,
+' columns in characters, in the text the ones before left) is kept until
+' the change's OnChange, then the code editor applies them all as one undo
+' step (RCODEEDITOR's ApplyPatches; the carets keep their places in the
+' text, and its OnChange marks the file changed and wakes the analyzer).
+DIM DesignPatches(MAXDOCS) AS STRING
+
+' (a patch's text as ApplyPatches reads it: \, line breaks and tabs escaped)
+FUNCTION PatchText(Text AS STRING) AS STRING
+  Result = REPLACESUBSTR$(Text, "\", "\\")
+  Result = REPLACESUBSTR$(Result, CHR$(10), "\n")
+  Result = REPLACESUBSTR$(Result, CHR$(13), "\r")
+  Result = REPLACESUBSTR$(Result, CHR$(9), "\t")
+END FUNCTION
+
+SUB DesignSourceEdit(StartLine AS INTEGER, StartCol AS INTEGER, EndLine AS INTEGER, EndCol AS INTEGER, Text AS STRING, Sender AS RDesignSurface)
+  DIM d AS INTEGER
   d = Sender.Tag
   IF d < 0 OR d >= DocCount THEN EXIT SUB
-  IF DocOpen(d) = 0 THEN EXIT SUB
-  a = CodeOffset(d, StartLine, StartCol)
-  b = CodeOffset(d, EndLine, EndCol)
-  caret = CodeDoc(d).SelStart
-  CodeDoc(d).SelStart = a
-  CodeDoc(d).SelLength = b - a
-  CodeDoc(d).SelText = Text
-  IF caret >= b THEN
-    caret = caret + LEN(Text) - (b - a)
-  ELSEIF caret > a THEN
-    caret = a
-  END IF
-  CodeDoc(d).SelStart = caret
-  CodeDoc(d).SelLength = 0
-  ' (the file has changes; the outline and problems follow)
-  IF DocDirty(d) = 0 THEN
-    DocDirty(d) = 1
-    DocTitles d
-  END IF
-  Analyzer.Enabled = 0
-  Analyzer.Enabled = 1
+  DesignPatches(d) = DesignPatches(d) + STR$(StartLine) + CHR$(9) + STR$(StartCol) + CHR$(9) + STR$(EndLine) + CHR$(9) + STR$(EndCol) + CHR$(9) + PatchText(Text) + CHR$(10)
 END SUB
 
-SUB DesignChanged(Sender AS RDESIGNSURFACE)
+SUB DesignChanged(Sender AS RDesignSurface)
+  DIM d AS INTEGER
+  d = Sender.Tag
+  IF d >= 0 AND d < DocCount THEN
+    IF DesignPatches(d) <> "" THEN
+      IF DocOpen(d) THEN CodeDoc(d).ApplyPatches DesignPatches(d), DesignCont(d)
+      DesignCont(d) = 0
+      DesignPatches(d) = ""
+    END IF
+  END IF
   UpdateCommands
+END SUB
+
+' Document d's designer shown (and focused) — for a file that makes no
+' form too: its tab gets the Design | Code switch, and the designer's empty
+' state offers "Add a Form".
+SUB ShowDesigner(d AS INTEGER)
+  IF d < 0 THEN EXIT SUB
+  IF DocOpen(d) = 0 THEN EXIT SUB
+  IF DocHasForm(d) = 0 THEN
+    DocHasForm(d) = 1
+    Dock.AddView(DocPane(d), DesignDoc(d), "Design")
+    Dock.AddView(DocPane(d), CodeDoc(d), "Code")
+    DesignDoc(d).OnSelect = DesignPicked
+  END IF
+  IF DocViewNow(d) = "Code" OR DocViewNow(d) = "" THEN Dock.DocumentView(DocPane(d), "Design")
+  Dock.FocusPane("designdoc(" + LTRIM$(STR$(d)) + ")")
 END SUB
 
 ' A component double-clicked (or Enter on it): its default event's handler
 ' — made and wired when there's none — in the code editor.
-SUB DesignDblClick(Index AS INTEGER, Sender AS RDESIGNSURFACE)
+SUB DesignDblClick(Index AS INTEGER, Sender AS RDesignSurface)
   DIM d AS INTEGER, nm AS STRING, s AS STRING
   d = Sender.Tag
   nm = Sender.GetName(Index)
@@ -85,7 +138,7 @@ SUB DesignDblClick(Index AS INTEGER, Sender AS RDESIGNSURFACE)
     EXIT SUB
   END IF
   Dock.FocusPane("codedoc(" + LTRIM$(STR$(d)) + ")")
-  IF Sender.HandlerLine >= 0 THEN CodeDoc(d).GotoLine Sender.HandlerLine
+  IF Sender.HandlerLine >= 0 THEN CaretAtHandler d, Sender.HandlerLine
 END SUB
 
 ' The designer's commands (Format, Edit on a designer; View's switches).
@@ -96,19 +149,26 @@ FUNCTION DesignCommand(Id AS STRING) AS INTEGER
   Result = 1
   SELECT CASE Id
     CASE "view.designer"
-      IF d >= 0 THEN Dock.FocusPane("designdoc(" + LTRIM$(STR$(d)) + ")")
+      ShowDesigner ActiveDoc
+      EXIT FUNCTION
+    CASE "designer.addForm"
+      ' (Project > Add a Form to This File: a file without one gets one)
+      IF ActiveDoc >= 0 THEN
+        ShowDesigner ActiveDoc
+        DesignDoc(ActiveDoc).AddForm ""
+      END IF
       EXIT FUNCTION
     CASE "view.code"
       IF ActiveDoc >= 0 THEN Dock.FocusPane("codedoc(" + LTRIM$(STR$(ActiveDoc)) + ")")
       EXIT FUNCTION
   END SELECT
   IF LEFT$(Id, 14) = "designer.place" THEN
-    ' (designer.place.QBUTTON: the placing tool, as the toolbox's click)
+    ' (designer.place.RButton: the placing tool, as the toolbox's click)
     IF d >= 0 THEN DesignDoc(d).PlaceType = MID$(Id, 16)
     EXIT FUNCTION
   END IF
   IF LEFT$(Id, 12) = "designer.add" THEN
-    ' (designer.add.QBUTTON: added at a free spot, as Enter on the toolbox)
+    ' (designer.add.RButton: added at a free spot, as Enter on the toolbox)
     IF d >= 0 THEN DesignDoc(d).AddComponent MID$(Id, 14), -1, -1
     EXIT FUNCTION
   END IF
@@ -132,8 +192,18 @@ FUNCTION DesignCommand(Id AS STRING) AS INTEGER
     CASE "designer.spaceVertically": how = "spacev"
     CASE "designer.bringToFront": how = "front"
     CASE "designer.sendToBack": how = "back"
-    CASE "edit.undo": DesignDoc(d).Undo: EXIT FUNCTION
-    CASE "edit.redo": DesignDoc(d).Redo: EXIT FUNCTION
+    CASE "designer.zoomIn": DesignDoc(d).ZoomStep 1: EXIT FUNCTION
+    CASE "designer.zoomOut": DesignDoc(d).ZoomStep -1: EXIT FUNCTION
+    CASE "designer.zoomReset": DesignDoc(d).ZoomStep 0: EXIT FUNCTION
+    CASE "designer.zoomToFit": DesignDoc(d).ZoomToFit: EXIT FUNCTION
+    CASE "designer.editCaption": DesignDoc(d).EditCaption: EXIT FUNCTION
+    CASE "designer.menuEditor": DesignDoc(d).EditMenu: EXIT FUNCTION
+    CASE "designer.tabOrder"
+      IF DesignDoc(d).TabOrderMode THEN DesignDoc(d).TabOrderMode = 0 ELSE DesignDoc(d).TabOrderMode = 1
+      EXIT FUNCTION
+    ' (the file's one history, the code editor's: editor.inc's on the code)
+    CASE "edit.undo": FileUndo d, 0: EXIT FUNCTION
+    CASE "edit.redo": FileUndo d, 1: EXIT FUNCTION
     CASE "edit.cut": Clipboard.Text = DesignDoc(d).CutSelection: EXIT FUNCTION
     CASE "edit.copy": Clipboard.Text = DesignDoc(d).CopySelection: EXIT FUNCTION
     CASE "edit.paste": DesignDoc(d).Paste: EXIT FUNCTION

@@ -104,6 +104,10 @@ impl Host for NativeHost {
         Ok(rp_comp_value(id, name))
     }
 
+    fn component_type(&mut self, id: &str) -> Option<String> {
+        Some(obj::rp_comp_type(id)).filter(|t| !t.is_empty())
+    }
+
     fn call_method(&mut self, id: &str, method: &str, args: &[Value]) -> Result<Value, String> {
         if let Some(on_form) = self.on_form.as_mut() {
             let shown = match method.to_ascii_lowercase().as_str() {
@@ -156,6 +160,9 @@ impl Host for NativeHost {
     fn print(&mut self, s: &str) -> Result<(), String> {
         // Keep the shared console cursor current (CSRLIN, POS, LOCATE).
         rapidr_value::console::track(s);
+        // (in RapidQ's code page when the program's file is RapidQ's)
+        let shown = rapidr_value::console::shown(s);
+        let s: &str = &shown;
         if let Some(output) = self.output.as_mut() {
             output(s);
             return Ok(());

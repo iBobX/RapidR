@@ -21,23 +21,17 @@
 //!   context menu, double click (a word) and triple click (the paragraph)
 //!   are the edit's (`edit.rs`).
 //!
-//! RapidR's **RCODEEDITOR** (Stage 10, `codeedit.rs`) is a memo of another
-//! [`Flavor`]: the code editor's 13-pixel Courier New, black, no word
-//! wrap, both bars as needed, Tab typing a tab, BASIC's colours (the
-//! editor's styled runs, from `rapidr_value::objects::code`) and a 40-pixel
-//! line-number gutter at the left.
+//! RapidR's RCODEEDITOR is its own view (`codeeditor/`).
 
-use rapidr_value::objects::code::Syntax;
-use rapidr_value::objects::font::Font;
-use rapidr_value::objects::ops::{Place, Rect};
+use rapidr_value::objects::ops::Rect;
 use rapidr_value::objects::with_textedit;
 
 use super::edit::{background, key_in, look_of, shows_selection, EditUi, MenuState, Source, Spec};
+use rapidr_value::input::Cursor;
 use super::{ComponentKind, Cx, Ime, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::{Clipboard, Mods};
 use crate::paint::Painter;
-use crate::text::Look;
 use crate::store::{self, Store};
 use rapidr_value::objects::a11y::{AccessNode, Action};
 
@@ -49,63 +43,27 @@ pub struct Memo;
 pub fn takes_tab(f: &crate::tree::FormUi, store: &dyn Store) -> bool {
     f.focus.is_some_and(|i| {
         let n = &f.nodes[i];
-        let wants = match n.type_name.as_str() {
-            "RMEMO" | "RRICHEDIT" => store::flag(store, &n.id, "wanttabs", false),
-            "RCODEEDITOR" => store::flag(store, &n.id, "wanttabs", true),
+        match n.type_name.as_str() {
+            "RMEMO" | "RRICHEDIT" => store::flag(store, &n.id, "wanttabs", false) && !with_textedit(&n.id, |t| t.read_only).unwrap_or(true),
+            "RCODEEDITOR" => super::codeeditor::takes_tab(store, &n.id),
             _ => false,
-        };
-        wants && !with_textedit(&n.id, |t| t.read_only).unwrap_or(true)
+        }
     })
 }
 
-/// What sets a memo-like box apart (Stage 10): the code editor's gutter
-/// and look.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Flavor {
-    /// The line-number gutter's width (0: none).
-    pub gutter: i64,
-    /// The code editor's font, colours and bars (RCODEEDITOR).
-    pub code: bool,
-}
-
-impl Flavor {
-    pub const MEMO: Flavor = Flavor { gutter: 0, code: false };
-    pub const CODE: Flavor = Flavor { gutter: 40, code: true };
-
-    pub fn of(store: &dyn Store, id: &str) -> Flavor {
-        if store.type_of(id).eq_ignore_ascii_case("RCODEEDITOR") { Flavor::CODE } else { Flavor::MEMO }
-    }
-
-    /// The code editor's look: Courier New at 13 pixels, black (grey when
-    /// disabled), no word wrap, BASIC's colours — in RapidR's own looks
-    /// (modern, dark, high contrast) JetBrains Mono at 13 pixels in the
-    /// theme's editor colours (`rapidr_value::ide_theme`).
-    fn code_look(enabled: bool) -> Look {
-        let t = rapidr_value::theme::current();
-        if t.fluent() {
-            let e = rapidr_value::ide_theme::editor(t);
-            let font = Font { name: "JetBrains Mono".into(), size: -13, ..Font::default() };
-            return Look { font, color: if enabled { e.text } else { t.gray_text }, syntax: Syntax::Basic, ..Look::default() };
-        }
-        let font = Font { name: "Courier New".into(), size: -13, ..Font::default() };
-        Look { font, color: if enabled { t.text } else { t.gray_text }, syntax: Syntax::Basic, ..Look::default() }
-    }
-}
 
 /// Where a memo's parts are (its own pixels): the bars' area inside the
-/// edge, the text's view, and a code editor's gutter.
+/// edge and the text's view.
 #[derive(Clone, Copy, Debug)]
 struct Geo {
     bars: Rect,
     text: Rect,
-    gutter: Rect,
 }
 
 /// The text's view in a bars' area client of `cw` × `ch` (a pixel of
-/// margin top and bottom, two left and right, as Windows' edit), right of
-/// a `gutter` that wide.
-fn text_area(cw: i64, ch: i64, gutter: i64) -> Rect {
-    (4 + gutter, 3, (cw - 4 - gutter).max(1), (ch - 2).max(1))
+/// margin top and bottom, two left and right, as Windows' edit).
+fn text_area(cw: i64, ch: i64) -> Rect {
+    (4, 3, (cw - 4).max(1), (ch - 2).max(1))
 }
 
 impl Memo {
@@ -115,25 +73,20 @@ impl Memo {
     fn setup<'c>(cx: &'c mut Cx) -> (&'c mut EditUi, Geo, Spec) {
         let (w, h) = (cx.width(), cx.height());
         let bars = (2, 2, (w - 4).max(0), (h - 4).max(0));
-        let flavor = Flavor::of(cx.store, cx.id);
-        let (look, sb) = match flavor.code {
-            // (the code editor: its own font, both bars as needed)
-            true => (Flavor::code_look(cx.state.enabled), 3),
-            false => (look_of(cx.store, cx.id, &cx.font, cx.state.enabled, true), store::int(cx.store, cx.id, "scrollbars", 0)),
-        };
+        let look = look_of(cx.store, cx.id, &cx.font, cx.state.enabled, true);
+        let sb = store::int(cx.store, cx.id, "scrollbars", 0);
         let wrap = look.wrap;
         let mut spec = Spec { look, width: 0.0, multi: true, src: Source::Text };
         let id = cx.id;
         let scale = cx.scale;
-        let g = flavor.gutter;
-        let mut text = text_area(bars.2, bars.3, g);
+        let mut text = text_area(bars.2, bars.3);
         spec.width = text.2 as f64;
         let mut e = spec.editor(&mut *cx.ui, &mut *cx.text, id, scale);
         e.bars.vert.visible = sb & 2 != 0;
         e.bars.horz.visible = sb & 1 != 0 && !wrap;
         for _ in 0..3 {
             let (cw, ch) = e.bars.client(bars.2, bars.3);
-            text = text_area(cw, ch, g);
+            text = text_area(cw, ch);
             spec.width = text.2 as f64;
             e = spec.editor(&mut *cx.ui, &mut *cx.text, id, scale);
             let s = f64::from(e.ed.scale()).max(0.01);
@@ -150,43 +103,12 @@ impl Memo {
                 break;
             }
         }
-        let (_, ch) = e.bars.client(bars.2, bars.3);
-        let geo = Geo { bars, text, gutter: (bars.0, bars.1, g, ch) };
+        let geo = Geo { bars, text };
         let e = spec.editor(&mut *cx.ui, &mut *cx.text, id, scale);
-        // (a code editor's GotoLine / GotoSub: the caret into view)
-        if e.take_reveal() {
-            let v = Self::view(e, geo);
-            e.scroll_to_caret_in(v);
-        }
         Self::fit_scroll(e, geo);
         (e, geo, spec)
     }
 
-    /// A code editor's gutter: the paragraphs' numbers (from 1) in grey,
-    /// right-aligned beside their first lines, on the button face.
-    fn paint_gutter(e: &EditUi, geo: Geo, p: &mut Painter) {
-        let (gx, _, gw, gh) = geo.gutter;
-        if gw <= 0 || gh <= 0 {
-            return;
-        }
-        let t = p.theme();
-        let ed = rapidr_value::ide_theme::editor(t);
-        let (ground, ink) = if t.fluent() { (ed.gutter, ed.line_number) } else { (t.face, t.gray_text) };
-        p.fill(geo.gutter, ground);
-        let s = f64::from(e.ed.scale()).max(0.01);
-        let font = if t.fluent() { Font { name: "JetBrains Mono".into(), size: -12, ..Font::default() } } else { Font { name: "Arial".into(), size: -12, ..Font::default() } };
-        let sy = e.scroll().1;
-        let lh = e.ed.line_height() / s;
-        p.clipped(geo.gutter, |p| {
-            for i in e.ed.visible(sy, sy + geo.text.3 as f64 * s) {
-                let y = geo.text.1 as f64 + (e.ed.para_origin(i).1 - sy) / s;
-                let n = (i + 1).to_string();
-                let th = rapidr_value::objects::text::text_size(&n, &font).1;
-                let ny = (y + (lh - th as f64) / 2.0).round() as i64;
-                p.text((gx, ny, gw - 6, th), &n, &font, ink, Place::TopRight);
-            }
-        });
-    }
 
     /// What of the text shows (device pixels).
     fn view(e: &EditUi, geo: Geo) -> (f64, f64) {
@@ -222,21 +144,14 @@ impl ComponentKind for Memo {
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
-        // (a code editor in RapidR's own looks: the theme's editor ground,
-        // unless the program chose a Color)
-        let ground = if p.fluent() && Flavor::of(cx.store, cx.id).code && crate::paint::color_of(cx.store, cx.id).is_none() {
-            rapidr_value::ide_theme::editor(p.theme()).background
-        } else {
-            background(cx.store, cx.id)
-        };
         if p.fluent() && crate::store::int(cx.store, cx.id, "align", 0) == 5 {
             // (a memo filling its parent — a notepad's page — is the
             // window's own surface: square, a hairline, no focus ring
             // around the whole window)
-            p.fill((0, 0, w, h), ground);
+            p.fill((0, 0, w, h), background(cx.store, cx.id));
             p.frame((0, 0, w, h), p.theme().border);
         } else if p.fluent() {
-            p.fluent_field(w, h, ground, Some(cx.state.focused));
+            p.fluent_field(w, h, background(cx.store, cx.id), Some(cx.state.focused));
         } else {
             p.fill((0, 0, w, h), background(cx.store, cx.id));
             p.sunken_edge((0, 0, w, h));
@@ -246,11 +161,21 @@ impl ComponentKind for Memo {
         let id = cx.id.to_string();
         let (e, geo, _) = Self::setup(cx);
         e.paint_text(&id, p, geo.text, 0.0, show, focused && caret_on);
-        Self::paint_gutter(e, geo, p);
         let (bx, by, bw, bh) = geo.bars;
         if e.bars.vert.shown || e.bars.horz.shown {
             let ops = crate::paint::bar_ops(&e.bars, bw, bh);
             p.at((bx, by), |p| p.clipped((0, 0, bw, bh), |p| p.ops(ops)));
+        }
+    }
+
+    /// The I-beam over the text; the arrow over its scroll bars, a code
+    /// editor's gutter and its margin.
+    fn pointer(&self, cx: &mut Cx, x: i64, y: i64) -> Cursor {
+        let (tx, ty, tw, th) = Self::setup(cx).1.text;
+        if x >= tx && y >= ty && x < tx + tw && y < ty + th {
+            Cursor::IBeam
+        } else {
+            Cursor::Default
         }
     }
 

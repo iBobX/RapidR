@@ -22,6 +22,7 @@
 
 pub mod case;
 pub mod diagnostics;
+pub mod editor;
 pub mod front;
 pub mod model;
 pub mod text;
@@ -30,6 +31,7 @@ mod compat;
 mod complete;
 mod context;
 mod format;
+mod hints;
 mod hover;
 mod navigate;
 mod signature;
@@ -97,6 +99,9 @@ pub struct Completion {
     pub snippet: bool,
     /// The order: smaller first.
     pub sort: String,
+    /// Other edits of the same file made with it (an `$INCLUDE` the name
+    /// needs: RAPIDQ.INC's constants).
+    pub edits: Vec<TextEdit>,
 }
 
 /// The completions at a place, and the text they replace (the word typed
@@ -210,27 +215,95 @@ pub struct CodeAction {
 /// program's names.
 #[derive(Debug)]
 pub struct Snapshot {
-    pub parsed: Parsed,
-    pub model: SemanticModel,
+    pub parsed: Arc<Parsed>,
+    pub model: Arc<SemanticModel>,
+    /// (a view of an older analysis while the user types: the edits made
+    /// since, in order, which offsets are mapped across)
+    edits: Vec<Shift>,
+}
+
+/// One edit of a file since an analysis was made of it: its bytes
+/// `prefix..old_end` then are `prefix..new_end` now (the rest the same).
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Shift {
+    file: PathBuf,
+    prefix: usize,
+    old_end: usize,
+    new_end: usize,
+}
+
+impl Shift {
+    /// The change from `old` to `new`: the common start and end kept.
+    fn between(file: &Path, old: &str, new: &str) -> Shift {
+        let (a, b) = (old.as_bytes(), new.as_bytes());
+        let mut prefix = a.iter().zip(b).take_while(|(x, y)| x == y).count();
+        while prefix > 0 && !(old.is_char_boundary(prefix) && new.is_char_boundary(prefix)) {
+            prefix -= 1;
+        }
+        let max = a.len().min(b.len()) - prefix;
+        let mut suffix = a.iter().rev().zip(b.iter().rev()).take(max).take_while(|(x, y)| x == y).count();
+        while suffix > 0 && !(old.is_char_boundary(a.len() - suffix) && new.is_char_boundary(b.len() - suffix)) {
+            suffix -= 1;
+        }
+        Shift { file: file.to_path_buf(), prefix, old_end: a.len() - suffix, new_end: b.len() - suffix }
+    }
+
+    /// Today's byte `offset` in the analysed text (inside the edit: its
+    /// start).
+    fn to_old(&self, offset: usize) -> usize {
+        if offset <= self.prefix {
+            offset
+        } else if offset >= self.new_end {
+            offset - self.new_end + self.old_end
+        } else {
+            self.prefix
+        }
+    }
+
+    /// The analysed text's byte `offset` today.
+    fn to_new(&self, offset: usize) -> usize {
+        if offset <= self.prefix {
+            offset
+        } else if offset >= self.old_end {
+            offset - self.old_end + self.new_end
+        } else {
+            self.prefix
+        }
+    }
 }
 
 impl Snapshot {
+    fn new(parsed: Parsed, model: SemanticModel) -> Snapshot {
+        Snapshot { parsed: Arc::new(parsed), model: Arc::new(model), edits: Vec::new() }
+    }
+
     /// The preprocessed offset of byte `offset` of `file`.
     pub fn pre_offset(&self, file: &Path, offset: usize) -> Option<usize> {
+        let offset = self.edits.iter().rev().filter(|e| e.file == file).fold(offset, |o, e| e.to_old(o));
         self.parsed.to_preprocessed(file, offset)
     }
 
     /// Where the model's span is in the files.
     pub fn locate(&self, span: rapidr_diagnostics::TextSpan) -> Option<Location> {
-        self.parsed.locate(span)
+        let mut loc = self.parsed.locate(span)?;
+        for e in self.edits.iter().filter(|e| e.file == loc.file) {
+            loc.start = e.to_new(loc.start);
+            loc.end = e.to_new(loc.end).max(loc.start);
+        }
+        Some(loc)
+    }
+
+    /// Whether this is an older analysis seen through the edits since.
+    pub fn is_stale(&self) -> bool {
+        !self.edits.is_empty()
     }
 
     /// A multi-line span of the AST in the files (its start and end located
     /// separately).
     pub fn locate_range(&self, span: rapidr_diagnostics::TextSpan) -> Option<Location> {
-        let start = self.parsed.locate(span)?;
+        let start = self.locate(span)?;
         let last = rapidr_diagnostics::TextSpan::new(span.end.saturating_sub(1).max(span.start), span.end);
-        let end = self.parsed.locate(last).filter(|l| l.file == start.file).map_or(start.end, |l| l.end);
+        let end = self.locate(last).filter(|l| l.file == start.file).map_or(start.end, |l| l.end);
         Some(Location { end: end.max(start.start), ..start })
     }
 }
@@ -244,6 +317,13 @@ pub struct Analysis {
     snapshots: HashMap<PathBuf, Arc<Snapshot>>,
     /// Each main file's diagnostics, until a file changes.
     diagnostics: HashMap<PathBuf, Vec<FileDiagnostic>>,
+    /// A main file's last analysis and the text it was made from, kept
+    /// after the file changed: what's asked as the user types (completion,
+    /// signatures, hovers, case) is answered from it — "the last good
+    /// model", mapped across the edit — and the analysis is made again
+    /// only when asked for what must be exact (diagnostics, definitions,
+    /// references, rename, the outline) or with [`Analysis::refresh`].
+    stale: HashMap<PathBuf, (Arc<Snapshot>, Vec<Shift>)>,
 }
 
 impl Analysis {
@@ -259,14 +339,54 @@ impl Analysis {
         self.options = options;
         self.snapshots.clear();
         self.diagnostics.clear();
+        self.stale.clear();
     }
 
     /// A file's new text (the editor's, whole).
     pub fn update(&mut self, file: impl Into<PathBuf>, text: impl Into<String>) {
-        self.docs.insert(file.into(), text.into());
+        let file = file.into();
+        let text = text.into();
+        if self.docs.get(&file) == Some(&text) {
+            return;
+        }
+        // (the file's own analysis is kept for typing's quick answers, with
+        // each edit since: a typed key's is one small change)
+        if !is_inc(&file) {
+            if let Some(old) = self.docs.get(&file) {
+                let edit = Shift::between(&file, old, &text);
+                if let Some(s) = self.snapshots.get(&file).filter(|s| !s.is_stale()) {
+                    self.stale.insert(file.clone(), (s.clone(), vec![edit]));
+                } else if let Some((_, edits)) = self.stale.get_mut(&file) {
+                    edits.push(edit);
+                    if edits.len() > MAX_STALE_EDITS {
+                        self.stale.remove(&file);
+                    }
+                }
+            }
+        }
+        self.docs.insert(file, text);
         // (files include each other: every analysis is redone on demand)
         self.snapshots.clear();
         self.diagnostics.clear();
+    }
+
+    /// The analysis typing's questions are answered from: the current one
+    /// when there is one, else the file's last, seen across the edits
+    /// since (never older than its text; made afresh when there's none).
+    fn quick_snapshot(&mut self, file: &Path) -> Option<Arc<Snapshot>> {
+        if let Some(s) = self.snapshots.get(file) {
+            return Some(s.clone());
+        }
+        if let Some((s, edits)) = self.stale.get(file) {
+            return Some(Arc::new(Snapshot { parsed: s.parsed.clone(), model: s.model.clone(), edits: edits.clone() }));
+        }
+        self.snapshot(file)
+    }
+
+    /// The analysis made again now if the text changed since (an editor
+    /// calls it when typing pauses, before the diagnostics).
+    pub fn refresh(&mut self, file: &Path) {
+        let _ = self.snapshot(file);
     }
 
     /// The editor closed a file: it's read from the disk again.
@@ -274,6 +394,7 @@ impl Analysis {
         self.docs.remove(file);
         self.snapshots.clear();
         self.diagnostics.clear();
+        self.stale.remove(file);
     }
 
     /// The text of a file: the editor's, else the disk's (inside the
@@ -318,19 +439,35 @@ impl Analysis {
         if let Some(s) = self.snapshots.get(file) {
             return Some(s.clone());
         }
-        if is_inc(file) {
-            let mut roots: Vec<PathBuf> = self.docs.keys().filter(|p| p.as_path() != file && !is_inc(p)).cloned().collect();
-            roots.sort();
-            for root in roots {
-                if let Some(s) = self.root_snapshot(&root) {
-                    if s.parsed.file_key(file).is_some() {
-                        self.snapshots.insert(file.to_path_buf(), s.clone());
-                        return Some(s);
-                    }
+        if let Some((_, s)) = self.includer(file) {
+            self.snapshots.insert(file.to_path_buf(), s.clone());
+            return Some(s);
+        }
+        self.root_snapshot(file)
+    }
+
+    /// The open program that `$INCLUDE`s `file`, with its analysis: an
+    /// `.inc`, or a form or module of several files (RapidR Studio's Add
+    /// Form: `Form2.rr`, which main.rr includes) — its names (Form1, the
+    /// main file's SUBs) are the program's there. Only programs whose text
+    /// names the file are analysed for it.
+    fn includer(&mut self, file: &Path) -> Option<(PathBuf, Arc<Snapshot>)> {
+        let name = file.file_name()?.to_string_lossy().to_ascii_lowercase();
+        let mut roots: Vec<PathBuf> = self
+            .docs
+            .iter()
+            .filter(|(p, t)| p.as_path() != file && !is_inc(p) && (is_inc(file) || t.to_ascii_lowercase().contains(&name)))
+            .map(|(p, _)| p.clone())
+            .collect();
+        roots.sort();
+        for root in roots {
+            if let Some(s) = self.root_snapshot(&root) {
+                if s.parsed.file_key(file).is_some() {
+                    return Some((root, s));
                 }
             }
         }
-        self.root_snapshot(file)
+        None
     }
 
     fn root_snapshot(&mut self, root: &Path) -> Option<Arc<Snapshot>> {
@@ -341,7 +478,8 @@ impl Analysis {
         let open: Vec<(PathBuf, String)> = self.docs.iter().map(|(p, t)| (p.clone(), t.clone())).collect();
         let parsed = front::parse(root, &text, &self.preprocess_options(), &open);
         let model = model::analyze(&parsed.program, Some(&parsed.source));
-        let s = Arc::new(Snapshot { parsed, model });
+        let s = Arc::new(Snapshot::new(parsed, model));
+        self.stale.remove(root);
         self.snapshots.insert(root.to_path_buf(), s.clone());
         Some(s)
     }
@@ -355,32 +493,50 @@ impl Analysis {
         if let Some(d) = self.diagnostics.get(file) {
             return d.clone();
         }
-        let Some(s) = self.root_snapshot(file) else { return Vec::new() };
+        // (a form or module the open program includes: what the program's
+        // analysis says of it — its names are the program's)
+        let (s, only) = match self.includer(file).filter(|_| !is_inc(file)) {
+            Some((_, s)) => (s, true),
+            None => match self.root_snapshot(file) {
+                Some(s) => (s, false),
+                None => return Vec::new(),
+            },
+        };
         let mut out = diagnostics::compile(&s.parsed);
+        if only {
+            out.retain(|d| d.file == file);
+        }
         let compiler = out.clone();
         // (where the compiler speaks, it's said)
         out.extend(compat::check(&s, file, self.options.rapidq_compatible).into_iter().filter(|c| {
             !compiler.iter().any(|d| d.file == c.file && d.start < c.end.max(c.start + 1) && c.start < d.end.max(d.start + 1))
         }));
+        // (what RapidQ compiles without a word but is likely a mistake:
+        // RAPIDQ.INC's constants without the include, names never
+        // assigned — when the program compiles, its model whole)
+        if !compiler.iter().any(|d| d.severity == rapidr_diagnostics::Severity::Error) {
+            let said: Vec<FileDiagnostic> = out.clone();
+            out.extend(hints::check(&s).into_iter().filter(|h| !said.iter().any(|d| d.file == h.file && d.start < h.end && h.start < d.end)));
+        }
         self.diagnostics.insert(file.to_path_buf(), out.clone());
         out
     }
 
     pub fn completions(&mut self, file: &Path, offset: usize) -> Completions {
         let Some(text) = self.text(file) else { return Completions::default() };
-        let Some(s) = self.snapshot(file) else { return Completions::default() };
-        complete::completions(&s, file, &text, offset)
+        let Some(s) = self.quick_snapshot(file) else { return Completions::default() };
+        complete::completions(&s, file, &text, offset, self.options.rapidq_compatible)
     }
 
     pub fn hover(&mut self, file: &Path, offset: usize) -> Option<Hover> {
         let text = self.text(file)?;
-        let s = self.snapshot(file)?;
+        let s = self.quick_snapshot(file)?;
         hover::hover(&s, file, &text, offset)
     }
 
     pub fn signature(&mut self, file: &Path, offset: usize) -> Option<SignatureHelp> {
         let text = self.text(file)?;
-        let s = self.snapshot(file)?;
+        let s = self.quick_snapshot(file)?;
         signature::signature(&s, file, &text, offset)
     }
 
@@ -451,16 +607,24 @@ impl Analysis {
     /// formatter on a range.
     pub fn case_edits(&mut self, file: &Path, scope: CaseScope) -> Vec<TextEdit> {
         let Some(text) = self.text(file) else { return Vec::new() };
-        let Some(s) = self.snapshot(file) else { return Vec::new() };
+        let Some(s) = self.quick_snapshot(file) else { return Vec::new() };
         case::case_edits(&s, file, &text, scope, self.options.case)
     }
 
     /// Fixes for the diagnostics in a range of a file.
     pub fn code_actions(&mut self, file: &Path, start: usize, end: usize) -> Vec<CodeAction> {
-        let diags: Vec<FileDiagnostic> = self.diagnostics(file).into_iter().filter(|d| d.file == file && d.start <= end && start <= d.end).collect();
-        compat::actions(&diags)
+        // (the diagnostics are a main file's: an included one's are asked
+        // through the program that includes it)
+        let root = self.snapshot(file).map_or_else(|| file.to_path_buf(), |s| s.parsed.root.clone());
+        let diags: Vec<FileDiagnostic> = self.diagnostics(&root).into_iter().filter(|d| d.file == file && d.start <= end && start <= d.end).collect();
+        let mut out = compat::actions(&diags, |f| self.text(f));
+        out.extend(hints::actions(&diags, &root, |f| self.text(f)));
+        out
     }
 }
+
+/// Edits answered from an older analysis before it is made again anyway.
+const MAX_STALE_EDITS: usize = 4096;
 
 fn is_inc(p: &Path) -> bool {
     p.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("inc"))

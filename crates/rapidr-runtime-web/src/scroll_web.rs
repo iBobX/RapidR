@@ -75,7 +75,11 @@ pub fn update(name: &str) {
         let (w, h) = area(name);
         let kids: Vec<Child> = children(name).into_iter().map(|(_, c)| c).collect();
         let before = scrollbars::with(name, |s| (s.horz.shown, s.vert.shown));
-        let shift = scrollbars::with_mut(name, |s| s.update(w, h, &kids));
+        let bare = scrollbars::bare(&rp_comp_type(name), &rp_comp_get_stored(name, "borderstyle"));
+        let shift = scrollbars::with_mut(name, |s| {
+            s.bare = bare;
+            s.update(w, h, &kids)
+        });
         move_children(name, shift);
         let after = scrollbars::with(name, |s| (s.horz.shown, s.vert.shown));
         if before == after {

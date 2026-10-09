@@ -1,12 +1,29 @@
 #!/bin/bash
-# macOS: RapidR.app (the IDE, the CLI, the SDK) and RapidR Runtime.app (runs
-# programs: .rrbc on a double click, "Open With" on .rr / .bas), universal
-# (arm64 + x86_64), in two disk images:
+# macOS: RapidR Studio.app (the IDE, the `rapidr` command, the SDK) and RapidR
+# Runtime.app (runs programs: .rrbc on a double click, "Open With" on .rr / .bas),
+# universal (arm64 + x86_64), in two disk images:
 #
 #   dist/<ver>/out/RapidR-<ver>-macos-universal.dmg          both apps
 #   dist/<ver>/out/RapidR-Runtime-<ver>-macos-universal.dmg  the runtime only
 #
-#   tools/release/macos.sh [--sign "Developer ID Application: Name (TEAMID)"] [--notarize <notarytool keychain profile>]
+# Each image opens on the app(s) and an Applications alias (drag the app onto it), and a
+# Licenses folder (LICENSE, NOTICE, LEGAL.md, LICENSES.md, THIRD_PARTY_NOTICES.md).
+# The `rapidr` command line is inside the app (Contents/MacOS/rapidr); its first
+# run of `rapidr setup` offers to link it into /usr/local/bin or ~/.local/bin.
+#
+#   tools/release/macos.sh      (inputs: prepare.sh's dist/<ver>/prep/; run on the Mac)
+#   tools/release/macos.sh --sign "Developer ID Application: Name (TEAMID)" --notarize <profile>
+#
+# Signing hooks, OFF unless set (the first release ships ad hoc signed only; this script
+# never creates a key or a certificate):
+#   --sign "<identity>"     or env RAPIDR_MAC_SIGN_IDENTITY: a Developer ID Application identity
+#                           (`security find-identity -v -p codesigning`). Signs inside-out with the
+#                           hardened runtime and a timestamp, then the disk images.
+#   --notarize <profile>    or env RAPIDR_MAC_NOTARY_PROFILE: a notarytool keychain profile (made
+#                           once: `xcrun notarytool store-credentials <profile> --apple-id … --team-id …`).
+#                           Submits each .dmg with `xcrun notarytool submit --wait` and staples it.
+#   Without them the apps are signed ad hoc: they run on the Mac that built them and, downloaded,
+#   macOS asks once for System Settings > Privacy & Security > Open Anyway (docs/manual/getting-started.md).
 #
 # Every executable in the apps is universal — the CLI, the launcher and the one
 # runner `--interp` executables start from (runners/macos/) — built for macOS
@@ -15,14 +32,15 @@
 # statically (lipo -archs, otool's LC_BUILD_VERSION); nothing x86_64 is run here.
 #
 # After tools/release/prepare.sh. Unsigned (the default) the apps are signed
-# ad hoc: they run here and, downloaded, open with right-click > Open (see
-# docs/release-packaging.md). Needs: Xcode's command line tools (lipo,
+# ad hoc: they run here and, downloaded, are allowed once in System Settings >
+# Privacy & Security > Open Anyway (docs/manual/getting-started.md). Needs: Xcode's command line tools (lipo,
 # codesign, hdiutil), `rustup target add x86_64-apple-darwin` for universal.
 # About 6 GB of disk while it runs (two release builds); work/ is removed.
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 cd "$ROOT"
-SIGN="" NOTARY=""
+# (unsigned unless one is given: the flags, or the environment)
+SIGN="${RAPIDR_MAC_SIGN_IDENTITY:-}" NOTARY="${RAPIDR_MAC_NOTARY_PROFILE:-}"
 while [ $# -gt 0 ]; do
     case "$1" in
         --sign) SIGN="$2"; shift 2 ;;
@@ -86,7 +104,7 @@ make_app() {
     cp design/brand/icons/macos/*.icns "$app/Contents/Resources/"
 }
 step "apps"
-make_app "RapidR" "$W/sdk" RapidR.plist
+make_app "RapidR Studio" "$W/sdk" RapidR-Studio.plist
 make_app "RapidR Runtime" "$W/runtime" RapidR-Runtime.plist
 
 # Inside out: every executable, then the bundle. A Developer ID signs with
@@ -121,23 +139,67 @@ scan() {
     [ $bad = 0 ] || die "$app has executables that aren't universal"
 }
 step "every executable universal"
-scan "$W/apps/RapidR.app"
+scan "$W/apps/RapidR Studio.app"
 scan "$W/apps/RapidR Runtime.app"
 
 step "sign (${SIGN:-ad hoc})"
-sign "$W/apps/RapidR.app"
+sign "$W/apps/RapidR Studio.app"
 sign "$W/apps/RapidR Runtime.app"
 
+# The disk image's Finder window (icon view, the app on the left and the Applications alias on
+# the right: drag one onto the other), set through Finder's AppleScript on a writable copy, which
+# Finder keeps in the image's .DS_Store. Best effort: with no Finder (an ssh session) the image
+# is still right, only its icons are sorted by name.
+layout_dmg() {
+    local rw="$1" vol="$2"; shift 2
+    hdiutil detach -quiet "/Volumes/$vol" 2>/dev/null || true
+    hdiutil attach -quiet -noverify -noautoopen -mountpoint "/Volumes/$vol" "$rw" || return 0
+    local first="$1" row2=""
+    local positions="set position of item \"$first.app\" of container window to {150, 120}"
+    positions+=$'\n'"set position of item \"Applications\" of container window to {450, 120}"
+    if [ $# -gt 1 ]; then
+        positions+=$'\n'"set position of item \"$2.app\" of container window to {150, 270}"
+        positions+=$'\n'"set position of item \"Licenses\" of container window to {450, 270}"
+    else
+        positions+=$'\n'"set position of item \"Licenses\" of container window to {300, 270}"
+    fi
+    osascript <<EOF || echo "  (the image's window layout was skipped: no Finder)"
+tell application "Finder"
+  tell disk "$vol"
+    open
+    set current view of container window to icon view
+    set toolbar visible of container window to false
+    set statusbar visible of container window to false
+    set the bounds of container window to {200, 120, 800, 580}
+    set opts to the icon view options of container window
+    set arrangement of opts to not arranged
+    set icon size of opts to 112
+    set text size of opts to 13
+    $positions
+    update without registering applications
+    delay 1
+    close
+  end tell
+end tell
+EOF
+    sync; sleep 1
+    local i; for i in 1 2 3 4 5; do hdiutil detach -quiet "/Volumes/$vol" 2>/dev/null && return 0; sleep 2; done
+    hdiutil detach -quiet -force "/Volumes/$vol" || true
+}
+# <file> <volume name> <app> [<another app>]: the apps, an Applications alias and a Licenses
+# folder, in a compressed (ULFO) image; signed and notarized when asked.
 make_dmg() {
     local file="$1" vol="$2"; shift 2
-    local src="$W/dmg-$vol"
-    rm -rf "$src" && mkdir -p "$src"
+    local src="$W/dmg-$vol" rw="$W/$vol.rw.dmg"
+    rm -rf "$src" && mkdir -p "$src/Licenses"
     for a in "$@"; do cp -R "$W/apps/$a.app" "$src/"; done
     ln -s /Applications "$src/Applications"
-    cp LICENSE NOTICE LEGAL.md LICENSES.md THIRD_PARTY_NOTICES.md "$src/"
-    rm -f "$OUT/$file"
-    hdiutil create -quiet -volname "$vol" -srcfolder "$src" -fs HFS+ -format ULFO "$OUT/$file"
-    rm -rf "$src"
+    cp LICENSE NOTICE LEGAL.md LICENSES.md THIRD_PARTY_NOTICES.md "$src/Licenses/"
+    rm -f "$OUT/$file" "$rw"
+    hdiutil create -quiet -volname "$vol" -srcfolder "$src" -fs HFS+ -format UDRW "$rw"
+    layout_dmg "$rw" "$vol" "$@"
+    hdiutil convert -quiet "$rw" -format ULFO -o "$OUT/$file"
+    rm -rf "$src" "$rw"
     if [ -n "$SIGN" ]; then
         codesign --sign "$SIGN" --timestamp "$OUT/$file"
     fi
@@ -148,5 +210,5 @@ make_dmg() {
     echo "wrote $OUT/$file ($(du -h "$OUT/$file" | cut -f1))"
 }
 step "disk images"
-make_dmg "RapidR-$VERSION-macos-$ARCH.dmg" "RapidR $VERSION" "RapidR" "RapidR Runtime"
+make_dmg "RapidR-$VERSION-macos-$ARCH.dmg" "RapidR $VERSION" "RapidR Studio" "RapidR Runtime"
 make_dmg "RapidR-Runtime-$VERSION-macos-$ARCH.dmg" "RapidR Runtime $VERSION" "RapidR Runtime"

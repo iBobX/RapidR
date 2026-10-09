@@ -36,6 +36,10 @@ pub trait Canvas {
     /// Clips to a path (device pixels) until the matching `pop_clip`.
     fn push_clip_path(&mut self, path: &BezPath);
     fn pop_clip(&mut self);
+    /// What follows drawn `alpha` (0–1) opaque, as one layer, until
+    /// `pop_fade`.
+    fn push_fade(&mut self, alpha: f32);
+    fn pop_fade(&mut self);
     fn glyphs(&mut self, run: &GlyphRun, glyphs: &[(u32, f32, f32)]);
     /// A picture scaled into `rect` (device pixels), smoothly; `source` and
     /// `revision` name it in the picture cache (`images.rs`).
@@ -72,13 +76,16 @@ pub struct Painter<'a> {
     pub text: &'a mut TextSystem,
     pub scale: f64,
     origin: (i64, i64),
+    /// Where the logical (0, 0) is on the device (a zoomed part: the list's
+    /// `Item::Zoom`; else the corner).
+    at: (f64, f64),
     /// The display list's pictures (what its `Op::Image`s name).
     pub images: Option<&'a HashMap<String, Arc<Picture>>>,
 }
 
 impl<'a> Painter<'a> {
     pub fn new(canvas: &'a mut dyn Canvas, text: &'a mut TextSystem, scale: f64) -> Self {
-        Painter { canvas, text, scale, origin: (0, 0), images: None }
+        Painter { canvas, text, scale, origin: (0, 0), at: (0.0, 0.0), images: None }
     }
 
     /// A logical coordinate on the device's pixel grid.
@@ -86,11 +93,17 @@ impl<'a> Painter<'a> {
         (v as f64 * self.scale).round()
     }
 
+    /// A logical point (from the corner, not snapped) on the device.
+    fn pt(&self, x: f64, y: f64) -> (f64, f64) {
+        (self.at.0 + x * self.scale, self.at.1 + y * self.scale)
+    }
+
     /// A logical rectangle on the device's pixels (its edges snapped).
     pub fn device_rect(&self, r: Rect) -> KRect {
         let (x, y, w, h) = r;
         let (ox, oy) = self.origin;
-        KRect::new(self.dev(ox + x), self.dev(oy + y), self.dev(ox + x + w), self.dev(oy + y + h))
+        let (ax, ay) = self.at;
+        KRect::new(ax + self.dev(ox + x), ay + self.dev(oy + y), ax + self.dev(ox + x + w), ay + self.dev(oy + y + h))
     }
 
     pub fn fill(&mut self, r: Rect, rgb: u32) {
@@ -111,8 +124,8 @@ impl<'a> Painter<'a> {
         }
         let (ox, oy) = (self.origin.0 as f64, self.origin.1 as f64);
         let mut path = BezPath::new();
-        path.move_to(((ox + from.0) * self.scale, (oy + from.1) * self.scale));
-        path.line_to(((ox + to.0) * self.scale, (oy + to.1) * self.scale));
+        path.move_to(self.pt(ox + from.0, oy + from.1));
+        path.line_to(self.pt(ox + to.0, oy + to.1));
         self.canvas.stroke_path(self.scale.round().max(1.0), rgb, &path);
     }
 
@@ -125,7 +138,7 @@ impl<'a> Painter<'a> {
         let snap = |v: f64| (v * self.scale).floor() + lw / 2.0;
         let mut path = BezPath::new();
         for (i, (x, y)) in shape.points.iter().enumerate() {
-            let p = (snap(ox + x), snap(oy + y));
+            let p = (self.at.0 + snap(ox + x), self.at.1 + snap(oy + y));
             if i == 0 {
                 path.move_to(p)
             } else {
@@ -179,7 +192,7 @@ impl<'a> Painter<'a> {
         let (ox, oy) = (self.origin.0 as f64, self.origin.1 as f64);
         let mut path = BezPath::new();
         for (i, (x, y)) in points.iter().enumerate() {
-            let p = ((ox + x) * self.scale, (oy + y) * self.scale);
+            let p = self.pt(ox + x, oy + y);
             if i == 0 {
                 path.move_to(p)
             } else {
@@ -243,7 +256,7 @@ impl<'a> Painter<'a> {
         let (ox, oy) = (self.origin.0 as f64, self.origin.1 as f64);
         let mut path = BezPath::new();
         for (i, (x, y)) in points.iter().enumerate() {
-            let p = ((ox + x) * self.scale, (oy + y) * self.scale);
+            let p = self.pt(ox + x, oy + y);
             if i == 0 {
                 path.move_to(p)
             } else {
@@ -323,7 +336,7 @@ impl<'a> Painter<'a> {
                 let (ox, oy) = (self.origin.0 as f64, self.origin.1 as f64);
                 let mut path = BezPath::new();
                 for (i, (x, y)) in points.iter().enumerate() {
-                    let p = ((ox + x) * self.scale, (oy + y) * self.scale);
+                    let p = self.pt(ox + x, oy + y);
                     if i == 0 {
                         path.move_to(p)
                     } else {
@@ -334,6 +347,8 @@ impl<'a> Painter<'a> {
                 self.canvas.push_clip_path(&path);
             }
             Op::ClipPop => self.canvas.pop_clip(),
+            Op::Fade { alpha } => self.canvas.push_fade(f32::from(*alpha) / 255.0),
+            Op::FadePop => self.canvas.pop_fade(),
         }
     }
 }
@@ -414,6 +429,9 @@ pub fn draw_list(canvas: &mut dyn Canvas, text: &mut TextSystem, list: &DisplayL
             Item::Op { origin, op } => {
                 p.origin = *origin;
                 p.op(op);
+            }
+            Item::Zoom(z) => {
+                (p.scale, p.at) = z.map_or((list.scale, (0.0, 0.0)), |z| (z.scale, z.at));
             }
             Item::Text(t) => {
                 if let Some(layout) = form.editor_layout_at(&t.node, t.para) {

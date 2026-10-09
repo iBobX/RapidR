@@ -1,0 +1,18 @@
+[package]
+name = "rapidr-import"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+description = "RapidR's RapidQ importer: a copy of a RapidQ program with RapidR's names, proved to compile to the same bytecode"
+
+[dependencies]
+rapidr-ast.workspace = true
+rapidr-diagnostics.workspace = true
+rapidr-lang.workspace = true
+rapidr-lexer.workspace = true
+rapidr-parser.workspace = true
+rapidr-preprocessor.workspace = true
+rapidr-project.workspace = true
+# (the proof: both programs compiled to bytecode and compared)
+rapidr-bcgen.workspace = true

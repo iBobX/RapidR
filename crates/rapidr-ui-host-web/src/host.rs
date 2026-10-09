@@ -143,6 +143,9 @@ thread_local! {
     static HOST: RefCell<Option<WebHost>> = const { RefCell::new(None) };
     static STORE: Cell<Option<&'static dyn Store>> = const { Cell::new(None) };
     static WAKE: RefCell<Option<Rc<dyn Fn()>>> = const { RefCell::new(None) };
+    /// (RapidR's OnDropFiles) Whether a form takes files dropped on it (it
+    /// has an OnDropFiles handler): the runtime's answer.
+    static ACCEPTS_DROP: RefCell<Option<Rc<dyn Fn(&str) -> bool>>> = const { RefCell::new(None) };
     static SCALE_WATCH: RefCell<Option<Listener>> = const { RefCell::new(None) };
     /// The component types the page shows as its own elements over the
     /// canvas (the runtime's web-only components), uppercase.
@@ -154,6 +157,21 @@ thread_local! {
 /// nodes' places, clipped to their parents (docs/web-host-plan.md §3.6).
 pub fn set_overlay_types(types: &[&str]) {
     OVERLAY_TYPES.with(|o| *o.borrow_mut() = types.iter().map(|t| t.to_uppercase()).collect());
+}
+
+/// The performance harness's probe (docs/ide-plan.md §6.2): when the page
+/// set `window.RAPIDR_FRAME_TIMES` to an array, each drawn window frame
+/// appends [the frame's work in ms, Date.now() when it ended].
+fn frame_time(started: Instant) {
+    let Some(win) = web_sys::window() else { return };
+    let Ok(list) = js_sys::Reflect::get(&win, &JsValue::from_str("RAPIDR_FRAME_TIMES")) else { return };
+    if !js_sys::Array::is_array(&list) {
+        return;
+    }
+    let ms = started.elapsed().as_secs_f64() * 1000.0;
+    let now = js_sys::Date::now();
+    let entry = js_sys::Array::of2(&JsValue::from_f64(ms), &JsValue::from_f64(now));
+    list.unchecked_into::<js_sys::Array>().push(&entry);
 }
 
 fn is_overlay(type_name: &str) -> bool {
@@ -245,6 +263,54 @@ pub fn install(store: &'static dyn Store, wake: Rc<dyn Fn()>) {
 
 pub fn installed() -> bool {
     HOST.with(|h| h.borrow().is_some())
+}
+
+/// (RapidR's OnDropFiles) `accepts(form)`: whether files dropped on the
+/// form's window are the program's (else the drop is refused — the page
+/// isn't replaced by the file either).
+pub fn on_drop_files(accepts: Rc<dyn Fn(&str) -> bool>) {
+    ACCEPTS_DROP.with(|a| *a.borrow_mut() = Some(accepts));
+}
+
+fn accepts_drop(form: &str) -> bool {
+    ACCEPTS_DROP.with(|a| a.borrow().clone()).is_some_and(|f| f(form))
+}
+
+/// Files dropped on form `id`'s window: each read whole into the page's
+/// files under its name (as a file the user picks in an Open dialog), then
+/// one OnDropFiles with their names, in order.
+fn drop_files(id: &str, list: web_sys::FileList) {
+    let files: Vec<web_sys::File> = (0..list.length()).filter_map(|i| list.get(i)).collect();
+    if files.is_empty() {
+        return;
+    }
+    let reads = js_sys::Array::new();
+    for f in &files {
+        reads.push(&f.array_buffer());
+    }
+    let names: Vec<String> = files.iter().map(web_sys::File::name).collect();
+    let id = id.to_string();
+    let done = Closure::once(move |buffers: JsValue| {
+        let buffers = js_sys::Array::from(&buffers);
+        let mut stored = Vec::new();
+        for (i, name) in names.iter().enumerate() {
+            let bytes = js_sys::Uint8Array::new(&buffers.get(i as u32)).to_vec();
+            if rapidr_value::objects::write_file(name, &bytes).is_ok() {
+                stored.push(name.clone());
+            }
+        }
+        input(|h, _| {
+            for name in &stored {
+                h.desk.files_dropped(&id, name);
+            }
+        });
+    });
+    let failed = Closure::once(|e: JsValue| {
+        web_sys::console::warn_1(&JsValue::from_str(&format!("[rapidr] dropped files: can't read them ({e:?})")));
+    });
+    let _ = js_sys::Promise::all(&reads).then2(&done, &failed);
+    done.forget();
+    failed.forget();
 }
 
 fn store() -> Option<&'static dyn Store> {
@@ -362,6 +428,7 @@ impl WebHost {
                         w.force = true;
                     }
                 }
+                HostCmd::Shape(f) => self.apply_shape(&f),
                 HostCmd::Size(f) => {
                     if let Some(w) = self.wins.get_mut(&f) {
                         w.force = true;
@@ -417,6 +484,8 @@ impl WebHost {
         if !self.wins.contains_key(id) {
             if let Some(w) = self.make(id) {
                 self.wins.insert(id.to_string(), w);
+                // (an outline ShapeForm gave it before it showed)
+                self.apply_shape(id);
             } else {
                 return;
             }
@@ -435,13 +504,34 @@ impl WebHost {
         self.place(id);
     }
 
+    /// The window's outline (`ShapeForm`, `rapidr_value::shape`): the page
+    /// shows — and the mouse reaches — only the bitmap's pixels that
+    /// aren't its transparent colour, counted from the window's top left
+    /// corner, its frame included, as RapidQ's runtime gives a window its
+    /// region; what's outside is the page.
+    fn apply_shape(&self, id: &str) {
+        let Some(w) = self.wins.get(id) else { return };
+        let style = w.root.style();
+        match rapidr_value::shape::get(id) {
+            Some(shape) => {
+                let path = format!("path('{}')", shape.svg_path(0, 0));
+                let _ = style.set_property("clip-path", &path);
+                // (the window's shadow is its outline's too)
+                let _ = style.set_property("box-shadow", "none");
+            }
+            None => {
+                let _ = style.remove_property("clip-path");
+            }
+        }
+    }
+
     /// The window at its Left / Top on the page.
     fn place(&mut self, id: &str) {
         let Some(pos) = self.desk.forms.get(id).and_then(|f| f.spec.position) else { return };
         if let Some(w) = self.wins.get(id) {
             // (minimized: its title bar in its slot along the page's bottom)
             let pos = match w.min_slot {
-                Some(slot) => ((slot as i64) * (MIN_WIDTH + 4), screen().1 - frame::inset(true).1 - rapidr_value::layout::FORM_BORDER),
+                Some(slot) => ((slot as i64) * (MIN_WIDTH + 4), screen().1 - frame::inset(true, true).1 - rapidr_value::layout::FORM_BORDER),
                 None => pos,
             };
             set_style(&w.root, &[("left", px(pos.0 as f64)), ("top", px(pos.1 as f64))]);
@@ -454,7 +544,7 @@ impl WebHost {
     fn set_state(&mut self, store: &dyn Store, id: &str, state: i64) {
         use rapidr_value::window_state::{WS_MAXIMIZED, WS_MINIMIZED};
         let Some(f) = self.desk.forms.get(id) else { return };
-        let (pos, inside, border) = (f.spec.position.unwrap_or((0, 0)), f.spec.size, f.spec.border);
+        let (pos, inside, border, caption) = (f.spec.position.unwrap_or((0, 0)), f.spec.size, f.spec.border, !f.spec.no_caption);
         let Some(w) = self.wins.get_mut(id) else { return };
         match state {
             WS_MAXIMIZED => {
@@ -464,7 +554,7 @@ impl WebHost {
                 w.minimized = false;
                 w.min_slot = None;
                 let (sw, sh) = screen();
-                let (ow, oh) = frame::outer((0, 0), border);
+                let (ow, oh) = frame::outer((0, 0), border, caption);
                 let (iw, ih) = ((sw - ow).max(1), (sh - oh).max(1));
                 w.frame_dirty = true;
                 if let Some(f) = self.desk.form(id) {
@@ -605,6 +695,7 @@ impl WebHost {
             let scale = f.scale;
             let mut drawn = false;
             if w.force || f.ui.dirty || (w.scale - scale).abs() > f64::EPSILON {
+                let started = Instant::now();
                 rapidr_value::objects::bitmap::set_display_scale(scale);
                 f.ui.popups_apart = f.ui.nodes.iter().any(|n| is_overlay(&n.type_name));
                 let list = f.ui.paint(store, text, scale);
@@ -653,11 +744,13 @@ impl WebHost {
                 }
                 w.force = false;
                 drawn = true;
+                frame_time(started);
             }
             let look = Look {
                 title: f.spec.title.clone(),
                 active: top.as_deref() == Some(id.as_str()),
                 border: f.spec.border,
+                caption: !f.spec.no_caption,
                 frame: f.spec.frame,
                 maximized: f.state == rapidr_value::window_state::WS_MAXIMIZED,
                 theme: rapidr_value::theme::generation(),
@@ -671,8 +764,8 @@ impl WebHost {
                 w.frame_dirty = false;
                 layout(w);
                 let look = w.look.clone().expect("a look");
-                let size = frame::outer(w.inside, look.border);
-                let shown_size = if w.minimized { (MIN_WIDTH, frame::inset(look.border).1 + rapidr_value::layout::FORM_BORDER) } else { size };
+                let size = frame::outer(w.inside, look.border, look.caption);
+                let shown_size = if w.minimized { (MIN_WIDTH, frame::inset(look.border, look.caption).1 + rapidr_value::layout::FORM_BORDER) } else { size };
                 let list = frame::paint(&look, shown_size, scale);
                 // (the window's corners and its shadow on the page)
                 let (radius, inside, shadow) = frame::css(&look);
@@ -735,9 +828,10 @@ impl WebHost {
 /// pixels; the canvases' backing is the device's).
 fn layout(w: &mut Win) {
     let border = w.look.as_ref().is_some_and(|l| l.border);
-    let (ix, iy) = frame::inset(border);
+    let caption = w.look.as_ref().is_none_or(|l| l.caption);
+    let (ix, iy) = frame::inset(border, caption);
     let (iw, ih) = w.inside;
-    let (ow, oh) = frame::outer(w.inside, border);
+    let (ow, oh) = frame::outer(w.inside, border, caption);
     let shown_h = if w.minimized { iy + rapidr_value::layout::FORM_BORDER } else { oh };
     let ow = if w.minimized { MIN_WIDTH } else { ow };
     set_style(&w.root, &[("width", px(ow as f64)), ("height", px(shown_h as f64))]);
@@ -819,9 +913,9 @@ fn hints(ui: &rapidr_ui_kernel::FormUi, store: &dyn Store) -> HashMap<u64, crate
 
 /// The frame's size as shown (a minimized window: its title bar alone).
 fn shown_frame(w: &Win, look: &Look) -> (i64, i64) {
-    let size = frame::outer(w.inside, look.border);
+    let size = frame::outer(w.inside, look.border, look.caption);
     if w.minimized {
-        (MIN_WIDTH, frame::inset(look.border).1 + rapidr_value::layout::FORM_BORDER)
+        (MIN_WIDTH, frame::inset(look.border, look.caption).1 + rapidr_value::layout::FORM_BORDER)
     } else {
         size
     }
@@ -883,7 +977,7 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
                     h.desk.mouse_move(store, &id, p.0, p.1, m, Source::User);
                     // (the pointer: Screen.Cursor, else the component's —
                     // the desktop's rule)
-                    let cursor = rapidr_ui_app::desktop::cursor_at(&h.desk, store, &id, p);
+                    let cursor = rapidr_ui_app::desktop::cursor_at(&mut h.desk, store, &id, p);
                     if let Some(el) = el.dyn_ref::<HtmlElement>() {
                         set_style(el, &[("cursor", cursor.css().into())]);
                     }
@@ -920,6 +1014,32 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
             });
         }
         listen(&client, "contextmenu", &mut out, |e| e.prevent_default());
+        // (RapidR's OnDropFiles: files dragged from the computer onto the
+        // window — refused by a form without the handler, and never the
+        // browser's own drop, which would replace the page by the file)
+        {
+            let id = id.to_string();
+            listen(&client, "dragover", &mut out, move |e| {
+                let Ok(e) = e.dyn_into::<web_sys::DragEvent>() else { return };
+                e.prevent_default();
+                if let Some(dt) = e.data_transfer() {
+                    dt.set_drop_effect(if accepts_drop(&id) { "copy" } else { "none" });
+                }
+            });
+        }
+        {
+            let id = id.to_string();
+            listen(&client, "drop", &mut out, move |e| {
+                let Ok(e) = e.dyn_into::<web_sys::DragEvent>() else { return };
+                e.prevent_default();
+                if !accepts_drop(&id) {
+                    return;
+                }
+                if let Some(list) = e.data_transfer().and_then(|dt| dt.files()) {
+                    drop_files(&id, list);
+                }
+            });
+        }
         {
             let (id, el) = (id.to_string(), client.clone());
             listen(&client, "wheel", &mut out, move |e| {
@@ -1290,6 +1410,12 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
         let id = id.to_string();
         listen(&m, "input", &mut out, move |e| {
             let Some(field) = e.target() else { return };
+            // (a code editor's field holds a window of its lines: never
+            // typed over whole)
+            let name = field.dyn_ref::<web_sys::Element>().and_then(|el| el.get_attribute("data-rr-name"));
+            if name.is_some_and(|n| rapidr_value::objects::is_code(&n)) {
+                return;
+            }
             let value = if let Some(i) = field.dyn_ref::<web_sys::HtmlInputElement>() {
                 i.value()
             } else if let Some(t) = field.dyn_ref::<web_sys::HtmlTextAreaElement>() {

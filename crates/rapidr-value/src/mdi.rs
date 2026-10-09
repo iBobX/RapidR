@@ -332,7 +332,10 @@ pub fn call(form: &str, method: &str, args: &[Value], client: (i64, i64), name_o
                     restore(c);
                 }
             }
-            "activenextchild" | "activepreviouschild" if m.children.len() > 1 => {
+            // (with one child or none: nothing to go to — the method is
+            // still there)
+            "activenextchild" | "activepreviouschild" if m.children.len() < 2 => {}
+            "activenextchild" | "activepreviouschild" => {
                 // Next: the bottom one comes up; previous: the top one goes down.
                 if method == "activenextchild" {
                     out.events = raise(m, 0);
@@ -397,6 +400,26 @@ fn arrange_icons(m: &mut Mdi, cw: i64, ch: i64) {
         c.rect = Rect { left: col * ICON_WIDTH, top: ch - (row + 1) * (TITLE_HEIGHT + 2 * BORDER), width: ICON_WIDTH, height: TITLE_HEIGHT + 2 * BORDER };
         n += 1;
     }
+}
+
+/// QFORM's own MDI members — RapidQ's "undocumented" Cascade, Tile,
+/// ArrangeIcons, Next and Previous (Delphi's TForm ones) — as the
+/// QFORMMDI method each one is: Tile by `tile_mode` (TileMode: 0
+/// tbHorizontal, one above another; 1 tbVertical, side by side). A QFORM
+/// has no MDI children (RapidQ supports FormStyle fsNormal only: RC.EXE's
+/// programs read MDIChildCount 0, and these do nothing — a form made
+/// fsMDIChild stops them), so on a QFORM they do nothing; on a QFORMMDI
+/// (RAPIDQ2.INC's, which extends QFORM) they arrange its children.
+pub fn qform_method(method: &str, tile_mode: i64) -> Option<&'static str> {
+    Some(match method.to_ascii_lowercase().as_str() {
+        "cascade" => "cascadechild",
+        "tile" if tile_mode == 1 => "setvertchild",
+        "tile" => "sethorzchild",
+        "arrangeicons" => "iconarrangechild",
+        "next" => "activenextchild",
+        "previous" => "activepreviouschild",
+        _ => return None,
+    })
 }
 
 /// A QFORMMDI property (the active child's), if it's one.
@@ -906,5 +929,19 @@ mod tests {
         assert_eq!(get("f", "ChildWidth"), Some(Value::Integer(800)));
         call("f", "RestoreChild", &[], (800, 600), &names).unwrap();
         assert_eq!(get("f", "ChildState"), Some(Value::Integer(0)));
+    }
+
+    #[test]
+    fn next_and_previous_with_one_child_or_none() {
+        register("g");
+        for m in ["ActiveNextChild", "ActivePreviousChild"] {
+            assert_eq!(call("g", m, &[], (800, 600), &names).map(|o| o.events.len()), Some(0), "{m} with no child");
+        }
+        add("g", 1, "One");
+        assert_eq!(call("g", "ActiveNextChild", &[], (800, 600), &names).map(|o| o.events.len()), Some(0));
+        assert_eq!(qform_method("Tile", 1), Some("setvertchild"));
+        assert_eq!(qform_method("tile", 0), Some("sethorzchild"));
+        assert_eq!(qform_method("Next", 0), Some("activenextchild"));
+        assert_eq!(qform_method("Show", 0), None);
     }
 }

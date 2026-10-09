@@ -8,15 +8,18 @@
 //! (`/dev/ttyUSB0`, `/dev/cu.usbserial-…`), or `COMn` for the n-th port
 //! the system lists (serial2's `available_ports`, sorted).
 //! What arrives is read by a thread of the port's own into a queue, so
-//! InQue / BytesNotRead and OnRxChar know what is waiting.
+//! InQue / BytesNotRead and OnRxChar know what is waiting; the same thread
+//! watches the line for OnRing (the ring indicator coming on) and OnBreak
+//! (a break arriving: on Unix the terminal marks it in what's read —
+//! PARMRK —, on Windows ClearCommError says so).
 
 use std::collections::VecDeque;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
-use rapidr_value::objects::comport::{self, Flow, Link, PortError, PortInfo, Ports, Settings, Signals};
+use rapidr_value::objects::comport::{self, Flow, LineEvents, Link, PortError, PortInfo, Ports, Settings, Signals};
 
 /// Installs the ports, once (when the first QCOMPORT is made).
 pub fn install() {
@@ -62,6 +65,14 @@ fn port_error(e: &std::io::Error) -> PortError {
 fn configure(s: &mut serial2::Settings, w: &Settings) -> std::io::Result<()> {
     use serial2::{CharSize, FlowControl, Parity, StopBits};
     s.set_raw();
+    // (a break marked in what's read, \xFF \0 \0 — a 0xFF byte read as
+    // \xFF \xFF: `Marks`)
+    #[cfg(unix)]
+    {
+        let t = s.as_termios_mut();
+        t.c_iflag |= libc::PARMRK;
+        t.c_iflag &= !(libc::IGNBRK | libc::BRKINT | libc::IGNPAR | libc::ISTRIP);
+    }
     s.set_baud_rate(w.baud)?;
     s.set_char_size(match w.data_bits {
         5 => CharSize::Bits5,
@@ -107,6 +118,53 @@ impl Ports for SystemPorts {
 struct Inbox {
     bytes: Mutex<VecDeque<u8>>,
     arrived: Condvar,
+    /// The line's events since the last look (OnRing, OnBreak).
+    rings: AtomicUsize,
+    breaks: AtomicUsize,
+}
+
+/// Unix's marks in what a port reads with PARMRK on: `\xFF \xFF` is a
+/// 0xFF byte, `\xFF \0 \0` a break, `\xFF \0 c` the byte `c` with a
+/// framing or parity error (kept). A mark may be split across reads.
+#[derive(Default)]
+struct Marks {
+    /// 0: plain; 1: after \xFF; 2: after \xFF \0.
+    state: u8,
+}
+
+impl Marks {
+    /// `bytes` read: the data into `out`; how many breaks they marked.
+    fn feed(&mut self, bytes: &[u8], out: &mut VecDeque<u8>) -> usize {
+        let mut breaks = 0;
+        for &b in bytes {
+            self.state = match (self.state, b) {
+                (0, 0xFF) => 1,
+                (0, b) => {
+                    out.push_back(b);
+                    0
+                }
+                (1, 0xFF) => {
+                    out.push_back(0xFF);
+                    0
+                }
+                (1, 0) => 2,
+                (1, b) => {
+                    // (not a mark after all)
+                    out.extend([0xFF, b]);
+                    0
+                }
+                (_, 0) => {
+                    breaks += 1;
+                    0
+                }
+                (_, b) => {
+                    out.push_back(b);
+                    0
+                }
+            };
+        }
+        breaks
+    }
 }
 
 pub(crate) struct SystemLink {
@@ -126,20 +184,54 @@ impl SystemLink {
             .name("rapidr-comport".into())
             .spawn(move || {
                 let mut buf = [0u8; 4096];
+                let mut marks = Marks::default();
+                let mut ringing = false;
                 while !stop2.load(Ordering::Relaxed) {
                     match reader.read(&mut buf) {
                         Ok(0) => {}
                         Ok(n) => {
-                            inbox2.bytes.lock().unwrap().extend(&buf[..n]);
+                            let mut q = inbox2.bytes.lock().unwrap();
+                            let breaks = if cfg!(unix) {
+                                marks.feed(&buf[..n], &mut q)
+                            } else {
+                                q.extend(&buf[..n]);
+                                0
+                            };
+                            drop(q);
+                            inbox2.breaks.fetch_add(breaks, Ordering::Relaxed);
                             inbox2.arrived.notify_all();
                         }
                         Err(e) if matches!(e.kind(), std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock | std::io::ErrorKind::Interrupted) => {}
                         Err(_) => std::thread::sleep(Duration::from_millis(50)),
                     }
+                    // (the ring indicator coming on: OnRing; a break on
+                    // Windows: OnBreak)
+                    let ring = reader.read_ri().unwrap_or(false);
+                    if ring && !ringing {
+                        inbox2.rings.fetch_add(1, Ordering::Relaxed);
+                    }
+                    ringing = ring;
+                    #[cfg(windows)]
+                    if windows_break(&reader) {
+                        inbox2.breaks.fetch_add(1, Ordering::Relaxed);
+                    }
                 }
             })?;
         Ok(SystemLink { port, inbox, stop })
     }
+}
+
+/// Whether a break arrived on a Windows port since the last ask (its
+/// ClearCommError's CE_BREAK, which also lets reading go on after it).
+#[cfg(windows)]
+fn windows_break(port: &serial2::SerialPort) -> bool {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::Devices::Communication::{ClearCommError, CE_BREAK};
+    let mut errors = 0;
+    // SAFETY: the handle is the open port's (kept alive by `port`); the
+    // status pointer may be null.
+    let ok = unsafe { ClearCommError(port.as_raw_handle() as _, &mut errors, std::ptr::null_mut()) };
+    ok != 0 && errors & CE_BREAK != 0
 }
 
 impl Drop for SystemLink {
@@ -206,6 +298,25 @@ impl Link for SystemLink {
             }
             q = self.inbox.arrived.wait_timeout(q, left).unwrap().0;
         }
+    }
+    fn line_events(&mut self) -> LineEvents {
+        LineEvents { rings: self.inbox.rings.swap(0, Ordering::Relaxed), breaks: self.inbox.breaks.swap(0, Ordering::Relaxed) }
+    }
+}
+
+#[cfg(test)]
+mod marks_tests {
+    use super::*;
+
+    #[test]
+    fn parmrk_marks_in_what_is_read() {
+        let mut m = Marks::default();
+        let mut out = VecDeque::new();
+        // (a 0xFF byte, a break, a byte with a framing error, a mark split
+        // across two reads)
+        assert_eq!(m.feed(b"a\xFF\xFFb\xFF\0\0c\xFF\0d\xFF", &mut out), 1);
+        assert_eq!(m.feed(b"\0\0e", &mut out), 1);
+        assert_eq!(out.into_iter().collect::<Vec<u8>>(), b"a\xFFbcde");
     }
 }
 

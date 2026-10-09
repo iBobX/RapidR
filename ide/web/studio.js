@@ -240,6 +240,8 @@ function frameMessage(e) {
       .then((r) => (r.ok ? r.arrayBuffer() : null))
       .then((bytes) => run.port && run.port.postMessage({ __rapidr_font_reply: { id, bytes } }, bytes ? [bytes] : []))
       .catch(() => run.port && run.port.postMessage({ __rapidr_font_reply: { id, bytes: null } }));
+  } else if (d.__rapidr_windows && typeof d.__rapidr_windows === "object") {
+    clipToWindows(d.__rapidr_windows);
   } else if (d.__rapidr_files) {
     frameFiles(d.__rapidr_files);
   } else if (d.__rapidr_storage) {
@@ -250,16 +252,66 @@ function frameMessage(e) {
   }
 }
 
+// The program's windows over the whole page: its frame covers Studio's
+// viewport and is clipped to the windows' rectangles (the frame reports
+// them). clip-path also decides where the pointer lands, so a click outside
+// the program's windows reaches Studio; while a button is held in the frame
+// (a window dragged or resized) the whole frame shows, then it's clipped
+// again. Rectangles are all the frame says about its windows; they're
+// checked and kept inside the page.
+// (no windows: one transparent pixel in the corner, not none — a frame
+// clipped away entirely counts as hidden, and the browser stops its
+// animation frames, so its first window would never be drawn)
+const NO_WINDOWS = "path('M0 0h1v1h-1Z')";
+
+function clipToWindows(w) {
+  if (!run.frame) return;
+  if (typeof w.held === "boolean") run.held = w.held;
+  if (Array.isArray(w.rects)) {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    run.rects = w.rects
+      .slice(0, 256)
+      .filter((r) => Array.isArray(r) && r.length === 4 && r.every(Number.isFinite))
+      .map(([x, y, rw, rh]) => {
+        const l = Math.max(0, Math.min(vw, x)), t = Math.max(0, Math.min(vh, y));
+        return [l, t, Math.max(0, Math.min(vw, x + rw) - l), Math.max(0, Math.min(vh, y + rh) - t)];
+      })
+      .filter((r) => r[2] > 0 && r[3] > 0);
+    // (for the tests: where the program's windows are)
+    window.RAPIDR_STUDIO_RUN_RECTS = run.rects;
+  }
+  const rects = run.rects || [];
+  let clip = NO_WINDOWS;
+  if (run.held) clip = "none";
+  else if (rects.length) clip = "path('" + rects.map(([x, y, rw, rh]) => "M" + x + " " + y + "h" + rw + "v" + rh + "h" + -rw + "Z").join("") + "')";
+  run.frame.style.clipPath = clip;
+}
+
+// Studio's menus and pop-ups (a window's pop-up layer shown) stay over the
+// program's windows, as the system's menus do on the desktop: the frame
+// goes under Studio while one is open.
+function studioPopupOpen() {
+  for (const p of document.querySelectorAll("body > .rr-kwin > .rr-kpopups")) {
+    if (p.style.display !== "none") return true;
+  }
+  return false;
+}
+function followPopups() {
+  if (run.box) run.box.classList.toggle("under", studioPopupOpen());
+}
+new MutationObserver(followPopups).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["style"] });
+
 function closeFrame() {
   run.generation++;
   if (run.port) run.port.close();
   if (run.box) run.box.remove();
   run.files.clear();
-  Object.assign(run, { box: null, frame: null, port: null, ready: false, queue: [] });
+  Object.assign(run, { box: null, frame: null, port: null, ready: false, queue: [], rects: [], held: false });
+  window.RAPIDR_STUDIO_RUN_RECTS = [];
 }
 
 window.RAPIDR_STUDIO_HOST = {
-  run(bytes, program, args, theme) {
+  run(bytes, program, args, theme, assets) {
     closeFrame();
     const generation = run.generation;
     const box = document.createElement("div");
@@ -269,6 +321,8 @@ window.RAPIDR_STUDIO_HOST = {
     frame.setAttribute("sandbox", "allow-scripts allow-modals allow-downloads");
     frame.setAttribute("title", "The running program");
     frame.src = "run.html";
+    // (clipped to nothing until the program's windows say where they are)
+    frame.style.clipPath = NO_WINDOWS;
     box.appendChild(frame);
     document.body.appendChild(box);
     Object.assign(run, { box, frame, program });
@@ -284,6 +338,9 @@ window.RAPIDR_STUDIO_HOST = {
         __rapidr_boot: {
           ...files, session: { bytes, program }, args: Array.from(args || []),
           theme: theme || "",
+          // (the data files beside the program — a CSV it loads — as the
+          // files of its folder: name → data URL)
+          assets: assets && typeof assets === "object" ? assets : {},
           storage: loadAppStorage(program),
           // (this page shows the browser's pickers for the frame: frameFiles)
           filePickers: typeof window.showOpenFilePicker === "function" && typeof window.showSaveFilePicker === "function",

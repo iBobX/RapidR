@@ -3,7 +3,7 @@
 '
 '   rapidr run d3d_cube.rr
 '
-' RapidQ's 3D objects are Direct3D Retained Mode: frames (positions and
+' The 3D objects (compatible with RapidQ's) are Direct3D Retained Mode: frames (positions and
 ' rotations), mesh builders (the shapes), lights and a camera. The screen
 ' renders the scene into its back buffer (DX.Render), then Flip shows it.
 ' cube.x was written by tools/make_example_media.py.
@@ -18,43 +18,43 @@ DECLARE SUB Spin
 DECLARE SUB Faster
 DECLARE SUB Slower
 
-DIM CubeFrame AS QD3DFRAME
-DIM LightFrame AS QD3DFRAME
-DIM Cube AS QD3DMESHBUILDER
+DIM CubeFrame AS RD3DFrame
+DIM LightFrame AS RD3DFrame
+DIM Cube AS RD3DMeshBuilder
 DIM speed AS DOUBLE
 DIM turns AS LONG
 
-DIM Timer AS QDXTIMER
+DIM Timer AS RDXTimer
 Timer.Interval = 20
 Timer.OnTimer = Spin
 
-CREATE Form AS QFORM
+CREATE Form AS RForm
     Caption = "Direct3D cube"
     ClientWidth = 320
     ClientHeight = 290
     Center
-    CREATE DX AS QDXSCREEN
+    CREATE DX AS RDXScreen
         Left = 0: Top = 0: Width = 320: Height = 240
         Init(320, 240)
         Use3D = 1
         OnInitialize = Setup
     END CREATE
-    CREATE SlowerBtn AS QBUTTON
+    CREATE SlowerBtn AS RButton
         Caption = "&Slower": Left = 8: Top = 254: Width = 80
         OnClick = Slower
     END CREATE
-    CREATE FasterBtn AS QBUTTON
+    CREATE FasterBtn AS RButton
         Caption = "&Faster": Left = 96: Top = 254: Width = 80
         OnClick = Faster
     END CREATE
-    CREATE Info AS QLABEL
+    CREATE Info AS RLabel
         Left = 186: Top = 258: Width = 130
     END CREATE
 END CREATE
 
 SUB Setup
-    DIM Ambient AS QD3DLIGHT
-    DIM Sun AS QD3DLIGHT
+    DIM Ambient AS RD3DLight
+    DIM Sun AS RD3DLight
     ' the model, from the resource built into the program to a file
     EXTRACTRESOURCE CUBE_X, "cube.tmp.x"
     DX.CreateFrame(CubeFrame)

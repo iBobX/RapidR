@@ -181,7 +181,7 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         rapidr_studio::design::install();
     }
     if rapidr_value::objects::create(name, type_name) {
-        rapidr_value::objects::set_file_io(web_read_file, web_write_file);
+        install_file_hooks();
         // (the I/O and media lane's: their devices, a QDOWNLOAD's gauge)
         if rapidr_value::objects::rqlib::is_type(type_name) {
             crate::io_web::created(name, type_name);
@@ -197,13 +197,24 @@ fn design_events(name: &str) {
     }
 }
 
-/// How shared objects print on the web (`Printer.EndDoc`, [`web_print`]).
+/// The runtime's start (before a program runs, and again as components
+/// are created): how shared objects print on the web (`Printer.EndDoc`,
+/// [`web_print`]), QREGISTRY's store, RND's seed, and the code editor's
+/// language service (as the desktop runtime installs it).
 pub fn install_object_hooks() {
     rapidr_value::objects::set_print_hook(web_print);
     // QREGISTRY's keys: the page's local storage.
     rapidr_value::registry::set_io(registry_load, registry_save);
     // RND's first seed (wasm has no clock).
     rapidr_value::builtins::set_entropy(|| (js_sys::Math::random() * 9_007_199_254_740_992.0) as u64);
+    // The code editor's language service, once: this runs again as
+    // components are created.
+    {
+        thread_local!(static LANGSVC: std::cell::Cell<bool> = const { std::cell::Cell::new(false) });
+        if !LANGSVC.with(|done| done.replace(true)) {
+            rapidr_langsvc::editor::install();
+        }
+    }
 }
 
 /// QREGISTRY's store in the page's local storage (`None`: nothing yet, or
@@ -317,6 +328,8 @@ fn web_read_file(path: &str) -> Result<Vec<u8>, String> {
 /// objects read and write (once).
 pub fn install_file_hooks() {
     rapidr_value::objects::set_file_io(web_read_file, web_write_file);
+    // (Studio's language service and designer: `$INCLUDE`s from the page too)
+    rapidr_studio::install_page_sources();
 }
 
 /// A file's length (0 if it can't be read).
@@ -364,6 +377,19 @@ pub fn stored_names_in(folder: &str) -> Vec<String> {
     })
 }
 
+/// The files in the page's store under folder `folder`, at any depth
+/// (paths relative to it): RPROJECT.ImportRapidQ's look at a folder picked
+/// on the web.
+pub fn stored_names_under(folder: &str) -> Vec<String> {
+    let prefix = format!("{}/", folder.trim_end_matches('/').replace('\\', "/"));
+    let lower = prefix.to_lowercase();
+    SAVED_FILES.with(|f| {
+        let mut names: Vec<String> = f.borrow().keys().filter(|k| k.to_lowercase().starts_with(&lower)).map(|k| k[prefix.len()..].to_string()).filter(|rest| !rest.is_empty()).collect();
+        names.sort();
+        names
+    })
+}
+
 /// `bytes` as file `path` in the page's store (over a file of the same
 /// name in another case, as on Windows) — a file the user picked to open,
 /// read whole before Execute returns.
@@ -373,6 +399,11 @@ pub(crate) fn web_store_file(path: &str, bytes: Vec<u8>) {
 }
 
 fn object_error(name: &str, what: &str, e: &str) {
+    // (a RapidQ exception: the host stops the program, as RC.EXE's)
+    if let Some(m) = rapidr_value::exception_message(e) {
+        rapidr_value::raise(m);
+        return;
+    }
     web_sys::console::warn_1(&JsValue::from_str(&format!("[rapidr] {name}.{what}: {e}")));
 }
 
@@ -421,6 +452,24 @@ pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
 }
 
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
+    // (`Label.Font.AddStyles = fsBold`: RapidQ takes the method so too)
+    if let Some(changes) = rapidr_value::objects::font::component_style_call(&prop.to_ascii_lowercase(), std::slice::from_ref(&val)) {
+        let t = rp_comp_type(name);
+        for (p, v) in changes {
+            rp_comp_set(name, &rapidr_value::objects::font::style_target(&t, p), v);
+        }
+        return;
+    }
+    // (a font style keeps 1 or 0, RapidQ's: rapidr_value::objects::font)
+    let val = rapidr_value::objects::font::component_style(prop, &val).map_or(val, |(_, _, v)| v);
+    // (the program's first font change of a component: the font it had from
+    // its parents becomes its own — Delphi's ParentFont ends)
+    let t = rp_comp_type(name);
+    if !t.is_empty() && !rapidr_value::objects::TYPES.contains(&t.as_str()) {
+        for (p, v) in rapidr_value::objects::own_font_from_parents(name, prop, &|i, p| rp_comp_get(i, p)) {
+            set_property(name, p, v);
+        }
+    }
     // (a Color or a Parent changed: the canvases' backdrops follow)
     let backdrops = prop.eq_ignore_ascii_case("color") || prop.eq_ignore_ascii_case("parent");
     // (an AutoSize QLABEL's Caption, WordWrap, AutoSize, font or Parent: it
@@ -464,6 +513,14 @@ pub fn program_color(name: &str) -> Value {
 /// Every QCANVAS shows its parent's colour where nothing is drawn, as
 /// RapidQ's (a TPaintBox) does whatever its own Color: their models'
 /// backdrops made the parents' colours again.
+/// Component `name` exists, has a Font of its own (not a QFONT, a stream
+/// or another value object) and keeps no other value as `Font`: its
+/// `Font` reads as [`rapidr_value::objects::component_font_ref`].
+fn is_component_font(name: &str) -> bool {
+    let t = rp_comp_type(&name.to_uppercase());
+    !t.is_empty() && !rapidr_value::objects::TYPES.contains(&t.as_str()) && matches!(rp_comp_get(name, "font"), Value::Null)
+}
+
 /// What `name.Font.Color` reads in a program: the one the program set,
 /// else its parent's (ParentFont), else clWindowText — RapidQ's, as RC.EXE
 /// reads it (rapidr_value::component_defaults::font_color_read).
@@ -724,9 +781,15 @@ fn set_property(name: &str, prop: &str, val: Value) {
         }
         return;
     }
-    // `Label.Font = Font` (a QFONT): copy the font's settings.
+    // `Label.Font = Font` (a QFONT): copy the font's settings; (RapidR's)
+    // `Label.Font = Other.Font` too.
     if lprop == "font" {
-        if let Some(props) = rapidr_value::objects::font_properties(&val.to_string_val()) {
+        let text = val.to_string_val();
+        let props = rapidr_value::objects::font_properties(&text).or_else(|| {
+            let other = rapidr_value::objects::font_ref_component(&text).filter(|c| is_component_font(c))?;
+            Some(rapidr_value::objects::component_font_properties(&|p| rp_comp_read(other, p)))
+        });
+        if let Some(props) = props {
             for (flat, v) in props {
                 rp_comp_set(name, flat, v);
             }
@@ -856,7 +919,9 @@ fn set_property(name: &str, prop: &str, val: Value) {
     } else if matches!(lprop.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(&uname) {
         crate::kernel_web::redraw();
         if !rapidr_value::objects::is_form_surface(&uname) && canvas_size_before != Some(rp_comp_get_stored(name, &lprop).to_i64()) {
-            rp_fire_event(&uname, "onpaint");
+            if shown_once(&uname) {
+            rapidr_value::events::post_paint(&uname);
+        }
         }
     }
     // A form's new size: it paints again.
@@ -866,7 +931,9 @@ fn set_property(name: &str, prop: &str, val: Value) {
         if rapidr_value::mdi::is_mdi(&uname) {
             crate::mdi_web::resized(&uname);
         }
-        rp_fire_event(&uname, "onpaint");
+        if shown_once(&uname) {
+            rapidr_value::events::post_paint(&uname);
+        }
     }
     // A child window's frame shows its title and whether it's active.
     if matches!(lprop.as_str(), "caption" | "active" | "childstate") && rp_comp_type(&uname) == "RMDICHILD" {
@@ -986,6 +1053,12 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     // A QFORMMDI's ChildCount, ChildCaption, … (mdi_web.rs).
     if let Some(v) = rapidr_value::mdi::get(name, &lprop) {
         return v;
+    }
+    // A QFORM's MDIChildCount, TileMode (form_members_web.rs).
+    if matches!(lprop.as_str(), "mdichildcount" | "tilemode") {
+        if let Some(v) = crate::form_members_web::get(name, &rp_comp_type(&uname), &lprop) {
+            return v;
+        }
     }
     // (I1) RapidR Studio's components (studio_web.rs).
     {
@@ -1128,6 +1201,10 @@ pub fn rp_comp_read(name: &str, prop: &str) -> Value {
             return rapidr_value::property_read(rapidr_value::objects::inherited_font_prop(name, flat, &|i, p| rp_comp_get(i, p)));
         }
     }
+    // (RapidR's) `Label.Font` itself: its font, passed where a QFONT goes
+    if prop.eq_ignore_ascii_case("font") && is_component_font(name) {
+        return rapidr_value::objects::component_font_ref(name);
+    }
     // (a property the theme draws while unset reads the registry's default:
     // rapidr_value::component_defaults::unset_read)
     let v = rp_comp_get(name, prop);
@@ -1164,6 +1241,18 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     // Screen, Application, Clipboard, Mouse (globals_web.rs).
     if let Some(v) = crate::globals_web::call(name, &lmethod, args) {
         return v;
+    }
+    // HideTitleBar, ShapeForm, QFORM's MDI methods, StartDrag (form_members_web.rs).
+    if let Some(v) = crate::form_members_web::method(name, &rp_comp_type(&uname), &lmethod, args) {
+        return v;
+    }
+    // `Label.Font.AddStyles(fsBold)` / `DelStyles`: the component's styles.
+    if let Some(changes) = rapidr_value::objects::font::component_style_call(&lmethod, args) {
+        let t = rp_comp_type(name);
+        for (p, v) in changes {
+            rp_comp_set(name, &rapidr_value::objects::font::style_target(&t, p), v);
+        }
+        return v_null();
     }
     // (the I/O and media lane's: io_web.rs)
     if let Some((sub, member)) = crate::io_web::sub_component(name, &lmethod) {
@@ -1244,6 +1333,11 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         let result = clip.map(Ok).or_else(|| rapidr_value::objects::call(name, &lmethod, args, &|id, p| rp_comp_get(id, p)));
         if let Some(result) = result {
             crate::kernel_web::redraw();
+            // (an RCODEEDITOR's ApplyPatches / Undo / Redo: OnChange — a code
+            // editor is a text edit, so it is heard here)
+            if rapidr_value::objects::is_code(name) && rapidr_value::objects::take_code_change(name) {
+                rp_fire_event(&uname, "onchange");
+            }
             return result.unwrap_or_else(|e| {
                 object_error(name, method, &e);
                 v_null()
@@ -1259,6 +1353,10 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
                 return v_null();
             }
             picture_changed(&uname);
+        }
+        // `ImageList.Draw Target, X, Y, Index`: a target QIMAGE shows it.
+        if let Some(target) = args.first().map(Value::to_string_val).filter(|t| lmethod == "draw" && rapidr_value::objects::is_picture(t)) {
+            picture_changed(&target.to_uppercase());
         }
         // (I1 / L-PANELS) A designer's selection or props changed: the
         // inspectors following it read it again.
@@ -1844,6 +1942,20 @@ fn dialog_web_method(name: &str, comp_type: &str, method: &str, args: &[Value]) 
     // GetFont(F), SetFont(F), FontName(i).
     if comp_type == "RFONTDIALOG" {
         let get = |p: &str| rp_comp_get_stored(name, p);
+        // (RapidR's) GetFont / SetFont of a component's own Font
+        let target = args.first().map(Value::to_string_val);
+        if let Some(c) = target.as_deref().and_then(rapidr_value::objects::font_ref_component).filter(|c| is_component_font(c) && matches!(method, "getfont" | "setfont")) {
+            if method == "getfont" {
+                for (p, v) in rapidr_value::font_dialog::taken(&rapidr_value::objects::component_font_properties(&|p| rp_comp_read(c, p))) {
+                    rp_comp_set(name, p, v);
+                }
+            } else {
+                for (p, v) in rapidr_value::font_dialog::chosen(&get) {
+                    rp_comp_set(c, &format!("font.{p}"), v);
+                }
+            }
+            return v_null();
+        }
         let mut set = |p: &str, v: Value| rp_comp_set(name, p, v);
         if let Some(v) = rapidr_value::font_dialog::call(method, args, &get, &mut set) {
             return v;
@@ -1913,7 +2025,7 @@ fn dialog_web_method(name: &str, comp_type: &str, method: &str, args: &[Value]) 
             if let Some(window) = web_sys::window() {
                 if let Ok(Some(fname)) = window.prompt_with_message_and_default("Font name:", &req.font.name) {
                     if let Ok(Some(fsize)) = window.prompt_with_message_and_default("Font size (pt):", &req.font.size.to_string()) {
-                        let mut font = req.font.clone();
+                        let mut font = req.answer();
                         font.name = fname;
                         if let Ok(n) = fsize.parse::<i64>() {
                             font.size = n;
@@ -2046,6 +2158,23 @@ pub fn program_ended() -> bool {
     ENDED.with(|e| e.get())
 }
 
+thread_local! {
+    /// Stopped by the IDE's debugger (a breakpoint, a step, a pause).
+    static DEBUG_STOPPED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// The program is stopped by the IDE's debugger (or goes on): its timers
+/// don't tick meanwhile, as a desktop program's don't while it's held at
+/// a stop — they fire again once it goes on, not once for every interval
+/// that passed.
+pub fn set_debug_stopped(on: bool) {
+    DEBUG_STOPPED.with(|d| d.set(on));
+}
+
+pub fn debug_stopped() -> bool {
+    DEBUG_STOPPED.with(|d| d.get())
+}
+
 /// Runs the handler bound to `name`'s `event` with the event's arguments
 /// (the firing component is passed last, as `Sender`); returns them as a
 /// compiled handler left them. The handler is copied out first, so it may
@@ -2064,6 +2193,13 @@ pub fn rp_fire_event(name: &str, event: &str) {
     if event == "onclick" {
         button_modal_result(name);
     }
+}
+
+/// Whether the form `name` is on has been shown (ui-app's forms mark its
+/// first Show): before it, nothing has a window to paint — the first
+/// Show paints it all.
+fn shown_once(name: &str) -> bool {
+    form_of(name).is_some_and(|f| rp_comp_get_stored(&f, "__shownonce").to_bool())
 }
 
 /// The form a component is on (itself for a form).
@@ -2226,6 +2362,9 @@ thread_local! {
 }
 
 fn bind_dom_event(name: &str, event: &str) {
+    // (every binding comes here: OnStartDrag makes a drag source, OnHint
+    // the hints' receiver)
+    rapidr_value::events::bound(name, event);
     let id = format!("rr-{}", name.to_lowercase());
     let name_owned = name.to_string();
     let event_owned = event.to_string();
@@ -2429,7 +2568,8 @@ pub(crate) fn update_timer(name: &str) {
     if enabled && has_handler && interval > 0 {
         let name_for_closure = uname.clone();
         let closure = Closure::<dyn FnMut()>::new(move || {
-            if crate::directx_web::timer_fired(&name_for_closure) {
+            // (not while the debugger holds the program: see set_debug_stopped)
+            if !debug_stopped() && crate::directx_web::timer_fired(&name_for_closure) {
                 rp_fire_event(&name_for_closure, "ontimer");
             }
         });
@@ -2507,15 +2647,6 @@ pub fn gui_register_timer(name: &str) {
 /// form's end stops, as the desktop's `rp_stop_all_timers`.
 pub fn timer_names() -> Vec<String> {
     COMPONENTS.with(|c| c.borrow().iter().filter(|(_, comp)| matches!(comp.type_name.as_str(), "RTIMER" | "RDXTIMER" | "RDXJOYSTICK" | "RCOMPORT" | "RMIDI" | "RWAVE" | "RVIDEO" | "RCDAUDIO")).map(|(n, _)| n.clone()).collect())
-}
-
-pub fn rp_comp_get_all_properties(name: &str) -> Option<(String, std::collections::HashMap<String, Value>)> {
-    let uname = name.to_uppercase();
-    COMPONENTS.with(|c| {
-        c.borrow().get(&uname).map(|comp| {
-            (comp.type_name.clone(), comp.properties.clone())
-        })
-    })
 }
 
 /// Offers `text` to the user as a file download via Blob + object URL.

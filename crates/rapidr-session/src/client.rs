@@ -14,7 +14,7 @@
 use std::collections::{BTreeMap, VecDeque};
 use std::time::Duration;
 
-use crate::protocol::{Command, Event, EventBody, Incoming, Request, SourceBreakpoint, StackFrame, Variable};
+use crate::protocol::{Command, Event, EventBody, Incoming, Request, ScopeInfo, SourceBreakpoint, StackFrame, Variable};
 
 /// How the IDE reaches the program.
 pub trait Transport {
@@ -84,8 +84,12 @@ pub struct ProgramSession {
     state: State,
     current_file: Option<String>,
     current_line: u32,
+    stop_reason: String,
+    stop_description: String,
     exit_code: Option<i32>,
     breakpoints: BTreeMap<String, Vec<SourceBreakpoint>>,
+    /// Run to Cursor's breakpoint: gone at the next stop (or the end).
+    run_to: Option<(String, u32)>,
     transport: Option<Box<dyn Transport>>,
     next_seq: u64,
     events: VecDeque<SessionEvent>,
@@ -103,8 +107,11 @@ impl Default for ProgramSession {
             state: State::Stopped,
             current_file: None,
             current_line: 0,
+            stop_reason: String::new(),
+            stop_description: String::new(),
             exit_code: None,
             breakpoints: BTreeMap::new(),
+            run_to: None,
             transport: None,
             next_seq: 1,
             events: VecDeque::new(),
@@ -140,6 +147,18 @@ impl ProgramSession {
         self.exit_code
     }
 
+    /// Why the program last stopped: `breakpoint`, `step`, `pause`,
+    /// `entry`, `exception` ("" while it runs).
+    pub fn stop_reason(&self) -> &str {
+        &self.stop_reason
+    }
+
+    /// The last stop's description: a run-time error's message, or why a
+    /// breakpoint's condition couldn't be evaluated.
+    pub fn stop_description(&self) -> &str {
+        &self.stop_description
+    }
+
     /// `Start` over `transport` (a program that's ready for `start`): the
     /// breakpoints go first, then the program runs.
     pub fn start(&mut self, transport: Box<dyn Transport>) -> Result<(), String> {
@@ -151,8 +170,14 @@ impl ProgramSession {
         self.current_file = None;
         self.current_line = 0;
         self.events.clear();
-        let files: Vec<(String, Vec<SourceBreakpoint>)> = self.breakpoints.iter().map(|(f, b)| (f.clone(), b.clone())).collect();
-        for (file, breakpoints) in files {
+        let mut files: Vec<String> = self.breakpoints.keys().cloned().collect();
+        if let Some((f, _)) = &self.run_to {
+            if !files.contains(f) {
+                files.push(f.clone());
+            }
+        }
+        for file in files {
+            let breakpoints = self.file_breakpoints(&file);
             self.request(Command::SetBreakpoints { file, breakpoints })?;
         }
         if self.break_on_error {
@@ -220,16 +245,72 @@ impl ProgramSession {
         self.request(command)?;
         self.state = State::Running;
         self.current_line = 0;
+        self.stop_reason.clear();
+        self.stop_description.clear();
         Ok(())
     }
 
     /// `SetBreakpoint(File, Line, Condition)`: adds (or changes) one.
     pub fn set_breakpoint(&mut self, file: &str, line: u32, condition: Option<&str>) -> Result<(), String> {
+        self.set_breakpoint_rules(SourceBreakpoint { line, condition: condition.map(str::to_string), ..Default::default() }, file)
+    }
+
+    /// Adds (or changes) a breakpoint with its rules: a condition, a hit
+    /// count (`3`, `>= 3`, `% 3` …), a log message (a logpoint: prints,
+    /// never stops). Empty rules are none.
+    pub fn set_breakpoint_rules(&mut self, mut bp: SourceBreakpoint, file: &str) -> Result<(), String> {
+        let none_if_empty = |o: Option<String>| o.filter(|t| !t.trim().is_empty());
+        bp.condition = none_if_empty(bp.condition);
+        bp.hit = none_if_empty(bp.hit);
+        bp.log = none_if_empty(bp.log);
         let list = self.breakpoints.entry(file.to_string()).or_default();
-        list.retain(|b| b.line != line);
-        list.push(SourceBreakpoint { line, condition: condition.map(str::to_string), ..Default::default() });
+        list.retain(|b| b.line != bp.line);
+        list.push(bp);
         list.sort_by_key(|b| b.line);
         self.send_breakpoints(file)
+    }
+
+    /// Removes every breakpoint of `file` (every file's when `None`).
+    pub fn clear_breakpoints(&mut self, file: Option<&str>) -> Result<(), String> {
+        let files: Vec<String> = match file {
+            Some(f) => vec![f.to_string()],
+            None => self.breakpoints.keys().cloned().collect(),
+        };
+        for f in files {
+            self.breakpoints.remove(&f);
+            self.send_breakpoints(&f)?;
+        }
+        Ok(())
+    }
+
+    /// Run to Cursor: a breakpoint at `line` of `file` for the next stop
+    /// only, then on (a paused program continues; a stopped one stops there
+    /// once started).
+    pub fn run_to(&mut self, file: &str, line: u32) -> Result<(), String> {
+        let old = self.run_to.replace((file.to_string(), line));
+        if let Some((f, _)) = old {
+            if f != file {
+                self.send_breakpoints(&f)?;
+            }
+        }
+        self.send_breakpoints(file)?;
+        if self.state == State::Paused {
+            self.continue_()?;
+        }
+        Ok(())
+    }
+
+    /// A file's breakpoints as the program gets them (Run to Cursor's too).
+    fn file_breakpoints(&self, file: &str) -> Vec<SourceBreakpoint> {
+        let mut list = self.breakpoints.get(file).cloned().unwrap_or_default();
+        if let Some((f, line)) = &self.run_to {
+            if f == file {
+                list.retain(|b| b.line != *line);
+                list.push(SourceBreakpoint { line: *line, ..Default::default() });
+                list.sort_by_key(|b| b.line);
+            }
+        }
+        list
     }
 
     /// Removes the breakpoint at `line` of `file`.
@@ -249,15 +330,41 @@ impl ProgramSession {
         if self.state == State::Stopped {
             return Ok(());
         }
-        let breakpoints = self.breakpoints.get(file).cloned().unwrap_or_default();
+        let breakpoints = self.file_breakpoints(file);
         self.request(Command::SetBreakpoints { file: file.to_string(), breakpoints }).map(drop)
     }
 
     /// `Evaluate(Expr)` in the stopped frame (or the top level): the value
     /// as the debugger shows it.
     pub fn evaluate(&mut self, expr: &str) -> Result<String, String> {
-        match self.request_wait(Command::Evaluate { expr: expr.to_string(), frame: None, context: None })? {
-            EventBody::Evaluate { result, .. } => Ok(result),
+        self.evaluate_in(expr, None, false).map(|(v, ..)| v)
+    }
+
+    /// Evaluates in frame `frame` (the innermost when `None`): the value as
+    /// the debugger shows it, its kind and its children's reference.
+    /// `repl` (the Immediate window): `? expr` is evaluated, anything else
+    /// runs as statements there (the result is then "").
+    pub fn evaluate_in(&mut self, expr: &str, frame: Option<u32>, repl: bool) -> Result<(String, String, u32), String> {
+        let context = repl.then(|| "repl".to_string());
+        match self.request_wait(Command::Evaluate { expr: expr.to_string(), frame, context })? {
+            EventBody::Evaluate { result, kind, reference } => Ok((result, kind, reference)),
+            other => Err(format!("unexpected reply {other:?}")),
+        }
+    }
+
+    /// A frame's scopes (Locals, Globals) and their references.
+    pub fn scopes(&mut self, frame: u32) -> Result<Vec<ScopeInfo>, String> {
+        match self.request_wait(Command::Scopes { frame })? {
+            EventBody::Scopes { scopes } => Ok(scopes),
+            other => Err(format!("unexpected reply {other:?}")),
+        }
+    }
+
+    /// A component's properties as the running program holds them: its
+    /// type and each property's value.
+    pub fn properties(&mut self, object: &str) -> Result<(String, Vec<Variable>), String> {
+        match self.request_wait(Command::Properties { object: object.to_string() })? {
+            EventBody::Properties { kind, properties } => Ok((kind, properties)),
             other => Err(format!("unexpected reply {other:?}")),
         }
     }
@@ -270,7 +377,12 @@ impl ProgramSession {
     /// Sets a variable of the stopped frame to a BASIC expression's value;
     /// returns the new value.
     pub fn set_variable(&mut self, name: &str, value: &str) -> Result<String, String> {
-        match self.request_wait(Command::SetVariable { frame: None, name: name.into(), value: value.into() })? {
+        self.set_variable_in(name, value, None)
+    }
+
+    /// [`Self::set_variable`] in frame `frame`.
+    pub fn set_variable_in(&mut self, name: &str, value: &str, frame: Option<u32>) -> Result<String, String> {
+        match self.request_wait(Command::SetVariable { frame, name: name.into(), value: value.into() })? {
             EventBody::Evaluate { result, .. } => Ok(result),
             other => Err(format!("unexpected reply {other:?}")),
         }
@@ -384,6 +496,9 @@ impl ProgramSession {
         self.state = State::Stopped;
         self.current_file = None;
         self.current_line = 0;
+        self.stop_reason.clear();
+        self.stop_description.clear();
+        self.run_to = None;
         self.exit_code = Some(code);
         self.events.push_back(SessionEvent::Exited { code });
         self.transport = None;
@@ -400,11 +515,19 @@ impl ProgramSession {
                     self.state = State::Paused;
                     self.current_file = file.clone();
                     self.current_line = line.unwrap_or(0);
+                    self.stop_reason = reason.clone();
+                    self.stop_description = description.clone().unwrap_or_default();
+                    // (Run to Cursor's breakpoint has done its work)
+                    if let Some((f, _)) = self.run_to.take() {
+                        let _ = self.send_breakpoints(&f);
+                    }
                     self.events.push_back(SessionEvent::Stopped { reason, file, line, description });
                 }
                 EventBody::Continued => {
                     self.state = State::Running;
                     self.current_line = 0;
+                    self.stop_reason.clear();
+                    self.stop_description.clear();
                     self.events.push_back(SessionEvent::Continued);
                 }
                 EventBody::Exited { code } => {

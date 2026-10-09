@@ -8,7 +8,7 @@ use rapidr_lang::Runtimes;
 
 use crate::compat;
 use crate::complete::{component_doc, with_notes};
-use crate::context::{self, chain_before, pretty_component, Ty};
+use crate::context::{self, chain_before, Ty};
 use crate::model::{name_key, ScopeKind, Symbol, SymbolKind};
 use rapidr_lang::Origin;
 use crate::text::{word_at, LineIndex};
@@ -58,7 +58,7 @@ pub(crate) fn hover(s: &Snapshot, file: &Path, text: &str, offset: usize) -> Opt
         }
     }
     if let Some(c) = rapidr_lang::resolve_component(word) {
-        return hover(format!("```rapidr\n{}\n```\n{}", pretty_component(&word.to_ascii_uppercase()), component_doc(c).unwrap_or_default()));
+        return hover(format!("```rapidr\n{}\n```\n{}", c.spelling(), component_doc(c).unwrap_or_default()));
     }
     if let Some(g) = rapidr_lang::global(word) {
         let notes = compat::notes(g.origin, Origin::RapidQ, false, g.runtimes, g.from);
@@ -111,7 +111,7 @@ pub(crate) fn symbol_hover(s: &Snapshot, sym: &Symbol) -> String {
         SymbolKind::Local => format!("local variable{owner}"),
         SymbolKind::Param => format!("parameter{owner}"),
         // (a SUB's own undeclared variable: RapidQ keeps it between calls)
-        SymbolKind::Static if decl.as_ref().is_some_and(|(line, _, _)| !declares(line)) => match &s.model.scopes[sym.scope].kind {
+        SymbolKind::Static if sym.implicit || decl.as_ref().is_some_and(|(line, _, _)| !declares(line)) => match &s.model.scopes[sym.scope].kind {
             ScopeKind::Routine(r) => format!("variable of `{r}` (implicit: its own, kept between calls)"),
             _ => format!("STATIC variable{owner}"),
         },
@@ -145,10 +145,10 @@ pub(crate) fn symbol_hover(s: &Snapshot, sym: &Symbol) -> String {
     let mut md = if what == "SUB" || what == "FUNCTION" { format!("```rapidr\n{code}\n```\n") } else { format!("```rapidr\n{code}\n```\n*{what}*") };
     if let Some(t) = &sym.ty {
         if let Some(c) = rapidr_lang::resolve_component(t) {
-            md.push_str(&format!(" — {}", pretty_component(c.written_name())));
+            md.push_str(&format!(" — {}", c.spelling()));
             if let Some(q) = c.rapidq {
                 if !q.eq_ignore_ascii_case(c.name) {
-                    md.push_str(&format!(" (RapidR: {})", pretty_component(c.name)));
+                    md.push_str(&format!(" (RapidQ name: {q})"));
                 }
             }
         } else if !matches!(sym.kind, SymbolKind::Sub | SymbolKind::Function | SymbolKind::External) && !code.to_ascii_uppercase().contains(&t.to_ascii_uppercase()) {
@@ -179,25 +179,28 @@ pub(crate) fn symbol_hover(s: &Snapshot, sym: &Symbol) -> String {
 fn member_hover(s: &Snapshot, ty: &Ty, member: &str) -> Option<String> {
     match ty {
         Ty::Component(c) => {
-            let owner = pretty_component(c.written_name());
+            let owner = c.spelling();
             let (code, kind, doc, notes) = if let Some(p) = c.property(member) {
-                let mut kind = match p.access {
+                let kind = match p.access {
                     rapidr_lang::Access::Read => format!("{} property (read only)", p.ty.as_str()),
                     rapidr_lang::Access::Write => format!("{} property (write only)", p.ty.as_str()),
                     rapidr_lang::Access::ReadWrite => format!("{} property", p.ty.as_str()),
                 };
-                if let Some(d) = p.default {
-                    kind.push_str(&format!(", {}", default_text(d)));
-                }
+                // (RapidQ's value at creation after the owner: "string
+                // property of QButton · default """)
+                let kind = match p.default {
+                    Some(d) => format!("{kind} of {owner}* · *{}", default_text(d)),
+                    None => format!("{kind} of {owner}"),
+                };
                 let notes = compat::notes(p.origin, c.origin, p.missing, p.runtimes, p.from);
                 (format!("{owner}.{}", p.name), kind, p.doc, notes)
             } else if let Some(m) = c.method(member) {
-                (format!("{owner}.{}", m.signature()), "method".to_string(), m.doc, compat::notes(m.origin, c.origin, m.missing, m.runtimes, m.from))
+                (format!("{owner}.{}", m.signature()), format!("method of {owner}"), m.doc, compat::notes(m.origin, c.origin, m.missing, m.runtimes, m.from))
             } else {
                 let e = c.event(member)?;
-                (format!("{owner}.{}", e.signature()), "event".to_string(), e.doc, compat::notes(e.origin, c.origin, e.missing, e.runtimes, e.from))
+                (format!("{owner}.{}", e.signature()), format!("event of {owner}"), e.doc, compat::notes(e.origin, c.origin, e.missing, e.runtimes, e.from))
             };
-            let mut md = format!("```rapidr\n{code}\n```\n*{kind} of {owner}*");
+            let mut md = format!("```rapidr\n{code}\n```\n*{kind}*");
             let text = with_notes(doc, &notes);
             if !text.is_empty() {
                 md.push_str("\n\n");

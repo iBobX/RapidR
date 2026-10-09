@@ -251,6 +251,8 @@ fn ensure() {
     crate::globals_web::start_theme();
     host::install(&STORE, Rc::new(turn));
     host::set_overlay_types(crate::overlay_web::TYPES);
+    // (RapidR's OnDropFiles: a form with the handler takes dropped files)
+    host::on_drop_files(Rc::new(|form: &str| crate::object_web::rp_has_handler(form, "ondropfiles")));
     crate::fonts_web::install();
     let capture = testhooks::Capture::from_env();
     host::with(|h, _| {
@@ -288,6 +290,10 @@ fn sync() {
 /// The events the host queued, each dispatched to completion (a kernel-drawn
 /// dialog's to it, the program's as its events).
 fn dispatch_pending() {
+    // (the paints a new size posted: rapidr_value::events::post_paint)
+    for name in rapidr_value::events::take_posted_paints() {
+        crate::object_web::rp_fire_event(&name, "onpaint");
+    }
     loop {
         let events = host::with(|h, _| std::mem::take(&mut h.desk.events)).unwrap_or_default();
         if events.is_empty() {
@@ -598,6 +604,12 @@ impl Windows for Web {
     fn popup_open(self, form: &str) -> bool {
         host::with(|h, _| h.desk.forms.get(form).is_some_and(|f| f.ui.popup_open().is_some())).unwrap_or(false)
     }
+    fn start_move(self, form: &str, comp: &str) -> bool {
+        host::with(|h, _| h.desk.forms.get_mut(form).is_some_and(|f| f.ui.start_move(comp))).unwrap_or(false)
+    }
+    fn dragging(self, form: &str) -> bool {
+        host::with(|h, _| h.desk.forms.get(form).is_some_and(|f| f.ui.dragging())).unwrap_or(false)
+    }
     fn open_dialog(self, id: &str, title: &str, (w, h): (i64, i64)) {
         ensure();
         let (sw, sh) = host::screen();
@@ -607,6 +619,7 @@ impl Windows for Web {
             size: (w, h),
             position: Some(((sw - w - fw) / 2, (sh - h - fh) / 2)),
             border: true,
+            no_caption: false,
             icon: None,
             frame: rapidr_ui_app::desktop::Frame { resizable: false, close: true, minimize: false, maximize: false },
             state: 0,
@@ -769,7 +782,7 @@ pub fn set_test_env(vars: &JsValue) {
 /// desktop's `RAPIDR_CAPTURE` BMP: the same bytes for the same pixels),
 /// bottom to top, kept for `rapidr_test_results`; the program ends.
 fn test_end() {
-    let dump = testhooks::dump_lines(&testhooks::parse_dump(&testhooks::var("RAPIDR_TEST_DUMP").unwrap_or_default()), |c| script::shown_up(Web, c), |comp, prop| rp_comp_get(comp, prop).to_string_val());
+    let dump = testhooks::dump_lines(&testhooks::parse_dump(&testhooks::var("RAPIDR_TEST_DUMP").unwrap_or_default()), |c| script::shown_up(Web, c), |comp, prop| if prop.starts_with("__cursor_") { script::dump_value(Web, comp, prop) } else { rp_comp_get(comp, prop).to_string_val() });
     sync();
     let shots = host::with(|h, store| {
         let order = h.desk.stacking();
@@ -1042,9 +1055,9 @@ pub fn mouse_in_form() -> (i64, i64) {
     host::with(|h, _| {
         let (mx, my) = h.mouse;
         let top = h.desk.stacking().last().cloned();
-        let Some(f) = top.and_then(|t| h.desk.forms.get(&t).map(|f| (f.spec.position.unwrap_or((0, 0)), f.spec.border, f.ui.menu_offset))) else { return (mx as i64, my as i64) };
-        let ((x, y), border, menu) = f;
-        let (ix, iy) = rapidr_ui_host_web::frame::inset(border);
+        let Some(f) = top.and_then(|t| h.desk.forms.get(&t).map(|f| (f.spec.position.unwrap_or((0, 0)), f.spec.border, !f.spec.no_caption, f.ui.menu_offset))) else { return (mx as i64, my as i64) };
+        let ((x, y), border, caption, menu) = f;
+        let (ix, iy) = rapidr_ui_host_web::frame::inset(border, caption);
         (mx as i64 - x - ix, my as i64 - y - iy - menu)
     })
     .unwrap_or((0, 0))
@@ -1053,7 +1066,7 @@ pub fn mouse_in_form() -> (i64, i64) {
 /// `RAPIDR_TEST_RESIZE` / `rapidr_test_resize` in the browser: form `name`
 /// resized to `w` × `h` (Width, Height) as a user's drag would.
 pub fn test_resize(name: &str, w: i64, h: i64) {
-    let (fw, fh) = rapidr_value::layout::form_frame(rp_comp_get(name, "borderstyle").to_i64());
+    let (fw, fh) = rapidr_value::layout::form_frame(forms::frame_style(Web, name));
     let form = lower(name);
     host::with(|hst, store| {
         if let Some(f) = hst.desk.forms.get_mut(&form) {
@@ -1068,6 +1081,26 @@ pub fn test_resize(name: &str, w: i64, h: i64) {
 /// `PopupMenu.Popup(X, Y)`.
 pub fn popup(name: &str, x: i64, y: i64) {
     rapidr_ui_app::menus::popup(Web, name, x as i32, y as i32);
+}
+
+/// `Form.HideTitleBar` / `ShowTitleBar` (rapidr_ui_app::forms::set_title_bar).
+pub fn title_bar(name: &str, show: bool) {
+    forms::set_title_bar(Web, &lower(name), show);
+    schedule();
+}
+
+/// `Form.ShapeForm`: the window's outline changed (rapidr_value::shape).
+pub fn shape_changed(name: &str) {
+    push_op(WindowOp::Shape(lower(name)));
+    schedule();
+}
+
+/// `X.StartDrag` (rapidr_value::drag): the control moves with the mouse
+/// while a button is held; the interpreter waits until it's let go (a
+/// native web build can't wait here: the move goes on, StartDrag returns).
+pub fn start_drag(name: &str) {
+    let Some(form) = forms::start_drag(Web, &lower(name)) else { return };
+    begin_wait(rapidr_ui_app::waits::Wait::Drag(form));
 }
 
 /// A QTREEVIEW changed: OnDeletion for the nodes the program deleted (the
@@ -1186,6 +1219,11 @@ pub fn doevents() -> bool {
     }
     rapidr_ui_app::timers::start_all(Web);
     forms::show_pending(Web);
+    // (the paints posted meanwhile — a form's first, a new size's — come
+    // now, as the desktop's DOEVENTS delivers them: RC.EXE's WM_PAINT)
+    for name in rapidr_value::events::take_posted_paints() {
+        crate::object_web::rp_fire_event(&name, "onpaint");
+    }
     let now = rapidr_ui_kernel::tick::now();
     let due = rapidr_ui_app::timers::next_due().is_some_and(|at| at <= now);
     // (or the time slice is over: the page gets its turn — painting, input —

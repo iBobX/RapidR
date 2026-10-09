@@ -39,7 +39,7 @@ export function hookEnv(c) {
   // (RapidQ's look, named: the cases' expected lines are RC.EXE's — as the
   // desktop's harnesses run them)
   const env = { RAPIDR_THEME: process.env.RAPIDR_THEME || "classic", RAPIDR_CAPTURE: "web", RAPIDR_TEST_EVENTS: c.events, RAPIDR_TEST_DUMP: c.dump, RAPIDR_TEST_RESIZE: c.resize || "", RAPIDR_TEST_SPLIT: c.split || "" };
-  const opt = { fileDialog: "RAPIDR_TEST_FILE_DIALOG", colorDialog: "RAPIDR_TEST_COLOR_DIALOG", fontDialog: "RAPIDR_TEST_FONT_DIALOG", messageDialog: "RAPIDR_TEST_MESSAGE_DIALOG", dialogHold: "RAPIDR_TEST_DIALOG_HOLD", delay: "RAPIDR_CAPTURE_DELAY", joystick: "RAPIDR_TEST_JOYSTICK" };
+  const opt = { fileDialog: "RAPIDR_TEST_FILE_DIALOG", colorDialog: "RAPIDR_TEST_COLOR_DIALOG", fontDialog: "RAPIDR_TEST_FONT_DIALOG", messageDialog: "RAPIDR_TEST_MESSAGE_DIALOG", dialogHold: "RAPIDR_TEST_DIALOG_HOLD", delay: "RAPIDR_CAPTURE_DELAY", joystick: "RAPIDR_TEST_JOYSTICK", drop: "RAPIDR_TEST_DROP" };
   for (const [k, v] of Object.entries(opt)) if (c[k] !== undefined) env[v] = String(c[k]);
   if (process.env.RAPIDR_TEST_HTTP) env.RAPIDR_TEST_HTTP = process.env.RAPIDR_TEST_HTTP;
   return env;

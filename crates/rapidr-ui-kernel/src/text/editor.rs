@@ -25,19 +25,14 @@
 //!
 //! **Styled runs** (Stage 10): a paragraph's [`Span`]s — a byte range and a
 //! [`RunStyle`] (colour, bold, italic, underline, strike-out, a font) laid
-//! over the editor's look by parley's ranged styles. A code editor's come
-//! from its syntax ([`Look::syntax`], `rapidr_value::objects::code`), made
-//! again only for the paragraphs laid out again (an edit's), each from the
-//! state the paragraph before left — so a syntax with constructs across
-//! lines colours the paragraphs after an edit again only while their
-//! starting state changes. Without a syntax a paragraph keeps the spans it
-//! was given ([`TextEditor::set_spans`]: QRICHEDIT's runs, later).
+//! over the editor's look by parley's ranged styles. A paragraph keeps the
+//! spans it was given ([`TextEditor::set_spans`]: QRICHEDIT's runs) until
+//! its text changes.
 
 use std::borrow::Cow;
 use std::ops::Range;
 
 use parley::{Affinity, Alignment, AlignmentOptions, Cursor, FontStyle, FontWeight, Layout, Selection, StyleProperty};
-use rapidr_value::objects::code::Syntax;
 use rapidr_value::objects::font::Font;
 
 use super::{byte_of, chars_to, styles, Ink, TextSystem};
@@ -90,7 +85,7 @@ impl Align {
 }
 
 /// How the text is shown: its font and colour (0xRRGGBB), a PasswordChar,
-/// Alignment, WordWrap, and the syntax it's coloured by (a code editor's).
+/// Alignment, WordWrap, and the distance between tab stops.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Look {
     pub font: Font,
@@ -98,13 +93,53 @@ pub struct Look {
     pub mask: Option<char>,
     pub align: Align,
     pub wrap: bool,
-    pub syntax: Syntax,
+    /// The tab stops' spacing in logical pixels (a memo's: [`tab_stops`]):
+    /// a TAB character is drawn as the blank to the next stop. 0: no stops
+    /// (a one-line box's TAB is as wide as a space). A TAB is never drawn
+    /// as a glyph.
+    pub tab: f64,
 }
 
 impl Default for Look {
     fn default() -> Self {
-        Look { font: Font::default(), color: 0, mask: None, align: Align::Left, wrap: false, syntax: Syntax::None }
+        Look { font: Font::default(), color: 0, mask: None, align: Align::Left, wrap: false, tab: 0.0 }
     }
+}
+
+/// The default tab stops of a multi-line box drawn in `font`, as Windows
+/// sets them: a QMEMO (an EDIT control) every 32 dialog units, that is 8
+/// times the font's average character width (GDI's: the width of
+/// "A…Za…z", plus 26, divided by 52, in whole pixels); a QRICHEDIT (a rich
+/// edit control) every half inch, 48 pixels at 96 dpi.
+pub fn tab_stops(font: &Font, rich: bool) -> f64 {
+    if rich {
+        return 48.0;
+    }
+    let (w, _) = rapidr_value::objects::text::text_size("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", font);
+    (8 * ((w + 26) / 52).max(1)) as f64
+}
+
+/// How much wider than a space each TAB at byte offsets `tabs` (in order)
+/// must be for what follows it to start at the next multiple of `stop`
+/// device pixels, given `layout` made with the TABs as spaces.
+fn tab_widths(layout: &Layout<Ink>, tabs: &[usize], stop: f64) -> Vec<(usize, f64)> {
+    let place = |at: usize| Cursor::from_byte_index(layout, at, Affinity::Downstream).geometry(layout, 0.0);
+    let (mut out, mut shift, mut line_y) = (Vec::with_capacity(tabs.len()), 0.0, f64::NAN);
+    for &at in tabs {
+        let (here, after) = (place(at), place(at + 1));
+        // (a wrapped line starts again from its left)
+        if here.y0 != line_y {
+            line_y = here.y0;
+            shift = 0.0;
+        }
+        let x = here.x0 + shift;
+        let space = (after.x0 - here.x0).max(0.0);
+        let next = ((x / stop).floor() + 1.0) * stop;
+        let extra = next - x - space;
+        out.push((at, extra));
+        shift += extra;
+    }
+    out
 }
 
 /// How a run of text differs from the editor's look (`None`: as the look).
@@ -121,12 +156,6 @@ pub struct RunStyle {
 }
 
 impl RunStyle {
-    /// A syntax token's colour, bold and italic (`objects::code`).
-    pub fn of_token(t: rapidr_value::objects::code::Token) -> RunStyle {
-        let st = t.style();
-        RunStyle { color: Some(st.color), bold: Some(st.bold), italic: Some(st.italic), ..RunStyle::default() }
-    }
-
     /// The parley styles that make it.
     fn props(&self) -> Vec<StyleProperty<'static, Ink>> {
         let mut out = Vec::new();
@@ -170,15 +199,13 @@ struct Para {
     height: f64,
     /// How far right its line sits (Alignment without WordWrap).
     dx: f64,
-    /// Its styled runs (a syntax's, or given).
+    /// Its styled runs (given).
     spans: Vec<Span>,
-    /// The syntax's state it was coloured from, and the one it leaves.
-    state: Option<(u32, u32)>,
 }
 
 impl Para {
     fn new(text: String) -> Para {
-        Para { text, layout: None, top: 0.0, height: 0.0, dx: 0.0, spans: Vec::new(), state: None }
+        Para { text, layout: None, top: 0.0, height: 0.0, dx: 0.0, spans: Vec::new() }
     }
 }
 
@@ -207,9 +234,6 @@ pub struct TextEditor {
     size: (f64, f64),
     /// The text system's fonts it was laid out with ([`TextSystem::generation`]).
     generation: u64,
-    /// The theme its syntax colours are from (`theme::generation`): a theme
-    /// switch colours the code again.
-    theme: u64,
 }
 
 impl TextEditor {
@@ -230,7 +254,6 @@ impl TextEditor {
             laid: false,
             size: (0.0, 0.0),
             generation: 0,
-            theme: rapidr_value::theme::generation(),
         }
     }
 
@@ -461,8 +484,8 @@ impl TextEditor {
 
     // ---------------------------------------------------------- layout --
 
-    /// Paragraph `p`'s styled runs (without a syntax: kept until its text
-    /// changes; QRICHEDIT's runs, later).
+    /// Paragraph `p`'s styled runs (kept until its text changes;
+    /// QRICHEDIT's runs).
     pub fn set_spans(&mut self, p: usize, spans: Vec<Span>) {
         if let Some(para) = self.paras.get_mut(p) {
             if para.spans != spans {
@@ -476,30 +499,6 @@ impl TextEditor {
     /// Paragraph `p`'s styled runs.
     pub fn spans(&self, p: usize) -> &[Span] {
         self.paras.get(p).map_or(&[], |p| p.spans.as_slice())
-    }
-
-    /// The syntax's runs made again for the paragraphs that need them: one
-    /// laid out again (its text changed), or one whose starting state
-    /// changed (a construct across lines above it opened or closed).
-    fn colour(&mut self) {
-        if self.look.syntax == Syntax::None {
-            return;
-        }
-        let theme = rapidr_value::theme::generation();
-        if theme != self.theme {
-            self.theme = theme;
-            self.invalidate();
-        }
-        let mut state = 0;
-        for p in &mut self.paras {
-            if p.layout.is_none() || p.state.is_none_or(|(from, _)| from != state) {
-                let (tokens, out) = rapidr_value::objects::code::spans(self.look.syntax, &p.text, state);
-                p.spans = tokens.into_iter().map(|(range, t)| Span { range, style: RunStyle::of_token(t) }).collect();
-                p.state = Some((state, out));
-                p.layout = None;
-            }
-            state = p.state.map_or(0, |(_, out)| out);
-        }
     }
 
     /// Lays out what changed and places the paragraphs.
@@ -516,42 +515,23 @@ impl TextEditor {
         if self.laid {
             return;
         }
-        self.colour();
         let scale = f64::from(self.scale);
         let fallback = f64::from(self.look.font.pixel_size() as f32) * 1.15 * scale;
         let view = self.width * scale;
         let (mut top, mut wide) = (0.0, 0.0f64);
         for i in 0..self.paras.len() {
             if self.paras[i].layout.is_none() {
-                let shown = self.shown(i).into_owned();
-                let mut b = ts.layout_cx.ranged_builder(&mut ts.font_cx, &shown, self.scale, true);
-                for prop in &self.style {
-                    b.push_default(prop.clone());
-                }
-                // (its runs: over its own text, so not over a mask's)
-                if self.look.mask.is_none() {
-                    for span in &self.paras[i].spans {
-                        let r = span.range.start.min(shown.len())..span.range.end.min(shown.len());
-                        if r.is_empty() || !shown.is_char_boundary(r.start) || !shown.is_char_boundary(r.end) {
-                            continue;
-                        }
-                        for prop in span.style.props() {
-                            b.push(prop, r.clone());
-                        }
+                // (a TAB is shaped as a space — the same one byte, so
+                // carets and selections keep their offsets — and widened
+                // to its stop: never the font's glyph for U+0009)
+                let shown = self.shown(i).replace('\t', " ");
+                let mut layout = self.build_para(ts, i, &shown, &[], view);
+                if self.look.tab > 0.0 {
+                    let tabs: Vec<usize> = self.shown(i).match_indices('\t').map(|(at, _)| at).collect();
+                    if !tabs.is_empty() {
+                        let widths = tab_widths(&layout, &tabs, self.look.tab * scale);
+                        layout = self.build_para(ts, i, &shown, &widths, view);
                     }
-                }
-                let mut layout = b.build(&shown);
-                if self.look.wrap {
-                    layout.break_all_lines(Some(view.max(1.0) as f32));
-                    let a = match self.look.align {
-                        Align::Left => Alignment::Left,
-                        Align::Right => Alignment::Right,
-                        Align::Center => Alignment::Center,
-                    };
-                    layout.align(a, AlignmentOptions::default());
-                } else {
-                    layout.break_all_lines(None);
-                    layout.align(Alignment::Left, AlignmentOptions::default());
                 }
                 super::note_missing(&layout, &shown);
                 self.paras[i].layout = Some(layout);
@@ -570,6 +550,45 @@ impl TextEditor {
         }
         self.size = (wide, top);
         self.laid = true;
+    }
+
+    /// Paragraph `i`'s layout of `shown` (its TABs as spaces), each TAB at
+    /// `tabs[k].0` widened by `tabs[k].1` device pixels.
+    fn build_para(&self, ts: &mut TextSystem, i: usize, shown: &str, tabs: &[(usize, f64)], view: f64) -> Layout<Ink> {
+        let mut b = ts.layout_cx.ranged_builder(&mut ts.font_cx, shown, self.scale, true);
+        for prop in &self.style {
+            b.push_default(prop.clone());
+        }
+        // (its runs: over its own text, so not over a mask's)
+        if self.look.mask.is_none() {
+            for span in &self.paras[i].spans {
+                let r = span.range.start.min(shown.len())..span.range.end.min(shown.len());
+                if r.is_empty() || !shown.is_char_boundary(r.start) || !shown.is_char_boundary(r.end) {
+                    continue;
+                }
+                for prop in span.style.props() {
+                    b.push(prop, r.clone());
+                }
+            }
+        }
+        let scale = f64::from(self.scale).max(0.01);
+        for &(at, extra) in tabs {
+            b.push(StyleProperty::LetterSpacing((extra / scale) as f32), at..at + 1);
+        }
+        let mut layout = b.build(shown);
+        if self.look.wrap {
+            layout.break_all_lines(Some(view.max(1.0) as f32));
+            let a = match self.look.align {
+                Align::Left => Alignment::Left,
+                Align::Right => Alignment::Right,
+                Align::Center => Alignment::Center,
+            };
+            layout.align(a, AlignmentOptions::default());
+        } else {
+            layout.break_all_lines(None);
+            layout.align(Alignment::Left, AlignmentOptions::default());
+        }
+        layout
     }
 
     fn layout(&self, p: usize) -> &Layout<Ink> {
@@ -972,6 +991,39 @@ mod tests {
         assert_eq!((e.focus().para, e.focus().index), (1, 1));
     }
 
+    /// Robert's "weird character" (2026-10-08): a TAB in a memo was shaped
+    /// as the font's glyph for U+0009 (a box). It is a blank to the next
+    /// tab stop, at every scale, and carets keep their byte offsets.
+    #[test]
+    fn a_tab_is_a_blank_to_the_next_stop_never_a_glyph() {
+        for scale in [1.0f32, 2.0] {
+            let mut ts = TextSystem::new();
+            let mut e = TextEditor::new(true);
+            let font = Font::default();
+            let stop = tab_stops(&font, false);
+            e.set_look(Look { font, tab: stop, ..Look::default() });
+            e.set_scale(scale);
+            e.set_width(400.0);
+            e.set_text("a\tb\tc\nabcdefghijklm\tx");
+            e.lay_out(&mut ts);
+            let x = |p: usize, i: usize| f64::from(e.cursor(Pos::new(p, i)).geometry(e.layout(p), 0.0).x0) / f64::from(scale);
+            assert!((x(0, 2) - stop).abs() < 0.6, "b at the first stop ({} vs {stop}, scale {scale})", x(0, 2));
+            assert!((x(0, 4) - 2.0 * stop).abs() < 0.6, "c at the second stop (scale {scale})");
+            // (text past a stop: the TAB goes on to the next one)
+            let past = x(1, 13);
+            assert!(past > stop && (x(1, 14) - ((past / stop).floor() + 1.0) * stop).abs() < 0.6, "x at the stop after m (scale {scale})");
+            // no glyph is drawn for a TAB: every cluster has a real glyph
+            for line in e.layout(0).lines() {
+                for item in line.items() {
+                    if let parley::PositionedLayoutItem::GlyphRun(g) = item {
+                        assert!(g.run().clusters().all(|c| c.glyphs().all(|g| g.id != 0)), "a .notdef box drawn");
+                    }
+                }
+            }
+        }
+        assert_eq!(tab_stops(&Font::default(), true), 48.0, "a rich edit's half inch");
+    }
+
     #[test]
     fn moves_cross_paragraphs_and_keep_the_column() {
         let (mut e, _ts) = editor(true, "abcdef\nab\nabcdef");
@@ -1066,22 +1118,8 @@ mod tests {
     }
 
     #[test]
-    fn a_syntax_colours_only_the_paragraphs_an_edit_touched() {
-        // (RapidQ's look, checked op for op: the classic theme, named)
-        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
-        let (mut e, mut ts) = editor(true, "DIM a\nPRINT 1 ' c\nx = 2");
-        e.set_look(Look { syntax: Syntax::Basic, ..Look::default() });
-        e.lay_out(&mut ts);
-        assert_eq!(inks(&e, 0), [(3, 0x0000B4), (2, 0)], "DIM, then \" a\"");
-        assert_eq!(inks(&e, 1).iter().map(|(_, c)| *c).collect::<Vec<_>>(), [0x0000B4, 0, 0x800000, 0, 0x008000]);
-        assert!(e.spans(1)[0].style.bold == Some(true) && e.spans(1)[2].style.italic == Some(true), "keywords bold, comments italic");
-        // typing in the last paragraph lays out (and colours) only it
-        e.set_selection_chars(e.text().chars().count(), 0);
-        e.replace_selection(&mut ts, "0");
-        assert!(e.para_layout(0).is_some() && e.para_layout(1).is_some());
-        assert_eq!(e.spans(2).len(), 1, "x = 20: one number");
-        assert_eq!(e.spans(2)[0].range, 4..6);
-        // given runs, without a syntax (QRICHEDIT's, later)
+    fn a_paragraph_draws_the_runs_it_was_given() {
+        // (QRICHEDIT's runs)
         let (mut r, mut ts) = editor(true, "plain bold");
         r.set_spans(0, vec![Span { range: 6..10, style: RunStyle { color: Some(0xFF0000), underline: Some(true), ..RunStyle::default() } }]);
         r.lay_out(&mut ts);

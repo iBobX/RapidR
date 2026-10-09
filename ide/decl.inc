@@ -32,7 +32,7 @@ DIM CmdCount AS INTEGER
 
 ' The menus: every item (top menus, submenus, commands, separators) is one
 ' of these, made from the table at start-up.
-DIM MI(MAXMENUS) AS QMENUITEM
+DIM MI(MAXMENUS) AS RMenuItem
 DIM MICount AS INTEGER
 ' (the menus by category name, "File", "View/Theme" …, and their item)
 DIM MenuName(40) AS STRING
@@ -43,17 +43,23 @@ DIM MenuCount AS INTEGER
 ' ---- documents ---------------------------------------------------------------
 ' Each open document is a pane of the dock manager's documents area: a code
 ' editor for a source file, a designer for a file's form, the start page.
-DIM CodeDoc(MAXDOCS) AS RCODEEDITOR
-DIM DesignDoc(MAXDOCS) AS RDESIGNSURFACE
+DIM CodeDoc(MAXDOCS) AS RCodeEditor
+DIM DesignDoc(MAXDOCS) AS RDesignSurface
 DIM DocFile(MAXDOCS) AS STRING
 DIM DocKind(MAXDOCS) AS STRING
 DIM DocOpen(MAXDOCS) AS INTEGER
 DIM DocDirty(MAXDOCS) AS INTEGER
 DIM DocHasForm(MAXDOCS) AS INTEGER
+' (which view a form's file shows: "Design", "Code" or "Split" — workspace.inc)
+DIM DocViewNow(MAXDOCS) AS STRING
 ' (a file being loaded: its editor's OnChange isn't the user's)
 DIM Loading AS INTEGER
 DIM DocCount AS INTEGER
 DIM ActiveDoc AS INTEGER
+' (Markdown files, markdown.inc: formatted — Preview — beside their source,
+' as a form's file has its designer beside its code)
+DIM MdDoc(MAXDOCS) AS RMarkdownView
+DIM DocIsMd(MAXDOCS) AS INTEGER
 
 ' ---- what Studio holds now -----------------------------------------------------
 DIM HomeDir AS STRING
@@ -76,14 +82,14 @@ DIM StateText AS STRING
 
 DECLARE SUB RunCommand(Id AS STRING)
 DECLARE SUB LayOutDialogs
-DECLARE SUB MenuPicked(Sender AS QMENUITEM)
+DECLARE SUB MenuPicked(Sender AS RMenuItem)
 DECLARE SUB ToolClicked(Name AS STRING, Command AS STRING)
 DECLARE SUB StudioResize
 DECLARE SUB StudioClose(Action AS INTEGER)
 DECLARE SUB PaneChanged(Name AS STRING)
 DECLARE SUB DocumentActivated(Name AS STRING)
 DECLARE SUB DocumentClosing(Name AS STRING, Cancel AS INTEGER)
-DECLARE SUB WelcomeLink(Sender AS QLABEL)
+DECLARE SUB WelcomeLink(Sender AS RLabel)
 DECLARE SUB ProjectNodeOpen(Path AS STRING)
 DECLARE SUB ProjectNodeSelect(Path AS STRING)
 DECLARE SUB ProjectNewFile(Path AS STRING, Kind AS STRING)
@@ -98,29 +104,86 @@ DECLARE SUB InspectorChanged(Prop AS STRING, Value AS STRING)
 DECLARE SUB InspectorEvent(EventName AS STRING)
 DECLARE SUB OutputLink(InFile AS STRING, LineNo AS INTEGER)
 DECLARE SUB DesignSelected(Index AS INTEGER)
-DECLARE SUB DesignSourceEdit(StartLine AS INTEGER, StartCol AS INTEGER, EndLine AS INTEGER, EndCol AS INTEGER, Text AS STRING, Sender AS RDESIGNSURFACE)
-DECLARE SUB DesignChanged(Sender AS RDESIGNSURFACE)
-DECLARE SUB DesignDblClick(Index AS INTEGER, Sender AS RDESIGNSURFACE)
+DECLARE SUB DesignSourceEdit(StartLine AS INTEGER, StartCol AS INTEGER, EndLine AS INTEGER, EndCol AS INTEGER, Text AS STRING, Sender AS RDesignSurface)
+DECLARE SUB DesignChanged(Sender AS RDesignSurface)
+DECLARE SUB DesignDblClick(Index AS INTEGER, Sender AS RDesignSurface)
 DECLARE SUB DesignRead(d AS INTEGER)
+DECLARE SUB CaretAtHandler(d AS INTEGER, L AS INTEGER)
+DECLARE SUB DesignNames(d AS INTEGER)
+' (the toolbox's form being added: "form" / "formmdi", the hint after it — panels.inc)
+DIM PendingFormKind AS STRING
+DIM PendingFormHint AS STRING
+DIM PendingFormAt AS DOUBLE
+DECLARE FUNCTION IsFormType(TypeName AS STRING) AS INTEGER
+DECLARE SUB AddFormOfType(TypeName AS STRING, Hint AS STRING)
+DECLARE SUB IncludeFollows(OldPath AS STRING, NewPath AS STRING)
+DECLARE SUB IncludeLeaves(Path AS STRING)
+DECLARE SUB FillProblemsOf(Path AS STRING)
+DECLARE FUNCTION ProgramErrors AS INTEGER
+DECLARE SUB DesignPicked(Index AS INTEGER, Sender AS RDesignSurface)
+DECLARE SUB DesignStep(Continues AS INTEGER, Sender AS RDesignSurface)
+DECLARE SUB DesignUndo(Redo AS INTEGER, Sender AS RDesignSurface)
+DECLARE SUB FileUndo(d AS INTEGER, Redo AS INTEGER)
 DECLARE FUNCTION DesignCommand(Id AS STRING) AS INTEGER
 DECLARE SUB OutlineOpen
 DECLARE SUB PaletteCommand(Id AS STRING)
-DECLARE SUB CodeChanged(Sender AS RCODEEDITOR)
+DECLARE SUB CodeChanged(Sender AS RCodeEditor)
 DECLARE SUB AnalyzerTick
 DECLARE SUB ProgramOutput(Text AS STRING)
 DECLARE SUB ProgramStopped(Reason AS STRING, InFile AS STRING, LineNo AS INTEGER)
 DECLARE SUB ProgramContinued
 DECLARE SUB ProgramExited(Code AS INTEGER)
 DECLARE SUB ImmediateKey(Key AS INTEGER, Shift AS INTEGER)
+DECLARE FUNCTION DebugCommand(Id AS STRING) AS INTEGER
+DECLARE FUNCTION DebugStep(Stp AS STRING) AS INTEGER
+DECLARE SUB DebugDocOpened(d AS INTEGER)
+DECLARE SUB SetUpDebug
+DECLARE SUB PerfReadyTick
+DECLARE SUB ProgramFormShown(Id AS STRING)
+DECLARE SUB StopProgram
+DECLARE SUB CodeGutterClick(LineNo AS INTEGER, Area AS STRING, Sender AS RCodeEditor)
+DECLARE SUB CodeHoverRequest(LineNo AS INTEGER, ColNo AS INTEGER, Sender AS RCodeEditor)
+DECLARE SUB SessionVariables(Ref AS INTEGER)
+DECLARE SUB SessionEvaluated(Id AS INTEGER, Answer AS STRING)
+DECLARE SUB VarsExpanding(Index AS INTEGER, AllowExpansion AS INTEGER)
+DECLARE SUB VarsCollapsed(Index AS INTEGER)
+DECLARE SUB WatchExpanding(Index AS INTEGER, AllowExpansion AS INTEGER)
+DECLARE SUB WatchCollapsed(Index AS INTEGER)
+DECLARE SUB WatchEditKey(Key AS INTEGER, Shift AS INTEGER)
+DECLARE SUB WatchTreeKey(Key AS INTEGER, Shift AS INTEGER)
+DECLARE SUB VarsEditing(Index AS INTEGER, AllowEdit AS INTEGER)
+DECLARE SUB VarsEdited(Index AS INTEGER, S AS STRING)
+DECLARE SUB WatchEditing(Index AS INTEGER, AllowEdit AS INTEGER)
+DECLARE SUB WatchEdited(Index AS INTEGER, S AS STRING)
+DECLARE SUB StackPicked
+DECLARE SUB BpTreeClick
+DECLARE SUB BpTreeOpen
+DECLARE SUB BpTreeKey(Key AS INTEGER, Shift AS INTEGER)
+DECLARE SUB BpEditKey(Key AS INTEGER, Shift AS INTEGER)
+DECLARE SUB BpOnClicked
 DECLARE SUB NewBrowse
 DECLARE SUB NewCreate
 DECLARE SUB NewCancel
-DECLARE SUB CardPicked(Sender AS QPANEL)
-DECLARE SUB CardLabelPicked(Sender AS QLABEL)
-DECLARE SUB RecentPicked(Sender AS QLABEL)
+DECLARE SUB CardPicked(Sender AS RPanel)
+DECLARE SUB CardLabelPicked(Sender AS RLabel)
+DECLARE SUB RecentPicked(Sender AS RLabel)
 DECLARE SUB StudioKey(Key AS INTEGER, Shift AS INTEGER)
 DECLARE SUB LayOutWelcome
 DECLARE SUB MacroTick
+DECLARE SUB CodeCaretMoved(Line AS INTEGER, Column AS INTEGER)
+DECLARE SUB EditorFacts(d AS INTEGER)
+DECLARE SUB FocusCodeSoon(d AS INTEGER)
+DECLARE SUB DesignerSourceEdit(d AS INTEGER, StartLine AS INTEGER, StartCol AS INTEGER, EndLine AS INTEGER, EndCol AS INTEGER, Text AS STRING)
+DECLARE SUB EditorFocusTick
+DECLARE SUB EditorSettings(d AS INTEGER)
+DECLARE SUB CodeNavigate(File AS STRING, LineNo AS INTEGER, ColNo AS INTEGER, Sender AS RCodeEditor)
+DECLARE SUB CodeReferences(Json AS STRING, Sender AS RCodeEditor)
+DECLARE SUB CodeFileEdits(File AS STRING, Json AS STRING, Sender AS RCodeEditor)
+DECLARE FUNCTION CodeDocOf(Path AS STRING) AS INTEGER
+DECLARE FUNCTION JsonField(Item AS STRING, Key AS STRING) AS STRING
+DECLARE FUNCTION PatchText(Text AS STRING) AS STRING
+DECLARE FUNCTION EditorCommand(Id AS STRING) AS INTEGER
+DECLARE FUNCTION EditorStep(Id AS STRING) AS INTEGER
 ' (workspace.inc, search.inc)
 DECLARE FUNCTION DocPane(d AS INTEGER) AS STRING
 DECLARE SUB AddDocumentTab(d AS INTEGER)
@@ -129,6 +192,16 @@ DECLARE SUB SetUpDocuments
 DECLARE SUB SetUpSearch
 DECLARE SUB ApplySearchChrome
 DECLARE SUB ShowWelcome
+' (markdown.inc)
+DECLARE FUNCTION IsMarkdownFile(Path AS STRING) AS INTEGER
+DECLARE SUB OpenMarkdown(d AS INTEGER)
+DECLARE SUB AddMarkdownTab(d AS INTEGER)
+DECLARE SUB MarkdownViewShown(d AS INTEGER, View AS STRING)
+DECLARE SUB MarkdownLink(Url AS STRING, Sender AS RMarkdownView)
+DECLARE SUB MarkdownOutline(d AS INTEGER)
+DECLARE FUNCTION MarkdownOutlineOpen(d AS INTEGER, i AS INTEGER) AS INTEGER
+DECLARE FUNCTION MarkdownCommand(Id AS STRING) AS INTEGER
+DECLARE FUNCTION OpenMarkdownFile(Path AS STRING) AS INTEGER
 ' (File > New Project's template gallery: workspace.inc)
 CONST TPLS = 5
 CONST TPL_W = 150
@@ -144,15 +217,27 @@ DECLARE FUNCTION AskToSaveAll AS INTEGER
 DECLARE FUNCTION AskSave(Question AS STRING, Detail AS STRING, Many AS INTEGER) AS INTEGER
 DECLARE SUB UpdateModified
 DECLARE SUB SaveSession
+DECLARE SUB LayoutChanged
+DECLARE SUB SaveDebugState
+DECLARE SUB LoadDebugState
+DECLARE SUB DebugStateChanged
+DECLARE SUB DebugSideBar(IsOn AS INTEGER)
+DECLARE SUB DebugLayoutLoaded
+DECLARE SUB ImmAnswer(Text AS STRING)
+DECLARE SUB BreakpointPlaced(InFile AS STRING, LineNo AS INTEGER, NewLine AS INTEGER)
+' (Studio's settings were read: not --fresh)
+DIM SettingsRead AS INTEGER
+' (the project's breakpoints and watches being restored: nothing to save)
+DIM DebugLoading AS INTEGER
 DECLARE SUB LoadSession
 DECLARE SUB RestoreSession(Path AS STRING)
 DECLARE FUNCTION WorkspaceCommand(Id AS STRING) AS INTEGER
 DECLARE FUNCTION SearchCommand(Id AS STRING) AS INTEGER
 
 ' ---- Studio's services: public components (rapidr-studio) ----
-DIM Proj AS RPROJECT
-DIM Lang AS RLANGUAGESERVICE
-DIM Session AS RPROGRAMSESSION
-DIM Reg AS QREGISTRY
-DIM OpenDlg AS QOPENDIALOG
-DIM SaveDlg AS QSAVEDIALOG
+DIM Proj AS RProject
+DIM Lang AS RLanguageService
+DIM Session AS RProgramSession
+DIM Reg AS RRegistry
+DIM OpenDlg AS ROpenDialog
+DIM SaveDlg AS RSaveDialog

@@ -130,6 +130,21 @@ pub fn application_icon() -> Option<Value> {
     ["icohandle", "icon"].into_iter().filter_map(|p| stored("application", p)).find(|v| crate::objects::has_icon(v))
 }
 
+/// Application's hint settings (lowercase `prop`: ShowHint, HintPause,
+/// HintHidePause, HintShortPause — milliseconds — and HintColor), as the
+/// program set them or the VCL's defaults: what the UI kernel's tooltips
+/// follow.
+pub fn hint_setting(prop: &str) -> Value {
+    stored("application", prop).unwrap_or_else(|| match prop {
+        "showhint" => v_bool(true),
+        "hintpause" => v_int(500),
+        "hinthidepause" => v_int(2500),
+        "hintshortpause" => v_int(50),
+        "hintcolor" => v_int(0x00E1_FFFF),
+        _ => Value::Null,
+    })
+}
+
 /// A property of global object `name` (lowercase `prop`); `None` for one it
 /// doesn't have (the runtime's own lookup goes on).
 pub fn get(p: &dyn Platform, name: &str, prop: &str) -> Option<Value> {
@@ -160,13 +175,11 @@ pub fn get(p: &dyn Platform, name: &str, prop: &str) -> Option<Value> {
             let name = exe_name(&p.exe_path());
             v_str(name.rsplit_once('.').map_or(name.as_str(), |(stem, _)| stem))
         }),
-        ("application", "showhint") => stored(object, prop).unwrap_or(v_bool(true)),
-        ("application", "hintpause") => stored(object, prop).unwrap_or(v_int(500)),
-        ("application", "hinthidepause") => stored(object, prop).unwrap_or(v_int(2500)),
-        ("application", "hintshortpause") => stored(object, prop).unwrap_or(v_int(50)),
-        ("application", "hintcolor") => stored(object, prop).unwrap_or(v_int(0x00E1_FFFF)),
+        ("application", "showhint" | "hintpause" | "hinthidepause" | "hintshortpause" | "hintcolor") => hint_setting(prop),
         // (RapidR's: the theme drawn now — `auto` reads as what it chose)
         ("application", "theme") => v_str(&p.theme()),
+        // (RapidR's) the keystrokes SendKeys queued, not yet delivered
+        ("application", "keyspending") => v_int(crate::send_keys::pending() as i64),
         // (RC.EXE: Application.Icon reads as the icon's handle — a number,
         // never 0 — which a QNOTIFYICONDATA's hIcon takes; crate::tray
         // shows the application's icon for it)
@@ -260,6 +273,9 @@ pub fn call(p: &dyn Platform, name: &str, method: &str, args: &[Value]) -> Optio
                 v_int(crate::input::screen_cursor(code).unwrap_or_else(|| system_cursor_handle(code)))
             }
         }
+        // (RapidR's) keystrokes to the program's own windows, as the
+        // user's (crate::send_keys); False for a malformed string
+        ("application", "sendkeys") => v_bool(crate::send_keys::send(&arg(0).to_string_val()).is_ok()),
         ("screen", "getpixeldepth") => v_int(32),
         ("screen", "monitors") => v_int(p.monitors()),
         ("screen", "mousebuttons") => v_int(3),

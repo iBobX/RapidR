@@ -20,6 +20,7 @@
 //! `import_v1_file`, `Project::implicit`).
 
 mod error;
+pub mod forms;
 mod implicit;
 mod project;
 mod v1;
@@ -28,7 +29,7 @@ mod workspace;
 use std::path::Path;
 
 pub use error::ProjectError;
-pub use implicit::{implicit_from_resolver, implicit_from_sources, include_targets};
+pub use implicit::{implicit_from_resolver, implicit_from_sources, include_targets, named_files};
 pub use project::{
     basic_string, defines_form, kind_for_file, kind_for_path, kind_for_source, normalize_path, Ai,
     Build, Compat, CompatLevel, DataAccess, Designer, FileKind, Project, ProjectFile, Run,
@@ -88,7 +89,7 @@ pub fn open(path: &Path) -> Result<Opened, ProjectError> {
                 Project::from_toml(&text).map(Opened::Project)
             }
         }
-        "bas" | "rr" | "inc" => Project::implicit(path).map(Opened::Implicit),
+        "bas" | "rr" | "inc" | "rqw" | "rqb" | "rq" => Project::implicit(path).map(Opened::Implicit),
         _ => Err(ProjectError::UnsupportedFile(path.display().to_string())),
     }
 }

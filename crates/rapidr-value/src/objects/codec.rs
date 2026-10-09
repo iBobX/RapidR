@@ -266,7 +266,9 @@ pub fn decode_ico(b: &[u8]) -> Result<(Pixels, Option<Vec<u8>>), String> {
     Ok((img, alpha))
 }
 
-/// Decodes an uncompressed BMP (1, 4, 8, 24 or 32 bits per pixel).
+/// Decodes a BMP: uncompressed (1, 4, 8, 16, 24 or 32 bits per pixel) or
+/// run-length encoded (RLE8, RLE4: what Windows' Paint saved, RapidQ's
+/// examples' too).
 pub fn decode_bmp(b: &[u8]) -> Result<Pixels, String> {
     decode_bmp_alpha(b).map(|(img, _)| img)
 }
@@ -297,7 +299,7 @@ pub fn decode_bmp_alpha(b: &[u8]) -> Result<(Pixels, Option<Vec<u8>>), String> {
 }
 
 fn decode_bmp_pixels(b: &[u8]) -> Result<Pixels, String> {
-    let bad = || "not a BMP file RapidR can read (uncompressed 1/4/8/24/32-bit)".to_string();
+    let bad = || "not a BMP file RapidR can read (1/4/8/16/24/32-bit, RLE4 / RLE8)".to_string();
     if b.get(0..2) != Some(b"BM") {
         return Err(bad());
     }
@@ -307,8 +309,14 @@ fn decode_bmp_pixels(b: &[u8]) -> Result<Pixels, String> {
     let raw_height = u32_at(b, 22).ok_or_else(bad)? as i32;
     let bpp = u16_at(b, 28).ok_or_else(bad)?;
     let compression = u32_at(b, 30).ok_or_else(bad)?;
-    // BI_RGB, or BI_BITFIELDS for 32-bit files with the standard masks.
-    if width <= 0 || raw_height == 0 || !(compression == 0 || compression == 3 && bpp == 32) {
+    // BI_RGB, BI_RLE8, BI_RLE4, or BI_BITFIELDS for 32-bit files with the
+    // standard masks.
+    // (an empty picture — a QBITMAP nothing was drawn on, its BMP: nothing)
+    if (width == 0 || raw_height == 0) && bpp > 0 {
+        return Ok(Pixels { width: 0, height: 0, pixels: Vec::new() });
+    }
+    let rle = (compression == 1 && bpp == 8) || (compression == 2 && bpp == 4);
+    if width <= 0 || raw_height == 0 || !(compression == 0 || rle || compression == 3 && bpp == 32) || (rle && raw_height < 0) {
         return Err(bad());
     }
     let (width, height) = (width as usize, raw_height.unsigned_abs() as usize);
@@ -333,6 +341,11 @@ fn decode_bmp_pixels(b: &[u8]) -> Result<Pixels, String> {
     } else {
         Vec::new()
     };
+    if rle {
+        let indices = decode_rle(b.get(data_offset..).ok_or_else(bad)?, width, height, bpp == 4);
+        let pixels = indices.iter().map(|&i| *palette.get(i as usize).unwrap_or(&0)).collect();
+        return Ok(Pixels { width, height, pixels });
+    }
     let row_bytes = (width * bpp as usize).div_ceil(32) * 4;
     let mut pixels = vec![0u32; width * height];
     for row in 0..height {
@@ -345,6 +358,12 @@ fn decode_bmp_pixels(b: &[u8]) -> Result<Pixels, String> {
                     let at = x * (bpp as usize / 8);
                     (line[at] as u32) << 16 | (line[at + 1] as u32) << 8 | line[at + 2] as u32
                 }
+                // (5 bits each of red, green and blue: X1R5G5B5)
+                16 => {
+                    let v = u16::from_le_bytes([line[x * 2], line[x * 2 + 1]]) as u32;
+                    let five = |c: u32| (c & 0x1F) << 3 | (c & 0x1F) >> 2;
+                    five(v) << 16 | five(v >> 5) << 8 | five(v >> 10)
+                }
                 8 => *palette.get(line[x] as usize).unwrap_or(&0),
                 4 => *palette.get((line[x / 2] >> if x % 2 == 0 { 4 } else { 0 } & 0xF) as usize).unwrap_or(&0),
                 1 => *palette.get((line[x / 8] >> (7 - x % 8) & 1) as usize).unwrap_or(&0),
@@ -354,6 +373,59 @@ fn decode_bmp_pixels(b: &[u8]) -> Result<Pixels, String> {
         }
     }
     Ok(Pixels { width, height, pixels })
+}
+
+/// A run-length encoded BMP's palette indices, top row first (`four`: RLE4,
+/// two pixels a byte; else RLE8). Pixels the runs skip (a delta, a line
+/// ended early) are index 0. Bad data ends the picture where it is.
+fn decode_rle(data: &[u8], width: usize, height: usize, four: bool) -> Vec<u8> {
+    let mut out = vec![0u8; width * height];
+    let (mut x, mut y) = (0usize, 0usize);
+    let mut put = |x: usize, y: usize, v: u8| {
+        if x < width && y < height {
+            out[(height - 1 - y) * width + x] = v;
+        }
+    };
+    let mut i = 0;
+    while i + 1 < data.len() && y < height {
+        let (n, v) = (data[i] as usize, data[i + 1]);
+        i += 2;
+        if n > 0 {
+            // (a run: n pixels of one index, or of two alternating for RLE4)
+            for k in 0..n {
+                let c = if four { if k % 2 == 0 { v >> 4 } else { v & 0xF } } else { v };
+                put(x, y, c);
+                x += 1;
+            }
+            continue;
+        }
+        match v {
+            0 => {
+                x = 0;
+                y += 1;
+            }
+            1 => break,
+            2 => {
+                let (Some(&dx), Some(&dy)) = (data.get(i), data.get(i + 1)) else { break };
+                i += 2;
+                x += dx as usize;
+                y += dy as usize;
+            }
+            // (literal pixels, padded to a whole 16-bit word)
+            n => {
+                let n = n as usize;
+                let bytes = if four { n.div_ceil(2) } else { n };
+                let Some(lit) = data.get(i..i + bytes) else { break };
+                for k in 0..n {
+                    let c = if four { if k % 2 == 0 { lit[k / 2] >> 4 } else { lit[k / 2] & 0xF } } else { lit[k] };
+                    put(x, y, c);
+                    x += 1;
+                }
+                i += bytes.div_ceil(2) * 2;
+            }
+        }
+    }
+    out
 }
 
 /// Encodes a 24-bit uncompressed BMP.
@@ -427,6 +499,40 @@ pub fn bmp_data_url(img: &Pixels) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A 4×2 BMP with a palette of red, green, blue: `bpp`, `compression`
+    /// and the pixel data given.
+    fn paletted(bpp: u16, compression: u32, data: &[u8]) -> Vec<u8> {
+        let mut b = b"BM".to_vec();
+        b.extend_from_slice(&0u32.to_le_bytes());
+        b.extend_from_slice(&0u32.to_le_bytes());
+        b.extend_from_slice(&(14u32 + 40 + 12).to_le_bytes());
+        b.extend_from_slice(&40u32.to_le_bytes());
+        b.extend_from_slice(&4i32.to_le_bytes());
+        b.extend_from_slice(&2i32.to_le_bytes());
+        b.extend_from_slice(&1u16.to_le_bytes());
+        b.extend_from_slice(&bpp.to_le_bytes());
+        b.extend_from_slice(&compression.to_le_bytes());
+        b.extend_from_slice(&[0; 12]);
+        b.extend_from_slice(&3u32.to_le_bytes());
+        b.extend_from_slice(&0u32.to_le_bytes());
+        // (B, G, R, 0: red, green, blue)
+        b.extend_from_slice(&[0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0, 0]);
+        b.extend_from_slice(data);
+        b
+    }
+
+    #[test]
+    fn run_length_encoded() {
+        // RLE8: bottom row 2 × green, red, blue; top row the literal blue,
+        // blue, green (padded to a word), then red.
+        let img = decode_bmp(&paletted(8, 1, &[2, 1, 1, 0, 1, 2, 0, 0, 0, 3, 2, 2, 1, 0, 1, 0, 0, 1])).unwrap();
+        assert_eq!(img.pixels, [0xFF0000, 0xFF0000, 0x00FF00, 0x0000FF, 0x00FF00, 0x00FF00, 0x0000FF, 0xFF0000]);
+        // RLE4: bottom row red, green alternating (4 pixels); top: a delta
+        // skips 2 (index 0, red), then 2 × blue.
+        let img = decode_bmp(&paletted(4, 2, &[4, 0x01, 0, 0, 0, 2, 2, 0, 2, 0x22, 0, 1])).unwrap();
+        assert_eq!(img.pixels, [0x0000FF, 0x0000FF, 0xFF0000, 0xFF0000, 0x0000FF, 0x00FF00, 0x0000FF, 0x00FF00]);
+    }
 
     /// A 2×2 icon, 4 bits a pixel: red, green / blue, see-through.
     fn tiny_ico() -> Vec<u8> {

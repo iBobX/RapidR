@@ -189,7 +189,7 @@ Each table's columns are: ID | item | the best competitor | RapidR better, concr
 
 | ID | Item | Best competitor | RapidR better | P | Acceptance |
 |---|---|---|---|---|---|
-| TBX-1 | From the registry | Delphi's palette; Xojo's Library | Every component the registry knows (not a hand list), grouped "RapidQ" (Standard, Additional, Dialogs, System, Media) and "RapidR" (Data, Data Science, Web, AI, IDE), with D8 icons and names as written (QBUTTON, RPLOT). | P0 | `toolbox-registry`: the item count equals `rapidr lang export --json`'s visual + tray components (minus `planned`). |
+| TBX-1 | From the registry | Delphi's palette; Xojo's Library | Every component the registry knows (not a hand list), grouped by purpose (Standard, Additional, Dialogs, System, Network, Data, Data Science, Media, DirectX, Direct3D, Web, AI, IDE), with D8 icons and RapidR's names (RButton, RPlot; the card gives RapidQ's name). | P0 | `toolbox-registry`: the item count equals `rapidr lang export --json`'s visual + tray components (minus `planned`). |
 | TBX-2 | Search | Xcode's Library (⌘⇧L) filter; Delphi 13 | Type to filter by name, Q / R name and doc words ("chart" finds RPLOT). Enter adds the first match. | P0 | `toolbox-search`: `focus:toolbox,type:chart` → first item RPLOT. |
 | TBX-3 | Add | — | See DES-4: double-click, Enter, drag, click then draw. Non-visual components go to the tray. | P0 | DES-4 cases. |
 | TBX-4 | Hover card | Xcode's Library detail pane | Icon, one-line doc, origin, "desktop only" / "web only" flags, a "Help" link. | P0 | `hover.text` on an item is non-empty and includes the origin. |
@@ -228,10 +228,10 @@ Each table's columns are: ID | item | the best competitor | RapidR better, concr
 
 | ID | Item | Best competitor | RapidR better | P | Acceptance |
 |---|---|---|---|---|---|
-| RUN-1 | F5 runs | VB6 | Save and run (RapidQ saved on run too) in its own process or sandboxed frame. Output shows ANSI (COLOR, LOCATE). On macOS ⌘R runs too. | P0 | `run-console` (done) + `run-ansi`: COLOR output → coloured runs in `outputbox`. |
-| RUN-2 | Run in browser | — | From desktop Studio, one command serves the web build on loopback (random port, token) and opens the default browser. | P0 | `run-browser`: the page's first form appears ≤ 1.5 s; its capture equals the desktop run's. |
-| RUN-3 | Errors before running | Xojo / Delphi stop at the first error | F5 with errors: Problems is shown and the editor **jumps to the first error**, with no dead run. | P0 | `run-errors`: a broken file + `run.start` → `code.caret` on the error's line. |
-| RUN-4 | Run-time errors | VB6 | Stops at the faulting statement (break on error, done in the VM), with the message and the call stack. The line is highlighted. | P0 | `run-error-stop`: a division by zero in a handler → paused at that line, the `Stopped` reason shown. |
+| RUN-1 | partial | F5 saves and runs in its own process or a sandboxed frame; output goes to Output (`ide/debug.inc` `StartProgram`; `tests/studio_flows.mjs` `run-console`). On the web the program's windows float over the whole page (S-DEBUG, `program-windows-float`). No ⌘R yet. |
+| RUN-2 | done | Run ▸ Run in Browser (`run.browser`): `rapidr serve` builds the web bundle in memory and serves it on 127.0.0.1 under a random path, opened in the default browser (`RPROGRAMSESSION.RunInBrowser`, `BrowserURL`); on the web it runs in place. `tests/run_in_browser.mjs`: the form in the browser in ~0.3–1.2 s (budget 1.5 s), 404 / 421 / 405 refusals. |
+| RUN-3 | done | F5 with errors: Problems shown and the caret at the first error (`GoToFirstProblem`), no dead run. |
+| RUN-4 | done | Stop at runtime errors (Debug ▸ Stop at Run-time Errors, on by default): paused at the faulting line in any file, the line red with the message at its end (`exception` marker), the stack and locals shown, the message in Output (`debug-runtime-error`, both hosts). |
 | RUN-5 | Stop and restart | — | Stop always works (a kill); Restart is ⌃⇧F5. | P0 | A busy-loop program + `run.stop` → stopped ≤ 200 ms. |
 | RUN-6 | Remote run / debug | Xojo's remote debugger | Run and debug on another machine or VM: the session protocol over an authenticated TCP link. | P2 | — |
 
@@ -239,12 +239,12 @@ Each table's columns are: ID | item | the best competitor | RapidR better, concr
 
 | ID | Item | Best competitor | RapidR better | P | Acceptance |
 |---|---|---|---|---|---|
-| DBG-1 | Breakpoints | VB6 / Delphi | F9 or a gutter click, in any file. A condition is set by right-click and edited inline. Breakpoints are kept in `.rapidr/workspace.toml`. | P0 | `breakpoint`: F9 on `Greet`'s line, run, click → paused at it (`session.currentline`); a condition `clicks > 1` stops only on the second click. |
-| DBG-2 | Stepping | — (Xcode stalls while loading symbols) | F10 / F11 / ⇧F11, Run to Cursor (⌃F10), Pause. The current line is highlighted and the editor follows across files. | P0 | `step`: F11 into a SUB in an `$INCLUDE` → that file opens at the line. |
-| DBG-3 | Variables and watches | Delphi's Local Variables / Watches | A Locals / Globals tree; objects expand to their properties; arrays page by 100. A Watch panel evaluated by the VM (fuel-limited). | P0 | `variables`: paused → `variables.locals` includes `Sender`; a watch `clicks*2` updates on the next stop. |
-| DBG-4 | Call stack | All | A panel; clicking a frame shows its locals and line. | P0 | `callstack`: two frames, the second's locals differ. |
-| DBG-5 | Data tips | Delphi / VS Code | Hovering a variable while paused shows its value; objects expand. | P0 | `hover.text` while paused is `= "World"`. |
-| DBG-6 | Immediate | VB6 | `? expr` prints; statements run in the paused frame. Up / Down for history, completion in the line. | P0 | `immediate` (works now when paused: `ide/project.inc` `ImmediateKey`): `? NameEdit.Text` → `World`. |
+| DBG-1 | done | F9 or a click in the gutter, in any file; conditions, hit counts (`3`, `>= 3`, `% 3`), logpoints (`{expr}`), on / off; the Breakpoints pane lists and edits them (Shift+F9); their lines follow edits (`debug-breakpoint`, `debug-gutter-click`, `debug-condition-continue`, `debug-logpoint`, `debug-hit-count`). One on a line without code moves to the line the running program stops at; with no code after it, it says it never stops (`OnBreakpointPlaced`, `debug-placed`). The project's breakpoints and watches are kept with Studio's settings and come back when it opens again (`debug-kept`). |
+| DBG-2 | done | F11 / F10 / Shift+F11, F8, Pause, Run to Cursor (Ctrl+F10, from a stopped program too); the current line is marked and the editor follows the program into an `$INCLUDE`d file, the status bar's Ln / Col with it (`debug-step-watch`, `debug-run-to-cursor`). Pause stops a program that waits for its events (a ShowModal, a dialog) at once, at the line that waits, "Waiting for events" beside it — Xcode's pause, on both hosts (`debug-pause-waiting`; rapidr-session `a_pause_while_the_program_waits_…`). |
+| DBG-3 | done | Variables: Locals / Globals trees, arrays, TYPEs and components (a handler's `Sender`) open to their children, kept open from stop to stop; Watch: expressions evaluated by the VM at each stop, expandable (`debug-step-watch`, `debug-component-properties`). F2 sets a value in place (a local, a global, an element, a field, a property) and the paused program runs on with it; F2 on a watch edits its expression (`debug-set-value`). |
+| DBG-4 | done | Call Stack: the frames with file:line; picking one shows its line (`frame` marker) and its locals and watches (`debug-hover-frame`). It takes the toolbox's place at a run's first stop — beside Variables, as Xcode's debug navigator — and gives it back when the program ends (`debug-paused-session`). |
+| DBG-5 | done | While paused a resting mouse (or TriggerHover, the keys') shows the value under it in a tip as wide as the value (`DebugHover`, `OnHoverRequest` → `Evaluate` → `ShowHover`; `debug-hover-frame`, `debug-paused-session`). |
+| DBG-6 | done | Immediate: `? expr` prints, statements run in the paused frame (the answer by `OnEvaluate`), Up / Down recall what was typed (`debug-condition-continue`). No completion in the line yet. |
 | DBG-7 | Logpoints, hit counts, set next statement | VS Code / Delphi | — | P1 | — |
 | DBG-8 | Edit-and-continue and hot reload | VB6 (still loved) | I5: a changed SUB applies on save while running; inside a paused SUB if its locals' layout is kept; otherwise "restart needed" with the reason. | P1 | I5 acceptance. |
 | DBG-9 | Inspect element | Xcode's view debugger | Click a control in the running form → it's selected in the designer with its live properties (I5). | P1 | — |
@@ -348,7 +348,7 @@ Every row is measured in `tools/regress.sh perf` on the reference machines of [i
    - Compiler messages in RapidQ's wording with a jump link.
    - Studio's own messages say what happened and what to do: "Can't run: 2 errors — the first is at line 12".
    - Never a raw Rust error or panic text.
-   - The **`(… : not there yet)` fallback in `ide/shell.inc` `RunCommand` must be gone**: every menu command works or is hidden. Commands that fall through today: `edit.undo`, `edit.redo`, `edit.delete`, `edit.find`, `edit.replace`, `project.addForm`, `project.addModule`, `debug.toggleBreakpoint`, `debug.clearBreakpoints`, `debug.addWatch`, `debug.runToCursor`, every `designer.*` (Format), `help.contents`.
+   - The **`(… : not there yet)` fallback in `ide/shell.inc` `RunCommand` must be gone**: every menu command works or is hidden. Commands that fall through today: `edit.undo`, `edit.redo`, `edit.delete`, `edit.find`, `edit.replace`, `project.addForm`, `project.addModule`, every `designer.*` (Format), `help.contents` (the Run and Debug ones work now: S-DEBUG, and `tests/studio_flows.mjs` `commands-handled` keeps it so).
 4. **Keyboard shortcuts per OS.**
    - Windows / Linux: the VB6 / Delphi scheme (F5, F9, F10, F11, F12, F2, F4, Ctrl+…).
    - macOS: ⌘ for Ctrl, plus Xcode's ⌘R run, ⌘. stop, ⌘B build, ⌘, settings, ⌘W close document, ⌘⇧[ / ] for documents, ⌘⇧O quick open, ⌘⇧L library.
@@ -418,20 +418,20 @@ Lanes in flight (the designer, the panels / inspector, the code editor, the them
 | WEL-1 | partial | The Welcome page with Start, Recent and example cards works (`ide/panes.inc` `FillExamples`, `LayOutWelcome`; `tests/studio_shell.mjs`). There are no live thumbnails (cards show a file icon) and no ▶ Run on the cards. |
 | WEL-2 | partial | (S-SHELL-2) Five templates in `TEMPLATES` (`gui`, `console`, `rapidq` — main.bas, compat on —, `data`, `mdi`), each compiled and run headless; File > New Project shows them as a gallery of cards (`ide/workspace.inc`). The cards have icons, not thumbnails of their forms, and the `templates` flow (create → run on both hosts) isn't written. |
 | WEL-3 | partial | No setup dialogs; the theme follows the system (`ide_theme`). The "no network on first run" check doesn't exist. |
-| DES-1 | missing | RDESIGNSURFACE draws placeholders (`crates/rapidr-value/src/objects/design.rs`; L-DMODEL's results: "WYSIWYG is L-DVIEW's"). |
-| DES-2 | partial | Multi-select, 8 handles and nudging exist in the surface model (`objects/design.rs` on `rapidr_value::designer`; demo `examples/form_designer.bas`). In Studio nothing is connected: `DesignSelected` is empty (`ide/shell.inc`), the surface has no event handlers in `ide/documents.inc`, and `ScanForm` rebuilds it from a text scan (`DesignDoc(d).ClearAll`), so no change reaches the code. |
-| DES-3 | partial | Guides, snapping and the 300-component < 2 ms budget are done in the model (`rapidr_value::designer::snap`) and drawn by the surface while dragging. Not usable in Studio (DES-2). |
-| DES-4 | missing | The toolbox is a `QTREEVIEW` with no add handler (`ide/window.inc` `ToolboxTree`, `ide/panes.inc` `FillToolbox`). |
-| DES-5 | partial | `crates/rapidr-designer` `Document` does minimal patches, one text history and the corpus round trip (386 + 27 programs, 0 failures). Studio uses the `ScanForm` string scanner instead (`ide/documents.inc`, "PLUG POINT (L-SYNC)"), and RDESIGNSURFACE has no source-text API. |
-| DES-6 | missing | No double-click handling in Studio; `DesignSelected` is empty. |
-| DES-7 | partial | Pins and the resize preview exist in the surface; anchoring equals the runtime (40 / 40, `crates/rapidr-designer/tests/anchors.rs`). Not wired in Studio; no inspector editor. |
-| DES-8 | partial | `rapidr_value::designer::arrange` is done; the Format commands fall to "not there yet" (`ide/shell.inc` `RunCommand` `CASE ELSE`). |
-| DES-9 | partial | The model and text side reparent; the surface has no drop targets (L-DMODEL's "Left"). |
-| DES-10 | partial | `Document::undo` / `redo` restore bytes (property tests). `edit.undo` / `edit.redo` are "not there yet" in Studio. |
-| DES-11 | partial | `Designer` copy / cut / paste / duplicate exist; not in Studio. |
-| DES-12 | missing | No keyboard placement with announcements (L-DMODEL's "Left"). |
-| DES-13 | partial | `designer::arrange::set_tab_order` exists; the menu editor and both editors' UIs are missing. |
-| DES-14 | missing | No component tray. |
+| DES-1 | done | S-DESIGN: each component drawn by the kernel's own from a design-time store; `tools/visual/designer_wysiwyg.py` 8 / 8 pixel-identical (notepad, hello_form; light, dark; 1×, 2×). |
+| DES-2 | done | S-DESIGN: click, Shift / ⌘-click, rubber band, 8 handles, live readouts, nudges, Alt frees; every change the smallest edit (`studio_flows` `designer`). S-DESIGN-2: the handles and grips keep their size and reach at any zoom. |
+| DES-3 | done | Drawn while dragging (S-DESIGN); S-DESIGN-2's `Guides` property and the `designer-guides` flow / capture (a guide held on both hosts). The 300-component budget is the model's unit test (perf stage not yet). |
+| DES-4 | done | S-DESIGN / S-PANELS: the placing tool (click or draw), drag and drop with a 60 % ghost of the real component and a "not allowed" pointer elsewhere, Enter / double-click (`AddComponent`), Delphi names, typing writes the Caption; a drop settles in for 100 ms, easing out, none with reduced motion (S-DESIGN-2). Names unique in the whole program; RapidR's names written in a RapidR file. |
+| DES-5 | done | `Document::sync` edits as OnSourceEdit; code → designer at the analyzer's pause, and when the designer is shown; read-only banner on errors. S-DESIGN-2: one undo history with the code (DES-10). |
+| DES-6 | done | `CreateHandler` (S-DESIGN, S-PANELS' `create_handler`); the caret lands inside. |
+| DES-7 | done | Pins on the canvas and the form's edges / corner with the live preview (S-DESIGN); the model's 40 / 40 parity. |
+| DES-8 | done | The Format menu (`Arrange`), one undo step each. |
+| DES-9 | done | Dropping on a panel / group box / scroll box reparents, target highlighted (S-DESIGN). |
+| DES-10 | done | S-DESIGN-2: one history per file across the designer and the code editor (OnSourceStep / SharedUndo / OnUndo; Studio's interim history until RCODEEDITOR's ApplyPatches / Undo land) — `designer-undo-interleave`, `-undo-all` (exact bytes), `-redo`. |
+| DES-11 | done | Ctrl / ⌘ + C, X, V, D on the designer (CREATE text on the clipboard). |
+| DES-12 | done | Tab / Shift+Tab, Esc to the parent, arrows, Enter, the live region (`StatusText`) announcing each change (S-DESIGN); a keyboard-only five-minutes run is still to script. |
+| DES-13 | done | S-DESIGN-2: the menu editor on the form's own bar (Type Here, `&`, separators, submenus, ShortCut captured, Checked in the gutter, drag to reorder) as QMAINMENU / QMENUITEM CREATE blocks; the Tab-order editor (badges, click in order) writing TabOrder — `designer-menu`, `designer-taborder`. |
+| DES-14 | done | Non-visual components in a tray under the form (S-DESIGN); S-DESIGN-2: the program's own top-level dialogs (notepad's OpenDialog / SaveDialog) too, inspected and edited in their own blocks — `designer-tray`. Links between tray items aren't drawn yet. |
 | DES-15 | missing | There are no `RDATAFILE` / `RDATASOURCE` / `RDBGRID` in the registry (`crates/rapidr-lang/data`); RPLOT is drawn by the kernel (done: L-FRAME) but nothing is live at design time. |
 | DES-16 | missing | "Preview in classic" is approved and waits for L-THEME (ide-plan L-SHELL "Next"). |
 | INS-1 | partial | `Designer::inspect()` gives registry rows, values, `in_code` and `mixed` (L-DMODEL). Studio's Properties pane is a `QSTRINGGRID` listing the form's own CREATE assignments as text (`ide/panes.inc` `ShowProperties`, `ide/documents.inc` `ScanForm`). |
@@ -442,20 +442,20 @@ Lanes in flight (the designer, the panels / inspector, the code editor, the them
 | INS-6 | partial | `Designer::set_property(prop, None)` resets (model only). |
 | TBX-1 | partial | D8 icons and Q names are done, but the list is hard-coded (`ide/panes.inc` `FillToolbox`: about 34 components out of 97 + library ones). |
 | TBX-2 | missing | No search. |
-| TBX-3 | missing | See DES-4. |
+| TBX-3 | done | S-DESIGN-2: every component of the toolbox added to a RapidR and a RapidQ form and the program compiled on both backends (`rapidr-studio` `every_toolbox_component_can_be_added`); Enter / double-click at the first free place in reading order, never on another, fitted to the form; non-visual ones in the tray. |
 | TBX-4 | missing | No hover card. |
-| ED-1 | partial | `crates/rapidr-editor` is done (undo tree, multi-cursor, search, folding, 11 languages, the bench). RCODEEDITOR is still the memo-based view (`crates/rapidr-ui-kernel/src/components/codeedit.rs`, `objects/{code,textedit}.rs`: one-step undo, no find / folding / multi-cursor). Nothing renders through `rapidr-editor` (only `rapidr-value/Cargo.toml` mentions it). |
-| ED-2 | missing | Tab types a literal tab character (`codeedit.rs` header: "Tab typing a tab"); Robert saw it drawn as a stray glyph. No indent / outdent. |
-| ED-3 | partial | `rapidr-langsvc` completes (golden suite, VS Code through `rapidr lsp`). RLANGUAGESERVICE exposes only `Update`, `Close`, `Outline` and `Diagnostics` (`crates/rapidr-studio/src/langsvc.rs`; ide-components §3.9), and RCODEEDITOR has no popup. |
-| ED-4 | partial | Hover and signature exist in `rapidr-langsvc`; not exposed in Studio, no popup. |
-| ED-5 | partial | Diagnostics fill the Problems list after a pause (`ide/documents.inc` `FillProblems`); no squiggles in the editor, no quick fixes in Studio. |
-| ED-6 | partial | Definition, references and rename exist in `rapidr-langsvc` (and VS Code); not in Studio. |
-| ED-7 | partial | `crates/rapidr-langsvc/src/case.rs` works in VS Code; not in Studio. |
-| ED-8 | partial | Snippets in `rapidr-editor` (`snippet` module); not wired. |
-| ED-9 | partial | The memo has IME; the editor's text runs for screen readers aren't there (I2 L-EDA11Y). |
+| ED-1 | done | RCODEEDITOR is `rapidr-editor`'s Document in the kernel's own view (`components/codeeditor/`; the memo path deleted): undo / redo by word, multi-cursor, find / replace with regex, folding, pairs, auto-indent, the current line, schemes per theme. Flows `editor-undo`, `editor-find-regex`, `editor-find-next`, `editor-fold` (S-EDITOR, ide-plan.md "I2 / I3 / S-EDITOR results"). |
+| ED-2 | done | Tab / Shift+Tab indent and outdent by the file's unit, at a line's start and on a block; Tab accepts completion and walks snippet stops. The stray glyph's root cause (a TAB shaped by the font: `.notdef`) is fixed in the kernel's text layout for every memo too. Flows `editor-tab-*`, `editor-shift-tab-line-start`; capture `editor-tab`. |
+| ED-3 | done | Completion from `rapidr-langsvc` after `.` (components by R or Q name, arrays, TYPEs, WITH, CREATE bodies), `AS ` (the file's style: R names, Q names once one is being typed; a Q-style file keeps Q), identifiers and Ctrl+Space, fuzzy-ranked, docs beside the list, answered from the last analysis while typing; RAPIDQ.INC's constants offered with their `$INCLUDE` added in the same step. Flows `editor-completion`, `-fuzzy`, `-accept-and-case`, `-tab-accept`, `-ctrl-space`, `-complete-with-include`; `crates/rapidr-langsvc/tests/intellisense.rs`. |
+| ED-4 | done | Hover (the registry's syntax and doc: `SHOWMESSAGE text$`) and signature help with the active parameter. Flows `editor-hover`, `editor-signature`; captures. |
+| ED-5 | done | Squiggles in RapidQ's wording after the pause, the Problems panel in sync, Ctrl+. quick fixes; a RAPIDQ.INC constant used without the include: warning + "Add $INCLUDE". Flows `editor-diagnostic`, `editor-quick-fix`, `editor-needs-include(-problems)`; capture `editor-squiggle`. |
+| ED-6 | partial | F12 (in a form's code too, on a name; off a name it toggles form / code — S-DESIGN-2; another file: Studio opens it, OnNavigate; flow `editor-f12-in-a-form`), Shift+F12 (carets here, the places listed in Output), F2 rename (other files' edits through OnFileEdits). Missing: ⌃- (go back), ⌘-click; no flow across `$INCLUDE` files yet. |
+| ED-7 | done | Keyword case as you type (Studio: upper, and the program's names as declared), from the registry key `KeywordCase` / `IdentifierCase`. Flow `editor-accept-and-case`. |
+| ED-8 | done | Snippets with tab stops from the language definition. Flow `editor-snippet`. |
+| ED-9 | partial | AccessKit text runs (character, word, line), the web mirror's window of lines, IME through the kernel's preedit paths. Not yet done by hand: VoiceOver / NVDA passes, CJK IME on each host. |
 | PRJ-1 | partial | Files with icons and double-click to open (`ide/project.inc` `FillProjectTree`, `ProjectTreeOpen`). Forms don't expand to components; no dirty marks in the tree. |
 | PRJ-5 | missing | The old web IDE had an assets manager (its suites: §7); Studio has none. |
-| PRJ-2 | partial | Add File works (`AddFileToProject`); `project.addForm` / `addModule` are "not there yet"; no rename or delete. |
+| PRJ-2 | partial | S-DESIGN-2: Project > Add Form / Add Module work end to end — named in the tree, written in the program's names (`CREATE Form2 AS RForm`), added to the `.rrproj`, `$INCLUDE`d by the main file (one undo step in its editor), opened on the designer; the program runs with both forms on every runtime (`add-form` flow, `tests/studio_add_form.mjs`). Rename (F2) renames the file and the main file's `$INCLUDE` follows; taking a file out of the project (Delete, asked) takes its `$INCLUDE` out too (`rename-form`, `remove-form`). New files are `.bas` in a RapidQ program. |
 | RUN-1 | partial | F5 saves and runs in its own process or a sandboxed frame; output goes to Output (`ide/project.inc` `StartProgram`; `tests/studio_flows.mjs` `run-console`). Output is a QRICHEDIT with no ANSI colours; there is no ⌘R. |
 | RUN-2 | missing | No "Run in Browser" from desktop Studio. |
 | RUN-3 | partial | Errors block the run and focus Problems (`StartProgram`); no jump to the first error. |
@@ -484,7 +484,7 @@ Lanes in flight (the designer, the panels / inspector, the code editor, the them
 | A11Y-2 | partial | The dock, trees and lists have AccessKit / ARIA (`tests/studio_shell.mjs`: trees equal on both hosts); no hands-on screen-reader pass on Studio, no editor text runs. |
 | A11Y-3 | missing | No UI zoom command, no reduced-motion handling. |
 | PERF-1, PERF-2 | done | Measured (ide-plan L-SHELL results). The web's first visit is at the 2.5 s edge. |
-| PERF-3 … PERF-12 | missing | Not measured in Studio. **`tools/regress.sh` has no `studio` or `perf` stage**: `tests/studio_shell.mjs` and `tests/studio_flows.mjs` aren't in the gate. |
+| PERF-3 … PERF-12 | partial | `tools/regress.sh perf` runs `tests/studio_perf.mjs` (both hosts: start, F5 → first form, a step → its line and values; 20 % over `tests/studio_perf_baseline.json` fails) and `tests/run_in_browser.mjs` measures PERF-9; typing, completion, diagnostics, designer drag, build and idle aren't measured in Studio yet. `tools/regress.sh studio` runs `studio_shell`, `studio_flows` and `run_in_browser`. |
 
 **Tally of the 79 P0 items** (PERF-1 … PERF-12 counted as 12): 5 done, 36 partial, 38 missing.
 

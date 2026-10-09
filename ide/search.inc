@@ -14,28 +14,28 @@
 ' toolbox's component, the designer's selected component — with an Insert
 ' button that types its syntax into the code.
 
-DIM SearchPane AS QPANEL
-DIM SearchEdit AS QEDIT
-DIM ReplaceEdit AS QEDIT
-DIM SearchCase AS QCHECKBOX
-DIM SearchWord AS QCHECKBOX
-DIM SearchRegex AS QCHECKBOX
-DIM SearchGo AS QBUTTON
-DIM ReplaceGo AS QBUTTON
-DIM SearchInfo AS QLABEL
-DIM SearchTree AS QTREEVIEW
+DIM SearchPane AS RPanel
+DIM SearchEdit AS REdit
+DIM ReplaceEdit AS REdit
+DIM SearchCase AS RCheckBox
+DIM SearchWord AS RCheckBox
+DIM SearchRegex AS RCheckBox
+DIM SearchGo AS RButton
+DIM ReplaceGo AS RButton
+DIM SearchInfo AS RLabel
+DIM SearchTree AS RTreeView
 ' (each result node's file and line; a file's node: line 0)
 DIM HitFile(2000) AS STRING
 DIM HitLine(2000) AS INTEGER
 DIM HitCol(2000) AS INTEGER
 DIM HitLen(2000) AS INTEGER
 
-DIM HelpPane AS QPANEL
-DIM HelpTitle AS QLABEL
-DIM HelpWhat AS QLABEL
-DIM HelpSyntax AS QMEMO
-DIM HelpInsert AS QBUTTON
-DIM HelpBody AS QMEMO
+DIM HelpPane AS RPanel
+DIM HelpTitle AS RLabel
+DIM HelpWhat AS RLabel
+DIM HelpSyntax AS RMemo
+DIM HelpInsert AS RButton
+DIM HelpBody AS RMemo
 
 DECLARE SUB SearchKey(Key AS INTEGER, Shift AS INTEGER)
 DECLARE SUB SearchClicked
@@ -254,8 +254,9 @@ SUB SearchOpen
   IF d < 0 THEN EXIT SUB
   Dock.FocusPane(DocPane(d))
   IF HitLine(i) > 0 THEN
-    CodeDoc(d).GotoLine HitLine(i) - 1
-    CodeDoc(d).SelStart = CodeOffset(d, HitLine(i) - 1, HitCol(i) - 1)
+    ' (the code editor's own line and column, from 1: no walk through
+    ' the lines before)
+    CodeDoc(d).GotoLineColumn HitLine(i), HitCol(i)
     CodeDoc(d).SelLength = HitLen(i)
   END IF
 END SUB

@@ -22,6 +22,7 @@
 //! match, Shift+F3 the previous, Escape clears the search,
 //! Ctrl+Page Up / Down the pages.
 
+use rapidr_value::input::Cursor;
 use rapidr_value::objects::a11y::{part_id, AccessNode, Action, Role, PART_EDITOR, PART_ITEM, PART_ROW, PART_TAB};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Place, Rect};
@@ -614,6 +615,29 @@ impl ComponentKind for Console {
         }
         p.at((g.body.0, g.body.1), |p| p.ops(bar));
         Self::paint_strip(cx, p, &g, &s, &l);
+    }
+
+    /// The search box and the text (Output, Debug …): the I-beam; a file
+    /// name or address in it (a link): the hand; the problems' rows and the
+    /// scroll bar: the arrow.
+    fn pointer(&self, cx: &mut Cx, x: i64, y: i64) -> Cursor {
+        let g = geo(cx);
+        if g.search.is_some_and(|sr| common::inside(sr, x, y)) {
+            return Cursor::IBeam;
+        }
+        if model::with(cx.id, |c| c.page == Page::Problems) != Some(false) {
+            return Cursor::Default;
+        }
+        match Self::hit(cx, &g, x as f64, y as f64) {
+            Some((line, at)) => {
+                if model::with(cx.id, |c| c.link_at(line, at).is_some()) == Some(true) {
+                    Cursor::Hand
+                } else {
+                    Cursor::IBeam
+                }
+            }
+            None => Cursor::Default,
+        }
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {

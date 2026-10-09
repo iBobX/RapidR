@@ -24,7 +24,7 @@ RCodeEditor is language-agnostic. A language is a TOML file (bundled ones are bu
 
 ```toml
 [language]
-id = "rapidq-basic"
+id = "rapidr-basic"
 name = "RapidQ / RapidR BASIC"
 extensions = ["bas", "rr", "inc"]
 case_insensitive = true
@@ -74,35 +74,43 @@ body = "SUB ${1:Name}(${2})\n\t$0\nEND SUB"
 
 Only the members beyond the usual visual ones (Left, Top, Width, Height, Align, Anchors, Visible, Enabled, Font, Color, Hint, TabOrder, Parent, Tag, AccessibleName …) are listed.
 
-### 3.1 RCodeEditor (stage I2; the existing RCODEEDITOR grown)
+### 3.1 RCodeEditor (I2, built: model `rapidr_value::objects::codeedit` over `rapidr-editor`'s document, kernel `components/codeeditor/`)
 
-Kept exactly as today: Text, Lines, `Line(i)` (0-based), LineCount, SelStart, SelLength, SelText, WhereX, WhereY, Modified, ReadOnly, WantTabs, AddStrings, Clear, SelectAll, GetSubList, GotoSub, `GotoLine(n)` (0-based), OnChange.
+Kept exactly as before (the `code_editor` GUI case, unchanged on native, interpreted and web): Text ('\n' breaks), Lines, `Line(i)` (0-based), LineCount, SelStart, SelLength, SelText (characters), WhereX, WhereY (0-based), Modified, ReadOnly, MaxLength, CharCase, WantTabs, AddStrings, Clear, SelectAll, ClearSelection, GetSubList, GotoSub, `GotoLine(n)` (0-based), the clipboard methods, LoadFromFile / SaveToFile, OnChange (the user's edits only). Everything new counts lines and columns from 1 (a column is a character of the line).
 
 | Kind | Member | Notes |
 |---|---|---|
-| Property | `Language` | A language id (`"rapidq-basic"`, `"sql"` …) or a definition file's path |
-| Property | `ColorScheme` | `"auto"` (follows the theme) or a scheme name |
-| Property | `TabSize`, `InsertSpaces`, `WordWrap`, `ShowLineNumbers`, `ShowFolding`, `ShowMinimap`, `ShowWhitespace`, `HighlightCurrentLine`, `Rulers` | |
-| Property | `CaretLine`, `CaretColumn` | 1-based (as users see them) |
-| Property | `CursorCount` (read-only), `CanUndo`, `CanRedo` | |
-| Property | `CompletionTrigger` | Characters that raise OnCompletionRequest (default `"."`) |
-| Method | `Undo`, `Redo` | Undo groups typing by word |
-| Method | `Find(Text, Options)` → found, `FindNext`, `Replace(Find, With, Options)`, `ReplaceAll(Find, With, Options)` → count | Options: `"case"`, `"word"`, `"regex"`, `"selection"` |
-| Method | `AddCursor(Line, Column)`, `SelectNextOccurrence`, `ClearCursors` | |
+| Property | `Language` | An id (`"rapidr-basic"` default, `"sql"`, `"json"`, `"html"` …), a file name whose extension says, or a definition file (`.toml`) |
+| Property | `ColorScheme` | `"auto"` (the theme's: `rapidr_value::code_scheme`) or `"classic"`, `"modern"`, `"dark"`, `"highcontrast"` |
+| Property | `FontName` (JetBrains Mono), `FontSize` (points, 10), `TabSize`, `InsertSpaces`, `AutoClose`, `AutoIndent`, `WordWrap`, `ShowLineNumbers`, `ShowFolding`, `ShowMinimap`, `ShowWhitespace`, `HighlightCurrentLine`, `Rulers` (`"80,120"`) | |
+| Property | `CaretLine`, `CaretColumn` | 1-based; setting moves the caret |
+| Property | `CursorCount`, `CanUndo`, `CanRedo`, `DiagnosticCount`, `FoldCount`, `Encoding`, `Outline` (read-only) | `Outline`: kind, name, line, depth tab-separated per entry (the language service's, else the SUBs / FUNCTIONs) |
+| Property | `CompletionTrigger` (`"."`), `LanguageService` (True), `KeywordCase` (`"upper"`, `"lower"`, `"proper"`, `"preserve"`) | The built-in service answers on every runtime (desktop and web install RapidR's at start); off, or for a language it doesn't serve, the request events |
+| Property | `CompletionItems`, `CompletionSelected`, `HoverText`, `SignatureText` (read-only) | What the popups show now: the completion labels one a line, best first (fuzzy: the start as typed, any case, the word starts — `ss` → SelStart —, together, in order; lately accepted first among equals), the selected one, the hover's Markdown, the signature |
+| Property | `FileName`, `LineEnding` (`"CRLF"`, `"LF"`, `"CR"`) | LoadFromFile keeps the file's breaks and encoding (UTF-8, UTF-8 BOM, Latin-1); SaveToFile writes them back |
+| Method | `Undo`, `Redo` | Typing grouped by word / 400 ms |
+| Method | `Find(Text, Options)` → found, `FindNext`, `FindPrevious`, `Replace(Find, With, Options)` → 1/0, `ReplaceAll(Find, With, Options)` → count | Options: `"case"`, `"word"`, `"regex"`, `"selection"`; `$1` in a regex's replacement |
+| Method | `AddCursor(Line, Column)`, `SelectNextOccurrence`, `ClearCursors`, `GotoLineColumn(Line, Column)` | |
 | Method | `Fold(Line)`, `Unfold(Line)`, `FoldAll`, `UnfoldAll` | |
-| Method | `InsertText(Text)`, `ReplaceRange(StartLine, StartCol, EndLine, EndCol, Text)`, `ApplyEdits(Json)` | `ApplyEdits` is one undo step |
-| Method | `SetDiagnostics(Json)`, `ClearDiagnostics`, `AddMarker(Line, Kind)`, `ClearMarkers(Kind)` | Kinds: breakpoint, current, error, warning, bookmark, custom |
-| Method | `ShowCompletion(Items)`, `ShowHover(Text)`, `ShowSignature(Text, ActiveParam)`, `HidePopups` | Items: a QSTRINGLIST of tab-separated lines (label, kind, detail, text to insert) or JSON |
-| Method | `LoadFromFile(File)`, `SaveToFile(File)`, `BeginUpdate`, `EndUpdate` | Line endings and encoding preserved |
-| Event | `OnCaretMove(Line, Column)`, `OnSelectionChange` | |
-| Event | `OnGutterClick(Line, Area)` | Area: `"number"`, `"marker"`, `"fold"` |
-| Event | `OnCompletionRequest(Line, Column, Prefix)`, `OnHoverRequest(Line, Column)`, `OnSignatureRequest(Line, Column)` | The program answers with ShowCompletion / ShowHover / ShowSignature |
+| Method | `InsertText(Text)`, `ReplaceRange(StartLine, StartCol, EndLine, EndCol, Text)`, `ApplyEdits(Json)`, `ToggleComment`, `Indent`, `Outdent`, `CopyText` | `ApplyEdits`: `[{"line","column","endLine","endColumn","text"}]` or `start` / `end` offsets, one undo step, refused whole on an overlap |
+| Method | `ApplyPatches(Patches, [Continues])` → done | One designer change's source patches as RDESIGNSURFACE's `OnSourceEdit` gives them, one per line (`StartLine⇥StartCol⇥EndLine⇥EndCol⇥Text`, lines from **0**, columns in characters, Text with `\n` `\t` `\\`), each in the text the ones before left: one undo step, or with `Continues` (OnSourceStep's) part of the step before; the carets keep their place in the text; OnChange once; all or nothing (ide-plan.md, "I2 / S-EDITOR results") |
+| Method | `SetDiagnostics(Json)`, `ClearDiagnostics`, `AddMarker(Line, Kind)`, `RemoveMarker(Line, [Kind])`, `ClearMarkers([Kind])`, `GetMarkers([Kind])` → `"3,10"`, `HasMarker(Line, [Kind])` | Kinds: breakpoint, current, error, warning, bookmark, or the program's; markers follow their lines through edits |
+| Method | `ShowCompletion(Items)`, `ShowHover(Text)`, `ShowSignature(Text, ActiveParam)`, `HidePopups` | Items: tab-separated lines (label, kind, detail, text to insert), a QSTRINGLIST, or JSON |
+| Method | `TriggerCompletion`, `TriggerSignature`, `TriggerHover([Line, Column])`, `FormatDocument`, `GotoDefinition`, `FindReferences`, `Rename(NewName)`, `OpenFind([Mode])` | What the keys do, for a shell's menus and commands; Mode: `"find"`, `"replace"`, `"goto"`, `"rename"` |
+| Method | `BeginUpdate`, `EndUpdate` | |
+| Event | `OnCaretMove(Line, Column)`, `OnSelectionChange` | The user's moves |
+| Event | `OnGutterClick(Line, Area)` | Area: `"marker"` (breakpoints), `"number"`, `"fold"` |
+| Event | `OnCompletionRequest(Line, Column, Prefix)`, `OnHoverRequest(Line, Column)`, `OnSignatureRequest(Line, Column)` | Raised when no language service answers; the program answers with ShowCompletion / ShowHover / ShowSignature |
 | Event | `OnSave` | Ctrl / Cmd+S inside the editor |
+| Event | `OnNavigate(File, Line, Column)`, `OnReferences(Json)`, `OnFileEdits(File, Json)` | Go to definition in another file; Find references' places; a rename's edits to another file |
 | AI tools | read text / selection / range, find, replace range, apply edits (diff-previewed), go to line | §1.5 |
 
-### 3.2 RDiffView (I2)
+Keys (VS Code's map; Cmd for Ctrl on macOS): arrows / Home (smart) / End / PgUp / PgDn, Ctrl+arrows by word, Ctrl+Home / End; Ctrl+Alt+Up / Down a caret above / below, Alt+click another caret, Alt+Shift+drag a column, Ctrl+D the next occurrence, Ctrl+Shift+L all of them, Escape back to one caret; Alt+Up / Down move lines, Shift+Alt+Up / Down copy them, Ctrl+Shift+K delete them, Ctrl+Enter / Ctrl+Shift+Enter a line below / above, Ctrl+/ comment, Tab / Shift+Tab (and Ctrl+] / Ctrl+[) indent, Ctrl+Shift+\ the matching bracket; Ctrl+Shift+[ / ] fold / unfold, Ctrl+K Ctrl+0 / Ctrl+J all; Ctrl+F find, Ctrl+H replace, F3 / Shift+F3, Ctrl+G go to line, F2 rename, F12 / Ctrl+click definition, Shift+F12 references, Shift+Alt+F format; Ctrl+Space completion, Ctrl+Shift+Space signature, Ctrl+K Ctrl+I hover; Ctrl+= / Ctrl+- / Ctrl+0 zoom (Ctrl+wheel too), Alt+Z word wrap; Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y.
 
-`LeftText`, `RightText`, `Language`, `Mode` (`"split"`, `"inline"`), `HunkCount`, `AcceptHunk(i)`, `RejectHunk(i)`, `AcceptAll`, `RejectAll`, `ResultText`; `OnHunkChange(i, Accepted)`. Used by the AI flow, "compare with saved" and merge conflicts.
+
+### 3.2 RDiffView (I2, built: `rapidr_value::objects::diffview`, kernel `components/diffview.rs`)
+
+`LeftText`, `RightText` (setting either compares again; CR LF → LF), `Language` (an id, a file name or a definition file; default `"rapidr-basic"`), `Mode` (`"split"`, `"inline"`), `HunkCount`, `CurrentHunk` (0-based, -1: none; setting it scrolls there), `ResultText` (the left text with the accepted hunks' right lines — undecided counts as rejected), `AcceptedCount`, `RejectedCount`; `AcceptHunk(i)`, `RejectHunk(i)`, `AcceptAll`, `RejectAll`, `HunkState(i)` (1 / -1 / 0), `NextHunk`, `PreviousHunk` (wrap around; give the index); `OnHunkChange(Index, Accepted)` — the user's decisions only. The diff is our own Myers (linear space, lines only one side has set aside first; 2 × 20,000 lines with 100 changes in ~18 ms release); hunks have no context lines; paired lines get character marks. Keys: F7 / Alt+Down, Shift+F7 / Alt+Up, Enter / Ctrl+Y accept, Backspace / Ctrl+N reject (then the next hunk), arrows, Page Up / Down, Home / End. Used by the AI flow, "compare with saved" and merge conflicts.
 
 ### 3.3 RFormDesigner (I4) and the existing RDESIGNSURFACE
 
@@ -146,11 +154,11 @@ The program does the work on the disk in those events; the tree changes only the
 
 ### 3.6 RToolbox (I1, built: `rapidr_value::panels::toolbox`)
 
-- **Properties**: `Filter`, `ShowNames` (`"as-written"`: QBUTTON for RapidQ's components, R names for the rest; `"rapidr"`; `"titles"`), `Selected`, `Count`.
+- **Properties**: `Filter`, `ShowNames` (`"rapidr"`, the default: RapidR's names, `RButton`; `"rapidq"`: as a file written with RapidQ's names writes them, QBUTTON for RapidQ's components; `"titles"`), `Selected`, `Count`.
 - **Methods**: `Item(i)`, `Expand(Group)`, `Collapse(Group)`, `ExpandAll`, `CollapseAll`, `AddTemplate(Name, Source, Icon)`, `RemoveTemplate`, `Template(Name)`.
 - **Events**: `OnPick(Type)`, `OnSelect(Type)`, `OnDragStart(Type)`, `OnDragDrop(Type, Target, X, Y)` (the deepest component under the drop, in its own pixels).
 
-Groups come from `design/icons/inventory.toml` (`rapidr_icons::TOOLBOX_GROUPS`); only components the compilers create are shown. Search is fuzzy, with the matched letters marked; the words of a component's doc find it too ("chart" finds RPLOT). An item's tooltip is its card: its name, what it is, RapidQ's or RapidR's own, desktop or web only.
+Groups come from `design/icons/inventory.toml` (`rapidr_icons::TOOLBOX_GROUPS`), by purpose (Standard, Additional, Dialogs, System, Network, Data, Data Science, Media, DirectX, Direct3D, Web, AI, IDE, Templates — none named after RapidQ or RapidR: R-NAMES); only components the compilers create are shown. Items and events name components by RapidR's names (`RButton`); a designer writes a component in its file's own style. Search is fuzzy, with the matched letters marked, by any of a component's names (`qbut` finds RButton); the words of a component's doc find it too ("chart" finds RPlot). An item's tooltip is its card: its name, what it is, its RapidQ name (or "RapidR's own"), desktop or web only.
 
 ### 3.7 RDockManager (I1, built: `rapidr_value::dock`)
 
@@ -187,7 +195,7 @@ Keyboard: F6 / Shift+F6 between areas (the groups' shown panes, the active docum
 
 | Component | Members (summary) |
 |---|---|
-| **RProject** (built, I1: `crates/rapidr-studio`) | `FileName`, `Folder`, `Kind` (`project`, `file`, `v1`, ""), `Error`, `Name`, `MainFile`, `FileCount`, `CompatMode` (`"rapidq"` or `""`); `Open(Path)` → True / False (a `.rrproj` v2, a web IDE v1 project — its files written beside it where none is there yet —, or a `.bas` / `.rr` / `.inc` with what it includes), `Save([Path])`, `New(Template, Name, Folder)`, `AddFile(Path[, Kind])`, `RemoveFile(Path)`, `Close`, `File(i)`, `FileKind(i)`, `FullPath(i)`; Find in Files' `Find(Pattern, Options, Text)` → lines `line, column, length, line text` (Options: `case`, `word`, `regex`; the code editor's search), `Replace(Pattern, Options, Text, With)`, `FileText(Path)`; `OnChange`. Planned: `Build(Target)`, `OnBuildOutput(Text)`, `OnBuildDone(Ok)` |
+| **RProject** (built, I1: `crates/rapidr-studio`) | `FileName`, `Folder`, `Kind` (`project`, `file`, `v1`, ""), `Error`, `Name`, `MainFile`, `FileCount`, `CompatMode` (`"rapidq"` or `""`); `Open(Path)` → True / False (a `.rrproj` v2, a web IDE v1 project — its files written beside it where none is there yet —, or a `.rr` / `.bas` / `.rqw` / `.rqb` / `.rq` / `.inc` with what it includes), `ImportRapidQ(Source[, Dest])` → the copy's project file (File ▸ Import RapidQ Project or File: a copy with RapidR's names, proved, with its report and project; `ImportSummary`, `ImportReport`; on the web from and into the page's store), `Save([Path])`, `New(Template, Name, Folder)`, `AddFile(Path[, Kind])`, `RemoveFile(Path)`, `Close`, `File(i)`, `FileKind(i)`, `FullPath(i)`; Find in Files' `Find(Pattern, Options, Text)` → lines `line, column, length, line text` (Options: `case`, `word`, `regex`; the code editor's search), `Replace(Pattern, Options, Text, With)`, `FileText(Path)`; `OnChange`. Planned: `Build(Target)`, `OnBuildOutput(Text)`, `OnBuildDone(Ok)` |
 | **RProgramSession** (built, I1) | `Program` (a source file, saved), `Args` (one string, COMMAND$'s), `Debug` (True), `BreakOnError`, `Theme` (the look of a program that names none: "" its default, `classic` for Studio's "Preview in classic"), `State` (`"stopped"`, `"running"`, `"paused"`), `CurrentFile`, `CurrentLine`, `ExitCode`, `Error`; `Start` → True / False, `Stop`, `Pause`, `Continue`, `StepIn`, `StepOver`, `StepOut`, `SetBreakpoint(File, Line[, Condition])`, `ClearBreakpoint(File, Line)`, `Evaluate(Expr)` (desktop; `? x` prints, a statement runs), `Input(Text)`; `OnOutput(Text)`, `OnStopped(Reason, File, Line)`, `OnContinue`, `OnExit(Code)`, `OnFormShown(Id)`. The program runs in its own process on the desktop (`rapidr run --session`, its forms real windows) and in a sandboxed frame on the web (the page's `RAPIDR_STUDIO_HOST`: ide/web/studio.js, run.html). Planned: `SeparateWindows`, `SetProperty(Object, Prop, Value)` |
 | **RLanguageService** (built in part, I1) | `CompatMode`, `ErrorCount`; `Update(File, Text)`, `Close(File)`, `Outline(File)` → lines `depth, kind, name, detail, line`, `Diagnostics(File)` → lines `severity, line, column, message, file` (tab-separated), `Help(Word[, OfType])` → the registry's entry (title, syntax, what it is, doc, members: a line each; F1's Help pane). Planned (I3): `Project`; `Complete(File, Line, Col)` → items, `Hover`, `Signature`, `Definition`, `References`, `Rename(File, Line, Col, NewName)` → edits, `Format(File)` |
 | **RMCPServer** | `Enabled`, `Transport` (`"local"`, `"http"`), `Port`, `Permission`, `ClientCount`; `Start`, `Stop`, `AddProvider(Component)`, `ConnectionCommand` → text; `OnClientConnect(Name)`, `OnToolCall(Client, Tool, ArgsJson, Allow)` — lets users give their own programs an MCP server |
@@ -270,7 +278,7 @@ END CREATE
 
 ```basic
 ' extension.rr — a diagnostics provider for "todo" comments
-IDE.RegisterLanguageProvider "rapidq-basic", "diagnostics"
+IDE.RegisterLanguageProvider "rapidr-basic", "diagnostics"
 IDE.OnDiagnosticsRequest = CheckTodos
 
 SUB CheckTodos(Doc AS STRING, Text AS STRING)

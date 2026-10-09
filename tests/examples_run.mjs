@@ -53,6 +53,7 @@ const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 //   args:    its command line (COMMAND$; on the web the page's query)
 //   events / dump: a GUI program's test hooks (see tests/gui_parity_cases.mjs)
 //   fileDialog / messageDialog / colorDialog / fontDialog: the dialogs' answers
+//   drop:    the files `form.__drop` drops on a form (RAPIDR_TEST_DROP, a;b)
 //   expect:  lines that must be in the output (stdout, or the dump)
 //   env:     environment it runs with (the tests' scripted devices; on the
 //            web the page's RAPIDR_TEST_COMPORT)
@@ -84,12 +85,12 @@ export const cases = [
   { file: "gui/pantry.rr", runtimes: ["run", "interp", "native", "web"], events: "shelves.__item_1,addbtn.onclick", dump: "total.caption,grid.rowcount",
     expect: ["total.caption=Vegetables: 3 items, worth 4.80", "grid.rowcount=4"] },
   { file: "gui/themes.rr", runtimes: ["run", "interp", "native", "web"], events: "pickdark.onclick", dump: "now.caption",
-    expect: ["now.caption=Theme: dark"] },
+    expect: ["now.caption=Theme: rapidr dark"] },
   { file: "gui/tray.rr", runtimes: ["run", "interp", "native", "web"], events: "hidebtn.onclick,form.__tray_513,form.__tray_514", dump: "info.caption,form.__shown",
     expect: ["info.caption=Back from the tray (1)", "form.__shown=1"] },
   // studio/
   { file: "studio/panels.rr", runtimes: ["run", "interp", "native", "web"], events: "box.__dblclick_60_170", dump: "tree.projectname,tree.filecount,designer.compcount,insp.targettype",
-    expect: ["tree.projectname=Greeter", "tree.filecount=4", "designer.compcount=2", "insp.targettype=QCHECKBOX"] },
+    expect: ["tree.projectname=Greeter", "tree.filecount=4", "designer.compcount=2", "insp.targettype=RCheckBox"] },
   // graphics/, directx/
   { file: "graphics/canvas.rr", runtimes: ["run", "interp", "native", "web"], events: "chart.__mousedown_60_40,chart.__mouseup_60_40,chart.__mousedown_300_30,chart.__mouseup_300_30", dump: "info.caption",
     expect: ["info.caption=2 dots, last at 300,30 (002828DC)"] },
@@ -123,6 +124,19 @@ export const cases = [
     expect: ["info.caption=4 people earn over 70000; Charlie the most", "grid.rowcount=5"] },
   { file: "data/dataframe.rr", runtimes: ["run", "interp", "native", "web"], events: "engbtn.onclick,chartbtn.onclick", dump: "info.caption",
     expect: ["info.caption=Averages: 85,70,61 (thousands). Highest: Engineering"] },
+  // (the sample at the start; then staff.csv dropped on the window — the
+  // OnDropFiles test hook —, a scatter chart, the table sorted by Salary
+  // and again the other way, "sa" typed in Filter)
+  { file: "data/csv_explorer.rr", runtimes: ["run", "interp", "native", "web"], dump: "status.caption,table.itemcount,stats.itemcount,chart.title",
+    expect: ["status.caption=shop.csv (sample): 12 rows, 6 columns", "table.itemcount=12", "stats.itemcount=6", "chart.title=Visitors by Month"] },
+  { file: "data/csv_explorer.rr", runtimes: ["run", "interp", "native", "web"], drop: "staff.csv",
+    events: "form.__drop,kindbox.__item_2,table.__mousedown_250_10,table.__mouseup_250_10,table.__mousedown_250_10,table.__mouseup_250_10,filterbox.__key_83,filterbox.__key_65",
+    dump: "status.caption,form.caption,table.itemcount,chart.title,kindbox.text",
+    expect: ["status.caption=staff.csv: 8 rows, 5 columns; 3 contain \"sa\"", "form.caption=CSV Explorer - staff.csv", "table.itemcount=3", "chart.title=Salary by Name", "kindbox.text=Scatter"] },
+  // (Open CSV... with the dialog's answer, a line chart)
+  { file: "data/csv_explorer.rr", runtimes: ["run", "interp", "native", "web"], fileDialog: "staff.csv",
+    events: "openbtn.onclick,kindbox.__item_1", dump: "status.caption,chart.title,stats.itemcount",
+    expect: ["status.caption=staff.csv: 8 rows, 5 columns", "chart.title=Salary by Name", "stats.itemcount=5"] },
   // network/ (the tests' own server, local)
   { file: "network/http_json.rr", runtimes: ["run", "interp", "native", "web"], args: ["{http}/examples/network/forecast.json"],
     expect: ["Forecast for Harbour Town (updated 2026-10-06 06:00)", "  Tuesday   10 to 15 C, showers", "Warmest: Monday"] },
@@ -198,7 +212,7 @@ const args = (c) => (c.args || []).map((a) => a.replace("{http}", `http://${http
 function hooks(c, work) {
   if (!isGui(c)) return {};
   const h = { RAPIDR_CAPTURE: join(work, "window"), RAPIDR_TEST_EVENTS: c.events || "", RAPIDR_TEST_DUMP: c.dump };
-  const opt = { fileDialog: "RAPIDR_TEST_FILE_DIALOG", colorDialog: "RAPIDR_TEST_COLOR_DIALOG", fontDialog: "RAPIDR_TEST_FONT_DIALOG", messageDialog: "RAPIDR_TEST_MESSAGE_DIALOG", delay: "RAPIDR_CAPTURE_DELAY" };
+  const opt = { fileDialog: "RAPIDR_TEST_FILE_DIALOG", colorDialog: "RAPIDR_TEST_COLOR_DIALOG", fontDialog: "RAPIDR_TEST_FONT_DIALOG", messageDialog: "RAPIDR_TEST_MESSAGE_DIALOG", delay: "RAPIDR_CAPTURE_DELAY", drop: "RAPIDR_TEST_DROP" };
   for (const [k, v] of Object.entries(opt)) if (c[k] !== undefined) h[v] = String(c[k]);
   return h;
 }

@@ -54,6 +54,9 @@ pub trait Runtime: Copy + 'static {
     fn write_file(self, path: &str, text: &str) -> bool {
         crate::objects::write_file(path, text.as_bytes()).is_ok()
     }
+    /// Opens a web link (http, https, mailto) the user clicked in the
+    /// system's browser (a new tab on the web); nothing by default.
+    fn open_url(self, _url: &str) {}
 }
 
 /// The type `name` is, if it is a panel (`RTOOLBOX` …).
@@ -73,6 +76,7 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
         "ROUTPUTCONSOLE" => super::console::rt_method(rt, name, &method, args),
         "RTOOLBAR" => super::toolbar::rt_method(rt, name, &method, args),
         "RCOMMANDPALETTE" => super::palette::rt_method(rt, name, &method, args),
+        "RMARKDOWNVIEW" => super::markdown::rt_method(rt, name, &method, args),
         _ => None,
     };
     if out.is_some() {
@@ -92,6 +96,7 @@ pub fn rt_get<R: Runtime>(rt: R, name: &str, prop: &str) -> Option<Value> {
         "ROUTPUTCONSOLE" => super::console::rt_get(rt, name, &prop),
         "RTOOLBAR" => super::toolbar::rt_get(rt, name, &prop),
         "RCOMMANDPALETTE" => super::palette::rt_get(rt, name, &prop),
+        "RMARKDOWNVIEW" => super::markdown::rt_get(rt, name, &prop),
         _ => None,
     }
 }
@@ -108,6 +113,7 @@ pub fn rt_set<R: Runtime>(rt: R, name: &str, prop: &str, v: &Value) -> bool {
         "ROUTPUTCONSOLE" => super::console::rt_set(rt, name, &prop, v),
         "RTOOLBAR" => super::toolbar::rt_set(rt, name, &prop, v),
         "RCOMMANDPALETTE" => super::palette::rt_set(rt, name, &prop, v),
+        "RMARKDOWNVIEW" => super::markdown::rt_set(rt, name, &prop, v),
         _ => false,
     };
     if done {
@@ -131,6 +137,7 @@ pub fn rt_user<R: Runtime>(rt: R, name: &str, action: User) {
         User::Console(a) => super::console::rt_user(rt, name, a),
         User::ToolBar(a) => super::toolbar::rt_user(rt, name, a),
         User::Palette(a) => super::palette::rt_user(rt, name, a),
+        User::Markdown(a) => super::markdown::rt_user(rt, name, a),
         User::Picked(item) => match panel_type(rt, name).as_deref() {
             Some("RPROPERTYINSPECTOR") => super::inspector::rt_picked(rt, name, item),
             Some("RTOOLBAR") => super::toolbar::rt_picked(rt, name, item),
@@ -161,7 +168,9 @@ pub fn truth(v: &Value) -> bool {
     }
 }
 
-/// RapidQ's True as the runtimes give it back.
+/// A true / false property as the runtimes read it back: 1 or 0 (RapidQ's
+/// Booleans read 1 — RC.EXE —, and so do the panels', as the language
+/// registry says).
 pub fn basic_bool(b: bool) -> Value {
-    Value::Integer(if b { -1 } else { 0 })
+    Value::Integer(i64::from(b))
 }

@@ -11,6 +11,8 @@ pub mod object;
 pub mod layout;
 pub mod scroll;
 pub mod mdi;
+// (HideTitleBar, ShapeForm, QFORM's MDI members, StartDrag)
+mod form_members;
 // (I1: RDOCKMANAGER — rapidr_value::dock)
 pub mod dock;
 // (I1 / L-PANELS: RapidR Studio's panels — rapidr_value::panels)

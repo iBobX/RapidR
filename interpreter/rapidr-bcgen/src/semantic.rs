@@ -237,8 +237,9 @@ impl SemanticModel {
     /// What `name` means in a scope: the scope's own symbol, else the
     /// program's (case-insensitive, suffixes ignored).
     pub fn lookup(&self, name: &str, scope: ScopeId) -> Option<SymbolId> {
-        let key = name_key(name);
-        let find = |scope: ScopeId| self.symbols.iter().position(|s| s.scope == scope && s.kind != SymbolKind::Label && name_key(&s.name) == key);
+        // (name_key's comparison without a String per symbol)
+        let key = rapidr_ast::strip_type_suffix(name);
+        let find = |scope: ScopeId| self.symbols.iter().position(|s| s.scope == scope && s.kind != SymbolKind::Label && rapidr_ast::strip_type_suffix(&s.name).eq_ignore_ascii_case(key));
         let mut at = Some(scope);
         while let Some(scope) = at {
             if let Some(found) = find(scope) {
@@ -251,10 +252,24 @@ impl SemanticModel {
 
     /// The symbols visible in a scope (its own, then the program's).
     pub fn visible(&self, scope: ScopeId) -> Vec<SymbolId> {
+        // (an outer scope's symbol shows when `lookup` from `scope` finds
+        // it: no scope nearer has its name, and it's its scope's first of
+        // that name — one pass, the names taken so far in a set)
         let mut out: Vec<SymbolId> = (0..self.symbols.len()).filter(|&i| self.symbols[i].scope == scope).collect();
+        let mut taken: std::collections::HashSet<String> = out.iter().filter(|&&i| self.symbols[i].kind != SymbolKind::Label).map(|&i| name_key(&self.symbols[i].name)).collect();
         let mut at = self.scopes.get(scope).and_then(|s| s.parent);
         while let Some(outer) = at {
-            out.extend((0..self.symbols.len()).filter(|&i| self.symbols[i].scope == outer && self.lookup(&self.symbols[i].name, scope) == Some(i)));
+            let mut here = std::collections::HashSet::new();
+            for (i, sym) in self.symbols.iter().enumerate() {
+                if sym.scope != outer || sym.kind == SymbolKind::Label {
+                    continue;
+                }
+                let key = name_key(&sym.name);
+                if !taken.contains(&key) && here.insert(key) {
+                    out.push(i);
+                }
+            }
+            taken.extend(here);
             at = self.scopes.get(outer).and_then(|s| s.parent);
         }
         out
@@ -317,7 +332,8 @@ struct Builder<'a> {
     names: HashMap<(ScopeId, String, bool), SymbolId>,
     routines: HashMap<String, ScopeId>,
     functions: HashMap<String, SymbolId>,
-    used: std::collections::HashSet<(usize, usize)>,
+    /// Each span with a reference: its index in the model's references.
+    used: HashMap<(usize, usize), usize>,
     /// Routine scopes and FUNCTION symbols by the routine's span (the
     /// compiler renames a TYPE's methods; their spans stay).
     span_scopes: HashMap<(usize, usize), ScopeId>,
@@ -397,8 +413,18 @@ impl<'a> Builder<'a> {
     }
 
     fn reference(&mut self, span: TextSpan, symbol: SymbolId, access: Access) {
-        if self.used.insert((span.start, span.end)) {
-            self.model.references.push(Reference { span, symbol, access });
+        match self.used.get(&(span.start, span.end)) {
+            // (the same name read, then stored, as INPUT x and SWAP a, b do:
+            // it is written)
+            Some(&i) => {
+                if access == Access::Write && self.model.references[i].access == Access::Read && self.model.references[i].symbol == symbol {
+                    self.model.references[i].access = Access::Write;
+                }
+            }
+            None => {
+                self.used.insert((span.start, span.end), self.model.references.len());
+                self.model.references.push(Reference { span, symbol, access });
+            }
         }
     }
 
@@ -513,6 +539,18 @@ fn build(program: &Program, source: Option<&str>, recorder: Recorder) -> Semanti
         }
     }
 
+    // `DECLARE SUB Greet` before its SUB: a declaration of the same routine
+    // (find references lists it, a rename changes it)
+    for stmt in &program.statements {
+        if let Statement::Declare(d) = stmt {
+            if d.lib.is_none() {
+                if let (Some(&id), Some(span)) = (b.names.get(&(0, name_key(&d.name), false)), b.name_span(d.span, &d.name)) {
+                    b.reference(span, id, Access::Declare);
+                }
+            }
+        }
+    }
+
     // DIM types as written (the compiler's passes turn a TYPE's instances
     // into variants), by where they're declared.
     let mut written: HashMap<usize, String> = HashMap::new();
@@ -532,6 +570,18 @@ fn build(program: &Program, source: Option<&str>, recorder: Recorder) -> Semanti
     for event in recorder.events {
         match event {
             Event::Declare { routine, kind, name, ty, span } => {
+                // (RapidQ's implicit variables: the compiler's own `DIM name
+                // AS DOUBLE` for a name never declared, spanning the whole
+                // program — rapidr_ast's default-type pass. Not a
+                // declaration the program wrote: the symbol is implicit,
+                // its uses recorded as they are, Read or Write)
+                if kind == SymbolKind::Global && span == program.span && program.span.len() > 0 {
+                    match b.owned(&name) {
+                        Some((scope, var)) => b.symbol(scope, &var, SymbolKind::Static, ty, None, true),
+                        None => b.symbol(0, &name, SymbolKind::Global, ty, None, true),
+                    };
+                    continue;
+                }
                 if let (SymbolKind::Global, Some((scope, var))) = (kind, b.owned(&name)) {
                     b.declare(scope, SymbolKind::Static, &var, ty, span);
                     continue;
@@ -582,7 +632,7 @@ fn build(program: &Program, source: Option<&str>, recorder: Recorder) -> Semanti
         },
     );
     for (span, name) in idents {
-        if b.used.contains(&(span.start, span.end)) {
+        if b.used.contains_key(&(span.start, span.end)) {
             continue;
         }
         let Some(at) = b.name_span(span, &name) else { continue };

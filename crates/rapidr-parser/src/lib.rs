@@ -55,12 +55,28 @@ pub fn parse_tokens(tokens: &[Token]) -> Result<Program, ParseError> {
 /// Parses as much as possible and returns the program together with every
 /// diagnostic, for tools (editors) that want a best-effort tree.
 pub fn parse_tokens_recovering(tokens: &[Token]) -> (Program, Vec<Diagnostic>) {
+    let (program, diagnostics, _) = parse_tokens_with_type_names(tokens);
+    (program, diagnostics)
+}
+
+/// [`parse_tokens_recovering`], also giving the span of every token the
+/// parser read as a type's name (`AS QBUTTON`, `EXTENDS QFORM`, a
+/// FUNCTION's `AS QFORM`, a TYPE field's type), in token order: what a tool
+/// that rewrites type names (the RapidQ importer) changes, and nothing else.
+pub fn parse_tokens_with_type_names(tokens: &[Token]) -> (Program, Vec<Diagnostic>, Vec<TextSpan>) {
     let structs = retag_structs(tokens);
     let tokens = structs.as_deref().unwrap_or(tokens);
     let retagged = retag_routine_names(tokens);
+    // (the program's TYPE names, before anything names a type: one called
+    // like a RapidR-only component stays the program's — rapidr_ast)
+    let type_names: Vec<String> = tokens.windows(2).filter(|w| w[0].kind == TokenType::Type && w[1].kind == TokenType::Identifier).map(|w| w[1].lexeme.clone()).collect();
+    rapidr_ast::set_program_types(&type_names);
     let mut parser = Parser::new(retagged.as_deref().unwrap_or(tokens));
     let program = parser.parse_program();
-    (program, parser.diagnostics)
+    let mut type_names = parser.type_names;
+    type_names.sort_by_key(|s| (s.start, s.end));
+    type_names.dedup();
+    (program, parser.diagnostics, type_names)
 }
 
 /// RapidQ's `STRUCT name` … `END STRUCT`: a user-defined type as TYPE is
@@ -166,6 +182,8 @@ struct Parser<'a> {
     /// components (`TYPE QBEVEL EXTENDS QPANEL`, QBevel.inc), upper case:
     /// those names are the program's TYPE, not RapidR's built-in.
     own_types: Vec<String>,
+    /// The spans of the tokens read as type names ([`parse_tokens_with_type_names`]).
+    type_names: Vec<TextSpan>,
     /// The objects of the WITH blocks being parsed, innermost last, as
     /// RC.EXE names them in its errors ([`member_path`]).
     with_objects: Vec<(String, String)>,
@@ -173,7 +191,7 @@ struct Parser<'a> {
 
 impl<'a> Parser<'a> {
     fn new(tokens: &'a [Token]) -> Self {
-        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false, own_types: Vec::new(), with_objects: Vec::new() }
+        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false, own_types: Vec::new(), type_names: Vec::new(), with_objects: Vec::new() }
     }
 
     /// A type's name as written: RapidR's name for a RapidQ component
@@ -181,6 +199,32 @@ impl<'a> Parser<'a> {
     /// first.
     fn type_ref(&self, name: &str) -> String {
         rapidr_ast::component_type_reference(name, &self.own_types)
+    }
+
+    /// Reads the next token as a type's name: its [`Self::type_ref`],
+    /// the token recorded ([`parse_tokens_with_type_names`]).
+    fn read_type(&mut self) -> Option<String> {
+        let t = self.advance()?;
+        let (span, name) = (t.span, t.lexeme.clone());
+        self.type_names.push(span);
+        Some(self.type_ref(&name))
+    }
+
+    /// [`Self::read_type`] of an identifier (an error otherwise).
+    fn expect_type(&mut self) -> Option<String> {
+        let t = self.expect(TokenType::Identifier)?;
+        let (span, name) = (t.span, t.lexeme.clone());
+        self.type_names.push(span);
+        Some(self.type_ref(&name))
+    }
+
+    /// Reads the next token as a type's name kept as written (a FUNCTION's
+    /// or a DECLARE's result), the token recorded.
+    fn read_type_as_written(&mut self) -> Option<String> {
+        let t = self.advance()?;
+        let (span, name) = (t.span, t.lexeme.clone());
+        self.type_names.push(span);
+        Some(name)
     }
 
     // --- diagnostics ---
@@ -378,6 +422,12 @@ impl<'a> Parser<'a> {
         declared_parameters(&mut body);
         pack_variadic_calls(&mut body, &self.variadic);
         input_chars(&mut body);
+        dotted_consts(&mut body);
+        // (the console's code page first, before anything prints)
+        if let Some(i) = body.iter().position(|s| matches!(s, Statement::Call(c) if matches!(&c.callee, Expression::Identifier(id) if id.name == CONSOLE_CP437_CALL))) {
+            let call = body.remove(i);
+            body.insert(0, call);
+        }
         if !self.data_items.is_empty() {
             let mut init = data_table_init(&self.data_items, &self.data_labels);
             init.append(&mut body);
@@ -802,6 +852,13 @@ impl<'a> Parser<'a> {
                     let on = mode.trim().starts_with("TRAPALL") as i64;
                     self.pending.push(Statement::Call(CallStatement { span, callee: ident(span, "__inkey_trapall"), args: vec![Expression::Literal(Literal { span, value: LiteralValue::Integer(on) })] }));
                 }
+                if v.strip_prefix("CONSOLE").is_some_and(|c| c.trim() == "CP437") {
+                    // (the preprocessor's for a file that isn't UTF-8:
+                    // the console in RapidQ's code page; parse_program
+                    // makes it the first statement)
+                    let span = tok.span;
+                    self.pending.push(Statement::Call(CallStatement { span, callee: ident(span, CONSOLE_CP437_CALL), args: Vec::new() }));
+                }
                 if let Some(d) = v.strip_prefix("DECIMAL") {
                     // `$OPTION DECIMAL ","` or `$OPTION DECIMAL 44`: set from here on.
                     let d = d.trim();
@@ -877,7 +934,7 @@ impl<'a> Parser<'a> {
             let type_name = match fixed_type {
                 Some(t) => t.to_string(),
                 None if self.match_kind(TokenType::As) => {
-                    let t = { let n = self.advance()?.lexeme.clone(); self.type_ref(&n) };
+                    let t = self.read_type()?;
                     t + &self.template_args()
                 }
                 // `DIM m` with no type: a DOUBLE, whatever `$OPTION DIM`
@@ -976,7 +1033,14 @@ impl<'a> Parser<'a> {
     fn parse_const(&mut self) -> Option<ConstStatement> {
         let start = self.pos;
         self.expect(TokenType::Const)?;
-        let name = self.expect(TokenType::Identifier)?.lexeme.clone();
+        let mut name = self.expect(TokenType::Identifier)?.lexeme.clone();
+        // (a dotted name: `CONST Application.Path = …` — RC.EXE takes it,
+        // and `Application.Path` reads the constant: dotted_consts)
+        while self.peek_kind() == Some(TokenType::Dot) && self.tokens.get(self.pos + 1).is_some_and(|t| t.kind != TokenType::Eq && t.lexeme.starts_with(|c: char| c.is_alphanumeric() || c == '_')) {
+            self.advance();
+            name.push('.');
+            name.push_str(&self.advance()?.lexeme);
+        }
         let declared_type = if self.match_kind(TokenType::As) {
             Some(self.advance()?.lexeme.clone())
         } else {
@@ -1281,7 +1345,7 @@ impl<'a> Parser<'a> {
         self.variadic.push(name.to_ascii_lowercase());
         self.skip_variadic_params();
         let return_type = if is_function && self.match_kind(TokenType::As) {
-            Some({ let n = self.advance()?.lexeme.clone(); self.type_ref(&n) })
+            Some(self.read_type()?)
         } else {
             None
         };
@@ -1326,7 +1390,7 @@ impl<'a> Parser<'a> {
             let name = self.advance()?.lexeme.clone();
             self.variadic.push(name.to_ascii_lowercase());
             self.skip_variadic_params();
-            let return_type = if self.match_kind(TokenType::As) { Some(self.advance()?.lexeme.clone()) } else { None };
+            let return_type = if self.match_kind(TokenType::As) { Some(self.read_type_as_written()?) } else { None };
             return Some(DeclareStatement { span: self.span_from(start), is_function, name, lib: None, alias: None, params: Vec::new(), return_type });
         }
         let is_function = match self.peek_kind()? {
@@ -1365,7 +1429,7 @@ impl<'a> Parser<'a> {
             Vec::new()
         };
         let return_type = if self.match_kind(TokenType::As) {
-            Some(self.advance()?.lexeme.clone())
+            Some(self.read_type_as_written()?)
         } else {
             None
         };
@@ -1465,6 +1529,22 @@ impl<'a> Parser<'a> {
                 }));
             }
             return None;
+        }
+
+        // `SLEEP(T * 11.2) / 600`: a parenthesised start of the first
+        // argument, not the call's own parentheses (RC.EXE sleeps T * 11.2
+        // / 600 seconds) — the arguments read again from the `(`.
+        if let Expression::FunctionCall(fc) = &left {
+            let operator = matches!(
+                self.peek_kind(),
+                Some(TokenType::Plus | TokenType::Minus | TokenType::Star | TokenType::Slash | TokenType::Backslash | TokenType::Caret | TokenType::Mod | TokenType::Ampersand)
+            );
+            if operator && fc.args.len() == 1 && matches!(fc.callee.as_ref(), Expression::Identifier(_)) && self.tokens.get(start + 1).is_some_and(|t| t.kind == TokenType::LParen) {
+                let callee = fc.callee.as_ref().clone();
+                self.pos = start + 1;
+                let args = self.parse_argument_list_without_parens()?;
+                return Some(Statement::Call(CallStatement { span: self.span_from(start), callee, args }));
+            }
         }
 
         let args = self.parse_argument_list_without_parens()?;
@@ -1925,7 +2005,7 @@ impl<'a> Parser<'a> {
             Vec::new()
         };
         let return_type = if self.match_kind(TokenType::As) {
-            Some(self.advance()?.lexeme.clone())
+            Some(self.read_type_as_written()?)
         } else {
             rapidr_ast::suffix_type(&name).map(str::to_string)
         };
@@ -1963,10 +2043,11 @@ impl<'a> Parser<'a> {
             }
         }
         // `TYPE X EXTENDS QFORM` or the manual's `TYPE X AS QFORM`. QOBJECT is
-        // RapidQ's empty base object: a plain TYPE with methods.
+        // RapidQ's empty base object: a plain TYPE with methods (RapidR's
+        // name for it, ROBJECT, is a type word of the lexer's).
         let object_base = matches!(self.peek_kind(), Some(TokenType::Extends | TokenType::As));
         let extends = if self.match_kind(TokenType::Extends) || self.match_kind(TokenType::As) {
-            Some({ let n = self.expect(TokenType::Identifier)?.lexeme.clone(); self.type_ref(&n) })
+            Some(if self.peek_kind() == Some(TokenType::RObject) { self.read_type()? } else { self.expect_type()? })
                 .filter(|base| !base.eq_ignore_ascii_case("QOBJECT") && !base.eq_ignore_ascii_case("ROBJECT"))
         } else {
             None
@@ -2169,8 +2250,8 @@ impl<'a> Parser<'a> {
                     self.skip_to_eol();
                     continue;
                 }
-                let Some(type_tok) = self.advance() else { break };
-                let mut ftype = self.type_ref(&type_tok.lexeme) + &self.template_args();
+                let Some(ftype) = self.read_type() else { break };
+                let mut ftype = ftype + &self.template_args();
                 // `OnReady AS EVENT(Template)`: a custom event (holds a SUB).
                 if ftype.eq_ignore_ascii_case("EVENT") && self.match_kind(TokenType::LParen) {
                     while !self.at_eol() && !self.match_kind(TokenType::RParen) {
@@ -2263,7 +2344,7 @@ impl<'a> Parser<'a> {
             let dimensions = self.parse_array_dimensions().unwrap_or_default();
             self.expect(TokenType::RParen)?;
             self.expect(TokenType::As)?;
-            let type_name = { let n = self.expect(TokenType::Identifier)?.lexeme.clone(); self.type_ref(&n) };
+            let type_name = self.expect_type()?;
             self.consume_eol();
             let body = self.parse_body(&[Terminator::EndPair("CREATE")]);
             self.expect(TokenType::End);
@@ -2282,7 +2363,7 @@ impl<'a> Parser<'a> {
             }));
         }
         self.expect(TokenType::As)?;
-        let type_name = { let n = self.expect(TokenType::Identifier)?.lexeme.clone(); self.type_ref(&n) };
+        let type_name = self.expect_type()?;
         self.consume_eol();
         let body = self.parse_body(&[Terminator::EndPair("CREATE")]);
         self.expect(TokenType::End);
@@ -2354,7 +2435,7 @@ impl<'a> Parser<'a> {
                 self.pos += 2;
             }
             let ptype = if self.match_kind(TokenType::As) {
-                ({ let n = self.advance()?.lexeme.clone(); self.type_ref(&n) }) + &self.template_args()
+                self.read_type()? + &self.template_args()
             } else {
                 rapidr_ast::suffix_type(&pname).unwrap_or("VARIANT").to_string()
             };
@@ -3048,6 +3129,17 @@ impl<'a> Parser<'a> {
                     value: parse_number_literal(&tok.lexeme),
                 }))
             }
+            // `&` stuck to decimal digits where a value starts: the number
+            // (RC.EXE: `&0` is 0, `&10` 10 — RapidQ's music examples have
+            // `CONST Null=&0`)
+            TokenType::Ampersand
+                if self.peek_kind_at(1) == Some(TokenType::Number)
+                    && self.tokens.get(self.pos + 1).is_some_and(|n| n.span.start == self.tokens[self.pos].span.end && n.lexeme.starts_with(|c: char| c.is_ascii_digit())) =>
+            {
+                let amp = self.advance()?;
+                let tok = self.advance()?;
+                Some(Expression::Literal(Literal { span: TextSpan::new(amp.span.start, tok.span.end), value: parse_number_literal(&tok.lexeme) }))
+            }
             TokenType::StringLit => {
                 let tok = self.advance()?;
                 Some(Expression::Literal(Literal {
@@ -3117,21 +3209,20 @@ enum Terminator {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// `&H80000001` is a 32-bit integer in RapidQ: from &H80000000 to
-/// &HFFFFFFFF, negative (RC.EXE: `&H80000001 SHL 1` is 2).
-fn signed_32(n: i64) -> i64 {
-    if (0x8000_0000..=0xFFFF_FFFF).contains(&n) {
-        n as u32 as i32 as i64
-    } else {
-        n
+/// A hex number as RapidQ reads it: a 32-bit integer, &H80000000 to
+/// &HFFFFFFFF negative (RC.EXE: `&H80000001 SHL 1` is 2), and past 8 digits
+/// its low 32 bits (RC.EXE: `&H123456789` is 591751049).
+fn hex_32(hex: &str) -> Option<i64> {
+    let mut n = 0u32;
+    for c in hex.chars() {
+        n = (n << 4) | c.to_digit(16)?;
     }
+    Some(i64::from(n as i32))
 }
 
 fn parse_number_literal(lexeme: &str) -> LiteralValue {
     if let Some(hex) = lexeme.strip_prefix("0x") {
-        i64::from_str_radix(hex, 16)
-            .map(|n| LiteralValue::Integer(signed_32(n)))
-            .unwrap_or_else(|_| LiteralValue::String(lexeme.to_string()))
+        hex_32(hex).map(LiteralValue::Integer).unwrap_or_else(|| LiteralValue::String(lexeme.to_string()))
     } else if let Some(oct) = lexeme.strip_prefix("0o") {
         i64::from_str_radix(oct, 8)
             .map(LiteralValue::Integer)
@@ -3314,6 +3405,59 @@ fn input_chars(body: &mut Vec<Statement>) {
             body.extend(p.parse_program().statements);
         }
     }
+    // A bare `INPUT$` (`a = INPUT$`, RapidQ's examples' wait before they
+    // end) reads a line, as INPUT does (RC.EXE: "hello" typed, "hello"
+    // returned) — unless the program has a variable of that name.
+    let mut variable = own;
+    rapidr_ast::walk(
+        body,
+        &mut |s| match s {
+            Statement::Assignment(a) if is_input(&a.target) => variable = true,
+            Statement::Dim(d) if d.declarators.iter().any(|v| v.name.eq_ignore_ascii_case("INPUT$")) => variable = true,
+            _ => {}
+        },
+        &mut |_| {},
+    );
+    if !variable {
+        walk_expressions_mut(body, true, &mut |e| {
+            if is_input(e) {
+                let span = expression_span(e);
+                *e = call_expr(span, "input_func", Vec::new());
+            }
+        });
+    }
+}
+
+/// The builtin `$OPTION CONSOLE CP437` calls (rapidr_value::console).
+const CONSOLE_CP437_CALL: &str = "__console_cp437";
+
+/// A CONST named with a dot (`CONST Application.Path = LEFT$(…)`, RapidQ's
+/// music examples): `Application.Path` reads the constant — RC.EXE's
+/// output — not the object's member.
+fn dotted_consts(body: &mut [Statement]) {
+    let mut names = Vec::new();
+    rapidr_ast::walk(
+        body,
+        &mut |s| {
+            if let Statement::Const(c) = s {
+                if c.name.contains('.') {
+                    names.push(c.name.clone());
+                }
+            }
+        },
+        &mut |_| {},
+    );
+    if names.is_empty() {
+        return;
+    }
+    walk_expressions_mut(body, true, &mut |e| {
+        let Expression::MemberAccess(m) = e else { return };
+        let Expression::Identifier(o) = m.object.as_ref() else { return };
+        let full = format!("{}.{}", o.name, m.member);
+        if let Some(name) = names.iter().find(|n| n.eq_ignore_ascii_case(&full)) {
+            *e = ident(m.span, name);
+        }
+    });
 }
 
 fn ident(span: TextSpan, name: &str) -> Expression {
@@ -3589,6 +3733,22 @@ mod tests {
         assert!(matches!(&stmts[1], Statement::Create(c) if c.type_name == "RBUTTON"));
         assert!(matches!(&stmts[2], Statement::Dim(d) if d.type_name == "RPROGRESSBAR"));
         assert!(matches!(&stmts[3], Statement::Dim(d) if d.type_name == "MyType"));
+        // (RapidR's names, in any case, are read the same: R-NAMES)
+        let stmts = parse("DIM f AS RForm\nCREATE b AS rbutton\nEND CREATE\nTYPE T EXTENDS RObject\n  N AS INTEGER\nEND TYPE\nTYPE U EXTENDS QOBJECT\nEND TYPE\n");
+        assert!(matches!(&stmts[0], Statement::Dim(d) if d.type_name == "RFORM"));
+        assert!(matches!(&stmts[1], Statement::Create(c) if c.type_name == "RBUTTON"));
+        assert!(matches!(&stmts[2], Statement::Type(t) if t.extends.is_none() && t.fields.len() == 1));
+        assert!(matches!(&stmts[3], Statement::Type(t) if t.extends.is_none()));
+    }
+
+    #[test]
+    fn type_names_are_recorded_for_tools() {
+        let tokens = rapidr_lexer::Lexer::new("DIM a AS QBUTTON, s AS STRING\nSUB S (x AS QFORM)\nEND SUB\nFUNCTION F AS QFONT\nEND FUNCTION\nPRINT \"AS QLABEL\"\n", None).tokenize().unwrap();
+        let (_, diags, spans) = super::parse_tokens_with_type_names(&tokens);
+        assert!(diags.is_empty(), "{diags:?}");
+        let src = "DIM a AS QBUTTON, s AS STRING\nSUB S (x AS QFORM)\nEND SUB\nFUNCTION F AS QFONT\nEND FUNCTION\nPRINT \"AS QLABEL\"\n";
+        let names: Vec<&str> = spans.iter().map(|s| &src[s.start..s.end]).collect();
+        assert_eq!(names, ["QBUTTON", "STRING", "QFORM", "QFONT"]);
     }
 
     #[test]
@@ -3826,7 +3986,7 @@ mod tests {
         match &stmts[0] {
             Statement::Create(c) => {
                 assert_eq!(c.name, "frm");
-                assert_eq!(c.type_name, "RForm");
+                assert_eq!(c.type_name, "RFORM");
                 assert_eq!(c.body.len(), 2);
             }
             other => panic!("expected create, got {other:?}"),

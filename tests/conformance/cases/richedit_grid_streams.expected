@@ -1,0 +1,7 @@
+size 10 pos 10
+[<<one
+two]
+pos 10 lines 2
+[one][two]
+cols 3 ac
+Courier New 14

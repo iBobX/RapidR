@@ -1,0 +1,10 @@
+red any=-1 box=10,10 59,29
+white any=-1 box=0,0 99,49
+white any=-1 box=0,0 99,49
+00FFFFFF 00FFFFFF
+same as TextOut: -1
+green any=-1 box=10,10 59,29
+blue any=-1 box=10,10 59,29
+black any=0 box=999,999 -1,-1
+blue any=-1 box=10,10 59,29
+00800000 -1 0

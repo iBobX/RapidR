@@ -24,7 +24,7 @@ use rapidr_runtime_web::prelude::*;
 use rapidr_value::{v_dbl, v_int, v_null, v_str, Value};
 use rapidr_session::program::{Control, ProgramEnd};
 use rapidr_session::protocol::{Command, Event as Message, EventBody, Request, PROTOCOL_VERSION};
-use rapidr_vm::{Host, Vm, VmError};
+use rapidr_vm::{Host, StepMode, StopReason, Vm, VmError};
 use wasm_bindgen::prelude::*;
 
 /// Browser host: routes the [`Host`] surface to `rapidr-runtime-web`.
@@ -130,11 +130,16 @@ impl Host for WebHost {
                 emit(Message::new(if shown { EventBody::FormShown { id, caption: None } } else { EventBody::FormClosed { id } }));
             }
         }
-        Ok(rp_comp_call(id, method, args))
+        let v = rp_comp_call(id, method, args);
+        // (an object's RapidQ exception: a run-time error — rapidr_value::raise)
+        match rapidr_value::take_raised() {
+            Some(m) => Err(rapidr_value::exception(&m)),
+            None => Ok(v),
+        }
     }
 
-    fn component_properties(&mut self, id: &str) -> Option<(String, Vec<(String, Value)>)> {
-        obj::rp_comp_get_all_properties(id).map(|(kind, props)| (kind, props.into_iter().collect()))
+    fn component_type(&mut self, id: &str) -> Option<String> {
+        Some(obj::rp_comp_type(id)).filter(|t| !t.is_empty())
     }
 
     fn register_event(&mut self, id: &str, event: &str, handler_fn_index: u32) -> Result<(), String> {
@@ -454,6 +459,9 @@ struct Session {
     end: Option<ProgramEnd>,
     /// Stopped for the debugger (a breakpoint, a step, a pause, an error).
     stopped: bool,
+    /// Paused while the program waited for its events (a ShowModal, a
+    /// dialog): no code was running — going on lets the wait go on.
+    idle_stop: bool,
     /// `__main` has run to its end.
     main_finished: bool,
     /// `exited` was sent.
@@ -485,7 +493,7 @@ impl Session {
             g.set(n);
             n
         });
-        Session { module, vm, main_waiting: false, generation, slice: None, end: None, stopped: false, main_finished: false, exited: false }
+        Session { module, vm, main_waiting: false, generation, slice: None, end: None, stopped: false, idle_stop: false, main_finished: false, exited: false }
     }
 }
 
@@ -556,6 +564,7 @@ fn start_session(session: Session) {
     rapidr_runtime_web::kernel_web::set_interpreter(true);
     EVENTS.with(|q| q.borrow_mut().clear());
     DEFERRED.with(|q| q.borrow_mut().clear());
+    rapidr_runtime_web::object_web::set_debug_stopped(false);
     HAS_COMPONENTS.with(|h| h.set(false));
     // (a new program starts on a cleared console: the cursor, the colour,
     // the pages PEEK reads)
@@ -630,7 +639,23 @@ fn run_step(
     step: impl FnOnce(&mut Vm<'static, WebHost>, &Module) -> Result<(), VmError>,
 ) -> (Result<(), VmError>, bool) {
     dialog::enter_vm();
-    let result = step(&mut session.vm, &session.module);
+    let mut result = step(&mut session.vm, &session.module);
+    // (a breakpoint whose condition, hit count or log message says go on:
+    // on at once, as the desktop's debugger does)
+    while matches!(result, Err(VmError::Paused)) {
+        let Some(end) = session.end.as_mut() else { break };
+        // (a logpoint's line goes out as PRINT's does, so it keeps its place
+        // among the program's own output; anything else is queued)
+        let mut out = |event: Message| match &event.body {
+            EventBody::Output { text, .. } => rp_print(&[v_str(text.trim_end_matches('\n'))], true),
+            _ => emit(event),
+        };
+        if end.at_breakpoint(&mut session.vm, &session.module, &mut out) {
+            break;
+        }
+        end.resumed();
+        result = session.vm.resume(&session.module);
+    }
     dialog::leave_vm();
     match &result {
         Err(VmError::Yielded) => {
@@ -641,7 +666,7 @@ fn run_step(
         Err(VmError::Suspended) if kind == Slice::Main => session.main_waiting = true,
         // Stopped for the debugger: the IDE hears where, now.
         Err(VmError::Paused) => {
-            session.stopped = true;
+            set_stopped(session, true);
             if let Some(end) = session.end.as_mut() {
                 emit(end.stopped_event(&session.vm, &session.module));
             }
@@ -792,6 +817,11 @@ fn run_idle_events_inner() {
         let outcome = SESSION.with(|s| {
             let Ok(mut guard) = s.try_borrow_mut() else { return None };
             let session = guard.as_mut()?;
+            // (stopped for the debugger: the program's events wait until it
+            // goes on, as the desktop's do)
+            if session.stopped {
+                return None;
+            }
             let mut batch: Vec<Event> = DEFERRED.with(|q| q.borrow_mut().drain(..).collect());
             batch.extend(take_queued_events());
             if batch.is_empty() {
@@ -952,7 +982,7 @@ pub fn rapidr_test_results() -> Option<String> {
 /// run-time error and the debugger's breakpoints and stops call it).
 #[wasm_bindgen]
 pub fn compile(source: &str, project_name: &str, assets: JsValue) -> Result<Vec<u8>, JsValue> {
-    compile_inner(project_name, source, Vec::new(), &assets).map_err(|e| JsValue::from_str(&e))
+    compile_inner(project_name, source, Vec::new(), &|file| resource_bytes(&assets, file), "add it under Assets").map_err(|e| JsValue::from_str(&e))
 }
 
 /// Compiles a project's main file `main` from `files` (an object: each
@@ -975,38 +1005,44 @@ pub fn compile_files(main: &str, files: JsValue, assets: JsValue) -> Result<Vec<
         .find(|(name, _)| name == main)
         .map(|(_, text)| text.clone())
         .ok_or_else(|| JsValue::from_str(&format!("{main}: not among the project's files")))?;
-    compile_inner(main, &source, all, &assets).map_err(|e| JsValue::from_str(&e))
+    compile_inner(main, &source, all, &|file| resource_bytes(&assets, file), "add it under Assets").map_err(|e| JsValue::from_str(&e))
 }
 
-/// A `$RESOURCE` file's bytes from the project's assets: the name as
-/// written, or its last part (`resource_files\two.bin` → `two.bin`), or under
-/// `assets/`.
-fn resource_bytes(assets: &JsValue, file: &str) -> Option<Vec<u8>> {
-    if assets.is_undefined() || assets.is_null() {
-        return None;
-    }
+/// Which of `names` (a project's asset names) a `$RESOURCE` line's file
+/// is: the name as written, or its last part (`resource_files\two.bin` →
+/// `two.bin`), or under `assets/` — else one of those in any case, as
+/// RapidQ on Windows finds them (`BACK1.BMP` for back1.bmp).
+fn asset_index(names: &[String], file: &str) -> Option<usize> {
     let written = file.replace('\\', "/");
     let base = written.rsplit('/').next().unwrap_or(&written).to_string();
     for key in [written.clone(), format!("assets/{written}"), base.clone(), format!("assets/{base}")] {
-        if let Some(url) = js_sys::Reflect::get(assets, &JsValue::from_str(&key)).ok().and_then(|v| v.as_string()) {
-            return rapidr_runtime_web::database_web::decode_base64(&url);
+        if let Some(i) = names.iter().position(|n| *n == key) {
+            return Some(i);
         }
     }
-    // Names in any case, as RapidQ on Windows finds them (`BACK1.BMP` for
-    // back1.bmp).
-    let names = js_sys::Object::keys(assets.dyn_ref::<js_sys::Object>()?);
-    let found = names.iter().filter_map(|n| n.as_string()).find(|n| {
+    names.iter().position(|n| {
         let n = n.strip_prefix("assets/").unwrap_or(n);
         n.eq_ignore_ascii_case(&written) || n.rsplit('/').next().is_some_and(|b| b.eq_ignore_ascii_case(&base))
-    })?;
-    let url = js_sys::Reflect::get(assets, &JsValue::from_str(&found)).ok()?.as_string()?;
+    })
+}
+
+/// A `$RESOURCE` file's bytes from the project's assets (`assets`: an
+/// object of names and data URLs).
+fn resource_bytes(assets: &JsValue, file: &str) -> Option<Vec<u8>> {
+    let object = assets.dyn_ref::<js_sys::Object>()?;
+    let names: Vec<String> = js_sys::Object::keys(object).iter().filter_map(|n| n.as_string()).collect();
+    let name = &names[asset_index(&names, file)?];
+    let url = js_sys::Reflect::get(assets, &JsValue::from_str(name)).ok()?.as_string()?;
     rapidr_runtime_web::database_web::decode_base64(&url)
 }
 
-/// (RapidR Studio's) A program from its files, as RPROGRAMSESSION runs it.
-fn compile_for_studio(main: &str, files: Vec<(String, String)>) -> Result<Vec<u8>, String> {
+/// (RapidR Studio's) A program from its files, as RPROGRAMSESSION runs it:
+/// its `$RESOURCE`s from the data files beside it.
+fn compile_for_studio(main: &str, files: Vec<(String, String)>, data: &[(String, Vec<u8>)]) -> Result<Vec<u8>, String> {
     let source = files.iter().find(|(n, _)| n == main).map(|(_, t)| t.clone()).ok_or_else(|| format!("{main}: not among the program's files"))?;
-    compile_inner(main, &source, files, &JsValue::UNDEFINED)
+    let names: Vec<String> = data.iter().map(|(n, _)| n.clone()).collect();
+    let find = |file: &str| asset_index(&names, file).map(|i| data[i].1.clone());
+    compile_inner(main, &source, files, &find, "put it in the program's folder")
 }
 
 /// (RapidR Studio's page) A file into the page's store before (or while)
@@ -1036,7 +1072,9 @@ pub fn studio_session_ended(code: i32) {
     run_idle_events();
 }
 
-fn compile_inner(main: &str, source: &str, files: Vec<(String, String)>, assets: &JsValue) -> Result<Vec<u8>, String> {
+/// `resource`: a `$RESOURCE`'s file's bytes; `hint`: what to do when it
+/// has none.
+fn compile_inner(main: &str, source: &str, files: Vec<(String, String)>, resource: &dyn Fn(&str) -> Option<Vec<u8>>, hint: &str) -> Result<Vec<u8>, String> {
     let options = rapidr_preprocessor::PreprocessOptions { virtual_files: files, ..Default::default() };
     let main_path = std::path::PathBuf::from(main);
     let pre = rapidr_preprocessor::preprocess_source(source, ".", Some(main_path.clone()), options)
@@ -1060,11 +1098,11 @@ fn compile_inner(main: &str, source: &str, files: Vec<(String, String)>, assets:
 
     // `$RESOURCE` files are built into the module.
     for r in &pre.resources {
-        let bytes = match resource_bytes(assets, &r.file) {
+        let bytes = match resource(&r.file) {
             Some(b) => b,
             // (`$OPTION ICON`'s icon: RapidQ's error)
             None if r.icon_directive.is_some() => return Err(r.not_found()),
-            None => return Err(format!("$RESOURCE {}: file not found in the project's assets: '{}' (add it under Assets)", r.name, r.file)),
+            None => return Err(format!("$RESOURCE {}: file not found: '{}' ({hint})", r.name, r.file)),
         };
         compiled.module.resources.push((r.name.clone(), bytes));
     }
@@ -1109,9 +1147,19 @@ pub fn session_request(json: &str) {
     flush_events();
 }
 
+/// The program stopped by the debugger, or going on (its timers held
+/// meanwhile: `object_web::set_debug_stopped`).
+fn set_stopped(session: &mut Session, on: bool) {
+    session.stopped = on;
+    rapidr_runtime_web::object_web::set_debug_stopped(on);
+}
+
 /// What a request leaves to do once the session is released.
 enum After {
     Nothing,
+    /// Going on from a pause while the program waited: the events that
+    /// arrived meanwhile run.
+    Waits,
     /// Run the main program from its start.
     Run,
     /// Go on from a stop.
@@ -1132,11 +1180,36 @@ fn serve_request(request: Request) {
         // debugger watches from now on, and the next slice stops at once)
         if matches!(request.command, Command::Pause) && !session.stopped {
             session.vm.debug_mode = true;
+            // (…while it waits for its events — a ShowModal, a dialog: it
+            // stops there now, as the desktop's does)
+            if session.slice.is_none() && !dialog::is_yielded() && session.vm.frames.last().is_some_and(|f| f.waiting) {
+                session.vm.interrupt.store(false, std::sync::atomic::Ordering::Relaxed);
+                session.vm.step_mode = StepMode::None;
+                session.vm.stop_reason = StopReason::Pause;
+                set_stopped(session, true);
+                session.idle_stop = true;
+                if seq != 0 {
+                    emit(Message::reply(seq, EventBody::Ok));
+                }
+                if let Some(end) = session.end.as_mut() {
+                    emit(end.stopped_event(&session.vm, &session.module));
+                }
+                return Ok(After::Nothing);
+            }
         }
         let paused = session.stopped && session.slice.is_none();
+        // (where a step from a pause while waiting stops: the next statement
+        // run, a handler's — Into —, the line after the wait — Over)
+        let depth = session.vm.frames.len();
+        let waiting_step = match request.command {
+            Command::StepIn => StepMode::Into,
+            Command::StepOver => StepMode::Over { target_depth: depth },
+            Command::StepOut => StepMode::Out { target_depth: depth },
+            _ => StepMode::None,
+        };
         let mut end = session.end.take().unwrap_or_default();
         let (reply, control) = end.handle(&mut session.vm, &session.module, request, paused);
-        let after = match control {
+        let mut after = match control {
             Control::Start { .. } => After::Run,
             Control::Continue => After::Go(|vm, m| vm.resume(m)),
             Control::StepIn => After::Go(|vm, m| vm.step_into(m)),
@@ -1148,7 +1221,11 @@ fn serve_request(request: Request) {
         };
         if matches!(after, After::Go(_)) {
             end.resumed();
-            session.stopped = false;
+            set_stopped(session, false);
+            if std::mem::take(&mut session.idle_stop) {
+                session.vm.step_mode = waiting_step;
+                after = After::Waits;
+            }
         }
         session.end = Some(end);
         if let Some(reply) = reply {
@@ -1165,6 +1242,11 @@ fn serve_request(request: Request) {
     };
     match after {
         After::Nothing => {}
+        After::Waits => {
+            emit(Message::new(EventBody::Continued));
+            flush_events();
+            run_idle_events();
+        }
         After::Run => {
             let result = SESSION.with(|s| {
                 let mut guard = s.try_borrow_mut().ok()?;

@@ -57,6 +57,12 @@ pub fn prop_key(name: &str) -> String {
 /// RapidR's name of a type as written (`QBUTTON` → `RBUTTON`, `QGAUGE` →
 /// `RPROGRESSBAR`, `QMEMO` → `RMEMO` as the compilers read it); upper case
 /// as written when the registry doesn't know it.
+/// Whether a canonical type is a form the designer designs: RFORM, or an
+/// MDI main window (RFORMMDI, RapidQ's QFORMMDI).
+pub fn is_form_type(canonical: &str) -> bool {
+    canonical == "RFORM" || canonical == "RFORMMDI"
+}
+
 pub fn canonical_type(written: &str) -> String {
     match rapidr_lang::resolve_component(written) {
         Some(c) => c.name.to_string(),
@@ -122,7 +128,7 @@ impl Node {
     }
 
     pub fn is_form(&self) -> bool {
-        self.canonical == "RFORM"
+        is_form_type(&self.canonical)
     }
 }
 
@@ -213,6 +219,10 @@ pub struct FormDesign {
     /// constant its program doesn't define is written as its number (RC.EXE
     /// reads an undefined name as an empty variable, 0).
     rapidq: bool,
+    /// The names new components are written with (its file's style, as
+    /// read with its program: [`FormDesign::set_names`]); `None`: as the
+    /// form's own components write theirs.
+    names: Option<rapidr_lang::NameStyle>,
 }
 
 impl PartialEq for FormDesign {
@@ -226,7 +236,7 @@ impl FormDesign {
     pub fn new(name: &str, type_written: &str) -> FormDesign {
         let mut nodes = BTreeMap::new();
         nodes.insert(1, Node::new(1, name, type_written));
-        FormDesign { nodes, root: 1, next: 2, constants: None, rapidq: false }
+        FormDesign { nodes, root: 1, next: 2, constants: None, rapidq: false, names: None }
     }
 
     /// The form from a whole CREATE tree (as read from source).
@@ -239,7 +249,7 @@ impl FormDesign {
     /// its source keeps its components' ids.
     pub fn from_subtree_after(tree: Subtree, next: NodeId) -> FormDesign {
         let max = tree.all().iter().map(|t| t.id).max().unwrap_or(0);
-        let mut d = FormDesign { nodes: BTreeMap::new(), root: 0, next: next.max(max + 1), constants: None, rapidq: false };
+        let mut d = FormDesign { nodes: BTreeMap::new(), root: 0, next: next.max(max + 1), constants: None, rapidq: false, names: None };
         let id = d.attach(None, tree, true);
         d.root = id;
         d
@@ -255,13 +265,34 @@ impl FormDesign {
         self.rapidq = on;
     }
 
+    /// Says how its file writes component names (docs/ide-plan.md,
+    /// R-NAMES): the style new components are written in.
+    pub fn set_names(&mut self, style: rapidr_lang::NameStyle) {
+        self.names = Some(style);
+    }
+
+    /// The names a new component is written with: its file's style, else
+    /// the style of the form's own components (`CREATE Form AS QFORM` …:
+    /// RapidQ's), RapidR's when nothing says otherwise.
+    pub fn names(&self) -> rapidr_lang::NameStyle {
+        self.names.unwrap_or_else(|| {
+            let mut counts = rapidr_lang::NameCounts::default();
+            for n in self.nodes.values() {
+                counts.count(&n.type_written);
+            }
+            counts.writing_style()
+        })
+    }
+
     /// Whether `name` (any case) can be written as a RapidQ property's
-    /// value: the program defines it (RAPIDQ.INC's when included), or it
-    /// isn't a RapidQ program.
+    /// value: the program defines it (RAPIDQ.INC's when included) or it is
+    /// one of RapidR's own (akLeft …). A RapidR program without RAPIDQ.INC
+    /// doesn't know `clYellow` or `taCenter` either (they read as nothing),
+    /// so they are written as their numbers there too.
     pub fn writable_constant(&self, name: &str) -> bool {
-        match (&self.constants, self.rapidq) {
-            (Some(c), true) => c.contains_key(&name.to_ascii_lowercase()),
-            _ => true,
+        match &self.constants {
+            Some(c) => c.contains_key(&name.to_ascii_lowercase()) || super::value::builtin_constant(name).is_some(),
+            None => true,
         }
     }
 

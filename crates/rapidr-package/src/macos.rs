@@ -97,6 +97,15 @@ pub fn write(folder: &Path, app: &MacApp) -> Result<PathBuf, String> {
     Ok(path)
 }
 
+/// The path as `codesign` is given it: absolute. `codesign --verify` reads an
+/// argument starting with a digit as a process id ("3dcube.app: No such
+/// process"), and one starting with `-` as an option; an absolute path starts
+/// with neither (a relative one does when the app's folder is the current one:
+/// `rapidr build 3dcube.bas` makes `3dcube.app`).
+fn codesign_arg(app: &Path) -> PathBuf {
+    std::path::absolute(app).unwrap_or_else(|_| Path::new(".").join(app))
+}
+
 /// Signs the app ad hoc (`codesign --force --sign -`: no identity, but a
 /// valid signature, which Apple silicon needs to run it) and checks the
 /// signature. `Ok(false)`: not on macOS (codesign is macOS'), left unsigned.
@@ -104,8 +113,9 @@ pub fn sign(app: &Path) -> Result<bool, String> {
     if !cfg!(target_os = "macos") {
         return Ok(false);
     }
+    let app = codesign_arg(app);
     let run = |args: &[&str]| -> Result<(), String> {
-        let out = Command::new("codesign").args(args).arg(app).output().map_err(|e| format!("codesign: {e}"))?;
+        let out = Command::new("codesign").args(args).arg(&app).output().map_err(|e| format!("codesign: {e}"))?;
         if out.status.success() {
             Ok(())
         } else {
@@ -142,6 +152,18 @@ mod tests {
         }
         info.version = "one".into();
         assert!(info_plist(&info, "10.13").is_err());
+    }
+
+    #[test]
+    fn codesign_is_given_an_absolute_path() {
+        // (a relative `3dcube.app` is read by `codesign --verify` as process 3; `-x.app` as an option)
+        for name in ["3dcube.app", "-x.app", "./3dcube.app", "7/8.app"] {
+            let arg = codesign_arg(Path::new(name));
+            assert!(arg.is_absolute(), "{name} -> {}", arg.display());
+            assert!(arg.ends_with(name.trim_start_matches("./")), "{name} -> {}", arg.display());
+        }
+        let abs = std::env::temp_dir().join("3dcube.app");
+        assert_eq!(codesign_arg(&abs), abs);
     }
 
     #[test]
