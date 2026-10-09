@@ -207,9 +207,24 @@ pub fn step<R: Program + Windows>(rt: R) {
     }
 }
 
+/// What `RAPIDR_TEST_DUMP`'s `comp.prop` prints: the property as the program
+/// reads it; `__cursor_x_y`, the mouse pointer at (x, y) of the component
+/// (the mouse moved there as the user's; the CSS name: `col-resize`,
+/// `text`, `default` …).
+pub fn dump_value<R: Program + Windows>(rt: R, comp: &str, prop: &str) -> String {
+    let at = prop.strip_prefix("__cursor_").and_then(|n| n.split_once('_')).and_then(|(x, y)| Some((x.parse::<i64>().ok()?, y.parse::<i64>().ok()?)));
+    match at {
+        Some((x, y)) => {
+            rt.script_input(ScriptInput::Cursor { comp: comp.to_lowercase(), x, y });
+            crate::desktop::take_probe().to_string()
+        }
+        None => rt.get(comp, prop).to_string_val(),
+    }
+}
+
 /// `RAPIDR_TEST_DUMP`'s lines, then the host's captures and the end.
 fn capture_and_end<R: Program + Windows>(rt: R) {
-    testhooks::print_dump(|c| shown_up(rt, c), |comp, prop| rt.get(comp, prop).to_string_val());
+    testhooks::print_dump(|c| shown_up(rt, c), |comp, prop| dump_value(rt, comp, prop));
     let prefix = sc(|s| s.as_ref().map(|sc| sc.capture.prefix.clone())).unwrap_or_default();
     // (the script is over: a host whose process can't exit — a page —
     // comes back here)

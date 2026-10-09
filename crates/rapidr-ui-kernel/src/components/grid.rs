@@ -12,7 +12,8 @@
 //! or a drag selects a range (goRangeSelect); a fixed row's cell dragged
 //! moves its column (goColMoving), a fixed column's its row
 //! (goRowMoving); a fixed row's cell border dragged sizes the column
-//! (goColSizing); the arrows move the selection; with goEditing, Enter,
+//! (goColSizing), a fixed column's cell border dragged sizes the row
+//! (goRowSizing); the arrows move the selection; with goEditing, Enter,
 //! F2, typing or a double click edit the cell in place, and Enter stores
 //! it (OnSetEditText, OnChange).
 //!
@@ -22,6 +23,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
+use rapidr_value::input::Cursor;
 use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::grid::{CellDraw, StringGrid, GCS_ELLIPSIS, GO_ALWAYS_SHOW_EDITOR, GO_COL_MOVING, GO_COL_SIZING, GO_FIXED_HORZ_LINE, GO_FIXED_VERT_LINE, GO_HORZ_LINE, GO_ROW_MOVING, GO_ROW_SIZING, GO_VERT_LINE};
 use rapidr_value::objects::ops::{Op, Place, Rect};
@@ -46,6 +48,8 @@ enum Drag {
     Move(bool, usize),
     /// Column `col` sized from x, its width then.
     Size(usize, i64, i64),
+    /// Row `row` sized from y, its height then (goRowSizing).
+    SizeRow(usize, i64, i64),
 }
 
 thread_local! {
@@ -412,6 +416,35 @@ impl ComponentKind for Grid {
         }
     }
 
+    /// A fixed row's cell border with goColSizing (or a column being
+    /// sized): the column resize pointer; a fixed column's cell border with
+    /// goRowSizing (or a row being sized): the row resize pointer; a cell
+    /// being edited: the I-beam.
+    fn pointer(&self, cx: &mut Cx, x: i64, y: i64) -> Cursor {
+        match DRAGS.with(|d| d.borrow().get(cx.id).copied()) {
+            Some(Drag::Size(..)) => return Cursor::ColResize,
+            Some(Drag::SizeRow(..)) => return Cursor::RowResize,
+            _ => {}
+        }
+        let Some(g) = with_grid(cx.id, |g| g.clone()) else { return Cursor::Default };
+        let l = layout(cx.id, &g, cx.width(), cx.height());
+        if editing(cx.id).and_then(|ed| cell_rect(&l, ed.target.0, ed.target.1)).is_some_and(|(rx, ry, rw, rh)| x >= rx && y >= ry && x < rx + rw && y < ry + rh) {
+            return Cursor::IBeam;
+        }
+        // (the press's own test: a fixed row's cell, within 2 pixels of a
+        // column's right edge)
+        let on_edge = cell_at(&l, x, y).is_some_and(|((_, r), _)| r < g.fixed_rows()) && l.cols.iter().any(|&(_, s, sz)| (x - 2 - (s + sz)).abs() <= 2);
+        if on_edge && g.has_option(GO_COL_SIZING) {
+            return Cursor::ColResize;
+        }
+        let on_row_edge = cell_at(&l, x, y).is_some_and(|((c, _), _)| c < g.fixed_cols()) && l.rows.iter().any(|&(_, s, sz)| (y - 2 - (s + sz)).abs() <= 2);
+        if on_row_edge && g.has_option(GO_ROW_SIZING) {
+            Cursor::RowResize
+        } else {
+            Cursor::Default
+        }
+    }
+
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
         let (w, h) = (cx.width(), cx.height());
         let Some(g) = with_grid(cx.id, |g| g.clone()) else { return MouseOut::default() };
@@ -478,7 +511,13 @@ impl ComponentKind for Grid {
                         return MouseOut::default();
                     }
                 }
-                let _ = GO_ROW_SIZING;
+                // (a fixed column's cell border: the row sized)
+                if c < fc && g.has_option(GO_ROW_SIZING) {
+                    if let Some(&(sr, _, sh)) = l.rows.iter().find(|&&(_, s, sz)| (y - 2 - (s + sz)).abs() <= 2) {
+                        DRAGS.with(|d| d.borrow_mut().insert(id.clone(), Drag::SizeRow(sr, y, sh)));
+                        return MouseOut::default();
+                    }
+                }
                 if r < fr && c >= fc && g.has_option(GO_COL_MOVING) {
                     DRAGS.with(|d| d.borrow_mut().insert(id.clone(), Drag::Move(true, c)));
                     return MouseOut::default();
@@ -531,6 +570,13 @@ impl ComponentKind for Grid {
                         }
                     });
                 }
+                Some(Drag::SizeRow(r, from, height)) => {
+                    with_grid_mut(&id, |g| {
+                        if let Some(rh) = g.row_heights.get_mut(r) {
+                            *rh = (height + y - from).max(0);
+                        }
+                    });
+                }
                 _ => {}
             },
             MouseKind::Up => match DRAGS.with(|d| d.borrow_mut().remove(&id)) {
@@ -540,7 +586,7 @@ impl ComponentKind for Grid {
                         with_grid_mut(&id, |g| if cols { g.move_col(from, to) } else { g.move_row(from, to) });
                     }
                 }
-                Some(Drag::Size(..)) | Some(Drag::Range) | None => {}
+                Some(Drag::Size(..)) | Some(Drag::SizeRow(..)) | Some(Drag::Range) | None => {}
             },
             _ => {}
         }

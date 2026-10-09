@@ -454,6 +454,24 @@ impl ComponentKind for CodeEditor {
         input::mouse(cx, m)
     }
 
+    /// The I-beam over the text, the arrow over the gutter, the minimap and
+    /// the scroll bars (CURSORS: every component's own pointer; the old
+    /// memo-based editor's, Memo's, is gone with it).
+    fn pointer(&self, cx: &mut Cx, x: i64, y: i64) -> rapidr_value::input::Cursor {
+        use rapidr_value::input::Cursor;
+        with_view(cx, |v| {
+            let (tx, ty, tw, th) = v.ui.geo.text;
+            let (bx, by, bw, bh) = v.ui.geo.bars;
+            if x >= tx && y >= ty && x < tx + tw && y < ty + th && !v.ui.bars.on_bars(x - bx, y - by, bw, bh) {
+                Cursor::IBeam
+            } else {
+                Cursor::Default
+            }
+        })
+        // (no text given yet: all of it is the text's place)
+        .unwrap_or(Cursor::IBeam)
+    }
+
     fn key(&self, cx: &mut Cx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
         input::key(cx, k, clip)
     }

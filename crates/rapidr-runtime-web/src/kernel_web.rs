@@ -780,7 +780,7 @@ pub fn set_test_env(vars: &JsValue) {
 /// desktop's `RAPIDR_CAPTURE` BMP: the same bytes for the same pixels),
 /// bottom to top, kept for `rapidr_test_results`; the program ends.
 fn test_end() {
-    let dump = testhooks::dump_lines(&testhooks::parse_dump(&testhooks::var("RAPIDR_TEST_DUMP").unwrap_or_default()), |c| script::shown_up(Web, c), |comp, prop| rp_comp_get(comp, prop).to_string_val());
+    let dump = testhooks::dump_lines(&testhooks::parse_dump(&testhooks::var("RAPIDR_TEST_DUMP").unwrap_or_default()), |c| script::shown_up(Web, c), |comp, prop| if prop.starts_with("__cursor_") { script::dump_value(Web, comp, prop) } else { rp_comp_get(comp, prop).to_string_val() });
     sync();
     let shots = host::with(|h, store| {
         let order = h.desk.stacking();

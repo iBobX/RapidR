@@ -503,6 +503,8 @@ The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate wind
 - [ ] `.rrext` packages: declarative contributions (languages, themes, snippets, templates) and RapidR code in a capability-filtered VM with fuel limits, talking through the `IDE` object
 - [ ] Permissions prompted at install, optional signatures, per-user install on both hosts
 
+- [x] The right mouse pointer everywhere, by default (C-CURSORS, 2026-10-08; Robert: the inspector's divider didn't say it drags): every component answers from its own hit test (`ComponentKind::pointer`) — col-/row-resize over splitters, grid / list view / header column edges, the inspector's divider and the dock's splitters; sizing arrows on MDI children and the status bar's grip; I-beam in every text field; the hand on links; the closed hand while a tab, file or toolbox item is carried; the designer's handles — on the desktop and the web alike, a program's own `Cursor` still winning; the dividers light up under the mouse; `comp.__cursor_X_Y` test hook (`studio_flows` case `pointers`). goRowSizing now works in `RStringGrid` (a fixed column's cell border sizes the row). Open: `RDBGrid` (not built yet)
+
 **First public release bar** (plan §8): I0–I4, I6's basic part and I7's core, the HTML IDE deleted, the accessibility and performance targets met. The experience bar, item by item with acceptance tests: [docs/studio-wow.md](docs/studio-wow.md).
 
 ## Phase 3B — Look: one RapidR look (first release), OS looks, native widgets (after; the user, 2026-10-06)

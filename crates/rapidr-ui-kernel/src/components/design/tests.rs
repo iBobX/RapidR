@@ -220,3 +220,43 @@ fn a_drop_settles_with_easing_and_not_with_reduced_motion() {
     crate::tick::set_test_now(None);
     assert_eq!(quiet, None, "no settling with reduced motion");
 }
+
+/// The form designer's pointer: the four arrows over the selected component
+/// (and while it is dragged), a handle's sizing arrows, the cross with the
+/// placing tool, the arrow on the background.
+#[test]
+fn the_designers_pointer_follows_what_the_mouse_is_over() {
+    use rapidr_value::input::{Button, Cursor};
+    let mut s = MemStore::new();
+    s.add("df", "RFORM", None).set("df", "clientwidth", v_int(400)).set("df", "clientheight", v_int(300));
+    s.add("ds", "RDESIGNSURFACE", Some("df")).set("ds", "left", v_int(10)).set("ds", "top", v_int(20)).set("ds", "width", v_int(200)).set("ds", "height", v_int(160));
+    rapidr_value::objects::with_design_mut("ds", |d| {
+        let root = d.designer.design.root();
+        let _ = rapidr_value::designer::Command::SetProp { node: root, name: "BorderStyle".into(), value: Some("0".into()) }.apply(&mut d.designer.design);
+    });
+    s.call("ds", "addcomponent", &[v_str("RBUTTON"), v_str("Button1"), v_int(16), v_int(16), v_int(80), v_int(24)]);
+    rapidr_value::objects::take_design_events("ds");
+    let mut f = FormUi::build(&s, "df", false);
+    let mut ts = TextSystem::new();
+    drop(f.paint(&s, &mut ts, 1.0));
+    fn at(f: &mut FormUi, s: &MemStore, ts: &mut TextSystem, x: f64, y: f64) -> Cursor {
+        f.mouse_move(s, ts, x, y, Mods::NONE);
+        f.pointer_at(s, ts, x, y)
+    }
+    // (Button1 sits at 26..106 × 36..60 of the window)
+    // (added: selected; the background clears the selection)
+    assert_eq!(at(&mut f, &s, &mut ts, 60.5, 48.5), Cursor::Move);
+    f.mouse_down(&s, &mut ts, 150.5, 140.5, Button::Left, Mods::NONE);
+    f.mouse_up(&s, &mut ts, 150.5, 140.5, Button::Left, Mods::NONE);
+    assert_eq!(at(&mut f, &s, &mut ts, 60.5, 48.5), Cursor::Default, "not selected: the arrow");
+    f.mouse_down(&s, &mut ts, 60.5, 48.5, Button::Left, Mods::NONE);
+    f.mouse_up(&s, &mut ts, 60.5, 48.5, Button::Left, Mods::NONE);
+    assert_eq!(at(&mut f, &s, &mut ts, 60.5, 48.5), Cursor::Move, "selected: its body moves it");
+    assert_eq!(at(&mut f, &s, &mut ts, 150.5, 140.5), Cursor::Default, "the background");
+    // (a handle: the corner's diagonal)
+    let corner = (0..40).flat_map(|dy| (0..40).map(move |dx| (100.5 + dx as f64 * 0.5, 54.5 + dy as f64 * 0.5))).find(|&(x, y)| at(&mut f, &s, &mut ts, x, y) == Cursor::SizeNWSE);
+    assert!(corner.is_some(), "the bottom right handle");
+    // (the placing tool armed: the cross)
+    rapidr_value::objects::with_design_mut("ds", |d| d.place_type = "RBUTTON".into());
+    assert_eq!(at(&mut f, &s, &mut ts, 150.5, 140.5), Cursor::Cross);
+}

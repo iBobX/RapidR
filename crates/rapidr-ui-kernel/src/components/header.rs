@@ -8,6 +8,7 @@
 //! on: OnSectionClick (Index), OnSectionTrack (Index, Width, State),
 //! OnSectionResize (Index).
 
+use rapidr_value::input::Cursor;
 use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::header::{Action as HeaderAction, TS_END};
 use rapidr_value::objects::{with_canvas, with_header};
@@ -53,6 +54,16 @@ impl ComponentKind for HeaderBar {
         let shown = with_canvas(cx.id, w, h, |b| b.display_rgba());
         if let Some(px) = shown.filter(|px| px.0 > 0) {
             p.picture(&format!("{}#surface", cx.id), 0, picture_of(px), (0, 0, w, h));
+        }
+    }
+
+    /// A section's edge (or a section being sized): the column resize
+    /// pointer.
+    fn pointer(&self, cx: &mut Cx, x: i64, _y: i64) -> Cursor {
+        if with_header(cx.id, |h| h.on_grip(x)).unwrap_or(false) {
+            Cursor::ColResize
+        } else {
+            Cursor::Default
         }
     }
 

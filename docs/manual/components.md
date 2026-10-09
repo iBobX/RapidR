@@ -137,6 +137,24 @@ compiler doesn't know it).
 | `Application.Theme`, `$THEME` | the look (below) |
 | `AutoComplete` on an edit | the browser's autofill hint, on the web |
 
+## The mouse pointer
+
+Every component shows the pointer its user expects, without a line of code:
+the I-beam over a text box, memo, rich edit and a combo box's text; the
+column-resize pointer (a double arrow with a bar) over a `RSPLITTER` between
+two columns and over a grid's, list view's or header's column edge (row-resize
+for a splitter between two rows and for a grid's row edge with `goRowSizing`); the diagonal and straight sizing arrows over
+the edges and corners of a `RFORMMDI` child window; the sizing corner over a
+status bar's grip. Studio's panels follow the same rule: the line between the
+name and value columns of the property inspector, the splitters between
+panels and between split editors, the handles of the form designer, links in
+the Output panel, and a tab, file or toolbox item being carried (a closed
+hand). In RapidR's look the divider you can drag also lights up under the
+mouse. Set the component's `Cursor` (`crHandPoint`, `crSizeWE`, …) and your
+choice wins, exactly as in RapidQ; `crDefault` (0) means "the component's own".
+On the desktop this is the system's cursor, on the web the page's cursor; they
+agree.
+
 ## Themes
 
 Programs are drawn in RapidR's own look — RapidR Studio's — unless they

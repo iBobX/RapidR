@@ -8,6 +8,7 @@
 
 use std::cell::Cell;
 
+use rapidr_value::input::Cursor;
 use rapidr_value::objects::a11y::AccessNode;
 
 use super::form::Container;
@@ -45,6 +46,22 @@ impl ComponentKind for Splitter {
         // (a fluent theme's: no edges, the face between the panes)
         if !t.fluent() {
             p.thin_raised((0, 0, w, h));
+        } else if cx.state.hover || cx.state.held {
+            // (RapidR's look: a line along the middle, the accent — the dock's
+            // splitters' — under the mouse or held: it says "drag me")
+            let hot = rapidr_value::dock::look::palette(t).splitter_hot;
+            let line = if vertical(cx.store, cx.id) { (0, h / 2 - 1, w, 2) } else { (w / 2 - 1, 0, 2, h) };
+            p.fill(line, hot);
+        }
+    }
+
+    /// Between two columns (or two rows): the resize pointer, `crHSplit` /
+    /// `crVSplit`.
+    fn pointer(&self, cx: &mut Cx, _x: i64, _y: i64) -> Cursor {
+        if vertical(cx.store, cx.id) {
+            Cursor::RowResize
+        } else {
+            Cursor::ColResize
         }
     }
 

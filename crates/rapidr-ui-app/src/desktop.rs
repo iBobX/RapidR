@@ -600,6 +600,17 @@ pub fn script_input<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, inp
         ScriptInput::Step { form, comp, step } => {
             desk.test_action(store, &form, &comp, &step);
         }
+        ScriptInput::Cursor { comp, x, y } => {
+            let css = match place_of(p, desk, store, &comp) {
+                Some((form, (ox, oy))) => {
+                    let at = ((ox + x) as f64 + 0.5, (oy + y) as f64 + 0.5);
+                    desk.mouse_move(store, &form, at.0, at.1, Mods::NONE, Source::Script);
+                    cursor_at(desk, store, &form, at).css()
+                }
+                None => "none-found",
+            };
+            PROBE.with(|c| *c.borrow_mut() = css);
+        }
         ScriptInput::Resize { w, h } => script_resize(p, desk, store, w, h),
         ScriptInput::Hold(_) => return false,
         ScriptInput::Stroke(k) => script_stroke(desk, store, &k),
@@ -619,6 +630,17 @@ fn script_stroke(desk: &mut Desktop, store: &dyn Store, k: &rapidr_value::send_k
     }
     desk.key_down(store, &form, k.vk, &k.text, mods, Source::Script);
     desk.key_up(&form, k.vk, mods, Source::Script);
+}
+
+thread_local! {
+    /// The pointer the last `comp.__cursor_x_y` probe found (its CSS name).
+    static PROBE: std::cell::RefCell<&'static str> = const { std::cell::RefCell::new("") };
+}
+
+/// The pointer the last `ScriptInput::Cursor` probe found: its CSS name
+/// (`col-resize`, `text`, `default` …).
+pub fn take_probe() -> &'static str {
+    PROBE.with(|c| std::mem::take(&mut *c.borrow_mut()))
 }
 
 /// `comp.__key_N`: the component focused, the key pressed and released.
@@ -667,82 +689,29 @@ fn script_resize<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, w: i64
 }
 
 /// The pointer over form `form` at `(x, y)` of its inside: Screen.Cursor
-/// (`desk.screen_cursor`), else the Cursor of the component under the
-/// mouse (the form's over its client area); crDefault: the component's
-/// own (an enabled edit's I-beam, a splitter's resize arrows, a header's
-/// or list view header's section edge), else the arrow.
-pub fn cursor_at(desk: &Desktop, store: &dyn Store, form: &str, (x, y): (f64, f64)) -> Cursor {
+/// (`desk.screen_cursor`), else the Cursor the program set on the component
+/// under the mouse (or holding it: a divider being dragged), else what that
+/// component itself shows (`crDefault`: [`rapidr_ui_kernel::FormUi::pointer_at`],
+/// every component's own `pointer`) — an edit's I-beam, a divider's or a
+/// section edge's resize arrows, a window's edges, a link's hand, a carried
+/// tab's closed hand. One rule for the desktop's winit cursor and the web's
+/// CSS cursor.
+pub fn cursor_at(desk: &mut Desktop, store: &dyn Store, form: &str, (x, y): (f64, f64)) -> Cursor {
     if desk.screen_cursor != 0 {
         return Cursor::resolve(desk.screen_cursor);
     }
-    const CR_HSPLIT: i64 = -14;
-    const CR_VSPLIT: i64 = -15;
-    let Some(f) = desk.forms.get(form) else { return Cursor::Default };
+    let Desktop { forms, text, .. } = desk;
+    let Some(f) = forms.get_mut(form) else { return Cursor::Default };
     // (a drag source dragged: nothing takes a drop — RapidQ has no
     // OnDragOver — so the no-drop pointer, as the VCL shows it)
     if f.ui.dragging_source() {
         return Cursor::NoDrop;
     }
-    let node = f.ui.hover.and_then(|i| f.ui.nodes.get(i));
     // (I4: a component dragged in from the toolbox — "not allowed" but
     // over a designer's form, where it would go)
     if rapidr_value::objects::design::drop_pending().is_some() {
         let ok = f.ui.nodes.iter().filter(|n| n.type_name == "RDESIGNSURFACE").any(|n| rapidr_value::objects::with_design(&n.id, |d| d.ghost.is_some()).unwrap_or(false));
         return if ok { Cursor::Default } else { Cursor::NoDrop };
     }
-    // (the input lane's: a status bar's size grip is the window's sizing
-    // corner — Windows' HTBOTTOMRIGHT arrow, whatever the bar's Cursor)
-    let grip = rapidr_value::layout::STATUS_GRIP;
-    if let Some(n) = node.filter(|n| n.type_name == "RSTATUSBAR" && x >= (n.abs.0 + n.abs.2 - grip) as f64 && y >= (n.abs.1 + n.abs.3 - grip) as f64) {
-        if rapidr_ui_kernel::components::statusbar::has_grip(store, &n.id) {
-            return Cursor::SizeNWSE;
-        }
-    }
-    let id = node.map_or(f.ui.form.as_str(), |n| n.id.as_str());
-    let code = rapidr_ui_kernel::store::int(store, id, "cursor", 0);
-    // (a QSPLITTER's crHSplit / crVSplit, its Cursor at creation: the
-    // splitter's direction decides, as Delphi's TSplitter swaps them when
-    // its Align changes)
-    let split = node.is_some_and(|n| n.type_name == "RSPLITTER") && matches!(code, CR_HSPLIT | CR_VSPLIT);
-    if code != 0 && !split {
-        return Cursor::resolve(code);
-    }
-    let Some(n) = node else { return Cursor::Default };
-    let (lx, ly) = ((x as i64) - n.abs.0, (y as i64) - n.abs.1);
-    match n.type_name.as_str() {
-        "REDIT" | "RMEMO" | "RRICHEDIT" if n.enabled => Cursor::IBeam,
-        "RSPLITTER" if rapidr_ui_kernel::components::splitter::vertical(store, &n.id) => Cursor::SizeNS,
-        "RSPLITTER" => Cursor::SizeWE,
-        "RHEADER" if rapidr_value::objects::with_header(&n.id, |h| h.on_grip(lx)).unwrap_or(false) => Cursor::SizeWE,
-        "RLISTVIEW" if rapidr_value::objects::with_listview(&n.id, |l| l.on_grip(lx, ly)).unwrap_or(false) => Cursor::SizeWE,
-        // (a QFORMMDI child's sizing border: every edge and corner, as Windows')
-        "RMDICHILD" => match rapidr_ui_kernel::components::mdi::edges_at(store, &n.id, n.abs.2, n.abs.3, lx, ly).map(|e| e.pointer()) {
-            Some("we") => Cursor::SizeWE,
-            Some("ns") => Cursor::SizeNS,
-            Some("nwse") => Cursor::SizeNWSE,
-            Some(_) => Cursor::SizeNESW,
-            None => Cursor::Default,
-        },
-        // (the dock manager's splitters, the document area's between groups
-        // and between a document's two views)
-        "RDOCKMANAGER" | "RDOCKDOCS" => rapidr_ui_kernel::components::dock::splitter_cursor(store, &n.type_name, &n.id, lx, ly).map_or(Cursor::Default, |row| if row { Cursor::SizeWE } else { Cursor::SizeNS }),
-        // (I4: the designer's handles, the form's edges, the placing tool)
-        "RDESIGNSURFACE" => {
-            use rapidr_value::objects::design::Pointer;
-            let p = rapidr_value::objects::with_design(&n.id, |d| {
-                let (cx, cy) = d.client_point(lx as f64, ly as f64);
-                d.pointer_at(cx, cy)
-            });
-            match p.unwrap_or(Pointer::Default) {
-                Pointer::Default => Cursor::Default,
-                Pointer::Move => Cursor::Move,
-                Pointer::SizeWE => Cursor::SizeWE,
-                Pointer::SizeNS => Cursor::SizeNS,
-                Pointer::SizeNWSE => Cursor::SizeNWSE,
-                Pointer::SizeNESW => Cursor::SizeNESW,
-                Pointer::Cross => Cursor::Cross,
-            }
-        }
-        _ => Cursor::Default,
-    }
+    f.ui.pointer_at(store, text, x, y)
 }

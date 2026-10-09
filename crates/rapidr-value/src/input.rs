@@ -214,6 +214,17 @@ pub enum Cursor {
     Help,
     Hand,
     Progress,
+    /// (RapidR's) Over a divider between two columns (a splitter, a grid or
+    /// list header's section edge, the property inspector's line): the
+    /// double arrow with a bar, CSS `col-resize`. RapidQ's `crHSplit`.
+    ColResize,
+    /// The same between two rows, CSS `row-resize`. RapidQ's `crVSplit`.
+    RowResize,
+    /// An open hand: something that can be picked up (CSS `grab`).
+    Grab,
+    /// A closed hand: something being carried — a tab, a pane, a toolbox
+    /// item or a file being dragged (CSS `grabbing`).
+    Grabbing,
     /// A cursor the program put in `Screen.Cursors(i)`: the system's handle
     /// (an HCURSOR on Windows, from `LoadCursorFromFile` or `LoadCursor`).
     Custom(i64),
@@ -248,9 +259,11 @@ impl Cursor {
             -4 => Cursor::IBeam,
             -5 => Cursor::Move,
             -6 => Cursor::SizeNESW,
-            -7 | -15 => Cursor::SizeNS,
+            -7 => Cursor::SizeNS,
             -8 => Cursor::SizeNWSE,
-            -9 | -14 => Cursor::SizeWE,
+            -9 => Cursor::SizeWE,
+            -14 => Cursor::ColResize,
+            -15 => Cursor::RowResize,
             -10 => Cursor::UpArrow,
             -11 | -17 => Cursor::Wait,
             -12 | -16 => Cursor::Arrow,
@@ -289,6 +302,10 @@ impl Cursor {
             Cursor::Help => "help",
             Cursor::Hand => "pointer",
             Cursor::Progress => "progress",
+            Cursor::ColResize => "col-resize",
+            Cursor::RowResize => "row-resize",
+            Cursor::Grab => "grab",
+            Cursor::Grabbing => "grabbing",
         }
     }
 }
@@ -322,7 +339,10 @@ mod tests {
         assert_eq!(Cursor::of(-21).css(), "pointer");
         assert_eq!(Cursor::of(-11).css(), "wait");
         assert_eq!(Cursor::of(-4).css(), "text");
-        assert_eq!(Cursor::of(-15), Cursor::SizeNS);
+        // (crHSplit / crVSplit: the divider pointers; crSizeWE / crSizeNS the plain arrows)
+        assert_eq!((Cursor::of(-14), Cursor::of(-15)), (Cursor::ColResize, Cursor::RowResize));
+        assert_eq!((Cursor::of(-9), Cursor::of(-7)), (Cursor::SizeWE, Cursor::SizeNS));
+        assert_eq!((Cursor::ColResize.css(), Cursor::RowResize.css(), Cursor::Grabbing.css()), ("col-resize", "row-resize", "grabbing"));
         assert_eq!(Cursor::of(5), Cursor::Default);
         // Screen.Cursors(i): the program's handle, until it puts 0 back.
         assert_eq!(Cursor::resolve(7), Cursor::Default);

@@ -111,6 +111,21 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   digits, `0:00.0`, as the approved images have it).
 
 ### Changed
+- **The right mouse pointer everywhere, by default** (Robert: hovering the property inspector's divider
+  didn't change the cursor, so you couldn't tell it drags): every component answers "what pointer is
+  here?" from its own hit test (`ComponentKind::pointer`), so any program gets it with no code, on the
+  desktop (winit's cursor) and the web (the canvas' CSS cursor) alike. Column-resize (`col-resize`)
+  over a `RSPLITTER` between columns (row-resize between rows), a grid's column edge with goColSizing
+  (and, new, goRowSizing: a fixed column's cell border drags the row's height — row-resize), a list view's and a header's section edges, Studio's inspector divider, dock splitters and split
+  editors; the sizing arrows over a `RFORMMDI` child's edges and corners and a status bar's grip; the
+  I-beam over text boxes, memos, rich edits, a code editor's text (not its gutter or bars), an
+  editable combo box's text, an open in-place editor and Studio's search boxes; the hand over links in
+  the Output panel; the form designer's handles, move pointer and placing cross; the closed hand
+  while a dock tab, document tab, project file or toolbox item is being carried. A `Cursor` the program
+  sets still wins (RapidQ); a disabled component shows the arrow; `crHSplit` / `crVSplit` are now the
+  col-resize / row-resize pointers (they were the plain double arrows). In RapidR's look the divider
+  and splitter under the mouse light up in the accent. Test hook: `comp.__cursor_X_Y` in
+  `RAPIDR_TEST_DUMP` prints the CSS name of the pointer at (X, Y) of the component.
 - **`rapidr build` and Studio's Build make the release build, and the output folder gets only the app**
   (Robert: a build left the generated Rust, cargo's files and a debug executable beside the program).
   A build is optimized by default (on macOS universal: Apple silicon and Intel; symbol tables stripped:

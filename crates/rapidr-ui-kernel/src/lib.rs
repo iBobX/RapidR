@@ -55,6 +55,8 @@ pub mod tree;
 pub mod window_frame;
 
 #[cfg(test)]
+mod pointer_tests;
+#[cfg(test)]
 mod tests;
 
 pub use a11y::AccessValue;

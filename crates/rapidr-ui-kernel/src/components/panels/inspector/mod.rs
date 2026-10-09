@@ -18,6 +18,7 @@ pub mod geo;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
+use rapidr_value::input::Cursor;
 use rapidr_value::objects::a11y::{part_id, AccessNode, Action, Role, PART_EDITOR, PART_ITEM, PART_ROW, PART_TAB};
 use rapidr_value::objects::ops::Rect;
 use rapidr_value::panels::inspector::values::{self, Kind};
@@ -119,6 +120,15 @@ impl V {
 
     fn index(&self, key: &str) -> Option<usize> {
         self.rows.iter().position(|r| r.key == key)
+    }
+
+    /// Whether (x, y) is on the line between the name and value columns:
+    /// a row that has both columns (not a category, a pin or a list), within
+    /// 3 pixels of the line. The press drags it; the pointer and the hover
+    /// show it.
+    fn on_divider(&self, x: i64, y: i64) -> bool {
+        let (lx, ly, _, lh) = self.g.list;
+        (x - (lx + self.nw)).abs() <= 3 && y >= ly && y < ly + lh && self.row_at(x, y).is_some_and(|(i, _)| !matches!(self.rows[i].kind, RowKind::Category | RowKind::Pins | RowKind::Picker))
     }
 
     fn selected(&self) -> Option<usize> {
@@ -664,8 +674,7 @@ impl Inspector {
             return MouseOut::default();
         }
         // (the line between the columns)
-        let (lx, ly, _, lh) = v.g.list;
-        if (x - (lx + v.nw)).abs() <= 3 && y >= ly && y < ly + lh && v.row_at(x, y).is_some_and(|(i, _)| !matches!(v.rows[i].kind, RowKind::Category | RowKind::Pins | RowKind::Picker)) {
+        if v.on_divider(x, y) {
             finish(cx, true);
             ui(cx, |mm| mm.ui.drag = Some((x, v.nw)));
             return MouseOut::default();
@@ -849,6 +858,20 @@ impl ComponentKind for Inspector {
         }
     }
 
+    /// The line between the columns (held, or under the mouse) is the
+    /// column resize pointer; a value being edited and the search box the
+    /// I-beam.
+    fn pointer(&self, cx: &mut Cx, x: i64, y: i64) -> Cursor {
+        let v = view(cx, classic());
+        if v.m.ui.drag.is_some() || v.on_divider(x, y) {
+            return Cursor::ColResize;
+        }
+        if edit_rect(cx).is_some_and(|r| common::inside(r, x, y)) || common::inside(v.g.search, x, y) {
+            return Cursor::IBeam;
+        }
+        Cursor::Default
+    }
+
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
         let (x, y) = (m.x.floor() as i64, m.y.floor() as i64);
         let v = view(cx, classic());
@@ -879,7 +902,7 @@ impl ComponentKind for Inspector {
                     Some(Hover::ViewButton)
                 } else if common::inside(v.g.search, x, y) {
                     Some(Hover::Search)
-                } else if (x - (lx + v.nw)).abs() <= 3 && y >= ly && y < ly + lh {
+                } else if v.on_divider(x, y) {
                     Some(Hover::Divider)
                 } else {
                     v.row_at(x, y).map(|(i, rr)| draw::hover_of(geo::part_at(&v.m, &v.rows[i], rr, v.nw, x, y), i))

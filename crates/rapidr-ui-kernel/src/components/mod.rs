@@ -55,7 +55,7 @@ pub mod panels;
 // (the data-science lane's: RPLOT on a form)
 pub mod plot;
 
-use rapidr_value::input::Button;
+use rapidr_value::input::{Button, Cursor};
 use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::Rect;
@@ -314,6 +314,19 @@ pub trait ComponentKind: Sync {
 
     fn mouse(&self, _cx: &mut Cx, _m: &MouseIn) -> MouseOut {
         MouseOut::default()
+    }
+
+    /// The mouse pointer over it at (`x`, `y`) of itself (also while it
+    /// holds the mouse captured, wherever that is): what `crDefault` shows
+    /// there, the same hit test as its [`mouse`](Self::mouse). **Every
+    /// component with a part that drags or edits answers here, so every
+    /// program gets the right pointer for free**: a divider's or section
+    /// edge's `ColResize` / `RowResize`, a window edge's or corner's
+    /// diagonal arrows, a text field's `IBeam`, a link's `Hand`, a tab or
+    /// file being carried `Grabbing`. A Cursor the program set on the
+    /// component wins over it (RapidQ), and a disabled one shows the arrow.
+    fn pointer(&self, _cx: &mut Cx, _x: i64, _y: i64) -> Cursor {
+        Cursor::Default
     }
 
     /// A key while it has the focus: whether it was its (Tab, Enter and

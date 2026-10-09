@@ -449,6 +449,27 @@ const CASES = [
       "codedoc(0).text": /    CREATE AddBtn AS RButton\n        Caption = "Go": Left = 314: Top = 252: Width = 120\n        OnClick = AddItem\n/,
     },
   },
+  // (C-CURSORS) The mouse pointer every part shows by default (Robert: the
+  // inspector's divider didn't say it drags): `comp.__cursor_x_y` in the dump
+  // is the pointer's CSS name at (x, y) of the component, the mouse moved
+  // there as the user's — the inspector's divider between the name and value
+  // columns, its search box, the dock's splitters (left | documents, documents
+  // above output), the designer's selected component and its handle.
+  {
+    name: "pointers",
+    open: "examples/gui/pantry.rr",
+    do: "wait,view.designer,pick:AddBtn,wait",
+    delay: 6,
+    dump: {
+      "inspector.__cursor_120_246": /^col-resize$/,
+      "inspector.__cursor_60_246": /^default$/,
+      "inspector.__cursor_120_80": /^text$/,
+      "dock.__cursor_241_200": /^col-resize$/,
+      "dock.__cursor_600_499": /^row-resize$/,
+      "designdoc(0).__cursor_344_294": /^move$/,
+      "designdoc(0).__cursor_328_294": /^nwse-resize$/,
+    },
+  },
   // (S-PANELS) …then Undo twice on the designer: the exact text back.
   {
     name: "inspector-undo",

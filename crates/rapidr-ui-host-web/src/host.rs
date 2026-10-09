@@ -926,7 +926,7 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
                     h.desk.mouse_move(store, &id, p.0, p.1, m, Source::User);
                     // (the pointer: Screen.Cursor, else the component's —
                     // the desktop's rule)
-                    let cursor = rapidr_ui_app::desktop::cursor_at(&h.desk, store, &id, p);
+                    let cursor = rapidr_ui_app::desktop::cursor_at(&mut h.desk, store, &id, p);
                     if let Some(el) = el.dyn_ref::<HtmlElement>() {
                         set_style(el, &[("cursor", cursor.css().into())]);
                     }

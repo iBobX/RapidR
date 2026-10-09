@@ -28,7 +28,7 @@ use rapidr_value::dock::access::{self, AccessPart};
 use rapidr_value::dock::geometry::{self, DocHit, Group, GroupHit, Hit, Slot};
 use rapidr_value::dock::manager::{self, DocDrag, DocSplitDrag, Drag, Part, SplitDrag, User};
 use rapidr_value::dock::{look, Axis, Target};
-use rapidr_value::input::Button;
+use rapidr_value::input::{Button, Cursor};
 use rapidr_value::objects::a11y::{AccessNode, Action};
 
 use super::form::Container;
@@ -110,6 +110,15 @@ impl ComponentKind for DockManager {
             look::overlay_ops(m, &g, theme, &font)
         });
         p.ops(ops);
+    }
+
+    /// The ground between the groups: a splitter (↔ between left and right,
+    /// ↕ between top and bottom), held or under the mouse.
+    fn pointer(&self, cx: &mut Cx, x: i64, y: i64) -> Cursor {
+        if !laid_out(cx) {
+            return Cursor::Default;
+        }
+        splitter_pointer(splitter_cursor(cx.store, self.name(), cx.id, x, y))
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
@@ -284,6 +293,16 @@ impl ComponentKind for DockGroup {
         p.ops(ops);
     }
 
+    /// A tab or title being carried to another place: the closed hand.
+    fn pointer(&self, cx: &mut Cx, _x: i64, _y: i64) -> Cursor {
+        let carried = slot_of(cx.store, cx.id).and_then(|(dock, _)| manager::with(&dock, |m| m.ui.drag.as_ref().is_some_and(|d| d.started)));
+        if carried == Some(true) {
+            Cursor::Grabbing
+        } else {
+            Cursor::Default
+        }
+    }
+
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
         let out = MouseOut { press: false, focus: Some(false) };
         let Some((dock, slot)) = slot_of(cx.store, cx.id) else { return out };
@@ -442,6 +461,17 @@ impl ComponentKind for DockDocs {
         let theme = p.theme();
         let ops = manager::with(&dock, |m| look::documents_overlay_ops(m, theme)).unwrap_or_default();
         p.ops(ops);
+    }
+
+    /// The splitters between the document groups and between a document's
+    /// two views (↔ ↕); a document tab being carried: the closed hand.
+    fn pointer(&self, cx: &mut Cx, x: i64, y: i64) -> Cursor {
+        if let Some(dock) = docs_dock(cx.store, cx.id) {
+            if manager::with(&dock, |m| m.ui.doc_drag.as_ref().is_some_and(|d| d.started)) == Some(true) {
+                return Cursor::Grabbing;
+            }
+        }
+        splitter_pointer(splitter_cursor(cx.store, self.name(), cx.id, x, y))
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
@@ -742,6 +772,16 @@ pub fn key(f: &mut FormUi, store: &dyn Store, _ts: &mut TextSystem, vk: i64, mod
             false
         }
         _ => false,
+    }
+}
+
+/// The pointer for what [`splitter_cursor`] found: ↔ (`col-resize`) for a
+/// splitter between left and right, ↕ for one between top and bottom.
+fn splitter_pointer(found: Option<bool>) -> Cursor {
+    match found {
+        Some(true) => Cursor::ColResize,
+        Some(false) => Cursor::RowResize,
+        None => Cursor::Default,
     }
 }
 

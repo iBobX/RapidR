@@ -29,6 +29,7 @@ fn row_h(id: &str) -> i64 {
 use rapidr_value::objects::with_tree;
 
 use super::list::{act, background, bar_mouse, bar_tick, begin_edit, drop_editor, edit_key, editing, editor_ime, editor_ime_area, editor_menu, editor_mouse, end_edit, fire, paint_editor, picture_of, set_edit_text, sunken, vscroll_at, vscroll_state, InPlace, ListAction};
+use rapidr_value::input::Cursor;
 use super::{ComponentKind, Cx, Ime, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::Clipboard;
@@ -283,6 +284,11 @@ impl ComponentKind for Tree {
             }
         });
         true
+    }
+
+    /// A label being edited: the I-beam.
+    fn pointer(&self, cx: &mut Cx, x: i64, y: i64) -> Cursor {
+        Self::edit_rect(cx).map_or(Cursor::Default, |r| crate::components::list::editor_pointer(cx, r, x, y))
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {

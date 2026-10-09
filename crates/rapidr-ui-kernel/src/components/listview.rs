@@ -12,6 +12,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
+use rapidr_value::input::Cursor;
 use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::listview::Event;
 use rapidr_value::objects::{listview_paint, listview_setup, with_listview, with_listview_mut};
@@ -135,6 +136,20 @@ impl ComponentKind for ListViewBox {
         p.picture(&format!("{}#view", cx.id), 0, picture_of(b.display_rgba()), (0, 0, w, h));
         if let Some(r) = edit_rect(cx.id) {
             paint_editor(cx, p, r);
+        }
+    }
+
+    /// The header's section edges (or one being sized): the column resize
+    /// pointer; a caption being edited: the I-beam.
+    fn pointer(&self, cx: &mut Cx, x: i64, y: i64) -> Cursor {
+        setup(cx);
+        if edit_rect(cx.id).is_some_and(|(rx, ry, rw, rh)| x >= rx && y >= ry && x < rx + rw && y < ry + rh) {
+            return Cursor::IBeam;
+        }
+        if with_listview(cx.id, |l| l.on_grip(x, y)).unwrap_or(false) {
+            Cursor::ColResize
+        } else {
+            Cursor::Default
         }
     }
 
