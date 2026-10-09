@@ -443,7 +443,12 @@ SUB ToolboxDrop(TypeName AS STRING, Target AS STRING, X AS INTEGER, Y AS INTEGER
       IF LCASE$(Target) = "designdoc(" + LTRIM$(STR$(d)) + ")" THEN
         ft = UCASE$(DesignDoc(d).FormType)
         IF ft = "RFORMMDI" OR ft = "QFORMMDI" THEN
-          AddFormOfType TypeName, "{form} was added as a window of its own: RapidR doesn't draw forms inside an RFormMDI yet (its child windows are components it adds with AddChild)."
+          ' (a child window, RapidQ's way: a panel on the MDI form, AddChild)
+          ft = DesignDoc(d).AddMdiChild()
+          IF ft <> "" THEN
+            SetState RunState, DesignDoc(d).StatusText
+            OutputLine DesignDoc(d).StatusText
+          END IF
         ELSE
           AddFormOfType TypeName, "A form can't go inside a form: {form} was added as a new window. For child windows, make " + DesignDoc(d).FormName + " an RFormMDI."
         END IF

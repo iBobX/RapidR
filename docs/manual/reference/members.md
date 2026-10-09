@@ -2118,6 +2118,7 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | Method | |
 |---|---|
 | `SetFocus` | Gives the surface the keyboard focus (its keys: arrows, Delete, Ctrl+Z …). |
+| `AddMdiChild AS STRING` | A child window for the designed RFormMDI, RapidQ's way (QFORMMDI's children are components it shows in child windows): a panel on the MDI form named as a form (Form2), and `Main.AddChild(Form2.Handle, "Form2", 0, 0, 0, 0, 0, 1)` written after the form, one undo step. Its name; "" when the form isn't an MDI main window. |
 | `AddComponent(Type AS STRING, X AS INTEGER, Y AS INTEGER)` | Adds a new component of Type at (X, Y) of the form's inside, into the panel, group box or scroll box there, at its default size, named as Delphi names them (Button1, Button2 …) and written into Source as a CREATE block. X and Y of -1 put it at a free spot in the selected container (Enter on a toolbox item). Returns its index, or -1 when it can't go there. (AddComponent(Type, Name, X, Y, W, H), the older form, adds to a designer without a source.) |
 | `DragComponent(Type AS STRING)` | Starts dragging a new component of Type in from elsewhere, from a toolbox's mouse-down: while the button stays down, any design surface the mouse moves over shows where it would go, and letting go there adds it (as AddComponent). Letting go anywhere else does nothing. |
 | `SelectName(Name AS STRING) AS INTEGER` | Selects the component called Name; True if there is one. |

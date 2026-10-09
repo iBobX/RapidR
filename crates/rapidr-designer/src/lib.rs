@@ -304,6 +304,29 @@ impl Document {
         vec![p]
     }
 
+    /// `line` (a statement) written on its own line right after form
+    /// `form`'s `END CREATE`, in the file's line ends — one undo step. The
+    /// edit made (none when there is no such form).
+    pub fn insert_after_form(&mut self, form: usize, line: &str) -> Vec<TextPatch> {
+        let Some(f) = self.forms.get(form) else { return Vec::new() };
+        let Some(spans) = f.spans(f.synced.root()) else { return Vec::new() };
+        let at = spans.lines.1;
+        let eol = self.style.eol.clone();
+        let mut insert = String::new();
+        if at > 0 && !self.text[..at].ends_with('\n') {
+            insert.push_str(&eol);
+        }
+        insert.push_str(line);
+        insert.push_str(&eol);
+        let p = TextPatch { start: at, end: at, insert };
+        self.text.insert_str(at, &p.insert);
+        self.undo.push(vec![(p.clone(), String::new())]);
+        self.redo.clear();
+        let prev = self.previous();
+        self.reread(&prev);
+        vec![p]
+    }
+
     /// Undoes the last text transaction: the exact bytes come back.
     pub fn undo(&mut self) -> bool {
         let Some(t) = self.undo.pop() else { return false };

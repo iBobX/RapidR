@@ -186,8 +186,8 @@ runs it in a frame beside your code.
   adds a form file (step 2); RFormMDI's is an MDI main window
   (`CREATE Form3 AS RFormMDI`). Dragging RForm onto a form doesn't put a
   form inside a form: it is added as a new window and the status bar says
-  so. (RapidR doesn't show forms inside an RFormMDI yet; its child windows
-  are components it adds with `AddChild`.)
+  so. Dragged onto an **RFormMDI**, it becomes one of its child windows
+  (next section).
 
 The designer writes each file in its own names: RapidR's (RButton) in a file
 written with them, RapidQ's (QBUTTON) in a RapidQ program — a file that
@@ -247,6 +247,48 @@ is selected: OnShow, OnClose, OnResize, OnPaint, OnKeyDown …).
 Double-click one to make its handler — a SUB named after the component and
 the event (`Button1Click`, `Form1Show`) — or to go to it when there is one;
 the list also offers the SUBs of the file that fit.
+
+## Child windows of an MDI form
+
+An MDI program has one main window (an **RFormMDI**) whose child windows
+open, move, tile and cascade inside it. RapidQ makes a child window of a
+component: the MDI form's `AddChild` shows it in a child window of its own.
+Drag **RForm** from the toolbox onto the RFormMDI in the designer, and
+Studio writes exactly that — a panel on the MDI form, named as a form, and
+the line that opens it as a child window when the program starts:
+
+```basic
+CREATE Main AS RFormMDI
+    …
+    CREATE Form1 AS RPanel
+        Left = 0
+        Top = 0
+        Width = 320
+        Height = 240
+        CREATE Button1 AS RButton
+            Caption = "OK"
+            …
+        END CREATE
+    END CREATE
+END CREATE
+Main.AddChild(Form1.Handle, "Form1", 0, 0, 0, 0, 0, 1)
+```
+
+Put the child window's components on the panel in the designer, as on any
+form:
+
+![The MDI form in the designer: Form1, its child window's panel, with a button and a label](images/designer/09-mdi-child.png)
+
+When the program runs, Form1 is a child window inside Main — here tiled
+with the template's own document window (Window ▸ Tile):
+
+![The program running: Form1 and Document 1 as child windows of the MDI main window](images/designer/10-mdi-child-run.png)
+
+`AddChild`'s other arguments are the window's index, its place and size
+(left, top, width, height) and whether to use Windows' default size (1:
+cascaded, three quarters of the main window). Move the line into a SUB — a
+**File ▸ New** menu item's OnClick, say — to open the window only when the
+user asks.
 
 ## The menu editor and the Tab order
 

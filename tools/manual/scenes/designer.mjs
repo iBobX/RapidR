@@ -25,4 +25,7 @@ export const scenes = [
   // 7. Run: Form1's button clicked, Form2 shown
   { topic: "designer", name: "07-run-form1", run: { from: "designer/06-main", dir: "Projects/Multi", file: "main.rr", events: "button2.onclick" }, window: 1 },
   { topic: "designer", name: "08-run-form2", run: { from: "designer/06-main", dir: "Projects/Multi", file: "main.rr", events: "button2.onclick" }, window: 2 },
+  // 9. RForm dragged onto an RFormMDI: one of its child windows (a panel and AddChild), designed; and running
+  { topic: "designer", name: "09-mdi-child", studio: { do: "newproject:mdi|{dir}|Md,wait,wait,drop:RFORM|designdoc(0),wait,tool:RBUTTON,prop:Caption=OK,tool:RLABEL,prop:Caption=A child window of Main,wait,file.saveAll,wait,wait", delay: 20 }, crop: [244, 64, 790, 506] },
+  { topic: "designer", name: "10-mdi-child-run", run: { from: "designer/09-mdi-child", dir: "Projects/Md", file: "main.rr", events: "tileitem.onclick" }, window: 1 },
 ];

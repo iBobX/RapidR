@@ -422,8 +422,8 @@ const CASES = [
     dump: { "codedoc(0).text": /^\$APPTYPE GUI\n\$INCLUDE "Form2\.rr"\n\$INCLUDE "Form3\.rr"\n/, "codedoc(1).text": /\nCREATE Form2 AS RForm\n/, "codedoc(2).text": /\nCREATE Form3 AS RFormMDI\n/, "proj.filecount": /^3$/ },
   },
   // (S-DESIGN-2) RForm dragged onto a designed form: never nested — a new
-  // window, and the status bar says why (onto an RFormMDI: a window of its
-  // own too, as RapidR doesn't draw forms inside one yet).
+  // window, and the status bar says why; onto an RFormMDI: one of its child
+  // windows, RapidQ's way.
   {
     name: "toolbox-form-drop",
     open: "",
@@ -434,10 +434,11 @@ const CASES = [
   {
     name: "toolbox-form-drop-mdi",
     open: "",
-    do: "newproject:mdi|{dir}|Md,wait,wait,drop:RFORM|designdoc(0),wait,key:Enter,wait,wait,wait",
+    do: "newproject:mdi|{dir}|Md,wait,wait,drop:RFORM|designdoc(0),wait,wait,wait",
     delay: 7,
-    // (the MDI template's window is Main: the new form is Form1)
-    dump: { "codedoc(1).text": /\nCREATE Form1 AS RForm\n/, "outputbox.text": /Form1 was added as a window of its own: RapidR doesn't draw forms inside an RFormMDI yet/ },
+    // (onto the MDI template's window, Main: a child window, RapidQ's way —
+    // a panel on Main and Main.AddChild after it)
+    dump: { "codedoc(0).text": /\n    CREATE Form1 AS RPanel\n        Left = 0\n        Top = 0\n        Width = 320\n        Height = 240\n    END CREATE\nEND CREATE\nMain\.AddChild\(Form1\.Handle, "Form1", 0, 0, 0, 0, 0, 1\)\n/, "outputbox.text": /Form1 is a child window of Main/, "proj.filecount": /^1$/ },
   },
   // (S-DESIGN-2, Robert's report) The form itself (nothing selected) in
   // the inspector, with its events: OnShow's handler made, bound and

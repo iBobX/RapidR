@@ -149,6 +149,12 @@ impl SourceDoc for Doc {
         edits_of(before, &patches)
     }
 
+    fn insert_after_form(&mut self, form: usize, line: &str) -> Vec<SourceEdit> {
+        let before = self.doc.text().to_string();
+        let patches = self.doc.insert_after_form(form, line);
+        edits_of(before, &patches)
+    }
+
     fn create_handler(&mut self, form: usize, component: &str, event: &str) -> Result<(String, Option<usize>, Vec<SourceEdit>), String> {
         let before = self.doc.text().to_string();
         let h = self.doc.create_handler(form, component, event)?;
@@ -664,6 +670,32 @@ mod tests {
         assert_eq!(sub, "Form1Show");
         assert!(editor.contains("SUB Form1Show") && editor.contains("    OnShow = Form1Show\n"), "{editor}");
         compiles(&editor, "a form's OnShow handler");
+    }
+
+    /// RForm dropped on an RFormMDI: a child window RapidQ's way — a panel
+    /// on the MDI form (QFORMMDI's children are components) and its AddChild
+    /// after the form — the program compiles; undone, the exact text.
+    #[test]
+    fn a_child_window_of_an_mdi_form() {
+        install();
+        let mut s = DesignSurface::default();
+        let text = "CREATE Main AS RFormMDI\n    Caption = \"Main\"\n    Width = 500\n    Height = 360\nEND CREATE\n\nMain.ShowModal\n";
+        assert!(s.open_source(text));
+        let mut editor = text.to_string();
+        assert_eq!(s.add_mdi_child().as_deref(), Some("Form1"));
+        heard(&mut s, &mut editor);
+        assert_eq!(editor, "CREATE Main AS RFormMDI\n    Caption = \"Main\"\n    Width = 500\n    Height = 360\n    CREATE Form1 AS RPanel\n        Left = 0\n        Top = 0\n        Width = 320\n        Height = 240\n    END CREATE\nEND CREATE\nMain.AddChild(Form1.Handle, \"Form1\", 0, 0, 0, 0, 0, 1)\n\nMain.ShowModal\n");
+        compiles(&editor, "an MDI child");
+        assert!(s.add_at("QBUTTON", (8, 8), None).is_some(), "designed on it");
+        // the MDI template's window
+        let (_, files) = rapidr_project::Project::new_from_template("Md", "mdi").unwrap();
+        let mut m = DesignSurface::default();
+        assert!(m.open_source(&files[0].1));
+        assert_eq!(m.add_mdi_child().as_deref(), Some("Form1"), "{}", m.get("statustext").unwrap().to_string_val());
+        // a plain form has none
+        let mut f = DesignSurface::default();
+        f.open_source("CREATE Form1 AS RForm\nEND CREATE\n");
+        assert_eq!(f.add_mdi_child(), None);
     }
 
     #[test]

@@ -355,6 +355,12 @@ pub trait SourceDoc {
     /// A new form named `name` written at the end of the file with the
     /// line that shows it (`rapidr-designer`'s `Document::add_form`): the
     /// edits (one undo step).
+    /// `line` written right after form `form`'s END CREATE (an MDI child's
+    /// `AddChild`), one undo step.
+    fn insert_after_form(&mut self, _form: usize, _line: &str) -> Vec<SourceEdit> {
+        Vec::new()
+    }
+
     fn add_form(&mut self, _name: &str) -> Vec<SourceEdit> {
         Vec::new()
     }
@@ -727,6 +733,48 @@ impl DesignSurface {
         self.pick_form(true);
         self.outbox.push(DesignEvent::Change);
         self.say(format!("Added {name}: drop components on it"));
+        Some(name)
+    }
+
+    /// A child window for the designed RFormMDI, RapidQ's way (QFORMMDI's
+    /// children are components it shows in child windows): a panel on the
+    /// MDI form, named as a form (Form2), designed here like the rest, and
+    /// `Main.AddChild(Form2.Handle, "Form2", 0, 0, 0, 0, 0, 1)` written
+    /// after the form's END CREATE, so the program opens it as a child
+    /// window when it starts. Its name; `None` when the form isn't an MDI
+    /// main window.
+    pub fn add_mdi_child(&mut self) -> Option<String> {
+        let a = self.source.clone()?;
+        if self.read_only() {
+            return None;
+        }
+        let d = &self.designer.design;
+        let root = d.root();
+        let (form_name, form_type) = d.node(root).map(|n| (n.name.clone(), n.type_written.clone()))?;
+        if crate::designer::model::canonical_type(&form_type) != "RFORMMDI" {
+            return None;
+        }
+        let taken = |n: &str| d.find(n).is_some() || self.reserved(n) || a.doc.borrow().name_taken(n);
+        let name = (1..).map(|k| format!("Form{k}")).find(|n| !taken(n))?;
+        let panel = crate::designer::text::type_written_for(&form_type, "RPANEL");
+        let tree = crate::designer::Subtree::new(&name, &panel, &[("Left", "0".into()), ("Top", "0".into()), ("Width", "320".into()), ("Height", "240".into())]);
+        let index = d.node(root).map_or(0, |p| p.body.len());
+        self.designer.execute(Command::Insert { parent: root, index, tree }).ok()?;
+        self.commit();
+        let form = a.form?;
+        let edits = a.doc.borrow_mut().insert_after_form(form, &format!("{form_name}.AddChild({name}.Handle, \"{name}\", 0, 0, 0, 0, 0, 1)"));
+        if !edits.is_empty() {
+            // (the same step as the panel: one undo)
+            self.continues = true;
+            self.step_begins();
+            self.outbox.extend(edits.into_iter().map(DesignEvent::SourceEdit));
+            self.outbox.push(DesignEvent::Change);
+        }
+        self.reload(false);
+        if let Some(id) = self.designer.design.find(&name) {
+            self.designer.selection.set(id);
+        }
+        self.say(format!("{name} is a child window of {form_name}: put its components on it; {form_name}.AddChild opens it when the program starts"));
         Some(name)
     }
 
@@ -2609,6 +2657,9 @@ impl DesignSurface {
             "editcaption" => Value::Boolean(self.begin_edit()),
             // AddForm(Name): a form for a file without one
             "addform" => v_str(&self.add_form(&text(0)).unwrap_or_default()),
+            // AddMdiChild: a child window of the designed RFormMDI (a panel
+            // and its AddChild), its name ("" when the form isn't one)
+            "addmdichild" => v_str(&self.add_mdi_child().unwrap_or_default()),
             "getcompx" => v_int(rect(self).map_or(0, |r| r.left)),
             "getcompy" => v_int(rect(self).map_or(0, |r| r.top)),
             "getcompw" => v_int(rect(self).map_or(0, |r| r.width)),
