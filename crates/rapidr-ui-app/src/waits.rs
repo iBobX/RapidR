@@ -45,6 +45,9 @@ pub enum Wait {
     /// while the program waits (a real screen without native context
     /// menus): until it closes, its pick dispatched.
     Menu(String),
+    /// `X.StartDrag`: until the control's move on `form` ends (the mouse
+    /// let go: the kernel's `FormUi::start_move`).
+    Drag(String),
 }
 
 #[derive(Default)]
@@ -100,7 +103,7 @@ pub fn over() -> bool {
         None => true,
         Some(Wait::Form(name)) => !forms::modal_waits(&name),
         Some(Wait::Popup | Wait::Once(_)) => true,
-        Some(Wait::Dialog(_) | Wait::Key | Wait::Menu(_)) => false,
+        Some(Wait::Dialog(_) | Wait::Key | Wait::Menu(_) | Wait::Drag(_)) => false,
     }
 }
 
@@ -114,6 +117,7 @@ pub fn answered<R: Program + Windows>(rt: R) -> Option<Value> {
         Wait::Key if rapidr_value::console::key_waiting() => v_int(1),
         Wait::Key if !forms::any_shown() => v_int(0),
         Wait::Menu(form) if !rt.popup_open(&form) || !forms::form_shown(&form) => v_null(),
+        Wait::Drag(form) if !rt.dragging(&form) || !forms::form_shown(&form) => v_null(),
         _ => return None,
     };
     pop();

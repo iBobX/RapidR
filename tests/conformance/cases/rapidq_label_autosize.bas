@@ -1,7 +1,10 @@
 ' A QLABEL's AutoSize, as RapidQ has it — the .expected is RC.EXE's output
+' with the text measured in RapidR Sans, a pixel wider than RapidQ's bitmap
+' font where readability needs it (r, &, ...: "Password:" 50 x 13, RC.EXE 49;
+' the CHANGELOG's "Text in RapidQ's default font was cramped")
 ' (docs/rapidq-ground-truth.md; rapidr_value::autosize): True by default; a
 ' new label is 65 x 17 until its Caption changes, then its text's size
-' (MS Sans Serif 8: "Password:" is 49 x 13, & not counted); a Width set
+' (MS Sans Serif 8, & not counted); a Width set
 ' after the Caption sticks until the next Caption / font / WordWrap change
 ' or AutoSize turned on; right alignment keeps the right edge; WordWrap
 ' wraps at the current Width and takes the widest line; a font change of

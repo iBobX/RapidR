@@ -9,13 +9,23 @@
 //! SQL is a prepared statement and the values are sent apart from it,
 //! bound to its `?` placeholders; the rows then come in MySQL's binary
 //! protocol, and are written as the text protocol writes them.
+//!
+//! Binary data (RapidQ's blobs): a cell keeps the bytes the server sent
+//! (RowBlob gives them one character per byte, SaveBlob writes them to a
+//! file; FetchLengths then Length(i) counts them), and LoadBlob reads a
+//! file as EscapeString's text for a quoted SQL literal.
+//!
+//! As in RapidQ, the calls that change the server — CreateDB, DropDB,
+//! Refresh, SelectDB — return 1 when they worked and 0 when they didn't
+//! (the C client's functions return the other way round).
 
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use mysql::consts::ColumnType;
+use mysql::consts::{CapabilityFlags, ColumnType};
 use mysql::prelude::{Protocol, Queryable};
 use mysql::{Column, QueryResult, Value as MyValue};
+use rapidr_value::objects::codec::bytes_to_string;
 use rapidr_value::{v_int, v_null, v_str, Value};
 
 use crate::{cursor_method, param_method, params, publish, sql_and_params, Host, ResultSet};
@@ -24,6 +34,9 @@ struct Db {
     conn: mysql::PooledConn,
     results: ResultSet,
     databases: Vec<String>,
+    /// What the last FetchLengths found (Length(i)): the byte lengths of
+    /// that row's cells.
+    lengths: Vec<i64>,
 }
 
 thread_local! {
@@ -37,13 +50,68 @@ pub fn method(host: &dyn Host, name: &str, method: &str, args: &[Value]) -> Valu
     if let Some(v) = param_method(&key, method, args) {
         return v;
     }
+    let int = |i: usize| args.get(i).map_or(0, |v| v.to_i64());
+    let text = |i: usize| args.get(i).map(|v| v.to_string_val()).unwrap_or_default();
     match method {
         "connect" => return connect(host, name, &key, args),
+        "realconnect" => {
+            let server = Server {
+                host: text(0),
+                user: text(1),
+                password: text(2),
+                db: text(3),
+                port: int(4),
+                socket: text(5),
+                flags: int(6),
+            };
+            open(host, name, &key, server);
+            return v_null();
+        }
         "close" | "disconnect" => return close(host, name, &key),
         "query" | "execute" => return query(host, name, &key, args),
         "escapestring" => {
-            let s = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            return v_str(&s.replace('\\', "\\\\").replace('\'', "\\'").replace('"', "\\\""));
+            // (EscapeString(S, Length): the first Length characters)
+            let s = text(0);
+            let s = match args.get(1) {
+                Some(n) => s.chars().take(n.to_i64().max(0) as usize).collect(),
+                None => s,
+            };
+            return v_str(&escape(&s));
+        }
+        "loadblob" => return load_blob(host, name, &text(0)),
+        "saveblob" => {
+            save_blob(host, name, &key, int(0), &text(1));
+            return v_null();
+        }
+        "rowblob" => {
+            let blob = with_db(&key, |db| db.results.cell_bytes(int(0)).map(|b| bytes_to_string(&b[..b.len().min(int(1).max(0) as usize)])));
+            return v_str(&blob.flatten().unwrap_or_default());
+        }
+        "fetchlengths" => {
+            let fetched = with_db(&key, |db| match db.results.lengths() {
+                Some(lengths) => {
+                    db.lengths = lengths;
+                    true
+                }
+                None => false,
+            });
+            return v_int(fetched.unwrap_or(false) as i64);
+        }
+        "length" => {
+            let n = with_db(&key, |db| usize::try_from(int(0)).ok().and_then(|i| db.lengths.get(i).copied()));
+            return v_int(n.flatten().unwrap_or(0));
+        }
+        "createdb" => return server_command(host, name, &key, &create_db_sql(&text(0)), true),
+        "dropdb" => return server_command(host, name, &key, &drop_db_sql(&text(0)), true),
+        "refresh" => {
+            let mut done = true;
+            for sql in refresh_sql(int(0)) {
+                done = server_command(host, name, &key, sql, false).to_i64() == 1;
+                if !done {
+                    break;
+                }
+            }
+            return v_int((done && connected(&key)) as i64);
         }
         "selectdb" => return select_db(host, &key, args),
         "db" => {
@@ -71,38 +139,199 @@ pub fn method(host: &dyn Host, name: &str, method: &str, args: &[Value]) -> Valu
     }
 }
 
+/// `f(db)` on the component's connection (None: not connected).
+fn with_db<T>(key: &str, f: impl FnOnce(&mut Db) -> T) -> Option<T> {
+    DBS.with(|d| d.borrow_mut().get_mut(key).map(f))
+}
+
+fn connected(key: &str) -> bool {
+    with_db(key, |_| ()).is_some()
+}
+
+/// Where Connect and RealConnect go.
+struct Server {
+    host: String,
+    user: String,
+    password: String,
+    /// The database to use ("": none).
+    db: String,
+    /// 0: MySQL's (3306).
+    port: i64,
+    /// A Unix socket's path (Windows: a named pipe's name); "": TCP.
+    socket: String,
+    /// The C client's CLIENT_* flags.
+    flags: i64,
+}
+
 /// `Connect(host, user, password [, database])`, each missing one from
 /// the component's property (Host, User, Password, DB; Port).
 fn connect(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value {
     let arg = |i: usize, prop: &str| args.get(i).map(|v| v.to_string_val()).unwrap_or_else(|| host.get(name, prop).to_string_val());
-    let (server, user, password, db) = (arg(0, "host"), arg(1, "user"), arg(2, "password"), arg(3, "db"));
-    let port = match host.get(name, "port").to_i64() {
-        p @ 1..=65535 => p as u16,
-        _ => 3306,
+    let server = Server {
+        host: arg(0, "host"),
+        user: arg(1, "user"),
+        password: arg(2, "password"),
+        db: arg(3, "db"),
+        port: 0,
+        socket: String::new(),
+        flags: 0,
     };
-    let mut opts = mysql::OptsBuilder::new().ip_or_hostname(Some(&server)).user(Some(&user)).pass(Some(&password)).tcp_port(port);
-    if !db.is_empty() {
-        opts = opts.db_name(Some(&db));
+    v_int(open(host, name, key, server) as i64)
+}
+
+/// The C client's flags RealConnect passes on: FOUND_ROWS (2), LONG_FLAG
+/// (4), NO_SCHEMA (16), ODBC (64), IGNORE_SPACE (256), INTERACTIVE (1024).
+/// COMPRESS (32) turns compression on; the rest are the connection's own
+/// business (the `mysql` crate sets them) or need TLS, which RapidR's
+/// client doesn't have (SSL, 2048).
+const PASSED_FLAGS: u32 = 2 | 4 | 16 | 64 | 256 | 1024;
+const CLIENT_COMPRESS: i64 = 32;
+
+/// The connection options for `server`: "" is this machine (as the C
+/// client's NULL host), port 0 the component's Port or MySQL's 3306.
+fn options(server: &Server, port_property: i64) -> mysql::OptsBuilder {
+    let host = if server.host.is_empty() { "localhost" } else { server.host.as_str() };
+    let port = [server.port, port_property].into_iter().find(|p| (1..=65535).contains(p)).unwrap_or(3306) as u16;
+    let mut opts = mysql::OptsBuilder::new()
+        .ip_or_hostname(Some(host))
+        .user(Some(&server.user))
+        .pass(Some(&server.password))
+        .tcp_port(port)
+        .additional_capabilities(CapabilityFlags::from_bits_truncate(server.flags as u32 & PASSED_FLAGS));
+    if !server.db.is_empty() {
+        opts = opts.db_name(Some(&server.db));
     }
+    if !server.socket.is_empty() {
+        opts = opts.socket(Some(&server.socket));
+    }
+    if server.flags & CLIENT_COMPRESS != 0 {
+        opts = opts.compress(Some(mysql::Compression::default()));
+    }
+    opts
+}
+
+/// Connects (Connect, RealConnect): whether it did. Connected, DB(i),
+/// DBCount and OnConnect follow, or OnError with the message.
+fn open(host: &dyn Host, name: &str, key: &str, server: Server) -> bool {
+    let opts = options(&server, host.get(name, "port").to_i64());
     let opened = mysql::Pool::new(opts).and_then(|pool| Ok((pool.get_conn()?, pool)));
     match opened {
         Ok((mut conn, pool)) => {
             // (the databases the server has: DB(i), DBCount)
             let databases: Vec<String> = conn.query("SHOW DATABASES").unwrap_or_default();
             let count = databases.len() as i64;
-            DBS.with(|d| d.borrow_mut().insert(key.to_string(), Db { conn, results: ResultSet::default(), databases }));
+            let db = Db { conn, results: ResultSet::default(), databases, lengths: Vec::new() };
+            DBS.with(|d| d.borrow_mut().insert(key.to_string(), db));
             POOLS.with(|p| p.borrow_mut().insert(key.to_string(), pool));
             host.set(name, "connected", v_int(1));
             host.set(name, "dbcount", v_int(count));
             host.row_changed(name);
             host.fire(name, "onconnect", &[]);
-            v_int(1)
+            true
         }
         Err(e) => {
             host.report(&format!("[MySQL] Connection error: {e}"));
             host.set(name, "connected", v_int(0));
             host.fire(name, "onerror", &[v_str(&e.to_string())]);
+            false
+        }
+    }
+}
+
+/// A statement that changes the server (CreateDB, DropDB, Refresh's
+/// FLUSH): 1 if it ran, else 0 (and OnError, when connected). After
+/// CreateDB / DropDB (`databases`) the server's list of databases is read
+/// again: DB(i), DBCount.
+fn server_command(host: &dyn Host, name: &str, key: &str, sql: &str, databases: bool) -> Value {
+    let done = with_db(key, |db| {
+        db.conn.query_drop(sql)?;
+        if databases {
+            db.databases = db.conn.query("SHOW DATABASES")?;
+        }
+        Ok::<_, mysql::Error>(db.databases.len() as i64)
+    });
+    match done {
+        Some(Ok(count)) => {
+            if databases {
+                host.set(name, "dbcount", v_int(count));
+            }
+            v_int(1)
+        }
+        Some(Err(e)) => {
+            host.report(&format!("[MySQL] {sql}: {e}"));
+            host.fire(name, "onerror", &[v_str(&e.to_string())]);
             v_int(0)
+        }
+        None => v_int(0),
+    }
+}
+
+/// A database's name as an SQL identifier.
+fn identifier(name: &str) -> String {
+    format!("`{}`", name.replace('`', "``"))
+}
+
+/// CreateDB's statement (what the C client's mysql_create_db asks for).
+fn create_db_sql(name: &str) -> String {
+    format!("CREATE DATABASE {}", identifier(name))
+}
+
+fn drop_db_sql(name: &str) -> String {
+    format!("DROP DATABASE {}", identifier(name))
+}
+
+/// Refresh(flags)'s statements, the FLUSH each of the C client's REFRESH_*
+/// flags asks for (MYSQL.INC's Refresh_Grant 1, Refresh_Log 2,
+/// Refresh_Table 4, Refresh_Hosts 8, Refresh_Status 16). Other bits
+/// (REFRESH_THREADS 32, Refresh_Fast 32768, …) ask nothing of the server.
+fn refresh_sql(flags: i64) -> Vec<&'static str> {
+    const FLUSHES: [(i64, &str); 5] =
+        [(1, "FLUSH PRIVILEGES"), (2, "FLUSH LOGS"), (4, "FLUSH TABLES"), (8, "FLUSH HOSTS"), (16, "FLUSH STATUS")];
+    FLUSHES.iter().filter(|(bit, _)| flags & bit != 0).map(|&(_, sql)| sql).collect()
+}
+
+/// Text for a quoted SQL literal, as the C client's mysql_escape_string
+/// writes it: NUL, LF, CR, backslash, both quotes and Ctrl+Z (\0 \n \r \\
+/// \' \" \Z) escaped with a backslash; every other character as it is.
+pub fn escape(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() + text.len() / 8);
+    for c in text.chars() {
+        match c {
+            '\0' => out.push_str("\\0"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\\' => out.push_str("\\\\"),
+            '\'' => out.push_str("\\'"),
+            '"' => out.push_str("\\\""),
+            '\x1a' => out.push_str("\\Z"),
+            c => out.push(c),
+        }
+    }
+    out
+}
+
+/// LoadBlob(file): the file's bytes (one character each) escaped for a
+/// quoted SQL literal; "" when it can't be read (and OnError).
+fn load_blob(host: &dyn Host, name: &str, file: &str) -> Value {
+    match std::fs::read(file) {
+        Ok(bytes) => v_str(&escape(&bytes_to_string(&bytes))),
+        Err(e) => {
+            host.report(&format!("[MySQL] LoadBlob {file}: {e}"));
+            host.fire(name, "onerror", &[v_str(&format!("{file}: {e}"))]);
+            v_str("")
+        }
+    }
+}
+
+/// SaveBlob(field, file): the current row's column `field`, the bytes the
+/// server sent, written to the file (made new). Nothing without a current
+/// row or such a column.
+fn save_blob(host: &dyn Host, name: &str, key: &str, field: i64, file: &str) {
+    let bytes = with_db(key, |db| db.results.cell_bytes(field).map(<[u8]>::to_vec)).flatten();
+    if let Some(bytes) = bytes {
+        if let Err(e) = std::fs::write(file, bytes) {
+            host.report(&format!("[MySQL] SaveBlob {file}: {e}"));
+            host.fire(name, "onerror", &[v_str(&format!("{file}: {e}"))]);
         }
     }
 }
@@ -138,8 +367,9 @@ fn query(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value {
             let mut result = db.conn.exec_iter(&stmt, mysql::Params::Positional(values)).map_err(text)?;
             collect(&mut result, binary_cell)?
         };
-        Ok::<_, String>(table.map(|(columns, rows)| {
-            db.results = ResultSet::new(columns, rows);
+        Ok::<_, String>(table.map(|(columns, rows, raw)| {
+            db.results = ResultSet::with_raw(columns, rows, raw);
+            db.lengths.clear();
             (db.results.rows.len(), db.results.columns.len())
         }))
     });
@@ -160,23 +390,45 @@ fn query(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value {
     v_int(ok as i64)
 }
 
-type Rows = (Vec<String>, Vec<Vec<String>>);
+/// A result set: its columns' names, its rows' text, and the bytes of the
+/// cells that aren't text ([`ResultSet::raw`]).
+type Rows = (Vec<String>, Vec<Vec<String>>, Vec<Vec<Option<Vec<u8>>>>);
 
 /// Every result set of a query read to its end: the last that had columns.
 fn collect<T: Protocol>(result: &mut QueryResult<'_, '_, '_, T>, cell: fn(&MyValue, &Column) -> String) -> Result<Option<Rows>, String> {
     let mut last = None;
     while let Some(set) = result.iter() {
         let columns: Vec<Column> = set.columns().as_ref().to_vec();
-        let mut rows = Vec::new();
+        let (mut rows, mut raw) = (Vec::new(), Vec::new());
         for row in set {
             let row = row.map_err(|e| e.to_string())?;
-            rows.push(columns.iter().enumerate().map(|(i, c)| row.as_ref(i).map(|v| cell(v, c)).unwrap_or_default()).collect());
+            let cells: Vec<(String, Option<Vec<u8>>)> =
+                columns.iter().enumerate().map(|(i, c)| row.as_ref(i).map(|v| bytes_cell(v, c, cell)).unwrap_or_default()).collect();
+            let binary = cells.iter().any(|(_, b)| b.is_some());
+            let (texts, bytes): (Vec<String>, Vec<Option<Vec<u8>>>) = cells.into_iter().unzip();
+            rows.push(texts);
+            raw.push(if binary { bytes } else { Vec::new() });
         }
         if !columns.is_empty() {
-            last = Some((columns.iter().map(|c| c.name_str().into_owned()).collect(), rows));
+            if raw.iter().all(Vec::is_empty) {
+                raw.clear();
+            }
+            last = Some((columns.iter().map(|c| c.name_str().into_owned()).collect(), rows, raw));
         }
     }
     Ok(last)
+}
+
+/// A cell's text, and its bytes when they aren't UTF-8 text (binary
+/// data: the text is then "").
+fn bytes_cell(v: &MyValue, column: &Column, cell: fn(&MyValue, &Column) -> String) -> (String, Option<Vec<u8>>) {
+    match v {
+        MyValue::Bytes(b) => match std::str::from_utf8(b) {
+            Ok(s) => (s.to_string(), None),
+            Err(_) => (String::new(), Some(b.clone())),
+        },
+        other => (cell(other, column), None),
+    }
 }
 
 /// A value of the text protocol (NULL as "").
@@ -280,7 +532,85 @@ fn select_db(host: &dyn Host, key: &str, args: &[Value]) -> Value {
 
 #[cfg(test)]
 mod tests {
-    use super::number_text;
+    use super::*;
+
+    #[test]
+    fn escape_is_the_c_clients() {
+        let s = "\0a'b\"c\\d\r\n\x1ae\u{e9}\u{20ac}";
+        assert_eq!(escape(s), "\\0a\\'b\\\"c\\\\d\\r\\n\\Ze\u{e9}\u{20ac}");
+        assert_eq!(escape(""), "");
+        // (binary data: one character per byte, as LoadBlob reads it)
+        assert_eq!(escape(&bytes_to_string(&[0, 0x27, 0xFF, 0x80])), "\\0\\'\u{ff}\u{80}");
+    }
+
+    #[test]
+    fn escape_string_and_load_blob() {
+        struct Quiet;
+        impl Host for Quiet {
+            fn set(&self, _: &str, _: &str, _: Value) {}
+            fn fire(&self, _: &str, _: &str, _: &[Value]) {}
+            fn report(&self, _: &str) {}
+        }
+        let call = |m: &str, args: &[Value]| method(&Quiet, "MySQL", m, args).to_string_val();
+        assert_eq!(call("escapestring", &[v_str("a'b\0c"), v_int(5)]), "a\\'b\\0c");
+        assert_eq!(call("escapestring", &[v_str("a'b\0c"), v_int(3)]), "a\\'b");
+        assert_eq!(call("escapestring", &[v_str("a'b"), v_int(0)]), "");
+        assert_eq!(call("escapestring", &[v_str("a'b"), v_int(99)]), "a\\'b");
+        assert_eq!(call("escapestring", &[v_str("a'b")]), "a\\'b");
+        let dir = std::env::temp_dir().join(format!("rapidr-db-blob-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("blob.bin");
+        std::fs::write(&file, [0u8, b'\'', 0xFF, b'\n', b'x']).unwrap();
+        assert_eq!(call("loadblob", &[v_str(file.to_str().unwrap())]), "\\0\\'\u{ff}\\nx");
+        assert_eq!(call("loadblob", &[v_str(dir.join("none.bin").to_str().unwrap())]), "");
+        std::fs::remove_dir_all(&dir).unwrap();
+        // Not connected: nothing to read, nothing done.
+        assert_eq!(call("rowblob", &[v_int(0), v_int(5)]), "");
+        assert_eq!(call("fetchlengths", &[]), "0");
+        assert_eq!(call("length", &[v_int(0)]), "0");
+        assert_eq!(call("createdb", &[v_str("x")]), "0");
+        assert_eq!(call("dropdb", &[v_str("x")]), "0");
+        assert_eq!(call("refresh", &[v_int(0)]), "0");
+        assert_eq!(call("refresh", &[v_int(1)]), "0");
+        call("saveblob", &[v_int(0), v_str("")]);
+    }
+
+    #[test]
+    fn server_statements() {
+        assert_eq!(create_db_sql("shop"), "CREATE DATABASE `shop`");
+        assert_eq!(drop_db_sql("a`b"), "DROP DATABASE `a``b`");
+        assert_eq!(refresh_sql(0), Vec::<&str>::new());
+        assert_eq!(refresh_sql(1 | 4), ["FLUSH PRIVILEGES", "FLUSH TABLES"]);
+        assert_eq!(refresh_sql(31), ["FLUSH PRIVILEGES", "FLUSH LOGS", "FLUSH TABLES", "FLUSH HOSTS", "FLUSH STATUS"]);
+        assert_eq!(refresh_sql(32 | 32768), Vec::<&str>::new());
+    }
+
+    #[test]
+    fn real_connect_options() {
+        let server = |host: &str, port: i64, socket: &str, flags: i64| Server {
+            host: host.into(),
+            user: "u".into(),
+            password: "p".into(),
+            db: "shop".into(),
+            port,
+            socket: socket.into(),
+            flags,
+        };
+        let opts: mysql::Opts = options(&server("db.example", 12345, "", 0), 0).into();
+        assert_eq!((opts.get_ip_or_hostname().to_string(), opts.get_tcp_port()), ("db.example".to_string(), 12345));
+        assert_eq!((opts.get_user(), opts.get_pass(), opts.get_db_name()), (Some("u"), Some("p"), Some("shop")));
+        assert_eq!((opts.get_socket(), opts.get_compress().is_some()), (None, false));
+        // "" is this machine; port 0: the Port property, else 3306
+        let opts: mysql::Opts = options(&server("", 0, "/tmp/mysql.sock", 0), 0).into();
+        assert_eq!((opts.get_ip_or_hostname().to_string(), opts.get_tcp_port()), ("localhost".to_string(), 3306));
+        assert_eq!(opts.get_socket(), Some("/tmp/mysql.sock"));
+        let opts: mysql::Opts = options(&server("h", 0, "", 0), 3307).into();
+        assert_eq!(opts.get_tcp_port(), 3307);
+        // CLIENT_COMPRESS | CLIENT_FOUND_ROWS | CLIENT_SSL (no TLS: dropped)
+        let opts: mysql::Opts = options(&server("h", 0, "", 32 | 2 | 2048), 0).into();
+        assert!(opts.get_compress().is_some());
+        assert_eq!(opts.get_additional_capabilities(), CapabilityFlags::CLIENT_FOUND_ROWS);
+    }
 
     /// What MySQL 8's text protocol writes for these (checked on a server).
     #[test]

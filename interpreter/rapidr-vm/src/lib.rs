@@ -93,6 +93,15 @@ impl std::fmt::Display for VmError {
 
 impl std::error::Error for VmError {}
 
+/// A host call's error: a RapidQ exception (`rapidr_value::exception`) is the
+/// program's run-time error, anything else the host's.
+fn host_error(e: String) -> VmError {
+    match rapidr_value::exception_message(&e) {
+        Some(m) => VmError::Runtime(m.to_string()),
+        None => VmError::HostError(e),
+    }
+}
+
 /// Deepest nesting of SUB/FUNCTION calls, so runaway recursion stops with
 /// an error instead of exhausting memory.
 pub const MAX_CALL_DEPTH: usize = 100_000;
@@ -824,7 +833,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let mut args = Vec::with_capacity(argc);
                     for _ in 0..argc { args.push(self.pop()?); }
                     args.reverse();
-                    let r = self.host.call_method(&id, &m, &args).map_err(VmError::HostError)?;
+                    let r = self.host.call_method(&id, &m, &args).map_err(host_error)?;
                     // A method that waits (the web's ShowModal): suspended
                     // until the host resumes with its result.
                     if self.host.suspend_requested() {
@@ -900,7 +909,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     for _ in 0..argc { args.push(self.pop()?); }
                     args.reverse();
                     let id = self.pop_object_id()?;
-                    let r = self.host.call_method(&id, &m, &args).map_err(VmError::HostError)?;
+                    let r = self.host.call_method(&id, &m, &args).map_err(host_error)?;
                     // A method that waits (the web's ShowModal): suspended
                     // until the host resumes with its result.
                     if self.host.suspend_requested() {

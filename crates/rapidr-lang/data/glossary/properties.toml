@@ -302,7 +302,7 @@ MaxFontSize = { category = "Font", doc = "The largest size the font dialog offer
 MaxInput = { category = "Network", doc = "The most characters `Parse` reads from the request (32767)." }
 MaxLength = { category = "Behavior", doc = "The most characters the user can type (0: no limit)." }
 MaxY = { category = "Drawing", doc = "The highest Y of the mesh's vertices; read-only." }
-MdiChildCount = { category = "Window", doc = "The number of MDI child forms open." }
+MdiChildCount = { category = "Window", doc = "The number of MDI child windows: an RFormMDI's ChildCount; 0 for an RForm (RapidQ's forms are fsNormal only)." }
 MDIMenu = { category = "Window", doc = "The menu that lists the MDI child windows." }
 MenuIndex = { category = "Data", doc = "The item's position in its parent menu, from 0." }
 Min = { category = "Behavior", doc = "The lowest value of the progress bar, scroll bar, up-down or track bar." }
@@ -479,7 +479,7 @@ TextStyle = { category = "Appearance", doc = "How the label draws its text, toge
 Theme = { category = "Appearance", doc = "The look RapidR draws with: `classic`, `modern`, `dark` or `highcontrast`; reads as the theme in use." }
 TickMarks = { category = "Appearance", doc = "Where the track bar's ticks go: `tmBottomRight`, `tmTopLeft` or `tmBoth`." }
 TickStyle = { category = "Appearance", doc = "`tsAuto` draws a tick every `Frequency`, `tsManual` only at the ends and where `SetTick` puts them, `tsNone` none." }
-TileMode = { category = "Window", doc = "How `Tile` lays out the MDI children: side by side or one above another." }
+TileMode = { category = "Window", doc = "How Tile lays out an RFormMDI's child windows: 0 (tbHorizontal) one above another, 1 (tbVertical) side by side." }
 Time = { category = "Data", doc = "The time picked in the date-time picker, a file's time (`FileRec`), or the CD's position, as text." }
 Timeout = { category = "Network", doc = "How long to wait for the network, in milliseconds." }
 TimePosition = { category = "Media", doc = "The position on the CD, as text; read-only." }

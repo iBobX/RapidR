@@ -130,7 +130,12 @@ impl Host for WebHost {
                 emit(Message::new(if shown { EventBody::FormShown { id, caption: None } } else { EventBody::FormClosed { id } }));
             }
         }
-        Ok(rp_comp_call(id, method, args))
+        let v = rp_comp_call(id, method, args);
+        // (an object's RapidQ exception: a run-time error — rapidr_value::raise)
+        match rapidr_value::take_raised() {
+            Some(m) => Err(rapidr_value::exception(&m)),
+            None => Ok(v),
+        }
     }
 
     fn component_type(&mut self, id: &str) -> Option<String> {

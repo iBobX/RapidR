@@ -16,7 +16,7 @@ const ANY: &[&str] = &[
 
 /// QSQLITE / QMYSQL (and RapidR's `DB.ClearParams`).
 const DATABASE: &[&str] = &[
-    "connect", "disconnect", "query", "fetchrow", "fetchfield", "fieldseek", "rowseek", "row", "rowblob",
+    "connect", "disconnect", "query", "fetchrow", "fetchfield", "fetchlengths", "fieldseek", "rowseek", "row", "rowblob",
     "escapestring", "selectdb", "createdb", "dropdb", "clearparams",
 ];
 
@@ -37,6 +37,9 @@ const STRING_LIST: &[&str] = &["loadfromfile", "savetofile", "add", "delete"];
 const DRAWING: &[&str] = &[
     "line", "rect", "fillrect", "circle", "ellipse", "setpixel", "getpixel", "drawtext", "loadimage", "saveimage",
 ];
+
+/// QCANVAS's Get / Put (RC.EXE's member table: `X = Canvas.Get`).
+const CANVAS: &[&str] = &["get", "put"];
 
 const TREE: &[&str] = &["addroot", "addchild", "expand", "collapse"];
 
@@ -119,7 +122,8 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
         "RFILESTREAM" | "RMEMORYSTREAM" => &[STREAM],
         "RJSON" => &[JSON],
         "RSTRINGLIST" => &[STRING_LIST],
-        "RCANVAS" | "RFORM" | "RBITMAP" | "RIMAGE" => &[DRAWING],
+        "RCANVAS" => &[DRAWING, CANVAS],
+        "RFORM" | "RBITMAP" | "RIMAGE" => &[DRAWING],
         "RTREEVIEW" => &[TREE],
         "RFORMMDI" => &[MDI, DRAWING],
         "RNUM" | "RDATAFRAME" | "RPLOT" => &[DATA_SCIENCE],
@@ -142,7 +146,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
 /// Whether `member` (lowercase) is any type's method read without
 /// parentheses — the quick test before the type is looked up.
 pub fn is_value_method_name(member: &str) -> bool {
-    [ANY, DATABASE, NETWORK, STREAM, JSON, STRING_LIST, DRAWING, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, DIFF, SESSION, PROJECT, PANELS]
+    [ANY, DATABASE, NETWORK, STREAM, JSON, STRING_LIST, DRAWING, CANVAS, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, DIFF, SESSION, PROJECT, PANELS]
         .iter()
         .any(|list| list.contains(&member))
 }

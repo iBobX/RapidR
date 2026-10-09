@@ -198,15 +198,15 @@ methods = [
   { name = "SendBreak", params = "[Duration AS INTEGER]", origin = "rapidr", doc = "Holds the line in a break for Duration ms (250 without it)." },
 ]
 events = [
-  { name = "OnBreak", missing = true },
+  { name = "OnBreak" },
   { name = "OnClose" },
   { name = "OnComError", params = "ErrorMessage AS STRING" },
   { name = "OnOpen" },
   { name = "OnReadString" },
   { name = "OnWriteString" },
-  { name = "OnRing", missing = true },
+  { name = "OnRing" },
   { name = "OnRxChar", params = "InQue AS INTEGER" },
-  { name = "OnTxEmpty", missing = true },
+  { name = "OnTxEmpty" },
   { name = "OnError", params = "Message AS STRING" },
   { name = "OnLine", params = "Received AS STRING", origin = "rapidr", doc = "Fires for each whole line that arrives, without its LineEnd (the line is read: ReadString and ReadLine don't see it). The runtime looks every 50 ms." },
   { name = "OnPortsChanged", params = "Added AS STRING, Removed AS STRING", origin = "rapidr", doc = "Fires when serial ports come or go, a USB adapter plugged in or out: the names added and removed, a CR LF between two. The runtime looks about once a second (the browser says at once)." },

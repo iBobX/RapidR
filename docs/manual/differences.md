@@ -68,7 +68,10 @@ converted copy, proved to compile exactly as the original, with a report.
 - **OLE / COM** (`QOLECONTAINER`, `QOLEOBJECT`): programs that declare
   them compile; their methods do nothing and print a warning.
 - RapidQ's undocumented `QD3DANIMATION` / `QD3DANIMATIONSET` (in its keyword
-  list only).
+  list only): programs that declare them compile and
+  `QDXSCREEN.CreateAnimation` / `CreateAnimationSet` take them, but as in
+  RapidQ there is nothing to do with them (RapidQ gives them no keys and
+  nothing that plays them).
 - DOS-era port I/O.
 - `ON ERROR` is accepted and ignored (it's VB's, not RapidQ's): a run-time
   error still ends the program.
@@ -85,10 +88,28 @@ something defined instead, and says so:
   a run-time error.
 - An RDXJoystick with no joystick reads "not connected" rather than
   raising RapidQ's list-index error.
+- `TextRect(Rect, x, y, S$, fc, bc)` draws: the text clipped to `Rect`,
+  which a background `bc` fills first (as the Windows call under it does).
+  RapidQ's own TextRect stops the program on every object tried (an access
+  violation on a QBITMAP, a list-index error on a QCANVAS).
 - Windows on every system are drawn by RapidR in Windows' classic look,
   with real system menus, dialogs and clipboard where users expect them.
 - Documents printed with `Printer` / `LPRINT` are PDFs sent to the system's
   printer (see [Components](components.md#the-global-objects)).
+- **The font dialog names a system colour.** A font that never set a colour
+  (a new `RFontDialog`, most components' fonts) has `clWindowText`. RapidQ's
+  dialog lists it as "Custom"; RapidR's shows "Black" (`clWindow` "White"),
+  and pressing OK without picking another colour keeps `clWindowText`, so the
+  text keeps following the theme:
+
+  ```basic
+  FontDlg.GetFont(Label1.Font)     ' the list shows Black
+  IF FontDlg.Execute THEN FontDlg.SetFont(Label1.Font)
+  ```
+- **Console box characters.** RapidQ's console shows characters 128 to 255
+  in the old DOS code page (`CHR$(201)` is ╔); RapidR's console shows the
+  program's text as it is (`CHR$(201)` is É), so box-drawing examples
+  written for DOS (`3DBOX`, `BATTLE`) show letters where RapidQ drew lines.
 
 ## Extensions
 

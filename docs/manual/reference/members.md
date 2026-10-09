@@ -45,9 +45,9 @@ A window: the top-level container of a program's components, with its caption, b
 | `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
 | `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
 | `CopyMode` | enum |  | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
-| `MdiChildCount` | any |  | The number of MDI child forms open. |
+| `MdiChildCount` | int | 0 | The number of MDI child windows: an RFormMDI's ChildCount; 0 for an RForm (RapidQ's forms are fsNormal only). |
 | `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
-| `TileMode` | any |  | How `Tile` lays out the MDI children: side by side or one above another. |
+| `TileMode` | int | 0 | How Tile lays out an RFormMDI's child windows: 0 (tbHorizontal) one above another, 1 (tbVertical) side by side. |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -66,21 +66,21 @@ A window: the top-level container of a program's components, with its caption, b
 | `DelBorderIcons(Items, …)` | Removes the given border icons from the form's title bar. |
 | `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
 | `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
-| `HideTitleBar` *(not yet)* | Removes the form's title bar. |
+| `HideTitleBar` | Takes away the form's title bar, leaving its border: the client area keeps its size and the form gets shorter by the title bar (Height), as in RapidQ. ShowTitleBar, or a new BorderStyle, puts it back. A form without a frame (bsNone) has none to hide. |
 | `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
 | `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
-| `ShapeForm(Filename AS STRING, TransparentColor AS LONG)` *(not yet)* | Shapes the form to a bitmap file's outline, its pixels of `TransparentColor` cut away. |
+| `ShapeForm(Filename AS STRING, TransparentColor AS LONG)` | Gives the form the outline of a bitmap's pixels that aren't TransparentColor (a BMP file, or a $RESOURCE): the bitmap's pixel (x, y) is the window's (x, y) from its top left corner, frame included; what's outside — and outside the bitmap — is cut away, and the mouse reaches what's behind there. Width, Height and BorderStyle don't change; the outline stays when the form is resized. (Wayland gives no program a way to cut its window: it keeps its rectangle there.) |
 | `Show` | Shows the component or form; a data-science object prints its contents. |
 | `ShowModal AS VARIANT` | Shows the form and waits until it closes; returns its modal result. |
-| `ShowTitleBar` *(not yet)* | Puts the form's title bar back. |
+| `ShowTitleBar` | Puts back the title bar HideTitleBar took away: the form gets taller by it, its client area the same. |
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) |
 | `TextOut(x AS INTEGER, y AS INTEGER, s AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `Hide` *(RapidR)* | Makes the component or form invisible; it stays loaded. |
@@ -92,17 +92,17 @@ A window: the top-level container of a program's components, with its caption, b
 | `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
 | `Cls` *(RapidR)* | Clears the drawing area to its background color. |
 | `DrawText` *(RapidR)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
-| `ArrangeIcons` *(not yet)* | Lines up the icons of the minimized MDI child windows. |
-| `Cascade` *(not yet)* | Arranges the MDI child windows in an overlapping cascade. |
-| `Next` *(not yet)* | Activates the next MDI child window. |
-| `Previous` *(not yet)* | Activates the previous MDI child window. |
-| `Tile` *(not yet)* | Tiles the MDI child windows so none overlap. |
+| `ArrangeIcons` | Lines up an RFormMDI's minimized child windows along its bottom (IconArrangeChild). An RForm has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there. |
+| `Cascade` | Arranges an RFormMDI's child windows in an overlapping cascade (CascadeChild). An RForm has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there. |
+| `Next` | Activates an RFormMDI's next child window (ActiveNextChild). An RForm has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there. |
+| `Previous` | Activates an RFormMDI's previous child window (ActivePreviousChild). An RForm has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there. |
+| `Tile` | Tiles an RFormMDI's child windows by TileMode: one above another (SetHorzChild), or side by side (SetVertChild). An RForm has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there. |
 
 | Event | |
 |---|---|
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnClose(BYREF Action AS INTEGER)` | Fires when the form, port or dock form closes. A form's handler can set its BYREF Action to `caNone` (0) to keep the form open. |
-| `OnHint(Hint AS STRING)` *(not yet)* | Fires when a hint is about to be shown on the form (Hint: its text). RapidR doesn't fire it yet. |
+| `OnHint(Hint AS STRING)` | The program's hint changed: the mouse came onto a component whose hint isn't the last one — Hint is the part after `\|` of its Hint (all of it without one), else its parent's, up to the form's; "" over none or outside the windows. It fires whatever ShowHint says, the tooltip shows as usual. One handler hears the hints of every form: the one bound last, as RapidQ's Application.OnHint. |
 | `OnKeyDown(Key AS WORD, Shift AS INTEGER)` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 | `OnKeyUp(Key AS WORD, Shift AS INTEGER)` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
@@ -112,7 +112,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `OnPaint` | Fires when the control must be drawn again; drawing done here survives covering, resizing and theme changes. |
 | `OnResize` | Fires when the control's size changes, by the user, the program or its alignment. |
 | `OnShow` | Fires when the form is shown, by Show, ShowModal or `Visible = True`. |
-| `WndProc(Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG)` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
+| `WndProc(Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG)` | Windows' messages to the form (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: it fires this with the messages of the form's system tray icon (RNotifyIconData and Shell_NotifyIcon), as RapidQ's programs hear their icon's clicks; no other message comes. |
 | `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnTimer` *(RapidR)* | Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits. |
 | `OnLoad` *(RapidR)* | Fires when the content has loaded: the web view's page, a file read in the browser. |
@@ -155,8 +155,8 @@ An MDI parent window (RAPIDQ2.INC's): a form whose child windows open, tile, cas
 | `MinimizeAllChild` | Minimizes every MDI child window and lines up their icons. |
 | `MaximizeAllChild` | Maximizes every MDI child window. |
 | `RestoreChild` | Gives every MDI child window its normal size and place again. |
-| `ActiveNextChild` *(not yet)* | Activates the next MDI child window, the one under the active one. |
-| `ActivePreviousChild` *(not yet)* | Activates the previous MDI child window, sending the active one to the back. |
+| `ActiveNextChild` | Activates the next MDI child window: the bottom one comes to the top. Nothing happens with fewer than two. |
+| `ActivePreviousChild` | Activates the previous MDI child window: the active one goes to the back. Nothing happens with fewer than two. |
 | `GetChild(Title AS STRING) AS VARIANT` | Returns the index of the MDI child with the title given, or -1. |
 | `ChildExist(Title AS STRING) AS VARIANT` | Returns true when an MDI child with the title given is open. |
 | `ActiveChild(Index AS LONG)` | Brings the MDI child with index `Index` to the front, restoring it if it is minimized. |
@@ -230,7 +230,7 @@ A container with raised or lowered bevels and an optional caption, to group comp
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnResize` *(RapidR)* | Fires when the control's size changes, by the user, the program or its alignment. |
-| `WndProc` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
+| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 
 <a id="rtabcontrol"></a>
 ## RTabControl <small>(RapidQ name: QTABCONTROL)</small>
@@ -695,7 +695,7 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `Cascade` | Cascades the documents' windows. |
 | `TileHorizontal` | Tiles the documents' windows one above the other. |
 | `TileVertical` | Tiles the documents' windows side by side. |
-| `ArrangeIcons` | Lines up the icons of the minimized MDI child windows. |
+| `ArrangeIcons` | Lines up an RFormMDI's minimized child windows along its bottom (IconArrangeChild). An RForm has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there. |
 
 | Event | |
 |---|---|
@@ -751,7 +751,7 @@ A push button: the user clicks it to run its OnClick handler. It can show a pict
 
 | Method | |
 |---|---|
-| `StartDrag` *(not yet)* | Starts dragging the button. |
+| `StartDrag` | Moves the control with the mouse while a button is held — call it from OnMouseDown: it returns when the button is let go, Left and Top where the user put it, and no OnMouseUp or OnClick follows (Windows' own move of a window, which RapidQ's is). Escape puts it back; with no button held nothing happens. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
@@ -765,9 +765,9 @@ A push button: the user clicks it to run its OnClick handler. It can show a pict
 | `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `OnEndDrag` *(not yet)* | Fires when a drag of the control ends. RapidR doesn't start drags yet, so it doesn't fire. |
-| `OnStartDrag` *(not yet)* | Fires when a drag of the control starts. RapidR doesn't start drags yet, so it doesn't fire. |
-| `WndProc` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
+| `OnEndDrag` | Fires when the drag OnStartDrag began ends: the mouse let go (instead of OnMouseUp and OnClick) or Escape pressed. No arguments. |
+| `OnStartDrag` | Binding it makes the button a drag source, as in RapidQ: a left press on it starts a drag — this fires instead of OnMouseDown, and the mouse shows the no-drop pointer (nothing takes a drop) — until the release or Escape, which fire OnEndDrag. No arguments. |
+| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 
 <a id="redit"></a>
 ## REdit <small>(RapidQ name: QEDIT)</small>
@@ -836,7 +836,7 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `OnKeyDown(Key AS WORD, Shift AS INTEGER)` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 | `OnKeyUp(Key AS WORD, Shift AS INTEGER)` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
-| `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
+| `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 | `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 
@@ -886,7 +886,7 @@ A box with a caption that the user ticks on or off (Checked).
 | Event | |
 |---|---|
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
-| `WndProc` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
+| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 
 <a id="rradiobutton"></a>
 ## RRadioButton <small>(RapidQ name: QRADIOBUTTON)</small>
@@ -933,7 +933,7 @@ One choice of several: checking it unchecks the other radio buttons in the same 
 | Event | |
 |---|---|
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
-| `WndProc` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
+| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 
 <a id="rcombobox"></a>
 ## RComboBox <small>(RapidQ name: QCOMBOBOX)</small>
@@ -992,22 +992,22 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | `AddItems(Items, …)` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
 | `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
-| `CopyRect(D, Image, S)` *(not yet)* | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
+| `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
 | `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
 | `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
 | `InsertItem(Index AS INTEGER, String AS STRING)` | Inserts an item with text `String` before position `Index`. |
 | `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with `c` up to the border colour `borderc`, on the pixels drawn so far: in an owner-drawn list's OnDrawItem the item, on a list box that isn't owner-drawn the list (as `Line` and the rest). |
-| `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` *(not yet)* | Sets the pixel at (`x`, `y`) to color `c`. |
-| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(not yet)* | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
+| `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
+| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` *(not yet)* | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
-| `StretchDraw(Rect AS RRECT, BMP)` *(not yet)* | Draws a bitmap scaled to fill rectangle `Rect`. |
-| `TextHeight(Text AS STRING) AS WORD` *(not yet)* | Returns the height in pixels of the text in the current font. |
-| `TextWidth(Text AS STRING) AS WORD` *(not yet)* | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
-| `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
+| `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
+| `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) In OnDrawItem / OnDrawCell it is kept with the item or cell under `Rect`'s top left. |
+| `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `AddItem` *(RapidR)* | Appends one item (a list entry, line, node or menu item) to the component. |
 | `DeleteItem` *(RapidR)* | Removes the item at the index given. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
@@ -1024,7 +1024,7 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | `OnMeasureItem(Index AS INTEGER, Height AS INTEGER)` | Fires for each item of a variable-height owner-drawn list or combo box (Index); set Height to the item's height in pixels. |
 | `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
-| `WndProc` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
+| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 
 <a id="rrichedit"></a>
 ## RRichEdit <small>(RapidQ name: QRICHEDIT)</small>
@@ -1087,10 +1087,10 @@ A multi-line text editor with fonts, colours and alignment per selection, that l
 | `CopyToClipboard` | Copies the selected text to the clipboard. |
 | `CutToClipboard` | Moves the selected text to the clipboard. |
 | `LoadFromFile(FileName AS STRING)` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
-| `LoadFromStream(Stream AS RFILESTREAM)` *(not yet)* | Loads the component's contents from an open stream. |
+| `LoadFromStream(Stream AS RFILESTREAM)` | Replaces the text with the stream's bytes from its position to its end (as LoadFromFile reads a file); the stream is left at its end. |
 | `PasteFromClipboard` | Inserts the clipboard's text at the caret, replacing the selection. |
 | `SaveToFile(FileName AS STRING)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
-| `SaveToStream(Stream AS RFILESTREAM)` *(not yet)* | Writes the component's contents to an open stream. |
+| `SaveToStream(Stream AS RFILESTREAM)` | Writes the text at the stream's position (the same bytes SaveToFile writes), moving the position past it. |
 | `SelectAll` | Selects all the text. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Repaint` *(RapidR)* | Redraws the component. |
@@ -1618,7 +1618,7 @@ A flat toolbar button with a caption and a picture; with GroupIndex it stays dow
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `StartDrag` *(not yet)* | Starts dragging the button. |
+| `StartDrag` | Moves the control with the mouse while a button is held — call it from OnMouseDown: it returns when the button is let go, Left and Top where the user put it, and no OnMouseUp or OnClick follows (Windows' own move of a window, which RapidQ's is). Escape puts it back; with no button held nothing happens. |
 
 | Event | |
 |---|---|
@@ -1679,7 +1679,7 @@ A round button with its own colours, highlight and shadow; like a cool button, i
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Repaint` | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `StartDrag` *(not yet)* | Starts dragging the button. |
+| `StartDrag` | Moves the control with the mouse while a button is held — call it from OnMouseDown: it returns when the button is let go, Left and Top where the user put it, and no OnMouseUp or OnClick follows (Windows' own move of a window, which RapidQ's is). Escape puts it back; with no button held nothing happens. |
 
 | Event | |
 |---|---|
@@ -1687,7 +1687,7 @@ A round button with its own colours, highlight and shadow; like a cool button, i
 | `OnMouseDown` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `WndProc` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
+| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 
 <a id="rlabel"></a>
 ## RLabel <small>(RapidQ name: QLABEL)</small>
@@ -1747,7 +1747,7 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 | `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
+| `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 
 <a id="rimage"></a>
 ## RImage <small>(RapidQ name: QIMAGE)</small>
@@ -1805,13 +1805,13 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
-| `Repaint` *(not yet)* | Redraws the component. |
-| `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` *(not yet)* | Rotates the picture by `Angle` degrees around (`xOrigin`, `yOrigin`). |
+| `Repaint` | Shows the picture again. |
+| `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` | Turns the whole picture `Angle` degrees anticlockwise about pixel (`xOrigin`, `yOrigin`), keeping its size: each pixel takes the nearest one that turns onto it, and pixels nothing turns onto take the colour the top-left pixel had before. |
 | `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `LoadFromFile` *(RapidR)* | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
 | `SaveToFile` *(RapidR)* | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
@@ -1880,12 +1880,12 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
-| `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` *(not yet)* | Rotates the picture by `Angle` degrees around (`xOrigin`, `yOrigin`). |
+| `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` | Turns the whole picture `Angle` degrees anticlockwise about pixel (`xOrigin`, `yOrigin`), keeping its size: each pixel takes the nearest one that turns onto it, and pixels nothing turns onto take the colour the top-left pixel had before. |
 | `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `Cls` *(RapidR)* | Clears the canvas using the current Color. |
 | `FillCircle(x, y, radius, [color])` *(RapidR)* | Draws a filled circle. |
@@ -1898,8 +1898,8 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `Show` *(RapidR)* | Shows the component or form; a data-science object prints its contents. |
 | `Hide` *(RapidR)* | Makes the component or form invisible; it stays loaded. |
 | `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `Get` *(not yet)* | Reads by key or index: an array element, a list's string, a stored value or a CGI variable; an HTTP client fetches a URL and returns the response body. |
-| `Put` *(not yet)* | Writes pixel data onto the canvas; the counterpart of `Get`. |
+| `Get AS INTEGER` | RapidQ's (in its compiler's member table, not its manual): takes nothing, draws and keeps nothing, and gives 0 — a Put after it doesn't bring the pixels back. |
+| `Put AS INTEGER` | RapidQ's (in its compiler's member table, not its manual): takes nothing, draws nothing and gives 0. |
 
 | Event | |
 |---|---|
@@ -1970,7 +1970,7 @@ A row of headings (sections) the user can click and resize, as above a list's co
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `Update` *(RapidR)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
@@ -2274,7 +2274,7 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `AddItems(Items, …)` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
 | `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
-| `CopyRect(D, Image, S)` *(not yet)* | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
+| `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
 | `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
 | `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
@@ -2282,16 +2282,16 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
 | `LoadFromFile(FileName AS STRING)` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with `c` up to the border colour `borderc`, on the pixels drawn so far: in an owner-drawn list's OnDrawItem the item, on a list box that isn't owner-drawn the list (as `Line` and the rest). |
-| `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` *(not yet)* | Sets the pixel at (`x`, `y`) to color `c`. |
-| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` *(not yet)* | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
+| `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
+| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` *(not yet)* | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
 | `SaveToFile(FileName AS STRING)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
-| `StretchDraw(Rect AS RRECT, BMP)` *(not yet)* | Draws a bitmap scaled to fill rectangle `Rect`. |
-| `TextHeight(Text AS STRING) AS WORD` *(not yet)* | Returns the height in pixels of the text in the current font. |
-| `TextWidth(Text AS STRING) AS WORD` *(not yet)* | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
-| `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
+| `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
+| `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
+| `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) In OnDrawItem / OnDrawCell it is kept with the item or cell under `Rect`'s top left. |
+| `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `AddItem` *(RapidR)* | Appends one item (a list entry, line, node or menu item) to the component. |
 | `DeleteItem` *(RapidR)* | Removes the item at the index given. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
@@ -2306,9 +2306,9 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnDrawItem(Index AS INTEGER, State AS INTEGER, R AS RRECT)` | Fires for each item of an owner-drawn list or combo box (Index: the item, State: selected or focused, R: the rectangle to draw it in). |
-| `OnEnter` *(not yet)* | Fires when the list gets the keyboard focus. RapidR doesn't fire it yet. |
+| `OnEnter` | Fires when the list gets the keyboard focus (a click, Tab, SetFocus), before what the click does to it. (RapidQ's manual says the Enter key, and its runtime stops the program when an RListBox's OnEnter is bound — RC.EXE; RapidR fires it as its RFileListBox's.) |
 | `OnMeasureItem(Index AS INTEGER, Height AS INTEGER)` | Fires for each item of a variable-height owner-drawn list or combo box (Index); set Height to the item's height in pixels. |
-| `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` *(not yet)* | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's WndProc gets its tray icon's messages, others never fire. |
+| `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 | `OnChange` *(RapidR)* | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 
 <a id="rfilelistbox"></a>
@@ -2378,7 +2378,7 @@ A list of the files in a folder that match Mask, for picking a file.
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
-| `OnEnter` *(not yet)* | Fires when the list gets the keyboard focus. RapidR doesn't fire it yet. |
+| `OnEnter` | Fires when the list gets the keyboard focus (a click, Tab, SetFocus), before what the click does to it. |
 
 <a id="rdirtree"></a>
 ## RDirTree <small>(RapidQ name: QDIRTREE)</small>
@@ -2512,7 +2512,7 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `DeleteRow(Row AS INTEGER)` | Removes row `Row`; the rows after it move up. |
 | `DelOptions(Items, …)` | Turns off the option flags given. |
 | `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`. |
-| `CopyRect(D, Image, S)` *(not yet)* | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
+| `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
 | `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
 | `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
 | `InsertCol(Column AS INTEGER)` | Inserts an empty column before column `Column`. |
@@ -2524,15 +2524,15 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` *(not yet)* | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
 | `SaveToFile(File AS STRING, RowOffset AS INTEGER, ColOffset AS INTEGER, MaxRows AS INTEGER)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
 | `SaveToStream(S AS RFILESTREAM, RowOffset AS INTEGER, ColOffset AS INTEGER, MaxRows AS INTEGER)` | Writes the component's contents to an open stream. |
 | `SwapCols(Col1 AS INTEGER, Col2 AS INTEGER)` | Swaps columns `Col1` and `Col2`. |
 | `SwapRows(Row1 AS INTEGER, Row2 AS INTEGER)` | Swaps rows `Row1` and `Row2`. |
-| `StretchDraw(Rect AS RRECT, BMP)` *(not yet)* | Draws a bitmap scaled to fill rectangle `Rect`. |
-| `TextHeight(Text AS STRING) AS WORD` *(not yet)* | Returns the height in pixels of the text in the current font. |
-| `TextWidth(Text AS STRING) AS WORD` *(not yet)* | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
+| `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
+| `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) In OnDrawItem / OnDrawCell it is kept with the item or cell under `Rect`'s top left. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `AddRow` *(RapidR)* | Appends a row made of the values given; a grid widens to fit them. |
 | `SetCell` *(RapidR)* | Sets the text of the cell at a column and row. |
@@ -2546,7 +2546,7 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `MoveColumn` *(RapidR)* | Moves a column to another position; those between shift over. Same as `MoveCol`. |
 | `MoveRow` *(RapidR)* | Moves a row to another position; those between shift over. |
 | `SetSuggestions` *(RapidR)* | Sets the suggestions offered while a cell is edited, one per line. |
-| `DeleteColumn` *(not yet)* | Removes a column from the grid. |
+| `DeleteColumn(Column AS INTEGER)` | Removes column `Column`, as DeleteCol does (RC.EXE knows both names). |
 
 | Event | |
 |---|---|
@@ -2957,8 +2957,8 @@ A font picker: Execute shows it and returns 1 when the user chooses a font, then
 | `AddOptions(Items, …)` | Turns on the option flags given. |
 | `DelOptions(Items, …)` | Turns off the option flags given. |
 | `Execute AS VARIANT` | Opens the font dialog. Returns 1 if a font was chosen, 0 if cancelled. Read .FontName / .FontSize / .FontColor / .FontStyle for the result. |
-| `GetFont(F AS RFONT)` *(not yet)* | Copies the font chosen in the dialog into font `F`. |
-| `SetFont(F AS RFONT)` | Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size. |
+| `GetFont(F AS RFONT)` | Takes font `F`'s name, size, colour and styles into the dialog (what it shows first when Execute opens it); SetFont gives the dialog's back to an RFont. RapidR also takes a component's own font here (`GetFont(Label.Font)`), which RapidQ's compiler refuses. |
+| `SetFont(F AS RFONT)` | Gives font `F` the dialog's name, size, colour and styles (after Execute). RapidR also takes a component's own font (`SetFont(Label.Font)` changes the label), which RapidQ's compiler refuses. |
 
 | Event | |
 |---|---|
@@ -3058,7 +3058,7 @@ A list of strings in memory: add, insert, delete, sort and find them, load and s
 | Method | |
 |---|---|
 | `AddItems(Items, …)` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
-| `AddList(List AS RSTRINGLIST)` *(not yet)* | Appends every string of another string list. |
+| `AddList(List AS RSTRINGLIST)` | Appends every string of another string list. |
 | `Build(Start AS INTEGER, End AS INTEGER, Delim AS STRING) AS STRING` | Returns the strings from `Start` to `End` joined into one, separated by `Delim`. |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
@@ -3066,10 +3066,10 @@ A list of strings in memory: add, insert, delete, sort and find them, load and s
 | `IndexOf(String AS STRING) AS VARIANT` | Returns the index of the first string equal to `String`, or -1. |
 | `InsertItem(Index AS INTEGER, String AS STRING)` | Inserts an item with text `String` before position `Index`. |
 | `LoadFromFile(File AS STRING)` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
-| `LoadFromStream(File AS QSTREAM)` *(not yet)* | Loads the component's contents from an open stream. |
+| `LoadFromStream(File AS QSTREAM)` | Replaces the items with the stream's text from its position to its end, a line per item (lines end at CR LF, LF or CR); the stream is left at its end. |
 | `Parse(Source AS STRING, Delim AS STRING) AS LONG` | Splits text into parts: a string list splits `Source` at `Delim` into its items and returns how many; a CGI reads the request's variables. |
 | `SaveToFile(File AS STRING)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
-| `SaveToStream(File AS QSTREAM)` *(not yet)* | Writes the component's contents to an open stream. |
+| `SaveToStream(File AS QSTREAM)` | In RapidQ (RC.EXE) this reads the list from the stream, exactly as LoadFromStream does, and writes nothing (its manual warns that it erases the list); RapidR keeps that. To write the items to a stream, use `Stream.WriteStr(List.Text, LEN(List.Text))`. |
 | `Sort` | Sorts the items, nodes or elements in ascending order. |
 | `Add` *(RapidR)* | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
 | `Delete` *(RapidR)* | Removes part of the contents: a list's string or image at an index, or a recording's samples from `Pos1` to `Pos2`. |
@@ -3128,7 +3128,7 @@ A printer: BeginDoc, draw pages with the canvas methods and NewPage, then EndDoc
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 
 <a id="rregistry"></a>
@@ -3304,14 +3304,14 @@ A picture in memory to draw on and draw from: load and save images, draw with th
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
-| `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` *(not yet)* | Rotates the picture by `Angle` degrees around (`xOrigin`, `yOrigin`). |
+| `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` | Turns the whole picture `Angle` degrees anticlockwise about pixel (`xOrigin`, `yOrigin`), keeping its size: each pixel takes the nearest one that turns onto it, and pixels nothing turns onto take the colour the top-left pixel had before. |
 | `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
 | `SaveToFile(FileName AS STRING)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
 | `SaveToStream(Stream)` | Writes the component's contents to an open stream. |
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` *(not yet)* | Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `LoadIcon(Name AS STRING, [Size AS INTEGER], [Theme AS STRING])` *(RapidR)* | Loads one of RapidR's own icons (an icon name such as "run", a component type, a command id), Size pixels square (16 if left out), in the current theme's colours or Theme's; crisp at every screen scale. |
 
@@ -3343,7 +3343,7 @@ A list of same-size pictures (bitmaps or icons), drawn by index; list views and 
 | `AddICOHandle(ICO_Resource)` | Appends an icon resource to the list. |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `Delete(Index AS INTEGER)` | Removes part of the contents: a list's string or image at an index, or a recording's samples from `Pos1` to `Pos2`. |
-| `Draw(RImage, X AS INTEGER, Y AS INTEGER, Index AS INTEGER)` *(not yet)* | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
+| `Draw(Target, X AS INTEGER, Y AS INTEGER, Index AS INTEGER)` | Draws image `Index` with its top left at (`X`, `Y`) on `Target`: an RBitmap, RImage, RCanvas or RDXScreen (its back buffer). An `Index` out of range draws nothing; the mask colour's pixels are left out. |
 | `InsertBMPFile(Index AS INTEGER, Filename AS STRING, Mask AS INTEGER)` | Loads a bitmap file and inserts its image at position `Index`, with `Mask` as its transparent color. |
 | `InsertICOFile(Index AS INTEGER, Filename AS STRING)` | Loads an icon file and inserts it at position `Index`. |
 | `InsertBMPHandle(Index AS INTEGER, BMP_Resource, Mask AS INTEGER)` | Inserts a bitmap resource's image at position `Index`, with `Mask` as its transparent color. |
@@ -3412,7 +3412,7 @@ A client for a MySQL or MariaDB server: connect, run queries and walk the rows t
 | `DBCount` (read-only) | int |  | The number of databases the server lists. |
 | `ColCount` (read-only) | int |  | The number of columns: of a grid (fixed ones included), of a query's result, of a data frame. |
 | `FieldCount` (read-only) | int |  | The number of fields (columns) in the last query's result. |
-| `Length` (read-only) | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
+| `Length` (read-only) | int |  | `Length(i)`: how many bytes field `i` (from 0) of the row the last FetchLengths measured has (a NULL 0); 0 before any. |
 | `Row` (read-only) | string |  | The selected row: of a grid's selected cell or a tree's node, from 0; on a database, the current result row (MySQL: `Row(i)`, its field i). |
 | `RowCount` (read-only) | int |  | The number of rows: of a grid (fixed ones included), of a query's result, of a data frame. |
 | `Table` (read-only) | string |  | A table's name, `Table(i)` from 0, as the database lists them; read-only. |
@@ -3429,23 +3429,23 @@ A client for a MySQL or MariaDB server: connect, run queries and walk the rows t
 | Method | |
 |---|---|
 | `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
-| `Connect(Host AS STRING, User AS STRING, Passwd AS STRING) AS INTEGER` | Opens a connection: to a MySQL server from a host, user and password (true on success), or to TCP port `PortNum` of a server (the new socket's number, -1 on failure). |
-| `CreateDB(DB AS STRING) AS INTEGER` *(not yet)* | Creates a database named `DB` on the server; returns true on success. |
-| `DropDB(DB AS STRING) AS INTEGER` *(not yet)* | Deletes database `DB` from the server; returns true on success. |
-| `EscapeString(S AS STRING, Length AS INTEGER) AS STRING` | Returns the string with quotes and special characters escaped for a MySQL query. |
+| `Connect(Host AS STRING, User AS STRING, Passwd AS STRING) AS INTEGER` | Connects to the MySQL server on `Host` ("": this machine; the Port property, else 3306) as `User` with password `Passwd`. Returns 1 if it did, else 0 (OnError gets the message); then Connected, DB(i) and DBCount, and OnConnect. |
+| `CreateDB(DB AS STRING) AS INTEGER` | Makes a new database named `DB` on the server. Returns 1 if it did, 0 if not (not connected, or the server refused: OnError gets its message); DB(i) and DBCount then list it. |
+| `DropDB(DB AS STRING) AS INTEGER` | Deletes database `DB` and its tables from the server. Returns 1 if it did, 0 if not (OnError gets the server's message); DB(i) and DBCount follow. |
+| `EscapeString(S AS STRING, Length AS INTEGER) AS STRING` | The first `Length` characters of `S` made safe between quotes in SQL: NUL, line feed, carriage return, backslash, both quotes and Ctrl+Z each become a backslash pair (\0 \n \r \\ \' \" \Z). Binary data (one character per byte) passes too. RapidR also takes it without `Length` (the whole text); binding values with ? is safer. |
 | `FetchField AS VARIANT` | Moves to the next column of the query's result and fills the field information; returns false when none are left. |
-| `FetchLengths AS VARIANT` *(not yet)* | Returns the lengths of the fields of the current row. |
+| `FetchLengths AS INTEGER` | Measures the current row's fields in bytes for Length(i), which keeps those values until the next FetchLengths. Returns 1, or 0 when there's no current row (before the first FetchRow, past the last). |
 | `FetchRow AS VARIANT` | Moves to the next row of the query's result; returns false when no rows are left. |
 | `FieldSeek(Position AS INTEGER) AS VARIANT` | Moves the field cursor to column `Position`, the next one `FetchField` reads. |
 | `Query(Query AS STRING) AS INTEGER` | Runs the SQL. Values after it are bound to its ? placeholders (sent apart from the SQL: no SQL injection); an array gives its elements. Returns 1, or 0 on an error (OnError gets the message). |
-| `RealConnect(Host AS STRING, User AS STRING, Passwd AS STRING, DB AS STRING, Port AS INTEGER, UnixSock AS STRING, Flags AS INTEGER)` *(not yet)* | Connects to a MySQL server with host, user, password, database, port, socket and flags; returns true on success. |
-| `Refresh(RefreshFlags AS INTEGER) AS INTEGER` *(not yet)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `RowBlob(Row AS INTEGER, Bytes AS LONG) AS STRING` *(not yet)* | Returns `Bytes` bytes of the binary field in row `Row`. |
+| `RealConnect(Host AS STRING, User AS STRING, Passwd AS STRING, DB AS STRING, Port AS INTEGER, UnixSock AS STRING, Flags AS INTEGER)` | Connects like Connect, with more say: `DB` is the database to use ("" none), `Port` the server's TCP port (0: 3306), `UnixSock` a Unix socket's path or a Windows named pipe's name to connect through instead of TCP ("" none), `Flags` the C client's CLIENT_* flags (CLIENT_COMPRESS = 32 compresses the traffic; CLIENT_SSL is ignored: no TLS). An empty `Host` is this machine. A SUB: read Connected (OnConnect / OnError also tell). |
+| `Refresh(RefreshFlags AS INTEGER) AS INTEGER` | Asks the server to reload or clear what the flags name (MYSQL.INC): Refresh_Grant (1) the privilege tables, Refresh_Log (2) the logs, Refresh_Table (4) the open tables, Refresh_Hosts (8) the host cache, Refresh_Status (16) the status counters — added together for several. The user needs MySQL's RELOAD privilege. Returns 1 if all of it was done, 0 if not (OnError gets the server's message). |
+| `RowBlob(Row AS INTEGER, Bytes AS LONG) AS STRING` | Binary data from the current row: the first `Bytes` bytes of its field number `Row` (from 0; despite the name, a column), one character per byte, NUL and all. `Bytes` is usually Length(Row) after FetchLengths. "" without a current row or such a field. |
 | `RowSeek(Row AS INTEGER) AS VARIANT` | Moves to row `Row` of the query's result, the next one `FetchRow` reads. |
 | `SelectDB(DB AS STRING) AS INTEGER` | Makes database `DB` the current one; returns true on success. |
 | `ClearParams` *(RapidR)* | Drops the values queued with AddParam. |
-| `LoadBlob` *(not yet)* | Reads binary data (a BLOB) for a query. |
-| `SaveBlob` *(not yet)* | Writes binary data (a BLOB) for a query. |
+| `LoadBlob(File AS STRING) AS STRING` | Reads a file's bytes and returns them as EscapeString would, ready to go between quotes in an INSERT or UPDATE. "" if the file can't be read (OnError says why). |
+| `SaveBlob(Field AS INTEGER, File AS STRING)` | Writes field `Field` (from 0) of the current row, its bytes as the server sent them, to a new file `File` (no FetchLengths needed). Does nothing without a current row or such a field. |
 
 | Event | |
 |---|---|
@@ -3646,15 +3646,15 @@ A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then
 
 | Event | |
 |---|---|
-| `OnBreak` *(not yet)* | A break condition on the serial line. RapidR accepts a handler for it but never fires it. |
+| `OnBreak` | A break condition arrived on the serial line (the other end held it low). Looked for while the program runs, as OnRxChar: on Unix the terminal marks a break in what is read, on Windows the port's error state says so, in a browser Web Serial's BreakError. (RapidQ's manual lists it as no longer supported.) |
 | `OnClose` | Fires when the form, port or dock form closes. A form's handler can set its BYREF Action to `caNone` (0) to keep the form open. |
 | `OnComError(ErrorMessage AS STRING)` | Fires when opening, reading, writing or closing the serial port fails; ErrorMessage says what went wrong. |
 | `OnOpen` | Fires when Open has opened the serial port. |
 | `OnReadString` | Fires after ReadString has read from the serial port and waited its Wait milliseconds. |
 | `OnWriteString` | Fires after WriteString has sent its text and waited its Wait milliseconds. |
-| `OnRing` *(not yet)* | A ring signal on the serial line (a modem's incoming call). RapidR accepts a handler for it but never fires it. |
+| `OnRing` | The ring indicator came on (a modem's incoming call): looked for while the program runs, as OnRxChar — the port's RI line; in a browser, Web Serial's signals. (RapidQ's manual lists it as no longer supported.) |
 | `OnRxChar(InQue AS INTEGER)` | Fires when bytes arrive at the serial port (InQue: how many are waiting to be read). |
-| `OnTxEmpty` *(not yet)* | Fires when the serial port's output buffer has emptied. RapidR accepts a handler for it but never fires it. |
+| `OnTxEmpty` | The output buffer is empty: everything a Write or WriteString sent has gone out — fired after its OnWriteString. (RapidQ's manual lists it as no longer supported.) |
 | `OnError(Message AS STRING)` | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
 | `OnLine(Received AS STRING)` *(RapidR)* | Fires for each whole line that arrives, without its LineEnd (the line is read: ReadString and ReadLine don't see it). The runtime looks every 50 ms. |
 | `OnPortsChanged(Added AS STRING, Removed AS STRING)` *(RapidR)* | Fires when serial ports come or go, a USB adapter plugged in or out: the names added and removed, a CR LF between two. The runtime looks about once a second (the browser says at once). |
@@ -3919,8 +3919,8 @@ A DirectX drawing surface on a form, for games and animation: draw the next fram
 | `SetVelocity(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE, R AS INTEGER)` | Sets the velocity (`X`, `Y`, `Z`) a frame moves by each time step of `Move`; a DirectX screen sets its camera's. |
 | `SetTextureQuality(Quality AS INTEGER)` | Sets how textures are filtered when drawn. |
 | `Render` | Draws the scene: a DirectX screen draws its 3D view; on the web a chart is drawn (as `SaveFig`). |
-| `CreateAnimation` *(not yet)* | Creates a Direct3D animation, a frame's motion between key positions. |
-| `CreateAnimationSet` *(not yet)* | Creates a Direct3D animation set, animations played together. |
+| `CreateAnimation(Ani AS RD3DANIMATION)` | Takes a Direct3D animation object. RapidQ gives such an object nothing to do (no keys, nothing that plays it), so this does nothing. |
+| `CreateAnimationSet(AniSet AS RD3DANIMATIONSET)` | Takes a Direct3D animation set. RapidQ gives such an object nothing to do (no animations to add, nothing that plays it), so this does nothing. |
 
 | Event | |
 |---|---|
@@ -3992,7 +3992,7 @@ A WAV sound played DirectSound's way: at its Frequency, Volume and Pan, once or 
 | `Play` | Starts playing from the current position. |
 | `Stop` | Stops what is running: playback (back to the start), recording, or the server. |
 | `Update` | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
-| `RecreateBuf` *(not yet)* | Makes the sound buffer again after the device lost it. |
+| `RecreateBuf` | Makes the sound's buffer again after DirectSound lost it. RapidR's sound never loses its buffer, so this does nothing. |
 
 <a id="rdxjoystick"></a>
 ## RDXJoystick <small>(RapidQ name: QDXJOYSTICK)</small>

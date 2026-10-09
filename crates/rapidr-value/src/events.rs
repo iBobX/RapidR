@@ -58,6 +58,18 @@ pub enum Handler {
     Closure(Rc<dyn Fn(&mut Vec<Value>)>),
 }
 
+/// What binding a handler changes besides the binding (both runtimes call
+/// it when they bind one): an OnStartDrag handler makes its button a drag
+/// source (`crate::drag`), a form's OnHint handler hears the program's
+/// hints (`crate::hints`).
+pub fn bound(name: &str, event: &str) {
+    if event.eq_ignore_ascii_case("onstartdrag") {
+        crate::drag::set_source(name);
+    } else if event.eq_ignore_ascii_case("onhint") {
+        crate::hints::set_receiver(name);
+    }
+}
+
 /// Runs `handler` for `name`'s event with `args`, the firing component
 /// last (`Sender`, as in RapidQ's `SUB Button1Click (Sender AS QBUTTON)`;
 /// handlers declaring fewer parameters don't get it). Returns the arguments
@@ -291,3 +303,33 @@ pub fn modal_result(stored: i64) -> i64 {
     }
 }
 
+
+// ---------------------------------------------------------------------------
+// OnPaint for a new size: posted, as Windows posts WM_PAINT
+// ---------------------------------------------------------------------------
+
+thread_local! {
+    /// Components whose new size asks them to paint, oldest first, not yet
+    /// told (each once).
+    static PAINTS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+}
+
+/// A canvas or form `name` changed size: its OnPaint comes when the program
+/// next lets its windows work (ShowModal, DOEVENTS, the end of the main
+/// program …: the runtimes' [`take_posted_paints`]) — not while the program
+/// is still setting things up, as RapidQ's comes in the message loop
+/// (RapidQ's Splitter example draws bitmaps it makes after its form).
+pub fn post_paint(name: &str) {
+    PAINTS.with(|p| {
+        let mut p = p.borrow_mut();
+        if !p.iter().any(|n| n.eq_ignore_ascii_case(name)) {
+            p.push(name.to_string());
+        }
+    });
+}
+
+/// The posted paints, oldest first (the queue emptied): fire each one's
+/// OnPaint now.
+pub fn take_posted_paints() -> Vec<String> {
+    PAINTS.with(|p| std::mem::take(&mut *p.borrow_mut()))
+}

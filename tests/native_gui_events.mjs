@@ -51,6 +51,7 @@
 //   * tests/fixtures/font_dialog.bas — QFONTDIALOG's Name, Size, FontName(i), GetFont / SetFont, OK / Cancel (RAPIDR_TEST_FONT_DIALOG).
 //   * tests/fixtures/window_state.bas — QFORM.WindowState: maximized (the work area, OnResize), restored, minimized.
 //   * tests/fixtures/header.bas — QHEADER: sections clicked and resized, an owner-drawn section.
+//   * tests/fixtures/drawing_members.bas — TextRect, Rotate, RoundRect / CopyRect / StretchDraw in owner drawing, ImageList.Draw, Get / Put; the capture's pixels.
 //   * tests/fixtures/outline.bas — QOUTLINE (a tree view): AddLines by indent, AddChild(Index, S), Item(i), Row.
 //   * tests/fixtures/panel_bevels.bas — QPANEL bevels; a TYPE extending QPANEL created in a form, PROPERTY SET with `.Field`.
 //   * tests/fixtures/tree_edit.bas — QTREEVIEW in-place editing: OnEditing's AllowEdit, OnEdited's S, Escape, ReadOnly.
@@ -58,6 +59,10 @@
 //   * tests/fixtures/pause_edit.bas — a click on the selected tree node / list view item edits it after a pause.
 //   * tests/fixtures/size_grip.bas — QSTATUSBAR's size grip resizes the window (OnResize, Width / Height).
 //   * tests/fixtures/a11y_form.bas — what a screen reader is told (its tree and keys: tests/web_a11y.mjs).
+//   * tests/fixtures/form_members.bas — HideTitleBar / ShowTitleBar, QFORM's MDI members, a list's OnEnter, OnHint and a tooltip.
+//   * tests/fixtures/button_drag.bas — OnStartDrag / OnEndDrag (a drag source), StartDrag (the button moved by the mouse).
+//   * tests/fixtures/comport_events.bas — QCOMPORT's OnTxEmpty, OnBreak, OnRing on a scripted port.
+//   * tests/fixtures/shape_form.bas — Form.ShapeForm from a $RESOURCE bitmap.
 //   * tests/fixtures/menu_hold_timers.bas — timers tick while a native menu holds the window system (`__hold_ms`).
 //   * tests/fixtures/dialog_timers.bas — timers tick while message boxes and file / colour / font dialogs wait
 //     (RAPIDR_TEST_DIALOG_HOLD), nested ones too; their answers come back.

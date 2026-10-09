@@ -138,6 +138,11 @@ fn client_rect(parent: &str) -> Rect {
         return Rect::new(-hp, -vp, cw.max(hr), ch.max(vr));
     }
     let (w, h) = (rp_comp_get(parent, "width").to_i64(), rp_comp_get(parent, "height").to_i64());
+    // (a panel's: inside its bevels — rapidr_value::objects::bevel)
+    if rp_comp_type(parent) == "RPANEL" {
+        let i = rapidr_value::objects::bevel::client_inset(&|p| rp_comp_get(parent, p));
+        return Rect::new(i, i, (w - 2 * i).max(0), (h - 2 * i).max(0));
+    }
     Rect::new(0, 0, w, h)
 }
 
@@ -210,6 +215,11 @@ impl engine::LayoutStore for Rt {
     }
     fn scroll_update(&mut self, name: &str) {
         crate::scroll::update(name);
+    }
+    // (RapidQ aligns nothing before the form's first Show: rapidr_value::
+    // layout's align_controls_unshown; ui-app's forms mark the first Show)
+    fn unshown(&self, parent: &str) -> bool {
+        crate::object::form_of(parent).is_some_and(|f| !crate::object::rp_comp_get(&f, "__shownonce").to_bool())
     }
 }
 

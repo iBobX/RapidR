@@ -27,6 +27,8 @@ pub mod dialogs;
 pub mod headless;
 pub mod menu;
 pub mod platform;
+// (ShapeForm: a form's outline on its window)
+pub mod shape;
 pub mod tracking;
 // (the system tray: rapidr_value::tray)
 pub mod tray;

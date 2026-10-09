@@ -215,15 +215,18 @@ fn form_with_button() {
 #[test]
 fn a_form_shows_once_built_and_paints_after_onshow() {
     form_with_button();
+    let _ = rapidr_value::events::take_posted_paints();
     forms::show(Mem, "F");
-    // (OnResize on each side of OnShow as the window is made: RC.EXE)
-    assert_eq!(fired(), ["f.onload", "F.onresize", "F.onshow", "F.onresize", "f.onpaint", "b.onpaint"]);
+    // (the first Show: OnResize, OnShow, OnResize — RC.EXE; the first
+    // OnPaints posted, for the program's next wait)
+    assert_eq!(fired(), ["f.onload", "F.onresize", "F.onshow", "F.onresize"]);
+    assert_eq!(rapidr_value::events::take_posted_paints(), ["f", "b"]);
     assert_eq!(take_ops(), [WindowOp::Show("f".into())]);
     assert_eq!(world(|w| w.flushes), 1, "the window exists before OnShow");
     assert_eq!((forms::window_shown("f"), forms::form_scale(Mem, "f")), (Some(true), 1.0));
     // (shown again: on top, nothing fired)
     forms::show(Mem, "f");
-    assert_eq!(fired().len(), 6);
+    assert_eq!(fired().len(), 4);
     assert_eq!(take_ops(), [WindowOp::Show("f".into())]);
 }
 
@@ -285,7 +288,7 @@ fn a_user_resize_follows_the_constraints() {
     let (fw, fh) = rapidr_value::layout::form_frame(2);
     assert_eq!((Mem.get("f", "width").to_i64(), Mem.get("f", "height").to_i64()), (400, 300 + fh));
     assert_eq!(take_ops(), [WindowOp::Size("f".into(), (400 - fw, 300))]);
-    assert_eq!(fired()[6..], ["f.onresize", "f.onpaint"]);
+    assert_eq!(fired()[4..], ["f.onresize", "f.onpaint"]);
     // (a move is the runtime's, not the program's: no window command back)
     dispatch::dispatch(Mem, KernelEvent::Moved("f".into(), 5, 6));
     assert_eq!((Mem.get("f", "left").to_i64(), Mem.get("f", "top").to_i64()), (5, 6));
@@ -311,20 +314,20 @@ fn set_and_container_events() {
 fn timers_fire_when_due_and_rearm_from_their_handler() {
     NOW.with(|n| n.set(Some(Instant::now())));
     make("t", "RTIMER", None);
-    Mem.store("t", "interval", v_int(100));
+    Mem.store("t", "interval", v_int(125));
     Mem.store("t", "enabled", v_int(-1));
     timers::register("T");
     timers::start_all(Mem);
     timers::start_all(Mem);
     timers::fire_due(Mem);
     assert!(fired().is_empty());
-    advance(Duration::from_millis(100));
+    advance(Duration::from_millis(125));
     assert_eq!(timers::next_due(), NOW.with(|n| n.get()));
     timers::fire_due(Mem);
     assert_eq!(fired(), ["t.ontimer"], "armed once, however often started");
     // (Interval read again at each tick)
     Mem.store("t", "interval", v_int(250));
-    advance(Duration::from_millis(100));
+    advance(Duration::from_millis(125));
     timers::fire_due(Mem);
     assert_eq!(fired().len(), 2);
     advance(Duration::from_millis(249));
@@ -421,12 +424,12 @@ fn a_timer_fires_once_the_handler_before_it_has_run() {
     NOW.with(|n| n.set(Some(Instant::now())));
     for t in ["t1", "t2"] {
         make(t, "RTIMER", None);
-        Mem.store(t, "interval", v_int(100));
+        Mem.store(t, "interval", v_int(125));
         Mem.store(t, "enabled", v_int(-1));
         timers::register(t);
     }
     timers::start_all(Mem);
-    advance(Duration::from_millis(100));
+    advance(Duration::from_millis(125));
     // (an interpreter's handlers are queued: the first timer's ends the
     // round, the second waits for it to have run)
     world(|w| w.queue = true);
@@ -442,7 +445,7 @@ fn a_timer_fires_once_the_handler_before_it_has_run() {
     // (the VM ran them: both armed again an Interval from then)
     run_queued();
     assert!(!timers::fire_due(Mem));
-    advance(Duration::from_millis(100));
+    advance(Duration::from_millis(125));
     assert!(timers::fire_due(Mem));
     assert_eq!(fired().len(), 3);
 }
@@ -465,6 +468,16 @@ fn the_headless_maximize_takes_the_work_area_and_comes_back() {
     Mem.store("f", "windowstate", v_int(rapidr_value::window_state::WS_NORMAL));
     forms::set_window_state(Mem, "f", rapidr_value::window_state::WS_MAXIMIZED);
     assert_eq!(bounds(), [10, 20, 300, 200]);
+}
+
+#[test]
+fn timer_periods_are_windows_ticks() {
+    // (RC.EXE's builds: Interval 0 never fires; 1 fires about every 16 ms)
+    assert_eq!(timers::timer_period(0), None);
+    assert_eq!(timers::timer_period(-5), None);
+    assert_eq!(timers::timer_period(1), Some(Duration::from_micros(15_625)));
+    assert_eq!(timers::timer_period(20), Some(Duration::from_micros(31_250)));
+    assert_eq!(timers::timer_period(1000), Some(Duration::from_millis(1000)));
 }
 
 #[test]

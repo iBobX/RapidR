@@ -48,7 +48,7 @@ export const cases = [
     expect: ["lbl.caption= sel:RForm sel:RButton sel:RLabel sel:RFormMDI sel:RLanguageService", "info.caption=106 RForm RLanguageService []"] },
   { name: "panel_palette", events: "bopen.onclick,pal.__key_83,pal.__key_65,pal.__key_40,pal.__key_13,bopen.onclick,pal.__key_27,bopen.onclick,edit1.__mousedown_5_5,edit1.__mouseup_5_5,bopen.onclick,pal.__mousedown_100_81,pal.__mouseup_100_81,bopen.onclick,pal.__key_83,breport.onclick",
     dump: "lbl.caption,info.caption",
-    expect: ["lbl.caption= first:file.save run:file.saveall first:file.saveall cancel first:file.saveall cancel first:file.saveall run:file.save first:file.save", "info.caption=3 file.save [s] -1 5"] },
+    expect: ["lbl.caption= first:file.save run:file.saveall first:file.saveall cancel first:file.saveall cancel first:file.saveall run:file.save first:file.save", "info.caption=3 file.save [s] 1 5"] },
   // RPROPERTYINSPECTOR (I1 / L-PANELS, rapidr_value::panels::inspector): a
   // QBUTTON inspected — Caption typed ("Renamed", Enter), Default's box
   // ticked, Cursor picked from its dropped list (Down, Down, Enter),
@@ -59,7 +59,7 @@ export const cases = [
   // differ: blank); the search "cap"; the columns' line dragged 30 right.
   { name: "panel_inspector", events: "insp.__mousedown_200_148,insp.__mouseup_200_148,insp.__enter,insp.__mousedown_135_368,insp.__mouseup_135_368,insp.__mousedown_60_192,insp.__mouseup_60_192,insp.__mousedown_270_192,insp.__mouseup_270_192,insp.__key_40,insp.__key_40,insp.__key_13,insp.__key_65,insp.__key_78,insp.__key_67,insp.__key_39,insp.__key_40,insp.__key_32,insp.__mousedown_196_352,insp.__mouseup_196_352,insp.__key_67,insp.__key_85,insp.__key_46,insp.__mousedown_100_46,insp.__mouseup_100_46,insp.__dblclick_60_104,insp.__mousedown_285_104,insp.__mouseup_285_104,insp.__key_40,insp.__key_13,bform.onclick,breport.onclick,bboth.onclick,insp.__mousedown_40_46,insp.__mouseup_40_46,insp.__mousedown_100_76,insp.__mouseup_100_76,insp.__key_67,insp.__key_65,insp.__key_80,insp.__mousedown_122_126,insp.__mousemove_152_126,insp.__mouseup_152_126,breport.onclick",
     dump: "log.caption",
-    expect: ["log.caption=sel Caption | change Caption=Renamed | sel Default | change Default=True | sel Cursor | change Cursor=crArrow | sel Align | sel Anchors | change Anchors=akLeft | change Anchors=akLeft + akRight | sel Caption | sel Cursor | change Cursor=crDefault | sel OnClick | dbl OnClick | change OnClick=Button1Click | [RForm caption=Inspector anchors=akLeft, akTop-1 page=events filter= rows=14 OnClose= nw=120] | [RButton caption= anchors=0 page=properties filter=cap rows=2 Caption= nw=150] | "] },
+    expect: ["log.caption=sel Caption | change Caption=Renamed | sel Default | change Default=True | sel Cursor | change Cursor=crArrow | sel Align | sel Anchors | change Anchors=akLeft | change Anchors=akLeft + akRight | sel Caption | sel Cursor | change Cursor=crDefault | sel OnClick | dbl OnClick | change OnClick=Button1Click | [RForm caption=Inspector anchors=akLeft, akTop1 page=events filter= rows=16 OnClose= nw=120] | [RButton caption= anchors=0 page=properties filter=cap rows=2 Caption= nw=150] | "] },
   // RPROPERTYINSPECTOR following an RDESIGNSURFACE (its designer model):
   // Caption typed, NameEdit picked on the surface (the inspector follows),
   // its Hint typed, OkButton picked again, its top anchor pin turned off,
@@ -80,7 +80,7 @@ export const cases = [
   { name: "panel_project", events: "tree.__mousedown_45_103,tree.__mouseup_45_103,tree.__dblclick_150_169,tree.__mousedown_120_279,tree.__mouseup_120_279,tree.__key_113,tree.__key_84,tree.__key_79,tree.__key_79,tree.__key_76,tree.__key_83,tree.__key_13,tree.__mousedown_120_301,tree.__mouseup_120_301,tree.__key_46,tree.__key_13,tree.__mousedown_120_279,tree.__mousemove_120_268,tree.__mousemove_120_250,tree.__mouseup_120_250,tree.__mousedown_120_81,tree.__mousemove_120_70,tree.__mousemove_120_37,tree.__mouseup_120_37,brename.onclick,bnew.onclick,tree.__key_68,tree.__key_73,tree.__key_65,tree.__key_76,tree.__key_79,tree.__key_71,tree.__key_13,breport.onclick",
     dump: "lbl.caption,info.caption",
     expect: ["lbl.caption= S:Form1.rr#Button1 O:Form1.rr#Button1 S:Utils.rr R:Utils.rr>tools.rr S:Report.rr D:Report.rr S: S:tools.rr M:tools.rr>tools.rr@0 S:forms/About.rr M:forms/About.rr>About.rr@3 R:Main.rr>Summary.rr new:Form2.rr N:dialog.rr/form",
-      "info.caption=Inventory: tools.rr Main.rr Form1.rr About.rr lib/strings.inc data/stock.csv dialog.rr |-1-1 dialog.rr form"] },
+      "info.caption=Inventory: tools.rr Main.rr Form1.rr About.rr lib/strings.inc data/stock.csv dialog.rr |1-1 dialog.rr form"] },
   // RPROJECTTREE reading files (Project =): an .rrproj and an implicit
   // project ($INCLUDEs followed); the keyboard (Down, Right, End, Left,
   // type-ahead, Enter: OnOpen), Reveal of a component.
@@ -100,7 +100,7 @@ export const cases = [
       "info.caption=output 7 2 [RapidR output console] [           LOCATE 6, 12] line"] },
   { name: "panel_toolbar", events: "bar.__mousedown_74_16,bar.__mouseup_74_16,bar.__mousedown_142_16,bar.__mouseup_142_16,bar.__mousedown_181_16,bar.__mouseup_181_16,bar.__mousedown_230_16,bar.__mouseup_230_16,bar.__mousedown_400_16,bar.__mouseup_400_16,bar2.__mousedown_125_16,bar2.__mouseup_125_16,bar2.__mousedown_102_37,bar2.__mouseup_102_37,bar2.__mousedown_125_16,bar2.__mouseup_125_16,bar2.__mousedown_102_63,bar2.__mouseup_102_63,breport.onclick,bar.__mousemove_45_16",
     dump: "lbl.caption,info.caption",
-    expect: ["lbl.caption= save/file.save click:save grid/designer.showGrid click:grid cool click: redo/edit.redo", "info.caption=8 - -1 0 [cut] Open a file4"] },
+    expect: ["lbl.caption= save/file.save click:save grid/designer.showGrid click:grid cool click: redo/edit.redo", "info.caption=8 - 1 0 [cut] Open a file4"] },
   // RDOCKMANAGER (I1, rapidr_value::dock): an IDE's layout. A tab clicked
   // (Output), the Explorer's splitter dragged 40 to the right, the
   // Toolbox's strip tab clicked twice (slid out, in), Properties dragged
@@ -208,6 +208,19 @@ export const cases = [
     expect: ["lbl.caption=paints2|255|14737632|35|338"] },
   { name: "owner_list", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=r2 0:1;1:1;2:0; 0,48,180,72 h24"] },
+  // TextRect (a background filling the rectangle, the text clipped to it)
+  // on a canvas, an image, an owner-drawn list box, grid and header section
+  // and the form; Rotate on a canvas (a bar a quarter turn: up) and an
+  // image; RoundRect / CopyRect / StretchDraw in OnDrawItem / OnDrawCell;
+  // ImageList.Draw onto a canvas and an image; TextWidth on lists and
+  // grids; QCANVAS Get / Put (0). Pixels: the canvas's TextRect fill and
+  // what's right of it, the turned bar, the grid cell's TextRect and
+  // CopyRect, the header's and the form's TextRect, the selected item's
+  // background stopping at its rectangle, the turned square.
+  { name: "drawing_members", events: "btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=w24 h13 cb24 g24 get0 put0 000000FF 00FFFFFF"],
+    pixels: [[109, 69, "ffff00"], [111, 75, "ffffff"], [70, 20, "ff0000"], [70, 60, "ffffff"], [135, 148, "000080"], [144, 135, "ffffff"], [88, 165, "ffff00"],
+      [445, 120, "008000"], [451, 110, "f0f0f0"], [378, 198, "ffffcc"], [355, 57, "99ccff"], [363, 45, "ffffff"], [200, 50, "008000"]], clientWidth: 518 },
   // RapidQ's drawing methods on lists and a grid (an RC.EXE-built program of
   // this layout, seen in Windows): owner-drawn items and a cell with
   // Rectangle and Paint's flood fill inside it (blue), a plain list box
@@ -247,7 +260,7 @@ export const cases = [
     expect: ["lbl.caption=00000000|00000002|00000080|00FF00FF", "lbl2.caption=ok 000000FF 00123456|cancel 000000FF"] },
   // (`fontDialog`: likewise, `Name,Size,styles (b i u s),colour`)
   { name: "font_dialog", events: "b1.onclick,b2.onclick", dump: "lbl.caption,lbl2.caption", fontDialog: "Courier New,14,bu,255;",
-    expect: ["lbl.caption=MS Sans Serif|8|8|Courier New|Times New Roman12", "lbl2.caption=ok Courier New14 -10-1 000000FF|cancel Courier New"] },
+    expect: ["lbl.caption=MS Sans Serif|8|8|Courier New|Times New Roman12", "lbl2.caption=ok Courier New14 101 000000FF|cancel Courier New"] },
   // (QFORM.WindowState: maximize, restore, minimize; OnResize counted by a
   // later click)
   { name: "window_state", headlessOnly: "a real window manager animates (macOS: ~40 OnResize) or answers later (GNOME's restore), and Wayland never tells a window where it is",
@@ -425,6 +438,39 @@ export const cases = [
     // (the harness names the classic look; `dark`, the old name, is RapidR's
     // dark look now)
     expect: ["lbl.caption=theme classic then rapidr dark"], themes: ["rapidr light", "rapidr dark", "rapidr high contrast"] },
+  // (form members) HideTitleBar / ShowTitleBar — the client keeps its
+  // size, Height loses or gets back the title bar's (RC.EXE: 300 x 200 →
+  // 300 x 177) —, QFORM's MDI members on a form without MDI children, a
+  // list's OnEnter (focused as the form shows, a click, SetFocus), OnHint
+  // (the long hint of what the mouse is over, whatever ShowHint; the form's
+  // own over its open area) and the file list's tooltip in the capture
+  // (HintPause 100 there); hidden again last: the web's frame is the
+  // border alone.
+  { name: "form_members", events: "hide.onclick,show.onclick,arr.onclick,l2.__mousedown_5_5,l2.__mouseup_5_5,foc.onclick,ed.__mousemove_5_5,form.__mousemove_300_250,hide.onclick,l2.__mousemove_5_5",
+    dump: "lbl.caption,lh.caption,form.height,form.clientheight",
+    expect: ["lbl.caption= start300,269 h271,269 h271 s300,269 m00 e1 e2 e1 h271,269 h271", "lh.caption=[Your full name][the form][the folder's files]", "form.height=271", "form.clientheight=269"],
+    webCheck: `document.querySelector('[data-rr-form="form"]').style.height`, webExpect: "271px" },
+  // (form members) A QBUTTON dragged, RapidQ's two ways (RC.EXE, the real
+  // mouse): OnStartDrag bound — the press is OnStartDrag's, the release
+  // OnEndDrag's (no OnMouseDown / Up, no OnClick); StartDrag in OnMouseDown
+  // — the button follows the mouse, StartDrag returns at the release (RC.EXE:
+  // 150,100 → 185,125), no OnMouseUp or OnClick; a cool button too.
+  { name: "button_drag", events: "drag.__mousedown_5_5,drag.__mousemove_40_30,drag.__mouseup_40_30,mover.__mousedown_5_5,mover.__mousemove_40_30,mover.__mouseup_40_30,cool.__mousedown_3_3,cool.__mousemove_13_23,cool.__mouseup_13_23",
+    dump: "lbl.caption,mover.left,mover.top,cool.left,cool.top,drag.left",
+    expect: ["lbl.caption= start end m150,100 moved185,125 cool20,80", "mover.left=185", "mover.top=125", "cool.left=20", "cool.top=80", "drag.left=10"] },
+  // (form members) QCOMPORT's line events on a scripted port that rings and
+  // sends a break once it opens: OnWriteString then OnTxEmpty, then —
+  // looked for as OnRxChar — OnBreak, OnRing, OnRxChar (the echo).
+  { name: "comport_events", events: "btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption= open written txempty break ring rx2"] },
+  // (form members) Form.ShapeForm: an oval with a square hole cut out of a
+  // borderless form, from a $RESOURCE bitmap (white transparent); its sizes
+  // and BorderStyle unchanged. The window's outline is the host's (the
+  // desktop's window system, the page's clip path) — the captures show the
+  // inside whole.
+  { name: "shape_form", events: "btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=160x120 160 0"],
+    webCheck: `document.querySelector('[data-rr-form="form"]').style.clipPath.slice(0, 20)`, webExpect: 'path("M 80 4 h 1 v 1' },
   // RPLOT on a form (the UI kernel's component, the one chart renderer): a
   // line chart anchored left / top / right, widened with the form (500 ×
   // 350); a bar chart aligned to the bottom. The click adds a dashed series

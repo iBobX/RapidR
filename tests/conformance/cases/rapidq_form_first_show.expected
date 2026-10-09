@@ -1,0 +1,10 @@
+before 105 105
+after width 0
+resize 1
+show 1
+resize 2
+shown 2 -1
+events 2
+show 2
+again 2
+end 2

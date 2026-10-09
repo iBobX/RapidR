@@ -894,6 +894,124 @@ fn switching_the_theme_repaints_in_the_new_one() {
     assert!(after.contains(&format!("round 0,0 120x22 r{} fill #{:06x}", DARK.radius, DARK.window)), "{after}");
 }
 
+// ------------------------------------------------- form members' input --
+
+/// A form with two lists, an edit and two buttons (`drag` a drag source).
+fn members_form() -> (MemStore, FormUi, TextSystem) {
+    let mut s = MemStore::new();
+    s.add("mf", "RFORM", None).set("mf", "hint", v_str("the form"));
+    s.add("l1", "RLISTBOX", Some("mf")).set("l1", "left", v_int(10)).set("l1", "top", v_int(10));
+    s.add("ed", "REDIT", Some("mf")).set("ed", "left", v_int(150)).set("ed", "top", v_int(10)).set("ed", "hint", v_str("Name|Your full name"));
+    s.add("l2", "RFILELISTBOX", Some("mf")).set("l2", "left", v_int(10)).set("l2", "top", v_int(120)).set("l2", "showhint", v_int(-1)).set("l2", "hint", v_str("files"));
+    s.add("drag", "RBUTTON", Some("mf")).set("drag", "left", v_int(150)).set("drag", "top", v_int(60)).set("drag", "caption", v_str("drag"));
+    s.add("mv", "RBUTTON", Some("mf")).set("mv", "left", v_int(250)).set("mv", "top", v_int(60)).set("mv", "caption", v_str("move"));
+    rapidr_value::drag::set_source("drag");
+    let mut ts = TextSystem::new();
+    let mut f = FormUi::build(&s, "mf", false);
+    drop(f.paint(&s, &mut ts, 1.0));
+    (s, f, ts)
+}
+
+fn fired(events: Vec<KernelEvent>) -> Vec<String> {
+    events
+        .into_iter()
+        .filter_map(|e| match e {
+            KernelEvent::Fire { id, event, .. } => Some(format!("{id}.{event}")),
+            KernelEvent::Mouse { id, kind, .. } => Some(format!("{id}.{kind:?}")),
+            KernelEvent::Click(id) => Some(format!("{id}.click")),
+            KernelEvent::Set { id, prop, value } => Some(format!("{id}.{prop}={value}")),
+            KernelEvent::Hint(h) => Some(format!("hint:{h}")),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn a_list_hears_onenter_when_it_gets_the_focus() {
+    let (s, mut f, mut ts) = members_form();
+    // (the first in Tab order is focused as the form shows)
+    assert_eq!(fired(f.take_events()), ["l1.onenter"]);
+    f.mouse_down(&s, &mut ts, 155.0, 15.0, Button::Left, NONE);
+    f.mouse_up(&s, &mut ts, 155.0, 15.0, Button::Left, NONE);
+    assert!(!fired(f.take_events()).iter().any(|e| e.ends_with("onenter")), "an edit has none");
+    // (a press on the file list: OnEnter before what the press does)
+    f.mouse_down(&s, &mut ts, 20.0, 125.0, Button::Left, NONE);
+    let ev = fired(f.take_events());
+    assert_eq!(ev.first().map(String::as_str), Some("l2.onenter"), "{ev:?}");
+    // (SetFocus: entered; the same one again: nothing)
+    assert!(f.focus_id(&s, "l1"));
+    assert_eq!(fired(f.take_events()), ["l1.onenter"]);
+    assert!(f.focus_id(&s, "l1"));
+    assert!(fired(f.take_events()).is_empty());
+}
+
+#[test]
+fn the_hint_under_the_mouse_and_its_tooltip() {
+    let (s, mut f, mut ts) = members_form();
+    f.take_events();
+    let t0 = crate::tick::now();
+    crate::tick::set_test_now(Some(t0));
+    // (onto the edit: its long hint, whatever its ShowHint; no tooltip)
+    f.mouse_move(&s, &mut ts, 160.0, 15.0, NONE);
+    assert_eq!(fired(f.take_events()), ["hint:Your full name", "ed.Move"]);
+    // (the form's open area: the form's own hint)
+    f.mouse_move(&s, &mut ts, 300.0, 200.0, NONE);
+    assert_eq!(fired(f.take_events()), ["hint:the form", "mf.Move"]);
+    // (the file list shows its hint: a tooltip after HintPause)
+    f.mouse_move(&s, &mut ts, 20.0, 130.0, NONE);
+    assert!(f.next_wake().is_some());
+    crate::tick::set_test_now(Some(t0 + std::time::Duration::from_millis(499)));
+    f.tick(&s, &mut ts, crate::tick::now());
+    assert_eq!(f.hint_shown(), None);
+    crate::tick::set_test_now(Some(t0 + std::time::Duration::from_millis(501)));
+    f.tick(&s, &mut ts, crate::tick::now());
+    assert_eq!(f.hint_shown(), Some("files"));
+    let dump = f.paint(&s, &mut ts, 1.0).dump();
+    assert!(dump.contains("fill") && dump.contains("files"), "{dump}");
+    // (a press takes it away; and after HintHidePause it goes by itself)
+    f.mouse_down(&s, &mut ts, 20.0, 130.0, Button::Left, NONE);
+    assert_eq!(f.hint_shown(), None);
+    crate::tick::set_test_now(None);
+    // (out of the window: "")
+    f.mouse_leave(&s, &mut ts);
+    assert!(fired(f.take_events()).contains(&"hint:".to_string()));
+}
+
+#[test]
+fn a_drag_source_and_a_startdrag_move() {
+    let (mut s, mut f, mut ts) = members_form();
+    f.take_events();
+    // (OnStartDrag bound: the press starts a drag — no OnMouseDown — and
+    // the release ends it: OnEndDrag, no OnMouseUp, no OnClick)
+    f.mouse_down(&s, &mut ts, 160.0, 65.0, Button::Left, NONE);
+    assert!(f.dragging_source());
+    f.mouse_move(&s, &mut ts, 200.0, 90.0, NONE);
+    f.mouse_up(&s, &mut ts, 200.0, 90.0, Button::Left, NONE);
+    let ev: Vec<String> = fired(f.take_events()).into_iter().filter(|e| !e.starts_with("hint:")).collect();
+    assert_eq!(ev, ["drag.onstartdrag", "drag.onenddrag"]);
+    // (StartDrag while the button is held: it follows the mouse; the
+    // release is the move's alone)
+    f.mouse_down(&s, &mut ts, 255.0, 65.0, Button::Left, NONE);
+    f.take_events();
+    assert!(f.start_move("mv"));
+    f.mouse_move(&s, &mut ts, 290.0, 90.0, NONE);
+    f.mouse_up(&s, &mut ts, 290.0, 90.0, Button::Left, NONE);
+    let ev: Vec<String> = fired(f.take_events()).into_iter().filter(|e| !e.starts_with("hint:")).collect();
+    assert_eq!(ev, ["mv.left=285", "mv.top=85"]);
+    assert!(!f.dragging());
+    // (no button held: nothing moves)
+    assert!(!f.start_move("mv"));
+    // (Escape puts it back — where the program's store has it now)
+    s.set("mv", "left", v_int(285)).set("mv", "top", v_int(85));
+    f.mouse_down(&s, &mut ts, 290.0, 90.0, Button::Left, NONE);
+    assert!(f.start_move("mv"));
+    f.mouse_move(&s, &mut ts, 300.0, 100.0, NONE);
+    let mut ev = f.take_events();
+    ev.extend(key(&mut f, &s, &mut ts, 27, "", NONE));
+    let ev: Vec<String> = fired(ev).into_iter().filter(|e| !e.starts_with("hint:") && !e.ends_with(".Down")).collect();
+    assert_eq!(ev, ["mv.left=295", "mv.top=95", "mv.left=285", "mv.top=85"]);
+}
+
 /// The built-in face (by its place in `BUILTIN_FACES`) each run of a laid-out
 /// text is drawn from: (text of the run, index).
 fn run_faces(ts: &mut TextSystem, text: &str, font: &Font) -> Vec<(String, usize)> {
@@ -920,7 +1038,8 @@ fn run_faces(ts: &mut TextSystem, text: &str, font: &Font) -> Vec<(String, usize
 /// Cyrillic) comes from the family's Regular face.
 #[test]
 fn styled_text_is_drawn_from_the_designed_faces() {
-    // (RapidQ's look: MS Sans Serif is RapidR Sans; RapidR's draws it in Inter)
+    // (RapidQ's look: MS Sans Serif is RapidR Sans there — RapidR's own
+    // look draws the default font in Inter)
     rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
     // (the indices into BUILTIN_FACES: Sans, Serif, Mono, RapidR Sans,
     // RapidR Sans Bold, then the nine Liberation styles in Sans, Serif, Mono
@@ -957,7 +1076,8 @@ fn styled_text_is_drawn_from_the_designed_faces() {
 /// `TextWidth` measures it (the Regular face's advance), bold or not.
 #[test]
 fn bold_text_with_characters_the_bold_face_lacks_measures_the_same() {
-    // (MS Sans Serif as the classic look has it: RapidR Sans)
+    // (RapidQ's look: MS Sans Serif is RapidR Sans there — RapidR's own
+    // look draws the default font in Inter)
     rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
     let mut ts = TextSystem::new();
     for (name, styles) in [("Arial", 1u8), ("Arial", 3), ("Times New Roman", 1), ("Courier New", 1), ("MS Sans Serif", 1)] {

@@ -544,6 +544,7 @@ impl ComponentKind for Design {
             title: shown.title.clone(),
             active: true,
             border: shown.border,
+            caption: true,
             frame: crate::frame::frame_of(view.store.get(&form_id, "borderstyle").to_i64().max(if shown.border { 1 } else { 0 }), match view.store.get(&form_id, "bordericons") {
                 Value::Null => crate::frame::BI_DEFAULT,
                 v => v.to_i64(),
@@ -561,7 +562,7 @@ impl ComponentKind for Design {
         let text = &mut *cx.text;
         let mut draw_form = |p: &mut Painter| {
             p.at((fx, fy), |p| crate::frame::paint_into(p, &look, (fw, fh)));
-            let (ix, iy) = crate::frame::inset(shown.border);
+            let (ix, iy) = crate::frame::inset(shown.border, true);
             let (ox, oy) = (fx + ix, fy + iy);
             let face = color_of(&view.store, &form_id).unwrap_or(p.theme().face);
             let View { ui, store, form, .. } = &mut *view;

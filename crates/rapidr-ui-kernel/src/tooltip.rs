@@ -1,7 +1,9 @@
-//! Tooltips (RapidQ's hints): a component's `Hint` shown in a small box
-//! when the mouse rests on it — after Windows' half second, for a few
-//! seconds, gone as the mouse moves off, a button goes down or a key is
-//! pressed — when its `ShowHint` is True, as in RapidQ (and Delphi). The
+//! Tooltips (RapidQ's hints): a component's `Hint` (its short part) shown
+//! in a small box when the mouse rests on it — after Application.HintPause
+//! (500 ms), for HintHidePause (2.5 s), the next one after HintShortPause,
+//! gone as the mouse moves off, a button goes down or a key is pressed —
+//! when it shows hints (its `ShowHint`, else its parent's: hint.rs's
+//! [`FormUi::hint_tip`]), as in RapidQ (and Delphi). The
 //! keyboard brings them too: a component Tab reaches shows its hint under
 //! it. A component can give a tip of its own where it has no Hint
 //! ([`ComponentKind::tip_at`](crate::components::ComponentKind::tip_at): a
@@ -20,14 +22,15 @@ use rapidr_value::objects::ops::Place;
 use rapidr_value::objects::text::text_size;
 
 use crate::paint::Painter;
-use crate::store::{self, Store};
+use crate::store::Store;
 use crate::tick::{now, Instant};
 use crate::tree::FormUi;
 
-/// Windows' hover time before a tooltip (Application.HintPause's default).
-pub const PAUSE: Duration = Duration::from_millis(500);
-/// How long one stays up (TTDT_AUTOPOP's default: ten times the pause).
-pub const SHOWN: Duration = Duration::from_millis(5000);
+/// One of Application's hint times (HintPause, HintHidePause,
+/// HintShortPause: milliseconds), as the program set it or the VCL's.
+fn millis(prop: &str) -> Duration {
+    Duration::from_millis(rapidr_value::globals::hint_setting(prop).to_i64().clamp(0, 600_000) as u64)
+}
 
 /// A form's tooltip.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -54,12 +57,7 @@ fn tip_of(f: &mut FormUi, store: &dyn Store, i: usize, x: f64, y: f64) -> String
             return t;
         }
     }
-    if store::flag(store, &id, "showhint", false) {
-        // (a hint with a "|": its short part, VCL's)
-        let hint = store::string(store, &id, "hint");
-        return hint.split('|').next().unwrap_or("").to_string();
-    }
-    String::new()
+    f.hint_tip(store, Some(i))
 }
 
 impl FormUi {
@@ -68,7 +66,9 @@ impl FormUi {
     pub(crate) fn tip_mouse(&mut self, store: &dyn Store, hit: Option<usize>, x: f64, y: f64) {
         let text = match hit {
             Some(i) if self.nodes[i].shown => tip_of(self, store, i, x, y),
-            _ => String::new(),
+            Some(_) => String::new(),
+            // (the form's open area: its own hint)
+            None => self.hint_tip(store, None),
         };
         if hit == self.tip.node && text == self.tip.text {
             return;
@@ -80,7 +80,7 @@ impl FormUi {
         }
         // (moving from one tip to the next shows it at once, as Windows'
         // "reshow" delay does)
-        let wait = if was_shown { Duration::ZERO } else { PAUSE };
+        let wait = millis(if was_shown { "hintshortpause" } else { "hintpause" });
         self.tip = TipUi { node: hit, text, at: (x.round() as i64 + 2, y.round() as i64 + 22), due: Some(now() + wait), until: None, shown: false };
     }
 
@@ -92,7 +92,7 @@ impl FormUi {
         let (x, y, w, h) = self.nodes[i].abs;
         let text = tip_of(self, store, i, (x + w / 2) as f64, (y + h / 2) as f64);
         if !text.is_empty() {
-            self.tip = TipUi { node: Some(i), text, at: (x, y + h + 4), due: Some(now() + PAUSE), until: None, shown: false };
+            self.tip = TipUi { node: Some(i), text, at: (x, y + h + 4), due: Some(now() + millis("hintpause")), until: None, shown: false };
         }
     }
 
@@ -114,7 +114,7 @@ impl FormUi {
         if !self.tip.shown {
             if self.tip.due.is_some_and(|d| d <= at) {
                 self.tip.shown = true;
-                self.tip.until = Some(at + SHOWN);
+                self.tip.until = Some(at + millis("hinthidepause"));
                 self.dirty = true;
             }
         } else if self.tip.until.is_some_and(|u| u <= at) {
@@ -149,8 +149,10 @@ impl FormUi {
             }
             t.menu_text
         } else {
-            // (Windows' classic tooltip: the info colour, a black frame)
-            p.fill((x, y, w, h), 0xFFFFE1);
+            // (Windows' classic tooltip: Application.HintColor, the info
+            // colour by default, a black frame)
+            let fill = crate::text::bgr_to_rgb(rapidr_value::globals::hint_setting("hintcolor").to_i64());
+            p.fill((x, y, w, h), fill);
             p.frame((x, y, w, h), 0x000000);
             0x000000
         };
@@ -164,11 +166,14 @@ mod tests {
 
     #[test]
     fn deadlines() {
+        // (the VCL's defaults: HintPause 500, HintHidePause 2500)
+        assert_eq!(millis("hintpause"), Duration::from_millis(500));
+        assert_eq!(millis("hinthidepause"), Duration::from_millis(2500));
         let t0 = now();
-        let mut tip = TipUi { due: Some(t0 + PAUSE), ..TipUi::default() };
+        let mut tip = TipUi { due: Some(t0 + millis("hintpause")), ..TipUi::default() };
         assert!(!tip.shown);
         tip.shown = true;
-        tip.until = Some(t0 + SHOWN);
+        tip.until = Some(t0 + millis("hinthidepause"));
         assert!(tip.until > tip.due);
     }
 }

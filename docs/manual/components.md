@@ -89,6 +89,13 @@ END SUB
 - Events run when the program waits: during `ShowModal`, `DOEVENTS` or a
   dialog. The program ends when its main code does, as in RapidQ: forms
   still open close with it and their timers stop.
+- A form's first `Show` (or `ShowModal`) fires `OnResize`, `OnShow`,
+  `OnResize`, as RapidQ does — lay a form out in `OnResize` and it is right
+  when it appears. `OnPaint` comes after, when the program next waits. A size
+  the program sets on a shown form (`Width`, `Height`, `ClientWidth`) fires
+  `OnResize` at once; a new position fires nothing.
+- True / false properties read `1` or `0` (RapidQ's rule), RapidR Studio's
+  panel components too (`Console.ShowTabs`, `Tree.ShowFiles`).
 
 ```basic
 Form.ShowModal          ' shows the form and waits until it closes

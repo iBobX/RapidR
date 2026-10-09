@@ -6,9 +6,11 @@
 //! ftNormal alone at first), `Update`, `FileName` (the selected item's
 //! path), `Drive`.
 //!
-//! Items as Delphi's TFileListBox shows them: directories (ftDirectory) in
-//! brackets — `[..]` first, then `[name]` — then the files, each group in
-//! alphabetical order. Hidden files (a leading `.`) only with ftHidden. A
+//! Items as RapidQ's file list shows them (RC.EXE): the files, then the
+//! directories (ftDirectory) in brackets with `[..]` and `[.]` among them,
+//! each group in Windows' order ([`windows_order`]: case ignored, symbols
+//! before digits before letters). Hidden files (a leading `.`) only with
+//! ftHidden. A
 //! directory that can't be read (or the web, which has no file system)
 //! lists nothing.
 
@@ -54,11 +56,26 @@ pub fn wildcard_match(pattern: &str, name: &str) -> bool {
     go(&p, &n)
 }
 
+/// Two names in the order a Windows list box sorts them (RC.EXE's file
+/// lists: `a.bas`, `z.txt`; `[..]`, `[.]`, `[_x]`, `[Adir]`, `[bdir]`):
+/// case ignored, symbols before digits before letters.
+pub fn windows_order(a: &str, b: &str) -> std::cmp::Ordering {
+    let key = |s: &str| -> Vec<(u8, char)> {
+        s.chars()
+            .flat_map(char::to_lowercase)
+            .map(|c| (if c.is_alphabetic() { 2 } else if c.is_ascii_digit() { 1 } else { 0 }, c))
+            .collect()
+    };
+    key(a).cmp(&key(b)).then_with(|| a.cmp(b))
+}
+
 impl FileSource {
     /// The items for the directory as it is now.
     pub fn list(&self) -> Vec<String> {
-        let mut dirs = Vec::new();
-        let mut files = Vec::new();
+        // (the web build has no directory to read: no directory there)
+        #[cfg_attr(target_arch = "wasm32", allow(unused_mut))]
+        let mut dirs: Vec<String> = Vec::new();
+        let mut files: Vec<String> = Vec::new();
         #[cfg(not(target_arch = "wasm32"))]
         let hidden_ok = self.types & (1 << FT_HIDDEN) != 0;
         #[cfg(not(target_arch = "wasm32"))]
@@ -78,18 +95,18 @@ impl FileSource {
                 }
             }
         }
-        let by_name = |a: &String, b: &String| a.to_lowercase().cmp(&b.to_lowercase()).then(a.cmp(b));
-        dirs.sort_by(by_name);
-        files.sort_by(by_name);
-        let mut items = Vec::with_capacity(dirs.len() + files.len() + 1);
-        if self.types & (1 << FT_DIRECTORY) != 0 {
-            let has_parent = std::path::Path::new(&self.directory).parent().is_some();
-            if has_parent {
-                items.push("[..]".to_string());
-            }
-            items.extend(dirs.into_iter().map(|d| format!("[{d}]")));
-        }
+        files.sort_by(|a, b| windows_order(a, b));
+        let mut items = Vec::with_capacity(dirs.len() + files.len() + 2);
         items.extend(files);
+        if self.types & (1 << FT_DIRECTORY) != 0 {
+            let mut shown: Vec<String> = dirs.into_iter().map(|d| format!("[{d}]")).collect();
+            // (a drive's root has neither)
+            if std::path::Path::new(&self.directory).parent().is_some() {
+                shown.extend(["[..]".to_string(), "[.]".to_string()]);
+            }
+            shown.sort_by(|a, b| windows_order(a, b));
+            items.extend(shown);
+        }
         items
     }
 
@@ -125,7 +142,11 @@ mod tests {
         assert_eq!(src.list(), ["A.BAS", "b.bas"]);
         src.types |= 1 << FT_DIRECTORY | 1 << FT_HIDDEN;
         src.mask = "*.bas;*.txt".into();
-        assert_eq!(src.list(), ["[..]", "[Sub]", ".hidden.bas", "A.BAS", "b.bas", "c.txt"]);
+        assert_eq!(src.list(), [".hidden.bas", "A.BAS", "b.bas", "c.txt", "[..]", "[.]", "[Sub]"]);
+        // (RC.EXE's order)
+        let mut names = ["[bdir]", "[Adir]", "[_x]", "[.]", "[..]"];
+        names.sort_by(|a, b| windows_order(a, b));
+        assert_eq!(names, ["[..]", "[.]", "[_x]", "[Adir]", "[bdir]"]);
         assert_eq!(src.path_of("[Sub]"), dir.join("Sub").to_string_lossy());
         let _ = std::fs::remove_dir_all(&dir);
     }

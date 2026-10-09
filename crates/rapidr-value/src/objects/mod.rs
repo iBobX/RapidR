@@ -943,6 +943,26 @@ pub fn inherited_font_prop(id: &str, flat: &str, props: &dyn Fn(&str, &str) -> V
     }
 }
 
+/// The font properties a component takes as its own before the program
+/// first changes one of them (`prop`, any spelling): Delphi's ParentFont
+/// ends there, so the font it had from its parents stays its own and a
+/// parent's later change doesn't reach it (RC.EXE: a label made bold, then
+/// `Form.Font.AddStyles(fsItalic)` — the form italic, the label not).
+/// Empty when `prop` isn't a font name, size or style, or the component
+/// already has its own font (`__ownfont`, which the list then sets).
+pub fn own_font_from_parents(id: &str, prop: &str, props: &dyn Fn(&str, &str) -> Value) -> Vec<(&'static str, Value)> {
+    if font_flat_name(prop).is_none() || props(id, "__ownfont").to_bool() {
+        return Vec::new();
+    }
+    let mut out: Vec<(&'static str, Value)> = ["fontname", "fontsize", "fontbold", "fontitalic", "fontunderline", "fontstrikeout"]
+        .into_iter()
+        .filter(|f| matches!(props(id, f), Value::Null))
+        .map(|f| (f, inherited_font_prop(id, f, props)))
+        .collect();
+    out.push(("__ownfont", crate::v_bool(true)));
+    out
+}
+
 /// The flat property a component's font property is kept as (`font.name`,
 /// `fontname` → `fontname`; size, bold, italic, underline, strikeout), for
 /// [`inherited_font_prop`]; None for the colour (read its own way) and the
@@ -1020,7 +1040,23 @@ pub fn is_drawing_method(method: &str) -> bool {
         method,
         "pset" | "line" | "rectangle" | "fillrect" | "circle" | "roundrect" | "paint" | "draw" | "copyrect" | "stretchdraw"
             | "textout" | "textwidth" | "textheight" | "pixel" | "cls" | "clear" | "drawtext" | "fillcircle" | "ellipse" | "setpixel" | "rect"
+            | "textrect"
     )
+}
+
+/// A TextRect's colour argument: -1 (or clNone) is none — transparent.
+fn text_color_arg(v: Option<&Value>) -> Option<u32> {
+    v.map(Value::to_i64).filter(|v| *v >= 0 || (*v as u32) & 0xFF00_0000 == 0x8000_0000).map(color_bgr)
+}
+
+/// `TextRect(Rect, x, y, S$, fc, bc)` on a bitmap / canvas / QIMAGE /
+/// form surface / QDXSCREEN's back buffer, in its font (text.rs).
+fn bitmap_text_rect(b: &mut Bitmap, rect: (i64, i64, i64, i64), args: &[Value]) {
+    let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
+    let text = args.get(3).map(Value::to_string_val).unwrap_or_default();
+    let color = if args.len() > 4 { color_bgr(n(4)) } else { color_bgr(b.font.color) };
+    let font = b.font.clone();
+    text::text_rect(b, rect, n(1), n(2), &text, &font, color, text_color_arg(args.get(5)));
 }
 
 /// Reads a QCANVAS's surface (to show it), first giving it the control's
@@ -1086,7 +1122,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
     with(id, |o| match o {
         Object::Font(f) => f.get(&prop),
         // Functions called without parentheses: `S$ = Mem.ReadLine`.
-        Object::Stream(m) if matches!(prop.as_str(), "readline" | "readln" | "readall") => m.call(&prop, &[]),
+        Object::Stream(m) if matches!(prop.as_str(), "readline" | "readln" | "readall" | "readbyte") => m.call(&prop, &[]),
         Object::Stream(m) => m.get(&prop),
         Object::Bitmap(b) => b.get(&prop),
         Object::ImageList(l) => l.get(&prop),
@@ -1171,6 +1207,23 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
             t.inactive_font = Some(font);
             t.revision += 1;
         });
+        return Some(Ok(()));
+    }
+    // `List2.Handle = List1.Handle` (QIMAGELIST): the other list's images
+    // (RC.EXE: its Count, sizes and pictures — RapidQ's QToolbar example
+    // hands a TYPE's list the program's this way). Not a list's handle:
+    // nothing changes.
+    if prop == "handle" && matches!(with(id, |o| matches!(o, Object::ImageList(_))), Some(true)) {
+        let other = crate::handles::name_of(val.to_i64()).and_then(|n| {
+            with(&n, |o| match o {
+                Object::ImageList(l) => Some(l.clone()),
+                _ => None,
+            })
+            .flatten()
+        });
+        if let Some(l) = other {
+            with(id, |o| *o = Object::ImageList(l));
+        }
         return Some(Ok(()));
     }
     // `BMPHandle = GRID_BMP`: a `$RESOURCE` (rapidr_value::resources).
@@ -1316,13 +1369,66 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             write_file(&path, &text.chars().map(|c| c as u32 as u8).collect::<Vec<u8>>()).map(|_| Value::Null)
         });
     }
-    // QSTRINGLIST AddList(Other): the other list's strings appended.
+    // QRICHEDIT LoadFromStream / SaveToStream: the same text as the file
+    // methods, from the stream's position to its end / written at it.
+    if is_textedit(id) && matches!(method.as_str(), "loadfromstream" | "savetostream") {
+        let stream = arg(0).to_string_val();
+        if method == "loadfromstream" {
+            let bytes = with(&stream, |o| match o {
+                Object::Stream(m) => Some(m.read(usize::MAX)),
+                _ => None,
+            })
+            .flatten();
+            let Some(bytes) = bytes else { return Some(Err(format!("{stream} is not a QFILESTREAM or QMEMORYSTREAM"))) };
+            let text: String = bytes.iter().map(|&b| char::from(b)).collect();
+            with(id, |o| {
+                if let Object::Text(t) = o {
+                    t.set_text(&text);
+                }
+            });
+        } else {
+            let text = with(id, |o| match o {
+                Object::Text(t) => t.text(),
+                _ => String::new(),
+            })
+            .unwrap_or_default();
+            let bytes: Vec<u8> = text.chars().map(|c| c as u32 as u8).collect();
+            if with(&stream, |o| if let Object::Stream(m) = o { m.write(&bytes) }).is_none() {
+                return Some(Err(format!("{stream} is not a QFILESTREAM or QMEMORYSTREAM")));
+            }
+        }
+        return Some(Ok(Value::Null));
+    }
+    // QSTRINGLIST LoadFromStream(S): the list becomes the stream's text from
+    // its position to its end (lines end at CR LF, LF or CR), the stream at
+    // its end. SaveToStream(S) does the same in RapidQ (RC.EXE: the list is
+    // read from the stream, the stream isn't written), so it does here too.
+    if matches!(method.as_str(), "loadfromstream" | "savetostream") && with(id, |o| matches!(o, Object::List(_)))? {
+        let stream = arg(0).to_string_val();
+        let bytes = with(&stream, |o| match o {
+            Object::Stream(m) => Some(m.read(usize::MAX)),
+            _ => None,
+        })
+        .flatten();
+        let Some(bytes) = bytes else { return Some(Err(format!("{stream} is not a QFILESTREAM or QMEMORYSTREAM"))) };
+        let text: String = bytes.iter().map(|&b| char::from(b)).collect();
+        with(id, |o| {
+            if let Object::List(l) = o {
+                l.load_stream_text(&text);
+            }
+        });
+        return Some(Ok(Value::Null));
+    }
+    // QSTRINGLIST AddList(Other): the other list's strings appended
+    // (anything but a list adds nothing).
     if method == "addlist" {
-        let other = with(&arg(0).to_string_val(), |o| match o {
+        let Some(other) = with(&arg(0).to_string_val(), |o| match o {
             Object::List(l) => Some(l.items.clone()),
             _ => None,
         })
-        .flatten()?;
+        .flatten() else {
+            return with(id, |o| matches!(o, Object::List(_))).filter(|&l| l).map(|_| Ok(Value::Null));
+        };
         let args: Vec<Value> = other.into_iter().map(Value::String).collect();
         return with(id, |o| match o {
             Object::List(l) => l.call("additems", &args).map(Ok),
@@ -1375,7 +1481,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
     }
     // Drawing on a QIMAGE without a picture: first one the control's size
     // (read before borrowing the registry: `props` may read objects too).
-    let drawing = matches!(method.as_str(), "pset" | "line" | "rectangle" | "fillrect" | "circle" | "roundrect" | "paint" | "draw" | "copyrect" | "stretchdraw")
+    let drawing = matches!(method.as_str(), "pset" | "line" | "rectangle" | "fillrect" | "circle" | "roundrect" | "paint" | "draw" | "copyrect" | "stretchdraw" | "textrect")
         || (method == "pixel" && args.len() >= 3);
     // A QCANVAS is always the control's size; a QFORM's surface its client
     // area's, drawing in the form's font.
@@ -1412,6 +1518,9 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             Some(Ok(Value::Null))
         }
         ("stream", "open") => Some(open_file(id, &arg(0).to_string_val(), if args.len() > 1 { arg(1).to_i64() } else { 0 })),
+        // CopyFrom(Stream, Bytes): Bytes from the other stream's position
+        // (0: all of it, from its start). RapidQ stops the program when the
+        // other stream has fewer left (EReadError "Stream read error").
         ("stream", "copyfrom") => {
             let src = arg(0).to_string_val();
             let n = arg(1).to_i64();
@@ -1420,12 +1529,16 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
                     if n <= 0 {
                         s.pos = 0;
                     }
-                    Some(s.read(if n <= 0 { usize::MAX } else { n as usize }))
+                    let want = if n <= 0 { s.data.len() } else { n as usize };
+                    Some(s.read(want)).filter(|b| b.len() == want)
                 }
                 _ => None,
-            })
-            .flatten();
-            let bytes = bytes?;
+            });
+            let bytes = match bytes {
+                Some(Some(b)) => b,
+                Some(None) => return Some(Err(format!("stream read error ({src} has fewer than {n} bytes left)"))),
+                None => return Some(Err(format!("{src} is not a QFILESTREAM or QMEMORYSTREAM"))),
+            };
             with(id, |o| if let Object::Stream(m) = o { m.write(&bytes) });
             Some(Ok(Value::Null))
         }
@@ -1523,6 +1636,62 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             };
             let (x, y) = (arg(0).to_i64(), arg(1).to_i64());
             with(id, |o| if let Object::List(l) = o { l.record(x, y, |l, t| grid::CellDraw::Image(x - l, y - t, src)) });
+            Some(Ok(Value::Null))
+        }
+        // OnDrawCell's / OnDrawItem's TextRect(Rect, x, y, S$, fc, bc),
+        // CopyRect(D, Image, S) and StretchDraw(Rect, BMP): kept on the
+        // cell / item under the rectangle's top left, as their other
+        // drawing is (a list box that isn't owner-drawn: nothing kept).
+        ("grid" | "list", "textrect" | "copyrect" | "stretchdraw") => {
+            let r = rect_of(&arg(0), props);
+            let op: Box<dyn FnOnce(i64, i64) -> grid::CellDraw> = if method == "textrect" {
+                let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
+                let (x, y, fc, bc) = (n(1), n(2), color_bgr(n(4)), text_color_arg(args.get(5)));
+                let text = arg(3).to_string_val();
+                Box::new(move |l, t| grid::CellDraw::TextRect((r.0 - l, r.1 - t, r.2 - l, r.3 - t), x - l, y - t, text, fc, bc))
+            } else {
+                let src = match load_image(&arg(1)) {
+                    Ok(src) => src,
+                    Err(e) => return Some(Err(e)),
+                };
+                // (the picture, or its part S, scaled to the rectangle now:
+                // drawn as a picture of that size)
+                let part = if method == "copyrect" { rect_of(&arg(2), props) } else { (0, 0, src.img.width as i64, src.img.height as i64) };
+                let (l, t, w, h) = (r.0.min(r.2), r.1.min(r.3), (r.2 - r.0).abs(), (r.3 - r.1).abs());
+                let mut scaled = Bitmap::default();
+                scaled.resize(w, h);
+                scaled.copy_rect((0, 0, w, h), &src, part);
+                Box::new(move |cl, ct| grid::CellDraw::Image(l - cl, t - ct, scaled))
+            };
+            let (ax, ay) = (r.0.min(r.2), r.1.min(r.3));
+            with(id, |o| match o {
+                Object::Grid(g) => g.record(ax, ay, op),
+                Object::List(l) if l.owner_drawn() => l.record(ax, ay, op),
+                _ => {}
+            });
+            Some(Ok(Value::Null))
+        }
+        // TextWidth / TextHeight on a grid or a list box: in the control's
+        // font, what its cells' / items' text is drawn in.
+        ("grid" | "list", "textwidth" | "textheight") => {
+            let font = font_from_props(id, props);
+            let (w, h) = text::text_size(&arg(0).to_string_val(), &font);
+            Some(Ok(v_int(if method == "textwidth" { w } else { h })))
+        }
+        ("bitmap", "textrect") => {
+            let r = rect_of(&arg(0), props);
+            with(id, |o| if let Object::Bitmap(b) = o { bitmap_text_rect(b, r, args) });
+            Some(Ok(Value::Null))
+        }
+        // Printer.TextRect(Rect, x, y, S$, fc, bc): the Rect's four numbers first.
+        ("printer", "textrect") => {
+            let (l, t, r, b) = rect_of(&arg(0), props);
+            let mut flat = vec![v_int(l), v_int(t), v_int(r), v_int(b)];
+            flat.extend(args.iter().skip(1).cloned());
+            with(id, |o| match o {
+                Object::Printer(p) => p.call("textrect", &flat),
+                _ => None,
+            });
             Some(Ok(Value::Null))
         }
         ("bitmap", "draw") => {
@@ -1643,21 +1812,34 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             })
         }
         ("imagelist", "draw") => {
-            // Draw(Target, X, Y, Index): onto a QBITMAP here; other targets
-            // (a QCANVAS) are drawn by the runtime from `image_at`.
+            // Draw(Target, X, Y, Index): image Index onto a QBITMAP, QIMAGE,
+            // QCANVAS (bitmaps all) or a QDXSCREEN's back buffer (RC.EXE
+            // takes those four, not a form); an Index out of range draws
+            // nothing. The runtime shows the target again.
             let i = arg(3).to_i64();
             let image = with(id, |o| match o {
                 Object::ImageList(l) if i >= 0 => l.images.get(i as usize).cloned(),
                 _ => None,
-            })??;
-            let drawn = with(&arg(0).to_string_val(), |o| match o {
-                Object::Bitmap(b) => {
-                    b.draw(arg(1).to_i64(), arg(2).to_i64(), &image);
-                    true
-                }
-                _ => false,
+            })?;
+            let target = arg(0).to_string_val();
+            // (a QIMAGE without a picture gets one its size first, as for
+            // its own drawing methods; a QCANVAS is always its size)
+            let sized = with(&target, |o| matches!(o, Object::Bitmap(b) if (b.picture && b.img.pixels.is_empty()) || (b.canvas && !b.form)));
+            if sized == Some(true) {
+                let (w, h) = (props(&target, "width").to_i64(), props(&target, "height").to_i64());
+                with(&target, |o| match o {
+                    Object::Bitmap(b) if b.canvas => b.fit(w, h),
+                    Object::Bitmap(b) => b.resize(w, h),
+                    _ => {}
+                });
+            }
+            let (x, y) = (arg(1).to_i64(), arg(2).to_i64());
+            with(&target, |o| match (o, image) {
+                (Object::Bitmap(b), Some(image)) => b.draw(x, y, &image),
+                (Object::DxScreen(s), Some(image)) => s.back.draw(x, y, &image),
+                _ => {}
             });
-            drawn.filter(|d| *d).map(|_| Ok(Value::Null))
+            Some(Ok(Value::Null))
         }
         // QDXSCREEN: a picture onto the back buffer — Draw(x, y, BMP),
         // StretchDraw(Rect, BMP), CopyRect(D, Image, S) — and TextRect.
@@ -1683,7 +1865,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         }
         ("dxscreen", "textrect") => {
             let r = rect_of(&arg(0), props);
-            with(id, |o| if let Object::DxScreen(s) = o { s.text_rect(r, &args[1.min(args.len())..]) });
+            with(id, |o| if let Object::DxScreen(s) = o { bitmap_text_rect(&mut s.back, r, args) });
             Some(Ok(Value::Null))
         }
         // QDXIMAGELIST: an image library from a file, a `$RESOURCE` or a
@@ -1761,7 +1943,9 @@ fn open_file(id: &str, path: &str, mode: i64) -> Result<Value, String> {
     let create = mode == 65535;
     let writable = create || mode == 1 || mode == 2;
     let native = NATIVE_FILES.with(std::cell::Cell::get);
-    let data = if create { Vec::new() } else { read_file(path)? };
+    // (RC.EXE: a file that can't be opened stops the program — Delphi's
+    // EFOpenError "Cannot open file x.", EFCreateError "Cannot create file x.")
+    let data = if create { Vec::new() } else { read_file(path).map_err(|_| crate::exception(&format!("Cannot open file {path}.")))? };
     #[cfg(not(target_arch = "wasm32"))]
     let handle = if native && writable {
         let mut options = std::fs::OpenOptions::new();
@@ -1769,12 +1953,12 @@ fn open_file(id: &str, path: &str, mode: i64) -> Result<Value, String> {
         if create {
             options.create(true).truncate(true);
         }
-        Some(options.open(path).map_err(|e| format!("can't open {path}: {e}"))?)
+        Some(options.open(path).map_err(|_| crate::exception(&format!("Cannot {} file {path}.", if create { "create" } else { "open" })))?)
     } else {
         None
     };
     if create && !native {
-        write_file(path, &[])?;
+        write_file(path, &[]).map_err(|_| crate::exception(&format!("Cannot create file {path}.")))?;
     }
     let sink = memstream::FileSink {
         path: path.to_string(),
@@ -1877,6 +2061,31 @@ pub fn font_properties(id: &str) -> Option<Vec<(&'static str, Value)>> {
     })?
 }
 
+/// (RapidR's) A component's own Font as a program reads `Label.Font`: a
+/// value that stands for it where a QFONT goes — QFONTDIALOG's GetFont /
+/// SetFont, `Other.Font = Label.Font`. (RC.EXE refuses a component's Font
+/// there at compile time, "Wrong type L.FONT": RapidQ programs pass a
+/// QFONT, which works as before.)
+pub fn component_font_ref(component: &str) -> Value {
+    v_str(&format!("{component}.Font"))
+}
+
+/// The component a [`component_font_ref`] stands for.
+pub fn font_ref_component(v: &str) -> Option<&str> {
+    let (c, f) = v.rsplit_once('.')?;
+    (f == "Font" && !c.is_empty()).then_some(c)
+}
+
+/// A component's font as flat properties (FontName, FontSize, FontColor,
+/// FontBold …), `read` reading its `Font.*` as the program does (its own,
+/// else its parent's: ParentFont).
+pub fn component_font_properties(read: &dyn Fn(&str) -> Value) -> Vec<(&'static str, Value)> {
+    [("fontname", "font.name"), ("fontsize", "font.size"), ("fontcolor", "font.color"), ("fontbold", "font.bold"), ("fontitalic", "font.italic"), ("fontunderline", "font.underline"), ("fontstrikeout", "font.strikeout")]
+        .into_iter()
+        .map(|(flat, dotted)| (flat, read(dotted)))
+        .collect()
+}
+
 /// `DIM lbl(1 TO 3) AS QLABEL`: an array holding one object id per element,
 /// `lbl(1)`, `lbl(2)`, … (`grid(0,1)` for more dimensions), and those ids in
 /// order. Runtimes create a component for each id.
@@ -1945,6 +2154,80 @@ mod tests {
         assert_eq!(ids, ["g(0,1)", "g(0,2)", "g(1,1)", "g(1,2)"]);
         let Value::Array(g) = g else { panic!() };
         assert_eq!(g.borrow().get(&[1, 1]).unwrap().to_string_val(), "g(1,1)");
+    }
+
+    /// TextRect, CopyRect, StretchDraw, RoundRect, TextWidth on lists and
+    /// grids (OnDrawItem / OnDrawCell): kept on the item / cell under the
+    /// rectangle's top left; a list that isn't owner-drawn keeps nothing
+    /// but answers. TextRect on a bitmap and a QDXSCREEN's back buffer;
+    /// ImageList.Draw onto a QDXSCREEN.
+    #[test]
+    fn owner_drawing_rects() {
+        // QRECTs as property bags (OnDrawItem's Rect).
+        let props = |id: &str, p: &str| match (id, p) {
+            ("r", "left") => v_int(130),
+            ("r", "top") => v_int(25),
+            ("r", "right") => v_int(194),
+            ("r", "bottom") => v_int(49),
+            ("half", "right") => v_int(2),
+            ("half", "bottom") => v_int(2),
+            ("t_dl", "fontname") => v_str("Arial"),
+            ("t_dl", "fontsize") => v_int(12),
+            _ => v_null(),
+        };
+        assert!(create("t_dg", "RSTRINGGRID") && create("t_dl", "RLISTBOX") && create("t_dsrc", "RBITMAP"));
+        set("t_dsrc", "width", &v_int(4)).unwrap().unwrap();
+        set("t_dsrc", "height", &v_int(4)).unwrap().unwrap();
+        call("t_dg", "textrect", &[v_str("r"), v_int(132), v_int(27), v_str("x"), v_int(0), v_int(0xFF)], &props).unwrap().unwrap();
+        call("t_dg", "roundrect", &[v_int(131), v_int(26), v_int(150), v_int(40), v_int(6), v_int(6), v_int(0xFF00)], &props).unwrap().unwrap();
+        call("t_dg", "stretchdraw", &[v_str("r"), v_str("t_dsrc")], &props).unwrap().unwrap();
+        call("t_dg", "copyrect", &[v_str("r"), v_str("t_dsrc"), v_str("half")], &props).unwrap().unwrap();
+        let kept = with("t_dg", |o| match o {
+            Object::Grid(g) => g.owner_drawing.get(&(2, 1)).cloned(),
+            _ => None,
+        })
+        .flatten()
+        .unwrap();
+        assert!(matches!(&kept[0], grid::CellDraw::TextRect((0, 0, 64, 24), 2, 2, t, 0, Some(0xFF)) if t == "x"), "{:?}", kept[0]);
+        assert!(matches!(kept[1], grid::CellDraw::RoundRect(1, 1, 20, 15, 6, 6, 0xFF00)));
+        assert!(matches!(&kept[2], grid::CellDraw::Image(0, 0, b) if (b.img.width, b.img.height) == (64, 24)));
+        assert!(matches!(&kept[3], grid::CellDraw::Image(0, 0, b) if (b.img.width, b.img.height) == (64, 24)));
+        // The list isn't owner-drawn: answered, nothing kept.
+        call("t_dl", "additems", &[v_str("a")], &props).unwrap().unwrap();
+        for (m, a) in [("pset", vec![v_int(1), v_int(1), v_int(0)]), ("rectangle", vec![v_int(0), v_int(0), v_int(5), v_int(5), v_int(0)]), ("textrect", vec![v_str("r"), v_int(0), v_int(0), v_str("x"), v_int(0), v_int(-1)])] {
+            assert!(call("t_dl", m, &a, &props).is_some(), "{m}");
+        }
+        assert!(with("t_dl", |o| matches!(o, Object::List(l) if l.owner_drawing.is_empty())).unwrap());
+        // TextWidth / TextHeight in the control's font.
+        let w = call("t_dl", "textwidth", &[v_str("Hello")], &props).unwrap().unwrap().to_i64();
+        let h = call("t_dl", "textheight", &[v_str("Hello")], &props).unwrap().unwrap().to_i64();
+        assert_eq!((w, h), (36, 18));
+        // A QDXSCREEN's TextRect: the shared one, on its back buffer.
+        assert!(create("t_ddx", "RDXSCREEN"));
+        call("t_ddx", "init", &[v_int(60), v_int(20)], &props).unwrap().unwrap();
+        call("t_ddx", "textrect", &[v_str("half"), v_int(0), v_int(0), v_str("WWWW"), v_int(0xFFFFFF), v_int(0xFF)], &props).unwrap().unwrap();
+        let px = |x, y| with("t_ddx", |o| match o {
+            Object::DxScreen(s) => s.back.pixel(x, y),
+            _ => None,
+        })
+        .flatten();
+        assert_eq!((px(1, 1), px(3, 3)), (Some(0xFF), px(40, 10)), "inside the rectangle: its background; outside: as it was");
+        // ImageList.Draw onto its back buffer; an Index out of range draws nothing.
+        assert!(create("t_dil", "RIMAGELIST"));
+        let mut red = Bitmap::default();
+        red.resize(2, 2);
+        red.fill_rect(0, 0, 2, 2, 0xFF);
+        with("t_dil", |o| {
+            if let Object::ImageList(l) = o {
+                l.insert(0, &red, None);
+            }
+        });
+        call("t_dil", "draw", &[v_str("t_ddx"), v_int(50), v_int(10), v_int(0)], &props).unwrap().unwrap();
+        call("t_dil", "draw", &[v_str("t_ddx"), v_int(20), v_int(5), v_int(7)], &props).unwrap().unwrap();
+        assert_eq!((px(51, 11), px(21, 6)), (Some(0xFF), px(40, 10)));
+        for id in ["t_dg", "t_dl", "t_dsrc", "t_ddx", "t_dil"] {
+            remove(id);
+        }
     }
 
     #[test]

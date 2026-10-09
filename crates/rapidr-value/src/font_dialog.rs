@@ -65,6 +65,24 @@ pub struct Request {
     pub max: i64,
     /// The options' bits (bit n: option n on).
     pub options: i64,
+    /// The font's colour was a system colour (clWindowText …).
+    pub system: Option<SystemColor>,
+}
+
+/// A system colour (`&H80000000 + n`: clWindowText, clWindow …) a font
+/// dialog was given.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SystemColor {
+    /// The colour as the program has it: what Color keeps while the user
+    /// picks no other.
+    pub raw: i64,
+    /// What the colour list shows for it (`font.color`): the colour it is
+    /// on RapidQ's look, by name when it's one of the 16 (clWindowText
+    /// "Black", clWindow "White").
+    pub shown: i64,
+    /// The colour the theme draws it in: the sample's ink while the user
+    /// keeps it (black on RapidQ's look, readable on a dark one).
+    pub ink: i64,
 }
 
 impl Request {
@@ -90,6 +108,17 @@ impl Request {
         names
     }
 
+    /// The font the dialog answers: its choice, with the system colour it
+    /// was given kept as that (clWindowText, which follows the theme) unless
+    /// the user picked another.
+    pub fn answer(&self) -> Font {
+        let mut f = self.font.clone();
+        if let Some(sc) = self.system.filter(|sc| sc.shown == f.color) {
+            f.color = sc.raw;
+        }
+        f
+    }
+
     /// The colour list's entries: the 16, and "Custom" for another colour.
     pub fn colors(&self) -> Vec<(String, i64)> {
         let mut out: Vec<(String, i64)> = COLORS.iter().map(|(n, c)| (n.to_string(), *c)).collect();
@@ -111,6 +140,14 @@ pub fn color_index(c: i64) -> Option<usize> {
     COLORS.iter().position(|(_, v)| *v == c & 0xFF_FFFF)
 }
 
+/// System colour `raw` (`&H80000000 + n`) as RapidQ's look draws it
+/// (Windows' colours: clWindowText black, clWindow white, clBtnFace
+/// F0F0F0), &HBBGGRR.
+fn system_color_shown(raw: i64) -> i64 {
+    let rgb = crate::theme::CLASSIC.system_color(raw as u32 & 0xFF);
+    i64::from(((rgb & 0xFF) << 16) | (rgb & 0xFF00) | (rgb >> 16))
+}
+
 /// The request a dialog's properties make (`get`: a property, `Null` when
 /// it has none).
 pub fn request(get: &dyn Fn(&str) -> Value) -> Request {
@@ -127,12 +164,20 @@ pub fn request(get: &dyn Fn(&str) -> Value) -> Request {
             styles |= 1 << i;
         }
     }
+    let raw = either("color", "fontcolor").to_i64();
+    // (a system colour: shown as RapidQ's look has it — named when it's one
+    // of the 16 —, drawn as the theme does)
+    let system = (raw as u32 & 0xFF00_0000 == 0x8000_0000).then(|| SystemColor { raw, shown: system_color_shown(raw), ink: i64::from(crate::objects::color_bgr(raw)) });
     let options = match get("options") {
         Value::Null => DEFAULT_OPTIONS,
         v => v.to_i64(),
     };
     Request {
-        font: Font { name: if name.trim().is_empty() { defaults.name } else { name }, size: if size > 0 { size } else { defaults.size }, color: crate::objects::color_bgr(either("color", "fontcolor").to_i64()) as i64, styles },
+        // (RC.EXE's dialog shows every system colour as "Custom", a black
+        // swatch — ChooseFont takes the COLORREF's low bytes —; RapidR's
+        // shows the colour it is: clWindowText is Black)
+        font: Font { name: if name.trim().is_empty() { defaults.name } else { name }, size: if size > 0 { size } else { defaults.size }, color: system.map_or(raw & 0xFF_FFFF, |sc| sc.shown), styles },
+        system,
         min: get("minfontsize").to_i64(),
         max: get("maxfontsize").to_i64(),
         options,
@@ -157,10 +202,11 @@ pub fn properties(font: &Font) -> Vec<(&'static str, Value)> {
     ]
 }
 
-/// Its properties at first: TFontDialog's (the default QFONT, Options
-/// [fdEffects], no size limits) and FontCount.
+/// Its properties at first: TFontDialog's (the default QFONT, Color
+/// clWindowText as RC.EXE reads it, Options [fdEffects], no size limits)
+/// and FontCount.
 pub fn defaults() -> Vec<(&'static str, Value)> {
-    let mut out = properties(&Font::default());
+    let mut out = properties(&Font { color: crate::component_defaults::CL_WINDOW_TEXT, ..Font::default() });
     out.extend([("minfontsize", v_int(0)), ("maxfontsize", v_int(0)), ("options", v_int(DEFAULT_OPTIONS)), ("fontcount", v_int(FONT_NAMES.len() as i64))]);
     out
 }
@@ -203,19 +249,18 @@ pub fn call(method: &str, args: &[Value], get: &dyn Fn(&str) -> Value, set: &mut
             set("options", v_int(bits));
         }
         // (the QFONT is passed by its object id)
+        // (anything but a QFONT: nothing to take)
         "getfont" => {
-            let id = args.first()?.to_string_val();
-            let props = crate::objects::font_properties(&id)?;
-            let font = crate::objects::font_from_props(&id, &|_, p| props.iter().find(|(k, _)| *k == p).map_or(Value::Null, |(_, v)| v.clone()));
-            for (p, v) in properties(&font) {
-                set(p, v);
+            let id = args.first().map(Value::to_string_val).unwrap_or_default();
+            if let Some(props) = crate::objects::font_properties(&id) {
+                for (p, v) in taken(&props) {
+                    set(p, v);
+                }
             }
         }
         "setfont" => {
             let id = args.first()?.to_string_val();
-            let font = request(get).font;
-            let flag = |i: usize| v_int(if font.styles & 1 << i != 0 { -1 } else { 0 });
-            for (p, v) in [("name", v_str(&font.name)), ("size", v_int(font.size)), ("color", v_int(font.color)), ("bold", flag(0)), ("italic", flag(1)), ("underline", flag(2)), ("strikeout", flag(3))] {
+            for (p, v) in chosen(get) {
                 crate::objects::set(&id, p, &v);
             }
         }
@@ -226,6 +271,36 @@ pub fn call(method: &str, args: &[Value], get: &dyn Fn(&str) -> Value, set: &mut
         _ => return None,
     }
     Some(Value::Null)
+}
+
+/// `GetFont(F)`: the dialog's properties for a font whose flat properties
+/// are `props` (FontName, FontSize, FontColor, FontBold …, as a QFONT's
+/// [`crate::objects::font_properties`] or a component's
+/// [`crate::objects::component_font_properties`]). The colour is kept as it
+/// is (clWindowText stays clWindowText: RC.EXE reads it back so).
+pub fn taken(props: &[(&str, Value)]) -> Vec<(&'static str, Value)> {
+    let of = |k: &str| props.iter().find(|(p, _)| *p == k).map_or(Value::Null, |(_, v)| v.clone());
+    let defaults = Font::default();
+    let name = of("fontname").to_string_val();
+    let size = of("fontsize").to_i64();
+    let (name, size) = (if name.trim().is_empty() { defaults.name } else { name }, if size > 0 { size } else { defaults.size });
+    let color = of("fontcolor").to_i64();
+    let mut out = vec![("name", v_str(&name)), ("size", v_int(size)), ("color", v_int(color)), ("fontname", v_str(&name)), ("fontsize", v_int(size)), ("fontcolor", v_int(color))];
+    out.extend(STYLE_PROPS.iter().map(|p| (*p, v_int(if of(p).to_bool() { -1 } else { 0 }))));
+    out
+}
+
+/// `SetFont(F)`: what the dialog gives font `F`, as QFONT members (Name,
+/// Size, Color as the dialog keeps it, Bold, Italic, Underline, StrikeOut).
+pub fn chosen(get: &dyn Fn(&str) -> Value) -> Vec<(&'static str, Value)> {
+    let font = request(get).font;
+    let color = match get("color") {
+        Value::Null => get("fontcolor"),
+        v => v,
+    };
+    let color = if matches!(color, Value::Null) { crate::component_defaults::CL_WINDOW_TEXT } else { color.to_i64() };
+    let flag = |i: usize| v_int(if font.styles & 1 << i != 0 { -1 } else { 0 });
+    vec![("name", v_str(&font.name)), ("size", v_int(font.size)), ("color", v_int(color)), ("bold", flag(0)), ("italic", flag(1)), ("underline", flag(2)), ("strikeout", flag(3))]
 }
 
 /// Where the dialog's parts go (logical pixels), after Windows' ChooseFont.
@@ -298,7 +373,10 @@ mod tests {
         let p = store(defaults());
         let get = |k: &str| p.get(k).cloned().unwrap_or(Value::Null);
         let r = request(&get);
-        assert_eq!(r.font, Font::default());
+        // (Color clWindowText at first: Black in the dialog, kept as
+        // clWindowText unless another is picked)
+        assert_eq!(r.font, Font { color: 0, ..Font::default() });
+        assert_eq!(r.answer().color, crate::component_defaults::CL_WINDOW_TEXT);
         assert!(r.has(FD_EFFECTS) && !r.has(FD_APPLY_BUTTON));
         assert_eq!(r.sizes(), SIZES.to_vec());
         assert_eq!(get("fontcount").to_i64(), 8);
@@ -343,7 +421,7 @@ mod tests {
         let font = crate::objects::font_properties("fd_test_font").unwrap();
         let f = |k: &str| font.iter().find(|(p, _)| *p == k).unwrap().1.clone();
         // (GetFont took the QFONT's styles: italic, no longer underlined)
-        assert_eq!((f("fontname").to_string_val().as_str(), f("fontstrikeout").to_i64(), f("fontitalic").to_i64(), f("fontunderline").to_i64()), ("Verdana", -1, -1, 0));
+        assert_eq!((f("fontname").to_string_val().as_str(), f("fontstrikeout").to_i64(), f("fontitalic").to_i64(), f("fontunderline").to_i64()), ("Verdana", 1, 1, 0));
         crate::objects::remove("fd_test_font");
     }
 
@@ -361,6 +439,22 @@ mod tests {
         assert_eq!(color_index(0x0000FF), Some(9));
         r.font.color = 0x123456;
         assert_eq!(r.colors().last().map(|(n, c)| (n.as_str(), *c)), Some(("Custom", 0x123456)));
+        // (a system colour: the colour it is, by name — clWindowText Black,
+        // clWindow White; RC.EXE's dialog shows "Custom" —; Color stays the
+        // system colour unless another is picked)
+        let sys = request(&|p| if p == "color" { v_int(crate::component_defaults::CL_WINDOW_TEXT) } else { Value::Null });
+        assert_eq!(sys.colors().len(), COLORS.len());
+        assert_eq!(color_index(sys.font.color), Some(0));
+        let mut picked = sys.clone();
+        picked.font.color = 0x0000FF;
+        assert_eq!((sys.answer().color, picked.answer().color), (crate::component_defaults::CL_WINDOW_TEXT, 0x0000FF));
+        let window = request(&|p| if p == "color" { v_int(0x8000_0005) } else { Value::Null });
+        assert_eq!(COLORS[color_index(window.font.color).unwrap()].0, "White");
+        // (clBtnFace, F0F0F0: none of the 16 — Custom)
+        let face = request(&|p| if p == "color" { v_int(0x8000_000F) } else { Value::Null });
+        assert_eq!(face.colors().last().map(|(n, c)| (n.as_str(), *c)), Some(("Custom", 0xF0F0F0)));
+        let black = request(&|p| if p == "color" { v_int(0) } else { Value::Null });
+        assert_eq!((black.colors().len(), black.answer().color), (COLORS.len(), 0));
         assert_eq!(parse_answer("Courier New, 14, bu, 255"), Some(Font { name: "Courier New".into(), size: 14, color: 255, styles: 0b101 }));
         assert_eq!(parse_answer(" "), None);
         assert_eq!(alias("name"), Some("fontname"));

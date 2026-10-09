@@ -1,0 +1,13 @@
+addlist 5
+[one][two][three][four][]
+save0 size 9 pos 9 count 2
+[pre][post]
+save5 size 9 pos 9 count 1
+[post]
+e loaded 4 pos 8
+[][b][c][d]
+e0 loaded 4 pos 8
+[a][b][c][d]
+e8 loaded 0 pos 8
+f loaded 2 pos 8
+[f1][f2]

@@ -377,6 +377,7 @@ impl WebHost {
                         w.force = true;
                     }
                 }
+                HostCmd::Shape(f) => self.apply_shape(&f),
                 HostCmd::Size(f) => {
                     if let Some(w) = self.wins.get_mut(&f) {
                         w.force = true;
@@ -432,6 +433,8 @@ impl WebHost {
         if !self.wins.contains_key(id) {
             if let Some(w) = self.make(id) {
                 self.wins.insert(id.to_string(), w);
+                // (an outline ShapeForm gave it before it showed)
+                self.apply_shape(id);
             } else {
                 return;
             }
@@ -450,13 +453,34 @@ impl WebHost {
         self.place(id);
     }
 
+    /// The window's outline (`ShapeForm`, `rapidr_value::shape`): the page
+    /// shows — and the mouse reaches — only the bitmap's pixels that
+    /// aren't its transparent colour, counted from the window's top left
+    /// corner, its frame included, as RapidQ's runtime gives a window its
+    /// region; what's outside is the page.
+    fn apply_shape(&self, id: &str) {
+        let Some(w) = self.wins.get(id) else { return };
+        let style = w.root.style();
+        match rapidr_value::shape::get(id) {
+            Some(shape) => {
+                let path = format!("path('{}')", shape.svg_path(0, 0));
+                let _ = style.set_property("clip-path", &path);
+                // (the window's shadow is its outline's too)
+                let _ = style.set_property("box-shadow", "none");
+            }
+            None => {
+                let _ = style.remove_property("clip-path");
+            }
+        }
+    }
+
     /// The window at its Left / Top on the page.
     fn place(&mut self, id: &str) {
         let Some(pos) = self.desk.forms.get(id).and_then(|f| f.spec.position) else { return };
         if let Some(w) = self.wins.get(id) {
             // (minimized: its title bar in its slot along the page's bottom)
             let pos = match w.min_slot {
-                Some(slot) => ((slot as i64) * (MIN_WIDTH + 4), screen().1 - frame::inset(true).1 - rapidr_value::layout::FORM_BORDER),
+                Some(slot) => ((slot as i64) * (MIN_WIDTH + 4), screen().1 - frame::inset(true, true).1 - rapidr_value::layout::FORM_BORDER),
                 None => pos,
             };
             set_style(&w.root, &[("left", px(pos.0 as f64)), ("top", px(pos.1 as f64))]);
@@ -469,7 +493,7 @@ impl WebHost {
     fn set_state(&mut self, store: &dyn Store, id: &str, state: i64) {
         use rapidr_value::window_state::{WS_MAXIMIZED, WS_MINIMIZED};
         let Some(f) = self.desk.forms.get(id) else { return };
-        let (pos, inside, border) = (f.spec.position.unwrap_or((0, 0)), f.spec.size, f.spec.border);
+        let (pos, inside, border, caption) = (f.spec.position.unwrap_or((0, 0)), f.spec.size, f.spec.border, !f.spec.no_caption);
         let Some(w) = self.wins.get_mut(id) else { return };
         match state {
             WS_MAXIMIZED => {
@@ -479,7 +503,7 @@ impl WebHost {
                 w.minimized = false;
                 w.min_slot = None;
                 let (sw, sh) = screen();
-                let (ow, oh) = frame::outer((0, 0), border);
+                let (ow, oh) = frame::outer((0, 0), border, caption);
                 let (iw, ih) = ((sw - ow).max(1), (sh - oh).max(1));
                 w.frame_dirty = true;
                 if let Some(f) = self.desk.form(id) {
@@ -675,6 +699,7 @@ impl WebHost {
                 title: f.spec.title.clone(),
                 active: top.as_deref() == Some(id.as_str()),
                 border: f.spec.border,
+                caption: !f.spec.no_caption,
                 frame: f.spec.frame,
                 maximized: f.state == rapidr_value::window_state::WS_MAXIMIZED,
                 theme: rapidr_value::theme::generation(),
@@ -688,8 +713,8 @@ impl WebHost {
                 w.frame_dirty = false;
                 layout(w);
                 let look = w.look.clone().expect("a look");
-                let size = frame::outer(w.inside, look.border);
-                let shown_size = if w.minimized { (MIN_WIDTH, frame::inset(look.border).1 + rapidr_value::layout::FORM_BORDER) } else { size };
+                let size = frame::outer(w.inside, look.border, look.caption);
+                let shown_size = if w.minimized { (MIN_WIDTH, frame::inset(look.border, look.caption).1 + rapidr_value::layout::FORM_BORDER) } else { size };
                 let list = frame::paint(&look, shown_size, scale);
                 // (the window's corners and its shadow on the page)
                 let (radius, inside, shadow) = frame::css(&look);
@@ -752,9 +777,10 @@ impl WebHost {
 /// pixels; the canvases' backing is the device's).
 fn layout(w: &mut Win) {
     let border = w.look.as_ref().is_some_and(|l| l.border);
-    let (ix, iy) = frame::inset(border);
+    let caption = w.look.as_ref().is_none_or(|l| l.caption);
+    let (ix, iy) = frame::inset(border, caption);
     let (iw, ih) = w.inside;
-    let (ow, oh) = frame::outer(w.inside, border);
+    let (ow, oh) = frame::outer(w.inside, border, caption);
     let shown_h = if w.minimized { iy + rapidr_value::layout::FORM_BORDER } else { oh };
     let ow = if w.minimized { MIN_WIDTH } else { ow };
     set_style(&w.root, &[("width", px(ow as f64)), ("height", px(shown_h as f64))]);
@@ -836,9 +862,9 @@ fn hints(ui: &rapidr_ui_kernel::FormUi, store: &dyn Store) -> HashMap<u64, crate
 
 /// The frame's size as shown (a minimized window: its title bar alone).
 fn shown_frame(w: &Win, look: &Look) -> (i64, i64) {
-    let size = frame::outer(w.inside, look.border);
+    let size = frame::outer(w.inside, look.border, look.caption);
     if w.minimized {
-        (MIN_WIDTH, frame::inset(look.border).1 + rapidr_value::layout::FORM_BORDER)
+        (MIN_WIDTH, frame::inset(look.border, look.caption).1 + rapidr_value::layout::FORM_BORDER)
     } else {
         size
     }

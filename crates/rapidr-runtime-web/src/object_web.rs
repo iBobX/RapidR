@@ -397,6 +397,11 @@ pub(crate) fn web_store_file(path: &str, bytes: Vec<u8>) {
 }
 
 fn object_error(name: &str, what: &str, e: &str) {
+    // (a RapidQ exception: the host stops the program, as RC.EXE's)
+    if let Some(m) = rapidr_value::exception_message(e) {
+        rapidr_value::raise(m);
+        return;
+    }
     web_sys::console::warn_1(&JsValue::from_str(&format!("[rapidr] {name}.{what}: {e}")));
 }
 
@@ -445,6 +450,24 @@ pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
 }
 
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
+    // (`Label.Font.AddStyles = fsBold`: RapidQ takes the method so too)
+    if let Some(changes) = rapidr_value::objects::font::component_style_call(&prop.to_ascii_lowercase(), std::slice::from_ref(&val)) {
+        let t = rp_comp_type(name);
+        for (p, v) in changes {
+            rp_comp_set(name, &rapidr_value::objects::font::style_target(&t, p), v);
+        }
+        return;
+    }
+    // (a font style keeps 1 or 0, RapidQ's: rapidr_value::objects::font)
+    let val = rapidr_value::objects::font::component_style(prop, &val).map_or(val, |(_, _, v)| v);
+    // (the program's first font change of a component: the font it had from
+    // its parents becomes its own — Delphi's ParentFont ends)
+    let t = rp_comp_type(name);
+    if !t.is_empty() && !rapidr_value::objects::TYPES.contains(&t.as_str()) {
+        for (p, v) in rapidr_value::objects::own_font_from_parents(name, prop, &|i, p| rp_comp_get(i, p)) {
+            set_property(name, p, v);
+        }
+    }
     // (a Color or a Parent changed: the canvases' backdrops follow)
     let backdrops = prop.eq_ignore_ascii_case("color") || prop.eq_ignore_ascii_case("parent");
     // (an AutoSize QLABEL's Caption, WordWrap, AutoSize, font or Parent: it
@@ -488,6 +511,14 @@ pub fn program_color(name: &str) -> Value {
 /// Every QCANVAS shows its parent's colour where nothing is drawn, as
 /// RapidQ's (a TPaintBox) does whatever its own Color: their models'
 /// backdrops made the parents' colours again.
+/// Component `name` exists, has a Font of its own (not a QFONT, a stream
+/// or another value object) and keeps no other value as `Font`: its
+/// `Font` reads as [`rapidr_value::objects::component_font_ref`].
+fn is_component_font(name: &str) -> bool {
+    let t = rp_comp_type(&name.to_uppercase());
+    !t.is_empty() && !rapidr_value::objects::TYPES.contains(&t.as_str()) && matches!(rp_comp_get(name, "font"), Value::Null)
+}
+
 /// What `name.Font.Color` reads in a program: the one the program set,
 /// else its parent's (ParentFont), else clWindowText — RapidQ's, as RC.EXE
 /// reads it (rapidr_value::component_defaults::font_color_read).
@@ -748,9 +779,15 @@ fn set_property(name: &str, prop: &str, val: Value) {
         }
         return;
     }
-    // `Label.Font = Font` (a QFONT): copy the font's settings.
+    // `Label.Font = Font` (a QFONT): copy the font's settings; (RapidR's)
+    // `Label.Font = Other.Font` too.
     if lprop == "font" {
-        if let Some(props) = rapidr_value::objects::font_properties(&val.to_string_val()) {
+        let text = val.to_string_val();
+        let props = rapidr_value::objects::font_properties(&text).or_else(|| {
+            let other = rapidr_value::objects::font_ref_component(&text).filter(|c| is_component_font(c))?;
+            Some(rapidr_value::objects::component_font_properties(&|p| rp_comp_read(other, p)))
+        });
+        if let Some(props) = props {
             for (flat, v) in props {
                 rp_comp_set(name, flat, v);
             }
@@ -880,7 +917,9 @@ fn set_property(name: &str, prop: &str, val: Value) {
     } else if matches!(lprop.as_str(), "width" | "height") && rapidr_value::objects::is_canvas(&uname) {
         crate::kernel_web::redraw();
         if !rapidr_value::objects::is_form_surface(&uname) && canvas_size_before != Some(rp_comp_get_stored(name, &lprop).to_i64()) {
-            rp_fire_event(&uname, "onpaint");
+            if shown_once(&uname) {
+            rapidr_value::events::post_paint(&uname);
+        }
         }
     }
     // A form's new size: it paints again.
@@ -890,7 +929,9 @@ fn set_property(name: &str, prop: &str, val: Value) {
         if rapidr_value::mdi::is_mdi(&uname) {
             crate::mdi_web::resized(&uname);
         }
-        rp_fire_event(&uname, "onpaint");
+        if shown_once(&uname) {
+            rapidr_value::events::post_paint(&uname);
+        }
     }
     // A child window's frame shows its title and whether it's active.
     if matches!(lprop.as_str(), "caption" | "active" | "childstate") && rp_comp_type(&uname) == "RMDICHILD" {
@@ -1010,6 +1051,12 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     // A QFORMMDI's ChildCount, ChildCaption, … (mdi_web.rs).
     if let Some(v) = rapidr_value::mdi::get(name, &lprop) {
         return v;
+    }
+    // A QFORM's MDIChildCount, TileMode (form_members_web.rs).
+    if matches!(lprop.as_str(), "mdichildcount" | "tilemode") {
+        if let Some(v) = crate::form_members_web::get(name, &rp_comp_type(&uname), &lprop) {
+            return v;
+        }
     }
     // (I1) RapidR Studio's components (studio_web.rs).
     {
@@ -1152,6 +1199,10 @@ pub fn rp_comp_read(name: &str, prop: &str) -> Value {
             return rapidr_value::property_read(rapidr_value::objects::inherited_font_prop(name, flat, &|i, p| rp_comp_get(i, p)));
         }
     }
+    // (RapidR's) `Label.Font` itself: its font, passed where a QFONT goes
+    if prop.eq_ignore_ascii_case("font") && is_component_font(name) {
+        return rapidr_value::objects::component_font_ref(name);
+    }
     // (a property the theme draws while unset reads the registry's default:
     // rapidr_value::component_defaults::unset_read)
     let v = rp_comp_get(name, prop);
@@ -1188,6 +1239,18 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     // Screen, Application, Clipboard, Mouse (globals_web.rs).
     if let Some(v) = crate::globals_web::call(name, &lmethod, args) {
         return v;
+    }
+    // HideTitleBar, ShapeForm, QFORM's MDI methods, StartDrag (form_members_web.rs).
+    if let Some(v) = crate::form_members_web::method(name, &rp_comp_type(&uname), &lmethod, args) {
+        return v;
+    }
+    // `Label.Font.AddStyles(fsBold)` / `DelStyles`: the component's styles.
+    if let Some(changes) = rapidr_value::objects::font::component_style_call(&lmethod, args) {
+        let t = rp_comp_type(name);
+        for (p, v) in changes {
+            rp_comp_set(name, &rapidr_value::objects::font::style_target(&t, p), v);
+        }
+        return v_null();
     }
     // (the I/O and media lane's: io_web.rs)
     if let Some((sub, member)) = crate::io_web::sub_component(name, &lmethod) {
@@ -1287,6 +1350,10 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
                 return v_null();
             }
             picture_changed(&uname);
+        }
+        // `ImageList.Draw Target, X, Y, Index`: a target QIMAGE shows it.
+        if let Some(target) = args.first().map(Value::to_string_val).filter(|t| lmethod == "draw" && rapidr_value::objects::is_picture(t)) {
+            picture_changed(&target.to_uppercase());
         }
         // (I1 / L-PANELS) A designer's selection or props changed: the
         // inspectors following it read it again.
@@ -1872,6 +1939,20 @@ fn dialog_web_method(name: &str, comp_type: &str, method: &str, args: &[Value]) 
     // GetFont(F), SetFont(F), FontName(i).
     if comp_type == "RFONTDIALOG" {
         let get = |p: &str| rp_comp_get_stored(name, p);
+        // (RapidR's) GetFont / SetFont of a component's own Font
+        let target = args.first().map(Value::to_string_val);
+        if let Some(c) = target.as_deref().and_then(rapidr_value::objects::font_ref_component).filter(|c| is_component_font(c) && matches!(method, "getfont" | "setfont")) {
+            if method == "getfont" {
+                for (p, v) in rapidr_value::font_dialog::taken(&rapidr_value::objects::component_font_properties(&|p| rp_comp_read(c, p))) {
+                    rp_comp_set(name, p, v);
+                }
+            } else {
+                for (p, v) in rapidr_value::font_dialog::chosen(&get) {
+                    rp_comp_set(c, &format!("font.{p}"), v);
+                }
+            }
+            return v_null();
+        }
         let mut set = |p: &str, v: Value| rp_comp_set(name, p, v);
         if let Some(v) = rapidr_value::font_dialog::call(method, args, &get, &mut set) {
             return v;
@@ -1941,7 +2022,7 @@ fn dialog_web_method(name: &str, comp_type: &str, method: &str, args: &[Value]) 
             if let Some(window) = web_sys::window() {
                 if let Ok(Some(fname)) = window.prompt_with_message_and_default("Font name:", &req.font.name) {
                     if let Ok(Some(fsize)) = window.prompt_with_message_and_default("Font size (pt):", &req.font.size.to_string()) {
-                        let mut font = req.font.clone();
+                        let mut font = req.answer();
                         font.name = fname;
                         if let Ok(n) = fsize.parse::<i64>() {
                             font.size = n;
@@ -2111,6 +2192,13 @@ pub fn rp_fire_event(name: &str, event: &str) {
     }
 }
 
+/// Whether the form `name` is on has been shown (ui-app's forms mark its
+/// first Show): before it, nothing has a window to paint — the first
+/// Show paints it all.
+fn shown_once(name: &str) -> bool {
+    form_of(name).is_some_and(|f| rp_comp_get_stored(&f, "__shownonce").to_bool())
+}
+
 /// The form a component is on (itself for a form).
 pub fn form_of(name: &str) -> Option<String> {
     let mut cur = name.to_uppercase();
@@ -2271,6 +2359,9 @@ thread_local! {
 }
 
 fn bind_dom_event(name: &str, event: &str) {
+    // (every binding comes here: OnStartDrag makes a drag source, OnHint
+    // the hints' receiver)
+    rapidr_value::events::bound(name, event);
     let id = format!("rr-{}", name.to_lowercase());
     let name_owned = name.to_string();
     let event_owned = event.to_string();

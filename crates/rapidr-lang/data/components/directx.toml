@@ -76,8 +76,8 @@ methods = [
   { name = "SetVelocity", params = "X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE, R AS INTEGER" },
   { name = "SetTextureQuality", params = "Quality AS INTEGER" },
   { name = "Render" },
-  { name = "CreateAnimation", missing = true },
-  { name = "CreateAnimationSet", missing = true },
+  { name = "CreateAnimation", params = "Ani AS RD3DAnimation", test = "args: 0", doc = "Takes a Direct3D animation object. RapidQ gives such an object nothing to do (no keys, nothing that plays it), so this does nothing." },
+  { name = "CreateAnimationSet", params = "AniSet AS RD3DAnimationSet", test = "args: 0", doc = "Takes a Direct3D animation set. RapidQ gives such an object nothing to do (no animations to add, nothing that plays it), so this does nothing." },
 ]
 events = [
   { name = "OnClick" },
@@ -151,7 +151,7 @@ methods = [
   { name = "Play" },
   { name = "Stop" },
   { name = "Update" },
-  { name = "RecreateBuf", missing = true },
+  { name = "RecreateBuf", doc = "Makes the sound's buffer again after DirectSound lost it. RapidR's sound never loses its buffer, so this does nothing." },
 ]
 events = []
 

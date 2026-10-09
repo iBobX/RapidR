@@ -57,6 +57,8 @@ pub fn generate_with_resources(program: &Program, target: AppTarget, resources: 
     let tray = rapidr_ast::tray_calls::lower(program);
     let program = &tray;
     let program = rapidr_ast::type_values::lower(&rapidr_ast::stream_arrays::lower(&rapidr_ast::memory::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::init_arrays(&rapidr_ast::create_property_reads(&rapidr_ast::option_dim(&rapidr_ast::dotted_fields(&rapidr_ast::templates(&rapidr_ast::quicksort(&rapidr_ast::for_locals::lower(&rapidr_ast::suffix_vars::lower(&rapidr_ast::hoist_routines(program)))))), &|n| builtin_function_call(n, &[]).is_some() || is_object_builtin(n))))))))));
+    // (`FUNCTION Calc.Twice` returns what's assigned to `Calc.Twice`)
+    let program = rapidr_ast::dotted_function_results(&program);
     let program = rapidr_ast::objects::lower(&program, &|n| builtin_function_call(n, &[]).is_some() || is_object_builtin(n));
     // Stores into declared numeric types convert (rapidr_ast::numeric).
     let program = rapidr_ast::numeric::lower(program);
@@ -214,6 +216,10 @@ struct RustCodegen {
     all_referenced_vars: HashSet<String>,
     /// Sub/function name (lowercase) → parameter count.
     function_param_counts: HashMap<String, usize>,
+    /// The SUBs and FUNCTIONs the program defines (lowercase), not only
+    /// DECLAREs: an event bound to one only declared fires nothing (RC.EXE
+    /// builds RapidQ's QStringGridsTwoLinesBitMap example so).
+    routine_bodies: std::collections::HashSet<String>,
     /// FUNCTIONs (not SUBs), lowercase: a bare `Name` in an expression calls one.
     returning_functions: HashSet<String>,
     /// Labels some GOTO/GOSUB jumps to (lowercase).
@@ -273,6 +279,7 @@ impl RustCodegen {
             with_component_stack: Vec::new(),
             all_referenced_vars: HashSet::new(),
             function_param_counts: HashMap::new(),
+            routine_bodies: std::collections::HashSet::new(),
             returning_functions: HashSet::new(),
             jump_targets: HashSet::new(),
             declared_functions: HashSet::new(),
@@ -494,7 +501,7 @@ impl RustCodegen {
     /// parameters, else `rp_bind_event_out(obj, "event", n, |a| …)`; `None`
     /// if `handler` (a Rust name) isn't one of the program's routines.
     fn bind_handler_call(&self, obj: &str, event: &str, handler: &str) -> Option<String> {
-        let (lower, &arity) = self.function_param_counts.iter().find(|(name, _)| to_snake(name) == handler)?;
+        let (lower, &arity) = self.function_param_counts.iter().find(|(name, _)| to_snake(name) == handler && self.routine_bodies.contains(*name))?;
         Some(match arity {
             0 => format!("rp_bind_event({obj}, \"{event}\", {handler})"),
             n => format!("rp_bind_event_out({obj}, \"{event}\", {n}, {})", self.out_handler(lower, handler, n)),
@@ -540,6 +547,7 @@ impl RustCodegen {
                     self.defined_functions.insert(s.name.to_lowercase());
                     self.defined_functions.insert(strip_type_suffix(&s.name).to_lowercase());
                     self.function_param_counts.insert(s.name.to_lowercase(), s.params.len());
+                    self.routine_bodies.insert(s.name.to_lowercase());
                     self.fn_byref.insert(s.name.to_lowercase(), s.params.iter().map(|p| p.by_ref).collect());
                     // Scan body for local component DIMs and CREATEs
                     for body_stmt in &s.body {
@@ -562,6 +570,7 @@ impl RustCodegen {
                     self.defined_functions.insert(strip_type_suffix(&f.name).to_lowercase());
                     self.returning_functions.insert(strip_type_suffix(&f.name).to_lowercase());
                     self.function_param_counts.insert(f.name.to_lowercase(), f.params.len());
+                    self.routine_bodies.insert(f.name.to_lowercase());
                     self.fn_byref.insert(f.name.to_lowercase(), f.params.iter().map(|p| p.by_ref).collect());
                     // Scan body for local component DIMs and CREATEs
                     for body_stmt in &f.body {

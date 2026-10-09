@@ -65,6 +65,33 @@ mod tests {
         assert_eq!(f.iter().map(|x| x.inset).collect::<Vec<_>>(), vec![5, 6]);
         assert!(frames(BV_NONE, BV_NONE, 1, 0).is_empty());
     }
+
+    #[test]
+    fn inset_for_aligned_children() {
+        let with = |props: &'static [(&str, i64)]| move |p: &str| props.iter().find(|(k, _)| *k == p).map_or(crate::Value::Null, |(_, v)| crate::v_int(*v));
+        assert_eq!(client_inset(&with(&[])), 1);
+        assert_eq!(client_inset(&with(&[("bevelinner", 2), ("bevelwidth", 2)])), 4);
+        assert_eq!(client_inset(&with(&[("bevelouter", 0)])), 0);
+        assert_eq!(client_inset(&with(&[("bevelouter", 1), ("bevelinner", 1)])), 2);
+    }
+}
+
+/// How far inside a QPANEL its aligned children start, on every side
+/// (Delphi's TCustomPanel.AdjustClientRect): BevelWidth for each bevel it
+/// has, BorderWidth between them, and Windows' two-pixel client edge with
+/// BorderStyle bsSingle. RC.EXE: a default panel's alLeft button at Left 1
+/// and its alTop one at Top 1; with an inner raised bevel too and
+/// BevelWidth 2, at 4; with no bevel, at 0. `get` gives a panel property,
+/// Null while unset.
+pub fn client_inset(get: &dyn Fn(&str) -> crate::Value) -> i64 {
+    let prop = |p: &str| match get(p) {
+        crate::Value::Null => default(p).unwrap_or(0),
+        v => v.to_i64(),
+    };
+    let width = prop("bevelwidth").clamp(0, 100);
+    let bevels = i64::from(prop("bevelouter") != BV_NONE) + i64::from(prop("bevelinner") != BV_NONE);
+    let edge = if matches!(get("borderstyle"), crate::Value::Null) { 0 } else if get("borderstyle").to_i64() == 1 { 2 } else { 0 };
+    bevels * width + prop("borderwidth").clamp(0, 1000) + edge
 }
 
 /// A panel property's value until the program sets it.

@@ -525,6 +525,42 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   IconPreview, OnBuildOutput, OnBuildDone).
 - `tools/studio_app.sh`: RapidR Studio as `RapidR Studio.app` from a
   checkout (its icon in the Dock, this checkout's Studio).
+- **Every RapidQ member now works in RapidR.** The 101 RapidQ properties,
+  methods and events that RapidR didn't answer before now work in native
+  builds, the interpreter and the web. Each was checked against RapidQ's own
+  compiler, RC.EXE:
+  - **Streams.** QFILESTREAM has ReadByte and WriteByte. ReadByte gives 26
+    past the end, as RapidQ does. QMEMORYSTREAM has `SetSize = n`,
+    MemCopyFrom and MemCopyTo (with VARPTR or Pointer addresses). CopyFrom
+    reports a stream read error when it asks for more bytes than are left.
+  - **String lists and rich edits.** QSTRINGLIST.LoadFromStream splits lines
+    at CR LF, LF or CR. Its SaveToStream reads the list from the stream,
+    exactly as RapidQ's does. QRICHEDIT has LoadFromStream and SaveToStream.
+    QSTRINGGRID has DeleteColumn, another name for DeleteCol.
+  - **Drawing.** TextRect draws text clipped to a rectangle on forms, images,
+    canvases, bitmaps, headers, the printer, and owner-drawn lists and grids.
+    Rotate turns an image, canvas or bitmap by degrees. QCANVAS has Get and
+    Put, QIMAGELIST has Draw, and QIMAGE has Repaint. Lists, combo boxes and
+    grids take RoundRect, CopyRect, StretchDraw, TextOut, TextWidth and
+    TextHeight in their owner drawing.
+  - **Forms.** HideTitleBar and ShowTitleBar remove and restore the title
+    bar. ShapeForm cuts a window to a bitmap's outline (not on Wayland). A
+    QFORM has Cascade, Tile, Next, Previous and ArrangeIcons. QFORMMDI has
+    ActiveNextChild and ActivePreviousChild.
+  - **Events that never fired now do.** OnHint fires when the mouse brings a
+    new hint, and RapidR now shows tooltips (ShowHint, HintPause,
+    HintColor). OnEnter fires when a list box or file list box gets the
+    focus. OnStartDrag and OnEndDrag fire around a button drag, and
+    StartDrag moves the control with the mouse. QCOMPORT fires OnBreak,
+    OnRing and OnTxEmpty. A control's WndProc can be bound but is never
+    called, as in RapidQ. A form's WndProc still gets its tray icon's
+    messages.
+  - **QMYSQL.** RealConnect, CreateDB, DropDB, Refresh, FetchLengths (with
+    Length), RowBlob, LoadBlob and SaveBlob work. An empty host means this
+    machine, as in RapidQ. EscapeString escapes the way MySQL's C client
+    does.
+  - New conformance cases (most with RC.EXE's own output as the expected
+    output) and new GUI cases for the desktop and the web.
 - **RapidR Studio: the IDE's shell** (`ide/`, docs/ide-plan.md I1 /
   L-SHELL + L-WEB). One RapidR program on RapidR's public components — the
   same bytecode on the desktop (`rapidr ide [file]`) and in the browser
@@ -741,6 +777,10 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   unquoted; with several, the last one wins. The icon is now also the built
   executable's / app's. RapidR still takes any `.ico` (RapidQ only 766-byte
   32 × 32 ones), `.icns`, `.png` and `.svg`.
+- QDXSCREEN.TextRect now uses the same drawing as every other TextRect: a
+  background colour fills the whole rectangle, not just the text.
+- `SetFocus` on the desktop now moves the keyboard focus, as it already did
+  on the web.
 - **`rapidr ide` opens RapidR Studio** (`ide/studio.rr`; an install's
   `ide/rapidr-ide.rrbc` is compiled from it); the old `examples/ide.rr`
   and the HTML web IDE stay until Studio reaches their features
@@ -892,6 +932,47 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   2026-10-06 should be cloned again.
 
 ### Fixed
+- **RapidQ's examples at run time** (`tools/corpus_run.py`; its report stays
+  on this machine, what it found in `tools/corpus_run_notes.md`): every example that compiles is run on the
+  interpreter and as a native build, GUI ones captured beside RC.EXE's
+  windows, and what went wrong fixed as RapidQ does it (each checked with
+  RC.EXE): `SLEEP .1`; a program's own `TYPE QToolBar`; `Font.AddStyles` /
+  `DelStyles` on components and on a QBITMAP's font (`= n` too); a form's
+  first Show fires OnResize, OnShow, OnResize; QTIMER on Windows' ticks;
+  RLE4 / RLE8 / 16-bit BMPs; aligned controls placed in RapidQ's order at
+  the first Show and inside a panel's bevels; status panels 50 wide; a
+  QBUTTON's glyph; `ImageList.Handle =`; canvases made in OnShow paint;
+  QSTRINGGRID's FixedColor and owner drawing; a QFILESTREAM that can't open
+  its file stops the program (`Cannot open file x.`); a borderless form
+  never shows scroll bars; QFILELISTBOX's order and `[.]`; hex numbers with
+  `?` / `@` digits (`&HFFFF0000???` in RapidQ's CommCtrl.inc), `&HH1`, and
+  their low 32 bits past 8 digits; QFONTDIALOG's colours (clWindowText at
+  first, system colours kept). RapidQ IDE's `.rqw` window programs are part
+  of the corpus now.
+- **A form's first OnPaint comes when the program next waits** (DOEVENTS, ShowModal), after
+  `OnResize`, `OnShow`, `OnResize` — not inside `Show` — as RC.EXE sends it; a scale change no
+  longer paints twice; the web's DOEVENTS delivers the paints too (`rapidq_form_show_events`).
+- **RapidR Studio's panel components read true as 1** (`ShowTabs`, `ShowFiles`, `ShowEvents`,
+  `ShowCaptions` …: they read -1, against the language registry and RapidQ's rule) and
+  RTOOLBAR reads its Anchors (akLeft + akTop) like the other visual components.
+- **RapidQ program forms RC.EXE takes, found running the corpus' `.rqb` / `.rq` programs**
+  (each checked with RC.EXE; conformance cases `rapidq_dotted_routines`,
+  `rapidq_const_forms`, `rapidq_input_bare`): a FUNCTION named with a dot returns what's
+  assigned to its whole name (`FUNCTION Calc.Twice` … `Calc.Twice = N * 2`; both backends
+  returned nothing);
+  `&` stuck to decimal digits is the number (`CONST Null=&0`); a CONST may have a dotted
+  name (`CONST Application.Path = …`, read back by that name); a statement whose argument
+  starts in parentheses (`SLEEP(T * 11.2) / 600`); a bare `INPUT$` reads a line, as RC.EXE
+  does (natively it didn't build, interpreted it didn't wait).
+- **The font dialog names a system colour by its colour**: given clWindowText (a new
+  QFONTDIALOG's Color, and every font that hasn't set one) its colour list showed "Custom"; it
+  shows "Black" now (clWindow "White"; one that isn't among the 16, such as clBtnFace, stays
+  Custom), the sample drawn in the theme's text colour, and OK keeps Color clWindowText unless
+  another colour is picked — so a label given the font back still follows the theme. (RapidQ's
+  dialog shows Custom: a deliberate difference.)
+- **`QFONTDIALOG.SetFont(Label.Font)` / `GetFont(Label.Font)`** change and
+  read the component's own font, and `Label2.Font = Label.Font` copies it
+  (an addition: RapidQ's compiler refuses a component's Font there).
 - **`Form.Center` centres the window** when the form shows (`Show`,
   `ShowModal`), as RC.EXE does: Left / Top read 0 until then and the
   screen's middle after, by the form's outer Width × Height (RC.EXE and

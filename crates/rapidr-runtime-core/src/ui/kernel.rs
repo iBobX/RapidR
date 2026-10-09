@@ -305,6 +305,10 @@ pub fn step(max_wait: Option<Duration>) {
 /// The events the host queued, handled (each to completion; a handler may
 /// step again).
 fn dispatch_pending() {
+    // (the paints a new size posted: rapidr_value::events::post_paint)
+    for name in rapidr_value::events::take_posted_paints() {
+        crate::object::rp_fire_event(&name, "onpaint");
+    }
     for e in with_kern(|k| std::mem::take(&mut k.desk.events)).unwrap_or_default() {
         match e {
             // (a kernel-drawn dialog's: never the program's)
@@ -574,6 +578,41 @@ pub fn gui_set_form_border(name: &str) {
     forms::set_form_border(Rt, name);
 }
 
+/// `Form.HideTitleBar` / `ShowTitleBar` (rapidr_ui_app::forms::set_title_bar).
+pub fn gui_title_bar(name: &str, show: bool) {
+    forms::set_title_bar(Rt, &lower(name), show);
+}
+
+/// `Form.ShapeForm`: the window's outline changed (rapidr_value::shape).
+pub fn gui_shape_changed(name: &str) {
+    rapidr_ui_app::windows::push_op(WindowOp::Shape(lower(name)));
+    invalidate();
+}
+
+/// `X.StartDrag` (rapidr_value::drag): the control moves with the mouse
+/// while a button is held, and this returns when it's let go — a native
+/// build steps until then; the interpreter is left a wait it serves
+/// (`Wait::Drag`). Nothing held: returns at once.
+pub fn gui_start_drag(name: &str) {
+    if !started() || held() {
+        return;
+    }
+    let Some(form) = forms::start_drag(Rt, &lower(name)) else { return };
+    if waits::cooperative() {
+        waits::start(Wait::Drag(form));
+        return;
+    }
+    // (a GUI test's script plays the mouse meanwhile)
+    script::input_awaited(rapidr_ui_kernel::tick::now());
+    while form_dragging(&form) && forms::form_shown(&form) {
+        step(None);
+    }
+}
+
+fn form_dragging(form: &str) -> bool {
+    with_kern(|k| k.desk.forms.get(form).is_some_and(|f| f.ui.dragging())).unwrap_or(false)
+}
+
 pub fn gui_apply_icon(name: &str) {
     forms::apply_icon(Rt, name);
 }
@@ -833,7 +872,7 @@ pub fn mouse_in_form() -> (i64, i64) {
     let top = with_kern(|k| k.desk.stacking().last().and_then(|f| k.desk.forms.get(f).map(|w| (f.clone(), w.spec.position.unwrap_or((0, 0)))))).flatten();
     match top {
         Some((f, (x, y))) => {
-            let (fw, fh) = rapidr_value::layout::form_frame(rp_comp_get(&f, "borderstyle").to_i64());
+            let (fw, fh) = rapidr_value::layout::form_frame(rapidr_value::layout::frame_style(&f, rp_comp_get(&f, "borderstyle").to_i64()));
             (mx - x - fw / 2, my - y - (fh - fw / 2) - i64::from(menu_offset(&f)))
         }
         None => (mx, my),
@@ -1113,6 +1152,12 @@ impl Windows for Rt {
     }
     fn popup_open(self, form: &str) -> bool {
         menus::popup_open(form)
+    }
+    fn start_move(self, form: &str, comp: &str) -> bool {
+        with_kern(|k| k.desk.forms.get_mut(form).is_some_and(|f| f.ui.start_move(comp))).unwrap_or(false)
+    }
+    fn dragging(self, form: &str) -> bool {
+        form_dragging(form)
     }
     fn open_dialog(self, id: &str, title: &str, size: (i64, i64)) {
         dialogs::open_window(id, title, size);

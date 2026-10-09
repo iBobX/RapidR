@@ -379,10 +379,12 @@ impl<'src> Lexer<'src> {
                     ));
                 }
                 // `.5` is a number (`SetRGBA(.1, 1, .1, .7)`), not a WITH
-                // member, unless it follows a value (`a.5` stays a member).
+                // member, unless it follows a value right after it (`a.5`
+                // stays a member; `SLEEP .1` — RapidQ's examples — sleeps a
+                // tenth of a second).
                 '.' if matches!(self.peek_char(1), Some('0'..='9'))
                     && !tokens.last().is_some_and(|t| {
-                        matches!(t.kind, TokenType::Identifier | TokenType::RParen | TokenType::RBracket | TokenType::Number | TokenType::String)
+                        t.span.end == start && matches!(t.kind, TokenType::Identifier | TokenType::RParen | TokenType::RBracket | TokenType::Number | TokenType::String)
                     }) =>
                 {
                     tokens.push(self.lex_decimal_number(start, line, column));
@@ -971,12 +973,14 @@ impl<'src> Lexer<'src> {
         let digit_start = self.index;
 
         // RapidQ's `&H` takes the whole alphanumeric run and keeps its hex
-        // digits — `&hHE` is 14, `&hG1` 1, a bare `&h` 0 (RC.EXE; the
-        // corpus' SBLIB.BAS). `&O` / `&B` are RapidR's own.
+        // digits — `&hHE` is 14, `&hG1` 1, a bare `&h` 0, `&HH1` 1
+        // (RapidQ's keyboard example's VK_LBUTTON) — and reads `?` and `@`
+        // as the digit 0 (`&HFFFF0000???` in RapidQ's CommCtrl.inc is
+        // &HFFFF0000000, `&H1?` 16): RC.EXE. `&O` / `&B` are RapidR's own.
         let mut hex_digits = String::new();
         while let Some(ch) = self.current_char() {
             let valid = match prefix {
-                'H' | 'h' => ch.is_ascii_alphanumeric(),
+                'H' | 'h' => ch.is_ascii_alphanumeric() || matches!(ch, '?' | '@'),
                 'O' | 'o' => matches!(ch, '0'..='7'),
                 'B' | 'b' => matches!(ch, '0' | '1'),
                 _ => false,
@@ -985,6 +989,8 @@ impl<'src> Lexer<'src> {
             if valid {
                 if ch.is_ascii_hexdigit() {
                     hex_digits.push(ch);
+                } else if matches!(ch, '?' | '@') {
+                    hex_digits.push('0');
                 }
                 self.advance_char();
             } else {

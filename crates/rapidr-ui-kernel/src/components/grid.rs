@@ -261,6 +261,14 @@ impl ComponentKind for Grid {
         let font = cx.font.clone();
         let text_color = ink(cx.store, cx.id, &font, true, t.window);
         let (fc, fr) = (g.fixed_cols(), g.fixed_rows());
+        // (FixedColor: the fixed cells' fill, clBtnFace until set)
+        let fixed_fill = match cx.store.get(cx.id, "fixedcolor") {
+            v @ (rapidr_value::Value::Integer(_) | rapidr_value::Value::Double(_)) => crate::text::bgr_to_rgb(v.to_i64()),
+            _ => t.face,
+        };
+        // (the cell being edited: its list / ellipsis button shows — RapidQ
+        // shows them in the cell's editor only)
+        let edited = editing(cx.id).map(|ed| ed.target);
         p.at((2, 2), |p| {
             p.clipped((0, 0, l.inner.0, l.inner.1), |p| {
                 // (the lines: what the cells leave between them)
@@ -292,7 +300,7 @@ impl ComponentKind for Grid {
                         let text = g.cell(c, r).to_string();
                         let ellipsis = has_ellipsis(&g, c, r);
                         let list = (g.col, g.row) == (c as i64, r as i64) && g.list_items(c, r).is_some();
-                        let button = if ellipsis || list { rh.min(cw) } else { 0 };
+                        let button = if (ellipsis || list) && edited == Some((c, r)) { rh.min(cw) } else { 0 };
                         // (RapidR's look: the selection a tint of the accent —
                         // grey without the focus — the current cell ringed)
                         let (sel_fill, sel_ink) = if !t.fluent() {
@@ -304,7 +312,7 @@ impl ComponentKind for Grid {
                         };
                         p.clipped(rect, |p| {
                             if fixed {
-                                p.fill(rect, t.face);
+                                p.fill(rect, fixed_fill);
                                 if !t.fluent() {
                                     p.thin_raised(rect);
                                 }
@@ -369,18 +377,30 @@ impl ComponentKind for Grid {
                                         h.finish()
                                     };
                                     p.picture(&format!("{}#cell{c},{r}", cx.id), revision, picture_of(b.display_rgba()), rect);
-                                } else {
-                                    p.at((x, y), |p| replay(p, ops, &font, &format!("{}#cell{c},{r}", cx.id)));
                                 }
                             }
-                            if current && !fixed && !g.has_option(rapidr_value::objects::grid::GO_ROW_SELECT) {
+                        });
+                        // (after what OnDrawCell drew, which isn't clipped to the cell)
+                        if current && !fixed && !g.has_option(rapidr_value::objects::grid::GO_ROW_SELECT) {
+                            p.clipped(rect, |p| {
                                 if t.fluent() {
                                     p.ring(rect, 2.0, t.focus, 2.0);
                                 } else {
                                     p.focus(rect);
                                 }
-                            }
-                        });
+                            });
+                        }
+                    }
+                }
+                // (what OnDrawCell drew, over the cells and not clipped to
+                // its own: a handler may draw over its neighbours — RapidQ's
+                // mergeGrid example draws one text across two cells, from
+                // the second cell's handler)
+                for &(r, y, _) in &l.rows {
+                    for &(c, x, _) in &l.cols {
+                        if let Some(ops) = g.owner_drawing.get(&(c, r)).filter(|ops| !ops.iter().any(|op| matches!(op, CellDraw::Flood(..)))) {
+                            p.at((x, y), |p| replay(p, ops, &font, &format!("{}#cell{c},{r}", cx.id)));
+                        }
                     }
                 }
             });

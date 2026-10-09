@@ -161,7 +161,9 @@ pub fn truth(v: &Value) -> bool {
     }
 }
 
-/// RapidQ's True as the runtimes give it back.
+/// A true / false property as the runtimes read it back: 1 or 0 (RapidQ's
+/// Booleans read 1 — RC.EXE —, and so do the panels', as the language
+/// registry says).
 pub fn basic_bool(b: bool) -> Value {
-    Value::Integer(if b { -1 } else { 0 })
+    Value::Integer(i64::from(b))
 }
