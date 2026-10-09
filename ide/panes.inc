@@ -10,6 +10,8 @@
 '   OutputBox     "Output"      bottom            ROUTPUTCONSOLE: output, build,
 '                                                 problems (panels.inc)
 '   ImmediateBox  "Immediate"   with Output       RImmediateWindow (I6)
+'   VarsTree, WatchPanel, StackTree, BpPanel      beside Output: Variables,
+'                 Watch, Call Stack, Breakpoints (debug.inc SetUpDebug)
 '   CodeDoc(i)    a source file's tab             RCodeEditor    (L-EDVIEW)
 '   DesignDoc(i)  its form: the tab's Design view RDESIGNSURFACE (workspace.inc)
 '   SearchPane    "Search"      with Project      Find in Files  (search.inc)
@@ -21,7 +23,7 @@ SUB SetUpDock
   Dock.AddPane(Inspector, "Properties", "right", "properties")
   Dock.AddPane(OutlineTree, "Outline", "bottom:inspector", "outline")
   Dock.AddPane(OutputBox, "Output", "bottom:documents", "output")
-  Dock.AddPane(ImmediateBox, "Immediate", "tab:outputbox", "debug")
+  Dock.AddPane(ImmediateBox, "Immediate", "tab:outputbox", "immediate")
   Dock.AddPane(Welcome, "Welcome", "documents", "list")
   Dock.ShowPane("outputbox")
 END SUB

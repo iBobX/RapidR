@@ -43,14 +43,22 @@ const audit = read(".cargo/audit.toml");
 const auditIgnores = [...audit.matchAll(/"(RUSTSEC-[0-9-]+)"/g)].map((m) => m[1]).sort();
 check(`cargo-audit ignores what cargo-deny does (${auditIgnores} / ${denyIgnores})`, JSON.stringify(denyIgnores) === JSON.stringify(auditIgnores));
 
-// ttf-parser only ever parses the built-in fonts.
+// ttf-parser only ever parses the built-in fonts: the statics
+// include_bytes! embeds, as face() picks them for a font (its Regular for a
+// character a styled face lacks), or BUILTIN_FACES lists them; nothing a
+// program supplies.
 const text = read("crates/rapidr-value/src/objects/text.rs");
+const statics = new Set([...text.matchAll(/^(?:pub )?static ([A-Z_]+): &\[u8\] = include_bytes!\(/gm)].map((m) => m[1]));
 const parses = [...text.matchAll(/ttf_parser::Face::parse\(([^,]+),/g)].map((m) => m[1].trim());
-check(`ttf_parser parses only face_data(…) (${parses})`, parses.length > 0 && parses.every((p) => p.startsWith("face_data(")));
-const faceData = text.match(/fn face_data\([^)]*\) -> &'static \[u8\] \{([\s\S]*?)\n\}/)?.[1] ?? "";
-const returned = [...faceData.matchAll(/=> ([A-Z_]+),?/g)].map((m) => m[1]);
-const consts = new Set([...text.matchAll(/^const ([A-Z_]+): &\[u8\] = include_bytes!\(/gm)].map((m) => m[1]));
-check(`face_data returns only built-in fonts (${returned})`, returned.length > 0 && returned.every((r) => consts.has(r)));
+check(`ttf_parser parses only built-in faces (${parses})`, parses.length > 0 && parses.every((p) => statics.has(p) || ["want.data", "regular", "data"].includes(p)));
+check("want and regular are face()'s", /let want = face\(/.test(text) && /let regular = face\([^)]*\)\.data;/.test(text));
+check("data is BUILTIN_FACES'", (text.match(/ttf_parser::Face::parse\(data,/g) || []).length === (text.match(/for &\(data, _\) in BUILTIN_FACES\.iter\(\)/g) || []).length);
+const faceFn = text.match(/fn face\(name: &str, styles: u8\) -> Face \{([\s\S]*?)\n\}/)?.[1] ?? "";
+const named = [...new Set([...faceFn.replace(/\/\/.*$/gm, "").matchAll(/\b([A-Z][A-Z_]+)\b/g)].map((m) => m[1]))];
+check(`face() picks only built-in fonts (${named})`, named.length > 0 && named.every((n) => statics.has(n)));
+check("a Face is made only in face() and liberation()", (text.match(/Face \{ data:/g) || []).length === (faceFn.match(/Face \{ data:/g) || []).length + 1);
+const listed = [...(text.match(/pub static BUILTIN_FACES[^=]*= \[([\s\S]*?)\n\];/)?.[1] ?? "").matchAll(/\(([A-Z_]+),/g)].map((m) => m[1]);
+check(`BUILTIN_FACES lists only built-in fonts (${listed.length})`, listed.length > 0 && listed.every((n) => statics.has(n)));
 const others = spawnSync("git", ["grep", "-l", "ttf_parser", "--", "*.rs"], { cwd: ROOT, encoding: "utf8" }).stdout.trim().split("\n").filter(Boolean);
 check(`no other code uses ttf_parser (${others})`, others.length === 1 && others[0] === "crates/rapidr-value/src/objects/text.rs");
 

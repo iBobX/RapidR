@@ -3700,6 +3700,7 @@ dependencies = [
  "rapidr-codegen-rust",
  "rapidr-dap",
  "rapidr-lang",
+ "rapidr-langsvc",
  "rapidr-lexer",
  "rapidr-lsp",
  "rapidr-package",
@@ -3836,6 +3837,7 @@ dependencies = [
  "rapidr-bcgen",
  "rapidr-bytecode",
  "rapidr-diagnostics",
+ "rapidr-editor",
  "rapidr-lang",
  "rapidr-lexer",
  "rapidr-parser",
@@ -3947,6 +3949,7 @@ dependencies = [
  "rapidr-d3d-gpu",
  "rapidr-db",
  "rapidr-lang",
+ "rapidr-langsvc",
  "rapidr-studio",
  "rapidr-ui-app",
  "rapidr-ui-host-web",
@@ -3964,6 +3967,7 @@ version = "2.117.0"
 dependencies = [
  "rapidr-bcgen",
  "rapidr-bytecode",
+ "rapidr-lang",
  "rapidr-lexer",
  "rapidr-parser",
  "rapidr-value",
@@ -4016,6 +4020,7 @@ name = "rapidr-ui-host-winit"
 version = "2.117.0"
 dependencies = [
  "accesskit",
+ "accesskit_consumer",
  "accesskit_winit",
  "core-foundation-sys",
  "muda",
@@ -4042,6 +4047,7 @@ name = "rapidr-ui-kernel"
 version = "2.117.0"
 dependencies = [
  "parley",
+ "rapidr-editor",
  "rapidr-icons",
  "rapidr-value",
  "web-time",
@@ -4053,6 +4059,7 @@ version = "2.117.0"
 dependencies = [
  "glifo",
  "parley",
+ "rapidr-langsvc",
  "rapidr-ui-kernel",
  "rapidr-value",
  "vello",
@@ -4065,10 +4072,12 @@ version = "2.117.0"
 dependencies = [
  "jpeg-decoder",
  "proptest",
+ "rapidr-editor",
  "rapidr-icons",
  "rapidr-lang",
  "rapidr-project",
  "resvg",
+ "serde_json",
  "ttf-parser",
  "windows-registry",
  "windows-sys 0.52.0",

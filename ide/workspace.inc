@@ -6,8 +6,10 @@
 '
 '   Design | Code    a file with a form has the switch at the right of its
 '                    tab strip (RDOCKMANAGER's AddView): its designer, its
-'                    code, or both side by side; F12 toggles (Delphi's),
-'                    F7 the code, Shift+F7 the designer
+'                    code, or both side by side; F12 from the designer to
+'                    the code (Delphi's; in the code F12 goes to the
+'                    definition, VS Code's), F7 the code, Shift+F7 the
+'                    designer
 '   groups           a tab dragged to a side of the area splits it into
 '                    groups (VS Code's editor groups), or Window > Split
 '                    Right / Split Down; the splitters between them drag
@@ -20,7 +22,6 @@ DIM SessionProject AS STRING
 DIM SessionFiles AS STRING
 
 DECLARE SUB DocumentViewChanged(Name AS STRING, View AS STRING)
-DECLARE SUB LayoutChanged
 DECLARE SUB SaveSoon
 DECLARE SUB DesignPicked(Index AS INTEGER, Sender AS RDESIGNSURFACE)
 
@@ -119,12 +120,20 @@ SUB ShowView(View AS STRING)
   IF View = "Design" THEN Dock.FocusPane("designdoc(" + LTRIM$(STR$(d)) + ")")
 END SUB
 
-' F12: the form, then its code, as Delphi.
+' F12: from the form to its code, as Delphi.
+' (in the code F12 is Go to Definition, as VS Code's — docs/studio-wow.md
+' ED-6, the editor's: the designer is Shift+F7 or the switch away)
 SUB ToggleDesign
   DIM d AS INTEGER
   d = ActiveCode
   IF d < 0 THEN EXIT SUB
-  IF DocViewNow(d) = "Design" THEN ShowView "Code" ELSE ShowView "Design"
+  IF DocViewNow(d) = "Design" THEN
+    ShowView "Code"
+  ELSEIF DocViewNow(d) = "Split" AND DocKind(d) = "design" THEN
+    Dock.FocusPane(DocPane(d))
+  ELSE
+    CodeDoc(d).GotoDefinition
+  END IF
 END SUB
 
 ' The documents' and the views' commands; True when Id was one.
@@ -400,4 +409,5 @@ SUB RestoreSession(Path AS STRING)
     IF d >= 0 THEN lay = REPLACESUBSTR$(lay, "codedoc(#" + LTRIM$(STR$(i)) + ")", DocPane(d))
   NEXT
   Dock.LoadLayout(lay)
+  DebugLayoutLoaded
 END SUB

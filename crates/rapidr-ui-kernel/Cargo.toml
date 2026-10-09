@@ -11,6 +11,9 @@ description = "RapidR's GUI-free UI kernel: forms as retained trees over the pro
 # wasm32-unknown-unknown (tools/regress.sh's unit stage checks it).
 [dependencies]
 rapidr-value = { workspace = true }
+# The code editor's model and language-service contract (codeeditor.rs):
+# GUI-free, wasm-safe.
+rapidr-editor = { workspace = true }
 # RapidR's own icons (icons.rs: Painter::icon); GUI-free, builds for wasm32.
 rapidr-icons = { workspace = true }
 # Text shaping, layout and editing (MIT OR Apache-2.0; pure Rust). Its

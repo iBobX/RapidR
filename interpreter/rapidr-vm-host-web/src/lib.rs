@@ -24,7 +24,7 @@ use rapidr_runtime_web::prelude::*;
 use rapidr_value::{v_dbl, v_int, v_null, v_str, Value};
 use rapidr_session::program::{Control, ProgramEnd};
 use rapidr_session::protocol::{Command, Event as Message, EventBody, Request, PROTOCOL_VERSION};
-use rapidr_vm::{Host, Vm, VmError};
+use rapidr_vm::{Host, StepMode, StopReason, Vm, VmError};
 use wasm_bindgen::prelude::*;
 
 /// Browser host: routes the [`Host`] surface to `rapidr-runtime-web`.
@@ -133,8 +133,8 @@ impl Host for WebHost {
         Ok(rp_comp_call(id, method, args))
     }
 
-    fn component_properties(&mut self, id: &str) -> Option<(String, Vec<(String, Value)>)> {
-        obj::rp_comp_get_all_properties(id).map(|(kind, props)| (kind, props.into_iter().collect()))
+    fn component_type(&mut self, id: &str) -> Option<String> {
+        Some(obj::rp_comp_type(id)).filter(|t| !t.is_empty())
     }
 
     fn register_event(&mut self, id: &str, event: &str, handler_fn_index: u32) -> Result<(), String> {
@@ -454,6 +454,9 @@ struct Session {
     end: Option<ProgramEnd>,
     /// Stopped for the debugger (a breakpoint, a step, a pause, an error).
     stopped: bool,
+    /// Paused while the program waited for its events (a ShowModal, a
+    /// dialog): no code was running — going on lets the wait go on.
+    idle_stop: bool,
     /// `__main` has run to its end.
     main_finished: bool,
     /// `exited` was sent.
@@ -485,7 +488,7 @@ impl Session {
             g.set(n);
             n
         });
-        Session { module, vm, main_waiting: false, generation, slice: None, end: None, stopped: false, main_finished: false, exited: false }
+        Session { module, vm, main_waiting: false, generation, slice: None, end: None, stopped: false, idle_stop: false, main_finished: false, exited: false }
     }
 }
 
@@ -556,6 +559,7 @@ fn start_session(session: Session) {
     rapidr_runtime_web::kernel_web::set_interpreter(true);
     EVENTS.with(|q| q.borrow_mut().clear());
     DEFERRED.with(|q| q.borrow_mut().clear());
+    rapidr_runtime_web::object_web::set_debug_stopped(false);
     HAS_COMPONENTS.with(|h| h.set(false));
     // (a new program starts on a cleared console: the cursor, the colour,
     // the pages PEEK reads)
@@ -630,7 +634,23 @@ fn run_step(
     step: impl FnOnce(&mut Vm<'static, WebHost>, &Module) -> Result<(), VmError>,
 ) -> (Result<(), VmError>, bool) {
     dialog::enter_vm();
-    let result = step(&mut session.vm, &session.module);
+    let mut result = step(&mut session.vm, &session.module);
+    // (a breakpoint whose condition, hit count or log message says go on:
+    // on at once, as the desktop's debugger does)
+    while matches!(result, Err(VmError::Paused)) {
+        let Some(end) = session.end.as_mut() else { break };
+        // (a logpoint's line goes out as PRINT's does, so it keeps its place
+        // among the program's own output; anything else is queued)
+        let mut out = |event: Message| match &event.body {
+            EventBody::Output { text, .. } => rp_print(&[v_str(text.trim_end_matches('\n'))], true),
+            _ => emit(event),
+        };
+        if end.at_breakpoint(&mut session.vm, &session.module, &mut out) {
+            break;
+        }
+        end.resumed();
+        result = session.vm.resume(&session.module);
+    }
     dialog::leave_vm();
     match &result {
         Err(VmError::Yielded) => {
@@ -641,7 +661,7 @@ fn run_step(
         Err(VmError::Suspended) if kind == Slice::Main => session.main_waiting = true,
         // Stopped for the debugger: the IDE hears where, now.
         Err(VmError::Paused) => {
-            session.stopped = true;
+            set_stopped(session, true);
             if let Some(end) = session.end.as_mut() {
                 emit(end.stopped_event(&session.vm, &session.module));
             }
@@ -792,6 +812,11 @@ fn run_idle_events_inner() {
         let outcome = SESSION.with(|s| {
             let Ok(mut guard) = s.try_borrow_mut() else { return None };
             let session = guard.as_mut()?;
+            // (stopped for the debugger: the program's events wait until it
+            // goes on, as the desktop's do)
+            if session.stopped {
+                return None;
+            }
             let mut batch: Vec<Event> = DEFERRED.with(|q| q.borrow_mut().drain(..).collect());
             batch.extend(take_queued_events());
             if batch.is_empty() {
@@ -1109,9 +1134,19 @@ pub fn session_request(json: &str) {
     flush_events();
 }
 
+/// The program stopped by the debugger, or going on (its timers held
+/// meanwhile: `object_web::set_debug_stopped`).
+fn set_stopped(session: &mut Session, on: bool) {
+    session.stopped = on;
+    rapidr_runtime_web::object_web::set_debug_stopped(on);
+}
+
 /// What a request leaves to do once the session is released.
 enum After {
     Nothing,
+    /// Going on from a pause while the program waited: the events that
+    /// arrived meanwhile run.
+    Waits,
     /// Run the main program from its start.
     Run,
     /// Go on from a stop.
@@ -1132,11 +1167,36 @@ fn serve_request(request: Request) {
         // debugger watches from now on, and the next slice stops at once)
         if matches!(request.command, Command::Pause) && !session.stopped {
             session.vm.debug_mode = true;
+            // (…while it waits for its events — a ShowModal, a dialog: it
+            // stops there now, as the desktop's does)
+            if session.slice.is_none() && !dialog::is_yielded() && session.vm.frames.last().is_some_and(|f| f.waiting) {
+                session.vm.interrupt.store(false, std::sync::atomic::Ordering::Relaxed);
+                session.vm.step_mode = StepMode::None;
+                session.vm.stop_reason = StopReason::Pause;
+                set_stopped(session, true);
+                session.idle_stop = true;
+                if seq != 0 {
+                    emit(Message::reply(seq, EventBody::Ok));
+                }
+                if let Some(end) = session.end.as_mut() {
+                    emit(end.stopped_event(&session.vm, &session.module));
+                }
+                return Ok(After::Nothing);
+            }
         }
         let paused = session.stopped && session.slice.is_none();
+        // (where a step from a pause while waiting stops: the next statement
+        // run, a handler's — Into —, the line after the wait — Over)
+        let depth = session.vm.frames.len();
+        let waiting_step = match request.command {
+            Command::StepIn => StepMode::Into,
+            Command::StepOver => StepMode::Over { target_depth: depth },
+            Command::StepOut => StepMode::Out { target_depth: depth },
+            _ => StepMode::None,
+        };
         let mut end = session.end.take().unwrap_or_default();
         let (reply, control) = end.handle(&mut session.vm, &session.module, request, paused);
-        let after = match control {
+        let mut after = match control {
             Control::Start { .. } => After::Run,
             Control::Continue => After::Go(|vm, m| vm.resume(m)),
             Control::StepIn => After::Go(|vm, m| vm.step_into(m)),
@@ -1148,7 +1208,11 @@ fn serve_request(request: Request) {
         };
         if matches!(after, After::Go(_)) {
             end.resumed();
-            session.stopped = false;
+            set_stopped(session, false);
+            if std::mem::take(&mut session.idle_stop) {
+                session.vm.step_mode = waiting_step;
+                after = After::Waits;
+            }
         }
         session.end = Some(end);
         if let Some(reply) = reply {
@@ -1165,6 +1229,11 @@ fn serve_request(request: Request) {
     };
     match after {
         After::Nothing => {}
+        After::Waits => {
+            emit(Message::new(EventBody::Continued));
+            flush_events();
+            run_idle_events();
+        }
         After::Run => {
             let result = SESSION.with(|s| {
                 let mut guard = s.try_borrow_mut().ok()?;

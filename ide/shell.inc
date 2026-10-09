@@ -56,6 +56,8 @@ SUB RunCommand(Id AS STRING)
   d = ActiveCode
   ' (the designer's commands, and Edit's on a designer: designer.inc)
   IF DesignCommand(Id) THEN EXIT SUB
+  ' (Run's and Debug's: debug.inc)
+  IF DebugCommand(Id) THEN EXIT SUB
   ' (the documents' views and groups, Find in Files, Help: workspace.inc, search.inc)
   IF WorkspaceCommand(Id) THEN EXIT SUB
   SELECT CASE Id
@@ -102,15 +104,6 @@ SUB RunCommand(Id AS STRING)
     CASE "project.addModule": AddProjectFile "module"
     CASE "project.options": ShowAppSettings
     ' ---- run / debug ----
-    CASE "run.start": StartProgram 1
-    CASE "run.withoutDebugging": StartProgram 0
-    CASE "run.stop": StopProgram
-    CASE "run.restart": StopProgram: StartProgram 1
-    CASE "run.continue": Session.Continue
-    CASE "run.pause": Session.Pause
-    CASE "debug.stepInto": IF RunState = "paused" THEN Session.StepIn
-    CASE "debug.stepOver": IF RunState = "paused" THEN Session.StepOver
-    CASE "debug.stepOut": IF RunState = "paused" THEN Session.StepOut
     CASE "run.build": BuildProject
     CASE "run.reveal": RevealBuild
     ' ---- window ----
@@ -119,7 +112,7 @@ SUB RunCommand(Id AS STRING)
     ' ---- help ----
     CASE "help.about": ShowAbout
     CASE ELSE
-      OutputLine "(" + Id + ": not there yet)"
+      IF EditorCommand(Id) = 0 THEN OutputLine "(" + Id + ": not there yet)"
   END SELECT
 END SUB
 
@@ -136,7 +129,8 @@ SUB StudioClose(Action AS INTEGER)
     Action = 0
     EXIT SUB
   END IF
-  IF RunState <> "stopped" THEN Session.Stop
+  StopProgram
+  Session.StopBrowser
   SaveSettings
 END SUB
 
@@ -158,6 +152,7 @@ SUB DocumentActivated(Name AS STRING)
   d = DocOfPane(Name)
   IF d >= 0 THEN ActiveDoc = d
   IF ActiveDoc <> was THEN AnalyzeActive
+  IF ActiveDoc >= 0 THEN EditorFacts ActiveDoc
   UpdateCommands
 END SUB
 
@@ -240,10 +235,6 @@ SUB StartStudio
   RunState = "stopped"
   StateText = "Ready"
   ActiveDoc = -1
-  Session.OnOutput = ProgramOutput
-  Session.OnStopped = ProgramStopped
-  Session.OnContinue = ProgramContinued
-  Session.OnExit = ProgramExited
   SetUpBuild
   DefineCommands
   BuildMenus
@@ -251,9 +242,12 @@ SUB StartStudio
   SetUpStatus
   SetUpPanels
   SetUpDock
+  SetUpDebug
   SetUpDocuments
   SetUpSearch
   IF SavedLayout <> "" THEN Dock.LoadLayout(SavedLayout)
+  ' (a layout kept while a program was paused: the toolbox back)
+  DebugLayoutLoaded
   FillExamples
   FillPalette
   FillRecent
@@ -274,6 +268,8 @@ END SUB
 ' runs; the tests drive Studio this way, through the very commands.
 SUB MacroTick
   DIM k AS INTEGER, id AS STRING
+  ' (keys a step sent still being typed: the next step waits for them)
+  IF Application.KeysPending > 0 THEN EXIT SUB
   IF DoList = "" THEN
     Macro.Enabled = 0
     EXIT SUB
@@ -287,9 +283,12 @@ SUB MacroTick
     DoList = ""
   END IF
   id = LTRIM$(RTRIM$(id))
+  IF EditorStep(id) THEN EXIT SUB
   IF id <> "" AND id <> "wait" THEN
     OutputLine "> " + id
     ' (S-PANELS: the panels' test steps, tool: prop: …, else a command)
-    IF PanelStep(id) = 0 THEN RunCommand id
+    IF PanelStep(id) = 0 THEN
+      IF DebugStep(id) = 0 THEN RunCommand id
+    END IF
   END IF
 END SUB

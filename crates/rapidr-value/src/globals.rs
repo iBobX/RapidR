@@ -167,6 +167,8 @@ pub fn get(p: &dyn Platform, name: &str, prop: &str) -> Option<Value> {
         ("application", "hintcolor") => stored(object, prop).unwrap_or(v_int(0x00E1_FFFF)),
         // (RapidR's: the theme drawn now — `auto` reads as what it chose)
         ("application", "theme") => v_str(&p.theme()),
+        // (RapidR's) the keystrokes SendKeys queued, not yet delivered
+        ("application", "keyspending") => v_int(crate::send_keys::pending() as i64),
         // (RC.EXE: Application.Icon reads as the icon's handle — a number,
         // never 0 — which a QNOTIFYICONDATA's hIcon takes; crate::tray
         // shows the application's icon for it)
@@ -260,6 +262,9 @@ pub fn call(p: &dyn Platform, name: &str, method: &str, args: &[Value]) -> Optio
                 v_int(crate::input::screen_cursor(code).unwrap_or_else(|| system_cursor_handle(code)))
             }
         }
+        // (RapidR's) keystrokes to the program's own windows, as the
+        // user's (crate::send_keys); False for a malformed string
+        ("application", "sendkeys") => v_bool(crate::send_keys::send(&arg(0).to_string_val()).is_ok()),
         ("screen", "getpixeldepth") => v_int(32),
         ("screen", "monitors") => v_int(p.monitors()),
         ("screen", "mousebuttons") => v_int(3),

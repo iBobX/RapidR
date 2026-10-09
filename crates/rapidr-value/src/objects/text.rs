@@ -83,6 +83,20 @@ static INTER: &[u8] = include_bytes!("../../fonts/Inter-Regular.ttf");
 static INTER_SEMIBOLD: &[u8] = include_bytes!("../../fonts/Inter-SemiBold.ttf");
 static JBMONO: &[u8] = include_bytes!("../../fonts/JetBrainsMono-Regular.ttf");
 static JBMONO_BOLD: &[u8] = include_bytes!("../../fonts/JetBrainsMono-Bold.ttf");
+/// The code editor's comments (RCODEEDITOR's schemes draw them italic).
+static JBMONO_ITALIC: &[u8] = include_bytes!("../../fonts/JetBrainsMono-Italic.ttf");
+
+/// The code editor's face (RCODEEDITOR, RDIFFVIEW): what [`family_name`]
+/// gives for "JetBrains Mono", and the shaper's family name.
+pub const CODE_FACE: &str = "JetBrains Mono";
+
+/// The code face's advance (every glyph's: JetBrains Mono is monospaced)
+/// at `px` pixels, unrounded — RDIFFVIEW's columns.
+pub fn code_advance(px: f64) -> Option<f64> {
+    let f = ttf_parser::Face::parse(JBMONO, 0).ok()?;
+    let g = f.glyph_index('0')?;
+    Some(f64::from(f.glyph_hor_advance(g)?) * px / f64::from(f.units_per_em()))
+}
 
 /// Longest text drawn in one call (so a huge string can't stall drawing).
 const MAX_CHARS: usize = 10_000;
@@ -95,7 +109,7 @@ const MAX_CHARS: usize = 10_000;
 /// the licence's Reserved Font Name rule) that join the Liberation families
 /// here, so a request for bold "Liberation Sans" finds the bold face. The
 /// kernel looks a character the bold face lacks up in the family's Regular.
-pub static BUILTIN_FACES: [(&[u8], Option<&str>); 18] = [
+pub static BUILTIN_FACES: [(&[u8], Option<&str>); 19] = [
     (SANS, None),
     (SERIF, None),
     (MONO, None),
@@ -114,6 +128,7 @@ pub static BUILTIN_FACES: [(&[u8], Option<&str>); 18] = [
     (INTER_SEMIBOLD, None),
     (JBMONO, None),
     (JBMONO_BOLD, None),
+    (JBMONO_ITALIC, None),
 ];
 
 /// The built-in face standing for a QFONT's name, by its family name:
@@ -572,6 +587,8 @@ mod tests {
     /// widths, no spacing added.
     #[test]
     fn bold_and_italic_widths_are_rc_exes() {
+        // (MS Sans Serif as RapidQ draws it: the classic look's RapidR Sans)
+        crate::theme::set(&crate::theme::CLASSIC);
         for (name, size, styles, text, rc) in [
             // Arial Bold (Liberation Sans Bold): 37 and 39 where the regular
             // letters drawn heavier with a bit of spacing made 38 and 40

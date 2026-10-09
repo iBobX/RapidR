@@ -66,6 +66,13 @@ pub struct Document {
     saved: Option<usize>,
     text_cache: OnceLock<Arc<str>>,
     last_typed: Option<CharClass>,
+    /// Every change set applied since the last [`Document::take_applied`]
+    /// (edits, undo and redo), while a view tracks them
+    /// ([`Document::track_changes`]).
+    applied: Option<Vec<ChangeSet>>,
+    /// The lines each applied change replaced, in order: (first line, lines
+    /// before, lines after) — what a view's per-line caches splice.
+    applied_lines: Vec<(usize, usize, usize)>,
 }
 
 impl Clone for Document {
@@ -85,6 +92,8 @@ impl Clone for Document {
             saved: self.saved,
             text_cache: OnceLock::new(),
             last_typed: self.last_typed,
+            applied: self.applied.as_ref().map(|_| Vec::new()),
+            applied_lines: Vec::new(),
         }
     }
 }
@@ -114,7 +123,29 @@ impl Document {
             saved: Some(0),
             text_cache: OnceLock::new(),
             last_typed: None,
+            applied: None,
+            applied_lines: Vec::new(),
         }
+    }
+
+    /// Keeps (or stops keeping) every change set applied, for
+    /// [`Document::take_applied`]: a view maps its marks (markers,
+    /// diagnostics, folds) through them.
+    pub fn track_changes(&mut self, on: bool) {
+        self.applied = on.then(Vec::new);
+    }
+
+    /// The change sets applied since the last call, in order (each in the
+    /// coordinates of the text it was applied to).
+    pub fn take_applied(&mut self) -> Vec<ChangeSet> {
+        self.applied.as_mut().map(std::mem::take).unwrap_or_default()
+    }
+
+    /// The lines the changes since the last call replaced, in the order
+    /// they were applied: (first line, lines before, lines after), each in
+    /// the line numbers of its moment (while tracking).
+    pub fn take_line_edits(&mut self) -> Vec<(usize, usize, usize)> {
+        std::mem::take(&mut self.applied_lines)
     }
 
     /// A document for a file: its language from the path.
@@ -336,16 +367,24 @@ impl Document {
     fn apply_raw(&mut self, changes: &ChangeSet) -> Vec<String> {
         let hl = &mut self.highlighter;
         let mut lines = (0, 0);
+        let mut line_log = self.applied.as_ref().map(|_| Vec::new());
         let removed = changes.apply_with(&mut self.buffer, |buf, range, inserted, phase| match phase {
             Phase::Before => lines = (buf.line_of(range.start), buf.line_of(range.end)),
             Phase::After => {
                 let (first, old_last) = lines;
                 let new_last = buf.line_of(range.start + inserted).max(first);
                 hl.edited(first, old_last - first + 1, new_last - first + 1);
+                if let Some(l) = &mut line_log {
+                    l.push((first, old_last - first + 1, new_last - first + 1));
+                }
             }
         });
         self.version += 1;
         self.text_cache = OnceLock::new();
+        if let Some(log) = &mut self.applied {
+            log.push(changes.clone());
+            self.applied_lines.extend(line_log.unwrap_or_default());
+        }
         removed
     }
 
@@ -376,6 +415,30 @@ impl Document {
         set.validate(&self.buffer)?;
         let after = self.selections.map(&set);
         self.apply(set, after, EditKind::Command, now_ms)
+    }
+
+    /// A patch from outside the editor (RapidR Studio's designer writing the
+    /// form's source): `range` becomes `text`, the selections follow the
+    /// text. Its own undo step, or (`join`) part of the current one — the
+    /// patches of one designer action are undone together.
+    pub fn apply_patch(&mut self, range: Range<usize>, text: &str, join: bool, now_ms: u64) -> Result<(), EditError> {
+        if !join {
+            return self.apply_edits(vec![Change::new(range, text)], now_ms);
+        }
+        if self.read_only {
+            return Err(EditError::ReadOnly);
+        }
+        let set = ChangeSet::new(vec![Change::new(range, text)], self.len_bytes())?;
+        set.validate(&self.buffer)?;
+        let after = self.selections.map(&set);
+        let before = self.selections.clone();
+        let removed = self.apply_raw(&set);
+        let inverse = set.invert(&removed);
+        let after = after.clamped(|p| self.buffer.clamp(p));
+        self.history.commit_joined(Step { changes: set, inverse }, before, after.clone(), now_ms);
+        self.selections = after;
+        self.last_typed = None;
+        Ok(())
     }
 
     /// Rewrites every line break as `le` (one undo step) and types new ones

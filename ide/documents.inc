@@ -179,6 +179,11 @@ SUB OpenDocument(Path AS STRING)
   CodeDoc(d).LoadFromFile Path
   CodeDoc(d).Tag = d
   CodeDoc(d).OnChange = CodeChanged
+  CodeDoc(d).OnCaretMove = CodeCaretMoved
+  CodeDoc(d).OnNavigate = CodeNavigate
+  CodeDoc(d).OnReferences = CodeReferences
+  CodeDoc(d).OnFileEdits = CodeFileEdits
+  EditorSettings d
   Loading = 0
   DocFile(d) = Path
   DocKind(d) = "code"
@@ -192,7 +197,13 @@ SUB OpenDocument(Path AS STRING)
   DesignDoc(d).Theme = PreviewTheme
   AddDocumentTab d
   ActiveDoc = d
+  ' (debug.inc: its breakpoints, the paused line, data tips)
+  DebugDocOpened d
   AnalyzeActive
+  ' (editor.inc: the caret's place, encoding and line breaks; the caret in
+  ' the code, ready to type, as an editor opens a file)
+  EditorFacts d
+  FocusCodeSoon d
   OutputLine "Opened " + Path
   UpdateCommands
 END SUB

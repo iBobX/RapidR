@@ -95,48 +95,59 @@ pub const WEBVIEW_FRAME_HTML: &str = include_str!("../web/rapidr-webview.html");
 /// The project's files, for the runtime (`window.__rapidr_assets`).
 pub const ASSETS_FILE: &str = "rapidr-assets.js";
 
-/// Build the ZIP bytes. Never fails on well-formed inputs — the only
-/// possible source of error is the in-memory `ZipWriter`.
+/// The bundle's files, by name (what [`build_bundle`] zips; `rapidr serve`
+/// serves them from memory).
+pub fn bundle_files(inputs: &BundleInputs<'_>) -> Result<Vec<(String, Vec<u8>)>, String> {
+    let mut out: Vec<(String, Vec<u8>)> = Vec::new();
+    let mut add = |name: &str, data: &[u8]| out.push((name.to_string(), data.to_vec()));
+    let title = inputs.title.unwrap_or(inputs.project_name);
+    let rrbc_name = format!("{}.rrbc", escape::file_name(inputs.project_name));
+    let assets = inputs.assets.filter(|a| !a.is_empty());
+    let html = render_index_html(title, &rrbc_name, assets.is_some(), inputs.needs);
+
+    add("index.html", html.as_bytes());
+    add("loader.js", LOADER_JS.as_bytes());
+    add("rapidrintr.js", inputs.rapidrintr_js.as_bytes());
+    // wasm-bindgen's generated `rapidrintr.js` expects to fetch
+    // `rapidrintr_bg.wasm` (the conventional `_bg` suffix), so we
+    // ship the binary under that name even though the build script
+    // produces it as `rapidrintr.wasm`.
+    add("rapidrintr_bg.wasm", inputs.rapidrintr_wasm);
+    add(&rrbc_name, inputs.rrbc);
+    if let Some(assets) = assets {
+        add(ASSETS_FILE, render_assets_js(assets).as_bytes());
+    }
+    // The bundle redistributes RapidR's runtime: its licence and the
+    // open-source notices travel with it.
+    if inputs.notices.trim().is_empty() {
+        return Err(format!("{NOTICES_FILE} is empty: a bundle isn't shipped without its notices"));
+    }
+    add(NOTICES_FILE, inputs.notices.as_bytes());
+    add("bundle_console.js", BUNDLE_CONSOLE_JS.as_bytes());
+    add("ansi_screen.js", ANSI_SCREEN_JS.as_bytes());
+    add(WEBVIEW_FRAME_FILE, WEBVIEW_FRAME_HTML.as_bytes());
+    for (name, text) in host_config_files(inputs.needs) {
+        add(name, text.as_bytes());
+    }
+    for (name, data) in inputs.fonts {
+        add(&format!("fonts/{}", escape::file_name(name)), data);
+    }
+    Ok(out)
+}
+
+/// Build the ZIP bytes: [`bundle_files`], the binaries stored, the text
+/// deflated.
 pub fn build_bundle(inputs: &BundleInputs<'_>) -> Result<Vec<u8>, String> {
+    let files = bundle_files(inputs)?;
     let mut buf = Cursor::new(Vec::<u8>::new());
     {
         let mut zw = ZipWriter::new(&mut buf);
         let stored = FileOptions::default().compression_method(CompressionMethod::Stored);
         let deflated = FileOptions::default().compression_method(CompressionMethod::Deflated);
-
-        let title = inputs.title.unwrap_or(inputs.project_name);
-        let rrbc_name = format!("{}.rrbc", escape::file_name(inputs.project_name));
-        let assets = inputs.assets.filter(|a| !a.is_empty());
-        let html = render_index_html(title, &rrbc_name, assets.is_some(), inputs.needs);
-
-        write_file(&mut zw, "index.html", html.as_bytes(), deflated)?;
-        write_file(&mut zw, "loader.js", LOADER_JS.as_bytes(), deflated)?;
-        write_file(&mut zw, "rapidrintr.js", inputs.rapidrintr_js.as_bytes(), deflated)?;
-        // wasm-bindgen's generated `rapidrintr.js` expects to fetch
-        // `rapidrintr_bg.wasm` (the conventional `_bg` suffix), so we
-        // ship the binary under that name even though the build script
-        // produces it as `rapidrintr.wasm`.
-        write_file(&mut zw, "rapidrintr_bg.wasm", inputs.rapidrintr_wasm, stored)?;
-        write_file(&mut zw, &rrbc_name, inputs.rrbc, stored)?;
-        if let Some(assets) = assets {
-            write_file(&mut zw, ASSETS_FILE, render_assets_js(assets).as_bytes(), deflated)?;
+        for (name, data) in &files {
+            let binary = name.ends_with(".wasm") || name.ends_with(".rrbc") || name.starts_with("fonts/");
+            write_file(&mut zw, name, data, if binary { stored } else { deflated })?;
         }
-        // The bundle redistributes RapidR's runtime: its licence and the
-        // open-source notices travel with it.
-        if inputs.notices.trim().is_empty() {
-            return Err(format!("{NOTICES_FILE} is empty: a bundle isn't shipped without its notices"));
-        }
-        write_file(&mut zw, NOTICES_FILE, inputs.notices.as_bytes(), deflated)?;
-        write_file(&mut zw, "bundle_console.js", BUNDLE_CONSOLE_JS.as_bytes(), deflated)?;
-        write_file(&mut zw, "ansi_screen.js", ANSI_SCREEN_JS.as_bytes(), deflated)?;
-        write_file(&mut zw, WEBVIEW_FRAME_FILE, WEBVIEW_FRAME_HTML.as_bytes(), deflated)?;
-        for (name, text) in host_config_files(inputs.needs) {
-            write_file(&mut zw, name, text.as_bytes(), deflated)?;
-        }
-        for (name, data) in inputs.fonts {
-            write_file(&mut zw, &format!("fonts/{}", escape::file_name(name)), data, stored)?;
-        }
-
         zw.finish().map_err(|e| format!("zip finish: {e}"))?;
     }
     Ok(buf.into_inner())

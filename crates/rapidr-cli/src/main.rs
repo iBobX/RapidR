@@ -16,13 +16,14 @@ mod macos;
 mod launch;
 mod notices;
 mod package;
+mod serve;
 mod setup;
 
 use home::Home;
 
 /// The subcommands (a first argument that is one isn't a file).
 const SUBCOMMANDS: &[&str] = &[
-    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "__dialog",
+    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "serve", "__dialog",
 ];
 
 /// `--log <file> <command…>`: this rapidr again with the command, its
@@ -62,6 +63,11 @@ fn is_script(path: &str) -> bool {
 fn main() -> ExitCode {
     let mut args: Vec<String> = env::args().collect();
     args.remove(0); // program name
+
+    // The language service every code editor of a program run here asks
+    // (RapidR Studio's RCODEEDITOR): per thread, and programs run on this
+    // one (launch.rs, rapidr_vm_host_native::run_bytes).
+    rapidr_langsvc::editor::install();
 
     // `rapidr --log <file> <command…>`: the command's output (and that of
     // the tools it runs: cargo) in a file — for programs that run rapidr
@@ -128,6 +134,7 @@ fn main() -> ExitCode {
         (Some("install-app"), Some(dir)) => package::install_app(Path::new(&dir)),
         (Some("lsp"), _) => rapidr_lsp::run_stdio(),
         (Some("dap"), _) => rapidr_dap::run_stdio(),
+        (Some("serve"), _) => serve::run(&args[1..]),
         (Some("parse"), Some(path)) => parse_source_file(&path),
         (Some("preprocess"), Some(path)) => preprocess_source_file(&path),
         (Some("lex"), Some(path)) => lex_source_file(&path),
@@ -255,6 +262,7 @@ fn main() -> ExitCode {
             eprintln!("  rapidr notices [<os>-<arch>|web|tools-<os>] [-o FILE]  The third-party notices builds carry");
             eprintln!("  rapidr lsp                                       The language server (LSP, stdio): editors' IntelliSense");
             eprintln!("  rapidr dap                                       The debug adapter (DAP, stdio): editors' debugger");
+            eprintln!("  rapidr serve <file> [--open]                     Its web build served on this machine (127.0.0.1), opened in the browser");
             eprintln!("  rapidr lang export --json|--prompt|--manual|--all  What the language registry generates");
             eprintln!("  rapidr lang conformance <dir> [--target desktop|web]  The registry's conformance programs");
             eprintln!("  rapidr about");
@@ -1003,17 +1011,70 @@ fn bundle_bc_file(
     js_path: Option<String>,
     csp: Option<&str>,
 ) -> ExitCode {
-    // 1. Compile source to bytecode.
-    let compiled = match compile_to_bytecode(path) {
-        Ok(c) => c,
-        Err(e) => { eprintln!("{e}"); return ExitCode::from(1); }
+    let web = match web_bundle(path, wasm_path, js_path, csp) {
+        Ok(w) => w,
+        Err((e, code)) => {
+            eprintln!("{e}");
+            return ExitCode::from(code);
+        }
     };
+    let bundle = match rapidr_webbundle::build_bundle(&web.inputs()) {
+        Ok(b) => b,
+        Err(e) => { eprintln!("bundle error: {e}"); return ExitCode::from(1); }
+    };
+
+    // 4. Write to disk.
+    let out_path = output.unwrap_or_else(|| format!("{}-web.zip", web.stem));
+    if let Err(e) = fs::write(&out_path, &bundle) {
+        eprintln!("write {out_path}: {e}"); return ExitCode::from(1);
+    }
+    println!("Content-Security-Policy: {}", rapidr_webbundle::content_security_policy(&web.needs));
+    println!(
+        "wrote {} ({} bytes) — unzip and serve via any static host",
+        out_path,
+        bundle.len(),
+    );
+    ExitCode::SUCCESS
+}
+
+/// What a web bundle is made of: the program's bytecode, the web runtime,
+/// its fonts, the notices, the program's assets.
+pub(crate) struct WebBundle {
+    pub stem: String,
+    rrbc: Vec<u8>,
+    wasm: Vec<u8>,
+    js: String,
+    assets: std::collections::HashMap<String, String>,
+    fonts: Vec<(String, Vec<u8>)>,
+    notices: String,
+    pub needs: rapidr_webbundle::WebNeeds,
+}
+
+impl WebBundle {
+    pub fn inputs(&self) -> rapidr_webbundle::BundleInputs<'_> {
+        rapidr_webbundle::BundleInputs {
+            project_name: &self.stem,
+            rrbc: &self.rrbc,
+            rapidrintr_wasm: &self.wasm,
+            rapidrintr_js: &self.js,
+            title: None,
+            assets: Some(&self.assets),
+            fonts: &self.fonts,
+            notices: &self.notices,
+            needs: &self.needs,
+        }
+    }
+}
+
+/// A source file compiled and gathered with the web runtime for a bundle
+/// (`bundle-bc`, `build --web --interp`, `serve`); an error's message and
+/// exit code.
+pub(crate) fn web_bundle(path: &str, wasm_path: Option<String>, js_path: Option<String>, csp: Option<&str>) -> Result<WebBundle, (String, u8)> {
+    // 1. Compile source to bytecode.
+    let compiled = compile_to_bytecode(path).map_err(|e| (e.to_string(), 1))?;
     for w in &compiled.warnings { eprintln!("warning: {w}"); }
     let rrbc = compiled.module.to_bytes();
-    let needs = match web_needs(path, csp) {
-        Ok(n) => n,
-        Err(e) => { eprintln!("{e}"); return ExitCode::from(2); }
-    };
+    let needs = web_needs(path, csp).map_err(|e| (e.to_string(), 2))?;
 
     let stem = Path::new(path)
         .file_stem()
@@ -1030,32 +1091,21 @@ fn bundle_bc_file(
                 j_opt.map(PathBuf::from).unwrap_or(j),
             ),
             None => {
-                eprintln!(
+                return Err((
                     "error: could not locate rapidrintr.wasm + rapidrintr.js\n\
                      hint: build with `wasm-pack build interpreter/rapidr-vm-host-web --target web --out-dir ../../target/web`\n\
-                     or pass --wasm <path> --js <path>",
-                );
-                return ExitCode::from(1);
+                     or pass --wasm <path> --js <path>"
+                        .to_string(),
+                    1,
+                ));
             }
         },
     };
-    let wasm_bytes = match fs::read(&wasm_p) {
-        Ok(b) => b,
-        Err(e) => { eprintln!("read {}: {e}", wasm_p.display()); return ExitCode::from(1); }
-    };
-    let js_text = match fs::read_to_string(&js_p) {
-        Ok(s) => s,
-        Err(e) => { eprintln!("read {}: {e}", js_p.display()); return ExitCode::from(1); }
-    };
+    let wasm = fs::read(&wasm_p).map_err(|e| (format!("read {}: {e}", wasm_p.display()), 1))?;
+    let js = fs::read_to_string(&js_p).map_err(|e| (format!("read {}: {e}", js_p.display()), 1))?;
 
-    // 3. Build the bundle, with the open-source notices it ships with.
-    let notices_text = match notices::text(&notices::Kind::Web) {
-        Ok(t) => t,
-        Err(e) => {
-            eprintln!("{}", notices::missing(&e));
-            return ExitCode::from(1);
-        }
-    };
+    // 3. The open-source notices it ships with, the program's assets, the fonts.
+    let notices = notices::text(&notices::Kind::Web).map_err(|e| (notices::missing(&e), 1))?;
     let assets = collect_assets(Path::new(path));
     if !assets.is_empty() {
         println!("Embedding {} asset(s) in web bundle...", assets.len());
@@ -1063,33 +1113,8 @@ fn bundle_bc_file(
             println!("  - {}", name);
         }
     }
-    let bundle = match rapidr_webbundle::build_bundle(&rapidr_webbundle::BundleInputs {
-        project_name: &stem,
-        rrbc: &rrbc,
-        rapidrintr_wasm: &wasm_bytes,
-        rapidrintr_js: &js_text,
-        title: None,
-        assets: Some(&assets),
-        fonts: &fallback_fonts(&wasm_p.parent().unwrap_or(Path::new(".")).join("fonts")),
-        notices: &notices_text,
-        needs: &needs,
-    }) {
-        Ok(b) => b,
-        Err(e) => { eprintln!("bundle error: {e}"); return ExitCode::from(1); }
-    };
-
-    // 4. Write to disk.
-    let out_path = output.unwrap_or_else(|| format!("{stem}-web.zip"));
-    if let Err(e) = fs::write(&out_path, &bundle) {
-        eprintln!("write {out_path}: {e}"); return ExitCode::from(1);
-    }
-    println!("Content-Security-Policy: {}", rapidr_webbundle::content_security_policy(&needs));
-    println!(
-        "wrote {} ({} bytes) — unzip and serve via any static host",
-        out_path,
-        bundle.len(),
-    );
-    ExitCode::SUCCESS
+    let fonts = fallback_fonts(&wasm_p.parent().unwrap_or(Path::new(".")).join("fonts"));
+    Ok(WebBundle { stem, rrbc, wasm, js, assets, fonts, notices, needs })
 }
 
 /// The fallback fonts' files in `dir` (`index.json`, the chunks,

@@ -46,6 +46,7 @@ properties = [
   { name = "Title", type = "string" },
   { name = "Path", type = "string", access = "read" },
   { name = "Theme", type = "string", origin = "rapidr", doc = "The look the program is drawn in now, by name: `rapidr light`, `rapidr dark`, `rapidr high contrast` or `classic`. Setting it takes any name `$THEME` takes (`rapidr`: RapidR's look as the system is)." },
+  { name = "KeysPending", type = "int", access = "read", origin = "rapidr", doc = "How many keystrokes sent with SendKeys are still waiting to reach the program's windows." },
 ]
 methods = [
   { name = "HelpCommand", params = "Command AS WORD, Data AS LONG", missing = true },
@@ -54,6 +55,7 @@ methods = [
   { name = "Minimize" },
   { name = "Terminate" },
   { name = "ThemeColor", params = "Name AS STRING", returns = "LONG", value = true, origin = "rapidr", doc = "A colour of the current theme by name, as a RapidQ colour (&HBBGGRR): the theme's own (\"face\", \"window\", \"accent\" …) and an IDE's (\"toolbar\", \"statusbar\", \"statusbar.running\", \"page.link\", \"editor.keyword\" …); -1 for a name no theme has. Read it again after setting Theme." },
+  { name = "SendKeys", params = "Keys AS STRING", returns = "INTEGER", origin = "rapidr", doc = "Sends keystrokes to the program's own frontmost window, as if typed: one per turn of the event loop, through the same keyboard path as the user's keys (focus, shortcuts, OnKeyDown / OnKeyPress). Visual Basic's notation: + Shift, ^ Ctrl, % Alt (for the next key or a group in parentheses), ~ Enter, {TAB}, {ENTER}, {BS}, {DEL}, {ESC}, {UP}, {DOWN}, {LEFT}, {RIGHT}, {HOME}, {END}, {PGUP}, {PGDN}, {INS}, {F1} to {F16}, {+} {^} {%} {~} {(} {)} {{} {}} for those characters, {KEY n} for n presses. False, and nothing sent, when Keys is malformed." },
   { name = "GetPriority", missing = true },
   { name = "SetPriority", params = "Priority AS LONG", returns = "VARIANT", missing = true },
 ]

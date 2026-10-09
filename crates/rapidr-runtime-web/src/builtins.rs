@@ -394,7 +394,9 @@ pub fn rp_sleep(_ms: &Value) {
 fn page_command_line() -> (String, Vec<String>) {
     let window = web_sys::window();
     let loc = window.as_ref().map(|w| w.location());
-    let path = loc.as_ref().and_then(|l| l.pathname().ok()).unwrap_or_default();
+    // (the program's own path when the page names it: RAPIDR_EXE_PATH)
+    let named = window.as_ref().and_then(|w| js_sys::Reflect::get(w, &"RAPIDR_EXE_PATH".into()).ok()).and_then(|v| v.as_string());
+    let path = named.unwrap_or_else(|| loc.as_ref().and_then(|l| l.pathname().ok()).unwrap_or_default());
     let given = window
         .as_ref()
         .and_then(|w| js_sys::Reflect::get(w, &"RAPIDR_ARGS".into()).ok())

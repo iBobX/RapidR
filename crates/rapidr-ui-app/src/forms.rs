@@ -469,6 +469,14 @@ pub fn begin_modal<R: Program + Windows>(rt: R, name: &str) {
         place_centered(rt, &name);
     } else if rt.get(&name, "_center").to_i64() != 0 {
         let p = centered(rt, &name);
+        // (Left / Top too: a window made by this Show takes its place from
+        // them — the op alone is for a window that exists)
+        applying(|| {
+            rt.quietly(&mut || {
+                rt.set(&name, "left", v_int(p.0));
+                rt.set(&name, "top", v_int(p.1));
+            })
+        });
         push_op(WindowOp::Position(name.clone(), p));
     }
     let made = build_form(rt, &name);

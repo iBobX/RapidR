@@ -23,6 +23,7 @@ use rapidr_session::protocol::{frame, Command, Event, EventBody, Request, PROTOC
 use rapidr_vm::Vm;
 
 use crate::NativeHost;
+use rapidr_runtime_core::object as obj;
 
 /// Sends an event to the IDE (standard output, framed).
 pub fn send(event: &Event) {
@@ -93,6 +94,9 @@ pub fn run_session(bytes: &[u8], program: &str) -> Result<i32, String> {
         return Ok(0);
     }
     vm.debugger = Some(Box::new(debugger));
+    // (its waits turn now and then: a pause reaches a program that waits
+    // for its events)
+    obj::rp_set_debug_poll(true);
     let result = crate::run_module(&module, &mut vm);
     vm.debugger = None;
     let code = match result {

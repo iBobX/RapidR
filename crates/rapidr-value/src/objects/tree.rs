@@ -305,6 +305,7 @@ impl TreeView {
     pub fn get(&self, prop: &str) -> Option<Value> {
         Some(match prop {
             "itemcount" | "count" | "linecount" => v_int(self.nodes.len() as i64),
+            "text" => v_str(&self.to_text()),
             "itemindex" | "row" => v_int(self.item_index),
             "topindex" => v_int(self.top_index),
             "showbuttons" => flag(self.show_buttons),

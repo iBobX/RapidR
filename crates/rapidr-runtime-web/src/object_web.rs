@@ -197,13 +197,24 @@ fn design_events(name: &str) {
     }
 }
 
-/// How shared objects print on the web (`Printer.EndDoc`, [`web_print`]).
+/// The runtime's start (before a program runs, and again as components
+/// are created): how shared objects print on the web (`Printer.EndDoc`,
+/// [`web_print`]), QREGISTRY's store, RND's seed, and the code editor's
+/// language service (as the desktop runtime installs it).
 pub fn install_object_hooks() {
     rapidr_value::objects::set_print_hook(web_print);
     // QREGISTRY's keys: the page's local storage.
     rapidr_value::registry::set_io(registry_load, registry_save);
     // RND's first seed (wasm has no clock).
     rapidr_value::builtins::set_entropy(|| (js_sys::Math::random() * 9_007_199_254_740_992.0) as u64);
+    // The code editor's language service, once: this runs again as
+    // components are created.
+    {
+        thread_local!(static LANGSVC: std::cell::Cell<bool> = const { std::cell::Cell::new(false) });
+        if !LANGSVC.with(|done| done.replace(true)) {
+            rapidr_langsvc::editor::install();
+        }
+    }
 }
 
 /// QREGISTRY's store in the page's local storage (`None`: nothing yet, or
@@ -1274,6 +1285,10 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         if rapidr_value::objects::is_design(name) {
             design_events(name);
         }
+        // (an RCODEEDITOR's ApplyPatches / Undo / Redo: OnChange)
+        if rapidr_value::objects::is_code(name) && rapidr_value::objects::take_code_change(name) {
+            rp_fire_event(&uname, "onchange");
+        }
         return result.unwrap_or_else(|e| {
             object_error(name, method, &e);
             v_null()
@@ -2046,6 +2061,23 @@ pub fn program_ended() -> bool {
     ENDED.with(|e| e.get())
 }
 
+thread_local! {
+    /// Stopped by the IDE's debugger (a breakpoint, a step, a pause).
+    static DEBUG_STOPPED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// The program is stopped by the IDE's debugger (or goes on): its timers
+/// don't tick meanwhile, as a desktop program's don't while it's held at
+/// a stop — they fire again once it goes on, not once for every interval
+/// that passed.
+pub fn set_debug_stopped(on: bool) {
+    DEBUG_STOPPED.with(|d| d.set(on));
+}
+
+pub fn debug_stopped() -> bool {
+    DEBUG_STOPPED.with(|d| d.get())
+}
+
 /// Runs the handler bound to `name`'s `event` with the event's arguments
 /// (the firing component is passed last, as `Sender`); returns them as a
 /// compiled handler left them. The handler is copied out first, so it may
@@ -2429,7 +2461,8 @@ pub(crate) fn update_timer(name: &str) {
     if enabled && has_handler && interval > 0 {
         let name_for_closure = uname.clone();
         let closure = Closure::<dyn FnMut()>::new(move || {
-            if crate::directx_web::timer_fired(&name_for_closure) {
+            // (not while the debugger holds the program: see set_debug_stopped)
+            if !debug_stopped() && crate::directx_web::timer_fired(&name_for_closure) {
                 rp_fire_event(&name_for_closure, "ontimer");
             }
         });
@@ -2507,15 +2540,6 @@ pub fn gui_register_timer(name: &str) {
 /// form's end stops, as the desktop's `rp_stop_all_timers`.
 pub fn timer_names() -> Vec<String> {
     COMPONENTS.with(|c| c.borrow().iter().filter(|(_, comp)| matches!(comp.type_name.as_str(), "RTIMER" | "RDXTIMER" | "RDXJOYSTICK" | "RCOMPORT" | "RMIDI" | "RWAVE" | "RVIDEO" | "RCDAUDIO")).map(|(n, _)| n.clone()).collect())
-}
-
-pub fn rp_comp_get_all_properties(name: &str) -> Option<(String, std::collections::HashMap<String, Value>)> {
-    let uname = name.to_uppercase();
-    COMPONENTS.with(|c| {
-        c.borrow().get(&uname).map(|comp| {
-            (comp.type_name.clone(), comp.properties.clone())
-        })
-    })
 }
 
 /// Offers `text` to the user as a file download via Blob + object URL.

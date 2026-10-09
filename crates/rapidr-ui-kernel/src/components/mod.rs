@@ -45,8 +45,9 @@ pub mod dxscreen;
 // (RapidQ's QGLASSFRAME)
 pub mod glass;
 // (Stage 10: the IDE's)
-pub mod codeedit;
+pub mod codeeditor;
 pub mod design;
+pub mod diffview;
 // (I1: RapidR Studio's docking)
 pub mod dock;
 // (I1 / L-PANELS: RapidR Studio's panels — rapidr_value::panels)
@@ -101,7 +102,7 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RRICHEDIT", &richedit::RichEdit),
     // (Stage 10: the IDE's)
     ("RDESIGNSURFACE", &design::Design),
-    ("RCODEEDITOR", &codeedit::CodeEditor),
+    ("RCODEEDITOR", &codeeditor::CodeEditor),
     // (the dialogs lane's: what only a kernel-drawn dialog draws)
     ("RDLGPART", &crate::dialogs::Part),
     // (the DirectX lane's)
@@ -115,6 +116,8 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RDOCKMANAGER", &dock::DockManager),
     ("RDOCKGROUP", &dock::DockGroup),
     ("RDOCKDOCS", &dock::DockDocs),
+    // (I2: the diff view — rapidr_value::objects::diffview)
+    ("RDIFFVIEW", &diffview::DiffViewBox),
     // (I1 / L-PANELS: RapidR Studio's panels — rapidr_value::panels)
     ("RPROPERTYINSPECTOR", &panels::inspector::Inspector),
     ("RTOOLBOX", &panels::toolbox::Toolbox),
@@ -383,6 +386,13 @@ pub trait ComponentKind: Sync {
 
     /// Its deadline came (it set `NodeUi::wake`; tick.rs).
     fn tick(&self, _cx: &mut Cx) {}
+
+    /// Whether its model holds work for its view that can't wait for the
+    /// next frame (a code editor's requests from the program: OpenFind,
+    /// TriggerCompletion …): ticked now, painted or not (tick.rs).
+    fn pending(&self, _id: &str) -> bool {
+        false
+    }
 
     /// A tooltip of its own at (x, y) of it (tooltip.rs): a cut-short title,
     /// a button's name; `None`: its Hint, if ShowHint.

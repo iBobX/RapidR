@@ -31,7 +31,7 @@ SUB DesignRead(d AS INTEGER)
 END SUB
 
 ' (character offset of line l, column c in document d's code: the code
-' editor's SelStart)
+' editor's SelStart; Find in Files' results)
 FUNCTION CodeOffset(d AS INTEGER, l AS INTEGER, c AS INTEGER) AS INTEGER
   DIM k AS INTEGER, o AS INTEGER
   FOR k = 0 TO l - 1
@@ -40,36 +40,37 @@ FUNCTION CodeOffset(d AS INTEGER, l AS INTEGER, c AS INTEGER) AS INTEGER
   Result = o + c
 END FUNCTION
 
-' The designer changed the code: the edit applied to the code editor (the
-' caret kept where it was in the text around it).
+' The designer changed the code: each OnSourceEdit patch (lines from 0,
+' columns in characters, in the text the ones before left) is kept until
+' the change's OnChange, then the code editor applies them all as one undo
+' step (RCODEEDITOR's ApplyPatches; the carets keep their places in the
+' text, and its OnChange marks the file changed and wakes the analyzer).
+DIM DesignPatches(MAXDOCS) AS STRING
+
+' (a patch's text as ApplyPatches reads it: \, line breaks and tabs escaped)
+FUNCTION PatchText(Text AS STRING) AS STRING
+  Result = REPLACESUBSTR$(Text, "\", "\\")
+  Result = REPLACESUBSTR$(Result, CHR$(10), "\n")
+  Result = REPLACESUBSTR$(Result, CHR$(13), "\r")
+  Result = REPLACESUBSTR$(Result, CHR$(9), "\t")
+END FUNCTION
+
 SUB DesignSourceEdit(StartLine AS INTEGER, StartCol AS INTEGER, EndLine AS INTEGER, EndCol AS INTEGER, Text AS STRING, Sender AS RDESIGNSURFACE)
-  DIM d AS INTEGER, a AS INTEGER, b AS INTEGER, caret AS INTEGER
+  DIM d AS INTEGER
   d = Sender.Tag
   IF d < 0 OR d >= DocCount THEN EXIT SUB
-  IF DocOpen(d) = 0 THEN EXIT SUB
-  a = CodeOffset(d, StartLine, StartCol)
-  b = CodeOffset(d, EndLine, EndCol)
-  caret = CodeDoc(d).SelStart
-  CodeDoc(d).SelStart = a
-  CodeDoc(d).SelLength = b - a
-  CodeDoc(d).SelText = Text
-  IF caret >= b THEN
-    caret = caret + LEN(Text) - (b - a)
-  ELSEIF caret > a THEN
-    caret = a
-  END IF
-  CodeDoc(d).SelStart = caret
-  CodeDoc(d).SelLength = 0
-  ' (the file has changes; the outline and problems follow)
-  IF DocDirty(d) = 0 THEN
-    DocDirty(d) = 1
-    DocTitles d
-  END IF
-  Analyzer.Enabled = 0
-  Analyzer.Enabled = 1
+  DesignPatches(d) = DesignPatches(d) + STR$(StartLine) + CHR$(9) + STR$(StartCol) + CHR$(9) + STR$(EndLine) + CHR$(9) + STR$(EndCol) + CHR$(9) + PatchText(Text) + CHR$(10)
 END SUB
 
 SUB DesignChanged(Sender AS RDESIGNSURFACE)
+  DIM d AS INTEGER
+  d = Sender.Tag
+  IF d >= 0 AND d < DocCount THEN
+    IF DesignPatches(d) <> "" THEN
+      IF DocOpen(d) THEN CodeDoc(d).ApplyPatches DesignPatches(d), 0
+      DesignPatches(d) = ""
+    END IF
+  END IF
   UpdateCommands
 END SUB
 

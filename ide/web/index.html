@@ -24,9 +24,16 @@
 <style>
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #202020; }
   @media (prefers-color-scheme: light) { html, body { background: #e5e5e5; } }
-  /* the program under development, in its sandboxed frame, over the documents */
-  #studio-run { position: fixed; left: 50%; top: 50%; width: min(880px, 90vw); height: min(620px, 80vh); transform: translate(-50%, -50%); z-index: 20; }
-  #studio-run iframe { width: 100%; height: 100%; border: 0; background: transparent; }
+  /* the program under development, in its sandboxed frame: over the whole
+     page, clipped to its windows (studio.js clipToWindows), so they move
+     anywhere and Studio gets the clicks outside them. Its z-index is
+     Studio's main window's (10: the web host stacks windows from 10 up) and
+     it comes after it in the page, so it floats over Studio's window and
+     under Studio's dialogs (11 and up: a modal one stays on top); while one
+     of Studio's menus or pop-ups is open it goes under it (studio.js) */
+  #studio-run { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; z-index: 10; pointer-events: none; }
+  #studio-run.under { z-index: 9; }
+  #studio-run iframe { display: block; width: 100%; height: 100%; border: 0; background: transparent; pointer-events: auto; }
   #studio-status { position: fixed; left: 16px; bottom: 12px; font: 12px system-ui, sans-serif; color: #888; pointer-events: none; }
   /* Studio quit (File > Exit): the page says so, and opens it again */
   #studio-closed { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; font: 14px system-ui, sans-serif; color: #e6e6e6; }

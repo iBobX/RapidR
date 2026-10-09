@@ -7,6 +7,8 @@
 ' its main file's documents.
 SUB OpenProject(Path AS STRING)
   IF Path = "" THEN EXIT SUB
+  ' (the project open now keeps its breakpoints and watches: debug.inc)
+  IF ProjectOpen THEN SaveSettings
   IF Proj.Open(Path) = 0 THEN
     OutputLine "Can't open " + Path + ": " + Proj.Error
     SetState "error", "Can't open " + FileTitle(Path)
@@ -27,6 +29,8 @@ SUB OpenProject(Path AS STRING)
   Dock.ClosePane("welcome")
   OpenDocument ProjectMain
   RestoreSession Path
+  ' (its breakpoints and watches: debug.inc)
+  LoadDebugState
   SetState "stopped", "Ready"
   UpdateTitle
   UpdateCommands
@@ -40,7 +44,7 @@ SUB CloseAllDocuments
 END SUB
 
 SUB CloseProject
-  IF RunState <> "stopped" THEN Session.Stop
+  StopProgram
   CloseAllDocuments
   Proj.Close
   ProjectOpen = 0
@@ -82,6 +86,7 @@ SUB AskNew
   NewName.Text = "MyProgram"
   PickTemplate 0
   NewFolder.Text = DefaultFolder
+  NewDialog.Center
   NewDialog.ShowModal
 END SUB
 
@@ -125,69 +130,7 @@ SUB SaveProjectFile
   END IF
 END SUB
 
-' ---- running the program (RProgramSession) -----------------------------------------------
-
-SUB StartProgram(WithDebugger AS INTEGER)
-  IF ProjectOpen = 0 OR RunState <> "stopped" THEN EXIT SUB
-  ' (VB's way: what is being run is saved first)
-  SaveAll
-  AnalyzeActive
-  IF Lang.ErrorCount > 0 THEN
-    SetState "error", "Can't run: the program has errors"
-    OutputBox.Page = "problems"
-    Dock.FocusPane("outputbox")
-    EXIT SUB
-  END IF
-  OutputBox.Clear "output"
-  OutputBox.Page = "output"
-  Dock.ShowPane("outputbox")
-  Session.Program = ProjectMain
-  Session.Debug = WithDebugger
-  IF Session.Start THEN
-    SetState "running", "Running " + FileTitle(ProjectMain)
-    RunStarted = TIMER
-  ELSE
-    OutputLine "Can't run " + ProjectMain + ": " + Session.Error
-    SetState "error", "Can't run " + FileTitle(ProjectMain)
-  END IF
-END SUB
-
-SUB StopProgram
-  IF RunState <> "stopped" THEN Session.Stop
-END SUB
-
-SUB ProgramOutput(Text AS STRING)
-  OutputBox.Write Text
-END SUB
-
-SUB ProgramStopped(Reason AS STRING, InFile AS STRING, LineNo AS INTEGER)
-  SetState "paused", "Paused (" + Reason + ") at " + FileTitle(InFile) + ", line " + LTRIM$(STR$(LineNo))
-END SUB
-
-SUB ProgramContinued
-  SetState "running", "Running " + FileTitle(ProjectMain)
-END SUB
-
-SUB ProgramExited(Code AS INTEGER)
-  OutputLine "[" + FileTitle(ProjectMain) + " ended, exit code " + LTRIM$(STR$(Code)) + "]"
-  IF Code = 0 THEN SetState "stopped", "Ready" ELSE SetState "error", "Ended with exit code " + LTRIM$(STR$(Code))
-END SUB
-
-' The Immediate window: a line typed and Enter — "? x" prints x in the paused
-' program, a statement runs there.
-SUB ImmediateKey(Key AS INTEGER, Shift AS INTEGER)
-  DIM n AS INTEGER, typed AS STRING
-  IF Key <> 13 THEN EXIT SUB
-  n = ImmediateBox.LineCount
-  IF n < 1 THEN EXIT SUB
-  typed = ImmediateBox.Line(n - 1)
-  IF LTRIM$(typed) = "" THEN EXIT SUB
-  IF RunState = "paused" THEN
-    ImmediateBox.AddStrings Session.Evaluate(typed)
-  ELSE
-    ImmediateBox.AddStrings "(the program isn't paused)"
-  END IF
-END SUB
+' (running the program and debugging it: debug.inc)
 
 ' ---- settings (the per-user store) -------------------------------------------------------
 
@@ -198,6 +141,7 @@ SUB LoadSettings
   Reg.RootKey = HKCU
   IF Reg.KeyExists(STUDIO_KEY) THEN
     Reg.OpenKey(STUDIO_KEY, 0)
+    SettingsRead = 1
     IF ThemeChoice = "" AND Reg.ValueExists("Theme") THEN ThemeChoice = Reg.ReadString("Theme")
     IF Reg.ValueExists("PreviewClassic") THEN PreviewClassic = Flag(Reg.ReadString("PreviewClassic") = "1")
     IF Reg.ValueExists("Layout") THEN SavedLayout = Reg.ReadString("Layout")
@@ -215,6 +159,7 @@ SUB SaveSettings
   Reg.WriteString("PreviewClassic", LTRIM$(STR$(PreviewClassic)))
   Reg.WriteString("Layout", Dock.SaveLayout)
   SaveSession
+  SaveDebugState
   Reg.WriteString("Recent", RecentList)
   Reg.WriteString("Folder", DefaultFolder)
   Reg.CloseKey

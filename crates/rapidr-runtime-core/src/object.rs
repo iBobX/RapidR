@@ -544,7 +544,7 @@ fn set_property(name: &str, prop: &str, val: Value) {
             picture_changed(name);
         }
         #[cfg(feature = "gui")]
-        if rapidr_value::objects::is_canvas(name) || rapidr_value::objects::is_trackbar(name) || rapidr_value::objects::is_design(name) {
+        if rapidr_value::objects::is_canvas(name) || rapidr_value::objects::is_trackbar(name) || rapidr_value::objects::is_design(name) || rapidr_value::objects::is_diff(name) {
             crate::ui::redraw_widget(name);
         }
         if rapidr_value::objects::is_design(name) {
@@ -1215,13 +1215,17 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             if method_lower == "flip" {
                 crate::ui::redraw_widget(name);
             }
-        } else if rapidr_value::objects::is_trackbar(name) || rapidr_value::objects::is_design(name) {
+        } else if rapidr_value::objects::is_trackbar(name) || rapidr_value::objects::is_design(name) || rapidr_value::objects::is_diff(name) {
             crate::ui::redraw_widget(name);
         }
         if rapidr_value::objects::is_design(name) {
             design_events(name);
         } else if rapidr_value::objects::is_tabcontrol(name) {
             crate::ui::tab_control_changed(name);
+        }
+        // (an RCODEEDITOR's ApplyPatches / Undo / Redo: OnChange)
+        if rapidr_value::objects::is_code(name) && rapidr_value::objects::take_code_change(name) {
+            rp_fire_event(name, "onchange");
         }
         #[cfg(feature = "gui")]
         if rapidr_value::objects::is_dirtree(name) {
@@ -1331,7 +1335,8 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         // (RCODEEDITOR's GetSubList, GotoSub, GotoLine: its text model's,
         // above; the rest as any component's)
         #[cfg(feature = "gui")]
-        "RTREEVIEW" => crate::ui::tree_method(name, &method_lower, args),
+        // (SetFocus: as any component's, below)
+        "RTREEVIEW" if !matches!(method_lower.as_str(), "setfocus" | "focus") => crate::ui::tree_method(name, &method_lower, args),
         #[cfg(feature = "gui")]
         "RCANVAS" => crate::ui::canvas_method(name, &method_lower, args),
         #[cfg(feature = "gui")]
@@ -1709,6 +1714,23 @@ pub fn rp_take_wait_started() -> bool {
 }
 
 /// One step of the innermost wait: `None` while it goes on, `Some` when over.
+/// A program run under the IDE's debugger (`rapidr run --session`): its
+/// waits (a ShowModal, a dialog) turn at least every
+/// [`DEBUG_POLL_STEP`], so what the debugger sends meanwhile — a pause —
+/// reaches the program while it waits for its events.
+static DEBUG_POLL: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// How often a wait under the debugger turns ([`rp_set_debug_poll`]).
+pub const DEBUG_POLL_STEP: std::time::Duration = std::time::Duration::from_millis(50);
+
+pub fn rp_set_debug_poll(on: bool) {
+    DEBUG_POLL.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn rp_debug_poll() -> bool {
+    DEBUG_POLL.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 pub fn rp_pump_wait() -> Option<Value> {
     #[cfg(feature = "gui")]
     return crate::ui::gui_pump_wait();

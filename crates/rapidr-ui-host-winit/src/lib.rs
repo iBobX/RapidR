@@ -154,6 +154,20 @@ pub fn new_host(headless: bool, scale: Option<f64>) -> Box<dyn Host> {
 pub fn capture(desk: &mut Desktop, store: &dyn Store, id: &str) -> Option<Pixels> {
     let Desktop { forms, text, .. } = desk;
     let f = forms.get_mut(&id.to_lowercase())?;
+    // (a code editor's view finishes what its first frame started — the
+    // program's requests, the language service's answers — as a window's
+    // next frames would)
+    if f.ui.nodes.iter().any(|n| n.type_name == "RCODEEDITOR") {
+        for _ in 0..3 {
+            f.ui.paint(store, text, f.scale);
+            let now = rapidr_ui_kernel::tick::now();
+            if f.ui.next_wake().is_none_or(|w| w > now) {
+                break;
+            }
+            f.ui.tick(store, text, now);
+            f.ui.take_events();
+        }
+    }
     let list = f.ui.paint(store, text, f.scale);
     Some(rapidr_ui_render::cpu::capture(&list, text, &f.ui))
 }

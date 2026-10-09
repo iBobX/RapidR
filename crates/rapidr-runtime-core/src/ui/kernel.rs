@@ -266,6 +266,11 @@ pub fn step(max_wait: Option<Duration>) {
     if rapidr_ui_app::dialogs::tasks_open() {
         at_most(rapidr_ui_app::dialogs::TASK_STEP);
     }
+    // (a program under the IDE's debugger: its requests heard while it
+    // waits — rapidr-vm's `wait_point`)
+    if crate::object::rp_debug_poll() {
+        at_most(crate::object::DEBUG_POLL_STEP);
+    }
     // (RapidR Studio's program sessions: their output heard every 20 ms)
     #[cfg(feature = "studio")]
     if crate::studio::running() {
@@ -900,8 +905,8 @@ pub fn tree_method(name: &str, method: &str, args: &[Value]) -> Value {
 // ---------------------------------------------- the IDE's components --
 //
 // (Stage 10) RDESIGNSURFACE and RCODEEDITOR keep their state in the shared
-// models (rapidr_value::objects::design, a TextEdit in code mode), which the
-// kernel's components draw and drive (components/design.rs, codeedit.rs):
+// models (rapidr_value::objects::design and codeedit), which the
+// kernel's components draw and drive (components/design.rs, codeeditor/):
 // only a design surface's Show / Hide is left here.
 
 pub fn design_surface_method(name: &str, method: &str, _args: &[Value]) -> Value {

@@ -1,0 +1,10 @@
+' modal.rr: a program's modal message over its own form, both floating over
+' RapidR Studio's page (tests/studio_flows.mjs program-modal-on-top)
+CREATE Main AS QFORM
+  Caption = "The program's form"
+  Width = 420: Height = 280
+END CREATE
+Main.Show
+Main.Center
+SHOWMESSAGE "A modal message, over the program's form and over Studio"
+Main.ShowModal
