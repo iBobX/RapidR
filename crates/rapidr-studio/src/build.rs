@@ -71,6 +71,21 @@ pub fn start(name: &str, rapidr: PathBuf, args: &[String], cwd: &str) -> Result<
     Ok(())
 }
 
+/// Whether native builds can run: `rapidr setup --rust` says yes (exit code
+/// 0). RAPIDR_NO_RUST=1 in Studio's environment says no, to test the paths
+/// without Rust.
+pub fn rust_ready(rapidr: &std::path::Path) -> bool {
+    use std::process::{Command, Stdio};
+    let mut cmd = Command::new(rapidr);
+    cmd.args(["setup", "--rust"]).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0000);
+    }
+    cmd.status().is_ok_and(|s| s.success())
+}
+
 /// Stops component `name`'s build.
 pub fn stop(name: &str) {
     if let Some(mut r) = BUILDS.with(|b| b.borrow_mut().remove(&name.to_ascii_lowercase())) {
@@ -144,5 +159,14 @@ mod tests {
         assert_eq!(made_by("AppDir: a b.AppDir"), Some("a b.AppDir"));
         assert_eq!(made_by("Executable: C:\\x\\n.exe"), Some("C:\\x\\n.exe"));
         assert_eq!(made_by("Building with cargo"), None);
+    }
+
+    /// Rust ready is the exit code of `rapidr setup --rust`.
+    #[cfg(unix)]
+    #[test]
+    fn rust_ready_is_an_exit_code() {
+        assert!(rust_ready(std::path::Path::new("/usr/bin/true")));
+        assert!(!rust_ready(std::path::Path::new("/usr/bin/false")));
+        assert!(!rust_ready(std::path::Path::new("/nonexistent/rapidr")));
     }
 }

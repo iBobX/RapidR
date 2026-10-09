@@ -17,7 +17,7 @@ One command, `rapidr`, is the compiler, the build tool and the runtime.
 | `rapidr install-app <Name.AppDir>` | Linux: put a built app in your applications menu |
 | `rapidr build-bc <file> [-o out.rrbc]` | Compile to bytecode, for the Runtime |
 | `rapidr bundle-bc <file> [-o out.zip]` | A static web bundle (a `.zip`) |
-| `rapidr setup [--check] [--yes] [--no-path]` | Install the Rust native builds use; put `rapidr` on PATH |
+| `rapidr setup [--check] [--yes] [--no-path]` | Install the Rust native builds use; put `rapidr` on PATH. `rapidr setup --rust` only answers whether native builds can run (exit code 0 yes, 1 no); a native `rapidr build` without Rust stops and says to use `--interp` or run `rapidr setup` |
 | `rapidr notices [<os>-<arch>\|web\|tools-<os>] [-o file]` | Print the third-party notices a kind of build carries |
 | `rapidr about`, `rapidr version` | |
 | `rapidr --log <file> <command…>` | A command's output (and cargo's) in a file |

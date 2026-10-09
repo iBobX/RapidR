@@ -111,7 +111,9 @@ SUB RunCommand(Id AS STRING)
     CASE "debug.stepInto": IF RunState = "paused" THEN Session.StepIn
     CASE "debug.stepOver": IF RunState = "paused" THEN Session.StepOver
     CASE "debug.stepOut": IF RunState = "paused" THEN Session.StepOut
-    CASE "run.build": BuildProject
+    CASE "run.build": BuildProject ""
+    CASE "run.buildNative": BuildProject "native"
+    CASE "run.buildInterpreted": BuildProject "interpreted"
     CASE "run.reveal": RevealBuild
     ' ---- window ----
     CASE "window.next": Dock.NextDocument

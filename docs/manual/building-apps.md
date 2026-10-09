@@ -27,6 +27,31 @@ rapidr build notepad.bas --no-bundle       # just the executable, no icon
 rapidr build notepad.bas dist --keep-rust  # dist/notepad.app and dist/notepad-rust-source/
 ```
 
+## Do I need Rust?
+
+Not to build an app. There are two kinds of build, and the first needs
+nothing installed beyond RapidR:
+
+| | Interpreted | Native |
+|---|---|---|
+| Needs Rust | no | yes (free; `rapidr setup` installs it) |
+| What the app is | the RapidR runner with your program's bytecode | your program compiled to machine code |
+| Build time | seconds | minutes the first time |
+| Speed | fine for most programs | faster, for heavy loops and games |
+
+Both make the same app, with the same icon and information. Start with
+interpreted; choose native when a program needs the speed.
+
+```sh
+rapidr build notepad.bas --interp   # no Rust needed
+rapidr build notepad.bas            # native: needs Rust
+rapidr setup                        # installs Rust (asks first); rapidr setup --check only looks
+```
+
+A native build on a computer without Rust stops at once and says so: "Native
+builds need Rust (it is free). Run `rapidr setup` to install it, or build
+without it: add --interp". It changes nothing and leaves nothing half built.
+
 ## The app's details
 
 | Option | Project setting (`.rrproj`, `[build]`) | What it is | Default |
@@ -130,15 +155,26 @@ as appimagetool pack an AppDir into one AppImage file.
 
 ## In RapidR Studio
 
-- **Run > Build** (Ctrl+Shift+B) builds the project's app — a release
-  build — for the system Studio runs on, into the project's output folder
+- **Run > Build** (Ctrl+Shift+B, and the Build button on the tool bar)
+  builds the project's app the way **Project > Project Options** says
+  (**Build**: Compiled or Interpreted). **Run > Build Native App** and
+  **Run > Build Interpreted App** build it that way once, whatever the
+  project says. All are release builds
+  for the system Studio runs on, into the project's output folder
   (`build` beside the project file, or the one Project Options names). What
   `rapidr build` prints goes to the Output panel's **Build** page as it
   comes: the app's path and the kept Rust source are links, and the last
-  line, "✓ Built Notepad.app in 12 s", has **Reveal in Finder** (File
+  line, "✓ Built Notepad.app (interpreted) in 12 s", has **Reveal in Finder** (File
   Explorer, Files) — a click shows the app selected. A build that fails says
   so in red, after cargo's errors. Run (F5) is the one for debugging: it runs
   the program under Studio's debugger, no build needed.
+- **Without Rust**, Build Native App asks first: "Native builds need Rust
+  (it is free)." **Build Interpreted Instead** (Enter) makes the
+  interpreted app now; **Install Rust...** runs `rapidr setup` and shows what
+  it says on the Build page (when it ends, native builds work); **Cancel**
+  does nothing. A new project made on a computer without Rust is set to
+  build interpreted, and Project Options says "(Rust not installed)" beside
+  the Compiled choice.
 - **Run > Reveal in Finder** shows the last app built.
 - **Project > Project Options** sets the app's name, bundle ID, version,
   company and icon (with a preview, as the app will have it); whether

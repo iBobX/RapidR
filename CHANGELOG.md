@@ -95,6 +95,15 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   gallery's themes are `classic`, `rapidr-light`, `rapidr-dark`,
   `rapidr-high-contrast`.
 ### Added
+- **Studio builds apps without Rust.** Run has **Build Native App** (needs Rust, free) and **Build
+  Interpreted App** (no Rust), beside Build (Ctrl+Shift+B), which does what Project Options says.
+  On a computer without Rust, Build Native App asks first: Build Interpreted Instead (Enter), Install
+  Rust... (runs `rapidr setup`, its output on the Build page) or Cancel; a new project there is set to
+  build interpreted, and Project Options says "(Rust not installed)" beside Compiled. The log names the
+  kind: "✓ Built Notes.app (interpreted) in 4 s". `rapidr build` native without Rust says so plainly
+  (use `--interp`, or `rapidr setup`) instead of failing in cargo; `rapidr setup --rust` answers
+  whether native builds can run (exit code), and RAPIDR_NO_RUST=1 pretends there is no Rust, to test
+  those paths. New RPROJECT members RustReady and InstallRust. Manual: building-apps.md, "Do I need Rust?".
 - **Serial ports for ESP32 / Arduino / IoT boards** (RComPort, RapidQ's QCOMPORT; RapidQ's members
   unchanged, RapidR's extras added, the same in native builds, the interpreter and the browser):
   **ListPorts** with each port's USB vendor / product IDs, description, maker and serial number

@@ -97,6 +97,12 @@ fn build_kind(p: &Project) -> &'static str {
     }
 }
 
+/// The project builds interpreted (`bytecode`) or native.
+fn set_build_kind(p: &mut Project, interpreted: bool) {
+    p.build.targets.retain(|t| !matches!(t.to_ascii_lowercase().as_str(), "native" | "bytecode" | "interpreted" | "interp"));
+    p.build.targets.insert(0, if interpreted { "bytecode" } else { "native" }.to_string());
+}
+
 pub fn set(name: &str, prop: &str, v: &Value) -> bool {
     with(name, |m| {
         match prop {
@@ -110,11 +116,7 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             "company" => m.project.build.company = v.to_string_val().trim().to_string(),
             "outputfolder" => m.project.build.output = project_path(&m.folder, v.to_string_val().trim()),
             "keeprust" => m.project.build.keep_rust = v.to_i64() != 0 || v.to_string_val().eq_ignore_ascii_case("true"),
-            "buildkind" => {
-                let kind = if v.to_string_val().trim().eq_ignore_ascii_case("interpreted") { "bytecode" } else { "native" };
-                m.project.build.targets.retain(|t| !matches!(t.to_ascii_lowercase().as_str(), "native" | "bytecode" | "interpreted" | "interp"));
-                m.project.build.targets.insert(0, kind.to_string());
-            }
+            "buildkind" => set_build_kind(&mut m.project, v.to_string_val().trim().eq_ignore_ascii_case("interpreted")),
             "filename" | "folder" | "kind" | "error" | "filecount" | "building" | "builtpath" | "filemanager" => {}
             _ => return false,
         }
@@ -241,8 +243,13 @@ fn save(m: &mut Model, to: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn new(m: &mut Model, template: &str, name: &str, folder: &str) -> Result<(), String> {
-    let (project, files) = Project::new_from_template(name, if template.is_empty() { "gui" } else { template }).map_err(|e| e.to_string())?;
+/// A new project; `interpreted`: it builds interpreted (a computer without
+/// Rust: the build that works there; Project Options can change it).
+fn new(m: &mut Model, template: &str, name: &str, folder: &str, interpreted: bool) -> Result<(), String> {
+    let (mut project, files) = Project::new_from_template(name, if template.is_empty() { "gui" } else { template }).map_err(|e| e.to_string())?;
+    if interpreted {
+        set_build_kind(&mut project, true);
+    }
     let folder = slashes(folder).trim_end_matches('/').to_string();
     for (rel, text) in &files {
         write_text(&join(&folder, rel), text)?;
@@ -370,7 +377,11 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             }
         }
         "save" => changing(&|m| save(m, &s(0))),
-        "new" => changing(&|m| new(m, &s(0), &s(1), &s(2))),
+        // (the desktop only asks whether Rust is there; the web builds nothing)
+        "new" => {
+            let interpreted = host.rapidr().is_some_and(|r| !crate::build::rust_ready(&r));
+            changing(&|m| new(m, &s(0), &s(1), &s(2), interpreted))
+        }
         "close" => changing(&|m| {
             *m = Model::default();
             Ok(())
@@ -401,6 +412,21 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
                     m.built.clear();
                 }
             });
+            flag(ok)
+        }
+        // (the desktop asks `rapidr setup --rust`; the web has nothing to ask,
+        // and Build says on its own that it is the desktop's)
+        "rustready" => flag(host.rapidr().is_none_or(|r| crate::build::rust_ready(&r))),
+        // (Rust installed by `rapidr setup`, run like a build: its lines come
+        // back as OnBuildOutput, its end as OnBuildDone; nothing but Rust is
+        // set up: no `rapidr` link on the PATH)
+        "installrust" => {
+            let started = host
+                .rapidr()
+                .ok_or("Installing Rust is the desktop's: run `rapidr setup` on the computer".to_string())
+                .and_then(|rapidr| crate::build::start(name, rapidr, &["setup".to_string(), "--yes".to_string(), "--no-path".to_string()], ""));
+            let ok = started.is_ok();
+            with(name, |m| m.error = started.err().unwrap_or_default());
             flag(ok)
         }
         "stopbuild" => {
@@ -451,6 +477,46 @@ mod tests {
         fn list_files(self, folder: &str) -> Vec<String> {
             std::fs::read_dir(folder).map(|d| d.filter_map(|e| e.ok()).filter(|e| e.path().is_file()).map(|e| e.file_name().to_string_lossy().into_owned()).collect()).unwrap_or_default()
         }
+    }
+
+    /// A host whose `rapidr` is a program that exits with a code of its own.
+    #[derive(Clone, Copy)]
+    struct Rapidr(&'static str);
+    impl Host for Rapidr {
+        fn fire(self, _name: &str, _event: &str, _args: &[Value]) {}
+        fn launch(self, _p: &str, _a: &[String], _t: &str) -> Result<Box<dyn crate::Transport>, String> {
+            Err("no".into())
+        }
+        fn list_files(self, _folder: &str) -> Vec<String> {
+            Vec::new()
+        }
+        fn rapidr(self) -> Option<std::path::PathBuf> {
+            Some(self.0.into())
+        }
+    }
+
+    /// Without Rust (`rapidr setup --rust` says no) a new project builds
+    /// interpreted, saved so; with it, native; and RustReady says which.
+    #[cfg(unix)]
+    #[test]
+    fn a_new_project_without_rust_builds_interpreted() {
+        let dir = std::env::temp_dir().join(format!("rapidr-studio-norust-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let d = slashes(&dir.to_string_lossy());
+        for (rapidr, ready, kind) in [("/usr/bin/false", 0, "interpreted"), ("/usr/bin/true", 1, "native")] {
+            let make = |host: Rapidr, folder: &str| {
+                std::fs::create_dir_all(folder).unwrap();
+                call(host, "pn", "new", &[Value::String("console".into()), Value::String("Fresh".into()), Value::String(folder.into())]).unwrap().to_i64()
+            };
+            let folder = format!("{d}/{kind}");
+            assert_eq!(call(Rapidr(rapidr), "pn", "rustready", &[]).unwrap().to_i64(), ready, "{rapidr}");
+            assert_eq!(make(Rapidr(rapidr), &folder), 1);
+            assert_eq!(get("pn", "buildkind").unwrap().to_string_val(), kind);
+            // (and in the file: opened again, it builds the same)
+            assert_eq!(call(Rapidr(rapidr), "pn", "open", &[Value::String(format!("{folder}/Fresh.rrproj"))]).unwrap().to_i64(), 1);
+            assert_eq!(get("pn", "buildkind").unwrap().to_string_val(), kind);
+        }
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
@@ -511,6 +577,8 @@ mod tests {
         assert!(preview.ends_with(".rapidr/icon-preview-64.png") && std::path::Path::new(&preview).is_file(), "{preview}");
         assert_eq!(call("build", &[]).to_i64(), 0, "the quiet host has no rapidr");
         assert!(get("error").contains("desktop"));
+        // (nothing to ask on the web: native is not refused for want of Rust)
+        assert_eq!(call("rustready", &[]).to_i64(), 1);
         assert_eq!(call("open", &[Value::String(format!("{d}/nope.rr"))]).to_i64(), 0);
         assert!(get("error").contains("no such file"));
         std::fs::remove_dir_all(&dir).unwrap();

@@ -14,6 +14,7 @@ CONST PROMPT_DONT = 2
 CONST PROMPT_REVIEW = 3
 
 DIM PromptAnswer AS INTEGER
+DIM PromptRust AS INTEGER   ' 1: the native build's question (no Rust), else the save questions
 DIM PromptIconBmp AS QBITMAP
 DIM PromptIconLoaded AS INTEGER
 
@@ -71,6 +72,10 @@ SUB LayOutPrompt(Many AS INTEGER)
     ws = 96: wd = 112: wr = 150: wc = 96
   END IF
   IF Many THEN wd = wd + 24
+  ' (the Rust question's buttons say more: "Build Interpreted Instead")
+  IF PromptRust THEN
+    ws = ws + 110: wd = wd + 10
+  END IF
   SavePrompt.Font.Name = UIFont.Name: SavePrompt.Font.Size = UIFont.Size
   PromptTitle.Font = SubFont
   PromptText.Font.Color = TC("page.dim")
@@ -92,7 +97,10 @@ SUB LayOutPrompt(Many AS INTEGER)
   y = pad + th + 6 + tx + pad
   IF y < pad + ic + pad THEN y = pad + ic + pad
   PromptReview.Visible = Many
-  IF Many THEN
+  IF PromptRust THEN
+    PromptSave.Caption = "&Build Interpreted Instead"
+    PromptDont.Caption = "&Install Rust..."
+  ELSEIF Many THEN
     PromptSave.Caption = "Save &All"
     PromptDont.Caption = "&Discard Changes"
   ELSE
@@ -142,6 +150,27 @@ FUNCTION AskSave(Question AS STRING, Detail AS STRING, Many AS INTEGER) AS INTEG
   SavePrompt.Center
   SavePrompt.ShowModal
   Result = PromptAnswer
+END FUNCTION
+
+' Run > Build Native App without Rust: "Native builds need Rust (free)."
+' "interpreted" (Build Interpreted Instead, Enter), "install" (Install Rust...)
+' or "" (Cancel, Escape, the window closed).
+FUNCTION AskRust AS STRING
+  PromptRust = 1
+  LayOutPrompt 0
+  PromptTitle.Caption = "Native builds need Rust (it is free)."
+  PromptText.Caption = "Rust is not installed on this computer. An interpreted app needs none and runs the same program."
+  PromptAnswer = PROMPT_CANCEL
+  SavePrompt.Center
+  SavePrompt.ShowModal
+  PromptRust = 0
+  IF PromptAnswer = PROMPT_SAVE THEN
+    Result = "interpreted"
+  ELSEIF PromptAnswer = PROMPT_DONT THEN
+    Result = "install"
+  ELSE
+    Result = ""
+  END IF
 END FUNCTION
 
 ' Whether a document has changes not saved: Studio's window says so (the

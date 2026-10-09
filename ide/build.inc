@@ -15,9 +15,12 @@ DECLARE SUB AppOutputBrowse
 DECLARE SUB AppBuildChanged
 DECLARE SUB AppSettingsOk
 DECLARE SUB AppSettingsCancel
+DECLARE FUNCTION AskRust AS STRING
 
 DIM AppIconBmp AS QBITMAP
 DIM BuildStarted AS DOUBLE
+DIM AppRustOk AS INTEGER   ' Project Options: Rust is installed (asked when it opens)
+DIM BuildMode AS STRING   ' what runs on the Build page: native, interpreted or setup (Rust's install)
 
 ' ---- Project > Project Options -------------------------------------------------------
 CREATE AppDialog AS QFORM
@@ -209,6 +212,11 @@ END FUNCTION
 ' that an interpreted build has none.
 SUB AppBuildChanged
   AppKeepRust.Enabled = (AppKind.ItemIndex = 0)
+  IF AppKind.ItemIndex = 0 AND AppRustOk = 0 THEN
+    AppKindNote.Caption = "Rust is free: Build Native App offers to install it. Interpreted needs none."
+  ELSE
+    AppKindNote.Caption = "A release build: optimized, what you ship. Run (F5) runs the program to debug it."
+  END IF
   IF AppKind.ItemIndex = 1 THEN
     AppKeepNote.Caption = "An interpreted build has no Rust: the app runs the program's bytecode."
   ELSEIF AppKeepRust.Checked THEN
@@ -226,6 +234,14 @@ SUB ShowAppSettings
   AppVersionEdit.Text = Proj.Version
   AppCompanyEdit.Text = Proj.Company
   AppIconEdit.Text = Proj.Icon
+  ' (without Rust the Compiled choice says so; it can still be chosen)
+  AppKind.Clear
+  AppRustOk = Proj.RustReady
+  IF AppRustOk THEN
+    AppKind.AddItems "Compiled (native: needs Rust)", "Interpreted (no Rust needed)"
+  ELSE
+    AppKind.AddItems "Compiled (Rust not installed)", "Interpreted (no Rust needed)"
+  END IF
   IF Proj.BuildKind = "interpreted" THEN AppKind.ItemIndex = 1 ELSE AppKind.ItemIndex = 0
   AppOutputEdit.Text = Proj.OutputFolder
   IF AppOutputEdit.Text = "" THEN AppOutputEdit.Text = "build"
@@ -288,8 +304,24 @@ SUB BuildLine(Text AS STRING)
   OutputBox.AddBuildLine Text
 END SUB
 
-SUB BuildProject
+' Run > Build (Kind ""): the project's own choice (Project Options);
+' Build Native App / Build Interpreted App: that one. A native build without
+' Rust asks first: build interpreted instead, install Rust, or cancel.
+SUB BuildProject(Kind AS STRING)
+  DIM answer AS STRING
   IF ProjectOpen = 0 OR Proj.Building THEN EXIT SUB
+  IF Kind = "" THEN Kind = Proj.BuildKind
+  IF Kind = "native" AND Proj.RustReady = 0 THEN
+    answer = AskRust
+    IF answer = "interpreted" THEN
+      Kind = "interpreted"
+    ELSEIF answer = "install" THEN
+      InstallRust
+      EXIT SUB
+    ELSE
+      EXIT SUB
+    END IF
+  END IF
   SaveAll
   AnalyzeActive
   IF Lang.ErrorCount > 0 THEN
@@ -302,7 +334,8 @@ SUB BuildProject
   OutputBox.Clear "build"
   OutputBox.Page = "build"
   Dock.ShowPane("outputbox")
-  IF Proj.Build THEN
+  BuildMode = Kind
+  IF Proj.Build(Kind) THEN
     BuildStarted = TIMER
     SetState "building", "Building " + FileTitle(ProjectMain) + "..."
   ELSE
@@ -327,12 +360,39 @@ SUB BuildOutput(Text AS STRING)
   BuildLine Text
 END SUB
 
+' Rust installed with `rapidr setup` (the Build page shows what it says):
+' native builds work from then on.
+SUB InstallRust
+  OutputBox.Clear "build"
+  OutputBox.Page = "build"
+  Dock.ShowPane("outputbox")
+  BuildMode = "setup"
+  IF Proj.InstallRust THEN
+    BuildStarted = TIMER
+    SetState "building", "Installing Rust..."
+  ELSE
+    BuildLine CHR$(27) + "[31mCan't install Rust: " + Proj.Error + CHR$(27) + "[0m"
+    SetState "error", "Can't install Rust"
+  END IF
+END SUB
+
 SUB BuildDone(Code AS INTEGER, Built AS STRING)
   DIM took AS STRING
   took = LTRIM$(STR$(INT(TIMER - BuildStarted)))
+  IF BuildMode = "setup" THEN
+    BuildLine ""
+    IF Code = 0 THEN
+      BuildLine CHR$(27) + "[32m" + "✓ Rust is installed (" + took + " s): Run > Build Native App is ready." + CHR$(27) + "[0m"
+      SetState "stopped", "Rust is installed"
+    ELSE
+      BuildLine CHR$(27) + "[31m" + "✗ Installing Rust failed (exit code " + LTRIM$(STR$(Code)) + ") after " + took + " s: see above. `rapidr setup` in a terminal asks the same questions." + CHR$(27) + "[0m"
+      SetState "error", "Installing Rust failed"
+    END IF
+    EXIT SUB
+  END IF
   IF Code = 0 THEN
     BuildLine ""
-    BuildLine CHR$(27) + "[32m" + "✓ Built " + FileTitle(Built) + " in " + took + " s" + CHR$(27) + "[0m   " + Hyperlink("Reveal in " + Proj.FileManager, "reveal:" + Built)
+    BuildLine CHR$(27) + "[32m" + "✓ Built " + FileTitle(Built) + " (" + BuildMode + ") in " + took + " s" + CHR$(27) + "[0m   " + Hyperlink("Reveal in " + Proj.FileManager, "reveal:" + Built)
     SetState "stopped", "Built " + FileTitle(Built)
   ELSE
     BuildLine ""

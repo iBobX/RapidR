@@ -4889,7 +4889,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `Open(Path AS STRING) AS INTEGER` | Opens a .rrproj, or a .bas / .rr / .inc file with what it includes. True when it opened; Error says why not. |
 | `OpenFolder(Folder AS STRING) AS INTEGER` | Opens the project of a folder: its .rrproj, else its main source (main.rr / main.bas, the one named as the folder, the one with a form). True when it opened. |
 | `Save([Path AS STRING]) AS INTEGER` | Writes the project file (a source file's project becomes <Folder>/<Name>.rrproj, or Path). True when it was written. |
-| `New(Template AS STRING, Name AS STRING, Folder AS STRING) AS INTEGER` | A new project from a template ("console", "gui", "rapidq", "data" or "mdi"): the main file (main.rr, or main.bas for "rapidq", which also turns RapidQ compatibility on) and <Name>.rrproj written in Folder. |
+| `New(Template AS STRING, Name AS STRING, Folder AS STRING) AS INTEGER` | A new project from a template ("console", "gui", "rapidq", "data" or "mdi"): the main file (main.rr, or main.bas for "rapidq", which also turns RapidQ compatibility on) and <Name>.rrproj written in Folder. On a computer without Rust (see RustReady) the new project's BuildKind is "interpreted", the build that works there. |
 | `AddFile(Path AS STRING, [Kind AS STRING]) AS INTEGER` | Adds a file (its kind from its name, or Kind: module, form, include, resource, asset, data). True when it was added. |
 | `RemoveFile(Path AS STRING) AS INTEGER` | Takes a file out of the project (the file itself stays). True when it was in it. |
 | `Close` | No project is open any more. |
@@ -4897,6 +4897,8 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `FileKind(Index AS INTEGER) AS STRING` | File Index's kind: module, form, include, resource, asset or data. |
 | `FullPath(Index AS INTEGER) AS STRING` | File Index's path to open it with (the folder's and its own). |
 | `Build([Kind AS STRING]) AS INTEGER` | Makes the program into an app for this computer's system with rapidr build — a release build, optimized — in OutputFolder: Name.app on macOS, the .exe with its icon and version on Windows, Name.AppDir on Linux. Kind is "native" or "interpreted" (else BuildKind). Runs in the background: OnBuildOutput gives its lines, OnBuildDone its end. True when it started; Error says why not (on the web there is nothing to run it). |
+| `RustReady AS INTEGER` | True when native builds can run: Rust is installed (rapidr setup --rust). Without it only interpreted builds work. True on the web, where Build is not there to ask. |
+| `InstallRust AS INTEGER` | Installs Rust with rapidr setup --yes --no-path (the free toolchain native builds need), in the background like Build: OnBuildOutput gives its lines, OnBuildDone its end. True when it started; Error says why not. |
 | `StopBuild` | Stops the Build that is running. |
 | `Reveal([Path AS STRING]) AS INTEGER` | Shows Path (else what the last Build made) selected in Finder, Explorer or the Linux file manager. |
 | `IconPreview([Size AS INTEGER]) AS STRING` | Draws the app's icon (Icon, else RapidR's) as a Size-pixel PNG (128 by default) in the project's .rapidr folder and gives its path, for a QIMAGE to show; "" when the icon can't be read (Error says why). |
