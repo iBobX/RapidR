@@ -167,10 +167,13 @@ pub fn main_of_folder(folder: &str, files: &[String]) -> Option<String> {
     sources.first().map(|f| (*f).clone())
 }
 
-/// A program's files to compile it where there is no file system (the web):
-/// its main file's name and every (path, text) — the main file and what it
-/// `$INCLUDE`s, paths relative to its folder.
-pub fn program_files(program: &str) -> Result<(String, Vec<(String, String)>), String> {
+/// A program's files to run it where there is no file system (the web):
+/// its main file's name, every source (path, text) — the main file and what
+/// it `$INCLUDE`s — and every data file (path, bytes) its sources name that
+/// is there (`rapidr_project::named_files`: a `$RESOURCE`'s file, a CSV it
+/// loads …), paths relative to its folder. The compiler builds the
+/// `$RESOURCE`s in; the program reads the others as files beside it.
+pub fn program_files(program: &str) -> Result<ProgramFiles, String> {
     let program = slashes(program);
     let folder = folder_of(&program);
     let main = program.rsplit('/').next().unwrap_or(&program).to_string();
@@ -182,13 +185,38 @@ pub fn program_files(program: &str) -> Result<(String, Vec<(String, String)>), S
         read_text(&join(&folder, rel)).ok().map(|t| (rel.to_string(), t))
     };
     let project = rapidr_project::implicit_from_resolver(&main, &resolve);
-    let mut files = vec![(main.clone(), main_text.clone())];
+    let mut sources = vec![(main.clone(), main_text.clone())];
+    let mut data = Vec::new();
+    // (what a browser's program gets: its data, up to this much)
+    let mut room: usize = 64 << 20;
     for f in project.files.iter().filter(|f| !f.path.eq_ignore_ascii_case(&main)) {
-        if let Ok(t) = read_text(&join(&folder, &f.path)) {
-            files.push((f.path.clone(), t));
+        match f.kind {
+            FileKind::Module | FileKind::Form | FileKind::Include => {
+                if let Ok(t) = read_text(&join(&folder, &f.path)) {
+                    sources.push((f.path.clone(), t));
+                }
+            }
+            _ => {
+                if let Ok(bytes) = rapidr_value::objects::read_file(&join(&folder, &f.path)) {
+                    if bytes.len() <= room {
+                        room -= bytes.len();
+                        data.push((f.path.clone(), bytes));
+                    }
+                }
+            }
         }
     }
-    Ok((main, files))
+    Ok(ProgramFiles { main, sources, data })
+}
+
+/// [`program_files`]' answer.
+pub struct ProgramFiles {
+    /// The main file's name.
+    pub main: String,
+    /// (path, text) of each source.
+    pub sources: Vec<(String, String)>,
+    /// (path, bytes) of each data file.
+    pub data: Vec<(String, Vec<u8>)>,
 }
 
 fn exists(path: &str) -> bool {

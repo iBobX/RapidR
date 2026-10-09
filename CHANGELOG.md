@@ -212,7 +212,32 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   tests that check ops) name the classic theme explicitly; the visual
   gallery's themes are `classic`, `rapidr-light`, `rapidr-dark`,
   `rapidr-high-contrast`.
+
+### Fixed
+- **Examples with data files run in RapidR Studio on the web** (Robert: dataframe.rr said "$RESOURCE
+  STAFF_CSV: file not found in the project's assets"). The files a program names — a `$RESOURCE`'s
+  file, a CSV it loads (`"staff.csv"`), any file beside it whose name is written in its source — belong
+  to its project: the project tree lists them (Resources, Assets, Data), and on the web Studio builds
+  the `$RESOURCE`s in from them and gives the others to the program's frame as the files of its
+  folder. All 30 examples open and run from Studio on the web.
+- **RPLOT.Clear keeps the chart's size** (as Matplotlib's `clf`): a chart on a form no longer jumps to
+  640 × 480 when cleared.
+
 ### Added
+- **The CSV Explorer** (`examples/data/csv_explorer.rr`, the first example on Studio's Welcome page):
+  drop a CSV file on the window (or Open CSV…, or the built-in sample `shop.csv`) and see it as a
+  table sorted by a click on a heading, filtered by any text, each column's count / min / max / mean,
+  and a live RPLOT bar, line or scatter chart of any two columns — native, interpreted and in a
+  browser alike. The manual's [Data science](docs/manual/data-science.md#tutorial-the-csv-explorer)
+  page walks through it, with screenshots.
+- **`Form.OnDropFiles (Files AS STRING)`** (RapidR's; RapidQ has no file drop event): files dragged
+  from Finder, File Explorer or a file manager — in a browser, from the computer — and dropped on a
+  window; their paths one a line, one event for a drop of several. In a browser each file is read into
+  the program's own files under its name. A form without the handler ignores drops (the browser never
+  replaces the page with the file). Test hook `form.__drop` with `RAPIDR_TEST_DROP=a;b`.
+- **RPLOT in the designer**: a chart with no data yet shows sample bars under its Title, so the form
+  shows where the chart is (dataframe.rr's chart is now an RPLOT on the form).
+
 - **Serial ports for ESP32 / Arduino / IoT boards** (RComPort, RapidQ's QCOMPORT; RapidQ's members
   unchanged, RapidR's extras added, the same in native builds, the interpreter and the browser):
   **ListPorts** with each port's USB vendor / product IDs, description, maker and serial number

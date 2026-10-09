@@ -55,6 +55,27 @@ fn a_size_grips_drag_resizes_the_window_as_the_user() {
     assert_eq!(d.events, vec![HostEvent::Kernel("frm".into(), KernelEvent::Resized("frm".into(), 230, 120))]);
 }
 
+/// (RapidR's OnDropFiles) The system gives a drop's files one at a time
+/// (winit's DroppedFile): one event for them all, in order; a form that
+/// isn't there, or one under a modal form, hears nothing.
+#[test]
+fn files_dropped_together_are_one_event() {
+    let s = store();
+    let mut d = desk(&s);
+    d.events.clear();
+    d.files_dropped("frm", "/data/a.csv");
+    d.files_dropped("FRM", "/data/b.txt");
+    assert_eq!(d.events, vec![HostEvent::Kernel("frm".into(), KernelEvent::DropFiles("frm".into(), vec!["/data/a.csv".into(), "/data/b.txt".into()]))]);
+    d.files_dropped("nothing", "/data/c.csv");
+    d.files_dropped("frm", "");
+    assert_eq!(d.events.len(), 1);
+    // (a second drop after the program heard the first: an event of its own)
+    d.events.clear();
+    d.files_dropped("dlg", "/data/c.csv");
+    d.files_dropped("frm", "/data/d.csv");
+    assert_eq!(d.events.len(), 2);
+}
+
 #[test]
 fn a_headless_pump_runs_the_commands_and_sleeps() {
     let s = store();

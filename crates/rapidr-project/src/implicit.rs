@@ -1,11 +1,12 @@
 //! Plain `.bas` / `.rr` files opened without a project file: an implicit
-//! project made of the file and what it `$INCLUDE`s, RapidQ's way.
+//! project made of the file, what it `$INCLUDE`s (RapidQ's way) and the data
+//! files beside it that it names (`named_files`).
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use crate::error::ProjectError;
-use crate::project::{kind_for_path, kind_for_source, normalize_path, Project};
+use crate::project::{kind_for_path, kind_for_source, normalize_path, FileKind, Project};
 
 /// The files a source `$INCLUDE`s (`$INCLUDE "x"` or `$INCLUDE <x>`, any
 /// case), as written, in order.
@@ -35,6 +36,60 @@ pub fn include_targets(text: &str) -> Vec<String> {
         }
     }
     out
+}
+
+/// The data files a source names: the file of each `$RESOURCE name AS
+/// "file"` (`true`: built into the program) and every string literal that
+/// reads as a relative file name (`"staff.csv"`, `"img\back.bmp"`: a name
+/// and an extension of 1–5 letters or digits; no URL, no absolute path),
+/// as written, each once, in order. What exists of them beside the source
+/// belongs to its project: `rapidr examples copy` copies them, RapidR
+/// Studio lists them and gives them to the program it runs in a browser.
+pub fn named_files(text: &str) -> Vec<(String, bool)> {
+    let mut out: Vec<(String, bool)> = Vec::new();
+    let mut push = |name: &str, resource: bool| {
+        let name = name.trim();
+        if !looks_like_file(name) {
+            return;
+        }
+        match out.iter_mut().find(|(n, _)| n.eq_ignore_ascii_case(name)) {
+            Some(found) => found.1 |= resource,
+            None => out.push((name.to_string(), resource)),
+        }
+    };
+    for line in text.lines() {
+        let trimmed = line.trim_start();
+        // (a comment line names nothing; a ' after code ends the scan below)
+        if trimmed.starts_with('\'') || trimmed.get(..4).is_some_and(|h| h.eq_ignore_ascii_case("rem ")) {
+            continue;
+        }
+        let resource = trimmed.get(..9).is_some_and(|h| h.eq_ignore_ascii_case("$RESOURCE"));
+        let mut rest = trimmed;
+        while let Some(i) = rest.find(['"', '\'']) {
+            if rest.as_bytes()[i] == b'\'' {
+                break;
+            }
+            let after = &rest[i + 1..];
+            let Some(end) = after.find('"') else { break };
+            push(&after[..end], resource);
+            rest = &after[end + 1..];
+        }
+    }
+    out
+}
+
+/// Whether a string literal reads as a relative file name.
+fn looks_like_file(s: &str) -> bool {
+    if s.len() < 3 || s.len() > 260 || s.contains("://") || is_absolute(s) || s.contains(['<', '>', '|', '*', '?', '"', '\n', '\t']) {
+        return false;
+    }
+    let name = s.rsplit(['/', '\\']).next().unwrap_or(s);
+    match name.rsplit_once('.') {
+        Some((stem, ext)) => {
+            !stem.trim().is_empty() && !stem.ends_with(' ') && (1..=5).contains(&ext.len()) && ext.chars().all(|c| c.is_ascii_alphanumeric())
+        }
+        None => false,
+    }
 }
 
 fn is_absolute(path: &str) -> bool {
@@ -94,7 +149,41 @@ pub fn implicit_from_resolver(
             project.add_file(&main, kind_for_path(&main));
         }
     }
+    add_named_files(resolve, &mut project, &mut seen);
     project
+}
+
+/// The data files the project's sources name (`named_files`) that are
+/// there, relative to the naming source's folder: a `$RESOURCE`'s file as
+/// a resource, another by its extension (`staff.csv`: data).
+fn add_named_files(
+    resolve: &dyn Fn(&str) -> Option<(String, String)>,
+    project: &mut Project,
+    seen: &mut HashSet<String>,
+) {
+    let sources: Vec<String> = project.files.iter().map(|f| f.path.clone()).collect();
+    for from in sources {
+        let Some((_, text)) = resolve(&from) else { continue };
+        for (name, resource) in named_files(&text) {
+            let rel = normalize_path(&format!("{}{}", folder_of(&from), name.replace('\\', "/")));
+            if rel.starts_with("../") || !seen.insert(rel.to_lowercase()) {
+                continue;
+            }
+            let Some((actual, _)) = resolve(&rel) else { continue };
+            let actual = normalize_path(&actual);
+            if actual.to_lowercase() != rel.to_lowercase() && !seen.insert(actual.to_lowercase()) {
+                continue;
+            }
+            let kind = match kind_for_path(&actual) {
+                // (a program's source, read as data: not one of the project's
+                // sources unless it's included)
+                FileKind::Module | FileKind::Form | FileKind::Include => continue,
+                _ if resource => FileKind::Resource,
+                kind => kind,
+            };
+            project.add_file(&actual, kind);
+        }
+    }
 }
 
 fn add_includes(
@@ -212,6 +301,45 @@ mod tests {
         assert_eq!(
             include_targets(text),
             ["rapidq.inc", "Lib\\x.inc", "tight.inc"]
+        );
+    }
+
+    #[test]
+    fn names_data_files() {
+        let text = "$RESOURCE STAFF AS \"staff.csv\"\nx = \"Average (k)\" + \"a.b\"\n' \"old.csv\"\n\
+                    df.LoadFromCsv(\"Staff.CSV\") ' \"no.csv\"\nu = \"http://x/y.json\": p = \"/abs/z.txt\"\n\
+                    Bmp.LoadFromFile(\"img\\back.bmp\")\nPRINT \"Hello. World\", \"v1.2.3\"\n";
+        assert_eq!(
+            named_files(text),
+            [("staff.csv".to_string(), true), ("a.b".to_string(), false), ("img\\back.bmp".to_string(), false), ("v1.2.3".to_string(), false)]
+        );
+    }
+
+    #[test]
+    fn data_files_beside_the_sources_belong() {
+        let files: HashMap<&str, &str> = HashMap::from([
+            ("app.rr", "$RESOURCE T AS \"tune.mid\"\n$INCLUDE \"lib/a.inc\"\nd.LoadFromCsv(\"sales.csv\")\nKILL \"gone.tmp\"\ny = \"../outside.csv\"\n"),
+            ("lib/a.inc", "b.LoadFromFile(\"pic.bmp\")\nx = \"../up.csv\"\n"),
+            ("tune.mid", "MThd"),
+            ("sales.csv", "a,b"),
+            ("lib/pic.bmp", "BM"),
+            ("up.csv", "1"),
+            ("../outside.csv", "no"),
+        ]);
+        let lookup = |p: &str| files.get(p).map(|s| s.to_string());
+        let p = implicit_from_sources("app.rr", &lookup);
+        let got: Vec<(&str, FileKind)> = p.files.iter().map(|f| (f.path.as_str(), f.kind)).collect();
+        // (lib/../up.csv is in the project's folder; ../outside.csv isn't)
+        assert_eq!(
+            got,
+            [
+                ("app.rr", FileKind::Module),
+                ("lib/a.inc", FileKind::Include),
+                ("tune.mid", FileKind::Resource),
+                ("sales.csv", FileKind::Data),
+                ("lib/pic.bmp", FileKind::Resource),
+                ("up.csv", FileKind::Data),
+            ]
         );
     }
 

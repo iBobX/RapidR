@@ -144,7 +144,13 @@ pub fn plot_method(name: &str, method: &str, args: &[Value], host: &dyn Host) ->
             v_null()
         }
         "clear" => {
-            modify(name, |p| *p = Plot::default());
+            // (the series, titles and settings go; the size stays, as
+            // Matplotlib's clf keeps the figure's — an RPLOT on a form keeps
+            // its place)
+            modify(name, |p| {
+                let (width, height, dpi) = (p.width, p.height, p.dpi);
+                *p = Plot { width, height, dpi, ..Plot::default() };
+            });
             v_null()
         }
         // --- Series ---

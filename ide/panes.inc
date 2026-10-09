@@ -95,6 +95,7 @@ SUB FillExamples
   AddStart 3, "RFORM", "Open an Example"
   AddStart 4, "view.commandPalette", "All Commands"
   ExampleCount = 0
+  AddExample "data/csv_explorer.rr", "Drop a CSV, see it charted"
   AddExample "gui/hello_form.rr", "A form, a button, its OnClick"
   AddExample "gui/menus.rr", "Main and pop-up menus"
   AddExample "gui/dialogs.rr", "Open, save, colour, font"

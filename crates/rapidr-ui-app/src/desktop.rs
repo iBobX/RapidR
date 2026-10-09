@@ -349,6 +349,24 @@ impl Desktop {
         self.route(id, src, |f, ts, _| f.ime_commit(store, ts, text));
     }
 
+    /// (RapidR's) A file dropped on form `id`'s window (the system gives
+    /// several one at a time, in one go): queued with the others of the
+    /// same drop, one OnDropFiles for them all. A modal form's elsewhere
+    /// keeps the drop from reaching the windows under it, as a click.
+    pub fn files_dropped(&mut self, id: &str, path: &str) {
+        let key = id.to_lowercase();
+        if path.is_empty() || !self.forms.contains_key(&key) || !self.admits(&key, Source::User) {
+            return;
+        }
+        if let Some(HostEvent::Kernel(f, KernelEvent::DropFiles(_, files))) = self.events.last_mut() {
+            if *f == key {
+                files.push(path.to_string());
+                return;
+            }
+        }
+        self.events.push(HostEvent::Kernel(key.clone(), KernelEvent::DropFiles(key, vec![path.to_string()])));
+    }
+
     /// The window's close box.
     pub fn close_box(&mut self, id: &str, src: Source) {
         self.route(id, src, |f, _, _| f.close_box());

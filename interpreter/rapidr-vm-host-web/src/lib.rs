@@ -982,7 +982,7 @@ pub fn rapidr_test_results() -> Option<String> {
 /// run-time error and the debugger's breakpoints and stops call it).
 #[wasm_bindgen]
 pub fn compile(source: &str, project_name: &str, assets: JsValue) -> Result<Vec<u8>, JsValue> {
-    compile_inner(project_name, source, Vec::new(), &assets).map_err(|e| JsValue::from_str(&e))
+    compile_inner(project_name, source, Vec::new(), &|file| resource_bytes(&assets, file), "add it under Assets").map_err(|e| JsValue::from_str(&e))
 }
 
 /// Compiles a project's main file `main` from `files` (an object: each
@@ -1005,38 +1005,44 @@ pub fn compile_files(main: &str, files: JsValue, assets: JsValue) -> Result<Vec<
         .find(|(name, _)| name == main)
         .map(|(_, text)| text.clone())
         .ok_or_else(|| JsValue::from_str(&format!("{main}: not among the project's files")))?;
-    compile_inner(main, &source, all, &assets).map_err(|e| JsValue::from_str(&e))
+    compile_inner(main, &source, all, &|file| resource_bytes(&assets, file), "add it under Assets").map_err(|e| JsValue::from_str(&e))
 }
 
-/// A `$RESOURCE` file's bytes from the project's assets: the name as
-/// written, or its last part (`resource_files\two.bin` → `two.bin`), or under
-/// `assets/`.
-fn resource_bytes(assets: &JsValue, file: &str) -> Option<Vec<u8>> {
-    if assets.is_undefined() || assets.is_null() {
-        return None;
-    }
+/// Which of `names` (a project's asset names) a `$RESOURCE` line's file
+/// is: the name as written, or its last part (`resource_files\two.bin` →
+/// `two.bin`), or under `assets/` — else one of those in any case, as
+/// RapidQ on Windows finds them (`BACK1.BMP` for back1.bmp).
+fn asset_index(names: &[String], file: &str) -> Option<usize> {
     let written = file.replace('\\', "/");
     let base = written.rsplit('/').next().unwrap_or(&written).to_string();
     for key in [written.clone(), format!("assets/{written}"), base.clone(), format!("assets/{base}")] {
-        if let Some(url) = js_sys::Reflect::get(assets, &JsValue::from_str(&key)).ok().and_then(|v| v.as_string()) {
-            return rapidr_runtime_web::database_web::decode_base64(&url);
+        if let Some(i) = names.iter().position(|n| *n == key) {
+            return Some(i);
         }
     }
-    // Names in any case, as RapidQ on Windows finds them (`BACK1.BMP` for
-    // back1.bmp).
-    let names = js_sys::Object::keys(assets.dyn_ref::<js_sys::Object>()?);
-    let found = names.iter().filter_map(|n| n.as_string()).find(|n| {
+    names.iter().position(|n| {
         let n = n.strip_prefix("assets/").unwrap_or(n);
         n.eq_ignore_ascii_case(&written) || n.rsplit('/').next().is_some_and(|b| b.eq_ignore_ascii_case(&base))
-    })?;
-    let url = js_sys::Reflect::get(assets, &JsValue::from_str(&found)).ok()?.as_string()?;
+    })
+}
+
+/// A `$RESOURCE` file's bytes from the project's assets (`assets`: an
+/// object of names and data URLs).
+fn resource_bytes(assets: &JsValue, file: &str) -> Option<Vec<u8>> {
+    let object = assets.dyn_ref::<js_sys::Object>()?;
+    let names: Vec<String> = js_sys::Object::keys(object).iter().filter_map(|n| n.as_string()).collect();
+    let name = &names[asset_index(&names, file)?];
+    let url = js_sys::Reflect::get(assets, &JsValue::from_str(name)).ok()?.as_string()?;
     rapidr_runtime_web::database_web::decode_base64(&url)
 }
 
-/// (RapidR Studio's) A program from its files, as RPROGRAMSESSION runs it.
-fn compile_for_studio(main: &str, files: Vec<(String, String)>) -> Result<Vec<u8>, String> {
+/// (RapidR Studio's) A program from its files, as RPROGRAMSESSION runs it:
+/// its `$RESOURCE`s from the data files beside it.
+fn compile_for_studio(main: &str, files: Vec<(String, String)>, data: &[(String, Vec<u8>)]) -> Result<Vec<u8>, String> {
     let source = files.iter().find(|(n, _)| n == main).map(|(_, t)| t.clone()).ok_or_else(|| format!("{main}: not among the program's files"))?;
-    compile_inner(main, &source, files, &JsValue::UNDEFINED)
+    let names: Vec<String> = data.iter().map(|(n, _)| n.clone()).collect();
+    let find = |file: &str| asset_index(&names, file).map(|i| data[i].1.clone());
+    compile_inner(main, &source, files, &find, "put it in the program's folder")
 }
 
 /// (RapidR Studio's page) A file into the page's store before (or while)
@@ -1066,7 +1072,9 @@ pub fn studio_session_ended(code: i32) {
     run_idle_events();
 }
 
-fn compile_inner(main: &str, source: &str, files: Vec<(String, String)>, assets: &JsValue) -> Result<Vec<u8>, String> {
+/// `resource`: a `$RESOURCE`'s file's bytes; `hint`: what to do when it
+/// has none.
+fn compile_inner(main: &str, source: &str, files: Vec<(String, String)>, resource: &dyn Fn(&str) -> Option<Vec<u8>>, hint: &str) -> Result<Vec<u8>, String> {
     let options = rapidr_preprocessor::PreprocessOptions { virtual_files: files, ..Default::default() };
     let main_path = std::path::PathBuf::from(main);
     let pre = rapidr_preprocessor::preprocess_source(source, ".", Some(main_path.clone()), options)
@@ -1090,11 +1098,11 @@ fn compile_inner(main: &str, source: &str, files: Vec<(String, String)>, assets:
 
     // `$RESOURCE` files are built into the module.
     for r in &pre.resources {
-        let bytes = match resource_bytes(assets, &r.file) {
+        let bytes = match resource(&r.file) {
             Some(b) => b,
             // (`$OPTION ICON`'s icon: RapidQ's error)
             None if r.icon_directive.is_some() => return Err(r.not_found()),
-            None => return Err(format!("$RESOURCE {}: file not found in the project's assets: '{}' (add it under Assets)", r.name, r.file)),
+            None => return Err(format!("$RESOURCE {}: file not found: '{}' ({hint})", r.name, r.file)),
         };
         compiled.module.resources.push((r.name.clone(), bytes));
     }

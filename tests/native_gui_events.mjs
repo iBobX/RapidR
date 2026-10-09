@@ -149,6 +149,8 @@ const dialogAnswers = (c) => ({
   ...(c.joystick === undefined ? {} : { RAPIDR_TEST_JOYSTICK: c.joystick }),
   // (`comport`: QCOMPORT's scripted ports)
   ...(c.comport === undefined ? {} : { RAPIDR_TEST_COMPORT: c.comport }),
+  // (`drop`: the files `form.__drop` drops on a form, OnDropFiles)
+  ...(c.drop === undefined ? {} : { RAPIDR_TEST_DROP: c.drop }),
 });
 
 // A captured window's pixel (x, y) as "rrggbb" (an uncompressed 24- or

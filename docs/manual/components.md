@@ -136,6 +136,40 @@ compiler doesn't know it).
 | `Form.Scale`, `Screen.Scale`, `OnScaleChanged` | how fine the screen is (2 on a Retina screen, 1.5 at 150 %) |
 | `Application.Theme`, `$THEME` | the look (below) |
 | `AutoComplete` on an edit | the browser's autofill hint, on the web |
+| `Form.OnDropFiles (Files AS STRING)` | files dragged from the computer and dropped on the window (below) |
+
+### Files dropped on a form
+
+`OnDropFiles` (RapidR's; RapidQ has no such event) hears files dragged from
+Finder, File Explorer or a Linux file manager — in a browser, from the
+computer — and dropped anywhere on the form's window. `Files` holds their
+paths, one a line (`CHR$(10)` between them), in the order they came; a drop
+of several files is one event. Open each as any file. In a browser a
+dropped file is read into the program's own files under its name, so
+`Files` holds names (`sales.csv`) the program opens the same way. A form
+without the handler ignores drops.
+
+```basic
+CREATE Form AS RFORM
+    Caption = "Drop files here"
+    OnDropFiles = Dropped
+    CREATE Info AS RLABEL
+        Left = 8: Top = 8: Width = 300
+    END CREATE
+END CREATE
+
+SUB Dropped (Files AS STRING)
+    DIM i AS INTEGER
+    FOR i = 1 TO TALLY(Files, CHR$(10)) + 1
+        Info.Caption = Info.Caption + FIELD$(Files, CHR$(10), i) + "  "
+    NEXT
+END SUB
+
+Form.ShowModal
+```
+
+The [CSV Explorer](data-science.md#tutorial-the-csv-explorer) example opens
+the CSV file dropped on it.
 
 ## The mouse pointer
 

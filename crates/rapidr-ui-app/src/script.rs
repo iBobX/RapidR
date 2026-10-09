@@ -109,6 +109,8 @@ fn run_event<R: Program + Windows>(rt: R, e: TestEvent) {
         Action::Mouse(kind, x, y) => rt.script_input(ScriptInput::Mouse { comp, kind, x, y }),
         Action::DblClick(x, y) => rt.script_input(ScriptInput::DblClick { comp, x, y }),
         Action::Close => forms::close(rt, &e.comp),
+        // (RapidR's OnDropFiles: RAPIDR_TEST_DROP's files on the form)
+        Action::Drop => forms::files_dropped(rt, &rt.form_of(&comp).unwrap_or(comp), &testhooks::drop_files()),
         Action::Ignored => {}
         // (timers during native menu tracking: the next pump held, as a menu
         // the user keeps open would hold it)

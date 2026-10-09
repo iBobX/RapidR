@@ -277,6 +277,12 @@ fn key(surface: &str, name: &str) -> String {
     format!("{}:{}", surface.to_lowercase(), name.to_lowercase())
 }
 
+/// Whether `id` is a component drawn on a design surface (`surface:name`:
+/// a running program's names never have a `:`).
+pub(crate) fn designed(id: &str) -> bool {
+    id.contains(':')
+}
+
 /// A value as the designer reads it, as a program would have it.
 fn value_of(design: &FormDesign, text: &str) -> Option<Value> {
     use rapidr_value::designer::value::PropValue;

@@ -24,7 +24,10 @@
 //     program: true,            (desktop) the running program's own window,
 //                               captured from Studio, instead of Studio's
 //     program: "path.rr",       (desktop) that program run on its own
-//                               instead of Studio
+//                               instead of Studio, in its folder (its look
+//                               its own; `theme` gives RAPIDR_THEME)
+//     env: { … },               the test hooks it runs with
+//                               (RAPIDR_TEST_EVENTS, RAPIDR_TEST_DROP …)
 //     window: n,                the n-th window captured (default 1)
 //     crop: [x, y, w, h],       the part of the window, in logical pixels
 //                               (the image is at 2x); none: all of it
@@ -91,14 +94,19 @@ const env = (dir, extra) => ({
 function desktop(s, dir, open, steps) {
   const theme = s.theme || "rapidr-light";
   const delay = (s.run && s.run.delay) || (s.studio && s.studio.delay) || s.delay || 6;
-  const capture = { RAPIDR_CAPTURE: join(dir, "window"), RAPIDR_CAPTURE_DELAY: String(delay) };
+  // (the scene's own test hooks — RAPIDR_TEST_EVENTS, RAPIDR_TEST_DROP …)
+  const capture = { RAPIDR_CAPTURE: join(dir, "window"), RAPIDR_CAPTURE_DELAY: String(delay), ...(s.env || {}) };
   let r;
   if (s.run) {
     // (a program an earlier scene made, in its folder)
     const cwd = join(WORK, s.run.from, s.run.dir || "");
     r = spawnSync(RAPIDR, ["run", s.run.file], { cwd, encoding: "utf8", timeout: delay * 1000 + 90000, env: env(dir, { ...capture, RAPIDR_TEST_EVENTS: s.run.events || "" }) });
   } else if (typeof s.program === "string") {
-    r = spawnSync(RAPIDR, ["run", s.program, "--theme", theme], { cwd: ROOT, encoding: "utf8", timeout: delay * 1000 + 90000, env: env(dir, capture) });
+    // (a program in its own folder — its data files beside it; its look its
+    // own unless the scene names one: `rapidr run`'s arguments after the
+    // file are the program's)
+    const program = join(ROOT, s.program);
+    r = spawnSync(RAPIDR, ["run", program], { cwd: dirname(program), encoding: "utf8", timeout: delay * 1000 + 90000, env: env(dir, { ...capture, ...(s.theme ? { RAPIDR_THEME: s.theme } : {}) }) });
   } else if (s.studio) {
     // (Studio in the scene's own folder: a new project goes in "Projects")
     const args = ["run", join(ROOT, "ide", "studio.rr"), "--home", ROOT, "--fresh", "--theme", theme];

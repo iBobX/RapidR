@@ -1002,6 +1002,32 @@ const CASES = [
       "mddoc(1).plaintext": /^Notes\nA second Markdown file/,
     },
   },
+  // (DEMO-CSV) An example with a data file beside it: the file is the
+  // project's (the tree lists staff.csv), and the program runs — on the
+  // web its $RESOURCE is built in from it and the file goes with the
+  // program into its frame (Robert: "$RESOURCE STAFF_CSV: file not found").
+  {
+    name: "run-with-data",
+    open: "examples/data/dataframe.rr",
+    copyDir: true,
+    do: "run.start,wait,wait,wait",
+    delay: 6,
+    // (the desktop: its own process, which under the capture test ends
+    // itself — exit code 0 — before Studio is read)
+    dump: { "projecttree.filecount": /^2$/, "session.exitcode": /^0?$/, "outputbox.text": /^(?![\s\S]*Can't run)/ },
+    webDump: { "projecttree.filecount": /^2$/, "session.state": /^running$/, "outputbox.text": /^(?![\s\S]*Can't run)/ },
+  },
+  {
+    name: "run-csv-explorer",
+    open: "examples/data/csv_explorer.rr",
+    copyDir: true,
+    do: "run.start,wait,wait,wait",
+    delay: 6,
+    // (the desktop: its own process, which under the capture test ends
+    // itself — exit code 0 — before Studio is read)
+    dump: { "projecttree.filecount": /^2$/, "session.exitcode": /^0?$/, "outputbox.text": /^(?![\s\S]*Can't run)/ },
+    webDump: { "projecttree.filecount": /^2$/, "session.state": /^running$/, "outputbox.text": /^(?![\s\S]*Can't run)/ },
+  },
   // (S-PANELS) The project tree lists the form's components; the palette
   // finds a symbol of the file.
   {
