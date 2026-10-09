@@ -18,7 +18,7 @@ LN = "#6B7590"
 
 CODE = [
     [("' my first RapidR program", CMT)],
-    [("CREATE", KW), (" Form ", TXT), ("AS", KW), (" QFORM", TXT)],
+    [("CREATE", KW), (" Form ", TXT), ("AS", KW), (" RForm", TXT)],
     [("    Caption = ", TXT), ('"Hello, RapidR"', AMBER)],
     [("    Width = ", TXT), ("320", CYAN)],
     [("END CREATE", KW)],
