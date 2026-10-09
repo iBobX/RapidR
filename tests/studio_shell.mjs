@@ -56,8 +56,12 @@ const SCENES = [
   // (Studio's own dialogs, in the chrome font: the window captured is the
   // dialog, the second shown)
   { name: "newproject", open: "", do: "file.newProject", window: 2 },
-  // (the palette is over Studio's own window: RCOMMANDPALETTE)
-  { name: "palette", open: "", do: "view.commandPalette" },
+  // (the palette is over Studio's own window: RCOMMANDPALETTE; filtered to
+  // the View commands: the Run ones are the hosts' own — the desktop lists
+  // Build, Build Native App, Build Interpreted App, Build Web App and
+  // Reveal the App, the web Build Web App (.zip) alone —, which would make
+  // the lists, and their scroll bars, differ)
+  { name: "palette", open: "", do: "palette:view" },
   // (S-PANELS: the panels on a form program — the project tree, the
   // toolbox, the inspector following the designer, the console)
   { name: "panels", open: "examples/gui/pantry.rr", do: "wait,view.designer,pick:AddBtn", delay: 6 },
@@ -184,6 +188,20 @@ function diff(a, b) {
   return `${n} pixels differ`;
 }
 
+/// Whether the captures differ only as wasm SIMD's rounding makes them (the
+/// web's vello_cpu runs on simd128): at most two pixels, each channel off by
+/// at most one level — the known difference tools/regress.sh lists, too.
+function rounding(a, b) {
+  if (a.w !== b.w || a.h !== b.h) return false;
+  let n = 0;
+  for (let i = 0; i < a.px.length; i += 3) {
+    const delta = Math.max(Math.abs(a.px[i] - b.px[i]), Math.abs(a.px[i + 1] - b.px[i + 1]), Math.abs(a.px[i + 2] - b.px[i + 2]));
+    if (delta > 1) return false;
+    if (delta && ++n > 2) return false;
+  }
+  return true;
+}
+
 // (a scene's project folder, relative to the repository: the same on both
 // hosts, so what Studio says about its files is the same)
 const projectDir = (scene) => `tests/results/studio-projects/${scene.name}`;
@@ -247,7 +265,7 @@ async function runWeb(browser, scene, theme, scale) {
 
 // ---- the runs ------------------------------------------------------------------
 const browser = await chromium.launch();
-let same = 0, differ = 0, failed = 0, a11ySame = 0, a11yDiffer = 0;
+let same = 0, near = 0, differ = 0, failed = 0, a11ySame = 0, a11yDiffer = 0;
 for (const scene of SCENES) for (const theme of THEMES) for (const scale of SCALES) {
   const name = `${scene.name}-${theme}@${scale}x`;
   if (filters.length && !filters.some((f) => name.includes(f))) continue;
@@ -263,10 +281,13 @@ for (const scene of SCENES) for (const theme of THEMES) for (const scale of SCAL
     writeFileSync(join(OUT, `${name}-web.bmp`), wb);
     writeFileSync(join(OUT, `${name}.bmp`), writeBmp(sideBySide(d, w)));
     const identical = desk.bmp.equals(wb);
-    identical ? same++ : differ++;
-    console.log(`${identical ? "✓" : "≠"} ${name}: ${identical ? "byte-identical" : diff(d, w)}${web.errors.length ? ` (page errors: ${web.errors.join("; ")})` : ""}`);
+    const rounded = !identical && rounding(d, w);
+    identical ? same++ : rounded ? near++ : differ++;
+    console.log(`${identical ? "✓" : rounded ? "≈" : "≠"} ${name}: ${identical ? "byte-identical" : rounded ? `${diff(d, w)} by one level (wasm SIMD's rounding)` : diff(d, w)}${web.errors.length ? ` (page errors: ${web.errors.join("; ")})` : ""}`);
     if (desk.a11y !== null) {
-      const eq = desk.a11y === web.results.a11y;
+      // (the web's Build button is Build Web App (.zip), the desktop's is
+      // Build: the one name the hosts' toolbars have apart)
+      const eq = desk.a11y === web.results.a11y.replaceAll('"name":"Build Web App (.zip) (Ctrl+Shift+B)"', '"name":"Build (Ctrl+Shift+B)"');
       eq ? a11ySame++ : a11yDiffer++;
       if (!eq) {
         writeFileSync(join(OUT, `${name}-desktop.a11y.json`), desk.a11y);
@@ -280,5 +301,5 @@ for (const scene of SCENES) for (const theme of THEMES) for (const scale of SCAL
   }
 }
 await browser.close();
-console.log(`\nRapidR Studio shell: ${same} captures byte-identical desktop / web, ${differ} differ, ${failed} failed; accessibility trees equal ${a11ySame}, differ ${a11yDiffer} (captures in ${OUT})`);
+console.log(`\nRapidR Studio shell: ${same} captures byte-identical desktop / web, ${near} within wasm SIMD's rounding, ${differ} differ, ${failed} failed; accessibility trees equal ${a11ySame}, differ ${a11yDiffer} (captures in ${OUT})`);
 process.exit(differ || failed || a11yDiffer ? 1 : 0);
