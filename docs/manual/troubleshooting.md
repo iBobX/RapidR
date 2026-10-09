@@ -2,13 +2,21 @@
 
 ## Installing and starting
 
-**macOS: "RapidR can't be opened because Apple cannot check it…"** — this
-release isn't signed. Right-click the app, choose **Open**, then **Open**
-again (or System Settings > Privacy & Security > **Open Anyway**). Once is
-enough.
+**macOS: “RapidR Studio” Not Opened — Apple could not verify it is free of
+malware** — this release isn't signed. Click **Done**, open **System Settings >
+Privacy & Security**, scroll to *Security* and click **Open Anyway** next to
+“RapidR Studio” was blocked (then your password or Touch ID). Once is enough.
+Right-click > Open doesn't work on macOS 15 and newer. In the Terminal:
+`xattr -dr com.apple.quarantine "/Applications/RapidR Studio.app"`. With
+screenshots: [Install on macOS](getting-started.md#install-on-macos).
 
-**Windows: "Windows protected your PC"** — SmartScreen, for the same
-reason: **More info > Run anyway**.
+**Windows: "Windows protected your PC"** — SmartScreen, for the same reason.
+Click **More info**, then **Run anyway**
+([Install on Windows](getting-started.md#install-on-windows)).
+
+**Linux: `N: Download is performed unsandboxed as root as file … couldn't be
+accessed by user '_apt'`** — apt's note about a `.deb` in your home folder.
+It is harmless: the install went on.
 
 **Linux: `error while loading shared libraries: libssl.so.3`** — RapidR
 needs OpenSSL 3: Ubuntu 22.04 or Debian 12 and newer (`sudo apt install

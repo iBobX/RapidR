@@ -309,14 +309,26 @@ Unsigned is the default; every script works without a certificate.
   their own `DECLARE … LIB` libraries), signs the disk images, submits them
   with `xcrun notarytool` (a keychain profile made once with `xcrun notarytool
   store-credentials`) and staples the ticket. Needs an Apple Developer ID (Apple
-  Developer Program, yearly fee). **Unsigned**: the apps are signed ad hoc;
-  downloaded, Gatekeeper refuses the first double click — right-click > Open
-  (or System Settings > Privacy & Security > Open Anyway), once.
-- **Windows**: `windows.ps1 -Sign "<certificate subject>"` signs the
-  executables and installers with signtool and a timestamp. Needs a
-  code-signing certificate (OV or EV; EV builds SmartScreen reputation at
-  once). **Unsigned**: SmartScreen says "Windows protected your PC" — More
-  info > Run anyway.
+  Developer Program, yearly fee). **Unsigned** (the first release): the apps are signed ad hoc;
+  downloaded, Gatekeeper refuses the first double click and the user allows
+  it once in System Settings > Privacy & Security > Open Anyway (right-click >
+  Open stopped working in macOS 15; `xattr -dr com.apple.quarantine <app>` does
+  the same from the Terminal). The signing hooks are off unless set:
+  `RAPIDR_MAC_SIGN_IDENTITY` / `RAPIDR_MAC_NOTARY_PROFILE` (or the flags).
+- **Windows**: two hooks, both off unless set, both signing the executables
+  and the installers with signtool and a timestamp (`windows.ps1`'s header;
+  from the Mac, `windows-vm.sh build Sign=…` / `AzureMetadata=…`):
+  `-Sign "<certificate subject>"` (env `RAPIDR_WIN_SIGN_SUBJECT`), a
+  code-signing certificate in the store (OV or EV; EV builds SmartScreen
+  reputation at once); or `-AzureMetadata <metadata.json>` (env
+  `RAPIDR_WIN_AZURE_METADATA`, with `-AzureDlib`), Azure Trusted Signing
+  through its `Azure.CodeSigning.Dlib.dll`. **Unsigned** (the first release):
+  SmartScreen says "Windows protected your PC" — More info > Run anyway.
+- **Checksums**: `finish.sh` writes `SHA256SUMS`; with `RAPIDR_MINISIGN_KEY`
+  (the path of a minisign secret key the user made with `minisign -G`) it also
+  writes `SHA256SUMS.minisig`, which people check with the public key printed
+  in the release notes (docs/manual/getting-started.md, "Check your download").
+  No key is created by any script.
 - **Known limit**: a standalone `--interp` executable is the runner with the
   program appended, which a signature can't cover (macOS refuses to sign
   such a file; on Windows the program must stay the file's last bytes). Users

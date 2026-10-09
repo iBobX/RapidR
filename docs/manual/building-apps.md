@@ -119,7 +119,8 @@ RapidR takes any of the formats above.
 - The app is signed ad hoc (`codesign --sign -`): it opens on the Mac that
   built it, and Apple silicon Macs run it. To give it to others, sign it with
   your Developer ID and notarize it (`codesign`, `xcrun notarytool`); a
-  downloaded unsigned app opens with right-click > Open.
+  downloaded unsigned app is allowed once in System Settings > Privacy &
+  Security > Open Anyway (see [Install on macOS](getting-started.md#install-on-macos)).
 - An interpreted app keeps the program's bytecode in
   `Contents/Resources/<name>.rrbc` (data after a signed executable would
   break its signature).

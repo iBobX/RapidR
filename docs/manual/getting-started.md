@@ -23,125 +23,174 @@ system-wide).
 | Linux x86_64 / aarch64 | `rapidr-2.117.0-linux-<arch>.tar.gz` or `rapidr_2.117.0_<amd64\|arm64>.deb` | `rapidr-runtime-…` | Ubuntu 22.04, Debian 12 or newer (OpenSSL 3) |
 | Web | `rapidr-web-2.117.0.zip`: the web IDE, for any static web host | | a current browser |
 
-- **Windows**: see [Install on Windows](#install-on-windows) below.
-- **macOS**: open the disk image and drag *RapidR* (and/or *RapidR
-  Runtime*) to Applications. The command line is inside the app:
-  `/Applications/RapidR Studio.app/Contents/MacOS/rapidr setup` offers to link
-  `rapidr` into `/usr/local/bin` or `~/.local/bin`.
-- **Linux**: see [Install on Ubuntu or Debian](#install-on-ubuntu-or-debian-the-deb-package)
-  below for the `.deb`. The `.tar.gz` installs for your user only, with no
-  root: unpack it and run `./install.sh` (into `~/.local`; the folder also
-  works as it is: `bin/rapidr`). `~/.local/lib/rapidr/uninstall.sh` removes
-  it. Programs need the system's OpenSSL 3 (`libssl3`), ALSA, fontconfig
-  and xkbcommon, which every current desktop distribution has.
+**This first release is not code-signed.** Apple and Microsoft check
+downloaded programs against a list of registered publishers, and RapidR is
+not on it yet, so Windows and macOS each warn once the first time you open
+it. The warning is expected, and the steps to get past it are below (one per
+system). The files are the same ones whose checksums are published; see
+[Check your download](#check-your-download) to prove it.
 
 ### Install on Windows
 
-1. **Pick the right file.** Open *Settings > System > About* and look at
-   *System type*: "64-bit operating system, x64-based processor" needs
-   `RapidR-2.117.0-windows-x64-setup.exe`; "ARM-based processor" (for
-   example Windows 11 in a Mac's virtual machine, or a Snapdragon PC) needs
-   `RapidR-2.117.0-windows-arm64-setup.exe`. To only run programs, take the
-   `RapidR-Runtime-…` file of the same kind instead.
-2. **Run the installer** (double-click it). You are not asked for an
-   administrator password: RapidR installs for your user, into
-   `%LOCALAPPDATA%\Programs\RapidR`. The first time, Windows may say
-   "Windows protected your PC" because this release isn't code-signed: choose
-   **More info**, then **Run anyway** (see [Unsigned downloads](#unsigned-downloads)).
-3. **Read and accept** RapidR's licence, read the legal notes (LEGAL.md),
-   and click **Next** (a page for the install folder shows up the first
-   time; the default is fine).
-4. **Choose the options** on the "Select Additional Tasks" page:
-   - *Add rapidr to PATH (for the command line)* is ticked. Leave it so
-     `rapidr` works in any Command Prompt or PowerShell window you open
-     afterwards (windows that were already open don't see it).
-   - *Open .bas files with RapidR by default* is off. Tick it if RapidR
-     should open your RapidQ `.bas` files when you double-click them. Files
-     ending in `.rrbc` and `.rr` always belong to RapidR.
-5. **Click Install**, then **Finish**.
+1. **Pick the right file.** *Settings > System > About > System type* says
+   "x64-based processor" (take `RapidR-2.117.0-windows-x64-setup.exe`) or
+   "ARM-based processor" (take `…-windows-arm64-setup.exe`; Windows 11 in a
+   Mac's virtual machine is ARM). To only run programs, take the
+   `RapidR-Runtime-…` file of the same kind.
+2. **Run the installer.** Double-click it. It installs for you alone, into
+   `%LOCALAPPDATA%\Programs\RapidR`, and never asks for an administrator
+   password.
+3. **Get past SmartScreen** (the first time only). Windows shows **Windows
+   protected your PC** and a blue **More info** link. Click **More info**: the
+   publisher reads "Unknown publisher" and a **Run anyway** button appears.
+   Click it.
+4. **Accept the licence**, read the legal notes, and click **Next**. On the
+   "Select Additional Tasks" page, leave *Add rapidr to PATH* ticked (it makes
+   `rapidr` work in any Command Prompt or PowerShell window you open
+   afterwards). Tick *Open .bas files with RapidR by default* only if RapidR
+   should open your RapidQ `.bas` files when you double-click them.
+   `.rrbc`, `.rr` and `.rrproj` files always belong to RapidR.
+5. **Click Install, then Finish.**
 
-The SDK adds **RapidR Studio** to the Start menu: open the menu, type "RapidR",
-and press Enter to start the IDE. To check the command line, open a new
-Command Prompt and type:
+Open the Start menu, type "RapidR" and press Enter: **RapidR Studio** starts.
+In a new Command Prompt, `rapidr version` prints `RapidR 2.117.0`.
 
-```
-rapidr version
-```
+To remove RapidR: *Settings > Apps > Installed apps*, "RapidR 2.117.0",
+**Uninstall**. The files, the Start menu entry, the file types and the PATH
+entry go; your programs stay. The SDK and the Runtime use the same folder and
+the same uninstall entry, so a PC has one of them: installing the other
+replaces it.
 
-```
-RapidR 2.117.0
-```
+### Install on macOS
 
-Then try the first program below (`rapidr run hello.bas`).
+1. **Open the disk image** (`RapidR-2.117.0-macos-universal.dmg`; one file for
+   Apple silicon and Intel Macs, macOS 11 or newer). Drag **RapidR Studio**
+   onto **Applications**. (The Runtime image holds only **RapidR Runtime**.)
+   The *Licenses* folder in the image has the licence and the notices.
 
-To remove RapidR: *Settings > Apps > Installed apps*, find "RapidR 2.117.0",
-and choose **Uninstall**. It takes away the files, the Start menu entry, the
-file types and the PATH entry. The programs you wrote are yours and stay.
+   ![The disk image: RapidR Studio and RapidR Runtime on the left, the Applications alias and the Licenses folder on the right](images/install/macos-disk-image.png)
+
+2. **Open RapidR Studio** from Applications. The first time, macOS refuses:
+   “RapidR Studio” Not Opened, *Apple could not verify “RapidR Studio” is free
+   of malware…*. Click **Done**. (Don't click *Move to Trash*.)
+
+   ![macOS: “RapidR Studio” Not Opened: Apple could not verify it is free of malware; the buttons are Move to Trash and Done](images/install/macos-not-opened.png)
+
+3. **Allow it, once.** Open **System Settings > Privacy & Security** and scroll
+   down to *Security*. It says “RapidR Studio” was blocked to protect your
+   Mac, with an **Open Anyway** button. Click it and confirm with your
+   password or Touch ID. If you don't see the button, open the app again
+   first (it appears after a refused attempt).
+
+   ![System Settings, Privacy & Security, Security: “RapidR Studio” was blocked to protect your Mac, with the Open Anyway button](images/install/macos-open-anyway.png)
+
+   On current macOS (15 Sequoia and newer), right-clicking the app and
+   choosing *Open* no longer gets past this: **Open Anyway** is the way.
+   Prefer the Terminal? This does the same:
+
+   ```sh
+   xattr -dr com.apple.quarantine "/Applications/RapidR Studio.app"
+   ```
+
+4. **RapidR Studio opens.** It is a normal Mac app from now on.
+
+   ![RapidR Studio's first window on macOS: the Welcome page with Start, Examples and Recent](images/install/macos-studio-welcome.png)
+
+The `rapidr` command line is inside the app. Run it once to offer a link in
+your PATH: `/Applications/RapidR Studio.app/Contents/MacOS/rapidr setup`.
+Programs you build with `rapidr build` are signed ad hoc, so they open on the
+Mac that built them without any of this.
+
+To remove RapidR: drag **RapidR Studio** (and **RapidR Runtime**) from
+Applications to the Trash. Settings and recent files stay in
+`~/Library/Application Support/RapidR`: delete that folder too to leave no trace.
 
 ### Install on Ubuntu or Debian (the .deb package)
 
 The `.deb` is the install for Ubuntu 22.04 or newer and Debian 12 or newer.
-It is system-wide, so it asks for your password (`sudo`).
+It is system-wide, so it asks for your password (`sudo`). Nothing warns about
+it: Linux doesn't check publishers.
 
-1. **Pick the right file.** In a terminal, run `dpkg --print-architecture`.
-   It prints `amd64` (most PCs; take `rapidr_2.117.0_amd64.deb`) or `arm64`
-   (Raspberry Pi 4 and 5, ARM servers, Ubuntu in a Mac's virtual machine;
-   take `rapidr_2.117.0_arm64.deb`). To only run programs, take
-   `rapidr-runtime_2.117.0_<arch>.deb` instead.
+1. **Pick the right file.** `dpkg --print-architecture` prints `amd64` (most
+   PCs: `rapidr_2.117.0_amd64.deb`) or `arm64` (Raspberry Pi 4 and 5, ARM
+   servers, Ubuntu in a Mac's virtual machine: `rapidr_2.117.0_arm64.deb`). To
+   only run programs, take `rapidr-runtime_2.117.0_<arch>.deb`.
 2. **Install it with apt**, from the folder you downloaded it to. Keep the
-   `./` in front of the name: it tells apt that this is a file, and apt then
-   fetches whatever RapidR needs (OpenSSL 3, fontconfig and a few more) by
-   itself:
+   `./` in front of the name: it tells apt this is a file, and apt then
+   fetches what RapidR needs (OpenSSL 3, fontconfig, ALSA) by itself:
 
    ```sh
    cd ~/Downloads
    sudo apt install ./rapidr_2.117.0_arm64.deb
    ```
 
-3. **Check it:**
+   ![A terminal: sudo apt install ./rapidr_2.117.0_arm64.deb, then rapidr version printing RapidR 2.117.0, and the files the package installs](images/install/linux-apt-install.png)
 
-   ```sh
-   rapidr version
-   ```
+3. **Open RapidR Studio**: *Show Applications*, type "RapidR", click **RapidR
+   Studio** (it is under Development too), or run `rapidr ide`.
 
-   ```
-   RapidR 2.117.0
-   ```
+   ![RapidR Studio on Ubuntu: the Welcome page; the dock shows RapidR's icon](images/install/linux-studio-welcome.png)
 
-4. **Start the IDE** from the applications menu (*RapidR Studio*, under
-   Development), or from a terminal with `rapidr ide`. `rapidr run hello.bas`
-   runs a program (the first program below). In the file manager,
-   double-clicking a compiled `.rrbc` program runs it; a `.rr` or `.bas`
-   source file, or a `.rrproj` project, opens in *RapidR Studio* (under *Open With* for `.rr` and `.bas`).
+4. **Run an example.** On the Welcome page click **hello_form.rr**, then press
+   **F5** (Run). The example's window opens beside Studio.
 
-What the package puts where: the `rapidr` command in `/usr/bin`; RapidR's
-other files (the runtime's sources for native builds, the IDE, a few example
+   ![hello_form.rr running from RapidR Studio on Ubuntu: Studio's design view with the program's own window on top](images/install/linux-run-example.png)
+
+In the file manager, a double-click on a compiled `.rrbc` program runs it, and
+a `.rr`, `.bas` or `.rrproj` file opens in RapidR Studio.
+
+What the package puts where: the `rapidr` command in `/usr/bin`; RapidR's other
+files (the runtime's sources for native builds, the IDE, a few example
 programs) in `/usr/lib/rapidr`; the licence, the notices and this manual
-(`manual/`) in `/usr/share/doc/rapidr`; and the menu entry, file types and
-icons in the system's usual places.
+(`manual/`) in `/usr/share/doc/rapidr`; the menu entry, file types and icons in
+the system's usual places.
 
 The SDK package (`rapidr`) and the Runtime package (`rapidr-runtime`) are
 alternatives: installing one removes the other, because both provide the
-`rapidr` command. To remove RapidR entirely:
+`rapidr` command. To remove RapidR entirely, with nothing left behind:
 
 ```sh
 sudo apt remove rapidr
 ```
 
 If you would rather not use `sudo`, the `.tar.gz` installs under your own
-folder (`./install.sh`, above).
+folder: unpack it and run `./install.sh` (into `~/.local`; the folder also
+works as it is: `bin/rapidr`). `~/.local/lib/rapidr/uninstall.sh` removes it.
 
-### Unsigned downloads
+### Check your download
 
-This release is not code-signed.
+Every release lists the SHA-256 of every file in **`SHA256SUMS`**. A match
+proves the file is the one RapidR published, whole and unchanged. Download
+`SHA256SUMS` into the same folder as the installer, then:
 
-- **macOS**: the first time, right-click the app and choose **Open** (or
-  System Settings > Privacy & Security > **Open Anyway**). Once is enough.
-- **Windows**: SmartScreen may say "Windows protected your PC": choose
-  **More info > Run anyway**.
+```sh
+# macOS
+shasum -a 256 -c SHA256SUMS --ignore-missing
 
-Each release lists every file's SHA-256 in `SHA256SUMS`
-(`shasum -a 256 -c SHA256SUMS`; on Windows `Get-FileHash`).
+# Linux
+sha256sum -c SHA256SUMS --ignore-missing
+```
+
+Each file you have prints `OK` (the files you didn't download are skipped).
+On Windows (PowerShell), print the file's checksum and compare it with its
+line in `SHA256SUMS`:
+
+```powershell
+Get-FileHash .\RapidR-2.117.0-windows-x64-setup.exe -Algorithm SHA256
+```
+
+When a release also has **`SHA256SUMS.minisig`**, it proves the list itself
+came from RapidR's author (checksums only prove the file matches the list).
+Install [minisign](https://jedisct1.github.io/minisign/) (macOS: `brew install
+minisign`; Ubuntu: `sudo apt install minisign`; Windows: `winget install
+jedisct1.minisign`) and run it with the public key printed in that release's
+notes:
+
+```sh
+minisign -Vm SHA256SUMS -P <the public key from the release notes>
+```
+
+It says `Signature and comment signature verified` when the list is genuine.
 
 ### Rust, only for native builds
 

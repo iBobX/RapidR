@@ -68,11 +68,13 @@ Each system has two packages:
   OpenSSL 3 (HTTPS uses the system's), hence Ubuntu 22.04 / Debian 12 and
   newer.
 
-**The downloads aren't code-signed yet.** macOS: the first time,
-right-click the app and choose **Open** (or System Settings > Privacy &
-Security > **Open Anyway**). Windows: if SmartScreen says "Windows
-protected your PC", choose **More info > Run anyway**. Check downloads
-against `SHA256SUMS` (`shasum -a 256 -c SHA256SUMS`).
+**The downloads aren't code-signed yet.** macOS: the first time, it says
+“RapidR Studio” Not Opened: click **Done**, then System Settings > Privacy &
+Security > **Open Anyway** (right-click > Open no longer works on current
+macOS). Windows: SmartScreen says "Windows protected your PC": **More info >
+Run anyway**. Check downloads against `SHA256SUMS`
+(`shasum -a 256 -c SHA256SUMS --ignore-missing`). Step by step, with
+screenshots: [docs/manual/getting-started.md](docs/manual/getting-started.md).
 
 **Rust is needed only for native builds.** Running programs, the IDE,
 standalone interpreted executables and web bundles need nothing else. For
