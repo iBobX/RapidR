@@ -239,6 +239,18 @@ pub fn editor_mouse(cx: &mut Cx, m: &MouseIn, rect: Rect) -> bool {
     }
 }
 
+/// The pointer over an in-place editor's box `rect` (in the component) while
+/// one is open: the I-beam, else the arrow (the pointer's side of
+/// [`editor_mouse`]).
+pub fn editor_pointer(cx: &Cx, rect: Rect, x: i64, y: i64) -> rapidr_value::input::Cursor {
+    let (rx, ry, rw, rh) = rect;
+    if editing(cx.id).is_some() && x >= rx && y >= ry && x < rx + rw && y < ry + rh {
+        rapidr_value::input::Cursor::IBeam
+    } else {
+        rapidr_value::input::Cursor::Default
+    }
+}
+
 /// The editor goes with the edit (no caret blinking on).
 pub fn drop_editor(cx: &mut Cx) {
     if editing(cx.id).is_none() {

@@ -337,6 +337,44 @@ impl FormUi {
         }
     }
 
+    /// The mouse pointer with the mouse at (x, y) of the client area —
+    /// what the hosts show (desktop: winit's cursor icon; web: the canvas'
+    /// CSS cursor). The component holding the mouse answers (a divider
+    /// being dragged keeps its arrows wherever the mouse goes), else the one
+    /// under it, else the form. The program's own Cursor on it wins
+    /// (RapidQ's `crDefault` is what the component itself shows,
+    /// [`ComponentKind::pointer`]); a status bar's size grip, once held,
+    /// keeps the window's sizing arrow.
+    pub fn pointer_at(&mut self, store: &dyn Store, ts: &mut TextSystem, x: f64, y: f64) -> input::Cursor {
+        const CR_HSPLIT: i64 = -14;
+        const CR_VSPLIT: i64 = -15;
+        if crate::components::statusbar::grip_held(self) {
+            return input::Cursor::SizeNWSE;
+        }
+        let node = match self.capture {
+            Some(held) => held,
+            None => self.hit(x, y),
+        };
+        let id = node.map_or(self.form.as_str(), |i| self.nodes[i].id.as_str());
+        let code = crate::store::int(store, id, "cursor", 0);
+        // (a QSPLITTER's crHSplit / crVSplit, its Cursor at creation: the
+        // splitter's direction decides, as Delphi's TSplitter swaps them when
+        // its Align changes)
+        let split = node.is_some_and(|i| self.nodes[i].type_name == "RSPLITTER") && matches!(code, CR_HSPLIT | CR_VSPLIT);
+        if code != 0 && !split {
+            return input::Cursor::resolve(code);
+        }
+        let Some(i) = node else { return input::Cursor::Default };
+        self.with_cx(store, ts, i, |k, cx| {
+            if !cx.state.enabled {
+                return input::Cursor::Default;
+            }
+            let (x0, y0, _, _) = cx.rect;
+            k.pointer(cx, (x - x0 as f64).floor() as i64, (y - y0 as f64).floor() as i64)
+        })
+        .unwrap_or(input::Cursor::Default)
+    }
+
     /// The mouse left the window.
     pub fn mouse_leave(&mut self, store: &dyn Store, ts: &mut TextSystem) {
         self.tip_hide();

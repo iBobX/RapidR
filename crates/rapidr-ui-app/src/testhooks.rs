@@ -8,7 +8,9 @@
 //!   turn of the loop ([`Action`] lists the synthetic ones).
 //! - `RAPIDR_TEST_DUMP=lbl.caption,frm.__shown`: `component.property`s to
 //!   print as `lbl.caption=…` (`__shown`: 1 when the component is visible
-//!   up to its window, else 0).
+//!   up to its window, else 0); `comp.__cursor_X_Y` the mouse pointer's CSS
+//!   name at (X, Y) of the component, the mouse moved there as the user's
+//!   (`col-resize`, `text`, `pointer`, `default` …).
 //! - `RAPIDR_TEST_RESIZE=w,h`: the frontmost form resized (Width, Height)
 //!   as a user dragging its border would, before the events.
 //! - `RAPIDR_TEST_SPLIT=splitter:delta`: a QSPLITTER dragged by `delta`.

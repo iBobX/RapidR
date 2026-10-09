@@ -18,6 +18,7 @@ use rapidr_value::objects::ops::Rect;
 
 use super::edit::MenuState;
 use super::memo::Memo;
+use rapidr_value::input::Cursor;
 use super::{ComponentKind, Cx, Ime, KeyIn, MouseIn, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::{Clipboard, Mods};
@@ -37,6 +38,10 @@ impl ComponentKind for CodeEditor {
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
         Memo.mouse(cx, m)
+    }
+
+    fn pointer(&self, cx: &mut Cx, x: i64, y: i64) -> Cursor {
+        Memo.pointer(cx, x, y)
     }
 
     fn key(&self, cx: &mut Cx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {

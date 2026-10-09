@@ -59,6 +59,10 @@ pub fn cursor_icon(c: Cursor) -> Option<CursorIcon> {
         Cursor::Help => CursorIcon::Help,
         Cursor::Hand => CursorIcon::Pointer,
         Cursor::Progress => CursorIcon::Progress,
+        Cursor::ColResize => CursorIcon::ColResize,
+        Cursor::RowResize => CursorIcon::RowResize,
+        Cursor::Grab => CursorIcon::Grab,
+        Cursor::Grabbing => CursorIcon::Grabbing,
     })
 }
 
@@ -335,7 +339,10 @@ mod tests {
     #[test]
     fn cursors() {
         assert_eq!(cursor_icon(Cursor::of(-21)), Some(CursorIcon::Pointer));
-        assert_eq!(cursor_icon(Cursor::of(-14)), Some(CursorIcon::EwResize));
+        assert_eq!(cursor_icon(Cursor::of(-9)), Some(CursorIcon::EwResize));
+        assert_eq!(cursor_icon(Cursor::of(-14)), Some(CursorIcon::ColResize));
+        assert_eq!(cursor_icon(Cursor::of(-15)), Some(CursorIcon::RowResize));
+        assert_eq!(cursor_icon(Cursor::Grabbing), Some(CursorIcon::Grabbing));
         assert_eq!(cursor_icon(Cursor::of(-1)), None);
         assert_eq!(cursor_icon(Cursor::of(0)), Some(CursorIcon::Default));
     }

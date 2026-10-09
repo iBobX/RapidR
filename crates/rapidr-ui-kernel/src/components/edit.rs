@@ -35,6 +35,7 @@ use rapidr_value::objects::ops::Rect;
 use rapidr_value::objects::{with_list, with_list_mut, with_textedit, with_textedit_mut};
 use rapidr_value::scrollbars::Scroller;
 
+use rapidr_value::input::Cursor;
 use super::{ComponentKind, Cx, Ime, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::display::TextItem;
@@ -982,6 +983,11 @@ impl ComponentKind for Edit {
             p.sunken_edge((0, 0, w, h));
         }
         paint_line(cx, p, inner(w, h), Source::Text);
+    }
+
+    /// A text box (read-only too, as Windows') shows the I-beam.
+    fn pointer(&self, _cx: &mut Cx, _x: i64, _y: i64) -> Cursor {
+        Cursor::IBeam
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {

@@ -67,6 +67,10 @@ pub enum ScriptInput {
     /// (the input lane's) `comp.__dblclick_x_y`: a double click at (x, y)
     /// in the component.
     DblClick { comp: String, x: i64, y: i64 },
+    /// `comp.__cursor_x_y` in `RAPIDR_TEST_DUMP`: the mouse moved to (x, y)
+    /// in the component, and the pointer there noted (its CSS name:
+    /// `col-resize`, `text` …; `desktop::take_probe`).
+    Cursor { comp: String, x: i64, y: i64 },
     /// (the lists lane's) The component's own step (`__item_i`, `__node_i`,
     /// `__toggle_i`, `__cell_c_r`, `__edit`, `__enter`, `__escape`:
     /// `FormUi::test_action`) on form `form`.

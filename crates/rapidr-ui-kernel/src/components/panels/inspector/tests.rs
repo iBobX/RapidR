@@ -176,3 +176,46 @@ fn every_row_kind_draws_in_every_theme() {
     key(&mut f, &h, &mut ts, 70, "f", Mods { ctrl: true, ..Mods::NONE });
     assert!(crate::components::list::editing("insp").is_some(), "Ctrl+F: the search box");
 }
+
+/// The line between the name and value columns is a divider that drags:
+/// the column resize pointer over it (kept while it is held), the accent
+/// line under the mouse, the I-beam in the search box and an open editor,
+/// the arrow elsewhere.
+#[test]
+fn the_divider_between_the_columns_shows_the_resize_pointer() {
+    use model::Hover;
+    use rapidr_value::input::{Button, Cursor};
+    let (h, mut f, mut ts) = setup("b1");
+    let s = h.0.borrow();
+    let probe = |f: &mut FormUi, ts: &mut TextSystem, x: i64, y: i64| {
+        f.mouse_move(&*s, ts, x as f64 + 0.5, y as f64 + 0.5, Mods::NONE);
+        f.pointer_at(&*s, ts, x as f64 + 0.5, y as f64 + 0.5)
+    };
+    // (scan the panel for where the pointer is the divider's)
+    let mut found = None;
+    'scan: for y in 60..460 {
+        for x in 20..280 {
+            if probe(&mut f, &mut ts, x, y) == Cursor::ColResize {
+                found = Some((x, y));
+                break 'scan;
+            }
+        }
+    }
+    let (x, y) = found.expect("a divider somewhere on a row that has two columns");
+    assert_eq!(model::with("insp", |m| m.ui.hover.clone()).flatten(), Some(Hover::Divider), "the line is lit");
+    // (a band of a few pixels, not the whole row)
+    assert_ne!(probe(&mut f, &mut ts, x + 12, y), Cursor::ColResize);
+    assert_ne!(probe(&mut f, &mut ts, x - 12, y), Cursor::ColResize);
+    // (held: the pointer follows the mouse, the column the drag; let go: the arrow)
+    let before = model::with("insp", |m| m.name_width).unwrap();
+    probe(&mut f, &mut ts, x, y);
+    f.mouse_down(&*s, &mut ts, x as f64 + 0.5, y as f64 + 0.5, Button::Left, Mods::NONE);
+    assert_eq!(probe(&mut f, &mut ts, x + 30, y + 90), Cursor::ColResize);
+    assert_ne!(model::with("insp", |m| m.name_width).unwrap(), before);
+    f.mouse_up(&*s, &mut ts, x as f64 + 30.5, y as f64 + 90.5, Button::Left, Mods::NONE);
+    // (the divider is where the mouse let go; elsewhere the arrow)
+    assert_eq!(probe(&mut f, &mut ts, x + 30, y + 90), Cursor::ColResize);
+    assert_ne!(probe(&mut f, &mut ts, x + 60, y + 90), Cursor::ColResize);
+    // (the search box above the rows)
+    assert!((0..120).step_by(3).any(|yy| (0..300).step_by(6).any(|xx| probe(&mut f, &mut ts, xx, yy) == Cursor::IBeam)), "the search box takes the I-beam");
+}

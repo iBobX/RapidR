@@ -330,6 +330,11 @@ pub fn row(p: &mut Painter, m: &Inspector, r: &Row, i: usize, rr: Rect, nw: i64,
         p.fill((x + nw, y, 1, h), mix(l.line, l.body, 0.2));
     }
     value(p, m, r, i, rr, nw, &parts, selected, hover, ink, c);
+    // (the line under the mouse, or held: the accent a little softened, 2
+    // pixels, as the dock's splitters' hot line; it says "drag me")
+    if !l.classic && (m.ui.hover == Some(Hover::Divider) || m.ui.drag.is_some()) && !matches!(r.kind, RowKind::Pins | RowKind::Picker) {
+        p.fill((x + nw - 1, y, 2, h), mix(l.body, l.accent, 0.8));
+    }
     if selected && focused && c.editing.is_none() && l.classic {
         p.focus((x + 1, y + 1, nw - 2, h - 3));
     }

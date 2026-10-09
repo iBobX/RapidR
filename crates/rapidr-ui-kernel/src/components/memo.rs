@@ -33,6 +33,7 @@ use rapidr_value::objects::ops::{Place, Rect};
 use rapidr_value::objects::with_textedit;
 
 use super::edit::{background, key_in, look_of, shows_selection, EditUi, MenuState, Source, Spec};
+use rapidr_value::input::Cursor;
 use super::{ComponentKind, Cx, Ime, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::{Clipboard, Mods};
@@ -251,6 +252,17 @@ impl ComponentKind for Memo {
         if e.bars.vert.shown || e.bars.horz.shown {
             let ops = crate::paint::bar_ops(&e.bars, bw, bh);
             p.at((bx, by), |p| p.clipped((0, 0, bw, bh), |p| p.ops(ops)));
+        }
+    }
+
+    /// The I-beam over the text; the arrow over its scroll bars, a code
+    /// editor's gutter and its margin.
+    fn pointer(&self, cx: &mut Cx, x: i64, y: i64) -> Cursor {
+        let (tx, ty, tw, th) = Self::setup(cx).1.text;
+        if x >= tx && y >= ty && x < tx + tw && y < ty + th {
+            Cursor::IBeam
+        } else {
+            Cursor::Default
         }
     }
 

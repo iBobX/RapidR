@@ -53,7 +53,7 @@ use rapidr_value::objects::design::{DesignEvent, DesignSurface, TrayItem, TRAY_I
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Op, Place, Rect};
 use rapidr_value::objects::{with_design, with_design_mut};
-use rapidr_value::{input::Button, v_int, v_str, Value};
+use rapidr_value::{input::{Button, Cursor}, v_int, v_str, Value};
 
 use super::list::{act, ListAction};
 use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseKind, MouseOut};
@@ -497,6 +497,28 @@ impl ComponentKind for Design {
 
     fn focusable(&self, _store: &dyn Store, _id: &str) -> bool {
         true
+    }
+
+    /// The designer's pointer (rapidr-value's `pointer_at`): a selection
+    /// handle's or the form's edge's sizing arrows (kept while dragged), the
+    /// placing tool's cross, the four arrows over a selected component (the
+    /// Delphi designer's move pointer; kept while it is dragged), else the
+    /// arrow.
+    fn pointer(&self, cx: &mut Cx, x: i64, y: i64) -> Cursor {
+        use rapidr_value::objects::design::Pointer;
+        let p = with_design(cx.id, |d| {
+            let (ox, oy) = d.client_origin();
+            d.pointer_at(x - ox, y - oy)
+        });
+        match p.unwrap_or(Pointer::Default) {
+            Pointer::Default => Cursor::Default,
+            Pointer::Move => Cursor::Move,
+            Pointer::SizeWE => Cursor::SizeWE,
+            Pointer::SizeNS => Cursor::SizeNS,
+            Pointer::SizeNWSE => Cursor::SizeNWSE,
+            Pointer::SizeNESW => Cursor::SizeNESW,
+            Pointer::Cross => Cursor::Cross,
+        }
     }
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
