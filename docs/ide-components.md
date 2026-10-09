@@ -24,7 +24,7 @@ RCodeEditor is language-agnostic. A language is a TOML file (bundled ones are bu
 
 ```toml
 [language]
-id = "rapidq-basic"
+id = "rapidr-basic"
 name = "RapidQ / RapidR BASIC"
 extensions = ["bas", "rr", "inc"]
 case_insensitive = true
@@ -80,7 +80,7 @@ Kept exactly as before (the `code_editor` GUI case, unchanged on native, interpr
 
 | Kind | Member | Notes |
 |---|---|---|
-| Property | `Language` | An id (`"rapidq-basic"` default, `"sql"`, `"json"`, `"html"` …), a file name whose extension says, or a definition file (`.toml`) |
+| Property | `Language` | An id (`"rapidr-basic"` default, `"sql"`, `"json"`, `"html"` …), a file name whose extension says, or a definition file (`.toml`) |
 | Property | `ColorScheme` | `"auto"` (the theme's: `rapidr_value::code_scheme`) or `"classic"`, `"modern"`, `"dark"`, `"highcontrast"` |
 | Property | `FontName` (JetBrains Mono), `FontSize` (points, 10), `TabSize`, `InsertSpaces`, `AutoClose`, `AutoIndent`, `WordWrap`, `ShowLineNumbers`, `ShowFolding`, `ShowMinimap`, `ShowWhitespace`, `HighlightCurrentLine`, `Rulers` (`"80,120"`) | |
 | Property | `CaretLine`, `CaretColumn` | 1-based; setting moves the caret |
@@ -110,7 +110,7 @@ Keys (VS Code's map; Cmd for Ctrl on macOS): arrows / Home (smart) / End / PgUp 
 
 ### 3.2 RDiffView (I2, built: `rapidr_value::objects::diffview`, kernel `components/diffview.rs`)
 
-`LeftText`, `RightText` (setting either compares again; CR LF → LF), `Language` (an id, a file name or a definition file; default `"rapidq-basic"`), `Mode` (`"split"`, `"inline"`), `HunkCount`, `CurrentHunk` (0-based, -1: none; setting it scrolls there), `ResultText` (the left text with the accepted hunks' right lines — undecided counts as rejected), `AcceptedCount`, `RejectedCount`; `AcceptHunk(i)`, `RejectHunk(i)`, `AcceptAll`, `RejectAll`, `HunkState(i)` (1 / -1 / 0), `NextHunk`, `PreviousHunk` (wrap around; give the index); `OnHunkChange(Index, Accepted)` — the user's decisions only. The diff is our own Myers (linear space, lines only one side has set aside first; 2 × 20,000 lines with 100 changes in ~18 ms release); hunks have no context lines; paired lines get character marks. Keys: F7 / Alt+Down, Shift+F7 / Alt+Up, Enter / Ctrl+Y accept, Backspace / Ctrl+N reject (then the next hunk), arrows, Page Up / Down, Home / End. Used by the AI flow, "compare with saved" and merge conflicts.
+`LeftText`, `RightText` (setting either compares again; CR LF → LF), `Language` (an id, a file name or a definition file; default `"rapidr-basic"`), `Mode` (`"split"`, `"inline"`), `HunkCount`, `CurrentHunk` (0-based, -1: none; setting it scrolls there), `ResultText` (the left text with the accepted hunks' right lines — undecided counts as rejected), `AcceptedCount`, `RejectedCount`; `AcceptHunk(i)`, `RejectHunk(i)`, `AcceptAll`, `RejectAll`, `HunkState(i)` (1 / -1 / 0), `NextHunk`, `PreviousHunk` (wrap around; give the index); `OnHunkChange(Index, Accepted)` — the user's decisions only. The diff is our own Myers (linear space, lines only one side has set aside first; 2 × 20,000 lines with 100 changes in ~18 ms release); hunks have no context lines; paired lines get character marks. Keys: F7 / Alt+Down, Shift+F7 / Alt+Up, Enter / Ctrl+Y accept, Backspace / Ctrl+N reject (then the next hunk), arrows, Page Up / Down, Home / End. Used by the AI flow, "compare with saved" and merge conflicts.
 
 ### 3.3 RFormDesigner (I4) and the existing RDESIGNSURFACE
 
@@ -278,7 +278,7 @@ END CREATE
 
 ```basic
 ' extension.rr — a diagnostics provider for "todo" comments
-IDE.RegisterLanguageProvider "rapidq-basic", "diagnostics"
+IDE.RegisterLanguageProvider "rapidr-basic", "diagnostics"
 IDE.OnDiagnosticsRequest = CheckTodos
 
 SUB CheckTodos(Doc AS STRING, Text AS STRING)

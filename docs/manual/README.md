@@ -15,6 +15,7 @@ where something isn't done yet, it says so.
 | [The language](language.md) | Program structure, types, variables, arrays, operators, control flow, SUBs and FUNCTIONs, TYPEs and objects, the preprocessor, files, the console — and how RapidQ's rules differ from other BASICs |
 | [Components and objects](components.md) | `CREATE`, properties, methods and events; RapidQ's Q names and RapidR's R names; the global objects; themes, high-DPI and accessibility |
 | [The CLI and the RapidR Runtime](cli-and-runtime.md) | Every `rapidr` command, the kinds of builds, the Runtime, file types, `rapidr setup`, environment variables, the notices builds carry |
+| [The code editor in RapidR Studio](studio-editor.md) | Completion, Ctrl+Space, parameter info, hover, F12 Go to Definition, problems and quick fixes (RAPIDQ.INC), the keyboard shortcuts |
 | [Building apps and their icons](building-apps.md) | `Name.app`, the `.exe`'s icon and version, `Name.AppDir`; your icon or RapidR's; Studio's Build |
 | [The web](web.md) | Running programs in a browser: bundles, `--web` builds, files and assets, web-only components |
 | [Databases](databases.md) | RSQLITE and QMYSQL, parameter binding, events |

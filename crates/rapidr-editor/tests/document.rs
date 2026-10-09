@@ -4,7 +4,7 @@
 use rapidr_editor::{Change, Direction, Document, EditError, LineEnding, Languages, Selection, Selections};
 
 fn basic(text: &str) -> Document {
-    Document::new(text, Languages::builtin().get("rapidq-basic").unwrap())
+    Document::new(text, Languages::builtin().get("rapidr-basic").unwrap())
 }
 
 fn rust(text: &str) -> Document {

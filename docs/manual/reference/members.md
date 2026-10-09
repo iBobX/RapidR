@@ -1379,7 +1379,7 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `MaxLength` | int |  | The most characters the user can type (0: no limit). |
 | `CharCase` | int |  | Turns typed text to `ecUpperCase` or `ecLowerCase`; `ecNormal` leaves it as typed. |
 | `WantTabs` | bool |  | Tab types (indents) in the editor rather than moving the focus on (True by default). |
-| `Language` | string |  | The language its colours, brackets, indentation and folding follow: an id ("rapidq-basic", "sql", "json", "html", "css", "javascript", "markdown", "toml", "rust", "csv", "plaintext"), a file name whose extension says, or a language definition file (.toml). |
+| `Language` | string |  | The language its colours, brackets, indentation and folding follow: an id ("rapidr-basic", "sql", "json", "html", "css", "javascript", "markdown", "toml", "rust", "csv", "plaintext"), a file name whose extension says, or a language definition file (.toml). |
 | `ColorScheme` | string |  | "auto" (the theme's) or a scheme's name: "classic", "modern", "dark", "highcontrast". |
 | `TabSize` | int |  | Columns per tab stop (4). |
 | `InsertSpaces` | bool |  | Tab inserts spaces (True) or a tab character. |
@@ -1522,7 +1522,7 @@ Two texts compared line by line, the way a code review shows them: side by side 
 |---|---|---|---|
 | `LeftText` | string | `""` | The original text (the left side). Setting it or RightText compares the two again: every hunk starts undecided. CR LF and lone CR line breaks become LF. |
 | `RightText` | string | `""` | The changed text (the right side), compared with LeftText. |
-| `Language` | string | `"rapidq-basic"` | How the text is coloured: a language id ("rapidq-basic", "sql", "json" …), a file name whose extension says ("query.sql"), or a language definition file (.toml). Reading it gives the id. |
+| `Language` | string | `"rapidr-basic"` | How the text is coloured: a language id ("rapidr-basic", "sql", "json" …), a file name whose extension says ("query.sql"), or a language definition file (.toml). Reading it gives the id. |
 | `Mode` | string | `"split"` | "split" shows the two texts side by side, "inline" in one column (a hunk's removed lines, then its added ones). The line at the top of the view stays there when it changes. |
 | `HunkCount` (read-only) | int |  | How many hunks there are: runs of changed lines between unchanged ones (two changes with no unchanged line between them are one hunk). |
 | `CurrentHunk` | int |  | The hunk the keyboard works on, from 0 (-1 when there are none). Setting it scrolls that hunk into view. |

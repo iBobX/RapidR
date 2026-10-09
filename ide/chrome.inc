@@ -152,7 +152,7 @@ SUB SetState(State AS STRING, Text AS STRING)
 END SUB
 
 SUB SetUpStatus
-  Status.AddPanels "", "", "Ln 1, Col 1", "UTF-8", "CRLF", "RapidQ BASIC"
+  Status.AddPanels "", "", "Ln 1, Col 1", "UTF-8", "CRLF", "RapidR BASIC"
   LayOutStatus
 END SUB
 

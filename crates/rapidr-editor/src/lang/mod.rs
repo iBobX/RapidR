@@ -13,8 +13,8 @@
 //!
 //! ```toml
 //! [language]
-//! id = "rapidq-basic"            # required
-//! name = "RapidQ / RapidR BASIC" # required
+//! id = "rapidr-basic"            # required
+//! name = "RapidR BASIC"          # required
 //! extensions = ["bas", "rr"]     # file extensions, without the dot
 //! filenames = []                 # whole file names (`Cargo.lock`)
 //! case_insensitive = true        # regexes and keywords ignore case
@@ -580,8 +580,19 @@ pub const BUILTIN_SOURCES: &[(&str, &str)] = &[
     ("rust", include_str!("../../languages/rust.toml")),
     ("markdown", include_str!("../../languages/markdown.toml")),
     ("html", include_str!("../../languages/html.toml")),
-    ("rapidq-basic", include_str!("../../languages/rapidq-basic.toml")),
+    ("rapidr-basic", include_str!("../../languages/rapidr-basic.toml")),
 ];
+
+/// A language id as the built-in set knows it: `rapidq-basic`, BASIC's
+/// id before it was RapidR's (saved settings and layouts, programs setting
+/// RCODEEDITOR's Language), is `rapidr-basic`.
+pub fn canonical_id(id: &str) -> &str {
+    if id.eq_ignore_ascii_case("rapidq-basic") {
+        "rapidr-basic"
+    } else {
+        id
+    }
+}
 
 impl Languages {
     /// An empty set.
@@ -595,7 +606,7 @@ impl Languages {
         B.get_or_init(|| {
             let mut set = Languages::new();
             for (id, src) in BUILTIN_SOURCES {
-                let extra: &[(&str, &[&str])] = if *id == "rapidq-basic" { basic::keyword_groups() } else { &[] };
+                let extra: &[(&str, &[&str])] = if *id == "rapidr-basic" { basic::keyword_groups() } else { &[] };
                 match set.load_with(src, extra) {
                     Ok(_) => {}
                     Err(e) => panic!("built-in language {id}: {e}"),
@@ -630,6 +641,7 @@ impl Languages {
     }
 
     pub fn get(&self, id: &str) -> Option<Arc<Language>> {
+        let id = canonical_id(id);
         self.langs.iter().find(|l| l.id.eq_ignore_ascii_case(id)).cloned()
     }
 

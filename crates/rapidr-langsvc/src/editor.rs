@@ -18,7 +18,7 @@ use crate::case::{self, CaseScope, IdentifierCase, KeywordCase};
 use crate::{Analysis, CompletionKind, Options, OutlineKind, Severity, TokenKind};
 
 /// The language id of RapidQ / RapidR BASIC in `rapidr_editor::Languages`.
-pub const LANGUAGE: &str = "rapidq-basic";
+pub const LANGUAGE: &str = "rapidr-basic";
 
 /// [`Analysis`] behind the editor's contract. Files are the editor's names
 /// for them, taken as paths (a real path, or a name of its own such as
@@ -149,7 +149,8 @@ fn edit(e: crate::TextEdit) -> ed::Edit {
 
 impl ed::LanguageService for EditorService {
     fn serves(&self, language: &str) -> bool {
-        language.eq_ignore_ascii_case(LANGUAGE)
+        // (`rapidq-basic`: the id before it was RapidR's)
+        rapidr_editor::lang::canonical_id(language).eq_ignore_ascii_case(LANGUAGE)
     }
 
     fn update(&mut self, file: &str, text: &str) {

@@ -145,7 +145,7 @@ mod tests {
 
     #[test]
     fn insert_at_carets() {
-        let lang = Languages::builtin().get("rapidq-basic").unwrap();
+        let lang = Languages::builtin().get("rapidr-basic").unwrap();
         let sub = lang.snippets.iter().find(|s| s.prefix == "sub").unwrap().clone();
         let mut d = Document::new("  sub", lang);
         d.set_selections(Selections::caret(5));

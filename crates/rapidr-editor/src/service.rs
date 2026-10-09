@@ -275,7 +275,7 @@ pub struct SemanticToken {
 /// text last given with [`LanguageService::update`].
 pub trait LanguageService {
     /// Whether it serves files of the language `language` (an id of
-    /// `rapidr_editor::Languages`: `rapidq-basic` …).
+    /// `rapidr_editor::Languages`: `rapidr-basic` …).
     fn serves(&self, language: &str) -> bool;
     /// The editor's whole text of `file`, now.
     fn update(&mut self, file: &str, text: &str);

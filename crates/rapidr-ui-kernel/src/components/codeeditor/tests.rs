@@ -230,7 +230,7 @@ struct Fake {
 
 impl svc::LanguageService for Fake {
     fn serves(&self, language: &str) -> bool {
-        language == "rapidq-basic"
+        language == "rapidr-basic"
     }
     fn update(&mut self, _file: &str, text: &str) {
         self.text = text.to_string();

@@ -630,7 +630,7 @@ properties = [
   { name = "MaxLength", type = "int", design = false },
   { name = "CharCase", type = "int", design = false },
   { name = "WantTabs", type = "bool", doc = "Tab types (indents) in the editor rather than moving the focus on (True by default)." },
-  { name = "Language", type = "string", doc = "The language its colours, brackets, indentation and folding follow: an id (\"rapidq-basic\", \"sql\", \"json\", \"html\", \"css\", \"javascript\", \"markdown\", \"toml\", \"rust\", \"csv\", \"plaintext\"), a file name whose extension says, or a language definition file (.toml)." },
+  { name = "Language", type = "string", doc = "The language its colours, brackets, indentation and folding follow: an id (\"rapidr-basic\", \"sql\", \"json\", \"html\", \"css\", \"javascript\", \"markdown\", \"toml\", \"rust\", \"csv\", \"plaintext\"), a file name whose extension says, or a language definition file (.toml)." },
   { name = "ColorScheme", type = "string", doc = "\"auto\" (the theme's) or a scheme's name: \"classic\", \"modern\", \"dark\", \"highcontrast\"." },
   { name = "TabSize", type = "int", doc = "Columns per tab stop (4)." },
   { name = "InsertSpaces", type = "bool", doc = "Tab inserts spaces (True) or a tab character." },
@@ -768,7 +768,7 @@ doc = "Two texts compared line by line, the way a code review shows them: side b
 properties = [
   { name = "LeftText", type = "string", default = "", category = "Data", doc = "The original text (the left side). Setting it or RightText compares the two again: every hunk starts undecided. CR LF and lone CR line breaks become LF." },
   { name = "RightText", type = "string", default = "", category = "Data", doc = "The changed text (the right side), compared with LeftText." },
-  { name = "Language", type = "string", default = "rapidq-basic", category = "Appearance", doc = "How the text is coloured: a language id (\"rapidq-basic\", \"sql\", \"json\" …), a file name whose extension says (\"query.sql\"), or a language definition file (.toml). Reading it gives the id." },
+  { name = "Language", type = "string", default = "rapidr-basic", category = "Appearance", doc = "How the text is coloured: a language id (\"rapidr-basic\", \"sql\", \"json\" …), a file name whose extension says (\"query.sql\"), or a language definition file (.toml). Reading it gives the id." },
   { name = "Mode", type = "string", default = "split", category = "Appearance", doc = "\"split\" shows the two texts side by side, \"inline\" in one column (a hunk's removed lines, then its added ones). The line at the top of the view stays there when it changes." },
   { name = "HunkCount", type = "int", access = "read", design = false, category = "Data", doc = "How many hunks there are: runs of changed lines between unchanged ones (two changes with no unchanged line between them are one hunk)." },
   { name = "CurrentHunk", type = "int", design = false, category = "Data", doc = "The hunk the keyboard works on, from 0 (-1 when there are none). Setting it scrolls that hunk into view." },

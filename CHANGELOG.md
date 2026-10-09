@@ -24,6 +24,12 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   Ctrl+.): "mbYes is a RAPIDQ.INC constant — add $INCLUDE "RAPIDQ.INC"", a warning — without the
   include RapidQ reads `mbYes` as a variable that is 0 (Robert's save prompt showed only OK). The
   quick fix adds the include after the file's header comments. How programs run doesn't change.
+- **The manual's new page [The code editor in RapidR Studio](docs/manual/studio-editor.md)**:
+  completion, Ctrl+Space, parameter info, hover, F12, problems and quick fixes, the shortcuts,
+  with screenshots made again by `node tools/manual/shots.mjs` (scenes in `tools/manual/scenes/`).
+- The code editor's BASIC is `rapidr-basic` ("RapidR BASIC", also in Studio's status bar);
+  `rapidq-basic`, its old id, still works wherever a language id is given (RCODEEDITOR's
+  `Language`, RDIFFVIEW's, saved settings).
 - **Tab no longer types a stray character.** A TAB in any QMEMO / QRICHEDIT was drawn as the font's
   missing-glyph box; it is now the blank to the next tab stop. In the code editor, Tab / Shift+Tab
   indent and outdent by the file's unit.

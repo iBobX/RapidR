@@ -385,9 +385,9 @@ pub fn language_named(name: &str) -> Arc<Language> {
     LOADED.with(|l| l.borrow().for_path(n))
 }
 
-/// RapidQ / RapidR BASIC.
+/// RapidR BASIC.
 pub fn basic() -> Arc<Language> {
-    Languages::builtin().get("rapidq-basic").unwrap_or_else(|| Languages::builtin().plain_text())
+    Languages::builtin().get("rapidr-basic").unwrap_or_else(|| Languages::builtin().plain_text())
 }
 
 /// Decodes a file: UTF-8 (a BOM dropped) when it is, else Latin-1.

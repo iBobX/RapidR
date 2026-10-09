@@ -1,4 +1,4 @@
-//! RapidQ / RapidR BASIC's keyword groups, added to `rapidq-basic.toml`'s
+//! RapidQ / RapidR BASIC's keyword groups, added to `rapidr-basic.toml`'s
 //! rules when it loads: the language registry's words
 //! (`rapidr_lang::words`) — its statements, keywords, types, operators,
 //! components under both names and the builtins the runtimes implement —
