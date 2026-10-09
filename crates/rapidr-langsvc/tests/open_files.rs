@@ -96,7 +96,9 @@ fn an_included_form_is_analysed_in_its_program() {
     assert_eq!(d.len(), 1, "{d:?}");
     assert!(d[0].message.to_ascii_lowercase().contains("captoin") && d[0].file == form2, "{d:?}");
     // a compiler error in the form stops the program: main's problems have it
-    a.update(form2.clone(), form2_text.replace("Form1.Caption = \"back\"", "Form1.Caption = = 1"));
+    // (an unclosed parenthesis: `= = 1` compiles since development's
+    // RC.EXE-checked `Obj.Member = …` forms)
+    a.update(form2.clone(), form2_text.replace("Form1.Caption = \"back\"", "Form1.Caption = (1"));
     assert!(a.diagnostics(&main).iter().any(|x| x.file == form2), "{:?}", a.diagnostics(&main));
     assert!(!a.diagnostics(&form2).is_empty());
     a.update(form2.clone(), form2_text);

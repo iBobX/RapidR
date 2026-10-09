@@ -127,10 +127,11 @@ mod tests {
         assert_eq!(pixel, Some(0xFF));
         s.set("dxs", "allowstretch", v_int(0));
         assert_eq!(images(&f.paint(&s, &mut text, 1.0))[0].2, (0, 0, 80, 60), "its own size");
-        // FullScreen: scaled to fit, its proportions kept (80 × 60 in
-        // 160 × 120 — a 4:3 control: all of it).
+        // FullScreen: over the form's whole client area (`full_screen`: the
+        // 200 × 150 form's inside is 198 × 119), scaled to fit with its
+        // proportions kept — 80 × 60 to 159 × 119, centred.
         s.set("dxs", "fullscreen", v_int(-1)).set("dxs", "width", v_int(200));
-        assert_eq!(images(&f.paint(&s, &mut text, 1.0))[0].2, (20, 0, 160, 120), "centred, black on both sides");
+        assert_eq!(images(&f.paint(&s, &mut text, 1.0))[0].2, (19, 0, 159, 119), "centred, black on both sides");
         rapidr_value::objects::remove("dxs");
     }
 }
