@@ -7,6 +7,8 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.118.0] — 2026-10-09 (Preview)
+
 ### Triage of the full regression run (TRIAGE)
 - A grid cell's editor no longer covers its **list / ellipsis button**: in a gcsEllipsis or gcsList
   column the editor box stops where the button starts, so the "..." (or the arrow) shows beside
