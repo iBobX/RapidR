@@ -76,7 +76,7 @@ const DATA_SCIENCE: &[&str] = &[
 
 const DESIGN: &[&str] = &[
     "addcomponent", "getname", "gettype", "getcompx", "getcompy", "getcompw", "getcomph",
-    "setprop", "getprop", "setcompbounds", "setname", "selectcomp", "removecomponent", "clearall",
+    "setprop", "getprop", "setcompbounds", "setname", "selectcomp", "removecomponent", "clearall", "addmdichild",
 ];
 
 const GRID: &[&str] = &["cell", "cells", "setcell", "setsuggestions"];

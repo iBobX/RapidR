@@ -35,6 +35,14 @@ impl Canvas for Scene {
     fn pop_clip(&mut self) {
         self.pop_layer();
     }
+    fn push_fade(&mut self, alpha: f32) {
+        // (an opacity layer over everything: no clip)
+        let all = KRect::new(-1e7, -1e7, 1e7, 1e7);
+        self.push_layer(Fill::NonZero, vello::peniko::Mix::Normal, alpha, Affine::IDENTITY, &all);
+    }
+    fn pop_fade(&mut self) {
+        self.pop_layer();
+    }
     fn glyphs(&mut self, run: &GlyphRun, glyphs: &[(u32, f32, f32)]) {
         let mut draw = self
             .draw_glyphs(run.font)

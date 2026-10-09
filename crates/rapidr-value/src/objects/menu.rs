@@ -492,6 +492,48 @@ pub fn parse_shortcut(text: &str) -> Option<Shortcut> {
     Some(sc)
 }
 
+// ------------------------------------------------- how menus are laid out --
+// (the kernel's menu bar and panels, and the form designer's menu editor,
+// measure them alike: one set of numbers)
+
+/// A menu item's row in a panel.
+pub const ITEM_H: i64 = 20;
+/// A separator's row.
+pub const SEP_H: i64 = 9;
+/// A panel's frame (a raised edge and a pixel of face).
+pub const BORDER: i64 = 3;
+/// Where the check mark goes, left of the captions.
+pub const GUTTER: i64 = 17;
+/// Right of the captions and ShortCuts (the submenu arrow's place).
+pub const RIGHT: i64 = 17;
+/// Between the longest caption and the ShortCuts.
+pub const KEYS_GAP: i64 = 20;
+/// Left and right of a bar item's caption (classic; RapidR's looks add 3).
+pub const BAR_PAD: i64 = 7;
+
+/// Menus' font (the system's menu font: RapidQ's menus have no Font) —
+/// Windows' in the classic look, RapidR's chrome font in its own.
+pub fn menu_font() -> super::font::Font {
+    crate::ide_theme::chrome_font(crate::theme::current())
+}
+
+/// A bar item's width for its caption (its `&` not counted).
+pub fn bar_item_width(caption: &str) -> i64 {
+    let pad = if crate::theme::current().fluent() { BAR_PAD + 3 } else { BAR_PAD };
+    super::text::text_size(&super::a11y::mnemonic(caption).0, &menu_font()).0 + 2 * pad
+}
+
+/// A panel's size for its rows: (caption, ShortCut text, separator).
+pub fn panel_size(rows: &[(&str, &str, bool)]) -> (i64, i64) {
+    let font = menu_font();
+    let width = |s: &str| super::text::text_size(&super::a11y::mnemonic(s).0, &font).0;
+    let captions = rows.iter().filter(|r| !r.2).map(|r| width(r.0)).max().unwrap_or(0);
+    let keys = rows.iter().filter(|r| !r.1.is_empty()).map(|r| super::text::text_size(r.1, &font).0).max();
+    let w = BORDER * 2 + GUTTER + captions + keys.map_or(0, |k| KEYS_GAP + k) + RIGHT;
+    let h = BORDER * 2 + rows.iter().map(|r| if r.2 { SEP_H } else { ITEM_H }).sum::<i64>();
+    (w.max(80), h.max(BORDER * 2 + 4))
+}
+
 /// Forgets every menu (a program was replaced).
 pub fn clear() {
     MENUS.with(|m| m.borrow_mut().clear());

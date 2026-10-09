@@ -132,8 +132,11 @@ SUB DefineCommands
   AddSep "View"
   AddCmd "view.code", "&Code", "View", "F7", "", "document", ""
   AddCmd "view.designer", "&Designer", "View", "Shift+F7", "", "document", "components/designsurface"
-  ' (no key: F12 is Go to Definition, as in VS Code and Xcode; F7 / Shift+F7 pick the view)
-  AddCmd "view.toggleDesigner", "Toggle &Form / Code", "View", "", "", "document", "-"
+  AddCmd "designer.zoomIn", "Zoom &In", "View", "", "Ctrl+=", "design", ""
+  AddCmd "designer.zoomOut", "Zoom O&ut", "View", "", "Ctrl+-", "design", ""
+  AddCmd "designer.zoomReset", "Actual Si&ze", "View", "", "Ctrl+0", "design", "-"
+  AddCmd "designer.zoomToFit", "Zoom to &Fit", "View", "", "", "design", ""
+  AddCmd "view.toggleDesigner", "Toggle &Form / Code", "View", "F12", "", "document", "-"
   AddCmd "view.sideBySide", "Designer and Code &Side by Side", "View", "", "", "document", "view.splitVertically"
   AddSep "View"
   AddSubmenu "View", "Theme", "T&heme"
@@ -149,8 +152,9 @@ SUB DefineCommands
 
   ' ---- Project ----
   AddCmd "project.addFile", "Add &File...", "Project", "", "", "project", "file.new"
-  AddCmd "project.addForm", "Add F&orm", "Project", "", "", "project", "RFORM"
+  AddCmd "project.addForm", "Add F&orm", "Project", "", "", "addform", "RFORM"
   AddCmd "project.addModule", "Add &Module", "Project", "", "", "project", "files/rr"
+  AddCmd "designer.addForm", "Add a Form to This F&ile", "Project", "", "", "document", "RFORM"
   AddSep "Project"
   AddCmd "project.options", "Project &Options...", "Project", "", "", "project", "settings"
 
@@ -199,6 +203,10 @@ SUB DefineCommands
   AddSep "Format"
   AddCmd "designer.bringToFront", "Bring to &Front", "Format", "", "", "design", ""
   AddCmd "designer.sendToBack", "Send to Bac&k", "Format", "", "", "design", ""
+  AddSep "Format"
+  AddCmd "designer.editCaption", "Edit &Caption", "Format", "", "F2", "design", "-"
+  AddCmd "designer.menuEditor", "&Menu Editor", "Format", "", "", "design", ""
+  AddCmd "designer.tabOrder", "Tab &Order", "Format", "", "", "design", ""
 
   ' ---- Tools ----
   AddCmd "view.settings", "&Settings...", "Tools", "", "", "", ""
@@ -297,6 +305,8 @@ FUNCTION CmdEnabled(i AS INTEGER) AS INTEGER
   SELECT CASE w
     CASE "": Result = 1
     CASE "project": Result = ProjectOpen
+    ' (Add Form: a new form file in a project, else a form in the file open)
+    CASE "addform": Result = (ProjectOpen <> 0 OR k = "code" OR k = "design")
     CASE "document": Result = (k = "code" OR k = "design")
     CASE "code": Result = (k = "code")
     CASE "design": Result = (k = "design")

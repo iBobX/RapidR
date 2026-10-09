@@ -168,11 +168,26 @@ pub fn press_code(vk: i64, text: &str) -> Option<i64> {
 
 /// For tests: what typing the key `vk` without modifiers types.
 pub fn text_of_vk(vk: i64) -> String {
-    match vk {
-        65..=90 => ((vk as u8 + 32) as char).to_string(),
-        48..=57 | 32 => (vk as u8 as char).to_string(),
-        _ => String::new(),
-    }
+    text_of_vk_shifted(vk, false)
+}
+
+/// The same with Shift held or not, on a US keyboard (a test's `__key_N_256`:
+/// `&` is Shift+7).
+pub fn text_of_vk_shifted(vk: i64, shift: bool) -> String {
+    let c = match (vk, shift) {
+        (65..=90, false) => (vk as u8 + 32) as char,
+        (65..=90, true) => vk as u8 as char,
+        (48..=57, true) => b")!@#$%^&*("[(vk - 48) as usize] as char,
+        (48..=57, false) | (32, _) => vk as u8 as char,
+        (186, s) => if s { ':' } else { ';' },
+        (187, s) => if s { '+' } else { '=' },
+        (188, s) => if s { '<' } else { ',' },
+        (189, s) => if s { '_' } else { '-' },
+        (190, s) => if s { '>' } else { '.' },
+        (191, s) => if s { '?' } else { '/' },
+        _ => return String::new(),
+    };
+    c.to_string()
 }
 
 /// A mouse pointer: RAPIDQ.INC's `crDefault` 0, `crNone` -1, `crArrow` -2,

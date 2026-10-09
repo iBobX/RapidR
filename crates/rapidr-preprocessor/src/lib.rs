@@ -226,6 +226,42 @@ pub fn is_source_path(path: &Path) -> bool {
     path.extension().and_then(|e| e.to_str()).is_some_and(|e| SOURCE_EXTENSIONS.iter().any(|x| x.eq_ignore_ascii_case(e)))
 }
 
+/// Where sources are read from when a host has no disk: a file's bytes by
+/// its path, `None` when there is no such file. RapidR Studio in a browser
+/// gives the page's files (what the user opened, the site's examples), so
+/// its language service and designer follow a program's `$INCLUDE`s there
+/// as on the desktop.
+pub type SourceReader = fn(&Path) -> Option<Vec<u8>>;
+
+static SOURCE_READER: std::sync::RwLock<Option<SourceReader>> = std::sync::RwLock::new(None);
+
+/// Reads sources through `reader` from now on (`None`: the disk again).
+pub fn set_source_reader(reader: Option<SourceReader>) {
+    if let Ok(mut r) = SOURCE_READER.write() {
+        *r = reader;
+    }
+}
+
+fn source_reader() -> Option<SourceReader> {
+    SOURCE_READER.read().ok().and_then(|r| *r)
+}
+
+fn read_bytes(path: &Path) -> std::io::Result<Vec<u8>> {
+    match source_reader() {
+        Some(reader) => reader(path).ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no such file")),
+        None => fs::read(path),
+    }
+}
+
+/// Whether `path` is a file sources can be read from (the host's reader's,
+/// else the disk's).
+pub fn source_exists(path: &Path) -> bool {
+    match source_reader() {
+        Some(reader) => reader(path).is_some(),
+        None => path.is_file(),
+    }
+}
+
 /// Reads a source file. RapidQ programs are usually Windows-1252 (ANSI), not
 /// UTF-8; bytes that aren't valid UTF-8 are decoded as Windows-1252.
 pub fn read_source(path: &Path) -> std::io::Result<String> {
@@ -234,7 +270,7 @@ pub fn read_source(path: &Path) -> std::io::Result<String> {
 
 /// [`read_source`], also saying how the file was decoded.
 pub fn read_source_with_encoding(path: &Path) -> std::io::Result<(String, SourceEncoding)> {
-    Ok(decode_source(&fs::read(path)?))
+    Ok(decode_source(&read_bytes(path)?))
 }
 
 const WINDOWS_1252_HIGH: [char; 32] = [
@@ -1264,6 +1300,11 @@ fn find_case_insensitive(root: &Path, relative: &str) -> Option<PathBuf> {
     let direct = root.join(relative);
     if direct.is_file() {
         return Some(direct);
+    }
+    // (a host's reader: its path as named — a browser has no folders to
+    // look through)
+    if source_reader().is_some() {
+        return source_exists(&direct).then_some(direct);
     }
     let mut current = if relative.starts_with('/') { PathBuf::from("/") } else { root.to_path_buf() };
     for part in relative.split('/').filter(|part| !part.is_empty() && *part != ".") {

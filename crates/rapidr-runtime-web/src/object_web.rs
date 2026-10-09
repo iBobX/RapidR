@@ -181,7 +181,7 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         rapidr_studio::design::install();
     }
     if rapidr_value::objects::create(name, type_name) {
-        rapidr_value::objects::set_file_io(web_read_file, web_write_file);
+        install_file_hooks();
         // (the I/O and media lane's: their devices, a QDOWNLOAD's gauge)
         if rapidr_value::objects::rqlib::is_type(type_name) {
             crate::io_web::created(name, type_name);
@@ -328,6 +328,8 @@ fn web_read_file(path: &str) -> Result<Vec<u8>, String> {
 /// objects read and write (once).
 pub fn install_file_hooks() {
     rapidr_value::objects::set_file_io(web_read_file, web_write_file);
+    // (Studio's language service and designer: `$INCLUDE`s from the page too)
+    rapidr_studio::install_page_sources();
 }
 
 /// A file's length (0 if it can't be read).
@@ -1331,8 +1333,9 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         let result = clip.map(Ok).or_else(|| rapidr_value::objects::call(name, &lmethod, args, &|id, p| rp_comp_get(id, p)));
         if let Some(result) = result {
             crate::kernel_web::redraw();
-            // (an RCODEEDITOR's ApplyPatches / Undo / Redo: OnChange)
-            if rapidr_value::objects::take_code_change(name) {
+            // (an RCODEEDITOR's ApplyPatches / Undo / Redo: OnChange — a code
+            // editor is a text edit, so it is heard here)
+            if rapidr_value::objects::is_code(name) && rapidr_value::objects::take_code_change(name) {
                 rp_fire_event(&uname, "onchange");
             }
             return result.unwrap_or_else(|e| {

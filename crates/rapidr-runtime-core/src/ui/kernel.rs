@@ -952,6 +952,13 @@ pub fn design_surface_method(name: &str, method: &str, _args: &[Value]) -> Value
     match method {
         "show" => gui_show(name),
         "hide" => gui_hide(name),
+        // (the kernel's focus to it, as the web's SetFocus: RapidR Studio's
+        // Dock.FocusPane on a document's Design view)
+        "setfocus" | "focus" => {
+            if let Some(form) = crate::object::form_of(name) {
+                push_op(WindowOp::Focus(form.to_lowercase(), name.to_lowercase()));
+            }
+        }
         _ => eprintln!("[WARN] DesignSurface.{method}() not implemented"),
     }
     v_null()
@@ -1070,12 +1077,15 @@ fn capture_and_end(prefix: &str) -> ! {
         let mut trees = Vec::new();
         let mut shots = Vec::new();
         for f in &order {
-            if a11y.is_some() {
-                trees.extend(desk.access_json(&RtStore, f));
-            }
             if let Some(px) = rapidr_ui_host_winit::capture(desk, &RtStore, f) {
                 let title = desk.forms.get(f).map(|w| w.spec.title.clone()).unwrap_or_default();
                 shots.push((title, px));
+            }
+            // (after the capture's paint: the tree as drawn — a console
+            // scrolled to its end, the focus where the last frame put it —
+            // as on the web, which paints every frame)
+            if a11y.is_some() {
+                trees.extend(desk.access_json(&RtStore, f));
             }
         }
         (trees, shots)

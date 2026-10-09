@@ -50,6 +50,8 @@ DIM DocKind(MAXDOCS) AS STRING
 DIM DocOpen(MAXDOCS) AS INTEGER
 DIM DocDirty(MAXDOCS) AS INTEGER
 DIM DocHasForm(MAXDOCS) AS INTEGER
+' (which view a form's file shows: "Design", "Code" or "Split" — workspace.inc)
+DIM DocViewNow(MAXDOCS) AS STRING
 ' (a file being loaded: its editor's OnChange isn't the user's)
 DIM Loading AS INTEGER
 DIM DocCount AS INTEGER
@@ -102,6 +104,22 @@ DECLARE SUB DesignSourceEdit(StartLine AS INTEGER, StartCol AS INTEGER, EndLine 
 DECLARE SUB DesignChanged(Sender AS RDesignSurface)
 DECLARE SUB DesignDblClick(Index AS INTEGER, Sender AS RDesignSurface)
 DECLARE SUB DesignRead(d AS INTEGER)
+DECLARE SUB CaretAtHandler(d AS INTEGER, L AS INTEGER)
+DECLARE SUB DesignNames(d AS INTEGER)
+' (the toolbox's form being added: "form" / "formmdi", the hint after it — panels.inc)
+DIM PendingFormKind AS STRING
+DIM PendingFormHint AS STRING
+DIM PendingFormAt AS DOUBLE
+DECLARE FUNCTION IsFormType(TypeName AS STRING) AS INTEGER
+DECLARE SUB AddFormOfType(TypeName AS STRING, Hint AS STRING)
+DECLARE SUB IncludeFollows(OldPath AS STRING, NewPath AS STRING)
+DECLARE SUB IncludeLeaves(Path AS STRING)
+DECLARE SUB FillProblemsOf(Path AS STRING)
+DECLARE FUNCTION ProgramErrors AS INTEGER
+DECLARE SUB DesignPicked(Index AS INTEGER, Sender AS RDESIGNSURFACE)
+DECLARE SUB DesignStep(Continues AS INTEGER, Sender AS RDESIGNSURFACE)
+DECLARE SUB DesignUndo(Redo AS INTEGER, Sender AS RDESIGNSURFACE)
+DECLARE SUB FileUndo(d AS INTEGER, Redo AS INTEGER)
 DECLARE FUNCTION DesignCommand(Id AS STRING) AS INTEGER
 DECLARE SUB OutlineOpen
 DECLARE SUB PaletteCommand(Id AS STRING)

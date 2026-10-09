@@ -418,20 +418,20 @@ Lanes in flight (the designer, the panels / inspector, the code editor, the them
 | WEL-1 | partial | The Welcome page with Start, Recent and example cards works (`ide/panes.inc` `FillExamples`, `LayOutWelcome`; `tests/studio_shell.mjs`). There are no live thumbnails (cards show a file icon) and no ▶ Run on the cards. |
 | WEL-2 | partial | (S-SHELL-2) Five templates in `TEMPLATES` (`gui`, `console`, `rapidq` — main.bas, compat on —, `data`, `mdi`), each compiled and run headless; File > New Project shows them as a gallery of cards (`ide/workspace.inc`). The cards have icons, not thumbnails of their forms, and the `templates` flow (create → run on both hosts) isn't written. |
 | WEL-3 | partial | No setup dialogs; the theme follows the system (`ide_theme`). The "no network on first run" check doesn't exist. |
-| DES-1 | missing | RDESIGNSURFACE draws placeholders (`crates/rapidr-value/src/objects/design.rs`; L-DMODEL's results: "WYSIWYG is L-DVIEW's"). |
-| DES-2 | partial | Multi-select, 8 handles and nudging exist in the surface model (`objects/design.rs` on `rapidr_value::designer`; demo `examples/form_designer.bas`). In Studio nothing is connected: `DesignSelected` is empty (`ide/shell.inc`), the surface has no event handlers in `ide/documents.inc`, and `ScanForm` rebuilds it from a text scan (`DesignDoc(d).ClearAll`), so no change reaches the code. |
-| DES-3 | partial | Guides, snapping and the 300-component < 2 ms budget are done in the model (`rapidr_value::designer::snap`) and drawn by the surface while dragging. Not usable in Studio (DES-2). |
-| DES-4 | missing | The toolbox is a `QTREEVIEW` with no add handler (`ide/window.inc` `ToolboxTree`, `ide/panes.inc` `FillToolbox`). |
-| DES-5 | partial | `crates/rapidr-designer` `Document` does minimal patches, one text history and the corpus round trip (386 + 27 programs, 0 failures). Studio uses the `ScanForm` string scanner instead (`ide/documents.inc`, "PLUG POINT (L-SYNC)"), and RDESIGNSURFACE has no source-text API. |
-| DES-6 | missing | No double-click handling in Studio; `DesignSelected` is empty. |
-| DES-7 | partial | Pins and the resize preview exist in the surface; anchoring equals the runtime (40 / 40, `crates/rapidr-designer/tests/anchors.rs`). Not wired in Studio; no inspector editor. |
-| DES-8 | partial | `rapidr_value::designer::arrange` is done; the Format commands fall to "not there yet" (`ide/shell.inc` `RunCommand` `CASE ELSE`). |
-| DES-9 | partial | The model and text side reparent; the surface has no drop targets (L-DMODEL's "Left"). |
-| DES-10 | partial | `Document::undo` / `redo` restore bytes (property tests). `edit.undo` / `edit.redo` are "not there yet" in Studio. |
-| DES-11 | partial | `Designer` copy / cut / paste / duplicate exist; not in Studio. |
-| DES-12 | missing | No keyboard placement with announcements (L-DMODEL's "Left"). |
-| DES-13 | partial | `designer::arrange::set_tab_order` exists; the menu editor and both editors' UIs are missing. |
-| DES-14 | missing | No component tray. |
+| DES-1 | done | S-DESIGN: each component drawn by the kernel's own from a design-time store; `tools/visual/designer_wysiwyg.py` 8 / 8 pixel-identical (notepad, hello_form; light, dark; 1×, 2×). |
+| DES-2 | done | S-DESIGN: click, Shift / ⌘-click, rubber band, 8 handles, live readouts, nudges, Alt frees; every change the smallest edit (`studio_flows` `designer`). S-DESIGN-2: the handles and grips keep their size and reach at any zoom. |
+| DES-3 | done | Drawn while dragging (S-DESIGN); S-DESIGN-2's `Guides` property and the `designer-guides` flow / capture (a guide held on both hosts). The 300-component budget is the model's unit test (perf stage not yet). |
+| DES-4 | done | S-DESIGN / S-PANELS: the placing tool (click or draw), drag and drop with a 60 % ghost of the real component and a "not allowed" pointer elsewhere, Enter / double-click (`AddComponent`), Delphi names, typing writes the Caption; a drop settles in for 100 ms, easing out, none with reduced motion (S-DESIGN-2). Names unique in the whole program; RapidR's names written in a RapidR file. |
+| DES-5 | done | `Document::sync` edits as OnSourceEdit; code → designer at the analyzer's pause, and when the designer is shown; read-only banner on errors. S-DESIGN-2: one undo history with the code (DES-10). |
+| DES-6 | done | `CreateHandler` (S-DESIGN, S-PANELS' `create_handler`); the caret lands inside. |
+| DES-7 | done | Pins on the canvas and the form's edges / corner with the live preview (S-DESIGN); the model's 40 / 40 parity. |
+| DES-8 | done | The Format menu (`Arrange`), one undo step each. |
+| DES-9 | done | Dropping on a panel / group box / scroll box reparents, target highlighted (S-DESIGN). |
+| DES-10 | done | S-DESIGN-2: one history per file across the designer and the code editor (OnSourceStep / SharedUndo / OnUndo; Studio's interim history until RCODEEDITOR's ApplyPatches / Undo land) — `designer-undo-interleave`, `-undo-all` (exact bytes), `-redo`. |
+| DES-11 | done | Ctrl / ⌘ + C, X, V, D on the designer (CREATE text on the clipboard). |
+| DES-12 | done | Tab / Shift+Tab, Esc to the parent, arrows, Enter, the live region (`StatusText`) announcing each change (S-DESIGN); a keyboard-only five-minutes run is still to script. |
+| DES-13 | done | S-DESIGN-2: the menu editor on the form's own bar (Type Here, `&`, separators, submenus, ShortCut captured, Checked in the gutter, drag to reorder) as QMAINMENU / QMENUITEM CREATE blocks; the Tab-order editor (badges, click in order) writing TabOrder — `designer-menu`, `designer-taborder`. |
+| DES-14 | done | Non-visual components in a tray under the form (S-DESIGN); S-DESIGN-2: the program's own top-level dialogs (notepad's OpenDialog / SaveDialog) too, inspected and edited in their own blocks — `designer-tray`. Links between tray items aren't drawn yet. |
 | DES-15 | missing | There are no `RDATAFILE` / `RDATASOURCE` / `RDBGRID` in the registry (`crates/rapidr-lang/data`); RPLOT is drawn by the kernel (done: L-FRAME) but nothing is live at design time. |
 | DES-16 | missing | "Preview in classic" is approved and waits for L-THEME (ide-plan L-SHELL "Next"). |
 | INS-1 | partial | `Designer::inspect()` gives registry rows, values, `in_code` and `mixed` (L-DMODEL). Studio's Properties pane is a `QSTRINGGRID` listing the form's own CREATE assignments as text (`ide/panes.inc` `ShowProperties`, `ide/documents.inc` `ScanForm`). |
@@ -442,20 +442,20 @@ Lanes in flight (the designer, the panels / inspector, the code editor, the them
 | INS-6 | partial | `Designer::set_property(prop, None)` resets (model only). |
 | TBX-1 | partial | D8 icons and Q names are done, but the list is hard-coded (`ide/panes.inc` `FillToolbox`: about 34 components out of 97 + library ones). |
 | TBX-2 | missing | No search. |
-| TBX-3 | missing | See DES-4. |
+| TBX-3 | done | S-DESIGN-2: every component of the toolbox added to a RapidR and a RapidQ form and the program compiled on both backends (`rapidr-studio` `every_toolbox_component_can_be_added`); Enter / double-click at the first free place in reading order, never on another, fitted to the form; non-visual ones in the tray. |
 | TBX-4 | missing | No hover card. |
 | ED-1 | done | RCODEEDITOR is `rapidr-editor`'s Document in the kernel's own view (`components/codeeditor/`; the memo path deleted): undo / redo by word, multi-cursor, find / replace with regex, folding, pairs, auto-indent, the current line, schemes per theme. Flows `editor-undo`, `editor-find-regex`, `editor-find-next`, `editor-fold` (S-EDITOR, ide-plan.md "I2 / I3 / S-EDITOR results"). |
 | ED-2 | done | Tab / Shift+Tab indent and outdent by the file's unit, at a line's start and on a block; Tab accepts completion and walks snippet stops. The stray glyph's root cause (a TAB shaped by the font: `.notdef`) is fixed in the kernel's text layout for every memo too. Flows `editor-tab-*`, `editor-shift-tab-line-start`; capture `editor-tab`. |
 | ED-3 | done | Completion from `rapidr-langsvc` after `.` (components by R or Q name, arrays, TYPEs, WITH, CREATE bodies), `AS ` (the file's style: R names, Q names once one is being typed; a Q-style file keeps Q), identifiers and Ctrl+Space, fuzzy-ranked, docs beside the list, answered from the last analysis while typing; RAPIDQ.INC's constants offered with their `$INCLUDE` added in the same step. Flows `editor-completion`, `-fuzzy`, `-accept-and-case`, `-tab-accept`, `-ctrl-space`, `-complete-with-include`; `crates/rapidr-langsvc/tests/intellisense.rs`. |
 | ED-4 | done | Hover (the registry's syntax and doc: `SHOWMESSAGE text$`) and signature help with the active parameter. Flows `editor-hover`, `editor-signature`; captures. |
 | ED-5 | done | Squiggles in RapidQ's wording after the pause, the Problems panel in sync, Ctrl+. quick fixes; a RAPIDQ.INC constant used without the include: warning + "Add $INCLUDE". Flows `editor-diagnostic`, `editor-quick-fix`, `editor-needs-include(-problems)`; capture `editor-squiggle`. |
-| ED-6 | partial | F12 (in a form's code too — the designer toggle lost the key; another file: Studio opens it, OnNavigate; flow `editor-f12-in-a-form`), Shift+F12 (carets here, the places listed in Output), F2 rename (other files' edits through OnFileEdits). Missing: ⌃- (go back), ⌘-click; no flow across `$INCLUDE` files yet. |
+| ED-6 | partial | F12 (in a form's code too, on a name; off a name it toggles form / code — S-DESIGN-2; another file: Studio opens it, OnNavigate; flow `editor-f12-in-a-form`), Shift+F12 (carets here, the places listed in Output), F2 rename (other files' edits through OnFileEdits). Missing: ⌃- (go back), ⌘-click; no flow across `$INCLUDE` files yet. |
 | ED-7 | done | Keyword case as you type (Studio: upper, and the program's names as declared), from the registry key `KeywordCase` / `IdentifierCase`. Flow `editor-accept-and-case`. |
 | ED-8 | done | Snippets with tab stops from the language definition. Flow `editor-snippet`. |
 | ED-9 | partial | AccessKit text runs (character, word, line), the web mirror's window of lines, IME through the kernel's preedit paths. Not yet done by hand: VoiceOver / NVDA passes, CJK IME on each host. |
 | PRJ-1 | partial | Files with icons and double-click to open (`ide/project.inc` `FillProjectTree`, `ProjectTreeOpen`). Forms don't expand to components; no dirty marks in the tree. |
 | PRJ-5 | missing | The old web IDE had an assets manager (its suites: §7); Studio has none. |
-| PRJ-2 | partial | Add File works (`AddFileToProject`); `project.addForm` / `addModule` are "not there yet"; no rename or delete. |
+| PRJ-2 | partial | S-DESIGN-2: Project > Add Form / Add Module work end to end — named in the tree, written in the program's names (`CREATE Form2 AS RForm`), added to the `.rrproj`, `$INCLUDE`d by the main file (one undo step in its editor), opened on the designer; the program runs with both forms on every runtime (`add-form` flow, `tests/studio_add_form.mjs`). Rename (F2) renames the file and the main file's `$INCLUDE` follows; taking a file out of the project (Delete, asked) takes its `$INCLUDE` out too (`rename-form`, `remove-form`). New files are `.bas` in a RapidQ program. |
 | RUN-1 | partial | F5 saves and runs in its own process or a sandboxed frame; output goes to Output (`ide/project.inc` `StartProgram`; `tests/studio_flows.mjs` `run-console`). Output is a QRICHEDIT with no ANSI colours; there is no ⌘R. |
 | RUN-2 | missing | No "Run in Browser" from desktop Studio. |
 | RUN-3 | partial | Errors block the run and focus Problems (`StartProgram`); no jump to the first error. |

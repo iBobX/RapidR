@@ -18,7 +18,7 @@ properties = [
   { name = "Color", type = "color" },
   { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
   { name = "Enabled", type = "bool", default = true },
-  { name = "Font", type = "font", access = "write", design = false },
+  { name = "Font", type = "font", access = "write", design = true },
   { name = "FullScreen", type = "bool", default = false },
   { name = "Height", type = "int" },
   { name = "Hint", type = "string" },

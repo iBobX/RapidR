@@ -439,19 +439,35 @@ impl Analysis {
         if let Some(s) = self.snapshots.get(file) {
             return Some(s.clone());
         }
-        if is_inc(file) {
-            let mut roots: Vec<PathBuf> = self.docs.keys().filter(|p| p.as_path() != file && !is_inc(p)).cloned().collect();
-            roots.sort();
-            for root in roots {
-                if let Some(s) = self.root_snapshot(&root) {
-                    if s.parsed.file_key(file).is_some() {
-                        self.snapshots.insert(file.to_path_buf(), s.clone());
-                        return Some(s);
-                    }
+        if let Some((_, s)) = self.includer(file) {
+            self.snapshots.insert(file.to_path_buf(), s.clone());
+            return Some(s);
+        }
+        self.root_snapshot(file)
+    }
+
+    /// The open program that `$INCLUDE`s `file`, with its analysis: an
+    /// `.inc`, or a form or module of several files (RapidR Studio's Add
+    /// Form: `Form2.rr`, which main.rr includes) — its names (Form1, the
+    /// main file's SUBs) are the program's there. Only programs whose text
+    /// names the file are analysed for it.
+    fn includer(&mut self, file: &Path) -> Option<(PathBuf, Arc<Snapshot>)> {
+        let name = file.file_name()?.to_string_lossy().to_ascii_lowercase();
+        let mut roots: Vec<PathBuf> = self
+            .docs
+            .iter()
+            .filter(|(p, t)| p.as_path() != file && !is_inc(p) && (is_inc(file) || t.to_ascii_lowercase().contains(&name)))
+            .map(|(p, _)| p.clone())
+            .collect();
+        roots.sort();
+        for root in roots {
+            if let Some(s) = self.root_snapshot(&root) {
+                if s.parsed.file_key(file).is_some() {
+                    return Some((root, s));
                 }
             }
         }
-        self.root_snapshot(file)
+        None
     }
 
     fn root_snapshot(&mut self, root: &Path) -> Option<Arc<Snapshot>> {
@@ -477,8 +493,19 @@ impl Analysis {
         if let Some(d) = self.diagnostics.get(file) {
             return d.clone();
         }
-        let Some(s) = self.root_snapshot(file) else { return Vec::new() };
+        // (a form or module the open program includes: what the program's
+        // analysis says of it — its names are the program's)
+        let (s, only) = match self.includer(file).filter(|_| !is_inc(file)) {
+            Some((_, s)) => (s, true),
+            None => match self.root_snapshot(file) {
+                Some(s) => (s, false),
+                None => return Vec::new(),
+            },
+        };
         let mut out = diagnostics::compile(&s.parsed);
+        if only {
+            out.retain(|d| d.file == file);
+        }
         let compiler = out.clone();
         // (where the compiler speaks, it's said)
         out.extend(compat::check(&s, file, self.options.rapidq_compatible).into_iter().filter(|c| {

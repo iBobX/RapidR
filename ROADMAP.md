@@ -465,12 +465,13 @@ The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate wind
 - [ ] `rapidr lsp`; the VS Code extension an LSP client (its regex providers deleted)
 
 **I4 — Visual designer** (L, 16–22 sessions)
-- [ ] RFormDesigner: real components drawn WYSIWYG, multi-select, rubber band, eight handles, keyboard nudging / resizing; RDESIGNSURFACE's API on the same model
-- [ ] Grid snapping and smart guides: edges, centres, baselines, parent centring, margins, equal spacing with distances
-- [ ] Align / distribute / same size / z-order; anchors and constraints editor; containers and reparenting
-- [ ] RComponentTray, RTabOrderEditor, RMenuEditor; double-click → event handler
-- [ ] Two-way CREATE-block sync with minimal text edits, one undo history with the editor, user code byte-identical; new components written in the file's own style (RapidR's names, or RapidQ's in a RapidQ-style file: R-NAMES), existing names kept
-- [ ] The corpus round trip: every form of the 386 RapidQ examples and `examples/` opens and saves byte-identically
+- [x] RFormDesigner: real components drawn WYSIWYG, multi-select, rubber band, eight handles, keyboard nudging / resizing; RDESIGNSURFACE's API on the same model (S-DESIGN, S-DESIGN-2: zoom, the form on its scrolling canvas)
+- [x] Grid snapping and smart guides: edges, centres, baselines, parent centring, margins, equal spacing with distances
+- [x] Align / distribute / same size / z-order; anchors and constraints editor; containers and reparenting
+- [x] RComponentTray, RTabOrderEditor, RMenuEditor; double-click → event handler (S-DESIGN-2: the tray with the program's own dialogs, the menu and Tab-order editors on the form)
+- [x] Two-way CREATE-block sync with minimal text edits, one undo history with the editor, user code byte-identical; each file in its own names — RapidR's (RButton) in a RapidR file, RapidQ's (QBUTTON) in a RapidQ one, never mixed (Robert, 2026-10-08) — existing names kept
+- [x] The corpus round trip: every form of the 386 RapidQ examples and `examples/` opens and saves byte-identically (`crates/rapidr-designer/tests/corpus.rs`)
+- [x] New forms end to end: Project > Add Form / Add Module (the file in the program's names, `$INCLUDE`d by the main file, opened on its designer), names unique across the program, every toolbox component addable, the inspector's typed editors (font by its parts) writing code that runs; desktop and web (`tests/studio_add_form.mjs`, S-DESIGN-2)
 
 **I5 — Live** (M, 8–12 sessions; after the first release)
 - [ ] Remote forms: the program's forms as MDI windows in the workspace (display lists + accessibility trees through the session), "inspect element"

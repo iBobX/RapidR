@@ -2082,6 +2082,8 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `Visible` | int |  | Whether the control or form is shown. |
 | `FormCaption` | string |  | The caption of the form being designed. |
 | `Theme` | string |  | The look the designed form is drawn in (any name `$THEME` takes; "": the surface's own): `classic` shows it as RapidQ drew it. |
+| `FormType` (read-only) | string |  | The designed form's type as its CREATE writes it (`RForm`, `QFORMMDI` …); "" when there is no form. |
+| `ReservedNames` | string |  | Names the program's other files give their components, separated by commas: a component or form added here is never named one of them (a RapidQ program's component names are global — Form1's Button1 and Form2's would clash). |
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `Count` | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
 | `SelCount` (read-only) | int |  | How many components are selected (Shift / Ctrl+click, a rubber band). |
@@ -2100,7 +2102,12 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `CanUndo` (read-only) | int |  | Whether Undo has a change to undo. |
 | `CanRedo` (read-only) | int |  | Whether Redo has a change to do again. |
 | `StatusText` (read-only) | string |  | What the last change did, in words: what a screen reader is told ("Button1 (RButton), 16, 24, 75 × 25"). |
+| `Guides` (read-only) | string |  | The smart guides showing while a component is dragged, in words: each one's kind (edge, centre, baseline, margin, spacing N), its axis (x for a vertical line, y for a horizontal one) and where it is, comma-separated ("edge x 112, baseline y 30"); empty when none show. |
 | `HandlerLine` (read-only) | int |  | The line (from 0) of the SUB the last CreateHandler gave: where the code editor's caret goes. |
+| `Zoom` | int | 100 | How large the designed form shows, in percent (25 to 400): drawn at the screen's resolution, so as crisp as at 100, while every position stays in the program's pixels. Ctrl (⌘) with + , − and 0 on the designer, Ctrl with the mouse wheel, and a trackpad's pinch change it. |
+| `TabOrderMode` | bool | False | The Tab-order editor: every component that takes the focus shows its place in the Tab order (2.1: the second inside the third), and clicking components in the order wanted renumbers them, each click written as TabOrder in the code (one undo step). Escape turns it off. |
+| `SharedUndo` | bool | False | The file's undo history is kept elsewhere (the code editor's): Undo and Redo on the designer — its methods, Ctrl+Z, Ctrl+Y — fire OnUndo instead of undoing, and the program undoes there and sets Source again. OnSourceStep then says how each change's OnSourceEdits group into steps. |
+| `Editing` (read-only) | int |  | Whether a caption is being edited in place (EditCaption, F2, a slow click, the menu editor's Type Here). |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -2111,6 +2118,8 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 
 | Method | |
 |---|---|
+| `SetFocus` | Gives the surface the keyboard focus (its keys: arrows, Delete, Ctrl+Z …). |
+| `AddMdiChild AS STRING` | A child window for the designed RFormMDI, RapidQ's way (QFORMMDI's children are components it shows in child windows): a panel on the MDI form named as a form (Form2), and `Main.AddChild(Form2.Handle, "Form2", 0, 0, 0, 0, 0, 1)` written after the form, one undo step. Its name; "" when the form isn't an MDI main window. |
 | `AddComponent(Type AS STRING, X AS INTEGER, Y AS INTEGER)` | Adds a new component of Type at (X, Y) of the form's inside, into the panel, group box or scroll box there, at its default size, named as Delphi names them (Button1, Button2 …) and written into Source as a CREATE block. X and Y of -1 put it at a free spot in the selected container (Enter on a toolbox item). Returns its index, or -1 when it can't go there. (AddComponent(Type, Name, X, Y, W, H), the older form, adds to a designer without a source.) |
 | `DragComponent(Type AS STRING)` | Starts dragging a new component of Type in from elsewhere, from a toolbox's mouse-down: while the button stays down, any design surface the mouse moves over shows where it would go, and letting go there adds it (as AddComponent). Letting go anywhere else does nothing. |
 | `SelectName(Name AS STRING) AS INTEGER` | Selects the component called Name; True if there is one. |
@@ -2122,6 +2131,11 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `Duplicate AS INTEGER` | Copies the selected components beside themselves, one grid step away. |
 | `Arrange(How AS STRING) AS INTEGER` | The Format menu on the selection, one undo step: "left", "center", "right", "top", "middle", "bottom" (to the first selected), "samewidth", "sameheight", "samesize", "spaceh", "spacev" (equal gaps), "centerh", "centerv" (in the parent), "front", "back". |
 | `ResizeForm(Width AS INTEGER, Height AS INTEGER) AS INTEGER` | Gives the designed form this Width and Height, as dragging its edge does: the size written into its CREATE block, and the components its Anchors move written where they go. |
+| `ZoomStep(Direction AS INTEGER) AS INTEGER` | Zooms in (Direction 1) or out (-1) by one step (25, 33, 50, 67, 75, 90, 100, 110, 125, 150, 175, 200, 250, 300, 400 %), or back to 100 % (0). |
+| `ZoomToFit AS INTEGER` | Zooms so the whole form shows in the designer (never above 100 %). |
+| `EditMenu AS INTEGER` | The menu editor: selects the form's main menu — adding a QMAINMENU when it has none — so its bar shows Type Here, where a click (or typing) adds an item in place. |
+| `EditCaption AS INTEGER` | Edits the selected component's Caption (or Text) in place, over the component — F2 or a second, slower click on it does the same (a double click makes its event handler). Enter writes it into the code (one undo step), Escape leaves it. On a menu item the editor has a second field, its ShortCut (Tab goes there; the keys pressed there are the shortcut). True if the selection has a caption to edit. |
+| `AddForm(Name AS STRING) AS STRING` | Adds a form to a file that has none (or another one): CREATE Name AS QFORM with a Caption and RapidQ's starting size, and the line that shows it (Name.ShowModal), written at the end of the code as one undo step; the designer then designs it. Name "" takes Form1, Form2 … whichever the file doesn't use. Returns the form's name ("": it couldn't be added). |
 | `CreateHandler(Name AS STRING, Event AS STRING) AS STRING` | The SUB handling component Name's Event ("": its default event): the one its CREATE block names, else a new one written with the event's parameters and wired (one undo step). Returns the SUB's name; HandlerLine says where it is. |
 | `RemoveComponent` | Removes the component at the index given from the design surface. |
 | `ClearAll` | Removes every component from the design surface. |
@@ -2151,6 +2165,8 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `OnBgClick(X AS INTEGER, Y AS INTEGER)` | Fires when the user presses the design surface's empty background (X, Y: where); nothing is selected afterwards. |
 | `OnSourceEdit(StartLine AS INTEGER, StartCol AS INTEGER, EndLine AS INTEGER, EndCol AS INTEGER, Text AS STRING)` | The designer changed Source: the text from (StartLine, StartCol) to (EndLine, EndCol) is replaced by Text (lines and columns from 0, columns in characters). One change's edits come in order, each in the text as the ones before left it: applied to the code editor in turn, it holds Source again. |
 | `OnChange` | The designed form changed (after its OnSourceEdit events). |
+| `OnSourceStep(Continues AS INTEGER)` | A change's OnSourceEdit events follow: one step of the file's undo history, or — Continues True — part of the step before (a caption typed right after adding the component). A code editor that keeps the history groups them so. |
+| `OnUndo(Redo AS INTEGER)` | With SharedUndo, Undo (Redo False) or Redo (True) was asked on the designer: undo it in the editor that keeps the file's history, then set Source again. |
 
 <a id="rdigdisplay"></a>
 ## RDigDisplay <small>(RapidQ name: QDIGDISPLAY)</small>
@@ -4896,6 +4912,7 @@ A project's files as a tree (an .rrproj project, or a .bas / .rr file and the fi
 | `Refresh` | Reads the project's files again (forms' components included). |
 | `LoadText(Text AS STRING, Path AS STRING) AS INTEGER` | Shows a project from its file's text (where there are no files to read: the web). Path is its file's name. True when it was read. |
 | `SetFileText(Path AS STRING, Text AS STRING)` | Gives a file's text (what the editor has, or a file the web can't read), so a form's components are listed from it. |
+| `ComponentNames(ExceptPath AS STRING) AS STRING` | The names the CREATE blocks of the project's other files make (at any depth), separated by commas: what a designer of ExceptPath must not name a new component (RDESIGNSURFACE.ReservedNames) — a RapidQ program's component names are global. |
 | `File(Index AS INTEGER) AS STRING` | File Index's path (from 0), in the project's order. |
 | `FileKind(Path AS STRING) AS STRING` | A file's kind: "module", "form", "include", "resource", "asset" or "data". |
 | `AddFile(Path AS STRING, [Kind AS STRING]) AS INTEGER` | Adds a file to the project (its kind from its extension when Kind is left out). True when it was added. |
@@ -5060,6 +5077,10 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `Find(Pattern AS STRING, Options AS STRING, Text AS STRING) AS STRING` | Find in Files: every match of Pattern in Text, a line each: line, column (both from 1), length, the line's text, separated by tabs. Options: any of "case" (match case), "word" (whole words), "regex" (Pattern is a regular expression), separated by commas. "" with Error set when the pattern is not a valid regular expression. |
 | `Replace(Pattern AS STRING, Options AS STRING, Text AS STRING, With AS STRING) AS STRING` | Text with every match of Pattern (Find's Options) replaced by With; in a regular expression's replacement $1 or ${name} stand for its groups. |
 | `FileText(Path AS STRING) AS STRING` | A file's text (UTF-8, or a byte a character as RapidQ wrote it), from the disk on the desktop and the page's store on the web; Error says why when it can't be read. |
+| `NewFileText(Path AS STRING, Kind AS STRING, MainText AS STRING) AS STRING` | The text a new project file starts with (Project > Add Form / Add Module): for Kind "form" a form named as the file (`CREATE Form2 AS RForm`; "formmdi": an MDI main window, `RFormMDI`; or QFORM when MainText — the main program — is written with RapidQ's names or the project is RapidQ-compatible) with its Caption and size; for "module" a comment naming it; "" for other kinds. Line ends as MainText's. |
+| `IncludeRenameEdit(MainText AS STRING, OldPath AS STRING, NewPath AS STRING) AS STRING` | The main program's `$INCLUDE` of project file OldPath changed to name NewPath (the file renamed or moved), as one RCODEEDITOR.ApplyPatches line: only the path is replaced; "" when MainText doesn't include it. |
+| `IncludeRemoveEdit(MainText AS STRING, Path AS STRING) AS STRING` | The main program's `$INCLUDE` line of project file Path taken out (the file taken out of the project), as one RCODEEDITOR.ApplyPatches line; "" when MainText doesn't include it. |
+| `IncludeEdit(MainText AS STRING, Path AS STRING) AS STRING` | The `$INCLUDE` the main program (its text: MainText) needs for project file Path, as one RCODEEDITOR.ApplyPatches line (after its last $INCLUDE, else after its opening directives, else before its first statement; the path relative to the main file's folder); "" when it includes it already. |
 
 | Event | |
 |---|---|

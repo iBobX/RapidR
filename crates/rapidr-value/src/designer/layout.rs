@@ -194,7 +194,7 @@ impl Layout {
     /// lays out as they do ([`engine::after_set`]).
     fn set(&mut self, key: &str, prop: &str, v: i64) {
         let Some(c) = self.comps.get(key) else { return };
-        let is_form = c.ty == "RFORM";
+        let is_form = super::model::is_form_type(&c.ty);
         match prop {
             "clientwidth" | "clientheight" => {
                 if is_form {
@@ -347,7 +347,7 @@ impl Layout {
     /// A scrolling container's area (as runtime-core's `scroll::area`).
     fn area(&self, key: &str) -> (i64, i64) {
         let Some(c) = self.comps.get(key) else { return (0, 0) };
-        if c.ty == "RFORM" {
+        if super::model::is_form_type(&c.ty) {
             return self.form_area(key);
         }
         let b = if c.ty == "RSCROLLBOX" && c.border_style.unwrap_or(2) != 0 { 2 } else { 0 };

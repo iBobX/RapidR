@@ -13,6 +13,7 @@ where something isn't done yet, it says so.
 |---|---|
 | [Getting started](getting-started.md) | Install, your first console and GUI programs, running, building executables, the web |
 | [The language](language.md) | Program structure, types, variables, arrays, operators, control flow, SUBs and FUNCTIONs, TYPEs and objects, the preprocessor, files, the console — and where RapidQ-compatible BASIC differs from other BASICs |
+| [Designing forms in RapidR Studio](designing-forms.md) | A tutorial (a program of two forms, step by step), the toolbox, moving and aligning, the inspector and events, the menu and Tab-order editors, programs of several forms, the code the designer writes |
 | [Components and objects](components.md) | `CREATE`, properties, methods and events; RapidR's names and RapidQ's names; the global objects; themes, high-DPI and accessibility |
 | [The CLI and the RapidR Runtime](cli-and-runtime.md) | Every `rapidr` command, the kinds of builds, the Runtime, file types, `rapidr setup`, environment variables, the notices builds carry |
 | [Debugging in RapidR Studio](debugging.md) | Running and stopping, breakpoints (conditions, hit counts, log messages), stepping, Pause, Variables, Watch, the Call Stack, values under the mouse, Immediate, run-time errors, the desktop and the browser |

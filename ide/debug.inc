@@ -507,6 +507,22 @@ END SUB
 
 ' ---- running ------------------------------------------------------------------------------------
 
+' The whole program's errors (its main file's analysis, with the files it
+' includes), Problems showing them when there are any (S-DESIGN-2).
+FUNCTION ProgramErrors AS INTEGER
+  DIM dm AS INTEGER, d AS INTEGER
+  dm = DocOf(ProjectMain)
+  IF dm >= 0 THEN Lang.Update ProjectMain, CodeDoc(dm).Text
+  ' (the editors' popups go: the program comes up over them)
+  FOR d = 0 TO DocCount - 1
+    IF DocOpen(d) THEN CodeDoc(d).HidePopups
+  NEXT
+  FillProblemsOf ProjectMain
+  Result = Lang.ErrorCount
+  ' (no errors: Problems back to the file shown)
+  IF Result = 0 THEN FillProblems ActiveCode
+END FUNCTION
+
 SUB StartProgram(WithDebugger AS INTEGER)
   IF ProjectOpen = 0 OR RunState = "running" OR RunState = "paused" THEN EXIT SUB
   ' (F5 to the first form: docs/studio-wow.md PERF-8)
@@ -515,7 +531,9 @@ SUB StartProgram(WithDebugger AS INTEGER)
   ' (VB's way: what is being run is saved first)
   SaveAll
   AnalyzeActive
-  IF Lang.ErrorCount > 0 THEN
+  ' (the program is its main file and what that includes: their errors
+  ' stop it, whichever file is shown — Problems lists them: S-DESIGN-2)
+  IF ProgramErrors > 0 THEN
     SetState "error", "Can't run: " + Num(Lang.ErrorCount) + " errors. The first is selected."
     OutputBox.Page = "problems"
     Dock.ShowPane("outputbox")
@@ -603,7 +621,9 @@ SUB RunInBrowser
   IF ProjectOpen = 0 THEN EXIT SUB
   SaveAll
   AnalyzeActive
-  IF Lang.ErrorCount > 0 THEN
+  ' (the program is its main file and what that includes: their errors
+  ' stop it, whichever file is shown — Problems lists them: S-DESIGN-2)
+  IF ProgramErrors > 0 THEN
     SetState "error", "Can't run: " + Num(Lang.ErrorCount) + " errors. The first is selected."
     GoToFirstProblem
     EXIT SUB

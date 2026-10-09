@@ -29,11 +29,12 @@ const HOSTS = (process.env.STUDIO_FLOWS_HOSTS || "desktop,web").split(",");
 const SAVE_FILES = ["tests/fixtures/studio_save/main.rr", "tests/fixtures/studio_save/other.inc"];
 
 // (I4) The designer's steps on notepad.bas: the placing tool's click, the
-// form's right edge dragged, Button1 dragged.
+// form's right edge dragged, Button1 dragged (the form sits 24 px in on the
+// surface's backdrop).
 const DESIGN_STEPS = [
-  "__mousedown_100_120", "__mouseup_100_120",
-  "__mousedown_491_250", "__mousemove_521_250", "__mousemove_551_250", "__mouseup_551_250",
-  "__mousedown_110_130", "__mousemove_130_150", "__mousemove_150_170", "__mouseup_150_170",
+  "__mousedown_112_132", "__mouseup_112_132",
+  "__mousedown_503_262", "__mousemove_533_262", "__mousemove_563_262", "__mouseup_563_262",
+  "__mousedown_122_142", "__mousemove_142_162", "__mousemove_162_182", "__mouseup_162_182",
 ].map((e) => `designdoc(0).${e}`).join(",");
 
 // (the web) The running program's windows float over the whole page, as
@@ -163,6 +164,28 @@ async function studioModal(page, scale, record) {
   if (!inDialog) record("", (await hitPage(page, beside[0], beside[1])) === "program", "the program's window is still over Studio's window");
   await page.screenshot({ path: join(WORK, `studio-modal-over-program@${scale}x.png`) });
 }
+
+// (S-DESIGN-2) Keys pressed on the designer: "Ab&" is Shift+A, B, Shift+7
+// (a US keyboard, as the hosts' test hooks type them); {Enter} and the
+// like by name.
+const KEYS = { Enter: "13", Escape: "27", Tab: "9", F2: "113", "Ctrl+O": "79_16", "Ctrl+=": "187_16", "Ctrl+-": "189_16", "Ctrl+0": "48_16" };
+function typed(text) {
+  const out = [];
+  for (const m of text.matchAll(/\{([^}]+)\}|(.)/g)) {
+    if (m[1]) { out.push(KEYS[m[1]]); continue; }
+    const c = m[2];
+    if (/[a-z]/.test(c)) out.push(String(c.toUpperCase().charCodeAt(0)));
+    else if (/[A-Z]/.test(c)) out.push(`${c.charCodeAt(0)}_256`);
+    else if (/[0-9 ]/.test(c)) out.push(String(c.charCodeAt(0)));
+    else if (")!@#$%^&*(".includes(c)) out.push(`${48 + ")!@#$%^&*(".indexOf(c)}_256`);
+    else out.push({ "-": "189", ".": "190" }[c]);
+  }
+  return out.map((k) => `designdoc(0).__key_${k}`).join(",");
+}
+// (the mouse on the designed form: its client area's (x, y), the form's
+// frame 24 px in, its title bar 29 px, a menu bar 28 px)
+const at = (x, y, menu = 0) => `${x + 25}_${y + 54 + menu}`;
+const click = (x, y, menu = 0) => `designdoc(0).__mousedown_${at(x, y, menu)},designdoc(0).__mouseup_${at(x, y, menu)}`;
 
 // Each case: what Studio opens and does (`do`: its commands; `events`:
 // RAPIDR_TEST_EVENTS, input through the kernel), how long it waits before
@@ -471,6 +494,22 @@ const CASES = [
       "inspector.rows": /^Default=True$[\s\S]*^Width=75$/m,
     },
   },
+  // (S-DESIGN-2) Each kind of the inspector's editors writes the code a
+  // program needs: a font by its parts (Font.Name quoted, Size, Color,
+  // Bold as 1), an enum, a colour and a Boolean — the RapidQ constants a
+  // program without RAPIDQ.INC doesn't define as their numbers (they'd
+  // read as nothing), a caption with its & — and the inspector reads them
+  // back.
+  {
+    name: "inspector-kinds",
+    open: "examples/gui/hello_form.rr",
+    do: "wait,view.designer,pick:Answer,prop:Font.Bold=True,prop:Font.Size=12,prop:Font.Color=clBlue,prop:Font.Name=Arial,prop:Alignment=taCenter,prop:Color=clYellow,prop:Caption=Say hi && bye,prop:WordWrap=True,wait",
+    delay: 6,
+    dump: {
+      "codedoc(0).text": /    CREATE Answer AS QLABEL\n        Caption = "Say hi && bye"\n        Left = 16: Top = 96: Width = 300\n        Font\.Bold = 1\n        Font\.Size = 12\n        Font\.Color = &HFF0000\n        Font\.Name = "Arial"\n        Alignment = 2\n        Color = &H00FFFF\n        WordWrap = 1\n    END CREATE/,
+      "inspector.rows": /^Alignment=taCenter$[\s\S]*^Caption=Say hi && bye$[\s\S]*^Color=(clYellow|&H00FFFF)$[\s\S]*^WordWrap=True$[\s\S]*^Font=Arial, 12 pt, Bold$/m,
+    },
+  },
   // (S-PANELS) The toolbox: Enter on QCHECKBOX adds one to the form (its
   // CREATE block in the code), selected in the inspector.
   // (R-NAMES) The toolbox shows RapidR's names and gives RButton's kind of
@@ -522,6 +561,220 @@ const CASES = [
       "codedoc(1).text": /^# RapidQ import: greeter\.rqw[\s\S]*\| `greeter\.rqw` \| yes: identical bytecode \|[\s\S]*`QBUTTON` → `RButton`/,
       "lang.errorcount": /^0$/,
     },
+  },
+  // (S-DESIGN-2) The menu editor, on the form's own menu bar: Format >
+  // Menu Editor gives hello_form a QMAINMENU; typing on its Type Here makes
+  // File (its & mnemonic), Enter goes into its menu: Open… with Ctrl+O typed
+  // in the ShortCut field (Tab), a separator, Exit — each item a QMENUITEM
+  // CREATE block, one undo step.
+  {
+    name: "designer-menu",
+    open: "examples/gui/hello_form.rr",
+    do: "wait,view.designer,designer.menuEditor",
+    events: typed("&File{Enter}&Open...{Tab}{Ctrl+O}{Enter}-{Enter}E&xit{Enter}{Escape}"),
+    delay: 4,
+    dump: {
+      "codedoc(0).text": /    CREATE MainMenu1 AS QMAINMENU\n        CREATE File1 AS QMENUITEM\n            Caption = "&File"\n            CREATE Open1 AS QMENUITEM\n                Caption = "&Open\.\.\."\n                ShortCut = "Ctrl\+O"\n            END CREATE\n            CREATE N1 AS QMENUITEM\n                Caption = "-"\n            END CREATE\n            CREATE Exit1 AS QMENUITEM\n                Caption = "E&xit"\n            END CREATE\n        END CREATE\n    END CREATE\n/,
+    },
+  },
+  // (S-DESIGN-2) The Tab-order editor: GreetButton clicked first, then
+  // NameEdit — only GreetButton's TabOrder written (TabOrder = 0 puts it
+  // first, the others after it in their order, as RapidQ's TabOrder does).
+  {
+    name: "designer-taborder",
+    open: "examples/gui/hello_form.rr",
+    do: "wait,view.designer,designer.tabOrder",
+    events: `${click(150, 60)},${click(150, 22)}`,
+    delay: 4,
+    dump: {
+      "designdoc(0).tabordermode": /^(-1|1|True)$/i,
+      "designdoc(0).statustext": /^NameEdit: Tab order 1$/,
+      "codedoc(0).text": /    CREATE NameEdit AS QEDIT\n        Text = "World"\n        Left = 112: Top = 16: Width = 200\n        OnChange = NameChanged\n    END CREATE\n    CREATE GreetButton AS QBUTTON\n[\s\S]*        OnClick = Greet\n        TabOrder = 0\n    END CREATE/,
+    },
+  },
+  // (S-DESIGN-2) A caption edited in place: GreetButton clicked, then
+  // clicked again (a slow click) — its caption typed over, Enter writes it.
+  {
+    name: "designer-caption",
+    open: "examples/gui/hello_form.rr",
+    do: "wait,view.designer",
+    events: `${click(150, 60)},${click(150, 60)},${typed("Say &hi{Enter}")}`,
+    delay: 4,
+    dump: { "designdoc(0).editing": /^(0|False)$/i, "codedoc(0).text": /    CREATE GreetButton AS QBUTTON\n        Caption = "Say &hi"\n/ },
+  },
+  // (S-DESIGN-2) Smart guides while dragging: Answer held and moved a
+  // little — its left edge lines up with NameLabel's (the capture shows the
+  // guide; the button isn't let go).
+  {
+    name: "designer-guides",
+    open: "examples/gui/hello_form.rr",
+    do: "wait,view.designer",
+    events: [`__mousedown_${at(100, 100)}`, `__mousemove_${at(104, 104)}`, `__mousemove_${at(103, 106)}`].map((e) => `designdoc(0).${e}`).join(","),
+    delay: 4,
+    dump: { "designdoc(0).guides": /^(edge|centre|baseline|margin|spacing \d+) [xy] -?\d+/ },
+  },
+  // (S-DESIGN-2) Zoom: View > Zoom In twice, then Ctrl+− and Ctrl+= on the
+  // designer (110 %, 125 %, 110 %, 125 %).
+  {
+    name: "designer-zoom",
+    open: "examples/rapidq/notepad.bas",
+    do: "wait,view.designer,designer.zoomIn,designer.zoomIn",
+    events: typed("{Ctrl+-}{Ctrl+=}"),
+    delay: 4,
+    dump: { "designdoc(0).zoom": /^125$/, "designdoc(0).statustext": /^Zoom 125 %$/ },
+  },
+  // (S-DESIGN-2) notepad.bas makes its OpenDialog and SaveDialog outside
+  // the form: they show in its tray, and selecting one inspects it.
+  {
+    name: "designer-tray",
+    open: "examples/rapidq/notepad.bas",
+    do: "wait,view.designer,pick:SaveDialog,wait",
+    delay: 4,
+    dump: { "inspector.target": /^SaveDialog$/, "designdoc(0).statustext": /SaveDialog \(QSAVEDIALOG\)/ },
+  },
+  // (S-DESIGN-2) A console program has no form: Project > Add Form gives it
+  // one (its CREATE block and ShowModal at the end), designed at once.
+  {
+    name: "designer-addform",
+    open: "examples/basics/hello.rr",
+    do: "wait,view.designer,project.addForm,designer.add.QBUTTON",
+    delay: 4,
+    dump: {
+      "designdoc(0).formname": /^Form1$/,
+      "codedoc(0).text": /\nCREATE Form1 AS RForm\n    Caption = "Form1"\n    Width = 320\n    Height = 240\n    CREATE Button1 AS RButton\n[\s\S]*END CREATE\n\nForm1\.ShowModal\n?$/,
+    },
+  },
+  // (S-DESIGN-2) One undo history for the file: a designer change, a
+  // change typed in the code, another designer change; Undo (from the
+  // code) takes back only the last, in the order they were made.
+  {
+    name: "designer-undo-interleave",
+    open: "examples/gui/pantry.rr",
+    do: 'wait,view.designer,pick:AddBtn,prop:Width=120,code:"&Add to shelf"=>"Store it",wait,wait,wait,view.designer,pick:AddBtn,prop:Left=320,wait,view.code,edit.undo,wait',
+    delay: 7,
+    dump: { "codedoc(0).text": /    CREATE AddBtn AS QBUTTON\n        Caption = "Store it": Left = 314: Top = 252: Width = 120\n/ },
+  },
+  // (S-DESIGN-2) …and three Undos: the file's exact text; Redo twice: the
+  // designer's Width and the typed Caption back, in order.
+  {
+    name: "designer-undo-all",
+    open: "examples/gui/pantry.rr",
+    do: 'wait,view.designer,pick:AddBtn,prop:Width=120,code:"&Add to shelf"=>"Store it",wait,wait,wait,view.designer,pick:AddBtn,prop:Left=320,wait,edit.undo,edit.undo,edit.undo,wait',
+    delay: 8,
+    dump: { "codedoc(0).text": /CREATE AddBtn AS QBUTTON/ },
+    same: { "codedoc(0).text": "examples/gui/pantry.rr" },
+  },
+  {
+    name: "designer-redo",
+    open: "examples/gui/pantry.rr",
+    do: 'wait,view.designer,pick:AddBtn,prop:Width=120,code:"&Add to shelf"=>"Store it",wait,wait,wait,view.designer,edit.undo,edit.undo,edit.redo,edit.redo,wait',
+    delay: 8,
+    dump: { "codedoc(0).text": /    CREATE AddBtn AS QBUTTON\n        Caption = "Store it": Left = 314: Top = 252: Width = 120\n/ },
+  },
+  // (S-DESIGN-2, Robert: "keep going until I can add new forms") A new
+  // form program; Project > Add Form (Form2.rr, named in the project tree:
+  // Enter) — the main file includes it, it opens on its designer; an
+  // RLabel, an REdit and an RButton dropped on it with their captions, the
+  // button's OnClick written (it closes Form2); Form1 gets a button whose
+  // OnClick shows Form2. Saved: the program's two files, RapidR's names, no
+  // errors (tests/studio_add_form.mjs runs what was made).
+  {
+    name: "add-form",
+    open: "",
+    do: [
+      "newproject:gui|{dir}|Multi", "wait", "wait",
+      "project.addForm", "wait", "key:Enter", "wait", "wait", "wait",
+      "tool:RLABEL", "prop:Caption=Hello from Form2",
+      "tool:REDIT", "prop:Text=Type here",
+      "tool:RBUTTON", "prop:Caption=Close", "event:OnClick", "wait", "type:Form2.Close",
+      "open:main.rr", "wait", "view.designer", "wait",
+      "tool:RBUTTON", "prop:Caption=Show Form2", "event:OnClick", "wait", "type:Form2.Show",
+      "file.saveAll", "wait", "wait", "wait",
+    ].join(","),
+    delay: 12,
+    dump: {
+      "codedoc(0).text": /^\$APPTYPE GUI\n\$INCLUDE "Form2\.rr"\n[\s\S]*SUB Button2Click\n    Form2\.Show\nEND SUB[\s\S]*CREATE Form1 AS RForm[\s\S]*    CREATE Button2 AS RButton\n        Caption = "Show Form2"[\s\S]*OnClick = Button2Click/,
+      "codedoc(1).text": /SUB Button1Click\n    Form2\.Close\nEND SUB[\s\S]*CREATE Form2 AS RForm[\s\S]*    CREATE Label1 AS RLabel\n        Caption = "Hello from Form2"[\s\S]*    CREATE Edit1 AS REdit\n[\s\S]*Text = "Type here"[\s\S]*    CREATE Button1 AS RButton\n        Caption = "Close"[\s\S]*OnClick = Button1Click/,
+      "proj.filecount": /^2$/,
+      "lang.errorcount": /^0$/,
+    },
+  },
+  // (S-DESIGN-2, Robert's report) RForm in the toolbox is Project > Add
+  // Form (a form is a document, not a component); RFormMDI adds an MDI
+  // main window.
+  {
+    name: "toolbox-form",
+    open: "",
+    do: "newproject:gui|{dir}|Tb,wait,wait,tool:RFORM,wait,key:Enter,wait,wait,wait,tool:RFORMMDI,wait,key:Enter,wait,wait,wait",
+    delay: 8,
+    dump: { "codedoc(0).text": /^\$APPTYPE GUI\n\$INCLUDE "Form2\.rr"\n\$INCLUDE "Form3\.rr"\n/, "codedoc(1).text": /\nCREATE Form2 AS RForm\n/, "codedoc(2).text": /\nCREATE Form3 AS RFormMDI\n/, "proj.filecount": /^3$/ },
+  },
+  // (S-DESIGN-2) RForm dragged onto a designed form: never nested — a new
+  // window, and the status bar says why; onto an RFormMDI: one of its child
+  // windows, RapidQ's way.
+  {
+    name: "toolbox-form-drop",
+    open: "",
+    do: "newproject:gui|{dir}|Dr,wait,wait,drop:RFORM|designdoc(0),wait,key:Enter,wait,wait,wait",
+    delay: 7,
+    dump: { "codedoc(1).text": /\nCREATE Form2 AS RForm\n/, "outputbox.text": /A form can't go inside a form: Form2 was added as a new window\. For child windows, make Form1 an RFormMDI\./ },
+  },
+  {
+    name: "toolbox-form-drop-mdi",
+    open: "",
+    do: "newproject:mdi|{dir}|Md,wait,wait,drop:RFORM|designdoc(0),wait,wait,wait",
+    delay: 7,
+    // (onto the MDI template's window, Main: a child window, RapidQ's way —
+    // a panel on Main and Main.AddChild after it)
+    dump: { "codedoc(0).text": /\n    CREATE Form1 AS RPanel\n        Left = 0\n        Top = 0\n        Width = 320\n        Height = 240\n    END CREATE\nEND CREATE\nMain\.AddChild\(Form1\.Handle, "Form1", 0, 0, 0, 0, 0, 1\)\n/, "outputbox.text": /Form1 is a child window of Main/, "proj.filecount": /^1$/ },
+  },
+  // (S-DESIGN-2, Robert's report) The form itself (nothing selected) in
+  // the inspector, with its events: OnShow's handler made, bound and
+  // written as a component's is.
+  {
+    name: "form-events",
+    open: "examples/gui/hello_form.rr",
+    do: "wait,view.designer,wait,page:events,event:OnShow,wait",
+    delay: 6,
+    dump: { "inspector.target": /^Form$/, "codedoc(0).text": /^(?=[\s\S]*\n        OnShow = FormShow\n|[\s\S]*\n    OnShow = FormShow\n)(?=[\s\S]*\nSUB FormShow\b)/ },
+  },
+  // (S-DESIGN-2) Project > Add Module: Module1.rr, named in the tree,
+  // included by the main file, opened on its code.
+  {
+    name: "add-module",
+    open: "",
+    do: "newproject:gui|{dir}|Mods,wait,wait,project.addModule,wait,key:Enter,wait,wait,wait",
+    delay: 6,
+    dump: { "codedoc(0).text": /^\$APPTYPE GUI\n\$INCLUDE "Module1\.rr"\n\nCREATE Form1 AS RForm\n/, "codedoc(1).text": /^' Module1\.rr: SUBs and FUNCTIONs the program's files share$/, "proj.filecount": /^2$/, "lang.errorcount": /^0$/ },
+  },
+  // (S-DESIGN-2) A form's file renamed in the project tree (F2): the main
+  // file's $INCLUDE follows it; then taken out of the project (Delete,
+  // confirmed with Enter): the main file no longer includes it.
+  {
+    name: "rename-form",
+    open: "",
+    do: "newproject:gui|{dir}|Ren,wait,wait,project.addForm,wait,key:Enter,wait,wait,wait,rename:Form2.rr|About.rr,wait,wait,wait",
+    delay: 7,
+    dump: { "codedoc(0).text": /^\$APPTYPE GUI\n\$INCLUDE "About\.rr"\n/, "proj.filecount": /^2$/, "lang.errorcount": /^0$/ },
+  },
+  {
+    name: "remove-form",
+    open: "",
+    do: "newproject:gui|{dir}|Rem,wait,wait,project.addForm,wait,key:Enter,wait,wait,wait,remove:Form2.rr,wait,key:Enter,wait,wait,wait",
+    delay: 7,
+    dump: { "codedoc(0).text": /^\$APPTYPE GUI\n\nCREATE Form1 AS RForm\n/, "proj.filecount": /^1$/, "lang.errorcount": /^0$/ },
+  },
+  // (S-DESIGN-2) A program with an $INCLUDE on the web: the language
+  // service and the designer read the included file from the page's store
+  // (rapidr_preprocessor's source reader), as the desktop reads the disk —
+  // no "missing include" error, the form designed, its button's SUB known.
+  {
+    name: "include-web",
+    open: "tests/fixtures/studio_split/main.rr",
+    webFiles: ["tests/fixtures/studio_split/main.rr", "tests/fixtures/studio_split/greeting.inc"],
+    do: "wait,wait,designer.add.QCHECKBOX,wait,wait",
+    delay: 5,
+    dump: { "lang.errorcount": /^0$/, "outputbox.problemcount": /^0$/, "designdoc(0).formname": /^Form$/, "codedoc(0).text": /    CREATE CheckBox1 AS QCHECKBOX\n/ },
   },
   // (S-SHELL-2) Documents are tabs, never windows: a form's file is one
   // tab with the Design | Code switch (no MDI window, no "[Design]"
@@ -706,7 +959,7 @@ const CASES = [
     // to the parameters
     name: "editor-snippet",
     open: "examples/gui/hello_form.rr",
-    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:sub,wait,key:Tab,type:Hello,key:Tab,type:n AS INTEGER",
+    do: "view.code,key:Ctrl+End,key:Enter,type:sub,wait,key:Tab,type:Hello,key:Tab,type:n AS INTEGER",
     delay: 6,
     dump: { "codedoc(0).text": /\nSUB Hello\(n AS INTEGER\)\n {4}\nEND SUB\n?$/ },
   },
@@ -715,7 +968,7 @@ const CASES = [
     // SUB, OnClick = and the calls
     name: "editor-rename",
     open: "examples/gui/hello_form.rr",
-    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:greet,key:Escape,key:Left,key:F2,wait,key:Ctrl+A,type:SayHi,key:Enter,wait",
+    do: "view.code,key:Ctrl+End,key:Enter,type:greet,key:Escape,key:Left,key:F2,wait,key:Ctrl+A,type:SayHi,key:Enter,wait",
     delay: 7,
     dump: { "codedoc(0).text": /DECLARE SUB SayHi\n[\s\S]*OnClick = SayHi\n[\s\S]*\nSUB SayHi\n[\s\S]*\nSayHi\n?$/ },
   },
@@ -724,7 +977,7 @@ const CASES = [
     // first match selected
     name: "editor-find-regex",
     open: "examples/gui/hello_form.rr",
-    do: "focus:codedoc(0),key:Ctrl+F,wait,key:Alt+R,type:Show\\w+,wait",
+    do: "view.code,key:Ctrl+F,wait,key:Alt+R,type:Show\\w+,wait",
     delay: 6,
     dump: { "codedoc(0).seltext": /^ShowModal$/ },
   },
@@ -732,7 +985,7 @@ const CASES = [
     // Edit > Undo takes the typing back (a word at a time), Redo again
     name: "editor-undo",
     open: "examples/gui/hello_form.rr",
-    do: "focus:codedoc(0),key:Ctrl+End,type:one two,edit.undo,wait,edit.undo,edit.redo,wait",
+    do: "view.code,key:Ctrl+End,type:one two,edit.undo,wait,edit.undo,edit.redo,wait",
     delay: 6,
     dump: { "codedoc(0).text": /\nForm\.ShowModal\none ?\n?$/, "codedoc(0).canredo": /^(-1|1|True)$/i },
   },
@@ -853,7 +1106,7 @@ const CASES = [
     // code gives the file back exactly, and nothing is left to undo
     name: "designer-code-undo",
     open: "examples/rapidq/notepad.bas",
-    do: "view.documents.tabs,view.designer,designer.add.QCHECKBOX,designer.add.QBUTTON,wait,view.code,focus:codedoc(0),key:Ctrl+Z,key:Ctrl+Z,wait",
+    do: "wait,view.designer,designer.add.QCHECKBOX,designer.add.QBUTTON,wait,view.code,focus:codedoc(0),key:Ctrl+Z,key:Ctrl+Z,wait",
     delay: 6,
     dump: { "codedoc(0).canundo": /^(0|False)$/i, "codedoc(0).text": /CREATE Form AS QFORM/ },
     same: { "codedoc(0).text": "examples/rapidq/notepad.bas" },
@@ -1128,11 +1381,13 @@ function runDesktop(c, scale = 1) {
   mkdirSync(dir, { recursive: true });
   const args = ["run", "ide/studio.rr", "--home", ".", "--fresh", "--theme", "rapidr-light"];
   // (R-NAMES: a RapidQ program's folder copied here, imported from there —
-  // the import writes its copy beside it)
+  // the import writes its copy beside it; {dir}: the case's own folder —
+  // a new project goes there)
+  const steps = c.do ? c.do.replaceAll("{dir}", dir) : "";
   if (c.importFrom) {
     cpSync(join(ROOT, dirname(c.importFrom)), join(dir, "src"), { recursive: true });
-    args.push("--do", `import:${join(dir, "src", c.importFrom.split("/").pop())}` + (c.do ? "," + c.do : ""));
-  } else if (c.do) args.push("--do", c.do);
+    args.push("--do", `import:${join(dir, "src", c.importFrom.split("/").pop())}` + (steps ? "," + steps : ""));
+  } else if (steps) args.push("--do", steps);
   if (c.open && c.copyDir) {
     // (the project's whole folder: Build writes the app beside it)
     cpSync(join(ROOT, dirname(c.open)), join(dir, "project"), { recursive: true });
@@ -1242,9 +1497,11 @@ async function runWebPage(ctx, c, last, scale, record) {
     if (c.fresh !== false) q.set("fresh", "");
     // (Studio a 1280 x 800 window on the page, unless the case has it fill the page)
     if (!c.maximized) q.set("window", "normal");
-    // (the program's files are in the page's store: imported from there)
-    if (c.importFrom) q.set("do", `import:${c.importFrom}` + (c.do ? "," + c.do : ""));
-    else if (c.do) q.set("do", c.do);
+    // (the program's files are in the page's store: imported from there;
+    // {dir}: the case's own folder in the page's store)
+    const steps = c.do ? c.do.replaceAll("{dir}", `/flows/${c.name}`) : "";
+    if (c.importFrom) q.set("do", `import:${c.importFrom}` + (steps ? "," + steps : ""));
+    else if (steps) q.set("do", steps);
     if (c.open) q.set("open", c.open);
     await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
     // (the test's end, or — Studio quit — the program's)

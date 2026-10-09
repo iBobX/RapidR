@@ -134,6 +134,7 @@ methods = [
   { name = "Refresh", value = true, doc = "Reads the project's files again (forms' components included)." },
   { name = "LoadText", params = "Text AS STRING, Path AS STRING", returns = "INTEGER", doc = "Shows a project from its file's text (where there are no files to read: the web). Path is its file's name. True when it was read." },
   { name = "SetFileText", params = "Path AS STRING, Text AS STRING", doc = "Gives a file's text (what the editor has, or a file the web can't read), so a form's components are listed from it." },
+  { name = "ComponentNames", params = "ExceptPath AS STRING", returns = "STRING", doc = "The names the CREATE blocks of the project's other files make (at any depth), separated by commas: what a designer of ExceptPath must not name a new component (RDESIGNSURFACE.ReservedNames) — a RapidQ program's component names are global." },
   { name = "File", params = "Index AS INTEGER", returns = "STRING", doc = "File Index's path (from 0), in the project's order." },
   { name = "FileKind", params = "Path AS STRING", returns = "STRING", doc = "A file's kind: \"module\", \"form\", \"include\", \"resource\", \"asset\" or \"data\"." },
   { name = "AddFile", params = "Path AS STRING, [Kind AS STRING]", returns = "INTEGER", doc = "Adds a file to the project (its kind from its extension when Kind is left out). True when it was added." },

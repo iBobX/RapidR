@@ -2,7 +2,7 @@
 //! (docs/studio-wow.md INS-2): Booleans as 1 / 0 (a line in words keeps
 //! them); a RapidQ property's constant the program doesn't define — no
 //! RAPIDQ.INC: RC.EXE would read `clRed` as an empty variable, 0 — as its
-//! number; RapidR programs (.rr) keep the names RapidR knows.
+//! number — in a RapidR program (.rr) too: they aren't built in there.
 
 use std::path::Path;
 
@@ -39,8 +39,12 @@ fn constants_a_rapidq_program_lacks_are_numbers() {
     let with = format!("CONST clRed = &HFF\nCONST alClient = 5\n{FORM}");
     assert!(set("f.bas", &with, "E", "Color", "clRed").contains("Color = clRed"));
     assert!(set("f.bas", &with, "E", "Align", "alClient").contains("Align = alClient"));
-    // (a RapidR program: RapidR knows them)
-    assert!(set("f.rr", FORM, "E", "Color", "clRed").contains("Color = clRed"));
+    // (a RapidR program without RAPIDQ.INC doesn't know them either — they
+    // read as nothing: `PRINT clRed` prints an empty line — so numbers too;
+    // with the include, their names)
+    assert!(set("f.rr", FORM, "E", "Color", "clRed").contains("Color = &H0000FF"));
+    let included = format!("$INCLUDE \"RAPIDQ.INC\"\n{FORM}");
+    assert!(set("f.rr", &included, "E", "Color", "clRed").contains("Color = clRed"));
     // (RapidR's own properties keep RapidR's constants)
     assert!(set("f.bas", FORM, "E", "Anchors", "akLeft + akRight").contains("Anchors = akLeft + akRight"));
 }

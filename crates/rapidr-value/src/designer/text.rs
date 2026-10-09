@@ -62,6 +62,18 @@ fn write_into(out: &mut String, tree: &Subtree, base: &str, style: &Style) {
     out.push_str(&format!("{base}END CREATE{}", style.eol));
 }
 
+/// Whether a new component of this type takes its caption's size
+/// (`crate::autosize`: a label, AutoSize on by default).
+fn autosizes(comp: Option<&rapidr_lang::Component>) -> bool {
+    comp.is_some_and(|c| c.name == "RLABEL")
+}
+
+/// Whether a source file is written with RapidQ's names, so a form added to
+/// it (or a new file of its program) is too (`rapidr_project::forms`).
+pub fn file_uses_rapidq_names(text: &str, path: &str) -> bool {
+    rapidr_project::forms::uses_rapidq_names(text, path)
+}
+
 /// A new component of `type_name` (any of its names) at `rect`: named as
 /// Delphi names them (`Button1`), written in the file's style
 /// ([`FormDesign::names`]: `RButton`, or `QBUTTON` in a RapidQ-style
@@ -79,8 +91,13 @@ pub fn new_component(design: &FormDesign, type_name: &str, rect: Rect) -> Subtre
     if visual {
         props.push(("Left", rect.left.to_string()));
         props.push(("Top", rect.top.to_string()));
-        props.push(("Width", rect.width.to_string()));
-        props.push(("Height", rect.height.to_string()));
+        // (a label sizes itself to its caption — RapidQ's AutoSize, on until
+        // the program turns it off: a Width written after its Caption would
+        // stick and clip a longer one, so it gets none until it is resized)
+        if !(autosizes(comp) && rect.width == crate::layout::default_size("RLABEL").map_or(rect.width, |s| s.0)) {
+            props.push(("Width", rect.width.to_string()));
+            props.push(("Height", rect.height.to_string()));
+        }
     }
     Subtree::new(&name, &written, &props)
 }
@@ -103,6 +120,15 @@ mod tests {
         assert_eq!(text, "  CREATE Button1 AS QBUTTON\r\n      Caption = \"Button1\"\r\n      Left = 8\r\n      Top = 16\r\n      Width = 75\r\n      Height = 25\r\n  END CREATE\r\n");
         let plot = new_component(&d, "RPLOT", Rect::new(0, 0, 600, 400));
         assert_eq!((plot.name.as_str(), plot.type_written.as_str()), ("Plot1", "RPLOT"));
+        // a RapidR form: RapidR's names, as the registry spells them
+        let r = FormDesign::new("Form1", "RForm");
+        for (ty, written) in [("QBUTTON", "RButton"), ("RLABEL", "RLabel"), ("qedit", "REdit"), ("RPLOT", "RPlot"), ("QSTRINGGRID", "RStringGrid")] {
+            assert_eq!(new_component(&r, ty, Rect::new(0, 0, 10, 10)).type_written, written, "{ty}");
+        }
+        assert_eq!(new_component(&r, "QBUTTON", Rect::new(0, 0, 10, 10)).name, "Button1");
+        assert!(file_uses_rapidq_names("' notes\nCREATE Form AS QFORM\nEND CREATE\n", "a.rr"));
+        assert!(!file_uses_rapidq_names("CREATE Form1 AS RForm\nEND CREATE\n", "a.bas"));
+        assert!(file_uses_rapidq_names("PRINT 1\n", "old.bas") && !file_uses_rapidq_names("PRINT 1\n", "new.rr"));
         // (named after the registry's mixed-case spelling, as Delphi and VB)
         for (ty, name) in [("QCHECKBOX", "CheckBox1"), ("RSTRINGGRID", "StringGrid1"), ("QCOMBOBOX", "ComboBox1"), ("QRICHEDIT", "RichEdit1"), ("QDXSCREEN", "DXScreen1")] {
             assert_eq!(new_component(&d, ty, Rect::new(0, 0, 10, 10)).name, name);

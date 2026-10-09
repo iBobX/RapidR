@@ -71,3 +71,39 @@ fn names_after_a_define_are_where_they_are_written() {
     assert_eq!(refs.len(), 4, "{refs:?}");
     let _ = fs::remove_dir_all(&dir);
 }
+
+/// A form of a program of several files (RapidR Studio's Project > Add
+/// Form: Form2.rr, which main.rr includes) is analysed as part of the
+/// program: Form1 and the main file's SUBs are known there, its problems
+/// are the program's in it, and an error in it is the program's too.
+#[test]
+fn an_included_form_is_analysed_in_its_program() {
+    let dir = scratch("forms");
+    let main = dir.join("main.rr");
+    let form2 = dir.join("Form2.rr");
+    let main_text = "$INCLUDE \"Form2.rr\"\n\nSUB Hello\n    Form2.Show\nEND SUB\n\nCREATE Form1 AS RForm\nEND CREATE\n\nForm1.ShowModal\n";
+    let form2_text = "SUB Back\n    Form1.Caption = \"back\"\n    Hello\nEND SUB\n\nCREATE Form2 AS RForm\nEND CREATE\n";
+    fs::write(&main, main_text).unwrap();
+    fs::write(&form2, form2_text).unwrap();
+    let mut a = Analysis::new(Options::default());
+    a.update(main.clone(), main_text);
+    a.update(form2.clone(), form2_text);
+    assert!(a.diagnostics(&form2).is_empty(), "Form1 and Hello are the program's: {:?}", a.diagnostics(&form2));
+    assert!(a.diagnostics(&main).is_empty(), "{:?}", a.diagnostics(&main));
+    // a typo in the form: in the form's problems, and the program's
+    a.update(form2.clone(), form2_text.replace("Form1.Caption", "Form1.Captoin"));
+    let d = a.diagnostics(&form2);
+    assert_eq!(d.len(), 1, "{d:?}");
+    assert!(d[0].message.to_ascii_lowercase().contains("captoin") && d[0].file == form2, "{d:?}");
+    // a compiler error in the form stops the program: main's problems have it
+    a.update(form2.clone(), form2_text.replace("Form1.Caption = \"back\"", "Form1.Caption = = 1"));
+    assert!(a.diagnostics(&main).iter().any(|x| x.file == form2), "{:?}", a.diagnostics(&main));
+    assert!(!a.diagnostics(&form2).is_empty());
+    a.update(form2.clone(), form2_text);
+    // completion in the form knows the main file's form
+    let typed = form2_text.replace("Form1.Caption = \"back\"", "Form1.");
+    a.update(form2.clone(), typed.clone());
+    let at = typed.find("Form1.").unwrap() + 6;
+    assert!(a.completions(&form2, at).items.iter().any(|i| i.label.eq_ignore_ascii_case("Caption")), "Form1's members in Form2.rr");
+    let _ = fs::remove_dir_all(&dir);
+}

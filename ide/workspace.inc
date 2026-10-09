@@ -6,8 +6,10 @@
 '
 '   Design | Code    a file with a form has the switch at the right of its
 '                    tab strip (RDOCKMANAGER's AddView): its designer, its
-'                    code, or both side by side; F7 the code, Shift+F7
-'                    the designer (F12 is the code's Go to Definition)
+'                    code, or both side by side; F12 toggles (Delphi's;
+'                    in the code, on a name, it goes to that name's
+'                    definition, VS Code's), F7 the code, Shift+F7 the
+'                    designer
 '   groups           a tab dragged to a side of the area splits it into
 '                    groups (VS Code's editor groups), or Window > Split
 '                    Right / Split Down; the splitters between them drag
@@ -15,13 +17,11 @@
 '                    files are kept in Studio's settings and come back
 '                    when the project is opened again
 
-DIM DocViewNow(MAXDOCS) AS STRING
 DIM SessionProject AS STRING
 DIM SessionFiles AS STRING
 
 DECLARE SUB DocumentViewChanged(Name AS STRING, View AS STRING)
 DECLARE SUB SaveSoon
-DECLARE SUB DesignPicked(Index AS INTEGER, Sender AS RDesignSurface)
 
 DIM LayoutSaver AS RTimer
 
@@ -84,6 +84,8 @@ SUB DocumentViewChanged(Name AS STRING, View AS STRING)
   IF d < 0 THEN EXIT SUB
   DocViewNow(d) = View
   IF View = "Code" THEN DocKind(d) = "code" ELSE DocKind(d) = "design"
+  ' (the designer reads what was typed before it changes anything)
+  IF View <> "Code" AND DocHasForm(d) <> 0 THEN DesignRead d
   ActiveDoc = d
   UpdateCommands
 END SUB
@@ -118,11 +120,20 @@ SUB ShowView(View AS STRING)
   IF View = "Design" THEN Dock.FocusPane("designdoc(" + LTRIM$(STR$(d)) + ")")
 END SUB
 
-' View > Toggle Form / Code: the form, then its code.
+' F12: the form, then its code, as Delphi — and in the code, on a name,
+' that name's definition, as VS Code (Edit > Go to Definition); off a name
+' (or in a file without a form) the toggle.
 SUB ToggleDesign
   DIM d AS INTEGER
   d = ActiveCode
   IF d < 0 THEN EXIT SUB
+  IF DocKind(d) = "code" AND DocViewNow(d) <> "Design" THEN
+    IF CodeDoc(d).WordAt(CodeDoc(d).CaretLine, CodeDoc(d).CaretColumn) <> "" OR DocHasForm(d) = 0 THEN
+      CodeDoc(d).GotoDefinition
+      EXIT SUB
+    END IF
+  END IF
+  IF DocHasForm(d) = 0 THEN EXIT SUB
   IF DocViewNow(d) = "Design" THEN ShowView "Code" ELSE ShowView "Design"
 END SUB
 

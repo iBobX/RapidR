@@ -57,6 +57,12 @@ pub fn prop_key(name: &str) -> String {
 /// RapidR's name of a type as written (`QBUTTON` → `RBUTTON`, `QGAUGE` →
 /// `RPROGRESSBAR`, `QMEMO` → `RMEMO` as the compilers read it); upper case
 /// as written when the registry doesn't know it.
+/// Whether a canonical type is a form the designer designs: RFORM, or an
+/// MDI main window (RFORMMDI, RapidQ's QFORMMDI).
+pub fn is_form_type(canonical: &str) -> bool {
+    canonical == "RFORM" || canonical == "RFORMMDI"
+}
+
 pub fn canonical_type(written: &str) -> String {
     match rapidr_lang::resolve_component(written) {
         Some(c) => c.name.to_string(),
@@ -122,7 +128,7 @@ impl Node {
     }
 
     pub fn is_form(&self) -> bool {
-        self.canonical == "RFORM"
+        is_form_type(&self.canonical)
     }
 }
 
@@ -279,12 +285,14 @@ impl FormDesign {
     }
 
     /// Whether `name` (any case) can be written as a RapidQ property's
-    /// value: the program defines it (RAPIDQ.INC's when included), or it
-    /// isn't a RapidQ program.
+    /// value: the program defines it (RAPIDQ.INC's when included) or it is
+    /// one of RapidR's own (akLeft …). A RapidR program without RAPIDQ.INC
+    /// doesn't know `clYellow` or `taCenter` either (they read as nothing),
+    /// so they are written as their numbers there too.
     pub fn writable_constant(&self, name: &str) -> bool {
-        match (&self.constants, self.rapidq) {
-            (Some(c), true) => c.contains_key(&name.to_ascii_lowercase()),
-            _ => true,
+        match &self.constants {
+            Some(c) => c.contains_key(&name.to_ascii_lowercase()) || super::value::builtin_constant(name).is_some(),
+            None => true,
         }
     }
 

@@ -626,7 +626,7 @@ fn script_key<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, comp: &st
     let Some(form) = p.form_of(comp) else { return };
     let comp = comp.to_lowercase();
     let mods = Mods { shift: state & 256 != 0, ctrl: state & 16 != 0, alt: state & 1 != 0, ..Mods::NONE };
-    let text = if mods.ctrl || mods.alt { String::new() } else { rapidr_value::input::text_of_vk(vk) };
+    let text = if mods.ctrl || mods.alt { String::new() } else { rapidr_value::input::text_of_vk_shifted(vk, mods.shift) };
     if let Some(f) = desk.forms.get_mut(&form) {
         f.ui.sync(store);
         f.ui.focus_id(store, &comp);
@@ -684,6 +684,12 @@ pub fn cursor_at(desk: &Desktop, store: &dyn Store, form: &str, (x, y): (f64, f6
         return Cursor::NoDrop;
     }
     let node = f.ui.hover.and_then(|i| f.ui.nodes.get(i));
+    // (I4: a component dragged in from the toolbox — "not allowed" but
+    // over a designer's form, where it would go)
+    if rapidr_value::objects::design::drop_pending().is_some() {
+        let ok = f.ui.nodes.iter().filter(|n| n.type_name == "RDESIGNSURFACE").any(|n| rapidr_value::objects::with_design(&n.id, |d| d.ghost.is_some()).unwrap_or(false));
+        return if ok { Cursor::Default } else { Cursor::NoDrop };
+    }
     // (the input lane's: a status bar's size grip is the window's sizing
     // corner — Windows' HTBOTTOMRIGHT arrow, whatever the bar's Cursor)
     let grip = rapidr_value::layout::STATUS_GRIP;
@@ -724,8 +730,8 @@ pub fn cursor_at(desk: &Desktop, store: &dyn Store, form: &str, (x, y): (f64, f6
         "RDESIGNSURFACE" => {
             use rapidr_value::objects::design::Pointer;
             let p = rapidr_value::objects::with_design(&n.id, |d| {
-                let (ox, oy) = d.client_origin();
-                d.pointer_at(lx - ox, ly - oy)
+                let (cx, cy) = d.client_point(lx as f64, ly as f64);
+                d.pointer_at(cx, cy)
             });
             match p.unwrap_or(Pointer::Default) {
                 Pointer::Default => Cursor::Default,

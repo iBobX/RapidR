@@ -1180,6 +1180,14 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
                 }
                 self.after_input(&f);
             }
+            // (a trackpad's pinch: the wheel with Ctrl, as the browsers send
+            // it — what zooms, zooms: the form designer)
+            WindowEvent::PinchGesture { delta, .. } => {
+                let at = self.s.wins.get(&f).map_or((0.0, 0.0), |w| w.cursor);
+                let m = Mods { ctrl: true, ..self.mods() };
+                self.desk.mouse_wheel(store, &f, at, (0.0, -delta * 4.0), m, Source::User);
+                self.after_input(&f);
+            }
             WindowEvent::MouseWheel { delta, .. } => {
                 // (winit: positive moves the content right / down, i.e. the
                 // view up; RapidR's notches are positive down. A touchpad's

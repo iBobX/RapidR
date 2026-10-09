@@ -918,7 +918,7 @@ mod tests {
         let (p, files) = Project::new_from_template("My \"App\"", "GUI").unwrap();
         let text = &files[0].1;
         assert!(text.starts_with("$APPTYPE GUI\n"));
-        assert!(text.contains("CREATE Form1 AS RForm"));
+        assert!(text.contains("CREATE Form1 AS RForm"), "RapidR's names");
         assert!(text.contains("Caption = \"My \" + CHR$(34) + \"App\" + CHR$(34) + \"\""));
         assert!(text.contains("Width = 480") && text.contains("Height = 320"));
         assert!(text.trim_end().ends_with("Form1.ShowModal"));
