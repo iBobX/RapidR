@@ -1111,6 +1111,132 @@ Robert tried the preview (`development` @ `bb23d078`): "properties don't work", 
 
 **Shared files touched.** `crates/rapidr-designer` (`handlers.rs` new, `lib.rs`, `Cargo.toml` dev-deps, `tests/handlers.rs`, `tests/spelling.rs`, the `.bas` / `.inc` flag in `reread`); rapidr-value `designer/{inspect,model}.rs` (spelling), `panels/{subject,palette,toolbox,project_tree.rs,project_tree/model.rs}`, `panels/inspector/{mod,read,designer_model}.rs`; rapidr-ui-kernel `components/panels/{common,console,toolbar,toolbox,inspector/*,project_tree/draw}.rs`; runtime-core `panels.rs`; runtime-web `panels_web.rs`, `object_web.rs` (a surface's method calls fire its events: an S-DESIGN glue gap); the registry `ide.toml` and the generated docs / `web-ide/lang-data.js`; `tools/lang_dispatch.py`; `ide/{panels.inc (new), window.inc, commands.inc, decl.inc, panes.inc, documents.inc, shell.inc, project.inc, chrome.inc, studio.rr}`; `tests/{studio_flows,studio_shell,gui_parity_cases}.mjs`; `docs/ide-components.md`, `docs/rapidq-ground-truth.md`, this section, `CHANGELOG.md`, ROADMAP (one tick).
 
+### I2 / I3 / S-EDITOR results — RapidR Studio's code editor (2026-10-08)
+
+Robert tried the preview (`development` @ `bb23d078`): there was no autocomplete, and Tab typed a stray character. This lane put Studio's code documents on `rapidr-editor` and `rapidr-langsvc`, on the desktop and the web alike.
+
+**Tab's "weird character": the root cause.** The kernel's multi-line text layout (`crates/rapidr-ui-kernel/src/text/editor.rs`) gave parley the TAB character as it was, and the font has no glyph for it, so a box (`.notdef`) was drawn. This hit every program's QMEMO / QRICHEDIT too, not only Studio. Now:
+- a TAB is shaped as a space and widened to the next tab stop: QMEMO every 8 average characters, QRICHEDIT every half inch;
+- carets keep their byte offsets;
+- the regression test is `a_tab_is_a_blank_to_the_next_stop_never_a_glyph`.
+
+In RCODEEDITOR, Tab and Shift+Tab indent and outdent by the file's unit (its tabs, else 4 spaces). They work at a line's start and on a block. Tab also accepts completion and moves through snippet stops.
+
+**What works, desktop and web (one kernel view, `crates/rapidr-ui-kernel/src/components/codeeditor/`):**
+- **The editor**:
+  - RCODEEDITOR's model is `rapidr-editor`'s `Document`; the memo-based path is deleted (`ee24dee0`);
+  - undo / redo grouped by word and pause;
+  - multi-cursor (⌘D, ⌘⌥↑↓, ⌥-click);
+  - find / replace with case, whole word and regex, and Go to Line;
+  - folding, pair matching and auto-closing, auto-indent, the current line;
+  - colour schemes per theme, JetBrains Mono;
+  - the changed-lines gutter;
+  - AccessKit text runs (read by character, word and line);
+  - on the web, the mirror holds a window of lines.
+- **IntelliSense from `rapidr-langsvc`**:
+  - completion after `.`, `AS ` and while typing identifiers (members by type, Q and R names, snippets), ranked fuzzily with the docs beside the list, never stalling (typing is answered from the last analysis across the edits since);
+  - signature help with the active parameter;
+  - hover (the registry's syntax and doc);
+  - F12 (into another file through OnNavigate → Studio opens it);
+  - Shift+F12: the uses selected as carets and listed in Output as places to click;
+  - F2 rename, with other files' edits through OnFileEdits;
+  - squiggles in RapidQ's compiler wording, and the Problems panel;
+  - Ctrl+. quick fixes;
+  - keyword auto-case (`KeywordCase`; `IdentifierCase = declaration`: the program's names as declared, Studio's default);
+  - Format Document.
+- **Studio's Edit menu**:
+  - Undo / Redo, Cut / Copy / Paste / Delete / Select All, Find / Replace / Go to Line;
+  - Find Next / Previous (F3);
+  - Complete Word, Quick Fix, Go to Definition, Find References, Rename, Toggle Comment, Format;
+  - Edit ▸ Advanced: Indent / Outdent Lines, Select Next Occurrence, Go to Matching Bracket (new `GotoMatchingBracket`), Fold / Unfold / Fold All / Unfold All, Parameter Info, Show Hover, Word Wrap.
+  - No Edit command answers "not there yet" any more.
+
+**The designer's patches: `ApplyPatches` (the shared undo with S-DESIGN-2).**
+- **`RCODEEDITOR.ApplyPatches(Patches, [Continues]) → Boolean`** takes one designer change's `OnSourceEdit` patches, one per line: `StartLine⇥StartCol⇥EndLine⇥EndCol⇥Text`.
+  - Lines are 0-based, columns are characters, and each patch is in the text the ones before it left.
+  - Text escapes `\n`, `\t`, `\\` (and `\r`).
+  - The whole call is applied as **one undo step of the editor's own history**. With `Continues` True (OnSourceStep's), it joins the step before.
+  - Carets keep their places (shifted as for a normal edit) and the scroll is left alone.
+  - **OnChange** fires once.
+  - It is all or nothing: False, and no change, when a range isn't in the text.
+- **`Undo` / `Redo`** are the same history as Ctrl/⌘+Z typed in the editor, and fire OnChange too. Setting `Text` or `SelText` still fires none, as RCODEEDITOR always did.
+- **The editor's side of the shared undo:**
+  - `ide/designer.inc` keeps a change's patches (`DesignSourceEdit` → `DesignPatches(d)`, escaped by `PatchText`) until the surface's OnChange, then calls `CodeDoc(d).ApplyPatches DesignPatches(d), Continues`;
+  - with `SharedUndo`, the designer's `OnUndo(Redo)` becomes `CodeDoc(d).Undo` / `.Redo`, and the code's OnChange sets the designer's `Source` again;
+  - the interim SelStart / SelText applier and its timer are deleted;
+  - the old single-patch `ApplyPatch` is deleted.
+
+**For the debugger (S-DEBUG), on RCODEEDITOR (`a97442ba`, in the registry):**
+- **`AddMarker(Line, Kind [, Note])`** kinds:
+  - `breakpoint` (a dot), `breakpoint.conditional` (a dot with a bar), `breakpoint.log` (a diamond), `breakpoint.disabled` (a ring);
+  - `current` (an arrow, the line tinted), `frame` (a grey arrow, a fainter tint), `exception` (an arrow and the line in the error colour);
+  - the arrows draw over the dot, rimmed in the gutter's colour;
+  - a Note is a rounded label after the line's end; the newest note on a line replaces the older one.
+- **`DebugHover`** (Boolean, default False, origin rapidr): while True, a resting mouse on a word fires `OnHoverRequest(Line, Col)` before the language service, and the program answers with `ShowHover(text)`.
+- **`WordAt(Line, Col)`** (from 1) returns the dotted name (`Form.Caption` on Caption).
+- Also `RemoveMarker`, `ClearMarkers`, `GetMarkers`, `HasMarker`, and `OnGutterClick(Line, Area)`.
+
+**Fixed on the way:**
+- an undo that took lines away read past the rope's end (the view's row table was stale until the next paint: the rows sync before the scroll bars now);
+- a caret revealed downwards could be left half under the horizontal bar (the scroll's whole-row rounding now rounds up then);
+- OnChange after the program's ApplyPatches / Undo / Redo was checked after the text editors' branch had already returned (both runtimes; S-DESIGN-2 found it too).
+
+**Tests.**
+- **`tests/studio_flows.mjs`: 155 of 155 checks pass on both hosts** (desktop `rapidr run`, web served on a lane port).
+  - Editor flows: `editor-completion` (`form.` → QFORM's members), `-completion-fuzzy`, `-accept-and-case` (`dim y as string` → `DIM y AS STRING`, `form.capt`+Tab → `Form.Caption`), `-tab-indent` / `-tab-outdent` (a block), `-tab-line-start` / `-shift-tab-line-start`, `-snippet`, `-diagnostic`, `-quick-fix`, `-rename`, `-find-regex`, `-find-next`, `-undo`, `-go-to-definition` (F12), `-hover`, `-signature`, `-references`, `-fold`.
+  - `designer-code-undo`: two designer additions are two undo steps in the code; Ctrl+Z twice gives the file back exactly, and CanUndo is False.
+- **Unit and GUI tests:**
+  - rapidr-value `objects::codeedit` (ApplyPatches' steps, escapes, all-or-nothing, OnChange; the debugger's calls);
+  - rapidr-ui-kernel `codeeditor::tests` (11, including `designer_patches_are_the_editors_undo_steps`);
+  - the `code_editor_markers` GUI case (`tests/fixtures/code_editor_markers.bas`): markers drawn; WordAt, GetMarkers, DebugHover; ApplyPatches then Undo; OnChange counted twice.
+- **`tests/studio_shell.mjs`**: the new scenes `editor-squiggle`, `editor-hover`, `editor-signature` and `editor-tab`, plus `editor`. RapidR light and dark at 1× and 2×: **20 of 20 captures byte-identical desktop / web**.
+  - The accessibility trees differ only in the Output console's text window: the desktop reads its first lines, the web its last, while the pane isn't shown. This belongs to S-PANELS' console and is noted as a follow-up.
+
+**Performance:** see the table below (`codeeditor_bench --lines 10000 --service`, desktop; `tests/web_editor_perf.mjs`, web).
+
+| Measure (10,000 lines, 0.5 MB, a 900 × 600 window at 2×) | Desktop (`codeeditor_bench --lines 10000 --service`) | Web (`web_editor_perf.mjs --lines 10000`, Chromium) |
+|---|---|---|
+| Open → first frame | 6.5 ms | 118 ms |
+| Typing, key → pixels: p50 / p99 | 3.8 / 10.9–12.1 ms (≤ 16 ✓), the language service answering | 7.0 / 18.0 ms (web budget ≤ 33 ✓) |
+| Scrolling, worst frame | 5.4–7.2 ms | 4.5 ms |
+| Memory | 76.7 MB live with the language service's analysis (the editor alone, without it: 17.5 MB) | 10 MB JS heap |
+
+These were measured on a heavily loaded machine (load average 18–27 from parallel lanes). In the runs without the service, the worst scrolled frames (47–97 ms) were scheduler stalls: their p50s stayed at 2.4–2.8 ms. The 200,000-line run without the service: typing p50 1.9 / p99 13.0 ms.
+
+**Benchmarked against VS Code, Xcode and Delphi (docs/studio-wow.md, ED):**
+- **Done:** ED-1, ED-2, ED-3, ED-4, ED-5, ED-7, ED-8.
+- **Partial:**
+  - ED-6: there is no ⌃- (go back) or ⌘-click yet, and no flow across `$INCLUDE` files;
+  - ED-9: VoiceOver / NVDA and CJK IME haven't been tried by hand.
+- **Worse than VS Code, noted:**
+  - the language service's memory sits on top of the editor's;
+  - the web's typing p99 (18 ms) is above the desktop's 16 ms budget, though within the web's;
+  - the hover and signature popups may cover the panes beside the editor (as VS Code's do).
+
+**Robert's "auto-complete, IntelliSense" pass (2026-10-08, after S-SHELL-2):**
+- **Members after `.`** for every kind of object — RapidR's and RapidQ's component names, arrays of components, TYPEs (and a TYPE extending a component: its fields, then the component's), WITH blocks, CREATE bodies (what can be set: no read-only properties, no methods). `crates/rapidr-langsvc/tests/intellisense.rs`.
+- **R names first** after `AS` (`RButton` before `QButton`, `ROBJECT` before `QOBJECT`; the Q name's detail "RapidQ's name for RButton"); a file written with Q names (more `AS QFORM` than `AS RFORM`) keeps to them; the CREATE snippet and the members' "property of …" follow the file's style. The `q_and_r_names` golden case now expects both names.
+- **RAPIDQ.INC without the include** (Robert's save prompt: `mbYes`, `mbNo`, `mbCancel` were 0, only OK showed):
+  - the semantic model now knows RapidQ's implicit variables: the compiler's own `DIM name AS DOUBLE` for an undeclared name spans the whole program, and the model took the first use for the declaration (so every name looked declared); such a symbol is now `implicit`, its uses recorded as Read or Write. INPUT and SWAP (a read then a store at the same place) count as Write;
+  - hint `needs-include` (warning): "mbYes is a RAPIDQ.INC constant — add $INCLUDE "RAPIDQ.INC"" on each use of an include's constant the program never stores in; Ctrl+. "Add $INCLUDE "RAPIDQ.INC"" puts it after the file's header comments and directives, before its first `$INCLUDE` or code line (`hints::include_edit`). (A general "used but never assigned" note was built and then dropped from this pass's scope, the lead's budget call: RapidQ's other implicit variables aren't flagged.)
+  - completion offers RAPIDQ.INC's constants before the include exists, each carrying the include as an extra edit: `rapidr_editor::service::Completion::edits` (LSP: `additionalTextEdits`), applied by the kernel with the word as one undo step;
+  - run over Studio without its include: exactly the six names of Robert's bug (workspace.inc 161–164). Over 386 files of RapidQ's example corpus: 12 include warnings, all real (`fmOpenRead`, `clRed`, `sbVertical` used without the include).
+- **F12** is Go to Definition in a form's code too; the designer toggle lost the key (F7 / Shift+F7 stay).
+- **Find in Files** already shares the editor's search (`rapidr_editor::search`, through RPROJECT's Find / Replace); a result's place is now set with the editor's `GotoLineColumn` (the merge had left a call to a deleted `CodeOffset`: Studio didn't compile).
+- **A form's file still opens on its designer** (S-SHELL-2, Delphi): the editor's focus-on-open gives the keyboard to the view shown, so it no longer switched form files to Code (`tabs-design-code` had failed after the merge); the editor flows that typed without `focus:codedoc(0)` now say it.
+- **Verified:** `tests/studio_flows.mjs` 223 of 223 checks on both hosts (port 18501); `tests/studio_shell.mjs` scenes `editor-f12`, `editor-needs-include`, `editor-complete-include`, `editor-ctrl-space` added. Every editor scene is byte-identical desktop / web in RapidR light, dark and high contrast at 1×, except single pixels a shade apart (±1 in one channel of an antialiased glyph or edge: native against wasm rasterising), which other lanes' runs on `development` show too (`search`, `palette`, `project-classic@2×`, every classic scene at 2×).
+- **Left for S-SHELL-2 / the kernel:** in the `workspace` scene the web gives the keyboard to the moved document's designer after Split Right and the desktop leaves it with the window (accessibility trees differ in that one state). FocusPane now really focuses (S-EDITOR made `focus_pane` take a component whose Visible / Enabled were never set), and on the desktop `FocusPane("designdoc(1)")` — any document's designer after the first — still doesn't take: `designdoc(0)` does, a later document's code editor does.
+- **Flows added:** `editor-tab-accept` (Tab takes `NameEdit.Text`, no TAB in the text), `editor-ctrl-space` (the program's SUBs and components with the language's), `editor-f12-in-a-form` (caret on the SUB, the code view kept), `editor-needs-include`, `editor-needs-include-problems`, `editor-complete-with-include`.
+- **Budget scope (the lead, 2026-10-08):** find references, rename and Find in Files were left as they were (Find in Files already used `rapidr_editor::search`; only the merge's broken call was fixed).
+
+**Shared files touched:**
+- rapidr-value: `objects/{codeedit,mod}.rs`, `members.rs`;
+- rapidr-ui-kernel: `components/codeeditor/{mod,paint,tests}.rs`, and earlier `text/editor.rs` (the TAB fix);
+- runtime-core `object.rs`, runtime-web `object_web.rs`;
+- the registry `input.toml`, and the generated `members.md` / `web-ide/lang-data.js`;
+- `ide/{editor,designer,documents,decl,commands,window}.inc`, `ide/studio.rr`;
+- `tests/{studio_flows,studio_shell,gui_parity_cases}.mjs`, `tests/fixtures/code_editor_markers.bas`;
+- `docs/ide-components.md`, `docs/studio-wow.md` (the ED rows), and this section.
 
 ### I1 / S-SHELL-2 results — documents as tabs, the shell's gaps (2026-10-08)
 
@@ -1118,7 +1244,7 @@ Robert, testing Studio: the code and form windows couldn't be resized by their s
 
 **Documents are tabs, never windows** (Xcode, VS Code, Delphi). Studio's documents area is RDOCKMANAGER's tabbed mode, its only mode (the MDI option, `view.documents.*`, `DocumentMode` in the settings and Window ▸ Cascade / Tile are deleted from Studio; RDOCKMANAGER keeps its MDI mode for programs):
 - one tab a file: close button, a dot while it has changes (the close button under the mouse), middle click closes, a drag along the strip reorders (a bar shows where);
-- a file with a form is **one** tab (no more "[Design]" document): a **Design | Code | side by side** switch at the right of its strip (RDOCKMANAGER `AddView`), F12 toggles (Delphi), F7 / Shift+F7 pick; side by side, a splitter between the designer and the code; `FocusPane` on a view shows it, so the designer's double click and the inspector's events land in the code;
+- a file with a form is **one** tab (no more "[Design]" document): a **Design | Code | side by side** switch at the right of its strip (RDOCKMANAGER `AddView`), F7 / Shift+F7 pick (F12 toggled at first, Delphi's; Robert gave F12 to Go to Definition, S-EDITOR); side by side, a splitter between the designer and the code; `FocusPane` on a view shows it, so the designer's double click and the inspector's events land in the code;
 - **groups** (VS Code's editor groups): a tab dragged over a group's outer quarter splits it (a new group on that side, its half outlined), over its middle moves it there; Window ▸ Split Right / Split Down; the splitters between groups drag and the groups keep their shares when the window is resized;
 - **kept**: the layout is saved a moment after it changes (and on close); opening the project again opens its files again and restores the groups, each file's view and the active one (`view <document> …` lines in the layout's text, the documents' numbers remapped); the window's place and size too;
 - closing a changed file (its tab, File ▸ Close, a new project) or Studio asks Save / Don't Save / Cancel (it used to save silently, or drop the changes on File ▸ Close).
@@ -1141,7 +1267,7 @@ Robert, testing Studio: the code and form windows couldn't be resized by their s
 
 **Open / found.**
 - **The web doesn't read `$INCLUDE`s in Studio**: `rapidr_preprocessor::read_source` reads the disk, so on the web the language service and the designer see an include as missing ("The code has errors at line 6", Problems: 1 error). For the designer / language lanes (a read hook the web runtime fills from the page's store). The `workspace` and `search` scenes use examples without includes for this reason.
-- **F12** is Delphi's form / code toggle here, as asked; VS Code's F12 is go to definition (S-EDITOR's ED-6 names F12): one of them needs another key (Ctrl+click / Alt+F12 for definition, say).
+- **F12**: decided by Robert (2026-10-08) — Go to Definition, as in VS Code and Xcode; the form / code toggle keeps F7 / Shift+F7 and View ▸ Toggle Form / Code (no key).
 - The designer's canvas in a narrow group clips the form (no scrolling yet) — S-DESIGN-2's canvas.
 - The palette's "Run: Reveal in Finder" reads "Reveal in " on the web (B-PKG's FileManager): the palette scene's accessibility trees differ for it.
 - WEL-2's cards show icons, not thumbnails of their forms; the `templates` flow (create → run on both hosts) isn't written. WEL-1's ▶ Run and live thumbnails on the Welcome cards aren't there.

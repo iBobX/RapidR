@@ -888,7 +888,7 @@ fn switching_the_theme_repaints_in_the_new_one() {
     let before = f.paint(&s, &mut ts, 1.0).dump();
     theme::set(&DARK);
     let after = f.paint(&s, &mut ts, 1.0).dump();
-    theme::set(&CLASSIC);
+    rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
     // (the edit's box: white, then the dark theme's window, rounded)
     assert!(before.contains("fill 0,0 120x22 #ffffff @8,48"), "{before}");
     assert!(after.contains(&format!("round 0,0 120x22 r{} fill #{:06x}", DARK.radius, DARK.window)), "{after}");
@@ -920,6 +920,8 @@ fn run_faces(ts: &mut TextSystem, text: &str, font: &Font) -> Vec<(String, usize
 /// Cyrillic) comes from the family's Regular face.
 #[test]
 fn styled_text_is_drawn_from_the_designed_faces() {
+    // (RapidQ's look: MS Sans Serif is RapidR Sans; RapidR's draws it in Inter)
+    rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
     // (the indices into BUILTIN_FACES: Sans, Serif, Mono, RapidR Sans,
     // RapidR Sans Bold, then the nine Liberation styles in Sans, Serif, Mono
     // order); MS Sans Serif is RapidR Sans in the classic look (Inter in

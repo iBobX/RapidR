@@ -453,14 +453,14 @@ The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate wind
 - [ ] Parity with `examples/ide.rr`, then `examples/ide.rr` deleted
 
 **I2 — Code editor** (L, 14–20 sessions)
-- [ ] `rapidr-editor`: rope buffer (ropey, MIT), multi-cursor transactions, undo / redo history, find / replace (regex, in selection, in files), bracket matching, auto-indent, folding
-- [ ] Declarative language definitions (TOML: tokens, comments, strings, brackets, indentation, folding, snippets) and colour schemes; RapidQ / RapidR BASIC generated from the registry; no tree-sitter
-- [ ] RCodeEditor grown on the kernel (the current API kept): virtualized view, gutter, squiggles, completion / hover / signature popups, minimap; RDiffView
+- [x] `rapidr-editor`: rope buffer (ropey, MIT), multi-cursor transactions, undo / redo history, find / replace (regex, in selection, in files), bracket matching, auto-indent, folding (S-EDITOR, 2026-10-08)
+- [x] Declarative language definitions (TOML: tokens, comments, strings, brackets, indentation, folding, snippets) and colour schemes; RapidQ / RapidR BASIC generated from the registry; no tree-sitter (S-EDITOR, 2026-10-08)
+- [x] RCodeEditor grown on the kernel (the current API kept): virtualized view, gutter, squiggles, completion / hover / signature popups, minimap; RDiffView (S-EDITOR, 2026-10-08)
 - [ ] IME on every host; accessibility with AccessKit text runs and the web mirror's window of lines
 - [ ] Performance targets met (plan §6.2: typing p99 ≤ 16 ms desktop / 33 ms web on a 100,000-line file; a 10 MB file opens in ≤ 300 ms)
 
 **I3 — Language service** (L, 14–20 sessions)
-- [ ] `rapidr-langsvc` (native and wasm): semantic model, completion of locals / globals / SUBs / FUNCTIONs / TYPEs / components and members (Q and R names alike), hover, signature help, definition, references, rename, outline, live diagnostics in RapidQ's wording, code actions, formatting
+- [x] `rapidr-langsvc` (native and wasm): semantic model, completion of locals / globals / SUBs / FUNCTIONs / TYPEs / components and members (Q and R names alike), hover, signature help, definition, references, rename, outline, live diagnostics in RapidQ's wording, code actions, formatting (S-EDITOR, 2026-10-08)
 - [ ] The "RapidQ-compatible project" diagnostics: every RapidR-only component, member, builtin, statement, directive and non-RapidQ Q name, with code actions
 - [ ] `rapidr lsp`; the VS Code extension an LSP client (its regex providers deleted)
 

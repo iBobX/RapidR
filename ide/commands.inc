@@ -132,7 +132,8 @@ SUB DefineCommands
   AddSep "View"
   AddCmd "view.code", "&Code", "View", "F7", "", "document", ""
   AddCmd "view.designer", "&Designer", "View", "Shift+F7", "", "document", "components/designsurface"
-  AddCmd "view.toggleDesigner", "Toggle &Form / Code", "View", "F12", "", "document", "-"
+  ' (no key: F12 is Go to Definition, as in VS Code and Xcode; F7 / Shift+F7 pick the view)
+  AddCmd "view.toggleDesigner", "Toggle &Form / Code", "View", "", "", "document", "-"
   AddCmd "view.sideBySide", "Designer and Code &Side by Side", "View", "", "", "document", "view.splitVertically"
   AddSep "View"
   AddSubmenu "View", "Theme", "T&heme"

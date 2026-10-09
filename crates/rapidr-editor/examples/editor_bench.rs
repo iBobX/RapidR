@@ -132,7 +132,7 @@ fn main() {
     // open to first paint: the document and the first screen's tokens (the
     // built-in languages load on first use, inside this)
     let t = Instant::now();
-    let lang = Languages::builtin().get("rapidq-basic").expect("built in");
+    let lang = Languages::builtin().get("rapidr-basic").expect("built in");
     let mut doc = Document::new(&src, lang);
     for l in 0..60 {
         let _ = doc.tokens(l);

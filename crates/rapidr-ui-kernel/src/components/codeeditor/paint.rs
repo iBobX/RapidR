@@ -744,7 +744,14 @@ fn paint_gutter(x: &mut Ctx, p: &mut Painter) {
                 },
             }
             if here.is_some() {
-                // (the debugger's line: tinted across the text too — paint_text drew it under)
+                // (the debugger's line: tinted across the text too — paint_text
+                // drew it under; over a breakpoint's dot the arrow has a rim
+                // in the gutter's colour, so an error-red arrow shows on a red dot)
+                if kinds.iter().any(|k| k.starts_with("breakpoint")) {
+                    for (dx, dy) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+                        arrow(p, (icon_rect.0 + dx, icon_rect.1 + dy, icon_rect.2, icon_rect.3), sc.gutter);
+                    }
+                }
                 arrow(p, icon_rect, here_color);
             }
             // changes since the save
@@ -772,7 +779,9 @@ fn paint_gutter(x: &mut Ctx, p: &mut Painter) {
 /// The debugger's execution point: an arrow in the glyph column.
 fn arrow(p: &mut Painter, r: Rect, color: u32) {
     let (x0, y0) = (r.0 as f64 + 1.0, r.1 as f64 + 3.0);
-    p.op(Op::Polygon { points: vec![(x0, y0 + 3.0), (x0 + 7.0, y0 + 3.0), (x0 + 7.0, y0), (x0 + 14.0, y0 + 5.0), (x0 + 7.0, y0 + 10.0), (x0 + 7.0, y0 + 7.0), (x0, y0 + 7.0)], color });
+    // (the head's edges at 45°: their anti-aliasing comes out the same on
+    // every renderer, native and wasm, as the logpoint's diamond does)
+    p.op(Op::Polygon { points: vec![(x0, y0 + 3.0), (x0 + 8.0, y0 + 3.0), (x0 + 8.0, y0), (x0 + 13.0, y0 + 5.0), (x0 + 8.0, y0 + 10.0), (x0 + 8.0, y0 + 7.0), (x0, y0 + 7.0)], color });
 }
 
 /// Rows the minimap shows (two pixels each) from which row.

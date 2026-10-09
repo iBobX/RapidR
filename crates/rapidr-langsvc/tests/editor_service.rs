@@ -36,6 +36,8 @@ fn apply(text: &str, edits: &[Edit]) -> String {
 #[test]
 fn serves_rapidq_basic() {
     let s = EditorService::new();
+    assert!(s.serves("rapidr-basic"));
+    // (the id before it was RapidR's: saved settings keep working)
     assert!(s.serves("rapidq-basic"));
     assert!(!s.serves("rust"));
     assert!(s.case_triggers().contains(&' ') && s.case_triggers().contains(&'\n'));
@@ -167,7 +169,7 @@ fn format_reindents() {
 #[test]
 fn installed_for_the_thread() {
     rapidr_langsvc::editor::install();
-    assert!(service::available("rapidq-basic"));
+    assert!(service::available("rapidr-basic"));
     let n = service::with(|s| {
         s.update("a.bas", "SUB Greet\nEND SUB\n");
         s.outline("a.bas").len()

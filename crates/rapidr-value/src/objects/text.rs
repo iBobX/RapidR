@@ -104,7 +104,8 @@ const MAX_CHARS: usize = 10_000;
 /// The built-in faces' files, and the family each belongs to when it isn't
 /// the one the file names (`None`): what the UI kernel registers with its
 /// text shaper, so its captions are drawn from the very fonts `TextWidth`
-/// measures. Liberation's Regular faces are the unmodified originals; their
+/// measures (JetBrains Mono's italic draws the code editor's comments).
+/// Liberation's Regular faces are the unmodified originals; their
 /// Bold, Italic and Bold Italic are renamed files ("RapidR Text Sans" …,
 /// the licence's Reserved Font Name rule) that join the Liberation families
 /// here, so a request for bold "Liberation Sans" finds the bold face. The
@@ -180,9 +181,11 @@ struct Face {
 fn face(name: &str, styles: u8) -> Face {
     let (bold, italic) = (styles & 1 != 0, styles & 2 != 0);
     match family_name(name) {
-        // (Inter and JetBrains Mono have a bold and no italic; RapidR Sans
+        // (Inter has a bold and no italic, JetBrains Mono a bold and an
+        // italic (not a bold italic); RapidR Sans
         // has a bold, MS Sans Serif's italic being the regular slanted)
         "Inter" => Face { data: if bold { INTER_SEMIBOLD } else { INTER }, bold, italic: false },
+        "JetBrains Mono" if italic && !bold => Face { data: JBMONO_ITALIC, bold, italic },
         "JetBrains Mono" => Face { data: if bold { JBMONO_BOLD } else { JBMONO }, bold, italic: false },
         "RapidR Sans" => Face { data: if bold { RSANS_BOLD } else { RSANS }, bold, italic: false },
         "Liberation Mono" => liberation(bold, italic, [MONO, MONO_BOLD, MONO_ITALIC, MONO_BOLD_ITALIC]),
@@ -519,6 +522,7 @@ mod tests {
         assert_eq!(super::family_name("Comic Sans MS"), "Liberation Sans");
         assert_eq!(super::family_name("Times New Roman"), "Liberation Serif");
         assert_eq!(super::family_name("Courier New"), "Liberation Mono");
+        assert_eq!(super::family_name("JetBrains Mono"), super::CODE_FACE);
         assert_eq!(super::family_name(""), "RapidR Sans");
     }
 
@@ -587,7 +591,7 @@ mod tests {
     /// widths, no spacing added.
     #[test]
     fn bold_and_italic_widths_are_rc_exes() {
-        // (MS Sans Serif as RapidQ draws it: the classic look's RapidR Sans)
+        // (RC.EXE's look: MS Sans Serif is RapidR Sans; RapidR's look draws it in Inter)
         crate::theme::set(&crate::theme::CLASSIC);
         for (name, size, styles, text, rc) in [
             // Arial Bold (Liberation Sans Bold): 37 and 39 where the regular

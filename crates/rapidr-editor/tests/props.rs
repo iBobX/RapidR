@@ -27,7 +27,7 @@ fn lang(id: &str) -> Arc<Language> {
     Languages::builtin().get(id).unwrap()
 }
 
-const LANGS: &[&str] = &["rapidq-basic", "rust", "javascript", "html", "css", "markdown", "toml", "json", "sql", "csv", "plaintext"];
+const LANGS: &[&str] = &["rapidr-basic", "rust", "javascript", "html", "css", "markdown", "toml", "json", "sql", "csv", "plaintext"];
 
 #[derive(Clone, Debug)]
 enum Op {

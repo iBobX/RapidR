@@ -794,6 +794,60 @@ const CASES = [
     dump: { "codedoc(0).caretline": /^22$/, "codedoc(0).seltext": /^Caption$/ },
   },
   {
+    // (Robert: "Tab inserted a weird character") Tab takes the selected
+    // member — never a TAB in the text — and closes the list; Enter then
+    // writes the line's names as declared
+    name: "editor-tab-accept",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x$ = nameedit.te,key:Tab,key:Enter",
+    delay: 6,
+    dump: { "codedoc(0).text": /^[^\t]*\nx\$ = NameEdit\.Text\n?$/, "codedoc(0).completionitems": /^$/ },
+  },
+  {
+    // Ctrl+Space on an empty line: the program's own names (its SUBs and
+    // components) with the language's
+    name: "editor-ctrl-space",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,key:Ctrl+Space,wait",
+    delay: 6,
+    dump: { "codedoc(0).completionitems": /^Greet$[\s\S]*^NameEdit$[\s\S]*^ShowMessage$/im },
+  },
+  {
+    // F12 in a form's code is Go to Definition (VS Code's, Xcode's): the
+    // caret on the SUB, the code still shown — F7 / Shift+F7 switch views
+    name: "editor-f12-in-a-form",
+    open: "examples/gui/hello_form.rr",
+    do: "view.code,focus:codedoc(0),key:Ctrl+End,key:Enter,type:greet,key:Escape,key:Left,key:F12,wait",
+    delay: 6,
+    dump: { "codedoc(0).caretline": /^42$/, "dock.layout": /^view codedoc\(0\) 1 \d+$/m },
+  },
+  {
+    // (Robert's mbYes = 0) a RAPIDQ.INC constant without the include: a
+    // warning in the code and in Problems; Ctrl+. adds the include after
+    // the file's header comments
+    name: "editor-needs-include",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x = mbYes,key:Escape,wait,wait,wait,key:Left,key:Ctrl+.,wait,key:Enter,wait",
+    delay: 8,
+    dump: { "codedoc(0).text": /\n\n\$INCLUDE "RAPIDQ\.INC"\nDECLARE SUB Greet\n[\s\S]*\nx = mbYes\n?$/ },
+  },
+  {
+    // …the warning listed in Problems while it is there
+    name: "editor-needs-include-problems",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x = mbYes,key:Escape,wait,wait,wait,wait",
+    delay: 8,
+    dump: { "codedoc(0).diagnosticcount": /^[1-9]$/, "outputbox.problemcount": /^[1-9]$/ },
+  },
+  {
+    // completing a RAPIDQ.INC constant brings its include along (one step)
+    name: "editor-complete-with-include",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x = mbye,wait,key:Tab",
+    delay: 6,
+    dump: { "codedoc(0).text": /\n\n\$INCLUDE "RAPIDQ\.INC"\nDECLARE SUB Greet\n[\s\S]*\nx = mbYes\n?$/ },
+  },
+  {
     // (S-DESIGN ↔ S-EDITOR) the designer's two additions came to the code as
     // two undo steps of the editor's (ApplyPatches): Ctrl+Z twice in the
     // code gives the file back exactly, and nothing is left to undo

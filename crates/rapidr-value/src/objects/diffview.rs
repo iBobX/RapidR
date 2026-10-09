@@ -954,7 +954,7 @@ mod tests {
         d.set("language", &v_str("x.sql"));
         assert_eq!(s(d.get("language")), "sql");
         d.set("language", &v_str(""));
-        assert_eq!(s(d.get("language")), "rapidq-basic");
+        assert_eq!(s(d.get("language")), "rapidr-basic");
     }
 
     /// Two 20,000-line texts with 100 scattered changes diff in well under

@@ -111,7 +111,7 @@ pub(crate) fn symbol_hover(s: &Snapshot, sym: &Symbol) -> String {
         SymbolKind::Local => format!("local variable{owner}"),
         SymbolKind::Param => format!("parameter{owner}"),
         // (a SUB's own undeclared variable: RapidQ keeps it between calls)
-        SymbolKind::Static if decl.as_ref().is_some_and(|(line, _, _)| !declares(line)) => match &s.model.scopes[sym.scope].kind {
+        SymbolKind::Static if sym.implicit || decl.as_ref().is_some_and(|(line, _, _)| !declares(line)) => match &s.model.scopes[sym.scope].kind {
             ScopeKind::Routine(r) => format!("variable of `{r}` (implicit: its own, kept between calls)"),
             _ => format!("STATIC variable{owner}"),
         },

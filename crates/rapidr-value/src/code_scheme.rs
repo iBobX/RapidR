@@ -453,14 +453,14 @@ mod tests {
 
     #[test]
     fn every_theme_has_its_scheme() {
-        // (RapidR's looks take the scheme of their kind: L-THEME named the
-        // themes, the schemes kept S-EDITOR's names)
+        // (RapidR's light, dark and high-contrast looks take the modern,
+        // dark and high-contrast schemes; the classic look the classic one)
         for t in theme::ALL {
             let want = match t.name {
-                "rapidr light" => "modern",
-                "rapidr dark" => "dark",
-                "rapidr high contrast" => "highcontrast",
-                other => other,
+                "classic" => "classic",
+                n if n.contains("contrast") => "highcontrast",
+                _ if t.dark => "dark",
+                _ => "modern",
             };
             assert_eq!(for_theme(t).name, want, "{}", t.name);
         }

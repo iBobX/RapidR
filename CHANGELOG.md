@@ -64,6 +64,52 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - **Fixed**: `TYPE T EXTENDS RObject` (RapidR's name of RapidQ's QOBJECT) was a syntax error;
   RapidR's names in mixed case (`EXTENDS RPanel`, `AS REdit`) are now read exactly as RapidQ's
   (the same bytecode as `QPANEL`).
+### RapidR Studio: the code editor works
+- **IntelliSense in Studio** (desktop and web alike): completion after `.` (members by type, ranked
+  fuzzily, docs beside the list), signature help, hover, F12 (into another file too), Shift+F12
+  (uses selected and listed in Output), F2 rename, squiggles with the Problems panel, Ctrl+. quick
+  fixes, keywords in upper case as you type (`dim` → `DIM`), snippets.
+  - Members after `.` for every kind of object: RapidR's and RapidQ's component names, arrays of
+    components, the program's TYPEs (and TYPEs extending a component), WITH blocks, CREATE bodies.
+  - After `AS`, the file's own style: RapidR's names (`RButton`, `RForm`); RapidQ's (`QButton`)
+    still complete once you start typing one (`QBu…`), after RapidR's, and are always accepted. A
+    file written with RapidQ's names keeps to them.
+  - RAPIDQ.INC's constants (`mbYes`, `clRed`, `fmOpenRead` …) are offered even before the program
+    includes it: choosing one adds `$INCLUDE "RAPIDQ.INC"` at the top in the same undo step.
+  - **F12 is Go to Definition everywhere**, in a form's code too (it no longer toggles the
+    designer: F7 / Shift+F7 do; View ▸ Toggle Form / Code has no key).
+- **RAPIDQ.INC constants without the include are flagged** (squiggles, the Problems panel,
+  Ctrl+.): "mbYes is a RAPIDQ.INC constant — add $INCLUDE "RAPIDQ.INC"", a warning — without the
+  include RapidQ reads `mbYes` as a variable that is 0 (Robert's save prompt showed only OK). The
+  quick fix adds the include after the file's header comments. How programs run doesn't change.
+- **The manual's new page [The code editor in RapidR Studio](docs/manual/studio-editor.md)**:
+  completion, Ctrl+Space, parameter info, hover, F12, problems and quick fixes, the shortcuts,
+  with screenshots made again by `node tools/manual/shots.mjs` (scenes in `tools/manual/scenes/`).
+- The code editor's BASIC is `rapidr-basic` ("RapidR BASIC", also in Studio's status bar);
+  `rapidq-basic`, its old id, still works wherever a language id is given (RCODEEDITOR's
+  `Language`, RDIFFVIEW's, saved settings).
+- **Tab no longer types a stray character.** A TAB in any QMEMO / QRICHEDIT was drawn as the font's
+  missing-glyph box; it is now the blank to the next tab stop. In the code editor, Tab / Shift+Tab
+  indent and outdent by the file's unit.
+- **Edit menu**: Find Next / Previous, and Edit ▸ Advanced (indent / outdent lines, select next
+  occurrence, go to matching bracket, fold / unfold, parameter info, hover, word wrap).
+- **RCODEEDITOR**:
+  - `ApplyPatches(Patches, [Continues])` applies a designer change to the code as one undo step of
+    the editor's history;
+  - `GotoMatchingBracket`;
+  - the debugger's marker kinds (breakpoint, conditional, logpoint, disabled, current, frame,
+    exception) with notes at a line's end;
+  - `DebugHover` and `WordAt`;
+  - OnChange after ApplyPatches / Undo / Redo.
+- Fixed: an undo that removed lines could crash the code editor's view.
+- Fixed: the semantic model took the first use of an undeclared name for its declaration (the
+  compiler's own `DIM … AS DOUBLE` for it spans the whole program); INPUT and SWAP now count as
+  storing into their variables.
+- `examples/basics/files.rr` includes RAPIDQ.INC for `fmOpenRead`.
+- Code shows each character: JetBrains Mono's ligatures (`->`, `<=`, `<>`) are off in the code
+  editor and RDIFFVIEW; other text keeps its fonts' contextual alternates (Inter's colon between
+  digits, `0:00.0`, as the approved images have it).
+
 ### Changed
 - **`rapidr build` and Studio's Build make the release build, and the output folder gets only the app**
   (Robert: a build left the generated Rust, cargo's files and a debug executable beside the program).

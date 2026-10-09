@@ -67,7 +67,7 @@ system's OpenSSL 3, which every current distribution installs).
   Cantarell, for window titles on GNOME's Wayland) are inside your program
   (the Regular faces unmodified; their Bold, Italic and Bold Italic cut to the
   Latin scripts and renamed "RapidR Text …", as the licence asks; JetBrains
-  Mono as the Latin subset Google Fonts distributes), under the
+  Mono's Italic as the Latin subset Google Fonts distributes), under the
   SIL Open Font License: fine for any program,
   commercial included. Don't extract them to sell on their own, and if you
   change them, give your version another name.

@@ -278,6 +278,9 @@ impl Server {
                         filter_text: Some(c.label.clone()),
                         insert_text_format: Some(if c.snippet { InsertTextFormat::SNIPPET } else { InsertTextFormat::PLAIN_TEXT }),
                         text_edit: Some(CompletionTextEdit::Edit(TextEdit { range, new_text: c.insert.unwrap_or_else(|| c.label.clone()) })),
+                        // (an import the name needs: RAPIDQ.INC's constants)
+                        additional_text_edits: (!c.edits.is_empty())
+                            .then(|| c.edits.iter().map(|e| TextEdit { range: self.range(&text, &index, e.start, e.end), new_text: e.text.clone() }).collect()),
                         label: c.label,
                         ..Default::default()
                     })

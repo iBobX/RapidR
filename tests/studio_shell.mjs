@@ -62,6 +62,19 @@ const SCENES = [
   // (the code editor with the completion list open and its docs beside it:
   // typed through the kernel's keys, S-EDITOR)
   { name: "editor", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:dim y as string,key:Escape,key:Enter,type:form.c", delay: 6 },
+  // (S-EDITOR) a misspelt member squiggled, in Problems too; a hover; the
+  // signature after `(`; Tab at a line's start (blanks, never a glyph)
+  { name: "editor-squiggle", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,type:x$ = NameEdit.Txet,key:Escape,wait,wait,wait,view.problems", delay: 8 },
+  { name: "editor-hover", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,type:ShowMessage \"Hi\",key:Escape,key:Home,key:Right,key:Right,edit.showHover,wait,wait", delay: 7 },
+  { name: "editor-signature", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,type:x$ = MID$(,wait", delay: 6 },
+  { name: "editor-tab", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,key:Tab,type:clicks = 0,key:Escape,key:Enter,key:Tab,key:Tab,type:x,key:Escape", delay: 6 },
+  // (Robert's IntelliSense pass) F12 on a call: the caret on its SUB, the
+  // code view kept; mbYes without RAPIDQ.INC squiggled and in Problems;
+  // completing it with the include it brings; Ctrl+Space's list
+  { name: "editor-f12", open: "examples/gui/hello_form.rr", do: "view.code,focus:codedoc(0),key:Ctrl+End,key:Enter,type:greet,key:Escape,key:Left,key:F12,wait", delay: 6 },
+  { name: "editor-needs-include", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:r = MessageDlg(\"Save?\",key:Comma,type: mtWarning,key:Comma,type: mbYes OR mbNo,key:Comma,type: 0),key:Escape,wait,wait,wait,view.problems", delay: 8 },
+  { name: "editor-complete-include", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x = mby,wait", delay: 6 },
+  { name: "editor-ctrl-space", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,key:Enter,key:Tab,key:Ctrl+Space,wait", delay: 6 },
   // (S-SHELL-2) Documents as tabs: a form's file side by side (Design |
   // Code), another file in a second group on the right; Find in Files'
   // results; F1's Help pane.

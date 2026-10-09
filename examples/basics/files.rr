@@ -6,6 +6,7 @@
 ' OPEN … FOR OUTPUT / APPEND / INPUT AS #n, PRINT #n and LINE INPUT #n are
 ' classic BASIC; FILEEXISTS, FILELEN and KILL look after files.
 $APPTYPE CONSOLE
+$INCLUDE "RAPIDQ.INC"   ' fmOpenRead, fmCreate …
 
 CONST LOGFILE = "shopping.txt"
 

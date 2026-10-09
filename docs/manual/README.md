@@ -16,6 +16,7 @@ where something isn't done yet, it says so.
 | [Components and objects](components.md) | `CREATE`, properties, methods and events; RapidR's names and RapidQ's names; the global objects; themes, high-DPI and accessibility |
 | [The CLI and the RapidR Runtime](cli-and-runtime.md) | Every `rapidr` command, the kinds of builds, the Runtime, file types, `rapidr setup`, environment variables, the notices builds carry |
 | [Debugging in RapidR Studio](debugging.md) | Running and stopping, breakpoints (conditions, hit counts, log messages), stepping, Pause, Variables, Watch, the Call Stack, values under the mouse, Immediate, run-time errors, the desktop and the browser |
+| [The code editor in RapidR Studio](studio-editor.md) | Completion, Ctrl+Space, parameter info, hover, F12 Go to Definition, problems and quick fixes (RAPIDQ.INC), the keyboard shortcuts |
 | [Building apps and their icons](building-apps.md) | `Name.app`, the `.exe`'s icon and version, `Name.AppDir`; your icon or RapidR's; Studio's Build |
 | [The web](web.md) | Running programs in a browser: bundles, `--web` builds, files and assets, web-only components |
 | [Databases](databases.md) | RSQLite and RMySQL, parameter binding, events |

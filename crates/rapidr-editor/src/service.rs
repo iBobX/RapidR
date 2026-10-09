@@ -102,11 +102,14 @@ pub struct Completion {
     pub snippet: bool,
     /// The order: smaller first (the label when empty).
     pub sort: String,
+    /// Other edits of the file made with it, as one step (an import the
+    /// name needs: `$INCLUDE "RAPIDQ.INC"`); bytes of the text before.
+    pub edits: Vec<Edit>,
 }
 
 impl Completion {
     pub fn new(label: impl Into<String>, kind: CompletionKind) -> Completion {
-        Completion { label: label.into(), kind, detail: String::new(), doc: String::new(), insert: None, snippet: false, sort: String::new() }
+        Completion { label: label.into(), kind, detail: String::new(), doc: String::new(), insert: None, snippet: false, sort: String::new(), edits: Vec::new() }
     }
 }
 
@@ -272,7 +275,7 @@ pub struct SemanticToken {
 /// text last given with [`LanguageService::update`].
 pub trait LanguageService {
     /// Whether it serves files of the language `language` (an id of
-    /// `rapidr_editor::Languages`: `rapidq-basic` …).
+    /// `rapidr_editor::Languages`: `rapidr-basic` …).
     fn serves(&self, language: &str) -> bool;
     /// The editor's whole text of `file`, now.
     fn update(&mut self, file: &str, text: &str);

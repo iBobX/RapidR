@@ -134,9 +134,26 @@ fn ellipsized(s: &str, font: &Font, width: i64) -> String {
     String::new()
 }
 
-/// Markdown made plain: emphasis marks and backticks dropped.
+/// Markdown made plain: emphasis marks (`**bold**`, `*italic*`) and
+/// backticks dropped; a `*` between spaces or digits (`a * b`) kept.
 fn plain(s: &str) -> String {
-    s.replace("**", "").replace('`', "").replace("\\_", "_")
+    let s = s.replace("**", "").replace('`', "").replace("\\_", "_");
+    let chars: Vec<char> = s.chars().collect();
+    let edge = |c: Option<&char>| c.is_none_or(|c| c.is_whitespace() || "([{\"'.,;:!?)]}".contains(*c));
+    chars
+        .iter()
+        .enumerate()
+        .filter(|&(i, &c)| {
+            if c != '*' {
+                return true;
+            }
+            let (before, after) = (i.checked_sub(1).and_then(|j| chars.get(j)), chars.get(i + 1));
+            let opens = edge(before) && after.is_some_and(|a| !a.is_whitespace());
+            let closes = before.is_some_and(|b| !b.is_whitespace()) && edge(after);
+            !(opens || closes)
+        })
+        .map(|(_, &c)| c)
+        .collect()
 }
 
 /// A hover's or doc's text as blocks: code (fenced) and prose.
@@ -485,6 +502,12 @@ pub fn popup_wheel(f: &mut FormUi, x: f64, y: f64, dy: f64) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn emphasis_is_dropped_and_arithmetic_kept() {
+        assert_eq!(plain("*Choosing it adds `$INCLUDE`.* And **this**."), "Choosing it adds $INCLUDE. And this.");
+        assert_eq!(plain("a * b, 2*3"), "a * b, 2*3");
+    }
 
     #[test]
     fn blocks_and_wrapping() {

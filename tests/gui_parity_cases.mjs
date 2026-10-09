@@ -324,6 +324,11 @@ export const cases = [
     expect: ["lbl.caption=4|Main|Label1|RCHECKBOX|Button1||3|Tick|32,24,96,40|208|&H00FFFF|Label1|Other|300", "log.caption=s0/m0:32,24,80,24/m0:32,24,96,40/b250,100/s2/d2/"] },
   { name: "code_editor", events: "btn.onclick", dump: "lbl.caption",
     expect: ['lbl.caption=7|SUB Hello(x AS INTEGER)|118|0|Hello/Twice|4,70|  PRINT|  BEEP "hi" \' greet|37|33|0'] },
+  // (S-EDITOR) the debugger's markers drawn in the gutter and over the
+  // lines (captures), WordAt's dotted names, DebugHover; ApplyPatches as
+  // one undo step, and OnChange after ApplyPatches and Undo (2)
+  { name: "code_editor_markers", events: "btn.onclick", dump: "lbl.caption",
+    expect: ["lbl.caption=Form.Caption|Form|1,2,9|-1|-1|DIM y AS INTEGER/y = 3|DIM x AS INTEGER|2"] },
   // (`comp.__dblclick_x_y`: a double click at (x, y) in it — press, release,
   // press, release)
   { name: "dbl_clicks", events: "pn.__dblclick_5_5,lb.__dblclick_3_3,gb.__dblclick_10_30,img.__dblclick_2_2,cv.__dblclick_4_4,form.__dblclick_300_250", dump: "lbl.caption",

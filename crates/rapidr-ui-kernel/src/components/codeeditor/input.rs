@@ -258,26 +258,37 @@ pub fn accept_completion(x: &mut Ctx) -> bool {
     }
     let text = item.insert.clone().unwrap_or_else(|| item.label.clone());
     x.c.doc.set_selections(Selections::single(Selection::new(start, end)));
+    // (the item's other edits — an `$INCLUDE` the name needs — in the same
+    // step, before or after the word; the word's place after them)
+    let len = x.c.doc.len_bytes();
+    let extra: Vec<&rapidr_editor::service::Edit> = item.edits.iter().filter(|e| e.start <= e.end && e.end <= len && (e.end <= start || e.start >= end)).collect();
+    let shift: usize = extra.iter().filter(|e| e.end <= start).map(|e| e.text.len()).sum::<usize>();
+    let cut: usize = extra.iter().filter(|e| e.end <= start).map(|e| e.end - e.start).sum::<usize>();
+    let at = start + shift - cut;
+    let changes = |word: String| {
+        let mut all: Vec<rapidr_editor::transaction::Change> = extra.iter().map(|e| rapidr_editor::transaction::Change::new(e.start..e.end, e.text.clone())).collect();
+        all.push(rapidr_editor::transaction::Change::new(start..end, word));
+        all.sort_by_key(|c| c.range.start);
+        rapidr_editor::ChangeSet::new(all, len)
+    };
     if item.snippet {
         let line = x.c.doc.buffer().line_of(start);
         let indent = x.c.doc.indent_of(line);
         let unit = x.c.doc.indent_unit();
         let exp = rapidr_editor::snippet::expand(&text, &indent, &unit, "\n");
-        let len = x.c.doc.len_bytes();
-        let Ok(set) = rapidr_editor::ChangeSet::new(vec![rapidr_editor::transaction::Change::new(start..end, exp.text.clone())], len) else { return false };
-        let first = exp.stops.first().map(|r| (start + r.start, start + r.end)).unwrap_or((start + exp.text.len(), start + exp.text.len()));
+        let Ok(set) = changes(exp.text.clone()) else { return false };
+        let first = exp.stops.first().map(|r| (at + r.start, at + r.end)).unwrap_or((at + exp.text.len(), at + exp.text.len()));
         let _ = x.c.doc.apply(set, Selections::single(Selection::new(first.0, first.1)), EditKind::Command, now_ms());
         // (the insertion's own marks first: the stops are already where
         // the text has them, not to be moved through it again)
         x.ui.snippet = None;
         edited(x, None);
-        let stops: Vec<(usize, usize)> = exp.stops.iter().map(|r| (start + r.start, start + r.end)).collect();
+        let stops: Vec<(usize, usize)> = exp.stops.iter().map(|r| (at + r.start, at + r.end)).collect();
         x.c.anchors = stops.iter().flat_map(|&(a, b)| [(a, true), (b, false)]).collect();
         x.ui.snippet = (stops.len() > 1).then_some(super::SnippetSession { stops, current: 0 });
     } else {
-        let len = x.c.doc.len_bytes();
-        let Ok(set) = rapidr_editor::ChangeSet::new(vec![rapidr_editor::transaction::Change::new(start..end, text.clone())], len) else { return false };
-        let _ = x.c.doc.apply(set, Selections::caret(start + text.len()), EditKind::Command, now_ms());
+        let Ok(set) = changes(text.clone()) else { return false };
+        let _ = x.c.doc.apply(set, Selections::caret(at + text.len()), EditKind::Command, now_ms());
         edited(x, None);
         x.c.completion = None;
     }

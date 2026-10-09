@@ -87,14 +87,10 @@ END SUB
 SUB EditorFocusTick
   EditorFocus.Enabled = 0
   IF FocusDoc >= 0 AND FocusDoc < DocCount THEN
-    IF DocOpen(FocusDoc) THEN
-      ' (a form's file opens on its designer, as Delphi's: that view keeps
-      ' the keys; focusing the code would turn the tab to its code)
-      IF DocKind(FocusDoc) = "design" THEN
-        Dock.FocusPane("designdoc(" + LTRIM$(STR$(FocusDoc)) + ")")
-      ELSE
-        Dock.FocusPane("codedoc(" + LTRIM$(STR$(FocusDoc)) + ")")
-      END IF
+    ' (a form's file opens on its designer, as Delphi: left as it is —
+    ' focusing the code would switch the view to it)
+    IF DocOpen(FocusDoc) AND DocViewNow(FocusDoc) <> "Design" THEN
+      Dock.FocusPane("codedoc(" + LTRIM$(STR$(FocusDoc)) + ")")
     END IF
   END IF
 END SUB
@@ -199,7 +195,7 @@ END SUB
 ' `type:<text>`: typed one key at a time into the focused component (the
 ' kernel's keyboard path: completion, case and auto-close all happen);
 ' `key:<chord>`: one key, e.g. key:Tab, key:Shift+Tab, key:Ctrl+Space,
-' key:F12, key:Enter (Ctrl is Ctrl as on Windows, Cmd's shortcuts on a Mac).
+' key:F12, key:Enter, key:Comma (Ctrl is Ctrl as on Windows, Cmd's shortcuts on a Mac).
 ' True when Id was one (the macro waits while the keys are delivered).
 
 ' (text as SendKeys types it: its special characters in braces)
@@ -231,6 +227,9 @@ FUNCTION ChordKeys(Chord AS STRING) AS STRING
     Result = mods + KeysOf(LCASE$(rest))
   ELSEIF u = "SPACE" THEN
     Result = mods + " "
+  ELSEIF u = "COMMA" THEN
+    ' (a flow's steps are split at commas: key:Comma types one)
+    Result = mods + ","
   ELSE
     Result = mods + "{" + u + "}"
   END IF

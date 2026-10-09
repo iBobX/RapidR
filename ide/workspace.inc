@@ -6,10 +6,8 @@
 '
 '   Design | Code    a file with a form has the switch at the right of its
 '                    tab strip (RDOCKMANAGER's AddView): its designer, its
-'                    code, or both side by side; F12 from the designer to
-'                    the code (Delphi's; in the code F12 goes to the
-'                    definition, VS Code's), F7 the code, Shift+F7 the
-'                    designer
+'                    code, or both side by side; F7 the code, Shift+F7
+'                    the designer (F12 is the code's Go to Definition)
 '   groups           a tab dragged to a side of the area splits it into
 '                    groups (VS Code's editor groups), or Window > Split
 '                    Right / Split Down; the splitters between them drag
@@ -79,7 +77,7 @@ SUB AddDocumentTab(d AS INTEGER)
   END IF
 END SUB
 
-' (the switch, F12, F7, Shift+F7: what document d shows now)
+' (the switch, F7, Shift+F7: what document d shows now)
 SUB DocumentViewChanged(Name AS STRING, View AS STRING)
   DIM d AS INTEGER
   d = DocOfPane(Name)
@@ -120,20 +118,12 @@ SUB ShowView(View AS STRING)
   IF View = "Design" THEN Dock.FocusPane("designdoc(" + LTRIM$(STR$(d)) + ")")
 END SUB
 
-' F12: from the form to its code, as Delphi.
-' (in the code F12 is Go to Definition, as VS Code's — docs/studio-wow.md
-' ED-6, the editor's: the designer is Shift+F7 or the switch away)
+' View > Toggle Form / Code: the form, then its code.
 SUB ToggleDesign
   DIM d AS INTEGER
   d = ActiveCode
   IF d < 0 THEN EXIT SUB
-  IF DocViewNow(d) = "Design" THEN
-    ShowView "Code"
-  ELSEIF DocViewNow(d) = "Split" AND DocKind(d) = "design" THEN
-    Dock.FocusPane(DocPane(d))
-  ELSE
-    CodeDoc(d).GotoDefinition
-  END IF
+  IF DocViewNow(d) = "Design" THEN ShowView "Code" ELSE ShowView "Design"
 END SUB
 
 ' The documents' and the views' commands; True when Id was one.
