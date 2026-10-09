@@ -506,7 +506,7 @@ const CASES = [
     do: "wait,view.designer,pick:Answer,prop:Font.Bold=True,prop:Font.Size=12,prop:Font.Color=clBlue,prop:Font.Name=Arial,prop:Alignment=taCenter,prop:Color=clYellow,prop:Caption=Say hi && bye,prop:WordWrap=True,wait",
     delay: 6,
     dump: {
-      "codedoc(0).text": /    CREATE Answer AS QLABEL\n        Caption = "Say hi && bye"\n        Left = 16: Top = 96: Width = 300\n        Font\.Bold = 1\n        Font\.Size = 12\n        Font\.Color = &HFF0000\n        Font\.Name = "Arial"\n        Alignment = 2\n        Color = &H00FFFF\n        WordWrap = 1\n    END CREATE/,
+      "codedoc(0).text": /    CREATE Answer AS RLabel\n        Caption = "Say hi && bye"\n        Left = 16: Top = 96: Width = 300\n        Font\.Bold = 1\n        Font\.Size = 12\n        Font\.Color = &HFF0000\n        Font\.Name = "Arial"\n        Alignment = 2\n        Color = &H00FFFF\n        WordWrap = 1\n    END CREATE/,
       "inspector.rows": /^Alignment=taCenter$[\s\S]*^Caption=Say hi && bye$[\s\S]*^Color=(clYellow|&H00FFFF)$[\s\S]*^WordWrap=True$[\s\S]*^Font=Arial, 12 pt, Bold$/m,
     },
   },
@@ -574,7 +574,7 @@ const CASES = [
     events: typed("&File{Enter}&Open...{Tab}{Ctrl+O}{Enter}-{Enter}E&xit{Enter}{Escape}"),
     delay: 4,
     dump: {
-      "codedoc(0).text": /    CREATE MainMenu1 AS QMAINMENU\n        CREATE File1 AS QMENUITEM\n            Caption = "&File"\n            CREATE Open1 AS QMENUITEM\n                Caption = "&Open\.\.\."\n                ShortCut = "Ctrl\+O"\n            END CREATE\n            CREATE N1 AS QMENUITEM\n                Caption = "-"\n            END CREATE\n            CREATE Exit1 AS QMENUITEM\n                Caption = "E&xit"\n            END CREATE\n        END CREATE\n    END CREATE\n/,
+      "codedoc(0).text": /    CREATE MainMenu1 AS RMainMenu\n        CREATE File1 AS RMenuItem\n            Caption = "&File"\n            CREATE Open1 AS RMenuItem\n                Caption = "&Open\.\.\."\n                ShortCut = "Ctrl\+O"\n            END CREATE\n            CREATE N1 AS RMenuItem\n                Caption = "-"\n            END CREATE\n            CREATE Exit1 AS RMenuItem\n                Caption = "E&xit"\n            END CREATE\n        END CREATE\n    END CREATE\n/,
     },
   },
   // (S-DESIGN-2) The Tab-order editor: GreetButton clicked first, then
@@ -589,7 +589,7 @@ const CASES = [
     dump: {
       "designdoc(0).tabordermode": /^(-1|1|True)$/i,
       "designdoc(0).statustext": /^NameEdit: Tab order 1$/,
-      "codedoc(0).text": /    CREATE NameEdit AS QEDIT\n        Text = "World"\n        Left = 112: Top = 16: Width = 200\n        OnChange = NameChanged\n    END CREATE\n    CREATE GreetButton AS QBUTTON\n[\s\S]*        OnClick = Greet\n        TabOrder = 0\n    END CREATE/,
+      "codedoc(0).text": /    CREATE NameEdit AS REdit\n        Text = "World"\n        Left = 112: Top = 16: Width = 200\n        OnChange = NameChanged\n    END CREATE\n    CREATE GreetButton AS RButton\n[\s\S]*        OnClick = Greet\n        TabOrder = 0\n    END CREATE/,
     },
   },
   // (S-DESIGN-2) A caption edited in place: GreetButton clicked, then
@@ -600,7 +600,7 @@ const CASES = [
     do: "wait,view.designer",
     events: `${click(150, 60)},${click(150, 60)},${typed("Say &hi{Enter}")}`,
     delay: 4,
-    dump: { "designdoc(0).editing": /^(0|False)$/i, "codedoc(0).text": /    CREATE GreetButton AS QBUTTON\n        Caption = "Say &hi"\n/ },
+    dump: { "designdoc(0).editing": /^(0|False)$/i, "codedoc(0).text": /    CREATE GreetButton AS RButton\n        Caption = "Say &hi"\n/ },
   },
   // (S-DESIGN-2) Smart guides while dragging: Answer held and moved a
   // little — its left edge lines up with NameLabel's (the capture shows the
@@ -652,7 +652,7 @@ const CASES = [
     open: "examples/gui/pantry.rr",
     do: 'wait,view.designer,pick:AddBtn,prop:Width=120,code:"&Add to shelf"=>"Store it",wait,wait,wait,view.designer,pick:AddBtn,prop:Left=320,wait,view.code,edit.undo,wait',
     delay: 7,
-    dump: { "codedoc(0).text": /    CREATE AddBtn AS QBUTTON\n        Caption = "Store it": Left = 314: Top = 252: Width = 120\n/ },
+    dump: { "codedoc(0).text": /    CREATE AddBtn AS RButton\n        Caption = "Store it": Left = 314: Top = 252: Width = 120\n/ },
   },
   // (S-DESIGN-2) …and three Undos: the file's exact text; Redo twice: the
   // designer's Width and the typed Caption back, in order.
@@ -661,7 +661,7 @@ const CASES = [
     open: "examples/gui/pantry.rr",
     do: 'wait,view.designer,pick:AddBtn,prop:Width=120,code:"&Add to shelf"=>"Store it",wait,wait,wait,view.designer,pick:AddBtn,prop:Left=320,wait,edit.undo,edit.undo,edit.undo,wait',
     delay: 8,
-    dump: { "codedoc(0).text": /CREATE AddBtn AS QBUTTON/ },
+    dump: { "codedoc(0).text": /CREATE AddBtn AS RButton/ },
     same: { "codedoc(0).text": "examples/gui/pantry.rr" },
   },
   {
@@ -669,7 +669,7 @@ const CASES = [
     open: "examples/gui/pantry.rr",
     do: 'wait,view.designer,pick:AddBtn,prop:Width=120,code:"&Add to shelf"=>"Store it",wait,wait,wait,view.designer,edit.undo,edit.undo,edit.redo,edit.redo,wait',
     delay: 8,
-    dump: { "codedoc(0).text": /    CREATE AddBtn AS QBUTTON\n        Caption = "Store it": Left = 314: Top = 252: Width = 120\n/ },
+    dump: { "codedoc(0).text": /    CREATE AddBtn AS RButton\n        Caption = "Store it": Left = 314: Top = 252: Width = 120\n/ },
   },
   // (S-DESIGN-2, Robert: "keep going until I can add new forms") A new
   // form program; Project > Add Form (Form2.rr, named in the project tree:

@@ -270,7 +270,10 @@ impl DesignSurface {
                 if !e.shortcut.is_empty() {
                     props.push(("ShortCut", value::write_str(&e.shortcut)));
                 }
-                let tree = Subtree::new(&name, "QMENUITEM", &props);
+                // (in the file's own names: RMenuItem, or QMENUITEM in a
+                // RapidQ-style file — R-NAMES)
+                let item = rapidr_lang::component("RMENUITEM").map_or_else(|| "RMenuItem".to_string(), |c| c.name_in(self.designer.design.names()));
+                let tree = Subtree::new(&name, &item, &props);
                 let Some(p) = self.designer.design.node(parent) else { return };
                 let index = match before {
                     Some(b) => p.body.iter().position(|i| *i == Item::Child(b)).unwrap_or(p.body.len()),
