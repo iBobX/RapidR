@@ -8,6 +8,9 @@
 SUB OpenProject(Path AS STRING)
   IF Path = "" THEN EXIT SUB
   IF Proj.Open(Path) = 0 THEN
+    ' (a Markdown file — a README, a report — opens on its own, in Preview:
+    ' markdown.inc)
+    IF OpenMarkdownFile(Path) THEN EXIT SUB
     OutputLine "Can't open " + Path + ": " + Proj.Error
     SetState "error", "Can't open " + FileTitle(Path)
     EXIT SUB

@@ -63,6 +63,14 @@ pub enum Role {
     Splitter,
     /// A QSTATUSBAR (a polite live region: what it says is announced).
     Status,
+    /// (RMARKDOWNVIEW) A document read, not edited; its headings (with
+    /// their `level`), lists and their items, tables and links.
+    Document,
+    Heading,
+    List,
+    ListItem,
+    Table,
+    Link,
     Unknown,
 }
 
@@ -99,6 +107,12 @@ impl Role {
             Role::SpinButton => "spinbutton",
             Role::Splitter => "separator",
             Role::Status => "status",
+            Role::Document => "document",
+            Role::Heading => "heading",
+            Role::List => "list",
+            Role::ListItem => "listitem",
+            Role::Table => "table",
+            Role::Link => "link",
             Role::Unknown => "generic",
         }
     }
@@ -463,6 +477,8 @@ pub fn role_of(type_name: &str) -> Role {
         "ROUTPUTCONSOLE" => Role::Group,
         "RTOOLBAR" => Role::Group,
         "RCOMMANDPALETTE" => Role::Dialog,
+        // (a Markdown text shown: its headings, lists, tables and links inside)
+        "RMARKDOWNVIEW" => Role::Document,
         "RSTATUSBAR" => Role::Status,
         "RSPLITTER" => Role::Splitter,
         // (and a kernel-drawn message box's icon)
@@ -487,7 +503,7 @@ pub fn takes_focus(type_name: &str) -> bool {
         "RBUTTON" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RCODEEDITOR" | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RLISTVIEW" | "RTREEVIEW" | "RDIRTREE" | "RSTRINGGRID" | "RTABCONTROL" | "RTRACKBAR" | "RUPDOWN"
             | "RSCROLLBAR" | "RDESIGNSURFACE"
         // (I1 / L-PANELS: RapidR Studio's panels)
-        | "RPROPERTYINSPECTOR" | "RTOOLBOX" | "RPROJECTTREE" | "ROUTPUTCONSOLE" | "RCOMMANDPALETTE"
+        | "RPROPERTYINSPECTOR" | "RTOOLBOX" | "RPROJECTTREE" | "ROUTPUTCONSOLE" | "RCOMMANDPALETTE" | "RMARKDOWNVIEW"
     )
 }
 

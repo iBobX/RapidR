@@ -1372,6 +1372,7 @@ A code editor for BASIC: line numbers, syntax colours, and a list of the program
 | `SelText` | string |  | The selected text; setting it replaces the selection. |
 | `Line` | string |  | A line of the text, `Line(i)` from 0. |
 | `LineCount` | int |  | The number of lines of text (on a tree, of nodes). |
+| `Language` | string | `"basic"` | What the text is coloured as: "basic" (RapidQ / RapidR BASIC, the default); any other ("text", "markdown") shows it uncoloured. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
 | `ShowHint` | int |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
@@ -4855,6 +4856,50 @@ A box of commands found by typing: Show opens it over the form, the user types a
 |---|---|
 | `OnCommand(Id AS STRING)` | The user picked a command (Enter or a click): the palette has closed. |
 | `OnCancel` | The user closed the palette without picking (Escape). |
+
+<a id="rmarkdownview"></a>
+## RMARKDOWNVIEW
+
+A Markdown text shown formatted, as a reader sees it: headings, paragraphs with bold, italic, struck-out and `code` words, bulleted and numbered lists (nested), tables, block quotes, code blocks (BASIC's coloured as the code editor colours it), rules and links. The text scrolls; the user selects it with the mouse and copies it (Ctrl+C). A click on a link fires OnLinkClick; a web link (http, https, mailto) opens in the browser, a `#heading` link scrolls to that heading. HTML in the text is left out and a picture shows its description. RapidR Studio shows `.md` files with it.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
+| `Text` | string | `""` | The Markdown text shown (CommonMark, with GitHub's tables and ~~strikethrough~~). |
+| `FileName` (read-only) | string |  | The file LoadFromFile read ("" when Text was set). |
+| `OpenLinks` | bool | True | A click on a web link (http, https, mailto) opens it in the browser. Every link clicked fires OnLinkClick either way. |
+| `EmptyText` | string | `""` | What it says while it has no text. |
+| `PlainText` (read-only) | string |  | The text as shown, without the Markdown marks: a line per paragraph, list item or heading; a table's cells separated by tabs. |
+| `SelText` (read-only) | string |  | The text the user selected, as PlainText has it. |
+| `LinkCount` (read-only) | int |  | How many links the text has. |
+| `Headings` (read-only) | string |  | The headings, one a line: the level (1 to 6), the heading's text, its anchor as a `#` link names it ("getting-started") and the line of the text it is on (from 1), separated by tabs. |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Visible` | bool | True | Whether the control or form is shown. |
+| `Font` | font |  | The text's font (the headings are larger, code is monospaced); RapidR's own when the program sets none. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+
+| Method | |
+|---|---|
+| `LoadFromFile(FileName AS STRING) AS INTEGER` | Shows a Markdown file: True when it was read. Relative links in it are relative to its folder. |
+| `Clear` | Shows nothing. |
+| `SelectAll` | Selects the whole text. |
+| `ScrollTo(Heading AS STRING) AS INTEGER` | Scrolls a heading to the top, named by its anchor ("#getting-started") or its text: True when there is one. |
+
+| Event | |
+|---|---|
+| `OnLinkClick(Url AS STRING)` | The user clicked a link: its target as the text writes it ("https://…", "other.md", "#heading"). |
 
 <a id="rproject"></a>
 ## RPROJECT

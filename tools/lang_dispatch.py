@@ -132,6 +132,7 @@ SITES = {
     ("crates/rapidr-value/src/panels/console.rs", "*"): "ROUTPUTCONSOLE",
     ("crates/rapidr-value/src/panels/toolbar.rs", "*"): "RTOOLBAR",
     ("crates/rapidr-value/src/panels/palette.rs", "*"): "RCOMMANDPALETTE",
+    ("crates/rapidr-value/src/panels/markdown.rs", "*"): "RMARKDOWNVIEW",
     ("crates/rapidr-value/src/objects/grid.rs", "*"): "RSTRINGGRID",
     ("crates/rapidr-value/src/objects/header.rs", "call", "member"): "HEADERSECTION",
     ("crates/rapidr-value/src/objects/header.rs", "*"): "RHEADER",

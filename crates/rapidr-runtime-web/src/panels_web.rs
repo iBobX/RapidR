@@ -1,5 +1,5 @@
 //! RapidR Studio's panels in the browser (RPROPERTYINSPECTOR, RTOOLBOX,
-//! RPROJECTTREE, ROUTPUTCONSOLE, RTOOLBAR, RCOMMANDPALETTE):
+//! RPROJECTTREE, ROUTPUTCONSOLE, RTOOLBAR, RCOMMANDPALETTE, RMARKDOWNVIEW):
 //! `rapidr_value::panels` does the work (the same as on the desktop); this
 //! is the web runtime it works through. The UI kernel draws them on the
 //! page's canvas as it does on the desktop.
@@ -57,6 +57,16 @@ impl Runtime for Web {
     fn drop_list(self, form: &str, name: &str, items: Vec<String>, anchor: Rect) {
         rapidr_ui_kernel::components::combo::open_list(form, name, items, anchor);
         crate::kernel_web::redraw();
+    }
+    /// A web link the user clicked (http, https, mailto: the model checked)
+    /// in a new tab, without a way back to this page (noopener).
+    fn open_url(self, url: &str) {
+        if !rapidr_value::panels::markdown::is_web_link(url) {
+            return;
+        }
+        if let Some(w) = web_sys::window() {
+            let _ = w.open_with_url_and_target_and_features(url, "_blank", "noopener,noreferrer");
+        }
     }
 }
 

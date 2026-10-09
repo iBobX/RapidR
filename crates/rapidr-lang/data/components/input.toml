@@ -623,6 +623,7 @@ properties = [
   { name = "SelText", type = "string" },
   { name = "Line", type = "string", design = false, indexed = 1 },
   { name = "LineCount", type = "int", design = false },
+  { name = "Language", type = "string", default = "basic", doc = "What the text is coloured as: \"basic\" (RapidQ / RapidR BASIC, the default); any other (\"text\", \"markdown\") shows it uncoloured." },
   { name = "Hint", type = "string" },
   { name = "ShowHint", type = "int" },
   { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"] },

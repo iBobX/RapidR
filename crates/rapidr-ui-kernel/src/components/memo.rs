@@ -77,18 +77,20 @@ impl Flavor {
     }
 
     /// The code editor's look: Courier New at 13 pixels, black (grey when
-    /// disabled), no word wrap, BASIC's colours — in RapidR's own looks
-    /// (modern, dark, high contrast) JetBrains Mono at 13 pixels in the
-    /// theme's editor colours (`rapidr_value::ide_theme`).
-    fn code_look(enabled: bool) -> Look {
+    /// disabled), no word wrap, BASIC's colours (its Language: any other
+    /// than "basic" uncoloured) — in RapidR's own looks (modern, dark, high
+    /// contrast) JetBrains Mono at 13 pixels in the theme's editor colours
+    /// (`rapidr_value::ide_theme`).
+    fn code_look(enabled: bool, basic: bool) -> Look {
         let t = rapidr_value::theme::current();
+        let syntax = if basic { Syntax::Basic } else { Syntax::None };
         if t.fluent() {
             let e = rapidr_value::ide_theme::editor(t);
             let font = Font { name: "JetBrains Mono".into(), size: -13, ..Font::default() };
-            return Look { font, color: if enabled { e.text } else { t.gray_text }, syntax: Syntax::Basic, ..Look::default() };
+            return Look { font, color: if enabled { e.text } else { t.gray_text }, syntax, ..Look::default() };
         }
         let font = Font { name: "Courier New".into(), size: -13, ..Font::default() };
-        Look { font, color: if enabled { t.text } else { t.gray_text }, syntax: Syntax::Basic, ..Look::default() }
+        Look { font, color: if enabled { t.text } else { t.gray_text }, syntax, ..Look::default() }
     }
 }
 
@@ -118,7 +120,11 @@ impl Memo {
         let flavor = Flavor::of(cx.store, cx.id);
         let (look, sb) = match flavor.code {
             // (the code editor: its own font, both bars as needed)
-            true => (Flavor::code_look(cx.state.enabled), 3),
+            true => {
+                let lang = store::string(cx.store, cx.id, "language");
+                let basic = lang.trim().is_empty() || lang.trim().eq_ignore_ascii_case("basic");
+                (Flavor::code_look(cx.state.enabled, basic), 3)
+            }
             false => (look_of(cx.store, cx.id, &cx.font, cx.state.enabled, true), store::int(cx.store, cx.id, "scrollbars", 0)),
         };
         let wrap = look.wrap;

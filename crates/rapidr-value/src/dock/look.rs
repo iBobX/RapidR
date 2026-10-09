@@ -320,6 +320,13 @@ pub fn icon(ops: &mut Vec<Op>, name: &str, x: i64, y: i64, color: u32, accent: u
                 fill(ops, (x + 5, y + 7 + k * 2, len, 1), if k == 1 { accent } else { color });
             }
         }
+        // (a Markdown file: M and a down arrow in a frame)
+        "markdown" | "md" => {
+            ops.push(Op::Round { rect: (x + 1, y + 3, 14, 10), radius: 1.5, fill: None, stroke: Some(color), width: 1.1 });
+            line(ops, &[(3.5, 10.5), (3.5, 5.5), (5.75, 8.0), (8.0, 5.5), (8.0, 10.5)], 1.1);
+            ops.push(Op::Stroke { points: vec![(fx + 11.5, fy + 5.5), (fx + 11.5, fy + 10.0)], color: accent, width: 1.1 });
+            ops.push(Op::Stroke { points: vec![(fx + 9.75, fy + 8.5), (fx + 11.5, fy + 10.5), (fx + 13.25, fy + 8.5)], color: accent, width: 1.1 });
+        }
         "debug" | "bug" | "breakpoints" => {
             ops.push(Op::Round { rect: (x + 4, y + 4, 8, 10), radius: 4.0, fill: None, stroke: Some(color), width: 1.2 });
             line(ops, &[(8.0, 6.0), (8.0, 13.0)], 1.0);

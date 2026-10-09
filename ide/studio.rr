@@ -26,6 +26,7 @@
 '   search.inc     Find in Files (Ctrl+Shift+F), the Help pane (F1)
 '   workspace.inc  documents as tabs: Design | Code, split groups, the
 '                  layout and open files kept
+'   markdown.inc   .md files formatted: Preview | Source, links, outline
 '   shell.inc      RunCommand, the events, start-up
 
 $INCLUDE "RAPIDQ.INC"   ' mbYes, mrYes, mtWarning … (without it they are 0)
@@ -42,6 +43,7 @@ $INCLUDE "build.inc"
 $INCLUDE "chrome.inc"
 $INCLUDE "search.inc"
 $INCLUDE "workspace.inc"
+$INCLUDE "markdown.inc"
 $INCLUDE "shell.inc"
 
 StartStudio

@@ -39,7 +39,7 @@ FUNCTION DocOfPane(Name AS STRING) AS INTEGER
   Result = -1
   FOR d = 0 TO DocCount - 1
     IF DocOpen(d) THEN
-      IF k = "codedoc(" + LTRIM$(STR$(d)) + ")" OR k = "designdoc(" + LTRIM$(STR$(d)) + ")" THEN
+      IF k = "codedoc(" + LTRIM$(STR$(d)) + ")" OR k = "designdoc(" + LTRIM$(STR$(d)) + ")" OR k = "mddoc(" + LTRIM$(STR$(d)) + ")" THEN
         Result = d
         EXIT FUNCTION
       END IF
@@ -71,6 +71,9 @@ SUB AddDocumentTab(d AS INTEGER)
     DesignDoc(d).OnSelect = DesignPicked
     DocViewNow(d) = "Design"
     DocKind(d) = "design"
+  ELSEIF DocIsMd(d) THEN
+    ' (a Markdown file: Preview | Source — markdown.inc)
+    AddMarkdownTab d
   ELSE
     Dock.AddPane(CodeDoc(d), title, "documents", "code")
     DocViewNow(d) = "Code"
@@ -85,6 +88,7 @@ SUB DocumentViewChanged(Name AS STRING, View AS STRING)
   IF d < 0 THEN EXIT SUB
   DocViewNow(d) = View
   IF View = "Code" THEN DocKind(d) = "code" ELSE DocKind(d) = "design"
+  IF DocIsMd(d) THEN MarkdownViewShown d, View
   ActiveDoc = d
   UpdateCommands
 END SUB
@@ -102,6 +106,8 @@ END SUB
 
 ' (side by side: typing in the code makes Edit the code's)
 SUB CodeTyped(d AS INTEGER)
+  ' (a Markdown file's preview shows what is typed)
+  IF DocIsMd(d) THEN MdDoc(d).Text = CodeDoc(d).Text
   IF DocViewNow(d) = "Split" AND DocKind(d) <> "code" THEN
     DocKind(d) = "code"
     UpdateCommands

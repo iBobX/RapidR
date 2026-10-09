@@ -241,3 +241,41 @@ events = [
   { name = "OnCommand", params = "Id AS STRING", doc = "The user picked a command (Enter or a click): the palette has closed." },
   { name = "OnCancel", doc = "The user closed the palette without picking (Escape)." },
 ]
+
+[[component]]
+name = "RMARKDOWNVIEW"
+display = "MarkdownView"
+visual = true
+size = [400, 300]
+default_event = "OnLinkClick"
+sets = ["layout", "a11y"]
+doc = "A Markdown text shown formatted, as a reader sees it: headings, paragraphs with bold, italic, struck-out and `code` words, bulleted and numbered lists (nested), tables, block quotes, code blocks (BASIC's coloured as the code editor colours it), rules and links. The text scrolls; the user selects it with the mouse and copies it (Ctrl+C). A click on a link fires OnLinkClick; a web link (http, https, mailto) opens in the browser, a `#heading` link scrolls to that heading. HTML in the text is left out and a picture shows its description. RapidR Studio shows `.md` files with it."
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "Text", type = "string", default = "", editor = "multiline", doc = "The Markdown text shown (CommonMark, with GitHub's tables and ~~strikethrough~~)." },
+  { name = "FileName", type = "string", access = "read", design = false, doc = "The file LoadFromFile read (\"\" when Text was set)." },
+  { name = "OpenLinks", type = "bool", default = true, doc = "A click on a web link (http, https, mailto) opens it in the browser. Every link clicked fires OnLinkClick either way." },
+  { name = "EmptyText", type = "string", default = "", doc = "What it says while it has no text." },
+  { name = "PlainText", type = "string", access = "read", design = false, doc = "The text as shown, without the Markdown marks: a line per paragraph, list item or heading; a table's cells separated by tabs." },
+  { name = "SelText", type = "string", access = "read", design = false, doc = "The text the user selected, as PlainText has it." },
+  { name = "LinkCount", type = "int", access = "read", design = false, doc = "How many links the text has." },
+  { name = "Headings", type = "string", access = "read", design = false, doc = "The headings, one a line: the level (1 to 6), the heading's text, its anchor as a `#` link names it (\"getting-started\") and the line of the text it is on (from 1), separated by tabs." },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "Left", type = "int", default = 0 },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "Visible", type = "bool", default = true },
+  { name = "Font", type = "font", doc = "The text's font (the headings are larger, code is monospaced); RapidR's own when the program sets none." },
+]
+methods = [
+  { name = "LoadFromFile", params = "FileName AS STRING", returns = "INTEGER", doc = "Shows a Markdown file: True when it was read. Relative links in it are relative to its folder." },
+  { name = "Clear", value = true, doc = "Shows nothing." },
+  { name = "SelectAll", value = true, doc = "Selects the whole text." },
+  { name = "ScrollTo", params = "Heading AS STRING", returns = "INTEGER", doc = "Scrolls a heading to the top, named by its anchor (\"#getting-started\") or its text: True when there is one." },
+]
+events = [
+  { name = "OnLinkClick", params = "Url AS STRING", doc = "The user clicked a link: its target as the text writes it (\"https://…\", \"other.md\", \"#heading\")." },
+]

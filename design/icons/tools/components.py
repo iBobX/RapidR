@@ -267,6 +267,14 @@ def codeeditor(g):
     g.line(10.5, 16, 15, 16, c="ink")
 
 
+@icon("markdownview", C, "Markdown view")
+def markdownview(g):
+    frame(g, 3, 3, 18, 18)
+    g.path("M6.5 16.5 V9.5 L9.25 12.75 L12 9.5 V16.5", c="blue")
+    g.line(16, 9.5, 16, 15.5, c="blue") if g.size != 16 else None
+    arrowhead(g, 16, 16.5, 0, 1, 2.5, c="blue") if g.size != 16 else None
+
+
 # ---- display and drawing ----------------------------------------------------------
 
 def letter_a(g, x=6, y=19, w=12, h=14, c="blue"):

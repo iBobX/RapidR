@@ -19,7 +19,7 @@ Symbols and Symbols 2, Noto Sans SC and KR), all under the SIL Open Font
 License 1.1. The Noto fonts' chunks ship beside the web runtime with
 their `OFL.txt`.
 
-**570 libraries** under 22 license expressions.
+**571 libraries** under 22 license expressions.
 
 ## Apache-2.0 OR MIT (328)
 
@@ -354,7 +354,7 @@ their `OFL.txt`.
 | x11rb | 0.13.2 | <https://github.com/psychon/x11rb> |
 | x11rb-protocol | 0.13.2 | <https://github.com/psychon/x11rb> |
 
-## MIT (129)
+## MIT (130)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -430,6 +430,7 @@ their `OFL.txt`.
 | phf_macros | 0.14.0 | <https://github.com/rust-phf/rust-phf> |
 | phf_shared | 0.14.0 | <https://github.com/rust-phf/rust-phf> |
 | pico-args | 0.5.0 | <https://github.com/RazrFalcon/pico-args> |
+| pulldown-cmark | 0.13.4 | <https://github.com/raphlinus/pulldown-cmark> |
 | quick-xml | 0.41.0 | <https://github.com/tafia/quick-xml> |
 | redox_syscall | 0.4.1 | <https://gitlab.redox-os.org/redox-os/syscall> |
 | redox_syscall | 0.5.18 | <https://gitlab.redox-os.org/redox-os/syscall> |

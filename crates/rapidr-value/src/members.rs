@@ -87,7 +87,7 @@ const DOCK: &[&str] = &["savelayout", "resetlayout", "cascade", "tilehorizontal"
 
 /// (I1 / L-PANELS) RapidR Studio's panels' (crate::panels): `Insp.ExpandAll`,
 /// `OK = Tree.Save`, `Console.FindNext`.
-const PANELS: &[&str] = &["expandall", "collapseall", "clearproperties", "save", "projecttext", "clearproblems", "findnext"];
+const PANELS: &[&str] = &["expandall", "collapseall", "clearproperties", "save", "projecttext", "clearproblems", "findnext", "selectall"];
 
 /// (I1) RPROGRAMSESSION's: `IF Session.Start THEN`.
 const SESSION: &[&str] = &["start", "stop", "pause", "continue", "stepin", "stepover", "stepout"];
@@ -128,7 +128,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
         "RCODEEDITOR" => &[CODE_EDITOR],
         "RTABCONTROL" => &[TABS],
         "RDOCKMANAGER" => &[DOCK],
-        "RPROPERTYINSPECTOR" | "RTOOLBOX" | "RPROJECTTREE" | "ROUTPUTCONSOLE" | "RCOMMANDPALETTE" | "RTOOLBAR" => &[PANELS],
+        "RPROPERTYINSPECTOR" | "RTOOLBOX" | "RPROJECTTREE" | "ROUTPUTCONSOLE" | "RCOMMANDPALETTE" | "RTOOLBAR" | "RMARKDOWNVIEW" => &[PANELS],
         "RDOWNLOAD" | "RCDAUDIO" | "RCOMPORT" | "RMIDI" | "RWAVE" | "RVIDEO" => &[IO],
         "RWEBVIEW" | "RDOM" | "RJAVASCRIPT" | "RWEBSTORAGE" | "RWEBAUDIO" | "RWEBVIDEO" | "RWEBNOTIFICATION"
         | "RWEBGEOLOCATION" | "RROUTER" => &[WEB],

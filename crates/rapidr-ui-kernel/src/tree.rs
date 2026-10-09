@@ -33,6 +33,8 @@ pub struct NodeUi {
     /// (I4 L-DVIEW) An RDESIGNSURFACE's designed form: its design-time
     /// store and the form's own tree (components/design.rs).
     pub design: Option<Box<crate::components::design::View>>,
+    /// An RMARKDOWNVIEW's text laid out (components/panels/markdown.rs).
+    pub markdown: Option<Box<crate::components::panels::markdown::Laid>>,
 }
 
 pub struct Node {
@@ -330,7 +332,11 @@ impl FormUi {
     /// paragraph).
     pub fn editor_layout_at(&self, id: &str, para: usize) -> Option<&parley::Layout<crate::text::Ink>> {
         match self.node(id) {
-            Some(n) => n.ui.edit.as_ref()?.para_layout(para),
+            Some(n) => match (&n.ui.edit, &n.ui.markdown) {
+                (Some(e), _) => e.para_layout(para),
+                (None, Some(m)) => m.layout(para),
+                (None, None) => None,
+            },
             // (a component of a form shown in a designer on this one)
             None => self.nodes.iter().filter_map(|n| n.ui.design.as_ref()).find_map(|v| v.editor_layout_at(id, para)),
         }

@@ -40,6 +40,12 @@ fn role(r: Role) -> ARole {
         Role::SpinButton => ARole::SpinButton,
         Role::Splitter => ARole::Splitter,
         Role::Status => ARole::Status,
+        Role::Document => ARole::Document,
+        Role::Heading => ARole::Heading,
+        Role::List => ARole::List,
+        Role::ListItem => ARole::ListItem,
+        Role::Table => ARole::Table,
+        Role::Link => ARole::Link,
         Role::Unknown => ARole::Unknown,
     }
 }
