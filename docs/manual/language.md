@@ -318,6 +318,20 @@ in any modern terminal and in the IDE's output panel. A bare `INPUT$`
 (no count) reads a whole line, as RapidQ's does — old programs end with
 `a = INPUT$` to wait before the window closes.
 
+**Box characters.** RapidQ's console showed characters 128 to 255 in the
+old DOS code page 437, so its programs draw boxes with them:
+
+```basic
+PRINT CHR$(201); STRING$(10, 205); CHR$(187)    ' ╔══════════╗
+```
+
+RapidR shows a RapidQ program's console the same way: a file that isn't
+UTF-8 (saved by an old Windows or DOS editor), or a `.bas` / `.rqb` / `.rq`
+/ `.rqw` file of plain ASCII. A RapidR program (a `.rr` file, or any UTF-8
+file with accented letters) prints its text as it is — `CHR$(233)` is é. To
+draw boxes in a RapidR program, write the characters themselves
+(`PRINT "╔══╗"`).
+
 ### Older RapidQ forms that still work
 
 RapidQ's compiler took a few forms that look odd today; RapidR takes them

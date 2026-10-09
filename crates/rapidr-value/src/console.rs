@@ -136,6 +136,67 @@ fn cell_address(row: usize, col: usize) -> Option<usize> {
     ((1..=ROWS).contains(&row) && (1..=COLUMNS).contains(&col)).then(|| (row - 1) * COLUMNS * 2 + (col - 1) * 2)
 }
 
+// ---------------------------------------------------------------------------
+// The console's code page (RapidQ's: the DOS one, 437)
+// ---------------------------------------------------------------------------
+
+thread_local! {
+    /// The program's console shows code page 437 (`$OPTION CONSOLE CP437`,
+    /// which the preprocessor gives a program whose file isn't UTF-8).
+    static CP437: Cell<bool> = const { Cell::new(false) };
+}
+
+/// `$OPTION CONSOLE CP437`: from now on what the program prints shows as
+/// RapidQ's console showed it — the characters 128 to 255 of its text (as
+/// Windows-1252 bytes) in the DOS code page 437, `CHR$(201)` ╔, `CHR$(196)`
+/// ─ — instead of as the letters they are in Unicode (É, Ä).
+pub fn set_cp437(on: bool) {
+    CP437.with(|c| c.set(on));
+}
+
+/// CP437's characters 128 … 255.
+const CP437_HIGH: [char; 128] = [
+    'Ç', 'ü', 'é', 'â', 'ä', 'à', 'å', 'ç', 'ê', 'ë', 'è', 'ï', 'î', 'ì', 'Ä', 'Å',
+    'É', 'æ', 'Æ', 'ô', 'ö', 'ò', 'û', 'ù', 'ÿ', 'Ö', 'Ü', '¢', '£', '¥', '₧', 'ƒ',
+    'á', 'í', 'ó', 'ú', 'ñ', 'Ñ', 'ª', 'º', '¿', '⌐', '¬', '½', '¼', '¡', '«', '»',
+    '░', '▒', '▓', '│', '┤', '╡', '╢', '╖', '╕', '╣', '║', '╗', '╝', '╜', '╛', '┐',
+    '└', '┴', '┬', '├', '─', '┼', '╞', '╟', '╚', '╔', '╩', '╦', '╠', '═', '╬', '╧',
+    '╨', '╤', '╥', '╙', '╘', '╒', '╓', '╫', '╪', '┘', '┌', '█', '▄', '▌', '▐', '▀',
+    'α', 'ß', 'Γ', 'π', 'Σ', 'σ', 'µ', 'τ', 'Φ', 'Θ', 'Ω', 'δ', '∞', 'φ', 'ε', '∩',
+    '≡', '±', '≥', '≤', '⌠', '⌡', '÷', '≈', '°', '∙', '·', '√', 'ⁿ', '²', '■', '\u{a0}',
+];
+
+/// Windows-1252's characters 128 … 159 (the rest of 128 … 255 is Latin-1).
+const CP1252_HIGH: [char; 32] = [
+    '€', '\u{81}', '‚', 'ƒ', '„', '…', '†', '‡', 'ˆ', '‰', 'Š', '‹', 'Œ', '\u{8d}', 'Ž', '\u{8f}',
+    '\u{90}', '‘', '’', '“', '”', '•', '–', '—', '˜', '™', 'š', '›', 'œ', '\u{9d}', 'ž', 'Ÿ',
+];
+
+/// `c` as the console shows it in code page 437: its Windows-1252 byte
+/// (`CHR$(n)`'s character, or what an ANSI source decoded to) read as
+/// CP437; a character with no such byte as it is.
+fn cp437_char(c: char) -> char {
+    let code = u32::from(c);
+    let byte = match code {
+        0x80..=0xFF => Some(code as u8),
+        _ => CP1252_HIGH.iter().position(|&h| h == c).map(|i| 0x80 + i as u8),
+    };
+    match byte {
+        Some(b) if b >= 0x80 => CP437_HIGH[usize::from(b - 0x80)],
+        _ => c,
+    }
+}
+
+/// What the console shows of printed `text`: as it is, or in code page 437
+/// ([`set_cp437`]).
+pub fn shown(text: &str) -> std::borrow::Cow<'_, str> {
+    if CP437.with(Cell::get) && text.chars().any(|c| u32::from(c) >= 0x80) {
+        std::borrow::Cow::Owned(text.chars().map(cp437_char).collect())
+    } else {
+        std::borrow::Cow::Borrowed(text)
+    }
+}
+
 /// Records printed text (called by every runtime's PRINT): the cursor, and
 /// the screen page's cells.
 pub fn track(text: &str) {
@@ -325,6 +386,17 @@ mod tests {
         assert_eq!(advance(4, 7, &cls()), (1, 1));
         assert_eq!(advance(1, 1, &format!("{}xy", color(&Value::Integer(14), &Value::Integer(1)))), (1, 3));
         assert_eq!(advance(9, 9, "\x1b[5;10H!"), (5, 11));
+    }
+
+    #[test]
+    fn cp437_for_rapidq_sources() {
+        assert_eq!(shown("\u{c9}\u{cd}\u{bb} é"), "\u{c9}\u{cd}\u{bb} é", "off: as it is");
+        set_cp437(true);
+        // (CHR$(201) CHR$(205) CHR$(187), CHR$(179), CHR$(176); € is 128,
+        // Ç in CP437; é is 233, Θ there)
+        assert_eq!(shown("\u{c9}\u{cd}\u{bb}\u{b3}\u{b0}"), "╔═╗│░");
+        assert_eq!(shown("A€ é ✓"), "AÇ Θ ✓");
+        set_cp437(false);
     }
 
     #[test]

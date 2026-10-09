@@ -3214,6 +3214,7 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         }
         "__decimal" => Some(format!("rp_set_decimal(&{a0})")),
         "__inkey_trapall" => Some(format!("rp_inkey_trap_all(&{a0})")),
+        "__console_cp437" => Some("{ console::set_cp437(true); v_null() }".to_string()),
         "__environ_set" => Some(format!("rp_environ_set(&{a0})")),
         "__input_value" => Some(format!("input_value(&{a0}, &{a1}, &({a2}).to_string_val())")),
         "__restore" => Some(if args.is_empty() {
