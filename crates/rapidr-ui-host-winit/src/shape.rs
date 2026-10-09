@@ -156,7 +156,7 @@ mod appkit {
 
 #[cfg(all(unix, not(target_os = "macos"), not(target_os = "android")))]
 mod x11 {
-    use x11_dl::xfixes::Xlib_xfixes;
+    use x11_dl::xfixes::Xlib as XFixes;
     use x11_dl::xlib::{Display, XRectangle, Xlib};
 
     /// XFixes' shape kinds (X Shape extension: ShapeBounding, ShapeInput).
@@ -164,7 +164,7 @@ mod x11 {
     const SHAPE_INPUT: i32 = 2;
 
     pub fn apply(display: *mut std::ffi::c_void, window: std::ffi::c_ulong, rects: Option<&super::Rects>, scale: f64) -> bool {
-        let (Ok(fixes), Ok(xlib)) = (Xlib_xfixes::open(), Xlib::open()) else { return false };
+        let (Ok(fixes), Ok(xlib)) = (XFixes::open(), Xlib::open()) else { return false };
         let display = display.cast::<Display>();
         // SAFETY: the display and window are the live window's (winit's
         // Xlib connection); the region made here is destroyed after use.
