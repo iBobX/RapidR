@@ -80,7 +80,8 @@ The **Runs on** column lists the ways each example is tested on (by
 | [sqlite.rr](data/sqlite.rr) | `RSQLITE`: a table, inserts and queries with `?` parameters (and why they matter), `QueryScalar`, `GROUP BY` | run · interp · native · web | `rapidr run data/sqlite.rr` |
 | [json.rr](data/json.rr) | `RJSON`: parse, read by path (`customer.city`, `items.0`), set, remove, save to and load from a file | run · interp · native · web | `rapidr run data/json.rr` |
 | [numbers.rr](data/numbers.rr) | `RNUM` arrays: `FromList`, `Arange`, `Linspace`, statistics, arithmetic on every element, `Cumsum`, `Unique` | run · interp · native · web | `rapidr run data/numbers.rr` |
-| [dataframe.rr](data/dataframe.rr) | `RDATAFRAME` from a CSV ([staff.csv](data/staff.csv)): filter, sort, into a grid; an `RPLOT` bar chart in a `QIMAGE` | run · interp · native · web | `rapidr run data/dataframe.rr` |
+| [csv_explorer.rr](data/csv_explorer.rr) | Drop a CSV file on the window (or open one, or the sample [shop.csv](data/shop.csv)): a table sorted by a click on a heading, a filter, each column's count, min, max and mean, and a live `RPLOT` bar, line or scatter chart of any two columns; the form's `OnDropFiles` | run · interp · native · web | `rapidr run data/csv_explorer.rr` |
+| [dataframe.rr](data/dataframe.rr) | `RDATAFRAME` from a CSV ([staff.csv](data/staff.csv)): filter, sort, into a grid; an `RPLOT` bar chart on the form | run · interp · native · web | `rapidr run data/dataframe.rr` |
 
 ### network/ — HTTP (against a server on your own machine)
 

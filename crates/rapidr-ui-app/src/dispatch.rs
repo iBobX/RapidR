@@ -48,6 +48,7 @@ pub fn dispatch<R: Program + Windows>(rt: R, ev: KernelEvent) {
         }
         KernelEvent::Moved(f, x, y) => forms::form_moved(rt, &f, x, y),
         KernelEvent::ScaleChanged(f, scale) => forms::scale_changed(rt, &f, scale),
+        KernelEvent::DropFiles(f, files) => forms::files_dropped(rt, &f, &files),
         KernelEvent::MenuPick(item) => menus::picked(rt, &item),
         KernelEvent::Set { id, prop, value } => {
             rt.set(&id, &prop, v_int(value));

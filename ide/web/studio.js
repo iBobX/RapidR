@@ -259,7 +259,7 @@ function closeFrame() {
 }
 
 window.RAPIDR_STUDIO_HOST = {
-  run(bytes, program, args, theme) {
+  run(bytes, program, args, theme, assets) {
     closeFrame();
     const generation = run.generation;
     const box = document.createElement("div");
@@ -284,6 +284,9 @@ window.RAPIDR_STUDIO_HOST = {
         __rapidr_boot: {
           ...files, session: { bytes, program }, args: Array.from(args || []),
           theme: theme || "",
+          // (the data files beside the program — a CSV it loads — as the
+          // files of its folder: name → data URL)
+          assets: assets && typeof assets === "object" ? assets : {},
           storage: loadAppStorage(program),
           // (this page shows the browser's pickers for the frame: frameFiles)
           filePickers: typeof window.showOpenFilePicker === "function" && typeof window.showSaveFilePicker === "function",

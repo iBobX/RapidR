@@ -143,6 +143,9 @@ thread_local! {
     static HOST: RefCell<Option<WebHost>> = const { RefCell::new(None) };
     static STORE: Cell<Option<&'static dyn Store>> = const { Cell::new(None) };
     static WAKE: RefCell<Option<Rc<dyn Fn()>>> = const { RefCell::new(None) };
+    /// (RapidR's OnDropFiles) Whether a form takes files dropped on it (it
+    /// has an OnDropFiles handler): the runtime's answer.
+    static ACCEPTS_DROP: RefCell<Option<Rc<dyn Fn(&str) -> bool>>> = const { RefCell::new(None) };
     static SCALE_WATCH: RefCell<Option<Listener>> = const { RefCell::new(None) };
     /// The component types the page shows as its own elements over the
     /// canvas (the runtime's web-only components), uppercase.
@@ -245,6 +248,54 @@ pub fn install(store: &'static dyn Store, wake: Rc<dyn Fn()>) {
 
 pub fn installed() -> bool {
     HOST.with(|h| h.borrow().is_some())
+}
+
+/// (RapidR's OnDropFiles) `accepts(form)`: whether files dropped on the
+/// form's window are the program's (else the drop is refused — the page
+/// isn't replaced by the file either).
+pub fn on_drop_files(accepts: Rc<dyn Fn(&str) -> bool>) {
+    ACCEPTS_DROP.with(|a| *a.borrow_mut() = Some(accepts));
+}
+
+fn accepts_drop(form: &str) -> bool {
+    ACCEPTS_DROP.with(|a| a.borrow().clone()).is_some_and(|f| f(form))
+}
+
+/// Files dropped on form `id`'s window: each read whole into the page's
+/// files under its name (as a file the user picks in an Open dialog), then
+/// one OnDropFiles with their names, in order.
+fn drop_files(id: &str, list: web_sys::FileList) {
+    let files: Vec<web_sys::File> = (0..list.length()).filter_map(|i| list.get(i)).collect();
+    if files.is_empty() {
+        return;
+    }
+    let reads = js_sys::Array::new();
+    for f in &files {
+        reads.push(&f.array_buffer());
+    }
+    let names: Vec<String> = files.iter().map(web_sys::File::name).collect();
+    let id = id.to_string();
+    let done = Closure::once(move |buffers: JsValue| {
+        let buffers = js_sys::Array::from(&buffers);
+        let mut stored = Vec::new();
+        for (i, name) in names.iter().enumerate() {
+            let bytes = js_sys::Uint8Array::new(&buffers.get(i as u32)).to_vec();
+            if rapidr_value::objects::write_file(name, &bytes).is_ok() {
+                stored.push(name.clone());
+            }
+        }
+        input(|h, _| {
+            for name in &stored {
+                h.desk.files_dropped(&id, name);
+            }
+        });
+    });
+    let failed = Closure::once(|e: JsValue| {
+        web_sys::console::warn_1(&JsValue::from_str(&format!("[rapidr] dropped files: can't read them ({e:?})")));
+    });
+    let _ = js_sys::Promise::all(&reads).then2(&done, &failed);
+    done.forget();
+    failed.forget();
 }
 
 fn store() -> Option<&'static dyn Store> {
@@ -920,6 +971,32 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
             });
         }
         listen(&client, "contextmenu", &mut out, |e| e.prevent_default());
+        // (RapidR's OnDropFiles: files dragged from the computer onto the
+        // window — refused by a form without the handler, and never the
+        // browser's own drop, which would replace the page by the file)
+        {
+            let id = id.to_string();
+            listen(&client, "dragover", &mut out, move |e| {
+                let Ok(e) = e.dyn_into::<web_sys::DragEvent>() else { return };
+                e.prevent_default();
+                if let Some(dt) = e.data_transfer() {
+                    dt.set_drop_effect(if accepts_drop(&id) { "copy" } else { "none" });
+                }
+            });
+        }
+        {
+            let id = id.to_string();
+            listen(&client, "drop", &mut out, move |e| {
+                let Ok(e) = e.dyn_into::<web_sys::DragEvent>() else { return };
+                e.prevent_default();
+                if !accepts_drop(&id) {
+                    return;
+                }
+                if let Some(list) = e.data_transfer().and_then(|dt| dt.files()) {
+                    drop_files(&id, list);
+                }
+            });
+        }
         {
             let (id, el) = (id.to_string(), client.clone());
             listen(&client, "wheel", &mut out, move |e| {

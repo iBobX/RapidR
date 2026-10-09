@@ -251,6 +251,8 @@ fn ensure() {
     crate::globals_web::start_theme();
     host::install(&STORE, Rc::new(turn));
     host::set_overlay_types(crate::overlay_web::TYPES);
+    // (RapidR's OnDropFiles: a form with the handler takes dropped files)
+    host::on_drop_files(Rc::new(|form: &str| crate::object_web::rp_has_handler(form, "ondropfiles")));
     crate::fonts_web::install();
     let capture = testhooks::Capture::from_env();
     host::with(|h, _| {

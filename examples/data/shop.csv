@@ -1,0 +1,13 @@
+Month,Season,Visitors,Orders,Revenue,Rating
+Jan,Winter,1840,212,6360,4.2
+Feb,Winter,1710,198,5940,4.3
+Mar,Spring,2230,265,8215,4.4
+Apr,Spring,2610,301,9632,4.5
+May,Spring,2980,344,11008,4.6
+Jun,Summer,3420,402,13668,4.7
+Jul,Summer,3910,455,15925,4.6
+Aug,Summer,3760,431,14654,4.5
+Sep,Autumn,2890,330,10890,4.4
+Oct,Autumn,2540,288,9216,4.4
+Nov,Autumn,2120,247,7657,4.3
+Dec,Winter,3050,389,14004,4.8

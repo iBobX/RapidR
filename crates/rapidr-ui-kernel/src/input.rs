@@ -99,6 +99,10 @@ pub enum KernelEvent {
     Moved(String, i64, i64),
     /// Its screen's scale changed (OnScaleChanged).
     ScaleChanged(String, f64),
+    /// Files dropped on the window (dragged from the system's file manager,
+    /// or a browser's): their paths (on the web, their names in the page's
+    /// files) — OnDropFiles.
+    DropFiles(String, Vec<String>),
     /// A menu item picked (by id): its OnClick.
     MenuPick(String),
     /// A container's action runtime-core carries out (components scrolled,

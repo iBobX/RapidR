@@ -15,6 +15,8 @@
 //! - `RAPIDR_TEST_NOFOCUS=1`: forms show with nothing focused ([`no_focus`]).
 //! - `RAPIDR_TEST_FILE_DIALOG=a;b`: what Open/Save dialogs pick (empty:
 //!   Cancel).
+//! - `RAPIDR_TEST_DROP=a.csv;b.txt`: the files `form.__drop` drops on a
+//!   form (OnDropFiles).
 //! - `RAPIDR_TEST_COLOR_DIALOG=255;` / `RAPIDR_TEST_FONT_DIALOG=…`: what
 //!   each colour / font dialog answers in turn (empty: Cancel).
 //! - `RAPIDR_TEST_MESSAGE_DIALOG=No;Retry;`: what each message box
@@ -150,6 +152,9 @@ pub enum Action {
     Escape,
     /// `__close`: the window's close button.
     Close,
+    /// (RapidR's OnDropFiles) `form.__drop`: `RAPIDR_TEST_DROP`'s files
+    /// (`a.csv;b.txt`) dropped on the form's window.
+    Drop,
     /// (timers during native menu tracking) `__hold_ms`: the next pump held
     /// by the system for ms milliseconds, as a native menu the user keeps
     /// open holds it — the kernel's headless host pretends, ticking the
@@ -209,6 +214,8 @@ pub fn parse_event(item: &str) -> Option<TestEvent> {
         Action::Ignored
     } else if event == "__close" {
         Action::Close
+    } else if event == "__drop" {
+        Action::Drop
     } else if let Some((c, r)) = event.strip_prefix("__cell_").and_then(|rc| {
         let (c, r) = rc.split_once('_')?;
         Some((c.parse::<i64>().ok()?, r.parse::<i64>().ok()?))
@@ -271,6 +278,12 @@ pub fn print_dump(shown: impl Fn(&str) -> bool, get: impl Fn(&str, &str) -> Stri
 /// (at most one unless `multi`; none: Cancel), or `None` to ask the user.
 pub fn file_dialog_answer(multi: bool) -> Option<Vec<String>> {
     var("RAPIDR_TEST_FILE_DIALOG").map(|answer| file_dialog_paths(&answer, multi))
+}
+
+/// (RapidR's OnDropFiles) `RAPIDR_TEST_DROP=a.csv;b.txt`: the files a test's
+/// `form.__drop` drops on the form.
+pub fn drop_files() -> Vec<String> {
+    file_dialog_paths(&var("RAPIDR_TEST_DROP").unwrap_or_default(), true)
 }
 
 pub fn file_dialog_paths(answer: &str, multi: bool) -> Vec<String> {
@@ -377,6 +390,7 @@ mod tests {
         assert_eq!(act("t.__enter"), Action::Enter);
         assert_eq!(act("t.__escape"), Action::Escape);
         assert_eq!(act("frm.__close"), Action::Close);
+        assert_eq!(act("frm.__drop"), Action::Drop);
     }
 
     #[test]

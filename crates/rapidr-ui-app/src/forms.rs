@@ -10,7 +10,7 @@
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 
-use rapidr_value::{v_bool, v_int};
+use rapidr_value::{v_bool, v_int, Value};
 
 use crate::windows::{invalidate, push_op, Icon, WindowOp};
 use crate::{timers, Program, Windows};
@@ -601,6 +601,15 @@ pub fn form_moved<P: Program>(p: P, form: &str, x: i64, y: i64) {
             p.set(form, "top", v_int(y));
         })
     });
+}
+
+/// (RapidR's) Files dropped on a form's window: its OnDropFiles(Files), the
+/// paths one a line (`CHR$(10)` between them), in the order they came.
+pub fn files_dropped<P: Program>(p: P, form: &str, files: &[String]) {
+    let files: Vec<&str> = files.iter().map(|f| f.trim_end_matches(['\r', '\n'])).filter(|f| !f.is_empty()).collect();
+    if !files.is_empty() {
+        p.fire_args(&lower(form), "ondropfiles", &[Value::String(files.join("\n"))]);
+    }
 }
 
 /// A form's window moved to a screen with another scale: told

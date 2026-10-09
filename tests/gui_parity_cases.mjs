@@ -243,6 +243,11 @@ export const cases = [
     expect: ["lbl.caption=2 -1-1-1|0 300x200 -1-1", "lbl2.caption=1 300 1|0 300", "lbl3.caption=1;2;2;"] },
   { name: "file_dialogs", events: "b1.onclick,b2.onclick,b3.onclick", dump: "lbl.caption,lbl2.caption,lbl3.caption", fileDialog: "notes;b.txt",
     expect: ["lbl.caption=open notes", "lbl2.caption=save notes.txt", "lbl3.caption=2 notes b.txt "] },
+  // (RapidR's OnDropFiles) two files dropped on the form: one event, the
+  // names one a line in order, the second opened; a form without the
+  // handler hears nothing
+  { name: "drop_files", events: "form.__drop,other.__drop", dump: "lbl.caption,lbl2.caption", drop: "drop_a.txt;drop_b.csv", inWork: true,
+    expect: ["lbl.caption=2 drop_a.txt|drop_b.csv", "lbl2.caption=[x,y]"] },
   { name: "header", events: "header.__mousedown_20_5,header.__mouseup_20_5,header.__mousedown_120_5,header.__mouseup_120_5,header.__mousedown_100_5,header.__mousemove_140_5,header.__mouseup_140_5,btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=c0 t0:100:0 t0:140:1 t0:140:2 r0 | 3 140 Chart 0000FF00"] },
   { name: "icons", events: "", dump: "lbl.caption,img.width,img2.width", expect: ["lbl.caption=16x16 00C85A14", "img.width=16", "img2.width=16"],

@@ -1128,6 +1128,12 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
                 self.desk.ime_commit(store, &f, &text, Source::User);
                 self.after_input(&f);
             }
+            // (RapidR's OnDropFiles: the system gives the files of one drop
+            // one at a time; the program hears them together)
+            WindowEvent::DroppedFile(path) => {
+                self.desk.files_dropped(&f, &path.to_string_lossy());
+                self.after_input(&f);
+            }
             _ => {}
         }
     }

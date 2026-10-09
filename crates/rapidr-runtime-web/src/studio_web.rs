@@ -16,8 +16,9 @@ use wasm_bindgen::{JsCast, JsValue};
 use crate::object_web::rp_fire_event_args;
 use crate::value::Value;
 
-/// Compiles a program from its files (main's path, (path, text) of each).
-pub type Compiler = fn(&str, Vec<(String, String)>) -> Result<Vec<u8>, String>;
+/// Compiles a program from its files: main's path, (path, text) of each
+/// source, (path, bytes) of each data file (a `$RESOURCE`'s is built in).
+pub type Compiler = fn(&str, Vec<(String, String)>, &[(String, Vec<u8>)]) -> Result<Vec<u8>, String>;
 
 thread_local! {
     static COMPILER: Cell<Option<Compiler>> = const { Cell::new(None) };
@@ -58,13 +59,21 @@ impl Host for Web {
             return Err("no program to run".into());
         }
         let compile = COMPILER.with(Cell::get).ok_or("no compiler on this page")?;
-        let (main, files) = rapidr_studio::project::program_files(program)?;
-        let bytes = compile(&main, files)?;
+        let files = rapidr_studio::project::program_files(program)?;
+        let bytes = compile(&files.main, files.sources, &files.data)?;
         let js_args = js_sys::Array::new();
         for a in args {
             js_args.push(&JsValue::from_str(a));
         }
-        host_call("run", &[js_sys::Uint8Array::from(bytes.as_slice()).into(), JsValue::from_str(program), js_args.into(), JsValue::from_str(theme)])?;
+        // (the data files beside it — a CSV it loads, a picture — go with it
+        // into its frame, as the files of its folder: by their paths from
+        // there, as data URLs)
+        let assets = js_sys::Object::new();
+        for (path, data) in &files.data {
+            let url = format!("data:application/octet-stream;base64,{}", rapidr_value::objects::codec::base64_encode(data));
+            let _ = js_sys::Reflect::set(&assets, &JsValue::from_str(path), &JsValue::from_str(&url));
+        }
+        host_call("run", &[js_sys::Uint8Array::from(bytes.as_slice()).into(), JsValue::from_str(program), js_args.into(), JsValue::from_str(theme), assets.into()])?;
         Ok(Box::new(ChannelTransport::new(
             |json| host_call("send", &[JsValue::from_str(json)]).map(drop),
             || {

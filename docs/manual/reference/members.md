@@ -116,6 +116,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnTimer` *(RapidR)* | Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits. |
 | `OnLoad` *(RapidR)* | Fires when the content has loaded: the web view's page, a file read in the browser. |
+| `OnDropFiles(Files AS STRING)` *(RapidR)* | Files were dragged from the computer (Finder, File Explorer, a file manager) and dropped on the window. Files holds their paths, one a line (CHR$(10) between them); open each as any file. In a browser a dropped file is read into the program's own files under its name, so Files holds names ("sales.csv") the program opens the same way. A form without this handler ignores them. |
 
 <a id="rformmdi"></a>
 ## RFORMMDI (QFORMMDI)

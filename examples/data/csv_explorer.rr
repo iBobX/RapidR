@@ -1,0 +1,443 @@
+' csv_explorer.rr: any CSV file as a table, its columns' statistics and a
+' live chart — drop a .csv file on the window (from Finder, File Explorer
+' or a file manager; in a browser, from the computer), open one, or look
+' at the sample.
+'
+'   rapidr run csv_explorer.rr [file.csv]
+'
+' Click a column's heading to sort by it (again: the other way round); type
+' in Filter to keep only the rows that contain the text; pick the chart's
+' X and Y columns and its kind — the chart follows at once. RDATAFRAME
+' holds the table, RNUM a column's numbers, an RPLOT on the form draws the
+' chart, and the form's OnDropFiles hears the files dropped on it.
+' shop.csv is made-up data: a small shop's year. $RESOURCE builds it into
+' the program, so the program runs from anywhere, a browser too.
+$INCLUDE "RAPIDQ.INC"
+$RESOURCE SHOP_CSV AS "shop.csv"
+
+DECLARE SUB OpenClicked
+DECLARE SUB SampleClicked
+DECLARE SUB FilesDropped(Files AS STRING)
+DECLARE SUB FilterChanged
+DECLARE SUB ColumnClicked(Column AS INTEGER)
+DECLARE SUB DrawChart
+DECLARE SUB LayOut
+
+CONST MAXCOLS = 64
+CONST MAXSHOWN = 1000       ' rows the table lists (all of them are counted and charted)
+CONST MAXBARS = 60          ' bars (or points over names) a chart shows
+CONST MAXPOINTS = 5000      ' points a line or a scatter chart over numbers shows
+CONST SAMPLE = "shop.tmp.csv"
+
+DIM Frame AS RDATAFRAME     ' the file's table, sorted as asked
+DIM Xs AS RNUM, Ys AS RNUM, Nums AS RNUM
+DIM PX(MAXPOINTS) AS DOUBLE, PY(MAXPOINTS) AS DOUBLE   ' a chart's points
+DIM SourceFile AS STRING, ShownName AS STRING
+DIM ColCount AS INTEGER
+DIM ColName(MAXCOLS) AS STRING
+DIM ColNumeric(MAXCOLS) AS INTEGER
+DIM YCol(MAXCOLS) AS INTEGER        ' the Y list's columns (the numeric ones)
+DIM RowOk(1) AS INTEGER             ' the rows the filter keeps
+DIM Kept AS INTEGER
+DIM SortCol AS INTEGER, SortUp AS INTEGER
+DIM Busy AS INTEGER
+SortCol = -1
+
+CREATE Dlg AS ROPENDIALOG
+    Caption = "Open a CSV file"
+    Filter = "CSV files (*.csv)|*.csv|Text files (*.txt)|*.txt|All files|*.*"
+END CREATE
+
+CREATE Form AS RFORM
+    Caption = "CSV Explorer"
+    Width = 1000
+    Height = 660
+    Center
+    OnDropFiles = FilesDropped
+    OnResize = LayOut
+    CREATE OpenBtn AS RBUTTON
+        Caption = "&Open CSV...": Left = 12: Top = 12: Width = 108
+        OnClick = OpenClicked
+    END CREATE
+    CREATE SampleBtn AS RBUTTON
+        Caption = "&Sample data": Left = 128: Top = 12: Width = 108
+        OnClick = SampleClicked
+    END CREATE
+    CREATE FilterLabel AS RLABEL
+        Caption = "Filter": Left = 256: Top = 17: Width = 36
+    END CREATE
+    CREATE FilterBox AS REDIT
+        Left = 296: Top = 13: Width = 180
+        Hint = "Only the rows that contain this text"
+        OnChange = FilterChanged
+    END CREATE
+    CREATE Table AS RLISTVIEW
+        Left = 12: Top = 48: Width = 560: Height = 330
+        ViewStyle = vsReport: GridLines = 1: RowSelect = 1: ReadOnly = 1
+        OnColumnClick = ColumnClicked
+    END CREATE
+    CREATE StatsHead AS RLABEL
+        Caption = "Columns": Left = 12: Top = 388: Width = 300
+    END CREATE
+    CREATE Stats AS RLISTVIEW
+        Left = 12: Top = 408: Width = 560: Height = 180
+        ViewStyle = vsReport: GridLines = 1: RowSelect = 1: ReadOnly = 1
+        ColumnClick = 0
+    END CREATE
+    CREATE XLabel AS RLABEL
+        Caption = "X": Left = 588: Top = 17: Width = 12
+    END CREATE
+    CREATE XBox AS RCOMBOBOX
+        Left = 604: Top = 13: Width = 124: Style = csDropDownList
+        OnChange = DrawChart
+    END CREATE
+    CREATE YLabel AS RLABEL
+        Caption = "Y": Left = 740: Top = 17: Width = 12
+    END CREATE
+    CREATE YBox AS RCOMBOBOX
+        Left = 756: Top = 13: Width = 124: Style = csDropDownList
+        OnChange = DrawChart
+    END CREATE
+    CREATE KindBox AS RCOMBOBOX
+        Left = 892: Top = 13: Width = 92: Style = csDropDownList
+        AddItems "Bar", "Line", "Scatter"
+        ItemIndex = 0
+        OnChange = DrawChart
+    END CREATE
+    CREATE Chart AS RPLOT
+        Left = 588: Top = 48: Width = 396: Height = 540
+        Title = "Drop a CSV file"
+    END CREATE
+    CREATE Status AS RLABEL
+        Left = 12: Top = 600: Width = 560
+    END CREATE
+    CREATE DropHint AS RLABEL
+        Caption = "Drop a CSV file anywhere on this window to explore it"
+        Left = 588: Top = 600: Width = 396
+        Alignment = taRightJustify
+        FontColor = clGrayText
+    END CREATE
+END CREATE
+
+' A number as the statistics show it: whole numbers as they are, others
+' to two decimals at most (4.2, 0.35).
+FUNCTION NumText(x AS DOUBLE) AS STRING
+    DIM s AS STRING
+    IF x = INT(x) AND ABS(x) < 1E15 THEN
+        s = LTRIM$(STR$(INT(x)))
+    ELSE
+        s = FORMAT$("%.2f", x)
+        WHILE RIGHT$(s, 1) = "0"
+            s = LEFT$(s, LEN(s) - 1)
+        WEND
+    END IF
+    Result = s
+END FUNCTION
+
+' The window's parts sized to it: the table and the statistics on the
+' left, the chart on the right.
+SUB LayOut
+    DIM w AS INTEGER, h AS INTEGER, half AS INTEGER, x0 AS INTEGER
+    w = Form.ClientWidth: h = Form.ClientHeight
+    IF w < 640 OR h < 400 THEN EXIT SUB
+    half = INT((w - 40) * 0.57)
+    Table.Width = half
+    Table.Height = INT((h - 48 - 64) * 0.62)
+    StatsHead.Top = Table.Top + Table.Height + 10
+    Stats.Top = StatsHead.Top + 20
+    Stats.Width = half
+    Stats.Height = h - Stats.Top - 34
+    Status.Top = h - 24
+    Status.Width = half
+    DropHint.Top = h - 24
+    DropHint.Left = 12 + half + 16
+    DropHint.Width = w - DropHint.Left - 12
+    x0 = 12 + half + 16
+    XLabel.Left = x0: XBox.Left = x0 + 16
+    YLabel.Left = x0 + 152: YBox.Left = x0 + 168
+    KindBox.Left = x0 + 304: KindBox.Width = w - 12 - KindBox.Left
+    Chart.Left = x0
+    Chart.Width = w - x0 - 12
+    Chart.Height = h - Chart.Top - 34
+END SUB
+
+' The table's column names and kinds (numbers or text), from its types.
+SUB ReadColumns
+    DIM c AS INTEGER, names AS STRING, types AS STRING, t AS STRING
+    names = Frame.Columns
+    types = Frame.DTypes
+    ColCount = Frame.ColCount
+    IF ColCount > MAXCOLS THEN ColCount = MAXCOLS
+    FOR c = 0 TO ColCount - 1
+        ColName(c) = FIELD$(names, ",", c + 1)
+        t = FIELD$(types, ",", c + 1)
+        t = LTRIM$(MID$(t, INSTR(t, ":") + 1))
+        ColNumeric(c) = IIF(t = "i64" OR t = "f64", 1, 0)
+    NEXT
+END SUB
+
+' The chart's choices for a new file: X any column (the first one — a
+' month, a day, a name), Y a numeric one (the first other than X).
+SUB FillPickers
+    DIM c AS INTEGER, n AS INTEGER, x AS INTEGER, y AS INTEGER
+    Busy = 1
+    XBox.Clear
+    YBox.Clear
+    x = 0
+    y = -1
+    FOR c = 0 TO ColCount - 1
+        XBox.AddItems ColName(c)
+        IF ColNumeric(c) THEN
+            YBox.AddItems ColName(c)
+            YCol(n) = c
+            IF y < 0 AND c <> x THEN y = n
+            n = n + 1
+        END IF
+    NEXT
+    XBox.ItemIndex = x
+    IF y < 0 AND n > 0 THEN y = 0
+    YBox.ItemIndex = y
+    Busy = 0
+END SUB
+
+' Which rows the filter keeps: those with the text in any cell (any case).
+SUB ApplyFilter
+    DIM want AS STRING, r AS INTEGER, c AS INTEGER, rows AS INTEGER
+    want = LCASE$(TRIM$(FilterBox.Text))
+    rows = Frame.RowCount
+    REDIM RowOk(rows + 1) AS INTEGER
+    Kept = 0
+    FOR r = 0 TO rows - 1
+        IF want = "" THEN
+            RowOk(r) = 1
+        ELSE
+            RowOk(r) = 0
+            FOR c = 0 TO ColCount - 1
+                IF INSTR(LCASE$(Frame.Cell(r, c)), want) > 0 THEN RowOk(r) = 1: EXIT FOR
+            NEXT
+        END IF
+        Kept = Kept + RowOk(r)
+    NEXT
+END SUB
+
+' The rows kept, in the table (the sorted column's heading marked).
+SUB FillTable
+    DIM r AS INTEGER, c AS INTEGER, shown AS INTEGER, head AS STRING, colw AS INTEGER
+    ' (the columns share the width, 64 to 160 pixels each)
+    colw = (Table.Width - 24) \ IIF(ColCount > 0, ColCount, 1)
+    IF colw < 64 THEN colw = 64
+    IF colw > 160 THEN colw = 160
+    Table.Clear
+    Table.ClearColumns
+    FOR c = 0 TO ColCount - 1
+        head = ColName(c)
+        IF c = SortCol THEN head = head + IIF(SortUp, "  ↑", "  ↓")
+        Table.AddColumns head
+        Table.Column(c).Width = colw
+    NEXT
+    FOR r = 0 TO Frame.RowCount - 1
+        IF RowOk(r) THEN
+            IF shown >= MAXSHOWN THEN EXIT FOR
+            Table.AddItems Frame.Cell(r, 0)
+            FOR c = 1 TO ColCount - 1
+                Table.AddSubItem shown, Frame.Cell(r, c)
+            NEXT
+            shown = shown + 1
+        END IF
+    NEXT
+END SUB
+
+' Each column's quick statistics over the rows kept: how many values, and
+' for numbers the smallest, the largest and the mean; for text how many
+' different values.
+SUB FillStats
+    DIM r AS INTEGER, c AS INTEGER, cell AS STRING, n AS INTEGER, k AS INTEGER
+    Stats.Clear
+    Stats.ClearColumns
+    Stats.AddColumns "Column", "Type", "Count", "Min", "Max", "Mean"
+    Stats.Column(0).Width = 120
+    FOR c = 1 TO 5
+        Stats.Column(c).Width = 76
+    NEXT
+    FOR c = 0 TO ColCount - 1
+        Nums.Clear
+        n = 0
+        FOR r = 0 TO Frame.RowCount - 1
+            IF RowOk(r) THEN
+                cell = Frame.Cell(r, c)
+                IF cell <> "" THEN
+                    n = n + 1
+                    IF ColNumeric(c) THEN Nums.Push VAL(cell)
+                END IF
+            END IF
+        NEXT
+        Stats.AddItems ColName(c)
+        Stats.AddSubItem k, IIF(ColNumeric(c), "number", "text")
+        Stats.AddSubItem k, LTRIM$(STR$(n))
+        IF ColNumeric(c) AND n > 0 THEN
+            Stats.AddSubItem k, NumText(Nums.Min)
+            Stats.AddSubItem k, NumText(Nums.Max)
+            Stats.AddSubItem k, FORMAT$("%.2f", Nums.Mean)
+        ELSE
+            Stats.AddSubItem k, ""
+            Stats.AddSubItem k, ""
+            Stats.AddSubItem k, ""
+        END IF
+        k = k + 1
+    NEXT
+END SUB
+
+' The chart of the rows kept: Y over X, as bars, a line or points. Bars
+' and a line over names (text X) take the first rows; a line over
+' numbers goes left to right, whatever the table's order.
+SUB DrawChart
+    DIM xc AS INTEGER, yc AS INTEGER, r AS INTEGER, n AS INTEGER, total AS INTEGER, limit AS INTEGER
+    DIM i AS INTEGER, j AS INTEGER, gap AS INTEGER, tx AS DOUBLE, ty AS DOUBLE
+    DIM names AS STRING, cell AS STRING, heading AS STRING
+    IF Busy THEN EXIT SUB
+    Chart.Clear
+    Xs.Clear
+    Ys.Clear
+    IF ColCount = 0 OR XBox.ItemIndex < 0 OR YBox.ItemIndex < 0 THEN
+        Chart.Title = "No numbers to chart"
+        Chart.Show
+        EXIT SUB
+    END IF
+    xc = XBox.ItemIndex
+    yc = YCol(YBox.ItemIndex)
+    limit = IIF(KindBox.ItemIndex = 0 OR ColNumeric(xc) = 0, MAXBARS, MAXPOINTS)
+    FOR r = 0 TO Frame.RowCount - 1
+        IF RowOk(r) THEN
+            cell = Frame.Cell(r, yc)
+            IF cell <> "" THEN
+                total = total + 1
+                IF n < limit THEN
+                    PY(n) = VAL(cell)
+                    PX(n) = VAL(Frame.Cell(r, xc))
+                    names = names + IIF(n > 0, ",", "") + REPLACESUBSTR$(Frame.Cell(r, xc), ",", " ")
+                    n = n + 1
+                END IF
+            END IF
+        END IF
+    NEXT
+    ' (a line over numbers: its points by X — a Shell sort)
+    IF KindBox.ItemIndex = 1 AND ColNumeric(xc) THEN
+        gap = n \ 2
+        WHILE gap > 0
+            FOR i = gap TO n - 1
+                tx = PX(i): ty = PY(i)
+                j = i
+                WHILE j >= gap
+                    IF PX(j - gap) <= tx THEN EXIT WHILE
+                    PX(j) = PX(j - gap): PY(j) = PY(j - gap)
+                    j = j - gap
+                WEND
+                PX(j) = tx: PY(j) = ty
+            NEXT
+            gap = gap \ 2
+        WEND
+    END IF
+    FOR i = 0 TO n - 1
+        Xs.Push PX(i)
+        Ys.Push PY(i)
+    NEXT
+    heading = ColName(yc) + " by " + ColName(xc)
+    IF total > n THEN heading = heading + " (the first " + LTRIM$(STR$(n)) + " of " + LTRIM$(STR$(total)) + ")"
+    Chart.Title = heading
+    Chart.XLabel = ColName(xc)
+    Chart.YLabel = ColName(yc)
+    IF n > 0 THEN
+        SELECT CASE KindBox.ItemIndex
+        CASE 1
+            IF ColNumeric(xc) THEN Chart.Plot(Xs, Ys, ColName(yc), "", "o-") ELSE Chart.Plot(names, Ys, ColName(yc), "", "o-")
+        CASE 2
+            IF ColNumeric(xc) THEN Chart.Scatter(Xs, Ys, ColName(yc), "") ELSE Chart.Scatter(names, Ys, ColName(yc), "")
+        CASE ELSE
+            Chart.Bar(names, Ys, ColName(yc), "")
+        END SELECT
+    END IF
+    Chart.Show
+END SUB
+
+SUB ShowStatus
+    DIM s AS STRING
+    s = ShownName + ": " + LTRIM$(STR$(Frame.RowCount)) + " rows, " + LTRIM$(STR$(ColCount)) + " columns"
+    IF TRIM$(FilterBox.Text) <> "" THEN s = s + "; " + LTRIM$(STR$(Kept)) + " contain " + CHR$(34) + TRIM$(FilterBox.Text) + CHR$(34)
+    IF Kept > MAXSHOWN THEN s = s + "; the table lists the first " + LTRIM$(STR$(MAXSHOWN))
+    Status.Caption = s
+END SUB
+
+' Everything again from the table as it is now.
+SUB ShowAll
+    ApplyFilter
+    FillTable
+    FillStats
+    DrawChart
+    ShowStatus
+END SUB
+
+' A CSV file into the explorer (Shown: its name as the window says it).
+SUB LoadFile(Path AS STRING, Shown AS STRING)
+    Frame.LoadFromCsv(Path)
+    IF Frame.ColCount = 0 THEN
+        Status.Caption = "Can't read " + Shown + " as a CSV file"
+        EXIT SUB
+    END IF
+    SourceFile = Path
+    ShownName = Shown
+    Form.Caption = "CSV Explorer - " + Shown
+    SortCol = -1
+    ReadColumns
+    FillPickers
+    Busy = 1
+    FilterBox.Text = ""
+    Busy = 0
+    ShowAll
+END SUB
+
+' The last part of a path: its file's name.
+FUNCTION FileTitle(Path AS STRING) AS STRING
+    DIM p AS STRING
+    p = REPLACESUBSTR$(Path, "\", "/")
+    Result = MID$(p, RINSTR(p, "/") + 1)
+END FUNCTION
+
+SUB OpenClicked
+    IF Dlg.Execute THEN LoadFile Dlg.FileName, FileTitle(Dlg.FileName)
+END SUB
+
+SUB SampleClicked
+    LoadFile SAMPLE, "shop.csv (sample)"
+END SUB
+
+' Files dropped on the window, one a line: the first CSV one is explored.
+SUB FilesDropped(Files AS STRING)
+    DIM i AS INTEGER, f AS STRING
+    FOR i = 1 TO TALLY(Files, CHR$(10)) + 1
+        f = FIELD$(Files, CHR$(10), i)
+        IF LCASE$(RIGHT$(f, 4)) = ".csv" OR LCASE$(RIGHT$(f, 4)) = ".txt" THEN
+            LoadFile f, FileTitle(f)
+            EXIT SUB
+        END IF
+    NEXT
+    Status.Caption = "Drop a .csv file: " + FileTitle(FIELD$(Files, CHR$(10), 1)) + " isn't one"
+END SUB
+
+SUB FilterChanged
+    IF Busy OR ColCount = 0 THEN EXIT SUB
+    ShowAll
+END SUB
+
+' A heading clicked: sorted by that column, the second click the other way.
+SUB ColumnClicked(Column AS INTEGER)
+    IF Column < 0 OR Column >= ColCount THEN EXIT SUB
+    IF Column = SortCol THEN SortUp = 1 - SortUp ELSE SortCol = Column: SortUp = 1
+    Frame.Sort(ColName(Column), SortUp)
+    ShowAll
+END SUB
+
+EXTRACTRESOURCE SHOP_CSV, SAMPLE
+IF COMMANDCOUNT > 0 THEN LoadFile COMMAND$(1), FileTitle(COMMAND$(1)) ELSE SampleClicked
+LayOut
+Form.ShowModal
+KILL SAMPLE
