@@ -183,6 +183,9 @@ END SUB
 ' ---- settings (the per-user store) -------------------------------------------------------
 
 CONST STUDIO_KEY = "Software\RapidR\Studio"
+' The saved layout's format (Studio 2026-10: documents as tabs, the debugger's
+' and the toolbox's panes): an older one isn't restored
+CONST LAYOUT_VERSION = 2
 CONST HKCU = &H80000001
 
 SUB LoadSettings
@@ -192,7 +195,12 @@ SUB LoadSettings
     SettingsRead = 1
     IF ThemeChoice = "" AND Reg.ValueExists("Theme") THEN ThemeChoice = Reg.ReadString("Theme")
     IF Reg.ValueExists("PreviewClassic") THEN PreviewClassic = Flag(Reg.ReadString("PreviewClassic") = "1")
-    IF Reg.ValueExists("Layout") THEN SavedLayout = Reg.ReadString("Layout")
+    ' (a layout saved by an older Studio — before documents were tabs, or
+    ' without a panel added since — isn't restored: Studio starts with its
+    ' default layout; LAYOUT_VERSION goes up when the layout changes)
+    IF Reg.ValueExists("Layout") AND Reg.ValueExists("LayoutVersion") THEN
+      IF Reg.ReadString("LayoutVersion") = LTRIM$(STR$(LAYOUT_VERSION)) THEN SavedLayout = Reg.ReadString("Layout")
+    END IF
     LoadSession
     IF Reg.ValueExists("Recent") THEN RecentList = Reg.ReadString("Recent")
     IF Reg.ValueExists("Folder") THEN DefaultFolder = Reg.ReadString("Folder")
@@ -206,6 +214,7 @@ SUB SaveSettings
   Reg.WriteString("Theme", ThemeChoice)
   Reg.WriteString("PreviewClassic", LTRIM$(STR$(PreviewClassic)))
   Reg.WriteString("Layout", Dock.SaveLayout)
+  Reg.WriteString("LayoutVersion", LTRIM$(STR$(LAYOUT_VERSION)))
   SaveSession
   SaveDebugState
   Reg.WriteString("Recent", RecentList)
