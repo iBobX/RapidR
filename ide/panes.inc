@@ -92,12 +92,12 @@ SUB FillExamples
   AddStart 2, "RFORM", "Open an Example"
   AddStart 3, "view.commandPalette", "All Commands"
   ExampleCount = 0
+  AddExample "data/csv_explorer.rr", "Drop a CSV, see it charted"
   AddExample "gui/hello_form.rr", "A form, a button, its OnClick"
   AddExample "gui/menus.rr", "Main and pop-up menus"
   AddExample "gui/dialogs.rr", "Open, save, colour, font"
   AddExample "gui/pantry.rr", "A list and a grid together"
   AddExample "gui/themes.rr", "The themes, switched live"
-  AddExample "data/csv_explorer.rr", "Drop a CSV: a table and a live chart"
   AddExample "data/dataframe.rr", "A data frame and a chart"
   AddExample "rapidq/notepad.bas", "RapidQ's notepad, as it was"
   AddExample "basics/hello.rr", "PRINT, FOR, SUB, FUNCTION"

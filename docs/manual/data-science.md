@@ -157,11 +157,91 @@ points, pies with their percentages and names, and the current theme's
 colours (`$THEME dark` draws dark charts, high contrast plain ones). Text
 is the UI kernel's: the built-in Liberation Sans, the same on every system.
 
-To show a chart in a window: `Image1.LoadFromPlot plt` (a QIMAGE). It's
-crisp at any screen scale — a 2× screen gets the chart drawn at 2× — while
-the picture's `Pixel`s stay the chart's own size. `savefig "chart.png", 2`
-writes the PNG at twice the chart's size (on the web, among the page's
+To show a chart in a window, put the RPLOT on the form — `CREATE Chart AS
+RPLOT … END CREATE`, with `Left`, `Top`, `Width` and `Height` like any
+component: it draws itself there and again after every change (a series
+added, a property set, `Clear`). `Clear` empties the chart but keeps its
+size, as Matplotlib's `clf` keeps the figure's. In RapidR Studio's designer
+a chart with no data yet shows sample bars under its `Title`, so you see
+where it is and how big; the program's data replaces them when it runs.
+Or show it in a picture: `Image1.LoadFromPlot plt` (a QIMAGE). Either way
+it's crisp at any screen scale — a 2× screen gets the chart drawn at 2× —
+while a picture's `Pixel`s stay the chart's own size. `savefig "chart.png",
+2` writes the PNG at twice the chart's size (on the web, among the page's
 files: the program can read it back or offer it as a download).
+
+## Tutorial: the CSV Explorer
+
+[`examples/data/csv_explorer.rr`](../../examples/data/csv_explorer.rr) is a
+small, complete data tool in about 450 lines of BASIC: drop any CSV file on
+its window and see it as a table, each column's statistics and a chart you
+change live. It runs the same as a native app, an interpreted one and in a
+browser.
+
+![The CSV Explorer showing the sample shop.csv: the table of twelve months, the Columns statistics (count, min, max, mean) and a bar chart of Visitors by Month](images/data/csv-explorer.png)
+
+### Try it
+
+1. In RapidR Studio, the Welcome page lists it first under **Examples**:
+   click **csv_explorer.rr** (or **File > Open Project or File…**, then
+   `examples/data/csv_explorer.rr`). From a terminal:
+   `rapidr run examples/data/csv_explorer.rr` — or
+   `rapidr run examples/data/csv_explorer.rr mydata.csv` to start with your
+   own file.
+
+   ![RapidR Studio's Welcome page: csv_explorer.rr, "Drop a CSV, see it charted", is the first example](images/data/studio-welcome.png)
+
+2. Press **F5** (**Run > Run**). The window opens with the sample,
+   `shop.csv` (a made-up shop's year: visitors, orders, revenue and rating
+   by month).
+3. **Drop a CSV file** on the window — from Finder, File Explorer or your
+   file manager (in a browser, from your computer). Or click **Open CSV…**
+   and pick one; **Sample data** brings the sample back.
+4. **Sort**: click a column's heading (an arrow shows the order); click it
+   again for the other way.
+5. **Filter**: type in **Filter**; only the rows with that text in any
+   cell stay — in the table, the statistics and the chart.
+6. **Chart**: pick the **X** column (any), the **Y** column (a numeric one)
+   and **Bar**, **Line** or **Scatter**. The chart follows at once.
+
+![staff.csv dropped on the window: sorted by Salary (the arrow in its heading), a scatter chart of Salary by Years](images/data/csv-explorer-dropped.png)
+
+![The sample filtered by "su": the three summer months, their statistics, and Revenue by Month as a line](images/data/csv-explorer-filter.png)
+
+### How it works
+
+- **The data**: an `RDATAFRAME` reads the file — `Frame.LoadFromCsv(path)`.
+  `Frame.Columns` names the columns, `Frame.DTypes` says which hold
+  numbers (`i64`, `f64`) and which text, `Frame.Cell(row, column)` gives a
+  cell, `Frame.Sort(name, 1)` sorts (0: highest first).
+- **The drop**: the form's `OnDropFiles = FilesDropped` names a SUB that
+  gets the files' paths, one a line, and loads the first `.csv` one
+  ([Files dropped on a form](components.md#files-dropped-on-a-form)).
+- **The table** is an `RLISTVIEW` in report view (`ViewStyle = vsReport`):
+  `AddColumns` for the headings, `AddItems` and `AddSubItem` for the rows;
+  its `OnColumnClick (Column)` sorts.
+- **The filter** is an `REDIT` whose `OnChange` marks the rows that contain
+  the text (`INSTR(LCASE$(cell), text)`), then fills everything again.
+- **The statistics**: each numeric column's values go into an `RNUM`
+  (`Nums.Push VAL(cell)`), which answers `Min`, `Max` and `Mean`.
+- **The chart** is an `RPLOT` on the form: `Chart.Clear`, then
+  `Chart.Bar(names, Ys, label, "")`, `Chart.Plot(Xs, Ys, label, "", "o-")`
+  or `Chart.Scatter(Xs, Ys, label, "")` — Xs and Ys are RNUMs; X can be
+  names (`"Jan,Feb,Mar"`) for bars over categories.
+- **The sample** is built into the program with `$RESOURCE SHOP_CSV AS
+  "shop.csv"` and read without writing a file: an `RMEMORYSTREAM`'s
+  `ExtractRes SHOP_CSV`, then `ReadStr`, and `LoadFromCsv` takes the CSV
+  text itself.
+- **The layout** follows the window's size: the form's `OnResize` places
+  the table, the statistics and the chart from `Form.ClientWidth` and
+  `ClientHeight`.
+
+In the designer the chart shows sample bars (its data comes when the
+program runs), and the project tree lists `shop.csv` under **Resources** —
+a file the program names belongs to its project, on the desktop and in the
+web IDE alike:
+
+![csv_explorer.rr in RapidR Studio's designer: the form with its table, statistics and the chart showing sample bars; the project tree lists shop.csv under Resources](images/data/studio-designer.png)
 
 ## RJSON
 

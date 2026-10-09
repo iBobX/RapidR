@@ -42,6 +42,11 @@ A browser page has no file system. RapidR gives a program one of its own:
   deleted by `KILL`. They never reach the user's disk unless a dialog
   named them (below).
 - **Other names** are fetched from the page's own server.
+- **Files dropped on a window** (dragged from the computer onto a form
+  that has an `OnDropFiles` handler) are read whole into the program's
+  files under their names; `OnDropFiles` gets those names, and the program
+  opens them as any file. A form without the handler refuses the drop (the
+  browser doesn't replace the page with the file either).
 - Printing opens the browser's print dialog.
 
 ### Open and Save: the user's real files
@@ -142,5 +147,9 @@ as on the desktop, drawn by the UI kernel on the page — a folder for any
 static host (open its `index.html` through a web server). It has the form
 designer, the code editor, the project tree, the inspector, the toolbox
 and Run (the program runs in a sandboxed frame of the page). It compiles
-in the browser; nothing is sent anywhere. Building apps and web bundles is
+in the browser; nothing is sent anywhere. The data files a program names
+go with it when it runs — a `$RESOURCE` file, a CSV it loads
+(`"staff.csv"`): any file beside the program whose name is written in its
+source, as the project tree lists them under Resources, Assets and Data.
+So every example runs in the web IDE as on the desktop. Building apps and web bundles is
 the desktop's for now (Studio's Build, `rapidr bundle-bc`).

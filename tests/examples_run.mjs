@@ -133,6 +133,10 @@ export const cases = [
     events: "form.__drop,kindbox.__item_2,table.__mousedown_250_10,table.__mouseup_250_10,table.__mousedown_250_10,table.__mouseup_250_10,filterbox.__key_83,filterbox.__key_65",
     dump: "status.caption,form.caption,table.itemcount,chart.title,kindbox.text",
     expect: ["status.caption=staff.csv: 8 rows, 5 columns; 3 contain \"sa\"", "form.caption=CSV Explorer - staff.csv", "table.itemcount=3", "chart.title=Salary by Name", "kindbox.text=Scatter"] },
+  // (Open CSV... with the dialog's answer, a line chart)
+  { file: "data/csv_explorer.rr", runtimes: ["run", "interp", "native", "web"], fileDialog: "staff.csv",
+    events: "openbtn.onclick,kindbox.__item_1", dump: "status.caption,chart.title,stats.itemcount",
+    expect: ["status.caption=staff.csv: 8 rows, 5 columns", "chart.title=Salary by Name", "stats.itemcount=5"] },
   // network/ (the tests' own server, local)
   { file: "network/http_json.rr", runtimes: ["run", "interp", "native", "web"], args: ["{http}/examples/network/forecast.json"],
     expect: ["Forecast for Harbour Town (updated 2026-10-06 06:00)", "  Tuesday   10 to 15 C, showers", "Warmest: Monday"] },

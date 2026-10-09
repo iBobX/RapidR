@@ -27,12 +27,12 @@ CONST MAXCOLS = 64
 CONST MAXSHOWN = 1000       ' rows the table lists (all of them are counted and charted)
 CONST MAXBARS = 60          ' bars (or points over names) a chart shows
 CONST MAXPOINTS = 5000      ' points a line or a scatter chart over numbers shows
-CONST SAMPLE = "shop.tmp.csv"
 
 DIM Frame AS RDATAFRAME     ' the file's table, sorted as asked
 DIM Xs AS RNUM, Ys AS RNUM, Nums AS RNUM
 DIM PX(MAXPOINTS) AS DOUBLE, PY(MAXPOINTS) AS DOUBLE   ' a chart's points
-DIM SourceFile AS STRING, ShownName AS STRING
+DIM ShownName AS STRING
+DIM Sample AS STRING        ' the sample's CSV text (shop.csv, built in)
 DIM ColCount AS INTEGER
 DIM ColName(MAXCOLS) AS STRING
 DIM ColNumeric(MAXCOLS) AS INTEGER
@@ -50,8 +50,8 @@ END CREATE
 
 CREATE Form AS RFORM
     Caption = "CSV Explorer"
-    Width = 1000
-    Height = 660
+    Width = 860
+    Height = 600
     Center
     OnDropFiles = FilesDropped
     OnResize = LayOut
@@ -67,53 +67,53 @@ CREATE Form AS RFORM
         Caption = "Filter": Left = 256: Top = 17: Width = 36
     END CREATE
     CREATE FilterBox AS REDIT
-        Left = 296: Top = 13: Width = 180
+        Left = 296: Top = 13: Width = 170
         Hint = "Only the rows that contain this text"
         OnChange = FilterChanged
     END CREATE
     CREATE Table AS RLISTVIEW
-        Left = 12: Top = 48: Width = 560: Height = 330
+        Left = 12: Top = 48: Width = 466: Height = 283
         ViewStyle = vsReport: GridLines = 1: RowSelect = 1: ReadOnly = 1
         OnColumnClick = ColumnClicked
     END CREATE
     CREATE StatsHead AS RLABEL
-        Caption = "Columns": Left = 12: Top = 388: Width = 300
+        Caption = "Columns": Left = 12: Top = 341: Width = 300
     END CREATE
     CREATE Stats AS RLISTVIEW
-        Left = 12: Top = 408: Width = 560: Height = 180
+        Left = 12: Top = 361: Width = 466: Height = 174
         ViewStyle = vsReport: GridLines = 1: RowSelect = 1: ReadOnly = 1
         ColumnClick = 0
     END CREATE
     CREATE XLabel AS RLABEL
-        Caption = "X": Left = 588: Top = 17: Width = 12
+        Caption = "X": Left = 494: Top = 17: Width = 12
     END CREATE
     CREATE XBox AS RCOMBOBOX
-        Left = 604: Top = 13: Width = 124: Style = csDropDownList
+        Left = 510: Top = 13: Width = 108: Style = csDropDownList
         OnChange = DrawChart
     END CREATE
     CREATE YLabel AS RLABEL
-        Caption = "Y": Left = 740: Top = 17: Width = 12
+        Caption = "Y": Left = 628: Top = 17: Width = 12
     END CREATE
     CREATE YBox AS RCOMBOBOX
-        Left = 756: Top = 13: Width = 124: Style = csDropDownList
+        Left = 644: Top = 13: Width = 108: Style = csDropDownList
         OnChange = DrawChart
     END CREATE
     CREATE KindBox AS RCOMBOBOX
-        Left = 892: Top = 13: Width = 92: Style = csDropDownList
+        Left = 762: Top = 13: Width = 84: Style = csDropDownList
         AddItems "Bar", "Line", "Scatter"
         ItemIndex = 0
         OnChange = DrawChart
     END CREATE
     CREATE Chart AS RPLOT
-        Left = 588: Top = 48: Width = 396: Height = 540
+        Left = 494: Top = 48: Width = 352: Height = 487
         Title = "Drop a CSV file"
     END CREATE
     CREATE Status AS RLABEL
-        Left = 12: Top = 600: Width = 560
+        Left = 12: Top = 545: Width = 466
     END CREATE
     CREATE DropHint AS RLABEL
-        Caption = "Drop a CSV file anywhere on this window to explore it"
-        Left = 588: Top = 600: Width = 396
+        Caption = "Drop a CSV file on this window to explore it"
+        Left = 494: Top = 545: Width = 352
         Alignment = taRightJustify
         FontColor = clGrayText
     END CREATE
@@ -134,12 +134,12 @@ FUNCTION NumText(x AS DOUBLE) AS STRING
     Result = s
 END FUNCTION
 
-' The window's parts sized to it: the table and the statistics on the
-' left, the chart on the right.
+' The window's parts sized to it (the user may make it bigger): the table
+' and the statistics on the left, the chart and its choices on the right.
 SUB LayOut
-    DIM w AS INTEGER, h AS INTEGER, half AS INTEGER, x0 AS INTEGER
+    DIM w AS INTEGER, h AS INTEGER, half AS INTEGER, x0 AS INTEGER, cw AS INTEGER
     w = Form.ClientWidth: h = Form.ClientHeight
-    IF w < 640 OR h < 400 THEN EXIT SUB
+    IF w < 600 OR h < 400 THEN EXIT SUB
     half = INT((w - 40) * 0.57)
     Table.Width = half
     Table.Height = INT((h - 48 - 64) * 0.62)
@@ -149,13 +149,15 @@ SUB LayOut
     Stats.Height = h - Stats.Top - 34
     Status.Top = h - 24
     Status.Width = half
-    DropHint.Top = h - 24
-    DropHint.Left = 12 + half + 16
-    DropHint.Width = w - DropHint.Left - 12
     x0 = 12 + half + 16
-    XLabel.Left = x0: XBox.Left = x0 + 16
-    YLabel.Left = x0 + 152: YBox.Left = x0 + 168
-    KindBox.Left = x0 + 304: KindBox.Width = w - 12 - KindBox.Left
+    DropHint.Top = h - 24
+    DropHint.Left = x0
+    DropHint.Width = w - x0 - 12
+    ' (X and Y share what the kind's list leaves)
+    cw = (w - 12 - x0 - 52 - 84) \ 2
+    XLabel.Left = x0: XBox.Left = x0 + 16: XBox.Width = cw
+    YLabel.Left = XBox.Left + cw + 10: YBox.Left = YLabel.Left + 16: YBox.Width = cw
+    KindBox.Left = YBox.Left + cw + 10: KindBox.Width = w - 12 - KindBox.Left
     Chart.Left = x0
     Chart.Width = w - x0 - 12
     Chart.Height = h - Chart.Top - 34
@@ -255,10 +257,13 @@ SUB FillStats
     Stats.Clear
     Stats.ClearColumns
     Stats.AddColumns "Column", "Type", "Count", "Min", "Max", "Mean"
-    Stats.Column(0).Width = 120
+    ' (the name's column a quarter of the width, the others the rest)
+    k = (Stats.Width - 24) \ 4
+    Stats.Column(0).Width = k
     FOR c = 1 TO 5
-        Stats.Column(c).Width = 76
+        Stats.Column(c).Width = (Stats.Width - 24 - k) \ 5
     NEXT
+    k = 0
     FOR c = 0 TO ColCount - 1
         Nums.Clear
         n = 0
@@ -376,14 +381,14 @@ SUB ShowAll
     ShowStatus
 END SUB
 
-' A CSV file into the explorer (Shown: its name as the window says it).
+' A CSV file — or CSV text, the sample's — into the explorer (Shown: its
+' name as the window says it).
 SUB LoadFile(Path AS STRING, Shown AS STRING)
     Frame.LoadFromCsv(Path)
     IF Frame.ColCount = 0 THEN
         Status.Caption = "Can't read " + Shown + " as a CSV file"
         EXIT SUB
     END IF
-    SourceFile = Path
     ShownName = Shown
     Form.Caption = "CSV Explorer - " + Shown
     SortCol = -1
@@ -407,7 +412,7 @@ SUB OpenClicked
 END SUB
 
 SUB SampleClicked
-    LoadFile SAMPLE, "shop.csv (sample)"
+    LoadFile Sample, "shop.csv (sample)"
 END SUB
 
 ' Files dropped on the window, one a line: the first CSV one is explored.
@@ -436,8 +441,14 @@ SUB ColumnClicked(Column AS INTEGER)
     ShowAll
 END SUB
 
-EXTRACTRESOURCE SHOP_CSV, SAMPLE
-IF COMMANDCOUNT > 0 THEN LoadFile COMMAND$(1), FileTitle(COMMAND$(1)) ELSE SampleClicked
+' (the sample read from the program itself: no file written)
+DIM Mem AS RMEMORYSTREAM
+Mem.ExtractRes SHOP_CSV
+Mem.Position = 0
+Sample = Mem.ReadStr(Mem.Size)
+Mem.Close
+' (a file named on the command line, else — or if it isn't a CSV — the sample)
+IF COMMANDCOUNT > 0 THEN LoadFile COMMAND$(1), FileTitle(COMMAND$(1))
+IF ColCount = 0 THEN SampleClicked
 LayOut
 Form.ShowModal
-KILL SAMPLE
