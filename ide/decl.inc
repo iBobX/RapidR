@@ -106,6 +106,14 @@ DECLARE SUB DesignDblClick(Index AS INTEGER, Sender AS RDESIGNSURFACE)
 DECLARE SUB DesignRead(d AS INTEGER)
 DECLARE SUB CaretAtHandler(d AS INTEGER, L AS INTEGER)
 DECLARE SUB DesignNames(d AS INTEGER)
+' (the toolbox's form being added: "form" / "formmdi", the hint after it — panels.inc)
+DIM PendingFormKind AS STRING
+DIM PendingFormHint AS STRING
+DIM PendingFormAt AS DOUBLE
+DECLARE FUNCTION IsFormType(TypeName AS STRING) AS INTEGER
+DECLARE SUB AddFormOfType(TypeName AS STRING, Hint AS STRING)
+DECLARE SUB IncludeFollows(OldPath AS STRING, NewPath AS STRING)
+DECLARE SUB IncludeLeaves(Path AS STRING)
 DECLARE SUB FillProblemsOf(Path AS STRING)
 DECLARE FUNCTION ProgramErrors AS INTEGER
 DECLARE SUB DesignPicked(Index AS INTEGER, Sender AS RDESIGNSURFACE)

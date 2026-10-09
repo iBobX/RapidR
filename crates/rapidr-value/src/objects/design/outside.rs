@@ -24,7 +24,7 @@ pub struct Outside {
 /// database …), not a form.
 fn trayed(type_written: &str) -> bool {
     let canonical = crate::designer::model::canonical_type(type_written);
-    if canonical == "RFORM" || canonical == "RMAINMENU" || canonical == "RMENUITEM" {
+    if crate::designer::model::is_form_type(&canonical) || canonical == "RMAINMENU" || canonical == "RMENUITEM" {
         return false;
     }
     match rapidr_lang::component(&canonical) {
@@ -99,7 +99,16 @@ impl DesignSurface {
                 r
             }
             _ => {
+                // (nothing selected: the form itself, as Delphi inspects it —
+                // its properties and its events)
+                let form = self.designer.selection.ids().is_empty().then(|| self.designer.design.root());
+                if let Some(root) = form {
+                    self.designer.selection.set(root);
+                }
                 let r = f(&mut self.designer);
+                if form.is_some() {
+                    self.designer.selection.clear();
+                }
                 self.commit();
                 r
             }
@@ -113,6 +122,9 @@ impl DesignSurface {
             return vec![(o.name.clone(), o.type_name.clone())];
         }
         let d = &self.designer.design;
-        self.designer.selection.ids().iter().filter_map(|&id| d.node(id)).map(|n| (n.name.clone(), n.type_written.clone())).collect()
+        let ids = self.designer.selection.ids();
+        // (nothing selected: the form)
+        let ids: Vec<_> = if ids.is_empty() { vec![d.root()] } else { ids.to_vec() };
+        ids.iter().filter_map(|&id| d.node(id)).map(|n| (n.name.clone(), n.type_written.clone())).collect()
     }
 }

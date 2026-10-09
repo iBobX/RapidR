@@ -517,9 +517,11 @@ impl ProjectTree {
     /// A free name for a new file of `kind` at the project's top (`name`
     /// wanted: it, or it numbered): `Form2.rr`, `Module1.rr` …
     pub fn free_name(&self, kind: FileKind, name: Option<&str>) -> String {
+        // (a RapidQ program's forms and modules are .bas files, as its main)
+        let source = if ext_of(&self.project.main).eq_ignore_ascii_case("bas") { "bas" } else { "rr" };
         let (stem, ext) = match kind {
-            FileKind::Form => ("Form", "rr"),
-            FileKind::Module => ("Module", "rr"),
+            FileKind::Form => ("Form", source),
+            FileKind::Module => ("Module", source),
             FileKind::Include => ("Include", "inc"),
             FileKind::Resource => ("Resource", "ico"),
             FileKind::Asset => ("Asset", "png"),

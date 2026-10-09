@@ -353,7 +353,7 @@ const CASES = [
     delay: 4,
     dump: {
       "designdoc(0).formname": /^Form1$/,
-      "codedoc(0).text": /\nCREATE Form1 AS QFORM\n    Caption = "Form1"\n    Width = 320\n    Height = 240\n    CREATE Button1 AS QBUTTON\n[\s\S]*END CREATE\n\nForm1\.ShowModal\n?$/,
+      "codedoc(0).text": /\nCREATE Form1 AS RForm\n    Caption = "Form1"\n    Width = 320\n    Height = 240\n    CREATE Button1 AS RButton\n[\s\S]*END CREATE\n\nForm1\.ShowModal\n?$/,
     },
   },
   // (S-DESIGN-2) One undo history for the file: a designer change, a
@@ -411,6 +411,44 @@ const CASES = [
       "lang.errorcount": /^0$/,
     },
   },
+  // (S-DESIGN-2, Robert's report) RForm in the toolbox is Project > Add
+  // Form (a form is a document, not a component); RFormMDI adds an MDI
+  // main window.
+  {
+    name: "toolbox-form",
+    open: "",
+    do: "newproject:gui|{dir}|Tb,wait,wait,tool:RFORM,wait,key:Enter,wait,wait,wait,tool:RFORMMDI,wait,key:Enter,wait,wait,wait",
+    delay: 8,
+    dump: { "codedoc(0).text": /^\$APPTYPE GUI\n\$INCLUDE "Form2\.rr"\n\$INCLUDE "Form3\.rr"\n/, "codedoc(1).text": /\nCREATE Form2 AS RForm\n/, "codedoc(2).text": /\nCREATE Form3 AS RFormMDI\n/, "proj.filecount": /^3$/ },
+  },
+  // (S-DESIGN-2) RForm dragged onto a designed form: never nested — a new
+  // window, and the status bar says why (onto an RFormMDI: a window of its
+  // own too, as RapidR doesn't draw forms inside one yet).
+  {
+    name: "toolbox-form-drop",
+    open: "",
+    do: "newproject:gui|{dir}|Dr,wait,wait,drop:RFORM|designdoc(0),wait,key:Enter,wait,wait,wait",
+    delay: 7,
+    dump: { "codedoc(1).text": /\nCREATE Form2 AS RForm\n/, "outputbox.text": /A form can't go inside a form: Form2 was added as a new window\. For child windows, make Form1 an RFormMDI\./ },
+  },
+  {
+    name: "toolbox-form-drop-mdi",
+    open: "",
+    do: "newproject:mdi|{dir}|Md,wait,wait,drop:RFORM|designdoc(0),wait,key:Enter,wait,wait,wait",
+    delay: 7,
+    // (the MDI template's window is Main: the new form is Form1)
+    dump: { "codedoc(1).text": /\nCREATE Form1 AS RForm\n/, "outputbox.text": /Form1 was added as a window of its own: RapidR doesn't draw forms inside an RFormMDI yet/ },
+  },
+  // (S-DESIGN-2, Robert's report) The form itself (nothing selected) in
+  // the inspector, with its events: OnShow's handler made, bound and
+  // written as a component's is.
+  {
+    name: "form-events",
+    open: "examples/gui/hello_form.rr",
+    do: "wait,view.designer,wait,page:events,event:OnShow,wait",
+    delay: 6,
+    dump: { "inspector.target": /^Form$/, "codedoc(0).text": /^(?=[\s\S]*\n        OnShow = FormShow\n|[\s\S]*\n    OnShow = FormShow\n)(?=[\s\S]*\nSUB FormShow\b)/ },
+  },
   // (S-DESIGN-2) Project > Add Module: Module1.rr, named in the tree,
   // included by the main file, opened on its code.
   {
@@ -419,6 +457,23 @@ const CASES = [
     do: "newproject:gui|{dir}|Mods,wait,wait,project.addModule,wait,key:Enter,wait,wait,wait",
     delay: 6,
     dump: { "codedoc(0).text": /^\$APPTYPE GUI\n\$INCLUDE "Module1\.rr"\n\nCREATE Form1 AS RForm\n/, "codedoc(1).text": /^' Module1\.rr: SUBs and FUNCTIONs the program's files share$/, "proj.filecount": /^2$/, "lang.errorcount": /^0$/ },
+  },
+  // (S-DESIGN-2) A form's file renamed in the project tree (F2): the main
+  // file's $INCLUDE follows it; then taken out of the project (Delete,
+  // confirmed with Enter): the main file no longer includes it.
+  {
+    name: "rename-form",
+    open: "",
+    do: "newproject:gui|{dir}|Ren,wait,wait,project.addForm,wait,key:Enter,wait,wait,wait,rename:Form2.rr|About.rr,wait,wait,wait",
+    delay: 7,
+    dump: { "codedoc(0).text": /^\$APPTYPE GUI\n\$INCLUDE "About\.rr"\n/, "proj.filecount": /^2$/, "lang.errorcount": /^0$/ },
+  },
+  {
+    name: "remove-form",
+    open: "",
+    do: "newproject:gui|{dir}|Rem,wait,wait,project.addForm,wait,key:Enter,wait,wait,wait,remove:Form2.rr,wait,key:Enter,wait,wait,wait",
+    delay: 7,
+    dump: { "codedoc(0).text": /^\$APPTYPE GUI\n\nCREATE Form1 AS RForm\n/, "proj.filecount": /^1$/, "lang.errorcount": /^0$/ },
   },
   // (S-DESIGN-2) A program with an $INCLUDE on the web: the language
   // service and the designer read the included file from the page's store

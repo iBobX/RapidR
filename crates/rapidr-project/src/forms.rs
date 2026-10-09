@@ -33,10 +33,16 @@ pub fn line_end(text: &str) -> &'static str {
 }
 
 /// A new form file's text: `CREATE name AS RForm` (`QFORM` with RapidQ's
-/// names) with its Caption and RapidQ's starting size, hidden until the
-/// program shows it (`name.Show`, `name.ShowModal`).
-pub fn new_form_text(file_title: &str, name: &str, rapidq_names: bool, eol: &str) -> String {
-    let ty = if rapidq_names { "QFORM" } else { "RForm" };
+/// names; `mdi`: an MDI main window, `RFormMDI` / `QFORMMDI`) with its
+/// Caption and RapidQ's starting size, hidden until the program shows it
+/// (`name.Show`, `name.ShowModal`).
+pub fn new_form_text(file_title: &str, name: &str, rapidq_names: bool, mdi: bool, eol: &str) -> String {
+    let ty = match (rapidq_names, mdi) {
+        (true, false) => "QFORM",
+        (false, false) => "RForm",
+        (true, true) => "QFORMMDI",
+        (false, true) => "RFormMDI",
+    };
     let caption = crate::basic_string(name);
     [
         format!("' {file_title}: the program shows {name} with {name}.Show"),
@@ -118,6 +124,44 @@ pub fn include_insertion(main: &str, file: &str) -> Option<(usize, String)> {
     })
 }
 
+/// Where `main`'s `$INCLUDE` of `old` names it, for the file renamed or
+/// moved to `new`: (the line, from 0; the path's first and last-but-one
+/// columns, in characters; the new path as written) — `None` when `main`
+/// doesn't include `old`. The path is replaced alone: the line's quotes,
+/// spacing and comment stay.
+pub fn include_rename(main: &str, old: &str, new: &str) -> Option<(usize, usize, usize, String)> {
+    let norm = |p: &str| p.trim().replace('\\', "/").trim_start_matches("./").to_ascii_lowercase();
+    let want = norm(old);
+    for (i, line) in main.lines().enumerate() {
+        let t = line.trim_start();
+        if !t.get(..8).is_some_and(|h| h.eq_ignore_ascii_case("$INCLUDE")) {
+            continue;
+        }
+        let Some(open) = line.find(['"', '<']) else { continue };
+        let close = if line[open..].starts_with('"') { '"' } else { '>' };
+        let Some(len) = line[open + 1..].find(close) else { continue };
+        let path = &line[open + 1..open + 1 + len];
+        if norm(path) != want {
+            continue;
+        }
+        let start = line[..open + 1].chars().count();
+        let end = start + path.chars().count();
+        // (written with the old one's separators)
+        let written = if path.contains('\\') { new.replace('/', "\\") } else { new.replace('\\', "/") };
+        return Some((i, start, end, written));
+    }
+    None
+}
+
+/// The line (from 0) of `main`'s `$INCLUDE` of `file`, to take out with
+/// the file (Project > Remove: the program no longer includes it); `None`
+/// when it doesn't include it.
+pub fn include_line(main: &str, file: &str) -> Option<usize> {
+    let norm = |p: &str| p.trim().replace('\\', "/").trim_start_matches("./").to_ascii_lowercase();
+    let want = norm(file);
+    main.lines().position(|line| include_targets(line).iter().any(|t| norm(t) == want))
+}
+
 /// `main` with `$INCLUDE "file"` inserted ([`include_insertion`]).
 pub fn with_include(main: &str, file: &str) -> String {
     let Some((at, text)) = include_insertion(main, file) else { return main.to_string() };
@@ -167,10 +211,21 @@ mod tests {
     }
 
     #[test]
+    fn a_renamed_file_is_included_by_its_new_name() {
+        let main = "$APPTYPE GUI\n$INCLUDE \"Form2.rr\"   ' the second form\n$include \"lib\\Util.inc\"\n";
+        assert_eq!(include_rename(main, "form2.rr", "About.rr"), Some((1, 10, 18, "About.rr".into())));
+        assert_eq!(include_rename(main, "lib/util.inc", "lib/Tools.inc"), Some((2, 10, 22, "lib\\Tools.inc".into())));
+        assert_eq!(include_rename(main, "Other.rr", "X.rr"), None);
+        assert_eq!(include_line(main, "LIB/util.inc"), Some(2));
+        assert_eq!(include_line(main, "Other.rr"), None);
+    }
+
+    #[test]
     fn new_files_in_the_programs_names() {
-        let f = new_form_text("Form2.rr", "Form2", false, "\n");
+        let f = new_form_text("Form2.rr", "Form2", false, false, "\n");
         assert_eq!(f, "' Form2.rr: the program shows Form2 with Form2.Show\n\nCREATE Form2 AS RForm\n    Caption = \"Form2\"\n    Width = 320\n    Height = 240\nEND CREATE\n");
-        assert!(new_form_text("About.bas", "About", true, "\r\n").contains("CREATE About AS QFORM\r\n"));
+        assert!(new_form_text("About.bas", "About", true, false, "\r\n").contains("CREATE About AS QFORM\r\n"));
+        assert!(new_form_text("Main2.rr", "Main2", false, true, "\n").contains("CREATE Main2 AS RFormMDI\n"));
         assert!(uses_rapidq_names("$APPTYPE GUI\nCREATE Form1 AS QFORM\n", "main.rr"));
         assert!(!uses_rapidq_names("CREATE Form1 AS RForm\n", "main.bas"));
         assert!(uses_rapidq_names("PRINT 1\n", "main.bas") && !uses_rapidq_names("PRINT 1\n", "main.rr"));

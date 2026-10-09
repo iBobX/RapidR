@@ -640,6 +640,32 @@ mod tests {
         assert!(tried > 100, "{tried}");
     }
 
+    /// Nothing selected, the inspector shows the form itself — its
+    /// properties and its events (Delphi's) — and a handler made for one of
+    /// the form's events is written and bound as a component's is.
+    #[test]
+    fn the_form_itself_is_inspected_with_its_events() {
+        install();
+        let mut s = DesignSurface::default();
+        let text = "CREATE Form1 AS RForm\n    Caption = \"One\"\nEND CREATE\n\nForm1.ShowModal\n";
+        assert!(s.open_source(text));
+        let mut editor = text.to_string();
+        assert_eq!(s.inspected_objects(), [("Form1".to_string(), "RForm".to_string())]);
+        let events = s.with_inspected(|d| d.inspect().events.iter().map(|e| e.name.to_string()).collect::<Vec<_>>());
+        for e in ["OnShow", "OnClose", "OnResize", "OnPaint", "OnKeyDown", "OnMouseDown"] {
+            assert!(events.iter().any(|x| x == e), "{e} in {events:?}");
+        }
+        s.with_inspected(|d| d.set_property("Caption", Some("Two")).unwrap());
+        heard(&mut s, &mut editor);
+        assert!(editor.contains("    Caption = \"Two\"\n"), "{editor}");
+        assert!(s.selection().is_none(), "still nothing selected");
+        let sub = s.call("createhandler", &[rapidr_value::v_str("Form1"), rapidr_value::v_str("OnShow")]).unwrap().to_string_val();
+        heard(&mut s, &mut editor);
+        assert_eq!(sub, "Form1Show");
+        assert!(editor.contains("SUB Form1Show") && editor.contains("    OnShow = Form1Show\n"), "{editor}");
+        compiles(&editor, "a form's OnShow handler");
+    }
+
     #[test]
     fn zoom_keeps_rapidq_pixels() {
         install();

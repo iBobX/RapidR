@@ -57,6 +57,12 @@ pub fn prop_key(name: &str) -> String {
 /// RapidR's name of a type as written (`QBUTTON` → `RBUTTON`, `QGAUGE` →
 /// `RPROGRESSBAR`, `QMEMO` → `RMEMO` as the compilers read it); upper case
 /// as written when the registry doesn't know it.
+/// Whether a canonical type is a form the designer designs: RFORM, or an
+/// MDI main window (RFORMMDI, RapidQ's QFORMMDI).
+pub fn is_form_type(canonical: &str) -> bool {
+    canonical == "RFORM" || canonical == "RFORMMDI"
+}
+
 pub fn canonical_type(written: &str) -> String {
     match rapidr_lang::resolve_component(written) {
         Some(c) => c.name.to_string(),
@@ -122,7 +128,7 @@ impl Node {
     }
 
     pub fn is_form(&self) -> bool {
-        self.canonical == "RFORM"
+        is_form_type(&self.canonical)
     }
 }
 

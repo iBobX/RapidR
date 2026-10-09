@@ -755,7 +755,7 @@ impl DesignSurface {
         let Some(a) = &self.source else { return };
         let forms = a.doc.borrow().forms();
         let named = (!self.want_form.is_empty()).then(|| forms.iter().position(|(n, _)| n.eq_ignore_ascii_case(&self.want_form))).flatten();
-        let form = named.or_else(|| forms.iter().position(|(_, t)| crate::designer::model::canonical_type(t) == "RFORM"));
+        let form = named.or_else(|| forms.iter().position(|(_, t)| crate::designer::model::is_form_type(&crate::designer::model::canonical_type(t))));
         let changed = a.form != form;
         if let Some(a) = &mut self.source {
             a.form = form;
@@ -1520,7 +1520,7 @@ impl DesignSurface {
             return None;
         }
         let canonical = crate::designer::model::canonical_type(type_name);
-        if canonical == "RFORM" || canonical.is_empty() {
+        if crate::designer::model::is_form_type(&canonical) || canonical.is_empty() {
             return None;
         }
         let comp = rapidr_lang::component(&canonical);
@@ -2179,6 +2179,10 @@ impl DesignSurface {
             "source" => v_str(&self.source.as_ref().map(|a| a.doc.borrow().text()).unwrap_or_default()),
             "sourcefile" => v_str(&self.source_file),
             "formname" => v_str(&self.root_name()),
+            "formtype" => v_str(&{
+                let d = &self.designer.design;
+                d.node(d.root()).map(|n| n.type_written.clone()).unwrap_or_default()
+            }),
             "placetype" => v_str(&self.place_type),
             "canundo" => Value::Boolean(self.can_undo()),
             "canredo" => Value::Boolean(self.can_redo()),

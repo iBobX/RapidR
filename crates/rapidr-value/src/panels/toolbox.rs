@@ -247,7 +247,13 @@ pub fn card(key: &Key) -> String {
         rapidr_lang::Runtimes::Web => ", web only",
         _ => "",
     };
-    format!("{} - {} ({from}{runs})", c.pretty(c.name), description(t))
+    // (a form is a document: the toolbox adds a form file for it)
+    let does = match c.name {
+        "RFORM" => " Click or double-click: Project > Add Form, a new form file of the program.",
+        "RFORMMDI" => " Click or double-click: a new MDI main window file of the program.",
+        _ => "",
+    };
+    format!("{} - {} ({from}{runs}){does}", c.pretty(c.name), description(t))
 }
 
 impl Toolbox {

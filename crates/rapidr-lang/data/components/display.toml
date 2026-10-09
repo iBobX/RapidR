@@ -369,6 +369,7 @@ properties = [
   { name = "Visible", type = "int" },
   { name = "FormCaption", type = "string" },
   { name = "Theme", type = "string", design = false, doc = "The look the designed form is drawn in (any name `$THEME` takes; \"\": the surface's own): `classic` shows it as RapidQ drew it." },
+  { name = "FormType", type = "string", access = "read", design = false, doc = "The designed form's type as its CREATE writes it (`RForm`, `QFORMMDI` …); \"\" when there is no form." },
   { name = "ReservedNames", type = "string", design = false, doc = "Names the program's other files give their components, separated by commas: a component or form added here is never named one of them (a RapidQ program's component names are global — Form1's Button1 and Form2's would clash)." },
   { name = "Parent", type = "component", kinds = ["QFORM"], design = false },
   { name = "Count", type = "int" },

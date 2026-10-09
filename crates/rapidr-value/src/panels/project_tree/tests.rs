@@ -208,6 +208,9 @@ fn new_files_get_free_names() {
     let names = t.component_names("proj/forms/Form1.rr");
     assert!(names.iter().any(|n| n == "Form3") && names.iter().any(|n| n == "Form4") && names.iter().any(|n| n == "About"), "{names:?}");
     assert!(!names.iter().any(|n| n == "Form1"), "its own: {names:?}");
+    // a RapidQ program's new files are .bas, as its main file
+    t.project.main = "main.bas".into();
+    assert_eq!(t.free_name(FileKind::Module, None), "Module1.bas");
 }
 
 #[test]

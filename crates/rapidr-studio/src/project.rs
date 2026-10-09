@@ -418,6 +418,14 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
         // for it, as one patch for RCODEEDITOR.ApplyPatches ("" when it has it)
         "newfiletext" => Value::String(with(name, |m| new_file_text(m, &s(0), &s(1), &s(2)))),
         "includeedit" => Value::String(with(name, |m| include_edit(m, &s(0), &s(1)))),
+        // IncludeRenameEdit(MainText, OldPath, NewPath): the main program's
+        // $INCLUDE of a file renamed or moved, following it ("" none)
+        "includerenameedit" => Value::String(with(name, |m| include_rename_edit(m, &s(0), &s(1), &s(2)))),
+        // IncludeRemoveEdit(MainText, Path): its $INCLUDE line taken out ("" none)
+        "includeremoveedit" => Value::String(with(name, |m| match rapidr_project::forms::include_line(&s(0), &from_main(m, &s(1))) {
+            Some(line) => format!("{line}\t0\t{}\t0\t", line + 1),
+            None => String::new(),
+        })),
         _ => return None,
     })
 }
@@ -439,9 +447,10 @@ fn new_file_text(m: &Model, path: &str, kind: &str, main_text: &str) -> String {
     let eol = forms::line_end(main_text);
     let title = slashes(path).rsplit('/').next().unwrap_or("").to_string();
     match kind.to_ascii_lowercase().as_str() {
-        "form" => {
+        // ("formmdi": an MDI main window — the toolbox's RFormMDI)
+        "form" | "formmdi" => {
             let rapidq = m.project.compat.rapidq_compatible || forms::uses_rapidq_names(main_text, &m.project.main);
-            forms::new_form_text(&title, &stem(path), rapidq, eol)
+            forms::new_form_text(&title, &stem(path), rapidq, kind.eq_ignore_ascii_case("formmdi"), eol)
         }
         "module" => forms::new_module_text(&title, eol),
         _ => String::new(),
@@ -453,14 +462,27 @@ fn new_file_text(m: &Model, path: &str, kind: &str, main_text: &str) -> String {
 /// when it includes it already. The path is written relative to the main
 /// file's folder.
 fn include_edit(m: &Model, main_text: &str, path: &str) -> String {
-    let rel = project_path(&m.folder, path);
-    let main_folder = folder_of(&m.project.main);
-    let from_main = match main_folder.as_str() {
-        "" => rel.clone(),
-        f => rel.strip_prefix(&format!("{f}/")).map_or_else(|| format!("{}{rel}", "../".repeat(f.split('/').count())), str::to_string),
-    };
-    match rapidr_project::forms::include_insertion(main_text, &from_main) {
+    match rapidr_project::forms::include_insertion(main_text, &from_main(m, path)) {
         Some((line, text)) => format!("{line}\t0\t{line}\t0\t{}", patch_escaped(&text)),
+        None => String::new(),
+    }
+}
+
+/// `path` (a project path) as the main file's `$INCLUDE` writes it: relative
+/// to the main file's folder.
+fn from_main(m: &Model, path: &str) -> String {
+    let rel = project_path(&m.folder, path);
+    match folder_of(&m.project.main).as_str() {
+        "" => rel,
+        f => rel.strip_prefix(&format!("{f}/")).map_or_else(|| format!("{}{rel}", "../".repeat(f.split('/').count())), str::to_string),
+    }
+}
+
+/// The main program's `$INCLUDE` of `old` changed to name `new` (a file
+/// renamed or moved), as an ApplyPatches line; "" when it doesn't include it.
+fn include_rename_edit(m: &Model, main_text: &str, old: &str, new: &str) -> String {
+    match rapidr_project::forms::include_rename(main_text, &from_main(m, old), &from_main(m, new)) {
+        Some((line, start, end, text)) => format!("{line}\t{start}\t{line}\t{end}\t{}", patch_escaped(&text)),
         None => String::new(),
     }
 }
@@ -495,6 +517,7 @@ mod tests {
         assert!(form.contains("\nCREATE Form2 AS RForm\n    Caption = \"Form2\"\n"), "{form}");
         assert!(new_file_text(&m, "Form2.rr", "form", "CREATE Main AS QFORM\nEND CREATE\n").contains("CREATE Form2 AS QFORM"), "the program's own names");
         assert!(new_file_text(&m, "Module1.rr", "module", main).starts_with("' Module1.rr"));
+        assert!(new_file_text(&m, "Form3.rr", "formmdi", main).contains("CREATE Form3 AS RFormMDI"));
         // the main program's $INCLUDE, as one patch (an absolute path too)
         assert_eq!(include_edit(&m, main, "Form2.rr"), "1\t0\t1\t0\t$INCLUDE \"Form2.rr\"\\n");
         assert_eq!(include_edit(&m, main, "/work/Demo/forms/About.rr"), "1\t0\t1\t0\t$INCLUDE \"forms/About.rr\"\\n");
@@ -503,6 +526,10 @@ mod tests {
         let sub = Model { project: Project::new("Demo", "src/main.rr"), kind: "project", folder: "/work/Demo".into(), ..Model::default() };
         assert_eq!(include_edit(&sub, main, "src/Form2.rr"), "1\t0\t1\t0\t$INCLUDE \"Form2.rr\"\\n");
         assert_eq!(include_edit(&sub, main, "Shared.rr"), "1\t0\t1\t0\t$INCLUDE \"../Shared.rr\"\\n");
+        // renamed: the include follows
+        let with = "$APPTYPE GUI\n$INCLUDE \"Form2.rr\"\n";
+        assert_eq!(include_rename_edit(&m, with, "/work/Demo/Form2.rr", "/work/Demo/About.rr"), "1\t10\t1\t18\tAbout.rr");
+        assert_eq!(include_rename_edit(&m, with, "Other.rr", "X.rr"), "");
     }
 
     #[test]
