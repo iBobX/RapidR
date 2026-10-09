@@ -789,6 +789,12 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   their low 32 bits past 8 digits; QFONTDIALOG's colours (clWindowText at
   first, system colours kept). RapidQ IDE's `.rqw` window programs are part
   of the corpus now.
+- **RapidQ's console box characters**: a RapidQ program's console shows characters 128 to 255
+  in the DOS code page 437, as RC.EXE's did — `CHR$(201)` ╔, the byte 218 ┌ — so `3DBOX` and
+  `BATTLE` draw their boxes again instead of É, Ú, ³. A RapidQ program is a file that isn't
+  UTF-8, or a `.bas` / `.rqb` / `.rq` / `.rqw` file of plain ASCII; RapidR's own programs (`.rr`,
+  UTF-8 with accented letters) print Unicode as before. Interpreter, native builds and the web
+  (`rapidq_console_cp437`, RC.EXE's bytes).
 - **A form's first OnPaint comes when the program next waits** (DOEVENTS, ShowModal), after
   `OnResize`, `OnShow`, `OnResize` — not inside `Show` — as RC.EXE sends it; a scale change no
   longer paints twice; the web's DOEVENTS delivers the paints too (`rapidq_form_show_events`).

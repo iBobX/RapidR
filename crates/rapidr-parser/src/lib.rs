@@ -383,6 +383,11 @@ impl<'a> Parser<'a> {
         pack_variadic_calls(&mut body, &self.variadic);
         input_chars(&mut body);
         dotted_consts(&mut body);
+        // (the console's code page first, before anything prints)
+        if let Some(i) = body.iter().position(|s| matches!(s, Statement::Call(c) if matches!(&c.callee, Expression::Identifier(id) if id.name == CONSOLE_CP437_CALL))) {
+            let call = body.remove(i);
+            body.insert(0, call);
+        }
         if !self.data_items.is_empty() {
             let mut init = data_table_init(&self.data_items, &self.data_labels);
             init.append(&mut body);
@@ -806,6 +811,13 @@ impl<'a> Parser<'a> {
                     let span = tok.span;
                     let on = mode.trim().starts_with("TRAPALL") as i64;
                     self.pending.push(Statement::Call(CallStatement { span, callee: ident(span, "__inkey_trapall"), args: vec![Expression::Literal(Literal { span, value: LiteralValue::Integer(on) })] }));
+                }
+                if v.strip_prefix("CONSOLE").is_some_and(|c| c.trim() == "CP437") {
+                    // (the preprocessor's for a file that isn't UTF-8:
+                    // the console in RapidQ's code page; parse_program
+                    // makes it the first statement)
+                    let span = tok.span;
+                    self.pending.push(Statement::Call(CallStatement { span, callee: ident(span, CONSOLE_CP437_CALL), args: Vec::new() }));
                 }
                 if let Some(d) = v.strip_prefix("DECIMAL") {
                     // `$OPTION DECIMAL ","` or `$OPTION DECIMAL 44`: set from here on.
@@ -3374,6 +3386,9 @@ fn input_chars(body: &mut Vec<Statement>) {
         });
     }
 }
+
+/// The builtin `$OPTION CONSOLE CP437` calls (rapidr_value::console).
+const CONSOLE_CP437_CALL: &str = "__console_cp437";
 
 /// A CONST named with a dot (`CONST Application.Path = LEFT$(…)`, RapidQ's
 /// music examples): `Application.Path` reads the constant — RC.EXE's

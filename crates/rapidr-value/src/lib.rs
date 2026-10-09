@@ -1065,6 +1065,10 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
         let idx: Vec<i64> = args.get(2..).unwrap_or(&[]).iter().map(Value::to_i64).collect();
         return Some(Ok(builtins::rp_quicksort(args.first().unwrap_or(&Value::Null), args.get(1).unwrap_or(&Value::Null), &idx)));
     }
+    if key == "__console_cp437" {
+        console::set_cp437(true);
+        return Some(Ok(Value::Null));
+    }
     if key == "__inkey_trapall" {
         return Some(Ok(builtins::rp_inkey_trap_all(args.first().unwrap_or(&Value::Null))));
     }

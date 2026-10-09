@@ -92,10 +92,6 @@ something defined instead, and says so:
   FontDlg.GetFont(Label1.Font)     ' the list shows Black
   IF FontDlg.Execute THEN FontDlg.SetFont(Label1.Font)
   ```
-- **Console box characters.** RapidQ's console shows characters 128 to 255
-  in the old DOS code page (`CHR$(201)` is ╔); RapidR's console shows the
-  program's text as it is (`CHR$(201)` is É), so box-drawing examples
-  written for DOS (`3DBOX`, `BATTLE`) show letters where RapidQ drew lines.
 
 ## Extensions
 

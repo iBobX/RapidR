@@ -325,9 +325,27 @@ pub fn preprocess_file(
 
     let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
     let mut state = PpState::new(options);
-    let out = preprocess_program(&source, encoding, base_dir, Some(path.to_path_buf()), &mut state)?;
+    let mut out = preprocess_program(&source, encoding, base_dir, Some(path.to_path_buf()), &mut state)?;
+    // A RapidQ program prints its console text in code page 437, as RapidQ's
+    // console showed it (`CHR$(201)` ╔): a file that isn't UTF-8 (written in
+    // an ANSI or DOS editor), or a `.bas` / `.rqb` / `.rq` / `.rqw` file of
+    // plain ASCII (its box characters are CHR$ codes: RapidQ's BATTLE). A
+    // UTF-8 file with other characters — RapidR's, or any `.rr` — prints
+    // Unicode as it is. The mark: a last line, `$OPTION CONSOLE CP437`,
+    // which the parser makes the program's first statement.
+    let rapidq_name = path.extension().and_then(|e| e.to_str()).is_some_and(|e| ["bas", "rqb", "rq", "rqw"].iter().any(|x| e.eq_ignore_ascii_case(x)));
+    if matches!(encoding, SourceEncoding::Windows1252 | SourceEncoding::Windows1252Bom) || (rapidq_name && source.is_ascii()) {
+        let main = Some(path.to_path_buf());
+        if let Some(id) = state.files.iter().position(|f| f.path == main) {
+            let (end, lines) = (state.files[id].text.len(), state.files[id].lines.len());
+            out.push_line(MappedText::generated(CONSOLE_CP437.to_string(), id, end..end), (main, lines + 1), (id, end, false));
+        }
+    }
     Ok(finish(out, state))
 }
+
+/// The line [`preprocess_file`] adds to a program whose file isn't UTF-8.
+pub const CONSOLE_CP437: &str = "$OPTION CONSOLE CP437";
 
 pub fn preprocess_source(
     source: &str,

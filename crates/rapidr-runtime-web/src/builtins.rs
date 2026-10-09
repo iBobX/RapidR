@@ -63,6 +63,8 @@ pub fn rp_print(items: &[Value], newline: bool) {
         text
     };
     track_print_column(&msg);
+    // (in RapidQ's code page when the program's file is RapidQ's: console::shown)
+    let msg = crate::value::console::shown(&msg).into_owned();
     print_hook(&msg);
 
     // console.log is line-oriented: log complete lines, keep a partial one
