@@ -42,10 +42,10 @@ export const cases = [
   // last come first, a disabled command is skipped.
   { name: "panel_toolbox", events: "box.__mousedown_60_15,box.__mouseup_60_15,box.__key_66,box.__key_85,box.__key_84,box.__key_13,box.__key_27,box.__key_27,box.__mousedown_100_109,box.__mousemove_150_109,box.__mousemove_400_150,box.__mouseup_400_150,box.__mousedown_100_109,box.__mousemove_150_109,box.__mouseup_500_80,box.__mousedown_100_40,box.__mouseup_100_40,breport.onclick",
     dump: "lbl.caption,info.caption",
-    expect: ["lbl.caption= pick:RButton sel:RLabel drag:RLabel drop:RLabel>surface@108,118 drag:RLabel drop:RLabel>inner@28,28", "info.caption=89 RFormMDI RLabel []"] },
+    expect: ["lbl.caption= pick:RButton sel:RLabel drag:RLabel drop:RLabel>surface@108,118 drag:RLabel drop:RLabel>inner@28,28", "info.caption=93 RFormMDI RLabel []"] },
   { name: "panel_toolbox_keys", events: "box.__key_40,box.__key_40,box.__key_40,box.__key_40,box.__key_76,box.__key_37,box.__key_37,box.__key_40,box.__key_39,box.__key_35,box.__key_36,box.__key_13,breport.onclick",
     dump: "lbl.caption,info.caption",
-    expect: ["lbl.caption= sel:RForm sel:RButton sel:RLabel sel:RFormMDI sel:RLanguageService", "info.caption=106 RForm RLanguageService []"] },
+    expect: ["lbl.caption= sel:RForm sel:RButton sel:RLabel sel:RFormMDI sel:RLanguageService", "info.caption=110 RForm RLanguageService []"] },
   { name: "panel_palette", events: "bopen.onclick,pal.__key_83,pal.__key_65,pal.__key_40,pal.__key_13,bopen.onclick,pal.__key_27,bopen.onclick,edit1.__mousedown_5_5,edit1.__mouseup_5_5,bopen.onclick,pal.__mousedown_100_81,pal.__mouseup_100_81,bopen.onclick,pal.__key_83,breport.onclick",
     dump: "lbl.caption,info.caption",
     expect: ["lbl.caption= first:file.save run:file.saveall first:file.saveall cancel first:file.saveall cancel first:file.saveall run:file.save first:file.save", "info.caption=3 file.save [s] 1 5"] },
@@ -59,13 +59,13 @@ export const cases = [
   // differ: blank); the search "cap"; the columns' line dragged 30 right.
   { name: "panel_inspector", events: "insp.__mousedown_200_148,insp.__mouseup_200_148,insp.__enter,insp.__mousedown_135_368,insp.__mouseup_135_368,insp.__mousedown_60_192,insp.__mouseup_60_192,insp.__mousedown_270_192,insp.__mouseup_270_192,insp.__key_40,insp.__key_40,insp.__key_13,insp.__key_65,insp.__key_78,insp.__key_67,insp.__key_39,insp.__key_40,insp.__key_32,insp.__mousedown_196_352,insp.__mouseup_196_352,insp.__key_67,insp.__key_85,insp.__key_46,insp.__mousedown_100_46,insp.__mouseup_100_46,insp.__dblclick_60_104,insp.__mousedown_285_104,insp.__mouseup_285_104,insp.__key_40,insp.__key_13,bform.onclick,breport.onclick,bboth.onclick,insp.__mousedown_40_46,insp.__mouseup_40_46,insp.__mousedown_100_76,insp.__mouseup_100_76,insp.__key_67,insp.__key_65,insp.__key_80,insp.__mousedown_122_126,insp.__mousemove_152_126,insp.__mouseup_152_126,breport.onclick",
     dump: "log.caption",
-    expect: ["log.caption=sel Caption | change Caption=Renamed | sel Default | change Default=True | sel Cursor | change Cursor=crArrow | sel Align | sel Anchors | change Anchors=akLeft | change Anchors=akLeft + akRight | sel Caption | sel Cursor | change Cursor=crDefault | sel OnClick | dbl OnClick | change OnClick=Button1Click | [RForm caption=Inspector anchors=akLeft, akTop1 page=events filter= rows=16 OnClose= nw=120] | [RButton caption= anchors=0 page=properties filter=cap rows=2 Caption= nw=150] | "] },
+    expect: ["log.caption=sel Caption | change Caption=Renamed | sel Default | change Default=True | sel Cursor | change Cursor=crArrow | sel Align | sel Anchors | change Anchors=akLeft | change Anchors=akLeft + akRight | sel Caption | sel Cursor | change Cursor=crDefault | sel OnClick | dbl OnClick | change OnClick=Button1Click | [RForm caption=Inspector anchors=akLeft, akTop1 page=events filter= rows=17 OnClose= nw=120] | [RButton caption= anchors=0 page=properties filter=cap rows=2 Caption= nw=150] | "] },
   // RPROPERTYINSPECTOR following an RDESIGNSURFACE (its designer model):
   // Caption typed, NameEdit picked on the surface (the inspector follows),
   // its Hint typed, OkButton picked again, its top anchor pin turned off,
   // the program's own Speed (AddProperty) typed; the surface's GetProp
   // reads what the inspector wrote.
-  { name: "panel_inspector_designer", events: "insp.__mousedown_200_148,insp.__mouseup_200_148,insp.__enter,surface.__mousedown_40_108,surface.__mouseup_40_108,insp.__key_72,insp.__key_73,insp.__key_113,insp.__enter,surface.__mousedown_40_70,surface.__mouseup_40_70,insp.__key_65,insp.__key_78,insp.__key_67,insp.__key_39,insp.__key_40,insp.__key_32,insp.__key_83,insp.__key_80,insp.__key_69,insp.__key_113,insp.__key_57,insp.__key_13,breport.onclick",
+  { name: "panel_inspector_designer", events: "insp.__mousedown_200_148,insp.__mouseup_200_148,insp.__enter,surface.__mousedown_52_120,surface.__mouseup_52_120,insp.__key_72,insp.__key_73,insp.__key_113,insp.__enter,surface.__mousedown_52_82,surface.__mouseup_52_82,insp.__key_65,insp.__key_78,insp.__key_67,insp.__key_39,insp.__key_40,insp.__key_32,insp.__key_83,insp.__key_80,insp.__key_69,insp.__key_113,insp.__key_57,insp.__key_13,breport.onclick",
     dump: "log.caption",
     expect: ["log.caption=Caption=Renamed | Hint=Renamed | Anchors=akLeft | Speed=9 | [QBUTTON Renamed akLeft Renamed 9]"] },
   // RPROJECTTREE (I1 / L-PANELS, rapidr_value::panels::project_tree): a
@@ -337,7 +337,7 @@ export const cases = [
   // at (13, 42) of the surface; the events' places are the surface's, what
   // the designer hears its form's (the timer is in the tray strip).
   { name: "design_surface",
-    events: "ds.__mousedown_43_72,ds.__mousemove_56_78,ds.__mouseup_56_78,ds.__mousedown_126_89,ds.__mousemove_143_102,ds.__mouseup_143_102,ds.__mousedown_263_142,ds.__mouseup_263_142,ds.__dblclick_163_62,btn.onclick",
+    events: "ds.__mousedown_55_84,ds.__mousemove_68_90,ds.__mouseup_68_90,ds.__mousedown_138_101,ds.__mousemove_155_114,ds.__mouseup_155_114,ds.__mousedown_275_154,ds.__mouseup_275_154,ds.__dblclick_175_74,btn.onclick",
     dump: "lbl.caption,log.caption",
     expect: ["lbl.caption=4|Main|Label1|RCHECKBOX|Button1||3|Tick|32,24,96,40|208|&H00FFFF|Label1|Other|300", "log.caption=s0/m0:32,24,80,24/m0:32,24,96,40/b250,100/s2/d2/"] },
   { name: "code_editor", events: "btn.onclick", dump: "lbl.caption",
