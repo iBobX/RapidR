@@ -100,6 +100,10 @@ SUB EditorFocusTick
     IF DocOpen(FocusDoc) THEN
       IF DocViewNow(FocusDoc) = "Design" THEN
         Dock.FocusPane("designdoc(" + LTRIM$(STR$(FocusDoc)) + ")")
+      ELSEIF DocViewNow(FocusDoc) = "Preview" THEN
+        ' (a Markdown file opens on its preview, MD-VIEW: that view keeps
+        ' the keys; focusing the source would switch to it)
+        Dock.FocusPane("mddoc(" + LTRIM$(STR$(FocusDoc)) + ")")
       ELSE
         Dock.FocusPane("codedoc(" + LTRIM$(STR$(FocusDoc)) + ")")
       END IF

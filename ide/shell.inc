@@ -54,6 +54,8 @@ END SUB
 SUB RunCommand(Id AS STRING)
   DIM d AS INTEGER
   d = ActiveCode
+  ' (View's and Edit's on a Markdown file's Preview | Source: markdown.inc)
+  IF MarkdownCommand(Id) THEN EXIT SUB
   ' (the designer's commands, and Edit's on a designer: designer.inc)
   IF DesignCommand(Id) THEN EXIT SUB
   ' (Run's and Debug's: debug.inc)
@@ -214,6 +216,7 @@ SUB OutlineOpen
   i = OutlineTree.ItemIndex
   d = ActiveCode
   IF i < 0 OR i >= OutlineCount OR d < 0 THEN EXIT SUB
+  IF MarkdownOutlineOpen(d, i) THEN EXIT SUB
   Dock.FocusPane("codedoc(" + LTRIM$(STR$(d)) + ")")
   CodeDoc(d).GotoLine OutlineLine(i)
 END SUB

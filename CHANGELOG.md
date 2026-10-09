@@ -280,6 +280,23 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   the inspector's row, the toolbox's item, the designer's component; Insert types the syntax.
 - **New Project gallery**: Form app, Console, RapidQ-compatible form app (main.bas, compat on), Data
   dashboard, MDI app with menus. Closing a changed file asks Save / Don't Save / Cancel.
+### RapidR Studio: Markdown files formatted (Preview | Source)
+- **A `.md` file opens formatted** — a README, a RapidQ import's report — with a **Preview |
+  Source | Side by Side** switch on its tab (F12 toggles, F7 the source, Shift+F7 the preview);
+  what is typed in the source shows in the preview at once; the Outline lists the headings (a
+  click scrolls there); a link to another file opens it (a Markdown one in Preview, at its
+  `#heading`), a web link opens in the browser; File > Open takes a `.md` on its own. The source
+  isn't coloured as BASIC (`RCodeEditor.Language`, new, `"basic"` by default). Desktop and web.
+- **`RMarkdownView`**, a public component on the UI kernel (the same on the desktop and the web):
+  CommonMark with GitHub's tables and strikethrough (pulldown-cmark, MIT) laid out with parley —
+  headings, bold / italic / struck out, inline code, nested lists, block quotes, code blocks (BASIC
+  ones coloured), tables, rules, links; scrolls, selects and copies (a table's cells by tabs);
+  light, dark and high contrast; screen readers get its headings (with their level), lists,
+  tables and links (new accessibility roles on AccessKit and the web's ARIA mirror). `Text`,
+  `LoadFromFile`, `OnLinkClick`, `OpenLinks`, `ScrollTo`, `Headings`, `PlainText`, `SelText`.
+  A 7,700-line report lays out in ~80 ms; scrolling draws only what's in view. Manual:
+  docs/manual/markdown.md.
+
 ### RapidR Studio: the panels work
 - **The real panels replace the stand-ins** (`ide/panels.inc`): the tool bar (RTOOLBAR, buttons with
   tooltips), the command palette (RCOMMANDPALETTE), the project tree (RPROJECTTREE), the toolbox

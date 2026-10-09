@@ -1,0 +1,22 @@
+' RMARKDOWNVIEW: a Markdown file shown formatted; a link clicked is
+' OnLinkClick (the test clicks link 1, "#tables", which scrolls there).
+DIM Log AS STRING
+
+SUB Clicked (Url AS STRING)
+  Log = Log + " link:" + Url
+  Info.Caption = Log
+END SUB
+
+CREATE Form AS RForm
+  Caption = "Markdown view"
+  Width = 720: Height = 560
+  CREATE Doc AS RMarkdownView
+    Left = 0: Top = 0: Width = 712: Height = 500
+    OnLinkClick = Clicked
+  END CREATE
+  CREATE Info AS RLabel
+    Left = 10: Top = 506: Width = 690
+  END CREATE
+END CREATE
+Doc.LoadFromFile "tests/fixtures/markdown/sample.md"
+Form.ShowModal

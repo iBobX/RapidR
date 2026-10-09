@@ -139,6 +139,10 @@ SUB AnalyzeActive
   FillProblems d
   ' (S-PANELS: the inspector follows the active form's designer)
   InspectActive
+  ' (a Markdown file's outline: its headings — markdown.inc)
+  IF ActiveCode >= 0 THEN
+    IF DocIsMd(ActiveCode) THEN MarkdownOutline ActiveCode
+  END IF
 END SUB
 
 ' ---- opening, saving, closing ---------------------------------------------------------
@@ -218,6 +222,9 @@ SUB OpenDocument(Path AS STRING)
   DesignRead d
   DocHasForm(d) = Flag(DesignDoc(d).FormName <> "")
   DesignDoc(d).Theme = PreviewTheme
+  ' (a Markdown file: shown formatted too — markdown.inc)
+  DocIsMd(d) = IsMarkdownFile(Path)
+  OpenMarkdown d
   AddDocumentTab d
   ActiveDoc = d
   ' (debug.inc: its breakpoints, the paused line, data tips)

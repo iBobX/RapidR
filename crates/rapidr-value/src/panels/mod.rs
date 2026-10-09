@@ -12,6 +12,7 @@
 //! | ROUTPUTCONSOLE | [`console`] | a program's output with ANSI (CLS, COLOR, LOCATE), the build log, problems |
 //! | RTOOLBAR | [`toolbar`] | icon buttons, separators, toggles, an overflow menu, customizable |
 //! | RCOMMANDPALETTE | [`palette`] | commands found by fuzzy search |
+//! | RMARKDOWNVIEW | [`markdown`] | a Markdown text shown formatted (headings, lists, tables, code, links) |
 //!
 //! Each model lives in a per-thread table by the component's (lowercase)
 //! name ([`panel_models!`](crate::panel_models)); the kernel reads it to paint and turns what the user
@@ -26,6 +27,7 @@
 pub mod console;
 pub mod fuzzy;
 pub mod inspector;
+pub mod markdown;
 pub mod palette;
 pub mod project_tree;
 pub mod rows;
@@ -35,7 +37,7 @@ pub mod toolbar;
 pub mod toolbox;
 
 /// The panels' type names (RapidR's).
-pub const TYPES: [&str; 6] = ["RPROPERTYINSPECTOR", "RTOOLBOX", "RPROJECTTREE", "ROUTPUTCONSOLE", "RTOOLBAR", "RCOMMANDPALETTE"];
+pub const TYPES: [&str; 7] = ["RPROPERTYINSPECTOR", "RTOOLBOX", "RPROJECTTREE", "ROUTPUTCONSOLE", "RTOOLBAR", "RCOMMANDPALETTE", "RMARKDOWNVIEW"];
 
 /// Whether `type_name` (any case) is one of the panels.
 pub fn is_panel(type_name: &str) -> bool {
@@ -52,6 +54,7 @@ pub enum User {
     Console(console::User),
     ToolBar(toolbar::User),
     Palette(palette::User),
+    Markdown(markdown::User),
     /// An item picked from a list the runtime dropped for the panel
     /// ([`runtime::Runtime::drop_list`]): an inspector's enum, a toolbar's
     /// overflow menu.

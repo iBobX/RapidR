@@ -11,6 +11,9 @@ SUB OpenProject(Path AS STRING)
   ' (the project open now keeps its breakpoints and watches: debug.inc)
   IF ProjectOpen THEN SaveSettings
   IF Proj.Open(Path) = 0 THEN
+    ' (a Markdown file — a README, a report — opens on its own, in Preview:
+    ' markdown.inc)
+    IF OpenMarkdownFile(Path) THEN EXIT SUB
     OutputLine "Can't open " + Path + ": " + Proj.Error
     SetState "error", "Can't open " + FileTitle(Path)
     EXIT SUB

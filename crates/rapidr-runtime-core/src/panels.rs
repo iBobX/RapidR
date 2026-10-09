@@ -1,5 +1,5 @@
 //! RapidR Studio's panels on the desktop (RPROPERTYINSPECTOR, RTOOLBOX,
-//! RPROJECTTREE, ROUTPUTCONSOLE, RTOOLBAR, RCOMMANDPALETTE):
+//! RPROJECTTREE, ROUTPUTCONSOLE, RTOOLBAR, RCOMMANDPALETTE, RMARKDOWNVIEW):
 //! `rapidr_value::panels` does the work (the same as on the web); this is
 //! the desktop runtime it works through.
 
@@ -63,6 +63,34 @@ impl Runtime for Desktop {
         }
         #[cfg(not(feature = "gui"))]
         let _ = (form, name, items, anchor);
+    }
+    fn open_url(self, url: &str) {
+        open_in_browser(url);
+    }
+}
+
+/// A web link the user clicked (an RMARKDOWNVIEW's: http, https or mailto,
+/// checked by the model) opened in the system's browser — never through a
+/// shell. Under the test hooks it is only reported.
+pub fn open_in_browser(url: &str) {
+    if !rapidr_value::panels::markdown::is_web_link(url) {
+        return;
+    }
+    if std::env::var_os("RAPIDR_TEST_DUMP").is_some() || std::env::var_os("RAPIDR_CAPTURE").is_some() || std::env::var_os("RAPIDR_TEST_EVENTS").is_some() {
+        eprintln!("[rapidr] (test) would open {url}");
+        return;
+    }
+    let mut cmd = if cfg!(target_os = "macos") {
+        std::process::Command::new("open")
+    } else if cfg!(windows) {
+        let mut c = std::process::Command::new("rundll32.exe");
+        c.arg("url.dll,FileProtocolHandler");
+        c
+    } else {
+        std::process::Command::new("xdg-open")
+    };
+    if let Err(e) = cmd.arg(url).spawn() {
+        eprintln!("[rapidr] can't open {url}: {e}");
     }
 }
 

@@ -56,6 +56,10 @@ DIM DocViewNow(MAXDOCS) AS STRING
 DIM Loading AS INTEGER
 DIM DocCount AS INTEGER
 DIM ActiveDoc AS INTEGER
+' (Markdown files, markdown.inc: formatted — Preview — beside their source,
+' as a form's file has its designer beside its code)
+DIM MdDoc(MAXDOCS) AS RMarkdownView
+DIM DocIsMd(MAXDOCS) AS INTEGER
 
 ' ---- what Studio holds now -----------------------------------------------------
 DIM HomeDir AS STRING
@@ -188,6 +192,16 @@ DECLARE SUB SetUpDocuments
 DECLARE SUB SetUpSearch
 DECLARE SUB ApplySearchChrome
 DECLARE SUB ShowWelcome
+' (markdown.inc)
+DECLARE FUNCTION IsMarkdownFile(Path AS STRING) AS INTEGER
+DECLARE SUB OpenMarkdown(d AS INTEGER)
+DECLARE SUB AddMarkdownTab(d AS INTEGER)
+DECLARE SUB MarkdownViewShown(d AS INTEGER, View AS STRING)
+DECLARE SUB MarkdownLink(Url AS STRING, Sender AS RMarkdownView)
+DECLARE SUB MarkdownOutline(d AS INTEGER)
+DECLARE FUNCTION MarkdownOutlineOpen(d AS INTEGER, i AS INTEGER) AS INTEGER
+DECLARE FUNCTION MarkdownCommand(Id AS STRING) AS INTEGER
+DECLARE FUNCTION OpenMarkdownFile(Path AS STRING) AS INTEGER
 ' (File > New Project's template gallery: workspace.inc)
 CONST TPLS = 5
 CONST TPL_W = 150

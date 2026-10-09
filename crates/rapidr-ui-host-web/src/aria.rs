@@ -53,6 +53,12 @@ pub fn aria_role(role: Role) -> Option<&'static str> {
         Role::SpinButton => "spinbutton",
         Role::Splitter => "separator",
         Role::Status => "status",
+        Role::Document => "document",
+        Role::Heading => "heading",
+        Role::List => "list",
+        Role::ListItem => "listitem",
+        Role::Table => "table",
+        Role::Link => "link",
     })
 }
 
@@ -63,7 +69,7 @@ fn focusable(n: &AccessNode) -> bool {
     if n.role == Role::Group && n.actions.contains(&Action::Focus) {
         return true;
     }
-    !matches!(n.role, Role::Window | Role::Dialog | Role::Pane | Role::Group | Role::Label | Role::Canvas | Role::Image | Role::Status | Role::Unknown)
+    !matches!(n.role, Role::Window | Role::Dialog | Role::Pane | Role::Group | Role::Label | Role::Canvas | Role::Image | Role::Status | Role::Heading | Role::List | Role::ListItem | Role::Table | Role::Unknown)
 }
 
 fn tag(n: &AccessNode) -> &'static str {
@@ -94,7 +100,7 @@ pub fn attributes(n: &AccessNode) -> Vec<(&'static str, String)> {
         a.push(("role", r.to_string()));
     }
     let st = &n.states;
-    if n.role != Role::Label && !n.name.is_empty() {
+    if !text_role(n.role) && !n.name.is_empty() {
         a.push(("aria-label", n.name.clone()));
     }
     if !n.description.is_empty() {
@@ -189,10 +195,16 @@ pub fn specs(root: &AccessNode) -> Vec<Spec> {
     out
 }
 
+/// A node whose name is its element's text (a label, a heading, a list
+/// item, a link), not an aria-label.
+fn text_role(r: Role) -> bool {
+    matches!(r, Role::Label | Role::Heading | Role::ListItem | Role::Link)
+}
+
 fn walk(n: &AccessNode, parent: Option<u64>, origin: (i64, i64), out: &mut Vec<Spec>) {
     let (x, y, w, h) = n.bounds;
     // (a label is its text; a text box its value)
-    let text = if n.role == Role::Label { n.name.clone() } else { String::new() };
+    let text = if text_role(n.role) { n.name.clone() } else { String::new() };
     let value = match n.role {
         Role::TextInput | Role::MultilineTextInput | Role::ComboBox => n.value.clone().unwrap_or_default(),
         _ => String::new(),

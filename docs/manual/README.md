@@ -27,6 +27,7 @@ where something isn't done yet, it says so.
 | [Importing RapidQ programs](importing-rapidq.md) | A copy of a RapidQ program (`.bas`, `.rqw`, `.rqb`, `.rq`) with RapidR's names, proved to behave the same: in RapidR Studio and with `rapidr import-rapidq` |
 | [Differences from RapidQ, and extensions](differences.md) | What RapidR does that RapidQ doesn't, what it does differently on purpose, and what it doesn't do |
 | [Troubleshooting](troubleshooting.md) | Common messages and what to do about them |
+| [Markdown files and RMarkdownView](markdown.md) | `.md` files formatted in RapidR Studio (Preview \| Source), and Markdown shown in your own programs |
 
 Reference tables, generated from RapidR's language registry (`rapidr lang
 export --manual`):

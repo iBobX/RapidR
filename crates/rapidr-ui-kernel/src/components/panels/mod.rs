@@ -9,6 +9,7 @@
 pub mod common;
 pub mod console;
 pub mod inspector;
+pub mod markdown;
 pub mod palette;
 pub mod project_tree;
 pub mod toolbar;
@@ -36,6 +37,7 @@ pub fn focus_left(id: &str, type_name: &str, ed: InPlace) -> Vec<KernelEvent> {
         "RPROJECTTREE" => project_tree::focus_left(id, ed),
         "ROUTPUTCONSOLE" => console::focus_left(id, ed),
         "RCOMMANDPALETTE" => palette::focus_left(id, ed),
+        "RMARKDOWNVIEW" => markdown::focus_left(id, ed),
         _ => Vec::new(),
     }
 }

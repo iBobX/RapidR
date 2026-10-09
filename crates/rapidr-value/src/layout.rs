@@ -141,6 +141,7 @@ pub fn default_size(type_name: &str) -> Option<(i64, i64)> {
         "RCOMMANDPALETTE" => (560, 320),
         // (its CREATE gives it the form's width: component_defaults)
         "RTOOLBAR" => (0, 32),
+        "RMARKDOWNVIEW" => (400, 300),
         "RCOMBOBOX" => (145, 25),
         "RLISTBOX" | "RTREEVIEW" | "RDIRTREE" => (121, 97),
         "RFILELISTBOX" => (145, 97),

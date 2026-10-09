@@ -125,6 +125,7 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("ROUTPUTCONSOLE", &panels::console::Console),
     ("RTOOLBAR", &panels::toolbar::ToolBar),
     ("RCOMMANDPALETTE", &panels::palette::Palette),
+    ("RMARKDOWNVIEW", &panels::markdown::MarkdownView),
     // (the data-science lane's: a chart on a form — rapidr_value::datascience)
     ("RPLOT", &plot::Plot),
 ];
