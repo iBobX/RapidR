@@ -84,7 +84,7 @@ export const cases = [
   { file: "gui/pantry.rr", runtimes: ["run", "interp", "native", "web"], events: "shelves.__item_1,addbtn.onclick", dump: "total.caption,grid.rowcount",
     expect: ["total.caption=Vegetables: 3 items, worth 4.80", "grid.rowcount=4"] },
   { file: "gui/themes.rr", runtimes: ["run", "interp", "native", "web"], events: "pickdark.onclick", dump: "now.caption",
-    expect: ["now.caption=Theme: dark"] },
+    expect: ["now.caption=Theme: rapidr dark"] },
   { file: "gui/tray.rr", runtimes: ["run", "interp", "native", "web"], events: "hidebtn.onclick,form.__tray_513,form.__tray_514", dump: "info.caption,form.__shown",
     expect: ["info.caption=Back from the tray (1)", "form.__shown=1"] },
   // studio/
