@@ -7,7 +7,7 @@
 #
 # It is the release app's layout (tools/release/macos.sh): Contents/MacOS has
 # rapidrw (the launcher Finder starts: it hands .rr / .bas files to the IDE)
-# and rapidr, Contents/Resources RapidR's icons; Info.plist is RapidR.plist's
+# and rapidr, Contents/Resources RapidR's icons; Info.plist is RapidR-Studio.plist's
 # with the name RapidR Studio and RAPIDR_HOME (LSEnvironment) naming this
 # checkout — no lib/rapidr inside, so `rapidr` builds programs from the
 # checkout as `cargo run` would. This Mac's architecture only; signed ad hoc.
@@ -39,7 +39,7 @@ printf 'APPL????' > "$OUT/Contents/PkgInfo"
 python3 - "$ROOT" "$VERSION" "$OUT/Contents/Info.plist" <<'PY'
 import sys, xml.sax.saxutils as x
 root, version, out = sys.argv[1:]
-text = open(f"{root}/tools/release/macos/RapidR.plist").read().replace("@VERSION@", version)
+text = open(f"{root}/tools/release/macos/RapidR-Studio.plist").read().replace("@VERSION@", version)
 text = text.replace("<string>RapidR</string>\n\t<key>CFBundleDisplayName</key>\n\t<string>RapidR</string>",
                     "<string>RapidR Studio</string>\n\t<key>CFBundleDisplayName</key>\n\t<string>RapidR Studio</string>")
 text = text.replace("<string>io.github.ibobx.rapidr</string>", "<string>dev.rapidr.studio.checkout</string>")
