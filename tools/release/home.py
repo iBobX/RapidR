@@ -280,6 +280,11 @@ def trim_needed(vendor, needed):
         if (pkg["name"], pkg["version"]) not in needed:
             continue
         keep = {os.path.normpath(t) for t in stub_targets(manifest)}
+        # (a crate with a build script or `links` may link the libraries it
+        # ships — windows_*_gnullvm's libwindows.0.52.0.a, windows_*_msvc's
+        # .lib: its prebuilt binaries stay; without them every native Windows
+        # build failed with "unable to find library -lwindows.0.52.0")
+        links_libs = bool(pkg.get("links")) or "build" in pkg or os.path.isfile(os.path.join(path, "build.rs"))
         # (files the crate's sources include stay, whatever their folder)
         included = set()
         kept_dirs = set()
@@ -298,7 +303,7 @@ def trim_needed(vendor, needed):
         files = checksum["files"]
         for rel in sorted(files):
             parts = os.path.normpath(rel).split(os.sep)
-            if not (any(p in DROP_DIRS for p in parts[:-1]) or rel.lower().endswith(DROP_SUFFIXES)):
+            if not (any(p in DROP_DIRS for p in parts[:-1]) or (rel.lower().endswith(DROP_SUFFIXES) and not links_libs)):
                 continue
             full = os.path.join(path, rel)
             if not os.path.isfile(full) or os.path.normpath(rel) in included or any(p in kept_dirs for p in parts[:-1]):

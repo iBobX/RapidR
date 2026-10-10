@@ -162,6 +162,15 @@ printf 'CREATE Form AS QFORM\n  Caption = "smoke"\n  CREATE Lbl AS QLABEL\n    C
 check "rapidr info: gui" has "$("$R" info gui.bas)" "apptype: gui"
 check "GUI program runs (capture)" has "$(RAPIDR_CAPTURE="$W/cap" RAPIDR_CAPTURE_DELAY=0.3 RAPIDR_TEST_DUMP=lbl.caption "$R" run gui.bas 2>&1)" "lbl.caption=ready"
 
+echo "== an example built where RapidR is installed (Studio's Welcome page opens them there)"
+# (the install folder may not be the user's to write — /usr/lib/rapidr: the app
+# goes to Documents/RapidR/Builds instead; 2.118.0 failed with "Permission denied")
+ex="$(ls -d "$(dirname "$R")"/../lib/rapidr/examples/gui/hello_form.rr 2>/dev/null | head -1)"
+if [ -n "$ex" ]; then
+    HOME="$W/home" "$R" build "$ex" --interp > example-build.log 2>&1
+    check "an installed example builds (interpreted)" grep -q "Build succeeded" example-build.log; grep -q "Build succeeded" example-build.log || tail -5 example-build.log
+fi
+
 echo "== a downloaded file asks once"
 cp hello.bas downloaded.bas
 case "$(uname)" in
@@ -213,6 +222,11 @@ if [ "$KIND" = sdk ]; then
         printf '$APPTYPE CONSOLE\nPRINT "native "; 6 * 7\n' > native.bas
         PATH="$CARGO_BIN:$BASE_PATH" CARGO_TARGET_DIR="$T/native-target" RAPIDR_BUILD_CACHE="$T/build-cache" "$R" build native.bas --debug > native.log 2>&1
         check "rapidr build (native)" has "$(./native 2>&1)" "native 42"; [ -x ./native ] || tail -20 native.log
+        # (a program with forms, release: what users build — it links the GUI
+        # stack; a console program doesn't, and missed a broken Windows import
+        # library in 2.118.0)
+        PATH="$CARGO_BIN:$BASE_PATH" CARGO_TARGET_DIR="$T/native-target" RAPIDR_BUILD_CACHE="$T/build-cache" "$R" build gui.bas > native-gui.log 2>&1
+        check "rapidr build (native, release, a form)" grep -q "Build succeeded" native-gui.log; grep -q "Build succeeded" native-gui.log || tail -25 native-gui.log
         if [[ "$ART" == *.dmg ]]; then
             # (a debug build is this Mac's architecture only; release builds are
             # universal — setup gave the toolchain both targets)

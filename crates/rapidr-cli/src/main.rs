@@ -470,7 +470,34 @@ fn output_of(path: &str, explicit: Option<&str>, app: &package::Options) -> Resu
     let keep_rust = app.keep_rust.unwrap_or_else(|| project.as_ref().is_some_and(|(_, p)| p.build.keep_rust));
     // (said in full: what the build prints names where things are)
     let dir = std::path::absolute(&dir).unwrap_or(dir);
+    // A folder the user can't write — an example opened where RapidR is
+    // installed (/usr/lib/rapidr/examples, /Applications/…): the app goes to
+    // Documents/RapidR/Builds/<program> instead, and the build says so. A
+    // folder named on the command line is the user's choice: its error stays.
+    let dir = if explicit.is_none() && !can_write_in(&dir) {
+        let stem = Path::new(path).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "program".into());
+        match std::env::home_dir().map(|h| h.join("Documents").join("RapidR").join("Builds").join(stem)) {
+            Some(fallback) => {
+                println!("({} can't be written: the app goes to {})", dir.display(), fallback.display());
+                fallback
+            }
+            None => dir,
+        }
+    } else {
+        dir
+    };
     Ok(Output { dir, keep_rust })
+}
+
+/// Whether files can be made in `dir` (made first if it's missing).
+fn can_write_in(dir: &Path) -> bool {
+    if fs::create_dir_all(dir).is_err() {
+        return false;
+    }
+    let probe = dir.join(format!(".rapidr-write-test-{}", std::process::id()));
+    let ok = fs::write(&probe, b"").is_ok();
+    let _ = fs::remove_file(&probe);
+    ok
 }
 
 /// `rapidr build`: the program made into what is shipped, in the output
