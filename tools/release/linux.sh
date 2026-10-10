@@ -115,6 +115,10 @@ Description: $desc
  the interpreter, as native executables and on the web; an original
  implementation written from the ground up in pure Rust.
 EOF
+    # (the package's folders and files as dpkg wants them, whatever the
+    # build user's umask: no group or other write — "control directory has
+    # bad permissions 770" stopped 2.118.0's re-release)
+    chmod -R go-w,a+rX "$root"
     dpkg-deb --root-owner-group -Zxz --build "$root" "$OUT/${pkg}_${VERSION}_${debarch}.deb" >/dev/null
     rm -rf "$root"
     echo "wrote $OUT/${pkg}_${VERSION}_${debarch}.deb ($(du -h "$OUT/${pkg}_${VERSION}_${debarch}.deb" | cut -f1))"
