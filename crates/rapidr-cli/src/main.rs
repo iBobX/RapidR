@@ -410,15 +410,23 @@ fn generate_rust_project(path: &str, out_dir: &Path, force_web: bool) -> Result<
 
     // The same checks as the bytecode compiler (unknown SUBs, missing
     // labels, …), with positions, so both backends reject the same programs.
-    if let Err(errors) = compile_to_bytecode(path) {
+    let compiled = compile_to_bytecode(path);
+    if let Err(errors) = &compiled {
         let native: Vec<&str> = errors.lines().filter(|l| rapidr_bcgen::error_applies_to_native_builds(l)).collect();
         if !native.is_empty() {
             return Err(native.join("\n"));
         }
     }
+    // (a program with windows — $APPTYPE GUI, or forms — is a Windows GUI
+    // executable: no console window opens beside it, as RC.EXE's; the
+    // attribute means nothing on macOS and Linux)
+    let gui = compiled.as_ref().is_ok_and(|c| !c.module.app_type.wants_console());
 
     // Generate Rust source
-    let rust_source = rapidr_codegen_rust::generate_with_resources(&program, target, &resources);
+    let mut rust_source = rapidr_codegen_rust::generate_with_resources(&program, target, &resources);
+    if target == AppTarget::Desktop && gui {
+        rust_source.insert_str(0, "#![windows_subsystem = \"windows\"]\n");
+    }
     let cargo_toml = if target == AppTarget::Web {
         rapidr_codegen_rust::generate_cargo_toml_web(stem, &runtime_path.to_string_lossy())
     } else {
