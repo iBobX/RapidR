@@ -1,5 +1,11 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Questions and help
+    url: https://github.com/iBobX/RapidR/discussions/categories/q-a
+    about: '"How do I…?", getting started, importing RapidQ projects: ask in Discussions (Q&A).'
+  - name: Ideas and feature requests
+    url: https://github.com/iBobX/RapidR/discussions/categories/ideas
+    about: Features you'd love to see in RapidR or RapidR Studio — share them in Discussions (Ideas).
   - name: Security vulnerability
     url: https://github.com/iBobX/RapidR/blob/main/SECURITY.md
     about: Please report security issues privately, as SECURITY.md explains — never in a public issue.
