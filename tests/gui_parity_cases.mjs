@@ -490,4 +490,12 @@ export const cases = [
       const d = g.getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] > 200 && d[i + 1] < 60 && d[i + 2] < 60) n++;
       return n > 200 ? "red line drawn" : "red pixels: " + n; })()`,
     webExpect: "red line drawn" },
+  // (I7) RDBGRID straight from an RCSV, a bound REdit and RLabel: view row 1
+  // clicked (amy), the "age" heading clicked twice (sorted highest first:
+  // the current row stays amy, now shown fifth), "x" typed into the edit
+  // (written back into the table: the grid shows it); a missing age shows
+  // dimmed as null.
+  { name: "rdbgrid", events: "grid.__cell_0_1,grid.__cell_1_-1,grid.__cell_1_-1,nameedit.__key_88",
+    dump: "nameedit.text,agelbl.caption,grid.row,grid.sortcolumn,grid.sortdescending,info.caption",
+    expect: ["nameedit.text=x", "agelbl.caption=25", "grid.row=1", "grid.sortcolumn=1", "grid.sortdescending=1", "info.caption=clicked 1,0 of 5"] },
 ];

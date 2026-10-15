@@ -1,0 +1,18 @@
+rows: 3 3 3 cols: name,age,city 3
+state: browse row 0 eof 0 bof -1
+0: bob 30
+1: amy 25
+2: Lee 41
+eof -1 row 2
+last Lee eof -1
+prior amy bof 0
+moveby 0 bof -1
+filtered: 2 1 Lee
+refreshed: 3
+Paris amy
+after source change: 1 zed name,age
+json: 2 a,b y a: i64,b: str
+json changed: 1 a 7
+semi: x,y 2 ;
+no header: column_1,column_2 2 0
+empty: inactive 0 -1 []

@@ -202,8 +202,7 @@ impl ComponentKind for DbGrid {
         let Some(d) = link::grid(cx.id) else {
             // (the designer: what to set)
             if super::design::designed(cx.id) {
-                let name = cx.id.split_once(':').map_or(cx.id, |(_, n)| n).to_string();
-                p.text((8, 4, w - 16, h - 8), &format!("{name}: set DataSource to show its rows"), &font, t.gray_text, Place::Center);
+                p.text((8, 4, w - 16, h - 8), "Set DataSource to see the rows here", &font, t.gray_text, Place::Center);
             }
             return;
         };

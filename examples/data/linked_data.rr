@@ -23,24 +23,22 @@ DECLARE SUB ShowEveryone
 DECLARE SUB SaveTable
 DECLARE SUB RowChanged
 
-CREATE Staff AS RCSV
-    FileName = "staff.csv"
-END CREATE
-
-CREATE Team AS RDataFrame
-    Source = Staff
-END CREATE
-
-CREATE Cursor AS RDataSource
-    DataSet = Team
-    OnDataChange = RowChanged
-END CREATE
-
 CREATE Form AS RForm
     Caption = "Linked data"
     Width = 640
     Height = 440
     Center
+    ' (the data components: in the designer's tray)
+    CREATE Staff AS RCSV
+        FileName = "staff.csv"
+    END CREATE
+    CREATE Team AS RDataFrame
+        Source = Staff
+    END CREATE
+    CREATE Cursor AS RDataSource
+        DataSet = Team
+        OnDataChange = RowChanged
+    END CREATE
     CREATE FirstBtn AS RButton
         Caption = "|<": Left = 10: Top = 10: Width = 40
         OnClick = GoFirst
