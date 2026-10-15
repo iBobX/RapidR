@@ -83,7 +83,7 @@ pub fn command(args: &[String]) -> ExitCode {
                     return Err("give --model (rapidr ai models lists them)".into());
                 }
                 let max = opt(rest, "--max-tokens").and_then(|m| m.parse().ok()).unwrap_or(1024);
-                let req = ChatRequest { model: model.clone(), system: String::new(), messages: vec![Message::user(&question)], tools: Vec::new(), max_tokens: max };
+                let req = ChatRequest { model: model.clone(), system: String::new(), messages: vec![Message::user(&question)], tools: Vec::new(), max_tokens: max, reasoning_effort: None };
                 let http = wire::chat_request(&ep, &req);
                 let mut decoder = Decoder::new(ep.provider.format);
                 let mut reply = Reply::default();

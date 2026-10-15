@@ -87,6 +87,9 @@ struct Assistant {
     tool_calls: u32,
     /// What this turn read from the project (its provenance).
     read: Vec<String>,
+    /// (OpenAI) What each model answered about `reasoning_effort` with
+    /// tools (wire::reasoning_refusal): asked again the way it wants.
+    reasoning: HashMap<String, bool>,
     changed: bool,
     events: Vec<(&'static str, Vec<Value>)>,
 }
@@ -265,7 +268,9 @@ impl Assistant {
     }
 
     fn start_chat(&mut self, ep: &Endpoint) -> Result<(), String> {
-        let req = ChatRequest { model: self.model.clone(), system: self.system_prompt(), messages: self.messages.clone(), tools: ai_tools::tools(self.may_propose()), max_tokens: self.max_tokens() };
+        let tools = ai_tools::tools(self.may_propose());
+        let reasoning_effort = wire::reasoning_for(ep.provider, &self.model, !tools.is_empty(), self.reasoning.get(&self.model).copied());
+        let req = ChatRequest { model: self.model.clone(), system: self.system_prompt(), messages: self.messages.clone(), tools, max_tokens: self.max_tokens(), reasoning_effort };
         let http_req = wire::chat_request(ep, &req);
         self.last_request = http_req.redacted();
         let id = next_id();
@@ -398,6 +403,20 @@ impl Assistant {
         }
         let body = String::from_utf8_lossy(&run.body).to_string();
         if run.status != 200 {
+            // (OpenAI: a model that wants reasoning_effort said otherwise —
+            // asked again once, the way it wants, and remembered)
+            if run.job == Job::Chat {
+                if let Some(wants) = wire::reasoning_refusal(run.status, &body) {
+                    if self.reasoning.get(&self.model) != Some(&wants) {
+                        self.reasoning.insert(self.model.clone(), wants);
+                        if let Ok(ep) = self.endpoint() {
+                            if self.start_chat(&ep).is_ok() {
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
             self.fail(wire::explain_error(p, run.status, &body, run.retry_after, &self.model).message);
             return;
         }

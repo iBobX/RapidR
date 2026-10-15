@@ -65,6 +65,10 @@ pub struct ChatRequest {
     pub tools: Vec<Tool>,
     /// The reply's length cap (cost safety): the provider stops there.
     pub max_tokens: u32,
+    /// (OpenAI) `reasoning_effort`, when the model needs it said: its
+    /// current models take function tools in Chat Completions only with
+    /// `none` ([`crate::wire::reasoning_for`]).
+    pub reasoning_effort: Option<String>,
 }
 
 /// Tokens a request used, as the provider reports them.

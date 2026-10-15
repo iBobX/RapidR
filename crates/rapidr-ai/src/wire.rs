@@ -210,6 +210,9 @@ fn openai_body(p: &Provider, req: &ChatRequest) -> Value {
     if p.usage_in_stream {
         body.insert("stream_options".into(), json!({"include_usage": true}));
     }
+    if let Some(r) = &req.reasoning_effort {
+        body.insert("reasoning_effort".into(), json!(r));
+    }
     if !req.tools.is_empty() {
         let tools: Vec<Value> = req.tools.iter().map(|t| json!({"type": "function", "function": {"name": t.name, "description": t.description, "parameters": t.input_schema}})).collect();
         body.insert("tools".into(), Value::Array(tools));
@@ -291,6 +294,34 @@ pub fn cost_hint(p: &Provider, id: &str) -> &'static str {
         "deepseek" if id.contains("pro") => "$$: costs more",
         "openai" if id.ends_with("-pro") || id.starts_with("o1") || id.starts_with("o3") && !id.contains("mini") => "$$$: costs much more",
         _ => "",
+    }
+}
+
+/// (OpenAI) What `reasoning_effort` a request with tools says for `model`:
+/// OpenAI's GPT-6 models refuse function tools in Chat Completions unless
+/// it is `none` ("use /v1/responses or set reasoning_effort to 'none'");
+/// older ones don't know the field. `refused`: what the provider answered
+/// last time ([`reasoning_refusal`]), which wins.
+pub fn reasoning_for(p: &Provider, model: &str, tools: bool, refused: Option<bool>) -> Option<String> {
+    if p.id != "openai" || !tools {
+        return None;
+    }
+    let wants = refused.unwrap_or_else(|| model.to_ascii_lowercase().starts_with("gpt-6"));
+    wants.then(|| "none".to_string())
+}
+
+/// (OpenAI) An error answer about `reasoning_effort`: `Some(true)` — the
+/// model wants it `none` with tools; `Some(false)` — it doesn't take the
+/// field; `None` — the error is about something else.
+pub fn reasoning_refusal(status: u16, body: &str) -> Option<bool> {
+    let low = body.to_ascii_lowercase();
+    if status != 400 || !low.contains("reasoning_effort") {
+        return None;
+    }
+    if low.contains("set reasoning_effort to 'none'") || low.contains("with reasoning_effort are not supported") {
+        Some(true)
+    } else {
+        Some(false)
     }
 }
 
@@ -444,6 +475,7 @@ mod tests {
             ],
             tools: vec![Tool { name: "read_file".into(), description: "Reads a file".into(), input_schema: json!({"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}) }],
             max_tokens: 1000,
+            reasoning_effort: None,
         }
     }
 
@@ -535,6 +567,25 @@ mod tests {
         ep.key = "k".into();
         let r = models_request(&ep);
         assert_eq!((r.method, r.url.as_str()), ("GET", "https://api.anthropic.com/v1/models?limit=1000"));
+    }
+
+    #[test]
+    fn openai_reasoning_with_tools() {
+        let o = provider("openai").unwrap();
+        assert_eq!(reasoning_for(o, "gpt-6-luna", true, None).as_deref(), Some("none"));
+        assert_eq!(reasoning_for(o, "gpt-6-luna", false, None), None);
+        assert_eq!(reasoning_for(o, "gpt-4.1-mini", true, None), None);
+        assert_eq!(reasoning_for(o, "gpt-5.4-mini", true, Some(true)).as_deref(), Some("none"));
+        assert_eq!(reasoning_for(o, "gpt-6-sol", true, Some(false)), None);
+        assert_eq!(reasoning_for(provider("deepseek").unwrap(), "gpt-6-luna", true, None), None);
+        let said = r#"{"error":{"message":"Function tools with reasoning_effort are not supported for gpt-6-luna in /v1/chat/completions. To use function tools, use /v1/responses or set reasoning_effort to 'none'."}}"#;
+        assert_eq!(reasoning_refusal(400, said), Some(true));
+        assert_eq!(reasoning_refusal(400, r#"{"error":{"message":"Unrecognized request argument supplied: reasoning_effort"}}"#), Some(false));
+        assert_eq!(reasoning_refusal(401, said), None);
+        let mut req = convo();
+        req.reasoning_effort = Some("none".into());
+        let b: Value = serde_json::from_str(chat_request(&Endpoint::new(o), &req).body.as_deref().unwrap()).unwrap();
+        assert_eq!(b["reasoning_effort"], "none");
     }
 
     #[test]

@@ -235,7 +235,7 @@ SUB SetUpAI
   ' (the top strip: who answers — switchable here — and a new chat)
   AITop.Parent = AIPanel
   AITop.Align = 1
-  AITop.Height = 36
+  AITop.Height = 70
   AITop.BevelOuter = 0
   AIProviderBox.Parent = AITop
   AIProviderBox.Style = 2
@@ -256,7 +256,7 @@ SUB SetUpAI
   AIStatus.AccessibleName = "Assistant status"
   AIBottom.Parent = AIPanel
   AIBottom.Align = 2
-  AIBottom.Height = 170
+  AIBottom.Height = 184
   AIBottom.BevelOuter = 0
   AIInput.Parent = AIBottom
   AIInput.WordWrap = 1
@@ -316,10 +316,10 @@ SUB LayOutAIPanel
   w = AIPanel.ClientWidth
   IF w < 200 THEN w = 200
   IF ThemeName = "classic" THEN bh = 23 ELSE bh = 28
-  pw = (w - 120) \ 2
-  AIProviderBox.Left = 6: AIProviderBox.Top = 5: AIProviderBox.Width = pw
-  AIModelBox.Left = 10 + pw: AIModelBox.Top = 5: AIModelBox.Width = w - pw - 100
+  ' (who answers above, the model below: the docks keep the panel narrow)
+  AIProviderBox.Left = 6: AIProviderBox.Top = 5: AIProviderBox.Width = w - 98
   AINewBtn.Left = w - 86: AINewBtn.Top = 4: AINewBtn.Width = 80: AINewBtn.Height = bh
+  AIModelBox.Left = 6: AIModelBox.Top = 38: AIModelBox.Width = w - 12
   AIInput.Left = 6: AIInput.Top = 6: AIInput.Width = w - 12: AIInput.Height = 64
   AISendBtn.Left = w - 160: AISendBtn.Top = 76: AISendBtn.Width = 74: AISendBtn.Height = bh
   AIStopBtn.Left = w - 80: AIStopBtn.Top = 76: AIStopBtn.Width = 74: AIStopBtn.Height = bh
@@ -384,7 +384,7 @@ SUB AIApplySettings
   NEXT
   AIFillModels
   AIFilling = 0
-  AINote.Caption = "Send shares your message, this chat and the project files and forms the assistant reads with " + AIProviderName + ". Nothing else, and nothing until you press Send."
+  AINote.Caption = "Send shares your message, this chat and what the assistant reads of this project with " + AIProviderName + ": nothing else, nothing before."
   AIChat.EmptyText = AIEmptyText
   AIEnableSend
 END SUB
@@ -969,6 +969,9 @@ SUB AIStep(Stp AS STRING)
     CASE "ask"
       AIInput.Text = arg
       AISend
+    CASE "wait"
+      ' (the next steps wait for the answer: a real provider takes its time)
+      IF AI.Busy THEN DoList = "ai:wait," + DoList
     CASE "type": AIInput.Text = arg
     CASE "stop": AIStopClick
     CASE "new": AINewChat
