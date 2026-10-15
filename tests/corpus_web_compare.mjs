@@ -45,8 +45,10 @@ const SETTLE_SECONDS = 2;
 const NETWORK = /\b(qsocket|qclientsocket|qserversocket|qmysql|qhttp|qftp|qsmtp|qpop3|qwebbrowser|inet)\b/i;
 const VARIES = /\b(rnd|randomize|timer|time\$|date\$|tickcount|gettickcount|now|sleep)\b/i;
 // Programs showing where they run (the program's file name, the current
-// folder): the page and the desktop differ there by nature.
-const MACHINE = /application\.exename|\bcurdir\$/i;
+// folder) or sized by the screen (the desktop's runs may land on another
+// display than the one the page was told of): the page and the desktop
+// differ there by nature.
+const MACHINE = /application\.exename|\bcurdir\$|\bscreen\.(width|height)\b/i;
 // Assets larger than this stay out of the browser project.
 const ASSET_LIMIT = 8 << 20;
 

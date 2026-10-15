@@ -41,6 +41,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   programs index (`VoorKleur = QBColor(12)`, bright red) — its bounds, type and values as RC.EXE
   reads them, on all three runtimes (conformance case `rapidq_qbcolor`, whose expected output is
   RC.EXE's). Included twice, RAPIDQ.INC is given once, as RapidQ's own file guards itself.
+- **docs/rapidq-corpus-status-unix.md**: every portable RapidQ example on macOS, Linux (Ubuntu ARM)
+  and the web, interpreted and native — 114 run on the desktop with no problem on any of the four
+  (105–106 ok, the rest as RC.EXE's own builds), the web the same as the desktop; what was fixed,
+  what's left. Made by the new `tools/corpus_status.py` from the sweeps (`tools/corpus_run.py
+  --list`).
 - `tools/rc_probe.sh`: `-w` gives a run its own work folder in the Windows VM (two lanes no longer
   copy RC.EXE over each other), and `w_*.bas` probes are GUI programs whose findings file is
   printed.
