@@ -185,16 +185,17 @@ The web's RSQLITE binding becomes this one: an RSQLITE (later every SQL source) 
 **Phase 1** (built, §12):
 
 ```basic
-CREATE People AS RCSV
-    FileName = "people.csv"          ' Delimiter = ",", HasHeader = True
-END CREATE
-CREATE DF AS RDATAFRAME
-    Source = People                  ' the frame gets People's rows
-END CREATE
-CREATE Nav AS RDATASOURCE
-    DataSet = DF
-END CREATE
 CREATE Form AS RFORM
+    ' (the data components: in the designer's tray, read live there)
+    CREATE People AS RCSV
+        FileName = "people.csv"      ' Delimiter = ",", HasHeader = True
+    END CREATE
+    CREATE DF AS RDATAFRAME
+        Source = People              ' the frame gets People's rows
+    END CREATE
+    CREATE Nav AS RDATASOURCE
+        DataSet = DF
+    END CREATE
     CREATE Grid AS RDBGRID
         DataSource = Nav              ' or straight: DataSource = DF
         Align = alClient
@@ -219,7 +220,7 @@ People.Save "people2.csv"
 
 - **Design time.** The designer builds the designed form's data components itself, under the surface's own names (`surface:People`, never the program's), the same model the program runs: a source's file is read (inside the project only — a path outside it, or a URL, needs the user's yes once per project; read-only; databases opened read-only, never DML), frames are copied from their sources, the grid / edits / labels show the data. Results are cached by (file, size, modification time, options) so a property change re-draws without re-reading; a file changed on disk is read again (phase 2: a watcher; phase 1: when the design is rebuilt). Phase 1 caps a design-time read at 1,000,000 rows (the whole of a normal file; RDBGrid draws only what shows).
 - **RDataPreview** (phase 2) — the public panel: schema (column, type, nulls, distinct), rows (virtual grid, sort / filter locally), quick stats (count, mean, median, std, min, max, top values, a histogram sparkline per column), the plan that produced it; on any source / transform selected in the designer, and on any frame while debugging.
-- **Pickers** — `DataSource`, `DataSet`, `Source` are component properties (`type = "component"`, `kinds = […]`): the inspector's drop-down lists the fitting components on the form (exists today). `DataField` gets a drop-down of the bound data set's columns (phase 2: the inspector asks the link module).
+- **Pickers** — `DataSource`, `DataSet`, `Source` are component properties (`type = "component"`, `kinds = […]`): the inspector's drop-down lists the fitting components on the form (exists today). `DataField` drops the bound data set's columns (built in phase 1: the inspector asks the link module, which has what the designer read).
 - **Completion and checking** (phase 3, with I3): column names complete inside `DataField`, `Filter`, `Sort`, expressions and `SQL`; an unknown column is a squiggle.
 - **Debugger** (phase 3, with I6): a frame variable shows as a table in data tips and Variables (first rows, shape, types); the Immediate window evaluates `df.Filter …` on a copy.
 
@@ -317,8 +318,26 @@ Sizes in sessions (one session ≈ one lane-day).
 
 ## 12. Phase 1 — what was built (2026-10-15)
 
-_Filled in as the slice lands._
+**Linked data** (`rapidr_value::datascience::link`, one model for native builds, the interpreter, the web and the designer):
+
+- **RCSV** — FileName, Delimiter, HasHeader, Text; RowCount, ColCount, Columns, Error; Load, Save, Clear; OnLoad, OnError. Read lazily (once when first needed); a relative file is found in the current folder, then beside the program.
+- **RJson's records as a source**; its FileName or document read again when it changes.
+- **RDataFrame.Source** (RCSV, RJson, RDataFrame) — a copy pulled at once and again when the source's version changes; `Refresh`. Cycles and self-references are ignored (depth limit 16).
+- **RDataSource** — DataSet, Row, RecordCount, EOF / BOF (BASIC's True, -1, so `NOT` works), Enabled, State; First, Prior, Next, Last, MoveBy, Field, SetField, Refresh; OnDataChange (not on the first look: a form isn't made yet then).
+- **DataSource + DataField on REdit (Text) and RLabel (Caption)** — a data set straight (its own cursor) or an RDataSource; typing in a bound REdit writes back (no echo loop: a value equal to what the control shows is never set again).
+- **RDBGrid** (UI kernel, `components/dbgrid.rs`) — virtual rows; headings, row numbers, numbers right-aligned, `null` dimmed; current row by click / keys; a heading click sorts the **view** (a permutation cached per data version and sort; the data and every other bound control untouched); wheel, bars, held-arrow repeat; OnCellClick, OnTitleClick; an accessible grid (headings row, the rows on screen as "Row r of n" with their values, the current one selected).
+- **The runtimes**: after every `rp_comp_set` / `rp_comp_method` (a flag test when nothing changed) and every kernel event (`rapidr-ui-app`'s dispatch), `link::sync()`'s updates are applied with the runtime's own setter, redraw and events — `links.rs` (desktop) and `links_web.rs` (web), 50 lines each.
+- **The designer** (kernel `design.rs`): the designed form's RCSV / RJson / RDataFrame / RDataSource are made under `surface:name` and read from the designed program's folder only (`..`, absolute paths outside it and URLs refused; nothing written; up to 1,000,000 rows; parsed results cached by path, options, length and a content hash), so grids, edits and labels show the data at design time — desktop and web. The inspector's DataField drops the bound data set's columns.
+- **Registry**: RCSV, RDATASOURCE, RDBGRID; Source / Refresh on RDATAFRAME; DataSource / DataField on REDIT / RLABEL (origin rapidr); value-method rules (`IF People.Load`); `lang_dispatch.py` sites. RCSV in the toolbox's Data group with the data file's icon.
+
+**Verified**: unit tests (link: 3 tests; kernel: a million-row grid draws < 200 texts; design time draws linked data); `datascience_link` conformance case on vm, codegen and the web; `lang_conformance` for RCSV / RDATASOURCE / RDBGRID / RDATAFRAME / REDIT / RLABEL / RJSON on vm and web; the `rdbgrid` GUI fixture — native and interpreted agree, the web's window byte-identical to the desktop's and the accessibility trees equal; the three new examples on run, interp, native and web (`tests/examples_run.mjs`); RapidR Studio building a linked form with its own tools (the manual's `linked-build` scene) and showing `linked_data.rr` / `json_source.rr` live, desktop and web.
+
+**Engine** (lane DATA-ENGINE): _numbers below, from tools/bench/._
 
 ## 13. Open questions for Robert
 
-_Filled in as the slice lands._
+1. **Bound controls write back on every keystroke** (simple, immediate). Delphi posts when the user leaves the field; the dataset editing states of phase 5 (Edit / Post / Cancel) would make that the rule for database sources. Keep per-keystroke for in-memory frames?
+2. **`RDataFrame.Source` re-pulls when the source changes**, discarding what the program did to the frame (Filter, Sort …). That keeps "the frame shows the file" true for a child; phase 3's transform components (RDFFilter …) are the way to keep a pipeline. Agreed?
+3. **Data components outside the form** (top-level `CREATE People AS RCSV`) run fine but the designer reads only the form's own (the tray's) — as Delphi's form designer. Should top-level data components show at design time too?
+4. **Oracle**: not planned (its client's licence) unless a legal review says otherwise.
+5. **Polars isn't installed on this Mac** (pandas 3.0.1 is): `pip install polars` (a download — Robert's call) and `tools/bench/compare.sh` adds its column.

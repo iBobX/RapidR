@@ -1341,6 +1341,43 @@ mod tests {
     }
 
     #[test]
+    fn cycles_disabled_sources_and_options() {
+        // (two frames each other's Source: no endless pulling)
+        setup(&[("t4a", "RDATAFRAME"), ("t4b", "RDATAFRAME")]);
+        frame::set_frame("t4a", frame::parse_csv(PEOPLE));
+        set_s("t4b", "source", "t4a");
+        set_s("t4a", "source", "t4b");
+        sync();
+        assert_eq!(frame::with_frame("t4b", Frame::height), 3);
+        // (an RDataSource not Enabled: its controls don't follow, its grid shows nothing)
+        setup(&[("t4ds", "RDATASOURCE"), ("t4edit", "REDIT"), ("t4grid", "RDBGRID")]);
+        set_s("t4ds", "dataset", "t4b");
+        set_s("t4edit", "datasource", "t4ds");
+        set_s("t4edit", "datafield", "name");
+        set_s("t4grid", "datasource", "t4ds");
+        set("t4ds", "enabled", &v_int(0));
+        let ups = sync();
+        assert!(!ups.iter().any(|u| matches!(u, Update::Set(id, ..) if id == "t4edit")), "{ups:?}");
+        assert!(grid("t4grid").is_none());
+        assert_eq!(get("t4ds", "state"), Some(v_str("inactive")));
+        set("t4ds", "enabled", &v_str("True"));
+        assert!(sync().contains(&Update::Set("t4edit".into(), "text".into(), v_str("bob"))));
+        // (a tab-separated file without a header; a missing file's message)
+        setup(&[("t4tab", "RCSV"), ("t4bad", "RCSV")]);
+        set_s("t4tab", "delimiter", "tab");
+        set("t4tab", "hasheader", &v_int(0));
+        set_s("t4tab", "text", "1\t2\n3\t4\n");
+        assert_eq!(get("t4tab", "columns"), Some(v_str("column_1,column_2")));
+        assert_eq!(get("t4tab", "rowcount"), Some(v_int(2)));
+        set_s("t4bad", "filename", "no_such_file_anywhere.csv");
+        assert_eq!(get("t4bad", "rowcount"), Some(v_int(0)));
+        assert_eq!(get("t4bad", "error"), Some(v_str("there is no file \"no_such_file_anywhere.csv\"")));
+        let ups = sync();
+        assert!(ups.iter().any(|u| matches!(u, Update::Fire(id, e, _) if id == "t4bad" && e == "onerror")), "{ups:?}");
+        assert_eq!(call("t4bad", "load", &[]), Some(Ok(v_int(0))));
+    }
+
+    #[test]
     fn design_time_names_and_paths() {
         assert_eq!(resolve("ds1:grid1", "People"), "ds1:people");
         assert_eq!(resolve("grid1", "People"), "people");
