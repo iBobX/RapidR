@@ -19,6 +19,12 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   `listbox/owndraw`, `games/puzzle` and the two vector-font demos show their pictures and fonts
   again, and six DirectX ones their models and textures (`rapidr_value::paths`, conformance case
   `rapidq_windows_paths`, checked interpreted, native and on the web).
+- **Owner-drawn list boxes of variable height draw at once, interpreted.** A `lbOwnerDrawVariable`
+  QLISTBOX asked each item's height (OnMeasureItem), then waited for the system's next event —
+  the mouse moving over the window — before its OnDrawItem drew the items: RapidQ's
+  `listbox/owndraw` example showed plain text where its pictures belong. The handlers the
+  drawing makes due now run in the same turn (native builds and the web already did; GUI case
+  `owner_list_variable` on all three).
 
 ## [2.118.0] — 2026-10-09 (Preview)
 
