@@ -58,6 +58,9 @@ const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 //   env:     environment it runs with (the tests' scripted devices; on the
 //            web the page's RAPIDR_TEST_COMPORT)
 //   timeout: ms (default 60000)
+//   includes: the program's $INCLUDEs are in subfolders of its own: the
+//            folder is copied whole, and the web compiles it with every
+//            source file under it (compile_files)
 // (`wait(c, n)`: n clicks on a component that does nothing with them — the
 // hooks fire an event every 50 ms, so the program's timers run meanwhile)
 const wait = (comp, n) => Array(n).fill(`${comp}.onclick`).join(",");
@@ -153,6 +156,10 @@ export const cases = [
   // rapidq/: RapidQ's own way, Q names, as RC.EXE compiles it
   { file: "rapidq/notepad.bas", runtimes: ["run", "interp", "native", "web"], events: "saveitem.onclick,newitem.onclick,openitem.onclick", dump: "form.caption,editor.linecount",
     fileDialog: "note.txt;note.txt", expect: ["form.caption=Notepad - note.txt", "editor.linecount=3"] },
+  // (a program in several files: its includes in lib/ and forms/, named as
+  // on Windows — `Lib\Geometry.INC` is lib/geometry.inc)
+  { file: "rapidq/shapes/shapes.bas", runtimes: ["run", "interp", "native", "web"], includes: true, events: "areabutton.onclick", dump: "answerlabel.caption",
+    expect: ["answerlabel.caption=Circle: 12.57 square cm"] },
   // web/: what only a web page has
   { file: "web/todo.rr", runtimes: ["web"], events: "addbtn.onclick", dump: "info.caption,tasks.itemcount",
     expect: ["info.caption=1 to do, saved", "tasks.itemcount=1"] },
@@ -229,7 +236,7 @@ function workCopy(c, runtime) {
   mkdirSync(work, { recursive: true });
   const dir = join(EXAMPLES, dirname(c.file));
   for (const f of readdirSync(dir)) {
-    if (statSync(join(dir, f)).isFile()) cpSync(join(dir, f), join(work, f));
+    if (statSync(join(dir, f)).isFile() || c.includes) cpSync(join(dir, f), join(work, f), { recursive: true });
   }
   return work;
 }
@@ -277,6 +284,18 @@ function runDesktop(c, runtime) {
   return r;
 }
 
+/// Every source file under `dir`, by its path from it (`lib/geometry.inc`):
+/// what a program's `$INCLUDE`s find on the web.
+function sourcesUnder(dir, prefix = "") {
+  const out = {};
+  for (const f of readdirSync(join(dir, prefix))) {
+    const rel = prefix ? `${prefix}/${f}` : f;
+    if (statSync(join(dir, rel)).isDirectory()) Object.assign(out, sourcesUnder(dir, rel));
+    else if ([".rr", ".bas", ".inc", ".rqw", ".rqb", ".rq"].includes(extname(f).toLowerCase())) out[rel] = readFileSync(join(dir, rel), "utf8");
+  }
+  return out;
+}
+
 // The web: the example compiled by the web runtime's compiler, its folder's
 // files its assets, run on tests/web_kernel.html.
 let browser = null;
@@ -295,14 +314,14 @@ async function runWeb(c) {
     const assets = Object.fromEntries(readdirSync(dir).filter((f) => statSync(join(dir, f)).isFile() && ![".rr", ".bas", ".md"].includes(extname(f).toLowerCase()))
       .map((f) => [f, "data:application/octet-stream;base64," + readFileSync(join(dir, f)).toString("base64")]));
     const env = { ...hooks(c, "web"), ...(isGui(c) ? { RAPIDR_CAPTURE: "web" } : {}), ...(c.env || {}) };
-    await page.evaluate(({ source, assets, env, gui }) => {
+    await page.evaluate(({ source, assets, env, gui, main, files }) => {
       window.__rapidr_assets = assets;
       window.RAPIDR_TEST_MIDI = ""; window.RAPIDR_TEST_WAVE_IN = "tone:440";
       if (env.RAPIDR_TEST_COMPORT) window.RAPIDR_TEST_COMPORT = env.RAPIDR_TEST_COMPORT;
-      const bc = window.rr.compile(source, "example", assets);
+      const bc = files ? window.rr.compile_files(main, files, assets) : window.rr.compile(source, "example", assets);
       if (gui) window.rr.rapidr_set_test_env(env);
       window.rr.rapidr_run_bc(bc);
-    }, { source: readFileSync(join(EXAMPLES, c.file), "utf8"), assets, env, gui: isGui(c) });
+    }, { source: readFileSync(join(EXAMPLES, c.file), "utf8"), assets, env, gui: isGui(c), main: basename(c.file), files: c.includes ? sourcesUnder(dir) : null });
     let dump = [];
     if (isGui(c)) {
       await page.waitForFunction(() => window.rr.rapidr_test_results(), null, { timeout: c.timeout || 60000, polling: 100 });

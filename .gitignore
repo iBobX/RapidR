@@ -10,6 +10,7 @@ examples/**
 !examples/**/
 !examples/**/*.rr
 !examples/**/*.bas
+!examples/**/*.inc
 !examples/**/*.md
 !examples/**/*.csv
 !examples/**/*.json

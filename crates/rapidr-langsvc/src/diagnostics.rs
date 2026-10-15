@@ -28,12 +28,15 @@ pub struct FileDiagnostic {
     pub code: Option<String>,
 }
 
-/// The options the CLI's compiler uses (`preprocess_file` adds
-/// `RAPIDR_INCLUDE_PATH`'s folders).
+/// The options the CLI's compiler uses (`preprocess_file` adds the user's
+/// include folders: RapidR Studio's, `--include-dir`,
+/// `RAPIDR_INCLUDE_PATH`'s).
 pub fn compiler_options(base: &PreprocessOptions) -> PreprocessOptions {
     let mut options = base.clone();
-    if let Some(paths) = std::env::var_os("RAPIDR_INCLUDE_PATH") {
-        options.include_dirs.extend(std::env::split_paths(&paths));
+    for dir in rapidr_preprocessor::configured_include_dirs() {
+        if !options.include_dirs.contains(&dir) {
+            options.include_dirs.push(dir);
+        }
     }
     options
 }

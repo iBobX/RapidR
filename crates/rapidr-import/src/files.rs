@@ -36,6 +36,12 @@ pub trait Files {
     fn encoding(&self, path: &Path) -> Option<SourceEncoding> {
         self.read(path).ok().map(|b| rapidr_preprocessor::decode_source(&b).1)
     }
+    /// The file at `rel` (`/`-separated) under folder `root`, its names
+    /// matched in any case, as the compiler finds an `$INCLUDE`.
+    fn find(&self, root: &Path, rel: &str) -> Option<PathBuf> {
+        let p = root.join(rel);
+        self.is_file(&p).then(|| self.canonical(&p).unwrap_or(p))
+    }
 }
 
 /// The disk.
@@ -83,6 +89,10 @@ impl Files for Disk {
 
     fn virtual_files(&self) -> Vec<(String, String)> {
         Vec::new()
+    }
+
+    fn find(&self, root: &Path, rel: &str) -> Option<PathBuf> {
+        rapidr_preprocessor::find_file(root, rel)
     }
 }
 
@@ -209,10 +219,12 @@ impl Files for Memory {
     }
 
     fn virtual_files(&self) -> Vec<(String, String)> {
-        // (the program's own folder's first: an `$INCLUDE` is found by its
-        // path, else by its name)
+        // (an `$INCLUDE` is found by its path, else by its name: the files
+        // read first, then what was written — the copy finds its own)
+        let written = self.written.borrow();
         self.files
             .values()
+            .chain(written.values())
             .filter(|(p, _)| rapidr_preprocessor::is_source_path(p))
             .map(|(p, b)| (p.to_string_lossy().into_owned(), rapidr_preprocessor::decode_source(b).0))
             .collect()

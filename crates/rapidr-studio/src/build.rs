@@ -86,6 +86,10 @@ pub fn start(name: &str, rapidr: PathBuf, args: &[String], cwd: &str) -> Result<
     if !cwd.is_empty() {
         cmd.current_dir(cwd);
     }
+    // (Studio's include folders: the build finds $INCLUDEs as Studio does)
+    if let Some(path) = crate::project::include_path_env() {
+        cmd.env("RAPIDR_INCLUDE_PATH", path);
+    }
     // (a Windows console isn't opened for it)
     #[cfg(windows)]
     {
