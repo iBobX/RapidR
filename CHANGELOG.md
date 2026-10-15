@@ -7,6 +7,28 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Studio on the web: big windows, the same pixels, screen readers, fast steps (WEB-FRAME)
+- **A program window is never cut off in RapidR Studio on the web** (the Preview's known issue):
+  a window bigger than the page — `examples/gui/sales_dashboard.rr`, a new 1200 × 800 sales dashboard
+  example — opens with its title bar at the top of the page, and the program's desktop scrolls to
+  the rest: a thin scroll bar along the page's right or bottom edge while a window reaches past it
+  (drag its thumb, or turn the wheel over it or over a window's title bar). Windows can't be dragged
+  above or left of the page's corner any more (a title bar dragged off the top was lost for good);
+  maximized, a window fits the part of the page you see. The same rules in every web build
+  (`rapidr bundle-bc`, Build Web App). A double click on a window's title bar now maximizes it on
+  the web (it never did). Tests: `studio_flows` `program-window-big` (a 1280 × 720 page, 1× and
+  2×), `program-window-big-fits`.
+- **Studio's desktop and web captures are byte-identical**: the desktop's CPU renderer now runs
+  vello_cpu's portable SIMD level, which rounds as wasm SIMD does (Neon's and AVX2's fused
+  multiply-add rounded glyph edges one level apart). The command palette's items keep the same
+  accessibility ids on both hosts. `studio_shell` no longer allows "SIMD rounding".
+- **Screen readers and the web inspector**: the inspector is a tree grid whose rows read as
+  "Caption, Button1"; a read-only property says "read-only" (its row's description, its value's
+  cell read-only). Before, the web's rows had no value and no read-only state.
+- **Debugger steps are fast on a loaded computer**: Studio on the desktop hears the program the
+  moment it stops instead of at its next 20 ms poll — a step with its line and values shown took
+  85 ms, now about 15 ms (budget 50 ms; the web's ~20 ms).
+
 ## [2.118.0] — 2026-10-09 (Preview)
 
 ### Triage of the full regression run (TRIAGE)

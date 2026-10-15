@@ -49,7 +49,7 @@ The **Runs on** column lists the ways each example is tested on (by
 | [stopwatch.rr](gui/stopwatch.rr) | An `RTimer`: start, lap, stop, reset; a list of laps | run · interp · native · web | `rapidr run gui/stopwatch.rr` |
 | [pantry.rr](gui/pantry.rr) | An `RListBox` and an `RStringGrid` working together; adding rows, totals | run · interp · native · web | `rapidr run gui/pantry.rr` |
 | [themes.rr](gui/themes.rr) | RapidR's themes: `$THEME modern`, switching with `Application.Theme` (classic, modern, dark, high contrast) | run · interp · native · web | `rapidr run gui/themes.rr` |
-| [dashboard.rr](gui/dashboard.rr) | A big window (1200 × 800): a sales dashboard — figures on `RPanel`s, two `RPlot` charts, an `RStringGrid`, a region picked with buttons. In RapidR Studio on the web it shows whole: the run area scrolls past the page | run · interp · native · web | `rapidr run gui/dashboard.rr` |
+| [sales_dashboard.rr](gui/sales_dashboard.rr) | A big window (1200 × 800): a sales dashboard — figures on `RPanel`s, two `RPlot` charts, an `RStringGrid`, a region picked with buttons. In RapidR Studio on the web it shows whole: the run area scrolls past the page | run · interp · native · web | `rapidr run gui/sales_dashboard.rr` |
 | [tray.rr](gui/tray.rr) | A system tray icon, as RapidQ programs make one (`RNotifyIconData`, `Shell_NotifyIcon`, the form's `WndProc`) | run · interp · native · web | `rapidr run gui/tray.rr` |
 
 ### studio/ — RapidR Studio's panels in your own program

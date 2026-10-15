@@ -278,7 +278,7 @@ Studio in the browser.
   ![In the browser: the Greeter window dragged half past Studio's right edge, whole](images/debugging/web-program-window.png)
 
   A window bigger than the page — the 1200 × 800
-  [dashboard.rr](../../examples/gui/dashboard.rr) example on a laptop's
+  [sales_dashboard.rr](../../examples/gui/sales_dashboard.rr) example on a laptop's
   browser — opens with its title bar at the top of the page, and the
   program's desktop scrolls to the rest: a thin scroll bar shows along the
   page's edge while it's needed (drag it, or turn the wheel over it or over

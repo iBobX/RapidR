@@ -1,8 +1,8 @@
-' dashboard.rr: a big window — a 1200 x 800 sales dashboard: four figures
+' sales_dashboard.rr: a big window — a 1200 x 800 sales dashboard: four figures
 ' at the top, a bar chart and a line chart, a table of the months, a region
 ' picked with the buttons.
 '
-'   rapidr run dashboard.rr
+'   rapidr run sales_dashboard.rr
 '
 ' A window this size is bigger than many screens and browser pages. In
 ' RapidR Studio on the web it still shows whole: the program's windows sit

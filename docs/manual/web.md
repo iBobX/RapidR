@@ -113,7 +113,7 @@ In RapidR Studio on the web the program's windows float over Studio, and
 their desktop scrolls the same way: a thin scroll bar shows along the
 page's right or bottom edge while a window reaches past it; drag its
 thumb, or turn the mouse wheel over a window's title bar or over the
-scroll bar. The example [dashboard.rr](../../examples/gui/dashboard.rr) is
+scroll bar. The example [sales_dashboard.rr](../../examples/gui/sales_dashboard.rr) is
 a 1200 × 800 window to try it with
 ([Debugging: on the desktop and in the browser](debugging.md#on-the-desktop-and-in-the-browser)).
 

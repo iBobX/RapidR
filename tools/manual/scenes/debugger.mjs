@@ -39,7 +39,7 @@ export const scenes = [
   // (a window bigger than the page — the 1200 x 800 dashboard on a 1280 x
   // 720 page —, scrolled to its bottom: the run area's scroll bar along
   // the page's right edge)
-  { topic: "debugging", name: "web-big-window", host: "web", open: "examples/gui/dashboard.rr", do: "run.start", delay: 4, maximized: true, viewport: { width: 1280, height: 720 }, crop: [0, 0, 1280, 720], web: scrollDown },
+  { topic: "debugging", name: "web-big-window", host: "web", open: "examples/gui/sales_dashboard.rr", do: "run.start", delay: 4, maximized: true, viewport: { width: 1280, height: 720 }, crop: [0, 0, 1280, 720], web: scrollDown },
 ];
 
 // (the program's desktop scrolled to the window's bottom: the wheel over
