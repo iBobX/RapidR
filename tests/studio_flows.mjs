@@ -95,6 +95,132 @@ async function floatingWindows(page, scale, record) {
   }
 }
 
+// (the web) A program window bigger than the page (tests/fixtures/
+// studio_debug/big_window.rr, 1200 x 800, centred, on a 1280 x 720 page):
+// nothing of it is ever out of reach. Shown with its title bar on the page
+// (a window is never placed or dragged above or left of the page's
+// corner); the program's desktop scrolls — its scroll bar along the page's
+// edge, the wheel over the title bar — to its bottom corners; dragged past
+// the page's right and bottom edges, both bars, their thumbs dragged to the
+// end show its far corner; maximized, it fits the page and the bars go.
+// On a page it fits (1920 x 1080), all of it shows at once, no bar. A
+// capture at each step.
+async function bigWindow(page, scale, record) {
+  const vp = page.viewportSize();
+  await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+  await page.waitForTimeout(600);
+  const frame = () => page.frames().find((f) => f.url().endsWith("/run.html"));
+  const win = async () => frame().evaluate(() => {
+    const r = document.querySelector(".rr-kwin").getBoundingClientRect();
+    const bars = [...document.querySelectorAll(".rr-desk-bar")].filter((b) => b.style.display !== "none").map((b) => {
+      const t = b.querySelector(".thumb").getBoundingClientRect();
+      return { dir: b.classList.contains("v") ? "v" : "h", x: Math.round(t.left + t.width / 2), y: Math.round(t.top + t.height / 2) };
+    });
+    return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height), bars };
+  });
+  const corners = (w) => [[w.x + 3, w.y + 3], [w.x + w.w - 4, w.y + 3], [w.x + 3, w.y + w.h - 4], [w.x + w.w - 4, w.y + w.h - 4]];
+  const onPage = ([x, y]) => x >= 0 && y >= 0 && x < vp.width && y < vp.height;
+  const hits = async (pts) => Promise.all(pts.map(([x, y]) => hitPage(page, x, y)));
+  const shot = (step) => page.screenshot({ path: join(WORK, `program-window-big-${vp.width}x${vp.height}-${step}@${scale}x.png`) });
+  let w = await win();
+  if (w.w <= vp.width && w.h <= vp.height) {
+    // (it fits: all of it at once, no scroll bar)
+    const h = await hits(corners(w));
+    record("", w.x >= 0 && w.y >= 0 && w.x + w.w <= vp.width && w.y + w.h <= vp.height && h.every((x) => x === "program") && !w.bars.length, `${vp.width}x${vp.height}: the 1200 x 800 window shows whole, no scroll bar (${JSON.stringify(w)}; corners ${h.join(", ")})`);
+    await shot("whole");
+    return;
+  }
+  record("", w.x >= 0 && w.y === 0 && w.w === 1200 && w.h === 800, `shown with its title bar on the page, not above it (${JSON.stringify({ x: w.x, y: w.y, w: w.w, h: w.h })})`);
+  record("", (await hitPage(page, w.x + 200, w.y + 12)) === "program" && w.bars.some((b) => b.dir === "v"), `its title bar is the program's, and the desktop's scroll bar shows (${JSON.stringify(w.bars)})`);
+  await shot("shown");
+  // (the wheel over its title bar scrolls the desktop; on over the scroll
+  // bar, once the title bar has moved from under the mouse: to its bottom)
+  await page.mouse.move(w.x + 200, w.y + 12);
+  await page.mouse.wheel(0, 40);
+  await page.waitForTimeout(300);
+  const y0 = w.y;
+  w = await win();
+  record("", w.y < y0 && w.y >= y0 - 40, `the wheel over the title bar scrolls the desktop (y ${y0} → ${w.y})`);
+  await page.mouse.move(vp.width - 6, Math.round(vp.height / 2));
+  for (let i = 0; i < 4; i++) await page.mouse.wheel(0, 100);
+  await page.waitForTimeout(400);
+  w = await win();
+  const bottom = [[w.x + 3, w.y + w.h - 4], [w.x + w.w - 4, w.y + w.h - 4]];
+  let h = await hits(bottom);
+  record("", Math.abs(w.y + w.h - vp.height) <= 1 && bottom.every(onPage) && h.every((x) => x === "program"), `scrolled to the end, its bottom corners show (${JSON.stringify({ y: w.y, bottom: w.y + w.h })}; ${h.join(", ")})`);
+  await shot("scrolled");
+  // (back up with the wheel over the scroll bar, then the title bar dragged
+  // past the page's top left corner: kept at it)
+  await page.mouse.move(vp.width - 6, Math.round(vp.height / 2));
+  await page.mouse.wheel(0, -1000);
+  await page.waitForTimeout(300);
+  w = await win();
+  record("", w.y === 0, `the wheel over the scroll bar scrolls back up (y ${w.y})`);
+  const from = { x: w.x + 300, y: w.y + 12 };
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  for (let i = 1; i <= 8; i++) await page.mouse.move(from.x - 60 * i, from.y - 40 * i);
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  w = await win();
+  record("", w.x === 0 && w.y === 0 && (await hitPage(page, 300, 12)) === "program", `dragged past the page's corner, it stays at it, its title bar on the page (${w.x}, ${w.y})`);
+  await shot("corner");
+  // (dragged past the right and bottom edges: both bars; their thumbs to the end)
+  await page.mouse.move(300, 12);
+  await page.mouse.down();
+  for (let i = 1; i <= 8; i++) await page.mouse.move(300 + 50 * i, 12 + 30 * i);
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  w = await win();
+  record("", w.x === 400 && w.y === 240 && w.bars.length === 2, `dragged past the right and bottom edges: the desktop grows, two scroll bars (${JSON.stringify(w)})`);
+  for (const b of w.bars) {
+    await page.mouse.move(b.x, b.y);
+    await page.mouse.down();
+    await page.mouse.move(b.dir === "v" ? b.x : b.x + vp.width, b.dir === "v" ? b.y + vp.height : b.y, { steps: 6 });
+    await page.mouse.up();
+  }
+  await page.waitForTimeout(400);
+  w = await win();
+  const far = [w.x + w.w - 4, w.y + w.h - 4];
+  record("", onPage(far) && (await hitPage(page, far[0], far[1])) === "program" && Math.abs(w.x + w.w - (vp.width - 12)) <= 1 && Math.abs(w.y + w.h - (vp.height - 12)) <= 1, `the thumbs dragged to the end show its far corner, beside the bars (${JSON.stringify({ right: w.x + w.w, bottom: w.y + w.h })})`);
+  await shot("bars");
+  // (maximized — a double click on its title bar —: the page, no bar)
+  if (w.y + 12 >= 0) await page.mouse.dblclick(w.x + 300, w.y + 12);
+  else {
+    await page.mouse.move(vp.width - 6, Math.round(vp.height / 2));
+    await page.mouse.wheel(0, -2000);
+    await page.waitForTimeout(300);
+    w = await win();
+    await page.mouse.dblclick(Math.max(w.x, 0) + 300, w.y + 12);
+  }
+  await page.waitForTimeout(500);
+  w = await win();
+  record("", w.x === 0 && w.y === 0 && w.w === vp.width && w.h === vp.height && !w.bars.length, `maximized, it fits the page and the scroll bars go (${JSON.stringify(w)})`);
+  await shot("maximized");
+}
+
+// (the web) The inspector's rows as a screen reader gets them: the case
+// inspector-read-only.
+async function inspectorAccess(page, scale, record) {
+  const cdp = await page.context().newCDPSession(page);
+  const { nodes } = await cdp.send("Accessibility.getFullAXTree");
+  const byId = new Map(nodes.map((n) => [n.nodeId, n]));
+  const prop = (n, k) => (n.properties || []).find((p) => p.name === k)?.value?.value;
+  const grid = nodes.find((n) => n.role?.value === "treegrid" && n.name?.value === "Properties");
+  record("", !!grid, `the inspector is a tree grid named Properties (${grid ? "yes" : nodes.filter((n) => /grid/.test(n.role?.value || "")).map((n) => n.role.value + " " + n.name?.value).join(", ")})`);
+  const rows = nodes.filter((n) => n.role?.value === "row").map((r) => ({ r, cells: (r.childIds || []).map((id) => byId.get(id)).filter((c) => c && /cell|rowheader/.test(c.role?.value || "")) }));
+  const caption = rows.find(({ cells }) => cells[0]?.name?.value === "Caption");
+  record("", caption && caption.r.name?.value === "Caption &Add to shelf" && caption.cells[0].role.value === "rowheader" && caption.cells[1]?.role?.value === "gridcell" && !prop(caption.cells[1], "readonly") && !/read-only/.test(caption.r.description?.value || ""),
+    `an editable row is named by its cells, its value with it ("${caption?.r.name?.value}"), not read-only`);
+  const fixed = rows.filter(({ r }) => /(^|, )read-only$/.test(r.description?.value || ""));
+  const allCells = fixed.every(({ cells }) => cells.length === 2 && prop(cells[1], "readonly") === true);
+  record("", fixed.length > 0 && allCells, `a read-only row says "read-only" (announced with it) and its value's cell is read-only (${fixed.map(({ r }) => `"${r.name?.value}"`).join(", ")})`);
+  // (the categories are no properties: no cells, never read-only)
+  const category = rows.find(({ r }) => r.name?.value === "Appearance");
+  record("", category && category.cells.length === 0 && !/read-only/.test(category.r.description?.value || ""), `a category's row has no cells and isn't read-only ("${category?.r.description?.value}")`);
+  await cdp.detach();
+}
+
 // (S-DEBUG: the debugger's program and the file it includes)
 const DEBUG_FILES = ["tests/fixtures/studio_debug/counter.rr", "tests/fixtures/studio_debug/tally.inc"];
 
@@ -269,6 +395,35 @@ const CASES = [
     web: floatingWindows,
     desktopFiles: ["window-program-1.bmp"],
     dump: { "session.exitcode": /^0$/, "session.error": /^$/ },
+  },
+  // (a program window bigger than the page: bigWindow — on a 1280 x 720
+  // page, and on 1920 x 1080 where it fits)
+  {
+    name: "program-window-big",
+    open: "tests/fixtures/studio_debug/big_window.rr",
+    webFiles: ["tests/fixtures/studio_debug/big_window.rr"],
+    do: "run.start",
+    delay: 4,
+    maximized: true,
+    viewport: { width: 1280, height: 720 },
+    scales: [1, 2],
+    web: bigWindow,
+    desktopFiles: ["window-program-1.bmp"],
+    dump: { "session.error": /^$/ },
+  },
+  {
+    name: "program-window-big-fits",
+    open: "tests/fixtures/studio_debug/big_window.rr",
+    webFiles: ["tests/fixtures/studio_debug/big_window.rr"],
+    do: "run.start",
+    delay: 4,
+    maximized: true,
+    viewport: { width: 1920, height: 1080 },
+    scales: [1],
+    web: bigWindow,
+    // (the desktop's windows are the system's: the first case shows it there)
+    webOnly: true,
+    dump: { "session.error": /^$/ },
   },
   {
     // modal dialogs stay on top: the program's over its form, Studio's
@@ -573,6 +728,21 @@ const CASES = [
       "designdoc(0).__cursor_355_306": /^move$/,
       "designdoc(0).__cursor_339_306": /^nwse-resize$/,
     },
+  },
+  // (the web) A screen reader on the inspector: Chrome's accessibility
+  // tree (what VoiceOver, NVDA and JAWS read) has a tree grid of rows, each
+  // named by its cells — the property's name (a row header) and its value
+  // — and a read-only property says so: "read-only" in its row's
+  // description (announced with the row) and its value's cell read-only
+  // (ARIA has no read-only row). inspectorAccess.
+  {
+    name: "inspector-read-only",
+    open: "examples/gui/pantry.rr",
+    do: "wait,view.designer,pick:AddBtn,wait",
+    delay: 6,
+    webOnly: true,
+    web: inspectorAccess,
+    dump: { "studio.caption": /pantry/ },
   },
   // (S-PANELS) …then Undo twice on the designer: the exact text back.
   {
@@ -1820,7 +1990,7 @@ if (!filters.length || filters.some((f) => "commands-handled".includes(f))) {
 }
 
 for (const c of CASES.filter((c) => !filters.length || filters.some((f) => c.name.includes(f)))) {
-  if (HOSTS.includes("desktop")) {
+  if (HOSTS.includes("desktop") && !c.webOnly) {
     for (const scale of c.capture ? c.scales || [1] : [1]) check(c.capture && scale > 1 ? `desktop @${scale}x` : "desktop", runDesktop(c, scale), c);
   }
   if (!HOSTS.includes("web") || c.desktopOnly) continue;

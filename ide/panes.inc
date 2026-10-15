@@ -101,6 +101,7 @@ SUB FillExamples
   AddExample "gui/dialogs.rr", "Open, save, colour, font"
   AddExample "gui/pantry.rr", "A list and a grid together"
   AddExample "gui/themes.rr", "The themes, switched live"
+  AddExample "gui/dashboard.rr", "A big window: a dashboard"
   AddExample "data/dataframe.rr", "A data frame and a chart"
   AddExample "rapidq/notepad.bas", "A program in RapidQ's style"
   AddExample "basics/hello.rr", "PRINT, FOR, SUB, FUNCTION"

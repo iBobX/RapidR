@@ -94,6 +94,29 @@ the IDE). A program compiled to WebAssembly (`build --web`) can't wait
 for a dialog: its `Execute` asks for a name with the browser's prompt, and
 the files stay in the browser's store.
 
+## Windows bigger than the page
+
+The page is the program's screen: `Screen.Width` and `Screen.Height` are
+the page's, a form's `Left` and `Top` its place on the page. Nothing of a
+window is ever out of reach, even one bigger than the browser window:
+
+- A window is never placed or dragged above or left of the page's top
+  left corner, so its title bar is always on the page. A form that
+  centres itself on a smaller page (`Center` with a form taller than the
+  page) starts at the top instead, and the program's `Top` says so.
+- Past the right and bottom edges the page scrolls: drag a window there,
+  or show one bigger than the page, and you scroll to the rest of it.
+- Maximized (the title bar's button, a double click on it, or
+  `WindowState = 2`), a window fills the part of the page you see.
+
+In RapidR Studio on the web the program's windows float over Studio, and
+their desktop scrolls the same way: a thin scroll bar shows along the
+page's right or bottom edge while a window reaches past it; drag its
+thumb, or turn the mouse wheel over a window's title bar or over the
+scroll bar. The example [dashboard.rr](../../examples/gui/dashboard.rr) is
+a 1200 × 800 window to try it with
+([Debugging: on the desktop and in the browser](debugging.md#on-the-desktop-and-in-the-browser)).
+
 ## What runs differently in a browser
 
 - A program's busy loop (a game loop without `DOEVENTS`, a long

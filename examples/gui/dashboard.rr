@@ -1,0 +1,188 @@
+' dashboard.rr: a big window — a 1200 x 800 sales dashboard: four figures
+' at the top, a bar chart and a line chart, a table of the months, a region
+' picked with the buttons.
+'
+'   rapidr run dashboard.rr
+'
+' A window this size is bigger than many screens and browser pages. In
+' RapidR Studio on the web it still shows whole: the program's windows sit
+' on a desktop that scrolls when they reach past the page (the scroll bar
+' along the page's edge, the wheel over the title bar), its title bar always
+' on the page, and maximized it fits the page. The numbers are made up (the
+' DATA lines at the end).
+$THEME rapidr
+
+DECLARE SUB ShowAll
+DECLARE SUB ShowNorth
+DECLARE SUB ShowSouth
+DECLARE SUB ShowRegion(Which AS INTEGER)
+
+' the months' revenue (thousands) and orders, north then south
+DIM Revenue(1 TO 2, 1 TO 12) AS INTEGER
+DIM Orders(1 TO 2, 1 TO 12) AS INTEGER
+DIM MonthName(1 TO 12) AS STRING
+DIM r AS INTEGER, m AS INTEGER
+
+CREATE Form AS RForm
+    Caption = "Sales dashboard"
+    Width = 1200
+    Height = 800
+    Center
+    CREATE Heading AS RLabel
+        Caption = "Sales 2026": Left = 24: Top = 16: Width = 400: Height = 36
+        Font.Size = 20
+    END CREATE
+    CREATE AllBtn AS RButton
+        Caption = "&All regions": Left = 820: Top = 20: Width = 110: OnClick = ShowAll
+    END CREATE
+    CREATE NorthBtn AS RButton
+        Caption = "&North": Left = 940: Top = 20: Width = 110: OnClick = ShowNorth
+    END CREATE
+    CREATE SouthBtn AS RButton
+        Caption = "&South": Left = 1060: Top = 20: Width = 110: OnClick = ShowSouth
+    END CREATE
+    ' (the four figures, each a panel with a name and a number)
+    CREATE RevenuePanel AS RPanel
+        Left = 24: Top = 68: Width = 270: Height = 96
+        CREATE RevenueName AS RLabel
+            Caption = "Revenue (thousands)": Left = 16: Top = 12: Width = 240
+        END CREATE
+        CREATE RevenueValue AS RLabel
+            Left = 16: Top = 40: Width = 240: Height = 40
+            Font.Size = 22
+        END CREATE
+    END CREATE
+    CREATE OrdersPanel AS RPanel
+        Left = 310: Top = 68: Width = 270: Height = 96
+        CREATE OrdersName AS RLabel
+            Caption = "Orders": Left = 16: Top = 12: Width = 240
+        END CREATE
+        CREATE OrdersValue AS RLabel
+            Left = 16: Top = 40: Width = 240: Height = 40
+            Font.Size = 22
+        END CREATE
+    END CREATE
+    CREATE AveragePanel AS RPanel
+        Left = 596: Top = 68: Width = 270: Height = 96
+        CREATE AverageName AS RLabel
+            Caption = "Average order": Left = 16: Top = 12: Width = 240
+        END CREATE
+        CREATE AverageValue AS RLabel
+            Left = 16: Top = 40: Width = 240: Height = 40
+            Font.Size = 22
+        END CREATE
+    END CREATE
+    CREATE BestPanel AS RPanel
+        Left = 882: Top = 68: Width = 288: Height = 96
+        CREATE BestName AS RLabel
+            Caption = "Best month": Left = 16: Top = 12: Width = 256
+        END CREATE
+        CREATE BestValue AS RLabel
+            Left = 16: Top = 40: Width = 256: Height = 40
+            Font.Size = 22
+        END CREATE
+    END CREATE
+    CREATE RevenueChart AS RPlot
+        Left = 24: Top = 180: Width = 560: Height = 340
+    END CREATE
+    CREATE OrdersChart AS RPlot
+        Left = 610: Top = 180: Width = 560: Height = 340
+    END CREATE
+    CREATE Table AS RStringGrid
+        Left = 24: Top = 540: Width = 1146: Height = 158
+        ColCount = 13
+        RowCount = 4
+        FixedCols = 1
+        DefaultColWidth = 86
+        DefaultRowHeight = 36
+    END CREATE
+    CREATE Status AS RLabel
+        Left = 24: Top = 716: Width = 1146
+    END CREATE
+END CREATE
+
+SUB ShowAll
+    ShowRegion 0
+END SUB
+
+SUB ShowNorth
+    ShowRegion 1
+END SUB
+
+SUB ShowSouth
+    ShowRegion 2
+END SUB
+
+' Which: 0 both regions, 1 north, 2 south
+SUB ShowRegion(Which AS INTEGER)
+    DIM rev(1 TO 12) AS INTEGER, ord(1 TO 12) AS INTEGER
+    DIM i AS INTEGER, k AS INTEGER, total AS INTEGER, count AS INTEGER, best AS INTEGER
+    DIM revList AS STRING, ordList AS STRING, xs AS STRING, place AS STRING
+    FOR i = 1 TO 12
+        FOR k = 1 TO 2
+            IF Which = 0 OR Which = k THEN
+                rev(i) = rev(i) + Revenue(k, i)
+                ord(i) = ord(i) + Orders(k, i)
+            END IF
+        NEXT
+        total = total + rev(i)
+        count = count + ord(i)
+        IF best = 0 THEN best = i
+        IF rev(i) > rev(best) THEN best = i
+        revList = revList + IIF(i > 1, ",", "") + STR$(rev(i))
+        ordList = ordList + IIF(i > 1, ",", "") + STR$(ord(i))
+        xs = xs + IIF(i > 1, ",", "") + STR$(i)
+        Table.Cell(i, 0) = MonthName(i)
+        Table.Cell(i, 1) = STR$(rev(i))
+        Table.Cell(i, 2) = STR$(ord(i))
+        Table.Cell(i, 3) = FORMAT$("%.2f", rev(i) * 1000 / ord(i))
+    NEXT
+    Table.Cell(0, 1) = "Revenue"
+    Table.Cell(0, 2) = "Orders"
+    Table.Cell(0, 3) = "Per order"
+    SELECT CASE Which
+        CASE 1: place = "North"
+        CASE 2: place = "South"
+        CASE ELSE: place = "All regions"
+    END SELECT
+    RevenueValue.Caption = STR$(total)
+    OrdersValue.Caption = STR$(count)
+    AverageValue.Caption = FORMAT$("%.2f", total * 1000 / count)
+    BestValue.Caption = MonthName(best) + " (" + STR$(rev(best)) + ")"
+    DIM ys AS RNum, xn AS RNum, os AS RNum
+    ys.FromList(revList)
+    RevenueChart.Clear
+    RevenueChart.Title = "Revenue by month (thousands) - " + place
+    RevenueChart.Bar("Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec", ys, "Revenue", "steelblue")
+    xn.FromList(xs)
+    os.FromList(ordList)
+    OrdersChart.Clear
+    OrdersChart.Title = "Orders by month - " + place
+    OrdersChart.Plot(xn, os, "darkorange", "Orders")
+    OrdersChart.Xticks("Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec")
+    Status.Caption = place + ": " + STR$(total) + " thousand in " + STR$(count) + " orders; best month " + MonthName(best)
+END SUB
+
+FOR m = 1 TO 12
+    READ MonthName(m)
+NEXT
+FOR r = 1 TO 2
+    FOR m = 1 TO 12
+        READ Revenue(r, m)
+    NEXT
+    FOR m = 1 TO 12
+        READ Orders(r, m)
+    NEXT
+NEXT
+
+ShowAll
+Form.ShowModal
+
+DATA "January", "February", "March", "April", "May", "June"
+DATA "July", "August", "September", "October", "November", "December"
+' north: revenue, then orders
+DATA 42, 38, 45, 51, 56, 61, 58, 55, 63, 67, 72, 80
+DATA 310, 290, 330, 360, 395, 420, 405, 390, 440, 460, 490, 540
+' south: revenue, then orders
+DATA 35, 33, 39, 41, 47, 50, 54, 52, 49, 53, 58, 66
+DATA 260, 250, 280, 300, 330, 350, 370, 360, 345, 365, 400, 450

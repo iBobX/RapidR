@@ -1,0 +1,37 @@
+' big_window.rr: a 1200 x 800 window, bigger than many browser pages, with
+' a label in each corner — Studio on the web shows all of it (its windows
+' on a desktop that scrolls when they reach past the page:
+' tests/studio_flows.mjs, program-window-big).
+
+DECLARE SUB CloseIt
+
+CREATE Form AS RForm
+    Caption = "Big window (1200 x 800)"
+    Width = 1200
+    Height = 800
+    Center
+    CREATE TopLeft AS RLabel
+        Caption = "Top left"
+        Left = 8: Top = 8: Width = 120
+    END CREATE
+    CREATE TopRight AS RLabel
+        Caption = "Top right"
+        Left = 1060: Top = 8: Width = 120
+        Alignment = 1
+    END CREATE
+    CREATE BottomLeft AS RLabel
+        Caption = "Bottom left"
+        Left = 8: Top = 740: Width = 120
+    END CREATE
+    CREATE CloseButton AS RButton
+        Caption = "&Close"
+        Left = 1080: Top = 730: Width = 90
+        OnClick = CloseIt
+    END CREATE
+END CREATE
+
+SUB CloseIt
+    Form.Close
+END SUB
+
+Form.ShowModal

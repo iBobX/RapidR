@@ -277,6 +277,16 @@ Studio in the browser.
 
   ![In the browser: the Greeter window dragged half past Studio's right edge, whole](images/debugging/web-program-window.png)
 
+  A window bigger than the page — the 1200 × 800
+  [dashboard.rr](../../examples/gui/dashboard.rr) example on a laptop's
+  browser — opens with its title bar at the top of the page, and the
+  program's desktop scrolls to the rest: a thin scroll bar shows along the
+  page's edge while it's needed (drag it, or turn the wheel over it or over
+  the window's title bar). Maximize the window and it fits the page. See
+  [Windows bigger than the page](web.md#windows-bigger-than-the-page).
+
+  ![In the browser on a 1280 × 720 page: the 1200 × 800 dashboard scrolled to its bottom, the scroll bar at the page's right edge](images/debugging/web-big-window.png)
+
   ![Studio in the browser, paused at the same breakpoint as on the desktop](images/debugging/web-breakpoint-hit.png)
 
 - The browser keeps some keys for itself (Ctrl+N, Ctrl+W, Ctrl+T): use the

@@ -4,7 +4,19 @@
   <meta charset="utf-8">
   <title>RapidR program</title>
   <style>
+    /* the program's desktop: the page, as big as its windows reach, which
+       this frame scrolls itself (the scroll bars below, the wheel over a
+       window's title bar) — the browser's own would take room the
+       program's Screen and a maximized window have */
+    html { overflow: hidden; }
     html, body { margin: 0; padding: 0; height: 100%; font-family: system-ui, sans-serif; background: transparent; }
+    .rr-desk-bar { position: fixed; z-index: 2147483000; box-sizing: border-box; background: rgba(128, 128, 128, 0.16); display: none; touch-action: none; }
+    .rr-desk-bar.v { right: 0; top: 0; width: 12px; }
+    .rr-desk-bar.h { left: 0; bottom: 0; height: 12px; }
+    .rr-desk-bar .thumb { position: absolute; box-sizing: border-box; border-radius: 6px; background: rgba(110, 110, 110, 0.72); border: 1px solid rgba(255, 255, 255, 0.55); }
+    .rr-desk-bar.v .thumb { left: 2px; width: 8px; }
+    .rr-desk-bar.h .thumb { top: 2px; height: 8px; }
+    .rr-desk-bar:hover .thumb, .rr-desk-bar .thumb.held { background: rgba(90, 90, 90, 0.9); }
   </style>
   <script type="module">
     // The program under development, sandboxed (SEC-02/03, see ROADMAP.md):
@@ -178,6 +190,132 @@
     // frame — never its content — and Studio keeps them inside its page.
     let lastRects = "";
     let rectsSoon = false;
+
+    // ---- the program's desktop scrolls: no window is ever cut off ----
+    // A window past the page's right or bottom edge (bigger than the page,
+    // or dragged there) makes the desktop that much bigger: a scroll bar
+    // shows along that edge while it's needed — thin, over what's beneath,
+    // as an MDI client's or the system's overlay scroll bars — and the
+    // wheel over a window's title bar (or a scroll bar) scrolls it; the
+    // keyboard's focus moved to something out of view brings it into view.
+    // (The web host keeps windows right of and below the page's corner:
+    // their title bars can't be lost — crates/rapidr-ui-host-web, on_desktop.)
+    const bars = {};
+    function makeBar(dir) {
+      const track = document.createElement("div");
+      track.className = "rr-desk-bar " + dir;
+      track.setAttribute("aria-hidden", "true");
+      const thumb = document.createElement("div");
+      thumb.className = "thumb";
+      track.appendChild(thumb);
+      document.documentElement.appendChild(track);
+      const vertical = dir === "v";
+      let grab = null;
+      track.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.target === thumb) {
+          thumb.setPointerCapture(e.pointerId);
+          thumb.classList.add("held");
+          grab = { at: vertical ? e.clientY : e.clientX, from: vertical ? scrollY : scrollX };
+        } else {
+          // (the track beside the thumb: a page that way)
+          const r = thumb.getBoundingClientRect();
+          const before = vertical ? e.clientY < r.top : e.clientX < r.left;
+          const page = (vertical ? innerHeight : innerWidth) * 0.9 * (before ? -1 : 1);
+          vertical ? scrollBy(0, page) : scrollBy(page, 0);
+        }
+      });
+      thumb.addEventListener("pointermove", (e) => {
+        if (!grab) return;
+        const b = bars[dir];
+        const moved = (vertical ? e.clientY : e.clientX) - grab.at;
+        const to = grab.from + moved * (b.content / b.length);
+        vertical ? scrollTo(scrollX, to) : scrollTo(to, scrollY);
+      });
+      for (const up of ["pointerup", "pointercancel"]) thumb.addEventListener(up, () => { grab = null; thumb.classList.remove("held"); });
+      return { track, thumb, content: 1, length: 1 };
+    }
+    function desktopSize() {
+      // (as far as the windows reach)
+      let w = 0, h = 0;
+      for (const win of document.querySelectorAll(".rr-kwin")) {
+        if (getComputedStyle(win).display === "none") continue;
+        const r = win.getBoundingClientRect();
+        w = Math.max(w, Math.ceil(r.right + scrollX));
+        h = Math.max(h, Math.ceil(r.bottom + scrollY));
+      }
+      return { w, h };
+    }
+    let spacer = null;
+    const BAR = 12;
+    function layoutDesktop() {
+      const reach = desktopSize();
+      // (a bar takes its strip of the page: what's under it scrolls past it)
+      let needV = reach.h > innerHeight, needH = reach.w > innerWidth;
+      for (let i = 0; i < 2; i++) {
+        needV = reach.h > innerHeight - (needH ? BAR : 0);
+        needH = reach.w > innerWidth - (needV ? BAR : 0);
+      }
+      // (at least the page)
+      const size = { w: Math.max(innerWidth, reach.w + (needV ? BAR : 0)), h: Math.max(innerHeight, reach.h + (needH ? BAR : 0)) };
+      // (the page as big as the desktop: scrollTo reaches all of it)
+      if (!spacer) {
+        spacer = document.createElement("div");
+        spacer.setAttribute("aria-hidden", "true");
+        spacer.style.cssText = "position:absolute;left:0;top:0;width:1px;height:1px;pointer-events:none;visibility:hidden";
+        document.body.appendChild(spacer);
+      }
+      spacer.style.width = size.w + "px";
+      spacer.style.height = size.h + "px";
+      // (back inside when the desktop shrank)
+      const maxX = Math.max(0, size.w - innerWidth), maxY = Math.max(0, size.h - innerHeight);
+      if (scrollX > maxX || scrollY > maxY) scrollTo(Math.min(scrollX, maxX), Math.min(scrollY, maxY));
+      for (const [dir, need, content, view, pos] of [["v", needV, size.h, innerHeight, scrollY], ["h", needH, size.w, innerWidth, scrollX]]) {
+        if (!need && !bars[dir]) continue;
+        const b = bars[dir] || (bars[dir] = makeBar(dir));
+        b.track.style.display = need ? "block" : "none";
+        if (!need) continue;
+        // (the two bars leave the corner to each other)
+        const length = view - (needV && needH ? BAR : 0);
+        b.content = content;
+        b.length = length;
+        if (dir === "v") b.track.style.height = length + "px";
+        else b.track.style.width = length + "px";
+        const thumbLen = Math.max(24, Math.round((length * view) / content));
+        const at = Math.round(((length - thumbLen) * pos) / Math.max(1, content - view));
+        if (dir === "v") Object.assign(b.thumb.style, { top: at + "px", height: thumbLen + "px" });
+        else Object.assign(b.thumb.style, { left: at + "px", width: thumbLen + "px" });
+      }
+      // (for the tests: the desktop's size and scroll)
+      window.RAPIDR_DESKTOP = { w: size.w, h: size.h, x: scrollX, y: scrollY };
+    }
+    // (the wheel nothing in a window took — over a title bar, a frame, a
+    // scroll bar: the program's own areas take theirs — scrolls the desktop)
+    window.addEventListener("wheel", (e) => {
+      if (e.defaultPrevented) return;
+      const k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1;
+      const dx = e.shiftKey && !e.deltaX ? e.deltaY : e.deltaX, dy = e.shiftKey && !e.deltaX ? 0 : e.deltaY;
+      if (document.documentElement.scrollHeight > innerHeight || document.documentElement.scrollWidth > innerWidth) {
+        e.preventDefault();
+        scrollBy(dx * k, dy * k);
+      }
+    }, { passive: false });
+    // (the focus moved out of view by the user's keys — Tab, an arrow —:
+    // shown; a program's own first focus leaves the desktop at its top,
+    // the window's title bar seen)
+    let keyedAt = -1e9;
+    window.addEventListener("keydown", () => { keyedAt = performance.now(); }, true);
+    document.addEventListener("focusin", (e) => {
+      const el = e.target;
+      if (performance.now() - keyedAt > 1000 || !(el instanceof Element) || !el.closest(".rr-kwin")) return;
+      const r = el.getBoundingClientRect();
+      const dx = r.right > innerWidth ? Math.min(r.right - innerWidth + 12, r.left) : r.left < 0 ? r.left : 0;
+      const dy = r.bottom > innerHeight ? Math.min(r.bottom - innerHeight + 12, r.top) : r.top < 0 ? r.top : 0;
+      if (dx || dy) scrollBy(dx, dy);
+    });
+    window.addEventListener("scroll", () => rectsChanged(), { passive: true });
+
     function windowRects() {
       const out = [];
       for (const w of document.querySelectorAll(".rr-kwin")) {
@@ -192,10 +330,17 @@
           out.push([x, y, Math.ceil(r.right) - x, Math.ceil(r.bottom) - y]);
         }
       }
+      // (the desktop's scroll bars, while shown)
+      for (const b of Object.values(bars)) {
+        if (b.track.style.display === "none") continue;
+        const r = b.track.getBoundingClientRect();
+        out.push([Math.floor(r.left), Math.floor(r.top), Math.ceil(r.width), Math.ceil(r.height)]);
+      }
       return out;
     }
     function sendRects() {
       rectsSoon = false;
+      layoutDesktop();
       const rects = windowRects();
       const key = JSON.stringify(rects);
       if (key === lastRects) return;
@@ -207,7 +352,12 @@
       rectsSoon = true;
       requestAnimationFrame(sendRects);
     }
-    new MutationObserver(rectsChanged).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ["style", "class", "width", "height"] });
+    // (changes to the windows; the scroll bars' and the spacer's own, which
+    // the rectangles' turn makes, don't count — they'd loop)
+    const ours = (n) => n === spacer || (n instanceof Element && !!n.closest(".rr-desk-bar"));
+    new MutationObserver((records) => {
+      if (records.some((r) => !ours(r.target))) rectsChanged();
+    }).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ["style", "class", "width", "height"] });
     window.addEventListener("resize", rectsChanged);
     window.addEventListener("pointerdown", () => send({ __rapidr_windows: { held: true } }), true);
     for (const up of ["pointerup", "pointercancel"]) {
