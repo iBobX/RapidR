@@ -10,7 +10,14 @@
 #   tools/release/linux-vm.sh smoke      tools/release/smoke.sh on every package
 #                                        there (the other architecture's under
 #                                        qemu-user: no native build)
-#   tools/release/linux-vm.sh --clean    remove ~/rapidr-release from the VM
+#   tools/release/linux-vm.sh clean [--dry-run] [--keep-out]
+#                                        remove everything the release and smoke scripts left in
+#                                        the VM (linux/clean.sh: ~/rapidr-release — builds, cargo
+#                                        target, packages — the build cache ~/.cache/rapidr/build,
+#                                        /tmp/rapidr-* leftovers, test apps); the installed
+#                                        rapidr package, rapidr-tools, Rust and the user's files
+#                                        stay. --dry-run lists with sizes; --keep-out keeps the
+#                                        packages. Run it when a release is done (--clean too).
 #
 # After tools/release/prepare.sh. The VM needs tools/release/linux/setup-tools.sh
 # (system, as root: tools/release/ubuntu-vm.sh root …; then user); ~8 GB there.
@@ -22,9 +29,19 @@ mkdir -p "$WORK"
 SCRIPT="$WORK/linux-vm-job.sh"
 trap 'rm -f "$SCRIPT"' EXIT
 
-if [ "${1:-}" = --clean ]; then
-    printf 'rm -rf "$HOME/rapidr-release" /tmp/rapidr-release-* /tmp/rapidr-vm.sh /tmp/rapidr-fetch.* /tmp/rapidr-smoke.*\necho removed ~/rapidr-release\n' > "$SCRIPT"
-    bash "$VM" run "$SCRIPT"
+if [ "${1:-}" = clean ] || [ "${1:-}" = --clean ]; then
+    shift
+    args=(delete)
+    for a in "$@"; do
+        case "$a" in
+            --dry-run) args=() ;;
+            --keep-out) args+=(keep-out) ;;
+            *) die "usage: $0 clean [--dry-run] [--keep-out]" ;;
+        esac
+    done
+    # (linux/clean.sh as root: the transport then works while nobody is logged in at the VM's desktop or its screen is locked,
+    # and the script finds the user's home itself)
+    bash "$VM" root tools/release/linux/clean.sh ${args[@]+"${args[@]}"}
     exit 0
 fi
 if [ "${1:-}" = smoke ]; then
@@ -39,6 +56,7 @@ setsid nohup bash -c '
     case "$a" in *"$host"*|*_$(dpkg --print-architecture).deb) native=1 ;; *) native=0 ;; esac
     SMOKE_NATIVE=$native bash "$B/smoke.sh" "$a" || fail=1
   done > "$B/smoke.log" 2>&1
+  rm -rf /tmp/rapidr-smoke.*
   echo $fail > "$B/smoke.done"' _ "$B" > /dev/null 2>&1 &
 echo started
 EOF
