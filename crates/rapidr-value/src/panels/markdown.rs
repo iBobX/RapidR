@@ -592,6 +592,16 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
             with_mut(name, |m| m.select_all());
             Value::Null
         }
+        "openlink" => {
+            // (a web link, as a click on one opens it: a link label beside
+            // the view — RapidR Studio's "See prices")
+            let url = s(0);
+            let ok = is_web_link(&url);
+            if ok {
+                rt.open_url(url.trim());
+            }
+            basic_bool(ok)
+        }
         "scrollto" => {
             // (a heading's anchor or its text)
             let want = s(0);

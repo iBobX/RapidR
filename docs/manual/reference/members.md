@@ -4818,11 +4818,13 @@ An object inspector in the style of Delphi's: the properties of a component (or 
 | `EditValue(Prop AS STRING)` | Selects a property's row and starts its editor, as a double click would. |
 | `AddProperty(Name AS STRING, Type AS STRING, Value AS STRING, [Category AS STRING])` | Shows a property of the program's own (an object the registry doesn't know): Type is "int", "float", "string", "bool", "color", "file", "picture", "strings" (a line per row), "columns", "component", a list of constants separated by "\|" (one of them) or "set:" and flags separated by "\|" (any of them). Value is its value now, and its default (shown dimmed while it has it); Category groups it ("Misc" when left out). Its changes come to OnPropertyChange only. |
 | `ClearProperties` | Removes the properties AddProperty gave. |
+| `SetChoices(Prop AS STRING, Choices AS STRING)` | Offers a text property's values from a dropped list (a line each; any text can still be typed): RapidR Studio gives an RAI's Model the provider's models. A choice starting with "↻ " is an action: picking it fires OnEditorRequest(Prop) instead of setting the value. Choices "" goes back to the registry's. |
+| `SetNote(Prop AS STRING, Note AS STRING)` | A line shown above a property's description while its row is selected ("Loading the models…", why a key was refused); "" removes it. |
 | `Row(Index AS INTEGER) AS STRING` | What row Index (from 0) shows, as "Name=Value" (a category heading as "[Name]"). |
 
 | Event | |
 |---|---|
-| `OnPropertyChange(Prop AS STRING, Value AS STRING)` | The user changed a property (or picked the SUB an event runs): its name and the new value as the program writes it. |
+| `OnPropertyChange(Prop AS STRING, Value AS STRING)` | The user changed a property (or picked the SUB an event runs): its name and the new value as the program writes it. A secret (an RAI's APIKey) is never written into a designer's code: only this event has it, for the program to keep where it belongs. |
 | `OnEventDblClick(Event AS STRING)` | The user double-clicked an event's row: the program creates (or shows) its handler. |
 | `OnEditorRequest(Prop AS STRING)` | The user asked for a property's own editor (its "…" button) where the inspector has none: the program shows one. |
 | `OnSelect(Prop AS STRING)` | The selected row changed. |
@@ -5068,11 +5070,79 @@ A Markdown text shown formatted, as a reader sees it: headings, paragraphs with 
 | `LoadFromFile(FileName AS STRING) AS INTEGER` | Shows a Markdown file: True when it was read. Relative links in it are relative to its folder. |
 | `Clear` | Shows nothing. |
 | `SelectAll` | Selects the whole text. |
+| `OpenLink(Url AS STRING) AS INTEGER` | Opens a web link (http, https, mailto) in the browser, as a click on one in the text does: for a link label beside the view. True when it was a web link. |
 | `ScrollTo(Heading AS STRING) AS INTEGER` | Scrolls a heading to the top, named by its anchor ("#getting-started") or its text: True when there is one. |
 
 | Event | |
 |---|---|
 | `OnLinkClick(Url AS STRING)` | The user clicked a link: its target as the text writes it ("https://…", "other.md", "#heading"). |
+
+<a id="rai"></a>
+## RAI
+
+A conversation with an AI provider — Anthropic (Claude), OpenAI, DeepSeek, or any OpenAI-compatible server such as Ollama or LM Studio on the user's own computer. Ask sends a question; the answer streams in (OnToken), then OnMessage and OnDone; Cancel stops it. The model is one the provider's own list gives (RefreshModels, Models, OnModelsLoaded): nothing is chosen for you. The API key is never in the program: APIKeySource says where it is kept ("keychain:NAME" in the OS keychain, "env:VARIABLE", or "ask": the program asks its user, OnKeyNeeded, and sets APIKey); a web page keeps it for the tab only. Each answer is capped (MaxTokens); a long conversation is summarised to stay cheap; InputTokens, OutputTokens and Usage meter it. RapidR Studio's assistant is an RAI too, with the project's tools attached (AttachComponent).
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Provider` | string |  | Who answers: "anthropic" (Claude), "openai", "deepseek" or "compatible" (an OpenAI-compatible server at BaseURL: Ollama, LM Studio, xAI, OpenRouter …); "" for none. Changing it forgets the models listed and a key the program set. |
+| `Model` | string |  | The model that answers, as the provider names it — one of Models (RefreshModels lists the provider's: no model is chosen for you). In RapidR Studio's designer the list comes by itself once the provider has a key. |
+| `BaseURL` | string |  | Where the provider's API is: reading it gives the provider's own unless one was set; set it for an OpenAI-compatible server ("http://localhost:11434/v1" for Ollama, "http://localhost:1234/v1" for LM Studio) or a proxy that keeps the key on a server. |
+| `WorkspaceID` | string |  | Anthropic: the workspace a key that isn't made inside one works in (sent as anthropic-workspace-id); "" for none (ANTHROPIC_WORKSPACE_ID when set). |
+| `APIKey` | string |  | The API key, set at run time (typed by the user, read from your own store): kept in memory only, never shown or read back (KeyHint gives its last four characters); RememberKey keeps it in the keychain. Typed in RapidR Studio's inspector it is stored in your keychain and APIKeySource names it: the key itself is never written into the program. |
+| `APIKeySource` | string |  | Where the key comes from when APIKey isn't set: "keychain:NAME" (the OS keychain's entry NAME; on the web, the tab's session or the device), "env:VARIABLE" (an environment variable; not on the web), "ask" (OnKeyNeeded: the program asks its user); several separated by \| are tried in order ("keychain:MyApp/OpenAI\|env:OPENAI_API_KEY\|ask"). |
+| `System` | string |  | The program's instructions to the model (its role, its tone, what it must not do), sent before the conversation. |
+| `MaxTokens` | int | 1024 | The longest an answer may be, in tokens: the provider stops there (each answer's cost cap). |
+| `SummaryAt` | int | 40000 | Once a question sends more tokens than this, the conversation so far is summarised in one short request, and the next questions start from the summary (a long chat stays cheap). |
+| `Audit` | bool | False | True: every request, tool call and decision is written to the local audit log (AuditLog reads it; never a key or a file's content). |
+| `PriceIn` | float | 0 | What the provider charges for a million tokens sent (see its prices: PricingURL), for Cost; 0 for no estimate. |
+| `PriceOut` | float | 0 | What the provider charges for a million tokens received, for Cost. |
+| `Busy` (read-only) | bool |  | True while a request runs (an answer, the models list). |
+| `Error` (read-only) | string |  | Why the last request or call failed, in plain words with what to do ("" when it worked). |
+| `Status` (read-only) | string |  | One sentence on what it is doing or did, for a status line a screen reader announces. |
+| `Answer` (read-only) | string |  | The last answer's text. |
+| `Transcript` (read-only) | string |  | The conversation as Markdown, for an RMarkdownView: the questions, the answers as they stream, a line for each tool used. |
+| `Models` (read-only) | string |  | The models RefreshModels found, a line each — the id, its name, and a hint from the words of its name ("fast · low cost" for the small ones, "costs more" for the largest), separated by tabs —, the fast, low-cost ones first. |
+| `ModelCount` (read-only) | int |  | How many models Models lists. |
+| `HasKey` (read-only) | bool |  | True when there is a key: APIKey's, or one APIKeySource finds. |
+| `KeyHint` (read-only) | string |  | The key's last four characters ("…abcd"): all that is ever shown of it. |
+| `KeySource` (read-only) | string |  | Where the key comes from now: "program" (APIKey), "stored" (the keychain; on the web, this device), "session", "environment", or "". |
+| `KeyEnv` (read-only) | string |  | The environment variable the provider's key is usually in ("OPENAI_API_KEY"), for APIKeySource. |
+| `KeyStore` (read-only) | string |  | Where RememberKey keeps a key here, in words ("the macOS Keychain", "this browser tab, until it closes"). |
+| `NeedsKey` (read-only) | bool |  | True when Provider needs an API key (a local server doesn't). |
+| `PricingURL` (read-only) | string |  | The provider's prices ("" for a compatible server). |
+| `KeysURL` (read-only) | string |  | Where a key is made at the provider. |
+| `Providers` (read-only) | string |  | The providers, a line each: the id, the name and a short name, separated by tabs. |
+| `Presets` (read-only) | string |  | Base URLs for an OpenAI-compatible server, a line each: a label and the URL, separated by a tab. |
+| `InputTokens` (read-only) | int |  | The tokens sent this session (questions, instructions, what tools read). |
+| `OutputTokens` (read-only) | int |  | The tokens received this session. |
+| `CachedTokens` (read-only) | int |  | Of InputTokens, those the provider read from its cache (charged far less). |
+| `Usage` (read-only) | string |  | The session's tokens in words, with Cost's estimate when PriceIn / PriceOut are set. |
+| `Cost` (read-only) | string |  | The session's cost estimated from PriceIn and PriceOut ("$0.0123"; "" without prices). |
+| `LastRequest` (read-only) | string |  | What was sent last: the method, the URL, the headers (the key never shown) and the JSON body. |
+| `ToolCalls` (read-only) | int |  | How many tool calls the last answer made (at most 25). |
+| `AuditLocation` (read-only) | string |  | Where the audit log is kept (a file in the user's settings folder; on the web, the browser's storage for the page). |
+
+| Method | |
+|---|---|
+| `Ask(Text AS STRING) AS INTEGER` | Sends Text, with the conversation so far, to Provider's Model and returns at once: the answer streams in (OnToken), then OnMessage with the whole of it and OnDone. False when it can't ask (no provider, key or model: Error says which; no key fires OnKeyNeeded). |
+| `Cancel` | Stops the answer being written (what came so far stays) or the models list being fetched: OnDone("cancelled"). |
+| `NewChat` | Starts a new conversation: the messages and the transcript go (the usage stays). |
+| `RefreshModels AS INTEGER` | Asks Provider which models the key can use (OpenAI's chat models only): OnModelsLoaded(Count) when Models has them, OnError when not. A Model the list no longer has is cleared: choose again. True when it started. |
+| `RememberKey([OnThisDevice AS INTEGER]) AS INTEGER` | Keeps APIKey in the keychain under APIKeySource's keychain NAME, for the next runs. On the web it is kept for the tab, and on this device too when OnThisDevice is True (the page's storage: anyone using this browser profile could read it). True when it was kept. |
+| `ForgetKey` | Removes the key kept under APIKeySource's keychain NAME, and APIKey's. |
+| `AttachComponent(Component AS RAIPROJECTTOOLS, Kind AS STRING) AS INTEGER` | Gives the model a component's tools of Kind (an RAIProjectTools' "project": RapidR Studio's assistant). True when attached; Error says why not. |
+| `ModelName(Index AS INTEGER) AS STRING` | Model Index's id in Models (from 0), for a list's choice. |
+| `AuditLog([Count AS INTEGER]) AS STRING` | The audit log's last Count lines (50 by default), oldest first, tab-separated: the time, what happened, its target, and the decision or result. |
+
+| Event | |
+|---|---|
+| `OnToken(Text AS STRING)` | More of the answer arrived (a few words at a time): add it to what shows. |
+| `OnMessage(Text AS STRING)` | The model's message is whole (an answer; before a tool is used, what it said). |
+| `OnDone(Status AS STRING)` | A request ended: "ok", "error" (Error says why) or "cancelled". |
+| `OnUpdate` | Transcript changed: an answer streaming, a tool used, a decision recorded. |
+| `OnModelsLoaded(Count AS INTEGER)` | RefreshModels found Count models: they're in Models. |
+| `OnError(Message AS STRING)` | A request failed: Message says why and what to do. |
+| `OnKeyNeeded` | There is no key yet (APIKeySource found none, or says "ask"): ask the user for one and set APIKey, then ask again. |
 
 <a id="rproject"></a>
 ## RProject
@@ -5216,72 +5286,32 @@ A run of a program under development, as an IDE runs it: in its own process on t
 | `OnEvaluate(Id AS INTEGER, Result AS STRING)` | An Evaluate's or SetVariable's answer ("error: …" when it failed). |
 | `OnBreakpointPlaced(File AS STRING, Line AS INTEGER, NewLine AS INTEGER)` | The running program placed a breakpoint elsewhere than its line: one on a line without code (a comment, a blank line, a DIM) stops at the next line with code, NewLine; NewLine 0: no code follows it in its file, it never stops. |
 
-<a id="raiassistant"></a>
-## RAIAssistant
+<a id="raiprojecttools"></a>
+## RAIProjectTools
 
-RapidR Studio's AI assistant (docs/ide-ai.md): a chat with an AI provider — Anthropic, OpenAI, DeepSeek or any OpenAI-compatible server (Ollama, LM Studio, xAI …) — about the project open in Studio. The model reads the project with tools (its files, its forms' components and properties, RapidR's registry, the compiler's diagnostics) and never changes anything itself: the changes and new programs it proposes are kept as proposals, shown to the user as diffs, applied only when they accept them. Nothing is sent until Ask; the API key is kept in the OS keychain (a browser tab's session on the web), never in a project; every request, tool call and decision goes to a local audit log. RapidR Studio's AI panel is built on it.
+A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent Tools, "project", the model may list and read the project's files (inside ProjectFolder only; an editor's unsaved text when SetFile gave it), list the forms' components and read their properties, describe RapidR's components and builtins, and run the compiler on code — each when it needs it, never the whole project at once; with Permission "propose" it also proposes changes to files and new programs, kept here as proposals the program shows as diffs: nothing is written until the user applies one. What it reads goes to the model as data, never as instructions. RapidR Studio's assistant is an RAI with these tools.
 
 | Property | Type | Default | |
 |---|---|---|---|
-| `Provider` | string |  | Who answers: "anthropic", "openai", "deepseek" or "compatible" (an OpenAI-compatible server at BaseURL: Ollama, LM Studio, xAI, OpenRouter …); "" for none (nothing can be asked). |
-| `Model` | string |  | The model that answers, as the provider names it ("claude-haiku-5-5", "deepseek-flash"); FetchModels lists them. |
-| `BaseURL` | string |  | Where the provider's API is: reading it gives the provider's own unless one was set; set it for an OpenAI-compatible server ("http://localhost:11434/v1" for Ollama). |
-| `WorkspaceID` | string |  | Anthropic: the workspace a key that isn't made inside one works in (sent as anthropic-workspace-id); "" for none. |
-| `MaxTokens` | int | 4096 | The longest a reply may be, in tokens (cost safety: the provider stops there). |
-| `Permission` | string | `"propose"` | What the model may do: "propose" (it reads the project and proposes changes as diffs the user decides on) or "read-only" (it reads and answers; it can't propose changes). |
-| `ProjectFolder` | string |  | The open project's folder: the model's tools read files inside it only ("" — no project open). |
+| `ProjectFolder` | string |  | The project's folder: files are read inside it only ("" — no project). |
 | `ProjectFiles` | string |  | The project's files, a line each, relative to ProjectFolder (what list_files gives the model). |
 | `MainFile` | string |  | The project's main file, relative to ProjectFolder. |
 | `ProjectName` | string |  | The project's name, as the model is told it. |
 | `CompatMode` | string |  | "rapidq" for a RapidQ-compatible project: the model is told to write only what RapidQ's own compiler takes. |
-| `Busy` (read-only) | bool |  | True while a request runs (an answer, a models list). |
-| `Error` (read-only) | string |  | Why the last request or call failed, in plain words with what to do ("" when it worked). |
-| `Status` (read-only) | string |  | One sentence on what the assistant is doing or did ("The assistant proposed a change: review it."), for a status line a screen reader announces. |
-| `Transcript` (read-only) | string |  | The conversation as Markdown, for an RMarkdownView: the user's messages, the answers as they stream, a line for each thing the assistant did (read a file, checked the code, proposed a change). |
-| `Reply` (read-only) | string |  | The last answer's text (Markdown). |
-| `Models` (read-only) | string |  | The models FetchModels found, a line each: the id, its name (when the provider gives one) and a cost hint for the costlier ones ("$$$: costs much more"), separated by tabs. |
-| `SuggestedModel` (read-only) | string |  | The model to start with: the provider's default — claude-haiku-5-5, gpt-6-luna, deepseek-flash — while FetchModels' list has it, else the first of its family the list has. |
-| `HasKey` (read-only) | bool |  | True when there is an API key for Provider (kept, or from its environment variable). |
-| `KeyHint` (read-only) | string |  | The key's last four characters ("…abcd"): all that is ever shown of it. |
-| `KeySource` (read-only) | string |  | Where the key comes from: "stored" (the keychain; on the web, this device), "session", "environment" (the provider's variable, such as OPENAI_API_KEY), or "". |
-| `KeyEnv` (read-only) | string |  | The environment variable a key for Provider may come from ("OPENAI_API_KEY"; "" for none). |
-| `KeyStore` (read-only) | string |  | Where SetKey keeps keys here, in words ("the macOS Keychain", "this browser tab, until it closes"). |
-| `NeedsKey` (read-only) | bool |  | True when Provider needs an API key (a local server doesn't). |
-| `PricingURL` (read-only) | string |  | The provider's price list ("" for a compatible server). |
-| `KeysURL` (read-only) | string |  | Where the user makes a key at the provider. |
-| `Providers` (read-only) | string |  | The providers, a line each: the id, the name and a short name (for a narrow list), separated by tabs. |
-| `Presets` (read-only) | string |  | Base URLs for an OpenAI-compatible server, a line each: a label and the URL, separated by a tab (Ollama, LM Studio, xAI, OpenRouter). |
+| `Permission` | string | `"propose"` | What the model may do: "propose" (read the project and propose changes, shown as diffs the user decides on) or "read-only" (read and answer; the proposing tools aren't offered). |
 | `ProposalCount` (read-only) | int |  | How many changes the last answer proposed (files changed, or a new project's files). |
-| `ToolCalls` (read-only) | int |  | How many tool calls the last answer made (at most 25). |
-| `Usage` (read-only) | string |  | The tokens sent and received this session, in words (the provider's prices turn them into cost). |
-| `LastRequest` (read-only) | string |  | What was sent last: the method, the URL, the headers (the key never shown) and the JSON body. |
-| `AuditLocation` (read-only) | string |  | Where the audit log is kept (a file in the user's settings folder; on the web, the browser's storage for the page). |
 
 | Method | |
 |---|---|
-| `Ask(Text AS STRING) AS INTEGER` | Sends Text, with the conversation so far, to Provider's Model and returns at once: the answer streams into Transcript (OnUpdate) while the model reads the project with its tools; OnDone ends it. False when it can't ask (no provider, key or model: Error says which). |
-| `Stop` | Stops the answer being written (what came so far stays) or the models list being fetched. |
-| `NewChat` | Starts a new conversation: the messages, the transcript and the proposals go. |
-| `FetchModels AS INTEGER` | Asks Provider for the models the key can use (OpenAI's chat models only): OnModels(Count) when Models has them, OnError when not. True when it started. |
-| `SetKey(Key AS STRING, [Remember AS INTEGER]) AS INTEGER` | Keeps Key for Provider: in the OS keychain on the desktop; on the web for this tab's session, or on this device too when Remember is True. True when it was kept (Status says where). |
-| `RemoveKey AS INTEGER` | Removes Provider's key from where RapidR keeps it (an environment variable stays). |
 | `SetFile(Path AS STRING, Text AS STRING)` | A file's text as its editor has it, unsaved changes included: what the model reads of it (Path inside ProjectFolder). |
 | `ClearFiles` | Forgets the editors' texts SetFile gave: files are read from their store. |
 | `ProposalInfo(Index AS INTEGER) AS STRING` | Proposal Index (from 0), tab-separated: its kind ("edit": a file changed, "create": a new file of the project, "project": a file of a new project), its path, its summary, the new project's name, True for the new project's main file, and the user's decision ("", "applied", "partly", "rejected", "created"). |
 | `ProposalOld(Index AS INTEGER) AS STRING` | Proposal Index's file as it was ("" for a new file): an RDiffView's LeftText. |
-| `ProposalNew(Index AS INTEGER) AS STRING` | Proposal Index's file as the assistant proposes it: an RDiffView's RightText. |
+| `ProposalNew(Index AS INTEGER) AS STRING` | Proposal Index's file as proposed: an RDiffView's RightText. |
 | `Patch(OldText AS STRING, NewText AS STRING) AS STRING` | The RCODEEDITOR.ApplyPatches line that turns OldText into NewText (the changed lines replaced, the file's own line breaks kept): applied, the change is one undo step. "" when they are the same. |
-| `Decide(Index AS INTEGER, Decision AS STRING)` | Records the user's decision on proposal Index ("applied", "partly" or "rejected") in the conversation and the audit log. |
+| `Decide(Index AS INTEGER, Decision AS STRING)` | Records the user's decision on proposal Index ("applied", "partly" or "rejected") in the RAI's conversation and audit log. |
 | `ClearProposals` | Forgets the proposals. |
-| `CreateProject(Folder AS STRING) AS STRING` | Writes the new project the assistant proposed in Folder, in a folder of its name (never over one that is there): the main file's path, to open; "" when it couldn't (Error says why). |
-| `AuditLog([Count AS INTEGER]) AS STRING` | The audit log's last Count lines (50 by default), oldest first, tab-separated: the time, what happened (ask, request, tool read_file, decision …), its target, and the decision or result. |
-
-| Event | |
-|---|---|
-| `OnUpdate` | Transcript changed: an answer streaming, a tool used, a decision recorded. |
-| `OnDone(Status AS STRING)` | A request ended: "ok" (the answer is in; ProposalCount says whether it proposed changes), "error" (Error says why) or "stopped". |
-| `OnModels(Count AS INTEGER)` | FetchModels found Count models: they're in Models. |
-| `OnError(Message AS STRING)` | A request failed: Message says why and what to do. |
+| `CreateProject(Folder AS STRING) AS STRING` | Writes the new project the model proposed in Folder, in a folder of its name (never over one that is there): the main file's path, to open; "error: " and why when it couldn't. |
 
 <a id="screen"></a>
 ## Screen

@@ -331,7 +331,7 @@ FUNCTION CmdEnabled(i AS INTEGER) AS INTEGER
     CASE "paused": Result = (RunState = "paused")
     CASE "session": Result = (RunState <> "stopped")
     ' (the AI's: once it is turned on — Tools > Settings > AI)
-    CASE "ai": Result = AIOn
+    CASE "ai": Result = AIReady
     CASE ELSE: Result = 1
   END SELECT
 END FUNCTION

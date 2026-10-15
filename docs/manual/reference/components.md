@@ -188,7 +188,13 @@ Every component RapidR creates, by what it is for, under RapidR's name (`RButton
 | <img src="../icons/light/components/project.svg" width="20" height="20" alt=""> | [`RProject`](members.md#rproject) | — | RapidR | everywhere |
 | <img src="../icons/light/components/languageservice.svg" width="20" height="20" alt=""> | [`RLanguageService`](members.md#rlanguageservice) | — | RapidR | everywhere |
 | <img src="../icons/light/components/programsession.svg" width="20" height="20" alt=""> | [`RProgramSession`](members.md#rprogramsession) | — | RapidR | everywhere |
-| <img src="../icons/light/components/aiassistant.svg" width="20" height="20" alt=""> | [`RAIAssistant`](members.md#raiassistant) | — | RapidR | everywhere |
+| <img src="../icons/light/components/aiprojecttools.svg" width="20" height="20" alt=""> | [`RAIProjectTools`](members.md#raiprojecttools) | — | RapidR | everywhere |
+
+## AI
+
+| | Component | RapidQ name | From | Where |
+|---|---|---|---|---|
+| <img src="../icons/light/components/ai.svg" width="20" height="20" alt=""> | [`RAI`](members.md#rai) | — | RapidR | everywhere |
 
 ## RapidQ's include libraries built in
 
@@ -206,4 +212,4 @@ RapidQ has these objects (RC.EXE knows them); RapidR doesn't yet. Variables of t
 - `QThread`: Runs its OnExecute code in a background thread. Planned: RapidR doesn't have it yet.
 - `QTransImage`: A picture with a transparent colour that can shape and size its form to it. Planned: RapidR doesn't have it yet.
 
-111 components; 76 of them have a RapidQ name.
+112 components; 76 of them have a RapidQ name.

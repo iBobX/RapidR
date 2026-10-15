@@ -60,7 +60,12 @@ pub struct Tool {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ChatRequest {
     pub model: String,
+    /// The instructions that don't change while the user works: first, so
+    /// the providers' prompt caches keep them (Anthropic's cache_control;
+    /// OpenAI's and DeepSeek's caches match the prefix).
     pub system: String,
+    /// The instructions that change (the open project's files): after.
+    pub system_tail: String,
     pub messages: Vec<Message>,
     pub tools: Vec<Tool>,
     /// The reply's length cap (cost safety): the provider stops there.

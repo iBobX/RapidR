@@ -90,6 +90,10 @@ impl Host for Web {
         let source = files.sources.iter().map(|(_, t)| t.as_str()).collect::<Vec<_>>().join("
 ");
         let needs = rapidr_webbundle::WebNeeds::scan(&source);
+        // (keys: never in the page — said in the build's output)
+        for w in rapidr_ai::keys::build_warnings(&source, true) {
+            rapidr_studio::build::web_output(name, &format!("warning: {w}"));
+        }
         let mut assets = std::collections::HashMap::new();
         for (path, data) in &files.data {
             assets.insert(path.clone(), format!("data:{};base64,{}", rapidr_webbundle::mime_for(path), rapidr_value::objects::codec::base64_encode(data)));

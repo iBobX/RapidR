@@ -420,7 +420,7 @@ fn builtins_page() -> String {
         }
         out.push('\n');
     }
-    let _ = write!(out, "{} builtins.\n", BUILTINS.len());
+    let _ = writeln!(out, "{} builtins.", BUILTINS.len());
     out
 }
 
@@ -573,28 +573,16 @@ pub fn prompt() -> String {
     out
 }
 
-/// A doc's first sentence, at most `max` characters (an AI's overview: the
-/// rest comes from `describe`).
-fn first_sentence(doc: &str, max: usize) -> String {
-    let end = doc.find(". ").map_or(doc.len(), |i| i + 1);
-    let s = doc[..end].trim();
-    if s.chars().count() <= max {
-        s.to_string()
-    } else {
-        let cut: String = s.chars().take(max.saturating_sub(1)).collect();
-        format!("{}…", cut.trim_end())
-    }
-}
-
 /// The language in short, for an assistant that can ask for the rest
-/// (RapidR Studio's: `rapidr_describe` gives a component's members): every
-/// statement and directive, every builtin's syntax, every component with
-/// one line — a tenth of [`prompt`]'s size, so a cheap model's every turn
-/// stays cheap.
+/// (RAI's tools: `rapidr_describe` gives a component's members or a
+/// builtin's syntax): every statement and directive with its syntax, the
+/// builtins' and the components' names by group — a few thousand tokens,
+/// the same every turn (so the providers cache it), where [`prompt`] is
+/// tens of thousands.
 pub fn prompt_compact() -> String {
     let mut out = String::new();
-    out.push_str("# The RapidR language (from its registry; describe a component for its members)\n\n");
-    out.push_str("RapidR is a BASIC compatible with RapidQ; names are case-insensitive. Write components with RapidR's names (RButton, RForm, RStringGrid); a RapidQ name (QBUTTON) is the same component: keep the names a file already uses. [R] marks a RapidR extension. A mark like [file-write] or [network] says what an entry reaches outside the program.\n\n");
+    out.push_str("# The RapidR language (names only: rapidr_describe gives a component's properties, methods and events, or a builtin's syntax)\n\n");
+    out.push_str("RapidR is a BASIC compatible with RapidQ; names are case-insensitive. Write components with RapidR's names (RButton, RForm, RStringGrid); a RapidQ name (QBUTTON) is the same component: keep the names a file already uses. [R] marks a RapidR extension.\n\n");
     out.push_str("## Statements\n");
     for s in STATEMENTS {
         let _ = writeln!(out, "- {}{}", s.syntax, if s.origin == Origin::RapidR { " [R]" } else { "" });
@@ -603,23 +591,27 @@ pub fn prompt_compact() -> String {
     for d in DIRECTIVES {
         let _ = writeln!(out, "- {}{}", d.syntax, if d.origin == Origin::RapidR { " [R]" } else { "" });
     }
-    out.push_str("\n## Builtins\n");
-    for b in BUILTINS.iter().filter(|b| !b.missing && !b.name.starts_with("__")) {
-        let sig = if b.syntax.is_empty() { b.name } else { b.syntax };
-        let _ = writeln!(out, "- {sig}{}{}", if b.origin == Origin::RapidR { " [R]" } else { "" }, reach_mark(b.effects));
+    // (by group, in the registry's order)
+    fn grouped<'a>(items: impl Iterator<Item = (&'a str, String)>) -> Vec<(&'a str, Vec<String>)> {
+        let mut groups: Vec<(&str, Vec<String>)> = Vec::new();
+        for (g, name) in items {
+            match groups.iter_mut().find(|(k, _)| *k == g) {
+                Some((_, v)) => v.push(name),
+                None => groups.push((g, vec![name])),
+            }
+        }
+        groups
     }
-    out.push_str("\n## Components (rapidr_describe gives each one's properties, methods and events)\n");
-    for c in COMPONENTS.iter().filter(|c| c.kind == Kind::Component) {
-        let q = c.rapidq.map(|q| format!(" ({q})")).unwrap_or_default();
-        let web = if c.runtimes == Runtimes::Web { " [web only]" } else { "" };
-        let _ = writeln!(out, "- {}{q}{web}: {}", c.spelling(), first_sentence(c.doc, 110));
+    out.push_str("\n## Builtins\n");
+    for (g, names) in grouped(BUILTINS.iter().filter(|b| !b.missing && !b.name.starts_with("__")).map(|b| (b.group, b.name.to_string()))) {
+        let _ = writeln!(out, "- {g}: {}", names.join(", "));
+    }
+    out.push_str("\n## Components\n");
+    for (g, names) in grouped(COMPONENTS.iter().filter(|c| c.kind == Kind::Component).map(|c| (c.group, if c.runtimes == Runtimes::Web { format!("{} [web]", c.spelling()) } else { c.spelling() }))) {
+        let _ = writeln!(out, "- {g}: {}", names.join(", "));
     }
     out.push_str("\n## Global objects\n");
-    for g in GLOBALS {
-        let props: Vec<&str> = g.properties.iter().filter(|p| !p.missing).map(|p| p.name).collect();
-        let methods: Vec<&str> = g.methods.iter().filter(|m| !m.missing).map(|m| m.name).collect();
-        let _ = writeln!(out, "- {}: {}", g.name, props.into_iter().chain(methods).collect::<Vec<_>>().join(", "));
-    }
+    let _ = writeln!(out, "{}", GLOBALS.iter().map(|g| g.name).collect::<Vec<_>>().join(", "));
     out
 }
 
@@ -630,13 +622,11 @@ mod tests {
     #[test]
     fn compact_prompt() {
         let p = prompt_compact();
-        assert!(p.contains("- RButton (QBUTTON): A push button"), "{}", &p[..2000.min(p.len())]);
+        assert!(p.contains("RButton, ") && !p.contains("A push button"), "{}", &p[..2000.min(p.len())]);
         assert!(p.contains("- CREATE name AS type … END CREATE"));
         assert!(!p.contains("__aget"));
         // (a tenth-ish of the whole prompt: cheap on every turn)
-        assert!(p.len() * 3 < prompt().len(), "{} vs {}", p.len(), prompt().len());
-        assert_eq!(first_sentence("One two. Three.", 50), "One two.");
-        assert_eq!(first_sentence("abcdefghij", 5), "abcd…");
+        assert!(p.len() * 8 < prompt().len(), "{} vs {}", p.len(), prompt().len());
     }
 
     #[test]

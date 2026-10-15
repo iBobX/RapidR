@@ -19,6 +19,8 @@
 //! * [`http`] — the transport, the platform's: a thread and ureq (the
 //!   system's TLS) on the desktop, `fetch` in a browser; requests run in
 //!   the background and their news are taken by the caller's loop.
+//! * `rai` (feature `component`) — **RAI**, the component: a conversation
+//!   with a provider in a program or in RapidR Studio, its tools attached.
 //! * [`audit`] — the local audit log of what an assistant asked and did.
 //! * [`keys`] — API keys: the OS keychain on the desktop (macOS Keychain,
 //!   Windows Credential Manager, the Secret Service), the tab's session on
@@ -35,6 +37,8 @@ pub mod chat;
 pub mod http;
 pub mod keys;
 pub mod provider;
+#[cfg(feature = "component")]
+pub mod rai;
 pub mod sse;
 pub mod stream;
 pub mod wire;

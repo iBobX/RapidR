@@ -235,14 +235,20 @@ DECLARE FUNCTION WorkspaceCommand(Id AS STRING) AS INTEGER
 DECLARE FUNCTION SearchCommand(Id AS STRING) AS INTEGER
 
 ' ---- the AI assistant (ai.inc; settings.inc's AI tab) ----
+' The assistant is an RAI (the component programs have) with the project
+' as its tools; DesignAI lists an RAI-on-a-form's models in the designer.
+DIM AI AS RAI
+DIM AITools AS RAIProjectTools
+DIM DesignAI AS RAI
 ' Tools > Settings > AI's choices (never a key: the keychain keeps those)
-DIM AI AS RAIAssistant
 DIM AIOn AS INTEGER
 DIM AIProvider AS STRING
 DIM AIBase AS STRING
 DIM AIWorkspace AS STRING
 DIM AIMaxTokens AS INTEGER
 DIM AIPermission AS STRING
+DIM AIPriceIn AS DOUBLE
+DIM AIPriceOut AS DOUBLE
 ' (the model chosen for each provider: "id<TAB>model" lines)
 DIM AIModels AS STRING
 DIM AIProvIds(8) AS STRING
@@ -265,7 +271,12 @@ DECLARE SUB AISettingsModelsIn
 DECLARE FUNCTION AIModelItem(Line AS STRING) AS STRING
 DECLARE FUNCTION AIModelId(Text AS STRING) AS STRING
 DECLARE FUNCTION AICommand(Id AS STRING) AS INTEGER
+DECLARE FUNCTION AIReady AS INTEGER
+DECLARE FUNCTION AIKeySourceOf(Id AS STRING) AS STRING
+DECLARE SUB AIShowOrHide
+DECLARE FUNCTION DesignAIChanged(Prop AS STRING, Value AS STRING) AS INTEGER
 DECLARE SUB AIStep(Stp AS STRING)
+DECLARE SUB InspectorRowSelected(Prop AS STRING)
 
 ' ---- Studio's services: public components (rapidr-studio) ----
 DIM Proj AS RProject

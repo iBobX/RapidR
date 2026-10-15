@@ -1,17 +1,19 @@
 ' ai.inc: the AI assistant (docs/ide-ai.md §5, docs/manual/ai-assistant.md).
 '
-' RAIAssistant (rapidr-studio's AI, DIM'd in decl.inc) does the work: the
-' providers (Anthropic, OpenAI, DeepSeek, any OpenAI-compatible server),
-' the key in the OS keychain, the chat streamed, the tools on the project
-' (files, forms, the registry, the compiler), the changes it proposes, the
-' local audit log. Here: its panel, docked with Properties (View > AI
-' Assistant, Ctrl+I); the review of what it proposes (RDiffView: each file
-' applied as one undo step in its editor); a new program's preview before
-' it is created; "What was sent". Its settings: Tools > Settings > AI
-' (settings.inc).
+' The assistant is an RAI — the component users' programs have, the same
+' code — with RapidR Studio's project attached as tools (an
+' RAIProjectTools: the files, the forms, the registry, the compiler, the
+' changes it proposes). Both are DIM'd in decl.inc. Here: its panel, docked
+' with Properties (View > AI Assistant, Ctrl+I); the review of what it
+' proposes (RDiffView: each file applied as one undo step in its editor); a
+' new program's preview before it is created; "What was sent"; the token
+' meter. Its settings: Tools > Settings > AI (settings.inc). And an RAI on a
+' form, live in the designer: its Model list fetched once it has a key, the
+' key typed in the inspector kept in the keychain, never in the code.
 '
-' Off until the user turns it on: no AI pane, no AI button, nothing sent.
-' Then nothing is sent until Send; the panel says what Send shares.
+' Hidden until it is turned on AND a provider, a key and a model are
+' chosen: no AI pane, no AI button, no AI command, nothing sent. Then
+' nothing is sent until Send; the panel says what Send shares.
 
 DECLARE SUB AIUpdate
 DECLARE SUB AIDone(Status AS STRING)
@@ -36,6 +38,13 @@ DECLARE SUB AINewBrowse
 DECLARE SUB AINewCreate
 DECLARE SUB AINewCancel
 DECLARE SUB AISentClose
+DECLARE SUB AIKeyNeeded
+DECLARE SUB InspectorEditorRequest(Prop AS STRING)
+DECLARE SUB DesignAIModelsIn(Count AS INTEGER)
+DECLARE SUB DesignAIError(Message AS STRING)
+DECLARE FUNCTION DesignAIProviderName AS STRING
+DECLARE FUNCTION DesignAIKey AS STRING
+DECLARE SUB DesignAIKeyNote
 
 CONST AIMAXPROPS = 32
 
@@ -61,6 +70,7 @@ DIM AIInput AS RMemo
 DIM AISendBtn AS RButton
 DIM AIStopBtn AS RButton
 DIM AINote AS RLabel
+DIM AIMeter AS RLabel
 DIM AISentLink AS RLabel
 DIM AIStatus AS RStatusBar
 
@@ -98,17 +108,21 @@ CREATE AIReview AS RForm
       OnClick = AIRevCancel
     END CREATE
   END CREATE
-  CREATE AIRevList AS RListBox
-    Align = 3
-    Width = 260
-    AccessibleName = "Files the assistant changes"
-    OnClick = AIRevPicked
-  END CREATE
-  CREATE AIRevHead AS RLabel
+  ' (what the change does, above the files and the diff)
+  CREATE AIRevTop AS RPanel
     Align = 1
     Height = 44
-    WordWrap = 1: AutoSize = 0
-    AccessibleName = "What the change does"
+    BevelOuter = 0
+    CREATE AIRevHead AS RLabel
+      Left = 16: Top = 13: Width = 960
+      AccessibleName = "What the change does"
+    END CREATE
+  END CREATE
+  CREATE AIRevList AS RListBox
+    Align = 3
+    Width = 220
+    AccessibleName = "Files the assistant changes"
+    OnClick = AIRevPicked
   END CREATE
   CREATE AIRevDiff AS RDiffView
     Align = 5
@@ -163,13 +177,13 @@ CREATE AINew AS RForm
   END CREATE
   CREATE AINewFiles AS RListBox
     Align = 3
-    Width = 200
+    Width = 150
     AccessibleName = "The new program's files"
     OnClick = AINewPicked
   END CREATE
   CREATE AINewForm AS RDesignSurface
     Align = 4
-    Width = 440
+    Width = 400
     ShowGrid = 0
     AccessibleName = "The form, as it will look"
   END CREATE
@@ -186,10 +200,11 @@ CREATE AISent AS RForm
   Width = 860: Height = 620
   CREATE AISentFoot AS RPanel
     Align = 2
-    Height = 52
+    Height = 58
     BevelOuter = 0
     CREATE AISentWhere AS RLabel
-      Left = 16: Top = 17: Width = 680
+      Left = 16: Top = 10: Width = 680: Height = 40
+      WordWrap = 1: AutoSize = 0
     END CREATE
     CREATE AISentOk AS RButton
       Caption = "Close"
@@ -211,8 +226,18 @@ SUB SetUpAI
   DIM i AS INTEGER, all AS STRING, line AS STRING
   AI.OnUpdate = AIUpdate
   AI.OnDone = AIDone
-  AI.OnModels = AIModelsIn
+  AI.OnModelsLoaded = AIModelsIn
   AI.OnError = AIErrorSaid
+  AI.OnKeyNeeded = AIKeyNeeded
+  ' (every request, tool call and decision in the local audit log)
+  AI.Audit = 1
+  ' (the project as the assistant's tools: on demand, never all at once)
+  AI.AttachComponent AITools, "project"
+  ' (an RAI on a form: its models listed in the designer)
+  DesignAI.OnModelsLoaded = DesignAIModelsIn
+  DesignAI.OnError = DesignAIError
+  Inspector.OnEditorRequest = InspectorEditorRequest
+  Inspector.OnSelect = InspectorRowSelected
   ' (the providers, as the component lists them: one list for the panel
   ' and the settings)
   all = AI.Providers
@@ -256,7 +281,7 @@ SUB SetUpAI
   AIStatus.AccessibleName = "Assistant status"
   AIBottom.Parent = AIPanel
   AIBottom.Align = 2
-  AIBottom.Height = 184
+  AIBottom.Height = 204
   AIBottom.BevelOuter = 0
   AIInput.Parent = AIBottom
   AIInput.WordWrap = 1
@@ -276,6 +301,10 @@ SUB SetUpAI
   AINote.Parent = AIBottom
   AINote.WordWrap = 1: AINote.AutoSize = 0
   AINote.AccessibleName = "What Send shares"
+  ' (the session's tokens, and their cost when the prices are known)
+  AIMeter.Parent = AIBottom
+  AIMeter.WordWrap = 1: AIMeter.AutoSize = 0
+  AIMeter.AccessibleName = "Tokens used"
   AISentLink.Parent = AIBottom
   AISentLink.Caption = "What was sent"
   AISentLink.Cursor = -21
@@ -307,12 +336,12 @@ SUB SetUpAI
   Dock.AddPane(AIPanel, "Assistant", "tab:inspector", "ai")
   AIApplySettings
   LayOutAIPanel
-  IF AIOn = 0 THEN Dock.HidePane("aipanel")
+  IF AIReady = 0 THEN Dock.HidePane("aipanel")
 END SUB
 
 ' The panel's controls placed for its width (the docks resize it).
 SUB LayOutAIPanel
-  DIM w AS INTEGER, bh AS INTEGER, pw AS INTEGER
+  DIM w AS INTEGER, bh AS INTEGER, y AS INTEGER, mh AS INTEGER
   w = AIPanel.ClientWidth
   IF w < 200 THEN w = 200
   IF ThemeName = "classic" THEN bh = 23 ELSE bh = 28
@@ -320,11 +349,24 @@ SUB LayOutAIPanel
   AIProviderBox.Left = 6: AIProviderBox.Top = 5: AIProviderBox.Width = w - 98
   AINewBtn.Left = w - 86: AINewBtn.Top = 4: AINewBtn.Width = 80: AINewBtn.Height = bh
   AIModelBox.Left = 6: AIModelBox.Top = 38: AIModelBox.Width = w - 12
+  ' (the box; Send and Stop; the meter, two lines when narrow; "What was
+  ' sent" beside the buttons when it fits, else under the meter; what
+  ' Send shares)
   AIInput.Left = 6: AIInput.Top = 6: AIInput.Width = w - 12: AIInput.Height = 64
-  AISendBtn.Left = w - 160: AISendBtn.Top = 76: AISendBtn.Width = 74: AISendBtn.Height = bh
-  AIStopBtn.Left = w - 80: AIStopBtn.Top = 76: AIStopBtn.Width = 74: AIStopBtn.Height = bh
-  AISentLink.Left = 8: AISentLink.Top = 76 + (bh - 16) \ 2: AISentLink.Width = w - 176
-  AINote.Left = 8: AINote.Top = 82 + bh: AINote.Width = w - 16: AINote.Height = AIBottom.Height - 86 - bh
+  AISendBtn.Left = 6: AISendBtn.Top = 76: AISendBtn.Width = 74: AISendBtn.Height = bh
+  AIStopBtn.Left = 86: AIStopBtn.Top = 76: AIStopBtn.Width = 74: AIStopBtn.Height = bh
+  IF w >= 360 THEN mh = 18 ELSE mh = 34
+  y = 82 + bh
+  AIMeter.Left = 8: AIMeter.Top = y: AIMeter.Width = w - 16: AIMeter.Height = mh
+  y = y + mh + 4
+  IF w - 176 >= 96 THEN
+    AISentLink.Left = 170: AISentLink.Top = 76 + (bh - 16) \ 2: AISentLink.Width = w - 176
+  ELSE
+    AISentLink.Left = 8: AISentLink.Top = y: AISentLink.Width = w - 16
+    y = y + 22
+  END IF
+  AINote.Left = 8: AINote.Top = y: AINote.Width = w - 16: AINote.Height = 64
+  IF AIBottom.Height <> y + 68 THEN AIBottom.Height = y + 68
   AIReviewText.Width = w - 120
   AIReviewBtn.Left = w - 104: AIReviewBtn.Top = 6: AIReviewBtn.Width = 96: AIReviewBtn.Height = bh
   AIChat.EmptyText = AIEmptyText
@@ -335,6 +377,8 @@ SUB AIPanelFonts
   AIInput.Font = UIFont
   AINote.Font = DimFont
   AINote.Font.Color = TC("page.dim")
+  AIMeter.Font = DimFont
+  AIMeter.Font.Color = TC("page.dim")
   AISentLink.Font = DimFont
   AISentLink.Font.Color = TC("page.link")
   AIStatus.Font = StatusFont
@@ -353,6 +397,8 @@ FUNCTION AIEmptyText AS STRING
     Result = "The AI assistant needs a provider: Tools > Settings > AI (a local server such as Ollama needs no key)."
   ELSEIF AI.NeedsKey AND AI.HasKey = 0 THEN
     Result = "Add your API key in Tools > Settings > AI, then ask about this project or for a new program."
+  ELSEIF AI.Model = "" THEN
+    Result = "Choose a model (Tools > Settings > AI: Fetch Models lists the provider's)."
   ELSE
     Result = "Ask about this project, or for a new program: " + CHR$(34) + "Add a Clear button" + CHR$(34) + ", " + CHR$(34) + "Build me a tip calculator" + CHR$(34) + ". The assistant proposes changes; you decide."
   END IF
@@ -374,8 +420,15 @@ SUB AIApplySettings
   AI.Provider = AIProvider
   AI.BaseURL = AIBase
   AI.WorkspaceID = AIWorkspace
-  AI.MaxTokens = AIMaxTokens
-  AI.Permission = AIPermission
+  ' (Studio's assistant writes whole programs: 4096 a reply unless the
+  ' user set another limit — RAI's own default is smaller)
+  IF AIMaxTokens > 0 THEN AI.MaxTokens = AIMaxTokens ELSE AI.MaxTokens = 4096
+  AI.PriceIn = AIPriceIn
+  AI.PriceOut = AIPriceOut
+  AITools.Permission = AIPermission
+  ' (the key: Studio's keychain entry for the provider, else its usual
+  ' environment variable — never in the settings)
+  AI.APIKeySource = AIKeySourceOf(AIProvider)
   AI.Model = AIModelOf(AIProvider)
   AIFilling = 1
   AIProviderBox.ItemIndex = -1
@@ -425,9 +478,37 @@ FUNCTION AIModelId(Text AS STRING) AS STRING
 END FUNCTION
 
 SUB AIEnableSend
-  AISendBtn.Enabled = Flag(AI.Busy = 0 AND AI.Provider <> "" AND AI.Model <> "" AND (AI.NeedsKey = 0 OR AI.HasKey <> 0))
+  AISendBtn.Enabled = Flag(AI.Busy = 0 AND AIReady <> 0)
   AIStopBtn.Enabled = Flag(AI.Busy <> 0)
+  AIMeter.Caption = AI.Usage
 END SUB
+
+' (Studio's keychain entry for a provider's key, then the provider's usual
+' environment variable: where the assistant's key comes from)
+FUNCTION AIKeySourceOf(Id AS STRING) AS STRING
+  DIM env AS STRING
+  Result = ""
+  IF Id = "" THEN EXIT FUNCTION
+  Result = "keychain:RapidR Studio/" + Id
+  env = AIEnvOf(Id)
+  IF env <> "" THEN Result = Result + "|env:" + env
+END FUNCTION
+
+' (a provider's usual environment variable for its key)
+FUNCTION AIEnvOf(Id AS STRING) AS STRING
+  SELECT CASE Id
+    CASE "anthropic": Result = "ANTHROPIC_API_KEY"
+    CASE "openai": Result = "OPENAI_API_KEY"
+    CASE "deepseek": Result = "DEEPSEEK_API_KEY"
+    CASE ELSE: Result = ""
+  END SELECT
+END FUNCTION
+
+' Whether the assistant may show itself: turned on, with a provider, a
+' key (a local server needs none) and a model the user chose.
+FUNCTION AIReady AS INTEGER
+  Result = Flag(AIOn <> 0 AND AI.Provider <> "" AND AI.Model <> "" AND (AI.NeedsKey = 0 OR AI.HasKey <> 0))
+END FUNCTION
 
 ' (Tools > Settings > AI's choices, kept per user: project.inc's settings)
 FUNCTION AIModelOf(Id AS STRING) AS STRING
@@ -459,6 +540,10 @@ SUB LoadAISettings
   IF Reg.ValueExists("AIWorkspace") THEN AIWorkspace = Reg.ReadString("AIWorkspace")
   IF Reg.ValueExists("AIMaxTokens") THEN AIMaxTokens = VAL(Reg.ReadString("AIMaxTokens"))
   IF Reg.ValueExists("AIPermission") THEN AIPermission = Reg.ReadString("AIPermission")
+  IF Reg.ValueExists("AIPrices") THEN
+    AIPriceIn = VAL(FIELD$(Reg.ReadString("AIPrices"), "/", 1))
+    AIPriceOut = VAL(FIELD$(Reg.ReadString("AIPrices"), "/", 2))
+  END IF
 END SUB
 
 ' (never a key: the keychain keeps those)
@@ -473,17 +558,23 @@ SUB SaveAISettings
   Reg.WriteString("AIWorkspace", AIWorkspace)
   Reg.WriteString("AIMaxTokens", LTRIM$(STR$(AIMaxTokens)))
   Reg.WriteString("AIPermission", AIPermission)
+  Reg.WriteString("AIPrices", LTRIM$(STR$(AIPriceIn)) + "/" + LTRIM$(STR$(AIPriceOut)))
 END SUB
 
-' Turns the assistant on or off: its pane, its tool bar button.
+' Turns the assistant on or off; its pane and tool bar button show once
+' it is ready too (a provider, a key, a model).
 SUB SetAIOn(IsOn AS INTEGER)
   AIOn = Flag(IsOn)
+  AIShowOrHide
+END SUB
+
+SUB AIShowOrHide
   BuildToolBar
   UpdateCommands
-  IF AIOn THEN
+  IF AIReady THEN
     Dock.ShowPane("aipanel")
   ELSE
-    AI.Stop
+    AI.Cancel
     Dock.HidePane("aipanel")
   END IF
 END SUB
@@ -491,7 +582,7 @@ END SUB
 ' View > AI Assistant (Ctrl+I): the panel, the keyboard in its box; off,
 ' Tools > Settings > AI.
 SUB ShowAIPanel
-  IF AIOn = 0 THEN
+  IF AIReady = 0 THEN
     ShowSettingsPage 1
     EXIT SUB
   END IF
@@ -506,24 +597,24 @@ END SUB
 ' editors' texts (unsaved changes included).
 SUB AISyncProject
   DIM i AS INTEGER, all AS STRING, d AS INTEGER
-  AI.ClearFiles
+  AITools.ClearFiles
   IF ProjectOpen = 0 THEN
-    AI.ProjectFolder = ""
-    AI.ProjectFiles = ""
-    AI.MainFile = ""
-    AI.ProjectName = ""
+    AITools.ProjectFolder = ""
+    AITools.ProjectFiles = ""
+    AITools.MainFile = ""
+    AITools.ProjectName = ""
     EXIT SUB
   END IF
   FOR i = 0 TO Proj.FileCount - 1
     all = all + Proj.File(i) + CHR$(10)
   NEXT
-  AI.ProjectFolder = Proj.Folder
-  AI.ProjectFiles = all
-  AI.MainFile = Proj.MainFile
-  AI.ProjectName = Proj.Name
-  AI.CompatMode = Proj.CompatMode
+  AITools.ProjectFolder = Proj.Folder
+  AITools.ProjectFiles = all
+  AITools.MainFile = Proj.MainFile
+  AITools.ProjectName = Proj.Name
+  AITools.CompatMode = Proj.CompatMode
   FOR d = 0 TO DocCount - 1
-    IF DocOpen(d) THEN AI.SetFile DocFile(d), CodeDoc(d).Text
+    IF DocOpen(d) THEN AITools.SetFile DocFile(d), CodeDoc(d).Text
   NEXT
 END SUB
 
@@ -551,12 +642,13 @@ SUB AIInputKey(Key AS INTEGER, Shift AS INTEGER)
 END SUB
 
 SUB AIStopClick
-  AI.Stop
+  AI.Cancel
   AIEnableSend
 END SUB
 
 SUB AINewChat
   AI.NewChat
+  AITools.ClearProposals
   AIChat.Text = AI.Transcript
   AIReviewBar.Visible = 0
   AIStatus.SimpleText = AI.Status
@@ -575,13 +667,18 @@ SUB AIDone(Status AS STRING)
   ' (one sentence, announced: what happened, and what to do now)
   AIStatus.SimpleText = AI.Status
   AIEnableSend
-  n = AI.ProposalCount
+  n = AITools.ProposalCount
   IF Status = "ok" AND n > 0 THEN
     AIReviewText.Caption = AI.Status
     AIReviewBar.Visible = 1
     IF AIProjectProposal THEN AIReviewBtn.Caption = "Preview..." ELSE AIReviewBtn.Caption = "Review..."
   END IF
-  IF AI.Usage <> "" THEN AIStatus.Hint = AI.Usage
+  AIMeter.Caption = AI.Usage
+END SUB
+
+' (no key: Tools > Settings > AI asks for one)
+SUB AIKeyNeeded
+  AIStatus.SimpleText = "There is no key for " + AIProviderName + ": Tools > Settings > AI."
 END SUB
 
 SUB AIErrorSaid(Message AS STRING)
@@ -590,10 +687,11 @@ END SUB
 
 SUB AIModelsIn(Count AS INTEGER)
   AIFilling = 1
-  ' (none chosen yet: the provider's suggestion)
-  IF AI.Model = "" THEN
-    AI.Model = AI.SuggestedModel
-    AISetModelOf AI.Provider, AI.Model
+  ' (nothing is chosen for the user; a model chosen before that the
+  ' provider no longer lists is forgotten: chosen again)
+  IF AI.Model = "" AND AIModelOf(AI.Provider) <> "" THEN
+    OutputLine "AI: " + AIModelOf(AI.Provider) + " is no longer in the provider's list: choose a model again"
+    AISetModelOf AI.Provider, ""
   END IF
   AIFillModels
   AIFilling = 0
@@ -617,6 +715,7 @@ SUB AIModelPicked
   AI.Model = AIModelId(AIModelBox.Text)
   AISetModelOf AI.Provider, AI.Model
   AIEnableSend
+  AIShowOrHide
 END SUB
 
 SUB AISentLinkClick
@@ -629,8 +728,9 @@ SUB ShowWhatWasSent
   ELSE
     AISentText.Text = AI.LastRequest
   END IF
-  AISentWhere.Caption = "Your key is never shown or logged. The audit log of every request and change: " + AI.AuditLocation
-  AISentOk.Left = AISent.ClientWidth - 104: AISentOk.Top = 12: AISentOk.Width = 88: AISentOk.Height = 30
+  AISentWhere.Caption = "Your key is never shown or logged. Every request and change is in the audit log on this computer: " + AI.AuditLocation
+  AISentOk.Left = AISent.ClientWidth - 104: AISentOk.Top = 14: AISentOk.Width = 88: AISentOk.Height = 30
+  AISentWhere.Top = 10: AISentWhere.Height = 40
   AISentWhere.Width = AISent.ClientWidth - 140
   AISent.Center
   AISent.ShowModal
@@ -646,8 +746,8 @@ END SUB
 FUNCTION AIProjectProposal AS INTEGER
   DIM i AS INTEGER
   Result = 0
-  FOR i = 0 TO AI.ProposalCount - 1
-    IF FIELD$(AI.ProposalInfo(i), CHR$(9), 1) = "project" THEN Result = 1
+  FOR i = 0 TO AITools.ProposalCount - 1
+    IF FIELD$(AITools.ProposalInfo(i), CHR$(9), 1) = "project" THEN Result = 1
   NEXT
 END FUNCTION
 
@@ -657,18 +757,18 @@ END SUB
 
 SUB ShowAIReview
   DIM i AS INTEGER, info AS STRING, n AS INTEGER
-  n = AI.ProposalCount
+  n = AITools.ProposalCount
   IF n = 0 THEN EXIT SUB
   IF n > AIMAXPROPS THEN n = AIMAXPROPS
   AIRevList.Clear
   FOR i = 0 TO n - 1
-    info = AI.ProposalInfo(i)
+    info = AITools.ProposalInfo(i)
     IF FIELD$(info, CHR$(9), 1) = "create" THEN
       AIRevList.AddItems FIELD$(info, CHR$(9), 2) + " (new)"
     ELSE
       AIRevList.AddItems FIELD$(info, CHR$(9), 2)
     END IF
-    AIRevResult(i) = AI.ProposalOld(i)
+    AIRevResult(i) = AITools.ProposalOld(i)
     AIRevSeen(i) = 0
   NEXT
   AIRevAt = -1
@@ -700,11 +800,12 @@ SUB AIRevShow(i AS INTEGER)
   DIM info AS STRING, h AS INTEGER
   AIRevKeep
   AIRevAt = i
-  info = AI.ProposalInfo(i)
-  AIRevHead.Caption = "  " + FIELD$(info, CHR$(9), 2) + ": " + FIELD$(info, CHR$(9), 3)
+  info = AITools.ProposalInfo(i)
+  AIRevHead.Caption = FIELD$(info, CHR$(9), 2) + ": " + FIELD$(info, CHR$(9), 3)
+  AIRevHead.Width = AIReview.ClientWidth - 32
   AIRevDiff.Language = FIELD$(info, CHR$(9), 2)
-  AIRevDiff.LeftText = AI.ProposalOld(i)
-  AIRevDiff.RightText = AI.ProposalNew(i)
+  AIRevDiff.LeftText = AITools.ProposalOld(i)
+  AIRevDiff.RightText = AITools.ProposalNew(i)
   ' (what was decided before, shown again)
   IF AIRevSeen(i) THEN
     IF AIRevResult(i) = AIRevDiff.RightText THEN AIRevDiff.AcceptAll
@@ -728,9 +829,9 @@ END SUB
 
 SUB AIRevAcceptAll
   DIM i AS INTEGER
-  FOR i = 0 TO AI.ProposalCount - 1
+  FOR i = 0 TO AITools.ProposalCount - 1
     IF i < AIMAXPROPS THEN
-      AIRevResult(i) = AI.ProposalNew(i)
+      AIRevResult(i) = AITools.ProposalNew(i)
       AIRevSeen(i) = 1
     END IF
   NEXT
@@ -740,9 +841,9 @@ END SUB
 
 SUB AIRevRejectAll
   DIM i AS INTEGER
-  FOR i = 0 TO AI.ProposalCount - 1
+  FOR i = 0 TO AITools.ProposalCount - 1
     IF i < AIMAXPROPS THEN
-      AIRevResult(i) = AI.ProposalOld(i)
+      AIRevResult(i) = AITools.ProposalOld(i)
       AIRevSeen(i) = 1
     END IF
   NEXT
@@ -767,15 +868,15 @@ END SUB
 SUB AIApplyProposals
   DIM i AS INTEGER, info AS STRING, kind AS STRING, path AS STRING, full AS STRING
   DIM d AS INTEGER, newText AS STRING, patch AS STRING, done AS INTEGER, f AS RFileStream
-  FOR i = 0 TO AI.ProposalCount - 1
+  FOR i = 0 TO AITools.ProposalCount - 1
     IF i >= AIMAXPROPS THEN EXIT FOR
-    info = AI.ProposalInfo(i)
+    info = AITools.ProposalInfo(i)
     kind = FIELD$(info, CHR$(9), 1)
     path = FIELD$(info, CHR$(9), 2)
     full = ProjectPath(path)
     newText = AIRevResult(i)
-    IF newText = AI.ProposalOld(i) THEN
-      AI.Decide i, "rejected"
+    IF newText = AITools.ProposalOld(i) THEN
+      AITools.Decide i, "rejected"
     ELSEIF kind = "create" AND FILEEXISTS(full) = 0 THEN
       f.Open(full, 65535)
       f.WriteStr(newText, LEN(newText))
@@ -785,7 +886,7 @@ SUB AIApplyProposals
       END IF
       FillProjectTree
       OpenDocument full
-      AI.Decide i, "applied"
+      AITools.Decide i, "applied"
       done = done + 1
     ELSE
       d = DocOf(full)
@@ -795,15 +896,15 @@ SUB AIApplyProposals
       END IF
       IF d < 0 THEN
         OutputLine "AI: can't open " + path + " to change it"
-      ELSEIF AIMatches(CodeDoc(d).Text, AI.ProposalOld(i)) = 0 THEN
+      ELSEIF AIMatches(CodeDoc(d).Text, AITools.ProposalOld(i)) = 0 THEN
         ' (the user changed it since the assistant read it: never overwritten)
         OutputLine "AI: " + path + " changed since the assistant read it; its change wasn't applied (ask again)"
-        AI.Decide i, "rejected"
+        AITools.Decide i, "rejected"
       ELSE
-        patch = AI.Patch(CodeDoc(d).Text, newText)
+        patch = AITools.Patch(CodeDoc(d).Text, newText)
         IF patch <> "" THEN CodeDoc(d).ApplyPatches patch, 0
         ProjectFileChanged d
-        IF newText = AI.ProposalNew(i) THEN AI.Decide i, "applied" ELSE AI.Decide i, "partly"
+        IF newText = AITools.ProposalNew(i) THEN AITools.Decide i, "applied" ELSE AITools.Decide i, "partly"
         done = done + 1
       END IF
     END IF
@@ -829,8 +930,8 @@ SUB ShowAINew
   DIM i AS INTEGER, info AS STRING, mainAt AS INTEGER, name AS STRING
   AINewFiles.Clear
   mainAt = 0
-  FOR i = 0 TO AI.ProposalCount - 1
-    info = AI.ProposalInfo(i)
+  FOR i = 0 TO AITools.ProposalCount - 1
+    info = AITools.ProposalInfo(i)
     IF FIELD$(info, CHR$(9), 1) = "project" THEN
       AINewFiles.AddItems FIELD$(info, CHR$(9), 2)
       IF FIELD$(info, CHR$(9), 5) = "1" THEN mainAt = AINewFiles.ItemCount - 1
@@ -838,7 +939,11 @@ SUB ShowAINew
       AINewWhat.Caption = FIELD$(info, CHR$(9), 3)
     END IF
   NEXT
-  AINewTitle.Caption = name + ": " + LTRIM$(STR$(AINewFiles.ItemCount)) + " files, previewed: nothing is written until you press Create"
+  IF AINewFiles.ItemCount = 1 THEN
+    AINewTitle.Caption = name + ": 1 file, previewed: nothing is written until you press Create"
+  ELSE
+    AINewTitle.Caption = name + ": " + LTRIM$(STR$(AINewFiles.ItemCount)) + " files, previewed: nothing is written until you press Create"
+  END IF
   IF AINewFolder.Text = "" THEN AINewFolder.Text = DefaultFolder
   AINewFiles.ItemIndex = mainAt
   AINewShow mainAt
@@ -861,8 +966,8 @@ FUNCTION AINewProposal(k AS INTEGER) AS INTEGER
   DIM i AS INTEGER, seen AS INTEGER
   Result = -1
   seen = -1
-  FOR i = 0 TO AI.ProposalCount - 1
-    IF FIELD$(AI.ProposalInfo(i), CHR$(9), 1) = "project" THEN
+  FOR i = 0 TO AITools.ProposalCount - 1
+    IF FIELD$(AITools.ProposalInfo(i), CHR$(9), 1) = "project" THEN
       seen = seen + 1
       IF seen = k THEN
         Result = i
@@ -876,10 +981,10 @@ SUB AINewShow(k AS INTEGER)
   DIM i AS INTEGER
   i = AINewProposal(k)
   IF i < 0 THEN EXIT SUB
-  AINewCode.Language = FIELD$(AI.ProposalInfo(i), CHR$(9), 2)
-  AINewCode.Text = AI.ProposalNew(i)
+  AINewCode.Language = FIELD$(AITools.ProposalInfo(i), CHR$(9), 2)
+  AINewCode.Text = AITools.ProposalNew(i)
   ' (its form, drawn as the program will draw it)
-  AINewForm.Source = AI.ProposalNew(i)
+  AINewForm.Source = AITools.ProposalNew(i)
   AINewForm.Visible = Flag(AINewForm.FormName <> "")
 END SUB
 
@@ -898,9 +1003,9 @@ SUB AINewCreate
   DIM main AS STRING
   IF AINewFolder.Text = "" THEN AINewFolder.Text = DefaultFolder
   IF DIREXISTS(AINewFolder.Text) = 0 THEN MKDIR AINewFolder.Text
-  main = AI.CreateProject(AINewFolder.Text)
-  IF main = "" THEN
-    SHOWMESSAGE "Can't create the project: " + AI.Error
+  main = AITools.CreateProject(AINewFolder.Text)
+  IF main = "" OR LEFT$(main, 6) = "error:" THEN
+    SHOWMESSAGE "Can't create the project: " + MID$(main, 8)
     EXIT SUB
   END IF
   AINew.Close
@@ -922,7 +1027,7 @@ FUNCTION AICommand(Id AS STRING) AS INTEGER
   SELECT CASE Id
     CASE "ai.assistant": ShowAIPanel
     CASE "ai.newChat": IF AIOn THEN AINewChat
-    CASE "ai.review": IF AI.ProposalCount > 0 THEN AIReviewClick
+    CASE "ai.review": IF AITools.ProposalCount > 0 THEN AIReviewClick
     CASE "ai.whatWasSent": ShowWhatWasSent
     CASE "ai.settings": ShowSettingsPage 1
     CASE ELSE: Result = 0
@@ -944,6 +1049,9 @@ SUB AIStep(Stp AS STRING)
   END IF
   SELECT CASE verb
     CASE "on": SetAIOn 1
+    CASE "ready"
+      ' (the AI's commands and pane, once ready)
+      AIShowOrHide
     CASE "off": SetAIOn 0
     CASE "provider"
       AIProvider = arg
@@ -954,6 +1062,7 @@ SUB AIStep(Stp AS STRING)
     CASE "model"
       AISetModelOf AIProvider, arg
       AIApplySettings
+      AIShowOrHide
     CASE "workspace"
       AIWorkspace = arg
       AIApplySettings
@@ -961,11 +1070,17 @@ SUB AIStep(Stp AS STRING)
       AIPermission = arg
       AIApplySettings
     CASE "key"
-      ' (tests and the manual's pictures only: a made-up key, never a real one)
+      ' (tests and the manual's pictures only: a made-up key, never a real
+      ' one — kept in memory, never in the keychain)
       AI.Provider = AIProvider
-      AI.SetKey arg
+      AI.APIKey = arg
       AIApplySettings
-    CASE "fetch": AI.FetchModels
+      AIShowOrHide
+    CASE "fetch": AI.RefreshModels
+    CASE "prices"
+      AIPriceIn = VAL(FIELD$(arg, "/", 1))
+      AIPriceOut = VAL(FIELD$(arg, "/", 2))
+      AIApplySettings
     CASE "ask"
       AIInput.Text = arg
       AISend
@@ -992,11 +1107,183 @@ END SUB
 ' (the review's state made without showing it: ai:apply)
 SUB ShowAIReviewQuietly
   DIM i AS INTEGER
-  FOR i = 0 TO AI.ProposalCount - 1
+  FOR i = 0 TO AITools.ProposalCount - 1
     IF i < AIMAXPROPS THEN
-      AIRevResult(i) = AI.ProposalOld(i)
+      AIRevResult(i) = AITools.ProposalOld(i)
       AIRevSeen(i) = 0
     END IF
   NEXT
   AIRevAt = -1
+END SUB
+
+' ---- an RAI on a form, live in the designer ------------------------------------------
+' Its Provider is offered from a list; once it has a key, its Model's list
+' is the provider's own, fetched in the background (DesignAI, an RAI of
+' Studio's) — when the key is typed, when the provider or the key's source
+' change, when the Model row is selected; "↻ Refresh the list" fetches it
+' again. A key typed in the APIKey row is kept in the developer's keychain
+' under a name; the code says only where it is (APIKeySource =
+' "keychain:NAME|ask"): the key itself is never written into the program.
+
+' (the RAI, provider and base URL the list was fetched for; the list and
+' its note, given again when that RAI is shown again)
+DIM DesignAIFor AS STRING, DesignAIList AS STRING, DesignAINote AS STRING
+
+' (the RAI the inspector shows, its provider, its base URL)
+FUNCTION DesignAIKey AS STRING
+  Result = Inspector.Target + "|" + DesignAI.Provider + "|" + DesignAI.BaseURL
+END FUNCTION
+
+' (the RAI the inspector shows, if it shows one)
+FUNCTION DesignAIShown AS INTEGER
+  Result = Flag(UCASE$(Inspector.TargetType) = "RAI" AND INSTR(Inspector.Target, ",") = 0 AND Inspector.Target <> "")
+END FUNCTION
+
+' (a value as the inspector shows it: its text)
+FUNCTION InspectedText(Prop AS STRING) AS STRING
+  Result = Unquote(Inspector.Value(Prop))
+END FUNCTION
+
+' (a key source's first keychain name)
+FUNCTION KeychainNameOf(Source AS STRING) AS STRING
+  DIM i AS INTEGER, part AS STRING
+  Result = ""
+  FOR i = 1 TO TALLY(Source, "|") + 1
+    part = LTRIM$(RTRIM$(FIELD$(Source, "|", i)))
+    IF LCASE$(LEFT$(part, 9)) = "keychain:" THEN
+      Result = MID$(part, 10)
+      EXIT FUNCTION
+    END IF
+  NEXT
+END FUNCTION
+
+' The designed RAI's provider, base URL and key source into DesignAI.
+SUB DesignAITake
+  DesignAI.Provider = InspectedText("Provider")
+  DesignAI.BaseURL = InspectedText("BaseURL")
+  DesignAI.WorkspaceID = InspectedText("WorkspaceID")
+  DesignAI.APIKeySource = InspectedText("APIKeySource")
+END SUB
+
+' Fetches the designed RAI's models (when it has a provider and a key).
+SUB DesignAIModels
+  IF DesignAIShown = 0 THEN EXIT SUB
+  DesignAITake
+  IF DesignAI.Provider = "" THEN
+    Inspector.SetNote "Model", "Choose a Provider first: its models are listed here then."
+    EXIT SUB
+  END IF
+  IF DesignAI.NeedsKey AND DesignAI.HasKey = 0 THEN
+    Inspector.SetNote "Model", "Type the API key in APIKey (kept in your keychain, never in the code): the provider's models are listed here then."
+    EXIT SUB
+  END IF
+  DesignAIFor = DesignAIKey
+  DesignAIList = ""
+  Inspector.SetNote "Model", "Loading " + DesignAIProviderName + "'s models…"
+  IF DesignAI.RefreshModels = 0 THEN Inspector.SetNote "Model", DesignAI.Error
+END SUB
+
+SUB DesignAIModelsIn(Count AS INTEGER)
+  DIM i AS INTEGER, list AS STRING, fast AS STRING, line AS STRING
+  ' (another RAI shown meanwhile: not its list)
+  IF DesignAIShown = 0 OR FIELD$(DesignAIFor, "|", 1) <> Inspector.Target THEN EXIT SUB
+  list = "↻ Refresh the list"
+  FOR i = 1 TO TALLY(DesignAI.Models, CHR$(10)) + 1
+    line = FIELD$(DesignAI.Models, CHR$(10), i)
+    IF line <> "" THEN
+      list = list + CHR$(10) + FIELD$(line, CHR$(9), 1)
+      IF fast = "" AND FIELD$(line, CHR$(9), 3) = "fast · low cost" THEN fast = FIELD$(line, CHR$(9), 1)
+    END IF
+  NEXT
+  IF fast <> "" THEN
+    DesignAINote = LTRIM$(STR$(Count)) + " models from " + DesignAIProviderName + ", fast, low-cost ones first: pick one."
+  ELSE
+    DesignAINote = LTRIM$(STR$(Count)) + " models from " + DesignAIProviderName + ": pick one."
+  END IF
+  DesignAIList = list
+  Inspector.SetChoices "Model", DesignAIList
+  Inspector.SetNote "Model", DesignAINote
+END SUB
+
+' (the designed RAI's provider, by its name)
+FUNCTION DesignAIProviderName AS STRING
+  DIM i AS INTEGER, line AS STRING
+  Result = DesignAI.Provider
+  FOR i = 1 TO TALLY(DesignAI.Providers, CHR$(10)) + 1
+    line = FIELD$(DesignAI.Providers, CHR$(10), i)
+    IF LCASE$(FIELD$(line, CHR$(9), 1)) = LCASE$(DesignAI.Provider) THEN Result = FIELD$(line, CHR$(9), 2)
+  NEXT
+END FUNCTION
+
+SUB DesignAIError(Message AS STRING)
+  IF DesignAIShown THEN Inspector.SetNote "Model", Message
+END SUB
+
+' The inspector changed one of the RAI's rows; True when it was handled
+' here (the key: never shown, never in the code).
+FUNCTION DesignAIChanged(Prop AS STRING, Value AS STRING) AS INTEGER
+  DIM p AS STRING, src AS STRING, nm AS STRING
+  Result = 0
+  IF DesignAIShown = 0 THEN EXIT FUNCTION
+  p = LCASE$(Prop)
+  IF p = "apikey" THEN
+    Result = 1
+    src = InspectedText("APIKeySource")
+    nm = KeychainNameOf(src)
+    IF nm = "" THEN nm = "RapidR/" + ProjectName + "/" + Inspector.Target
+    DesignAITake
+    DesignAI.APIKeySource = "keychain:" + nm
+    DesignAI.APIKey = Value
+    IF DesignAI.RememberKey(0) THEN
+      ' (the code names where the key is — and asks the program's user
+      ' wherever the keychain doesn't have it)
+      IF KeychainNameOf(src) = "" THEN Inspector.SetValue "APIKeySource", "keychain:" + nm + "|ask"
+      SetState RunState, "The key is kept in " + DesignAI.KeyStore + " as " + CHR$(34) + nm + CHR$(34) + ": the program names it, never the key."
+    ELSE
+      SetState "error", DesignAI.Error
+    END IF
+    DesignAI.APIKey = ""
+    DesignAIKeyNote
+    DesignAIModels
+  ELSEIF p = "provider" OR p = "baseurl" OR p = "apikeysource" OR p = "workspaceid" THEN
+    Inspector.SetChoices "Model", ""
+    DesignAIKeyNote
+    DesignAIModels
+  END IF
+END FUNCTION
+
+' (the APIKey row says where the key is kept, never the key)
+SUB DesignAIKeyNote
+  DIM nm AS STRING
+  DesignAITake
+  nm = KeychainNameOf(DesignAI.APIKeySource)
+  IF DesignAI.HasKey AND nm <> "" THEN
+    Inspector.SetNote "APIKey", "A key (" + DesignAI.KeyHint + ") is kept in " + DesignAI.KeyStore + " as " + CHR$(34) + nm + CHR$(34) + ": the code names it, never the key. Type another to replace it."
+  ELSEIF DesignAI.HasKey THEN
+    Inspector.SetNote "APIKey", "A key (" + DesignAI.KeyHint + ") is found in the " + DesignAI.KeySource + ": the code never holds it."
+  ELSE
+    Inspector.SetNote "APIKey", ""
+  END IF
+END SUB
+
+' (↻ Refresh the list, picked in the Model row)
+SUB InspectorEditorRequest(Prop AS STRING)
+  IF DesignAIShown AND LCASE$(Prop) = "model" THEN DesignAIModels
+END SUB
+
+' (the Model row selected: its list, fetched once per RAI and provider;
+' the APIKey row: where its key is)
+SUB InspectorRowSelected(Prop AS STRING)
+  IF DesignAIShown = 0 THEN EXIT SUB
+  SELECT CASE LCASE$(Prop)
+    CASE "model"
+      DesignAITake
+      IF DesignAIFor <> DesignAIKey THEN
+        DesignAIModels
+      ELSEIF DesignAIList <> "" THEN
+        Inspector.SetChoices "Model", DesignAIList
+        Inspector.SetNote "Model", DesignAINote
+      END IF
+    CASE "apikey": DesignAIKeyNote
+  END SELECT
 END SUB

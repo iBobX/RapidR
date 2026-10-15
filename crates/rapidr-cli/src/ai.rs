@@ -6,11 +6,14 @@
 //!   rapidr ai models --provider P [--base-url URL]       the models the key can use
 //!   rapidr ai ask --provider P [--model M] [--max-tokens N] [--base-url URL] "question"
 //!
-//! The key is the one Studio keeps (the OS keychain), else the provider's
-//! environment variable (ANTHROPIC_API_KEY, OPENAI_API_KEY,
-//! DEEPSEEK_API_KEY; Anthropic's workspace: ANTHROPIC_WORKSPACE_ID). It is
-//! never printed. `ask` sends only the question (no project, no tools) and
-//! streams the answer; the tokens used go to standard error.
+//! The key is the one RapidR Studio keeps for the provider (the OS
+//! keychain's "RapidR Studio/<provider>"), else the provider's environment
+//! variable (ANTHROPIC_API_KEY, OPENAI_API_KEY, DEEPSEEK_API_KEY;
+//! Anthropic's workspace: ANTHROPIC_WORKSPACE_ID); `--key-source` names
+//! another (`keychain:NAME|env:VAR`). It is never printed. No model is
+//! assumed: `ask` needs `--model` (`models` lists them). `ask` sends only
+//! the question (no project, no tools) and streams the answer; the tokens
+//! used go to standard error.
 
 use std::io::Write;
 use std::process::ExitCode;
@@ -30,7 +33,7 @@ fn endpoint(args: &[String]) -> Result<Endpoint, String> {
     let mut ep = Endpoint::new(p);
     ep.base_url = opt(args, "--base-url").unwrap_or_default();
     ep.workspace = opt(args, "--workspace").unwrap_or_else(|| keys::env_workspace(p.id));
-    match keys::get(p.id).0 {
+    match keys::resolve(&opt(args, "--key-source").unwrap_or_else(|| studio_source(p))).0 {
         Some(k) => ep.key = k,
         None if p.needs_key => return Err(format!("no {} key: set {} (or save one in RapidR Studio: Tools > Settings > AI)", wire::short_name(p), p.env_key)),
         None => {}
@@ -38,18 +41,27 @@ fn endpoint(args: &[String]) -> Result<Endpoint, String> {
     Ok(ep)
 }
 
+/// Where RapidR Studio keeps a provider's key, then its usual variable.
+fn studio_source(p: &rapidr_ai::Provider) -> String {
+    let mut s = format!("keychain:RapidR Studio/{}", p.id);
+    if !p.env_key.is_empty() {
+        s.push_str(&format!("|env:{}", p.env_key));
+    }
+    s
+}
+
 pub fn command(args: &[String]) -> ExitCode {
     let run = || -> Result<(), String> {
         match args.first().map(String::as_str) {
             Some("providers") => {
                 for p in PROVIDERS {
-                    let key = match keys::get(p.id) {
+                    let key = match keys::resolve(&studio_source(p)) {
                         (Some(k), keys::Source::Environment) => format!("key from {} ({})", p.env_key, keys::hint(&k)),
                         (Some(k), _) => format!("key kept ({})", keys::hint(&k)),
                         (None, _) if p.needs_key => "no key".to_string(),
                         (None, _) => "no key needed".to_string(),
                     };
-                    println!("{:<11} {:<46} default {:<18} {key}", p.id, p.name, if p.default_model.is_empty() { "-" } else { p.default_model });
+                    println!("{:<11} {:<46} {key}", p.id, p.name);
                 }
                 println!("Keys are kept in {}.", keys::store_name());
                 Ok(())
@@ -65,10 +77,10 @@ pub fn command(args: &[String]) -> ExitCode {
                 }
                 let models = wire::parse_models(ep.provider, &text)?;
                 for m in &models {
-                    let hint = wire::cost_hint(ep.provider, &m.id);
+                    let hint = wire::model_hint(&format!("{} {}", m.id, m.name));
                     println!("{}{}{}", m.id, if m.name.is_empty() { String::new() } else { format!("  ({})", m.name) }, if hint.is_empty() { String::new() } else { format!("  {hint}") });
                 }
-                eprintln!("{} models; to start with: {}", models.len(), wire::suggested_model(ep.provider, &models));
+                eprintln!("{} models, the fast, low-cost ones first", models.len());
                 Ok(())
             }
             Some("ask") => {
@@ -78,12 +90,9 @@ pub fn command(args: &[String]) -> ExitCode {
                 if question.trim().is_empty() {
                     return Err("give the question".into());
                 }
-                let model = opt(rest, "--model").unwrap_or_else(|| wire::suggested_model(ep.provider, &[]));
-                if model.is_empty() {
-                    return Err("give --model (rapidr ai models lists them)".into());
-                }
+                let model = opt(rest, "--model").filter(|m| !m.is_empty()).ok_or("give --model: no model is assumed (rapidr ai models lists the provider's)")?;
                 let max = opt(rest, "--max-tokens").and_then(|m| m.parse().ok()).unwrap_or(1024);
-                let req = ChatRequest { model: model.clone(), system: String::new(), messages: vec![Message::user(&question)], tools: Vec::new(), max_tokens: max, reasoning_effort: None };
+                let req = ChatRequest { model: model.clone(), system: String::new(), system_tail: String::new(), messages: vec![Message::user(&question)], tools: Vec::new(), max_tokens: max, reasoning_effort: None };
                 let http = wire::chat_request(&ep, &req);
                 let mut decoder = Decoder::new(ep.provider.format);
                 let mut reply = Reply::default();

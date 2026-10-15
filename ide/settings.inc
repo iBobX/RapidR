@@ -27,6 +27,7 @@ DECLARE SUB AISetKeySave
 DECLARE SUB AISetKeyRemove
 DECLARE SUB AISetFetch
 DECLARE SUB AISetLink(Url AS STRING, Sender AS RMarkdownView)
+DECLARE SUB AISetPricesClick
 
 ' (the provider shown on the AI tab, and what was typed for it)
 DIM AISetProv AS STRING
@@ -89,6 +90,12 @@ CREATE SettingsDialog AS RForm
       AccessibleName = "AI provider"
       OnChange = AISetProviderPicked
     END CREATE
+    CREATE AIPricesLink AS RLabel
+      Caption = "See prices"
+      Cursor = -21
+      AccessibleName = "The provider's prices, in the browser"
+      OnClick = AISetPricesClick
+    END CREATE
     CREATE AIKeyLabel AS RLabel
       Caption = "API &key:"
     END CREATE
@@ -146,6 +153,18 @@ CREATE SettingsDialog AS RForm
     CREATE AIMaxUnit AS RLabel
       Caption = "tokens (a cost limit for each answer)"
     END CREATE
+    CREATE AIPriceLabel AS RLabel
+      Caption = "&Prices:"
+    END CREATE
+    CREATE AIPriceInEdit AS REdit
+      AccessibleName = "Price of a million tokens sent, in dollars (optional)"
+    END CREATE
+    CREATE AIPriceOutEdit AS REdit
+      AccessibleName = "Price of a million tokens received, in dollars (optional)"
+    END CREATE
+    CREATE AIPriceUnit AS RLabel
+      Caption = "$ per million tokens sent / received"
+    END CREATE
     CREATE AIPermLabel AS RLabel
       Caption = "&It may:"
     END CREATE
@@ -182,7 +201,7 @@ SUB LayOutSettingsDialog
     pad = 20: w = 540: bh = 32: bw = 96: nh = 66: lh = 150: side = 140: th = 30: row = 38: fh = 28
   END IF
   SettingsDialog.Font.Name = UIFont.Name: SettingsDialog.Font.Size = UIFont.Size
-  ph = 470
+  ph = 548
   SettingsTabs.Left = pad: SettingsTabs.Top = pad - 8: SettingsTabs.Width = w: SettingsTabs.Height = th
   GenPage.Left = 0: GenPage.Top = pad - 8 + th: GenPage.Width = w + 2 * pad: GenPage.Height = ph
   AIPage.Left = 0: AIPage.Top = pad - 8 + th: AIPage.Width = w + 2 * pad: AIPage.Height = ph
@@ -211,7 +230,9 @@ SUB LayOutSettingsDialog
   AIOnNote.Font.Color = TC("page.dim")
   y = y + 74
   AIProvLabel.Left = lx: AIProvLabel.Top = y + 5: AIProvLabel.Width = 108
-  AIProvBox.Left = fx: AIProvBox.Top = y: AIProvBox.Width = fw
+  AIProvBox.Left = fx: AIProvBox.Top = y: AIProvBox.Width = fw - 100
+  AIPricesLink.Left = fx + fw - 90: AIPricesLink.Top = y + 5: AIPricesLink.Width = 90
+  AIPricesLink.Font.Color = TC("page.link")
   y = y + row
   AIKeyLabel.Left = lx: AIKeyLabel.Top = y + 5: AIKeyLabel.Width = 108
   AIKeyEdit.Left = fx: AIKeyEdit.Top = y: AIKeyEdit.Width = fw - 196: AIKeyEdit.Height = fh
@@ -237,6 +258,12 @@ SUB LayOutSettingsDialog
   AIMaxEdit.Left = fx: AIMaxEdit.Top = y: AIMaxEdit.Width = 80: AIMaxEdit.Height = fh
   AIMaxUnit.Left = fx + 90: AIMaxUnit.Top = y + 5: AIMaxUnit.Width = fw - 90
   AIMaxUnit.Font.Color = TC("page.dim")
+  y = y + row
+  AIPriceLabel.Left = lx: AIPriceLabel.Top = y + 5: AIPriceLabel.Width = 108
+  AIPriceInEdit.Left = fx: AIPriceInEdit.Top = y: AIPriceInEdit.Width = 60: AIPriceInEdit.Height = fh
+  AIPriceOutEdit.Left = fx + 68: AIPriceOutEdit.Top = y: AIPriceOutEdit.Width = 60: AIPriceOutEdit.Height = fh
+  AIPriceUnit.Left = fx + 136: AIPriceUnit.Top = y + 5: AIPriceUnit.Width = fw - 136
+  AIPriceUnit.Font.Color = TC("page.dim")
   y = y + row
   AIPermLabel.Left = lx: AIPermLabel.Top = y + 5: AIPermLabel.Width = 108
   AIPermBox.Left = fx: AIPermBox.Top = y: AIPermBox.Width = fw
@@ -366,6 +393,8 @@ SUB AISettingsFill
     IF AIProvIds(k) = AISetProv THEN AIProvBox.ItemIndex = k
   NEXT
   IF AIMaxTokens > 0 THEN AIMaxEdit.Text = LTRIM$(STR$(AIMaxTokens)) ELSE AIMaxEdit.Text = "4096"
+  IF AIPriceIn > 0 THEN AIPriceInEdit.Text = LTRIM$(STR$(AIPriceIn)) ELSE AIPriceInEdit.Text = ""
+  IF AIPriceOut > 0 THEN AIPriceOutEdit.Text = LTRIM$(STR$(AIPriceOut)) ELSE AIPriceOutEdit.Text = ""
   IF AIPermission = "read-only" THEN AIPermBox.ItemIndex = 1 ELSE AIPermBox.ItemIndex = 0
   AIWsEdit.Text = AIWorkspace
   AISettingsProvider
@@ -377,6 +406,7 @@ SUB AISettingsProvider
   DIM keyNote AS STRING, links AS STRING, web AS INTEGER, model AS STRING
   web = Flag(Proj.FileManager = "")
   AI.Provider = AISetProv
+  AI.APIKeySource = AIKeySourceOf(AISetProv)
   IF AISetProv = "compatible" THEN
     IF AIBase <> "" THEN AIBaseBox.Text = AIBase ELSE AIBaseBox.Text = AI.BaseURL
   END IF
@@ -404,15 +434,15 @@ SUB AISettingsProvider
   IF AISetProv = "anthropic" AND web THEN
     AIWsLabel.Visible = 1: AIWsEdit.Visible = 1
   END IF
+  ' (the model the user chose for it; none until they do: Fetch Models
+  ' lists the provider's, the fast, low-cost ones first)
   model = AIModelOf(AISetProv)
   AIModelCombo.Clear
   IF model <> "" THEN AIModelCombo.AddItems model
   AIModelCombo.Text = model
-  IF model = "" THEN AIModelCombo.Text = AI.SuggestedModel
+  AIPricesLink.Visible = Flag(AI.PricingURL <> "")
   ' (the provider's own pages; what was sent)
-  IF AI.PricingURL <> "" THEN links = "[See costs](" + AI.PricingURL + ")"
-  IF AI.KeysURL <> "" THEN links = links + " · [Get a key](" + AI.KeysURL + ")"
-  IF links <> "" THEN links = links + " · "
+  IF AI.KeysURL <> "" THEN links = "[Get a key](" + AI.KeysURL + ") · "
   links = links + "[What was sent](#sent)" + CHR$(10) + CHR$(10)
   links = links + "Send shares your message, the chat so far, RapidR's instructions and what the assistant reads of the open project — nothing outside it, nothing before you press Send. A log of every request and change stays on this computer."
   AISetLinks.Text = links
@@ -432,11 +462,16 @@ FUNCTION AISetKeyTake AS INTEGER
   key = LTRIM$(RTRIM$(AIKeyEdit.Text))
   IF key = "" THEN EXIT FUNCTION
   AI.Provider = AISetProv
-  IF AI.SetKey(key, AIRemember.Checked) THEN
+  AI.APIKeySource = AIKeySourceOf(AISetProv)
+  AI.APIKey = key
+  ' (kept under Studio's name for the provider: the OS keychain; on the
+  ' web the tab's session, or this device when asked)
+  IF AI.RememberKey(AIRemember.Checked) THEN
     Result = 1
   ELSE
     SHOWMESSAGE AI.Error
   END IF
+  AI.APIKey = ""
   AIKeyEdit.Text = ""
 END FUNCTION
 
@@ -446,7 +481,8 @@ END SUB
 
 SUB AISetKeyRemove
   AI.Provider = AISetProv
-  AI.RemoveKey
+  AI.APIKeySource = AIKeySourceOf(AISetProv)
+  AI.ForgetKey
   AISettingsProvider
 END SUB
 
@@ -455,10 +491,11 @@ SUB AISetFetch
   AI.Provider = AISetProv
   IF AISetProv = "compatible" THEN AI.BaseURL = AIBaseBox.Text
   IF AISetProv = "anthropic" THEN AI.WorkspaceID = AIWsEdit.Text
-  AI.Model = ""
+  AI.APIKeySource = AIKeySourceOf(AISetProv)
+  AI.Model = AIModelOf(AISetProv)
   AIFetchBtn.Enabled = 0
   AIKeyNote.Caption = "Asking the provider for its models..."
-  IF AI.FetchModels = 0 THEN
+  IF AI.RefreshModels = 0 THEN
     AIFetchBtn.Enabled = 1
     AIKeyNote.Caption = AI.Error
   END IF
@@ -476,11 +513,15 @@ SUB AISettingsModelsIn
     line = FIELD$(all, CHR$(10), i)
     IF line <> "" THEN AIModelCombo.AddItems AIModelItem(line)
   NEXT
-  IF keep = "" THEN keep = AI.SuggestedModel
-  AIModelCombo.Text = keep
+  ' (nothing chosen for the user: what they chose, if the list still has it)
+  IF AI.Model = "" THEN keep = ""
   AISettingsProvider
   AIModelCombo.Text = keep
-  AIKeyNote.Caption = AI.Status + " " + AIKeyNote.Caption
+  IF keep = "" THEN
+    AIKeyNote.Caption = AI.Status + " Choose one (the fast, low-cost ones are first)."
+  ELSE
+    AIKeyNote.Caption = AI.Status + " " + AIKeyNote.Caption
+  END IF
 END SUB
 
 SUB AISetLink(Url AS STRING, Sender AS RMarkdownView)
@@ -501,6 +542,14 @@ SUB AISettingsTake
   IF n > 128000 THEN n = 128000
   AIMaxTokens = n
   IF AIPermBox.ItemIndex = 1 THEN AIPermission = "read-only" ELSE AIPermission = "propose"
+  AIPriceIn = VAL(AIPriceInEdit.Text)
+  AIPriceOut = VAL(AIPriceOutEdit.Text)
   AIApplySettings
-  IF Flag(AIOnBox.Checked) <> was THEN SetAIOn AIOnBox.Checked
+  AIOn = Flag(AIOnBox.Checked)
+  AIShowOrHide
+END SUB
+
+' (See prices: the provider's own page, in the browser)
+SUB AISetPricesClick
+  IF AI.PricingURL <> "" THEN AISetLinks.OpenLink AI.PricingURL
 END SUB

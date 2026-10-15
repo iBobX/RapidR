@@ -11,6 +11,13 @@ license.workspace = true
 # platform's (cfg: a thread and ureq on the desktop, fetch in a browser).
 [dependencies]
 serde_json = { version = "1", features = ["preserve_order"] }
+# (feature `component`) RAI, the component programs and RapidR Studio use:
+# its properties, methods and events in the runtimes' values
+rapidr-value = { workspace = true, optional = true }
+
+[features]
+default = []
+component = ["dep:rapidr-value"]
 
 # The desktop's HTTPS: ureq with the operating system's TLS (native-tls:
 # Security.framework, SChannel, OpenSSL 3 on Linux) — the same client and

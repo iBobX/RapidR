@@ -318,7 +318,9 @@ fn property(ctx: &Ctx, p: &Table, family: &str, set: Option<&str>, at: &str) -> 
     let ty_s = s(p, "type").unwrap_or("any");
     let ty = TYPES.iter().find(|(k, _)| *k == ty_s).ok_or_else(|| format!("{at}: type `{ty_s}`"))?.1;
     let values = strs(p, "values", at)?;
-    for v in &values {
+    // (a string's values are the words it is offered — RAI's Provider —, an
+    // enum's or a set's the constants they are)
+    for v in values.iter().filter(|_| ty != "String") {
         if !ctx.constants.contains_key(&v.to_ascii_lowercase()) {
             return Err(format!("{at}: value `{v}` isn't a constant (constants.toml)"));
         }
@@ -418,7 +420,7 @@ fn property(ctx: &Ctx, p: &Table, family: &str, set: Option<&str>, at: &str) -> 
 
 /// The inspector's editors a property may ask for beyond its type's
 /// (RPropertyInspector, docs/ide-components.md §3.4).
-const EDITORS: &[&str] = &["strings", "columns", "file", "picture", "multiline", "sql", "expression"];
+const EDITORS: &[&str] = &["strings", "columns", "file", "picture", "multiline", "sql", "expression", "secret"];
 
 fn method(ctx: &Ctx, m: &Table, family: &str, set: Option<&str>, at: &str) -> Res<String> {
     keys_allowed(m, &["name", "params", "returns", "value", "origin", "from", "only", "missing", "test", "doc", "effects", "risk", "example"], at)?;

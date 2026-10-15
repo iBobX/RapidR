@@ -55,7 +55,14 @@ pub fn location() -> String {
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
-        path().map_or_else(|| "nowhere (no settings folder)".into(), |p| p.display().to_string())
+        let Some(p) = path() else { return "nowhere (no settings folder)".into() };
+        // (under the home folder: "~/…", as a Unix user writes it)
+        if cfg!(unix) {
+            if let Some(rest) = std::env::var_os("HOME").filter(|h| !h.is_empty()).and_then(|h| p.strip_prefix(h).ok().map(|r| r.display().to_string())) {
+                return format!("~/{rest}");
+            }
+        }
+        p.display().to_string()
     }
 }
 

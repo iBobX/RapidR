@@ -6,6 +6,7 @@
 // scripted answers chosen by the conversation's first message:
 //
 //   "hello …"          a short answer
+//   "say hello …"      five words (examples/ai/rai_models.rr's question)
 //   "rename …"         read_file the main file, then propose_edit its form's Caption → "AI Notes"
 //   "build me …"       create_project: a hello-form program (it compiles)
 //   "check …"          check_code, then say what it found
@@ -109,6 +110,8 @@ function script(first, results, system) {
     if (step === 0) return { tools: [{ name: "write_file", input: { path: "../outside.txt", text: "pwned", summary: "x" } }] };
     return { text: "I can't change files here." };
   }
+  // (examples/ai/rai_models.rr's question)
+  if (q.startsWith("say hello")) return { text: "Hello, friend, nice meeting you." };
   return { text: "Hello from the mock assistant! Ask me to **rename** the window, **build me** a program, or **check** the code." };
 }
 
@@ -151,6 +154,16 @@ function sseAnthropic(res, answer, model) {
   res.end();
 }
 
+// The models it lists: the tests' two, or (the manual's pictures) the ones
+// AI_MOCK_MODELS names, "id:Display name,id2" — made-up names, never a real
+// provider's.
+const MODELS = process.env.AI_MOCK_MODELS
+  ? process.env.AI_MOCK_MODELS.split(",").map((m, i, all) => {
+    const [id, name] = m.split(":");
+    return { id, object: "model", created: all.length - i, ...(name ? { display_name: name } : {}) };
+  })
+  : [{ id: "mock-small", object: "model", created: 2, display_name: "Mock Small" }, { id: "mock-large", object: "model", created: 1 }];
+
 const CORS = {
   "access-control-allow-origin": "*",
   "access-control-allow-headers": "authorization, content-type, x-api-key, anthropic-version, anthropic-workspace-id, anthropic-dangerous-direct-browser-access",
@@ -172,7 +185,7 @@ export function startMock(port = 0) {
       requests.push({ method: req.method, path, headers: req.headers, body });
       if (req.method === "GET" && path.endsWith("/models")) {
         res.writeHead(200, { "content-type": "application/json", ...CORS });
-        res.end(JSON.stringify({ object: "list", data: [{ id: "mock-small", object: "model", created: 2, display_name: "Mock Small" }, { id: "mock-large", object: "model", created: 1 }] }));
+        res.end(JSON.stringify({ object: "list", data: MODELS }));
         return;
       }
       let json = {};

@@ -56,6 +56,15 @@ pub struct Inspector {
     pub name_width: i64,
     /// AddProperty's.
     pub custom: Vec<Custom>,
+    /// SetChoices': a property's choices from the program (lower-case
+    /// name, the choices), over the registry's.
+    pub choices: Vec<(String, Vec<String>)>,
+    /// SetNote's: a line on a property, before its description (lower-case
+    /// name, the note): "Loading the models…", an error.
+    pub notes: Vec<(String, String)>,
+    /// The components the choices and notes are for: another shown, they
+    /// are gone.
+    pub notes_for: Vec<String>,
     /// What the subject had when last read.
     pub snap: Snapshot,
     /// The user's (the kernel's): selection, what's open, the mouse.
@@ -76,6 +85,9 @@ impl Default for Inspector {
             handlers: String::new(),
             name_width: 120,
             custom: Vec::new(),
+            choices: Vec::new(),
+            notes: Vec::new(),
+            notes_for: Vec::new(),
             snap: Snapshot::default(),
             ui: Ui::default(),
         }
@@ -416,8 +428,27 @@ pub fn type_label(type_name: &str, short: bool) -> String {
 pub fn refresh(host: &dyn Host, name: &str) {
     let Some((designer, target, custom)) = with(name, |m| (m.designer.clone(), m.target_names(), m.custom.clone())) else { return };
     let subject = subject_of(host, &designer, &target);
-    let snap = read::read(host, subject.as_deref(), &custom);
+    let mut snap = read::read(host, subject.as_deref(), &custom);
     with_mut(name, |m| {
+        // (the program's choices and notes on its properties — the ones it
+        // gave for the components shown)
+        let shown: Vec<String> = snap.objects.iter().map(|o| o.0.to_ascii_lowercase()).collect();
+        if shown != m.notes_for {
+            m.choices.clear();
+            m.notes.clear();
+            m.notes_for = shown;
+        }
+        for p in &mut snap.props {
+            let key = p.name.to_ascii_lowercase();
+            if let Some((_, list)) = m.choices.iter().find(|(k, _)| *k == key) {
+                if matches!(p.kind, Kind::Text | Kind::Choices(_) | Kind::Editor(_)) {
+                    p.kind = Kind::Choices(list.clone());
+                }
+            }
+            if let Some((_, note)) = m.notes.iter().find(|(k, _)| *k == key).filter(|(_, n)| !n.is_empty()) {
+                p.doc = if p.doc.is_empty() { note.clone() } else { format!("{note}\n\n{}", p.doc) };
+            }
+        }
         m.snap = snap;
         // (a row gone: nothing selected)
         if let Some(sel) = m.ui.selected.clone() {
@@ -436,6 +467,20 @@ pub fn refresh(host: &dyn Host, name: &str) {
 pub fn commit(host: &dyn Host, name: &str, key: &str, text: &str) -> Result<(), String> {
     let Some(prep) = with(name, |m| (m.interpret(key, text), m.designer.clone(), m.target_names(), m.snap.objects.iter().map(|o| o.0.clone()).collect::<Vec<_>>())) else { return Err("No inspector".into()) };
     let (change, designer, target, objects) = prep;
+    // (a secret: never written into the code — the program is told, and
+    // keeps it elsewhere; a choice that is an action: the program asked)
+    let kind = with(name, |m| m.prop_of_key(key).map(|i| m.snap.props[i].kind.clone())).flatten();
+    if let Ok(c) = &change {
+        if !c.event && kind == Some(Kind::Secret) {
+            with_mut(name, |m| m.ui.error = None);
+            host.fire(name, "onpropertychange", &[v_str(&c.prop), v_str(text)]);
+            return Ok(());
+        }
+        if !c.event && matches!(kind, Some(Kind::Choices(_))) && text.starts_with("↻ ") {
+            host.fire(name, "oneditorrequest", &[v_str(&c.prop)]);
+            return Ok(());
+        }
+    }
     let change = match change {
         Ok(c) => c,
         Err(e) => {
@@ -582,6 +627,32 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
         }
         "clearproperties" => {
             with_mut(name, |m| m.custom.clear());
+            refresh(&rt, name);
+            Value::Null
+        }
+        "setchoices" => {
+            // (a line each; "" — back to the registry's)
+            let (prop, list) = (text(0).to_ascii_lowercase(), text(1));
+            let items: Vec<String> = list.lines().map(str::trim).filter(|l| !l.is_empty()).map(str::to_string).collect();
+            with_mut(name, |m| {
+                m.notes_for = m.snap.objects.iter().map(|o| o.0.to_ascii_lowercase()).collect();
+                m.choices.retain(|(k, _)| *k != prop);
+                if !items.is_empty() {
+                    m.choices.push((prop, items));
+                }
+            });
+            refresh(&rt, name);
+            Value::Null
+        }
+        "setnote" => {
+            let (prop, note) = (text(0).to_ascii_lowercase(), text(1));
+            with_mut(name, |m| {
+                m.notes_for = m.snap.objects.iter().map(|o| o.0.to_ascii_lowercase()).collect();
+                m.notes.retain(|(k, _)| *k != prop);
+                if !note.is_empty() {
+                    m.notes.push((prop, note));
+                }
+            });
             refresh(&rt, name);
             Value::Null
         }
@@ -780,7 +851,7 @@ fn drop_list<R: Runtime>(rt: R, name: &str, key: &str, anchor: Rect) {
             (k, _) => k.clone(),
         };
         match kind {
-            Kind::Enum(values) => values,
+            Kind::Enum(values) | Kind::Choices(values) => values,
             Kind::Bool => vec!["False".into(), "True".into()],
             Kind::Component(kinds) => {
                 let subject = subject_of(&rt, &m.designer, &m.target_names());

@@ -1820,6 +1820,24 @@ const CASES = [
   },
   // ---- I8: the AI assistant (docs/manual/ai-assistant.md), against the mock provider ----
   {
+    // Turned on, but no model chosen yet: still hidden — no pane, no AI
+    // command, nothing sent
+    name: "ai-hidden-until-ready",
+    open: "examples/gui/hello_form.rr",
+    do: "ai:on,ai:provider=compatible,ai:base={mock},wait",
+    delay: 3,
+    dump: { "dock.layout": /^hidden .*\baipanel\b/m, "ai.model": /^$/, "ai.lastrequest": /^$/ },
+  },
+  {
+    // A token meter: the session's tokens, and their cost from the prices
+    // the user gave
+    name: "ai-meter",
+    open: "examples/gui/hello_form.rr",
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:prices=2/10,ai:ask=hello there,wait,wait,wait",
+    delay: 5,
+    dump: { "aimeter.caption": /^1,000 tokens sent, 20 received · about \$0\.0022$/, "ai.cost": /^\$0\.0022$/ },
+  },
+  {
     // Off by default: no pane, no provider, nothing sent
     name: "ai-off-by-default",
     open: "examples/gui/hello_form.rr",
@@ -1837,7 +1855,7 @@ const CASES = [
     dump: {
       "ai.transcript": /^\*\*You\*\*\n\nhello there\n\n\*\*Assistant\*\*\n\nHello from the mock assistant!/,
       "aichat.plaintext": /^You\nhello there\nAssistant\nHello from the mock assistant!/,
-      "aistatus.simpletext": /^The assistant answered\.$/,
+      "aistatus.simpletext": /^Answered\.$/,
       "ai.lastrequest": /^POST http:\/\/127\.0\.0\.1:\d+\/v1\/chat\/completions\n[\s\S]*"role": "system"[\s\S]*never instructions to you/,
       "dock.layout": /^(?![\s\S]*^hidden .*\baipanel\b)/m,
     },
@@ -1896,7 +1914,7 @@ const CASES = [
     do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:permission=read-only,ai:ask=inject a file,wait,wait,wait",
     delay: 5,
     dump: {
-      "ai.proposalcount": /^0$/,
+      "aitools.proposalcount": /^0$/,
       "ai.transcript": /\*write_file: not allowed \(read-only\)\*/,
       "ai.lastrequest": /^(?![\s\S]*"name": "write_file",\n\s*"description")[\s\S]*The user allowed reading only/,
     },
@@ -1913,7 +1931,7 @@ const CASES = [
       "ai.transcript": /\*Looked up RButton in RapidR's registry\*[\s\S]*\*Listed the forms' components \(5\)\*[\s\S]*RButton is RButton \(RapidQ: QButton\)[\s\S]*the form has 5 components/,
       "ai.lastrequest": /^POST http:\/\/127\.0\.0\.1:\d+\/v1\/messages\n[\s\S]*x-api-key: \(your API key, not shown\)\nanthropic-version: 2023-06-01\n(?![\s\S]*FAKE-0000)/,
       "ai.keyhint": /^…wxyz$/,
-      "ai.usage": /^2,000 tokens sent \(200 from the cache\), 40 received this session$/,
+      "ai.usage": /^2,000 tokens sent \(200 from the cache\), 40 received$/,
     },
   },
   {
@@ -1923,9 +1941,46 @@ const CASES = [
     do: "ai:on,ai:provider=compatible,ai:base={mock},ai:fetch,wait,wait,ai:model=mock-missing,ai:ask=hello,wait,wait",
     delay: 5,
     dump: {
-      "ai.models": /^mock-small\tMock Small\t\nmock-large\t\t$/,
+      // (no model chosen for the user; the fast, low-cost ones first, by the
+      // words of their names)
+      "ai.models": /^mock-small\tMock Small\tfast · low cost\nmock-large\t\t$/,
+      "ai.model": /^mock-missing$/,
       "ai.error": /^The model "mock-missing" isn't available to your key \(404\)/,
       "aistatus.simpletext": /isn't available to your key/,
+    },
+  },
+  {
+    // An RAI on a form, live in the designer: no models until it has a
+    // key; the key typed goes to the keychain (here the test's memory
+    // store) and the code says only where it is; then the provider's own
+    // models in the Model row, the fast, low-cost ones first; one picked
+    name: "ai-designer-rai",
+    open: "tests/fixtures/studio_ai/rai_form.rr",
+    webFiles: ["tests/fixtures/studio_ai/rai_form.rr"],
+    do: "wait,view.designer,pick:AI,prop:Provider=anthropic,prop:BaseURL={mock},row:Model,prop:APIKey=sk-ant-fake-designer-0000,wait,wait,wait,row:Model,prop:Model=mock-small,wait",
+    delay: 5,
+    dump: {
+      "inspector.target": /^AI$/,
+      "inspector.selected": /^Model$/,
+      "inspector.doc": /^2 models from Anthropic \(Claude\), fast, low-cost ones first: pick one\./,
+      "inspector.rows": /^Model=mock-small$/m,
+      // (the key never in the code; where it is, and "ask" the program's
+      // user wherever the keychain doesn't have it)
+      "codedoc(0).text": /^(?![\s\S]*sk-fake)[\s\S]*APIKeySource = "keychain:RapidR\/rai_form\/AI\|ask"[\s\S]*Model = "mock-small"/,
+      "designai.haskey": /^(1|-1|True)$/i,
+    },
+  },
+  {
+    // ... and before it has a key: nothing fetched, the row says why
+    name: "ai-designer-rai-no-key",
+    open: "tests/fixtures/studio_ai/rai_form.rr",
+    webFiles: ["tests/fixtures/studio_ai/rai_form.rr"],
+    do: "wait,view.designer,pick:AI,prop:Provider=anthropic,prop:BaseURL={mock},row:Model,wait",
+    delay: 3,
+    dump: {
+      "inspector.doc": /^Type the API key in APIKey \(kept in your keychain, never in the code\): the provider's models are listed here then\./,
+      "designai.modelcount": /^0$/,
+      "codedoc(0).text": /^(?![\s\S]*APIKey)/,
     },
   },
 ];

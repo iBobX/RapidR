@@ -133,14 +133,29 @@ fn anthropic_body(req: &ChatRequest) -> Value {
         }
         messages.push(json!({"role": if m.role == Role::User { "user" } else { "assistant" }, "content": content}));
     }
+    // (the conversation so far cached too: a turn's tool calls each send it
+    // again, read from the cache)
+    if let Some(last) = messages.last_mut().and_then(|m| m["content"].as_array_mut()).and_then(|c| c.last_mut()) {
+        if matches!(last["type"].as_str(), Some("text" | "tool_result")) {
+            last["cache_control"] = json!({"type": "ephemeral"});
+        }
+    }
     let mut body = Map::new();
     body.insert("model".into(), json!(req.model));
     body.insert("max_tokens".into(), json!(req.max_tokens.max(1)));
     body.insert("stream".into(), json!(true));
-    if !req.system.is_empty() {
-        // (the system prompt and the tools are the same every turn: cached
-        // by the provider, read again at a tenth of the price)
-        body.insert("system".into(), json!([{"type": "text", "text": req.system, "cache_control": {"type": "ephemeral"}}]));
+    if !req.system.is_empty() || !req.system_tail.is_empty() {
+        // (the stable instructions and the tools are the same every turn:
+        // cached by the provider, read again at a tenth of the price; what
+        // changes comes after them)
+        let mut blocks = Vec::new();
+        if !req.system.is_empty() {
+            blocks.push(json!({"type": "text", "text": req.system, "cache_control": {"type": "ephemeral"}}));
+        }
+        if !req.system_tail.is_empty() {
+            blocks.push(json!({"type": "text", "text": req.system_tail}));
+        }
+        body.insert("system".into(), Value::Array(blocks));
     }
     if !req.tools.is_empty() {
         let n = req.tools.len();
@@ -164,8 +179,15 @@ fn anthropic_body(req: &ChatRequest) -> Value {
 
 fn openai_body(p: &Provider, req: &ChatRequest) -> Value {
     let mut messages = Vec::new();
-    if !req.system.is_empty() {
-        messages.push(json!({"role": "system", "content": req.system}));
+    // (one system message, its stable part first: the providers' caches
+    // match the request's prefix)
+    let system = match (req.system.is_empty(), req.system_tail.is_empty()) {
+        (false, false) => format!("{}\n\n{}", req.system, req.system_tail),
+        (false, true) => req.system.clone(),
+        (true, _) => req.system_tail.clone(),
+    };
+    if !system.is_empty() {
+        messages.push(json!({"role": "system", "content": system}));
     }
     for m in &req.messages {
         match m.role {
@@ -261,7 +283,9 @@ pub fn parse_models(p: &Provider, body: &str) -> Result<Vec<ModelInfo>, String> 
         items.retain(|(_, m)| openai_chat_model(&m.id) && !snapshot_of_listed(&m.id, &ids));
         items.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.id.cmp(&b.1.id)));
     }
-    Ok(items.into_iter().map(|(_, m)| m).collect())
+    let mut out: Vec<ModelInfo> = items.into_iter().map(|(_, m)| m).collect();
+    sort_models(&mut out);
+    Ok(out)
 }
 
 /// Whether an OpenAI model id is one Chat Completions can talk with.
@@ -281,33 +305,45 @@ fn snapshot_of_listed(id: &str, ids: &[String]) -> bool {
     ids.iter().any(|i| i == base)
 }
 
-/// A model's cost against the provider's default, in a few words, for the
-/// model pickers ("" — about as cheap): nothing is hidden, the costlier
-/// ones are marked. From the providers' price lists (2026-10): Claude's
-/// Sonnet ~20× Haiku's price, Opus ~40×, Fable and Mythos ~100×;
-/// DeepSeek's Pro a few times Flash's.
-pub fn cost_hint(p: &Provider, id: &str) -> &'static str {
-    let id = id.to_ascii_lowercase();
-    match p.id {
-        "anthropic" if ["fable", "mythos", "opus"].iter().any(|k| id.contains(k)) => "$$$: costs much more",
-        "anthropic" if id.contains("sonnet") => "$$: costs more",
-        "deepseek" if id.contains("pro") => "$$: costs more",
-        "openai" if id.ends_with("-pro") || id.starts_with("o1") || id.starts_with("o3") && !id.contains("mini") => "$$$: costs much more",
-        _ => "",
+/// What the words of a model's name say about it, for the pickers
+/// (non-binding: nothing is chosen for the user, and no model is named
+/// here): the small, fast ones — haiku, mini, nano, flash, lite, luna,
+/// small — "fast · low cost"; the largest — opus, fable, mythos, pro —
+/// "costs more"; else "".
+pub fn model_hint(name: &str) -> &'static str {
+    let words: Vec<String> = name.to_ascii_lowercase().split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| !w.is_empty()).map(str::to_string).collect();
+    let has = |list: &[&str]| words.iter().any(|w| list.contains(&w.as_str()));
+    if has(&["haiku", "mini", "nano", "flash", "lite", "luna", "small"]) {
+        "fast · low cost"
+    } else if has(&["opus", "fable", "mythos", "pro"]) {
+        "costs more"
+    } else {
+        ""
     }
 }
 
-/// (OpenAI) What `reasoning_effort` a request with tools says for `model`:
-/// OpenAI's GPT-6 models refuse function tools in Chat Completions unless
-/// it is `none` ("use /v1/responses or set reasoning_effort to 'none'");
-/// older ones don't know the field. `refused`: what the provider answered
-/// last time ([`reasoning_refusal`]), which wins.
-pub fn reasoning_for(p: &Provider, model: &str, tools: bool, refused: Option<bool>) -> Option<String> {
+/// The models in the order the pickers show them: the fast, low-cost ones
+/// first, then the rest, each as the provider listed them (newest first
+/// where it says when they came).
+pub fn sort_models(models: &mut [ModelInfo]) {
+    models.sort_by_key(|m| match model_hint(&format!("{} {}", m.id, m.name)) {
+        "fast · low cost" => 0,
+        "" => 1,
+        _ => 2,
+    });
+}
+
+/// (OpenAI) What `reasoning_effort` a request with tools says: OpenAI's
+/// newest models take function tools in Chat Completions only with `none`
+/// ("use /v1/responses or set reasoning_effort to 'none'"), older ones
+/// don't know the field. No model is named here: the first request says
+/// nothing, and the provider's answer ([`reasoning_refusal`]: `refused`,
+/// kept per model) decides from then on.
+pub fn reasoning_for(p: &Provider, _model: &str, tools: bool, refused: Option<bool>) -> Option<String> {
     if p.id != "openai" || !tools {
         return None;
     }
-    let wants = refused.unwrap_or_else(|| model.to_ascii_lowercase().starts_with("gpt-6"));
-    wants.then(|| "none".to_string())
+    refused.unwrap_or(false).then(|| "none".to_string())
 }
 
 /// (OpenAI) An error answer about `reasoning_effort`: `Some(true)` — the
@@ -323,27 +359,6 @@ pub fn reasoning_refusal(status: u16, body: &str) -> Option<bool> {
     } else {
         Some(false)
     }
-}
-
-/// The family a model belongs to, for a default that disappeared:
-/// `claude-haiku` (Anthropic's tiers), `gpt`, `deepseek`.
-fn family(id: &str) -> String {
-    let parts: Vec<&str> = id.split('-').collect();
-    if parts.first() == Some(&"claude") && parts.len() > 1 { format!("claude-{}", parts[1]) } else { parts.first().copied().unwrap_or("").to_string() }
-}
-
-/// The model to start with when the user has picked none: the provider's
-/// default while the fetched list still has it (nothing fetched yet: the
-/// default); else the first listed model of the default's family (the
-/// list is newest first where the provider says so); else the first
-/// listed.
-pub fn suggested_model(p: &Provider, models: &[ModelInfo]) -> String {
-    if models.is_empty() || models.iter().any(|m| m.id == p.default_model) {
-        return p.default_model.to_string();
-    }
-    let fam = family(p.default_model);
-    let same = models.iter().find(|m| !fam.is_empty() && (m.id == fam || m.id.starts_with(&format!("{fam}-"))));
-    same.or_else(|| models.first()).map(|m| m.id.clone()).unwrap_or_default()
 }
 
 // ---- errors -------------------------------------------------------------------------
@@ -461,6 +476,7 @@ mod tests {
         ChatRequest {
             model: "m1".into(),
             system: "You help.".into(),
+            system_tail: "The project: x.".into(),
             messages: vec![
                 Message::user("Add a button"),
                 Message {
@@ -491,6 +507,9 @@ mod tests {
         assert!(!r.headers.iter().any(|(k, _)| k == "anthropic-dangerous-direct-browser-access"));
         let b: Value = serde_json::from_str(r.body.as_deref().unwrap()).unwrap();
         assert_eq!(b["system"][0]["cache_control"]["type"], "ephemeral");
+        assert_eq!(b["system"][1]["text"], "The project: x.");
+        assert!(b["system"][1].get("cache_control").is_none());
+        assert_eq!(b["messages"][2]["content"][0]["cache_control"]["type"], "ephemeral");
         assert_eq!(b["tools"][0]["cache_control"]["type"], "ephemeral");
         assert_eq!(b["messages"][1]["content"][0]["type"], "thinking");
         assert_eq!(b["messages"][1]["content"][2]["input"]["path"], "main.rr");
@@ -513,6 +532,7 @@ mod tests {
         assert_eq!(b["max_completion_tokens"], 1000);
         assert_eq!(b["stream_options"]["include_usage"], true);
         assert_eq!(b["messages"][0]["role"], "system");
+        assert_eq!(b["messages"][0]["content"], "You help.\n\nThe project: x.");
         assert_eq!(b["messages"][2]["tool_calls"][0]["function"]["arguments"], "{\"path\":\"main.rr\"}");
         assert_eq!(b["messages"][3]["role"], "tool");
         assert_eq!(b["messages"].as_array().unwrap().len(), 4);
@@ -534,32 +554,17 @@ mod tests {
     #[test]
     fn models() {
         let openai = provider("openai").unwrap();
-        let body = r#"{"data":[{"id":"gpt-4o-mini","created":10},{"id":"gpt-4o-mini-2024-07-18","created":9},{"id":"text-embedding-3-small","created":11},{"id":"gpt-5.4-mini","created":30},{"id":"gpt-5.4-mini-2026-03-17","created":29},{"id":"gpt-5-codex","created":31},{"id":"gpt-realtime","created":32},{"id":"gpt-5.5","created":40},{"id":"o4-mini","created":20},{"id":"whisper-1","created":1}]}"#;
+        let body = r#"{"data":[{"id":"gpt-4o-mini","created":10},{"id":"gpt-4o-mini-2024-07-18","created":9},{"id":"text-embedding-3-small","created":11},{"id":"gpt-5.4-mini","created":30},{"id":"gpt-5.4-mini-2026-03-17","created":29},{"id":"gpt-5-codex","created":31},{"id":"gpt-realtime","created":32},{"id":"gpt-5.5","created":40},{"id":"o4-mini","created":20},{"id":"whisper-1","created":1},{"id":"gpt-image-2","created":41},{"id":"gpt-4o-mini-tts","created":3}]}"#;
         let m = parse_models(openai, body).unwrap();
         let ids: Vec<&str> = m.iter().map(|m| m.id.as_str()).collect();
-        assert_eq!(ids, ["gpt-5.5", "gpt-5.4-mini", "o4-mini", "gpt-4o-mini"]);
-        // (the default gone from the list: the first of its family)
-        assert_eq!(suggested_model(openai, &m), "gpt-5.5");
-        let now = parse_models(openai, r#"{"data":[{"id":"gpt-6-sol","created":50},{"id":"gpt-6-luna","created":49},{"id":"gpt-image-2","created":51},{"id":"gpt-realtime-2.1-mini","created":52},{"id":"gpt-4o-mini-tts","created":3},{"id":"gpt-6-astra","created":48},{"id":"o3","created":5}]}"#).unwrap();
-        assert_eq!(now.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(), ["gpt-6-sol", "gpt-6-luna", "gpt-6-astra", "o3"]);
-        assert_eq!(suggested_model(openai, &now), "gpt-6-luna");
-        assert_eq!(suggested_model(openai, &[]), "gpt-6-luna");
+        // (chat models only; the fast, low-cost ones first, each newest first)
+        assert_eq!(ids, ["gpt-5.4-mini", "o4-mini", "gpt-4o-mini", "gpt-5.5"]);
         let anthropic = provider("anthropic").unwrap();
-        let m = parse_models(anthropic, r#"{"data":[{"type":"model","id":"claude-haiku-5-5","display_name":"Claude Haiku 5.5"}],"has_more":false}"#).unwrap();
-        assert_eq!(m, vec![ModelInfo { id: "claude-haiku-5-5".into(), name: "Claude Haiku 5.5".into() }]);
-        assert_eq!(suggested_model(anthropic, &m), "claude-haiku-5-5");
-        // (DeepSeek: its default listed; gone, the first deepseek-*)
-        let deepseek = provider("deepseek").unwrap();
-        let ds = parse_models(deepseek, r#"{"object":"list","data":[{"id":"deepseek-flash","name":"DeepSeek-V4.1-Flash"},{"id":"deepseek-v4-pro"}]}"#).unwrap();
+        let m = parse_models(anthropic, r#"{"data":[{"type":"model","id":"x-opus-9","display_name":"X Opus 9"},{"type":"model","id":"x-sonnet-9","display_name":"X Sonnet 9"},{"type":"model","id":"x-haiku-9","display_name":"X Haiku 9"}],"has_more":false}"#).unwrap();
+        assert_eq!(m.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(), ["x-haiku-9", "x-sonnet-9", "x-opus-9"]);
+        assert_eq!(m[0].name, "X Haiku 9");
+        let ds = parse_models(provider("deepseek").unwrap(), r#"{"object":"list","data":[{"id":"deepseek-v4-pro","name":"DeepSeek-V4-Pro"},{"id":"deepseek-flash","name":"DeepSeek-V4.1-Flash"}]}"#).unwrap();
         assert_eq!(ds.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(), ["deepseek-flash", "deepseek-v4-pro"]);
-        assert_eq!(suggested_model(deepseek, &ds), "deepseek-flash");
-        assert_eq!(suggested_model(deepseek, &ds[1..]), "deepseek-v4-pro");
-        assert_eq!(cost_hint(anthropic, "claude-fable-5-1"), "$$$: costs much more");
-        assert_eq!(cost_hint(anthropic, "claude-opus-5-5"), "$$$: costs much more");
-        assert_eq!(cost_hint(anthropic, "claude-sonnet-5-5"), "$$: costs more");
-        assert_eq!(cost_hint(anthropic, "claude-haiku-5-5"), "");
-        assert_eq!(cost_hint(deepseek, "deepseek-v4-pro"), "$$: costs more");
-        assert_eq!(suggested_model(anthropic, &[ModelInfo { id: "claude-sonnet-5-5".into(), name: String::new() }, ModelInfo { id: "claude-haiku-6".into(), name: String::new() }]), "claude-haiku-6");
         assert!(parse_models(openai, "nope").is_err());
         let local = parse_models(provider("compatible").unwrap(), r#"{"models":[{"name":"llama3.2"}]}"#).unwrap();
         assert_eq!(local[0].id, "llama3.2");
@@ -567,13 +572,21 @@ mod tests {
         ep.key = "k".into();
         let r = models_request(&ep);
         assert_eq!((r.method, r.url.as_str()), ("GET", "https://api.anthropic.com/v1/models?limit=1000"));
+        // (the hints come from the words of a name, never from an id)
+        assert_eq!(model_hint("Claude Haiku 9"), "fast · low cost");
+        assert_eq!(model_hint("gpt-9-luna"), "fast · low cost");
+        assert_eq!(model_hint("deepseek-flash"), "fast · low cost");
+        assert_eq!(model_hint("Claude Opus 9"), "costs more");
+        assert_eq!(model_hint("deepseek-v9-pro"), "costs more");
+        assert_eq!(model_hint("gpt-9"), "");
+        assert_eq!(model_hint("minimal-model"), "");
     }
 
     #[test]
     fn openai_reasoning_with_tools() {
         let o = provider("openai").unwrap();
-        assert_eq!(reasoning_for(o, "gpt-6-luna", true, None).as_deref(), Some("none"));
-        assert_eq!(reasoning_for(o, "gpt-6-luna", false, None), None);
+        assert_eq!(reasoning_for(o, "gpt-6-luna", true, None), None);
+        assert_eq!(reasoning_for(o, "gpt-6-luna", false, Some(true)), None);
         assert_eq!(reasoning_for(o, "gpt-4.1-mini", true, None), None);
         assert_eq!(reasoning_for(o, "gpt-5.4-mini", true, Some(true)).as_deref(), Some("none"));
         assert_eq!(reasoning_for(o, "gpt-6-sol", true, Some(false)), None);

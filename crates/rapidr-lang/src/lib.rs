@@ -34,7 +34,10 @@
 //!     read-write, non-indexed ones), `indexed` (1 or 2: `Item(i)`),
 //!     `category`, `origin`, `from`, `only`, `missing`, `editor` (the
 //!     inspector's editor beyond the type's: `strings`, `columns`, `file`,
-//!     `picture`, `multiline`, `sql`, `expression`), `doc`;
+//!     `picture`, `multiline`, `sql`, `expression`, `secret` — typed
+//!     masked, never written into the code: the program is told), `doc`;
+//!     a `string` property's `values` are the words the inspector offers
+//!     (any text is still taken);
 //!   - method: `name`, `params`, `returns`, `value` (read without
 //!     parentheses calls it: `IF Dlg.Execute THEN`), `origin`, `from`,
 //!     `only`, `missing`, `test` (`skip: reason` or `args: …` for the

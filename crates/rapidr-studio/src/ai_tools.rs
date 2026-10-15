@@ -62,14 +62,7 @@ pub struct Project<'a> {
 /// A tool's answer: its text, whether it failed, and what the transcript
 /// says it did (one line) — and the data source it read, for the turn's
 /// provenance.
-pub struct Outcome {
-    pub content: String,
-    pub is_error: bool,
-    pub note: String,
-    pub read: Option<String>,
-    pub risk: &'static str,
-    pub target: String,
-}
+pub use rapidr_ai::rai::ToolOutcome as Outcome;
 
 fn ok(content: String, note: String, risk: &'static str, target: &str) -> Outcome {
     Outcome { content, is_error: false, note, read: None, risk, target: target.to_string() }

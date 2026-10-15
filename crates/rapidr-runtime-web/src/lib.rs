@@ -39,6 +39,8 @@ pub mod dock_web;
 pub mod panels_web;
 pub mod studio_web;
 pub use rapidr_studio;
+// (I8: RAI, the AI component — rapidr_ai::rai)
+pub mod ai_web;
 pub mod network_web;
 pub mod object_web;
 /// The web-only components (RWEBVIEW, RDOM, media) as elements over

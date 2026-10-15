@@ -1,8 +1,9 @@
 //! The providers, as data (docs/ide-ai.md §2.1): what differs between them
-//! is a base URL, how the key is sent, where the models are listed, which
-//! model a new user starts with and where the prices are. Model names are
-//! never assumed beyond the defaults: the list comes from the provider
-//! ("Fetch models").
+//! is a base URL, how the key is sent, where the models are listed and
+//! where the prices are. No model is named here: models come and go, so
+//! the list always comes from the provider (Fetch Models) and the user
+//! picks one ([`crate::wire::model_hint`] marks the fast, low-cost ones by
+//! the words in their names).
 
 /// The wire format a provider speaks.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -29,10 +30,6 @@ pub struct Provider {
     pub base_url: &'static str,
     /// Whether it needs an API key (a local server needs none).
     pub needs_key: bool,
-    /// The model a new user starts with, when the provider still lists it
-    /// (else the first of its family the list has:
-    /// [`crate::wire::suggested_model`]).
-    pub default_model: &'static str,
     /// The provider's own price list ("See costs").
     pub pricing_url: &'static str,
     /// Where the user makes a key.
@@ -57,9 +54,7 @@ pub const PROVIDERS: &[Provider] = &[
         format: Format::Anthropic,
         base_url: "https://api.anthropic.com/v1",
         needs_key: true,
-        // Claude Haiku 5.5: small, capable and cheap.
-        default_model: "claude-haiku-5-5",
-        pricing_url: "https://claude.com/pricing",
+        pricing_url: "https://www.anthropic.com/pricing",
         keys_url: "https://platform.claude.com/settings/keys",
         env_key: "ANTHROPIC_API_KEY",
         max_tokens_field: "max_tokens",
@@ -72,9 +67,7 @@ pub const PROVIDERS: &[Provider] = &[
         format: Format::OpenAi,
         base_url: "https://api.openai.com/v1",
         needs_key: true,
-        // (the smallest current model, Robert 2026-10-15)
-        default_model: "gpt-6-luna",
-        pricing_url: "https://developers.openai.com/api/docs/pricing",
+        pricing_url: "https://openai.com/api/pricing/",
         keys_url: "https://platform.openai.com/api-keys",
         env_key: "OPENAI_API_KEY",
         max_tokens_field: "max_completion_tokens",
@@ -87,7 +80,6 @@ pub const PROVIDERS: &[Provider] = &[
         format: Format::OpenAi,
         base_url: "https://api.deepseek.com",
         needs_key: true,
-        default_model: "deepseek-flash",
         pricing_url: "https://api-docs.deepseek.com/quick_start/pricing",
         keys_url: "https://platform.deepseek.com/api_keys",
         env_key: "DEEPSEEK_API_KEY",
@@ -101,7 +93,6 @@ pub const PROVIDERS: &[Provider] = &[
         format: Format::OpenAi,
         base_url: "http://localhost:11434/v1",
         needs_key: false,
-        default_model: "",
         pricing_url: "",
         keys_url: "",
         env_key: "",
@@ -135,8 +126,6 @@ mod tests {
             assert!(p.needs_key == !p.env_key.is_empty(), "{}", p.id);
             assert!(p.pricing_url.is_empty() || p.pricing_url.starts_with("https://"), "{}", p.id);
         }
-        assert_eq!(provider("DeepSeek").unwrap().default_model, "deepseek-flash");
-        assert_eq!(provider("openai").unwrap().default_model, "gpt-6-luna");
         assert_eq!(provider(" anthropic ").unwrap().format, Format::Anthropic);
         assert!(provider("gemini").is_none());
     }

@@ -3870,6 +3870,7 @@ dependencies = [
  "apple-native-keyring-store",
  "js-sys",
  "keyring-core",
+ "rapidr-value",
  "serde_json",
  "ureq",
  "wasm-bindgen",
@@ -4187,6 +4188,7 @@ dependencies = [
  "libloading 0.8.9",
  "midir",
  "nanomp3",
+ "rapidr-ai",
  "rapidr-d3d-gpu",
  "rapidr-db",
  "rapidr-lang",
@@ -4209,6 +4211,7 @@ name = "rapidr-runtime-web"
 version = "2.118.0"
 dependencies = [
  "js-sys",
+ "rapidr-ai",
  "rapidr-d3d-gpu",
  "rapidr-db",
  "rapidr-lang",
@@ -4262,7 +4265,6 @@ dependencies = [
  "rapidr-session",
  "rapidr-value",
  "serde_json",
- "sha2 0.10.9",
 ]
 
 [[package]]

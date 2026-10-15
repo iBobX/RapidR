@@ -33,6 +33,15 @@ pub enum Kind {
     /// Text with an editor of the program's (`multiline`, `sql`,
     /// `expression`): "…" asks for it.
     Editor(String),
+    /// Text typed, or one of these picked from a dropped list (a string's
+    /// registry `values`, or the program's SetChoices: RAI's Model). A
+    /// choice starting with "↻ " is an action: picking it asks the program
+    /// (OnEditorRequest) instead of setting the value.
+    Choices(Vec<String>),
+    /// A secret (registry editor `secret`: RAI's APIKey): typed masked,
+    /// shown masked, never written into a designer's code — the program is
+    /// told (OnPropertyChange) and keeps it elsewhere.
+    Secret,
 }
 
 impl Kind {
@@ -45,7 +54,9 @@ impl Kind {
             (_, Some("columns")) => Kind::Columns,
             (_, Some("file")) => Kind::File { picture: false },
             (_, Some("picture")) => Kind::File { picture: true },
+            (T::String, Some("secret")) => Kind::Secret,
             (T::String | T::Any, Some(e)) => Kind::Editor(e.to_string()),
+            (T::String, None) if !p.values.is_empty() => Kind::Choices(list(p.values)),
             // (RapidQ declares these as INTEGERs, set to 1 or -1 and 0: they are
             // Booleans — a check box that shows any non-zero as True)
             (T::Int, _) if matches!(p.name, "Enabled" | "Visible" | "ShowHint") => Kind::Bool,
@@ -100,7 +111,7 @@ impl Kind {
 
     /// Its value is picked from a dropped list.
     pub fn drops(&self) -> bool {
-        matches!(self, Kind::Enum(_) | Kind::Component(_) | Kind::Bool)
+        matches!(self, Kind::Enum(_) | Kind::Component(_) | Kind::Bool | Kind::Choices(_))
     }
 
     /// It has a "…" button (OnEditorRequest).
@@ -334,6 +345,8 @@ pub fn display(kind: &Kind, v: &Value) -> String {
         Kind::Color => color_name(v.to_i64()).map(str::to_string).unwrap_or_else(|| color_hex(v.to_i64())),
         Kind::Strings => count_text(&v.to_string_val(), "line"),
         Kind::Columns => count_text(&v.to_string_val(), "column"),
+        // (never shown: whether one was typed, at most)
+        Kind::Secret => if v.to_string_val().is_empty() { String::new() } else { "••••••••".into() },
         _ => v.to_string_val().replace(['\r', '\n'], " "),
     }
 }

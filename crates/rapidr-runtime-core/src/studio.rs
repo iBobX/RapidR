@@ -127,8 +127,7 @@ pub fn poll() -> bool {
     rapidr_studio::poll(Desktop)
 }
 
-/// Whether a program session is running, a build, or an AI request (the
-/// window loop then polls every 20 ms: their news heard as they come).
+/// Whether a program session is running.
 pub fn running() -> bool {
-    rapidr_studio::session::any_running() || rapidr_studio::build::any() || rapidr_studio::ai::busy()
+    rapidr_studio::session::any_running() || rapidr_studio::build::any()
 }

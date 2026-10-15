@@ -49,7 +49,7 @@ SUB BuildToolBar
   ToolBar.AddSeparator
   AddPreviewTool: AddTool "view.commandPalette": AddTool "view.settings"
   ' (the AI assistant's button: only once it is turned on)
-  IF AIOn THEN
+  IF AIReady THEN
     ToolBar.AddSeparator
     AddTool "ai.assistant"
   END IF
@@ -494,6 +494,8 @@ SUB InspectorChanged(Prop AS STRING, Value AS STRING)
   DIM d AS INTEGER
   d = ActiveDesign
   IF d < 0 THEN EXIT SUB
+  ' (an RAI's key, its provider: ai.inc — a key is never shown)
+  IF DesignAIChanged(Prop, Value) THEN EXIT SUB
   SetState RunState, Inspector.Target + "." + Prop + " = " + Value
 END SUB
 
@@ -593,6 +595,7 @@ END SUB
 '   prop:<Prop>=<value>  the inspector's row set as a user sets it
 '   page:<properties|events>, filter:<text>  the inspector's page, its search
 '   reset:<Prop>         the inspector's row put back to its default
+'   row:<Prop>           the inspector's row selected, as clicked
 '   event:<OnX>          an event's row double-clicked
 '   focus:<pane>         Dock.FocusPane
 '   search:<text>        the toolbox's search box
@@ -622,6 +625,10 @@ FUNCTION PanelStep(Stp AS STRING) AS INTEGER
       END IF
     CASE "page": Inspector.Page = arg
     CASE "reset": Inspector.ResetValue arg
+    CASE "row"
+      Inspector.Selected = arg
+      ' (as its OnSelect)
+      InspectorRowSelected arg
     CASE "filter": Inspector.Filter = arg
     CASE "event": InspectorEvent arg
     CASE "focus": Dock.FocusPane(arg)
