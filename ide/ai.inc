@@ -568,11 +568,64 @@ SUB SetAIOn(IsOn AS INTEGER)
   AIShowOrHide
 END SUB
 
+' The Assistant shares Properties' tab group at the right. The default side
+' (240 wide) is too narrow for a chat: the first time the pane shows, its
+' column opens 380 wide. Only when the column is still the default width:
+' one the user dragged stays as it is. (The width is in the layout's text,
+' on the line of the column that sits in the layout's row, as WidenDebugPanes
+' does it for the panes beside Output.)
+FUNCTION LayoutIndent(Line AS STRING) AS INTEGER
+  LayoutIndent = LEN(Line) - LEN(LTRIM$(Line))
+END FUNCTION
+
+SUB WidenAIPanel
+  DIM Ls(1 TO 200) AS STRING
+  DIM lay AS STRING, n AS INTEGER, k AS INTEGER, j AS INTEGER, at AS INTEGER, up AS INTEGER, cur AS INTEGER
+  DIM sp AS INTEGER, lead AS STRING, acc AS STRING
+  lay = Dock.SaveLayout
+  n = TALLY(lay, CHR$(10)) + 1
+  IF n > 200 THEN EXIT SUB
+  FOR k = 1 TO n
+    Ls(k) = FIELD$(lay, CHR$(10), k)
+    IF at = 0 AND INSTR(Ls(k), " tabs ") > 0 AND INSTR(Ls(k), " aipanel") > 0 THEN at = k
+  NEXT
+  IF at = 0 THEN EXIT SUB
+  ' (up the layout's lines until the one whose parent is the row: its
+  ' number is the width)
+  cur = at
+  DO
+    up = 0
+    FOR j = cur - 1 TO 1 STEP -1
+      IF LayoutIndent(Ls(j)) < LayoutIndent(Ls(cur)) THEN
+        up = j
+        EXIT FOR
+      END IF
+    NEXT
+    IF up = 0 THEN EXIT SUB
+    IF INSTR(Ls(up), "split row") > 0 THEN EXIT DO
+    cur = up
+  LOOP
+  IF VAL(LTRIM$(Ls(cur))) < 1 OR VAL(LTRIM$(Ls(cur))) > 260 THEN EXIT SUB
+  lead = LEFT$(Ls(cur), LayoutIndent(Ls(cur)))
+  sp = INSTR(LTRIM$(Ls(cur)), " ")
+  Ls(cur) = lead + "380" + MID$(LTRIM$(Ls(cur)), sp)
+  FOR k = 1 TO n
+    acc = acc + Ls(k)
+    IF k < n THEN acc = acc + CHR$(10)
+  NEXT
+  Dock.LoadLayout(acc)
+  ' (the dock sets the panel's width at once; a panel's OnResize doesn't come from that)
+  LayOutAIPanel
+END SUB
+
 SUB AIShowOrHide
+  DIM wasHidden AS INTEGER
   BuildToolBar
   UpdateCommands
   IF AIReady THEN
+    wasHidden = (Dock.PaneState("aipanel") = "hidden")
     Dock.ShowPane("aipanel")
+    IF wasHidden THEN WidenAIPanel
   ELSE
     AI.Cancel
     Dock.HidePane("aipanel")

@@ -163,6 +163,12 @@ SITES = {
     ("crates/rapidr-value/src/objects/printer.rs", "*"): "RPRINTER",
     ("crates/rapidr-value/src/objects/tabcontrol.rs", "*"): "RTABCONTROL",
     ("crates/rapidr-value/src/objects/textedit.rs", "*"): TEXTS,
+    # (RRichEdit.Paragraph.<member>: the paragraph format's own members, the ParaAttributes item)
+    ("crates/rapidr-value/src/objects/textedit.rs", "rich_get", "p"): "PARAATTRIBUTES",
+    ("crates/rapidr-value/src/objects/textedit.rs", "rich_set", "p"): "PARAATTRIBUTES",
+    # (SelAttributes.<member>: a QFONT's members on the selection)
+    ("crates/rapidr-value/src/objects/richtext.rs", "get"): "RFONT",
+    ("crates/rapidr-value/src/objects/richtext.rs", "set"): "RFONT",
     ("crates/rapidr-value/src/objects/codeedit.rs", "*"): "RCODEEDITOR",
     ("crates/rapidr-value/src/autosize.rs", "resizes"): "RLABEL",
     ("crates/rapidr-value/src/objects/trackbar.rs", "*"): "RTRACKBAR",
