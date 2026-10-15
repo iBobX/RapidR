@@ -40,6 +40,20 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - Examples: `data/linked_data.rr`, `data/million_rows.rr`, `data/json_source.rr` (on Studio's
   Welcome page); the manual's new chapter **Data science with RapidR**, with screenshots.
 
+### Data science: a typed, multithreaded RDataFrame engine (DATA-ENGINE)
+- RDataFrame's engine stores columns typed (whole numbers, fractions, true / false as numbers; a
+  validity bitmap where cells are null; buffers shared until changed) and shares big work out to
+  every core: on a million rows (M4 Max) load 100 → 12 ms, filter 39 → 3 ms, sort 203 → 10 ms,
+  group-by 84 → 5 ms, join 63 → 3 ms, describe 86 → 10 ms, save 82 → 7 ms; load + filter + sort +
+  group-by 267 → 23 ms (ten million rows: 4.4 s → 0.27 s; on one thread, as in a browser:
+  0.12 s for a million). Nothing a program sees changes: a column is typed only when every cell's
+  text is its value's own (`"007"`, `"1.50"`, `"True"` keep theirs), and frames printed, cells,
+  types, CSV and JSON written, warnings are byte-identical — checked by a differential test against
+  the previous engine over tens of thousands of random programs (`tests/frame_oracle.rs`).
+  `Frame::sorted_order` gives a grid the sorted order without moving rows. The benchmark suite is
+  `tools/bench/` (frame_bench with the plan's budgets — also in `tools/regress.sh perf` — the same
+  work as a RapidR program, pandas and Polars scripts, `compare.sh`).
+
 ## [2.118.0] — 2026-10-09 (Preview)
 
 ### Triage of the full regression run (TRIAGE)
