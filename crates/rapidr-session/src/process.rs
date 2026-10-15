@@ -9,6 +9,8 @@ use std::io::{Read, Write};
 use std::path::Path;
 use std::process::{Child, ChildStdin, Command as Process, Stdio};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
+use std::sync::{Arc, Mutex};
+use std::task::Waker;
 use std::time::Duration;
 
 use crate::client::Transport;
@@ -20,6 +22,18 @@ pub struct ProcessTransport {
     stdin: Option<ChildStdin>,
     incoming: Receiver<Incoming>,
     exit: Option<i32>,
+    /// Woken when the program says something ([`Self::set_waker`]).
+    waker: Arc<Mutex<Option<Waker>>>,
+}
+
+/// Wakes the IDE's loop, if it gave a waker: what the program said is
+/// waiting for its next turn.
+fn wake(waker: &Mutex<Option<Waker>>) {
+    if let Ok(w) = waker.lock() {
+        if let Some(w) = w.as_ref() {
+            w.wake_by_ref();
+        }
+    }
 }
 
 impl ProcessTransport {
@@ -46,8 +60,10 @@ impl ProcessTransport {
         }
         let mut child = command.spawn()?;
         let (tx, incoming) = mpsc::channel();
+        let waker: Arc<Mutex<Option<Waker>>> = Arc::default();
         let mut stdout = child.stdout.take().expect("piped stdout");
         let out_tx = tx.clone();
+        let out_waker = waker.clone();
         std::thread::spawn(move || {
             let mut deframer = Deframer::new();
             let mut buf = [0u8; 8192];
@@ -55,10 +71,15 @@ impl ProcessTransport {
                 match stdout.read(&mut buf) {
                     Ok(0) | Err(_) => break,
                     Ok(n) => {
+                        let mut any = false;
                         for item in deframer.push(&buf[..n]) {
                             if out_tx.send(item).is_err() {
                                 return;
                             }
+                            any = true;
+                        }
+                        if any {
+                            wake(&out_waker);
                         }
                     }
                 }
@@ -66,8 +87,11 @@ impl ProcessTransport {
             if let Some(rest) = deframer.finish() {
                 let _ = out_tx.send(rest);
             }
+            // (the end: the IDE hears it at once)
+            wake(&out_waker);
         });
         let mut stderr = child.stderr.take().expect("piped stderr");
+        let err_waker = waker.clone();
         std::thread::spawn(move || {
             let mut buf = [0u8; 8192];
             let mut pending: Vec<u8> = Vec::new();
@@ -88,12 +112,23 @@ impl ProcessTransport {
                         if tx.send(Incoming::Event(event)).is_err() {
                             return;
                         }
+                        wake(&err_waker);
                     }
                 }
             }
         });
         let stdin = child.stdin.take();
-        Ok(ProcessTransport { child, stdin, incoming, exit: None })
+        Ok(ProcessTransport { child, stdin, incoming, exit: None, waker })
+    }
+
+    /// `waker` is woken whenever the program says something (an event, a
+    /// reply, output) or ends, so the IDE's loop, waiting for its next
+    /// turn, hears it at once instead of at its next poll: a debugger
+    /// step's stop and the snapshot after it are three round trips.
+    pub fn set_waker(&mut self, waker: Waker) {
+        if let Ok(mut w) = self.waker.lock() {
+            *w = Some(waker);
+        }
     }
 }
 

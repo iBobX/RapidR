@@ -58,9 +58,13 @@ impl Host for Desktop {
         if let Some(path) = rapidr_studio::project::include_path_env() {
             env.push(("RAPIDR_INCLUDE_PATH".into(), Some(path)));
         }
-        rapidr_session::process::ProcessTransport::spawn_with_env(&exe, &full.to_string_lossy(), args, cwd, &env)
-            .map(|t| Box::new(t) as Box<dyn Transport>)
-            .map_err(|e| format!("{}: {e}", exe.display()))
+        let mut transport = rapidr_session::process::ProcessTransport::spawn_with_env(&exe, &full.to_string_lossy(), args, cwd, &env).map_err(|e| format!("{}: {e}", exe.display()))?;
+        // (what the program says wakes Studio's loop: a debugger step's
+        // stop and its snapshot heard as they come, not every 20 ms)
+        if let Some(w) = crate::ui::kernel::waker() {
+            transport.set_waker(w);
+        }
+        Ok(Box::new(transport))
     }
 
     fn list_files(self, folder: &str) -> Vec<String> {
