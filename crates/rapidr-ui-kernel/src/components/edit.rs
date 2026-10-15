@@ -149,6 +149,9 @@ pub struct EditUi {
     /// A rich edit's formats to put back once the undone text is the
     /// model's.
     restore: Option<Rich>,
+    /// Rich text was pasted into the model (OnChange, though the editor
+    /// and the model already agree).
+    pasted: bool,
 }
 
 /// What an edit's context menu offers now (`ComponentKind::context_menu`).
@@ -174,7 +177,53 @@ impl EditUi {
         bars.auto = false;
         bars.horz.visible = false;
         bars.vert.visible = false;
-        EditUi { ed: TextEditor::new(multi), src, shown: None, scroll: (0.0, 0.0), bars, bar_at: None, undo: None, typing: false, drag: None, id: String::new(), styled: None, restore: None }
+        EditUi { ed: TextEditor::new(multi), src, shown: None, scroll: (0.0, 0.0), bars, bar_at: None, undo: None, typing: false, drag: None, id: String::new(), styled: None, restore: None, pasted: false }
+    }
+
+    /// Copy / Cut: the selected text to the clipboard — and a rich edit's,
+    /// with its formats, for a paste into a rich edit.
+    fn copy_out(&self, clip: &mut dyn Clipboard) {
+        let text = self.ed.selected_text();
+        clip.set_text(&text);
+        if self.src == Source::Text {
+            let rtf = with_textedit(&self.id, |t| t.selection_rtf()).flatten();
+            rapidr_value::objects::textedit::rich_clip_set(&text, rtf);
+        }
+    }
+
+    /// Paste into a rich edit of what a rich edit copied (`text`, the
+    /// clipboard's): its formats kept — the model pastes, the editor shows
+    /// it. Whether it did.
+    fn paste_rich(&mut self, ts: &mut TextSystem, id: &str, text: &str) -> bool {
+        if self.src != Source::Text || self.read_only(id) || !rapidr_value::objects::is_rich_edit(id) {
+            return false;
+        }
+        let Some(rtf) = rapidr_value::objects::textedit::rich_clip_for(text) else { return false };
+        self.remember(false);
+        // (the editor's selection is the model's: what the paste replaces)
+        let (start, len) = self.ed.selection_chars();
+        let done = with_textedit_mut(id, |t| {
+            t.sel_start = start;
+            t.sel_len = len;
+            t.paste_rtf(&rtf)
+        })
+        .unwrap_or(false);
+        if !done {
+            return false;
+        }
+        if let Some(m) = read_model(self.src, id) {
+            self.ed.set_text(&m.text);
+            self.ed.lay_out(ts);
+            if let Some((s, l)) = m.sel {
+                self.ed.set_selection_chars(s, l);
+            }
+            self.shown = Some(m.revision);
+        }
+        self.styled = None;
+        self.restyle(id, true);
+        self.ed.lay_out(ts);
+        self.pasted = true;
+        true
     }
 
     /// A rich edit's formats as they are now (an undo step's).
@@ -351,7 +400,7 @@ impl EditUi {
                 .unwrap_or(false);
                 // (a rich edit's typed text: its formats, the model's)
                 self.restyle(id, false);
-                changed
+                changed || std::mem::take(&mut self.pasted)
             }
             Source::Combo => {
                 // (typing chooses no item while the list is closed; dropped
@@ -464,12 +513,12 @@ impl EditUi {
                 65 => self.ed.select_all(),
                 67 => {
                     if self.ed.has_selection() && !self.masked() {
-                        clip.set_text(&self.ed.selected_text());
+                        self.copy_out(clip);
                     }
                 }
                 88 => {
                     if self.ed.has_selection() && !self.masked() {
-                        clip.set_text(&self.ed.selected_text());
+                        self.copy_out(clip);
                         if !read_only {
                             self.remember(false);
                             self.ed.replace_selection(ts, "");
@@ -481,7 +530,9 @@ impl EditUi {
                         let t = t.replace("\r\n", "\n").replace('\r', "\n");
                         // (a single-line edit pastes the first line)
                         let t = if multi { t } else { t.lines().next().unwrap_or("").to_string() };
-                        self.insert(ts, id, &t, false);
+                        if !self.paste_rich(ts, id, &t) {
+                            self.insert(ts, id, &t, false);
+                        }
                     }
                 }
                 90 => {

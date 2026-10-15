@@ -691,15 +691,18 @@ pub fn textedit_clipboard(id: &str, method: &str, clip_get: &dyn Fn() -> String,
     }
     if m.starts_with("paste") {
         let text = clip_get();
+        // (a rich edit's copy pasted into a rich edit: with its formats)
+        let rtf = textedit::rich_clip_for(&text);
         with_textedit_mut(id, |t| {
-            if !t.read_only {
+            if !t.read_only && !rtf.as_deref().is_some_and(|r| t.paste_rtf(r)) {
                 t.replace_selection(&text);
             }
         });
     } else {
-        let (sel, read_only) = with_textedit(id, |t| (t.get("seltext").map(|v| v.to_string_val()).unwrap_or_default(), t.read_only)).unwrap_or_default();
+        let (sel, read_only, rtf) = with_textedit(id, |t| (t.get("seltext").map(|v| v.to_string_val()).unwrap_or_default(), t.read_only, t.selection_rtf())).unwrap_or_default();
         if !sel.is_empty() {
             clip_set(&sel);
+            textedit::rich_clip_set(&sel, rtf);
         }
         if m.starts_with("cut") && !read_only {
             with_textedit_mut(id, |t| t.replace_selection(""));

@@ -95,6 +95,11 @@ paragraph, of the character after it. Text typed over a selection takes the
 format of the selection's first character. `Ctrl+Z` (`Cmd+Z` on macOS)
 undoes the last change and gives back its formats too.
 
+Text copied (or cut) from a rich edit and pasted into a rich edit keeps its
+formats — with the keys, the right-click menu, or a program's
+`CopyToClipboard` / `PasteFromClipboard`. Pasted into a plain text box, or
+into another application, it is the text alone.
+
 ## Font and Alignment
 
 `Font` is the format of text that was never formatted: while nothing in the

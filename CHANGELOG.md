@@ -35,8 +35,10 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
     read any RTF (font and colour tables, `\'hh`, `\uN`, paragraph formats, bullets; fields,
     pictures and other destinations skipped); a file that isn't RTF loads as text (up to a NUL).
     RapidR's own RTF reader and writer (`rtf.rs`): no new dependency.
-- **Editing keeps the formats**: what the user types takes RapidQ's format for it, and Ctrl+Z
-  gives back the text and its formats.
+- **Editing keeps the formats**: what the user types takes RapidQ's format for it, Ctrl+Z
+  gives back the text and its formats, and text copied from a rich edit pastes into a rich edit
+  with its formats (keys, the context menu, CopyToClipboard / PasteFromClipboard; the clipboard
+  holds the plain text, its RTF kept beside it).
 - **RapidR's additions** (registry `origin = "rapidr"`): `Paragraph.Alignment`, `LeftIndent`,
   `FirstIndent`, `RightIndent` (pixels) and `Numbering` (bullets) for the paragraphs the
   selection is in; `TextRTF`, the RTF as a string (read and set).

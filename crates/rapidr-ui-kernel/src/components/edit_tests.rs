@@ -597,3 +597,48 @@ fn a_rich_edit_draws_and_keeps_its_formats() {
         assert_eq!(joined.as_deref(), Some(text));
     }
 }
+
+/// Ctrl+C in a rich edit, Ctrl+V in another: the text keeps its formats
+/// (the plain text on the clipboard, its RTF beside it); OnChange; Ctrl+Z
+/// takes the paste back. Into a plain QMEMO: the text alone.
+#[test]
+fn rich_text_copied_into_a_rich_edit_keeps_its_formats() {
+    let (s, mut f, mut ts) = form(|s| {
+        s.add("ra", "RRICHEDIT", Some("tf")).set("ra", "left", v_int(10)).set("ra", "top", v_int(10)).set("ra", "width", v_int(150)).set("ra", "height", v_int(60));
+        s.add("rb", "RRICHEDIT", Some("tf")).set("rb", "left", v_int(10)).set("rb", "top", v_int(80)).set("rb", "width", v_int(150)).set("rb", "height", v_int(60));
+        s.add("mc", "RMEMO", Some("tf")).set("mc", "left", v_int(10)).set("mc", "top", v_int(150)).set("mc", "width", v_int(150)).set("mc", "height", v_int(60));
+    });
+    with_textedit_mut("ra", |t| {
+        t.set("text", &v_str("a red word"));
+        t.set("selstart", &v_int(2));
+        t.set("sellength", &v_int(3));
+        t.set("selattributes.color", &v_int(0xFF));
+        t.set("selattributes.bold", &v_int(1));
+    });
+    with_textedit_mut("rb", |t| t.set("text", &v_str("[]")));
+    let mut clip = MemClipboard::default();
+    f.focus_id(&s, "ra");
+    drop(f.paint(&s, &mut ts, 1.0));
+    key(&mut f, &s, &mut ts, &mut clip, 67, "", CMD);
+    assert_eq!(clip.0.as_deref(), Some("red"));
+    f.focus_id(&s, "rb");
+    with_textedit_mut("rb", |t| t.set("selstart", &v_int(1)));
+    drop(f.paint(&s, &mut ts, 1.0));
+    let ev = key(&mut f, &s, &mut ts, &mut clip, 86, "", CMD);
+    assert!(ev.contains(&KernelEvent::Change("rb".into())));
+    assert_eq!(model("rb").0, "[red]");
+    with_textedit_mut("rb", |t| {
+        t.set("selstart", &v_int(2));
+        t.set("sellength", &v_int(1));
+        assert_eq!((t.get("selattributes.color").unwrap().to_i64(), t.get("selattributes.bold").unwrap().to_i64()), (0xFF, 1));
+        t.set("selstart", &v_int(4));
+    });
+    drop(f.paint(&s, &mut ts, 1.0));
+    assert_eq!(inks(&f, "rb", 0).iter().filter(|(_, c, _)| *c == 0xFF0000).map(|(n, _, _)| *n).sum::<usize>(), 3, "drawn red");
+    key(&mut f, &s, &mut ts, &mut clip, 90, "", CMD);
+    assert_eq!(model("rb").0, "[]", "Ctrl+Z takes the paste back");
+    // a plain memo gets the text
+    f.focus_id(&s, "mc");
+    key(&mut f, &s, &mut ts, &mut clip, 86, "", CMD);
+    assert_eq!(model("mc").0, "red");
+}

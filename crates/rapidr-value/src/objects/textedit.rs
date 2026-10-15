@@ -429,6 +429,38 @@ impl TextEdit {
         }
     }
 
+    /// A rich edit's selection as RTF (what a copy keeps beside the plain
+    /// text: [`rich_clip_set`]); `None` for a plain edit or no selection.
+    pub fn selection_rtf(&self) -> Option<String> {
+        let r = self.rich.as_ref()?;
+        let (a, b) = (self.sel_start.min(self.chars.len()), (self.sel_start + self.sel_len).min(self.chars.len()));
+        if a >= b {
+            return None;
+        }
+        let part = r.slice(&self.chars, a, b);
+        Some(super::rtf::write(&self.chars[a..b], &part))
+    }
+
+    /// RTF pasted in place of the selection (a rich edit's paste of what
+    /// another rich edit copied): its text with its formats, the caret
+    /// after it. Whether it was rich text this could paste.
+    pub fn paste_rtf(&mut self, rtf: &str) -> bool {
+        if self.read_only {
+            return false;
+        }
+        let Some(r) = self.rich.as_mut() else { return false };
+        let bytes: Vec<u8> = rtf.chars().map(cp_byte).collect();
+        let Some(doc) = super::rtf::read(&bytes, r.font()) else { return false };
+        let (a, b) = (self.sel_start.min(self.chars.len()), (self.sel_start + self.sel_len).min(self.chars.len()));
+        r.replace_formatted(&self.chars, a, b, &doc.text, &doc.runs, &doc.paras);
+        self.chars.splice(a..b, doc.text.iter().copied());
+        self.sel_start = a + doc.text.len();
+        self.sel_len = 0;
+        self.modified = true;
+        self.changed();
+        true
+    }
+
     /// LoadFromFile / LoadFromStream / TextRTF = …: a rich edit reads RTF
     /// (unless `plain`, its PlainText); anything else is the text.
     pub fn load_bytes(&mut self, bytes: &[u8], plain: bool) {
@@ -573,6 +605,25 @@ impl TextEdit {
         }
         Some(Value::Null)
     }
+}
+
+thread_local! {
+    /// What a rich edit last copied: the plain text that went to the
+    /// clipboard and the same as RTF.
+    static RICH_CLIP: std::cell::RefCell<Option<(String, String)>> = const { std::cell::RefCell::new(None) };
+}
+
+/// A rich edit copied `plain` (to the clipboard), which is `rtf` with its
+/// formats: a paste of the same text into a rich edit keeps them.
+pub fn rich_clip_set(plain: &str, rtf: Option<String>) {
+    RICH_CLIP.with(|c| *c.borrow_mut() = rtf.map(|r| (plain.replace("\r\n", "\n"), r)));
+}
+
+/// The RTF a rich edit copied, if the clipboard still holds its text
+/// (`clip`: the clipboard's text now).
+pub fn rich_clip_for(clip: &str) -> Option<String> {
+    let clip = clip.replace("\r\n", "\n");
+    RICH_CLIP.with(|c| c.borrow().as_ref().filter(|(p, _)| *p == clip).map(|(_, r)| r.clone()))
 }
 
 /// Character `c` as the byte a file gets (Windows-1252; a Latin-1 byte
@@ -793,6 +844,41 @@ mod tests {
         r.user_edit("acd", 1, 0);
         assert_eq!(r.get("text").unwrap().to_string_val(), "acd");
         assert!(r.rich.as_ref().unwrap().fmt_at(1).bold && !r.rich.as_ref().unwrap().fmt_at(2).bold);
+    }
+
+    /// A rich edit's selection copied as RTF and pasted into another keeps
+    /// its formats and paragraphs; the clipboard match is by its text.
+    #[test]
+    fn rich_text_pastes_with_its_formats() {
+        // (a centred paragraph "red" copied with its break, and "tw")
+        let mut a = TextEdit::rich_edit();
+        a.set("text", &v_str("one\r\nred\r\ntwo"));
+        a.set("selstart", &v_int(5));
+        a.set("sellength", &v_int(3));
+        a.set("selattributes.color", &v_int(0xFF));
+        a.set("paragraph.alignment", &v_int(2));
+        a.set("selstart", &v_int(5));
+        a.set("sellength", &v_int(7));
+        let rtf = a.selection_rtf().expect("a selection");
+        rich_clip_set("red\ntw", Some(rtf.clone()));
+        assert_eq!(rich_clip_for("red\r\ntw").as_deref(), Some(rtf.as_str()));
+        assert_eq!(rich_clip_for("other"), None);
+        let mut b = TextEdit::rich_edit();
+        b.set("text", &v_str("[]"));
+        b.set("selstart", &v_int(1));
+        assert!(b.paste_rtf(&rtf));
+        assert_eq!(b.get("text").unwrap().to_string_val(), "[red\r\ntw]");
+        assert_eq!((b.get("selstart").unwrap().to_i64(), b.get("modified").unwrap().to_i64()), (8, 1));
+        b.set("selstart", &v_int(1));
+        b.set("sellength", &v_int(3));
+        assert_eq!(b.get("selattributes.color").unwrap().to_i64(), 0xFF);
+        // (the paragraph the pasted break ends has the copied one's
+        // format; the last pasted line joins the paragraph it went into)
+        assert_eq!(b.get("paragraph.alignment").unwrap().to_i64(), 2, "the pasted paragraph's alignment");
+        b.set("selstart", &v_int(7));
+        assert_eq!(b.get("paragraph.alignment").unwrap().to_i64(), 0);
+        // a plain edit pastes nothing rich
+        assert!(!TextEdit::new(true).paste_rtf(&rtf));
     }
 
     #[test]

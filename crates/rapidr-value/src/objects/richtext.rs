@@ -632,6 +632,54 @@ impl Rich {
         self.fmt_at(text_len)
     }
 
+    /// Characters `a .. b` of `text` as a document of their own (what Copy
+    /// puts on the clipboard as rich text): their formats, their
+    /// paragraphs', the last character's format as its end.
+    pub fn slice(&self, text: &[char], a: usize, b: usize) -> Rich {
+        let (a, b) = (a.min(text.len()), b.min(text.len()).max(a.min(text.len())));
+        let mut runs: Vec<(usize, CharFmt)> = Vec::new();
+        for i in a..b {
+            let f = self.fmt_at(i);
+            match runs.last_mut() {
+                Some((n, g)) if *g == f => *n += 1,
+                _ => runs.push((1, f)),
+            }
+        }
+        let end = if b > a { self.fmt_at(b - 1) } else { self.insertion_format(text, a) };
+        runs.push((1, end));
+        let p0 = breaks(&text[..a]);
+        let paras: Vec<ParaFmt> = (p0..=p0 + breaks(&text[a..b])).map(|p| self.para(p)).collect();
+        let mut r = Rich { default: self.default.clone(), align: self.align, ..Rich::default() };
+        r.load(runs, paras, &text[a..b]);
+        r
+    }
+
+    /// `ins` (with its formats `runs`, covering it, and its paragraphs'
+    /// `paras`) put in place of characters `a .. b` of `old`: a paste of
+    /// rich text.
+    pub fn replace_formatted(&mut self, old: &[char], a: usize, b: usize, ins: &[char], runs: &[(usize, CharFmt)], paras: &[ParaFmt]) {
+        self.replace(old, a, b, ins);
+        let a = a.min(old.len());
+        let mut at = a;
+        for (n, f) in runs {
+            let n = (*n).min((a + ins.len()).saturating_sub(at));
+            if n == 0 {
+                break;
+            }
+            let slot = self.intern(f.clone());
+            self.map_slots(at, at + n, |_, _| slot);
+            at += n;
+        }
+        // (the pasted paragraphs' formats: those its breaks end)
+        let p0 = breaks(&old[..a]);
+        for (k, pf) in paras.iter().enumerate().take(breaks(ins)) {
+            if let Some(p) = self.paras.get_mut(p0 + k) {
+                *p = pf.clone();
+            }
+        }
+        self.changed();
+    }
+
     /// Every character's format (`text_len` of them, then the end's), for
     /// the RTF writer.
     pub(crate) fn formats(&self) -> impl Iterator<Item = (usize, &CharFmt)> {
