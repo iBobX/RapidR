@@ -19,6 +19,15 @@ pub fn data(name: &str) -> Vec<f64> {
     ARRAYS.with(|m| m.borrow().get(&key(name)).cloned().unwrap_or_default())
 }
 
+/// `f` on array `name`'s numbers (empty if it has none yet), without
+/// copying them.
+pub fn with_data<R>(name: &str, f: impl FnOnce(&[f64]) -> R) -> R {
+    ARRAYS.with(|m| match m.borrow().get(&key(name)) {
+        Some(a) => f(a),
+        None => f(&[]),
+    })
+}
+
 /// Whether `name` is an array that has numbers (or was made empty).
 pub fn exists(name: &str) -> bool {
     ARRAYS.with(|m| m.borrow().contains_key(&key(name)))
@@ -192,21 +201,24 @@ pub fn num_method(name: &str, method: &str, args: &[Value], host: &dyn Host) -> 
             // (an index past the end grows the array with zeros)
             let i = arg_i(args, 0, 0);
             let x = arg_f(args, 1, 0.0);
-            let mut a = data(name);
             if i >= 0 && (i as usize) < 10_000_000 {
+                // (in place: `x.Set(i, v)` in a loop doesn't copy the array)
                 let i = i as usize;
-                if a.len() <= i {
-                    a.resize(i + 1, 0.0);
-                }
-                a[i] = x;
-                set_data(name, a);
+                ARRAYS.with(|m| {
+                    let mut m = m.borrow_mut();
+                    let a = m.entry(key(name)).or_default();
+                    if a.len() <= i {
+                        a.resize(i + 1, 0.0);
+                    }
+                    a[i] = x;
+                });
             }
             v_null()
         }
         "get" | "getvalue" | "getitem" | "at" => {
+            // (read in place: `x.Get(i)` in a loop doesn't copy the array)
             let i = arg_i(args, 0, 0);
-            let a = data(name);
-            v_dbl(if i >= 0 { a.get(i as usize).copied().unwrap_or(0.0) } else { 0.0 })
+            v_dbl(if i >= 0 { with_data(name, |a| a.get(i as usize).copied().unwrap_or(0.0)) } else { 0.0 })
         }
         "push" => {
             let mut a = data(name);
@@ -238,7 +250,7 @@ pub fn num_method(name: &str, method: &str, args: &[Value], host: &dyn Host) -> 
             }
             v_int(best.map_or(0, |(i, _)| i as i64))
         }
-        "count" => v_int(data(name).len() as i64),
+        "count" => v_int(with_data(name, <[f64]>::len) as i64),
         "ptp" => {
             let a = data(name);
             v_dbl(if a.is_empty() { 0.0 } else { max(&a) - min(&a) })

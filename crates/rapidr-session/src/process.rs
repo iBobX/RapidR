@@ -32,6 +32,13 @@ impl ProcessTransport {
     /// [`Self::spawn`], with environment variables set (`Some`) or removed
     /// (`None`) for the program.
     pub fn spawn_with_env(runtime: &Path, program: &str, args: &[String], cwd: Option<&Path>, env: &[(String, Option<String>)]) -> std::io::Result<Self> {
+        Self::spawn_waking(runtime, program, args, cwd, env, None)
+    }
+
+    /// [`Self::spawn_with_env`], `waker` woken whenever the program says
+    /// something (and when it ends): the IDE's window loop sleeps until then
+    /// instead of looking every few milliseconds.
+    pub fn spawn_waking(runtime: &Path, program: &str, args: &[String], cwd: Option<&Path>, env: &[(String, Option<String>)], waker: Option<std::task::Waker>) -> std::io::Result<Self> {
         let mut command = Process::new(runtime);
         command.arg("run").arg("--session").arg(program).args(args);
         for (k, v) in env {
@@ -48,6 +55,12 @@ impl ProcessTransport {
         let (tx, incoming) = mpsc::channel();
         let mut stdout = child.stdout.take().expect("piped stdout");
         let out_tx = tx.clone();
+        let wake = move |w: &Option<std::task::Waker>| {
+            if let Some(w) = w {
+                w.wake_by_ref();
+            }
+        };
+        let out_waker = waker.clone();
         std::thread::spawn(move || {
             let mut deframer = Deframer::new();
             let mut buf = [0u8; 8192];
@@ -60,14 +73,21 @@ impl ProcessTransport {
                                 return;
                             }
                         }
+                        wake(&out_waker);
                     }
                 }
             }
             if let Some(rest) = deframer.finish() {
                 let _ = out_tx.send(rest);
             }
+            // (the program's end: its output closed — and once more a moment
+            // later, when the system has it as ended)
+            wake(&out_waker);
+            std::thread::sleep(Duration::from_millis(60));
+            wake(&out_waker);
         });
         let mut stderr = child.stderr.take().expect("piped stderr");
+        let err_waker = waker;
         std::thread::spawn(move || {
             let mut buf = [0u8; 8192];
             let mut pending: Vec<u8> = Vec::new();
@@ -88,6 +108,7 @@ impl ProcessTransport {
                         if tx.send(Incoming::Event(event)).is_err() {
                             return;
                         }
+                        wake(&err_waker);
                     }
                 }
             }

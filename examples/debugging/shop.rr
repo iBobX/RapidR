@@ -1,0 +1,150 @@
+' shop.rr: a small shop's order book, made to be looked at in RapidR
+' Studio's debugger (docs/manual/debugging.md): nested TYPEs, an array of
+' them, an RDataFrame of the week's sales, an RNum of numbers, a long text,
+' a form with its components, and a loop to step through.
+'
+'   rapidr ide shop.rr     then F9 on a line and F5, or F10 to start stepping
+'   rapidr run shop.rr     (it runs on its own too)
+'
+' Things to try in Studio:
+' - a breakpoint (F9) on the line in AddUp that adds a LineTotal, then F5:
+'   rest the mouse on "orders" and open it like a tree — each order, its
+'   buyer, the buyer's address; "week" opens as a table of rows;
+' - Debug > Step Into Specific on that line picks PriceOf or LineTotal;
+' - drag the yellow arrow (or Ctrl+Shift+F10 on a line) to choose the next
+'   statement: run a line again, or skip one;
+' - type 0 in "Split between", press Split: the program stops at the
+'   division by zero, the message beside the line. Set people to 2 in
+'   Variables (F2), Ctrl+Shift+F10 on that line, F5: it goes on.
+
+TYPE Address
+    Street AS STRING
+    City AS STRING
+END TYPE
+
+TYPE Customer
+    Name AS STRING
+    Since AS INTEGER
+    Home AS Address
+END TYPE
+
+TYPE Order
+    Item AS STRING
+    Qty AS INTEGER
+    Buyer AS Customer
+END TYPE
+
+CONST MAXORDERS = 10
+
+DIM orders(1 TO MAXORDERS) AS Order
+DIM count AS INTEGER
+DIM total AS DOUBLE
+DIM notes AS STRING
+DIM week AS RDataFrame
+DIM temps AS RNum
+
+' (a price for each item: what PriceOf answers)
+FUNCTION PriceOf(Item AS STRING) AS DOUBLE
+    SELECT CASE Item
+        CASE "tea": Result = 3.5
+        CASE "coffee": Result = 4.25
+        CASE "cake": Result = 2.75
+        CASE ELSE: Result = 1
+    END SELECT
+END FUNCTION
+
+FUNCTION LineTotal(Qty AS INTEGER, Price AS DOUBLE) AS DOUBLE
+    Result = Qty * Price
+END FUNCTION
+
+SUB AddOrder(Item AS STRING, Qty AS INTEGER, Who AS STRING, City AS STRING)
+    IF count >= MAXORDERS THEN EXIT SUB
+    count = count + 1
+    orders(count).Item = Item
+    orders(count).Qty = Qty
+    orders(count).Buyer.Name = Who
+    orders(count).Buyer.Since = 2020 + count
+    orders(count).Buyer.Home.Street = STR$(10 * count) + " Market Street"
+    orders(count).Buyer.Home.City = City
+END SUB
+
+' The loop to step through: a line that calls two FUNCTIONs.
+SUB AddUp
+    DIM i AS INTEGER
+    total = 0
+    FOR i = 1 TO count
+        total = total + LineTotal(orders(i).Qty, PriceOf(orders(i).Item))
+    NEXT
+END SUB
+
+CREATE Form AS RForm
+    Caption = "Shop"
+    Width = 420
+    Height = 330
+    Center
+    CREATE OrderList AS RListBox
+        Left = 10: Top = 10: Width = 250: Height = 230
+    END CREATE
+    CREATE AddBtn AS RButton
+        Caption = "&Add order": Left = 272: Top = 10: Width = 130
+    END CREATE
+    CREATE TotalBtn AS RButton
+        Caption = "&Total": Left = 272: Top = 44: Width = 130
+    END CREATE
+    CREATE PeopleLabel AS RLabel
+        Caption = "Split between": Left = 272: Top = 86: Width = 130
+    END CREATE
+    CREATE PeopleEdit AS REdit
+        Text = "3": Left = 272: Top = 106: Width = 60
+    END CREATE
+    CREATE SplitBtn AS RButton
+        Caption = "&Split": Left = 340: Top = 104: Width = 62
+    END CREATE
+    CREATE TotalLabel AS RLabel
+        Left = 10: Top = 254: Width = 392
+    END CREATE
+END CREATE
+
+SUB ShowOrders
+    DIM i AS INTEGER
+    OrderList.Clear
+    FOR i = 1 TO count
+        OrderList.AddItems STR$(orders(i).Qty) + " x " + orders(i).Item + " for " + orders(i).Buyer.Name
+    NEXT
+END SUB
+
+SUB AddClicked(Sender AS RButton)
+    AddOrder "cake", 2, "Grace", "Sydney"
+    ShowOrders
+END SUB
+
+SUB TotalClicked(Sender AS RButton)
+    AddUp
+    TotalLabel.Caption = "Total: " + FORMAT$("%.2f", total)
+END SUB
+
+SUB SplitClicked(Sender AS RButton)
+    DIM people AS INTEGER, each AS INTEGER
+    AddUp
+    people = VAL(PeopleEdit.Text)
+    ' (0 people: a division by zero — the debugger stops here)
+    each = INT(total) \ people
+    TotalLabel.Caption = "Each pays about" + STR$(each)
+END SUB
+
+AddBtn.OnClick = AddClicked
+TotalBtn.OnClick = TotalClicked
+SplitBtn.OnClick = SplitClicked
+
+' The week's sales as a table, and some numbers
+week.LoadFromCsv "day,orders,amount" + CHR$(10) + "Mon,12,340.5" + CHR$(10) + "Tue,9,251" + CHR$(10) + "Wed,15,420.25" + CHR$(10) + "Thu,11,318" + CHR$(10) + "Fri,21,610.75" + CHR$(10)
+temps.FromList "18.5,19,21.5,23,22.5,20,19.5"
+notes = "Opening hours: 8 to 18." + CHR$(10) + "Closed on Sundays." + CHR$(10) + "Ask about the cake of the day!"
+
+AddOrder "tea", 2, "Ada", "London"
+AddOrder "coffee", 1, "Alan", "Manchester"
+AddOrder "cake", 3, "Ada", "London"
+AddUp
+ShowOrders
+TotalLabel.Caption = "Total: " + FORMAT$("%.2f", total)
+Form.ShowModal

@@ -53,7 +53,9 @@ impl Host for Desktop {
         if !theme.is_empty() {
             env.push(("RAPIDR_THEME".into(), Some(theme.to_string())));
         }
-        rapidr_session::process::ProcessTransport::spawn_with_env(&exe, &full.to_string_lossy(), args, cwd, &env)
+        // (what the program says wakes the window loop: no polling while it runs)
+        let waker = crate::ui::gui_waker();
+        rapidr_session::process::ProcessTransport::spawn_waking(&exe, &full.to_string_lossy(), args, cwd, &env, waker)
             .map(|t| Box::new(t) as Box<dyn Transport>)
             .map_err(|e| format!("{}: {e}", exe.display()))
     }
@@ -121,4 +123,18 @@ pub fn poll() -> bool {
 /// Whether a program session is running.
 pub fn running() -> bool {
     rapidr_studio::session::any_running() || rapidr_studio::build::any()
+}
+
+/// How often the window loop must look at Studio's children: a build's
+/// or Run in Browser's output every 20 ms; a program session's wakes the
+/// loop itself (its transport's reader, also when the program ends), looked
+/// at once a second besides; none: nothing to look at.
+pub fn poll_every() -> Option<std::time::Duration> {
+    if rapidr_studio::build::any() || rapidr_studio::session::starting() {
+        Some(std::time::Duration::from_millis(20))
+    } else if rapidr_studio::session::any_running() {
+        Some(std::time::Duration::from_secs(1))
+    } else {
+        None
+    }
 }

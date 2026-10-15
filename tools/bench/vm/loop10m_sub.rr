@@ -1,0 +1,12 @@
+' vm_bench: the same 10,000,000-iteration loop in a SUB (locals).
+$APPTYPE CONSOLE
+SUB Count
+  DIM i AS INTEGER
+  DIM s AS INTEGER
+  s = 0
+  FOR i = 1 TO 10000000
+    s = s + i
+  NEXT
+  PRINT s
+END SUB
+Count

@@ -84,6 +84,12 @@ The **Runs on** column lists the ways each example is tested on (by
 | [csv_explorer.rr](data/csv_explorer.rr) | Drop a CSV file on the window (or open one, or the sample [shop.csv](data/shop.csv)): a table sorted by a click on a heading, a filter, each column's count, min, max and mean, and a live `RPlot` bar, line or scatter chart of any two columns; the form's `OnDropFiles` | run · interp · native · web | `rapidr run data/csv_explorer.rr` |
 | [dataframe.rr](data/dataframe.rr) | `RDataFrame` from a CSV ([staff.csv](data/staff.csv)): filter, sort, into a grid; an `RPlot` bar chart on the form | run · interp · native · web | `rapidr run data/dataframe.rr` |
 
+### debugging/ — RapidR Studio's debugger
+
+| Example | What it shows | Runs on | Try |
+|---------|---------------|---------|-----|
+| [shop.rr](debugging/shop.rr) | A small shop's order book made to be looked at in the debugger ([Debugging in RapidR Studio](../docs/manual/debugging.md)): nested `TYPE`s in an array, an `RDataFrame`, an `RNum`, a long text, a form; a loop whose line calls two FUNCTIONs (Step Into Specific), a division by zero to stop at and go on from (Set Next Statement) | run · interp · native · web | `rapidr ide debugging/shop.rr` |
+
 ### network/ — HTTP (against a server on your own machine)
 
 Start a server in the folder first, e.g. `cd network && python3 -m http.server 8000`.

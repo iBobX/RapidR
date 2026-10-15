@@ -1,0 +1,14 @@
+' vm_bench: string handling — 1,000,000 rounds of MID$, UCASE$,
+' concatenation, LEN and a comparison.
+$APPTYPE CONSOLE
+DIM s AS STRING, t AS STRING
+DIM i AS INTEGER, n AS INTEGER, hits AS INTEGER
+s = "The quick brown fox jumps over the lazy dog, again and again and again."
+n = 0
+hits = 0
+FOR i = 1 TO 1000000
+  t = MID$(s, (i MOD 50) + 1, 5) + UCASE$("ab")
+  n = n + LEN(t)
+  IF t = "quickAB" THEN hits = hits + 1
+NEXT
+PRINT n; hits

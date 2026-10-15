@@ -151,6 +151,8 @@ fn ensure_host() {
     let capture = Capture::from_env();
     let headless = capture.is_some() && std::env::var_os("RAPIDR_CAPTURE_WINDOWS").is_none();
     let mut host = rapidr_ui_host_winit::new_host(headless, forced_scale());
+    // (what wakes the loop from another thread: rp_wake)
+    crate::object::rp_set_waker(host.waker());
     // (timers during native menu tracking: the program's turn inside a held
     // pump)
     host.set_tracking_hook(Box::new(|desk, _store| tracking_tick(desk)));
@@ -172,6 +174,13 @@ fn ensure_host() {
 
 fn started() -> bool {
     kern().is_some()
+}
+
+/// What wakes the window loop from another thread (its host's waker; the
+/// window system started for it).
+pub fn gui_waker() -> Option<std::task::Waker> {
+    ensure_host();
+    with_kern(|k| k.host.waker())
 }
 
 // ------------------------------------------------------------- the pump --
@@ -266,15 +275,12 @@ pub fn step(max_wait: Option<Duration>) {
     if rapidr_ui_app::dialogs::tasks_open() {
         at_most(rapidr_ui_app::dialogs::TASK_STEP);
     }
-    // (a program under the IDE's debugger: its requests heard while it
-    // waits — rapidr-vm's `wait_point`)
-    if crate::object::rp_debug_poll() {
-        at_most(crate::object::DEBUG_POLL_STEP);
-    }
-    // (RapidR Studio's program sessions: their output heard every 20 ms)
+    // (RapidR Studio's program sessions wake the loop when the program
+    // says something — studio.rs —; a build's or Run in Browser's output is
+    // heard every 20 ms)
     #[cfg(feature = "studio")]
-    if crate::studio::running() {
-        at_most(Duration::from_millis(20));
+    if let Some(every) = crate::studio::poll_every() {
+        at_most(every);
     }
     let queued = crate::object::rp_vm_events_queued();
     pump(t);

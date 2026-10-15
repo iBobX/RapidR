@@ -754,6 +754,12 @@ fn paint_gutter(x: &mut Ctx, p: &mut Painter) {
                 }
                 arrow(p, icon_rect, here_color);
             }
+            // (the arrow being carried to another line: Set Next Statement)
+            if let Some(super::Drag::Marker { from, to }) = x.ui.drag {
+                if line == to && to != from {
+                    arrow(p, icon_rect, blend(sc.current_statement, sc.gutter, 0.55));
+                }
+            }
             // changes since the save
             match x.ui.changes.at(line) {
                 super::lang::Change::Added => p.fill((g.diff_x, top, 3, lh as i64), sc.mark_added),

@@ -186,6 +186,8 @@ SUB DefineCommands
   AddCmd "debug.stepOver", "Step &Over", "Debug", "F10", "", "project", ""
   AddCmd "debug.stepOut", "Step O&ut", "Debug", "Shift+F11", "", "paused", ""
   AddCmd "debug.runToCursor", "Run to C&ursor", "Debug", "Ctrl+F10", "", "code", ""
+  AddCmd "debug.setNextStatement", "Set &Next Statement", "Debug", "Ctrl+Shift+F10", "", "paused", "debug.showExecutionPoint"
+  AddCmd "debug.stepIntoSpecific", "Step Into &Specific...", "Debug", "Ctrl+Alt+F11", "", "paused", "debug.stepInto"
   AddSep "Debug"
   AddCmd "debug.toggleBreakpoint", "Toggle &Breakpoint", "Debug", "F9", "", "code", ""
   AddCmd "debug.editBreakpoint", "&Edit Breakpoint...", "Debug", "Shift+F9", "", "code", "debug.addConditionalBreakpoint"

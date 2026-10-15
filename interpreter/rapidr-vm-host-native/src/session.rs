@@ -94,9 +94,6 @@ pub fn run_session(bytes: &[u8], program: &str) -> Result<i32, String> {
         return Ok(0);
     }
     vm.debugger = Some(Box::new(debugger));
-    // (its waits turn now and then: a pause reaches a program that waits
-    // for its events)
-    obj::rp_set_debug_poll(true);
     let result = crate::run_module(&module, &mut vm);
     vm.debugger = None;
     let code = match result {
@@ -147,6 +144,9 @@ fn spawn_reader(tx: mpsc::Sender<Request>, interrupt: Arc<AtomicBool>, input: Ar
                         break;
                     }
                     interrupt.store(true, Ordering::Relaxed);
+                    // (a program waiting for its events hears it at once —
+                    // a pause stops it where it waits: rapidr-vm's wait_point)
+                    obj::rp_wake();
                 }
             }
         }

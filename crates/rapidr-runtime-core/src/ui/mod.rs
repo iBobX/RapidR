@@ -60,6 +60,9 @@ pub use kernel::{
     // The program ends (END, Application.Terminate): the windows' pending
     // commands run.
     before_exit,
+    // What wakes the window loop from another thread (RapidR Studio's
+    // program sessions).
+    gui_waker,
 };
 
 /// `DOEVENTS`: pending events, timers and redraws get their turn, then the

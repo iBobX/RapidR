@@ -1,0 +1,12 @@
+' vm_bench: arrays — 2,000,000 elements written, then read and summed.
+$APPTYPE CONSOLE
+DIM a(1 TO 2000000) AS INTEGER
+DIM i AS INTEGER, s AS INTEGER
+FOR i = 1 TO 2000000
+  a(i) = i MOD 1000
+NEXT
+s = 0
+FOR i = 1 TO 2000000
+  s = s + a(i)
+NEXT
+PRINT s

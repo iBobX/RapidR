@@ -102,6 +102,7 @@ SUB FillExamples
   AddExample "gui/pantry.rr", "A list and a grid together"
   AddExample "gui/themes.rr", "The themes, switched live"
   AddExample "data/dataframe.rr", "A data frame and a chart"
+  AddExample "debugging/shop.rr", "Debug it: values as trees"
   AddExample "rapidq/notepad.bas", "A program in RapidQ's style"
   AddExample "basics/hello.rr", "PRINT, FOR, SUB, FUNCTION"
   LayOutWelcome

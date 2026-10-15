@@ -917,6 +917,12 @@ pub fn set_frame(name: &str, f: Frame) {
     });
 }
 
+/// `f` on frame `name` (empty if it has none yet), without copying it —
+/// the debugger's table view of a frame of millions of rows.
+pub fn with_frame<R>(name: &str, f: impl FnOnce(&Frame) -> R) -> R {
+    read(name, f)
+}
+
 fn read<R>(name: &str, f: impl FnOnce(&Frame) -> R) -> R {
     FRAMES.with(|m| match m.borrow().get(&key(name)) {
         Some(frame) => f(frame),

@@ -414,9 +414,10 @@ Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's ar
 The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate window, conditional breakpoints / hit counts / logpoints / break on error and DAP in stage I6, edit-and-continue and "inspect element" in I5; reverse stepping, the event timeline and the line profiler stay here, after I6.
 
 
-- [ ] Immediate window: evaluate expressions/statements in the paused frame (compile snippet against frame symbols)
-- [ ] Edit & Continue: hot-swap recompiled function when signature unchanged; Set Next Statement
-- [ ] Conditional breakpoints, hit counts, logpoints; break on runtime error
+- [x] Immediate window: evaluate expressions/statements in the paused frame (compile snippet against frame symbols) (S-DEBUG)
+- [ ] Edit & Continue: hot-swap recompiled function when signature unchanged
+- [x] Set Next Statement: the arrow dragged, or Ctrl+Shift+F10, within the routine; at a run-time error the line retried or skipped, the program going on (DEBUG-VM, 2026-10-15)
+- [x] Conditional breakpoints, hit counts, logpoints; break on runtime error (S-DEBUG)
 - [ ] Reverse stepping: ring buffer of VM state deltas + recorded host-call results
 - [ ] Event timeline (event → handler → duration)
 - [ ] "Inspect element": click widget in running preview → properties/handlers
@@ -484,7 +485,9 @@ The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate wind
 - [x] Basic: breakpoints in any file with conditions, step in / over / out, pause, run to cursor, call stack, locals / globals / watches evaluated by the VM, data tips, break on runtime error, the immediate window (S-DEBUG, 2026-10-08: desktop and web)
 - [x] Pause while the program waits for its events, breakpoints placed where the program stops, breakpoints and watches kept with the project, values set in place (S-DEBUG, 2026-10-08: desktop and web)
 - [x] Hit counts, logpoints (S-DEBUG)
-- [ ] Frames opened in the data preview (with I7)
+- [x] The values inspector (DEBUG-VM, 2026-10-15: desktop and web): data tips that open like a tree to any depth — arrays, nested TYPEs, components with their properties and the components they hold, an RDataFrame as a table (rows → cells), RNum's numbers, pages of 100 —, values changed since the last stop in bold blue (tips, Variables, Watch), copy (whole) / watch / view text from a tip or the panes' menu, nested fields set with F2, the program's Components in Variables; a hover never runs code
+- [x] Set Next Statement (the arrow dragged, Ctrl+Shift+F10; retry or skip a failed line) and Step Into Specific (Ctrl+Alt+F11); Step Over no longer stops twice on a line that calls a SUB (DEBUG-VM); `rapidr dap`: stepInTargets, gotoTargets / goto
+- [ ] Frames opened in the data preview (with I7) — shown as tables in data tips and Variables already (DEBUG-VM)
 - [ ] `rapidr dap` for VS Code and other DAP clients
 
 **I7 — Linked data and data science** (L, 18–26 sessions; the core in the first release)
@@ -502,6 +505,7 @@ The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate wind
   - **Easy enough for a school kid:** one obvious way to do each thing, plain-English names and errors, visual building first (connect, see, chart), guided examples and lessons — RapidR as the tool schools and universities hand to students for data-science apps. (Anything for schools that holds student data or accounts goes through the six legal checks first — COPPA above all.)
   - **Kept in view on every connector:** permissive, commercial-friendly licences only (each crate checked; Oracle needs Oracle's own client — a legal and dependency review before any connector for it); on the web everything a browser can do (files, HTTP, cloud over HTTPS), and direct database connections say clearly they are desktop-only.
   - **The best VM and debugger (Robert, 2026-10-11):** the VM robust, fast and lean — runs well on small, old computers (memory and CPU budgets measured, no busy loops, idle at ~0 % CPU); the debugger Xcode-class: hover any variable or object and expand it (fields, arrays, frames, components with their properties, nested to any depth), the same tree in Variables / Watch, frames shown as tables, values editable, changes highlighted between steps, conditional / hit-count / log breakpoints, break on exceptions, run to cursor, set next statement.
+    - Done (DEBUG-VM, 2026-10-15): the values inspector, Set Next Statement, Step Into Specific (I6 above); `tools/bench/vm_bench` with budgets (`tools/regress.sh perf`): start-up, memory, a 10 M-iteration loop with and without the debugger, strings, calls, arrays, idle CPU of a waiting form, under the debugger and with Studio running it (nothing polls any more: the session's reader wakes the loop); the VM's hot paths (lazy errors, an opcode table, arithmetic in place, builtins resolved once); measured on a one-core, 2 GB Ubuntu (docs/manual/debugging.md "How fast it runs").
   - **RapidQ compatibility never broken:** everything above is additive — RapidQ programs keep running unchanged (RC.EXE stays the ground truth, the corpus suite on every release).
   - **AI-ready by design (every component, not only data):** the language registry stays the one machine-readable description of every component, property, method, event and function — the IDE's MCP server and the RAI component in users' programs read it to know what exists, and act through one introspection/command interface (create, connect, set, call, read results) that every component implements. So an AI agent can build full working programs in Studio and drive components inside users' running programs, under the user's permission tiers. Designed deeply (an architecture doc and review) before I8 starts; no component ships without its registry entry and that interface.
 

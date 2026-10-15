@@ -56,12 +56,99 @@ DIM BpLogEdit AS REdit
 DIM BpOnCheck AS RCheckBox
 
 ' The trees' items: what each shows (the variables' reference: its children,
-' 0 none; its path, so what was open stays open from stop to stop).
+' 0 none; its path, so what was open stays open from stop to stop; the
+' expression that names its value — what Copy, Add Watch and setting it use;
+' its type; for "… more", the reference and where the next page starts).
 CONST MAXVARITEMS = 1500
 DIM VarItemRef(MAXVARITEMS) AS INTEGER
 DIM VarItemPath(MAXVARITEMS) AS STRING
+DIM VarItemExpr(MAXVARITEMS) AS STRING
+DIM VarItemKind(MAXVARITEMS) AS STRING
+DIM VarItemMore(MAXVARITEMS) AS INTEGER
 DIM WatchItemRef(MAXVARITEMS) AS INTEGER
 DIM WatchItemPath(MAXVARITEMS) AS STRING
+DIM WatchItemExpr(MAXVARITEMS) AS STRING
+DIM WatchItemKind(MAXVARITEMS) AS STRING
+DIM WatchItemMore(MAXVARITEMS) AS INTEGER
+' (a value changed since the last stop: its colour in the trees, as the
+' data tips mark it)
+CONST CHANGEDCOLOR = &HD77800
+
+' ---- the data tip: the value under a resting mouse, as a tree -----------------------------
+' Its rows as the last ShowDataTip showed them (a row's id is its number):
+' its path (what's open stays open), the expression naming it, its type,
+' its children's reference and how many, its value; a "… more" row's
+' reference and next page's start.
+CONST MAXTIPROWS = 400
+DIM TipRowPath(MAXTIPROWS) AS STRING
+DIM TipRowExpr(MAXTIPROWS) AS STRING
+DIM TipRowKind(MAXTIPROWS) AS STRING
+DIM TipRowValue(MAXTIPROWS) AS STRING
+DIM TipRowRef(MAXTIPROWS) AS INTEGER
+DIM TipRowMore(MAXTIPROWS) AS INTEGER
+DIM TipRowCount AS INTEGER
+DIM TipRows AS STRING
+' (the expression under the mouse, its value, type and children; what is
+' open; references still to fetch once the rows are made)
+DIM TipExpr AS STRING
+DIM TipValue AS STRING
+DIM TipKind AS STRING
+DIM TipChanged AS INTEGER
+DIM TipRef AS INTEGER
+DIM TipOpen AS STRING
+DIM TipFetch AS STRING
+DIM TipShown AS INTEGER
+' (the tip's top value's columns, when it's a table; how many children it has)
+DIM TipColumns AS STRING
+DIM TipTotal AS INTEGER
+' (the values data tips showed at the last stops, by expression: a changed
+' one is marked)
+DIM TipSeen AS STRING
+DIM TipSeenNow AS STRING
+
+' (Copy Value's and the text viewer's evaluations: their ids)
+DIM CopyEvalId AS INTEGER
+DIM ViewEvalId AS INTEGER
+DIM ViewExpr AS STRING
+DIM GotoEvalId AS INTEGER
+' (Step Into Specific: the calls the line makes, picked from a menu)
+DIM TargetMenu AS RPopupMenu
+CONST MAXTARGETS = 12
+DIM TargetItem(MAXTARGETS) AS RMenuItem
+DIM TargetId(MAXTARGETS) AS INTEGER
+DIM TargetCount AS INTEGER
+' (a scripted flow's pick: into:<name>)
+DIM TargetWanted AS STRING
+' (the Variables and Watch panes' right-click menus)
+DIM VarsMenu AS RPopupMenu
+DIM WatchMenu AS RPopupMenu
+DIM VarsMenuItem(3) AS RMenuItem
+DIM WatchMenuItem(3) AS RMenuItem
+
+' ---- the text viewer: a string's whole text -------------------------------------------
+CREATE TextViewer AS RForm
+  Caption = "Text"
+  Width = 560: Height = 400
+  BorderStyle = 2
+  CREATE TextViewerBox AS RMemo
+    Left = 10: Top = 10: Width = 524: Height = 300
+    ReadOnly = 1
+    WordWrap = 1
+    ScrollBars = 2
+    AccessibleName = "The text"
+  END CREATE
+  CREATE TextViewerInfo AS RLabel
+    Left = 10: Top = 322: Width = 300: Caption = ""
+  END CREATE
+  CREATE TextViewerCopy AS RButton
+    Left = 342: Top = 318: Width = 90: Caption = "&Copy"
+  END CREATE
+  CREATE TextViewerClose AS RButton
+    Left = 444: Top = 318: Width = 90: Caption = "Close"
+    Cancel = 1
+    ModalResult = 2
+  END CREATE
+END CREATE
 ' (a tree being refilled: its expand events aren't the user's)
 DIM TreeFilling AS INTEGER
 ' "|path|…": what the user opened in Variables and in Watch
@@ -355,6 +442,10 @@ SUB DebugDocOpened(d AS INTEGER)
   DIM i AS INTEGER
   CodeDoc(d).OnGutterClick = CodeGutterClick
   CodeDoc(d).OnHoverRequest = CodeHoverRequest
+  ' (the data tip's tree, its buttons; the arrow carried: Set Next Statement)
+  CodeDoc(d).OnDataTipExpand = TipExpand
+  CodeDoc(d).OnDataTipAction = TipAction
+  CodeDoc(d).OnMarkerDrag = ArrowDragged
   FOR i = 0 TO BpCount - 1
     IF LCASE$(BpFile(i)) = LCASE$(DocFile(d)) THEN CodeDoc(d).AddMarker BpLine(i), BpKind(i)
   NEXT
@@ -679,6 +770,7 @@ SUB ProgramStopped(Reason AS STRING, InFile AS STRING, LineNo AS INTEGER)
     CASE "breakpoint": what = "Breakpoint"
     CASE "entry": what = "Paused at the start"
     CASE "exception": what = "Run-time error"
+    CASE "goto": what = "Next statement"
     CASE ELSE
       what = "Paused"
       ' (while the program waits for its events: a ShowModal, a dialog)
@@ -686,13 +778,15 @@ SUB ProgramStopped(Reason AS STRING, InFile AS STRING, LineNo AS INTEGER)
   END SELECT
   IF Reason = "exception" THEN kind = "exception" ELSE kind = "current"
   SetState "paused", what + ": " + FileTitle(PausedFile) + ":" + Num(LineNo)
+  ' (the data tips' values are the last stop's: they compare with this one's)
+  TipNewStop
   ClearPausedMarks
   ShowLocation PausedFile, LineNo, kind
   IF Reason = "exception" THEN
     OutputAfterProgram FileTitle(PausedFile) + ":" + Num(LineNo) + ": " + Session.StopMessage
   END IF
   ' (a new stop: its references are new; Locals and the globals are in)
-  RefsIn = "|" + Num(Session.LocalsRef) + "|" + Num(Session.GlobalsRef) + "|"
+  RefsIn = "|" + Num(Session.LocalsRef) + "|" + Num(Session.GlobalsRef) + "|" + Num(Session.ComponentsRef) + "|"
   FillCallStack
   FillVariables
   FillWatches
@@ -753,23 +847,59 @@ SUB TreeItemData(w AS INTEGER, i AS INTEGER, Ref AS INTEGER, Path AS STRING)
   IF i > MAXVARITEMS THEN EXIT SUB
   IF w = 0 THEN
     VarItemRef(i) = Ref: VarItemPath(i) = Path
+    VarItemExpr(i) = "": VarItemKind(i) = "": VarItemMore(i) = -1
     IF Ref > 0 THEN VarsTree.Item(i).HasChildren = 1
   ELSE
     WatchItemRef(i) = Ref: WatchItemPath(i) = Path
+    WatchItemExpr(i) = "": WatchItemKind(i) = "": WatchItemMore(i) = -1
     IF Ref > 0 THEN WatchTree.Item(i).HasChildren = 1
   END IF
 END SUB
 
+' (an item's value: the expression naming it, its type; changed since the
+' last stop: marked in the changed colour)
+SUB TreeItemValue(w AS INTEGER, i AS INTEGER, Expr AS STRING, Kind AS STRING, Changed AS INTEGER)
+  IF i > MAXVARITEMS THEN EXIT SUB
+  IF w = 0 THEN
+    VarItemExpr(i) = Expr: VarItemKind(i) = Kind
+    IF Changed THEN VarsTree.Item(i).TextColor = CHANGEDCOLOR
+  ELSE
+    WatchItemExpr(i) = Expr: WatchItemKind(i) = Kind
+    IF Changed THEN WatchTree.Item(i).TextColor = CHANGEDCOLOR
+  END IF
+END SUB
+
+' (references a tree needs that this stop hasn't fetched: asked for once
+' the tree is filled — OnVariables fills it again)
+DIM TreeFetch AS STRING
+
+SUB FetchTreeRefs
+  DIM want AS STRING, n AS INTEGER, k AS INTEGER, r AS INTEGER
+  want = TreeFetch
+  TreeFetch = ""
+  n = TALLY(want, "|")
+  FOR k = 2 TO n + 1
+    r = VAL(FIELD$(want, "|", k))
+    IF r > 0 AND RefIn(r) = 0 THEN Session.Expand r
+  NEXT
+END SUB
+
 ' The children of reference Ref under item Parent of tree w, depth first (a
 ' child is added after its parent's whole subtree: depth first keeps that
-' the end of the list); an open child's children too — fetched first when
-' this stop hasn't yet.
-SUB AddValueChildren(w AS INTEGER, Parent AS INTEGER, Ref AS INTEGER, Path AS STRING, Depth AS INTEGER)
+' the end of the list); an open child's children too — fetched once the
+' tree is filled when this stop hasn't yet. An RDataFrame's rows come under
+' its columns' names (Columns); a big array, frame or RNum shows a page,
+' then "… more" (Total: how many there are).
+SUB AddValueChildren(w AS INTEGER, Parent AS INTEGER, Ref AS INTEGER, Path AS STRING, Depth AS INTEGER, Columns AS STRING, Total AS INTEGER)
   DIM rows AS STRING, n AS INTEGER, k AS INTEGER, row AS STRING, nm AS STRING, cref AS INTEGER, cpath AS STRING, item AS INTEGER, opened AS STRING
-  IF Depth > 8 THEN EXIT SUB
+  IF Depth > 12 THEN EXIT SUB
   rows = Session.Variables(Ref)
   n = TALLY(rows, CHR$(10))
   IF w = 0 THEN opened = VarsOpen ELSE opened = WatchOpen
+  IF Columns <> "" THEN
+    TreeAddChild w, Parent, "[" + REPLACESUBSTR$(Columns, CHR$(31), "  |  ") + "]"
+    TreeItemData w, TreeCount(w) - 1, 0, Path + "/[columns]"
+  END IF
   FOR k = 1 TO n
     IF TreeCount(w) >= MAXVARITEMS THEN EXIT SUB
     row = FIELD$(rows, CHR$(10), k)
@@ -779,14 +909,28 @@ SUB AddValueChildren(w AS INTEGER, Parent AS INTEGER, Ref AS INTEGER, Path AS ST
     TreeAddChild w, Parent, ValueText(nm, FIELD$(row, CHR$(9), 2))
     item = TreeCount(w) - 1
     TreeItemData w, item, cref, cpath
+    TreeItemValue w, item, FIELD$(row, CHR$(9), 6), FIELD$(row, CHR$(9), 3), VAL(FIELD$(row, CHR$(9), 7))
     IF cref > 0 AND IsOpen(opened, cpath) THEN
       IF RefIn(cref) THEN
-        AddValueChildren w, item, cref, cpath, Depth + 1
+        AddValueChildren w, item, cref, cpath, Depth + 1, FIELD$(row, CHR$(9), 8), VAL(FIELD$(row, CHR$(9), 5))
       ELSE
-        Session.Expand cref
+        TreeFetch = TreeFetch + "|" + Num(cref)
       END IF
     END IF
   NEXT
+  ' (more than came: the next page when it's opened)
+  IF Total > n AND n > 0 AND TreeCount(w) < MAXVARITEMS THEN
+    TreeAddChild w, Parent, "… " + Num(Total - n) + " more"
+    item = TreeCount(w) - 1
+    TreeItemData w, item, 0, Path + "/[more]"
+    IF item <= MAXVARITEMS THEN
+      IF w = 0 THEN
+        VarItemMore(item) = n: VarItemRef(item) = Ref: VarsTree.Item(item).HasChildren = 1
+      ELSE
+        WatchItemMore(item) = n: WatchItemRef(item) = Ref: WatchTree.Item(item).HasChildren = 1
+      END IF
+    END IF
+  END IF
 END SUB
 
 ' (after a tree is filled: what was open, opened again)
@@ -804,9 +948,10 @@ SUB ReopenTree(w AS INTEGER)
 END SUB
 
 SUB FillVariables
-  DIM top AS INTEGER, root AS INTEGER
+  DIM top AS INTEGER, root AS INTEGER, picked AS STRING
   TreeFilling = 1
   top = VarsTree.TopIndex
+  IF VarsTree.ItemIndex >= 0 AND VarsTree.ItemIndex <= MAXVARITEMS THEN picked = VarItemPath(VarsTree.ItemIndex)
   VarsTree.Clear
   IF RunState <> "paused" THEN
     VarsTree.AddItems "Not paused: F9 sets a breakpoint, F5 runs."
@@ -817,7 +962,7 @@ SUB FillVariables
   VarsTree.AddItems "Locals"
   TreeItemData 0, 0, 0, "L"
   root = 0
-  IF Session.LocalsRef > 0 THEN AddValueChildren 0, root, Session.LocalsRef, "L", 0
+  IF Session.LocalsRef > 0 THEN AddValueChildren 0, root, Session.LocalsRef, "L", 0, "", 0
   IF VarsTree.ItemCount = 1 THEN
     VarsTree.AddChildItems 0, "(none)"
     TreeItemData 0, 1, 0, "L/"
@@ -825,15 +970,38 @@ SUB FillVariables
   VarsTree.AddItems "Globals"
   root = VarsTree.ItemCount - 1
   TreeItemData 0, root, 0, "G"
-  AddValueChildren 0, root, Session.GlobalsRef, "G", 0
+  AddValueChildren 0, root, Session.GlobalsRef, "G", 0, "", 0
+  ' (the program's components — its forms, frames, timers —, each opening
+  ' to its properties and the components it holds; filled once opened)
+  VarsTree.AddItems "Components"
+  root = VarsTree.ItemCount - 1
+  TreeItemData 0, root, Session.ComponentsRef, "C"
+  IF IsOpen(VarsOpen, "C") THEN AddValueChildren 0, root, Session.ComponentsRef, "C", 0, "", 0
   ReopenTree 0
   IF top < VarsTree.ItemCount THEN VarsTree.TopIndex = top
+  ' (the item picked stays picked)
+  IF picked <> "" THEN SelectPath 0, picked
   TreeFilling = 0
+  FetchTreeRefs
+END SUB
+
+' (tree w's item at that path selected, when it's there)
+SUB SelectPath(w AS INTEGER, Path AS STRING)
+  DIM k AS INTEGER
+  FOR k = 0 TO TreeCount(w) - 1
+    IF k > MAXVARITEMS THEN EXIT SUB
+    IF w = 0 THEN
+      IF VarItemPath(k) = Path THEN VarsTree.ItemIndex = k: EXIT SUB
+    ELSE
+      IF WatchItemPath(k) = Path THEN WatchTree.ItemIndex = k: EXIT SUB
+    END IF
+  NEXT
 END SUB
 
 SUB FillWatches
-  DIM rows AS STRING, n AS INTEGER, k AS INTEGER, row AS STRING, expr AS STRING, value AS STRING, wref AS INTEGER, item AS INTEGER
+  DIM rows AS STRING, n AS INTEGER, k AS INTEGER, row AS STRING, expr AS STRING, value AS STRING, wref AS INTEGER, item AS INTEGER, picked AS STRING
   TreeFilling = 1
+  IF WatchTree.ItemIndex >= 0 AND WatchTree.ItemIndex <= MAXVARITEMS THEN picked = WatchItemPath(WatchTree.ItemIndex)
   WatchTree.Clear
   rows = Session.WatchValues
   n = TALLY(rows, CHR$(10))
@@ -846,17 +1014,26 @@ SUB FillWatches
     WatchTree.AddItems ValueText(expr, value)
     item = WatchTree.ItemCount - 1
     TreeItemData 1, item, wref, "W" + Num(k)
+    TreeItemValue 1, item, expr, FIELD$(row, CHR$(9), 3), Flag(RunState = "paused" AND VAL(FIELD$(row, CHR$(9), 5)) <> 0)
     IF RunState = "paused" AND wref > 0 AND IsOpen(WatchOpen, "W" + Num(k)) THEN
-      IF RefIn(wref) THEN AddValueChildren 1, item, wref, "W" + Num(k), 0 ELSE Session.Expand wref
+      IF RefIn(wref) THEN AddValueChildren 1, item, wref, "W" + Num(k), 0, "", VAL(FIELD$(row, CHR$(9), 6)) ELSE TreeFetch = TreeFetch + "|" + Num(wref)
     END IF
   NEXT
   ReopenTree 1
+  IF picked <> "" THEN SelectPath 1, picked
   TreeFilling = 0
+  FetchTreeRefs
 END SUB
 
-' A value opened by the user: its children fetched (then filled in: OnVariables).
+' A value opened by the user: its children fetched (then filled in:
+' OnVariables); "… more" opened: the next page.
 SUB VarsExpanding(Index AS INTEGER, AllowExpansion AS INTEGER)
   IF TreeFilling OR Index < 0 OR Index > MAXVARITEMS THEN EXIT SUB
+  IF VarItemMore(Index) >= 0 THEN
+    AllowExpansion = 0
+    Session.ExpandMore VarItemRef(Index), VarItemMore(Index)
+    EXIT SUB
+  END IF
   IF IsOpen(VarsOpen, VarItemPath(Index)) = 0 THEN VarsOpen = VarsOpen + "|" + VarItemPath(Index) + "|"
   IF VarItemRef(Index) > 0 THEN
     IF RefIn(VarItemRef(Index)) THEN FillVariables ELSE Session.Expand VarItemRef(Index)
@@ -870,6 +1047,11 @@ END SUB
 
 SUB WatchExpanding(Index AS INTEGER, AllowExpansion AS INTEGER)
   IF TreeFilling OR Index < 0 OR Index > MAXVARITEMS THEN EXIT SUB
+  IF WatchItemMore(Index) >= 0 THEN
+    AllowExpansion = 0
+    Session.ExpandMore WatchItemRef(Index), WatchItemMore(Index)
+    EXIT SUB
+  END IF
   IF IsOpen(WatchOpen, WatchItemPath(Index)) = 0 THEN WatchOpen = WatchOpen + "|" + WatchItemPath(Index) + "|"
   IF WatchItemRef(Index) > 0 THEN
     IF RefIn(WatchItemRef(Index)) THEN FillWatches ELSE Session.Expand WatchItemRef(Index)
@@ -887,12 +1069,13 @@ END SUB
 SUB SessionVariables(Ref AS INTEGER)
   IF RunState <> "paused" THEN EXIT SUB
   IF Ref = 0 THEN
-    RefsIn = "|" + Num(Session.LocalsRef) + "|" + Num(Session.GlobalsRef) + "|"
+    RefsIn = "|" + Num(Session.LocalsRef) + "|" + Num(Session.GlobalsRef) + "|" + Num(Session.ComponentsRef) + "|"
   ELSEIF RefIn(Ref) = 0 THEN
     RefsIn = RefsIn + Num(Ref) + "|"
   END IF
   FillVariables
   FillWatches
+  IF TipShown AND Ref <> 0 THEN ShowTip
 END SUB
 
 ' ---- values set in place ------------------------------------------------------------------------
@@ -959,14 +1142,13 @@ SUB SetValue(Expr AS STRING, Value AS STRING)
   SetVarId = Session.SetVariable(Expr, Value)
 END SUB
 
-' (a value without children, in a paused program: Locals' and Globals'
-' headers, "(none)", arrays, TYPEs and objects aren't)
+' (a value without children, in a paused program, that has a name to set
+' it by: Locals' and Globals' headers, "(none)", arrays, TYPEs, objects, a
+' frame's rows and "… more" aren't)
 SUB VarsEditing(Index AS INTEGER, AllowEdit AS INTEGER)
-  DIM p AS STRING
   AllowEdit = 0
   IF RunState <> "paused" OR Index < 0 OR Index > MAXVARITEMS THEN EXIT SUB
-  p = VarItemPath(Index)
-  IF VarItemRef(Index) = 0 AND INSTR(p, "/") > 0 AND RIGHT$(p, 1) <> "/" THEN AllowEdit = 1
+  IF VarItemRef(Index) = 0 AND VarItemMore(Index) < 0 AND VarItemExpr(Index) <> "" THEN AllowEdit = 1
 END SUB
 
 SUB VarsEdited(Index AS INTEGER, S AS STRING)
@@ -974,7 +1156,7 @@ SUB VarsEdited(Index AS INTEGER, S AS STRING)
   IF Index < 0 OR Index > MAXVARITEMS THEN EXIT SUB
   v = TypedValue(S)
   S = ValueText(PathName(VarItemPath(Index)), v)
-  SetValue PathExpr(VarItemPath(Index), ""), v
+  SetValue VarItemExpr(Index), v
 END SUB
 
 SUB WatchEditing(Index AS INTEGER, AllowEdit AS INTEGER)
@@ -986,8 +1168,8 @@ SUB WatchEditing(Index AS INTEGER, AllowEdit AS INTEGER)
   IF INSTR(p, "/") = 0 THEN
     ' (a watch's expression: always)
     AllowEdit = 1
-  ELSEIF RunState = "paused" AND WatchItemRef(Index) = 0 THEN
-    AllowEdit = PlainWatch(WatchExpr(VAL(MID$(p, 2))))
+  ELSEIF RunState = "paused" AND WatchItemRef(Index) = 0 AND WatchItemMore(Index) < 0 AND WatchItemExpr(Index) <> "" THEN
+    AllowEdit = PlainWatch(WatchItemExpr(Index))
   END IF
 END SUB
 
@@ -1017,7 +1199,7 @@ SUB WatchEdited(Index AS INTEGER, S AS STRING)
   ELSE
     v = TypedValue(S)
     S = ValueText(PathName(p), v)
-    SetValue PathExpr(p, WatchExpr(k)), v
+    SetValue WatchItemExpr(Index), v
   END IF
 END SUB
 
@@ -1043,6 +1225,7 @@ END SUB
 ' (Delete on a watch: gone)
 SUB WatchTreeKey(Key AS INTEGER, Shift AS INTEGER)
   DIM i AS INTEGER, w AS STRING, n AS INTEGER, k AS INTEGER, acc AS STRING, at AS INTEGER
+  IF CopyKey(1, Key, Shift) THEN Key = 0: EXIT SUB
   IF Key <> 46 AND Key <> 8 THEN EXIT SUB
   i = WatchTree.ItemIndex
   IF i < 0 OR i > MAXVARITEMS THEN EXIT SUB
@@ -1181,11 +1364,15 @@ SUB ImmAnswer(Text AS STRING)
   ImmediateBox.SelStart = LEN(ImmediateBox.Text)
 END SUB
 
-' (an evaluation's answer: the Immediate window's, or a data tip's)
-SUB SessionEvaluated(Id AS INTEGER, Answer AS STRING)
+' (an evaluation's answer: the Immediate window's, a data tip's, a value
+' set, copied or viewed, Set Next Statement's; Kind its type, Ref its
+' children and Count how many)
+SUB SessionEvaluated(Id AS INTEGER, Answer AS STRING, Kind AS STRING, Ref AS INTEGER, Count AS INTEGER, Columns AS STRING)
+  DIM failed AS INTEGER
+  failed = Flag(LEFT$(Answer, 6) = "error:")
   IF Id = SetVarId THEN
     SetVarId = -1
-    IF LEFT$(Answer, 6) = "error:" THEN
+    IF failed THEN
       SetState RunState, "Can't set " + SetVarExpr + ": " + LTRIM$(MID$(Answer, 7))
       OutputAfterProgram "Can't set " + SetVarExpr + ": " + LTRIM$(MID$(Answer, 7))
     ELSE
@@ -1196,13 +1383,42 @@ SUB SessionEvaluated(Id AS INTEGER, Answer AS STRING)
     ImmPending = REPLACESUBSTR$(ImmPending, "|" + Num(Id) + "|", "")
     ImmAnswer Answer
   ELSEIF Id = HoverEvalId THEN
-    IF LEFT$(Answer, 6) <> "error:" AND HoverDoc >= 0 AND HoverDoc < DocCount THEN
-      IF DocOpen(HoverDoc) THEN CodeDoc(HoverDoc).ShowHover "```" + CHR$(10) + HoverExpr + " = " + Answer + CHR$(10) + "```"
+    IF failed = 0 AND HoverDoc >= 0 AND HoverDoc < DocCount THEN
+      IF DocOpen(HoverDoc) THEN
+        TipExpr = HoverExpr: TipValue = Answer: TipKind = Kind: TipRef = Ref: TipRowCount = 0
+        TipChanged = TipValueChanged(TipExpr, Answer)
+        ' (a value with children shows them at once, one level)
+        IF Ref > 0 THEN TipOpen = "|T|" ELSE TipOpen = ""
+        TipTotal = Count
+        TipColumns = Columns
+        ShowTip
+      END IF
+    END IF
+  ELSEIF Id = CopyEvalId THEN
+    CopyEvalId = -1
+    IF failed THEN
+      SetState RunState, "Can't copy: " + LTRIM$(MID$(Answer, 7))
+    ELSE
+      Clipboard.Text = Answer
+      SetState RunState, "Copied the value (" + Num(LEN(Answer)) + " characters)"
+    END IF
+  ELSEIF Id = ViewEvalId THEN
+    ViewEvalId = -1
+    IF failed THEN
+      SetState RunState, "Can't show " + ViewExpr + ": " + LTRIM$(MID$(Answer, 7))
+    ELSE
+      ShowTextViewer ViewExpr, Answer
+    END IF
+  ELSEIF Id = GotoEvalId THEN
+    GotoEvalId = -1
+    IF failed THEN
+      SetState RunState, "Set Next Statement: " + LTRIM$(MID$(Answer, 7))
+      OutputAfterProgram "Set Next Statement: " + LTRIM$(MID$(Answer, 7))
     END IF
   END IF
 END SUB
 
-' ---- data tips: a resting mouse's value while paused -----------------------------------------------
+' ---- data tips: a resting mouse's value while paused, as a tree -----------------------------------
 
 ' (a name the editor found — WordAt — that isn't a value to show: none, a
 ' number, a word of the language)
@@ -1224,7 +1440,366 @@ SUB CodeHoverRequest(LineNo AS INTEGER, ColNo AS INTEGER, Sender AS RCodeEditor)
   IF NotAValue(e) THEN EXIT SUB
   HoverDoc = d
   HoverExpr = e
-  HoverEvalId = Session.Evaluate("? " + e)
+  HoverEvalId = Session.Evaluate(e, "hover")
+END SUB
+
+' (whether a data tip's expression shows another value than at the last
+' stop that showed it)
+FUNCTION TipValueChanged(Expr AS STRING, Value AS STRING) AS INTEGER
+  DIM k AS INTEGER, key AS STRING, old AS STRING
+  key = CHR$(1) + LCASE$(Expr) + CHR$(2)
+  k = INSTR(TipSeen, key)
+  IF k > 0 THEN
+    old = MID$(TipSeen, k + LEN(key), INSTR(k + LEN(key), TipSeen, CHR$(3)) - k - LEN(key))
+    Result = Flag(old <> Value)
+  END IF
+  k = INSTR(TipSeenNow, key)
+  IF k > 0 THEN TipSeenNow = LEFT$(TipSeenNow, k - 1) + MID$(TipSeenNow, INSTR(k, TipSeenNow, CHR$(3)) + 1)
+  TipSeenNow = TipSeenNow + key + Value + CHR$(3)
+END FUNCTION
+
+' (a stop: what the data tips showed at the last one is what they compare with)
+SUB TipNewStop
+  DIM n AS INTEGER, k AS INTEGER, entry AS STRING, key AS STRING, at AS INTEGER
+  n = TALLY(TipSeenNow, CHR$(3))
+  FOR k = 1 TO n
+    entry = FIELD$(TipSeenNow, CHR$(3), k)
+    key = LEFT$(entry, INSTR(entry, CHR$(2)))
+    at = INSTR(TipSeen, key)
+    IF at > 0 THEN TipSeen = LEFT$(TipSeen, at - 1) + MID$(TipSeen, INSTR(at, TipSeen, CHR$(3)) + 1)
+    TipSeen = TipSeen + entry + CHR$(3)
+  NEXT
+  TipSeenNow = ""
+  ' (and the tip goes: its values are the last stop's)
+  HideTip
+END SUB
+
+SUB HideTip
+  IF TipShown AND HoverDoc >= 0 AND HoverDoc < DocCount THEN
+    IF DocOpen(HoverDoc) THEN CodeDoc(HoverDoc).HideDataTip
+  END IF
+  TipShown = 0
+END SUB
+
+' (a row of the tip: depth, flags, its number — its id —, name, value,
+' type, a table's cells)
+SUB TipRow(Depth AS INTEGER, Flags AS STRING, Path AS STRING, Expr AS STRING, Nm AS STRING, Value AS STRING, Kind AS STRING, Ref AS INTEGER, Cells AS STRING)
+  IF TipRowCount > MAXTIPROWS THEN EXIT SUB
+  TipRowPath(TipRowCount) = Path
+  TipRowExpr(TipRowCount) = Expr
+  TipRowKind(TipRowCount) = Kind
+  TipRowValue(TipRowCount) = Value
+  TipRowRef(TipRowCount) = Ref
+  TipRowMore(TipRowCount) = -1
+  TipRows = TipRows + Num(Depth) + CHR$(9) + Flags + CHR$(9) + Num(TipRowCount) + CHR$(9) + Nm + CHR$(9) + Value + CHR$(9) + Kind + CHR$(9) + Cells + CHR$(10)
+  TipRowCount = TipRowCount + 1
+END SUB
+
+' The tip's rows: the expression, then — opened — its children, depth
+' first, each open child's own; children this stop hasn't fetched are
+' asked for once the rows are made (OnVariables shows the tip again).
+SUB ShowTip
+  DIM flags AS STRING
+  IF HoverDoc < 0 OR HoverDoc >= DocCount THEN EXIT SUB
+  IF DocOpen(HoverDoc) = 0 OR RunState <> "paused" THEN EXIT SUB
+  TipRows = ""
+  TipRowCount = 0
+  TipFetch = ""
+  flags = ""
+  IF TipRef > 0 THEN flags = flags + "e"
+  IF TipRef > 0 AND IsOpen(TipOpen, "T") THEN flags = flags + "o"
+  IF TipChanged THEN flags = flags + "c"
+  TipRow 0, flags, "T", TipExpr, TipExpr, TipValue, TipKind, TipRef, ""
+  IF TipRef > 0 AND IsOpen(TipOpen, "T") THEN TipChildren TipRef, "T", 1, TipColumns, TipTotal
+  CodeDoc(HoverDoc).ShowDataTip TipRows
+  TipShown = 1
+  FetchTipRefs
+END SUB
+
+SUB TipChildren(Ref AS INTEGER, Path AS STRING, Depth AS INTEGER, Columns AS STRING, Total AS INTEGER)
+  DIM rows AS STRING, n AS INTEGER, k AS INTEGER, row AS STRING, nm AS STRING, cref AS INTEGER, cpath AS STRING, flags AS STRING, cells AS STRING, cols AS STRING
+  IF Depth > 16 THEN EXIT SUB
+  IF RefIn(Ref) = 0 THEN
+    TipFetch = TipFetch + "|" + Num(Ref)
+    TipRow Depth, "", Path + "/…", "", "…", "", "", 0, ""
+    EXIT SUB
+  END IF
+  rows = Session.Variables(Ref)
+  n = TALLY(rows, CHR$(10))
+  ' (a table: its columns' names over its rows)
+  cols = Columns
+  IF cols <> "" AND n > 0 THEN TipRow Depth, "h", Path + "/[columns]", "", "", "", "", 0, cols
+  FOR k = 1 TO n
+    IF TipRowCount > MAXTIPROWS THEN EXIT SUB
+    row = FIELD$(rows, CHR$(10), k)
+    nm = FIELD$(row, CHR$(9), 1)
+    cref = VAL(FIELD$(row, CHR$(9), 4))
+    cells = FIELD$(row, CHR$(9), 9)
+    cpath = Path + "/" + nm
+    flags = ""
+    IF cref > 0 THEN flags = "e"
+    IF cref > 0 AND IsOpen(TipOpen, cpath) THEN flags = flags + "o"
+    IF VAL(FIELD$(row, CHR$(9), 7)) THEN flags = flags + "c"
+    IF cells <> "" THEN flags = flags + "t"
+    TipRow Depth, flags, cpath, FIELD$(row, CHR$(9), 6), nm, FIELD$(row, CHR$(9), 2), FIELD$(row, CHR$(9), 3), cref, cells
+    IF cref > 0 AND IsOpen(TipOpen, cpath) THEN TipChildren cref, cpath, Depth + 1, FIELD$(row, CHR$(9), 8), VAL(FIELD$(row, CHR$(9), 5))
+  NEXT
+  ' (more than came: the next page when it's clicked)
+  IF Total > n AND n > 0 THEN
+    TipRow Depth, "e", Path + "/[more]", "", "…", Num(Total - n) + " more", "", Ref, ""
+    TipRowMore(TipRowCount - 1) = n
+  END IF
+END SUB
+
+SUB FetchTipRefs
+  DIM want AS STRING, n AS INTEGER, k AS INTEGER, r AS INTEGER
+  want = TipFetch
+  TipFetch = ""
+  n = TALLY(want, "|")
+  FOR k = 2 TO n + 1
+    r = VAL(FIELD$(want, "|", k))
+    IF r > 0 AND RefIn(r) = 0 THEN Session.Expand r
+  NEXT
+END SUB
+
+' A tip's triangle clicked (or "… more"): opened or closed, shown again.
+SUB TipExpand(Id AS STRING, Opened AS INTEGER, Sender AS RCodeEditor)
+  DIM k AS INTEGER, p AS STRING
+  k = VAL(Id)
+  IF k < 0 OR k >= TipRowCount THEN EXIT SUB
+  IF TipRowMore(k) >= 0 THEN
+    Session.ExpandMore TipRowRef(k), TipRowMore(k)
+    EXIT SUB
+  END IF
+  p = TipRowPath(k)
+  IF Opened THEN
+    IF INSTR(TipOpen, "|" + p + "|") = 0 THEN TipOpen = TipOpen + "|" + p + "|"
+  ELSE
+    TipOpen = REPLACESUBSTR$(TipOpen, "|" + p + "|", "")
+  END IF
+  ShowTip
+END SUB
+
+' A tip's button pressed: copy the value, watch it, or see a string whole.
+SUB TipAction(Id AS STRING, Action AS STRING, Sender AS RCodeEditor)
+  DIM k AS INTEGER
+  k = VAL(Id)
+  IF k < 0 OR k >= TipRowCount THEN EXIT SUB
+  ValueAction Action, TipRowExpr(k), TipRowValue(k)
+END SUB
+
+' Copy, Watch or View for a value named by Expr (shown as Shown): its
+' whole text asked for (Copy, View), or the expression added to the
+' watches. A value without a name (a frame's row) copies what shows.
+SUB ValueAction(Action AS STRING, Expr AS STRING, Shown AS STRING)
+  SELECT CASE Action
+    CASE "copy"
+      IF Expr = "" THEN
+        Clipboard.Text = Shown
+        SetState RunState, "Copied the value"
+      ELSE
+        CopyEvalId = Session.Evaluate(Expr, "clipboard")
+      END IF
+    CASE "copyexpr"
+      IF Expr <> "" THEN
+        Clipboard.Text = Expr
+        SetState RunState, "Copied " + Expr
+      END IF
+    CASE "watch"
+      IF Expr <> "" THEN AddWatch Expr
+    CASE "view"
+      IF Expr <> "" THEN
+        ViewExpr = Expr
+        ViewEvalId = Session.Evaluate(Expr, "clipboard")
+      ELSE
+        ShowTextViewer "(value)", Shown
+      END IF
+  END SELECT
+END SUB
+
+' ---- the text viewer: a string's whole text ---------------------------------------------------
+
+SUB ShowTextViewer(Expr AS STRING, Text AS STRING)
+  DIM lines AS INTEGER
+  lines = TALLY(Text, CHR$(10)) + 1
+  TextViewer.Caption = "Text of " + Expr
+  TextViewerBox.Text = Text
+  TextViewerInfo.Caption = Num(LEN(Text)) + " characters, " + Num(lines) + " line" + IIF(lines = 1, "", "s")
+  TextViewer.ShowModal
+END SUB
+
+SUB TextViewerCopyClick
+  Clipboard.Text = TextViewerBox.Text
+  TextViewerInfo.Caption = "Copied"
+END SUB
+
+' ---- Set Next Statement, Step Into Specific -------------------------------------------------
+
+' Debug > Set Next Statement (Ctrl+Shift+F10): the paused program goes on
+' from the caret's line (within the SUB or FUNCTION it is paused in).
+SUB SetNextStatementAtCaret
+  DIM d AS INTEGER
+  d = ActiveCode
+  IF d < 0 OR RunState <> "paused" THEN EXIT SUB
+  GotoEvalId = Session.SetNextStatement(DocFile(d), CodeDoc(d).CaretLine)
+END SUB
+
+' The arrow dragged in the gutter to another line: the same, from there.
+SUB ArrowDragged(Kind AS STRING, FromLine AS INTEGER, ToLine AS INTEGER, Sender AS RCodeEditor)
+  IF Kind <> "current" OR RunState <> "paused" THEN EXIT SUB
+  GotoEvalId = Session.SetNextStatement(DocFile(Sender.Tag), ToLine)
+END SUB
+
+' Debug > Step Into Specific: the calls the line still makes, one picked
+' (one alone: into it at once; none: a step over).
+SUB StepIntoSpecific
+  IF RunState <> "paused" THEN EXIT SUB
+  Session.StepInTargets
+END SUB
+
+SUB SessionTargets(Targets AS STRING)
+  DIM n AS INTEGER, k AS INTEGER, row AS STRING
+  IF RunState <> "paused" THEN EXIT SUB
+  n = TALLY(Targets, CHR$(10))
+  IF n = 0 THEN
+    SetState RunState, "This line calls no SUB or FUNCTION: stepping over it"
+    StepStarted = TIMER
+    Session.StepOver
+    EXIT SUB
+  END IF
+  IF n = 1 THEN
+    StepStarted = TIMER
+    Session.StepInTarget VAL(FIELD$(Targets, CHR$(9), 1))
+    EXIT SUB
+  END IF
+  ' (a flow's into:<name>: that one, without the menu)
+  IF TargetWanted <> "" THEN
+    FOR k = 1 TO n
+      row = FIELD$(Targets, CHR$(10), k)
+      IF UCASE$(FIELD$(row, CHR$(9), 2)) = UCASE$(TargetWanted) THEN
+        TargetWanted = ""
+        StepStarted = TIMER
+        Session.StepInTarget VAL(FIELD$(row, CHR$(9), 1))
+        EXIT SUB
+      END IF
+    NEXT
+    TargetWanted = ""
+  END IF
+  TargetCount = 0
+  FOR k = 0 TO MAXTARGETS - 1
+    TargetItem(k).Visible = 0
+  NEXT
+  FOR k = 1 TO n
+    IF TargetCount < MAXTARGETS THEN
+      row = FIELD$(Targets, CHR$(10), k)
+      TargetId(TargetCount) = VAL(FIELD$(row, CHR$(9), 1))
+      TargetItem(TargetCount).Caption = "Step into " + FIELD$(row, CHR$(9), 2)
+      TargetItem(TargetCount).Visible = 1
+      TargetCount = TargetCount + 1
+    END IF
+  NEXT
+  TargetMenu.Popup Screen.MouseX, Screen.MouseY
+END SUB
+
+SUB TargetPicked(Sender AS RMenuItem)
+  IF Sender.Tag < 0 OR Sender.Tag >= TargetCount OR RunState <> "paused" THEN EXIT SUB
+  StepStarted = TIMER
+  Session.StepInTarget TargetId(Sender.Tag)
+END SUB
+
+' ---- the Variables and Watch panes' right-click menus -------------------------------------------
+' Copy Value (Ctrl+C: the value whole), Copy Expression, Add Watch, View
+' Text (a string's whole text); a menu each (VarsMenu, WatchMenu), their
+' items' Tag the action and the pane (10 + the action: Watch's).
+
+' (the picked item's expression and shown value: tree w — 0 Variables, 1 Watch)
+FUNCTION PickedExpr(w AS INTEGER) AS STRING
+  DIM i AS INTEGER
+  IF w = 0 THEN
+    i = VarsTree.ItemIndex
+    IF i >= 0 AND i <= MAXVARITEMS THEN Result = VarItemExpr(i)
+  ELSE
+    i = WatchTree.ItemIndex
+    IF i >= 0 AND i <= MAXVARITEMS THEN Result = WatchItemExpr(i)
+  END IF
+END FUNCTION
+
+FUNCTION PickedShown(w AS INTEGER) AS STRING
+  DIM t AS STRING
+  IF w = 0 THEN t = VarsTree.SelectedItem ELSE t = WatchTree.SelectedItem
+  IF INSTR(t, " = ") > 0 THEN Result = MID$(t, INSTR(t, " = ") + 3) ELSE Result = t
+END FUNCTION
+
+SUB ValueMenuOpening(w AS INTEGER)
+  DIM e AS STRING, k AS INTEGER, paused AS INTEGER
+  e = PickedExpr(w)
+  paused = Flag(RunState = "paused")
+  FOR k = 0 TO 3
+    IF w = 0 THEN
+      VarsMenuItem(k).Enabled = Flag(paused <> 0 AND (k = 0 OR e <> ""))
+    ELSE
+      WatchMenuItem(k).Enabled = Flag(paused <> 0 AND (k = 0 OR e <> ""))
+    END IF
+  NEXT
+END SUB
+
+SUB VarsMenuOpening
+  ValueMenuOpening 0
+END SUB
+
+SUB WatchMenuOpening
+  ValueMenuOpening 1
+END SUB
+
+SUB ValueMenuPicked(Sender AS RMenuItem)
+  DIM w AS INTEGER, a AS INTEGER
+  w = Sender.Tag \ 10
+  a = Sender.Tag MOD 10
+  SELECT CASE a
+    CASE 0: ValueAction "copy", PickedExpr(w), PickedShown(w)
+    CASE 1: ValueAction "copyexpr", PickedExpr(w), PickedShown(w)
+    CASE 2: ValueAction "watch", PickedExpr(w), PickedShown(w)
+    CASE 3: ValueAction "view", PickedExpr(w), PickedShown(w)
+  END SELECT
+END SUB
+
+' (the menus made: four items each)
+SUB SetUpValueMenus
+  DIM k AS INTEGER, captions AS STRING
+  captions = "&Copy Value" + CHR$(9) + "Ctrl+C|Copy &Expression|Add &Watch|&View Text..."
+  FOR k = 0 TO 3
+    VarsMenuItem(k).Caption = FIELD$(captions, "|", k + 1)
+    VarsMenuItem(k).Tag = k
+    VarsMenuItem(k).OnClick = ValueMenuPicked
+    VarsMenu.AddItems VarsMenuItem(k)
+    WatchMenuItem(k).Caption = FIELD$(captions, "|", k + 1)
+    WatchMenuItem(k).Tag = 10 + k
+    WatchMenuItem(k).OnClick = ValueMenuPicked
+    WatchMenu.AddItems WatchMenuItem(k)
+  NEXT
+  VarsMenu.OnPopup = VarsMenuOpening
+  WatchMenu.OnPopup = WatchMenuOpening
+  VarsTree.PopupMenu = VarsMenu
+  WatchTree.PopupMenu = WatchMenu
+  ' (Step Into Specific's menu: an item for each call, made visible as needed)
+  FOR k = 0 TO MAXTARGETS - 1
+    TargetItem(k).Tag = k
+    TargetItem(k).OnClick = TargetPicked
+    TargetItem(k).Visible = 0
+    TargetMenu.AddItems TargetItem(k)
+  NEXT
+END SUB
+
+' (Ctrl+C in Variables or Watch: the value copied — true when it was)
+FUNCTION CopyKey(w AS INTEGER, Key AS INTEGER, Shift AS INTEGER) AS INTEGER
+  IF Key = 67 AND (Shift AND 2) <> 0 THEN
+    ValueAction "copy", PickedExpr(w), PickedShown(w)
+    Result = 1
+  END IF
+END FUNCTION
+
+SUB VarsTreeKey(Key AS INTEGER, Shift AS INTEGER)
+  IF CopyKey(0, Key, Shift) THEN Key = 0
 END SUB
 
 ' ---- the commands ------------------------------------------------------------------------------
@@ -1260,6 +1835,8 @@ FUNCTION DebugCommand(Id AS STRING) AS INTEGER
       END IF
     CASE "debug.stepOut": IF RunState = "paused" THEN Session.StepOut
     CASE "debug.runToCursor": RunToCursor
+    CASE "debug.setNextStatement": SetNextStatementAtCaret
+    CASE "debug.stepIntoSpecific": StepIntoSpecific
     CASE "debug.toggleBreakpoint"
       IF d >= 0 THEN ToggleBreakpointAt d, CodeDoc(d).CaretLine
     CASE "debug.editBreakpoint": EditBreakpointAtCaret
@@ -1342,6 +1919,42 @@ FUNCTION DebugStep(Stp AS STRING) AS INTEGER
           EXIT FOR
         END IF
       NEXT
+    CASE "tipopen", "tipclose"
+      ' (tipopen:<row> — a data tip's row opened by its triangle; tipclose: closed)
+      IF HoverDoc >= 0 AND HoverDoc < DocCount THEN TipExpand arg, Flag(verb = "tipopen"), CodeDoc(HoverDoc)
+    CASE "tipaction"
+      ' (tipaction:<row>:<copy|watch|view> — a data tip row's button)
+      IF HoverDoc >= 0 AND HoverDoc < DocCount THEN TipAction FIELD$(arg, ":", 1), FIELD$(arg, ":", 2), CodeDoc(HoverDoc)
+    CASE "goto"
+      ' (goto:<line> — Set Next Statement to that line of the active code,
+      ' as the arrow dragged there)
+      IF d >= 0 THEN ArrowDragged "current", PausedLine, VAL(arg), CodeDoc(d)
+    CASE "into"
+      ' (into:<name> — Step Into Specific, that SUB or FUNCTION picked)
+      TargetWanted = arg
+      StepIntoSpecific
+    CASE "varmenu"
+      ' (varmenu:<copy|copyexpr|watch|view> — the Variables' menu on the picked item)
+      ValueAction arg, PickedExpr(0), PickedShown(0)
+    CASE "collapse"
+      ' (collapse:<path> — a value in Variables closed, as a click on its - does)
+      VarsOpen = REPLACESUBSTR$(VarsOpen, "|" + arg + "|", "")
+      FillVariables
+    CASE "changed"
+      ' (changed:report — the Variables' and Watch's values marked changed,
+      ' by path, in Output)
+      arg = ""
+      FOR k = 0 TO VarsTree.ItemCount - 1
+        IF k <= MAXVARITEMS THEN
+          IF VarsTree.Item(k).TextColor = CHANGEDCOLOR THEN arg = arg + " " + VarItemPath(k)
+        END IF
+      NEXT
+      FOR k = 0 TO WatchTree.ItemCount - 1
+        IF k <= MAXVARITEMS THEN
+          IF WatchTree.Item(k).TextColor = CHANGEDCOLOR THEN arg = arg + " " + WatchItemPath(k)
+        END IF
+      NEXT
+      OutputLine "[changed]" + arg
     CASE "perf"
       ' (perf:report — the run's and the steps' times, docs/studio-wow.md §3.15)
       OutputLine "[perf] f5-form=" + Num(PerfForm) + " step=" + Num(PerfStep)
@@ -1402,6 +2015,12 @@ SUB SetUpDebug
   Session.OnEvaluate = SessionEvaluated
   Session.OnFormShown = ProgramFormShown
   Session.OnBreakpointPlaced = BreakpointPlaced
+  Session.OnStepInTargets = SessionTargets
+  CopyEvalId = -1
+  ViewEvalId = -1
+  GotoEvalId = -1
+  HoverDoc = -1
+  TextViewerCopy.OnClick = TextViewerCopyClick
   PerfForm = -1
   PerfStep = -1
   ' (RAPIDR_STUDIO_PERF: the moment Studio is up and waiting, printed for
@@ -1415,6 +2034,7 @@ SUB SetUpDebug
   VarsTree.ReadOnly = 0
   VarsTree.OnEditing = VarsEditing
   VarsTree.OnEdited = VarsEdited
+  VarsTree.OnKeyDown = VarsTreeKey
 
   WatchPanel.Parent = Studio
   WatchPanel.Width = 440: WatchPanel.Height = 190
@@ -1505,6 +2125,7 @@ SUB SetUpDebug
   Dock.HidePane("stacktree")
   Dock.ShowPane("toolbox")
   Dock.ShowPane("varstree")
+  SetUpValueMenus
   WidenDebugPanes
   FillVariables
   FillWatches

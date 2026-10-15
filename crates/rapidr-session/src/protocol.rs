@@ -29,14 +29,15 @@ pub const PROTOCOL_VERSION: u32 = 1;
 
 /// `variables { ref }` of the globals.
 pub const GLOBALS_REF: u32 = 1;
+/// `variables { ref }` of the program's components that no other holds —
+/// its forms, its frames, its timers —, each opening to its properties and
+/// the components it holds.
+pub const COMPONENTS_REF: u32 = 2;
 /// `variables { ref }` of frame `i`'s locals: this plus `i`.
 pub const LOCALS_REF: u32 = 1_000;
-/// A component shown in a stop (a `Sender`, a value naming one): its
-/// properties are this plus the component's index; valid until the
-/// program goes on.
-pub const COMPONENT_REF: u32 = 500_000;
 /// Children of a value shown in a stop (an array's elements, an object's
-/// fields): this plus the value's index; valid until the program goes on.
+/// fields, a component's properties and parts, a frame's rows): this plus
+/// the value's index; valid until the program goes on.
 pub const CHILDREN_REF: u32 = 1_000_000;
 
 /// A breakpoint the IDE asks for in a file.
@@ -87,9 +88,22 @@ pub enum Command {
     /// Stop at a run-time error's statement (before it unwinds).
     SetBreakOnError { enabled: bool },
     Continue,
-    StepIn,
+    /// Step Into; with `target` (one of `stepInTargets`' ids), into that
+    /// call of the line only (Step Into Specific).
+    StepIn {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        target: Option<u32>,
+    },
     StepOver,
     StepOut,
+    /// The SUBs and FUNCTIONs the stopped line still calls (Step Into
+    /// Specific's choices).
+    StepInTargets,
+    /// Set Next Statement: the stopped program goes on from `line` of
+    /// `file` (within the SUB or FUNCTION it is stopped in; a line without
+    /// code: the next with some). Replied with `ok`, then a `stopped`
+    /// event with reason `goto` where it is now.
+    SetNextStatement { file: String, line: u32 },
     /// The stopped program's frames, innermost first.
     StackTrace,
     /// A frame's scopes (locals, globals).
@@ -212,7 +226,7 @@ pub struct ScopeInfo {
 }
 
 /// A variable (or an element, a field) and its value as text.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Variable {
     pub name: String,
@@ -227,6 +241,28 @@ pub struct Variable {
     /// How many children (an array's elements).
     #[serde(default, skip_serializing_if = "is_zero32")]
     pub count: u32,
+    /// The expression that names this value where the program is stopped
+    /// (`a(2).Name`, `Form1.Caption`): what Add Watch, Copy Expression and
+    /// setting it use. Empty: it can't be named (a frame's row).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub evaluate_name: String,
+    /// A table (an RDataFrame): its columns' names; its children are its
+    /// rows.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub columns: Vec<String>,
+    /// A table's row: its cells, as text.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cells: Vec<String>,
+}
+
+/// A call Step Into Specific can go into.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StepInTarget {
+    /// What `stepIn { target }` takes.
+    pub id: u32,
+    /// The SUB or FUNCTION's name.
+    pub label: String,
 }
 
 fn is_zero32(n: &u32) -> bool {
@@ -286,15 +322,24 @@ pub enum EventBody {
     Scopes { scopes: Vec<ScopeInfo> },
     /// `variables`' reply.
     Variables { variables: Vec<Variable> },
-    /// `evaluate`'s and `setVariable`'s reply.
+    /// `evaluate`'s and `setVariable`'s reply: the value, its type, its
+    /// children's reference and how many (an array's elements, a frame's
+    /// rows).
     Evaluate {
         result: String,
         kind: String,
         #[serde(rename = "ref", default, skip_serializing_if = "is_zero32")]
         reference: u32,
+        #[serde(default, skip_serializing_if = "is_zero32")]
+        count: u32,
+        /// A table's columns (an RDataFrame's): its children are its rows.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        columns: Vec<String>,
     },
     /// `properties`' reply: the component's type and properties.
     Properties { kind: String, properties: Vec<Variable> },
+    /// `stepInTargets`' reply.
+    StepInTargets { targets: Vec<StepInTarget> },
 }
 
 /// A message from the program: a reply (`re`) or an event.
@@ -465,7 +510,7 @@ mod tests {
     fn events_round_trip_as_json() {
         let e = Event::new(EventBody::Stopped { reason: "breakpoint".into(), file: Some("a.bas".into()), line: Some(4), description: None });
         assert_eq!(e.to_json(), r#"{"type":"stopped","reason":"breakpoint","file":"a.bas","line":4}"#);
-        let e = Event::reply(7, EventBody::Evaluate { result: "42".into(), kind: "Integer".into(), reference: 0 });
+        let e = Event::reply(7, EventBody::Evaluate { result: "42".into(), kind: "Integer".into(), reference: 0, count: 0, columns: vec![] });
         assert_eq!(e.to_json(), r#"{"re":7,"type":"evaluate","result":"42","kind":"Integer"}"#);
         assert_eq!(Event::from_json(&e.to_json()).unwrap(), e);
         assert_eq!(Event::reply(0, EventBody::Ok).re, None);

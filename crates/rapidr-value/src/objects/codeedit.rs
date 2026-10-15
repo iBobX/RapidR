@@ -102,6 +102,85 @@ pub struct HoverInfo {
     pub end: usize,
 }
 
+/// One row of a debugger's data tip ([`DataTip`]): a value in a tree.
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct TipRow {
+    /// How deep it is (0: the expression under the mouse).
+    pub depth: usize,
+    pub name: String,
+    pub value: String,
+    /// Its type, as the debugger names it (`Integer`, `RButton` …).
+    pub kind: String,
+    /// It has children (a triangle); `open`: they show, as the rows after it.
+    pub expandable: bool,
+    pub open: bool,
+    /// Its value changed since the program last stopped.
+    pub changed: bool,
+    /// A table's row (an RDataFrame's): its cells; `header`: the columns'
+    /// names.
+    pub cells: Vec<String>,
+    pub table: bool,
+    pub header: bool,
+    /// What the program knows the row by (OnDataTipExpand / OnDataTipAction).
+    pub id: String,
+}
+
+/// A debugger's data tip: the value under a resting mouse as a tree that
+/// opens to any depth (`ShowDataTip`), over bytes `start..end`.
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct DataTip {
+    pub rows: Vec<TipRow>,
+    pub start: usize,
+    pub end: usize,
+    /// The first row shown (the wheel scrolls).
+    pub top: usize,
+    /// The row under the mouse.
+    pub hot: Option<usize>,
+}
+
+impl DataTip {
+    /// The rows from `ShowDataTip`'s text: one a line, its fields
+    /// tab-separated — depth, flags (`e` it opens, `o` open, `c` changed,
+    /// `t` a table's row, `h` a table's header), id, name, value, kind, the
+    /// cells (separated by CHR$(31)).
+    pub fn parse(text: &str) -> Vec<TipRow> {
+        text.lines()
+            .filter(|l| !l.trim().is_empty())
+            .map(|line| {
+                let f: Vec<&str> = line.split('\t').collect();
+                let field = |i: usize| f.get(i).copied().unwrap_or("");
+                let flags = field(1);
+                TipRow {
+                    depth: field(0).trim().parse().unwrap_or(0).min(64),
+                    expandable: flags.contains('e'),
+                    open: flags.contains('o'),
+                    changed: flags.contains('c'),
+                    table: flags.contains('t') || flags.contains('h'),
+                    header: flags.contains('h'),
+                    id: field(2).to_string(),
+                    name: field(3).to_string(),
+                    value: field(4).to_string(),
+                    kind: field(5).to_string(),
+                    cells: if field(6).is_empty() { Vec::new() } else { field(6).split('\u{1f}').map(str::to_string).collect() },
+                }
+            })
+            .collect()
+    }
+
+    /// The tree as text (`DataTipText`): a row a line, a tab per level,
+    /// `name = value` (a table's row: its cells joined by " | ").
+    pub fn text(&self) -> String {
+        self.rows
+            .iter()
+            .map(|r| {
+                let body = if r.table { format!("{} {}", r.name, r.cells.join(" | ")).trim().to_string() } else { format!("{} = {}", r.name, r.value) };
+                format!("{}{body}", "\t".repeat(r.depth))
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+}
+
 /// Signature help showing, anchored at byte `at`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SignatureInfo {
@@ -228,6 +307,8 @@ pub struct CodeEditor {
     pub semantic: Vec<SemanticSpan>,
     pub completion: Option<CompletionList>,
     pub hover: Option<HoverInfo>,
+    /// A debugger's data tip showing (`ShowDataTip`).
+    pub datatip: Option<DataTip>,
     pub signature: Option<SignatureInfo>,
     /// Where the view last asked the program for a hover (OnHoverRequest):
     /// ShowHover shows there.
@@ -430,6 +511,7 @@ impl CodeEditor {
             semantic: Vec::new(),
             completion: None,
             hover: None,
+            datatip: None,
             signature: None,
             hover_request: None,
             last_find: None,
@@ -889,10 +971,26 @@ impl CodeEditor {
         let start = buf.line_start(buf.line_of(at));
         let text = buf.line_text(buf.line_of(at));
         let (mut from, to) = (word.start - start, word.end - start);
-        // (back over `.name` links: `Item.Sub.` before the word)
+        // (back over `.name` links: `Item.Sub.` before the word — and an
+        // element's subscripts on the way, `orders(i).Buyer.`)
         loop {
             let before = &text[..from];
-            let Some(dot) = before.strip_suffix('.') else { break };
+            let Some(mut dot) = before.strip_suffix('.') else { break };
+            if dot.ends_with(')') {
+                let mut depth = 0;
+                let open = dot.char_indices().rev().find(|&(_, c)| {
+                    match c {
+                        ')' => depth += 1,
+                        '(' => depth -= 1,
+                        _ => {}
+                    }
+                    depth == 0
+                });
+                match open {
+                    Some((i, _)) if !dot[i + 1..dot.len() - 1].contains(['"', '(']) => dot = &dot[..i],
+                    _ => break,
+                }
+            }
             let name_start = dot.char_indices().rev().take_while(|&(_, c)| c.is_alphanumeric() || c == '_' || "$%&!#".contains(c)).last().map(|(i, _)| i);
             match name_start {
                 Some(i) if dot[i..].starts_with(|c: char| c.is_alphabetic() || c == '_') => from = i,
@@ -963,6 +1061,7 @@ impl CodeEditor {
     pub fn hide_popups(&mut self) {
         self.completion = None;
         self.hover = None;
+        self.datatip = None;
         self.signature = None;
     }
 
@@ -1196,6 +1295,7 @@ impl CodeEditor {
                 v_str(&label.unwrap_or_default())
             }
             "hovertext" => v_str(self.hover.as_ref().map_or("", |h| h.text.as_str())),
+            "datatiptext" => v_str(&self.datatip.as_ref().map(DataTip::text).unwrap_or_default()),
             "signaturetext" => v_str(self.signature.as_ref().map_or("", |s| s.label.as_str())),
             "foldcount" => v_int(self.folded.len() as i64),
             "outline" => v_str(&self.outline()),
@@ -1467,6 +1567,24 @@ impl CodeEditor {
                 let r = self.doc.word_at(at).unwrap_or(at..at);
                 self.hover = (!text.trim().is_empty()).then_some(HoverInfo { text, start: r.start, end: r.end });
             }
+            // (a debugger's value as a tree where OnHoverRequest asked: the
+            // same place again — a row opened — keeps where it's scrolled)
+            "showdatatip" => {
+                let rows = DataTip::parse(&arg(0));
+                let at = self.hover_request.unwrap_or(self.doc.selections().primary().head);
+                let r = self.doc.word_at(at).unwrap_or(at..at);
+                self.hover = None;
+                self.datatip = if rows.is_empty() {
+                    None
+                } else {
+                    let (top, hot) = match &self.datatip {
+                        Some(t) if t.start == r.start => (t.top.min(rows.len() - 1), t.hot),
+                        _ => (0, None),
+                    };
+                    Some(DataTip { rows, start: r.start, end: r.end, top, hot })
+                };
+            }
+            "hidedatatip" => self.datatip = None,
             "showsignature" => self.show_signature(&arg(0), num(1, 0)),
             "hidepopups" => self.hide_popups(),
             "triggercompletion" => self.requests.push(Request::Completion),

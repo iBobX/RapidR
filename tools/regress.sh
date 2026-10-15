@@ -127,6 +127,12 @@ fi
 # first form, a step to its line and values, on both hosts — a budget missed
 # or a measure 20 % over tests/studio_perf_baseline.json fails)
 if want perf; then echo "== perf"
+  # (the VM's budgets — start-up, memory, a 10 M-iteration loop with and
+  # without the debugger, strings, calls, arrays — and idle at ~0 % CPU: a
+  # waiting form, under the debugger, RapidR Studio running it; real
+  # windows for a few seconds each — RAPIDR_PERF_NO_WINDOWS=1 skips those)
+  out=$(python3 tools/bench/vm_bench --check ${RAPIDR_PERF_NO_WINDOWS:+--no-windows} 2>&1) || echo "tools/bench/vm_bench: FAILED"
+  echo "$out" | grep -E "MISSED|every budget met|Traceback|Error"
   cargo run -q --release -p rapidr-editor --example editor_bench 2>&1 | grep -E "MISSED|targets met|missed"
   cargo run -q --release -p rapidr-ui-render --example codeeditor_bench 2>&1 | grep -E "MISSED|targets met|missed"
   out=$(node tests/studio_perf.mjs 2>&1) || echo "tests/studio_perf.mjs: FAILED"
