@@ -1366,7 +1366,6 @@ const CASES = [
     name: "run-with-data",
     open: "examples/data/dataframe.rr",
     copyDir: true,
-    copyDir: true,
     do: "run.start,wait,wait,wait",
     delay: 6,
     // (the desktop: its own process, which under the capture test ends
@@ -1831,8 +1830,10 @@ function runDesktop(c, scale = 1) {
     args.push("--do", before + `import:${join(dir, "src", c.importFrom.split("/").pop())}` + (steps ? "," + steps : ""));
   } else if (steps) args.push("--do", steps);
   if (c.open && c.copyDir) {
-    // (the project's whole folder: Build writes the app beside it)
-    cpSync(join(ROOT, dirname(c.open)), join(dir, "project"), { recursive: true });
+    // (the project's whole folder: Build writes the app beside it — not the
+    // *.tmp.* files an example run left in it: they are no part of the
+    // project, and the web build leaves them out too)
+    cpSync(join(ROOT, dirname(c.open)), join(dir, "project"), { recursive: true, filter: (src) => !/\.tmp\.[^/\\]*$/.test(src) });
     args.push(join(dir, "project", c.open.split("/").pop()));
   } else if (c.open && c.copy) {
     const to = join(dir, c.open.split("/").pop());

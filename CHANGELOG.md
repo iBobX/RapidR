@@ -7,6 +7,19 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### The test harness: no leftovers, no flakes (HARNESS)
+- Studio's web build (`tools/build_studio_web.sh`) ships the examples git lists — committed, or new
+  and not ignored — not whatever a run left in `examples/` (a program's `*.tmp.*` files, which a
+  capture test that ends an example early never gets to `KILL`): Studio's "run with data" flow
+  counted a stray `staff.tmp.csv` as a third file of `dataframe.rr`'s project. The flows' copy of an
+  example's folder leaves `*.tmp.*` out too, and the visual gallery removes the ones its runs made.
+- `tests/gui_captures.mjs` hands the cases their `RAPIDR_TEST_DROP` files (the web parity case
+  `drop_files` had empty labels on the desktop side) and runs the `inWork` cases in a folder of
+  their own, removed after: `drop_a.txt` / `drop_b.csv` / `dirlv/` no longer land in the checkout.
+- The QDIRTREE unit test (`dirtree::browses_directories`) is rooted in a folder of its own: the tree
+  lists the folders above the selected one too, so other tests' folders coming and going in the
+  shared temp folder shifted its rows between two calls.
+
 ### RapidQ's examples on Windows (CORPUS-WIN)
 - `CONST 1 = 5` compiles and changes nothing, as in RapidQ: what `$DEFINE TRUE 1` (RapidQ's
   `windows.inc`) makes of `rapidq2.inc`'s `CONST True = 1` — programs including both
