@@ -13,6 +13,23 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   (`Mouse/Mouse_Wheel.bas`) stopped with "Syntax error in CONST statement". Checked against
   RC.EXE (`rapidq_const_defined_name`).
 
+### Release tooling: the VMs stay clean, and no console window flashes
+- `windows-vm.sh clean` and `linux-vm.sh clean` remove everything the release and smoke scripts leave
+  in the VMs: the release work folder (the cargo target alone was 10 GB), the build cache, the smoke
+  tests' temporary folders, their test apps and, in Windows, the file types, Uninstall entry and
+  Start menu shortcut an interrupted smoke test left registered. `--dry-run` lists with sizes,
+  `--keep-out` keeps the packages; tools, an installed RapidR and the user's files stay. The release
+  README's last step runs both.
+- The smoke tests remove what they made even when a check fails: `smoke.ps1` keeps its build cache
+  inside its temporary folder (it had been filling `%LOCALAPPDATA%\RapidR\Cache`) and cleans up in a
+  `finally`; `smoke.sh` also on ctrl-C or kill.
+- `windows-vm.sh` opens no window on the Windows VM's desktop any more: every call runs as SYSTEM
+  (`vmexec.sh -S`) and jobs start as a headless console, where the 20-second poll and the file fetch
+  each opened a console window in the user's session. Fetch uses pieces of 6 MB instead of 400 KB.
+  `windows-vm.sh flashtest control` checks it with a window watcher.
+- `ubuntu-vm.sh root` works while the VM's screen is locked or nobody is logged in
+  (`--current-user` answers "Unable to authenticate the user").
+
 ## [2.118.0] — 2026-10-09 (Preview)
 
 ### Triage of the full regression run (TRIAGE)
