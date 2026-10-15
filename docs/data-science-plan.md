@@ -332,7 +332,21 @@ Sizes in sessions (one session ≈ one lane-day).
 
 **Verified**: unit tests (link: 3 tests; kernel: a million-row grid draws < 200 texts; design time draws linked data); `datascience_link` conformance case on vm, codegen and the web; `lang_conformance` for RCSV / RDATASOURCE / RDBGRID / RDATAFRAME / REDIT / RLABEL / RJSON on vm and web; the `rdbgrid` GUI fixture — native and interpreted agree, the web's window byte-identical to the desktop's and the accessibility trees equal; the three new examples on run, interp, native and web (`tests/examples_run.mjs`); RapidR Studio building a linked form with its own tools (the manual's `linked-build` scene) and showing `linked_data.rr` / `json_source.rr` live, desktop and web.
 
-**Engine** (lane DATA-ENGINE): _numbers below, from tools/bench/._
+**Engine** (lane DATA-ENGINE, `frame.rs` + `frame/{column,csv,json,kernels,par}.rs`): typed columns (i64 / f64 / bool / str) with validity bitmaps and `Arc` buffers, kept typed only when every cell's text is its value's own (so nothing a program reads changes), CSV parsed in parallel chunks, parallel filter / gather / sort (merged runs) / group-by / join / describe on `std::thread::scope` (sequential under ~50,000 rows and always on wasm32), no new dependency. Identical output proven by a differential test against the previous engine (`tests/frame_oracle.rs`: tens of thousands of random programs, parallel paths forced; 25,000 + 2,000 + 20 big tables in the deep run).
+
+| 1,000,000 rows, this Mac (M4 Max, 16 cores; load average 20–30 from other lanes) | before | after, all cores | after, 1 thread | pandas 3.0.1 | budget |
+|---|--:|--:|--:|--:|--:|
+| load CSV | 100.2 ms | 11.8 | 69.9 | 287.6 | 120 |
+| filter | 39.3 | 2.9 | 12.6 | 10.0 | 25 |
+| sort (descending) | 203.0 | 10.2 | 51.6 | 149.2 | 120 |
+| group-by (mean) | 83.5 | 4.8 | 19.0 | 22.1 | 60 |
+| left join | 62.6 | 3.4 | 20.1 | 50.4 | 60 |
+| describe | 85.5 | 10.1 | 28.2 | 28.5 | 60 |
+| save CSV | 82.3 | 7.3 | 54.4 | 615.5 | 100 |
+| **load + filter + sort + group-by** | **266.9** | **22.7** | **116.2** | **371.6** | **< 1 s** |
+| the same, 10,000,000 rows | 4,394.5 | 273.1 | 1,571.7 | 5,793 | < 5 s |
+
+Through a RapidR program (`tools/bench/bench_rapidr.rr`, 1 M rows, the file read from disk): pipeline 24.5 ms interpreted, 25.3 ms native. In `examples/data/million_rows.rr`: read 13 ms, filter 2 ms, sort 11 ms, group 5 ms. **On the web** (Chromium on the same Mac, wasm, one thread): read 145 ms, filter 10 ms, sort 61 ms, group 33 ms. Polars isn't installed here (`bench_polars.py` says so and exits). Every phase-1 budget is met on all cores and on one thread; most beat the phase-3 "Polars-class" goals already. Left for later phases: explicit SIMD (the kernels rely on auto-vectorization), chunked columns, a parallel `to_json`, lazy plans.
 
 ## 13. Open questions for Robert
 

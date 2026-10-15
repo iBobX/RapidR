@@ -155,11 +155,16 @@ only the rows on the screen, so it is as quick with a million rows as with
 ten. The buttons filter, sort and group the whole million and say how long
 each took.
 
-![million_rows.rr: a million rows in the grid (row numbers 0 to 16 on screen, the scroll bar's thumb at the top), "Read big.csv: 1000000 rows in 113 ms" below](images/data/million-rows.png)
+![million_rows.rr: a million rows in the grid (row numbers 0 to 16 on screen, the scroll bar's thumb at the top), "Read big.csv: 1000000 rows in 20 ms" below](images/data/million-rows.png)
 
-On this manual's Mac (an Apple M4 Max) reading the 25 MB file takes about a
-tenth of a second, and filtering, sorting or grouping the million rows
-well under half a second each.
+On this manual's Mac (an Apple M4 Max) the program reads the 25 MB file in
+about 15 ms, keeps the rows with a salary over 100,000 (219,912 of them) in
+2 ms, sorts the million in 11 ms and groups them by department in 5 ms —
+RDataFrame works by columns and shares big jobs out to every core. Writing
+the file the first time takes longer (about 3 seconds: that is BASIC
+writing a million lines one by one). A browser runs it on one core: in
+Chrome on the same Mac reading takes 0.15 s, the filter 10 ms, the sort
+60 ms and the grouping 33 ms — still a fraction of a second.
 
 ## 6. JSON records
 

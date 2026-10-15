@@ -9,7 +9,8 @@
 ' with an RCSV, gives its rows to an RDataFrame (Source) and shows them in
 ' an RDBGrid — scroll it, click a heading to sort the view. The buttons
 ' filter, sort and group the whole million and say how long it took.
-' Pass another number of rows to try more or fewer (delete big.csv first).
+' Pass another number of rows to try more or fewer (written to
+' big_<rows>.csv).
 
 DECLARE SUB HighEarners
 DECLARE SUB SortBySalary
@@ -18,9 +19,11 @@ DECLARE SUB AllRows
 DECLARE SUB Took(What AS STRING, Started AS DOUBLE)
 DECLARE SUB WriteData
 
-DIM Rows AS LONG
+DIM Rows AS LONG, DataFile AS STRING
 Rows = VAL(COMMAND$(1))
 IF Rows <= 0 THEN Rows = 1000000
+DataFile = "big.csv"
+IF Rows <> 1000000 THEN DataFile = "big_" + STR$(Rows) + ".csv"
 
 CREATE Form AS RForm
     Caption = "A million rows"
@@ -97,7 +100,7 @@ SUB WriteData
     DIM depts(4) AS STRING
     depts(0) = "Engineering": depts(1) = "Sales": depts(2) = "Marketing": depts(3) = "Support": depts(4) = "Finance"
     t = TIMER
-    OPEN "big.csv" FOR OUTPUT AS #1
+    OPEN DataFile FOR OUTPUT AS #1
     PRINT #1, "id,dept,salary,years"
     x = 12345
     FOR i = 0 TO Rows - 1
@@ -105,14 +108,14 @@ SUB WriteData
         PRINT #1, STR$(i) + "," + depts(x MOD 5) + "," + STR$(30000 + (x MOD 90000)) + "," + STR$(x MOD 40)
     NEXT
     CLOSE #1
-    PRINT "big.csv written: " + STR$(Rows) + " rows in " + STR$(INT((TIMER - t) * 1000)) + " ms"
+    PRINT DataFile + " written: " + STR$(Rows) + " rows in " + STR$(INT((TIMER - t) * 1000)) + " ms"
 END SUB
 
-IF FILEEXISTS("big.csv") = 0 THEN WriteData
+IF FILEEXISTS(DataFile) = 0 THEN WriteData
 DIM Loaded AS DOUBLE
 Loaded = TIMER
-Big.FileName = "big.csv"
+Big.FileName = DataFile
 Staff.Source = Big
-Took "Read big.csv", Loaded
+Took "Read " + DataFile, Loaded
 PRINT Status.Caption
 Form.ShowModal
