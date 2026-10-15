@@ -87,6 +87,13 @@ pub trait Host {
     fn component_type(&mut self, _id: &str) -> Option<String> {
         None
     }
+    /// The components component `id` holds (those whose Parent it is: a
+    /// form's controls, a panel's), in the order they were made — for the
+    /// debugger; `id` empty: those no component holds (forms, timers,
+    /// frames).
+    fn component_children(&mut self, _id: &str) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 /// A test/no-op [`Host`].

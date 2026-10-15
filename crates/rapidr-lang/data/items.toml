@@ -12,6 +12,7 @@ properties = [
   { name = "StateIndex", type = "int", category = "Appearance", doc = "An extra state picture (from StateImages) left of the node; -1 for none." },
   { name = "Expanded", type = "bool", category = "Behavior", doc = "Whether the node's children show." },
   { name = "HasChildren", type = "bool", category = "Behavior", doc = "Whether the node shows an expand button, even before it has children." },
+  { name = "TextColor", type = "color", origin = "rapidr", category = "Appearance", doc = "The node's text colour; -1 (the default) for the tree's own. A debugger marks values that changed with it." },
   { name = "Selected", type = "bool", category = "Behavior", doc = "Whether the node is the selected one; setting it selects it." },
   { name = "Level", type = "int", access = "read", design = false, category = "Data", doc = "How deep the node is: 0 for a root node." },
   { name = "Count", type = "int", access = "read", design = false, category = "Data", doc = "How many children the node has." },

@@ -20,15 +20,17 @@
 //! | `CurrentFile`, `CurrentLine`, `ExitCode`, `Error` | where it is paused; its last exit code; why Start failed |
 //! | `StopReason`, `StopMessage` | why it paused (`breakpoint`, `step`, `pause`, `entry`, `exception`); a run-time error's message |
 //! | `Frame` | the call stack's selected frame (0: the innermost); setting it fetches its locals and the watches again (then OnVariables(0)) |
-//! | `LocalsRef`, `GlobalsRef` | the selected frame's locals' and the globals' references, for `Variables` |
+//! | `LocalsRef`, `GlobalsRef`, `ComponentsRef` | the selected frame's locals', the globals' and the program's components' references, for `Variables` |
 //! | `Watches` | the watch expressions, one a line; evaluated at every stop |
 //! | `Start` → True / False, `Stop`, `Pause`, `Continue`, `StepIn`, `StepOver`, `StepOut` | |
 //! | `SetBreakpoint(File, Line [, Condition [, HitCount [, LogMessage]]])`, `ClearBreakpoint(File, Line)`, `ClearBreakpoints([File])` | lines from 1 |
 //! | `RunToCursor(File, Line)` | on to that line (a stopped program starts) |
-//! | `StackTrace`, `Variables(Ref)`, `WatchValues` → text | what the last stop fetched: one item a line, its fields tab-separated |
-//! | `Expand(Ref)` | fetches a value's children (an array's elements, an object's fields, a component's properties): OnVariables(Ref) |
-//! | `Evaluate(Expr [, Context])` → Id | in the selected frame: OnEvaluate(Id, Result). Context `repl` (the Immediate window): `? x` prints, a statement runs |
+//! | `StackTrace`, `Variables(Ref)`, `WatchValues` → text | what the last stop fetched: one item a line, its fields tab-separated — a variable's name, value, type, children's reference, how many, the expression naming it, 1 when its value changed since the last stop, a table's columns and a table row's cells (CHR$(31) between them); a watch's expression, value, type, reference, changed, how many children |
+//! | `Expand(Ref)`, `ExpandMore(Ref, Start)` | fetches a value's children (an array's elements, an object's fields, a component's properties and parts, a frame's rows, an RNum's numbers), 100 at a time — the next 100 from Start: OnVariables(Ref) |
+//! | `Evaluate(Expr [, Context])` → Id | in the selected frame: OnEvaluate(Id, Result, Kind, Ref, Count, Columns). Context `repl` (the Immediate window): `? x` prints, a statement runs; `clipboard`: the value whole, as text (copying it, the text viewer) |
 //! | `SetVariable(Name, Value)` → Id | a variable of the selected frame set to an expression's value: OnEvaluate(Id, NewValue), then the variables again (OnVariables(0)) |
+//! | `SetNextStatement(File, Line)` → Id | Set Next Statement: the paused program goes on from that line (within its SUB or FUNCTION): OnEvaluate(Id, "") then OnStopped("goto", …), or OnEvaluate(Id, "error: …") |
+//! | `StepInTargets`, `StepInTarget(Id)` | Step Into Specific: the calls the paused line still makes — OnStepInTargets(Targets: a line each, its id and name tab-separated) —; into the one picked |
 //! | `Input(Text)` | a line for the program's INPUT |
 //! | `OnOutput(Text)`, `OnStopped(Reason, File, Line)`, `OnContinue`, `OnExit(Code)`, `OnFormShown(Id)`, `OnVariables(Ref)`, `OnEvaluate(Id, Result)`, `OnBreakpointPlaced(File, Line, NewLine)` | |
 
@@ -36,7 +38,10 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use rapidr_session::protocol::{SourceBreakpoint, StackFrame, Variable, GLOBALS_REF, LOCALS_REF};
+use rapidr_session::protocol::{SourceBreakpoint, StackFrame, Variable, COMPONENTS_REF, GLOBALS_REF, LOCALS_REF};
+
+/// Elements, rows or numbers fetched at a time (`ExpandMore`).
+const PAGE: u32 = 100;
 use rapidr_session::{Command, EventBody, ProgramSession, SessionEvent, State};
 use rapidr_value::Value;
 
@@ -56,7 +61,15 @@ enum Want {
     /// `Evaluate` / `SetVariable`'s result: OnEvaluate(Id, …); `refresh`:
     /// the variables are fetched again after it.
     Eval { id: i64, refresh: bool },
+    /// `ExpandMore(Ref, Start)`'s page: added to what Ref has.
+    More(u32),
+    /// `StepInTargets`' answer: OnStepInTargets.
+    Targets,
 }
+
+/// A variable as the last stop fetched it, and whether its value changed
+/// since the stop before.
+type Shown = (Variable, bool);
 
 #[derive(Default)]
 struct Model {
@@ -69,9 +82,18 @@ struct Model {
     frames: Vec<StackFrame>,
     frame: usize,
     /// Variables fetched since the stop, by reference.
-    vars: BTreeMap<u32, Vec<Variable>>,
-    /// Each watch's value, kind and reference (its children).
-    watch_values: Vec<(String, String, u32)>,
+    vars: BTreeMap<u32, Vec<Shown>>,
+    /// Each watch's value, kind, reference (its children) and whether it
+    /// changed.
+    watch_values: Vec<(String, String, u32, bool, u32)>,
+    /// What each reference's values are compared under (their scope: a
+    /// frame's routine, the globals, a watch, an evaluation), so a value
+    /// changed since the last stop shows changed.
+    scope: BTreeMap<u32, String>,
+    /// The values seen at the stops before this one, and at this one, by
+    /// scope and the expression naming them.
+    seen_before: std::collections::HashMap<String, String>,
+    seen_now: std::collections::HashMap<String, String>,
     /// Requests in flight.
     pending: BTreeMap<u64, Want>,
     /// A stop whose snapshot is still arriving: OnStopped waits for it.
@@ -112,6 +134,48 @@ impl Model {
         self.pending.clear();
         self.held = None;
         self.refreshing = false;
+        self.scope.clear();
+        // (what this stop showed is what the next one compares with)
+        let now = std::mem::take(&mut self.seen_now);
+        self.seen_before.extend(now);
+    }
+
+    /// Whether `value` (named `key` in its scope) differs from what an
+    /// earlier stop showed; remembered for the next.
+    fn changed(&mut self, key: String, value: &str) -> bool {
+        let changed = self.seen_before.get(&key).is_some_and(|old| old != value);
+        self.seen_now.insert(key, value.to_string());
+        changed
+    }
+
+    /// The scope reference `r`'s values are compared under.
+    fn scope_of(&self, r: u32) -> String {
+        if r == GLOBALS_REF {
+            "G:".into()
+        } else if r == COMPONENTS_REF {
+            "C:".into()
+        } else if (LOCALS_REF..rapidr_session::protocol::CHILDREN_REF).contains(&r) {
+            let routine = self.frames.iter().find(|f| LOCALS_REF + f.id == r).map_or("", |f| f.name.as_str());
+            format!("L:{routine}:")
+        } else {
+            self.scope.get(&r).cloned().unwrap_or_else(|| "?:".into())
+        }
+    }
+
+    /// A list of variables in: each compared with the last stop's, their
+    /// children's scope noted.
+    fn mark(&mut self, r: u32, list: Vec<Variable>) -> Vec<Shown> {
+        let scope = self.scope_of(r);
+        list.into_iter()
+            .map(|v| {
+                if v.reference != 0 {
+                    self.scope.insert(v.reference, scope.clone());
+                }
+                let key = if v.evaluate_name.is_empty() { None } else { Some(format!("{scope}{}", v.evaluate_name.to_ascii_lowercase())) };
+                let changed = key.is_some_and(|k| self.changed(k, &v.value));
+                (v, changed)
+            })
+            .collect()
     }
 
     /// The selected frame's locals and the watches, asked again.
@@ -126,7 +190,7 @@ impl Model {
 
     fn fetch_watches(&mut self) {
         let frame = self.frame_id();
-        self.watch_values = self.watches.iter().map(|_| (String::new(), String::new(), 0)).collect();
+        self.watch_values = self.watches.iter().map(|_| (String::new(), String::new(), 0, false, 0)).collect();
         for (i, w) in self.watches.clone().into_iter().enumerate() {
             self.ask(Command::Evaluate { expr: w, frame, context: None }, Want::Watch(i));
         }
@@ -141,8 +205,8 @@ impl Model {
     /// children's reference.
     fn watch_text(&self) -> Value {
         table(self.watches.iter().enumerate().map(|(i, w)| {
-            let (v, k, r) = self.watch_values.get(i).cloned().unwrap_or_default();
-            vec![w.clone(), v, k, r.to_string()]
+            let (v, k, r, changed, count) = self.watch_values.get(i).cloned().unwrap_or_default();
+            vec![w.clone(), v, k, r.to_string(), flag_text(changed), count.to_string()]
         }))
     }
 
@@ -209,6 +273,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "frame" => Value::Integer(m.frame as i64),
             "localsref" => Value::Integer(i64::from(m.locals_ref())),
             "globalsref" => Value::Integer(i64::from(GLOBALS_REF)),
+            "componentsref" => Value::Integer(i64::from(COMPONENTS_REF)),
             "watches" => Value::String(m.watches.iter().map(|w| format!("{w}\n")).collect()),
             "browserurl" => Value::String(browser::url(name)),
             "theme" => Value::String(m.theme.clone()),
@@ -245,7 +310,7 @@ pub fn set<H: Host>(_host: H, name: &str, prop: &str, v: &Value) -> bool {
                     m.watch_values.clear();
                 }
             }
-            "state" | "currentfile" | "currentline" | "exitcode" | "error" | "stopreason" | "stopmessage" | "localsref" | "globalsref" | "browserurl" => {}
+            "state" | "currentfile" | "currentline" | "exitcode" | "error" | "stopreason" | "stopmessage" | "localsref" | "globalsref" | "componentsref" | "browserurl" => {}
             "theme" => m.theme = v.to_string_val(),
             _ => return false,
         }
@@ -320,7 +385,44 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
         "stacktrace" => with(name, |m| m.stack_text()),
         "variables" => {
             let reference = int_arg(args, 0, 0).max(0) as u32;
-            with(name, |m| table(m.vars.get(&reference).into_iter().flatten().map(|v| vec![v.name.clone(), v.value.clone(), v.kind.clone(), v.reference.to_string(), v.count.to_string()])))
+            with(name, |m| {
+                table(m.vars.get(&reference).into_iter().flatten().map(|(v, changed)| {
+                    vec![v.name.clone(), v.value.clone(), v.kind.clone(), v.reference.to_string(), v.count.to_string(), v.evaluate_name.clone(), flag_text(*changed), v.columns.join("\u{1f}"), v.cells.join("\u{1f}")]
+                }))
+            })
+        }
+        "expandmore" => {
+            let (reference, start) = (int_arg(args, 0, 0).max(0) as u32, int_arg(args, 1, 0).max(0) as u32);
+            with(name, |m| {
+                if m.session.state() == State::Paused && reference != 0 {
+                    m.ask(Command::Variables { reference, start: Some(start), count: Some(PAGE) }, Want::More(reference));
+                }
+            });
+            Value::Null
+        }
+        "stepintargets" => {
+            let sent = with(name, |m| m.session.state() == State::Paused && m.ask(Command::StepInTargets, Want::Targets));
+            if !sent {
+                host.fire(name, "onstepintargets", &[Value::String(String::new())]);
+            }
+            Value::Null
+        }
+        "stepintarget" => {
+            let target = int_arg(args, 0, 0).max(0) as u32;
+            r(with(name, |m| m.session.step_in_target(target)))
+        }
+        "setnextstatement" => {
+            let (file, line) = (text_arg(args, 0), int_arg(args, 1, 0).max(1) as u32);
+            let (id, sent) = with(name, |m| {
+                m.next_eval += 1;
+                let id = m.next_eval;
+                let sent = m.session.state() == State::Paused && m.ask(Command::SetNextStatement { file, line }, Want::Eval { id, refresh: false });
+                (id, sent)
+            });
+            if !sent {
+                host.fire(name, "onevaluate", &[Value::Integer(id), Value::String("error: the program isn't paused".into())]);
+            }
+            Value::Integer(id)
         }
         "watchvalues" => with(name, |m| m.watch_text()),
         "expand" => {
@@ -349,7 +451,8 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
                 let command = if setting {
                     Command::SetVariable { frame, name: text.clone(), value }
                 } else {
-                    Command::Evaluate { expr: text.clone(), frame, context: (context.eq_ignore_ascii_case("repl")).then(|| "repl".to_string()) }
+                    let context = ["repl", "clipboard", "hover"].into_iter().find(|c| context.eq_ignore_ascii_case(c)).map(str::to_string);
+                    Command::Evaluate { expr: text.clone(), frame, context }
                 };
                 let sent = m.session.state() == State::Paused && m.ask(command, Want::Eval { id, refresh: setting || context.eq_ignore_ascii_case("repl") });
                 (id, sent)
@@ -362,6 +465,11 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
         "input" => r(with(name, |m| m.session.input(&text_arg(args, 0)))),
         _ => return None,
     })
+}
+
+/// A flag as a field: "1" or "0".
+fn flag_text(b: bool) -> String {
+    (if b { "1" } else { "0" }).to_string()
 }
 
 /// Rows as text: one a line, fields tab-separated (tabs and line breaks
@@ -389,6 +497,7 @@ pub fn poll<H: Host>(host: H) -> bool {
                         m.forget();
                         m.held = Some((reason, file.unwrap_or_default(), i64::from(line.unwrap_or(0))));
                         m.ask(Command::Variables { reference: GLOBALS_REF, start: None, count: None }, Want::Vars(GLOBALS_REF));
+                        m.ask(Command::Variables { reference: COMPONENTS_REF, start: None, count: None }, Want::Vars(COMPONENTS_REF));
                         if m.ask(Command::StackTrace, Want::Stack) {
                             None
                         } else {
@@ -449,12 +558,21 @@ fn reply<H: Host>(host: H, name: &str, re: u64, body: EventBody) {
                     EventBody::Variables { variables } => variables,
                     _ => Vec::new(),
                 };
-                m.vars.insert(r, list);
+                let shown = m.mark(r, list);
+                m.vars.insert(r, shown);
             }
             Want::Watch(i) => {
+                let expr = m.watches.get(i).cloned().unwrap_or_default();
                 let v = match body {
-                    EventBody::Evaluate { result, kind, reference } => (result, kind, reference),
-                    _ => (format!("error: {}", error.unwrap_or_default()), String::new(), 0),
+                    EventBody::Evaluate { result, kind, reference, count, .. } => {
+                        let key = format!("W:{}", expr.to_ascii_lowercase());
+                        if reference != 0 {
+                            m.scope.insert(reference, key.clone() + "/");
+                        }
+                        let changed = m.changed(key, &result);
+                        (result, kind, reference, changed, count)
+                    }
+                    _ => (format!("error: {}", error.unwrap_or_default()), String::new(), 0, false, 0),
                 };
                 if let Some(slot) = m.watch_values.get_mut(i) {
                     *slot = v;
@@ -465,20 +583,42 @@ fn reply<H: Host>(host: H, name: &str, re: u64, body: EventBody) {
                     EventBody::Variables { variables } => variables,
                     _ => Vec::new(),
                 };
-                m.vars.insert(r, list);
+                let shown = m.mark(r, list);
+                m.vars.insert(r, shown);
                 fire.push(("onvariables", vec![Value::Integer(i64::from(r))]));
             }
-            Want::Eval { id, refresh } => {
-                let text = match body {
-                    EventBody::Evaluate { result, .. } => result,
-                    EventBody::Ok => String::new(),
-                    _ => format!("error: {}", error.unwrap_or_default()),
+            Want::More(r) => {
+                let list = match body {
+                    EventBody::Variables { variables } => variables,
+                    _ => Vec::new(),
                 };
-                fire.push(("onevaluate", vec![Value::Integer(id), Value::String(text)]));
+                let shown = m.mark(r, list);
+                m.vars.entry(r).or_default().extend(shown);
+                fire.push(("onvariables", vec![Value::Integer(i64::from(r))]));
+            }
+            Want::Targets => {
+                let text = match body {
+                    EventBody::StepInTargets { targets } => targets.iter().map(|t| format!("{}\t{}\n", t.id, t.label)).collect(),
+                    _ => String::new(),
+                };
+                fire.push(("onstepintargets", vec![Value::String(text)]));
+            }
+            Want::Eval { id, refresh } => {
+                let (text, kind, reference, count, columns) = match body {
+                    EventBody::Evaluate { result, kind, reference, count, columns } => (result, kind, reference, count, columns.join("\u{1f}")),
+                    EventBody::Ok => (String::new(), String::new(), 0, 0, String::new()),
+                    _ => (format!("error: {}", error.unwrap_or_default()), String::new(), 0, 0, String::new()),
+                };
+                // (an evaluation's children: compared under its own scope)
+                if reference != 0 {
+                    m.scope.insert(reference, "E:".into());
+                }
+                fire.push(("onevaluate", vec![Value::Integer(id), Value::String(text), Value::String(kind), Value::Integer(i64::from(reference)), Value::Integer(i64::from(count)), Value::String(columns)]));
                 // (a statement or an assignment may have changed what's shown)
                 if refresh && m.held.is_none() && m.session.state() == State::Paused {
                     m.vars.clear();
                     m.ask(Command::Variables { reference: GLOBALS_REF, start: None, count: None }, Want::Vars(GLOBALS_REF));
+                    m.ask(Command::Variables { reference: COMPONENTS_REF, start: None, count: None }, Want::Vars(COMPONENTS_REF));
                     m.refreshing = true;
                     m.fetch_frame();
                 }
@@ -497,9 +637,16 @@ fn reply<H: Host>(host: H, name: &str, re: u64, body: EventBody) {
     }
 }
 
-/// Whether a session is running (the desktop's loop then wakes often).
+/// Whether a session is running (the desktop's loop then looks at it now
+/// and then; its transport wakes it when the program says something).
 pub fn any_running() -> bool {
     SESSIONS.with(|s| s.borrow().values().any(|m| m.session.state() != State::Stopped)) || browser::starting()
+}
+
+/// Whether Run in Browser's server is still starting (its lines are
+/// looked at often until it says where it serves).
+pub fn starting() -> bool {
+    browser::starting()
 }
 
 /// Run in Browser (docs/studio-wow.md RUN-2): `rapidr serve <program>

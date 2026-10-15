@@ -32,6 +32,10 @@ use wasm_bindgen::prelude::*;
 pub struct WebHost {
     /// Set to true once any DOM/GUI component has been created.
     pub has_components: bool,
+    /// Each builtin name the program called, as the program wrote it, and
+    /// its key (`rapidr_bytecode::builtins::builtin_key`; `None`: not a
+    /// builtin): worked out once, not at every call.
+    keys: std::collections::HashMap<String, Option<std::rc::Rc<str>>>,
 }
 
 impl Host for WebHost {
@@ -42,15 +46,24 @@ impl Host for WebHost {
     }
 
     fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String> {
+        let key = match self.keys.get(name) {
+            Some(k) => k.clone(),
+            None => {
+                let key = rapidr_bytecode::builtins::builtin_key(name);
+                let k = rapidr_bytecode::builtins::is_builtin(name).then(|| std::rc::Rc::<str>::from(key));
+                self.keys.insert(name.to_string(), k.clone());
+                k
+            }
+        };
         // Unknown names are an error, never a silent no-op. The compiler
         // rejects them up front; this guards bytecode from other sources.
-        if !rapidr_bytecode::builtins::is_builtin(name) {
+        let Some(key) = key else {
             return Err(format!("Unknown builtin function '{name}'"));
-        }
+        };
+        let key: &str = &key;
         // LBOUND(arr [, dim]) / UBOUND(arr [, dim]) read the array's own
         // bounds (dimension 1 by default).
-        let key = rapidr_bytecode::builtins::builtin_key(name);
-        if let Some(result) = rapidr_value::shared_builtin(&key, args) {
+        if let Some(result) = rapidr_value::shared_builtin(key, args) {
             return result;
         }
         if key == "__component_array" || key == "__objcreate" {
@@ -82,7 +95,6 @@ impl Host for WebHost {
                 .map(v_int)
                 .ok_or_else(|| format!("{}: argument is not an array, or it has no dimension {dim}", key.to_uppercase()));
         }
-        let key = rapidr_bytecode::builtins::builtin_key(name);
         // PRINT # / WRITE # take any number of items after the file number.
         if key == "print_hash" || key == "write_hash" {
             let rest = args.get(1..).unwrap_or(&[]);
@@ -94,7 +106,7 @@ impl Host for WebHost {
             }
             return Ok(v_null());
         }
-        Ok(call_builtin_web(name, args))
+        Ok(call_builtin_web(key, args))
     }
 
     fn create_comp(&mut self, kind: &str, id: &str) -> Result<Value, String> {
@@ -142,6 +154,10 @@ impl Host for WebHost {
         Some(obj::rp_comp_type(id)).filter(|t| !t.is_empty())
     }
 
+    fn component_children(&mut self, id: &str) -> Vec<String> {
+        obj::rp_comp_children(id)
+    }
+
     fn register_event(&mut self, id: &str, event: &str, handler_fn_index: u32) -> Result<(), String> {
         obj::rp_bind_event_indirect(id, event, handler_fn_index);
         Ok(())
@@ -183,16 +199,15 @@ fn module_constant(module_id: &str, member: &str) -> Option<Value> {
     }
 }
 
-fn call_builtin_web(name: &str, args: &[Value]) -> Value {
-    let mut lower = name.to_lowercase();
-    if matches!(lower.chars().last(), Some('$' | '%' | '#' | '&' | '!')) {
-        lower.pop();
-    }
-    let a0 = args.first().cloned().unwrap_or_else(v_null);
-    let a1 = args.get(1).cloned().unwrap_or_else(v_null);
-    let a2 = args.get(2).cloned().unwrap_or_else(v_null);
+/// A builtin by its key (`rapidr_bytecode::builtins::builtin_key`: lower
+/// case, no type suffix — `MID$` is `mid`), its arguments read in place.
+fn call_builtin_web(lower: &str, args: &[Value]) -> Value {
+    let null = v_null();
+    let a0 = args.first().unwrap_or(&null);
+    let a1 = args.get(1).unwrap_or(&null);
+    let a2 = args.get(2).unwrap_or(&null);
 
-    match lower.as_str() {
+    match lower {
         // Output / input
         "print" | "println" => { rp_print(args, lower == "println"); v_null() }
         "input" | "input_func" => rp_input(&a0),
@@ -349,8 +364,8 @@ fn call_builtin_web(name: &str, args: &[Value]) -> Value {
         "isnumeric" => rp_isnumeric(&a0),
 
         // Array
-        "lbound" => rp_lbound(&[a0]),
-        "ubound" => rp_ubound(&[a0]),
+        "lbound" => rp_lbound(&[a0.clone()]),
+        "ubound" => rp_ubound(&[a0.clone()]),
         // (POKE / PCOPY / a DLL call are answered in `call_builtin`, where
         // an error can be reported; listed for the registry)
         "poke" | "pcopy" | "__dll_call" => v_null(),
@@ -1181,9 +1196,12 @@ enum After {
     /// Run the main program from its start.
     Run,
     /// Go on from a stop.
-    Go(fn(&mut Vm<'static, WebHost>, &Module) -> Result<(), VmError>),
+    Go(Box<dyn FnOnce(&mut Vm<'static, WebHost>, &Module) -> Result<(), VmError>>),
     /// End the program.
     End,
+    /// The stopped program moved (Set Next Statement): its `stopped`
+    /// event, after the reply.
+    Moved,
 }
 
 fn serve_request(request: Request) {
@@ -1220,7 +1238,8 @@ fn serve_request(request: Request) {
         // run, a handler's — Into —, the line after the wait — Over)
         let depth = session.vm.frames.len();
         let waiting_step = match request.command {
-            Command::StepIn => StepMode::Into,
+            Command::StepIn { target: None } => StepMode::Into,
+            Command::StepIn { target: Some(function) } => StepMode::IntoTarget { target_depth: depth, function },
             Command::StepOver => StepMode::Over { target_depth: depth },
             Command::StepOut => StepMode::Out { target_depth: depth },
             _ => StepMode::None,
@@ -1229,11 +1248,14 @@ fn serve_request(request: Request) {
         let (reply, control) = end.handle(&mut session.vm, &session.module, request, paused);
         let mut after = match control {
             Control::Start { .. } => After::Run,
-            Control::Continue => After::Go(|vm, m| vm.resume(m)),
-            Control::StepIn => After::Go(|vm, m| vm.step_into(m)),
-            Control::StepOver => After::Go(|vm, m| vm.step_over(m)),
-            Control::StepOut => After::Go(|vm, m| vm.step_out(m)),
+            Control::Continue => After::Go(Box::new(|vm, m| vm.resume(m))),
+            Control::StepIn => After::Go(Box::new(|vm, m| vm.step_into(m))),
+            Control::StepInTarget(function) => After::Go(Box::new(move |vm, m| vm.step_into_target(m, function))),
+            Control::StepOver => After::Go(Box::new(|vm, m| vm.step_over(m))),
+            Control::StepOut => After::Go(Box::new(|vm, m| vm.step_out(m))),
             Control::Stop => After::End,
+            // (Set Next Statement: where it's stopped now, after the reply)
+            Control::Moved => After::Moved,
             // (INPUT on the web is answered in the program's page)
             Control::None | Control::Pause | Control::Input(_) => After::Nothing,
         };
@@ -1260,6 +1282,17 @@ fn serve_request(request: Request) {
     };
     match after {
         After::Nothing => {}
+        After::Moved => {
+            SESSION.with(|s| {
+                if let Ok(mut guard) = s.try_borrow_mut() {
+                    if let Some(session) = guard.as_mut() {
+                        if let Some(end) = session.end.as_mut() {
+                            emit(end.stopped_event(&session.vm, &session.module));
+                        }
+                    }
+                }
+            });
+        }
         After::Waits => {
             emit(Message::new(EventBody::Continued));
             flush_events();

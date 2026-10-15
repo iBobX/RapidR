@@ -40,6 +40,8 @@ enum Pending {
     Variables { reference: u32 },
     Evaluate { expr: String, frame: Option<u32> },
     SetVariable { path: String, frame: Option<u32> },
+    StepInTargets,
+    Goto,
 }
 
 /// A DAP request waiting for the program's reply.
@@ -64,6 +66,8 @@ struct Adapter<W: Write> {
     /// by name, the editor by path.
     paths: HashMap<String, PathBuf>,
     program_dir: Option<PathBuf>,
+    /// The source of the last gotoTargets (goto's line is in it).
+    goto_source: Option<String>,
     launch: dap::LaunchArguments,
     break_on_error: bool,
     stopped: bool,
@@ -127,6 +131,7 @@ impl<W: Write> Adapter<W> {
             breakpoints: BTreeMap::new(),
             paths: HashMap::new(),
             program_dir: None,
+            goto_source: None,
             launch: dap::LaunchArguments::default(),
             break_on_error: false,
             stopped: false,
@@ -250,6 +255,8 @@ impl<W: Write> Adapter<W> {
                     "supportsEvaluateForHovers": true,
                     "supportsTerminateRequest": true,
                     "supportsSetVariable": true,
+                    "supportsStepInTargetsRequest": true,
+                    "supportsGotoTargetsRequest": true,
                     "exceptionBreakpointFilters": [
                         { "filter": "error", "label": "Run-time errors", "default": false }
                     ],
@@ -363,11 +370,34 @@ impl<W: Write> Adapter<W> {
                 let path = child_path(parent.as_deref(), &a.name);
                 self.send(Command::SetVariable { frame, name: path.clone(), value: a.value }, Some((seq, command, Pending::SetVariable { path, frame })));
             }
+            // (Step Into Specific: the calls the stopped line still makes)
+            "stepInTargets" => self.send(Command::StepInTargets, Some((seq, command, Pending::StepInTargets))),
+            // (Set Next Statement: a line of the source is the target — its
+            // number its id; the program says whether it can go there)
+            "gotoTargets" => {
+                let path = args.get("source").and_then(|s| s.get("path")).and_then(Value::as_str).unwrap_or("").to_string();
+                let line = args.get("line").and_then(Value::as_u64).unwrap_or(0);
+                if line == 0 || path.is_empty() {
+                    return self.fail(seq, command, "gotoTargets: no source line");
+                }
+                self.goto_source = Some(path);
+                self.respond(seq, command, Some(json!({ "targets": [{ "id": line, "label": format!("line {line}"), "line": line }] })));
+            }
+            "goto" => {
+                let line = args.get("targetId").and_then(Value::as_u64).unwrap_or(0) as u32;
+                let Some(path) = self.goto_source.clone() else {
+                    return self.fail(seq, command, "goto: ask gotoTargets first");
+                };
+                self.refs.clear();
+                // (the program replies, then says where it stopped: a
+                // `stopped` event with reason "goto")
+                self.send(Command::SetNextStatement { file: Self::file_name(&path), line }, Some((seq, command, Pending::Goto)));
+            }
             "continue" | "next" | "stepIn" | "stepOut" => {
                 let go = match command {
                     "continue" => Command::Continue,
                     "next" => Command::StepOver,
-                    "stepIn" => Command::StepIn,
+                    "stepIn" => Command::StepIn { target: args.get("targetId").and_then(serde_json::Value::as_u64).map(|t| t as u32) },
                     _ => Command::StepOut,
                 };
                 self.stopped = false;
@@ -560,17 +590,21 @@ impl<W: Write> Adapter<W> {
                     .collect();
                 self.respond(seq, &command, Some(json!({ "variables": list })));
             }
-            (Pending::Evaluate { expr, frame }, EventBody::Evaluate { result, kind, reference }) => {
+            (Pending::Evaluate { expr, frame }, EventBody::Evaluate { result, kind, reference, .. }) => {
                 if reference != 0 {
                     self.refs.insert(reference, (frame, Some(expr.trim().trim_start_matches('?').trim().to_string())));
                 }
                 self.respond(seq, &command, Some(json!({ "result": shown(&result, &kind), "type": kind, "variablesReference": reference })));
             }
-            (Pending::SetVariable { path, frame }, EventBody::Evaluate { result, kind, reference }) => {
+            (Pending::SetVariable { path, frame }, EventBody::Evaluate { result, kind, reference, .. }) => {
                 if reference != 0 {
                     self.refs.insert(reference, (frame, Some(path)));
                 }
                 self.respond(seq, &command, Some(json!({ "value": result, "type": kind, "variablesReference": reference })));
+            }
+            (Pending::StepInTargets, EventBody::StepInTargets { targets }) => {
+                let list: Vec<Value> = targets.iter().map(|t| json!({ "id": t.id, "label": t.label })).collect();
+                self.respond(seq, &command, Some(json!({ "targets": list })));
             }
             (_, EventBody::Ok) => self.respond(seq, &command, None),
             (_, other) => self.fail(seq, &command, format!("unexpected reply from the program: {}", WireEvent::new(other).to_json())),

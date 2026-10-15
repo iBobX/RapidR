@@ -5,7 +5,10 @@ at its variables, change them, and go on one line at a time. It works the
 same way in Studio on the desktop and in Studio in the browser.
 
 The screenshots on this page are made by `tools/manual/shots.mjs` from the
-programs in `tools/manual/scenes/debugger/`, so they can be made again when
+programs in `tools/manual/scenes/debugger/` and from
+[`examples/debugging/shop.rr`](../../examples/debugging/shop.rr), a small
+shop's order book made to be looked at in the debugger (open it from the
+Welcome page: *Debug it: values as trees*), so they can be made again when
 Studio changes.
 
 ## The example
@@ -134,20 +137,66 @@ While the program is paused:
 | F11 | Debug ▸ Step Into | Runs the line and stops at the next line that runs — inside a SUB or FUNCTION it calls, in another file too. |
 | Shift+F11 | Debug ▸ Step Out | Runs to the end of the SUB or FUNCTION it's in and stops after the call. |
 | Ctrl+F10 | Debug ▸ Run to Cursor | Runs to the line with the caret. |
+| Ctrl+Alt+F11 | Debug ▸ Step Into Specific | When the line calls several SUBs or FUNCTIONs, pick the one to step into. |
+| Ctrl+Shift+F10 | Debug ▸ Set Next Statement | The program goes on from the caret's line instead (see below). |
 | F5 | Debug ▸ Continue | Runs on to the next breakpoint, or the end. |
 
 F8 also steps into and Shift+F8 steps over, as in Visual Basic. When the
 program isn't running, F10 and F11 start it and stop at its first line, and
 Run to Cursor starts it and stops at the caret's line.
 
-Stopped at line 11, press **F11**: the program goes into `AddUp` and stops
-at `k = n * 2`. Press **F10**: it stops at `total = total + k`. The Call
-Stack now has two lines: `AddUp  counter.rr:7`, where the program is, above
-`(the program)  counter.rr:11`, the line that called it. Variables shows
-AddUp's own variables under **Locals** (`n = 1`, `k = 2`) and the program's
-under **Globals**. The status bar's `Ln 7, Col 1` follows the program's line.
+A line that calls a SUB or FUNCTION and then goes on (`x = Twice(n) + 1`)
+is stepped over whole: F10 stops at the next line, not in the middle of
+this one.
 
-![Paused inside AddUp at line 7: the Call Stack with AddUp above the program, Locals n = 1 and k = 2](images/debugging/step-into.png)
+### Step Into Specific
+
+This line of `shop.rr` calls two FUNCTIONs, `PriceOf` and then
+`LineTotal`:
+
+```basic
+total = total + LineTotal(orders(i).Qty, PriceOf(orders(i).Item))
+```
+
+F11 goes into the first one that runs, `PriceOf`. To go straight into
+`LineTotal`, press **Ctrl+Alt+F11** (Debug ▸ Step Into Specific): a menu
+lists the calls the line still makes, in the order they happen; pick
+*Step into LineTotal*. The program runs `PriceOf` whole and stops at the
+first line of `LineTotal`. When the line calls one SUB or FUNCTION, it goes
+into it at once; when it calls none, it steps over the line.
+
+![Stopped in LineTotal, picked with Step Into Specific: the Call Stack has LineTotal above AddUp at line 76; its Locals Qty = 2 and Price](images/debugging/step-into-specific.png)
+
+### Set Next Statement
+
+While the program is paused you can choose which line it runs next:
+
+- **drag the yellow arrow** in the margin up or down to another line, or
+- put the caret on a line and press **Ctrl+Shift+F10** (Debug ▸ Set Next
+  Statement).
+
+The arrow moves there and nothing else runs: drag it back to run a line
+again (after changing a value in Variables), or forward to skip lines.
+The new line must be in the same SUB or FUNCTION where the program is
+paused — Studio says so in the status bar and in Output when it isn't. On
+a blank line or a comment, the arrow goes to the next line with code.
+
+![Set Next Statement: in AddUp, the arrow moved back from line 7 to line 6, k = n * 2, the status bar saying Next statement](images/debugging/set-next.png)
+
+It works at a run-time error too (see [When the program fails](#when-the-program-fails)):
+fix the value that caused it, put the arrow back on the failing line, and
+press F5 — the line runs again and the program goes on instead of ending.
+
+Stopped at line 11, press **F11**: the program goes into `AddUp` and stops
+at its first line, `SUB AddUp(n AS INTEGER)`, where it takes `n`. Press
+**F10**: it stops at `DIM k AS INTEGER`. The Call Stack now has two lines:
+`AddUp  counter.rr:5`, where the program is, above
+`(the program)  counter.rr:11`, the line that called it. Variables shows
+AddUp's own variables under **Locals** (`n = 1`, and `k`, which has no
+value yet) and the program's under **Globals**. The status bar's
+`Ln 5, Col 1` follows the program's line. Two more F10s and `k = 2`.
+
+![Paused inside AddUp at line 5: the Call Stack with AddUp above the program, Locals n = 1 and k not set yet](images/debugging/step-into.png)
 
 ### Pausing a program that waits
 
@@ -169,42 +218,91 @@ its timers wait until it goes on.
 
 ## Looking at values
 
+### Values under the mouse
+
+While the program is paused, rest the mouse on a variable in the code: a
+**data tip** shows its value. An array, a TYPE, a component or a table opens
+like a tree, as deep as you like: click a triangle to open or close it.
+Stopped in `shop.rr`'s loop, rest the mouse on `orders`: the tip shows the
+array and its elements; open `(1)` to see the order's fields, then its
+`Buyer`, then the buyer's `Home`:
+
+![The data tip of orders, opened down to orders(1).Buyer.Home: Street = "10 Market Street", City = "London"](images/debugging/datatip-tree.png)
+
+- Each row shows a name, `=`, the value — strings in red, numbers in green,
+  TYPEs and components in their own colour — and its type at the right.
+- A value that **changed** since the program last stopped is in **blue**
+  (bold in the tip), in Variables and Watch alike — step through a loop and
+  see which variables the last line ran changed.
+- Rest the mouse on a part of a longer name and the tip shows that part:
+  `orders(i).Qty`, `Buyer.Name`, `Edit1.Text`. A data tip never runs your
+  code: a name that would call a SUB, FUNCTION or method shows nothing.
+- Big arrays, tables and RNum arrays show 100 items at a time; click
+  *… more* for the next ones.
+- Hover a row to see its buttons: **copy** its value (the whole of it, even
+  a long text), **watch** it (it's added to the Watch pane), and for a
+  string **view** its whole text in a window of its own, with its lines:
+
+  ![The text viewer: the whole of notes, 73 characters on 3 lines, with Copy and Close](images/debugging/text-viewer.png)
+- The wheel scrolls a long tip; the tip stays while the mouse is over it,
+  and goes when the mouse moves on in the code or you click elsewhere.
+
+**Tables.** An `RDataFrame` shows as a table: the names of its columns,
+then its rows. Open a row to see its cells one by one, each by its column
+(`week.At(0, "day")` names the first one).
+
+![The data tip of week, an RDataFrame: its columns day, orders and amount over its five rows](images/debugging/datatip-frame.png)
+
+An `RNum` shows its first numbers (`RNum(7): [18.5, 19, 21.5, …]`) and opens
+to all of them; a form opens to the **Components** it holds — each opening
+to its own properties — then its properties, read as the program reads
+them.
+
 ### Variables
 
 The **Variables** pane shows **Locals** — the variables and parameters of
-the SUB or FUNCTION where the program is paused — and **Globals**. Arrays,
-TYPEs and components have a triangle: open it to see their elements,
-fields or properties. In an event handler, open `Sender` to see the
-component's properties as they are now. What you open stays open from one
-stop to the next.
+the SUB or FUNCTION where the program is paused —, **Globals** and the
+program's **Components**: its forms, data frames, timers… each opening to
+the components it holds and its properties. Arrays, TYPEs, components and
+tables open the same way as in a data tip. In an event handler, open
+`Sender` to see the component's properties as they are now. What you open
+stays open from one stop to the next, and changed values are in blue.
+
+![Variables at the loop's second pass: i = 2 and total = 7 in blue, changed since the first](images/debugging/variables-changed.png)
+
+Open **Components** to see the program's forms and other components as
+they are now — here the Shop form, its components and then its
+properties:
+
+![Variables: Components open to Form, its Components group with OrderList, AddBtn, TotalBtn …, then the form's properties](images/debugging/variables-components.png)
 
 **Changing a value.** Select a value and press **F2** (or click it once
 more after selecting it). Type the new value and press **Enter**; Escape
 cancels. You can type any expression: `100`, `total * 2`, `"Hello"`. The
 program goes on with the new value. This works for local and global
-variables, array elements, TYPE fields and component properties.
+variables, array elements, the fields of TYPEs — however deep, such as
+`orders(1).Buyer.Name` — and component properties.
 
 ![Variables: total being edited, 100 typed in its place](images/debugging/set-value.png)
 
 Set `total` to `100` at the first stop, remove the breakpoint (F9) and
 press F5: Output shows `total = 112`.
 
+**More.** Right-click a value (in Variables or Watch) for *Copy Value*
+(Ctrl+C: the whole value), *Copy Expression* (the name that reaches it,
+such as `orders(1).Buyer.Name`), *Add Watch* and *View Text…*.
+
 ### Watch
 
 The **Watch** pane shows expressions you choose, worked out again at every
 stop. Type one in the *Add a watch* box and press Enter — `total + k`,
 `n * 100`, `UCASE$(Name$)`, `Form.Caption` — or put the caret on a word in
-the code (or select an expression) and choose Debug ▸ Add Watch. F2 on a
-watch changes its expression; Delete removes it.
+the code (or select an expression) and choose Debug ▸ Add Watch; a data
+tip's *watch* button and the Variables' *Add Watch* add one too. F2 on a
+watch changes its expression; Delete removes it. A watch that changed since
+the last stop is in blue.
 
 ![The Watch pane: total + k = 2 and n * 100 = 100](images/debugging/watch.png)
-
-### Values under the mouse
-
-While the program is paused, rest the mouse on a variable in the code: a
-tip shows its value. Names with a dot work too, such as `Edit1.Text`.
-
-![The mouse on total in line 7 shows total = 2](images/debugging/data-tip.png)
 
 ### The Call Stack
 
@@ -259,6 +357,33 @@ PRINT "after"
 
 ![Line 4 in red with run-time error: Division by zero at its end; Variables shows Amount = 10 and people = 0](images/debugging/runtime-error.png)
 
+**Fix it and go on.** The program doesn't have to end there. Select
+`people` in Variables, press F2, type `2` and Enter; then, with the caret
+on line 4, press **Ctrl+Shift+F10** (or drag the arrow back to line 4) and
+**F5**: line 4 runs again with the new value — `each gets 5` — and the
+program goes on to `after`. To skip the failing line instead, put the arrow
+on the line after it.
+
+`shop.rr` has one to try: type `0` in its *Split between* box and press
+*Split*.
+
+## How fast it runs
+
+A program runs under the debugger almost as fast as on its own: with no
+breakpoint and no step to watch for, the VM only checks whether Studio
+wants its attention. A program that waits for its events — a form open,
+nothing happening — uses no processor time, under the debugger too:
+Studio's requests wake it, nothing polls. `tools/bench/vm_bench` measures
+this (and the VM's speed, start-up and memory) against its budgets.
+
+| Measured 2026-10-15 | A Mac (Apple silicon) | Linux, one core and 2 GB |
+|---|---|---|
+| A 10-million-step loop, on its own | 0.61 s | 1.29 s |
+| …under the debugger (a breakpoint set) | 0.72 s | 1.33 s |
+| A form waiting for its events, under the debugger | 0 % CPU | 0 % CPU |
+| Studio with that program running | 0.25 % CPU | 0.25 % CPU |
+| Studio's start; F5 to the program's window; a step | — | 0.28 s; 14 ms; 10 ms |
+
 ## On the desktop and in the browser
 
 Everything on this page works the same in Studio on the desktop and in
@@ -294,5 +419,5 @@ Studio in the browser.
 
 ## Not there yet
 
-- Set Next Statement (moving the arrow to another line before going on).
 - Completion while you type in the Immediate pane.
+- Editing a value inside a data tip (F2 in Variables and Watch does it).

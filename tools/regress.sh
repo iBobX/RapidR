@@ -133,6 +133,12 @@ fi
 # and RDataFrame's budgets, docs/data-science-plan.md §9 (a million rows
 # loaded, filtered, sorted, grouped, joined, described, saved; tools/bench/)
 if want perf; then echo "== perf"
+  # (the VM's budgets — start-up, memory, a 10 M-iteration loop with and
+  # without the debugger, strings, calls, arrays — and idle at ~0 % CPU: a
+  # waiting form, under the debugger, RapidR Studio running it; real
+  # windows for a few seconds each — RAPIDR_PERF_NO_WINDOWS=1 skips those)
+  out=$(python3 tools/bench/vm_bench --check ${RAPIDR_PERF_NO_WINDOWS:+--no-windows} 2>&1) || echo "tools/bench/vm_bench: FAILED"
+  echo "$out" | grep -E "MISSED|every budget met|Traceback|Error"
   cargo run -q --release -p rapidr-editor --example editor_bench 2>&1 | grep -E "MISSED|targets met|missed"
   cargo run -q --release -p rapidr-value --example frame_bench 2>&1 | grep -E "MISSED|missed|pipeline"
   cargo run -q --release -p rapidr-ui-render --example codeeditor_bench 2>&1 | grep -E "MISSED|targets met|missed"

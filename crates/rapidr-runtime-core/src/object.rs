@@ -19,6 +19,9 @@ pub struct RpComponent {
     pub type_name: String,
     pub properties: HashMap<String, Value>,
     pub creation_order: u32,
+    /// Its name as the program wrote it (the key is lower case): what the
+    /// debugger shows.
+    pub name: String,
 }
 
 impl RpComponent {
@@ -36,6 +39,7 @@ impl RpComponent {
             type_name: tn,
             properties: props,
             creation_order: 0,
+            name: String::new(),
         }
     }
 }
@@ -172,6 +176,7 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         return;
     }
     let mut comp = RpComponent::new(type_name);
+    comp.name = name.to_string();
     let order = CREATION_COUNTER.with(|c| {
         let mut counter = c.borrow_mut();
         let val = *counter;
@@ -1097,6 +1102,33 @@ pub fn rp_comp_call(name: &str, method: &str, args: &[Value]) -> Value {
     rapidr_value::property_read(rp_comp_method(name, method, args))
 }
 
+/// Whether a Parent property's value names component `name` (any case; no
+/// allocation for the usual string) — `name` empty: it names none.
+fn names_parent(parent: &Value, name: &str) -> bool {
+    match parent {
+        Value::String(p) => p.eq_ignore_ascii_case(name),
+        other => other.to_string_val().eq_ignore_ascii_case(name),
+    }
+}
+
+/// The components `name` holds (whose Parent it is), in the order they
+/// were made, by their names as the program wrote them (the debugger).
+pub fn rp_comp_children(name: &str) -> Vec<String> {
+    COMPONENTS.with(|m| {
+        let m = m.borrow();
+        let mut kids: Vec<(u32, String)> = m
+            .iter()
+            .filter(|(_, c)| match c.properties.get("parent") {
+                Some(p) => names_parent(p, name),
+                None => name.is_empty(),
+            })
+            .map(|(key, c)| (c.creation_order, if c.name.is_empty() { key.clone() } else { c.name.clone() }))
+            .collect();
+        kids.sort();
+        kids.into_iter().map(|(_, n)| n).collect()
+    })
+}
+
 pub fn rp_comp_type(name: &str) -> String {
     COMPONENTS.with(|c| {
         c.borrow()
@@ -1848,24 +1880,31 @@ pub fn rp_take_wait_started() -> bool {
     false
 }
 
+/// The window loop's waker, once the window system is up: another thread
+/// wakes a program that waits for its events with it ([`rp_wake`]) — the
+/// IDE's session reader, a request arrived (a pause reaches a program
+/// waiting in a ShowModal at once). Nothing wakes the loop otherwise: a
+/// program that waits costs no CPU.
+static WAKER: std::sync::Mutex<Option<std::task::Waker>> = std::sync::Mutex::new(None);
+
+/// The window loop's waker (the UI host's, when it's made).
+pub fn rp_set_waker(waker: std::task::Waker) {
+    if let Ok(mut w) = WAKER.lock() {
+        *w = Some(waker);
+    }
+}
+
+/// Wakes the program's window loop from any thread (nothing before it's
+/// up: the program isn't waiting for its events then).
+pub fn rp_wake() {
+    if let Ok(w) = WAKER.lock() {
+        if let Some(w) = w.as_ref() {
+            w.wake_by_ref();
+        }
+    }
+}
+
 /// One step of the innermost wait: `None` while it goes on, `Some` when over.
-/// A program run under the IDE's debugger (`rapidr run --session`): its
-/// waits (a ShowModal, a dialog) turn at least every
-/// [`DEBUG_POLL_STEP`], so what the debugger sends meanwhile — a pause —
-/// reaches the program while it waits for its events.
-static DEBUG_POLL: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-/// How often a wait under the debugger turns ([`rp_set_debug_poll`]).
-pub const DEBUG_POLL_STEP: std::time::Duration = std::time::Duration::from_millis(50);
-
-pub fn rp_set_debug_poll(on: bool) {
-    DEBUG_POLL.store(on, std::sync::atomic::Ordering::Relaxed);
-}
-
-pub fn rp_debug_poll() -> bool {
-    DEBUG_POLL.load(std::sync::atomic::Ordering::Relaxed)
-}
-
 pub fn rp_pump_wait() -> Option<Value> {
     #[cfg(feature = "gui")]
     return crate::ui::gui_pump_wait();
@@ -2325,18 +2364,17 @@ pub fn all_components() -> Vec<(String, String)> {
 }
 
 pub fn get_children_of(parent_name: &str) -> Vec<(String, String)> {
-    let parent_lower = parent_name.to_lowercase();
     COMPONENTS.with(|c| {
         let comps = c.borrow();
         let mut children: Vec<(String, String, u32)> = Vec::new();
+        // (asked for every component of every shown form at each step of
+        // the window loop — lists' pre_paint —: no allocation per component)
         for (name, comp) in comps.iter() {
-            if name == &parent_lower {
+            if name.eq_ignore_ascii_case(parent_name) {
                 continue;
             }
-            if let Some(parent_val) = comp.properties.get("parent") {
-                if parent_val.to_string_val().to_lowercase() == parent_lower {
-                    children.push((name.clone(), comp.type_name.clone(), comp.creation_order));
-                }
+            if comp.properties.get("parent").is_some_and(|p| names_parent(p, parent_name)) {
+                children.push((name.clone(), comp.type_name.clone(), comp.creation_order));
             }
         }
         // Sort by creation order to match the original CREATE block order

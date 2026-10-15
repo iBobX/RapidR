@@ -1,0 +1,10 @@
+' vm_bench: calls — the recursive Fibonacci of 27 (about 630,000 calls).
+$APPTYPE CONSOLE
+FUNCTION Fib(n AS INTEGER) AS INTEGER
+  IF n < 2 THEN
+    Result = n
+  ELSE
+    Result = Fib(n - 1) + Fib(n - 2)
+  END IF
+END FUNCTION
+PRINT Fib(27)

@@ -7,6 +7,14 @@
 //! transport and their way of running: the desktop blocks at a stop
 //! ([`BlockingDebugger`], a `rapidr_vm::Debugger`), the web page returns
 //! from the VM and continues it later.
+//!
+//! What a stop shows opens like a tree, to any depth: an array's elements
+//! and a TYPE's fields; a component's properties (the language registry's,
+//! read as the program reads them) and the components it holds (a form's
+//! controls); an RDataFrame as a table — its rows, each opening to its
+//! cells by column; an RNum's numbers. Arrays, frames and RNums page
+//! (`variables { start, count }`). Every value carries the expression that
+//! names it (`evaluateName`), for watches, copying and setting it.
 
 use std::sync::mpsc::{Receiver, TryRecvError};
 
@@ -15,11 +23,15 @@ use rapidr_bytecode::Module;
 use rapidr_value::Value;
 use rapidr_vm::{Debugger, Host, Resume, StopInfo, StopReason, Vm, EVAL_FUEL};
 
-use crate::protocol::{Command, Event, EventBody, PlacedBreakpoint, Request, ScopeInfo, StackFrame, Variable};
+use crate::protocol::{Command, Event, EventBody, PlacedBreakpoint, Request, ScopeInfo, StackFrame, StepInTarget, Variable};
 
-pub use crate::protocol::{CHILDREN_REF, COMPONENT_REF, GLOBALS_REF, LOCALS_REF};
+pub use crate::protocol::{CHILDREN_REF, COMPONENTS_REF, GLOBALS_REF, LOCALS_REF};
 /// Elements of an array shown when `variables` doesn't say how many.
 pub const PAGE: u32 = 100;
+
+/// Characters of a string a value's text shows; the whole of it is
+/// `evaluate` with context `clipboard` (copying it, the text viewer).
+pub const SHOWN_CHARS: usize = 1_000;
 
 /// A pause's description when the program was waiting for its events (a
 /// ShowModal, a dialog): the `stopped` event's.
@@ -34,23 +46,46 @@ pub enum Control {
     Start { stop_on_entry: bool },
     Continue,
     StepIn,
+    /// Step Into Specific: into this function's call only.
+    StepInTarget(u32),
     StepOver,
     StepOut,
     Pause,
     Stop,
     /// A line for the program's INPUT.
     Input(String),
+    /// The program moved where it's stopped (Set Next Statement): send
+    /// [`ProgramEnd::stopped_event`] now, after the reply.
+    Moved,
+}
+
+/// Something a stop showed whose children can be asked for
+/// (`CHILDREN_REF` + its index; valid until the program goes on).
+#[derive(Debug, Clone)]
+enum Node {
+    /// An array's elements, a TYPE's fields; the expression naming it.
+    Value(Value, String),
+    /// A component: its properties, then the components it holds.
+    Component(String),
+    /// The components a component holds (a form's controls).
+    Parts(String),
+    /// An RDataFrame's rows.
+    Frame(String),
+    /// Row `r` of an RDataFrame: its cells by column.
+    Row(String, usize),
+    /// An RNum's numbers.
+    Num(String),
 }
 
 /// The program's end of the protocol, for one run.
 #[derive(Default)]
 pub struct ProgramEnd {
-    /// Values whose children were offered in this stop.
-    children: Vec<Value>,
-    /// Components offered in this stop (their properties: COMPONENT_REF).
-    components: Vec<String>,
+    /// What this stop offered to open.
+    nodes: Vec<Node>,
     /// The next stop is the entry's (`stopOnEntry`).
     entry_pending: bool,
+    /// The next `stopped` event is Set Next Statement's (reason `goto`).
+    goto_pending: bool,
     /// The program has started (`start` came).
     pub started: bool,
     /// The breakpoints as the IDE set them, where they landed, and their
@@ -132,6 +167,19 @@ pub fn interpolate(message: &str, mut eval: impl FnMut(&str) -> String) -> Strin
     out
 }
 
+/// A child's name: the expression naming its parent (`base`) and its own
+/// part — an element's subscripts (`(2, 3)`) follow the array, a field or
+/// a property follows a dot. Empty when the parent can't be named.
+fn child_name(base: &str, part: &str) -> String {
+    if base.is_empty() {
+        String::new()
+    } else if part.starts_with('(') {
+        format!("{base}{part}")
+    } else {
+        format!("{base}.{part}")
+    }
+}
+
 impl ProgramEnd {
     pub fn new() -> Self {
         Self::default()
@@ -139,13 +187,13 @@ impl ProgramEnd {
 
     /// The program goes on: the references of the last stop are gone.
     pub fn resumed(&mut self) {
-        self.children.clear();
-        self.components.clear();
+        self.nodes.clear();
     }
 
     /// The `stopped` event for where the VM stopped now.
     pub fn stopped_event<H: Host + ?Sized>(&mut self, vm: &Vm<'_, H>, module: &Module) -> Event {
         let reason = match vm.stop_reason {
+            _ if std::mem::take(&mut self.goto_pending) => "goto",
             StopReason::Step if std::mem::take(&mut self.entry_pending) => "entry",
             StopReason::Breakpoint => "breakpoint",
             StopReason::Step => "step",
@@ -271,11 +319,44 @@ impl ProgramEnd {
                 }
                 (reply(ok()), Control::None)
             }
-            Command::Continue | Command::StepIn | Command::StepOver | Command::StepOut if !paused => (reply(not_stopped()), Control::None),
+            Command::Continue | Command::StepIn { .. } | Command::StepOver | Command::StepOut | Command::StepInTargets | Command::SetNextStatement { .. } if !paused => {
+                (reply(not_stopped()), Control::None)
+            }
             Command::Continue => (reply(ok()), Control::Continue),
-            Command::StepIn => (reply(ok()), Control::StepIn),
+            Command::StepIn { target: None } => (reply(ok()), Control::StepIn),
+            Command::StepIn { target: Some(function) } => (reply(ok()), Control::StepInTarget(function)),
             Command::StepOver => (reply(ok()), Control::StepOver),
             Command::StepOut => (reply(ok()), Control::StepOut),
+            Command::StepInTargets => {
+                let targets = vm
+                    .step_in_targets(module)
+                    .into_iter()
+                    .filter_map(|id| Some(StepInTarget { id, label: module.functions.get(id as usize)?.name.clone() }))
+                    .collect();
+                (reply(Event::reply(seq, EventBody::StepInTargets { targets })), Control::None)
+            }
+            Command::SetNextStatement { file, line } => {
+                // (the line of `file` as compiled: the one in the function
+                // stopped in, when the file is included twice)
+                let compiled = if module.source_map.runs.is_empty() { vec![line] } else { module.source_map.compiled_lines(&file, line) };
+                let mut answer = Err(format!("{file}: no line {line} in the program"));
+                // (a line without code: the next line of the same file that has some)
+                let candidates: Vec<u32> = if compiled.is_empty() { (1..=200).flat_map(|d| module.source_map.compiled_lines(&file, line + d)).take(1).collect() } else { compiled };
+                for c in candidates {
+                    answer = vm.set_next_statement(module, c);
+                    if answer.is_ok() {
+                        break;
+                    }
+                }
+                match answer {
+                    Ok(_) => {
+                        self.goto_pending = true;
+                        self.nodes.clear();
+                        (reply(ok()), Control::Moved)
+                    }
+                    Err(e) => (reply(Event::error(seq, e)), Control::None),
+                }
+            }
             Command::StackTrace if !paused => (reply(not_stopped()), Control::None),
             Command::StackTrace => {
                 let frames = (0..vm.frames.len())
@@ -296,6 +377,7 @@ impl ProgramEnd {
                 let scopes = vec![
                     ScopeInfo { name: "Locals".into(), reference: LOCALS_REF + frame },
                     ScopeInfo { name: "Globals".into(), reference: GLOBALS_REF },
+                    ScopeInfo { name: "Components".into(), reference: COMPONENTS_REF },
                 ];
                 (reply(Event::reply(seq, EventBody::Scopes { scopes })), Control::None)
             }
@@ -309,15 +391,28 @@ impl ProgramEnd {
             Command::Evaluate { expr, frame, context } => {
                 let frame = self.frame_for(vm, frame, paused);
                 let repl = context.as_deref() == Some("repl");
+                // (`clipboard`: the value whole, as text — copying it, the
+                // text viewer — not as a debugger shows it)
+                let whole = context.as_deref() == Some("clipboard");
+                // (`hover`: a data tip's — what the mouse rests on never
+                // runs the program's own SUBs, FUNCTIONs or methods)
+                let hover = context.as_deref() == Some("hover");
                 let text = expr.trim();
                 let result = if repl && !text.starts_with('?') {
-                    self.run(vm, module, frame, text, true).map(|_| (String::new(), String::new(), 0))
+                    self.run(vm, module, frame, text, true).map(|_| Variable::default())
                 } else {
-                    let text = text.strip_prefix('?').unwrap_or(text);
-                    self.evaluate(vm, module, frame, text).map(|v| self.render_in(vm, &v))
+                    let text = text.strip_prefix('?').unwrap_or(text).trim();
+                    self.evaluate_with(vm, module, frame, text, hover).map(|v| {
+                        if whole {
+                            let kind = self.render(vm, &v, "", false).kind;
+                            Variable { value: v.to_string_val(), kind, ..Default::default() }
+                        } else {
+                            self.render(vm, &v, text, true)
+                        }
+                    })
                 };
                 let event = match result {
-                    Ok((result, kind, reference)) => Event::reply(seq, EventBody::Evaluate { result, kind, reference }),
+                    Ok(r) => Event::reply(seq, EventBody::Evaluate { result: r.value, kind: r.kind, reference: r.reference, count: r.count, columns: r.columns }),
                     Err(e) => Event::error(seq, e),
                 };
                 (reply(event), Control::None)
@@ -329,8 +424,8 @@ impl ProgramEnd {
                     .and_then(|_| self.evaluate(vm, module, frame, &name))
                 {
                     Ok(v) => {
-                        let (result, kind, reference) = self.render_in(vm, &v);
-                        Event::reply(seq, EventBody::Evaluate { result, kind, reference })
+                        let r = self.render(vm, &v, &name, true);
+                        Event::reply(seq, EventBody::Evaluate { result: r.value, kind: r.kind, reference: r.reference, count: r.count, columns: r.columns })
                     }
                     Err(e) => Event::error(seq, e),
                 };
@@ -350,8 +445,8 @@ impl ProgramEnd {
                             .into_iter()
                             .map(|(name, v)| {
                                 // (a property's text is a value, not a component it names)
-                                let (value, kind, reference) = self.render(&v);
-                                Variable { name, value, kind, reference, count: 0 }
+                                let evaluate_name = child_name(&object, &name);
+                                Variable { name, ..self.render(vm, &v, &evaluate_name, false) }
                             })
                             .collect();
                         Event::reply(seq, EventBody::Properties { kind, properties })
@@ -377,6 +472,13 @@ impl ProgramEnd {
 
     /// Evaluates a BASIC expression in `frame`.
     pub fn evaluate<H: Host + ?Sized>(&mut self, vm: &mut Vm<'_, H>, module: &Module, frame: Option<usize>, expr: &str) -> Result<Value, String> {
+        self.evaluate_with(vm, module, frame, expr, false)
+    }
+
+    /// [`Self::evaluate`]; `no_calls`: refused if it would call one of the
+    /// program's SUBs, FUNCTIONs or a component's method (a data tip: what
+    /// the mouse rests on must never run code — `F(x).Name` isn't shown).
+    pub fn evaluate_with<H: Host + ?Sized>(&mut self, vm: &mut Vm<'_, H>, module: &Module, frame: Option<usize>, expr: &str, no_calls: bool) -> Result<Value, String> {
         let source = format!("{} = ({expr})", rapidr_bcgen::SNIPPET_RESULT);
         // (the compiler's words, without the line it made up around it)
         let snippet = compile(vm, module, frame, &source).map_err(|e| {
@@ -386,7 +488,17 @@ impl ProgramEnd {
                 e
             }
         })?;
-        vm.evaluate(&snippet.module, snippet.function, frame, false, EVAL_FUEL).map_err(|e| e.to_string())
+        if no_calls && calls_code(&snippet.module, snippet.function) {
+            return Err(format!("`{expr}` calls a SUB, FUNCTION or method: not shown by a data tip"));
+        }
+        let v = vm.evaluate(&snippet.module, snippet.function, frame, false, EVAL_FUEL).map_err(|e| e.to_string())?;
+        // (a component's own name — `DIM df AS RDataFrame`, a form — is the
+        // component, though no variable holds it)
+        let name = expr.trim();
+        if matches!(v, Value::Null) && !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') && vm.host.component_type(name).is_some() {
+            return Ok(Value::String(name.to_string()));
+        }
+        Ok(v)
     }
 
     /// Runs BASIC statements in `frame` (what they assign to its locals is
@@ -397,132 +509,232 @@ impl ProgramEnd {
     }
 
     fn variables<H: Host + ?Sized>(&mut self, vm: &mut Vm<'_, H>, module: &Module, reference: u32, start: u32, count: u32) -> Result<Vec<Variable>, String> {
-        let mut named: Vec<(String, Value)> = Vec::new();
+        let (start, end) = (start as usize, start.saturating_add(count) as usize);
+        // (name, value, the expression naming it, a component's property —
+        // its text a value, never the component it may name)
+        let mut named: Vec<(String, Value, String, bool)> = Vec::new();
         if reference == GLOBALS_REF {
             // (only the program's globals: a routine's STATICs and its own
             // undeclared variables, which the compiler keeps in global
             // slots, are its frame's)
             for (name, v) in vm.global_values(module) {
                 if !hidden(name) && rapidr_bcgen::global_slot(module, name) == GlobalSlot::Global {
-                    named.push((name.to_string(), v.clone()));
+                    named.push((name.to_string(), v.clone(), name.to_string(), false));
                 }
             }
-            named.sort_by_key(|(n, _)| n.to_ascii_lowercase());
-        } else if (COMPONENT_REF..CHILDREN_REF).contains(&reference) {
-            let id = self.components.get((reference - COMPONENT_REF) as usize).cloned().ok_or("that component is gone (the program went on)")?;
-            let (_, props) = component_properties(vm, &id).ok_or_else(|| format!("{id}: no such component"))?;
-            named = props;
-        } else if (LOCALS_REF..COMPONENT_REF).contains(&reference) {
+            named.sort_by_key(|(n, ..)| n.to_ascii_lowercase());
+        } else if reference == COMPONENTS_REF {
+            // (the components no other holds, in the order they were made:
+            // each shown as itself)
+            for id in vm.host.component_children("") {
+                let v = Value::String(id.clone());
+                named.push((id.clone(), v, id, false));
+            }
+        } else if (LOCALS_REF..CHILDREN_REF).contains(&reference) {
             let i = (reference - LOCALS_REF) as usize;
             let frame = vm.frames.get(i).ok_or_else(|| format!("no frame {i}"))?;
             let names = module.functions.get(frame.fn_index as usize).map(|f| &f.local_names[..]).unwrap_or(&[]);
             for (slot, v) in frame.locals.iter().enumerate() {
                 match names.get(slot) {
-                    Some(name) if !hidden(name) => named.push((name.clone(), v.clone())),
+                    Some(name) if !hidden(name) => named.push((name.clone(), v.clone(), name.clone(), false)),
                     _ => {}
                 }
             }
             // Its STATICs and its own undeclared variables, as it names them.
-            let mut own: Vec<(String, Value)> = vm
+            let mut own: Vec<(String, Value, String, bool)> = vm
                 .global_values(module)
                 .filter_map(|(name, v)| match rapidr_bcgen::global_slot(module, name) {
-                    GlobalSlot::Routine { function, name, .. } if function == frame.fn_index => Some((name.to_string(), v.clone())),
+                    GlobalSlot::Routine { function, name, .. } if function == frame.fn_index => Some((name.to_string(), v.clone(), name.to_string(), false)),
                     _ => None,
                 })
                 .collect();
-            own.sort_by_key(|(n, _)| n.to_ascii_lowercase());
+            own.sort_by_key(|(n, ..)| n.to_ascii_lowercase());
             named.extend(own);
         } else if reference >= CHILDREN_REF {
-            let value = self.children.get((reference - CHILDREN_REF) as usize).cloned().ok_or("that value is gone (the program went on)")?;
-            match &value {
-                Value::Array(a) => {
+            let node = self.nodes.get((reference - CHILDREN_REF) as usize).cloned().ok_or("that value is gone (the program went on)")?;
+            match node {
+                Node::Value(Value::Array(a), base) => {
                     let a = a.borrow();
-                    let end = start.saturating_add(count).min(a.data.len() as u32);
-                    for k in start..end {
-                        named.push((index_label(&a.bounds, k as usize), a.data[k as usize].clone()));
+                    for k in start..end.min(a.data.len()) {
+                        let label = index_label(&a.bounds, k);
+                        named.push((label.clone(), a.data[k].clone(), child_name(&base, &label), false));
                     }
                 }
-                Value::Object(o) => {
+                Node::Value(Value::Object(o), base) => {
                     for (name, f) in o.names.iter().zip(o.fields.borrow().iter()) {
-                        named.push((name.clone(), f.clone()));
+                        named.push((name.clone(), f.clone(), child_name(&base, name), false));
                     }
                 }
-                _ => {}
+                Node::Value(..) => {}
+                Node::Component(id) => {
+                    let (_, props) = component_properties(vm, &id).ok_or_else(|| format!("{id}: no such component"))?;
+                    let parts = vm.host.component_children(&id);
+                    let mut out: Vec<Variable> = Vec::new();
+                    // (the components it holds first, as one item: a form's
+                    // controls before its forty properties)
+                    if !parts.is_empty() {
+                        let reference = self.offer(Node::Parts(id.clone()));
+                        out.push(Variable { name: "Components".into(), value: format!("({})", parts.len()), kind: "Components".into(), reference, count: parts.len() as u32, ..Default::default() });
+                    }
+                    for (name, v) in props {
+                        let evaluate_name = child_name(&id, &name);
+                        out.push(Variable { name, ..self.render(vm, &v, &evaluate_name, false) });
+                    }
+                    return Ok(out);
+                }
+                Node::Parts(id) => {
+                    for part in vm.host.component_children(&id) {
+                        let v = Value::String(part.clone());
+                        named.push((part.clone(), v, part, false));
+                    }
+                }
+                Node::Frame(id) => {
+                    return Ok(rapidr_value::datascience::frame::with_frame(&id, |f| {
+                        (start..end.min(f.height()))
+                            .map(|r| {
+                                let cells: Vec<String> = f.row(r).into_iter().map(|c| c.map(|c| c.into_owned()).unwrap_or_default()).collect();
+                                (r, cells)
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .into_iter()
+                    .map(|(r, cells)| {
+                        let reference = self.offer(Node::Row(id.clone(), r));
+                        Variable { name: format!("({r})"), value: cells.join("  |  "), kind: "Row".into(), reference, count: cells.len() as u32, cells, ..Default::default() }
+                    })
+                    .collect());
+                }
+                Node::Row(id, r) => {
+                    let cells = rapidr_value::datascience::frame::with_frame(&id, |f| {
+                        (0..f.width()).map(|c| (f.columns[c].clone(), f.cell(r, c).map(|c| c.into_owned()), f.dtype(c).name())).collect::<Vec<_>>()
+                    });
+                    return Ok(cells
+                        .into_iter()
+                        .map(|(col, cell, dtype)| Variable {
+                            evaluate_name: format!("{id}.At({r}, {})", basic_string(&col)),
+                            value: match &cell {
+                                Some(c) if dtype == "str" => quoted(c),
+                                Some(c) => c.clone(),
+                                None => "(null)".into(),
+                            },
+                            kind: dtype.to_string(),
+                            name: col,
+                            ..Default::default()
+                        })
+                        .collect());
+                }
+                Node::Num(id) => {
+                    let values = rapidr_value::datascience::num::with_data(&id, |a| a.get(start..end.min(a.len())).map(<[f64]>::to_vec).unwrap_or_default());
+                    return Ok(values
+                        .into_iter()
+                        .enumerate()
+                        .map(|(k, x)| Variable {
+                            name: format!("({})", start + k),
+                            value: rapidr_value::datascience::num_text(x),
+                            kind: "Double".into(),
+                            evaluate_name: format!("{id}.Get({})", start + k),
+                            ..Default::default()
+                        })
+                        .collect());
+                }
             }
         } else {
             return Err(format!("no variables {reference}"));
         }
-        // (a component's properties: their text is a value — a Caption that
-        // happens to name a component isn't that component)
-        let properties = (COMPONENT_REF..CHILDREN_REF).contains(&reference);
-        Ok(named
-            .into_iter()
-            .map(|(name, v)| {
-                let (value, kind, reference) = if properties { self.render(&v) } else { self.render_in(vm, &v) };
-                let count = match &v {
-                    Value::Array(a) => a.borrow().data.len() as u32,
-                    Value::Object(o) => o.names.len() as u32,
-                    _ => 0,
-                };
-                Variable { name, value, kind, reference, count }
-            })
-            .collect())
+        Ok(named.into_iter().map(|(name, v, evaluate_name, property)| Variable { name, ..self.render(vm, &v, &evaluate_name, !property) }).collect())
     }
 
-    /// A value as the debugger shows it, its kind, and a reference to its
-    /// children (0: none).
-    fn render(&mut self, v: &Value) -> (String, String, u32) {
+    /// A value as the debugger shows it (strings quoted, the first
+    /// [`SHOWN_CHARS`] of a long one), its kind, a reference to its
+    /// children (0: none) and how many; `evaluate_name` names it. With
+    /// `components`, a string naming one of the program's components (a
+    /// handler's `Sender`, a variable holding a form's name) is shown as
+    /// that component: its type, its properties and parts as children — an
+    /// RDataFrame as a table, an RNum as its numbers.
+    fn render<H: Host + ?Sized>(&mut self, vm: &mut Vm<'_, H>, v: &Value, evaluate_name: &str, components: bool) -> Variable {
+        let plain = |value: String, kind: &str| Variable { value, kind: kind.into(), evaluate_name: evaluate_name.to_string(), ..Default::default() };
         match v {
-            Value::Null => (String::new(), "Empty".into(), 0),
-            Value::Integer(_) => (rapidr_value::format::print_text(v), "Integer".into(), 0),
-            Value::Double(_) => (rapidr_value::format::print_text(v), "Double".into(), 0),
-            Value::Boolean(b) => ((if *b { "True" } else { "False" }).into(), "Boolean".into(), 0),
-            Value::String(s) => (quoted(s), "String".into(), 0),
-            Value::Array(a) => {
-                let bounds = a.borrow().bounds.iter().map(|(lo, hi)| format!("{lo} TO {hi}")).collect::<Vec<_>>().join(", ");
-                (format!("Array({bounds})"), "Array".into(), self.child(v))
-            }
-            Value::Object(o) => (o.type_name.clone(), o.type_name.clone(), self.child(v)),
-        }
-    }
-
-    /// [`Self::render`], and a string naming one of the program's
-    /// components (a handler's `Sender`) shown as that component: its type,
-    /// its properties as children.
-    fn render_in<H: Host + ?Sized>(&mut self, vm: &mut Vm<'_, H>, v: &Value) -> (String, String, u32) {
-        if let Value::String(s) = v {
-            let id = s.as_str();
-            if !id.is_empty() && id.len() <= 64 && id.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '(' | ')' | '.')) {
-                if let Some(kind) = vm.host.component_type(id) {
-                    let shown = rapidr_lang::component(&kind).map_or(kind.clone(), |c| c.written_name().to_string());
-                    let index = match self.components.iter().position(|c| c.eq_ignore_ascii_case(id)) {
-                        Some(i) => i,
-                        None => {
-                            self.components.push(id.to_string());
-                            self.components.len() - 1
-                        }
-                    };
-                    return (format!("{} ({shown})", quoted(id)), shown, COMPONENT_REF + index as u32);
+            Value::Null => plain(String::new(), "Empty"),
+            Value::Integer(_) => plain(rapidr_value::format::print_text(v), "Integer"),
+            Value::Double(_) => plain(rapidr_value::format::print_text(v), "Double"),
+            Value::Boolean(b) => plain((if *b { "True" } else { "False" }).into(), "Boolean"),
+            Value::String(s) => {
+                if components {
+                    if let Some(shown) = self.component_value(vm, s, evaluate_name) {
+                        return shown;
+                    }
                 }
+                plain(shown_string(s), "String")
+            }
+            Value::Array(a) => {
+                let (bounds, n) = {
+                    let a = a.borrow();
+                    (a.bounds.iter().map(|(lo, hi)| format!("{lo} TO {hi}")).collect::<Vec<_>>().join(", "), a.data.len() as u32)
+                };
+                let reference = self.offer(Node::Value(v.clone(), evaluate_name.to_string()));
+                Variable { value: format!("Array({bounds})"), kind: "Array".into(), reference, count: n, evaluate_name: evaluate_name.to_string(), ..Default::default() }
+            }
+            Value::Object(o) => {
+                let reference = self.offer(Node::Value(v.clone(), evaluate_name.to_string()));
+                Variable { value: o.type_name.clone(), kind: o.type_name.clone(), reference, count: o.names.len() as u32, evaluate_name: evaluate_name.to_string(), ..Default::default() }
             }
         }
-        self.render(v)
     }
 
-    fn child(&mut self, v: &Value) -> u32 {
-        self.children.push(v.clone());
-        CHILDREN_REF + (self.children.len() - 1) as u32
+    /// A string naming one of the program's components, shown as it.
+    fn component_value<H: Host + ?Sized>(&mut self, vm: &mut Vm<'_, H>, s: &str, evaluate_name: &str) -> Option<Variable> {
+        let id = s.trim();
+        if id.is_empty() || id.len() > 64 || !id.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '(' | ')' | '.')) {
+            return None;
+        }
+        let kind = vm.host.component_type(id)?;
+        let comp = rapidr_lang::component(&kind);
+        let shown = comp.map_or(kind.clone(), |c| c.spelling());
+        let base = Variable { kind: shown.clone(), evaluate_name: evaluate_name.to_string(), ..Default::default() };
+        Some(match comp.map(|c| c.name) {
+            Some("RDATAFRAME") => {
+                let (rows, columns) = rapidr_value::datascience::frame::with_frame(id, |f| (f.height(), f.columns.clone()));
+                let reference = self.offer(Node::Frame(id.to_string()));
+                let value = format!("{} ({shown}: {rows} {} × {} {})", quoted(id), plural(rows, "row"), columns.len(), plural(columns.len(), "column"));
+                Variable { value, reference, count: rows as u32, columns, ..base }
+            }
+            Some("RNUM") => {
+                let (n, first) = rapidr_value::datascience::num::with_data(id, |a| (a.len(), a.iter().take(6).map(|x| rapidr_value::datascience::num_text(*x)).collect::<Vec<_>>()));
+                let reference = self.offer(Node::Num(id.to_string()));
+                let more = if n > first.len() { ", …" } else { "" };
+                Variable { value: format!("{} ({shown}({n}): [{}{more}])", quoted(id), first.join(", ")), reference, count: n as u32, ..base }
+            }
+            _ => {
+                let reference = self.offer(Node::Component(id.to_string()));
+                Variable { value: format!("{} ({shown})", quoted(id)), reference, ..base }
+            }
+        })
+    }
+
+    /// `node`'s reference, for its children.
+    fn offer(&mut self, node: Node) -> u32 {
+        self.nodes.push(node);
+        CHILDREN_REF + (self.nodes.len() - 1) as u32
     }
 }
 
-/// A component's type (its Q name when it has one) and its properties as
-/// the language registry lists them, each read through the host as the
-/// program reads it (`None`: not a component).
+/// "1 row", "3 rows".
+fn plural(n: usize, what: &str) -> String {
+    if n == 1 {
+        what.to_string()
+    } else {
+        format!("{what}s")
+    }
+}
+
+/// A component's type (its RapidR name) and its properties as the language
+/// registry lists them, each read through the host as the program reads it
+/// (`None`: not a component).
 #[allow(clippy::type_complexity)]
 fn component_properties<H: Host + ?Sized>(vm: &mut Vm<'_, H>, id: &str) -> Option<(String, Vec<(String, Value)>)> {
     let kind = vm.host.component_type(id)?;
     let comp = rapidr_lang::component(&kind);
-    let shown = comp.map_or(kind.clone(), |c| c.written_name().to_string());
+    let shown = comp.map_or(kind.clone(), |c| c.spelling());
     let mut props = Vec::new();
     for p in comp.map(|c| c.properties).unwrap_or(&[]) {
         if p.indexed > 0 || p.missing || p.access == rapidr_lang::Access::Write {
@@ -534,6 +746,21 @@ fn component_properties<H: Host + ?Sized>(vm: &mut Vm<'_, H>, id: &str) -> Optio
     }
     props.sort_by_key(|(n, _)| n.to_ascii_lowercase());
     Some((shown, props))
+}
+
+/// Whether function `f` of `module` calls a SUB, a FUNCTION or a method.
+fn calls_code(module: &Module, f: u32) -> bool {
+    use rapidr_bytecode::Op;
+    let Some(f) = module.functions.get(f as usize) else { return false };
+    let mut ip = 0;
+    while ip < f.code.len() {
+        let Some(op) = Op::from_u8(f.code[ip]) else { return true };
+        if matches!(op, Op::CallSub | Op::CallFunc | Op::CallIndirect | Op::CallMethod | Op::CallMethodDyn | Op::Input | Op::Gosub) {
+            return true;
+        }
+        ip += 1 + op.operand_len();
+    }
+    false
 }
 
 /// Compiler-made names (`__for_end1`, the result slot) aren't shown.
@@ -558,6 +785,20 @@ fn quoted(s: &str) -> String {
     }
     out.push('"');
     out
+}
+
+/// A string as a value shows it: quoted, a long one cut after
+/// [`SHOWN_CHARS`] characters with its length said.
+fn shown_string(s: &str) -> String {
+    match s.char_indices().nth(SHOWN_CHARS) {
+        None => quoted(s),
+        Some((cut, _)) => format!("{}… ({} characters)", quoted(&s[..cut]), s.chars().count()),
+    }
+}
+
+/// `text` as a BASIC string literal.
+fn basic_string(text: &str) -> String {
+    format!("\"{}\"", text.replace('"', "\"\""))
 }
 
 /// `(2, 3)`: element `k`'s subscripts (stored by the last one first).
@@ -644,9 +885,16 @@ impl<H: Host + ?Sized> Debugger<H> for BlockingDebugger {
             let resume = match control {
                 Control::Continue => Resume::Continue,
                 Control::StepIn => Resume::StepIn,
+                Control::StepInTarget(function) => Resume::StepInTarget(function),
                 Control::StepOver => Resume::StepOver,
                 Control::StepOut => Resume::StepOut,
                 Control::Stop => return Resume::Terminate,
+                // (Set Next Statement: where it's stopped now)
+                Control::Moved => {
+                    let event = self.end.stopped_event(vm, module);
+                    (self.send)(&event);
+                    continue;
+                }
                 Control::None | Control::Pause | Control::Start { .. } => continue,
                 other => {
                     self.controls.push(other);
@@ -670,7 +918,7 @@ impl<H: Host + ?Sized> Debugger<H> for BlockingDebugger {
                     }
                     match control {
                         Control::Pause => pause = true,
-                        Control::None | Control::Start { .. } | Control::Continue | Control::StepIn | Control::StepOver | Control::StepOut => {}
+                        Control::None | Control::Start { .. } | Control::Continue | Control::StepIn | Control::StepInTarget(_) | Control::StepOver | Control::StepOut | Control::Moved => {}
                         other => self.controls.push(other),
                     }
                 }
@@ -748,7 +996,7 @@ mod tests {
         let EventBody::Variables { variables } = by_re(7) else { panic!() };
         assert_eq!(variables.iter().map(|v| (v.name.as_str(), v.value.as_str())).collect::<Vec<_>>(), [("(1)", "0"), ("(2)", "7"), ("(3)", "0")]);
         assert!(matches!(by_re(8), EventBody::Evaluate { ref result, .. } if result == "42"));
-        assert_eq!(by_re(9), EventBody::Evaluate { result: String::new(), kind: String::new(), reference: 0 });
+        assert_eq!(by_re(9), EventBody::Evaluate { result: String::new(), kind: String::new(), reference: 0, count: 0, columns: vec![] });
         assert!(sent.iter().any(|e| e.body == EventBody::Continued));
     }
 
@@ -988,5 +1236,324 @@ mod tests {
         assert!(matches!(by_re(11), EventBody::Evaluate { ref result, .. } if result == "10"), "{:?}", by_re(11));
         let EventBody::StackTrace { frames } = by_re(20) else { panic!("{:?}", by_re(20)) };
         assert_eq!(frames.iter().map(|f| f.line).collect::<Vec<_>>(), vec![6]);
+    }
+
+    /// Runs `src` (as prog.bas) under a [`BlockingDebugger`], breaking on
+    /// errors, with breakpoints at `bps`; at each of its stops (but Set
+    /// Next Statement's, whose requests were queued with the move) the IDE
+    /// sends the next list of `stops` (the k-th list's requests numbered
+    /// k·100 + i, from 1), the last of which should let it go on. Every
+    /// event sent comes back.
+    fn drive<H: Host>(src: &str, host: &mut H, bps: &[u32], stops: Vec<Vec<Command>>) -> Vec<Event> {
+        let m = compile_program(src);
+        let (tx, rx) = mpsc::channel();
+        let sent: Rc<RefCell<Vec<Event>>> = Rc::default();
+        let log = sent.clone();
+        let ide = tx.clone();
+        let queue: Rc<RefCell<std::collections::VecDeque<Vec<Command>>>> = Rc::new(RefCell::new(stops.into()));
+        let count = Rc::new(std::cell::Cell::new(0u64));
+        let mut dbg = BlockingDebugger::new(
+            rx,
+            Box::new(move |e: &Event| {
+                log.borrow_mut().push(e.clone());
+                if let EventBody::Stopped { reason, .. } = &e.body {
+                    if e.re.is_none() && reason != "goto" {
+                        count.set(count.get() + 1);
+                        let list = queue.borrow_mut().pop_front().unwrap_or_else(|| vec![Command::Continue]);
+                        for (i, c) in list.into_iter().enumerate() {
+                            ide.send(req(count.get() * 100 + i as u64, c)).unwrap();
+                        }
+                    }
+                }
+            }),
+        );
+        let mut vm = Vm::new(host);
+        let breakpoints = bps.iter().map(|&line| SourceBreakpoint { line, ..Default::default() }).collect();
+        tx.send(req(1, Command::SetBreakpoints { file: "prog.bas".into(), breakpoints })).unwrap();
+        tx.send(req(2, Command::Start { program: None, args: vec![], debug: true, stop_on_entry: false, break_on_error: true })).unwrap();
+        assert_eq!(dbg.until_start(&mut vm, &m), Some(false));
+        vm.debugger = Some(Box::new(dbg));
+        let _ = vm.run(&m);
+        drop(vm);
+        let out = sent.borrow().clone();
+        out
+    }
+
+    fn stops_of(events: &[Event]) -> Vec<(String, u32)> {
+        events
+            .iter()
+            .filter_map(|e| match &e.body {
+                EventBody::Stopped { reason, line, .. } if e.re.is_none() => Some((reason.clone(), line.unwrap_or(0))),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn reply_to(events: &[Event], re: u64) -> EventBody {
+        events.iter().find(|e| e.re == Some(re)).map(|e| e.body.clone()).unwrap_or_else(|| panic!("no reply {re}: {events:?}"))
+    }
+
+    fn stop(reason: &str, line: u32) -> (String, u32) {
+        (reason.to_string(), line)
+    }
+
+    /// Step Over a line that calls a SUB stops at the next line — not in
+    /// the middle of the same line, where the call returns.
+    #[test]
+    fn step_over_a_call_goes_to_the_next_line() {
+        let src = "SUB Twice(n)\n  PRINT n * 2\nEND SUB\nx = 1\nTwice x\nx = 2\nPRINT x\n";
+        let mut host = StubHost::default();
+        let events = drive(src, &mut host, &[5], vec![vec![Command::StepOver], vec![Command::Continue]]);
+        assert_eq!(stops_of(&events), [stop("breakpoint", 5), stop("step", 6)]);
+        assert_eq!(host.output, "2\n2\n");
+    }
+
+    /// Step Into Specific: the line's calls in the order they happen; into
+    /// the one picked (the outer call, past the inner one).
+    #[test]
+    fn step_into_specific_goes_into_the_call_picked() {
+        let src = "FUNCTION A(n)\n  Result = n + 1\nEND FUNCTION\nFUNCTION B(n)\n  Result = n * 2\nEND FUNCTION\nx = A(B(3))\nPRINT x\n";
+        let m = compile_program(src);
+        let a = m.functions.iter().position(|f| f.name.eq_ignore_ascii_case("A")).unwrap() as u32;
+        let mut host = StubHost::default();
+        let events = drive(
+            src,
+            &mut host,
+            &[7],
+            vec![vec![Command::StepInTargets, Command::StepIn { target: Some(a) }], vec![Command::Evaluate { expr: "n".into(), frame: None, context: None }, Command::Continue]],
+        );
+        let EventBody::StepInTargets { targets } = reply_to(&events, 100) else { panic!() };
+        assert_eq!(targets.iter().map(|t| t.label.to_ascii_uppercase()).collect::<Vec<_>>(), ["B", "A"]);
+        assert_eq!(stops_of(&events), [stop("breakpoint", 7), stop("step", 2)]);
+        assert!(matches!(reply_to(&events, 200), EventBody::Evaluate { ref result, .. } if result == "6"), "{:?}", reply_to(&events, 200));
+        assert_eq!(host.output.trim(), "7");
+    }
+
+    /// Set Next Statement skips a line (the program goes on from the line
+    /// asked for), within the routine stopped in only.
+    #[test]
+    fn set_next_statement_skips_lines() {
+        let src = "SUB Other\n  PRINT \"other\"\nEND SUB\nx = 1\nx = x + 10\nx = x + 100\nPRINT x\n";
+        let mut host = StubHost::default();
+        let events = drive(
+            src,
+            &mut host,
+            &[5],
+            vec![vec![
+                Command::SetNextStatement { file: "prog.bas".into(), line: 2 },
+                Command::SetNextStatement { file: "prog.bas".into(), line: 6 },
+                Command::Evaluate { expr: "x".into(), frame: None, context: None },
+                Command::Continue,
+            ]],
+        );
+        assert!(matches!(reply_to(&events, 100), EventBody::Error { ref message } if message.to_ascii_uppercase().contains("OTHER")), "{:?}", reply_to(&events, 100));
+        assert_eq!(reply_to(&events, 101), EventBody::Ok);
+        assert_eq!(stops_of(&events), [stop("breakpoint", 5), stop("goto", 6)]);
+        assert!(matches!(reply_to(&events, 102), EventBody::Evaluate { ref result, .. } if result == "1"), "{:?}", reply_to(&events, 102));
+        assert_eq!(host.output.trim(), "101");
+    }
+
+    /// Stopped at a run-time error, the value fixed and the line run again
+    /// (Set Next Statement to it): the program goes on instead of failing.
+    #[test]
+    fn set_next_statement_retries_a_line_that_failed() {
+        let src = "z = 0\ny = 10 \\ z\nPRINT \"after\"; y\n";
+        let mut host = StubHost::default();
+        let events = drive(
+            src,
+            &mut host,
+            &[],
+            vec![vec![
+                Command::SetVariable { frame: None, name: "z".into(), value: "2".into() },
+                Command::SetNextStatement { file: "prog.bas".into(), line: 2 },
+                Command::Continue,
+            ]],
+        );
+        assert_eq!(stops_of(&events), [stop("exception", 2), stop("goto", 2)]);
+        assert_eq!(host.output.trim(), "after5");
+    }
+
+    /// A host with an RDataFrame, an RNum and a form holding a button, as
+    /// a runtime holds them (the shared data-science model).
+    #[derive(Default)]
+    struct PartsHost {
+        inner: StubHost,
+    }
+
+    impl Host for PartsHost {
+        fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String> {
+            self.inner.call_builtin(name, args)
+        }
+        fn create_comp(&mut self, kind: &str, id: &str) -> Result<Value, String> {
+            self.inner.create_comp(kind, id)
+        }
+        fn set_prop(&mut self, id: &str, name: &str, value: Value) -> Result<(), String> {
+            self.inner.set_prop(id, name, value)
+        }
+        fn get_prop(&mut self, id: &str, name: &str) -> Result<Value, String> {
+            Ok(match (id.to_ascii_lowercase().as_str(), name.to_ascii_lowercase().as_str()) {
+                ("form1", "caption") => Value::String("Main".into()),
+                ("button1", "caption") => Value::String("OK".into()),
+                _ => Value::Null,
+            })
+        }
+        fn call_method(&mut self, id: &str, method: &str, args: &[Value]) -> Result<Value, String> {
+            self.inner.call_method(id, method, args)
+        }
+        fn register_event(&mut self, id: &str, event: &str, handler_fn_index: u32) -> Result<(), String> {
+            self.inner.register_event(id, event, handler_fn_index)
+        }
+        fn print(&mut self, s: &str) -> Result<(), String> {
+            self.inner.print(s)
+        }
+        fn input(&mut self) -> Result<String, String> {
+            self.inner.input()
+        }
+        fn component_type(&mut self, id: &str) -> Option<String> {
+            match id.to_ascii_lowercase().as_str() {
+                "sales" => Some("RDATAFRAME".into()),
+                "temps" => Some("RNUM".into()),
+                "form1" => Some("RFORM".into()),
+                "button1" => Some("RBUTTON".into()),
+                _ => None,
+            }
+        }
+        fn component_children(&mut self, id: &str) -> Vec<String> {
+            if id.eq_ignore_ascii_case("form1") {
+                vec!["Button1".into()]
+            } else {
+                Vec::new()
+            }
+        }
+    }
+
+    /// What a stop shows opens like a tree: a frame as a table (its rows,
+    /// each to its cells by column), an RNum's numbers (paged), a form's
+    /// components then its properties, an array's elements; every value names
+    /// itself.
+    #[test]
+    fn frames_numbers_and_forms_open_like_a_tree() {
+        use rapidr_value::datascience::{frame, num};
+        frame::set_frame("sales", frame::parse_csv("region,amount\nNorth,120\nSouth,80.5\n"));
+        num::set_data("temps", (0..250).map(|i| i as f64 / 2.0).collect());
+        let src = "\n\n\n\nDIM p(1 TO 2) AS INTEGER\nDIM df AS STRING, t AS STRING, f AS STRING\np(1) = 3\ndf = \"Sales\"\nt = \"Temps\"\nf = \"Form1\"\nPRINT \"done\"\n";
+        let mut host = PartsHost::default();
+        // (the globals' nodes are offered in their order: df, f, p, t)
+        let events = drive(
+            src,
+            &mut host,
+            &[11],
+            vec![vec![
+                Command::Variables { reference: GLOBALS_REF, start: None, count: None },
+                Command::Variables { reference: CHILDREN_REF, start: None, count: None },
+                Command::Variables { reference: CHILDREN_REF + 4, start: None, count: None },
+                Command::Variables { reference: CHILDREN_REF + 1, start: None, count: None },
+                Command::Variables { reference: CHILDREN_REF + 3, start: Some(200), count: Some(10) },
+                Command::Variables { reference: CHILDREN_REF + 2, start: None, count: None },
+                Command::Continue,
+            ]],
+        );
+        let vars = |re: u64| {
+            let EventBody::Variables { variables } = reply_to(&events, re) else { panic!("{:?}", reply_to(&events, re)) };
+            variables
+        };
+        let globals = vars(100);
+        let names: Vec<String> = globals.iter().map(|v| v.name.to_ascii_lowercase()).collect();
+        assert_eq!(names, ["df", "f", "p", "t"]);
+        let df = &globals[0];
+        assert_eq!((df.kind.as_str(), df.count, df.columns.clone()), ("RDataFrame", 2, vec!["region".to_string(), "amount".to_string()]));
+        assert!(df.evaluate_name.eq_ignore_ascii_case("df") && df.value.contains("2 rows × 2 columns"), "{df:?}");
+        let t = &globals[3];
+        assert_eq!((t.kind.as_str(), t.count), ("RNum", 250));
+        assert!(t.value.contains("[0, 0.5, 1, 1.5, 2, 2.5, …]"), "{}", t.value);
+        assert_eq!(globals[1].value, "\"Form1\" (RForm)");
+        // the frame's rows, with their cells
+        let rows = vars(101);
+        assert_eq!(
+            rows.iter().map(|r| (r.name.as_str(), r.cells.clone())).collect::<Vec<_>>(),
+            [("(0)", vec!["North".to_string(), "120".to_string()]), ("(1)", vec!["South".to_string(), "80.5".to_string()])]
+        );
+        // a row's cells by column, each naming itself
+        let cells = vars(102);
+        assert_eq!(
+            cells.iter().map(|c| (c.name.as_str(), c.value.as_str(), c.evaluate_name.as_str())).collect::<Vec<_>>(),
+            [("region", "\"North\"", "Sales.At(0, \"region\")"), ("amount", "120", "Sales.At(0, \"amount\")")]
+        );
+        // the form: its components first, then its properties
+        let form = vars(103);
+        assert_eq!((form[0].name.as_str(), form[0].count), ("Components", 1));
+        assert!(form.iter().any(|v| v.name == "Caption" && v.value == "\"Main\"" && v.evaluate_name == "Form1.Caption"), "{form:?}");
+        // the RNum paged
+        let page = vars(104);
+        assert_eq!(page.len(), 10);
+        assert_eq!((page[0].name.as_str(), page[0].value.as_str(), page[0].evaluate_name.as_str()), ("(200)", "100", "Temps.Get(200)"));
+        // the array's elements
+        let p = vars(105);
+        assert_eq!(
+            p.iter().map(|v| (v.name.clone(), v.value.clone(), v.evaluate_name.to_ascii_lowercase())).collect::<Vec<_>>(),
+            [("(1)".to_string(), "3".to_string(), "p(1)".to_string()), ("(2)".to_string(), "0".to_string(), "p(2)".to_string())]
+        );
+    }
+
+    /// Every opcode of real programs decodes with its operands' length
+    /// (what Step Into Specific reads the code with) and the walk ends
+    /// exactly at each function's end.
+    #[test]
+    fn operand_lengths_walk_compiled_code() {
+        let src = "TYPE T\n  A AS INTEGER\nEND TYPE\nDIM o AS T\nDIM a(3) AS STRING\nSUB S(BYREF x AS INTEGER)\n  x = x + 1\nEND SUB\nFUNCTION F(n) AS INTEGER\n  SELECT CASE n\n    CASE 1: Result = 1\n    CASE ELSE: Result = F(n - 1) * n\n  END SELECT\nEND FUNCTION\nCREATE Frm AS QFORM\n  Caption = \"x\"\nEND CREATE\nDIM k AS INTEGER\nFOR k = 1 TO 3\n  a(k) = STR$(k) + \"!\"\n  S k\n  o.A = F(k)\nNEXT\nGOSUB there\nPRINT a(1); o.A, Frm.Caption\nEND\nthere:\nPRINT \"g\"\nRETURN\n";
+        let m = compile_program(src);
+        for f in &m.functions {
+            let mut ip = 0;
+            while ip < f.code.len() {
+                let op = rapidr_bytecode::Op::from_u8(f.code[ip]).unwrap_or_else(|| panic!("{}: bad opcode at {ip}", f.name));
+                ip += 1 + op.operand_len();
+            }
+            assert_eq!(ip, f.code.len(), "{}", f.name);
+        }
+    }
+
+    /// The web's way (no blocking debugger: the VM returns at a stop and is
+    /// continued later): stopped at a run-time error, the value fixed and
+    /// the line set as the next statement, `resume` goes on from there.
+    #[test]
+    fn set_next_statement_after_an_error_without_a_blocking_debugger() {
+        let src = "z = 0\ny = 10 \\ z\nPRINT \"after\"; y\n";
+        let m = compile_program(src);
+        let mut host = StubHost::default();
+        let mut vm = Vm::new(&mut host);
+        vm.debug_mode = true;
+        vm.break_on_error = true;
+        assert!(matches!(vm.run(&m), Err(rapidr_vm::VmError::Paused)));
+        assert_eq!(vm.stop_reason, StopReason::Exception);
+        let mut end = ProgramEnd::new();
+        let (r, _) = end.handle(&mut vm, &m, req(1, Command::SetVariable { frame: None, name: "z".into(), value: "2".into() }), true);
+        assert!(matches!(r.map(|e| e.body), Some(EventBody::Evaluate { ref result, .. }) if result == "2"));
+        let (r, control) = end.handle(&mut vm, &m, req(2, Command::SetNextStatement { file: "prog.bas".into(), line: 2 }), true);
+        assert_eq!((r.map(|e| e.body), control), (Some(EventBody::Ok), Control::Moved));
+        let stopped = end.stopped_event(&vm, &m);
+        assert!(matches!(stopped.body, EventBody::Stopped { ref reason, line: Some(2), .. } if reason == "goto"), "{stopped:?}");
+        vm.resume(&m).unwrap();
+        drop(vm);
+        assert_eq!(host.output.trim(), "after5");
+    }
+
+    /// Hovering never runs code: an expression that calls a FUNCTION is
+    /// refused in the `hover` context (and answered otherwise).
+    #[test]
+    fn a_hover_never_calls_a_function() {
+        let src = "FUNCTION Bump(n)\n  Result = n + 1\nEND FUNCTION\nx = 1\nPRINT x\n";
+        let m = compile_program(src);
+        let mut host = StubHost::default();
+        let mut vm = Vm::new(&mut host);
+        vm.debug_mode = true;
+        vm.set_file_breakpoints(&m, "prog.bas", &[5]);
+        assert!(matches!(vm.run(&m), Err(rapidr_vm::VmError::Paused)));
+        let mut end = ProgramEnd::new();
+        let (r, _) = end.handle(&mut vm, &m, req(1, Command::Evaluate { expr: "Bump(x)".into(), frame: None, context: Some("hover".into()) }), true);
+        assert!(matches!(r.map(|e| e.body), Some(EventBody::Error { ref message }) if message.contains("not shown by a data tip")));
+        let (r, _) = end.handle(&mut vm, &m, req(2, Command::Evaluate { expr: "Bump(x)".into(), frame: None, context: None }), true);
+        assert!(matches!(r.map(|e| e.body), Some(EventBody::Evaluate { ref result, .. }) if result == "2"));
+        let (r, _) = end.handle(&mut vm, &m, req(3, Command::Evaluate { expr: "x".into(), frame: None, context: Some("hover".into()) }), true);
+        assert!(matches!(r.map(|e| e.body), Some(EventBody::Evaluate { ref result, .. }) if result == "1"));
     }
 }

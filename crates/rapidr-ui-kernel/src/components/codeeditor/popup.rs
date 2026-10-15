@@ -263,7 +263,7 @@ fn draw_blocks(p: &mut Painter, sc: &Scheme, lang: &str, bl: &[(bool, String)], 
 }
 
 /// A popup's box with its shadow.
-fn frame(p: &mut Painter, sc: &Scheme, r: Rect) {
+pub(super) fn frame(p: &mut Painter, sc: &Scheme, r: Rect) {
     p.op(Op::Round { rect: (r.0 + 1, r.1 + 2, r.2, r.3), radius: 4.0, fill: Some(super::paint::blend(0x000000, sc.background, if sc.dark { 0.45 } else { 0.16 })), stroke: None, width: 1.0 });
     p.op(Op::Round { rect: r, radius: 4.0, fill: Some(sc.popup), stroke: Some(sc.popup_border), width: 1.0 });
 }
@@ -345,6 +345,8 @@ fn paint_one(c: &Model, ui: &CodeUi, abs: (i64, i64), scale: f64, client: (i64, 
             draw_blocks(p, sc, &lang, &bl, (x + 10, y + 6, w - 20, hh - 10), code_px);
         }
     }
+    // a debugger's data tip
+    super::datatip::paint(c, ui, abs, scale, client, p);
     // the completion list
     if !focused {
         return;
@@ -430,6 +432,16 @@ pub fn over_popup(x: &Ctx, abs: (i64, i64), mx: f64, my: f64) -> Option<usize> {
 /// A press in the form at (x, y): on a code editor's completion list, its
 /// item accepted (true: the press was the list's).
 pub fn popup_mouse_down(f: &mut FormUi, store: &dyn Store, ts: &mut TextSystem, x: f64, y: f64) -> bool {
+    // (a debugger's data tip, in any editor: a press on it is its own; one
+    // elsewhere closes it)
+    if super::datatip::mouse_down(f, x, y, false) {
+        return true;
+    }
+    for n in &f.nodes {
+        if n.ui.code.is_some() && with_code_mut(&n.id, |c| c.datatip.take().is_some()).unwrap_or(false) {
+            f.dirty = true;
+        }
+    }
     let client = (f.client.0, f.client.1 + f.menu_offset);
     let Some(i) = f.focus else { return false };
     let Some(ui) = f.nodes[i].ui.code.as_ref() else { return false };
@@ -480,6 +492,9 @@ pub fn popup_mouse_down(f: &mut FormUi, store: &dyn Store, ts: &mut TextSystem, 
 
 /// The wheel over a completion list scrolls it.
 pub fn popup_wheel(f: &mut FormUi, x: f64, y: f64, dy: f64) -> bool {
+    if super::datatip::wheel(f, x, y, dy) {
+        return true;
+    }
     let client = (f.client.0, f.client.1 + f.menu_offset);
     let Some(i) = f.focus else { return false };
     let scale = f.scale;

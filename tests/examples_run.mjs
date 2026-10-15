@@ -76,6 +76,9 @@ export const cases = [
     expect: ["shopping.txt has", "1. bread", "4. coffee", "First line again: bread", "Removed: yes"] },
   { file: "basics/language.rr", runtimes: ["run", "interp", "native", "web"],
     expect: ["Mercury: no moons, 57.9 million km", "Earth: one moon", "Mars: 2 moons", "Average distance: 135.9", "Initials: MVEM", "The counter counted to 15"] },
+  // debugging/ (the debugger's example: here it runs on its own)
+  { file: "debugging/shop.rr", runtimes: ["run", "interp", "native", "web"], events: "addbtn.onclick,totalbtn.onclick", dump: "totallabel.caption,orderlist.itemcount",
+    expect: ["totallabel.caption=Total: 25.00", "orderlist.itemcount=4"] },
   // gui/
   { file: "gui/hello_form.rr", runtimes: ["run", "interp", "native", "web"], events: "greetbutton.onclick,greetbutton.onclick", dump: "answer.caption",
     expect: ["answer.caption=Hello, World! (2)"] },

@@ -11,7 +11,15 @@ const COUNTER = "tools/manual/scenes/debugger/counter.rr";
 const SHARE = "tools/manual/scenes/debugger/share.rr";
 const GREETER = "tools/manual/scenes/debugger/greeter.rr";
 
+// (the debugger's example: examples/debugging/shop.rr — line 76 adds a
+// LineTotal in AddUp's loop; line 147 calls AddUp, after the week's table)
+const SHOP = "examples/debugging/shop.rr";
+const LOOP = "line:76,debug.toggleBreakpoint,run.start,wait,wait,wait";
+
 const EDITOR = [244, 70, 792, 300];
+const EDITOR_TALL = [244, 70, 792, 560];
+// (the Variables pane alone)
+const VARS = [544, 568, 492, 202];
 const BOTTOM = [0, 568, 1036, 202];
 const WORKBENCH = [0, 64, 1036, 706];
 const BP = "line:11,debug.toggleBreakpoint";
@@ -31,6 +39,14 @@ export const scenes = [
   { topic: "debugging", name: "pause-waiting", open: GREETER, do: "run.start,wait,wait,wait,run.pause,wait,wait", delay: 6, crop: [0, 64, 1036, 706] },
   { topic: "debugging", name: "program-window", open: GREETER, do: "run.start,wait,wait,wait", delay: 5, program: true },
   { topic: "debugging", name: "runtime-error", open: SHARE, do: "run.start,wait,wait,wait,view.variables", delay: 6, crop: WORKBENCH },
+  // (DEBUG-VM: the values inspector, Step Into Specific, Set Next Statement)
+  { topic: "debugging", name: "datatip-tree", open: SHOP, do: `${LOOP},hover:76:37,wait,wait,wait,tipopen:1,wait,wait,tipopen:4,wait,wait,tipopen:7,wait,wait`, delay: 9, crop: EDITOR_TALL },
+  { topic: "debugging", name: "datatip-frame", open: SHOP, do: "line:147,debug.toggleBreakpoint,run.start,wait,wait,wait,hover:140:2,wait,wait,wait,wait", delay: 8, crop: EDITOR },
+  { topic: "debugging", name: "variables-changed", open: SHOP, do: `${LOOP},run.start,wait,wait,wait,view.variables`, delay: 8, crop: VARS },
+  { topic: "debugging", name: "variables-components", open: SHOP, do: `${LOOP},view.variables,collapse:L,collapse:G,expand:C,wait,wait,expand:C/Form,wait,wait,expand:C/Form/Components,wait,wait`, delay: 10, crop: VARS },
+  { topic: "debugging", name: "text-viewer", open: SHOP, do: "line:147,debug.toggleBreakpoint,run.start,wait,wait,wait,hover:142:3,wait,wait,wait,tipaction:0:view,wait,wait", delay: 8, window: 2 },
+  { topic: "debugging", name: "step-into-specific", open: SHOP, do: `${LOOP},into:LineTotal,wait,wait,wait,view.variables`, delay: 8, crop: WORKBENCH },
+  { topic: "debugging", name: "set-next", open: COUNTER, do: `${HIT},debug.stepInto,wait,wait,wait,debug.stepOver,wait,wait,wait,debug.stepOver,wait,wait,wait,debug.stepOver,wait,wait,wait,goto:6,wait,wait`, delay: 11, crop: WORKBENCH },
   // (the web: Studio in the browser, paused as on the desktop — its window
   // under the page's title bar — and a running program's window dragged
   // past Studio's own, whole)

@@ -1,0 +1,4 @@
+' vm_bench: start-up and the smallest program's memory (a console program
+' that prints one line and ends).
+$APPTYPE CONSOLE
+PRINT "hello"

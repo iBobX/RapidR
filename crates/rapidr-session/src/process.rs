@@ -87,7 +87,11 @@ impl ProcessTransport {
             if let Some(rest) = deframer.finish() {
                 let _ = out_tx.send(rest);
             }
-            // (the end: the IDE hears it at once)
+            // (the end: the IDE hears it at once — and once more a moment
+            // later, when the system has the program as ended, so its exit
+            // code is read then and not at the IDE's next poll)
+            wake(&out_waker);
+            std::thread::sleep(Duration::from_millis(60));
             wake(&out_waker);
         });
         let mut stderr = child.stderr.take().expect("piped stderr");

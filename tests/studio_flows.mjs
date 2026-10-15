@@ -688,7 +688,7 @@ const CASES = [
     name: "editor-quick-fix",
     open: "examples/gui/hello_form.rr",
     do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x$ = NameEdit.Txet,key:Escape,wait,wait,wait,key:Ctrl+.,wait,key:Enter,wait,wait,wait",
-    delay: 10,
+    delay: 11,
     dump: { "codedoc(0).text": /\nx\$ = NameEdit\.Text\n?$/, "codedoc(0).diagnosticcount": /^0$/ },
   },
   {
@@ -1573,7 +1573,7 @@ const CASES = [
       "session.state": /^paused$/,
       "session.currentline": /^6$/,
       "session.stopreason": /^breakpoint$/,
-      "varstree.text": /^Locals\n\t\(none\)\nGlobals\n\ti = 1\n\ttotal = 0$/,
+      "varstree.text": /^Locals\n\t\(none\)\nGlobals\n\ti = 1\n\ttotal = 0\nComponents$/,
       "stacktree.text": /^\(the program\)\s+counter\.rr:6$/,
       "bptree.text": /^counter\.rr:6$/,
     },
@@ -1590,7 +1590,7 @@ const CASES = [
     capture: true,
     dump: {
       "session.currentline": /^13$/,
-      "varstree.text": /^Locals\n\tSender = "Greet" \(QBUTTON\)\n\t\t[\s\S]*Caption = "Greet"[\s\S]*Width = 120/,
+      "varstree.text": /^Locals\n\tSender = "Greet" \(RButton\)\n\t\t[\s\S]*Caption = "Greet"[\s\S]*Width = 120/,
     },
   },
   {
@@ -1620,7 +1620,7 @@ const CASES = [
       "session.state": /^paused$/,
       "session.currentfile": /tally\.inc$/,
       "session.currentline": /^5$/,
-      "varstree.text": /^Locals\n\tn = 1\n\tk = 2\nGlobals\n\ti = 1\n\ttotal = 0$/,
+      "varstree.text": /^Locals\n\tn = 1\n\tk = 2\nGlobals\n\ti = 1\n\ttotal = 0\nComponents$/,
       "watchtree.text": /^k = 2\ntotal \+ k = 2$/,
       "stacktree.text": /^AddUp\s+tally\.inc:5\n\(the program\)\s+counter\.rr:6$/,
       "codedoc(1).caretline": /^5$/,
@@ -1666,7 +1666,7 @@ const CASES = [
     dump: {
       "session.state": /^paused$/,
       "session.currentline": /^6$/,
-      "varstree.text": /\ti = 3\n\ttotal = 6$/,
+      "varstree.text": /\ti = 3\n\ttotal = 6\nComponents$/,
       "bptree.text": /^counter\.rr:6  hit 3$/,
     },
   },
@@ -1685,9 +1685,9 @@ const CASES = [
     name: "debug-hover-frame",
     open: "tests/fixtures/studio_debug/counter.rr",
     webFiles: DEBUG_FILES,
-    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,hover:6:9,wait,debug.stepInto,wait,wait,frame:1,wait,wait",
-    delay: 7,
-    dump: { "codedoc(0).hovertext": /i = 1/, "session.frame": /^1$/, "varstree.text": /^Locals\n\t\(none\)\nGlobals/ },
+    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,debug.stepInto,wait,wait,frame:1,wait,wait,hover:6:9,wait,wait",
+    delay: 8,
+    dump: { "codedoc(0).datatiptext": /^i = 1$/, "session.frame": /^1$/, "varstree.text": /^Locals\n\t\(none\)\nGlobals/ },
   },
   {
     // Pause while the program waits for its events (its ShowModal): it
@@ -1708,7 +1708,7 @@ const CASES = [
       "session.stopreason": /^pause$/,
       "session.currentline": /^17$/,
       "session.stopmessage": /^Waiting for events$/,
-      "varstree.text": /^Locals\n\t\(none\)\nGlobals\n\tclicks = 0$/,
+      "varstree.text": /^Locals\n\t\(none\)\nGlobals\n\tclicks = 0\nComponents$/,
       "stacktree.text": /^\(the program\)\s+waits\.rr:17$/,
       "codedoc(0).caretline": /^17$/,
     },
@@ -1764,7 +1764,7 @@ const CASES = [
     do: "line:6,debug.toggleBreakpoint,watch:total + 1,run.start,wait,wait,wait,varpick:G/total,key:F2,type:100,key:Enter,wait,wait,wait",
     delay: 7,
     dump: {
-      "varstree.text": /^Locals\n\t\(none\)\nGlobals\n\ti = 1\n\ttotal = 100$/,
+      "varstree.text": /^Locals\n\t\(none\)\nGlobals\n\ti = 1\n\ttotal = 100\nComponents$/,
       "watchtree.text": /^total \+ 1 = 101$/,
     },
   },
@@ -1781,9 +1781,9 @@ const CASES = [
     capture: true,
     dump: {
       "session.currentline": /^4$/,
-      "codedoc(1).hovertext": /^```\ntotal = 0\n```$/,
+      "codedoc(1).datatiptext": /^total = 0$/,
       "stacktree.text": /^AddUp\s+tally\.inc:4\n\(the program\)\s+counter\.rr:6$/,
-      "varstree.text": /^Locals\n\tn = 1\n\tk = 0\nGlobals\n\ti = 1\n\ttotal = 0$/,
+      "varstree.text": /^Locals\n\tn = 1\n\tk = 0\nGlobals\n\ti = 1\n\ttotal = 0\nComponents$/,
       "dock.layout": /^    180 tabs 0 stacktree$/m,
     },
   },
@@ -1801,8 +1801,117 @@ const CASES = [
       "session.stopreason": /^exception$/,
       "session.currentline": /^4$/,
       "session.stopmessage": /Division by zero/,
-      "varstree.text": /^Locals\n\tAmount = 10\nGlobals\n\tz = 0$/,
+      "varstree.text": /^Locals\n\tAmount = 10\nGlobals\n\tz = 0\nComponents$/,
       "outputbox.text": /before\s*\n\s*each gets\s*\n\s*oops\.rr:4: run-time error: Division by zero/,
+    },
+  },
+  // ---- DEBUG-VM: the values inspector, Set Next Statement, Step Into
+  // Specific (examples/debugging/shop.rr: nested TYPEs, an array of them, an
+  // RDataFrame, an RNum, a form). Line 76 adds a LineTotal in AddUp's loop.
+  {
+    // the data tip opens like a tree: orders → (1) → Buyer → Home
+    name: "debug-datatip-tree",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:76,debug.toggleBreakpoint,run.start,wait,wait,wait,hover:76:37,wait,wait,wait,tipopen:1,wait,wait,tipopen:4,wait,wait,tipopen:7,wait,wait",
+    delay: 9,
+    scales: [1, 2],
+    capture: true,
+    dump: {
+      "session.currentline": /^76$/,
+      "codedoc(0).datatiptext": /^orders = Array\(1 TO 10\)\n\t\(1\) = Order\n\t\tItem = "tea"\n\t\tQty = 2\n\t\tBuyer = Customer\n\t\t\tName = "Ada"\n\t\t\tSince = 2021\n\t\t\tHome = Address\n\t\t\t\tStreet = "10 Market Street"\n\t\t\t\tCity = "London"\n\t\(2\) = Order/i,
+    },
+  },
+  {
+    // an RDataFrame in a data tip: a table — its columns, its rows
+    name: "debug-datatip-frame",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:147,debug.toggleBreakpoint,run.start,wait,wait,wait,hover:140:2,wait,wait,wait,wait",
+    delay: 8,
+    scales: [1, 2],
+    capture: true,
+    dump: {
+      "codedoc(0).datatiptext": /^week = "week" \(RDataFrame: 5 rows × 3 columns\)\n\tday \| orders \| amount\n\t\(0\) Mon \| 12 \| 340\.5\n\t\(1\) Tue \| 9 \| 251[\s\S]*\(4\) Fri \| 21 \| 610\.75$/,
+    },
+  },
+  {
+    // a hovered member through an element (orders(i).Qty) is evaluated —
+    // and a call never is: Variables marks what changed since the last
+    // stop, an RNum and a frame open in it too
+    name: "debug-datatip-member",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:76,debug.toggleBreakpoint,run.start,wait,wait,wait,hover:76:46,wait,wait,wait",
+    delay: 8,
+    dump: { "codedoc(0).datatiptext": /^orders\(i\)\.Qty = 2$/ },
+  },
+  {
+    // what the last run changed is marked: from one pass of AddUp's loop to
+    // the next, its i and the total (and the watch on the total) — the
+    // order's own values, the same, aren't
+    name: "debug-changed",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:76,debug.toggleBreakpoint,watch:total,watch:count,run.start,wait,wait,wait,run.start,wait,wait,wait,changed:report",
+    delay: 9,
+    dump: { "outputbox.text": /\[changed\] L\/i G\/total W1$/m },
+  },
+  {
+    // a nested field set in place (F2 in Variables): orders(1).Buyer.Name,
+    // the watch on it and the tree showing the new value
+    name: "debug-set-nested",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:76,debug.toggleBreakpoint,watch:orders(1).Buyer.Name,run.start,wait,wait,wait,view.variables,expand:G/orders,wait,wait,expand:G/orders/(1),wait,wait,expand:G/orders/(1)/Buyer,wait,wait,varpick:G/orders/(1)/Buyer/Name,key:F2,type:\"Grace\",key:Enter,wait,wait,wait",
+    delay: 11,
+    dump: {
+      "watchtree.text": /^orders\(1\)\.Buyer\.Name = "Grace"$/,
+      "varstree.text": /\t\t\t\tName = "Grace"/,
+    },
+  },
+  {
+    // Set Next Statement: the arrow carried back to a line runs it again;
+    // carried forward, the lines between are skipped (counter.rr: i = 1)
+    name: "debug-set-next",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,debug.stepInto,wait,wait,wait,debug.stepOver,wait,wait,wait,debug.stepOver,wait,wait,wait,debug.stepOver,wait,wait,wait,goto:4,wait,wait,wait",
+    delay: 11,
+    dump: {
+      "session.state": /^paused$/,
+      "session.stopreason": /^goto$/,
+      "session.currentline": /^4$/,
+      "session.currentfile": /tally\.inc$/,
+      "varstree.text": /^Locals\n\tn = 1\n\tk = 2\nGlobals\n\ti = 1\n\ttotal = 0\nComponents$/,
+    },
+  },
+  {
+    // Ctrl+Shift+F10 at a run-time error: the value fixed (F2), the line run
+    // again — the program goes on instead of ending
+    name: "debug-error-retry",
+    open: "tests/fixtures/studio_debug/oops.rr",
+    webFiles: ["tests/fixtures/studio_debug/oops.rr"],
+    do: "run.start,wait,wait,wait,view.variables,varpick:G/z,key:F2,type:2,key:Enter,wait,wait,line:4,debug.setNextStatement,wait,wait,run.start,wait,wait,wait",
+    delay: 9,
+    dump: {
+      "session.state": /^stopped$/,
+      "session.exitcode": /^0$/,
+      "outputbox.text": /each gets\s*5\s*\n\s*after[\s\S]*ended, exit code 0/,
+    },
+  },
+  {
+    // Step Into Specific: the line's calls (LineTotal, PriceOf) — into
+    // PriceOf, past LineTotal's argument
+    name: "debug-step-into-specific",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:76,debug.toggleBreakpoint,run.start,wait,wait,wait,into:PriceOf,wait,wait,wait",
+    delay: 8,
+    dump: {
+      "session.state": /^paused$/,
+      "stacktree.text": /^PriceOf\s+shop\.rr:\d+\nAddUp\s+shop\.rr:76\n/,
+      "varstree.text": /^Locals\n\tItem = "tea"/,
     },
   },
   {

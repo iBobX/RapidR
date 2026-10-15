@@ -394,6 +394,49 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   `tools/bench/` (frame_bench with the plan's budgets — also in `tools/regress.sh perf` — the same
   work as a RapidR program, pandas and Polars scripts, `compare.sh`).
 
+### The debugger: values as trees, Set Next Statement, a leaner VM (DEBUG-VM)
+- **Data tips open like a tree** (RapidR Studio, desktop and web): rest the mouse on a value while
+  paused and open it to any depth — an array's elements, a TYPE's fields (nested TYPEs too), a
+  component's properties and the components it holds, an `RDataFrame` as a **table** (its columns
+  over its rows, a row opening to its cells), an `RNum`'s numbers. A name through an element
+  (`orders(i).Qty`, `Buyer.Name`) shows that part; a data tip never runs a SUB, FUNCTION or method.
+  Each row's buttons copy the value (whole), add it to the watches, or show a string's whole text
+  in a text viewer. Values that **changed since the last stop are in blue** (bold in a tip), in the tip and in
+  Variables and Watch. Big arrays, frames and RNums show 100 at a time, then "… more".
+- **Variables** has the program's **Components** (its forms, frames, timers …, each opening to its
+  parts and properties); right-click a value for Copy Value (Ctrl+C), Copy Expression, Add Watch,
+  View Text; F2 sets nested fields (`orders(1).Buyer.Name`). Component types show RapidR's names
+  (`"Greet" (RButton)`).
+- **Set Next Statement**: drag the yellow arrow in the margin, or Ctrl+Shift+F10 on a line — the
+  program goes on from there (within its SUB or FUNCTION). At a **run-time error**, fix the value
+  and put the arrow back: the line runs again and the program goes on instead of ending.
+- **Step Into Specific** (Ctrl+Alt+F11): a menu of the calls the paused line still makes; into the
+  one picked. **Step Over** a line that calls a SUB now stops at the next line (it stopped again in
+  the middle of the same line, where the call returned).
+- The session protocol (`rapidr-session`): `stepInTargets`, `stepIn { target }`,
+  `setNextStatement` (then `stopped` with reason `goto`), `evaluate` contexts `clipboard` and
+  `hover`, a `Components` scope; variables carry `evaluateName`, a table's `columns` and a row's
+  `cells`; `evaluate` replies carry `count` and `columns`. `rapidr dap` answers `stepInTargets`,
+  `gotoTargets` and `goto` (VS Code's Step Into Target and Jump to Cursor).
+- The VM (`rapidr-vm`): `Vm::set_next_statement`, `step_in_targets`, `step_into_target`; a
+  program under the debugger with nothing to watch for checks only Studio's interrupt (a line's
+  code range remembered instead of a search per instruction).
+- **Nothing polls any more while a program waits**: a program under the debugger waiting for its
+  events used to wake every 50 ms, RapidR Studio every 20 ms while a program ran (10 % of a core,
+  measured); now the program's session wakes it when Studio asks something, and Studio — woken
+  by what its program says (WEB-FRAME's waker, and once more just after the program ends) — looks
+  on its own only once a second while a program runs.
+- The **Immediate window** answers again: its box (an RRichEdit, now with RapidQ's CR LF line
+  breaks) has taken the Enter when Studio hears it, and the line read was the empty one below.
+- **Faster VM** (tools/bench/vm_bench): errors built only when they happen, opcodes decoded from a
+  table, arithmetic and comparisons in place, builtins' names resolved once and their arguments
+  read where they are on the stack; `RNum.Get` / `Set` / `Count` no longer copy the whole array.
+- **tools/bench/vm_bench** measures start-up, memory, a 10 M-iteration loop (with and without the
+  debugger), strings, calls, arrays, and idle CPU (a waiting form, under the debugger, RapidR
+  Studio running it) against `tools/bench/vm_budgets.json`; `tools/regress.sh perf` runs it.
+- New example **examples/debugging/shop.rr** (nested TYPEs, an RDataFrame, an RNum, a form, a loop
+  to step through), on Studio's Welcome page; manual: docs/manual/debugging.md.
+
 ## [2.118.0] — 2026-10-09 (Preview)
 
 ### Triage of the full regression run (TRIAGE)

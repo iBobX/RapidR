@@ -39,19 +39,32 @@ pub struct NativeHost {
     pub input_source: Option<Box<dyn FnMut() -> Option<String>>>,
     /// Told when a form is shown (`true`) or closed / hidden (a session).
     pub on_form: Option<Box<dyn FnMut(&str, bool)>>,
+    /// Each builtin name the program called, as the program wrote it, and
+    /// its key (`rapidr_bytecode::builtins::builtin_key`; `None`: not a
+    /// builtin): worked out once, not at every call.
+    keys: std::collections::HashMap<String, Option<std::rc::Rc<str>>>,
 }
 
 impl Host for NativeHost {
     fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String> {
+        let key = match self.keys.get(name) {
+            Some(k) => k.clone(),
+            None => {
+                let key = rapidr_bytecode::builtins::builtin_key(name);
+                let k = rapidr_bytecode::builtins::is_builtin(name).then(|| std::rc::Rc::<str>::from(key));
+                self.keys.insert(name.to_string(), k.clone());
+                k
+            }
+        };
         // Unknown names are an error, never a silent no-op. The compiler
         // rejects them up front; this guards bytecode from other sources.
-        if !rapidr_bytecode::builtins::is_builtin(name) {
+        let Some(key) = key else {
             return Err(format!("Unknown builtin function '{name}'"));
-        }
+        };
+        let key: &str = &key;
         // LBOUND(arr [, dim]) / UBOUND(arr [, dim]) read the array's own
         // bounds (dimension 1 by default).
-        let key = rapidr_bytecode::builtins::builtin_key(name);
-        if let Some(result) = rapidr_value::shared_builtin(&key, args) {
+        if let Some(result) = rapidr_value::shared_builtin(key, args) {
             return result;
         }
         // A DLL's routine (rapidr_runtime_core::ffi): the real call on
@@ -80,7 +93,7 @@ impl Host for NativeHost {
                 .map(v_int)
                 .ok_or_else(|| format!("{}: argument is not an array, or it has no dimension {dim}", key.to_uppercase()));
         }
-        Ok(call_builtin_native(name, args))
+        Ok(call_builtin_key(key, args))
     }
 
     fn create_comp(&mut self, kind: &str, id: &str) -> Result<Value, String> {
@@ -106,6 +119,10 @@ impl Host for NativeHost {
 
     fn component_type(&mut self, id: &str) -> Option<String> {
         Some(obj::rp_comp_type(id)).filter(|t| !t.is_empty())
+    }
+
+    fn component_children(&mut self, id: &str) -> Vec<String> {
+        obj::rp_comp_children(id)
     }
 
     fn call_method(&mut self, id: &str, method: &str, args: &[Value]) -> Result<Value, String> {
@@ -192,17 +209,15 @@ impl Host for NativeHost {
 /// using the `rp_*` runtime functions. Mirrors
 /// `rapidr_codegen_rust::builtin_function_call`. Unknown names return
 /// [`v_null`].
-fn call_builtin_native(name: &str, args: &[Value]) -> Value {
-    // Strip BASIC type-suffix (e.g. MID$ → mid, INT% → int) and lowercase.
-    let mut lower = name.to_lowercase();
-    if matches!(lower.chars().last(), Some('$' | '%' | '#' | '&' | '!')) {
-        lower.pop();
-    }
-    let a0 = args.first().cloned().unwrap_or_else(v_null);
-    let a1 = args.get(1).cloned().unwrap_or_else(v_null);
-    let a2 = args.get(2).cloned().unwrap_or_else(v_null);
+/// A builtin by its key (`rapidr_bytecode::builtins::builtin_key`: lower
+/// case, no type suffix — `MID$` is `mid`), its arguments read in place.
+fn call_builtin_key(lower: &str, args: &[Value]) -> Value {
+    let null = v_null();
+    let a0 = args.first().unwrap_or(&null);
+    let a1 = args.get(1).unwrap_or(&null);
+    let a2 = args.get(2).unwrap_or(&null);
 
-    match lower.as_str() {
+    match lower {
         // --- Output / input ---
         "print" | "println" => {
             rp_print(args, lower == "println");
@@ -330,8 +345,8 @@ fn call_builtin_native(name: &str, args: &[Value]) -> Value {
         "isnumeric" => rp_isnumeric(&a0),
 
         // --- Array ---
-        "lbound" => rp_lbound(&[a0]),
-        "ubound" => rp_ubound(&[a0]),
+        "lbound" => rp_lbound(std::slice::from_ref(a0)),
+        "ubound" => rp_ubound(std::slice::from_ref(a0)),
         // (POKE / PCOPY / a DLL call are answered in `call_builtin`, where
         // an error can be reported; listed for the registry)
         "poke" | "pcopy" | "__dll_call" => v_null(),

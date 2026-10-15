@@ -180,10 +180,31 @@ pub enum Op {
 }
 
 impl Op {
-    /// Try to convert from raw byte.
-    #[inline]
+    /// How many bytes of operands follow the opcode (what a reader of the
+    /// code — the debugger's list of the calls on a line — skips).
+    pub fn operand_len(self) -> usize {
+        match self {
+            Op::LoadConst | Op::LoadGlobal | Op::StoreGlobal | Op::Jump | Op::JumpIf | Op::JumpIfNot | Op::Gosub | Op::GetPropDyn | Op::SetPropDyn => 4,
+            Op::LoadLocal | Op::StoreLocal | Op::GetField | Op::SetField => 2,
+            Op::LoadArgOut | Op::CallIndirect | Op::ToNum | Op::NewArray | Op::AGet | Op::ASet => 1,
+            Op::CallSub | Op::CallFunc | Op::CallBuiltin | Op::CallMethodDyn => 5,
+            Op::CreateComp | Op::SetProp | Op::GetProp => 8,
+            Op::CallMethod => 9,
+            Op::RegisterEvent => 12,
+            Op::Redim => 6,
+            _ => 0,
+        }
+    }
+
+    /// Try to convert from raw byte: one look in a table made at compile
+    /// time (the VM asks for every instruction it runs).
+    #[inline(always)]
     pub fn from_u8(b: u8) -> Option<Op> {
-        // Safety net: explicit table since enum repr isn't exhaustive.
+        OPS[b as usize]
+    }
+
+    /// The opcode a byte is (an explicit table: the enum's values have gaps).
+    const fn decode(b: u8) -> Option<Op> {
         Some(match b {
             0x01 => Op::LoadConst,
             0x02 => Op::LoadNull,
@@ -255,5 +276,33 @@ impl Op {
             0xFF => Op::Nop,
             _ => return None,
         })
+    }
+}
+
+/// Every byte's opcode ([`Op::from_u8`]).
+static OPS: [Option<Op>; 256] = {
+    let mut t = [None; 256];
+    let mut b = 0;
+    while b < 256 {
+        t[b] = Op::decode(b as u8);
+        b += 1;
+    }
+    t
+};
+
+#[cfg(test)]
+mod tests {
+    use super::Op;
+
+    #[test]
+    fn the_table_is_the_opcodes() {
+        for b in 0..=255u8 {
+            if let Some(op) = Op::from_u8(b) {
+                assert_eq!(op as u8, b);
+            }
+        }
+        assert_eq!(Op::from_u8(0x20), Some(Op::Add));
+        assert_eq!(Op::from_u8(0x00), None);
+        assert_eq!(Op::from_u8(0xFE), Some(Op::Halt));
     }
 }

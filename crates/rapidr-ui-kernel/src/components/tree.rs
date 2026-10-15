@@ -239,7 +239,7 @@ impl ComponentKind for Tree {
                         p.picture(&format!("{}#icon{}", cx.id, row.node), 0, pic, (x, row.top + (row.height - ih) / 2, iw, ih));
                         x += iw + 2;
                     }
-                    let text = with_tree(cx.id, |t| t.nodes.get(row.node).map(|n| n.text.clone())).flatten().unwrap_or_default();
+                    let (text, own) = with_tree(cx.id, |t| t.nodes.get(row.node).map(|n| (n.text.clone(), n.text_color))).flatten().unwrap_or((String::new(), -1));
                     let (tw, _) = rapidr_value::objects::text::text_size(&text, &font);
                     let tr = (x, row.top + 1, tw + 4, row.height - 2);
                     // (the selection: blue with the focus, grey without; none
@@ -252,6 +252,9 @@ impl ComponentKind for Tree {
                         t.highlight_text
                     } else if shown && t.fluent() {
                         t.text
+                    } else if own >= 0 {
+                        // (RapidR's TextColor: BGR, as the program's colours)
+                        crate::text::bgr_to_rgb(own)
                     } else {
                         ink(cx.store, cx.id, &font, true, if shown { t.unfocused } else { back })
                     };

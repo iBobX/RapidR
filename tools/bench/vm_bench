@@ -1,0 +1,294 @@
+#!/usr/bin/env python3
+"""The VM's budgets (docs/manual/debugging.md, ROADMAP "the best VM"): how
+fast and lean RapidR's interpreter is, measured on the programs in
+tools/bench/vm/ with the `rapidr` given (./rapidr, or RAPIDR=…).
+
+  start-up     `rapidr run hello.rr`: compile + run + exit, wall time
+  memory       the largest resident size of hello.rr and of the 10 M loop
+  loop10m      a 10,000,000-iteration FOR loop at the top level (globals)
+  loop10m_sub  the same loop in a SUB (locals)
+  debugger     loop10m under the debugger (`rapidr run --session`, a
+               breakpoint set on a line it never reaches): Studio's F5
+  strings      1,000,000 rounds of MID$ / UCASE$ / + / LEN / =
+  calls        the recursive Fibonacci of 27 (~630,000 calls)
+  arrays       2,000,000 array elements written, read and summed
+  idle         a form waiting in ShowModal with a 1-second timer: CPU used
+               over 3 seconds (a real window: skipped with --no-windows)
+
+Each time is the fastest of --runs runs (3): CPU time (what the program
+itself costs, steady on a machine busy with other work), start-up's wall
+time. `--check` compares with the
+budgets in tools/bench/vm_budgets.json and exits 1 when one is missed (the
+`perf` stage of tools/regress.sh); `--json FILE` writes the numbers.
+
+  tools/bench/vm_bench [--check] [--runs N] [--no-windows] [--json FILE] [only…]
+"""
+
+import json
+import os
+import platform
+import subprocess
+import sys
+import time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(HERE))
+PROGRAMS = os.path.join(HERE, "vm")
+BUDGETS = os.path.join(HERE, "vm_budgets.json")
+
+
+def rapidr_binary():
+    exe = os.environ.get("RAPIDR") or os.path.join(ROOT, "rapidr" + (".exe" if os.name == "nt" else ""))
+    if not os.path.isfile(exe):
+        sys.exit(f"vm_bench: no rapidr at {exe} (cargo build --release -p rapidr-cli, then copy it, or RAPIDR=…)")
+    return exe
+
+
+def scratch_env():
+    """Nothing a benchmark runs may reach a real printer or the user's
+    registry store."""
+    env = dict(os.environ)
+    work = os.path.join(ROOT, "scratch", "bench")
+    os.makedirs(os.path.join(work, "print"), exist_ok=True)
+    env.setdefault("RAPIDR_PRINT_TO", os.path.join(work, "print"))
+    env.setdefault("RAPIDR_REGISTRY", os.path.join(work, "registry.reg"))
+    return env
+
+
+def max_rss_mb(ru):
+    # (bytes on macOS, kilobytes on Linux)
+    return ru.ru_maxrss / (1024 * 1024) if sys.platform == "darwin" else ru.ru_maxrss / 1024
+
+
+def run_once(cmd, env, stdin_text=None, expect=None):
+    """Runs `cmd` to its end: (wall seconds, CPU seconds, max RSS MB, output)."""
+    t0 = time.perf_counter()
+    p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, cwd=ROOT)
+    if stdin_text is not None:
+        # (a session: its requests, stdin kept open until the program ends —
+        # the end of input ends it)
+        p.stdin.write(stdin_text.encode())
+        p.stdin.flush()
+    out = b""
+    import threading
+
+    chunks = []
+    reader = threading.Thread(target=lambda: chunks.append(p.stdout.read()))
+    reader.start()
+    errs = []
+    ereader = threading.Thread(target=lambda: errs.append(p.stderr.read()))
+    ereader.start()
+    _, status, ru = os.wait4(p.pid, 0)
+    wall = time.perf_counter() - t0
+    reader.join()
+    ereader.join()
+    try:
+        p.stdin.close()
+    except OSError:
+        pass
+    p.returncode = os.waitstatus_to_exitcode(status)
+    out = (chunks[0] if chunks else b"").decode(errors="replace")
+    err = (errs[0] if errs else b"").decode(errors="replace")
+    if p.returncode != 0:
+        raise RuntimeError(f"{' '.join(cmd)} exited with {p.returncode}: {err.strip()[:300]}")
+    if expect is not None and expect not in out:
+        raise RuntimeError(f"{' '.join(cmd)}: expected {expect!r} in its output, got {out.strip()[:200]!r}")
+    return wall, ru.ru_utime + ru.ru_stime, max_rss_mb(ru), out
+
+
+def bench(name, cmd, env, runs, stdin_text=None, expect=None, wall=False):
+    """The fastest of `runs` runs — CPU time (user + system: what the
+    program itself costs, steady on a machine busy with other work), or
+    wall time with `wall` (start-up: waiting counts) — and the largest
+    resident size."""
+    times, rss = [], []
+    for _ in range(runs):
+        w, cpu, mb, _out = run_once(cmd, env, stdin_text, expect)
+        times.append(w if wall else cpu)
+        rss.append(mb)
+    return {"ms": round(min(times) * 1000, 1), "rss_mb": round(max(rss), 1)}
+
+
+def cpu_seconds(pid):
+    """The CPU time a running process has used (user + system)."""
+    if sys.platform.startswith("linux"):
+        with open(f"/proc/{pid}/stat") as f:
+            fields = f.read().rsplit(")", 1)[1].split()
+        ticks = os.sysconf("SC_CLK_TCK")
+        return (int(fields[11]) + int(fields[12])) / ticks
+    out = subprocess.run(["ps", "-o", "time=", "-p", str(pid)], capture_output=True, text=True).stdout.strip()
+    # [[dd-]hh:]mm:ss.ss
+    parts = out.replace("-", ":").split(":")
+    secs = 0.0
+    for part in parts:
+        secs = secs * 60 + float(part)
+    return secs
+
+
+def children(pid):
+    """The processes `pid` started (Studio's program under its session)."""
+    out = subprocess.run(["pgrep", "-P", str(pid)], capture_output=True, text=True).stdout
+    return [int(x) for x in out.split()]
+
+
+def tree_cpu(pid):
+    """CPU seconds of `pid` and the processes it started."""
+    total = 0.0
+    for p in [pid] + children(pid):
+        try:
+            total += cpu_seconds(p)
+        except (OSError, ValueError, IndexError):
+            pass
+    return total
+
+
+def idle_cpu(cmd, env, stdin_text=None, span=4.0, warm=2.0):
+    """CPU used by a program (and what it started) waiting for its events,
+    as a percentage of one core over `span` seconds, once it has started:
+    its window up, its first frames drawn (at least `warm` seconds, then
+    until a second passes with under 30 ms of CPU — at most 8 more, after
+    which a busy program shows as busy)."""
+    p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env, cwd=ROOT)
+    try:
+        if stdin_text is not None:
+            p.stdin.write(stdin_text.encode())
+            p.stdin.flush()
+        time.sleep(warm)
+        last = tree_cpu(p.pid)
+        for _ in range(8):
+            time.sleep(1.0)
+            now = tree_cpu(p.pid)
+            if now - last < 0.03:
+                break
+            last = now
+        if p.poll() is not None:
+            raise RuntimeError(f"{' '.join(cmd)} ended before it was idle (exit {p.returncode})")
+        c0, t0 = tree_cpu(p.pid), time.perf_counter()
+        time.sleep(span)
+        c1, t1 = tree_cpu(p.pid), time.perf_counter()
+        return round(100.0 * (c1 - c0) / (t1 - t0), 2)
+    finally:
+        # (only the processes this run started: the program Studio runs
+        # first, then Studio)
+        for c in children(p.pid):
+            try:
+                os.kill(c, 9)
+            except OSError:
+                pass
+        p.kill()
+        p.wait()
+
+
+def main():
+    args = sys.argv[1:]
+    check = "--check" in args
+    windows = "--no-windows" not in args
+    runs = 3
+    json_out = None
+    only = []
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a == "--runs":
+            runs = int(args[i + 1])
+            i += 1
+        elif a == "--json":
+            json_out = args[i + 1]
+            i += 1
+        elif not a.startswith("--"):
+            only.append(a)
+        i += 1
+    exe = rapidr_binary()
+    env = scratch_env()
+    prog = lambda n: os.path.join(PROGRAMS, n)  # noqa: E731
+    want = lambda n: not only or n in only  # noqa: E731
+    version = subprocess.run([exe, "version"], capture_output=True, text=True).stdout.strip()
+    print(f"vm_bench: {version} on {platform.system()} {platform.machine()}, {os.cpu_count()} cores, the fastest of {runs} runs")
+    results = {}
+    loop_sum = "2062427942"  # (INTEGER is 32 bits, as in RapidQ: the sum wraps)
+    if want("startup"):
+        r = bench("startup", [exe, "run", prog("hello.rr")], env, max(runs, 5), expect="hello", wall=True)
+        results["startup"] = {"ms": r["ms"]}
+        results["memory_hello"] = {"rss_mb": r["rss_mb"]}
+    if want("loop10m"):
+        r = bench("loop10m", [exe, "run", prog("loop10m.rr")], env, runs, expect=loop_sum)
+        results["loop10m"] = {"ms": r["ms"]}
+        results["memory_loop"] = {"rss_mb": r["rss_mb"]}
+    if want("loop10m_sub"):
+        results["loop10m_sub"] = {"ms": bench("loop10m_sub", [exe, "run", prog("loop10m_sub.rr")], env, runs, expect=loop_sum)["ms"]}
+    if want("debugger"):
+        # (Studio's F5: the program under the debugger, a breakpoint on a
+        # line it never reaches — the VM checks every statement)
+        reqs = json.dumps({"seq": 1, "type": "setBreakpoints", "file": "loop10m.rr", "breakpoints": [{"line": 15}]}) + "\n"
+        reqs += json.dumps({"seq": 2, "type": "start", "debug": True, "breakOnError": True}) + "\n"
+        results["debugger"] = {"ms": bench("debugger", [exe, "run", "--session", prog("loop10m.rr")], env, runs, stdin_text=reqs, expect=loop_sum)["ms"]}
+    if want("strings"):
+        results["strings"] = {"ms": bench("strings", [exe, "run", prog("strings.rr")], env, runs, expect="7000000")["ms"]}
+    if want("calls"):
+        results["calls"] = {"ms": bench("calls", [exe, "run", prog("calls.rr")], env, runs, expect="196418")["ms"]}
+    if want("arrays"):
+        results["arrays"] = {"ms": bench("arrays", [exe, "run", prog("arrays.rr")], env, runs, expect="999000000")["ms"]}
+    if want("idle") and windows:
+        results["idle"] = {"cpu_pct": idle_cpu([exe, "run", prog("idle_form.rr")], env)}
+    if want("idle_debug") and windows:
+        # (the same under the debugger: what it sends must reach a program
+        # that waits, without waking it for nothing)
+        reqs = json.dumps({"seq": 1, "type": "start", "debug": True, "breakOnError": True}) + "\n"
+        results["idle_debug"] = {"cpu_pct": idle_cpu([exe, "run", "--session", prog("idle_form.rr")], env, stdin_text=reqs)}
+    if want("studio_idle") and windows:
+        # (RapidR Studio open on the program, nothing running)
+        studio = [exe, "run", os.path.join(ROOT, "ide", "studio.rr"), "--home", ROOT, "--fresh"]
+        results["studio_idle"] = {"cpu_pct": idle_cpu(studio + [prog("idle_form.rr")], env, warm=4.0)}
+    if want("studio_running") and windows:
+        # (…and running it under the debugger: Studio and the program)
+        studio = [exe, "run", os.path.join(ROOT, "ide", "studio.rr"), "--home", ROOT, "--fresh", "--do", "run.start"]
+        results["studio_running"] = {"cpu_pct": idle_cpu(studio + [prog("idle_form.rr")], env, warm=5.0)}
+
+    # (the budgets, and this system's own where it has some: "systems" by
+    # platform.system(), e.g. "Linux" — a slower machine than the Mac
+    # the defaults were measured on)
+    budgets = {}
+    if os.path.isfile(BUDGETS):
+        with open(BUDGETS) as f:
+            data = json.load(f)
+        budgets = dict(data.get("budgets", {}))
+        budgets.update(data.get("systems", {}).get(platform.system(), {}))
+    missed = []
+    labels = {
+        "startup": "start-up (hello.rr)",
+        "memory_hello": "memory, hello.rr",
+        "memory_loop": "memory, the 10 M loop",
+        "loop10m": "10 M loop, globals",
+        "loop10m_sub": "10 M loop, in a SUB",
+        "debugger": "10 M loop, under the debugger",
+        "strings": "strings, 1 M rounds",
+        "calls": "calls, Fib(27)",
+        "arrays": "arrays, 2 M elements",
+        "idle": "idle form (ShowModal + timer)",
+        "idle_debug": "idle form, under the debugger",
+        "studio_idle": "Studio, idle",
+        "studio_running": "Studio + the idle form running",
+    }
+    for key, r in results.items():
+        (unit, value), = r.items()
+        shown = {"ms": f"{value:8.1f} ms", "rss_mb": f"{value:8.1f} MB", "cpu_pct": f"{value:8.2f} % CPU"}[unit]
+        b = budgets.get(key, {}).get(unit)
+        verdict = ""
+        if b is not None:
+            ok = value <= b
+            verdict = f"  (budget {b}{' ms' if unit == 'ms' else ' MB' if unit == 'rss_mb' else ' %'}{'' if ok else ': MISSED'})"
+            if not ok:
+                missed.append(key)
+        print(f"  {labels.get(key, key):34s}{shown}{verdict}")
+    if json_out:
+        with open(json_out, "w") as f:
+            json.dump({"version": version, "system": f"{platform.system()} {platform.machine()}", "results": results}, f, indent=2)
+    if check:
+        if missed:
+            print(f"vm_bench: {len(missed)} budget(s) MISSED: {', '.join(missed)}")
+            sys.exit(1)
+        print("vm_bench: every budget met")
+
+
+if __name__ == "__main__":
+    main()

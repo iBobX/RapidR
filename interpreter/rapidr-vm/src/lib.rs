@@ -27,6 +27,11 @@
 //! assert_eq!(host.output, "hello\n");
 //! ```
 
+// (errors are built only when they happen — `ok_or_else(|| VmError::…)`,
+// never `ok_or(VmError::…)`: VmError owns a Box and Strings, so an error
+// built eagerly is dropped again on every instruction that succeeds — a
+// third of a tight loop's time, measured with tools/bench/vm_bench)
+#![allow(clippy::unnecessary_lazy_evaluations)]
 #![forbid(unsafe_code)]
 
 pub mod host;
@@ -122,6 +127,10 @@ pub enum StepMode {
     Into,
     Over { target_depth: usize },
     Out { target_depth: usize },
+    /// Step Into Specific: into the call of `function` the line makes
+    /// (stopping at its first statement); once the line is done without
+    /// it, as Step Over.
+    IntoTarget { target_depth: usize, function: u32 },
 }
 
 /// Why the VM stopped for the debugger.
@@ -156,6 +165,9 @@ pub enum Resume {
     StepIn,
     StepOver,
     StepOut,
+    /// Into the call of this function the line makes
+    /// ([`Vm::step_in_targets`]).
+    StepInTarget(u32),
     /// End the program (as END does).
     Terminate,
 }
@@ -177,9 +189,27 @@ pub trait Debugger<H: Host + ?Sized> {
 /// What [`Vm::debug_point`] decided.
 enum DebugAction {
     Run,
+    /// A debugger served a stop here and lets the program go on — from the
+    /// top frame's `ip`, which Set Next Statement may have moved.
+    Resumed,
     Pause,
     Halt,
 }
+
+/// Where the line of the instruction last checked by [`Vm::debug_point`]
+/// runs: its function, the instruction range of its `line_info` entry and
+/// the line — so the check at each instruction is a few comparisons, not a
+/// search of the line table.
+#[derive(Debug, Clone, Copy)]
+struct LineSpan {
+    function: u32,
+    start: usize,
+    end: usize,
+    line: u32,
+}
+
+/// A line no instruction has (`last_line` while nothing is being watched).
+const NO_LINE: u32 = u32::MAX;
 
 /// Instructions an evaluation may run before it's stopped
 /// ([`Vm::evaluate`]): a watch with an endless loop must not hang the IDE.
@@ -259,6 +289,9 @@ pub struct Vm<'h, H: Host + ?Sized> {
     file_breakpoints: Vec<(String, std::collections::HashSet<u32>)>,
     /// Compiled lines set directly ([`Self::set_breakpoints`]).
     line_breakpoints: std::collections::HashSet<u32>,
+    /// [`Self::breakpoints`] sorted: what a statement's start is looked up
+    /// in (a few lines; a search of a short list beats hashing).
+    breakpoint_lines: Vec<u32>,
     pub step_mode: StepMode,
     pub last_line: u32,
     /// Raised by another thread (or a message handler) for the VM's
@@ -298,6 +331,15 @@ pub struct Vm<'h, H: Host + ?Sized> {
     /// frame it interrupted: they run once it returns (then that frame
     /// continues), as they would have without the yield.
     yield_rest: Vec<(usize, Vec<QueuedEvent>)>,
+    /// The line [`Self::debug_point`] last looked up.
+    line_span: Option<LineSpan>,
+    /// Instructions of the running function that need no look by the
+    /// debugger (the rest of the line it last looked at — the same line,
+    /// no statement starting): only the interrupt is checked there.
+    quiet: (usize, usize),
+    /// Set Next Statement moved the program while it was stopped at a
+    /// run-time error: it goes on from there instead of failing.
+    error_moved: bool,
 }
 
 impl<'h, H: Host + ?Sized> Vm<'h, H> {
@@ -313,6 +355,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             breakpoints: Default::default(),
             file_breakpoints: Vec::new(),
             line_breakpoints: Default::default(),
+            breakpoint_lines: Vec::new(),
             step_mode: StepMode::None,
             last_line: 0,
             interrupt: Default::default(),
@@ -328,6 +371,9 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             ticks: YIELD_CHECK_EVERY,
             returned_nested: false,
             yield_rest: Vec::new(),
+            line_span: None,
+            quiet: (0, 0),
+            error_moved: false,
         }
     }
 
@@ -356,7 +402,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             return Err(VmError::Runtime(format!("stack overflow: more than {MAX_CALL_DEPTH} nested calls (a SUB or FUNCTION calling itself without end?)")));
         }
         let f = module.functions.get(fn_index as usize)
-            .ok_or(VmError::BadFunctionIndex(fn_index))?;
+            .ok_or_else(|| VmError::BadFunctionIndex(fn_index))?;
         let mut locals = self.spare_locals.pop().unwrap_or_default();
         locals.clear();
         locals.resize(f.n_locals as usize, Value::Null);
@@ -384,48 +430,60 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// Runs from the top frame (see [`Self::exec_loop`]); a run-time error
     /// records its line in [`Self::error_line`].
     fn exec(&mut self, module: &Module) -> Result<(), VmError> {
-        match self.exec_loop(module) {
-            Err(e) if !matches!(e, VmError::Paused | VmError::Suspended | VmError::Yielded | VmError::At { .. }) => {
-                self.error_line = self
-                    .frames
-                    .last()
-                    .and_then(|f| module.functions.get(f.fn_index as usize))
-                    .and_then(|f| f.get_line_for_ip(self.fault_ip));
-                let error = match self.error_line {
-                    None => e,
-                    Some(line) => {
-                        let (file, line) = match module.source_map.locate(line) {
-                            Some((file, l)) => (Some(file.to_string()), l),
-                            None => (None, line),
-                        };
-                        VmError::At { error: Box::new(e), file, line }
-                    }
-                };
-                // The debugger stops at the faulting statement first, with
-                // every frame still there.
-                if self.debug_mode && self.break_on_error && self.eval_fuel.is_none() && !self.frames.is_empty() {
-                    let fault_ip = self.fault_ip;
-                    self.frames.last_mut().unwrap().ip = fault_ip;
-                    let description = match &error {
-                        VmError::At { error, .. } => error.to_string(),
-                        other => other.to_string(),
+        loop {
+            match self.exec_loop(module) {
+                Err(e) if !matches!(e, VmError::Paused | VmError::Suspended | VmError::Yielded | VmError::At { .. }) => {
+                    self.error_line = self
+                        .frames
+                        .last()
+                        .and_then(|f| module.functions.get(f.fn_index as usize))
+                        .and_then(|f| f.get_line_for_ip(self.fault_ip));
+                    let error = match self.error_line {
+                        None => e,
+                        Some(line) => {
+                            let (file, line) = match module.source_map.locate(line) {
+                                Some((file, l)) => (Some(file.to_string()), l),
+                                None => (None, line),
+                            };
+                            VmError::At { error: Box::new(e), file, line }
+                        }
                     };
-                    self.stop_reason = StopReason::Exception;
-                    self.stop_error = Some(description.clone());
-                    self.step_mode = StepMode::None;
-                    if let Some(mut debugger) = self.debugger.take() {
-                        let stop = StopInfo { reason: StopReason::Exception, line: self.error_line, error: Some(description) };
-                        let _ = debugger.stopped(self, module, &stop);
-                        self.debugger = Some(debugger);
-                    } else {
-                        self.pending_error = Some(error);
-                        return Err(VmError::Paused);
+                    // The debugger stops at the faulting statement first, with
+                    // every frame still there.
+                    if self.debug_mode && self.break_on_error && self.eval_fuel.is_none() && !self.frames.is_empty() {
+                        let fault_ip = self.fault_ip;
+                        self.frames.last_mut().unwrap().ip = fault_ip;
+                        let description = match &error {
+                            VmError::At { error, .. } => error.to_string(),
+                            other => other.to_string(),
+                        };
+                        self.stop_reason = StopReason::Exception;
+                        self.stop_error = Some(description.clone());
+                        self.step_mode = StepMode::None;
+                        if let Some(mut debugger) = self.debugger.take() {
+                            self.error_moved = false;
+                            let stop = StopInfo { reason: StopReason::Exception, line: self.error_line, error: Some(description) };
+                            let resume = debugger.stopped(self, module, &stop);
+                            self.debugger = Some(debugger);
+                            // (Set Next Statement moved it past the error — or
+                            // back to retry the line, the values fixed: it goes
+                            // on from there, as VB's debugger lets it)
+                            if std::mem::take(&mut self.error_moved) && resume != Resume::Terminate && !self.frames.is_empty() {
+                                self.error_line = None;
+                                self.stop_error = None;
+                                self.apply_resume(resume);
+                                continue;
+                            }
+                        } else {
+                            self.pending_error = Some(error);
+                            return Err(VmError::Paused);
+                        }
                     }
+                    self.yield_rest.clear();
+                    return Err(error);
                 }
-                self.yield_rest.clear();
-                Err(error)
+                other => return other,
             }
-            other => other,
         }
     }
 
@@ -433,15 +491,27 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// instruction — the interrupt, then (on a new line) a breakpoint or the
     /// end of a step. With a [`Debugger`], it serves the stop here.
     fn debug_point(&mut self, module: &Module, ip: usize) -> DebugAction {
-        let top = self.frames.last().unwrap();
-        let at = module.functions[top.fn_index as usize].line_at(ip);
+        let interrupted = self.interrupt.load(std::sync::atomic::Ordering::Relaxed);
+        // (nothing to watch — no breakpoint, no step: only the interrupt,
+        // so a program under the debugger runs nearly as fast as without)
+        if !interrupted && self.step_mode == StepMode::None && self.breakpoint_lines.is_empty() {
+            self.last_line = NO_LINE;
+            // (the whole function: nothing to look for until the interrupt
+            // — new breakpoints come with it — or another function)
+            self.quiet = (0, usize::MAX);
+            return DebugAction::Run;
+        }
+        let function = self.frames.last().unwrap().fn_index;
+        let at = self.line_of(module, function, ip);
         let line = at.map(|(line, _)| line);
         let mut reason = None;
-        if self.interrupt.load(std::sync::atomic::Ordering::Relaxed) {
+        let mut served = false;
+        if interrupted {
             self.interrupt.store(false, std::sync::atomic::Ordering::Relaxed);
             self.frames.last_mut().unwrap().ip = ip;
             let pause = match self.debugger.take() {
                 Some(mut debugger) => {
+                    served = true;
                     let pause = debugger.interrupted(self, module);
                     self.debugger = Some(debugger);
                     pause
@@ -458,12 +528,20 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let depth = self.frames.len();
                     // (at a statement's start: not where a call returns
                     // into the middle of the line that made it)
-                    if start && self.breakpoints.contains(&line) {
+                    if start && self.breakpoint_lines.binary_search(&line).is_ok() {
                         reason = Some(StopReason::Breakpoint);
                     } else if match self.step_mode {
                         StepMode::Into => true,
-                        StepMode::Over { target_depth } => depth <= target_depth,
+                        // (the next statement of this frame — not the middle
+                        // of the line a call returns into — or the caller,
+                        // once this frame has returned)
+                        StepMode::Over { target_depth } => depth < target_depth || (depth == target_depth && start),
                         StepMode::Out { target_depth } => depth < target_depth,
+                        // (in the function asked for, called from the line;
+                        // or, without it, as Step Over)
+                        StepMode::IntoTarget { target_depth, function: target } => {
+                            (depth == target_depth + 1 && function == target) || depth < target_depth || (depth == target_depth && start)
+                        }
                         StepMode::None => false,
                     } {
                         reason = Some(StopReason::Step);
@@ -472,7 +550,16 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 self.last_line = line;
             }
         }
-        let Some(reason) = reason else { return DebugAction::Run };
+        let Some(reason) = reason else {
+            // (the rest of this line needs no look: no statement starts
+            // there, the line is the same)
+            self.quiet = match self.line_span {
+                Some(s) if s.function == function && s.start <= ip && ip < s.end => (ip + 1, s.end),
+                _ => (0, 0),
+            };
+            return if served { DebugAction::Resumed } else { DebugAction::Run };
+        };
+        self.quiet = (0, 0);
         self.frames.last_mut().unwrap().ip = ip;
         self.step_mode = StepMode::None;
         self.stop_reason = reason;
@@ -484,7 +571,26 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             return DebugAction::Halt;
         }
         self.apply_resume(resume);
-        DebugAction::Run
+        DebugAction::Resumed
+    }
+
+    /// The line of the instruction at `ip` of `function`, and whether a
+    /// statement starts there ([`rapidr_bytecode::Function::line_at`]),
+    /// remembered by its instruction range: the next instructions of the
+    /// same line need no search.
+    #[inline]
+    fn line_of(&mut self, module: &Module, function: u32, ip: usize) -> Option<(u32, bool)> {
+        if let Some(s) = self.line_span {
+            if s.function == function && s.start <= ip && ip < s.end {
+                return Some((s.line, ip == s.start));
+            }
+        }
+        let f = module.functions.get(function as usize)?;
+        let i = f.line_info.partition_point(|&(off, _)| off as usize <= ip).checked_sub(1)?;
+        let (start, line) = (f.line_info[i].0 as usize, f.line_info[i].1);
+        let end = f.line_info.get(i + 1).map_or(usize::MAX, |e| e.0 as usize);
+        self.line_span = Some(LineSpan { function, start, end, line });
+        Some((line, ip == start))
     }
 
     /// [`Self::interrupt`] raised while the program waits for the window
@@ -539,6 +645,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             Resume::StepIn => StepMode::Into,
             Resume::StepOver => StepMode::Over { target_depth: depth },
             Resume::StepOut => StepMode::Out { target_depth: depth },
+            Resume::StepInTarget(function) => StepMode::IntoTarget { target_depth: depth, function },
         };
     }
 
@@ -548,12 +655,17 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         }
         // Per-frame instruction pointer; we keep it on the Rust stack for hot loop.
         let mut ip = self.frames.last().map(|f| f.ip).unwrap_or(0);
+        // (the debugger looks at the first instruction again: the program
+        // may have been moved, or stopped somewhere else meanwhile)
+        self.quiet = (0, 0);
         // The currently executing function's code, refreshed on call/ret.
         let mut code: &[u8] = &module.functions[self.frames.last().unwrap().fn_index as usize].code;
 
         macro_rules! refresh {
             () => {
                 code = &module.functions[self.frames.last().unwrap().fn_index as usize].code;
+                // (another function: the debugger looks again)
+                self.quiet = (0, 0);
             };
         }
         // Where a loop or a recursion can run on (a jump, a call): a host
@@ -603,11 +715,14 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                         return Err(VmError::Runtime("the evaluation ran too long and was stopped".into()));
                     }
                     *fuel -= 1;
-                } else {
+                } else if ip < self.quiet.0 || ip >= self.quiet.1 || self.interrupt.load(std::sync::atomic::Ordering::Relaxed) {
                     match self.debug_point(module, ip) {
-                        DebugAction::Run => {
+                        DebugAction::Run => {}
+                        DebugAction::Resumed => {
                             // (a debugger served a stop here: the frames are
-                            // as they were, an evaluation came and went)
+                            // as they were, an evaluation came and went — and
+                            // Set Next Statement may have moved the program)
+                            ip = self.frames.last().unwrap().ip;
                             refresh!();
                         }
                         DebugAction::Pause => return Err(VmError::Paused),
@@ -624,7 +739,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             self.fault_ip = ip;
             let opbyte = code[ip];
             ip += 1;
-            let op = Op::from_u8(opbyte).ok_or(VmError::BadOpcode(opbyte))?;
+            let op = Op::from_u8(opbyte).ok_or_else(|| VmError::BadOpcode(opbyte))?;
             match op {
                 Op::Nop => {}
                 // END (and the main program's last instruction): the whole
@@ -642,7 +757,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 // ----- constants / stack -----
                 Op::LoadConst => {
                     let i = read_u32(code, &mut ip)?;
-                    let c = module.consts.get(i as usize).ok_or(VmError::BadConstIndex(i))?;
+                    let c = module.consts.get(i as usize).ok_or_else(|| VmError::BadConstIndex(i))?;
                     self.stack.push(c.to_value());
                 }
                 Op::LoadNull => self.stack.push(v_null()),
@@ -659,14 +774,14 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let s = read_u16(code, &mut ip)?;
                     let frame = self.frames.last().unwrap();
                     let v = frame.locals.get(s as usize).cloned()
-                        .ok_or(VmError::BadLocalSlot(s))?;
+                        .ok_or_else(|| VmError::BadLocalSlot(s))?;
                     self.stack.push(v);
                 }
                 Op::StoreLocal => {
                     let s = read_u16(code, &mut ip)?;
                     let v = self.pop()?;
                     let frame = self.frames.last_mut().unwrap();
-                    let slot = frame.locals.get_mut(s as usize).ok_or(VmError::BadLocalSlot(s))?;
+                    let slot = frame.locals.get_mut(s as usize).ok_or_else(|| VmError::BadLocalSlot(s))?;
                     *slot = v;
                 }
                 Op::LoadGlobal => {
@@ -687,9 +802,30 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 }
 
                 // ----- arithmetic -----
-                Op::Add => { let b = self.pop()?; let a = self.pop()?; self.stack.push(&a + &b); }
-                Op::Sub => { let b = self.pop()?; let a = self.pop()?; self.stack.push(&a - &b); }
-                Op::Mul => { let b = self.pop()?; let a = self.pop()?; self.stack.push(&a * &b); }
+                Op::Add => {
+                    let b = self.pop()?;
+                    let a = self.top_mut()?;
+                    *a = match (&*a, &b) {
+                        (Value::Integer(x), Value::Integer(y)) => Value::Integer(x.wrapping_add(*y)),
+                        _ => &*a + &b,
+                    };
+                }
+                Op::Sub => {
+                    let b = self.pop()?;
+                    let a = self.top_mut()?;
+                    *a = match (&*a, &b) {
+                        (Value::Integer(x), Value::Integer(y)) => Value::Integer(x.wrapping_sub(*y)),
+                        _ => &*a - &b,
+                    };
+                }
+                Op::Mul => {
+                    let b = self.pop()?;
+                    let a = self.top_mut()?;
+                    *a = match (&*a, &b) {
+                        (Value::Integer(x), Value::Integer(y)) => Value::Integer(x.wrapping_mul(*y)),
+                        _ => &*a * &b,
+                    };
+                }
                 Op::Div => { let b = self.pop()?; let a = self.pop()?; self.stack.push(&a / &b); }
                 Op::IDiv => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.checked_int_div(&b).map_err(|e| VmError::Runtime(e.into()))?); }
                 Op::Mod => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.checked_mod(&b).map_err(|e| VmError::Runtime(e.into()))?); }
@@ -698,12 +834,12 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::Concat => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.concat(&b)); }
 
                 // ----- comparison -----
-                Op::Eq => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.rp_eq(&b)); }
-                Op::Ne => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.rp_ne(&b)); }
-                Op::Lt => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.rp_lt(&b)); }
-                Op::Le => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.rp_le(&b)); }
-                Op::Gt => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.rp_gt(&b)); }
-                Op::Ge => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.rp_ge(&b)); }
+                Op::Eq => self.compare(|o| o.is_eq(), Value::rp_eq)?,
+                Op::Ne => self.compare(|o| o.is_ne(), Value::rp_ne)?,
+                Op::Lt => self.compare(|o| o.is_lt(), Value::rp_lt)?,
+                Op::Le => self.compare(|o| o.is_le(), Value::rp_le)?,
+                Op::Gt => self.compare(|o| o.is_gt(), Value::rp_gt)?,
+                Op::Ge => self.compare(|o| o.is_ge(), Value::rp_ge)?,
 
                 // ----- logical -----
                 Op::And => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.and(&b)); }
@@ -781,11 +917,11 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::CallBuiltin => {
                     let name_i = read_u32(code, &mut ip)?;
                     let argc = read_u8(code, &mut ip)? as usize;
-                    let name = module.strings.get(name_i as usize).ok_or(VmError::BadStringIndex(name_i))?.clone();
-                    let mut args = Vec::with_capacity(argc);
-                    for _ in 0..argc { args.push(self.pop()?); }
-                    args.reverse();
-                    let r = self.host.call_builtin(&name, &args).map_err(VmError::HostError)?;
+                    let name = module.strings.get(name_i as usize).ok_or_else(|| VmError::BadStringIndex(name_i))?;
+                    let at = self.stack.len().checked_sub(argc).ok_or_else(|| VmError::StackUnderflow)?;
+                    let r = self.host.call_builtin(name, &self.stack[at..]);
+                    self.stack.truncate(at);
+                    let r = r.map_err(VmError::HostError)?;
                     if self.host.suspend_requested() {
                         let top = self.frames.last_mut().unwrap();
                         top.ip = ip;
@@ -800,8 +936,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::CreateComp => {
                     let kind_i = read_u32(code, &mut ip)?;
                     let id_i = read_u32(code, &mut ip)?;
-                    let kind = module.strings.get(kind_i as usize).ok_or(VmError::BadStringIndex(kind_i))?.clone();
-                    let id = module.strings.get(id_i as usize).ok_or(VmError::BadStringIndex(id_i))?.clone();
+                    let kind = module.strings.get(kind_i as usize).ok_or_else(|| VmError::BadStringIndex(kind_i))?;
+                    let id = module.strings.get(id_i as usize).ok_or_else(|| VmError::BadStringIndex(id_i))?;
                     let r = self.host.create_comp(&kind, &id).map_err(VmError::HostError)?;
                     self.stack.push(r);
                     after_host!(true);
@@ -809,8 +945,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::SetProp => {
                     let id_i = read_u32(code, &mut ip)?;
                     let prop_i = read_u32(code, &mut ip)?;
-                    let id = module.strings.get(id_i as usize).ok_or(VmError::BadStringIndex(id_i))?.clone();
-                    let prop = module.strings.get(prop_i as usize).ok_or(VmError::BadStringIndex(prop_i))?.clone();
+                    let id = module.strings.get(id_i as usize).ok_or_else(|| VmError::BadStringIndex(id_i))?;
+                    let prop = module.strings.get(prop_i as usize).ok_or_else(|| VmError::BadStringIndex(prop_i))?;
                     let v = self.pop()?;
                     self.host.set_prop(&id, &prop, v).map_err(VmError::HostError)?;
                     after_host!(false);
@@ -818,8 +954,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::GetProp => {
                     let id_i = read_u32(code, &mut ip)?;
                     let prop_i = read_u32(code, &mut ip)?;
-                    let id = module.strings.get(id_i as usize).ok_or(VmError::BadStringIndex(id_i))?.clone();
-                    let prop = module.strings.get(prop_i as usize).ok_or(VmError::BadStringIndex(prop_i))?.clone();
+                    let id = module.strings.get(id_i as usize).ok_or_else(|| VmError::BadStringIndex(id_i))?;
+                    let prop = module.strings.get(prop_i as usize).ok_or_else(|| VmError::BadStringIndex(prop_i))?;
                     let v = self.host.get_prop(&id, &prop).map_err(VmError::HostError)?;
                     self.stack.push(v);
                     after_host!(true);
@@ -828,12 +964,11 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let id_i = read_u32(code, &mut ip)?;
                     let m_i = read_u32(code, &mut ip)?;
                     let argc = read_u8(code, &mut ip)? as usize;
-                    let id = module.strings.get(id_i as usize).ok_or(VmError::BadStringIndex(id_i))?.clone();
-                    let m = module.strings.get(m_i as usize).ok_or(VmError::BadStringIndex(m_i))?.clone();
-                    let mut args = Vec::with_capacity(argc);
-                    for _ in 0..argc { args.push(self.pop()?); }
-                    args.reverse();
-                    let r = self.host.call_method(&id, &m, &args).map_err(host_error)?;
+                    let id = module.strings.get(id_i as usize).ok_or_else(|| VmError::BadStringIndex(id_i))?;
+                    let m = module.strings.get(m_i as usize).ok_or_else(|| VmError::BadStringIndex(m_i))?;
+                    let at = self.stack.len().checked_sub(argc).ok_or_else(|| VmError::StackUnderflow)?;
+                    let args = self.stack.split_off(at);
+                    let r = self.host.call_method(id, m, &args).map_err(host_error)?;
                     // A method that waits (the web's ShowModal): suspended
                     // until the host resumes with its result.
                     if self.host.suspend_requested() {
@@ -847,7 +982,16 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 }
                 Op::GetPropDyn => {
                     let prop_i = read_u32(code, &mut ip)?;
-                    let prop = module.strings.get(prop_i as usize).ok_or(VmError::BadStringIndex(prop_i))?.clone();
+                    let prop = module.strings.get(prop_i as usize).ok_or_else(|| VmError::BadStringIndex(prop_i))?;
+                    // (the debugger's evaluation — a watch, a data tip — reads a
+                    // TYPE's field by its name: its snippet has no TYPEs)
+                    if let (Some(_), Some(Value::Object(o))) = (self.eval_fuel, self.stack.last()) {
+                        if let Some(slot) = o.names.iter().position(|n| n.eq_ignore_ascii_case(prop)) {
+                            let v = o.get(slot);
+                            *self.stack.last_mut().unwrap() = v;
+                            continue;
+                        }
+                    }
                     let id = self.pop_object_id()?;
                     let v = self.host.get_prop(&id, &prop).map_err(VmError::HostError)?;
                     self.stack.push(v);
@@ -855,7 +999,17 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 }
                 Op::SetPropDyn => {
                     let prop_i = read_u32(code, &mut ip)?;
-                    let prop = module.strings.get(prop_i as usize).ok_or(VmError::BadStringIndex(prop_i))?.clone();
+                    let prop = module.strings.get(prop_i as usize).ok_or_else(|| VmError::BadStringIndex(prop_i))?;
+                    // (the debugger's evaluation sets a TYPE's field by its name)
+                    if let (Some(_), Some(Value::Object(o))) = (self.eval_fuel, self.stack.last()) {
+                        if let Some(slot) = o.names.iter().position(|n| n.eq_ignore_ascii_case(prop)) {
+                            let o = o.clone();
+                            self.pop()?;
+                            let v = self.pop()?;
+                            o.set(slot, v);
+                            continue;
+                        }
+                    }
                     let id = self.pop_object_id()?;
                     let v = self.pop()?;
                     self.host.set_prop(&id, &prop, v).map_err(VmError::HostError)?;
@@ -882,13 +1036,13 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     if operand == rapidr_value::numeric::ARG_ROUND {
                         self.stack.push(rapidr_value::numeric::arg_round(&v));
                     } else {
-                        let kind = rapidr_value::numeric::NumKind::from_code(operand).ok_or(VmError::BadOperand)?;
+                        let kind = rapidr_value::numeric::NumKind::from_code(operand).ok_or_else(|| VmError::BadOperand)?;
                         self.stack.push(rapidr_value::numeric::convert(&v, kind));
                     }
                 }
                 Op::CallIndirect => {
                     let argc = read_u8(code, &mut ip)?;
-                    let at = self.stack.len().checked_sub(argc as usize + 1).ok_or(VmError::StackUnderflow)?;
+                    let at = self.stack.len().checked_sub(argc as usize + 1).ok_or_else(|| VmError::StackUnderflow)?;
                     let ptr = self.stack.remove(at).to_i64();
                     let fi = u32::try_from(ptr - 1)
                         .ok()
@@ -904,12 +1058,11 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::CallMethodDyn => {
                     let m_i = read_u32(code, &mut ip)?;
                     let argc = read_u8(code, &mut ip)? as usize;
-                    let m = module.strings.get(m_i as usize).ok_or(VmError::BadStringIndex(m_i))?.clone();
-                    let mut args = Vec::with_capacity(argc);
-                    for _ in 0..argc { args.push(self.pop()?); }
-                    args.reverse();
+                    let m = module.strings.get(m_i as usize).ok_or_else(|| VmError::BadStringIndex(m_i))?;
+                    let at = self.stack.len().checked_sub(argc).ok_or_else(|| VmError::StackUnderflow)?;
+                    let args = self.stack.split_off(at);
                     let id = self.pop_object_id()?;
-                    let r = self.host.call_method(&id, &m, &args).map_err(host_error)?;
+                    let r = self.host.call_method(&id, m, &args).map_err(host_error)?;
                     // A method that waits (the web's ShowModal): suspended
                     // until the host resumes with its result.
                     if self.host.suspend_requested() {
@@ -925,8 +1078,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let id_i = read_u32(code, &mut ip)?;
                     let ev_i = read_u32(code, &mut ip)?;
                     let fi = read_u32(code, &mut ip)?;
-                    let id = module.strings.get(id_i as usize).ok_or(VmError::BadStringIndex(id_i))?.clone();
-                    let ev = module.strings.get(ev_i as usize).ok_or(VmError::BadStringIndex(ev_i))?.clone();
+                    let id = module.strings.get(id_i as usize).ok_or_else(|| VmError::BadStringIndex(id_i))?;
+                    let ev = module.strings.get(ev_i as usize).ok_or_else(|| VmError::BadStringIndex(ev_i))?;
                     self.host.register_event(&id, &ev, fi).map_err(VmError::HostError)?;
                 }
 
@@ -971,7 +1124,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let s = read_u16(code, &mut ip)?;
                     let n = read_i32(code, &mut ip)?.max(0) as usize;
                     let frame = self.frames.last_mut().unwrap();
-                    let slot = frame.locals.get_mut(s as usize).ok_or(VmError::BadLocalSlot(s))?;
+                    let slot = frame.locals.get_mut(s as usize).ok_or_else(|| VmError::BadLocalSlot(s))?;
                     let parts: Vec<String> = (0..n).map(|_| String::new()).collect();
                     *slot = v_str(&parts.join(","));
                 }
@@ -1116,7 +1269,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// handler's — the VM must stop.
     fn return_frame(&mut self, module: &Module, with_value: bool) -> Result<Returned, VmError> {
         let ret = if with_value { self.pop()? } else { v_null() };
-        let frame = self.frames.pop().ok_or(VmError::StackUnderflow)?;
+        let frame = self.frames.pop().ok_or_else(|| VmError::StackUnderflow)?;
         let n_params = module
             .functions
             .get(frame.fn_index as usize)
@@ -1183,12 +1336,34 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         Ok((indices, n))
     }
 
+    /// The value on the stack's top, to replace in place.
+    #[inline(always)]
+    fn top_mut(&mut self) -> Result<&mut Value, VmError> {
+        self.stack.last_mut().ok_or_else(|| VmError::StackUnderflow)
+    }
+
+    /// A comparison of the two values on top: two whole numbers that a
+    /// Double holds exactly (what `rp_lt` & co. compare them as) by
+    /// `int_case`, the rest by `general` — the same answers.
+    #[inline(always)]
+    fn compare(&mut self, int_case: fn(std::cmp::Ordering) -> bool, general: fn(&Value, &Value) -> Value) -> Result<(), VmError> {
+        const EXACT: i64 = 1 << 53;
+        let b = self.pop()?;
+        let a = self.top_mut()?;
+        *a = match (&*a, &b) {
+            (Value::Integer(x), Value::Integer(y)) if (-EXACT..=EXACT).contains(x) && (-EXACT..=EXACT).contains(y) => Value::Boolean(int_case(x.cmp(y))),
+            _ => general(a, &b),
+        };
+        Ok(())
+    }
+
+    #[inline(always)]
     fn pop(&mut self) -> Result<Value, VmError> {
-        self.stack.pop().ok_or(VmError::StackUnderflow)
+        self.stack.pop().ok_or_else(|| VmError::StackUnderflow)
     }
 
     fn peek(&self) -> Result<&Value, VmError> {
-        self.stack.last().ok_or(VmError::StackUnderflow)
+        self.stack.last().ok_or_else(|| VmError::StackUnderflow)
     }
 
     /// Runs an event handler: `fn_index` with `args`, on top of whatever
@@ -1376,6 +1551,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         self.file_breakpoints.clear();
         self.line_breakpoints.clear();
         self.breakpoints.clear();
+        self.breakpoint_lines.clear();
     }
 
     fn rebuild_breakpoints(&mut self) {
@@ -1383,6 +1559,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         for (_, lines) in &self.file_breakpoints {
             self.breakpoints.extend(lines);
         }
+        self.breakpoint_lines = self.breakpoints.iter().copied().collect();
+        self.breakpoint_lines.sort_unstable();
     }
 
     /// Asks the VM to pause at its next instruction (debug mode). Safe from
@@ -1416,7 +1594,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// or wait, and has `fuel` instructions; a failure leaves the program as
     /// it was.
     pub fn evaluate(&mut self, module: &Module, fn_index: u32, frame: Option<usize>, write_back: bool, fuel: u64) -> Result<Value, VmError> {
-        let f = module.functions.get(fn_index as usize).ok_or(VmError::BadFunctionIndex(fn_index))?;
+        let f = module.functions.get(fn_index as usize).ok_or_else(|| VmError::BadFunctionIndex(fn_index))?;
         let (base_frames, base_stack) = (self.frames.len(), self.stack.len());
         let mut locals = self.spare_locals.pop().unwrap_or_default();
         locals.clear();
@@ -1477,7 +1655,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// Sets local slot `slot` of frame `frame` (0 = the outermost).
     pub fn set_local(&mut self, frame: usize, slot: usize, value: Value) -> Result<(), VmError> {
         let f = self.frames.get_mut(frame).ok_or_else(|| VmError::Runtime(format!("no frame {frame}")))?;
-        let s = f.locals.get_mut(slot).ok_or(VmError::BadLocalSlot(slot as u16))?;
+        let s = f.locals.get_mut(slot).ok_or_else(|| VmError::BadLocalSlot(slot as u16))?;
         *s = value;
         Ok(())
     }
@@ -1545,6 +1723,91 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         self.continue_run(module)
     }
 
+    /// Step Into Specific: into the call of `function` that the current
+    /// line makes (one of [`Self::step_in_targets`]); a line that doesn't
+    /// call it is stepped over.
+    pub fn step_into_target(&mut self, module: &Module, function: u32) -> Result<(), VmError> {
+        self.step_mode = StepMode::IntoTarget { target_depth: self.frames.len(), function };
+        self.last_line = self.current_line(module).unwrap_or(0);
+        self.continue_run(module)
+    }
+
+    /// The SUBs and FUNCTIONs the stopped line still calls, in the order it
+    /// calls them (each once): what Step Into Specific offers. Calls through
+    /// a pointer (`CALLFUNC`) and event handlers aren't known before they
+    /// happen.
+    pub fn step_in_targets(&self, module: &Module) -> Vec<u32> {
+        let Some(top) = self.frames.last() else { return Vec::new() };
+        let Some(f) = module.functions.get(top.fn_index as usize) else { return Vec::new() };
+        // (from the stopped instruction to the end of its line's code)
+        let Some((line, _)) = f.line_at(top.ip) else { return Vec::new() };
+        let after = f.line_info.partition_point(|&(off, _)| off as usize <= top.ip);
+        let end = f.line_info[after..].iter().find(|&&(_, l)| l != line).map_or(f.code.len(), |&(off, _)| off as usize);
+        let mut out: Vec<u32> = Vec::new();
+        let mut ip = top.ip;
+        while ip < end.min(f.code.len()) {
+            let Some(op) = Op::from_u8(f.code[ip]) else { break };
+            if matches!(op, Op::CallSub | Op::CallFunc) {
+                let mut at = ip + 1;
+                if let Ok(fi) = read_u32(&f.code, &mut at) {
+                    if !out.contains(&fi) && (fi as usize) < module.functions.len() {
+                        out.push(fi);
+                    }
+                }
+            }
+            ip += 1 + op.operand_len();
+        }
+        out
+    }
+
+    /// Set Next Statement: the stopped program goes on from line `line` (of
+    /// the compiled program: `Module::source_map`) — within the SUB or
+    /// FUNCTION it is stopped in, the first statement of the line or, on a
+    /// line without code, of the next line of that function that has some.
+    /// Stopped at a run-time error, it goes on from there instead of
+    /// failing (fix the values, then retry the line or skip it). Returns
+    /// the compiled line it goes on from.
+    pub fn set_next_statement(&mut self, module: &Module, line: u32) -> Result<u32, String> {
+        let top = self.frames.last().ok_or("the program isn't stopped")?;
+        if top.waiting {
+            return Err("the program is waiting for its events (a ShowModal, a dialog): it goes on from there".into());
+        }
+        let f = module.functions.get(top.fn_index as usize).ok_or("no such function")?;
+        let named = |f: &rapidr_bytecode::Function| if f.name.starts_with("__") { "the main program".to_string() } else { f.name.clone() };
+        // (the function's first statement at or after the line, in line
+        // order; the line's first in the code)
+        let target = f
+            .line_info
+            .iter()
+            .filter(|&&(_, l)| l >= line)
+            .min_by_key(|&&(off, l)| (l, off))
+            .copied()
+            .filter(|&(_, l)| f.line_info.iter().any(|&(_, first)| first <= line) || l == line)
+            .ok_or_else(|| format!("that line isn't in {}: the next statement is set within the SUB or FUNCTION the program is stopped in", named(f)))?;
+        // (another routine's code on the way: the line is in it, not here)
+        if let Some(other) = module.functions.iter().enumerate().find(|&(i, g)| i != top.fn_index as usize && g.line_info.iter().any(|&(_, l)| l >= line && l < target.1.max(line + 1))) {
+            return Err(format!("that line is in {}: the next statement is set within {}, where the program is stopped", named(other.1), named(f)));
+        }
+        let (off, at) = (target.0 as usize, target.1);
+        let base = top.stack_base;
+        let top = self.frames.last_mut().unwrap();
+        top.ip = off;
+        // (a statement starts with nothing of its own on the value stack:
+        // what a half-run statement — an error's — left there goes)
+        self.stack.truncate(base);
+        self.last_line = at;
+        self.line_span = None;
+        if self.stop_reason == StopReason::Exception {
+            // (the error is over: it doesn't unwind when the program goes on)
+            self.pending_error = None;
+            self.error_moved = true;
+            self.error_line = None;
+            self.stop_error = None;
+            self.stop_reason = StopReason::Step;
+        }
+        Ok(at)
+    }
+
     pub fn current_line(&self, module: &Module) -> Option<u32> {
         let frame = self.frames.last()?;
         let func = module.functions.get(frame.fn_index as usize)?;
@@ -1556,7 +1819,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
 
 #[inline(always)]
 fn read_u8(code: &[u8], ip: &mut usize) -> Result<u8, VmError> {
-    let b = *code.get(*ip).ok_or(VmError::Truncated)?;
+    let b = *code.get(*ip).ok_or_else(|| VmError::Truncated)?;
     *ip += 1;
     Ok(b)
 }

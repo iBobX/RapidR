@@ -1414,6 +1414,7 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `CompletionItems` (read-only) | string |  | The completion list as it shows now, one label a line, best match first (empty while it's closed). |
 | `CompletionSelected` (read-only) | string |  | The completion list's selected label (what Tab or Enter would insert); empty while it's closed. |
 | `HoverText` (read-only) | string |  | The hover showing now (its Markdown), empty when none is. |
+| `DataTipText` (read-only) | string |  | The data tip showing now, as text: a row a line, a tab per level, name = value (a table's row: its cells); empty when none is. |
 | `SignatureText` (read-only) | string |  | The signature help showing now (the call's signature), empty when none is. |
 | `FoldCount` (read-only) | int |  | How many places are folded. |
 | `Outline` (read-only) | string |  | The file's outline, one entry a line: kind, name, line (from 1) and depth, tab-separated — the language service's (SUBs, FUNCTIONs, TYPEs and their members, the CREATE tree), else the SUBs and FUNCTIONs. |
@@ -1481,6 +1482,8 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `HasMarker(Line AS INTEGER, [Kind AS STRING]) AS INTEGER` | Whether a line (from 1) has a marker of Kind (any when empty). |
 | `ShowCompletion(Items)` | Shows a completion list at the caret: lines of tab-separated label, kind, detail and text to insert (a string or a QSTRINGLIST), or JSON. The answer to OnCompletionRequest. |
 | `ShowHover(Text AS STRING)` | Shows a hover where OnHoverRequest asked (a fenced ``` block shows as code). |
+| `ShowDataTip(Rows AS STRING)` | A debugger's data tip where OnHoverRequest asked: a value as a tree that opens to any depth. A row a line, its fields tab-separated: depth (0 the top), flags (e: it opens, o: open, c: its value changed — marked —, t: a table's row, h: a table's header), its id (what OnDataTipExpand and OnDataTipAction give back), name, value, type, and a table row's cells (CHR$(31) between them). Shown again at the same place it keeps where it is scrolled; empty Rows hide it. |
+| `HideDataTip` | Hides the data tip. |
 | `ShowSignature(Text AS STRING, ActiveParam AS INTEGER)` | Shows signature help over the caret, the parameter ActiveParam (from 0) marked. |
 | `HidePopups` | Closes the completion list, the hover and signature help. |
 | `TriggerCompletion` | Opens completion at the caret, as Ctrl+Space does. |
@@ -1512,6 +1515,9 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `OnSelectionChange` | The user changed the selections. |
 | `OnGutterClick(Line AS INTEGER, Area AS STRING)` | A click in the gutter: Area is "marker" (where breakpoints go), "number" or "fold". |
 | `OnCompletionRequest(Line AS INTEGER, Column AS INTEGER, Prefix AS STRING)` | Completion is wanted and no language service answers: answer with ShowCompletion. |
+| `OnDataTipExpand(Id AS STRING, Open AS INTEGER)` | A data tip's triangle clicked: the row Id opens (Open = 1: show its children with ShowDataTip again) or closes (0). |
+| `OnDataTipAction(Id AS STRING, Action AS STRING)` | One of a data tip row's buttons pressed: "copy" (its value), "watch" (add it to the watches) or "view" (a string's whole text). |
+| `OnMarkerDrag(Kind AS STRING, FromLine AS INTEGER, ToLine AS INTEGER)` | A marker carried in the gutter to another line with the mouse: the debugger's arrow (Kind "current") — Set Next Statement. Let go where it was, it's a click (OnGutterClick). |
 | `OnHoverRequest(Line AS INTEGER, Column AS INTEGER)` | The mouse rests on the text and no language service answers (or, with DebugHover, on a word before the service): answer with ShowHover. |
 | `OnSignatureRequest(Line AS INTEGER, Column AS INTEGER)` | Signature help is wanted (after ( or ,) and no language service answers: answer with ShowSignature. |
 | `OnSave` | Ctrl+S (Cmd+S) in the editor. |
@@ -5364,6 +5370,7 @@ A run of a program under development, as an IDE runs it: in its own process on t
 | `StopMessage` (read-only) | string |  | A run-time error's message, when that's why it paused. |
 | `ExitCode` (read-only) | int |  | The last run's exit code. |
 | `Error` (read-only) | string |  | Why the last Start (or another request) failed. |
+| `ComponentsRef` (read-only) | int |  | The program's components no other holds (its forms, frames, timers …) as a scope for Variables: each opens to its properties and the components it holds. |
 | `Frame` | int |  | The call stack's selected frame (0: where it is paused; 1 its caller …). Setting it fetches that frame's locals and the watches again, then OnVariables(0). |
 | `LocalsRef` (read-only) | int |  | The selected frame's locals, for Variables. |
 | `GlobalsRef` (read-only) | int |  | The program's globals, for Variables. |
@@ -5384,11 +5391,15 @@ A run of a program under development, as an IDE runs it: in its own process on t
 | `ClearBreakpoints([File AS STRING]) AS INTEGER` | Removes a file's breakpoints (every file's when none is given). |
 | `RunToCursor(File AS STRING, Line AS INTEGER) AS INTEGER` | The program stops at that line once (a paused one goes on to it; a stopped one stops there once started). |
 | `StackTrace AS STRING` | The call stack as the last stop fetched it, the innermost first: a line each, its name, file and line tab-separated. |
-| `Variables(Ref AS INTEGER) AS STRING` | Ref's values as fetched (LocalsRef, GlobalsRef, a value's children after Expand): a line each, its name, value, type, children's reference (0: none) and count, tab-separated. |
-| `WatchValues AS STRING` | Each watch with its value at this stop: a line each, its expression, value, type and children's reference, tab-separated. |
-| `Expand(Ref AS INTEGER)` | Fetches a value's children (an array's elements, a TYPE's fields, a component's properties): OnVariables(Ref) when they're in. |
-| `Evaluate(Expr AS STRING, [Context AS STRING]) AS INTEGER` | Evaluates in the selected frame of the paused program: its answer comes as OnEvaluate(Id, Result) with the Id returned. Context "repl" (the Immediate window's): "? expression" gives its value, a statement runs. |
+| `Variables(Ref AS INTEGER) AS STRING` | Ref's values as fetched (LocalsRef, GlobalsRef, a value's children after Expand): a line each, tab-separated: its name, value, type, children's reference (0: none) and count, the expression that names it (a(2).Name, Form1.Caption), 1 when its value changed since the last stop, a table's columns and a table row's cells (an RDataFrame's; CHR$(31) between them). |
+| `WatchValues AS STRING` | Each watch with its value at this stop: a line each, its expression, value, type, children's reference, 1 when its value changed since the last stop, and how many children it has, tab-separated. |
+| `Expand(Ref AS INTEGER)` | Fetches a value's children — an array's elements, a TYPE's fields, a component's properties and the components it holds, an RDataFrame's rows (each opens to its cells), an RNum's numbers —, the first 100: OnVariables(Ref) when they're in. |
+| `ExpandMore(Ref AS INTEGER, Start AS INTEGER)` | Fetches the next 100 of a value's children from Start (a big array, frame or RNum pages): added to Variables(Ref), then OnVariables(Ref). |
+| `Evaluate(Expr AS STRING, [Context AS STRING]) AS INTEGER` | Evaluates in the selected frame of the paused program: its answer comes as OnEvaluate(Id, Result, Kind, Ref, Count, Columns) with the Id returned (Ref: its children, for Expand). Context "repl" (the Immediate window's): "? expression" gives its value, a statement runs; "clipboard": the value whole, as plain text (a long string uncut); "hover": a data tip's, refused when it would call a SUB, FUNCTION or method. |
 | `SetVariable(Name AS STRING, Value AS STRING) AS INTEGER` | A variable of the selected frame set to an expression's value: OnEvaluate(Id, NewValue), then the values again (OnVariables(0)). |
+| `SetNextStatement(File AS STRING, Line AS INTEGER) AS INTEGER` | Set Next Statement: the paused program goes on from that line (a line without code: the next with some) — within the SUB or FUNCTION it is paused in. OnEvaluate(Id, "") then OnStopped("goto", File, Line); OnEvaluate(Id, "error: …") when it can't. Paused at a run-time error, the program then goes on instead of failing (fix a value, run the line again or skip it). |
+| `StepInTargets` | Step Into Specific's choices: the SUBs and FUNCTIONs the paused line still calls, in the order it calls them — OnStepInTargets(Targets). |
+| `StepInTarget(Id AS INTEGER) AS INTEGER` | Step Into Specific: into the call of that SUB or FUNCTION (an id from OnStepInTargets) the paused line makes; a line that doesn't make it is stepped over. |
 | `Input(Text AS STRING) AS INTEGER` | A line for the program's INPUT. |
 | `RunInBrowser AS INTEGER` | Program's web build served on this machine (127.0.0.1, an address nobody can guess) and opened in the default browser (the desktop's; on the web, Error says to run it here). Its lines come as OnOutput; BrowserURL says where it is. |
 | `StopBrowser` | Ends what RunInBrowser serves. |
@@ -5401,7 +5412,8 @@ A run of a program under development, as an IDE runs it: in its own process on t
 | `OnExit(Code AS INTEGER)` | The program ended, with its exit code. |
 | `OnFormShown(Id AS STRING)` | The program showed a form. |
 | `OnVariables(Ref AS INTEGER)` | Values fetched: Ref's children (Expand), or 0 — the selected frame's locals and the watches again (Frame, Watches, SetVariable, a statement evaluated). |
-| `OnEvaluate(Id AS INTEGER, Result AS STRING)` | An Evaluate's or SetVariable's answer ("error: …" when it failed). |
+| `OnEvaluate(Id AS INTEGER, Result AS STRING, Kind AS STRING, Ref AS INTEGER, Count AS INTEGER, Columns AS STRING)` | An Evaluate's, SetVariable's or SetNextStatement's answer ("error: …" when it failed); its type, its children's reference (0: none; Expand fetches them), how many it has and, for a table (an RDataFrame), its columns' names (CHR$(31) between them). |
+| `OnStepInTargets(Targets AS STRING)` | StepInTargets' answer: a line for each call the paused line still makes, its id (for StepInTarget) and its SUB or FUNCTION's name, tab-separated; empty when it calls none. |
 | `OnBreakpointPlaced(File AS STRING, Line AS INTEGER, NewLine AS INTEGER)` | The running program placed a breakpoint elsewhere than its line: one on a line without code (a comment, a blank line, a DIM) stops at the next line with code, NewLine; NewLine 0: no code follows it in its file, it never stops. |
 
 <a id="raiprojecttools"></a>
@@ -5557,6 +5569,7 @@ One node of an RTreeView (`Tree.Item(i)`, counted from 0 in display order): its 
 | `StateIndex` | int |  | An extra state picture (from StateImages) left of the node; -1 for none. |
 | `Expanded` | bool |  | Whether the node's children show. |
 | `HasChildren` | bool |  | Whether the node shows an expand button, even before it has children. |
+| `TextColor` *(RapidR)* | color |  | The node's text colour; -1 (the default) for the tree's own. A debugger marks values that changed with it. |
 | `Selected` | bool |  | Whether the node is the selected one; setting it selects it. |
 | `Level` (read-only) | int |  | How deep the node is: 0 for a root node. |
 | `Count` (read-only) | int |  | How many children the node has. |

@@ -283,6 +283,10 @@ impl FormUi {
         if self.menu_mouse_move(store, x, y) {
             return;
         }
+        // (a debugger's data tip keeps the mouse over it and on the way there)
+        if self.capture.is_none() && crate::components::codeeditor::datatip::mouse_move(self, x, y) {
+            return;
+        }
         crate::components::combo::popup_mouse_move(self, store, x, y);
         if crate::components::scrollbox::bars_drag(self, store, x, y) {
             return;

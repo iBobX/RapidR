@@ -86,11 +86,11 @@ mod tests {
     use std::collections::BTreeSet;
 
     /// Names in the `match` arms of a host's builtin dispatch function
-    /// (from `match lower.as_str() {` to its `_ =>` fallback).
+    /// (from `match lower {` / `match lower.as_str() {` to its `_ =>` fallback).
     fn host_arms(source: &str, fn_name: &str) -> BTreeSet<String> {
         let start = source.find(fn_name).expect("dispatch fn not found");
         let body = &source[start..];
-        let body = &body[body.find("match lower.as_str()").expect("dispatch match not found")..];
+        let body = &body[body.find("match lower").expect("dispatch match not found")..];
         let body = &body[..body.find("\n        _ =>").expect("fallback arm not found")];
         let mut names = BTreeSet::new();
         for line in body.lines() {
@@ -136,7 +136,7 @@ mod tests {
     #[test]
     fn registry_matches_native_host() {
         let src = include_str!("../../rapidr-vm-host-native/src/lib.rs");
-        assert_matches("native", src, "fn call_builtin_native");
+        assert_matches("native", src, "fn call_builtin_key");
     }
 
     #[test]
@@ -150,7 +150,7 @@ mod tests {
         }
         rapidr_value::data::reset();
         for host in [include_str!("../../rapidr-vm-host-native/src/lib.rs"), include_str!("../../rapidr-vm-host-web/src/lib.rs")] {
-            assert!(host.contains("rapidr_value::shared_builtin(&key, args)"), "a host doesn't dispatch the shared builtins");
+            assert!(host.contains("rapidr_value::shared_builtin(&key, args)") || host.contains("rapidr_value::shared_builtin(key, args)"), "a host doesn't dispatch the shared builtins");
         }
     }
 

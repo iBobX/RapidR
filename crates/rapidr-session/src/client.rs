@@ -225,7 +225,30 @@ impl ProgramSession {
 
     /// `StepIn`.
     pub fn step_in(&mut self) -> Result<(), String> {
-        self.go(Command::StepIn)
+        self.go(Command::StepIn { target: None })
+    }
+
+    /// Step Into Specific: into the call of function `target` (one of
+    /// [`Self::step_in_targets`]' ids) the stopped line makes.
+    pub fn step_in_target(&mut self, target: u32) -> Result<(), String> {
+        self.go(Command::StepIn { target: Some(target) })
+    }
+
+    /// The SUBs and FUNCTIONs the stopped line still calls.
+    pub fn step_in_targets(&mut self) -> Result<Vec<crate::protocol::StepInTarget>, String> {
+        match self.request_wait(Command::StepInTargets)? {
+            EventBody::StepInTargets { targets } => Ok(targets),
+            other => Err(format!("unexpected reply {other:?}")),
+        }
+    }
+
+    /// Set Next Statement: the stopped program goes on from `line` of
+    /// `file` (its `stopped` event, reason `goto`, follows the reply).
+    pub fn set_next_statement(&mut self, file: &str, line: u32) -> Result<u64, String> {
+        if self.state != State::Paused {
+            return Err("the program isn't stopped".into());
+        }
+        self.request(Command::SetNextStatement { file: file.to_string(), line })
     }
 
     /// `StepOver`.
@@ -347,7 +370,7 @@ impl ProgramSession {
     pub fn evaluate_in(&mut self, expr: &str, frame: Option<u32>, repl: bool) -> Result<(String, String, u32), String> {
         let context = repl.then(|| "repl".to_string());
         match self.request_wait(Command::Evaluate { expr: expr.to_string(), frame, context })? {
-            EventBody::Evaluate { result, kind, reference } => Ok((result, kind, reference)),
+            EventBody::Evaluate { result, kind, reference, .. } => Ok((result, kind, reference)),
             other => Err(format!("unexpected reply {other:?}")),
         }
     }
@@ -573,7 +596,7 @@ mod tests {
             self.sent.lock().unwrap().push(request.clone());
             // (an evaluate is answered at once)
             if let Command::Evaluate { expr, .. } = &request.command {
-                let body = EventBody::Evaluate { result: format!("<{expr}>"), kind: "String".into(), reference: 0 };
+                let body = EventBody::Evaluate { result: format!("<{expr}>"), kind: "String".into(), reference: 0, count: 0, columns: vec![] };
                 self.inbox.lock().unwrap().push_back(Incoming::Event(Event::reply(request.seq, body)));
             }
             Ok(())

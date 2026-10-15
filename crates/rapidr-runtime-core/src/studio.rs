@@ -131,3 +131,17 @@ pub fn poll() -> bool {
 pub fn running() -> bool {
     rapidr_studio::session::any_running() || rapidr_studio::build::any()
 }
+
+/// How often the window loop must look at Studio's children: a build's
+/// or Run in Browser's output every 20 ms; a program session's wakes the
+/// loop itself (its transport's reader, also when the program ends), looked
+/// at once a second besides; none: nothing to look at.
+pub fn poll_every() -> Option<std::time::Duration> {
+    if rapidr_studio::build::any() || rapidr_studio::session::starting() {
+        Some(std::time::Duration::from_millis(20))
+    } else if rapidr_studio::session::any_running() {
+        Some(std::time::Duration::from_secs(1))
+    } else {
+        None
+    }
+}

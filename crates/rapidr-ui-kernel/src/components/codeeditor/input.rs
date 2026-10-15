@@ -817,6 +817,12 @@ fn mouse_in(x: &mut Ctx, m: &MouseIn, abs: (i64, i64)) -> MouseOut {
                     }
                     "fold"
                 } else if mx < (g.glyph_x + 18) as f64 {
+                    // (the debugger's arrow: carried to another line — Set
+                    // Next Statement — or, let go where it was, a click)
+                    if x.c.markers_on(line).any(|m| m.kind == "current") {
+                        x.ui.drag = Some(Drag::Marker { from: line, to: line });
+                        return MouseOut { press: false, focus: Some(false) };
+                    }
                     "marker"
                 } else {
                     let buf = x.c.doc.buffer();
@@ -900,6 +906,11 @@ fn mouse_in(x: &mut Ctx, m: &MouseIn, abs: (i64, i64)) -> MouseOut {
                     x.c.doc.set_selections(Selections::single(Selection::new(a, h)));
                     report_moves(x);
                 }
+                Some(Drag::Marker { from, .. }) => {
+                    let row = ((my - g.text.1 as f64 + x.ui.scroll.1) / x.ui.lh()).floor().max(0.0) as usize;
+                    let (line, _) = x.ui.rows.line_of_row(row);
+                    x.ui.drag = Some(Drag::Marker { from, to: line.min(x.c.doc.buffer().len_lines().saturating_sub(1)) });
+                }
                 Some(Drag::Minimap { grab }) => {
                     if let Some(mm) = g.minimap {
                         let first = super::paint::minimap_first(x, mm);
@@ -918,9 +929,12 @@ fn mouse_in(x: &mut Ctx, m: &MouseIn, abs: (i64, i64)) -> MouseOut {
             x.ui.gutter_hover = in_gutter;
             if inside(g.text, mx, my) && popup::over_popup(x, abs, mx, my).is_none() {
                 let at = byte_at(x, abs, mx, my);
-                let keep = x.c.hover.as_ref().is_some_and(|h| h.start <= at && at <= h.end);
+                let keep = x.c.hover.as_ref().is_some_and(|h| h.start <= at && at <= h.end) || x.c.datatip.as_ref().is_some_and(|t| t.start <= at && at <= t.end);
                 if !keep {
                     x.c.hover = None;
+                    // (a data tip the mouse left — the window kept it while
+                    // the mouse was over it or on its way there)
+                    x.c.datatip = None;
                     x.ui.service.hover_at = Some((now() + lang::HOVER_AFTER, at));
                 }
             } else if !in_gutter {
@@ -929,12 +943,20 @@ fn mouse_in(x: &mut Ctx, m: &MouseIn, abs: (i64, i64)) -> MouseOut {
             MouseOut::default()
         }
         MouseKind::Up => {
+            if let Some(Drag::Marker { from, to }) = x.ui.drag.take() {
+                if to == from {
+                    x.fire("ongutterclick", vec![v_int(from as i64 + 1), v_str("marker")]);
+                } else {
+                    x.fire("onmarkerdrag", vec![v_str("current"), v_int(from as i64 + 1), v_int(to as i64 + 1)]);
+                }
+            }
             x.ui.drag = None;
             MouseOut::default()
         }
         MouseKind::Leave => {
             x.ui.gutter_hover = false;
             x.ui.service.hover_at = None;
+            x.c.datatip = None;
             MouseOut::default()
         }
     }

@@ -89,6 +89,12 @@ The **Runs on** column lists the ways each example is tested on (by
 | [million_rows.rr](data/million_rows.rr) | A million rows: written once to `big.csv`, read by an `RCSV`, shown in an `RDBGrid` that draws only the rows on screen; filter, sort and group the whole million with the time each took | run · interp · native · web | `rapidr run data/million_rows.rr [rows]` |
 | [linked_data.rr](data/linked_data.rr) | Linked components with almost no code: an `RCSV` ([staff.csv](data/staff.csv)) → `RDataFrame` (`Source`) → `RDataSource` → an `RDBGrid` and `REdit`s / `RLabel`s bound with `DataSource` + `DataField`; the current row followed everywhere, edits written back, the grid's view sorted by a heading's click — live in RapidR Studio's designer too | run · interp · native · web | `rapidr run data/linked_data.rr` |
 
+### debugging/ — RapidR Studio's debugger
+
+| Example | What it shows | Runs on | Try |
+|---------|---------------|---------|-----|
+| [shop.rr](debugging/shop.rr) | A small shop's order book made to be looked at in the debugger ([Debugging in RapidR Studio](../docs/manual/debugging.md)): nested `TYPE`s in an array, an `RDataFrame`, an `RNum`, a long text, a form; a loop whose line calls two FUNCTIONs (Step Into Specific), a division by zero to stop at and go on from (Set Next Statement) | run · interp · native · web | `rapidr ide debugging/shop.rr` |
+
 ### network/ — HTTP (against a server on your own machine)
 
 Start a server in the folder first, e.g. `cd network && python3 -m http.server 8000`.

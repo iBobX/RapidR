@@ -28,6 +28,7 @@
 //!   line's problems announced, the completion list a list box.
 
 pub mod access;
+pub mod datatip;
 pub mod find;
 pub mod input;
 pub mod lang;
@@ -66,6 +67,10 @@ pub enum Drag {
     Minimap { grab: f64 },
     /// The scroll bars.
     Bars,
+    /// The debugger's arrow (the `current` marker) carried from line
+    /// `from` to `to` (Set Next Statement: OnMarkerDrag when let go
+    /// elsewhere; let go where it was, a click in the gutter).
+    Marker { from: usize, to: usize },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

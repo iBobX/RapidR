@@ -42,11 +42,14 @@ pub struct Node {
     /// `HasChildren = True` shows the node's button before it has any
     /// (folder trees fill them in when it's expanded).
     pub has_children: bool,
+    /// (RapidR's) `TextColor`: the node's text colour (BGR, as RapidQ's
+    /// colours); -1 for the tree's own.
+    pub text_color: i64,
 }
 
 impl Node {
     fn new(text: String, level: usize) -> Node {
-        Node { text, level, image_index: 0, selected_index: 0, state_index: -1, expanded: false, has_children: false }
+        Node { text, level, image_index: 0, selected_index: 0, state_index: -1, expanded: false, has_children: false, text_color: -1 }
     }
 }
 
@@ -467,7 +470,7 @@ impl TreeView {
         if setter {
             let val = args.get(1).cloned().unwrap_or(Value::Null);
             let Some(i) = i else {
-                return matches!(member, "text" | "imageindex" | "selectedindex" | "stateindex" | "haschildren" | "selected" | "expanded").then_some(Value::Null);
+                return matches!(member, "text" | "imageindex" | "selectedindex" | "stateindex" | "haschildren" | "selected" | "expanded" | "textcolor").then_some(Value::Null);
             };
             match member {
                 "text" => self.nodes[i].text = val.to_string_val(),
@@ -475,6 +478,7 @@ impl TreeView {
                 "selectedindex" => self.nodes[i].selected_index = val.to_i64(),
                 "stateindex" => self.nodes[i].state_index = val.to_i64(),
                 "haschildren" => self.nodes[i].has_children = val.to_bool(),
+                "textcolor" => self.nodes[i].text_color = val.to_i64(),
                 "selected" if val.to_bool() => self.select(i as i64),
                 "selected" => {
                     if self.item_index == i as i64 {
@@ -497,6 +501,7 @@ impl TreeView {
             "expanded" => flag(node.is_some_and(|n| n.expanded)),
             "count" => v_int(i.map_or(0, |i| self.children(i).len() as i64)),
             "haschildren" => flag(i.is_some_and(|i| self.has_children(i))),
+            "textcolor" => v_int(node.map_or(-1, |n| n.text_color)),
             "selected" => flag(i.is_some_and(|i| self.item_index == i as i64)),
             "isvisible" => flag(i.is_some_and(|i| self.is_visible(i))),
             "index" | "absoluteindex" => v_int(i.map_or(-1, |i| i as i64)),

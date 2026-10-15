@@ -1,0 +1,19 @@
+' vm_bench: an idle program — a form waiting for its events (ShowModal)
+' with a timer that ticks once a second. Waiting must cost ~0 % CPU.
+$APPTYPE GUI
+DIM ticks AS INTEGER
+CREATE Form AS RForm
+  Caption = "vm_bench idle"
+  Width = 240
+  Height = 120
+  CREATE Tick AS RTimer
+    Interval = 1000
+    OnTimer = Ticked
+  END CREATE
+END CREATE
+
+SUB Ticked
+  ticks = ticks + 1
+END SUB
+
+Form.ShowModal

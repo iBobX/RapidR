@@ -17,6 +17,9 @@ pub struct RpComponent {
     pub type_name: String,
     pub properties: HashMap<String, Value>,
     pub creation_order: u32,
+    /// Its name as the program wrote it (the key is upper case): what the
+    /// debugger shows.
+    pub name: String,
 }
 
 // ---------------------------------------------------------------------------
@@ -165,6 +168,7 @@ pub fn rp_create_component(name: &str, type_name: &str) {
                 type_name: utype,
                 properties: props,
                 creation_order: order,
+                name: name.to_string(),
             },
         );
     });
@@ -856,7 +860,7 @@ fn set_property(name: &str, prop: &str, val: Value) {
         // An unknown name is a property bag (a DIM'd QRECT or TYPE
         // variable), as on the desktop: its fields are kept.
         if !comps.contains_key(&uname) {
-            comps.insert(uname.clone(), RpComponent { type_name: "RUDT".into(), properties: HashMap::new(), creation_order: 0 });
+            comps.insert(uname.clone(), RpComponent { type_name: "RUDT".into(), properties: HashMap::new(), creation_order: 0, name: name.to_string() });
         }
         if let Some(comp) = comps.get_mut(&uname) {
             comp.properties.insert(lprop.clone(), val.clone());
@@ -1264,6 +1268,36 @@ pub fn rp_comp_read(name: &str, prop: &str) -> Value {
 /// (a Boolean reads 1, `rapidr_value::property_read`).
 pub fn rp_comp_call(name: &str, method: &str, args: &[Value]) -> Value {
     rapidr_value::property_read(rp_comp_method(name, method, args))
+}
+
+/// Whether a Parent property's value names component `name` (any case; no
+/// allocation for the usual string) — `name` empty: it names none.
+fn names_parent(parent: &Value, name: &str) -> bool {
+    match parent {
+        Value::String(p) => p.eq_ignore_ascii_case(name),
+        other => other.to_string_val().eq_ignore_ascii_case(name),
+    }
+}
+
+/// The components `name` holds (whose Parent it is), in the order they
+/// were made, by their names as the program wrote them (the debugger).
+pub fn rp_comp_children(name: &str) -> Vec<String> {
+    COMPONENTS.with(|m| {
+        let m = m.borrow();
+        let mut kids: Vec<(u32, String)> = m
+            .values()
+            .filter(|c| {
+                c.type_name != "RUDT"
+                    && match c.properties.get("parent") {
+                        Some(p) => names_parent(p, name),
+                        None => name.is_empty(),
+                    }
+            })
+            .map(|c| (c.creation_order, c.name.clone()))
+            .collect();
+        kids.sort();
+        kids.into_iter().map(|(_, n)| n).collect()
+    })
 }
 
 pub fn rp_comp_type(name: &str) -> String {

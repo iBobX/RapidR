@@ -166,6 +166,7 @@ pub struct Snippet {
 pub fn compile_snippet(module: &Module, fn_index: Option<u32>, statements: &[Statement], assigned_global: &dyn Fn(usize) -> bool) -> Result<Snippet, String> {
     let mut b = Bcgen::new();
     b.module = module.clone();
+    b.snippet = true;
     for (i, f) in module.functions.iter().enumerate() {
         if i as u32 == module.entry || f.name.is_empty() {
             continue;
@@ -429,6 +430,10 @@ struct Bcgen {
     component_kinds: HashMap<String, String>,
     /// Whether we are currently lowering the top-level main program.
     in_main: bool,
+    /// Compiling the debugger's snippet ([`compile_snippet`]): without the
+    /// program's TYPEs, a member of anything is set by its name at run time
+    /// (the VM reads a TYPE's field by name in an evaluation).
+    snippet: bool,
     /// Starts of each line (byte offsets) to resolve line numbers for statements.
     line_starts: Option<Vec<usize>>,
     /// Records declarations and name uses for the semantic model
@@ -496,6 +501,7 @@ impl Bcgen {
             component_instance_names: HashMap::new(),
             component_kinds: HashMap::new(),
             in_main: false,
+            snippet: false,
             line_starts: None,
             sem: None,
         }
@@ -1711,6 +1717,14 @@ impl Bcgen {
                     Ok(())
                 } else if self.object_type_of(&m.object).is_some() {
                     // `GF.Panel.Left = v`: stack [value] → [value, id].
+                    self.lower_expr(&m.object, code)?;
+                    let nm_s = self.module.add_string(&m.member);
+                    emit(code, Op::SetPropDyn); push_u32(code, nm_s);
+                    Ok(())
+                } else if self.snippet {
+                    // (the debugger's `orders(1).Buyer.Name = v`: the value,
+                    // then what holds the member — a TYPE's instance is
+                    // shared, setting its field sets the program's)
                     self.lower_expr(&m.object, code)?;
                     let nm_s = self.module.add_string(&m.member);
                     emit(code, Op::SetPropDyn); push_u32(code, nm_s);
