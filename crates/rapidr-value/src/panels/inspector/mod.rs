@@ -792,6 +792,25 @@ fn drop_list<R: Runtime>(rt: R, name: &str, key: &str, anchor: Rect) {
                 items
             }
             Kind::Color => values::STANDARD_COLORS.iter().chain(values::SYSTEM_COLORS.iter()).map(|s| s.to_string()).collect(),
+            // (I7: the columns of the data set the component is bound to —
+            // on a design surface, as the designer read them)
+            Kind::Field => {
+                let Some(target) = m.snap.objects.first().map(|o| o.0.clone()).or_else(|| m.target_names().first().cloned()) else { return };
+                if m.designer.is_empty() {
+                    crate::datascience::link::bound_columns(&target)
+                } else {
+                    // (the designed form's data, as the designer reads it —
+                    // made now, so it's there before the surface is drawn)
+                    let built = crate::objects::with_design(&m.designer, |d| {
+                        let folder = d.source_file.replace('\\', "/").rsplit_once('/').map(|(dir, _)| dir.to_string()).unwrap_or_default();
+                        (folder, d.designer.design.clone())
+                    });
+                    if let Some((folder, design)) = built {
+                        crate::datascience::link::design_build(&m.designer, &folder, &design);
+                    }
+                    crate::datascience::link::bound_columns(&format!("{}:{}", m.designer.to_lowercase(), target.to_lowercase()))
+                }
+            }
             _ => return,
         }
     };

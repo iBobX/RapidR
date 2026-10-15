@@ -114,6 +114,10 @@ const WEB: &[&str] = &[
 /// `IF CD.Open`.
 const IO: &[&str] = &["leechfile", "check", "open", "listports", "readline"];
 
+/// (I7) Linked data's (crate::datascience::link): `IF People.Load THEN`,
+/// `Nav.Next`.
+const LINKED: &[&str] = &["load", "save", "first", "next", "prior", "last"];
+
 /// The methods of type `t` (RapidR's uppercase `R…` name) beyond [`ANY`].
 fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
     match t {
@@ -127,6 +131,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
         "RTREEVIEW" => &[TREE],
         "RFORMMDI" => &[MDI, DRAWING],
         "RNUM" | "RDATAFRAME" | "RPLOT" => &[DATA_SCIENCE],
+        "RCSV" | "RDATASOURCE" => &[LINKED],
         "RDESIGNSURFACE" => &[DESIGN],
         "RPROGRAMSESSION" => &[SESSION],
         "RPROJECT" => &[PROJECT],
@@ -146,7 +151,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
 /// Whether `member` (lowercase) is any type's method read without
 /// parentheses — the quick test before the type is looked up.
 pub fn is_value_method_name(member: &str) -> bool {
-    [ANY, DATABASE, NETWORK, STREAM, JSON, STRING_LIST, DRAWING, CANVAS, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, DIFF, SESSION, PROJECT, PANELS]
+    [ANY, DATABASE, NETWORK, STREAM, JSON, STRING_LIST, DRAWING, CANVAS, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, DIFF, SESSION, PROJECT, PANELS, LINKED]
         .iter()
         .any(|list| list.contains(&member))
 }

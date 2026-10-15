@@ -74,6 +74,10 @@ pub fn num_set_prop(name: &str, prop: &str, val: &Value) {
 }
 
 pub fn dataframe_method(name: &str, method: &str, args: &[Value]) -> Value {
+    // (Refresh: its Source's rows again — ds::link)
+    if let Some(v) = ds::link::dataframe_call(name, method) {
+        return v;
+    }
     ds::frame::dataframe_method(name, method, args, &Desktop)
 }
 

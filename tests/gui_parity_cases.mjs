@@ -42,10 +42,10 @@ export const cases = [
   // last come first, a disabled command is skipped.
   { name: "panel_toolbox", events: "box.__mousedown_60_15,box.__mouseup_60_15,box.__key_66,box.__key_85,box.__key_84,box.__key_13,box.__key_27,box.__key_27,box.__mousedown_100_109,box.__mousemove_150_109,box.__mousemove_400_150,box.__mouseup_400_150,box.__mousedown_100_109,box.__mousemove_150_109,box.__mouseup_500_80,box.__mousedown_100_40,box.__mouseup_100_40,breport.onclick",
     dump: "lbl.caption,info.caption",
-    expect: ["lbl.caption= pick:RButton sel:RLabel drag:RLabel drop:RLabel>surface@108,118 drag:RLabel drop:RLabel>inner@28,28", "info.caption=93 RFormMDI RLabel []"] },
+    expect: ["lbl.caption= pick:RButton sel:RLabel drag:RLabel drop:RLabel>surface@108,118 drag:RLabel drop:RLabel>inner@28,28", "info.caption=96 RFormMDI RLabel []"] },
   { name: "panel_toolbox_keys", events: "box.__key_40,box.__key_40,box.__key_40,box.__key_40,box.__key_76,box.__key_37,box.__key_37,box.__key_40,box.__key_39,box.__key_35,box.__key_36,box.__key_13,breport.onclick",
     dump: "lbl.caption,info.caption",
-    expect: ["lbl.caption= sel:RForm sel:RButton sel:RLabel sel:RFormMDI sel:RLanguageService", "info.caption=110 RForm RLanguageService []"] },
+    expect: ["lbl.caption= sel:RForm sel:RButton sel:RLabel sel:RFormMDI sel:RLanguageService", "info.caption=113 RForm RLanguageService []"] },
   { name: "panel_palette", events: "bopen.onclick,pal.__key_83,pal.__key_65,pal.__key_40,pal.__key_13,bopen.onclick,pal.__key_27,bopen.onclick,edit1.__mousedown_5_5,edit1.__mouseup_5_5,bopen.onclick,pal.__mousedown_100_81,pal.__mouseup_100_81,bopen.onclick,pal.__key_83,breport.onclick",
     dump: "lbl.caption,info.caption",
     expect: ["lbl.caption= first:file.save run:file.saveall first:file.saveall cancel first:file.saveall cancel first:file.saveall run:file.save first:file.save", "info.caption=3 file.save [s] 1 5"] },
@@ -508,4 +508,18 @@ export const cases = [
       const d = g.getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] > 200 && d[i + 1] < 60 && d[i + 2] < 60) n++;
       return n > 200 ? "red line drawn" : "red pixels: " + n; })()`,
     webExpect: "red line drawn" },
+  // (I7) RDBGRID straight from an RCSV, a bound REdit and RLabel: view row 1
+  // clicked (amy), the "age" heading clicked twice (sorted highest first:
+  // the current row stays amy, now shown fifth), "x" typed into the edit
+  // (written back into the table: the grid shows it); a missing age shows
+  // dimmed as null.
+  // (I7) The inspector's DataField drops the columns the designer read
+  // (name, age, city): NameEdit selected on the surface, the DataField row
+  // (Down twice, under its category), F4, Down, Enter — "age".
+  { name: "inspector_datafield", events: "insp.__key_40,insp.__key_40,insp.__key_115,insp.__key_40,insp.__key_13,breport.onclick",
+    dump: "log.caption",
+    expect: ["log.caption=DataField=age | [REDIT age]"] },
+  { name: "rdbgrid", events: "grid.__cell_0_1,grid.__cell_1_-1,grid.__cell_1_-1,nameedit.__key_88",
+    dump: "nameedit.text,agelbl.caption,grid.row,grid.sortcolumn,grid.sortdescending,info.caption",
+    expect: ["nameedit.text=x", "agelbl.caption=25", "grid.row=1", "grid.sortcolumn=1", "grid.sortdescending=1", "info.caption=clicked 1,0 of 5"] },
 ];

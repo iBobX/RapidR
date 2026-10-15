@@ -21,6 +21,8 @@ RPROGRESS = "progressbar"
 RPROJECT = "project"
 RPROGRAMSESSION = "programsession"
 RLANGUAGESERVICE = "languageservice"
+# (I7: a CSV file as a data source — the data file's icon)
+RCSV = "datafile"
 
 [planned-components]
 # The IDE's public components (docs/ide-components.md §3) and the linked data
@@ -48,8 +50,6 @@ RDFJOIN = "dfjoin"
 RDFCOMPUTE = "dfcompute"
 RDFSELECT = "dfselect"
 RDFLIMIT = "dflimit"
-RDATASOURCE = "datasource"
-RDBGRID = "dbgrid"
 RDBEDIT = "dbedit"
 RDBLABEL = "dblabel"
 RDBMEMO = "dbmemo"
@@ -299,7 +299,7 @@ members = "RSOCKET RSERVERSOCKET RHTTP RDOWNLOAD RCGI RCOMPORT"
 [toolbox-groups.data]
 icon = "data"
 title = "Data"
-members = "RSQLITE RMYSQL RJSON RDBCONNECTION RDATAFILE RDBQUERY RDBTABLE RDATASOURCE RDBGRID RDBEDIT RDBLABEL RDBMEMO RDBCHECKBOX RDBCOMBOBOX RDBLOOKUPCOMBO RDBNAVIGATOR"
+members = "RCSV RSQLITE RMYSQL RJSON RDBCONNECTION RDATAFILE RDBQUERY RDBTABLE RDATASOURCE RDBGRID RDBEDIT RDBLABEL RDBMEMO RDBCHECKBOX RDBCOMBOBOX RDBLOOKUPCOMBO RDBNAVIGATOR"
 [toolbox-groups.datascience]
 icon = "datascience"
 title = "Data Science"

@@ -220,7 +220,7 @@ events = []
 name = "RJSON"
 display = "Json"
 visual = false
-doc = "Parses and builds JSON: get and set values by dotted path, list keys, pretty-print, load and save files. RapidR's own."
+doc = "Parses and builds JSON: get and set values by dotted path, list keys, pretty-print, load and save files. Its document's records ([{…}, …], JSON Lines or columns) are also a data source: an RDataFrame's Source, an RDBGrid's or an RDataSource's data set. RapidR's own."
 properties = [
   { name = "Text", type = "string", default = "" },
   { name = "FileName", type = "string", default = "" },

@@ -54,6 +54,8 @@ pub mod dock;
 pub mod panels;
 // (the data-science lane's: RPLOT on a form)
 pub mod plot;
+// (I7: a data grid straight from a frame — rapidr_value::datascience::link)
+pub mod dbgrid;
 
 use rapidr_value::input::{Button, Cursor};
 use rapidr_value::objects::a11y::{AccessNode, Action};
@@ -128,6 +130,8 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RMARKDOWNVIEW", &panels::markdown::MarkdownView),
     // (the data-science lane's: a chart on a form — rapidr_value::datascience)
     ("RPLOT", &plot::Plot),
+    // (I7: a data grid straight from a frame — rapidr_value::datascience::link)
+    ("RDBGRID", &dbgrid::DbGrid),
 ];
 
 /// The kind drawing components of `type_name` (`None`: the kernel only

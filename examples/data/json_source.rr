@@ -1,0 +1,111 @@
+' json_source.rr: a JSON file as a data source — an RJson's records in a
+' grid, with edits bound to the current row; filtered, grouped and saved
+' back as JSON. RapidR Studio's designer shows the records live.
+'
+'   rapidr run json_source.rr
+'
+' Products (an RJson) holds products.json, an array of records; Stock (an
+' RDataFrame) takes them (Source = Products); the RDBGrid and the edits are
+' bound to Stock straight (DataSource = Stock), so they share its current
+' row: click a product and its name, price and stock show below; type a
+' new stock and the grid shows it. "Under 5" keeps the cheap ones; "By
+' category" adds up each category; "All" takes the records again; "Save"
+' writes the table, edits included, to products_edited.json.
+' products.json is made-up data.
+
+DECLARE SUB Cheap
+DECLARE SUB ByCategory
+DECLARE SUB ShowAll
+DECLARE SUB SaveJson
+DECLARE SUB Picked(Row AS INTEGER, Col AS INTEGER)
+
+CREATE Form AS RForm
+    Caption = "Shop stock (JSON)"
+    Width = 560
+    Height = 420
+    Center
+    ' (the data components: in the designer's tray)
+    CREATE Products AS RJson
+        FileName = "products.json"
+    END CREATE
+    CREATE Stock AS RDataFrame
+        Source = Products
+    END CREATE
+    CREATE CheapBtn AS RButton
+        Caption = "&Under 5": Left = 10: Top = 10: Width = 90
+        OnClick = Cheap
+    END CREATE
+    CREATE GroupBtn AS RButton
+        Caption = "By &category": Left = 106: Top = 10: Width = 100
+        OnClick = ByCategory
+    END CREATE
+    CREATE AllBtn AS RButton
+        Caption = "&All": Left = 212: Top = 10: Width = 70
+        OnClick = ShowAll
+    END CREATE
+    CREATE SaveBtn AS RButton
+        Caption = "&Save": Left = 288: Top = 10: Width = 70
+        OnClick = SaveJson
+    END CREATE
+    CREATE Grid AS RDBGrid
+        Left = 10: Top = 44: Width = 530: Height = 240
+        DataSource = Stock
+        OnCellClick = Picked
+    END CREATE
+    CREATE NameLbl AS RLabel
+        Caption = "Product": Left = 10: Top = 300
+    END CREATE
+    CREATE NameEdit AS REdit
+        Left = 80: Top = 296: Width = 170
+        DataSource = Stock: DataField = "name"
+    END CREATE
+    CREATE StockLbl AS RLabel
+        Caption = "Stock": Left = 270: Top = 300
+    END CREATE
+    CREATE StockEdit AS REdit
+        Left = 320: Top = 296: Width = 80
+        DataSource = Stock: DataField = "stock"
+    END CREATE
+    CREATE PriceLbl AS RLabel
+        Caption = "Price": Left = 10: Top = 332
+    END CREATE
+    CREATE Price AS RLabel
+        Left = 80: Top = 332: Width = 100
+        DataSource = Stock: DataField = "price"
+    END CREATE
+    CREATE Status AS RLabel
+        Left = 10: Top = 364: Width = 530
+    END CREATE
+END CREATE
+
+SUB Picked(Row AS INTEGER, Col AS INTEGER)
+    IF Stock.Cell(Row, "name") = "" THEN
+        Status.Caption = Stock.Cell(Row, "category") + ": " + Stock.Cell(Row, "stock") + " in stock"
+    ELSE
+        Status.Caption = Stock.Cell(Row, "name") + " (" + Stock.Cell(Row, "category") + ")"
+    END IF
+END SUB
+
+SUB Cheap
+    Stock.Filter "price", "<", 5
+    Status.Caption = STR$(Stock.RowCount) + " products under 5"
+END SUB
+
+SUB ByCategory
+    Stock.Select "category,price,stock"
+    Stock.GroupBy "category", "sum"
+    Status.Caption = STR$(Stock.RowCount) + " categories: the prices and the stock added up"
+END SUB
+
+SUB ShowAll
+    Stock.Refresh
+    Status.Caption = STR$(Stock.RowCount) + " products"
+END SUB
+
+SUB SaveJson
+    Stock.SaveToJSON "products_edited.json"
+    Status.Caption = "Saved " + STR$(Stock.RowCount) + " records to products_edited.json"
+END SUB
+
+ShowAll
+Form.ShowModal

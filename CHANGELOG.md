@@ -201,6 +201,56 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - **Debugger steps are fast on a loaded computer**: Studio on the desktop hears the program the
   moment it stops instead of at its next 20 ms poll — a step with its line and values shown took
   85 ms, now about 15 ms (budget 50 ms; the web's ~20 ms).
+### Linked data, live in the designer (DATA-ARCH, I7 phase 1)
+- **The plan**: [docs/data-science-plan.md](docs/data-science-plan.md) — the columnar engine, sources as
+  linked components (CSV, JSON, Excel, Parquet, Arrow, Avro, Delta Lake, SQLite, MySQL, PostgreSQL /
+  Redshift, SQL Server, S3 / Azure), data-aware components, the BASIC API, the web's limits, the licence
+  of every crate, performance budgets and a benchmark suite against pandas and Polars, the registry for
+  IntelliSense / MCP, phases with sizes.
+- **RCSV** (new): a CSV file as a data source — `FileName`, `Delimiter` (`,` `;` tab `|` …),
+  `HasHeader`, `Text`; `RowCount`, `ColCount`, `Columns`, `Error`; `Load`, `Save [file]`, `Clear`;
+  `OnLoad`, `OnError(Message)`. Read once, when its table is first needed; a relative file is found in
+  the current folder or beside the program.
+- **RDataFrame.Source** (an RCSV, an RJson's records, another RDataFrame): the frame takes the rows at
+  once and again whenever the source changes; `RDataFrame.Refresh`.
+- **RJson's records are a data source** (`[{…}]`, JSON Lines, columns) — taken again when the
+  document changes.
+- **RDataSource** (new): a current row shared by the controls bound to it — `DataSet`, `Row`,
+  `RecordCount`, `EOF` / `BOF` (Delphi's: `WHILE NOT DS.EOF … DS.Next WEND`), `Enabled`, `State`;
+  `First`, `Prior`, `Next`, `Last`, `MoveBy`, `Field(name)`, `SetField`, `Refresh`; `OnDataChange`.
+- **RDBGrid** (new): a grid drawn by the UI kernel straight from a data set's frame, only the rows on
+  screen (a million rows scroll smoothly): headings, row numbers, numbers right-aligned, a missing
+  value dimmed as `null`, the current row (click, arrows, Page Up / Down, Home / End), a heading's click
+  sorts the grid's view (the data unchanged), `OnCellClick(Row, Col)`, `OnTitleClick(Col)`; a grid for
+  screen readers. Pixel-identical on the desktop and the web.
+- **`DataSource` + `DataField` on REdit and RLabel** (RapidR's own, additive): the current row's
+  field; what the user types in a bound edit goes back into the table.
+- **Live in RapidR Studio's designer**: the designed form's RCSV / RJson / RDataFrame / RDataSource are
+  read by the designer itself (files inside the project only, read-only, cached), so grids, edits and
+  labels show the real data while you design; RCSV is in the toolbox's Data group, with the data
+  file's icon.
+- One model for every runtime (`rapidr_value::datascience::link`): native builds, the interpreter, the
+  web and the designer. Registry entries for every member (IntelliSense, the manual, MCP).
+- Examples: `data/linked_data.rr`, `data/million_rows.rr`, `data/json_source.rr` (on Studio's
+  Welcome page); the manual's new chapter **Data science with RapidR**, with screenshots.
+- The inspector's **DataField** drops the bound data set's columns.
+- Fixed: a non-visual component inside a form (an RDataFrame, whose Width / Height are its columns
+  and rows) no longer counts toward the form's scroll range on the desktop (the web already
+  ignored it).
+
+### Data science: a typed, multithreaded RDataFrame engine (DATA-ENGINE)
+- RDataFrame's engine stores columns typed (whole numbers, fractions, true / false as numbers; a
+  validity bitmap where cells are null; buffers shared until changed) and shares big work out to
+  every core: on a million rows (M4 Max) load 100 → 12 ms, filter 39 → 3 ms, sort 203 → 10 ms,
+  group-by 84 → 5 ms, join 63 → 3 ms, describe 86 → 10 ms, save 82 → 7 ms; load + filter + sort +
+  group-by 267 → 23 ms (ten million rows: 4.4 s → 0.27 s; on one thread, as in a browser:
+  0.12 s for a million). Nothing a program sees changes: a column is typed only when every cell's
+  text is its value's own (`"007"`, `"1.50"`, `"True"` keep theirs), and frames printed, cells,
+  types, CSV and JSON written, warnings are byte-identical — checked by a differential test against
+  the previous engine over tens of thousands of random programs (`tests/frame_oracle.rs`).
+  `Frame::sorted_order` gives a grid the sorted order without moving rows. The benchmark suite is
+  `tools/bench/` (frame_bench with the plan's budgets — also in `tools/regress.sh perf` — the same
+  work as a RapidR program, pandas and Polars scripts, `compare.sh`).
 
 ## [2.118.0] — 2026-10-09 (Preview)
 

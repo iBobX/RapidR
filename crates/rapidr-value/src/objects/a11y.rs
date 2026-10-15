@@ -595,6 +595,8 @@ pub fn role_of(type_name: &str) -> Role {
         "RCANVAS" | "RDXSCREEN" => Role::Canvas,
         // (a chart: a picture of its data, named by its Title)
         "RPLOT" => Role::Image,
+        // (I7: a data grid — its headings and the rows on screen inside)
+        "RDBGRID" => Role::Grid,
         "RMAINMENU" => Role::MenuBar,
         // (QPANEL, QSCROLLBOX and what the hosts only place)
         _ => Role::Pane,
@@ -608,7 +610,7 @@ pub fn takes_focus(type_name: &str) -> bool {
     matches!(
         type_name.to_ascii_uppercase().as_str(),
         "RBUTTON" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RCODEEDITOR" | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RLISTVIEW" | "RTREEVIEW" | "RDIRTREE" | "RSTRINGGRID" | "RTABCONTROL" | "RTRACKBAR" | "RUPDOWN"
-            | "RSCROLLBAR" | "RDIFFVIEW" | "RDESIGNSURFACE"
+            | "RSCROLLBAR" | "RDIFFVIEW" | "RDESIGNSURFACE" | "RDBGRID"
         // (I1 / L-PANELS: RapidR Studio's panels)
         | "RPROPERTYINSPECTOR" | "RTOOLBOX" | "RPROJECTTREE" | "ROUTPUTCONSOLE" | "RCOMMANDPALETTE" | "RMARKDOWNVIEW"
     )

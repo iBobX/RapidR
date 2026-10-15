@@ -130,12 +130,13 @@ A numeric array in NumPy's style: make ranges, zeros or lists, then sum, average
 
 ## RDATAFRAME
 
-A table of named columns in pandas' style: read CSV or JSON, select, filter, sort, group and join, compute statistics, show it in a grid. RapidR's own.
+A table of named columns in pandas' style: read CSV or JSON, select, filter, sort, group and join, compute statistics, show it in a grid. Point its Source at an RCSV, an RJSON or another RDataFrame and it takes their rows — at design time too. RapidR's own.
 
 ### Properties
 
 | Name | Desktop | Web | |
 |---|:-:|:-:|---|
+| `Source` | ✓ | ✓ | Where the frame's rows come from: an RCSV, an RJSON (its records) or another RDataFrame. The frame gets a copy of them at once, and again whenever the source changes (a new FileName, Load); Refresh asks again. What you do to the frame afterwards (Filter, Sort …) changes only the frame, until the source changes. |
 | `Height` | ✓ | ✓ | The height, in pixels; on `Screen`, the screen's. |
 | `Nrows` | ✓ | ✓ | The number of rows in the data frame. |
 | `ColCount` | ✓ | ✓ | The number of columns: of a grid (fixed ones included), of a query's result, of a data frame. |
@@ -219,6 +220,7 @@ A table of named columns in pandas' style: read CSV or JSON, select, filter, sor
 | `ToGrid(gridName)` | ✓ | ✓ | Fills an RStringGrid: the header row, then the cells. |
 | `To_grid` | ✓ | ✓ | Fills an RStringGrid with the DataFrame's column names and rows. Same as `ToGrid`. |
 | `Display` | ✓ | ✓ | Fills an RStringGrid with the DataFrame's column names and rows. Same as `ToGrid`. |
+| `Refresh` | ✓ | ✓ | Takes the rows of its Source again (its file read again when it is an RCSV). |
 
 ## RPLOT
 

@@ -406,17 +406,20 @@ Each stage lists goals, components and APIs, data models, what it reuses or repl
 
 **The frame engine's speed, as built** (L-FRAME, after D7): the engine stores a frame by columns — each column's cells' text in one buffer with offsets and a null mask, its type and its cells as numbers worked out once and cached — and filters, sorts, groups and joins by row index (a hash join, numbers compared as numbers). Every member keeps its meaning (the `datascience_*` conformance cases unchanged, on all three runtimes). One million rows, five columns (37 MB of CSV), `cargo run --release -p rapidr-value --example frame_bench`, M-series desktop / the same engine as wasm in V8:
 
-| Operation | Row store (before) | Columnar, desktop | Columnar, wasm (V8) | Target (desktop; web 2×) |
-|---|--:|--:|--:|--:|
-| load CSV text | 995 ms | 114 ms | 286 ms | 300 ms |
-| filter `salary > 75000` | 169 ms | 40 ms | 84 ms | 60 ms |
-| sort by salary, descending | 3,129 ms | 182 ms | 222 ms | 250 ms |
-| group by dept, mean | 1,418 ms | 80 ms | 127 ms | 120 ms |
-| left join on dept | 1,424 ms | 60 ms | 121 ms | 120 ms |
-| describe | 592 ms | 79 ms | 127 ms | 150 ms |
-| save CSV text | 713 ms | 80 ms | 177 ms | 150 ms |
+| Operation | Row store (before) | Columnar, desktop | Columnar, wasm (V8) | Target (desktop; web 2×) | **Typed + parallel, desktop (16 threads)** | **Typed, 1 thread (the web's)** |
+|---|--:|--:|--:|--:|--:|--:|
+| load CSV text | 995 ms | 114 ms | 286 ms | 300 ms | **11.8 ms** | 69.9 ms |
+| filter `salary > 75000` | 169 ms | 40 ms | 84 ms | 60 ms | **2.9 ms** | 12.6 ms |
+| sort by salary, descending | 3,129 ms | 182 ms | 222 ms | 250 ms | **10.2 ms** | 51.6 ms |
+| group by dept, mean | 1,418 ms | 80 ms | 127 ms | 120 ms | **4.8 ms** | 19.0 ms |
+| left join on dept | 1,424 ms | 60 ms | 121 ms | 120 ms | **3.4 ms** | 20.1 ms |
+| describe | 592 ms | 79 ms | 127 ms | 150 ms | **10.1 ms** | 28.2 ms |
+| save CSV text | 713 ms | 80 ms | 177 ms | 150 ms | **7.3 ms** | 54.4 ms |
+| load + filter + sort + group-by | | 267 ms (2026-10-15 harness) | | 1 s (plan §9.1; target 300 ms) | **22.7 ms** | 116.2 ms |
 
 (for comparison, the polars spike in V8: CSV write + read + filter + sort + group-by of 1 M rows in 320 ms.)
+
+**The engine typed and parallel** (lane DATA-ENGINE, 2026-10-15; docs/data-science-plan.md §2, the last two columns above): columns stored as `i64` / `f64` / `bool` vectors or one text buffer with offsets, a validity bitmap only where a cell is null, every buffer shared copy-on-write (`Arc`); a column is typed only when that is lossless — each cell's text is its value's own text — so a cell reads back as written and every member answers byte for byte as before (tests/frame_oracle.rs runs tens of thousands of random programs against the engine of 920c8a85). The kernels (CSV read in parallel pieces, filter, sort, group-by, hash join, describe, gathers, CSV write) work on typed slices across the cores (`std::thread::scope`; one thread under 50,000 rows and on the web). Ten million rows: the pipeline 4,395 ms → 273 ms (one thread: 1,572 ms), sort 4,646 → 142 ms. pandas 3.0.1 on the same data: load 288 ms, sort 149 ms, the pipeline 372 ms for a million rows. The suite and its table: tools/bench/ (frame_bench with the plan's budgets, the same work as a RapidR program, pandas and Polars, compare.sh).
 
 **RPLOT, as built**: the chart model draws the UI kernel's vector ops (`rapidr_value::datascience::plot` → `rapidr-ui-render`'s `chart.rs`), one renderer for every runtime: a QIMAGE's `LoadFromPlot` keeps the 1× pixels a program reads and is drawn again at the screen's scale (the bitmap's high-DPI layer), `SaveFig file, scale` writes a PNG. The same chart captured on the desktop's headless host and in the browser differs in **0 pixels** at 1× and at 2×. Before / after: the six-chart gallery and `examples/data/dataframe.rr` (category bars) — PNGs listed in the L-FRAME report.
 

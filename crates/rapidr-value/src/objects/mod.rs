@@ -253,6 +253,11 @@ pub fn create(id: &str, type_name: &str) -> bool {
     if type_name.eq_ignore_ascii_case("RFORM") && crate::mdi::is_mdi(id) {
         crate::note_made("RFORMMDI", crate::Made::Component(id.to_string()));
     }
+    // (linked data: RCSV and RDataSource are its; data sets and bound
+    // controls noted — datascience::link)
+    if crate::datascience::link::create(id, type_name) {
+        return true;
+    }
     if menu::create(id, type_name) {
         return true;
     }
@@ -1164,6 +1169,11 @@ fn ensure_printer(id: &str) {
 pub fn get(id: &str, prop: &str) -> Option<Value> {
     ensure_printer(id);
     let prop = prop.to_lowercase();
+    // (linked data: an RCSV's, an RDataSource's, an RDBGrid's —
+    // datascience::link)
+    if let Some(v) = crate::datascience::link::get(id, &prop) {
+        return Some(v);
+    }
     if d3d::exists(id) {
         return d3d::get(id, &prop);
     }
@@ -1219,6 +1229,12 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
 pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
     ensure_printer(id);
     let prop = prop.to_lowercase();
+    // (linked data: an RCSV's, an RDataSource's, an RDBGrid's own; a
+    // DataSource / DataField / Source of another component noted, and kept
+    // by the runtime too — datascience::link)
+    if let Some(r) = crate::datascience::link::set(id, &prop, val) {
+        return Some(r);
+    }
     if d3d::exists(id) {
         return d3d::set(id, &prop, val).map(Ok);
     }
@@ -1380,6 +1396,10 @@ pub fn rect_of(v: &Value, props: PropReader) -> (i64, i64, i64, i64) {
 pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option<Result<Value, String>> {
     ensure_printer(id);
     let method = method.to_lowercase();
+    // (linked data: an RCSV's, an RDataSource's — datascience::link)
+    if let Some(r) = crate::datascience::link::call(id, &method, args) {
+        return Some(r);
+    }
     if d3d::exists(id) {
         return d3d::call(id, &method, args);
     }
