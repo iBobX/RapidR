@@ -81,7 +81,7 @@ impl FileSource {
         #[cfg(not(target_arch = "wasm32"))]
         let files_ok = self.types & (1 << FT_NORMAL | 1 << FT_ARCHIVE | 1 << FT_READ_ONLY) != 0;
         #[cfg(not(target_arch = "wasm32"))]
-        if let Ok(entries) = std::fs::read_dir(&self.directory) {
+        if let Ok(entries) = std::fs::read_dir(crate::paths::host(&self.directory)) {
             for entry in entries.flatten().take(100_000) {
                 let name = entry.file_name().to_string_lossy().into_owned();
                 if name.starts_with('.') && !hidden_ok {

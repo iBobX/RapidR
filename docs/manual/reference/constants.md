@@ -72,7 +72,7 @@ Raster operations for CopyMode: how drawing a picture combines its pixels with t
 
 ## Colours
 
-Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods.
+Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods. RAPIDQ.INC also gives `QBColor(0 TO 15)`, an INTEGER array of QBasic's 16 colours in the same form (`QBColor(12)` is bright red).
 
 `clAqua` = 16776960, `clBlack` = 0, `clBlue` = 16711680, `clDkGray` = 8421504, `clFuchsia` = 16711935, `clGray` = 8421504, `clGreen` = 65280, `clLime` = 65280, `clLtGray` = 12632256, `clMaroon` = 128, `clNavy` = 8388608, `clOlive` = 32896, `clPurple` = 16711935, `clRed` = 255, `clSilver` = 12632256, `clTeal` = 8421376, `clWhite` = 16777215, `clYellow` = 65535
 

@@ -208,6 +208,15 @@ export const cases = [
     expect: ["lbl.caption=paints2|255|14737632|35|338"] },
   { name: "owner_list", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=r2 0:1;1:1;2:0; 0,48,180,72 h24"] },
+  // a TYPE's instance made where its CREATE stands inside a form's block
+  // (RC.EXE's answer: RapidQ's richedit/syntax.bas shows its editor)
+  { name: "nested_typed_create", events: "", dump: "lbl.caption,n.caption",
+    expect: ["lbl.caption=shown: form [after] note [note] 7 10", "n.caption=note"] },
+  // lbOwnerDrawVariable with no event at all (RapidQ's listbox/owndraw):
+  // measured, then drawn, before anyone touches the window
+  { name: "owner_list_variable", events: "", dump: "lbl.caption",
+    expect: ["lbl.caption=0:0-20 1:20-50 2:50-90 "],
+    pixels: [[100, 10, "00ff00"], [100, 35, "0000ff"], [100, 70, "0000ff"], [100, 100, "ffffff"]], clientWidth: 258 },
   // TextRect (a background filling the rectangle, the text clipped to it)
   // on a canvas, an image, an owner-drawn list box, grid and header section
   // and the form; Rotate on a canvas (a bar a quarter turn: up) and an

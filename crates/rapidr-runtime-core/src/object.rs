@@ -1926,7 +1926,7 @@ fn json_method(name: &str, method: &str, args: &[Value]) -> Value {
         }
         "loadfile" => {
             let filename = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            match std::fs::read_to_string(&filename) {
+            match std::fs::read_to_string(crate::value::paths::host(&filename)) {
                 Ok(text) => {
                     match serde_json::from_str::<serde_json::Value>(&text) {
                         Ok(val) => {
@@ -1952,7 +1952,7 @@ fn json_method(name: &str, method: &str, args: &[Value]) -> Value {
             JSON_STORES.with(|s| {
                 if let Some(val) = s.borrow().get(&name_lower) {
                     let pretty = serde_json::to_string_pretty(val).unwrap_or_else(|_| "{}".into());
-                    match std::fs::write(&filename, &pretty) {
+                    match std::fs::write(crate::value::paths::host(&filename), &pretty) {
                         Ok(()) => {
                             rp_comp_set(name, "filename", v_str(&filename));
                             v_int(1)
@@ -1963,7 +1963,7 @@ fn json_method(name: &str, method: &str, args: &[Value]) -> Value {
                         }
                     }
                 } else {
-                    match std::fs::write(&filename, "{}") {
+                    match std::fs::write(crate::value::paths::host(&filename), "{}") {
                         Ok(()) => v_int(1),
                         Err(e) => {
                             eprintln!("[WARN] RJSON.SaveFile() write error: {}", e);

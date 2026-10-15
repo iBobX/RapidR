@@ -45,7 +45,7 @@ impl ds::Host for Desktop {
     fn save_plot(&self, plot: &str, file: &str, scale: f64) {
         match rapidr_ui_render::chart::png(&ds::plot::state(plot), scale) {
             Ok(bytes) => {
-                if let Err(e) = std::fs::write(file, &bytes) {
+                if let Err(e) = std::fs::write(crate::value::paths::host(file), &bytes) {
                     eprintln!("[ERROR] RPlot.savefig: can't write {file}: {e}");
                 }
             }

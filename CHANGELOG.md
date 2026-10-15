@@ -7,6 +7,49 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### RapidQ's examples on macOS and Linux (CORPUS-PORT)
+- **Windows file names work on macOS and Linux.** A RapidQ program names its files as Windows does:
+  `data\notes.txt`, `Application.Path + "\save.dat"`, `OPEN.BMP` for an `open.bmp`. Off Windows a
+  `\` was part of the name and Linux told `OPEN.BMP` from `open.bmp`, so such programs found none
+  of their files (pictures missing, `Cannot open file …`). Now `\` separates folders and names are
+  found in any case, as on Windows and as the web runtime already did — for every file and folder a
+  program names (QFILESTREAM, LoadFromFile / SaveToFile, pictures, sounds, OPEN, FILEEXISTS,
+  DIREXISTS, FILELEN, DIR$, KILL, MKDIR, RMDIR, RENAME, CHDIR, QFILELISTBOX, QDIRTREE), interpreted
+  and native. A name that exists as written is taken as written. On Linux, RapidQ's examples
+  `listbox/owndraw`, `games/puzzle` and the two vector-font demos show their pictures and fonts
+  again, and six DirectX ones their models and textures (`rapidr_value::paths`, conformance case
+  `rapidq_windows_paths`, checked interpreted, native and on the web).
+- **Owner-drawn list boxes of variable height draw at once, interpreted.** A `lbOwnerDrawVariable`
+  QLISTBOX asked each item's height (OnMeasureItem), then waited for the system's next event —
+  the mouse moving over the window — before its OnDrawItem drew the items: RapidQ's
+  `listbox/owndraw` example showed plain text where its pictures belong. The handlers the
+  drawing makes due now run in the same turn (native builds and the web already did; GUI case
+  `owner_list_variable` on all three).
+- **A TYPE's component CREATEd inside a form's CREATE is made where it stands.** RapidR made such
+  instances (`CREATE RichEdit AS QREdit` inside `CREATE Form`) after the whole form block — after a
+  `ShowModal` at its end had returned, so RapidQ's `richedit/syntax` example showed an empty
+  window. Now the instance is made in its place and the block goes on after it, as RC.EXE does
+  (its form's OnShow sees the instance; GUI case `nested_typed_create`, all three runtimes).
+- **A rich edit's SelStart and SelLength count a line break as two characters**, CR LF, as its
+  Text has them — as RC.EXE's QRICHEDIT does (probe: in `"ab" CR LF "cd"` SelStart 4 is the `c`;
+  a position inside the break reads as the break's start). A position INSTR finds in Text now
+  selects that text; RapidQ's syntax-highlighting example looped forever where it counted one.
+  QEDIT and the code editor are unchanged. (Rich text formatting itself, SelAttributes, is still
+  plain text in RapidR's rich edit.)
+- **RAPIDQ.INC's `QBColor` array.** `$INCLUDE "RAPIDQ.INC"` (RapidR's built-in one) now also gives
+  `QBColor(0 TO 15)`, the INTEGER array of QBasic's 16 colours as &HBBGGRR numbers that RapidQ
+  programs index (`VoorKleur = QBColor(12)`, bright red) — its bounds, type and values as RC.EXE
+  reads them, on all three runtimes (conformance case `rapidq_qbcolor`, whose expected output is
+  RC.EXE's). Included twice, RAPIDQ.INC is given once, as RapidQ's own file guards itself.
+- **docs/rapidq-corpus-status-unix.md**: every portable RapidQ example on macOS, Linux (Ubuntu ARM)
+  and the web, interpreted and native — 114 run on the desktop with no problem on any of the four
+  (105–106 ok, the rest as RC.EXE's own builds), the web the same as the desktop; what was fixed,
+  what's left. Made by the new `tools/corpus_status.py` from the sweeps (`tools/corpus_run.py
+  --list`).
+- `tools/rc_probe.sh`: `-w` gives a run its own work folder in the Windows VM (two lanes no longer
+  copy RC.EXE over each other), and `w_*.bas` probes are GUI programs whose findings file is
+  printed.
+
 ### Release tooling: the VMs stay clean, and no console window flashes
 - `windows-vm.sh clean` and `linux-vm.sh clean` remove everything the release and smoke scripts leave
   in the VMs: the release work folder (the cargo target alone was 10 GB), the build cache, the smoke

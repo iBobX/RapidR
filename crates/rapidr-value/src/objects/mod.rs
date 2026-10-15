@@ -123,12 +123,14 @@ enum Object {
 pub type FileReader = fn(&str) -> Result<Vec<u8>, String>;
 pub type FileWriter = fn(&str, &[u8]) -> Result<(), String>;
 
+// (a RapidQ program's names, `data\Notes.txt` in any case, found as on
+// Windows: crate::paths)
 fn std_read(path: &str) -> Result<Vec<u8>, String> {
-    std::fs::read(path).map_err(|e| format!("can't read {path}: {e}"))
+    std::fs::read(crate::paths::host(path)).map_err(|e| format!("can't read {path}: {e}"))
 }
 
 fn std_write(path: &str, bytes: &[u8]) -> Result<(), String> {
-    std::fs::write(path, bytes).map_err(|e| format!("can't write {path}: {e}"))
+    std::fs::write(crate::paths::host(path), bytes).map_err(|e| format!("can't write {path}: {e}"))
 }
 
 thread_local! {
@@ -1953,7 +1955,7 @@ fn open_file(id: &str, path: &str, mode: i64) -> Result<Value, String> {
         if create {
             options.create(true).truncate(true);
         }
-        Some(options.open(path).map_err(|_| crate::exception(&format!("Cannot {} file {path}.", if create { "create" } else { "open" })))?)
+        Some(options.open(crate::paths::host(path)).map_err(|_| crate::exception(&format!("Cannot {} file {path}.", if create { "create" } else { "open" })))?)
     } else {
         None
     };

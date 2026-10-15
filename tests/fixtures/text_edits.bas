@@ -27,7 +27,7 @@ SUB Go
   S$ = Ed.SelText
   Ed.SelText = "EY"
   Re.Line(0) = "ONE"
-  Re.SelStart = 4: Re.SelLength = 3
+  Re.SelStart = 5: Re.SelLength = 3
   T$ = Re.SelText
   Re.SelText = "2"
   Lbl.Caption = Lbl.Caption + "|" + S$ + "|" + Ed.Text + "|" + STR$(Ed.SelStart) + "|" + T$ + "|" + Re.Line(0) + "|" + Re.Line(1) + "|" + STR$(LEN(Re.Text)) + "|" + STR$(Re.Modified) + "|" + STR$(Re.WhereY)

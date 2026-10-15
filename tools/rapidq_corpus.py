@@ -105,6 +105,28 @@ NOT_RAPIDQ = {
 }
 
 
+def find_any_case(folder, relative):
+    """`folder/relative` in any case, as Windows finds it (the same
+    classification on a case-sensitive Linux as on macOS), or None."""
+    cur = folder
+    for part in relative.split("/"):
+        if part in ("", "."):
+            continue
+        if part == "..":
+            cur = os.path.dirname(cur)
+            continue
+        nxt = os.path.join(cur, part)
+        if not os.path.exists(nxt):
+            try:
+                nxt = next((os.path.join(cur, e) for e in os.listdir(cur) if e.lower() == part.lower()), None)
+            except OSError:
+                nxt = None
+            if nxt is None:
+                return None
+        cur = nxt
+    return cur if os.path.isfile(cur) else None
+
+
 def program_text(path):
     """A program's source and its own includes (next to it), not RapidQ's."""
     try:
@@ -113,8 +135,11 @@ def program_text(path):
         return ""
     texts = [src]
     for inc in INCLUDE_RE.findall(src):
-        local = os.path.join(os.path.dirname(path), inc.replace("\\", "/"))
-        if os.path.isfile(local):
+        # (the author's own path, `C:\Rapidq\examples\QTButton\x.inc`: its
+        # ever shorter endings, as the compiler looks — next to the program)
+        parts = [p for p in re.sub(r"^[A-Za-z]:", "", inc.replace("\\", "/")).split("/") if p]
+        local = next((f for f in (find_any_case(os.path.dirname(path), "/".join(parts[i:])) for i in range(len(parts))) if f), None)
+        if local:
             try:
                 texts.append(open(local, encoding="latin-1").read())
             except OSError:

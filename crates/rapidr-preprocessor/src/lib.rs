@@ -144,6 +144,10 @@ struct PpState {
     /// RapidR's libraries put before the program (`RAPIDR_LIBRARIES`' file
     /// names, upper case): their RapidQ include files aren't read.
     libraries: Vec<String>,
+    /// The built-in RAPIDQ.INC has been given: a second `$INCLUDE` of it
+    /// gives nothing (RapidQ's file guards itself so; its QBColor array
+    /// can't be declared twice).
+    rapidq_inc_given: bool,
     /// Every file read so far (the origin map's files).
     files: Vec<SourceFile>,
     /// Every `$INCLUDE` followed so far ([`PreprocessResult::includes`]).
@@ -176,6 +180,7 @@ impl PpState {
             object_fields: None,
             create_depth: 0,
             libraries: Vec::new(),
+            rapidq_inc_given: false,
             files: Vec::new(),
             includes: Vec::new(),
             follow_includes: true,
@@ -939,7 +944,12 @@ fn preprocess_with_state(
                     // its constants when the file isn't next to the program.
                     if let Some(builtin) = builtin_include(&include_file) {
                         state.includes.push(record(IncludeFound::BuiltIn));
-                        emit!(out, LineKind::Directive, generated(builtin));
+                        let rapidq_inc = include_file.rsplit(['/', '\\']).next().is_some_and(|n| n.eq_ignore_ascii_case("RAPIDQ.INC"));
+                        if rapidq_inc && std::mem::replace(&mut state.rapidq_inc_given, true) {
+                            emit!(out, LineKind::Directive, blank());
+                        } else {
+                            emit!(out, LineKind::Directive, generated(builtin));
+                        }
                         continue;
                     }
                     state.includes.push(record(IncludeFound::Missing));
@@ -1058,7 +1068,8 @@ pub type LineOrigin = (Option<PathBuf>, usize);
 ///
 /// Every entry is a name and a number: an interface fact that existing
 /// programs depend on, kept so that they run unchanged. Nothing else of
-/// RapidQ's file is reproduced — no comments, layout or order. The entries
+/// RapidQ's file is reproduced — no comments, layout or order — but the
+/// `QBColor` array's facts ([`RAPIDQ_INC_QBCOLOR`]). The entries
 /// are grouped here by where each number is publicly defined, alphabetically
 /// within a group, and each group says its source (docs/legal/rapidq-review.md,
 /// "RAPIDQ.INC"). Colours are &HBBGGRR numbers, as RapidR's runtimes use them;
@@ -1296,14 +1307,25 @@ fn builtin_include(include_file: &str) -> Option<String> {
     if !name.eq_ignore_ascii_case("RAPIDQ.INC") {
         return None;
     }
-    Some(
-        RAPIDQ_INC_CONSTANTS
-            .iter()
-            .map(|(name, value)| format!("CONST {name} = {value}"))
-            .collect::<Vec<_>>()
-            .join(" : "),
-    )
+    let mut stmts: Vec<String> = RAPIDQ_INC_CONSTANTS.iter().map(|(name, value)| format!("CONST {name} = {value}")).collect();
+    // (the QBColor array RAPIDQ.INC also gives: RC.EXE reads QBColor(0 TO 15)
+    // AS INTEGER — LBOUND 0, UBOUND 15, assignable, a store truncated as an
+    // INTEGER's — holding RAPIDQ_INC_QBCOLOR)
+    stmts.push("DIM QBColor(0 TO 15) AS INTEGER".into());
+    stmts.extend(RAPIDQ_INC_QBCOLOR.iter().enumerate().map(|(i, v)| format!("QBColor({i}) = {v}")));
+    Some(stmts.join(" : "))
 }
+
+/// The values of RAPIDQ.INC's `QBColor` array: QBasic's 16 colours, as
+/// &HBBGGRR numbers — black, blue, green, cyan, red, magenta, brown (dark
+/// yellow), light grey, dark grey, then the bright blue, green, cyan, red,
+/// magenta, yellow and white. The palette is QBasic's (the same RGB values
+/// Visual Basic's documented QBColor function returns); RC.EXE's
+/// `QBColor(i)` reads these numbers (probe qbcolor.bas, 2026-10-15).
+pub const RAPIDQ_INC_QBCOLOR: [i64; 16] = [
+    0x000000, 0x800000, 0x008000, 0x808000, 0x000080, 0x800080, 0x008080, 0xC0C0C0, //
+    0x808080, 0xFF0000, 0x00FF00, 0xFFFF00, 0x0000FF, 0xFF00FF, 0x00FFFF, 0xFFFFFF,
+];
 
 /// What `$INCLUDE "RAPIDQ.INC"` gives when no such file is found: the
 /// constants of [`RAPIDQ_INC_CONSTANTS`], as one line of BASIC.

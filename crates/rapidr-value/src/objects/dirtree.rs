@@ -87,7 +87,7 @@ pub fn canonical(path: &Path) -> Option<PathBuf> {
 impl DirTree {
     /// Selects `dir` (if it exists), opening the directories above it.
     pub fn go_to(&mut self, dir: &str) -> bool {
-        let path = PathBuf::from(dir.replace('\\', "/"));
+        let path = crate::paths::host(&dir.replace('\\', "/"));
         let path = if path.is_absolute() { path } else { std::env::current_dir().unwrap_or_default().join(path) };
         let path = canonical(&path).unwrap_or(path);
         if !cfg!(target_arch = "wasm32") && !path.is_dir() {

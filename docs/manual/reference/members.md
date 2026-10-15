@@ -798,7 +798,7 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
 | `ReadOnly` | bool | False | Stops the user changing the text or items; they can still select and copy. |
 | `SelLength` | int |  | The number of characters selected. |
-| `SelStart` | int |  | Where the selection starts: a character offset from 0 in text, the start of a track bar's highlighted range. |
+| `SelStart` | int |  | Where the selection starts: a character offset from 0 in Text (a line break counts as the characters Text has for it: two, CR LF, in a rich edit or memo, as RapidQ counts them; so a position INSTR finds in Text selects that text), the start of a track bar's highlighted range. |
 | `SelText` | string |  | The selected text; setting it replaces the selection. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
@@ -1056,7 +1056,7 @@ A multi-line text editor with fonts, colours and alignment per selection, that l
 | `ScrollBars` | enum | `ssNone` | Which scroll bars show: `ssNone`, `ssHorizontal`, `ssVertical` or `ssBoth`. |
 | `SelAttributes` (write-only) | font |  | The font of the selected text, or of what's typed next; write-only. |
 | `SelLength` | int |  | The number of characters selected. |
-| `SelStart` | int |  | Where the selection starts: a character offset from 0 in text, the start of a track bar's highlighted range. |
+| `SelStart` | int |  | Where the selection starts: a character offset from 0 in Text (a line break counts as the characters Text has for it: two, CR LF, in a rich edit or memo, as RapidQ counts them; so a position INSTR finds in Text selects that text), the start of a track bar's highlighted range. |
 | `SelText` | string |  | The selected text; setting it replaces the selection. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
@@ -1320,7 +1320,7 @@ A slider: the user drags its thumb to pick a Position between Min and Max, along
 | `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
 | `Position` | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
 | `SelEnd` | int |  | The end of the track bar's highlighted range. |
-| `SelStart` | int |  | Where the selection starts: a character offset from 0 in text, the start of a track bar's highlighted range. |
+| `SelStart` | int |  | Where the selection starts: a character offset from 0 in Text (a line break counts as the characters Text has for it: two, CR LF, in a rich edit or memo, as RapidQ counts them; so a position INSTR finds in Text selects that text), the start of a track bar's highlighted range. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
 | `TickMarks` | enum | `tmBottomRight` | Where the track bar's ticks go: `tmBottomRight`, `tmTopLeft` or `tmBoth`. |
@@ -1370,7 +1370,7 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `ReadOnly` | int |  | Stops the user changing the text or items; they can still select and copy. |
 | `WordWrap` | int |  | Long lines break at the view's width (Alt+Z turns it on and off). |
-| `SelStart` | int |  | Where the selection starts: a character offset from 0 in text, the start of a track bar's highlighted range. |
+| `SelStart` | int |  | Where the selection starts: a character offset from 0 in Text (a line break counts as the characters Text has for it: two, CR LF, in a rich edit or memo, as RapidQ counts them; so a position INSTR finds in Text selects that text), the start of a track bar's highlighted range. |
 | `SelLength` | int |  | The number of characters selected. |
 | `SelText` | string |  | The selected text; setting it replaces the selection. |
 | `Line` | string |  | A line of the text, `Line(i)` from 0. |
