@@ -7,6 +7,39 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Linked data, live in the designer (DATA-ARCH, I7 phase 1)
+- **The plan**: [docs/data-science-plan.md](docs/data-science-plan.md) — the columnar engine, sources as
+  linked components (CSV, JSON, Excel, Parquet, Arrow, Avro, Delta Lake, SQLite, MySQL, PostgreSQL /
+  Redshift, SQL Server, S3 / Azure), data-aware components, the BASIC API, the web's limits, the licence
+  of every crate, performance budgets and a benchmark suite against pandas and Polars, the registry for
+  IntelliSense / MCP, phases with sizes.
+- **RCSV** (new): a CSV file as a data source — `FileName`, `Delimiter` (`,` `;` tab `|` …),
+  `HasHeader`, `Text`; `RowCount`, `ColCount`, `Columns`, `Error`; `Load`, `Save [file]`, `Clear`;
+  `OnLoad`, `OnError(Message)`. Read once, when its table is first needed; a relative file is found in
+  the current folder or beside the program.
+- **RDataFrame.Source** (an RCSV, an RJson's records, another RDataFrame): the frame takes the rows at
+  once and again whenever the source changes; `RDataFrame.Refresh`.
+- **RJson's records are a data source** (`[{…}]`, JSON Lines, columns) — taken again when the
+  document changes.
+- **RDataSource** (new): a current row shared by the controls bound to it — `DataSet`, `Row`,
+  `RecordCount`, `EOF` / `BOF` (Delphi's: `WHILE NOT DS.EOF … DS.Next WEND`), `Enabled`, `State`;
+  `First`, `Prior`, `Next`, `Last`, `MoveBy`, `Field(name)`, `SetField`, `Refresh`; `OnDataChange`.
+- **RDBGrid** (new): a grid drawn by the UI kernel straight from a data set's frame, only the rows on
+  screen (a million rows scroll smoothly): headings, row numbers, numbers right-aligned, a missing
+  value dimmed as `null`, the current row (click, arrows, Page Up / Down, Home / End), a heading's click
+  sorts the grid's view (the data unchanged), `OnCellClick(Row, Col)`, `OnTitleClick(Col)`; a grid for
+  screen readers. Pixel-identical on the desktop and the web.
+- **`DataSource` + `DataField` on REdit and RLabel** (RapidR's own, additive): the current row's
+  field; what the user types in a bound edit goes back into the table.
+- **Live in RapidR Studio's designer**: the designed form's RCSV / RJson / RDataFrame / RDataSource are
+  read by the designer itself (files inside the project only, read-only, cached), so grids, edits and
+  labels show the real data while you design; RCSV is in the toolbox's Data group, with the data
+  file's icon.
+- One model for every runtime (`rapidr_value::datascience::link`): native builds, the interpreter, the
+  web and the designer. Registry entries for every member (IntelliSense, the manual, MCP).
+- Examples: `data/linked_data.rr`, `data/million_rows.rr`, `data/json_source.rr` (on Studio's
+  Welcome page); the manual's new chapter **Data science with RapidR**, with screenshots.
+
 ## [2.118.0] — 2026-10-09 (Preview)
 
 ### Triage of the full regression run (TRIAGE)

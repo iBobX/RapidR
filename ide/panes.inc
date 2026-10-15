@@ -96,6 +96,9 @@ SUB FillExamples
   AddStart 4, "view.commandPalette", "All Commands"
   ExampleCount = 0
   AddExample "data/csv_explorer.rr", "Drop a CSV, see it charted"
+  AddExample "data/linked_data.rr", "CSV, grid and edits, linked"
+  AddExample "data/million_rows.rr", "A million rows, analysed"
+  AddExample "data/json_source.rr", "JSON records in a grid"
   AddExample "gui/hello_form.rr", "A form, a button, its OnClick"
   AddExample "gui/menus.rr", "Main and pop-up menus"
   AddExample "gui/dialogs.rr", "Open, save, colour, font"
@@ -104,9 +107,6 @@ SUB FillExamples
   AddExample "data/dataframe.rr", "A data frame and a chart"
   AddExample "rapidq/notepad.bas", "A program in RapidQ's style"
   AddExample "basics/hello.rr", "PRINT, FOR, SUB, FUNCTION"
-  AddExample "data/linked_data.rr", "CSV, grid and edits, linked"
-  AddExample "data/million_rows.rr", "A million rows, analysed"
-  AddExample "data/json_source.rr", "JSON records in a grid"
   LayOutWelcome
 END SUB
 
