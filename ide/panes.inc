@@ -105,6 +105,8 @@ SUB FillExamples
   AddExample "rapidq/notepad.bas", "A program in RapidQ's style"
   AddExample "basics/hello.rr", "PRINT, FOR, SUB, FUNCTION"
   AddExample "data/linked_data.rr", "CSV, grid and edits, linked"
+  AddExample "data/million_rows.rr", "A million rows, analysed"
+  AddExample "data/json_source.rr", "JSON records in a grid"
   LayOutWelcome
 END SUB
 

@@ -1,0 +1,118 @@
+' million_rows.rr: a million rows, analysed at once — RapidR's data
+' frames are columnar and multithreaded, and an RDBGrid draws only the rows
+' on screen, so a big table stays quick and smooth.
+'
+'   rapidr run million_rows.rr [rows]
+'
+' The first run writes big.csv (made-up staff: id, department, salary,
+' years — 1,000,000 rows, about 25 MB; a few seconds); every run reads it
+' with an RCSV, gives its rows to an RDataFrame (Source) and shows them in
+' an RDBGrid — scroll it, click a heading to sort the view. The buttons
+' filter, sort and group the whole million and say how long it took.
+' Pass another number of rows to try more or fewer (delete big.csv first).
+
+DECLARE SUB HighEarners
+DECLARE SUB SortBySalary
+DECLARE SUB ByDepartment
+DECLARE SUB AllRows
+DECLARE SUB Took(What AS STRING, Started AS DOUBLE)
+DECLARE SUB WriteData
+
+DIM Rows AS LONG
+Rows = VAL(COMMAND$(1))
+IF Rows <= 0 THEN Rows = 1000000
+
+CREATE Form AS RForm
+    Caption = "A million rows"
+    Width = 640
+    Height = 480
+    Center
+    CREATE Big AS RCSV
+    END CREATE
+    CREATE Staff AS RDataFrame
+    END CREATE
+    CREATE HighBtn AS RButton
+        Caption = "Salary > 100,000": Left = 10: Top = 10: Width = 130
+        OnClick = HighEarners
+    END CREATE
+    CREATE SortBtn AS RButton
+        Caption = "Sort by salary": Left = 146: Top = 10: Width = 120
+        OnClick = SortBySalary
+    END CREATE
+    CREATE GroupBtn AS RButton
+        Caption = "Mean by department": Left = 272: Top = 10: Width = 150
+        OnClick = ByDepartment
+    END CREATE
+    CREATE AllBtn AS RButton
+        Caption = "All rows": Left = 428: Top = 10: Width = 90
+        OnClick = AllRows
+    END CREATE
+    CREATE Grid AS RDBGrid
+        Left = 10: Top = 44: Width = 610: Height = 360
+        DataSource = Staff
+    END CREATE
+    CREATE Status AS RLabel
+        Left = 10: Top = 416: Width = 610
+    END CREATE
+END CREATE
+
+' How long something took, in the status line.
+SUB Took(What AS STRING, Started AS DOUBLE)
+    Status.Caption = What + ": " + STR$(Staff.RowCount) + " rows in " + STR$(INT((TIMER - Started) * 1000)) + " ms"
+END SUB
+
+SUB HighEarners
+    DIM t AS DOUBLE
+    t = TIMER
+    Staff.Filter "salary", ">", 100000
+    Took "Salary > 100,000", t
+END SUB
+
+SUB SortBySalary
+    DIM t AS DOUBLE
+    t = TIMER
+    Staff.Sort "salary", 0
+    Took "Sorted by salary, highest first", t
+END SUB
+
+SUB ByDepartment
+    DIM t AS DOUBLE
+    t = TIMER
+    Staff.Select "dept,salary,years"
+    Staff.GroupBy "dept", "mean"
+    Took "Mean salary and years by department", t
+END SUB
+
+SUB AllRows
+    DIM t AS DOUBLE
+    t = TIMER
+    Staff.Refresh
+    Took "All rows", t
+END SUB
+
+' The data: made-up staff, written once (a pseudo-random sequence, the
+' same every time).
+SUB WriteData
+    DIM i AS LONG, x AS LONG, t AS DOUBLE
+    DIM depts(4) AS STRING
+    depts(0) = "Engineering": depts(1) = "Sales": depts(2) = "Marketing": depts(3) = "Support": depts(4) = "Finance"
+    t = TIMER
+    OPEN "big.csv" FOR OUTPUT AS #1
+    PRINT #1, "id,dept,salary,years"
+    x = 12345
+    FOR i = 0 TO Rows - 1
+        x = (x * 1103 + 12345) MOD 1000003
+        PRINT #1, STR$(i) + "," + depts(x MOD 5) + "," + STR$(30000 + (x MOD 90000)) + "," + STR$(x MOD 40)
+    NEXT
+    CLOSE #1
+    PRINT "big.csv written: " + STR$(Rows) + " rows in " + STR$(INT((TIMER - t) * 1000)) + " ms"
+END SUB
+
+IF FILEEXISTS("big.csv") = 0 THEN WriteData
+DIM Loaded AS DOUBLE
+Loaded = TIMER
+Big.FileName = "big.csv"
+Staff.Source = Big
+Took "Read big.csv", Loaded
+PRINT Status.Caption
+Form.ShowModal

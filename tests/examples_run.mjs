@@ -152,6 +152,24 @@ export const cases = [
     events: "engbtn.onclick,lastbtn.onclick",
     dump: "nameedit.text,status.caption,grid.rowcount",
     expect: ["nameedit.text=Eduardo", "status.caption=Row 3 of 3", "grid.rowcount=3"] },
+  // (I7: JSON records as a data source — a product picked, the bound edits
+  // and label follow; grouped by category)
+  { file: "data/json_source.rr", runtimes: ["run", "interp", "native", "web"],
+    events: "grid.__cell_0_4",
+    dump: "status.caption,nameedit.text,stockedit.text,price.caption,grid.rowcount",
+    expect: ["status.caption=Calculator (Electronics)", "nameedit.text=Calculator", "stockedit.text=40", "price.caption=12.5", "grid.rowcount=12"] },
+  { file: "data/json_source.rr", runtimes: ["run", "interp", "native", "web"],
+    events: "groupbtn.onclick,grid.__cell_0_2",
+    dump: "status.caption,grid.rowcount,price.caption,stockedit.text",
+    expect: ["status.caption=School: 553 in stock", "grid.rowcount=4", "price.caption=28.85", "stockedit.text=553"] },
+  // (I7: a big table — 20,000 rows here to keep the suite quick; the
+  // example's own default is a million)
+  { file: "data/million_rows.rr", runtimes: ["run", "interp", "native", "web"], args: ["20000"],
+    events: "highbtn.onclick", dump: "grid.rowcount,grid.columns",
+    expect: ["grid.rowcount=4383", "grid.columns=id,dept,salary,years"] },
+  { file: "data/million_rows.rr", runtimes: ["run", "interp", "native", "web"], args: ["20000"],
+    events: "groupbtn.onclick,grid.__cell_0_1", dump: "grid.rowcount,grid.columns,grid.row",
+    expect: ["grid.rowcount=5", "grid.columns=dept,salary,years", "grid.row=1"] },
   // network/ (the tests' own server, local)
   { file: "network/http_json.rr", runtimes: ["run", "interp", "native", "web"], args: ["{http}/examples/network/forecast.json"],
     expect: ["Forecast for Harbour Town (updated 2026-10-06 06:00)", "  Tuesday   10 to 15 C, showers", "Warmest: Monday"] },

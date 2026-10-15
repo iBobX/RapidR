@@ -537,9 +537,13 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
             return None;
         }
         // (the designer's: an RJSON's FileName, read as a source)
-        ("RJSON", "filename") if surface_of(&id).is_some() => {
+        // (an RJSON's FileName: its records read again — the designer's
+        // from the file; a program's through its document, else the file)
+        ("RJSON", "filename") => {
             with(|s| {
-                s.json_file.insert(id.clone(), text.trim().to_string());
+                if surface_of(&id).is_some() {
+                    s.json_file.insert(id.clone(), text.trim().to_string());
+                }
                 s.json_stale.insert(id.clone(), true);
             });
             mark();
@@ -729,7 +733,7 @@ fn ensure_at(id: &str, depth: u8) {
 /// then where the engine looks: `frame::read_text`), else beside the
 /// program (`rapidr run data/app.rr` reads `data/people.csv` for
 /// "people.csv", as the designer does).
-fn read_beside(file: &str) -> Result<String, String> {
+pub fn read_beside(file: &str) -> Result<String, String> {
     match frame::read_text(file) {
         Ok(t) => Ok(t),
         Err(e) => {

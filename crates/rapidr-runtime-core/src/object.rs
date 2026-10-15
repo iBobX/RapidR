@@ -1860,7 +1860,7 @@ pub(crate) fn json_document(name: &str) -> Option<String> {
     if file.trim().is_empty() {
         return None;
     }
-    rapidr_value::objects::read_file(file.trim()).ok().map(|b| String::from_utf8_lossy(&b).into_owned())
+    rapidr_value::datascience::link::read_beside(file.trim()).ok()
 }
 
 fn json_method(name: &str, method: &str, args: &[Value]) -> Value {
