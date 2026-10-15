@@ -2,6 +2,8 @@
 
 Stage I8 of [docs/ide-plan.md](ide-plan.md), and the base of ROADMAP Phase 5's `RAI` component. Status: planned (2026-10-05).
 
+**AI-ready by design (2026-10-15):** what every registry entry carries for AI (semantics, types, ranges, effects and the risk they carry, examples, availability) and its completeness checker, the **one introspection / command interface** every component answers at design time and at run time (`describe` / `list` / `get` / `set` / `call` / `create` / `connect` / `destroy` / `subscribe`, transactions, previews), RAI's tool calling and the permission model built on the registry's risk levels are designed in [docs/ai-architecture.md](ai-architecture.md), which wins where the two differ. This document stays the reference for the provider layer (§2), keys (§3), the MCP transports (§4.1), the assistant (§5) and data levels (§6).
+
 What the user asked for, in short: an MCP server inside the IDE, started and stopped from the IDE, exposing everything as tools, which external agents (Claude Code, Claude Desktop, any MCP client) can use too; a floating AI button, shown when AI is configured, opening an assistant that uses the same tools; changes previewed as diffs before they apply; permission levels (ask before edits, ask before running); many providers through one layer over plain HTTPS with our own client and no vendor SDKs; API keys in the OS keychain, never in projects; AI opt-in and transparent; the same layer as `RAI` in users' programs; AI able to drive the editor component in users' own products; and the data-science stack reachable by AI with privacy levels.
 
 ---
@@ -73,15 +75,15 @@ Rules: keys are never written to `.rrproj`, workspace files, bundles, executable
 
 ### 4.2 Tools
 
-Each component offers its tools (a tool provider: name, description, JSON schema, read-only or mutating, the implementation); the server lists the union for the open project. Tools land with their stages.
+Components are reached through **one generic interface** generated from the registry (docs/ai-architecture.md §3–4: a few tools whose schemas come from `describe`, the same at design time and on the running program); components with richer verbs add a tool provider on top (name, description, JSON schema, risk, the implementation). The server lists the union for the open project. Tools land with their stages.
 
 | Group | Tools | Kind | Stage |
 |---|---|---|---|
 | Project | `project_info`, `list_files`, `read_file`, `search` (text / regex), `outline`, `find_symbol`, `references`, `diagnostics`, `lookup_docs` (the registry) | read | I0–I3 |
 | Edit | `propose_edit` (unified diff or range edits; diff-previewed), `create_file`, `rename_symbol` (through the language service), `format_file` | mutating | I2–I3 |
-| Forms | `list_forms`, `describe_form` (components, properties, links), `add_component`, `remove_component`, `set_property` (also component links), `align`, `add_handler` (creates the SUB, wires the event), `move_component` | read / mutating | I4 |
+| Components (the interface) | `rapidr_describe`, `rapidr_list`, `rapidr_get`; `rapidr_set` (also component links), `rapidr_create`, `rapidr_connect` (a link, or an event's handler: creates the SUB, wires the event), `rapidr_destroy`, `rapidr_call` (designer verbs: align, z-order, Tab order …; methods on the running program); `rapidr_preview`, `rapidr_commit`, `rapidr_rollback`, `rapidr_undo` | read / mutating, each with the registry's risk | I4 (design time), I5 (running program) — ai-architecture.md §7 |
 | Run | `build` (target), `run`, `stop`, `program_output`, `program_state` | mutating (asks per tier) | I1 |
-| Running program | `app_tree` (the accessibility tree as JSON), `app_screenshot`, `app_click`, `app_type`, `app_select` (through the session's input) | read / mutating | I5 |
+| Running program | `app_tree` (the accessibility tree as JSON), `app_screenshot`, `app_click`, `app_type`, `app_select` (through the session's input) — for what the interface doesn't reach (drawn content, a person's view) | read / mutating | I5 |
 | Debug | `set_breakpoint`, `remove_breakpoint`, `continue`, `step_in`, `step_over`, `step_out`, `pause`, `stack`, `variables`, `evaluate` | mutating | I6 |
 | Data | `data_sources` (the form's sources and transforms), `data_schema`, `data_sample(n)`, `data_stats(columns)`, `data_query` (read-only SQL on a connection, or a transform pipeline spec on a frame, run locally with limits), `data_build_pipeline` (creates / updates sources, transforms and links as a CREATE-block diff), `plot_build` / `plot_update` (an RPlot and its links), `plot_snapshot` (an image for multimodal models) | read / mutating; all subject to §6 | I7 |
 | IDE | `open_document`, `show_message`, `get_selection` | read | I1 |
@@ -105,6 +107,8 @@ Results are compact JSON with stable ids (component names, file paths, `file:lin
 | Full | yes | applied, checkpointed | runs **sandboxed**: no network, files only inside the project, a time limit | yes | per data level |
 
   Always asks, whatever the tier: building or running a "native-privileged" project (`RUSTSTART`, `DECLARE … LIB`; SEC-10), network access for an AI-started run, writing outside the project, installing anything, changing IDE settings (no tool can), deleting files.
+
+  The tiers are expressed in the registry's risk levels (`read` < `ui` < `state` < `external` < `irreversible` < `system`, derived from each entry's `effects`): docs/ai-architecture.md §5.2 has the full matrix, the run-time tiers (Observe / Operate / Act) and what confirmations show.
 - **Quick actions**: "Fix with AI" on a diagnostic, "Explain this error" on a runtime error stop, "Generate a form" from a description or a screenshot (multimodal providers), "Explain this code" on a selection.
 - **Accessibility**: the conversation is a list of messages with roles; streaming text in a polite live region (announced at sentence boundaries, not per token); diffs readable as text; every action keyboard-reachable.
 
@@ -148,7 +152,7 @@ Assets: the user's source code and data, API keys, the machine (files, network, 
 | Malicious extension using AI | An extension invoking tools beyond its permissions | Extensions' tools run with the extension's capabilities; `ai.tools` is a separate permission; extensions can't call the MCP server as a client |
 | Supply chain | A dependency added for AI | Permissive-licence and advisory checks (`cargo deny`), no vendor SDKs, small own implementations |
 
-This section is folded into ROADMAP Phase 6's `docs/THREAT_MODEL.md` when that is written.
+The threats of the introspection interface, RAI and running programs (injection through the running app, confused deputies across design and run time, secrets in property values, unattended modal calls, registry entries whose effects are wrong, spoofed confirmations) are in docs/ai-architecture.md §5.10 (T1–T14), with their tests. This section is folded into ROADMAP Phase 6's `docs/THREAT_MODEL.md` when that is written.
 
 ---
 
@@ -157,6 +161,7 @@ This section is folded into ROADMAP Phase 6's `docs/THREAT_MODEL.md` when that i
 - **`RAI`** (ROADMAP Phase 5) is `rapidr-ai` as a component: `Provider`, `Model`, `Endpoint` (a proxy for shipped apps) or a key from `RKeychain` / the environment (never a literal), `System`, `Ask(Text)`, streaming events (`OnToken`, `OnResponse`), tool calling (`'@tool` SUBs, `OnToolCall` veto, per-turn caps, `AI.Log`).
 - **Components as tools**: `AI.AttachComponent Editor1, "edit"` gives the model RCodeEditor's tools (read text / selection, find, propose edits shown in an RDiffView or applied after `OnToolCall`), `AI.AttachComponent Designer1, "design"` the form designer's, `AI.AttachData Sales, "schema"` a data source's (with the §6 levels as `DataAccess`), and so on. So the AI can drive the editor in a user's own product exactly as it drives the IDE's — the same code.
 - **The running app as tools** (Phase 5): the form's accessibility tree as JSON with `AIVisible` / `AIActions`, read-only by default.
+- **How (docs/ai-architecture.md §4.3):** RAI's tools are the introspection interface's run-time side restricted to what the author exposed — nothing until `AI.Expose Grid1, "read,ui,state"` (or `AIVisible = True` with `AIActions`); each call's risk (the registry's) must be within the component's actions; `irreversible` also needs `OnToolCall` to allow it, and `system` (SHELL, DLL calls) is never offered to a model at run time. `set` takes typed values, never BASIC text.
 - **An MCP server in users' programs**: `RMCPServer` ([docs/ide-components.md](ide-components.md) §3.9) with the same transports, token and checks.
 
 ---

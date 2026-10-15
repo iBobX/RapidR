@@ -7,6 +7,29 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### AI-ready by design (AI-ARCH, phase 0)
+- **The design**: [docs/ai-architecture.md](docs/ai-architecture.md) — what every language-registry entry
+  carries for AI (meaning, types, ranges and units, side effects and the risk level they give,
+  examples, where it runs, secrets), one introspection / command interface answered alike by the
+  project's source in RapidR Studio and by the running program (describe, list, get, set, call,
+  create, connect, destroy, subscribe, transactions with previews, undo), `rapidr mcp` and RAI on
+  top of it, permission tiers on the risk levels, prompt-injection defences, a threat model, phases
+  and acceptance tests. docs/ide-ai.md points to it where they meet.
+- **The registry's AI facets**: `effects` (none, ui, wait, state, clipboard, file-read, network,
+  device, registry, db-read, file-write, db-write, printer, exit, process, native), `risk`, `range`,
+  `unit`, `example` and `secret`, checked by the registry's build like every other key; ranges and
+  units for the commonest properties by name; RButton, `MID$`, `KILL` and `SHELL` complete as the
+  reference entries; RMySQL's `Password` never shown to an AI. `rapidr lang export --json` carries
+  them, and the AI prompt marks what reaches outside the program (`[file-write]`).
+- **`rapidr lang ai-check`** lists every entry lacking a facet (`--summary`, `--json`, `--strict`
+  exits 1 when anything is missing; without it, a report): 2,437 of 4,360 entries complete today.
+- **`rapidr-introspect`** (new crate, wasm-safe): the interface's protocol and its read side at
+  design time — `describe` (every facet, a JSON Schema per value), `list` (ids are the components'
+  own names, qualified only when two share one; paged; a revision that follows the source) and
+  `get` (typed values with where they come from and their line; secrets redacted) — behind the
+  cargo feature `design`; `rapidr introspect FILE…` only in a CLI built with
+  `--features ai-introspect`. Nothing in Studio or the default CLI uses it yet.
+
 ## [2.118.0] — 2026-10-09 (Preview)
 
 ### Triage of the full regression run (TRIAGE)

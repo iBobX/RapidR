@@ -1,7 +1,9 @@
 //! Compiles data/*.toml into static tables ($OUT_DIR/registry.rs), checking
 //! everything a table can't: names unique, types known, enum values and
 //! constant defaults real constants, parameter lists well formed, default
-//! events real events, sets defined. A mistake in the data fails the build
+//! events real events, sets defined, the AI facets' vocabularies (effects,
+//! risk levels, units, the range grammar and the properties a range names:
+//! docs/ai-architecture.md §2.2). A mistake in the data fails the build
 //! with the file and the entry.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -12,6 +14,10 @@ use std::path::{Path, PathBuf};
 use toml::{Table, Value};
 
 type Res<T> = Result<T, String>;
+
+// The AI facets' vocabularies (EFFECT_NAMES, EFFECT_RISK, RISK_NAMES, UNITS),
+// shared with the library's src/ai.rs.
+include!("src/ai_vocab.rs");
 
 fn main() {
     let dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap()).join("data");
@@ -104,6 +110,96 @@ fn runtimes(t: &Table, at: &str) -> Res<String> {
     }
 }
 
+// --- the AI facets (docs/ai-architecture.md §2.2) ------------------------------------
+
+/// A vocabulary word as its enum variant: `file-read` → `FileRead`.
+fn variant(word: &str) -> String {
+    word.split('-')
+        .map(|w| {
+            let mut c = w.chars();
+            c.next().map(|f| f.to_ascii_uppercase().to_string() + c.as_str()).unwrap_or_default()
+        })
+        .collect()
+}
+
+/// `effects = [...]`: the code of the list (`&[Effect::FileWrite]`) and the
+/// highest risk among them (an index in RISK_NAMES), `None` when not given.
+fn effects(t: &Table, at: &str) -> Res<(String, Option<u8>)> {
+    let names = strs(t, "effects", at)?;
+    if names.is_empty() {
+        if t.contains_key("effects") {
+            return Err(format!("{at}: `effects` is empty (say [\"none\"] for no effect)"));
+        }
+        return Ok(("&[]".into(), None));
+    }
+    if names.len() > 1 && names.iter().any(|n| n == "none") {
+        return Err(format!("{at}: effect `none` stands alone"));
+    }
+    let mut code = String::from("&[");
+    let mut seen = Vec::new();
+    let mut max = 0u8;
+    for n in &names {
+        let i = EFFECT_NAMES.iter().position(|e| e == n).ok_or_else(|| format!("{at}: effect `{n}` (one of {})", EFFECT_NAMES.join(", ")))?;
+        if seen.contains(&i) {
+            return Err(format!("{at}: effect `{n}` twice"));
+        }
+        seen.push(i);
+        max = max.max(EFFECT_RISK[i]);
+        write!(code, "Effect::{}, ", variant(n)).unwrap();
+    }
+    code.push(']');
+    Ok((code, Some(max)))
+}
+
+/// `risk = "…"`: only to raise the effects' risk, so the effects are said too.
+fn risk(t: &Table, effects_risk: Option<u8>, at: &str) -> Res<String> {
+    let Some(r) = s(t, "risk") else { return Ok("None".into()) };
+    let i = RISK_NAMES.iter().position(|x| *x == r).ok_or_else(|| format!("{at}: risk `{r}` (one of {})", RISK_NAMES.join(", ")))? as u8;
+    match effects_risk {
+        None => Err(format!("{at}: `risk` raises the effects' risk: say the `effects` too")),
+        Some(m) if i < m => Err(format!("{at}: risk `{r}` is lower than its effects' (`{}`)", RISK_NAMES[m as usize])),
+        Some(_) => Ok(format!("Some(Risk::{})", variant(r))),
+    }
+}
+
+/// A `range`: `any`, or `lo..hi` with either bound left out, each a number or
+/// the name of another property of the component. The names it uses.
+fn range_refs(r: &str, at: &str) -> Res<Vec<String>> {
+    if r == "any" {
+        return Ok(Vec::new());
+    }
+    let bad = || format!("{at}: range `{r}` (\"lo..hi\", either bound optional, a number or a property's name; or \"any\")");
+    let (lo, hi) = r.split_once("..").ok_or_else(bad)?;
+    let (lo, hi) = (lo.trim(), hi.trim());
+    if lo.is_empty() && hi.is_empty() {
+        return Err(bad());
+    }
+    let mut refs = Vec::new();
+    for b in [lo, hi] {
+        if b.is_empty() || b.parse::<f64>().is_ok() {
+            continue;
+        }
+        if !b.starts_with(|c: char| c.is_ascii_alphabetic()) || !b.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+            return Err(bad());
+        }
+        refs.push(b.to_string());
+    }
+    if let (Ok(l), Ok(h)) = (lo.parse::<f64>(), hi.parse::<f64>()) {
+        if l > h {
+            return Err(format!("{at}: range `{r}`: its low end is above its high end"));
+        }
+    }
+    Ok(refs)
+}
+
+fn unit(u: &str, at: &str) -> Res<()> {
+    if UNITS.contains(&u) {
+        Ok(())
+    } else {
+        Err(format!("{at}: unit `{u}` (one of {})", UNITS.join(", ")))
+    }
+}
+
 // --- parameters ----------------------------------------------------------------
 
 /// `[BYREF] Name [AS Type] [= default]`, optional ones in `[…]`, a trailing
@@ -156,13 +252,28 @@ fn params(text: &str, at: &str) -> Res<String> {
 
 // --- the registry being built ------------------------------------------------------
 
+/// A glossary entry: what every member of that name means (its own `doc` and
+/// `category` win), and for a property its `range` and `unit`.
+#[derive(Clone, Default)]
+struct GlossaryEntry {
+    doc: String,
+    category: String,
+    range: Option<String>,
+    unit: Option<String>,
+}
+
 struct Glossary {
-    // (kind, lower name) → (doc, category)
-    entries: HashMap<(String, String), (String, String)>,
+    // (kind, lower name) → the entry
+    entries: HashMap<(String, String), GlossaryEntry>,
 }
 
 impl Glossary {
     fn doc(&self, kind: &str, name: &str) -> (String, String) {
+        let e = self.entry(kind, name);
+        (e.doc, e.category)
+    }
+
+    fn entry(&self, kind: &str, name: &str) -> GlossaryEntry {
         self.entries.get(&(kind.to_string(), name.to_ascii_lowercase())).cloned().unwrap_or_default()
     }
 }
@@ -191,10 +302,15 @@ const TYPES: &[(&str, &str)] = &[
     ("any", "Any"),
 ];
 
-fn property(ctx: &Ctx, p: &Table, family: &str, set: Option<&str>, at: &str) -> Res<String> {
+/// One property: its code, and the property names its range uses (checked
+/// against the component's once all its properties are known).
+fn property(ctx: &Ctx, p: &Table, family: &str, set: Option<&str>, at: &str) -> Res<(String, Vec<String>)> {
     keys_allowed(
         p,
-        &["name", "type", "values", "kinds", "default", "access", "design", "indexed", "category", "origin", "from", "only", "missing", "editor", "doc"],
+        &[
+            "name", "type", "values", "kinds", "default", "access", "design", "indexed", "category", "origin", "from", "only", "missing", "editor", "doc", "range",
+            "unit", "effects", "secret",
+        ],
         at,
     )?;
     let name = req(p, "name", at)?;
@@ -261,8 +377,27 @@ fn property(ctx: &Ctx, p: &Table, family: &str, set: Option<&str>, at: &str) -> 
             return Err(format!("{at}: editor `{e}` (one of {})", EDITORS.join(", ")));
         }
     }
-    Ok(format!(
-        "Property {{ name: {}, ty: Type::{ty}, values: &[{}], kinds: &[{}], default: {default}, access: {access}, design: {design}, indexed: {indexed}, category: {}, origin: {}, from: {}, runtimes: {}, missing: {}, set: {}, editor: {}, doc: {} }}",
+    // The AI facets: a numeric property's range and unit (its own, else the
+    // glossary's), what setting it does when that reaches outside, secrets.
+    let numeric = matches!(ty, "Int" | "Float");
+    let gloss = ctx.glossary.entry("property", name);
+    let own_range = s(p, "range");
+    let own_unit = s(p, "unit");
+    if !numeric && (own_range.is_some() || own_unit.is_some()) {
+        return Err(format!("{at}: `range` and `unit` are for int and float properties"));
+    }
+    let range = own_range.map(str::to_string).or(if numeric { gloss.range } else { None });
+    let range_names = match &range {
+        Some(r) => range_refs(r, at)?,
+        None => Vec::new(),
+    };
+    let unit_v = own_unit.map(str::to_string).or(if numeric { gloss.unit } else { None });
+    if let Some(u) = &unit_v {
+        unit(u, at)?;
+    }
+    let (effects_code, _) = effects(p, at)?;
+    let code = format!(
+        "Property {{ name: {}, ty: Type::{ty}, values: &[{}], kinds: &[{}], default: {default}, access: {access}, design: {design}, indexed: {indexed}, category: {}, origin: {}, from: {}, runtimes: {}, missing: {}, set: {}, editor: {}, doc: {}, range: {}, unit: {}, effects: {effects_code}, secret: {} }}",
         lit(name),
         values.iter().map(|v| lit(v)).collect::<Vec<_>>().join(", "),
         kinds.iter().map(|v| lit(v)).collect::<Vec<_>>().join(", "),
@@ -274,7 +409,11 @@ fn property(ctx: &Ctx, p: &Table, family: &str, set: Option<&str>, at: &str) -> 
         opt(set),
         opt(editor),
         lit(&doc),
-    ))
+        opt(range.as_deref()),
+        opt(unit_v.as_deref()),
+        b(p, "secret").unwrap_or(false),
+    );
+    Ok((code, range_names))
 }
 
 /// The inspector's editors a property may ask for beyond its type's
@@ -282,9 +421,11 @@ fn property(ctx: &Ctx, p: &Table, family: &str, set: Option<&str>, at: &str) -> 
 const EDITORS: &[&str] = &["strings", "columns", "file", "picture", "multiline", "sql", "expression"];
 
 fn method(ctx: &Ctx, m: &Table, family: &str, set: Option<&str>, at: &str) -> Res<String> {
-    keys_allowed(m, &["name", "params", "returns", "value", "origin", "from", "only", "missing", "test", "doc"], at)?;
+    keys_allowed(m, &["name", "params", "returns", "value", "origin", "from", "only", "missing", "test", "doc", "effects", "risk", "example"], at)?;
     let name = req(m, "name", at)?;
     let at = &format!("{at}, method {name}");
+    let (effects_code, effects_risk) = effects(m, at)?;
+    let risk_code = risk(m, effects_risk, at)?;
     let test = match s(m, "test") {
         None => "Test::Call".to_string(),
         Some(t) if t.starts_with("skip") => format!("Test::Skip({})", lit(t.trim_start_matches("skip").trim_start_matches(':').trim())),
@@ -294,7 +435,7 @@ fn method(ctx: &Ctx, m: &Table, family: &str, set: Option<&str>, at: &str) -> Re
     let (gdoc, _) = ctx.glossary.doc("method", name);
     let doc = s(m, "doc").map(str::to_string).filter(|d| !d.is_empty()).unwrap_or(gdoc);
     Ok(format!(
-        "Method {{ name: {}, params: {}, returns: {}, value: {}, origin: {}, from: {}, runtimes: {}, missing: {}, test: {test}, set: {}, doc: {} }}",
+        "Method {{ name: {}, params: {}, returns: {}, value: {}, origin: {}, from: {}, runtimes: {}, missing: {}, test: {test}, set: {}, doc: {}, effects: {effects_code}, risk: {risk_code}, example: {} }}",
         lit(name),
         params(s(m, "params").unwrap_or(""), at)?,
         opt(s(m, "returns")),
@@ -305,6 +446,7 @@ fn method(ctx: &Ctx, m: &Table, family: &str, set: Option<&str>, at: &str) -> Re
         b(m, "missing").unwrap_or(false),
         opt(set),
         lit(&doc),
+        lit(s(m, "example").unwrap_or("")),
     ))
 }
 
@@ -337,7 +479,7 @@ fn component(ctx: &Ctx, c: &Table, group: &str, global: bool, at: &str) -> Res<(
         c,
         &[
             "name", "display", "rapidq", "from", "aliases", "kind", "group", "visual", "container", "size", "only", "where", "default_event", "sets", "origin",
-            "instance_of", "doc", "properties", "methods", "events",
+            "instance_of", "doc", "properties", "methods", "events", "example",
         ],
         at,
     )?;
@@ -379,9 +521,16 @@ fn component(ctx: &Ctx, c: &Table, group: &str, global: bool, at: &str) -> Res<(
         seen.insert((kind, n.to_ascii_lowercase()), ());
         Ok(())
     };
+    // (each property's name and the names its range uses)
+    let mut prop_names: Vec<String> = Vec::new();
+    let mut range_uses: Vec<(String, Vec<String>)> = Vec::new();
     for p in tables(c, "properties", at)? {
-        check("property", req(p, "name", at)?, at)?;
-        props.push(property(ctx, p, family, None, at)?);
+        let pname = req(p, "name", at)?;
+        check("property", pname, at)?;
+        let (code, refs) = property(ctx, p, family, None, at)?;
+        props.push(code);
+        prop_names.push(pname.to_ascii_lowercase());
+        range_uses.push((pname.to_string(), refs));
     }
     for m in tables(c, "methods", at)? {
         check("method", req(m, "name", at)?, at)?;
@@ -398,8 +547,12 @@ fn component(ctx: &Ctx, c: &Table, group: &str, global: bool, at: &str) -> Res<(
         let st = ctx.sets.get(&set).ok_or_else(|| format!("{at}: set `{set}` isn't in sets.toml"))?;
         let sf = s(st, "origin").unwrap_or("rapidr");
         for p in tables(st, "properties", at)? {
-            check("property", req(p, "name", at)?, at)?;
-            props.push(property(ctx, p, sf, Some(&set), &format!("{at} (set {set})"))?);
+            let pname = req(p, "name", at)?;
+            check("property", pname, at)?;
+            let (code, refs) = property(ctx, p, sf, Some(&set), &format!("{at} (set {set})"))?;
+            props.push(code);
+            prop_names.push(pname.to_ascii_lowercase());
+            range_uses.push((pname.to_string(), refs));
         }
         for m in tables(st, "methods", at)? {
             check("method", req(m, "name", at)?, at)?;
@@ -408,6 +561,12 @@ fn component(ctx: &Ctx, c: &Table, group: &str, global: bool, at: &str) -> Res<(
         for e in tables(st, "events", at)? {
             check("event", req(e, "name", at)?, at)?;
             events.push(event(ctx, e, sf, Some(&set), &format!("{at} (set {set})"))?);
+        }
+    }
+    // (a range naming a property names one of this component's)
+    for (pname, refs) in &range_uses {
+        if let Some(r) = refs.iter().find(|r| !prop_names.contains(&r.to_ascii_lowercase())) {
+            return Err(format!("{at}, property {pname}: its range names `{r}`, which isn't one of its properties"));
         }
     }
     let default_event = s(c, "default_event");
@@ -423,7 +582,7 @@ fn component(ctx: &Ctx, c: &Table, group: &str, global: bool, at: &str) -> Res<(
     };
     let doc = s(c, "doc").unwrap_or("");
     let code = format!(
-        "Component {{ name: {}, display: {}, rapidq: {}, from: {}, aliases: &[{}], kind: {kind}, group: {}, origin: {}, visual: {}, container: {}, size: {size}, default_event: {}, runtimes: {}, where_note: {}, instance_of: {}, doc: {}, properties: &[{}], methods: &[{}], events: &[{}] }}",
+        "Component {{ name: {}, display: {}, rapidq: {}, from: {}, aliases: &[{}], kind: {kind}, group: {}, origin: {}, visual: {}, container: {}, size: {size}, default_event: {}, runtimes: {}, where_note: {}, instance_of: {}, doc: {}, example: {}, properties: &[{}], methods: &[{}], events: &[{}] }}",
         lit(name),
         lit(display),
         opt(rapidq),
@@ -438,6 +597,7 @@ fn component(ctx: &Ctx, c: &Table, group: &str, global: bool, at: &str) -> Res<(
         opt(s(c, "where")),
         opt(s(c, "instance_of")),
         lit(doc),
+        lit(s(c, "example").unwrap_or("")),
         props.join(",\n        "),
         methods.join(",\n        "),
         events.join(",\n        "),
@@ -497,12 +657,21 @@ fn build(dir: &Path) -> Res<String> {
             for (name, e) in entries {
                 let at = format!("{gfile}: {kind}.{name}");
                 let e = e.as_table().ok_or_else(|| format!("{at}: a table"))?;
-                keys_allowed(e, &["doc", "category"], &at)?;
-                if glossary
-                    .entries
-                    .insert((kind.clone(), name.to_ascii_lowercase()), (s(e, "doc").unwrap_or("").to_string(), s(e, "category").unwrap_or("").to_string()))
-                    .is_some()
-                {
+                // (a property's range and unit by name: numbers only — a
+                // range naming another property belongs on the component)
+                keys_allowed(e, if kind == "property" { &["doc", "category", "range", "unit"] } else { &["doc", "category"] }, &at)?;
+                let range = s(e, "range").map(str::to_string);
+                if let Some(r) = &range {
+                    if !range_refs(r, &at)?.is_empty() {
+                        return Err(format!("{at}: a glossary range has numbers only (one naming a property goes on the component)"));
+                    }
+                }
+                let unit_s = s(e, "unit").map(str::to_string);
+                if let Some(u) = &unit_s {
+                    unit(u, &at)?;
+                }
+                let entry = GlossaryEntry { doc: s(e, "doc").unwrap_or("").to_string(), category: s(e, "category").unwrap_or("").to_string(), range, unit: unit_s };
+                if glossary.entries.insert((kind.clone(), name.to_ascii_lowercase()), entry).is_some() {
                     return Err(format!("{at}: twice"));
                 }
             }
@@ -565,15 +734,17 @@ fn build(dir: &Path) -> Res<String> {
             keys_allowed(&t, &["builtin", "internal"], &file)?;
             let mut keys = HashSet::new();
             for x in tables(&t, "builtin", &file)? {
-                keys_allowed(x, &["name", "syntax", "params", "returns", "group", "bare", "origin", "only", "missing", "doc"], &file)?;
+                keys_allowed(x, &["name", "syntax", "params", "returns", "group", "bare", "origin", "only", "missing", "doc", "effects", "risk", "example"], &file)?;
                 let name = req(x, "name", &file)?;
                 let at = format!("{file}: {name}");
                 let key = builtin_key(name);
                 if !keys.insert(key.clone()) {
                     return Err(format!("{at}: another builtin has the key `{key}`"));
                 }
+                let (effects_code, effects_risk) = effects(x, &at)?;
+                let risk_code = risk(x, effects_risk, &at)?;
                 builtins.push(format!(
-                    "Builtin {{ name: {}, key: {}, syntax: {}, params: {}, returns: {}, group: {}, bare: {}, origin: {}, runtimes: {}, missing: {}, doc: {} }}",
+                    "Builtin {{ name: {}, key: {}, syntax: {}, params: {}, returns: {}, group: {}, bare: {}, origin: {}, runtimes: {}, missing: {}, doc: {}, effects: {effects_code}, risk: {risk_code}, example: {} }}",
                     lit(name),
                     lit(&key),
                     lit(s(x, "syntax").unwrap_or("")),
@@ -585,17 +756,19 @@ fn build(dir: &Path) -> Res<String> {
                     runtimes(x, &at)?,
                     b(x, "missing").unwrap_or(false),
                     lit(s(x, "doc").unwrap_or("")),
+                    lit(s(x, "example").unwrap_or("")),
                 ));
             }
             internal = strs(&t, "internal", &file)?;
         } else if file == "language.toml" {
             keys_allowed(&t, &["statement", "directive", "keyword", "type"], &file)?;
             for x in tables(&t, "statement", &file)? {
-                keys_allowed(x, &["name", "syntax", "group", "origin", "doc"], &file)?;
+                keys_allowed(x, &["name", "syntax", "group", "origin", "doc", "effects"], &file)?;
                 let name = req(x, "name", &file)?;
                 let at = format!("{file}: {name}");
+                let (effects_code, _) = effects(x, &at)?;
                 statements.push(format!(
-                    "Statement {{ name: {}, syntax: {}, group: {}, origin: {}, doc: {} }}",
+                    "Statement {{ name: {}, syntax: {}, group: {}, origin: {}, doc: {}, effects: {effects_code} }}",
                     lit(name),
                     lit(req(x, "syntax", &at)?),
                     lit(s(x, "group").unwrap_or("Other")),

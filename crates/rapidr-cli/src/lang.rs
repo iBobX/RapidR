@@ -7,9 +7,13 @@
 //! rapidr lang export --all [--check]      every file the repository keeps generated, from its root
 //! rapidr lang conformance DIR [--target desktop|web] [--gaps FILE]
 //!                                         one program per component and the output it must print
+//! rapidr lang ai-check [--summary|--json] [--strict] [NAME…]
+//!                                         which entries lack an AI facet (docs/ai-architecture.md §2.6)
 //! ```
 //!
 //! `--check`: write nothing, exit 1 naming the files that are out of date.
+//! `ai-check` reports and exits 0 (phase 0: a list, not a gate); `--strict`
+//! exits 1 when anything is missing.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -27,12 +31,50 @@ pub fn command(args: &[String]) -> ExitCode {
     match args.first().map(String::as_str) {
         Some("export") => export_cmd(&args[1..]),
         Some("conformance") => conformance_cmd(&args[1..]),
+        Some("ai-check") => ai_check_cmd(&args[1..]),
         _ => {
             eprintln!("usage: rapidr lang export --json|--prompt [-o FILE] | --manual [DIR] | --all [--check]");
             eprintln!("       rapidr lang conformance DIR [--target desktop|web] [--gaps FILE]");
+            eprintln!("       rapidr lang ai-check [--summary|--json] [--strict] [NAME…]");
             ExitCode::from(2)
         }
     }
+}
+
+/// `rapidr lang ai-check`: every registry entry lacking an AI facet
+/// (semantics, types, range, effects, example), then the counts.
+fn ai_check_cmd(args: &[String]) -> ExitCode {
+    let flag = |f: &str| args.iter().any(|a| a == f);
+    if let Some(bad) = args.iter().find(|a| a.starts_with('-') && !["--summary", "--json", "--strict"].contains(&a.as_str())) {
+        eprintln!("rapidr lang ai-check: unknown option {bad} (--summary, --json, --strict)");
+        return ExitCode::from(2);
+    }
+    let names: Vec<&str> = args.iter().filter(|a| !a.starts_with('-')).map(String::as_str).collect();
+    let report = if names.is_empty() {
+        rapidr_lang::ai::check()
+    } else {
+        match rapidr_lang::ai::check_names(&names) {
+            Ok(r) => r,
+            Err(e) => {
+                eprintln!("rapidr lang ai-check: {e}");
+                return ExitCode::from(2);
+            }
+        }
+    };
+    let text = if flag("--json") {
+        report.json()
+    } else if flag("--summary") {
+        report.summary()
+    } else {
+        report.text()
+    };
+    // (a closed pipe — `| head` — ends the output quietly)
+    let _ = std::io::Write::write_all(&mut std::io::stdout().lock(), text.as_bytes());
+    if flag("--strict") && !report.is_complete() {
+        eprintln!("rapidr lang ai-check --strict: {} gaps", report.gaps.len());
+        return ExitCode::from(1);
+    }
+    ExitCode::SUCCESS
 }
 
 fn write_or_print(out: Option<&str>, text: &str) -> ExitCode {

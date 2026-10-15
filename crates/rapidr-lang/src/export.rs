@@ -61,6 +61,9 @@ impl Obj {
         self.0.push((k, v));
         self
     }
+    fn raw_nonempty(self, k: &'static str, v: String) -> Self {
+        if v.is_empty() { self } else { self.raw(k, v) }
+    }
     fn strs(self, k: &'static str, v: &[&str]) -> Self {
         if v.is_empty() {
             return self;
@@ -123,12 +126,24 @@ fn property_json(p: &Property) -> String {
     let o = if p.indexed > 0 { o.raw("indexed", p.indexed.to_string()) } else { o };
     let o = o.s_nonempty("category", p.category);
     let o = origin_fields(o, p.origin, p.from, p.runtimes, p.missing).opt("set", p.set);
+    // (the AI facets: docs/ai-architecture.md §2.4)
+    let o = o.opt("range", p.range).opt("unit", p.unit).raw_nonempty("effects", effects_json(p.effects)).b_true("secret", p.secret);
     o.s("doc", p.doc).done()
+}
+
+/// `["ui","state"]`, or "" for none.
+fn effects_json(effects: &[Effect]) -> String {
+    if effects.is_empty() {
+        return String::new();
+    }
+    list(effects.iter().map(|e| json_str(e.as_str())))
 }
 
 fn method_json(m: &Method) -> String {
     let o = Obj::new().s("name", m.name).s("signature", &m.signature()).raw("params", params_json(m.params)).opt("returns", m.returns).b_true("value", m.value);
-    origin_fields(o, m.origin, m.from, m.runtimes, m.missing).opt("set", m.set).s("doc", m.doc).done()
+    let o = origin_fields(o, m.origin, m.from, m.runtimes, m.missing).opt("set", m.set);
+    let o = o.raw_nonempty("effects", effects_json(m.effects)).opt("risk", m.risk().map(Risk::as_str)).s_nonempty("example", m.example);
+    o.s("doc", m.doc).done()
 }
 
 fn event_json(e: &Event) -> String {
@@ -155,9 +170,13 @@ fn component_json(c: &Component) -> String {
     };
     let o = o.opt("default_event", c.default_event);
     let o = if c.runtimes != Runtimes::All { o.s("only", c.runtimes.as_str()) } else { o };
+    let caps: Vec<&str> = c.capabilities().iter().map(|e| e.as_str()).collect();
     o.opt("where", c.where_note)
         .opt("instance_of", c.instance_of)
         .s("doc", c.doc)
+        .s_nonempty("example", c.example)
+        .opt("risk", c.risk().map(Risk::as_str))
+        .strs("capabilities", &caps)
         .raw("properties", list(c.properties.iter().map(property_json)))
         .raw("methods", list(c.methods.iter().map(method_json)))
         .raw("events", list(c.events.iter().map(event_json)))
@@ -176,10 +195,19 @@ pub fn json() -> String {
             .opt("returns", b.returns)
             .s("group", b.group)
             .b_true("bare", b.bare);
-        origin_fields(o, b.origin, None, b.runtimes, b.missing).s("doc", b.doc).done()
+        let o = origin_fields(o, b.origin, None, b.runtimes, b.missing);
+        let o = o.raw_nonempty("effects", effects_json(b.effects)).opt("risk", b.risk().map(Risk::as_str)).s_nonempty("example", b.example);
+        o.s("doc", b.doc).done()
     }));
     let statements = list(STATEMENTS.iter().map(|s| {
-        Obj::new().s("name", s.name).s("syntax", s.syntax).s("group", s.group).s("origin", s.origin.as_str()).s("doc", s.doc).done()
+        Obj::new()
+            .s("name", s.name)
+            .s("syntax", s.syntax)
+            .s("group", s.group)
+            .s("origin", s.origin.as_str())
+            .raw_nonempty("effects", effects_json(s.effects))
+            .s("doc", s.doc)
+            .done()
     }));
     let directives = list(DIRECTIVES.iter().map(|d| Obj::new().s("name", d.name).s("syntax", d.syntax).s("origin", d.origin.as_str()).s("doc", d.doc).done()));
     let keywords = list(KEYWORDS.iter().map(|k| Obj::new().s("name", k.name).s("kind", k.kind).s("origin", k.origin.as_str()).s("doc", k.doc).done()));
@@ -488,12 +516,19 @@ pub fn manual() -> Vec<(&'static str, String)> {
 
 // --- the AI system prompt's language section -------------------------------------
 
+/// ` [file-write]`: what an entry reaches outside the program (its effects
+/// from `external` up), for the prompt; "" otherwise.
+fn reach_mark(effects: &[Effect]) -> String {
+    let reach: Vec<&str> = effects.iter().filter(|e| e.is_capability()).map(|e| e.as_str()).collect();
+    if reach.is_empty() { String::new() } else { format!(" [{}]", reach.join(", ")) }
+}
+
 /// What a model needs to write correct RapidR: compact, every name, no
 /// prose beyond one line each.
 pub fn prompt() -> String {
     let mut out = String::new();
     out.push_str("# The RapidR language (generated from its registry)\n\n");
-    out.push_str("RapidR is a BASIC compatible with RapidQ: it runs RapidQ programs unchanged and extends them. Names are case-insensitive. Write components with RapidR's names (RButton, RForm, RStringGrid). A component RapidQ has is also known by its RapidQ name (QBUTTON), the same component: keep the names a file already uses, and write RapidQ's names only in a project that must also compile with RapidQ's own compiler. Members marked [R] are RapidR extensions (RapidQ's own compiler refuses them); [missing] ones aren't implemented yet: don't use them.\n\n");
+    out.push_str("RapidR is a BASIC compatible with RapidQ: it runs RapidQ programs unchanged and extends them. Names are case-insensitive. Write components with RapidR's names (RButton, RForm, RStringGrid). A component RapidQ has is also known by its RapidQ name (QBUTTON), the same component: keep the names a file already uses, and write RapidQ's names only in a project that must also compile with RapidQ's own compiler. Members marked [R] are RapidR extensions (RapidQ's own compiler refuses them); [missing] ones aren't implemented yet: don't use them. A mark like [file-write], [network] or [process] says what an entry reaches outside the program: the user is asked before such code runs.\n\n");
     out.push_str("## Statements\n\n");
     for s in STATEMENTS {
         let _ = writeln!(out, "- {}{}", s.syntax, if s.origin == Origin::RapidR { " [R]" } else { "" });
@@ -505,7 +540,7 @@ pub fn prompt() -> String {
     out.push_str("\n## Builtins\n\n");
     for b in BUILTINS.iter().filter(|b| !b.missing) {
         let sig = if b.syntax.is_empty() { b.name } else { b.syntax };
-        let _ = writeln!(out, "- {sig}{}: {}", if b.origin == Origin::RapidR { " [R]" } else { "" }, b.doc);
+        let _ = writeln!(out, "- {sig}{}{}: {}", if b.origin == Origin::RapidR { " [R]" } else { "" }, reach_mark(b.effects), b.doc);
     }
     out.push_str("\n## Components\n\n");
     for c in COMPONENTS.iter().filter(|c| c.kind == Kind::Component) {
@@ -516,7 +551,7 @@ pub fn prompt() -> String {
         let _ = writeln!(out, "### {names}{}\n{}", if c.runtimes == Runtimes::Web { " (web only)" } else { "" }, c.doc);
         let tag = |o: Origin| if o == Origin::RapidR && c.origin == Origin::RapidQ { "[R]" } else { "" };
         let props: Vec<String> = c.properties.iter().filter(|p| !p.missing).map(|p| format!("{}{}", p.name, tag(p.origin))).collect();
-        let methods: Vec<String> = c.methods.iter().filter(|m| !m.missing).map(|m| format!("{}{}", m.signature(), tag(m.origin))).collect();
+        let methods: Vec<String> = c.methods.iter().filter(|m| !m.missing).map(|m| format!("{}{}{}", m.signature(), tag(m.origin), reach_mark(m.effects))).collect();
         let events: Vec<String> = c.events.iter().filter(|e| !e.missing).map(|e| format!("{}{}", e.signature(), tag(e.origin))).collect();
         if !props.is_empty() {
             let _ = writeln!(out, "Properties: {}", props.join(", "));
