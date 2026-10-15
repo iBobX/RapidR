@@ -246,8 +246,11 @@ impl ComponentKind for DbGrid {
                         p.fill((0, y, cw, rh), sel_fill);
                     }
                     let ink_row = if current { sel_ink } else { text_color };
-                    // (its number)
+                    // (its number: a fixed cell, raised in the classic look)
                     p.fill((0, y, l.gutter, rh), if current { sel_fill } else { t.face });
+                    if !t.fluent() && !current {
+                        p.thin_raised((0, y, l.gutter - 1, rh - 1));
+                    }
                     p.text((0, y + (rh - line_h) / 2, l.gutter - 6, line_h), &r.to_string(), &font, if current { sel_ink } else { t.gray_text }, Place::TopRight);
                     let mut x = l.gutter - l.left;
                     frame::with_frame(&d.dataset, |f| {
@@ -295,11 +298,18 @@ impl ComponentKind for DbGrid {
                             }
                         });
                         p.fill((x + colw, 0, 1, rh), t.fixed_lines);
+                        // (the classic look: Delphi's raised fixed cells)
+                        if !t.fluent() {
+                            p.thin_raised((x, 0, *colw, rh));
+                        }
                     }
                     x += colw + 1;
                 }
-                // (the gutter's heading: the rows' count)
+                // (the gutter's heading)
                 p.fill((0, 0, l.gutter - 1, rh), t.face);
+                if !t.fluent() {
+                    p.thin_raised((0, 0, l.gutter - 1, rh));
+                }
             });
             p.ops(l.bars.iter().cloned());
         });

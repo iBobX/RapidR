@@ -39,6 +39,10 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   web and the designer. Registry entries for every member (IntelliSense, the manual, MCP).
 - Examples: `data/linked_data.rr`, `data/million_rows.rr`, `data/json_source.rr` (on Studio's
   Welcome page); the manual's new chapter **Data science with RapidR**, with screenshots.
+- The inspector's **DataField** drops the bound data set's columns.
+- Fixed: a non-visual component inside a form (an RDataFrame, whose Width / Height are its columns
+  and rows) no longer counts toward the form's scroll range on the desktop (the web already
+  ignored it).
 
 ### Data science: a typed, multithreaded RDataFrame engine (DATA-ENGINE)
 - RDataFrame's engine stores columns typed (whole numbers, fractions, true / false as numbers; a
