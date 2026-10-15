@@ -21,7 +21,8 @@ where something isn't done yet, it says so.
 | [Building apps and their icons](building-apps.md) | `Name.app`, the `.exe`'s icon and version, `Name.AppDir`; your icon or RapidR's; Studio's Build |
 | [The web](web.md) | Running programs in a browser: bundles, `--web` builds, files and assets, web-only components |
 | [Databases](databases.md) | RSQLite and RMySQL, parameter binding, events |
-| [Data science](data-science.md) | RNum, RDataFrame, RPlot, RJson |
+| [Data science with RapidR](data-science-with-rapidr.md) | Step by step: a CSV file on a form, live in the designer; the current row shared by a grid and edits; filter, sort and group; a million rows; JSON records (RCSV, RDataSource, RDBGrid, DataSource / DataField) |
+| [Data science](data-science.md) | RNum, RDataFrame, RPlot, RJson, the linked data components |
 | [DirectX and media](directx-and-media.md) | RDXScreen and the Direct3D objects, sound, joysticks, RMIDI / RWave / RVideo / RCDAudio, the system tray, serial ports, CGI, downloads |
 | [Serial ports and IoT boards](serial-ports.md) | RComPort (RapidQ name QCOMPORT): opening ports, listing them with their USB IDs, lines in, plug events, resetting an ESP32 through DTR / RTS, Web Serial |
 | [Importing RapidQ programs](importing-rapidq.md) | A copy of a RapidQ program (`.bas`, `.rqw`, `.rqb`, `.rq`) with RapidR's names, proved to behave the same: in RapidR Studio and with `rapidr import-rapidq` |

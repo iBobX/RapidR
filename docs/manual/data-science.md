@@ -10,6 +10,7 @@ name, with its aliases and where it works: [reference/data-science.md](reference
 | `RDataFrame` | a table, in the manner of pandas |
 | `RPlot` | charts shown in an RImage or saved as PNG, in the manner of Matplotlib |
 | `RJson` | JSON documents |
+| `RCSV`, `RDataSource`, `RDBGrid` | linked data: a CSV file as a source, a shared current row, a grid straight from a table — with `RDataFrame.Source` and `DataSource` / `DataField` on `REdit` and `RLabel` ([below](#linked-data-components); step by step: [Data science with RapidR](data-science-with-rapidr.md)) |
 
 RNum, RDataFrame and RPlot are one implementation (RapidR's own, in pure
 Rust, with no data library underneath) that native builds, interpreted
@@ -242,6 +243,68 @@ a file the program names belongs to its project, on the desktop and in the
 web IDE alike:
 
 ![csv_explorer.rr in RapidR Studio's designer: the form with its table, statistics and the chart showing sample bars; the project tree lists shop.csv under Resources](images/data/studio-designer.png)
+
+## Linked data components
+
+Delphi- and Xojo-style components connected by properties, in the designer
+or in code; RapidR Studio's designer shows their data live. A step-by-step
+start is [Data science with RapidR](data-science-with-rapidr.md); the
+examples are [`linked_data.rr`](../../examples/data/linked_data.rr),
+[`million_rows.rr`](../../examples/data/million_rows.rr) and
+[`json_source.rr`](../../examples/data/json_source.rr).
+
+```basic
+CREATE Form AS RForm
+    CREATE People AS RCSV
+        FileName = "people.csv"       ' Delimiter = ",", HasHeader = True
+    END CREATE
+    CREATE DF AS RDataFrame
+        Source = People               ' the frame gets the file's rows
+    END CREATE
+    CREATE Nav AS RDataSource
+        DataSet = DF                  ' a current row of DF
+    END CREATE
+    CREATE Grid AS RDBGrid
+        DataSource = Nav              ' or a data set straight: DataSource = DF
+    END CREATE
+    CREATE NameEdit AS REdit
+        DataSource = Nav: DataField = "name"
+    END CREATE
+END CREATE
+```
+
+- **RCSV** — `FileName`, `Delimiter` (`","`, `";"`, `"tab"`, `"|"` …),
+  `HasHeader`, `Text` (the data itself as CSV text, instead of a file);
+  `RowCount`, `ColCount`, `Columns`, `Error` (why the file couldn't be
+  read); `Load` (read it again; 1 or 0), `Save [file]` (its table, edits
+  included), `Clear`; `OnLoad`, `OnError(Message)`. It reads its file once,
+  when its table is first needed.
+- **RJson** — its document's records (`[{…}, …]`, JSON Lines, or columns
+  `{"a": […]}`) are a data source: `DF.Source = Json1`; a frame takes them
+  again when the document changes (`Parse`, `LoadFile`, a new `FileName`).
+- **RDataFrame.Source** — an RCSV, an RJson or another RDataFrame: the
+  frame gets a copy of its rows at once, and again whenever the source
+  changes; `Refresh` asks again. What the program does to the frame
+  afterwards (`Filter`, `Sort` …) changes only the frame, until the source
+  changes.
+- **RDataSource** — `DataSet`, `Row` (the current row, from 0; set it to
+  move), `RecordCount`, `EOF` / `BOF` (True, -1, after `Next` / `Prior`
+  couldn't move, or with no rows), `Enabled`, `State` (`"inactive"`,
+  `"browse"`); `First`, `Prior`, `Next`, `Last`, `MoveBy n`,
+  `Field(name)`, `SetField name, value`, `Refresh`; `OnDataChange` (the row
+  moved or the data changed).
+- **RDBGrid** — `DataSource` (an RDataSource, or a data set straight: its
+  own current row), `Row`, `TopRow`, `RowCount`, `ColCount`, `Columns`,
+  `SortColumn` (-1: none), `SortDescending`, `ReadOnly`; `OnCellClick(Row,
+  Col)`, `OnTitleClick(Col)`. It draws only the rows on screen (a million
+  rows scroll smoothly); a click or the arrow keys move the current row; a
+  heading's click sorts its view (again: the other way, a third time: the
+  data's order) without changing the data. Numbers are right-aligned, a
+  missing value is a dimmed `null`; screen readers hear a grid.
+- **DataSource + DataField** on **REdit** (its `Text`) and **RLabel** (its
+  `Caption`): the field of the current row; what the user types in an
+  edit goes back into the table. RapidR's own properties on these
+  components: a program that doesn't set them behaves as before.
 
 ## RJson
 
