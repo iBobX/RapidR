@@ -792,6 +792,13 @@ fn drop_list<R: Runtime>(rt: R, name: &str, key: &str, anchor: Rect) {
                 items
             }
             Kind::Color => values::STANDARD_COLORS.iter().chain(values::SYSTEM_COLORS.iter()).map(|s| s.to_string()).collect(),
+            // (I7: the columns of the data set the component is bound to —
+            // on a design surface, as the designer read them)
+            Kind::Field => {
+                let Some(target) = m.snap.objects.first().map(|o| o.0.clone()).or_else(|| m.target_names().first().cloned()) else { return };
+                let id = if m.designer.is_empty() { target } else { format!("{}:{}", m.designer.to_lowercase(), target.to_lowercase()) };
+                crate::datascience::link::bound_columns(&id)
+            }
             _ => return,
         }
     };

@@ -989,6 +989,18 @@ fn set_field(owner: &str, field: &str, value: &str) {
     }
 }
 
+/// The columns of the data set component `id` is bound to (its
+/// DataSource; an RDBGrid's too) — what its DataField can name, as the
+/// inspector offers them (on a design surface: `surface:name`, as the
+/// designer read the data). Empty: not bound, or no data.
+pub fn bound_columns(id: &str) -> Vec<String> {
+    let id = key(id);
+    let source = with(|s| s.bound.get(&id).map(|b| b.source.clone()).or_else(|| s.grids.get(&id).map(|g| g.source.clone())));
+    let Some((set, _)) = source.and_then(|src| dataset_of(&resolve(&id, &src))) else { return Vec::new() };
+    ensure(&set);
+    frame::with_frame(&set, |f| f.columns.clone())
+}
+
 /// The user changed bound control `id`'s text to `text` (an REdit's
 /// OnChange): its field takes it. Whether it is bound.
 pub fn edited(id: &str, text: &str) -> bool {
@@ -1304,6 +1316,10 @@ mod tests {
         set_s("t2grid", "datasource", "t2df");
         set_s("t2edit", "datasource", "t2df");
         set_s("t2edit", "datafield", "city");
+        // (what the inspector offers for DataField)
+        assert_eq!(bound_columns("t2edit"), ["name", "age", "city"]);
+        assert_eq!(bound_columns("t2grid"), ["name", "age", "city"]);
+        assert!(bound_columns("nobody").is_empty());
         sync();
         set_row("t2grid", 1);
         let ups = sync();

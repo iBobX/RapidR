@@ -42,10 +42,10 @@ export const cases = [
   // last come first, a disabled command is skipped.
   { name: "panel_toolbox", events: "box.__mousedown_60_15,box.__mouseup_60_15,box.__key_66,box.__key_85,box.__key_84,box.__key_13,box.__key_27,box.__key_27,box.__mousedown_100_109,box.__mousemove_150_109,box.__mousemove_400_150,box.__mouseup_400_150,box.__mousedown_100_109,box.__mousemove_150_109,box.__mouseup_500_80,box.__mousedown_100_40,box.__mouseup_100_40,breport.onclick",
     dump: "lbl.caption,info.caption",
-    expect: ["lbl.caption= pick:RButton sel:RLabel drag:RLabel drop:RLabel>surface@108,118 drag:RLabel drop:RLabel>inner@28,28", "info.caption=93 RFormMDI RLabel []"] },
+    expect: ["lbl.caption= pick:RButton sel:RLabel drag:RLabel drop:RLabel>surface@108,118 drag:RLabel drop:RLabel>inner@28,28", "info.caption=96 RFormMDI RLabel []"] },
   { name: "panel_toolbox_keys", events: "box.__key_40,box.__key_40,box.__key_40,box.__key_40,box.__key_76,box.__key_37,box.__key_37,box.__key_40,box.__key_39,box.__key_35,box.__key_36,box.__key_13,breport.onclick",
     dump: "lbl.caption,info.caption",
-    expect: ["lbl.caption= sel:RForm sel:RButton sel:RLabel sel:RFormMDI sel:RLanguageService", "info.caption=110 RForm RLanguageService []"] },
+    expect: ["lbl.caption= sel:RForm sel:RButton sel:RLabel sel:RFormMDI sel:RLanguageService", "info.caption=113 RForm RLanguageService []"] },
   { name: "panel_palette", events: "bopen.onclick,pal.__key_83,pal.__key_65,pal.__key_40,pal.__key_13,bopen.onclick,pal.__key_27,bopen.onclick,edit1.__mousedown_5_5,edit1.__mouseup_5_5,bopen.onclick,pal.__mousedown_100_81,pal.__mouseup_100_81,bopen.onclick,pal.__key_83,breport.onclick",
     dump: "lbl.caption,info.caption",
     expect: ["lbl.caption= first:file.save run:file.saveall first:file.saveall cancel first:file.saveall cancel first:file.saveall run:file.save first:file.save", "info.caption=3 file.save [s] 1 5"] },

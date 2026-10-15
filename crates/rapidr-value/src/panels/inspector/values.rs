@@ -30,6 +30,9 @@ pub enum Kind {
     Columns,
     /// Another component's name, of one of these types (any when empty).
     Component(Vec<String>),
+    /// (I7) A column of the data set the component is bound to (its
+    /// DataField): typed, or picked from the columns the designer read.
+    Field,
     /// Text with an editor of the program's (`multiline`, `sql`,
     /// `expression`): "…" asks for it.
     Editor(String),
@@ -51,6 +54,7 @@ impl Kind {
             (T::Int, _) if matches!(p.name, "Enabled" | "Visible" | "ShowHint") => Kind::Bool,
             (T::Int, _) => Kind::Int,
             (T::Float, _) => Kind::Float,
+            (T::String, _) if p.name == "DataField" => Kind::Field,
             (T::String | T::Any, _) => Kind::Text,
             (T::Bool, _) => Kind::Bool,
             (T::Color, _) => Kind::Color,
@@ -100,7 +104,7 @@ impl Kind {
 
     /// Its value is picked from a dropped list.
     pub fn drops(&self) -> bool {
-        matches!(self, Kind::Enum(_) | Kind::Component(_) | Kind::Bool)
+        matches!(self, Kind::Enum(_) | Kind::Component(_) | Kind::Bool | Kind::Field)
     }
 
     /// It has a "…" button (OnEditorRequest).

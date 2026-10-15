@@ -159,7 +159,7 @@ Every component RapidR creates, by what it is for, under RapidR's name (`RButton
 |---|---|---|---|---|
 | <img src="../icons/light/components/num.svg" width="20" height="20" alt=""> | [`RNum`](members.md#rnum) | — | RapidR | everywhere |
 | <img src="../icons/light/components/dataframe.svg" width="20" height="20" alt=""> | [`RDataFrame`](members.md#rdataframe) | — | RapidR | everywhere |
-| <img src="../icons/light/components/csv.svg" width="20" height="20" alt=""> | [`RCSV`](members.md#rcsv) | — | RapidR | everywhere |
+| <img src="../icons/light/components/datafile.svg" width="20" height="20" alt=""> | [`RCSV`](members.md#rcsv) | — | RapidR | everywhere |
 | <img src="../icons/light/components/datasource.svg" width="20" height="20" alt=""> | [`RDataSource`](members.md#rdatasource) | — | RapidR | everywhere |
 | <img src="../icons/light/components/dbgrid.svg" width="20" height="20" alt=""> | [`RDBGrid`](members.md#rdbgrid) | — | RapidR | everywhere |
 | <img src="../icons/light/components/plot.svg" width="20" height="20" alt=""> | [`RPlot`](members.md#rplot) | — | RapidR | everywhere |
