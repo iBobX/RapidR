@@ -122,6 +122,10 @@ const SOFT_KEYWORDS: &[TokenType] = &[
 /// retag those tokens as identifiers. `None` when nothing needs retagging.
 fn retag_routine_names(tokens: &[Token]) -> Option<Vec<Token>> {
     let mut names: Vec<String> = Vec::new();
+    // (`SUB $XP_MANIFEST` … `$XP_MANIFEST`: a routine named like a
+    // directive, called by that name — RC.EXE, RapidQ's XP_Manifest.inc)
+    let dollar = |t: &Token| t.kind == TokenType::Directive && t.trailing.as_deref().is_none_or(|r| r.trim().is_empty() || r.trim_start().starts_with('\''));
+    let mut dollar_names: Vec<String> = Vec::new();
     for pair in tokens.windows(2) {
         if matches!(pair[0].kind, TokenType::Sub | TokenType::Function) && SOFT_KEYWORDS.contains(&pair[1].kind) {
             let upper = pair[1].lexeme.to_ascii_uppercase();
@@ -129,8 +133,14 @@ fn retag_routine_names(tokens: &[Token]) -> Option<Vec<Token>> {
                 names.push(upper);
             }
         }
+        if matches!(pair[0].kind, TokenType::Sub | TokenType::Function) && dollar(&pair[1]) {
+            let upper = pair[1].lexeme.to_ascii_uppercase();
+            if !dollar_names.contains(&upper) {
+                dollar_names.push(upper);
+            }
+        }
     }
-    if names.is_empty() {
+    if names.is_empty() && dollar_names.is_empty() {
         return None;
     }
     Some(
@@ -140,6 +150,10 @@ fn retag_routine_names(tokens: &[Token]) -> Option<Vec<Token>> {
                 let mut t = t.clone();
                 if SOFT_KEYWORDS.contains(&t.kind) && names.contains(&t.lexeme.to_ascii_uppercase()) {
                     t.kind = TokenType::Identifier;
+                }
+                if dollar(&t) && dollar_names.contains(&t.lexeme.to_ascii_uppercase()) {
+                    t.kind = TokenType::Identifier;
+                    t.trailing = None;
                 }
                 t
             })
@@ -187,11 +201,14 @@ struct Parser<'a> {
     /// The objects of the WITH blocks being parsed, innermost last, as
     /// RC.EXE names them in its errors ([`member_path`]).
     with_objects: Vec<(String, String)>,
+    /// The CONSTs with a whole-number value worked out so far (lowercase):
+    /// what `AS STRING * MAX_PATH * 2` reads ([`Parser::fixed_length`]).
+    int_consts: std::collections::HashMap<String, i64>,
 }
 
 impl<'a> Parser<'a> {
     fn new(tokens: &'a [Token]) -> Self {
-        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false, own_types: Vec::new(), type_names: Vec::new(), with_objects: Vec::new() }
+        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false, own_types: Vec::new(), type_names: Vec::new(), with_objects: Vec::new(), int_consts: std::collections::HashMap::new() }
     }
 
     /// A type's name as written: RapidR's name for a RapidQ component
@@ -964,9 +981,9 @@ impl<'a> Parser<'a> {
             // `AS STRING * 20`: a fixed-length string (a STRING cut to 20).
             let mut fixed_len = None;
             if self.match_kind(TokenType::Star) {
-                let len = self.parse_unary()?;
+                let len = self.fixed_length()?;
                 if type_name == "STRING" {
-                    fixed_len = literal_length(&len);
+                    fixed_len = len;
                 }
             }
             let init = if self.match_kind(TokenType::Eq) {
@@ -984,6 +1001,10 @@ impl<'a> Parser<'a> {
                         self.skip_newlines();
                     }
                     Some(Err(values))
+                } else if self.at_eol() {
+                    // (`DefStr sMsgHeader =` with nothing after it: RC.EXE
+                    // takes it, the variable starts empty — asm/TestRqUtilsDll.Bas)
+                    None
                 } else {
                     Some(Ok(self.parse_expression()?))
                 }
@@ -1049,6 +1070,20 @@ impl<'a> Parser<'a> {
         Some(dims)
     }
 
+    /// The length after `AS STRING *`: a product of numbers and CONSTs
+    /// (`STRING * MAX_PATH * 2` — RC.EXE: 2 × MAX_PATH, RapidQ's
+    /// Direct_Show_ex.bas); `Some(None)` when it can't be worked out here.
+    fn fixed_length(&mut self) -> Option<Option<usize>> {
+        let mut len = self.parse_unary()?;
+        while matches!(self.peek_kind(), Some(TokenType::Star | TokenType::Slash)) {
+            let operator = if self.advance()?.kind == TokenType::Star { BinaryOperator::Multiply } else { BinaryOperator::IntegerDivide };
+            let right = self.parse_unary()?;
+            let span = TextSpan::new(expression_span(&len).start, expression_span(&right).end);
+            len = Expression::Binary(BinaryExpression { span, left: Box::new(len), operator, right: Box::new(right) });
+        }
+        Some(fold_int(&len, &self.int_consts).and_then(|n| usize::try_from(n).ok()))
+    }
+
     fn parse_const(&mut self) -> Option<ConstStatement> {
         let start = self.pos;
         self.expect(TokenType::Const)?;
@@ -1067,6 +1102,9 @@ impl<'a> Parser<'a> {
         };
         self.expect(TokenType::Eq)?;
         let value = self.parse_expression()?;
+        if let Some(n) = fold_int(&value, &self.int_consts) {
+            self.int_consts.insert(name.to_ascii_lowercase(), n);
+        }
         Some(ConstStatement {
             span: self.span_from(start),
             name,
@@ -2192,12 +2230,17 @@ impl<'a> Parser<'a> {
                     Vec::new()
                 };
                 self.consume_eol();
-                let body = self.parse_body(&[Terminator::EndPair("PROPERTY")]);
+                // (`END SUB` ends one too: RC.EXE takes it — QLed.inc,
+                // RapidQ's devices/LPT_IO)
+                let body = self.parse_body(&[Terminator::EndPair("PROPERTY"), Terminator::EndPair("SUB")]);
                 if self.peek_is_end_followed_by("PROPERTY") {
                     self.advance();
                     self.advance();
                     // (`END PROPERTY SET`, as QRichEditXt.inc writes it)
                     self.match_kind(TokenType::Set);
+                } else if self.peek_is_end_followed_by("SUB") {
+                    self.advance();
+                    self.advance();
                 } else {
                     self.error_at(prop_start, format!("PROPERTY SET {setter_name} is missing END PROPERTY"));
                 }
@@ -2281,9 +2324,9 @@ impl<'a> Parser<'a> {
                 // `Name AS STRING * 20`: a fixed-length string (a STRING cut to 20).
                 let mut fixed_len = None;
                 if self.match_kind(TokenType::Star) {
-                    if let Some(len) = self.parse_unary() {
+                    if let Some(len) = self.fixed_length() {
                         if ftype.eq_ignore_ascii_case("STRING") {
-                            fixed_len = literal_length(&len);
+                            fixed_len = len;
                         }
                     }
                 }
@@ -2664,6 +2707,22 @@ impl<'a> Parser<'a> {
             want_operand = false;
         }
         if want_operand {
+            // A `-` with nothing after it, after a binary operator (`5 + -`,
+            // `IF Buttons > - THEN`, RapidQ's devices/joystick.bas): RC.EXE
+            // negates what came before and drops the operator — `5 + -` is
+            // -5, `x > -` is -x.
+            let trailing = ops.iter().rev().take_while(|o| matches!(o, Op::Unary(UnaryOperator::Negate | UnaryOperator::Positive, ..))).count();
+            if trailing > 0 && ops.len() > trailing && matches!(ops[ops.len() - trailing - 1], Op::Binary(..)) && !vals.is_empty() {
+                let unaries: Vec<Op> = ops.drain(ops.len() - trailing..).collect();
+                ops.pop();
+                for u in unaries.into_iter().rev() {
+                    ops.push(u);
+                    reduce(&mut ops, &mut vals)?;
+                }
+                want_operand = false;
+            }
+        }
+        if want_operand {
             // A binary operator with nothing after it (`F("a"+, 5)`, `x = 2
             // +`): RC.EXE drops it — the value is what came before
             // (Qcdaudio.inc's `"status cdaudio position"+,` compiles so).
@@ -2984,6 +3043,12 @@ impl<'a> Parser<'a> {
         // x, `&s` the string, `&ForwardTo + 1` ForwardTo + 1 — RapidQ's
         // CallBack_*.inc writes `.WriteNum(&ForwardTo, 4)`)
         if self.peek_kind() == Some(TokenType::Ampersand) {
+            self.advance();
+            return self.parse_unary();
+        }
+        // `#` before a name too: `.Color = #H000000` (RapidQ's colordlg/
+        // RGBV11.BAS) is the undeclared variable H000000 — RC.EXE: `#H1F` 0
+        if self.peek_kind() == Some(TokenType::Hash) && matches!(self.peek_kind_at(1), Some(TokenType::Identifier | TokenType::Number)) {
             self.advance();
             return self.parse_unary();
         }
@@ -3581,10 +3646,25 @@ fn assign(span: TextSpan, name: &str, index: Vec<Expression>, value: Expression)
 }
 
 /// The length in `STRING * 20` (a positive literal; anything else leaves the string unbounded).
-fn literal_length(e: &Expression) -> Option<usize> {
+/// A whole number worked out from literals and the CONSTs known so far
+/// (`MAX_PATH * 2`, `&H10 + 1`); `None` for anything else. (`STRING * 0`
+/// too: RapidQ's holds nothing.)
+fn fold_int(e: &Expression, consts: &std::collections::HashMap<String, i64>) -> Option<i64> {
     match e {
-        // (`STRING * 0` too: RapidQ's holds nothing)
-        Expression::Literal(Literal { value: LiteralValue::Integer(n), .. }) if *n >= 0 => Some(*n as usize),
+        Expression::Literal(Literal { value: LiteralValue::Integer(n), .. }) => Some(*n),
+        Expression::Identifier(i) => consts.get(&rapidr_ast::strip_type_suffix(&i.name).to_ascii_lowercase()).copied(),
+        Expression::Unary(u) if matches!(u.operator, UnaryOperator::Negate) => fold_int(&u.operand, consts)?.checked_neg(),
+        Expression::Unary(u) if matches!(u.operator, UnaryOperator::Positive) => fold_int(&u.operand, consts),
+        Expression::Binary(b) => {
+            let (l, r) = (fold_int(&b.left, consts)?, fold_int(&b.right, consts)?);
+            match b.operator {
+                BinaryOperator::Add => l.checked_add(r),
+                BinaryOperator::Subtract => l.checked_sub(r),
+                BinaryOperator::Multiply => l.checked_mul(r),
+                BinaryOperator::IntegerDivide => l.checked_div(r),
+                _ => None,
+            }
+        }
         _ => None,
     }
 }
@@ -3723,7 +3803,10 @@ mod tests {
         // `w = 1 +` is 1 — tests/conformance/cases/dangling_operator.bas)
         let stmts = parse("w = 1 +\n");
         assert!(matches!(&stmts[0], Statement::Assignment(a) if matches!(&a.value, Expression::Literal(Literal { value: LiteralValue::Integer(1), .. }))), "{stmts:?}");
-        assert_eq!(errors("w = 1 + -\n").len(), 1);
+        // (and a `-` with nothing after it negates what came before: RC.EXE's
+        // `5 + -` is -5 — tests/conformance/cases/rapidq_corpus_forms2.bas)
+        let stmts = parse("w = 1 + -\n");
+        assert!(matches!(&stmts[0], Statement::Assignment(a) if matches!(&a.value, Expression::Unary(u) if u.operator == UnaryOperator::Negate)), "{stmts:?}");
     }
 
     #[test]

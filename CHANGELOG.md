@@ -27,6 +27,12 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   - `$RESOURCE NAME AS <file>`, as `$INCLUDE <file>` (`AVI/aviplay.bas`).
   - A component named like a statement passed to a call without parentheses:
     `File.AddItems Open, Break1, ExitItem`.
+- And more (351 of 428 compile), each against RC.EXE (`rapidq_corpus_forms2`, both backends):
+  `AS STRING * MAX_PATH * 2` (a length worked out from CONSTs: 2 × MAX_PATH, where only a plain
+  number counted before); `DefStr s =` with nothing after the `=`; a `-` with nothing after it
+  (`IF Buttons > - THEN`: RC.EXE negates what came before — `5 + -` is -5); `#` before a name
+  (`.Color = #H000000` is the undeclared variable H000000, 0); a SUB named like a directive
+  (`SUB $XP_MANIFEST`, called as `$XP_MANIFEST`); END SUB closing a TYPE's PROPERTY SET.
 
 ### Release tooling: the VMs stay clean, and no console window flashes
 - `windows-vm.sh clean` and `linux-vm.sh clean` remove everything the release and smoke scripts leave

@@ -92,8 +92,6 @@ NOT_RAPIDQ = {
     "OLE/xls/ExcelReader.bas": "a SUB call without parentheses assigned (`b$ = RiEd.addstring \"sheet \"…`)",
     "Object/Examples/Cd.bas": "typo `\"…\"+,`",
     "VideoCapture/WebCam_Class.bas": "`CASE 5` after `END SELECT`",
-    "buttons/XPBtn.bas": "`SUB $XP_MANIFEST` (a directive's name as a SUB name)",
-    "dialogs/colordlg/RGBV11.BAS": "`#H000000` (RapidQ's hex is `&H`)",
     "direct3d/billboard_ex.bas": "C's `//` comments",
     "dll/Resource in DLL/emptyDLL.bas": "FreeBASIC (`… export`)",
     "files/FileSearch_FB_DLL.bas": "FreeBASIC (`UBYTE PTR`)",
