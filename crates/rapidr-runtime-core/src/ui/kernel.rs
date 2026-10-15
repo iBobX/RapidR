@@ -174,6 +174,14 @@ fn started() -> bool {
     kern().is_some()
 }
 
+/// Wakes the window loop from another thread: a wait in [`step`] ends at
+/// once (RapidR Studio's program sessions: what the program says is heard
+/// when it arrives, not at the next poll).
+pub fn waker() -> Option<std::task::Waker> {
+    ensure_host();
+    with_kern(|k| k.host.waker())
+}
+
 // ------------------------------------------------------------- the pump --
 
 /// What the program changed, into the kernel's forms: window commands,
@@ -240,10 +248,18 @@ pub fn step(max_wait: Option<Duration>) {
         return;
     }
     // (the lists lane's owner-draw events, before the windows are drawn)
+    let before_paint = crate::object::rp_vm_events_queued();
     lists::pre_paint(Rt, &forms::shown_forms());
     let now = Instant::now();
     let mut t = max_wait;
     let mut at_most = |d: Duration| t = Some(t.map_or(d, |t| t.min(d)));
+    // (the interpreter: handlers pre_paint just queued — OnMeasureItem's,
+    // then OnDrawItem's — run as soon as this turn ends, not when the
+    // system next has an event: a lbOwnerDrawVariable list showed its items
+    // undrawn until the mouse moved)
+    if crate::object::rp_vm_events_queued() != before_paint {
+        at_most(Duration::ZERO);
+    }
     if let Some(at) = timers::next_due() {
         at_most(at.saturating_duration_since(now));
     }

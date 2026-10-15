@@ -46,9 +46,11 @@ The **Runs on** column lists the ways each example is tested on (by
 | [hello_form.rr](gui/hello_form.rr) | A form built with `CREATE`, a text box, a button's `OnClick`, `OnChange` | run · interp · native · web | `rapidr run gui/hello_form.rr` |
 | [menus.rr](gui/menus.rr) | A main menu: shortcuts, a check item, radio items, a submenu; a pop-up menu; a status bar | run · interp · native · web | `rapidr run gui/menus.rr` |
 | [dialogs.rr](gui/dialogs.rr) | Open file, colour and font dialogs; a Yes / No question (`MESSAGEDLG`) | run · interp · native · web | `rapidr run gui/dialogs.rr` |
+| [richtext.rr](gui/richtext.rr) | A small rich-text editor: `RRichEdit`'s `SelAttributes` (bold, italic, underline, colour, font), paragraphs aligned and bulleted, open / save `.rtf` — [the manual](../docs/manual/rich-text.md) | run · interp · native · web | `rapidr run gui/richtext.rr` |
 | [stopwatch.rr](gui/stopwatch.rr) | An `RTimer`: start, lap, stop, reset; a list of laps | run · interp · native · web | `rapidr run gui/stopwatch.rr` |
 | [pantry.rr](gui/pantry.rr) | An `RListBox` and an `RStringGrid` working together; adding rows, totals | run · interp · native · web | `rapidr run gui/pantry.rr` |
 | [themes.rr](gui/themes.rr) | RapidR's themes: `$THEME modern`, switching with `Application.Theme` (classic, modern, dark, high contrast) | run · interp · native · web | `rapidr run gui/themes.rr` |
+| [sales_dashboard.rr](gui/sales_dashboard.rr) | A big window (1200 × 800): a sales dashboard — figures on `RPanel`s, two `RPlot` charts, an `RStringGrid`, a region picked with buttons. In RapidR Studio on the web it shows whole: the run area scrolls past the page | run · interp · native · web | `rapidr run gui/sales_dashboard.rr` |
 | [tray.rr](gui/tray.rr) | A system tray icon, as RapidQ programs make one (`RNotifyIconData`, `Shell_NotifyIcon`, the form's `WndProc`) | run · interp · native · web | `rapidr run gui/tray.rr` |
 
 ### studio/ — RapidR Studio's panels in your own program
@@ -83,6 +85,9 @@ The **Runs on** column lists the ways each example is tested on (by
 | [numbers.rr](data/numbers.rr) | `RNum` arrays: `FromList`, `Arange`, `Linspace`, statistics, arithmetic on every element, `Cumsum`, `Unique` | run · interp · native · web | `rapidr run data/numbers.rr` |
 | [csv_explorer.rr](data/csv_explorer.rr) | Drop a CSV file on the window (or open one, or the sample [shop.csv](data/shop.csv)): a table sorted by a click on a heading, a filter, each column's count, min, max and mean, and a live `RPlot` bar, line or scatter chart of any two columns; the form's `OnDropFiles` | run · interp · native · web | `rapidr run data/csv_explorer.rr` |
 | [dataframe.rr](data/dataframe.rr) | `RDataFrame` from a CSV ([staff.csv](data/staff.csv)): filter, sort, into a grid; an `RPlot` bar chart on the form | run · interp · native · web | `rapidr run data/dataframe.rr` |
+| [json_source.rr](data/json_source.rr) | A JSON file ([products.json](data/products.json)) as a data source: an `RJson`'s records → `RDataFrame` (`Source`) → an `RDBGrid` and bound edits; filtered, grouped by category, saved back as JSON | run · interp · native · web | `rapidr run data/json_source.rr` |
+| [million_rows.rr](data/million_rows.rr) | A million rows: written once to `big.csv`, read by an `RCSV`, shown in an `RDBGrid` that draws only the rows on screen; filter, sort and group the whole million with the time each took | run · interp · native · web | `rapidr run data/million_rows.rr [rows]` |
+| [linked_data.rr](data/linked_data.rr) | Linked components with almost no code: an `RCSV` ([staff.csv](data/staff.csv)) → `RDataFrame` (`Source`) → `RDataSource` → an `RDBGrid` and `REdit`s / `RLabel`s bound with `DataSource` + `DataField`; the current row followed everywhere, edits written back, the grid's view sorted by a heading's click — live in RapidR Studio's designer too | run · interp · native · web | `rapidr run data/linked_data.rr` |
 
 ### network/ — HTTP (against a server on your own machine)
 
@@ -112,11 +117,13 @@ In a browser (Chrome, Edge) the first Connect asks which port to use.
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
 | [notepad.bas](rapidq/notepad.bas) | A text editor in plain RapidQ style: `$TYPECHECK ON`, `DECLARE SUB`, Q components (`QRICHEDIT`, `QMAINMENU`, `QSTATUSBAR` panels), open / save dialogs, `OnClose`'s `Action` | run · interp · native · web | `rapidr run rapidq/notepad.bas` |
+| [shapes/shapes.bas](rapidq/shapes/shapes.bas) | A RapidQ program in several files: its library (`lib/geometry.inc`, which includes `lib/units.inc`) and its window (`forms/shapesform.inc`) brought in with `$INCLUDE`, written as on Windows (`"Lib\Geometry.INC"`) and found on every system; try `rapidr import-rapidq rapidq/shapes/shapes.bas` to see its includes copied too ([Include files](../docs/manual/importing-rapidq.md#include-files)) | run · interp · native · web | `rapidr run rapidq/shapes/shapes.bas` |
 
 RapidR runs RapidQ programs unchanged. The other examples use RapidR's own
 names: `RButton`, `RForm`, `RStringGrid` … (RapidQ's names, `QBUTTON`,
-`QFORM` …, are the same components and work everywhere). `rapidq/notepad.bas`
-is kept in RapidQ's own style on purpose, to show that it runs as it is. To
+`QFORM` …, are the same components and work everywhere). The `rapidq/`
+examples are kept in RapidQ's own style on purpose, to show that they run as
+they are. To
 bring a RapidQ program of your own over to RapidR's names, use
 `rapidr import-rapidq` (it writes a converted copy and a report, and leaves
 the original alone).

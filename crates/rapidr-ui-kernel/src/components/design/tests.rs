@@ -260,3 +260,36 @@ fn the_designers_pointer_follows_what_the_mouse_is_over() {
     rapidr_value::objects::with_design_mut("ds", |d| d.place_type = "RBUTTON".into());
     assert_eq!(at(&mut f, &s, &mut ts, 150.5, 140.5), Cursor::Cross);
 }
+
+/// (I7) Linked data live at design time: an RCSV in the tray (its data as
+/// text, as a file's would be read), an RDataFrame taking its rows, a grid
+/// and an edit bound to it — the designer draws the rows and the edit the
+/// first row's name, before anything runs; a grid with no DataSource says
+/// what to set.
+#[test]
+fn linked_data_shows_at_design_time() {
+    let form = Subtree {
+        id: 0,
+        name: "Main".into(),
+        type_written: "RFORM".into(),
+        body: vec![
+            p("Width", "420"),
+            p("Height", "300"),
+            comp("People", "RCSV", vec![p("Text", "\"name,age\nAda,36\nBob,41\"")]),
+            comp("Team", "RDATAFRAME", vec![p("Source", "People")]),
+            comp("Grid", "RDBGRID", vec![p("Left", "8"), p("Top", "8"), p("Width", "300"), p("Height", "120"), p("DataSource", "Team")]),
+            comp("NameEdit", "REDIT", vec![p("Left", "8"), p("Top", "140"), p("DataSource", "Team"), p("DataField", "\"name\"")]),
+            comp("Empty", "RDBGRID", vec![p("Left", "8"), p("Top", "170"), p("Width", "300"), p("Height", "60")]),
+        ],
+    };
+    let (_s, _f, _ts, list) = shown(form, (520, 420));
+    let t = texts(&list);
+    for want in ["name", "age", "Ada", "Bob", "41", "Set DataSource to see the rows here"] {
+        assert!(t.iter().any(|x| x == want), "{want} not drawn: {t:?}");
+    }
+    // (the edit shows the first row's name: its text model's)
+    assert_eq!(rapidr_value::objects::get("ds:nameedit", "text").map(|v| v.to_string_val()), Some("Ada".to_string()));
+    // (the program's own names never meet the designer's)
+    assert!(!rapidr_value::datascience::frame::has_frame("team"));
+    assert!(rapidr_value::datascience::frame::has_frame("ds:team"));
+}

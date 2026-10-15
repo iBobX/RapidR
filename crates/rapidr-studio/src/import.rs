@@ -20,13 +20,15 @@ use rapidr_project::{kind_for_path, kind_for_source, Project};
 use crate::{folder_of, join, slashes, Host};
 
 /// What an import made: the copy's project file, the copy's folder, the
-/// report's file and its one-line summary.
+/// report's file and its one-line summary, and the includes found nowhere
+/// (a line each: file:line, the name as written, what to do — tabs between).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Imported {
     pub project: String,
     pub folder: String,
     pub report: String,
     pub summary: String,
+    pub missing: String,
 }
 
 fn ext(path: &str) -> String {
@@ -72,7 +74,11 @@ pub fn import<H: Host>(host: H, source: &str, dest: &str) -> Result<Imported, St
         let root = if is_file { folder_of(&source) } else { source.clone() };
         let stored = |folder: &str| !host.list_tree(folder).is_empty();
         let dest = if dest.is_empty() { default_dest(&source, |p| rapidr_value::objects::read_file(p).is_ok() || stored(p)) } else { slashes(dest) };
-        let files: Vec<(std::path::PathBuf, Vec<u8>)> = host.list_tree(&root).into_iter().filter_map(|rel| {
+        // (a file picked alone or with others is at the store's top: those
+        // picked with it are its neighbours — its include files, found by
+        // their names; a folder brings everything under it)
+        let names = if root.is_empty() { host.list_files("") } else { host.list_tree(&root) };
+        let files: Vec<(std::path::PathBuf, Vec<u8>)> = names.into_iter().filter_map(|rel| {
             let p = join(&root, &rel);
             rapidr_value::objects::read_file(&p).ok().map(|b| (std::path::PathBuf::from(p), b))
         }).collect();
@@ -91,7 +97,14 @@ pub fn import<H: Host>(host: H, source: &str, dest: &str) -> Result<Imported, St
     rapidr_value::objects::write_file(&report_file, report::markdown(&r).as_bytes())?;
     let project = write_project(&source, &folder, &r)?;
     let _ = dest;
-    Ok(Imported { project, folder, report: report_file, summary: report::summary(&r) })
+    let mut missing: Vec<String> = Vec::new();
+    for m in r.missing() {
+        let line = format!("{}:{}\t{}\t{}", slashes(&m.from.to_string_lossy()), m.line, m.written, rapidr_import::missing_fix(&m.written));
+        if !missing.contains(&line) {
+            missing.push(line);
+        }
+    }
+    Ok(Imported { project, folder, report: report_file, summary: report::summary(&r), missing: missing.join("\n") })
 }
 
 /// The copy's project: the `.rrproj` the import copied (a project was

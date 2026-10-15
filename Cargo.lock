@@ -3711,6 +3711,7 @@ dependencies = [
  "rapidr-codegen-rust",
  "rapidr-dap",
  "rapidr-import",
+ "rapidr-introspect",
  "rapidr-lang",
  "rapidr-langsvc",
  "rapidr-lexer",
@@ -3842,6 +3843,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rapidr-introspect"
+version = "2.118.0"
+dependencies = [
+ "rapidr-designer",
+ "rapidr-lang",
+ "rapidr-preprocessor",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "rapidr-lang"
 version = "2.118.0"
 dependencies = [
@@ -3928,6 +3940,7 @@ dependencies = [
 name = "rapidr-project"
 version = "2.118.0"
 dependencies = [
+ "rapidr-preprocessor",
  "serde",
  "serde_json",
  "toml 0.9.12+spec-1.1.0",
@@ -4091,6 +4104,7 @@ dependencies = [
 name = "rapidr-ui-render"
 version = "2.118.0"
 dependencies = [
+ "fearless_simd",
  "glifo",
  "parley",
  "rapidr-langsvc",

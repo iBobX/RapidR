@@ -10,7 +10,7 @@ use rapidr_ui_kernel::{FormUi, TextSystem};
 use rapidr_value::objects::codec::Pixels;
 use vello_cpu::kurbo::{Affine, BezPath, Rect as KRect, Stroke};
 use vello_cpu::peniko::Color;
-use vello_cpu::{Pixmap, RenderContext, RenderMode, Resources};
+use vello_cpu::{Pixmap, RenderContext, RenderMode, RenderSettings, Resources};
 
 use crate::canvas::{color, draw_list, Canvas, GlyphRun, BACKGROUND};
 
@@ -87,6 +87,25 @@ impl Canvas for CpuCanvas<'_> {
     }
 }
 
+/// The render context's settings: the same pixels on every machine and in
+/// the browser. vello_cpu's SIMD levels round differently where they fuse a
+/// multiply and an add (Neon's `vfma`, AVX2's `vfmadd`: one rounding) or
+/// don't (wasm SIMD 128, which has no fused one, and SSE: two) — flattening
+/// curves, blending, gradients — so a glyph's edge could be one level
+/// apart between the desktop and the web. The web keeps wasm SIMD (2.4–2.8×
+/// faster than scalar there); elsewhere the portable level, which never
+/// fuses (LLVM still vectorizes it): the very values the web computes.
+pub fn settings() -> RenderSettings {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        RenderSettings { level: fearless_simd::Level::fallback(), num_threads: 0 }
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        RenderSettings::default()
+    }
+}
+
 /// vello_cpu with its persistent resources (glyph caches) and a target.
 pub struct CpuRenderer {
     ctx: RenderContext,
@@ -101,7 +120,7 @@ fn clamp16(v: u32) -> u16 {
 impl CpuRenderer {
     pub fn new(width: u32, height: u32) -> Self {
         let (w, h) = (clamp16(width), clamp16(height));
-        CpuRenderer { ctx: RenderContext::new(w, h), res: Resources::new(), pixmap: Pixmap::new(w, h) }
+        CpuRenderer { ctx: RenderContext::new_with(w, h, settings()), res: Resources::new(), pixmap: Pixmap::new(w, h) }
     }
 
     /// `list` drawn into the pixmap, `width` × `height` device pixels.
@@ -118,7 +137,7 @@ impl CpuRenderer {
     fn render_on(&mut self, width: u32, height: u32, list: &DisplayList, text: &mut TextSystem, form: &FormUi, background: Color) {
         let (w, h) = (clamp16(width), clamp16(height));
         if (w, h) != (self.ctx.width(), self.ctx.height()) {
-            self.ctx = RenderContext::new(w, h);
+            self.ctx = RenderContext::new_with(w, h, settings());
             self.pixmap = Pixmap::new(w, h);
         } else {
             self.ctx.reset();

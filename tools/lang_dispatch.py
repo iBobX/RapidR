@@ -55,6 +55,9 @@ SITES = {
     # --- data science: one model for every runtime
     ("crates/rapidr-value/src/datascience/num.rs", "*"): "RNUM",
     ("crates/rapidr-value/src/datascience/frame.rs", "*"): "RDATAFRAME",
+    # (I7: linked data — its components' own members; tuple arms name theirs)
+    ("crates/rapidr-value/src/datascience/link.rs", "get"): "RCSV RDATASOURCE RDBGRID",
+    ("crates/rapidr-value/src/datascience/link.rs", "dataframe_call"): "RDATAFRAME",
     ("crates/rapidr-value/src/datascience/plot.rs", "*"): "RPLOT",
     ("crates/rapidr-runtime-core/src/layout.rs", "after_set"): "*",
     ("crates/rapidr-runtime-core/src/network.rs", "socket_method"): "RSOCKET",

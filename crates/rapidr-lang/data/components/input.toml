@@ -10,6 +10,22 @@ size = [75, 25]
 default_event = "OnClick"
 sets = ["layout", "a11y"]
 doc = "A push button: the user clicks it to run its OnClick handler. It can show a picture and be the form's Default or Cancel button."
+example = """
+SUB SaveClick
+    ShowMessage "Saved"
+END SUB
+
+CREATE Form1 AS RForm
+    Caption = "Notes"
+    Width = 320: Height = 240
+    CREATE Save AS RButton
+        Caption = "Save"
+        Left = 10: Top = 10
+        OnClick = SaveClick
+    END CREATE
+END CREATE
+Form1.ShowModal
+"""
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "BMP", type = "picture" },
@@ -42,10 +58,10 @@ properties = [
   { name = "FontColor", type = "color", origin = "rapidr" },
 ]
 methods = [
-  { name = "StartDrag" },
-  { name = "SetFocus", value = true, origin = "rapidr" },
-  { name = "Repaint", origin = "rapidr" },
-  { name = "Refresh", value = true, origin = "rapidr" },
+  { name = "StartDrag", effects = ["ui"] },
+  { name = "SetFocus", value = true, origin = "rapidr", effects = ["ui"] },
+  { name = "Repaint", origin = "rapidr", effects = ["ui"] },
+  { name = "Refresh", value = true, origin = "rapidr", effects = ["ui"] },
 ]
 events = [
   { name = "OnClick" },
@@ -104,6 +120,8 @@ properties = [
   { name = "FontColor", type = "color", origin = "rapidr" },
   { name = "Alignment", type = "enum", values = ["taLeftJustify", "taRightJustify", "taCenter"], origin = "rapidr" },
   { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], origin = "rapidr" },
+  { name = "DataSource", type = "component", kinds = ["RDATASOURCE", "RDATAFRAME", "RCSV", "RJSON"], origin = "rapidr", category = "Data", doc = "Shows a data set's current row: an RDataSource, or a data set straight (with DataField: the column). What the user types goes back into the data set's table." },
+  { name = "DataField", type = "string", default = "", origin = "rapidr", category = "Data", doc = "The column of DataSource's current row it shows and edits (\"name\")." },
 ]
 methods = [
   { name = "SetFocus", value = true, origin = "rapidr" },
@@ -305,14 +323,41 @@ visual = true
 size = [185, 89]
 default_event = "OnChange"
 sets = ["layout", "a11y"]
-doc = "A multi-line text editor with fonts, colours and alignment per selection, that loads and saves rich text (RTF) or plain text."
+doc = "A multi-line text editor whose text is formatted: font, size, colour, bold, italic, underline and strike-out per character (SelAttributes), alignment, indents and bullets per paragraph; it loads and saves rich text (RTF), or plain text with PlainText. What the user types takes the format of the text around it, and Ctrl+Z gives back the text and its formats."
+example = """
+SUB Changed
+    Status.Caption = STR$(Notes.LineCount) + " lines"
+END SUB
+
+CREATE Form1 AS RForm
+    Caption = "Notes"
+    Width = 420: Height = 300
+    CREATE Notes AS RRichEdit
+        Align = alClient
+        ScrollBars = ssVertical
+        OnChange = Changed
+    END CREATE
+    CREATE Status AS RStatusBar
+    END CREATE
+END CREATE
+Notes.Text = "Rich text: bold and red"
+Notes.SelStart = 11: Notes.SelLength = 4
+Notes.SelAttributes.Bold = 1
+Notes.SelStart = 20: Notes.SelLength = 3
+Notes.SelAttributes.Color = &HFF
+Notes.SelStart = LEN(Notes.Text)
+Notes.SelAttributes.Italic = 1
+Notes.AddStrings "This line is added in italics."
+Notes.SaveToFile "notes.rtf"
+Form1.ShowModal
+"""
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
-  { name = "Alignment", type = "enum", values = ["taLeftJustify", "taRightJustify", "taCenter"], default = "taLeftJustify" },
+  { name = "Alignment", type = "enum", values = ["taLeftJustify", "taRightJustify", "taCenter"], default = "taLeftJustify", doc = "How paragraphs without an alignment of their own line up (set after the text, it aligns it all as shown; paragraphs set by Text afterwards get it as their own); setting it moves the caret to the start, as RapidQ's." },
   { name = "BorderStyle", type = "enum", values = ["bsNone", "bsSingle", "bsSizeable", "bsDialog", "bsToolWindow", "bsSizeToolWin"], default = "bsSingle" },
   { name = "Color", type = "color" },
   { name = "Enabled", type = "bool", default = true },
-  { name = "Font", type = "font", access = "write", design = true },
+  { name = "Font", type = "font", access = "write", design = true, doc = "The text's default format: text never formatted shows it (all of it, while nothing is formatted), and an empty last line types in it." },
   { name = "Handle", type = "int", access = "read", design = false },
   { name = "Height", type = "int" },
   { name = "HideScrollBars", type = "bool", default = true },
@@ -320,16 +365,16 @@ properties = [
   { name = "Hint", type = "string" },
   { name = "Left", type = "int", default = 0 },
   { name = "Line", type = "string", design = false, indexed = 1 },
-  { name = "LineCount", type = "int", design = false },
+  { name = "LineCount", type = "int", design = false, range = "0.." },
   { name = "Modified", type = "int", access = "read", design = false },
   { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
   { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"], access = "write", design = false },
-  { name = "PlainText", type = "bool", default = false },
+  { name = "PlainText", type = "bool", default = false, doc = "False: LoadFromFile / SaveToFile and the streams read and write rich text (RTF; a file that isn't RTF loads as its text). True: plain text, lines ending CR LF." },
   { name = "ReadOnly", type = "bool", default = false },
   { name = "ScrollBars", type = "enum", values = ["ssNone", "ssHorizontal", "ssVertical", "ssBoth"], default = "ssNone" },
-  { name = "SelAttributes", type = "font", access = "write", design = false },
-  { name = "SelLength", type = "int" },
-  { name = "SelStart", type = "int" },
+  { name = "SelAttributes", type = "font", access = "write", design = false, doc = "The format of the selected text — at a caret, of what is typed or added there next: set it to a QFONT (all its settings), or set its members (Color, Name, Size, Bold, Italic, Underline, StrikeOut, Charset; AddStyles / DelStyles). Reading a member gives the selection's last character's (the caret's format at a caret); an automatic colour reads clWindowText (&H80000008)." },
+  { name = "SelLength", type = "int", range = "0.." },
+  { name = "SelStart", type = "int", range = "0.." },
   { name = "SelText", type = "string" },
   { name = "ShowHint", type = "bool", default = false },
   { name = "TabOrder", type = "int" },
@@ -345,28 +390,30 @@ properties = [
   { name = "FontSize", type = "int", origin = "rapidr" },
   { name = "FontColor", type = "color", origin = "rapidr" },
   { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], origin = "rapidr" },
-  { name = "SelFont", type = "font" },
+  { name = "SelFont", type = "font", access = "write", design = false, doc = "SelAttributes = Font's other name: the QFONT's settings on the selection (RapidQ's; write-only)." },
+  { name = "Paragraph", type = "item", kinds = ["ParaAttributes"], design = false, origin = "rapidr", doc = "The format of the paragraphs the selection is in (at a caret, its paragraph's): Alignment, LeftIndent, FirstIndent, RightIndent (pixels) and Numbering (bullets). Reading gives the first one's." },
+  { name = "TextRTF", type = "string", design = false, origin = "rapidr", doc = "The text with its formats as RTF — what SaveToFile writes while PlainText is False; setting it loads RTF (or plain text) as LoadFromFile does." },
 ]
 methods = [
-  { name = "AddStrings", params = "Items ..." },
-  { name = "Clear", value = true },
-  { name = "CopyToClipboard" },
-  { name = "CutToClipboard" },
-  { name = "LoadFromFile", params = "FileName AS STRING" },
-  { name = "LoadFromStream", params = "Stream AS RFileStream", doc = "Replaces the text with the stream's bytes from its position to its end (as LoadFromFile reads a file); the stream is left at its end." },
-  { name = "PasteFromClipboard" },
-  { name = "SaveToFile", params = "FileName AS STRING" },
-  { name = "SaveToStream", params = "Stream AS RFileStream", doc = "Writes the text at the stream's position (the same bytes SaveToFile writes), moving the position past it." },
-  { name = "SelectAll", value = true },
-  { name = "SetFocus", value = true, origin = "rapidr" },
-  { name = "Repaint", origin = "rapidr" },
-  { name = "Refresh", value = true, origin = "rapidr" },
-  { name = "Lines", origin = "rapidr" },
-  { name = "AddString" },
-  { name = "AddLines", origin = "rapidr" },
-  { name = "Add", origin = "rapidr" },
-  { name = "AddItems", value = true, origin = "rapidr" },
-  { name = "ClearSelection", origin = "rapidr" },
+  { name = "AddStrings", params = "Items AS STRING ...", effects = ["ui"], doc = "Adds lines at the end (after the last line break, or a break before them when the text doesn't end with one); the caret goes after them, and a format SelAttributes set at that caret goes to them." },
+  { name = "Clear", value = true, effects = ["ui"] },
+  { name = "CopyToClipboard", effects = ["clipboard"] },
+  { name = "CutToClipboard", effects = ["clipboard", "ui"] },
+  { name = "LoadFromFile", params = "FileName AS STRING", effects = ["file-read", "ui"], doc = "Replaces the text with a file's: rich text (RTF) with its formats, or the file's text when it isn't RTF or PlainText is True." },
+  { name = "LoadFromStream", params = "Stream AS RFileStream", effects = ["state", "ui"], doc = "Replaces the text with the stream's bytes from its position to its end (as LoadFromFile reads a file); the stream is left at its end." },
+  { name = "PasteFromClipboard", effects = ["clipboard", "ui"] },
+  { name = "SaveToFile", params = "FileName AS STRING", effects = ["file-write"], doc = "Writes the text with its formats as RTF (as RapidQ's: ending with a NUL byte), or with PlainText True the text, lines ending CR LF." },
+  { name = "SaveToStream", params = "Stream AS RFileStream", effects = ["state"], doc = "Writes the text at the stream's position (the same bytes SaveToFile writes), moving the position past it." },
+  { name = "SelectAll", value = true, effects = ["ui"] },
+  { name = "SetFocus", value = true, origin = "rapidr", effects = ["ui"] },
+  { name = "Repaint", origin = "rapidr", effects = ["ui"] },
+  { name = "Refresh", value = true, origin = "rapidr", effects = ["ui"] },
+  { name = "Lines", origin = "rapidr", effects = ["none"] },
+  { name = "AddString", effects = ["ui"] },
+  { name = "AddLines", origin = "rapidr", effects = ["ui"] },
+  { name = "Add", origin = "rapidr", effects = ["ui"] },
+  { name = "AddItems", value = true, origin = "rapidr", effects = ["ui"] },
+  { name = "ClearSelection", origin = "rapidr", effects = ["ui"] },
 ]
 events = [
   { name = "OnChange" },
@@ -850,7 +897,7 @@ methods = [
   { name = "SetFocus", value = true, origin = "rapidr" },
   { name = "Repaint", origin = "rapidr" },
   { name = "Refresh", value = true, origin = "rapidr" },
-  { name = "StartDrag" },
+  { name = "StartDrag", effects = ["ui"] },
 ]
 events = [
   { name = "OnClick" },
@@ -906,7 +953,7 @@ methods = [
   { name = "SetFocus", value = true, origin = "rapidr" },
   { name = "Repaint" },
   { name = "Refresh", value = true, origin = "rapidr" },
-  { name = "StartDrag" },
+  { name = "StartDrag", effects = ["ui"] },
 ]
 events = [
   { name = "OnClick" },

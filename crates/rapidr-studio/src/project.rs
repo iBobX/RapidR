@@ -13,6 +13,8 @@
 //! | `File(i)`, `FileKind(i)`, `FullPath(i)` | file i (from 0): its project path, kind (`module`, `form`, `include`, `resource`, `asset`, `data`), path to open |
 //! | `ImportRapidQ(Source [, Dest])` → the copy's project file | File ▸ Import RapidQ Project or File… (`crate::import`): a copy of a RapidQ program or folder with RapidR's names, its report and project; "" (Error says why) when it can't |
 //! | `ImportSummary`, `ImportReport` | the last import's summary line and its report's file |
+//! | `ImportMissing` | the last import's includes found nowhere, a line each: `file:line`, the name, what to do (tabs between) |
+//! | `IncludeFolders` | Studio's include folders, a line each: where `$INCLUDE` looks after the program's folder, for everything compiled here (and the programs it runs) |
 //! | `FileName`, `Folder`, `Kind` (`project`, `file`, `v1`, "" none), `Error` | read-only |
 //! | `Name`, `MainFile`, `CompatMode` (`"rapidq"` or "") | read / write |
 //! | `FileCount` | read-only |
@@ -41,10 +43,10 @@ thread_local! {
     static PROJECTS: RefCell<HashMap<String, Model>> = RefCell::new(HashMap::new());
     /// The last import's (summary, report file), by component: kept when a
     /// project is opened (the copy is, next).
-    static IMPORTED: RefCell<HashMap<String, (String, String)>> = RefCell::new(HashMap::new());
+    static IMPORTED: RefCell<HashMap<String, (String, String, String)>> = RefCell::new(HashMap::new());
 }
 
-fn imported(name: &str) -> (String, String) {
+fn imported(name: &str) -> (String, String, String) {
     IMPORTED.with(|i| i.borrow().get(&name.to_ascii_lowercase()).cloned().unwrap_or_default())
 }
 
@@ -91,6 +93,8 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "builtpath" => Value::String(m.built.clone()),
             "importsummary" => Value::String(imported(name).0),
             "importreport" => Value::String(imported(name).1),
+            "importmissing" => Value::String(imported(name).2),
+            "includefolders" => Value::String(include_folders()),
             // (Reveal's: what the system calls its file manager)
             "filemanager" => Value::String(if cfg!(target_arch = "wasm32") { "" } else if cfg!(target_os = "macos") { "Finder" } else if cfg!(windows) { "File Explorer" } else { "Files" }.into()),
             _ => return None,
@@ -128,11 +132,44 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             "outputfolder" => m.project.build.output = project_path(&m.folder, v.to_string_val().trim()),
             "keeprust" => m.project.build.keep_rust = v.to_i64() != 0 || v.to_string_val().eq_ignore_ascii_case("true"),
             "buildkind" => set_build_kind(&mut m.project, v.to_string_val().trim().eq_ignore_ascii_case("interpreted")),
-            "filename" | "folder" | "kind" | "error" | "filecount" | "building" | "builtpath" | "filemanager" | "importsummary" | "importreport" => {}
+            "includefolders" => set_include_folders(&v.to_string_val()),
+            "filename" | "folder" | "kind" | "error" | "filecount" | "building" | "builtpath" | "filemanager" | "importsummary" | "importreport" | "importmissing" => {}
             _ => return false,
         }
         true
     })
+}
+
+/// Studio's include folders (IncludeFolders), a line each: those set for
+/// every program compiled here ([`rapidr_preprocessor::set_include_dirs`]).
+fn include_folders() -> String {
+    INCLUDE_FOLDERS.with(|f| f.borrow().clone())
+}
+
+thread_local! {
+    static INCLUDE_FOLDERS: RefCell<String> = const { RefCell::new(String::new()) };
+}
+
+/// `RAPIDR_INCLUDE_PATH` for a program Studio starts (Run, Build): every
+/// include folder this Studio compiles with — IncludeFolders, then its own
+/// `RAPIDR_INCLUDE_PATH`'s. `None` when there are none.
+pub fn include_path_env() -> Option<String> {
+    let dirs = rapidr_preprocessor::configured_include_dirs();
+    if dirs.is_empty() {
+        return None;
+    }
+    rapidr_preprocessor::include_path_value(&dirs).map(|v| v.to_string_lossy().into_owned())
+}
+
+/// IncludeFolders set: a folder a line (blank lines left out), for every
+/// program compiled from now on — Open, the language service, Run and
+/// Build (the programs Studio starts get them in `RAPIDR_INCLUDE_PATH`),
+/// ImportRapidQ.
+fn set_include_folders(text: &str) {
+    let dirs: Vec<std::path::PathBuf> = text.lines().map(str::trim).filter(|l| !l.is_empty()).map(std::path::PathBuf::from).collect();
+    let shown = dirs.iter().map(|d| d.to_string_lossy().into_owned()).collect::<Vec<_>>().join("\n");
+    INCLUDE_FOLDERS.with(|f| *f.borrow_mut() = shown);
+    rapidr_preprocessor::set_include_dirs(dirs);
 }
 
 /// A project path for `path` (relative to the project's folder; an
@@ -184,7 +221,7 @@ pub fn program_files(program: &str) -> Result<ProgramFiles, String> {
         if rel.eq_ignore_ascii_case(&main) {
             return Some((main.clone(), main_text.clone()));
         }
-        read_text(&join(&folder, rel)).ok().map(|t| (rel.to_string(), t))
+        read_project_file(&folder, rel)
     };
     let project = rapidr_project::implicit_from_resolver(&main, &resolve);
     let mut sources = vec![(main.clone(), main_text.clone())];
@@ -225,6 +262,17 @@ fn exists(path: &str) -> bool {
     rapidr_value::objects::read_file(path).is_ok()
 }
 
+/// Project file `rel` of `folder` — its names in any case, as `$INCLUDE`
+/// finds it (`Inc\MyLib.INC` → `inc/mylib.inc`) — : its project path as
+/// the files name it, and its text.
+fn read_project_file(folder: &str, rel: &str) -> Option<(String, String)> {
+    if let Ok(t) = read_text(&join(folder, rel)) {
+        return Some((rel.to_string(), t));
+    }
+    let actual = rapidr_project::actual_path(folder, rel)?;
+    read_text(&join(folder, &actual)).ok().map(|t| (actual, t))
+}
+
 fn open(m: &mut Model, path: &str) -> Result<(), String> {
     let path = slashes(path);
     let folder = folder_of(&path);
@@ -253,7 +301,7 @@ fn open(m: &mut Model, path: &str) -> Result<(), String> {
         // (RapidR's and RapidQ's sources: rapidr_preprocessor::SOURCE_EXTENSIONS)
         "bas" | "rr" | "inc" | "rqw" | "rqb" | "rq" => {
             let main = path.rsplit('/').next().unwrap_or(&path).to_string();
-            let resolve = |rel: &str| -> Option<(String, String)> { read_text(&join(&folder, rel)).ok().map(|t| (rel.to_string(), t)) };
+            let resolve = |rel: &str| -> Option<(String, String)> { read_project_file(&folder, rel) };
             if !exists(&path) {
                 return Err(format!("{path}: no such file"));
             }
@@ -517,7 +565,7 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             with(name, |m| m.error = r.as_ref().err().cloned().unwrap_or_default());
             match r {
                 Ok(i) => {
-                    IMPORTED.with(|x| x.borrow_mut().insert(name.to_ascii_lowercase(), (i.summary.clone(), i.report.clone())));
+                    IMPORTED.with(|x| x.borrow_mut().insert(name.to_ascii_lowercase(), (i.summary.clone(), i.report.clone(), i.missing.clone())));
                     Value::String(i.project)
                 }
                 Err(_) => Value::String(String::new()),

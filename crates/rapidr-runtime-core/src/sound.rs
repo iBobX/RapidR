@@ -20,7 +20,7 @@ pub fn rp_playwav(source: &Value, options: &Value) {
                 stop();
                 return;
             }
-            match std::fs::read(&path) {
+            match std::fs::read(crate::value::paths::host(&path)) {
                 Ok(b) => Some(b),
                 Err(e) => {
                     eprintln!("[rapidr] PLAYWAV: can't read {path}: {e}");

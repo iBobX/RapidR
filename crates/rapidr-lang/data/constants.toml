@@ -212,7 +212,7 @@ constants = [
 [[group]]
 name = "Colours"
 source = "RAPIDQ.INC"
-doc = "Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods."
+doc = "Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods. RAPIDQ.INC also gives `QBColor(0 TO 15)`, an INTEGER array of QBasic's 16 colours in the same form (`QBColor(12)` is bright red)."
 constants = [
   ["clAqua", 16776960],
   ["clBlack", 0],

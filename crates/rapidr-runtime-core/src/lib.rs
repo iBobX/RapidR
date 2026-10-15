@@ -30,6 +30,9 @@ pub(crate) mod io;
 pub(crate) mod serial;
 pub(crate) mod serial_list;
 pub(crate) mod media;
+/// (I7) Linked data on the desktop: what `rapidr_value::datascience::link`
+/// asks of the runtime.
+pub(crate) mod links;
 pub use rapidr_value as value;
 
 #[cfg(feature = "database")]

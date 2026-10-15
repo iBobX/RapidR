@@ -6,7 +6,7 @@ Usage (repo root, after building ./rapidr):
     python3 tools/corpus_run.py [--backend vm,native] [--jobs N]
         [--corpus corpus.json] [--examples DIR] [--include DIR]
         [--golden DIR] [--report report.md] [--json out.json]
-        [--label "after"] [--before before.json] [filter ...]
+        [--label "after"] [--before before.json] [--list programs.txt] [filter ...]
 
 Which programs: those `tools/rapidq_corpus.py --json` lists as compiling
 (`--corpus`; without one the compile check runs first). Each program's
@@ -78,7 +78,7 @@ SHELL = truth.SHELL
 GUI = re.compile(r"\bQ(FORM|FORMEX|FORMMDI|DOCKFORM)\b|\bR(FORM|FORMMDI)\b", re.I)
 APPTYPE_CONSOLE = truth.APPTYPE_CONSOLE
 # (a console program that waits for a key or a line: RapidQ's waits too)
-WAITS = re.compile(r"\binkey\$|\binput\$|\bget\$|^\s*input\b|\bsleep\b|\bconsole\.(input|inkey)", re.I | re.M)
+WAITS = re.compile(r"\binkey\$|\binput\$|\bget\$|^\s*(\d+\s+)?input\b|\bsleep\b|\bconsole\.(input|inkey)", re.I | re.M)
 # (output that depends on random numbers or the clock: not compared)
 VARIES = re.compile(r"\b(rnd|randomize|timer|time\$|date\$|tickcount|gettickcount)\b", re.I)
 LANES = ("portable", "dll", "directx", "ole", "hardware")
@@ -281,8 +281,10 @@ def stage(p):
     d = os.path.join(WORK, p["name"])
     shutil.rmtree(d, ignore_errors=True)
     shutil.copytree(os.path.dirname(p["src"]), d, ignore=shutil.ignore_patterns("*.exe", "*.zip", "*.rar", "*.dll", "*.EXE", "*.DLL", "*.ZIP"))
-    # (the copy is run on purpose: not a download that asks first)
+    # (the copy is run on purpose: not a download that asks first — its
+    # read-only files made writable first, or the mark stays on them)
     if sys.platform == "darwin":
+        subprocess.run(["chmod", "-R", "u+w", d], capture_output=True)
         subprocess.run(["xattr", "-dr", "com.apple.quarantine", d], capture_output=True)
     return os.path.join(d, os.path.basename(p["src"]))
 
@@ -357,11 +359,14 @@ def run_native(p, args):
     proj = os.path.join(WORK, "native", p["name"])
     shutil.rmtree(proj, ignore_errors=True)
     # (a plain executable, not an app: it runs headless here)
-    code, out, err, to = run([RAPIDR, "build", staged, proj, "--no-bundle"], d, env, 1800)
-    exe = os.path.join(d, stem + EXE)
-    if code != 0 or not os.path.exists(exe):
+    code, out, err, to = run([RAPIDR, "build", staged, proj, "--no-bundle"], d, env, args.build_timeout)
+    # (the executable goes to the output folder given — beside the program
+    # in older RapidRs; it runs in the program's folder either way)
+    exe = next((e for e in (os.path.join(proj, stem + EXE), os.path.join(d, stem + EXE)) if os.path.exists(e)), None)
+    if code != 0 or not exe:
         truth.drop_build(args.cargo_target, stem)
-        msg = next((l for l in (err + out).splitlines() if "error" in l.lower()), (err + out).strip()[-300:])
+        lines = (err + out).splitlines()
+        msg = "timed out" if to else next((l for l in lines if re.match(r"\s*error(\[|:)", l)), (err + out).strip()[-300:])
         return "build", msg, None
     capdir = d + ".captures"
     os.makedirs(capdir, exist_ok=True)
@@ -392,14 +397,23 @@ def programs(args):
     rc_json = os.path.join(truth.WORK, "corpus", "rc.json")
     rc_runs = json.load(open(rc_json)) if os.path.exists(rc_json) else {}
     progs = []
+    names = set()
     for rel, errors in sorted(results.items()):
         if errors:
             continue
         if args.filters and not any(f.lower() in rel.lower() for f in args.filters):
             continue
+        if args.only is not None and rel not in args.only:
+            continue
         src = os.path.join(args.examples, rel)
         text = truth.program_text(src)
-        p = {"rel": rel, "name": name_of(rel), "src": src, "text": text,
+        # (`info.bas` and `info.rqb` side by side: each its own work folder,
+        # the second named with its extension — parallel runs share none)
+        name = name_of(rel)
+        if name in names:
+            name = re.sub(r"[^A-Za-z0-9]+", "_", rel).strip("_")
+        names.add(name)
+        p = {"rel": rel, "name": name, "src": src, "text": text,
              "lane": corpus.category(src, []),
              "console": bool(APPTYPE_CONSOLE.search(text)) or not GUI.search(text)}
         # (a serial port may be a real board on this machine: never opened
@@ -580,6 +594,7 @@ def merge(paths):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("filters", nargs="*")
+    ap.add_argument("--list", help="only the programs this file lists, one path (relative to --examples) a line")
     ap.add_argument("--backend", default="vm,native")
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--corpus")
@@ -587,6 +602,7 @@ def main():
     ap.add_argument("--include", default=os.path.join(RAPIDQ, "include"))
     ap.add_argument("--golden", default=truth.GOLDEN)
     ap.add_argument("--timeout", type=int, default=30)
+    ap.add_argument("--build-timeout", type=int, default=3600, help="seconds a native build may take (the first builds the runtime)")
     ap.add_argument("--delay", type=float, default=2.0)
     ap.add_argument("--theme", default="classic", help="the look programs run in (RAPIDR_THEME; classic: RapidQ's, as RC.EXE's windows)")
     ap.add_argument("--no-pty", dest="pty", action="store_false", help="console programs only with no input, not in a terminal too")
@@ -601,6 +617,7 @@ def main():
     ap.add_argument("--merge", nargs="+", metavar="JSON", help="no runs: the report from these sweeps (e.g. one per backend) put together")
     args = ap.parse_args()
     args.backends = [b.strip() for b in args.backend.split(",") if b.strip()]
+    args.only = {l.strip() for l in open(args.list) if l.strip()} if args.list else None
     if args.merge:
         report = merge(args.merge)
         before = merge(args.before.split(",")) if args.before else None

@@ -15,13 +15,15 @@ where something isn't done yet, it says so.
 | [The language](language.md) | Program structure, types, variables, arrays, operators, control flow, SUBs and FUNCTIONs, TYPEs and objects, the preprocessor, files, the console — and where RapidQ-compatible BASIC differs from other BASICs |
 | [Designing forms in RapidR Studio](designing-forms.md) | A tutorial (a program of two forms, step by step), the toolbox, moving and aligning, the inspector and events, the menu and Tab-order editors, programs of several forms, the code the designer writes |
 | [Components and objects](components.md) | `CREATE`, properties, methods and events; RapidR's names and RapidQ's names; the global objects; themes, high-DPI and accessibility |
+| [Rich text: RRichEdit](rich-text.md) | Formatting text from a program (`SelAttributes`), what the user types, `Font` and `Alignment`, paragraphs and bullets, rich text (`.rtf`) and plain text files, screen readers |
 | [The CLI and the RapidR Runtime](cli-and-runtime.md) | Every `rapidr` command, the kinds of builds, the Runtime, file types, `rapidr setup`, environment variables, the notices builds carry |
 | [Debugging in RapidR Studio](debugging.md) | Running and stopping, breakpoints (conditions, hit counts, log messages), stepping, Pause, Variables, Watch, the Call Stack, values under the mouse, Immediate, run-time errors, the desktop and the browser |
 | [The code editor in RapidR Studio](studio-editor.md) | Completion, Ctrl+Space, parameter info, hover, F12 Go to Definition, problems and quick fixes (RAPIDQ.INC), the keyboard shortcuts |
 | [Building apps and their icons](building-apps.md) | `Name.app`, the `.exe`'s icon and version, `Name.AppDir`; your icon or RapidR's; Studio's Build |
 | [The web](web.md) | Running programs in a browser: bundles, `--web` builds, files and assets, web-only components |
 | [Databases](databases.md) | RSQLite and RMySQL, parameter binding, events |
-| [Data science](data-science.md) | RNum, RDataFrame, RPlot, RJson |
+| [Data science with RapidR](data-science-with-rapidr.md) | Step by step: a CSV file on a form, live in the designer; the current row shared by a grid and edits; filter, sort and group; a million rows; JSON records (RCSV, RDataSource, RDBGrid, DataSource / DataField) |
+| [Data science](data-science.md) | RNum, RDataFrame, RPlot, RJson, the linked data components |
 | [DirectX and media](directx-and-media.md) | RDXScreen and the Direct3D objects, sound, joysticks, RMIDI / RWave / RVideo / RCDAudio, the system tray, serial ports, CGI, downloads |
 | [Serial ports and IoT boards](serial-ports.md) | RComPort (RapidQ name QCOMPORT): opening ports, listing them with their USB IDs, lines in, plug events, resetting an ESP32 through DTR / RTS, Web Serial |
 | [Importing RapidQ programs](importing-rapidq.md) | A copy of a RapidQ program (`.bas`, `.rqw`, `.rqb`, `.rq`) with RapidR's names, proved to behave the same: in RapidR Studio and with `rapidr import-rapidq` |

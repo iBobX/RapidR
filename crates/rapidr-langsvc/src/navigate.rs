@@ -24,16 +24,15 @@ pub(crate) fn definition(s: &Snapshot, file: &Path, text: &str, offset: usize, o
     let line_text = index.line_text(text, line).trim_start();
     if line_text.get(..8).is_some_and(|w| w.eq_ignore_ascii_case("$include")) {
         let name = line_text[8..].trim().trim_matches(|c| c == '"' || c == '<' || c == '>' || c == '\'').trim();
+        // (found as the compiler finds it: the program's folder, the include
+        // folders, the including file's …)
         let base = file.parent().map(Path::to_path_buf).unwrap_or_default();
-        let candidates = std::iter::once(base).chain(options.include_dirs.iter().cloned());
-        for dir in candidates {
-            let p = dir.join(name);
-            let allowed = options.roots.as_ref().is_none_or(|roots| rapidr_preprocessor::is_within(&p, roots) || options.include_dirs.iter().any(|d| rapidr_preprocessor::is_within(&p, std::slice::from_ref(d))));
-            if allowed && rapidr_preprocessor::source_exists(&p) {
-                return vec![Location { file: p, start: 0, end: 0 }];
-            }
-        }
-        return Vec::new();
+        let main = s.parsed.root.parent().map(Path::to_path_buf).unwrap_or_else(|| base.clone());
+        let mut dirs = options.include_dirs.clone();
+        dirs.extend(rapidr_preprocessor::configured_include_dirs());
+        let Some(p) = rapidr_preprocessor::resolve_include(name, &base, &main, &dirs) else { return Vec::new() };
+        let allowed = options.roots.as_ref().is_none_or(|roots| rapidr_preprocessor::is_within(&p, roots) || dirs.iter().any(|d| rapidr_preprocessor::is_within(&p, std::slice::from_ref(d))));
+        return if allowed { vec![Location { file: p, start: 0, end: 0 }] } else { Vec::new() };
     }
     let Some(id) = symbol_at(s, file, offset) else { return Vec::new() };
     if let Some(d) = s.model.symbols[id].decl {

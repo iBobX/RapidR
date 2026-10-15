@@ -3,8 +3,10 @@
 //   PERF-1  cold start to an interactive Studio (desktop ≤ 1.0 s; the web's
 //           cached start ≤ 1.2 s — its first visit: tests/studio_perf_web.mjs)
 //   PERF-8  F5 to the program's first form (desktop ≤ 300 ms, web ≤ 500 ms)
-//   DBG     a step to its line shown with the locals (≤ 100 ms; studio-wow §2
-//           step 11: "Stop → highlight and locals")
+//   DBG     a step to its line shown with the locals (≤ 50 ms, a loaded
+//           machine included; studio-wow §2 step 11: "Stop → highlight and
+//           locals" — the desktop hears the program as it stops: the
+//           session's waker, not the loop's 20 ms poll)
 //   PERF-9  Run in Browser to the form on the page (≤ 1.5 s): tests/run_in_browser.mjs
 // Each is the median of three runs. A budget missed fails; so does a
 // measure more than 20 % (and 25 ms) over tests/studio_perf_baseline.json —
@@ -32,10 +34,10 @@ mkdirSync(WORK, { recursive: true });
 const BUDGETS = {
   "desktop.start": 1000,
   "desktop.f5-form": 300,
-  "desktop.step": 100,
+  "desktop.step": 50,
   "web.start-cached": 1200,
   "web.f5-form": 500,
-  "web.step": 100,
+  "web.step": 50,
 };
 
 const median = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)];

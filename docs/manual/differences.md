@@ -77,11 +77,6 @@ converted copy, proved to compile exactly as the original, with a report.
   RapidQ there is nothing to do with them (RapidQ gives them no keys and
   nothing that plays them).
 - DOS-era port I/O.
-- **Rich text formatting in an RRichEdit (`QRICHEDIT`)**: its text, lines and
-  selection work as in RapidQ, but it is drawn in one font — a selection's
-  `SelAttributes` (bold, colour) and RTF formatting aren't shown yet
-  (RapidQ's syntax-highlighting example shows its code without the
-  highlighting).
 - `ON ERROR` is accepted and ignored (it's VB's, not RapidQ's): a run-time
   error still ends the program.
 

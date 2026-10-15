@@ -10,3 +10,5 @@ license.workspace = true
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "0.9"
+# (an implicit project finds its $INCLUDEs as the compiler does)
+rapidr-preprocessor.workspace = true

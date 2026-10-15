@@ -52,7 +52,10 @@ pub fn client(name: &str) -> (i64, i64) {
 fn children(name: &str) -> Vec<(String, Child)> {
     get_children_of(name)
         .into_iter()
-        .filter(|(c, t)| !matches!(t.as_str(), "RMAINMENU" | "RPOPUPMENU" | "RMENUITEM") && !matches!(rp_comp_get_stored(c, "width"), Value::Null))
+        .filter(|(c, t)| {
+            // (as the desktop's: a non-visual component inside a form takes no room)
+            !matches!(t.as_str(), "RMAINMENU" | "RPOPUPMENU" | "RMENUITEM") && rapidr_lang::component(t).is_none_or(|k| k.visual) && !matches!(rp_comp_get_stored(c, "width"), Value::Null)
+        })
         .map(|(c, _)| {
             let n = |p: &str| rp_comp_get_stored(&c, p).to_i64();
             let visible = match rp_comp_get_stored(&c, "visible") {

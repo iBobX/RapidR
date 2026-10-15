@@ -46,21 +46,17 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   an error, as in RC.EXE). 355 of the 428 examples compile.
 - Running RapidQ's examples side by side with RC.EXE's builds in Windows found, and these now behave
   as RapidQ's (each checked against RC.EXE; desktop, native and web share the code):
-  - **A QRICHEDIT's (and QMEMO's) SelStart / SelLength count in its Text**, a line break two
-    characters, as RapidQ's rich edit: `SelLength = LEN(Text)` selects everything and a word found
-    with `INSTR(Text, …)` is selected where it is. RapidQ's syntax-highlighting example looped
-    forever (a line break counted one, the last word's selection fell off the end)
+  - A rich edit's SelStart / SelLength counting a line break as two (CORPUS-PORT's and RICHEDIT's,
+    below) is what RapidQ's syntax-highlighting example needed: it looped forever
     (`rapidq_richedit_positions`).
   - **An array written past its end reads back what was written** (RapidQ doesn't check limits):
     RapidQ's GMDrum fills `DEFSTR D(16)` up to 28 from DATA; its last twelve instrument names were
     blank. The elements are kept beside the array, memory-safely (`rapidq_array_past_end`).
   - **A QTRACKBAR turned (`Orientation = 1`) swaps its Width and Height**, as RapidQ's: GMSynth's
     160 × 40 sliders become tall ones (`rapidq_trackbar_orientation`).
-  - A TYPE's instance CREATEd inside a component's block (`CREATE RichEdit AS QREdit` in the
-    form's) is set up before the block's later calls run — `ShowModal` at the block's end showed the
-    form without it (RapidQ's syntax example showed an empty window) — and one nested deeper (a
-    QFolderTree on a panel on a form) works: it stopped with "this variable does not refer to an
-    object".
+  - A TYPE's instance CREATEd in a component's block deeper down (a QFolderTree on a panel on a
+    form) is made where it stands too (CORPUS-PORT's rule, below, one level further): it stopped
+    with "this variable does not refer to an object" (`typed_create_in_panel`).
   - `RESOURCE(MY_JPG)` — a `$RESOURCE` name where an index goes — is the first resource, as
     RC.EXE reads the name there as 0 (RapidQ's IPicture demo found no resource).
   - A control's text ends at a NUL, as Windows' controls and message boxes end it: a message built
@@ -95,6 +91,103 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - `tools/windows/corpus_win.py` runs RapidQ's examples on Windows three ways (RC.EXE, RapidR
   interpreted and native) and captures their windows; `tools/windows/corpus_win_report.py` writes
   the table of [docs/rapidq-corpus-status.md](docs/rapidq-corpus-status.md).
+### Rich text in RRichEdit (RICHEDIT)
+- **RRichEdit (RapidQ's QRICHEDIT) is a rich text editor now, on every runtime.** Its text keeps
+  a format per character — font, size, colour, bold, italic, underline, strike-out — and per
+  paragraph (alignment, indents, a bullet), in one shared model (`rapidr_value::objects::richtext`)
+  that native builds, the RapidR Runtime and the browser use alike; the UI kernel draws it as
+  parley's styled runs. RapidQ's rules, settled against RC.EXE in the Windows VM (window probes
+  that format a rich edit and save it as RTF, every step compared byte for byte):
+  - `SelAttributes` sets the selection's format — a whole QFONT, or a member: `Color`, `Name`,
+    `Size`, `Bold`, `Italic`, `Underline`, `StrikeOut`, `Charset`, `AddStyles` / `DelStyles`; at
+    a caret it is the format of what is typed or added there next, kept until the caret moves (so
+    `SelAttributes.Color = …: AddStrings …` colours a log's line, as RapidQ's chat examples do).
+    Reading a member gives the selection's last character's format (the caret's at a caret; an
+    automatic colour reads &H80000008). `SelFont = Font` is its other name.
+  - Typed or inserted text takes the format of the character before it (at a paragraph's start,
+    the one after it); text typed over a selection, the selection's first character's.
+    `Text =` gives the new text the old first character's format; `Clear` leaves the last one's
+    for what is typed next. `Font` reformats text never formatted (all of it while nothing is);
+    `Alignment` aligns the paragraphs without their own and moves the caret to the start, as
+    `WordWrap` and the form's `Center` do (RapidQ makes the control again).
+  - `AddStrings` and `Line(i) =` change the text as RapidQ's Lines do (fixed): a line is added
+    after the last break, or with a break before it when the text doesn't end with one
+    (`"Hello world"` + `AddStrings "added"` is `"Hello world" CR LF "added"`, not one more CR LF),
+    and the caret ends after what was added — for QMEMO too.
+  - `SaveToFile` / `SaveToStream` write RTF while `PlainText` is False — byte for byte what
+    RapidQ's rich edit writes, its closing NUL included — and `LoadFromFile` / `LoadFromStream`
+    read any RTF (font and colour tables, `\'hh`, `\uN`, paragraph formats, bullets; fields,
+    pictures and other destinations skipped); a file that isn't RTF loads as text (up to a NUL).
+    RapidR's own RTF reader and writer (`rtf.rs`): no new dependency.
+- **Editing keeps the formats**: what the user types takes RapidQ's format for it, Ctrl+Z
+  gives back the text and its formats, and text copied from a rich edit pastes into a rich edit
+  with its formats (keys, the context menu, CopyToClipboard / PasteFromClipboard; the clipboard
+  holds the plain text, its RTF kept beside it).
+- **RapidR's additions** (registry `origin = "rapidr"`): `Paragraph.Alignment`, `LeftIndent`,
+  `FirstIndent`, `RightIndent` (pixels) and `Numbering` (bullets) for the paragraphs the
+  selection is in; `TextRTF`, the RTF as a string (read and set).
+- **Screen readers** get the text as runs carrying their formats (AccessKit's font family, size,
+  weight, italic, underline, strike-through and colour: VoiceOver's and NVDA's "report
+  formatting"), and the field's description names the format at the caret ("At the caret:
+  Courier New 12 point, bold, red"; the browser's `aria-description`). In a high-contrast theme
+  the text's colours are the theme's.
+- RapidQ's `richedit/syntax` example (William Yu's syntax highlighter) shows its highlighting as
+  under RapidQ: its saved RTF is byte-identical to RC.EXE's, and its window matches RC.EXE's
+  capture. GUI case `rich_text` (typing in a formatted word, Ctrl+Z, SelAttributes read back,
+  TextRTF) passes natively, interpreted and in the browser with byte-identical windows and equal
+  accessibility trees; conformance case `richedit_grid_streams` now holds RC.EXE's stream bytes;
+  visual case `richtext` beside RapidQ's own window.
+- New example [examples/gui/richtext.rr](examples/gui/richtext.rr) — a small rich-text editor (B,
+  I, U, colour, font, alignment, bullets, open / save `.rtf`) — and a manual chapter,
+  [docs/manual/rich-text.md](docs/manual/rich-text.md). The test hooks' `__key_N_16` is the
+  shortcut key too (an edit's Ctrl+Z on every host).
+- Differences left from RapidQ: its `LineCount` / `Line(i)` count wrapped screen lines with
+  WordWrap on (RapidR's count paragraphs); after `SelectAll` its SelLength counts the text's end as
+  two more; a loaded document is saved with RapidR's RTF header; `\fcharset0` details of a few
+  insertion formats.
+
+### RapidQ's examples on macOS and Linux (CORPUS-PORT)
+- **Windows file names work on macOS and Linux.** A RapidQ program names its files as Windows does:
+  `data\notes.txt`, `Application.Path + "\save.dat"`, `OPEN.BMP` for an `open.bmp`. Off Windows a
+  `\` was part of the name and Linux told `OPEN.BMP` from `open.bmp`, so such programs found none
+  of their files (pictures missing, `Cannot open file …`). Now `\` separates folders and names are
+  found in any case, as on Windows and as the web runtime already did — for every file and folder a
+  program names (QFILESTREAM, LoadFromFile / SaveToFile, pictures, sounds, OPEN, FILEEXISTS,
+  DIREXISTS, FILELEN, DIR$, KILL, MKDIR, RMDIR, RENAME, CHDIR, QFILELISTBOX, QDIRTREE), interpreted
+  and native. A name that exists as written is taken as written. On Linux, RapidQ's examples
+  `listbox/owndraw`, `games/puzzle` and the two vector-font demos show their pictures and fonts
+  again, and six DirectX ones their models and textures (`rapidr_value::paths`, conformance case
+  `rapidq_windows_paths`, checked interpreted, native and on the web).
+- **Owner-drawn list boxes of variable height draw at once, interpreted.** A `lbOwnerDrawVariable`
+  QLISTBOX asked each item's height (OnMeasureItem), then waited for the system's next event —
+  the mouse moving over the window — before its OnDrawItem drew the items: RapidQ's
+  `listbox/owndraw` example showed plain text where its pictures belong. The handlers the
+  drawing makes due now run in the same turn (native builds and the web already did; GUI case
+  `owner_list_variable` on all three).
+- **A TYPE's component CREATEd inside a form's CREATE is made where it stands.** RapidR made such
+  instances (`CREATE RichEdit AS QREdit` inside `CREATE Form`) after the whole form block — after a
+  `ShowModal` at its end had returned, so RapidQ's `richedit/syntax` example showed an empty
+  window. Now the instance is made in its place and the block goes on after it, as RC.EXE does
+  (its form's OnShow sees the instance; GUI case `nested_typed_create`, all three runtimes).
+- **A rich edit's SelStart and SelLength count a line break as two characters**, CR LF, as its
+  Text has them — as RC.EXE's QRICHEDIT does (probe: in `"ab" CR LF "cd"` SelStart 4 is the `c`;
+  a position inside the break reads as the break's start). A position INSTR finds in Text now
+  selects that text; RapidQ's syntax-highlighting example looped forever where it counted one.
+  QEDIT and the code editor are unchanged. (Rich text formatting itself: "Rich text in RRichEdit"
+  above.)
+- **RAPIDQ.INC's `QBColor` array.** `$INCLUDE "RAPIDQ.INC"` (RapidR's built-in one) now also gives
+  `QBColor(0 TO 15)`, the INTEGER array of QBasic's 16 colours as &HBBGGRR numbers that RapidQ
+  programs index (`VoorKleur = QBColor(12)`, bright red) — its bounds, type and values as RC.EXE
+  reads them, on all three runtimes (conformance case `rapidq_qbcolor`, whose expected output is
+  RC.EXE's). Included twice, RAPIDQ.INC is given once, as RapidQ's own file guards itself.
+- **docs/rapidq-corpus-status-unix.md**: every portable RapidQ example on macOS, Linux (Ubuntu ARM)
+  and the web, interpreted and native — 114 run on the desktop with no problem on any of the four
+  (105–106 ok, the rest as RC.EXE's own builds), the web the same as the desktop; what was fixed,
+  what's left. Made by the new `tools/corpus_status.py` from the sweeps (`tools/corpus_run.py
+  --list`).
+- `tools/rc_probe.sh`: `-w` gives a run its own work folder in the Windows VM (two lanes no longer
+  copy RC.EXE over each other), and `w_*.bas` probes are GUI programs whose findings file is
+  printed.
 
 ### Release tooling: the VMs stay clean, and no console window flashes
 - `windows-vm.sh clean` and `linux-vm.sh clean` remove everything the release and smoke scripts leave
@@ -112,6 +205,136 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   `windows-vm.sh flashtest control` checks it with a window watcher.
 - `ubuntu-vm.sh root` works while the VM's screen is locked or nobody is logged in
   (`--current-user` answers "Unable to authenticate the user").
+### AI-ready by design (AI-ARCH, phase 0)
+- **The design**: [docs/ai-architecture.md](docs/ai-architecture.md) — what every language-registry entry
+  carries for AI (meaning, types, ranges and units, side effects and the risk level they give,
+  examples, where it runs, secrets), one introspection / command interface answered alike by the
+  project's source in RapidR Studio and by the running program (describe, list, get, set, call,
+  create, connect, destroy, subscribe, transactions with previews, undo), `rapidr mcp` and RAI on
+  top of it, permission tiers on the risk levels, prompt-injection defences, a threat model, phases
+  and acceptance tests. docs/ide-ai.md points to it where they meet.
+- **The registry's AI facets**: `effects` (none, ui, wait, state, clipboard, file-read, network,
+  device, registry, db-read, file-write, db-write, printer, exit, process, native), `risk`, `range`,
+  `unit`, `example` and `secret`, checked by the registry's build like every other key; ranges and
+  units for the commonest properties by name; RButton, `MID$`, `KILL` and `SHELL` complete as the
+  reference entries; RMySQL's `Password` never shown to an AI. `rapidr lang export --json` carries
+  them, and the AI prompt marks what reaches outside the program (`[file-write]`).
+- **`rapidr lang ai-check`** lists every entry lacking a facet (`--summary`, `--json`, `--strict`
+  exits 1 when anything is missing; without it, a report): 2,437 of 4,360 entries complete today.
+- **`rapidr-introspect`** (new crate, wasm-safe): the interface's protocol and its read side at
+  design time — `describe` (every facet, a JSON Schema per value), `list` (ids are the components'
+  own names, qualified only when two share one; paged; a revision that follows the source) and
+  `get` (typed values with where they come from and their line; secrets redacted) — behind the
+  cargo feature `design`; `rapidr introspect FILE…` only in a CLI built with
+  `--features ai-introspect`. Nothing in Studio or the default CLI uses it yet.
+### RapidQ include files found everywhere, imported with the program (IMPORT-INC)
+- **`$INCLUDE` finds files as RapidQ does, on every system.** Checked against RapidQ's own compiler:
+  every `$INCLUDE` — a nested one too — is looked for in the program's folder (where RapidQ
+  compiles), then in the include folders, in order. RapidR then also looks beside the including
+  file and above an include folder. Names match in any case, with `\` or `/`: `"Lib\MyLib.INC"`
+  finds `lib/mylib.inc` on macOS and Linux. A Windows path from another computer
+  (`C:\rapidq\include\x.inc`, `\RapidQ\include\x.inc`) is found by its ending, and on Windows an
+  absolute path is read as it is. The compiler, the language service (go to an include too),
+  RapidR Studio's project and the importer use this one search. Files are named as on disk
+  (`lib/mylib.inc`, not as the line wrote it). An include that isn't found says what to do.
+- **Include folders**: RapidR Studio's **Tools > Settings…** (Include folders: Add Folder…,
+  Remove), kept per user and used for Open, the problems, Run, Build and Import (the programs Studio
+  runs and builds get them too). On the command line: `--include-dir <folder>` on any command
+  (before a program's own arguments), and `RAPIDR_INCLUDE_PATH`. The palette's View commands are a
+  button away in Settings ("Themes and Views…").
+- **Import copies every include** (`rapidr import-rapidq`, File > Import RapidQ Project or File…):
+  however deep, names converted. The program's own keep their folders; an include folder's go into
+  the copy's folder as they were there (`GL\QGL.INC` → `GL/QGL.INC`). A line that would find the
+  original instead of the copy (`..\shared\x.inc`, a `C:\` path) is changed to name the copy. The
+  copy compiles on its own, and the proof now also checks that it reads its own files.
+  RAPIDQ.INC and the other includes RapidR has built in (`QMidi.inc` … `QDockForm.inc`) are never
+  copied, a user's own copy of one neither (the report says so, and when the program uses
+  something only that file has, which folder to keep). The report's new **Include files** table
+  lists each `$INCLUDE`, where it was found and its copy. **A missing include is never passed
+  over**: listed under *Not found* with what to do, in Studio's Output (the status line red), and
+  printed by `rapidr import-rapidq` (exit code 1).
+- Opening a `.bas` in Studio lists its includes in the project tree as the compiler finds them (in
+  any case, a nested one from the program's folder). On the web, File > Import RapidQ Project or
+  File… takes several files at once — the program and its includes — and an imported folder brings
+  its subfolders' includes.
+- `rapidr examples copy` copies an example's include files with it.
+- RapidQ's 428-program corpus imported whole: 341 programs compile to identical bytecode (0
+  different, 0 copies failing; the rest don't compile in RapidR yet), 129 include files copied,
+  27 not found (named in the report); the include search reads every corpus program as before.
+- New example: `examples/rapidq/shapes` — a RapidQ program whose library and window are in `lib/`
+  and `forms/` (RapidQ's compiler builds it too). Manual: importing-rapidq.md "Include files";
+  cli-and-runtime.md (`--include-dir`).
+### Studio on the web: big windows, the same pixels, screen readers, fast steps (WEB-FRAME)
+- **A program window is never cut off in RapidR Studio on the web** (the Preview's known issue):
+  a window bigger than the page — `examples/gui/sales_dashboard.rr`, a new 1200 × 800 sales dashboard
+  example — opens with its title bar at the top of the page, and the program's desktop scrolls to
+  the rest: a thin scroll bar along the page's right or bottom edge while a window reaches past it
+  (drag its thumb, or turn the wheel over it or over a window's title bar). Windows can't be dragged
+  above or left of the page's corner any more (a title bar dragged off the top was lost for good);
+  maximized, a window fits the part of the page you see. The same rules in every web build
+  (`rapidr bundle-bc`, Build Web App). A double click on a window's title bar now maximizes it on
+  the web (it never did). Tests: `studio_flows` `program-window-big` (a 1280 × 720 page, 1× and
+  2×), `program-window-big-fits`.
+- **Studio's desktop and web captures are byte-identical**: the desktop's CPU renderer now runs
+  vello_cpu's portable SIMD level, which rounds as wasm SIMD does (Neon's and AVX2's fused
+  multiply-add rounded glyph edges one level apart). The command palette's items keep the same
+  accessibility ids on both hosts. `studio_shell` no longer allows "SIMD rounding".
+- **Screen readers and the web inspector**: the inspector is a tree grid whose rows read as
+  "Caption, Button1"; a read-only property says "read-only" (its row's description, its value's
+  cell read-only). Before, the web's rows had no value and no read-only state.
+- **Debugger steps are fast on a loaded computer**: Studio on the desktop hears the program the
+  moment it stops instead of at its next 20 ms poll — a step with its line and values shown took
+  85 ms, now about 15 ms (budget 50 ms; the web's ~20 ms).
+### Linked data, live in the designer (DATA-ARCH, I7 phase 1)
+- **The plan**: [docs/data-science-plan.md](docs/data-science-plan.md) — the columnar engine, sources as
+  linked components (CSV, JSON, Excel, Parquet, Arrow, Avro, Delta Lake, SQLite, MySQL, PostgreSQL /
+  Redshift, SQL Server, S3 / Azure), data-aware components, the BASIC API, the web's limits, the licence
+  of every crate, performance budgets and a benchmark suite against pandas and Polars, the registry for
+  IntelliSense / MCP, phases with sizes.
+- **RCSV** (new): a CSV file as a data source — `FileName`, `Delimiter` (`,` `;` tab `|` …),
+  `HasHeader`, `Text`; `RowCount`, `ColCount`, `Columns`, `Error`; `Load`, `Save [file]`, `Clear`;
+  `OnLoad`, `OnError(Message)`. Read once, when its table is first needed; a relative file is found in
+  the current folder or beside the program.
+- **RDataFrame.Source** (an RCSV, an RJson's records, another RDataFrame): the frame takes the rows at
+  once and again whenever the source changes; `RDataFrame.Refresh`.
+- **RJson's records are a data source** (`[{…}]`, JSON Lines, columns) — taken again when the
+  document changes.
+- **RDataSource** (new): a current row shared by the controls bound to it — `DataSet`, `Row`,
+  `RecordCount`, `EOF` / `BOF` (Delphi's: `WHILE NOT DS.EOF … DS.Next WEND`), `Enabled`, `State`;
+  `First`, `Prior`, `Next`, `Last`, `MoveBy`, `Field(name)`, `SetField`, `Refresh`; `OnDataChange`.
+- **RDBGrid** (new): a grid drawn by the UI kernel straight from a data set's frame, only the rows on
+  screen (a million rows scroll smoothly): headings, row numbers, numbers right-aligned, a missing
+  value dimmed as `null`, the current row (click, arrows, Page Up / Down, Home / End), a heading's click
+  sorts the grid's view (the data unchanged), `OnCellClick(Row, Col)`, `OnTitleClick(Col)`; a grid for
+  screen readers. Pixel-identical on the desktop and the web.
+- **`DataSource` + `DataField` on REdit and RLabel** (RapidR's own, additive): the current row's
+  field; what the user types in a bound edit goes back into the table.
+- **Live in RapidR Studio's designer**: the designed form's RCSV / RJson / RDataFrame / RDataSource are
+  read by the designer itself (files inside the project only, read-only, cached), so grids, edits and
+  labels show the real data while you design; RCSV is in the toolbox's Data group, with the data
+  file's icon.
+- One model for every runtime (`rapidr_value::datascience::link`): native builds, the interpreter, the
+  web and the designer. Registry entries for every member (IntelliSense, the manual, MCP).
+- Examples: `data/linked_data.rr`, `data/million_rows.rr`, `data/json_source.rr` (on Studio's
+  Welcome page); the manual's new chapter **Data science with RapidR**, with screenshots.
+- The inspector's **DataField** drops the bound data set's columns.
+- Fixed: a non-visual component inside a form (an RDataFrame, whose Width / Height are its columns
+  and rows) no longer counts toward the form's scroll range on the desktop (the web already
+  ignored it).
+
+### Data science: a typed, multithreaded RDataFrame engine (DATA-ENGINE)
+- RDataFrame's engine stores columns typed (whole numbers, fractions, true / false as numbers; a
+  validity bitmap where cells are null; buffers shared until changed) and shares big work out to
+  every core: on a million rows (M4 Max) load 100 → 12 ms, filter 39 → 3 ms, sort 203 → 10 ms,
+  group-by 84 → 5 ms, join 63 → 3 ms, describe 86 → 10 ms, save 82 → 7 ms; load + filter + sort +
+  group-by 267 → 23 ms (ten million rows: 4.4 s → 0.27 s; on one thread, as in a browser:
+  0.12 s for a million). Nothing a program sees changes: a column is typed only when every cell's
+  text is its value's own (`"007"`, `"1.50"`, `"True"` keep theirs), and frames printed, cells,
+  types, CSV and JSON written, warnings are byte-identical — checked by a differential test against
+  the previous engine over tens of thousands of random programs (`tests/frame_oracle.rs`).
+  `Frame::sorted_order` gives a grid the sorted order without moving rows. The benchmark suite is
+  `tools/bench/` (frame_bench with the plan's budgets — also in `tools/regress.sh perf` — the same
+  work as a RapidR program, pandas and Polars scripts, `compare.sh`).
 
 ## [2.118.0] — 2026-10-09 (Preview)
 

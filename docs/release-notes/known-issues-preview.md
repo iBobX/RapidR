@@ -1,4 +1,3 @@
 # Known issues in this preview
 
-- RapidR Studio on the web: a screen reader doesn't say that the property inspector's read-only rows are read-only (the desktop Studio's does; the browser has no read-only row). The row's value can't be edited either way.
-- RapidR Studio on a heavily loaded computer: a debugger step can take a little over 100 ms to show its line and the variables (the aim is 100 ms; on a quiet computer it takes about 85 ms).
+(Fixed since the 2.118.0 Preview: program windows cut off in Studio on the web, the web inspector's read-only rows for screen readers, a debugger step over 100 ms on a loaded computer, pixels apart between Studio on the desktop and on the web.)

@@ -208,6 +208,8 @@ Keyboard: F6 / Shift+F6 between areas (the groups' shown panes, the active docum
 
 All are R-only (no RapidQ counterpart) and additive. Links are component-reference properties, set in the designer with pickers or in code (`DS1.DataSet = Query1`).
 
+*The data-science plan ([docs/data-science-plan.md](data-science-plan.md), 2026-10-15) refines this table and is the reference now: a source per format (**RCSV** — built —, RExcel, RParquet …; RJson's records are a source too) instead of one RDataFile; **`DataSource` + `DataField` on the regular controls** (REdit, RLabel — built —, RCheckBox, RComboBox, RMemo …) instead of separate RDBEdit / RDBLabel …; a control may name a data set straight (its own current row) or an RDataSource. Built in phase 1: RCSV, `RDataFrame.Source`, RDataSource, RDBGrid, DataSource / DataField on REdit and RLabel.*
+
 | Component | Properties | Methods / events |
 |---|---|---|
 | **RDBConnection** | `Driver` (`"sqlite"`, `"mysql"`), `Database`, `Host`, `Port`, `User`, `Password` (never written by the designer), `Connected`, `ReadOnly` | `Connect`, `Disconnect`, `Execute(SQL, params…)`; OnConnect, OnError |

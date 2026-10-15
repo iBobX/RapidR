@@ -17,6 +17,7 @@ pub mod font_dialog;
 pub mod statusbar;
 pub mod window_state;
 pub mod basic_files;
+pub mod paths;
 pub mod builtins;
 pub mod memory;
 pub mod dll;

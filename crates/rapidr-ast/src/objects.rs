@@ -326,13 +326,6 @@ struct Lowering<'a> {
     ctx: Ctx,
     /// Numbers generated loop variables.
     counter: usize,
-    /// How many components' CREATE blocks the statement being lowered is in.
-    create_depth: usize,
-    /// The set-up of TYPE instances CREATEd inside nested components' blocks
-    /// (a QFolderTree on a panel on a form), done after the outermost
-    /// block — inside it the backends would read their statements as the
-    /// component's properties.
-    deferred: Vec<Statement>,
 }
 
 impl Lowering<'_> {
@@ -936,6 +929,27 @@ impl Lowering<'_> {
         }
     }
 
+    /// A component's CREATE block's statements, lowered: `Panel(0).Width =
+    /// 100` inside it is `c.Panel(0).Width`.
+    /// Whether a component's block CREATEs a TYPE's instance, directly or
+    /// in a component's block inside it.
+    fn holds_typed_create(&self, stmts: &[Statement]) -> bool {
+        stmts.iter().any(|s| match s {
+            Statement::Create(ch) => self.types.get(&ch.type_name).is_some() || self.holds_typed_create(&ch.body),
+            _ => false,
+        })
+    }
+
+    fn create_body(&mut self, c: &CreateStatement, stmts: &[Statement]) -> Vec<Statement> {
+        let body = {
+            let known = |n: &str| {
+                self.routines.contains(&key(n)) || self.globals.contains(&key(n)) || self.is_local(n) || self.array_kind(n).is_some() || (self.is_builtin)(&key(n))
+            };
+            qualify_create_body(stmts, &c.name, &c.type_name, &known)
+        };
+        self.body(&body)
+    }
+
     fn create_instance(&mut self, c: &CreateStatement, t: &str) -> Vec<Statement> {
         let span = c.span;
         self.record_object_var(&c.name, t, false);
@@ -1069,56 +1083,58 @@ impl Lowering<'_> {
             Statement::Create(c) => match self.types.get(&c.type_name).map(|t| t.name.clone()) {
                 Some(t) => self.create_instance(c, &t),
                 None => {
-                    // `Panel(0).Width = 100` inside the block is `c.Panel(0).Width`.
-                    let known = |n: &str| {
-                        self.routines.contains(&key(n)) || self.globals.contains(&key(n)) || self.is_local(n) || self.array_kind(n).is_some() || (self.is_builtin)(&key(n))
-                    };
-                    // A TYPE's instance created inside (a QBEVEL on a form):
-                    // set up after the component, with it as its Parent.
-                    let is_typed = |x: &Statement| matches!(x, Statement::Create(ch) if self.types.get(&ch.type_name).is_some());
-                    // (the component's own methods called after such an
-                    // instance in the block — `ShowModal` at its end, RapidQ's
-                    // richedit/syntax — are called once it is set up, as the
-                    // block's order has it; RC.EXE)
-                    let last_typed = c.body.iter().rposition(is_typed);
-                    let mut after: Vec<Statement> = Vec::new();
-                    let mut kept: Vec<&Statement> = Vec::new();
-                    for (i, x) in c.body.iter().enumerate() {
-                        match x {
-                            Statement::Call(call) if last_typed.is_some_and(|l| i > l) && matches!(&call.callee, Expression::Identifier(id) if !known(&id.name)) => {
-                                let Expression::Identifier(id) = &call.callee else { unreachable!() };
-                                let callee = Expression::MemberAccess(MemberAccessExpression { span: call.span, object: Box::new(ident_at(call.span, &c.name)), member: id.name.clone() });
-                                after.push(Statement::Call(CallStatement { span: call.span, callee, args: call.args.clone() }));
+                    // A TYPE's instance created inside (a QBEVEL on a form,
+                    // RapidQ's QREdit in a form): set up at its place in the
+                    // block, with the component as its Parent; the block goes
+                    // on after it as another CREATE of the same component
+                    // (creating one that exists does nothing, on every
+                    // runtime), so what follows it runs once it exists — a
+                    // `ShowModal` at the block's end shows it.
+                    //
+                    // One a component's block holds deeper down (a QFolderTree
+                    // on a panel on a form, RapidQ's FolderTree demo) is made
+                    // the same way: the inner component's first part stays in
+                    // the outer block (it is made there, with its Parent), and
+                    // what follows it — the instance's set-up, the inner
+                    // block's rest — comes out of the outer block (inside it
+                    // the backends would read those statements as the
+                    // component's properties), the outer block going on after
+                    // them. The lowered pieces' first is always the
+                    // component's own CREATE.
+                    if !self.holds_typed_create(&c.body) {
+                        let body = self.create_body(c, &c.body);
+                        return vec![Statement::Create(CreateStatement { body, ..c.clone() })];
+                    }
+                    let mut out = Vec::new();
+                    let mut run: Vec<Statement> = Vec::new();
+                    for x in &c.body {
+                        let Statement::Create(child) = x else {
+                            run.push(x.clone());
+                            continue;
+                        };
+                        if self.types.get(&child.type_name).is_none() {
+                            if !self.holds_typed_create(&child.body) {
+                                run.push(x.clone());
+                                continue;
                             }
-                            _ => kept.push(x),
+                            let mut pieces = self.stmt(x).into_iter();
+                            let mut body = self.create_body(c, &std::mem::take(&mut run));
+                            body.extend(pieces.next());
+                            out.push(Statement::Create(CreateStatement { body, ..c.clone() }));
+                            out.extend(pieces);
+                            continue;
                         }
-                    }
-                    let (typed, rest): (Vec<&Statement>, Vec<&Statement>) = kept.into_iter().partition(|x| is_typed(x));
-                    let rest: Vec<Statement> = rest.into_iter().cloned().collect();
-                    let body = qualify_create_body(&rest, &c.name, &c.type_name, &known);
-                    self.create_depth += 1;
-                    let body = self.body(&body);
-                    self.create_depth -= 1;
-                    let mut setup = Vec::new();
-                    for x in typed {
-                        let Statement::Create(child) = x else { continue };
-                        setup.extend(self.stmt(x));
+                        let body = self.create_body(c, &std::mem::take(&mut run));
+                        out.push(Statement::Create(CreateStatement { body, ..c.clone() }));
+                        out.extend(self.stmt(x));
                         if !sets_parent(&child.body) {
-                            setup.push(call_stmt_at(child.span, "__objset", vec![ident_at(c.span, &child.name), text_at(c.span, "parent"), text_at(c.span, &c.name)]));
+                            out.push(call_stmt_at(child.span, "__objset", vec![ident_at(c.span, &child.name), text_at(c.span, "parent"), text_at(c.span, &c.name)]));
                         }
                     }
-                    for s in &after {
-                        setup.extend(self.stmt(s));
+                    if !run.is_empty() {
+                        let body = self.create_body(c, &run);
+                        out.push(Statement::Create(CreateStatement { body, ..c.clone() }));
                     }
-                    let create = Statement::Create(CreateStatement { body, ..c.clone() });
-                    if self.create_depth > 0 {
-                        // (inside another component's block: after the outermost)
-                        self.deferred.extend(setup);
-                        return vec![create];
-                    }
-                    let mut out = vec![create];
-                    out.extend(std::mem::take(&mut self.deferred));
-                    out.extend(setup);
                     out
                 }
             },
@@ -1343,8 +1359,6 @@ pub fn lower(program: &Program, is_builtin: &dyn Fn(&str) -> bool) -> Program {
         routines,
         ctx: Ctx { in_main: true, ..Default::default() },
         counter: 0,
-        create_depth: 0,
-        deferred: Vec::new(),
     };
     // Main-program objects are known before any routine uses them.
     for s in &program.statements {

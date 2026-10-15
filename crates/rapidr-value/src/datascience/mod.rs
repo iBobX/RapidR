@@ -21,12 +21,14 @@
 //! thousands of rows, where a plain row store is as fast as anyone notices.
 //! So the model is plain Rust with no dependencies — the same results on
 //! all three runtimes, and a smaller program (polars and ndarray are no
-//! longer compiled into every native build). A columnar engine can replace
-//! [`frame::Frame`] behind the same members if programs ever need it.
+//! longer compiled into every native build). Since 2026-10-15 the frame is
+//! a typed, columnar, multithreaded engine of its own ([`frame`]), behind
+//! the same members: big tables are fast too.
 
 pub mod chart;
 pub mod colors;
 pub mod frame;
+pub mod link;
 pub mod num;
 pub mod plot;
 

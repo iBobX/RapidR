@@ -41,6 +41,15 @@
 //!     conformance programs), `doc`;
 //!   - event: `name`, `params`, `origin`, `from`, `only`, `missing`, `doc`.
 //!
+//!   The AI facets (docs/ai-architecture.md §2; [`ai`] checks them): a
+//!   component's `example`; a property's `range` (`"0.."`, `"Min..Max"`,
+//!   `"any"`) and `unit` (`px`, `ms` …) — an int's or float's only, also by
+//!   name in the properties glossary —, `effects` (only when setting it
+//!   reaches outside the program) and `secret` (never shown to an AI); a
+//!   method's `effects` (what calling it does: `none`, `ui`, `state`,
+//!   `file-write` …), `risk` (only to raise the effects' risk) and `example`.
+//!   Builtins take `effects`, `risk` and `example` too, statements `effects`.
+//!
 //!   `params`: `[BYREF] Name [AS Type]`, comma-separated, optional ones in
 //!   `[ ]`, a last `...` for any number more (SUBI).
 //!   `origin`: a member's family is its component's (RapidQ's components'
@@ -67,8 +76,11 @@
 //! (every name the runtimes' dispatch answers is here), and the conformance
 //! programs ([`conformance`]) every runtime runs (tests/lang_conformance.mjs).
 
+pub mod ai;
 pub mod conformance;
 pub mod export;
+
+pub use ai::{Effect, Risk};
 
 /// Where a name comes from: RapidQ (its manual, its include files or its
 /// compiler RC.EXE have it) or RapidR (an extension: RC.EXE refuses it).
@@ -167,6 +179,16 @@ pub struct Property {
     /// `expression` (RPropertyInspector).
     pub editor: Option<&'static str>,
     pub doc: &'static str,
+    /// An int's or float's valid values: `"lo..hi"` (either end optional, a
+    /// number or another property's name: `"Min..Max"`) or `"any"`.
+    pub range: Option<&'static str>,
+    /// What its number counts: `px`, `ms`, `pt` … ([`ai::UNITS`]).
+    pub unit: Option<&'static str>,
+    /// What setting it does, when that reaches outside the program; empty:
+    /// derived ([`Property::set_effects`]).
+    pub effects: &'static [Effect],
+    /// It holds a credential: never shown to an AI.
+    pub secret: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -206,6 +228,13 @@ pub struct Method {
     pub test: Test,
     pub set: Option<&'static str>,
     pub doc: &'static str,
+    /// What calling it does beyond returning a value; empty: not said yet
+    /// (an AI-readiness gap).
+    pub effects: &'static [Effect],
+    /// A risk above its effects' (never below).
+    pub risk: Option<Risk>,
+    /// A hand-written example; else one is made from its signature.
+    pub example: &'static str,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -251,6 +280,9 @@ pub struct Component {
     /// A global object that is an instance of a component (Printer).
     pub instance_of: Option<&'static str>,
     pub doc: &'static str,
+    /// A few lines of RapidR that use it (a CREATE block, its default event
+    /// wired): for people and AI alike.
+    pub example: &'static str,
     pub properties: &'static [Property],
     pub methods: &'static [Method],
     pub events: &'static [Event],
@@ -273,6 +305,12 @@ pub struct Builtin {
     pub runtimes: Runtimes,
     pub missing: bool,
     pub doc: &'static str,
+    /// What calling it does beyond returning a value; empty: not said yet.
+    pub effects: &'static [Effect],
+    /// A risk above its effects' (never below).
+    pub risk: Option<Risk>,
+    /// A call and what it gives.
+    pub example: &'static str,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -282,6 +320,9 @@ pub struct Statement {
     pub group: &'static str,
     pub origin: Origin,
     pub doc: &'static str,
+    /// What it does beyond the program's own state, when it reaches outside
+    /// (`OPEN`: files).
+    pub effects: &'static [Effect],
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

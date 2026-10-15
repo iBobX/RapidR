@@ -46,7 +46,7 @@
   "OpenGL/GL_test2.bas": "OpenGL through opengl32: RapidR's form is drawn over the GL surface (and its message box).",
   "OpenGL/GL_test3.bas": "As OpenGL/GL_test2.",
   "OpenGL/GL_test4.bas": "As OpenGL/GL_test2.",
-  "richedit/syntax/syntax.bas": "RRichEdit's formatting (SelAttributes) isn't drawn yet: the code shows without its colours.",
+  "richedit/syntax/syntax.bas": "In this run RRichEdit drew no formatting (SelAttributes): the code showed without its colours; rich text came after it (RICHEDIT).",
   "Splitter/Splitter.bas": "Fonts and the frame.",
   "forms/Window Sizer.BAS": "A second ELSE in one IF: RC.EXE compiles it and never runs what follows (fixed).",
   "direct3d/RQ_3DTerrain/Terrain16.bas": "An IF left open at END SUB, closed by an extra END IF in the next SUB: RC.EXE keeps one stack per kind of block across SUBs; RapidR stops at the END IF.",

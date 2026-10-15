@@ -578,6 +578,9 @@ pub fn apply_geometry<P: Program>(p: P, name: &str) {
 /// form asked to be before it showed).
 pub fn center<R: Program + Windows>(rt: R, name: &str) {
     rt.set(name, "_center", v_int(1));
+    // (RapidQ makes the form's windows again: its rich edits' carets go to
+    // the start — RC.EXE)
+    rapidr_value::objects::rich_edits_recreated(name, &|id| rt.get(id, "parent").to_string_val());
     if window_shown(name).is_none() {
         return;
     }

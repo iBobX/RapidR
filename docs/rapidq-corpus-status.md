@@ -101,8 +101,8 @@ Most of what fails, fails in both RapidR columns and comes from what a
 7. **Looks**: RapidR's form frame and in-window menu against Windows 11's
    (above); RapidQ's message boxes take Windows 11's message font (Segoe UI
    9, 90 high), RapidR's classic look MS Sans Serif 8 (78); Windows' smallest
-   window width, which RapidR doesn't apply; QRICHEDIT's formatting isn't
-   drawn.
+   window width, which RapidR doesn't apply (QRICHEDIT's formatting, not
+   drawn in this run, came after it: RICHEDIT).
 8. **RapidQ accepts what RapidR stops at** (decisions for later, each
    checked against RC.EXE): an IF left open at END SUB and closed by an extra
    END IF in the next SUB (Terrain16), an END IF inside a FOR closing an IF
@@ -464,7 +464,7 @@ Most of what fails, fails in both RapidR columns and comes from what a
 | richedit/multilevelUndo.bas | same (same windows, RapidR's form frame, difference 0.4) | same (same windows, RapidR's form frame, difference 0.4) | 357×234 |  |
 | richedit/QRedExDemo.Bas | RC.EXE fails; RapidR: runs, 1 window(s) | RC.EXE fails; RapidR: runs, 1 window(s) | no window (exit None) |  |
 | richedit/SearchRich.bas | same (same windows, RapidR's form frame, difference 6.1) | same (same windows, RapidR's form frame, difference 6.1) | 304×161 |  |
-| richedit/syntax/syntax.bas | differs: looks different (capture difference 14.8) | differs: looks different (capture difference 14.8) | 304×201 | RRichEdit's formatting (SelAttributes) isn't drawn yet: the code shows without its colours. |
+| richedit/syntax/syntax.bas | differs: looks different (capture difference 14.8) | differs: looks different (capture difference 14.8) | 304×201 | In this run RRichEdit drew no formatting (SelAttributes): the code showed without its colours; rich text came after it (RICHEDIT). |
 | richedit/using.bas | RC.EXE fails; RapidR: runs until stopped | RC.EXE fails; RapidR: runs until stopped | compile error: Expected ( but got ")" |  |
 | sockets/bind port to IP.bas | not run: builds (not run: opens a server socket) | not run: builds (not run: opens a server socket) | builds (not run: opens a server socket) |  |
 | sockets/BlockingQSocket.bas | RC.EXE fails; RapidR: runs | RC.EXE fails; RapidR: runs | no window (exit 0) |  |

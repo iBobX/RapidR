@@ -42,6 +42,8 @@ properties = [
   { name = "ClientWidth", type = "int", design = false },
   { name = "Layout", type = "enum", values = ["blBMPLeft", "blBMPRight", "blBMPTop", "blBMPBottom"] },
   { name = "TextStyle", type = "any" },
+  { name = "DataSource", type = "component", kinds = ["RDATASOURCE", "RDATAFRAME", "RCSV", "RJSON"], origin = "rapidr", category = "Data", doc = "Shows a data set's current row: an RDataSource, or a data set straight (with DataField: the column) — its Caption follows as the row moves." },
+  { name = "DataField", type = "string", default = "", origin = "rapidr", category = "Data", doc = "The column of DataSource's current row it shows (\"name\")." },
 ]
 methods = [
   { name = "Repaint", origin = "rapidr" },

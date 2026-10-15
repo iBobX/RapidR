@@ -52,11 +52,17 @@ pub fn client(name: &str) -> (i64, i64) {
     scrollbars::with(name, |s| s.client(w, h)).unwrap_or((w, h))
 }
 
-/// The components that take room (menus, timers and the like don't).
+/// The components that take room (menus, timers and the like don't; nor
+/// does a non-visual component inside a form — an RDataFrame's Width and
+/// Height are its columns and rows).
 fn children(name: &str) -> Vec<(String, Child)> {
     get_children_of(name)
         .into_iter()
-        .filter(|(c, t)| !matches!(t.as_str(), "RMAINMENU" | "RPOPUPMENU" | "RMENUITEM") && !matches!(rp_comp_get(c, "width"), crate::value::Value::Null))
+        .filter(|(c, t)| {
+            !matches!(t.as_str(), "RMAINMENU" | "RPOPUPMENU" | "RMENUITEM")
+                && rapidr_lang::component(t).is_none_or(|k| k.visual)
+                && !matches!(rp_comp_get(c, "width"), crate::value::Value::Null)
+        })
         .map(|(c, _)| {
             let n = |p: &str| rp_comp_get(&c, p).to_i64();
             let child = Child {

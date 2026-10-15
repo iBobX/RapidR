@@ -127,6 +127,15 @@ impl Memo {
         e.bars.vert.position = (sy / s).round() as i64;
     }
 
+    /// (a QRICHEDIT's) Its text as formatted runs for screen readers
+    /// ([`EditUi::access_runs`]).
+    pub(crate) fn rich_access(cx: &mut Cx) -> Option<rapidr_value::objects::a11y::TextInfo> {
+        let (x0, y0) = (cx.rect.0, cx.rect.1);
+        let id = cx.id.to_string();
+        let (e, geo, _) = Self::setup(cx);
+        e.access_runs(&id, (x0 + geo.text.0, y0 + geo.text.1), geo.text)
+    }
+
     /// The bars moved (the mouse on them): the text follows.
     fn from_bars(e: &mut EditUi, geo: Geo) {
         let s = f64::from(e.ed.scale());

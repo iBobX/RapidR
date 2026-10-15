@@ -1,0 +1,29 @@
+[package]
+name = "rapidr-introspect"
+description = "The one introspection / command interface AI (and tools) use on RapidR programs: describe, list, get — the same requests at design time (the project's source) and at run time (the running program); docs/ai-architecture.md §3"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+
+# wasm-safe, no GUI (docs/ide-plan.md §3.1): the protocol and `describe`
+# need only the registry; the design-time provider needs the designer.
+[dependencies]
+rapidr-lang.workspace = true
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# (feature `design`) the design-time provider: the program's CREATE blocks
+# through RapidR Studio's designer model
+rapidr-designer = { workspace = true, optional = true }
+rapidr-preprocessor = { workspace = true, optional = true }
+
+[features]
+# AI-ARCH phase 0: off by default — nothing in RapidR Studio or the default
+# CLI uses the interface yet (`rapidr introspect` needs the CLI's
+# `ai-introspect` feature).
+default = []
+design = ["dep:rapidr-designer", "dep:rapidr-preprocessor"]
+
+[[test]]
+name = "design"
+required-features = ["design"]

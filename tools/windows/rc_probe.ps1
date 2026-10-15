@@ -87,6 +87,20 @@ foreach ($bas in $progs) {
   if ($src -match $printing) { Write-Output "-- compiled (not run: printing)"; Pop-Location; continue }
   if ($src -match $registry) { Write-Output "-- compiled (not run: registry)"; Pop-Location; continue }
   if ($name -like "g_*") { Write-Output "-- compiled"; Pop-Location; continue }
+  # w_*: a GUI program that writes what it found to <name>.txt (a
+  # QFILESTREAM) and ends itself (Application.Terminate) — the file printed;
+  # still running after the timeout, it is ended.
+  if ($name -like "w_*") {
+    Write-Output "-- window"
+    $p = Start-Process -FilePath $exe -PassThru
+    if (-not $p.WaitForExit($Timeout * 1000)) {
+      Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+      Write-Output "TIMEOUT after $Timeout s"
+    }
+    Get-Content -LiteralPath (Join-Path $bas.DirectoryName "$name.txt") -ErrorAction SilentlyContinue | ForEach-Object { Write-Output $_ }
+    Pop-Location
+    continue
+  }
   if ((Get-Subsystem $exe) -ne 3) { Write-Output "-- compiled (GUI program)"; Pop-Location; continue }
   # s_*: a console program run in a console window of its own (what the
   # console statements do shows only there), which writes what it read back

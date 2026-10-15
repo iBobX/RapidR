@@ -11,6 +11,12 @@ use std::cell::RefCell;
 use std::fs;
 use std::path::Path;
 
+/// The file or folder a program names, as the system knows it: `\` for
+/// `/`, any case, as on Windows (crate::value::paths).
+fn host(name: &Value) -> std::path::PathBuf {
+    crate::value::paths::host(&name.to_string_val())
+}
+
 thread_local! {
     static DIR_ITER: RefCell<Option<(std::path::PathBuf, std::vec::IntoIter<String>)>> = RefCell::new(None);
 }
@@ -51,8 +57,7 @@ pub fn rp_seek(file_num: &Value, position: &Value) {
 // ---------------------------------------------------------------------------
 
 pub fn rp_filelen(filename: &Value) -> Value {
-    let path = filename.to_string_val();
-    match fs::metadata(&path) {
+    match fs::metadata(host(filename)) {
         Ok(m) => v_int(m.len() as i64),
         Err(_) => v_int(0),
     }
@@ -92,7 +97,7 @@ fn dir_entries(pattern: &str, attr: i64) -> (std::path::PathBuf, Vec<String>) {
     let pat = if cfg!(windows) { pattern.to_string() } else { pattern.replace('\\', "/") };
     let path = Path::new(&pat);
     let folder = match path.parent() {
-        Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
+        Some(p) if !p.as_os_str().is_empty() => crate::value::paths::host(&p.to_string_lossy()),
         _ => std::path::PathBuf::from("."),
     };
     let glob = path.file_name().and_then(|s| s.to_str()).unwrap_or("*").to_string();
@@ -148,19 +153,19 @@ fn matches_glob(name: &str, pattern: &str) -> bool {
 // ---------------------------------------------------------------------------
 
 pub fn rp_mkdir(path: &Value) {
-    let _ = fs::create_dir_all(path.to_string_val());
+    let _ = fs::create_dir_all(host(path));
 }
 
 pub fn rp_rmdir(path: &Value) {
-    let _ = fs::remove_dir(path.to_string_val());
+    let _ = fs::remove_dir(host(path));
 }
 
 pub fn rp_kill(filename: &Value) {
-    let _ = fs::remove_file(filename.to_string_val());
+    let _ = fs::remove_file(host(filename));
 }
 
 pub fn rp_rename(old_name: &Value, new_name: &Value) {
-    let _ = fs::rename(old_name.to_string_val(), new_name.to_string_val());
+    let _ = fs::rename(host(old_name), host(new_name));
 }
 
 // ---------------------------------------------------------------------------
@@ -179,7 +184,7 @@ pub fn rp_curdir() -> Value {
 // ---------------------------------------------------------------------------
 
 pub fn rp_chdir(path: &Value) {
-    let _ = std::env::set_current_dir(path.to_string_val());
+    let _ = std::env::set_current_dir(host(path));
 }
 
 #[cfg(test)]

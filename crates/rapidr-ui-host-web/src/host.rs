@@ -20,7 +20,11 @@
 //! The page is the screen: Screen.Width / Height are the viewport's, a
 //! window's Left / Top its place on the page; windows are stacked, moved
 //! (their title bar dragged), sized (their right and bottom edges),
-//! maximized, minimized and closed on the page as on a desktop. A screen
+//! maximized, minimized and closed on the page as on a desktop. The page's
+//! top left corner is the desktop's: a window shown or dragged past it is
+//! kept at it, so its title bar can always be reached ([`on_desktop`]);
+//! past the right and bottom edges the page scrolls to it (RapidR Studio's
+//! run frame draws its own scroll bars: ide/web/run.html). A screen
 //! scale change (another monitor, the browser's zoom) draws every window
 //! again at the new `devicePixelRatio` (OnScaleChanged); a canvas whose
 //! backing the browser dropped (`contextlost`) is drawn again when it comes
@@ -357,6 +361,22 @@ pub fn screen() -> (i64, i64) {
     (get(w.inner_width()).max(1), get(w.inner_height()).max(1))
 }
 
+/// A window's place kept on the desktop: never above or left of the page's
+/// top left corner, where nothing scrolls to — its title bar stays where
+/// the mouse reaches it. (Right and down the page grows and scrolls.)
+pub fn on_desktop(pos: (i64, i64)) -> (i64, i64) {
+    (pos.0.max(0), pos.1.max(0))
+}
+
+/// The page's visible part (logical): the viewport less the page's own
+/// scroll bars, where a maximized window goes.
+fn visible() -> (i64, i64) {
+    let (w, h) = screen();
+    let Some(el) = window().document().and_then(|d| d.document_element()) else { return (w, h) };
+    let (cw, ch) = (i64::from(el.client_width()), i64::from(el.client_height()));
+    (if cw > 0 { cw.min(w) } else { w }, if ch > 0 { ch.min(h) } else { h })
+}
+
 /// The page's devicePixelRatio, re-read when it changes (another monitor,
 /// the browser's zoom): every window is drawn again at it and hears
 /// OnScaleChanged.
@@ -501,6 +521,16 @@ impl WebHost {
             w.force = true;
             w.frame_dirty = true;
         }
+        // (a window shown past the page's top or left — a form bigger than
+        // the page, centred — moved onto it, its title bar reachable, as a
+        // desktop's window manager places it; the program hears the move)
+        let normal = self.desk.forms.get(id).filter(|f| f.state != rapidr_value::window_state::WS_MAXIMIZED).and_then(|f| f.spec.position);
+        if let Some(pos) = normal {
+            let to = on_desktop(pos);
+            if to != pos {
+                self.desk.moved(id, to.0, to.1);
+            }
+        }
         self.place(id);
     }
 
@@ -553,7 +583,10 @@ impl WebHost {
                 }
                 w.minimized = false;
                 w.min_slot = None;
-                let (sw, sh) = screen();
+                // (the page's visible part, its corner shown: a page that
+                // scrolls is at its top left)
+                let (sw, sh) = visible();
+                window().scroll_to_with_x_and_y(0.0, 0.0);
                 let (ow, oh) = frame::outer((0, 0), border, caption);
                 let (iw, ih) = ((sw - ow).max(1), (sh - oh).max(1));
                 w.frame_dirty = true;
@@ -973,7 +1006,9 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
                 let p = at(&el, &e);
                 let m = mouse_mods(&e, mac);
                 input(|h, store| {
-                    h.mouse = (f64::from(e.client_x()), f64::from(e.client_y()));
+                    // (on the page, as windows' Left / Top: its scroll counted)
+                    let w = window();
+                    h.mouse = (f64::from(e.client_x()) + w.scroll_x().unwrap_or(0.0), f64::from(e.client_y()) + w.scroll_y().unwrap_or(0.0));
                     h.desk.mouse_move(store, &id, p.0, p.1, m, Source::User);
                     // (the pointer: Screen.Cursor, else the component's —
                     // the desktop's rule)
@@ -1090,17 +1125,36 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
                 let Some(look) = w.look.clone() else { return };
                 let size = shown_frame(w, &look);
                 match frame::hit(&look, size, p.0, p.1) {
-                    Part::Title if e.detail() == 2 && (look.frame.maximize || w.minimized) => {
-                        let to = if maximized || w.minimized { rapidr_value::window_state::WS_NORMAL } else { rapidr_value::window_state::WS_MAXIMIZED };
-                        w.drag = None;
-                        h.desk.cmds.push(HostCmd::State(id.clone()));
-                        if let Some(f) = h.desk.form(&id) {
-                            f.spec.state = to;
-                        }
-                    }
                     Part::Title if !maximized && !w.minimized => w.drag = Some(Drag { resize: None, from: page, start: pos, size: (0, 0) }),
                     part @ (Part::Close | Part::Maximize | Part::Minimize) => w.pressed = Some(part),
                     _ => {}
+                }
+            });
+        });
+    }
+    // (a double click on the title bar: maximized, or back — the
+    // browser's dblclick, as a pointerdown's detail is always 0)
+    {
+        let (id, el) = (id.to_string(), fr.clone());
+        listen(&fr, "dblclick", &mut out, move |e| {
+            let Ok(e) = e.dyn_into::<web_sys::MouseEvent>() else { return };
+            let p = at(&el, &e);
+            input(|h, _store| {
+                if !h.desk.accepts_input(&id) {
+                    return;
+                }
+                let Some(f) = h.desk.forms.get(&id) else { return };
+                let maximized = f.state == rapidr_value::window_state::WS_MAXIMIZED;
+                let Some(w) = h.wins.get_mut(&id) else { return };
+                let Some(look) = w.look.clone() else { return };
+                if frame::hit(&look, shown_frame(w, &look), p.0, p.1) != Part::Title || !(look.frame.maximize || w.minimized) {
+                    return;
+                }
+                let to = if maximized || w.minimized { rapidr_value::window_state::WS_NORMAL } else { rapidr_value::window_state::WS_MAXIMIZED };
+                w.drag = None;
+                h.desk.cmds.push(HostCmd::State(id.clone()));
+                if let Some(f) = h.desk.form(&id) {
+                    f.spec.state = to;
                 }
             });
         });
@@ -1112,7 +1166,7 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
             let page = (f64::from(e.client_x()), f64::from(e.client_y()));
             input(|h, _| {
                 let Some(d) = h.wins.get(&id).and_then(|w| w.drag) else { return };
-                let to = (d.start.0 + (page.0 - d.from.0).round() as i64, d.start.1 + (page.1 - d.from.1).round() as i64);
+                let to = on_desktop((d.start.0 + (page.0 - d.from.0).round() as i64, d.start.1 + (page.1 - d.from.1).round() as i64));
                 h.desk.moved(&id, to.0, to.1);
                 h.place(&id);
             });
@@ -1187,6 +1241,10 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
                     let (dx, dy) = ((page.0 - d.from.0).round() as i64, (page.1 - d.from.1).round() as i64);
                     // (a left or top edge moves the window as much as it
                     // grows it: the opposite edge stays)
+                    // (a left or top edge stops at the page's corner: the
+                    // window kept on the desktop)
+                    let dx = if l { dx.max(-d.start.0.max(0)) } else { dx };
+                    let dy = if t { dy.max(-d.start.1.max(0)) } else { dy };
                     let iw = if r { d.size.0 + dx } else if l { d.size.0 - dx } else { d.size.0 }.max(1);
                     let ih = if b { d.size.1 + dy } else if t { d.size.1 - dy } else { d.size.1 }.max(1);
                     let left = if l { d.start.0 + d.size.0 - iw } else { d.start.0 };

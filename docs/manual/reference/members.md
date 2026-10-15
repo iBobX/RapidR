@@ -798,7 +798,7 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
 | `ReadOnly` | bool | False | Stops the user changing the text or items; they can still select and copy. |
 | `SelLength` | int |  | The number of characters selected. |
-| `SelStart` | int |  | Where the selection starts: a character offset from 0 in text, the start of a track bar's highlighted range. |
+| `SelStart` | int |  | Where the selection starts: a character offset from 0 in Text (a line break counts as the characters Text has for it: two, CR LF, in a rich edit or memo, as RapidQ counts them; so a position INSTR finds in Text selects that text), the start of a track bar's highlighted range. |
 | `SelText` | string |  | The selected text; setting it replaces the selection. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
@@ -811,6 +811,8 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `Alignment` *(RapidR)* | enum |  | How the text lines up inside the control: `taLeftJustify`, `taCenter` or `taRightJustify`; on a popup menu, which side of the point it opens on. |
 | `Cursor` *(RapidR)* | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
+| `DataSource` *(RapidR)* | component |  | Shows a data set's current row: an RDataSource, or a data set straight (with DataField: the column). What the user types goes back into the data set's table. |
+| `DataField` *(RapidR)* | string | `""` | The column of DataSource's current row it shows and edits ("name"). |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -1030,16 +1032,16 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 <a id="rrichedit"></a>
 ## RRichEdit <small>(RapidQ name: QRICHEDIT)</small>
 
-A multi-line text editor with fonts, colours and alignment per selection, that loads and saves rich text (RTF) or plain text.
+A multi-line text editor whose text is formatted: font, size, colour, bold, italic, underline and strike-out per character (SelAttributes), alignment, indents and bullets per paragraph; it loads and saves rich text (RTF), or plain text with PlainText. What the user types takes the format of the text around it, and Ctrl+Z gives back the text and its formats.
 
 | Property | Type | Default | |
 |---|---|---|---|
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
-| `Alignment` | enum | `taLeftJustify` | How the text lines up inside the control: `taLeftJustify`, `taCenter` or `taRightJustify`; on a popup menu, which side of the point it opens on. |
+| `Alignment` | enum | `taLeftJustify` | How paragraphs without an alignment of their own line up (set after the text, it aligns it all as shown; paragraphs set by Text afterwards get it as their own); setting it moves the caret to the start, as RapidQ's. |
 | `BorderStyle` | enum | `bsSingle` | The border: one of the `bsXXX` constants. On a form, `bsSizeable` lets the user resize it, `bsDialog` doesn't, `bsNone` has no title bar. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
+| `Font` (write-only) | font |  | The text's default format: text never formatted shows it (all of it, while nothing is formatted), and an empty last line types in it. |
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `HideScrollBars` | bool | True | Hides scroll bars until the text needs them, instead of showing them disabled. |
@@ -1051,12 +1053,12 @@ A multi-line text editor with fonts, colours and alignment per selection, that l
 | `Modified` (read-only) | int |  | True once the user changes the text (or the OLE object); the program may clear it. |
 | `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
-| `PlainText` | bool | False | Loads and saves the text as plain text rather than RTF. |
+| `PlainText` | bool | False | False: LoadFromFile / SaveToFile and the streams read and write rich text (RTF; a file that isn't RTF loads as its text). True: plain text, lines ending CR LF. |
 | `ReadOnly` | bool | False | Stops the user changing the text or items; they can still select and copy. |
 | `ScrollBars` | enum | `ssNone` | Which scroll bars show: `ssNone`, `ssHorizontal`, `ssVertical` or `ssBoth`. |
-| `SelAttributes` (write-only) | font |  | The font of the selected text, or of what's typed next; write-only. |
+| `SelAttributes` (write-only) | font |  | The format of the selected text — at a caret, of what is typed or added there next: set it to a QFONT (all its settings), or set its members (Color, Name, Size, Bold, Italic, Underline, StrikeOut, Charset; AddStyles / DelStyles). Reading a member gives the selection's last character's (the caret's format at a caret); an automatic colour reads clWindowText (&H80000008). |
 | `SelLength` | int |  | The number of characters selected. |
-| `SelStart` | int |  | Where the selection starts: a character offset from 0 in text, the start of a track bar's highlighted range. |
+| `SelStart` | int |  | Where the selection starts: a character offset from 0 in Text (a line break counts as the characters Text has for it: two, CR LF, in a rich edit or memo, as RapidQ counts them; so a position INSTR finds in Text selects that text), the start of a track bar's highlighted range. |
 | `SelText` | string |  | The selected text; setting it replaces the selection. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
@@ -1072,7 +1074,9 @@ A multi-line text editor with fonts, colours and alignment per selection, that l
 | `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `Cursor` *(RapidR)* | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
-| `SelFont` | font |  | The font of the selected text. |
+| `SelFont` (write-only) | font |  | SelAttributes = Font's other name: the QFONT's settings on the selection (RapidQ's; write-only). |
+| `Paragraph` *(RapidR)* | item |  | The format of the paragraphs the selection is in (at a caret, its paragraph's): Alignment, LeftIndent, FirstIndent, RightIndent (pixels) and Numbering (bullets). Reading gives the first one's. |
+| `TextRTF` *(RapidR)* | string |  | The text with its formats as RTF — what SaveToFile writes while PlainText is False; setting it loads RTF (or plain text) as LoadFromFile does. |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -1083,14 +1087,14 @@ A multi-line text editor with fonts, colours and alignment per selection, that l
 
 | Method | |
 |---|---|
-| `AddStrings(Items, …)` | Appends the strings given, each as a new line. |
+| `AddStrings(Items AS STRING, …)` | Adds lines at the end (after the last line break, or a break before them when the text doesn't end with one); the caret goes after them, and a format SelAttributes set at that caret goes to them. |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `CopyToClipboard` | Copies the selected text to the clipboard. |
 | `CutToClipboard` | Moves the selected text to the clipboard. |
-| `LoadFromFile(FileName AS STRING)` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
+| `LoadFromFile(FileName AS STRING)` | Replaces the text with a file's: rich text (RTF) with its formats, or the file's text when it isn't RTF or PlainText is True. |
 | `LoadFromStream(Stream AS RFILESTREAM)` | Replaces the text with the stream's bytes from its position to its end (as LoadFromFile reads a file); the stream is left at its end. |
 | `PasteFromClipboard` | Inserts the clipboard's text at the caret, replacing the selection. |
-| `SaveToFile(FileName AS STRING)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
+| `SaveToFile(FileName AS STRING)` | Writes the text with its formats as RTF (as RapidQ's: ending with a NUL byte), or with PlainText True the text, lines ending CR LF. |
 | `SaveToStream(Stream AS RFILESTREAM)` | Writes the text at the stream's position (the same bytes SaveToFile writes), moving the position past it. |
 | `SelectAll` | Selects all the text. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
@@ -1320,7 +1324,7 @@ A slider: the user drags its thumb to pick a Position between Min and Max, along
 | `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
 | `Position` | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
 | `SelEnd` | int |  | The end of the track bar's highlighted range. |
-| `SelStart` | int |  | Where the selection starts: a character offset from 0 in text, the start of a track bar's highlighted range. |
+| `SelStart` | int |  | Where the selection starts: a character offset from 0 in Text (a line break counts as the characters Text has for it: two, CR LF, in a rich edit or memo, as RapidQ counts them; so a position INSTR finds in Text selects that text), the start of a track bar's highlighted range. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
 | `TickMarks` | enum | `tmBottomRight` | Where the track bar's ticks go: `tmBottomRight`, `tmTopLeft` or `tmBoth`. |
@@ -1370,7 +1374,7 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `ReadOnly` | int |  | Stops the user changing the text or items; they can still select and copy. |
 | `WordWrap` | int |  | Long lines break at the view's width (Alt+Z turns it on and off). |
-| `SelStart` | int |  | Where the selection starts: a character offset from 0 in text, the start of a track bar's highlighted range. |
+| `SelStart` | int |  | Where the selection starts: a character offset from 0 in Text (a line break counts as the characters Text has for it: two, CR LF, in a rich edit or memo, as RapidQ counts them; so a position INSTR finds in Text selects that text), the start of a track bar's highlighted range. |
 | `SelLength` | int |  | The number of characters selected. |
 | `SelText` | string |  | The selected text; setting it replaces the selection. |
 | `Line` | string |  | A line of the text, `Line(i)` from 0. |
@@ -1728,6 +1732,8 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 | `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
 | `Layout` | enum |  | Where the picture sits next to the caption: `blBMPLeft`, `blBMPRight`, `blBMPTop` or `blBMPBottom`. |
 | `TextStyle` | any |  | How the label draws its text, together with `LabelStyle`. |
+| `DataSource` *(RapidR)* | component |  | Shows a data set's current row: an RDataSource, or a data set straight (with DataField: the column) — its Caption follows as the row moves. |
+| `DataField` *(RapidR)* | string | `""` | The column of DataSource's current row it shows ("name"). |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -3190,7 +3196,7 @@ Reads and writes settings as keys and values: Windows' registry on Windows, a pe
 <a id="rjson"></a>
 ## RJson
 
-Parses and builds JSON: get and set values by dotted path, list keys, pretty-print, load and save files. RapidR's own.
+Parses and builds JSON: get and set values by dotted path, list keys, pretty-print, load and save files. Its document's records ([{…}, …], JSON Lines or columns) are also a data source: an RDataFrame's Source, an RDBGrid's or an RDataSource's data set. RapidR's own.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -4340,10 +4346,11 @@ A numeric array in NumPy's style: make ranges, zeros or lists, then sum, average
 <a id="rdataframe"></a>
 ## RDataFrame
 
-A table of named columns in pandas' style: read CSV or JSON, select, filter, sort, group and join, compute statistics, show it in a grid. RapidR's own.
+A table of named columns in pandas' style: read CSV or JSON, select, filter, sort, group and join, compute statistics, show it in a grid. Point its Source at an RCSV, an RJSON or another RDataFrame and it takes their rows — at design time too. RapidR's own.
 
 | Property | Type | Default | |
 |---|---|---|---|
+| `Source` | component |  | Where the frame's rows come from: an RCSV, an RJSON (its records) or another RDataFrame. The frame gets a copy of them at once, and again whenever the source changes (a new FileName, Load); Refresh asks again. What you do to the frame afterwards (Filter, Sort …) changes only the frame, until the source changes. |
 | `Height` (read-only) | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Nrows` (read-only) | int |  | The number of rows in the data frame. |
 | `ColCount` (read-only) | int |  | The number of columns: of a grid (fixed ones included), of a query's result, of a data frame. |
@@ -4425,6 +4432,117 @@ A table of named columns in pandas' style: read CSV or JSON, select, filter, sor
 | `ToGrid(gridName)` | Fills an RStringGrid: the header row, then the cells. |
 | `To_grid` | Fills an RStringGrid with the DataFrame's column names and rows. Same as `ToGrid`. |
 | `Display` | Fills an RStringGrid with the DataFrame's column names and rows. Same as `ToGrid`. |
+| `Refresh` | Takes the rows of its Source again (its file read again when it is an RCSV). |
+
+<a id="rcsv"></a>
+## RCSV
+
+A CSV file as a data source: set FileName and its table is ready — show it in an RDBGrid (DataSource = it), give its rows to an RDataFrame (Source = it), or bind edits and labels to it. Any delimiter, with or without a header line; read when first needed, at design time too. RapidR's own.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `FileName` | string | `""` | The CSV file (a path, or a name next to the program). Setting it reads the file again when its table is next needed. |
+| `Delimiter` | string | `","` | What separates the fields: "," (the default), ";", a tab ("tab" or CHR$(9)), "\|" … |
+| `HasHeader` | bool | True | True: the first line names the columns. False: every line is a row and the columns are column_1, column_2 … |
+| `Text` | string |  | The table as CSV text; setting it gives the data itself instead of a file. |
+| `RowCount` (read-only) | int | 0 | How many rows the table has. |
+| `ColCount` (read-only) | int | 0 | How many columns the table has. |
+| `Columns` (read-only) | string | `""` | The columns' names: "name,age,city". |
+| `Error` (read-only) | string | `""` | Why the file couldn't be read ("" when it could). |
+
+| Method | |
+|---|---|
+| `Load AS INTEGER` | Reads the file again now: 1 if it could, 0 if not (Error and OnError say why). |
+| `Save([fileName AS STRING]) AS INTEGER` | Writes the table (with its edits) to its FileName, or to fileName: 1 if it could, 0 if not. |
+| `Clear` | Forgets the file and the table. |
+
+| Event | |
+|---|---|
+| `OnLoad` | The file was read. |
+| `OnError(Message AS STRING)` | The file couldn't be read or written; Message says why. |
+
+<a id="rdatasource"></a>
+## RDataSource
+
+The current row of a data set (an RDataFrame, an RCSV, an RJSON), shared by the controls bound to it: grids, edits and labels with DataSource = it follow it as it moves. First, Next, Prior, Last and Row move it; Field reads the current row. RapidR's own, after Delphi's TDataSource.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `DataSet` | component |  | The data set whose rows it walks. |
+| `Row` | int | 0 | The current row, from 0; set it to move there. |
+| `RecordCount` (read-only) | int | 0 | How many rows the data set has. |
+| `EOF` (read-only) | bool |  | True (-1) after Next couldn't move past the last row (or after Last), or when there are no rows: `WHILE NOT DS.EOF … DS.Next WEND` walks every row. |
+| `BOF` (read-only) | bool |  | True (-1) after First, or after Prior couldn't move before the first row, or when there are no rows. |
+| `Enabled` | bool | True | False: the bound controls stop following it. |
+| `State` (read-only) | string | `"inactive"` | "inactive" (no DataSet, or not Enabled) or "browse". |
+
+| Method | |
+|---|---|
+| `First` | Moves to the first row. |
+| `Next` | Moves to the next row (EOF becomes True at the end). |
+| `Prior` | Moves to the row before (BOF becomes True at the start). |
+| `Last` | Moves to the last row. |
+| `MoveBy(rows AS INTEGER)` | Moves that many rows (negative: back). |
+| `Field(name AS STRING) AS STRING` | The current row's value in that column ("" for a missing value). |
+| `SetField(name AS STRING, value AS STRING)` | Changes the current row's value in that column (in the data set's table; its Save writes it out). |
+| `Refresh` | Reads the data set again from where its rows come from. |
+
+| Event | |
+|---|---|
+| `OnDataChange` | The current row moved, or the data changed. |
+
+<a id="rdbgrid"></a>
+## RDBGrid
+
+A grid that shows a data set straight from its table — an RDataSource, an RDataFrame, an RCSV or an RJSON — drawing only the rows on screen, so a million rows scroll smoothly. A click or the arrows move the current row (bound edits follow); a click on a heading sorts the view by that column (again: descending, a third time: back), the data itself unchanged. RapidR's own, after Delphi's TDBGrid.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `DataSource` | component |  | What it shows: an RDataSource (it follows that current row) or a data set straight. |
+| `ReadOnly` | bool | True | True: the cells are shown, not edited (editing in the grid comes later; edit through bound REdits). |
+| `Row` | int | 0 | The current row (a row of the data, from 0); set it to move there. |
+| `TopRow` | int | 0 | The first row shown (in the grid's order). |
+| `RowCount` (read-only) | int | 0 | How many rows the data has. |
+| `ColCount` (read-only) | int | 0 | How many columns the data has. |
+| `Columns` (read-only) | string | `""` | The columns' names: "name,age,city". |
+| `SortColumn` (read-only) | int | -1 | The column its view is sorted by (-1: none, the data's own order). |
+| `SortDescending` (read-only) | bool | False | True: sorted highest first. |
+| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
+| `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
+| `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
+| `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Visible` | bool | True | Whether the control or form is shown. |
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+
+| Method | |
+|---|---|
+| `SetFocus` | Gives the component the keyboard focus. |
+| `Repaint` | Redraws the component. |
+
+| Event | |
+|---|---|
+| `OnCellClick(Row AS INTEGER, Col AS INTEGER)` | A cell was clicked: its data row and column (from 0). |
+| `OnTitleClick(Col AS INTEGER)` | A heading was clicked (the view is sorted by it). |
+| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
+| `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
+| `OnKeyDown(Key AS WORD, Shift AS INTEGER)` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
+| `OnKeyUp(Key AS WORD, Shift AS INTEGER)` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
+| `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 
 <a id="rplot"></a>
 ## RPlot
@@ -5100,7 +5218,9 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `FileManager` (read-only) | string |  | What this system calls the file manager Reveal opens: "Finder", "File Explorer" or "Files" ("" on the web). |
 | `BuiltPath` (read-only) | string |  | What the last Build made: the .app, the .exe or the AppDir ("" until one succeeds). |
 | `ImportSummary` (read-only) | string |  | The last ImportRapidQ's summary: how many programs, files and names, and how many compile to the same bytecode as their originals. |
-| `ImportReport` (read-only) | string |  | The last ImportRapidQ's report (rapidr-import-report.md in the copy): every name changed by file, line and column, what was left and why, each program's proof. |
+| `ImportReport` (read-only) | string |  | The last ImportRapidQ's report (rapidr-import-report.md in the copy): every name changed by file, line and column, each include file and where it was found, what was left and why, each program's proof. |
+| `ImportMissing` (read-only) | string |  | The include files the last ImportRapidQ found nowhere, a line each: the file and line of the $INCLUDE, the name as written and what to do, separated by tabs ("" when every include was found). |
+| `IncludeFolders` | string |  | The include folders, a line each: where $INCLUDE looks after the program's own folder (as RapidQ's include folder), for every program Open, Run, Build and ImportRapidQ compile — RapidR Studio's Settings > Include folders. Programs run from here get them too. |
 
 | Method | |
 |---|---|
@@ -5119,7 +5239,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `InstallRust AS INTEGER` | Installs Rust with rapidr setup --yes --no-path (the free toolchain native builds need), in the background like Build: OnBuildOutput gives its lines, OnBuildDone its end. True when it started; Error says why not. |
 | `StopBuild` | Stops the Build that is running. |
 | `Reveal([Path AS STRING]) AS INTEGER` | Shows Path (else what the last Build made) selected in Finder, Explorer or the Linux file manager. |
-| `ImportRapidQ(Source AS STRING, [Dest AS STRING]) AS STRING` | Imports a RapidQ program — a .bas, .rqw, .rqb, .rq or .inc file and the files it includes, or a folder of them — as a copy with RapidR's names (QBUTTON becomes RButton) in Dest (else <name>-rapidr beside it, the next free name): each program proved to compile to the same bytecode as its original, a report (ImportReport) and a project for the copy (the RapidQ-compatible setting off). The original is only read. Gives the copy's project file to Open; "" when it can't (Error says why). On the web, Source is a file or folder in the page's store (one the user picked). |
+| `ImportRapidQ(Source AS STRING, [Dest AS STRING]) AS STRING` | Imports a RapidQ program — a .bas, .rqw, .rqb, .rq or .inc file and every file it includes (found as the compiler finds them: the program's folder, IncludeFolders, beside the including file; any case, \ or /), or a folder of them — as a copy with RapidR's names (QBUTTON becomes RButton) in Dest (else <name>-rapidr beside it, the next free name): the includes copied with it (RAPIDQ.INC and the others RapidR supplies stay built in), each program proved to compile to the same bytecode as its original, a report (ImportReport; ImportMissing lists the includes found nowhere) and a project for the copy (the RapidQ-compatible setting off). The original is only read. Gives the copy's project file to Open; "" when it can't (Error says why). On the web, Source is a file or folder in the page's store (one the user picked). |
 | `IconPreview([Size AS INTEGER]) AS STRING` | Draws the app's icon (Icon, else RapidR's) as a Size-pixel PNG (128 by default) in the project's .rapidr folder and gives its path, for an RImage to show; "" when the icon can't be read (Error says why). |
 | `Find(Pattern AS STRING, Options AS STRING, Text AS STRING) AS STRING` | Find in Files: every match of Pattern in Text, a line each: line, column (both from 1), length, the line's text, separated by tabs. Options: any of "case" (match case), "word" (whole words), "regex" (Pattern is a regular expression), separated by commas. "" with Error set when the pattern is not a valid regular expression. |
 | `Replace(Pattern AS STRING, Options AS STRING, Text AS STRING, With AS STRING) AS STRING` | Text with every match of Pattern (Find's Options) replaced by With; in a regular expression's replacement $1 or ${name} stand for its groups. |
@@ -5399,4 +5519,17 @@ One column of an RListView in report view (`ListView.Column(i)`, from 0).
 |---|---|---|---|
 | `Caption` | string |  | The column's heading. |
 | `Width` | int |  | The column's width in pixels. |
+
+<a id="paraattributes"></a>
+## ParaAttributes
+
+(RapidR's) The format of an RRichEdit's paragraphs (`RichEdit.Paragraph`): those the selection is in when set, the first one's when read.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Alignment` | enum |  | How the paragraph's lines line up. |
+| `LeftIndent` | int |  | How far in from the left edge the paragraph's lines start, in pixels. |
+| `FirstIndent` | int |  | How much further in its first line starts, in pixels (less than 0: the other lines are further in, a hanging indent). |
+| `RightIndent` | int |  | How far in from the right edge the paragraph's lines end, in pixels. |
+| `Numbering` | int |  | 1: a bullet before the paragraph (indented a quarter inch if it had no indent); 0: none. |
 

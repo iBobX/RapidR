@@ -65,7 +65,10 @@ const ROLES = {
   slider: ["slider"], spinbutton: ["spinbutton"], progressbar: ["progressbar"],
   tablist: ["tablist"], tab: ["tab"], listbox: ["listbox"], option: ["option"],
   combobox: ["combobox"],
-  tree: ["tree"], treeitem: ["treeitem"], grid: ["grid"], row: ["row"], gridcell: ["gridcell"],
+  tree: ["tree"], treeitem: ["treeitem"],
+  // (a grid whose rows have levels — the property inspector's — is ARIA's
+  // tree grid)
+  grid: ["grid", "treegrid"], row: ["row"], gridcell: ["gridcell"],
   menubar: ["menubar"], menuitem: ["menuitem"],
   img: ["image", "img"],
   // (a <canvas> is Chrome's Canvas)
@@ -175,14 +178,19 @@ function compare(k, w) {
   const we = prop(w, "expanded");
   if (ke !== undefined && we !== ke) out.push(`expanded ${ke} ≠ ${we}`);
   if (ke === undefined && we !== undefined) out.push(`expanded ${we} (kernel: not expandable)`);
-  // (ARIA has no read-only row — aria-readonly is for text boxes, grids and
-  // combo boxes —: the inspector's read-only rows are the kernel's alone)
+  // (ARIA has no read-only row — aria-readonly is for text boxes, grids,
+  // cells and combo boxes —: the inspector's read-only rows say it in their
+  // description and their value's cell, both checked above and below)
   for (const [s, p] of [["readonly", "readonly"], ["multiline", "multiline"], ["modal", "modal"]]) {
     if (s === "readonly" && role === "row") continue;
     if (!!prop(w, p) !== has(s)) out.push(has(s) ? `not ${s}` : s);
   }
   if (k.level !== undefined && Number(prop(w, "level")) !== k.level) out.push(`level ${k.level} ≠ ${prop(w, "level")}`);
-  if (squash(k.description) !== squash(w.description?.value)) out.push(`description "${squash(k.description)}" ≠ "${squash(w.description?.value)}"`);
+  // (a read-only property's row — a row with a value of its own, the
+  // inspector's — says so in its description: ARIA has no read-only row)
+  const valueRow = role === "row" && k.value !== undefined && !(k.children || []).length;
+  const kd = valueRow && has("readonly") ? [k.description, "read-only"].filter(Boolean).join(", ") : k.description;
+  if (squash(kd) !== squash(w.description?.value)) out.push(`description "${squash(kd)}" ≠ "${squash(w.description?.value)}"`);
   const kk = (k.shortcut || "").toLowerCase(), wk = String(prop(w, "keyshortcuts") || "").toLowerCase();
   if (kk !== wk) out.push(`shortcut "${k.shortcut || ""}" ≠ "${prop(w, "keyshortcuts") || ""}"`);
   return out;
@@ -233,7 +241,16 @@ function compareTree(tree, k) {
       kp.forEach((p, i) => {
         say(`${where} ${role} ${i}`, compare(p, wparts[i]));
         // (a grid's row's cells)
-        if (role === "row") {
+        if (role === "row" && p.value !== undefined && !(p.children || []).length) {
+          // (a row with its own value — the inspector's —: the mirror's
+          // cells, its name a row header, its value a cell, read-only as
+          // the row)
+          const header = nodesOf(tree, comp, ["rowheader"], wparts[i]);
+          const cells = nodesOf(tree, comp, ROLES.gridcell, wparts[i]);
+          const ro = (p.states || []).includes("readonly");
+          const ok = header.length === 1 && cells.length === 1 && squash(header[0].name?.value) === squash(p.name) && squash(cells[0].name?.value) === squash(p.value) && !!prop(cells[0], "readonly") === ro;
+          if (!ok) diffs.push(`${where} row ${i}: cells ${JSON.stringify(header.map((n) => n.name?.value))} ${JSON.stringify(cells.map((n) => [n.name?.value, !!prop(n, "readonly")]))} ≠ "${p.name}" / "${p.value}"${ro ? " (read-only)" : ""}`);
+        } else if (role === "row") {
           const cells = nodesOf(tree, comp, ROLES.gridcell, wparts[i]);
           if ((p.children || []).length !== cells.length) diffs.push(`${where} row ${i}: ${(p.children || []).length} cells ≠ ${cells.length}`);
           else (p.children || []).forEach((cell, j) => say(`${where} cell ${j},${i}`, compare(cell, cells[j])));

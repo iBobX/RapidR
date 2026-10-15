@@ -9,31 +9,38 @@ use rapidr_preprocessor::PreprocessOptions;
 
 use crate::files::Files;
 
-/// The bytecode `main` compiles to, its `$INCLUDE`s looked for in its
-/// folder and then `include_dirs` (nothing else: not `RAPIDR_INCLUDE_PATH`);
-/// `replace`: the main file's text instead of the file's (an upgrade
-/// planned, not written yet).
-///
-/// `builtin_rapidq_inc`: `$INCLUDE "RAPIDQ.INC"` reads RapidR's constants
-/// even where a RAPIDQ.INC file would be found (the copy of a program whose
-/// RAPIDQ.INC was left out is compared with its original so).
-pub fn bytecode(main: &Path, include_dirs: &[PathBuf], replace: Option<&str>, builtin_rapidq_inc: bool) -> Result<Vec<u8>, String> {
-    bytecode_with(&crate::files::Disk, main, include_dirs, replace, builtin_rapidq_inc)
+/// The bytecode `main` compiles to, its `$INCLUDE`s looked for as the
+/// compiler looks for them — its folder, then `include_dirs` … (nothing
+/// else: not the user's include folders unless they are in
+/// `include_dirs`); `replace`: the main file's text instead of the file's
+/// (an upgrade planned, not written yet).
+pub fn bytecode(main: &Path, include_dirs: &[PathBuf], replace: Option<&str>) -> Result<Vec<u8>, String> {
+    bytecode_with(&crate::files::Disk, main, include_dirs, replace, &[]).map(|(b, _)| b)
 }
 
-/// [`bytecode`] of a program in `files`.
-pub fn bytecode_with(files: &dyn Files, main: &Path, include_dirs: &[PathBuf], replace: Option<&str>, builtin_rapidq_inc: bool) -> Result<Vec<u8>, String> {
+/// [`bytecode`] of a program in `files`, and every file it read (its
+/// includes: the copy must read its own).
+///
+/// `builtins`: include file names (`RAPIDQ.INC`) read as RapidR supplies
+/// them even where a file of that name would be found — a program whose
+/// own RAPIDQ.INC isn't copied is compared with its copy so (the copy finds
+/// RapidR's).
+pub fn bytecode_with(files: &dyn Files, main: &Path, include_dirs: &[PathBuf], replace: Option<&str>, builtins: &[String]) -> Result<(Vec<u8>, Vec<PathBuf>), String> {
     let text = match replace {
         Some(t) => t.to_string(),
         None => rapidr_preprocessor::decode_source(&files.read(main)?).0,
     };
     let base = main.parent().unwrap_or_else(|| Path::new("."));
     let mut options = PreprocessOptions { include_dirs: include_dirs.to_vec(), ..Default::default() };
-    if builtin_rapidq_inc {
-        options.virtual_files.push(("RAPIDQ.INC".into(), rapidr_preprocessor::rapidq_inc_text()));
+    for name in builtins {
+        if let Some(text) = rapidr_preprocessor::builtin_include_text(name) {
+            options.virtual_files.push((name.clone(), text));
+        }
     }
-    // (in memory: the other files are the preprocessor's virtual files)
-    options.virtual_files.extend(files.virtual_files());
+    // (in memory: the other files are the preprocessor's virtual files —
+    // but those read as RapidR's)
+    let is_builtin = |p: &str| builtins.iter().any(|b| p.replace('\\', "/").rsplit('/').next().is_some_and(|n| n.eq_ignore_ascii_case(b)));
+    options.virtual_files.extend(files.virtual_files().into_iter().filter(|(p, _)| !is_builtin(p)));
     let pre = rapidr_preprocessor::preprocess_source(&text, base, Some(main.to_path_buf()), options).map_err(|e| e.to_string())?;
     let label = main.display().to_string();
     let remap = |e: String| pre.remap_messages(&label, &e);
@@ -47,5 +54,6 @@ pub fn bytecode_with(files: &dyn Files, main: &Path, include_dirs: &[PathBuf], r
     for r in &pre.resources {
         compiled.module.resources.push((r.name.clone(), r.file.as_bytes().to_vec()));
     }
-    Ok(compiled.module.to_bytes())
+    let read = pre.includes.iter().filter_map(|u| if let rapidr_preprocessor::IncludeFound::File(p) = &u.found { Some(p.clone()) } else { None }).collect();
+    Ok((compiled.module.to_bytes(), read))
 }

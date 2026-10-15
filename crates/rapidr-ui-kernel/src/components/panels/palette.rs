@@ -37,6 +37,18 @@ const PART_SEARCH: usize = 1;
 const PART_LIST: usize = 2;
 const PART_COMMANDS: usize = 1000;
 
+/// A command's option's part: from its id, not its place in the list — the
+/// same on every host (the web's list lacks the desktop's build commands)
+/// and while the list changes (a screen reader keeps its item).
+fn command_part(id: &str) -> usize {
+    // (FNV-1a over the id in lower case, 30 bits: a usize on wasm32 too)
+    let mut h: u32 = 0x811c_9dc5;
+    for b in id.to_lowercase().bytes() {
+        h = (h ^ u32::from(b)).wrapping_mul(0x0100_0193);
+    }
+    PART_COMMANDS + (h & 0x3FFF_FFFF) as usize
+}
+
 /// The search box pressed (`NodeUi::part`): the mouse is its editor's
 /// until let go.
 const BOX_PART: usize = usize::MAX;
@@ -478,7 +490,7 @@ impl ComponentKind for Palette {
         list_node.bounds = (x0 + PAD / 2, y0 + LIST_TOP, w - PAD, shown.max(1) as i64 * ROW);
         for (row, f) in found.iter().enumerate() {
             let c = &cmds[f.index];
-            let mut o = AccessNode::new(part_id(cx.id, PART_ITEM, PART_COMMANDS + f.index), Role::ListBoxOption);
+            let mut o = AccessNode::new(part_id(cx.id, PART_ITEM, command_part(&c.id)), Role::ListBoxOption);
             o.name = c.label();
             o.description = c.shortcut.clone();
             let (rx, _, rw, rh) = row_rect(w, 0);
@@ -512,8 +524,10 @@ impl ComponentKind for Palette {
             }
             return true;
         }
-        let Some(index) = part.checked_sub(PART_COMMANDS) else { return false };
-        let Some(row) = model(cx.id, |m| m.matches().iter().position(|f| f.index == index)) else { return false };
+        if part < PART_COMMANDS {
+            return false;
+        }
+        let Some(row) = model(cx.id, |m| m.matches().iter().position(|f| m.commands.get(f.index).is_some_and(|c| command_part(&c.id) == part))) else { return false };
         match action {
             Action::Click => run(cx, row),
             Action::Focus => model_mut(cx.id, |m| {

@@ -100,7 +100,7 @@ SUB RunCommand(Id AS STRING)
     CASE "view.theme.classic": SetTheme "classic"
     CASE "view.previewClassic": TogglePreviewClassic
     CASE "view.layout": Dock.ResetLayout
-    CASE "view.settings": ShowPalette "View: "
+    CASE "view.settings": ShowSettings
     CASE "view.keyboardShortcuts": ShowShortcuts
     ' ---- project ----
     CASE "project.addFile": AddFileToProject
@@ -133,6 +133,16 @@ SUB RunCommand(Id AS STRING)
       ' (a test step: import:<file or folder> — imported without the dialog)
       IF LEFT$(Id, 7) = "import:" THEN
         ImportRapidQ MID$(Id, 8)
+      ELSEIF LEFT$(Id, 9) = "includes:" THEN
+        ' (a test step: includes:<folder>|<folder> — Settings > Include
+        ' folders without the dialog)
+        SetIncludeFolders REPLACESUBSTR$(MID$(Id, 10), "|", CHR$(10))
+      ELSEIF LEFT$(Id, 7) = "anchor:" THEN
+        ' (a test step: anchor:<a heading's anchor> — the Markdown document
+        ' open shows that heading, as its outline row clicked)
+        IF ActiveDoc >= 0 THEN
+          IF DocIsMd(ActiveDoc) THEN MdDoc(ActiveDoc).ScrollTo MID$(Id, 8)
+        END IF
       ELSEIF EditorCommand(Id) = 0 THEN
         OutputLine "(" + Id + ": not there yet)"
       END IF
