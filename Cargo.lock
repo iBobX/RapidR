@@ -4091,6 +4091,7 @@ dependencies = [
 name = "rapidr-ui-render"
 version = "2.118.0"
 dependencies = [
+ "fearless_simd",
  "glifo",
  "parley",
  "rapidr-langsvc",
