@@ -22,6 +22,14 @@
 //! Focusable nodes get `tabindex=-1`: the page moves the DOM focus to the
 //! kernel's focused node, so screen readers announce what the kernel
 //! focused (Tab itself is the kernel's).
+//!
+//! A row that holds its own value (the property inspector's: a property's
+//! name and value, the kernel's one node) is given ARIA's cells in the
+//! mirror — a row header with the name, a cell with the value — inside a
+//! `treegrid` when the grid's rows have levels: ARIA names a row by its
+//! cells and has no read-only row, so a read-only property's value cell is
+//! `aria-readonly` and its row says "read-only" in its description, which
+//! screen readers announce with the row ([`value_row`]).
 
 use rapidr_value::objects::a11y::{AccessNode, Action, Orientation, Role};
 
@@ -97,14 +105,25 @@ fn yes_no(b: bool) -> &'static str {
 pub fn attributes(n: &AccessNode) -> Vec<(&'static str, String)> {
     let mut a = Vec::new();
     if let Some(r) = aria_role(n.role) {
+        // (a grid whose rows have levels or open — the inspector's
+        // categories —: ARIA's tree grid, where rows may)
+        let r = if n.role == Role::Grid && n.children.iter().any(|c| c.role == Role::Row && (c.level.is_some() || c.states.expanded.is_some())) { "treegrid" } else { r };
         a.push(("role", r.to_string()));
     }
     let st = &n.states;
-    if !text_role(n.role) && !n.name.is_empty() {
+    let cells = value_row(n).is_some();
+    // (a row with its cells is named by them: "Caption Button1")
+    if !text_role(n.role) && !n.name.is_empty() && !cells {
         a.push(("aria-label", n.name.clone()));
     }
-    if !n.description.is_empty() {
-        a.push(("aria-description", n.description.clone()));
+    // (a read-only property's row says so: ARIA has no read-only row)
+    let description = if cells && st.read_only {
+        if n.description.is_empty() { READ_ONLY.to_string() } else { format!("{}, {READ_ONLY}", n.description) }
+    } else {
+        n.description.clone()
+    };
+    if !description.is_empty() {
+        a.push(("aria-description", description));
     }
     if let Some(c) = n.shortcut {
         a.push(("aria-keyshortcuts", format!("Alt+{}", c.to_ascii_uppercase())));
@@ -201,6 +220,24 @@ fn text_role(r: Role) -> bool {
     matches!(r, Role::Label | Role::Heading | Role::ListItem | Role::Link)
 }
 
+/// What a read-only property's row adds to its description.
+pub const READ_ONLY: &str = "read-only";
+
+/// A row that holds its own value and has no cells (the property
+/// inspector's): its value, for the cells the mirror gives it.
+fn value_row(n: &AccessNode) -> Option<&str> {
+    if n.role != Role::Row || n.children.iter().any(|c| c.role == Role::Cell) {
+        return None;
+    }
+    n.value.as_deref()
+}
+
+/// The ids of a value row's cells (the row's id, its cell's number in the
+/// top bits: no kernel node's id, a hash of the component's, comes near).
+fn cell_id(row: u64, k: u64) -> u64 {
+    row ^ (k << 60)
+}
+
 fn walk(n: &AccessNode, parent: Option<u64>, origin: (i64, i64), out: &mut Vec<Spec>) {
     let (x, y, w, h) = n.bounds;
     // (a label is its text; a text box its value)
@@ -220,6 +257,17 @@ fn walk(n: &AccessNode, parent: Option<u64>, origin: (i64, i64), out: &mut Vec<S
         focusable: focusable(n) && !n.states.disabled,
         focused: n.states.focused,
     });
+    if let Some(v) = value_row(n) {
+        // (the name's cell, then the value's: the row split as the
+        // inspector's columns are by default, two fifths for the name)
+        let name_w = (w.max(0) * 2) / 5;
+        out.push(Spec { id: cell_id(n.id, 1), parent: Some(n.id), tag: "div", attrs: vec![("role", "rowheader".into())], text: n.name.clone(), value: String::new(), bounds: (0, 0, name_w, h.max(0)), focusable: false, focused: false });
+        let mut attrs = vec![("role", "gridcell".into())];
+        if n.states.read_only {
+            attrs.push(("aria-readonly", "true".into()));
+        }
+        out.push(Spec { id: cell_id(n.id, 2), parent: Some(n.id), tag: "div", attrs, text: v.to_string(), value: String::new(), bounds: (name_w, 0, (w.max(0) - name_w).max(0), h.max(0)), focusable: false, focused: false });
+    }
     for c in &n.children {
         walk(c, Some(n.id), (x, y), out);
     }
@@ -267,6 +315,49 @@ mod tests {
         assert!(a.contains(&("aria-valuenow", "3".into())));
         assert!(a.contains(&("aria-valuemax", "10".into())));
         assert!(a.contains(&("aria-label", "Level".into())));
+    }
+
+    #[test]
+    fn an_inspector_row_has_cells_and_says_it_is_read_only() {
+        let mut grid = AccessNode::new(1, Role::Grid);
+        grid.bounds = (0, 0, 200, 100);
+        let mut editable = AccessNode::new(2, Role::Row);
+        editable.name = "Caption".into();
+        editable.value = Some("Button1".into());
+        editable.level = Some(2);
+        editable.bounds = (0, 0, 200, 20);
+        let mut fixed = AccessNode::new(3, Role::Row);
+        fixed.name = "Handle".into();
+        fixed.value = Some("0".into());
+        fixed.level = Some(2);
+        fixed.description = "RapidR extension".into();
+        fixed.states.read_only = true;
+        fixed.bounds = (0, 20, 200, 20);
+        grid.children.push(editable);
+        grid.children.push(fixed);
+        assert!(attributes(&grid).contains(&("role", "treegrid".into())));
+        let specs = specs(&grid);
+        let row = |id: u64| specs.iter().find(|s| s.id == id).unwrap();
+        // (named by its cells, no read-only)
+        assert!(!row(2).attrs.iter().any(|(k, _)| *k == "aria-label" || *k == "aria-description"), "{:?}", row(2).attrs);
+        let cells: Vec<&Spec> = specs.iter().filter(|s| s.parent == Some(2)).collect();
+        assert_eq!(cells.len(), 2);
+        assert_eq!((cells[0].text.as_str(), cells[1].text.as_str()), ("Caption", "Button1"));
+        assert!(cells[0].attrs.contains(&("role", "rowheader".into())));
+        assert!(!cells[1].attrs.iter().any(|(k, _)| *k == "aria-readonly"));
+        // (the read-only one says so, in its description and its value's cell)
+        assert!(row(3).attrs.contains(&("aria-description", "RapidR extension, read-only".into())), "{:?}", row(3).attrs);
+        let value = specs.iter().find(|s| s.parent == Some(3) && s.text == "0").unwrap();
+        assert!(value.attrs.contains(&("aria-readonly", "true".into())));
+        assert_eq!(value.bounds, (80, 0, 120, 20));
+        // (a grid's own rows, with cells, keep their names; no tree grid)
+        let mut plain = AccessNode::new(10, Role::Grid);
+        let mut r = AccessNode::new(11, Role::Row);
+        r.name = "Row 1".into();
+        r.children.push(AccessNode::new(12, Role::Cell));
+        plain.children.push(r.clone());
+        assert!(attributes(&plain).contains(&("role", "grid".into())));
+        assert!(attributes(&r).contains(&("aria-label", "Row 1".into())));
     }
 
     #[test]
