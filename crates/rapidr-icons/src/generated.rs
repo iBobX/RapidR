@@ -374,6 +374,7 @@ pub(crate) const BUNDLE_LEN: usize = 475897;
 
 /// Every component type (the code's, then the planned ones) and its icon; true when planned.
 pub static COMPONENTS: &[(&str, &str, bool)] = &[
+    (r#"RAI"#, r#"components/ai"#, false),
     (r#"RD3DFRAME"#, r#"components/d3dframe"#, false),
     (r#"RD3DMESHBUILDER"#, r#"components/d3dmeshbuilder"#, false),
     (r#"RD3DMESH"#, r#"components/d3dmesh"#, false),
@@ -475,6 +476,7 @@ pub static COMPONENTS: &[(&str, &str, bool)] = &[
     (r#"RPROJECT"#, r#"components/project"#, false),
     (r#"RLANGUAGESERVICE"#, r#"components/languageservice"#, false),
     (r#"RPROGRAMSESSION"#, r#"components/programsession"#, false),
+    (r#"RAIPROJECTTOOLS"#, r#"components/ai"#, false),
     (r#"RWEBVIEW"#, r#"components/webview"#, false),
     (r#"RDOM"#, r#"components/dom"#, false),
     (r#"RJAVASCRIPT"#, r#"components/javascript"#, false),
@@ -495,7 +497,6 @@ pub static COMPONENTS: &[(&str, &str, bool)] = &[
     (r#"RIMMEDIATEWINDOW"#, r#"components/immediatewindow"#, true),
     (r#"RDATAPREVIEW"#, r#"components/datapreview"#, true),
     (r#"RAICHAT"#, r#"components/aichat"#, true),
-    (r#"RAI"#, r#"components/ai"#, true),
     (r#"RDBCONNECTION"#, r#"components/dbconnection"#, true),
     (r#"RDATAFILE"#, r#"components/datafile"#, true),
     (r#"RDBQUERY"#, r#"components/dbquery"#, true),
@@ -749,6 +750,6 @@ pub static TOOLBOX_GROUPS: &[ToolboxGroup] = &[
     ToolboxGroup { id: r#"direct3d"#, title: r#"Direct3D"#, icon: r#"groups/direct3d"#, parent: r#""#, members: &[r#"RD3DFRAME"#, r#"RD3DMESHBUILDER"#, r#"RD3DMESH"#, r#"RD3DFACE"#, r#"RD3DLIGHT"#, r#"RD3DTEXTURE"#, r#"RD3DVISUAL"#, r#"RD3DWRAP"#, r#"RD3DVECTOR"#, r#"RD3DANIMATION"#, r#"RD3DANIMATIONSET"#] },
     ToolboxGroup { id: r#"web"#, title: r#"Web"#, icon: r#"groups/web"#, parent: r#""#, members: &[r#"RWEBVIEW"#, r#"RDOM"#, r#"RJAVASCRIPT"#, r#"RWEBSTORAGE"#, r#"RWEBAUDIO"#, r#"RWEBVIDEO"#, r#"RWEBNOTIFICATION"#, r#"RWEBGEOLOCATION"#, r#"RROUTER"#] },
     ToolboxGroup { id: r#"ai"#, title: r#"AI"#, icon: r#"groups/ai"#, parent: r#""#, members: &[r#"RAI"#, r#"RAICHAT"#] },
-    ToolboxGroup { id: r#"ide"#, title: r#"IDE"#, icon: r#"groups/ide"#, parent: r#""#, members: &[r#"RCODEEDITOR"#, r#"RDESIGNSURFACE"#, r#"RDOCKMANAGER"#, r#"RFORMDESIGNER"#, r#"RPROPERTYINSPECTOR"#, r#"RPROJECTTREE"#, r#"RTOOLBOX"#, r#"ROUTPUTCONSOLE"#, r#"RCOMMANDPALETTE"#, r#"RMARKDOWNVIEW"#, r#"RDIFFVIEW"#, r#"RCOMPONENTTRAY"#, r#"RTABORDEREDITOR"#, r#"RMENUEDITOR"#, r#"RPROGRAMVIEW"#, r#"RPROGRAMSESSION"#, r#"RPROJECT"#, r#"RLANGUAGESERVICE"#, r#"RBREAKPOINTLIST"#, r#"RCALLSTACKVIEW"#, r#"RVARIABLESVIEW"#, r#"RIMMEDIATEWINDOW"#] },
+    ToolboxGroup { id: r#"ide"#, title: r#"IDE"#, icon: r#"groups/ide"#, parent: r#""#, members: &[r#"RCODEEDITOR"#, r#"RDESIGNSURFACE"#, r#"RDOCKMANAGER"#, r#"RFORMDESIGNER"#, r#"RPROPERTYINSPECTOR"#, r#"RPROJECTTREE"#, r#"RTOOLBOX"#, r#"ROUTPUTCONSOLE"#, r#"RCOMMANDPALETTE"#, r#"RMARKDOWNVIEW"#, r#"RDIFFVIEW"#, r#"RCOMPONENTTRAY"#, r#"RTABORDEREDITOR"#, r#"RMENUEDITOR"#, r#"RPROGRAMVIEW"#, r#"RPROGRAMSESSION"#, r#"RPROJECT"#, r#"RLANGUAGESERVICE"#, r#"RAIPROJECTTOOLS"#, r#"RBREAKPOINTLIST"#, r#"RCALLSTACKVIEW"#, r#"RVARIABLESVIEW"#, r#"RIMMEDIATEWINDOW"#] },
     ToolboxGroup { id: r#"templates"#, title: r#"Templates"#, icon: r#"groups/templates"#, parent: r#""#, members: &[] },
 ];

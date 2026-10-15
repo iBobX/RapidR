@@ -188,7 +188,7 @@ Every component RapidR creates, by what it is for, under RapidR's name (`RButton
 | <img src="../icons/light/components/project.svg" width="20" height="20" alt=""> | [`RProject`](members.md#rproject) | — | RapidR | everywhere |
 | <img src="../icons/light/components/languageservice.svg" width="20" height="20" alt=""> | [`RLanguageService`](members.md#rlanguageservice) | — | RapidR | everywhere |
 | <img src="../icons/light/components/programsession.svg" width="20" height="20" alt=""> | [`RProgramSession`](members.md#rprogramsession) | — | RapidR | everywhere |
-| <img src="../icons/light/components/aiprojecttools.svg" width="20" height="20" alt=""> | [`RAIProjectTools`](members.md#raiprojecttools) | — | RapidR | everywhere |
+| <img src="../icons/light/components/ai.svg" width="20" height="20" alt=""> | [`RAIProjectTools`](members.md#raiprojecttools) | — | RapidR | everywhere |
 
 ## AI
 

@@ -29,10 +29,14 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
 }
 
 pub fn set(name: &str, prop: &str, v: &Value) -> bool {
+    // (also in a program that has no other component installing it: a
+    // console one)
+    install();
     rapidr_ai::rai::set(name, prop, v)
 }
 
 pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
+    install();
     // (RapidR Studio's project tools, to attach)
     rapidr_studio::ai::install();
     rapidr_ai::rai::call(name, method, args, rapidr_value::panels::runtime::component_arg)

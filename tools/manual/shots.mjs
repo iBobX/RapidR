@@ -25,7 +25,8 @@
 //                               captured from Studio, instead of Studio's
 //     program: "path.rr",       (desktop) that program run on its own
 //                               instead of Studio, in its folder (its look
-//                               its own; `theme` gives RAPIDR_THEME)
+//                               its own; `theme` gives RAPIDR_THEME;
+//                               `args`: its command line)
 //     env: { … },               the test hooks it runs with
 //                               (RAPIDR_TEST_EVENTS, RAPIDR_TEST_DROP …)
 //     window: n,                the n-th window captured (default 1)
@@ -106,7 +107,7 @@ function desktop(s, dir, open, steps) {
     // own unless the scene names one: `rapidr run`'s arguments after the
     // file are the program's)
     const program = join(ROOT, s.program);
-    r = spawnSync(RAPIDR, ["run", program], { cwd: dirname(program), encoding: "utf8", timeout: delay * 1000 + 90000, env: env(dir, { ...capture, ...(s.theme ? { RAPIDR_THEME: s.theme } : {}) }) });
+    r = spawnSync(RAPIDR, ["run", program, ...(s.args || [])], { cwd: dirname(program), encoding: "utf8", timeout: delay * 1000 + 90000, env: env(dir, { ...capture, ...(s.theme ? { RAPIDR_THEME: s.theme } : {}) }) });
   } else if (s.studio) {
     // (Studio in the scene's own folder: a new project goes in "Projects")
     const args = ["run", join(ROOT, "ide", "studio.rr"), "--home", ROOT, "--fresh", "--theme", theme];

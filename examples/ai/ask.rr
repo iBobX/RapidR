@@ -1,0 +1,58 @@
+' ask.rr: a question to an AI from a console program — RAI without a window.
+'
+'   rapidr run ask.rr                               (Ollama on this computer)
+'   rapidr run ask.rr http://localhost:1234/v1      (another server: LM Studio)
+'   rapidr run ask.rr openai                        (with OPENAI_API_KEY set;
+'                                                     also anthropic, deepseek)
+'
+' The program asks the provider for its models, takes the first — a fast,
+' low-cost one, by its name — and prints the answer as it arrives. The key
+' is never in the program: it comes from the provider's environment
+' variable. A console program has no window loop to hear the answer, so it
+' waits with DOEVENTS.
+$APPTYPE CONSOLE
+
+DECLARE SUB ModelsIn(Count AS INTEGER)
+DECLARE SUB TokenIn(Text AS STRING)
+
+DIM AI AS RAI
+DIM where AS STRING
+
+where = COMMAND$
+IF where = "" THEN where = "http://localhost:11434/v1"
+IF LCASE$(LEFT$(where, 4)) = "http" THEN
+    ' (an OpenAI-compatible server at that address: no key needed)
+    AI.Provider = "compatible"
+    AI.BaseURL = where
+ELSE
+    AI.Provider = where
+    AI.APIKeySource = "env:" + AI.KeyEnv
+END IF
+AI.OnModelsLoaded = ModelsIn
+AI.OnToken = TokenIn
+
+PRINT "Asking " + AI.BaseURL + " for its models..."
+AI.RefreshModels
+
+SUB ModelsIn(Count AS INTEGER)
+    DIM hint AS STRING
+    AI.Model = AI.ModelName(0)
+    hint = FIELD$(FIELD$(AI.Models, CHR$(10), 1), CHR$(9), 3)
+    PRINT STR$(Count) + " models; asking " + AI.Model + " (" + hint + "):"
+    AI.Ask "Say hello in five words."
+END SUB
+
+' (the answer, a few words at a time)
+SUB TokenIn(Text AS STRING)
+    PRINT Text;
+END SUB
+
+DO
+    DOEVENTS
+LOOP UNTIL AI.Busy = 0 AND (AI.Answer <> "" OR AI.Error <> "")
+PRINT
+IF AI.Error <> "" THEN
+    PRINT AI.Error
+ELSE
+    PRINT AI.Usage
+END IF
