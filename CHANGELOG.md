@@ -43,7 +43,7 @@ own programs running as they do under RapidQ.
 - **Studio in the browser is the same Studio.** A program window bigger than the page
   is never cut off (the page scrolls), the desktop's and the browser's windows are
   pixel for pixel the same, screen readers read the web inspector, and a debugger step
-  takes 15 to 20 ms on both.
+  takes 15 to 30 ms on both (the budget is 50).
 - **More of RapidQ runs as RapidQ runs it.** `$INCLUDE` finds files where RapidQ finds
   them, on every system, and the importer copies every include; Windows file names
   (`data\notes.txt`, `OPEN.BMP`) work on macOS and Linux; and RapidQ's 428 examples were

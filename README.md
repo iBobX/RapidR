@@ -55,7 +55,8 @@ them are in [`tools/bench/`](tools/bench/README.md):
   still load in about 0.15 s and sort in 60 ms.
 - **A lean VM.** A 10-million-iteration loop runs in about 0.6 s; RapidR Studio
   waiting for you uses a quarter of one percent of a core; a debugger step
-  takes about 14 ms on the desktop and 19 ms in the browser.
+  takes 14 to 21 ms on the desktop and 19 to 44 ms in the browser, as busy as
+  the computer is (the budget is 50 ms).
 - **One program, every system.** Windows, macOS, Linux and the web from one
   source, and the desktop's and the browser's windows are checked pixel for
   pixel against each other.

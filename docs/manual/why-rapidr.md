@@ -76,12 +76,12 @@ doesn't poll: nothing wakes it until something happens, so a laptop's battery
 and a Raspberry Pi's one core aren't spent on waiting.)
 
 **The debugger is quick too.** A step — F10, until the new line and its
-values are on the screen — takes about 14 ms in RapidR Studio on the desktop
-and about 19 ms in Studio in the browser (the recorded baseline of
-`tests/studio_perf.mjs`, the median of three, on a Mac that was quiet enough).
-Measured again while the Mac was busy with other work (a load average over 30)
-it took 21 ms and 44 ms; the budget is 50 ms either way. Studio itself starts
-in 0.28 s on that Linux VM.
+values are on the screen — took 14 ms in RapidR Studio on the desktop and 19 ms
+in Studio in the browser on a quiet Mac (the recorded baseline of
+`tests/studio_perf.mjs`, the median of three). Measured again for this page,
+with other work running, it took 19 ms and 29 ms (a load average of 9), and
+21 ms and 44 ms (a load average over 30); the budget is 50 ms. Studio itself
+starts in 0.28 s on that Linux VM.
 
 ## One program, every system
 
