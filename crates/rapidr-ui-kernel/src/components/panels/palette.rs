@@ -32,7 +32,7 @@ use crate::store::Store;
 pub struct Palette;
 
 /// The accessibility parts' indexes: the search box, the list, the
-/// commands (1000 + their index in the model).
+/// commands (1000 + a number made from the command's id: `command_part`).
 const PART_SEARCH: usize = 1;
 const PART_LIST: usize = 2;
 const PART_COMMANDS: usize = 1000;
