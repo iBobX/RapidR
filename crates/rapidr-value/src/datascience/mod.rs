@@ -27,6 +27,7 @@
 pub mod chart;
 pub mod colors;
 pub mod frame;
+pub mod link;
 pub mod num;
 pub mod plot;
 

@@ -28,6 +28,7 @@
 //! [2 rows x 3 columns]
 //! ```
 
+use std::borrow::Cow;
 use std::cell::{OnceCell, RefCell};
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -279,8 +280,11 @@ impl Frame {
         }
     }
 
-    pub fn cell(&self, row: usize, col: usize) -> Option<&str> {
-        self.cols.get(col).and_then(|c| c.get(row))
+    /// Cell (`row`, `col`)'s text (None: null, or no such cell). Owned
+    /// when the engine keeps the column typed (a number written as RapidR
+    /// writes it), borrowed when it keeps the text as read.
+    pub fn cell(&self, row: usize, col: usize) -> Option<Cow<'_, str>> {
+        self.cols.get(col).and_then(|c| c.get(row)).map(Cow::Borrowed)
     }
 
     /// Column `c`'s type.
@@ -382,7 +386,7 @@ impl Frame {
             let cells: Vec<String> = shown
                 .iter()
                 .map(|r| match r {
-                    Some(r) => clip(self.cell(*r, c).unwrap_or("null")),
+                    Some(r) => clip(self.cell(*r, c).as_deref().unwrap_or("null")),
                     None => "...".to_string(),
                 })
                 .collect();
@@ -417,6 +421,32 @@ impl Frame {
             .chain((0..self.height).map(|r| self.cols.iter().map(|c| c.get(r).unwrap_or("").to_string()).collect()))
             .collect()
     }
+
+    /// Cell (`row`, `col`) becomes `cell` (None: null) — what a data-aware
+    /// control writes back. A row past the end grows the frame; no such
+    /// column: nothing.
+    pub fn set_cell(&mut self, row: usize, col: usize, cell: Option<&str>) {
+        if col < self.width() {
+            self.grow(row + 1, 0);
+            self.cols[col].set(row, cell);
+        }
+    }
+
+    /// The rows sorted by column `col` (numbers as numbers, nulls last),
+    /// stably — a grid's heading clicked.
+    pub fn sort_by_column(&mut self, col: usize, descending: bool) {
+        if col < self.width() {
+            let order = sorted_rows(self, &[(col, descending)]);
+            self.keep(&order);
+        }
+    }
+
+    /// The first `n` rows, as a frame of their own.
+    pub fn head(&self, n: usize) -> Frame {
+        let mut f = self.clone();
+        f.truncate(n);
+        f
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -445,8 +475,9 @@ fn field_cell((text, quoted): (String, bool)) -> Option<String> {
 
 /// Reads CSV (RFC 4180: quoted fields with `""` for a quote, line breaks
 /// inside quotes), calling `field(text, quoted)` for each field and
-/// `end()` after each record; blank lines are skipped.
-fn csv_scan(text: &str, mut field: impl FnMut(&str, bool), mut end: impl FnMut()) {
+/// `end()` after each record; blank lines are skipped. Fields are
+/// separated by `delim` (`,`, `;`, a tab …).
+fn csv_scan(text: &str, delim: u8, mut field: impl FnMut(&str, bool), mut end: impl FnMut()) {
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let b = text.as_bytes();
     let mut i = 0;
@@ -469,7 +500,7 @@ fn csv_scan(text: &str, mut field: impl FnMut(&str, bool), mut end: impl FnMut()
             // (leading spaces before a quote belong to nothing)
             let start = i;
             let mut j = i;
-            while j < b.len() && (b[j] == b' ' || b[j] == b'\t') {
+            while j < b.len() && (b[j] == b' ' || b[j] == b'\t') && b[j] != delim {
                 j += 1;
             }
             if j < b.len() && b[j] == b'"' {
@@ -491,16 +522,16 @@ fn csv_scan(text: &str, mut field: impl FnMut(&str, bool), mut end: impl FnMut()
                     }
                 }
                 // (anything after the closing quote up to the comma: kept)
-                let rest_end = b[k..].iter().position(|&c| c == b',' || c == b'\n' || c == b'\r').map_or(b.len(), |p| k + p);
+                let rest_end = b[k..].iter().position(|&c| c == delim || c == b'\n' || c == b'\r').map_or(b.len(), |p| k + p);
                 buf.push_str(&text[k..rest_end]);
                 field(&buf, true);
                 i = rest_end;
             } else {
-                let e = b[start..].iter().position(|&c| c == b',' || c == b'\n' || c == b'\r').map_or(b.len(), |p| start + p);
+                let e = b[start..].iter().position(|&c| c == delim || c == b'\n' || c == b'\r').map_or(b.len(), |p| start + p);
                 field(&text[start..e], false);
                 i = e;
             }
-            if i < b.len() && b[i] == b',' {
+            if i < b.len() && b[i] == delim {
                 i += 1;
                 if i == b.len() {
                     field("", false);
@@ -523,14 +554,21 @@ fn csv_scan(text: &str, mut field: impl FnMut(&str, bool), mut end: impl FnMut()
 fn csv_records(text: &str) -> Vec<Vec<(String, bool)>> {
     let records = RefCell::new(Vec::new());
     let record = RefCell::new(Vec::new());
-    csv_scan(text, |f, q| record.borrow_mut().push((f.to_string(), q)), || records.borrow_mut().push(std::mem::take(&mut *record.borrow_mut())));
+    csv_scan(text, b',', |f, q| record.borrow_mut().push((f.to_string(), q)), || records.borrow_mut().push(std::mem::take(&mut *record.borrow_mut())));
     records.into_inner()
 }
 
 /// A frame from CSV text whose first record is the header.
 pub fn parse_csv(text: &str) -> Frame {
+    parse_csv_opts(text, b',', true)
+}
+
+/// A frame from CSV text whose fields are separated by `delim`; the first
+/// record is the header when `has_header`, else the columns are
+/// `column_1`, `column_2` … and every record is a row.
+pub fn parse_csv_opts(text: &str, delim: u8, has_header: bool) -> Frame {
     let mut f = Frame::default();
-    let mut header = true;
+    let mut header = has_header;
     let mut c = 0usize;
     let rows_guess = text.len() / 32 + 1;
     let f_cell = RefCell::new(&mut f);
@@ -538,6 +576,7 @@ pub fn parse_csv(text: &str) -> Frame {
     let head = RefCell::new(&mut header);
     csv_scan(
         text,
+        delim,
         |field, quoted| {
             let mut f = f_cell.borrow_mut();
             let mut c = col.borrow_mut();
@@ -589,16 +628,35 @@ fn csv_field(s: &str) -> std::borrow::Cow<'_, str> {
 
 /// The frame as CSV (a header line, null cells empty).
 pub fn to_csv(f: &Frame) -> String {
+    to_csv_opts(f, b',', true)
+}
+
+/// The frame as CSV with fields separated by `delim`, the header line
+/// first when `header`.
+pub fn to_csv_opts(f: &Frame, delim: u8, header: bool) -> String {
+    let d = delim as char;
+    fn quoted(s: &str, d: char) -> Cow<'_, str> {
+        if d == ',' {
+            csv_field(s)
+        } else if s.is_empty() || s.contains([d, '"', '\n', '\r']) || s.trim() != s {
+            format!("\"{}\"", s.replace('"', "\"\"")).into()
+        } else {
+            s.into()
+        }
+    }
+    let field = |s| quoted(s, d);
     let mut out = String::with_capacity(f.cols.iter().map(|c| c.text.len() + c.len()).sum::<usize>() + 64);
-    out += &f.columns.iter().map(|c| csv_field(c)).collect::<Vec<_>>().join(",");
-    out.push('\n');
+    if header {
+        out += &f.columns.iter().map(|c| field(c)).collect::<Vec<_>>().join(&d.to_string());
+        out.push('\n');
+    }
     for r in 0..f.height {
         for (i, c) in f.cols.iter().enumerate() {
             if i > 0 {
-                out.push(',');
+                out.push(d);
             }
             if let Some(s) = c.get(r) {
-                out += &csv_field(s);
+                out += &field(s);
             }
         }
         out.push('\n');
@@ -878,7 +936,7 @@ pub fn to_json(f: &Frame) -> String {
         .map(|r| {
             let fields: Vec<String> = (0..f.width())
                 .map(|c| {
-                    let v = match (f.cell(r, c), types[c]) {
+                    let v = match (f.cell(r, c).as_deref(), types[c]) {
                         (None, _) => "null".to_string(),
                         (Some(s), DType::Int) => s.trim().parse::<i64>().map_or("null".into(), |n| n.to_string()),
                         (Some(s), DType::Float) => parse_num(s).map_or("null".into(), |x| format!("{x}")),
@@ -904,6 +962,23 @@ pub fn to_json(f: &Frame) -> String {
 
 thread_local! {
     static FRAMES: RefCell<HashMap<String, Frame>> = RefCell::new(HashMap::new());
+    /// Each frame's version: the counter's value when it last changed
+    /// ([`version`]).
+    static VERSIONS: RefCell<HashMap<String, u64>> = RefCell::new(HashMap::new());
+    /// Changes so far, every frame's (versions never repeat, even for a
+    /// frame removed and made again).
+    static CHANGES: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// Frame `name` changed: a new version (and the data links are told:
+/// [`super::link`]).
+fn changed(name: &str) {
+    let v = CHANGES.with(|c| {
+        c.set(c.get() + 1);
+        c.get()
+    });
+    VERSIONS.with(|m| m.borrow_mut().insert(key(name), v));
+    super::link::frame_changed(name);
 }
 
 /// Frame `name` (empty if it has none yet).
@@ -911,10 +986,41 @@ pub fn frame(name: &str) -> Frame {
     read(name, Frame::clone)
 }
 
+/// Frame `name` becomes `f`.
 pub fn set_frame(name: &str, f: Frame) {
     FRAMES.with(|m| {
         m.borrow_mut().insert(key(name), f);
     });
+    changed(name);
+}
+
+/// Whether `name` has a frame (an RDATAFRAME, an RCSV's table …).
+pub fn has_frame(name: &str) -> bool {
+    FRAMES.with(|m| m.borrow().contains_key(&key(name)))
+}
+
+/// Frame `name` forgotten.
+pub fn remove_frame(name: &str) {
+    if FRAMES.with(|m| m.borrow_mut().remove(&key(name))).is_some() {
+        changed(name);
+    }
+}
+
+/// Frame `name`'s version: it changes whenever the frame does (0: never
+/// set). What a grid or a bound control showed is current while it's the
+/// same.
+pub fn version(name: &str) -> u64 {
+    VERSIONS.with(|m| m.borrow().get(&key(name)).copied().unwrap_or(0))
+}
+
+/// `f` of frame `name` (an empty frame if it has none), without a copy.
+pub fn with_frame<R>(name: &str, f: impl FnOnce(&Frame) -> R) -> R {
+    read(name, f)
+}
+
+/// `f` of frame `name`, changed in place (a new version).
+pub fn with_frame_mut<R>(name: &str, f: impl FnOnce(&mut Frame) -> R) -> R {
+    modify(name, f)
 }
 
 fn read<R>(name: &str, f: impl FnOnce(&Frame) -> R) -> R {
@@ -925,12 +1031,14 @@ fn read<R>(name: &str, f: impl FnOnce(&Frame) -> R) -> R {
 }
 
 fn modify<R>(name: &str, f: impl FnOnce(&mut Frame) -> R) -> R {
-    FRAMES.with(|m| f(m.borrow_mut().entry(key(name)).or_default()))
+    let r = FRAMES.with(|m| f(m.borrow_mut().entry(key(name)).or_default()));
+    changed(name);
+    r
 }
 
 /// A file's text: `path` as given, or (on the desktop) next to the program
 /// or under RAPIDR_HOME, as the examples' data files are found.
-fn read_text(path: &str) -> Result<String, String> {
+pub(crate) fn read_text(path: &str) -> Result<String, String> {
     #[cfg_attr(target_arch = "wasm32", allow(unused_mut))]
     let mut tries = vec![path.to_string()];
     #[cfg(not(target_arch = "wasm32"))]
@@ -970,7 +1078,7 @@ fn load_source(source: &str, looks_like_data: impl Fn(&str) -> bool) -> Result<S
     }
 }
 
-fn write_text(path: &str, text: &str) -> Result<(), String> {
+pub(crate) fn write_text(path: &str, text: &str) -> Result<(), String> {
     crate::objects::write_file(path, text.as_bytes())
 }
 
@@ -1304,9 +1412,9 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
             let row = arg_i(args, 0, 0);
             read(name, |f| {
                 let col = f.col_of(args.get(1).or(Some(&Value::Integer(0))));
-                v_str(match (usize::try_from(row).ok(), col) {
-                    (Some(r), Some(c)) => f.cell(r, c).unwrap_or(""),
-                    _ => "",
+                v_str(&match (usize::try_from(row).ok(), col) {
+                    (Some(r), Some(c)) => f.cell(r, c).unwrap_or_default(),
+                    _ => Cow::Borrowed(""),
                 })
             })
         }
@@ -1314,9 +1422,9 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
             let row = arg_i(args, 0, 0);
             let col = arg_s(args, 1);
             read(name, |f| {
-                v_str(match (usize::try_from(row).ok(), f.col(&col)) {
-                    (Some(r), Some(c)) => f.cell(r, c).unwrap_or(""),
-                    _ => "",
+                v_str(&match (usize::try_from(row).ok(), f.col(&col)) {
+                    (Some(r), Some(c)) => f.cell(r, c).unwrap_or_default(),
+                    _ => Cow::Borrowed(""),
                 })
             })
         }
@@ -1897,8 +2005,8 @@ mod tests {
         let f = parse_csv(PEOPLE);
         assert_eq!(f.columns, ["name", "age", "city"]);
         assert_eq!(f.height(), 4);
-        assert_eq!(f.cell(2, 0), Some("Lee, Jo"));
-        assert_eq!(f.cell(3, 1), None);
+        assert_eq!(f.cell(2, 0).as_deref(), Some("Lee, Jo"));
+        assert_eq!(f.cell(3, 1).as_deref(), None);
         assert_eq!(f.dtype(1), DType::Int);
         assert_eq!(f.dtype(0), DType::Str);
         assert_eq!(parse_csv(&to_csv(&f)), f);
@@ -1932,16 +2040,16 @@ mod tests {
         assert_eq!(dataframe_get_prop("p3", "rowcount").to_i64(), 2);
         let h = load("p3");
         call(&h, "p3", "sort", &[v_str("age"), v_int(0)]);
-        assert_eq!(frame("p3").cell(0, 1), Some("41"));
-        assert_eq!(frame("p3").cell(3, 1), None);
+        assert_eq!(frame("p3").cell(0, 1).as_deref(), Some("41"));
+        assert_eq!(frame("p3").cell(3, 1).as_deref(), None);
         let h = load("p3");
         call(&h, "p3", "groupby", &[v_str("city"), v_str("mean")]);
         let f = frame("p3");
         assert_eq!(f.columns, ["city", "name", "age"]);
-        assert_eq!(f.cell(0, 0), Some("LA"));
-        assert_eq!(f.cell(0, 2), Some("25"));
-        assert_eq!(f.cell(1, 2), Some("35.5"));
-        assert_eq!(f.cell(0, 1), None);
+        assert_eq!(f.cell(0, 0).as_deref(), Some("LA"));
+        assert_eq!(f.cell(0, 2).as_deref(), Some("25"));
+        assert_eq!(f.cell(1, 2).as_deref(), Some("35.5"));
+        assert_eq!(f.cell(0, 1).as_deref(), None);
         let h = load("p3");
         call(&h, "p3", "query", &[v_str("city == 'NYC'")]);
         assert_eq!(dataframe_get_prop("p3", "rowcount").to_i64(), 2);
@@ -1956,7 +2064,7 @@ mod tests {
         let lines = "{\"a\":1,\"b\":\"x\"}\n{\"a\":2,\"c\":true}\n";
         let g = parse_json_frame(lines).unwrap();
         assert_eq!(g.columns, ["a", "b", "c"]);
-        assert_eq!(g.cell(1, 2), Some("true"));
+        assert_eq!(g.cell(1, 2).as_deref(), Some("true"));
     }
 
     #[test]
@@ -1978,8 +2086,8 @@ mod tests {
         let f = frame("l");
         assert_eq!(f.columns, ["id", "x", "y"]);
         assert_eq!(f.height(), 4);
-        assert_eq!(f.cell(1, 2), Some("B"));
-        assert_eq!(f.cell(3, 0), Some("4"));
+        assert_eq!(f.cell(1, 2).as_deref(), Some("B"));
+        assert_eq!(f.cell(3, 0).as_deref(), Some("4"));
     }
 
     #[test]
@@ -1988,8 +2096,44 @@ mod tests {
         call(&h, "p4", "describe", &[]);
         let f = frame("p4");
         assert_eq!(f.columns, ["statistic", "age"]);
-        assert_eq!(f.cell(0, 1), Some("3"));
-        assert_eq!(f.cell(1, 1), Some("32"));
-        assert_eq!(f.cell(5, 1), Some("30"));
+        assert_eq!(f.cell(0, 1).as_deref(), Some("3"));
+        assert_eq!(f.cell(1, 1).as_deref(), Some("32"));
+        assert_eq!(f.cell(5, 1).as_deref(), Some("30"));
+    }
+
+    #[test]
+    fn delimiters_and_headerless() {
+        let f = parse_csv_opts("name;age\n\"a;b\";3\nc;\n", b';', true);
+        assert_eq!(f.columns, ["name", "age"]);
+        assert_eq!(f.cell(0, 0).as_deref(), Some("a;b"));
+        assert_eq!(f.cell(1, 1), None);
+        assert_eq!(parse_csv_opts(&to_csv_opts(&f, b';', true), b';', true), f);
+        let t = parse_csv_opts("1\t2\n3\t\n", b'\t', false);
+        assert_eq!(t.columns, ["column_1", "column_2"]);
+        assert_eq!(t.height(), 2);
+        assert_eq!(t.cell(1, 0).as_deref(), Some("3"));
+        assert_eq!(t.cell(1, 1), None);
+        assert_eq!(to_csv_opts(&t, b'\t', false), "1\t2\n3\t\n");
+    }
+
+    #[test]
+    fn versions_move_with_every_change() {
+        let h = TestHost::default();
+        let v0 = version("vv");
+        call(&h, "vv", "loadfromcsv", &[v_str(PEOPLE)]);
+        let v1 = version("vv");
+        assert!(v1 > v0);
+        assert_eq!(with_frame("vv", Frame::height), 4);
+        call(&h, "vv", "filter", &[v_str("age"), v_str(">"), v_int(26)]);
+        assert!(version("vv") > v1);
+        with_frame_mut("vv", |f| f.set_cell(0, 0, Some("zed")));
+        assert_eq!(frame("vv").cell(0, 0).as_deref(), Some("zed"));
+        let mut s = frame("vv");
+        s.sort_by_column(1, true);
+        assert_eq!(s.cell(0, 1).as_deref(), Some("41"));
+        assert_eq!(s.head(1).height(), 1);
+        assert!(has_frame("vv"));
+        remove_frame("vv");
+        assert!(!has_frame("vv"));
     }
 }
