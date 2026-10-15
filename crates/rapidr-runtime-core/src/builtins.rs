@@ -240,11 +240,16 @@ pub fn rp_chdrive(drive: &Value) -> Value {
     v_null()
 }
 
-/// `DOEVENTS`: pending UI events, timers and redraws get their turn
-/// (console programs: nothing to do).
+/// `DOEVENTS`: pending UI events, timers and redraws get their turn — and
+/// an RAI's answer, also in a console program (no window loop to hear it).
 pub fn rp_doevents() {
     #[cfg(feature = "gui")]
     crate::ui::gui_doevents();
+    #[cfg(feature = "network")]
+    {
+        crate::ai::poll();
+        crate::object::rp_run_deferred();
+    }
 }
 
 /// `SLEEP seconds` (RapidQ's manual: `SLEEP 1.5` pauses 1.5 seconds).

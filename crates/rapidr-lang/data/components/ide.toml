@@ -51,10 +51,12 @@ methods = [
   { name = "EditValue", params = "Prop AS STRING", doc = "Selects a property's row and starts its editor, as a double click would." },
   { name = "AddProperty", params = "Name AS STRING, Type AS STRING, Value AS STRING, [Category AS STRING]", doc = "Shows a property of the program's own (an object the registry doesn't know): Type is \"int\", \"float\", \"string\", \"bool\", \"color\", \"file\", \"picture\", \"strings\" (a line per row), \"columns\", \"component\", a list of constants separated by \"|\" (one of them) or \"set:\" and flags separated by \"|\" (any of them). Value is its value now, and its default (shown dimmed while it has it); Category groups it (\"Misc\" when left out). Its changes come to OnPropertyChange only." },
   { name = "ClearProperties", value = true, doc = "Removes the properties AddProperty gave." },
+  { name = "SetChoices", params = "Prop AS STRING, Choices AS STRING", doc = "Offers a text property's values from a dropped list (a line each; any text can still be typed): RapidR Studio gives an RAI's Model the provider's models. A choice starting with \"↻ \" is an action: picking it fires OnEditorRequest(Prop) instead of setting the value. Choices \"\" goes back to the registry's." },
+  { name = "SetNote", params = "Prop AS STRING, Note AS STRING", doc = "A line shown above a property's description while its row is selected (\"Loading the models…\", why a key was refused); \"\" removes it." },
   { name = "Row", params = "Index AS INTEGER", returns = "STRING", doc = "What row Index (from 0) shows, as \"Name=Value\" (a category heading as \"[Name]\")." },
 ]
 events = [
-  { name = "OnPropertyChange", params = "Prop AS STRING, Value AS STRING", doc = "The user changed a property (or picked the SUB an event runs): its name and the new value as the program writes it." },
+  { name = "OnPropertyChange", params = "Prop AS STRING, Value AS STRING", doc = "The user changed a property (or picked the SUB an event runs): its name and the new value as the program writes it. A secret (an RAI's APIKey) is never written into a designer's code: only this event has it, for the program to keep where it belongs." },
   { name = "OnEventDblClick", params = "Event AS STRING", doc = "The user double-clicked an event's row: the program creates (or shows) its handler." },
   { name = "OnEditorRequest", params = "Prop AS STRING", doc = "The user asked for a property's own editor (its \"…\" button) where the inspector has none: the program shows one." },
   { name = "OnSelect", params = "Prop AS STRING", doc = "The selected row changed." },
@@ -257,6 +259,7 @@ properties = [
   { name = "FileName", type = "string", access = "read", design = false, doc = "The file LoadFromFile read (\"\" when Text was set)." },
   { name = "OpenLinks", type = "bool", default = true, doc = "A click on a web link (http, https, mailto) opens it in the browser. Every link clicked fires OnLinkClick either way." },
   { name = "EmptyText", type = "string", default = "", doc = "What it says while it has no text." },
+  { name = "FollowEnd", type = "bool", default = false, doc = "True: a view scrolled to its end stays at the end as Text grows (a chat, a log), while one the user scrolled up stays where they put it. False: the scroll stays where it is." },
   { name = "PlainText", type = "string", access = "read", design = false, doc = "The text as shown, without the Markdown marks: a line per paragraph, list item or heading; a table's cells separated by tabs." },
   { name = "SelText", type = "string", access = "read", design = false, doc = "The text the user selected, as PlainText has it." },
   { name = "LinkCount", type = "int", access = "read", design = false, doc = "How many links the text has." },
@@ -275,6 +278,7 @@ methods = [
   { name = "LoadFromFile", params = "FileName AS STRING", returns = "INTEGER", doc = "Shows a Markdown file: True when it was read. Relative links in it are relative to its folder." },
   { name = "Clear", value = true, doc = "Shows nothing." },
   { name = "SelectAll", value = true, doc = "Selects the whole text." },
+  { name = "OpenLink", params = "Url AS STRING", returns = "INTEGER", test = "skip: opens the browser", doc = "Opens a web link (http, https, mailto) in the browser, as a click on one in the text does: for a link label beside the view. True when it was a web link." },
   { name = "ScrollTo", params = "Heading AS STRING", returns = "INTEGER", doc = "Scrolls a heading to the top, named by its anchor (\"#getting-started\") or its text: True when there is one." },
 ]
 events = [

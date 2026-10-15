@@ -234,13 +234,18 @@ mod tests {
 
     #[test]
     fn browses_directories() {
-        let base = std::env::temp_dir().join(format!("rapidr_dirtree_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&base);
-        std::fs::create_dir_all(base.join("b/inner")).unwrap();
-        std::fs::create_dir_all(base.join("A")).unwrap();
-        std::fs::create_dir_all(base.join(".hidden")).unwrap();
-        let base = canonical(&base).unwrap();
-        let mut t = DirTree::default();
+        // (a folder of its own, and the tree rooted there: a tree lists the
+        // folders above a selected one too, and the shared temp folder has
+        // other tests' folders coming and going — the rows, and the indexes
+        // taken from them, shifted between two calls)
+        let top = std::env::temp_dir().join(format!("rapidr_dirtree_browse_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&top);
+        std::fs::create_dir_all(top.join("base/b/inner")).unwrap();
+        std::fs::create_dir_all(top.join("base/A")).unwrap();
+        std::fs::create_dir_all(top.join("base/.hidden")).unwrap();
+        let top = canonical(&top).unwrap();
+        let base = top.join("base");
+        let mut t = DirTree { root: top.clone(), directory: top.clone(), initial_dir: String::new(), expanded: BTreeSet::from([top.clone()]), has_subdirs: RefCell::default() };
         assert!(t.set("directory", &v_str(&base.to_string_lossy())).unwrap());
         let rows = t.rows();
         let at = t.selected_row().unwrap();
@@ -261,6 +266,6 @@ mod tests {
         // FullCollapse: only the root is open.
         t.call("fullcollapse", &[]);
         assert!(t.rows().iter().all(|r| r.depth <= 1));
-        let _ = std::fs::remove_dir_all(&base);
+        let _ = std::fs::remove_dir_all(&top);
     }
 }

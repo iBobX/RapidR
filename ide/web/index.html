@@ -9,12 +9,17 @@
     ?theme=rapidr-dark                 a theme (default: RapidR, as the system)
     ?do=run.start                      commands run once it's up
     ?window=normal                     a 1280 x 800 window, not the whole page
+
+  The policy's connect-src names the AI assistant's providers (Anthropic,
+  OpenAI, DeepSeek, xAI, OpenRouter) and local servers on this computer
+  (Ollama, LM Studio): the page reaches nothing else, and those only when
+  the user sends something (docs/manual/ai-assistant.md).
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data: blob:; connect-src 'self' data: blob:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data: blob:; connect-src 'self' data: blob: https://api.anthropic.com https://api.openai.com https://api.deepseek.com https://api.x.ai https://openrouter.ai http://localhost:* http://127.0.0.1:*; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'">
 <title>RapidR Studio</title>
 <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">

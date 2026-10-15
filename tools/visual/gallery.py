@@ -134,9 +134,19 @@ def capture_one(name, path, theme, scale, work):
     return shots
 
 
+def example_leftovers():
+    """The files the examples write as they run (examples/**/*.tmp.*; ignored by the repository)."""
+    return set(glob.glob(os.path.join(ROOT, "examples", "**", "*.tmp.*"), recursive=True))
+
+
 def capture(selected):
     if not os.path.exists(RAPIDR):
         sys.exit(f"{RAPIDR} not found: cargo build --release -p rapidr-cli && cp target/release/rapidr .")
+    # (a capture ends its program before the program's own clean-up — it
+    # KILLs the files it extracted when it ends —, so the examples leave
+    # their *.tmp.* files in their folders: the ones this run caused go at
+    # its end, not before — the runs of an example share its folder)
+    before = example_leftovers()
     work = os.path.join(OUT, ".work")
     os.makedirs(work, exist_ok=True)
     for t in THEMES:
@@ -157,6 +167,8 @@ def capture(selected):
     with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count() or 4) as pool:
         list(pool.map(lambda j: capture_one(*j, work), jobs))
     shutil.rmtree(work, ignore_errors=True)
+    for f in example_leftovers() - before:
+        os.remove(f)
 
 
 def differs(a_path, b_path, diff_path):

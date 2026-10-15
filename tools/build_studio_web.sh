@@ -56,9 +56,14 @@ cp ide/assets/* "$OUT/ide/assets/"
 # (the page's icons: the browser's tab, a phone's home screen)
 mkdir -p "$OUT/icons"
 cp design/brand/icons/web/favicon.svg design/brand/icons/web/favicon-32.png design/brand/icons/web/apple-touch-icon.png "$OUT/icons/"
-# (the examples: sources and their data files)
+# (the examples: sources and their data files — the ones git lists, committed
+# or new and not ignored, never what a run left in the folder: a program's
+# own files, examples/**/*.tmp.*, are git-ignored, and a test that stops an
+# example early leaves them behind)
 mkdir -p "$OUT/examples"
-(cd examples && find . -type f ! -name 'ide.rr' ! -name '*.md' -print0 | while IFS= read -r -d '' f; do
+(cd examples && git ls-files -z --cached --others --exclude-standard . | while IFS= read -r -d '' f; do
+    case "${f##*/}" in ide.rr|*.md) continue ;; esac
+    [ -f "$f" ] || continue
     mkdir -p "$OUT/examples/$(dirname "$f")"
     cp "$f" "$OUT/examples/$f"
 done)

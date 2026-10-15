@@ -26,6 +26,8 @@ rapidr-ui-render = { workspace = true }
 rapidr-langsvc = { workspace = true }
 # RapidR Studio's components: RPROJECT, RLANGUAGESERVICE, RPROGRAMSESSION
 rapidr-studio = { workspace = true }
+# RAI, the AI component (fetch to the providers; keys in the tab's session)
+rapidr-ai = { workspace = true, features = ["component"] }
 # Build Web App: the page of a web build, its policy and files (no zip: the
 # page zips them)
 rapidr-webbundle = { workspace = true }

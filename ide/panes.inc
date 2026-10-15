@@ -108,6 +108,7 @@ SUB FillExamples
   AddExample "gui/sales_dashboard.rr", "A big window: a dashboard"
   AddExample "data/dataframe.rr", "A data frame and a chart"
   AddExample "debugging/shop.rr", "Debug it: values as trees"
+  AddExample "ai/rai_models.rr", "Ask an AI: models, an answer"
   AddExample "rapidq/notepad.bas", "A program in RapidQ's style"
   AddExample "basics/hello.rr", "PRINT, FOR, SUB, FUNCTION"
   LayOutWelcome

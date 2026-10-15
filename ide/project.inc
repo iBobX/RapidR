@@ -217,7 +217,7 @@ END SUB
 CONST STUDIO_KEY = "Software\RapidR\Studio"
 ' The saved layout's format (Studio 2026-10: documents as tabs, the debugger's
 ' and the toolbox's panes): an older one isn't restored
-CONST LAYOUT_VERSION = 2
+CONST LAYOUT_VERSION = 3
 CONST HKCU = &H80000001
 
 SUB LoadSettings
@@ -238,6 +238,8 @@ SUB LoadSettings
     IF Reg.ValueExists("Folder") THEN DefaultFolder = Reg.ReadString("Folder")
     ' (Tools > Settings > Include folders: settings.inc)
     IF Reg.ValueExists("IncludeFolders") THEN Proj.IncludeFolders = Reg.ReadString("IncludeFolders")
+    ' (Tools > Settings > AI: ai.inc)
+    LoadAISettings
     Reg.CloseKey
   END IF
 END SUB
@@ -254,6 +256,7 @@ SUB SaveSettings
   Reg.WriteString("Recent", RecentList)
   Reg.WriteString("Folder", DefaultFolder)
   Reg.WriteString("IncludeFolders", Proj.IncludeFolders)
+  SaveAISettings
   Reg.CloseKey
 END SUB
 

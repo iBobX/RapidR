@@ -490,11 +490,14 @@ pub struct Markdown {
     pub scroll_to: Option<usize>,
     /// What EmptyText says while there is no text.
     pub empty_text: String,
+    /// (FollowEnd) A view at its end stays there as the text grows (a chat,
+    /// a log); one the user scrolled up stays where they put it.
+    pub follow_end: bool,
 }
 
 impl Default for Markdown {
     fn default() -> Self {
-        Markdown { text: String::new(), rev: 1, doc: None, file_name: String::new(), open_links: true, selection: None, scroll_to: None, empty_text: String::new() }
+        Markdown { text: String::new(), rev: 1, doc: None, file_name: String::new(), open_links: true, selection: None, scroll_to: None, empty_text: String::new(), follow_end: false }
     }
 }
 
@@ -589,6 +592,16 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
             with_mut(name, |m| m.select_all());
             Value::Null
         }
+        "openlink" => {
+            // (a web link, as a click on one opens it: a link label beside
+            // the view — RapidR Studio's "See prices")
+            let url = s(0);
+            let ok = is_web_link(&url);
+            if ok {
+                rt.open_url(url.trim());
+            }
+            basic_bool(ok)
+        }
         "scrollto" => {
             // (a heading's anchor or its text)
             let want = s(0);
@@ -612,6 +625,7 @@ pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
             "filename" => Value::String(m.file_name.clone()),
             "openlinks" => basic_bool(m.open_links),
             "emptytext" => Value::String(m.empty_text.clone()),
+            "followend" => basic_bool(m.follow_end),
             "plaintext" => Value::String(m.doc().plain_text()),
             "seltext" => Value::String(m.selected_text()),
             "linkcount" => Value::Integer(m.doc().links.len() as i64),
@@ -627,6 +641,7 @@ pub fn rt_set<R: Runtime>(_rt: R, name: &str, prop: &str, v: &Value) -> bool {
         "text" => with_mut(name, |m| m.set_text(&v.to_string_val())),
         "openlinks" => with_mut(name, |m| m.open_links = truth(v)),
         "emptytext" => with_mut(name, |m| m.empty_text = v.to_string_val()),
+        "followend" => with_mut(name, |m| m.follow_end = truth(v)),
         _ => return false,
     }
     true

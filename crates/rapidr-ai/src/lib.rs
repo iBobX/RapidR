@@ -1,0 +1,49 @@
+//! RapidR's AI provider layer (docs/ide-ai.md §2, docs/ai-architecture.md
+//! §4.4): one normalized request, stream and tool-call model over the two
+//! wire formats that cover the providers RapidR Studio offers —
+//!
+//! | Format | Providers |
+//! |---|---|
+//! | Anthropic Messages | Anthropic (Claude) |
+//! | OpenAI-compatible Chat Completions | OpenAI, DeepSeek, and any compatible server: Ollama, LM Studio, xAI, OpenRouter, vLLM, llama.cpp's server, a company proxy |
+//!
+//! * [`provider`] — the providers as data: base URL, auth, where the
+//!   models are listed, the default model, the pricing page.
+//! * [`chat`] — the normalized conversation: messages of text, tool calls
+//!   and tool results; tools with JSON Schemas; usage.
+//! * [`wire`] — a [`chat::ChatRequest`] as each format's HTTP request, the
+//!   models list request and its answer, errors explained in plain words,
+//!   "what was sent" (the key never shown).
+//! * [`sse`] / [`stream`] — the streamed answer: server-sent events decoded
+//!   into normalized [`stream::Event`]s and gathered into a [`stream::Reply`].
+//! * [`http`] — the transport, the platform's: a thread and ureq (the
+//!   system's TLS) on the desktop, `fetch` in a browser; requests run in
+//!   the background and their news are taken by the caller's loop.
+//! * `rai` (feature `component`) — **RAI**, the component: a conversation
+//!   with a provider in a program or in RapidR Studio, its tools attached.
+//! * [`audit`] — the local audit log of what an assistant asked and did.
+//! * [`keys`] — API keys: the OS keychain on the desktop (macOS Keychain,
+//!   Windows Credential Manager, the Secret Service), the tab's session on
+//!   the web (remembered on the device only when the user asks); the
+//!   providers' environment variables are read, never written.
+//!
+//! No vendor SDKs (plain HTTPS and JSON), permissive dependencies only.
+//! Nothing here sends anything by itself: every request is one the caller
+//! (RapidR Studio's assistant, the `rapidr ai` command) starts on the
+//! user's action.
+
+pub mod audit;
+pub mod chat;
+pub mod http;
+pub mod keys;
+pub mod provider;
+#[cfg(feature = "component")]
+pub mod rai;
+pub mod sse;
+pub mod stream;
+pub mod wire;
+
+pub use chat::{Block, ChatRequest, Message, Role, Tool, Usage};
+pub use provider::{provider, Format, Provider, PROVIDERS};
+pub use stream::{Decoder, Event, Reply};
+pub use wire::{ApiError, Endpoint, HttpRequest, ModelInfo};

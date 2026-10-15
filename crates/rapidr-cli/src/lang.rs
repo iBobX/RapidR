@@ -2,7 +2,7 @@
 //!
 //! ```text
 //! rapidr lang export --json [-o FILE]     the registry as JSON (the IDE's completion data)
-//! rapidr lang export --prompt [-o FILE]   the AI system prompt's language section
+//! rapidr lang export --prompt [--compact] [-o FILE]   the AI system prompt's language section
 //! rapidr lang export --manual [DIR]       the manual's reference pages (docs/manual/reference)
 //! rapidr lang export --all [--check]      every file the repository keeps generated, from its root
 //! rapidr lang conformance DIR [--target desktop|web] [--gaps FILE]
@@ -100,7 +100,8 @@ fn export_cmd(args: &[String]) -> ExitCode {
         return write_or_print(out, &export::json());
     }
     if flag("--prompt") {
-        return write_or_print(out, &export::prompt());
+        // (--compact: RapidR Studio's assistant's, which describes the rest on demand)
+        return write_or_print(out, &if flag("--compact") { export::prompt_compact() } else { export::prompt() });
     }
     let check = flag("--check");
     let files: Vec<(PathBuf, String)> = if flag("--manual") {

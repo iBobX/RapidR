@@ -532,6 +532,11 @@ fn body(cx: &Cx, l: &Look) -> Rect {
 fn lay_out(cx: &mut Cx, theme: &'static Theme) -> (i64, Vec<Op>) {
     let f = faces(cx, theme);
     let (_, _, bw, bh) = body(cx, &f.l);
+    // (FollowEnd: a view at its end before the text grew stays at its end)
+    let at_end = model::with_mut(cx.id, |md| md.follow_end) && {
+        let (pos, _, range) = vscroll_state(cx.id);
+        range <= bh || pos + bh >= range - 4
+    };
     Laid::shape(cx, theme);
     let scale = cx.scale;
     let Some(m) = cx.ui.markdown.as_mut() else { return (0, Vec::new()) };
@@ -550,8 +555,8 @@ fn lay_out(cx: &mut Cx, theme: &'static Theme) -> (i64, Vec<Op>) {
             m.want = Some((s.y - 8.0).max(0.0) as i64);
         }
     }
-    let at = m.want.take();
     let content = m.height.ceil() as i64;
+    let at = m.want.take().or_else(|| at_end.then_some((content - bh).max(0)));
     let step = (f.body.pixel_size() as f64 * 1.5).round() as i64;
     let (pos, _, ops) = vscroll_at(cx.id, bw, bh, content, step.max(1), at);
     (pos, ops)

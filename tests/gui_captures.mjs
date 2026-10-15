@@ -57,6 +57,8 @@ const answers = (c) => ({
   ...(c.dialogHold === undefined ? {} : { RAPIDR_TEST_DIALOG_HOLD: String(c.dialogHold) }),
   ...(c.delay === undefined ? {} : { RAPIDR_CAPTURE_DELAY: String(c.delay) }),
   ...(c.joystick === undefined ? {} : { RAPIDR_TEST_JOYSTICK: c.joystick }),
+  // (`drop`: the files `form.__drop` drops on a form, OnDropFiles)
+  ...(c.drop === undefined ? {} : { RAPIDR_TEST_DROP: c.drop }),
 });
 
 let n = 0;
@@ -78,6 +80,14 @@ for (const c of cases.filter((c) => !only.length || only.some((f) => c.name.incl
     const dir = join(OUT, `${c.name}@${scale}x`);
     rmSync(dir, { recursive: true, force: true });
     mkdirSync(dir, { recursive: true });
+    // (`inWork`: the program's files — a folder it makes, the files it
+    // writes and then "drops" — in a folder of its own, gone once it ran,
+    // not the checkout)
+    const cwd = c.inWork ? join(WORK, `${c.name}@${scale}x`) : ROOT;
+    if (c.inWork) {
+      rmSync(cwd, { recursive: true, force: true });
+      mkdirSync(cwd, { recursive: true });
+    }
     const env = {
       // (RapidQ's look, named, as tests/native_gui_events.mjs runs the cases)
       RAPIDR_THEME: "classic", ...process.env, RAPIDR_TEST_CLIPBOARD: "1", RAPIDR_PRINT_TO: join(WORK, "prints"), RAPIDR_REGISTRY: join(WORK, "registry.reg"), RAPIDR_SCALE: String(scale),
@@ -86,16 +96,17 @@ for (const c of cases.filter((c) => !only.length || only.some((f) => c.name.incl
     };
     let stdout;
     try {
-      stdout = execFileSync(bin, [], { encoding: "utf8", env, cwd: ROOT, timeout: 60000, stdio: ["ignore", "pipe", "ignore"] });
+      stdout = execFileSync(bin, [], { encoding: "utf8", env, cwd, timeout: 60000, stdio: ["ignore", "pipe", "ignore"] });
     } catch (e) {
       stdout = "(failed) " + (e.stdout || "");
     }
     writeFileSync(join(dir, "dump.txt"), stdout.split("\n").filter((l) => l.includes("=")).join("\n") + "\n");
     for (const theme of c.themes ?? []) {
       try {
-        execFileSync(bin, [], { env: { ...env, RAPIDR_THEME: theme, RAPIDR_CAPTURE: join(dir, `theme-${theme}`), RAPIDR_TEST_A11Y: "", RAPIDR_TEST_EVENTS: "" }, cwd: ROOT, timeout: 60000, stdio: "ignore" });
+        execFileSync(bin, [], { env: { ...env, RAPIDR_THEME: theme, RAPIDR_CAPTURE: join(dir, `theme-${theme}`), RAPIDR_TEST_A11Y: "", RAPIDR_TEST_EVENTS: "" }, cwd, timeout: 60000, stdio: "ignore" });
       } catch {}
     }
+    if (c.inWork) rmSync(cwd, { recursive: true, force: true });
     n++;
   }
   rmSync(bin, { force: true });

@@ -76,7 +76,7 @@ if want web; then
   # byte for byte against the desktop's own captures, made here by
   # tests/gui_captures.mjs at 1× and 2×; what the page shows outside the
   # windows by the cases' webCheck. Known ≠: menus / themes (the desktop's
-  # macOS menu bar), drop_files (gui_captures drops no files). No rounding
+  # macOS menu bar). No rounding
   # apart any more: the desktop's CPU renderer runs vello_cpu's portable
   # SIMD level, which rounds as wasm SIMD does)
   echo "== desktop captures for the web"; node tests/gui_captures.mjs "$PWD/$W/gui_captures" 2>&1 | tail -1

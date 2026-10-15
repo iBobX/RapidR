@@ -420,7 +420,7 @@ fn builtins_page() -> String {
         }
         out.push('\n');
     }
-    let _ = write!(out, "{} builtins.\n", BUILTINS.len());
+    let _ = writeln!(out, "{} builtins.", BUILTINS.len());
     out
 }
 
@@ -573,9 +573,61 @@ pub fn prompt() -> String {
     out
 }
 
+/// The language in short, for an assistant that can ask for the rest
+/// (RAI's tools: `rapidr_describe` gives a component's members or a
+/// builtin's syntax): every statement and directive with its syntax, the
+/// builtins' and the components' names by group — a few thousand tokens,
+/// the same every turn (so the providers cache it), where [`prompt`] is
+/// tens of thousands.
+pub fn prompt_compact() -> String {
+    let mut out = String::new();
+    out.push_str("# The RapidR language (names only: rapidr_describe gives a component's properties, methods and events, or a builtin's syntax)\n\n");
+    out.push_str("RapidR is a BASIC compatible with RapidQ; names are case-insensitive. Write components with RapidR's names (RButton, RForm, RStringGrid); a RapidQ name (QBUTTON) is the same component: keep the names a file already uses. [R] marks a RapidR extension.\n\n");
+    out.push_str("## Statements\n");
+    for s in STATEMENTS {
+        let _ = writeln!(out, "- {}{}", s.syntax, if s.origin == Origin::RapidR { " [R]" } else { "" });
+    }
+    out.push_str("\n## Directives\n");
+    for d in DIRECTIVES {
+        let _ = writeln!(out, "- {}{}", d.syntax, if d.origin == Origin::RapidR { " [R]" } else { "" });
+    }
+    // (by group, in the registry's order)
+    fn grouped<'a>(items: impl Iterator<Item = (&'a str, String)>) -> Vec<(&'a str, Vec<String>)> {
+        let mut groups: Vec<(&str, Vec<String>)> = Vec::new();
+        for (g, name) in items {
+            match groups.iter_mut().find(|(k, _)| *k == g) {
+                Some((_, v)) => v.push(name),
+                None => groups.push((g, vec![name])),
+            }
+        }
+        groups
+    }
+    out.push_str("\n## Builtins\n");
+    for (g, names) in grouped(BUILTINS.iter().filter(|b| !b.missing && !b.name.starts_with("__")).map(|b| (b.group, b.name.to_string()))) {
+        let _ = writeln!(out, "- {g}: {}", names.join(", "));
+    }
+    out.push_str("\n## Components\n");
+    for (g, names) in grouped(COMPONENTS.iter().filter(|c| c.kind == Kind::Component).map(|c| (c.group, if c.runtimes == Runtimes::Web { format!("{} [web]", c.spelling()) } else { c.spelling() }))) {
+        let _ = writeln!(out, "- {g}: {}", names.join(", "));
+    }
+    out.push_str("\n## Global objects\n");
+    let _ = writeln!(out, "{}", GLOBALS.iter().map(|g| g.name).collect::<Vec<_>>().join(", "));
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn compact_prompt() {
+        let p = prompt_compact();
+        assert!(p.contains("RButton, ") && !p.contains("A push button"), "{}", &p[..2000.min(p.len())]);
+        assert!(p.contains("- CREATE name AS type … END CREATE"));
+        assert!(!p.contains("__aget"));
+        // (a tenth-ish of the whole prompt: cheap on every turn)
+        assert!(p.len() * 8 < prompt().len(), "{} vs {}", p.len(), prompt().len());
+    }
 
     #[test]
     fn json_escapes() {

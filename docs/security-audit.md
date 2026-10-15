@@ -762,7 +762,9 @@ web stage.
 
 Allowed without asking, by component: RJAVASCRIPT → `'unsafe-eval'`;
 RWEBVIEW → `frame-src 'self' https:`; RHTTP / RSOCKET / RDOWNLOAD (Q or R) →
-`connect-src https: wss:`; RDOM / RWEBVIEW → `img-src https:`; RWEBAUDIO /
+`connect-src https: wss:`; RAI → `connect-src https:` plus this machine's
+`http://localhost:*` and `http://127.0.0.1:*` (a model server the user runs:
+Ollama, LM Studio); RDOM / RWEBVIEW → `img-src https:`; RWEBAUDIO /
 RWEBVIDEO / RVIDEO → `media-src https:`; an `http(s)://` or `ws(s)://`
 origin written in the program → that origin. A page never allows inline
 scripts unless its author asks with `--csp`.

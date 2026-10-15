@@ -147,3 +147,48 @@ events = [
   { name = "OnBreakpointPlaced", params = "File AS STRING, Line AS INTEGER, NewLine AS INTEGER", doc = "The running program placed a breakpoint elsewhere than its line: one on a line without code (a comment, a blank line, a DIM) stops at the next line with code, NewLine; NewLine 0: no code follows it in its file, it never stops." },
 ]
 
+[[component]]
+name = "RAIPROJECTTOOLS"
+display = "AIProjectTools"
+visual = false
+doc = "A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent Tools, \"project\", the model may list and read the project's files (inside ProjectFolder only; an editor's unsaved text when SetFile gave it), list the forms' components and read their properties, describe RapidR's components and builtins, and run the compiler on code — each when it needs it, never the whole project at once; with Permission \"propose\" it also proposes changes to files and new programs, kept here as proposals the program shows as diffs: nothing is written until the user applies one. What it reads goes to the model as data, never as instructions. RapidR Studio's assistant is an RAI with these tools."
+example = """
+DECLARE SUB Answered(Status AS STRING)
+
+DIM Tools AS RAIProjectTools
+DIM AI AS RAI
+
+SUB Answered(Status AS STRING)
+    PRINT AI.Transcript
+    PRINT Tools.ProposalCount; " change(s) proposed"
+END SUB
+
+Tools.ProjectFolder = CURDIR$
+Tools.ProjectFiles = "main.rr"
+Tools.MainFile = "main.rr"
+AI.Provider = "compatible"
+AI.BaseURL = "http://localhost:11434/v1"
+AI.OnDone = Answered
+AI.AttachComponent Tools, "project"
+"""
+properties = [
+  { name = "ProjectFolder", type = "string", design = false, doc = "The project's folder: files are read inside it only (\"\" — no project)." },
+  { name = "ProjectFiles", type = "string", design = false, doc = "The project's files, a line each, relative to ProjectFolder (what list_files gives the model)." },
+  { name = "MainFile", type = "string", design = false, doc = "The project's main file, relative to ProjectFolder." },
+  { name = "ProjectName", type = "string", design = false, doc = "The project's name, as the model is told it." },
+  { name = "CompatMode", type = "string", design = false, doc = "\"rapidq\" for a RapidQ-compatible project: the model is told to write only what RapidQ's own compiler takes." },
+  { name = "Permission", type = "string", default = "propose", values = ["propose", "read-only"], doc = "What the model may do: \"propose\" (read the project and propose changes, shown as diffs the user decides on) or \"read-only\" (read and answer; the proposing tools aren't offered)." },
+  { name = "ProposalCount", type = "int", access = "read", design = false, doc = "How many changes the last answer proposed (files changed, or a new project's files)." },
+]
+methods = [
+  { name = "SetFile", params = "Path AS STRING, Text AS STRING", effects = ["state"], doc = "A file's text as its editor has it, unsaved changes included: what the model reads of it (Path inside ProjectFolder)." },
+  { name = "ClearFiles", value = true, effects = ["state"], doc = "Forgets the editors' texts SetFile gave: files are read from their store." },
+  { name = "ProposalInfo", params = "Index AS INTEGER", returns = "STRING", effects = ["none"], doc = "Proposal Index (from 0), tab-separated: its kind (\"edit\": a file changed, \"create\": a new file of the project, \"project\": a file of a new project), its path, its summary, the new project's name, True for the new project's main file, and the user's decision (\"\", \"applied\", \"partly\", \"rejected\", \"created\")." },
+  { name = "ProposalOld", params = "Index AS INTEGER", returns = "STRING", effects = ["none"], doc = "Proposal Index's file as it was (\"\" for a new file): an RDiffView's LeftText." },
+  { name = "ProposalNew", params = "Index AS INTEGER", returns = "STRING", effects = ["none"], doc = "Proposal Index's file as proposed: an RDiffView's RightText." },
+  { name = "Patch", params = "OldText AS STRING, NewText AS STRING", returns = "STRING", effects = ["none"], doc = "The RCODEEDITOR.ApplyPatches line that turns OldText into NewText (the changed lines replaced, the file's own line breaks kept): applied, the change is one undo step. \"\" when they are the same." },
+  { name = "Decide", params = "Index AS INTEGER, Decision AS STRING", effects = ["state"], doc = "Records the user's decision on proposal Index (\"applied\", \"partly\" or \"rejected\") in the RAI's conversation and audit log." },
+  { name = "ClearProposals", value = true, effects = ["state"], doc = "Forgets the proposals." },
+  { name = "CreateProject", params = "Folder AS STRING", returns = "STRING", effects = ["file-write"], test = "skip: writes files", doc = "Writes the new project the model proposed in Folder, in a folder of its name (never over one that is there): the main file's path, to open; \"error: \" and why when it couldn't." },
+]
+events = []

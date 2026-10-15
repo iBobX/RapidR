@@ -129,6 +129,7 @@ SUB DefineCommands
   AddCmd "view.callStack", "Call &Stack", "View", "", "", "", "RCALLSTACKVIEW"
   AddCmd "view.breakpoints", "&Breakpoints", "View", "", "", "", "RBREAKPOINTLIST"
   AddCmd "view.welcome", "&Welcome Page", "View", "", "", "", "help"
+  AddCmd "ai.assistant", "&AI Assistant", "View", "Ctrl+I", "", "", ""
   AddSep "View"
   AddCmd "view.code", "&Code", "View", "F7", "", "document", ""
   AddCmd "view.designer", "&Designer", "View", "Shift+F7", "", "document", "components/designsurface"
@@ -223,6 +224,11 @@ SUB DefineCommands
   ' ---- Tools ----
   AddCmd "view.settings", "&Settings...", "Tools", "", "", "", ""
   AddCmd "view.keyboardShortcuts", "&Keyboard Shortcuts", "Tools", "", "", "", ""
+  AddSep "Tools"
+  AddCmd "ai.settings", "&AI Settings...", "Tools", "", "", "", "ai.assistant"
+  AddCmd "ai.newChat", "New AI &Chat", "Tools", "", "", "ai", "ai.ask"
+  AddCmd "ai.review", "&Review the AI's Changes...", "Tools", "", "", "ai", "-"
+  AddCmd "ai.whatWasSent", "&What Was Sent to the AI...", "Tools", "", "", "ai", "-"
 
   ' ---- Window (documents are tabs, split into groups) ----
   AddCmd "view.splitVertically", "Split &Right", "Window", "", "", "document", ""
@@ -326,6 +332,8 @@ FUNCTION CmdEnabled(i AS INTEGER) AS INTEGER
     CASE "running": Result = (RunState = "running")
     CASE "paused": Result = (RunState = "paused")
     CASE "session": Result = (RunState <> "stopped")
+    ' (the AI's: once it is turned on — Tools > Settings > AI)
+    CASE "ai": Result = AIReady
     CASE ELSE: Result = 1
   END SELECT
 END FUNCTION

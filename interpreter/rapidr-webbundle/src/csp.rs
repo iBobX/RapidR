@@ -10,6 +10,7 @@
 //! | RJAVASCRIPT | `script-src 'unsafe-eval'` (Eval runs the program's JavaScript) |
 //! | RWEBVIEW | `frame-src 'self' https:` (its Url; its Html runs in rapidr-webview.html, a sandboxed frame of the page's own) |
 //! | RHTTP / RSOCKET / RDOWNLOAD (Q or R) | `connect-src https: wss:` |
+//! | RAI | `connect-src https:` and the user's own machine (`http://localhost:*`, `http://127.0.0.1:*`: Ollama, LM Studio) |
 //! | RDOM / RWEBVIEW | `img-src https:` (a page's markup shows pictures from the web) |
 //! | RWEBAUDIO / RWEBVIDEO / RVIDEO | `media-src https:` |
 //! | an `http://` / `ws://` … URL written in the program | that origin, in `connect-src` (and `frame-src` / `media-src` / `img-src` when those are open) |
@@ -103,6 +104,11 @@ impl WebNeeds {
             }
             "DOM" => self.markup = true,
             "HTTP" | "SOCKET" | "DOWNLOAD" => self.network = true,
+            "AI" => {
+                self.network = true;
+                self.origins.insert("http://localhost:*".to_string());
+                self.origins.insert("http://127.0.0.1:*".to_string());
+            }
             "WEBAUDIO" | "WEBVIDEO" | "VIDEO" => self.media = true,
             _ => {}
         }
@@ -258,6 +264,16 @@ mod tests {
         assert!(n.eval && n.frames && n.network && n.markup && !n.media);
         let p = content_security_policy(&n);
         assert!(p.contains("'unsafe-eval'") && p.contains("frame-src 'self' https:") && p.contains("wss:"), "{p}");
+    }
+
+    #[test]
+    fn an_rai_talks_to_providers_and_this_machine() {
+        let n = WebNeeds::scan("DIM AI AS RAI\n");
+        assert!(n.network && !n.eval && !n.frames, "{n:?}");
+        let p = content_security_policy(&n);
+        assert!(p.contains("connect-src 'self' data: blob: https: wss: http://127.0.0.1:* http://localhost:*;"), "{p}");
+        // (nothing else opened: no frames, no remote pictures)
+        assert!(p.contains("frame-src 'none'") && !p.contains("img-src 'self' data: blob: https:"), "{p}");
     }
 
     #[test]
