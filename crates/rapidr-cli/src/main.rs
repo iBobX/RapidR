@@ -13,6 +13,9 @@ mod examples;
 mod home;
 mod import;
 mod lang;
+// (AI-ARCH phase 0: the introspection interface, behind a cargo feature)
+#[cfg(feature = "ai-introspect")]
+mod introspect;
 mod macos;
 mod launch;
 mod notices;
@@ -24,7 +27,7 @@ use home::Home;
 
 /// The subcommands (a first argument that is one isn't a file).
 const SUBCOMMANDS: &[&str] = &[
-    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "serve", "import-rapidq", "upgrade-names", "__dialog",
+    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "serve", "import-rapidq", "upgrade-names", "introspect", "__dialog",
 ];
 
 /// `--log <file> <command…>`: this rapidr again with the command, its
@@ -131,6 +134,13 @@ fn main() -> ExitCode {
         (Some("setup"), _) => setup::setup(&args[1..]),
         (Some("notices"), _) => notices::command(&args[1..]),
         (Some("lang"), _) => lang::command(&args[1..]),
+        #[cfg(feature = "ai-introspect")]
+        (Some("introspect"), _) => introspect::command(&args[1..]),
+        #[cfg(not(feature = "ai-introspect"))]
+        (Some("introspect"), _) => {
+            eprintln!("rapidr introspect: this rapidr was built without it (cargo build -p rapidr-cli --features ai-introspect; docs/ai-architecture.md)");
+            ExitCode::from(2)
+        }
         (Some("import-rapidq"), _) => import::import_rapidq(&args[1..]),
         (Some("upgrade-names"), _) => import::upgrade_names(&args[1..]),
         (Some("__dialog"), Some(path)) => launch::run_dialog(&path),
@@ -268,6 +278,7 @@ fn main() -> ExitCode {
             eprintln!("  rapidr serve <file> [--open]                     Its web build served on this machine (127.0.0.1), opened in the browser");
             eprintln!("  rapidr lang export --json|--prompt|--manual|--all  What the language registry generates");
             eprintln!("  rapidr lang conformance <dir> [--target desktop|web]  The registry's conformance programs");
+            eprintln!("  rapidr lang ai-check [--summary|--json] [--strict] [NAME…]  Registry entries lacking an AI facet");
             eprintln!("  rapidr import-rapidq <file|folder|.rrproj> [OUT_DIR] [--include DIR]  A copy of a RapidQ program with RapidR's names, and a report");
             eprintln!("  rapidr upgrade-names <file> [--dry-run]          RapidR's names in one of your own files (--dry-run: the diff only)");
             eprintln!("  rapidr about");

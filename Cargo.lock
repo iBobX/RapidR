@@ -3711,6 +3711,7 @@ dependencies = [
  "rapidr-codegen-rust",
  "rapidr-dap",
  "rapidr-import",
+ "rapidr-introspect",
  "rapidr-lang",
  "rapidr-langsvc",
  "rapidr-lexer",
@@ -3839,6 +3840,17 @@ dependencies = [
  "rapidr-parser",
  "rapidr-preprocessor",
  "rapidr-project",
+]
+
+[[package]]
+name = "rapidr-introspect"
+version = "2.118.0"
+dependencies = [
+ "rapidr-designer",
+ "rapidr-lang",
+ "rapidr-preprocessor",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
