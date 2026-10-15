@@ -7,6 +7,19 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### RapidQ's examples on macOS and Linux (CORPUS-PORT)
+- **Windows file names work on macOS and Linux.** A RapidQ program names its files as Windows does:
+  `data\notes.txt`, `Application.Path + "\save.dat"`, `OPEN.BMP` for an `open.bmp`. Off Windows a
+  `\` was part of the name and Linux told `OPEN.BMP` from `open.bmp`, so such programs found none
+  of their files (pictures missing, `Cannot open file …`). Now `\` separates folders and names are
+  found in any case, as on Windows and as the web runtime already did — for every file and folder a
+  program names (QFILESTREAM, LoadFromFile / SaveToFile, pictures, sounds, OPEN, FILEEXISTS,
+  DIREXISTS, FILELEN, DIR$, KILL, MKDIR, RMDIR, RENAME, CHDIR, QFILELISTBOX, QDIRTREE), interpreted
+  and native. A name that exists as written is taken as written. On Linux, RapidQ's examples
+  `listbox/owndraw`, `games/puzzle` and the two vector-font demos show their pictures and fonts
+  again, and six DirectX ones their models and textures (`rapidr_value::paths`, conformance case
+  `rapidq_windows_paths`, checked interpreted, native and on the web).
+
 ## [2.118.0] — 2026-10-09 (Preview)
 
 ### Triage of the full regression run (TRIAGE)
