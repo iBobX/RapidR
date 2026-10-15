@@ -503,6 +503,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     if backdrops {
         refresh_canvas_backdrops();
     }
+    // (a QRICHEDIT's Font: the format its unformatted text shows)
+    if prop.to_ascii_lowercase().starts_with("font") || prop.eq_ignore_ascii_case("parent") {
+        rapidr_value::objects::rich_font_changed(name, &|i, p| rp_comp_get(i, p));
+    }
 }
 
 /// What `name.Color` reads in a program: the Color the program set, else

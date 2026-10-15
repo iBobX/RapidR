@@ -190,6 +190,21 @@ pub struct Span {
     pub style: RunStyle,
 }
 
+/// (QRICHEDIT's paragraphs) How a paragraph sits: its own alignment, its
+/// indents (logical pixels: the left edge, the first line's from it — less
+/// than 0, the other lines' are further in — the right edge's), a bullet,
+/// and the format its line has where it holds no text (its break's: an
+/// empty paragraph's height, the caret's).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ParaStyle {
+    pub align: Option<Align>,
+    pub left: f64,
+    pub first: f64,
+    pub right: f64,
+    pub bullet: bool,
+    pub base: Option<RunStyle>,
+}
+
 struct Para {
     /// The paragraph's text (no line break).
     text: String,
@@ -197,15 +212,18 @@ struct Para {
     /// Where it starts down the text, and how high it is.
     top: f64,
     height: f64,
-    /// How far right its line sits (Alignment without WordWrap).
+    /// How far right its line sits (Alignment without WordWrap; a rich
+    /// paragraph's left indent).
     dx: f64,
     /// Its styled runs (given).
     spans: Vec<Span>,
+    /// Its paragraph style (given; a rich edit's).
+    style: ParaStyle,
 }
 
 impl Para {
     fn new(text: String) -> Para {
-        Para { text, layout: None, top: 0.0, height: 0.0, dx: 0.0, spans: Vec::new() }
+        Para { text, layout: None, top: 0.0, height: 0.0, dx: 0.0, spans: Vec::new(), style: ParaStyle::default() }
     }
 }
 
@@ -299,8 +317,11 @@ impl TextEditor {
     pub fn set_width(&mut self, width: f64) {
         if (width - self.width).abs() > f64::EPSILON {
             self.width = width;
-            if self.look.wrap || self.look.align != Align::Left {
+            if self.look.wrap {
                 self.invalidate();
+            } else {
+                // (lines aligned in the view are placed again)
+                self.laid = false;
             }
         }
     }
@@ -501,6 +522,37 @@ impl TextEditor {
         self.paras.get(p).map_or(&[], |p| p.spans.as_slice())
     }
 
+    /// Paragraph `p`'s style (kept until its text changes; QRICHEDIT's
+    /// paragraphs).
+    pub fn set_para_style(&mut self, p: usize, style: ParaStyle) {
+        if let Some(para) = self.paras.get_mut(p) {
+            if para.style != style {
+                para.style = style;
+                para.layout = None;
+                self.laid = false;
+            }
+        }
+    }
+
+    /// Paragraph `p`'s style.
+    pub fn para_style(&self, p: usize) -> Option<&ParaStyle> {
+        self.paras.get(p).map(|p| &p.style)
+    }
+
+    /// Where paragraph `p`'s bullet goes (its style has one): its left and
+    /// its first line's top and bottom (device pixels, in the text).
+    pub fn bullet_at(&self, p: usize) -> Option<(f64, f64, f64)> {
+        let para = self.paras.get(p)?;
+        if !para.style.bullet {
+            return None;
+        }
+        let line = para.layout.as_ref()?.lines().next();
+        let s = f64::from(self.scale);
+        let left = (para.style.left + para.style.first.min(0.0)) * s;
+        let (y0, y1) = line.map_or((0.0, para.height), |l| (f64::from(l.metrics().block_min_coord), f64::from(l.metrics().block_max_coord)));
+        Some((left, para.top + y0, para.top + y1))
+    }
+
     /// Lays out what changed and places the paragraphs.
     pub fn lay_out(&mut self, ts: &mut TextSystem) {
         // (a font came: everything again, with the fallbacks there are now)
@@ -536,10 +588,12 @@ impl TextEditor {
                 super::note_missing(&layout, &shown);
                 self.paras[i].layout = Some(layout);
             }
+            let (base, right) = self.para_edges(i);
+            let align = self.paras[i].style.align.unwrap_or(self.look.align);
             let p = &mut self.paras[i];
             let l = p.layout.as_ref().expect("laid out above");
             let w = f64::from(l.full_width());
-            p.dx = if self.look.wrap { 0.0 } else { ((view - w) * self.look.align.factor()).max(0.0).round() };
+            p.dx = (base + if self.look.wrap { 0.0 } else { ((view - base - right - w) * align.factor()).max(0.0) }).round();
             p.height = match f64::from(l.height()) {
                 h if h > 0.0 => h,
                 _ => fallback,
@@ -552,12 +606,41 @@ impl TextEditor {
         self.laid = true;
     }
 
+    /// Paragraph `i`'s left edge (its lines' least: a hanging first line's)
+    /// and right indent, device pixels.
+    fn para_edges(&self, i: usize) -> (f64, f64) {
+        let st = &self.paras[i].style;
+        let s = f64::from(self.scale);
+        let first = if st.bullet { 0.0 } else { st.first.min(0.0) };
+        (((st.left + first) * s).max(0.0), (st.right * s).max(0.0))
+    }
+
+    /// Paragraph `i`'s first line's indent from its left edge (device
+    /// pixels) and whether it's the other lines that are indented (a
+    /// hanging first line).
+    fn para_indent(&self, i: usize) -> (f64, bool) {
+        let st = &self.paras[i].style;
+        let s = f64::from(self.scale);
+        match st.first {
+            _ if st.bullet => (0.0, false),
+            f if f > 0.0 => (f * s, false),
+            f if f < 0.0 => (-f * s, true),
+            _ => (0.0, false),
+        }
+    }
+
     /// Paragraph `i`'s layout of `shown` (its TABs as spaces), each TAB at
     /// `tabs[k].0` widened by `tabs[k].1` device pixels.
     fn build_para(&self, ts: &mut TextSystem, i: usize, shown: &str, tabs: &[(usize, f64)], view: f64) -> Layout<Ink> {
         let mut b = ts.layout_cx.ranged_builder(&mut ts.font_cx, shown, self.scale, true);
         for prop in &self.style {
             b.push_default(prop.clone());
+        }
+        // (a rich paragraph's own format where it holds no text)
+        if let Some(base) = &self.paras[i].style.base {
+            for prop in base.props() {
+                b.push_default(prop);
+            }
         }
         // (its runs: over its own text, so not over a mask's)
         if self.look.mask.is_none() {
@@ -576,9 +659,14 @@ impl TextEditor {
             b.push(StyleProperty::LetterSpacing((extra / scale) as f32), at..at + 1);
         }
         let mut layout = b.build(shown);
+        let (base, right) = self.para_edges(i);
+        let (indent, hanging) = self.para_indent(i);
+        if indent > 0.0 {
+            layout.set_text_indent(indent as f32, parley::IndentOptions { each_line: false, hanging });
+        }
         if self.look.wrap {
-            layout.break_all_lines(Some(view.max(1.0) as f32));
-            let a = match self.look.align {
+            layout.break_all_lines(Some((view - base - right).max(1.0) as f32));
+            let a = match self.paras[i].style.align.unwrap_or(self.look.align) {
                 Align::Left => Alignment::Left,
                 Align::Right => Alignment::Right,
                 Align::Center => Alignment::Center,

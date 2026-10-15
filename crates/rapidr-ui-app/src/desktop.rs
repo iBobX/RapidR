@@ -665,7 +665,9 @@ pub fn take_probe() -> &'static str {
 fn script_key<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, comp: &str, vk: i64, state: i64) {
     let Some(form) = p.form_of(comp) else { return };
     let comp = comp.to_lowercase();
-    let mods = Mods { shift: state & 256 != 0, ctrl: state & 16 != 0, alt: state & 1 != 0, ..Mods::NONE };
+    // (Ctrl is the shortcut key too, as on Windows: `__key_90_16` is an
+    // edit's Ctrl+Z on every host)
+    let mods = Mods { shift: state & 256 != 0, ctrl: state & 16 != 0, alt: state & 1 != 0, command: state & 16 != 0, ..Mods::NONE };
     let text = if mods.ctrl || mods.alt { String::new() } else { rapidr_value::input::text_of_vk_shifted(vk, mods.shift) };
     if let Some(f) = desk.forms.get_mut(&form) {
         f.ui.sync(store);

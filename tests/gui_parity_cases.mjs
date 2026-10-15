@@ -312,6 +312,15 @@ export const cases = [
   { name: "modal_result", events: "ed.__key_65,okbtn.onclick,nobtn.onclick", dump: "lbl.caption", expect: ["lbl.caption=17OKe"] },
   { name: "input_chars", events: "lbl.__key_65,lbl.__key_66,lbl.__key_67", dump: "lbl.caption", expect: ["lbl.caption=[abc]-1"] },
   { name: "inherit_event", events: "c.onclick,plain.onclick,btn.onclick", dump: "lbl.caption", expect: ["lbl.caption=own mine1 own | 1"] },
+  // QRICHEDIT's rich text (rapidr_value::objects::richtext / rtf, RC.EXE's
+  // rules): "xy" typed inside the blue italic "Hello" takes its format,
+  // Ctrl+Z gives the text and its formats back; SelAttributes read back
+  // (a selection's last character's, a paragraph start's next one's); the
+  // colour and underline set at the caret go to what AddStrings added;
+  // TextRTF (RapidR's: the RTF SaveToFile writes) after the undo.
+  { name: "rich_text", events: "re.__key_88,re.__key_89,btn.onclick,re.__key_90_16,btn.onclick", dump: "lbl.caption,rtf.caption",
+    expect: ["lbl.caption=|Hexyllo world/green,4,00FF0000MS Sans Serif18,000000FF01|Hello world/green,2,00FF0000MS Sans Serif18,0000800011",
+      "rtf.caption={\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang1033{\\fonttbl{\\f0\\fnil MS Sans Serif;}{\\f1\\fnil\\fcharset0 Courier New;}}~{\\colortbl ;\\red0\\green0\\blue255;\\red255\\green0\\blue0;\\red0\\green128\\blue0;}~\\viewkind4\\uc1\\pard\\cf1\\i\\f0\\fs16 Hello\\cf0\\i0  \\cf2\\b\\f1\\fs24 world\\cf3\\ul ~\\par green\\cf0\\b0\\ulnone\\f0\\fs16 ~\\par }~"] },
   { name: "text_edits", events: "btn.onclick", dump: "lbl.caption,ed.text",
     expect: ["lbl.caption=2two|ell|hEYo|3|two|ONE|2|8|1|1", "ed.text=hEYo"] },
   { name: "trackbar", events: "tb.__key_39,tb.__key_34,tb.__key_36,tb.__mousedown_190_10,tb.__key_35,btn.onclick", dump: "lbl.caption",

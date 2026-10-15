@@ -79,3 +79,17 @@ properties = [
 ]
 methods = []
 events = []
+
+[[object]]
+name = "ParaAttributes"
+kind = "item"
+doc = "(RapidR's) The format of an RRichEdit's paragraphs (`RichEdit.Paragraph`): those the selection is in when set, the first one's when read."
+properties = [
+  { name = "Alignment", type = "enum", values = ["taLeftJustify", "taRightJustify", "taCenter"], category = "Appearance", doc = "How the paragraph's lines line up." },
+  { name = "LeftIndent", type = "int", category = "Layout", range = "0..", unit = "px", doc = "How far in from the left edge the paragraph's lines start, in pixels." },
+  { name = "FirstIndent", type = "int", category = "Layout", range = "any", unit = "px", doc = "How much further in its first line starts, in pixels (less than 0: the other lines are further in, a hanging indent)." },
+  { name = "RightIndent", type = "int", category = "Layout", range = "0..", unit = "px", doc = "How far in from the right edge the paragraph's lines end, in pixels." },
+  { name = "Numbering", type = "int", category = "Appearance", range = "0..1", doc = "1: a bullet before the paragraph (indented a quarter inch if it had no indent); 0: none." },
+]
+methods = []
+events = []

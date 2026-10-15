@@ -46,6 +46,7 @@ The **Runs on** column lists the ways each example is tested on (by
 | [hello_form.rr](gui/hello_form.rr) | A form built with `CREATE`, a text box, a button's `OnClick`, `OnChange` | run · interp · native · web | `rapidr run gui/hello_form.rr` |
 | [menus.rr](gui/menus.rr) | A main menu: shortcuts, a check item, radio items, a submenu; a pop-up menu; a status bar | run · interp · native · web | `rapidr run gui/menus.rr` |
 | [dialogs.rr](gui/dialogs.rr) | Open file, colour and font dialogs; a Yes / No question (`MESSAGEDLG`) | run · interp · native · web | `rapidr run gui/dialogs.rr` |
+| [richtext.rr](gui/richtext.rr) | A small rich-text editor: `RRichEdit`'s `SelAttributes` (bold, italic, underline, colour, font), paragraphs aligned and bulleted, open / save `.rtf` — [the manual](../docs/manual/rich-text.md) | run · interp · native · web | `rapidr run gui/richtext.rr` |
 | [stopwatch.rr](gui/stopwatch.rr) | An `RTimer`: start, lap, stop, reset; a list of laps | run · interp · native · web | `rapidr run gui/stopwatch.rr` |
 | [pantry.rr](gui/pantry.rr) | An `RListBox` and an `RStringGrid` working together; adding rows, totals | run · interp · native · web | `rapidr run gui/pantry.rr` |
 | [themes.rr](gui/themes.rr) | RapidR's themes: `$THEME modern`, switching with `Application.Theme` (classic, modern, dark, high contrast) | run · interp · native · web | `rapidr run gui/themes.rr` |

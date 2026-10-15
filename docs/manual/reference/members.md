@@ -1030,16 +1030,16 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 <a id="rrichedit"></a>
 ## RRichEdit <small>(RapidQ name: QRICHEDIT)</small>
 
-A multi-line text editor with fonts, colours and alignment per selection, that loads and saves rich text (RTF) or plain text.
+A multi-line text editor whose text is formatted: font, size, colour, bold, italic, underline and strike-out per character (SelAttributes), alignment, indents and bullets per paragraph; it loads and saves rich text (RTF), or plain text with PlainText. What the user types takes the format of the text around it, and Ctrl+Z gives back the text and its formats.
 
 | Property | Type | Default | |
 |---|---|---|---|
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
-| `Alignment` | enum | `taLeftJustify` | How the text lines up inside the control: `taLeftJustify`, `taCenter` or `taRightJustify`; on a popup menu, which side of the point it opens on. |
+| `Alignment` | enum | `taLeftJustify` | How paragraphs without an alignment of their own line up (set after the text, it aligns it all as shown; paragraphs set by Text afterwards get it as their own); setting it moves the caret to the start, as RapidQ's. |
 | `BorderStyle` | enum | `bsSingle` | The border: one of the `bsXXX` constants. On a form, `bsSizeable` lets the user resize it, `bsDialog` doesn't, `bsNone` has no title bar. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
+| `Font` (write-only) | font |  | The text's default format: text never formatted shows it (all of it, while nothing is formatted), and an empty last line types in it. |
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `HideScrollBars` | bool | True | Hides scroll bars until the text needs them, instead of showing them disabled. |
@@ -1051,10 +1051,10 @@ A multi-line text editor with fonts, colours and alignment per selection, that l
 | `Modified` (read-only) | int |  | True once the user changes the text (or the OLE object); the program may clear it. |
 | `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
-| `PlainText` | bool | False | Loads and saves the text as plain text rather than RTF. |
+| `PlainText` | bool | False | False: LoadFromFile / SaveToFile and the streams read and write rich text (RTF; a file that isn't RTF loads as its text). True: plain text, lines ending CR LF. |
 | `ReadOnly` | bool | False | Stops the user changing the text or items; they can still select and copy. |
 | `ScrollBars` | enum | `ssNone` | Which scroll bars show: `ssNone`, `ssHorizontal`, `ssVertical` or `ssBoth`. |
-| `SelAttributes` (write-only) | font |  | The font of the selected text, or of what's typed next; write-only. |
+| `SelAttributes` (write-only) | font |  | The format of the selected text — at a caret, of what is typed or added there next: set it to a QFONT (all its settings), or set its members (Color, Name, Size, Bold, Italic, Underline, StrikeOut, Charset; AddStyles / DelStyles). Reading a member gives the selection's last character's (the caret's format at a caret); an automatic colour reads clWindowText (&H80000008). |
 | `SelLength` | int |  | The number of characters selected. |
 | `SelStart` | int |  | Where the selection starts: a character offset from 0 in Text (a line break counts as the characters Text has for it: two, CR LF, in a rich edit or memo, as RapidQ counts them; so a position INSTR finds in Text selects that text), the start of a track bar's highlighted range. |
 | `SelText` | string |  | The selected text; setting it replaces the selection. |
@@ -1072,7 +1072,9 @@ A multi-line text editor with fonts, colours and alignment per selection, that l
 | `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `Cursor` *(RapidR)* | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
-| `SelFont` | font |  | The font of the selected text. |
+| `SelFont` (write-only) | font |  | SelAttributes = Font's other name: the QFONT's settings on the selection (RapidQ's; write-only). |
+| `Paragraph` *(RapidR)* | item |  | The format of the paragraphs the selection is in (at a caret, its paragraph's): Alignment, LeftIndent, FirstIndent, RightIndent (pixels) and Numbering (bullets). Reading gives the first one's. |
+| `TextRTF` *(RapidR)* | string |  | The text with its formats as RTF — what SaveToFile writes while PlainText is False; setting it loads RTF (or plain text) as LoadFromFile does. |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -1083,14 +1085,14 @@ A multi-line text editor with fonts, colours and alignment per selection, that l
 
 | Method | |
 |---|---|
-| `AddStrings(Items, …)` | Appends the strings given, each as a new line. |
+| `AddStrings(Items AS STRING, …)` | Adds lines at the end (after the last line break, or a break before them when the text doesn't end with one); the caret goes after them, and a format SelAttributes set at that caret goes to them. |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `CopyToClipboard` | Copies the selected text to the clipboard. |
 | `CutToClipboard` | Moves the selected text to the clipboard. |
-| `LoadFromFile(FileName AS STRING)` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
+| `LoadFromFile(FileName AS STRING)` | Replaces the text with a file's: rich text (RTF) with its formats, or the file's text when it isn't RTF or PlainText is True. |
 | `LoadFromStream(Stream AS RFILESTREAM)` | Replaces the text with the stream's bytes from its position to its end (as LoadFromFile reads a file); the stream is left at its end. |
 | `PasteFromClipboard` | Inserts the clipboard's text at the caret, replacing the selection. |
-| `SaveToFile(FileName AS STRING)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
+| `SaveToFile(FileName AS STRING)` | Writes the text with its formats as RTF (as RapidQ's: ending with a NUL byte), or with PlainText True the text, lines ending CR LF. |
 | `SaveToStream(Stream AS RFILESTREAM)` | Writes the text at the stream's position (the same bytes SaveToFile writes), moving the position past it. |
 | `SelectAll` | Selects all the text. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
@@ -5401,4 +5403,17 @@ One column of an RListView in report view (`ListView.Column(i)`, from 0).
 |---|---|---|---|
 | `Caption` | string |  | The column's heading. |
 | `Width` | int |  | The column's width in pixels. |
+
+<a id="paraattributes"></a>
+## ParaAttributes
+
+(RapidR's) The format of an RRichEdit's paragraphs (`RichEdit.Paragraph`): those the selection is in when set, the first one's when read.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Alignment` | enum |  | How the paragraph's lines line up. |
+| `LeftIndent` | int |  | How far in from the left edge the paragraph's lines start, in pixels. |
+| `FirstIndent` | int |  | How much further in its first line starts, in pixels (less than 0: the other lines are further in, a hanging indent). |
+| `RightIndent` | int |  | How far in from the right edge the paragraph's lines end, in pixels. |
+| `Numbering` | int |  | 1: a bullet before the paragraph (indented a quarter inch if it had no indent); 0: none. |
 

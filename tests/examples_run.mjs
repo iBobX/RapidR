@@ -83,6 +83,11 @@ export const cases = [
     colorDialog: "65280", messageDialog: "Yes", expect: ["answer.caption=Glad to hear it!", "sample.color=65280"] },
   { file: "gui/dialogs.rr", runtimes: ["run", "interp", "native", "web"], events: "fontbtn.onclick,openbtn.onclick", dump: "answer.caption",
     fontDialog: "Courier New,14", fileDialog: "notes.txt", expect: ["answer.caption=Chose ", "notes.txt"] },
+  // (Ctrl+End to the last paragraph, B pressed there — the bold "x" typed
+  // next keeps it — then centred and bulleted: the tool bar follows)
+  { file: "gui/richtext.rr", runtimes: ["run", "interp", "native", "web"], events: "doc.__key_35_16,boldbtn.onclick,doc.__key_88,centrebtn.onclick,bulletbtn.onclick",
+    dump: "status.simpletext,boldbtn.down,centrebtn.down,leftbtn.down,bulletbtn.down",
+    expect: ["status.simpletext=Line 5, column 36   MS Sans Serif 8 pt", "boldbtn.down=-1", "centrebtn.down=-1", "leftbtn.down=0", "bulletbtn.down=-1"] },
   { file: "gui/stopwatch.rr", runtimes: ["run", "interp", "native", "web"], events: `startbtn.onclick,${wait("state", 6)},lapbtn.onclick,${wait("state", 4)},lapbtn.onclick,startbtn.onclick`,
     dump: "laps.itemcount,state.caption,time.caption", expect: ["laps.itemcount=2", "state.caption=Stopped", "time.caption=0:0"] },
   { file: "gui/pantry.rr", runtimes: ["run", "interp", "native", "web"], events: "shelves.__item_1,addbtn.onclick", dump: "total.caption,grid.rowcount",
