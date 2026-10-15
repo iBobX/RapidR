@@ -53,18 +53,10 @@ export const scenes = [
   // the page's files
   { name: "linked-designer-web", host: "web", open: "examples/data/linked_data.rr",
     webFiles: ["examples/data/linked_data.rr", "examples/data/staff.csv"], delay: 8, crop: [0, 0, 1234, 771] },
-  // …the Name edit picked, its DataField dropped: the columns the designer
-  // read (RapidR Studio on the web)
-  {
-    name: "datafield-columns-web",
-    host: "web",
-    delay: 8,
-    crop: [700, 60, 534, 400],
-    open: "examples/data/linked_data.rr",
-    webFiles: ["examples/data/linked_data.rr", "examples/data/staff.csv"],
-    // (the DataField row selected, then F4: its list)
-    do: "wait,pick:NameEdit,filter:Data,focus:inspector,key:Down,key:Down,key:F4,wait",
-  },
+  // the inspector's DataField dropped: the columns the designer read (the
+  // inspector and a design surface in a program of RapidR's own tests)
+  { name: "datafield-columns", program: "tests/fixtures/inspector_datafield.bas", delay: 2, crop: [0, 0, 300, 200],
+    env: { RAPIDR_TEST_EVENTS: "insp.__key_40,insp.__key_40,insp.__key_115" } },
   // …running: Diana's row current, the grid sorted by Salary, highest first
   { name: "linked-running", program: "examples/data/linked_data.rr", delay: 3,
     env: { RAPIDR_TEST_EVENTS: "grid.__cell_1_2,nextbtn.onclick,grid.__cell_2_-1,grid.__cell_2_-1" } },

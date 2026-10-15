@@ -40,8 +40,11 @@ To build it yourself, in a new form:
 2. Drop an **RDBGrid** on the form and set its **DataSource** to the RCSV
    (the inspector offers the components that fit). The rows appear.
 3. Drop an **REdit**; set its **DataSource** to the RCSV too, and its
-   **DataField** to a column's name, e.g. `Name`. It shows the first row's
+   **DataField** to a column's name, e.g. `Name` — DataField's list (its
+   arrow, or F4) offers the file's columns. The edit shows the first row's
    name.
+
+   ![The inspector's DataField list: the columns name, age and city of the data set the edit is bound to](images/data/datafield-columns.png)
 
 ![A new form built in the designer: CSV1 (an RCSV) in the tray under the form, an RDBGrid showing staff.csv's rows and an REdit showing Alice; the inspector, filtered to "Data", shows the edit's DataField Name and DataSource CSV1](images/data/linked-build.png)
 
