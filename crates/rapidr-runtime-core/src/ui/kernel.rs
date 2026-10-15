@@ -174,6 +174,14 @@ fn started() -> bool {
     kern().is_some()
 }
 
+/// Wakes the window loop from another thread: a wait in [`step`] ends at
+/// once (RapidR Studio's program sessions: what the program says is heard
+/// when it arrives, not at the next poll).
+pub fn waker() -> Option<std::task::Waker> {
+    ensure_host();
+    with_kern(|k| k.host.waker())
+}
+
 // ------------------------------------------------------------- the pump --
 
 /// What the program changed, into the kernel's forms: window commands,

@@ -5,7 +5,8 @@
 //! a desktop session or a GPU; their captures are byte-identical to a
 //! windowed host's (Stage 0).
 
-use std::task::Waker;
+use std::sync::Arc;
+use std::task::{Wake, Waker};
 use std::time::Duration;
 
 use rapidr_ui_kernel::Store;
@@ -14,6 +15,9 @@ use crate::{Desktop, Host, HostCmd, HEADLESS_SCREEN};
 
 pub struct HeadlessHost {
     scale: f64,
+    /// The thread that pumps (the one that made the host): a waker
+    /// unparks it ([`Host::waker`]).
+    pumper: std::thread::Thread,
     // (timers during native menu tracking)
     /// runtime-core's tick, and a GUI test's pretend hold of the next pump
     /// (`__hold_ms`: a native menu the user keeps open).
@@ -23,7 +27,20 @@ pub struct HeadlessHost {
 
 impl HeadlessHost {
     pub fn new(scale: f64) -> Self {
-        HeadlessHost { scale, hook: None, hold: None }
+        HeadlessHost { scale, pumper: std::thread::current(), hook: None, hold: None }
+    }
+}
+
+/// Wakes a pump waiting on the headless host: its thread unparked.
+struct Unpark(std::thread::Thread);
+
+impl Wake for Unpark {
+    fn wake(self: Arc<Self>) {
+        self.0.unpark();
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        self.0.unpark();
     }
 }
 
@@ -62,7 +79,10 @@ impl Host for HeadlessHost {
             return;
         }
         match timeout {
-            Some(t) => std::thread::sleep(t),
+            // (until the timeout, or a waker's call: work from another
+            // thread — a Studio session's program said something — wants
+            // the loop's turn now; an early turn only loops once more)
+            Some(t) => std::thread::park_timeout(t),
             None => {
                 // (no user can ever come: only a test's script or a timer would)
                 eprintln!("[rapidr] headless host: the program waits for input and nothing is scheduled (no timer, no test step)");
@@ -80,7 +100,7 @@ impl Host for HeadlessHost {
     }
 
     fn waker(&self) -> Waker {
-        Waker::noop().clone()
+        Waker::from(Arc::new(Unpark(self.pumper.clone())))
     }
 
     fn headless(&self) -> bool {
