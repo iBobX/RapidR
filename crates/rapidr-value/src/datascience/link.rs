@@ -1114,14 +1114,53 @@ pub fn grid_title_click(id: &str, col: usize) {
 pub fn sync() -> Vec<Update> {
     if !DIRTY.with(Cell::get) || !active() {
         DIRTY.with(|d| d.set(false));
-        return with(|s| std::mem::take(&mut s.out));
+        return take_out(None);
     }
+    sync_scope(None);
+    DIRTY.with(|d| d.set(false));
+    take_out(None)
+}
+
+/// Whether component `id` is in a sync's scope: a program's (`None`: no
+/// design surface's `surface:` names) or design surface `prefix`'s.
+fn in_scope(id: &str, prefix: Option<&str>) -> bool {
+    match prefix {
+        None => !id.contains(':'),
+        Some(p) => id.starts_with(p),
+    }
+}
+
+/// The queued updates of a scope; a program's sync drops the designer's
+/// (its events and messages are the designer's to ignore).
+fn take_out(prefix: Option<&str>) -> Vec<Update> {
+    with(|s| {
+        let surfaces: Vec<String> = s.design.keys().map(|k| format!("{k}:")).collect();
+        let designers = |text: &str| surfaces.iter().any(|p| text.contains(p.as_str()));
+        let (mine, rest): (Vec<Update>, Vec<Update>) = std::mem::take(&mut s.out).into_iter().partition(|u| match u {
+            Update::Set(id, ..) | Update::Redraw(id) | Update::Fire(id, ..) => in_scope(id, prefix),
+            Update::Warn(w) => match prefix {
+                None => !designers(w),
+                Some(p) => w.contains(p),
+            },
+        });
+        // (a program's sync: the designer's leftovers go; a designer's:
+        // the program's stay for it)
+        if prefix.is_some() {
+            s.out = rest;
+        }
+        mine
+    })
+}
+
+/// Sync for one scope (see [`in_scope`]): its data sets current, its
+/// cursors kept inside, its bound controls' and grids' updates queued.
+fn sync_scope(prefix: Option<&str>) {
     // (every data set a link names, made current)
     let (frames, dsrcs, bound, grids) = with(|s| {
-        let frames: Vec<String> = s.pulls.keys().cloned().collect();
-        let dsrcs: Vec<String> = s.dsrc.keys().cloned().collect();
-        let bound: Vec<(String, Bound)> = s.bound.iter().filter(|(_, b)| !b.source.is_empty() && !b.field.is_empty()).map(|(k, b)| (k.clone(), b.clone())).collect();
-        let grids: Vec<String> = s.grids.keys().cloned().collect();
+        let frames: Vec<String> = s.pulls.keys().filter(|k| in_scope(k, prefix)).cloned().collect();
+        let dsrcs: Vec<String> = s.dsrc.keys().filter(|k| in_scope(k, prefix)).cloned().collect();
+        let bound: Vec<(String, Bound)> = s.bound.iter().filter(|(k, b)| in_scope(k, prefix) && !b.source.is_empty() && !b.field.is_empty()).map(|(k, b)| (k.clone(), b.clone())).collect();
+        let grids: Vec<String> = s.grids.keys().filter(|k| in_scope(k, prefix)).cloned().collect();
         (frames, dsrcs, bound, grids)
     });
     for f in &frames {
@@ -1178,8 +1217,6 @@ pub fn sync() -> Vec<Update> {
             queue(Update::Redraw(id.clone()));
         }
     }
-    DIRTY.with(|d| d.set(false));
-    with(|s| std::mem::take(&mut s.out))
 }
 
 // ---------------------------------------------------------------------------
@@ -1214,34 +1251,65 @@ pub fn design_begin(surface: &str, folder: &str) {
     }
 }
 
+/// Design surface `surface`'s designed form, its data side made from the
+/// form's CREATE blocks (after [`design_begin`]): its data sets (RCSV,
+/// RJson, RDataFrame, RDataSource) and the links of its grids and bound
+/// controls, as the designer reads them — the kernel's designer view
+/// calls it as it builds the form, the inspector before it lists a
+/// DataField's columns (so they're there before anything is drawn).
+pub fn design_build(surface: &str, folder: &str, design: &crate::designer::FormDesign) {
+    use crate::designer::value::PropValue;
+    use crate::designer::Item;
+    design_begin(surface, folder);
+    let surface = key(surface);
+    for id in design.ids() {
+        let Some(n) = design.node(id) else { continue };
+        let ty = n.canonical.clone();
+        if !matches!(ty.as_str(), "RCSV" | "RJSON" | "RDATAFRAME" | "RDATASOURCE" | "RDBGRID" | "REDIT" | "RLABEL") {
+            continue;
+        }
+        let k = format!("{surface}:{}", n.name.to_lowercase());
+        create(&k, &ty);
+        for item in &n.body {
+            let Item::Prop(p) = item else { continue };
+            let prop = crate::designer::model::prop_key(&p.name);
+            let v = match design.read_value(&p.value) {
+                PropValue::Number(f) if f.fract() == 0.0 && f.abs() < 9.0e15 => Some(v_int(f as i64)),
+                PropValue::Number(f) => Some(Value::Double(f)),
+                PropValue::Str(s) => Some(v_str(&s)),
+                _ => design_ref(&prop, &p.value),
+            };
+            if let Some(v) = v {
+                set(&k, &prop, &v);
+            }
+        }
+    }
+}
+
+/// A link property's value written as a component's name (`DataSource =
+/// People`): the name.
+pub fn design_ref(prop: &str, text: &str) -> Option<Value> {
+    let t = text.trim();
+    let name = !t.is_empty() && t.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') && t.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_');
+    (matches!(prop, "datasource" | "dataset" | "source") && name).then(|| v_str(t))
+}
+
 /// The designed form's links worked out (after [`design_begin`] and the
 /// components' properties): what its bound controls show, as
 /// (component, property, value); events and redraws are the designer's
 /// to ignore, messages are returned for its banner.
 pub fn design_sync(surface: &str) -> (Vec<(String, String, Value)>, Vec<String>) {
     let prefix = format!("{}:", key(surface));
+    sync_scope(Some(&prefix));
     let mut sets = Vec::new();
     let mut warnings = Vec::new();
-    let mut keep = Vec::new();
-    for u in sync() {
+    for u in take_out(Some(&prefix)) {
         match u {
-            Update::Set(id, p, v) if id.starts_with(&prefix) => sets.push((id, p, v)),
-            Update::Warn(w) if w.contains(&prefix) => warnings.push(w.replace(&prefix, "")),
-            Update::Set(..) | Update::Redraw(..) | Update::Fire(..) | Update::Warn(..) => {
-                // (a running program's, sharing the thread: kept for it)
-                let mine = match &u {
-                    Update::Redraw(i) | Update::Fire(i, ..) => i.starts_with(&prefix),
-                    _ => false,
-                };
-                if !mine {
-                    keep.push(u);
-                }
-            }
+            Update::Set(id, p, v) => sets.push((id, p, v)),
+            Update::Warn(w) => warnings.push(w.replace(&prefix, "")),
+            // (the designer runs no events; it draws again anyway)
+            Update::Redraw(..) | Update::Fire(..) => {}
         }
-    }
-    if !keep.is_empty() {
-        with(|s| s.out.extend(keep));
-        mark();
     }
     (sets, warnings)
 }

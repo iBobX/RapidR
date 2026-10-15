@@ -495,6 +495,12 @@ export const cases = [
   // the current row stays amy, now shown fifth), "x" typed into the edit
   // (written back into the table: the grid shows it); a missing age shows
   // dimmed as null.
+  // (I7) The inspector's DataField drops the columns the designer read
+  // (name, age, city): NameEdit selected on the surface, the DataField row
+  // (Down twice, under its category), F4, Down, Enter — "age".
+  { name: "inspector_datafield", events: "insp.__key_40,insp.__key_40,insp.__key_115,insp.__key_40,insp.__key_13,breport.onclick",
+    dump: "log.caption",
+    expect: ["log.caption=DataField=age | [REDIT age]"] },
   { name: "rdbgrid", events: "grid.__cell_0_1,grid.__cell_1_-1,grid.__cell_1_-1,nameedit.__key_88",
     dump: "nameedit.text,agelbl.caption,grid.row,grid.sortcolumn,grid.sortdescending,info.caption",
     expect: ["nameedit.text=x", "agelbl.caption=25", "grid.row=1", "grid.sortcolumn=1", "grid.sortdescending=1", "info.caption=clicked 1,0 of 5"] },
