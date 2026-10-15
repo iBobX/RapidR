@@ -11,6 +11,9 @@
 # RapidR by default". -Native runs `rapidr setup --yes` (RapidR's exact gnullvm toolchain,
 # installed into a throwaway RUSTUP_HOME / CARGO_HOME: the VM user's Rust is checked unchanged) and builds programs natively with the LLVM-MinGW the SDK ships:
 # conformance cases from -Cases (their output checked) and a GUI fixture.
+# What it makes — the temporary folder %TEMP%\rapidr-smoke-*, its cargo and rustup homes, the build
+# cache (RAPIDR_BUILD_CACHE, inside it) and the install — is removed at the end, even when a check
+# failed. If the job is killed, `windows-vm.sh clean` removes the rest, registrations included.
 param(
     [Parameter(Mandatory = $true)][string]$Installer,
     [switch]$Associations,
@@ -24,6 +27,9 @@ $ProgressPreference = "SilentlyContinue"
 $T = Join-Path $env:TEMP ("rapidr-smoke-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
 New-Item -ItemType Directory -Force "$T\work", "$T\prints" | Out-Null
 $env:RAPIDR_PRINT_TO = "$T\prints"; $env:RAPIDR_REGISTRY = "$T\registry.reg"; $env:RAPIDR_CONFIG_DIR = "$T\config"
+# (the build cache inside $T too: by default it is %LOCALAPPDATA%\RapidR\Cache, ~3 GB per run that
+# stayed in the user's profile until the disk was full; smoke.sh does the same)
+$env:RAPIDR_BUILD_CACHE = "$T\build-cache"
 $script:fail = 0
 # (an error the script didn't expect counts as a failure, and the rest still runs: the uninstall
 # and the clean-up, so a failed run leaves no install, file types or toolchain behind)
@@ -35,6 +41,22 @@ function Check($what, [scriptblock]$test) {
 }
 function Out-Of($exe, [string[]]$a) { (& $exe @a 2>&1 | Out-String) }
 
+# Everything this run made is removed at the end, whatever happened (the try/finally below; the
+# body isn't indented): the install if the uninstall check never ran, the programs still running
+# from it, the temporary folder with its cargo and rustup homes, build cache and test apps.
+# (Killed from outside — windows-vm.sh stop — nothing runs: windows-vm.sh clean finds the rest.)
+function Clean-Up {
+    Set-Location $env:SystemRoot
+    if (Test-Path "$T\app\unins000.exe") {
+        Start-Process -Wait -FilePath "$T\app\unins000.exe" -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART")
+        Start-Sleep -Seconds 2
+    }
+    Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path -like "$T\*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+    cmd /c "rmdir /s /q `"$T`" 2>nul" | Out-Null
+    if (Test-Path $T) { Remove-Item -Recurse -Force $T -ErrorAction SilentlyContinue }
+}
+
+try {
 Write-Host "== install $(Split-Path -Leaf $Installer) into $T\app"
 $pathBefore = [Environment]::GetEnvironmentVariable("Path", "User")
 $tasks = if ($Associations) { "/TASKS=basdefault" } else { "/TASKS=" }
@@ -174,5 +196,8 @@ Check "files removed" { -not (Test-Path "$T\app\bin\rapidr.exe") -and -not (Test
 Check "the Start menu entry is gone" { -not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\RapidR Studio.lnk") }
 Check "file types removed" { -not (Test-Path "HKCU:\Software\Classes\RapidR.Project") -and -not (Test-Path "HKCU:\Software\Classes\RapidR.Program") -and -not (Test-Path "HKCU:\Software\Classes\RapidR.Source") -and -not (Test-Path "HKCU:\Software\Classes\RapidR.BasicSource") -and ((Get-ItemProperty "HKCU:\Software\Classes\.rrbc" -ErrorAction SilentlyContinue)."(default)" -ne "RapidR.Program") }
 Check "PATH as before" { [Environment]::GetEnvironmentVariable("Path", "User") -eq $pathBefore }
-Remove-Item -Recurse -Force $T -ErrorAction SilentlyContinue
+} finally {
+    Clean-Up
+}
+Check "the temporary folder and build cache are gone" { -not (Test-Path $T) }
 if ($script:fail) { Write-Host "== smoke test FAILED"; exit 1 } else { Write-Host "== smoke test passed"; exit 0 }
