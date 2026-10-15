@@ -49,6 +49,10 @@ export const scenes = [
   // the example in the designer: it reads staff.csv itself — the grid,
   // edits and labels show it
   { name: "linked-designer", open: "examples/data/linked_data.rr", delay: 6, crop: [245, 96, 790, 470] },
+  // …and in RapidR Studio on the web: the same designer, staff.csv one of
+  // the page's files
+  { name: "linked-designer-web", host: "web", open: "examples/data/linked_data.rr",
+    webFiles: ["examples/data/linked_data.rr", "examples/data/staff.csv"], delay: 8, crop: [0, 0, 1234, 771] },
   // …running: Diana's row current, the grid sorted by Salary, highest first
   { name: "linked-running", program: "examples/data/linked_data.rr", delay: 3,
     env: { RAPIDR_TEST_EVENTS: "grid.__cell_1_2,nextbtn.onclick,grid.__cell_2_-1,grid.__cell_2_-1" } },

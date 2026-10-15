@@ -65,7 +65,10 @@ Form.ShowModal
 ```
 
 At design time the designer reads only files inside your project (next to
-the program), never writes, and shows up to a million rows.
+the program), never writes, and shows up to a million rows. RapidR Studio
+on the web does the same, with the project's files in the page:
+
+![The same example in RapidR Studio on the web: the designer shows staff.csv's rows in the grid and Alice's values in the edits and labels; the project tree lists staff.csv under Data, the Outline Staff: RCSV, Team: RDataFrame, Cursor: RDataSource](images/data/linked-designer-web.png)
 
 ## 2. Run it: the current row
 
