@@ -236,6 +236,41 @@ fn describe_is_answered_beside_a_model() {
     assert_eq!(pw["secret"], true);
 }
 
+/// docs/ai-architecture.md §3.8's budgets, measured on a form of 1,000
+/// buttons: `cargo test -p rapidr-introspect --features design --release
+/// -- --ignored budgets --nocapture` (checked in release builds only).
+#[test]
+#[ignore]
+fn budgets() {
+    use std::time::Instant;
+    let mut src = String::from("CREATE Form1 AS RForm\n");
+    for i in 1..=1000 {
+        src.push_str(&format!("    CREATE B{i} AS RButton\n        Caption = \"B{i}\"\n        Left = {}: Top = {}\n    END CREATE\n", i % 40 * 20, i / 40 * 20));
+    }
+    src.push_str("END CREATE\n");
+    let t = Instant::now();
+    let m = DesignModel::in_memory(&[("many.rr", &src)]);
+    let open = t.elapsed();
+    let t = Instant::now();
+    let all = m.list(&ListQuery { limit: Some(1000), ..ListQuery::default() }).unwrap();
+    let list = t.elapsed();
+    assert_eq!(all.total, 1001);
+    let t = Instant::now();
+    let g = m.get("B500", None).unwrap();
+    let get = t.elapsed();
+    assert!(g.values.iter().any(|v| v.name == "Caption" && v.value == "B500"));
+    let t = Instant::now();
+    let d = handle_json(None, r#"{"op":"describe","type":"RStringGrid"}"#);
+    let describe = t.elapsed();
+    assert!(d.starts_with(r#"{"ok":true"#));
+    println!("open {open:?} (the designer's parse), list 1,000 {list:?}, get {get:?}, describe {describe:?}");
+    if !cfg!(debug_assertions) {
+        assert!(list.as_millis() < 5, "list {list:?}");
+        assert!(get.as_millis() < 1, "get {get:?}");
+        assert!(describe.as_millis() < 1, "describe {describe:?}");
+    }
+}
+
 #[test]
 fn files_on_disk_stay_inside_their_root() {
     let dir = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("introspect-{}", std::process::id()));

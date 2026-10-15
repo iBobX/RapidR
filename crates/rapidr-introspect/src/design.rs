@@ -28,6 +28,16 @@ struct DesignFile {
     /// As the project names it (`main.rr`, `forms/settings.inc`).
     path: String,
     doc: Document,
+    /// Where each line after the first starts (byte offsets): lines by
+    /// binary search, not by counting (`list` of 1,000 components).
+    line_starts: Vec<usize>,
+}
+
+impl DesignFile {
+    fn new(path: String, doc: Document) -> DesignFile {
+        let line_starts = doc.text().match_indices('\n').map(|(i, _)| i + 1).collect();
+        DesignFile { path, doc, line_starts }
+    }
 }
 
 /// Where a component is: file, form, node.
@@ -52,7 +62,7 @@ impl DesignModel {
             confine_to: Some(Vec::new()),
             ..PreprocessOptions::default()
         };
-        DesignModel { files: files.iter().map(|(p, t)| DesignFile { path: p.to_string(), doc: Document::open(t, Some(Path::new(p)), options.clone()) }).collect() }
+        DesignModel { files: files.iter().map(|(p, t)| DesignFile::new(p.to_string(), Document::open(t, Some(Path::new(p)), options.clone()))).collect() }
     }
 
     /// A model of files on disk, every one inside `root` (and their
@@ -68,7 +78,7 @@ impl DesignModel {
             }
             let bytes = std::fs::read(&full).map_err(|e| format!("{}: {e}", f.display()))?;
             let shown = full.strip_prefix(root).unwrap_or(&full).to_string_lossy().replace('\\', "/");
-            out.push(DesignFile { path: shown, doc: Document::open_bytes(&bytes, Some(&full), options.clone()) });
+            out.push(DesignFile::new(shown, Document::open_bytes(&bytes, Some(&full), options.clone())));
         }
         Ok(DesignModel { files: out })
     }
@@ -171,8 +181,9 @@ impl DesignModel {
 
     /// The 1-based line of a byte offset in a file.
     fn line(&self, file: usize, offset: usize) -> u32 {
-        let text = self.files[file].doc.text();
-        (text[..offset.min(text.len())].matches('\n').count() + 1) as u32
+        // (the lines starting at or before it: the first line, plus each
+        // line start ≤ offset)
+        (self.files[file].line_starts.partition_point(|&s| s <= offset) + 1) as u32
     }
 
     /// The line of a component's CREATE.
