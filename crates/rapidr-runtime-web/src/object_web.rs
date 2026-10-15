@@ -359,10 +359,21 @@ pub(crate) fn web_write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
+/// What the names of the files in folder `folder` start with: `folder/`,
+/// nothing for the store's top ("": the files picked on their own).
+fn folder_prefix(folder: &str) -> String {
+    let f = folder.trim_end_matches('/').replace('\\', "/");
+    if f.is_empty() {
+        String::new()
+    } else {
+        format!("{f}/")
+    }
+}
+
 /// The names in the page's store under folder `folder` (directly in it):
 /// RPROJECT.OpenFolder's look at a folder picked on the web.
 pub fn stored_names_in(folder: &str) -> Vec<String> {
-    let prefix = format!("{}/", folder.trim_end_matches('/').replace('\\', "/"));
+    let prefix = folder_prefix(folder);
     let lower = prefix.to_lowercase();
     SAVED_FILES.with(|f| {
         let mut names: Vec<String> = f
@@ -381,7 +392,7 @@ pub fn stored_names_in(folder: &str) -> Vec<String> {
 /// (paths relative to it): RPROJECT.ImportRapidQ's look at a folder picked
 /// on the web.
 pub fn stored_names_under(folder: &str) -> Vec<String> {
-    let prefix = format!("{}/", folder.trim_end_matches('/').replace('\\', "/"));
+    let prefix = folder_prefix(folder);
     let lower = prefix.to_lowercase();
     SAVED_FILES.with(|f| {
         let mut names: Vec<String> = f.borrow().keys().filter(|k| k.to_lowercase().starts_with(&lower)).map(|k| k[prefix.len()..].to_string()).filter(|rest| !rest.is_empty()).collect();

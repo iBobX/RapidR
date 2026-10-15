@@ -26,4 +26,18 @@ export const scenes = [
       return { do: `import:${join(work, "greeter", "greeter.rqw")},wait,file.close,wait,view.designer,pick:HelloBtn` };
     },
   },
+  // (IMPORT-INC) "Include files": Tools > Settings' include folders (a
+  // folder as a RapidQ user's would be), and RapidR's own Shapes example
+  // (examples/rapidq/shapes: includes in lib/ and forms/) imported — its
+  // includes in the copy's project, the report's Include files table.
+  { topic: "import", name: "include-settings", do: "includes:/Users/you/RapidQ/include,wait,view.settings", window: 2, delay: 5 },
+  {
+    topic: "import",
+    name: "import-includes",
+    delay: 8,
+    setup(work, root) {
+      cpSync(join(root, "examples", "rapidq", "shapes"), join(work, "shapes"), { recursive: true });
+      return { do: `import:${join(work, "shapes", "shapes.bas")},wait,anchor:include-files` };
+    },
+  },
 ];

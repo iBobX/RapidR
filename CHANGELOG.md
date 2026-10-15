@@ -7,6 +7,44 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### RapidQ include files found everywhere, imported with the program (IMPORT-INC)
+- **`$INCLUDE` finds files as RapidQ does, on every system.** Checked against RapidQ's own compiler:
+  every `$INCLUDE` — a nested one too — is looked for in the program's folder (where RapidQ
+  compiles), then in the include folders, in order. RapidR then also looks beside the including
+  file and above an include folder. Names match in any case, with `\` or `/`: `"Lib\MyLib.INC"`
+  finds `lib/mylib.inc` on macOS and Linux. A Windows path from another computer
+  (`C:\rapidq\include\x.inc`, `\RapidQ\include\x.inc`) is found by its ending, and on Windows an
+  absolute path is read as it is. The compiler, the language service (go to an include too),
+  RapidR Studio's project and the importer use this one search. Files are named as on disk
+  (`lib/mylib.inc`, not as the line wrote it). An include that isn't found says what to do.
+- **Include folders**: RapidR Studio's **Tools > Settings…** (Include folders: Add Folder…,
+  Remove), kept per user and used for Open, the problems, Run, Build and Import (the programs Studio
+  runs and builds get them too). On the command line: `--include-dir <folder>` on any command
+  (before a program's own arguments), and `RAPIDR_INCLUDE_PATH`. The palette's View commands are a
+  button away in Settings ("Themes and Views…").
+- **Import copies every include** (`rapidr import-rapidq`, File > Import RapidQ Project or File…):
+  however deep, names converted. The program's own keep their folders; an include folder's go into
+  the copy's folder as they were there (`GL\QGL.INC` → `GL/QGL.INC`). A line that would find the
+  original instead of the copy (`..\shared\x.inc`, a `C:\` path) is changed to name the copy. The
+  copy compiles on its own, and the proof now also checks that it reads its own files.
+  RAPIDQ.INC and the other includes RapidR has built in (`QMidi.inc` … `QDockForm.inc`) are never
+  copied, a user's own copy of one neither (the report says so, and when the program uses
+  something only that file has, which folder to keep). The report's new **Include files** table
+  lists each `$INCLUDE`, where it was found and its copy. **A missing include is never passed
+  over**: listed under *Not found* with what to do, in Studio's Output (the status line red), and
+  printed by `rapidr import-rapidq` (exit code 1).
+- Opening a `.bas` in Studio lists its includes in the project tree as the compiler finds them (in
+  any case, a nested one from the program's folder). On the web, File > Import RapidQ Project or
+  File… takes several files at once — the program and its includes — and an imported folder brings
+  its subfolders' includes.
+- `rapidr examples copy` copies an example's include files with it.
+- RapidQ's 428-program corpus imported whole: 341 programs compile to identical bytecode (0
+  different, 0 copies failing; the rest don't compile in RapidR yet), 129 include files copied,
+  27 not found (named in the report); the include search reads every corpus program as before.
+- New example: `examples/rapidq/shapes` — a RapidQ program whose library and window are in `lib/`
+  and `forms/` (RapidQ's compiler builds it too). Manual: importing-rapidq.md "Include files";
+  cli-and-runtime.md (`--include-dir`).
+
 ## [2.118.0] — 2026-10-09 (Preview)
 
 ### Triage of the full regression run (TRIAGE)

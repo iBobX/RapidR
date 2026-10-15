@@ -9,8 +9,8 @@ use std::process::ExitCode;
 use rapidr_import::{diff, report, Options, Verification};
 
 fn usage() -> ExitCode {
-    eprintln!("usage: rapidr import-rapidq <file.bas|.rqw|.rqb|.rq|.inc | folder | project.rrproj> [OUT_DIR | -o OUT_DIR] [--include DIR]… [--no-verify]");
-    eprintln!("       rapidr upgrade-names <file> [--dry-run] [--include DIR]…");
+    eprintln!("usage: rapidr import-rapidq <file.bas|.rqw|.rqb|.rq|.inc | folder | project.rrproj> [OUT_DIR | -o OUT_DIR] [--include-dir DIR]… [--no-verify]");
+    eprintln!("       rapidr upgrade-names <file> [--dry-run] [--include-dir DIR]…");
     ExitCode::from(2)
 }
 
@@ -31,7 +31,7 @@ fn args(rest: &[String]) -> Args {
     while let Some(x) = it.next() {
         match x.as_str() {
             "-o" | "--output" => a.out = it.next().cloned(),
-            "--include" | "-I" => match it.next() {
+            "--include" | "--include-dir" | "-I" => match it.next() {
                 Some(d) => a.includes.push(PathBuf::from(d)),
                 None => a.bad = true,
             },
@@ -72,9 +72,23 @@ pub fn import_rapidq(rest: &[String]) -> ExitCode {
     println!("{}", report::summary(&r));
     println!("copy: {}", r.out_dir.display());
     println!("report: {}", report_path.display());
+    // (an include found nowhere is never passed over: each one, and what to do)
+    let mut said: Vec<String> = Vec::new();
+    for m in r.missing() {
+        let at = format!("{}:{}", m.from.display(), m.line);
+        if said.contains(&at) {
+            continue;
+        }
+        eprintln!("{at}: include file not found: {} — {}", m.written, rapidr_import::missing_fix(&m.written));
+        said.push(at);
+    }
     let bad = r.count(|v| matches!(v, Verification::Differs | Verification::CopyFails(_)));
     if bad > 0 {
         eprintln!("import-rapidq: {bad} program(s) don't compile as their original: see the report");
+        return ExitCode::from(1);
+    }
+    if !said.is_empty() {
+        eprintln!("import-rapidq: {} include file(s) not found: the copy is made without them (see the report)", said.len());
         return ExitCode::from(1);
     }
     ExitCode::SUCCESS

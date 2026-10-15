@@ -9,6 +9,7 @@ use rapidr_parser::ToolsParse;
 use rapidr_preprocessor::{FileId, LineKind, PreprocessOptions, SourceEncoding};
 
 use crate::files::Files;
+use crate::includes::{place_of, IncludeRef, Place};
 
 /// How a program is read.
 #[derive(Debug, Clone)]
@@ -64,8 +65,10 @@ pub struct FilePlan {
     /// Sorted, not overlapping.
     pub edits: Vec<Edit>,
     pub changes: Vec<Change>,
-    /// RapidQ's `RAPIDQ.INC` (found as a file).
-    pub is_rapidq_inc: bool,
+    /// A file of a name RapidR supplies built in (RapidQ's `RAPIDQ.INC`,
+    /// `QMidi.inc` …: [`rapidr_preprocessor::is_builtin_include`]): the
+    /// user's own copy, read but never carried into the copy.
+    pub builtin: bool,
     /// How many of its type names name a component RapidQ has by RapidQ's
     /// name (`QBUTTON`) and by RapidR's (`RButton`): its [`NameStyle`].
     pub rapidq_names: usize,
@@ -102,9 +105,12 @@ pub struct ProgramPlan {
     pub notes: Vec<Note>,
     /// The files its `$RESOURCE`s (and `$OPTION ICON`) name, found.
     pub resources: Vec<PathBuf>,
-    /// Whether RapidQ's RAPIDQ.INC file (when the program reads one) must
-    /// go into the copy, and why ([`crate::rapidq_inc`]).
-    pub carry_rapidq_inc: Option<String>,
+    /// Every `$INCLUDE` it follows, and where each found its file.
+    pub includes: Vec<IncludeRef>,
+    /// What the program uses of its RAPIDQ.INC file that RapidR's built-in
+    /// RAPIDQ.INC doesn't give ([`crate::rapidq_inc`]): the copy needs that
+    /// file found (an include folder) — it isn't copied.
+    pub own_rapidq_inc: Option<String>,
     /// The parser's and preprocessor's errors (the program may not compile).
     pub errors: usize,
 }
@@ -194,8 +200,8 @@ pub(crate) fn plan_parsed(fs: &dyn Files, entry: &Path, tp: &ToolsParse, options
             if is_builtin(&path) {
                 return None;
             }
-            let is_rapidq_inc = is_rapidq_inc_name(&path.to_string_lossy());
-            Some(FilePlan { path, text: f.text.clone(), encoding: f.encoding, edits: Vec::new(), changes: Vec::new(), is_rapidq_inc, rapidq_names: 0, rapidr_names: 0 })
+            let builtin = rapidr_preprocessor::is_builtin_include(&path.to_string_lossy());
+            Some(FilePlan { path, text: f.text.clone(), encoding: f.encoding, edits: Vec::new(), changes: Vec::new(), builtin, rapidq_names: 0, rapidr_names: 0 })
         })
         .collect();
     let mut notes = Vec::new();
@@ -213,7 +219,7 @@ pub(crate) fn plan_parsed(fs: &dyn Files, entry: &Path, tp: &ToolsParse, options
         let Some(loc) = tp.locate(*span) else { continue };
         let file = &files[loc.file];
         let Some(plan) = plans[loc.file].as_mut() else { continue };
-        if plan.is_rapidq_inc {
+        if plan.builtin {
             continue;
         }
         let src = &file.text[loc.start..loc.end];
@@ -237,16 +243,40 @@ pub(crate) fn plan_parsed(fs: &dyn Files, entry: &Path, tp: &ToolsParse, options
         plan.changes.push(Change { line, column, from: src.to_string(), to });
     }
 
-    // (an `$INCLUDE` not found: its file isn't in the copy)
+    // (the preprocessor's errors but an `$INCLUDE` not found: the report
+    // lists those with the program's includes)
     for (loc, d) in tp.diagnostic_locations().into_iter().take(tp.preprocessor_diagnostics) {
+        if d.message.starts_with("Include file not found") {
+            continue;
+        }
         let line = loc.as_ref().map_or(0, |l| l.line);
         note(&mut notes, loc.map(|l| l.file), line, d.message.clone());
+    }
+
+    // Each `$INCLUDE`, and where it found its file (the compiler's places).
+    let main_dir = entry.parent().map(Path::to_path_buf).unwrap_or_default();
+    let mut dirs = options.include_dirs.clone();
+    for d in rapidr_preprocessor::configured_include_dirs() {
+        if !dirs.contains(&d) {
+            dirs.push(d);
+        }
+    }
+    let mut includes: Vec<IncludeRef> = Vec::new();
+    for u in &tp.preprocessed.includes {
+        let Some(from) = files.get(u.file).and_then(|f| f.path.clone()).filter(|p| !is_builtin(p)) else { continue };
+        let includer_dir = from.parent().map(Path::to_path_buf).unwrap_or_default();
+        let (file, place) = match &u.found {
+            rapidr_preprocessor::IncludeFound::File(p) => (Some(p.clone()), place_of(&u.written, &includer_dir, &main_dir, &dirs, p)),
+            rapidr_preprocessor::IncludeFound::BuiltIn => (None, Place::BuiltIn),
+            rapidr_preprocessor::IncludeFound::Missing => (None, Place::Missing),
+        };
+        includes.push(IncludeRef { from, line: u.line, written: u.written.clone(), span: u.span.clone(), file, place });
     }
 
     // What the parse didn't see: `$IFDEF` branches left out of this build,
     // `$DEFINE`s that name a component.
     for (fid, f) in files.iter().enumerate() {
-        if plans[fid].as_ref().is_none_or(|p| p.is_rapidq_inc) {
+        if plans[fid].as_ref().is_none_or(|p| p.builtin) {
             continue;
         }
         for (i, (line, kind)) in f.text.split('\n').zip(f.lines.iter()).enumerate() {
@@ -286,8 +316,8 @@ pub(crate) fn plan_parsed(fs: &dyn Files, entry: &Path, tp: &ToolsParse, options
 
     let resources = tp.preprocessed.resources.iter().filter_map(|r| r.path.clone()).collect();
     let errors = tp.diagnostics.iter().filter(|d| d.severity == rapidr_diagnostics::Severity::Error).count();
-    let carry_rapidq_inc = crate::rapidq_inc::must_carry(tp, &out);
-    let mut plan = ProgramPlan { entry: entry.to_path_buf(), files: out, notes, resources, carry_rapidq_inc, errors };
+    let own_rapidq_inc = crate::rapidq_inc::own_needed(tp);
+    let mut plan = ProgramPlan { entry: entry.to_path_buf(), files: out, notes, resources, includes, own_rapidq_inc, errors };
     crate::rapidq_inc::note_include_lines(&mut plan);
     plan
 }

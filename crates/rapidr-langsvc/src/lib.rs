@@ -424,9 +424,7 @@ impl Analysis {
         let confine_to = self.options.roots.as_ref().map(|roots| {
             let mut all = roots.clone();
             all.extend(self.options.include_dirs.iter().cloned());
-            if let Some(paths) = std::env::var_os("RAPIDR_INCLUDE_PATH") {
-                all.extend(std::env::split_paths(&paths));
-            }
+            all.extend(rapidr_preprocessor::configured_include_dirs());
             all
         });
         rapidr_preprocessor::PreprocessOptions { include_dirs: self.options.include_dirs.clone(), confine_to, ..Default::default() }

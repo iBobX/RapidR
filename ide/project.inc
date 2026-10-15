@@ -97,10 +97,30 @@ END SUB
 ' its original; the original is only read. The copy opens as a project,
 ' its report (what changed, line by line, and the proof) beside the code.
 SUB AskImportRapidQ
-  OpenDlg.Caption = "Import RapidQ Project or File"
-  OpenDlg.Filter = "RapidQ programs (*.bas;*.rqw;*.rqb;*.rq;*.inc)|*.bas;*.rqw;*.rqb;*.rq;*.inc|RapidR projects (*.rrproj)|*.rrproj|All files|*.*"
-  IF OpenDlg.Execute THEN ImportRapidQ OpenDlg.FileName
+  DIM i AS INTEGER, f AS STRING, pick AS STRING
+  ImportDlg.Caption = "Import RapidQ Project or File"
+  ImportDlg.Filter = "RapidQ programs (*.bas;*.rqw;*.rqb;*.rq;*.inc)|*.bas;*.rqw;*.rqb;*.rq;*.inc|RapidR projects (*.rrproj)|*.rrproj|All files|*.*"
+  ImportDlg.Mode = 0
+  ImportDlg.MultiSelect = 1
+  IF ImportDlg.Execute = 0 THEN EXIT SUB
+  ' (the program among the files picked — its includes come with it: in a
+  ' browser they are read in together, found by their names)
+  ' (RapidQ's way: Files(0) is their folder, Files(1) … their names)
+  pick = ImportDlg.FileName
+  FOR i = 1 TO ImportDlg.SelCount
+    f = ImportDlg.Files(i)
+    IF ImportDlg.Files(0) <> "" THEN f = ImportDlg.Files(0) + "/" + f
+    IF IsProgramFile(f) AND IsProgramFile(pick) = 0 THEN pick = f
+  NEXT
+  ImportRapidQ pick
 END SUB
+
+' (a program to run, not a file it includes: .bas .rqw .rqb .rq .rr .rrproj)
+FUNCTION IsProgramFile(Path AS STRING) AS INTEGER
+  DIM e AS STRING
+  e = LCASE$(MID$(Path, RINSTR(Path, ".") + 1))
+  Result = (e = "bas" OR e = "rqw" OR e = "rqb" OR e = "rq" OR e = "rr" OR e = "rrproj")
+END FUNCTION
 
 SUB AskImportRapidQFolder
   DIM f AS STRING
@@ -112,8 +132,8 @@ SUB AskImportRapidQFolder
 END SUB
 
 SUB ImportRapidQ(Source AS STRING)
-  DIM made AS STRING, report AS STRING, summary AS STRING
-  OutputLine "Importing " + Source + ": a copy with RapidR's names (the original is only read)"
+  DIM made AS STRING, report AS STRING, summary AS STRING, missing AS STRING, row AS STRING, n AS INTEGER, i AS INTEGER
+  OutputLine "Importing " + Source + ": a copy with RapidR's names and every file it includes (the original is only read)"
   made = Proj.ImportRapidQ(Source)
   IF made = "" THEN
     OutputLine "Can't import " + Source + ": " + Proj.Error
@@ -122,11 +142,23 @@ SUB ImportRapidQ(Source AS STRING)
   END IF
   summary = Proj.ImportSummary
   report = Proj.ImportReport
+  missing = Proj.ImportMissing
   OutputLine summary
+  ' (an include found nowhere is never passed over: each one, what to do)
+  n = 0
+  IF missing <> "" THEN n = TALLY(missing, CHR$(10)) + 1
+  FOR i = 1 TO n
+    row = FIELD$(missing, CHR$(10), i)
+    OutputLine FIELD$(row, CHR$(9), 1) + ": include file not found: " + FIELD$(row, CHR$(9), 2) + " - " + FIELD$(row, CHR$(9), 3)
+  NEXT
   OutputLine "The copy: " + made
   OpenProject made
   OpenDocument report
-  SetState "stopped", "Imported " + FileTitle(Source) + " as a copy with RapidR's names"
+  IF n > 0 THEN
+    SetState "error", "Imported " + FileTitle(Source) + ", but " + LTRIM$(STR$(n)) + " include file(s) weren't found: see Output"
+  ELSE
+    SetState "stopped", "Imported " + FileTitle(Source) + " as a copy with RapidR's names"
+  END IF
 END SUB
 
 ' File > New Project: a form program (or a console one) where the user says.
@@ -204,6 +236,8 @@ SUB LoadSettings
     LoadSession
     IF Reg.ValueExists("Recent") THEN RecentList = Reg.ReadString("Recent")
     IF Reg.ValueExists("Folder") THEN DefaultFolder = Reg.ReadString("Folder")
+    ' (Tools > Settings > Include folders: settings.inc)
+    IF Reg.ValueExists("IncludeFolders") THEN Proj.IncludeFolders = Reg.ReadString("IncludeFolders")
     Reg.CloseKey
   END IF
 END SUB
@@ -219,6 +253,7 @@ SUB SaveSettings
   SaveDebugState
   Reg.WriteString("Recent", RecentList)
   Reg.WriteString("Folder", DefaultFolder)
+  Reg.WriteString("IncludeFolders", Proj.IncludeFolders)
   Reg.CloseKey
 END SUB
 

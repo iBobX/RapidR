@@ -53,6 +53,11 @@ impl Host for Desktop {
         if !theme.is_empty() {
             env.push(("RAPIDR_THEME".into(), Some(theme.to_string())));
         }
+        // (Studio's include folders: the program's $INCLUDEs found as in
+        // Studio — Settings > Include folders)
+        if let Some(path) = rapidr_studio::project::include_path_env() {
+            env.push(("RAPIDR_INCLUDE_PATH".into(), Some(path)));
+        }
         rapidr_session::process::ProcessTransport::spawn_with_env(&exe, &full.to_string_lossy(), args, cwd, &env)
             .map(|t| Box::new(t) as Box<dyn Transport>)
             .map_err(|e| format!("{}: {e}", exe.display()))
