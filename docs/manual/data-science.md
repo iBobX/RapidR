@@ -107,9 +107,9 @@ about 12 ms and is filtered, sorted, grouped or joined in 3–10 ms; loading
 it, filtering, sorting and grouping one after another takes about 25 ms
 (ten million rows: about a quarter of a second, where it took four and a
 half seconds before). A web page gets only one
-core, so in a browser the same engine works on one: on one core of the
-same Mac a million rows load in about 70 ms and the four steps together
-take about 0.12 s (a browser's WebAssembly adds its own overhead to that).
+core, so in a browser the same engine works on one: in Chrome on the same
+Mac a million rows load in about 0.15 s, and are filtered in 10 ms,
+sorted in 60 ms and grouped in about 35 ms.
 
 None of this changes what a program reads: a cell still reads back
 exactly as it was written (`"007"` stays `"007"`, `"1.50"` stays
