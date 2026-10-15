@@ -7,6 +7,61 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Rich text in RRichEdit (RICHEDIT)
+- **RRichEdit (RapidQ's QRICHEDIT) is a rich text editor now, on every runtime.** Its text keeps
+  a format per character — font, size, colour, bold, italic, underline, strike-out — and per
+  paragraph (alignment, indents, a bullet), in one shared model (`rapidr_value::objects::richtext`)
+  that native builds, the RapidR Runtime and the browser use alike; the UI kernel draws it as
+  parley's styled runs. RapidQ's rules, settled against RC.EXE in the Windows VM (window probes
+  that format a rich edit and save it as RTF, every step compared byte for byte):
+  - `SelAttributes` sets the selection's format — a whole QFONT, or a member: `Color`, `Name`,
+    `Size`, `Bold`, `Italic`, `Underline`, `StrikeOut`, `Charset`, `AddStyles` / `DelStyles`; at
+    a caret it is the format of what is typed or added there next, kept until the caret moves (so
+    `SelAttributes.Color = …: AddStrings …` colours a log's line, as RapidQ's chat examples do).
+    Reading a member gives the selection's last character's format (the caret's at a caret; an
+    automatic colour reads &H80000008). `SelFont = Font` is its other name.
+  - Typed or inserted text takes the format of the character before it (at a paragraph's start,
+    the one after it); text typed over a selection, the selection's first character's.
+    `Text =` gives the new text the old first character's format; `Clear` leaves the last one's
+    for what is typed next. `Font` reformats text never formatted (all of it while nothing is);
+    `Alignment` aligns the paragraphs without their own and moves the caret to the start, as
+    `WordWrap` and the form's `Center` do (RapidQ makes the control again).
+  - `AddStrings` and `Line(i) =` change the text as RapidQ's Lines do (fixed): a line is added
+    after the last break, or with a break before it when the text doesn't end with one
+    (`"Hello world"` + `AddStrings "added"` is `"Hello world" CR LF "added"`, not one more CR LF),
+    and the caret ends after what was added — for QMEMO too.
+  - `SaveToFile` / `SaveToStream` write RTF while `PlainText` is False — byte for byte what
+    RapidQ's rich edit writes, its closing NUL included — and `LoadFromFile` / `LoadFromStream`
+    read any RTF (font and colour tables, `\'hh`, `\uN`, paragraph formats, bullets; fields,
+    pictures and other destinations skipped); a file that isn't RTF loads as text (up to a NUL).
+    RapidR's own RTF reader and writer (`rtf.rs`): no new dependency.
+- **Editing keeps the formats**: what the user types takes RapidQ's format for it, Ctrl+Z
+  gives back the text and its formats, and text copied from a rich edit pastes into a rich edit
+  with its formats (keys, the context menu, CopyToClipboard / PasteFromClipboard; the clipboard
+  holds the plain text, its RTF kept beside it).
+- **RapidR's additions** (registry `origin = "rapidr"`): `Paragraph.Alignment`, `LeftIndent`,
+  `FirstIndent`, `RightIndent` (pixels) and `Numbering` (bullets) for the paragraphs the
+  selection is in; `TextRTF`, the RTF as a string (read and set).
+- **Screen readers** get the text as runs carrying their formats (AccessKit's font family, size,
+  weight, italic, underline, strike-through and colour: VoiceOver's and NVDA's "report
+  formatting"), and the field's description names the format at the caret ("At the caret:
+  Courier New 12 point, bold, red"; the browser's `aria-description`). In a high-contrast theme
+  the text's colours are the theme's.
+- RapidQ's `richedit/syntax` example (William Yu's syntax highlighter) shows its highlighting as
+  under RapidQ: its saved RTF is byte-identical to RC.EXE's, and its window matches RC.EXE's
+  capture. GUI case `rich_text` (typing in a formatted word, Ctrl+Z, SelAttributes read back,
+  TextRTF) passes natively, interpreted and in the browser with byte-identical windows and equal
+  accessibility trees; conformance case `richedit_grid_streams` now holds RC.EXE's stream bytes;
+  visual case `richtext` beside RapidQ's own window.
+- New example [examples/gui/richtext.rr](examples/gui/richtext.rr) — a small rich-text editor (B,
+  I, U, colour, font, alignment, bullets, open / save `.rtf`) — and a manual chapter,
+  [docs/manual/rich-text.md](docs/manual/rich-text.md). The test hooks' `__key_N_16` is the
+  shortcut key too (an edit's Ctrl+Z on every host).
+- Differences left from RapidQ: its `LineCount` / `Line(i)` count wrapped screen lines with
+  WordWrap on (RapidR's count paragraphs); after `SelectAll` its SelLength counts the text's end as
+  two more; a loaded document is saved with RapidR's RTF header; `\fcharset0` details of a few
+  insertion formats.
+
 ### RapidQ's examples on macOS and Linux (CORPUS-PORT)
 - **Windows file names work on macOS and Linux.** A RapidQ program names its files as Windows does:
   `data\notes.txt`, `Application.Path + "\save.dat"`, `OPEN.BMP` for an `open.bmp`. Off Windows a
@@ -34,8 +89,8 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   Text has them — as RC.EXE's QRICHEDIT does (probe: in `"ab" CR LF "cd"` SelStart 4 is the `c`;
   a position inside the break reads as the break's start). A position INSTR finds in Text now
   selects that text; RapidQ's syntax-highlighting example looped forever where it counted one.
-  QEDIT and the code editor are unchanged. (Rich text formatting itself, SelAttributes, is still
-  plain text in RapidR's rich edit.)
+  QEDIT and the code editor are unchanged. (Rich text formatting itself: "Rich text in RRichEdit"
+  above.)
 - **RAPIDQ.INC's `QBColor` array.** `$INCLUDE "RAPIDQ.INC"` (RapidR's built-in one) now also gives
   `QBColor(0 TO 15)`, the INTEGER array of QBasic's 16 colours as &HBBGGRR numbers that RapidQ
   programs index (`VoorKleur = QBColor(12)`, bright red) — its bounds, type and values as RC.EXE

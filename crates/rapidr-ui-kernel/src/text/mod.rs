@@ -27,7 +27,7 @@ use rapidr_value::objects::font::Font;
 
 pub mod editor;
 
-pub use editor::{Align, Look, Pos, RunStyle, Span, TextEditor};
+pub use editor::{Align, Look, ParaStyle, Pos, RunStyle, Span, TextEditor};
 
 /// Text colour carried through a layout: 0xRRGGBB.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]

@@ -63,6 +63,7 @@ EXTRA = [
     ("example-dialogs-font", "examples/gui/dialogs.rr", {"RAPIDR_TEST_EVENTS": "FontBtn.onclick", "RAPIDR_TEST_FONT_DIALOG": "", "RAPIDR_TEST_DIALOG_HOLD": "4000"}),
     ("example-menus", "examples/gui/menus.rr"),
     ("example-pantry", "examples/gui/pantry.rr"),
+    ("example-richtext", "examples/gui/richtext.rr"),
     ("example-stopwatch", "examples/gui/stopwatch.rr"),
     ("example-themes", "examples/gui/themes.rr"),
     ("example-canvas", "examples/graphics/canvas.rr"),

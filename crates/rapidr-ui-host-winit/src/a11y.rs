@@ -162,6 +162,27 @@ fn text_runs(t: &TextInfo, out: &mut Vec<(NodeId, Node)>) {
         if !r.word_starts.is_empty() {
             a.set_word_starts(r.word_starts.clone());
         }
+        // (a rich edit's run: its format, the text's attributes a screen
+        // reader reports)
+        if let Some(f) = &r.format {
+            a.set_font_family(f.family.as_str());
+            a.set_font_size(f.size);
+            a.set_font_weight(if f.bold { 700.0 } else { 400.0 });
+            if f.italic {
+                a.set_italic();
+            }
+            let rgb = f.color.unwrap_or(0);
+            let color = accesskit::Color { red: (rgb >> 16) as u8, green: (rgb >> 8) as u8, blue: rgb as u8, alpha: 255 };
+            if f.underline {
+                a.set_underline(accesskit::TextDecoration { style: accesskit::TextDecorationStyle::Solid, color });
+            }
+            if f.strike {
+                a.set_strikethrough(accesskit::TextDecoration { style: accesskit::TextDecorationStyle::Solid, color });
+            }
+            if f.color.is_some() {
+                a.set_foreground_color(color);
+            }
+        }
         if r.continues {
             if let Some(next) = t.runs.get(i + 1) {
                 a.set_next_on_line(NodeId(next.id));
@@ -301,6 +322,7 @@ mod tests {
                 char_lengths: lengths,
                 word_starts: vec![0],
                 continues,
+                format: None,
             }
         }
         let long = "x".repeat(300);
@@ -344,6 +366,22 @@ mod tests {
         let sel = field.text_selection().unwrap();
         assert_eq!((sel.anchor.node, sel.anchor.character_index), (NodeId(11), 10));
         assert_eq!((sel.focus.node, sel.focus.character_index), (NodeId(11), 5));
+    }
+
+    /// A rich edit's run carries its format: the text's attributes a
+    /// screen reader reports.
+    #[test]
+    fn a_rich_runs_format_is_its_texts_attributes() {
+        use rapidr_value::objects::a11y::TextFormat;
+        let mut root = editor();
+        let f = TextFormat { family: "Courier New".into(), size: 12.0, bold: true, italic: true, underline: true, strike: false, color: Some(0xFF0000) };
+        root.children[0].text.as_mut().unwrap().runs[0].format = Some(f);
+        let mut sent = Sent::default();
+        let up = update(&root, 1.0, &mut sent, true).unwrap();
+        let r = up.nodes.iter().find(|(id, _)| *id == NodeId(10)).unwrap().1.clone();
+        assert_eq!((r.font_family(), r.font_size(), r.font_weight(), r.is_italic()), (Some("Courier New"), Some(12.0), Some(700.0), true));
+        assert_eq!(r.foreground_color(), Some(accesskit::Color { red: 255, green: 0, blue: 0, alpha: 255 }));
+        assert!(r.underline().is_some() && r.strikethrough().is_none());
     }
 
     #[test]

@@ -42,6 +42,8 @@ pub mod menu;
 pub mod ops;
 pub mod printer;
 pub mod record;
+pub mod richtext;
+pub mod rtf;
 pub mod stream_ops;
 pub mod rqlib;
 pub mod synth;
@@ -294,7 +296,8 @@ pub fn create(id: &str, type_name: &str) -> bool {
         "RTREEVIEW" => Object::Tree(tree::TreeView::default()),
         "RCOMBOBOX" => Object::List(ItemList::new(true)),
         "REDIT" => Object::Text(textedit::TextEdit::new(false)),
-        "RRICHEDIT" | "RMEMO" => Object::Text(textedit::TextEdit::new(true)),
+        "RRICHEDIT" => Object::Text(textedit::TextEdit::rich_edit()),
+        "RMEMO" => Object::Text(textedit::TextEdit::new(true)),
         "RCODEEDITOR" => Object::Code(Box::default()),
         "RDIFFVIEW" => Object::Diff(Box::default()),
         "RTRACKBAR" => Object::TrackBar(trackbar::TrackBar::default()),
@@ -530,6 +533,64 @@ pub fn is_textedit(id: &str) -> bool {
     with(id, |o| matches!(o, Object::Text(_) | Object::Code(_))).unwrap_or(false)
 }
 
+/// Whether `id` is a QRICHEDIT (its text is formatted: `richtext.rs`).
+pub fn is_rich_edit(id: &str) -> bool {
+    with(id, |o| matches!(o, Object::Text(t) if t.rich.is_some())).unwrap_or(false)
+}
+
+/// Every QRICHEDIT's id.
+pub fn rich_edit_ids() -> Vec<String> {
+    OBJECTS.with(|o| o.borrow().iter().filter(|(_, v)| matches!(v, Object::Text(t) if t.rich.is_some())).map(|(k, _)| k.clone()).collect())
+}
+
+/// The rich edits of form `form` (`parent` reads a component's Parent)
+/// made again — `Form.Center` (RC.EXE): their carets at the start.
+pub fn rich_edits_recreated(form: &str, parent: &dyn Fn(&str) -> String) {
+    for id in rich_edit_ids() {
+        let (mut at, mut n) = (id.clone(), 0);
+        while !at.eq_ignore_ascii_case(form) && n < 64 {
+            let p = parent(&at);
+            if p.is_empty() || p.eq_ignore_ascii_case(&at) {
+                break;
+            }
+            at = p;
+            n += 1;
+        }
+        if at.eq_ignore_ascii_case(form) && !id.eq_ignore_ascii_case(form) {
+            with(&id, |o| {
+                if let Object::Text(t) = o {
+                    t.recreated();
+                }
+            });
+        }
+    }
+}
+
+/// A QFONT's (or a component's Font's) colour as a rich edit keeps it:
+/// `None` for clWindowText (automatic), else &HBBGGRR (a system colour
+/// resolved).
+pub fn font_color(c: i64) -> Option<i64> {
+    (c != richtext::AUTO_COLOR && c as u32 != 0x8000_0008).then(|| i64::from(color_bgr(c)))
+}
+
+/// A QRICHEDIT's Font changed (or its parent's, which it shows): its
+/// default format follows (`richtext.rs`). `props` reads the component's
+/// properties; its colour counts only once the program set one.
+pub fn rich_font_changed(id: &str, props: &dyn Fn(&str, &str) -> Value) {
+    if !is_rich_edit(id) {
+        return;
+    }
+    let f = font_from_props(id, props);
+    let raw = props(id, "fontcolor");
+    let color = if matches!(raw, Value::Null) { None } else { font_color(raw.to_i64()) };
+    let fmt = richtext::CharFmt::from_font(&f, color);
+    with(id, |o| {
+        if let Object::Text(t) = o {
+            t.set_default_format(fmt);
+        }
+    });
+}
+
 /// Whether `id` is an RCODEEDITOR.
 pub fn is_code(id: &str) -> bool {
     with(id, |o| matches!(o, Object::Code(_))).unwrap_or(false)
@@ -630,15 +691,18 @@ pub fn textedit_clipboard(id: &str, method: &str, clip_get: &dyn Fn() -> String,
     }
     if m.starts_with("paste") {
         let text = clip_get();
+        // (a rich edit's copy pasted into a rich edit: with its formats)
+        let rtf = textedit::rich_clip_for(&text);
         with_textedit_mut(id, |t| {
-            if !t.read_only {
+            if !t.read_only && !rtf.as_deref().is_some_and(|r| t.paste_rtf(r)) {
                 t.replace_selection(&text);
             }
         });
     } else {
-        let (sel, read_only) = with_textedit(id, |t| (t.get("seltext").map(|v| v.to_string_val()).unwrap_or_default(), t.read_only)).unwrap_or_default();
+        let (sel, read_only, rtf) = with_textedit(id, |t| (t.get("seltext").map(|v| v.to_string_val()).unwrap_or_default(), t.read_only, t.selection_rtf())).unwrap_or_default();
         if !sel.is_empty() {
             clip_set(&sel);
+            textedit::rich_clip_set(&sel, rtf);
         }
         if m.starts_with("cut") && !read_only {
             with_textedit_mut(id, |t| t.replace_selection(""));
@@ -1198,6 +1262,22 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         });
         return Some(Ok(()));
     }
+    // `RichEdit.SelAttributes = Font` / `SelFont = Font`: the QFONT's every
+    // setting on the selection (at a caret, what is typed there next).
+    if matches!(prop.as_str(), "selattributes" | "selfont") && is_rich_edit(id) {
+        let font = with(&val.to_string_val(), |o| match o {
+            Object::Font(f) => Some(f.clone()),
+            _ => None,
+        })
+        .flatten()?;
+        let color = font_color(font.color);
+        with(id, |o| {
+            if let Object::Text(t) = o {
+                t.set_sel_font(&font, color);
+            }
+        });
+        return Some(Ok(()));
+    }
     // `Tab.TabInactiveFont = Font`: the QFONT's settings, for its inactive tabs.
     if prop == "tabinactivefont" && is_tabcontrol(id) {
         let font = with(&val.to_string_val(), |o| match o {
@@ -1349,32 +1429,37 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             _ => {}
         }
     }
-    // QRICHEDIT LoadFromFile / SaveToFile: the text, lines ending CR LF.
+    // QRICHEDIT LoadFromFile / SaveToFile: rich text (RTF) unless PlainText
+    // is True — a file that isn't RTF loads as its text — else the text,
+    // lines ending CR LF.
+    let plain = || props(id, "plaintext").to_bool();
     if is_textedit(id) && matches!(method.as_str(), "loadfromfile" | "savetofile") {
         let path = arg(0).to_string_val();
         return Some(if method == "loadfromfile" {
             read_file(&path).map(|bytes| {
-                let text: String = bytes.iter().map(|&b| char::from(b)).collect();
+                let plain = plain();
                 with(id, |o| {
                     if let Object::Text(t) = o {
-                        t.set_text(&text);
+                        t.load_bytes(&bytes, plain);
                     }
                 });
                 Value::Null
             })
         } else {
-            let text = with(id, |o| match o {
-                Object::Text(t) => t.text(),
-                _ => String::new(),
+            let plain = plain();
+            let bytes = with(id, |o| match o {
+                Object::Text(t) => t.save_bytes(plain),
+                _ => Vec::new(),
             })
             .unwrap_or_default();
-            write_file(&path, &text.chars().map(|c| c as u32 as u8).collect::<Vec<u8>>()).map(|_| Value::Null)
+            write_file(&path, &bytes).map(|_| Value::Null)
         });
     }
-    // QRICHEDIT LoadFromStream / SaveToStream: the same text as the file
+    // QRICHEDIT LoadFromStream / SaveToStream: the same as the file
     // methods, from the stream's position to its end / written at it.
     if is_textedit(id) && matches!(method.as_str(), "loadfromstream" | "savetostream") {
         let stream = arg(0).to_string_val();
+        let plain = plain();
         if method == "loadfromstream" {
             let bytes = with(&stream, |o| match o {
                 Object::Stream(m) => Some(m.read(usize::MAX)),
@@ -1382,19 +1467,17 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             })
             .flatten();
             let Some(bytes) = bytes else { return Some(Err(format!("{stream} is not a QFILESTREAM or QMEMORYSTREAM"))) };
-            let text: String = bytes.iter().map(|&b| char::from(b)).collect();
             with(id, |o| {
                 if let Object::Text(t) = o {
-                    t.set_text(&text);
+                    t.load_bytes(&bytes, plain);
                 }
             });
         } else {
-            let text = with(id, |o| match o {
-                Object::Text(t) => t.text(),
-                _ => String::new(),
+            let bytes = with(id, |o| match o {
+                Object::Text(t) => t.save_bytes(plain),
+                _ => Vec::new(),
             })
             .unwrap_or_default();
-            let bytes: Vec<u8> = text.chars().map(|c| c as u32 as u8).collect();
             if with(&stream, |o| if let Object::Stream(m) = o { m.write(&bytes) }).is_none() {
                 return Some(Err(format!("{stream} is not a QFILESTREAM or QMEMORYSTREAM")));
             }

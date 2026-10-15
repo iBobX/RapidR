@@ -46,9 +46,9 @@
   (GetProcessHeap, SetWindowLong, AlphaBlend, OpenGL), but for `graphics/jpeg_Blend` and
   `graphics/image_test`. Answering `GetVersion` off Windows would be emulating Windows: a
   decision for Robert (the DLL lane's).
-- **Rich text in QRICHEDIT** (`SelAttributes`, bold and coloured runs): RapidR's rich edit is
-  plain text on every runtime (`rapidr-ui-kernel` richedit.rs, "step 2"). `richedit/syntax` now
-  shows its text but not its highlighting; `keyboard/CodeKeyPad` uses it too.
+- ~~**Rich text in QRICHEDIT**~~ (`SelAttributes`, bold and coloured runs): done (RICHEDIT,
+  2026-10-15, docs/manual/rich-text.md): `richedit/syntax` shows its highlighting, its saved RTF
+  byte-identical to RC.EXE's.
 - **Form frames and menus** (not Unix-specific): RapidR's frame is Windows 11's total (a 1-pixel
   border and a 29-pixel caption; an in-window menu 28 pixels), so a program sized for an older
   Windows (Othello, the sliding puzzle, multilevelUndo) shows scroll bars where its author's

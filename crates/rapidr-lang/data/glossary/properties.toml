@@ -361,7 +361,7 @@ Pitch = { category = "Font", doc = "`fpFixed` for a monospaced font, `fpVariable
 Pixel = { category = "Drawing", doc = "A pixel's colour, `Pixel(x, y)`, as &HBBGGRR." }
 PixelFormat = { category = "Drawing", doc = "The bitmap's bits per pixel (`pf1bit` … `pf32bit`); `pfDevice` follows the screen." }
 PixelsPerInch = { category = "Misc", doc = "The screen's pixels per inch as programs see it: always 96, as RapidR scales for high-DPI screens itself; read-only." }
-PlainText = { category = "Behavior", doc = "Loads and saves the text as plain text rather than RTF." }
+PlainText = { category = "Behavior", doc = "Loads and saves the text as plain text rather than rich text (RTF)." }
 Playing = { category = "Media", doc = "True while the sound, audio or video plays; read-only." }
 Pointer = { category = "Data", doc = "The address of the stream's memory; read-only." }
 PopupMenu = { category = "Behavior", doc = "The popup menu shown when the user right-clicks the control." }
@@ -404,7 +404,7 @@ ScrollOpposite = { category = "Layout", doc = "Moves the rows of tabs that aren'
 SectionCount = { category = "Data", doc = "RapidR's name for `SectionsCount`." }
 Sections = { category = "Data", doc = "A header section, `Sections(i)` from 0, with its own `Caption` and `Width`." }
 SectionsCount = { category = "Data", doc = "The number of header sections; read-only." }
-SelAttributes = { category = "Font", doc = "The font of the selected text, or of what's typed next; write-only." }
+SelAttributes = { category = "Font", doc = "The format of the selected text, or at a caret of what's typed next: set to a QFONT, or set its members; reading a member gives the selection's last character's." }
 SelCount = { category = "Data", doc = "How many items (or files) are selected." }
 Selected = { category = "Data", doc = "Whether item i is selected, `Selected(i)`; setting it selects or deselects." }
 SelectedCol = { category = "Data", doc = "RapidR's name for a grid's `Col`." }
@@ -412,7 +412,7 @@ SelectedIndex = { category = "Appearance", doc = "On a tree node (`Item(i).Selec
 SelectedItem = { category = "Data", doc = "The selected tree node's text." }
 SelectedRow = { category = "Data", doc = "RapidR's name for a grid's `Row`." }
 SelEnd = { category = "Data", doc = "The end of the track bar's highlighted range." }
-SelFont = { category = "Font", doc = "The font of the selected text." }
+SelFont = { category = "Font", doc = "The font of the selected text (SelAttributes = Font; write-only)." }
 SelLength = { category = "Data", doc = "The number of characters selected." }
 SelStart = { category = "Data", doc = "Where the selection starts: a character offset from 0 in Text (a line break counts as the characters Text has for it: two, CR LF, in a rich edit or memo, as RapidQ counts them; so a position INSTR finds in Text selects that text), the start of a track bar's highlighted range." }
 SelText = { category = "Data", doc = "The selected text; setting it replaces the selection." }

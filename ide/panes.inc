@@ -99,6 +99,7 @@ SUB FillExamples
   AddExample "gui/hello_form.rr", "A form, a button, its OnClick"
   AddExample "gui/menus.rr", "Main and pop-up menus"
   AddExample "gui/dialogs.rr", "Open, save, colour, font"
+  AddExample "gui/richtext.rr", "A rich-text editor (.rtf)"
   AddExample "gui/pantry.rr", "A list and a grid together"
   AddExample "gui/themes.rr", "The themes, switched live"
   AddExample "gui/sales_dashboard.rr", "A big window: a dashboard"

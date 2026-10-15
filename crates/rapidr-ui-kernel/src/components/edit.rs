@@ -29,7 +29,8 @@
 
 use std::cell::RefCell;
 
-use rapidr_value::objects::a11y::{AccessNode, Action};
+
+use rapidr_value::objects::a11y::{AccessNode, Action, TextFormat, TextInfo, TextPos, TextRun};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::Rect;
 use rapidr_value::objects::{with_list, with_list_mut, with_textedit, with_textedit_mut};
@@ -42,7 +43,8 @@ use crate::display::TextItem;
 use crate::input::{Clipboard, Mods};
 use crate::paint::Painter;
 use crate::store::{self, Store};
-use crate::text::{bgr_to_rgb, Align, Ink, Look, Pos, TextEditor, TextSystem};
+use crate::text::{bgr_to_rgb, Align, Ink, Look, ParaStyle, Pos, RunStyle, Span, TextEditor, TextSystem};
+use rapidr_value::objects::richtext::{CharFmt, Rich};
 use crate::tree::{FormUi, NodeUi};
 
 /// Where a text box's text lives.
@@ -86,11 +88,12 @@ fn read_model(src: Source, id: &str) -> Option<Model> {
 }
 
 /// An edit's last change, for Ctrl+Z (Windows' edits undo one step, and an
-/// undo undoes itself).
-#[derive(Clone, Debug, PartialEq)]
+/// undo undoes itself) — a rich edit's formats with it.
+#[derive(Clone, Debug)]
 struct Undo {
     text: String,
     sel: (usize, usize),
+    rich: Option<Rich>,
 }
 
 /// (the input lane's) What a drag from a press selects by: characters (a
@@ -138,6 +141,17 @@ pub struct EditUi {
     typing: bool,
     /// (the input lane's) A selection the mouse is dragging.
     drag: Option<Drag>,
+    /// The component it shows.
+    id: String,
+    /// A rich edit's formats' revision last shown (its runs and
+    /// paragraphs' styles pushed to the editor).
+    styled: Option<(u64, bool)>,
+    /// A rich edit's formats to put back once the undone text is the
+    /// model's.
+    restore: Option<Rich>,
+    /// Rich text was pasted into the model (OnChange, though the editor
+    /// and the model already agree).
+    pasted: bool,
 }
 
 /// What an edit's context menu offers now (`ComponentKind::context_menu`).
@@ -163,7 +177,106 @@ impl EditUi {
         bars.auto = false;
         bars.horz.visible = false;
         bars.vert.visible = false;
-        EditUi { ed: TextEditor::new(multi), src, shown: None, scroll: (0.0, 0.0), bars, bar_at: None, undo: None, typing: false, drag: None }
+        EditUi { ed: TextEditor::new(multi), src, shown: None, scroll: (0.0, 0.0), bars, bar_at: None, undo: None, typing: false, drag: None, id: String::new(), styled: None, restore: None, pasted: false }
+    }
+
+    /// Copy / Cut: the selected text to the clipboard — and a rich edit's,
+    /// with its formats, for a paste into a rich edit.
+    fn copy_out(&self, clip: &mut dyn Clipboard) {
+        let text = self.ed.selected_text();
+        clip.set_text(&text);
+        if self.src == Source::Text {
+            let rtf = with_textedit(&self.id, |t| t.selection_rtf()).flatten();
+            rapidr_value::objects::textedit::rich_clip_set(&text, rtf);
+        }
+    }
+
+    /// Paste into a rich edit of what a rich edit copied (`text`, the
+    /// clipboard's): its formats kept — the model pastes, the editor shows
+    /// it. Whether it did.
+    fn paste_rich(&mut self, ts: &mut TextSystem, id: &str, text: &str) -> bool {
+        if self.src != Source::Text || self.read_only(id) || !rapidr_value::objects::is_rich_edit(id) {
+            return false;
+        }
+        let Some(rtf) = rapidr_value::objects::textedit::rich_clip_for(text) else { return false };
+        self.remember(false);
+        // (the editor's selection is the model's: what the paste replaces)
+        let (start, len) = self.ed.selection_chars();
+        let done = with_textedit_mut(id, |t| {
+            t.sel_start = start;
+            t.sel_len = len;
+            t.paste_rtf(&rtf)
+        })
+        .unwrap_or(false);
+        if !done {
+            return false;
+        }
+        if let Some(m) = read_model(self.src, id) {
+            self.ed.set_text(&m.text);
+            self.ed.lay_out(ts);
+            if let Some((s, l)) = m.sel {
+                self.ed.set_selection_chars(s, l);
+            }
+            self.shown = Some(m.revision);
+        }
+        self.styled = None;
+        self.restyle(id, true);
+        self.ed.lay_out(ts);
+        self.pasted = true;
+        true
+    }
+
+    /// A rich edit's formats as they are now (an undo step's).
+    fn rich_now(&self) -> Option<Rich> {
+        if self.src != Source::Text {
+            return None;
+        }
+        with_textedit(&self.id, |t| t.rich_snapshot()).flatten()
+    }
+
+    /// A rich edit's runs and paragraph styles given to the editor, when
+    /// its formats changed (or `force`).
+    fn restyle(&mut self, id: &str, force: bool) {
+        if self.src != Source::Text {
+            return;
+        }
+        // (the formats' revision and the theme's contrast: what they're
+        // drawn from — the runs only made again when one changed)
+        let Some(rev) = with_textedit(id, |t| t.rich.is_some().then(|| t.format_revision())).flatten() else { return };
+        let key = (rev, rapidr_value::theme::current().contrast);
+        if self.styled == Some(key) && !force {
+            return;
+        }
+        let Some((_, paras)) = with_textedit(id, |t| t.styled()).flatten() else { return };
+        self.styled = Some(key);
+        for (p, sp) in paras.iter().enumerate().take(self.ed.para_count()) {
+            let text = self.ed.para_text(p).to_string();
+            let mut spans = Vec::with_capacity(sp.runs.len());
+            let mut chars = text.char_indices().map(|(i, _)| i).chain(std::iter::once(text.len()));
+            let mut at = chars.next().unwrap_or(0);
+            for (n, f) in &sp.runs {
+                let start = at;
+                for _ in 0..*n {
+                    at = chars.next().unwrap_or(text.len());
+                }
+                if at > start {
+                    spans.push(Span { range: start..at, style: run_style(f) });
+                }
+            }
+            self.ed.set_spans(p, spans);
+            let px = |twips: i64| twips as f64 / rapidr_value::objects::richtext::TWIPS_PER_PIXEL as f64;
+            let style = ParaStyle {
+                align: Some(Align::from_prop(i64::from(sp.align))),
+                left: px(sp.para.left),
+                first: px(sp.para.first),
+                right: px(sp.para.right),
+                bullet: sp.para.bullet,
+                // (its break's font for an empty line's height; not its
+                // colour — the runs of automatic colour keep the look's)
+                base: Some(RunStyle { color: None, ..run_style(&sp.mark) }),
+            };
+            self.ed.set_para_style(p, style);
+        }
     }
 
     /// The text as the editor holds it (a composition included).
@@ -236,11 +349,15 @@ impl EditUi {
         self.ed.set_scale(scale);
         self.ed.set_look(look);
         self.ed.set_width(width);
+        self.id.clear();
+        self.id.push_str(id);
         if let Some(m) = read_model(self.src, id) {
             if self.shown != Some(m.revision) {
                 self.shown = Some(m.revision);
                 if self.ed.composing() || self.ed.text() != m.text {
                     self.ed.set_text(&m.text);
+                    // (new paragraphs: their runs again)
+                    self.styled = None;
                 }
                 match m.sel {
                     Some((start, len)) => self.ed.set_selection_chars(start, len),
@@ -254,6 +371,9 @@ impl EditUi {
                 }
             }
         }
+        if !self.ed.composing() {
+            self.restyle(id, false);
+        }
         self.ed.lay_out(ts);
     }
 
@@ -266,12 +386,22 @@ impl EditUi {
         let text = self.ed.text();
         let (start, len) = self.ed.selection_chars();
         match self.src {
-            Source::Text => with_textedit_mut(id, |t| {
-                let before = t.raw();
-                t.user_edit(&text, start, len);
-                text != before
-            })
-            .unwrap_or(false),
+            Source::Text => {
+                let restore = self.restore.take();
+                let changed = with_textedit_mut(id, |t| {
+                    let before = t.raw();
+                    t.user_edit(&text, start, len);
+                    // (an undo: the formats the text had)
+                    if let Some(r) = restore {
+                        t.rich_restore(r);
+                    }
+                    text != before
+                })
+                .unwrap_or(false);
+                // (a rich edit's typed text: its formats, the model's)
+                self.restyle(id, false);
+                changed || std::mem::take(&mut self.pasted)
+            }
             Source::Combo => {
                 // (typing chooses no item while the list is closed; dropped
                 // down, the first item the text begins, any case — Windows'
@@ -305,19 +435,21 @@ impl EditUi {
     /// of typing).
     fn remember(&mut self, typing: bool) {
         if !(typing && self.typing) {
-            self.undo = Some(Undo { text: self.ed.text(), sel: self.ed.selection_chars() });
+            self.undo = Some(Undo { text: self.ed.text(), sel: self.ed.selection_chars(), rich: self.rich_now() });
         }
         self.typing = typing;
     }
 
     /// Ctrl+Z: the text before the last change (and that change kept for
-    /// the next Ctrl+Z).
+    /// the next Ctrl+Z); a rich edit's formats with it.
     fn undo(&mut self, ts: &mut TextSystem) -> bool {
         let Some(u) = self.undo.take() else { return false };
-        let now = Undo { text: self.ed.text(), sel: self.ed.selection_chars() };
+        let now = Undo { text: self.ed.text(), sel: self.ed.selection_chars(), rich: self.rich_now() };
         self.ed.set_text(&u.text);
         self.ed.lay_out(ts);
         self.ed.set_selection_chars(u.sel.0, u.sel.1);
+        self.restore = u.rich;
+        self.styled = None;
         self.undo = Some(now);
         self.typing = false;
         true
@@ -381,12 +513,12 @@ impl EditUi {
                 65 => self.ed.select_all(),
                 67 => {
                     if self.ed.has_selection() && !self.masked() {
-                        clip.set_text(&self.ed.selected_text());
+                        self.copy_out(clip);
                     }
                 }
                 88 => {
                     if self.ed.has_selection() && !self.masked() {
-                        clip.set_text(&self.ed.selected_text());
+                        self.copy_out(clip);
                         if !read_only {
                             self.remember(false);
                             self.ed.replace_selection(ts, "");
@@ -398,7 +530,9 @@ impl EditUi {
                         let t = t.replace("\r\n", "\n").replace('\r', "\n");
                         // (a single-line edit pastes the first line)
                         let t = if multi { t } else { t.lines().next().unwrap_or("").to_string() };
-                        self.insert(ts, id, &t, false);
+                        if !self.paste_rich(ts, id, &t) {
+                            self.insert(ts, id, &t, false);
+                        }
                     }
                 }
                 90 => {
@@ -460,7 +594,7 @@ impl EditUi {
             8 | 46 => {
                 let before = (e.text().len(), e.selection_chars());
                 let word = word && !self.ed.look().mask.is_some();
-                let undo = Undo { text: self.ed.text(), sel: self.ed.selection_chars() };
+                let undo = Undo { text: self.ed.text(), sel: self.ed.selection_chars(), rich: self.rich_now() };
                 let changed = if vk == 8 { self.ed.delete_back(ts, word) } else { self.ed.delete_forward(ts, word) };
                 if changed && (self.ed.text().len(), self.ed.selection_chars()) != before {
                     if !self.typing {
@@ -543,8 +677,136 @@ impl EditUi {
         p.clipped(area, |p| {
             for i in range {
                 p.editor(self.item(id, i, origin, show_selection, caret));
+                self.bullet(p, i, area, dy);
             }
         });
+    }
+
+    /// (a QRICHEDIT's, for screen readers) Its text as runs — a visual
+    /// line's pieces of one format, at most 250 characters — each with its
+    /// format, the paragraphs in view with where each character is drawn,
+    /// and the selection in them. `at`: the text area's top left (logical,
+    /// in the form), `view` the area. `None` for a long text (its value is
+    /// read instead) or a plain edit.
+    pub(crate) fn access_runs(&self, id: &str, at: (i64, i64), view: Rect) -> Option<TextInfo> {
+        const MOST_PARAS: usize = 2000;
+        const RUN_CHARS: usize = 250;
+        let n = self.ed.para_count();
+        if n > MOST_PARAS || self.src != Source::Text {
+            return None;
+        }
+        let (_, styled) = with_textedit(id, |t| t.styled()).flatten()?;
+        if styled.len() != n {
+            return None;
+        }
+        let s = f64::from(self.ed.scale()).max(0.01);
+        let shown = self.ed.visible(self.scroll.1, self.scroll.1 + view.3 as f64 * s);
+        let mut runs: Vec<TextRun> = Vec::new();
+        // (each run's paragraph and bytes of it, its break not counted)
+        let mut spans: Vec<(usize, usize, usize)> = Vec::new();
+        for (p, sp) in styled.iter().enumerate() {
+            let text = self.ed.para_text(p);
+            let layout = self.ed.para_layout(p)?;
+            let (dx, top) = self.ed.para_origin(p);
+            // (where each format run starts, bytes)
+            let mut cuts: Vec<(usize, &CharFmt)> = Vec::with_capacity(sp.runs.len());
+            let mut at_byte = 0;
+            let mut it = text.char_indices().map(|(i, _)| i).chain(std::iter::once(text.len()));
+            let _ = it.next();
+            for (k, f) in &sp.runs {
+                cuts.push((at_byte, f));
+                for _ in 0..*k {
+                    at_byte = it.next().unwrap_or(text.len());
+                }
+            }
+            let fmt_at = |b: usize| cuts.iter().rev().find(|(c, _)| *c <= b).map_or(&sp.mark, |(_, f)| *f);
+            let next_cut = |b: usize| cuts.iter().map(|(c, _)| *c).find(|c| *c > b).unwrap_or(text.len());
+            let lines: Vec<(std::ops::Range<usize>, f64, f64)> = layout.lines().map(|l| (l.text_range(), f64::from(l.metrics().block_min_coord), f64::from(l.metrics().block_max_coord))).collect();
+            let lines = if lines.is_empty() { vec![(0..0, 0.0, f64::from(layout.height()))] } else { lines };
+            let n_lines = lines.len();
+            for (li, (lr, ly0, ly1)) in lines.into_iter().enumerate() {
+                // (an empty line's range may hold the layout's own end: the
+                // text's bytes only)
+                let lr = lr.start.min(text.len())..lr.end.min(text.len());
+                let mut a = lr.start;
+                loop {
+                    let end = lr.end.min(next_cut(a)).max(a);
+                    let b = text[a..end].char_indices().nth(RUN_CHARS).map_or(end, |(i, _)| a + i);
+                    let line_end = b >= lr.end || b <= a;
+                    let mut run = TextRun {
+                        id: rapidr_value::objects::a11y::node_id(&format!("{id}$p{p}${}", runs.len())),
+                        text: text[a..b].to_string(),
+                        continues: !line_end,
+                        format: Some(text_format(fmt_at(a))),
+                        ..TextRun::default()
+                    };
+                    let chars: Vec<(usize, char)> = text[a..b].char_indices().collect();
+                    run.char_lengths = chars.iter().map(|(_, c)| c.len_utf8() as u8).collect();
+                    run.word_starts = chars.iter().enumerate().filter(|(k, (_, c))| !c.is_whitespace() && (*k == 0 || chars[k - 1].1.is_whitespace())).map(|(k, _)| k as u8).collect();
+                    let brk = line_end && li + 1 == n_lines && p + 1 < n;
+                    if brk {
+                        run.text.push_str("\r\n");
+                        run.char_lengths.push(2);
+                    }
+                    let x_of = |byte: usize| f64::from(parley::Cursor::from_byte_index(layout, byte, parley::Affinity::Downstream).geometry(layout, 0.0).x0);
+                    let left = (at.0 as f64 + (dx + x_of(a) - self.scroll.0) / s).floor();
+                    let right = at.0 as f64 + (dx + x_of(b) - self.scroll.0) / s;
+                    let y = at.1 as f64 + (top + ly0 - self.scroll.1) / s;
+                    run.bounds = (left as i64, y.round() as i64, ((right.ceil() - left) as i64).max(1), ((ly1 - ly0) / s).ceil().max(1.0) as i64);
+                    if shown.contains(&p) {
+                        let mut pos = Vec::with_capacity(run.char_lengths.len());
+                        let mut wid = Vec::with_capacity(run.char_lengths.len());
+                        for &(i, c) in &chars {
+                            let (c0, c1) = (x_of(a + i) / s, x_of(a + i + c.len_utf8()) / s);
+                            pos.push((at.0 as f64 + (dx - self.scroll.0) / s + c0 - left) as f32);
+                            wid.push((c1 - c0).max(0.0) as f32);
+                        }
+                        if brk {
+                            pos.push((right - left) as f32);
+                            wid.push(0.0);
+                        }
+                        run.char_positions = pos;
+                        run.char_widths = wid;
+                    }
+                    runs.push(run);
+                    spans.push((p, a, b));
+                    if line_end {
+                        break;
+                    }
+                    a = b;
+                }
+            }
+        }
+        // (the selection: its ends' runs and characters)
+        let pos_of = |pos: Pos| -> TextPos {
+            let i0 = spans.partition_point(|&(p, _, _)| p < pos.para);
+            let i1 = spans.partition_point(|&(p, _, _)| p <= pos.para);
+            let run = (i0..i1).find(|&r| pos.index < spans[r].2).unwrap_or(i1.saturating_sub(1).max(i0));
+            let Some(&(_, a, _)) = spans.get(run) else { return TextPos::default() };
+            let text = self.ed.para_text(pos.para);
+            let upto = pos.index.clamp(a, text.len());
+            TextPos { run, char_index: text.get(a..upto).map_or(0, |t| t.chars().count()) }
+        };
+        let selection = Some((pos_of(self.ed.anchor()), pos_of(self.ed.focus())));
+        Some(TextInfo { runs, selection })
+    }
+
+    /// A rich paragraph's bullet (RapidR's Paragraph.Numbering): a dot in
+    /// its break's format, left of its first line.
+    fn bullet(&self, p: &mut Painter, i: usize, area: Rect, dy: f64) {
+        let Some((bx, y0, y1)) = self.ed.bullet_at(i) else { return };
+        let s = f64::from(self.ed.scale()).max(0.01);
+        let base = self.ed.para_style(i).and_then(|st| st.base.clone()).unwrap_or_default();
+        let look = self.ed.look();
+        let font = match &base.font {
+            Some((name, px)) => Font { name: name.clone(), size: -(px.round() as i64).max(1), ..look.font.clone() },
+            None => look.font.clone(),
+        };
+        let color = base.color.unwrap_or(look.color);
+        let x = area.0 + ((bx - self.scroll.0) / s).round() as i64;
+        let y = area.1 + ((y0 - self.scroll.1 + dy) / s).round() as i64;
+        let h = ((y1 - y0) / s).ceil().max(1.0) as i64;
+        p.text((x, y, (h * 2).max(12), h), "\u{2022}", &font, color, rapidr_value::objects::ops::Place::Left);
     }
 
     /// A point of the component (logical) in the text (device pixels).
@@ -697,12 +959,41 @@ impl EditUi {
 /// How a text box's text looks now (its store's Font, PasswordChar,
 /// Alignment, WordWrap).
 pub fn look_of(store: &dyn Store, id: &str, font: &Font, enabled: bool, multi: bool) -> Look {
-    let color = crate::paint::ink(store, id, font, enabled, background(store, id));
+    // (a rich edit's runs carry their own colours: what's left is the
+    // automatic one, the window's text)
+    let rich = rapidr_value::objects::is_rich_edit(id);
+    let color = if rich {
+        let t = rapidr_value::theme::current();
+        if enabled { t.text_on(background(store, id)) } else { t.gray_text }
+    } else {
+        crate::paint::ink(store, id, font, enabled, background(store, id))
+    };
     let mask = if multi { None } else { store::string(store, id, "passwordchar").chars().next() };
     let align = Align::from_prop(store::int(store, id, "alignment", 0));
     let wrap = multi && store::flag(store, id, "wordwrap", true);
     let tab = if multi { crate::text::editor::tab_stops(font, store.type_of(id).eq_ignore_ascii_case("RRICHEDIT")) } else { 0.0 };
     Look { font: font.clone(), color, mask, align, wrap, tab }
+}
+
+/// A rich edit's character format as screen readers are told it.
+pub(crate) fn text_format(f: &CharFmt) -> TextFormat {
+    TextFormat { family: f.name.clone(), size: f.half_points as f32 / 2.0, bold: f.bold, italic: f.italic, underline: f.underline, strike: f.strike, color: f.color.map(bgr_to_rgb) }
+}
+
+/// A rich edit's character format as the editor's run style (an automatic
+/// colour: the look's; in a high-contrast theme every colour is the
+/// theme's text, as Windows shows documents then — bold, sizes and fonts
+/// stay).
+fn run_style(f: &CharFmt) -> RunStyle {
+    let contrast = rapidr_value::theme::current().contrast;
+    RunStyle {
+        color: f.color.filter(|_| !contrast).map(bgr_to_rgb),
+        bold: Some(f.bold),
+        italic: Some(f.italic),
+        underline: Some(f.underline),
+        strike: Some(f.strike),
+        font: Some((f.name.clone(), f.font().pixel_size() as f32)),
+    }
 }
 
 /// Node `ui`'s editor (made the first time), showing the model, laid out

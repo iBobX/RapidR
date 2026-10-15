@@ -503,3 +503,142 @@ fn a_qedit_entered_selects_its_text() {
     assert_eq!(f.focused(), Some("ae1"));
     assert_eq!(model("ae1").2, 0, "clicked into: no selection");
 }
+
+/// What a paragraph's layout draws: (glyphs, colour 0xRRGGBB, bold), its
+/// glyph runs merged by colour and weight.
+fn inks(f: &FormUi, node: &str, p: usize) -> Vec<(usize, u32, bool)> {
+    let mut out: Vec<(usize, u32, bool)> = Vec::new();
+    for line in f.editor_layout_at(node, p).unwrap().lines() {
+        for item in line.items() {
+            if let parley::PositionedLayoutItem::GlyphRun(g) = item {
+                let (n, ink, bold) = (g.glyphs().count(), g.style().brush.0, g.run().synthesis().embolden() || g.run().font_size() < 0.0);
+                match out.last_mut() {
+                    Some((m, c, b)) if *c == ink && *b == bold => *m += n,
+                    _ => out.push((n, ink, bold)),
+                }
+            }
+        }
+    }
+    out
+}
+
+/// QRICHEDIT (rapidr_value::objects::richtext): the model's formats drawn
+/// (SelAttributes' colour and bold on part of a paragraph, the control's
+/// Alignment on a paragraph without its own); letters typed in a coloured
+/// word take its colour; Ctrl+Z gives back the text and its formats; a
+/// screen reader gets the runs with their formats and the caret's format.
+#[test]
+fn a_rich_edit_draws_and_keeps_its_formats() {
+    let (s, mut f, mut ts) = memo_form("RRICHEDIT");
+    with_textedit_mut("tm", |t| {
+        t.set("text", &v_str("plain red\r\nnext"));
+        t.set("selstart", &v_int(6));
+        t.set("sellength", &v_int(3));
+        t.set("selattributes.color", &v_int(0xFF));
+        t.set("selattributes.bold", &v_int(1));
+        t.set("selstart", &v_int(11));
+        t.set("paragraph.alignment", &v_int(2));
+    });
+    drop(f.paint(&s, &mut ts, 1.0));
+    // (the automatic colour: the theme's text)
+    let text = rapidr_value::theme::current().text_on(rapidr_value::theme::current().window);
+    let ink = inks(&f, "tm", 0);
+    assert_eq!(ink.iter().map(|(n, c, _)| (*n, *c)).collect::<Vec<_>>(), vec![(6, text), (3, 0xFF0000)], "{ink:?}");
+    // (word wrap: the line aligned inside its layout)
+    let layout_x = |p: usize| {
+        let line = f.editor_layout_at("tm", p).unwrap().lines().next().unwrap();
+        line.items().find_map(|i| if let parley::PositionedLayoutItem::GlyphRun(g) = i { Some(g.offset()) } else { None }).unwrap()
+    };
+    assert!(layout_x(1) > 30.0 && layout_x(0) < 1.0, "the centred paragraph sits in the middle: {}", layout_x(1));
+    // typed inside "red": red; Ctrl+Z: the text and its formats back
+    let mut clip = MemClipboard::default();
+    f.focus_id(&s, "tm");
+    with_textedit_mut("tm", |t| t.set("selstart", &v_int(7)));
+    drop(f.paint(&s, &mut ts, 1.0));
+    typed(&mut f, &s, &mut ts, &mut clip, "xy");
+    assert_eq!(model("tm").0, "plain rxyed\r\nnext");
+    drop(f.paint(&s, &mut ts, 1.0));
+    assert_eq!(inks(&f, "tm", 0).iter().map(|(n, c, _)| (*n, *c)).collect::<Vec<_>>(), vec![(6, text), (5, 0xFF0000)], "typed in red");
+    key(&mut f, &s, &mut ts, &mut clip, 90, "", CMD);
+    assert_eq!(model("tm").0, "plain red\r\nnext");
+    with_textedit_mut("tm", |t| {
+        t.set("selstart", &v_int(7));
+        t.set("sellength", &v_int(1));
+        assert_eq!(t.get("selattributes.color").unwrap().to_i64(), 0xFF, "the formats back with the text");
+        t.set("selstart", &v_int(2));
+    });
+    // the screen reader's runs: a paragraph's pieces of one format each,
+    // with it; the caret's format in the description
+    drop(f.paint(&s, &mut ts, 1.0));
+    let tree = f.access_tree(&s, &mut ts);
+    let mut node = None;
+    tree.walk(&mut |n| {
+        if n.text.as_ref().is_some_and(|t| t.runs.iter().any(|r| r.format.is_some())) {
+            node = Some(n.clone());
+        }
+    });
+    let node = node.expect("a rich text node");
+    let runs = &node.text.as_ref().unwrap().runs;
+    assert_eq!(runs.iter().map(|r| r.text.as_str()).collect::<String>(), "plain red\r\nnext");
+    let red = runs.iter().find(|r| r.text.starts_with("red")).unwrap().format.clone().unwrap();
+    assert!(red.bold && red.color == Some(0xFF0000));
+    assert!(node.description.contains("At the caret: MS Sans Serif 8 point"), "{}", node.description);
+    // (empty paragraphs and an empty text: one run each)
+    for text in ["x\r\n\r\ny", ""] {
+        with_textedit_mut("tm", |t| t.set("text", &v_str(text)));
+        drop(f.paint(&s, &mut ts, 1.0));
+        let tree = f.access_tree(&s, &mut ts);
+        let mut joined = None;
+        tree.walk(&mut |n| {
+            if let Some(t) = n.text.as_ref().filter(|t| t.runs.iter().any(|r| r.format.is_some())) {
+                joined = Some(t.runs.iter().map(|r| r.text.as_str()).collect::<String>());
+            }
+        });
+        assert_eq!(joined.as_deref(), Some(text));
+    }
+}
+
+/// Ctrl+C in a rich edit, Ctrl+V in another: the text keeps its formats
+/// (the plain text on the clipboard, its RTF beside it); OnChange; Ctrl+Z
+/// takes the paste back. Into a plain QMEMO: the text alone.
+#[test]
+fn rich_text_copied_into_a_rich_edit_keeps_its_formats() {
+    let (s, mut f, mut ts) = form(|s| {
+        s.add("ra", "RRICHEDIT", Some("tf")).set("ra", "left", v_int(10)).set("ra", "top", v_int(10)).set("ra", "width", v_int(150)).set("ra", "height", v_int(60));
+        s.add("rb", "RRICHEDIT", Some("tf")).set("rb", "left", v_int(10)).set("rb", "top", v_int(80)).set("rb", "width", v_int(150)).set("rb", "height", v_int(60));
+        s.add("mc", "RMEMO", Some("tf")).set("mc", "left", v_int(10)).set("mc", "top", v_int(150)).set("mc", "width", v_int(150)).set("mc", "height", v_int(60));
+    });
+    with_textedit_mut("ra", |t| {
+        t.set("text", &v_str("a red word"));
+        t.set("selstart", &v_int(2));
+        t.set("sellength", &v_int(3));
+        t.set("selattributes.color", &v_int(0xFF));
+        t.set("selattributes.bold", &v_int(1));
+    });
+    with_textedit_mut("rb", |t| t.set("text", &v_str("[]")));
+    let mut clip = MemClipboard::default();
+    f.focus_id(&s, "ra");
+    drop(f.paint(&s, &mut ts, 1.0));
+    key(&mut f, &s, &mut ts, &mut clip, 67, "", CMD);
+    assert_eq!(clip.0.as_deref(), Some("red"));
+    f.focus_id(&s, "rb");
+    with_textedit_mut("rb", |t| t.set("selstart", &v_int(1)));
+    drop(f.paint(&s, &mut ts, 1.0));
+    let ev = key(&mut f, &s, &mut ts, &mut clip, 86, "", CMD);
+    assert!(ev.contains(&KernelEvent::Change("rb".into())));
+    assert_eq!(model("rb").0, "[red]");
+    with_textedit_mut("rb", |t| {
+        t.set("selstart", &v_int(2));
+        t.set("sellength", &v_int(1));
+        assert_eq!((t.get("selattributes.color").unwrap().to_i64(), t.get("selattributes.bold").unwrap().to_i64()), (0xFF, 1));
+        t.set("selstart", &v_int(4));
+    });
+    drop(f.paint(&s, &mut ts, 1.0));
+    assert_eq!(inks(&f, "rb", 0).iter().filter(|(_, c, _)| *c == 0xFF0000).map(|(n, _, _)| *n).sum::<usize>(), 3, "drawn red");
+    key(&mut f, &s, &mut ts, &mut clip, 90, "", CMD);
+    assert_eq!(model("rb").0, "[]", "Ctrl+Z takes the paste back");
+    // a plain memo gets the text
+    f.focus_id(&s, "mc");
+    key(&mut f, &s, &mut ts, &mut clip, 86, "", CMD);
+    assert_eq!(model("mc").0, "red");
+}
