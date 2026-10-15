@@ -17,13 +17,19 @@ One command, `rapidr`, is the compiler, the build tool and the runtime.
 | `rapidr install-app <Name.AppDir>` | Linux: put a built app in your applications menu |
 | `rapidr build-bc <file> [-o out.rrbc]` | Compile to bytecode, for the Runtime |
 | `rapidr bundle-bc <file> [-o out.zip]` | A static web bundle (a `.zip`) |
-| `rapidr import-rapidq <file\|folder\|.rrproj> [out_dir]` | Write a converted copy of a RapidQ program with RapidR's names, and a report (`rapidr-import-report.md`), in `out_dir` (also `-o out_dir`; else `<name>-rapidr` beside it). The original is untouched, and each program is proved to compile to the same bytecode. RapidR Studio's File ▸ Import RapidQ Project or File… does the same |
+| `rapidr import-rapidq <file\|folder\|.rrproj> [out_dir]` | Write a converted copy of a RapidQ program — and every file it `$INCLUDE`s — with RapidR's names, and a report (`rapidr-import-report.md`), in `out_dir` (also `-o out_dir`; else `<name>-rapidr` beside it). The original is untouched, and each program is proved to compile to the same bytecode. An include found nowhere is printed with what to do (exit code 1). RapidR Studio's File ▸ Import RapidQ Project or File… does the same ([Include files](importing-rapidq.md#include-files)) |
 | `rapidr upgrade-names <file> [--dry-run]` | The same conversion in place, for RapidR's own files; `--dry-run` prints a diff and changes nothing |
 | `rapidr setup [--check] [--yes] [--no-path]` | Install the Rust native builds use; put `rapidr` on PATH. `rapidr setup --rust` only answers whether native builds can run (exit code 0 yes, 1 no); a native `rapidr build` without Rust stops and says to use `--interp` or run `rapidr setup` |
 | `rapidr notices [<os>-<arch>\|web\|tools-<os>] [-o file]` | Print the third-party notices a kind of build carries |
 | `rapidr about`, `rapidr version` | |
 | `rapidr --log <file> <command…>` | A command's output (and cargo's) in a file |
 | `rapidr preprocess`, `lex`, `parse`, `codegen <file> [outdir]` | The compiler's stages, for curiosity and bug reports |
+
+Every command that compiles takes **`--include-dir <folder>`** (any number of
+times): a folder `$INCLUDE` looks in after the program's own folder, as
+RapidQ's include folder. Give it before a program's own arguments:
+`rapidr run --include-dir ~/RapidQ/include prog.bas`. How `$INCLUDE` finds
+its file: [Include files](importing-rapidq.md#include-files).
 
 ## Builds
 
@@ -170,6 +176,7 @@ run from. `rapidr setup --check` prints which.
 | `RAPIDR_CONFIG_DIR=<folder>` | your RapidR folder (the trusted-files list) |
 | `RAPIDR_HOME=<folder>` | RapidR's home (above) |
 | `RAPIDR_TOOLCHAIN=msvc` | Windows native builds with Microsoft's toolchain |
+| `RAPIDR_INCLUDE_PATH=<folders>` | include folders, separated as in `PATH` (`:`; `;` on Windows), searched after `--include-dir`'s and RapidR Studio's |
 | `RAPIDR_RUNTIME` | set by the Runtime for the program it runs: the `rapidr` running it |
 
 The `RAPIDR_TEST_*` and `RAPIDR_CAPTURE*` variables drive programs in

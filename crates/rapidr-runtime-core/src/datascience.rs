@@ -45,7 +45,7 @@ impl ds::Host for Desktop {
     fn save_plot(&self, plot: &str, file: &str, scale: f64) {
         match rapidr_ui_render::chart::png(&ds::plot::state(plot), scale) {
             Ok(bytes) => {
-                if let Err(e) = std::fs::write(file, &bytes) {
+                if let Err(e) = std::fs::write(crate::value::paths::host(file), &bytes) {
                     eprintln!("[ERROR] RPlot.savefig: can't write {file}: {e}");
                 }
             }
@@ -74,6 +74,10 @@ pub fn num_set_prop(name: &str, prop: &str, val: &Value) {
 }
 
 pub fn dataframe_method(name: &str, method: &str, args: &[Value]) -> Value {
+    // (Refresh: its Source's rows again — ds::link)
+    if let Some(v) = ds::link::dataframe_call(name, method) {
+        return v;
+    }
     ds::frame::dataframe_method(name, method, args, &Desktop)
 }
 

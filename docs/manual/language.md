@@ -309,6 +309,20 @@ The stream objects do the same with methods: `RFileStream` (RapidQ's
 `RMDIR`, `RENAME`, `CHDIR`, `CURDIR$` and `DIREXISTS` work with folders.
 In a browser, files are the page's own (see [The web](web.md)).
 
+File names work as they do on Windows, on every system: `\` and `/` both
+separate folders, and a name finds its file in any case. A RapidQ program
+written on Windows finds its files on macOS and Linux unchanged:
+
+```basic
+Bitmap.BMP = "PICS\OPEN.BMP"            ' finds pics/open.bmp on Linux too
+DIM Notes AS RStringList
+Notes.LoadFromFile(Application.Path + "\notes.txt")
+```
+
+A name that exists exactly as written is always taken as it is; a new
+file keeps the name the program gives it (in the folder found in any
+case).
+
 ## The console
 
 `CLS`, `COLOR fg, bg`, `LOCATE row, col`, `CSRLIN`, `POS(0)`, `INPUT

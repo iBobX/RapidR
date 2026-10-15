@@ -236,6 +236,64 @@ pub struct TextRun {
     /// run holds at most 255 characters).
     pub word_starts: Vec<u8>,
     pub continues: bool,
+    /// (a QRICHEDIT's) How its text is formatted — what a screen reader
+    /// reports as the text's attributes.
+    pub format: Option<TextFormat>,
+}
+
+/// A run of formatted text's attributes (a rich edit's).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TextFormat {
+    pub family: String,
+    /// Points.
+    pub size: f32,
+    pub bold: bool,
+    pub italic: bool,
+    pub underline: bool,
+    pub strike: bool,
+    /// 0xRRGGBB (`None`: the window's text colour).
+    pub color: Option<u32>,
+}
+
+impl TextFormat {
+    /// What a screen reader says of it ("Courier New 12 point, bold, red").
+    pub fn spoken(&self) -> String {
+        let mut s = format!("{} {} point", self.family, self.size.round() as i64);
+        for (on, word) in [(self.bold, "bold"), (self.italic, "italic"), (self.underline, "underline"), (self.strike, "strike-out")] {
+            if on {
+                s.push_str(", ");
+                s.push_str(word);
+            }
+        }
+        if let Some(c) = self.color {
+            s.push_str(", ");
+            s.push_str(&color_name(c));
+        }
+        s
+    }
+}
+
+/// A colour's name (Windows' 16 basic colours, else `#RRGGBB`).
+pub fn color_name(rgb: u32) -> String {
+    const NAMES: [(u32, &str); 16] = [
+        (0x000000, "black"),
+        (0x800000, "maroon"),
+        (0x008000, "green"),
+        (0x808000, "olive"),
+        (0x000080, "navy"),
+        (0x800080, "purple"),
+        (0x008080, "teal"),
+        (0x808080, "grey"),
+        (0xC0C0C0, "silver"),
+        (0xFF0000, "red"),
+        (0x00FF00, "lime"),
+        (0xFFFF00, "yellow"),
+        (0x0000FF, "blue"),
+        (0xFF00FF, "fuchsia"),
+        (0x00FFFF, "aqua"),
+        (0xFFFFFF, "white"),
+    ];
+    NAMES.iter().find(|(c, _)| *c == rgb & 0xFFFFFF).map_or_else(|| format!("#{:06X}", rgb & 0xFFFFFF), |(_, n)| n.to_string())
 }
 
 /// A place in a [`TextInfo`]: run `run`'s character `char_index` (its
@@ -537,6 +595,8 @@ pub fn role_of(type_name: &str) -> Role {
         "RCANVAS" | "RDXSCREEN" => Role::Canvas,
         // (a chart: a picture of its data, named by its Title)
         "RPLOT" => Role::Image,
+        // (I7: a data grid — its headings and the rows on screen inside)
+        "RDBGRID" => Role::Grid,
         "RMAINMENU" => Role::MenuBar,
         // (QPANEL, QSCROLLBOX and what the hosts only place)
         _ => Role::Pane,
@@ -550,7 +610,7 @@ pub fn takes_focus(type_name: &str) -> bool {
     matches!(
         type_name.to_ascii_uppercase().as_str(),
         "RBUTTON" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RCODEEDITOR" | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RLISTVIEW" | "RTREEVIEW" | "RDIRTREE" | "RSTRINGGRID" | "RTABCONTROL" | "RTRACKBAR" | "RUPDOWN"
-            | "RSCROLLBAR" | "RDIFFVIEW" | "RDESIGNSURFACE"
+            | "RSCROLLBAR" | "RDIFFVIEW" | "RDESIGNSURFACE" | "RDBGRID"
         // (I1 / L-PANELS: RapidR Studio's panels)
         | "RPROPERTYINSPECTOR" | "RTOOLBOX" | "RPROJECTTREE" | "ROUTPUTCONSOLE" | "RCOMMANDPALETTE" | "RMARKDOWNVIEW"
     )

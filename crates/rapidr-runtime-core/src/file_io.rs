@@ -11,6 +11,12 @@ use std::cell::RefCell;
 use std::fs;
 use std::path::Path;
 
+/// The file or folder a program names, as the system knows it: `\` for
+/// `/`, any case, as on Windows (crate::value::paths).
+fn host(name: &Value) -> std::path::PathBuf {
+    crate::value::paths::host(&name.to_string_val())
+}
+
 thread_local! {
     static DIR_ITER: RefCell<Option<(std::path::PathBuf, std::vec::IntoIter<String>)>> = RefCell::new(None);
 }
@@ -51,8 +57,7 @@ pub fn rp_seek(file_num: &Value, position: &Value) {
 // ---------------------------------------------------------------------------
 
 pub fn rp_filelen(filename: &Value) -> Value {
-    let path = filename.to_string_val();
-    match fs::metadata(&path) {
+    match fs::metadata(host(filename)) {
         Ok(m) => v_int(m.len() as i64),
         Err(_) => v_int(0),
     }
@@ -85,24 +90,27 @@ pub fn rp_dir(pattern: &Value, attr: &Value) -> Value {
 /// DIR$'s matches, as RapidQ (Windows' FindFirstFile) lists them: names
 /// matching the pattern's last part (`*`, `?`, any case), in name order
 /// (any case); with faDirectory (&H10) its folders too, `.` and `..`
-/// first; without it files only. Hidden files (a dot first, faHidden &H2)
-/// only when asked. `\` separates folders as `/` does.
+/// first; without it files only. Hidden files (a dot first, Windows'
+/// hidden attribute: faHidden &H2) and Windows' system files (faSysFile
+/// &H4) only when asked. `\` separates folders as `/` does.
 fn dir_entries(pattern: &str, attr: i64) -> (std::path::PathBuf, Vec<String>) {
     let pat = if cfg!(windows) { pattern.to_string() } else { pattern.replace('\\', "/") };
     let path = Path::new(&pat);
     let folder = match path.parent() {
-        Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
+        Some(p) if !p.as_os_str().is_empty() => crate::value::paths::host(&p.to_string_lossy()),
         _ => std::path::PathBuf::from("."),
     };
     let glob = path.file_name().and_then(|s| s.to_str()).unwrap_or("*").to_string();
     let dirs = attr & 0x10 != 0;
-    let hidden = attr & 0x02 != 0;
+    let hidden_ok = attr & 0x02 != 0;
+    let system_ok = attr & 0x04 != 0;
     let mut names = Vec::new();
     if let Ok(dir) = fs::read_dir(&folder) {
         for entry in dir.flatten() {
             let name = entry.file_name().to_string_lossy().into_owned();
             let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
-            if (is_dir && !dirs) || (name.starts_with('.') && !hidden) || !matches_glob(&name, &glob) {
+            let (hidden, system) = crate::value::objects::filelist::hidden_system(&entry);
+            if (is_dir && !dirs) || (hidden && !hidden_ok) || (system && !system_ok) || !matches_glob(&name, &glob) {
                 continue;
             }
             names.push(name);
@@ -134,22 +142,10 @@ fn set_file_rec(path: &Path, name: &str) {
 }
 
 /// Windows' wildcards: `*` any run, `?` any one character, any case; `*.*`
-/// everything.
+/// everything, `*.` no extension (QFILELISTBOX's Mask reads them alike:
+/// rapidr_value::objects::filelist::wildcard_match).
 fn matches_glob(name: &str, pattern: &str) -> bool {
-    if pattern == "*" || pattern == "*.*" {
-        return true;
-    }
-    let n: Vec<char> = name.to_lowercase().chars().collect();
-    let p: Vec<char> = pattern.to_lowercase().chars().collect();
-    fn m(n: &[char], p: &[char]) -> bool {
-        match p.first() {
-            None => n.is_empty(),
-            Some('*') => (0..=n.len()).any(|i| m(&n[i..], &p[1..])),
-            Some('?') => !n.is_empty() && m(&n[1..], &p[1..]),
-            Some(c) => n.first() == Some(c) && m(&n[1..], &p[1..]),
-        }
-    }
-    m(&n, &p)
+    crate::value::objects::filelist::wildcard_match(pattern, name)
 }
 
 // ---------------------------------------------------------------------------
@@ -157,19 +153,19 @@ fn matches_glob(name: &str, pattern: &str) -> bool {
 // ---------------------------------------------------------------------------
 
 pub fn rp_mkdir(path: &Value) {
-    let _ = fs::create_dir_all(path.to_string_val());
+    let _ = fs::create_dir_all(host(path));
 }
 
 pub fn rp_rmdir(path: &Value) {
-    let _ = fs::remove_dir(path.to_string_val());
+    let _ = fs::remove_dir(host(path));
 }
 
 pub fn rp_kill(filename: &Value) {
-    let _ = fs::remove_file(filename.to_string_val());
+    let _ = fs::remove_file(host(filename));
 }
 
 pub fn rp_rename(old_name: &Value, new_name: &Value) {
-    let _ = fs::rename(old_name.to_string_val(), new_name.to_string_val());
+    let _ = fs::rename(host(old_name), host(new_name));
 }
 
 // ---------------------------------------------------------------------------
@@ -188,7 +184,7 @@ pub fn rp_curdir() -> Value {
 // ---------------------------------------------------------------------------
 
 pub fn rp_chdir(path: &Value) {
-    let _ = std::env::set_current_dir(path.to_string_val());
+    let _ = std::env::set_current_dir(host(path));
 }
 
 #[cfg(test)]

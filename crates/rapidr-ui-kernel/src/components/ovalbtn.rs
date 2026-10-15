@@ -17,11 +17,13 @@ use crate::paint::{caption, ink_of, Painter};
 use crate::store::{self, Store};
 use crate::text::bgr_to_rgb;
 
-/// A colour property (0xBBGGRR) as RGB, `default` when unset or 0.
+/// A colour property (0xBBGGRR) as RGB, `default` when unset. 0 is black,
+/// as RapidQ draws it (RC.EXE: `Color = 0` fills the oval black —
+/// RapidQ's music/Wav-Scratcher.rqb turntable).
 fn color(store: &dyn Store, id: &str, prop: &str, default: u32) -> u32 {
-    match store::int(store, id, prop, 0) {
-        0 => default,
-        c => bgr_to_rgb(c),
+    match store.get(id, prop) {
+        rapidr_value::Value::Null => default,
+        v => bgr_to_rgb(v.to_i64()),
     }
 }
 

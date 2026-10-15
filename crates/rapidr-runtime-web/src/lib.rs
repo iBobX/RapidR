@@ -29,6 +29,8 @@ pub mod io_web;
 pub mod media_web;
 /// The UI kernel as the page's GUI host: the program's windows.
 pub mod kernel_web;
+// (I7: linked data — rapidr_value::datascience::link)
+pub mod links_web;
 pub mod layout_web;
 pub mod mdi_web;
 // (HideTitleBar, ShapeForm, QFORM's MDI members, StartDrag)

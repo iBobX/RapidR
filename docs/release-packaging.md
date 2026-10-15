@@ -385,7 +385,20 @@ vendored source trees. `dist/` and `target/` may be links to a build volume
   removed when the job ends (`prlctl exec` ends what it started, and a
   process WMI starts lives in its provider host's job object, whose quotas
   ended long builds), and their logs are polled; files come back as base64 over `prlctl`, in
-  pieces checked by SHA-256 (`windows-vm.sh fetch`).
+  pieces of 6 MB checked by SHA-256 (`windows-vm.sh fetch`).
+  **No window on the VM's desktop:** a `prlctl exec --current-user` call opens a
+  console window in the user's session every time, so a poll every 20 seconds
+  and a file fetched in pieces flashed one all day. Every call from
+  `windows-vm.sh` therefore runs as SYSTEM (`tools/windows/vmexec.sh -S`: Windows'
+  session 0, which has no desktop), naming the user's files by their full path
+  (`windows/user.ps1`), and the job itself starts as `conhost.exe --headless
+  powershell …` (`windows/detach.ps1`): a console without a window.
+  `windows-vm.sh flashtest control` proves it: a watcher in the user's session
+  (`windows/watch-windows.ps1`) logs every window that appears while a job is
+  started, polled and read and a file fetched, and a call in the user's own
+  session is the control that must show up. (Another caller's `--current-user`
+  calls, from the Mac or another lane, still flash: the test lists them with
+  their command line.)
 
 ## Cutting a release, step by step
 
@@ -418,7 +431,7 @@ about 1.2 GB for the whole release.
    packages there and fetches them; `tools/release/linux-vm.sh smoke` runs
    `smoke.sh` on each in the VM (temporary HOME / prefix; install.sh and
    uninstall.sh, the MIME types and .desktop files checked and removed); then
-   `tools/release/linux-vm.sh --clean`.
+   `tools/release/linux-vm.sh clean`.
 5. **Windows** (Windows VM): `tools/release/windows-vm.sh build` — the four
    installers in the VM's `%USERPROFILE%\rapidr-release\out` (sizes and
    SHA-256 printed). Check each: `tools/release/windows-vm.sh smoke
@@ -444,7 +457,14 @@ about 1.2 GB for the whole release.
    for a preview.) Then, when the user has publisher accounts, the same
    `.vsix` to the VS Code Marketplace and Open VSX, by hand with the user's
    own tokens: [docs/vscode-publishing.md](vscode-publishing.md).
-8. **Clean up**: `rm -rf dist/<ver>/work dist/<ver>/prep`;
-   `tools/release/linux-vm.sh --clean`; the Windows VM's
-   `%USERPROFILE%\rapidr-release` (keep `%USERPROFILE%\rapidr-tools` for the
-   next release).
+8. **Clean up** — do not skip it: a release leaves about 10 GB in each VM (the
+   cargo target folders), and the Windows VM's disk once filled up with
+   leftovers. `rm -rf dist/<ver>/work dist/<ver>/prep`;
+   `tools/release/linux-vm.sh clean`; `tools/release/windows-vm.sh clean`
+   (`--dry-run` lists what would go, with sizes; `--keep-out` keeps the
+   finished packages). They remove the release work folder, the build cache,
+   the smoke tests' temporary folders (and, in Windows, what a stopped smoke
+   test left registered: file types, Uninstall entry, Start menu shortcut) and
+   the test apps; `rapidr-tools`, an installed RapidR, Rust and the user's
+   own files stay. Other RapidR folders in the VMs' home (earlier lanes'
+   scratch) are only listed by `--dry-run`, never removed.

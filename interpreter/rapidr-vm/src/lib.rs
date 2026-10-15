@@ -27,6 +27,11 @@
 //! assert_eq!(host.output, "hello\n");
 //! ```
 
+// (errors are built only when they happen — `ok_or_else(|| VmError::…)`,
+// never `ok_or(VmError::…)`: VmError owns a Box and Strings, so an error
+// built eagerly is dropped again on every instruction that succeeds — a
+// third of a tight loop's time, measured with tools/bench/vm_bench)
+#![allow(clippy::unnecessary_lazy_evaluations)]
 #![forbid(unsafe_code)]
 
 pub mod host;
@@ -397,7 +402,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             return Err(VmError::Runtime(format!("stack overflow: more than {MAX_CALL_DEPTH} nested calls (a SUB or FUNCTION calling itself without end?)")));
         }
         let f = module.functions.get(fn_index as usize)
-            .ok_or(VmError::BadFunctionIndex(fn_index))?;
+            .ok_or_else(|| VmError::BadFunctionIndex(fn_index))?;
         let mut locals = self.spare_locals.pop().unwrap_or_default();
         locals.clear();
         locals.resize(f.n_locals as usize, Value::Null);
@@ -734,7 +739,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             self.fault_ip = ip;
             let opbyte = code[ip];
             ip += 1;
-            let op = Op::from_u8(opbyte).ok_or(VmError::BadOpcode(opbyte))?;
+            let op = Op::from_u8(opbyte).ok_or_else(|| VmError::BadOpcode(opbyte))?;
             match op {
                 Op::Nop => {}
                 // END (and the main program's last instruction): the whole
@@ -752,7 +757,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 // ----- constants / stack -----
                 Op::LoadConst => {
                     let i = read_u32(code, &mut ip)?;
-                    let c = module.consts.get(i as usize).ok_or(VmError::BadConstIndex(i))?;
+                    let c = module.consts.get(i as usize).ok_or_else(|| VmError::BadConstIndex(i))?;
                     self.stack.push(c.to_value());
                 }
                 Op::LoadNull => self.stack.push(v_null()),
@@ -769,14 +774,14 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let s = read_u16(code, &mut ip)?;
                     let frame = self.frames.last().unwrap();
                     let v = frame.locals.get(s as usize).cloned()
-                        .ok_or(VmError::BadLocalSlot(s))?;
+                        .ok_or_else(|| VmError::BadLocalSlot(s))?;
                     self.stack.push(v);
                 }
                 Op::StoreLocal => {
                     let s = read_u16(code, &mut ip)?;
                     let v = self.pop()?;
                     let frame = self.frames.last_mut().unwrap();
-                    let slot = frame.locals.get_mut(s as usize).ok_or(VmError::BadLocalSlot(s))?;
+                    let slot = frame.locals.get_mut(s as usize).ok_or_else(|| VmError::BadLocalSlot(s))?;
                     *slot = v;
                 }
                 Op::LoadGlobal => {
@@ -912,8 +917,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::CallBuiltin => {
                     let name_i = read_u32(code, &mut ip)?;
                     let argc = read_u8(code, &mut ip)? as usize;
-                    let name = module.strings.get(name_i as usize).ok_or(VmError::BadStringIndex(name_i))?;
-                    let at = self.stack.len().checked_sub(argc).ok_or(VmError::StackUnderflow)?;
+                    let name = module.strings.get(name_i as usize).ok_or_else(|| VmError::BadStringIndex(name_i))?;
+                    let at = self.stack.len().checked_sub(argc).ok_or_else(|| VmError::StackUnderflow)?;
                     let r = self.host.call_builtin(name, &self.stack[at..]);
                     self.stack.truncate(at);
                     let r = r.map_err(VmError::HostError)?;
@@ -931,8 +936,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::CreateComp => {
                     let kind_i = read_u32(code, &mut ip)?;
                     let id_i = read_u32(code, &mut ip)?;
-                    let kind = module.strings.get(kind_i as usize).ok_or(VmError::BadStringIndex(kind_i))?;
-                    let id = module.strings.get(id_i as usize).ok_or(VmError::BadStringIndex(id_i))?;
+                    let kind = module.strings.get(kind_i as usize).ok_or_else(|| VmError::BadStringIndex(kind_i))?;
+                    let id = module.strings.get(id_i as usize).ok_or_else(|| VmError::BadStringIndex(id_i))?;
                     let r = self.host.create_comp(&kind, &id).map_err(VmError::HostError)?;
                     self.stack.push(r);
                     after_host!(true);
@@ -940,8 +945,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::SetProp => {
                     let id_i = read_u32(code, &mut ip)?;
                     let prop_i = read_u32(code, &mut ip)?;
-                    let id = module.strings.get(id_i as usize).ok_or(VmError::BadStringIndex(id_i))?;
-                    let prop = module.strings.get(prop_i as usize).ok_or(VmError::BadStringIndex(prop_i))?;
+                    let id = module.strings.get(id_i as usize).ok_or_else(|| VmError::BadStringIndex(id_i))?;
+                    let prop = module.strings.get(prop_i as usize).ok_or_else(|| VmError::BadStringIndex(prop_i))?;
                     let v = self.pop()?;
                     self.host.set_prop(&id, &prop, v).map_err(VmError::HostError)?;
                     after_host!(false);
@@ -949,8 +954,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::GetProp => {
                     let id_i = read_u32(code, &mut ip)?;
                     let prop_i = read_u32(code, &mut ip)?;
-                    let id = module.strings.get(id_i as usize).ok_or(VmError::BadStringIndex(id_i))?;
-                    let prop = module.strings.get(prop_i as usize).ok_or(VmError::BadStringIndex(prop_i))?;
+                    let id = module.strings.get(id_i as usize).ok_or_else(|| VmError::BadStringIndex(id_i))?;
+                    let prop = module.strings.get(prop_i as usize).ok_or_else(|| VmError::BadStringIndex(prop_i))?;
                     let v = self.host.get_prop(&id, &prop).map_err(VmError::HostError)?;
                     self.stack.push(v);
                     after_host!(true);
@@ -959,9 +964,9 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let id_i = read_u32(code, &mut ip)?;
                     let m_i = read_u32(code, &mut ip)?;
                     let argc = read_u8(code, &mut ip)? as usize;
-                    let id = module.strings.get(id_i as usize).ok_or(VmError::BadStringIndex(id_i))?;
-                    let m = module.strings.get(m_i as usize).ok_or(VmError::BadStringIndex(m_i))?;
-                    let at = self.stack.len().checked_sub(argc).ok_or(VmError::StackUnderflow)?;
+                    let id = module.strings.get(id_i as usize).ok_or_else(|| VmError::BadStringIndex(id_i))?;
+                    let m = module.strings.get(m_i as usize).ok_or_else(|| VmError::BadStringIndex(m_i))?;
+                    let at = self.stack.len().checked_sub(argc).ok_or_else(|| VmError::StackUnderflow)?;
                     let args = self.stack.split_off(at);
                     let r = self.host.call_method(id, m, &args).map_err(host_error)?;
                     // A method that waits (the web's ShowModal): suspended
@@ -977,7 +982,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 }
                 Op::GetPropDyn => {
                     let prop_i = read_u32(code, &mut ip)?;
-                    let prop = module.strings.get(prop_i as usize).ok_or(VmError::BadStringIndex(prop_i))?;
+                    let prop = module.strings.get(prop_i as usize).ok_or_else(|| VmError::BadStringIndex(prop_i))?;
                     // (the debugger's evaluation — a watch, a data tip — reads a
                     // TYPE's field by its name: its snippet has no TYPEs)
                     if let (Some(_), Some(Value::Object(o))) = (self.eval_fuel, self.stack.last()) {
@@ -994,7 +999,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 }
                 Op::SetPropDyn => {
                     let prop_i = read_u32(code, &mut ip)?;
-                    let prop = module.strings.get(prop_i as usize).ok_or(VmError::BadStringIndex(prop_i))?;
+                    let prop = module.strings.get(prop_i as usize).ok_or_else(|| VmError::BadStringIndex(prop_i))?;
                     // (the debugger's evaluation sets a TYPE's field by its name)
                     if let (Some(_), Some(Value::Object(o))) = (self.eval_fuel, self.stack.last()) {
                         if let Some(slot) = o.names.iter().position(|n| n.eq_ignore_ascii_case(prop)) {
@@ -1031,13 +1036,13 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     if operand == rapidr_value::numeric::ARG_ROUND {
                         self.stack.push(rapidr_value::numeric::arg_round(&v));
                     } else {
-                        let kind = rapidr_value::numeric::NumKind::from_code(operand).ok_or(VmError::BadOperand)?;
+                        let kind = rapidr_value::numeric::NumKind::from_code(operand).ok_or_else(|| VmError::BadOperand)?;
                         self.stack.push(rapidr_value::numeric::convert(&v, kind));
                     }
                 }
                 Op::CallIndirect => {
                     let argc = read_u8(code, &mut ip)?;
-                    let at = self.stack.len().checked_sub(argc as usize + 1).ok_or(VmError::StackUnderflow)?;
+                    let at = self.stack.len().checked_sub(argc as usize + 1).ok_or_else(|| VmError::StackUnderflow)?;
                     let ptr = self.stack.remove(at).to_i64();
                     let fi = u32::try_from(ptr - 1)
                         .ok()
@@ -1053,8 +1058,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::CallMethodDyn => {
                     let m_i = read_u32(code, &mut ip)?;
                     let argc = read_u8(code, &mut ip)? as usize;
-                    let m = module.strings.get(m_i as usize).ok_or(VmError::BadStringIndex(m_i))?;
-                    let at = self.stack.len().checked_sub(argc).ok_or(VmError::StackUnderflow)?;
+                    let m = module.strings.get(m_i as usize).ok_or_else(|| VmError::BadStringIndex(m_i))?;
+                    let at = self.stack.len().checked_sub(argc).ok_or_else(|| VmError::StackUnderflow)?;
                     let args = self.stack.split_off(at);
                     let id = self.pop_object_id()?;
                     let r = self.host.call_method(&id, m, &args).map_err(host_error)?;
@@ -1073,8 +1078,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let id_i = read_u32(code, &mut ip)?;
                     let ev_i = read_u32(code, &mut ip)?;
                     let fi = read_u32(code, &mut ip)?;
-                    let id = module.strings.get(id_i as usize).ok_or(VmError::BadStringIndex(id_i))?;
-                    let ev = module.strings.get(ev_i as usize).ok_or(VmError::BadStringIndex(ev_i))?;
+                    let id = module.strings.get(id_i as usize).ok_or_else(|| VmError::BadStringIndex(id_i))?;
+                    let ev = module.strings.get(ev_i as usize).ok_or_else(|| VmError::BadStringIndex(ev_i))?;
                     self.host.register_event(&id, &ev, fi).map_err(VmError::HostError)?;
                 }
 
@@ -1119,7 +1124,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let s = read_u16(code, &mut ip)?;
                     let n = read_i32(code, &mut ip)?.max(0) as usize;
                     let frame = self.frames.last_mut().unwrap();
-                    let slot = frame.locals.get_mut(s as usize).ok_or(VmError::BadLocalSlot(s))?;
+                    let slot = frame.locals.get_mut(s as usize).ok_or_else(|| VmError::BadLocalSlot(s))?;
                     let parts: Vec<String> = (0..n).map(|_| String::new()).collect();
                     *slot = v_str(&parts.join(","));
                 }
@@ -1264,7 +1269,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// handler's — the VM must stop.
     fn return_frame(&mut self, module: &Module, with_value: bool) -> Result<Returned, VmError> {
         let ret = if with_value { self.pop()? } else { v_null() };
-        let frame = self.frames.pop().ok_or(VmError::StackUnderflow)?;
+        let frame = self.frames.pop().ok_or_else(|| VmError::StackUnderflow)?;
         let n_params = module
             .functions
             .get(frame.fn_index as usize)
@@ -1334,7 +1339,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// The value on the stack's top, to replace in place.
     #[inline(always)]
     fn top_mut(&mut self) -> Result<&mut Value, VmError> {
-        self.stack.last_mut().ok_or(VmError::StackUnderflow)
+        self.stack.last_mut().ok_or_else(|| VmError::StackUnderflow)
     }
 
     /// A comparison of the two values on top: two whole numbers that a
@@ -1354,11 +1359,11 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
 
     #[inline(always)]
     fn pop(&mut self) -> Result<Value, VmError> {
-        self.stack.pop().ok_or(VmError::StackUnderflow)
+        self.stack.pop().ok_or_else(|| VmError::StackUnderflow)
     }
 
     fn peek(&self) -> Result<&Value, VmError> {
-        self.stack.last().ok_or(VmError::StackUnderflow)
+        self.stack.last().ok_or_else(|| VmError::StackUnderflow)
     }
 
     /// Runs an event handler: `fn_index` with `args`, on top of whatever
@@ -1589,7 +1594,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// or wait, and has `fuel` instructions; a failure leaves the program as
     /// it was.
     pub fn evaluate(&mut self, module: &Module, fn_index: u32, frame: Option<usize>, write_back: bool, fuel: u64) -> Result<Value, VmError> {
-        let f = module.functions.get(fn_index as usize).ok_or(VmError::BadFunctionIndex(fn_index))?;
+        let f = module.functions.get(fn_index as usize).ok_or_else(|| VmError::BadFunctionIndex(fn_index))?;
         let (base_frames, base_stack) = (self.frames.len(), self.stack.len());
         let mut locals = self.spare_locals.pop().unwrap_or_default();
         locals.clear();
@@ -1650,7 +1655,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// Sets local slot `slot` of frame `frame` (0 = the outermost).
     pub fn set_local(&mut self, frame: usize, slot: usize, value: Value) -> Result<(), VmError> {
         let f = self.frames.get_mut(frame).ok_or_else(|| VmError::Runtime(format!("no frame {frame}")))?;
-        let s = f.locals.get_mut(slot).ok_or(VmError::BadLocalSlot(slot as u16))?;
+        let s = f.locals.get_mut(slot).ok_or_else(|| VmError::BadLocalSlot(slot as u16))?;
         *s = value;
         Ok(())
     }
@@ -1814,7 +1819,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
 
 #[inline(always)]
 fn read_u8(code: &[u8], ip: &mut usize) -> Result<u8, VmError> {
-    let b = *code.get(*ip).ok_or(VmError::Truncated)?;
+    let b = *code.get(*ip).ok_or_else(|| VmError::Truncated)?;
     *ip += 1;
     Ok(b)
 }

@@ -42,10 +42,10 @@ export const cases = [
   // last come first, a disabled command is skipped.
   { name: "panel_toolbox", events: "box.__mousedown_60_15,box.__mouseup_60_15,box.__key_66,box.__key_85,box.__key_84,box.__key_13,box.__key_27,box.__key_27,box.__mousedown_100_109,box.__mousemove_150_109,box.__mousemove_400_150,box.__mouseup_400_150,box.__mousedown_100_109,box.__mousemove_150_109,box.__mouseup_500_80,box.__mousedown_100_40,box.__mouseup_100_40,breport.onclick",
     dump: "lbl.caption,info.caption",
-    expect: ["lbl.caption= pick:RButton sel:RLabel drag:RLabel drop:RLabel>surface@108,118 drag:RLabel drop:RLabel>inner@28,28", "info.caption=93 RFormMDI RLabel []"] },
+    expect: ["lbl.caption= pick:RButton sel:RLabel drag:RLabel drop:RLabel>surface@108,118 drag:RLabel drop:RLabel>inner@28,28", "info.caption=96 RFormMDI RLabel []"] },
   { name: "panel_toolbox_keys", events: "box.__key_40,box.__key_40,box.__key_40,box.__key_40,box.__key_76,box.__key_37,box.__key_37,box.__key_40,box.__key_39,box.__key_35,box.__key_36,box.__key_13,breport.onclick",
     dump: "lbl.caption,info.caption",
-    expect: ["lbl.caption= sel:RForm sel:RButton sel:RLabel sel:RFormMDI sel:RLanguageService", "info.caption=110 RForm RLanguageService []"] },
+    expect: ["lbl.caption= sel:RForm sel:RButton sel:RLabel sel:RFormMDI sel:RLanguageService", "info.caption=113 RForm RLanguageService []"] },
   { name: "panel_palette", events: "bopen.onclick,pal.__key_83,pal.__key_65,pal.__key_40,pal.__key_13,bopen.onclick,pal.__key_27,bopen.onclick,edit1.__mousedown_5_5,edit1.__mouseup_5_5,bopen.onclick,pal.__mousedown_100_81,pal.__mouseup_100_81,bopen.onclick,pal.__key_83,breport.onclick",
     dump: "lbl.caption,info.caption",
     expect: ["lbl.caption= first:file.save run:file.saveall first:file.saveall cancel first:file.saveall cancel first:file.saveall run:file.save first:file.save", "info.caption=3 file.save [s] 1 5"] },
@@ -208,6 +208,15 @@ export const cases = [
     expect: ["lbl.caption=paints2|255|14737632|35|338"] },
   { name: "owner_list", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=r2 0:1;1:1;2:0; 0,48,180,72 h24"] },
+  // a TYPE's instance made where its CREATE stands inside a form's block
+  // (RC.EXE's answer: RapidQ's richedit/syntax.bas shows its editor)
+  { name: "nested_typed_create", events: "", dump: "lbl.caption,n.caption",
+    expect: ["lbl.caption=shown: form [after] note [note] 7 10", "n.caption=note"] },
+  // lbOwnerDrawVariable with no event at all (RapidQ's listbox/owndraw):
+  // measured, then drawn, before anyone touches the window
+  { name: "owner_list_variable", events: "", dump: "lbl.caption",
+    expect: ["lbl.caption=0:0-20 1:20-50 2:50-90 "],
+    pixels: [[100, 10, "00ff00"], [100, 35, "0000ff"], [100, 70, "0000ff"], [100, 100, "ffffff"]], clientWidth: 258 },
   // TextRect (a background filling the rectangle, the text clipped to it)
   // on a canvas, an image, an owner-drawn list box, grid and header section
   // and the form; Rotate on a canvas (a bar a quarter turn: up) and an
@@ -303,6 +312,15 @@ export const cases = [
   { name: "modal_result", events: "ed.__key_65,okbtn.onclick,nobtn.onclick", dump: "lbl.caption", expect: ["lbl.caption=17OKe"] },
   { name: "input_chars", events: "lbl.__key_65,lbl.__key_66,lbl.__key_67", dump: "lbl.caption", expect: ["lbl.caption=[abc]-1"] },
   { name: "inherit_event", events: "c.onclick,plain.onclick,btn.onclick", dump: "lbl.caption", expect: ["lbl.caption=own mine1 own | 1"] },
+  // QRICHEDIT's rich text (rapidr_value::objects::richtext / rtf, RC.EXE's
+  // rules): "xy" typed inside the blue italic "Hello" takes its format,
+  // Ctrl+Z gives the text and its formats back; SelAttributes read back
+  // (a selection's last character's, a paragraph start's next one's); the
+  // colour and underline set at the caret go to what AddStrings added;
+  // TextRTF (RapidR's: the RTF SaveToFile writes) after the undo.
+  { name: "rich_text", events: "re.__key_88,re.__key_89,btn.onclick,re.__key_90_16,btn.onclick", dump: "lbl.caption,rtf.caption",
+    expect: ["lbl.caption=|Hexyllo world/green,4,00FF0000MS Sans Serif18,000000FF01|Hello world/green,2,00FF0000MS Sans Serif18,0000800011",
+      "rtf.caption={\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang1033{\\fonttbl{\\f0\\fnil MS Sans Serif;}{\\f1\\fnil\\fcharset0 Courier New;}}~{\\colortbl ;\\red0\\green0\\blue255;\\red255\\green0\\blue0;\\red0\\green128\\blue0;}~\\viewkind4\\uc1\\pard\\cf1\\i\\f0\\fs16 Hello\\cf0\\i0  \\cf2\\b\\f1\\fs24 world\\cf3\\ul ~\\par green\\cf0\\b0\\ulnone\\f0\\fs16 ~\\par }~"] },
   { name: "text_edits", events: "btn.onclick", dump: "lbl.caption,ed.text",
     expect: ["lbl.caption=2two|ell|hEYo|3|two|ONE|2|8|1|1", "ed.text=hEYo"] },
   { name: "trackbar", events: "tb.__key_39,tb.__key_34,tb.__key_36,tb.__mousedown_190_10,tb.__key_35,btn.onclick", dump: "lbl.caption",
@@ -490,4 +508,18 @@ export const cases = [
       const d = g.getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] > 200 && d[i + 1] < 60 && d[i + 2] < 60) n++;
       return n > 200 ? "red line drawn" : "red pixels: " + n; })()`,
     webExpect: "red line drawn" },
+  // (I7) RDBGRID straight from an RCSV, a bound REdit and RLabel: view row 1
+  // clicked (amy), the "age" heading clicked twice (sorted highest first:
+  // the current row stays amy, now shown fifth), "x" typed into the edit
+  // (written back into the table: the grid shows it); a missing age shows
+  // dimmed as null.
+  // (I7) The inspector's DataField drops the columns the designer read
+  // (name, age, city): NameEdit selected on the surface, the DataField row
+  // (Down twice, under its category), F4, Down, Enter — "age".
+  { name: "inspector_datafield", events: "insp.__key_40,insp.__key_40,insp.__key_115,insp.__key_40,insp.__key_13,breport.onclick",
+    dump: "log.caption",
+    expect: ["log.caption=DataField=age | [REDIT age]"] },
+  { name: "rdbgrid", events: "grid.__cell_0_1,grid.__cell_1_-1,grid.__cell_1_-1,nameedit.__key_88",
+    dump: "nameedit.text,agelbl.caption,grid.row,grid.sortcolumn,grid.sortdescending,info.caption",
+    expect: ["nameedit.text=x", "agelbl.caption=25", "grid.row=1", "grid.sortcolumn=1", "grid.sortdescending=1", "info.caption=clicked 1,0 of 5"] },
 ];

@@ -3,6 +3,8 @@
 # a user's install would — never the real user's: files, file types and
 # settings go to temporary folders, and nothing is registered with the
 # system (macOS: the apps' Info.plist is checked, Launch Services untouched).
+# The temporary folder — the install, rustup and cargo homes, the build cache, the cargo
+# target — is removed when the script ends, even after a failed check, ctrl-C or kill.
 #
 #   tools/release/smoke.sh RapidR-<ver>-macos-<arch>.dmg          (macOS; both apps)
 #   tools/release/smoke.sh RapidR-Runtime-<ver>-macos-<arch>.dmg
@@ -29,6 +31,10 @@ cleanup() {
     rm -rf "$T"
 }
 trap cleanup EXIT
+# (a smoke test stopped from outside — ctrl-C, a killed ssh session, `kill` — still removes what it
+# made: bash runs the EXIT trap when these end it, a build cache and a cargo target are many GB)
+trap 'exit 130' INT
+trap 'exit 143' TERM HUP
 FAIL=0
 ok() { echo "  ok    $*"; }
 bad() { echo "  FAIL  $*"; FAIL=1; }
@@ -38,6 +44,9 @@ has() { grep -q -- "$2" <<<"$1"; }
 # Nothing reaches the user's printer, registry store, settings or file types.
 export RAPIDR_PRINT_TO="$T/prints" RAPIDR_REGISTRY="$T/registry.reg" RAPIDR_CONFIG_DIR="$T/config/rapidr"
 export XDG_DATA_HOME="$T/data" XDG_CONFIG_HOME="$T/config"
+# (the build cache in $T too, for every build here: otherwise it is ~/.cache/rapidr or
+# ~/Library/Caches/RapidR, GBs per run, left behind in the user's home)
+export RAPIDR_BUILD_CACHE="$T/build-cache"
 mkdir -p "$RAPIDR_PRINT_TO" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME"
 # Rust, as the user has it (for the native build), before PATH is narrowed.
 CARGO_BIN="$(dirname "$(command -v cargo 2>/dev/null || echo "$HOME/.cargo/bin/cargo")")"

@@ -21,9 +21,9 @@ The other files are the parts those scripts share:
 - `common.sh` (sourced): the version (from `Cargo.toml`), the `dist/<ver>/{prep,work,out}` folders.
 - `home.py`: the runtime's sources with their crates vendored (what native builds compile against, offline).
 - `stage.py`: lays out an installed RapidR (`bin/`, `lib/rapidr/`, `share/doc/rapidr/`) from built pieces; every package is made from that tree.
-- `smoke.sh` (macOS, Linux) and `windows/smoke.ps1` (Windows): install a package into a temporary place, check it, uninstall it.
-- `linux.sh`, `linux/` (install.sh, uninstall.sh, the MIME types and desktop entries, setup-tools.sh): the Linux build, run inside the VM by `linux-vm.sh`; `ubuntu-vm.sh` is the VM driver (send, run, fetch).
-- `windows/` (windows.ps1, rapidr.iss, setup-tools.ps1, smoke.ps1, the job helpers): the Windows build, run inside the VM by `windows-vm.sh`.
+- `smoke.sh` (macOS, Linux) and `windows/smoke.ps1` (Windows): install a package into a temporary place, check it, uninstall it, and remove everything they made (temporary folder, build cache, cargo target) even when a check fails.
+- `linux.sh`, `linux/` (install.sh, uninstall.sh, the MIME types and desktop entries, setup-tools.sh, clean.sh): the Linux build, run inside the VM by `linux-vm.sh`; `ubuntu-vm.sh` is the VM driver (send, run, root, fetch).
+- `windows/` (windows.ps1, rapidr.iss, setup-tools.ps1, smoke.ps1, clean.ps1, the job helpers detach/job/stop/piece/user/whoami, watch-windows.ps1): the Windows build, run inside the VM by `windows-vm.sh`. Its calls run as SYSTEM and its jobs in a headless console, so nothing opens a window on the VM's desktop (`windows-vm.sh flashtest control` checks).
 - `macos/`: the two Info.plists and the entitlements.
 - `web.sh`, `vscode.sh`, `sbom.py`: the web bundle, the VS Code extension, the SBOM (called by `prepare.sh`).
 - `windows/link_audit.sh`, `windows/member_licences.py`: the licence audit of what the Windows builds link from LLVM-MinGW.
@@ -45,8 +45,12 @@ how to run it.
 6. **`tools/release/finish.sh`**.
 7. **Look at `dist/<ver>/out/`**, do the fresh-user journey below, then publish
    by hand (`gh release create`, see the packaging doc).
-8. **Clean up**: `rm -rf dist/<ver>/work dist/<ver>/prep`,
-   `linux-vm.sh --clean`, `windows-vm.sh clean`.
+8. **Clean up** (the last step, always: a release leaves ~10 GB in each VM and
+   the Windows VM's disk once filled up): `rm -rf dist/<ver>/work dist/<ver>/prep`,
+   then `linux-vm.sh clean` and `windows-vm.sh clean`. Each removes the release
+   work folder, the build cache, the smoke tests' temporary folders and the test
+   apps, and keeps the tools, an installed RapidR and the user's files;
+   `--dry-run` lists what would go, with sizes, `--keep-out` keeps the packages.
 
 ## Signing (yours to turn on)
 

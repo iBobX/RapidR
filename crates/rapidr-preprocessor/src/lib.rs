@@ -25,9 +25,11 @@ impl MacroDefinition {
 #[derive(Debug, Clone, Default)]
 pub struct PreprocessOptions {
     pub defines: HashMap<String, String>,
-    /// Extra directories searched for `$INCLUDE` files after the including
-    /// file's own directory (like RapidQ's `include\` folder). Native builds
-    /// also search the `RAPIDR_INCLUDE_PATH` environment variable.
+    /// The include folders: searched for `$INCLUDE` files after the main
+    /// program's own folder, as RC.EXE's `-I` folder (RapidQ's `include\`),
+    /// in order ([`include_search`]). [`preprocess_file`] adds the user's
+    /// ([`configured_include_dirs`]: Studio's, `--include-dir`,
+    /// `RAPIDR_INCLUDE_PATH`).
     pub include_dirs: Vec<PathBuf>,
     /// Files `$INCLUDE` finds without a file system — the web, where a
     /// project's files are in memory: (name as the project names it, its
@@ -74,18 +76,24 @@ fn real_path(path: &Path) -> Option<PathBuf> {
 }
 
 /// The virtual file `include_file` names ([`PreprocessOptions::virtual_files`]):
-/// the one named so, else the one at that path from the including file's
-/// folder `base_dir` (`include\Win.inc` beside it, `..\lib\x.inc`), else
-/// the first of that file name.
-fn find_virtual<'a>(files: &'a [(String, String)], include_file: &str, base_dir: &Path) -> Option<&'a (String, String)> {
+/// the one named so, else the first one where the disk's search looks
+/// ([`include_search`]: the main program's folder `main_dir`, the include
+/// folders, the including file's folder `base_dir` … — `include\Win.inc`
+/// beside it, `..\lib\x.inc`), else the first of that file name.
+fn find_virtual<'a>(files: &'a [(String, String)], include_file: &str, base_dir: &Path, main_dir: &Path, include_dirs: &[PathBuf]) -> Option<&'a (String, String)> {
     let wanted = include_file.trim().replace('\\', "/");
     let base = wanted.rsplit('/').next().unwrap_or(&wanted).to_string();
-    let joined = normal_path(&format!("{}/{wanted}", base_dir.to_string_lossy().replace('\\', "/")));
-    files
-        .iter()
-        .find(|(name, _)| name.replace('\\', "/").eq_ignore_ascii_case(&wanted))
-        .or_else(|| (!base_dir.as_os_str().is_empty()).then(|| files.iter().find(|(name, _)| normal_path(name).eq_ignore_ascii_case(&joined))).flatten())
-        .or_else(|| files.iter().find(|(name, _)| name.replace('\\', "/").rsplit('/').next().is_some_and(|b| b.eq_ignore_ascii_case(&base))))
+    if let Some(f) = files.iter().find(|(name, _)| name.replace('\\', "/").eq_ignore_ascii_case(&wanted)) {
+        return Some(f);
+    }
+    let names: Vec<String> = files.iter().map(|(name, _)| normal_path(name)).collect();
+    for (root, rel) in include_search(include_file, base_dir, main_dir, include_dirs) {
+        let at = normal_path(&root.join(&rel).to_string_lossy());
+        if let Some(i) = names.iter().position(|n| n.eq_ignore_ascii_case(&at)) {
+            return Some(&files[i]);
+        }
+    }
+    files.iter().find(|(name, _)| name.replace('\\', "/").rsplit('/').next().is_some_and(|b| b.eq_ignore_ascii_case(&base)))
 }
 
 /// A '/'-separated path with `.` and `..` resolved (as text: no file
@@ -112,6 +120,9 @@ struct PpState {
     macros: HashMap<String, MacroDefinition>,
     include_stack: Vec<PathBuf>,
     include_dirs: Vec<PathBuf>,
+    /// The main program's folder: where RC.EXE looks for every `$INCLUDE`
+    /// first (its current folder), nested ones too.
+    main_dir: PathBuf,
     virtual_files: Vec<(String, String)>,
     confine_to: Option<Vec<PathBuf>>,
     app_type: Option<String>,
@@ -133,8 +144,14 @@ struct PpState {
     /// RapidR's libraries put before the program (`RAPIDR_LIBRARIES`' file
     /// names, upper case): their RapidQ include files aren't read.
     libraries: Vec<String>,
+    /// The built-in RAPIDQ.INC has been given: a second `$INCLUDE` of it
+    /// gives nothing (RapidQ's file guards itself so; its QBColor array
+    /// can't be declared twice).
+    rapidq_inc_given: bool,
     /// Every file read so far (the origin map's files).
     files: Vec<SourceFile>,
+    /// Every `$INCLUDE` followed so far ([`PreprocessResult::includes`]).
+    includes: Vec<IncludeUse>,
     /// False when only one text's lines are classified ([`scan_lines`]):
     /// `$INCLUDE`s aren't read.
     follow_includes: bool,
@@ -154,6 +171,7 @@ impl PpState {
             macros: HashMap::new(),
             include_stack: Vec::new(),
             include_dirs: options.include_dirs,
+            main_dir: PathBuf::new(),
             virtual_files: options.virtual_files,
             confine_to: options.confine_to,
             app_type: None,
@@ -162,7 +180,9 @@ impl PpState {
             object_fields: None,
             create_depth: 0,
             libraries: Vec::new(),
+            rapidq_inc_given: false,
             files: Vec::new(),
+            includes: Vec::new(),
             follow_includes: true,
             errors: None,
         }
@@ -246,6 +266,40 @@ fn source_reader() -> Option<SourceReader> {
     SOURCE_READER.read().ok().and_then(|r| *r)
 }
 
+static INCLUDE_DIRS: std::sync::RwLock<Vec<PathBuf>> = std::sync::RwLock::new(Vec::new());
+
+/// The user's include folders, for every program compiled from now on:
+/// RapidR Studio's Settings ▸ Include folders, `rapidr --include-dir`.
+/// Searched after the program's own folder, as RC.EXE's `-I` folder
+/// ([`include_search`]); [`configured_include_dirs`] adds
+/// `RAPIDR_INCLUDE_PATH`'s.
+pub fn set_include_dirs(dirs: Vec<PathBuf>) {
+    if let Ok(mut d) = INCLUDE_DIRS.write() {
+        *d = dirs;
+    }
+}
+
+/// The include folders every program gets ([`preprocess_file`]): those set
+/// ([`set_include_dirs`]), then `RAPIDR_INCLUDE_PATH`'s (several, separated
+/// as the system's PATH), each once.
+pub fn configured_include_dirs() -> Vec<PathBuf> {
+    let mut out: Vec<PathBuf> = INCLUDE_DIRS.read().map(|d| d.clone()).unwrap_or_default();
+    if let Some(paths) = std::env::var_os("RAPIDR_INCLUDE_PATH") {
+        for p in std::env::split_paths(&paths) {
+            if !p.as_os_str().is_empty() && !out.contains(&p) {
+                out.push(p);
+            }
+        }
+    }
+    out
+}
+
+/// `RAPIDR_INCLUDE_PATH`'s value for `dirs` (a program run from RapidR
+/// Studio gets Studio's include folders so).
+pub fn include_path_value(dirs: &[PathBuf]) -> Option<std::ffi::OsString> {
+    std::env::join_paths(dirs).ok()
+}
+
 fn read_bytes(path: &Path) -> std::io::Result<Vec<u8>> {
     match source_reader() {
         Some(reader) => reader(path).ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no such file")),
@@ -311,6 +365,47 @@ pub struct PreprocessResult {
     /// Where each byte of `source` came from (file and byte offset), and
     /// the text of every file read.
     pub origins: OriginMap,
+    /// Every `$INCLUDE` followed (in an `$IFDEF` branch this build
+    /// compiles), in the order read, and what each found.
+    pub includes: Vec<IncludeUse>,
+}
+
+/// One `$INCLUDE` of a program and what it read.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IncludeUse {
+    /// The file the line is in (an index of [`OriginMap::files`]) and the
+    /// line, from 1.
+    pub file: FileId,
+    pub line: usize,
+    /// The file's name as written (`Inc\MyLib.INC`) and its bytes in the
+    /// text of `file` (between the quotes or `<` `>`).
+    pub written: String,
+    pub span: std::ops::Range<usize>,
+    pub found: IncludeFound,
+}
+
+/// What an `$INCLUDE` read.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IncludeFound {
+    /// A file, where [`include_search`] found it (the host's in memory).
+    File(PathBuf),
+    /// RapidR's own, no file read: RAPIDQ.INC's constants, those of a
+    /// RapidQ library whose object RapidR has built in (`QMidi.inc`), or
+    /// RapidR's version of a library (`QDockForm.inc`) — [`is_builtin_include`].
+    BuiltIn,
+    /// Nowhere (the program doesn't compile).
+    Missing,
+}
+
+/// Whether RapidR supplies the include file `name` (a path: its last part
+/// counts) itself — RapidQ's RAPIDQ.INC (its constants), the RapidQ
+/// libraries whose objects RapidR has built in (`qmidi.inc` …: their
+/// constants), RapidR's versions of RapidQ's libraries (`QDockForm.inc`).
+/// RapidQ's own files of those names are never needed in a project.
+pub fn is_builtin_include(name: &str) -> bool {
+    let n = name.trim().replace('\\', "/");
+    let n = n.rsplit('/').next().unwrap_or(&n);
+    n.eq_ignore_ascii_case("RAPIDQ.INC") || LIBRARY_INCLUDES.iter().any(|(f, _)| f.eq_ignore_ascii_case(n)) || RAPIDR_LIBRARIES.iter().any(|(_, f, _)| f.eq_ignore_ascii_case(n))
 }
 
 /// One `$RESOURCE` of a program.
@@ -381,8 +476,10 @@ pub fn preprocess_file(
 ) -> Result<PreprocessResult, PreprocessError> {
     let path = path.as_ref();
     let mut options = options;
-    if let Some(paths) = std::env::var_os("RAPIDR_INCLUDE_PATH") {
-        options.include_dirs.extend(std::env::split_paths(&paths));
+    for dir in configured_include_dirs() {
+        if !options.include_dirs.contains(&dir) {
+            options.include_dirs.push(dir);
+        }
     }
     let (source, encoding) = read_source_with_encoding(path).map_err(|error| {
         PreprocessError::new(
@@ -435,8 +532,10 @@ pub fn preprocess_source(
 pub fn preprocess_file_recovering(path: impl AsRef<Path>, options: PreprocessOptions) -> Result<(PreprocessResult, Vec<PreprocessError>), PreprocessError> {
     let path = path.as_ref();
     let mut options = options;
-    if let Some(paths) = std::env::var_os("RAPIDR_INCLUDE_PATH") {
-        options.include_dirs.extend(std::env::split_paths(&paths));
+    for dir in configured_include_dirs() {
+        if !options.include_dirs.contains(&dir) {
+            options.include_dirs.push(dir);
+        }
     }
     let (source, encoding) = read_source_with_encoding(path).map_err(|error| {
         PreprocessError::new(format!("Failed to read source file '{}': {error}", path.display()), 1, 1, Some(path.display().to_string()))
@@ -476,6 +575,7 @@ fn finish(out: Output, state: PpState) -> PreprocessResult {
         app_type: state.app_type,
         resources: state.resources,
         origins: OriginMap { files: state.files, segments: out.segs },
+        includes: state.includes,
     }
 }
 
@@ -525,6 +625,7 @@ fn names_word(source: &str, word: &str) -> bool {
 /// The program, after RapidR's libraries for the components it names.
 fn preprocess_program(source: &str, encoding: SourceEncoding, base_dir: &Path, file_path: Option<PathBuf>, state: &mut PpState) -> Result<Output, PreprocessError> {
     let mut out = Output::default();
+    state.main_dir = base_dir.to_path_buf();
     for (name, file, text) in RAPIDR_LIBRARIES {
         if names_word(source, name) {
             let (lib, lib_id) = preprocess_with_state(text, SourceEncoding::Utf8, base_dir, Some(PathBuf::from(format!("<RapidR>/{file}"))), state)?;
@@ -753,7 +854,7 @@ fn preprocess_with_state(
             };
             // (resolved here on the desktop; the web finds it in the project's assets)
             let handle = RESOURCE_BASE + state.resources.len() as i64;
-            let path = if file.trim().is_empty() { None } else { resolve_include_path(base_dir, &file, &[]) };
+            let path = if file.trim().is_empty() { None } else { resolve_include(&file, base_dir, base_dir, &[]) };
             let n = state.resources.iter().filter(|r| r.icon_directive.is_some()).count();
             let name = if n == 0 { "RAPIDR_OPTION_ICON".to_string() } else { format!("RAPIDR_OPTION_ICON_{}", n + 1) };
             let at = (file_label.clone().unwrap_or_else(|| "<source>".into()), line_number);
@@ -780,7 +881,7 @@ fn preprocess_with_state(
                     }
                 };
                 let handle = RESOURCE_BASE + state.resources.len() as i64;
-                let path = resolve_include_path(base_dir, &file, &[]);
+                let path = resolve_include(&file, base_dir, base_dir, &[]);
                 state.resources.push(Resource { name: name.clone(), file, path, icon_directive: None });
                 consts.push(format!("CONST {name} = {handle}"));
             }
@@ -816,11 +917,16 @@ fn preprocess_with_state(
             if let Some(k) = kinds.get_mut(line_index) {
                 *k = LineKind::Directive;
             }
+            // (what it reads, for tools: the importer, Studio's project)
+            let lead = original_line.len() - original_line.trim_start().len();
+            let at = range.start + lead + line.find(['"', '<']).map_or(0, |q| q + 1);
+            let record = |found: IncludeFound| IncludeUse { file: file_id, line: line_number, written: include_file.clone(), span: at..at + include_file.len(), found };
 
             // A RapidQ library RapidR has its own version of: that one, put
             // before the program already (or now).
             let short = Path::new(&include_file.replace('\\', "/")).file_name().and_then(|n| n.to_str()).unwrap_or("").to_ascii_uppercase();
             if let Some((_, file, text)) = RAPIDR_LIBRARIES.iter().find(|(_, f, _)| f.to_ascii_uppercase() == short) {
+                state.includes.push(record(IncludeFound::BuiltIn));
                 if !state.libraries.contains(&short) {
                     state.libraries.push(short);
                     let (lib, _) = preprocess_with_state(text, SourceEncoding::Utf8, base_dir, Some(PathBuf::from(format!("<RapidR>/{file}"))), state)?;
@@ -830,19 +936,27 @@ fn preprocess_with_state(
                 }
                 continue;
             }
-            let virtual_file = find_virtual(&state.virtual_files, &include_file, base_dir).cloned();
-            let include_path = match virtual_file.as_ref().map(|(name, _)| PathBuf::from(name)).or_else(|| resolve_include_path(base_dir, &include_file, &state.include_dirs)) {
+            let virtual_file = find_virtual(&state.virtual_files, &include_file, base_dir, &state.main_dir, &state.include_dirs).cloned();
+            let include_path = match virtual_file.as_ref().map(|(name, _)| PathBuf::from(name)).or_else(|| resolve_include(&include_file, base_dir, &state.main_dir, &state.include_dirs)) {
                 Some(path) => path,
                 None => {
                     // RapidQ programs start with `$INCLUDE "RAPIDQ.INC"`; supply
                     // its constants when the file isn't next to the program.
                     if let Some(builtin) = builtin_include(&include_file) {
-                        emit!(out, LineKind::Directive, generated(builtin));
+                        state.includes.push(record(IncludeFound::BuiltIn));
+                        let rapidq_inc = include_file.rsplit(['/', '\\']).next().is_some_and(|n| n.eq_ignore_ascii_case("RAPIDQ.INC"));
+                        if rapidq_inc && std::mem::replace(&mut state.rapidq_inc_given, true) {
+                            emit!(out, LineKind::Directive, blank());
+                        } else {
+                            emit!(out, LineKind::Directive, generated(builtin));
+                        }
                         continue;
                     }
-                    fail!(format!("Include file not found: '{include_file}'"));
+                    state.includes.push(record(IncludeFound::Missing));
+                    fail!(not_found_message(&include_file));
                 }
             };
+            state.includes.push(record(IncludeFound::File(include_path.clone())));
 
             if state.include_stack.iter().any(|entry| entry == &include_path) {
                 fail!(format!("Recursive include detected: '{include_file}'"));
@@ -911,7 +1025,9 @@ fn preprocess_with_state(
             state.create_depth += 1;
         }
         state.create_depth = state.create_depth.saturating_sub(upper_line.matches("END CREATE").count());
-        if !state.defines.is_empty() && !upper_line.contains('$') {
+        // (not in a directive's line; a line with `STR$(…)` gets them too —
+        // `If gFile < Z_OK Then … str$(gFile)` in RapidQ's zlib examples)
+        if !state.defines.is_empty() && !upper_line.trim_start().starts_with('$') {
             substitute_defines_outside_strings(&mut processed_line, &state.defines, state.object_fields.as_ref(), in_create);
         }
 
@@ -954,7 +1070,8 @@ pub type LineOrigin = (Option<PathBuf>, usize);
 ///
 /// Every entry is a name and a number: an interface fact that existing
 /// programs depend on, kept so that they run unchanged. Nothing else of
-/// RapidQ's file is reproduced — no comments, layout or order. The entries
+/// RapidQ's file is reproduced — no comments, layout or order — but the
+/// `QBColor` array's facts ([`RAPIDQ_INC_QBCOLOR`]). The entries
 /// are grouped here by where each number is publicly defined, alphabetically
 /// within a group, and each group says its source (docs/legal/rapidq-review.md,
 /// "RAPIDQ.INC"). Colours are &HBBGGRR numbers, as RapidR's runtimes use them;
@@ -1192,19 +1309,37 @@ fn builtin_include(include_file: &str) -> Option<String> {
     if !name.eq_ignore_ascii_case("RAPIDQ.INC") {
         return None;
     }
-    Some(
-        RAPIDQ_INC_CONSTANTS
-            .iter()
-            .map(|(name, value)| format!("CONST {name} = {value}"))
-            .collect::<Vec<_>>()
-            .join(" : "),
-    )
+    let mut stmts: Vec<String> = RAPIDQ_INC_CONSTANTS.iter().map(|(name, value)| format!("CONST {name} = {value}")).collect();
+    // (the QBColor array RAPIDQ.INC also gives: RC.EXE reads QBColor(0 TO 15)
+    // AS INTEGER — LBOUND 0, UBOUND 15, assignable, a store truncated as an
+    // INTEGER's — holding RAPIDQ_INC_QBCOLOR)
+    stmts.push("DIM QBColor(0 TO 15) AS INTEGER".into());
+    stmts.extend(RAPIDQ_INC_QBCOLOR.iter().enumerate().map(|(i, v)| format!("QBColor({i}) = {v}")));
+    Some(stmts.join(" : "))
 }
+
+/// The values of RAPIDQ.INC's `QBColor` array: QBasic's 16 colours, as
+/// &HBBGGRR numbers — black, blue, green, cyan, red, magenta, brown (dark
+/// yellow), light grey, dark grey, then the bright blue, green, cyan, red,
+/// magenta, yellow and white. The palette is QBasic's (the same RGB values
+/// Visual Basic's documented QBColor function returns); RC.EXE's
+/// `QBColor(i)` reads these numbers (probe qbcolor.bas, 2026-10-15).
+pub const RAPIDQ_INC_QBCOLOR: [i64; 16] = [
+    0x000000, 0x800000, 0x008000, 0x808000, 0x000080, 0x800080, 0x008080, 0xC0C0C0, //
+    0x808080, 0xFF0000, 0x00FF00, 0xFFFF00, 0x0000FF, 0xFF00FF, 0x00FFFF, 0xFFFFFF,
+];
 
 /// What `$INCLUDE "RAPIDQ.INC"` gives when no such file is found: the
 /// constants of [`RAPIDQ_INC_CONSTANTS`], as one line of BASIC.
 pub fn rapidq_inc_text() -> String {
     builtin_include("RAPIDQ.INC").unwrap_or_default()
+}
+
+/// What `$INCLUDE "<name>"` gives when no file of that name is found, for
+/// the includes RapidR supplies as constants (RAPIDQ.INC, `QMidi.inc` …);
+/// `None` for any other name.
+pub fn builtin_include_text(name: &str) -> Option<String> {
+    builtin_include(name)
 }
 
 fn strip_inline_comment(input: &str) -> &str {
@@ -1262,8 +1397,11 @@ fn parse_resource(line: &str) -> Option<(String, String)> {
     if name.is_empty() || !after.get(..2).is_some_and(|a| a.eq_ignore_ascii_case("AS")) {
         return None;
     }
-    let quoted = after[2..].trim_start().strip_prefix('"')?;
-    let file = &quoted[..quoted.find('"')?];
+    // (`AS <PLAY.BMP>`, as $INCLUDE takes <…>: RC.EXE builds AVI/aviplay.bas)
+    let target = after[2..].trim_start();
+    let (open, close) = if target.starts_with('<') { ('<', '>') } else { ('"', '"') };
+    let quoted = target.strip_prefix(open)?;
+    let file = &quoted[..quoted.find(close)?];
     Some((name, file.to_string()))
 }
 
@@ -1275,48 +1413,110 @@ fn parse_include_target(line: &str) -> Option<String> {
         '>'
     };
     let tail = &line[start + 1..];
-    let end = tail.find(end_char)?;
-    Some(tail[..end].to_string())
+    // (`$INCLUDE "mysql.inc` with no closing quote: the rest of the line —
+    // RC.EXE builds RapidQ's mysql/SQLServerTutorial/Taxes.bas)
+    let end = tail.find(end_char).unwrap_or(tail.trim_end().len());
+    let name = tail[..end].trim_end();
+    (!name.is_empty()).then(|| name.to_string())
 }
 
-/// Finds an `$INCLUDE` file the way RapidQ on Windows does: `\\` separators
-/// and case-insensitive names, looking next to the including file, then in
-/// the include directories (and the RapidQ folder above them), then in the
-/// current directory. Programs often name their author's absolute path
-/// (`c:\\rapidq\\include\\windows.inc`); after the full path fails, ever
-/// shorter endings of it are tried (`include/windows.inc`, `windows.inc`).
-fn resolve_include_path(base_dir: &Path, include_file: &str, include_dirs: &[PathBuf]) -> Option<PathBuf> {
-    let mut relative = include_file.trim().replace('\\', "/");
-    if relative.len() >= 2 && relative.as_bytes()[1] == b':' && relative.as_bytes()[0].is_ascii_alphabetic() {
-        relative = relative[2..].to_string();
-    }
-    let mut roots = vec![base_dir.to_path_buf()];
-    for dir in include_dirs {
-        roots.push(dir.clone());
-    }
-    for dir in include_dirs {
-        if let Some(parent) = dir.parent() {
-            roots.push(parent.to_path_buf());
-        }
-    }
+/// The folders an `$INCLUDE` is looked for in, in order ([`include_search`]).
+fn search_roots(includer_dir: &Path, main_dir: &Path, include_dirs: &[PathBuf]) -> Vec<PathBuf> {
+    let mut roots = vec![main_dir.to_path_buf()];
+    roots.extend(include_dirs.iter().cloned());
+    roots.push(includer_dir.to_path_buf());
+    roots.extend(include_dirs.iter().filter_map(|d| d.parent()).filter(|p| !p.as_os_str().is_empty()).map(Path::to_path_buf));
     if let Ok(cwd) = std::env::current_dir() {
         roots.push(cwd);
     }
-    if !relative.starts_with('/') {
-        if let Some(found) = roots.iter().find_map(|root| find_case_insensitive(root, &relative)) {
-            return Some(found);
+    let mut out: Vec<PathBuf> = Vec::new();
+    for r in roots {
+        if !out.contains(&r) {
+            out.push(r);
         }
     }
-    let parts: Vec<&str> = relative.split('/').filter(|p| !p.is_empty() && *p != "." && *p != "..").collect();
-    (0..parts.len()).find_map(|skip| {
-        let tail = parts[skip..].join("/");
-        roots.iter().find_map(|root| find_case_insensitive(root, &tail))
-    })
+    out
 }
 
+/// Where `$INCLUDE "file"` (or `<file>`) is looked for, in order: (a
+/// folder, the path below it with `/` separators). A name matches in any
+/// case, `\` and `/` alike: RapidQ code was written on Windows
+/// (`$INCLUDE "Inc\MyLib.INC"` finds `inc/mylib.inc`).
+///
+/// RC.EXE's own rules come first (checked with RapidQ's compiler,
+/// 2026-10-15): every `$INCLUDE` — a nested one too — is looked for in the
+/// current folder, which is the program's own when RapidQ compiles it
+/// (`main_dir`), then in the include folder (`-I`; RapidR has several,
+/// `include_dirs`, in order). RapidR adds what code moved off Windows
+/// needs, only where RC.EXE would find nothing: the including file's own
+/// folder (`lib\a.inc`'s `"b.inc"` beside it), the folder above each
+/// include folder (RapidQ's own, above `include\`), the current folder; an
+/// absolute path as it is on this system (`C:\…` on Windows, `/…`
+/// elsewhere); and then every path by its ever shorter endings in those
+/// folders — `C:\rapidq\inc\x.inc` as `rapidq/inc/x.inc`, `inc/x.inc`,
+/// then `x.inc`: a Windows path found by its file name in the include
+/// folders.
+pub fn include_search(include_file: &str, includer_dir: &Path, main_dir: &Path, include_dirs: &[PathBuf]) -> Vec<(PathBuf, String)> {
+    let text = include_file.trim().replace('\\', "/");
+    let b = text.as_bytes();
+    let drive = b.len() >= 2 && b[1] == b':' && b[0].is_ascii_alphabetic();
+    let rel = if drive { &text[2..] } else { &text[..] };
+    let absolute = drive || rel.starts_with('/');
+    let roots = search_roots(includer_dir, main_dir, include_dirs);
+    let mut out: Vec<(PathBuf, String)> = Vec::new();
+    if !absolute {
+        out.extend(roots.iter().map(|r| (r.clone(), rel.to_string())));
+    } else if !drive || cfg!(windows) {
+        // (as written: `C:\…` is a path on Windows only; `\…` and `/…` start
+        // at the top of this system's disk)
+        let top = if drive { PathBuf::from(format!("{}/", &text[..2])) } else { PathBuf::from("/") };
+        out.push((top, rel.trim_start_matches('/').to_string()));
+    }
+    let parts: Vec<&str> = rel.split('/').filter(|p| !p.is_empty() && *p != "." && *p != "..").collect();
+    for skip in 0..parts.len() {
+        let tail = parts[skip..].join("/");
+        for r in &roots {
+            let c = (r.clone(), tail.clone());
+            if !out.contains(&c) {
+                out.push(c);
+            }
+        }
+    }
+    out
+}
+
+/// The file `$INCLUDE "file"` reads, written in a file of folder
+/// `includer_dir` of the program in `main_dir` ([`include_search`]): its
+/// path as the disk has it (the host's reader's on the web), `None` when
+/// it isn't anywhere.
+pub fn resolve_include(include_file: &str, includer_dir: &Path, main_dir: &Path, include_dirs: &[PathBuf]) -> Option<PathBuf> {
+    include_search(include_file, includer_dir, main_dir, include_dirs).into_iter().find_map(|(root, rel)| find_case_insensitive(&root, &rel))
+}
+
+/// The file at `rel` (`/`-separated) under folder `root`, each name matched
+/// in any case (`Inc/MyLib.INC` finds `inc/mylib.inc`): its path as the
+/// disk names it (the host's reader's on the web).
+pub fn find_file(root: &Path, rel: &str) -> Option<PathBuf> {
+    find_case_insensitive(root, rel)
+}
+
+/// The preprocessor's message for an `$INCLUDE` it can't find (RC.EXE's:
+/// `$INCLUDE file x does not exist`), with what to do.
+pub fn not_found_message(include_file: &str) -> String {
+    let name = include_file.trim().replace('\\', "/");
+    let name = name.rsplit('/').next().unwrap_or(&name).to_string();
+    format!(
+        "Include file not found: '{include_file}' (looked in the program's folder and the include folders): put {name} beside the program, or add the folder that holds it to the include folders (RapidR Studio: Tools > Settings > Include folders; rapidr: --include-dir <folder>)"
+    )
+}
+
+/// The file at `relative` under `root`, each name matched in any case, as
+/// the folders name it (`Inc/MyLib.INC` → `inc/mylib.inc`, on a disk that
+/// ignores case too: a copy, a project, a message names the real file).
 fn find_case_insensitive(root: &Path, relative: &str) -> Option<PathBuf> {
     let direct = root.join(relative);
-    if direct.is_file() {
+    // (a disk that tells names apart: found as written is its real name)
+    if direct.is_file() && !cfg!(any(target_os = "macos", target_os = "windows")) {
         return Some(direct);
     }
     // (a host's reader: its path as named — a browser has no folders to
@@ -1330,15 +1530,26 @@ fn find_case_insensitive(root: &Path, relative: &str) -> Option<PathBuf> {
             current.push("..");
             continue;
         }
-        let exact = current.join(part);
-        if exact.exists() {
-            current = exact;
-            continue;
+        // (the name as written when it is there, else one in another case)
+        let listed = if current.as_os_str().is_empty() { Path::new(".") } else { current.as_path() };
+        let mut other = None;
+        let mut exact = false;
+        for entry in fs::read_dir(listed).ok()?.flatten() {
+            let name = entry.file_name();
+            let Some(n) = name.to_str() else { continue };
+            if n == part {
+                exact = true;
+                break;
+            }
+            if other.is_none() && n.eq_ignore_ascii_case(part) {
+                other = Some(name);
+            }
         }
-        let entry = fs::read_dir(&current).ok()?.flatten().find(|entry| {
-            entry.file_name().to_str().is_some_and(|name| name.eq_ignore_ascii_case(part))
-        })?;
-        current = entry.path();
+        if exact {
+            current.push(part);
+        } else {
+            current.push(other?);
+        }
     }
     current.is_file().then_some(current)
 }
@@ -1546,7 +1757,7 @@ mod tests {
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use super::{preprocess_file, preprocess_source, PreprocessOptions};
+    use super::{preprocess_file, preprocess_source, resolve_include, PreprocessOptions};
 
     fn preprocess(src: &str) -> String {
         preprocess_source(src, ".", None, PreprocessOptions::default())
@@ -1627,6 +1838,13 @@ mod tests {
         // Several on a line.
         let result = preprocess_source("$resource T0 as \"a:b.bmp\" : $resource T1 as \"c.bmp\" ' tiles", ".", None, PreprocessOptions::default()).unwrap();
         assert_eq!(result.source, "CONST T0 = 65536 : CONST T1 = 65537");
+        // ($INCLUDE "x.inc with no closing quote: the rest of the line, RC.EXE)
+        assert_eq!(super::parse_include_target("$INCLUDE \"mysql.inc  "), Some("mysql.inc".to_string()));
+        assert_eq!(super::parse_include_target("$INCLUDE \"a.inc\" ' x"), Some("a.inc".to_string()));
+        // `AS <PLAY.BMP>`, as $INCLUDE's <…> (RC.EXE builds RapidQ's AVI/aviplay.bas)
+        let result = preprocess_source("$RESOURCE PLAYBMP AS <PLAY.BMP>\n$RESOURCE STOPBMP AS \"STOP.BMP\"", ".", None, PreprocessOptions::default()).unwrap();
+        let names: Vec<_> = result.resources.iter().map(|r| (r.name.as_str(), r.file.as_str())).collect();
+        assert_eq!(names, [("PLAYBMP", "PLAY.BMP"), ("STOPBMP", "STOP.BMP")]);
     }
 
     #[test]
@@ -1773,6 +1991,79 @@ mod tests {
         assert!(result.source.contains("PRINT \"café\""), "{}", result.source);
 
         let _ = fs::remove_dir_all(root);
+    }
+
+    /// RC.EXE's rules, as RapidQ's compiler showed them (the Windows VM,
+    /// 2026-10-15), then RapidR's additions where RC.EXE finds nothing.
+    #[test]
+    fn includes_are_found_as_rc_exe_finds_them_then_by_rapidr() {
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!("rapidr-include-rules-{unique}"));
+        let put = |rel: &str, text: &str| {
+            let p = root.join(rel);
+            fs::create_dir_all(p.parent().unwrap()).unwrap();
+            fs::write(p, text).unwrap();
+        };
+        put("prog/sub/a.inc", "PRINT \"a\"\n$INCLUDE \"b.inc\"\n$INCLUDE \"y.inc\"\n$INCLUDE \"..\\shared\\s.inc\"\n$INCLUDE \"near.inc\"\n");
+        // (b.inc beside the program and beside a.inc: the program's, as RC.EXE)
+        put("prog/b.inc", "PRINT \"b-main\"\n");
+        put("prog/sub/b.inc", "PRINT \"b-sub\"\n");
+        // (y.inc beside a.inc and in the include folder: the include folder's)
+        put("prog/sub/y.inc", "PRINT \"y-sub\"\n");
+        put("inc/y.inc", "PRINT \"y-inc\"\n");
+        // (..\ from the program's folder, as RC.EXE's current folder)
+        put("shared/s.inc", "PRINT \"s-main-parent\"\n");
+        put("prog/shared/s.inc", "PRINT \"s-includer\"\n");
+        // (only beside a.inc: RapidR finds it there; RC.EXE wouldn't)
+        put("prog/sub/near.inc", "PRINT \"near\"\n");
+        // (beside the program and in the include folder: beside)
+        put("prog/x.inc", "PRINT \"x-beside\"\n");
+        put("inc/x.inc", "PRINT \"x-inc\"\n");
+        // (a Windows path from another computer: found by its file name in
+        // the include folder; a folder written in another case)
+        put("inc/abs7.inc", "PRINT \"abs-by-name\"\n");
+        put("prog/inc2/mylib.inc", "PRINT \"mylib\"\n");
+        put("inc/tail12.inc", "PRINT \"tail\"\n");
+        let absolute = root.join("elsewhere/abs.inc");
+        put("elsewhere/abs.inc", "PRINT \"absolute\"\n");
+        let main = root.join("prog/main.bas");
+        fs::write(
+            &main,
+            format!(
+                "$INCLUDE \"sub\\a.inc\"\n$INCLUDE \"x.inc\"\n$INCLUDE \"C:\\nowhere\\abs7.inc\"\n$INCLUDE \"Inc2\\MyLib.INC\"\n$INCLUDE <Inc\\Tail12.inc>\n$INCLUDE \"{}\"\n",
+                absolute.display()
+            ),
+        )
+        .unwrap();
+        let options = PreprocessOptions { include_dirs: vec![root.join("inc")], ..Default::default() };
+        let result = preprocess_file(&main, options).unwrap();
+        let printed: Vec<&str> = result.source.lines().filter_map(|l| l.strip_prefix("PRINT \"")).map(|l| l.trim_end_matches('"')).collect();
+        assert_eq!(printed, ["a", "b-main", "y-inc", "s-main-parent", "near", "x-beside", "abs-by-name", "mylib", "tail", "absolute"]);
+        // (each $INCLUDE recorded: where it is, as written, what it found)
+        let abs = result.includes.iter().find(|i| i.written.contains("abs7")).unwrap();
+        let main_text = &result.origins.files[abs.file].text;
+        assert_eq!((&main_text[abs.span.clone()], abs.line), ("C:\\nowhere\\abs7.inc", 3));
+        assert!(matches!(&abs.found, super::IncludeFound::File(p) if p.ends_with("inc/abs7.inc")), "{abs:?}");
+        assert_eq!(result.includes.len(), 10);
+        // (one search for every tool: the same file)
+        let found = resolve_include("Inc2\\MYLIB.inc", &root.join("prog"), &root.join("prog"), &[]).unwrap();
+        assert!(found.ends_with("prog/inc2/mylib.inc"), "the real names: {}", found.display());
+        assert_eq!(fs::read_to_string(found).unwrap(), "PRINT \"mylib\"\n");
+        fs::write(root.join("prog/gone.bas"), "$INCLUDE \"Lib\\y.inc\"\n").unwrap();
+        let missing = preprocess_file(root.join("prog/gone.bas"), PreprocessOptions::default()).unwrap_err().to_string();
+        assert!(missing.contains("Include file not found: 'Lib\\y.inc'") && missing.contains("put y.inc beside the program") && missing.contains("--include-dir"), "{missing}");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn virtual_files_follow_the_same_search() {
+        // (the program's folder before the including file's, as on a disk)
+        let options = PreprocessOptions {
+            virtual_files: vec![("/p/sub/a.inc".into(), "$INCLUDE \"b.inc\"\n".into()), ("/p/sub/b.inc".into(), "PRINT 2".into()), ("/p/b.inc".into(), "PRINT 1".into())],
+            ..Default::default()
+        };
+        let r = preprocess_source("$INCLUDE \"sub\\A.inc\"\n", "/p", Some(std::path::PathBuf::from("/p/main.bas")), options).unwrap();
+        assert_eq!(r.source.trim_end(), "PRINT 1");
     }
 
     #[test]

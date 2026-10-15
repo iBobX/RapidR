@@ -52,7 +52,24 @@ export const scenes = [
   // past Studio's own, whole)
   { topic: "debugging", name: "web-breakpoint-hit", host: "web", open: COUNTER, do: HIT, delay: 6, crop: [0, 0, 1280, 800] },
   { topic: "debugging", name: "web-program-window", host: "web", open: GREETER, do: "run.start", delay: 4, crop: [940, 190, 500, 260], web: dragPast },
+  // (a window bigger than the page — the 1200 x 800 dashboard on a 1280 x
+  // 720 page —, scrolled to its bottom: the run area's scroll bar along
+  // the page's right edge)
+  { topic: "debugging", name: "web-big-window", host: "web", open: "examples/gui/sales_dashboard.rr", do: "run.start", delay: 4, maximized: true, viewport: { width: 1280, height: 720 }, crop: [0, 0, 1280, 720], web: scrollDown },
 ];
+
+// (the program's desktop scrolled to the window's bottom: the wheel over
+// the scroll bar at the page's right edge)
+async function scrollDown(page) {
+  await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+  await page.waitForTimeout(800);
+  const vp = page.viewportSize();
+  await page.mouse.move(vp.width - 6, Math.round(vp.height / 2));
+  for (let i = 0; i < 4; i++) await page.mouse.wheel(0, 100);
+  // (the mouse off the bar: it shows as it rests)
+  await page.mouse.move(vp.width - 300, 8);
+  await page.waitForTimeout(500);
+}
 
 // (the program's window, by its title bar, to straddle Studio's right edge)
 async function dragPast(page) {

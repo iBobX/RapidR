@@ -548,7 +548,7 @@ Matrix (`RAPIDR_HOSTS=fltk,kernel`, native and interpreted, 1× and `RAPIDR_SCAL
 Not done in this lane:
 - The lists lane's in-place editors (tree nodes, list view captions, grid cells) are still `list::InPlace` (type, Backspace, Enter, Escape): replacing them with `EditUi` touches the three components' painting closures — a follow-up.
 - No drag selection by words / paragraphs after a double / triple click; no auto-scroll while dragging a selection outside the view (it follows the mouse's moves only).
-- QRICHEDIT step 2 (SelAttributes, Paragraph, RTF), PlainText; InputMask / EditText; a QEDIT's AutoSize.
+- ~~QRICHEDIT step 2 (SelAttributes, Paragraph, RTF), PlainText~~ (done, RICHEDIT 2026-10-15: docs/manual/rich-text.md); InputMask / EditText; a QEDIT's AutoSize.
 - IME composition with a real input method is untested here (no keyboard on the locked test machine); the kernel side is unit-tested.
 ## Stage 10 — design surface & code editor (2026-10-04)
 
@@ -574,7 +574,7 @@ Open:
 - Web: RDESIGNSURFACE is a plain panel (its model answers; drawing `ops` on a canvas and passing it the mouse would make it the designer there); the web's code editor is a dark plain textarea without BASIC's colours (an overlay `<pre>` coloured by `objects::code` would match the desktop).
 - A standalone (parentless) RDESIGNSURFACE isn't a window on the kernel (FLTK's is, now that it draws in its own coordinates); no program uses one.
 - No keys on the designer (arrows to nudge, Delete) on either host; the model would get a `nudge`.
-- Given runs (`set_spans`) don't follow edits yet (an edit makes new paragraphs without runs): QRICHEDIT step 2's work.
+- ~~Given runs (`set_spans`) don't follow edits yet~~: a rich edit's runs come from the shared model again after every edit (`EditUi::restyle`, RICHEDIT 2026-10-15).
 - Tabs in the code editor take parley's advance, not FLTK's 8-column stops; the gutter's numbers approximate FLTK's look.
 
 ## Kernel input follow-ups (2026-10-04)

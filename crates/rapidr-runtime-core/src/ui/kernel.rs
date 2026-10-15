@@ -176,9 +176,10 @@ fn started() -> bool {
     kern().is_some()
 }
 
-/// What wakes the window loop from another thread (its host's waker; the
-/// window system started for it).
-pub fn gui_waker() -> Option<std::task::Waker> {
+/// Wakes the window loop from another thread: a wait in [`step`] ends at
+/// once (RapidR Studio's program sessions: what the program says is heard
+/// when it arrives, not at the next poll).
+pub fn waker() -> Option<std::task::Waker> {
     ensure_host();
     with_kern(|k| k.host.waker())
 }
@@ -249,10 +250,18 @@ pub fn step(max_wait: Option<Duration>) {
         return;
     }
     // (the lists lane's owner-draw events, before the windows are drawn)
+    let before_paint = crate::object::rp_vm_events_queued();
     lists::pre_paint(Rt, &forms::shown_forms());
     let now = Instant::now();
     let mut t = max_wait;
     let mut at_most = |d: Duration| t = Some(t.map_or(d, |t| t.min(d)));
+    // (the interpreter: handlers pre_paint just queued — OnMeasureItem's,
+    // then OnDrawItem's — run as soon as this turn ends, not when the
+    // system next has an event: a lbOwnerDrawVariable list showed its items
+    // undrawn until the mouse moved)
+    if crate::object::rp_vm_events_queued() != before_paint {
+        at_most(Duration::ZERO);
+    }
     if let Some(at) = timers::next_due() {
         at_most(at.saturating_duration_since(now));
     }
@@ -693,6 +702,12 @@ pub fn gui_showmodal(name: &str) -> i64 {
 /// Whether `name` is shown modally now (setting its ModalResult closes it).
 pub fn is_modal(name: &str) -> bool {
     forms::is_modal(name)
+}
+
+/// Whether setting `name`'s ModalResult closes it (not in its ShowModal's
+/// OnShow: forms::modal_result_closes).
+pub fn modal_result_closes(name: &str) -> bool {
+    forms::modal_result_closes(name)
 }
 
 /// `DOEVENTS`: pending events, timers and redraws get their turn. (The

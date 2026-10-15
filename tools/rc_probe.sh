@@ -13,16 +13,21 @@
 #     naming the programs to run, relative to <dir> — the whole <dir> is
 #     copied, each program runs in its own folder. -e: each program's output
 #     as one base64 line (exact bytes; tools/rapidq_truth.py reads it).
+# -w: the VM's work folder RapidQ is copied to (default %USERPROFILE%\rq): a
+#     lane of its own, so two runs at once don't both copy RC.EXE there.
+# w_*.bas: a GUI program that writes what it found to w_<name>.txt and ends
+#     itself (Application.Terminate): the file is printed.
 # RAPIDR_VM names the VM (default "Windows 11 Pro"); a paused or suspended
 # VM is resumed first (it pauses itself when idle).
 set -u
-sub=t; list=; encode=
-while getopts "s:l:e" opt; do
+sub=t; list=; encode=; work=
+while getopts "s:l:ew:" opt; do
   case "$opt" in
     s) sub=$OPTARG ;;
     l) list=$OPTARG ;;
     e) encode=1 ;;
-    *) echo "usage: tools/rc_probe.sh [-s sub] [-l list] [-e] <dir> [timeout]" >&2; exit 2 ;;
+    w) work=$OPTARG ;;
+    *) echo "usage: tools/rc_probe.sh [-s sub] [-l list] [-e] [-w work] <dir> [timeout]" >&2; exit 2 ;;
   esac
 done
 shift $((OPTIND - 1))
@@ -50,6 +55,7 @@ if [ -n "$list" ]; then
   extra+=(-List "$(unc "$list")")
 fi
 [ -n "$encode" ] && extra+=(-Encode)
+[ -n "$work" ] && extra+=(-Work "$work")
 # (stdin from /dev/null: prlctl exec without one fails with "Invalid argument")
 prlctl exec "$vm" --current-user powershell -NoProfile -ExecutionPolicy Bypass -File "$(unc "$here/windows/rc_probe.ps1")" \
   -Programs "$(unc "$dir")" -RapidQ "$(unc "$rapidq")" -Sub "$sub" -Timeout "$timeout" ${extra[@]+"${extra[@]}"} < /dev/null | tr -d '\r'

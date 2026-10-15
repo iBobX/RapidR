@@ -312,6 +312,14 @@ arrangement; now low.
   `crDefault` 0 …") name the interface, and stay.
 - Where RapidQ's number differs from today's Delphi or Windows, RapidQ's is
   kept and the comment says so.
+- **QBColor** (2026-10-15): RAPIDQ.INC also declares an INTEGER array
+  `QBColor(0 TO 15)` holding QBasic's 16 colours as &HBBGGRR numbers, which
+  RapidQ programs index (`QBColor(12)`). Its name, bounds, type and the 16
+  numbers are interface facts, read from RC.EXE's output (a probe printing
+  them), and are the public QBasic palette — the same RGB values Visual
+  Basic's documented `QBColor` function returns. RapidR supplies them in its
+  own form (`RAPIDQ_INC_QBCOLOR` and a DIM with 16 assignments); none of
+  RapidQ's file text is used.
 
 ## 7. Library includes (`LIBRARY_INCLUDES`)
 

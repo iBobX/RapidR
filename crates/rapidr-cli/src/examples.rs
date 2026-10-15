@@ -158,24 +158,43 @@ pub fn command(args: &[String]) -> ExitCode {
     }
 }
 
-/// One example into `to`: the program, and the files beside it that it
-/// names (its data: `$RESOURCE … AS "sprites.dxg"`, "staff.csv").
+/// The files program `src` `$INCLUDE`s (however deep) that are in its own
+/// folder or below it (`lib/geometry.inc`), as the compiler finds them.
+fn includes_of(src: &Path) -> Vec<PathBuf> {
+    let Some(folder) = src.parent() else { return Vec::new() };
+    let Ok(pre) = rapidr_preprocessor::preprocess_file(src, rapidr_preprocessor::PreprocessOptions::default()) else { return Vec::new() };
+    let mut out: Vec<PathBuf> = Vec::new();
+    for u in &pre.includes {
+        if let rapidr_preprocessor::IncludeFound::File(p) = &u.found {
+            if p.starts_with(folder) && p.is_file() && !out.contains(p) {
+                out.push(p.clone());
+            }
+        }
+    }
+    out
+}
+
+/// One example into `to`: the program, the files it includes from its
+/// folder (as they are there: `lib/geometry.inc`), and the files beside it
+/// that it names (its data: `$RESOURCE … AS "sprites.dxg"`, "staff.csv").
 fn copy_one(dir: &Path, e: &Example, to: &Path) -> Result<Vec<PathBuf>, String> {
     let src = dir.join(&e.rel);
     let text = fs::read_to_string(&src).map_err(|err| format!("{}: {err}", src.display()))?;
     let mut files = vec![src.clone()];
+    files.extend(includes_of(&src));
     if let Some(parent) = src.parent() {
         let mut data: Vec<PathBuf> = fs::read_dir(parent)
             .map_err(|err| format!("{}: {err}", parent.display()))?
             .flatten()
             .map(|d| d.path())
-            .filter(|p| p.is_file() && !is_program(p))
+            .filter(|p| p.is_file() && !is_program(p) && !files.contains(p))
             .filter(|p| p.file_name().is_some_and(|f| text.contains(&*f.to_string_lossy())))
             .collect();
         data.sort();
         files.extend(data);
     }
-    copy_files(&files, |f| to.join(f.file_name().unwrap_or_default()))
+    let parent = src.parent().map(Path::to_path_buf).unwrap_or_default();
+    copy_files(&files, |f| to.join(f.strip_prefix(&parent).map(Path::to_path_buf).unwrap_or_else(|_| PathBuf::from(f.file_name().unwrap_or_default()))))
 }
 
 /// Every example, by topic folder, and the index.
@@ -193,6 +212,14 @@ fn copy_all(dir: &Path, examples: &[Example], to: &Path) -> Result<Vec<PathBuf>,
         let mut here: Vec<PathBuf> = fs::read_dir(folder).map_err(|err| format!("{}: {err}", folder.display()))?.flatten().map(|d| d.path()).filter(|p| p.is_file()).collect();
         here.sort();
         files.extend(here);
+    }
+    // (and what each includes from below its folder: rapidq/shapes/lib/…)
+    for e in examples {
+        for f in includes_of(&dir.join(&e.rel)) {
+            if !files.contains(&f) {
+                files.push(f);
+            }
+        }
     }
     copy_files(&files, |f| to.join(f.strip_prefix(dir).unwrap_or(f)))
 }

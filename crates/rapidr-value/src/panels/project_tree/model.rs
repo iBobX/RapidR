@@ -12,7 +12,7 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 
-use rapidr_project::{implicit_from_sources, import_v1, is_v1_json, kind_for_path, kind_for_source, normalize_path, FileKind, Project, ProjectFile};
+use rapidr_project::{actual_path, implicit_from_resolver, import_v1, is_v1_json, kind_for_path, kind_for_source, normalize_path, FileKind, Project, ProjectFile};
 
 use super::scan::{self, Comp};
 
@@ -248,22 +248,29 @@ impl ProjectTree {
             let found: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new());
             let main_key = normalize_path(&name).to_lowercase();
             let main_text = RefCell::new(main_text);
-            let lookup = |rel: &str| -> Option<String> {
+            // (a file by its project path, else by its names in any case — as
+            // `$INCLUDE` finds it: `Inc\MyLib.INC` is inc/mylib.inc)
+            let lookup = |rel: &str| -> Option<(String, String)> {
                 let key = normalize_path(rel).to_lowercase();
                 if key == main_key {
                     if let Some(t) = main_text.borrow_mut().take() {
                         found.borrow_mut().insert(key, t.clone());
-                        return Some(t);
+                        return Some((rel.to_string(), t));
                     }
                 }
                 if let Some(t) = texts.get(&key).cloned().or_else(|| found.borrow().get(&key).cloned()) {
-                    return Some(t);
+                    return Some((rel.to_string(), t));
                 }
-                let t = read(&format!("{folder}{rel}"))?;
-                found.borrow_mut().insert(key, t.clone());
-                Some(t)
+                if let Some(t) = read(&format!("{folder}{rel}")) {
+                    found.borrow_mut().insert(key, t.clone());
+                    return Some((rel.to_string(), t));
+                }
+                let actual = actual_path(&folder, rel)?;
+                let t = read(&format!("{folder}{actual}"))?;
+                found.borrow_mut().insert(actual.to_lowercase(), t.clone());
+                Some((actual, t))
             };
-            let p = implicit_from_sources(&name, &lookup);
+            let p = implicit_from_resolver(&name, &lookup);
             // (a main file that isn't there: no project)
             if !found.borrow().contains_key(&main_key) && !texts.contains_key(&main_key) {
                 return false;

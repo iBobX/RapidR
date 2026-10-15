@@ -112,11 +112,34 @@ def program_text(path):
     for inc in INCLUDE.findall(src):
         inc = inc.replace("\\", "/")
         for d in (os.path.dirname(path), os.path.join(RAPIDQ, "include")):
-            p = os.path.join(d, inc)
-            if os.path.isfile(p):
+            # (in any case, as Windows finds it: the same filters on a
+            # case-sensitive Linux as on macOS)
+            p = any_case(d, inc)
+            if p:
                 texts.append(read(p))
                 break
     return code("\n".join(texts))
+
+
+def any_case(folder, relative):
+    """`folder/relative` found in any case, or None."""
+    cur = folder
+    for part in relative.split("/"):
+        if part in ("", "."):
+            continue
+        if part == "..":
+            cur = os.path.dirname(cur)
+            continue
+        nxt = os.path.join(cur, part)
+        if not os.path.exists(nxt):
+            try:
+                nxt = next((os.path.join(cur, e) for e in os.listdir(cur) if e.lower() == part.lower()), None)
+            except OSError:
+                return None
+            if nxt is None:
+                return None
+        cur = nxt
+    return cur if os.path.isfile(cur) else None
 
 
 def unsafe(text):

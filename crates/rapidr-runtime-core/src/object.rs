@@ -188,6 +188,10 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         c.borrow_mut().insert(name_lower, comp);
     });
     rapidr_value::objects::create(name, type_name);
+    // (I7: an RJSON's document can be a data source)
+    if type_name.eq_ignore_ascii_case("RJSON") {
+        crate::links::install();
+    }
     // (the DirectX lane's: QDXSCREEN's Render draws on the GPU — wgpu)
     #[cfg(feature = "gui")]
     if type_name.eq_ignore_ascii_case("RDXSCREEN") {
@@ -238,6 +242,12 @@ pub fn rp_component_array(kind: &str, name: &str, bounds: &[(i64, i64)]) -> Valu
 
 /// Set a property on a registered component.
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
+    comp_set(name, prop, val);
+    // (linked data: bound controls follow — rapidr_value::datascience::link)
+    crate::links::apply();
+}
+
+fn comp_set(name: &str, prop: &str, val: Value) {
     // (`Label.Font.AddStyles = fsBold`: RapidQ takes the method so too)
     if let Some(changes) = rapidr_value::objects::font::component_style_call(&prop.to_ascii_lowercase(), std::slice::from_ref(&val)) {
         let t = rp_comp_type(name);
@@ -277,6 +287,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     }
     if backdrops {
         refresh_canvas_backdrops();
+    }
+    // (a QRICHEDIT's Font: the format its unformatted text shows)
+    if prop.to_ascii_lowercase().starts_with("font") || prop.eq_ignore_ascii_case("parent") {
+        rapidr_value::objects::rich_font_changed(name, &|i, p| rp_comp_get(i, p));
     }
 }
 
@@ -399,10 +413,11 @@ fn set_property(name: &str, prop: &str, val: Value) {
             rp_comp_set(name, "modalresult", v_int(mr));
         }
     }
-    // A modal form's ModalResult set: the form closes (ShowModal returns it).
+    // A modal form's ModalResult set: the form closes (ShowModal returns it;
+    // in its ShowModal's OnShow it is kept and then lost, as VCL's).
     if prop.eq_ignore_ascii_case("modalresult") && val.to_i64() != 0 && rp_comp_type(name) == "RFORM" {
         #[cfg(feature = "gui")]
-        if crate::ui::is_modal(name) {
+        if crate::ui::modal_result_closes(name) {
             let (n, v) = (name.to_string(), val.clone());
             store_prop(&n, "modalresult", v);
             crate::ui::gui_close(&n);
@@ -546,7 +561,14 @@ fn set_property(name: &str, prop: &str, val: Value) {
     if rapidr_value::objects::menu::is_menu(name) {
         crate::ui::schedule_menu_sync();
     }
+    let orientation_before = if prop_lower == "orientation" { rapidr_value::objects::trackbar_orientation(name) } else { None };
     if let Some(result) = rapidr_value::objects::set(name, &prop_lower, &val) {
+        // A QTRACKBAR turned: its Width and Height swap (RapidQ's).
+        if rapidr_value::objects::trackbar_turned(name, orientation_before) {
+            let (w, h) = (rp_comp_get(name, "width"), rp_comp_get(name, "height"));
+            rp_comp_set(name, "width", h);
+            rp_comp_set(name, "height", w);
+        }
         let picture = rapidr_value::objects::is_picture(name);
         match result {
             // `Image.BMP = "photo.png"`: not a BMP; the host loads it.
@@ -1140,6 +1162,13 @@ fn form_is_built(name: &str) -> bool {
 /// Call a method on a registered component.
 /// Dispatches to the appropriate backend based on component type.
 pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
+    let v = comp_method(name, method, args);
+    // (linked data: bound controls follow — rapidr_value::datascience::link)
+    crate::links::apply();
+    v
+}
+
+fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     let comp_type = rp_comp_type(name);
     let method_lower = method.to_lowercase();
     // Screen, Application, Clipboard, Mouse (globals.rs).
@@ -1449,7 +1478,14 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
                 v_null()
             }
         }
-        "RJSON" => json_method(name, &method_lower, args),
+        "RJSON" => {
+            let v = json_method(name, &method_lower, args);
+            // (a frame taking its rows from it gets them again)
+            if matches!(method_lower.as_str(), "parse" | "set" | "remove" | "loadfile" | "clear") {
+                rapidr_value::datascience::link::json_changed(name);
+            }
+            v
+        }
         // Specialized GUI component method dispatch
         #[cfg(feature = "gui")]
         "RDESIGNSURFACE" => crate::ui::design_surface_method(name, &method_lower, args),
@@ -1865,6 +1901,19 @@ thread_local! {
     static JSON_STORES: RefCell<HashMap<String, serde_json::Value>> = RefCell::new(HashMap::new());
 }
 
+/// (I7) RJSON `name`'s document as JSON text, for a frame that takes its
+/// rows from it: what it parsed or loaded, else its FileName's file.
+pub(crate) fn json_document(name: &str) -> Option<String> {
+    if let Some(text) = JSON_STORES.with(|s| s.borrow().get(&name.to_lowercase()).map(|v| v.to_string())) {
+        return Some(text);
+    }
+    let file = rp_comp_get(name, "filename").to_string_val();
+    if file.trim().is_empty() {
+        return None;
+    }
+    rapidr_value::datascience::link::read_beside(file.trim()).ok()
+}
+
 fn json_method(name: &str, method: &str, args: &[Value]) -> Value {
     let name_lower = name.to_lowercase();
     match method {
@@ -1965,7 +2014,7 @@ fn json_method(name: &str, method: &str, args: &[Value]) -> Value {
         }
         "loadfile" => {
             let filename = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            match std::fs::read_to_string(&filename) {
+            match std::fs::read_to_string(crate::value::paths::host(&filename)) {
                 Ok(text) => {
                     match serde_json::from_str::<serde_json::Value>(&text) {
                         Ok(val) => {
@@ -1991,7 +2040,7 @@ fn json_method(name: &str, method: &str, args: &[Value]) -> Value {
             JSON_STORES.with(|s| {
                 if let Some(val) = s.borrow().get(&name_lower) {
                     let pretty = serde_json::to_string_pretty(val).unwrap_or_else(|_| "{}".into());
-                    match std::fs::write(&filename, &pretty) {
+                    match std::fs::write(crate::value::paths::host(&filename), &pretty) {
                         Ok(()) => {
                             rp_comp_set(name, "filename", v_str(&filename));
                             v_int(1)
@@ -2002,7 +2051,7 @@ fn json_method(name: &str, method: &str, args: &[Value]) -> Value {
                         }
                     }
                 } else {
-                    match std::fs::write(&filename, "{}") {
+                    match std::fs::write(crate::value::paths::host(&filename), "{}") {
                         Ok(()) => v_int(1),
                         Err(e) => {
                             eprintln!("[WARN] RJSON.SaveFile() write error: {}", e);

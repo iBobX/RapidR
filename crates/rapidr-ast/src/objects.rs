@@ -929,6 +929,27 @@ impl Lowering<'_> {
         }
     }
 
+    /// A component's CREATE block's statements, lowered: `Panel(0).Width =
+    /// 100` inside it is `c.Panel(0).Width`.
+    /// Whether a component's block CREATEs a TYPE's instance, directly or
+    /// in a component's block inside it.
+    fn holds_typed_create(&self, stmts: &[Statement]) -> bool {
+        stmts.iter().any(|s| match s {
+            Statement::Create(ch) => self.types.get(&ch.type_name).is_some() || self.holds_typed_create(&ch.body),
+            _ => false,
+        })
+    }
+
+    fn create_body(&mut self, c: &CreateStatement, stmts: &[Statement]) -> Vec<Statement> {
+        let body = {
+            let known = |n: &str| {
+                self.routines.contains(&key(n)) || self.globals.contains(&key(n)) || self.is_local(n) || self.array_kind(n).is_some() || (self.is_builtin)(&key(n))
+            };
+            qualify_create_body(stmts, &c.name, &c.type_name, &known)
+        };
+        self.body(&body)
+    }
+
     fn create_instance(&mut self, c: &CreateStatement, t: &str) -> Vec<Statement> {
         let span = c.span;
         self.record_object_var(&c.name, t, false);
@@ -1062,23 +1083,57 @@ impl Lowering<'_> {
             Statement::Create(c) => match self.types.get(&c.type_name).map(|t| t.name.clone()) {
                 Some(t) => self.create_instance(c, &t),
                 None => {
-                    // `Panel(0).Width = 100` inside the block is `c.Panel(0).Width`.
-                    let known = |n: &str| {
-                        self.routines.contains(&key(n)) || self.globals.contains(&key(n)) || self.is_local(n) || self.array_kind(n).is_some() || (self.is_builtin)(&key(n))
-                    };
-                    // A TYPE's instance created inside (a QBEVEL on a form):
-                    // set up after the component, with it as its Parent.
-                    let (typed, rest): (Vec<&Statement>, Vec<&Statement>) =
-                        c.body.iter().partition(|x| matches!(x, Statement::Create(ch) if self.types.get(&ch.type_name).is_some()));
-                    let rest: Vec<Statement> = rest.into_iter().cloned().collect();
-                    let body = qualify_create_body(&rest, &c.name, &c.type_name, &known);
-                    let mut out = vec![Statement::Create(CreateStatement { body: self.body(&body), ..c.clone() })];
-                    for x in typed {
-                        let Statement::Create(child) = x else { continue };
+                    // A TYPE's instance created inside (a QBEVEL on a form,
+                    // RapidQ's QREdit in a form): set up at its place in the
+                    // block, with the component as its Parent; the block goes
+                    // on after it as another CREATE of the same component
+                    // (creating one that exists does nothing, on every
+                    // runtime), so what follows it runs once it exists — a
+                    // `ShowModal` at the block's end shows it.
+                    //
+                    // One a component's block holds deeper down (a QFolderTree
+                    // on a panel on a form, RapidQ's FolderTree demo) is made
+                    // the same way: the inner component's first part stays in
+                    // the outer block (it is made there, with its Parent), and
+                    // what follows it — the instance's set-up, the inner
+                    // block's rest — comes out of the outer block (inside it
+                    // the backends would read those statements as the
+                    // component's properties), the outer block going on after
+                    // them. The lowered pieces' first is always the
+                    // component's own CREATE.
+                    if !self.holds_typed_create(&c.body) {
+                        let body = self.create_body(c, &c.body);
+                        return vec![Statement::Create(CreateStatement { body, ..c.clone() })];
+                    }
+                    let mut out = Vec::new();
+                    let mut run: Vec<Statement> = Vec::new();
+                    for x in &c.body {
+                        let Statement::Create(child) = x else {
+                            run.push(x.clone());
+                            continue;
+                        };
+                        if self.types.get(&child.type_name).is_none() {
+                            if !self.holds_typed_create(&child.body) {
+                                run.push(x.clone());
+                                continue;
+                            }
+                            let mut pieces = self.stmt(x).into_iter();
+                            let mut body = self.create_body(c, &std::mem::take(&mut run));
+                            body.extend(pieces.next());
+                            out.push(Statement::Create(CreateStatement { body, ..c.clone() }));
+                            out.extend(pieces);
+                            continue;
+                        }
+                        let body = self.create_body(c, &std::mem::take(&mut run));
+                        out.push(Statement::Create(CreateStatement { body, ..c.clone() }));
                         out.extend(self.stmt(x));
                         if !sets_parent(&child.body) {
                             out.push(call_stmt_at(child.span, "__objset", vec![ident_at(c.span, &child.name), text_at(c.span, "parent"), text_at(c.span, &c.name)]));
                         }
+                    }
+                    if !run.is_empty() {
+                        let body = self.create_body(c, &run);
+                        out.push(Statement::Create(CreateStatement { body, ..c.clone() }));
                     }
                     out
                 }

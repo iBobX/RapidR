@@ -44,7 +44,7 @@ pub use kernel::{
     // (the I/O lane's: a method waiting for work done in the background)
     gui_wait_task,
     // What only the host knows (`app_active`: the DirectX lane's).
-    window_shown, form_window_exists, form_scale, menu_offset, is_modal, mouse_in_form, app_active,
+    window_shown, form_window_exists, form_scale, menu_offset, is_modal, modal_result_closes, mouse_in_form, app_active,
     // Methods drawn by the host.
     canvas_method, image_method, tree_method,
     // The IDE's components: RDESIGNSURFACE's Show / Hide (its model, and
@@ -60,9 +60,6 @@ pub use kernel::{
     // The program ends (END, Application.Terminate): the windows' pending
     // commands run.
     before_exit,
-    // What wakes the window loop from another thread (RapidR Studio's
-    // program sessions).
-    gui_waker,
 };
 
 /// `DOEVENTS`: pending events, timers and redraws get their turn, then the

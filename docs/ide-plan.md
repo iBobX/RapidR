@@ -406,17 +406,20 @@ Each stage lists goals, components and APIs, data models, what it reuses or repl
 
 **The frame engine's speed, as built** (L-FRAME, after D7): the engine stores a frame by columns — each column's cells' text in one buffer with offsets and a null mask, its type and its cells as numbers worked out once and cached — and filters, sorts, groups and joins by row index (a hash join, numbers compared as numbers). Every member keeps its meaning (the `datascience_*` conformance cases unchanged, on all three runtimes). One million rows, five columns (37 MB of CSV), `cargo run --release -p rapidr-value --example frame_bench`, M-series desktop / the same engine as wasm in V8:
 
-| Operation | Row store (before) | Columnar, desktop | Columnar, wasm (V8) | Target (desktop; web 2×) |
-|---|--:|--:|--:|--:|
-| load CSV text | 995 ms | 114 ms | 286 ms | 300 ms |
-| filter `salary > 75000` | 169 ms | 40 ms | 84 ms | 60 ms |
-| sort by salary, descending | 3,129 ms | 182 ms | 222 ms | 250 ms |
-| group by dept, mean | 1,418 ms | 80 ms | 127 ms | 120 ms |
-| left join on dept | 1,424 ms | 60 ms | 121 ms | 120 ms |
-| describe | 592 ms | 79 ms | 127 ms | 150 ms |
-| save CSV text | 713 ms | 80 ms | 177 ms | 150 ms |
+| Operation | Row store (before) | Columnar, desktop | Columnar, wasm (V8) | Target (desktop; web 2×) | **Typed + parallel, desktop (16 threads)** | **Typed, 1 thread (the web's)** |
+|---|--:|--:|--:|--:|--:|--:|
+| load CSV text | 995 ms | 114 ms | 286 ms | 300 ms | **11.8 ms** | 69.9 ms |
+| filter `salary > 75000` | 169 ms | 40 ms | 84 ms | 60 ms | **2.9 ms** | 12.6 ms |
+| sort by salary, descending | 3,129 ms | 182 ms | 222 ms | 250 ms | **10.2 ms** | 51.6 ms |
+| group by dept, mean | 1,418 ms | 80 ms | 127 ms | 120 ms | **4.8 ms** | 19.0 ms |
+| left join on dept | 1,424 ms | 60 ms | 121 ms | 120 ms | **3.4 ms** | 20.1 ms |
+| describe | 592 ms | 79 ms | 127 ms | 150 ms | **10.1 ms** | 28.2 ms |
+| save CSV text | 713 ms | 80 ms | 177 ms | 150 ms | **7.3 ms** | 54.4 ms |
+| load + filter + sort + group-by | | 267 ms (2026-10-15 harness) | | 1 s (plan §9.1; target 300 ms) | **22.7 ms** | 116.2 ms |
 
 (for comparison, the polars spike in V8: CSV write + read + filter + sort + group-by of 1 M rows in 320 ms.)
+
+**The engine typed and parallel** (lane DATA-ENGINE, 2026-10-15; docs/data-science-plan.md §2, the last two columns above): columns stored as `i64` / `f64` / `bool` vectors or one text buffer with offsets, a validity bitmap only where a cell is null, every buffer shared copy-on-write (`Arc`); a column is typed only when that is lossless — each cell's text is its value's own text — so a cell reads back as written and every member answers byte for byte as before (tests/frame_oracle.rs runs tens of thousands of random programs against the engine of 920c8a85). The kernels (CSV read in parallel pieces, filter, sort, group-by, hash join, describe, gathers, CSV write) work on typed slices across the cores (`std::thread::scope`; one thread under 50,000 rows and on the web). Ten million rows: the pipeline 4,395 ms → 273 ms (one thread: 1,572 ms), sort 4,646 → 142 ms. pandas 3.0.1 on the same data: load 288 ms, sort 149 ms, the pipeline 372 ms for a million rows. The suite and its table: tools/bench/ (frame_bench with the plan's budgets, the same work as a RapidR program, pandas and Polars, compare.sh).
 
 **RPLOT, as built**: the chart model draws the UI kernel's vector ops (`rapidr_value::datascience::plot` → `rapidr-ui-render`'s `chart.rs`), one renderer for every runtime: a QIMAGE's `LoadFromPlot` keeps the 1× pixels a program reads and is drawn again at the screen's scale (the bitmap's high-DPI layer), `SaveFig file, scale` writes a PNG. The same chart captured on the desktop's headless host and in the browser differs in **0 pixels** at 1× and at 2×. Before / after: the six-chart gallery and `examples/data/dataframe.rr` (category bars) — PNGs listed in the L-FRAME report.
 
@@ -1225,7 +1228,7 @@ These were measured on a heavily loaded machine (load average 18–27 from paral
 - **Find in Files** already shares the editor's search (`rapidr_editor::search`, through RPROJECT's Find / Replace); a result's place is now set with the editor's `GotoLineColumn` (the merge had left a call to a deleted `CodeOffset`: Studio didn't compile).
 - **A form's file still opens on its designer** (S-SHELL-2, Delphi): the editor's focus-on-open gives the keyboard to the view shown, so it no longer switched form files to Code (`tabs-design-code` had failed after the merge); the editor flows that typed without `focus:codedoc(0)` now say it.
 - **Verified:** `tests/studio_flows.mjs` 223 of 223 checks on both hosts (port 18501); `tests/studio_shell.mjs` scenes `editor-f12`, `editor-needs-include`, `editor-complete-include`, `editor-ctrl-space` added. Every editor scene is byte-identical desktop / web in RapidR light, dark and high contrast at 1×, except single pixels a shade apart (±1 in one channel of an antialiased glyph or edge: native against wasm rasterising), which other lanes' runs on `development` show too (`search`, `palette`, `project-classic@2×`, every classic scene at 2×).
-- **Left for S-SHELL-2 / the kernel:** in the `workspace` scene the web gives the keyboard to the moved document's designer after Split Right and the desktop leaves it with the window (accessibility trees differ in that one state). FocusPane now really focuses (S-EDITOR made `focus_pane` take a component whose Visible / Enabled were never set), and on the desktop `FocusPane("designdoc(1)")` — any document's designer after the first — still doesn't take: `designdoc(0)` does, a later document's code editor does.
+- **Left for S-SHELL-2 / the kernel** (resolved since: WEB-FRAME, 2026-10-15, found the scene equal on both hosts): in the `workspace` scene the web gives the keyboard to the moved document's designer after Split Right and the desktop leaves it with the window (accessibility trees differ in that one state). FocusPane now really focuses (S-EDITOR made `focus_pane` take a component whose Visible / Enabled were never set), and on the desktop `FocusPane("designdoc(1)")` — any document's designer after the first — still doesn't take: `designdoc(0)` does, a later document's code editor does.
 - **Flows added:** `editor-tab-accept` (Tab takes `NameEdit.Text`, no TAB in the text), `editor-ctrl-space` (the program's SUBs and components with the language's), `editor-f12-in-a-form` (caret on the SUB, the code view kept), `editor-needs-include`, `editor-needs-include-problems`, `editor-complete-with-include`.
 - **Budget scope (the lead, 2026-10-08):** find references, rename and Find in Files were left as they were (Find in Files already used `rapidr_editor::search`; only the merge's broken call was fixed).
 
@@ -1386,6 +1389,14 @@ Robert's bug first: on the web, the running program's windows were clipped by a 
 - No completion in Immediate; Set Next Statement (DBG-7) not there.
 - Ctrl+N and other browser-reserved keys don't reach Studio on the web (the browser keeps them): the menus and the palette do.
 - A desktop program captured under a test ends once its window has been captured, so a flow can't continue a paused program and pause it again there (the unit test does).
+### WEB-FRAME results — the Preview's known issues of Studio on the web (2026-10-15)
+
+- **Program windows never cut off** (the "880 × 620" note of the 2.118.0 release notes was S-DEBUG's old frame; what was left: a window bigger than the page cut at its edges, a centred one's title bar above the page, a title bar dragged off the top lost for good). The web host keeps windows right of and below the page's corner (shown, dragged, a left / top edge resized), maximizes to the visible page, double-click maximizes (the browser's `dblclick`: a pointerdown's `detail` is always 0); Studio's run frame (`ide/web/run.html`) scrolls the program's desktop as far as its windows reach, with thin scroll bars of its own along the page's edges (in the frame's clip), the wheel over a title bar or a bar, focus moved by keys brought into view. Flows `program-window-big` (1280 × 720, 1× / 2×), `program-window-big-fits`; example `examples/gui/sales_dashboard.rr`; captures `tests/results/studio-flows/program-window-big-1280x720-{shown,scrolled,corner,bars,maximized}@{1,2}x.png`.
+- **Desktop / web byte-identical**: the cause of the 1-level antialiasing differences was vello_cpu's SIMD levels — Neon / AVX2 fuse multiply-adds, wasm SIMD 128 can't —, not the fonts' rasterization path or the focus ring; the desktop's CPU renderer now runs fearless_simd's portable level (`rapidr_ui_render::cpu::settings`). The palette's accessibility ids come from the command ids (the hosts' command lists differ). `studio_shell` 248 / 248 identical with equal trees, no rounding tolerance left; `web_gui_parity` 318 / 318 (message_icons, message_dialogs, rplot_on_form now identical).
+- **The workspace scene's focus** (the note under S-SHELL-2 / the IntelliSense pass): no longer differs — `FocusPane("designdoc(1)")` takes on the desktop and both hosts focus menus.rr's designer before and after Split Right (the scene's trees equal in every theme and scale, 8 / 8).
+- **Screen readers**: the web inspector is a tree grid, its rows named by mirror cells (name as row header, value), "read-only" in a read-only row's description, its value cell `aria-readonly` (flow `inspector-read-only` reads Chrome's tree; `web_a11y` checks the cells).
+- **Debugger steps**: 85 → ~15 ms on the desktop (the program's output wakes Studio's loop: `ProcessTransport::set_waker`, the headless host's pump parks), the web's ~20–29 ms at load 55; budget 50 ms (`tests/studio_perf.mjs`).
+
 ### R-NAMES results (phase 1) and the plan for phase 2 — RapidR's names everywhere (2026-10-08)
 
 Robert decided (2026-10-08), for the first release, legal being a main reason (RapidR is visibly an original system, compatible with RapidQ, not a clone): **RapidR's names are the default everywhere** (`RButton`, `RLabel`, `RForm`, `RStringGrid` — mixed case, from the registry's `display`); RapidQ's names appear as "RapidQ name: QBUTTON"; **the compilers always accept both**, silently; the "RapidQ-compatible" setting only adds warnings; an importer converts a copy of a RapidQ program or project, never the original.
@@ -1421,3 +1432,9 @@ Robert decided (2026-10-08), for the first release, legal being a main reason (R
 **Open (for Robert):**
 - `$INCLUDE "RAPIDQ.INC"` stays in converted programs: RAPIDQ.INC's constants come with the line in RapidR, as in RapidQ (`PRINT clRed` without it prints 0). Removing the line would need the constants built into the language for RapidR's files (e.g. `.rr` only) — a language change; the engine already removes the line when `rapidq_inc::constants_built_in()` becomes true.
 - The `.rqw` / `.rqb` / `.rq` copies keep their extensions; renaming them to `.rr` / `.inc` is a one-line option if wanted.
+
+### I7 / I8 — AI-ARCH results: AI-ready by design (2026-10-15)
+
+**Designed** in [docs/ai-architecture.md](ai-architecture.md) (I7's "AI-ready by design" bullet, before I8 starts): the registry as the one machine-readable source with the AI facets every entry carries and a completeness checker; one introspection / command interface answered alike at design time (the CREATE blocks through `rapidr-designer`) and at run time (the runtimes' component table, native, interpreter and web), with the components' own names as ids, typed values, revisions, transactions, previews and undo; `rapidr mcp` and RAI as thin layers on it; permission tiers on the registry's six risk levels, prompt-injection defences, secrets, the audit log, web confinement, a threat model (T1–T14); accessibility; phases 0–6 with the two acceptance tests and their examples. It refines [ide-ai.md](ide-ai.md) §4.2 (generic interface tools instead of per-component form tools), §5 (tiers on risk levels) and §8 (RAI's `Expose` / `AIVisible` / `AIActions`).
+
+**Phase 0 built** (ai-architecture.md §8): the registry's `effects` / `risk` / `range` / `unit` / `example` / `secret` keys, validated by `build.rs`; `rapidr_lang::ai` (derivations, generated member examples, the checker) and `rapidr lang ai-check` (2,437 of 4,360 entries complete; a report, not a gate); the new `rapidr-introspect` crate (protocol, `describe` with JSON Schemas, design-time `list` / `get` behind the `design` feature; `rapidr introspect` in a CLI built with `--features ai-introspect`), in `regress.sh unit`'s wasm check and tests. Open for Robert: ai-architecture.md §9.

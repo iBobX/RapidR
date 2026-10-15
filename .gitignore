@@ -10,6 +10,7 @@ examples/**
 !examples/**/
 !examples/**/*.rr
 !examples/**/*.bas
+!examples/**/*.inc
 !examples/**/*.md
 !examples/**/*.csv
 !examples/**/*.json
@@ -21,6 +22,9 @@ examples/**
 examples/**/*_rust/
 examples/**/*_web/
 examples/**/*.tmp.*
+# (what the data examples write when run in their folder)
+examples/data/big*.csv
+examples/data/*_edited.*
 examples/_ide_errors.json
 examples/ide.config.json
 utilities/vscodeext/rapidr/*.vsix

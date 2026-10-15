@@ -56,7 +56,7 @@ properties = [
   { name = "TableCount", type = "int", access = "read", design = false },
   { name = "Host", type = "string", origin = "rapidr" },
   { name = "User", type = "string", origin = "rapidr" },
-  { name = "Password", type = "string", origin = "rapidr" },
+  { name = "Password", type = "string", origin = "rapidr", secret = true },
   { name = "Database", type = "string", origin = "rapidr" },
   { name = "Port", type = "int", origin = "rapidr" },
   { name = "Item", type = "string", design = false, indexed = 1 },

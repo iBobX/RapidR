@@ -96,11 +96,16 @@ SUB FillExamples
   AddStart 4, "view.commandPalette", "All Commands"
   ExampleCount = 0
   AddExample "data/csv_explorer.rr", "Drop a CSV, see it charted"
+  AddExample "data/linked_data.rr", "CSV, grid and edits, linked"
+  AddExample "data/million_rows.rr", "A million rows, analysed"
+  AddExample "data/json_source.rr", "JSON records in a grid"
   AddExample "gui/hello_form.rr", "A form, a button, its OnClick"
   AddExample "gui/menus.rr", "Main and pop-up menus"
   AddExample "gui/dialogs.rr", "Open, save, colour, font"
+  AddExample "gui/richtext.rr", "A rich-text editor (.rtf)"
   AddExample "gui/pantry.rr", "A list and a grid together"
   AddExample "gui/themes.rr", "The themes, switched live"
+  AddExample "gui/sales_dashboard.rr", "A big window: a dashboard"
   AddExample "data/dataframe.rr", "A data frame and a chart"
   AddExample "debugging/shop.rr", "Debug it: values as trees"
   AddExample "rapidq/notepad.bas", "A program in RapidQ's style"
@@ -131,6 +136,7 @@ END SUB
 ' more each, sharing the width), the Examples heading over them.
 SUB LayOutWelcome
   DIM cols AS INTEGER, k AS INTEGER, room AS INTEGER, w AS INTEGER, x0 AS INTEGER
+  DIM rows AS INTEGER, pitch AS INTEGER, tall AS INTEGER
   x0 = 290
   room = Welcome.Width - x0 - 32
   cols = (room + 12) \ 212
@@ -139,10 +145,23 @@ SUB LayOutWelcome
   w = (room - (cols - 1) * 12) \ cols
   IF w > 300 THEN w = 300
   ExamplesHead.Left = x0
+  ' (a short page: the cards closer together, down to 56 apart, so every
+  ' one shows — two columns of ten in Studio's 1280 x 800 window)
+  rows = (ExampleCount + cols - 1) \ cols
+  pitch = 70: tall = 58
+  IF rows > 0 THEN
+    IF 168 + rows * pitch - 12 > Welcome.Height - 8 THEN
+      pitch = (Welcome.Height - 170) \ rows
+      IF pitch < 56 THEN pitch = 56
+      IF pitch > 70 THEN pitch = 70
+      tall = pitch - 6
+      IF tall > 58 THEN tall = 58
+    END IF
+  END IF
   FOR k = 0 TO ExampleCount - 1
     ExCard(k).Left = x0 + (k MOD cols) * (w + 12)
-    ExCard(k).Top = 168 + (k \ cols) * 70
-    ExCard(k).Width = w: ExCard(k).Height = 58
+    ExCard(k).Top = 168 + (k \ cols) * pitch
+    ExCard(k).Width = w: ExCard(k).Height = tall
     ExTitle(k).Width = w - 56
     ExText(k).Width = w - 56
   NEXT

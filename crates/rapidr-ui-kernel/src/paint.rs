@@ -421,6 +421,9 @@ impl<'a> Painter<'a> {
     }
 
     pub fn text(&mut self, rect: Rect, text: &str, font: &Font, color: u32, place: Place) {
+        // (a control's text ends at a NUL, as Windows' do — RapidQ's
+        // controls show `"Test.mdb" + CHR$(0)` as Test.mdb, nothing after it)
+        let text = text.split('\0').next().unwrap_or("");
         if !text.is_empty() {
             self.op(Op::Text { rect, text: text.to_string(), font: font.clone(), color, angle: 0, place });
         }

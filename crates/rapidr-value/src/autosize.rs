@@ -35,6 +35,16 @@
 //!   again"` at Width 30: 37 × 39).
 //! * Alignment taRightJustify (1) keeps the right edge (Left moves);
 //!   taCenter (2) and taLeftJustify keep Left.
+//!
+//! A QEDIT's `AutoSize` (Delphi's TCustomEdit.AdjustHeight, which RapidQ's
+//! QEDIT is), pinned with RC.EXE the same way: AutoSize is True until set;
+//! the edit's Height becomes its font's line height + 8 (21 for MS Sans
+//! Serif 8, 32 at 14 points, 24 for Arial 10, 26 for Courier New 12; bold
+//! changes nothing) when its font changes — its own or a parent's, before
+//! its form shows too —, when AutoSize goes from 0 to 1, and when its form
+//! first shows (Windows makes its window: `Height = 12` set before reads 21
+//! after; one set after the form shows stays). With AutoSize 0 the Height
+//! is the program's.
 
 use crate::layout::Rect;
 use crate::objects::font::Font;
@@ -69,6 +79,10 @@ pub enum Watch {
 /// can resize labels, and how a runtime checks it.
 pub fn watched(type_name: &str, prop: &str) -> Option<Watch> {
     let label = type_name.eq_ignore_ascii_case("RLABEL");
+    // (a QEDIT's AutoSize turned on: its height)
+    if type_name.eq_ignore_ascii_case("REDIT") && prop == "autosize" {
+        return Some(Watch::Own);
+    }
     // (a label's new Parent; a container's isn't followed into its labels —
     // every component created sets one, and none has labels yet)
     if font_property(prop).is_some() || (prop == "parent" && label) {
@@ -249,6 +263,22 @@ pub fn label_bounds(id: &str, props: &dyn Fn(&str, &str) -> Value) -> Option<Rec
     Some(bounds(&props(id, "caption").to_string_val(), &font, flag(&props(id, "wordwrap"), false), n("alignment"), rect))
 }
 
+/// The height of AutoSize QEDIT `id` (its font's line height + 8, in
+/// RapidQ's metrics), `None` when its AutoSize is off.
+pub fn edit_height(id: &str, props: &dyn Fn(&str, &str) -> Value) -> Option<i64> {
+    if !autosize_on(&props(id, "autosize")) {
+        return None;
+    }
+    let font = crate::objects::font_from_props(id, props);
+    Some(crate::theme::rapidq_metrics(|| text_size(" ", &font).1) + 8)
+}
+
+/// Whether `type_name` is a component whose size its font sets
+/// (AutoSize): a QLABEL (its text) or a QEDIT (its height).
+pub fn sized_by_font(type_name: &str) -> bool {
+    type_name.eq_ignore_ascii_case("RLABEL") || type_name.eq_ignore_ascii_case("REDIT")
+}
+
 /// The font a label is drawn in, as the runtimes resolve it: its font
 /// properties through its parents, and its Font.Color (`color`, the
 /// runtime's: a parent's when it never set one).
@@ -296,8 +326,8 @@ pub fn changed_labels(name: &str, before: Before, stored: &dyn Fn(&str, &str) ->
 /// depth (`children` lists a component's children as (name, type)) — a
 /// font passes down to them (Delphi's ParentFont).
 pub fn labels_under(id: &str, type_name: &str, children: &dyn Fn(&str) -> Vec<(String, String)>) -> Vec<String> {
-    // (a label holds no components)
-    if type_name.eq_ignore_ascii_case("RLABEL") {
+    // (a label or an edit holds no components)
+    if sized_by_font(type_name) {
         return vec![id.to_string()];
     }
     let mut out = Vec::new();
@@ -310,7 +340,7 @@ pub fn labels_under(id: &str, type_name: &str, children: &dyn Fn(&str) -> Vec<(S
             if child.eq_ignore_ascii_case(&at) {
                 continue;
             }
-            if kind.eq_ignore_ascii_case("RLABEL") {
+            if sized_by_font(&kind) {
                 out.push(child.clone());
             }
             todo.push((child, depth + 1));
@@ -352,6 +382,23 @@ mod tests {
         ("Centred text", (57, 13), (60, 13)),
         ("Centred text again", (86, 13), (89, 13)),
     ];
+
+    #[test]
+    fn edits_take_their_fonts_height() {
+        // (RC.EXE: an AutoSize QEDIT in MS Sans Serif 8 is 21 high; AutoSize
+        // 0 leaves the program's Height)
+        ms8();
+        let props = |auto: Value| move |_: &str, p: &str| match p {
+            "fontname" => Value::String("MS Sans Serif".into()),
+            "fontsize" => Value::Integer(8),
+            "autosize" => auto.clone(),
+            _ => Value::Null,
+        };
+        assert_eq!(edit_height("e", &props(Value::Null)), Some(21));
+        assert_eq!(edit_height("e", &props(Value::Integer(0))), None);
+        assert!(sized_by_font("REDIT") && sized_by_font("rlabel") && !sized_by_font("RMEMO"));
+        assert_eq!(watched("REDIT", "autosize"), Some(Watch::Own));
+    }
 
     #[test]
     fn texts_measure_as_rapidq_labels() {

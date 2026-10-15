@@ -5,7 +5,7 @@
 //! a desktop session or a GPU; their captures are byte-identical to a
 //! windowed host's (Stage 0).
 
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::Arc;
 use std::task::{Wake, Waker};
 use std::time::Duration;
 
@@ -15,39 +15,32 @@ use crate::{Desktop, Host, HostCmd, HEADLESS_SCREEN};
 
 pub struct HeadlessHost {
     scale: f64,
+    /// The thread that pumps (the one that made the host): a waker
+    /// unparks it ([`Host::waker`]).
+    pumper: std::thread::Thread,
     // (timers during native menu tracking)
     /// runtime-core's tick, and a GUI test's pretend hold of the next pump
     /// (`__hold_ms`: a native menu the user keeps open).
     hook: Option<crate::tracking::Hook>,
     hold: Option<Duration>,
-    /// What wakes a pump before its timeout (another thread's [`Host::waker`]:
-    /// a debugger's request reaching a program that waits).
-    alarm: Arc<Alarm>,
-}
-
-/// A pump's alarm: rung by a waker from any thread.
-#[derive(Default)]
-struct Alarm {
-    rung: Mutex<bool>,
-    bell: Condvar,
-}
-
-impl Wake for Alarm {
-    fn wake(self: Arc<Self>) {
-        self.wake_by_ref();
-    }
-
-    fn wake_by_ref(self: &Arc<Self>) {
-        if let Ok(mut r) = self.rung.lock() {
-            *r = true;
-            self.bell.notify_all();
-        }
-    }
 }
 
 impl HeadlessHost {
     pub fn new(scale: f64) -> Self {
-        HeadlessHost { scale, hook: None, hold: None, alarm: Arc::default() }
+        HeadlessHost { scale, pumper: std::thread::current(), hook: None, hold: None }
+    }
+}
+
+/// Wakes a pump waiting on the headless host: its thread unparked.
+struct Unpark(std::thread::Thread);
+
+impl Wake for Unpark {
+    fn wake(self: Arc<Self>) {
+        self.0.unpark();
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        self.0.unpark();
     }
 }
 
@@ -86,17 +79,10 @@ impl Host for HeadlessHost {
             return;
         }
         match timeout {
-            // (until the timeout, or until a waker rings)
-            Some(t) => {
-                let mut rung = self.alarm.rung.lock().unwrap_or_else(|e| e.into_inner());
-                if !*rung {
-                    rung = match self.alarm.bell.wait_timeout(rung, t) {
-                        Ok((g, _)) => g,
-                        Err(e) => e.into_inner().0,
-                    };
-                }
-                *rung = false;
-            }
+            // (until the timeout, or a waker's call: work from another
+            // thread — a Studio session's program said something — wants
+            // the loop's turn now; an early turn only loops once more)
+            Some(t) => std::thread::park_timeout(t),
             None => {
                 // (no user can ever come: only a test's script or a timer would)
                 eprintln!("[rapidr] headless host: the program waits for input and nothing is scheduled (no timer, no test step)");
@@ -114,7 +100,7 @@ impl Host for HeadlessHost {
     }
 
     fn waker(&self) -> Waker {
-        Waker::from(self.alarm.clone())
+        Waker::from(Arc::new(Unpark(self.pumper.clone())))
     }
 
     fn headless(&self) -> bool {

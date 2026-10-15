@@ -314,12 +314,13 @@ pub fn rp_msgbox(msg: &Value) -> Value {
 
 // Filesystem functions — now in file_io.rs, but keep these thin wrappers
 // for backward compatibility with existing codegen output.
+// (`data\notes.txt`, any case: as on Windows, crate::value::paths)
 pub fn rp_direxists(path: &Value) -> Value {
-    v_int(if std::path::Path::new(&path.to_string_val()).is_dir() { 1 } else { 0 })
+    v_int(if crate::value::paths::host(&path.to_string_val()).is_dir() { 1 } else { 0 })
 }
 
 pub fn rp_fileexists(path: &Value) -> Value {
-    v_int(if std::path::Path::new(&path.to_string_val()).is_file() { 1 } else { 0 })
+    v_int(if crate::value::paths::host(&path.to_string_val()).is_file() { 1 } else { 0 })
 }
 
 // Default value for types
@@ -436,7 +437,7 @@ pub fn rp_playsound(filename: &Value) -> Value {
     {
         std::thread::spawn(move || {
             if let Ok((_stream, handle)) = rodio::OutputStream::try_default() {
-                if let Ok(bytes) = std::fs::read(&path) {
+                if let Ok(bytes) = std::fs::read(crate::value::paths::host(&path)) {
                     if let Ok(source) = crate::sound::decode(bytes) {
                         let sink = rodio::Sink::try_new(&handle).unwrap();
                         sink.append(source);

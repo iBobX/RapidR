@@ -30,6 +30,10 @@ parley = { version = "0.11", default-features = false, features = ["std"] }
 # one (Apache-2.0 OR MIT), whose re-exports of peniko and kurbo every file
 # here uses.
 vello_cpu = { version = "0.3", default-features = false, features = ["std", "text", "u8_pipeline"] }
+# (its SIMD crate, already under it, for its portable level: the desktop's
+# CPU renderer runs where wasm SIMD's results are the same — cpu.rs's
+# `settings`)
+fearless_simd = { version = "0.7", default-features = false, features = ["force_support_fallback"] }
 # (its glyph crate, for FontEmbolden, which vello_cpu doesn't re-export)
 glifo = { version = "0.4", default-features = false, features = ["std"] }
 # (feature gpu) GPU vector drawing on wgpu 30 (MIT OR Apache-2.0).

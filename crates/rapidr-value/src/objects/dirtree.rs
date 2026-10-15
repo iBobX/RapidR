@@ -6,11 +6,14 @@
 //! `InitialDir` / `Directory` (the current directory at first) select a
 //! directory and open the ones above it; `FullCollapse` closes everything,
 //! `FullExpand` opens every directory (up to [`MAX_ROWS`] rows), `Reload`
-//! reads the directories again (rows are always read from the disk).
-//! Hidden directories (a leading `.`) aren't shown. The web has no file
+//! reads the directories again (rows are always read from the disk; whether
+//! a closed directory has any in it — its `+` — is read once, until then).
+//! Hidden directories (a leading `.`; on Windows its hidden and system ones,
+//! as FindFirstFile leaves them out) aren't shown. The web has no file
 //! system: only the root.
 
-use std::collections::BTreeSet;
+use std::cell::RefCell;
+use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 
 use crate::{v_int, v_str, Value};
@@ -26,6 +29,9 @@ pub struct DirTree {
     pub initial_dir: String,
     /// Open directories.
     pub expanded: BTreeSet<PathBuf>,
+    /// Whether a closed directory has a directory in it (its `+`), as read
+    /// so far: until `Reload`.
+    has_subdirs: RefCell<HashMap<PathBuf, bool>>,
 }
 
 /// One visible node.
@@ -44,7 +50,7 @@ fn subdirs(dir: &Path) -> Vec<PathBuf> {
         let mut dirs: Vec<PathBuf> = entries
             .flatten()
             .take(100_000)
-            .filter(|e| !e.file_name().to_string_lossy().starts_with('.'))
+            .filter(|e| super::filelist::hidden_system(e) == (false, false))
             .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
             .map(|e| e.path())
             .collect();
@@ -55,11 +61,28 @@ fn subdirs(dir: &Path) -> Vec<PathBuf> {
     Vec::new()
 }
 
+/// Whether `dir` has a (shown) directory in it — RC.EXE's tree gives a
+/// closed directory its `+` only then (RapidQ's files/dirtree example).
+/// The web has no file system: its directories may have.
+fn has_subdir(dir: &Path) -> bool {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        return std::fs::read_dir(dir).is_ok_and(|entries| {
+            entries.flatten().take(100_000).any(|e| super::filelist::hidden_system(&e) == (false, false) && e.file_type().is_ok_and(|t| t.is_dir()))
+        });
+    }
+    #[allow(unreachable_code)]
+    {
+        let _ = dir;
+        true
+    }
+}
+
 impl Default for DirTree {
     fn default() -> Self {
         let cwd = std::env::current_dir().unwrap_or_default();
         let root = cwd.ancestors().last().map(Path::to_path_buf).filter(|r| !r.as_os_str().is_empty()).unwrap_or_else(|| PathBuf::from("/"));
-        let mut t = DirTree { root: root.clone(), directory: root, initial_dir: String::new(), expanded: BTreeSet::new() };
+        let mut t = DirTree { root: root.clone(), directory: root, initial_dir: String::new(), expanded: BTreeSet::new(), has_subdirs: RefCell::default() };
         t.expanded.insert(t.root.clone());
         t.go_to(&cwd.to_string_lossy());
         t
@@ -87,7 +110,7 @@ pub fn canonical(path: &Path) -> Option<PathBuf> {
 impl DirTree {
     /// Selects `dir` (if it exists), opening the directories above it.
     pub fn go_to(&mut self, dir: &str) -> bool {
-        let path = PathBuf::from(dir.replace('\\', "/"));
+        let path = crate::paths::host(&dir.replace('\\', "/"));
         let path = if path.is_absolute() { path } else { std::env::current_dir().unwrap_or_default().join(path) };
         let path = canonical(&path).unwrap_or(path);
         if !cfg!(target_arch = "wasm32") && !path.is_dir() {
@@ -115,8 +138,12 @@ impl DirTree {
         let expanded = self.expanded.contains(dir);
         let children = if expanded { subdirs(dir) } else { Vec::new() };
         let name = dir.file_name().map_or_else(|| dir.to_string_lossy().into_owned(), |n| n.to_string_lossy().into_owned());
-        // Unread (closed) directories are assumed to have children.
-        let has_children = !expanded || !children.is_empty();
+        // (a closed directory: whether it has any, read once)
+        let has_children = if expanded {
+            !children.is_empty()
+        } else {
+            *self.has_subdirs.borrow_mut().entry(dir.to_path_buf()).or_insert_with(|| has_subdir(dir))
+        };
         out.push(Row { depth, path: dir.to_path_buf(), name, expanded, has_children });
         for c in children {
             self.walk(&c, depth + 1, out);
@@ -193,7 +220,8 @@ impl DirTree {
                     todo.extend(subdirs(&d));
                 }
             }
-            "reload" | "refresh" | "repaint" | "adddirtypes" | "adddrivetypes" | "deldirtypes" | "deldrivetypes" => {}
+            "reload" | "refresh" => self.has_subdirs.borrow_mut().clear(),
+            "repaint" | "adddirtypes" | "adddrivetypes" | "deldirtypes" | "deldrivetypes" => {}
             _ => return None,
         }
         Some(Value::Null)
@@ -222,7 +250,10 @@ mod tests {
         t.toggle(at);
         let names: Vec<String> = t.rows()[at + 1..at + 3].iter().map(|r| r.name.clone()).collect();
         assert_eq!(names, ["A", "b"]);
-        assert_eq!(DirTree::row_text(&t.rows()[at + 1]), format!("{}+ A", "    ".repeat(t.rows()[at].depth + 1)));
+        // (A has no directory in it: no `+`; b has)
+        let indent = "    ".repeat(t.rows()[at].depth + 1);
+        assert_eq!(DirTree::row_text(&t.rows()[at + 1]), format!("{indent}  A"));
+        assert_eq!(DirTree::row_text(&t.rows()[at + 2]), format!("{indent}+ b"));
         // Selecting b: the directory changes; again: it doesn't.
         assert!(t.click(at + 2));
         assert!(!t.click(at + 2));

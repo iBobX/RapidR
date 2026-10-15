@@ -32,6 +32,11 @@ struct Forms {
     /// (examples/forms/titlebtn.bas hides its form into the system tray and
     /// shows it again).
     hidden_modal: HashSet<String>,
+    /// Modal forms whose ShowModal's OnShow runs now. VCL's ShowModal sets
+    /// ModalResult to 0 once the form has shown, so a Close or ModalResult
+    /// there is lost: the form stays (RC.EXE; RapidQ's OpenGL/GL_test1.bas
+    /// calls Close in OnShow when a texture file is missing).
+    modal_onshow: HashSet<String>,
     /// Each shown form's screen scale (Form.Scale).
     scales: HashMap<String, f64>,
     /// (the WindowState lane's) The bounds a maximized form goes back to
@@ -122,9 +127,16 @@ pub fn form_scale<R: Windows>(rt: R, name: &str) -> f64 {
 // the host's own (a kernel-drawn dialog, the form under a file dialog's
 // sheet): input to any other window is dropped.
 
-/// Whether `name` is shown modally now (setting its ModalResult closes it).
+/// Whether `name` is shown modally now.
 pub fn is_modal(name: &str) -> bool {
     st(|s| s.modal.contains(&lower(name)))
+}
+
+/// Whether setting `name`'s ModalResult closes it: shown modally, and not
+/// in its ShowModal's OnShow (`Forms::modal_onshow`: lost there).
+pub fn modal_result_closes(name: &str) -> bool {
+    let name = lower(name);
+    st(|s| s.modal.contains(&name) && !s.modal_onshow.contains(&name))
 }
 
 /// The forms shown modally, innermost last.
@@ -276,6 +288,33 @@ fn resized<P: Program>(p: P, name: &str) {
     }
 }
 
+/// A form's window is made (its first Show): each AutoSize QEDIT on it
+/// takes its font's height, as Windows makes their windows under RapidQ
+/// (RC.EXE: `Height = 12` set before the form shows reads 21 after;
+/// rapidr_value::autosize).
+fn edits_fit_their_fonts<P: Program>(p: P, form: &str) {
+    let mut todo = vec![(lower(form), 0)];
+    while let Some((at, depth)) = todo.pop() {
+        if depth > 32 {
+            continue;
+        }
+        for (child, kind) in p.children(&at) {
+            if child.eq_ignore_ascii_case(&at) {
+                continue;
+            }
+            if kind.eq_ignore_ascii_case("REDIT") {
+                if let Some(h) = rapidr_value::autosize::edit_height(&child, &|i, prop| p.get(i, prop)) {
+                    if p.get(&child, "height").to_i64() != h {
+                        p.set(&child, "height", rapidr_value::v_int(h));
+                    }
+                }
+            } else {
+                todo.push((child, depth + 1));
+            }
+        }
+    }
+}
+
 /// The form's window shown (made the first time), before its OnShow: the
 /// host carries it out now, so the window exists.
 pub fn show_window<R: Program + Windows>(rt: R, name: &str) {
@@ -379,6 +418,7 @@ pub fn show<R: Program + Windows>(rt: R, name: &str) {
     }
     if !was_built {
         place_centered(rt, name);
+        edits_fit_their_fonts(rt, name);
     }
     let made = build_form(rt, name);
     show_window(rt, name);
@@ -415,6 +455,11 @@ pub fn hide<P: Program>(p: P, name: &str) {
 /// as `caHide`) decides whether the form goes, stays or is minimized.
 pub fn close<P: Program>(p: P, name: &str) {
     use rapidr_value::events::{CloseAction, CA_HIDE};
+    // (in its ShowModal's OnShow: lost, as VCL's ModalResult is then —
+    // no OnClose, the form stays)
+    if st(|s| s.modal_onshow.contains(&lower(name))) {
+        return;
+    }
     // (a modal form the program hid: Close ends its ShowModal)
     st(|s| s.hidden_modal.remove(&lower(name)));
     if !is_form(p, name) || window_shown(name).is_none() {
@@ -472,6 +517,9 @@ pub fn begin_modal<R: Program + Windows>(rt: R, name: &str) {
     rt.store(&name, "modalresult", v_int(0));
     push_modal(&name);
     let first = !form_window_exists(&name);
+    if first {
+        edits_fit_their_fonts(rt, &name);
+    }
     if window_shown(&name).is_none() {
         place_centered(rt, &name);
     } else if rt.get(&name, "_center").to_i64() != 0 {
@@ -495,7 +543,21 @@ pub fn begin_modal<R: Program + Windows>(rt: R, name: &str) {
     }
     window_made(rt, &name, made);
     first_show_resize(rt, &name, first);
-    rt.fire(&name, "onshow");
+    // (VCL's ShowModal: Show — OnShow —, then ModalResult := 0; a Close
+    // or ModalResult in OnShow is lost: Forms::modal_onshow)
+    st(|s| s.modal_onshow.insert(name.clone()));
+    let shown = name.clone();
+    rt.fire_then(
+        &name,
+        "onshow",
+        &[],
+        Box::new(move |_| {
+            st(|s| s.modal_onshow.remove(&shown));
+            if is_modal(&shown) {
+                rt.store(&shown, "modalresult", v_int(0));
+            }
+        }),
+    );
     first_show_resize(rt, &name, first);
     after_show(rt, &name);
     timers::start_all(rt);
@@ -516,6 +578,9 @@ pub fn apply_geometry<P: Program>(p: P, name: &str) {
 /// form asked to be before it showed).
 pub fn center<R: Program + Windows>(rt: R, name: &str) {
     rt.set(name, "_center", v_int(1));
+    // (RapidQ makes the form's windows again: its rich edits' carets go to
+    // the start — RC.EXE)
+    rapidr_value::objects::rich_edits_recreated(name, &|id| rt.get(id, "parent").to_string_val());
     if window_shown(name).is_none() {
         return;
     }

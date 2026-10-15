@@ -7,18 +7,19 @@
 //! while that is so ([`constants_built_in`]): removing it would change the
 //! program.
 //!
-//! The file itself is RapidQ's, and the copy doesn't carry it — unless the
-//! program uses something of it that RapidR's constants don't give the
-//! same way (RapidQ's file also has a `QBColor` array, `$DEFINE`s, maybe a
-//! user's own additions): then it is copied, and the report says why
-//! ([`must_carry`]).
+//! The file itself is RapidQ's, and the copy never carries it (nor any
+//! other include RapidR supplies built in). A program that uses something
+//! of it RapidR's constants don't give the same way (RapidQ's file also
+//! has a `QBColor` array, `$DEFINE`s, maybe a user's own additions) needs
+//! that file found by the copy too — in an include folder: the report says
+//! so ([`own_needed`]).
 
 use std::collections::HashMap;
 
 use rapidr_lexer::TokenType;
 use rapidr_parser::ToolsParse;
 
-use crate::convert::{is_rapidq_inc_name, Change, Edit, FilePlan, ProgramPlan};
+use crate::convert::{is_rapidq_inc_name, Change, Edit, ProgramPlan};
 
 /// Whether every RAPIDQ.INC constant is there without the `$INCLUDE` line
 /// (as RapidR's own constants are: `rapidr_ast::rapidr_constant`). Not
@@ -42,10 +43,10 @@ fn number(lexeme: &str) -> Option<i64> {
     l.parse().ok()
 }
 
-/// Why the program needs RapidQ's RAPIDQ.INC file in its copy, when it
-/// reads one and uses something of it RapidR's built-in constants don't
-/// give the same way.
-pub(crate) fn must_carry(tp: &ToolsParse, _files: &[FilePlan]) -> Option<String> {
+/// What the program uses of the RAPIDQ.INC file it reads that RapidR's
+/// built-in RAPIDQ.INC constants don't give the same way (its names, upper
+/// case, separated by commas); `None` when nothing.
+pub(crate) fn own_needed(tp: &ToolsParse) -> Option<String> {
     let origins = &tp.preprocessed.origins.files;
     let fid = origins.iter().position(|f| f.path.as_ref().is_some_and(|p| is_rapidq_inc_name(&p.to_string_lossy())))?;
     let builtin: HashMap<String, i64> = rapidr_preprocessor::RAPIDQ_INC_CONSTANTS.iter().map(|(n, v)| (n.to_ascii_uppercase(), *v)).collect();
@@ -112,10 +113,7 @@ pub(crate) fn must_carry(tp: &ToolsParse, _files: &[FilePlan]) -> Option<String>
     if used.is_empty() {
         return None;
     }
-    Some(format!(
-        "the program uses {} of RapidQ's RAPIDQ.INC, which RapidR's built-in RAPIDQ.INC constants don't give the same way: the file is copied",
-        used.join(", ")
-    ))
+    Some(used.join(", "))
 }
 
 /// The `$INCLUDE "RAPIDQ.INC"` lines: removed only when RapidR has the
@@ -124,7 +122,7 @@ pub(crate) fn note_include_lines(plan: &mut ProgramPlan) {
     if !constants_built_in() {
         return;
     }
-    for f in plan.files.iter_mut().filter(|f| !f.is_rapidq_inc) {
+    for f in plan.files.iter_mut().filter(|f| !f.builtin) {
         let mut start = 0;
         for (i, line) in f.text.split('\n').enumerate() {
             let body = line.trim_end_matches('\r');

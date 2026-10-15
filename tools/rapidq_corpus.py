@@ -81,7 +81,6 @@ HARDWARE_RE = re.compile(r"\bINP\s*\(|^\s*OUT\s+[^=]", re.I | re.M)
 NOT_RAPIDQ = {
     "Compile/RQdecl.bas": "`IF … AND _` continued by a second `IF` (line 118)",
     "Database/SQL_blobs/SQ3.BAS": "C's `|` for flags (not a RapidQ operator)",
-    "Encryption/RC4.bas": "typo `DIM Encrypted$YY`",
     "FreeImage/MFreeImage.bas": "Visual Basic (`Public Enum`)",
     "Linear_Solver/Linear.bas": "`if xlow not > 0 or then` (OR with nothing after it)",
     "Math/Linear_Solver/Linear.bas": "`if xlow not > 0 or then` (OR with nothing after it)",
@@ -92,17 +91,34 @@ NOT_RAPIDQ = {
     "OLE/MSscript.bas": "typo `.Language = %T\"`",
     "OLE/xls/ExcelReader.bas": "a SUB call without parentheses assigned (`b$ = RiEd.addstring \"sheet \"…`)",
     "Object/Examples/Cd.bas": "typo `\"…\"+,`",
-    "VideoCapture/WebCam_Class.bas": "`CASE 5` after `END SELECT`",
-    "buttons/XPBtn.bas": "`SUB $XP_MANIFEST` (a directive's name as a SUB name)",
-    "dialogs/colordlg/RGBV11.BAS": "`#H000000` (RapidQ's hex is `&H`)",
     "direct3d/billboard_ex.bas": "C's `//` comments",
     "dll/Resource in DLL/emptyDLL.bas": "FreeBASIC (`… export`)",
     "files/FileSearch_FB_DLL.bas": "FreeBASIC (`UBYTE PTR`)",
-    "games/asteroids.bas": "typo `thrusta _ (` for `thrusta - (`",
-    "games/ateroids2/asteroids.bas": "typo `thrusta _ (` for `thrusta - (`",
     "mysql/rqlibsql/mySQL_API.bas": "`End If` after a single-line IF",
     "zlib/QunZip.bas": "Visual Basic (`AddressOf`)",
 }
+
+
+def find_any_case(folder, relative):
+    """`folder/relative` in any case, as Windows finds it (the same
+    classification on a case-sensitive Linux as on macOS), or None."""
+    cur = folder
+    for part in relative.split("/"):
+        if part in ("", "."):
+            continue
+        if part == "..":
+            cur = os.path.dirname(cur)
+            continue
+        nxt = os.path.join(cur, part)
+        if not os.path.exists(nxt):
+            try:
+                nxt = next((os.path.join(cur, e) for e in os.listdir(cur) if e.lower() == part.lower()), None)
+            except OSError:
+                nxt = None
+            if nxt is None:
+                return None
+        cur = nxt
+    return cur if os.path.isfile(cur) else None
 
 
 def program_text(path):
@@ -113,8 +129,11 @@ def program_text(path):
         return ""
     texts = [src]
     for inc in INCLUDE_RE.findall(src):
-        local = os.path.join(os.path.dirname(path), inc.replace("\\", "/"))
-        if os.path.isfile(local):
+        # (the author's own path, `C:\Rapidq\examples\QTButton\x.inc`: its
+        # ever shorter endings, as the compiler looks — next to the program)
+        parts = [p for p in re.sub(r"^[A-Za-z]:", "", inc.replace("\\", "/")).split("/") if p]
+        local = next((f for f in (find_any_case(os.path.dirname(path), "/".join(parts[i:])) for i in range(len(parts))) if f), None)
+        if local:
             try:
                 texts.append(open(local, encoding="latin-1").read())
             except OSError:

@@ -1,7 +1,11 @@
-size 10 pos 10
-[<<one
-two]
-pos 10 lines 2
+size 132 pos 132
+[<<{\rtf1\ansi\ansicpg1252\deff0\deflang1033{\fonttbl{\f0\fnil MS Sans Serif;}}
+\viewkind4\uc1\pard\f0\fs16 one
+\par two
+\par }
+] last 0
+pos 132 lines 2
 [one][two]
+plain size 132 pos 8
 cols 3 ac
 Courier New 14

@@ -230,7 +230,7 @@ pub fn leech_file(name: &str) -> Value {
         let (result, file) = rqlib::download_finish(&name, outcome);
         if let Some((path, bytes)) = file {
             // (the library's QFILESTREAM fmCreate: the file made or emptied)
-            if let Err(e) = std::fs::write(&path, &bytes) {
+            if let Err(e) = std::fs::write(crate::value::paths::host(&path), &bytes) {
                 eprintln!("[rapidr] QDOWNLOAD: can't write {path}: {e}");
             }
         }

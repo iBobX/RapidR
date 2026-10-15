@@ -592,7 +592,7 @@ impl ProgramEnd {
                     return Ok(rapidr_value::datascience::frame::with_frame(&id, |f| {
                         (start..end.min(f.height()))
                             .map(|r| {
-                                let cells: Vec<String> = f.row(r).into_iter().map(|c| c.unwrap_or("").to_string()).collect();
+                                let cells: Vec<String> = f.row(r).into_iter().map(|c| c.map(|c| c.into_owned()).unwrap_or_default()).collect();
                                 (r, cells)
                             })
                             .collect::<Vec<_>>()
@@ -606,7 +606,7 @@ impl ProgramEnd {
                 }
                 Node::Row(id, r) => {
                     let cells = rapidr_value::datascience::frame::with_frame(&id, |f| {
-                        (0..f.width()).map(|c| (f.columns[c].clone(), f.cell(r, c).map(str::to_string), f.dtype(c).name())).collect::<Vec<_>>()
+                        (0..f.width()).map(|c| (f.columns[c].clone(), f.cell(r, c).map(|c| c.into_owned()), f.dtype(c).name())).collect::<Vec<_>>()
                     });
                     return Ok(cells
                         .into_iter()

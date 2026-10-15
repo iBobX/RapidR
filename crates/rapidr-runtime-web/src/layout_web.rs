@@ -316,6 +316,15 @@ pub fn labels_before_set(name: &str, prop: &str) -> Option<rapidr_value::autosiz
 pub fn labels_after_set(name: &str, before: rapidr_value::autosize::Before) {
     let get = |i: &str, p: &str| crate::object_web::rp_comp_get(i, p);
     for label in rapidr_value::autosize::changed_labels(name, before, &rp_comp_get_stored, &label_font) {
+        // (a QEDIT: its height, rapidr_value::autosize)
+        if crate::object_web::rp_comp_type(&label) == "REDIT" {
+            if let Some(h) = rapidr_value::autosize::edit_height(&label, &get) {
+                if rp_comp_get_stored(&label, "height").to_i64() != h {
+                    rp_comp_set(&label, "height", v_int(h));
+                }
+            }
+            continue;
+        }
         if let Some(r) = rapidr_value::autosize::label_bounds(&label, &get) {
             for (p, v) in [("left", r.left), ("width", r.width), ("height", r.height)] {
                 if rp_comp_get_stored(&label, p).to_i64() != v {

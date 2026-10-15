@@ -6,10 +6,10 @@ name = "layout"
 origin = "rapidr"
 properties = [
   { name = "Anchors", type = "set", values = ["akLeft", "akTop", "akRight", "akBottom"], default = "akLeft + akTop", category = "Layout", doc = "Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch." },
-  { name = "MinWidth", type = "int", default = 0, category = "Layout", doc = "The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`." },
-  { name = "MinHeight", type = "int", default = 0, category = "Layout", doc = "The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`." },
-  { name = "MaxWidth", type = "int", default = 0, category = "Layout", doc = "The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`." },
-  { name = "MaxHeight", type = "int", default = 0, category = "Layout", doc = "The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`." },
+  { name = "MinWidth", type = "int", default = 0, range = "0..", unit = "px", category = "Layout", doc = "The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`." },
+  { name = "MinHeight", type = "int", default = 0, range = "0..", unit = "px", category = "Layout", doc = "The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`." },
+  { name = "MaxWidth", type = "int", default = 0, range = "0..", unit = "px", category = "Layout", doc = "The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`." },
+  { name = "MaxHeight", type = "int", default = 0, range = "0..", unit = "px", category = "Layout", doc = "The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`." },
 ]
 methods = []
 events = []

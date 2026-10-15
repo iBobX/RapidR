@@ -13,6 +13,9 @@ mod examples;
 mod home;
 mod import;
 mod lang;
+// (AI-ARCH phase 0: the introspection interface, behind a cargo feature)
+#[cfg(feature = "ai-introspect")]
+mod introspect;
 mod macos;
 mod launch;
 mod notices;
@@ -24,7 +27,7 @@ use home::Home;
 
 /// The subcommands (a first argument that is one isn't a file).
 const SUBCOMMANDS: &[&str] = &[
-    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "serve", "import-rapidq", "upgrade-names", "__dialog",
+    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "serve", "import-rapidq", "upgrade-names", "introspect", "__dialog",
 ];
 
 /// `--log <file> <command…>`: this rapidr again with the command, its
@@ -61,9 +64,60 @@ fn is_script(path: &str) -> bool {
     fs::File::open(path).and_then(|mut f| f.read_exact(&mut start)).is_ok() && &start == b"#!"
 }
 
+/// `--include-dir <folder>` (or `--include-dir=<folder>`, any number): the
+/// include folders every program compiled by this command gets — searched
+/// after the program's own folder, as RC.EXE's `-I`. Taken out of `args`
+/// wherever they are, but after a program to run (`run`, `open`, `run-bc`,
+/// a script): what follows it is the program's own. They go first in
+/// `RAPIDR_INCLUDE_PATH`, which the compiler reads (and what this command
+/// starts inherits).
+fn take_include_dirs(args: &mut Vec<String>) {
+    let mut dirs: Vec<std::path::PathBuf> = Vec::new();
+    let mut sub: Option<String> = None;
+    let mut i = 0;
+    while i < args.len() {
+        let a = args[i].clone();
+        if a == "--include-dir" && i + 1 < args.len() {
+            dirs.push(args[i + 1].clone().into());
+            args.drain(i..i + 2);
+            continue;
+        }
+        if let Some(d) = a.strip_prefix("--include-dir=") {
+            dirs.push(d.into());
+            args.remove(i);
+            continue;
+        }
+        if !a.starts_with('-') {
+            if i == 0 && sub.is_none() && SUBCOMMANDS.contains(&a.as_str()) {
+                sub = Some(a);
+                i += 1;
+                continue;
+            }
+            // (the program to run: the rest is its own)
+            if matches!(sub.as_deref(), None | Some("run" | "open" | "run-bc")) {
+                break;
+            }
+        }
+        i += 1;
+    }
+    if dirs.is_empty() {
+        return;
+    }
+    // (absolute: a program run from elsewhere finds them too)
+    let mut all: Vec<std::path::PathBuf> = dirs.into_iter().map(|d| std::path::absolute(&d).unwrap_or(d)).collect();
+    if let Some(old) = env::var_os("RAPIDR_INCLUDE_PATH") {
+        all.extend(env::split_paths(&old));
+    }
+    if let Some(value) = rapidr_preprocessor::include_path_value(&all) {
+        // (still one thread: nothing else reads the environment yet)
+        env::set_var("RAPIDR_INCLUDE_PATH", value);
+    }
+}
+
 fn main() -> ExitCode {
     let mut args: Vec<String> = env::args().collect();
     args.remove(0); // program name
+    take_include_dirs(&mut args);
 
     // The language service every code editor of a program run here asks
     // (RapidR Studio's RCODEEDITOR): per thread, and programs run on this
@@ -131,6 +185,13 @@ fn main() -> ExitCode {
         (Some("setup"), _) => setup::setup(&args[1..]),
         (Some("notices"), _) => notices::command(&args[1..]),
         (Some("lang"), _) => lang::command(&args[1..]),
+        #[cfg(feature = "ai-introspect")]
+        (Some("introspect"), _) => introspect::command(&args[1..]),
+        #[cfg(not(feature = "ai-introspect"))]
+        (Some("introspect"), _) => {
+            eprintln!("rapidr introspect: this rapidr was built without it (cargo build -p rapidr-cli --features ai-introspect; docs/ai-architecture.md)");
+            ExitCode::from(2)
+        }
         (Some("import-rapidq"), _) => import::import_rapidq(&args[1..]),
         (Some("upgrade-names"), _) => import::upgrade_names(&args[1..]),
         (Some("__dialog"), Some(path)) => launch::run_dialog(&path),
@@ -256,6 +317,8 @@ fn main() -> ExitCode {
             eprintln!("  rapidr version");
             eprintln!("  rapidr --log <file> <command…>                     The command's output in a file");
             eprintln!("  rapidr run <file.rrbc|.rr|.bas|.rqw> [args]        Run a program (the RapidR Runtime)");
+            eprintln!("  rapidr <command> --include-dir <folder> …        An include folder (any number; before a program's own arguments):");
+            eprintln!("        $INCLUDE files are looked for in the program's folder, then there (also RAPIDR_INCLUDE_PATH)");
             eprintln!("  rapidr run --session <file> [args]               Run it under the IDE's session protocol (stdio)");
             eprintln!("  rapidr open <file> [args]                        Run it as opening it from the desktop does");
             eprintln!("  rapidr info <file>                               Its app type, format and the runtime it needs");
@@ -268,7 +331,8 @@ fn main() -> ExitCode {
             eprintln!("  rapidr serve <file> [--open]                     Its web build served on this machine (127.0.0.1), opened in the browser");
             eprintln!("  rapidr lang export --json|--prompt|--manual|--all  What the language registry generates");
             eprintln!("  rapidr lang conformance <dir> [--target desktop|web]  The registry's conformance programs");
-            eprintln!("  rapidr import-rapidq <file|folder|.rrproj> [OUT_DIR] [--include DIR]  A copy of a RapidQ program with RapidR's names, and a report");
+            eprintln!("  rapidr lang ai-check [--summary|--json] [--strict] [NAME…]  Registry entries lacking an AI facet");
+            eprintln!("  rapidr import-rapidq <file|folder|.rrproj> [OUT_DIR] [--include-dir DIR]  A copy of a RapidQ program and every file it includes, with RapidR's names, and a report");
             eprintln!("  rapidr upgrade-names <file> [--dry-run]          RapidR's names in one of your own files (--dry-run: the diff only)");
             eprintln!("  rapidr about");
             eprintln!("  rapidr [--release|--debug] [--web] [--interp] <file.rr>  Build source file");

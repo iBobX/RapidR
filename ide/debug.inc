@@ -1321,7 +1321,7 @@ END SUB
 ' ---- Immediate: "? expr" prints, a statement runs in the paused frame ----------------------------
 
 SUB ImmediateKey(Key AS INTEGER, Shift AS INTEGER)
-  DIM n AS INTEGER, typed AS STRING
+  DIM n AS INTEGER, typed AS STRING, t AS STRING, before AS STRING, k AS INTEGER
   n = ImmediateBox.LineCount
   IF n < 1 THEN EXIT SUB
   ' (Up / Down on the last line: the lines typed before)
@@ -1336,8 +1336,16 @@ SUB ImmediateKey(Key AS INTEGER, Shift AS INTEGER)
   END IF
   IF Key <> 13 THEN EXIT SUB
   ' (the caret's line — typed at the end, or an earlier one run again; its
-  ' answer and a fresh line come below the text when it's in)
-  typed = ImmediateBox.Line(TALLY(LEFT$(ImmediateBox.Text, ImmediateBox.SelStart), CHR$(10)))
+  ' answer and a fresh line come below the text when it's in. The box has
+  ' taken the Enter by the time this is heard: when its line break is in
+  ' just before the caret, the line typed is the one above. Lines are read
+  ' from the text, CR LF or LF alike — a rich edit's LineCount leaves out
+  ' an empty last line)
+  t = ImmediateBox.Text
+  before = LEFT$(t, ImmediateBox.SelStart)
+  k = TALLY(before, CHR$(10))
+  IF k > 0 AND RIGHT$(before, 1) = CHR$(10) THEN k = k - 1
+  typed = FIELD$(REPLACESUBSTR$(t, CHR$(13), ""), CHR$(10), k + 1)
   Key = 0
   IF LTRIM$(typed) = "" THEN EXIT SUB
   IF ImmCount < 50 THEN

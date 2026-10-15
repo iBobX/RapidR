@@ -75,25 +75,29 @@ const SCENES = [
     name: "designer",
     open: "examples/rapidq/notepad.bas",
     do: "view.designer,designer.place.QBUTTON",
-    delay: 4,
+    delay: 6,
     events: [
       "__mousedown_112_132", "__mouseup_112_132",
       "__mousedown_503_262", "__mousemove_533_262", "__mousemove_563_262", "__mouseup_563_262",
       "__mousedown_122_142", "__mousemove_142_162", "__mousemove_162_182", "__mouseup_162_182",
     ].map((e) => `designdoc(0).${e}`).join(","),
   },
+  // (The scenes with test events give Studio's steps time first: the events
+  // start at the capture delay, the steps one each 400 ms once Studio is up
+  // — on a busy machine the web's start took long enough for a click to
+  // come before designer.tabOrder at 4 s.)
   // (S-DESIGN-2) The menu editor on hello_form's new menu bar: File made,
   // its menu open, Open… being given its ShortCut
-  { name: "designer-menu", open: "examples/gui/hello_form.rr", do: "wait,view.designer,designer.menuEditor", delay: 4, events: typed("&File{Enter}&Open...{Tab}{Ctrl+O}") },
+  { name: "designer-menu", open: "examples/gui/hello_form.rr", do: "wait,view.designer,designer.menuEditor", delay: 6, events: typed("&File{Enter}&Open...{Tab}{Ctrl+O}") },
   // (S-DESIGN-2) A component placed with the toolbox's tool: its 100 ms
   // settling over by the capture, on both hosts
-  { name: "designer-drop", open: "examples/gui/hello_form.rr", do: "wait,view.designer,designer.place.QBUTTON", delay: 4, events: click(40, 120) },
+  { name: "designer-drop", open: "examples/gui/hello_form.rr", do: "wait,view.designer,designer.place.QBUTTON", delay: 6, events: click(40, 120) },
   // (S-DESIGN-2) The Tab-order editor: the badges, GreetButton clicked first
-  { name: "designer-taborder", open: "examples/gui/hello_form.rr", do: "wait,view.designer,designer.tabOrder", delay: 4, events: click(150, 60) },
+  { name: "designer-taborder", open: "examples/gui/hello_form.rr", do: "wait,view.designer,designer.tabOrder", delay: 6, events: click(150, 60) },
   // (S-DESIGN-2) A caption edited in place (a slow click, then typing)
-  { name: "designer-caption", open: "examples/gui/hello_form.rr", do: "wait,view.designer", delay: 4, events: `${click(150, 60)},${click(150, 60)},${typed("Say &hi")}` },
+  { name: "designer-caption", open: "examples/gui/hello_form.rr", do: "wait,view.designer", delay: 6, events: `${click(150, 60)},${click(150, 60)},${typed("Say &hi")}` },
   // (S-DESIGN-2) Smart guides while Answer is held
-  { name: "designer-guides", open: "examples/gui/hello_form.rr", do: "wait,view.designer", delay: 4, events: [`__mousedown_${at(100, 100)}`, `__mousemove_${at(104, 104)}`, `__mousemove_${at(103, 106)}`].map((e) => `designdoc(0).${e}`).join(",") },
+  { name: "designer-guides", open: "examples/gui/hello_form.rr", do: "wait,view.designer", delay: 6, events: [`__mousedown_${at(100, 100)}`, `__mousemove_${at(104, 104)}`, `__mousemove_${at(103, 106)}`].map((e) => `designdoc(0).${e}`).join(",") },
   // (S-DESIGN-2) Zoomed to 150 %, notepad's dialogs in its tray, SaveDialog selected
   { name: "designer-zoom", open: "examples/rapidq/notepad.bas", do: "wait,view.designer,designer.zoomIn,designer.zoomIn,designer.zoomIn,pick:SaveDialog,wait", delay: 6 },
   // (S-DESIGN-2) A console program's designer: "Add a Form", then one added
@@ -106,9 +110,11 @@ const SCENES = [
   // Form2.rr on its designer with an RLabel, an REdit and an RButton, the
   // button selected in the inspector; then the program's main file with the
   // $INCLUDE and Form1's handler that shows Form2. ({dir}: the same project
-  // path on both hosts, under tests/results)
+  // path on both hosts, under tests/results) (The capture comes once every
+  // step has run — 30 steps, one each 400 ms, and the typing — and the code's
+  // colours are in: at 12 s it raced the last steps on a busy machine.)
   { name: "addform-design", open: "", project: true, do: "newproject:gui|{dir}|Multi,wait,wait,project.addForm,wait,key:Enter,wait,wait,wait,tool:RLABEL,prop:Caption=Hello from Form2,tool:REDIT,prop:Text=Type here,tool:RBUTTON,prop:Caption=Close,wait", delay: 10 },
-  { name: "addform-code", open: "", project: true, do: "newproject:gui|{dir}|Multi,wait,wait,project.addForm,wait,key:Enter,wait,wait,wait,tool:RLABEL,prop:Caption=Hello from Form2,tool:REDIT,prop:Text=Type here,tool:RBUTTON,prop:Caption=Close,event:OnClick,wait,type:Form2.Close,key:Escape,open:main.rr,wait,view.designer,wait,tool:RBUTTON,prop:Caption=Show Form2,event:OnClick,wait,type:Form2.Show,key:Escape,wait", delay: 12 },
+  { name: "addform-code", open: "", project: true, do: "newproject:gui|{dir}|Multi,wait,wait,project.addForm,wait,key:Enter,wait,wait,wait,tool:RLABEL,prop:Caption=Hello from Form2,tool:REDIT,prop:Text=Type here,tool:RBUTTON,prop:Caption=Close,event:OnClick,wait,type:Form2.Close,key:Escape,open:main.rr,wait,view.designer,wait,tool:RBUTTON,prop:Caption=Show Form2,event:OnClick,wait,type:Form2.Show,key:Escape,wait", delay: 17 },
   // (S-EDITOR) a misspelt member squiggled, in Problems too; a hover; the
   // signature after `(`; Tab at a line's start (blanks, never a glyph)
   { name: "editor-squiggle", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,type:x$ = NameEdit.Txet,key:Escape,wait,wait,wait,view.problems", delay: 8 },
@@ -188,19 +194,10 @@ function diff(a, b) {
   return `${n} pixels differ`;
 }
 
-/// Whether the captures differ only as wasm SIMD's rounding makes them (the
-/// web's vello_cpu runs on simd128): at most two pixels, each channel off by
-/// at most one level — the known difference tools/regress.sh lists, too.
-function rounding(a, b) {
-  if (a.w !== b.w || a.h !== b.h) return false;
-  let n = 0;
-  for (let i = 0; i < a.px.length; i += 3) {
-    const delta = Math.max(Math.abs(a.px[i] - b.px[i]), Math.abs(a.px[i + 1] - b.px[i + 1]), Math.abs(a.px[i + 2] - b.px[i + 2]));
-    if (delta > 1) return false;
-    if (delta && ++n > 2) return false;
-  }
-  return true;
-}
+// (No rounding is allowed for: the desktop's CPU renderer runs vello_cpu's
+// portable SIMD level, which rounds as the web's wasm SIMD does —
+// crates/rapidr-ui-render's cpu::settings —, so a pixel apart is a real
+// difference.)
 
 // (a scene's project folder, relative to the repository: the same on both
 // hosts, so what Studio says about its files is the same)
@@ -265,7 +262,7 @@ async function runWeb(browser, scene, theme, scale) {
 
 // ---- the runs ------------------------------------------------------------------
 const browser = await chromium.launch();
-let same = 0, near = 0, differ = 0, failed = 0, a11ySame = 0, a11yDiffer = 0;
+let same = 0, differ = 0, failed = 0, a11ySame = 0, a11yDiffer = 0;
 for (const scene of SCENES) for (const theme of THEMES) for (const scale of SCALES) {
   const name = `${scene.name}-${theme}@${scale}x`;
   if (filters.length && !filters.some((f) => name.includes(f))) continue;
@@ -281,9 +278,8 @@ for (const scene of SCENES) for (const theme of THEMES) for (const scale of SCAL
     writeFileSync(join(OUT, `${name}-web.bmp`), wb);
     writeFileSync(join(OUT, `${name}.bmp`), writeBmp(sideBySide(d, w)));
     const identical = desk.bmp.equals(wb);
-    const rounded = !identical && rounding(d, w);
-    identical ? same++ : rounded ? near++ : differ++;
-    console.log(`${identical ? "✓" : rounded ? "≈" : "≠"} ${name}: ${identical ? "byte-identical" : rounded ? `${diff(d, w)} by one level (wasm SIMD's rounding)` : diff(d, w)}${web.errors.length ? ` (page errors: ${web.errors.join("; ")})` : ""}`);
+    identical ? same++ : differ++;
+    console.log(`${identical ? "✓" : "≠"} ${name}: ${identical ? "byte-identical" : diff(d, w)}${web.errors.length ? ` (page errors: ${web.errors.join("; ")})` : ""}`);
     if (desk.a11y !== null) {
       // (the web's Build button is Build Web App (.zip), the desktop's is
       // Build: the one name the hosts' toolbars have apart)
@@ -301,5 +297,5 @@ for (const scene of SCENES) for (const theme of THEMES) for (const scale of SCAL
   }
 }
 await browser.close();
-console.log(`\nRapidR Studio shell: ${same} captures byte-identical desktop / web, ${near} within wasm SIMD's rounding, ${differ} differ, ${failed} failed; accessibility trees equal ${a11ySame}, differ ${a11yDiffer} (captures in ${OUT})`);
+console.log(`\nRapidR Studio shell: ${same} captures byte-identical desktop / web, ${differ} differ, ${failed} failed; accessibility trees equal ${a11ySame}, differ ${a11yDiffer} (captures in ${OUT})`);
 process.exit(differ || failed || a11yDiffer ? 1 : 0);

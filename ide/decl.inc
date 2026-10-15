@@ -240,4 +240,7 @@ DIM Lang AS RLanguageService
 DIM Session AS RProgramSession
 DIM Reg AS RRegistry
 DIM OpenDlg AS ROpenDialog
+' (File > Import RapidQ Project or File: several files may be picked — in
+' a browser the program and its include files, read in together)
+DIM ImportDlg AS RFileDialog
 DIM SaveDlg AS RSaveDialog

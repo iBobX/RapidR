@@ -1,0 +1,5 @@
+f onshow
+f after close visible=1
+tick visible=1
+f onclose
+f showmodal=1

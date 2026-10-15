@@ -58,6 +58,9 @@ const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 //   env:     environment it runs with (the tests' scripted devices; on the
 //            web the page's RAPIDR_TEST_COMPORT)
 //   timeout: ms (default 60000)
+//   includes: the program's $INCLUDEs are in subfolders of its own: the
+//            folder is copied whole, and the web compiles it with every
+//            source file under it (compile_files)
 // (`wait(c, n)`: n clicks on a component that does nothing with them — the
 // hooks fire an event every 50 ms, so the program's timers run meanwhile)
 const wait = (comp, n) => Array(n).fill(`${comp}.onclick`).join(",");
@@ -83,12 +86,21 @@ export const cases = [
     colorDialog: "65280", messageDialog: "Yes", expect: ["answer.caption=Glad to hear it!", "sample.color=65280"] },
   { file: "gui/dialogs.rr", runtimes: ["run", "interp", "native", "web"], events: "fontbtn.onclick,openbtn.onclick", dump: "answer.caption",
     fontDialog: "Courier New,14", fileDialog: "notes.txt", expect: ["answer.caption=Chose ", "notes.txt"] },
+  // (Ctrl+End to the last paragraph, B pressed there — the bold "x" typed
+  // next keeps it — then centred and bulleted: the tool bar follows)
+  { file: "gui/richtext.rr", runtimes: ["run", "interp", "native", "web"], events: "doc.__key_35_16,boldbtn.onclick,doc.__key_88,centrebtn.onclick,bulletbtn.onclick",
+    dump: "status.simpletext,boldbtn.down,centrebtn.down,leftbtn.down,bulletbtn.down",
+    expect: ["status.simpletext=Line 5, column 36   MS Sans Serif 8 pt", "boldbtn.down=-1", "centrebtn.down=-1", "leftbtn.down=0", "bulletbtn.down=-1"] },
   { file: "gui/stopwatch.rr", runtimes: ["run", "interp", "native", "web"], events: `startbtn.onclick,${wait("state", 6)},lapbtn.onclick,${wait("state", 4)},lapbtn.onclick,startbtn.onclick`,
     dump: "laps.itemcount,state.caption,time.caption", expect: ["laps.itemcount=2", "state.caption=Stopped", "time.caption=0:0"] },
   { file: "gui/pantry.rr", runtimes: ["run", "interp", "native", "web"], events: "shelves.__item_1,addbtn.onclick", dump: "total.caption,grid.rowcount",
     expect: ["total.caption=Vegetables: 3 items, worth 4.80", "grid.rowcount=4"] },
   { file: "gui/themes.rr", runtimes: ["run", "interp", "native", "web"], events: "pickdark.onclick", dump: "now.caption",
     expect: ["now.caption=Theme: rapidr dark"] },
+  { file: "gui/sales_dashboard.rr", runtimes: ["run", "interp", "native", "web"], dump: "status.caption,averagevalue.caption",
+    expect: ["status.caption=All regions: 1265 thousand in 8890 orders; best month December", "averagevalue.caption=142.29"] },
+  { file: "gui/sales_dashboard.rr", runtimes: ["run", "interp", "native", "web"], events: "southbtn.onclick", dump: "status.caption,bestvalue.caption",
+    expect: ["status.caption=South: 577 thousand in 4060 orders; best month December", "bestvalue.caption=December (66)"] },
   { file: "gui/tray.rr", runtimes: ["run", "interp", "native", "web"], events: "hidebtn.onclick,form.__tray_513,form.__tray_514", dump: "info.caption,form.__shown",
     expect: ["info.caption=Back from the tray (1)", "form.__shown=1"] },
   // studio/
@@ -144,6 +156,35 @@ export const cases = [
   { file: "data/csv_explorer.rr", runtimes: ["run", "interp", "native", "web"], fileDialog: "staff.csv",
     events: "openbtn.onclick,kindbox.__item_1", dump: "status.caption,chart.title,stats.itemcount",
     expect: ["status.caption=staff.csv: 8 rows, 5 columns", "chart.title=Salary by Name", "stats.itemcount=5"] },
+  // (I7: linked components — a row clicked in the grid, Next, a heading
+  // clicked: the bound edit and labels follow, the view sorted)
+  { file: "data/linked_data.rr", runtimes: ["run", "interp", "native", "web"],
+    events: "grid.__cell_1_2,nextbtn.onclick,grid.__cell_2_-1",
+    dump: "nameedit.text,deptedit.text,salary.caption,status.caption,grid.row,grid.sortcolumn",
+    expect: ["nameedit.text=Diana", "deptedit.text=Sales", "salary.caption=58000", "status.caption=Row 4 of 8", "grid.row=3", "grid.sortcolumn=2"] },
+  // (Engineering: the frame filtered — the grid and the edits follow)
+  { file: "data/linked_data.rr", runtimes: ["run", "interp", "native", "web"],
+    events: "engbtn.onclick,lastbtn.onclick",
+    dump: "nameedit.text,status.caption,grid.rowcount",
+    expect: ["nameedit.text=Eduardo", "status.caption=Row 3 of 3", "grid.rowcount=3"] },
+  // (I7: JSON records as a data source — a product picked, the bound edits
+  // and label follow; grouped by category)
+  { file: "data/json_source.rr", runtimes: ["run", "interp", "native", "web"],
+    events: "grid.__cell_0_4",
+    dump: "status.caption,nameedit.text,stockedit.text,price.caption,grid.rowcount",
+    expect: ["status.caption=Calculator (Electronics)", "nameedit.text=Calculator", "stockedit.text=40", "price.caption=12.5", "grid.rowcount=12"] },
+  { file: "data/json_source.rr", runtimes: ["run", "interp", "native", "web"],
+    events: "groupbtn.onclick,grid.__cell_0_2",
+    dump: "status.caption,grid.rowcount,price.caption,stockedit.text",
+    expect: ["status.caption=School: 553 in stock", "grid.rowcount=4", "price.caption=28.85", "stockedit.text=553"] },
+  // (I7: a big table — 20,000 rows here to keep the suite quick; the
+  // example's own default is a million)
+  { file: "data/million_rows.rr", runtimes: ["run", "interp", "native", "web"], args: ["20000"],
+    events: "highbtn.onclick", dump: "grid.rowcount,grid.columns",
+    expect: ["grid.rowcount=4383", "grid.columns=id,dept,salary,years"] },
+  { file: "data/million_rows.rr", runtimes: ["run", "interp", "native", "web"], args: ["20000"],
+    events: "groupbtn.onclick,grid.__cell_0_1", dump: "grid.rowcount,grid.columns,grid.row",
+    expect: ["grid.rowcount=5", "grid.columns=dept,salary,years", "grid.row=1"] },
   // network/ (the tests' own server, local)
   { file: "network/http_json.rr", runtimes: ["run", "interp", "native", "web"], args: ["{http}/examples/network/forecast.json"],
     expect: ["Forecast for Harbour Town (updated 2026-10-06 06:00)", "  Tuesday   10 to 15 C, showers", "Warmest: Monday"] },
@@ -156,6 +197,10 @@ export const cases = [
   // rapidq/: RapidQ's own way, Q names, as RC.EXE compiles it
   { file: "rapidq/notepad.bas", runtimes: ["run", "interp", "native", "web"], events: "saveitem.onclick,newitem.onclick,openitem.onclick", dump: "form.caption,editor.linecount",
     fileDialog: "note.txt;note.txt", expect: ["form.caption=Notepad - note.txt", "editor.linecount=3"] },
+  // (a program in several files: its includes in lib/ and forms/, named as
+  // on Windows — `Lib\Geometry.INC` is lib/geometry.inc)
+  { file: "rapidq/shapes/shapes.bas", runtimes: ["run", "interp", "native", "web"], includes: true, events: "areabutton.onclick", dump: "answerlabel.caption",
+    expect: ["answerlabel.caption=Circle: 12.57 square cm"] },
   // web/: what only a web page has
   { file: "web/todo.rr", runtimes: ["web"], events: "addbtn.onclick", dump: "info.caption,tasks.itemcount",
     expect: ["info.caption=1 to do, saved", "tasks.itemcount=1"] },
@@ -232,7 +277,7 @@ function workCopy(c, runtime) {
   mkdirSync(work, { recursive: true });
   const dir = join(EXAMPLES, dirname(c.file));
   for (const f of readdirSync(dir)) {
-    if (statSync(join(dir, f)).isFile()) cpSync(join(dir, f), join(work, f));
+    if (statSync(join(dir, f)).isFile() || c.includes) cpSync(join(dir, f), join(work, f), { recursive: true });
   }
   return work;
 }
@@ -280,6 +325,18 @@ function runDesktop(c, runtime) {
   return r;
 }
 
+/// Every source file under `dir`, by its path from it (`lib/geometry.inc`):
+/// what a program's `$INCLUDE`s find on the web.
+function sourcesUnder(dir, prefix = "") {
+  const out = {};
+  for (const f of readdirSync(join(dir, prefix))) {
+    const rel = prefix ? `${prefix}/${f}` : f;
+    if (statSync(join(dir, rel)).isDirectory()) Object.assign(out, sourcesUnder(dir, rel));
+    else if ([".rr", ".bas", ".inc", ".rqw", ".rqb", ".rq"].includes(extname(f).toLowerCase())) out[rel] = readFileSync(join(dir, rel), "utf8");
+  }
+  return out;
+}
+
 // The web: the example compiled by the web runtime's compiler, its folder's
 // files its assets, run on tests/web_kernel.html.
 let browser = null;
@@ -298,14 +355,14 @@ async function runWeb(c) {
     const assets = Object.fromEntries(readdirSync(dir).filter((f) => statSync(join(dir, f)).isFile() && ![".rr", ".bas", ".md"].includes(extname(f).toLowerCase()))
       .map((f) => [f, "data:application/octet-stream;base64," + readFileSync(join(dir, f)).toString("base64")]));
     const env = { ...hooks(c, "web"), ...(isGui(c) ? { RAPIDR_CAPTURE: "web" } : {}), ...(c.env || {}) };
-    await page.evaluate(({ source, assets, env, gui }) => {
+    await page.evaluate(({ source, assets, env, gui, main, files }) => {
       window.__rapidr_assets = assets;
       window.RAPIDR_TEST_MIDI = ""; window.RAPIDR_TEST_WAVE_IN = "tone:440";
       if (env.RAPIDR_TEST_COMPORT) window.RAPIDR_TEST_COMPORT = env.RAPIDR_TEST_COMPORT;
-      const bc = window.rr.compile(source, "example", assets);
+      const bc = files ? window.rr.compile_files(main, files, assets) : window.rr.compile(source, "example", assets);
       if (gui) window.rr.rapidr_set_test_env(env);
       window.rr.rapidr_run_bc(bc);
-    }, { source: readFileSync(join(EXAMPLES, c.file), "utf8"), assets, env, gui: isGui(c) });
+    }, { source: readFileSync(join(EXAMPLES, c.file), "utf8"), assets, env, gui: isGui(c), main: basename(c.file), files: c.includes ? sourcesUnder(dir) : null });
     let dump = [];
     if (isGui(c)) {
       await page.waitForFunction(() => window.rr.rapidr_test_results(), null, { timeout: c.timeout || 60000, polling: 100 });
