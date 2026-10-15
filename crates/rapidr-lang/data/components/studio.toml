@@ -141,3 +141,100 @@ events = [
   { name = "OnBreakpointPlaced", params = "File AS STRING, Line AS INTEGER, NewLine AS INTEGER", doc = "The running program placed a breakpoint elsewhere than its line: one on a line without code (a comment, a blank line, a DIM) stops at the next line with code, NewLine; NewLine 0: no code follows it in its file, it never stops." },
 ]
 
+[[component]]
+name = "RAIASSISTANT"
+display = "AIAssistant"
+visual = false
+default_event = "OnUpdate"
+doc = "RapidR Studio's AI assistant (docs/ide-ai.md): a chat with an AI provider — Anthropic, OpenAI, DeepSeek or any OpenAI-compatible server (Ollama, LM Studio, xAI …) — about the project open in Studio. The model reads the project with tools (its files, its forms' components and properties, RapidR's registry, the compiler's diagnostics) and never changes anything itself: the changes and new programs it proposes are kept as proposals, shown to the user as diffs, applied only when they accept them. Nothing is sent until Ask; the API key is kept in the OS keychain (a browser tab's session on the web), never in a project; every request, tool call and decision goes to a local audit log. RapidR Studio's AI panel is built on it."
+example = """
+DECLARE SUB Answered
+DECLARE SUB Done(Status AS STRING)
+
+CREATE Form1 AS RForm
+    Caption = "Ask the assistant"
+    Width = 480: Height = 360
+    CREATE Chat AS RMarkdownView
+        Align = alClient
+    END CREATE
+END CREATE
+
+CREATE AI AS RAIAssistant
+    Provider = "compatible"
+    BaseURL = "http://localhost:11434/v1"
+    Model = "llama3.2"
+    OnUpdate = Answered
+    OnDone = Done
+END CREATE
+
+SUB Answered
+    Chat.Text = AI.Transcript
+END SUB
+
+SUB Done(Status AS STRING)
+    IF Status = "error" THEN ShowMessage AI.Error
+END SUB
+
+AI.Ask "What does a RapidR program look like?"
+Form1.ShowModal
+"""
+properties = [
+  { name = "Provider", type = "string", doc = "Who answers: \"anthropic\", \"openai\", \"deepseek\" or \"compatible\" (an OpenAI-compatible server at BaseURL: Ollama, LM Studio, xAI, OpenRouter …); \"\" for none (nothing can be asked)." },
+  { name = "Model", type = "string", doc = "The model that answers, as the provider names it (\"claude-haiku-5-5\", \"deepseek-flash\"); FetchModels lists them." },
+  { name = "BaseURL", type = "string", doc = "Where the provider's API is: reading it gives the provider's own unless one was set; set it for an OpenAI-compatible server (\"http://localhost:11434/v1\" for Ollama)." },
+  { name = "WorkspaceID", type = "string", doc = "Anthropic: the workspace a key that isn't made inside one works in (sent as anthropic-workspace-id); \"\" for none." },
+  { name = "MaxTokens", type = "int", default = 4096, range = "256..128000", unit = "count", doc = "The longest a reply may be, in tokens (cost safety: the provider stops there)." },
+  { name = "Permission", type = "string", default = "propose", doc = "What the model may do: \"propose\" (it reads the project and proposes changes as diffs the user decides on) or \"read-only\" (it reads and answers; it can't propose changes)." },
+  { name = "ProjectFolder", type = "string", design = false, doc = "The open project's folder: the model's tools read files inside it only (\"\" — no project open)." },
+  { name = "ProjectFiles", type = "string", design = false, doc = "The project's files, a line each, relative to ProjectFolder (what list_files gives the model)." },
+  { name = "MainFile", type = "string", design = false, doc = "The project's main file, relative to ProjectFolder." },
+  { name = "ProjectName", type = "string", design = false, doc = "The project's name, as the model is told it." },
+  { name = "CompatMode", type = "string", design = false, doc = "\"rapidq\" for a RapidQ-compatible project: the model is told to write only what RapidQ's own compiler takes." },
+  { name = "Busy", type = "bool", access = "read", design = false, doc = "True while a request runs (an answer, a models list)." },
+  { name = "Error", type = "string", access = "read", design = false, doc = "Why the last request or call failed, in plain words with what to do (\"\" when it worked)." },
+  { name = "Status", type = "string", access = "read", design = false, doc = "One sentence on what the assistant is doing or did (\"The assistant proposed a change: review it.\"), for a status line a screen reader announces." },
+  { name = "Transcript", type = "string", access = "read", design = false, doc = "The conversation as Markdown, for an RMarkdownView: the user's messages, the answers as they stream, a line for each thing the assistant did (read a file, checked the code, proposed a change)." },
+  { name = "Reply", type = "string", access = "read", design = false, doc = "The last answer's text (Markdown)." },
+  { name = "Models", type = "string", access = "read", design = false, doc = "The models FetchModels found, a line each: the id, its name (when the provider gives one) and a cost hint for the costlier ones (\"$$$: costs much more\"), separated by tabs." },
+  { name = "SuggestedModel", type = "string", access = "read", design = false, doc = "The model to start with: the provider's default — claude-haiku-5-5, gpt-6-luna, deepseek-flash — while FetchModels' list has it, else the first of its family the list has." },
+  { name = "HasKey", type = "bool", access = "read", design = false, doc = "True when there is an API key for Provider (kept, or from its environment variable)." },
+  { name = "KeyHint", type = "string", access = "read", design = false, doc = "The key's last four characters (\"…abcd\"): all that is ever shown of it." },
+  { name = "KeySource", type = "string", access = "read", design = false, doc = "Where the key comes from: \"stored\" (the keychain; on the web, this device), \"session\", \"environment\" (the provider's variable, such as OPENAI_API_KEY), or \"\"." },
+  { name = "KeyEnv", type = "string", access = "read", design = false, doc = "The environment variable a key for Provider may come from (\"OPENAI_API_KEY\"; \"\" for none)." },
+  { name = "KeyStore", type = "string", access = "read", design = false, doc = "Where SetKey keeps keys here, in words (\"the macOS Keychain\", \"this browser tab, until it closes\")." },
+  { name = "NeedsKey", type = "bool", access = "read", design = false, doc = "True when Provider needs an API key (a local server doesn't)." },
+  { name = "PricingURL", type = "string", access = "read", design = false, doc = "The provider's price list (\"\" for a compatible server)." },
+  { name = "KeysURL", type = "string", access = "read", design = false, doc = "Where the user makes a key at the provider." },
+  { name = "Providers", type = "string", access = "read", design = false, doc = "The providers, a line each: the id, the name and a short name (for a narrow list), separated by tabs." },
+  { name = "Presets", type = "string", access = "read", design = false, doc = "Base URLs for an OpenAI-compatible server, a line each: a label and the URL, separated by a tab (Ollama, LM Studio, xAI, OpenRouter)." },
+  { name = "ProposalCount", type = "int", access = "read", design = false, doc = "How many changes the last answer proposed (files changed, or a new project's files)." },
+  { name = "ToolCalls", type = "int", access = "read", design = false, doc = "How many tool calls the last answer made (at most 25)." },
+  { name = "Usage", type = "string", access = "read", design = false, doc = "The tokens sent and received this session, in words (the provider's prices turn them into cost)." },
+  { name = "LastRequest", type = "string", access = "read", design = false, doc = "What was sent last: the method, the URL, the headers (the key never shown) and the JSON body." },
+  { name = "AuditLocation", type = "string", access = "read", design = false, doc = "Where the audit log is kept (a file in the user's settings folder; on the web, the browser's storage for the page)." },
+]
+methods = [
+  { name = "Ask", params = "Text AS STRING", returns = "INTEGER", effects = ["network"], test = "skip: talks to an AI provider", doc = "Sends Text, with the conversation so far, to Provider's Model and returns at once: the answer streams into Transcript (OnUpdate) while the model reads the project with its tools; OnDone ends it. False when it can't ask (no provider, key or model: Error says which)." },
+  { name = "Stop", value = true, effects = ["state"], doc = "Stops the answer being written (what came so far stays) or the models list being fetched." },
+  { name = "NewChat", value = true, effects = ["state"], doc = "Starts a new conversation: the messages, the transcript and the proposals go." },
+  { name = "FetchModels", returns = "INTEGER", value = true, effects = ["network"], test = "skip: talks to an AI provider", doc = "Asks Provider for the models the key can use (OpenAI's chat models only): OnModels(Count) when Models has them, OnError when not. True when it started." },
+  { name = "SetKey", params = "Key AS STRING, [Remember AS INTEGER]", returns = "INTEGER", effects = ["registry"], test = "skip: writes the user's keychain", doc = "Keeps Key for Provider: in the OS keychain on the desktop; on the web for this tab's session, or on this device too when Remember is True. True when it was kept (Status says where)." },
+  { name = "RemoveKey", returns = "INTEGER", value = true, effects = ["registry"], test = "skip: writes the user's keychain", doc = "Removes Provider's key from where RapidR keeps it (an environment variable stays)." },
+  { name = "SetFile", params = "Path AS STRING, Text AS STRING", effects = ["state"], doc = "A file's text as its editor has it, unsaved changes included: what the model reads of it (Path inside ProjectFolder)." },
+  { name = "ClearFiles", value = true, effects = ["state"], doc = "Forgets the editors' texts SetFile gave: files are read from their store." },
+  { name = "ProposalInfo", params = "Index AS INTEGER", returns = "STRING", effects = ["none"], doc = "Proposal Index (from 0), tab-separated: its kind (\"edit\": a file changed, \"create\": a new file of the project, \"project\": a file of a new project), its path, its summary, the new project's name, True for the new project's main file, and the user's decision (\"\", \"applied\", \"partly\", \"rejected\", \"created\")." },
+  { name = "ProposalOld", params = "Index AS INTEGER", returns = "STRING", effects = ["none"], doc = "Proposal Index's file as it was (\"\" for a new file): an RDiffView's LeftText." },
+  { name = "ProposalNew", params = "Index AS INTEGER", returns = "STRING", effects = ["none"], doc = "Proposal Index's file as the assistant proposes it: an RDiffView's RightText." },
+  { name = "Patch", params = "OldText AS STRING, NewText AS STRING", returns = "STRING", effects = ["none"], doc = "The RCODEEDITOR.ApplyPatches line that turns OldText into NewText (the changed lines replaced, the file's own line breaks kept): applied, the change is one undo step. \"\" when they are the same." },
+  { name = "Decide", params = "Index AS INTEGER, Decision AS STRING", effects = ["state"], doc = "Records the user's decision on proposal Index (\"applied\", \"partly\" or \"rejected\") in the conversation and the audit log." },
+  { name = "ClearProposals", value = true, effects = ["state"], doc = "Forgets the proposals." },
+  { name = "CreateProject", params = "Folder AS STRING", returns = "STRING", effects = ["file-write"], test = "skip: writes files", doc = "Writes the new project the assistant proposed in Folder, in a folder of its name (never over one that is there): the main file's path, to open; \"\" when it couldn't (Error says why)." },
+  { name = "AuditLog", params = "[Count AS INTEGER]", returns = "STRING", effects = ["file-read"], doc = "The audit log's last Count lines (50 by default), oldest first, tab-separated: the time, what happened (ask, request, tool read_file, decision …), its target, and the decision or result." },
+]
+events = [
+  { name = "OnUpdate", doc = "Transcript changed: an answer streaming, a tool used, a decision recorded." },
+  { name = "OnDone", params = "Status AS STRING", doc = "A request ended: \"ok\" (the answer is in; ProposalCount says whether it proposed changes), \"error\" (Error says why) or \"stopped\"." },
+  { name = "OnModels", params = "Count AS INTEGER", doc = "FetchModels found Count models: they're in Models." },
+  { name = "OnError", params = "Message AS STRING", doc = "A request failed: Message says why and what to do." },
+]
+

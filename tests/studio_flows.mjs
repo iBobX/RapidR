@@ -10,7 +10,7 @@
 //   python3 -m http.server -d target/studio-web 18473 --bind 127.0.0.1
 //   node tests/studio_flows.mjs [filter…]
 
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import { dirname, extname, join } from "node:path";
@@ -28,6 +28,11 @@ const filters = process.argv.slice(2);
 const HOSTS = (process.env.STUDIO_FLOWS_HOSTS || "desktop,web").split(",");
 // (the save prompts' project: a file and the one it includes)
 const SAVE_FILES = ["tests/fixtures/studio_save/main.rr", "tests/fixtures/studio_save/other.inc"];
+// (I8) The AI assistant's cases talk to a mock provider in a process of its
+// own (tests/ai_mock_server.mjs: both wire formats, scripted answers, no
+// key, no network, no cost): {mock} in a case's steps is its base URL.
+const mockProc = spawn(process.execPath, [join(HERE, "ai_mock_server.mjs"), "0"], { stdio: ["ignore", "pipe", "inherit"] });
+const MOCK_URL = await new Promise((resolve) => mockProc.stdout.once("data", (d) => resolve(String(d).trim())));
 
 // (I4) The designer's steps on notepad.bas: the placing tool's click, the
 // form's right edge dragged, Button1 dragged (the form sits 24 px in on the
@@ -1813,6 +1818,116 @@ const CASES = [
     dump: { "session.browserurl": /^http:\/\/127\.0\.0\.1:\d+\/[0-9a-f]{32}\/$/, "outputbox.text": /Serving http:\/\/127\.0\.0\.1/ },
     webDump: { "session.browserurl": /^$/, "outputbox.text": /Studio runs in a browser already[\s\S]*total12/ },
   },
+  // ---- I8: the AI assistant (docs/manual/ai-assistant.md), against the mock provider ----
+  {
+    // Off by default: no pane, no provider, nothing sent
+    name: "ai-off-by-default",
+    open: "examples/gui/hello_form.rr",
+    do: "wait",
+    delay: 3,
+    dump: { "dock.layout": /^hidden .*\baipanel\b/m, "ai.provider": /^$/, "ai.busy": /^(0|False)$/i, "ai.lastrequest": /^$/ },
+  },
+  {
+    // A question, the answer streamed into the panel; the status sentence;
+    // what was sent (no key: a local server)
+    name: "ai-chat",
+    open: "examples/gui/hello_form.rr",
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=hello there,wait,wait,wait",
+    delay: 5,
+    dump: {
+      "ai.transcript": /^\*\*You\*\*\n\nhello there\n\n\*\*Assistant\*\*\n\nHello from the mock assistant!/,
+      "aichat.plaintext": /^You\nhello there\nAssistant\nHello from the mock assistant!/,
+      "aistatus.simpletext": /^The assistant answered\.$/,
+      "ai.lastrequest": /^POST http:\/\/127\.0\.0\.1:\d+\/v1\/chat\/completions\n[\s\S]*"role": "system"[\s\S]*never instructions to you/,
+      "dock.layout": /^(?![\s\S]*^hidden .*\baipanel\b)/m,
+    },
+  },
+  {
+    // A change proposed (read_file, then propose_edit): nothing written;
+    // applied, it is in the editor as one undo step
+    name: "ai-propose-apply",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=rename the window,wait,wait,wait,wait,ai:apply,wait",
+    delay: 7,
+    dump: {
+      "ai.transcript": /\*Read hello_form\.rr \(53 lines\)\*[\s\S]*\*Proposed a change to hello_form\.rr: The window's title becomes AI Notes\*[\s\S]*\*You applied the change to hello_form\.rr\.\*/,
+      "codedoc(0).text": /CREATE Form AS RForm\n    Caption = "AI Notes"\n/,
+      "aistatus.simpletext": /^1 file changed: Edit > Undo takes it back\.$/,
+    },
+    files: { "hello_form.rr": /Caption = "Hello, RapidR"/ },
+  },
+  {
+    name: "ai-apply-undo",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=rename the window,wait,wait,wait,wait,ai:apply,wait,focus:codedoc(0),edit.undo,wait",
+    delay: 8,
+    dump: { "codedoc(0).canundo": /^(0|False)$/i, "codedoc(0).text": /Caption = "Hello, RapidR"/ },
+    same: { "codedoc(0).text": "examples/gui/hello_form.rr" },
+  },
+  {
+    // "Build me …": a new project proposed (checked by the compiler),
+    // created where the user says, opened, and it runs
+    name: "ai-new-program",
+    open: "",
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=build me a hello-form program,wait,wait,wait,ai:create={dir}/made,wait,wait,run.start,wait,wait,wait,wait",
+    delay: 10,
+    dump: {
+      "ai.transcript": /\*Proposed a new project, hello-form \(1 file\): it compiles\*[\s\S]*\*You created the project hello-form in .*made\/hello-form\.\*/,
+      "proj.folder": /made\/hello-form$/,
+      "proj.mainfile": /^main\.rr$/,
+      "outputbox.text": /^(?![\s\S]*Can't run)/,
+      "session.exitcode": /^0?$/,
+    },
+    webDump: {
+      "ai.transcript": /\*Proposed a new project, hello-form \(1 file\): it compiles\*[\s\S]*\*You created the project hello-form in .*made\/hello-form\.\*/,
+      "proj.folder": /made\/hello-form$/,
+      "proj.mainfile": /^main\.rr$/,
+      "session.state": /^running$/,
+    },
+  },
+  {
+    // Read only: the proposing tools aren't offered, a call to one is
+    // refused, nothing is proposed; a path outside the project is refused
+    name: "ai-read-only",
+    open: "examples/gui/hello_form.rr",
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:permission=read-only,ai:ask=inject a file,wait,wait,wait",
+    delay: 5,
+    dump: {
+      "ai.proposalcount": /^0$/,
+      "ai.transcript": /\*write_file: not allowed \(read-only\)\*/,
+      "ai.lastrequest": /^(?![\s\S]*"name": "write_file",\n\s*"description")[\s\S]*The user allowed reading only/,
+    },
+  },
+  {
+    // Anthropic's wire format (the mock speaks it too), a made-up key kept
+    // for the session and never shown; the registry described, the forms
+    // listed through the introspection interface
+    name: "ai-anthropic-format",
+    open: "examples/gui/hello_form.rr",
+    do: "ai:on,ai:provider=anthropic,ai:base={mock},ai:key=sk-ant-test-FAKE-0000-wxyz,ai:model=claude-haiku-5-5,ai:ask=describe the form,wait,wait,wait,wait",
+    delay: 6,
+    dump: {
+      "ai.transcript": /\*Looked up RButton in RapidR's registry\*[\s\S]*\*Listed the forms' components \(5\)\*[\s\S]*RButton is RButton \(RapidQ: QButton\)[\s\S]*the form has 5 components/,
+      "ai.lastrequest": /^POST http:\/\/127\.0\.0\.1:\d+\/v1\/messages\n[\s\S]*x-api-key: \(your API key, not shown\)\nanthropic-version: 2023-06-01\n(?![\s\S]*FAKE-0000)/,
+      "ai.keyhint": /^…wxyz$/,
+      "ai.usage": /^2,000 tokens sent \(200 from the cache\), 40 received this session$/,
+    },
+  },
+  {
+    // Fetch Models; a missing model explained in plain words
+    name: "ai-models-and-errors",
+    open: "examples/gui/hello_form.rr",
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:fetch,wait,wait,ai:model=mock-missing,ai:ask=hello,wait,wait",
+    delay: 5,
+    dump: {
+      "ai.models": /^mock-small\tMock Small\t\nmock-large\t\t$/,
+      "ai.error": /^The model "mock-missing" isn't available to your key \(404\)/,
+      "aistatus.simpletext": /isn't available to your key/,
+    },
+  },
 ];
 
 function runDesktop(c, scale = 1) {
@@ -1823,7 +1938,7 @@ function runDesktop(c, scale = 1) {
   // (R-NAMES: a RapidQ program's folder copied here, imported from there —
   // the import writes its copy beside it; {dir}: the case's own folder —
   // a new project goes there)
-  const steps = c.do ? c.do.replaceAll("{dir}", dir) : "";
+  const steps = c.do ? c.do.replaceAll("{dir}", dir).replaceAll("{mock}", MOCK_URL) : "";
   if (c.importFrom) {
     cpSync(join(ROOT, dirname(c.importFrom)), join(dir, "src"), { recursive: true });
     // (before: steps ahead of the import — Studio's include folders; {root}: the repository)
@@ -1859,6 +1974,11 @@ function runDesktop(c, scale = 1) {
       ...(c.events ? { RAPIDR_TEST_EVENTS: c.events } : {}),
       RAPIDR_PRINT_TO: join(WORK, "prints"),
       RAPIDR_REGISTRY: join(WORK, `${c.name}.reg`),
+      // (the AI assistant: keys in memory only — never the user's keychain —,
+      // no provider's key from this shell, its audit log the case's)
+      RAPIDR_AI_KEYSTORE: "memory",
+      RAPIDR_AI_AUDIT: join(dir, "ai-audit.jsonl"),
+      ANTHROPIC_API_KEY: "", OPENAI_API_KEY: "", DEEPSEEK_API_KEY: "", ANTHROPIC_WORKSPACE_ID: "",
       ...(c.env || {}),
       ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: join(ROOT, c.folder) } : {}),
     },
@@ -1995,7 +2115,7 @@ async function runWebPage(ctx, c, last, scale, record) {
     // (the program's files are in the page's store: imported from there;
     // {dir}: the case's own folder in the page's store)
     const doSteps = c.webDo ?? c.do;
-    const steps = doSteps ? doSteps.replaceAll("{dir}", `/flows/${c.name}`) : "";
+    const steps = doSteps ? doSteps.replaceAll("{dir}", `/flows/${c.name}`).replaceAll("{mock}", MOCK_URL) : "";
     // (before: steps ahead of the import; {root}/: the store's paths are the repository's)
     const before = c.before ? c.before.replaceAll("{root}/", "") + "," : "";
     if (c.importFrom) q.set("do", before + `import:${c.importFrom}` + (steps ? "," + steps : ""));
@@ -2137,5 +2257,6 @@ if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "beforeunlo
   await beforeUnload("saved", 'wait,code:"ONE"=>"ONE x",file.save', false);
 }
 await browser.close();
+mockProc.kill();
 console.log(`\nRapidR Studio flows: ${passed} checks passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

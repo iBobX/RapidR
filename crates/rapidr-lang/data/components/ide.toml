@@ -257,6 +257,7 @@ properties = [
   { name = "FileName", type = "string", access = "read", design = false, doc = "The file LoadFromFile read (\"\" when Text was set)." },
   { name = "OpenLinks", type = "bool", default = true, doc = "A click on a web link (http, https, mailto) opens it in the browser. Every link clicked fires OnLinkClick either way." },
   { name = "EmptyText", type = "string", default = "", doc = "What it says while it has no text." },
+  { name = "FollowEnd", type = "bool", default = false, doc = "True: a view scrolled to its end stays at the end as Text grows (a chat, a log), while one the user scrolled up stays where they put it. False: the scroll stays where it is." },
   { name = "PlainText", type = "string", access = "read", design = false, doc = "The text as shown, without the Markdown marks: a line per paragraph, list item or heading; a table's cells separated by tabs." },
   { name = "SelText", type = "string", access = "read", design = false, doc = "The text the user selected, as PlainText has it." },
   { name = "LinkCount", type = "int", access = "read", design = false, doc = "How many links the text has." },

@@ -22,6 +22,13 @@ rapidr-preprocessor.workspace = true
 rapidr-package.workspace = true
 # File > Import RapidQ Project or File: the engine of `rapidr import-rapidq`
 rapidr-import.workspace = true
+# RAIASSISTANT: the AI provider layer (providers, streaming, keys, the
+# audit log), the introspection interface's design-time side for its tools
+# (describe / list / get), JSON, and the audit log's digests
+rapidr-ai.workspace = true
+rapidr-introspect = { workspace = true, features = ["design"] }
+serde_json = "1"
+sha2 = "0.10"
 
 [dev-dependencies]
 # (tests: every component of the toolbox added to a form, and the program

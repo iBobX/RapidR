@@ -234,6 +234,39 @@ DECLARE SUB RestoreSession(Path AS STRING)
 DECLARE FUNCTION WorkspaceCommand(Id AS STRING) AS INTEGER
 DECLARE FUNCTION SearchCommand(Id AS STRING) AS INTEGER
 
+' ---- the AI assistant (ai.inc; settings.inc's AI tab) ----
+' Tools > Settings > AI's choices (never a key: the keychain keeps those)
+DIM AI AS RAIAssistant
+DIM AIOn AS INTEGER
+DIM AIProvider AS STRING
+DIM AIBase AS STRING
+DIM AIWorkspace AS STRING
+DIM AIMaxTokens AS INTEGER
+DIM AIPermission AS STRING
+' (the model chosen for each provider: "id<TAB>model" lines)
+DIM AIModels AS STRING
+DIM AIProvIds(8) AS STRING
+DIM AIProvNames(8) AS STRING
+DIM AIProvCount AS INTEGER
+DIM AIProviderBox AS RComboBox
+DECLARE SUB SetUpAI
+DECLARE SUB LayOutAIPanel
+DECLARE SUB AIPanelFonts
+DECLARE SUB AIApplySettings
+DECLARE FUNCTION AIModelOf(Id AS STRING) AS STRING
+DECLARE SUB AISetModelOf(Id AS STRING, Model AS STRING)
+DECLARE SUB ShowWhatWasSent
+DECLARE SUB SetAIOn(IsOn AS INTEGER)
+DECLARE SUB ShowAIPanel
+DECLARE SUB LoadAISettings
+DECLARE SUB SaveAISettings
+DECLARE SUB ShowSettingsPage(k AS INTEGER)
+DECLARE SUB AISettingsModelsIn
+DECLARE FUNCTION AIModelItem(Line AS STRING) AS STRING
+DECLARE FUNCTION AIModelId(Text AS STRING) AS STRING
+DECLARE FUNCTION AICommand(Id AS STRING) AS INTEGER
+DECLARE SUB AIStep(Stp AS STRING)
+
 ' ---- Studio's services: public components (rapidr-studio) ----
 DIM Proj AS RProject
 DIM Lang AS RLanguageService

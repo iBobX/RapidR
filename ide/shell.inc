@@ -62,6 +62,8 @@ SUB RunCommand(Id AS STRING)
   IF DebugCommand(Id) THEN EXIT SUB
   ' (the documents' views and groups, Find in Files, Help: workspace.inc, search.inc)
   IF WorkspaceCommand(Id) THEN EXIT SUB
+  ' (the AI assistant's: ai.inc)
+  IF AICommand(Id) THEN EXIT SUB
   SELECT CASE Id
     ' ---- file ----
     CASE "file.newProject": AskNew
@@ -137,6 +139,9 @@ SUB RunCommand(Id AS STRING)
         ' (a test step: includes:<folder>|<folder> — Settings > Include
         ' folders without the dialog)
         SetIncludeFolders REPLACESUBSTR$(MID$(Id, 10), "|", CHR$(10))
+      ELSEIF LEFT$(Id, 3) = "ai:" THEN
+        ' (a test step: ai:<what>=<value> — ai.inc's AIStep)
+        AIStep MID$(Id, 4)
       ELSEIF LEFT$(Id, 7) = "anchor:" THEN
         ' (a test step: anchor:<a heading's anchor> — the Markdown document
         ' open shows that heading, as its outline row clicked)
@@ -281,6 +286,7 @@ SUB StartStudio
   SetUpPanels
   SetUpDock
   SetUpDebug
+  SetUpAI
   SetUpDocuments
   SetUpSearch
   IF SavedLayout <> "" THEN Dock.LoadLayout(SavedLayout)

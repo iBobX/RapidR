@@ -330,6 +330,10 @@ pub fn install_file_hooks() {
     rapidr_value::objects::set_file_io(web_read_file, web_write_file);
     // (Studio's language service and designer: `$INCLUDE`s from the page too)
     rapidr_studio::install_page_sources();
+    // (Studio's AI assistant: a provider's answer delivered as it streams in)
+    rapidr_studio::ai::set_notify(|| {
+        crate::studio_web::poll();
+    });
 }
 
 /// A file's length (0 if it can't be read).

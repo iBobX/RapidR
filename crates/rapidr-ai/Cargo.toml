@@ -1,0 +1,39 @@
+[package]
+name = "rapidr-ai"
+description = "RapidR's AI provider layer (docs/ide-ai.md §2): Anthropic's Messages API and OpenAI-compatible Chat Completions (OpenAI, DeepSeek, Ollama, LM Studio, xAI …) over plain HTTPS with our own client — one normalized request, stream and tool-call model, errors explained in plain words, models listed, API keys in the OS keychain (a browser tab's session on the web). No vendor SDKs."
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+
+# wasm-safe: the request building, the stream decoders and the error
+# explanations are pure; the transport and the key store are the
+# platform's (cfg: a thread and ureq on the desktop, fetch in a browser).
+[dependencies]
+serde_json = { version = "1", features = ["preserve_order"] }
+
+# The desktop's HTTPS: ureq with the operating system's TLS (native-tls:
+# Security.framework, SChannel, OpenSSL 3 on Linux) — the same client and
+# features RHTTP uses (rapidr-runtime-core), so nothing new is compiled in.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ureq = { version = "2", default-features = false, features = ["gzip", "native-tls"] }
+# API keys in the OS keychain (docs/ide-ai.md §3): keyring-core and its
+# per-OS stores, all MIT OR Apache-2.0, no C library of their own.
+keyring-core = "1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+apple-native-keyring-store = { version = "1", features = ["keychain"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-native-keyring-store = { version = "1", default-features = false }
+
+# (Linux and the BSDs: the Secret Service — GNOME Keyring, KWallet — over
+# D-Bus in pure Rust, its session encrypted with pure-Rust crypto)
+[target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
+zbus-secret-service-keyring-store = { version = "1", features = ["rt-async-io-crypto-rust"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2.129"
+wasm-bindgen-futures = "0.4.79"
+js-sys = "0.3.106"
+web-sys = { version = "0.3.106", features = ["Window", "Storage", "Headers", "Request", "RequestInit", "RequestMode", "Response", "ReadableStream", "ReadableStreamDefaultReader", "AbortController", "AbortSignal"] }

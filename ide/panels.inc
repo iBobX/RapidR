@@ -48,6 +48,11 @@ SUB BuildToolBar
   AddTool "designer.alignLeft": AddTool "designer.alignTop": AddTool "designer.sameWidth": AddTool "designer.bringToFront"
   ToolBar.AddSeparator
   AddPreviewTool: AddTool "view.commandPalette": AddTool "view.settings"
+  ' (the AI assistant's button: only once it is turned on)
+  IF AIOn THEN
+    ToolBar.AddSeparator
+    AddTool "ai.assistant"
+  END IF
 END SUB
 
 SUB ToolClicked(Name AS STRING, Command AS STRING)
@@ -580,6 +585,7 @@ SUB ApplyPanelFonts
   OutputBox.Font = MonoFont
   ToolBar.Font = UIFont
   Palette.Font = UIFont
+  AIPanelFonts
 END SUB
 
 ' ---- test steps (tests/studio_wow.mjs; the --do list, beside the commands) ----

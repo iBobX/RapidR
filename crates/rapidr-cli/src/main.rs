@@ -8,6 +8,7 @@ use rapidr_lexer::lex_file as lexer_lex_file;
 use rapidr_parser::parse_file as parser_parse_file;
 use rapidr_preprocessor::{preprocess_file, PreprocessOptions};
 
+mod ai;
 mod cache;
 mod examples;
 mod home;
@@ -185,6 +186,7 @@ fn main() -> ExitCode {
         (Some("setup"), _) => setup::setup(&args[1..]),
         (Some("notices"), _) => notices::command(&args[1..]),
         (Some("lang"), _) => lang::command(&args[1..]),
+        (Some("ai"), _) => ai::command(&args[1..]),
         #[cfg(feature = "ai-introspect")]
         (Some("introspect"), _) => introspect::command(&args[1..]),
         #[cfg(not(feature = "ai-introspect"))]
@@ -330,6 +332,7 @@ fn main() -> ExitCode {
             eprintln!("  rapidr dap                                       The debug adapter (DAP, stdio): editors' debugger");
             eprintln!("  rapidr serve <file> [--open]                     Its web build served on this machine (127.0.0.1), opened in the browser");
             eprintln!("  rapidr lang export --json|--prompt|--manual|--all  What the language registry generates");
+            eprintln!("  rapidr ai providers | models --provider P | ask --provider P [--model M] \"question\"  RapidR's AI providers: keys, models, a question");
             eprintln!("  rapidr lang conformance <dir> [--target desktop|web]  The registry's conformance programs");
             eprintln!("  rapidr lang ai-check [--summary|--json] [--strict] [NAME…]  Registry entries lacking an AI facet");
             eprintln!("  rapidr import-rapidq <file|folder|.rrproj> [OUT_DIR] [--include-dir DIR]  A copy of a RapidQ program and every file it includes, with RapidR's names, and a report");

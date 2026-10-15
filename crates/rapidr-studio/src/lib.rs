@@ -10,7 +10,10 @@
 //!   program reads line by line;
 //! - [`session`]: **RPROGRAMSESSION**, a run of the program under
 //!   development (`rapidr-session`'s client): its own process on the
-//!   desktop, a sandboxed frame on the web.
+//!   desktop, a sandboxed frame on the web;
+//! - [`ai`]: **RAIASSISTANT**, the AI assistant (`rapidr-ai`'s providers,
+//!   the tools on the open project in [`ai_tools`], proposals as diffs,
+//!   the local audit log): off until the user sets it up.
 //!
 //! A runtime gives them its [`Host`]: files go through `rapidr-value`'s
 //! file hooks (the disk, the web's store), events through the runtime's
@@ -18,6 +21,8 @@
 
 use rapidr_value::Value;
 
+pub mod ai;
+pub mod ai_tools;
 pub mod build;
 pub mod channel;
 pub mod design;
@@ -71,7 +76,7 @@ pub trait Host: Copy + 'static {
 
 /// Whether `type_name` (a canonical R name) is one of Studio's components.
 pub fn is_studio_type(type_name: &str) -> bool {
-    matches!(type_name.to_ascii_uppercase().as_str(), "RPROJECT" | "RLANGUAGESERVICE" | "RPROGRAMSESSION")
+    matches!(type_name.to_ascii_uppercase().as_str(), "RPROJECT" | "RLANGUAGESERVICE" | "RPROGRAMSESSION" | "RAIASSISTANT")
 }
 
 /// A property of component `name` of `type_name` (`None`: not one of its
@@ -82,6 +87,7 @@ pub fn get(type_name: &str, name: &str, prop: &str) -> Option<Value> {
         "RPROJECT" => project::get(name, &prop),
         "RLANGUAGESERVICE" => langsvc::get(name, &prop),
         "RPROGRAMSESSION" => session::get(name, &prop),
+        "RAIASSISTANT" => ai::get(name, &prop),
         _ => None,
     }
 }
@@ -93,6 +99,7 @@ pub fn set<H: Host>(host: H, type_name: &str, name: &str, prop: &str, value: &Va
         "RPROJECT" => project::set(name, &prop, value),
         "RLANGUAGESERVICE" => langsvc::set(name, &prop, value),
         "RPROGRAMSESSION" => session::set(host, name, &prop, value),
+        "RAIASSISTANT" => ai::set(name, &prop, value),
         _ => false,
     }
 }
@@ -104,6 +111,7 @@ pub fn call<H: Host>(host: H, type_name: &str, name: &str, method: &str, args: &
         "RPROJECT" => project::call(host, name, &method, args),
         "RLANGUAGESERVICE" => langsvc::call(name, &method, args),
         "RPROGRAMSESSION" => session::call(host, name, &method, args),
+        "RAIASSISTANT" => ai::call(host, name, &method, args),
         _ => None,
     }
 }
@@ -111,11 +119,13 @@ pub fn call<H: Host>(host: H, type_name: &str, name: &str, method: &str, args: &
 /// Each running session's news delivered as its events (OnOutput, OnStopped,
 /// OnExit …): the runtime calls it between its host's turns (the desktop)
 /// or when the program's frame sent something (the web). Whether a session
-/// is running (the desktop then calls again soon).
+/// is running, or an assistant waits for an answer (the desktop then calls
+/// again soon).
 pub fn poll<H: Host>(host: H) -> bool {
     let sessions = session::poll(host);
     let builds = build::poll(host, project::set_built);
-    sessions || builds
+    let assistants = ai::poll(host);
+    sessions || builds || assistants
 }
 
 // ---- helpers ---------------------------------------------------------------

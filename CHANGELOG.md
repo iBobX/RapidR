@@ -7,6 +7,30 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### The AI assistant in RapidR Studio (AI-PROVIDERS, I8 phases 1–2)
+- **An AI assistant, off until you turn it on** (Tools > Settings > AI). Choose Anthropic
+  (Claude), OpenAI, DeepSeek or any OpenAI-compatible server (Ollama, LM Studio, xAI,
+  OpenRouter), paste your key — kept in the macOS Keychain, Windows Credential Manager or the
+  Secret Service, on the web only for the tab unless you ask to remember it, never in a project —,
+  press Fetch Models and pick one (defaults: claude-haiku-5-5, gpt-6-luna, deepseek-flash; the
+  costlier models are marked). The Assistant panel (View > AI Assistant, Ctrl+I) answers about
+  the open project as it streams; it reads the project with tools (its files, its forms'
+  components and properties through the introspection interface, RapidR's registry, the
+  compiler's diagnostics) and changes nothing itself: the changes it proposes are reviewed as
+  diffs (RDiffView: each hunk accepted or rejected) and applied as one undo step per file; "Build
+  me …" proposes a new project, previewed (its code and its form) before it is created. The panel
+  says what Send shares; "What was sent" shows the last request (the key never in it); every
+  request, tool call and decision goes to a local audit log. Read-only or propose, a reply's
+  length cap, 25 tool calls a turn at most; what the project says is passed to the model as data,
+  never as instructions. Desktop and web alike.
+- **`rapidr-ai`**, RapidR's provider layer: Anthropic's Messages API and OpenAI-compatible Chat
+  Completions over plain HTTPS with our own client (ureq and the system's TLS on the desktop,
+  `fetch` in a browser), streaming and tool calls normalized, rate limits and overloads retried,
+  errors explained in plain words (a refused key, no credit, a missing model, Anthropic's
+  workspace). `rapidr ai providers | models | ask` uses it from the terminal.
+- **RAIASSISTANT**, the assistant as a component (registry entry complete for AI), and
+  **RMarkdownView.FollowEnd** (a chat or a log stays at its end as it grows).
+
 ### RapidQ's examples on macOS and Linux (CORPUS-PORT)
 - **Windows file names work on macOS and Linux.** A RapidQ program names its files as Windows does:
   `data\notes.txt`, `Application.Path + "\save.dat"`, `OPEN.BMP` for an `open.bmp`. Off Windows a

@@ -22,6 +22,8 @@ rapidr-langsvc.workspace = true
 rapidr-dap.workspace = true
 # `rapidr lang`: the language registry's generators
 rapidr-lang.workspace = true
+# `rapidr ai`: the AI provider layer RapidR Studio's assistant uses
+rapidr-ai.workspace = true
 # `rapidr introspect` (feature `ai-introspect`): the AI introspection
 # interface's design-time side (docs/ai-architecture.md; phase 0, off by default)
 rapidr-introspect = { workspace = true, optional = true, features = ["design"] }
