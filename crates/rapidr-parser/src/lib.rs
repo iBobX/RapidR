@@ -206,11 +206,13 @@ struct Parser<'a> {
     int_consts: std::collections::HashMap<String, i64>,
     /// Inside a WITH or a TYPE's code, where `.Member` is a value: how deep.
     dot_scope: usize,
+    /// Inside a TYPE's code (its methods): how deep.
+    type_scope: usize,
 }
 
 impl<'a> Parser<'a> {
     fn new(tokens: &'a [Token]) -> Self {
-        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false, own_types: Vec::new(), type_names: Vec::new(), with_objects: Vec::new(), int_consts: std::collections::HashMap::new(), dot_scope: 0 }
+        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false, own_types: Vec::new(), type_names: Vec::new(), with_objects: Vec::new(), int_consts: std::collections::HashMap::new(), dot_scope: 0, type_scope: 0 }
     }
 
     /// A type's name as written: RapidR's name for a RapidQ component
@@ -635,6 +637,15 @@ impl<'a> Parser<'a> {
             // (`CONST 1 = 5`: what `$DEFINE TRUE 1` makes of rapidq2.inc's
             // `CONST True = 1` — RC.EXE takes it and nothing changes: `PRINT 1`
             // still prints 1, the name stays the $DEFINE's)
+            // (a CASE left after its END SELECT in a TYPE's method — RapidQ's
+            // VideoCapture/WebCam_Class.bas: RC.EXE builds it, the line does
+            // nothing; outside a TYPE it is RC.EXE's error too)
+            TokenType::Case if self.type_scope > 0 => {
+                let start = self.pos;
+                self.skip_to_eol();
+                let span = self.span_from(start);
+                Some(Statement::Comment(CommentStatement { span, text: "CASE outside a SELECT CASE (RapidQ ignores it in a TYPE)".into() }))
+            }
             TokenType::Const if self.peek_kind_at(1) == Some(TokenType::Number) && self.peek_kind_at(2) == Some(TokenType::Eq) => {
                 let start = self.pos;
                 self.advance();
@@ -1720,13 +1731,32 @@ impl<'a> Parser<'a> {
             });
         }
 
-        let else_body = if self.match_kind(TokenType::Else) {
+        let mut else_body = if self.match_kind(TokenType::Else) {
             self.match_kind(TokenType::Colon);
             self.consume_eol();
-            self.parse_body(&[Terminator::EndPair("IF")])
+            self.parse_body(&[Terminator::Keyword("ELSE"), Terminator::EndPair("IF")])
         } else {
             Vec::new()
         };
+        // A second ELSE (RapidQ's forms/Window Sizer.BAS): RC.EXE takes it,
+        // and what follows it never runs — the first ELSE's part jumps over
+        // it to END IF (RC.EXE: `IF i THEN a ELSE b ELSE c END IF` runs a
+        // or b, never c). Kept, under a condition that is never true.
+        while self.peek_kind() == Some(TokenType::Else) {
+            let dead_start = self.pos;
+            self.advance();
+            self.match_kind(TokenType::Colon);
+            self.consume_eol();
+            let then_body = self.parse_body(&[Terminator::Keyword("ELSE"), Terminator::EndPair("IF")]);
+            let span = self.span_from(dead_start);
+            else_body.push(Statement::If(IfStatement {
+                span,
+                condition: Expression::Literal(Literal { span, value: LiteralValue::Integer(0) }),
+                then_body,
+                elseif_branches: Vec::new(),
+                else_body: Vec::new(),
+            }));
+        }
 
         // consume END IF
         self.expect(TokenType::End);
@@ -1746,7 +1776,14 @@ impl<'a> Parser<'a> {
         self.expect(TokenType::For)?;
         let variable = self.expect(TokenType::Identifier)?.lexeme.clone();
         self.expect(TokenType::Eq)?;
-        let from = self.parse_expression()?;
+        // (`For N = To 29` with no start: RC.EXE counts from 0 — RapidQ's
+        // music/StutterBox.rqb)
+        let from = if self.peek_kind() == Some(TokenType::To) {
+            let at = self.peek()?.span;
+            Expression::Literal(Literal { span: at, value: LiteralValue::Integer(0) })
+        } else {
+            self.parse_expression()?
+        };
         self.expect(TokenType::To)?;
         let to = self.parse_expression()?;
         let step = if self.match_kind(TokenType::Step) {
@@ -2138,6 +2175,7 @@ impl<'a> Parser<'a> {
         let mut constructor = Vec::new();
         let mut events = Vec::new();
         self.dot_scope += 1;
+        self.type_scope += 1;
 
         loop {
             self.skip_newlines();
@@ -2394,6 +2432,7 @@ impl<'a> Parser<'a> {
         // (the RapidQ manual writes `WITH TForm … END WITH`; RAPIDQ2.INC wraps
         // whole TYPEs in `WITH QFormEx`).
         self.dot_scope -= 1;
+        self.type_scope -= 1;
         let this = Expression::Identifier(Identifier { span: TextSpan::default(), name: name.clone() });
         for body in methods.iter_mut().filter_map(|m| match m {
             Statement::Subroutine(s) => Some(&mut s.body),

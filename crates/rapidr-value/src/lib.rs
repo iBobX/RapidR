@@ -245,7 +245,15 @@ pub const MAX_ARRAY_ELEMENTS: usize = 50_000_000;
 pub struct BasicArray {
     pub bounds: Vec<(i64, i64)>,
     pub data: Vec<Value>,
+    /// Elements stored outside the array (RapidQ doesn't check: `DEFSTR
+    /// D(16)` then `READ D(N)` up to 28 writes past the end, and RC.EXE reads
+    /// those back): kept here by their place, so the program reads back what
+    /// it wrote, memory-safely; a REDIM starts without them.
+    pub overflow: std::collections::BTreeMap<i128, Value>,
 }
+
+/// Most elements an array keeps outside its bounds ([`BasicArray::overflow`]).
+const MAX_OVERFLOW: usize = 1 << 16;
 
 impl BasicArray {
     pub fn new(bounds: Vec<(i64, i64)>, fill: Value) -> Result<Self, String> {
@@ -263,7 +271,20 @@ impl BasicArray {
                 .filter(|&n| n <= MAX_ARRAY_ELEMENTS)
                 .ok_or_else(|| format!("array too large (limit {MAX_ARRAY_ELEMENTS} elements)"))?;
         }
-        Ok(Self { bounds, data: vec![fill; len] })
+        Ok(Self { bounds, data: vec![fill; len], overflow: std::collections::BTreeMap::new() })
+    }
+
+    /// The element's place as RapidQ computes it (no bound checked), when
+    /// as many indices as dimensions are given.
+    fn place(&self, indices: &[i64]) -> Option<i128> {
+        if indices.len() != self.bounds.len() {
+            return None;
+        }
+        let mut flat: i128 = 0;
+        for (&i, &(lo, hi)) in indices.iter().zip(&self.bounds) {
+            flat = flat * (hi - lo + 1) as i128 + (i as i128 - lo as i128);
+        }
+        Some(flat)
     }
 
     /// The element's place in the data, as RapidQ lays arrays out ("stored
@@ -290,15 +311,17 @@ impl BasicArray {
         Ok(flat as usize)
     }
 
-    /// An element; past the array's end — where RapidQ reads whatever memory
-    /// follows — the element type's zero ("" for strings), so the program
-    /// goes on as it did in RapidQ.
+    /// An element; outside the array — where RapidQ reads whatever memory
+    /// is there — what the program stored there ([`BasicArray::overflow`]),
+    /// else the element type's zero ("" for strings), so the program goes
+    /// on as it did in RapidQ.
     pub fn get(&self, indices: &[i64]) -> Result<Value, String> {
         if indices.len() != self.bounds.len() {
             return self.offset(indices).map(|_| Value::Null);
         }
         Ok(match self.offset(indices) {
             Ok(i) => self.data[i].clone(),
+            Err(_) if self.place(indices).is_some_and(|p| self.overflow.contains_key(&p)) => self.overflow[&self.place(indices).unwrap_or_default()].clone(),
             Err(_) => match self.data.first() {
                 Some(Value::String(_)) => Value::String(String::new()),
                 Some(Value::Double(_)) => Value::Double(0.0),
@@ -308,14 +331,22 @@ impl BasicArray {
         })
     }
 
-    /// Stores an element; past the array's end (RapidQ would overwrite the
-    /// memory after it) nothing is stored.
+    /// Stores an element; outside the array (RapidQ would overwrite the
+    /// memory there) in [`BasicArray::overflow`], where `get` finds it again
+    /// (RC.EXE: `DEFSTR D(2)`, `READ D(N)` for N to 5, each D(N) reads back).
     pub fn set(&mut self, indices: &[i64], value: Value) -> Result<(), String> {
         if indices.len() != self.bounds.len() {
             return self.offset(indices).map(|_| ());
         }
-        if let Ok(i) = self.offset(indices) {
-            self.data[i] = value;
+        match self.offset(indices) {
+            Ok(i) => self.data[i] = value,
+            Err(_) => {
+                if let Some(p) = self.place(indices) {
+                    if self.overflow.len() < MAX_OVERFLOW || self.overflow.contains_key(&p) {
+                        self.overflow.insert(p, value);
+                    }
+                }
+            }
         }
         Ok(())
     }

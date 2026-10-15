@@ -2938,8 +2938,29 @@ pub fn hoist_routines(program: &Program) -> Program {
         with_declares.push(s);
     }
     declared_parameter_names(&mut with_declares);
+    component_params_by_value(&mut with_declares);
     program.statements = with_declares;
     program
+}
+
+/// A component parameter written BYREF (`BYREF ptable AS QSTRINGGRID`,
+/// RapidQ's sqlite3.inc) is passed as any component is: the component
+/// itself, which the routine changes for its caller either way (a native
+/// build had no variable to take the address of).
+fn component_params_by_value(stmts: &mut [Statement]) {
+    let fix = |params: &mut [Parameter]| {
+        for p in params.iter_mut().filter(|p| p.by_ref && !p.is_array && is_component_type_name(&canonical_type_name(&p.type_name))) {
+            p.by_ref = false;
+        }
+    };
+    for s in stmts.iter_mut() {
+        match s {
+            Statement::Subroutine(r) => fix(&mut r.params),
+            Statement::Function(r) => fix(&mut r.params),
+            Statement::Declare(d) if d.lib.is_none() => fix(&mut d.params),
+            _ => {}
+        }
+    }
 }
 
 /// A SUB or FUNCTION DECLAREd before it is written takes its parameters'

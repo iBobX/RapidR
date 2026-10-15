@@ -326,6 +326,13 @@ struct Lowering<'a> {
     ctx: Ctx,
     /// Numbers generated loop variables.
     counter: usize,
+    /// How many components' CREATE blocks the statement being lowered is in.
+    create_depth: usize,
+    /// The set-up of TYPE instances CREATEd inside nested components' blocks
+    /// (a QFolderTree on a panel on a form), done after the outermost
+    /// block — inside it the backends would read their statements as the
+    /// component's properties.
+    deferred: Vec<Statement>,
 }
 
 impl Lowering<'_> {
@@ -1068,18 +1075,50 @@ impl Lowering<'_> {
                     };
                     // A TYPE's instance created inside (a QBEVEL on a form):
                     // set up after the component, with it as its Parent.
-                    let (typed, rest): (Vec<&Statement>, Vec<&Statement>) =
-                        c.body.iter().partition(|x| matches!(x, Statement::Create(ch) if self.types.get(&ch.type_name).is_some()));
-                    let rest: Vec<Statement> = rest.into_iter().cloned().collect();
-                    let body = qualify_create_body(&rest, &c.name, &c.type_name, &known);
-                    let mut out = vec![Statement::Create(CreateStatement { body: self.body(&body), ..c.clone() })];
-                    for x in typed {
-                        let Statement::Create(child) = x else { continue };
-                        out.extend(self.stmt(x));
-                        if !sets_parent(&child.body) {
-                            out.push(call_stmt_at(child.span, "__objset", vec![ident_at(c.span, &child.name), text_at(c.span, "parent"), text_at(c.span, &c.name)]));
+                    let is_typed = |x: &Statement| matches!(x, Statement::Create(ch) if self.types.get(&ch.type_name).is_some());
+                    // (the component's own methods called after such an
+                    // instance in the block — `ShowModal` at its end, RapidQ's
+                    // richedit/syntax — are called once it is set up, as the
+                    // block's order has it; RC.EXE)
+                    let last_typed = c.body.iter().rposition(is_typed);
+                    let mut after: Vec<Statement> = Vec::new();
+                    let mut kept: Vec<&Statement> = Vec::new();
+                    for (i, x) in c.body.iter().enumerate() {
+                        match x {
+                            Statement::Call(call) if last_typed.is_some_and(|l| i > l) && matches!(&call.callee, Expression::Identifier(id) if !known(&id.name)) => {
+                                let Expression::Identifier(id) = &call.callee else { unreachable!() };
+                                let callee = Expression::MemberAccess(MemberAccessExpression { span: call.span, object: Box::new(ident_at(call.span, &c.name)), member: id.name.clone() });
+                                after.push(Statement::Call(CallStatement { span: call.span, callee, args: call.args.clone() }));
+                            }
+                            _ => kept.push(x),
                         }
                     }
+                    let (typed, rest): (Vec<&Statement>, Vec<&Statement>) = kept.into_iter().partition(|x| is_typed(x));
+                    let rest: Vec<Statement> = rest.into_iter().cloned().collect();
+                    let body = qualify_create_body(&rest, &c.name, &c.type_name, &known);
+                    self.create_depth += 1;
+                    let body = self.body(&body);
+                    self.create_depth -= 1;
+                    let mut setup = Vec::new();
+                    for x in typed {
+                        let Statement::Create(child) = x else { continue };
+                        setup.extend(self.stmt(x));
+                        if !sets_parent(&child.body) {
+                            setup.push(call_stmt_at(child.span, "__objset", vec![ident_at(c.span, &child.name), text_at(c.span, "parent"), text_at(c.span, &c.name)]));
+                        }
+                    }
+                    for s in &after {
+                        setup.extend(self.stmt(s));
+                    }
+                    let create = Statement::Create(CreateStatement { body, ..c.clone() });
+                    if self.create_depth > 0 {
+                        // (inside another component's block: after the outermost)
+                        self.deferred.extend(setup);
+                        return vec![create];
+                    }
+                    let mut out = vec![create];
+                    out.extend(std::mem::take(&mut self.deferred));
+                    out.extend(setup);
                     out
                 }
             },
@@ -1304,6 +1343,8 @@ pub fn lower(program: &Program, is_builtin: &dyn Fn(&str) -> bool) -> Program {
         routines,
         ctx: Ctx { in_main: true, ..Default::default() },
         counter: 0,
+        create_depth: 0,
+        deferred: Vec::new(),
     };
     // Main-program objects are known before any routine uses them.
     for s in &program.statements {

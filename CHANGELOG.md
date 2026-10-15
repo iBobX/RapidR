@@ -44,6 +44,57 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   into a method (`Read L.AddItems N` adds the DATA items); `$INCLUDE "file` with no closing quote;
   `...` closing a DECLARE's parameters (zlib.inc's `gzprintf`; a call with more arguments is still
   an error, as in RC.EXE). 355 of the 428 examples compile.
+- Running RapidQ's examples side by side with RC.EXE's builds in Windows found, and these now behave
+  as RapidQ's (each checked against RC.EXE; desktop, native and web share the code):
+  - **A QRICHEDIT's (and QMEMO's) SelStart / SelLength count in its Text**, a line break two
+    characters, as RapidQ's rich edit: `SelLength = LEN(Text)` selects everything and a word found
+    with `INSTR(Text, …)` is selected where it is. RapidQ's syntax-highlighting example looped
+    forever (a line break counted one, the last word's selection fell off the end)
+    (`rapidq_richedit_positions`).
+  - **An array written past its end reads back what was written** (RapidQ doesn't check limits):
+    RapidQ's GMDrum fills `DEFSTR D(16)` up to 28 from DATA; its last twelve instrument names were
+    blank. The elements are kept beside the array, memory-safely (`rapidq_array_past_end`).
+  - **A QTRACKBAR turned (`Orientation = 1`) swaps its Width and Height**, as RapidQ's: GMSynth's
+    160 × 40 sliders become tall ones (`rapidq_trackbar_orientation`).
+  - A TYPE's instance CREATEd inside a component's block (`CREATE RichEdit AS QREdit` in the
+    form's) is set up before the block's later calls run — `ShowModal` at the block's end showed the
+    form without it (RapidQ's syntax example showed an empty window) — and one nested deeper (a
+    QFolderTree on a panel on a form) works: it stopped with "this variable does not refer to an
+    object".
+  - `RESOURCE(MY_JPG)` — a `$RESOURCE` name where an index goes — is the first resource, as
+    RC.EXE reads the name there as 0 (RapidQ's IPicture demo found no resource).
+  - A control's text ends at a NUL, as Windows' controls and message boxes end it: a message built
+    from a path made for a DLL (`… + CHR$(0)`) no longer shows a box character.
+  - A QOVALBTN's `Color = 0` is black (it was the face colour): Wav-Scratcher's turntable.
+  - A tall QEDIT (an `alClient` one) keeps its text at the top, as Windows' edit does.
+  - **A QEDIT's AutoSize** (True until set) fits its Height to its font, as RapidQ's: when its form
+    first shows (`Height = 50` set before reads 21 after), when its font changes (14 points: 31;
+    RC.EXE 32 — Windows' face is a pixel taller) and when AutoSize goes from 0 to 1; a Height set
+    afterwards, or with AutoSize 0, stays (`rapidq_edit_autosize`).
+  - A component passed to a BYREF parameter (`BYREF ptable AS QSTRINGGRID`, RapidQ's sqlite3.inc)
+    builds natively (`rapidq_component_byref`).
+  - `array_bounds_rapidq` now expects RC.EXE's output (a write past the array reads back).
+  - `For N = To 29` (no start value) counts from 0, as RC.EXE builds it (`rapidq_for_no_start`).
+  - A `CASE` left after its `END SELECT` in a TYPE's method compiles and does nothing, as RC.EXE
+    builds it (`VideoCapture/WebCam_Class.bas`).
+  - **A Close (or a ModalResult) in a form's OnShow under ShowModal is lost**, as VCL's ShowModal
+    sets ModalResult to 0 once the form has shown: the form stays, with no OnClose until it's closed
+    later. RapidQ's OpenGL demo closes its form in OnShow when a texture is missing, and RC.EXE's
+    window stays; RapidR's closed at once (`rapidq_modal_close_onshow`, RC.EXE's output).
+  - A second ELSE in one block IF compiles, and what follows it never runs, as RC.EXE builds it
+    (`forms/Window Sizer.BAS`; `rapidq_two_else`).
+  - QSOCKET's `GetHostIP` / `GetHostName` without parentheses call the method
+    (`Showmessage Sock.GetHostIP` showed an empty box; `rapidq_socket_host`).
+  - **`DIR$(path + "*.", faDirectory)` lists the folders**: a pattern ending in a dot names no
+    extension, as Windows' FindFirstFile reads it (it was a literal dot: nothing matched); QFILELISTBOX's
+    Mask reads it alike. On Windows, DIR$, QFILELISTBOX and QDIRTREE leave out hidden and system files
+    and folders unless asked for (faHidden / faSysFile, ftHidden / ftSystem): `pagefile.sys` and
+    `Documents and Settings` showed (RapidQ's QFolderTree).
+  - A QDIRTREE's closed folder shows its `+` only when it has folders in it, as RC.EXE's.
+- 358 of RapidQ's 428 examples compile now (from 336 at the start of this work).
+- `tools/windows/corpus_win.py` runs RapidQ's examples on Windows three ways (RC.EXE, RapidR
+  interpreted and native) and captures their windows; `tools/windows/corpus_win_report.py` writes
+  the table of [docs/rapidq-corpus-status.md](docs/rapidq-corpus-status.md).
 
 ### Release tooling: the VMs stay clean, and no console window flashes
 - `windows-vm.sh clean` and `linux-vm.sh clean` remove everything the release and smoke scripts leave

@@ -210,6 +210,7 @@ mod tests {
             Value::Array(Rc::new(RefCell::new(BasicArray {
                 bounds: vec![(0, vals.len() as i64 - 1)],
                 data: vals.iter().map(|&v| v_int(v)).collect(),
+                overflow: Default::default(),
             })))
         };
         let a = arr(&[5, 6, -7, 8]);

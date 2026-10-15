@@ -91,7 +91,6 @@ NOT_RAPIDQ = {
     "OLE/MSscript.bas": "typo `.Language = %T\"`",
     "OLE/xls/ExcelReader.bas": "a SUB call without parentheses assigned (`b$ = RiEd.addstring \"sheet \"…`)",
     "Object/Examples/Cd.bas": "typo `\"…\"+,`",
-    "VideoCapture/WebCam_Class.bas": "`CASE 5` after `END SELECT`",
     "direct3d/billboard_ex.bas": "C's `//` comments",
     "dll/Resource in DLL/emptyDLL.bas": "FreeBASIC (`… export`)",
     "files/FileSearch_FB_DLL.bas": "FreeBASIC (`UBYTE PTR`)",

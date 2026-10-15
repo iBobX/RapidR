@@ -20,10 +20,11 @@ const DATABASE: &[&str] = &[
     "escapestring", "selectdb", "createdb", "dropdb", "clearparams",
 ];
 
-/// QSOCKET, QSERVERSOCKET, RHTTP.
+/// QSOCKET, QSERVERSOCKET, RHTTP. (`Showmessage Sock.GetHostIP`: RapidQ's
+/// sockets example.)
 const NETWORK: &[&str] = &[
     "connect", "write", "writeline", "read", "readline", "bind", "listen", "accept", "start", "stop", "broadcast",
-    "get", "post",
+    "get", "post", "gethostip", "gethostname",
 ];
 
 /// QFILESTREAM, QMEMORYSTREAM (and the web's file bridge).
@@ -180,6 +181,7 @@ mod tests {
         assert!(is_value_method("RFILESTREAM", "eof"));
         assert!(is_value_method("RFORM", "showmodal"));
         assert!(is_value_method("ROPENDIALOG", "execute"));
+        assert!(is_value_method("QSOCKET", "gethostip"));
         // (a property of these types, a method of others)
         assert!(!is_value_method("RUPDOWN", "max"));
         assert!(!is_value_method("QTRACKBAR", "min"));

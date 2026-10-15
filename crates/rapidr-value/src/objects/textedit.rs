@@ -7,8 +7,14 @@
 //! ([`TextEdit::revision`]).
 //!
 //! A multi-line control's Text has its lines joined by CR LF, as RapidQ's on
-//! Windows; positions (SelStart, SelLength) count a line break as one
-//! character, as a rich edit does.
+//! Windows, and the positions a program reads and sets (SelStart,
+//! SelLength) count in that Text: a line break is two characters, as in
+//! RapidQ's rich edit (RichEdit 1.0) and Windows' multi-line edit (RC.EXE:
+//! three lines of a QRICHEDIT select whole with SelLength = LEN(Text), 32;
+//! a program finds a word with INSTR(Text, …) and selects it at SelStart —
+//! RapidQ's syntax-highlighting example). The model keeps a line break as
+//! one character ('\n'); [`TextEdit::to_text_pos`] and
+//! [`TextEdit::from_text_pos`] convert.
 
 use crate::{v_int, v_str, Value};
 
@@ -65,6 +71,30 @@ impl TextEdit {
 
     fn changed(&mut self) {
         self.revision += 1;
+    }
+
+    /// Where the model's position `i` is in the program's Text (a line
+    /// break two characters in a multi-line control).
+    pub fn to_text_pos(&self, i: usize) -> usize {
+        let i = i.min(self.chars.len());
+        if self.multi { i + self.chars[..i].iter().filter(|c| **c == '\n').count() } else { i }
+    }
+
+    /// The model's position of the program's Text position `p` (one inside
+    /// a line break's CR LF: the break's start).
+    pub fn from_text_pos(&self, p: usize) -> usize {
+        if !self.multi {
+            return p.min(self.chars.len());
+        }
+        let mut units = 0;
+        for (i, c) in self.chars.iter().enumerate() {
+            let w = if *c == '\n' { 2 } else { 1 };
+            if units + w > p {
+                return i;
+            }
+            units += w;
+        }
+        self.chars.len()
     }
 
     fn clamp_selection(&mut self) {
@@ -143,8 +173,8 @@ impl TextEdit {
         Some(match prop {
             "text" => v_str(&self.text()),
             "seltext" => v_str(&self.selected().replace('\n', self.line_break())),
-            "selstart" => v_int(self.sel_start as i64),
-            "sellength" => v_int(self.sel_len as i64),
+            "selstart" => v_int(self.to_text_pos(self.sel_start) as i64),
+            "sellength" => v_int((self.to_text_pos(self.sel_start + self.sel_len) - self.to_text_pos(self.sel_start)) as i64),
             "modified" => flag(self.modified),
             "readonly" => flag(self.read_only),
             "maxlength" => v_int(self.max_length),
@@ -162,13 +192,15 @@ impl TextEdit {
             "seltext" => self.replace_selection(&val.to_string_val()),
             // (setting SelStart drops the selection, as Delphi)
             "selstart" => {
-                self.sel_start = val.to_i64().max(0) as usize;
+                self.sel_start = self.from_text_pos(val.to_i64().max(0) as usize);
                 self.sel_len = 0;
                 self.clamp_selection();
                 self.changed();
             }
             "sellength" => {
-                self.sel_len = val.to_i64().max(0) as usize;
+                let from = self.to_text_pos(self.sel_start);
+                let end = self.from_text_pos(from + val.to_i64().max(0) as usize);
+                self.sel_len = end.saturating_sub(self.sel_start);
                 self.clamp_selection();
                 self.changed();
             }
@@ -245,9 +277,11 @@ mod tests {
         assert_eq!(r.get("linecount").unwrap().to_i64(), 2);
         assert_eq!(r.call("line", &[v_int(1)]).unwrap().to_string_val(), "two");
         r.call("line", &[v_int(0), v_str("ONE")]);
-        r.set("selstart", &v_int(4));
+        // (positions in the Text: "one" CR LF, so "two" starts at 5 — RC.EXE)
+        r.set("selstart", &v_int(5));
         r.set("sellength", &v_int(3));
         assert_eq!(r.get("seltext").unwrap().to_string_val(), "two");
+        assert_eq!((r.get("selstart").unwrap().to_i64(), r.get("sellength").unwrap().to_i64()), (5, 3));
         assert_eq!((r.get("wherey").unwrap().to_i64(), r.get("wherex").unwrap().to_i64()), (1, 0));
         r.set("seltext", &v_str("2"));
         assert_eq!(r.get("text").unwrap().to_string_val(), "ONE\r\n2\r\n");
@@ -256,6 +290,11 @@ mod tests {
         assert_eq!((r.get("linecount").unwrap().to_i64(), r.get("modified").unwrap().to_i64()), (2, 0));
         r.user_edit("ab\nc", 1, 1);
         assert_eq!(r.get("seltext").unwrap().to_string_val(), "b");
+        // (the whole Text selected: SelLength is LEN(Text), line breaks two)
+        r.call("selectall", &[]);
+        assert_eq!(r.get("sellength").unwrap().to_i64(), r.get("text").unwrap().to_string_val().len() as i64);
+        r.set("selstart", &v_int(4));
+        assert_eq!(r.get("selstart").unwrap().to_i64(), 4);
         assert_eq!(r.get("modified").unwrap().to_i64(), 1);
 
         let mut e = TextEdit::new(false);

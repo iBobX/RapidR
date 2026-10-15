@@ -394,10 +394,11 @@ fn set_property(name: &str, prop: &str, val: Value) {
             rp_comp_set(name, "modalresult", v_int(mr));
         }
     }
-    // A modal form's ModalResult set: the form closes (ShowModal returns it).
+    // A modal form's ModalResult set: the form closes (ShowModal returns it;
+    // in its ShowModal's OnShow it is kept and then lost, as VCL's).
     if prop.eq_ignore_ascii_case("modalresult") && val.to_i64() != 0 && rp_comp_type(name) == "RFORM" {
         #[cfg(feature = "gui")]
-        if crate::ui::is_modal(name) {
+        if crate::ui::modal_result_closes(name) {
             let (n, v) = (name.to_string(), val.clone());
             store_prop(&n, "modalresult", v);
             crate::ui::gui_close(&n);
@@ -541,7 +542,14 @@ fn set_property(name: &str, prop: &str, val: Value) {
     if rapidr_value::objects::menu::is_menu(name) {
         crate::ui::schedule_menu_sync();
     }
+    let orientation_before = if prop_lower == "orientation" { rapidr_value::objects::trackbar_orientation(name) } else { None };
     if let Some(result) = rapidr_value::objects::set(name, &prop_lower, &val) {
+        // A QTRACKBAR turned: its Width and Height swap (RapidQ's).
+        if rapidr_value::objects::trackbar_turned(name, orientation_before) {
+            let (w, h) = (rp_comp_get(name, "width"), rp_comp_get(name, "height"));
+            rp_comp_set(name, "width", h);
+            rp_comp_set(name, "height", w);
+        }
         let picture = rapidr_value::objects::is_picture(name);
         match result {
             // `Image.BMP = "photo.png"`: not a BMP; the host loads it.

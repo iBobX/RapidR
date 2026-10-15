@@ -9,13 +9,15 @@
 //! Items as RapidQ's file list shows them (RC.EXE): the files, then the
 //! directories (ftDirectory) in brackets with `[..]` and `[.]` among them,
 //! each group in Windows' order ([`windows_order`]: case ignored, symbols
-//! before digits before letters). Hidden files (a leading `.`) only with
-//! ftHidden. A
+//! before digits before letters). Hidden files (a leading `.`, Windows'
+//! hidden attribute) only with ftHidden, Windows' system files only with
+//! ftSystem ([`hidden_system`]). A
 //! directory that can't be read (or the web, which has no file system)
 //! lists nothing.
 
 pub const FT_READ_ONLY: u32 = 0;
 pub const FT_HIDDEN: u32 = 1;
+pub const FT_SYSTEM: u32 = 2;
 pub const FT_DIRECTORY: u32 = 4;
 pub const FT_ARCHIVE: u32 = 5;
 pub const FT_NORMAL: u32 = 6;
@@ -36,11 +38,18 @@ impl Default for FileSource {
 }
 
 /// Whether `name` matches a Windows wildcard (`*`, `?`), ignoring case;
-/// `*.*` matches every name (with or without an extension).
+/// `*.*` matches every name (with or without an extension), and a pattern
+/// ending in a dot names no extension, as Windows' FindFirstFile reads it:
+/// `*.` matches `Sub` and `README` but not `a.txt` (RapidQ programs list
+/// folders with `DIR$(path + "*.", faDirectory)`); `.` and `..` match it too.
+/// (DIR$ and QFILELISTBOX's Mask.)
 pub fn wildcard_match(pattern: &str, name: &str) -> bool {
     let pattern = pattern.trim();
     if pattern.is_empty() || pattern == "*.*" || pattern == "*" {
         return true;
+    }
+    if let Some(stem) = pattern.strip_suffix('.').filter(|s| !s.is_empty() && !s.ends_with('.')) {
+        return name == "." || name == ".." || (!name.contains('.') && wildcard_match(stem, name));
     }
     fn go(p: &[char], n: &[char]) -> bool {
         match (p.first(), n.first()) {
@@ -54,6 +63,24 @@ pub fn wildcard_match(pattern: &str, name: &str) -> bool {
     let p: Vec<char> = pattern.to_lowercase().chars().collect();
     let n: Vec<char> = name.to_lowercase().chars().collect();
     go(&p, &n)
+}
+
+/// Whether a directory entry is hidden, and whether it is a system file:
+/// Windows' attributes (`pagefile.sys`, `Documents and Settings`), which
+/// FindFirstFile — so RapidQ's DIR$ and its file list — leaves out unless
+/// asked for (faHidden / faSysFile, ftHidden / ftSystem); a leading dot is
+/// hidden on every system.
+pub fn hidden_system(entry: &std::fs::DirEntry) -> (bool, bool) {
+    let dot = entry.file_name().to_string_lossy().starts_with('.');
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        if let Ok(m) = entry.metadata() {
+            let a = m.file_attributes();
+            return (dot || a & 0x2 != 0, a & 0x4 != 0);
+        }
+    }
+    (dot, false)
 }
 
 /// Two names in the order a Windows list box sorts them (RC.EXE's file
@@ -79,12 +106,15 @@ impl FileSource {
         #[cfg(not(target_arch = "wasm32"))]
         let hidden_ok = self.types & (1 << FT_HIDDEN) != 0;
         #[cfg(not(target_arch = "wasm32"))]
+        let system_ok = self.types & (1 << FT_SYSTEM) != 0;
+        #[cfg(not(target_arch = "wasm32"))]
         let files_ok = self.types & (1 << FT_NORMAL | 1 << FT_ARCHIVE | 1 << FT_READ_ONLY) != 0;
         #[cfg(not(target_arch = "wasm32"))]
         if let Ok(entries) = std::fs::read_dir(&self.directory) {
             for entry in entries.flatten().take(100_000) {
                 let name = entry.file_name().to_string_lossy().into_owned();
-                if name.starts_with('.') && !hidden_ok {
+                let (hidden, system) = hidden_system(&entry);
+                if (hidden && !hidden_ok) || (system && !system_ok) {
                     continue;
                 }
                 let is_dir = entry.file_type().is_ok_and(|t| t.is_dir()) || entry.path().is_dir();
@@ -128,6 +158,10 @@ mod tests {
         assert!(wildcard_match("*.*", "README"));
         assert!(wildcard_match("a?c.*", "ABC.bas"));
         assert!(!wildcard_match("a?c", "ac"));
+        // (a trailing dot: no extension, Windows' `*.`)
+        assert!(wildcard_match("*.", "Sub") && wildcard_match("*.", "..") && wildcard_match("*.", "."));
+        assert!(!wildcard_match("*.", "a.txt") && !wildcard_match("*.", "pagefile.sys"));
+        assert!(wildcard_match("s?b.", "SUB") && !wildcard_match("s?b.", "sub.d"));
     }
 
     #[test]

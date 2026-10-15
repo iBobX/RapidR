@@ -158,6 +158,9 @@ impl Dialog {
     pub fn message(n: u64, title: &str, text: &str, labels: &[&str], icon: Option<MsgIcon>) -> Dialog {
         let mut d = Dialog::new(n, title, Kind::Message);
         let font = d.store.font(&d.id);
+        // (the text ends at a NUL, as Windows' message boxes end it: RapidQ's
+        // Database/mdb examples show a path made for a DLL, `… + CHR$(0)`)
+        let text = text.split('\0').next().unwrap_or("");
         let lines = wrap(text, &font, WRAP);
         let line_h = text_size("Ag", &font).1.max(1);
         let text_w = lines.iter().map(|l| text_size(l, &font).0).max().unwrap_or(0);
@@ -848,6 +851,22 @@ mod tests {
         assert_eq!(shapes, icon_shapes(MsgIcon::Warning).len());
         let tree = f.access_tree(&d.store, &mut ts).to_json();
         assert!(tree.contains(r#""role":"img","name":"Warning""#), "{tree}");
+    }
+
+    #[test]
+    fn message_text_ends_at_a_nul() {
+        // (as Windows' message boxes: RC.EXE shows "Error al crear Test.mdb"
+        // of `"Error al crear Test.mdb" + CHR$(0) + "hidden"`)
+        let mut ts = TextSystem::new();
+        let d = Dialog::message(7, "x", "Error al crear Test.mdb\0hidden", &["OK"], None);
+        assert_eq!(store::string(&d.store, "rapidr:dlg7:t0", "caption"), "Error al crear Test.mdb");
+        let mut f = ui(&d);
+        let list = f.paint(&d.store, &mut ts, 1.0);
+        let texts: Vec<String> = list.items.iter().filter_map(|i| match i {
+            crate::display::Item::Op { op: rapidr_value::objects::ops::Op::Text { text, .. }, .. } => Some(text.clone()),
+            _ => None,
+        }).collect();
+        assert!(texts.iter().all(|t| !t.contains('\0') && !t.contains("hidden")), "{texts:?}");
     }
 
     #[test]

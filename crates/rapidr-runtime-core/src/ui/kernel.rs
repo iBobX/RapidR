@@ -689,6 +689,12 @@ pub fn is_modal(name: &str) -> bool {
     forms::is_modal(name)
 }
 
+/// Whether setting `name`'s ModalResult closes it (not in its ShowModal's
+/// OnShow: forms::modal_result_closes).
+pub fn modal_result_closes(name: &str) -> bool {
+    forms::modal_result_closes(name)
+}
+
 /// `DOEVENTS`: pending events, timers and redraws get their turn. (The
 /// interpreter's is a wait it serves itself, so a tracking tick in that
 /// turn can run its handlers.)

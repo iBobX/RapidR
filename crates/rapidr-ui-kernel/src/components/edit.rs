@@ -157,6 +157,16 @@ fn inner(w: i64, h: i64) -> Rect {
     (3, 2, w - 6, h - 4)
 }
 
+/// Where a QEDIT's line of text starts in an inside `h` high (scaled by
+/// `s`, the line `lh` high): centred in an edit of RapidQ's 21 pixels, and
+/// no lower in a taller one — Windows' single-line edit keeps its text at
+/// the top (RC.EXE: an alClient QEDIT, RapidQ's TabIcon demo).
+fn text_top(h: i64, s: f64, lh: f64) -> f64 {
+    let centred = (h as f64 * s - lh) / 2.0;
+    let standard = (inner(0, 21).3 as f64 * s - lh) / 2.0;
+    centred.min(standard).round()
+}
+
 impl EditUi {
     pub fn new(multi: bool, src: Source) -> EditUi {
         let mut bars = Scroller::default();
@@ -747,7 +757,7 @@ impl Edit {
     fn line_dy(e: &EditUi, h: i64) -> f64 {
         let s = f64::from(e.ed.scale());
         let lh = e.ed.content_size().1;
-        ((inner(0, h).3 as f64 * s - lh) / 2.0).round()
+        text_top(inner(0, h).3, s, lh)
     }
 
     fn view(e: &EditUi, w: i64, h: i64) -> (f64, f64) {
@@ -767,7 +777,7 @@ pub(crate) fn paint_line(cx: &mut Cx, p: &mut Painter, area: Rect, src: Source) 
     let id = cx.id;
     let e = spec.editor(&mut *cx.ui, &mut *cx.text, id, cx.scale);
     let s = f64::from(e.ed.scale());
-    let dy = ((area.3 as f64 * s - e.ed.content_size().1) / 2.0).round();
+    let dy = if src == Source::Text { text_top(area.3, s, e.ed.content_size().1) } else { ((area.3 as f64 * s - e.ed.content_size().1) / 2.0).round() };
     e.paint_text(id, p, area, dy, show, focused && caret_on);
 }
 
