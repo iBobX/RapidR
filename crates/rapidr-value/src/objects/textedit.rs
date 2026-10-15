@@ -7,8 +7,13 @@
 //! ([`TextEdit::revision`]).
 //!
 //! A multi-line control's Text has its lines joined by CR LF, as RapidQ's on
-//! Windows; positions (SelStart, SelLength) count a line break as one
-//! character, as a rich edit does.
+//! Windows, and its positions (SelStart, SelLength) are positions in that
+//! text: a line break counts two characters, as RC.EXE's QRICHEDIT counts
+//! it (RapidQ's rich edit is RichEdit 1.0's: in "ab\r\ncd" SelStart 4 is
+//! the `c`, and SelStart 3, inside the break, reads 2). So a position INSTR
+//! finds in Text selects that text (RapidQ's richedit/syntax example). The
+//! model keeps '\n' breaks; [`TextEdit::sel_start`] / `sel_len` are its own
+//! positions, which the widgets use.
 
 use crate::{v_int, v_str, Value};
 
@@ -65,6 +70,33 @@ impl TextEdit {
 
     fn changed(&mut self) {
         self.revision += 1;
+    }
+
+    /// The program's position (in [`Self::text`]) of position `i` of the
+    /// model: each line break before it counts two in a multi-line control.
+    fn outer(&self, i: usize) -> usize {
+        let i = i.min(self.chars.len());
+        if self.line_break() == "\n" {
+            return i;
+        }
+        i + self.chars[..i].iter().filter(|c| **c == '\n').count()
+    }
+
+    /// The model's position for the program's position `x`: one inside a
+    /// CR LF is the break's start, past the end is the end.
+    fn inner(&self, x: usize) -> usize {
+        if self.line_break() == "\n" {
+            return x.min(self.chars.len());
+        }
+        let mut at = 0;
+        for (i, c) in self.chars.iter().enumerate() {
+            let w = if *c == '\n' { 2 } else { 1 };
+            if at + w > x {
+                return i;
+            }
+            at += w;
+        }
+        self.chars.len()
     }
 
     fn clamp_selection(&mut self) {
@@ -143,8 +175,8 @@ impl TextEdit {
         Some(match prop {
             "text" => v_str(&self.text()),
             "seltext" => v_str(&self.selected().replace('\n', self.line_break())),
-            "selstart" => v_int(self.sel_start as i64),
-            "sellength" => v_int(self.sel_len as i64),
+            "selstart" => v_int(self.outer(self.sel_start) as i64),
+            "sellength" => v_int((self.outer(self.sel_start + self.sel_len) - self.outer(self.sel_start)) as i64),
             "modified" => flag(self.modified),
             "readonly" => flag(self.read_only),
             "maxlength" => v_int(self.max_length),
@@ -162,13 +194,14 @@ impl TextEdit {
             "seltext" => self.replace_selection(&val.to_string_val()),
             // (setting SelStart drops the selection, as Delphi)
             "selstart" => {
-                self.sel_start = val.to_i64().max(0) as usize;
+                self.sel_start = self.inner(val.to_i64().max(0) as usize);
                 self.sel_len = 0;
                 self.clamp_selection();
                 self.changed();
             }
             "sellength" => {
-                self.sel_len = val.to_i64().max(0) as usize;
+                let end = self.inner(self.outer(self.sel_start).saturating_add(val.to_i64().max(0) as usize));
+                self.sel_len = end.saturating_sub(self.sel_start);
                 self.clamp_selection();
                 self.changed();
             }
@@ -245,9 +278,11 @@ mod tests {
         assert_eq!(r.get("linecount").unwrap().to_i64(), 2);
         assert_eq!(r.call("line", &[v_int(1)]).unwrap().to_string_val(), "two");
         r.call("line", &[v_int(0), v_str("ONE")]);
-        r.set("selstart", &v_int(4));
+        // ("ONE\r\n" is five characters: "two" starts at 5)
+        r.set("selstart", &v_int(5));
         r.set("sellength", &v_int(3));
         assert_eq!(r.get("seltext").unwrap().to_string_val(), "two");
+        assert_eq!((r.get("selstart").unwrap().to_i64(), r.get("sellength").unwrap().to_i64()), (5, 3));
         assert_eq!((r.get("wherey").unwrap().to_i64(), r.get("wherex").unwrap().to_i64()), (1, 0));
         r.set("seltext", &v_str("2"));
         assert_eq!(r.get("text").unwrap().to_string_val(), "ONE\r\n2\r\n");
@@ -260,11 +295,42 @@ mod tests {
 
         let mut e = TextEdit::new(false);
         e.set("charcase", &v_int(1));
+        // (a single-line edit has no CR LF: positions are its characters)
         e.set("text", &v_str("hello"));
         e.set("selstart", &v_int(1));
         e.set("sellength", &v_int(3));
         assert_eq!(e.get("seltext").unwrap().to_string_val(), "ELL");
         e.call("selectall", &[]);
         assert_eq!(e.get("sellength").unwrap().to_i64(), 5);
+    }
+
+    /// RC.EXE's QRICHEDIT (tests/results probe w_selcrlf, 2026-10-15): with
+    /// "ab", "cd", "ef" added, Text is "ab\r\ncd\r\nef\r\n" (12); SelStart 4,
+    /// SelLength 2 select "cd"; SelStart 3 (inside the break) reads 2, and
+    /// SelLength 3 from there selects CR LF and `c`; SelStart 1000 reads 12.
+    #[test]
+    fn positions_count_cr_lf_as_rapidq() {
+        let mut r = TextEdit::new(true);
+        r.call("addstrings", &[v_str("ab"), v_str("cd"), v_str("ef")]);
+        assert_eq!(r.get("text").unwrap().to_string_val().len(), 12);
+        r.set("selstart", &v_int(4));
+        r.set("sellength", &v_int(2));
+        assert_eq!(r.get("seltext").unwrap().to_string_val(), "cd");
+        assert_eq!((r.get("selstart").unwrap().to_i64(), r.get("sellength").unwrap().to_i64()), (4, 2));
+        r.set("selstart", &v_int(3));
+        r.set("sellength", &v_int(3));
+        assert_eq!(r.get("seltext").unwrap().to_string_val(), "\r\nc");
+        assert_eq!((r.get("selstart").unwrap().to_i64(), r.get("sellength").unwrap().to_i64()), (2, 3));
+        r.set("selstart", &v_int(1000));
+        assert_eq!(r.get("selstart").unwrap().to_i64(), 12);
+        // (the widget's own positions stay the model's: '\n' one character)
+        r.set("selstart", &v_int(4));
+        assert_eq!(r.sel_start, 3);
+        // (INSTR's position in Text selects what it found)
+        let text = r.get("text").unwrap().to_string_val();
+        let at = text.find("ef").unwrap();
+        r.set("selstart", &v_int(at as i64));
+        r.set("sellength", &v_int(2));
+        assert_eq!(r.get("seltext").unwrap().to_string_val(), "ef");
     }
 }

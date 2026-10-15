@@ -414,7 +414,7 @@ SelectedRow = { category = "Data", doc = "RapidR's name for a grid's `Row`." }
 SelEnd = { category = "Data", doc = "The end of the track bar's highlighted range." }
 SelFont = { category = "Font", doc = "The font of the selected text." }
 SelLength = { category = "Data", doc = "The number of characters selected." }
-SelStart = { category = "Data", doc = "Where the selection starts: a character offset from 0 in text, the start of a track bar's highlighted range." }
+SelStart = { category = "Data", doc = "Where the selection starts: a character offset from 0 in Text (a line break counts as the characters Text has for it: two, CR LF, in a rich edit or memo, as RapidQ counts them; so a position INSTR finds in Text selects that text), the start of a track bar's highlighted range." }
 SelText = { category = "Data", doc = "The selected text; setting it replaces the selection." }
 Separator = { category = "Data", doc = "The text between cells when the grid saves or loads rows (`,`)." }
 Server = { category = "Network", doc = "The host name of the server to download from." }

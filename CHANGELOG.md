@@ -25,6 +25,20 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   `listbox/owndraw` example showed plain text where its pictures belong. The handlers the
   drawing makes due now run in the same turn (native builds and the web already did; GUI case
   `owner_list_variable` on all three).
+- **A TYPE's component CREATEd inside a form's CREATE is made where it stands.** RapidR made such
+  instances (`CREATE RichEdit AS QREdit` inside `CREATE Form`) after the whole form block — after a
+  `ShowModal` at its end had returned, so RapidQ's `richedit/syntax` example showed an empty
+  window. Now the instance is made in its place and the block goes on after it, as RC.EXE does
+  (its form's OnShow sees the instance; GUI case `nested_typed_create`, all three runtimes).
+- **A rich edit's SelStart and SelLength count a line break as two characters**, CR LF, as its
+  Text has them — as RC.EXE's QRICHEDIT does (probe: in `"ab" CR LF "cd"` SelStart 4 is the `c`;
+  a position inside the break reads as the break's start). A position INSTR finds in Text now
+  selects that text; RapidQ's syntax-highlighting example looped forever where it counted one.
+  QEDIT and the code editor are unchanged. (Rich text formatting itself, SelAttributes, is still
+  plain text in RapidR's rich edit.)
+- `tools/rc_probe.sh`: `-w` gives a run its own work folder in the Windows VM (two lanes no longer
+  copy RC.EXE over each other), and `w_*.bas` probes are GUI programs whose findings file is
+  printed.
 
 ## [2.118.0] — 2026-10-09 (Preview)
 
