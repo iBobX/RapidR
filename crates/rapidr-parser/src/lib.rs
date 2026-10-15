@@ -613,6 +613,18 @@ impl<'a> Parser<'a> {
             TokenType::DefSng => self.parse_declaration(Some("SINGLE")),
             TokenType::DefDbl => self.parse_declaration(Some("DOUBLE")),
             TokenType::DefCur => self.parse_declaration(Some("CURRENCY")),
+            // (`CONST 1 = 5`: what `$DEFINE TRUE 1` makes of rapidq2.inc's
+            // `CONST True = 1` — RC.EXE takes it and nothing changes: `PRINT 1`
+            // still prints 1, the name stays the $DEFINE's)
+            TokenType::Const if self.peek_kind_at(1) == Some(TokenType::Number) && self.peek_kind_at(2) == Some(TokenType::Eq) => {
+                let start = self.pos;
+                self.advance();
+                self.advance();
+                self.advance();
+                let _ = self.parse_expression()?;
+                let span = self.span_from(start);
+                Some(Statement::Comment(CommentStatement { span, text: "CONST of a number (RapidQ ignores it)".into() }))
+            }
             TokenType::Const => self.parse_const().map(Statement::Const),
             TokenType::Import => self.parse_import().map(Statement::Import),
             TokenType::Print => {

@@ -7,6 +7,12 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### RapidQ's examples on Windows (CORPUS-WIN)
+- `CONST 1 = 5` compiles and changes nothing, as in RapidQ: what `$DEFINE TRUE 1` (RapidQ's
+  `windows.inc`) makes of `rapidq2.inc`'s `CONST True = 1` — programs including both
+  (`Mouse/Mouse_Wheel.bas`) stopped with "Syntax error in CONST statement". Checked against
+  RC.EXE (`rapidq_const_defined_name`).
+
 ## [2.118.0] — 2026-10-09 (Preview)
 
 ### Triage of the full regression run (TRIAGE)
