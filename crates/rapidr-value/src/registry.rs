@@ -960,7 +960,7 @@ mod tests {
         assert_eq!(r.call("openkey", &[v_str("TestToDelete"), v_int(1)]), Some(v_int(1)));
         r.call("writeinteger", &[v_str("MyInteger"), v_int(1234567890)]);
         r.call("writestring", &[v_str("Mystring"), v_str("1234567890")]);
-        let arr = crate::BasicArray { bounds: vec![(0, 10)], data: (1..=11).map(|i| v_int(i % 10)).collect() };
+        let arr = crate::BasicArray { bounds: vec![(0, 10)], data: (1..=11).map(|i| v_int(i % 10)).collect(), overflow: Default::default() };
         r.call("writebinary", &[v_str("MyBinary"), Value::Array(std::rc::Rc::new(RefCell::new(arr))), v_int(10)]);
         r.call("closekey", &[]);
         assert_eq!(r.get("currentkey"), Some(v_int(0)));
@@ -1035,7 +1035,7 @@ mod tests {
         call(&mut r, "writestring", &[v_str("Empty"), v_str("")]);
         call(&mut r, "writeinteger", &[v_str("Int"), v_int(-5)]);
         call(&mut r, "writefloat", &[v_str("Float"), Value::Double(-2.5)]);
-        let arr = crate::BasicArray { bounds: vec![(0, 3)], data: [7, 0, 255, 9].map(v_int).to_vec() };
+        let arr = crate::BasicArray { bounds: vec![(0, 3)], data: [7, 0, 255, 9].map(v_int).to_vec(), overflow: Default::default() };
         call(&mut r, "writebinary", &[v_str("Bin"), Value::Array(std::rc::Rc::new(RefCell::new(arr))), v_int(3)]);
         call(&mut r, "writebinary", &[v_str("FromText"), v_str("abc"), v_int(99)]);
         let names: Vec<String> = (0..9).map(|i| text(&mut r, "valueitem", &[v_int(i)])).collect();

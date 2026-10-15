@@ -742,6 +742,21 @@ pub fn is_trackbar(id: &str) -> bool {
 }
 
 /// A QTRACKBAR's model, to read.
+/// A QTRACKBAR's Orientation, `None` for anything else — read before
+/// setting it: a trackbar turned (0 ↔ 1) swaps its Width and Height, as
+/// RapidQ's (Delphi's TTrackBar; RC.EXE: 160 × 40 then `Orientation = 1`
+/// reads 40 × 160, a new one's 150 × 45 becomes 45 × 150, setting the same
+/// Orientation again changes nothing) — [`trackbar_turned`].
+pub fn trackbar_orientation(id: &str) -> Option<i64> {
+    with_trackbar(id, |t| t.orientation)
+}
+
+/// Whether the trackbar `id` whose Orientation was `before` turned: its
+/// runtime then swaps Width and Height.
+pub fn trackbar_turned(id: &str, before: Option<i64>) -> bool {
+    before.is_some_and(|b| trackbar_orientation(id).is_some_and(|now| now != b))
+}
+
 pub fn with_trackbar<R>(id: &str, f: impl FnOnce(&trackbar::TrackBar) -> R) -> Option<R> {
     with(id, |o| match o {
         Object::TrackBar(t) => Some(f(t)),
@@ -2211,7 +2226,7 @@ pub fn object_ids(name: &str, bounds: &[(i64, i64)]) -> Result<(Value, Vec<Strin
         }
     }
     let data = ids.iter().map(|id| v_str(id)).collect();
-    let value = Value::Array(std::rc::Rc::new(std::cell::RefCell::new(crate::BasicArray { bounds: bounds.to_vec(), data })));
+    let value = Value::Array(std::rc::Rc::new(std::cell::RefCell::new(crate::BasicArray { bounds: bounds.to_vec(), data, overflow: Default::default() })));
     Ok((value, ids))
 }
 

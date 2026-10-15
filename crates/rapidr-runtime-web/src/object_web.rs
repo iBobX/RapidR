@@ -649,8 +649,9 @@ fn set_property(name: &str, prop: &str, val: Value) {
             return;
         }
     }
-    // A modal form's ModalResult set: the form closes (ShowModal returns it).
-    if prop.eq_ignore_ascii_case("modalresult") && val.to_i64() != 0 && rp_comp_type(name) == "RFORM" && rapidr_ui_app::forms::is_modal(name) {
+    // A modal form's ModalResult set: the form closes (ShowModal returns it;
+    // in its ShowModal's OnShow it is kept and then lost, as VCL's).
+    if prop.eq_ignore_ascii_case("modalresult") && val.to_i64() != 0 && rp_comp_type(name) == "RFORM" && rapidr_ui_app::forms::modal_result_closes(name) {
         rp_comp_set_prop_only(name, "modalresult", val);
         crate::kernel_web::close_form(&name.to_uppercase());
         return;
@@ -767,7 +768,14 @@ fn set_property(name: &str, prop: &str, val: Value) {
     }
     // QFONT, QMEMORYSTREAM, QBITMAP, QIMAGELIST (shared with the desktop runtime).
     let before_dir = if rapidr_value::objects::is_dirtree(name) { rp_comp_get_stored_dir(name) } else { String::new() };
+    let orientation_before = if lprop == "orientation" { rapidr_value::objects::trackbar_orientation(name) } else { None };
     if let Some(result) = rapidr_value::objects::set(name, &lprop, &val) {
+        // A QTRACKBAR turned: its Width and Height swap (RapidQ's).
+        if rapidr_value::objects::trackbar_turned(name, orientation_before) {
+            let (w, h) = (rp_comp_get(&uname, "width"), rp_comp_get(&uname, "height"));
+            rp_comp_set(&uname, "width", h);
+            rp_comp_set(&uname, "height", w);
+        }
         let picture = rapidr_value::objects::is_picture(name);
         match result {
             // `Image.BMP = "photo.png"`: not a BMP — nothing loaded, as on

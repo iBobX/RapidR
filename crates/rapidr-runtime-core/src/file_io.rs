@@ -90,8 +90,9 @@ pub fn rp_dir(pattern: &Value, attr: &Value) -> Value {
 /// DIR$'s matches, as RapidQ (Windows' FindFirstFile) lists them: names
 /// matching the pattern's last part (`*`, `?`, any case), in name order
 /// (any case); with faDirectory (&H10) its folders too, `.` and `..`
-/// first; without it files only. Hidden files (a dot first, faHidden &H2)
-/// only when asked. `\` separates folders as `/` does.
+/// first; without it files only. Hidden files (a dot first, Windows'
+/// hidden attribute: faHidden &H2) and Windows' system files (faSysFile
+/// &H4) only when asked. `\` separates folders as `/` does.
 fn dir_entries(pattern: &str, attr: i64) -> (std::path::PathBuf, Vec<String>) {
     let pat = if cfg!(windows) { pattern.to_string() } else { pattern.replace('\\', "/") };
     let path = Path::new(&pat);
@@ -101,13 +102,15 @@ fn dir_entries(pattern: &str, attr: i64) -> (std::path::PathBuf, Vec<String>) {
     };
     let glob = path.file_name().and_then(|s| s.to_str()).unwrap_or("*").to_string();
     let dirs = attr & 0x10 != 0;
-    let hidden = attr & 0x02 != 0;
+    let hidden_ok = attr & 0x02 != 0;
+    let system_ok = attr & 0x04 != 0;
     let mut names = Vec::new();
     if let Ok(dir) = fs::read_dir(&folder) {
         for entry in dir.flatten() {
             let name = entry.file_name().to_string_lossy().into_owned();
             let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
-            if (is_dir && !dirs) || (name.starts_with('.') && !hidden) || !matches_glob(&name, &glob) {
+            let (hidden, system) = crate::value::objects::filelist::hidden_system(&entry);
+            if (is_dir && !dirs) || (hidden && !hidden_ok) || (system && !system_ok) || !matches_glob(&name, &glob) {
                 continue;
             }
             names.push(name);
@@ -139,22 +142,10 @@ fn set_file_rec(path: &Path, name: &str) {
 }
 
 /// Windows' wildcards: `*` any run, `?` any one character, any case; `*.*`
-/// everything.
+/// everything, `*.` no extension (QFILELISTBOX's Mask reads them alike:
+/// rapidr_value::objects::filelist::wildcard_match).
 fn matches_glob(name: &str, pattern: &str) -> bool {
-    if pattern == "*" || pattern == "*.*" {
-        return true;
-    }
-    let n: Vec<char> = name.to_lowercase().chars().collect();
-    let p: Vec<char> = pattern.to_lowercase().chars().collect();
-    fn m(n: &[char], p: &[char]) -> bool {
-        match p.first() {
-            None => n.is_empty(),
-            Some('*') => (0..=n.len()).any(|i| m(&n[i..], &p[1..])),
-            Some('?') => !n.is_empty() && m(&n[1..], &p[1..]),
-            Some(c) => n.first() == Some(c) && m(&n[1..], &p[1..]),
-        }
-    }
-    m(&n, &p)
+    crate::value::objects::filelist::wildcard_match(pattern, name)
 }
 
 // ---------------------------------------------------------------------------

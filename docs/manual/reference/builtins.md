@@ -63,7 +63,7 @@ The builtins every runtime implements (native builds, the interpreter and the we
 | `CHDRIVE "a:\"` | Makes a drive (`"d:"`) the current one on Windows; other systems have no drives and it does nothing. |
 | `CLOSE #FileNum` *(RapidR)* | Closes the file opened with `OPEN` under that number; what was written to it is kept. |
 | `CURDIR$` *bare* | The full path of the current folder. |
-| `DIR$[(FileSpec$, Attributes%)]` *bare* | The first file matching a pattern with `*` and `?` (any case), or "" when none; then bare `DIR$` gives the next. Attributes: faDirectory includes folders, faHidden hidden files. |
+| `DIR$[(FileSpec$, Attributes%)]` *bare* | The first file matching a pattern with `*` and `?` (any case; `*.` names without an extension, as on Windows), or "" when none; then bare `DIR$` gives the next. Attributes: faDirectory includes folders, faHidden hidden files, faSysFile Windows' system files. |
 | `DIREXISTS(Path$)` | True (1) when a folder of that path exists, else 0. |
 | `EOF(FileNum)` *(RapidR)* | True (-1) when a file opened with `OPEN` has nothing left to read (or isn't open), else 0. |
 | `EXTRACTRESOURCE ResourceNumber%, FileName$` | Writes a resource built into the program (`$RESOURCE`, its handle from `RESOURCE(n)`) to a file. |

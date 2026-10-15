@@ -94,6 +94,10 @@ END SUB
   when it appears. `OnPaint` comes after, when the program next waits. A size
   the program sets on a shown form (`Width`, `Height`, `ClientWidth`) fires
   `OnResize` at once; a new position fires nothing.
+- Under `ShowModal`, a `Close` (or a `ModalResult`) in the form's own
+  `OnShow` is lost, as in RapidQ: the form stays open, and gets its
+  `OnClose` when it's closed later. Close it from a timer or a button
+  instead.
 - True / false properties read `1` or `0` (RapidQ's rule), RapidR Studio's
   panel components too (`Console.ShowTabs`, `Tree.ShowFiles`).
 

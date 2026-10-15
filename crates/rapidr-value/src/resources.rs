@@ -39,8 +39,12 @@ pub fn count() -> i64 {
     RESOURCES.read().map_or(0, |r| r.len() as i64)
 }
 
-/// `RESOURCE(n)`: the handle of the `n`-th resource, 0 if there's none.
+/// `RESOURCE(n)`: the handle of the `n`-th resource, 0 if there's none. A
+/// `$RESOURCE` name given as `n` is index 0: RC.EXE reads the name there
+/// as 0 (an empty name, `PRINT RA` prints nothing), so `RESOURCE(MY_JPG)` —
+/// RapidQ's IPicture demo — is the first resource.
 pub fn handle(n: i64) -> i64 {
+    let n = if (RESOURCE_BASE..RESOURCE_BASE + count()).contains(&n) { 0 } else { n };
     if (0..count()).contains(&n) {
         RESOURCE_BASE + n
     } else {
@@ -98,6 +102,9 @@ mod tests {
         assert!(count() >= 1);
         assert_eq!(handle(0), RESOURCE_BASE);
         assert_eq!(handle(-1), 0);
+        // (a $RESOURCE name as the index: RC.EXE's RESOURCE(MY_JPG) is RESOURCE(0))
+        assert_eq!(handle(RESOURCE_BASE), RESOURCE_BASE);
+        assert_eq!(handle(RESOURCE_BASE + count() - 1), RESOURCE_BASE);
         assert_eq!(read_path(&path(RESOURCE_BASE).unwrap()).unwrap().unwrap(), [1, 2, 3]);
         assert!(read_path("rapidr-resource:5").unwrap().is_err());
         assert!(read_path("grid.bmp").is_none());

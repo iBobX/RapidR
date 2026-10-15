@@ -81,7 +81,6 @@ HARDWARE_RE = re.compile(r"\bINP\s*\(|^\s*OUT\s+[^=]", re.I | re.M)
 NOT_RAPIDQ = {
     "Compile/RQdecl.bas": "`IF … AND _` continued by a second `IF` (line 118)",
     "Database/SQL_blobs/SQ3.BAS": "C's `|` for flags (not a RapidQ operator)",
-    "Encryption/RC4.bas": "typo `DIM Encrypted$YY`",
     "FreeImage/MFreeImage.bas": "Visual Basic (`Public Enum`)",
     "Linear_Solver/Linear.bas": "`if xlow not > 0 or then` (OR with nothing after it)",
     "Math/Linear_Solver/Linear.bas": "`if xlow not > 0 or then` (OR with nothing after it)",
@@ -92,14 +91,9 @@ NOT_RAPIDQ = {
     "OLE/MSscript.bas": "typo `.Language = %T\"`",
     "OLE/xls/ExcelReader.bas": "a SUB call without parentheses assigned (`b$ = RiEd.addstring \"sheet \"…`)",
     "Object/Examples/Cd.bas": "typo `\"…\"+,`",
-    "VideoCapture/WebCam_Class.bas": "`CASE 5` after `END SELECT`",
-    "buttons/XPBtn.bas": "`SUB $XP_MANIFEST` (a directive's name as a SUB name)",
-    "dialogs/colordlg/RGBV11.BAS": "`#H000000` (RapidQ's hex is `&H`)",
     "direct3d/billboard_ex.bas": "C's `//` comments",
     "dll/Resource in DLL/emptyDLL.bas": "FreeBASIC (`… export`)",
     "files/FileSearch_FB_DLL.bas": "FreeBASIC (`UBYTE PTR`)",
-    "games/asteroids.bas": "typo `thrusta _ (` for `thrusta - (`",
-    "games/ateroids2/asteroids.bas": "typo `thrusta _ (` for `thrusta - (`",
     "mysql/rqlibsql/mySQL_API.bas": "`End If` after a single-line IF",
     "zlib/QunZip.bas": "Visual Basic (`AddressOf`)",
 }

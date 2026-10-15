@@ -14,6 +14,7 @@ pub fn pack(args: &[Value]) -> Value {
     Value::Array(Rc::new(RefCell::new(BasicArray {
         bounds: vec![(0, n - 1)],
         data: args.to_vec(),
+        overflow: Default::default(),
     })))
 }
 

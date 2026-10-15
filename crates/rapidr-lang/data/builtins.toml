@@ -285,7 +285,7 @@ name = "DIR$"
 syntax = "DIR$[(FileSpec$, Attributes%)]"
 group = "Files and folders"
 bare = true
-doc = "The first file matching a pattern with `*` and `?` (any case), or \"\" when none; then bare `DIR$` gives the next. Attributes: faDirectory includes folders, faHidden hidden files."
+doc = "The first file matching a pattern with `*` and `?` (any case; `*.` names without an extension, as on Windows), or \"\" when none; then bare `DIR$` gives the next. Attributes: faDirectory includes folders, faHidden hidden files, faSysFile Windows' system files."
 
 [[builtin]]
 name = "DIREXISTS"

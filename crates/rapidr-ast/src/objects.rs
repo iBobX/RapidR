@@ -931,6 +931,15 @@ impl Lowering<'_> {
 
     /// A component's CREATE block's statements, lowered: `Panel(0).Width =
     /// 100` inside it is `c.Panel(0).Width`.
+    /// Whether a component's block CREATEs a TYPE's instance, directly or
+    /// in a component's block inside it.
+    fn holds_typed_create(&self, stmts: &[Statement]) -> bool {
+        stmts.iter().any(|s| match s {
+            Statement::Create(ch) => self.types.get(&ch.type_name).is_some() || self.holds_typed_create(&ch.body),
+            _ => false,
+        })
+    }
+
     fn create_body(&mut self, c: &CreateStatement, stmts: &[Statement]) -> Vec<Statement> {
         let body = {
             let known = |n: &str| {
@@ -1081,8 +1090,18 @@ impl Lowering<'_> {
                     // (creating one that exists does nothing, on every
                     // runtime), so what follows it runs once it exists — a
                     // `ShowModal` at the block's end shows it.
-                    let is_typed = |x: &Statement| matches!(x, Statement::Create(ch) if self.types.get(&ch.type_name).is_some());
-                    if !c.body.iter().any(is_typed) {
+                    //
+                    // One a component's block holds deeper down (a QFolderTree
+                    // on a panel on a form, RapidQ's FolderTree demo) is made
+                    // the same way: the inner component's first part stays in
+                    // the outer block (it is made there, with its Parent), and
+                    // what follows it — the instance's set-up, the inner
+                    // block's rest — comes out of the outer block (inside it
+                    // the backends would read those statements as the
+                    // component's properties), the outer block going on after
+                    // them. The lowered pieces' first is always the
+                    // component's own CREATE.
+                    if !self.holds_typed_create(&c.body) {
                         let body = self.create_body(c, &c.body);
                         return vec![Statement::Create(CreateStatement { body, ..c.clone() })];
                     }
@@ -1094,7 +1113,15 @@ impl Lowering<'_> {
                             continue;
                         };
                         if self.types.get(&child.type_name).is_none() {
-                            run.push(x.clone());
+                            if !self.holds_typed_create(&child.body) {
+                                run.push(x.clone());
+                                continue;
+                            }
+                            let mut pieces = self.stmt(x).into_iter();
+                            let mut body = self.create_body(c, &std::mem::take(&mut run));
+                            body.extend(pieces.next());
+                            out.push(Statement::Create(CreateStatement { body, ..c.clone() }));
+                            out.extend(pieces);
                             continue;
                         }
                         let body = self.create_body(c, &std::mem::take(&mut run));

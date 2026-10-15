@@ -7,6 +7,90 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### RapidQ's examples on Windows (CORPUS-WIN)
+- `CONST 1 = 5` compiles and changes nothing, as in RapidQ: what `$DEFINE TRUE 1` (RapidQ's
+  `windows.inc`) makes of `rapidq2.inc`'s `CONST True = 1` — programs including both
+  (`Mouse/Mouse_Wheel.bas`) stopped with "Syntax error in CONST statement". Checked against
+  RC.EXE (`rapidq_const_defined_name`).
+- More of RapidQ's examples compile (344 of 428, from 336), each form checked against RC.EXE
+  (`rapidq_corpus_forms`, both backends):
+  - `&` before a name is the name: `&x` is x, `.WriteNum(&ForwardTo, 4)` (RapidQ's
+    `CallBack_*.inc`). `&O` / `&B` (RapidR's octal and binary) are numbers only with a digit after
+    them, so `&Bar` is the variable Bar as in RapidQ.
+  - `DEFINT R()` and `DIM A() AS …`: an array REDIM sizes later (R(0) until then, as RC.EXE).
+  - A `$` inside a name: `Encrypted$YY` is a variable of its own (`Encryption/RC4.bas`).
+  - A DECLARE inside a block (`IF … : DECLARE FUNCTION f LIB …`) declares for the whole program.
+  - A DECLAREd SUB or FUNCTION takes its parameters' names from the DECLARE, as RC.EXE does:
+    `DECLARE FUNCTION F (a AS LONG)` then `FUNCTION F (b AS LONG)` — inside F the argument is `a`
+    (RapidQ's callback includes depend on it).
+  - `SizeOf(Short)` (a type's name) under `$TYPECHECK ON`.
+  - `$RESOURCE NAME AS <file>`, as `$INCLUDE <file>` (`AVI/aviplay.bas`).
+  - A component named like a statement passed to a call without parentheses:
+    `File.AddItems Open, Break1, ExitItem`.
+- And more (351 of 428 compile), each against RC.EXE (`rapidq_corpus_forms2`, both backends):
+  `AS STRING * MAX_PATH * 2` (a length worked out from CONSTs: 2 × MAX_PATH, where only a plain
+  number counted before); `DefStr s =` with nothing after the `=`; a `-` with nothing after it
+  (`IF Buttons > - THEN`: RC.EXE negates what came before — `5 + -` is -5); `#` before a name
+  (`.Color = #H000000` is the undeclared variable H000000, 0); a SUB named like a directive
+  (`SUB $XP_MANIFEST`, called as `$XP_MANIFEST`); END SUB closing a TYPE's PROPERTY SET.
+- **A `$DEFINE` is now replaced on every line**: a line that also named a string function
+  (`STR$(…)`, `CHR$(…)`, anything with a `$`) kept the defined name as it was — an undeclared
+  variable, 0 — so `If gFile < Z_OK Then … str$(gFile)` compared with 0 by luck and other programs
+  silently computed with 0. Only directive lines are left alone now (`rapidq_define_string_lines`,
+  RC.EXE's output).
+- Also as RC.EXE takes them (`rapidq_corpus_forms3`): a call in a WITH whose arguments start with
+  the WITH's members after a space (`MemCpy .TB, .Button(i), n`, RapidQ's QToolBar.inc); a `_`
+  alone inside a line (an operand of its own: `t _ (3 + 1)` is t, RapidQ's asteroids games); READ
+  into a method (`Read L.AddItems N` adds the DATA items); `$INCLUDE "file` with no closing quote;
+  `...` closing a DECLARE's parameters (zlib.inc's `gzprintf`; a call with more arguments is still
+  an error, as in RC.EXE). 355 of the 428 examples compile.
+- Running RapidQ's examples side by side with RC.EXE's builds in Windows found, and these now behave
+  as RapidQ's (each checked against RC.EXE; desktop, native and web share the code):
+  - A rich edit's SelStart / SelLength counting a line break as two (CORPUS-PORT's and RICHEDIT's,
+    below) is what RapidQ's syntax-highlighting example needed: it looped forever
+    (`rapidq_richedit_positions`).
+  - **An array written past its end reads back what was written** (RapidQ doesn't check limits):
+    RapidQ's GMDrum fills `DEFSTR D(16)` up to 28 from DATA; its last twelve instrument names were
+    blank. The elements are kept beside the array, memory-safely (`rapidq_array_past_end`).
+  - **A QTRACKBAR turned (`Orientation = 1`) swaps its Width and Height**, as RapidQ's: GMSynth's
+    160 × 40 sliders become tall ones (`rapidq_trackbar_orientation`).
+  - A TYPE's instance CREATEd in a component's block deeper down (a QFolderTree on a panel on a
+    form) is made where it stands too (CORPUS-PORT's rule, below, one level further): it stopped
+    with "this variable does not refer to an object" (`typed_create_in_panel`).
+  - `RESOURCE(MY_JPG)` — a `$RESOURCE` name where an index goes — is the first resource, as
+    RC.EXE reads the name there as 0 (RapidQ's IPicture demo found no resource).
+  - A control's text ends at a NUL, as Windows' controls and message boxes end it: a message built
+    from a path made for a DLL (`… + CHR$(0)`) no longer shows a box character.
+  - A QOVALBTN's `Color = 0` is black (it was the face colour): Wav-Scratcher's turntable.
+  - A tall QEDIT (an `alClient` one) keeps its text at the top, as Windows' edit does.
+  - **A QEDIT's AutoSize** (True until set) fits its Height to its font, as RapidQ's: when its form
+    first shows (`Height = 50` set before reads 21 after), when its font changes (14 points: 31;
+    RC.EXE 32 — Windows' face is a pixel taller) and when AutoSize goes from 0 to 1; a Height set
+    afterwards, or with AutoSize 0, stays (`rapidq_edit_autosize`).
+  - A component passed to a BYREF parameter (`BYREF ptable AS QSTRINGGRID`, RapidQ's sqlite3.inc)
+    builds natively (`rapidq_component_byref`).
+  - `array_bounds_rapidq` now expects RC.EXE's output (a write past the array reads back).
+  - `For N = To 29` (no start value) counts from 0, as RC.EXE builds it (`rapidq_for_no_start`).
+  - A `CASE` left after its `END SELECT` in a TYPE's method compiles and does nothing, as RC.EXE
+    builds it (`VideoCapture/WebCam_Class.bas`).
+  - **A Close (or a ModalResult) in a form's OnShow under ShowModal is lost**, as VCL's ShowModal
+    sets ModalResult to 0 once the form has shown: the form stays, with no OnClose until it's closed
+    later. RapidQ's OpenGL demo closes its form in OnShow when a texture is missing, and RC.EXE's
+    window stays; RapidR's closed at once (`rapidq_modal_close_onshow`, RC.EXE's output).
+  - A second ELSE in one block IF compiles, and what follows it never runs, as RC.EXE builds it
+    (`forms/Window Sizer.BAS`; `rapidq_two_else`).
+  - QSOCKET's `GetHostIP` / `GetHostName` without parentheses call the method
+    (`Showmessage Sock.GetHostIP` showed an empty box; `rapidq_socket_host`).
+  - **`DIR$(path + "*.", faDirectory)` lists the folders**: a pattern ending in a dot names no
+    extension, as Windows' FindFirstFile reads it (it was a literal dot: nothing matched); QFILELISTBOX's
+    Mask reads it alike. On Windows, DIR$, QFILELISTBOX and QDIRTREE leave out hidden and system files
+    and folders unless asked for (faHidden / faSysFile, ftHidden / ftSystem): `pagefile.sys` and
+    `Documents and Settings` showed (RapidQ's QFolderTree).
+  - A QDIRTREE's closed folder shows its `+` only when it has folders in it, as RC.EXE's.
+- 358 of RapidQ's 428 examples compile now (from 336 at the start of this work).
+- `tools/windows/corpus_win.py` runs RapidQ's examples on Windows three ways (RC.EXE, RapidR
+  interpreted and native) and captures their windows; `tools/windows/corpus_win_report.py` writes
+  the table of [docs/rapidq-corpus-status.md](docs/rapidq-corpus-status.md).
 ### Rich text in RRichEdit (RICHEDIT)
 - **RRichEdit (RapidQ's QRICHEDIT) is a rich text editor now, on every runtime.** Its text keeps
   a format per character — font, size, colour, bold, italic, underline, strike-out — and per

@@ -1025,7 +1025,9 @@ fn preprocess_with_state(
             state.create_depth += 1;
         }
         state.create_depth = state.create_depth.saturating_sub(upper_line.matches("END CREATE").count());
-        if !state.defines.is_empty() && !upper_line.contains('$') {
+        // (not in a directive's line; a line with `STR$(…)` gets them too —
+        // `If gFile < Z_OK Then … str$(gFile)` in RapidQ's zlib examples)
+        if !state.defines.is_empty() && !upper_line.trim_start().starts_with('$') {
             substitute_defines_outside_strings(&mut processed_line, &state.defines, state.object_fields.as_ref(), in_create);
         }
 
@@ -1395,8 +1397,11 @@ fn parse_resource(line: &str) -> Option<(String, String)> {
     if name.is_empty() || !after.get(..2).is_some_and(|a| a.eq_ignore_ascii_case("AS")) {
         return None;
     }
-    let quoted = after[2..].trim_start().strip_prefix('"')?;
-    let file = &quoted[..quoted.find('"')?];
+    // (`AS <PLAY.BMP>`, as $INCLUDE takes <…>: RC.EXE builds AVI/aviplay.bas)
+    let target = after[2..].trim_start();
+    let (open, close) = if target.starts_with('<') { ('<', '>') } else { ('"', '"') };
+    let quoted = target.strip_prefix(open)?;
+    let file = &quoted[..quoted.find(close)?];
     Some((name, file.to_string()))
 }
 
@@ -1408,8 +1413,11 @@ fn parse_include_target(line: &str) -> Option<String> {
         '>'
     };
     let tail = &line[start + 1..];
-    let end = tail.find(end_char)?;
-    Some(tail[..end].to_string())
+    // (`$INCLUDE "mysql.inc` with no closing quote: the rest of the line —
+    // RC.EXE builds RapidQ's mysql/SQLServerTutorial/Taxes.bas)
+    let end = tail.find(end_char).unwrap_or(tail.trim_end().len());
+    let name = tail[..end].trim_end();
+    (!name.is_empty()).then(|| name.to_string())
 }
 
 /// The folders an `$INCLUDE` is looked for in, in order ([`include_search`]).
@@ -1830,6 +1838,13 @@ mod tests {
         // Several on a line.
         let result = preprocess_source("$resource T0 as \"a:b.bmp\" : $resource T1 as \"c.bmp\" ' tiles", ".", None, PreprocessOptions::default()).unwrap();
         assert_eq!(result.source, "CONST T0 = 65536 : CONST T1 = 65537");
+        // ($INCLUDE "x.inc with no closing quote: the rest of the line, RC.EXE)
+        assert_eq!(super::parse_include_target("$INCLUDE \"mysql.inc  "), Some("mysql.inc".to_string()));
+        assert_eq!(super::parse_include_target("$INCLUDE \"a.inc\" ' x"), Some("a.inc".to_string()));
+        // `AS <PLAY.BMP>`, as $INCLUDE's <…> (RC.EXE builds RapidQ's AVI/aviplay.bas)
+        let result = preprocess_source("$RESOURCE PLAYBMP AS <PLAY.BMP>\n$RESOURCE STOPBMP AS \"STOP.BMP\"", ".", None, PreprocessOptions::default()).unwrap();
+        let names: Vec<_> = result.resources.iter().map(|r| (r.name.as_str(), r.file.as_str())).collect();
+        assert_eq!(names, [("PLAYBMP", "PLAY.BMP"), ("STOPBMP", "STOP.BMP")]);
     }
 
     #[test]
