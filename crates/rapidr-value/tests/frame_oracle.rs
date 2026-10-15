@@ -581,7 +581,7 @@ fn csv_quirks_agree() {
     // (written with a delimiter that numbers and true / false contain:
     // those cells must be quoted)
     let typed = "i,f,b,s\n12,-2.5,true,x\n-7,1E20,false,1.5\n,0.0001,,\n";
-    for d in [b'1', b'2', b'5', b'-', b'.', b'E', b'e', b't', b'r', b'u', b'f', b'a', b'l', b's', b' ', b'x', b'|'] {
+    for d in *b"125-.Eetrufals x|" {
         let (a, b) = (new::parse_csv(typed), old::parse_csv(typed));
         assert_eq!(new::to_csv_opts(&a, d, true), old::to_csv_opts(&b, d, true), "{}", d as char);
         assert_eq!(new::to_csv_opts(&a, d, false), old::to_csv_opts(&b, d, false), "{}", d as char);
