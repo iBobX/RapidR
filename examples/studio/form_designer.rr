@@ -6,6 +6,8 @@
 ' component are its Anchors: click one to anchor that side. Drag the
 ' form's bottom-right corner: the resize preview puts every component where
 ' the running program would (the runtimes' own layout code), and lets go.
+'
+'   rapidr run studio/form_designer.rr
 DECLARE SUB Selected(Index AS INTEGER)
 DECLARE SUB Moved(Index AS INTEGER, X AS INTEGER, Y AS INTEGER, W AS INTEGER, H AS INTEGER)
 DECLARE SUB UndoClick

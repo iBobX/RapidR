@@ -29,17 +29,19 @@ converted copy, proved to compile exactly as the original, with a report.
   comma, integer stores, rounding, the bit operators, division by zero,
   string functions' edge cases, component colours and more
   ([docs/rapidq-ground-truth.md](../rapidq-ground-truth.md)).
-- **The conformance suite** (over 150 programs, many with RapidQ's own
+- **The conformance suite** (over 250 programs, many with RapidQ's own
   output as the expected result) runs on all three runtimes: native,
   interpreted and in the browser.
-- **RapidQ's example corpus**: of RapidQ's 386 example programs, the 123
-  that use only the API RapidQ's Windows and Linux versions shared all
-  compile, and run alike natively and interpreted. Most of the rest call
-  Windows DLLs directly (below). On Windows every one of RapidQ's 428
-  example programs is run side by side with RC.EXE's build of it —
-  interpreted and as a native build, their windows compared — and where
-  each one stands is listed program by program in
-  [rapidq-corpus-status.md](../rapidq-corpus-status.md).
+- **RapidQ's example corpus** (the 428 programs RapidQ ships): RapidR
+  compiles 358 of them; most of the rest call Windows DLLs directly or use
+  OLE (below). On Windows every one is run side by side with RC.EXE's build
+  of it — interpreted and as a native build, their windows compared — and
+  where each one stands is listed program by program in
+  [rapidq-corpus-status.md](../rapidq-corpus-status.md). The programs that
+  use only the API RapidQ's Windows and Linux versions shared run on macOS,
+  Linux and the web too: 114 of them ran with no problem on each of macOS
+  (interpreted and native) and Linux, and the web matches the desktop
+  ([rapidq-corpus-status-unix.md](../rapidq-corpus-status-unix.md)).
 - **The GUI** is checked by driving every test program's windows and
   comparing their pixels and accessibility trees: native against
   interpreted, the desktop against the browser, at 1× and 2× scale.
@@ -96,8 +98,10 @@ something defined instead, and says so:
   which a background `bc` fills first (as the Windows call under it does).
   RapidQ's own TextRect stops the program on every object tried (an access
   violation on a QBITMAP, a list-index error on a QCANVAS).
-- Windows on every system are drawn by RapidR in Windows' classic look,
-  with real system menus, dialogs and clipboard where users expect them.
+- Windows on every system are drawn by RapidR itself, in RapidR's own look
+  by default (RapidQ's exact Windows look with `$THEME Classic`; sizes and
+  places are RapidQ's in both), with real system menus, dialogs and
+  clipboard where users expect them.
 - Documents printed with `Printer` / `LPRINT` are PDFs sent to the system's
   printer (see [Components](components.md#the-global-objects)).
 - **The font dialog names a system colour.** A font that never set a colour
@@ -128,9 +132,14 @@ with RapidQ's compiler.
 **Components and members**
 
 - RapidR-only components: `RSQLITE`, `RJSON`, `RHTTP`, `RSERVERSOCKET`,
-  `RNUM`, `RDATAFRAME`, `RPLOT`, `RCODEEDITOR`, `RDESIGNSURFACE`, `RMEMO`,
-  `RUPDOWN`, `RDATETIMEPICKER`, `RTOOLBAR`, the web components
-  ([reference](reference/components.md)).
+  `RNUM`, `RDATAFRAME`, `RPLOT` and the linked data components `RCSV`,
+  `RDATASOURCE`, `RDBGRID` ([Data science](data-science.md)), `RAI`
+  ([The AI assistant and RAI](ai-assistant.md)), `RMARKDOWNVIEW`,
+  `RCODEEDITOR`, `RDESIGNSURFACE`, `RMEMO`, `RUPDOWN`, `RDATETIMEPICKER`,
+  `RTOOLBAR`, the web components ([reference](reference/components.md)).
+- On existing components: `DataSource` and `DataField` on `REdit` and
+  `RLabel`; `Paragraph` and `TextRTF` on `RRichEdit`
+  ([Rich text](rich-text.md)); `Form.OnDropFiles`.
 - On every component: `Anchors`, size constraints, `AccessibleName` /
   `AccessibleDescription`, `Scale` / `OnScaleChanged`; `Application.Theme`
   ([Components](components.md#rapidrs-additions-to-every-component)).
@@ -143,6 +152,9 @@ with RapidQ's compiler.
 
 - Three runtimes from one source: native executables, the interpreter and
   the browser.
+- RapidR Studio: a form designer, a code editor with IntelliSense, a
+  debugger, linked data live in the designer, an AI assistant (off until
+  you turn it on), on the desktop and in the browser.
 - High-DPI drawing, screen-reader accessibility and themes for every
   program, old ones included.
 - Programs are drawn in RapidR's own look by default (RapidR Studio's:
@@ -156,7 +168,9 @@ with RapidQ's compiler.
 
 ## Planned
 
-The roadmap ([ROADMAP.md](../../ROADMAP.md)) lists what comes next: the
-full IDE (RapidR Studio) on the desktop and the web, with IntelliSense, a
-debugger and AI assistance through an MCP server; an `RAI` component for
-AI in your own programs; mobile. None of these is in 2.117.0.
+The roadmap ([ROADMAP.md](../../ROADMAP.md)) lists what comes next, among it:
+the manual, Studio and the examples in Spanish, Portuguese and Chinese as well
+as English; `$THEME native` (the look of each system); RapidR running on an
+ESP32; local AI models and a drop-in chat component; more data sources (Excel,
+Parquet, PostgreSQL …); `$UNSAFEMEM` and calling native libraries on macOS and
+Linux as RapidQ calls DLLs; mobile. None of these is in 2.119.0.

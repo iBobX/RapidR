@@ -22,7 +22,10 @@ and RAPIDQ2.INC's `COMPORT` is `RComPort`.
   `DIM`, `CREATE`, `EXTENDS`, parameters (`Sender AS RButton`) and arrays
   accept either name.
 - **RapidR-only components** have only an R name: `RSQLite`, `RJson`,
-  `RHttp`, `RNum`, `RDataFrame`, `RPlot`, `RCodeEditor`, the web components
+  `RHttp`, `RNum`, `RDataFrame`, `RPlot`, the linked data components `RCSV`,
+  `RDataSource` and `RDBGrid` ([Data science](data-science.md)), `RAI`
+  ([The AI assistant and RAI](ai-assistant.md)), `RMarkdownView`
+  ([Markdown](markdown.md)), `RCodeEditor`, the web components
   (`RWebView`, `RDOM`, …) and others.
 - A program written with RapidQ's names, using only RapidQ's components and
   members, stays a plain RapidQ program, which RapidQ's own compiler still
@@ -37,7 +40,7 @@ and RAPIDQ2.INC's `COMPORT` is `RComPort`.
   `QPLOT` is accepted and means `RPlot`, though RapidQ has no QPLOT. Prefer
   the R name for RapidR's own components.
 
-More on how the two families coexist (and how the planned IDE writes them):
+More on how the two families coexist (and how RapidR Studio writes them):
 [docs/q-and-r-components.md](../q-and-r-components.md).
 
 ## Making components

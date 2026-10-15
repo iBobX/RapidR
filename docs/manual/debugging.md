@@ -302,7 +302,7 @@ tip's *watch* button and the Variables' *Add Watch* add one too. F2 on a
 watch changes its expression; Delete removes it. A watch that changed since
 the last stop is in blue.
 
-![The Watch pane: total + k = 2 and n * 100 = 100](images/debugging/watch.png)
+![The Watch pane: total + k = 0 (k has no value yet) and n * 100 = 100](images/debugging/watch.png)
 
 ### The Call Stack
 

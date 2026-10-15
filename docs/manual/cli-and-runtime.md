@@ -11,6 +11,8 @@ One command, `rapidr`, is the compiler, the build tool and the runtime.
 | `rapidr open <file> [args]` | Run it as a double click does: a downloaded file asks first, a console program gets a terminal |
 | `rapidr info <file>` | The program's kind, bytecode format and the oldest runtime it needs |
 | `rapidr ide [file]` | The IDE (SDK) |
+| `rapidr examples [copy <name\|all> [folder]]` | The example programs: listed, or copied (with their data files) into a folder to play with |
+| `rapidr serve <file> [--open]` | A program's web build, served on this computer only (127.0.0.1); `--open` opens it in the browser |
 | `rapidr build <file> [outdir] [flags]` | Build an executable or a web build (below) |
 | `rapidr <file.rr\|.bas> [flags]` | Shortcut for `build`, optimized by default |
 | `rapidr build <app.rrproj>` | Build a project's main file with its app settings |
@@ -21,6 +23,9 @@ One command, `rapidr`, is the compiler, the build tool and the runtime.
 | `rapidr upgrade-names <file> [--dry-run]` | The same conversion in place, for RapidR's own files; `--dry-run` prints a diff and changes nothing |
 | `rapidr setup [--check] [--yes] [--no-path]` | Install the Rust native builds use; put `rapidr` on PATH. `rapidr setup --rust` only answers whether native builds can run (exit code 0 yes, 1 no); a native `rapidr build` without Rust stops and says to use `--interp` or run `rapidr setup` |
 | `rapidr notices [<os>-<arch>\|web\|tools-<os>] [-o file]` | Print the third-party notices a kind of build carries |
+| `rapidr ai providers`, `rapidr ai models --provider P`, `rapidr ai ask --provider P [--model M] "question"` | RapidR's AI providers from a terminal: which there are, a provider's own models, a question and its streamed answer; the key comes from the provider's environment variable or the keychain ([The AI assistant and RAI](ai-assistant.md)) |
+| `rapidr lsp`, `rapidr dap` | The language server and the debug adapter (standard protocols over stdin and stdout), for other editors such as VS Code |
+| `rapidr lang export --json\|--prompt\|--manual\|--all` | What the language registry generates: the data for IntelliSense, an AI prompt, and [the reference tables](reference/components.md) of this manual |
 | `rapidr about`, `rapidr version` | |
 | `rapidr --log <file> <command…>` | A command's output (and cargo's) in a file |
 | `rapidr preprocess`, `lex`, `parse`, `codegen <file> [outdir]` | The compiler's stages, for curiosity and bug reports |
@@ -51,6 +56,7 @@ rapidr build prog.bas --web --interp       # web bundle: prog-web.zip
 | `[output folder]`, `--output <folder>`, `-o <folder>` | where the app goes: else the project's output folder (`build`), else the source's folder |
 | `--keep-rust` / `--no-keep-rust` | a native build also leaves the Rust it generated in `<output>/prog-rust-source/` (with a README) / deletes it (the default; a project's `keep_rust` says otherwise) |
 | `--web`, `-w` | for the browser (also when the program says `$APPTYPE WEB`) |
+| `--csp "connect-src https://api.example.com; …"` | (web builds, and `bundle-bc`) sources the page's Content-Security-Policy adds to what the program's components need ([Building apps](building-apps.md#build-a-web-app)) |
 | `--icon`, `--name`, `--bundle-id`, `--app-version`, `--company`, `--project`, `--bundle` / `--no-bundle`, `-g<icon>` | the app it becomes and its icon: [Building apps and their icons](building-apps.md) |
 | `--target <os>-<arch>` | an interpreted build for another architecture, from the runners the SDK ships: on Windows `windows-x86_64` and `windows-aarch64`; on macOS `macos` (universal, the default), `macos-arm64`, `macos-x86_64`; on Linux the machine's own (`linux-x86_64` or `linux-aarch64`). A source checkout builds the runner it needs with cargo |
 
@@ -113,8 +119,8 @@ directly. It is the same interpreter inside `--interp` executables.
   ```
   apptype: console
   format: 3
-  needs-runtime: 2.117.0
-  runtime: 2.117.0
+  needs-runtime: 2.119.0
+  runtime: 2.119.0
   runs: yes
   downloaded: no
   ```

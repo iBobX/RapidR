@@ -42,10 +42,45 @@ ground up in pure Rust — compatible with RapidQ, not a copy of it.
   `THIRD-PARTY-NOTICES.txt` its components ask for. Nothing copyleft and no
   encryption code is compiled into your program.
 
+## Why RapidR
+
+Measured, not promised — each number has its conditions on
+**[the Why RapidR page](docs/manual/why-rapidr.md)**, and the scripts that made
+them are in [`tools/bench/`](tools/bench/README.md):
+
+- **Data at speed.** RapidR's own multicore data engine loads, filters, sorts
+  and groups a table of **1,000,000 rows in 23 ms** on an Apple silicon Mac
+  (M4 Max), where pandas 3.0.1 takes 372 ms on the same table; 10,000,000 rows
+  take 0.27 s. A browser gives a page one core, and in Chrome a million rows
+  still load in about 0.15 s and sort in 60 ms.
+- **A lean VM.** A 10-million-iteration loop runs in about 0.6 s; RapidR Studio
+  waiting for you uses a quarter of one percent of a core; a debugger step
+  takes about 14 ms on the desktop and 19 ms in the browser.
+- **One program, every system.** Windows, macOS, Linux and the web from one
+  source, and the desktop's and the browser's windows are checked pixel for
+  pixel against each other.
+- **Your RapidQ programs, unchanged** — measured against RapidQ's own compiler
+  on all 428 of its examples ([Windows](docs/rapidq-corpus-status.md),
+  [macOS, Linux and the web](docs/rapidq-corpus-status-unix.md)).
+- **Accessible and secure by default**, and **AI that never holds your keys**:
+  Studio's assistant stays off until you turn it on, proposes changes as diffs,
+  and an API key is never written into a project or a program.
+
+<table>
+<tr>
+<td width="50%"><a href="docs/manual/data-science-with-rapidr.md"><img src="docs/manual/images/data/linked-designer.png" alt="RapidR Studio's designer showing a form with a data grid already filled from staff.csv" /></a><br /><sub><b>Data, live in the designer</b>: a CSV in a grid before the program runs</sub></td>
+<td width="50%"><a href="docs/manual/debugging.md"><img src="docs/manual/images/debugging/datatip-tree.png" alt="The debugger's data tip: an array of orders opened down to a customer's address" /></a><br /><sub><b>The debugger</b>: any value opens like a tree</sub></td>
+</tr>
+<tr>
+<td width="50%"><a href="docs/manual/ai-assistant.md"><img src="docs/manual/images/ai/designer-rai.png" alt="An RAI component in the designer: the code names where its key is kept, never the key" /></a><br /><sub><b>AI in your programs</b>: the code says where the key is, never the key</sub></td>
+<td width="50%"><a href="docs/manual/data-science.md#tutorial-the-csv-explorer"><img src="docs/manual/images/data/csv-explorer.png" alt="The CSV Explorer example: a table, each column's statistics and a bar chart" /></a><br /><sub><b>The CSV Explorer</b>: drop a CSV, see a table, statistics and a chart</sub></td>
+</tr>
+</table>
+
 ## Install
 
 Download from **[the latest release](https://github.com/iBobX/RapidR/releases/latest)**.
-Each system has two packages:
+Each system has two packages (**most people want the SDK**):
 
 - **RapidR (the SDK)** — the IDE, the `rapidr` compiler and runtime, and
   everything needed to build. Install this to write programs.
@@ -54,10 +89,10 @@ Each system has two packages:
 
 | System | SDK | Runtime only |
 |---|---|---|
-| **Windows** 10 / 11, x64 or ARM64 | `RapidR-2.117.0-windows-x64-setup.exe` / `…-arm64-setup.exe` | `RapidR-Runtime-2.117.0-windows-<arch>-setup.exe` |
-| **macOS** 11 or newer, Apple silicon and Intel (one universal app) | `RapidR-2.117.0-macos-universal.dmg` | `RapidR-Runtime-2.117.0-macos-universal.dmg` |
-| **Linux** x86_64 or aarch64: Ubuntu 22.04, Debian 12 or newer | `rapidr_2.117.0_<amd64\|arm64>.deb` or `rapidr-2.117.0-linux-<arch>.tar.gz` | `rapidr-runtime_…` |
-| **Web** | `rapidr-web-2.117.0.zip`: the web IDE, for any static host | |
+| **Windows** 10 / 11, x64 or ARM64 | `RapidR-2.119.0-windows-x64-setup.exe` / `…-arm64-setup.exe` | `RapidR-Runtime-2.119.0-windows-<arch>-setup.exe` |
+| **macOS** 11 or newer, Apple silicon and Intel (one universal app) | `RapidR-2.119.0-macos-universal.dmg` | `RapidR-Runtime-2.119.0-macos-universal.dmg` |
+| **Linux** x86_64 or aarch64: Ubuntu 22.04, Debian 12 or newer | `rapidr_2.119.0_<amd64\|arm64>.deb` or `rapidr-2.119.0-linux-<arch>.tar.gz` | `rapidr-runtime_…` |
+| **Web** | `rapidr-web-2.119.0.zip`: the web IDE, for any static host | |
 
 - **Windows**: run the installer (per user, no administrator rights). It
   adds *RapidR Studio* to the Start menu and, if you keep the box ticked,
@@ -65,7 +100,7 @@ Each system has two packages:
 - **macOS**: drag *RapidR* (and/or *RapidR Runtime*) to Applications. Then
   `/Applications/RapidR Studio.app/Contents/MacOS/rapidr setup` offers to put
   `rapidr` on your PATH.
-- **Linux**: `sudo apt install ./rapidr_2.117.0_amd64.deb`, or unpack the
+- **Linux**: `sudo apt install ./rapidr_2.119.0_amd64.deb`, or unpack the
   `.tar.gz` and run `./install.sh` (into `~/.local`, no root). Linux needs
   OpenSSL 3 (HTTPS uses the system's), hence Ubuntu 22.04 / Debian 12 and
   newer.
@@ -101,9 +136,10 @@ PRINT "Hi from "; name
 ```
 
 ```sh
-rapidr run hello.bas                   # run it (the RapidR Runtime)
+rapidr run hello.bas                   # run it now (the RapidR Runtime)
+rapidr build-bc hello.bas              # hello.rrbc: runs with `rapidr hello.rrbc` or a double click
 rapidr build hello.bas --interp        # a standalone executable, no Rust needed
-rapidr build hello.bas                 # a native executable, optimized (Rust: rapidr setup)
+rapidr build hello.bas                 # a native executable, optimized (needs Rust once: rapidr setup)
 rapidr bundle-bc hello.bas -o hello-web.zip   # a web bundle for any static host
 ```
 
@@ -157,13 +193,32 @@ Next: **[the user manual](docs/manual/README.md)** and
 |---|---|
 | **The language** | a RapidQ-compatible BASIC: SUBs, FUNCTIONs, TYPEs with methods, constructors, events and inheritance, `CREATE` blocks, `WITH`, `GOSUB`, `DATA`, `$INCLUDE` / `$DEFINE` / `$MACRO` / `$RESOURCE`, function pointers, memory functions (memory-safe), console statements — plus VB's `#If`, `i++`, `+=` |
 | **Components** | Every RapidQ component and object except OLE, written with RapidR's names (`RForm`, `RButton` …); RapidQ's names (`QFORM`, `QBUTTON` …) are the same components, and a program can mix them ([reference](docs/manual/reference/components.md)) |
-| **UI** | RapidR's own UI kernel on winit, vello, parley and AccessKit: the same look everywhere, Windows' classic look or `$THEME Modern` / `Dark` / `HighContrast`, high-DPI, keyboard and screen readers (VoiceOver, Narrator, NVDA; ARIA on the web), `Anchors` and size constraints |
+| **RapidR Studio** | the IDE, on the desktop and in the browser: a form designer, a code editor with IntelliSense, a debugger whose values open like trees (Set Next Statement, Step Into Specific), linked data live in the designer, Markdown shown formatted, and an AI assistant that stays off until you turn it on |
+| **UI** | RapidR's own UI kernel on winit, vello, parley and AccessKit: the same look everywhere — RapidR's own look by default (light, dark or high contrast as the system is set), RapidQ's exact Windows look with `$THEME Classic` — high-DPI, keyboard and screen readers (VoiceOver, Narrator, NVDA; ARIA on the web), `Anchors` and size constraints |
 | **DirectX & media** | `RDXScreen`, `RDXImageList`, `RDXTimer`, `RDXSound`, `RDXJoystick` (gamepads), Direct3D retained mode (`.X` models, lights, textures, shadows) on the GPU through wgpu (Metal, Direct3D 12, Vulkan, WebGL 2); `RMIDI` with a built-in synthesizer, `RWave`, `RVideo` (AVI), MP3 / Ogg / FLAC / WAV |
 | **The web** | the UI kernel on a canvas; SQLite in WebAssembly; web-only components (`RWebView`, `RDOM`, `RJavaScript`, `RWebStorage`, …); a web IDE that compiles in the browser |
 | **Databases** | `RSQLite` (SQLite itself, everywhere) and `RMySQL`, with `?` parameter binding |
-| **Data science** | `RNum` (arrays), `RDataFrame` (tables), `RPlot` (charts as PNG or in an `RImage`), `RJson` — one implementation on every runtime |
+| **Data science** | `RNum` (arrays), `RDataFrame` (tables, on RapidR's own multicore engine), `RPlot` (charts), `RJson`, and linked components — `RCSV`, `RDataSource`, `RDBGrid`, `DataSource` / `DataField` on edits and labels — one implementation on every runtime ([Data science](docs/manual/data-science.md)) |
+| **AI** | `RAI`: Anthropic (Claude), OpenAI, DeepSeek or any OpenAI-compatible server (a model on your own computer too) in your programs and in Studio's assistant; keys kept in the system's keychain, never in a program ([The AI assistant and RAI](docs/manual/ai-assistant.md)) |
+| **Rich text and Markdown** | `RRichEdit` formats text per character and paragraph and reads and writes RTF; `RMarkdownView` shows Markdown ([Rich text](docs/manual/rich-text.md)) |
 | **The RapidR Runtime** | runs `.rrbc` programs and sources directly; file associations per user; bytecode that says which runtime it needs; `#!/usr/bin/env rapidr` scripts |
 | **Builds** | native (Rust; universal on macOS), standalone interpreted executables with no Rust needed (on Windows for x64 and ARM64 alike, on macOS universal), web bundles, `--web` native WebAssembly |
+
+## Coming next
+
+From [the roadmap](ROADMAP.md), in no order and with no dates:
+
+- **RapidR in four languages**: the manual, Studio, the messages and the
+  website in English, Spanish, Portuguese and Chinese.
+- **A native look** (`$THEME native`): programs that look like the system they
+  run on — Windows 11, macOS, Linux.
+- **RapidR on the ESP32**: BASIC running on the board itself, flashed from
+  Studio (today a program talks to a board over a serial port).
+- **More AI**: local AI models in Studio, and a drop-in chat component (RChat).
+- **More data connectors**: Excel, Parquet, PostgreSQL and more, as linked
+  components.
+- **`$UNSAFEMEM`** (raw memory for old RapidQ memory helpers) and **calls into
+  native libraries on macOS and Linux** the way RapidQ calls DLLs.
 
 ## Platforms checked
 
@@ -178,13 +233,14 @@ checked by inspection only (no Intel Mac in the loop yet).
 
 ## Documentation
 
-- **[User manual](docs/manual/README.md)**: getting started, the language,
-  components, the CLI and Runtime, the web, databases, data science,
-  DirectX and media, differences from RapidQ, troubleshooting.
-- **[Examples](examples/README.md)**.
+- **[User manual](docs/manual/README.md)**: [why RapidR](docs/manual/why-rapidr.md),
+  getting started, RapidR Studio (editor, designer, debugger, AI assistant),
+  the language, components, data science, rich text, building apps, importing
+  RapidQ programs, the web, the CLI and Runtime, differences from RapidQ,
+  troubleshooting.
+- **[Examples](examples/README.md)**, in the order to read them.
 - **[CHANGELOG.md](CHANGELOG.md)**: every version's changes;
-  **[ROADMAP.md](ROADMAP.md)**: what comes next (the full IDE with
-  IntelliSense, a debugger and AI assistance; an AI component; mobile).
+  **[ROADMAP.md](ROADMAP.md)**: what comes next.
 - **[COMPILER_MANUAL.md](COMPILER_MANUAL.md)**: for contributors — the
   architecture, building and testing.
 - **[LEGAL.md](LEGAL.md)**: what you may do with RapidR and your programs.

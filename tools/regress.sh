@@ -56,7 +56,9 @@ if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test r
   python3 design/icons/tools/build.py --check; python3 design/icons/tools/export.py --check
   # (the language registry's reverse check: every name the runtimes'
   # dispatch answers is in it; what it generates is current: cargo test)
-  python3 tools/lang_dispatch.py --check; echo "(unit done)"; fi
+  python3 tools/lang_dispatch.py --check
+  # (the manual's, the README's and the examples' links and heading anchors)
+  python3 tools/check_doc_links.py; echo "(unit done)"; fi
 if want conformance; then echo "== conformance"; node tests/conformance/run.mjs 2>&1 | tail -1
   echo "== the language registry against the desktop runtimes"; node tests/lang_conformance.mjs --backend vm,native 2>&1 | grep -E "^FAIL|passed"; fi
 # (every example in examples/ on every runtime it claims — rapidr run,

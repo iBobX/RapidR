@@ -182,6 +182,10 @@ runs it in a frame beside your code.
   the mouse; while you drag, guides show it lining up with the others.
 - Components that aren't seen when the program runs — timers, dialogs,
   RStringList … — go to the **tray** under the form.
+- The **Data** group (RCSV, RDataFrame, RDataSource, RDBGrid …) shows its data
+  live while you design ([Data science with RapidR](data-science-with-rapidr.md));
+  an **RAI** in the **AI** group keeps its key in your keychain and writes only
+  where it is into the code ([The AI assistant and RAI](ai-assistant.md#in-the-designer)).
 - **RForm** and **RFormMDI** are documents, not components: clicking them
   adds a form file (step 2); RFormMDI's is an MDI main window
   (`CREATE Form3 AS RFormMDI`). Dragging RForm onto a form doesn't put a
