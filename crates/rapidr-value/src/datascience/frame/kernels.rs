@@ -7,6 +7,7 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::hash::{BuildHasher, Hash, Hasher};
+use std::ops::Range;
 use std::sync::OnceLock;
 
 use super::column::{Builder, Column, Data, NONE};
@@ -170,7 +171,9 @@ pub(crate) fn groups(col: &Column, nulls: bool) -> Groups {
 // Sorting
 // ---------------------------------------------------------------------------
 
-/// `v` sorted by `cmp` — a total order — in parallel runs merged pairwise.
+/// `v` sorted by `cmp` — a total order — in parallel: runs sorted on their
+/// own, then merged pairwise, each merge cut into pieces for every worker
+/// (where the cuts fall in the two runs found by a binary search).
 pub(crate) fn par_sort_by<T: Copy + Send + Sync>(v: &mut [T], cmp: impl Fn(&T, &T) -> Ordering + Sync) {
     let n = v.len();
     let k = par::parts(n);
@@ -182,18 +185,28 @@ pub(crate) fn par_sort_by<T: Copy + Send + Sync>(v: &mut [T], cmp: impl Fn(&T, &
     par::fill(v, &runs, |r| r.len(), |_, part| part.sort_unstable_by(&cmp));
     let mut buf = v.to_vec();
     let mut in_v = true;
+    let workers = par::threads();
     while runs.len() > 1 {
-        let merged: Vec<std::ops::Range<usize>> = runs.chunks(2).map(|p| p[0].start..p[p.len() - 1].end).collect();
+        let merged: Vec<Range<usize>> = runs.chunks(2).map(|p| p[0].start..p[p.len() - 1].end).collect();
         {
             let (src, dst): (&[T], &mut [T]) = if in_v { (&*v, &mut buf[..]) } else { (&buf[..], &mut *v) };
-            let pairs: Vec<&[std::ops::Range<usize>]> = runs.chunks(2).collect();
-            par::fill(dst, &pairs, |p| p[p.len() - 1].end - p[0].start, |p, out| {
-                if p.len() == 1 {
-                    out.copy_from_slice(&src[p[0].clone()]);
-                } else {
-                    merge(&src[p[0].clone()], &src[p[1].clone()], out, &cmp);
+            // (each piece of the output: the parts of the two runs it takes)
+            let mut pieces: Vec<(Range<usize>, Range<usize>)> = Vec::new();
+            for p in runs.chunks(2) {
+                let (ra, rb) = (p[0].clone(), p.get(1).cloned().unwrap_or(p[0].end..p[0].end));
+                let (a, b) = (&src[ra.clone()], &src[rb.clone()]);
+                let total = a.len() + b.len();
+                let cuts = (workers * total / n).max(1);
+                let mut prev = (0, 0);
+                for c in 1..=cuts {
+                    let at = total * c / cuts;
+                    let i = if c == cuts { a.len() } else { co_rank(at, a, b, &cmp) };
+                    let j = at - i;
+                    pieces.push((ra.start + prev.0..ra.start + i, rb.start + prev.1..rb.start + j));
+                    prev = (i, j);
                 }
-            });
+            }
+            par::fill(dst, &pieces, |(a, b)| a.len() + b.len(), |(a, b), out| merge(&src[a.clone()], &src[b.clone()], out, &cmp));
         }
         in_v = !in_v;
         runs = merged;
@@ -201,6 +214,22 @@ pub(crate) fn par_sort_by<T: Copy + Send + Sync>(v: &mut [T], cmp: impl Fn(&T, &
     if !in_v {
         v.copy_from_slice(&buf);
     }
+}
+
+/// How many of `a`'s items come among the first `k` of `a` and `b` merged
+/// (both sorted by `cmp`, a total order).
+fn co_rank<T>(k: usize, a: &[T], b: &[T], cmp: &impl Fn(&T, &T) -> Ordering) -> usize {
+    let (mut lo, mut hi) = (k.saturating_sub(b.len()), k.min(a.len()));
+    while lo < hi {
+        let i = (lo + hi) / 2;
+        let j = k - i;
+        if j > 0 && i < a.len() && cmp(&b[j - 1], &a[i]) == Ordering::Greater {
+            lo = i + 1;
+        } else {
+            hi = i;
+        }
+    }
+    lo
 }
 
 fn merge<T: Copy>(a: &[T], b: &[T], out: &mut [T], cmp: &impl Fn(&T, &T) -> Ordering) {
@@ -866,5 +895,45 @@ pub(crate) fn value_counts(f: &Frame, c: usize) -> Frame {
 /// How many different values (not null) column `c` has.
 pub(crate) fn nunique(col: &Column) -> usize {
     groups(col, false).first.len()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parallel_sort_is_a_sort() {
+        let mut x: u64 = 0x2545_F491_4F6C_DD1D;
+        for n in [0, 1, 2, 999, 50_000, 131_071, 400_000] {
+            let mut v: Vec<u128> = (0..n)
+                .map(|i| {
+                    x ^= x << 13;
+                    x ^= x >> 7;
+                    x ^= x << 17;
+                    // (few distinct keys: ties broken by the row, as the kernels pack them)
+                    ((x % 97) as u128) << 64 | i as u128
+                })
+                .collect();
+            let mut want = v.clone();
+            want.sort_unstable();
+            par_sort_by(&mut v, |a, b| a.cmp(b));
+            assert_eq!(v, want, "{n}");
+        }
+    }
+
+    #[test]
+    fn co_rank_cuts_a_merge() {
+        let a: Vec<u32> = (0..50).map(|i| i * 3).collect();
+        let b: Vec<u32> = (0..40).map(|i| i * 5 + 1).collect();
+        let mut all: Vec<u32> = a.iter().chain(&b).copied().collect();
+        all.sort_unstable();
+        for k in 0..=a.len() + b.len() {
+            let i = co_rank(k, &a, &b, &|x: &u32, y: &u32| x.cmp(y));
+            let j = k - i;
+            let mut first: Vec<u32> = a[..i].iter().chain(&b[..j]).copied().collect();
+            first.sort_unstable();
+            assert_eq!(first, all[..k], "{k}");
+        }
+    }
 }
 

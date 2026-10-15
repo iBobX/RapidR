@@ -5,7 +5,7 @@
 
 use std::sync::Mutex;
 
-use super::column::{type_cells, Bitmap, Column, Data, Texts, Typed};
+use super::column::{concat_values, type_cells, whole_strings, Bitmap, Column, Data, Texts, Typed};
 use super::{par, Frame};
 
 /// Cells that are null when read: an empty field, and the usual words for
@@ -331,11 +331,16 @@ pub fn parse_csv_opts(text: &str, delim: u8, has_header: bool) -> Frame {
             parts.push(cols.next());
         }
     }
-    let jobs: Vec<Mutex<Vec<Option<Part>>>> = by_col.into_iter().map(Mutex::new).collect();
-    f.cols = par::tasks(width, |c| {
-        let parts = std::mem::take(&mut *jobs[c].lock().unwrap_or_else(|e| e.into_inner()));
-        join_parts(parts, &rows, height)
-    });
+    if par::parts(height) > 1 {
+        // (big columns: one after another, each copied by every worker)
+        f.cols = by_col.into_iter().map(|parts| join_parts(parts, &rows, height)).collect();
+    } else {
+        let jobs: Vec<Mutex<Vec<Option<Part>>>> = by_col.into_iter().map(Mutex::new).collect();
+        f.cols = par::tasks(width, |c| {
+            let parts = std::mem::take(&mut *jobs[c].lock().unwrap_or_else(|e| e.into_inner()));
+            join_parts(parts, &rows, height)
+        });
+    }
     f.height = height;
     f
 }
@@ -369,14 +374,16 @@ fn join_parts(parts: Vec<Option<Part>>, rows: &[usize], height: usize) -> Column
         return Column::nulls(height);
     }
     let data = if text {
-        let mut t = Texts::with_capacity(height, 0);
-        let mut s = String::new();
-        for (p, &n) in parts.iter().zip(rows) {
-            match p {
-                Some(Part { texts: Some(x), .. }) => t.extend(x),
+        // (a typed part: its cells' text again, exactly; a missing one: nulls)
+        let again: Vec<Option<Texts>> = parts
+            .iter()
+            .zip(rows)
+            .map(|(p, &n)| match p {
+                Some(Part { texts: Some(_), .. }) => None,
                 Some(p) => {
-                    // (a typed part: its cells' text again, exactly)
                     let col = part_column(p);
+                    let mut t = Texts::with_capacity(n, n * 8);
+                    let mut s = String::new();
                     for i in 0..n {
                         s.clear();
                         if col.write(i, &mut s) {
@@ -385,30 +392,36 @@ fn join_parts(parts: Vec<Option<Part>>, rows: &[usize], height: usize) -> Column
                             t.push_empty();
                         }
                     }
+                    Some(t)
                 }
-                None => (0..n).for_each(|_| t.push_empty()),
-            }
-        }
-        Data::Text(t.into())
+                None => Some(Texts::empties(n)),
+            })
+            .collect();
+        let all: Vec<&Texts> = parts.iter().zip(&again).filter_map(|(p, t)| t.as_ref().or_else(|| p.as_ref().and_then(|p| p.texts.as_ref()))).collect();
+        Data::Text(Texts::concat(&all).into())
     } else if floats {
-        let mut v = Vec::with_capacity(height);
-        for (p, &n) in parts.iter().zip(rows) {
-            match p.as_ref().map(|p| &p.typed) {
-                Some(Typed::Float(x)) => v.extend_from_slice(x),
-                Some(Typed::Int(x, _)) => v.extend(x.iter().map(|&x| x as f64)),
-                _ => v.resize(v.len() + n, 0.0),
-            }
-        }
-        Data::Float(v.into())
+        let wider: Vec<Option<Vec<f64>>> = parts.iter().map(|p| if let Some(Typed::Int(x, _)) = p.as_ref().map(|p| &p.typed) { Some(x.iter().map(|&x| x as f64).collect()) } else { None }).collect();
+        let slices: Vec<(Option<&[f64]>, usize)> = parts
+            .iter()
+            .zip(&wider)
+            .zip(rows)
+            .map(|((p, w), &n)| match (p.as_ref().map(|p| &p.typed), w) {
+                (_, Some(w)) => (Some(&w[..]), n),
+                (Some(Typed::Float(x)), _) => (Some(&x[..]), n),
+                _ => (None, n),
+            })
+            .collect();
+        Data::Float(concat_values(&slices, 0.0).into())
     } else if ints {
-        let mut v = Vec::with_capacity(height);
-        for (p, &n) in parts.iter().zip(rows) {
-            match p.as_ref().map(|p| &p.typed) {
-                Some(Typed::Int(x, _)) => v.extend_from_slice(x),
-                _ => v.resize(v.len() + n, 0),
-            }
-        }
-        Data::Int(v.into())
+        let slices: Vec<(Option<&[i64]>, usize)> = parts
+            .iter()
+            .zip(rows)
+            .map(|(p, &n)| match p.as_ref().map(|p| &p.typed) {
+                Some(Typed::Int(x, _)) => (Some(&x[..]), n),
+                _ => (None, n),
+            })
+            .collect();
+        Data::Int(concat_values(&slices, 0).into())
     } else {
         let mut b = Bitmap::with_capacity(height);
         for (p, &n) in parts.iter().zip(rows) {
@@ -510,9 +523,15 @@ pub fn to_csv_opts(f: &Frame, delim: u8, header: bool) -> String {
         }
         s
     });
-    out.reserve(chunks.iter().map(String::len).sum());
-    for c in &chunks {
-        out.push_str(c);
+    if chunks.len() == 1 {
+        let mut chunks = chunks;
+        out.push_str(&chunks.pop().unwrap_or_default());
+        return out;
     }
-    out
+    // (the chunks copied side by side into one text)
+    let mut bytes = vec![0u8; out.len() + chunks.iter().map(String::len).sum::<usize>()];
+    let (head, rest) = bytes.split_at_mut(out.len());
+    head.copy_from_slice(out.as_bytes());
+    par::fill(rest, &chunks, String::len, |c, dst| dst.copy_from_slice(c.as_bytes()));
+    whole_strings(bytes)
 }

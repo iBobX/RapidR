@@ -297,10 +297,78 @@ impl Texts {
             }
         });
         drop(jobs);
-        // (whole cells of valid text, end to end: valid text)
-        let bytes = String::from_utf8(bytes).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned());
-        Texts { bytes, offs }
+        Texts { bytes: whole_strings(bytes), offs }
     }
+
+    /// `parts` end to end, copied in parallel when they're big.
+    pub(crate) fn concat(parts: &[&Texts]) -> Texts {
+        let rows: usize = parts.iter().map(|t| t.len()).sum();
+        let size: usize = parts.iter().map(|t| t.bytes.len()).sum();
+        if par::parts(rows) <= 1 || parts.len() <= 1 {
+            let mut out = Texts::with_capacity(rows, size);
+            for t in parts {
+                out.extend(t);
+            }
+            return out;
+        }
+        let mut bytes = vec![0u8; size];
+        let mut offs = vec![0usize; rows + 1];
+        let mut jobs = Vec::with_capacity(parts.len());
+        let (mut brest, mut orest) = (&mut bytes[..], &mut offs[1..]);
+        let mut base = 0;
+        for t in parts {
+            let (b, bt) = brest.split_at_mut(t.bytes.len());
+            let (o, ot) = orest.split_at_mut(t.len());
+            jobs.push(std::sync::Mutex::new((*t, base, b, o)));
+            (brest, orest) = (bt, ot);
+            base += t.bytes.len();
+        }
+        par::tasks(jobs.len(), |j| {
+            let mut g = jobs[j].lock().unwrap_or_else(|e| e.into_inner());
+            let (t, base, b, o) = &mut *g;
+            b.copy_from_slice(t.bytes.as_bytes());
+            for (dst, src) in o.iter_mut().zip(&t.offs[1..]) {
+                *dst = src + *base;
+            }
+        });
+        drop(jobs);
+        Texts { bytes: whole_strings(bytes), offs }
+    }
+}
+
+/// Bytes that are whole strings end to end (whole cells, whole chunks of
+/// text — each valid UTF-8 copied from a `str`), as a `String` without
+/// reading them through again.
+pub(crate) fn whole_strings(bytes: Vec<u8>) -> String {
+    debug_assert!(std::str::from_utf8(&bytes).is_ok());
+    // SAFETY: every caller builds `bytes` only by copying complete `&str`s
+    // (cells cut at their offsets, which are always char boundaries, or
+    // whole `String`s) one after another; UTF-8 strings put end to end are
+    // UTF-8.
+    unsafe { String::from_utf8_unchecked(bytes) }
+}
+
+/// `parts` end to end (`n` of `fill` for a part that's None), copied in
+/// parallel when they're big.
+pub(crate) fn concat_values<T: Copy + Send + Sync>(parts: &[(Option<&[T]>, usize)], fill: T) -> Vec<T> {
+    let total: usize = parts.iter().map(|p| p.1).sum();
+    let mut out = vec![fill; total];
+    if par::parts(total) <= 1 {
+        let mut at = 0;
+        for &(p, n) in parts {
+            if let Some(p) = p {
+                out[at..at + n].copy_from_slice(p);
+            }
+            at += n;
+        }
+        return out;
+    }
+    par::fill(&mut out, parts, |p| p.1, |p, dst| {
+        if let Some(src) = p.0 {
+            dst.copy_from_slice(src);
+        }
+    });
+    out
 }
 
 // ---------------------------------------------------------------------------

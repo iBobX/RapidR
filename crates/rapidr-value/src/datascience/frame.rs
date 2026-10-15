@@ -439,14 +439,23 @@ pub(crate) fn read_text(path: &str) -> Result<String, String> {
 /// What `LoadFromCSV` / `LoadFromJSON` read: the file `source` names, or
 /// `source` itself when it is the data (it has a line break, or isn't a
 /// file and looks like data).
-fn load_source(source: &str, looks_like_data: impl Fn(&str) -> bool) -> Result<String, String> {
+fn load_source<'a>(source: &'a str, looks_like_data: impl Fn(&str) -> bool) -> Result<Cow<'a, str>, String> {
     if source.contains('\n') {
-        return Ok(source.to_string());
+        return Ok(Cow::Borrowed(source));
     }
     match read_text(source) {
-        Ok(text) => Ok(text),
-        Err(_) if looks_like_data(source) => Ok(source.to_string()),
+        Ok(text) => Ok(Cow::Owned(text)),
+        Err(_) if looks_like_data(source) => Ok(Cow::Borrowed(source)),
         Err(e) => Err(e),
+    }
+}
+
+/// Argument `i` as text, borrowed when it is text (a big CSV passed as a
+/// string isn't copied).
+fn arg_text(args: &[Value], i: usize) -> Cow<'_, str> {
+    match args.get(i) {
+        Some(Value::String(s)) => Cow::Borrowed(s.as_str()),
+        _ => Cow::Owned(arg_s(args, i)),
     }
 }
 
@@ -598,7 +607,7 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
 
         // --- I/O ---
         "loadfromcsv" | "readcsv" | "read_csv" => {
-            let source = arg_s(args, 0);
+            let source = arg_text(args, 0);
             match load_source(&source, |s| s.contains(',')) {
                 Ok(text) => set_frame(name, parse_csv(&text)),
                 Err(e) => warn(&e),
@@ -613,7 +622,7 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
             v_null()
         }
         "loadfromjson" | "read_json" => {
-            let source = arg_s(args, 0);
+            let source = arg_text(args, 0);
             match load_source(&source, |s| s.trim_start().starts_with(['[', '{'])).map(|t| parse_json_frame(&t)) {
                 Ok(Some(f)) => set_frame(name, f),
                 Ok(None) => warn("not JSON records"),

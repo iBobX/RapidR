@@ -5,8 +5,11 @@
 //! load → filter → sort → group-by on one frame; each time the median of
 //! `--runs` runs, beside its phase-1 budget.
 //!
-//!   cargo run --release -p rapidr-value --example frame_bench [rows] [--runs N]
+//!   cargo run --release -p rapidr-value --example frame_bench [rows] [--runs N] [--threads N]
 //!   cargo run --release -p rapidr-value --example frame_bench 1000000 --write-csv tests/results/bench
+//!
+//! `--threads 1` runs every kernel on one thread, as the web does (no
+//! threads in a page yet).
 //!
 //! Budgets are for 1,000,000 rows on the reference Mac (M4 Max) and scale
 //! with the rows; the pipeline must take under 1 s for a million rows (5 s
@@ -72,14 +75,18 @@ fn main() {
     let mut rows = 1_000_000usize;
     let mut runs = 3usize;
     let mut write_dir = None::<String>;
+    let mut threads = std::thread::available_parallelism().map_or(1, |n| n.get()).min(16);
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
         match a.as_str() {
             "--runs" => runs = args.next().and_then(|n| n.parse().ok()).unwrap_or(3).max(1),
+            "--threads" => threads = args.next().and_then(|n| n.parse().ok()).unwrap_or(threads).max(1),
             "--write-csv" => write_dir = args.next(),
             n => rows = n.replace('_', "").parse().unwrap_or(rows),
         }
     }
+    // (the engine's own sizes worth splitting; at most `threads` workers)
+    frame::set_thresholds(50_000, 4096, 2 << 20, threads);
     let text = csv(rows);
     if let Some(dir) = write_dir {
         std::fs::create_dir_all(&dir).expect("can't make the directory");
@@ -90,12 +97,14 @@ fn main() {
         return;
     }
     let h = Quiet;
-    let threads = std::thread::available_parallelism().map_or(1, |n| n.get());
-    println!("RDATAFRAME, {rows} rows ({:.1} MB of CSV), {threads} cores, median of {runs} runs", text.len() as f64 / 1e6);
+    let cores = std::thread::available_parallelism().map_or(1, |n| n.get());
+    println!("RDATAFRAME, {rows} rows ({:.1} MB of CSV), {threads} of {cores} cores, median of {runs} runs", text.len() as f64 / 1e6);
     let scale = rows as f64 / 1e6;
     let mut digest = 0xcbf2_9ce4_8422_2325u64;
     let mut missed = Vec::new();
+    let mut machine = Vec::new();
     let mut report = |what: &str, ms: f64, budget: f64| {
+        machine.push(format!("#{} {ms:.1}", what.split_whitespace().next().unwrap_or(what).trim_end_matches(':')));
         let budget = budget * scale;
         let verdict = if ms <= budget {
             "ok"
@@ -110,10 +119,11 @@ fn main() {
 
     // load (CSV text in memory → a frame)
     let mut times = Vec::new();
+    let text_arg = [v_str(&text)];
     for _ in 0..runs {
         frame::remove_frame("base");
         let t = Instant::now();
-        frame::dataframe_method("base", "loadfromcsv", &[v_str(&text)], &h);
+        frame::dataframe_method("base", "loadfromcsv", &text_arg, &h);
         times.push(t.elapsed().as_secs_f64() * 1e3);
     }
     report("load (CSV text)", median(times), 120.0);
@@ -125,7 +135,7 @@ fn main() {
         ("filter salary > 75000", "filter", vec![v_str("salary"), v_str(">"), v_int(75_000)], 25.0),
         ("sort by salary, highest first", "sort", vec![v_str("salary"), v_int(0)], 120.0),
         ("group-by dept, mean", "groupby", vec![v_str("dept"), v_str("mean")], 60.0),
-        ("left join on dept", "merge", vec![v_str("depts"), v_str("dept"), v_str("left")], 60.0),
+        ("join dept (left)", "merge", vec![v_str("depts"), v_str("dept"), v_str("left")], 60.0),
         ("describe", "describe", vec![], 60.0),
     ];
     for (what, method, args, budget) in ops {
@@ -162,7 +172,7 @@ fn main() {
     for _ in 0..runs {
         frame::remove_frame("p");
         let t = Instant::now();
-        frame::dataframe_method("p", "loadfromcsv", &[v_str(&text)], &h);
+        frame::dataframe_method("p", "loadfromcsv", &text_arg, &h);
         frame::dataframe_method("p", "filter", &[v_str("salary"), v_str(">"), v_int(75_000)], &h);
         frame::dataframe_method("p", "sort", &[v_str("salary"), v_int(0)], &h);
         frame::dataframe_method("p", "groupby", &[v_str("dept"), v_str("mean")], &h);
@@ -170,6 +180,7 @@ fn main() {
     }
     let pipeline = median(times);
     let limit = if rows <= 1_000_000 { 1000.0 } else { 500.0 * scale };
+    machine.push(format!("#pipeline {pipeline:.1}"));
     let verdict = if pipeline <= 300.0 * scale.max(1.0) {
         "ok (under the 300 ms-a-million target)"
     } else if pipeline <= limit {
@@ -182,6 +193,9 @@ fn main() {
     fnv(&mut digest, &frame::frame("p").to_text());
     println!("{}", frame::frame("p").to_text());
     println!("digest {digest:016x}");
+    for m in &machine {
+        println!("{m}");
+    }
     if !missed.is_empty() {
         println!("missed: {}", missed.join(", "));
         std::process::exit(1);
