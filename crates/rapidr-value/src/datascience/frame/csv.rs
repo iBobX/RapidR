@@ -501,6 +501,10 @@ pub fn to_csv_opts(f: &Frame, delim: u8, header: bool) -> String {
         out.push('\n');
     }
     let parts = par::ranges(f.height, par::parts(f.height), 1);
+    // (a typed cell's text — digits, `-`, `.`, `E`, true, false — is never
+    // empty, never has spaces, quotes or line breaks: it needs quotes only
+    // when the delimiter is one of its letters)
+    let plain = !"0123456789-.Etruefals".contains(d);
     let chunks = par::map(&parts, |r| {
         let mut s = String::with_capacity(r.len() * (f.width() * 8 + 1));
         let mut cell = String::new();
@@ -511,6 +515,9 @@ pub fn to_csv_opts(f: &Frame, delim: u8, header: bool) -> String {
                 }
                 match &c.data {
                     Data::Text(t) if c.is_valid(row) => push_field(&mut s, t.get(row), d),
+                    Data::Int(_) | Data::Float(_) | Data::Bool(_) if plain => {
+                        c.write(row, &mut s);
+                    }
                     _ => {
                         cell.clear();
                         if c.write(row, &mut cell) {

@@ -377,7 +377,7 @@ pub(crate) fn concat_values<T: Copy + Send + Sync>(parts: &[(Option<&[T]>, usize
 
 /// `v` as `i64::to_string` writes it.
 pub(crate) fn push_int(out: &mut String, v: i64) {
-    let mut buf = [0u8; 20];
+    let mut buf = [0u8; 21];
     let mut i = buf.len();
     let mut n = v.unsigned_abs();
     loop {
@@ -389,11 +389,10 @@ pub(crate) fn push_int(out: &mut String, v: i64) {
         }
     }
     if v < 0 {
-        out.push('-');
+        i -= 1;
+        buf[i] = b'-';
     }
-    for &d in &buf[i..] {
-        out.push(d as char);
-    }
+    out.push_str(std::str::from_utf8(&buf[i..]).unwrap_or_default());
 }
 
 /// A few bytes of text on the stack (`{:e}` of a float).
