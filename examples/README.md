@@ -102,6 +102,19 @@ On a web page the address goes after `?` in the page's address
 (`index.html?http://127.0.0.1:8000/forecast.json`); serve the page from the
 same server, or from one that allows it (CORS).
 
+### ai/ — AI models in your program (RAI)
+
+You need an account with an AI provider (Anthropic, OpenAI, DeepSeek …) and
+its API key, or a model server on your own machine (Ollama, LM Studio),
+which needs no key. A question to a paid provider costs a little: the
+example shows each provider's prices. [The AI assistant](../docs/manual/ai-assistant.md)
+says more.
+
+| Example | What it shows | Runs on | Try |
+|---------|---------------|---------|-----|
+| [rai_models.rr](ai/rai_models.rr) | `RAI`: a provider picked from its list, the key from the provider's environment variable or typed while the program runs (never written in the program: `APIKeySource = "env:…\|ask"`, `OnKeyNeeded`), the provider's own models (`RefreshModels`, `OnModelsLoaded`; none chosen for you, the fast, low-cost ones first), a question asked and its answer streamed into an `RMarkdownView` (`Ask`, `OnToken`, `Cancel`), the tokens it took (`Usage`) | run · interp · native · web | `rapidr run ai/rai_models.rr` |
+| [ask.rr](ai/ask.rr) | `RAI` in a console program: a model server on this computer (its address) or a provider whose key is in its environment variable, its first model (a fast, low-cost one), the answer printed as it arrives (`OnToken`), waiting with `DOEVENTS` | run · interp · native · web | `rapidr run ai/ask.rr http://localhost:11434/v1` |
+
 ### iot/ — boards on a serial port (ESP32, Arduino)
 
 Plug the board in by USB first. [Serial ports and IoT boards](../docs/manual/serial-ports.md) says more.

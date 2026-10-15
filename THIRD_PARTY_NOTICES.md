@@ -19,9 +19,9 @@ Symbols and Symbols 2, Noto Sans SC and KR), all under the SIL Open Font
 License 1.1. The Noto fonts' chunks ship beside the web runtime with
 their `OFL.txt`.
 
-**571 libraries** under 22 license expressions.
+**598 libraries** under 22 license expressions.
 
-## Apache-2.0 OR MIT (328)
+## Apache-2.0 OR MIT (355)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -32,12 +32,14 @@ their `OFL.txt`.
 | accesskit_macos | 0.27.1 | <https://github.com/AccessKit/accesskit> |
 | accesskit_unix | 0.24.0 | <https://github.com/AccessKit/accesskit> |
 | accesskit_windows | 0.35.1 | <https://github.com/AccessKit/accesskit> |
+| aes | 0.9.3 | <https://github.com/RustCrypto/block-ciphers> |
 | ahash | 0.8.12 | <https://github.com/tkaitchuck/ahash> |
 | allocator-api2 | 0.2.21 | <https://github.com/zakarumych/allocator-api2> |
 | alsa | 0.9.1 | <https://github.com/diwic/alsa-rs> |
 | android-activity | 0.6.1 | <https://github.com/rust-mobile/android-activity> |
 | android_system_properties | 0.1.5 | <https://github.com/nical/android_system_properties> |
 | anyhow | 1.0.104 | <https://github.com/dtolnay/anyhow> |
+| apple-native-keyring-store | 1.0.2 | <https://github.com/open-source-cooperative/apple-native-keyring-store.git> |
 | arboard | 3.6.1 | <https://github.com/1Password/arboard> |
 | arc-swap | 1.9.2 | <https://github.com/vorner/arc-swap> |
 | arrayvec | 0.7.6 | <https://github.com/bluss/arrayvec> |
@@ -64,33 +66,44 @@ their `OFL.txt`.
 | bitflags | 1.3.2 | <https://github.com/bitflags/bitflags> |
 | bitflags | 2.11.0 | <https://github.com/bitflags/bitflags> |
 | block-buffer | 0.10.4 | <https://github.com/RustCrypto/utils> |
+| block-buffer | 0.12.1 | <https://github.com/RustCrypto/utils> |
+| block-padding | 0.4.2 | <https://github.com/RustCrypto/utils> |
 | blocking | 1.7.0 | <https://github.com/smol-rs/blocking> |
 | btoi | 0.5.0 | <https://github.com/niklasf/rust-btoi> |
 | bufstream | 0.1.4 | <https://github.com/alexcrichton/bufstream> |
 | bumpalo | 3.20.2 | <https://github.com/fitzgen/bumpalo> |
+| cbc | 0.2.1 | <https://github.com/RustCrypto/block-modes> |
 | cesu8 | 1.1.0 | <https://github.com/emk/cesu8-rs> |
 | cfg-if | 1.0.4 | <https://github.com/rust-lang/cfg-if> |
 | chrono | 0.4.44 | <https://github.com/chronotope/chrono> |
+| cipher | 0.5.2 | <https://github.com/RustCrypto/traits> |
+| cmov | 0.5.4 | <https://github.com/RustCrypto/utils> |
 | color | 0.3.3 | <https://github.com/linebender/color> |
 | concurrent-queue | 2.5.0 | <https://github.com/smol-rs/concurrent-queue> |
+| const-oid | 0.10.2 | <https://github.com/RustCrypto/formats> |
 | core-foundation | 0.10.1 | <https://github.com/servo/core-foundation-rs> |
 | core-foundation | 0.9.4 | <https://github.com/servo/core-foundation-rs> |
 | core-foundation-sys | 0.8.7 | <https://github.com/servo/core-foundation-rs> |
 | core-graphics | 0.23.2 | <https://github.com/servo/core-foundation-rs> |
 | core-graphics-types | 0.1.3 | <https://github.com/servo/core-foundation-rs> |
 | coreaudio-rs | 0.11.3 | <https://github.com/RustAudio/coreaudio-rs.git> |
+| cpubits | 0.1.1 | <https://github.com/RustCrypto/utils> |
 | cpufeatures | 0.2.17 | <https://github.com/RustCrypto/utils> |
+| cpufeatures | 0.3.1 | <https://github.com/RustCrypto/utils> |
 | crc32fast | 1.5.0 | <https://github.com/srijs/rust-crc32fast> |
 | crossbeam-channel | 0.5.15 | <https://github.com/crossbeam-rs/crossbeam> |
 | crossbeam-queue | 0.3.12 | <https://github.com/crossbeam-rs/crossbeam> |
 | crossbeam-utils | 0.8.21 | <https://github.com/crossbeam-rs/crossbeam> |
 | crypto-common | 0.1.7 | <https://github.com/RustCrypto/traits> |
+| crypto-common | 0.2.2 | <https://github.com/RustCrypto/traits> |
 | ctor | 0.10.1 | <https://github.com/mmastrac/rust-ctor> |
+| ctutils | 0.4.3 | <https://github.com/RustCrypto/utils> |
 | dasp_sample | 0.11.0 | <https://github.com/rustaudio/sample.git> |
 | data-url | 0.3.2 | <https://github.com/servo/rust-url> |
 | debug-ignore | 1.0.5 | <https://github.com/sunshowers-code/debug-ignore> |
 | derive_utils | 0.15.1 | <https://github.com/taiki-e/derive_utils> |
 | digest | 0.10.7 | <https://github.com/RustCrypto/traits> |
+| digest | 0.11.3 | <https://github.com/RustCrypto/traits> |
 | displaydoc | 0.2.5 | <https://github.com/yaahc/displaydoc> |
 | document-features | 0.2.12 | <https://github.com/slint-ui/document-features> |
 | downcast-rs | 1.2.1 | <https://github.com/marcianx/downcast-rs> |
@@ -141,15 +154,19 @@ their `OFL.txt`.
 | heck | 0.5.0 | <https://github.com/withoutboats/heck> |
 | hermit-abi | 0.5.3 | <https://github.com/hermit-os/hermit-rs> |
 | hex | 0.4.3 | <https://github.com/KokaKiwi/rust-hex> |
+| hkdf | 0.13.0 | <https://github.com/RustCrypto/KDFs/> |
+| hmac | 0.13.0 | <https://github.com/RustCrypto/MACs> |
 | http | 1.4.0 | <https://github.com/hyperium/http> |
 | httparse | 1.10.1 | <https://github.com/seanmonstar/httparse> |
 | httpdate | 1.0.3 | <https://github.com/pyfisch/httpdate> |
+| hybrid-array | 0.4.10 | <https://github.com/RustCrypto/hybrid-array> |
 | iana-time-zone | 0.1.65 | <https://github.com/strawlab/iana-time-zone> |
 | iana-time-zone-haiku | 0.1.2 | <https://github.com/strawlab/iana-time-zone> |
 | id-arena | 2.3.0 | <https://github.com/fitzgen/id-arena> |
 | idna | 1.1.0 | <https://github.com/servo/rust-url/> |
 | idna_adapter | 1.2.1 | <https://github.com/hsivonen/idna_adapter> |
 | indexmap | 2.13.0 | <https://github.com/indexmap-rs/indexmap> |
+| inout | 0.2.3 | <https://github.com/RustCrypto/utils> |
 | io-enum | 1.2.1 | <https://github.com/taiki-e/io-enum> |
 | itoa | 1.0.18 | <https://github.com/dtolnay/itoa> |
 | java-locator | 0.1.9 | <https://github.com/astonbitecode/java-locator> |
@@ -163,6 +180,7 @@ their `OFL.txt`.
 | jpeg-decoder | 0.3.2 | <https://github.com/image-rs/jpeg-decoder> |
 | js-sys | 0.3.106 | <https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/js-sys> |
 | keyboard-types | 0.8.3 | <https://github.com/rust-windowing/keyboard-types> |
+| keyring-core | 1.0.1 | <https://github.com/open-source-cooperative/keyring-core.git> |
 | khronos-egl | 6.0.0 | <https://github.com/timothee-haudebourg/khronos-egl> |
 | kurbo | 0.13.1 | <https://github.com/linebender/kurbo> |
 | leb128fmt | 0.1.0 | <https://github.com/bluk/leb128fmt> |
@@ -189,9 +207,13 @@ their `OFL.txt`.
 | ndk-context | 0.1.1 | <https://github.com/rust-windowing/android-ndk-rs> |
 | ndk-sys | 0.5.0+25.2.9519653 | <https://github.com/rust-mobile/ndk> |
 | ndk-sys | 0.6.0+11769913 | <https://github.com/rust-mobile/ndk> |
+| num | 0.4.3 | <https://github.com/rust-num/num> |
 | num-bigint | 0.4.6 | <https://github.com/rust-num/num-bigint> |
+| num-complex | 0.4.6 | <https://github.com/rust-num/num-complex> |
 | num-derive | 0.4.2 | <https://github.com/rust-num/num-derive> |
 | num-integer | 0.1.46 | <https://github.com/rust-num/num-integer> |
+| num-iter | 0.1.46 | <https://github.com/rust-num/num-iter> |
+| num-rational | 0.4.2 | <https://github.com/rust-num/num-rational> |
 | num-traits | 0.2.19 | <https://github.com/rust-num/num-traits> |
 | once_cell | 1.21.4 | <https://github.com/matklad/once_cell> |
 | openssl-macros | 0.1.1 | <https://crates.io/crates/openssl-macros> |
@@ -237,6 +259,7 @@ their `OFL.txt`.
 | rustversion | 1.0.22 | <https://github.com/dtolnay/rustversion> |
 | scoped-tls | 1.0.1 | <https://github.com/alexcrichton/scoped-tls> |
 | scopeguard | 1.2.0 | <https://github.com/bluss/scopeguard> |
+| secret-service | 5.2.0 | <https://github.com/hwchen/secret-service-rs.git> |
 | security-framework | 3.7.0 | <https://github.com/kornelski/rust-security-framework> |
 | security-framework-sys | 2.17.0 | <https://github.com/kornelski/rust-security-framework> |
 | semver | 1.0.27 | <https://github.com/dtolnay/semver> |
@@ -250,6 +273,7 @@ their `OFL.txt`.
 | serde_urlencoded | 0.7.1 | <https://github.com/nox/serde_urlencoded> |
 | sha1 | 0.10.6 | <https://github.com/RustCrypto/hashes> |
 | sha2 | 0.10.9 | <https://github.com/RustCrypto/hashes> |
+| sha2 | 0.11.1 | <https://github.com/RustCrypto/hashes> |
 | signal-hook-registry | 1.4.8 | <https://github.com/vorner/signal-hook> |
 | simd_cesu8 | 1.2.0 | <https://github.com/seancroach/simd_cesu8> |
 | simdutf8 | 0.1.5 | <https://github.com/rusticstuff/simdutf8> |
@@ -324,6 +348,7 @@ their `OFL.txt`.
 | windows-implement | 0.60.2 | <https://github.com/microsoft/windows-rs> |
 | windows-interface | 0.59.3 | <https://github.com/microsoft/windows-rs> |
 | windows-link | 0.2.1 | <https://github.com/microsoft/windows-rs> |
+| windows-native-keyring-store | 1.1.0 | <https://github.com/open-source-cooperative/windows-native-keyring-store.git> |
 | windows-numerics | 0.3.1 | <https://github.com/microsoft/windows-rs> |
 | windows-registry | 0.6.1 | <https://github.com/microsoft/windows-rs> |
 | windows-result | 0.1.2 | <https://github.com/microsoft/windows-rs> |
@@ -353,6 +378,8 @@ their `OFL.txt`.
 | windows_x86_64_msvc | 0.52.6 | <https://github.com/microsoft/windows-rs> |
 | x11rb | 0.13.2 | <https://github.com/psychon/x11rb> |
 | x11rb-protocol | 0.13.2 | <https://github.com/psychon/x11rb> |
+| zbus-secret-service-keyring-store | 1.0.1 | <https://github.com/open-source-cooperative/zbus-secret-service-keyring-store.git> |
+| zeroize | 1.9.1 | <https://github.com/RustCrypto/utils> |
 
 ## MIT (130)
 

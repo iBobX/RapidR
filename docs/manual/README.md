@@ -30,6 +30,7 @@ where something isn't done yet, it says so.
 | [Differences from RapidQ, and extensions](differences.md) | What RapidR does that RapidQ doesn't, what it does differently on purpose, and what it doesn't do |
 | [Troubleshooting](troubleshooting.md) | Common messages and what to do about them |
 | [Markdown files and RMarkdownView](markdown.md) | `.md` files formatted in RapidR Studio (Preview \| Source), and Markdown shown in your own programs |
+| [The AI assistant and RAI](ai-assistant.md) | RapidR Studio's assistant (off by default): providers, keys in the keychain, models from the provider, changes as diffs, "Build me…", what was sent, the audit log, the token meter; RAI in your own programs, in the designer and from code, and keeping keys out of them |
 
 Reference tables, generated from RapidR's language registry (`rapidr lang
 export --manual`):

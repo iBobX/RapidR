@@ -29,6 +29,7 @@ members = [
     "crates/rapidr-studio",
     "crates/rapidr-designer",
     "crates/rapidr-introspect",
+    "crates/rapidr-ai",
     "crates/rapidr-lsp",
     "crates/rapidr-dap",
     "crates/rapidr-package",
@@ -85,6 +86,7 @@ rapidr-editor = { path = "crates/rapidr-editor" }
 rapidr-studio = { path = "crates/rapidr-studio" }
 rapidr-designer = { path = "crates/rapidr-designer" }
 rapidr-introspect = { path = "crates/rapidr-introspect" }
+rapidr-ai = { path = "crates/rapidr-ai" }
 rapidr-lsp = { path = "crates/rapidr-lsp" }
 rapidr-dap = { path = "crates/rapidr-dap" }
 rapidr-package = { path = "crates/rapidr-package" }

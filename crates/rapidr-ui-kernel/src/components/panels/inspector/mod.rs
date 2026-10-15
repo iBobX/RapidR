@@ -236,14 +236,20 @@ fn begin(cx: &mut Cx, v: &V, key: &str) -> bool {
     if !typed {
         return false;
     }
+    // (a secret is typed afresh, masked: never shown, not even its mask)
+    let secret = r.kind == RowKind::Prop && geo::row_kind(&v.m, r) == Some(Kind::Secret);
     let text = match r.kind {
         RowKind::AddLine => String::new(),
+        _ if secret => String::new(),
         RowKind::Line(_) => r.text.clone(),
         RowKind::Picker => v.m.value_text(r.key.split('#').next().unwrap_or("")).unwrap_or_default(),
         _ if r.mixed => String::new(),
         _ => r.text.clone(),
     };
     list::begin_edit(cx.id, InPlace { target: (1, i), text, rect: None });
+    if secret {
+        list::set_edit_mask(cx.id, Some('•'));
+    }
     EDITING.with(|e| e.borrow_mut().insert(cx.id.to_lowercase(), key.to_string()));
     ui(cx, |m| m.ui.error = None);
     true

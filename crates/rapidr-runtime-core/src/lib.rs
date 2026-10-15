@@ -41,6 +41,10 @@ pub mod database;
 #[cfg(feature = "network")]
 pub mod network;
 
+/// RAI, the AI component (rapidr_ai::rai), on the desktop.
+#[cfg(feature = "network")]
+pub mod ai;
+
 /// The desktop host: the UI kernel's windows.
 #[cfg(feature = "gui")]
 pub mod ui;

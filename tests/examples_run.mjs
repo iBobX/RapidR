@@ -20,7 +20,9 @@
 // scripted paths), no printer (RAPIDR_PRINT_TO), no user registry
 // (RAPIDR_REGISTRY), no internet: the network examples talk to the tests'
 // own local server (tests/http_test_server.mjs), `{http}` in a case's
-// arguments its http://127.0.0.1:<port>.
+// arguments its http://127.0.0.1:<port>; the AI examples to the tests' mock
+// provider (tests/ai_mock_server.mjs: scripted answers, no key, no cost),
+// `{aimock}` its base URL.
 //
 // The table below must list every program in examples/ and
 // examples/README.md every entry of the table (checked first).
@@ -33,7 +35,7 @@
 // http://localhost:8765):
 //   node tests/examples_run.mjs [--runtimes run,interp,native,web] [filter …]
 
-import { spawnSync } from "node:child_process";
+import { spawn as spawnAsync, spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -187,6 +189,13 @@ export const cases = [
     expect: ["Forecast for Harbour Town (updated 2026-10-06 06:00)", "  Tuesday   10 to 15 C, showers", "Warmest: Monday"] },
   { file: "network/download.rr", runtimes: ["run", "interp", "native", "web"], args: ["{http}/examples/network/forecast.json"], events: "fetchbtn.onclick", dump: "info.caption",
     expect: ["info.caption=Saved 290 bytes of examples/network/forecast.json"] },
+  // ai/ (the tests' mock provider, local: an OpenAI-compatible server)
+  { file: "ai/rai_models.rr", runtimes: ["run", "interp", "native", "web"], args: ["{aimock}"],
+    events: `listbtn.onclick,${wait("info", 4)},modelbox.__item_0,askbtn.onclick,${wait("info", 6)}`, dump: "modelbox.itemcount,modelbox.text,ai.model,answer.text,info.caption",
+    expect: ["modelbox.itemcount=2", "modelbox.text=mock-small  (fast · low cost)", "ai.model=mock-small",
+      "answer.text=Hello, friend, nice meeting you.", "info.caption=1,000 tokens sent, 20 received"] },
+  { file: "ai/ask.rr", runtimes: ["run", "interp", "native", "web"], args: ["{aimock}"],
+    expect: ["2 models; asking mock-small (fast · low cost):", "Hello, friend, nice meeting you.", "1,000 tokens sent, 20 received"] },
   // iot/: a scripted ESP32 (RAPIDR_TEST_COMPORT's `esp32`: DTR / RTS reset it, it prints a boot log)
   { file: "iot/esp32_monitor.rr", runtimes: ["run", "interp", "native", "web"], env: { RAPIDR_TEST_COMPORT: "COM5:esp32" },
     events: `connectbtn.onclick,${wait("state", 2)},resetbtn.onclick,${wait("state", 6)}`, dump: "ports.text,state.caption,log.linecount",
@@ -241,6 +250,9 @@ if (!filters.length) {
 
 // 2. Running them.
 const http = await startHttpServer();
+// (a process of its own: the desktop runs block this one's event loop)
+const aiMock = spawnAsync(process.execPath, [join(ROOT, "tests/ai_mock_server.mjs"), "0"], { stdio: ["ignore", "pipe", "inherit"] });
+const AI_MOCK = await new Promise((resolve) => aiMock.stdout.once("data", (d) => resolve(String(d).trim())));
 const env = (extra = {}) => ({
   ...process.env,
   RAPIDR_PRINT_TO: join(WORK, "prints"),
@@ -251,10 +263,15 @@ const env = (extra = {}) => ({
   RAPIDR_TEST_COMPORT: "",
   RAPIDR_TEST_JOYSTICK: "",
   RAPIDR_TEST_WAVE_IN: "tone:440",
+  // (no AI provider's key from the machine, none kept in its keychain)
+  RAPIDR_AI_KEYSTORE: "memory",
+  OPENAI_API_KEY: "",
+  ANTHROPIC_API_KEY: "",
+  DEEPSEEK_API_KEY: "",
   ...extra,
 });
 const isGui = (c) => c.dump !== undefined;
-const args = (c) => (c.args || []).map((a) => a.replace("{http}", `http://${http.address}`));
+const args = (c) => (c.args || []).map((a) => a.replace("{http}", `http://${http.address}`).replace("{aimock}", AI_MOCK));
 
 /// The hooks' environment for a GUI case (the desktop's names; the web
 /// takes the same through rapidr_set_test_env).
@@ -388,5 +405,6 @@ for (const c of cases.filter((c) => !filters.length || filters.some((f) => c.fil
 }
 if (browser) await browser.close();
 http.close();
+aiMock.kill();
 console.log(`\nExamples: ${passed} checks passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

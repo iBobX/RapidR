@@ -1,0 +1,113 @@
+# AI (docs/ai-architecture.md, docs/ide-ai.md §8): the registry's components (crates/rapidr-lang; src/lib.rs says how to edit).
+group = "AI"
+
+[[component]]
+name = "RAI"
+display = "AI"
+visual = false
+default_event = "OnMessage"
+doc = "A conversation with an AI provider — Anthropic (Claude), OpenAI, DeepSeek, or any OpenAI-compatible server such as Ollama or LM Studio on the user's own computer. Ask sends a question; the answer streams in (OnToken), then OnMessage and OnDone; Cancel stops it. The model is one the provider's own list gives (RefreshModels, Models, OnModelsLoaded): nothing is chosen for you. The API key is never in the program: APIKeySource says where it is kept (\"keychain:NAME\" in the OS keychain, \"env:VARIABLE\", or \"ask\": the program asks its user, OnKeyNeeded, and sets APIKey); a web page keeps it for the tab only. Each answer is capped (MaxTokens); a long conversation is summarised to stay cheap; InputTokens, OutputTokens and Usage meter it. RapidR Studio's assistant is an RAI too, with the project's tools attached (AttachComponent)."
+example = """
+DECLARE SUB Token(Text AS STRING)
+DECLARE SUB Done(Status AS STRING)
+DECLARE SUB AskClick
+
+CREATE Form1 AS RForm
+    Caption = "Ask"
+    Width = 420: Height = 300
+    CREATE Question AS REdit
+        Left = 10: Top = 10: Width = 300
+        Text = "What is RapidQ?"
+    END CREATE
+    CREATE AskButton AS RButton
+        Caption = "Ask"
+        Left = 320: Top = 8: Width = 80
+        OnClick = AskClick
+    END CREATE
+    CREATE Answer AS RMemo
+        Left = 10: Top = 44: Width = 390: Height = 210
+    END CREATE
+END CREATE
+
+CREATE AI AS RAI
+    Provider = "compatible"
+    BaseURL = "http://localhost:11434/v1"
+    Model = "llama3.2"
+    OnToken = Token
+    OnDone = Done
+END CREATE
+
+SUB AskClick
+    Answer.Text = ""
+    IF AI.Ask(Question.Text) = 0 THEN ShowMessage AI.Error
+END SUB
+
+SUB Token(Text AS STRING)
+    Answer.Text = Answer.Text + Text
+END SUB
+
+SUB Done(Status AS STRING)
+    IF Status = "error" THEN ShowMessage AI.Error
+END SUB
+
+Form1.ShowModal
+"""
+properties = [
+  { name = "Provider", type = "string", values = ["anthropic", "openai", "deepseek", "compatible"], category = "Network", doc = "Who answers: \"anthropic\" (Claude), \"openai\", \"deepseek\" or \"compatible\" (an OpenAI-compatible server at BaseURL: Ollama, LM Studio, xAI, OpenRouter …); \"\" for none. Changing it forgets the models listed and a key the program set." },
+  { name = "Model", type = "string", category = "Network", doc = "The model that answers, as the provider names it — one of Models (RefreshModels lists the provider's: no model is chosen for you). In RapidR Studio's designer the list comes by itself once the provider has a key." },
+  { name = "BaseURL", type = "string", category = "Network", doc = "Where the provider's API is: reading it gives the provider's own unless one was set; set it for an OpenAI-compatible server (\"http://localhost:11434/v1\" for Ollama, \"http://localhost:1234/v1\" for LM Studio) or a proxy that keeps the key on a server." },
+  { name = "WorkspaceID", type = "string", category = "Network", doc = "Anthropic: the workspace a key that isn't made inside one works in (sent as anthropic-workspace-id); \"\" for none (ANTHROPIC_WORKSPACE_ID when set)." },
+  { name = "APIKey", type = "string", editor = "secret", secret = true, category = "Network", doc = "The API key, set at run time (typed by the user, read from your own store): kept in memory only, never shown or read back (KeyHint gives its last four characters); RememberKey keeps it in the keychain. Typed in RapidR Studio's inspector it is stored in your keychain and APIKeySource names it: the key itself is never written into the program." },
+  { name = "APIKeySource", type = "string", category = "Network", doc = "Where the key comes from when APIKey isn't set: \"keychain:NAME\" (the OS keychain's entry NAME; on the web, the tab's session or the device), \"env:VARIABLE\" (an environment variable; not on the web), \"ask\" (OnKeyNeeded: the program asks its user); several separated by | are tried in order (\"keychain:MyApp/OpenAI|env:OPENAI_API_KEY|ask\")." },
+  { name = "System", type = "string", category = "Behavior", editor = "multiline", doc = "The program's instructions to the model (its role, its tone, what it must not do), sent before the conversation." },
+  { name = "MaxTokens", type = "int", default = 1024, range = "16..128000", unit = "count", category = "Behavior", doc = "The longest an answer may be, in tokens: the provider stops there (each answer's cost cap)." },
+  { name = "SummaryAt", type = "int", default = 40000, range = "1000..1000000", unit = "count", category = "Behavior", doc = "Once a question sends more tokens than this, the conversation so far is summarised in one short request, and the next questions start from the summary (a long chat stays cheap)." },
+  { name = "Audit", type = "bool", default = false, category = "Behavior", doc = "True: every request, tool call and decision is written to the local audit log (AuditLog reads it; never a key or a file's content)." },
+  { name = "PriceIn", type = "float", default = 0.0, range = "0..", category = "Data", doc = "What the provider charges for a million tokens sent (see its prices: PricingURL), for Cost; 0 for no estimate." },
+  { name = "PriceOut", type = "float", default = 0.0, range = "0..", category = "Data", doc = "What the provider charges for a million tokens received, for Cost." },
+  { name = "Busy", type = "bool", access = "read", design = false, doc = "True while a request runs (an answer, the models list)." },
+  { name = "Error", type = "string", access = "read", design = false, doc = "Why the last request or call failed, in plain words with what to do (\"\" when it worked)." },
+  { name = "Status", type = "string", access = "read", design = false, doc = "One sentence on what it is doing or did, for a status line a screen reader announces." },
+  { name = "Answer", type = "string", access = "read", design = false, doc = "The last answer's text." },
+  { name = "Transcript", type = "string", access = "read", design = false, doc = "The conversation as Markdown, for an RMarkdownView: the questions, the answers as they stream, a line for each tool used." },
+  { name = "Models", type = "string", access = "read", design = false, doc = "The models RefreshModels found, a line each — the id, its name, and a hint from the words of its name (\"fast · low cost\" for the small ones, \"costs more\" for the largest), separated by tabs —, the fast, low-cost ones first." },
+  { name = "ModelCount", type = "int", access = "read", design = false, doc = "How many models Models lists." },
+  { name = "HasKey", type = "bool", access = "read", design = false, doc = "True when there is a key: APIKey's, or one APIKeySource finds." },
+  { name = "KeyHint", type = "string", access = "read", design = false, doc = "The key's last four characters (\"…abcd\"): all that is ever shown of it." },
+  { name = "KeySource", type = "string", access = "read", design = false, doc = "Where the key comes from now: \"program\" (APIKey), \"stored\" (the keychain; on the web, this device), \"session\", \"environment\", or \"\"." },
+  { name = "KeyEnv", type = "string", access = "read", design = false, doc = "The environment variable the provider's key is usually in (\"OPENAI_API_KEY\"), for APIKeySource." },
+  { name = "KeyStore", type = "string", access = "read", design = false, doc = "Where the key in use is, in words (\"the macOS Keychain\", \"this browser tab, until it closes\", \"this program's memory, until it ends\"); with no key, where RememberKey keeps one." },
+  { name = "NeedsKey", type = "bool", access = "read", design = false, doc = "True when Provider needs an API key (a local server doesn't)." },
+  { name = "PricingURL", type = "string", access = "read", design = false, doc = "The provider's prices (\"\" for a compatible server)." },
+  { name = "KeysURL", type = "string", access = "read", design = false, doc = "Where a key is made at the provider." },
+  { name = "Providers", type = "string", access = "read", design = false, doc = "The providers, a line each: the id, the name and a short name, separated by tabs." },
+  { name = "Presets", type = "string", access = "read", design = false, doc = "Base URLs for an OpenAI-compatible server, a line each: a label and the URL, separated by a tab." },
+  { name = "InputTokens", type = "int", access = "read", design = false, doc = "The tokens sent this session (questions, instructions, what tools read)." },
+  { name = "OutputTokens", type = "int", access = "read", design = false, doc = "The tokens received this session." },
+  { name = "CachedTokens", type = "int", access = "read", design = false, doc = "Of InputTokens, those the provider read from its cache (charged far less)." },
+  { name = "Usage", type = "string", access = "read", design = false, doc = "The session's tokens in words, with Cost's estimate when PriceIn / PriceOut are set." },
+  { name = "Cost", type = "string", access = "read", design = false, doc = "The session's cost estimated from PriceIn and PriceOut (\"$0.0123\"; \"\" without prices)." },
+  { name = "LastRequest", type = "string", access = "read", design = false, doc = "What was sent last: the method, the URL, the headers (the key never shown) and the JSON body." },
+  { name = "ToolCalls", type = "int", access = "read", design = false, doc = "How many tool calls the last answer made (at most 25)." },
+  { name = "AuditLocation", type = "string", access = "read", design = false, doc = "Where the audit log is kept (a file in the user's settings folder; on the web, the browser's storage for the page)." },
+]
+methods = [
+  { name = "Ask", params = "Text AS STRING", returns = "INTEGER", effects = ["network"], test = "skip: talks to an AI provider", doc = "Sends Text, with the conversation so far, to Provider's Model and returns at once: the answer streams in (OnToken), then OnMessage with the whole of it and OnDone. False when it can't ask (no provider, key or model: Error says which; no key fires OnKeyNeeded)." },
+  { name = "Cancel", value = true, effects = ["state"], doc = "Stops the answer being written (what came so far stays) or the models list being fetched: OnDone(\"cancelled\")." },
+  { name = "NewChat", value = true, effects = ["state"], doc = "Starts a new conversation: the messages and the transcript go (the usage stays)." },
+  { name = "RefreshModels", returns = "INTEGER", value = true, effects = ["network"], test = "skip: talks to an AI provider", doc = "Asks Provider which models the key can use (OpenAI's chat models only): OnModelsLoaded(Count) when Models has them, OnError when not. A Model the list no longer has is cleared: choose again. True when it started." },
+  { name = "RememberKey", params = "[OnThisDevice AS INTEGER]", returns = "INTEGER", effects = ["registry"], test = "skip: writes the user's keychain", doc = "Keeps APIKey in the keychain under APIKeySource's keychain NAME, for the next runs. On the web it is kept for the tab, and on this device too when OnThisDevice is True (the page's storage: anyone using this browser profile could read it). True when it was kept." },
+  { name = "ForgetKey", value = true, effects = ["registry"], test = "skip: writes the user's keychain", doc = "Removes the key kept under APIKeySource's keychain NAME, and APIKey's." },
+  { name = "AttachComponent", params = "Component AS RAIProjectTools, Kind AS STRING", returns = "INTEGER", effects = ["state"], doc = "Gives the model a component's tools of Kind (an RAIProjectTools' \"project\": RapidR Studio's assistant). True when attached; Error says why not." },
+  { name = "ModelName", params = "Index AS INTEGER", returns = "STRING", effects = ["none"], doc = "Model Index's id in Models (from 0), for a list's choice." },
+  { name = "AuditLog", params = "[Count AS INTEGER]", returns = "STRING", effects = ["file-read"], doc = "The audit log's last Count lines (50 by default), oldest first, tab-separated: the time, what happened, its target, and the decision or result." },
+]
+events = [
+  { name = "OnToken", params = "Text AS STRING", doc = "More of the answer arrived (a few words at a time): add it to what shows." },
+  { name = "OnMessage", params = "Text AS STRING", doc = "The model's message is whole (an answer; before a tool is used, what it said)." },
+  { name = "OnDone", params = "Status AS STRING", doc = "A request ended: \"ok\", \"error\" (Error says why) or \"cancelled\"." },
+  { name = "OnUpdate", doc = "Transcript changed: an answer streaming, a tool used, a decision recorded." },
+  { name = "OnModelsLoaded", params = "Count AS INTEGER", doc = "RefreshModels found Count models: they're in Models." },
+  { name = "OnError", params = "Message AS STRING", doc = "A request failed: Message says why and what to do." },
+  { name = "OnKeyNeeded", doc = "There is no key yet (APIKeySource found none, or says \"ask\"): ask the user for one and set APIKey, then ask again." },
+]

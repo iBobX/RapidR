@@ -1205,7 +1205,7 @@ impl Spec {
         let look = match src {
             Source::InPlace => {
                 let color = crate::paint::ink(cx.store, cx.id, &cx.font, true, rapidr_value::theme::current().window);
-                Look { font: cx.font.clone(), color, mask: None, align: Align::Left, wrap: false, tab: 0.0 }
+                Look { font: cx.font.clone(), color, mask: super::list::edit_mask(cx.id), align: Align::Left, wrap: false, tab: 0.0 }
             }
             _ => look_of(cx.store, cx.id, &cx.font, cx.state.enabled, false),
         };

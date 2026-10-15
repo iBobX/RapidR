@@ -8,6 +8,7 @@ use rapidr_lexer::lex_file as lexer_lex_file;
 use rapidr_parser::parse_file as parser_parse_file;
 use rapidr_preprocessor::{preprocess_file, PreprocessOptions};
 
+mod ai;
 mod cache;
 mod examples;
 mod home;
@@ -185,6 +186,7 @@ fn main() -> ExitCode {
         (Some("setup"), _) => setup::setup(&args[1..]),
         (Some("notices"), _) => notices::command(&args[1..]),
         (Some("lang"), _) => lang::command(&args[1..]),
+        (Some("ai"), _) => ai::command(&args[1..]),
         #[cfg(feature = "ai-introspect")]
         (Some("introspect"), _) => introspect::command(&args[1..]),
         #[cfg(not(feature = "ai-introspect"))]
@@ -330,6 +332,7 @@ fn main() -> ExitCode {
             eprintln!("  rapidr dap                                       The debug adapter (DAP, stdio): editors' debugger");
             eprintln!("  rapidr serve <file> [--open]                     Its web build served on this machine (127.0.0.1), opened in the browser");
             eprintln!("  rapidr lang export --json|--prompt|--manual|--all  What the language registry generates");
+            eprintln!("  rapidr ai providers | models --provider P | ask --provider P [--model M] \"question\"  RapidR's AI providers: keys, models, a question");
             eprintln!("  rapidr lang conformance <dir> [--target desktop|web]  The registry's conformance programs");
             eprintln!("  rapidr lang ai-check [--summary|--json] [--strict] [NAME…]  Registry entries lacking an AI facet");
             eprintln!("  rapidr import-rapidq <file|folder|.rrproj> [OUT_DIR] [--include-dir DIR]  A copy of a RapidQ program and every file it includes, with RapidR's names, and a report");
@@ -591,10 +594,14 @@ fn build_source_file(
     app: &package::Options,
 ) -> ExitCode {
     // Detect web target from $APPTYPE or --web flag
-    let app_type = preprocess_file(path, PreprocessOptions::default())
-        .ok()
-        .and_then(|r| r.app_type);
+    let pre = preprocess_file(path, PreprocessOptions::default()).ok();
+    let app_type = pre.as_ref().and_then(|r| r.app_type.clone());
     let is_web = web || app_type.as_deref() == Some("WEB");
+    // (keys are never built into an app: said before it is; a web app
+    // built interpreted says it through its bundle)
+    if let Some(pre) = pre.as_ref().filter(|_| !(is_web && interp)) {
+        key_warnings(&pre.source, is_web);
+    }
     let out = match output_of(path, output_dir.as_deref(), app) {
         Ok(o) => o,
         Err(e) => {
@@ -996,6 +1003,14 @@ fn web_site(source_path: &Path, made: &cache::Artifacts, stem: &str, needs: &rap
 /// What a web program's page must allow (its Content-Security-Policy,
 /// docs/security-audit.md SEC-15): the components and URLs its source
 /// names, `$INCLUDE`s expanded, plus the author's `--csp` additions.
+/// What a build should say about API keys in `source` (rapidr_ai's
+/// build_warnings: a key written in the program; an RAI on a web page).
+fn key_warnings(source: &str, web: bool) {
+    for w in rapidr_ai::keys::build_warnings(source, web) {
+        eprintln!("warning: {w}");
+    }
+}
+
 fn web_needs(path: &str, csp: Option<&str>) -> Result<rapidr_webbundle::WebNeeds, String> {
     let source = preprocess_file(path, PreprocessOptions::default()).map(|r| r.source).map_err(|e| e.to_string())?;
     let mut needs = rapidr_webbundle::WebNeeds::scan(&source);
@@ -1181,6 +1196,9 @@ pub(crate) fn web_bundle(path: &str, wasm_path: Option<String>, js_path: Option<
     // 1. Compile source to bytecode.
     let compiled = compile_to_bytecode(path).map_err(|e| (e.to_string(), 1))?;
     for w in &compiled.warnings { eprintln!("warning: {w}"); }
+    if let Ok(pre) = preprocess_file(path, PreprocessOptions::default()) {
+        key_warnings(&pre.source, true);
+    }
     let rrbc = compiled.module.to_bytes();
     let needs = web_needs(path, csp).map_err(|e| (e.to_string(), 2))?;
 

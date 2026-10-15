@@ -24,7 +24,9 @@
 '   debug.inc      running it, debugging it: breakpoints, stepping, the
 '                  Variables / Watch / Call Stack / Breakpoints panes
 '   build.inc      Build (the app for this system), Reveal, the app's settings
-'   settings.inc   Tools > Settings: the include folders
+'   settings.inc   Tools > Settings: the include folders, the AI tab
+'   ai.inc         the AI assistant: its panel, the review of its changes,
+'                  a new program's preview, what was sent
 '   prompts.inc    Save / Don't Save / Cancel before changes would be lost
 '   chrome.inc     the look in the current theme, the status bar
 '   preview.inc    "Preview in Classic": Run and the designer in RapidQ's look
@@ -48,6 +50,7 @@ $INCLUDE "editor.inc"
 $INCLUDE "debug.inc"
 $INCLUDE "build.inc"
 $INCLUDE "settings.inc"
+$INCLUDE "ai.inc"
 $INCLUDE "prompts.inc"
 $INCLUDE "chrome.inc"
 $INCLUDE "search.inc"

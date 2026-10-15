@@ -334,6 +334,8 @@ pub fn install_file_hooks() {
     rapidr_value::objects::set_file_io(web_read_file, web_write_file);
     // (Studio's language service and designer: `$INCLUDE`s from the page too)
     rapidr_studio::install_page_sources();
+    // (RAI: a provider's answer delivered as it streams in)
+    crate::ai_web::install();
 }
 
 /// A file's length (0 if it can't be read).
@@ -672,6 +674,10 @@ fn set_property(name: &str, prop: &str, val: Value) {
     }
     // (I1) RapidR Studio's RPROJECT, RLANGUAGESERVICE, RPROGRAMSESSION (studio_web.rs).
     if rapidr_studio::is_studio_type(&rp_comp_type(&uname)) && crate::studio_web::set(&rp_comp_type(&uname), name, &lprop, &val) {
+        return;
+    }
+    // (I8) RAI, the AI component (ai_web.rs).
+    if rapidr_ai::rai::is_rai(&rp_comp_type(&uname)) && crate::ai_web::set(name, &lprop, &val) {
         return;
     }
     // (I1) An RDOCKMANAGER's DocumentMode, ActiveDocument, … (dock_web.rs).
@@ -1101,6 +1107,12 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
                 return v;
             }
         }
+        // (I8) RAI, the AI component (ai_web.rs).
+        if rapidr_ai::rai::is_rai(&t) {
+            if let Some(v) = crate::ai_web::get(name, &lprop) {
+                return v;
+            }
+        }
     }
     // (I1) An RDOCKMANAGER's PaneCount, ActiveDocument, … (dock_web.rs).
     if rp_comp_type(name) == "RDOCKMANAGER" {
@@ -1318,6 +1330,12 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         let t = rp_comp_type(name);
         if rapidr_studio::is_studio_type(&t) {
             if let Some(v) = crate::studio_web::call(&t, name, &method.to_ascii_lowercase(), args) {
+                return v;
+            }
+        }
+        // (I8) RAI, the AI component (ai_web.rs).
+        if rapidr_ai::rai::is_rai(&t) {
+            if let Some(v) = crate::ai_web::call(name, &method.to_ascii_lowercase(), args) {
                 return v;
             }
         }

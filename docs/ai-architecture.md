@@ -1,6 +1,6 @@
 # AI-ready by design: the registry, one introspection interface, MCP, RAI and their security
 
-Lane AI-ARCH, 2026-10-15. Status: **designed; phase 0 built** (§8). Companion to [docs/ide-ai.md](ide-ai.md) (the provider layer, keys, the IDE's MCP server, the assistant, data levels), [docs/ide-plan.md](ide-plan.md) (I7's "AI-ready by design" bullet, I8), [docs/ide-components.md](ide-components.md) (rule 5: every component described for AI) and [docs/security-audit.md](security-audit.md) (§5's checklist, §7's `rapidr mcp` authentication). Where this document and ide-ai.md differ, this one wins for the registry, the introspection interface, RAI's tools and the permission model; ide-ai.md stays the reference for the provider layer, keys, transports and the assistant's UI.
+Lane AI-ARCH, 2026-10-15. Status: **designed; phase 0 built** (§8); **I8's provider layer, RAI and Studio's assistant built** (lane AI-PROVIDERS, §10: the parts of §4.3 / phase 5 that need no run-time introspection). Companion to [docs/ide-ai.md](ide-ai.md) (the provider layer, keys, the IDE's MCP server, the assistant, data levels), [docs/ide-plan.md](ide-plan.md) (I7's "AI-ready by design" bullet, I8), [docs/ide-components.md](ide-components.md) (rule 5: every component described for AI) and [docs/security-audit.md](security-audit.md) (§5's checklist, §7's `rapidr mcp` authentication). Where this document and ide-ai.md differ, this one wins for the registry, the introspection interface, RAI's tools and the permission model; ide-ai.md stays the reference for the provider layer, keys, transports and the assistant's UI.
 
 What Robert asked for (2026-10-15, "engineered deeply"): every component and function AI-ready, so RapidR's AI — the IDE's MCP server and the RAI component inside users' programs — knows what is available and can manage it: build full working programs in RapidR Studio, and drive components inside users' running programs, fast, easy, **secure** and accessible.
 
@@ -273,6 +273,8 @@ Why generic tools: the registry has 112 components and about 4,000 members Rapid
 
 ### 4.3 RAI inside users' programs
 
+*Built so far (§10): RAI the component — providers, live model lists, keys by reference, streaming, tool providers attached with `AttachComponent` (Studio's assistant is an RAI with RAIProjectTools). Still to come (phase 5): `Expose`, `AIVisible` / `AIActions`, `OnToolCall`, in-program confirmations — the run-time half below. Where this sketch says `Endpoint` and `"ollama"`, the built component has `BaseURL` and `Provider = "compatible"`.*
+
 RAI is the provider layer (ide-ai.md §2) as a component, plus tool calling over the run-time provider:
 
 ```basic
@@ -400,7 +402,9 @@ Sizes as ide-plan.md: a session is one focused agent session ending in a green c
 | **5** RAI | `rapidr-ai`'s provider layer (if I8 hasn't landed it), RAI's tool calling, `Expose`, `AIVisible` / `AIActions`, `OnToolCall`, in-program confirmations, `AI.Log`, `RMCPServer` | L (10–14) | **A2**; T2 / T6 tests |
 | **6** Hardening | Fuzzing the protocol parsers and the MCP framing; the threat-model tests T1–T14; a security review (model per Robert's rule) before the I8 release | S–M (3–6) | the review's findings fixed |
 
-Phases 1 and 2 can run in parallel; 3 needs 2; 4 can start after 0; 5 needs 4 (and the provider layer).
+Phases 1 and 2 can run in parallel; 3 needs 2; 4 can start after 0; 5 needs 4 (and the provider layer, built: §10).
+
+**Later — local models (not before the phases above):** a model downloader in RapidR Studio (Tools > AI Settings: pick a small open model, see its size, licence and the disk it takes, download it with a progress bar, verify its checksum, run it with a bundled or system runtime behind the same OpenAI-compatible provider RAI already speaks), so a school or an offline user gets an assistant with no account and nothing sent. Until then RapidR works with a model server the user runs (Ollama, LM Studio): `Provider = "compatible"` at its address, no key. Open questions for that phase: which runtime (a permissive one; llama.cpp is MIT), which models (licences that allow commercial use of the programs made with them), disk and memory floors, and updates.
 
 ### Acceptance tests
 
@@ -444,6 +448,43 @@ Every phase that exposes something user-visible ships a real example in `example
 - **Found on the way** (reported, not changed here): the registry's RMemo has no `Align`, yet `examples/gui/menus.rr` sets `Align = alClient` on one — completion, the inspector and AI don't offer it. The checker can't see a member that isn't there; the reverse check (`tools/lang_dispatch.py`) is where phase 1 closes such gaps.
 - **The interface, design side, read-only**: `crates/rapidr-introspect` — the protocol (`Request` `describe` / `list` / `get`, replies, error codes, typed values), `describe` from the registry with JSON Schemas, the `Introspect` trait and the dispatcher, and behind the cargo feature **`design`** the `DesignModel` provider over `rapidr-designer` documents (ids, qualification, revs, paging, typed values with their source and line, secrets redacted). `rapidr introspect FILE…` (JSON requests on standard input, one reply per line) exists only in a CLI built with `--features ai-introspect`. Nothing in Studio or the default CLI uses it yet. Every phase-0 op is `read`, so the dispatcher has no policy or audit sink yet: they arrive with the first op that changes anything (phase 2), and until then the protocol refuses any other op as unknown (`bad_request`) — nothing half-done.
 
+## 10. I8 phases 1–2: the provider layer, RAI and Studio's assistant (2026-10-15)
+
+Lane AI-PROVIDERS. User-facing: [docs/manual/ai-assistant.md](manual/ai-assistant.md).
+
+**One component.** `RAI` (crates/rapidr-ai, `rai.rs`; registry `data/components/ai.toml`) is the whole AI of RapidR: users' programs use it, and RapidR Studio's assistant *is* an RAI (`DIM AI AS RAI` in ide/decl.inc) — the same code path, desktop and web. The runtimes only host it (runtime-core `ai.rs`, runtime-web `ai_web.rs`: events through their queues, answers polled between the window loop's turns on the desktop, delivered by `fetch`'s stream on the web; `DOEVENTS` hears them in a console program).
+
+**Tools are providers attached to an RAI.** `rapidr_ai::rai::ToolProvider` (tools, instructions, facts, `call`), made by a factory per kind; `AI.AttachComponent Comp, "project"` attaches one. Studio's is `RAIPROJECTTOOLS` (crates/rapidr-studio `ai.rs`, `ai_tools.rs`): `list_files`, `read_file`, `rapidr_list` / `rapidr_get` (rapidr-introspect's design-time interface, §3), `rapidr_describe` (the registry), `check_code`, and — tier *propose* — `propose_edit`, `write_file`, `create_project`, kept as proposals the user reviews (`RDiffView`, applied as one undo step) or previews (a new program). Paths are confined to the project; a tool the tier forbids is refused in words. The future `Expose` of §4.3 is another provider kind over the run-time interface.
+
+**No model ID anywhere in code.** Providers are a table of endpoints and formats (`provider.rs`: Anthropic Messages; OpenAI, DeepSeek and OpenAI-compatible Chat Completions, with Ollama / LM Studio / xAI / OpenRouter presets). Models come from the provider's live list (`RefreshModels`; OpenAI's filtered to the models that can chat); nothing is chosen for the user; Studio remembers the pick per provider and asks again when it disappears. A non-binding hint comes from the words of the name only (`wire::model_hint`: mini / nano / flash / lite / haiku / luna / small → "fast · low cost", listed first; opus / pro / fable / mythos → "costs more"). One price link per provider (`PricingURL`, checked 2026-10-15). Wire quirks are negotiated from the provider's answer, not from model names (OpenAI's reasoning models refusing tools unless `reasoning_effort` is `none`: retried once).
+
+**Keys by reference.** `APIKeySource = "keychain:NAME|env:VAR|ask"` (the first that has one): the OS keychain through keyring-core and its Apple / Windows / Secret Service stores (MIT / Apache), environment variables read never written, `ask` → `OnKeyNeeded`. `APIKey` is write-only (reads `""`), `secret` in the registry: the inspector masks it and never writes it into code — in the designer a typed key goes to the developer's keychain as `RapidR/<project>/<component>` and the source gets only `APIKeySource = "keychain:…|ask"`. On the web: the tab's session, or the page's storage after `RememberKey(True)` (with the warning). Builds warn about a key written in a program (`keys::build_warnings`: an `APIKey = "…"` or a key-shaped string) and explain RAI on a web page; a web page's CSP gains `connect-src https:` and this machine's `http://localhost:*` / `http://127.0.0.1:*` when the program uses RAI. A key-shaped word in a project file is replaced before `read_file` gives the file to the model (`keys::redact`), and `rapidr_get` returns `secret` properties redacted. Requests shown (`LastRequest`, *What Was Sent*) have the key replaced; the audit log never has it (checked with a canary test over the diff, the commits, the captures and the real runs' logs).
+
+**Token economy.**
+
+- *A stable prefix, cached*: the instructions (rules, one complete example program, `rapidr lang export --prompt --compact`: statements, directives, builtin and component names by group — 1/8 of the full prompt) are the same for every project and go first; the facts that change (the open project's name and files) go last (`system_tail`); Anthropic gets `cache_control` breakpoints on the system prompt, the tools and the last message, the others cache a stable prefix by themselves.
+- *Context on demand*: nothing of the project is sent up front; the model reads files, components and registry entries through the tools when it needs them.
+- *Small edits*: `propose_edit` takes old/new snippets, never whole files.
+- *Trimmed history*: at the next question, earlier tool results over 200 characters become a one-line note and thinking blocks are dropped; past `SummaryAt` input tokens (40,000) the conversation is summarized.
+- *Caps*: `MaxTokens` a reply (RAI 1024, Studio 4096, the user's to change), 25 tool calls a question, Stop.
+- *A meter*: `Usage` — tokens sent (from the cache), received, and the cost from the prices the user typed (`PriceIn` / `PriceOut`: no prices in code).
+
+Measured on 2026-10-15, "Build me a hello-form program" in Studio with the hello_form example open, each provider's fast, low-cost model, the program created compiling and running:
+
+| Provider | Sent (from the cache) | Received | Tool calls | Before the compact prompt |
+|---|---|---|---|---|
+| DeepSeek | 21,874 (9,728) | 1,695 | 5 | 43,734 (26,624) / 1,365 |
+| OpenAI | 7,595 (3,578) | 421 | 1 | 14,890 (7,266) / 337 |
+| Anthropic | 21,595 (15,610) | 1,954 | 2 | 26,249 (12,405) / 1,306 |
+
+All the lane's real calls (model lists, a few tiny questions, these builds and the earlier ones) counted about 160,000 tokens sent (much of it from the caches) and 8,000 received on the three providers' fast models — estimated at under $0.10 in all.
+
+**Stream-friendly for RChat.** `Ask` returns at once; `OnToken` (a few words), `OnMessage` (a whole message), `OnUpdate` (the transcript changed: a tool used, a decision), `OnDone(status)`, `Cancel`, `Busy`, `Transcript` (Markdown) — what a chat component needs to sit on RAI.
+
+**Tests.** A mock provider speaking both formats with scripted answers (tests/ai_mock_server.mjs); `cargo test -p rapidr-ai -p rapidr-studio` (wire formats, streams, keys, the tools, proposals, trimming, summary, instructions under 16,000 characters); Studio flows `ai-*` on desktop and web (gated until configured, chat, propose / review / apply / undo, a new program, read-only, Anthropic's format, models and errors, the meter, RAI in the designer); examples/ai/rai_models.rr and ask.rr on run, interp, native and web; real calls through the example and Studio to Anthropic, OpenAI and DeepSeek.
+
+**Not built here:** RChat (a chat component), the local-model downloader (§7, later), `Expose` / `OnToolCall` / in-program confirmations (phase 5), Gemini's format, an `ai-proxy`.
+
 ## 9. Decisions for Robert
 
 1. **The vocabularies** (§2.2): the effect names and the six risk levels — they become the words of every confirmation.
@@ -452,3 +493,5 @@ Every phase that exposes something user-visible ships a real example in `example
 4. **Read-only MCP in the first release** (studio-wow.md AI-1, still pending): phases 0 + the read-only half of 3 would deliver it.
 5. **The audit log's home**: the per-user workspace state (proposed), not the project folder.
 6. **The security review's model** for phase 6 (the standing rule asks before using Fable).
+7. **Keys on the web** (§10): the tab's session by default, "Remember on this device" in the page's storage with a warning — or, as ide-ai.md §3 proposed, encrypted with a passphrase (more friction, protects a copied profile, not a script on the page).
+8. **Studio's reply cap** (§10): 4096 tokens (a whole small program fits); RAI's own default 1024.

@@ -158,6 +158,51 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   WordWrap on (RapidR's count paragraphs); after `SelectAll` its SelLength counts the text's end as
   two more; a loaded document is saved with RapidR's RTF header; `\fcharset0` details of a few
   insertion formats.
+### The AI assistant in RapidR Studio, and RAI in your programs (AI-PROVIDERS, I8 phases 1–2)
+- **An AI assistant, off until you turn it on** (Tools > AI Settings). Choose Anthropic
+  (Claude), OpenAI, DeepSeek or any OpenAI-compatible server (Ollama, LM Studio, xAI,
+  OpenRouter); paste your key — kept in the macOS Keychain, the Windows Credential Manager or the
+  Secret Service, on the web only for the tab unless you ask to remember it, never in a project;
+  press Fetch Models and pick one from the provider's own list. No model is chosen for you: the
+  ones whose names say they are small are marked "fast · low cost" and listed first, the costlier
+  ones "costs more", and "See prices" opens the provider's price page. The pane and its toolbar
+  button appear once a provider, a key and a model are set. The Assistant pane (View > AI
+  Assistant, Ctrl+I) answers about the open project as it streams; it reads the project with
+  tools when it needs to (its files, its forms' components and properties through the
+  introspection interface, RapidR's registry, the compiler's check) and changes nothing itself:
+  its changes are reviewed as diffs (each accepted or rejected) and applied as one undo step per
+  file; "Build me …" makes a new program, previewed (its code and its form) before it is created.
+  What Send shares is said under the box; "What was sent" shows the last request (never the key);
+  every request, tool use and decision goes to a local audit log. A token meter shows each
+  session's tokens — and their cost, with the prices you give. Read-only or propose, a reply's
+  length cap, 25 tool uses a question at most; what the project says is data for the model, never
+  instructions. Desktop and web alike.
+- **Fewer tokens.** RapidR's instructions are the same for every project and come first, so the
+  providers' caches serve them again; the project is read through tools on demand, not sent;
+  earlier tool results are shortened at the next question, a long chat is summarized. "Build me a
+  hello-form program" now takes about 7,600–22,000 tokens sent (a third to two thirds from the
+  cache) and 400–2,000 received with each provider's fast model — half of what it took before
+  with OpenAI and DeepSeek, a sixth less with Anthropic.
+- **RAI**: the same AI in your own programs — Studio's assistant is an RAI. Providers and their
+  live model lists (`RefreshModels`, `OnModelsLoaded`, `Models`, `ModelName`), questions with the
+  answer streamed (`Ask`, `OnToken`, `OnMessage`, `OnDone`, `Cancel`, `NewChat`), errors in plain
+  words (`OnError`), `Usage` and `Cost`, an optional audit log. **Live in the designer**: pick the
+  Provider, type the key in APIKey — kept in your keychain, while the code gets only where it is
+  (`APIKeySource = "keychain:RapidR/<project>/AI|ask"`) — and the Model row lists the provider's
+  models. Keys never in a program: `APIKeySource` takes `keychain:`, `env:` and `ask`
+  (`OnKeyNeeded`); `APIKey` can be set, never read back; builds warn about a key written in a
+  program, and a web build explains that its page asks its user for theirs. In a console program,
+  `DOEVENTS` hears the answer. Two examples: `examples/ai/rai_models.rr` (a window: provider, key,
+  models, a question, the answer streamed) and `examples/ai/ask.rr` (the console).
+- **`rapidr-ai`**, RapidR's provider layer: Anthropic's Messages API and OpenAI-compatible Chat
+  Completions over plain HTTPS with our own client (ureq and the system's TLS on the desktop,
+  `fetch` in a browser), streaming and tool calls normalized, rate limits and overloads retried,
+  errors explained in plain words (a refused key, no credit, a missing model, Anthropic's
+  workspace). `rapidr ai providers | models | ask` uses it from the terminal.
+- **RMarkdownView.FollowEnd** (a chat or a log stays at its end as it grows) and **OpenLink**; the
+  inspector's **SetChoices** / **SetNote** (a program's own list and note on a property), and
+  secret properties shown masked and never written into code.
+- Manual: [The AI assistant and RAI](docs/manual/ai-assistant.md).
 
 ### RapidQ's examples on macOS and Linux (CORPUS-PORT)
 - **Windows file names work on macOS and Linux.** A RapidQ program names its files as Windows does:

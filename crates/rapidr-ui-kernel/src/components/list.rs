@@ -128,8 +128,33 @@ fn show(id: &str, sel: (usize, usize)) {
 /// Windows' label edits and Delphi's grid editor start).
 pub fn begin_edit(id: &str, edit: InPlace) {
     let n = edit.text.chars().count();
+    MASKS.with(|m| m.borrow_mut().remove(&id.to_lowercase()));
     EDITING.with(|e| e.borrow_mut().insert(id.to_lowercase(), edit));
     show(id, (0, n));
+}
+
+thread_local! {
+    /// The edits that show a mask for each character (an inspector's
+    /// secret: an RAI's APIKey).
+    static MASKS: RefCell<HashMap<String, char>> = RefCell::new(HashMap::new());
+}
+
+/// Component `id`'s edit shows `mask` for each character (`None`: its
+/// text); until it ends.
+pub fn set_edit_mask(id: &str, mask: Option<char>) {
+    MASKS.with(|m| match mask {
+        Some(c) => {
+            m.borrow_mut().insert(id.to_lowercase(), c);
+        }
+        None => {
+            m.borrow_mut().remove(&id.to_lowercase());
+        }
+    });
+}
+
+/// The mask component `id`'s edit shows, if any.
+pub fn edit_mask(id: &str) -> Option<char> {
+    MASKS.with(|m| m.borrow().get(&id.to_lowercase()).copied())
 }
 
 /// (the input lane's) Starts editing with the caret after the text (a
@@ -153,6 +178,7 @@ pub fn editing(id: &str) -> Option<InPlace> {
 
 /// Ends component `id`'s edit: what it was.
 pub fn end_edit(id: &str) -> Option<InPlace> {
+    MASKS.with(|m| m.borrow_mut().remove(&id.to_lowercase()));
     EDITING.with(|e| e.borrow_mut().remove(&id.to_lowercase()))
 }
 

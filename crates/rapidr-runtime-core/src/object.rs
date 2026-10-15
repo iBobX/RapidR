@@ -468,6 +468,11 @@ fn set_property(name: &str, prop: &str, val: Value) {
     if rapidr_studio::is_studio_type(&rp_comp_type(name)) && crate::studio::set(&rp_comp_type(name), name, &prop_lower, &val) {
         return;
     }
+    // (I8) RAI, the AI component (ai.rs).
+    #[cfg(feature = "network")]
+    if rapidr_ai::rai::is_rai(&rp_comp_type(name)) && crate::ai::set(name, &prop_lower, &val) {
+        return;
+    }
     // (I1) An RDOCKMANAGER's DocumentMode, ActiveDocument, … (dock.rs).
     if rp_comp_type(name) == "RDOCKMANAGER" && crate::dock::set(name, &prop_lower, &val) {
         return;
@@ -960,6 +965,13 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
             }
         }
     }
+    // (I8) RAI, the AI component (ai.rs).
+    #[cfg(feature = "network")]
+    if rapidr_ai::rai::is_rai(&rp_comp_type(name)) {
+        if let Some(v) = crate::ai::get(name, &prop_lower) {
+            return v;
+        }
+    }
     // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll.rs).
     if let Some(v) = crate::scroll::get(name, &prop_lower) {
         return v;
@@ -1229,6 +1241,13 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     #[cfg(feature = "studio")]
     if rapidr_studio::is_studio_type(&comp_type) {
         if let Some(v) = crate::studio::call(&comp_type, name, &method_lower, args) {
+            return v;
+        }
+    }
+    // (I8) RAI, the AI component (ai.rs).
+    #[cfg(feature = "network")]
+    if rapidr_ai::rai::is_rai(&comp_type) {
+        if let Some(v) = crate::ai::call(name, &method_lower, args) {
             return v;
         }
     }

@@ -1,0 +1,11 @@
+' rai_form.rr: a form with an RAI (RapidR Studio's designer tests: its
+' Model list fetched in the designer, its key kept out of the code).
+
+CREATE Form AS RForm
+    Caption = "Ask"
+    Width = 320: Height = 200
+    CREATE AI AS RAI
+    END CREATE
+END CREATE
+
+Form.ShowModal
