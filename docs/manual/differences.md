@@ -35,7 +35,11 @@ converted copy, proved to compile exactly as the original, with a report.
 - **RapidQ's example corpus**: of RapidQ's 386 example programs, the 123
   that use only the API RapidQ's Windows and Linux versions shared all
   compile, and run alike natively and interpreted. Most of the rest call
-  Windows DLLs directly (below).
+  Windows DLLs directly (below). On Windows every one of RapidQ's 428
+  example programs is run side by side with RC.EXE's build of it —
+  interpreted and as a native build, their windows compared — and where
+  each one stands is listed program by program in
+  [rapidq-corpus-status.md](../rapidq-corpus-status.md).
 - **The GUI** is checked by driving every test program's windows and
   comparing their pixels and accessibility trees: native against
   interpreted, the desktop against the browser, at 1× and 2× scale.
@@ -73,6 +77,11 @@ converted copy, proved to compile exactly as the original, with a report.
   RapidQ there is nothing to do with them (RapidQ gives them no keys and
   nothing that plays them).
 - DOS-era port I/O.
+- **Rich text formatting in an RRichEdit (`QRICHEDIT`)**: its text, lines and
+  selection work as in RapidQ, but it is drawn in one font — a selection's
+  `SelAttributes` (bold, colour) and RTF formatting aren't shown yet
+  (RapidQ's syntax-highlighting example shows its code without the
+  highlighting).
 - `ON ERROR` is accepted and ignored (it's VB's, not RapidQ's): a run-time
   error still ends the program.
 
