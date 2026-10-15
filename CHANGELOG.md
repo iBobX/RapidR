@@ -36,6 +36,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   selects that text; RapidQ's syntax-highlighting example looped forever where it counted one.
   QEDIT and the code editor are unchanged. (Rich text formatting itself, SelAttributes, is still
   plain text in RapidR's rich edit.)
+- **RAPIDQ.INC's `QBColor` array.** `$INCLUDE "RAPIDQ.INC"` (RapidR's built-in one) now also gives
+  `QBColor(0 TO 15)`, the INTEGER array of QBasic's 16 colours as &HBBGGRR numbers that RapidQ
+  programs index (`VoorKleur = QBColor(12)`, bright red) — its bounds, type and values as RC.EXE
+  reads them, on all three runtimes (conformance case `rapidq_qbcolor`, whose expected output is
+  RC.EXE's). Included twice, RAPIDQ.INC is given once, as RapidQ's own file guards itself.
 - `tools/rc_probe.sh`: `-w` gives a run its own work folder in the Windows VM (two lanes no longer
   copy RC.EXE over each other), and `w_*.bas` probes are GUI programs whose findings file is
   printed.
