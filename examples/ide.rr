@@ -1,6 +1,10 @@
 ' ============================================================
-' RapidR Visual IDE — Production Build
-' A visual development environment written in RapidR
+' ide.rr: the first RapidR IDE — a visual development environment
+' written in RapidR itself. Kept to read, and as a big program to run,
+' until RapidR Studio (source in ide/, started by `rapidr ide`)
+' has replaced it.
+'
+'   rapidr run ide.rr
 ' ============================================================
 $THEME Modern
 

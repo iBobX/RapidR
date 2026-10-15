@@ -1,7 +1,8 @@
-' themes.rr: RapidR's looks for the same form — classic (the Windows look,
-' every program's unless it asks for another), modern, dark and
-' highcontrast — chosen with $THEME and switched while the program runs
-' with Application.Theme.
+' themes.rr: RapidR's looks for the same form — classic (RapidQ's exact
+' Windows look), modern (RapidR's own look, light), dark and highcontrast —
+' chosen with $THEME and switched while the program runs with
+' Application.Theme. (A program that names none gets RapidR's own look,
+' following the system's light, dark or high-contrast setting.)
 '
 '   rapidr run themes.rr
 '

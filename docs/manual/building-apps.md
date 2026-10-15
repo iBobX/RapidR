@@ -154,6 +154,10 @@ RapidR takes any of the formats above.
   your Developer ID and notarize it (`codesign`, `xcrun notarytool`); a
   downloaded unsigned app is allowed once in System Settings > Privacy &
   Security > Open Anyway (see [Install on macOS](getting-started.md#install-on-macos)).
+- A built app opens like any other Mac app:
+
+  ![hello_form built by rapidr build and opened as an app on macOS: its window with a name box and a Greet button](images/install/macos-built-app.png)
+
 - An interpreted app keeps the program's bytecode in
   `Contents/Resources/<name>.rrbc` (data after a signed executable would
   break its signature).
@@ -217,6 +221,10 @@ What is in the zip:
 | `fonts/` | the fallback fonts, loaded only for characters the built-in fonts lack |
 | `THIRD-PARTY-NOTICES.txt` | the open-source notices that travel with the runtime |
 | `_headers`, `.htaccess` | the same safe headers, for hosts that read them |
+
+A program that has to reach a server of its own (a fetch of an address it
+doesn't spell out) adds it to the policy with `--csp`:
+`rapidr bundle-bc prog.bas -o site.zip --csp "connect-src https://api.example.com"`.
 
 To try it before you upload, unzip it and serve the folder:
 `python3 -m http.server -d hello_form-web 8000`, then open

@@ -33,7 +33,6 @@ export const scenes = [
   { topic: "debugging", name: "step-into", open: COUNTER, do: `${HIT},debug.stepInto,wait,debug.stepOver,wait,view.variables`, delay: 7, crop: WORKBENCH },
   { topic: "debugging", name: "watch", open: COUNTER, do: `${HIT},debug.stepInto,wait,debug.stepOver,wait,watch:total + k,watch:n * 100,view.watch,wait`, delay: 7, crop: BOTTOM },
   { topic: "debugging", name: "set-value", open: COUNTER, do: `${HIT},view.variables,varpick:G/total,key:F2,type:100`, delay: 7, crop: BOTTOM },
-  { topic: "debugging", name: "data-tip", open: COUNTER, do: `${BP},bpcond:i = 2,run.start,wait,wait,wait,debug.stepInto,wait,debug.stepOver,wait,hover:7:5,wait`, delay: 7, crop: EDITOR },
   { topic: "debugging", name: "call-stack-frame", open: COUNTER, do: `${HIT},debug.stepInto,wait,debug.stepOver,wait,view.variables,frame:1,wait`, delay: 7, crop: WORKBENCH },
   { topic: "debugging", name: "immediate", open: COUNTER, do: `${BP},bpcond:i = 3,run.start,wait,wait,wait,view.immediate,focus:immediatebox,type:? total * 10,key:Enter,wait,wait,wait,type:total = 0,key:Enter,wait,wait,wait,type:? total,key:Enter,wait,wait`, delay: 12, crop: BOTTOM },
   { topic: "debugging", name: "pause-waiting", open: GREETER, do: "run.start,wait,wait,wait,run.pause,wait,wait", delay: 6, crop: [0, 64, 1036, 706] },

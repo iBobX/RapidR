@@ -1,9 +1,16 @@
 # Getting started
 
+**In three lines**
+
+- **Take the SDK** (`RapidR-…`): Studio, the `rapidr` command and everything to build. *Most people want it.* The **Runtime** (`RapidR-Runtime-…`) only runs programs others made, like a Java runtime; the SDK includes it.
+- **`rapidr run file.bas`** runs a program now. **`rapidr build-bc file.bas`** compiles it to `file.rrbc`, which runs with `rapidr file.rrbc` or a double click wherever the Runtime is installed.
+- **`rapidr build file.bas`** makes a standalone executable: `--interp` needs no Rust; the default, native, needs Rust once (`rapidr setup`).
+
 ## Install
 
 Download from [the GitHub releases](https://github.com/iBobX/RapidR/releases).
-There are two kinds of package for each system:
+There are two kinds of package for each system (take the first one unless you
+only want to run programs):
 
 - **The RapidR SDK**: the IDE, the `rapidr` command (compiler and runtime),
   everything needed to make standalone executables and web bundles, and
@@ -18,12 +25,12 @@ system-wide).
 
 | System | SDK | Runtime only | Minimum |
 |---|---|---|---|
-| Windows x64 / ARM64 | `RapidR-2.117.0-windows-<x64\|arm64>-setup.exe` | `RapidR-Runtime-2.117.0-windows-<arch>-setup.exe` | Windows 10 or 11 |
-| macOS (one universal app: Apple silicon and Intel) | `RapidR-2.117.0-macos-universal.dmg` | `RapidR-Runtime-2.117.0-macos-universal.dmg` | macOS 11 Big Sur |
-| Linux x86_64 / aarch64 | `rapidr-2.117.0-linux-<arch>.tar.gz` or `rapidr_2.117.0_<amd64\|arm64>.deb` | `rapidr-runtime-…` | Ubuntu 22.04, Debian 12 or newer (OpenSSL 3) |
-| Web | `rapidr-web-2.117.0.zip`: the web IDE, for any static web host | | a current browser |
+| Windows x64 / ARM64 | `RapidR-2.119.0-windows-<x64\|arm64>-setup.exe` | `RapidR-Runtime-2.119.0-windows-<arch>-setup.exe` | Windows 10 or 11 |
+| macOS (one universal app: Apple silicon and Intel) | `RapidR-2.119.0-macos-universal.dmg` | `RapidR-Runtime-2.119.0-macos-universal.dmg` | macOS 11 Big Sur |
+| Linux x86_64 / aarch64 | `rapidr-2.119.0-linux-<arch>.tar.gz` or `rapidr_2.119.0_<amd64\|arm64>.deb` | `rapidr-runtime-…` | Ubuntu 22.04, Debian 12 or newer (OpenSSL 3) |
+| Web | `rapidr-web-2.119.0.zip`: the web IDE, for any static web host | | a current browser |
 
-**This first release is not code-signed.** Apple and Microsoft check
+**RapidR's downloads are not code-signed yet.** Apple and Microsoft check
 downloaded programs against a list of registered publishers, and RapidR is
 not on it yet, so Windows and macOS each warn once the first time you open
 it. The warning is expected, and the steps to get past it are below (one per
@@ -33,7 +40,7 @@ system). The files are the same ones whose checksums are published; see
 ### Install on Windows
 
 1. **Pick the right file.** *Settings > System > About > System type* says
-   "x64-based processor" (take `RapidR-2.117.0-windows-x64-setup.exe`) or
+   "x64-based processor" (take `RapidR-2.119.0-windows-x64-setup.exe`) or
    "ARM-based processor" (take `…-windows-arm64-setup.exe`; Windows 11 in a
    Mac's virtual machine is ARM). To only run programs, take the
    `RapidR-Runtime-…` file of the same kind.
@@ -53,9 +60,9 @@ system). The files are the same ones whose checksums are published; see
 5. **Click Install, then Finish.**
 
 Open the Start menu, type "RapidR" and press Enter: **RapidR Studio** starts.
-In a new Command Prompt, `rapidr version` prints `RapidR 2.117.0`.
+In a new Command Prompt, `rapidr version` prints `RapidR 2.119.0`.
 
-To remove RapidR: *Settings > Apps > Installed apps*, "RapidR 2.117.0",
+To remove RapidR: *Settings > Apps > Installed apps*, "RapidR 2.119.0",
 **Uninstall**. The files, the Start menu entry, the file types and the PATH
 entry go; your programs stay. The SDK and the Runtime use the same folder and
 the same uninstall entry, so a PC has one of them: installing the other
@@ -63,7 +70,7 @@ replaces it.
 
 ### Install on macOS
 
-1. **Open the disk image** (`RapidR-2.117.0-macos-universal.dmg`; one file for
+1. **Open the disk image** (`RapidR-2.119.0-macos-universal.dmg`; one file for
    Apple silicon and Intel Macs, macOS 11 or newer). Drag **RapidR Studio**
    onto **Applications**. (The Runtime image holds only **RapidR Runtime**.)
    The *Licenses* folder in the image has the licence and the notices.
@@ -112,19 +119,21 @@ It is system-wide, so it asks for your password (`sudo`). Nothing warns about
 it: Linux doesn't check publishers.
 
 1. **Pick the right file.** `dpkg --print-architecture` prints `amd64` (most
-   PCs: `rapidr_2.117.0_amd64.deb`) or `arm64` (Raspberry Pi 4 and 5, ARM
-   servers, Ubuntu in a Mac's virtual machine: `rapidr_2.117.0_arm64.deb`). To
-   only run programs, take `rapidr-runtime_2.117.0_<arch>.deb`.
+   PCs: `rapidr_2.119.0_amd64.deb`) or `arm64` (Raspberry Pi 4 and 5, ARM
+   servers, Ubuntu in a Mac's virtual machine: `rapidr_2.119.0_arm64.deb`). To
+   only run programs, take `rapidr-runtime_2.119.0_<arch>.deb`.
 2. **Install it with apt**, from the folder you downloaded it to. Keep the
    `./` in front of the name: it tells apt this is a file, and apt then
    fetches what RapidR needs (OpenSSL 3, fontconfig, ALSA) by itself:
 
    ```sh
    cd ~/Downloads
-   sudo apt install ./rapidr_2.117.0_arm64.deb
+   sudo apt install ./rapidr_2.119.0_arm64.deb
    ```
 
    ![A terminal: sudo apt install ./rapidr_2.117.0_arm64.deb, then rapidr version printing RapidR 2.117.0, and the files the package installs](images/install/linux-apt-install.png)
+
+   *(The picture is from an earlier version: yours shows 2.119.0.)*
 
 3. **Open RapidR Studio**: *Show Applications*, type "RapidR", click **RapidR
    Studio** (it is under Development too), or run `rapidr ide`.
@@ -176,7 +185,7 @@ On Windows (PowerShell), print the file's checksum and compare it with its
 line in `SHA256SUMS`:
 
 ```powershell
-Get-FileHash .\RapidR-2.117.0-windows-x64-setup.exe -Algorithm SHA256
+Get-FileHash .\RapidR-2.119.0-windows-x64-setup.exe -Algorithm SHA256
 ```
 
 When a release also has **`SHA256SUMS.minisig`**, it proves the list itself
@@ -300,10 +309,10 @@ through that line without needing the file.
 | You want | Command | Needs |
 |---|---|---|
 | Run a program now | `rapidr run prog.bas` | nothing |
-| A compiled program for the RapidR Runtime | `rapidr build-bc prog.bas -o prog.rrbc` | nothing |
-| A standalone executable (the interpreter inside) | `rapidr build prog.bas --interp` | nothing |
+| A compiled program for the RapidR Runtime, to give to people who have it (it runs with `rapidr prog.rrbc`, or on a double click) | `rapidr build-bc prog.bas -o prog.rrbc` | nothing |
+| A standalone executable (the interpreter inside): nobody needs RapidR to run it | `rapidr build prog.bas --interp` | nothing |
 | …for the other Windows architecture, or one macOS slice | `rapidr build prog.bas --interp --target windows-aarch64` | nothing (the SDK ships those runners) |
-| A native executable | `rapidr build prog.bas` | Rust (`rapidr setup`) |
+| A native executable (your program compiled to machine code) | `rapidr build prog.bas` | Rust, once (`rapidr setup`) |
 | A web bundle (a `.zip` for any static host) | `rapidr bundle-bc prog.bas -o prog-web.zip` | nothing |
 
 Every build writes `THIRD-PARTY-NOTICES.txt` beside the executable (or into
@@ -335,24 +344,37 @@ python3 -m http.server -d form-web 8080      # any static web server
 Open `http://localhost:8080`: the same window, drawn by the same UI kernel
 in a canvas. See [The web](web.md).
 
-## The IDEs
+## RapidR Studio
 
 - **The desktop IDE** (SDK: Start menu > RapidR Studio, *RapidR Studio* in
   Applications on macOS, *RapidR Studio* in the applications menu on Linux, or
-  `rapidr ide [file]`) is written in RapidR
-  itself: a form designer, a code editor with BASIC colours, Run. It is an
-  early version; the full IDE (RapidR Studio: IntelliSense, a debugger,
-  linked data components, AI assistance) is being built
-  ([docs/ide-plan.md](../ide-plan.md)). Its debugger works today:
-  [Debugging in RapidR Studio](debugging.md).
-- **The web IDE** (`rapidr-web-2.117.0.zip`, any static host): RapidR
-  Studio in the browser — the designer, the code editor and Run — with no
-  server-side code (apps and web bundles are built on the desktop for now).
+  `rapidr ide [file]`) is written in RapidR itself. It has a **form
+  designer** ([Designing forms](designing-forms.md)), a **code editor** that
+  completes, explains and checks as you type ([The code editor](studio-editor.md)),
+  a **debugger** with breakpoints, stepping, values you can open like a tree
+  and Set Next Statement ([Debugging](debugging.md)), an **AI assistant**
+  that stays off until you turn it on ([The AI assistant and RAI](ai-assistant.md)),
+  Markdown files shown formatted ([Markdown](markdown.md)), linked data shown
+  live in the designer ([Data science with RapidR](data-science-with-rapidr.md)),
+  and Run, Build and Build Web App.
+- **The web IDE** (`rapidr-web-2.119.0.zip`, any static host): the same
+  RapidR Studio in the browser — the designer, the code editor, the
+  debugger, Run and Build Web App — with no server-side code. Apps for a
+  computer (`.app`, `.exe`) are built on the desktop.
+
+On the Welcome page, **Examples** opens a program to run and read; start with
+`hello_form.rr`, then the data examples.
 
 ## Where next
 
+- [Why RapidR](why-rapidr.md): what it does best, with measured numbers.
 - [The language](language.md), with the rules that surprise people coming
   from other BASICs (PRINT's comma, numbers, integer stores).
-- [The examples](../../examples/README.md).
+- [Designing forms in RapidR Studio](designing-forms.md): a two-form app,
+  step by step.
+- [The examples](../../examples/README.md), in the order to read them.
 - [The component reference](reference/components.md), for every component's
   members.
+- Have RapidQ programs? [Importing RapidQ programs](importing-rapidq.md); they
+  also run as they are.
+- A message you don't understand? [Troubleshooting](troubleshooting.md).

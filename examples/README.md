@@ -19,81 +19,89 @@ Every example says at the top how to start it. The same source runs four ways:
 |-----|---------|--------------|
 | **run** | `rapidr run gui/hello_form.rr` | Runs it now: compiled in memory, run by the RapidR Runtime (bytecode VM). |
 | **interp** | `rapidr build gui/hello_form.rr out --interp` | A standalone executable `out/hello_form`: the runtime and the program's bytecode in one file. No Rust needed. |
-| **native** | `rapidr build gui/hello_form.rr` (add `--release` for speed) | A native executable `gui/hello_form`, through generated Rust (needs Rust: `rapidr setup`). |
+| **native** | `rapidr build gui/hello_form.rr` | A native executable `gui/hello_form` (optimized), through generated Rust (needs Rust once: `rapidr setup`). |
 | **web** | `rapidr bundle-bc gui/hello_form.rr -o hello.zip` | A static web site (unzip it, serve the folder with any web server, e.g. `python3 -m http.server`): the program runs in the browser, drawn by the same UI kernel. |
 
-Data files an example uses (pictures, sounds, a CSV) are built into it with
-`$RESOURCE`, so its executables and web pages run from anywhere.
+To hand a program to someone who has the RapidR Runtime, `rapidr build-bc
+gui/hello_form.rr -o hello.rrbc` makes a file that runs with `rapidr
+hello.rrbc` or a double click.
+
+Data files an example uses (pictures, sounds) are built into it with
+`$RESOURCE`, so its executables and web pages run from anywhere; a data
+example's CSV or JSON file sits beside it.
 
 ## The examples
 
-The **Runs on** column lists the ways each example is tested on (by
-`tests/examples_run.mjs`: every example, every way it claims, headless).
+In the order to read them: the language first, then windows, drawing, data,
+the debugger, media and DirectX, the network, AI, boards, RapidQ programs, the
+web, and last the IDE's own parts. The **Runs on** column lists the ways each
+example is tested on (by `tests/examples_run.mjs`: every example, every way it
+claims, headless).
 
 ### basics/ — the language, in a console
 
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
-| [hello.rr](basics/hello.rr) | `PRINT`, variables, `FOR`, a `FUNCTION` and a `SUB`, string functions | run · interp · native · web | `rapidr run basics/hello.rr` |
+| [hello.rr](basics/hello.rr) | The first program: `PRINT`, variables, `FOR`, a `FUNCTION` and a `SUB`, string functions | run · interp · native · web | `rapidr run basics/hello.rr` |
 | [input.rr](basics/input.rr) | `INPUT`: a tip calculator that asks for numbers | run · interp · native | `rapidr run basics/input.rr` |
 | [files.rr](basics/files.rr) | Text files: `OPEN` for output / append / input, `LINE INPUT`, `EOF`, an `RFileStream`, `KILL` | run · interp · native · web | `rapidr run basics/files.rr` |
-| [language.rr](basics/language.rr) | `TYPE` records, arrays, `DATA` / `READ`, `SELECT CASE`, `DO … LOOP`, an object `TYPE … EXTENDS RObject` with methods and a constructor | run · interp · native · web | `rapidr run basics/language.rr` |
+| [language.rr](basics/language.rr) | A tour: `TYPE` records, arrays, `DATA` / `READ`, `SELECT CASE`, `DO … LOOP`, an object `TYPE` with methods and a constructor | run · interp · native · web | `rapidr run basics/language.rr` |
 
 ### gui/ — forms and their events
 
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
-| [hello_form.rr](gui/hello_form.rr) | A form built with `CREATE`, a text box, a button's `OnClick`, `OnChange` | run · interp · native · web | `rapidr run gui/hello_form.rr` |
-| [menus.rr](gui/menus.rr) | A main menu: shortcuts, a check item, radio items, a submenu; a pop-up menu; a status bar | run · interp · native · web | `rapidr run gui/menus.rr` |
-| [dialogs.rr](gui/dialogs.rr) | Open file, colour and font dialogs; a Yes / No question (`MESSAGEDLG`) | run · interp · native · web | `rapidr run gui/dialogs.rr` |
-| [richtext.rr](gui/richtext.rr) | A small rich-text editor: `RRichEdit`'s `SelAttributes` (bold, italic, underline, colour, font), paragraphs aligned and bulleted, open / save `.rtf` — [the manual](../docs/manual/rich-text.md) | run · interp · native · web | `rapidr run gui/richtext.rr` |
+| [hello_form.rr](gui/hello_form.rr) | A form built with `CREATE`: a text box, a button's `OnClick`, `OnChange` | run · interp · native · web | `rapidr run gui/hello_form.rr` |
 | [stopwatch.rr](gui/stopwatch.rr) | An `RTimer`: start, lap, stop, reset; a list of laps | run · interp · native · web | `rapidr run gui/stopwatch.rr` |
 | [pantry.rr](gui/pantry.rr) | An `RListBox` and an `RStringGrid` working together; adding rows, totals | run · interp · native · web | `rapidr run gui/pantry.rr` |
-| [themes.rr](gui/themes.rr) | RapidR's themes: `$THEME modern`, switching with `Application.Theme` (classic, modern, dark, high contrast) | run · interp · native · web | `rapidr run gui/themes.rr` |
-| [sales_dashboard.rr](gui/sales_dashboard.rr) | A big window (1200 × 800): a sales dashboard — figures on `RPanel`s, two `RPlot` charts, an `RStringGrid`, a region picked with buttons. In RapidR Studio on the web it shows whole: the run area scrolls past the page | run · interp · native · web | `rapidr run gui/sales_dashboard.rr` |
-| [tray.rr](gui/tray.rr) | A system tray icon, as RapidQ programs make one (`RNotifyIconData`, `Shell_NotifyIcon`, the form's `WndProc`) | run · interp · native · web | `rapidr run gui/tray.rr` |
+| [menus.rr](gui/menus.rr) | A main menu with shortcuts, check and radio items, a submenu; a pop-up menu; a status bar | run · interp · native · web | `rapidr run gui/menus.rr` |
+| [dialogs.rr](gui/dialogs.rr) | Open file, colour and font dialogs; a Yes / No question (`MESSAGEDLG`) | run · interp · native · web | `rapidr run gui/dialogs.rr` |
+| [richtext.rr](gui/richtext.rr) | A small rich-text editor: `SelAttributes`, paragraphs aligned and bulleted, open and save `.rtf` ([the manual](../docs/manual/rich-text.md)) | run · interp · native · web | `rapidr run gui/richtext.rr` |
+| [themes.rr](gui/themes.rr) | RapidR's looks: `$THEME`, and switching with `Application.Theme` (classic, modern, dark, high contrast) | run · interp · native · web | `rapidr run gui/themes.rr` |
+| [sales_dashboard.rr](gui/sales_dashboard.rr) | A big window (1200 × 800): figures, two `RPlot` charts, a grid; in Studio on the web it shows whole, the run area scrolls ([the web](../docs/manual/web.md#windows-bigger-than-the-page)) | run · interp · native · web | `rapidr run gui/sales_dashboard.rr` |
+| [tray.rr](gui/tray.rr) | A system tray icon, as RapidQ programs make one (`RNotifyIconData`, `Shell_NotifyIcon`, `WndProc`) | run · interp · native · web | `rapidr run gui/tray.rr` |
 
-### studio/ — RapidR Studio's panels in your own program
-
-| Example | What it shows | Runs on | Try |
-|---------|---------------|---------|-----|
-| [panels.rr](studio/panels.rr) | The IDE's public components docked together: a toolbar, the toolbox, the project tree, a designer with the property inspector following it (Anchors' pin editor), the output console, the command palette | run · interp · native · web | `rapidr run studio/panels.rr` |
-| [form_designer.rr](studio/form_designer.rr) | The designer surface alone (`RDesignSurface`): click, Shift+click and drag components, smart guides, the anchor pins, undo and redo, the form's resize preview | run · interp · native · web | `rapidr run studio/form_designer.rr` |
-
-### graphics/ and directx/ — drawing
+### graphics/ — drawing
 
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
-| [canvas.rr](graphics/canvas.rr) | Drawing on an `RCanvas` in `OnPaint`: a bar chart; mouse clicks add dots; `Pixel` | run · interp · native · web | `rapidr run graphics/canvas.rr` |
-| [sprites.rr](directx/sprites.rr) | DirectX 2D: an `RDXScreen`, sprites from an `RDXImageList` ([sprites.dxg](directx/sprites.dxg)), an `RDXTimer` animating them, `Flip` | run · interp · native · web | `rapidr run directx/sprites.rr` |
-| [d3d_cube.rr](directx/d3d_cube.rr) | Direct3D: a `.X` model ([cube.x](directx/cube.x)) in a mesh builder, lights, the camera, a spinning frame | run · interp · native · web | `rapidr run directx/d3d_cube.rr` |
-
-### media/ — sound and video
-
-| Example | What it shows | Runs on | Try |
-|---------|---------------|---------|-----|
-| [midi.rr](media/midi.rr) | `RMIDI`: play, pause, stop a MIDI song ([tune.mid](media/tune.mid)); RapidR's built-in synthesizer plays it where the system has none | run · interp · native · web | `rapidr run media/midi.rr` |
-| [wave.rr](media/wave.rr) | `RWave`: play a WAV ([chime.wav](media/chime.wav)); record a second from the microphone, save it, play it back | run · interp · native · web | `rapidr run media/wave.rr` |
-| [video.rr](media/video.rr) | `RVideo`: an AVI ([clip.avi](media/clip.avi)) on a form, enlarged, with a frame counter | run · interp · native · web | `rapidr run media/video.rr` |
+| [canvas.rr](graphics/canvas.rr) | Drawing on an `RCanvas` in `OnPaint`: a bar chart; clicks add dots; `Pixel` | run · interp · native · web | `rapidr run graphics/canvas.rr` |
 
 ### data/ — databases, JSON, data science
+
+Start with the CSV Explorer; [Data science with RapidR](../docs/manual/data-science-with-rapidr.md) walks through the linked ones.
 
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
 | [sqlite.rr](data/sqlite.rr) | `RSQLite`: a table, inserts and queries with `?` parameters (and why they matter), `QueryScalar`, `GROUP BY` | run · interp · native · web | `rapidr run data/sqlite.rr` |
-| [json.rr](data/json.rr) | `RJson`: parse, read by path (`customer.city`, `items.0`), set, remove, save to and load from a file | run · interp · native · web | `rapidr run data/json.rr` |
+| [json.rr](data/json.rr) | `RJson`: parse, read by path (`customer.city`, `items.0`), set, remove, save and load | run · interp · native · web | `rapidr run data/json.rr` |
 | [numbers.rr](data/numbers.rr) | `RNum` arrays: `FromList`, `Arange`, `Linspace`, statistics, arithmetic on every element, `Cumsum`, `Unique` | run · interp · native · web | `rapidr run data/numbers.rr` |
-| [csv_explorer.rr](data/csv_explorer.rr) | Drop a CSV file on the window (or open one, or the sample [shop.csv](data/shop.csv)): a table sorted by a click on a heading, a filter, each column's count, min, max and mean, and a live `RPlot` bar, line or scatter chart of any two columns; the form's `OnDropFiles` | run · interp · native · web | `rapidr run data/csv_explorer.rr` |
+| [csv_explorer.rr](data/csv_explorer.rr) | Drop a CSV on the window ([shop.csv](data/shop.csv) is the sample): a sortable table, a filter, each column's statistics, a live `RPlot` chart ([the tutorial](../docs/manual/data-science.md#tutorial-the-csv-explorer)) | run · interp · native · web | `rapidr run data/csv_explorer.rr` |
 | [dataframe.rr](data/dataframe.rr) | `RDataFrame` from a CSV ([staff.csv](data/staff.csv)): filter, sort, into a grid; an `RPlot` bar chart on the form | run · interp · native · web | `rapidr run data/dataframe.rr` |
-| [json_source.rr](data/json_source.rr) | A JSON file ([products.json](data/products.json)) as a data source: an `RJson`'s records → `RDataFrame` (`Source`) → an `RDBGrid` and bound edits; filtered, grouped by category, saved back as JSON | run · interp · native · web | `rapidr run data/json_source.rr` |
-| [million_rows.rr](data/million_rows.rr) | A million rows: written once to `big.csv`, read by an `RCSV`, shown in an `RDBGrid` that draws only the rows on screen; filter, sort and group the whole million with the time each took | run · interp · native · web | `rapidr run data/million_rows.rr [rows]` |
-| [linked_data.rr](data/linked_data.rr) | Linked components with almost no code: an `RCSV` ([staff.csv](data/staff.csv)) → `RDataFrame` (`Source`) → `RDataSource` → an `RDBGrid` and `REdit`s / `RLabel`s bound with `DataSource` + `DataField`; the current row followed everywhere, edits written back, the grid's view sorted by a heading's click — live in RapidR Studio's designer too | run · interp · native · web | `rapidr run data/linked_data.rr` |
+| [linked_data.rr](data/linked_data.rr) | Linked components with almost no code: `RCSV` → `RDataFrame` → `RDataSource` → an `RDBGrid` and bound edits and labels; live in Studio's designer | run · interp · native · web | `rapidr run data/linked_data.rr` |
+| [json_source.rr](data/json_source.rr) | A JSON file ([products.json](data/products.json)) as a data source for a grid and edits; filtered, grouped, saved back as JSON | run · interp · native · web | `rapidr run data/json_source.rr` |
+| [million_rows.rr](data/million_rows.rr) | A million rows in an `RDBGrid` that draws only the rows on screen; filter, sort and group them all, with the time each took | run · interp · native · web | `rapidr run data/million_rows.rr [rows]` |
 
 ### debugging/ — RapidR Studio's debugger
 
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
-| [shop.rr](debugging/shop.rr) | A small shop's order book made to be looked at in the debugger ([Debugging in RapidR Studio](../docs/manual/debugging.md)): nested `TYPE`s in an array, an `RDataFrame`, an `RNum`, a long text, a form; a loop whose line calls two FUNCTIONs (Step Into Specific), a division by zero to stop at and go on from (Set Next Statement) | run · interp · native · web | `rapidr ide debugging/shop.rr` |
+| [shop.rr](debugging/shop.rr) | A small shop's order book to look at in the debugger: nested `TYPE`s, an `RDataFrame`, an `RNum`, two FUNCTIONs on one line (Step Into Specific), a division by zero (Set Next Statement) — [Debugging](../docs/manual/debugging.md) | run · interp · native · web | `rapidr ide debugging/shop.rr` |
+
+### media/ — sound and video
+
+| Example | What it shows | Runs on | Try |
+|---------|---------------|---------|-----|
+| [midi.rr](media/midi.rr) | `RMIDI`: play, pause, stop a MIDI song ([tune.mid](media/tune.mid)); RapidR's own synthesizer where the system has none | run · interp · native · web | `rapidr run media/midi.rr` |
+| [wave.rr](media/wave.rr) | `RWave`: play a WAV ([chime.wav](media/chime.wav)); record a second from the microphone, save, play back | run · interp · native · web | `rapidr run media/wave.rr` |
+| [video.rr](media/video.rr) | `RVideo`: an AVI ([clip.avi](media/clip.avi)) on a form, enlarged, with a frame counter | run · interp · native · web | `rapidr run media/video.rr` |
+
+### directx/ — DirectX 2D and Direct3D
+
+| Example | What it shows | Runs on | Try |
+|---------|---------------|---------|-----|
+| [sprites.rr](directx/sprites.rr) | An `RDXScreen`, sprites from an `RDXImageList` ([sprites.dxg](directx/sprites.dxg)), an `RDXTimer` animating them, `Flip` | run · interp · native · web | `rapidr run directx/sprites.rr` |
+| [d3d_cube.rr](directx/d3d_cube.rr) | Direct3D: a `.X` model ([cube.x](directx/cube.x)) in a mesh builder, lights, the camera, a spinning frame | run · interp · native · web | `rapidr run directx/d3d_cube.rr` |
 
 ### network/ — HTTP (against a server on your own machine)
 
@@ -102,7 +110,7 @@ Start a server in the folder first, e.g. `cd network && python3 -m http.server 8
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
 | [http_json.rr](network/http_json.rr) | `RHttp.Get` fetching a JSON document ([forecast.json](network/forecast.json)), read with `RJson` | run · interp · native · web | `rapidr run network/http_json.rr http://127.0.0.1:8000/forecast.json` |
-| [download.rr](network/download.rr) | `RDownload` (RapidQ's `QDOWNLOAD`, from its `Qdownload.inc`): a file downloaded into a file, its progress bar on the form | run · interp · native · web | `rapidr run network/download.rr http://127.0.0.1:8000/forecast.json` |
+| [download.rr](network/download.rr) | `RDownload` (RapidQ's `QDOWNLOAD`): a file into a file, its progress bar on the form | run · interp · native · web | `rapidr run network/download.rr http://127.0.0.1:8000/forecast.json` |
 
 On a web page the address goes after `?` in the page's address
 (`index.html?http://127.0.0.1:8000/forecast.json`); serve the page from the
@@ -118,32 +126,29 @@ says more.
 
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
-| [rai_models.rr](ai/rai_models.rr) | `RAI`: a provider picked from its list, the key from the provider's environment variable or typed while the program runs (never written in the program: `APIKeySource = "env:…\|ask"`, `OnKeyNeeded`), the provider's own models (`RefreshModels`, `OnModelsLoaded`; none chosen for you, the fast, low-cost ones first), a question asked and its answer streamed into an `RMarkdownView` (`Ask`, `OnToken`, `Cancel`), the tokens it took (`Usage`) | run · interp · native · web | `rapidr run ai/rai_models.rr` |
-| [ask.rr](ai/ask.rr) | `RAI` in a console program: a model server on this computer (its address) or a provider whose key is in its environment variable, its first model (a fast, low-cost one), the answer printed as it arrives (`OnToken`), waiting with `DOEVENTS` | run · interp · native · web | `rapidr run ai/ask.rr http://localhost:11434/v1` |
+| [rai_models.rr](ai/rai_models.rr) | `RAI` in a window: pick a provider, give a key (never written in the program), list its models, ask, watch the answer stream into an `RMarkdownView`, see the tokens it took | run · interp · native · web | `rapidr run ai/rai_models.rr` |
+| [ask.rr](ai/ask.rr) | `RAI` in a console program: a local model server or a provider whose key is in its environment variable; the answer printed as it arrives | run · interp · native · web | `rapidr run ai/ask.rr http://localhost:11434/v1` |
 
 ### iot/ — boards on a serial port (ESP32, Arduino)
 
-Plug the board in by USB first. [Serial ports and IoT boards](../docs/manual/serial-ports.md) says more.
+Plug the board in by USB first. [Serial ports and IoT boards](../docs/manual/serial-ports.md) says more; in a browser (Chrome, Edge) the first Connect asks which port to use.
 
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
-| [esp32_monitor.rr](iot/esp32_monitor.rr) | `RComPort` for IoT boards: the serial ports in a combo box with their USB adapters (`FillList`), connect at 115200, **Reset** the board through DTR / RTS, its boot log and output line by line (`OnLine`), adapters plugged in and out (`OnPortsChanged`). Never writes to the board | run · interp · native · web | `rapidr run iot/esp32_monitor.rr` |
-
-In a browser (Chrome, Edge) the first Connect asks which port to use.
+| [esp32_monitor.rr](iot/esp32_monitor.rr) | `RComPort` for boards: ports listed with their USB adapters, connect at 115200, reset through DTR / RTS, the boot log line by line, plug and unplug events. Never writes to the board | run · interp · native · web | `rapidr run iot/esp32_monitor.rr` |
 
 ### rapidq/ — RapidQ programs, unchanged
 
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
-| [notepad.bas](rapidq/notepad.bas) | A text editor in plain RapidQ style: `$TYPECHECK ON`, `DECLARE SUB`, Q components (`QRICHEDIT`, `QMAINMENU`, `QSTATUSBAR` panels), open / save dialogs, `OnClose`'s `Action` | run · interp · native · web | `rapidr run rapidq/notepad.bas` |
-| [shapes/shapes.bas](rapidq/shapes/shapes.bas) | A RapidQ program in several files: its library (`lib/geometry.inc`, which includes `lib/units.inc`) and its window (`forms/shapesform.inc`) brought in with `$INCLUDE`, written as on Windows (`"Lib\Geometry.INC"`) and found on every system; try `rapidr import-rapidq rapidq/shapes/shapes.bas` to see its includes copied too ([Include files](../docs/manual/importing-rapidq.md#include-files)) | run · interp · native · web | `rapidr run rapidq/shapes/shapes.bas` |
+| [notepad.bas](rapidq/notepad.bas) | A text editor in plain RapidQ style: `$TYPECHECK ON`, `DECLARE SUB`, Q components, open / save dialogs, `OnClose`'s `Action` | run · interp · native · web | `rapidr run rapidq/notepad.bas` |
+| [shapes/shapes.bas](rapidq/shapes/shapes.bas) | A RapidQ program in several files, brought in with `$INCLUDE` written as on Windows; try `rapidr import-rapidq` on it ([Include files](../docs/manual/importing-rapidq.md#include-files)) | run · interp · native · web | `rapidr run rapidq/shapes/shapes.bas` |
 
 RapidR runs RapidQ programs unchanged. The other examples use RapidR's own
 names: `RButton`, `RForm`, `RStringGrid` … (RapidQ's names, `QBUTTON`,
 `QFORM` …, are the same components and work everywhere). The `rapidq/`
 examples are kept in RapidQ's own style on purpose, to show that they run as
-they are. To
-bring a RapidQ program of your own over to RapidR's names, use
+they are. To bring a RapidQ program of your own over to RapidR's names, use
 `rapidr import-rapidq` (it writes a converted copy and a report, and leaves
 the original alone).
 
@@ -154,11 +159,13 @@ the original alone).
 | [todo.rr](web/todo.rr) | A to-do list kept in the browser's storage (`RWebStorage`): it's there again next visit | web | `rapidr bundle-bc web/todo.rr -o todo.zip` |
 | [browser.rr](web/browser.rr) | Asking the browser with `RJavaScript.Eval`; pages in the address's `#` with `RRouter` (Back works) | web | `rapidr bundle-bc web/browser.rr -o browser.zip` |
 
-### The IDE
+### studio/ and the IDE — RapidR Studio's parts
 
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
-| [ide.rr](ide.rr) | RapidR's visual IDE, itself a RapidR program (`rapidr ide` starts it; the SDK ships it compiled) | run · interp · native | `rapidr ide` |
+| [panels.rr](studio/panels.rr) | The IDE's public components docked together: toolbar, toolbox, project tree, designer with the inspector, output console, command palette | run · interp · native · web | `rapidr run studio/panels.rr` |
+| [form_designer.rr](studio/form_designer.rr) | The designer surface alone (`RDesignSurface`): select and drag components, smart guides, anchor pins, undo, the resize preview | run · interp · native · web | `rapidr run studio/form_designer.rr` |
+| [ide.rr](ide.rr) | The first RapidR IDE, itself a large RapidR program, kept to read until RapidR Studio (`rapidr ide`, source in `ide/`) has replaced it | run · interp · native | `rapidr run ide.rr` |
 
 ## Making the data files again
 

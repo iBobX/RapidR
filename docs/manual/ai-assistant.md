@@ -68,7 +68,9 @@ page instead — anyone who uses this browser profile could read it there.
 ## Asking
 
 **View > AI Assistant** (Ctrl+I; the ✦ button on the toolbar) shows the
-**Assistant** pane, beside Properties. Type your question and press
+**Assistant** pane, a tab beside Properties; the first time it shows, its column
+opens 380 pixels wide (drag the divider to change it, and Studio remembers).
+Type your question and press
 **Enter** (Shift+Enter starts a new line). The answer appears as it is
 written; **Stop** stops it. The lines in italics say what the assistant
 looked at to answer: a file it read, a component it looked up in RapidR's

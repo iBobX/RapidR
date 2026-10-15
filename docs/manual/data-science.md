@@ -114,8 +114,9 @@ sorted in 60 ms and grouped in about 35 ms.
 None of this changes what a program reads: a cell still reads back
 exactly as it was written (`"007"` stays `"007"`, `"1.50"` stays
 `"1.50"`), and every member gives the same answer as before. tools/bench/
-measures it (`tools/bench/compare.sh`, beside pandas and Polars when
-they're installed).
+measures it, with the conditions of each number
+(`tools/bench/compare.sh`, beside pandas when it's installed): see
+[Why RapidR](why-rapidr.md#data-a-table-of-a-million-rows-in-a-blink).
 
 ## RPlot
 

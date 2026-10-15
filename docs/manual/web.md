@@ -23,7 +23,8 @@ python3 -m http.server -d form-web 8080      # or any static host
 ```
 
 Serve the folder over HTTP(S) — browsers don't load WebAssembly from
-`file://` pages. The web interpreter is about 10 MB (2.7 MB compressed with
+`file://` pages (`rapidr serve form.bas --open` builds the program's web
+version and serves it on this computer for you, to try it). The web interpreter is about 10 MB (2.7 MB compressed with
 brotli, which most hosts do for you).
 
 ## Files and assets
@@ -165,14 +166,16 @@ runs, but their methods do nothing there and print a warning.
 
 ## The web IDE
 
-`rapidr-web-2.117.0.zip` is the web IDE: RapidR Studio, the same program
+`rapidr-web-2.119.0.zip` is the web IDE: RapidR Studio, the same program
 as on the desktop, drawn by the UI kernel on the page — a folder for any
 static host (open its `index.html` through a web server). It has the form
-designer, the code editor, the project tree, the inspector, the toolbox
-and Run (the program runs in a sandboxed frame of the page). It compiles
+designer, the code editor, the debugger ([the same as the desktop's](debugging.md#on-the-desktop-and-in-the-browser)),
+the project tree, the inspector, the toolbox and Run (the program runs in a
+sandboxed frame of the page), and **Run > Build Web App (.zip)**. It compiles
 in the browser; nothing is sent anywhere. The data files a program names
 go with it when it runs — a `$RESOURCE` file, a CSV it loads
 (`"staff.csv"`): any file beside the program whose name is written in its
 source, as the project tree lists them under Resources, Assets and Data.
-So every example runs in the web IDE as on the desktop. Building apps and web bundles is
-the desktop's for now (Studio's Build, `rapidr bundle-bc`).
+So every example runs in the web IDE as on the desktop. Apps for a computer
+(`.app`, `.exe`, native builds) are made on the desktop (Studio's Build,
+`rapidr build`).

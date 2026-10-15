@@ -3,7 +3,7 @@
 ## Installing and starting
 
 **macOS: “RapidR Studio” Not Opened — Apple could not verify it is free of
-malware** — this release isn't signed. Click **Done**, open **System Settings >
+malware** — RapidR's downloads aren't signed yet. Click **Done**, open **System Settings >
 Privacy & Security**, scroll to *Security* and click **Open Anyway** next to
 “RapidR Studio” was blocked (then your password or Touch ID). Once is enough.
 Right-click > Open doesn't work on macOS 15 and newer. In the Terminal:
@@ -28,9 +28,9 @@ the other kind of processor. Look at *Settings > System > About > System
 type* and take the `x64` or the `arm64` installer to match
 (see [Install on Windows](getting-started.md#install-on-windows)).
 
-**Linux: `apt` says `Unable to locate package rapidr_2.117.0_amd64.deb`** —
+**Linux: `apt` says `Unable to locate package rapidr_2.119.0_amd64.deb`** —
 put `./` in front of the file name (`sudo apt install
-./rapidr_2.117.0_amd64.deb`) so apt reads it as a file in this folder.
+./rapidr_2.119.0_amd64.deb`) so apt reads it as a file in this folder.
 
 **Linux: `dpkg` says "package architecture (amd64) does not match system
 (arm64)"** — wrong file for this machine. `dpkg --print-architecture` says
@@ -123,9 +123,11 @@ desktop). The program goes on.
 — RapidR draws on the CPU when the only GPU is a software one; if
 detection fails, set `RAPIDR_RENDERER=cpu`.
 
-**The program looks different from the classic Windows look** — programs use
-the classic look unless they set `$THEME`; check for a `RAPIDR_THEME`
-variable in your environment.
+**The program doesn't look like RapidQ's Windows look** — programs are drawn
+in RapidR's own look unless they say `$THEME Classic` (RapidQ's exact look;
+sizes and places are the same in both). Check also for a `RAPIDR_THEME`
+variable in your environment, which gives its theme to programs that name
+none ([Themes](components.md#themes)).
 
 ## The web
 
@@ -140,6 +142,34 @@ raw TCP connections. Call a server of yours through RHttp.
 program are built into the page only with the listed extensions (`.csv`,
 `.db`, `.txt`, `.png`, …); other names are fetched from the page's server.
 See [The web](web.md#files-and-assets).
+
+## Data and tables
+
+**An `RCSV` or an `RDBGrid` shows no rows** — the file wasn't read: the
+`RCSV`'s `Error` says why (`there is no file "people.csv"`) and its
+`OnError(Message)` fires; the program goes on. A `FileName` without a folder is
+looked for in the current folder, then beside the program; in a browser, the
+file must be one of the page's files ([Data science with RapidR](data-science-with-rapidr.md#good-to-know)).
+
+**The designer shows no data for a linked component** — the designer reads only
+files inside your project (next to the program), and only to read.
+
+## The AI assistant and RAI
+
+**There is no Assistant pane or button** — it appears once the assistant is on
+and set up: a provider, a key (a model server on your own computer needs none)
+and a model. **Tools > AI Settings…** shows what is missing
+([Setting it up](ai-assistant.md#setting-it-up)).
+
+**"an API key is written in the program…" when building** — a key in a program
+can be read by anyone who has the app. Take it out and let the program ask for
+it: `APIKeySource = "env:NAME|ask"`
+([Keys in programs you give to others](ai-assistant.md#keys-in-programs-you-give-to-others)).
+
+**A provider's answer is an error** — `OnError` and the assistant say it in
+plain words: a refused key, no credit left, a model your key can't use, too
+many requests. On a web page, a model server on your computer (Ollama, LM
+Studio) must allow the page's address ([Providers](ai-assistant.md#providers)).
 
 ## Reporting a problem
 

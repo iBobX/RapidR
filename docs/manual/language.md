@@ -2,9 +2,8 @@
 
 RapidR's language is a RapidQ-compatible BASIC. This chapter is a working summary,
 with the rules where RapidQ (and so RapidR) differs from QBasic, VB or other
-BASICs — those are the ones that surprise people. Every example here was
-run with RapidR 2.117.0; native builds, the interpreter and the web give the
-same output.
+BASICs — those are the ones that surprise people. Native builds, the
+interpreter and the web give the same output for every example here.
 
 RapidR also accepts some syntax RapidQ doesn't (VB's `#If`, `ON ERROR`,
 `i++`, …): see [Differences and extensions](differences.md).

@@ -85,7 +85,7 @@ interpreter/             the bytecode format, generator, VM and its hosts
 tests/                   conformance cases, GUI fixtures, browser suites
 tools/                   test drivers, ground-truth tools, release scripts
 ide/                     RapidR Studio: its shell (a RapidR program) and its web page (ide/web)
-examples/                example programs (examples/README.md); ide.rr is the desktop IDE
+examples/                example programs (examples/README.md); ide.rr is the first IDE, kept until Studio replaces it
 docs/                    plans and references; docs/manual/ is the user manual
 design/brand/            logo, icons, banner (original artwork, MIT)
 fonts/                   the web's fallback fonts' sources

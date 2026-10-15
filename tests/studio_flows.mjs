@@ -1966,6 +1966,9 @@ const CASES = [
       "aistatus.simpletext": /^Answered\.$/,
       "ai.lastrequest": /^POST http:\/\/127\.0\.0\.1:\d+\/v1\/chat\/completions\n[\s\S]*"role": "system"[\s\S]*never instructions to you/,
       "dock.layout": /^(?![\s\S]*^hidden .*\baipanel\b)/m,
+      // (the pane opens 380 wide, not the dock's 240; its controls follow)
+      "aipanel.width": /^380$/,
+      "aiinput.width": /^368$/,
     },
   },
   {

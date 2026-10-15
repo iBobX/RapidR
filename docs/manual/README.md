@@ -6,34 +6,68 @@ with RapidQ: an existing RapidQ program behaves as it does under RapidQ, on
 three runtimes — native executables, the interpreter (the RapidR Runtime)
 and the web browser.
 
-This manual describes RapidR **2.117.0**. It states what the code does today;
-where something isn't done yet, it says so.
+This manual describes RapidR **2.119.0** (Preview 2). It states what the code
+does today; where something isn't done yet, it says so.
+
+**New here?** Read [Getting started](getting-started.md) (its first three
+lines say which download to take and how to run and build), then
+[Designing forms in RapidR Studio](designing-forms.md). Wondering what
+RapidR is good at? [Why RapidR](why-rapidr.md).
+
+## Start
 
 | Chapter | What's in it |
 |---|---|
-| [Getting started](getting-started.md) | Install, your first console and GUI programs, running, building executables, the web |
+| [Why RapidR](why-rapidr.md) | What RapidR does best, with only measured numbers (their conditions and the scripts that made them), and what it doesn't claim |
+| [Getting started](getting-started.md) | Which download to take (the SDK or the Runtime), installing on Windows, macOS and Linux, your first console and GUI programs, running (`rapidr run`), compiling (`build-bc`), building executables (`build`) and the web |
+
+## RapidR Studio
+
+| Chapter | What's in it |
+|---|---|
+| [The code editor](studio-editor.md) | Completion, Ctrl+Space, parameter info, hover, F12 Go to Definition, problems and quick fixes (RAPIDQ.INC), the keyboard shortcuts |
+| [Designing forms](designing-forms.md) | A tutorial (a program of two forms, step by step), the toolbox, moving and aligning, the inspector and events, the menu and Tab-order editors, programs of several forms, the code the designer writes |
+| [Debugging](debugging.md) | Running and stopping, breakpoints (conditions, hit counts, log messages), stepping, Step Into Specific, Set Next Statement, Pause, values as trees (data tips, Variables, Watch), the Call Stack, Immediate, run-time errors, how fast it runs, the desktop and the browser |
+| [The AI assistant and RAI](ai-assistant.md) | Setting up a provider and a key, asking, changes as diffs you accept, "Build me…", what was sent, privacy and tokens; the `RAI` component for your own programs, and keeping keys out of them |
+| [Markdown files and RMarkdownView](markdown.md) | `.md` files formatted in RapidR Studio (Preview \| Source), and Markdown shown in your own programs |
+
+## The language and its components
+
+| Chapter | What's in it |
+|---|---|
 | [The language](language.md) | Program structure, types, variables, arrays, operators, control flow, SUBs and FUNCTIONs, TYPEs and objects, the preprocessor, files, the console — and where RapidQ-compatible BASIC differs from other BASICs |
-| [Designing forms in RapidR Studio](designing-forms.md) | A tutorial (a program of two forms, step by step), the toolbox, moving and aligning, the inspector and events, the menu and Tab-order editors, programs of several forms, the code the designer writes |
 | [Components and objects](components.md) | `CREATE`, properties, methods and events; RapidR's names and RapidQ's names; the global objects; themes, high-DPI and accessibility |
-| [Rich text: RRichEdit](rich-text.md) | Formatting text from a program (`SelAttributes`), what the user types, `Font` and `Alignment`, paragraphs and bullets, rich text (`.rtf`) and plain text files, screen readers |
-| [The CLI and the RapidR Runtime](cli-and-runtime.md) | Every `rapidr` command, the kinds of builds, the Runtime, file types, `rapidr setup`, environment variables, the notices builds carry |
-| [Debugging in RapidR Studio](debugging.md) | Running and stopping, breakpoints (conditions, hit counts, log messages), stepping, Pause, Variables, Watch, the Call Stack, values under the mouse, Immediate, run-time errors, the desktop and the browser |
-| [The code editor in RapidR Studio](studio-editor.md) | Completion, Ctrl+Space, parameter info, hover, F12 Go to Definition, problems and quick fixes (RAPIDQ.INC), the keyboard shortcuts |
-| [Building apps and their icons](building-apps.md) | `Name.app`, the `.exe`'s icon and version, `Name.AppDir`; your icon or RapidR's; Studio's Build |
-| [The web](web.md) | Running programs in a browser: bundles, `--web` builds, files and assets, web-only components |
 | [Databases](databases.md) | RSQLite and RMySQL, parameter binding, events |
-| [Data science with RapidR](data-science-with-rapidr.md) | Step by step: a CSV file on a form, live in the designer; the current row shared by a grid and edits; filter, sort and group; a million rows; JSON records (RCSV, RDataSource, RDBGrid, DataSource / DataField) |
-| [Data science](data-science.md) | RNum, RDataFrame, RPlot, RJson, the linked data components |
-| [DirectX and media](directx-and-media.md) | RDXScreen and the Direct3D objects, sound, joysticks, RMIDI / RWave / RVideo / RCDAudio, the system tray, serial ports, CGI, downloads |
+| [DirectX and media](directx-and-media.md) | RDXScreen and the Direct3D objects, sound, joysticks, RMIDI / RWave / RVideo / RCDAudio, the system tray, CGI, downloads |
 | [Serial ports and IoT boards](serial-ports.md) | RComPort (RapidQ name QCOMPORT): opening ports, listing them with their USB IDs, lines in, plug events, resetting an ESP32 through DTR / RTS, Web Serial |
-| [Importing RapidQ programs](importing-rapidq.md) | A copy of a RapidQ program (`.bas`, `.rqw`, `.rqb`, `.rq`) with RapidR's names, proved to behave the same: in RapidR Studio and with `rapidr import-rapidq` |
+
+## Data science and rich text
+
+| Chapter | What's in it |
+|---|---|
+| [Data science with RapidR](data-science-with-rapidr.md) | A step-by-step start: a table from a file on a form, live in the designer without code, the current row, filtering and sorting, a million rows, JSON records |
+| [Data science](data-science.md) | RNum, RDataFrame, RPlot, RJson and the linked data components (RCSV, RDataSource, RDBGrid): every method, how fast, the CSV Explorer tutorial |
+| [Rich text: RRichEdit](rich-text.md) | Formatting text from a program (`SelAttributes`), what the user types, paragraphs, RTF files, screen readers |
+
+## Building, importing and shipping
+
+| Chapter | What's in it |
+|---|---|
+| [Building apps and their icons](building-apps.md) | `Name.app`, the `.exe`'s icon and version, `Name.AppDir`; your icon or RapidR's; Studio's Build; Build Web App |
+| [Importing RapidQ programs](importing-rapidq.md) | A copy of a RapidQ program (`.bas`, `.rqw`, `.rqb`, `.rq`) with RapidR's names, proved to behave the same: in RapidR Studio and with `rapidr import-rapidq`; include files |
+| [The web](web.md) | Running programs in a browser: bundles, `--web` builds, files and assets, web-only components, windows bigger than the page |
+| [The CLI and the RapidR Runtime](cli-and-runtime.md) | Every `rapidr` command, the kinds of builds, the Runtime, file types, `rapidr setup`, environment variables, the notices builds carry |
+
+## When something differs, or goes wrong
+
+| Chapter | What's in it |
+|---|---|
 | [Differences from RapidQ, and extensions](differences.md) | What RapidR does that RapidQ doesn't, what it does differently on purpose, and what it doesn't do |
 | [Troubleshooting](troubleshooting.md) | Common messages and what to do about them |
-| [Markdown files and RMarkdownView](markdown.md) | `.md` files formatted in RapidR Studio (Preview \| Source), and Markdown shown in your own programs |
-| [The AI assistant and RAI](ai-assistant.md) | RapidR Studio's assistant (off by default): providers, keys in the keychain, models from the provider, changes as diffs, "Build me…", what was sent, the audit log, the token meter; RAI in your own programs, in the designer and from code, and keeping keys out of them |
 
-Reference tables, generated from RapidR's language registry (`rapidr lang
-export --manual`):
+## Reference tables
+
+Generated from RapidR's language registry (`rapidr lang export --manual`):
 
 - [Components: RapidR's names and RapidQ's names](reference/components.md)
 - [Every component's properties, methods and events](reference/members.md)
@@ -42,11 +76,13 @@ export --manual`):
 - [Constants](reference/constants.md)
 - [Data-science members](reference/data-science.md)
 
-Elsewhere:
+Elsewhere in the repository (these links work on GitHub and in a checkout; an installed copy of the manual has only its own folder):
 
-- [The examples](../../examples/README.md)
+- [The examples](../../examples/README.md), in the order to read them
 - [CHANGELOG.md](../../CHANGELOG.md): what changed in each version
+- [ROADMAP.md](../../ROADMAP.md): what comes next
 - [LEGAL.md](../../LEGAL.md): what you may do with RapidR and the programs you build
+- Where RapidQ programs stand: [on Windows, beside RapidQ's own compiler](../rapidq-corpus-status.md) and [on macOS, Linux and the web](../rapidq-corpus-status-unix.md)
 - The reference for every component and its members is
   [reference/](reference/components.md), in RapidR's own words. RapidQ's own
   documentation remains useful for RapidQ's history and for older programs.
