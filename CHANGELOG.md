@@ -40,6 +40,82 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   copy RC.EXE over each other), and `w_*.bas` probes are GUI programs whose findings file is
   printed.
 
+### Release tooling: the VMs stay clean, and no console window flashes
+- `windows-vm.sh clean` and `linux-vm.sh clean` remove everything the release and smoke scripts leave
+  in the VMs: the release work folder (the cargo target alone was 10 GB), the build cache, the smoke
+  tests' temporary folders, their test apps and, in Windows, the file types, Uninstall entry and
+  Start menu shortcut an interrupted smoke test left registered. `--dry-run` lists with sizes,
+  `--keep-out` keeps the packages; tools, an installed RapidR and the user's files stay. The release
+  README's last step runs both.
+- The smoke tests remove what they made even when a check fails: `smoke.ps1` keeps its build cache
+  inside its temporary folder (it had been filling `%LOCALAPPDATA%\RapidR\Cache`) and cleans up in a
+  `finally`; `smoke.sh` also on ctrl-C or kill.
+- `windows-vm.sh` opens no window on the Windows VM's desktop any more: every call runs as SYSTEM
+  (`vmexec.sh -S`) and jobs start as a headless console, where the 20-second poll and the file fetch
+  each opened a console window in the user's session. Fetch uses pieces of 6 MB instead of 400 KB.
+  `windows-vm.sh flashtest control` checks it with a window watcher.
+- `ubuntu-vm.sh root` works while the VM's screen is locked or nobody is logged in
+  (`--current-user` answers "Unable to authenticate the user").
+### AI-ready by design (AI-ARCH, phase 0)
+- **The design**: [docs/ai-architecture.md](docs/ai-architecture.md) — what every language-registry entry
+  carries for AI (meaning, types, ranges and units, side effects and the risk level they give,
+  examples, where it runs, secrets), one introspection / command interface answered alike by the
+  project's source in RapidR Studio and by the running program (describe, list, get, set, call,
+  create, connect, destroy, subscribe, transactions with previews, undo), `rapidr mcp` and RAI on
+  top of it, permission tiers on the risk levels, prompt-injection defences, a threat model, phases
+  and acceptance tests. docs/ide-ai.md points to it where they meet.
+- **The registry's AI facets**: `effects` (none, ui, wait, state, clipboard, file-read, network,
+  device, registry, db-read, file-write, db-write, printer, exit, process, native), `risk`, `range`,
+  `unit`, `example` and `secret`, checked by the registry's build like every other key; ranges and
+  units for the commonest properties by name; RButton, `MID$`, `KILL` and `SHELL` complete as the
+  reference entries; RMySQL's `Password` never shown to an AI. `rapidr lang export --json` carries
+  them, and the AI prompt marks what reaches outside the program (`[file-write]`).
+- **`rapidr lang ai-check`** lists every entry lacking a facet (`--summary`, `--json`, `--strict`
+  exits 1 when anything is missing; without it, a report): 2,437 of 4,360 entries complete today.
+- **`rapidr-introspect`** (new crate, wasm-safe): the interface's protocol and its read side at
+  design time — `describe` (every facet, a JSON Schema per value), `list` (ids are the components'
+  own names, qualified only when two share one; paged; a revision that follows the source) and
+  `get` (typed values with where they come from and their line; secrets redacted) — behind the
+  cargo feature `design`; `rapidr introspect FILE…` only in a CLI built with
+  `--features ai-introspect`. Nothing in Studio or the default CLI uses it yet.
+### RapidQ include files found everywhere, imported with the program (IMPORT-INC)
+- **`$INCLUDE` finds files as RapidQ does, on every system.** Checked against RapidQ's own compiler:
+  every `$INCLUDE` — a nested one too — is looked for in the program's folder (where RapidQ
+  compiles), then in the include folders, in order. RapidR then also looks beside the including
+  file and above an include folder. Names match in any case, with `\` or `/`: `"Lib\MyLib.INC"`
+  finds `lib/mylib.inc` on macOS and Linux. A Windows path from another computer
+  (`C:\rapidq\include\x.inc`, `\RapidQ\include\x.inc`) is found by its ending, and on Windows an
+  absolute path is read as it is. The compiler, the language service (go to an include too),
+  RapidR Studio's project and the importer use this one search. Files are named as on disk
+  (`lib/mylib.inc`, not as the line wrote it). An include that isn't found says what to do.
+- **Include folders**: RapidR Studio's **Tools > Settings…** (Include folders: Add Folder…,
+  Remove), kept per user and used for Open, the problems, Run, Build and Import (the programs Studio
+  runs and builds get them too). On the command line: `--include-dir <folder>` on any command
+  (before a program's own arguments), and `RAPIDR_INCLUDE_PATH`. The palette's View commands are a
+  button away in Settings ("Themes and Views…").
+- **Import copies every include** (`rapidr import-rapidq`, File > Import RapidQ Project or File…):
+  however deep, names converted. The program's own keep their folders; an include folder's go into
+  the copy's folder as they were there (`GL\QGL.INC` → `GL/QGL.INC`). A line that would find the
+  original instead of the copy (`..\shared\x.inc`, a `C:\` path) is changed to name the copy. The
+  copy compiles on its own, and the proof now also checks that it reads its own files.
+  RAPIDQ.INC and the other includes RapidR has built in (`QMidi.inc` … `QDockForm.inc`) are never
+  copied, a user's own copy of one neither (the report says so, and when the program uses
+  something only that file has, which folder to keep). The report's new **Include files** table
+  lists each `$INCLUDE`, where it was found and its copy. **A missing include is never passed
+  over**: listed under *Not found* with what to do, in Studio's Output (the status line red), and
+  printed by `rapidr import-rapidq` (exit code 1).
+- Opening a `.bas` in Studio lists its includes in the project tree as the compiler finds them (in
+  any case, a nested one from the program's folder). On the web, File > Import RapidQ Project or
+  File… takes several files at once — the program and its includes — and an imported folder brings
+  its subfolders' includes.
+- `rapidr examples copy` copies an example's include files with it.
+- RapidQ's 428-program corpus imported whole: 341 programs compile to identical bytecode (0
+  different, 0 copies failing; the rest don't compile in RapidR yet), 129 include files copied,
+  27 not found (named in the report); the include search reads every corpus program as before.
+- New example: `examples/rapidq/shapes` — a RapidQ program whose library and window are in `lib/`
+  and `forms/` (RapidQ's compiler builds it too). Manual: importing-rapidq.md "Include files";
+  cli-and-runtime.md (`--include-dir`).
+
 ## [2.118.0] — 2026-10-09 (Preview)
 
 ### Triage of the full regression run (TRIAGE)

@@ -47,7 +47,10 @@ if want studio || want perf; then curl -s -o /dev/null "${STUDIO_WEB_URL:-${RAPI
 if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test result: FAILED|panicked|^error" | head -5
   # (the UI kernel and the program glue stay GUI-free: they must build for
   # the browser too)
-  cargo check -q -p rapidr-ui-kernel -p rapidr-ui-app -p rapidr-session -p rapidr-project -p rapidr-lang -p rapidr-designer --target wasm32-unknown-unknown 2>&1 | grep -E "^error" -A5 | head -10
+  cargo check -q -p rapidr-ui-kernel -p rapidr-ui-app -p rapidr-session -p rapidr-project -p rapidr-lang -p rapidr-designer -p rapidr-introspect --features rapidr-introspect/design --target wasm32-unknown-unknown 2>&1 | grep -E "^error" -A5 | head -10
+  # (the AI introspection interface's design-time side: a cargo feature the
+  # workspace's own test run leaves off — docs/ai-architecture.md)
+  cargo test -q -p rapidr-introspect --features design 2>&1 | grep -E "test result: FAILED|panicked|^error" | head -5
   # (RapidR's icons: the sources, the crate's tables and the manual's copies
   # match the geometry in design/icons/tools)
   python3 design/icons/tools/build.py --check; python3 design/icons/tools/export.py --check

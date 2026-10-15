@@ -97,6 +97,9 @@ async function floatingWindows(page, scale, record) {
 
 // (S-DEBUG: the debugger's program and the file it includes)
 const DEBUG_FILES = ["tests/fixtures/studio_debug/counter.rr", "tests/fixtures/studio_debug/tally.inc"];
+// (IMPORT-INC) A RapidQ program in several files: its includes in lib/ and forms/
+const SHAPES = ["shapes.bas", "lib/geometry.inc", "lib/units.inc", "forms/shapesform.inc"].map((f) => `examples/rapidq/shapes/${f}`);
+const INC_FIXTURE = ["tests/fixtures/rapidq_import_inc/main.bas", "tests/fixtures/rapidq_import_lib/inc/tools.inc"];
 
 // (the web) Modal dialogs stay on top. The program's modal message is over
 // its own form, whole over Studio and answered with Enter (programModal).
@@ -685,6 +688,85 @@ const CASES = [
       "codedoc(0).text": /^(?![\s\S]*AS Q[A-Z])[\s\S]*DECLARE SUB SayHello \(Sender AS RButton\)[\s\S]*CREATE Form AS RForm[\s\S]*CREATE NameEdit AS REdit/,
       "codedoc(1).text": /^# RapidQ import: greeter\.rqw[\s\S]*\| `greeter\.rqw` \| yes: identical bytecode \|[\s\S]*`QBUTTON` → `RButton`/,
       "lang.errorcount": /^0$/,
+    },
+  },
+  // (IMPORT-INC) A RapidQ program in several files opens with its includes:
+  // `Lib\Geometry.INC` is lib/geometry.inc (any case, \ or /), the nested
+  // `Lib\Units.inc` found from the program's folder as RC.EXE finds it —
+  // the project tree lists the four files, the language service reads them.
+  {
+    name: "open-includes",
+    open: "examples/rapidq/shapes/shapes.bas",
+    webFiles: SHAPES,
+    do: "wait",
+    delay: 5,
+    dump: { "proj.kind": /^file$/, "proj.filecount": /^4$/, "projecttree.filecount": /^4$/, "lang.errorcount": /^0$/ },
+  },
+  // (IMPORT-INC) Imported: every include copied with it, names converted,
+  // the copy a project of its four files, the report's Include files table.
+  {
+    name: "import-includes",
+    importFrom: "examples/rapidq/shapes/shapes.bas",
+    webFiles: SHAPES,
+    do: "wait",
+    delay: 7,
+    dump: {
+      "proj.importsummary": /^1 program\(s\), 4 source file\(s\) \(1 changed, 9 name\(s\)\)[\s\S]*: 1 identical, 0 different[\s\S]*include files: 3 copied, 1 RapidR's built-in, 0 not found$/,
+      "proj.filecount": /^4$/,
+      "projecttree.filecount": /^4$/,
+      "proj.importmissing": /^$/,
+      "codedoc(1).text": /^## Include files$[\s\S]*^\| `Lib\\Geometry\.INC` \| `shapes\.bas`, line 17 \| in the program's folder: `lib\/geometry\.inc` \| `lib\/geometry\.inc` \|$[\s\S]*^\| `Lib\\Units\.inc` \| `lib\/geometry\.inc`, line 4 \|/m,
+      "lang.errorcount": /^0$/,
+    },
+  },
+  // (IMPORT-INC) An include found nowhere is never passed over: Output says
+  // which and what to do (ImportMissing, the status line) …
+  {
+    name: "import-missing-include",
+    importFrom: "tests/fixtures/rapidq_import_inc/main.bas",
+    webFiles: INC_FIXTURE,
+    do: "wait",
+    delay: 6,
+    dump: {
+      "proj.importsummary": /include files: 0 copied, 1 RapidR's built-in, 1 not found$/,
+      "proj.importmissing": /main\.bas:5\tInc\\Tools\.INC\tadd the folder that holds Tools\.INC in RapidR Studio > Tools > Settings > Include folders/,
+      "outputbox.text": /main\.bas:5: include file not found: Inc\\Tools\.INC - add the folder that holds Tools\.INC/,
+    },
+  },
+  // … and found once its folder is one of Studio's include folders
+  // (Tools > Settings > Include folders; the test step sets it): copied
+  // into the copy as it was in that folder (inc/tools.inc).
+  {
+    name: "import-include-folder",
+    importFrom: "tests/fixtures/rapidq_import_inc/main.bas",
+    before: "includes:{root}/tests/fixtures/rapidq_import_lib",
+    webFiles: INC_FIXTURE,
+    do: "wait",
+    delay: 6,
+    dump: {
+      "proj.importsummary": /: 1 identical, 0 different[\s\S]*include files: 1 copied, 1 RapidR's built-in, 0 not found$/,
+      "proj.importmissing": /^$/,
+      "proj.includefolders": /tests\/fixtures\/rapidq_import_lib$/,
+      "proj.filecount": /^2$/,
+      "outputbox.text": /Include folders: [^\n]*tests\/fixtures\/rapidq_import_lib/,
+    },
+  },
+  // (IMPORT-INC, the web) File > Import RapidQ Project or File with several
+  // files picked at once — the program and its include, side by side at the
+  // top of the page's store as the browser gives them: the program
+  // imported, `Inc\Tools.INC` found by its name and copied with it.
+  {
+    name: "import-several-files",
+    webOnly: true,
+    webFiles: ["tests/fixtures/rapidq_import_lib/inc/tools.inc=>tools.inc", "tests/fixtures/rapidq_import_inc/main.bas=>main.bas"],
+    folder: "tools.inc;main.bas",
+    do: "file.importRapidQ,wait",
+    delay: 6,
+    dump: {
+      "proj.importsummary": /: 1 identical, 0 different[\s\S]*include files: 1 copied, 1 RapidR's built-in, 0 not found$/,
+      "proj.importmissing": /^$/,
+      "proj.mainfile": /^main\.bas$/,
+      "proj.filecount": /^2$/,
     },
   },
   // (S-DESIGN-2) The menu editor, on the form's own menu bar: Format >
@@ -1574,7 +1656,9 @@ function runDesktop(c, scale = 1) {
   const steps = c.do ? c.do.replaceAll("{dir}", dir) : "";
   if (c.importFrom) {
     cpSync(join(ROOT, dirname(c.importFrom)), join(dir, "src"), { recursive: true });
-    args.push("--do", `import:${join(dir, "src", c.importFrom.split("/").pop())}` + (steps ? "," + steps : ""));
+    // (before: steps ahead of the import — Studio's include folders; {root}: the repository)
+    const before = c.before ? c.before.replaceAll("{root}", ROOT) + "," : "";
+    args.push("--do", before + `import:${join(dir, "src", c.importFrom.split("/").pop())}` + (steps ? "," + steps : ""));
   } else if (steps) args.push("--do", steps);
   if (c.open && c.copyDir) {
     // (the project's whole folder: Build writes the app beside it)
@@ -1718,7 +1802,8 @@ async function runWebPage(ctx, c, last, scale, record) {
   page.__downloads = [];
   page.on("download", (d) => page.__downloads.push((async () => ({ name: d.suggestedFilename(), path: await d.path() }))()));
   try {
-    const files = (c.webFiles || []).map((f) => ({ path: f, text: readFileSync(join(ROOT, f), "utf8") }));
+    // (`repo/path=>name`: the file at that name in the page's store)
+    const files = (c.webFiles || []).map((f) => f.split("=>")).map(([from, to]) => ({ path: to || from, text: readFileSync(join(ROOT, from), "utf8") }));
     await page.addInitScript((files) => { window.RAPIDR_STUDIO_TEST_FILES = files; }, files);
     // (what Studio writes to the page's store, kept for the test: the
     // last text of each file)
@@ -1741,7 +1826,9 @@ async function runWebPage(ctx, c, last, scale, record) {
     // {dir}: the case's own folder in the page's store)
     const doSteps = c.webDo ?? c.do;
     const steps = doSteps ? doSteps.replaceAll("{dir}", `/flows/${c.name}`) : "";
-    if (c.importFrom) q.set("do", `import:${c.importFrom}` + (steps ? "," + steps : ""));
+    // (before: steps ahead of the import; {root}/: the store's paths are the repository's)
+    const before = c.before ? c.before.replaceAll("{root}/", "") + "," : "";
+    if (c.importFrom) q.set("do", before + `import:${c.importFrom}` + (steps ? "," + steps : ""));
     else if (steps) q.set("do", steps);
     if (c.open) q.set("open", c.open);
     await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
@@ -1820,7 +1907,7 @@ if (!filters.length || filters.some((f) => "commands-handled".includes(f))) {
 }
 
 for (const c of CASES.filter((c) => !filters.length || filters.some((f) => c.name.includes(f)))) {
-  if (HOSTS.includes("desktop")) {
+  if (HOSTS.includes("desktop") && !c.webOnly) {
     for (const scale of c.capture ? c.scales || [1] : [1]) check(c.capture && scale > 1 ? `desktop @${scale}x` : "desktop", runDesktop(c, scale), c);
   }
   if (!HOSTS.includes("web") || c.desktopOnly) continue;

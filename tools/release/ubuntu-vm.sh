@@ -4,7 +4,8 @@
 #
 #   tools/release/ubuntu-vm.sh send <local file> <vm path>
 #   tools/release/ubuntu-vm.sh run <local script> [args…]
-#   tools/release/ubuntu-vm.sh root <local script> [args…]   (as root: installing packages)
+#   tools/release/ubuntu-vm.sh root <local script> [args…]   (as root: installing packages, cleaning;
+#                                    the only mode that works while nobody is logged in at the VM's desktop or its screen is locked)
 #   tools/release/ubuntu-vm.sh fetch <vm path> <local file>
 #
 # prlctl exec's quirks: it drops the outer command's quoting and dash
@@ -58,6 +59,7 @@ case "$1" in
     piece) base64 "$2"; echo "sha256 $(sha256sum "$2" | cut -d" " -f1)" ;;
     sum) sha256sum "$(expand "$2")" | cut -d" " -f1 ;;
     clean) rm -f /tmp/rapidr-fetch.* ;;
+    drop) rm -f "$2" "$2".part.* /tmp/rapidr-vm.sh ;;
 esac
 EOF
     put_text "$h" /tmp/rapidr-vm.sh
@@ -105,9 +107,15 @@ case "${1:-}" in
     root)
         script="$2"; shift 2
         name="/tmp/rapidr-release-$(basename "$script")"
-        helpers; send "$script" "$name"
+        # (everything as root, the files travel too: --current-user needs somebody logged in at the
+        # VM's desktop with the screen unlocked — "Unable to authenticate the user" otherwise — and
+        # root works when nobody is. The /tmp files made are removed after, so a
+        # later run as the user isn't met by root-owned ones.)
         USER_OPT=()
-        x bash "$name" "$@"
+        helpers; send "$script" "$name"
+        rc=0; x bash "$name" "$@" || rc=$?
+        x bash /tmp/rapidr-vm.sh drop "$name" || true
+        exit $rc
         ;;
     *) echo "usage: $0 send|run|fetch …" >&2; exit 2 ;;
 esac

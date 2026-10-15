@@ -143,7 +143,8 @@ pub fn implicit_from_resolver(
             seen.insert(actual.to_lowercase());
             project.main = actual.clone();
             project.add_file(&actual, kind_for_source(&actual, &text));
-            add_includes(&actual, &text, resolve, &mut project, &mut seen);
+            let main_dir = folder_of(&actual).to_string();
+            add_includes(&actual, &text, &main_dir, resolve, &mut project, &mut seen);
         }
         None => {
             project.add_file(&main, kind_for_path(&main));
@@ -186,31 +187,68 @@ fn add_named_files(
     }
 }
 
+/// The files `from` includes that are in the project's folder, found where
+/// the compiler finds them ([`rapidr_preprocessor::include_search`]: the
+/// main program's folder `main_dir`, the user's include folders, the
+/// including file's folder …, a Windows path by its ending) — each once,
+/// recursively. One the compiler finds outside the project (an include
+/// folder's: `WINDOWS.INC`) isn't listed; one found nowhere (RapidR's
+/// RAPIDQ.INC) neither.
 fn add_includes(
     from: &str,
     text: &str,
+    main_dir: &str,
     resolve: &dyn Fn(&str) -> Option<(String, String)>,
     project: &mut Project,
     seen: &mut HashSet<String>,
 ) {
+    let dirs = rapidr_preprocessor::configured_include_dirs();
+    let mut tried: HashSet<String> = HashSet::new();
     for target in include_targets(text) {
-        if is_absolute(&target) {
-            continue;
+        for (root, rel) in rapidr_preprocessor::include_search(&target, Path::new(folder_of(from)), Path::new(main_dir), &dirs) {
+            // (outside the project: an include folder, the current folder)
+            if root.has_root() || is_absolute(&root.to_string_lossy()) {
+                if rapidr_preprocessor::find_file(&root, &rel).is_some() {
+                    break;
+                }
+                continue;
+            }
+            let at = normalize_path(&root.join(&rel).to_string_lossy());
+            let key = at.to_lowercase();
+            if at.is_empty() || tried.contains(&key) {
+                continue;
+            }
+            if seen.contains(&key) {
+                break;
+            }
+            let Some((actual, contents)) = resolve(&at) else {
+                tried.insert(key);
+                continue;
+            };
+            let actual = normalize_path(&actual);
+            seen.insert(key);
+            if !seen.insert(actual.to_lowercase()) && actual.to_lowercase() != at.to_lowercase() {
+                break;
+            }
+            project.add_file(&actual, kind_for_source(&actual, &contents));
+            add_includes(&actual, &contents, main_dir, resolve, project, seen);
+            break;
         }
-        let rel = normalize_path(&format!("{}{}", folder_of(from), target.replace('\\', "/")));
-        if !seen.insert(rel.to_lowercase()) {
-            continue;
-        }
-        let Some((actual, contents)) = resolve(&rel) else {
-            continue; // RAPIDQ.INC and friends: not here, not an error
-        };
-        let actual = normalize_path(&actual);
-        if actual.to_lowercase() != rel.to_lowercase() && !seen.insert(actual.to_lowercase()) {
-            continue;
-        }
-        project.add_file(&actual, kind_for_source(&actual, &contents));
-        add_includes(&actual, &contents, resolve, project, seen);
     }
+}
+
+/// Project path `rel` of the project in `folder` as the files name it, each
+/// name matched in any case (`Inc/MyLib.INC` → `inc/mylib.inc`: RapidQ
+/// code was written on Windows): through the disk on the desktop, the
+/// host's reader on the web ([`rapidr_preprocessor::find_file`]). `None`
+/// when it isn't there.
+pub fn actual_path(folder: &str, rel: &str) -> Option<String> {
+    let folder = folder.trim_end_matches('/');
+    let root = if folder.is_empty() { "." } else { folder };
+    let found = rapidr_preprocessor::find_file(Path::new(root), rel)?;
+    let found = found.to_string_lossy().replace('\\', "/");
+    let prefix = format!("{}/", root.replace('\\', "/"));
+    found.strip_prefix(&prefix).map(normalize_path)
 }
 
 /// The real name of `wanted` in `folder`: the exact name, else one that
@@ -408,5 +446,24 @@ mod tests {
         );
         assert!(Project::implicit(&dir.join("missing.bas")).is_err());
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// The compiler's places (RC.EXE's first): a nested `$INCLUDE` finds
+    /// the program's folder's file before its own folder's; a Windows path
+    /// from another computer is found by its ending in the project.
+    #[test]
+    fn includes_found_where_the_compiler_finds_them() {
+        let files: HashMap<&str, &str> = HashMap::from([
+            ("main.bas", "$INCLUDE \"sub\\a.inc\"\n$INCLUDE \"C:\\rapidq\\Lib\\tail.inc\"\n"),
+            ("sub/a.inc", "$INCLUDE \"b.inc\"\n$INCLUDE \"near.inc\"\n"),
+            ("b.inc", "' the program's\n"),
+            ("sub/b.inc", "' a.inc's neighbour\n"),
+            ("sub/near.inc", "' only here\n"),
+            ("Lib/tail.inc", "' by its ending\n"),
+        ]);
+        let lookup = |p: &str| files.get(p).map(|s| s.to_string());
+        let p = implicit_from_sources("main.bas", &lookup);
+        let got: Vec<&str> = p.files.iter().map(|f| f.path.as_str()).collect();
+        assert_eq!(got, ["main.bas", "sub/a.inc", "b.inc", "sub/near.inc", "Lib/tail.inc"]);
     }
 }

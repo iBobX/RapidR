@@ -112,11 +112,13 @@ In a browser (Chrome, Edge) the first Connect asks which port to use.
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
 | [notepad.bas](rapidq/notepad.bas) | A text editor in plain RapidQ style: `$TYPECHECK ON`, `DECLARE SUB`, Q components (`QRICHEDIT`, `QMAINMENU`, `QSTATUSBAR` panels), open / save dialogs, `OnClose`'s `Action` | run · interp · native · web | `rapidr run rapidq/notepad.bas` |
+| [shapes/shapes.bas](rapidq/shapes/shapes.bas) | A RapidQ program in several files: its library (`lib/geometry.inc`, which includes `lib/units.inc`) and its window (`forms/shapesform.inc`) brought in with `$INCLUDE`, written as on Windows (`"Lib\Geometry.INC"`) and found on every system; try `rapidr import-rapidq rapidq/shapes/shapes.bas` to see its includes copied too ([Include files](../docs/manual/importing-rapidq.md#include-files)) | run · interp · native · web | `rapidr run rapidq/shapes/shapes.bas` |
 
 RapidR runs RapidQ programs unchanged. The other examples use RapidR's own
 names: `RButton`, `RForm`, `RStringGrid` … (RapidQ's names, `QBUTTON`,
-`QFORM` …, are the same components and work everywhere). `rapidq/notepad.bas`
-is kept in RapidQ's own style on purpose, to show that it runs as it is. To
+`QFORM` …, are the same components and work everywhere). The `rapidq/`
+examples are kept in RapidQ's own style on purpose, to show that they run as
+they are. To
 bring a RapidQ program of your own over to RapidR's names, use
 `rapidr import-rapidq` (it writes a converted copy and a report, and leaves
 the original alone).

@@ -18,13 +18,17 @@
 //!   are never changed; neither is anything in an `$IFDEF` branch this
 //!   build doesn't compile, or a name a `$DEFINE` / `$MACRO` makes (both
 //!   reported).
-//! - **Includes are followed into the copy**, the program's own and
-//!   RapidQ's include folder's alike, each with its own extension
-//!   (`.bas`, `.rqw`, `.rqb`, `.rq`, `.inc` …). RapidQ's `RAPIDQ.INC`
-//!   itself isn't carried: RapidR supplies its constants (unless the
-//!   program uses something of that file RapidR's don't have,
-//!   [`rapidq_inc`]). The `$INCLUDE "RAPIDQ.INC"` line stays as long as
-//!   those constants come with it: without it they'd be undeclared names.
+//! - **Every include is copied with the program** ([`includes`]), found
+//!   where the compiler finds it (RC.EXE's rules, then RapidR's: any case,
+//!   `\` or `/`, Windows paths by their ending), the program's own and an
+//!   include folder's alike, each with its own extension (`.bas`, `.rqw`,
+//!   `.rqb`, `.rq`, `.inc` …); a line that would find the original instead
+//!   of its copy names the copy. The includes RapidR supplies built in
+//!   (RapidQ's `RAPIDQ.INC`, `QMidi.inc` …) are never carried, a user's
+//!   own copy neither ([`rapidq_inc`]). The `$INCLUDE "RAPIDQ.INC"` line
+//!   stays as long as those constants come with it: without it they'd be
+//!   undeclared names. An include found nowhere is reported with what to
+//!   do ([`import::missing_fix`]).
 //! - **Proved, not assumed** ([`verify`]): each program the original
 //!   compiles to is compared with what its copy compiles to, byte for
 //!   byte; the report says so for each program.
@@ -35,10 +39,12 @@ pub mod convert;
 pub mod diff;
 pub mod files;
 pub mod import;
+pub mod includes;
 pub mod rapidq_inc;
 pub mod report;
 pub mod verify;
 
 pub use convert::{plan_program, plan_program_with, Change, Edit, FilePlan, NameStyle, Note, Options, ProgramPlan};
 pub use files::{Disk, Files, Memory};
-pub use import::{import, import_with, upgrade_file, ImportReport, ProgramReport, Upgrade, Verification};
+pub use import::{import, import_with, missing_fix, upgrade_file, ImportReport, IncludeReport, ProgramReport, Upgrade, Verification};
+pub use includes::{IncludeRef, Place};

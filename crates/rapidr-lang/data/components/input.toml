@@ -10,6 +10,22 @@ size = [75, 25]
 default_event = "OnClick"
 sets = ["layout", "a11y"]
 doc = "A push button: the user clicks it to run its OnClick handler. It can show a picture and be the form's Default or Cancel button."
+example = """
+SUB SaveClick
+    ShowMessage "Saved"
+END SUB
+
+CREATE Form1 AS RForm
+    Caption = "Notes"
+    Width = 320: Height = 240
+    CREATE Save AS RButton
+        Caption = "Save"
+        Left = 10: Top = 10
+        OnClick = SaveClick
+    END CREATE
+END CREATE
+Form1.ShowModal
+"""
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "BMP", type = "picture" },
@@ -42,10 +58,10 @@ properties = [
   { name = "FontColor", type = "color", origin = "rapidr" },
 ]
 methods = [
-  { name = "StartDrag" },
-  { name = "SetFocus", value = true, origin = "rapidr" },
-  { name = "Repaint", origin = "rapidr" },
-  { name = "Refresh", value = true, origin = "rapidr" },
+  { name = "StartDrag", effects = ["ui"] },
+  { name = "SetFocus", value = true, origin = "rapidr", effects = ["ui"] },
+  { name = "Repaint", origin = "rapidr", effects = ["ui"] },
+  { name = "Refresh", value = true, origin = "rapidr", effects = ["ui"] },
 ]
 events = [
   { name = "OnClick" },
@@ -850,7 +866,7 @@ methods = [
   { name = "SetFocus", value = true, origin = "rapidr" },
   { name = "Repaint", origin = "rapidr" },
   { name = "Refresh", value = true, origin = "rapidr" },
-  { name = "StartDrag" },
+  { name = "StartDrag", effects = ["ui"] },
 ]
 events = [
   { name = "OnClick" },
@@ -906,7 +922,7 @@ methods = [
   { name = "SetFocus", value = true, origin = "rapidr" },
   { name = "Repaint" },
   { name = "Refresh", value = true, origin = "rapidr" },
-  { name = "StartDrag" },
+  { name = "StartDrag", effects = ["ui"] },
 ]
 events = [
   { name = "OnClick" },
