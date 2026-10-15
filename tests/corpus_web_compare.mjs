@@ -149,7 +149,9 @@ async function web(source, dir, comps) {
     // program goes on — so here, OK.
     const dialog = await bounded(k.dialog(page)).catch(() => null);
     // (not a file dialog: the desktop's capture shows that as a window)
-    if (dialog && dialog.buttons.length && !/^(Open|Save As)$/.test(dialog.title)) {
+    // (a modal window of the program's own — a form it ShowModals — isn't a
+    // message box: answering it clicked the form's first button)
+    if (dialog && dialog.buttons.length && !/^(Open|Save As)$/.test(dialog.title) && !comps.has(String(dialog.form).toLowerCase())) {
       if (!dialog.input) r.lines.push(`[SHOWMESSAGE] ${dialog.text}`);
       await bounded(k.clickButton(page, dialog.buttons[0])).catch(() => {});
       continue;
@@ -202,9 +204,11 @@ for (const rel of programs) {
   // directive back, and the file from the assets.
   const resources = new Map();
   for (const f of readdirSync(dir).filter((f) => /\.(bas|inc)$/i.test(f))) {
-    for (const m of readFileSync(join(dir, f), "latin1").matchAll(/^\s*\$RESOURCE\s+([A-Za-z_][A-Za-z0-9_]*)\s+AS\s+("[^"]*")/gim)) resources.set(m[1].toLowerCase(), `$RESOURCE ${m[1]} AS ${m[2]}`);
+    // (several on a line too, `$resource T2 as "a.bmp" : $resource T3 as …`)
+    for (const m of readFileSync(join(dir, f), "latin1").matchAll(/(?:^|:)\s*\$RESOURCE\s+([A-Za-z_][A-Za-z0-9_]*)\s+AS\s+("[^"]*")/gim)) resources.set(m[1].toLowerCase(), `$RESOURCE ${m[1]} AS ${m[2]}`);
   }
-  pre.stdout = pre.stdout.replace(/^CONST ([A-Za-z_][A-Za-z0-9_]*) = 6\d{4}$/gm, (line, name) => resources.get(name.toLowerCase()) ?? line);
+  // (each its own statement: several on a line are `CONST a = … : CONST b = …`)
+  pre.stdout = pre.stdout.replace(/(^|:\s*)CONST ([A-Za-z_][A-Za-z0-9_]*) = 6\d{4}(?=\s*(?::|$))/gm, (stmt, before, name) => resources.has(name.toLowerCase()) ? before + resources.get(name.toLowerCase()) : stmt);
   const comps = components(pre.stdout);
   const desk = interp(src, dir, join(dir, "interp"), comps);
   if (desk.error) {
