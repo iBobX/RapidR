@@ -1262,8 +1262,11 @@ fn parse_resource(line: &str) -> Option<(String, String)> {
     if name.is_empty() || !after.get(..2).is_some_and(|a| a.eq_ignore_ascii_case("AS")) {
         return None;
     }
-    let quoted = after[2..].trim_start().strip_prefix('"')?;
-    let file = &quoted[..quoted.find('"')?];
+    // (`AS <PLAY.BMP>`, as $INCLUDE takes <…>: RC.EXE builds AVI/aviplay.bas)
+    let target = after[2..].trim_start();
+    let (open, close) = if target.starts_with('<') { ('<', '>') } else { ('"', '"') };
+    let quoted = target.strip_prefix(open)?;
+    let file = &quoted[..quoted.find(close)?];
     Some((name, file.to_string()))
 }
 
@@ -1627,6 +1630,10 @@ mod tests {
         // Several on a line.
         let result = preprocess_source("$resource T0 as \"a:b.bmp\" : $resource T1 as \"c.bmp\" ' tiles", ".", None, PreprocessOptions::default()).unwrap();
         assert_eq!(result.source, "CONST T0 = 65536 : CONST T1 = 65537");
+        // `AS <PLAY.BMP>`, as $INCLUDE's <…> (RC.EXE builds RapidQ's AVI/aviplay.bas)
+        let result = preprocess_source("$RESOURCE PLAYBMP AS <PLAY.BMP>\n$RESOURCE STOPBMP AS \"STOP.BMP\"", ".", None, PreprocessOptions::default()).unwrap();
+        let names: Vec<_> = result.resources.iter().map(|r| (r.name.as_str(), r.file.as_str())).collect();
+        assert_eq!(names, [("PLAYBMP", "PLAY.BMP"), ("STOPBMP", "STOP.BMP")]);
     }
 
     #[test]

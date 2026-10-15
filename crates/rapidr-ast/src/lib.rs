@@ -1347,6 +1347,13 @@ pub fn typecheck_errors(program: &Program, is_builtin: &dyn Fn(&str) -> bool) ->
                     self.read_callee(&m.object, on, shared, out);
                     self.read_all(&m.args, on, shared, out);
                 }
+                // (`SizeOf(Short)`: a type's name, RapidQ's Memory.inc under
+                // $TYPECHECK ON — RC.EXE takes it)
+                Expression::FunctionCall(f) if matches!(f.callee.as_ref(), Expression::Identifier(c) if c.name.eq_ignore_ascii_case("sizeof")) => {
+                    if !matches!(f.args.as_slice(), [Expression::Identifier(_)]) {
+                        self.read_all(&f.args, on, shared, out);
+                    }
+                }
                 Expression::FunctionCall(f) => {
                     self.read_callee(&f.callee, on, shared, out);
                     self.read_all(&f.args, on, shared, out);
@@ -1466,6 +1473,10 @@ pub fn typecheck_errors(program: &Program, is_builtin: &dyn Fn(&str) -> bool) ->
     }) {
         return Vec::new();
     }
+    // (a DECLAREd routine's parameters are the DECLARE's names)
+    let mut renamed = program.clone();
+    declared_parameter_names(&mut renamed.statements);
+    let program = &renamed;
     let mut globals: HashSet<String> = HashSet::new();
     declared_in(&program.statements, &mut globals);
     for s in &program.statements {
@@ -2893,13 +2904,71 @@ pub fn hoist_routines(program: &Program) -> Program {
         out.push(s);
         out.extend(nested);
     }
+    // A DECLARE written inside a block (`IF … THEN : DECLARE FUNCTION f LIB …`,
+    // RapidQ's Compile/rapidq_boosta.bas) declares for the whole program, as
+    // in RC.EXE: moved before the top-level statement holding it.
+    fn take_declares(body: &mut Vec<Statement>, out: &mut Vec<Statement>) {
+        let mut kept = Vec::with_capacity(body.len());
+        for mut s in body.drain(..) {
+            if matches!(s, Statement::Declare(_)) {
+                out.push(s);
+                continue;
+            }
+            if !matches!(s, Statement::Type(_)) {
+                for b in child_bodies_mut(&mut s) {
+                    take_declares(b, out);
+                }
+            }
+            kept.push(s);
+        }
+        *body = kept;
+    }
     let mut program = program.clone();
     let mut out = Vec::with_capacity(program.statements.len());
     for s in program.statements.drain(..) {
         hoist(s, &mut out);
     }
-    program.statements = out;
+    let mut with_declares = Vec::with_capacity(out.len());
+    for mut s in out {
+        if !matches!(s, Statement::Type(_)) {
+            for b in child_bodies_mut(&mut s) {
+                take_declares(b, &mut with_declares);
+            }
+        }
+        with_declares.push(s);
+    }
+    declared_parameter_names(&mut with_declares);
+    program.statements = with_declares;
     program
+}
+
+/// A SUB or FUNCTION DECLAREd before it is written takes its parameters'
+/// names from the DECLARE, as RC.EXE does: `DECLARE FUNCTION F (a AS LONG)`
+/// then `FUNCTION F (b AS LONG)` — in F, `a` is the argument and `b` an
+/// undeclared name (0; "Undefined symbol B" with $TYPECHECK ON). RapidQ's
+/// CallBack_*.inc rely on it (`hFunction` in the DECLARE, `cbIndex` in the
+/// FUNCTION, `hFunction` used).
+fn declared_parameter_names(stmts: &mut [Statement]) {
+    let mut declared: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+    for s in stmts.iter_mut() {
+        match s {
+            Statement::Declare(d) if d.lib.is_none() => {
+                declared.entry(strip_type_suffix(&d.name).to_ascii_lowercase()).or_insert_with(|| d.params.iter().map(|p| p.name.clone()).collect());
+            }
+            Statement::Subroutine(r) => rename_params(&declared, &r.name, &mut r.params),
+            Statement::Function(r) => rename_params(&declared, &r.name, &mut r.params),
+            _ => {}
+        }
+    }
+    fn rename_params(declared: &std::collections::HashMap<String, Vec<String>>, name: &str, params: &mut [Parameter]) {
+        let Some(names) = declared.get(&strip_type_suffix(name).to_ascii_lowercase()) else { return };
+        if names.len() != params.len() {
+            return;
+        }
+        for (p, n) in params.iter_mut().zip(names) {
+            p.name.clone_from(n);
+        }
+    }
 }
 
 /// Calls `on_stmt` for every statement and `on_expr` for every expression in

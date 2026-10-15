@@ -12,6 +12,21 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   `windows.inc`) makes of `rapidq2.inc`'s `CONST True = 1` — programs including both
   (`Mouse/Mouse_Wheel.bas`) stopped with "Syntax error in CONST statement". Checked against
   RC.EXE (`rapidq_const_defined_name`).
+- More of RapidQ's examples compile (344 of 428, from 336), each form checked against RC.EXE
+  (`rapidq_corpus_forms`, both backends):
+  - `&` before a name is the name: `&x` is x, `.WriteNum(&ForwardTo, 4)` (RapidQ's
+    `CallBack_*.inc`). `&O` / `&B` (RapidR's octal and binary) are numbers only with a digit after
+    them, so `&Bar` is the variable Bar as in RapidQ.
+  - `DEFINT R()` and `DIM A() AS …`: an array REDIM sizes later (R(0) until then, as RC.EXE).
+  - A `$` inside a name: `Encrypted$YY` is a variable of its own (`Encryption/RC4.bas`).
+  - A DECLARE inside a block (`IF … : DECLARE FUNCTION f LIB …`) declares for the whole program.
+  - A DECLAREd SUB or FUNCTION takes its parameters' names from the DECLARE, as RC.EXE does:
+    `DECLARE FUNCTION F (a AS LONG)` then `FUNCTION F (b AS LONG)` — inside F the argument is `a`
+    (RapidQ's callback includes depend on it).
+  - `SizeOf(Short)` (a type's name) under `$TYPECHECK ON`.
+  - `$RESOURCE NAME AS <file>`, as `$INCLUDE <file>` (`AVI/aviplay.bas`).
+  - A component named like a statement passed to a call without parentheses:
+    `File.AddItems Open, Break1, ExitItem`.
 
 ### Release tooling: the VMs stay clean, and no console window flashes
 - `windows-vm.sh clean` and `linux-vm.sh clean` remove everything the release and smoke scripts leave

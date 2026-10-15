@@ -81,7 +81,6 @@ HARDWARE_RE = re.compile(r"\bINP\s*\(|^\s*OUT\s+[^=]", re.I | re.M)
 NOT_RAPIDQ = {
     "Compile/RQdecl.bas": "`IF … AND _` continued by a second `IF` (line 118)",
     "Database/SQL_blobs/SQ3.BAS": "C's `|` for flags (not a RapidQ operator)",
-    "Encryption/RC4.bas": "typo `DIM Encrypted$YY`",
     "FreeImage/MFreeImage.bas": "Visual Basic (`Public Enum`)",
     "Linear_Solver/Linear.bas": "`if xlow not > 0 or then` (OR with nothing after it)",
     "Math/Linear_Solver/Linear.bas": "`if xlow not > 0 or then` (OR with nothing after it)",

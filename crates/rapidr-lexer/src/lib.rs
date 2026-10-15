@@ -959,7 +959,15 @@ impl<'src> Lexer<'src> {
     }
 
     fn is_prefixed_number(&self) -> bool {
-        matches!(self.peek_char(1), Some('H' | 'h' | 'O' | 'o' | 'B' | 'b'))
+        // (`&O17` / `&B101` are RapidR's own, only with a digit after them:
+        // in RapidQ `&Bar` is the variable Bar — `&` before a name is the
+        // name, RC.EXE)
+        match self.peek_char(1) {
+            Some('H' | 'h') => true,
+            Some('O' | 'o') => matches!(self.peek_char(2), Some('0'..='7')),
+            Some('B' | 'b') => matches!(self.peek_char(2), Some('0' | '1')),
+            _ => false,
+        }
     }
 
     fn lex_prefixed_number(
@@ -1091,7 +1099,14 @@ impl<'src> Lexer<'src> {
             }
         }
 
-        if matches!(self.current_char(), Some('$' | '%' | '#' | '&' | '!')) {
+        if self.current_char() == Some('$') && self.peek_char(1).is_some_and(Self::is_identifier_part) {
+            // `Encrypted$YY` is one name (RC.EXE: `DIM E$YY AS STRING` is a
+            // variable of its own, E$ another; Encryption/RC4.bas)
+            self.advance_char();
+            while self.current_char().is_some_and(Self::is_identifier_part) {
+                self.advance_char();
+            }
+        } else if matches!(self.current_char(), Some('$' | '%' | '#' | '&' | '!')) {
             self.advance_char();
         } else if self.current_char() == Some('?') && keyword_token(&self.source[start..self.index]).is_none() {
             // `b?` BYTE, `w??` WORD, `d???` DWORD (a `?` after a keyword is PRINT).
@@ -1272,7 +1287,14 @@ fn demote_keyword_names(tokens: &mut [Token]) {
         let member = next == Some(Dot);
         let declared = matches!(prev, Some(Dim | Comma)) && next == Some(As);
         let argument = matches!(prev, Some(Comma | LParen)) && matches!(next, Some(Comma | RParen));
-        if member || declared || argument {
+        // (an argument of a call without parentheses: `File.AddItems Open,
+        // Break1, ExitItem` — RapidQ's AVI/aviplay.bas —, `Menu.AddItems New,
+        // Open`; the routine's name follows a `.` or starts the statement)
+        let ends = matches!(next, None | Some(Comma | Newline | Colon | Eof));
+        let called = prev == Some(Identifier) && i >= 2 && matches!(tokens[i - 2].kind, Dot | Newline | Colon);
+        let first_argument = called && ends;
+        let last_argument = prev == Some(Comma) && matches!(next, None | Some(Newline | Colon | Eof));
+        if member || declared || argument || first_argument || last_argument {
             tokens[i].kind = Identifier;
         }
     }
@@ -1386,12 +1408,14 @@ mod tests {
 
     #[test]
     fn recovers_from_errors() {
+        // (`&OZ` is `&` before the name OZ, as in RapidQ: `&O` / `&B` are
+        // numbers only with a digit after them)
         let (tokens, errors) = Lexer::new("a = 1 ` b\nc = &OZ\nd = \"open", None).tokenize_recovering();
         let kinds: Vec<TokenType> = tokens.iter().map(|t| t.kind).collect();
         use TokenType::*;
-        assert_eq!(kinds, [Identifier, Eq, Number, Error, Identifier, Newline, Identifier, Eq, Error, Identifier, Newline, Identifier, Eq, StringLit, Eof]);
+        assert_eq!(kinds, [Identifier, Eq, Number, Error, Identifier, Newline, Identifier, Eq, Ampersand, Identifier, Newline, Identifier, Eq, StringLit, Eof]);
         let messages: Vec<&str> = errors.iter().map(|e| e.diagnostic.message.as_str()).collect();
-        assert_eq!(messages, ["Unexpected character: `", "Invalid prefixed number literal", "Unterminated string literal"]);
+        assert_eq!(messages, ["Unexpected character: `", "Unterminated string literal"]);
         // `tokenize` stops at the first, as before.
         assert_eq!(Lexer::new("a = 1 ` b", None).tokenize().unwrap_err().diagnostic.message, "Unexpected character: `");
     }

@@ -936,7 +936,14 @@ impl<'a> Parser<'a> {
                 names.push(self.expect(TokenType::Identifier)?.clone());
             }
             let dimensions = if self.match_kind(TokenType::LParen) {
-                let dims = self.parse_array_dimensions()?;
+                // `DIM A() AS INTEGER`, `DEFINT R()`: an array REDIM sizes
+                // later — RC.EXE makes it A(0) (UBOUND and LBOUND 0)
+                let dims = if self.peek_kind() == Some(TokenType::RParen) {
+                    let at = self.peek()?.span;
+                    vec![ArrayDimension::Single(Expression::Literal(Literal { span: at, value: LiteralValue::Integer(0) }))]
+                } else {
+                    self.parse_array_dimensions()?
+                };
                 self.expect(TokenType::RParen)?;
                 dims
             } else {
@@ -2972,6 +2979,13 @@ impl<'a> Parser<'a> {
                 self.parse_comparison()?;
             }
             return Some(rapidr_ast::lone_equals(expression_span(&operand), operand));
+        }
+        // `&name` before an operand: RC.EXE reads the operand itself (`&x` is
+        // x, `&s` the string, `&ForwardTo + 1` ForwardTo + 1 — RapidQ's
+        // CallBack_*.inc writes `.WriteNum(&ForwardTo, 4)`)
+        if self.peek_kind() == Some(TokenType::Ampersand) {
+            self.advance();
+            return self.parse_unary();
         }
         if let Some(op) = op {
             let tok = self.advance()?;
