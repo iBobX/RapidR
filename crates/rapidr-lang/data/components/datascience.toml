@@ -126,8 +126,9 @@ events = []
 name = "RDATAFRAME"
 display = "DataFrame"
 visual = false
-doc = "A table of named columns in pandas' style: read CSV or JSON, select, filter, sort, group and join, compute statistics, show it in a grid. RapidR's own."
+doc = "A table of named columns in pandas' style: read CSV or JSON, select, filter, sort, group and join, compute statistics, show it in a grid. Point its Source at an RCSV, an RJSON or another RDataFrame and it takes their rows — at design time too. RapidR's own."
 properties = [
+  { name = "Source", type = "component", kinds = ["RCSV", "RJSON", "RDATAFRAME"], category = "Data", doc = "Where the frame's rows come from: an RCSV, an RJSON (its records) or another RDataFrame. The frame gets a copy of them at once, and again whenever the source changes (a new FileName, Load); Refresh asks again. What you do to the frame afterwards (Filter, Sort …) changes only the frame, until the source changes." },
   { name = "Height", type = "int", access = "read", design = false },
   { name = "Nrows", type = "int", access = "read", design = false },
   { name = "ColCount", type = "int", access = "read", design = false },
@@ -208,8 +209,111 @@ methods = [
   { name = "ToGrid", params = "gridName", value = true, doc = "Fills an RStringGrid: the header row, then the cells." },
   { name = "To_grid", value = true },
   { name = "Display", value = true },
+  { name = "Refresh", value = true, doc = "Takes the rows of its Source again (its file read again when it is an RCSV)." },
 ]
 events = []
+
+[[component]]
+name = "RCSV"
+display = "CSV"
+visual = false
+default_event = "OnLoad"
+doc = "A CSV file as a data source: set FileName and its table is ready — show it in an RDBGrid (DataSource = it), give its rows to an RDataFrame (Source = it), or bind edits and labels to it. Any delimiter, with or without a header line; read when first needed, at design time too. RapidR's own."
+properties = [
+  { name = "FileName", type = "string", default = "", category = "Data", editor = "file", doc = "The CSV file (a path, or a name next to the program). Setting it reads the file again when its table is next needed." },
+  { name = "Delimiter", type = "string", default = ",", category = "Data", doc = "What separates the fields: \",\" (the default), \";\", a tab (\"tab\" or CHR$(9)), \"|\" …" },
+  { name = "HasHeader", type = "bool", default = true, category = "Data", doc = "True: the first line names the columns. False: every line is a row and the columns are column_1, column_2 …" },
+  { name = "Text", type = "string", category = "Data", design = false, doc = "The table as CSV text; setting it gives the data itself instead of a file." },
+  { name = "RowCount", type = "int", default = 0, access = "read", design = false, doc = "How many rows the table has." },
+  { name = "ColCount", type = "int", default = 0, access = "read", design = false, doc = "How many columns the table has." },
+  { name = "Columns", type = "string", default = "", access = "read", design = false, doc = "The columns' names: \"name,age,city\"." },
+  { name = "Error", type = "string", default = "", access = "read", design = false, doc = "Why the file couldn't be read (\"\" when it could)." },
+]
+methods = [
+  { name = "Load", value = true, returns = "INTEGER", doc = "Reads the file again now: 1 if it could, 0 if not (Error and OnError say why)." },
+  { name = "Save", params = "[fileName AS STRING]", value = true, returns = "INTEGER", doc = "Writes the table (with its edits) to its FileName, or to fileName: 1 if it could, 0 if not." },
+  { name = "Clear", value = true, doc = "Forgets the file and the table." },
+]
+events = [
+  { name = "OnLoad", doc = "The file was read." },
+  { name = "OnError", params = "Message AS STRING", doc = "The file couldn't be read or written; Message says why." },
+]
+
+[[component]]
+name = "RDATASOURCE"
+display = "DataSource"
+visual = false
+default_event = "OnDataChange"
+doc = "The current row of a data set (an RDataFrame, an RCSV, an RJSON), shared by the controls bound to it: grids, edits and labels with DataSource = it follow it as it moves. First, Next, Prior, Last and Row move it; Field reads the current row. RapidR's own, after Delphi's TDataSource."
+properties = [
+  { name = "DataSet", type = "component", kinds = ["RDATAFRAME", "RCSV", "RJSON"], category = "Data", doc = "The data set whose rows it walks." },
+  { name = "Row", type = "int", default = 0, category = "Data", design = false, doc = "The current row, from 0; set it to move there." },
+  { name = "RecordCount", type = "int", default = 0, access = "read", design = false, doc = "How many rows the data set has." },
+  { name = "EOF", type = "bool", access = "read", design = false, doc = "True (-1) after Next couldn't move past the last row (or after Last), or when there are no rows: `WHILE NOT DS.EOF … DS.Next WEND` walks every row." },
+  { name = "BOF", type = "bool", access = "read", design = false, doc = "True (-1) after First, or after Prior couldn't move before the first row, or when there are no rows." },
+  { name = "Enabled", type = "bool", default = true, category = "Data", doc = "False: the bound controls stop following it." },
+  { name = "State", type = "string", default = "inactive", access = "read", design = false, doc = "\"inactive\" (no DataSet, or not Enabled) or \"browse\"." },
+]
+methods = [
+  { name = "First", value = true, doc = "Moves to the first row." },
+  { name = "Next", value = true, doc = "Moves to the next row (EOF becomes True at the end)." },
+  { name = "Prior", value = true, doc = "Moves to the row before (BOF becomes True at the start)." },
+  { name = "Last", value = true, doc = "Moves to the last row." },
+  { name = "MoveBy", params = "rows AS INTEGER", doc = "Moves that many rows (negative: back)." },
+  { name = "Field", params = "name AS STRING", returns = "STRING", doc = "The current row's value in that column (\"\" for a missing value)." },
+  { name = "SetField", params = "name AS STRING, value AS STRING", doc = "Changes the current row's value in that column (in the data set's table; its Save writes it out)." },
+  { name = "Refresh", value = true, doc = "Reads the data set again from where its rows come from." },
+]
+events = [
+  { name = "OnDataChange", doc = "The current row moved, or the data changed." },
+]
+
+[[component]]
+name = "RDBGRID"
+display = "DBGrid"
+visual = true
+size = [320, 160]
+default_event = "OnCellClick"
+sets = ["layout", "a11y"]
+doc = "A grid that shows a data set straight from its table — an RDataSource, an RDataFrame, an RCSV or an RJSON — drawing only the rows on screen, so a million rows scroll smoothly. A click or the arrows move the current row (bound edits follow); a click on a heading sorts the view by that column (again: descending, a third time: back), the data itself unchanged. RapidR's own, after Delphi's TDBGrid."
+properties = [
+  { name = "DataSource", type = "component", kinds = ["RDATASOURCE", "RDATAFRAME", "RCSV", "RJSON"], category = "Data", doc = "What it shows: an RDataSource (it follows that current row) or a data set straight." },
+  { name = "ReadOnly", type = "bool", default = true, category = "Data", doc = "True: the cells are shown, not edited (editing in the grid comes later; edit through bound REdits)." },
+  { name = "Row", type = "int", default = 0, design = false, doc = "The current row (a row of the data, from 0); set it to move there." },
+  { name = "TopRow", type = "int", default = 0, design = false, doc = "The first row shown (in the grid's order)." },
+  { name = "RowCount", type = "int", default = 0, access = "read", design = false, doc = "How many rows the data has." },
+  { name = "ColCount", type = "int", default = 0, access = "read", design = false, doc = "How many columns the data has." },
+  { name = "Columns", type = "string", default = "", access = "read", design = false, doc = "The columns' names: \"name,age,city\"." },
+  { name = "SortColumn", type = "int", default = -1, access = "read", design = false, doc = "The column its view is sorted by (-1: none, the data's own order)." },
+  { name = "SortDescending", type = "bool", default = false, access = "read", design = false, doc = "True: sorted highest first." },
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
+  { name = "Color", type = "color" },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "Font", type = "font", access = "write", design = true },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "Left", type = "int", default = 0 },
+  { name = "Parent", type = "component", kinds = ["RFORM", "RPANEL", "RTABCONTROL"], access = "write", design = false },
+  { name = "ShowHint", type = "bool", default = false },
+  { name = "TabOrder", type = "int" },
+  { name = "Tag", type = "int" },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Visible", type = "bool", default = true },
+  { name = "Width", type = "int" },
+]
+methods = [
+  { name = "SetFocus", value = true },
+  { name = "Repaint" },
+]
+events = [
+  { name = "OnCellClick", params = "Row AS INTEGER, Col AS INTEGER", doc = "A cell was clicked: its data row and column (from 0)." },
+  { name = "OnTitleClick", params = "Col AS INTEGER", doc = "A heading was clicked (the view is sorted by it)." },
+  { name = "OnClick" },
+  { name = "OnDblClick" },
+  { name = "OnKeyDown", params = "Key AS WORD, Shift AS INTEGER" },
+  { name = "OnKeyUp", params = "Key AS WORD, Shift AS INTEGER" },
+  { name = "OnKeyPress", params = "Key AS BYTE" },
+]
 
 [[component]]
 name = "RPLOT"

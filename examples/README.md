@@ -83,6 +83,7 @@ The **Runs on** column lists the ways each example is tested on (by
 | [numbers.rr](data/numbers.rr) | `RNum` arrays: `FromList`, `Arange`, `Linspace`, statistics, arithmetic on every element, `Cumsum`, `Unique` | run · interp · native · web | `rapidr run data/numbers.rr` |
 | [csv_explorer.rr](data/csv_explorer.rr) | Drop a CSV file on the window (or open one, or the sample [shop.csv](data/shop.csv)): a table sorted by a click on a heading, a filter, each column's count, min, max and mean, and a live `RPlot` bar, line or scatter chart of any two columns; the form's `OnDropFiles` | run · interp · native · web | `rapidr run data/csv_explorer.rr` |
 | [dataframe.rr](data/dataframe.rr) | `RDataFrame` from a CSV ([staff.csv](data/staff.csv)): filter, sort, into a grid; an `RPlot` bar chart on the form | run · interp · native · web | `rapidr run data/dataframe.rr` |
+| [linked_data.rr](data/linked_data.rr) | Linked components with almost no code: an `RCSV` ([staff.csv](data/staff.csv)) → `RDataFrame` (`Source`) → `RDataSource` → an `RDBGrid` and `REdit`s / `RLabel`s bound with `DataSource` + `DataField`; the current row followed everywhere, edits written back, the grid's view sorted by a heading's click — live in RapidR Studio's designer too | run · interp · native · web | `rapidr run data/linked_data.rr` |
 
 ### network/ — HTTP (against a server on your own machine)
 

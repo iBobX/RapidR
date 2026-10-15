@@ -441,6 +441,17 @@ impl Frame {
         }
     }
 
+    /// The rows in the order a stable sort by column `col` puts them
+    /// (numbers as numbers, nulls last), without moving them — a grid's
+    /// sorted view.
+    pub fn sorted_order(&self, col: usize, descending: bool) -> Vec<usize> {
+        if col < self.width() {
+            sorted_rows(self, &[(col, descending)])
+        } else {
+            (0..self.height).collect()
+        }
+    }
+
     /// The first `n` rows, as a frame of their own.
     pub fn head(&self, n: usize) -> Frame {
         let mut f = self.clone();

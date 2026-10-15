@@ -1,0 +1,144 @@
+' linked_data.rr: linked data components, Delphi- and Xojo-style — a CSV
+' file, a frame, a data source, a grid and edits connected by properties,
+' with almost no code. RapidR Studio's designer shows the rows live while
+' you design the form.
+'
+'   rapidr run linked_data.rr
+'
+' Staff (an RCSV) reads staff.csv; Team (an RDataFrame) takes its rows
+' (Source = Staff); Cursor (an RDataSource) is the current row of Team;
+' the RDBGrid, the edits and the labels are bound to Cursor (DataSource,
+' DataField), so they all follow it: click a row, use the arrows or the
+' buttons. Type in an edit and the table changes too. Click a heading to
+' sort the grid's view (again: the other way round). "Engineering" filters
+' the frame; "Everyone" reads the file again; "Save" writes the table with
+' your edits to staff_edited.csv. staff.csv is made-up data.
+
+DECLARE SUB GoFirst
+DECLARE SUB GoPrior
+DECLARE SUB GoNext
+DECLARE SUB GoLast
+DECLARE SUB ShowEngineering
+DECLARE SUB ShowEveryone
+DECLARE SUB SaveTable
+DECLARE SUB RowChanged
+
+CREATE Staff AS RCSV
+    FileName = "staff.csv"
+END CREATE
+
+CREATE Team AS RDataFrame
+    Source = Staff
+END CREATE
+
+CREATE Cursor AS RDataSource
+    DataSet = Team
+    OnDataChange = RowChanged
+END CREATE
+
+CREATE Form AS RForm
+    Caption = "Linked data"
+    Width = 640
+    Height = 440
+    Center
+    CREATE FirstBtn AS RButton
+        Caption = "|<": Left = 10: Top = 10: Width = 40
+        OnClick = GoFirst
+    END CREATE
+    CREATE PriorBtn AS RButton
+        Caption = "<": Left = 54: Top = 10: Width = 40
+        OnClick = GoPrior
+    END CREATE
+    CREATE NextBtn AS RButton
+        Caption = ">": Left = 98: Top = 10: Width = 40
+        OnClick = GoNext
+    END CREATE
+    CREATE LastBtn AS RButton
+        Caption = ">|": Left = 142: Top = 10: Width = 40
+        OnClick = GoLast
+    END CREATE
+    CREATE EngBtn AS RButton
+        Caption = "&Engineering": Left = 200: Top = 10: Width = 100
+        OnClick = ShowEngineering
+    END CREATE
+    CREATE AllBtn AS RButton
+        Caption = "E&veryone": Left = 306: Top = 10: Width = 90
+        OnClick = ShowEveryone
+    END CREATE
+    CREATE SaveBtn AS RButton
+        Caption = "&Save": Left = 402: Top = 10: Width = 70
+        OnClick = SaveTable
+    END CREATE
+    CREATE Grid AS RDBGrid
+        Left = 10: Top = 44: Width = 610: Height = 230
+        DataSource = Cursor
+    END CREATE
+    CREATE NameLbl AS RLabel
+        Caption = "Name": Left = 10: Top = 290
+    END CREATE
+    CREATE NameEdit AS REdit
+        Left = 110: Top = 286: Width = 200
+        DataSource = Cursor: DataField = "Name"
+    END CREATE
+    CREATE DeptLbl AS RLabel
+        Caption = "Department": Left = 10: Top = 322
+    END CREATE
+    CREATE DeptEdit AS REdit
+        Left = 110: Top = 318: Width = 200
+        DataSource = Cursor: DataField = "Department"
+    END CREATE
+    CREATE SalaryLbl AS RLabel
+        Caption = "Salary": Left = 330: Top = 290
+    END CREATE
+    CREATE Salary AS RLabel
+        Left = 420: Top = 290: Width = 120
+        DataSource = Cursor: DataField = "Salary"
+    END CREATE
+    CREATE RatingLbl AS RLabel
+        Caption = "Rating": Left = 330: Top = 322
+    END CREATE
+    CREATE Rating AS RLabel
+        Left = 420: Top = 322: Width = 120
+        DataSource = Cursor: DataField = "Rating"
+    END CREATE
+    CREATE Status AS RLabel
+        Left = 10: Top = 370: Width = 610
+    END CREATE
+END CREATE
+
+SUB GoFirst
+    Cursor.First
+END SUB
+
+SUB GoPrior
+    Cursor.Prior
+END SUB
+
+SUB GoNext
+    Cursor.Next
+END SUB
+
+SUB GoLast
+    Cursor.Last
+END SUB
+
+' the current row moved, or the data changed
+SUB RowChanged
+    Status.Caption = "Row " + STR$(Cursor.Row + 1) + " of " + STR$(Cursor.RecordCount)
+END SUB
+
+SUB ShowEngineering
+    Team.Filter "Department", "=", "Engineering"
+END SUB
+
+SUB ShowEveryone
+    Team.Refresh
+END SUB
+
+SUB SaveTable
+    Team.SaveToCSV "staff_edited.csv"
+    Status.Caption = "Saved " + STR$(Team.RowCount) + " rows to staff_edited.csv"
+END SUB
+
+RowChanged
+Form.ShowModal

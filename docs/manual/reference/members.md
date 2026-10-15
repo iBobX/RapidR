@@ -811,6 +811,8 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `Alignment` *(RapidR)* | enum |  | How the text lines up inside the control: `taLeftJustify`, `taCenter` or `taRightJustify`; on a popup menu, which side of the point it opens on. |
 | `Cursor` *(RapidR)* | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
+| `DataSource` *(RapidR)* | component |  | Shows a data set's current row: an RDataSource, or a data set straight (with DataField: the column). What the user types goes back into the data set's table. |
+| `DataField` *(RapidR)* | string | `""` | The column of DataSource's current row it shows and edits ("name"). |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -1728,6 +1730,8 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 | `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
 | `Layout` | enum |  | Where the picture sits next to the caption: `blBMPLeft`, `blBMPRight`, `blBMPTop` or `blBMPBottom`. |
 | `TextStyle` | any |  | How the label draws its text, together with `LabelStyle`. |
+| `DataSource` *(RapidR)* | component |  | Shows a data set's current row: an RDataSource, or a data set straight (with DataField: the column) — its Caption follows as the row moves. |
+| `DataField` *(RapidR)* | string | `""` | The column of DataSource's current row it shows ("name"). |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -3190,7 +3194,7 @@ Reads and writes settings as keys and values: Windows' registry on Windows, a pe
 <a id="rjson"></a>
 ## RJson
 
-Parses and builds JSON: get and set values by dotted path, list keys, pretty-print, load and save files. RapidR's own.
+Parses and builds JSON: get and set values by dotted path, list keys, pretty-print, load and save files. Its document's records ([{…}, …], JSON Lines or columns) are also a data source: an RDataFrame's Source, an RDBGrid's or an RDataSource's data set. RapidR's own.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -4340,10 +4344,11 @@ A numeric array in NumPy's style: make ranges, zeros or lists, then sum, average
 <a id="rdataframe"></a>
 ## RDataFrame
 
-A table of named columns in pandas' style: read CSV or JSON, select, filter, sort, group and join, compute statistics, show it in a grid. RapidR's own.
+A table of named columns in pandas' style: read CSV or JSON, select, filter, sort, group and join, compute statistics, show it in a grid. Point its Source at an RCSV, an RJSON or another RDataFrame and it takes their rows — at design time too. RapidR's own.
 
 | Property | Type | Default | |
 |---|---|---|---|
+| `Source` | component |  | Where the frame's rows come from: an RCSV, an RJSON (its records) or another RDataFrame. The frame gets a copy of them at once, and again whenever the source changes (a new FileName, Load); Refresh asks again. What you do to the frame afterwards (Filter, Sort …) changes only the frame, until the source changes. |
 | `Height` (read-only) | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Nrows` (read-only) | int |  | The number of rows in the data frame. |
 | `ColCount` (read-only) | int |  | The number of columns: of a grid (fixed ones included), of a query's result, of a data frame. |
@@ -4425,6 +4430,117 @@ A table of named columns in pandas' style: read CSV or JSON, select, filter, sor
 | `ToGrid(gridName)` | Fills an RStringGrid: the header row, then the cells. |
 | `To_grid` | Fills an RStringGrid with the DataFrame's column names and rows. Same as `ToGrid`. |
 | `Display` | Fills an RStringGrid with the DataFrame's column names and rows. Same as `ToGrid`. |
+| `Refresh` | Takes the rows of its Source again (its file read again when it is an RCSV). |
+
+<a id="rcsv"></a>
+## RCSV
+
+A CSV file as a data source: set FileName and its table is ready — show it in an RDBGrid (DataSource = it), give its rows to an RDataFrame (Source = it), or bind edits and labels to it. Any delimiter, with or without a header line; read when first needed, at design time too. RapidR's own.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `FileName` | string | `""` | The CSV file (a path, or a name next to the program). Setting it reads the file again when its table is next needed. |
+| `Delimiter` | string | `","` | What separates the fields: "," (the default), ";", a tab ("tab" or CHR$(9)), "\|" … |
+| `HasHeader` | bool | True | True: the first line names the columns. False: every line is a row and the columns are column_1, column_2 … |
+| `Text` | string |  | The table as CSV text; setting it gives the data itself instead of a file. |
+| `RowCount` (read-only) | int | 0 | How many rows the table has. |
+| `ColCount` (read-only) | int | 0 | How many columns the table has. |
+| `Columns` (read-only) | string | `""` | The columns' names: "name,age,city". |
+| `Error` (read-only) | string | `""` | Why the file couldn't be read ("" when it could). |
+
+| Method | |
+|---|---|
+| `Load AS INTEGER` | Reads the file again now: 1 if it could, 0 if not (Error and OnError say why). |
+| `Save([fileName AS STRING]) AS INTEGER` | Writes the table (with its edits) to its FileName, or to fileName: 1 if it could, 0 if not. |
+| `Clear` | Forgets the file and the table. |
+
+| Event | |
+|---|---|
+| `OnLoad` | The file was read. |
+| `OnError(Message AS STRING)` | The file couldn't be read or written; Message says why. |
+
+<a id="rdatasource"></a>
+## RDataSource
+
+The current row of a data set (an RDataFrame, an RCSV, an RJSON), shared by the controls bound to it: grids, edits and labels with DataSource = it follow it as it moves. First, Next, Prior, Last and Row move it; Field reads the current row. RapidR's own, after Delphi's TDataSource.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `DataSet` | component |  | The data set whose rows it walks. |
+| `Row` | int | 0 | The current row, from 0; set it to move there. |
+| `RecordCount` (read-only) | int | 0 | How many rows the data set has. |
+| `EOF` (read-only) | bool |  | True (-1) after Next couldn't move past the last row (or after Last), or when there are no rows: `WHILE NOT DS.EOF … DS.Next WEND` walks every row. |
+| `BOF` (read-only) | bool |  | True (-1) after First, or after Prior couldn't move before the first row, or when there are no rows. |
+| `Enabled` | bool | True | False: the bound controls stop following it. |
+| `State` (read-only) | string | `"inactive"` | "inactive" (no DataSet, or not Enabled) or "browse". |
+
+| Method | |
+|---|---|
+| `First` | Moves to the first row. |
+| `Next` | Moves to the next row (EOF becomes True at the end). |
+| `Prior` | Moves to the row before (BOF becomes True at the start). |
+| `Last` | Moves to the last row. |
+| `MoveBy(rows AS INTEGER)` | Moves that many rows (negative: back). |
+| `Field(name AS STRING) AS STRING` | The current row's value in that column ("" for a missing value). |
+| `SetField(name AS STRING, value AS STRING)` | Changes the current row's value in that column (in the data set's table; its Save writes it out). |
+| `Refresh` | Reads the data set again from where its rows come from. |
+
+| Event | |
+|---|---|
+| `OnDataChange` | The current row moved, or the data changed. |
+
+<a id="rdbgrid"></a>
+## RDBGrid
+
+A grid that shows a data set straight from its table — an RDataSource, an RDataFrame, an RCSV or an RJSON — drawing only the rows on screen, so a million rows scroll smoothly. A click or the arrows move the current row (bound edits follow); a click on a heading sorts the view by that column (again: descending, a third time: back), the data itself unchanged. RapidR's own, after Delphi's TDBGrid.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `DataSource` | component |  | What it shows: an RDataSource (it follows that current row) or a data set straight. |
+| `ReadOnly` | bool | True | True: the cells are shown, not edited (editing in the grid comes later; edit through bound REdits). |
+| `Row` | int | 0 | The current row (a row of the data, from 0); set it to move there. |
+| `TopRow` | int | 0 | The first row shown (in the grid's order). |
+| `RowCount` (read-only) | int | 0 | How many rows the data has. |
+| `ColCount` (read-only) | int | 0 | How many columns the data has. |
+| `Columns` (read-only) | string | `""` | The columns' names: "name,age,city". |
+| `SortColumn` (read-only) | int | -1 | The column its view is sorted by (-1: none, the data's own order). |
+| `SortDescending` (read-only) | bool | False | True: sorted highest first. |
+| `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
+| `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
+| `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
+| `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Visible` | bool | True | Whether the control or form is shown. |
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+
+| Method | |
+|---|---|
+| `SetFocus` | Gives the component the keyboard focus. |
+| `Repaint` | Redraws the component. |
+
+| Event | |
+|---|---|
+| `OnCellClick(Row AS INTEGER, Col AS INTEGER)` | A cell was clicked: its data row and column (from 0). |
+| `OnTitleClick(Col AS INTEGER)` | A heading was clicked (the view is sorted by it). |
+| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
+| `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
+| `OnKeyDown(Key AS WORD, Shift AS INTEGER)` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
+| `OnKeyUp(Key AS WORD, Shift AS INTEGER)` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
+| `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 
 <a id="rplot"></a>
 ## RPlot

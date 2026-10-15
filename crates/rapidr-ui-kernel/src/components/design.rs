@@ -47,6 +47,7 @@
 
 use std::collections::HashMap;
 
+use rapidr_value::datascience::link;
 use rapidr_value::designer::{FormDesign, Item};
 use rapidr_value::objects::a11y::{node_id, part_id, AccessNode, Action, Role, PART_ITEM, PART_STATUS};
 use rapidr_value::objects::design::{DesignEvent, DesignSurface, TrayItem, TRAY_ICON};
@@ -294,6 +295,18 @@ fn value_of(design: &FormDesign, text: &str) -> Option<Value> {
     }
 }
 
+/// (I7) The non-visual data components the designer reads live (in the
+/// tray: their data shows in the grids and controls bound to them).
+const DATA_SETS: &[&str] = &["RCSV", "RJSON", "RDATAFRAME", "RDATASOURCE"];
+
+/// (I7) A link property's value written as a component's name
+/// (`DataSource = People`): the name.
+fn link_ref(prop: &str, text: &str) -> Option<Value> {
+    let t = text.trim();
+    let name = !t.is_empty() && t.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') && t.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_');
+    (matches!(prop, "datasource" | "dataset" | "source") && name).then(|| v_str(t))
+}
+
 /// Splits `text` at its first `sep` outside quotes and parentheses.
 fn split_top(text: &str, sep: char) -> Option<(&str, &str)> {
     let (mut depth, mut quoted) = (0i32, false);
@@ -452,6 +465,11 @@ impl View {
     /// CREATE block makes it.
     fn rebuild(&mut self, surface: &str, design: &FormDesign) {
         self.store.clear();
+        // (I7: the designed form's data, live — its sources read under the
+        // surface's own names, from the designed program's folder only:
+        // rapidr_value::datascience::link)
+        let folder = with_design(surface, |d| d.source_file.replace('\\', "/")).map(|f| f.rsplit_once('/').map(|(dir, _)| dir.to_string()).unwrap_or_default()).unwrap_or_default();
+        link::design_begin(surface, &folder);
         let root = design.root();
         for id in design.ids() {
             let Some(n) = design.node(id) else { continue };
@@ -459,6 +477,18 @@ impl View {
             let is_root = id == root;
             let menu = matches!(ty.as_str(), "RMAINMENU" | "RMENUITEM");
             if !is_root && !menu && !(n.is_visual() && drawn(&ty)) {
+                if DATA_SETS.contains(&ty.as_str()) {
+                    let k = key(surface, &n.name);
+                    link::create(&k, &ty);
+                    for item in &n.body {
+                        if let Item::Prop(p) = item {
+                            let prop = rapidr_value::designer::model::prop_key(&p.name);
+                            if let Some(v) = value_of(design, &p.value).or_else(|| link_ref(&prop, &p.value)) {
+                                link::set(&k, &prop, &v);
+                            }
+                        }
+                    }
+                }
                 continue;
             }
             // (a QFORM inside the form is a child window: drawn as a form is not)
@@ -476,7 +506,7 @@ impl View {
                         if prop == "visible" || prop == "parent" {
                             continue;
                         }
-                        if let Some(v) = value_of(design, &p.value) {
+                        if let Some(v) = value_of(design, &p.value).or_else(|| link_ref(&prop, &p.value)) {
                             self.store.set(&k, &ty, &prop, v);
                         }
                     }
@@ -487,6 +517,14 @@ impl View {
                     }
                     Item::Child(_) => {}
                 }
+            }
+        }
+        // (what the bound controls show: their fields of the first row)
+        let (shown, _warnings) = link::design_sync(surface);
+        for (id, prop, v) in shown {
+            let ty = self.store.mem.type_of(&id);
+            if !ty.is_empty() {
+                self.store.set(&id, &ty, &prop, v);
             }
         }
         self.form = key(surface, &design.node(root).map(|n| n.name.clone()).unwrap_or_default());

@@ -161,6 +161,8 @@ pub fn default_size(type_name: &str) -> Option<(i64, i64)> {
         "RDESIGNSURFACE" => (640, 480),
         // (the chart model's own size: datascience::plot)
         "RPLOT" => (640, 480),
+        // (I7: a data grid — datascience::link, the kernel's dbgrid.rs)
+        "RDBGRID" => (320, 160),
         // (the web's own elements: the DOM runtime's 100 × 25)
         "RDOM" | "RWEBAUDIO" | "RWEBVIDEO" => (100, 25),
         _ => return None,

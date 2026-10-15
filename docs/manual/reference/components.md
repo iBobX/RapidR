@@ -159,6 +159,9 @@ Every component RapidR creates, by what it is for, under RapidR's name (`RButton
 |---|---|---|---|---|
 | <img src="../icons/light/components/num.svg" width="20" height="20" alt=""> | [`RNum`](members.md#rnum) | — | RapidR | everywhere |
 | <img src="../icons/light/components/dataframe.svg" width="20" height="20" alt=""> | [`RDataFrame`](members.md#rdataframe) | — | RapidR | everywhere |
+| <img src="../icons/light/components/csv.svg" width="20" height="20" alt=""> | [`RCSV`](members.md#rcsv) | — | RapidR | everywhere |
+| <img src="../icons/light/components/datasource.svg" width="20" height="20" alt=""> | [`RDataSource`](members.md#rdatasource) | — | RapidR | everywhere |
+| <img src="../icons/light/components/dbgrid.svg" width="20" height="20" alt=""> | [`RDBGrid`](members.md#rdbgrid) | — | RapidR | everywhere |
 | <img src="../icons/light/components/plot.svg" width="20" height="20" alt=""> | [`RPlot`](members.md#rplot) | — | RapidR | everywhere |
 
 ## Web only
@@ -205,4 +208,4 @@ RapidQ has these objects (RC.EXE knows them); RapidR doesn't yet. Variables of t
 - `QThread`: Runs its OnExecute code in a background thread. Planned: RapidR doesn't have it yet.
 - `QTransImage`: A picture with a transparent colour that can shape and size its form to it. Planned: RapidR doesn't have it yet.
 
-110 components; 76 of them have a RapidQ name.
+113 components; 76 of them have a RapidQ name.

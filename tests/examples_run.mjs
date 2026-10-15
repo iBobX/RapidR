@@ -141,6 +141,17 @@ export const cases = [
   { file: "data/csv_explorer.rr", runtimes: ["run", "interp", "native", "web"], fileDialog: "staff.csv",
     events: "openbtn.onclick,kindbox.__item_1", dump: "status.caption,chart.title,stats.itemcount",
     expect: ["status.caption=staff.csv: 8 rows, 5 columns", "chart.title=Salary by Name", "stats.itemcount=5"] },
+  // (I7: linked components — a row clicked in the grid, Next, a heading
+  // clicked: the bound edit and labels follow, the view sorted)
+  { file: "data/linked_data.rr", runtimes: ["run", "interp", "native", "web"],
+    events: "grid.__cell_1_2,nextbtn.onclick,grid.__cell_2_-1",
+    dump: "nameedit.text,deptedit.text,salary.caption,status.caption,grid.row,grid.sortcolumn",
+    expect: ["nameedit.text=Diana", "deptedit.text=Sales", "salary.caption=58000", "status.caption=Row 4 of 8", "grid.row=3", "grid.sortcolumn=2"] },
+  // (Engineering: the frame filtered — the grid and the edits follow)
+  { file: "data/linked_data.rr", runtimes: ["run", "interp", "native", "web"],
+    events: "engbtn.onclick,lastbtn.onclick",
+    dump: "nameedit.text,status.caption,grid.rowcount",
+    expect: ["nameedit.text=Eduardo", "status.caption=Row 3 of 3", "grid.rowcount=3"] },
   // network/ (the tests' own server, local)
   { file: "network/http_json.rr", runtimes: ["run", "interp", "native", "web"], args: ["{http}/examples/network/forecast.json"],
     expect: ["Forecast for Harbour Town (updated 2026-10-06 06:00)", "  Tuesday   10 to 15 C, showers", "Warmest: Monday"] },

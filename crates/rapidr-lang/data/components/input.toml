@@ -104,6 +104,8 @@ properties = [
   { name = "FontColor", type = "color", origin = "rapidr" },
   { name = "Alignment", type = "enum", values = ["taLeftJustify", "taRightJustify", "taCenter"], origin = "rapidr" },
   { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], origin = "rapidr" },
+  { name = "DataSource", type = "component", kinds = ["RDATASOURCE", "RDATAFRAME", "RCSV", "RJSON"], origin = "rapidr", category = "Data", doc = "Shows a data set's current row: an RDataSource, or a data set straight (with DataField: the column). What the user types goes back into the data set's table." },
+  { name = "DataField", type = "string", default = "", origin = "rapidr", category = "Data", doc = "The column of DataSource's current row it shows and edits (\"name\")." },
 ]
 methods = [
   { name = "SetFocus", value = true, origin = "rapidr" },

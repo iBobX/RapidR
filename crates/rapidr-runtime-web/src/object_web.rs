@@ -180,6 +180,10 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     if type_name.eq_ignore_ascii_case("RDESIGNSURFACE") {
         rapidr_studio::design::install();
     }
+    // (I7: an RJSON's document can be a data source)
+    if type_name.eq_ignore_ascii_case("RJSON") {
+        crate::links_web::install();
+    }
     if rapidr_value::objects::create(name, type_name) {
         install_file_hooks();
         // (the I/O and media lane's: their devices, a QDOWNLOAD's gauge)
@@ -452,6 +456,12 @@ pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
 }
 
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
+    comp_set(name, prop, val);
+    // (linked data: bound controls follow — rapidr_value::datascience::link)
+    crate::links_web::apply();
+}
+
+fn comp_set(name: &str, prop: &str, val: Value) {
     // (`Label.Font.AddStyles = fsBold`: RapidQ takes the method so too)
     if let Some(changes) = rapidr_value::objects::font::component_style_call(&prop.to_ascii_lowercase(), std::slice::from_ref(&val)) {
         let t = rp_comp_type(name);
@@ -1236,6 +1246,13 @@ pub fn rp_comp_type(name: &str) -> String {
 // ---------------------------------------------------------------------------
 
 pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
+    let v = comp_method(name, method, args);
+    // (linked data: bound controls follow — rapidr_value::datascience::link)
+    crate::links_web::apply();
+    v
+}
+
+fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     let uname = name.to_uppercase();
     let lmethod = method.to_lowercase();
     // Screen, Application, Clipboard, Mouse (globals_web.rs).
@@ -1399,7 +1416,12 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
 
     // JSON special handling
     if comp_type == "RJSON" {
-        return json_web_method(&uname, &lmethod, args);
+        let v = json_web_method(&uname, &lmethod, args);
+        // (a frame taking its rows from it gets them again)
+        if matches!(lmethod.as_str(), "parse" | "set" | "remove" | "loadfile" | "clear") {
+            rapidr_value::datascience::link::json_changed(&uname);
+        }
+        return v;
     }
 
     // FileStream — in-browser file pick / download bridge
@@ -1483,6 +1505,20 @@ fn image_from_plot(name: &str, plot: &str) {
 
 thread_local! {
     static JSON_WEB_STORES: std::cell::RefCell<std::collections::HashMap<String, String>> = std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
+/// (I7) RJSON `name`'s document as JSON text, for a frame that takes its
+/// rows from it: what it parsed or loaded, else its FileName's file.
+pub(crate) fn json_document(name: &str) -> Option<String> {
+    if let Some(text) = JSON_WEB_STORES.with(|s| s.borrow().get(&name.to_lowercase()).cloned()) {
+        return Some(text);
+    }
+    let file = rp_comp_get(name, "filename").to_string_val();
+    if file.trim().is_empty() {
+        return None;
+    }
+    install_file_hooks();
+    rapidr_value::objects::read_file(file.trim()).ok().map(|b| String::from_utf8_lossy(&b).into_owned())
 }
 
 fn json_web_method(name: &str, method: &str, args: &[Value]) -> Value {

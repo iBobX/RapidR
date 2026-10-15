@@ -43,6 +43,8 @@ pub mod windows;
 pub mod desktop;
 
 pub mod dispatch;
+// (I7: linked data — what the user changes, shown where it's bound)
+pub mod data;
 pub mod forms;
 pub mod lists;
 pub mod menus;

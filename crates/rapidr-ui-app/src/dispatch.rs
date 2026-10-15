@@ -16,11 +16,21 @@ use crate::{forms, lists, menus, Program, Windows};
 
 /// A kernel event of one of the program's forms, fired as the program's.
 pub fn dispatch<R: Program + Windows>(rt: R, ev: KernelEvent) {
+    event(rt, ev);
+    // (I7: what the user changed in linked data, shown everywhere it's bound)
+    crate::data::apply(rt);
+}
+
+fn event<R: Program + Windows>(rt: R, ev: KernelEvent) {
     match ev {
         KernelEvent::Click(id) => rt.fire(&id, "onclick"),
         // (the input lane's)
         KernelEvent::DblClick(id) => rt.fire(&id, "ondblclick"),
-        KernelEvent::Change(id) => rt.fire(&id, "onchange"),
+        KernelEvent::Change(id) => {
+            // (I7: a bound REdit's field takes what the user typed)
+            crate::data::changed(rt, &id);
+            rt.fire(&id, "onchange")
+        }
         KernelEvent::KeyDown { chain, vk, shift, text } => {
             // (a key pressed in the program's windows is INKEY$'s too)
             if let Some(k) = rapidr_value::console::inkey_of(vk, &text) {

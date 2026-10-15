@@ -183,6 +183,10 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         c.borrow_mut().insert(name_lower, comp);
     });
     rapidr_value::objects::create(name, type_name);
+    // (I7: an RJSON's document can be a data source)
+    if type_name.eq_ignore_ascii_case("RJSON") {
+        crate::links::install();
+    }
     // (the DirectX lane's: QDXSCREEN's Render draws on the GPU — wgpu)
     #[cfg(feature = "gui")]
     if type_name.eq_ignore_ascii_case("RDXSCREEN") {
@@ -233,6 +237,12 @@ pub fn rp_component_array(kind: &str, name: &str, bounds: &[(i64, i64)]) -> Valu
 
 /// Set a property on a registered component.
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
+    comp_set(name, prop, val);
+    // (linked data: bound controls follow — rapidr_value::datascience::link)
+    crate::links::apply();
+}
+
+fn comp_set(name: &str, prop: &str, val: Value) {
     // (`Label.Font.AddStyles = fsBold`: RapidQ takes the method so too)
     if let Some(changes) = rapidr_value::objects::font::component_style_call(&prop.to_ascii_lowercase(), std::slice::from_ref(&val)) {
         let t = rp_comp_type(name);
@@ -1108,6 +1118,13 @@ fn form_is_built(name: &str) -> bool {
 /// Call a method on a registered component.
 /// Dispatches to the appropriate backend based on component type.
 pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
+    let v = comp_method(name, method, args);
+    // (linked data: bound controls follow — rapidr_value::datascience::link)
+    crate::links::apply();
+    v
+}
+
+fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     let comp_type = rp_comp_type(name);
     let method_lower = method.to_lowercase();
     // Screen, Application, Clipboard, Mouse (globals.rs).
@@ -1417,7 +1434,14 @@ pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
                 v_null()
             }
         }
-        "RJSON" => json_method(name, &method_lower, args),
+        "RJSON" => {
+            let v = json_method(name, &method_lower, args);
+            // (a frame taking its rows from it gets them again)
+            if matches!(method_lower.as_str(), "parse" | "set" | "remove" | "loadfile" | "clear") {
+                rapidr_value::datascience::link::json_changed(name);
+            }
+            v
+        }
         // Specialized GUI component method dispatch
         #[cfg(feature = "gui")]
         "RDESIGNSURFACE" => crate::ui::design_surface_method(name, &method_lower, args),
@@ -1824,6 +1848,19 @@ pub fn rp_pump_wait() -> Option<Value> {
 
 thread_local! {
     static JSON_STORES: RefCell<HashMap<String, serde_json::Value>> = RefCell::new(HashMap::new());
+}
+
+/// (I7) RJSON `name`'s document as JSON text, for a frame that takes its
+/// rows from it: what it parsed or loaded, else its FileName's file.
+pub(crate) fn json_document(name: &str) -> Option<String> {
+    if let Some(text) = JSON_STORES.with(|s| s.borrow().get(&name.to_lowercase()).map(|v| v.to_string())) {
+        return Some(text);
+    }
+    let file = rp_comp_get(name, "filename").to_string_val();
+    if file.trim().is_empty() {
+        return None;
+    }
+    rapidr_value::objects::read_file(file.trim()).ok().map(|b| String::from_utf8_lossy(&b).into_owned())
 }
 
 fn json_method(name: &str, method: &str, args: &[Value]) -> Value {
