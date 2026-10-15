@@ -532,6 +532,14 @@ The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate wind
 
 **First public release bar** (plan §8): I0–I4, I6's basic part and I7's core, the HTML IDE deleted, the accessibility and performance targets met. The experience bar, item by item with acceptance tests: [docs/studio-wow.md](docs/studio-wow.md).
 
+## Languages: RapidR in English, Spanish, Portuguese and Chinese (Robert, 2026-10-15; a release after Preview 2)
+- [ ] The manual and help in en (source), es, pt-BR and zh-Hans: `docs/manual/<lang>/`, a glossary that keeps code names (RButton, Caption, OnClick…) untranslated, translations generated from the English source and reviewed, a check that flags pages whose English changed since their translation (so no language falls behind)
+- [ ] RapidR Studio's own text (menus, dialogs, messages, Welcome) and the registry's hover / IntelliSense help in the four languages, following the OS language with a Settings override; compiler and runtime error messages too (RapidQ's own messages stay word for word where a program reads them)
+- [ ] The website, release notes and examples' comments in the four languages
+- [ ] Every new feature from then on lands in all four (the lane rules say so)
+
+**Why RapidR (kept current in the manual and the README):** a page that says what RapidR does best, with measured numbers only (conditions stated, scripts in tools/bench): its own multicore data engine (1M rows in 23 ms; pandas 372 ms on the same Mac), the lean VM, 15 ms debugger steps, one source for Windows / macOS / Linux / web, accessibility, security, RapidQ programs running unchanged.
+
 ## Phase 3B — Look: one RapidR look (first release), OS looks, native widgets (after; the user, 2026-10-06)
 
 Programs choose how they look with `$THEME`.
