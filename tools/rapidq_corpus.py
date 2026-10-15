@@ -95,8 +95,6 @@ NOT_RAPIDQ = {
     "direct3d/billboard_ex.bas": "C's `//` comments",
     "dll/Resource in DLL/emptyDLL.bas": "FreeBASIC (`… export`)",
     "files/FileSearch_FB_DLL.bas": "FreeBASIC (`UBYTE PTR`)",
-    "games/asteroids.bas": "typo `thrusta _ (` for `thrusta - (`",
-    "games/ateroids2/asteroids.bas": "typo `thrusta _ (` for `thrusta - (`",
     "mysql/rqlibsql/mySQL_API.bas": "`End If` after a single-line IF",
     "zlib/QunZip.bas": "Visual Basic (`AddressOf`)",
 }

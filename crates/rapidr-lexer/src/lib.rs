@@ -247,6 +247,20 @@ impl<'src> Lexer<'src> {
             if self.try_consume_line_continuation() {
                 continue;
             }
+            // A `_` standing alone inside a line (`thrusta _ (int(rnd * 90) + 1)`,
+            // RapidQ's games/asteroids.bas): RC.EXE reads an operand of its own
+            // there, an undeclared name, 0 — side by side with the others, so
+            // `t _ (3 + 1)` is t. (A number: it can't be called.)
+            if self.current_char() == Some('_')
+                && matches!(self.peek_char(1), Some(' ' | '\t'))
+                && self.index > 0
+                && matches!(self.source.as_bytes()[self.index - 1], b' ' | b'\t')
+            {
+                let (start, line, column) = (self.index, self.line, self.column);
+                self.advance_char();
+                tokens.push(Token::new(TokenType::Number, "0".to_string(), TextSpan::new(start, self.index), line, column));
+                continue;
+            }
 
             let start = self.index;
             let line = self.line;

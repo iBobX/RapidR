@@ -204,11 +204,13 @@ struct Parser<'a> {
     /// The CONSTs with a whole-number value worked out so far (lowercase):
     /// what `AS STRING * MAX_PATH * 2` reads ([`Parser::fixed_length`]).
     int_consts: std::collections::HashMap<String, i64>,
+    /// Inside a WITH or a TYPE's code, where `.Member` is a value: how deep.
+    dot_scope: usize,
 }
 
 impl<'a> Parser<'a> {
     fn new(tokens: &'a [Token]) -> Self {
-        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false, own_types: Vec::new(), type_names: Vec::new(), with_objects: Vec::new(), int_consts: std::collections::HashMap::new() }
+        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false, own_types: Vec::new(), type_names: Vec::new(), with_objects: Vec::new(), int_consts: std::collections::HashMap::new(), dot_scope: 0 }
     }
 
     /// A type's name as written: RapidR's name for a RapidQ component
@@ -748,6 +750,12 @@ impl<'a> Parser<'a> {
                 let mut reads = Vec::new();
                 loop {
                     let target = self.parse_postfix_expression()?;
+                    // (an operand side by side after it is dropped: `Read
+                    // lstInstrument.AddItems N` — RapidQ's music/StutterBox.rqb —
+                    // reads into AddItems, RC.EXE: the items are the DATA's)
+                    while self.operand_follows() {
+                        self.parse_postfix_expression()?;
+                    }
                     let span = self.span_from(start);
                     reads.push(Statement::Assignment(AssignmentStatement { span, target, value: call_expr(span, "__READ", Vec::new()) }));
                     if !self.match_kind(TokenType::Comma) {
@@ -1514,6 +1522,20 @@ impl<'a> Parser<'a> {
 
     fn parse_assignment_or_call(&mut self) -> Option<Statement> {
         let start = self.pos;
+        // `MemCpy .TB, .Button(i), 4` in a WITH (or a TYPE's code): a call
+        // whose arguments start with a member of the WITH's object — a space
+        // before the `.` — RC.EXE (RapidQ's QToolBar_vista/QToolBar.inc)
+        if self.dot_scope > 0
+            && self.peek_kind() == Some(TokenType::Identifier)
+            && self.peek_kind_at(1) == Some(TokenType::Dot)
+            && self.peek_kind_at(2) == Some(TokenType::Identifier)
+            && self.tokens.get(self.pos + 1).is_some_and(|d| d.span.start > self.tokens[self.pos].span.end)
+        {
+            let name = self.advance()?.clone();
+            let callee = Expression::Identifier(Identifier { span: name.span, name: name.lexeme.clone() });
+            let args = self.parse_argument_list_without_parens()?;
+            return Some(Statement::Call(CallStatement { span: self.span_from(start), callee, args }));
+        }
         let left = self.parse_postfix_expression()?;
 
         // RapidQ `i++` / `i--` and `x += y`, `-=`, `*=`, `/=`, `&=`.
@@ -2115,6 +2137,7 @@ impl<'a> Parser<'a> {
         let mut methods = Vec::new();
         let mut constructor = Vec::new();
         let mut events = Vec::new();
+        self.dot_scope += 1;
 
         loop {
             self.skip_newlines();
@@ -2370,6 +2393,7 @@ impl<'a> Parser<'a> {
         // `.Member` outside any WITH inside the TYPE's code is the instance
         // (the RapidQ manual writes `WITH TForm … END WITH`; RAPIDQ2.INC wraps
         // whole TYPEs in `WITH QFormEx`).
+        self.dot_scope -= 1;
         let this = Expression::Identifier(Identifier { span: TextSpan::default(), name: name.clone() });
         for body in methods.iter_mut().filter_map(|m| match m {
             Statement::Subroutine(s) => Some(&mut s.body),
@@ -2445,8 +2469,10 @@ impl<'a> Parser<'a> {
         self.consume_eol();
         let path = self.member_path(&object);
         self.with_objects.push(path);
+        self.dot_scope += 1;
         // RapidQ lets `END SUB` / `END FUNCTION` close a WITH left open.
         let body = self.parse_body(&[Terminator::EndPair("WITH"), Terminator::EndPair("SUB"), Terminator::EndPair("FUNCTION")]);
+        self.dot_scope -= 1;
         self.with_objects.pop();
         if self.peek_is_end_followed_by("WITH") {
             self.expect(TokenType::End);
@@ -2469,6 +2495,13 @@ impl<'a> Parser<'a> {
             return Some(params);
         }
         loop {
+            // (`, ...)` closing a DECLARE's list — zlib.inc's `gzprintf (…,
+            // format AS STRING, ...)`: RC.EXE takes it and adds nothing; a
+            // call with more arguments is still its "Expected )")
+            if (0..3).all(|k| self.peek_kind_at(k) == Some(TokenType::Dot)) && self.peek_kind_at(3) == Some(TokenType::RParen) {
+                self.pos += 3;
+                break;
+            }
             let p_start = self.pos;
             let by_ref = if self.match_kind(TokenType::ByVal) {
                 false

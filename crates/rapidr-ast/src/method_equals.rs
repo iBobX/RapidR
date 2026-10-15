@@ -82,7 +82,11 @@ pub fn lower(program: &Program) -> Program {
             return;
         }
         let value = a.value.clone();
-        *s = Statement::Call(CallStatement { span: a.span, callee: a.target.clone(), args: vec![lone_equals(a.span, value)] });
+        // (READ into a method passes the DATA item as it is: RC.EXE's `READ
+        // L.AddItems N` adds the items — RapidQ's music/StutterBox.rqb)
+        let read = matches!(&value, Expression::FunctionCall(c) if matches!(c.callee.as_ref(), Expression::Identifier(i) if i.name == "__READ"));
+        let arg = if read { value } else { lone_equals(a.span, value) };
+        *s = Statement::Call(CallStatement { span: a.span, callee: a.target.clone(), args: vec![arg] });
     });
     out
 }

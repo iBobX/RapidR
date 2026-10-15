@@ -33,6 +33,17 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   (`IF Buttons > - THEN`: RC.EXE negates what came before — `5 + -` is -5); `#` before a name
   (`.Color = #H000000` is the undeclared variable H000000, 0); a SUB named like a directive
   (`SUB $XP_MANIFEST`, called as `$XP_MANIFEST`); END SUB closing a TYPE's PROPERTY SET.
+- **A `$DEFINE` is now replaced on every line**: a line that also named a string function
+  (`STR$(…)`, `CHR$(…)`, anything with a `$`) kept the defined name as it was — an undeclared
+  variable, 0 — so `If gFile < Z_OK Then … str$(gFile)` compared with 0 by luck and other programs
+  silently computed with 0. Only directive lines are left alone now (`rapidq_define_string_lines`,
+  RC.EXE's output).
+- Also as RC.EXE takes them (`rapidq_corpus_forms3`): a call in a WITH whose arguments start with
+  the WITH's members after a space (`MemCpy .TB, .Button(i), n`, RapidQ's QToolBar.inc); a `_`
+  alone inside a line (an operand of its own: `t _ (3 + 1)` is t, RapidQ's asteroids games); READ
+  into a method (`Read L.AddItems N` adds the DATA items); `$INCLUDE "file` with no closing quote;
+  `...` closing a DECLARE's parameters (zlib.inc's `gzprintf`; a call with more arguments is still
+  an error, as in RC.EXE). 355 of the 428 examples compile.
 
 ### Release tooling: the VMs stay clean, and no console window flashes
 - `windows-vm.sh clean` and `linux-vm.sh clean` remove everything the release and smoke scripts leave
