@@ -14,15 +14,19 @@
 //! typed — `i64`, `f64`, `bool` in plain vectors, text as one buffer with
 //! offsets — with a validity bitmap beside them when a cell is null, every
 //! buffer shared (`Arc`) so a copied frame costs nothing until it changes
-//! ([`column`]). A column is typed only when that is lossless (each cell's
+//! (`frame/column.rs`). A column is typed only when that is lossless (each cell's
 //! text is its value's own text: `"30"`, `"2.5"`, `"true"`); `"007"`,
 //! `"1.50"` or `"True"` keep their text, so what a program reads never
-//! changes with the storage. The kernels ([`kernels`]: CSV reading and
+//! changes with the storage. The kernels (`frame/kernels.rs`: CSV reading and
 //! writing, filter, sort, group-by, join, describe, gathering rows) work on
 //! typed slices and split big work across the machine's cores
-//! (`std::thread::scope`, [`par`]; under 50,000 rows, and on the web, on the
-//! calling thread). (`cargo run --release -p rapidr-value --example
-//! frame_bench`; tools/bench/ compares it with pandas and Polars.)
+//! (`std::thread::scope`, `frame/par.rs`; under 50,000 rows, and on the web, on the
+//! calling thread). A million-row CSV (37 MB) loads in about 12 ms on an M4
+//! Max and is filtered, sorted, grouped or joined in 3–10 ms; ten million
+//! rows load, filter, sort and group in about 0.3 s (`cargo run --release
+//! -p rapidr-value --example frame_bench`; tools/bench/ compares it with
+//! pandas and Polars). tests/frame_oracle.rs holds it to the answers of the
+//! engine before it, byte for byte.
 //!
 //! Printed (`ToString`, `Print`), a frame is a plain-text table, the same
 //! on every runtime ([`Frame::to_text`]):

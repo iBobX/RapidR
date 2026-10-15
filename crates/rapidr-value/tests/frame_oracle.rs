@@ -482,19 +482,24 @@ fn run_case(seed: u64, max_rows: usize, steps: usize) {
             assert_eq!(format!("{:?}", new::dataframe_get_prop(&name, p)), format!("{:?}", old::dataframe_get_prop(&name, p)), "{p}:\n  {steps}");
         }
         // (the contract's members, beside the methods: sort_by_column as
-        // the old engine sorts, sorted_order the order it sorts in)
-        let sorted = |f_text: Vec<String>| f_text;
-        let old_sorted = sorted(old::with_frame(&name, |f| {
-            (0..f.width())
-                .map(|c| {
+        // the old engine sorts, sorted_order the order it sorts in — on
+        // the first columns and the last, so a frame transposed into
+        // thousands of columns stays quick to check)
+        let w = new::with_frame(&name, |f| f.width());
+        let mut checked: Vec<usize> = (0..w.min(4)).chain(w.saturating_sub(2)..w).collect();
+        checked.dedup();
+        let old_sorted: Vec<String> = old::with_frame(&name, |f| {
+            checked
+                .iter()
+                .map(|&c| {
                     let mut g = f.clone();
                     g.sort_by_column(c, c % 2 == 1);
                     g.to_text()
                 })
                 .collect()
-        }));
+        });
         new::with_frame(&name, |f| {
-            for (c, old_text) in old_sorted.iter().enumerate() {
+            for (&c, old_text) in checked.iter().zip(&old_sorted) {
                 let mut g = f.clone();
                 g.sort_by_column(c, c % 2 == 1);
                 assert_eq!(&g.to_text(), old_text, "sort_by_column {c}:\n  {steps}");

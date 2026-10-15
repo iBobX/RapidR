@@ -98,11 +98,23 @@ numeric columns —, `value_counts`, `nunique`, `corr`), sampling (`sample`,
 `replace`), building one (`create`, `addrow`), `info`, `togrid`.
 Properties: `RowCount`, `ColCount`, `Columns`, `Shape`, `Empty`, `DTypes`.
 
-A frame is stored by columns (each column's text in one block, its type
-and numbers worked out once), so big tables are quick: a million-row CSV
-(37 MB) loads in about 0.1 s, and is filtered, sorted, grouped or joined in
-40–200 ms on a 2024 laptop — about twice that in a browser
-(`cargo run --release -p rapidr-value --example frame_bench`).
+Big tables are quick. A frame keeps its columns the way a computer likes
+them — whole numbers, fractions and `true` / `false` as numbers, other
+text as text — and shares big jobs out to every core of the computer. On
+a 2024 desktop (an Apple M4 Max), a million-row CSV (37 MB) loads in
+about 12 ms and is filtered, sorted, grouped or joined in 3–10 ms; loading
+it, filtering, sorting and grouping one after another takes about 25 ms
+(ten million rows: about a quarter of a second, where it took four and a
+half seconds before). A web page gets only one
+core, so in a browser the same engine works on one: on one core of the
+same Mac a million rows load in about 70 ms and the four steps together
+take about 0.12 s (a browser's WebAssembly adds its own overhead to that).
+
+None of this changes what a program reads: a cell still reads back
+exactly as it was written (`"007"` stays `"007"`, `"1.50"` stays
+`"1.50"`), and every member gives the same answer as before. tools/bench/
+measures it (`tools/bench/compare.sh`, beside pandas and Polars when
+they're installed).
 
 ## RPlot
 

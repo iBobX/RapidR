@@ -126,8 +126,11 @@ fi
 # and RapidR Studio's budgets, docs/studio-wow.md §3.15: start, F5 to the
 # first form, a step to its line and values, on both hosts — a budget missed
 # or a measure 20 % over tests/studio_perf_baseline.json fails)
+# and RDataFrame's budgets, docs/data-science-plan.md §9 (a million rows
+# loaded, filtered, sorted, grouped, joined, described, saved; tools/bench/)
 if want perf; then echo "== perf"
   cargo run -q --release -p rapidr-editor --example editor_bench 2>&1 | grep -E "MISSED|targets met|missed"
+  cargo run -q --release -p rapidr-value --example frame_bench 2>&1 | grep -E "MISSED|missed|pipeline"
   cargo run -q --release -p rapidr-ui-render --example codeeditor_bench 2>&1 | grep -E "MISSED|targets met|missed"
   out=$(node tests/studio_perf.mjs 2>&1) || echo "tests/studio_perf.mjs: FAILED"
   echo "$out" | grep -E "✗|Studio perf"; fi

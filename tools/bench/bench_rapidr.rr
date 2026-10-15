@@ -1,0 +1,77 @@
+' bench_rapidr.rr: the frame benchmark (tools/bench/README.md) as a RapidR
+' program: the same table and operations as frame_bench, bench_pandas.py
+' and bench_polars.py, through RDataFrame's members and timed with TIMER -
+' so the times include the program around the engine (the interpreter for
+' `rapidr run`, the native program for `rapidr build`).
+'
+'   cargo run --release -p rapidr-value --example frame_bench -- 1000000 --write-csv tests/results/bench
+'   ./rapidr run tools/bench/bench_rapidr.rr 1000000
+'
+' Loading reads the CSV file (frame_bench reads text already in memory);
+' each operation runs on the table loaded again, untimed; the pipeline is
+' load, filter, sort and group-by one after another.
+
+DIM df AS RDataFrame
+DIM depts AS RDataFrame
+DIM rows AS STRING
+DIM file AS STRING
+DIM t AS DOUBLE
+DIM results AS STRING
+
+SUB Report (label AS STRING, what AS STRING, seconds AS DOUBLE)
+    PRINT "  "; LEFT$(what + SPACE$(36), 36); RIGHT$(SPACE$(10) + FORMAT$("%.1f", seconds * 1000), 10); " ms"
+    results = results + "#" + label + " " + FORMAT$("%.1f", seconds * 1000) + CHR$(10)
+END SUB
+
+rows = COMMAND$(1)
+IF rows = "" THEN rows = "1000000"
+file = "tests/results/bench/people_" + rows + ".csv"
+IF FILEEXISTS(file) = 0 THEN
+    PRINT "no "; file; " yet: cargo run --release -p rapidr-value --example frame_bench -- "; rows; " --write-csv tests/results/bench"
+    END
+END IF
+depts.LoadFromCSV "tests/results/bench/depts.csv"
+
+t = TIMER
+df.LoadFromCSV file
+Report "load", "load (CSV file)", TIMER - t
+PRINT "RDataFrame in a RapidR program, "; df.RowCount; " rows"
+
+df.LoadFromCSV file
+t = TIMER
+df.Filter "salary", ">", 75000
+Report "filter", "filter salary > 75000", TIMER - t
+
+df.LoadFromCSV file
+t = TIMER
+df.Sort "salary", 0
+Report "sort", "sort by salary, highest first", TIMER - t
+
+df.LoadFromCSV file
+t = TIMER
+df.GroupBy "dept", "mean"
+Report "group-by", "group-by dept, mean", TIMER - t
+
+df.LoadFromCSV file
+t = TIMER
+df.Merge "depts", "dept", "left"
+Report "join", "join dept (left)", TIMER - t
+
+df.LoadFromCSV file
+t = TIMER
+df.Describe
+Report "describe", "describe", TIMER - t
+
+df.LoadFromCSV file
+t = TIMER
+df.SaveToCSV "tests/results/bench/saved_by_rapidr.csv"
+Report "save", "save (CSV file)", TIMER - t
+
+t = TIMER
+df.LoadFromCSV file
+df.Filter "salary", ">", 75000
+df.Sort "salary", 0
+df.GroupBy "dept", "mean"
+Report "pipeline", "pipeline: load+filter+sort+group-by", TIMER - t
+df.Print
+PRINT results;
