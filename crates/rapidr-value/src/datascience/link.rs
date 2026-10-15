@@ -406,7 +406,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
 /// `DataField`, an RDataFrame's `Source`) is noted on the way, and the
 /// runtime keeps the value too.
 pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
-    if !active() && !matches!(prop, "datasource" | "datafield" | "source") {
+    if !active() && !matches!(prop, "datasource" | "datafield" | "source" | "filename") {
         return None;
     }
     let id = key(id);
