@@ -712,7 +712,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "keyhint" => s(a.key().0.map(|k| keys::hint(&k)).unwrap_or_default()),
             "keysource" => s(a.key().1.as_str()),
             "keyenv" => s(p.map_or("", |p| p.env_key)),
-            "keystore" => s(keys::store_name()),
+            "keystore" => s(keys::where_kept(a.key().1)),
             "needskey" => flag(p.is_some_and(|p| p.needs_key)),
             "pricingurl" => s(p.map_or("", |p| p.pricing_url)),
             "keysurl" => s(p.map_or("", |p| p.keys_url)),

@@ -280,6 +280,8 @@ fn read_file(input: &Json, p: &Project) -> Outcome {
     };
     match p.text(&rel) {
         Ok(text) => {
+            // (a key a developer wrote into a file never reaches the model)
+            let text = rapidr_ai::keys::redact(&text);
             let (text, cut) = clip(&text);
             let lines = text.lines().count();
             let mut out = untrusted(&format!("file:{rel}"), json!(text));

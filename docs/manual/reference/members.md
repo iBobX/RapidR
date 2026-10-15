@@ -5107,7 +5107,7 @@ A conversation with an AI provider — Anthropic (Claude), OpenAI, DeepSeek, or 
 | `KeyHint` (read-only) | string |  | The key's last four characters ("…abcd"): all that is ever shown of it. |
 | `KeySource` (read-only) | string |  | Where the key comes from now: "program" (APIKey), "stored" (the keychain; on the web, this device), "session", "environment", or "". |
 | `KeyEnv` (read-only) | string |  | The environment variable the provider's key is usually in ("OPENAI_API_KEY"), for APIKeySource. |
-| `KeyStore` (read-only) | string |  | Where RememberKey keeps a key here, in words ("the macOS Keychain", "this browser tab, until it closes"). |
+| `KeyStore` (read-only) | string |  | Where the key in use is, in words ("the macOS Keychain", "this browser tab, until it closes", "this program's memory, until it ends"); with no key, where RememberKey keeps one. |
 | `NeedsKey` (read-only) | bool |  | True when Provider needs an API key (a local server doesn't). |
 | `PricingURL` (read-only) | string |  | The provider's prices ("" for a compatible server). |
 | `KeysURL` (read-only) | string |  | Where a key is made at the provider. |

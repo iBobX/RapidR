@@ -218,6 +218,20 @@ fn session_words() -> &'static str {
     }
 }
 
+/// Where a key from `source` is, in words; with none, where
+/// `RememberKey(False)` keeps one (the keychain; on the web, the tab).
+pub fn where_kept(source: Source) -> String {
+    match source {
+        Source::Session if memory_only() => store_name(),
+        Source::Session => session_words().into(),
+        Source::Program => "this program's memory, until it ends".into(),
+        Source::Environment => "an environment variable".into(),
+        Source::Stored => store_name(),
+        Source::None if cfg!(target_arch = "wasm32") => session_words().into(),
+        Source::None => store_name(),
+    }
+}
+
 /// Where keys are kept here, in words ("the macOS Keychain").
 pub fn store_name() -> String {
     if memory_only() {
@@ -334,6 +348,31 @@ fn words(code: &str) -> Vec<&str> {
             v
         })
         .collect()
+}
+
+/// `text` with every key-shaped word replaced (what an AI's tools read of
+/// a project: a key a developer wrote into a file never reaches a model).
+pub fn redact(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut word = String::new();
+    let flush = |out: &mut String, word: &mut String| {
+        if looks_like_key(word) {
+            out.push_str("(an API key, not shown)");
+        } else {
+            out.push_str(word);
+        }
+        word.clear();
+    };
+    for c in text.chars() {
+        if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+            word.push(c);
+        } else {
+            flush(&mut out, &mut word);
+            out.push(c);
+        }
+    }
+    flush(&mut out, &mut word);
+    out
 }
 
 /// A string that is, by its look, a provider's key (`sk-…`, `sk-ant-…`,
@@ -503,6 +542,16 @@ mod tests {
         assert!(build_warnings("' APIKey = \"sk-ant-0123456789abcdefghijkl\"\nAI.APIKey = \"\"\nPRINT \"sk-short\"", false).is_empty());
         let never = build_warnings("DIM AI AS RAI\nAI.APIKeySource = \"env:OPENAI_API_KEY\"", true);
         assert!(never[0].contains("doesn't \"ask\""), "{never:?}");
+    }
+
+    #[test]
+    fn keys_in_files_are_redacted() {
+        let text = "AI.APIKey = \"sk-proj-abcdefghijklmnopqrstuvwxyz\"\nOPENAI_API_KEY=sk-ant-api03-0123456789abcdefghij\nPRINT \"sk-short\"\n";
+        let r = redact(text);
+        assert!(!r.contains("abcdefghij") && !r.contains("0123456789"), "{r}");
+        assert_eq!(r.matches("(an API key, not shown)").count(), 2, "{r}");
+        assert!(r.contains("PRINT \"sk-short\""), "{r}");
+        assert_eq!(redact("no keys here: café"), "no keys here: café");
     }
 
     /// The real keychain, under a test service (never RapidR's own): set,

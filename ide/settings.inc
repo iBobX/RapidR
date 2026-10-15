@@ -202,6 +202,8 @@ SUB LayOutSettingsDialog
   END IF
   SettingsDialog.Font.Name = UIFont.Name: SettingsDialog.Font.Size = UIFont.Size
   ph = 548
+  ' (the web: a row more, Remember on this device)
+  IF Proj.FileManager = "" THEN ph = ph + 28
   SettingsTabs.Left = pad: SettingsTabs.Top = pad - 8: SettingsTabs.Width = w: SettingsTabs.Height = th
   GenPage.Left = 0: GenPage.Top = pad - 8 + th: GenPage.Width = w + 2 * pad: GenPage.Height = ph
   AIPage.Left = 0: AIPage.Top = pad - 8 + th: AIPage.Width = w + 2 * pad: AIPage.Height = ph
@@ -242,9 +244,11 @@ SUB LayOutSettingsDialog
   AIKeyNote.Left = fx: AIKeyNote.Top = y: AIKeyNote.Width = fw: AIKeyNote.Height = 34
   AIKeyNote.Font.Color = TC("page.dim")
   y = y + 36
+  ' (the web's Remember on a row of its own; then the rows a provider has:
+  ' Anthropic's workspace, a compatible server's URL — in one place, shown
+  ' when they apply)
   AIRemember.Left = fx: AIRemember.Top = y: AIRemember.Width = fw: AIRemember.Height = 22
-  ' (the rows a provider has: the web's Remember, Anthropic's workspace, a
-  ' compatible server's URL — placed where they are, shown when they apply)
+  IF Proj.FileManager = "" THEN y = y + 28
   AIWsLabel.Left = lx: AIWsLabel.Top = y + 5: AIWsLabel.Width = 108
   AIWsEdit.Left = fx: AIWsEdit.Top = y: AIWsEdit.Width = fw: AIWsEdit.Height = fh
   AIBaseLabel.Left = lx: AIBaseLabel.Top = y + 5: AIBaseLabel.Width = 108
@@ -416,24 +420,24 @@ SUB AISettingsProvider
   ELSEIF AI.HasKey THEN
     SELECT CASE AI.KeySource
       CASE "environment": keyNote = "Using the key in " + AI.KeyEnv + " (" + AI.KeyHint + "). A key saved here goes first."
-      CASE "session": keyNote = "A key " + AI.KeyHint + " is kept in " + AI.KeyStore + "."
+      CASE "program": keyNote = "A key " + AI.KeyHint + " is in use until Studio closes: Save Key keeps it."
       CASE ELSE: keyNote = "Your key " + AI.KeyHint + " is kept in " + AI.KeyStore + ", never in a project."
     END SELECT
+  ELSEIF web THEN
+    keyNote = "Paste your key and press Save Key: it is kept in " + AI.KeyStore + " (or on this device, if you tick the box), never in a project."
   ELSE
     keyNote = "Paste your key and press Save Key: it is kept in " + AI.KeyStore + ", never in a project."
   END IF
   AIKeyNote.Caption = keyNote
   AIKeyRemoveBtn.Enabled = Flag(AI.HasKey AND AI.KeySource <> "environment")
   ' (the web: kept for the tab unless the user asks for this device)
-  AIRemember.Visible = Flag(web AND AI.NeedsKey)
-  AIWsLabel.Visible = Flag(AISetProv = "anthropic" AND AIRemember.Visible = 0)
+  ' (its own row, above the workspace or the address: LayOutSettingsDialog)
+  AIRemember.Visible = web
+  AIRemember.Enabled = AI.NeedsKey
+  AIWsLabel.Visible = Flag(AISetProv = "anthropic")
   AIWsEdit.Visible = AIWsLabel.Visible
   AIBaseLabel.Visible = Flag(AISetProv = "compatible")
   AIBaseBox.Visible = AIBaseLabel.Visible
-  ' (Anthropic on the web: the workspace below the Remember box)
-  IF AISetProv = "anthropic" AND web THEN
-    AIWsLabel.Visible = 1: AIWsEdit.Visible = 1
-  END IF
   ' (the model the user chose for it; none until they do: Fetch Models
   ' lists the provider's, the fast, low-cost ones first)
   model = AIModelOf(AISetProv)

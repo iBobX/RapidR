@@ -1222,7 +1222,7 @@ END SUB
 ' The inspector changed one of the RAI's rows; True when it was handled
 ' here (the key: never shown, never in the code).
 FUNCTION DesignAIChanged(Prop AS STRING, Value AS STRING) AS INTEGER
-  DIM p AS STRING, src AS STRING, nm AS STRING
+  DIM p AS STRING, src AS STRING, nm AS STRING, kept AS INTEGER
   Result = 0
   IF DesignAIShown = 0 THEN EXIT FUNCTION
   p = LCASE$(Prop)
@@ -1234,15 +1234,20 @@ FUNCTION DesignAIChanged(Prop AS STRING, Value AS STRING) AS INTEGER
     DesignAITake
     DesignAI.APIKeySource = "keychain:" + nm
     DesignAI.APIKey = Value
-    IF DesignAI.RememberKey(0) THEN
-      ' (the code names where the key is — and asks the program's user
-      ' wherever the keychain doesn't have it)
-      IF KeychainNameOf(src) = "" THEN Inspector.SetValue "APIKeySource", "keychain:" + nm + "|ask"
+    kept = DesignAI.RememberKey(0)
+    DesignAI.APIKey = ""
+    IF kept THEN
       SetState RunState, "The key is kept in " + DesignAI.KeyStore + " as " + CHR$(34) + nm + CHR$(34) + ": the program names it, never the key."
+      IF KeychainNameOf(src) = "" THEN
+        ' (the code names where the key is — and asks the program's user
+        ' wherever the keychain doesn't have it); that change lists the
+        ' models
+        Inspector.SetValue "APIKeySource", "keychain:" + nm + "|ask"
+        EXIT FUNCTION
+      END IF
     ELSE
       SetState "error", DesignAI.Error
     END IF
-    DesignAI.APIKey = ""
     DesignAIKeyNote
     DesignAIModels
   ELSEIF p = "provider" OR p = "baseurl" OR p = "apikeysource" OR p = "workspaceid" THEN

@@ -37,6 +37,17 @@ export const scenes = [
     env: ENV,
   },
   {
+    // The same in Studio on the web: the key for the tab, or remembered on
+    // this device (with what that means)
+    name: "settings-web",
+    host: "web",
+    open: "examples/gui/hello_form.rr",
+    do: `${READY},ai:settings,wait`,
+    delay: 8,
+    viewport: { width: 1280, height: 800 },
+    crop: [350, 47, 580, 693],
+  },
+  {
     // The Assistant panel: a question, the tools it used, the token meter
     name: "panel",
     open: "examples/gui/hello_form.rr",

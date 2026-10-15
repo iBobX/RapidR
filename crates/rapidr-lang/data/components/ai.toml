@@ -76,7 +76,7 @@ properties = [
   { name = "KeyHint", type = "string", access = "read", design = false, doc = "The key's last four characters (\"…abcd\"): all that is ever shown of it." },
   { name = "KeySource", type = "string", access = "read", design = false, doc = "Where the key comes from now: \"program\" (APIKey), \"stored\" (the keychain; on the web, this device), \"session\", \"environment\", or \"\"." },
   { name = "KeyEnv", type = "string", access = "read", design = false, doc = "The environment variable the provider's key is usually in (\"OPENAI_API_KEY\"), for APIKeySource." },
-  { name = "KeyStore", type = "string", access = "read", design = false, doc = "Where RememberKey keeps a key here, in words (\"the macOS Keychain\", \"this browser tab, until it closes\")." },
+  { name = "KeyStore", type = "string", access = "read", design = false, doc = "Where the key in use is, in words (\"the macOS Keychain\", \"this browser tab, until it closes\", \"this program's memory, until it ends\"); with no key, where RememberKey keeps one." },
   { name = "NeedsKey", type = "bool", access = "read", design = false, doc = "True when Provider needs an API key (a local server doesn't)." },
   { name = "PricingURL", type = "string", access = "read", design = false, doc = "The provider's prices (\"\" for a compatible server)." },
   { name = "KeysURL", type = "string", access = "read", design = false, doc = "Where a key is made at the provider." },

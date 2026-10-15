@@ -63,6 +63,8 @@ provider, a key (when the provider needs one) and a model.
 **Remember on this device** keeps it in the browser's storage for Studio's
 page instead — anyone who uses this browser profile could read it there.
 
+![The AI settings in Studio on the web: Remember on this device, under the key](images/ai/settings-web.png)
+
 ## Asking
 
 **View > AI Assistant** (Ctrl+I; the ✦ button on the toolbar) shows the
@@ -132,7 +134,9 @@ browser's storage for the page (its last 500). It never holds your key.
   changes you review (or only answer, with *Only read the project*).
 - **At most 25 tool uses** for one question; Stop works at any time.
 - **Keys** are never written into a project, a build, a log, the audit log
-  or a screenshot of RapidR's.
+  or a screenshot of RapidR's. A key someone wrote into a file of the
+  project is replaced by *(an API key, not shown)* before the assistant
+  reads the file.
 - **A model on your own computer** (Ollama, LM Studio): nothing leaves it.
 
 ## Tokens: what makes a question cheap
