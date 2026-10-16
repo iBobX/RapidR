@@ -317,19 +317,19 @@ pub fn activate_process(pid: u32) -> bool {
 }
 
 /// (RapidR Studio's debugger) The program stopped — a breakpoint, a step's
-/// end, a pause, a run-time error: when it is the active app (the user was
-/// using it: a click ran the handler with the breakpoint), the front goes
-/// back to the IDE that runs it (`RAPIDR_SESSION_IDE`: its process id),
-/// which shows where it stopped. When the IDE is in front already (a step
-/// from it) nothing moves.
+/// end, a pause, a run-time error: the front goes back to the IDE that runs
+/// it (`RAPIDR_SESSION_IDE`: its process id), which shows where it stopped,
+/// as a debugger comes forward at a breakpoint. The program hands it over:
+/// it is the active app when the user was using it (a click ran the handler
+/// with the breakpoint) — the system's own idea of that, not the last focus
+/// event seen, which can lag behind a click that activated the app. When
+/// the IDE is in front already (a step from it) nothing moves.
 pub fn gui_debugger_stopped() {
     let Some(ide) = std::env::var("RAPIDR_SESSION_IDE").ok().and_then(|p| p.trim().parse::<u32>().ok()) else { return };
     if !started() || headless() {
         return;
     }
-    if with_kern(|k| k.host.active()).unwrap_or(false) {
-        rapidr_ui_host_winit::platform::activate_process(ide);
-    }
+    rapidr_ui_host_winit::platform::activate_process(ide);
 }
 
 /// One step of the innermost wait (see the module's doc).
