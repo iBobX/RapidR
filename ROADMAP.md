@@ -574,6 +574,16 @@ RapidR BASIC running ON an ESP32 (and later other boards), not only talking to o
 - [ ] **M5Stack (ESP32 with a screen)**: its display, buttons and IMU as RapidR objects, and a small RForm-like GUI for tiny screens (labels, buttons, lists drawn for 320×240).
 - [ ] **Spike first**: blink + a display "Hello" + Wi-Fi on an ESP32 Robert has, measuring binary size and build time.
 
+## Phase 3D — Speech and guided lessons (after Preview 2; Robert, 2026-10-16; plan: [docs/speech-and-tutorial-plan.md](docs/speech-and-tutorial-plan.md))
+- [ ] **RSpeech**: text to speech for every program, on the system's voices (macOS, Windows, Linux, the browser). Voice list with language, rate/pitch/volume, an event per word, nothing GPL.
+- [ ] Optional neural voices (Kokoro, Apache-2.0) as a download: English, plus Mandarin marked basic. Spanish and Portuguese wait for our own non-GPL pronunciation rules.
+- [ ] **Guided lessons in Studio**, in a Markdown lesson format:
+  - each step is a caption, a target, a demo with a ghost cursor and a check;
+  - Read, Watch and Try modes;
+  - WCAG 2.2: never uninvited, always resumable, captions, keyboard and screen reader;
+  - every lesson replayed as a test.
+  - First 8 lessons from Welcome to Data in 10 minutes.
+
 ## Phase 4 — AI in the IDE (~6 weeks)
 
 Planned as the IDE's stage I8 ([docs/ide-plan.md](docs/ide-plan.md), [docs/ide-ai.md](docs/ide-ai.md)): one provider layer over plain HTTPS (Anthropic, OpenAI-compatible incl. DeepSeek / xAI / Ollama / LM Studio, Gemini), keys in the OS keychain, the IDE's own MCP server (`rapidr mcp` over a user-only local socket + token), the floating assistant with diffs before apply, permission tiers, data privacy levels. The items below are kept as the checklist; where they differ, the plan wins (e.g. no Tauri: the kernel host is the desktop shell).
