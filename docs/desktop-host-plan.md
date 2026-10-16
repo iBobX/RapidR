@@ -200,6 +200,7 @@ Parsing moves to `crates/rapidr-runtime-core/src/ui/testhooks.rs`: the env gramm
 - **`RAPIDR_TEST_RESIZE=w,h`** sends the frontmost form a `Resized` through the same code as a user drag, so `form_resized` logic runs. **`RAPIDR_TEST_SPLIT`** uses `layout::splitter_*`, which is already host-neutral. **`RAPIDR_TEST_FILE_DIALOG`** goes into the host-neutral file-dialog logic, moved out of `gui.rs::file_dialog` into `ui/file_dialog.rs` with a `pick` closure.
 - **`RAPIDR_CAPTURE=<prefix>`** renders each shown window in stacking order, dialogs included, with vello_cpu at the window's scale, and writes `<prefix>-<n>.bmp` via `codec::encode_bmp`. It then prints the dump and exits.
 - **New: `RAPIDR_TEST_A11Y=<file.json>`** writes each form's `AccessNode` tree.
+- **New (DARK-FIX, 2026-10-15): `RAPIDR_TEST_CONTRAST=<file.json>`** writes, for each window captured, its text runs below WCAG AA against the fill under them (`rapidr_ui_kernel::contrast`, from the very display list captured): `[{"form", "checked", "failures": [{text, rect, color, background, ratio, need}]}]`. The web's `rapidr_test_results` carries the same report as `contrast`.
 
 ### 2.4 The "both hosts must agree" matrix
 

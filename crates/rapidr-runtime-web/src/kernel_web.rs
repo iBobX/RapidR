@@ -788,16 +788,18 @@ fn test_end() {
         let order = h.desk.stacking();
         let mut trees = Vec::new();
         let mut shots = Vec::new();
+        let mut reports = Vec::new();
         for f in &order {
             trees.extend(h.desk.access_json(store, f));
-            if let Some(px) = h.capture(store, f) {
+            if let Some((px, report)) = h.capture_checked(store, f) {
                 let title = h.desk.forms.get(f).map(|w| w.spec.title.clone()).unwrap_or_default();
                 shots.push((title, rapidr_value::objects::codec::encode_bmp(&px)));
+                reports.push(report);
             }
         }
-        (trees, shots)
+        (trees, shots, reports)
     });
-    let (trees, shots) = shots.unwrap_or_default();
+    let (trees, shots, reports) = shots.unwrap_or_default();
     let q = |s: &str| {
         let mut out = String::from("\"");
         for c in s.chars() {
@@ -817,7 +819,10 @@ fn test_end() {
     // (the trees as RAPIDR_TEST_A11Y's file has them, a string: their ids are
     // 64-bit, more than a JavaScript number keeps)
     let a11y = format!("[{}]\n", trees.join(",\n"));
-    let json = format!("{{\"dump\":[{}],\"a11y\":{},\"captures\":[{}]}}", dump.join(","), q(&a11y), shots.join(","));
+    // (each window's text that reads too faintly: what the desktop's
+    // RAPIDR_TEST_CONTRAST file has, a string)
+    let contrast = format!("[{}]\n", reports.join(",\n"));
+    let json = format!("{{\"dump\":[{}],\"a11y\":{},\"contrast\":{},\"captures\":[{}]}}", dump.join(","), q(&a11y), q(&contrast), shots.join(","));
     RESULTS.with(|r| *r.borrow_mut() = Some(json));
     // (the desktop's process exits here; the page stays as it is, its
     // windows and their mirrors for the test to look at — the script is
@@ -825,7 +830,7 @@ fn test_end() {
 }
 
 /// A GUI test's results once its script ended (JSON: `dump`, `a11y`,
-/// `captures`), `None` before.
+/// `contrast`, `captures`), `None` before.
 pub fn test_results() -> Option<String> {
     RESULTS.with(|r| r.borrow().clone())
 }

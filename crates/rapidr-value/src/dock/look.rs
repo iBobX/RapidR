@@ -150,7 +150,7 @@ pub fn palette(t: &Theme) -> Palette {
         header_active: if dark { mix(t.face, t.accent, 0.10) } else { mix(t.window, t.accent, 0.07) },
         title: mix(t.text, t.face, if dark { 0.22 } else { 0.18 }),
         title_active: t.text,
-        tab_text: mix(t.text, t.face, if dark { 0.42 } else { 0.40 }),
+        tab_text: t.secondary_text(),
         tab_hover: if dark { mix(t.face, 0xFFFFFF, 0.07) } else { mix(t.face, 0x000000, 0.045) },
         accent: if dark { t.accent } else { t.caption },
         underline: if dark { mix(t.face, 0xFFFFFF, 0.30) } else { mix(t.face, 0x000000, 0.28) },

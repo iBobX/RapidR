@@ -233,7 +233,8 @@ array and its elements; open `(1)` to see the order's fields, then its
   TYPEs and components in their own colour — and its type at the right.
 - A value that **changed** since the program last stopped is in **blue**
   (bold in the tip), in Variables and Watch alike — step through a loop and
-  see which variables the last line ran changed.
+  see which variables the last line ran changed. (The blue is the theme's:
+  a lighter one on the dark theme, cyan in high contrast.)
 - Rest the mouse on a part of a longer name and the tip shows that part:
   `orders(i).Qty`, `Buyer.Name`, `Edit1.Text`. A data tip never runs your
   code: a name that would call a SUB, FUNCTION or method shows nothing.
@@ -268,7 +269,7 @@ tables open the same way as in a data tip. In an event handler, open
 `Sender` to see the component's properties as they are now. What you open
 stays open from one stop to the next, and changed values are in blue.
 
-![Variables at the loop's second pass: i = 2 and total = 7 in blue, changed since the first](images/debugging/variables-changed.png)
+![Variables at the loop's second pass: i = 2 in blue, changed since the first stop (total, further down, too)](images/debugging/variables-changed.png)
 
 Open **Components** to see the program's forms and other components as
 they are now — here the Shop form, its components and then its
@@ -383,6 +384,20 @@ this (and the VM's speed, start-up and memory) against its budgets.
 | A form waiting for its events, under the debugger | 0 % CPU | 0 % CPU |
 | Studio with that program running | 0.25 % CPU | 0.25 % CPU |
 | Studio's start; F5 to the program's window; a step | — | 0.28 s; 14 ms; 10 ms |
+
+## In every theme
+
+The debugger looks right in each of Studio's themes (View ▸ Theme): RapidR
+Light, RapidR Dark, RapidR High Contrast and Classic. Every row of
+Variables, Watch, the Call Stack and Breakpoints, the labels under the
+breakpoints and the data tips are readable in each; in RapidR's three
+looks every text is at least WCAG AA's 4.5:1 against what it's drawn on,
+which RapidR's own tests check on every one of these panes, in Studio on
+the desktop and in the browser (Classic keeps Windows' own colours).
+
+![Paused in shop.rr in RapidR Dark: the Call Stack with AddUp picked, Variables showing its i and the globals, the code at the caller's line](images/debugging/dark-paused.png)
+
+![The Breakpoints pane in RapidR High Contrast: the picked breakpoint's condition in its When box](images/debugging/contrast-breakpoints.png)
 
 ## On the desktop and in the browser
 

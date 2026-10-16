@@ -124,7 +124,7 @@ impl ComponentKind for DirTreeBox {
                     let selected = sel == Some(i);
                     let t = p.theme();
                     let mark = if focused { t.highlight } else { t.unfocused_strong };
-                    if selected {
+                    if selected && (enabled || !t.fluent()) {
                         if t.fluent() {
                             super::list::selected_row(p, (tx - 2, top, tw + 8, ROW), focused);
                         } else {

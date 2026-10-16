@@ -457,6 +457,9 @@ impl View {
         // surface's own names, from the designed program's folder only:
         // rapidr_value::datascience::link)
         let folder = with_design(surface, |d| d.source_file.replace('\\', "/")).map(|f| f.rsplit_once('/').map(|(dir, _)| dir.to_string()).unwrap_or_default()).unwrap_or_default();
+        // (its $RESOURCEs: an RCSV whose FileName names one reads that file)
+        let resources = with_design(surface, |d| link::resources_in(&d.get("source").map(|v| v.to_string_val()).unwrap_or_default())).unwrap_or_default();
+        link::design_resources(surface, &resources);
         link::design_build(surface, &folder, design);
         let root = design.root();
         for id in design.ids() {
@@ -660,7 +663,8 @@ impl ComponentKind for Design {
         view.place(cx.id, std::mem::take(&mut shown.placed));
         let t = p.theme();
         // the backdrop
-        p.fill((0, 0, w, h), t.shadow);
+        // (high contrast: black, as everything there; the 3D shadow is white)
+        p.fill((0, 0, w, h), if t.contrast { t.face } else { t.shadow });
         // (no form in the source: the surface says so)
         if let Some(text) = with_design(cx.id, |d| d.empty_text()).flatten() {
             let font = rapidr_value::objects::design::tray_font();

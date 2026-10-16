@@ -13,6 +13,13 @@
 // <scene>-<theme>@<s>x-desktop.bmp / -web.bmp and a side-by-side
 // <scene>-<theme>@<s>x.bmp (desktop | web) to look at; RAPIDR_STUDIO_SCALES
 // ("1,2") and RAPIDR_STUDIO_THEMES limit the runs.
+//
+// (DARK-FIX) Every capture's text is judged against what it's drawn on
+// (rapidr_ui_kernel::contrast, from the very list captured: the desktop's
+// RAPIDR_TEST_CONTRAST, the page's test results — the same on both): in
+// RapidR's looks (light, dark, high contrast) a run below WCAG AA (4.5:1;
+// 3:1 for large and disabled text) fails; the classic look, RapidQ's
+// Windows colours as they were, is reported only.
 
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
@@ -150,7 +157,32 @@ const SCENES = [
     do: "wait,find:Greet,help:QBUTTON",
     delay: 5,
   },
+  // (DARK-FIX) Studio's dialogs and panes in every look, their text judged:
+  // Settings' AI page, Find in Files' results, a Markdown
+  // file's preview, the linked-data designer (an RDBGrid's live rows)
+  // (the web's key has "Remember on this device" — a browser tab forgets
+  // it — which the desktop's keychain needn't: the pages differ by design;
+  // their text is judged on each)
+  { name: "settings-ai", open: "", do: "ai.settings", window: 2, delay: 4, hostsDiffer: "the web's key storage choice" },
+  {
+    name: "find-in-files",
+    open: "tests/fixtures/studio_split/main.rr",
+    webFiles: ["tests/fixtures/studio_split/main.rr", "tests/fixtures/studio_split/greeting.inc"],
+    do: "wait,find:SayGreeting",
+    delay: 4,
+  },
+  {
+    name: "markdown",
+    open: "tests/fixtures/markdown/rapidr-import-report.md",
+    webFiles: ["tests/fixtures/markdown/rapidr-import-report.md"],
+    do: "wait",
+    delay: 4,
+  },
+  { name: "data-designer", open: "examples/data/linked_data.rr", do: "wait,view.designer,pick:Grid", delay: 7 },
 ];
+
+// (RapidR's looks: text below AA fails there; the classic look is reported)
+const GATED = new Set(["rapidr-light", "rapidr-dark", "rapidr-high-contrast"]);
 
 mkdirSync(OUT, { recursive: true });
 const scratch = join(OUT, ".work");
@@ -226,13 +258,14 @@ function runDesktop(scene, theme, scale) {
       RAPIDR_SCALE: String(scale),
       RAPIDR_MENU: "window",
       RAPIDR_TEST_A11Y: join(dir, "a11y.json"),
+      RAPIDR_TEST_CONTRAST: join(dir, "contrast.json"),
       RAPIDR_PRINT_TO: join(scratch, "prints"),
       RAPIDR_REGISTRY: join(scratch, "registry.reg"),
     },
   });
   const file = join(dir, `window-${scene.window || 1}.bmp`);
   if (!existsSync(file)) throw new Error(`desktop: no capture (${(r.stderr || "").trim().split("\n").pop()})`);
-  return { bmp: readFileSync(file), a11y: existsSync(join(dir, "a11y.json")) ? readFileSync(join(dir, "a11y.json"), "utf8") : null };
+  return { bmp: readFileSync(file), a11y: existsSync(join(dir, "a11y.json")) ? readFileSync(join(dir, "a11y.json"), "utf8") : null, contrast: existsSync(join(dir, "contrast.json")) ? readFileSync(join(dir, "contrast.json"), "utf8") : null };
 }
 
 // ---- the web -------------------------------------------------------------------
@@ -262,7 +295,7 @@ async function runWeb(browser, scene, theme, scale) {
 
 // ---- the runs ------------------------------------------------------------------
 const browser = await chromium.launch();
-let same = 0, differ = 0, failed = 0, a11ySame = 0, a11yDiffer = 0;
+let same = 0, differ = 0, failed = 0, a11ySame = 0, a11yDiffer = 0, readable = 0, unreadable = 0;
 for (const scene of SCENES) for (const theme of THEMES) for (const scale of SCALES) {
   const name = `${scene.name}-${theme}@${scale}x`;
   if (filters.length && !filters.some((f) => name.includes(f))) continue;
@@ -278,9 +311,12 @@ for (const scene of SCENES) for (const theme of THEMES) for (const scale of SCAL
     writeFileSync(join(OUT, `${name}-web.bmp`), wb);
     writeFileSync(join(OUT, `${name}.bmp`), writeBmp(sideBySide(d, w)));
     const identical = desk.bmp.equals(wb);
-    identical ? same++ : differ++;
-    console.log(`${identical ? "✓" : "≠"} ${name}: ${identical ? "byte-identical" : diff(d, w)}${web.errors.length ? ` (page errors: ${web.errors.join("; ")})` : ""}`);
-    if (desk.a11y !== null) {
+    if (scene.hostsDiffer) console.log(`· ${name}: the hosts differ by design (${scene.hostsDiffer})${identical ? "" : `: ${diff(d, w)}`}`);
+    else {
+      identical ? same++ : differ++;
+      console.log(`${identical ? "✓" : "≠"} ${name}: ${identical ? "byte-identical" : diff(d, w)}${web.errors.length ? ` (page errors: ${web.errors.join("; ")})` : ""}`);
+    }
+    if (desk.a11y !== null && !scene.hostsDiffer) {
       // (the web's Build button is Build Web App (.zip), the desktop's is
       // Build: the one name the hosts' toolbars have apart)
       const eq = desk.a11y === web.results.a11y.replaceAll('"name":"Build Web App (.zip) (Ctrl+Shift+B)"', '"name":"Build (Ctrl+Shift+B)"');
@@ -291,11 +327,21 @@ for (const scene of SCENES) for (const theme of THEMES) for (const scale of SCAL
       }
       console.log(`${eq ? "✓" : "≠"} ${name}: accessibility trees ${eq ? "equal" : "differ"}`);
     }
+    // (the text's contrast: each host's report, the desktop's and the page's)
+    for (const [host, report] of [["desktop", desk.contrast], ["web", web.results.contrast]]) {
+      const windows = report ? JSON.parse(report) : [];
+      const checked = windows.reduce((n, w) => n + w.checked, 0);
+      const bad = windows.flatMap((w) => w.failures.map((f) => `${w.form}: ${JSON.stringify(f.text)} ${f.color} on ${f.background} ${f.ratio}:1 (needs ${f.need})`));
+      const gated = GATED.has(theme);
+      const ok = checked > 0 && (bad.length === 0 || !gated);
+      ok ? readable++ : unreadable++;
+      if (!ok || bad.length) console.log(`${ok ? "·" : "✗"} ${name} (${host}): text contrast, ${checked} runs${bad.length ? `, ${bad.length} below AA${gated ? "" : " (classic: reported only)"}:\n    ${bad.slice(0, 12).join("\n    ")}` : ""}`);
+    }
   } catch (e) {
     failed++;
     console.log(`✗ ${name}: ${e.message}`);
   }
 }
 await browser.close();
-console.log(`\nRapidR Studio shell: ${same} captures byte-identical desktop / web, ${differ} differ, ${failed} failed; accessibility trees equal ${a11ySame}, differ ${a11yDiffer} (captures in ${OUT})`);
-process.exit(differ || failed || a11yDiffer ? 1 : 0);
+console.log(`\nRapidR Studio shell: ${same} captures byte-identical desktop / web, ${differ} differ, ${failed} failed; accessibility trees equal ${a11ySame}, differ ${a11yDiffer}; text contrast AA ${readable}, below ${unreadable} (captures in ${OUT})`);
+process.exit(differ || failed || a11yDiffer || unreadable ? 1 : 0);

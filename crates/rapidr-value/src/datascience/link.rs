@@ -6,7 +6,9 @@
 //! - **Data sets** hold a table — a frame in the engine's store under the
 //!   component's own name: an RDATAFRAME, an **RCSV** (a CSV file read
 //!   lazily: setting FileName marks it stale, it reads once when its table
-//!   is first needed), an RJSON used as a source (its document's records).
+//!   is first needed; FileName can name a `$RESOURCE`, the file built into
+//!   the program — the designer reads the file it names), an RJSON used as
+//!   a source (its document's records).
 //! - **`RDataFrame.Source`** names another data set: the frame gets its rows
 //!   (a copy) at once, and again whenever the source changes (a new
 //!   FileName, Load, the source frame changed); `Refresh` asks again.
@@ -20,6 +22,13 @@
 //!   **RDBGrid** draws its data set straight from the frame (the UI
 //!   kernel's `components/dbgrid.rs`; its view sorted by a heading's
 //!   click, the data untouched).
+//! - **Bound charts**: an **RPlot** with a `DataSource` (a data set, or an
+//!   RDataSource's) draws its rows as a chart — `Kind` (bar, barh, line,
+//!   scatter, area, step, pie, hist), `X` (the column along the bottom:
+//!   names for bars and pies), `Y` (one column or several, a series each) —
+//!   again whenever the data change ([`chart`]); its titles and labels stay
+//!   the plot's own, and its imperative methods draw as before when it has
+//!   no DataSource.
 //!
 //! The module keeps the links and what every bound control last showed.
 //! After anything that may change data — a data component's member, a link
@@ -142,6 +151,30 @@ struct Grid {
     seen: Option<(String, u64, usize, usize, Option<(usize, bool)>)>,
 }
 
+/// An RPlot bound to a data set.
+#[derive(Clone, Debug)]
+struct Chart {
+    source: String,
+    kind: String,
+    x: String,
+    y: String,
+    /// (data set, version) when last drawn.
+    seen: Option<(String, u64)>,
+}
+
+impl Default for Chart {
+    fn default() -> Chart {
+        Chart { source: String::new(), kind: "bar".into(), x: String::new(), y: String::new(), seen: None }
+    }
+}
+
+/// A chart's kinds (`Kind`), as RPlot's methods name them.
+pub const CHART_KINDS: &[&str] = &["bar", "barh", "line", "scatter", "area", "step", "pie", "hist"];
+
+/// Most rows a bound chart draws (the first ones): bars and points past
+/// this would be a blur, and a million rows would cost a frame's time.
+pub const CHART_ROWS: usize = 10_000;
+
 /// An RDataFrame with a Source.
 #[derive(Clone, Debug, Default)]
 struct Pull {
@@ -159,6 +192,7 @@ struct State {
     cursors: HashMap<String, Cursor>,
     bound: HashMap<String, Bound>,
     grids: HashMap<String, Grid>,
+    charts: HashMap<String, Chart>,
     pulls: HashMap<String, Pull>,
     /// RJSONs used as sources: their FileName (the designer's), and
     /// whether their document must be read again.
@@ -166,6 +200,8 @@ struct State {
     json_stale: HashMap<String, bool>,
     /// Design surfaces (`surface` → the designed program's folder).
     design: HashMap<String, String>,
+    /// Design surfaces' `$RESOURCE`s: `surface` → (NAME → its file).
+    design_res: HashMap<String, HashMap<String, String>>,
     /// Events and messages waiting for the next sync.
     out: Vec<Update>,
 }
@@ -263,7 +299,7 @@ fn delimiter_of(v: &Value) -> u8 {
 pub fn create(id: &str, type_name: &str) -> bool {
     let ty = type_name.trim().to_ascii_uppercase();
     let ty = crate::designer::model::canonical_type(&ty);
-    let relevant = matches!(ty.as_str(), "RCSV" | "RDATASOURCE" | "RDBGRID" | "RDATAFRAME" | "RJSON" | "REDIT" | "RLABEL");
+    let relevant = matches!(ty.as_str(), "RCSV" | "RDATASOURCE" | "RDBGRID" | "RDATAFRAME" | "RJSON" | "REDIT" | "RLABEL" | "RPLOT");
     if !relevant {
         return false;
     }
@@ -282,6 +318,9 @@ pub fn create(id: &str, type_name: &str) -> bool {
             "RDBGRID" => {
                 s.grids.insert(id.clone(), Grid { read_only: true, ..Grid::default() });
             }
+            "RPLOT" => {
+                s.charts.insert(id.clone(), Chart::default());
+            }
             "RJSON" => {
                 s.json_stale.insert(id.clone(), true);
             }
@@ -294,7 +333,7 @@ pub fn create(id: &str, type_name: &str) -> bool {
 /// Whether any component links can name has been made (most programs:
 /// none — every lookup is skipped).
 fn active() -> bool {
-    with(|s| !(s.csv.is_empty() && s.dsrc.is_empty() && s.grids.is_empty() && s.pulls.is_empty() && s.bound.is_empty() && s.json_file.is_empty()))
+    with(|s| !(s.csv.is_empty() && s.dsrc.is_empty() && s.grids.is_empty() && s.charts.is_empty() && s.pulls.is_empty() && s.bound.is_empty() && s.json_file.is_empty()))
 }
 
 /// Whether this module models component `id` whole (an RCSV, an
@@ -396,6 +435,16 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
                 _ => return None,
             })
         }
+        "RPLOT" => {
+            let c = with(|s| s.charts.get(&id).cloned())?;
+            Some(match prop {
+                "datasource" => v_str(&c.source),
+                "kind" => v_str(&c.kind),
+                "x" => v_str(&c.x),
+                "y" => v_str(&c.y),
+                _ => return None,
+            })
+        }
         _ => None,
     }
 }
@@ -406,7 +455,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
 /// `DataField`, an RDataFrame's `Source`) is noted on the way, and the
 /// runtime keeps the value too.
 pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
-    if !active() && !matches!(prop, "datasource" | "datafield" | "source" | "filename") {
+    if !active() && !matches!(prop, "datasource" | "datafield" | "source" | "filename" | "kind" | "x" | "y") {
         return None;
     }
     let id = key(id);
@@ -414,9 +463,15 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
     let text = val.to_string_val();
     let r = match (ty.as_str(), prop) {
         ("RCSV", "filename") => {
+            // (a $RESOURCE's name — its handle, a number —: the file built
+            // into the program, read through its pseudo path)
+            let file = match val {
+                Value::Integer(_) | Value::Double(_) => crate::resources::path(val.to_i64()).unwrap_or_else(|| text.trim().to_string()),
+                _ => text.trim().to_string(),
+            };
             with(|s| {
                 if let Some(c) = s.csv.get_mut(&id) {
-                    c.file = text.trim().to_string();
+                    c.file = file;
                     c.text = None;
                     c.stale = true;
                 }
@@ -509,6 +564,28 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
             Some(Ok(()))
         }
         ("RDBGRID", "rowcount" | "colcount" | "columns" | "sortcolumn" | "sortdescending") => Some(Err(format!("{prop} can only be read"))),
+        ("RPLOT", "datasource" | "kind" | "x" | "y") => {
+            let kind = text.trim().to_ascii_lowercase();
+            if prop == "kind" && !CHART_KINDS.contains(&kind.as_str()) {
+                return Some(Err(format!("Kind \"{}\" isn't a chart's kind: {}", text.trim(), CHART_KINDS.join(", "))));
+            }
+            with(|s| {
+                if let Some(c) = s.charts.get_mut(&id) {
+                    let field = if prop == "datasource" {
+                        &mut c.source
+                    } else if prop == "x" {
+                        &mut c.x
+                    } else if prop == "y" {
+                        &mut c.y
+                    } else {
+                        &mut c.kind
+                    };
+                    *field = if prop == "kind" { kind } else { text.trim().to_string() };
+                    c.seen = None;
+                }
+            });
+            Some(Ok(()))
+        }
         // (link properties of other components: noted, kept by the runtime too)
         ("RDATAFRAME", "source") => {
             with(|s| {
@@ -995,7 +1072,7 @@ fn set_field(owner: &str, field: &str, value: &str) {
 /// designer read the data). Empty: not bound, or no data.
 pub fn bound_columns(id: &str) -> Vec<String> {
     let id = key(id);
-    let source = with(|s| s.bound.get(&id).map(|b| b.source.clone()).or_else(|| s.grids.get(&id).map(|g| g.source.clone())));
+    let source = with(|s| s.bound.get(&id).map(|b| b.source.clone()).or_else(|| s.grids.get(&id).map(|g| g.source.clone())).or_else(|| s.charts.get(&id).map(|c| c.source.clone())));
     let Some((set, _)) = source.and_then(|src| dataset_of(&resolve(&id, &src))) else { return Vec::new() };
     ensure(&set);
     frame::with_frame(&set, |f| f.columns.clone())
@@ -1106,6 +1183,104 @@ pub fn grid_title_click(id: &str, col: usize) {
 }
 
 // ---------------------------------------------------------------------------
+// The chart's data
+// ---------------------------------------------------------------------------
+
+/// What a bound RPlot draws now: its series from the data set's rows, and
+/// the axes' labels its columns give (for a plot without its own).
+#[derive(Clone, Debug, PartialEq)]
+pub struct ChartData {
+    pub series: Vec<super::plot::Series>,
+    pub xlabel: String,
+    pub ylabel: String,
+    /// More than one series: a legend says which is which.
+    pub legend: bool,
+    pub dataset: String,
+    pub version: u64,
+}
+
+/// RPlot `id`'s data (its data set made current first). None: no
+/// DataSource, or nothing with a table behind it.
+pub fn chart(id: &str) -> Option<ChartData> {
+    let id = key(id);
+    let c = with(|s| s.charts.get(&id).cloned())?;
+    if c.source.is_empty() {
+        return None;
+    }
+    let (dataset, _) = dataset_of(&resolve(&id, &c.source))?;
+    ensure(&dataset);
+    let version = frame::version(&dataset);
+    let (series, xlabel, ylabel) = frame::with_frame(&dataset, |f| chart_series(f, &c.kind, &c.x, &c.y));
+    let legend = series.len() > 1;
+    Some(ChartData { series, xlabel, ylabel, legend, dataset, version })
+}
+
+/// A frame's rows as a chart of `kind`: column `x` along the bottom (the
+/// first column if none is named), the `y` columns (comma-separated; the
+/// numeric columns but x if none) a series each — and the labels.
+fn chart_series(f: &Frame, kind: &str, x: &str, y: &str) -> (Vec<super::plot::Series>, String, String) {
+    use super::plot::{Series, PALETTE};
+    let rows = f.height().min(CHART_ROWS);
+    let xc = if x.trim().is_empty() { (f.width() > 0).then_some(0) } else { f.col(x.trim()) };
+    let numeric = |c: usize| f.dtype(c).numeric();
+    let mut ys: Vec<usize> = y.split(',').map(str::trim).filter(|n| !n.is_empty()).filter_map(|n| f.col(n)).collect();
+    if ys.is_empty() && y.trim().is_empty() {
+        ys = (0..f.width()).filter(|&c| Some(c) != xc && numeric(c)).collect();
+    }
+    if kind == "pie" {
+        ys.truncate(1);
+    }
+    let num = |r: usize, c: usize| f.cell(r, c).and_then(|s| super::parse_num(s.trim()));
+    let names: Vec<String> = match xc {
+        Some(c) => (0..rows).map(|r| f.cell(r, c).map(|s| s.into_owned()).unwrap_or_default()).collect(),
+        None => (0..rows).map(|r| r.to_string()).collect(),
+    };
+    // (numbers along x for lines and points over a numeric column; names
+    // — bars, a pie — otherwise)
+    let along = xc.filter(|&c| numeric(c) && matches!(kind, "line" | "scatter" | "area" | "step"));
+    let style = match kind {
+        "line" => "-",
+        "scatter" => "o",
+        k => k,
+    };
+    let mut out = Vec::new();
+    for (i, &yc) in ys.iter().enumerate() {
+        let label = f.columns.get(yc).cloned().unwrap_or_default();
+        let color = PALETTE[i % PALETTE.len()].to_string();
+        match kind {
+            "pie" => {
+                let values: Vec<f64> = (0..rows).map(|r| num(r, yc).unwrap_or(0.0)).collect();
+                out.push(Series { x: values.clone(), y: values, label: names.join(","), color: String::new(), style: "pie".into(), categories: Vec::new() });
+            }
+            "hist" => {
+                let data: Vec<f64> = (0..rows).filter_map(|r| num(r, yc)).collect();
+                if let Some(s) = super::plot::hist_series(&data, 10, label, color) {
+                    out.push(s);
+                }
+            }
+            _ => {
+                let (xs, values, categories) = match along {
+                    Some(c) => {
+                        let pts: Vec<(f64, f64)> = (0..rows).filter_map(|r| Some((num(r, c)?, num(r, yc)?))).collect();
+                        (pts.iter().map(|p| p.0).collect(), pts.iter().map(|p| p.1).collect(), Vec::new())
+                    }
+                    None => ((0..rows).map(|r| r as f64).collect::<Vec<f64>>(), (0..rows).map(|r| num(r, yc).unwrap_or(0.0)).collect(), names.clone()),
+                };
+                let (sx, sy) = if kind == "barh" { (values, xs) } else { (xs, values) };
+                out.push(Series { x: sx, y: sy, label, color, style: style.into(), categories });
+            }
+        }
+    }
+    let xlabel = if matches!(kind, "pie" | "hist") { String::new() } else { xc.and_then(|c| f.columns.get(c).cloned()).unwrap_or_default() };
+    let ylabel = if ys.len() == 1 && !matches!(kind, "pie") { f.columns.get(ys[0]).cloned().unwrap_or_default() } else { String::new() };
+    if kind == "barh" {
+        (out, ylabel, xlabel)
+    } else {
+        (out, xlabel, ylabel)
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Sync
 // ---------------------------------------------------------------------------
 
@@ -1156,12 +1331,13 @@ fn take_out(prefix: Option<&str>) -> Vec<Update> {
 /// cursors kept inside, its bound controls' and grids' updates queued.
 fn sync_scope(prefix: Option<&str>) {
     // (every data set a link names, made current)
-    let (frames, dsrcs, bound, grids) = with(|s| {
+    let (frames, dsrcs, bound, grids, charts) = with(|s| {
         let frames: Vec<String> = s.pulls.keys().filter(|k| in_scope(k, prefix)).cloned().collect();
         let dsrcs: Vec<String> = s.dsrc.keys().filter(|k| in_scope(k, prefix)).cloned().collect();
         let bound: Vec<(String, Bound)> = s.bound.iter().filter(|(k, b)| in_scope(k, prefix) && !b.source.is_empty() && !b.field.is_empty()).map(|(k, b)| (k.clone(), b.clone())).collect();
         let grids: Vec<String> = s.grids.keys().filter(|k| in_scope(k, prefix)).cloned().collect();
-        (frames, dsrcs, bound, grids)
+        let charts: Vec<String> = s.charts.iter().filter(|(k, c)| in_scope(k, prefix) && !c.source.is_empty()).map(|(k, _)| k.clone()).collect();
+        (frames, dsrcs, bound, grids, charts)
     });
     for f in &frames {
         ensure(f);
@@ -1217,6 +1393,19 @@ fn sync_scope(prefix: Option<&str>) {
             queue(Update::Redraw(id.clone()));
         }
     }
+    // (charts whose data changed: drawn again)
+    for id in charts {
+        let Some((set, _)) = with(|s| s.charts.get(&id).map(|c| c.source.clone())).and_then(|src| dataset_of(&resolve(&id, &src))) else { continue };
+        ensure(&set);
+        let now = (set.clone(), frame::version(&set));
+        let redraw = with(|s| {
+            let c = s.charts.get_mut(&id)?;
+            (c.seen.as_ref() != Some(&now)).then(|| c.seen = Some(now))
+        });
+        if redraw.is_some() {
+            queue(Update::Redraw(id.clone()));
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1238,6 +1427,7 @@ pub fn design_begin(surface: &str, folder: &str) {
             s.cursors.remove(k);
             s.bound.remove(k);
             s.grids.remove(k);
+            s.charts.remove(k);
             s.pulls.remove(k);
             s.json_file.remove(k);
             s.json_stale.remove(k);
@@ -1265,7 +1455,7 @@ pub fn design_build(surface: &str, folder: &str, design: &crate::designer::FormD
     for id in design.ids() {
         let Some(n) = design.node(id) else { continue };
         let ty = n.canonical.clone();
-        if !matches!(ty.as_str(), "RCSV" | "RJSON" | "RDATAFRAME" | "RDATASOURCE" | "RDBGRID" | "REDIT" | "RLABEL") {
+        if !matches!(ty.as_str(), "RCSV" | "RJSON" | "RDATAFRAME" | "RDATASOURCE" | "RDBGRID" | "REDIT" | "RLABEL" | "RPLOT") {
             continue;
         }
         let k = format!("{surface}:{}", n.name.to_lowercase());
@@ -1273,17 +1463,47 @@ pub fn design_build(surface: &str, folder: &str, design: &crate::designer::FormD
         for item in &n.body {
             let Item::Prop(p) = item else { continue };
             let prop = crate::designer::model::prop_key(&p.name);
-            let v = match design.read_value(&p.value) {
-                PropValue::Number(f) if f.fract() == 0.0 && f.abs() < 9.0e15 => Some(v_int(f as i64)),
-                PropValue::Number(f) => Some(Value::Double(f)),
-                PropValue::Str(s) => Some(v_str(&s)),
-                _ => design_ref(&prop, &p.value),
+            // (an RCSV's FileName naming a $RESOURCE: the file it builds in —
+            // the name may read as its handle, a number, to the designer)
+            let resource = (prop == "filename").then(|| with(|s| s.design_res.get(&surface).and_then(|m| m.get(&p.value.trim().to_ascii_uppercase())).cloned())).flatten();
+            let v = match resource {
+                Some(f) => Some(v_str(&f)),
+                None => match design.read_value(&p.value) {
+                    PropValue::Number(f) if f.fract() == 0.0 && f.abs() < 9.0e15 => Some(v_int(f as i64)),
+                    PropValue::Number(f) => Some(Value::Double(f)),
+                    PropValue::Str(s) => Some(v_str(&s)),
+                    _ => design_ref(&prop, &p.value),
+                },
             };
             if let Some(v) = v {
                 set(&k, &prop, &v);
             }
         }
     }
+}
+
+/// Design surface `surface`'s designed program's `$RESOURCE`s (its name,
+/// the file it builds in): an RCSV whose FileName names one reads that
+/// file while the form is designed. Given before [`design_build`].
+pub fn design_resources(surface: &str, resources: &[(String, String)]) {
+    let map = resources.iter().map(|(n, f)| (n.to_ascii_uppercase(), f.clone())).collect();
+    with(|s| s.design_res.insert(key(surface), map));
+}
+
+/// The `$RESOURCE NAME AS "file"` lines of a program's text: (NAME, file).
+pub fn resources_in(text: &str) -> Vec<(String, String)> {
+    text.lines()
+        .filter_map(|l| {
+            let l = l.trim();
+            let rest = l.get(..9).filter(|h| h.eq_ignore_ascii_case("$resource"))?;
+            let rest = l[rest.len()..].trim_start();
+            let (name, after) = rest.split_once(char::is_whitespace)?;
+            let after = after.trim_start();
+            let after = after.get(..2).filter(|a| a.eq_ignore_ascii_case("as")).map(|_| after[2..].trim_start())?;
+            let file = after.strip_prefix('"')?.split('"').next()?;
+            Some((name.to_string(), file.to_string()))
+        })
+        .collect()
 }
 
 /// A link property's value written as a component's name (`DataSource =
@@ -1466,5 +1686,57 @@ mod tests {
         assert_eq!(call("t3s:csv", "save", &[v_str("/tmp/never.csv")]), Some(Ok(v_int(0))));
         design_begin("t3s", "");
         assert!(!frame::has_frame("t3s:csv"));
+    }
+
+    #[test]
+    fn resources_named_in_a_program() {
+        assert_eq!(resources_in("x\n$RESOURCE STAFF_CSV AS \"staff.csv\"\n  $resource Pic as \"a b.png\" ' c\n$RESOURCEX y AS \"n\""), [("STAFF_CSV".to_string(), "staff.csv".to_string()), ("Pic".to_string(), "a b.png".to_string())]);
+    }
+
+    #[test]
+    fn a_chart_draws_its_data_set_and_follows_it() {
+        setup(&[("t5csv", "RCSV"), ("t5df", "RDATAFRAME"), ("t5ds", "RDATASOURCE"), ("t5plot", "RPLOT")]);
+        set_s("t5csv", "text", "name,dept,salary,rating\nAda,Eng,90,4.5\nBob,Ops,60,3\nCy,Eng,75,4\n");
+        set_s("t5df", "source", "t5csv");
+        // (no DataSource: the plot's own methods draw it)
+        assert_eq!(chart("t5plot"), None);
+        assert_eq!(get("t5plot", "kind"), Some(v_str("bar")));
+        set_s("t5plot", "datasource", "t5df");
+        set_s("t5plot", "x", "name");
+        set_s("t5plot", "y", "salary");
+        let d = chart("t5plot").expect("bound");
+        assert_eq!(d.series.len(), 1);
+        assert_eq!(d.series[0].categories, ["Ada", "Bob", "Cy"]);
+        assert_eq!(d.series[0].y, vec![90.0, 60.0, 75.0]);
+        assert_eq!((d.series[0].style.as_str(), d.xlabel.as_str(), d.ylabel.as_str(), d.legend), ("bar", "name", "salary", false));
+        // (Y empty: every numeric column but X, a legend)
+        set_s("t5plot", "y", "");
+        let d = chart("t5plot").unwrap();
+        assert_eq!(d.series.iter().map(|s| s.label.as_str()).collect::<Vec<_>>(), ["salary", "rating"]);
+        assert!(d.legend);
+        // (a line over a numeric X: its numbers; a pie: X's names, Y's first column)
+        set_s("t5plot", "kind", "line");
+        set_s("t5plot", "x", "rating");
+        set_s("t5plot", "y", "salary");
+        let d = chart("t5plot").unwrap();
+        assert_eq!((d.series[0].x.clone(), d.series[0].style.as_str()), (vec![4.5, 3.0, 4.0], "-"));
+        set_s("t5plot", "kind", "PIE");
+        set_s("t5plot", "x", "name");
+        let d = chart("t5plot").unwrap();
+        assert_eq!((d.series[0].label.as_str(), d.series[0].x.clone()), ("Ada,Bob,Cy", vec![90.0, 60.0, 75.0]));
+        set_s("t5plot", "kind", "hist");
+        assert_eq!(chart("t5plot").unwrap().series[0].y.iter().sum::<f64>(), 3.0);
+        assert!(matches!(set("t5plot", "kind", &v_str("donut")), Some(Err(_))));
+        // (through an RDataSource; the data change: drawn again)
+        set_s("t5ds", "dataset", "t5df");
+        set_s("t5plot", "kind", "bar");
+        set_s("t5plot", "datasource", "t5ds");
+        let _ = sync();
+        assert!(!sync().contains(&Update::Redraw("t5plot".into())));
+        crate::datascience::frame::with_frame_mut("t5df", |f| f.set_cell(0, 2, Some("95")));
+        frame_changed("t5df");
+        assert!(sync().contains(&Update::Redraw("t5plot".into())));
+        assert_eq!(chart("t5plot").unwrap().series[0].y[0], 95.0);
+        assert_eq!(bound_columns("t5plot"), ["name", "dept", "salary", "rating"]);
     }
 }

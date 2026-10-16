@@ -148,6 +148,12 @@ fn dev_frame(p: &mut Painter, (x0, y0, x1, y1): (f64, f64, f64, f64), w: f64, co
 }
 
 /// `fg` over `bg` at `a` (0..1).
+/// `fg` as it is if it reads on `bg` (WCAG AA, 4.5:1), else taken toward
+/// `text` (the scheme's text, which reads) just enough to.
+pub fn legible(fg: u32, bg: u32, text: u32) -> u32 {
+    (0..=10).map(|k| blend(text, fg, f64::from(k) / 10.0)).find(|&c| rapidr_value::theme::contrast(c, bg) >= 4.5).unwrap_or(text)
+}
+
 pub fn blend(fg: u32, bg: u32, a: f64) -> u32 {
     let ch = |c: u32, s: u32| (f64::from((c >> s) & 0xFF) * a + f64::from((bg >> s) & 0xFF) * (1.0 - a)).round() as u32;
     (ch(fg, 16) << 16) | (ch(fg, 8) << 8) | ch(fg, 0)
@@ -359,7 +365,7 @@ fn paint_text(x: &mut Ctx, p: &mut Painter, caret_on: bool) {
     for sh in shown.iter() {
         let kinds: Vec<&str> = x.c.markers_on(sh.row.line).map(|m| m.kind.as_str()).collect();
         let tint = if kinds.contains(&"exception") {
-            Some(blend(sc.error, sc.background, 0.22))
+            Some(sc.exception_line)
         } else if kinds.contains(&"current") {
             Some(sc.current_statement_line)
         } else if kinds.contains(&"frame") {
@@ -492,10 +498,11 @@ fn paint_text(x: &mut Ctx, p: &mut Painter, caret_on: bool) {
         let (tw, th) = rapidr_value::objects::text::text_size(&note, &font);
         let top = sh.top.round() as i64;
         let h = (lh.round() as i64 - 2).max(th);
-        let (fg, bg) = (tone, blend(tone, sc.background, 0.16));
+        let bg = blend(tone, sc.background, 0.16);
         let rect = (x0, top + 1, tw + 16, h);
-        p.op(Op::Round { rect, radius: 3.0, fill: Some(bg), stroke: Some(blend(fg, sc.background, 0.5)), width: 1.0 });
-        p.text((x0 + 8, top + 1 + (h - th) / 2, tw + 4, th), &note, &font, fg, Place::TopLeft);
+        p.op(Op::Round { rect, radius: 3.0, fill: Some(bg), stroke: Some(blend(tone, sc.background, 0.5)), width: 1.0 });
+        // (the message in the tone, taken toward the text until it reads: AA)
+        p.text((x0 + 8, top + 1 + (h - th) / 2, tw + 4, th), &note, &font, legible(tone, bg, sc.text), Place::TopLeft);
     }
     // folded lines' "…" boxes
     let folded: Vec<usize> = x.c.folded.iter().copied().collect();

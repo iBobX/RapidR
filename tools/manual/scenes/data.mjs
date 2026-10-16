@@ -27,6 +27,11 @@ export const scenes = [
   // the example in the designer: the chart shows sample bars until the
   // program gives it data
   { name: "studio-designer", open: CSV, delay: 6 },
+  // (DARK-FIX) dataframe.rr: an RPlot and an RDBGrid bound to frames of a
+  // $RESOURCE'd CSV — the designer shows the real rows and bars; running,
+  // Top paid then Chart (the grid filtered and sorted, the chart grouped)
+  { name: "dataframe-designer", open: "examples/data/dataframe.rr", do: "wait,view.designer", delay: 7, crop: [244, 96, 792, 474] },
+  { name: "dataframe-running", program: "examples/data/dataframe.rr", delay: 3, env: { RAPIDR_TEST_EVENTS: "topbtn.onclick,chartbtn.onclick" } },
   // (I7, docs/manual/data-science-with-rapidr.md) linked data built in the
   // designer by its own tools: an RCSV dropped (in the tray) with
   // FileName = staff.csv, an RDBGrid and an REdit with DataSource = CSV1 —

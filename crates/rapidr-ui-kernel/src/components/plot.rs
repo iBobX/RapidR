@@ -9,6 +9,10 @@
 //! ask for that after every change to a chart: a series, a property,
 //! Render / Show).
 //!
+//! Bound to a data set (`DataSource`, `Kind`, `X`, `Y`: `rapidr_value::
+//! datascience::link::chart`) it draws the data set's rows, drawn again as
+//! they change — in RapidR Studio's designer too.
+//!
 //! It never takes the focus. A screen reader hears an image named by the
 //! chart's Title (or its AccessibleName, Hint).
 
@@ -16,7 +20,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use rapidr_value::datascience::{chart, plot};
+use rapidr_value::datascience::{chart, link, plot};
 use rapidr_value::objects::a11y::AccessNode;
 use rapidr_value::objects::ops::Op;
 use rapidr_value::theme::Theme;
@@ -89,7 +93,22 @@ impl ComponentKind for Plot {
             return;
         }
         let mut model = plot::state(cx.id);
-        if model.series.is_empty() && super::design::designed(cx.id) {
+        if let Some(d) = link::chart(cx.id) {
+            // (bound to a data set: its rows, live — the designer's too;
+            // the plot's own titles and labels kept, the columns' names
+            // where it has none)
+            model.series = d.series;
+            if model.title.is_empty() {
+                model.title = cx.store.get(cx.id, "title").to_string_val();
+            }
+            if model.xlabel.is_empty() {
+                model.xlabel = d.xlabel;
+            }
+            if model.ylabel.is_empty() {
+                model.ylabel = d.ylabel;
+            }
+            model.legend |= d.legend;
+        } else if model.series.is_empty() && super::design::designed(cx.id) {
             model = design_sample(&cx.store.get(cx.id, "title").to_string_val());
         }
         let ops = model_ops(cx.id, model, (w, h), p.theme());

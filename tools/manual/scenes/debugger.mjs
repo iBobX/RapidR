@@ -45,6 +45,9 @@ export const scenes = [
   { topic: "debugging", name: "variables-components", open: SHOP, do: `${LOOP},view.variables,collapse:L,collapse:G,expand:C,wait,wait,expand:C/Form,wait,wait,expand:C/Form/Components,wait,wait`, delay: 10, crop: VARS },
   { topic: "debugging", name: "text-viewer", open: SHOP, do: "line:147,debug.toggleBreakpoint,run.start,wait,wait,wait,hover:142:3,wait,wait,wait,tipaction:0:view,wait,wait", delay: 8, window: 2 },
   { topic: "debugging", name: "step-into-specific", open: SHOP, do: `${LOOP},into:LineTotal,wait,wait,wait,view.variables`, delay: 8, crop: WORKBENCH },
+  // (DARK-FIX: the debugger in the other themes — every pane readable)
+  { topic: "debugging", name: "dark-paused", theme: "rapidr-dark", open: SHOP, do: `${LOOP},run.start,wait,wait,wait,debug.stepInto,wait,wait,frame:1,wait,view.variables,view.callStack,wait`, delay: 11, crop: [0, 64, 1036, 706] },
+  { topic: "debugging", name: "contrast-breakpoints", theme: "rapidr-high-contrast", open: SHOP, do: "line:76,debug.toggleBreakpoint,line:147,debug.toggleBreakpoint,bpcond:count > 1,run.start,wait,wait,wait,view.breakpoints,wait", delay: 9, crop: BOTTOM },
   { topic: "debugging", name: "set-next", open: COUNTER, do: `${HIT},debug.stepInto,wait,wait,wait,debug.stepOver,wait,wait,wait,debug.stepOver,wait,wait,wait,debug.stepOver,wait,wait,wait,goto:6,wait,wait`, delay: 11, crop: WORKBENCH },
   // (the web: Studio in the browser, paused as on the desktop — its window
   // under the page's title bar — and a running program's window dragged

@@ -85,6 +85,11 @@ pub struct IdeColors {
     pub page_link: u32,
     pub card: u32,
     pub card_border: u32,
+    /// A debugger's value that changed since the program last stopped, on
+    /// the `window` ground (Variables, Watch): the code editor's data tips'
+    /// mark (`code_scheme`'s `mark_changed`), Windows' blue in the classic
+    /// look.
+    pub changed: u32,
     pub editor: EditorColors,
 }
 
@@ -192,6 +197,7 @@ pub fn ide(t: &Theme) -> IdeColors {
             page_link: 0x0000EE,
             card: t.face,
             card_border: t.shadow,
+            changed: 0x0066CC,
             editor,
         };
     }
@@ -213,6 +219,7 @@ pub fn ide(t: &Theme) -> IdeColors {
             page_link: 0xFFFF00,
             card: 0x000000,
             card_border: 0xFFFFFF,
+            changed: crate::code_scheme::HIGH_CONTRAST.mark_changed,
             editor,
         };
     }
@@ -222,7 +229,8 @@ pub fn ide(t: &Theme) -> IdeColors {
     // paused or failed; the start page on the fields' ground, its cards
     // raised like buttons.
     let (running, debugging, error) = (brand::TEAL_DEEP, 0xB45309, 0xC42B1C);
-    let dim = if t.dark { 0x8F99B0 } else { brand::SLATE };
+    // (the theme's secondary text: Slate, and its dark counterpart)
+    let dim = t.secondary_text();
     IdeColors {
         toolbar: t.face,
         toolbar_border: t.border,
@@ -240,6 +248,7 @@ pub fn ide(t: &Theme) -> IdeColors {
         page_link: t.hot_text,
         card: t.control,
         card_border: t.border,
+        changed: crate::code_scheme::for_theme(t).mark_changed,
         editor,
     }
 }
@@ -265,6 +274,7 @@ impl IdeColors {
             ("page.link", self.page_link),
             ("card", self.card),
             ("card.border", self.card_border),
+            ("debug.changed", self.changed),
             ("editor.background", e.background),
             ("editor.text", e.text),
             ("editor.gutter", e.gutter),
@@ -321,6 +331,7 @@ mod tests {
                 ("page", c.page_text, c.page),
                 ("link", c.page_link, c.page),
                 ("heading", c.page_heading, c.page),
+                ("a changed value", c.changed, t.window),
             ] {
                 assert!(contrast(ink, ground) >= 4.5, "{}: {what} {:06X} on {:06X}", t.name, ink, ground);
             }

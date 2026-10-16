@@ -87,6 +87,8 @@ pub struct Scheme {
     pub breakpoint: u32,
     pub current_statement: u32,
     pub current_statement_line: u32,
+    /// A run-time error's line, tinted across (every token reads on it).
+    pub exception_line: u32,
     pub bookmark: u32,
     /// The minimap's view slider.
     pub minimap_slider: u32,
@@ -171,6 +173,7 @@ pub const CLASSIC: Scheme = Scheme {
     breakpoint: 0xE51400,
     current_statement: 0xFFCC00,
     current_statement_line: 0xFFF5C2,
+    exception_line: 0xFCE3E0,
     bookmark: 0x1A85FF,
     minimap_slider: 0xC8C8C8,
     popup: 0xFFFFFF,
@@ -210,7 +213,7 @@ pub const MODERN: Scheme = Scheme {
     background: 0xFFFFFF,
     text: 0x1F2328,
     gutter: 0xFFFFFF,
-    line_number: 0x8C959F,
+    line_number: 0x6B7280,
     line_number_active: 0x1F2328,
     current_line: 0xF5F8FC,
     current_line_frame: false,
@@ -234,6 +237,7 @@ pub const MODERN: Scheme = Scheme {
     breakpoint: 0xD1242F,
     current_statement: 0xF2B705,
     current_statement_line: 0xFFF6D6,
+    exception_line: 0xFAE9EA,
     bookmark: 0x0969DA,
     minimap_slider: 0xD6DBE1,
     popup: 0xFFFFFF,
@@ -281,7 +285,7 @@ pub const DARK: Scheme = Scheme {
     background: 0x1E1E1E,
     text: 0xD4D4D4,
     gutter: 0x1E1E1E,
-    line_number: 0x6E7681,
+    line_number: 0x8B949E,
     line_number_active: 0xD4D4D4,
     current_line: 0x282828,
     current_line_frame: false,
@@ -304,7 +308,8 @@ pub const DARK: Scheme = Scheme {
     fold_arrow: 0x9DA5B4,
     breakpoint: 0xE51400,
     current_statement: 0xFFCC00,
-    current_statement_line: 0x3D3A1E,
+    current_statement_line: 0x342F1B,
+    exception_line: 0x462727,
     bookmark: 0x3794FF,
     minimap_slider: 0x4A4A4A,
     popup: 0x252526,
@@ -376,6 +381,7 @@ pub const HIGH_CONTRAST: Scheme = Scheme {
     breakpoint: 0xFF3B3B,
     current_statement: 0xFFFF00,
     current_statement_line: 0x3D3A00,
+    exception_line: 0x381313,
     bookmark: 0x1AEBFF,
     minimap_slider: 0x7F7F7F,
     popup: 0x000000,
@@ -486,9 +492,13 @@ mod tests {
                 check(format!("{}: {name} on the current line", s.name), st.color, s.current_line_or_bg(), min);
                 // (text stays readable on the selection: it isn't recoloured)
                 check(format!("{}: {name} on the selection", s.name), st.color, s.selection, 3.0);
+                // (the debugger's line, a run-time error's line: AA)
+                check(format!("{}: {name} on the debugger's line", s.name), st.color, s.current_statement_line, 4.5);
+                check(format!("{}: {name} on a run-time error's line", s.name), st.color, s.exception_line, 4.5);
             }
             check(format!("{}: text", s.name), s.text, s.background, min);
-            check(format!("{}: line numbers", s.name), s.line_number, s.gutter, 3.0);
+            // (line numbers are text: AA, the classic look's VB6 grey aside)
+            check(format!("{}: line numbers", s.name), s.line_number, s.gutter, if s.name == "classic" { 3.0 } else { 4.5 });
             check(format!("{}: popups", s.name), s.popup_text, s.popup, min);
             check(format!("{}: popup details", s.name), s.popup_detail, s.popup, 4.5);
             check(format!("{}: the selected completion", s.name), s.popup_selected_text, s.popup_selected, min);

@@ -142,7 +142,7 @@ export const cases = [
   { file: "data/numbers.rr", runtimes: ["run", "interp", "native", "web"],
     expect: ["Days: 7, mean 17.36, warmest 21.5 on day 5", "In Fahrenheit, rounded: 58,61,60,66,71,64,63", "Linspace(0, 1, 5): 0,0.25,0.5,0.75,1", "Running total: 1,5,14,30,55", "Dice faces seen: 1,2,4,5,6"] },
   { file: "data/dataframe.rr", runtimes: ["run", "interp", "native", "web"], events: "topbtn.onclick", dump: "info.caption,grid.rowcount",
-    expect: ["info.caption=4 people earn over 70000; Charlie the most", "grid.rowcount=5"] },
+    expect: ["info.caption=4 people earn over 70000; Charlie the most", "grid.rowcount=4"] },
   { file: "data/dataframe.rr", runtimes: ["run", "interp", "native", "web"], events: "engbtn.onclick,chartbtn.onclick", dump: "info.caption",
     expect: ["info.caption=Averages: 85,70,61 (thousands). Highest: Engineering"] },
   // (the sample at the start; then staff.csv dropped on the window — the

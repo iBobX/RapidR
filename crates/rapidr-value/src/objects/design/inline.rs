@@ -359,7 +359,7 @@ impl DesignSurface {
         }
         if let Some(k) = keys {
             frame(out, k, !caption_on);
-            let (label, color) = if e.shortcut.is_empty() { ("ShortCut".to_string(), t.gray_text) } else { (e.shortcut.clone(), t.text) };
+            let (label, color) = if e.shortcut.is_empty() { ("ShortCut".to_string(), t.secondary_text()) } else { (e.shortcut.clone(), t.text) };
             out.push(Op::Text { rect: (k.0 + pad, k.1, k.2 - pad, k.3), text: label, font: font.clone(), color, angle: 0, place: Place::Left });
         }
     }

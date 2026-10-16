@@ -215,7 +215,7 @@ impl ComponentKind for Tree {
                     let mid = row.top + row.height / 2;
                     // (RapidR's look: the selection across the row, under
                     // its lines, icon and text)
-                    if p.fluent() && row.selected && (focused || !hide) {
+                    if p.fluent() && row.selected && (focused || !hide) && enabled {
                         super::list::selected_row(p, (0, row.top, cw, row.height), focused);
                     }
                     if show_lines {

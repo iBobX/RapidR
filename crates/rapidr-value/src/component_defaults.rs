@@ -242,6 +242,8 @@ pub fn color_read(type_name: &str, stored: &Value, parent: impl FnOnce() -> Opti
         "RFORM" | "RPANEL" | "RBEVEL" => Some(v_int(CL_BTN_FACE)),
         "RLABEL" | "RCANVAS" | "RGROUPBOX" | "RBUTTON" | "RSCROLLBOX" | "RTABCONTROL" | "RPROGRESSBAR" | "ROVALBTN" => Some(parent().unwrap_or_else(|| v_int(CL_WINDOW))),
         "REDIT" | "RMEMO" | "RRICHEDIT" | "RLISTBOX" | "RCOMBOBOX" | "RSTRINGGRID" | "RDIRTREE" | "RFILELISTBOX" => Some(v_int(CL_WINDOW)),
+        // (RapidR's own data grid: on the window's ground, as a string grid)
+        "RDBGRID" => Some(v_int(CL_WINDOW)),
         _ => None,
     }
 }

@@ -27,9 +27,10 @@ pub struct Look {
     /// Strips around the list: tabs, the search strip, a toolbar.
     pub chrome: u32,
     pub text: u32,
-    /// A value at its default, a secondary text (a shortcut, a path).
+    /// A value at its default, a secondary text (a shortcut, a path): the
+    /// theme's secondary text, readable (4.5:1).
     pub dim: u32,
-    /// The search box's placeholder.
+    /// The search box's placeholder (text too: 4.5:1).
     pub faint: u32,
     pub disabled: u32,
     /// Lines between rows and columns.
@@ -176,8 +177,8 @@ pub fn look(t: &Theme) -> Look {
         body: t.window,
         chrome: t.face,
         text: t.text,
-        dim: t.gray_text,
-        faint: mix(t.gray_text, t.window, 0.25),
+        dim: t.secondary_text(),
+        faint: t.secondary_text(),
         disabled: t.gray_text,
         line: t.grid_lines,
         border: t.border,
@@ -293,6 +294,14 @@ pub fn section(p: &mut Painter, rect: Rect, l: &Look, title: &str, open: bool, c
     }
 }
 
+/// Text on a coloured `fill` (a badge, a pill): the panel's ground colour
+/// where it reads (WCAG AA), else its text colour, else black or white —
+/// whichever reads.
+pub fn text_on(l: &Look, fill: u32) -> u32 {
+    use rapidr_value::theme::contrast;
+    [l.body, l.text].into_iter().find(|&c| contrast(c, fill) >= 4.5).unwrap_or(if contrast(0x000000, fill) >= contrast(0xFFFFFF, fill) { 0x000000 } else { 0xFFFFFF })
+}
+
 /// A small pill with `text` (the "R" of RapidR's extensions) whose left
 /// is at `x`, centred on `mid`: its width.
 pub fn badge(p: &mut Painter, x: i64, mid: i64, text: &str, l: &Look, font: &Font) -> i64 {
@@ -305,7 +314,7 @@ pub fn badge(p: &mut Painter, x: i64, mid: i64, text: &str, l: &Look, font: &Fon
         p.text(r, text, &small, l.badge, Place::Center);
     } else {
         p.round(r, h as f64 / 2.0, Some(l.badge), None, 1.0);
-        p.text(r, text, &small, l.badge_text, Place::Center);
+        p.text(r, text, &small, if rapidr_value::theme::contrast(l.badge_text, l.badge) >= 4.5 { l.badge_text } else { text_on(l, l.badge) }, Place::Center);
     }
     w
 }
@@ -453,6 +462,30 @@ mod tests {
             assert!(c(l.selected_text, l.selected) >= 4.45, "{}: selection", t.name);
             assert!(c(l.dim, l.body) >= 3.0, "{}: dimmed values", t.name);
             assert!(c(l.error, l.body) >= 3.0, "{}: errors", t.name);
+            // (DARK-FIX: RapidR's looks — every row state's text, secondary
+            // text and placeholders are text: AA; disabled 3 : 1)
+            if t.fluent() {
+                for (what, fg, bg) in [
+                    ("a row", l.text, l.body),
+                    ("a row under the mouse", l.text, l.hover),
+                    ("the selected row", l.selected_text, l.selected),
+                    ("the selected row without the focus", l.inactive_text, l.inactive),
+                    ("a strip's text", l.text, l.chrome),
+                    ("a value at its default", l.dim, l.body),
+                    ("a value at its default under the mouse", l.dim, l.hover),
+                    ("a secondary text on a strip", l.dim, l.chrome),
+                    ("a secondary text on a heading", l.dim, l.section),
+                    ("a placeholder", l.faint, l.field),
+                    ("a link", l.link, l.body),
+                    ("the accent's text", l.accent_text, l.accent),
+                    ("a badge", text_on(&l, l.badge), l.badge),
+                    ("a warning badge", text_on(&l, l.warning), l.warning),
+                    ("an error badge", text_on(&l, l.error), l.error),
+                ] {
+                    assert!(c(fg, bg) >= 4.5, "{}: {what} {fg:06X} on {bg:06X} {:.2}", t.name, c(fg, bg));
+                }
+                assert!(c(l.disabled, l.body) >= 3.0, "{}: disabled", t.name);
+            }
         }
     }
 

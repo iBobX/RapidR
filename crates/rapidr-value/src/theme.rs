@@ -422,7 +422,9 @@ pub const RAPIDR_DARK: Theme = Theme {
     caption: ink(70),
     caption_text: BOARD,
     inactive_caption: ink(45),
-    inactive_caption_text: 0x8F99B0,
+    // (secondary text: AA on the window, the face, a control, a menu and
+    // an unfocused selection — `secondary_text`)
+    inactive_caption_text: 0x9CA5BA,
     menu: ink(90),
     menu_text: BOARD,
     menu_highlight: mix(ink(90), BLUE, 300),
@@ -798,6 +800,20 @@ impl Theme {
         }
     }
 
+    /// Secondary text — a hint, a placeholder, a value at its default, a row
+    /// number, a path beside a name: quieter than the text but text all the
+    /// same, so readable (WCAG AA, 4.5:1 on the window, the face and a
+    /// control's fill) where disabled text (`gray_text`) needn't be. Studio's
+    /// dim text, `inactive_caption_text`, in RapidR's look; the classic look
+    /// keeps Windows' grey (RapidQ's).
+    pub fn secondary_text(&self) -> u32 {
+        if self.fluent() {
+            self.inactive_caption_text
+        } else {
+            self.gray_text
+        }
+    }
+
     /// Text the program left uncoloured, drawn on `background`: the theme's
     /// text — or, on a colour where that wouldn't read as text (WCAG AA,
     /// 4.5:1), black or white, whichever reads better. (The classic look
@@ -1010,6 +1026,11 @@ mod tests {
                 }
                 // (an inactive window's title: still text)
                 assert!(contrast(t.inactive_caption_text, t.inactive_caption) >= need, "{}: inactive caption", t.name);
+                // (secondary text — hints, placeholders, values at their
+                // default — is text: AA on every ground it's drawn on)
+                for (what, bg) in [("window", t.window), ("face", t.face), ("control", t.control), ("menu", t.menu), ("an unfocused selection", t.unfocused)] {
+                    assert!(contrast(t.secondary_text(), bg) >= 4.5, "{}: secondary text on {what} {:.2}", t.name, contrast(t.secondary_text(), bg));
+                }
             }
         }
         // (High Contrast Black: Windows' own colours)

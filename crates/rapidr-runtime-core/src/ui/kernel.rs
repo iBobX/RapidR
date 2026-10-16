@@ -1093,11 +1093,14 @@ fn place_of(comp: &str) -> Option<(String, (i64, i64))> {
 }
 
 /// The test's end (after `rapidr_ui_app::script` printed `RAPIDR_TEST_DUMP`):
-/// `RAPIDR_TEST_A11Y`, then every shown window saved as `<prefix>-<n>.bmp`
-/// (bottom to top, at its scale, by the CPU renderer), and the program
-/// ends.
+/// `RAPIDR_TEST_A11Y`, `RAPIDR_TEST_CONTRAST` (each window's text that reads
+/// too faintly on what it's drawn on: `rapidr_ui_kernel::contrast`), then
+/// every shown window saved as `<prefix>-<n>.bmp` (bottom to top, at its
+/// scale, by the CPU renderer), and the program ends.
 fn capture_and_end(prefix: &str) -> ! {
     let a11y = std::env::var("RAPIDR_TEST_A11Y").ok().filter(|p| !p.is_empty());
+    let contrast = std::env::var("RAPIDR_TEST_CONTRAST").ok().filter(|p| !p.is_empty());
+    let mut reports = Vec::new();
     let shots = with_kern(|k| {
         sync_desk(&mut k.desk);
         let Kern { desk, .. } = k;
@@ -1105,9 +1108,10 @@ fn capture_and_end(prefix: &str) -> ! {
         let mut trees = Vec::new();
         let mut shots = Vec::new();
         for f in &order {
-            if let Some(px) = rapidr_ui_host_winit::capture(desk, &RtStore, f) {
+            if let Some((px, report)) = rapidr_ui_host_winit::capture_checked(desk, &RtStore, f) {
                 let title = desk.forms.get(f).map(|w| w.spec.title.clone()).unwrap_or_default();
                 shots.push((title, px));
+                reports.push(report);
             }
             // (after the capture's paint: the tree as drawn — a console
             // scrolled to its end, the focus where the last frame put it —
@@ -1121,6 +1125,11 @@ fn capture_and_end(prefix: &str) -> ! {
     if let Some((trees, shots)) = shots {
         if let Some(path) = a11y {
             if let Err(e) = std::fs::write(&path, format!("[{}]\n", trees.join(",\n"))) {
+                eprintln!("[rapidr] can't write {path}: {e}");
+            }
+        }
+        if let Some(path) = contrast {
+            if let Err(e) = std::fs::write(&path, format!("[{}]\n", reports.join(",\n"))) {
                 eprintln!("[rapidr] can't write {path}: {e}");
             }
         }

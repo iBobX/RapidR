@@ -838,10 +838,19 @@ impl WebHost {
     /// Form `id` drawn by the CPU renderer at its scale, as the desktop's
     /// `RAPIDR_CAPTURE` saves it (a test's capture: the very pixels).
     pub fn capture(&mut self, store: &dyn Store, id: &str) -> Option<Pixels> {
+        self.capture_checked(store, id).map(|(px, _)| px)
+    }
+
+    /// [`Host::capture`], with the window's text runs judged against what
+    /// they're drawn on (`rapidr_ui_kernel::contrast`: the failures as
+    /// JSON, as the desktop's `RAPIDR_TEST_CONTRAST`) — from the very list
+    /// captured.
+    pub fn capture_checked(&mut self, store: &dyn Store, id: &str) -> Option<(Pixels, String)> {
         let Desktop { forms, text, .. } = &mut self.desk;
         let f = forms.get_mut(&id.to_lowercase())?;
         let list = f.ui.paint(store, text, f.scale);
-        Some(rapidr_ui_render::cpu::capture(&list, text, &f.ui))
+        let runs = rapidr_ui_kernel::contrast::runs(&list, &f.ui, rapidr_value::theme::current());
+        Some((rapidr_ui_render::cpu::capture(&list, text, &f.ui), rapidr_ui_kernel::contrast::report_json(id, &runs)))
     }
 
     /// Brings window `id`'s mirror up to date now (its focus moves inside

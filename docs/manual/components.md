@@ -222,9 +222,22 @@ AutoSize label's size are RapidQ's in every theme. RapidQ's default font
 fonts a program names keep their face. RapidQ's system colours
 (`clBtnFace`, `clWindow`, `clHighlight` …) are the theme's; a colour the
 program sets as RGB (`Color`, `Font.Color`) is painted as written, and
-reading a colour back gives what the program set, as in RapidQ. Text
-contrast meets WCAG AA in every theme and AAA in high contrast. Where each
-colour comes from: [theme tokens](../theme-tokens.md).
+reading a colour back gives what the program set, as in RapidQ. A QFONT
+you never gave a colour keeps the theme's text colour (its `Color` reads
+`clWindowText`, as RapidQ's does), so `Form.Font = MyFont` changes the face
+and size of the form's text but never turns it black on a dark theme:
+
+```basic
+DIM UIFont AS RFont
+UIFont.Name = "Inter": UIFont.Size = 10
+Form.Font = UIFont                 ' the theme's text colour, light or dark
+Notes.Font.Color = RGB(200, 0, 0)  ' a colour you set: painted as written
+```
+
+Text contrast meets WCAG AA in every theme (secondary text — hints,
+placeholders — included) and AAA in high contrast; RapidR's tests check
+it on what is drawn. Where each colour comes from: [theme
+tokens](../theme-tokens.md).
 
 ## High-DPI screens
 
