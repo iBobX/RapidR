@@ -565,6 +565,13 @@ RapidR BASIC running ON an ESP32 (and later other boards), not only talking to o
 - [ ] **A target for `rapidr build`**: the ESP32 family through Espressif's official Rust support (esp-rs: `esp-hal`, MIT / Apache-2.0); the RISC-V chips (ESP32-C3 / C6) on stable Rust, the Xtensa ones (ESP32, S3) through Espressif's toolchain. RapidR's native path (BASIC → Rust) makes it a new target, not a new compiler; `no_std` runtime subset for the board.
 - [ ] **RapidR objects for the board**: pins (digital, analog, PWM), timers, I²C / SPI / UART, Wi-Fi, Bluetooth LE, deep sleep, sensors; displays (TFT, OLED, e-paper) through `embedded-graphics` and display drivers (MIT / Apache), with an RForm-like drawing model for small screens. Names are RapidR's own (R prefix), docs in our own words.
 - [ ] **RapidR Studio**: an "ESP32" target, Run = build + flash (espflash, MIT / Apache) + serial monitor (QCOMPORT's IoT extras), board picker, examples.
+- [ ] **BBC micro:bit (v2, nRF52833) — schools first** (Robert, 2026-10-16: kids in Uruguay use micro:bit a lot):
+  - The nRF52 through the embedded Rust HALs (`nrf52833-hal` / `embassy-nrf`, MIT / Apache-2.0) and `microbit-v2` (MIT / Apache-2.0).
+  - Objects: the 5×5 LED display, buttons A/B and touch logo, accelerometer and compass, the microphone and speaker, radio between micro:bits, and the edge-connector pins.
+  - Flashing by copying the .hex to the board's USB drive, with no tools to install.
+  - Studio: a micro:bit simulator panel, so the program runs on screen before flashing.
+  - Lessons built on the guided-tutorial format.
+- [ ] **M5Stack (ESP32 with a screen)**: its display, buttons and IMU as RapidR objects, and a small RForm-like GUI for tiny screens (labels, buttons, lists drawn for 320×240).
 - [ ] **Spike first**: blink + a display "Hello" + Wi-Fi on an ESP32 Robert has, measuring binary size and build time.
 
 ## Phase 4 — AI in the IDE (~6 weeks)
