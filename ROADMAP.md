@@ -374,6 +374,11 @@ Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's ar
 **Responsive layout (additive to Align)**
 - [x] `Anchors` (Delphi's akLeft / akTop / akRight / akBottom) and `Constraints` (MinWidth …) on every component, in `rapidr_value::layout` (v2.107.0)
 - [ ] Flow and grid containers (Delphi's TFlowPanel / TGridPanel) for layouts that reflow on small screens — the base for mobile
+- [ ] Constants, the modern way (proposed 2026-10-16, after Preview 2):
+  - `.bas` programs keep RapidQ's rule: `$INCLUDE "RAPIDQ.INC"` turns its constants on. They stay built in, no RapidQ file is shipped, and nothing changes for old programs.
+  - `.rr` programs get every library constant built in, no include needed, as in VB and Delphi. Only the constants used are compiled, and a program's own name wins.
+  - Optional topic names such as `Color.Red` and `MsgBox.YesNo` for autocomplete; the old names keep working.
+  - The debugger never lists library constants as globals.
 - [ ] A stack container (RStackPanel: children one under the other or side by side, gap and padding) where a hidden child takes no space — forms that hide rows (Studio's Settings > AI hides Workspace ID / Address per provider) close up by themselves, no hand-placed `y = y + row` code; easy enough for a school kid, live in the designer, in the registry (Robert, 2026-10-16; after Preview 2)
 
 **One UI kernel (principle 7)**
