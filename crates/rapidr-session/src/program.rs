@@ -864,6 +864,26 @@ impl BlockingDebugger {
     pub fn take_controls(&mut self) -> Vec<Control> {
         std::mem::take(&mut self.controls)
     }
+
+    /// The next request while the program is stopped; meanwhile its
+    /// windows' own events are served (`Host::serve_paused`: painted,
+    /// activated, moved — none of its code runs), so a paused program's
+    /// windows stay on the screen and reachable. The host's wait ends when
+    /// a request arrives (the session's reader wakes it). `None`: the IDE
+    /// went away.
+    fn next_request<H: Host + ?Sized>(&mut self, vm: &mut Vm<'_, H>) -> Option<Request> {
+        loop {
+            match self.requests.try_recv() {
+                Ok(request) => return Some(request),
+                Err(TryRecvError::Disconnected) => return None,
+                Err(TryRecvError::Empty) => {
+                    if !vm.host.serve_paused() {
+                        return self.requests.recv().ok();
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl<H: Host + ?Sized> Debugger<H> for BlockingDebugger {
@@ -877,7 +897,7 @@ impl<H: Host + ?Sized> Debugger<H> for BlockingDebugger {
         let event = self.end.stopped_event(vm, module);
         (self.send)(&event);
         loop {
-            let Ok(request) = self.requests.recv() else { return Resume::Terminate };
+            let Some(request) = self.next_request(vm) else { return Resume::Terminate };
             let (reply, control) = self.end.handle(vm, module, request, true);
             if let Some(reply) = reply {
                 (self.send)(&reply);

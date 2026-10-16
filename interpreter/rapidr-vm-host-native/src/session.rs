@@ -10,6 +10,13 @@
 //! statement (the VM's interrupt); while it waits for the window system,
 //! when it next runs code (an event, a timer). Stop is answered by the
 //! reader itself: the process ends.
+//!
+//! While it's stopped its windows stay on the screen and reachable: the
+//! debugger serves the window system between requests (`Host::serve_paused`:
+//! painted, activated, moved, resized — none of the program's code runs, the
+//! user's input to it is dropped), and the reader's wake ends that wait when
+//! a request arrives. Stopped while it was the active app, it hands the
+//! front back to the IDE (`RAPIDR_SESSION_IDE`, the IDE's process id).
 
 use std::collections::VecDeque;
 use std::io::{BufRead, Write};
@@ -89,7 +96,17 @@ pub fn run_session(bytes: &[u8], program: &str) -> Result<i32, String> {
     spawn_reader(tx, interrupt, input);
 
     send(&Event::new(EventBody::Ready { protocol: PROTOCOL_VERSION, runtime: format!("RapidR {}", env!("CARGO_PKG_VERSION")), program: program.to_string() }));
-    let mut debugger = BlockingDebugger::new(rx, Box::new(send));
+    let mut debugger = BlockingDebugger::new(
+        rx,
+        Box::new(|event: &Event| {
+            send(event);
+            // (stopped while the user was using it: the front back to the
+            // IDE, which shows where — rapidr-runtime-core's kernel)
+            if matches!(event.body, EventBody::Stopped { .. }) {
+                obj::rp_debugger_stopped();
+            }
+        }),
+    );
     if debugger.until_start(&mut vm, &module).is_none() {
         return Ok(0);
     }

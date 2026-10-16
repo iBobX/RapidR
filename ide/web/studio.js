@@ -358,6 +358,15 @@ window.RAPIDR_STUDIO_HOST = {
     closeFrame();
     if (had && window.rr) window.rr.studio_session_ended(0);
   },
+  // Show Program Window (and Continue): the program's windows over Studio's
+  // — out from under a menu of Studio's — and its frame given the keyboard,
+  // as the desktop hands the program's process the front.
+  show() {
+    if (!run.box || !run.frame) return false;
+    run.box.classList.remove("under");
+    try { run.frame.focus(); } catch { return false; }
+    return true;
+  },
   // Run > Build Web App (.zip): the program's own files (its page with its
   // policy, the loader, the bytecode, its data files: made by the runtime
   // from the same template the CLI's `rapidr bundle-bc` uses) with the web

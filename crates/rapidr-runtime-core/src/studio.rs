@@ -53,6 +53,9 @@ impl Host for Desktop {
         if !theme.is_empty() {
             env.push(("RAPIDR_THEME".into(), Some(theme.to_string())));
         }
+        // (the front handed back to Studio when the program stops while the
+        // user was using it: Studio's process)
+        env.push(("RAPIDR_SESSION_IDE".into(), Some(std::process::id().to_string())));
         // (Studio's include folders: the program's $INCLUDEs found as in
         // Studio — Settings > Include folders)
         if let Some(path) = rapidr_studio::project::include_path_env() {
@@ -64,6 +67,8 @@ impl Host for Desktop {
         if let Some(w) = crate::ui::kernel::waker() {
             transport.set_waker(w);
         }
+        // (Show Program Window, Continue: Studio hands the program the front)
+        transport.set_activator(Box::new(crate::ui::kernel::activate_process));
         Ok(Box::new(transport))
     }
 

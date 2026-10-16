@@ -2280,6 +2280,8 @@ thread_local! {
 /// that passed.
 pub fn set_debug_stopped(on: bool) {
     DEBUG_STOPPED.with(|d| d.set(on));
+    // (the user's input to its windows dropped meanwhile, as the desktop's)
+    crate::kernel_web::set_paused(on);
 }
 
 pub fn debug_stopped() -> bool {
