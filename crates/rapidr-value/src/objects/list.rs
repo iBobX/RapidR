@@ -583,6 +583,11 @@ impl ItemList {
         self.selected.clear();
         self.item_index = -1;
         self.top_index = 0;
+        // (a combo box's text goes with its items, every Style — typed text
+        // too: CB_RESETCONTENT, as RC.EXE shows)
+        if self.combo {
+            self.text.clear();
+        }
     }
 
     fn sort(&mut self) {
@@ -911,6 +916,14 @@ mod tests {
         c.set("text", &s("blue"));
         assert_eq!(c.get("itemindex").unwrap().to_i64(), -1);
         assert_eq!(c.get("text").unwrap().to_string_val(), "blue");
+        // (Clear empties the text too, chosen or typed — RC.EXE's
+        // w_comboclear probe, 2026-10-16)
+        c.call("clear", &[]);
+        assert_eq!(c.get("text").unwrap().to_string_val(), "");
+        c.call("additems", &[s("red")]);
+        c.set("itemindex", &v_int(0));
+        c.call("clear", &[]);
+        assert_eq!((c.get("text").unwrap().to_string_val(), c.get("itemindex").unwrap().to_i64()), (String::new(), -1));
     }
 
     #[test]

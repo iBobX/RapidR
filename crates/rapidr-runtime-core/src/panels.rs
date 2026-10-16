@@ -58,7 +58,7 @@ impl Runtime for Desktop {
     fn drop_list(self, form: &str, name: &str, items: Vec<String>, anchor: Rect) {
         #[cfg(feature = "gui")]
         {
-            rapidr_ui_kernel::components::combo::open_list(form, name, items, anchor);
+            rapidr_ui_kernel::components::combo::open_list_fitted(form, name, items, anchor);
             rapidr_ui_app::windows::invalidate();
         }
         #[cfg(not(feature = "gui"))]

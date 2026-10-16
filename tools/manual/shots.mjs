@@ -131,7 +131,7 @@ async function web(browser, s, dir, open, steps) {
   try {
     const files = (s.webFiles || (open ? [open] : [])).map((f) => ({ path: f, text: readFileSync(join(ROOT, f), "utf8") }));
     await page.addInitScript((files) => { window.RAPIDR_STUDIO_TEST_FILES = files; }, files);
-    await page.addInitScript((env) => { window.RAPIDR_STUDIO_TEST = env; }, { RAPIDR_CAPTURE: "web", RAPIDR_CAPTURE_DELAY: String(s.delay || 6), RAPIDR_TEST_DUMP: "" });
+    await page.addInitScript((env) => { window.RAPIDR_STUDIO_TEST = env; }, { ...(s.env || {}), RAPIDR_CAPTURE: "web", RAPIDR_CAPTURE_DELAY: String(s.delay || 6), RAPIDR_TEST_DUMP: "" });
     const q = new URLSearchParams({ theme: s.theme || "rapidr-light", fresh: "" });
     if (!s.maximized) q.set("window", "normal");
     if (steps) q.set("do", steps.replaceAll("{dir}", "/Projects"));

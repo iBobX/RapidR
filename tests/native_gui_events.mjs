@@ -35,6 +35,8 @@
 //   * tests/fixtures/coolbtn_group.bas — QCOOLBTN GroupIndex / Down /
 //     AllowAllUp, Down set by the program;
 //   * tests/fixtures/timer_default.bas — a QTIMER ticks without Enabled set;
+//   * tests/fixtures/timer_after_dialog.bas — a QTIMER ticks on after a modal
+//     dialog closes (RC.EXE's way; only the last window's end stops timers);
 //   * tests/fixtures/late_parent.bas — components parented after the form is shown;
 //   * tests/fixtures/mdi_children.bas — QFORMMDI child windows, OnChildClose's ChildResult.
 //   * tests/fixtures/event_answers.bas — event parameters that come back:

@@ -242,6 +242,9 @@ DECLARE FUNCTION SearchCommand(Id AS STRING) AS INTEGER
 DIM AI AS RAI
 DIM AITools AS RAIProjectTools
 DIM DesignAI AS RAI
+' (Tools > Settings > AI's own: what the tab tries — a provider's list, a
+' key typed — never touches the assistant until OK)
+DIM SetAI AS RAI
 ' Tools > Settings > AI's choices (never a key: the keychain keeps those)
 DIM AIOn AS INTEGER
 DIM AIProvider AS STRING
@@ -269,7 +272,7 @@ DECLARE SUB ShowAIPanel
 DECLARE SUB LoadAISettings
 DECLARE SUB SaveAISettings
 DECLARE SUB ShowSettingsPage(k AS INTEGER)
-DECLARE SUB AISettingsModelsIn
+DECLARE SUB AIEnableSend
 DECLARE FUNCTION AIModelItem(Line AS STRING) AS STRING
 DECLARE FUNCTION AIModelId(Text AS STRING) AS STRING
 DECLARE FUNCTION AICommand(Id AS STRING) AS INTEGER

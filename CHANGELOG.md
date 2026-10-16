@@ -181,6 +181,55 @@ The sections below say what each piece of work changed.
   secret properties shown masked and never written into code.
 - Manual: [The AI assistant and RAI](docs/manual/ai-assistant.md).
 
+### The AI, used as you use it (AI-REAL, before the release)
+Robert's run of the Preview 2 build found what the tests hadn't: they checked that things
+compiled and returned, not what a person sees. Each of these was walked on the real screen —
+with the three providers' real model lists and answers, and a local stand-in for the errors.
+- **Fetch Models fills the Model list.** It said "Anthropic lists 14 models" over an empty list
+  (the row refresh after it emptied the list again); now the list has them, the fast, low-cost
+  ones first, and the model you pick is the one Settings shows when you open it again.
+- **A refused key no longer locks Fetch Models.** After a 401 the button stayed greyed until
+  Studio was restarted. Now every way a request can end gives it back at once: the list, a
+  refusal, a server that answers with a web page, a provider that doesn't answer (it is given 30
+  seconds; 10 to connect), another provider picked meanwhile, the dialog closed. What happened is
+  said in plain words under the list, all of it — however many lines it takes.
+- **Cancel leaves the assistant as it was.** Settings has its own RAI now: trying other providers,
+  fetching their lists, trying a key you typed change nothing of the assistant until OK (they used
+  to switch it, losing its key and its models). A key typed is only tried until OK or Save Key
+  keeps it; Save Key and Remove act on the keychain at once. After OK the Send button is enabled
+  (it waited for something else to happen first), and the Assistant pane's model list is the one
+  Settings fetched.
+- **Anthropic's workspaces.** When Anthropic wants to know the workspace of an organisation's
+  key, Settings says so and puts the cursor in Workspace ID. The workspace is only sent to
+  Anthropic, and the address typed for an OpenAI-compatible server only to that server (a
+  cloud provider used it too after you'd once set one).
+- **examples/ai/rai_models.rr ("Ask an AI")**: a Workspace ID row for Anthropic, with Studio's
+  wording; its layout fits its window at the default size in every look and on the web (no
+  scroll bar, nothing cut), follows the window when it's made bigger, and says what went wrong in
+  up to four lines; link colours from the theme; List Models comes back after an error;
+  switching provider forgets the model of the other one.
+- **Tidier rows**: Settings > AI's rows close up for each provider (no gap where the Workspace ID
+  or the address is hidden); the Assistant's empty text and the review bar's sentence wrap in a
+  narrow pane; the inspector's lists (an RAI's Model row) are as wide as their longest name and
+  stay inside the window; "Nothing was changed" when a review applies no change.
+- **RAI**: a models list on its way is dropped when Provider, BaseURL, WorkspaceID or the key
+  change, and a newer RefreshModels replaces it (OnDone("cancelled")); errors no longer name
+  Studio's menus (your program's users see them too); a provider's own words in them are cut at
+  160 characters. On the web a request that gets no answer is given up after the same time
+  limits as on the desktop (a browser's `fetch` has none).
+- **Timers keep ticking after a dialog closes.** The end of any ShowModal stopped every timer of
+  the program — Studio's own too, after Settings or any other dialog. Now only the program's last
+  window does, as under RapidQ (RC.EXE: a timer ticks on after a dialog it showed is closed).
+- **`RComboBox.Clear` empties the text too**, chosen or typed, every Style — as RC.EXE does (the
+  "Ask an AI" example's model list kept showing the other provider's model).
+- **Tests that use it as you do**: a local stand-in for Anthropic, OpenAI and DeepSeek
+  (`RAPIDR_AI_TEST_SERVER`, accepted for 127.0.0.1, [::1] or localhost only) with each one's real
+  error shapes, chosen by the made-up key typed: refused, failing, silent, a web page, empty, an
+  organisation's key. Studio flows click and type through the settings dialog on the desktop
+  and the web — the list's items, the button back after a 401 and a retry that works, Cancel, a
+  silent provider, the 30-second limit, the workspace header sent — in light, dark and high
+  contrast with the contrast gate; the example's tests cover the workspace and a refused key.
+
 ### AI-ready by design (AI-ARCH, phase 0)
 - **The design**: [docs/ai-architecture.md](docs/ai-architecture.md) — what every language-registry entry
   carries for AI (meaning, types, ranges and units, side effects and the risk level they give,

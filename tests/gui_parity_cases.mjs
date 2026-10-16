@@ -350,6 +350,10 @@ export const cases = [
     expect: ["lbl.caption=35x19 28x16"] },
   { name: "nested_modal", events: "btn.onclick", dump: "lbl.caption,lbl2.caption",
     expect: ["lbl.caption=open;timer-close;closed;", "lbl2.caption=ticking"] },
+  // (AI-REAL) The timers go on after a dialog closes, as RC.EXE's do: only
+  // the program's last window ending stops them
+  { name: "timer_after_dialog", events: `btn.onclick,${Array(40).fill("lbl.onclick").join(",")}`, dump: "lbl.caption,t.enabled",
+    expect: ["lbl.caption=ticking after the dialog", "t.enabled=1"] },
   // (Stage 10: the IDE's components) The designed form is drawn in its
   // frame 12 pixels into the surface (I4 L-DVIEW): its client area starts
   // at (13, 42) of the surface; the events' places are the surface's, what

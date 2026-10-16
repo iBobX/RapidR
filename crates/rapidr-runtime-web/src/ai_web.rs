@@ -17,11 +17,25 @@ impl rapidr_ai::rai::Fire for Web {
     }
 }
 
-/// The answers delivered as they come.
+thread_local! {
+    static INSTALLED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// The answers delivered as they come. (A test page's environment may name
+/// a mock provider on this computer, RAPIDR_AI_TEST_SERVER: a loopback
+/// address only — rapidr_ai::provider::set_test_server refuses others.)
 pub fn install() {
+    if INSTALLED.with(|i| i.replace(true)) {
+        return;
+    }
     rapidr_ai::http::set_notify(Some(|| {
         rapidr_ai::rai::poll(Web);
     }));
+    if let Some(server) = rapidr_ui_app::testhooks::var("RAPIDR_AI_TEST_SERVER") {
+        if let Err(e) = rapidr_ai::provider::set_test_server(Some(&server)) {
+            web_sys::console::warn_1(&format!("RAPIDR_AI_TEST_SERVER ignored: {e}").into());
+        }
+    }
 }
 
 pub fn get(name: &str, prop: &str) -> Option<Value> {
