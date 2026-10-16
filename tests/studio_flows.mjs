@@ -3501,7 +3501,7 @@ async function themesPausedWeb() {
     }, [{ path: src, text: readFileSync(join(ROOT, src), "utf8") }]);
     const q = new URLSearchParams({ theme: "rapidr-light", window: "normal", fresh: "", do: "wait,view.code,line:94", open: src });
     await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
-    await page.waitForFunction(() => window.rr && String(window.rr.rapidr_get_prop("codedoc(0)", "caretline")) === "68", null, { timeout: 60000, polling: 200 });
+    await page.waitForFunction(() => window.rr && String(window.rr.rapidr_get_prop("codedoc(0)", "caretline")) === "94", null, { timeout: 60000, polling: 200 });
     await page.waitForTimeout(500);
     await page.keyboard.press("F9");
     await page.keyboard.press("F5");
