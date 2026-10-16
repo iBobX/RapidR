@@ -366,6 +366,13 @@ def themes_walk(theme, full):
     # (the status bar: "Breakpoint: <file>:68" — a long file name cut at
     # its panel's end — and the caret's "Ln 68")
     check(f"[{theme}] paused: the status bar says Breakpoint, at line 68", "Breakpoint:" in text and "Ln 68" in text, text[-200:])
+    # (the two together: Show Program Window brings the paused program over
+    # Studio, whose ▶ shows Continue beside it — Studio's frame captured)
+    menu_click(studio, "Debug", "Show Program Window")
+    if wait_front(prog):
+        sw = wins(studio)[0]
+        shot_screen_region(sw["x"], sw["y"], sw["w"], sw["h"], f"{theme}-03-paused-with-program")
+    activate(studio)
     if not full:
         key(studio, F5)
         time.sleep(1.0)
