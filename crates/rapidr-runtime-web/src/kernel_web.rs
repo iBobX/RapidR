@@ -59,6 +59,9 @@ thread_local! {
     static RESULTS: RefCell<Option<String>> = const { RefCell::new(None) };
     /// The program ENDed: its windows are gone, nothing more is drawn.
     static ENDED: Cell<bool> = const { Cell::new(false) };
+    /// A GUI test drives the program (`ensure`): the user's input is dropped
+    /// whether or not it's paused.
+    static UNDER_TEST: Cell<bool> = const { Cell::new(false) };
 }
 
 fn lower(s: &str) -> String {
@@ -255,15 +258,55 @@ fn ensure() {
     host::on_drop_files(Rc::new(|form: &str| crate::object_web::rp_has_handler(form, "ondropfiles")));
     crate::fonts_web::install();
     let capture = testhooks::Capture::from_env();
+    UNDER_TEST.with(|t| t.set(capture.is_some()));
     host::with(|h, _| {
         // (carets blink, but not under a test: captures must be steady)
         h.desk.blinks = capture.is_none();
-        h.desk.ignore_user = capture.is_some();
+        h.desk.ignore_user = capture.is_some() || crate::object_web::debug_stopped();
     });
     if let Some(c) = capture {
         let next = rapidr_ui_kernel::tick::now() + std::time::Duration::from_secs_f64(c.delay.max(0.0));
         script::start(c, next);
     }
+}
+
+/// The program stopped for its debugger, or going on: while it's stopped
+/// the user's clicks, keys, wheel and close box to its windows are dropped
+/// (as the desktop's are: `rapidr_runtime_core::ui::kernel::
+/// gui_serve_paused`) — its windows still show, move and come to the front,
+/// and nothing waits to surprise the program when it goes on.
+pub fn set_paused(on: bool) {
+    apply_paused();
+    // (going on: a turn once the code it goes on with has run, which arms
+    // the next deadline — a timer whose OnTimer was stopped ticks again;
+    // nothing else would ask for a turn before the next input)
+    if !on {
+        later();
+    }
+}
+
+thread_local! {
+    /// What ends the program when the user closes its last window while
+    /// it's stopped ([`on_close_while_stopped`]).
+    static HELD_CLOSE: RefCell<Option<Rc<dyn Fn()>>> = const { RefCell::new(None) };
+}
+
+/// (the interpreter's session, `rapidr-vm-host-web`) What ends the program
+/// when the user closes its last window while the debugger holds it — as
+/// the desktop's, the end Stop gives it.
+pub fn on_close_while_stopped(end: Rc<dyn Fn()>) {
+    HELD_CLOSE.with(|c| *c.borrow_mut() = Some(end));
+}
+
+/// The user's input to the program's windows dropped while it's stopped
+/// (again at every turn: a stop made while the host was busy is applied
+/// at its next turn).
+fn apply_paused() {
+    let stopped = crate::object_web::debug_stopped();
+    let held = UNDER_TEST.with(Cell::get) || stopped;
+    host::with(|h, _| h.desk.ignore_user = held);
+    // (and the keyboard left to Studio)
+    rapidr_ui_host_web::mirror::hold_keyboard(stopped);
 }
 
 fn spec_of(name: &str) -> WindowSpec {
@@ -446,6 +489,24 @@ pub fn turn() {
         return;
     }
     TURNING.with(|t| t.set(true));
+    apply_paused();
+    // (its last window closed by the user while it's stopped: it ends, as
+    // Stop ends it — none of its code runs, not its OnClose)
+    let stopped = crate::object_web::debug_stopped();
+    let closed = host::with(|h, _| {
+        if stopped {
+            h.desk.take_held_last_close()
+        } else {
+            h.desk.held_close = None;
+            None
+        }
+    })
+    .flatten();
+    if let (Some(_), Some(end)) = (closed, HELD_CLOSE.with(|c| c.borrow().clone())) {
+        TURNING.with(|t| t.set(false));
+        end();
+        return;
+    }
     sync();
     dispatch_pending();
     serve_waits();
@@ -985,6 +1046,9 @@ pub fn method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Opti
         (_, "hide") => forms::hide(Web, name),
         (_, "setfocus" | "focus") => {
             let form = form_of(name).map(|f| lower(&f));
+            // (asked for: the keyboard comes back from an embedded frame —
+            // RapidR Studio paused, its program's frame had it)
+            rapidr_ui_host_web::mirror::claim_keyboard();
             if let Some(form) = form {
                 host::with(|h, store| {
                     if let Some(f) = h.desk.forms.get_mut(&form) {

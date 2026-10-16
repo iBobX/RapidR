@@ -24,6 +24,8 @@ pub struct ProcessTransport {
     exit: Option<i32>,
     /// Woken when the program says something ([`Self::set_waker`]).
     waker: Arc<Mutex<Option<Waker>>>,
+    /// What hands the program's process the front ([`Self::set_activator`]).
+    activator: Option<Box<dyn Fn(u32) -> bool>>,
 }
 
 /// Wakes the IDE's loop, if it gave a waker: what the program said is
@@ -122,7 +124,19 @@ impl ProcessTransport {
             }
         });
         let stdin = child.stdin.take();
-        Ok(ProcessTransport { child, stdin, incoming, exit: None, waker })
+        Ok(ProcessTransport { child, stdin, incoming, exit: None, waker, activator: None })
+    }
+
+    /// The program's process id.
+    pub fn id(&self) -> u32 {
+        self.child.id()
+    }
+
+    /// How the IDE hands the program's process (its id) the front, its
+    /// windows raised — the window system's call, which this crate doesn't
+    /// make itself ([`Transport::show_program`]).
+    pub fn set_activator(&mut self, activate: Box<dyn Fn(u32) -> bool>) {
+        self.activator = Some(activate);
     }
 
     /// `waker` is woken whenever the program says something (an event, a
@@ -164,6 +178,11 @@ impl Transport for ProcessTransport {
         if let Ok(status) = self.child.wait() {
             self.exit.get_or_insert(status.code().unwrap_or(-1));
         }
+    }
+
+    fn show_program(&mut self) -> bool {
+        let pid = self.child.id();
+        self.exit.is_none() && self.activator.as_ref().is_some_and(|a| a(pid))
     }
 
     fn ended(&mut self) -> Option<i32> {

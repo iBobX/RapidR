@@ -82,6 +82,25 @@ pub trait Host {
     fn pump_serving(&self) -> Option<fn(&mut dyn FnMut()) -> Option<Value>> {
         None
     }
+    /// The program is stopped for its debugger (a breakpoint, a step, a
+    /// pause, a run-time error): its windows' own events are served once —
+    /// painted from what they show, activated, raised, moved, resized —
+    /// and nothing of the program runs: no handler, no timer; the user's
+    /// clicks and keys to its windows are dropped. Returns once something
+    /// happened, or another thread woke the host (a request for the
+    /// debugger arrived). `false`: nothing to serve (no window shown, a
+    /// test's headless host, a system loop holding the pump), and the
+    /// debugger waits for its requests instead. A paused program's windows
+    /// stay on the screen and reachable, as a debugged program's should.
+    fn serve_paused(&mut self) -> bool {
+        false
+    }
+    /// After [`Host::serve_paused`]: the user closed the stopped program's
+    /// last window meanwhile — the debugger ends it, as its Stop does (none
+    /// of its code runs, not its OnClose).
+    fn closed_while_paused(&mut self) -> bool {
+        false
+    }
     /// The type (`RBUTTON` …) of the program's component `id`, for the
     /// debugger (`None`: no such component, or the host has none).
     fn component_type(&mut self, _id: &str) -> Option<String> {

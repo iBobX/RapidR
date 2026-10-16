@@ -168,6 +168,14 @@ impl Host for NativeHost {
         Some(obj::rp_pump_wait_serving)
     }
 
+    fn serve_paused(&mut self) -> bool {
+        obj::rp_serve_paused()
+    }
+
+    fn closed_while_paused(&mut self) -> bool {
+        obj::rp_closed_while_paused()
+    }
+
     fn register_event(&mut self, id: &str, event: &str, handler_fn_index: u32) -> Result<(), String> {
         obj::rp_bind_event_indirect(id, event, handler_fn_index);
         self.events.push((id.to_string(), event.to_string(), handler_fn_index));

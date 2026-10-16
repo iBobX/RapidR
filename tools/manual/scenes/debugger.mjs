@@ -10,6 +10,7 @@
 const COUNTER = "tools/manual/scenes/debugger/counter.rr";
 const SHARE = "tools/manual/scenes/debugger/share.rr";
 const GREETER = "tools/manual/scenes/debugger/greeter.rr";
+const COLOURS = "tools/manual/scenes/debugger/colours.rr";
 
 // (the debugger's example: examples/debugging/shop.rr — line 76 adds a
 // LineTotal in AddUp's loop; line 147 calls AddUp, after the week's table)
@@ -35,6 +36,8 @@ export const scenes = [
   { topic: "debugging", name: "set-value", open: COUNTER, do: `${HIT},view.variables,varpick:G/total,key:F2,type:100`, delay: 7, crop: BOTTOM },
   { topic: "debugging", name: "call-stack-frame", open: COUNTER, do: `${HIT},debug.stepInto,wait,debug.stepOver,wait,view.variables,frame:1,wait`, delay: 7, crop: WORKBENCH },
   { topic: "debugging", name: "immediate", open: COUNTER, do: `${BP},bpcond:i = 3,run.start,wait,wait,wait,view.immediate,focus:immediatebox,type:? total * 10,key:Enter,wait,wait,wait,type:total = 0,key:Enter,wait,wait,wait,type:? total,key:Enter,wait,wait`, delay: 12, crop: BOTTOM },
+  // (DEBUG-RUN: paused, ▶ is Continue — the Debug menu opened by a click on it)
+  { topic: "debugging", name: "paused-debug-menu", open: COUNTER, do: `${HIT},key:Alt+D`, delay: 6, crop: [0, 0, 560, 345] },
   { topic: "debugging", name: "pause-waiting", open: GREETER, do: "run.start,wait,wait,wait,run.pause,wait,wait", delay: 6, crop: [0, 64, 1036, 706] },
   { topic: "debugging", name: "program-window", open: GREETER, do: "run.start,wait,wait,wait", delay: 5, program: true },
   { topic: "debugging", name: "runtime-error", open: SHARE, do: "run.start,wait,wait,wait,view.variables", delay: 6, crop: WORKBENCH },
@@ -42,6 +45,9 @@ export const scenes = [
   { topic: "debugging", name: "datatip-tree", open: SHOP, do: `${LOOP},hover:76:37,wait,wait,wait,tipopen:1,wait,wait,tipopen:4,wait,wait,tipopen:7,wait,wait`, delay: 9, crop: EDITOR_TALL },
   { topic: "debugging", name: "datatip-frame", open: SHOP, do: "line:147,debug.toggleBreakpoint,run.start,wait,wait,wait,hover:140:2,wait,wait,wait,wait", delay: 8, crop: EDITOR },
   { topic: "debugging", name: "variables-changed", open: SHOP, do: `${LOOP},run.start,wait,wait,wait,view.variables`, delay: 8, crop: VARS },
+  // (DEBUG-RUN, scenario 15: the program's own globals first, RAPIDQ.INC's
+  // constants under one closed item after them)
+  { topic: "debugging", name: "variables-include", open: COLOURS, do: "line:7,debug.toggleBreakpoint,run.start,wait,wait,wait,view.variables", delay: 6, crop: VARS },
   { topic: "debugging", name: "variables-components", open: SHOP, do: `${LOOP},view.variables,collapse:L,collapse:G,expand:C,wait,wait,expand:C/Form,wait,wait,expand:C/Form/Components,wait,wait`, delay: 10, crop: VARS },
   { topic: "debugging", name: "text-viewer", open: SHOP, do: "line:147,debug.toggleBreakpoint,run.start,wait,wait,wait,hover:142:3,wait,wait,wait,tipaction:0:view,wait,wait", delay: 8, window: 2 },
   { topic: "debugging", name: "step-into-specific", open: SHOP, do: `${LOOP},into:LineTotal,wait,wait,wait,view.variables`, delay: 8, crop: WORKBENCH },

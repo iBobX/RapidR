@@ -1904,6 +1904,34 @@ pub fn rp_wake() {
     }
 }
 
+/// The program is stopped for its debugger: its windows' own events served
+/// once — painted, activated, moved — with none of its code run and the
+/// user's input to them dropped (`crate::ui::kernel::gui_serve_paused`);
+/// `false` when there is nothing to serve (no window shown, no window
+/// system): the debugger waits for its requests instead.
+pub fn rp_serve_paused() -> bool {
+    #[cfg(feature = "gui")]
+    return crate::ui::gui_serve_paused();
+    #[cfg(not(feature = "gui"))]
+    false
+}
+
+/// The user closed the stopped program's last window while its windows
+/// were served ([`rp_serve_paused`]): the debugger ends it, as Stop does.
+pub fn rp_closed_while_paused() -> bool {
+    #[cfg(feature = "gui")]
+    return crate::ui::gui_closed_while_paused();
+    #[cfg(not(feature = "gui"))]
+    false
+}
+
+/// The program stopped for its debugger: when it was the active app, the
+/// front goes back to RapidR Studio (`crate::ui::kernel::gui_debugger_stopped`).
+pub fn rp_debugger_stopped() {
+    #[cfg(feature = "gui")]
+    crate::ui::gui_debugger_stopped();
+}
+
 /// One step of the innermost wait: `None` while it goes on, `Some` when over.
 pub fn rp_pump_wait() -> Option<Value> {
     #[cfg(feature = "gui")]

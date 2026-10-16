@@ -9,8 +9,10 @@
 ' stepping, Ctrl+S, Ctrl+O, Ctrl+N, Ctrl+Shift+P); Shown is a key the
 ' focused control keeps (Ctrl+C in an editor), shown in the menu only.
 ' EnabledWhen names the state the command needs: "" always, "project",
-' "document", "code", "design", "idle" (nothing running), "running",
-' "paused", "session" (running or paused).
+' "document", "code", "design", "idle" (nothing running or paused),
+' "startable" (Run / Continue: idle or paused), "steppable" (F10 / F11:
+' idle or paused), "cursor" (code, not running), "running", "paused",
+' "pausedcode", "session" (running or paused).
 TYPE StudioCommand
   Id AS STRING
   Title AS STRING
@@ -141,6 +143,8 @@ DECLARE SUB SetUpDebug
 DECLARE SUB ApplyDebugColors
 DECLARE SUB ApplyDebugFonts(Rows AS INTEGER)
 DECLARE SUB PerfReadyTick
+DECLARE SUB StepRaiseTick
+DECLARE SUB RaiseRetryTick
 DECLARE SUB ProgramFormShown(Id AS STRING)
 DECLARE SUB StopProgram
 DECLARE SUB CodeGutterClick(LineNo AS INTEGER, Area AS STRING, Sender AS RCodeEditor)

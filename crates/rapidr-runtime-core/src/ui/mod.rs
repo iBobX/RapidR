@@ -40,6 +40,9 @@ pub use kernel::{
     // beeps as Windows' MessageBox does — MESSAGEBOX; Delphi's MessageDlg
     // doesn't)
     gui_showmodal, gui_wait_key, gui_take_wait_started, gui_set_cooperative_waits,
+    // (stopped for the debugger: the windows served, the program not run;
+    // the front handed between RapidR Studio and its program)
+    gui_serve_paused, gui_closed_while_paused, gui_debugger_stopped,
     gui_choice, gui_dialog_execute,
     // (the I/O lane's: a method waiting for work done in the background)
     gui_wait_task,

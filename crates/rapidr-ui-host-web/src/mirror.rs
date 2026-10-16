@@ -49,6 +49,37 @@ fn px(v: i64) -> String {
     format!("{v}px")
 }
 
+thread_local! {
+    /// The page's own windows want the keyboard back from an embedded frame
+    /// ([`claim_keyboard`]).
+    static CLAIM: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// The page's windows leave the keyboard where it is ([`hold_keyboard`]).
+    static HELD: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// (RapidR Studio's running program, held by Studio's debugger) The page's
+/// windows don't take the keyboard meanwhile: a window shown or a control
+/// focused just before the stop would otherwise take it back into the
+/// program's frame from Studio, at the frame drawn after the stop — and
+/// Studio's keys (F5, F10) would go to a program that drops them.
+pub fn hold_keyboard(on: bool) {
+    HELD.with(|h| h.set(on));
+}
+
+/// A window of this page asked for the keyboard (a SetFocus, a window
+/// shown): the next active window's mirror takes it even from an embedded
+/// frame that has it. Without such a request the frame keeps it — RapidR
+/// Studio's running program, where the person clicked to type, isn't robbed
+/// of its keys by Studio's next frame (a caret's blink, a status line).
+pub fn claim_keyboard() {
+    CLAIM.with(|c| c.set(true));
+}
+
+/// The page's keyboard is an embedded frame's (an `<iframe>` has the focus).
+fn frame_has_keyboard(doc: &Document) -> bool {
+    doc.active_element().is_some_and(|a| a.tag_name().eq_ignore_ascii_case("iframe"))
+}
+
 impl Mirror {
     pub fn new(doc: &Document, form: &str) -> Option<Mirror> {
         let root: HtmlElement = doc.create_element("div").ok()?.dyn_into().ok()?;
@@ -216,6 +247,15 @@ impl Mirror {
         // (the DOM focus where the kernel's is; the window's own node when
         // nothing in it has the focus, so its keys reach it)
         let Some(target) = focus_el.map(|(_, el)| el).or(first) else { return };
+        if HELD.with(std::cell::Cell::get) {
+            return;
+        }
+        // (a frame the person typed into keeps the keyboard until this page
+        // asks for it: RapidR Studio's running program)
+        if frame_has_keyboard(&self.doc) && !CLAIM.with(|c| c.replace(false)) {
+            return;
+        }
+        CLAIM.with(|c| c.set(false));
         let has = self.doc.active_element().is_some_and(|a| a == *target.as_ref());
         if !has {
             self.focusing = true;

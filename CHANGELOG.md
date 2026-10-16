@@ -230,6 +230,50 @@ with the three providers' real model lists and answers, and a local stand-in for
   silent provider, the 30-second limit, the workspace header sent — in light, dark and high
   contrast with the contrast gate; the example's tests cover the workspace and a refused key.
 
+### Running and debugging, used as you use it (DEBUG-RUN, before the release)
+Robert's run of the Preview 2 build, paused at a breakpoint in examples/gui/themes.rr after a
+click on its Dark button: the ▶ button was greyed, and the program's window vanished once he had
+switched to another app. Both fixed and walked on the real screen, in light, dark and high contrast.
+- **▶ continues a paused program.** Run (F5, the ▶ button, Run ▸ Run) is *Continue* while the
+  program is paused — the menu item says so and the button's tip is "Continue (F5)" — and F5
+  belongs to it alone (Debug ▸ Continue shows the key). Every Run and Debug command is now enabled
+  exactly when it can act: Run, Stop and Restart right after a run that ended with an error (Run
+  was greyed, Stop enabled with nothing to stop); the steps and Run to Cursor off while the program
+  runs. A new state table — not running, running, stepping, paused at a breakpoint or a run-time
+  error, ended, closed by its own close box — is checked on the menus, the tool bar and the command
+  palette, driven by real keys and clicks on the desktop and in the browser
+  (`tests/studio_flows.mjs` debug-commands-*).
+- **A paused program's windows stay on the screen and reachable.** Stopped for the debugger, the
+  program kept its main thread waiting for Studio: no window-system events, so its window couldn't
+  be raised, repainted or brought back (and looked hung). Now it keeps serving the window system
+  while it's paused — painted from what it shows, activated with a click or Cmd-Tab / Alt-Tab,
+  moved, resized, minimized — without running any of its code: no handler, no timer. Clicks and
+  keys to its windows are dropped while it's paused (not queued to surprise it later), on the
+  desktop and in the browser alike; closing its last window ends it, as Stop does (Studio back to
+  Ready, Run enabled); a value set from Variables or the Immediate pane shows in its windows at
+  once.
+- **The right window in front.** The program's first window comes up in front of Studio (it
+  opened behind it); a stop while you were using the program brings Studio to the front;
+  Continue, Run to Cursor and a step that takes longer than half a second bring the program back.
+  **Debug ▸ Show Program Window** brings it forward any time it runs or is paused
+  (`RProgramSession.ShowProgram`). macOS (cooperative activation), Windows and Linux on X11; on
+  Wayland the system lets no program raise another's windows.
+- **Event handlers, debugged as you debug them** (Robert's scenarios 1–6). A breakpoint in a
+  handler stops on every event — each click, each letter typed (hello_form.rr's one-line OnChange
+  stopped once, then never again), each OnTimer, OnResize, OnMouseMove, OnClose, OnKeyPress and
+  focus event — after Continue and after a Step Over out of the handler; a handler that opens a
+  dialog steps over it and stops on the next line; a handler that fires another stops in the inner
+  one with both on the call stack; a run-time error in a handler stops at its line. In the
+  browser: a timer whose OnTimer was stopped ticks again after Continue, and the paused program's
+  window no longer takes the keyboard back from Studio (F5 and F10 reached the stopped program and
+  were dropped — a nested OnResize looked as if it stopped forever). Each case is a flow on the
+  desktop and in the browser (`debug-events-*`), three stops each.
+- **Globals shows your variables first.** The constants an `$INCLUDE` brings (RAPIDQ.INC's 484
+  colours, keys and button codes buried a program's own globals) are now under one closed item per
+  file after them: `$INCLUDE RAPIDQ.INC (484 names)`.
+- Manual: [Debugging](docs/manual/debugging.md) — "Which commands you can use when", "Your
+  program's window and Studio's", "Breakpoints in event handlers" and Variables' Globals.
+
 ### AI-ready by design (AI-ARCH, phase 0)
 - **The design**: [docs/ai-architecture.md](docs/ai-architecture.md) — what every language-registry entry
   carries for AI (meaning, types, ranges and units, side effects and the risk level they give,

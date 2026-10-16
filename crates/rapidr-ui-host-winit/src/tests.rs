@@ -162,6 +162,28 @@ fn input_reaches_the_kernel_and_modality_drops_the_users() {
     assert!(d.events.is_empty());
     d.close_box("frm", Source::Script);
     assert_eq!(d.events, vec![HostEvent::Kernel("frm".into(), KernelEvent::Close("frm".into()))]);
+    // (a debugger's stop) the user's close box, dropped, is noted: it ends
+    // the stopped program when it was its last window shown, or the form
+    // its ShowModal waits for — not another window
+    d.events.clear();
+    d.held_close = None;
+    d.close_box("dlg", Source::User);
+    assert!(d.events.is_empty());
+    assert_eq!(d.held_close.as_deref(), Some("dlg"));
+    assert_eq!(d.take_held_last_close(), None);
+    assert_eq!(d.held_close, None);
+    d.modal.push("frm".into());
+    d.close_box("frm", Source::User);
+    assert_eq!(d.take_held_last_close().as_deref(), Some("frm"));
+    d.modal.clear();
+    d.hide("dlg");
+    d.close_box("FRM", Source::User);
+    assert_eq!(d.take_held_last_close().as_deref(), Some("frm"));
+    // (a test's own close, or the user's while input counts, isn't one)
+    d.close_box("frm", Source::Script);
+    d.ignore_user = false;
+    d.close_box("frm", Source::User);
+    assert_eq!(d.held_close, None);
 }
 
 #[test]
