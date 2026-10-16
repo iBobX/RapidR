@@ -1387,6 +1387,18 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     fn invoke(&mut self, module: &Module, event: QueuedEvent, nested: bool) -> Result<Value, VmError> {
         let QueuedEvent { handler: fn_index, args, then } = event;
         let (base_frames, base_stack) = (self.frames.len(), self.stack.len());
+        // (the debugger: an event's handler starts afresh — its first line
+        // is a new line even when it's the one the last event ran, so a
+        // breakpoint in a one-line handler stops on every event; and a step
+        // that began in a handler which has since returned to the event
+        // loop is over: the program runs until a breakpoint, as other
+        // debuggers do)
+        self.last_line = NO_LINE;
+        if let StepMode::Over { target_depth } | StepMode::Out { target_depth } = self.step_mode {
+            if target_depth > base_frames {
+                self.step_mode = StepMode::None;
+            }
+        }
         let argc = u8::try_from(args.len()).map_err(|_| VmError::Runtime("too many event arguments".into()))?;
         self.stack.extend(args);
         if let Err(e) = self.call(module, fn_index, argc, true) {
