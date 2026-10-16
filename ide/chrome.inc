@@ -97,6 +97,7 @@ SUB ApplyChrome
   ApplyFonts
   ' (the start page)
   Welcome.Color = TC("page")
+  WelcomePage.Color = TC("page")
   WelcomeTitle.Font = HeadFont
   WelcomeTitle.Font.Color = TC("page.dim")
   WelcomeTag.Font.Color = TC("page.dim")
@@ -176,11 +177,29 @@ SUB UpdateTitle
   LayOutStatus
 END SUB
 
+' View > Theme: the look Studio is drawn in (StudioThemeChanged follows,
+' as for the system's own changes).
 SUB SetTheme(Name AS STRING)
   ThemeChoice = Name
   Application.Theme = Name
+END SUB
+
+' (Application.OnThemeChange) The look changed: View > Theme, or the system
+' switched between light, dark and high contrast while Studio follows it
+' (RapidR's look, View > Theme > RapidR). Every colour, icon, font and size
+' Studio took from the theme is taken again — the start page, the panes,
+' the status bar, the debugger's, and the dialogs' whether they are open or
+' not — so nothing keeps the look it had.
+SUB StudioThemeChanged
   ApplyChrome
+  ' (the cards' titles are AutoSize: their fonts set again shrank them to
+  ' their text — laid out again, as at the start)
+  LayOutWelcome
   FillProjectTree
   AnalyzeActive
   UpdateCommands
+  LayOutAppDialog
+  LayOutSettingsDialog
+  LayOutPrompt PromptMany
+  PickTemplate TplChosen
 END SUB

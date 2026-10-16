@@ -141,7 +141,8 @@ compiler doesn't know it).
 | `MinWidth`, `MinHeight`, `MaxWidth`, `MaxHeight` (also `Constraints.MinWidth`, …) | bound every size the component takes, from the program, the layout or the user |
 | `AccessibleName`, `AccessibleDescription` | what a screen reader says, when the caption isn't enough |
 | `Form.Scale`, `Screen.Scale`, `OnScaleChanged` | how fine the screen is (2 on a Retina screen, 1.5 at 150 %) |
-| `Application.Theme`, `$THEME` | the look (below) |
+| `Application.Theme`, `$THEME`, `Application.OnThemeChange` | the look, and when it changes (below) |
+| `TabStop` on a panel | the panel takes the keyboard focus: a clickable card ([Accessibility](#accessibility)) |
 | `AutoComplete` on an edit | the browser's autofill hint, on the web |
 | `Form.OnDropFiles (Files AS STRING)` | files dragged from the computer and dropped on the window (below) |
 
@@ -215,6 +216,51 @@ contrast) and is the same on macOS, Windows, Linux and the web.
 `RAPIDR_THEME` environment variable gives a theme to programs that name
 none (RapidR Studio's **Preview in Classic** uses it).
 
+### When the look changes
+
+A program in RapidR's look (the default) changes look while it runs: when
+the person using it switches the system to light, dark or high contrast —
+macOS' Appearance and Increase Contrast, Windows'
+app mode and High Contrast, the browser's colour scheme on the web — and
+when the program sets `Application.Theme`. It opens in the system's look
+from its first line. What RapidR draws follows by itself: every
+component, and RapidQ's system colours (`clBtnFace`, `clWindowText` …).
+
+A colour the program *read* from the theme with `Application.ThemeColor`
+is a number, though: it stays what it was. RapidR's
+`Application.OnThemeChange` fires once the look has changed — take those
+colours again there:
+
+```basic
+SUB TakeColors
+    Card.Color = Application.ThemeColor("card")
+    CardTitle.Font.Color = Application.ThemeColor("page.text")
+    Now.Caption = "Theme: " + Application.Theme
+END SUB
+
+TakeColors                              ' the look it opens in
+Application.OnThemeChange = TakeColors  ' and each look after it
+```
+
+It fires after the change, once (two changes in a moment fire it once,
+for the look they end in), from the moment it's set: not for the look the
+program opens in, so call your SUB once yourself, as above. A program
+that named a look (`$THEME Dark`, `Application.Theme = "classic"`) keeps
+it when the system switches; `Application.Theme = "rapidr"` follows the
+system again. [themes.rr](../../examples/gui/themes.rr) shows it: switch
+your system to dark while it runs, or pick a look with its buttons.
+
+![themes.rr on a light system](images/themes/themes-light.png)
+![The same window after the system switched to dark while it ran: the controls, the card taken again in OnThemeChange, "Theme: rapidr dark"; the yellow label's own colours stay](images/themes/themes-system-dark.png)
+
+RapidR Studio does the same: it opens in your system's look and follows
+it (View ▸ Theme ▸ RapidR, the default); View ▸ Theme ▸ Light, Dark, High
+Contrast or Classic picks one instead. Every pane, the Welcome page, the
+designer, the debugger and any dialog that's open take the new look at
+once.
+
+![RapidR Studio opened on a light system, after the system switched to dark: the Welcome page, its cards and links in the dark look](images/themes/studio-system-dark.png)
+
 A theme changes only how things are drawn, never a size or a place: a
 component's Left, Top, Width and Height, a form's client area and an
 AutoSize label's size are RapidQ's in every theme. RapidQ's default font
@@ -261,6 +307,13 @@ the author doing anything:
   Narrator and NVDA (UI Automation) on Windows, AT-SPI on Linux (through
   AccessKit); in a browser, an ARIA mirror of the same tree.
 - A component's name is its caption, or its `AccessibleName`.
+- (RapidR's) A panel with `TabStop = 1` takes the focus like a button:
+  Tab reaches it, the theme's focus ring shows around it, Enter or Space
+  clicks it (`OnClick`), and a screen reader announces a button named by
+  its `AccessibleName`. That's a clickable card — RapidR Studio's Welcome
+  page is made of them. In an `RScrollBox`, Tab onto a component below its
+  edge scrolls it into view (as in RapidQ). RapidQ's panels never take the
+  focus, and a panel without `TabStop` doesn't either.
 
 ## How it is drawn
 

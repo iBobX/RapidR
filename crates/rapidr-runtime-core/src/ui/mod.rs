@@ -56,6 +56,8 @@ pub use kernel::{
     // `$THEME name`, and a QTIMER the program made (generated programs call
     // both through the prelude).
     set_theme, gui_register_timer,
+    // (RapidR's look as the system is, from the program's first line)
+    start_theme,
     // The screen (`Screen.Width` / `Height`, the work area less the task
     // bar / menu bar), the mouse on it, `Application.Minimize` (every
     // window), MSGBOX (the text and OK).

@@ -161,6 +161,12 @@ SUB StudioResize
   LayOutWelcome
 END SUB
 
+' (the keyboard starts in the Project pane, as it always has: the Welcome
+' page's cards are Tab stops, and come first in the window)
+SUB StudioShown
+  IF ActiveDoc < 0 THEN Dock.FocusPane("projecttree")
+END SUB
+
 SUB StudioClose(Action AS INTEGER)
   ' (changes not saved: asked first; Cancel keeps Studio open)
   IF AskToSaveAll = 0 THEN
@@ -296,6 +302,8 @@ SUB StartStudio
   FillPalette
   FillRecent
   ApplyChrome
+  ' (from here on, the look's changes: the system's, View > Theme)
+  Application.OnThemeChange = StudioThemeChanged
   FillProjectTree
   InspectActive
   OutputLine "RapidR Studio is ready."

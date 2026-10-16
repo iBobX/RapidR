@@ -17,6 +17,7 @@ DIM PromptAnswer AS INTEGER
 DIM PromptRust AS INTEGER   ' 1: the native build's question (no Rust), else the save questions
 DIM PromptIconBmp AS RBitmap
 DIM PromptIconLoaded AS INTEGER
+DIM PromptMany AS INTEGER   ' (the question laid out last: again when the look changes)
 
 CREATE SavePrompt AS RForm
   Caption = "RapidR Studio"
@@ -71,6 +72,7 @@ SUB LayOutPrompt(Many AS INTEGER)
     pad = 20: ic = 56: bh = 32: gap = 8: th = 38: tx = 36
     ws = 96: wd = 112: wr = 150: wc = 96
   END IF
+  PromptMany = Many
   IF Many THEN wd = wd + 24
   ' (the Rust question's buttons say more: "Build Interpreted Instead")
   IF PromptRust THEN

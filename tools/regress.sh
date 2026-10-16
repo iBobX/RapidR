@@ -112,9 +112,11 @@ if want studio || want studio-goldens; then echo "== studio goldens"
 # headless host and on the web page (the designer, the inspector, the
 # editor, running and debugging: breakpoints, stepping, Variables, Watch,
 # Call Stack, Immediate, a run-time error, the program's windows floating
-# over the page), and Run in Browser (the web build served on 127.0.0.1).
+# over the page), the look switched while it runs (THEME-LIVE: identical to
+# Studio started in that look), and Run in Browser (the web build served on
+# 127.0.0.1).
 if want studio; then echo "== studio"
-  for t in tests/studio_shell.mjs tests/studio_flows.mjs tests/run_in_browser.mjs; do
+  for t in tests/studio_shell.mjs tests/studio_flows.mjs tests/studio_theme_follow.mjs tests/run_in_browser.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m8 -E "✗|≠|Error"; }
     echo "$out" | tail -1
   done

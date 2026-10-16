@@ -146,6 +146,41 @@ fn scrolled(f: &mut FormUi, id: &str, (dx, dy): (i64, i64)) {
     }
 }
 
+/// (Delphi's AutoScrollInView) The keyboard's focus moved onto a component
+/// out of view: each scroll box holding it, innermost first, then the
+/// form, scrolls by the least that shows it (`scrollbars::Scroller::
+/// reveal`) — Tab reaches what's below a scroll box's edge and shows it.
+pub(crate) fn show_focused(f: &mut FormUi, store: &dyn Store) {
+    let Some(i) = f.focus else { return };
+    // (how far the boxes inside have moved it already)
+    let mut moved = (0, 0);
+    for (name, origin, (w, h)) in scrollers(f, store) {
+        // (a box that holds it: the form, or one of its parents)
+        let holds = name == f.form || {
+            let mut p = f.nodes[i].parent;
+            let mut found = false;
+            while let Some(k) = p {
+                if f.nodes[k].id == name {
+                    found = true;
+                    break;
+                }
+                p = f.nodes[k].parent;
+            }
+            found
+        };
+        if !holds || !scrollbars::with(&name, |s| s.vert.shown || s.horz.shown).unwrap_or(false) {
+            continue;
+        }
+        // (where it shows, in the box's area, once the boxes inside it have
+        // moved it)
+        let (x, y, cw, ch) = f.nodes[i].abs;
+        let r = (x - origin.0 - moved.0, y - origin.1 - moved.1, cw, ch);
+        let shift = scrollbars::with_mut(&name, |s| s.reveal(r, w, h));
+        moved = (moved.0 + shift.0, moved.1 + shift.1);
+        scrolled(f, &name, shift);
+    }
+}
+
 /// A press at (x, y) of form `f`'s client area: whether a scroll bar took
 /// it (an arrow or the track scrolls at once; the thumb starts a drag).
 pub(crate) fn bars_down(f: &mut FormUi, store: &dyn Store, x: f64, y: f64) -> bool {

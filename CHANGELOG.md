@@ -274,6 +274,47 @@ switched to another app. Both fixed and walked on the real screen, in light, dar
 - Manual: [Debugging](docs/manual/debugging.md) — "Which commands you can use when", "Your
   program's window and Studio's", "Breakpoints in event handlers" and Variables' Globals.
 
+### Themes that follow the system, used as you use it (THEME-LIVE, before the release)
+Robert's run of the Preview 2 build on a Mac in Dark: "Welcome screen is not responding to theme
+changes, it's always light." Studio set its look before its window existed, when RapidR still
+answered "light" for the system; half a second later it turned dark, but every colour Studio had
+taken from the theme — the Welcome page, its cards, headings and links — stayed light. Fixed, and
+walked on the real screen.
+- **Programs open in the system's look.** A program in RapidR's look (the default, `$THEME
+  rapidr`) reads the system's light, dark or high contrast from its first line — before its first
+  window — on macOS, Windows and Linux; on the web, the page's colour scheme.
+- **`Application.OnThemeChange`** (RapidR's, additive): fires once the look has changed — the
+  program set `Application.Theme` to another look, or the system switched (macOS' Appearance or
+  Increase Contrast, Windows' app mode or High Contrast, the browser's colour scheme or forced
+  colours) while the program follows it. Once per change, after it, from the moment it's bound.
+  Colours read with `Application.ThemeColor` are numbers: take them again there. Desktop, native,
+  interpreter and web; its language-registry entry with its AI facets.
+- **RapidR Studio follows the system, and every View ▸ Theme switch,** everywhere at once: the
+  Welcome page and its cards, the panes, the status bar, the designer, the debugger's panes and
+  changed values, and the dialogs — Settings, New Project, Project Options and the save question
+  — even while they are open. A guard (`tests/studio_theme_follow.mjs`) switches the look while
+  Studio runs and compares it, pixel for pixel, with Studio started in that look: the Welcome page
+  (and scrolled), the designer, those dialogs open, the debugger paused; desktop and web; and the
+  browser's own colour-scheme switch on a live page.
+- **The Welcome page scrolls, and its cards are Tab stops.** At Studio's default size six of its
+  sixteen example cards were cut off or hidden, with no way to reach them. The page now scrolls
+  (the wheel, the bar), Tab and Shift+Tab go from card to card — the page scrolls to the one
+  reached — and Enter or Space opens it; screen readers hear each as a button. Studio still starts
+  with the keyboard in the Project pane.
+- **`TabStop` on an `RPanel`** (RapidR's): the panel takes the focus — Tab, the theme's focus ring,
+  Enter or Space for `OnClick`, a button to screen readers. RapidQ's panels never take the focus,
+  and one without `TabStop` still doesn't.
+- **A scroll box scrolls to the component Tab reaches** (Delphi's AutoScrollInView, so RapidQ's
+  QSCROLLBOX does): `RScrollBox`, and a form's own scroll bars.
+- New Project's and Project Options' fields keep the 28-pixel height their layout gives them
+  (RapidQ's QEDIT AutoSize made them the font's height again when the dialog first showed, so a
+  look's change while one was open made them jump).
+- `examples/gui/themes.rr` follows the system: its card takes the theme's colours again and its
+  last line names the look each time it changes; System, Light, Dark, High contrast and Classic
+  pick one while it runs.
+- Tests: `RAPIDR_TEST_SYSTEM_LOOK` (light, dark, contrast; `system`: the real system's or page's
+  look under a test) and the test step `__look_dark` / `__look_light` / `__look_contrast`.
+
 ### AI-ready by design (AI-ARCH, phase 0)
 - **The design**: [docs/ai-architecture.md](docs/ai-architecture.md) — what every language-registry entry
   carries for AI (meaning, types, ranges and units, side effects and the risk level they give,

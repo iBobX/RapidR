@@ -363,7 +363,13 @@ in a canvas. See [The web](web.md).
   computer (`.app`, `.exe`) are built on the desktop.
 
 On the Welcome page, **Examples** opens a program to run and read; start with
-`hello_form.rr`, then the data examples.
+`hello_form.rr`, then the data examples. A window too short for all of
+them scrolls (the wheel, the bar); from the keyboard, Tab and Shift+Tab
+go from card to card — the page scrolls to the one you reach — and Enter
+opens it. Studio opens in your system's light, dark or high-contrast look
+and follows it when you switch ([Themes](components.md#when-the-look-changes)).
+
+![The Welcome page scrolled to its last cards: Shift+Tab from the Project pane reached hello.rr, ringed, ready for Enter](images/themes/studio-welcome-last-card.png)
 
 ## Where next
 

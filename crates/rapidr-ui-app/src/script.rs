@@ -117,6 +117,14 @@ fn run_event<R: Program + Windows>(rt: R, e: TestEvent) {
         Action::Hold(ms) => rt.script_input(ScriptInput::Hold(ms)),
         // (the system tray: the form's icon clicked)
         Action::Tray(m) => crate::tray::test_message(rt, &e.comp, m),
+        // (RapidR's OnThemeChange: the user switched the system to dark …
+        // — a theme that follows it changes now, Application.OnThemeChange
+        // fires as the events are dispatched)
+        Action::Look(dark, contrast) => {
+            testhooks::set_system_look(dark, contrast);
+            rapidr_value::theme::system_answer(dark, contrast);
+            crate::windows::invalidate();
+        }
         // (the lists lane's: the component synthesizes the input)
         Action::Item(_) | Action::Node(_) | Action::Toggle(_) | Action::Cell(..) | Action::Edit | Action::Enter | Action::Escape => {
             let step = match e.action {

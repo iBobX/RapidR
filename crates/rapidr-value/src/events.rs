@@ -61,12 +61,15 @@ pub enum Handler {
 /// What binding a handler changes besides the binding (both runtimes call
 /// it when they bind one): an OnStartDrag handler makes its button a drag
 /// source (`crate::drag`), a form's OnHint handler hears the program's
-/// hints (`crate::hints`).
+/// hints (`crate::hints`), Application.OnThemeChange hears the look's
+/// changes from the look the program has now (`crate::theme::listen`).
 pub fn bound(name: &str, event: &str) {
     if event.eq_ignore_ascii_case("onstartdrag") {
         crate::drag::set_source(name);
     } else if event.eq_ignore_ascii_case("onhint") {
         crate::hints::set_receiver(name);
+    } else if event.eq_ignore_ascii_case("onthemechange") && name.eq_ignore_ascii_case("application") {
+        crate::theme::listen();
     }
 }
 

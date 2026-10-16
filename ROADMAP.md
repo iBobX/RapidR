@@ -248,7 +248,7 @@ Next up, in order:
 - [x] QLISTBOX `TabWidth`, `ExtendedSelect` (v2.63.0)
 - [ ] Grid `OnDrawCell` text from the shared fonts in the browser too (the desktop's UI kernel draws it with them; `ExtendedSelect` for plain multi-select lists came with the shared list model the kernel draws)
 - [x] Desktop look: `$THEME` honored by native and interpreted programs (v2.62.0); since FLTK's removal (Stage 11) the UI kernel draws Windows' classic look (RapidQ's) and says once when a program names another
-- [x] Kernel themes beside the classic look: a modern one for new programs and a high-contrast one, drawn from the same models (`$THEME` picks; old programs keep classic) — modern, dark, highcontrast; `Application.Theme`, `RAPIDR_THEME`, `auto` (v2.116.0); next: the web on the same table (W3+), `auto` following a change while running, the code editor's colours
+- [x] Kernel themes beside the classic look: a modern one for new programs and a high-contrast one, drawn from the same models (`$THEME` picks; old programs keep classic) — modern, dark, highcontrast; `Application.Theme`, `RAPIDR_THEME`, `auto` (v2.116.0); `auto` follows a change while running, from the program's first line, desktop and web, with `Application.OnThemeChange` for the colours a program took (THEME-LIVE, v2.119.0); next: the web on the same table (W3+), the code editor's colours
 - [x] QIMAGELIST AddICOFile / AddICOHandle / InsertICO… / GetICO (an icon scaled whole to the list's size) and `ImageList.Draw` onto a canvas (v2.76.0)
 - [ ] `Rotate (xOrigin, yOrigin, Angle)` on QBITMAP / QCANVAS / QIMAGE: the manual doesn't say the direction or what fills the uncovered area — needs a real RapidQ to compare
 - [x] `rapidr build --interp` always has cargo refresh `rapidrintr-runner` (v2.24.0)

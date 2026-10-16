@@ -450,6 +450,62 @@ const CASES = [
     delay: 3,
     dump: { "application.theme": /^rapidr dark$/, "dock.documentmode": /^tabs$/ },
   },
+  // (THEME-LIVE, Robert: "Welcome screen is not responding to theme
+  // changes, it's always light") Studio following a light system (its
+  // default, View > Theme > RapidR); the system switches to dark while it
+  // runs (`look` and the __look_ step: the test hooks): the Welcome page,
+  // its cards, the look Studio reads — dark, its text AA. Then high
+  // contrast with Settings open; and back to light.
+  {
+    name: "theme-follows-system-dark",
+    theme: "rapidr",
+    look: "light",
+    events: "studio.__look_dark",
+    delay: 4,
+    contrast: true,
+    dump: { "application.theme": /^rapidr dark$/, "welcome.color": /^2627858$/, "welcomepage.color": /^2627858$/, "excard(0).color": /^3812133$/, "excard(15).color": /^3812133$/ },
+  },
+  {
+    name: "theme-follows-system-contrast-settings",
+    theme: "rapidr",
+    look: "dark",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: "studio.__look_contrast",
+    delay: 4,
+    contrast: true,
+    dump: { "application.theme": /^rapidr high contrast$/, "settingsdialog.__shown": /^1$/, "welcome.color": /^0$/ },
+  },
+  {
+    name: "theme-follows-system-light",
+    theme: "rapidr",
+    look: "contrast",
+    events: "studio.__look_light",
+    delay: 4,
+    contrast: true,
+    dump: { "application.theme": /^rapidr light$/, "welcome.color": /^16777215$/, "excard(0).color": /^16777215$/ },
+  },
+  // (a look View > Theme named stays when the system switches)
+  {
+    name: "theme-named-stays",
+    theme: "rapidr",
+    look: "dark",
+    do: "view.theme.light",
+    events: "studio.__look_dark",
+    delay: 4,
+    dump: { "application.theme": /^rapidr light$/, "welcome.color": /^16777215$/ },
+  },
+  // (THEME-LIVE) The Welcome page's cards from the keyboard: Shift+Tab from
+  // the Project pane (where the keyboard starts) reaches the last card,
+  // the page scrolled to it; again: the one before; Enter opens it
+  {
+    name: "welcome-cards-keyboard",
+    look: "dark",
+    theme: "rapidr",
+    events: "projecttree.__key_9_256,studio.__key_9_256,studio.__key_13",
+    delay: 4,
+    dump: { "studio.caption": /^notepad - RapidR Studio$/, "welcome.vertposition": /^[1-9]\d*$/, "excard(14).tabstop": /^1$/ },
+  },
   {
     // (the desktop works on a copy: Save All writes the project file)
     name: "save-project",
@@ -2906,6 +2962,8 @@ function runDesktop(c, scale = 1) {
       ...(c.env || {}),
       RAPIDR_TEST_DUMP: keys.join(","),
       ...(events ? { RAPIDR_TEST_EVENTS: events } : {}),
+      // (THEME-LIVE: how the system looks to the test)
+      ...(c.look ? { RAPIDR_TEST_SYSTEM_LOOK: c.look } : {}),
       ...(c.contrast ? { RAPIDR_TEST_CONTRAST: join(dir, "contrast.json") } : {}),
       RAPIDR_PRINT_TO: join(WORK, "prints"),
       RAPIDR_REGISTRY: join(WORK, `${c.name}.reg`),
@@ -3045,6 +3103,7 @@ async function runWebPage(ctx, c, last, scale, record) {
       RAPIDR_AI_TEST_SERVER: MOCK_ROOT,
       ...(c.events ? { RAPIDR_TEST_EVENTS: c.events } : {}),
       ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: c.folder } : {}),
+      ...(c.look ? { RAPIDR_TEST_SYSTEM_LOOK: c.look } : {}),
     });
     const q = new URLSearchParams({ theme: c.theme || "rapidr-light" });
     if (c.fresh !== false) q.set("fresh", "");
@@ -3402,7 +3461,7 @@ async function pausedProgramByMouse() {
 }
 
 // (DEBUG-RUN) Robert's walk, in the browser: examples/gui/themes.rr with a
-// breakpoint in SUB Switch (line 68); a click on the program's Dark stops
+// breakpoint in SUB Switch (line 94); a click on the program's Dark stops
 // there — Studio has the keyboard back, the ▶ button "Continue (F5)" and
 // enabled, the program's window still on the page; F5 goes on: the
 // program's window gets the keyboard and the theme turns dark.
@@ -3440,9 +3499,9 @@ async function themesPausedWeb() {
       window.RAPIDR_STUDIO_TEST_FILES = files;
       window.RAPIDR_FILE_SINK = () => {};
     }, [{ path: src, text: readFileSync(join(ROOT, src), "utf8") }]);
-    const q = new URLSearchParams({ theme: "rapidr-light", window: "normal", fresh: "", do: "wait,view.code,line:68", open: src });
+    const q = new URLSearchParams({ theme: "rapidr-light", window: "normal", fresh: "", do: "wait,view.code,line:94", open: src });
     await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
-    await page.waitForFunction(() => window.rr && String(window.rr.rapidr_get_prop("codedoc(0)", "caretline")) === "68", null, { timeout: 60000, polling: 200 });
+    await page.waitForFunction(() => window.rr && String(window.rr.rapidr_get_prop("codedoc(0)", "caretline")) === "94", null, { timeout: 60000, polling: 200 });
     await page.waitForTimeout(500);
     await page.keyboard.press("F9");
     await page.keyboard.press("F5");
@@ -3451,8 +3510,8 @@ async function themesPausedWeb() {
     const dark = await programLabel(/^Dark$/);
     if (!dark) throw new Error("no Dark radio button in the program's window");
     await page.mouse.click(dark.x, dark.y);
-    const w = await until(async () => `${await prop("session", "state")}@${await prop("session", "currentline")}`, (v) => v === "paused@68");
-    record(name, w === "paused@68", `a click on the program's Dark stops at line 68 (${w})`);
+    const w = await until(async () => `${await prop("session", "state")}@${await prop("session", "currentline")}`, (v) => v === "paused@94");
+    record(name, w === "paused@94", `a click on the program's Dark stops at line 94 (${w})`);
     const active = await page.evaluate(() => document.activeElement && document.activeElement.tagName);
     record(name, active !== "IFRAME", `paused: Studio has the keyboard back (${active})`);
     const run = page.getByRole("button", { name: "Continue (F5)", exact: true });
@@ -3892,6 +3951,54 @@ if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "debug-even
   await webTypingWhilePaused();
   await webDialogStep();
   await webNestedAndError();
+}
+// (THEME-LIVE) The browser switches the page's colour scheme (playwright's
+// emulateMedia) on a live page — no test script: the page's own media
+// queries, followed as they change. Studio follows without a reload: the
+// look it reads, its Welcome page's colours (a page opened in that scheme's),
+// dark, high contrast (forced colours), light again; a capture of each.
+async function webColorScheme() {
+  const name = "theme-web-color-scheme (web)";
+  const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 }, colorScheme: "light" });
+  const page = await ctx.newPage();
+  const prop = (c, p) => page.evaluate(([c, p]) => String(window.rr.rapidr_get_prop(c, p)), [c, p]);
+  const until = async (what, want, ms = 8000) => {
+    const t0 = Date.now();
+    let v = "";
+    while (Date.now() - t0 < ms) {
+      v = await what();
+      if (v === want) return v;
+      await page.waitForTimeout(150);
+    }
+    return v;
+  };
+  try {
+    await page.addInitScript(() => { window.RAPIDR_STUDIO_TEST = {}; });
+    const q = new URLSearchParams({ theme: "rapidr", window: "normal", fresh: "" });
+    await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.rr && String(window.rr.rapidr_get_prop("studio", "caption")) === "RapidR Studio", null, { timeout: 90000, polling: 200 });
+    const look = () => prop("application", "theme");
+    record(name, (await until(look, "rapidr light")) === "rapidr light", `a page in the light scheme opens Studio light (${await look()})`);
+    for (const [media, want, page_, card] of [
+      [{ colorScheme: "dark" }, "rapidr dark", "2627858", "3812133"],
+      [{ forcedColors: "active" }, "rapidr high contrast", "0", "0"],
+      [{ forcedColors: "none", colorScheme: "light" }, "rapidr light", "16777215", "16777215"],
+    ]) {
+      await page.emulateMedia(media);
+      const got = await until(look, want);
+      const colors = `${await prop("welcome", "color")}/${await prop("excard(0)", "color")}`;
+      record(name, got === want && colors === `${page_}/${card}`, `the browser switched to ${JSON.stringify(media)}: Studio is ${got}, the Welcome page and its cards ${colors} (wanted ${page_}/${card}), no reload`);
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: join(WORK, `theme-web-color-scheme-${want.replace(/ /g, "-")}.png`) });
+    }
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "theme-web-color-scheme".includes(f) || f === "theme-"))) {
+  await webColorScheme();
 }
 if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "beforeunload".includes(f)))) {
   await beforeUnload("changed", 'wait,code:"ONE"=>"ONE x"', true);

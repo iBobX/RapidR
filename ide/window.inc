@@ -31,6 +31,7 @@ CREATE Studio AS RForm
   Width = 1280: Height = 800
   KeyPreview = 1
   OnResize = StudioResize
+  OnShow = StudioShown
   OnClose = StudioClose
   OnKeyDown = StudioKey
   CREATE MainMenu AS RMainMenu
@@ -112,11 +113,16 @@ CREATE Studio AS RForm
   END CREATE
 
   ' ---- the start page (a document): the brand, Start, Recent, the examples ----
-  CREATE Welcome AS RPanel
+  ' (a scroll box holding the page: a window too short for every example
+  ' card scrolls — the wheel, the bar, Tab onto a card below the edge)
+  CREATE Welcome AS RScrollBox
     Width = 720: Height = 520
-    BevelOuter = 0
+    BorderStyle = 0
     AccessibleName = "Welcome"
     OnResize = LayOutWelcome
+    CREATE WelcomePage AS RPanel
+    Width = 720: Height = 520
+    BevelOuter = 0
     CREATE WelcomeLogo AS RImage
       Left = 48: Top = 36: Width = 153: Height = 44
       Stretch = 1
@@ -146,6 +152,7 @@ CREATE Studio AS RForm
       Left = 300: Top = 136: Width = 300: Height = 22
       Caption = "Examples"
     END CREATE
+    END CREATE
   END CREATE
 
   ' ---- the command palette (Ctrl+Shift+P): over the window's top ----
@@ -166,8 +173,11 @@ CREATE NewDialog AS RForm
   CREATE NewNameLabel AS RLabel
     Left = 16: Top = 20: Width = 90: Caption = "&Name:"
   END CREATE
+  ' (the fields as tall as LayOutDialogs makes them: not their font's
+  ' height again when the dialog first shows — RapidQ's QEDIT AutoSize —,
+  ' so a look's change while it's open doesn't resize them)
   CREATE NewName AS REdit
-    Left = 110: Top = 16: Width = 320
+    Left = 110: Top = 16: Width = 320: AutoSize = 0
   END CREATE
   CREATE NewKindLabel AS RLabel
     Left = 16: Top = 56: Width = 90: Caption = "Template:"
@@ -177,7 +187,7 @@ CREATE NewDialog AS RForm
     Left = 16: Top = 92: Width = 90: Caption = "&Folder:"
   END CREATE
   CREATE NewFolder AS REdit
-    Left = 110: Top = 88: Width = 284
+    Left = 110: Top = 88: Width = 284: AutoSize = 0
   END CREATE
   CREATE NewFolderBtn AS RButton
     Left = 400: Top = 87: Width = 30: Caption = "..."

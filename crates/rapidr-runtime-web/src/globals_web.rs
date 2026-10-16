@@ -20,9 +20,16 @@ thread_local! {
 }
 
 /// The visitor's look, as the page sees it: (dark, high contrast). A GUI
-/// test's page says light, so captures don't depend on the browser.
+/// test's page says light, so captures don't depend on the browser, unless
+/// the test says otherwise (`RAPIDR_TEST_SYSTEM_LOOK`: a look, a `__look_`
+/// step, or `system` — the page's own, as playwright emulates it).
 fn page_look() -> (bool, bool) {
-    let media = |q: &str| !rapidr_ui_app::testhooks::under_test() && web_sys::window().and_then(|w| w.match_media(q).ok().flatten()).is_some_and(|m| m.matches());
+    use rapidr_ui_app::testhooks;
+    if let Some(look) = testhooks::system_look() {
+        return look;
+    }
+    let asked = !testhooks::under_test() || testhooks::real_system_look();
+    let media = |q: &str| asked && web_sys::window().and_then(|w| w.match_media(q).ok().flatten()).is_some_and(|m| m.matches());
     (media("(prefers-color-scheme: dark)"), media("(forced-colors: active)") || media("(prefers-contrast: more)"))
 }
 
@@ -55,9 +62,12 @@ pub fn start_theme() {
 }
 
 /// The page's look followed: when it changes, a theme that follows it
-/// changes too.
+/// changes too (the windows drawn again, Application.OnThemeChange fired
+/// at the frame: kernel_web's dispatch). Not under a GUI test, unless it
+/// follows the page (`RAPIDR_TEST_SYSTEM_LOOK=system`).
 fn watch_page_look() {
-    if LOOK_WATCHED.with(|w| w.replace(true)) || rapidr_ui_app::testhooks::under_test() {
+    use rapidr_ui_app::testhooks;
+    if (testhooks::under_test() && !testhooks::real_system_look()) || LOOK_WATCHED.with(|w| w.replace(true)) {
         return;
     }
     let Some(window) = web_sys::window() else { return };
