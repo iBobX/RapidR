@@ -374,6 +374,7 @@ Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's ar
 **Responsive layout (additive to Align)**
 - [x] `Anchors` (Delphi's akLeft / akTop / akRight / akBottom) and `Constraints` (MinWidth …) on every component, in `rapidr_value::layout` (v2.107.0)
 - [ ] Flow and grid containers (Delphi's TFlowPanel / TGridPanel) for layouts that reflow on small screens — the base for mobile
+- [ ] A stack container (RStackPanel: children one under the other or side by side, gap and padding) where a hidden child takes no space — forms that hide rows (Studio's Settings > AI hides Workspace ID / Address per provider) close up by themselves, no hand-placed `y = y + row` code; easy enough for a school kid, live in the designer, in the registry (Robert, 2026-10-16; after Preview 2)
 
 **One UI kernel (principle 7)**
 - [ ] Move the remaining components to shared models: button / check box / radio button / label / panel / group box / combo box / status bar / tool bar / progress / up-down / date picker
