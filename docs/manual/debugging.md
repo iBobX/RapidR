@@ -40,16 +40,62 @@ shows `total = 12`. Now let's watch it work.
 
 | Key | Menu | What it does |
 |---|---|---|
-| F5 | Run ▸ Run | Saves your files and runs the program under the debugger. While the program is paused, F5 goes on (Debug ▸ Continue). |
+| F5 | Run ▸ Run | Saves your files and runs the program under the debugger. While the program is paused, F5 goes on: the menu item says **Continue** and the ▶ button's tip says *Continue (F5)* (Debug ▸ Continue does the same). |
 | Ctrl+F5 | Run ▸ Run Without Debugging | Runs it without stopping at breakpoints. |
-| Shift+F5 | Run ▸ Stop | Ends the program at once. |
+| Shift+F5 | Run ▸ Stop | Ends the program at once, running or paused. |
 | Ctrl+Shift+F5 | Run ▸ Restart | Stops it and runs it again. |
 | — | Run ▸ Run in Browser | (desktop) Builds the web version of the program and opens it in your browser. |
 | — | Debug ▸ Pause | Stops the running program where it is. |
+| — | Debug ▸ Show Program Window | Brings the program's windows to the front, running or paused. |
 
-The tool bar has the same commands: ▶ Run, ▷ Run Without Debugging,
-❙❙ Pause, ■ Stop and Build, then Step Into, Step Over, Step Out and Toggle
-Breakpoint.
+The tool bar has the same commands: ▶ Run (Continue while paused),
+▷ Run Without Debugging, ❙❙ Pause, ■ Stop and Build, then Step Into, Step
+Over, Step Out and Toggle Breakpoint.
+
+### Which commands you can use when
+
+A command is greyed out when it can't do anything; when it isn't, it works
+from its key, its menu item, its tool button and the command palette alike.
+
+| The program is… | ▶ F5 | Ctrl+F5 | ❙❙ Pause | ■ Shift+F5, Restart | F10, F11 | Shift+F11, Set Next Statement | Ctrl+F10 | Show Program Window |
+|---|---|---|---|---|---|---|---|---|
+| not running (never run, ended, closed, or ended with an error) | Run | ✓ | — | — | start at the first line | — | start and stop at the caret | — |
+| running (or a step that takes a while) | — | — | ✓ | ✓ | — | — | — | ✓ |
+| paused (a breakpoint, a step, Pause, a run-time error) | Continue | — | — | ✓ | step | ✓ | go on to the caret | ✓ |
+
+F9 (breakpoints) works at any time.
+
+### Your program's window and Studio's
+
+On the desktop your program has windows of its own, and Studio hands the
+front back and forth so the right one is in front when you need it:
+
+- When you run it, its first window comes up **in front of** Studio.
+- When it stops — at a breakpoint after you clicked something in it, at a
+  run-time error — **Studio comes to the front**, at the line where it
+  stopped.
+- **Continue (F5)** and Run to Cursor bring the program's windows back to
+  the front: it's the program's turn. So does a step that hasn't stopped
+  within half a second (stepping over a `ShowModal` that waits for you).
+  A quick step leaves you in Studio.
+
+While the program is paused, its windows **stay on the screen and
+reachable**: they keep their picture, you can switch to them (a click,
+Cmd-Tab on a Mac, Alt-Tab on Windows and Linux, or Debug ▸ Show Program
+Window), move them, resize them and minimize them. They don't react to you,
+though: none of the program's code runs while it's paused, so a click or a
+key in its windows is ignored — not saved for later, so nothing surprises
+the program when it goes on. What you change in Variables, Watch or the
+Immediate pane (a caption, a colour) shows in its windows at once.
+
+Try it with [themes.rr](../../examples/gui/themes.rr): put a breakpoint on
+line 68 (`SELECT CASE Sender.Caption`), press F5, and click *Dark* in its
+window. Studio comes to the front, paused at line 68, with ▶ ready to
+continue. Switch to another program and back: the Themes window is still
+there, and Debug ▸ Show Program Window brings it forward. Press F5: the
+Themes window comes to the front and turns dark.
+
+![Paused at a breakpoint: the Debug menu with Continue (F5) and Show Program Window ready, Pause greyed out (the program isn't running)](images/debugging/paused-debug-menu.png)
 
 If the code has errors, Studio doesn't run it: the Problems list opens and
 the editor goes to the first error.
@@ -81,8 +127,9 @@ calling `AddUp`:
 
 ![Studio paused at line 11: the arrow on the line, the Call Stack at the bottom left, Variables at the bottom right, the orange status bar](images/debugging/breakpoint-hit.png)
 
-Press **F5** again: it goes on and stops at line 11 again, now with
-`i = 2`. Press F5 twice more and the program ends.
+The ▶ button stays green while it's paused: its tip says *Continue
+(F5)*. Press **F5** (or click ▶) again: it goes on and stops at line 11
+again, now with `i = 2`. Press F5 twice more and the program ends.
 
 Breakpoints work in every file of the project, also in files you
 `$INCLUDE`; the file opens when the program stops in it.
@@ -213,8 +260,10 @@ line after `ShowModal` once the form is closed. **F11** (Step Into) stops
 in the next event handler that runs: press Greet in the program's window
 and Studio stops at the first line of `SUB Greet`.
 
-While the program is paused its windows don't react: what you click and
-its timers wait until it goes on.
+While the program is paused its windows stay on the screen — switch to
+them, move them — but don't react: clicks and keys in them are ignored,
+and its timers wait until it goes on (see
+[Your program's window and Studio's](#your-programs-window-and-studios)).
 
 ## Looking at values
 
@@ -416,6 +465,11 @@ Studio in the browser.
   program in the page.
 
   ![In the browser: the Greeter window dragged half past Studio's right edge, whole](images/debugging/web-program-window.png)
+
+  Paused, the program's windows stay on the page and can be dragged; a
+  click in them is ignored until it goes on, as on the desktop. When it
+  stops, the keyboard comes back to Studio; Continue (F5) and Show Program
+  Window give it to the program's window.
 
   A window bigger than the page — the 1200 × 800
   [sales_dashboard.rr](../../examples/gui/sales_dashboard.rr) example on a laptop's

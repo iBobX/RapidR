@@ -362,9 +362,15 @@ window.RAPIDR_STUDIO_HOST = {
   // — out from under a menu of Studio's — and its frame given the keyboard,
   // as the desktop hands the program's process the front.
   show() {
-    if (!run.box || !run.frame) return false;
+    // (a program without a window — a console one — has nothing to show:
+    // the keyboard stays Studio's)
+    if (!run.box || !run.frame || !(run.rects || []).length) return false;
+    const frame = run.frame;
     run.box.classList.remove("under");
-    try { run.frame.focus(); } catch { return false; }
+    try { frame.focus(); } catch { return false; }
+    // (again once Studio has finished with the command — the palette or
+    // menu it came from, closing, gives its focus back to Studio's window)
+    setTimeout(() => { if (run.frame === frame) frame.focus(); }, 60);
     return true;
   },
   // Run > Build Web App (.zip): the program's own files (its page with its

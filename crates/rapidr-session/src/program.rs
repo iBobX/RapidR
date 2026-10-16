@@ -1576,4 +1576,83 @@ mod tests {
         let (r, _) = end.handle(&mut vm, &m, req(3, Command::Evaluate { expr: "x".into(), frame: None, context: Some("hover".into()) }), true);
         assert!(matches!(r.map(|e| e.body), Some(EventBody::Evaluate { ref result, .. }) if result == "1"));
     }
+
+    /// A host with windows: what the paused program's window system gets
+    /// while it's stopped (`serve_paused`), and when the IDE's request
+    /// comes (sent "from another thread" on the third turn, as the reader
+    /// does, waking the host).
+    #[derive(Default)]
+    struct WindowedHost {
+        inner: StubHost,
+        serves: u32,
+        /// What the program had printed at each turn (none of its code runs).
+        printed_at_turns: Vec<String>,
+        ide: Option<mpsc::Sender<Request>>,
+    }
+
+    impl Host for WindowedHost {
+        fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String> {
+            self.inner.call_builtin(name, args)
+        }
+        fn create_comp(&mut self, kind: &str, id: &str) -> Result<Value, String> {
+            self.inner.create_comp(kind, id)
+        }
+        fn set_prop(&mut self, id: &str, name: &str, value: Value) -> Result<(), String> {
+            self.inner.set_prop(id, name, value)
+        }
+        fn get_prop(&mut self, id: &str, name: &str) -> Result<Value, String> {
+            self.inner.get_prop(id, name)
+        }
+        fn call_method(&mut self, id: &str, method: &str, args: &[Value]) -> Result<Value, String> {
+            self.inner.call_method(id, method, args)
+        }
+        fn register_event(&mut self, id: &str, event: &str, handler_fn_index: u32) -> Result<(), String> {
+            self.inner.register_event(id, event, handler_fn_index)
+        }
+        fn print(&mut self, s: &str) -> Result<(), String> {
+            self.inner.print(s)
+        }
+        fn input(&mut self) -> Result<String, String> {
+            self.inner.input()
+        }
+        fn serve_paused(&mut self) -> bool {
+            self.serves += 1;
+            self.printed_at_turns.push(self.inner.output.clone());
+            if self.serves == 3 {
+                if let Some(ide) = &self.ide {
+                    ide.send(req(9, Command::Continue)).unwrap();
+                }
+            }
+            true
+        }
+    }
+
+    /// Stopped at a breakpoint, a program with windows keeps them served —
+    /// painted, activated, moved — turn after turn while the IDE thinks
+    /// (none of its code runs meanwhile), and goes on as soon as the IDE's
+    /// request arrives.
+    #[test]
+    fn a_stopped_program_keeps_its_windows_served_until_the_ide_says() {
+        let src = "PRINT \"before\"\nx = 1\nPRINT \"after\"\n";
+        let m = compile_program(src);
+        let (tx, rx) = mpsc::channel();
+        let sent: Rc<RefCell<Vec<Event>>> = Rc::default();
+        let log = sent.clone();
+        let mut dbg = BlockingDebugger::new(rx, Box::new(move |e| log.borrow_mut().push(e.clone())));
+        let mut host = WindowedHost { ide: Some(tx.clone()), ..WindowedHost::default() };
+        let mut vm = Vm::new(&mut host);
+        tx.send(req(1, Command::SetBreakpoints { file: "prog.bas".into(), breakpoints: vec![SourceBreakpoint { line: 2, ..Default::default() }] })).unwrap();
+        tx.send(req(2, Command::Start { program: None, args: vec![], debug: true, stop_on_entry: false, break_on_error: false })).unwrap();
+        assert_eq!(dbg.until_start(&mut vm, &m), Some(false));
+        vm.debugger = Some(Box::new(dbg));
+        vm.run(&m).unwrap();
+        vm.debugger = None;
+        drop(vm);
+        assert_eq!(host.serves, 3, "served until the request came");
+        assert!(host.printed_at_turns.iter().all(|p| p == "before\n"), "nothing ran while stopped: {:?}", host.printed_at_turns);
+        assert_eq!(host.inner.output, "before\nafter\n");
+        let sent = sent.borrow();
+        assert!(sent.iter().any(|e| matches!(e.body, EventBody::Stopped { line: Some(2), .. })));
+        assert!(sent.iter().any(|e| matches!(e.body, EventBody::Continued)));
+    }
 }

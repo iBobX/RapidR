@@ -5387,6 +5387,7 @@ A run of a program under development, as an IDE runs it: in its own process on t
 | `Start AS INTEGER` | Runs Program. True when it started; Error says why not. |
 | `Stop` | Ends the program at once. |
 | `Pause AS INTEGER` | Pauses the program at its next statement. |
+| `ShowProgram AS INTEGER` | Brings the running or paused program's windows to the front and makes it the active app (an IDE's Show Program Window; RapidR Studio does it on Continue too): on the desktop the IDE hands its process the front as the system allows it (not on Wayland), on the web its frame gets the keyboard. A paused program's windows show, move and come to the front, but take no clicks or keys until it goes on. False when nothing runs or it couldn't. |
 | `Continue AS INTEGER` | Lets a paused program go on. |
 | `StepIn AS INTEGER` | Runs one statement, into a SUB or FUNCTION it calls. |
 | `StepOver AS INTEGER` | Runs one statement, a call whole. |

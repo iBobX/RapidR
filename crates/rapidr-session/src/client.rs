@@ -221,13 +221,13 @@ impl ProgramSession {
         }
     }
 
-    /// `Pause`: at the next statement the program runs.
     /// The program's windows to the front ([`Transport::show_program`]);
     /// `false` when it isn't running or couldn't.
     pub fn show_program(&mut self) -> bool {
         self.state != State::Stopped && self.transport.as_mut().is_some_and(|t| t.show_program())
     }
 
+    /// `Pause`: at the next statement the program runs.
     pub fn pause(&mut self) -> Result<(), String> {
         self.request(Command::Pause).map(drop)
     }

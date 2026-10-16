@@ -501,6 +501,8 @@ impl WebHost {
 
     /// Form `id`'s window shown on top (made the first time).
     fn show(&mut self, id: &str) {
+        // (a window shown takes the keyboard, from an embedded frame too)
+        crate::mirror::claim_keyboard();
         if !self.wins.contains_key(id) {
             if let Some(w) = self.make(id) {
                 self.wins.insert(id.to_string(), w);

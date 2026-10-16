@@ -999,6 +999,9 @@ pub fn method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Opti
         (_, "hide") => forms::hide(Web, name),
         (_, "setfocus" | "focus") => {
             let form = form_of(name).map(|f| lower(&f));
+            // (asked for: the keyboard comes back from an embedded frame —
+            // RapidR Studio paused, its program's frame had it)
+            rapidr_ui_host_web::mirror::claim_keyboard();
             if let Some(form) = form {
                 host::with(|h, store| {
                     if let Some(f) = h.desk.forms.get_mut(&form) {

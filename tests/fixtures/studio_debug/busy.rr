@@ -1,0 +1,13 @@
+' busy.rr: a line that takes a few seconds to run — stepped over (F10), the
+' program runs meanwhile and the debugger's commands say so, then it stops
+' on the next line (tests/studio_flows.mjs debug-commands-stepping)
+DIM n AS LONG
+SUB Busy
+  DIM k AS LONG
+  FOR k = 1 TO 20000000
+    n = n + 1
+  NEXT
+END SUB
+PRINT "start"
+Busy
+PRINT "done"; n

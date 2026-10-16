@@ -35,6 +35,8 @@ export const scenes = [
   { topic: "debugging", name: "set-value", open: COUNTER, do: `${HIT},view.variables,varpick:G/total,key:F2,type:100`, delay: 7, crop: BOTTOM },
   { topic: "debugging", name: "call-stack-frame", open: COUNTER, do: `${HIT},debug.stepInto,wait,debug.stepOver,wait,view.variables,frame:1,wait`, delay: 7, crop: WORKBENCH },
   { topic: "debugging", name: "immediate", open: COUNTER, do: `${BP},bpcond:i = 3,run.start,wait,wait,wait,view.immediate,focus:immediatebox,type:? total * 10,key:Enter,wait,wait,wait,type:total = 0,key:Enter,wait,wait,wait,type:? total,key:Enter,wait,wait`, delay: 12, crop: BOTTOM },
+  // (DEBUG-RUN: paused, ▶ is Continue — the Debug menu opened by a click on it)
+  { topic: "debugging", name: "paused-debug-menu", open: COUNTER, do: `${HIT},key:Alt+D`, delay: 6, crop: [0, 0, 560, 345] },
   { topic: "debugging", name: "pause-waiting", open: GREETER, do: "run.start,wait,wait,wait,run.pause,wait,wait", delay: 6, crop: [0, 64, 1036, 706] },
   { topic: "debugging", name: "program-window", open: GREETER, do: "run.start,wait,wait,wait", delay: 5, program: true },
   { topic: "debugging", name: "runtime-error", open: SHARE, do: "run.start,wait,wait,wait,view.variables", delay: 6, crop: WORKBENCH },

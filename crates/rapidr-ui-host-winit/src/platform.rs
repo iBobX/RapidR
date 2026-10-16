@@ -156,6 +156,8 @@ mod imp {
         use objc2::runtime::NSObjectProtocol;
         use objc2_app_kit::{NSApplication, NSApplicationActivationOptions, NSRunningApplication};
         let Ok(pid) = i32::try_from(pid) else { return false };
+        // (none yet: a process that has just started isn't an app until its
+        // window system is up — the caller tries again)
         let Some(app) = NSRunningApplication::runningApplicationWithProcessIdentifier(pid) else { return false };
         // (macOS 14's cooperative activation: the active app yields first;
         // older systems have no such call and need none)

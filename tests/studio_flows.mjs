@@ -237,6 +237,22 @@ async function inspectorAccess(page, scale, record) {
   await cdp.detach();
 }
 
+// (DEBUG-RUN) cmds:report's line for a state: each Run / Debug command's
+// menu item, tool button and palette entry (1 on, 0 off, - none), then the
+// Run item's caption and the ▶ button's hint (the desktop's Build last)
+const CMDS = ["run.start", "run.withoutDebugging", "run.stop", "run.restart", "run.continue", "run.pause", "debug.showProgram", "debug.stepInto", "debug.stepOver", "debug.stepOut", "debug.runToCursor", "debug.setNextStatement", "debug.stepIntoSpecific", "debug.toggleBreakpoint"];
+const CMD_STATES = {
+  idle: "111 111 000 0-0 0-0 000 0-0 111 111 000 1-1 0-0 0-0 111",
+  running: "000 000 111 1-1 0-0 111 1-1 000 000 000 0-0 0-0 0-0 111",
+  paused: "111 000 111 1-1 1-1 000 1-1 111 111 111 1-1 1-1 1-1 111",
+};
+const cmdsLine = (state, kind) => {
+  const f = CMD_STATES[kind].split(" ");
+  const run = kind === "paused" ? "&Continue \\| Continue \\(F5\\)" : "&Run \\| Run \\(F5\\)";
+  return `\\[cmds\\] ${state} ` + CMDS.map((id, i) => `${id.replace(/\./g, "\\.")}=${f[i]}`).join(" ") + `( run\\.build=111)? \\| ${run}`;
+};
+const cmdsSeq = (...lines) => new RegExp(lines.join("[\\s\\S]*"));
+
 // (S-DEBUG: the debugger's program and the file it includes)
 const DEBUG_FILES = ["tests/fixtures/studio_debug/counter.rr", "tests/fixtures/studio_debug/tally.inc"];
 // (DARK-FIX) RapidR's three looks, for the cases that run in each
@@ -1827,6 +1843,79 @@ const CASES = [
       "outputbox.text": /before\s*\n\s*each gets\s*\n\s*oops\.rr:4: run-time error: Division by zero/,
     },
   },
+  // ---- DEBUG-RUN: Run's and Debug's commands in every state of the
+  // program (Robert, Preview 2: "debug disables the play icon, if the user
+  // decides to just continue the execution it can't"). Each step is a real
+  // key through Studio's menus (key:F5 …: a disabled item never runs) and
+  // cmds:report writes what the person sees then — each command's menu
+  // item, tool button and palette entry (1 enabled, 0 not, - none), the Run
+  // item's caption and the ▶ button's hint: "Continue (F5)" while paused.
+  {
+    // F9 F5: paused at 6 — Continue enabled, F5 goes on (stops at 6 again,
+    // the next time round), F10 steps (over AddUp: the loop comes back to
+    // the breakpoint), Shift+F5 stops; F11 from idle starts at the first
+    // line; Run again after a Stop
+    name: "debug-commands-keys",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "cmds:report,line:6,key:F9,key:F5,wait,wait,wait,wait,cmds:report,key:F5,wait,wait,wait,cmds:report,key:F10,wait,wait,wait,cmds:report,key:Shift+F5,wait,wait,wait,cmds:report,key:F11,wait,wait,wait,wait,cmds:report,key:Shift+F5,wait,wait,wait,key:F5,wait,wait,wait,wait,cmds:report,cmds:log",
+    delay: 30,
+    dump: {
+      "outputbox.text": cmdsSeq(cmdsLine("stopped", "idle"), cmdsLine("paused@6:breakpoint", "paused"), cmdsLine("paused@6:breakpoint", "paused"), cmdsLine("paused@[67]:(step|breakpoint)", "paused"), cmdsLine("stopped", "idle"), cmdsLine("paused@\\d+:entry", "paused"), cmdsLine("paused@6:breakpoint", "paused")),
+      "varstree.text": /\ti = 1\n/,
+    },
+  },
+  {
+    // paused at 6: a real click on the tool bar's ▶ (enabled, "Continue
+    // (F5)") goes on — the program stops at 6 again, the next time round;
+    // the same click while it waits for its events (running: ▶ disabled)
+    // does nothing
+    name: "debug-commands-toolbar",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,key:F9,key:F5,wait,wait,wait,wait",
+    delay: 6,
+    events: "toolbar.__mousemove_357_18,toolbar.__mousedown_357_18,toolbar.__mouseup_357_18,toolbar.__mousemove_400_18,toolbar.__mousemove_401_18,toolbar.__mousemove_402_18",
+    dump: { "session.state": /^paused$/, "session.currentline": /^6$/, "varstree.text": /\ti = 2\n/ },
+  },
+  {
+    // a run-time error: paused at it (Continue enabled), F5 lets the error
+    // end the program (exit code 1: the "error" state) — and F5 runs it
+    // again from there; Shift+F5 stops it
+    name: "debug-commands-error",
+    open: "tests/fixtures/studio_debug/oops.rr",
+    webFiles: ["tests/fixtures/studio_debug/oops.rr"],
+    do: "cmds:report,key:F5,wait,wait,wait,wait,cmds:report,key:F5,wait,wait,wait,wait,cmds:report,key:F5,wait,wait,wait,wait,cmds:report,key:Shift+F5,wait,wait,wait,cmds:report,cmds:log",
+    delay: 16,
+    dump: {
+      "outputbox.text": cmdsSeq(cmdsLine("stopped", "idle"), cmdsLine("paused@4:exception", "paused"), cmdsLine("error", "idle"), cmdsLine("paused@4:exception", "paused"), cmdsLine("stopped", "idle")),
+    },
+  },
+  {
+    // a program that waits for its events runs: Pause, Stop and Show
+    // Program Window on, Run and the steps off; paused while it waits, the
+    // whole paused set; Continue lets it wait again (running)
+    name: "debug-commands-running",
+    open: "tests/fixtures/studio_debug/waits.rr",
+    webFiles: ["tests/fixtures/studio_debug/waits.rr"],
+    do: "view.code,key:F5,wait,cmds:report,wait,run.pause,wait,wait,cmds:report,key:F5,wait,cmds:report,cmds:log",
+    delay: 8,
+    dump: {
+      "outputbox.text": cmdsSeq(cmdsLine("running", "running"), cmdsLine("paused@17:pause", "paused"), cmdsLine("running", "running")),
+    },
+  },
+  {
+    // stepping over a line that takes seconds: the program runs meanwhile
+    // (F5 and the steps off, Pause on), then it stops on the next line
+    name: "debug-commands-stepping",
+    open: "tests/fixtures/studio_debug/busy.rr",
+    webFiles: ["tests/fixtures/studio_debug/busy.rr"],
+    do: "line:12,key:F9,key:F5,wait,wait,wait,wait,key:F10,wait,cmds:report,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,cmds:report,key:F5,wait,wait,wait,cmds:report,cmds:log",
+    delay: 16,
+    dump: {
+      "outputbox.text": cmdsSeq(cmdsLine("running", "running"), cmdsLine("paused@13:step", "paused"), cmdsLine("stopped", "idle")),
+    },
+  },
   // ---- DEBUG-VM: the values inspector, Set Next Statement, Step Into
   // Specific (examples/debugging/shop.rr: nested TYPEs, an array of them, an
   // RDataFrame, an RNum, a form). Line 76 adds a LineTotal in AddUp's loop.
@@ -2911,6 +3000,271 @@ async function beforeUnload(label, steps, want) {
 // (AI-REAL, the web) Settings > AI used with the browser's own mouse and
 // keyboard: Studio runs as the user's (no test script — under one, the
 // kernel leaves user input alone), the mock provider standing in.
+// (DEBUG-RUN) Studio in the browser, driven by the browser's own keys and
+// mouse (no test script: nothing drops them), as the person uses it: F9 F5
+// paused at 6 — the ▶ button, as a screen reader reads it, "Continue (F5)"
+// and enabled; F5 goes on (the page isn't reloaded: Studio keeps the key),
+// a click on ▶ goes on too, F10 steps, Shift+F5 stops, F5 runs again, F11
+// steps into tally.inc.
+async function debugByRealKeys() {
+  const name = "debug-commands-web-keys (web)";
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const prop = (c, p) => page.evaluate(([c, p]) => String(window.rr.rapidr_get_prop(c, p)), [c, p]);
+  const until = async (what, test, ms = 8000) => {
+    const t0 = Date.now();
+    let v = "";
+    while (Date.now() - t0 < ms) {
+      v = await what();
+      if (test(v)) return v;
+      await page.waitForTimeout(150);
+    }
+    return v;
+  };
+  const where = async () => `${await prop("session", "state")}@${await prop("session", "currentline")}`;
+  const runButton = async () => {
+    for (const label of ["Continue (F5)", "Run (F5)"]) {
+      const b = page.getByRole("button", { name: label, exact: true });
+      if (await b.count()) return { label, enabled: (await b.first().getAttribute("aria-disabled")) !== "true", box: await b.first().boundingBox() };
+    }
+    return { label: null };
+  };
+  try {
+    const files = DEBUG_FILES.map((f) => ({ path: f, text: readFileSync(join(ROOT, f), "utf8") }));
+    await page.addInitScript((files) => {
+      // (no test script: the files only — the person's keys and mouse do the rest)
+      window.RAPIDR_STUDIO_TEST = {};
+      window.RAPIDR_STUDIO_TEST_FILES = files;
+      window.RAPIDR_FILE_SINK = () => {};
+    }, files);
+    const q = new URLSearchParams({ theme: "rapidr-light", window: "normal", fresh: "", do: "wait,line:6", open: DEBUG_FILES[0] });
+    await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.rr && String(window.rr.rapidr_get_prop("codedoc(0)", "caretline")) === "6", null, { timeout: 60000, polling: 200 });
+    await page.evaluate(() => { window.__notReloaded = true; });
+    await page.keyboard.press("F9");
+    await page.keyboard.press("F5");
+    let w = await until(where, (v) => v === "paused@6");
+    record(name, w === "paused@6", `F9, F5: paused at line 6 (${w})`);
+    let b = await until(runButton, (v) => v.label === "Continue (F5)");
+    record(name, b.label === "Continue (F5)" && b.enabled, `paused: the ▶ button reads "Continue (F5)" and is enabled (${b.label}, ${b.enabled})`);
+    await page.screenshot({ path: join(WORK, "debug-commands-web-paused.png") });
+    await page.keyboard.press("F5");
+    const vars = await until(() => prop("varstree", "text"), (v) => /i = 2/.test(v));
+    w = await where();
+    record(name, w === "paused@6" && /i = 2/.test(vars) && (await page.evaluate(() => window.__notReloaded === true)), `F5 while paused goes on — stopped at 6 the next time round, i = 2, the page not reloaded (${w})`);
+    b = await runButton();
+    await page.mouse.click(b.box.x + b.box.width / 2, b.box.y + b.box.height / 2);
+    const vars3 = await until(() => prop("varstree", "text"), (v) => /i = 3/.test(v));
+    record(name, /i = 3/.test(vars3), "a click on ▶ (Continue) goes on: i = 3");
+    // (i = 3, the last time round: over AddUp, out of the loop, to the PRINT)
+    await page.keyboard.press("F10");
+    w = await until(where, (v) => v === "paused@8");
+    record(name, w === "paused@8", `F10 steps over AddUp, out of the loop: paused at 8 (${w})`);
+    await page.keyboard.press("Shift+F5");
+    w = await until(() => prop("session", "state"), (v) => v === "stopped");
+    b = await until(runButton, (v) => v.label === "Run (F5)");
+    record(name, w === "stopped" && b.label === "Run (F5)" && b.enabled, `Shift+F5 stops it: ▶ "Run (F5)" enabled (${w}, ${b.label}, ${b.enabled})`);
+    await page.keyboard.press("F5");
+    w = await until(where, (v) => v === "paused@6");
+    const vars1 = await prop("varstree", "text");
+    record(name, w === "paused@6" && /i = 1/.test(vars1), `F5 runs it again after the Stop: paused at 6, i = 1 (${w})`);
+    await page.keyboard.press("F11");
+    const file = await until(() => prop("session", "currentfile"), (v) => /tally\.inc$/i.test(v));
+    record(name, /tally\.inc$/i.test(file), `F11 steps into AddUp, in tally.inc (${file})`);
+    await page.keyboard.press("Shift+F5");
+    w = await until(() => prop("session", "state"), (v) => v === "stopped");
+    record(name, w === "stopped", `Shift+F5 ends it (${w})`);
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+
+// (DEBUG-RUN) The program's window while it's paused, in the browser: it
+// stays on the page, its clicks are dropped (not run later), Show Program
+// Window gives it the keyboard; going on, its clicks work again.
+async function pausedProgramByMouse() {
+  const name = "debug-commands-web-paused-window (web)";
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const prop = (c, p) => page.evaluate(([c, p]) => String(window.rr.rapidr_get_prop(c, p)), [c, p]);
+  const until = async (what, test, ms = 8000) => {
+    const t0 = Date.now();
+    let v = "";
+    while (Date.now() - t0 < ms) {
+      v = await what();
+      if (test(v)) return v;
+      await page.waitForTimeout(150);
+    }
+    return v;
+  };
+  const press = async (label, role = "button") => {
+    const b = page.getByRole(role, { name: label, exact: true }).first();
+    const box = await b.boundingBox();
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  };
+  // (the program's "Again" button, clicked by the mouse where it shows)
+  const again = async () => {
+    const r = await runFrame(page).evaluate(() => {
+      const el = [...document.querySelectorAll("[role=button]")].find((e) => /Again/.test(e.getAttribute("aria-label") || e.textContent || ""));
+      if (!el) return null;
+      const b = el.getBoundingClientRect();
+      return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+    });
+    if (!r) throw new Error("no Again button in the program's window");
+    await page.mouse.click(r.x, r.y);
+    await page.waitForTimeout(400);
+  };
+  const clicks = async () => (/clicks = (\d+)/.exec(await prop("varstree", "text")) || [])[1];
+  try {
+    const src = "tests/fixtures/studio_debug/waits.rr";
+    await page.addInitScript((files) => {
+      window.RAPIDR_STUDIO_TEST = {};
+      window.RAPIDR_STUDIO_TEST_FILES = files;
+      window.RAPIDR_FILE_SINK = () => {};
+    }, [{ path: src, text: readFileSync(join(ROOT, src), "utf8") }]);
+    const q = new URLSearchParams({ theme: "rapidr-light", window: "normal", fresh: "", do: "wait,view.code", open: src });
+    await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.rr && String(window.rr.rapidr_get_prop("session", "state")) === "stopped", null, { timeout: 60000, polling: 200 });
+    await page.waitForTimeout(800);
+    await page.keyboard.press("F5");
+    await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+    await page.waitForTimeout(600);
+    await press("Pause");
+    let st = await until(() => prop("session", "state"), (v) => v === "paused");
+    record(name, st === "paused" && (await clicks()) === "0", `Pause (the tool button, clicked): paused while it waits, clicks = ${await clicks()}`);
+    const rects = await page.evaluate(() => window.RAPIDR_STUDIO_RUN_RECTS.length);
+    record(name, rects > 0, `paused: the program's window is still on the page (${rects})`);
+    await again();
+    await again();
+    await page.screenshot({ path: join(WORK, "debug-commands-web-paused-window.png") });
+    st = await prop("session", "state");
+    record(name, st === "paused" && (await clicks()) === "0", `paused: two clicks on its Again button run nothing (${st}, clicks = ${await clicks()})`);
+    // (Show Program Window, from the command palette: Ctrl+Shift+P, typed, Enter)
+    await page.keyboard.press("Control+Shift+P");
+    await page.waitForTimeout(300);
+    await page.keyboard.type("Show Program Window");
+    await page.waitForTimeout(300);
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(400);
+    const focused = await page.evaluate(() => document.activeElement && document.activeElement.tagName);
+    record(name, focused === "IFRAME", `Show Program Window gives the program's frame the keyboard (${focused})`);
+    // (on, then paused again: the clicks made while paused were dropped, not kept for later)
+    await press("Continue (F5)");
+    await until(() => prop("session", "state"), (v) => v === "running");
+    await page.waitForTimeout(500);
+    await press("Pause");
+    await until(() => prop("session", "state"), (v) => v === "paused");
+    record(name, (await clicks()) === "0", `going on runs none of the clicks made while paused (clicks = ${await clicks()})`);
+    await press("Continue (F5)");
+    await until(() => prop("session", "state"), (v) => v === "running");
+    await page.waitForTimeout(400);
+    await again();
+    await press("Pause");
+    await until(() => prop("session", "state"), (v) => v === "paused");
+    record(name, (await clicks()) === "1", `running again, its click works (clicks = ${await clicks()})`);
+    await page.keyboard.press("Shift+F5");
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+
+// (DEBUG-RUN) Robert's walk, in the browser: examples/gui/themes.rr with a
+// breakpoint in SUB Switch (line 68); a click on the program's Dark stops
+// there — Studio has the keyboard back, the ▶ button "Continue (F5)" and
+// enabled, the program's window still on the page; F5 goes on: the
+// program's window gets the keyboard and the theme turns dark.
+async function themesPausedWeb() {
+  const name = "debug-commands-web-themes (web)";
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const prop = (c, p) => page.evaluate(([c, p]) => String(window.rr.rapidr_get_prop(c, p)), [c, p]);
+  const until = async (what, test, ms = 8000) => {
+    const t0 = Date.now();
+    let v = "";
+    while (Date.now() - t0 < ms) {
+      v = await what();
+      if (test(v)) return v;
+      await page.waitForTimeout(150);
+    }
+    return v;
+  };
+  // (the program's controls, by what a screen reader reads, in its frame)
+  const programLabel = (re) => runFrame(page).evaluate((src) => {
+    const re = new RegExp(src);
+    for (const e of document.querySelectorAll("[aria-label],[role]")) {
+      const t = e.getAttribute("aria-label") || e.textContent || "";
+      if (re.test(t)) {
+        const b = e.getBoundingClientRect();
+        return { text: t, x: b.left + b.width / 2, y: b.top + b.height / 2 };
+      }
+    }
+    return null;
+  }, re.source);
+  try {
+    const src = "examples/gui/themes.rr";
+    await page.addInitScript((files) => {
+      window.RAPIDR_STUDIO_TEST = {};
+      window.RAPIDR_STUDIO_TEST_FILES = files;
+      window.RAPIDR_FILE_SINK = () => {};
+    }, [{ path: src, text: readFileSync(join(ROOT, src), "utf8") }]);
+    const q = new URLSearchParams({ theme: "rapidr-light", window: "normal", fresh: "", do: "wait,view.code,line:68", open: src });
+    await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.rr && String(window.rr.rapidr_get_prop("codedoc(0)", "caretline")) === "68", null, { timeout: 60000, polling: 200 });
+    await page.waitForTimeout(500);
+    await page.keyboard.press("F9");
+    await page.keyboard.press("F5");
+    await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+    await page.waitForTimeout(800);
+    const dark = await programLabel(/^Dark$/);
+    if (!dark) throw new Error("no Dark radio button in the program's window");
+    await page.mouse.click(dark.x, dark.y);
+    const w = await until(async () => `${await prop("session", "state")}@${await prop("session", "currentline")}`, (v) => v === "paused@68");
+    record(name, w === "paused@68", `a click on the program's Dark stops at line 68 (${w})`);
+    const active = await page.evaluate(() => document.activeElement && document.activeElement.tagName);
+    record(name, active !== "IFRAME", `paused: Studio has the keyboard back (${active})`);
+    const run = page.getByRole("button", { name: "Continue (F5)", exact: true });
+    const enabled = (await run.count()) > 0 && (await run.first().getAttribute("aria-disabled")) !== "true";
+    record(name, enabled, "paused: the ▶ button reads \"Continue (F5)\" and is enabled");
+    const rects = await page.evaluate(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length);
+    record(name, rects > 0, `paused: the program's window is still on the page (${rects})`);
+    await page.screenshot({ path: join(WORK, "debug-commands-web-themes-paused.png") });
+    await page.keyboard.press("F5");
+    const st = await until(() => prop("session", "state"), (v) => v === "running");
+    // (what the program's label says, read in its own frame)
+    const programProp = (c, p) => runFrame(page).evaluate(([c, p]) => String(window.__rapidr_rt.rapidr_get_prop(c, p)), [c, p]);
+    const now = await until(() => programProp("now", "caption"), (v) => /dark/i.test(v));
+    record(name, st === "running" && /dark/i.test(now), `F5 goes on: the theme turns dark (${st}, ${now})`);
+    await page.waitForTimeout(700);
+    const focused = await page.evaluate(() => document.activeElement && document.activeElement.tagName);
+    record(name, focused === "IFRAME", `going on, the program's window has the keyboard — and keeps it (${focused})`);
+    await page.screenshot({ path: join(WORK, "debug-commands-web-themes-continued.png") });
+    // (typed into its edit, slowly — Studio's frames meanwhile, a caret's
+    // blink: the keys are the program's, Studio's code untouched)
+    const edit = await runFrame(page).evaluate(() => {
+      const e = document.querySelector("input");
+      const r = e.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    await page.mouse.click(edit.x, edit.y);
+    await page.keyboard.press("End");
+    for (const ch of " typed") {
+      await page.keyboard.type(ch);
+      await page.waitForTimeout(250);
+    }
+    const typed = await until(() => programProp("edit", "text"), (v) => /typed$/.test(v), 3000);
+    const code = await prop("codedoc(0)", "text");
+    record(name, /Text to edit typed$/.test(typed) && !code.includes("typed"), `typing in the running program's edit goes to it, not to Studio's code (${JSON.stringify(typed)})`);
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+
 async function aiSettingsByMouse() {
   const name = "ai-settings-web-mouse (web)";
   const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
@@ -2933,6 +3287,11 @@ async function aiSettingsByMouse() {
 }
 if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "ai-settings-web-mouse".includes(f) || f === "ai-"))) {
   await aiSettingsByMouse();
+}
+if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "debug-commands-web-keys".includes(f) || f === "debug-commands"))) {
+  await debugByRealKeys();
+  await pausedProgramByMouse();
+  await themesPausedWeb();
 }
 if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "beforeunload".includes(f)))) {
   await beforeUnload("changed", 'wait,code:"ONE"=>"ONE x"', true);
