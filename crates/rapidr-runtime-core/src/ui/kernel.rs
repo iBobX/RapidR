@@ -242,7 +242,15 @@ thread_local! {
     /// The user closed the stopped program's last window
     /// ([`gui_closed_while_paused`]).
     static CLOSED_PAUSED: Cell<bool> = const { Cell::new(false) };
+    /// (DEBUG-2) The IDE the front went back to at the last stop, and until
+    /// when it goes back again should this program become the active app
+    /// ([`gui_debugger_stopped`]).
+    static HAND_BACK: Cell<Option<(u32, std::time::Instant)>> = const { Cell::new(None) };
 }
+
+/// How long after a stop the program's activation is still Continue's, in
+/// flight, rather than the person's (a Cmd-Tab, Show Program Window).
+const HAND_BACK_FOR: Duration = Duration::from_millis(1500);
 
 /// Whether the user closed the stopped program's last window while its
 /// windows were served ([`gui_serve_paused`]): the debugger ends it, as
@@ -298,6 +306,17 @@ pub fn gui_serve_paused() -> bool {
         let menu_picks = desk.events.len();
         desk.held_close = None;
         host.pump(None, desk, &RtStore);
+        // (stopped right after Continue handed it the front — a handler
+        // that stops at once: Tab into an OnExit's breakpoint, then the next
+        // control's OnEnter's —: the system made it active only after it
+        // gave the front back; the IDE's again, the stop shown there)
+        if let Some((ide, until)) = HAND_BACK.with(Cell::get) {
+            if std::time::Instant::now() > until {
+                HAND_BACK.with(|h| h.set(None));
+            } else if host.active() {
+                rapidr_ui_host_winit::platform::activate_process(ide);
+            }
+        }
         // (its last window closed by the user: the program ends, as Stop
         // ends it — none of its code runs, not its OnClose)
         if desk.take_held_last_close().is_some() {
@@ -350,6 +369,7 @@ pub fn gui_debugger_stopped() {
         return;
     }
     rapidr_ui_host_winit::platform::activate_process(ide);
+    HAND_BACK.with(|h| h.set(Some((ide, std::time::Instant::now() + HAND_BACK_FOR))));
 }
 
 /// One step of the innermost wait (see the module's doc).

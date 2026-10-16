@@ -575,10 +575,16 @@ def screen_point(pid, path, box, fx=0.5):
 def stops_at(studio, name, where):
     """Studio in front, stopped where `where` (file:line) says: its status
     line read back from a capture."""
-    ok = wait_front(studio, 5)
-    time.sleep(0.7)
-    path, text = studio_text(studio, name)
-    return ok and where in text.replace(" ", ""), text
+    # (Studio may be in front still from the key that went on: the stop
+    # comes a moment later — read again until it shows, a few seconds)
+    text = ""
+    for _ in range(10):
+        ok = wait_front(studio, 5)
+        time.sleep(0.6)
+        path, text = studio_text(studio, name)
+        if ok and where in text.replace(" ", ""):
+            return True, text
+    return False, text
 
 
 def focus_walk():
@@ -648,12 +654,15 @@ def loops_walk():
     key(studio, F5)
     for k in (1, 2, 3):
         ok, text = stops_at(studio, f"50-loop-pass-{k}", "steps.rr:40")
-        check(f"[loops] the loop's body stops at pass {k} (i = {k})", ok and f"i = {k}" in text, text[-200:])
+        # (Vision reads the single letter i badly: total says which pass —
+        # 0, 1, 3 before the 1st, 2nd and 3rd)
+        t = (0, 1, 3)[k - 1]
+        check(f"[loops] the loop's body stops at pass {k} (total = {t})", ok and f"total={t}" in text.replace(" ", ""), text[-200:])
         key(studio, F5)
     for level, n in enumerate((4, 3, 2, 1), 1):
         ok, text = stops_at(studio, f"51-recursion-level-{level}", "steps.rr:11")
         detail = text[-260:]
-        good = ok and f"n = {n}" in text
+        good = ok and f"n={n}" in text.replace(" ", "")
         if n == 1:
             good = good and text.count("Fact") >= 4
         check(f"[loops] Fact stops at level {level} (n = {n})" + (", the Call Stack lists every level" if n == 1 else ""), good, detail)
@@ -685,11 +694,12 @@ def values_walk():
     mouse(Quartz.kCGEventMouseMoved, x, y)
     time.sleep(2.0)
     path, text = studio_text(studio, "61-values-datatip")
-    check("[values] the mouse resting on i: its data tip (i = 1)", "i = 1" in text, text[-200:])
+    # (the tip: the value and its type — Variables shows no type)
+    check("[values] the mouse resting on i: its data tip (i = 1, Integer)", "i=1" in text.replace(" ", "") and "Integer" in text, text[-200:])
     mouse(Quartz.kCGEventMouseMoved, x, y + 120)
     time.sleep(0.5)
     path = shot_window(studio, "62-values-variables")
-    row = next((b for b in ocr_boxes(path) if b["text"].strip().startswith("total = 0")), None)
+    row = next((b for b in ocr_boxes(path) if "total = 0" in b["text"]), None)
     if row is None:
         check("[values] Variables shows total = 0", False)
         return
@@ -701,7 +711,7 @@ def values_walk():
     key(studio, ENTER)
     time.sleep(0.8)
     path, text = studio_text(studio, "63-values-edited")
-    check("[values] F2, 100, Enter: Variables shows total = 100", "total = 100" in text, text[-200:])
+    check("[values] F2, 100, Enter: Variables shows total = 100", "total=100" in text.replace(" ", ""), text[-200:])
     # (the breakpoint off — F9 on the editor's line 6 — and on: the program
     # adds 2 + 4 + 6 to the 100)
     click_at(studio, *screen_point(studio, path, box, 0.5))
@@ -740,7 +750,7 @@ def include_walk():
     path, text = studio_text(studio, "72-include-closed")
     key(studio, F5)
     ok, text = stops_at(studio, "73-include-stopped", "tally.inc:5")
-    check("[include] F5: it stops in tally.inc at 5 and the file is open there", ok and "total = total + k" in text, text[-200:])
+    check("[include] F5: it stops in tally.inc at 5 and the file is open there", ok and "SUBAddUp" in text.replace(" ", "") and "AddUptally.inc:5" in text.replace(" ", ""), text[-200:])
     key(studio, F5, ("shift",))
 
 

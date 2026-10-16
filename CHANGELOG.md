@@ -42,6 +42,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - **RapidR Studio on the web: a click in Studio while the program runs gives Studio
   the keyboard back** (the program's frame kept it: F9 or Ctrl+G went to the
   program).
+- **A stop right after Continue shows in Studio on macOS** (Tab from a field into
+  an OnExit breakpoint, Continue, the next field's OnEnter breakpoint): the system
+  made the program active only after it had given the front back, so the stopped
+  program stayed in front of Studio. A program stopped then hands the front back
+  again for a moment (found walking the debugger on the real screen).
 - **RapidR Studio's dark and high-contrast themes are readable everywhere.** The
   debugger's Variables, Watch, Call Stack and Breakpoints rows and the Breakpoints
   pane's When / Hit / Log / On labels were black or dark grey on the dark ground:
