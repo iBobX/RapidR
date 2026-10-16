@@ -705,6 +705,13 @@ pub fn describe(id: &str, type_name: &str, get: Props, size: (i64, i64), font: &
             n.states.checked = Some(flag(get, "checked", false));
             n.actions = vec![Action::Click, Action::Focus];
         }
+        // (RapidR's: a panel given TabStop takes the focus and clicks with
+        // Enter / Space — a card — so a screen reader hears a button)
+        "RPANEL" if flag(get, "tabstop", false) => {
+            own_caption(&mut n, false);
+            n.role = Role::Button;
+            n.actions = vec![Action::Click, Action::Focus];
+        }
         "RLABEL" | "RGROUPBOX" | "RPANEL" | "RBEVEL" => own_caption(&mut n, false),
         // (QDIGDISPLAY: the text it shows)
         "RDIGDISPLAY" => n.name = super::digdisplay_text(id).unwrap_or_else(|| text(get, "display")),
@@ -1137,6 +1144,10 @@ mod tests {
         // a cool button in a group is a toggle (pressed: checked)
         let n = describe("cb", "RCOOLBTN", &props(&[("groupindex", v_int(1)), ("down", v_int(0))]), (25, 25), &font);
         assert_eq!((n.role, n.states.checked), (Role::Button, Some(false)));
+        // (RapidR's) a panel: a pane; given TabStop, a button (a card)
+        assert_eq!(describe("p", "RPANEL", &props(&[]), (200, 60), &font).role, Role::Pane);
+        let n = describe("card", "RPANEL", &props(&[("tabstop", v_int(1))]), (200, 60), &font);
+        assert_eq!((n.role, n.actions.contains(&Action::Click)), (Role::Button, true));
         let n = describe("pb", "RPROGRESSBAR", &props(&[("position", v_int(30)), ("max", v_int(60))]), (100, 16), &font);
         assert_eq!((n.role, n.value.as_deref(), n.numeric.unwrap().max), (Role::ProgressIndicator, Some("50%"), 60.0));
         let n = describe("ud", "RUPDOWN", &props(&[("position", v_int(4)), ("increment", v_int(2))]), (16, 25), &font);

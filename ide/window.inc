@@ -31,6 +31,7 @@ CREATE Studio AS RForm
   Width = 1280: Height = 800
   KeyPreview = 1
   OnResize = StudioResize
+  OnShow = StudioShown
   OnClose = StudioClose
   OnKeyDown = StudioKey
   CREATE MainMenu AS RMainMenu
@@ -112,11 +113,16 @@ CREATE Studio AS RForm
   END CREATE
 
   ' ---- the start page (a document): the brand, Start, Recent, the examples ----
-  CREATE Welcome AS RPanel
+  ' (a scroll box holding the page: a window too short for every example
+  ' card scrolls — the wheel, the bar, Tab onto a card below the edge)
+  CREATE Welcome AS RScrollBox
     Width = 720: Height = 520
-    BevelOuter = 0
+    BorderStyle = 0
     AccessibleName = "Welcome"
     OnResize = LayOutWelcome
+    CREATE WelcomePage AS RPanel
+    Width = 720: Height = 520
+    BevelOuter = 0
     CREATE WelcomeLogo AS RImage
       Left = 48: Top = 36: Width = 153: Height = 44
       Stretch = 1
@@ -145,6 +151,7 @@ CREATE Studio AS RForm
     CREATE ExamplesHead AS RLabel
       Left = 300: Top = 136: Width = 300: Height = 22
       Caption = "Examples"
+    END CREATE
     END CREATE
   END CREATE
 

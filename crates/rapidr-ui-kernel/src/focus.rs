@@ -82,6 +82,9 @@ impl FormUi {
             None => order[0],
         };
         self.set_focus(Some(next));
+        // (out of view in a scroll box — the form's own bars too —: shown,
+        // as Delphi's AutoScrollInView)
+        crate::components::scrollbox::show_focused(self, store);
         // (the keyboard's focus shows its hint: tooltip.rs)
         self.tip_focus(store);
     }

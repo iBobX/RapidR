@@ -210,6 +210,7 @@ A container with raised or lowered bevels and an optional caption, to group comp
 | `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `PopupMenu` | component |  | The popup menu shown when the user right-clicks the control. |
+| `TabStop` *(RapidR)* | bool | False | True makes the panel take the keyboard focus, as a clickable card: Tab reaches it (in TabOrder), the theme's focus ring shows around it, Enter or Space clicks it (OnClick), and a screen reader announces it as a button named by its AccessibleName or Caption. Inside a scroll box, Tab scrolls it into view. False (the default, and RapidQ's QPANEL) leaves it out of the keyboard's way. |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |

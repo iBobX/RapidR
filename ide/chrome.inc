@@ -97,6 +97,7 @@ SUB ApplyChrome
   ApplyFonts
   ' (the start page)
   Welcome.Color = TC("page")
+  WelcomePage.Color = TC("page")
   WelcomeTitle.Font = HeadFont
   WelcomeTitle.Font.Color = TC("page.dim")
   WelcomeTag.Font.Color = TC("page.dim")

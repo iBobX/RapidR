@@ -5,15 +5,28 @@
 //! its Caption on one line inside them, centred (Alignment
 //! taLeftJustify 0 / taRightJustify 1 / taCenter 2), under its
 //! components. A container: its components are the tree's children.
+//!
+//! (RapidR's) With `TabStop = 1` a panel takes the keyboard focus — Tab
+//! reaches it, the theme's focus ring shows around it, Enter or Space
+//! clicks it (OnClick), a screen reader sees a button — what a clickable
+//! card is (RapidR Studio's Welcome page). QPANEL has no TabStop: RapidQ's
+//! panels never take the focus, and a panel that isn't given it doesn't.
 
-use rapidr_value::objects::a11y::{mnemonic, AccessNode};
+use rapidr_value::objects::a11y::{mnemonic, AccessNode, Action};
 use rapidr_value::objects::bevel;
 use rapidr_value::objects::ops::Place;
 use rapidr_value::objects::text::text_size;
 
-use super::{ComponentKind, Cx, MouseIn, MouseOut};
+use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseOut};
+use crate::a11y::AccessValue;
+use crate::input::Clipboard;
 use crate::paint::{caption, color_of, ink_of, Painter};
 use crate::store::{self, Store};
+
+/// (RapidR's) The program gave the panel `TabStop = 1`: it takes the focus.
+fn tab_stop(store: &dyn Store, id: &str) -> bool {
+    store::flag(store, id, "tabstop", false)
+}
 
 pub struct Panel;
 
@@ -38,13 +51,30 @@ impl ComponentKind for Panel {
         "RPANEL"
     }
 
-    fn focusable(&self, _store: &dyn Store, _id: &str) -> bool {
-        false
+    fn focusable(&self, store: &dyn Store, id: &str) -> bool {
+        tab_stop(store, id)
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
         // (the input lane's: OnClick, OnDblClick in the VCL's order)
         super::canvas::click_or_double(cx, m)
+    }
+
+    // (RapidR's TabStop: Enter or Space clicks it, as a button)
+    fn key(&self, cx: &mut Cx, k: &KeyIn, _clip: &mut dyn Clipboard) -> bool {
+        if matches!(k.vk, 13 | 32) && !k.mods.alt && !k.mods.command && tab_stop(cx.store, cx.id) {
+            cx.click();
+            return true;
+        }
+        false
+    }
+
+    fn access(&self, cx: &mut Cx, action: Action, _part: Option<usize>, _value: Option<&AccessValue>) -> bool {
+        if action == Action::Click && cx.state.enabled && tab_stop(cx.store, cx.id) {
+            cx.click();
+            return true;
+        }
+        false
     }
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
@@ -77,6 +107,11 @@ impl ComponentKind for Panel {
                 (false, false) => (t.shadow, t.light),
             };
             p.edge((i, i, w - 2 * i, h - 2 * i), &[lit], &[shaded]);
+        }
+        // (RapidR's TabStop: the focus ring over its edge and bevels, which its
+        // components leave free on a card)
+        if cx.state.focused {
+            p.focus_ring((0, 0, w, h), false);
         }
         let text = store::string(cx.store, cx.id, "caption");
         if text.is_empty() {

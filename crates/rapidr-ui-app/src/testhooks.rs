@@ -36,7 +36,9 @@
 //!   headless host and page say so captures don't depend on the machine;
 //!   `system`: the real system's look (on the web, the page's colour scheme
 //!   and forced colours, followed as they change — playwright's
-//!   emulateMedia). A step `<any>.__look_dark` (`__look_light`,
+//!   emulateMedia); `file:PATH`: what that file says, read whenever the
+//!   program asks the system (a real-screen walk switches it by writing
+//!   the file). A step `<any>.__look_dark` (`__look_light`,
 //!   `__look_contrast`, `__look_darkcontrast`) changes it mid-run, as the
 //!   user switching the system to dark would ([`Action::Look`]). Test-only:
 //!   a normal run never reads it.
@@ -381,10 +383,10 @@ thread_local! {
 }
 
 /// A look's name as `RAPIDR_TEST_SYSTEM_LOOK` and `__look_` say it — case,
-/// spaces, `-`, `_` and `+` ignored: `light`, `dark`, `contrast` (`hc`,
+/// spaces (a file's line end), `-`, `_` and `+` ignored: `light`, `dark`, `contrast` (`hc`,
 /// `highcontrast`), `darkcontrast` — as (dark, high contrast).
 pub fn parse_look(name: &str) -> Option<(bool, bool)> {
-    let n: String = name.chars().filter(|c| !matches!(c, ' ' | '-' | '_' | '+')).flat_map(char::to_lowercase).collect();
+    let n: String = name.chars().filter(|c| !c.is_whitespace() && !matches!(c, '-' | '_' | '+')).flat_map(char::to_lowercase).collect();
     Some(match n.as_str() {
         "light" => (false, false),
         "dark" => (true, false),
@@ -395,11 +397,19 @@ pub fn parse_look(name: &str) -> Option<(bool, bool)> {
 }
 
 /// How the system looks to a test — (dark, high contrast) — as a `__look_`
-/// step or `RAPIDR_TEST_SYSTEM_LOOK` says; `None`: as the host decides (a
-/// GUI test's headless host and page: light; `system`, or no test: the
-/// real system's).
+/// step or `RAPIDR_TEST_SYSTEM_LOOK` says (`file:PATH`: what that file
+/// says now, read each time — a walk on the real screen switches a running
+/// program by writing it; light while it can't be read); `None`: as the
+/// host decides (a GUI test's headless host and page: light; `system`, or
+/// no test: the real system's).
 pub fn system_look() -> Option<(bool, bool)> {
-    LOOK.with(std::cell::Cell::get).or_else(|| var("RAPIDR_TEST_SYSTEM_LOOK").as_deref().and_then(parse_look))
+    LOOK.with(std::cell::Cell::get).or_else(|| {
+        let v = var("RAPIDR_TEST_SYSTEM_LOOK")?;
+        match v.strip_prefix("file:") {
+            Some(path) => Some(std::fs::read_to_string(path).ok().as_deref().and_then(parse_look).unwrap_or((false, false))),
+            None => parse_look(&v),
+        }
+    })
 }
 
 /// A test's `__look_` step: the system looks so from now on.
@@ -471,6 +481,20 @@ mod tests {
         }
         set_system_look(true, false);
         assert_eq!(system_look(), Some((true, false)));
+    }
+
+    #[test]
+    fn the_systems_look_from_a_file() {
+        // (a thread of its own: no step's look; the hook's variable the
+        // test's own, as a page sets them)
+        let path = std::env::temp_dir().join(format!("rapidr-look-{}", std::process::id()));
+        set_vars(vec![("RAPIDR_TEST_SYSTEM_LOOK".into(), format!("file:{}", path.display()))]);
+        assert_eq!(system_look(), Some((false, false)), "no file yet: light");
+        std::fs::write(&path, "dark\n").unwrap();
+        assert_eq!(system_look(), Some((true, false)));
+        std::fs::write(&path, "high contrast").unwrap();
+        assert_eq!(system_look(), Some((false, true)));
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]

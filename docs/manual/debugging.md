@@ -91,8 +91,8 @@ can. What you change in Variables, Watch or the Immediate pane (a caption,
 a colour) shows in its windows at once.
 
 Try it with [themes.rr](../../examples/gui/themes.rr): put a breakpoint on
-line 68 (`SELECT CASE Sender.Caption`), press F5, and click *Dark* in its
-window. Studio comes to the front, paused at line 68, with ▶ ready to
+line 94 (`SELECT CASE Sender.Caption`), press F5, and click *Dark* in its
+window. Studio comes to the front, paused at line 94, with ▶ ready to
 continue. Switch to another program and back: the Themes window is still
 there, and Debug ▸ Show Program Window brings it forward. Press F5: the
 Themes window comes to the front and turns dark.
@@ -475,7 +475,10 @@ this (and the VM's speed, start-up and memory) against its budgets.
 ## In every theme
 
 The debugger looks right in each of Studio's themes (View ▸ Theme): RapidR
-Light, RapidR Dark, RapidR High Contrast and Classic. Every row of
+Light, RapidR Dark, RapidR High Contrast and Classic — and when the look
+changes while you debug (View ▸ Theme, or your system switching to dark
+while Studio follows it), every pane takes the new one at once, the
+values marked as changed included. Every row of
 Variables, Watch, the Call Stack and Breakpoints, the labels under the
 breakpoints and the data tips are readable in each; in RapidR's three
 looks every text is at least WCAG AA's 4.5:1 against what it's drawn on,

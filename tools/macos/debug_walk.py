@@ -4,13 +4,13 @@ as a person does it — DEBUG-RUN's walk, Robert's Preview 2 report: ▶ greyed
 while paused, the paused program's window unreachable after switching apps.
 
 RapidR Studio (./rapidr) runs a copy of examples/gui/themes.rr with a
-breakpoint at line 68 (SUB Switch); real keys and clicks (CGEvent) drive it,
+breakpoint at line 94 (SUB Switch); real keys and clicks (CGEvent) drive it,
 and every check is what shows: which app is in front, which windows are on
 the screen (CGWindowList), the tool bar's ▶ as VoiceOver reads it (its name
 and enabled: tools/macos/ui_probe.swift), captures read back with OCR.
 
   paths: light   F5 (the program's window in front) · a click on Dark stops
-                 at 68, Studio in front, ▶ "Continue (F5)" enabled · Finder
+                 at 94, Studio in front, ▶ "Continue (F5)" enabled · Finder
                  and back: the paused window still on the screen, painted ·
                  Cmd-Tab reaches it, it's raised, a click in it is dropped,
                  it moves · Debug ▸ Show Program Window · F5: in front, dark ·
@@ -351,7 +351,7 @@ def close_all():
 def themes_walk(theme, full):
     src = f"{WORK}/themes-{theme}.rr"
     subprocess.run(["cp", f"{W}/examples/gui/themes.rr", src])
-    studio = start_studio(src, theme, "wait,wait,line:68")
+    studio = start_studio(src, theme, "wait,wait,line:94")
     check(f"[{theme}] Studio in front at the start", wait_front(studio))
     key(studio, F9)
     key(studio, F5)
@@ -366,14 +366,14 @@ def themes_walk(theme, full):
         activate(prog)
     ax_click(prog, "Dark")
     ok = wait_front(studio, 4)
-    check(f"[{theme}] the click stops at line 68 and Studio comes to the front", ok, f"front {front_pid()}")
+    check(f"[{theme}] the click stops at line 94 and Studio comes to the front", ok, f"front {front_pid()}")
     time.sleep(0.8)
     name, enabled = run_button(studio)
     check(f"[{theme}] paused: the ▶ button reads 'Continue (F5)' and is enabled", name == "Continue (F5)" and enabled in (True, 1, "1"), f"{name!r} enabled={enabled!r}")
     path, text = studio_text(studio, f"{theme}-02-paused")
-    # (the status bar: "Breakpoint: <file>:68" — a long file name cut at
-    # its panel's end — and the caret's "Ln 68")
-    check(f"[{theme}] paused: the status bar says Breakpoint, at line 68", "Breakpoint:" in text and "Ln 68" in text, text[-200:])
+    # (the status bar: "Breakpoint: <file>:94" — a long file name cut at
+    # its panel's end — and the caret's "Ln 94")
+    check(f"[{theme}] paused: the status bar says Breakpoint, at line 94", "Breakpoint:" in text and "Ln 94" in text, text[-200:])
     # (the two together: Show Program Window brings the paused program over
     # Studio, whose ▶ shows Continue beside it — Studio's frame captured)
     menu_click(studio, "Debug", "Show Program Window")
@@ -404,7 +404,7 @@ def themes_walk(theme, full):
     shot_screen_region(w["x"], w["y"], w["w"], w["h"], "04-paused-program-raised-by-cmd-tab")
     t = ocr(f"{OUT}/04-paused-program-raised-by-cmd-tab.png")
     check("raised: the screen shows it painted", "Theme" in t, t[:200])
-    # (a click on Classic while paused: dropped — no second stop, Studio stays paused at 68)
+    # (a click on Classic while paused: dropped — no second stop, Studio stays paused at 94)
     n = ax_find(prog, "Classic", exact=True)
     click_at(prog, n["x"] + n["w"] / 2, n["y"] + n["h"] / 2)
     time.sleep(1.2)
@@ -421,7 +421,7 @@ def themes_walk(theme, full):
     cmd_tab(1)
     check("Cmd-Tab back: Studio in front", wait_front(studio), f"front {front_pid()}")
     path, text = studio_text(studio, "06-still-paused")
-    check("still paused at 68 after the dropped click", "themes-rapidr-light.rr:68" in text.replace(" ", ""), text[-160:])
+    check("still paused at 94 after the dropped click", "themes-rapidr-light.rr:94" in text.replace(" ", ""), text[-160:])
     # (Debug > Show Program Window, through the menu bar as VoiceOver presses it)
     menu_click(studio, "Debug", "Show Program Window")
     ok = wait_front(prog)
@@ -441,7 +441,7 @@ def themes_walk(theme, full):
     check("Continue: the theme changed (Theme: … dark)", "dark" in t.lower(), t[:200])
     # ---- a step: click Classic → paused; F10 → still paused, a line on; F5 → classic
     ax_click(prog, "Classic")
-    check("step: the click on Classic stops at 68, Studio in front", wait_front(studio, 4))
+    check("step: the click on Classic stops at 94, Studio in front", wait_front(studio, 4))
     time.sleep(0.6)
     key(studio, F10)
     time.sleep(1.0)
@@ -455,7 +455,7 @@ def themes_walk(theme, full):
     check("F5 after a step: the program in front, the theme classic", ok and "classic" in t.lower(), t[:200])
     # ---- Stop while paused
     ax_click(prog, "High contrast")
-    check("stop: the click on High contrast stops at 68, Studio in front", wait_front(studio, 4))
+    check("stop: the click on High contrast stops at 94, Studio in front", wait_front(studio, 4))
     time.sleep(0.6)
     key(studio, F5, ("shift",))
     time.sleep(1.5)

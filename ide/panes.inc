@@ -49,10 +49,10 @@ DIM ExampleCount AS INTEGER
 DIM LogoBmp AS RBitmap
 
 SUB AddStart(k AS INTEGER, Icon AS STRING, Caption AS STRING)
-  StartIcon(k).Parent = Welcome
+  StartIcon(k).Parent = WelcomePage
   StartIcon(k).Left = 48: StartIcon(k).Top = 168 + k * 28: StartIcon(k).Width = 16: StartIcon(k).Height = 16
   StartIconName(k) = Icon
-  StartLink(k).Parent = Welcome
+  StartLink(k).Parent = WelcomePage
   StartLink(k).Left = 74: StartLink(k).Top = 166 + k * 28: StartLink(k).Width = 200: StartLink(k).Height = 20
   StartLink(k).Caption = Caption
   StartLink(k).Cursor = -21
@@ -66,12 +66,14 @@ SUB AddExample(File AS STRING, What AS STRING)
   IF i > 16 THEN EXIT SUB
   ExampleFile(i) = File
   ExampleWhat(i) = What
-  ExCard(i).Parent = Welcome
+  ExCard(i).Parent = WelcomePage
   ExCard(i).BevelOuter = 0
   ExCard(i).Tag = i
   ExCard(i).Cursor = -21
   ExCard(i).AccessibleName = "Example " + BaseName(File) + ": " + What
   ExCard(i).OnClick = CardPicked
+  ' (Tab reaches each card, Enter or Space opens it)
+  ExCard(i).TabStop = 1
   ExIcon(i).Parent = ExCard(i)
   ExIcon(i).Left = 14: ExIcon(i).Top = 14: ExIcon(i).Width = 24: ExIcon(i).Height = 24
   ExTitle(i).Parent = ExCard(i)
@@ -134,31 +136,52 @@ SUB LoadWelcomeIcons
 END SUB
 
 ' The cards in as many columns as the page has room for (200 pixels or
-' more each, sharing the width), the Examples heading over them.
+' more each, sharing the width), the Examples heading over them. The page
+' (WelcomePage, in the Welcome scroll box) as tall as what's on it: when
+' that's more than the window shows, the box's scroll bar takes 17 pixels
+' of the width and the page scrolls.
 SUB LayOutWelcome
   DIM cols AS INTEGER, k AS INTEGER, room AS INTEGER, w AS INTEGER, x0 AS INTEGER
   DIM rows AS INTEGER, pitch AS INTEGER, tall AS INTEGER
+  DIM pageW AS INTEGER, pageH AS INTEGER, bottom AS INTEGER, pass AS INTEGER
   x0 = 290
-  room = Welcome.Width - x0 - 32
-  cols = (room + 12) \ 212
-  IF cols < 1 THEN cols = 1
-  IF cols > 4 THEN cols = 4
-  w = (room - (cols - 1) * 12) \ cols
-  IF w > 300 THEN w = 300
-  ExamplesHead.Left = x0
-  ' (a short page: the cards closer together, down to 56 apart, so every
-  ' one shows — two columns of ten in Studio's 1280 x 800 window)
-  rows = (ExampleCount + cols - 1) \ cols
-  pitch = 70: tall = 58
-  IF rows > 0 THEN
-    IF 168 + rows * pitch - 12 > Welcome.Height - 8 THEN
-      pitch = (Welcome.Height - 170) \ rows
-      IF pitch < 56 THEN pitch = 56
-      IF pitch > 70 THEN pitch = 70
-      tall = pitch - 6
-      IF tall > 58 THEN tall = 58
+  pageW = Welcome.Width
+  FOR pass = 1 TO 2
+    room = pageW - x0 - 32
+    cols = (room + 12) \ 212
+    IF cols < 1 THEN cols = 1
+    IF cols > 4 THEN cols = 4
+    w = (room - (cols - 1) * 12) \ cols
+    IF w > 300 THEN w = 300
+    ' (a short page: the cards closer together, down to 56 apart; still
+    ' too short, it scrolls)
+    rows = (ExampleCount + cols - 1) \ cols
+    pitch = 70: tall = 58
+    IF rows > 0 THEN
+      IF 168 + rows * pitch - 12 > Welcome.Height - 8 THEN
+        pitch = (Welcome.Height - 170) \ rows
+        IF pitch < 56 THEN pitch = 56
+        IF pitch > 70 THEN pitch = 70
+        tall = pitch - 6
+        IF tall > 58 THEN tall = 58
+      END IF
     END IF
-  END IF
+    ' (the lowest thing on the page: the last card, or the Recent list's
+    ' last line)
+    bottom = 168 + rows * pitch - (pitch - tall)
+    FOR k = 0 TO 5
+      IF RecentLink(k).Visible AND RecentLink(k).Top + 20 > bottom THEN bottom = RecentLink(k).Top + 20
+    NEXT
+    IF RecentNone.Top + 20 > bottom THEN bottom = RecentNone.Top + 20
+    pageH = bottom + 24
+    ' (taller than the window: laid out again beside the scroll bar)
+    IF pageH <= Welcome.Height OR pass = 2 THEN EXIT FOR
+    pageW = Welcome.Width - 17
+  NEXT
+  IF pageH < Welcome.Height THEN pageH = Welcome.Height
+  WelcomePage.Width = pageW
+  WelcomePage.Height = pageH
+  ExamplesHead.Left = x0
   FOR k = 0 TO ExampleCount - 1
     ExCard(k).Left = x0 + (k MOD cols) * (w + 12)
     ExCard(k).Top = 168 + (k \ cols) * pitch
@@ -173,7 +196,7 @@ SUB FillRecent
   n = TALLY(RecentList, CHR$(10))
   IF n > 6 THEN n = 6
   FOR i = 0 TO 5
-    RecentLink(i).Parent = Welcome
+    RecentLink(i).Parent = WelcomePage
     RecentLink(i).Left = 48: RecentLink(i).Top = 354 + i * 24: RecentLink(i).Width = 230: RecentLink(i).Height = 20
     RecentLink(i).Cursor = -21
     RecentLink(i).Tag = i
@@ -188,6 +211,8 @@ SUB FillRecent
     END IF
   NEXT
   RecentNone.Visible = Flag(n = 0)
+  ' (the page as tall as its Recent list too)
+  LayOutWelcome
 END SUB
 
 SUB CardPicked(Sender AS RPanel)
