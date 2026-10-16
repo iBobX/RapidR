@@ -20,6 +20,13 @@ and enabled: tools/macos/ui_probe.swift), captures read back with OCR.
                  stops it (▶ Continue), F5 lets the error end it (exit code
                  1, ▶ Run), F5 runs it again, Shift+F5
          dark, contrast   the paused Studio in RapidR Dark / High Contrast
+         events  examples/gui/hello_form.rr, a breakpoint in the name's
+                 one-line OnChange (49): each letter typed into the program
+                 stops there, Studio in front — three times with F5 between
+                 (the program in front again) · a letter typed into the
+                 stopped program is dropped · F10 out of the handler, the
+                 next letter stops again · its window closed by its close
+                 button while it's stopped: it ends, ▶ Run (F5)
 
   python3 tools/macos/debug_walk.py [paths…]   (all by default)
 
@@ -46,6 +53,7 @@ ENV = dict(os.environ, RAPIDR_REGISTRY=f"{WORK}/registry", RAPIDR_PRINT_TO=f"{WO
 for k in ("RAPIDR_CAPTURE", "RAPIDR_TEST_EVENTS", "RAPIDR_TEST_DUMP", "RAPIDR_MENU"):
     ENV.pop(k, None)
 F5, F9, F10, F11, TAB, CMD, ENTER = 96, 101, 109, 103, 48, 55, 36
+END, KEY_A, KEY_B, KEY_C, KEY_X = 119, 0, 11, 8, 7
 results = []
 started = []
 
@@ -507,8 +515,65 @@ def error_walk():
     check("[error] Shift+F5 ends it: ▶ Run (F5) enabled", not wins(prog) and name == "Run (F5)" and enabled in (True, 1, "1"), f"{name!r} {enabled!r}")
 
 
+def events_walk():
+    src = f"{WORK}/hello_form.rr"
+    subprocess.run(["cp", f"{W}/examples/gui/hello_form.rr", src])
+    studio = start_studio(src, "rapidr-light", "wait,wait,line:49")
+    check("[events] Studio in front", wait_front(studio))
+    key(studio, F9)
+    key(studio, F5)
+    prog = wait_program(studio)
+    check("[events] F5: the program in front", prog is not None and wait_front(prog), f"program {prog} front {front_pid()}")
+    if prog is None:
+        return
+    # (into the name: a click on its edit, the caret to its end)
+    ax_click(prog, "World")
+    key(prog, END)
+    for k, letter in enumerate((KEY_A, KEY_B, KEY_C), 1):
+        key(prog, letter)
+        ok = wait_front(studio, 4)
+        time.sleep(0.6)
+        path, text = studio_text(studio, f"30-events-stop-{k}")
+        check(f"[events] letter {k} typed: it stops at the OnChange line 49, Studio in front", ok and "hello_form.rr:49" in text.replace(" ", ""), text[-160:])
+        if k < 3:
+            key(studio, F5)
+            check(f"[events] F5: the program in front again", wait_front(prog, 4), f"front {front_pid()}")
+    # (stopped: a letter typed into the program is dropped — no other stop)
+    menu_click(studio, "Debug", "Show Program Window")
+    if wait_front(prog):
+        before = ocr(shot_window(prog, "31-events-paused-program"))
+        key(prog, KEY_X)
+        time.sleep(1.0)
+        after = ocr(shot_window(prog, "32-events-typed-while-paused"))
+        check("[events] typed while stopped: dropped (its window unchanged, still in front: no stop)", front_pid() == prog and "Worldabcx" not in after.replace(" ", "") and before == after, f"{before[:80]!r} -> {after[:80]!r}")
+    activate(studio)
+    # (out of the handler: F10 — its END SUB, then on — the program runs on)
+    key(studio, F10)
+    time.sleep(0.8)
+    if front_pid() == studio:
+        key(studio, F10)
+    ok = wait_front(prog, 4)
+    check("[events] F10 out of the handler: the program runs on, in front", ok, f"front {front_pid()}")
+    if ok:
+        key(prog, KEY_A)
+        ok = wait_front(studio, 4)
+        time.sleep(0.6)
+        path, text = studio_text(studio, "33-events-after-step")
+        check("[events] after the step, the next letter stops at 49 again", ok and "hello_form.rr:49" in text.replace(" ", ""), text[-160:])
+    # (stopped: its window closed by its close button — it ends, as Stop)
+    menu_click(studio, "Debug", "Show Program Window")
+    if wait_front(prog):
+        w = wins(prog)[0]
+        click_at(prog, w["x"] + 15, w["y"] + 15)
+        time.sleep(2.0)
+    activate(studio)
+    name, enabled = run_button(studio)
+    path, text = studio_text(studio, "34-events-closed-while-stopped")
+    check("[events] its window closed while stopped: it ends, ▶ Run (F5) enabled", not wins(prog) and name == "Run (F5)" and enabled in (True, 1, "1") and "ended" in text, f"{name!r} {enabled!r} {text[-200:]}")
+
+
 try:
-    paths = sys.argv[1:] or ["light", "error", "dark", "contrast"]
+    paths = sys.argv[1:] or ["light", "error", "dark", "contrast", "events"]
     t0 = time.time()
     if "light" in paths:
         themes_walk("rapidr-light", True)
@@ -521,6 +586,9 @@ try:
         close_all(); started.clear(); time.sleep(1)
     if "contrast" in paths:
         themes_walk("rapidr-high-contrast", False)
+        close_all(); started.clear(); time.sleep(1)
+    if "events" in paths:
+        events_walk()
         close_all(); started.clear()
     log(f"walk took {time.time() - t0:.0f} s")
 finally:

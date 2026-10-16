@@ -165,6 +165,10 @@ pub struct Desktop {
     pub modal: Vec<String>,
     /// A test drives the program: the user's input is dropped.
     pub ignore_user: bool,
+    /// (the debugger's stop) The window whose close box the user clicked
+    /// while their input was dropped: the host decides what it means — a
+    /// stopped program's last window closed ends the program, as Stop does.
+    pub held_close: Option<String>,
     pub clipboard: Box<dyn Clipboard>,
     /// Screen.Cursor (0: each component's own; platform.rs).
     pub screen_cursor: i64,
@@ -181,7 +185,7 @@ pub struct Desktop {
 
 impl Desktop {
     pub fn new(clipboard: Box<dyn Clipboard>) -> Desktop {
-        Desktop { forms: BTreeMap::new(), text: TextSystem::new(), events: Vec::new(), cmds: Vec::new(), modal: Vec::new(), ignore_user: false, clipboard, screen_cursor: 0, blinks: true, default_scale: 1.0, next_z: 1 }
+        Desktop { forms: BTreeMap::new(), text: TextSystem::new(), events: Vec::new(), cmds: Vec::new(), modal: Vec::new(), ignore_user: false, held_close: None, clipboard, screen_cursor: 0, blinks: true, default_scale: 1.0, next_z: 1 }
     }
 
     /// Form `id`'s kernel side, made from the store the first time.
@@ -369,7 +373,22 @@ impl Desktop {
 
     /// The window's close box.
     pub fn close_box(&mut self, id: &str, src: Source) {
+        if src == Source::User && self.ignore_user {
+            self.held_close = Some(id.to_lowercase());
+        }
         self.route(id, src, |f, _, _| f.close_box());
+    }
+
+    /// The user's close box while their input was dropped
+    /// ([`Self::held_close`]), taken: the window's name when it was the
+    /// program's last one shown or the form its ShowModal waits for — what
+    /// ends a stopped program.
+    pub fn take_held_last_close(&mut self) -> Option<String> {
+        let form = self.held_close.take()?;
+        let shown: Vec<&String> = self.forms.iter().filter(|(_, f)| f.shown).map(|(k, _)| k).collect();
+        let last = shown.len() == 1 && shown[0] == &form;
+        let main = self.modal.first().is_some_and(|m| m.eq_ignore_ascii_case(&form));
+        (last || main).then_some(form)
     }
 
     /// A test hook's component step (`__item_i`, `__node_i` …; the lists

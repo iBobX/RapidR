@@ -259,7 +259,8 @@ const cmdsSeq = (...lines) => new RegExp(lines.join("[\\s\\S]*"));
 // after Continue (F5) and after a Step Over out of the handler (F10).
 // The program's own input comes from its test script
 // (RAPIDR_TEST_PROGRAM_EVENTS: Studio passes it on as the program's
-// RAPIDR_TEST_EVENTS), which waits while the program is stopped, so each
+// RAPIDR_TEST_EVENTS, as any RAPIDR_TEST_PROGRAM_<X> as its
+// RAPIDR_TEST_<X>), which waits while the program is stopped, so each
 // trigger lands after Studio has gone on. `stops:report` lists the run's
 // stops, line and reason.
 const EVENTS_FILE = "tests/fixtures/studio_debug/events.rr";
@@ -2057,6 +2058,57 @@ const CASES = [
     delay: 16,
     dump: { "outputbox.text": cmdsSeq(cmdsLine("paused@95:exception", "paused"), cmdsLine("stopped", "idle"), cmdsLine("paused@95:exception", "paused"), cmdsLine("error", "idle")) },
   },
+  {
+    // 2. the close box (the form's OnClose, the close cancelled: Action = 0)
+    name: "debug-events-close",
+    open: EVENTS_FILE,
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("form.__close", 6) },
+    do: eventSteps(74),
+    delay: 16,
+    dump: { "outputbox.text": stopsAt(74) },
+  },
+  {
+    // 4. a handler that opens a dialog (dialogs.rr's Ask: MESSAGEDLG): it
+    // stops on the dialog's line, Step Over shows the dialog (held open
+    // a moment, then answered Yes, as the user's click would) and stops on
+    // the line after it — three times, F5 between. (The script's next
+    // click waits out the dialog: a script's events aren't held back by a
+    // modal dialog as the user's are)
+    name: "debug-events-dialog",
+    open: "examples/gui/dialogs.rr",
+    copy: true,
+    desktopOnly: true,
+    env: {
+      RAPIDR_TEST_PROGRAM_EVENTS: Array.from({ length: 3 }, () => ["askbtn.__mousedown_10_10", "askbtn.__mouseup_10_10", ...Array(70).fill("answer.__mousemove_5_5")].join(",")).join(","),
+      RAPIDR_TEST_PROGRAM_MESSAGE_DIALOG: "Yes;Yes;Yes;",
+      RAPIDR_TEST_PROGRAM_DIALOG_HOLD: "800",
+    },
+    do: `line:85,key:F9,key:F5,${"wait,".repeat(8)}${`key:F10,${"wait,".repeat(6)}key:F5,${"wait,".repeat(12)}`.repeat(3)}stops:report`,
+    delay: 34,
+    dump: { "outputbox.text": /\[stops\] 85:breakpoint 8[67]:step 85:breakpoint 8[67]:step 85:breakpoint 8[67]:step/ },
+  },
+  // ---- DEBUG-RUN, scenario 15: Variables > Globals — the program's own
+  // variables first, RAPIDQ.INC's hundreds of constants after them under
+  // one item, closed; opened, its names
+  {
+    name: "debug-globals-include",
+    open: "tests/fixtures/studio_debug/include.rr",
+    webFiles: ["tests/fixtures/studio_debug/include.rr"],
+    do: "line:9,key:F9,key:F5,wait,wait,wait,wait",
+    delay: 6,
+    capture: true,
+    dump: { "varstree.text": /^Locals\n\t\(none\)\nGlobals\n\ttotal = 3\n\twho = "Ann"\n\t\$INCLUDE RAPIDQ\.INC \(\d{3} names\)\nComponents$/ },
+  },
+  {
+    name: "debug-globals-include-open",
+    open: "tests/fixtures/studio_debug/include.rr",
+    webFiles: ["tests/fixtures/studio_debug/include.rr"],
+    do: "line:9,key:F9,key:F5,wait,wait,wait,wait,expand:G/$INCLUDE RAPIDQ.INC,wait,wait,wait",
+    delay: 6,
+    dump: { "varstree.text": /\n\twho = "Ann"\n\t\$INCLUDE RAPIDQ\.INC \(\d{3} names\)\n(\t\t\w+ = -?\d+\n){20}/ },
+  },
   // ---- DEBUG-VM: the values inspector, Set Next Statement, Step Into
   // Specific (examples/debugging/shop.rr: nested TYPEs, an array of them, an
   // RDataFrame, an RNum, a form). Line 76 adds a LineTotal in AddUp's loop.
@@ -3406,6 +3458,370 @@ async function themesPausedWeb() {
   }
 }
 
+// (DEBUG-RUN, the debugger's events in the browser) Studio and its program's
+// frame driven by the browser's own mouse and keys: a breakpoint in a
+// handler, the event triggered — it stops (Studio has the keyboard back),
+// F5, again, three times; F10 out of the handler, again: it stops again.
+// `trigger(page, frame)` makes the event happen as a person would.
+function webDebug(page) {
+  const prop = (c, p) => page.evaluate(([c, p]) => String(window.rr.rapidr_get_prop(c, p)), [c, p]);
+  const until = async (what, test, ms = 8000) => {
+    const t0 = Date.now();
+    let v = "";
+    while (Date.now() - t0 < ms) {
+      v = await what();
+      if (test(v)) return v;
+      await page.waitForTimeout(120);
+    }
+    return v;
+  };
+  const where = async () => `${await prop("session", "state")}@${await prop("session", "currentline")}`;
+  // (going on is the program's word: Studio's status says Running once the
+  // program has heard it — the session's own state says so as soon as it's
+  // asked; a click before that reaches a stopped program, and is dropped,
+  // as it should be)
+  const status = async () => (await prop("status", "panel(0).caption")).trim();
+  // (the stop shown — its line, its values; Studio's status no longer
+  // Running: a key pressed the moment the session has the stop, before
+  // Studio has shown it, finds ▶ still off —: the keyboard is Studio's)
+  const keysBack = async () => {
+    await until(status, (v) => !v.startsWith("Running"), 3000);
+    return until(() => page.evaluate(() => document.activeElement && document.activeElement.tagName), (v) => v !== "IFRAME", 3000);
+  };
+  const button = async (label) => {
+    const b = page.getByRole("button", { name: label, exact: true });
+    return (await b.count()) > 0 && (await b.first().getAttribute("aria-disabled")) !== "true";
+  };
+  return { prop, until, where, status, keysBack, button };
+}
+
+async function openStudioOn(page, src, files, line) {
+  await page.addInitScript((files) => {
+    window.RAPIDR_STUDIO_TEST = {};
+    window.RAPIDR_STUDIO_TEST_FILES = files;
+    window.RAPIDR_FILE_SINK = () => {};
+  }, files.map((f) => ({ path: f, text: readFileSync(join(ROOT, f), "utf8") })));
+  const q = new URLSearchParams({ theme: "rapidr-light", window: "normal", fresh: "", do: `wait,view.code,line:${line}`, open: src });
+  await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
+  await page.waitForFunction((l) => window.rr && String(window.rr.rapidr_get_prop("codedoc(0)", "caretline")) === String(l), line, { timeout: 60000, polling: 200 });
+  await page.waitForTimeout(400);
+}
+
+async function webEventRepeats(name, src, line, trigger, { afterStep = 1, files = [src] } = {}) {
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const { prop, until, where, status, keysBack } = webDebug(page);
+  const label = `${name} (web)`;
+  try {
+    await openStudioOn(page, src, files, line);
+    await page.keyboard.press("F9");
+    await page.keyboard.press("F5");
+    await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+    await page.waitForTimeout(700);
+    const frame = runFrame(page);
+    for (let k = 1; k <= 3; k++) {
+      await trigger(page, frame, k);
+      const w = await until(where, (v) => v === `paused@${line}`);
+      const keys = await keysBack();
+      record(label, w === `paused@${line}` && keys !== "IFRAME", `trigger ${k}: stops at ${line}, Studio has the keyboard (${w}, ${keys})`);
+      if (k === 1) await page.screenshot({ path: join(WORK, `${name}-web-paused.png`) });
+      await page.keyboard.press(k < 3 ? "F5" : "F10");
+      await until(async () => `${await status()}|${await where()}`, (v) => v.startsWith("Running") || (v.split("|")[1].startsWith("paused") && v.split("|")[1] !== `paused@${line}`), 3000);
+    }
+    // (out of the handler: F10 once more if the step stopped at its END SUB)
+    for (let i = 0; i < afterStep && (await prop("session", "state")) === "paused"; i++) {
+      await page.keyboard.press("F10");
+      await until(status, (v) => v.startsWith("Running"), 3000);
+    }
+    await until(status, (v) => v.startsWith("Running"), 3000);
+    const st = await prop("session", "state");
+    record(label, st === "running", `Step Over out of the handler: the program runs on (${st})`);
+    await trigger(page, frame, 4);
+    const w = await until(where, (v) => v === `paused@${line}`);
+    record(label, w === `paused@${line}`, `after the Step Over, the next event stops at ${line} again (${w})`);
+    await page.keyboard.press("Shift+F5");
+  } catch (e) {
+    record(label, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+
+// (a control of the program's frame, by its role and name: its centre on the page)
+async function frameBox(frame, role, name) {
+  const loc = name === undefined ? frame.locator(role).first() : frame.getByRole(role, { name, exact: true }).first();
+  const b = await loc.boundingBox();
+  if (!b) throw new Error(`no ${role} ${name ?? ""} in the program's window`);
+  return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+}
+
+async function webEventFlows() {
+  const EV = "tests/fixtures/studio_debug/events.rr";
+  // 1. hello_form.rr's one-line OnChange: a letter typed into the name (End
+  // first: the edit, given the keyboard again, has its text selected — a
+  // letter typed over a selected "a" would change nothing)
+  await webEventRepeats("debug-events-web-onchange", "examples/gui/hello_form.rr", 49, async (page, frame) => {
+    const at = await frameBox(frame, "input");
+    await page.mouse.click(at.x, at.y);
+    await page.keyboard.press("End");
+    await page.keyboard.type("a");
+  });
+  // 2. a click
+  await webEventRepeats("debug-events-web-click", EV, 58, async (page, frame) => {
+    const at = await frameBox(frame, "button", "Click");
+    await page.mouse.click(at.x, at.y);
+  });
+  // 2. a key (OnKeyPress)
+  await webEventRepeats("debug-events-web-keypress", EV, 62, async (page, frame) => {
+    const at = await frameBox(frame, "input");
+    await page.mouse.click(at.x, at.y);
+    await page.keyboard.press("End");
+    await page.keyboard.type("k");
+  });
+  // 2. the focus (the list's OnEnter): the edit, then the list
+  await webEventRepeats("debug-events-web-focus", EV, 66, async (page, frame) => {
+    const box = await frameBox(frame, "input");
+    await page.mouse.click(box.x, box.y);
+    await page.waitForTimeout(150);
+    const list = await frameBox(frame, "listbox", "");
+    await page.mouse.click(list.x, list.y + 20);
+  });
+  // 2. the mouse moving over the form
+  await webEventRepeats("debug-events-web-mousemove", EV, 83, async (page, frame, k) => {
+    const form = await frameBox(frame, "dialog", "Events");
+    await page.mouse.move(form.x + 120 + k * 3, form.y + 60);
+    await page.mouse.move(form.x + 124 + k * 3, form.y + 64);
+  });
+  // 2. the close box (OnClose, the close cancelled: the window stays)
+  await webEventRepeats("debug-events-web-close", EV, 74, async (page, frame) => {
+    const r = await frame.evaluate(() => {
+      const b = document.querySelector(".rr-kwin").getBoundingClientRect();
+      return { x: b.right - 16, y: b.top + 15 };
+    });
+    await page.mouse.click(r.x, r.y);
+  }, { afterStep: 2 });
+  // 2. a timer (OnTimer, every second)
+  await webEventRepeats("debug-events-web-timer", EV, 79, async (page) => {
+    await page.waitForTimeout(200);
+  });
+}
+
+// (DEBUG-RUN, scenario 3) Typed into the program's window while it's
+// stopped (hello_form.rr, at the OnChange line 49): the keys are dropped —
+// the name stays as it was, nothing crashes, no stop waits behind them —;
+// ▶ Continue clicked: it runs on, no second stop; the next key typed stops
+// again.
+async function webTypingWhilePaused() {
+  const name = "debug-events-web-dropped (web)";
+  const src = "examples/gui/hello_form.rr";
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const { until, where, status, keysBack } = webDebug(page);
+  try {
+    await openStudioOn(page, src, [src], 49);
+    await page.keyboard.press("F9");
+    await page.keyboard.press("F5");
+    await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+    await page.waitForTimeout(700);
+    const frame = runFrame(page);
+    const edit = frame.locator("input").first();
+    const at = await frameBox(frame, "input");
+    await page.mouse.click(at.x, at.y);
+    await page.keyboard.press("End");
+    await page.keyboard.type("a");
+    let w = await until(where, (v) => v === "paused@49");
+    await keysBack();
+    const before = await edit.inputValue();
+    // (typed into the stopped program: the click gives its frame the keys)
+    await page.mouse.click(at.x, at.y);
+    await page.keyboard.type("xyz");
+    await page.waitForTimeout(600);
+    const during = await edit.inputValue();
+    const still = await where();
+    record(name, w === "paused@49" && still === "paused@49" && during === before, `keys typed into the stopped program are dropped (${w}, then ${still}; ${JSON.stringify(before)} → ${JSON.stringify(during)})`);
+    // (▶ on Studio's tool bar, clicked: the keys are the program's frame's)
+    const go = await page.getByRole("button", { name: "Continue (F5)", exact: true }).first().boundingBox();
+    await page.mouse.click(go.x + go.width / 2, go.y + go.height / 2);
+    const running = await until(status, (v) => v.startsWith("Running"), 3000);
+    const again = await until(where, (v) => v.startsWith("paused"), 1500);
+    const after = await edit.inputValue();
+    record(name, running.startsWith("Running") && again === "running@0" && after === before, `▶ Continue: it runs on, no stop queued behind the dropped keys (${running}, ${again}, ${JSON.stringify(after)})`);
+    const at2 = await frameBox(frame, "input");
+    await page.mouse.click(at2.x, at2.y);
+    await page.keyboard.press("End");
+    await page.keyboard.type("b");
+    w = await until(where, (v) => v === "paused@49");
+    record(name, w === "paused@49", `the next key typed stops at 49 again (${w})`);
+    await keysBack();
+    await page.keyboard.press("Shift+F5");
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+
+// (DEBUG-RUN, scenario 20) The stopped program's window closed by its close
+// box: the program ends, as Stop ends it — Studio Ready, ▶ Run (F5)
+// enabled —, and F5 runs it again.
+async function webCloseWhilePaused() {
+  const name = "debug-commands-web-close-paused (web)";
+  const src = "examples/gui/hello_form.rr";
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const { until, where, status, keysBack, button } = webDebug(page);
+  try {
+    await openStudioOn(page, src, [src], 49);
+    await page.keyboard.press("F9");
+    await page.keyboard.press("F5");
+    await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+    await page.waitForTimeout(700);
+    const frame = runFrame(page);
+    const at = await frameBox(frame, "input");
+    await page.mouse.click(at.x, at.y);
+    await page.keyboard.press("End");
+    await page.keyboard.type("a");
+    const w = await until(where, (v) => v === "paused@49");
+    await keysBack();
+    const r = await frame.evaluate(() => {
+      const b = document.querySelector(".rr-kwin").getBoundingClientRect();
+      return { x: b.right - 16, y: b.top + 15 };
+    });
+    await page.mouse.click(r.x, r.y);
+    const st = await until(status, (v) => v === "Ready", 5000);
+    const run = await button("Run (F5)");
+    record(name, w === "paused@49" && st === "Ready" && run, `its window closed while stopped at 49: it ends — ${st}, ▶ Run (F5) ${run ? "enabled" : "off"} (${w})`);
+    await page.keyboard.press("F5");
+    const again = await until(status, (v) => v.startsWith("Running"), 8000);
+    record(name, again.startsWith("Running"), `F5 runs it again (${again})`);
+    await page.keyboard.press("Shift+F5");
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+
+// (DEBUG-RUN, scenario 4) A handler that opens a dialog (dialogs.rr's Ask:
+// MESSAGEDLG): paused on that line, Step Over (F10) — the dialog shows,
+// answered with the mouse, the program stops on the line after it — three
+// times.
+async function webDialogStep() {
+  const name = "debug-events-web-dialog (web)";
+  const src = "examples/gui/dialogs.rr";
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const { until, where, status, keysBack } = webDebug(page);
+  try {
+    await openStudioOn(page, src, [src], 85);
+    await page.keyboard.press("F9");
+    await page.keyboard.press("F5");
+    await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+    await page.waitForTimeout(700);
+    const frame = runFrame(page);
+    for (let k = 1; k <= 3; k++) {
+      const ask = await frameBox(frame, "button", "Ask...");
+      await page.mouse.click(ask.x, ask.y);
+      let w = await until(where, (v) => v === "paused@85");
+      await keysBack();
+      record(name, w === "paused@85", `Ask ${k}: stops on the dialog's line, 85 (${w})`);
+      await page.keyboard.press("F10");
+      // (the step runs the dialog: it shows in the program's window)
+      const yes = await until(async () => (await frame.getByRole("button", { name: "Yes", exact: true }).count()) > 0, (v) => v, 6000);
+      if (k === 1) await page.screenshot({ path: join(WORK, "debug-events-web-dialog.png") });
+      record(name, yes === true, `Ask ${k}: Step Over shows the dialog (${yes})`);
+      if (!yes) break;
+      const at = await frameBox(frame, "button", "Yes");
+      await page.mouse.click(at.x, at.y);
+      w = await until(where, (v) => v.startsWith("paused") && v !== "paused@85");
+      record(name, /^paused@8[67]$/.test(w), `Ask ${k}: answered Yes, it stops on the line after the dialog (${w})`);
+      await keysBack();
+      await page.keyboard.press("F5");
+      await until(status, (v) => v.startsWith("Running"), 3000);
+    }
+    await page.keyboard.press("Shift+F5");
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+
+// (DEBUG-RUN, scenarios 5 and 6 in the browser) A handler that fires
+// another (Grow widens the form: OnResize inside it) stops in the inner
+// one, the call stack has both — the breakpoint in Resized before the run,
+// so the form's first sizes stop there too and are gone on from; a run-time
+// error in a handler stops at its line, and on Continue Studio follows the
+// program.
+async function webNestedAndError() {
+  const name = "debug-events-web-nested (web)";
+  const src = "tests/fixtures/studio_debug/events.rr";
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const { prop, until, where, status, keysBack, button } = webDebug(page);
+  try {
+    await openStudioOn(page, src, [src], 70);
+    await page.keyboard.press("F9");
+    await page.keyboard.press("F5");
+    // (the form's first sizes as it shows — OnResize, OnShow, OnResize —
+    // stop there first: each stop gives Studio the keyboard, though the
+    // program's window had just come up and taken it, and F5 goes on)
+    const firstStops = [];
+    let firstOk = true;
+    for (let i = 0; i < 4; i++) {
+      const v = await until(where, (v) => v.startsWith("paused"), 2500);
+      if (!v.startsWith("paused")) break;
+      const keys = await keysBack();
+      await page.keyboard.press("F5");
+      const st = await until(status, (v) => v.startsWith("Running"), 3000);
+      firstStops.push(`${v} ${keys} → ${st}`);
+      firstOk = firstOk && v === "paused@70" && keys !== "IFRAME" && st.startsWith("Running");
+    }
+    record(name, firstStops.length > 0 && firstOk, `the form's first sizes stop in OnResize, Studio has the keyboard and F5 goes on (${firstStops.join("; ")})`);
+    await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+    await page.waitForTimeout(500);
+    const frame = runFrame(page);
+    const grow = await frameBox(frame, "button", "Grow");
+    await page.mouse.click(grow.x, grow.y);
+    // (Grow's new width: OnResize inside Grow — the call stack has both, as
+    // on the desktop —, then Continue: the program goes on, Grow's click
+    // over, and no other stop)
+    const w = await until(where, (v) => v === "paused@70");
+    const keys = await keysBack();
+    const stack = (await prop("stacktree", "text")).replace(/\r/g, "");
+    record(name, w === "paused@70" && keys !== "IFRAME" && /^Resized\s+events\.rr:70\nGrow\s+events\.rr:91\n/.test(stack), `Grow's OnResize stops at its breakpoint, inside Grow; Studio has the keyboard (${w}, ${keys}, ${JSON.stringify(stack.slice(0, 80))})`);
+    await page.keyboard.press("F5");
+    const going = await until(status, (v) => v.startsWith("Running"), 3000);
+    const again = await until(where, (v) => v.startsWith("paused"), 1500);
+    record(name, going.startsWith("Running") && again === "running@0", `Continue: the program goes on, no other stop (${going}, ${again})`);
+    await page.keyboard.press("Shift+F5");
+    await until(status, (v) => !v.startsWith("Breakpoint"), 3000);
+    // (6: a fresh run, no breakpoint: the error in Oops's handler)
+    await page.keyboard.press("F9");
+    await page.keyboard.press("F5");
+    await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+    await page.waitForTimeout(700);
+    const oops = await frameBox(runFrame(page), "button", "Oops");
+    await page.mouse.click(oops.x, oops.y);
+    const e = await until(where, (v) => v === "paused@95");
+    await keysBack();
+    const reason = await prop("session", "stopreason");
+    record("debug-events-web-error (web)", e === "paused@95" && reason === "exception", `a run-time error in a handler stops at its line (${e}, ${reason})`);
+    // (Continue: the browser's runtime fails the handler alone and the
+    // program goes on — the desktop's ends it, exit code 1: a difference of
+    // the runtimes, not the debugger's, in the lane's report — either way
+    // Studio follows: running, ▶ off and ❙❙ on; or ended, ▶ on)
+    await page.keyboard.press("F5");
+    const after = await until(status, (v) => v.startsWith("Running") || /exit code 1/.test(v), 5000);
+    const consistent = after.startsWith("Running") ? (await button("Pause")) && !(await button("Run (F5)")) : await button("Run (F5)");
+    record("debug-events-web-error (web)", consistent, `Continue after the error: Studio follows the program (${after})`);
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+
 async function aiSettingsByMouse() {
   const name = "ai-settings-web-mouse (web)";
   const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
@@ -3433,12 +3849,21 @@ if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "debug-comm
   await debugByRealKeys();
   await pausedProgramByMouse();
   await themesPausedWeb();
+  await webCloseWhilePaused();
+}
+if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "debug-events-web".includes(f) || f === "debug-events"))) {
+  await webEventFlows();
+  await webTypingWhilePaused();
+  await webDialogStep();
+  await webNestedAndError();
 }
 if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "beforeunload".includes(f)))) {
   await beforeUnload("changed", 'wait,code:"ONE"=>"ONE x"', true);
   await beforeUnload("saved", 'wait,code:"ONE"=>"ONE x",file.save', false);
 }
-await browser.close();
+// (a browser that died — the system short of memory — fails its cases, and
+// the mock server still goes)
+await browser.close().catch(() => {});
 mockProc.kill();
 console.log(`\nRapidR Studio flows: ${passed} checks passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

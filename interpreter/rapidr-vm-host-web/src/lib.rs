@@ -603,6 +603,11 @@ fn start_session(session: Session) {
         run_idle_events();
     }));
     install_resume_handler();
+    // (its last window closed while the debugger holds it: it ends)
+    rapidr_runtime_web::kernel_web::on_close_while_stopped(std::rc::Rc::new(|| {
+        end_session();
+        flush_events();
+    }));
 }
 
 /// What happened in the VM, reported once the session is released (a
@@ -1323,15 +1328,21 @@ fn serve_request(request: Request) {
             if seq != 0 {
                 emit(Message::reply(seq, EventBody::Ok));
             }
-            rapidr_runtime_web::object_web::end_program();
-            dialog::clear_modals();
-            SESSION.with(|s| {
-                if let Ok(mut slot) = s.try_borrow_mut() {
-                    *slot = None;
-                }
-            });
-            dialog::set_yielded(false);
-            emit(Message::new(EventBody::Exited { code: 0 }));
+            end_session();
         }
     }
+}
+
+/// The program ended by the IDE (Stop), or by the user closing its last
+/// window while it was stopped: its windows go, the IDE hears it ended.
+fn end_session() {
+    rapidr_runtime_web::object_web::end_program();
+    dialog::clear_modals();
+    SESSION.with(|s| {
+        if let Ok(mut slot) = s.try_borrow_mut() {
+            *slot = None;
+        }
+    });
+    dialog::set_yielded(false);
+    emit(Message::new(EventBody::Exited { code: 0 }));
 }

@@ -1,0 +1,9 @@
+' (DEBUG-RUN, scenario 15) Variables > Globals: the program's own
+' variables first; RAPIDQ.INC's hundreds of constants after them, under
+' one closed item
+$INCLUDE "RAPIDQ.INC"
+DIM total AS INTEGER
+DIM who AS STRING
+total = 3
+who = "Ann"
+PRINT who; total; MB_OK

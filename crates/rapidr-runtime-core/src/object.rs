@@ -1916,6 +1916,15 @@ pub fn rp_serve_paused() -> bool {
     false
 }
 
+/// The user closed the stopped program's last window while its windows
+/// were served ([`rp_serve_paused`]): the debugger ends it, as Stop does.
+pub fn rp_closed_while_paused() -> bool {
+    #[cfg(feature = "gui")]
+    return crate::ui::gui_closed_while_paused();
+    #[cfg(not(feature = "gui"))]
+    false
+}
+
 /// The program stopped for its debugger: when it was the active app, the
 /// front goes back to RapidR Studio (`crate::ui::kernel::gui_debugger_stopped`).
 pub fn rp_debugger_stopped() {

@@ -966,7 +966,13 @@ SUB AddValueChildren(w AS INTEGER, Parent AS INTEGER, Ref AS INTEGER, Path AS ST
     nm = FIELD$(row, CHR$(9), 1)
     cref = VAL(FIELD$(row, CHR$(9), 4))
     cpath = Path + "/" + nm
-    TreeAddChild w, Parent, ValueText(nm, FIELD$(row, CHR$(9), 2))
+    ' (the globals an $INCLUDEd file made — RAPIDQ.INC's constants —, under
+    ' one closed item after the program's own: "$INCLUDE RAPIDQ.INC (n names)")
+    IF FIELD$(row, CHR$(9), 3) = "Include" THEN
+      TreeAddChild w, Parent, nm + " " + FIELD$(row, CHR$(9), 2)
+    ELSE
+      TreeAddChild w, Parent, ValueText(nm, FIELD$(row, CHR$(9), 2))
+    END IF
     item = TreeCount(w) - 1
     TreeItemData w, item, cref, cpath
     TreeItemValue w, item, FIELD$(row, CHR$(9), 6), FIELD$(row, CHR$(9), 3), VAL(FIELD$(row, CHR$(9), 7))

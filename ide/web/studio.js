@@ -365,12 +365,10 @@ window.RAPIDR_STUDIO_HOST = {
     // (a program without a window — a console one — has nothing to show:
     // the keyboard stays Studio's)
     if (!run.box || !run.frame || !(run.rects || []).length) return false;
-    const frame = run.frame;
     run.box.classList.remove("under");
-    try { frame.focus(); } catch { return false; }
-    // (again once Studio has finished with the command — the palette or
-    // menu it came from, closing, gives its focus back to Studio's window)
-    setTimeout(() => { if (run.frame === frame) frame.focus(); }, 60);
+    // (Studio's page doesn't take it back on its next frame — the palette or
+    // menu the command came from closing —: only when Studio asks, at a stop)
+    try { run.frame.focus(); } catch { return false; }
     return true;
   },
   // Run > Build Web App (.zip): the program's own files (its page with its

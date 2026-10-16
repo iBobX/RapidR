@@ -95,6 +95,12 @@ pub trait Host {
     fn serve_paused(&mut self) -> bool {
         false
     }
+    /// After [`Host::serve_paused`]: the user closed the stopped program's
+    /// last window meanwhile — the debugger ends it, as its Stop does (none
+    /// of its code runs, not its OnClose).
+    fn closed_while_paused(&mut self) -> bool {
+        false
+    }
     /// The type (`RBUTTON` …) of the program's component `id`, for the
     /// debugger (`None`: no such component, or the host has none).
     fn component_type(&mut self, _id: &str) -> Option<String> {

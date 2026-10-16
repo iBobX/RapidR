@@ -49,9 +49,13 @@ impl Host for Desktop {
         if let Ok(prefix) = std::env::var("RAPIDR_CAPTURE") {
             env.push(("RAPIDR_CAPTURE".into(), Some(format!("{prefix}-program"))));
             // (a test that drives the program too — the debugger's event
-            // flows: clicks and keys into it, its handlers' breakpoints)
-            if let Ok(events) = std::env::var("RAPIDR_TEST_PROGRAM_EVENTS") {
-                env.push(("RAPIDR_TEST_EVENTS".into(), Some(events)));
+            // flows: clicks and keys into it, its handlers' breakpoints, its
+            // dialogs answered —: RAPIDR_TEST_PROGRAM_<X> is the program's
+            // RAPIDR_TEST_<X>, RAPIDR_TEST_PROGRAM_EVENTS its script)
+            for (k, v) in std::env::vars() {
+                if let Some(hook) = k.strip_prefix("RAPIDR_TEST_PROGRAM_").filter(|h| !h.is_empty()) {
+                    env.push((format!("RAPIDR_TEST_{hook}"), Some(v)));
+                }
             }
         }
         // (Studio's "Preview in classic": the program's default look)

@@ -4238,6 +4238,7 @@ dependencies = [
  "rapidr-lang",
  "rapidr-lexer",
  "rapidr-parser",
+ "rapidr-preprocessor",
  "rapidr-value",
  "rapidr-vm",
  "serde",

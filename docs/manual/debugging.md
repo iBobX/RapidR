@@ -85,8 +85,10 @@ Cmd-Tab on a Mac, Alt-Tab on Windows and Linux, or Debug ▸ Show Program
 Window), move them, resize them and minimize them. They don't react to you,
 though: none of the program's code runs while it's paused, so a click or a
 key in its windows is ignored — not saved for later, so nothing surprises
-the program when it goes on. What you change in Variables, Watch or the
-Immediate pane (a caption, a colour) shows in its windows at once.
+the program when it goes on. Closing its last window (its close box) ends
+the program, as Stop does: its OnClose doesn't run, since none of its code
+can. What you change in Variables, Watch or the Immediate pane (a caption,
+a colour) shows in its windows at once.
 
 Try it with [themes.rr](../../examples/gui/themes.rr): put a breakpoint on
 line 68 (`SELECT CASE Sender.Caption`), press F5, and click *Dark* in its
@@ -147,6 +149,35 @@ Breakpoints (Ctrl+Shift+F9) removes them all.
 
 Studio keeps your breakpoints and watches with the project: close Studio,
 open the project again, and they are there.
+
+### Breakpoints in event handlers
+
+A program with a window spends its time waiting for events, and most of
+your code runs in its handlers — OnClick, OnChange, OnKeyPress, OnTimer,
+OnResize, OnMouseMove, OnClose… A breakpoint in a handler stops **every
+time** the event comes: the third click stops as the first did, every
+letter typed into an edit stops in its OnChange, even when the handler is
+a single line.
+
+- **Step Over out of a handler** (F10 on its last line): the handler
+  returns to the program, which waits for its next event — it runs on, and
+  the next event stops at the breakpoint again.
+- **A handler that opens a dialog** (`MESSAGEDLG`, a font or file dialog):
+  Step Over its line and the dialog shows in the program's window; answer
+  it, and the program stops on the next line, with the answer.
+- **A handler that makes another event** — setting `Form.Width` fires the
+  form's OnResize —: a breakpoint in the inner handler stops there, and the
+  Call Stack shows both, the inner one on top.
+- **A run-time error in a handler** stops at its line, as in the main
+  program: Continue (F5) or Stop (Shift+F5).
+- **While the program is stopped**, what you type or click in its windows
+  is dropped (none of its code can run): nothing is kept to run later, and
+  no second stop waits behind it. Continue, and the next key stops as
+  usual.
+
+Try it with [hello_form.rr](../../examples/gui/hello_form.rr): a breakpoint
+on line 49 (`GreetButton.Enabled = …`, the name's OnChange), F5, and type
+your name — it stops at every letter.
 
 ### Conditions, hit counts and log messages
 
@@ -317,6 +348,13 @@ the components it holds and its properties. Arrays, TYPEs, components and
 tables open the same way as in a data tip. In an event handler, open
 `Sender` to see the component's properties as they are now. What you open
 stays open from one stop to the next, and changed values are in blue.
+
+**Globals** lists your program's own variables first. The constants an
+`$INCLUDE` brings — RapidQ's `RAPIDQ.INC` has nearly five hundred: colours,
+keys, message box buttons — come after them, each file's under one item
+that stays closed until you open it:
+
+![Variables > Globals: picked = 255 and warning = "Low on paper", then the closed item $INCLUDE RAPIDQ.INC (484 names)](images/debugging/variables-include.png)
 
 ![Variables at the loop's second pass: i = 2 in blue, changed since the first stop (total, further down, too)](images/debugging/variables-changed.png)
 

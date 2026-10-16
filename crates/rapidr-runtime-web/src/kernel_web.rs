@@ -276,8 +276,37 @@ fn ensure() {
 /// gui_serve_paused`) — its windows still show, move and come to the front,
 /// and nothing waits to surprise the program when it goes on.
 pub fn set_paused(on: bool) {
-    let test = UNDER_TEST.with(Cell::get);
-    host::with(|h, _| h.desk.ignore_user = on || test);
+    apply_paused();
+    // (going on: a turn once the code it goes on with has run, which arms
+    // the next deadline — a timer whose OnTimer was stopped ticks again;
+    // nothing else would ask for a turn before the next input)
+    if !on {
+        later();
+    }
+}
+
+thread_local! {
+    /// What ends the program when the user closes its last window while
+    /// it's stopped ([`on_close_while_stopped`]).
+    static HELD_CLOSE: RefCell<Option<Rc<dyn Fn()>>> = const { RefCell::new(None) };
+}
+
+/// (the interpreter's session, `rapidr-vm-host-web`) What ends the program
+/// when the user closes its last window while the debugger holds it — as
+/// the desktop's, the end Stop gives it.
+pub fn on_close_while_stopped(end: Rc<dyn Fn()>) {
+    HELD_CLOSE.with(|c| *c.borrow_mut() = Some(end));
+}
+
+/// The user's input to the program's windows dropped while it's stopped
+/// (again at every turn: a stop made while the host was busy is applied
+/// at its next turn).
+fn apply_paused() {
+    let stopped = crate::object_web::debug_stopped();
+    let held = UNDER_TEST.with(Cell::get) || stopped;
+    host::with(|h, _| h.desk.ignore_user = held);
+    // (and the keyboard left to Studio)
+    rapidr_ui_host_web::mirror::hold_keyboard(stopped);
 }
 
 fn spec_of(name: &str) -> WindowSpec {
@@ -460,6 +489,24 @@ pub fn turn() {
         return;
     }
     TURNING.with(|t| t.set(true));
+    apply_paused();
+    // (its last window closed by the user while it's stopped: it ends, as
+    // Stop ends it — none of its code runs, not its OnClose)
+    let stopped = crate::object_web::debug_stopped();
+    let closed = host::with(|h, _| {
+        if stopped {
+            h.desk.take_held_last_close()
+        } else {
+            h.desk.held_close = None;
+            None
+        }
+    })
+    .flatten();
+    if let (Some(_), Some(end)) = (closed, HELD_CLOSE.with(|c| c.borrow().clone())) {
+        TURNING.with(|t| t.set(false));
+        end();
+        return;
+    }
     sync();
     dispatch_pending();
     serve_waits();

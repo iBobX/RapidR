@@ -238,6 +238,19 @@ thread_local! {
     static PAUSED: Cell<bool> = const { Cell::new(false) };
 }
 
+thread_local! {
+    /// The user closed the stopped program's last window
+    /// ([`gui_closed_while_paused`]).
+    static CLOSED_PAUSED: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Whether the user closed the stopped program's last window while its
+/// windows were served ([`gui_serve_paused`]): the debugger ends it, as
+/// Stop does (asked once: taken).
+pub fn gui_closed_while_paused() -> bool {
+    CLOSED_PAUSED.with(|c| c.replace(false))
+}
+
 /// The program is stopped for its debugger (a breakpoint, a step, a pause,
 /// a run-time error — RapidR Studio's session, `rapidr_vm::Host::
 /// serve_paused`): its windows' own events are served once, so they stay
@@ -246,9 +259,10 @@ thread_local! {
 /// caption), activated and raised (a click, Cmd-Tab / Alt-Tab, Studio's
 /// Show Program Window), moved, resized, minimized and restored. None of
 /// the program's code runs: no handler, no timer, no test step; the user's
-/// clicks, keys, wheel, close box and menu picks to its windows are dropped
+/// clicks, keys, wheel and menu picks to its windows are dropped
 /// (`Desktop::ignore_user`; the native menus' and the tray's too), so
-/// nothing waits to surprise the program when it goes on. What the window
+/// nothing waits to surprise the program when it goes on — but closing its
+/// last window ends it, as Stop does ([`gui_closed_while_paused`]). What the window
 /// system itself changed (a new size, a new place) is queued as usual and
 /// heard once it goes on (OnResize). Returns once something happened or
 /// another thread woke the loop (`rp_wake`: the session's reader, a
@@ -282,7 +296,13 @@ pub fn gui_serve_paused() -> bool {
         let Kern { host, desk } = &mut *k;
         let ignored = std::mem::replace(&mut desk.ignore_user, true);
         let menu_picks = desk.events.len();
+        desk.held_close = None;
         host.pump(None, desk, &RtStore);
+        // (its last window closed by the user: the program ends, as Stop
+        // ends it — none of its code runs, not its OnClose)
+        if desk.take_held_last_close().is_some() {
+            CLOSED_PAUSED.with(|c| c.set(true));
+        }
         // (a native menu's pick: dropped as a click is — the picks queue
         // straight into the events, without the input's check)
         let mut kept = Vec::with_capacity(desk.events.len());
