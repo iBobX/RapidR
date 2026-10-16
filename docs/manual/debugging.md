@@ -104,7 +104,9 @@ the editor goes to the first error.
 
 The status bar shows what the program is doing: green while it runs,
 orange while it's paused (with the file and line), back to normal when it
-ends. Output shows what the program prints, then
+ends. A file name too long for it is shortened in its middle —
+`Breakpoint: a_pro…he_status_bar.rr:6`, the line kept —; rest the
+mouse on the bar for the whole of it. Output shows what the program prints, then
 `[counter.rr ended, exit code 0]`.
 
 ## Breakpoints

@@ -2295,6 +2295,24 @@ const CASES = [
     delay: 16,
     dump: { "outputbox.text": /\[stops\] 58:breakpoint 58:breakpoint\n[\s\S]*\[cmds\] paused@58/ },
   },
+  {
+    // (DEBUG-2) a file name too long for the status bar: stopped, the bar
+    // says where with the name shortened in its middle — "Breakpoint:",
+    // its start, "…", its end and the line kept —, the whole in the bar's
+    // tooltip
+    name: "debug-status-long-name",
+    open: "tests/fixtures/studio_debug/a_program_whose_name_is_far_too_long_for_the_status_bar.rr",
+    webFiles: ["tests/fixtures/studio_debug/a_program_whose_name_is_far_too_long_for_the_status_bar.rr"],
+    do: "line:6,key:F9,key:F5,wait,wait,wait,wait",
+    delay: 6,
+    capture: true,
+    dump: {
+      "session.currentline": /^6$/,
+      // (the hint is set only when a panel is shortened; the bar itself in
+      // the capture)
+      "status.hint": /^Breakpoint: a_program_whose_name_is_far_too_long_for_the_status_bar\.rr:6( - .*)?$/,
+    },
+  },
   // ---- DEBUG-RUN, scenario 15: Variables > Globals — the program's own
   // variables first, RAPIDQ.INC's hundreds of constants after them under
   // one item, closed; opened, its names

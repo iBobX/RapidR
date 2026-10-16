@@ -47,6 +47,9 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   made the program active only after it had given the front back, so the stopped
   program stayed in front of Studio. A program stopped then hands the front back
   again for a moment (found walking the debugger on the real screen).
+- **RapidR Studio's status bar shortens a long file name in its middle** (the line
+  number kept: `Breakpoint: a_pro…he_status_bar.rr:6`); resting the mouse on
+  the bar shows the whole. It was cut off at the end, the line lost.
 - **RapidR Studio's dark and high-contrast themes are readable everywhere.** The
   debugger's Variables, Watch, Call Stack and Breakpoints rows and the Breakpoints
   pane's When / Hit / Log / On labels were black or dark grey on the dark ground:
