@@ -673,6 +673,7 @@ SUB StartProgram(WithDebugger AS INTEGER)
   SyncAllBreakpoints
   ResetNeverBreakpoints
   RunRaised = 0
+  StopLog = ""
   OutputBox.Clear "output"
   OutputBox.Page = "output"
   Dock.ShowPane("outputbox")
@@ -811,6 +812,8 @@ END SUB
 SUB ProgramStopped(Reason AS STRING, InFile AS STRING, LineNo AS INTEGER)
   DIM what AS STRING, kind AS STRING
   StepRaise.Enabled = 0
+  ' (the run's stops, for the flows' stops:report)
+  StopLog = StopLog + " " + Num(LineNo) + ":" + Reason
   PausedFile = DebugPath(InFile)
   PausedLine = LineNo
   SELECT CASE Reason
@@ -2044,13 +2047,18 @@ FUNCTION DebugStep(Stp AS STRING) AS INTEGER
       ' and the ▶ button's hint. cmds:log — every report so far again, a
       ' run's start having cleared Output)
       IF arg = "log" THEN OutputLine "[cmds-log]" + CHR$(10) + CmdsLog ELSE CmdsReport
+    CASE "stops"
+      ' (stops:report — every stop of this run: "[stops] 58:breakpoint
+      ' 58:breakpoint 59:step …", line and reason)
+      OutputLine "[stops]" + StopLog
     CASE ELSE: Result = 0
   END SELECT
 END FUNCTION
 
 ' (cmds:report's line: "[cmds] paused@6:breakpoint run.start=111 …"; the
-' lines so far, for cmds:log)
+' lines so far, for cmds:log; this run's stops, for stops:report)
 DIM CmdsLog AS STRING
+DIM StopLog AS STRING
 
 SUB CmdsReport
   DIM ids AS STRING, n AS INTEGER, k AS INTEGER, id AS STRING, i AS INTEGER, t AS STRING, line AS STRING

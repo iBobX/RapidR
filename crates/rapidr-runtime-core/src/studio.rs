@@ -48,6 +48,11 @@ impl Host for Desktop {
             .collect();
         if let Ok(prefix) = std::env::var("RAPIDR_CAPTURE") {
             env.push(("RAPIDR_CAPTURE".into(), Some(format!("{prefix}-program"))));
+            // (a test that drives the program too — the debugger's event
+            // flows: clicks and keys into it, its handlers' breakpoints)
+            if let Ok(events) = std::env::var("RAPIDR_TEST_PROGRAM_EVENTS") {
+                env.push(("RAPIDR_TEST_EVENTS".into(), Some(events)));
+            }
         }
         // (Studio's "Preview in classic": the program's default look)
         if !theme.is_empty() {

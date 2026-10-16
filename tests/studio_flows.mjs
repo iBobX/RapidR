@@ -253,6 +253,26 @@ const cmdsLine = (state, kind) => {
 };
 const cmdsSeq = (...lines) => new RegExp(lines.join("[\\s\\S]*"));
 
+// (DEBUG-RUN, the debugger's events) Robert's scenarios 1–6
+// (docs/manual/debugging.md "Debugging events"): a breakpoint in a
+// handler, the event triggered again and again — it stops every time,
+// after Continue (F5) and after a Step Over out of the handler (F10).
+// The program's own input comes from its test script
+// (RAPIDR_TEST_PROGRAM_EVENTS: Studio passes it on as the program's
+// RAPIDR_TEST_EVENTS), which waits while the program is stopped, so each
+// trigger lands after Studio has gone on. `stops:report` lists the run's
+// stops, line and reason.
+const EVENTS_FILE = "tests/fixtures/studio_debug/events.rr";
+// (the program's script: `n` times `trigger`, a moment of other input
+// between them — moves over the Click button, which handles none)
+const triggers = (trigger, n, gap = 2) => Array.from({ length: n }, () => [trigger, ...Array(gap).fill("btn.__mousemove_5_5")].join(",")).join(",");
+// (Studio's side: the breakpoint on `line`, F5; then each stop answered —
+// F5 twice, F10 twice (out of the handler: the second F10 does nothing
+// once the program runs on), F5 for the rest)
+const eventSteps = (line, after = "") => `line:${line},key:F9,key:F5,${"wait,".repeat(8)}key:F5,${"wait,".repeat(4)}key:F5,${"wait,".repeat(4)}key:F10,wait,wait,key:F10,${"wait,".repeat(4)}key:F5,${"wait,".repeat(4)}${after}stops:report`;
+// ("[stops] L:breakpoint L:breakpoint L:breakpoint (L+1:step)? L:breakpoint L:breakpoint")
+const stopsAt = (line) => new RegExp(`\\[stops\\] ${line}:breakpoint ${line}:breakpoint ${line}:breakpoint( ${line + 1}:step)? ${line}:breakpoint ${line}:breakpoint`);
+
 // (S-DEBUG: the debugger's program and the file it includes)
 const DEBUG_FILES = ["tests/fixtures/studio_debug/counter.rr", "tests/fixtures/studio_debug/tally.inc"];
 // (DARK-FIX) RapidR's three looks, for the cases that run in each
@@ -1928,6 +1948,114 @@ const CASES = [
     dump: {
       "outputbox.text": cmdsSeq(cmdsLine("running", "running"), cmdsLine("paused@13:step", "paused"), cmdsLine("stopped", "idle")),
     },
+  },
+  // ---- DEBUG-RUN, the debugger's events (Robert: "users will debug events
+  // of course"): each handler's breakpoint stops on every event — three
+  // times with Continue between, again after a Step Over out of the
+  // handler (scenarios 1, 2, 5, 6; the program's input from its script)
+  {
+    // 1. hello_form.rr's one-line OnChange: every key typed stops at 49
+    name: "debug-events-onchange",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("nameedit.__key_65", 6) },
+    do: eventSteps(49),
+    delay: 16,
+    dump: { "outputbox.text": stopsAt(49) },
+  },
+  {
+    // 2. a click (Click's OnClick)
+    name: "debug-events-click",
+    open: EVENTS_FILE,
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("btn.__mousedown_10_10,btn.__mouseup_10_10", 6) },
+    do: eventSteps(58),
+    delay: 16,
+    dump: { "outputbox.text": stopsAt(58) },
+  },
+  {
+    // 2. a key (the edit's OnKeyPress)
+    name: "debug-events-keypress",
+    open: EVENTS_FILE,
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("box.__key_65", 6) },
+    do: eventSteps(62),
+    delay: 16,
+    dump: { "outputbox.text": stopsAt(62) },
+  },
+  {
+    // 2. the focus (the list's OnEnter: clicked, then the edit, again)
+    name: "debug-events-focus",
+    open: EVENTS_FILE,
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("list.__mousedown_10_10,list.__mouseup_10_10,box.__mousedown_10_10,box.__mouseup_10_10", 6) },
+    do: eventSteps(66),
+    delay: 16,
+    dump: { "outputbox.text": stopsAt(66) },
+  },
+  {
+    // 2. a timer's OnTimer (every second while the program runs)
+    name: "debug-events-timer",
+    open: EVENTS_FILE,
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: Array(160).fill("btn.__mousemove_5_5").join(",") },
+    do: eventSteps(79),
+    delay: 20,
+    dump: { "outputbox.text": stopsAt(79) },
+  },
+  {
+    // 2. the mouse moving over the form (OnMouseMove): it stops on every
+    // move, and Continue always gets the program going again
+    name: "debug-events-mousemove",
+    open: EVENTS_FILE,
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("form.__mousemove_300_160", 6) },
+    do: eventSteps(83),
+    delay: 16,
+    dump: { "outputbox.text": stopsAt(83) },
+  },
+  {
+    // 2. a resize (the form's OnResize): the test's resize stops at 70
+    name: "debug-events-resize",
+    open: EVENTS_FILE,
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: Array(20).fill("btn.__mousemove_5_5").join(","), RAPIDR_TEST_RESIZE: "420,260" },
+    do: `line:70,key:F9,key:F5,${"wait,".repeat(8)}stops:report,key:F5,wait,wait`,
+    delay: 9,
+    dump: { "outputbox.text": /\[stops\]( 70:breakpoint)+/ },
+  },
+  {
+    // 5. nested: Grow widens the form, whose OnResize runs inside it — the
+    // breakpoint in Resized (set while the program runs: it takes effect
+    // at the next event) stops, the call stack has both
+    name: "debug-events-nested",
+    open: EVENTS_FILE,
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: Array(40).fill("btn.__mousemove_5_5").join(",") + "," + triggers("growbtn.__mousedown_10_10,growbtn.__mouseup_10_10", 2) },
+    do: `key:F5,wait,wait,line:70,key:F9,${"wait,".repeat(10)}stops:report`,
+    delay: 9,
+    dump: { "outputbox.text": /\[stops\] 70:breakpoint/, "stacktree.text": /^Resized\s+events\.rr:70\nGrow\s+events\.rr:91\n/ },
+  },
+  {
+    // 6. a run-time error in a handler: it stops at the line (Continue
+    // enabled); Shift+F5 ends it; run again, the error again: F5 lets it end
+    // the program (exit code 1), Run enabled
+    name: "debug-events-error",
+    open: EVENTS_FILE,
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("oopsbtn.__mousedown_10_10,oopsbtn.__mouseup_10_10", 1, 40) },
+    do: `key:F5,${"wait,".repeat(8)}cmds:report,key:Shift+F5,wait,wait,wait,cmds:report,key:F5,${"wait,".repeat(8)}cmds:report,key:F5,wait,wait,wait,wait,cmds:report,cmds:log`,
+    delay: 16,
+    dump: { "outputbox.text": cmdsSeq(cmdsLine("paused@95:exception", "paused"), cmdsLine("stopped", "idle"), cmdsLine("paused@95:exception", "paused"), cmdsLine("error", "idle")) },
   },
   // ---- DEBUG-VM: the values inspector, Set Next Statement, Step Into
   // Specific (examples/debugging/shop.rr: nested TYPEs, an array of them, an
