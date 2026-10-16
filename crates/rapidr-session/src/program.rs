@@ -1299,6 +1299,51 @@ mod tests {
         out
     }
 
+    /// A breakpoint in a one-line event handler stops on EVERY event —
+    /// also after a Step Over walked out of the handler (Robert, 2026-10-16:
+    /// typing into an edit stopped once, then never again).
+    #[test]
+    fn a_breakpoint_in_a_one_line_handler_stops_on_every_event() {
+        let src = "DIM n AS INTEGER\nSUB Changed\n    n = n + 1\nEND SUB\nn = 0\n";
+        let m = compile_program(src);
+        let handler = m.functions.iter().position(|f| f.name.eq_ignore_ascii_case("changed")).expect("the handler") as u32;
+        let (tx, rx) = mpsc::channel();
+        let sent: Rc<RefCell<Vec<Event>>> = Rc::default();
+        let log = sent.clone();
+        let ide = tx.clone();
+        let count = Rc::new(std::cell::Cell::new(0u64));
+        // (the first stop: Step Over twice — out of the handler, back to the
+        // event loop; every later stop: Continue)
+        let mut dbg = BlockingDebugger::new(
+            rx,
+            Box::new(move |e: &Event| {
+                log.borrow_mut().push(e.clone());
+                if let EventBody::Stopped { .. } = &e.body {
+                    if e.re.is_none() {
+                        count.set(count.get() + 1);
+                        let next = if count.get() <= 2 { Command::StepOver } else { Command::Continue };
+                        ide.send(req(count.get() * 100, next)).unwrap();
+                    }
+                }
+            }),
+        );
+        let mut host = StubHost::default();
+        let mut vm = Vm::new(&mut host);
+        let breakpoints = vec![SourceBreakpoint { line: 3, ..Default::default() }];
+        tx.send(req(1, Command::SetBreakpoints { file: "prog.bas".into(), breakpoints })).unwrap();
+        tx.send(req(2, Command::Start { program: None, args: vec![], debug: true, stop_on_entry: false, break_on_error: true })).unwrap();
+        assert_eq!(dbg.until_start(&mut vm, &m), Some(false));
+        vm.debugger = Some(Box::new(dbg));
+        vm.run(&m).unwrap();
+        // (three key presses: three events of the same one-line handler)
+        for _ in 0..3 {
+            vm.invoke_function(&m, handler, vec![]).unwrap();
+        }
+        drop(vm);
+        let stops: Vec<(String, u32)> = stops_of(&sent.borrow()).into_iter().filter(|(reason, _)| reason == "breakpoint").collect();
+        assert_eq!(stops, vec![stop("breakpoint", 3); 3], "{:?}", sent.borrow());
+    }
+
     fn stops_of(events: &[Event]) -> Vec<(String, u32)> {
         events
             .iter()
