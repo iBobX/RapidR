@@ -288,6 +288,30 @@ async function programModal(page, scale, record) {
   record("", list.length === 1, `Enter closed the message (${list.map((w) => w.form).join(", ")})`);
 }
 
+// (the web) Studio opens maximized on the page: it fills the page (not
+// just the restore icon), one double click on its title bar restores it,
+// another maximizes it again (Robert, 2026-10-16: it took two clicks).
+async function studioStartsMaximized(page, scale, record) {
+  const vp = page.viewportSize();
+  const sel = 'body > .rr-kwin[data-rr-form="studio"]';
+  await page.waitForSelector(sel, { timeout: 30000 });
+  await page.waitForTimeout(800);
+  const rect = () => page.evaluate((s) => {
+    const r = document.querySelector(s).getBoundingClientRect();
+    return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)];
+  }, sel);
+  const start = await rect();
+  record("", start[0] === 0 && start[1] === 0 && start[2] === vp.width && start[3] === vp.height, `Studio fills the page at start (${start})`);
+  await page.mouse.dblclick(300, 12);
+  await page.waitForTimeout(600);
+  const restored = await rect();
+  record("", restored[2] < vp.width || restored[3] < vp.height, `one double click restores it (${restored})`);
+  await page.mouse.dblclick(restored[0] + 200, restored[1] + 12);
+  await page.waitForTimeout(600);
+  const again = await rect();
+  record("", JSON.stringify(again) === JSON.stringify(start), `the next maximizes it again (${again})`);
+}
+
 async function studioModal(page, scale, record) {
   await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
   await page.waitForFunction(() => {
@@ -478,6 +502,18 @@ const CASES = [
     scales: [1, 2],
     web: studioModal,
     dump: { "session.error": /^$/ },
+  },
+  {
+    // Studio itself maximized on the page from the start (studioStartsMaximized)
+    name: "studio-starts-maximized",
+    open: "examples/gui/hello_form.rr",
+    webOnly: true,
+    delay: 3,
+    maximized: true,
+    viewport: { width: 1440, height: 900 },
+    scales: [1],
+    web: studioStartsMaximized,
+    dump: {},
   },
   {
     // Run > Build: the app for this system (interpreted: the project says),

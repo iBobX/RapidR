@@ -435,7 +435,17 @@ impl WebHost {
         let before = self.top();
         for cmd in std::mem::take(&mut self.desk.cmds) {
             match cmd {
-                HostCmd::Show(f) => self.show(&f),
+                HostCmd::Show(f) => {
+                    self.show(&f);
+                    // (shown maximized — Studio on the page, a program's
+                    // WindowState = 2 set before Show: the page's visible
+                    // part now, its normal bounds kept, so the first click
+                    // on Restore restores; not just the flag and the icon)
+                    let maximized = self.desk.forms.get(&f).is_some_and(|w| w.spec.state == rapidr_value::window_state::WS_MAXIMIZED);
+                    if maximized && self.wins.get(&f).is_some_and(|w| w.normal.is_none()) {
+                        self.set_state(store, &f, rapidr_value::window_state::WS_MAXIMIZED);
+                    }
+                }
                 HostCmd::Hide(f) => {
                     if let Some(w) = self.wins.get(&f) {
                         let _ = w.root.style().set_property("display", "none");
