@@ -2297,6 +2297,23 @@ const CASES = [
     },
   },
   {
+    // ... and kept: Studio started again, Settings shows the provider and
+    // the model chosen (the key was a test's, in memory: gone with it)
+    name: "ai-settings-saved",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: [AI_TAB, "aionbox.__mousedown_8_10,aionbox.__mouseup_8_10", "aiprovbox.__item_1", typeInto("aikeyedit", "mock-good-key-1"), FETCH, idle(40), "aimodelcombo.__item_1", OK, idle(20)].join(","),
+    delay: 4,
+    // (the second run: only the dialog opened, nothing typed or clicked)
+    restart: { do: "view.settings", delay: 4, events: "" },
+    dump: {
+      "settingsdialog.visible": /^(-1|1|True)$/i,
+      "aiprovbox.text": /^OpenAI$/,
+      "aimodelcombo.text": /^gpt-mock-nano$/,
+      "aionbox.checked": /^(-1|1|True)$/i,
+    },
+  },
+  {
     // Cancel leaves the assistant exactly as it was: another provider
     // browsed, a key typed and tried, a list fetched — none of it reaches
     // the assistant (it used to switch it, clearing its key and models)
@@ -2434,6 +2451,13 @@ const CASES = [
       // (the Model row a row's step under the key's note)
       "aimodelcombo.top": /^22\d$/,
     },
+    // (the web: the key's note a line longer, and Remember on this device)
+    webDump: {
+      "aiwsedit.__shown": /^0$/,
+      "aibasebox.__shown": /^0$/,
+      "aimodelcombo.top": /^2[5-7]\d$/,
+      "airemember.__shown": /^1$/,
+    },
   },
 ];
 
@@ -2453,6 +2477,71 @@ function typeInto(comp, text) {
 }
 function idle(n) {
   return Array(n).fill("aionnote.onclick").join(",");
+}
+
+// (the web) Settings > AI with the browser's mouse and keyboard, where the
+// controls are on the page (their accessibility elements' boxes): the AI
+// tab, OpenAI picked in the provider list (Down, Enter), a refused key
+// typed, Fetch Models — back, enabled, the refusal said; the key typed
+// again over it, Fetch Models — the list has the models; dropped, captured.
+async function settingsByMouse(page, scale, record) {
+  const prop = (c, p) => page.evaluate(([c, p]) => String(window.rr.rapidr_get_prop(c, p)), [c, p]);
+  const center = async (sel) => {
+    const b = await page.locator(sel).first().boundingBox();
+    return b && { x: b.x + b.width / 2, y: b.y + b.height / 2, b };
+  };
+  const click = async (sel, dx = 0) => {
+    const c = await center(sel);
+    if (!c) throw new Error(`nothing at ${sel}`);
+    await page.mouse.click(c.x + dx, c.y);
+    await page.waitForTimeout(250);
+  };
+  const until = async (what, test, ms = 15000) => {
+    const t0 = Date.now();
+    let v = "";
+    while (Date.now() - t0 < ms) {
+      v = await what();
+      if (test(v)) return v;
+      await page.waitForTimeout(200);
+    }
+    return v;
+  };
+  try {
+    const tab = page.getByRole("tab", { name: "AI", exact: true });
+    if (await tab.count()) {
+      const b = await tab.first().boundingBox();
+      await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+    } else {
+      const s = await center("#rr-settingstabs");
+      await page.mouse.click(s.b.x + 75, s.b.y + 12);
+    }
+    await page.waitForTimeout(300);
+    record("", (await prop("settingstabs", "tabindex")) === "1", "the AI tab, clicked");
+    await click("#rr-aiprovbox");
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(300);
+    record("", (await prop("aiprovbox", "text")) === "OpenAI", `OpenAI picked from the list with the keyboard (${await prop("aiprovbox", "text")})`);
+    await click("#rr-aikeyedit");
+    await page.keyboard.type("mock-bad-key-1");
+    await click("#rr-aifetchbtn");
+    const note = await until(() => prop("aifetchnote", "caption"), (v) => /401/.test(v));
+    const disabled = await page.locator("#rr-aifetchbtn").getAttribute("aria-disabled");
+    record("", /refused the API key \(401\)/.test(note) && disabled !== "true", `a refused key: said ("${note.slice(0, 60)}…"), Fetch Models enabled for a screen reader too (aria-disabled ${disabled})`);
+    await click("#rr-aikeyedit");
+    await page.keyboard.press("ControlOrMeta+A");
+    await page.keyboard.type("mock-good-key-1");
+    await click("#rr-aifetchbtn");
+    const n = await until(() => prop("aimodelcombo", "itemcount"), (v) => v === "3");
+    record("", n === "3", `the key typed again, Fetch Models again: the Model list has the provider's ${n} models`);
+    const combo = await center("#rr-aimodelcombo");
+    await page.mouse.click(combo.b.x + combo.b.width - 10, combo.y);
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: join(WORK, `ai-settings-web-mouse-list@${scale}x.png`) });
+    await page.keyboard.press("Escape");
+  } catch (e) {
+    record("", false, `the dialog used with the mouse: ${e.message.split("\n")[0]}`);
+  }
 }
 
 function runDesktop(c, scale = 1) {
@@ -2486,7 +2575,7 @@ function runDesktop(c, scale = 1) {
   // (studio.caption: always asked for — no line of the dump at all means
   // Studio had quit before it)
   const keys = [...Object.keys(c.dump), "studio.caption"];
-  const run = (args, delay) => spawnSync(RAPIDR, args, {
+  const run = (args, delay, events = c.events) => spawnSync(RAPIDR, args, {
     cwd: ROOT,
     timeout: Math.max(90000, delay * 1000 + 60000),
     encoding: "utf8",
@@ -2498,7 +2587,7 @@ function runDesktop(c, scale = 1) {
       ...(scale > 1 ? { RAPIDR_SCALE: String(scale) } : {}),
       ...(c.env || {}),
       RAPIDR_TEST_DUMP: keys.join(","),
-      ...(c.events ? { RAPIDR_TEST_EVENTS: c.events } : {}),
+      ...(events ? { RAPIDR_TEST_EVENTS: events } : {}),
       ...(c.contrast ? { RAPIDR_TEST_CONTRAST: join(dir, "contrast.json") } : {}),
       RAPIDR_PRINT_TO: join(WORK, "prints"),
       RAPIDR_REGISTRY: join(WORK, `${c.name}.reg`),
@@ -2520,7 +2609,7 @@ function runDesktop(c, scale = 1) {
     const k = again.indexOf("--do");
     if (k >= 0) again.splice(k, 2);
     if (c.restart.do) again.splice(again.length - 1, 0, "--do", c.restart.do);
-    r = run(again, c.restart.delay || c.delay);
+    r = run(again, c.restart.delay || c.delay, "events" in c.restart ? c.restart.events : c.events);
   }
   const dump = parseDump(r.stdout || "", keys);
   const quit = r.status === 0 && !r.error && Object.keys(dump).length === 0;
@@ -2611,7 +2700,7 @@ async function runWeb(browser, c, scale = 1, record = () => {}) {
   // (started again in the same browser profile: the page's settings kept)
   const ctx = await browser.newContext(opts);
   await runWebPage(ctx, c, false, scale, record);
-  return runWebPage(ctx, { ...c, do: c.restart.do, delay: c.restart.delay || c.delay, fresh: false }, true, scale, record);
+  return runWebPage(ctx, { ...c, do: c.restart.do, delay: c.restart.delay || c.delay, fresh: false, ...("events" in c.restart ? { events: c.restart.events } : {}) }, true, scale, record);
 }
 
 async function runWebPage(ctx, c, last, scale, record) {
@@ -2818,6 +2907,32 @@ async function beforeUnload(label, steps, want) {
   } finally {
     await ctx.close();
   }
+}
+// (AI-REAL, the web) Settings > AI used with the browser's own mouse and
+// keyboard: Studio runs as the user's (no test script — under one, the
+// kernel leaves user input alone), the mock provider standing in.
+async function aiSettingsByMouse() {
+  const name = "ai-settings-web-mouse (web)";
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  try {
+    await page.addInitScript((root) => {
+      window.RAPIDR_STUDIO_TEST = { RAPIDR_AI_TEST_SERVER: root };
+      window.RAPIDR_FILE_SINK = () => {};
+    }, MOCK_ROOT);
+    const q = new URLSearchParams({ theme: "rapidr-light", window: "normal", fresh: "", do: "view.settings", open: "examples/gui/hello_form.rr" });
+    await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.rr && String(window.rr.rapidr_get_prop("settingsdialog", "visible")).match(/^(-1|1|true)$/i), null, { timeout: 60000, polling: 200 });
+    await page.waitForTimeout(800);
+    await settingsByMouse(page, 1, (n, ok, what) => record(name, ok, what));
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "ai-settings-web-mouse".includes(f) || f === "ai-"))) {
+  await aiSettingsByMouse();
 }
 if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "beforeunload".includes(f)))) {
   await beforeUnload("changed", 'wait,code:"ONE"=>"ONE x"', true);

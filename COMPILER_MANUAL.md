@@ -320,9 +320,15 @@ python3 tools/fonts.py fetch       # the CJK fallback fonts' sources, once (pinn
   `…_MESSAGE_DIALOG`, `RAPIDR_TEST_DIALOG_HOLD`), devices
   (`RAPIDR_TEST_COMPORT`, `…_JOYSTICK`, `…_MIDI`, `…_WAVE_IN`, `…_SOUND`,
   `…_CLIPBOARD`), `RAPIDR_CAPTURE_WINDOWS=1` (real windows instead of the
-  headless host).
+  headless host), `RAPIDR_AI_TEST_SERVER=http://127.0.0.1:PORT` (Anthropic,
+  OpenAI and DeepSeek sent to a local stand-in — `tests/ai_mock_server.mjs`;
+  a loopback address only, anything else refused).
 - Real input on macOS (`tools/real_input.py`), what screen readers see
-  (`tools/macos/ax_dump.swift`, `tools/windows/uia_probe.ps1`).
+  (`tools/macos/ax_dump.swift`, `tools/windows/uia_probe.ps1`); a walk on the
+  real screen as a person uses a program (`tools/real_walk.py`: elements
+  found by their accessible names through `tools/macos/ui_probe.swift`,
+  dropped lists' items read by macOS' Vision, strict real input that stops
+  when another app comes in front).
 - Other systems: `tools/linux/check.sh` (the committed tree on Ubuntu in
   Docker, headless and on X11); the Windows 11 and Ubuntu Parallels VMs
   (conformance, GUI events with real windows, `tools/windows/

@@ -36,18 +36,33 @@ provider's prices (Settings has a **See prices** link to them).
    deletes it. If you set the provider's environment variable instead
    (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`), Studio uses
    that. A server on your own computer needs no key.
-4. **Workspace ID** (Anthropic, optional): for a key of an Anthropic
-   workspace that needs it.
+4. **Workspace ID** (Anthropic, optional): for a key made in your
+   organisation rather than inside one of its workspaces. If Anthropic
+   answers that it needs to know the workspace, Settings says so and puts
+   the cursor in this box: copy the ID from the Claude Console's
+   workspaces page.
 5. **Address** (OpenAI-compatible): the server's address, such as
    `http://localhost:11434/v1` for Ollama or `http://localhost:1234/v1` for
    LM Studio (the list offers these, xAI and OpenRouter).
 6. **Model.** **Fetch Models** lists the models your key can use, from the
-   provider itself. None is chosen for you. The ones whose names say they
-   are small (*mini*, *nano*, *flash*, *lite*, *haiku*, *small* …) are
-   marked **fast · low cost** and listed first; *opus*, *pro* … are marked
-   **costs more**. This is only a hint from the names: the provider's price
-   page is the truth. Studio remembers your choice for each provider, and
-   asks again if the provider stops offering it.
+   provider itself — with the key you just typed, if you typed one (it is
+   only tried: **OK** or **Save Key** keeps it). None is chosen for you. The
+   ones whose names say they are small (*mini*, *nano*, *flash*, *lite*,
+   *haiku*, *small* …) are marked **fast · low cost** and listed first;
+   *opus*, *pro* … are marked **costs more**. This is only a hint from the
+   names: the provider's price page is the truth. Studio remembers your
+   choice for each provider, and asks again if the provider stops offering
+   it.
+
+   Under the list, Settings says what happened: how many models came, or —
+   in plain words — why none did: a key the provider refused, an account
+   without credit, a server that isn't there. Fix it (paste the key again,
+   say, or fill in the Workspace ID) and press **Fetch Models** again: it
+   works again at once. A provider that doesn't answer is given 30 seconds;
+   picking another provider or closing Settings stops waiting.
+
+   ![A key the provider refused: what it said, under the Model list; Fetch Models ready to press again](images/ai/settings-refused-key.png)
+
 7. **Longest reply**: the most tokens one answer may take (4096 unless you
    change it) — a limit on what one answer can cost.
 8. **Prices** (optional): what your provider charges, in dollars for a
@@ -58,6 +73,13 @@ provider's prices (Settings has a **See prices** link to them).
 
 The assistant's pane and its toolbar button appear once it is on and has a
 provider, a key (when the provider needs one) and a model.
+
+**OK** gives your choices to the assistant. **Cancel** leaves it exactly as
+it was — whatever you tried meanwhile: other providers, their lists, a key
+typed. Only **Save Key** and **Remove** act at once, as their names say (on
+the key kept in your keychain).
+
+![An organisation's Anthropic key: Anthropic wants to know the workspace](images/ai/settings-workspace.png)
 
 **In Studio on the web**, a key is kept for the browser tab only.
 **Remember on this device** keeps it in the browser's storage for Studio's
@@ -249,7 +271,11 @@ background (*↻ Refresh the list* fetches them again):
 [examples/ai/rai_models.rr](../../examples/ai/rai_models.rr): choose a
 provider, give your key (from its environment variable, or typed while the
 program runs), list the provider's models, ask a question and watch the
-answer stream in.
+answer stream in. With Anthropic a **Workspace ID** row shows: fill it in
+for a key made outside a workspace (or set `ANTHROPIC_WORKSPACE_ID`). What
+goes wrong is said in plain words under the answer, and **List Models**
+and **Ask** work again at once. The window can be made bigger: everything
+follows.
 
 ```sh
 rapidr run ai/rai_models.rr                              # a cloud provider
@@ -257,6 +283,8 @@ rapidr run ai/rai_models.rr http://localhost:11434/v1    # Ollama on this comput
 ```
 
 ![examples/ai/rai_models.rr: a model server on this computer, its models, a question and its answer](images/ai/rai-models-example.png)
+
+![examples/ai/rai_models.rr with Anthropic: the Workspace ID row, the models, a question answered](images/ai/rai-models-workspace.png)
 
 ## Providers
 

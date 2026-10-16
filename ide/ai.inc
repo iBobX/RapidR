@@ -1140,9 +1140,18 @@ SUB AIStep(Stp AS STRING)
       AIApplySettings
     CASE "key"
       ' (tests and the manual's pictures only: a made-up key, never a real
-      ' one — kept in memory, never in the keychain)
+      ' one — kept in memory, never in the keychain: under the tests' memory
+      ' store or a browser tab's, kept as Save Key keeps it, so Settings
+      ' shows it as a user's; elsewhere only the assistant's for the session)
       AI.Provider = AIProvider
+      AI.APIKeySource = AIKeySourceOf(AIProvider)
+      ' (where a key would be kept, asked before one is set: the store's
+      ' own name, never "the macOS Keychain" for this)
+      k = Flag(INSTR(AI.KeyStore, "memory, for this session") > 0 OR INSTR(AI.KeyStore, "browser tab") > 0)
       AI.APIKey = arg
+      IF k THEN
+        IF AI.RememberKey(0) THEN AI.APIKey = ""
+      END IF
       AIApplySettings
       AIShowOrHide
     CASE "fetch": AI.RefreshModels
