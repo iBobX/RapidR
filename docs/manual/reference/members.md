@@ -5480,7 +5480,7 @@ The screen: its size and work area, the mouse's position, the monitors, the mous
 <a id="application"></a>
 ## Application
 
-The running program: its file and folder, title, icon, hint settings, RapidR's Theme, and Terminate to end it.
+The running program: its file and folder, title, icon, hint settings, RapidR's Theme (and OnThemeChange when the look changes), and Terminate to end it.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -5506,10 +5506,14 @@ The running program: its file and folder, title, icon, hint settings, RapidR's T
 | `HelpJump(JumpID AS STRING)` *(not yet)* | Opens the program's help file at the topic `JumpID`. |
 | `Minimize` | Minimizes the program's windows. |
 | `Terminate` | Ends it: stops the thread, or ends the program. |
-| `ThemeColor(Name AS STRING) AS LONG` *(RapidR)* | A colour of the current theme by name, as a RapidQ colour (&HBBGGRR): the theme's own ("face", "window", "accent" …) and an IDE's ("toolbar", "statusbar", "statusbar.running", "page.link", "editor.keyword" …); -1 for a name no theme has. Read it again after setting Theme. |
+| `ThemeColor(Name AS STRING) AS LONG` *(RapidR)* | A colour of the current theme by name, as a RapidQ colour (&HBBGGRR): the theme's own ("face", "window", "accent" …) and an IDE's ("toolbar", "statusbar", "statusbar.running", "page.link", "editor.keyword" …); -1 for a name no theme has. The colour of the look now: read it again in OnThemeChange, when the look changes. |
 | `SendKeys(Keys AS STRING) AS INTEGER` *(RapidR)* | Sends keystrokes to the program's own frontmost window, as if typed: one per turn of the event loop, through the same keyboard path as the user's keys (focus, shortcuts, OnKeyDown / OnKeyPress). Visual Basic's notation: + Shift, ^ Ctrl, % Alt (for the next key or a group in parentheses), ~ Enter, {TAB}, {ENTER}, {BS}, {DEL}, {ESC}, {UP}, {DOWN}, {LEFT}, {RIGHT}, {HOME}, {END}, {PGUP}, {PGDN}, {INS}, {F1} to {F16}, {+} {^} {%} {~} {(} {)} {{} {}} for those characters, {KEY n} for n presses. False, and nothing sent, when Keys is malformed. |
 | `GetPriority` *(not yet)* | Returns the program's process priority. |
 | `SetPriority(Priority AS LONG) AS VARIANT` *(not yet)* | Sets the program's process priority. |
+
+| Event | |
+|---|---|
+| `OnThemeChange` *(RapidR)* | The look the program is drawn in changed: the program set Theme to another look, or the system switched between light, dark and high contrast while the program follows it (RapidR's look, `$THEME rapidr`, the default). Fires once per change, after it, from the moment the handler is bound. Colours the program read with ThemeColor are values, not links: read them again here and assign them (`Label1.Font.Color = Application.ThemeColor("page.text")`); Windows' system colours (clBtnFace, clWindowText …) and components' own colours follow the look by themselves. Theme says the look now. |
 
 <a id="clipboard"></a>
 ## Clipboard

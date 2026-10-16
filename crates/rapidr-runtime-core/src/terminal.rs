@@ -201,14 +201,20 @@ mod imp {
     pub fn line_mode() {}
 }
 
-/// Once, as the program starts: the terminal ready for what the program
-/// prints (Windows' console told to show escape sequences).
+/// Once, as the program starts (native builds' main and the interpreter
+/// call it first): the terminal ready for what the program prints
+/// (Windows' console told to show escape sequences); RapidR's look known
+/// to be the system's from the program's first line (`ui::start_theme`:
+/// the system asked only when a theme is first needed — a console program
+/// never asks).
 pub fn start() {
     #[cfg(windows)]
     {
         static ONCE: std::sync::Once = std::sync::Once::new();
         ONCE.call_once(imp::start);
     }
+    #[cfg(feature = "gui")]
+    crate::ui::start_theme();
 }
 
 /// Reads the keys pressed so far into INKEY$'s queue.

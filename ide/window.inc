@@ -166,8 +166,11 @@ CREATE NewDialog AS RForm
   CREATE NewNameLabel AS RLabel
     Left = 16: Top = 20: Width = 90: Caption = "&Name:"
   END CREATE
+  ' (the fields as tall as LayOutDialogs makes them: not their font's
+  ' height again when the dialog first shows — RapidQ's QEDIT AutoSize —,
+  ' so a look's change while it's open doesn't resize them)
   CREATE NewName AS REdit
-    Left = 110: Top = 16: Width = 320
+    Left = 110: Top = 16: Width = 320: AutoSize = 0
   END CREATE
   CREATE NewKindLabel AS RLabel
     Left = 16: Top = 56: Width = 90: Caption = "Template:"
@@ -177,7 +180,7 @@ CREATE NewDialog AS RForm
     Left = 16: Top = 92: Width = 90: Caption = "&Folder:"
   END CREATE
   CREATE NewFolder AS REdit
-    Left = 110: Top = 88: Width = 284
+    Left = 110: Top = 88: Width = 284: AutoSize = 0
   END CREATE
   CREATE NewFolderBtn AS RButton
     Left = 400: Top = 87: Width = 30: Caption = "..."

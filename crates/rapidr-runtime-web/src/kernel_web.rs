@@ -340,6 +340,10 @@ fn dispatch_pending() {
     loop {
         let events = host::with(|h, _| std::mem::take(&mut h.desk.events)).unwrap_or_default();
         if events.is_empty() {
+            // (RapidR's Application.OnThemeChange: the look changed — the
+            // program set Application.Theme, the visitor switched the page
+            // to dark …)
+            rapidr_ui_app::dispatch::look_changed(Web);
             return;
         }
         for e in events {

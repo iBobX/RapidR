@@ -296,6 +296,8 @@ SUB StartStudio
   FillPalette
   FillRecent
   ApplyChrome
+  ' (from here on, the look's changes: the system's, View > Theme)
+  Application.OnThemeChange = StudioThemeChanged
   FillProjectTree
   InspectActive
   OutputLine "RapidR Studio is ready."

@@ -456,6 +456,8 @@ fn dispatch_pending() {
             HostEvent::Wake => {}
         }
     }
+    // (RapidR's Application.OnThemeChange: the look changed this turn)
+    rapidr_ui_app::dispatch::look_changed(Rt);
 }
 
 // --------------------------------------------------------------- timers --
@@ -1132,6 +1134,12 @@ pub fn set_theme(theme: &str) {
     platform::theme(theme);
 }
 
+/// As the program starts: RapidR's look as the system is from the first
+/// thing drawn or read (platform.rs).
+pub fn start_theme() {
+    platform::start();
+}
+
 /// What the kernel host doesn't do yet (said once per feature).
 fn pending(what: &str) {
     thread_local! {
@@ -1166,6 +1174,13 @@ pub fn mouse() -> (i64, i64) {
     with_kern(|k| k.host.mouse())
         .or_else(|| (held() && !headless_known()).then(rapidr_ui_host_winit::platform::global_mouse).flatten().map(|(x, y)| (x.round() as i64, y.round() as i64)))
         .unwrap_or((0, 0))
+}
+
+/// The system's look isn't asked (light: a GUI test's headless host, whose
+/// captures mustn't depend on the machine) — before the host is made too:
+/// a real run asks the system from the program's first line.
+fn headless_look() -> bool {
+    with_kern(|k| k.host.headless()).unwrap_or_else(headless_known)
 }
 
 /// The host is the headless one (whose mouse stays at (0, 0)).

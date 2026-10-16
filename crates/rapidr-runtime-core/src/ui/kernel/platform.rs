@@ -56,14 +56,31 @@ pub(super) fn theme(name: &str) {
     rapidr_ui_app::windows::invalidate();
 }
 
-/// How the system looks (dark, high contrast); a GUI test's headless host
-/// says light, so captures don't depend on the machine.
-fn system_look() -> (bool, bool) {
-    if super::headless() {
+/// How the system looks (dark, high contrast): macOS' appearance and
+/// Increase Contrast, Windows' app mode and high contrast, Linux's GTK
+/// theme — asked of the system before the window system is up too (RapidR
+/// Studio sets `Application.Theme = "rapidr"` before its first window: it
+/// opens in the system's look, not light until the first pump). A GUI
+/// test's headless host says light, so captures don't depend on the
+/// machine, unless the test says otherwise (`RAPIDR_TEST_SYSTEM_LOOK`, a
+/// `__look_` step: rapidr_ui_app's testhooks).
+pub(crate) fn system_look() -> (bool, bool) {
+    if let Some(look) = rapidr_ui_app::testhooks::system_look() {
+        return look;
+    }
+    if super::headless_look() {
         (false, false)
     } else {
         rapidr_ui_host_winit::platform::system_look()
     }
+}
+
+/// As the program starts: RapidR's look (a program that names no theme)
+/// is the system's from the first thing drawn or read — the system asked
+/// when a theme is first needed (`rapidr_value::theme::set_system_probe`),
+/// then twice a second ([`system_theme`]).
+pub(crate) fn start() {
+    rapidr_value::theme::set_system_probe(system_look);
 }
 
 /// A program that names no theme (or `$THEME rapidr`): RapidR's look as
