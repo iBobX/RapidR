@@ -632,3 +632,25 @@ fn a_screen_reader_hears_splitters_tabs_and_buttons() {
     assert_eq!(access::decode(1002), Some(access::AccessPart::Button(Button::Close)));
     assert_eq!(access::decode(1), Some(access::AccessPart::Tab(1)));
 }
+
+#[test]
+fn the_chrome_reads_in_rapidrs_looks() {
+    // (DARK-FIX: a pane's title, its tabs shown and not, a document's
+    // tabs and its view switch: text, WCAG AA on what each is drawn on)
+    use crate::theme::{contrast, ALL};
+    for t in ALL.into_iter().filter(|t| t.fluent()) {
+        let p = look::palette(t);
+        for (what, fg, bg) in [
+            ("a title", p.title, p.header),
+            ("the active title", p.title_active, p.header_active),
+            ("a tab not shown", p.tab_text, p.header),
+            ("a document tab not shown", p.tab_text, p.doc_strip),
+            ("a view switch segment", p.tab_text, p.ground),
+            ("a hovered segment", p.title_active, p.button_hover),
+            ("the shown document tab", p.title_active, p.doc_tab),
+            ("a strip tab", p.strip_text, p.strip_tab),
+        ] {
+            assert!(contrast(fg, bg) >= 4.5, "{}: {what} {fg:06X} on {bg:06X} {:.2}", t.name, contrast(fg, bg));
+        }
+    }
+}

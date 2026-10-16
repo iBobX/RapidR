@@ -154,6 +154,13 @@ pub fn new_host(headless: bool, scale: Option<f64>) -> Box<dyn Host> {
 /// Form `id` drawn by the CPU renderer at its scale (what `RAPIDR_CAPTURE`
 /// saves); `None` if there's no such form.
 pub fn capture(desk: &mut Desktop, store: &dyn Store, id: &str) -> Option<Pixels> {
+    capture_checked(desk, store, id).map(|(px, _)| px)
+}
+
+/// [`capture`], with the window's text runs judged against what they're
+/// drawn on (`rapidr_ui_kernel::contrast`: the failures as JSON, what
+/// `RAPIDR_TEST_CONTRAST` writes) — from the very list captured.
+pub fn capture_checked(desk: &mut Desktop, store: &dyn Store, id: &str) -> Option<(Pixels, String)> {
     let Desktop { forms, text, .. } = desk;
     let f = forms.get_mut(&id.to_lowercase())?;
     // (a code editor's view finishes what its first frame started — the
@@ -171,7 +178,8 @@ pub fn capture(desk: &mut Desktop, store: &dyn Store, id: &str) -> Option<Pixels
         }
     }
     let list = f.ui.paint(store, text, f.scale);
-    Some(rapidr_ui_render::cpu::capture(&list, text, &f.ui))
+    let runs = rapidr_ui_kernel::contrast::runs(&list, &f.ui, rapidr_value::theme::current());
+    Some((rapidr_ui_render::cpu::capture(&list, text, &f.ui), rapidr_ui_kernel::contrast::report_json(id, &runs)))
 }
 
 #[cfg(test)]

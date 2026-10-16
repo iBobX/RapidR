@@ -505,24 +505,44 @@ pub fn caption(p: &mut Painter, rect: Rect, caption: &str, font: &Font, color: u
     p.line(((left + x) as f64 + 0.5, y), ((left + x + w - 1) as f64 + 0.5, y), color);
 }
 
-/// Whether the program chose component `id`'s Font.Color: any colour but
-/// RapidQ's default black, or black set (`Font.Color` / `FontColor`,
-/// which the store keeps as `font.color` too; a QFONT assigned sets it).
+/// The Font.Color component `id`'s text is drawn in as the program set it
+/// (&HBBGGRR or a system colour), its own or — RapidQ's ParentFont — the
+/// nearest parent's that the program set (`Font.Color` / `FontColor`, a
+/// QFONT assigned: the store answers `font.color` so — a flat `fontcolor`
+/// alone is a default, not a choice); `None` when nobody set one, or when
+/// it is the system's text colour (clWindowText, clBtnText — a new
+/// QFONT's): text the theme colours.
+pub fn chosen_font_color(store: &dyn Store, id: &str, font: &Font) -> Option<i64> {
+    match store.get(id, "font.color") {
+        v @ (Value::Integer(_) | Value::Double(_)) => Some(v.to_i64()).filter(|&c| !is_theme_text(c)),
+        // (a store that answers only the font: its colour, black being none)
+        _ => Some(font.color).filter(|c| c & 0xFFFFFF != 0 && !is_theme_text(*c)),
+    }
+}
+
+/// Whether `color` is Windows' text colour, clWindowText or clBtnText
+/// (`&H80000008`, `&H80000012`): what a theme draws text in.
+fn is_theme_text(color: i64) -> bool {
+    matches!(color as u32, 0x8000_0008 | 0x8000_0012)
+}
+
+/// Whether the program chose component `id`'s Font.Color
+/// ([`chosen_font_color`]).
 pub fn font_color_chosen(store: &dyn Store, id: &str, font: &Font) -> bool {
-    font.color & 0xFFFFFF != 0 || !matches!(store.get(id, "font.color"), Value::Null)
+    chosen_font_color(store, id, font).is_some()
 }
 
 /// The colour component `id`'s text is drawn in, on `background`
-/// (0xRRGGBB): grey while disabled; else its Font.Color if the program
-/// chose one — the program's colours win in every theme, as in RapidQ —
-/// else the theme's text (what reads on `background` when that's a colour
-/// the program chose).
+/// (0xRRGGBB): grey while disabled; else the Font.Color the program chose
+/// for it or a parent of it — the program's colours win in every theme, as
+/// in RapidQ — else the theme's text (what reads on `background` when
+/// that's a colour the program chose).
 pub fn ink(store: &dyn Store, id: &str, font: &Font, enabled: bool, background: u32) -> u32 {
     let t = theme::current();
     if !enabled {
         t.gray_text
-    } else if font_color_chosen(store, id, font) {
-        bgr_to_rgb(font.color)
+    } else if let Some(color) = chosen_font_color(store, id, font) {
+        bgr_to_rgb(color)
     } else {
         t.text_on(background)
     }

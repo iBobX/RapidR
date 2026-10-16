@@ -9,6 +9,13 @@
 //   tools/build_studio_web.sh
 //   python3 -m http.server -d target/studio-web 18473 --bind 127.0.0.1
 //   node tests/studio_flows.mjs [filter…]
+//
+// A case runs in RapidR light unless it names `themes` (each run is
+// `<name>-<dark|contrast|light>`); a case with `contrast: true` has every
+// text run of Studio's windows judged against what it's drawn on, on both
+// hosts (rapidr_ui_kernel::contrast, from the very list captured: the
+// desktop's RAPIDR_TEST_CONTRAST, the page's test results) — below WCAG AA
+// (4.5:1, 3:1 for large and disabled text) fails.
 
 import { spawn, spawnSync } from "node:child_process";
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
@@ -228,6 +235,8 @@ async function inspectorAccess(page, scale, record) {
 
 // (S-DEBUG: the debugger's program and the file it includes)
 const DEBUG_FILES = ["tests/fixtures/studio_debug/counter.rr", "tests/fixtures/studio_debug/tally.inc"];
+// (DARK-FIX) RapidR's three looks, for the cases that run in each
+const LOOKS = ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"];
 // (IMPORT-INC) A RapidQ program in several files: its includes in lib/ and forms/
 const SHAPES = ["shapes.bas", "lib/geometry.inc", "lib/units.inc", "forms/shapesform.inc"].map((f) => `examples/rapidq/shapes/${f}`);
 const INC_FIXTURE = ["tests/fixtures/rapidq_import_inc/main.bas", "tests/fixtures/rapidq_import_lib/inc/tools.inc"];
@@ -582,6 +591,9 @@ const CASES = [
     webFiles: ["tests/fixtures/studio_app/Notes.rrproj", "tests/fixtures/studio_app/main.rr", "tests/fixtures/studio_app/note.svg"],
     do: "project.options",
     delay: 4,
+    // (DARK-FIX: the dialog's text judged in every look, on both hosts)
+    themes: LOOKS,
+    contrast: true,
     dump: { "appnameedit.text": /^Notes$/, "appversionedit.text": /^1\.2\.0$/, "appiconedit.text": /^note\.svg$/, "appiconnote.caption": /every size/ },
   },
   {
@@ -1914,6 +1926,116 @@ const CASES = [
       "varstree.text": /^Locals\n\tItem = "tea"/,
     },
   },
+  // ---- DARK-FIX: the debugger's panes read in every look (Robert's
+  // screenshots: shop.rr paused in RapidR dark — Variables' rows, the Call
+  // Stack's rows not selected, the Breakpoints pane's labels were black or
+  // dark grey on the dark ground). Each in light, dark and high contrast,
+  // its text judged (contrast: WCAG AA) on both hosts.
+  {
+    // Variables at line 147: Locals, Globals, values unchanged
+    name: "debug-look-variables",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:147,debug.toggleBreakpoint,run.start,wait,wait,wait,view.variables,wait",
+    delay: 8,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "session.currentline": /^147$/,
+      "varstree.text": /^Locals\n\t\(none\)\nGlobals\n\tcount = 3\n\tMAXORDERS = 10\n/,
+      "stacktree.text": /^\(the program\)\s+shop\.rr:147$/,
+    },
+  },
+  {
+    // the Call Stack with its second row picked: the others not selected
+    name: "debug-look-stack",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:76,debug.toggleBreakpoint,run.start,wait,wait,wait,debug.stepInto,wait,wait,frame:1,wait,view.callStack,wait",
+    delay: 9,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "session.frame": /^1$/,
+      "stacktree.text": /^PriceOf\s+shop\.rr:\d+\nAddUp\s+shop\.rr:76\n\(the program\)\s+shop\.rr:147$/,
+    },
+  },
+  {
+    // the Breakpoints pane: two breakpoints, the second's condition in
+    // its strip (When, Hit, Log, On)
+    name: "debug-look-breakpoints",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:76,debug.toggleBreakpoint,line:147,debug.toggleBreakpoint,bpcond:count > 1,run.start,wait,wait,wait,view.breakpoints,wait",
+    delay: 9,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "bptree.text": /^shop\.rr:76\nshop\.rr:147  when count > 1$/,
+      "bpcondedit.text": /^count > 1$/,
+    },
+  },
+  {
+    // Watch and Variables marking what changed since the last stop
+    name: "debug-look-watch",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:76,debug.toggleBreakpoint,watch:total,watch:count,watch:orders(1).Buyer.Name,run.start,wait,wait,wait,run.start,wait,wait,wait,view.watch,wait,changed:report",
+    delay: 10,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "watchtree.text": /^total = \d+\ncount = 3\norders\(1\)\.Buyer\.Name = "Ada"$/,
+      "outputbox.text": /\[changed\] L\/i G\/total W1$/m,
+    },
+  },
+  {
+    // a data tip opened like a tree
+    name: "debug-look-datatip",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:76,debug.toggleBreakpoint,run.start,wait,wait,wait,hover:76:37,wait,wait,wait,tipopen:1,wait,wait,tipopen:4,wait,wait",
+    delay: 9,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: { "codedoc(0).datatiptext": /^orders = Array\(1 TO 10\)\n\t\(1\) = Order\n/i },
+  },
+  {
+    // a run-time error's line and its message
+    name: "debug-look-error",
+    open: "tests/fixtures/studio_debug/oops.rr",
+    webFiles: ["tests/fixtures/studio_debug/oops.rr"],
+    do: "run.start,wait,wait,wait,view.variables",
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: { "session.stopreason": /^exception$/ },
+  },
+  // (DARK-FIX, Robert) The designer's anchor pins on a component clicked —
+  // filled where it's anchored (Left, Top), hollow where it isn't — in
+  // every look; and dataframe.rr's linked data live in the designer: the
+  // grid's rows and the chart's bars read from staff.csv (its $RESOURCE)
+  {
+    name: "designer-pins",
+    open: "examples/data/dataframe.rr",
+    webFiles: ["examples/data/dataframe.rr", "examples/data/staff.csv"],
+    do: "wait,view.designer",
+    events: "designdoc(0).__mousedown_225_154,designdoc(0).__mouseup_225_154",
+    delay: 7,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "designdoc(0).pins": /^Left on, Top on, Right off, Bottom off$/,
+      "inspector.target": /Grid/,
+    },
+  },
   {
     // Run in Browser: the desktop serves the web build on 127.0.0.1 (the
     // page itself: tests/run_in_browser.mjs); on the web it runs here
@@ -2100,7 +2222,7 @@ function runDesktop(c, scale = 1) {
   const dir = join(WORK, `${c.name}-desktop${scale > 1 ? `@${scale}x` : ""}`);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
-  const args = ["run", "ide/studio.rr", "--home", ".", "--fresh", "--theme", "rapidr-light"];
+  const args = ["run", "ide/studio.rr", "--home", ".", "--fresh", "--theme", c.theme || "rapidr-light"];
   // (R-NAMES: a RapidQ program's folder copied here, imported from there —
   // the import writes its copy beside it; {dir}: the case's own folder —
   // a new project goes there)
@@ -2140,6 +2262,7 @@ function runDesktop(c, scale = 1) {
       ...(c.env || {}),
       RAPIDR_TEST_DUMP: keys.join(","),
       ...(c.events ? { RAPIDR_TEST_EVENTS: c.events } : {}),
+      ...(c.contrast ? { RAPIDR_TEST_CONTRAST: join(dir, "contrast.json") } : {}),
       RAPIDR_PRINT_TO: join(WORK, "prints"),
       RAPIDR_REGISTRY: join(WORK, `${c.name}.reg`),
       // (the AI assistant: keys in memory only — never the user's keychain —,
@@ -2174,7 +2297,8 @@ function runDesktop(c, scale = 1) {
     const p = c.copyDir ? join(dir, "project", f) : join(dir, f);
     files[f] = existsSync(p) ? readFileSync(p, "utf8") : undefined;
   }
-  return { dump, quit, files };
+  const contrast = c.contrast && existsSync(join(dir, "contrast.json")) ? JSON.parse(readFileSync(join(dir, "contrast.json"), "utf8")) : undefined;
+  return { dump, quit, files, contrast };
 }
 
 // "name=value" lines, a value running on to the next "name=" line.
@@ -2276,7 +2400,7 @@ async function runWebPage(ctx, c, last, scale, record) {
       ...(c.events ? { RAPIDR_TEST_EVENTS: c.events } : {}),
       ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: c.folder } : {}),
     });
-    const q = new URLSearchParams({ theme: "rapidr-light" });
+    const q = new URLSearchParams({ theme: c.theme || "rapidr-light" });
     if (c.fresh !== false) q.set("fresh", "");
     // (Studio a 1280 x 800 window on the page, unless the case has it fill the page)
     if (!c.maximized) q.set("window", "normal");
@@ -2305,7 +2429,8 @@ async function runWebPage(ctx, c, last, scale, record) {
       const written = Object.entries(writes).find(([p]) => p.endsWith("/" + f) || p === f);
       out[f] = written ? written[1] : path ? readFileSync(join(ROOT, path), "utf8") : undefined;
     }
-    return { dump: parseDump(results.dump.join("\n"), [...Object.keys(c.webDump || c.dump), "studio.caption"]), quit, files: out, errors };
+    const contrast = c.contrast && results.contrast ? JSON.parse(results.contrast) : undefined;
+    return { dump: parseDump(results.dump.join("\n"), [...Object.keys(c.webDump || c.dump), "studio.caption"]), quit, files: out, errors, contrast };
   } finally {
     await page.close();
     if (last) await ctx.close();
@@ -2340,6 +2465,15 @@ const check = (label, run, c) => {
     ok ? passed++ : failed++;
     console.log(`${ok ? "✓" : "✗"} ${c.name} (${label}): ${k} ${ok ? "" : `= ${JSON.stringify(v)} (wanted ${re})`}`);
   }
+  if (c.contrast) {
+    // (every window's text against its ground: WCAG AA in RapidR's looks)
+    const windows = run.contrast || [];
+    const checked = windows.reduce((n, w) => n + w.checked, 0);
+    const failures = windows.flatMap((w) => w.failures.map((f) => `${w.form}: ${JSON.stringify(f.text)} ${f.color} on ${f.background} ${f.ratio}:1 (needs ${f.need})`));
+    const ok = windows.length > 0 && checked > 0 && failures.length === 0;
+    ok ? passed++ : failed++;
+    console.log(`${ok ? "✓" : "✗"} ${c.name} (${label}): text contrast, ${checked} runs in ${windows.length} window(s)${failures.length ? ` — ${failures.length} below AA:\n    ${failures.slice(0, 12).join("\n    ")}` : windows.length ? " all AA" : " (no report)"}`);
+  }
   for (const [k, file] of Object.entries(c.same || {})) {
     const want = readFileSync(join(ROOT, file), "utf8").replace(/\r\n/g, "\n").replace(/\n+$/, "");
     const v = dump[k];
@@ -2364,7 +2498,10 @@ if (!filters.length || filters.some((f) => "commands-handled".includes(f))) {
   record("commands-handled", ids.length >= 15 && missing.length === 0, `every Run / Debug command is handled (${ids.length} commands${missing.length ? "; missing: " + missing.join(", ") : ""})`);
 }
 
-for (const c of CASES.filter((c) => !filters.length || filters.some((f) => c.name.includes(f)))) {
+// (a case with `themes`: one run per look, named for it)
+const SHORT = { "rapidr-light": "light", "rapidr-dark": "dark", "rapidr-high-contrast": "contrast", classic: "classic" };
+const RUNS = CASES.flatMap((c) => (c.themes ? c.themes.map((theme) => ({ ...c, theme, name: `${c.name}-${SHORT[theme] || theme}` })) : [c]));
+for (const c of RUNS.filter((c) => !filters.length || filters.some((f) => c.name.includes(f)))) {
   if (HOSTS.includes("desktop") && !c.webOnly) {
     for (const scale of c.capture ? c.scales || [1] : [1]) check(c.capture && scale > 1 ? `desktop @${scale}x` : "desktop", runDesktop(c, scale), c);
   }

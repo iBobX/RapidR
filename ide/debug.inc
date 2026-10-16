@@ -71,8 +71,8 @@ DIM WatchItemExpr(MAXVARITEMS) AS STRING
 DIM WatchItemKind(MAXVARITEMS) AS STRING
 DIM WatchItemMore(MAXVARITEMS) AS INTEGER
 ' (a value changed since the last stop: its colour in the trees, as the
-' data tips mark it)
-CONST CHANGEDCOLOR = &HD77800
+' data tips mark it — the theme's "debug.changed": ApplyDebugColors)
+DIM ChangedColor AS LONG
 
 ' ---- the data tip: the value under a resting mouse, as a tree -----------------------------
 ' Its rows as the last ShowDataTip showed them (a row's id is its number):
@@ -862,10 +862,10 @@ SUB TreeItemValue(w AS INTEGER, i AS INTEGER, Expr AS STRING, Kind AS STRING, Ch
   IF i > MAXVARITEMS THEN EXIT SUB
   IF w = 0 THEN
     VarItemExpr(i) = Expr: VarItemKind(i) = Kind
-    IF Changed THEN VarsTree.Item(i).TextColor = CHANGEDCOLOR
+    IF Changed THEN VarsTree.Item(i).TextColor = ChangedColor
   ELSE
     WatchItemExpr(i) = Expr: WatchItemKind(i) = Kind
-    IF Changed THEN WatchTree.Item(i).TextColor = CHANGEDCOLOR
+    IF Changed THEN WatchTree.Item(i).TextColor = ChangedColor
   END IF
 END SUB
 
@@ -1954,12 +1954,12 @@ FUNCTION DebugStep(Stp AS STRING) AS INTEGER
       arg = ""
       FOR k = 0 TO VarsTree.ItemCount - 1
         IF k <= MAXVARITEMS THEN
-          IF VarsTree.Item(k).TextColor = CHANGEDCOLOR THEN arg = arg + " " + VarItemPath(k)
+          IF VarsTree.Item(k).TextColor = ChangedColor THEN arg = arg + " " + VarItemPath(k)
         END IF
       NEXT
       FOR k = 0 TO WatchTree.ItemCount - 1
         IF k <= MAXVARITEMS THEN
-          IF WatchTree.Item(k).TextColor = CHANGEDCOLOR THEN arg = arg + " " + WatchItemPath(k)
+          IF WatchTree.Item(k).TextColor = ChangedColor THEN arg = arg + " " + WatchItemPath(k)
         END IF
       NEXT
       OutputLine "[changed]" + arg
@@ -1971,6 +1971,30 @@ FUNCTION DebugStep(Stp AS STRING) AS INTEGER
 END FUNCTION
 
 ' ---- set-up -------------------------------------------------------------------------------------
+
+' The debugger's trees in the chrome's font and rows, as the Outline
+' (chrome.inc's ApplyFonts: at the start and when the theme changes).
+SUB ApplyDebugFonts(Rows AS INTEGER)
+  VarsTree.Font = UIFont: VarsTree.ItemHeight = Rows
+  WatchTree.Font = UIFont: WatchTree.ItemHeight = Rows
+  StackTree.Font = UIFont: StackTree.ItemHeight = Rows
+  BpTree.Font = UIFont: BpTree.ItemHeight = Rows
+END SUB
+
+' The changed values' colour in the theme (chrome.inc's ApplyChrome): the
+' items marked take the new one.
+SUB ApplyDebugColors
+  DIM was AS LONG, k AS INTEGER
+  was = ChangedColor
+  ChangedColor = Application.ThemeColor("debug.changed")
+  IF was = ChangedColor THEN EXIT SUB
+  FOR k = 0 TO VarsTree.ItemCount - 1
+    IF VarsTree.Item(k).TextColor = was THEN VarsTree.Item(k).TextColor = ChangedColor
+  NEXT
+  FOR k = 0 TO WatchTree.ItemCount - 1
+    IF WatchTree.Item(k).TextColor = was THEN WatchTree.Item(k).TextColor = ChangedColor
+  NEXT
+END SUB
 
 SUB DebugTree(t AS RTreeView, Title AS STRING)
   t.Parent = Studio
@@ -2086,31 +2110,32 @@ SUB SetUpDebug
   BpStrip.Height = 30
   BpStrip.BevelOuter = 0
   BpCondLabel.Parent = BpStrip
-  BpCondLabel.Left = 6: BpCondLabel.Top = 7: BpCondLabel.Width = 34
+  ' (each label clear of its box: Inter is wider than MS Sans Serif)
+  BpCondLabel.Left = 6: BpCondLabel.Top = 7: BpCondLabel.Width = 40
   BpCondLabel.Caption = "&When"
   BpCondEdit.Parent = BpStrip
-  BpCondEdit.Left = 42: BpCondEdit.Top = 4: BpCondEdit.Width = 130
+  BpCondEdit.Left = 50: BpCondEdit.Top = 4: BpCondEdit.Width = 130
   BpCondEdit.Hint = "A condition: it stops when this is true (clicks > 1)"
   BpCondEdit.AccessibleName = "Condition"
   BpCondEdit.OnKeyDown = BpEditKey
   BpHitLabel.Parent = BpStrip
-  BpHitLabel.Left = 180: BpHitLabel.Top = 7: BpHitLabel.Width = 22
+  BpHitLabel.Left = 190: BpHitLabel.Top = 7: BpHitLabel.Width = 24
   BpHitLabel.Caption = "&Hit"
   BpHitEdit.Parent = BpStrip
-  BpHitEdit.Left = 204: BpHitEdit.Top = 4: BpHitEdit.Width = 50
+  BpHitEdit.Left = 218: BpHitEdit.Top = 4: BpHitEdit.Width = 50
   BpHitEdit.Hint = "A hit count: 3 (the third time), >= 3, % 3 (every third)"
   BpHitEdit.AccessibleName = "Hit count"
   BpHitEdit.OnKeyDown = BpEditKey
   BpLogLabel.Parent = BpStrip
-  BpLogLabel.Left = 262: BpLogLabel.Top = 7: BpLogLabel.Width = 26
+  BpLogLabel.Left = 278: BpLogLabel.Top = 7: BpLogLabel.Width = 28
   BpLogLabel.Caption = "&Log"
   BpLogEdit.Parent = BpStrip
-  BpLogEdit.Left = 290: BpLogEdit.Top = 4: BpLogEdit.Width = 116
+  BpLogEdit.Left = 310: BpLogEdit.Top = 4: BpLogEdit.Width = 116
   BpLogEdit.Hint = "A logpoint: prints this ({expr} shows a value) and goes on"
   BpLogEdit.AccessibleName = "Log message"
   BpLogEdit.OnKeyDown = BpEditKey
   BpOnCheck.Parent = BpStrip
-  BpOnCheck.Left = 414: BpOnCheck.Top = 6: BpOnCheck.Width = 46
+  BpOnCheck.Left = 436: BpOnCheck.Top = 6: BpOnCheck.Width = 46
   BpOnCheck.Caption = "On"
   BpOnCheck.OnClick = BpOnClicked
   DebugTree BpTree, "Breakpoints"

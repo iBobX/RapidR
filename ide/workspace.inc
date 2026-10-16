@@ -311,10 +311,18 @@ SUB PickTemplate(i AS INTEGER)
   DIM k AS INTEGER
   TplChosen = i
   FOR k = 0 TO TPLS - 1
-    IF k = i THEN TplCard(k).Color = TC("editor.selection") ELSE TplCard(k).Color = TC("card")
     TplTitle(k).Font = CardFont
-    TplTitle(k).Font.Color = TC("page.text")
-    TplText(k).Font.Color = TC("page.dim")
+    ' (the picked card in the theme's soft selection, its text the
+    ' selection's: it reads there, as the dimmed text wouldn't)
+    IF k = i THEN
+      TplCard(k).Color = TC("selected")
+      TplTitle(k).Font.Color = TC("selected_text")
+      TplText(k).Font.Color = TC("selected_text")
+    ELSE
+      TplCard(k).Color = TC("card")
+      TplTitle(k).Font.Color = TC("page.text")
+      TplText(k).Font.Color = TC("page.dim")
+    END IF
     TplBmp(k).LoadIcon TplIconName(k), 24
     TplIcon(k).BMPHandle = TplBmp(k)
   NEXT

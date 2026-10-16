@@ -303,7 +303,7 @@ impl Console {
                 p.text(r, &text, &small, color, Place::Center);
             } else {
                 p.round(r, bh as f64 / 2.0, Some(color), None, 1.0);
-                p.text(r, &text, &small, l.body, Place::Center);
+                p.text(r, &text, &small, common::text_on(l, color), Place::Center);
             }
         }
         if let Some(sr) = g.search {

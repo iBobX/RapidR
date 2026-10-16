@@ -2121,6 +2121,7 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `TabOrderMode` | bool | False | The Tab-order editor: every component that takes the focus shows its place in the Tab order (2.1: the second inside the third), and clicking components in the order wanted renumbers them, each click written as TabOrder in the code (one undo step). Escape turns it off. |
 | `SharedUndo` | bool | False | The file's undo history is kept elsewhere (the code editor's): Undo and Redo on the designer — its methods, Ctrl+Z, Ctrl+Y — fire OnUndo instead of undoing, and the program undoes there and sets Source again. OnSourceStep then says how each change's OnSourceEdits group into steps. |
 | `Editing` (read-only) | int |  | Whether a caption is being edited in place (EditCaption, F2, a slow click, the menu editor's Type Here). |
+| `Pins` (read-only) | string |  | The anchor pins showing on the selected component, in words: each side, on (anchored: that edge keeps its distance when the form is resized) or off — "Left on, Top on, Right off, Bottom off" —; empty when none show (nothing selected on the form, a drag or an in-place edit under way, the Tab-order editor, ShowSelection off). |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -4447,7 +4448,7 @@ A CSV file as a data source: set FileName and its table is ready — show it in 
 
 | Property | Type | Default | |
 |---|---|---|---|
-| `FileName` | string | `""` | The CSV file (a path, or a name next to the program). Setting it reads the file again when its table is next needed. |
+| `FileName` | string | `""` | The CSV file (a path, or a name next to the program), or a `$RESOURCE`'s name: the file built into the program, so it runs from anywhere (RapidR Studio's designer reads the file the `$RESOURCE` names). Setting it reads the file again when its table is next needed. |
 | `Delimiter` | string | `","` | What separates the fields: "," (the default), ";", a tab ("tab" or CHR$(9)), "\|" … |
 | `HasHeader` | bool | True | True: the first line names the columns. False: every line is a row and the columns are column_1, column_2 … |
 | `Text` | string |  | The table as CSV text; setting it gives the data itself instead of a file. |
@@ -4564,6 +4565,10 @@ A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Dpi` | int |  | The dots per inch the plot is rendered at. |
+| `DataSource` | component |  | The data it charts: a data set (an RDataFrame, an RCSV, an RJSON) or an RDataSource's. Its rows are drawn as Kind says — X along the bottom, a series for each Y column — and drawn again whenever the data change (a filter, a sort, a file read again); RapidR Studio's designer shows them while you design. Empty: the chart is the one its methods (Bar, Plot …) draw. |
+| `Kind` | string | `"bar"` | How DataSource's rows are drawn: "bar" (a bar for each row over its X name), "barh" (lying down), "line", "scatter", "area", "step" (over X's numbers, or its names), "pie" (X's names, Y's first column), "hist" (Y's values counted in 10 bins). |
+| `X` | string | `""` | DataSource's column along the bottom: the names under bars and a pie's slices, the numbers a line runs over ("Department"). Empty: the first column. |
+| `Y` | string | `""` | DataSource's column(s) drawn, comma-separated, a series each in its own colour, with a legend when there are several ("Salary", "Sales,Costs"). Empty: every numeric column but X. At most the first 10,000 rows are drawn. |
 | `SeriesCount` (read-only) | int |  | How many series the plot has. |
 | `Count` (read-only) | int |  | How many series the plot has (SeriesCount). |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |

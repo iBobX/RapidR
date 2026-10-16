@@ -237,6 +237,10 @@ A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots
 | `Width` | ✓ | ✓ | The width, in pixels; on `Screen`, the screen's. |
 | `Height` | ✓ | ✓ | The height, in pixels; on `Screen`, the screen's. |
 | `Dpi` | ✓ | ✓ | The dots per inch the plot is rendered at. |
+| `DataSource` | ✓ | ✓ | The data it charts: a data set (an RDataFrame, an RCSV, an RJSON) or an RDataSource's. Its rows are drawn as Kind says — X along the bottom, a series for each Y column — and drawn again whenever the data change (a filter, a sort, a file read again); RapidR Studio's designer shows them while you design. Empty: the chart is the one its methods (Bar, Plot …) draw. |
+| `Kind` | ✓ | ✓ | How DataSource's rows are drawn: "bar" (a bar for each row over its X name), "barh" (lying down), "line", "scatter", "area", "step" (over X's numbers, or its names), "pie" (X's names, Y's first column), "hist" (Y's values counted in 10 bins). |
+| `X` | ✓ | ✓ | DataSource's column along the bottom: the names under bars and a pie's slices, the numbers a line runs over ("Department"). Empty: the first column. |
+| `Y` | ✓ | ✓ | DataSource's column(s) drawn, comma-separated, a series each in its own colour, with a legend when there are several ("Salary", "Sales,Costs"). Empty: every numeric column but X. At most the first 10,000 rows are drawn. |
 | `SeriesCount` | ✓ | ✓ | How many series the plot has. |
 | `Count` | ✓ | ✓ | How many series the plot has (SeriesCount). |
 

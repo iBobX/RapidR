@@ -220,7 +220,7 @@ visual = false
 default_event = "OnLoad"
 doc = "A CSV file as a data source: set FileName and its table is ready — show it in an RDBGrid (DataSource = it), give its rows to an RDataFrame (Source = it), or bind edits and labels to it. Any delimiter, with or without a header line; read when first needed, at design time too. RapidR's own."
 properties = [
-  { name = "FileName", type = "string", default = "", category = "Data", editor = "file", doc = "The CSV file (a path, or a name next to the program). Setting it reads the file again when its table is next needed." },
+  { name = "FileName", type = "string", default = "", category = "Data", editor = "file", doc = "The CSV file (a path, or a name next to the program), or a `$RESOURCE`'s name: the file built into the program, so it runs from anywhere (RapidR Studio's designer reads the file the `$RESOURCE` names). Setting it reads the file again when its table is next needed." },
   { name = "Delimiter", type = "string", default = ",", category = "Data", doc = "What separates the fields: \",\" (the default), \";\", a tab (\"tab\" or CHR$(9)), \"|\" …" },
   { name = "HasHeader", type = "bool", default = true, category = "Data", doc = "True: the first line names the columns. False: every line is a row and the columns are column_1, column_2 …" },
   { name = "Text", type = "string", category = "Data", design = false, doc = "The table as CSV text; setting it gives the data itself instead of a file." },
@@ -330,6 +330,10 @@ properties = [
   { name = "Width", type = "int" },
   { name = "Height", type = "int" },
   { name = "Dpi", type = "int" },
+  { name = "DataSource", type = "component", kinds = ["RDATASOURCE", "RDATAFRAME", "RCSV", "RJSON"], category = "Data", doc = "The data it charts: a data set (an RDataFrame, an RCSV, an RJSON) or an RDataSource's. Its rows are drawn as Kind says — X along the bottom, a series for each Y column — and drawn again whenever the data change (a filter, a sort, a file read again); RapidR Studio's designer shows them while you design. Empty: the chart is the one its methods (Bar, Plot …) draw." },
+  { name = "Kind", type = "string", values = ["bar", "barh", "line", "scatter", "area", "step", "pie", "hist"], default = "bar", category = "Data", doc = "How DataSource's rows are drawn: \"bar\" (a bar for each row over its X name), \"barh\" (lying down), \"line\", \"scatter\", \"area\", \"step\" (over X's numbers, or its names), \"pie\" (X's names, Y's first column), \"hist\" (Y's values counted in 10 bins)." },
+  { name = "X", type = "string", default = "", category = "Data", doc = "DataSource's column along the bottom: the names under bars and a pie's slices, the numbers a line runs over (\"Department\"). Empty: the first column." },
+  { name = "Y", type = "string", default = "", category = "Data", doc = "DataSource's column(s) drawn, comma-separated, a series each in its own colour, with a legend when there are several (\"Salary\", \"Sales,Costs\"). Empty: every numeric column but X. At most the first 10,000 rows are drawn." },
   { name = "SeriesCount", type = "int", access = "read", design = false, doc = "How many series the plot has." },
   { name = "Count", type = "int", access = "read", design = false, doc = "How many series the plot has (SeriesCount)." },
 ]

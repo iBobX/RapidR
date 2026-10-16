@@ -38,6 +38,7 @@
 
 pub mod a11y;
 pub mod components;
+pub mod contrast;
 pub mod dialogs;
 pub mod display;
 mod drag;

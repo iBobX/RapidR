@@ -476,7 +476,7 @@ impl DesignSurface {
                 Slot::New { .. } if !self.editing_slot(s.slot) => {
                     let (x, y, w, h) = r;
                     dashed(out, (x + 2, y + 2, w - 4, h - 4), t.accent);
-                    out.push(Op::Text { rect: (x, y, w, h), text: TYPE_HERE.into(), font: font.clone(), color: t.gray_text, angle: 0, place: Place::Center });
+                    out.push(Op::Text { rect: (x, y, w, h), text: TYPE_HERE.into(), font: font.clone(), color: t.secondary_text(), angle: 0, place: Place::Center });
                 }
                 Slot::Item(id) if self.designer.selection.contains(id) && !self.editing_slot(s.slot) => {
                     let (x, y, w, h) = r;

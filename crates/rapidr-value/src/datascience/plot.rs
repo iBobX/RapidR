@@ -135,6 +135,24 @@ fn add_xy(name: &str, args: &[Value], style: &str) -> Value {
     v_null()
 }
 
+/// A histogram of `data` in `bins` bars of the counts per bin (None: no
+/// data) — `Hist`'s, and a bound chart's of Kind "hist".
+pub fn hist_series(data: &[f64], bins: usize, label: String, color: String) -> Option<Series> {
+    if data.is_empty() {
+        return None;
+    }
+    let bins = bins.clamp(1, 10_000);
+    let mn = data.iter().cloned().fold(f64::INFINITY, f64::min);
+    let mx = data.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+    let width = if mx > mn { (mx - mn) / bins as f64 } else { 1.0 };
+    let mut counts = vec![0.0; bins];
+    for v in data {
+        counts[(((v - mn) / width) as usize).min(bins - 1)] += 1.0;
+    }
+    let centers = (0..bins).map(|i| mn + (i as f64 + 0.5) * width).collect();
+    Some(Series { x: centers, y: counts, label, color, style: "hist".into(), categories: Vec::new() })
+}
+
 /// Calls RPLOT `name`'s `method` (lowercase).
 pub fn plot_method(name: &str, method: &str, args: &[Value], host: &dyn Host) -> Value {
     match method {
@@ -177,22 +195,13 @@ pub fn plot_method(name: &str, method: &str, args: &[Value], host: &dyn Host) ->
         "hist" | "histogram" => {
             // hist data, bins, label, colour: bars of the counts per bin
             let data = num::series_data(&arg_s(args, 0));
-            if data.is_empty() {
-                return v_null();
-            }
             let bins = arg_i(args, 1, 10).clamp(1, 10_000) as usize;
-            let mn = data.iter().cloned().fold(f64::INFINITY, f64::min);
-            let mx = data.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-            let width = if mx > mn { (mx - mn) / bins as f64 } else { 1.0 };
-            let mut counts = vec![0.0; bins];
-            for v in &data {
-                counts[(((v - mn) / width) as usize).min(bins - 1)] += 1.0;
-            }
-            let centers = (0..bins).map(|i| mn + (i as f64 + 0.5) * width).collect();
             let label = arg_s(args, 2);
             modify(name, |p| {
                 let color = args.get(3).map(Value::to_string_val).filter(|c| !c.trim().is_empty()).unwrap_or_else(|| PALETTE[p.series.len() % PALETTE.len()].to_string());
-                p.series.push(Series { x: centers, y: counts, label, color, style: "hist".into(), categories: Vec::new() });
+                if let Some(s) = hist_series(&data, bins, label, color) {
+                    p.series.push(s);
+                }
             });
             v_null()
         }

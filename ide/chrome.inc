@@ -33,6 +33,7 @@ SUB ApplyFonts
   END IF
   LinkFont.Name = UIFont.Name: LinkFont.Size = UIFont.Size
   OutlineTree.Font = UIFont: OutlineTree.ItemHeight = rows: OutlineTree.Indent = 16
+  ApplyDebugFonts rows
   ApplyPanelFonts
   Dock.Font = UIFont
   Status.Font = StatusFont
@@ -120,6 +121,7 @@ SUB ApplyChrome
   NEXT
   LoadWelcomeIcons
   ImmediateBox.Font = MonoFont
+  ApplyDebugColors
   ApplySearchChrome
   ApplyState
 END SUB

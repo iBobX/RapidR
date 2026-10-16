@@ -202,7 +202,7 @@ impl ComponentKind for DbGrid {
         let Some(d) = link::grid(cx.id) else {
             // (the designer: what to set)
             if super::design::designed(cx.id) {
-                p.text((8, 4, w - 16, h - 8), "Set DataSource to see the rows here", &font, t.gray_text, Place::Center);
+                p.text((8, 4, w - 16, h - 8), "Set DataSource to see the rows here", &font, t.secondary_text(), Place::Center);
             }
             return;
         };
@@ -251,7 +251,7 @@ impl ComponentKind for DbGrid {
                     if !t.fluent() && !current {
                         p.thin_raised((0, y, l.gutter - 1, rh - 1));
                     }
-                    p.text((0, y + (rh - line_h) / 2, l.gutter - 6, line_h), &r.to_string(), &font, if current { sel_ink } else { t.gray_text }, Place::TopRight);
+                    p.text((0, y + (rh - line_h) / 2, l.gutter - 6, line_h), &r.to_string(), &font, if current { sel_ink } else { t.secondary_text() }, Place::TopRight);
                     let mut x = l.gutter - l.left;
                     frame::with_frame(&d.dataset, |f| {
                         for (c, colw) in l.cols.iter().enumerate() {
@@ -259,7 +259,7 @@ impl ComponentKind for DbGrid {
                                 let cell = f.cell(r, c);
                                 let (text, color) = match &cell {
                                     Some(s) => (s.as_ref(), ink_row),
-                                    None => ("null", if current { sel_ink } else { t.gray_text }),
+                                    None => ("null", if current { sel_ink } else { t.secondary_text() }),
                                 };
                                 let rect = (x + 5, y + (rh - line_h) / 2, colw - 10, line_h);
                                 p.clipped((x.max(l.gutter), y, (x + colw).min(cw) - x.max(l.gutter), rh), |p| {

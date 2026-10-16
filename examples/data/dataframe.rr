@@ -1,15 +1,17 @@
-' dataframe.rr: data science on a form — an RDataFrame loaded from a CSV
-' file, filtered and sorted into a grid; RNum arrays from its columns; an
-' RPlot chart of them on the form.
+' dataframe.rr: data science on a form, linked — a CSV file read into
+' RDataFrames, one shown in a grid, one drawn as a chart, all connected by
+' properties: RapidR Studio's designer shows the real staff and their
+' salaries while you design the form.
 '
 '   rapidr run dataframe.rr
 '
-' RDataFrame is a table (pandas-like): LoadFromCsv, Filter, Sort, Cell(row,
-' column), RowCount, ColCount, Columns. RNum holds numbers (numpy-like);
-' RPlot draws charts (matplotlib-like) where it is on the form (RapidR
-' Studio's designer shows sample bars there until the program gives it
-' data). staff.csv is made-up data. $RESOURCE builds it into the program,
-' so the program runs from anywhere, a browser too.
+' Staff (an RCSV) reads staff.csv (made-up data); FileName = STAFF_CSV is
+' the $RESOURCE, so the file is built into the program and it runs from
+' anywhere, a browser too. Team and Pay (RDataFrames, pandas-like) take its
+' rows (Source = Staff). The RDBGrid shows Team (DataSource = Team); the
+' RPlot draws Pay (DataSource = Pay: a bar over each Name, as tall as its
+' Salary). The buttons change the frames — Refresh, Filter, Sort, GroupBy —
+' and the grid and the chart follow by themselves.
 $RESOURCE STAFF_CSV AS "staff.csv"
 
 DECLARE SUB ShowAll
@@ -17,13 +19,21 @@ DECLARE SUB ShowEngineers
 DECLARE SUB ShowTopPaid
 DECLARE SUB ChartByDepartment
 
-DIM df AS RDataFrame
-
 CREATE Form AS RForm
     Caption = "Staff explorer"
     Width = 620
     Height = 490
     Center
+    ' (the data components: in the designer's tray, read live there)
+    CREATE Staff AS RCSV
+        FileName = STAFF_CSV
+    END CREATE
+    CREATE Team AS RDataFrame
+        Source = Staff
+    END CREATE
+    CREATE Pay AS RDataFrame
+        Source = Staff
+    END CREATE
     CREATE AllBtn AS RButton
         Caption = "&Everyone": Left = 10: Top = 10: Width = 100: OnClick = ShowAll
     END CREATE
@@ -36,82 +46,62 @@ CREATE Form AS RForm
     CREATE ChartBtn AS RButton
         Caption = "&Chart": Left = 334: Top = 10: Width = 100: OnClick = ChartByDepartment
     END CREATE
-    CREATE Grid AS RStringGrid
+    CREATE Grid AS RDBGrid
         Left = 10: Top = 44: Width = 590: Height = 170
-        FixedCols = 0
-        DefaultColWidth = 112
+        DataSource = Team
     END CREATE
     CREATE Chart AS RPlot
         Left = 10: Top = 222: Width = 590: Height = 200
-        Title = "Average salary (thousands)"
+        Title = "Salaries"
+        DataSource = Pay
+        Kind = "bar"
+        X = "Name"
+        Y = "Salary"
     END CREATE
     CREATE Info AS RLabel
         Left = 10: Top = 430: Width = 590
     END CREATE
 END CREATE
 
-' the frame into the grid: the column names, then a row a record
-SUB FillGrid
-    DIM r AS INTEGER, c AS INTEGER, names AS STRING
-    Grid.ColCount = df.ColCount
-    Grid.RowCount = df.RowCount + 1
-    names = df.Columns + ","
-    FOR c = 0 TO df.ColCount - 1
-        Grid.Cell(c, 0) = FIELD$(names, ",", c + 1)
-        FOR r = 0 TO df.RowCount - 1
-            Grid.Cell(c, r + 1) = df.Cell(r, c)
-        NEXT
-    NEXT
-    Info.Caption = STR$(df.RowCount) + " people"
+' how many people the grid shows
+SUB CountPeople
+    Info.Caption = STR$(Team.RowCount) + " people"
 END SUB
 
 SUB ShowAll
-    df.LoadFromCsv("staff.tmp.csv")
-    FillGrid
+    Team.Refresh                ' Staff's rows again, all of them
+    CountPeople
 END SUB
 
 SUB ShowEngineers
-    df.LoadFromCsv("staff.tmp.csv")
-    df.Filter("Department", "==", "Engineering")
-    FillGrid
+    Team.Refresh
+    Team.Filter("Department", "==", "Engineering")
+    CountPeople
 END SUB
 
 SUB ShowTopPaid
-    df.LoadFromCsv("staff.tmp.csv")
-    df.Filter("Salary", ">", "70000")
-    df.Sort("Salary", 0)        ' 0: highest first
-    FillGrid
-    Info.Caption = Info.Caption + " earn over 70000; " + df.Cell(0, 0) + " the most"
+    Team.Refresh
+    Team.Filter("Salary", ">", "70000")
+    Team.Sort("Salary", 0)        ' 0: highest first
+    CountPeople
+    Info.Caption = Info.Caption + " earn over 70000; " + Team.Cell(0, 0) + " the most"
 END SUB
 
 SUB ChartByDepartment
-    ' the average salary of each department, worked out in BASIC
-    DIM depts(1 TO 3) AS STRING, total(1 TO 3) AS DOUBLE, count(1 TO 3) AS INTEGER
-    DIM r AS INTEGER, d AS INTEGER, line AS STRING
-    depts(1) = "Engineering": depts(2) = "Marketing": depts(3) = "Sales"
-    df.LoadFromCsv("staff.tmp.csv")
-    FOR r = 0 TO df.RowCount - 1
-        FOR d = 1 TO 3
-            IF df.Cell(r, 1) = depts(d) THEN
-                total(d) = total(d) + VAL(df.Cell(r, 2))
-                count(d) = count(d) + 1
-            END IF
-        NEXT
+    ' each department's average salary: Pay grouped by Department (its
+    ' rows become the departments, Salary their mean) — the chart follows,
+    ' a bar over each department's name
+    DIM r AS INTEGER, best AS INTEGER, line AS STRING
+    Pay.Refresh
+    Pay.GroupBy("Department", "mean")
+    Chart.Title = "Average salary"
+    Chart.X = "Department"
+    FOR r = 0 TO Pay.RowCount - 1
+        line = line + IIF(r > 0, ",", "") + STR$(INT(VAL(Pay.Cell(r, 2)) / 1000))
+        IF VAL(Pay.Cell(r, 2)) > VAL(Pay.Cell(best, 2)) THEN best = r
     NEXT
-    FOR d = 1 TO 3
-        line = line + IIF(d > 1, ",", "") + STR$(INT(total(d) / count(d) / 1000))
-    NEXT
-    ' into an RNum array, then a bar chart of it: a bar over each
-    ' department's name (names in place of x numbers)
-    DIM ys AS RNum
-    ys.FromList(line)
-    Chart.Clear
-    Chart.Title = "Average salary (thousands)"
-    Chart.Bar("Engineering,Marketing,Sales", ys, "Average salary", "steelblue")
-    Info.Caption = "Averages: " + line + " (thousands). Highest: " + depts(ys.ArgMax + 1)
+    Info.Caption = "Averages: " + line + " (thousands). Highest: " + Pay.Cell(best, 0)
 END SUB
 
-EXTRACTRESOURCE STAFF_CSV, "staff.tmp.csv"
-ShowAll
+CountPeople
 Form.ShowModal
-KILL "staff.tmp.csv"

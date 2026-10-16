@@ -7,6 +7,41 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Fixed
+- **RapidR Studio's dark and high-contrast themes are readable everywhere.** The
+  debugger's Variables, Watch, Call Stack and Breakpoints rows and the Breakpoints
+  pane's When / Hit / Log / On labels were black or dark grey on the dark ground:
+  a QFONT assigned to a parent (Studio's `Dock.Font = UIFont`) counted as a chosen
+  black. A font colour that is Windows' text colour (clWindowText, a new QFONT's)
+  is now the theme's text, in every program; a colour set as RGB is painted as
+  written, as before. Changed values take the theme's `debug.changed` colour, the
+  debugger's trees the chrome's font and row height (as the Outline), and the
+  Breakpoints strip's labels clear of their boxes.
+- **Every Studio text reads at WCAG AA** in RapidR light, dark and high contrast:
+  placeholders and values at their default (the new `secondary_text`, 4.5:1 —
+  they were the disabled grey), the code editor's line numbers, every token on the
+  debugger's line and on a run-time error's line, a run-time error's message, the
+  Problems badge, the document view switch, the New Project dialog's picked card;
+  a disabled tree draws no selection under its grey text; the designer's backdrop
+  is black in high contrast (it was white, the empty designer's text unseen on it).
+- **The designer's anchor pins** have a test on both hosts in every theme (the
+  new read-only `RDesignSurface.Pins`: "Left on, Top on, Right off, Bottom off").
+
+### Added
+- **A contrast check on what is drawn** (`rapidr_ui_kernel::contrast`): each text
+  run of a window's display list against the fill under it; the test hooks write
+  the runs below AA (`RAPIDR_TEST_CONTRAST`, the web page's test results).
+  `tests/studio_shell.mjs` and `tests/studio_flows.mjs` fail on any in RapidR's
+  three looks — every Studio scene, the debugger paused (Variables, Watch,
+  Breakpoints, Call Stack, a data tip, an error) on the desktop and in the browser.
+- **`RPlot` bound to data**: `DataSource` (a data set or an RDataSource), `Kind`
+  (bar, barh, line, scatter, area, step, pie, hist), `X`, `Y` — drawn again as the
+  data change, with the real rows in Studio's designer.
+- **`RCSV.FileName` can name a `$RESOURCE`**: the file built into the program, so
+  a linked program runs from anywhere; the designer reads the file it names.
+- `examples/data/dataframe.rr` is linked: RCSV → two RDataFrames → an RDBGrid and
+  an RPlot; its buttons Filter, Sort and GroupBy the frames and both follow.
+
 ## [2.119.0] — 2026-10-15 (Preview 2)
 
 The second Preview. Where the first one gave you the IDE, this one gives it an

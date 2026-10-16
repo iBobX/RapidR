@@ -177,7 +177,9 @@ component: it draws itself there and again after every change (a series
 added, a property set, `Clear`). `Clear` empties the chart but keeps its
 size, as Matplotlib's `clf` keeps the figure's. In RapidR Studio's designer
 a chart with no data yet shows sample bars under its `Title`, so you see
-where it is and how big; the program's data replaces them when it runs.
+where it is and how big; the program's data replaces them when it runs. A
+chart bound to a data set (`DataSource`: [Linked data
+components](#linked-data-components)) shows the real rows there instead.
 Or show it in a picture: `Image1.LoadFromPlot plt` (an RImage). Either way
 it's crisp at any screen scale — a 2× screen gets the chart drawn at 2× —
 while a picture's `Pixel`s stay the chart's own size. `savefig "chart.png",
@@ -286,7 +288,9 @@ CREATE Form AS RForm
 END CREATE
 ```
 
-- **RCSV** — `FileName`, `Delimiter` (`","`, `";"`, `"tab"`, `"|"` …),
+- **RCSV** — `FileName` (a file, or a `$RESOURCE`'s name: the file built
+  into the program, so it runs from anywhere — the designer reads the file
+  the `$RESOURCE` names), `Delimiter` (`","`, `";"`, `"tab"`, `"|"` …),
   `HasHeader`, `Text` (the data itself as CSV text, instead of a file);
   `RowCount`, `ColCount`, `Columns`, `Error` (why the file couldn't be
   read); `Load` (read it again; 1 or 0), `Save [file]` (its table, edits
@@ -318,6 +322,54 @@ END CREATE
   `Caption`): the field of the current row; what the user types in an
   edit goes back into the table. RapidR's own properties on these
   components: a program that doesn't set them behaves as before.
+- **RPlot** — `DataSource` (a data set, or an RDataSource's) draws the
+  rows as a chart: `Kind` (`"bar"`, the default, `"barh"`, `"line"`,
+  `"scatter"`, `"area"`, `"step"`, `"pie"`, `"hist"`), `X` (the column
+  along the bottom: the names under bars and slices, the numbers a line
+  runs over; none: the first column), `Y` (the column drawn, or several
+  comma-separated — a series each, with a legend; none: every numeric
+  column but X). It's drawn again whenever the data change — a `Filter`,
+  `Sort`, `GroupBy`, a file read again —, and the designer shows it with
+  the real rows. Its `Title`, `XLabel` and `YLabel` stay yours (the
+  columns' names where you gave none); without a `DataSource` the chart is
+  the one its methods draw. At most the first 10,000 rows are drawn.
+
+[`dataframe.rr`](../../examples/data/dataframe.rr) links a CSV file built
+into the program to a grid and a chart: the buttons only change the
+frames, and both follow.
+
+```basic
+$RESOURCE STAFF_CSV AS "staff.csv"
+
+CREATE Form AS RForm
+    CREATE Staff AS RCSV
+        FileName = STAFF_CSV          ' the file built into the program
+    END CREATE
+    CREATE Team AS RDataFrame
+        Source = Staff
+    END CREATE
+    CREATE Pay AS RDataFrame
+        Source = Staff
+    END CREATE
+    CREATE Grid AS RDBGrid
+        DataSource = Team
+    END CREATE
+    CREATE Chart AS RPlot
+        Title = "Salaries"
+        DataSource = Pay: Kind = "bar": X = "Name": Y = "Salary"
+    END CREATE
+END CREATE
+
+SUB ChartByDepartment             ' the chart follows the frame
+    Pay.Refresh
+    Pay.GroupBy("Department", "mean")
+    Chart.X = "Department"
+END SUB
+```
+
+![dataframe.rr in RapidR Studio's designer: the grid with the eight people of staff.csv and the bar chart of their salaries, read live](images/data/dataframe-designer.png)
+
+![dataframe.rr running: Top paid filtered and sorted the grid; Chart grouped the salaries by department](images/data/dataframe-running.png)
 
 ## RJson
 

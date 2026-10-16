@@ -1708,6 +1708,30 @@ impl DesignSurface {
         self.designer.design.node(id).is_some_and(|n| n.is_visual() && crate::layout::default_size(&n.canonical).is_some())
     }
 
+    /// The anchor pins drawn now: the primary selection's rectangle on the
+    /// surface and its Anchors — while it's a component on the form and
+    /// nothing hides them (a drag under way, a caption edited in place, the
+    /// Tab-order editor, ShowSelection off).
+    pub fn shown_pins(&self) -> Option<(Rect, i64)> {
+        if !self.show_pins || !self.show_selection || self.tab_order.is_some() || self.drag.as_ref().is_some_and(|g| g.moved) || self.editing.is_some() {
+            return None;
+        }
+        let id = self.designer.selection.primary().filter(|&id| self.on_form(id))?;
+        let anchors = self.designer.design.node(id)?.int("Anchors").unwrap_or(crate::layout::DEFAULT_ANCHORS);
+        // (where pin_at finds them)
+        let r = self.rect_of(id)?;
+        Some((self.view_rect((r.left, r.top, r.width, r.height)), anchors))
+    }
+
+    /// [`DesignSurface::shown_pins`] in words (the `Pins` property): each
+    /// side's pin, on (anchored) or off — "Left on, Top on, Right off,
+    /// Bottom off" —, empty when none show.
+    pub fn pins_text(&self) -> String {
+        self.shown_pins()
+            .map(|(_, anchors)| [Side::Left, Side::Top, Side::Right, Side::Bottom].map(|s| format!("{} {}", side_name(s), if anchors & s.bit() != 0 { "on" } else { "off" })).join(", "))
+            .unwrap_or_default()
+    }
+
     /// The primary selection's anchor pin at (x, y): the side it toggles.
     pub fn pin_at(&self, x: i64, y: i64) -> Option<Side> {
         if !self.show_pins || !self.show_selection {
@@ -2254,6 +2278,7 @@ impl DesignSurface {
             "tabordermode" => Value::Boolean(self.tab_order.is_some()),
             "sharedundo" => Value::Boolean(self.shared_undo),
             "editing" => Value::Boolean(self.editing.is_some()),
+            "pins" => v_str(&self.pins_text()),
             _ => return None,
         })
     }
@@ -2800,17 +2825,9 @@ impl DesignSurface {
                     d.rect(v(item.rect), t.accent);
                 }
             }
-            if self.show_pins && self.drag.as_ref().is_none_or(|g| !g.moved) && self.editing.is_none() {
-                if let Some(id) = self.designer.selection.primary().filter(|&id| self.on_form(id)) {
-                    if let (Some(i), Some(n)) = (self.index_of(id), self.designer.design.node(id)) {
-                        let anchors = n.int("Anchors").unwrap_or(crate::layout::DEFAULT_ANCHORS);
-                        if let Some(c) = comps.get(i) {
-                            let (x, y, w, h) = v(c.bounds());
-                            for (side, p) in pins(LRect::new(x, y, w, h)) {
-                                d.pin(p, anchors & side.bit() != 0, side, t.accent, t.window, t.border_strong);
-                            }
-                        }
-                    }
+            if let Some(((x, y, w, h), anchors)) = self.shown_pins() {
+                for (side, p) in pins(LRect::new(x, y, w, h)) {
+                    d.pin(p, anchors & side.bit() != 0, side, t.accent, t.window, t.border_strong);
                 }
             }
         }
@@ -3186,6 +3203,15 @@ mod tests {
             d.mouse_up();
         }
         assert_eq!(d.call("getprop", &[v_int(0), v_str("Anchors")]), Some(v_str("akRight + akBottom")));
+        // (what shows, in words — and the pins drawn: four discs, two filled
+        // in the accent)
+        assert_eq!(d.get("pins"), Some(v_str("Left off, Top off, Right on, Bottom on")));
+        let accent = crate::theme::current().accent;
+        let discs = |d: &DesignSurface| d.chrome_ops().iter().filter(|o| matches!(o, Op::Shape(s) if s.fill == Some(accent))).count();
+        assert!(discs(&d) >= 2, "the anchored sides' pins drawn");
+        d.set("showselection", &Value::Boolean(false));
+        assert_eq!((d.get("pins"), discs(&d)), (Some(v_str("")), 0));
+        d.set("showselection", &Value::Boolean(true));
         // the form's corner grip dragged 100 × 50 further: the button
         // follows, and both are written when the mouse is let go
         d.fit = false;

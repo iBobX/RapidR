@@ -397,6 +397,7 @@ properties = [
   { name = "TabOrderMode", type = "bool", default = false, design = false, doc = "The Tab-order editor: every component that takes the focus shows its place in the Tab order (2.1: the second inside the third), and clicking components in the order wanted renumbers them, each click written as TabOrder in the code (one undo step). Escape turns it off." },
   { name = "SharedUndo", type = "bool", default = false, design = false, doc = "The file's undo history is kept elsewhere (the code editor's): Undo and Redo on the designer — its methods, Ctrl+Z, Ctrl+Y — fire OnUndo instead of undoing, and the program undoes there and sets Source again. OnSourceStep then says how each change's OnSourceEdits group into steps." },
   { name = "Editing", type = "int", access = "read", design = false, doc = "Whether a caption is being edited in place (EditCaption, F2, a slow click, the menu editor's Type Here)." },
+  { name = "Pins", type = "string", access = "read", design = false, doc = "The anchor pins showing on the selected component, in words: each side, on (anchored: that edge keeps its distance when the form is resized) or off — \"Left on, Top on, Right off, Bottom off\" —; empty when none show (nothing selected on the form, a drag or an in-place edit under way, the Tab-order editor, ShowSelection off)." },
 ]
 methods = [
   { name = "SetFocus", value = true, doc = "Gives the surface the keyboard focus (its keys: arrows, Delete, Ctrl+Z …)." },
