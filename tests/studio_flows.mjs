@@ -1879,6 +1879,19 @@ const CASES = [
     dump: { "session.state": /^paused$/, "session.currentline": /^6$/, "varstree.text": /\ti = 2\n/ },
   },
   {
+    // Restart (Ctrl+Shift+F5) while paused: the program ends and runs again
+    // from its start — stopped at 6 the first time round again (i = 1)
+    name: "debug-commands-restart",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,key:F9,key:F5,wait,wait,wait,wait,key:F5,wait,wait,wait,cmds:report,key:Ctrl+Shift+F5,wait,wait,wait,wait,wait,cmds:report,cmds:log",
+    delay: 12,
+    dump: {
+      "outputbox.text": cmdsSeq(cmdsLine("paused@6:breakpoint", "paused"), cmdsLine("paused@6:breakpoint", "paused")),
+      "varstree.text": /\ti = 1\n/,
+    },
+  },
+  {
     // a run-time error: paused at it (Continue enabled), F5 lets the error
     // end the program (exit code 1: the "error" state) — and F5 runs it
     // again from there; Shift+F5 stops it
