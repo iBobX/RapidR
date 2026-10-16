@@ -488,5 +488,8 @@ Studio in the browser.
 
 ## Not there yet
 
+- On Linux with Wayland, Studio can't bring your program's window to the
+  front for you (Wayland doesn't let one program raise another's windows):
+  switch to it yourself.
 - Completion while you type in the Immediate pane.
 - Editing a value inside a data tip (F2 in Variables and Watch does it).
