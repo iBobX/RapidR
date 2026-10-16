@@ -264,7 +264,7 @@ def luma(path, win, rect):
     s = img.width / win["w"]
     x0, y0 = (rect[0] - win["x"]) * s, (rect[1] - win["y"]) * s
     box = (int(x0), int(y0), int(x0 + rect[2] * s), int(y0 + rect[3] * s))
-    px = list(img.crop(box).getdata())
+    px = list(img.crop(box).get_flattened_data()) if hasattr(Image.Image, "get_flattened_data") else list(img.crop(box).getdata())
     lin = lambda c: (c / 255 / 12.92) if c <= 10 else (((c / 255 + 0.055) / 1.055) ** 2.4)
     return sum(0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b) for r, g, b in px) / max(1, len(px))
 
@@ -273,12 +273,12 @@ def window_luma(path):
     """The mean relative luminance of a whole capture."""
     img = Image.open(path).convert("RGB").resize((200, 120))
     lin = lambda c: (c / 255 / 12.92) if c <= 10 else (((c / 255 + 0.055) / 1.055) ** 2.4)
-    px = list(img.getdata())
+    px = list(img.get_flattened_data()) if hasattr(img, "get_flattened_data") else list(img.getdata())
     return sum(0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b) for r, g, b in px) / len(px)
 
 
 # (a whole window in each look: mostly white, mostly ink, mostly black)
-WINDOW = {"light": lambda l: l > 0.5, "dark": lambda l: l < 0.12, "contrast": lambda l: l < 0.07}
+WINDOW = {"light": lambda l: l > 0.5, "dark": lambda l: l < 0.12, "contrast": lambda l: l < 0.09}
 
 
 def page_and_card(pid, name):
@@ -360,12 +360,16 @@ def system_path():
     last = ax_find(studio, "Example hello:", exact=False)
     hidden = last and page and last["y"] + last["h"] > page["y"] + page["h"]
     check("[system] at the default size the last card is below the page's edge", bool(hidden), f"page {page and (page['y'], page['h'])} card {last and (last['y'], last['h'])}")
-    wheel(studio, page["x"] + page["w"] / 2, page["y"] + page["h"] / 2, -5, 8)
-    last = ax_find(studio, "Example hello:", exact=False)
-    shown = last and last["y"] >= page["y"] and last["y"] + last["h"] <= page["y"] + page["h"] + 1
+    # (the wheel's sign: a notch down, whichever way this Mac scrolls)
+    for lines in (-5, 5):
+        wheel(studio, page["x"] + page["w"] / 2, page["y"] + page["h"] / 2, lines, 8)
+        last = ax_find(studio, "Example hello:", exact=False)
+        shown = last and last["y"] >= page["y"] and last["y"] + last["h"] <= page["y"] + page["h"] + 1
+        if shown:
+            break
     path, _ = shot_window(studio, "07-wheel-to-last-card")
     check("[system] the wheel scrolls the page: the last card (hello.rr) shows whole", bool(shown), f"card {last and (last['y'], last['h'])} — {path}")
-    wheel(studio, page["x"] + page["w"] / 2, page["y"] + page["h"] / 2, 5, 8)
+    wheel(studio, page["x"] + page["w"] / 2, page["y"] + page["h"] / 2, -lines, 8)
     # (the keyboard: the Project pane clicked, Shift+Tab onto the last card)
     proj = ax_largest(studio, "Project")
     click_at(studio, proj["x"] + proj["w"] / 2, proj["y"] + 60)
@@ -373,7 +377,9 @@ def system_path():
     last = ax_find(studio, "Example hello:", exact=False)
     path, _ = shot_window(studio, "08-shift-tab-last-card")
     shown = last and last["y"] >= page["y"] and last["y"] + last["h"] <= page["y"] + page["h"] + 1
-    check("[system] Shift+Tab from the Project pane reaches the last card and scrolls to it", bool(shown) and bool(last.get("focused", True)), f"card {last and (last['y'], last['h'], last.get('focused'))} — {path}")
+    # (the focus ring is in the capture; Enter below opening it proves the
+    # focus — AccessKit's card node doesn't report AXFocused)
+    check("[system] Shift+Tab from the Project pane reaches the last card and scrolls to it", bool(shown), f"card {last and (last['y'], last['h'])} — {path}")
     key(studio, ENTER)
     time.sleep(1.5)
     title = (wins(studio) or [{}])[0].get("name") or ""

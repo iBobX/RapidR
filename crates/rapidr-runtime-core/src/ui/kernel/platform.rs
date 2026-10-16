@@ -62,13 +62,14 @@ pub(super) fn theme(name: &str) {
 /// Studio sets `Application.Theme = "rapidr"` before its first window: it
 /// opens in the system's look, not light until the first pump). A GUI
 /// test's headless host says light, so captures don't depend on the
-/// machine, unless the test says otherwise (`RAPIDR_TEST_SYSTEM_LOOK`, a
-/// `__look_` step: rapidr_ui_app's testhooks).
+/// machine, unless the test says otherwise (`RAPIDR_TEST_SYSTEM_LOOK`: a
+/// look, a file, or `system` — the real system's; a `__look_` step:
+/// rapidr_ui_app's testhooks).
 pub(crate) fn system_look() -> (bool, bool) {
     if let Some(look) = rapidr_ui_app::testhooks::system_look() {
         return look;
     }
-    if super::headless_look() {
+    if super::headless_look() && !rapidr_ui_app::testhooks::real_system_look() {
         (false, false)
     } else {
         rapidr_ui_host_winit::platform::system_look()
