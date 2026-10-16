@@ -16,9 +16,10 @@ and enabled: tools/macos/ui_probe.swift), captures read back with OCR.
                  it moves · Debug ▸ Show Program Window · F5: in front, dark ·
                  a step (F10) · Shift+F5 while paused · run again · closed by
                  its close box
-         error   tests/fixtures/studio_debug/split.rr: a division by zero
-                 stops it (▶ Continue), F5 lets the error end it (exit code
-                 1, ▶ Run), F5 runs it again, Shift+F5
+         error   tests/fixtures/studio_debug/split.rr: a division by zero in
+                 a handler stops it (▶ Continue); F5 ends the handler there
+                 and the program runs on (RapidQ's way) — Split again stops
+                 again, three times —; 4 people: each gets 25; Shift+F5
          dark, contrast   the paused Studio in RapidR Dark / High Contrast
          events  examples/gui/hello_form.rr, a breakpoint in the name's
                  one-line OnChange (49): each letter typed into the program
@@ -27,6 +28,16 @@ and enabled: tools/macos/ui_probe.swift), captures read back with OCR.
                  stopped program is dropped · F10 out of the handler, the
                  next letter stops again · its window closed by its close
                  button while it's stopped: it ends, ▶ Run (F5)
+
+         focus   (DEBUG-2) hello_form.rr with OnExit on the name and OnEnter
+                 on Greet, a breakpoint in each: Tab stops in OnExit, then in
+                 OnEnter — three rounds —; then Enter greets
+         loops   steps.rr: a FOR loop's body stops at every pass, a recursive
+                 FUNCTION at every level, the Call Stack listing them
+         values  counter.rr: a data tip on i, total set to 100 in Variables,
+                 the program goes on with it (total 112)
+         include a breakpoint in tally.inc (opened from the project tree,
+                 closed again): F5 stops there and opens it
 
   python3 tools/macos/debug_walk.py [paths…]   (all by default)
 
@@ -54,6 +65,7 @@ for k in ("RAPIDR_CAPTURE", "RAPIDR_TEST_EVENTS", "RAPIDR_TEST_DUMP", "RAPIDR_ME
     ENV.pop(k, None)
 F5, F9, F10, F11, TAB, CMD, ENTER = 96, 101, 109, 103, 48, 55, 36
 END, KEY_A, KEY_B, KEY_C, KEY_X = 119, 0, 11, 8, 7
+DOWN, KEY_4, KEY_1, KEY_0, ESC, F2 = 125, 21, 18, 29, 53, 120
 results = []
 started = []
 
@@ -181,6 +193,20 @@ def click_at(pid, x, y, need_front=True):
     mouse(Quartz.kCGEventLeftMouseDown, x, y)
     time.sleep(0.06)
     mouse(Quartz.kCGEventLeftMouseUp, x, y)
+    time.sleep(0.4)
+
+
+def double_click_at(pid, x, y):
+    if not mine_in_front(pid):
+        raise SystemExit(f"stopped: pid {pid} isn't in front — no double click")
+    mouse(Quartz.kCGEventMouseMoved, x, y)
+    time.sleep(0.1)
+    for n in (1, 2):
+        for kind in (Quartz.kCGEventLeftMouseDown, Quartz.kCGEventLeftMouseUp):
+            e = Quartz.CGEventCreateMouseEvent(None, kind, (x, y), Quartz.kCGMouseButtonLeft)
+            Quartz.CGEventSetIntegerValueField(e, Quartz.kCGMouseEventClickState, n)
+            Quartz.CGEventPost(Quartz.kCGHIDEventTap, e)
+            time.sleep(0.04)
     time.sleep(0.4)
 
 
@@ -497,23 +523,225 @@ def error_walk():
     path, text = studio_text(studio, "20-runtime-error")
     check("[error] paused at the error: Continue (F5) enabled, the error shown", name == "Continue (F5)" and enabled in (True, 1, "1") and "Run-time error" in text and "run-time error: Divi" in text, f"{name!r} {enabled!r} {text[-200:]}")
     check("[error] the program's window is still on the screen", bool(wins(prog)))
-    key(studio, F5)
-    time.sleep(2.0)
-    name, enabled = run_button(studio)
-    activate(studio)
-    path, text = studio_text(studio, "21-after-error-continue")
-    check("[error] Continue lets the error end it (exit code 1); ▶ Run (F5) enabled", not wins(prog) and name == "Run (F5)" and enabled in (True, 1, "1"), f"{name!r} {enabled!r} {text[-200:]}")
-    key(studio, F5)
-    prog = wait_program(studio)
-    check("[error] F5 runs it again after the failed run", prog is not None and wait_front(prog), f"program {prog}")
+    # (Continue: what the program does without the debugger — RapidQ's, RC.EXE:
+    # the handler ends at the error, the program runs on; three times)
+    for k in (1, 2, 3):
+        key(studio, F5)
+        ok = wait_front(prog, 4)
+        time.sleep(1.0)
+        name, enabled = run_button(studio)
+        path = shot_window(prog, f"21-after-error-continue-{k}")
+        check(f"[error] Continue {k}: the handler ends, the program runs on — its window in front, ▶ off while it runs", ok and bool(wins(prog)) and enabled not in (True, 1, "1"), f"{name!r} {enabled!r} front {front_pid()}")
+        if k == 3:
+            break
+        ax_click(prog, "Split")
+        ok = wait_front(studio, 4)
+        time.sleep(0.6)
+        path, text = studio_text(studio, f"21-error-again-{k}")
+        check(f"[error] Split again: it stops at the error again ({k + 1})", ok and "run-time error: Divi" in text, text[-160:])
+    # (the program answers: 4 people now — the answer shows)
+    ax_click(prog, "0")
+    key(prog, 51)
+    key(prog, KEY_4)
     ax_click(prog, "Split")
-    check("[error] stopped at the error again", wait_front(studio, 4))
-    time.sleep(0.6)
+    time.sleep(1.0)
+    check("[error] after the errors the program works: 4 people, each gets 25", ax_find(prog, "each gets 25") is not None and front_pid() == prog, f"front {front_pid()}")
+    shot_window(prog, "21-error-program-works")
+    activate(studio)
     key(studio, F5, ("shift",))
     time.sleep(1.5)
     name, enabled = run_button(studio)
     path, text = studio_text(studio, "22-error-stopped")
     check("[error] Shift+F5 ends it: ▶ Run (F5) enabled", not wins(prog) and name == "Run (F5)" and enabled in (True, 1, "1"), f"{name!r} {enabled!r}")
+
+
+def ocr_boxes(path):
+    """What Vision reads in a capture, with where (the capture's pixels)."""
+    r = subprocess.run([PROBE, "ocr", path], capture_output=True, text=True)
+    try:
+        return json.loads(r.stdout or "[]")
+    except json.JSONDecodeError:
+        return []
+
+
+def screen_point(pid, path, box, fx=0.5):
+    """A point of an OCR box of window `pid`'s capture `path`, on the screen
+    (the capture is in the screen's pixels: Retina's are 2 a point)."""
+    w = wins(pid)[0]
+    scale = AppKit.NSImage.alloc().initWithContentsOfFile_(path).representations()[0].pixelsWide() / w["w"]
+    return (w["x"] + (box["x"] + box["w"] * fx) / scale, w["y"] + (box["y"] + box["h"] / 2) / scale)
+
+
+def stops_at(studio, name, where):
+    """Studio in front, stopped where `where` (file:line) says: its status
+    line read back from a capture."""
+    ok = wait_front(studio, 5)
+    time.sleep(0.7)
+    path, text = studio_text(studio, name)
+    return ok and where in text.replace(" ", ""), text
+
+
+def focus_walk():
+    """DEBUG-2: hello_form.rr with an OnExit on the name and an OnEnter on
+    Greet, a breakpoint in each: Tab stops in OnExit, then (F5) in OnEnter —
+    three rounds, Shift+Tab back between them —; then the program works."""
+    src = f"{WORK}/hello_focus.rr"
+    text = open(f"{W}/examples/gui/hello_form.rr").read()
+    text = text.replace("DECLARE SUB NameChanged\n", "DECLARE SUB NameChanged\nDECLARE SUB NameLeft\nDECLARE SUB GreetEntered\n")
+    text = text.replace("        OnChange = NameChanged\n", "        OnChange = NameChanged\n        OnExit = NameLeft\n")
+    text = text.replace("        OnClick = Greet\n", "        OnClick = Greet\n        OnEnter = GreetEntered\n")
+    text = text.replace("NameEdit.SetFocus\n", 'SUB NameLeft\n    Answer.Caption = "Left the name: " + NameEdit.Text\nEND SUB\n\nSUB GreetEntered\n    Answer.Caption = Answer.Caption + ", on Greet"\nEND SUB\n\nNameEdit.SetFocus\n')
+    open(src, "w").write(text)
+    lines = text.split("\n")
+    a = lines.index('    Answer.Caption = "Left the name: " + NameEdit.Text') + 1
+    b = lines.index('    Answer.Caption = Answer.Caption + ", on Greet"') + 1
+    studio = start_studio(src, "rapidr-light", f"wait,wait,line:{a}")
+    check("[focus] Studio in front", wait_front(studio))
+    key(studio, F9)
+    for _ in range(b - a):
+        key(studio, DOWN)
+    key(studio, F9)
+    path, text = studio_text(studio, "40-focus-breakpoints")
+    key(studio, F5)
+    prog = wait_program(studio)
+    check("[focus] F5: the program in front", prog is not None and wait_front(prog), f"program {prog} front {front_pid()}")
+    if prog is None:
+        return
+    for r in (1, 2, 3):
+        key(prog, TAB)
+        ok, text = stops_at(studio, f"41-focus-onexit-{r}", f"hello_focus.rr:{a}")
+        check(f"[focus] round {r}: Tab from the name stops in its OnExit ({a})", ok, text[-160:])
+        key(studio, F5)
+        ok, text = stops_at(studio, f"42-focus-onenter-{r}", f"hello_focus.rr:{b}")
+        check(f"[focus] round {r}: F5, then Greet's OnEnter ({b})", ok, text[-160:])
+        key(studio, F5)
+        ok = wait_front(prog, 4)
+        check(f"[focus] round {r}: F5, the program in front again", ok, f"front {front_pid()}")
+        if not ok:
+            return
+        key(prog, TAB, ("shift",))
+        time.sleep(0.8)
+        check(f"[focus] round {r}: Shift+Tab back to the name: no stop (no breakpoint there)", front_pid() == prog, f"front {front_pid()}")
+    # (the program goes on working: Greet pressed — Enter, its Default —
+    # from the name: the stops again, then, focused, Greet's OnClick)
+    key(prog, ENTER)
+    time.sleep(1.0)
+    shot_window(prog, "43-focus-program-works")
+    n = ax_find(prog, "Hello, World!")
+    check("[focus] the program works: Enter greets (Hello, World! (1))", n is not None, str(n)[:120] if n else "no Hello")
+    path = shot_window(studio, "44-focus-studio-after")
+
+
+def loops_walk():
+    """DEBUG-2: steps.rr — a breakpoint on a FOR loop's body stops at every
+    pass (i = 1, 2, 3); one in the recursive Fact stops at every level, the
+    Call Stack listing them all at the deepest."""
+    src = f"{WORK}/steps.rr"
+    for f in ("steps.rr", "tally.inc"):
+        subprocess.run(["cp", f"{W}/tests/fixtures/studio_debug/{f}", WORK])
+    studio = start_studio(src, "rapidr-light", "wait,wait,line:11")
+    check("[loops] Studio in front", wait_front(studio))
+    key(studio, F9)
+    for _ in range(40 - 11):
+        key(studio, DOWN)
+    key(studio, F9)
+    key(studio, F5)
+    for k in (1, 2, 3):
+        ok, text = stops_at(studio, f"50-loop-pass-{k}", "steps.rr:40")
+        check(f"[loops] the loop's body stops at pass {k} (i = {k})", ok and f"i = {k}" in text, text[-200:])
+        key(studio, F5)
+    for level, n in enumerate((4, 3, 2, 1), 1):
+        ok, text = stops_at(studio, f"51-recursion-level-{level}", "steps.rr:11")
+        detail = text[-260:]
+        good = ok and f"n = {n}" in text
+        if n == 1:
+            good = good and text.count("Fact") >= 4
+        check(f"[loops] Fact stops at level {level} (n = {n})" + (", the Call Stack lists every level" if n == 1 else ""), good, detail)
+        key(studio, F5)
+    prog = wait_program(studio)
+    check("[loops] then the program runs on: its window", prog is not None and bool(wins(prog)), f"program {prog}")
+    activate(studio)
+    key(studio, F5, ("shift",))
+
+
+def values_walk():
+    """DEBUG-2: counter.rr at line 6 — the mouse resting on `i` shows its
+    data tip; total set to 100 in Variables (F2); after F5 the program uses
+    it (total 112)."""
+    for f in ("counter.rr", "tally.inc"):
+        subprocess.run(["cp", f"{W}/tests/fixtures/studio_debug/{f}", WORK])
+    studio = start_studio(f"{WORK}/counter.rr", "rapidr-light", "wait,wait,line:6")
+    check("[values] Studio in front", wait_front(studio))
+    key(studio, F9)
+    key(studio, F5)
+    ok, text = stops_at(studio, "60-values-paused", "counter.rr:6")
+    check("[values] F5: paused at 6", ok, text[-160:])
+    path = shot_window(studio, "60-values-paused")
+    box = next((b for b in ocr_boxes(path) if b["text"].strip().startswith("AddUp i")), None)
+    if box is None:
+        check("[values] the line 'AddUp i' found on the screen", False)
+        return
+    x, y = screen_point(studio, path, box, 0.97)
+    mouse(Quartz.kCGEventMouseMoved, x, y)
+    time.sleep(2.0)
+    path, text = studio_text(studio, "61-values-datatip")
+    check("[values] the mouse resting on i: its data tip (i = 1)", "i = 1" in text, text[-200:])
+    mouse(Quartz.kCGEventMouseMoved, x, y + 120)
+    time.sleep(0.5)
+    path = shot_window(studio, "62-values-variables")
+    row = next((b for b in ocr_boxes(path) if b["text"].strip().startswith("total = 0")), None)
+    if row is None:
+        check("[values] Variables shows total = 0", False)
+        return
+    x, y = screen_point(studio, path, row, 0.3)
+    click_at(studio, x, y)
+    key(studio, F2)
+    for k in (KEY_1, KEY_0, KEY_0):
+        key(studio, k)
+    key(studio, ENTER)
+    time.sleep(0.8)
+    path, text = studio_text(studio, "63-values-edited")
+    check("[values] F2, 100, Enter: Variables shows total = 100", "total = 100" in text, text[-200:])
+    # (the breakpoint off — F9 on the editor's line 6 — and on: the program
+    # adds 2 + 4 + 6 to the 100)
+    click_at(studio, *screen_point(studio, path, box, 0.5))
+    key(studio, F9)
+    key(studio, F5)
+    time.sleep(2.0)
+    path, text = studio_text(studio, "64-values-used")
+    check("[values] after F5 the program used the new value: total 112", "total112" in text.replace(" ", ""), text[-200:])
+
+
+def include_walk():
+    """DEBUG-2: a breakpoint in an $INCLUDEd file — tally.inc opened from the
+    project tree, a breakpoint on its line 5, the file closed; F5 stops there
+    and opens it at the line."""
+    for f in ("counter.rr", "tally.inc"):
+        subprocess.run(["cp", f"{W}/tests/fixtures/studio_debug/{f}", WORK])
+    studio = start_studio(f"{WORK}/counter.rr", "rapidr-light", "wait,wait")
+    check("[include] Studio in front", wait_front(studio))
+    path = shot_window(studio, "70-include-project")
+    item = next((b for b in ocr_boxes(path) if b["text"].strip() == "tally.inc"), None)
+    if item is None:
+        check("[include] tally.inc in the project tree", False)
+        return
+    x, y = screen_point(studio, path, item)
+    double_click_at(studio, x, y)
+    time.sleep(1.2)
+    path = shot_window(studio, "71-include-open")
+    line = next((b for b in ocr_boxes(path) if b["text"].strip().startswith("total = total + k")), None)
+    if line is None:
+        check("[include] tally.inc opened (its line 5 on the screen)", False)
+        return
+    click_at(studio, *screen_point(studio, path, line, 0.5))
+    key(studio, F9)
+    menu_click(studio, "File", "Close Document")
+    time.sleep(0.8)
+    path, text = studio_text(studio, "72-include-closed")
+    key(studio, F5)
+    ok, text = stops_at(studio, "73-include-stopped", "tally.inc:5")
+    check("[include] F5: it stops in tally.inc at 5 and the file is open there", ok and "total = total + k" in text, text[-200:])
+    key(studio, F5, ("shift",))
 
 
 def events_walk():
@@ -574,7 +802,7 @@ def events_walk():
 
 
 try:
-    paths = sys.argv[1:] or ["light", "error", "dark", "contrast", "events"]
+    paths = sys.argv[1:] or ["light", "error", "dark", "contrast", "events", "focus", "loops", "values", "include"]
     t0 = time.time()
     if "light" in paths:
         themes_walk("rapidr-light", True)
@@ -590,7 +818,12 @@ try:
         close_all(); started.clear(); time.sleep(1)
     if "events" in paths:
         events_walk()
-        close_all(); started.clear()
+        close_all(); started.clear(); time.sleep(1)
+    # (DEBUG-2: focus events, loops and recursion, values, an included file)
+    for name, fn in (("focus", focus_walk), ("loops", loops_walk), ("values", values_walk), ("include", include_walk)):
+        if name in paths:
+            fn()
+            close_all(); started.clear(); time.sleep(1)
     log(f"walk took {time.time() - t0:.0f} s")
 finally:
     close_all()

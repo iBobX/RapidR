@@ -169,7 +169,18 @@ a single line.
   form's OnResize —: a breakpoint in the inner handler stops there, and the
   Call Stack shows both, the inner one on top.
 - **A run-time error in a handler** stops at its line, as in the main
-  program: Continue (F5) or Stop (Shift+F5).
+  program. Continue (F5) then does what the program does without the
+  debugger, as RapidQ's: that handler ends there (and the handlers that
+  fired it), the program runs on and the next event stops at the error
+  again; the error is in Output. Stop (Shift+F5) ends the program.
+- **The focus** ([OnEnter and OnExit](components.md#the-focus-onenter-and-onexit)):
+  Tab from one control to the next stops in the first one's OnExit, then,
+  F5, in the second one's OnEnter — every time. A click that moves the
+  focus stops there too, before the click's own OnClick; the click is then
+  over (the button was let go while the program was stopped: dropped, as
+  in Delphi), so click again to see its OnClick.
+
+![focus_events.rr stopped in NameExit, the name's OnExit, at line 56 after Tab was pressed in the program; the Call Stack shows NameExit over the program's line](images/debugging/focus-onexit.png)
 - **While the program is stopped**, what you type or click in its windows
   is dropped (none of its code can run): nothing is kept to run later, and
   no second stop waits behind it. Continue, and the next key stops as
@@ -426,7 +437,10 @@ letting it end (Debug ▸ Stop at Run-time Errors, checked unless you change
 it). The line turns red with the message at its end, and Variables and the
 Call Stack show the values that led to it. The message is in Output too,
 with the file and line: click it to go there. Press Shift+F5 to end the
-program.
+program, or F5 to let the error do what it does without the debugger: in
+the main program it ends the program; in an event handler it ends that
+handler and the program runs on (RapidQ's way — see
+[A run-time error in a handler](components.md#a-run-time-error-in-a-handler)).
 
 This program (`tools/manual/scenes/debugger/share.rr`) divides by a
 variable that is still 0:

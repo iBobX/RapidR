@@ -102,6 +102,7 @@ SUB FillExamples
   AddExample "data/million_rows.rr", "A million rows, analysed"
   AddExample "data/json_source.rr", "JSON records in a grid"
   AddExample "gui/hello_form.rr", "A form, a button, its OnClick"
+  AddExample "gui/focus_events.rr", "The focus: OnEnter, OnExit"
   AddExample "gui/menus.rr", "Main and pop-up menus"
   AddExample "gui/dialogs.rr", "Open, save, colour, font"
   AddExample "gui/richtext.rr", "A rich-text editor (.rtf)"
