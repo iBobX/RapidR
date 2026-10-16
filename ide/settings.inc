@@ -511,6 +511,9 @@ SUB AISettingsModelsIn
   AIFetchBtn.Enabled = 1
   IF SettingsDialog.Visible = 0 THEN EXIT SUB
   keep = AIModelCombo.Text
+  ' (the key, links and rows first: it leaves only the chosen model in the
+  ' list, so the provider's list goes in after it)
+  AISettingsProvider
   AIModelCombo.Clear
   all = AI.Models
   FOR i = 1 TO TALLY(all, CHR$(10)) + 1
@@ -519,7 +522,6 @@ SUB AISettingsModelsIn
   NEXT
   ' (nothing chosen for the user: what they chose, if the list still has it)
   IF AI.Model = "" THEN keep = ""
-  AISettingsProvider
   AIModelCombo.Text = keep
   IF keep = "" THEN
     AIKeyNote.Caption = AI.Status + " Choose one (the fast, low-cost ones are first)."

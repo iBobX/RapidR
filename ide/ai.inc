@@ -736,6 +736,10 @@ END SUB
 
 SUB AIErrorSaid(Message AS STRING)
   OutputLine "AI: " + Message
+  ' (a refused key or a failed list: Fetch Models can be pressed again, and
+  ' the settings say why)
+  AIFetchBtn.Enabled = 1
+  IF SettingsDialog.Visible THEN AIKeyNote.Caption = Message
 END SUB
 
 SUB AIModelsIn(Count AS INTEGER)
