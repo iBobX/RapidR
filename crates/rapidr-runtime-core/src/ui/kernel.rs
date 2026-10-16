@@ -701,9 +701,20 @@ pub fn gui_showmodal(name: &str) -> i64 {
     while forms::modal_waits(&name) {
         step(None);
     }
-    // (the timers stop with the modal form)
-    crate::object::rp_stop_all_timers();
+    stop_timers_if_last(&name);
     forms::modal_ended(Rt, &name)
+}
+
+/// A modal form's ShowModal ends: the program's timers stop with its last
+/// window — the main form's ShowModal ending is the program's end — but a
+/// dialog closed over a window still shown leaves them ticking (RapidQ's
+/// timers don't stop when a dialog closes: a timer that showed a dialog, or
+/// ticks under one, goes on).
+fn stop_timers_if_last(form: &str) {
+    let others = forms::shown_forms().iter().any(|f| !f.eq_ignore_ascii_case(form));
+    if !others {
+        crate::object::rp_stop_all_timers();
+    }
 }
 
 /// Whether `name` is shown modally now (setting its ModalResult closes it).
@@ -848,7 +859,7 @@ pub fn gui_pump_wait() -> Option<Value> {
     }
     if waits::over() {
         if let Some(Wait::Form(form)) = waits::pop() {
-            crate::object::rp_stop_all_timers();
+            stop_timers_if_last(&form);
             return Some(v_int(forms::modal_ended(Rt, &form)));
         }
         return Some(v_null());

@@ -1,5 +1,5 @@
 # Real mouse/keyboard input for checking desktop GUI builds by hand (macOS):
-# python3 tools/real_input.py PID c:x,y (click, window coords incl. title bar) d:x1,y1,x2,y2 (drag) k:keycode s:out.png
+# python3 tools/real_input.py PID c:x,y (click, window coords incl. title bar) C:x,y (click, screen coords) d:x1,y1,x2,y2 (drag) k:keycode s:out.png
 #   m:x,y (the mouse moved there: hover), w:seconds (wait), k:cmd+shift+keycode (modifiers: cmd, shift, ctrl, alt),
 #   t:text (typed)
 # Needs Accessibility + Screen Recording for the Claude Code helper app.
@@ -7,14 +7,19 @@
 # RAPIDR_CAPTURE / RAPIDR_TEST_EVENTS (under a test the kernel drops user input).
 # PID is the program's own process (pgrep -x name), not a shell around it.
 # act.py PID action... : actions "c:x,y" (click), "k:code" (key), "s:file" (screenshot of the window)
-import Quartz,time,sys,subprocess
+import Quartz,time,sys,subprocess,os
 pid=int(sys.argv[1])
 def windows():
     return [w for w in Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListOptionOnScreenOnly,Quartz.kCGNullWindowID) if w.get('kCGWindowLayer')==0]
 def front():
     # (activated only when another program is in front: activating it again
     # gives the key to its main window, away from a window it just opened)
+    # RAPIDR_REAL_INPUT_STRICT=1: never activated — another program in front
+    # (the person at the Mac clicked elsewhere) stops the input here, so no
+    # click or key lands in their windows
     ws=windows()
+    if (not ws or ws[0]['kCGWindowOwnerPID']!=pid) and os.environ.get("RAPIDR_REAL_INPUT_STRICT")=="1":
+        sys.exit("not frontmost (strict): "+str(ws[0].get('kCGWindowOwnerName') if ws else None))
     if not ws or ws[0]['kCGWindowOwnerPID']!=pid:
         subprocess.run(["osascript","-e",f'tell application "System Events" to set frontmost of (first process whose unix id is {pid}) to true'])
         time.sleep(0.4)
@@ -25,8 +30,11 @@ def mouse(t,x,y,c=1):
     e=Quartz.CGEventCreateMouseEvent(None,t,(x,y),Quartz.kCGMouseButtonLeft); Quartz.CGEventSetIntegerValueField(e,Quartz.kCGMouseEventClickState,c); Quartz.CGEventPost(Quartz.kCGHIDEventTap,e)
 for a in sys.argv[2:]:
     b=front(); kind,arg=a.split(":",1)
-    if kind=="c":
-        x,y=[float(v) for v in arg.split(",")]; x+=b['X']; y+=b['Y']
+    if kind in ("c","C"):
+        # c: in the window; C: on the screen (points, as macOS accessibility
+        # gives an element's frame: tools/macos/ui_probe.swift)
+        x,y=[float(v) for v in arg.split(",")]
+        if kind=="c": x+=b['X']; y+=b['Y']
         mouse(Quartz.kCGEventMouseMoved,x,y); time.sleep(0.1); mouse(Quartz.kCGEventLeftMouseDown,x,y); time.sleep(0.05); mouse(Quartz.kCGEventLeftMouseUp,x,y)
     elif kind=="d":
         # drag: d:x1,y1,x2,y2 (the left button held from one point to the other)

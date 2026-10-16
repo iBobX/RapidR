@@ -16,7 +16,28 @@
 // Each step of a script is the number of tool results so far. CORS is
 // open (the web Studio's page calls it from its origin).
 //
-//   node tests/ai_mock_server.mjs [port]      (prints its URL)
+// It plays the cloud providers too, at the places RapidR sends them when
+// RAPIDR_AI_TEST_SERVER names this server (rapidr_ai::provider::
+// test_server, a loopback address only): /anthropic/v1, /openai/v1,
+// /deepseek — each with made-up models in its own shape (OpenAI's with
+// models a chat can't use, which RapidR leaves out), each wanting a key as
+// the real one does. The key decides what happens, so a test types a fake
+// one into the key box as a user would:
+//
+//   …bad…      refused: 401, in the provider's own words
+//   …fail…     500, every time (RapidR tries once more, then says so)
+//   …slow…     no answer at all (RapidR gives up after its time limit)
+//   …garbage…  200, but a web page instead of JSON
+//   …empty…    a list with no models
+//   …org…      (Anthropic) an organisation's key, not a workspace's:
+//              refused unless the request names a workspace
+//              (anthropic-workspace-id), as Anthropic does
+//
+// A compatible server (no key) plays the same through its address,
+// /s/<bad|fail|slow|garbage|empty>/v1. GET /__log lists what was asked of
+// it (the keys' last four characters only).
+//
+//   node tests/ai_mock_server.mjs [port]      (prints its /v1 URL)
 
 import { createServer } from "node:http";
 import { pathToFileURL } from "node:url";
@@ -164,15 +185,54 @@ const MODELS = process.env.AI_MOCK_MODELS
   })
   : [{ id: "mock-small", object: "model", created: 2, display_name: "Mock Small" }, { id: "mock-large", object: "model", created: 1 }];
 
+// (the cloud providers' lists: made-up models, each in its provider's shape)
+const PROVIDER_MODELS = {
+  anthropic: { data: [
+    { type: "model", id: "claude-mock-opus-1", display_name: "Claude Mock Opus 1", created_at: "2026-09-01T00:00:00Z" },
+    { type: "model", id: "claude-mock-sonnet-1", display_name: "Claude Mock Sonnet 1", created_at: "2026-09-01T00:00:00Z" },
+    { type: "model", id: "claude-mock-haiku-1", display_name: "Claude Mock Haiku 1", created_at: "2026-09-01T00:00:00Z" },
+  ], has_more: false, first_id: "claude-mock-opus-1", last_id: "claude-mock-haiku-1" },
+  openai: { object: "list", data: [
+    { id: "gpt-mock", object: "model", created: 30, owned_by: "system" },
+    { id: "gpt-mock-mini", object: "model", created: 20, owned_by: "system" },
+    { id: "gpt-mock-nano", object: "model", created: 10, owned_by: "system" },
+    { id: "text-embedding-mock", object: "model", created: 40, owned_by: "system" },
+    { id: "whisper-mock", object: "model", created: 5, owned_by: "system" },
+    { id: "gpt-mock-realtime", object: "model", created: 35, owned_by: "system" },
+  ] },
+  deepseek: { object: "list", data: [
+    { id: "deepseek-mock-pro", object: "model", owned_by: "deepseek" },
+    { id: "deepseek-mock-flash", object: "model", owned_by: "deepseek" },
+  ] },
+};
+
+// (each provider's refusal of a key, worded as it words it)
+const REFUSED = {
+  anthropic: { type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } },
+  openai: { error: { message: "Incorrect API key provided: mock****. You can find your API key in your account's settings.", type: "invalid_request_error", param: null, code: "invalid_api_key" } },
+  deepseek: { error: { message: "Authentication Fails, Your api key: ****mock is invalid", type: "authentication_error", param: null, code: "invalid_request_error" } },
+  compatible: { error: { message: "Unauthorized" } },
+};
+const NO_WORKSPACE = { type: "error", error: { type: "invalid_request_error", message: "This API key is not scoped to a workspace, so this request must include the anthropic-workspace-id header with the ID of the workspace to use." } };
+
 const CORS = {
   "access-control-allow-origin": "*",
   "access-control-allow-headers": "authorization, content-type, x-api-key, anthropic-version, anthropic-workspace-id, anthropic-dangerous-direct-browser-access",
   "access-control-allow-methods": "GET, POST, OPTIONS",
 };
 
-/** Starts the mock on `port` (0: any); resolves to { url, close, requests }. */
+// (the key a request carries, either way it's sent)
+function keyOf(headers) {
+  const bearer = (headers.authorization || "").replace(/^Bearer\s+/i, "");
+  return headers["x-api-key"] || bearer || "";
+}
+const keyHint = (k) => (k ? `…${k.slice(-4)}` : "");
+const SCENARIOS = ["bad", "fail", "slow", "garbage", "empty", "org"];
+
+/** Starts the mock on `port` (0: any); resolves to { url, root, close, requests }. */
 export function startMock(port = 0) {
   const requests = [];
+  const held = new Set();
   const server = createServer((req, res) => {
     if (req.method === "OPTIONS") {
       res.writeHead(204, CORS).end();
@@ -182,14 +242,40 @@ export function startMock(port = 0) {
     req.on("data", (c) => (body += c));
     req.on("end", () => {
       const path = new URL(req.url, "http://x").pathname;
-      requests.push({ method: req.method, path, headers: req.headers, body });
-      if (req.method === "GET" && path.endsWith("/models")) {
-        res.writeHead(200, { "content-type": "application/json", ...CORS });
-        res.end(JSON.stringify({ object: "list", data: MODELS }));
+      const send = (status, obj, type = "application/json") => {
+        res.writeHead(status, { "content-type": type, ...CORS });
+        res.end(typeof obj === "string" ? obj : JSON.stringify(obj));
+      };
+      if (path === "/__log") {
+        send(200, requests.map((r) => ({ method: r.method, path: r.path, key: keyHint(keyOf(r.headers)), workspace: r.headers["anthropic-workspace-id"] || "", version: r.headers["anthropic-version"] || "", model: r.model })));
         return;
       }
       let json = {};
       try { json = JSON.parse(body || "{}"); } catch { /* not JSON */ }
+      requests.push({ method: req.method, path, headers: req.headers, body, model: json.model || "" });
+      // (whom it plays: a cloud provider by its place, else a compatible
+      // server — a scenario, if any, in its address)
+      const who = path.match(/^\/(anthropic|openai|deepseek)(\/|$)/);
+      const provider = who ? who[1] : "compatible";
+      const key = keyOf(req.headers);
+      let scenario = (path.match(/^\/s\/([a-z]+)\//) || [])[1] || "";
+      if (who) scenario = key ? SCENARIOS.find((w) => key.toLowerCase().includes(w)) || "" : "bad";
+      if (scenario === "slow") {
+        // (no answer: the client gives up; the socket goes with the server,
+        // or after two minutes)
+        held.add(res);
+        setTimeout(() => { held.delete(res); if (!res.writableEnded) res.destroy(); }, 120000).unref();
+        return;
+      }
+      if (scenario === "bad") return send(401, REFUSED[provider]);
+      if (scenario === "fail") return send(500, { error: { message: "The server had an error while processing your request.", type: "server_error" } });
+      if (scenario === "garbage") return send(200, "<html><body><h1>Welcome!</h1><p>A web page, not an API.</p></body></html>", "text/html");
+      if (scenario === "org" && provider === "anthropic" && !req.headers["anthropic-workspace-id"]) return send(400, NO_WORKSPACE);
+      if (req.method === "GET" && path.endsWith("/models")) {
+        if (scenario === "empty") return send(200, provider === "anthropic" ? { data: [], has_more: false } : { object: "list", data: [] });
+        // (AI_MOCK_MODELS: the manual's pictures' made-up names, every provider's)
+        return send(200, who && !process.env.AI_MOCK_MODELS ? PROVIDER_MODELS[provider] : { object: "list", data: MODELS });
+      }
       const anthropic = path.endsWith("/messages");
       if (!anthropic && !path.endsWith("/chat/completions")) {
         res.writeHead(404, { "content-type": "application/json", ...CORS }).end(JSON.stringify({ error: { message: `no ${path} here` } }));
@@ -206,7 +292,14 @@ export function startMock(port = 0) {
       (anthropic ? sseAnthropic : sseOpenAI)(res, answer, json.model || "mock");
     });
   });
-  return new Promise((resolve) => server.listen(port, "127.0.0.1", () => resolve({ url: `http://127.0.0.1:${server.address().port}/v1`, close: () => server.close(), requests })));
+  const close = () => {
+    for (const r of held) r.destroy();
+    server.close();
+  };
+  return new Promise((resolve) => server.listen(port, "127.0.0.1", () => {
+    const root = `http://127.0.0.1:${server.address().port}`;
+    resolve({ url: `${root}/v1`, root, close, requests });
+  }));
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

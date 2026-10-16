@@ -40,6 +40,10 @@ const SAVE_FILES = ["tests/fixtures/studio_save/main.rr", "tests/fixtures/studio
 // key, no network, no cost): {mock} in a case's steps is its base URL.
 const mockProc = spawn(process.execPath, [join(HERE, "ai_mock_server.mjs"), "0"], { stdio: ["ignore", "pipe", "inherit"] });
 const MOCK_URL = await new Promise((resolve) => mockProc.stdout.once("data", (d) => resolve(String(d).trim())));
+// (the cloud providers — Anthropic, OpenAI, DeepSeek — played by the same
+// mock: RAPIDR_AI_TEST_SERVER sends them there, a loopback address only;
+// the fake key typed decides what it answers: tests/ai_mock_server.mjs)
+const MOCK_ROOT = MOCK_URL.replace(/\/v1$/, "");
 
 // (I4) The designer's steps on notepad.bas: the placing tool's click, the
 // form's right edge dragged, Button1 dragged (the form sits 24 px in on the
@@ -335,6 +339,12 @@ const click = (x, y, menu = 0) => `designdoc(0).__mousedown_${at(x, y, menu)},de
 // RAPIDR_TEST_EVENTS, input through the kernel), how long it waits before
 // the properties are read, and what each must say (a regular expression;
 // `same`: equal to a file's text, line ends as the editor keeps them).
+// (I8 AI-REAL: the settings dialog's clicks — typeInto and idle below)
+const AI_TAB = "settingstabs.__mousedown_75_12,settingstabs.__mouseup_75_12";
+const FETCH = "aifetchbtn.__mousedown_60_14,aifetchbtn.__mouseup_60_14";
+const OK = "settingsokbtn.__mousedown_40_14,settingsokbtn.__mouseup_40_14";
+const CANCEL = "settingsno.__mousedown_40_14,settingsno.__mouseup_40_14";
+
 const CASES = [
   {
     name: "run-console",
@@ -2158,11 +2168,11 @@ const CASES = [
     // listed through the introspection interface
     name: "ai-anthropic-format",
     open: "examples/gui/hello_form.rr",
-    do: "ai:on,ai:provider=anthropic,ai:base={mock},ai:key=sk-ant-test-FAKE-0000-wxyz,ai:model=claude-haiku-5-5,ai:ask=describe the form,wait,wait,wait,wait",
+    do: "ai:on,ai:provider=anthropic,ai:key=sk-ant-test-FAKE-0000-wxyz,ai:model=claude-mock-haiku-1,ai:ask=describe the form,wait,wait,wait,wait",
     delay: 6,
     dump: {
       "ai.transcript": /\*Looked up RButton in RapidR's registry\*[\s\S]*\*Listed the forms' components \(5\)\*[\s\S]*RButton is RButton \(RapidQ: QButton\)[\s\S]*the form has 5 components/,
-      "ai.lastrequest": /^POST http:\/\/127\.0\.0\.1:\d+\/v1\/messages\n[\s\S]*x-api-key: \(your API key, not shown\)\nanthropic-version: 2023-06-01\n(?![\s\S]*FAKE-0000)/,
+      "ai.lastrequest": /^POST http:\/\/127\.0\.0\.1:\d+\/anthropic\/v1\/messages\n[\s\S]*x-api-key: \(your API key, not shown\)\nanthropic-version: 2023-06-01\n(?![\s\S]*FAKE-0000)/,
       "ai.keyhint": /^…wxyz$/,
       "ai.usage": /^2,000 tokens sent \(200 from the cache\), 40 received$/,
     },
@@ -2216,7 +2226,234 @@ const CASES = [
       "codedoc(0).text": /^(?![\s\S]*APIKey)/,
     },
   },
+  // ---- AI-REAL: Tools > Settings > AI used as a person uses it (Robert's
+  // Preview 2 findings, 2026-10-16) — the dialog opened from its menu
+  // command, then clicks and keys through the kernel's input (the mouse on
+  // the tab, the Fetch button, OK, Cancel; a fake key typed key by key), the
+  // cloud providers played by the mock (RAPIDR_AI_TEST_SERVER): what the
+  // user sees — the list's items, the button enabled again, the note —
+  // read back. A real walk of the same paths on the screen is in the
+  // lane's report; these keep them from coming back.
+  {
+    // A refused key (401): said in plain words under the list, all of it;
+    // Fetch Models can be pressed again at once (it stayed greyed until
+    // Studio was restarted)
+    name: "ai-settings-401",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: [AI_TAB, "aiprovbox.__item_1", typeInto("aikeyedit", "mock-bad-key-1"), FETCH, idle(40)].join(","),
+    delay: 4,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "aiprovbox.text": /^OpenAI$/,
+      "aifetchbtn.enabled": /^(-1|1|True)$/i,
+      "aifetchnote.caption": /^OpenAI refused the API key \(401\) \(OpenAI says: "Incorrect API key provided[\s\S]*Check the key: it may be mistyped, revoked, or a key of another provider\.$/,
+      // (the note as tall as its four lines: nothing cut)
+      "aifetchnote.height": /^(6\d|7\d|8\d)$/,
+      "aimodelcombo.itemcount": /^0$/,
+    },
+  },
+  {
+    // ... then another key typed over it and Fetch Models again: the list
+    // comes, the fast, low-cost ones first — the dropdown has the items
+    name: "ai-settings-retry",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: [AI_TAB, "aiprovbox.__item_1", typeInto("aikeyedit", "mock-bad-key-1"), FETCH, idle(40), "aikeyedit.__key_65_16", typeInto("aikeyedit", "mock-good-key-1"), FETCH, idle(40), "aimodelcombo.__item_0"].join(","),
+    delay: 4,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "aifetchbtn.enabled": /^(-1|1|True)$/i,
+      "aimodelcombo.itemcount": /^3$/,
+      "aimodelcombo.text": /^gpt-mock-mini {3}fast · low cost$/,
+      "aifetchnote.caption": /^OpenAI lists 3 models\./,
+      // (the assistant itself untouched until OK)
+      "ai.provider": /^$/,
+      "ai.model": /^$/,
+    },
+  },
+  {
+    // A model picked, OK: the assistant has it (its pane shows, Send
+    // enabled), and the dialog opened again shows it chosen, the list kept
+    name: "ai-settings-ok-reopen",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,view.settings",
+    events: [AI_TAB, "aionbox.__mousedown_8_10,aionbox.__mouseup_8_10", "aiprovbox.__item_1", typeInto("aikeyedit", "mock-good-key-1"), FETCH, idle(40), "aimodelcombo.__item_0", OK, idle(160), AI_TAB, idle(8)].join(","),
+    delay: 4,
+    dump: {
+      "settingsdialog.visible": /^(-1|1|True)$/i,
+      "aiprovbox.text": /^OpenAI$/,
+      "aimodelcombo.text": /^gpt-mock-mini {3}fast · low cost$/,
+      "aimodelcombo.itemcount": /^3$/,
+      "ai.provider": /^openai$/,
+      "ai.model": /^gpt-mock-mini$/,
+      "aisendbtn.enabled": /^(-1|1|True)$/i,
+      "aimodelbox.itemcount": /^3$/,
+      "dock.layout": /^(?![\s\S]*^hidden .*\baipanel\b)/m,
+    },
+  },
+  {
+    // Cancel leaves the assistant exactly as it was: another provider
+    // browsed, a key typed and tried, a list fetched — none of it reaches
+    // the assistant (it used to switch it, clearing its key and models)
+    name: "ai-settings-cancel",
+    open: "examples/gui/hello_form.rr",
+    do: "ai:on,ai:provider=openai,ai:key=mock-good-key-1,ai:fetch,wait,wait,ai:model=gpt-mock-mini,wait,view.settings",
+    events: [AI_TAB, "aiprovbox.__item_2", typeInto("aikeyedit", "mock-good-key-2"), FETCH, idle(40), "aimodelcombo.__item_0", CANCEL, idle(8)].join(","),
+    delay: 5,
+    dump: {
+      "settingsdialog.visible": /^(0|False)$/i,
+      "ai.provider": /^openai$/,
+      "ai.model": /^gpt-mock-mini$/,
+      "ai.modelcount": /^3$/,
+      "ai.haskey": /^(-1|1|True)$/i,
+      "aiproviderbox.text": /^OpenAI$/,
+      "aimodelbox.text": /^gpt-mock-mini$/,
+      "aisendbtn.enabled": /^(-1|1|True)$/i,
+    },
+  },
+  {
+    // A provider that doesn't answer: Fetch Models waits greyed; another
+    // provider picked meanwhile gives it back at once (the old request is
+    // dropped), as closing the dialog does
+    name: "ai-settings-slow-switch",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: [AI_TAB, "aiprovbox.__item_2", typeInto("aikeyedit", "mock-slow-key-1"), FETCH, idle(20), "aiprovbox.__item_1", idle(8)].join(","),
+    delay: 4,
+    dump: {
+      "aiprovbox.text": /^OpenAI$/,
+      "aifetchbtn.enabled": /^(-1|1|True)$/i,
+      "setai.busy": /^(0|False)$/i,
+      "aifetchnote.caption": /^$/,
+    },
+  },
+  {
+    // ... or the dialog closed while it waits (Cancel): opened again,
+    // Fetch Models is ready, nothing of the silent provider kept
+    name: "ai-settings-slow-close",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,view.settings",
+    events: [AI_TAB, "aiprovbox.__item_2", typeInto("aikeyedit", "mock-slow-key-1"), FETCH, idle(20), CANCEL, idle(160), AI_TAB, idle(8)].join(","),
+    delay: 4,
+    dump: {
+      "settingsdialog.visible": /^(-1|1|True)$/i,
+      "aifetchbtn.enabled": /^(-1|1|True)$/i,
+      "setai.busy": /^(0|False)$/i,
+      "aifetchnote.caption": /^$/,
+      "ai.provider": /^$/,
+    },
+  },
+  {
+    // A server that isn't there (nothing listens at the address typed): said
+    // in words, Fetch Models back at once
+    name: "ai-settings-unreachable",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: [AI_TAB, "aiprovbox.__item_3", "aibasebox.__mousedown_60_12,aibasebox.__mouseup_60_12,aibasebox.__key_65_16", typeInto("aibasebox", "http://127.0.0.1:9/v1"), FETCH, idle(60)].join(","),
+    delay: 4,
+    dump: {
+      "aibasebox.text": /^http:\/\/127\.0\.0\.1:9\/v1$/,
+      "aifetchbtn.enabled": /^(-1|1|True)$/i,
+      "aifetchnote.caption": /^Couldn't reach 127\.0\.0\.1:9: [\s\S]*Is the local server running/,
+    },
+  },
+  {
+    // ... and left waiting: after 30 seconds RapidR gives up and says so;
+    // the button is back
+    name: "ai-settings-timeout",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: [AI_TAB, "aiprovbox.__item_2", typeInto("aikeyedit", "mock-slow-key-1"), FETCH, "aionnote.__hold_36000", idle(8)].join(","),
+    delay: 4,
+    desktopOnly: true,
+    dump: {
+      "aifetchbtn.enabled": /^(-1|1|True)$/i,
+      "aifetchnote.caption": /^Couldn't reach 127\.0\.0\.1:\d+: no answer came in 30 seconds\./,
+    },
+  },
+  {
+    // (the web: a browser's fetch has no time limit of its own — RapidR's:
+    // the page is watched until the button comes back)
+    name: "ai-settings-timeout-web",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: [AI_TAB, "aiprovbox.__item_2", typeInto("aikeyedit", "mock-slow-key-1"), FETCH, idle(8)].join(","),
+    delay: 4,
+    webOnly: true,
+    dump: { "aifetchbtn.enabled": /^(0|False)$/i, "setai.busy": /^(-1|1|True)$/i },
+    web: async (page, scale, record) => {
+      const prop = (c, p) => page.evaluate(([c, p]) => window.rr.rapidr_get_prop(c, p), [c, p]);
+      const t0 = Date.now();
+      let enabled = "";
+      while (Date.now() - t0 < 60000) {
+        enabled = String(await prop("aifetchbtn", "enabled"));
+        if (/^(-1|1|true)$/i.test(enabled)) break;
+        await page.waitForTimeout(1000);
+      }
+      const note = String(await prop("aifetchnote", "caption"));
+      record("", /^(-1|1|true)$/i.test(enabled) && /no answer came in \d+ seconds/.test(note), `after ${Math.round((Date.now() - t0) / 1000)} s Fetch Models is back and says why ("${note}")`);
+    },
+  },
+  {
+    // An Anthropic key of an organisation, not of a workspace: Anthropic
+    // wants to know which workspace — said, the Workspace ID box ready;
+    // typed, the list comes, the header sent
+    name: "ai-settings-workspace",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: [AI_TAB, "aiprovbox.__item_0", typeInto("aikeyedit", "mock-org-key-1"), FETCH, idle(40), typeInto("aiwsedit", "wrk_flow_01"), FETCH, idle(40)].join(","),
+    delay: 4,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "aiprovbox.text": /^Anthropic \(Claude\)$/,
+      "aiwsedit.text": /^wrk_flow_01$/,
+      "aimodelcombo.itemcount": /^3$/,
+      "aifetchnote.caption": /^Anthropic lists 3 models\./,
+    },
+    mockLog: /"path":"\/anthropic\/v1\/models","key":"…ey-1","workspace":"","[\s\S]*"path":"\/anthropic\/v1\/models","key":"…ey-1","workspace":"wrk_flow_01"/,
+  },
+  {
+    // Each provider's rows, and only those: Anthropic's workspace,
+    // OpenAI's and DeepSeek's none (no empty gap where a row is hidden),
+    // a compatible server's address
+    name: "ai-settings-rows",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: [AI_TAB, "aiprovbox.__item_1", idle(4)].join(","),
+    delay: 4,
+    dump: {
+      "aiwsedit.__shown": /^0$/,
+      "aibasebox.__shown": /^0$/,
+      // (the Model row a row's step under the key's note)
+      "aimodelcombo.top": /^22\d$/,
+    },
+  },
 ];
+
+// (I8 AI-REAL) The settings dialog's input: the AI tab clicked, Fetch
+// Models, OK and Cancel pressed with the mouse; text typed key by key into
+// a component (a US keyboard's keys); `idle(n)`: n turns of the loop with
+// nothing done (a label's click it doesn't handle), for an answer to come.
+function typeInto(comp, text) {
+  const out = [];
+  for (const c of text) {
+    if (/[a-z]/.test(c)) out.push(String(c.toUpperCase().charCodeAt(0)));
+    else if (/[A-Z]/.test(c)) out.push(`${c.charCodeAt(0)}_256`);
+    else if (/[0-9 ]/.test(c)) out.push(String(c.charCodeAt(0)));
+    else out.push({ "-": "189", ".": "190", "_": "189_256", "/": "191", ":": "186_256" }[c]);
+  }
+  return out.map((k) => `${comp}.__key_${k}`).join(",");
+}
+function idle(n) {
+  return Array(n).fill("aionnote.onclick").join(",");
+}
 
 function runDesktop(c, scale = 1) {
   const dir = join(WORK, `${c.name}-desktop${scale > 1 ? `@${scale}x` : ""}`);
@@ -2268,6 +2505,7 @@ function runDesktop(c, scale = 1) {
       // (the AI assistant: keys in memory only — never the user's keychain —,
       // no provider's key from this shell, its audit log the case's)
       RAPIDR_AI_KEYSTORE: "memory",
+      RAPIDR_AI_TEST_SERVER: MOCK_ROOT,
       RAPIDR_AI_AUDIT: join(dir, "ai-audit.jsonl"),
       ANTHROPIC_API_KEY: "", OPENAI_API_KEY: "", DEEPSEEK_API_KEY: "", ANTHROPIC_WORKSPACE_ID: "",
       ...(c.env || {}),
@@ -2397,6 +2635,7 @@ async function runWebPage(ctx, c, last, scale, record) {
       RAPIDR_CAPTURE: "web",
       RAPIDR_CAPTURE_DELAY: String(c.delay),
       RAPIDR_TEST_DUMP: [...Object.keys(c.webDump || c.dump), "studio.caption"].join(","),
+      RAPIDR_AI_TEST_SERVER: MOCK_ROOT,
       ...(c.events ? { RAPIDR_TEST_EVENTS: c.events } : {}),
       ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: c.folder } : {}),
     });
@@ -2482,6 +2721,23 @@ const check = (label, run, c) => {
     console.log(`${ok ? "✓" : "✗"} ${c.name} (${label}): ${k} ${ok ? `equals ${file}` : `differs from ${file}`}`);
   }
 };
+// (AI-REAL) What the mock provider was asked during a case (its own log:
+// the keys' last four characters only), as one JSON text to match
+const mockLog = async () => {
+  // (a fresh connection each time: a kept-alive one the mock closed meanwhile is reset)
+  for (let i = 0; ; i++) {
+    try {
+      return await (await fetch(`${MOCK_ROOT}/__log`, { headers: { connection: "close" } })).json();
+    } catch (e) {
+      if (i >= 3) throw e;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  }
+};
+function checkMockLog(name, entries, re) {
+  const text = JSON.stringify(entries);
+  record(name, re.test(text), `the provider was asked as it should be (${re})${re.test(text) ? "" : `: ${text.slice(0, 600)}`}`);
+}
 const record = (name, ok, what) => {
   ok ? passed++ : failed++;
   console.log(`${ok ? "✓" : "✗"} ${name}: ${what}`);
@@ -2503,14 +2759,20 @@ const SHORT = { "rapidr-light": "light", "rapidr-dark": "dark", "rapidr-high-con
 const RUNS = CASES.flatMap((c) => (c.themes ? c.themes.map((theme) => ({ ...c, theme, name: `${c.name}-${SHORT[theme] || theme}` })) : [c]));
 for (const c of RUNS.filter((c) => !filters.length || filters.some((f) => c.name.includes(f)))) {
   if (HOSTS.includes("desktop") && !c.webOnly) {
-    for (const scale of c.capture ? c.scales || [1] : [1]) check(c.capture && scale > 1 ? `desktop @${scale}x` : "desktop", runDesktop(c, scale), c);
+    for (const scale of c.capture ? c.scales || [1] : [1]) {
+      const seen = c.mockLog ? (await mockLog()).length : 0;
+      check(c.capture && scale > 1 ? `desktop @${scale}x` : "desktop", runDesktop(c, scale), c);
+      if (c.mockLog) checkMockLog(`${c.name} (desktop)`, (await mockLog()).slice(seen), c.mockLog);
+    }
   }
   if (!HOSTS.includes("web") || c.desktopOnly) continue;
   for (const scale of c.scales || [1]) {
     const label = c.scales ? `web @${scale}x` : "web";
     try {
+      const seen = c.mockLog ? (await mockLog()).length : 0;
       const web = await runWeb(browser, c, scale, (name, ok, what) => record(`${c.name} (${label})`, ok, what));
       check(label, web, c.webDump ? { ...c, dump: c.webDump } : c);
+      if (c.mockLog) checkMockLog(`${c.name} (${label})`, (await mockLog()).slice(seen), c.mockLog);
       if (web.errors.length) console.log(`  (page errors: ${web.errors.join("; ")})`);
     } catch (e) {
       failed++;

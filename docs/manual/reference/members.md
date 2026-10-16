@@ -994,7 +994,7 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 |---|---|
 | `AddItems(Items, …)` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
 | `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
-| `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
+| `Clear` | Removes every item, and the text too — the chosen item's or what was typed (ItemIndex -1, Text ""), as RapidQ does. |
 | `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
 | `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
@@ -5256,7 +5256,7 @@ A conversation with an AI provider — Anthropic (Claude), OpenAI, DeepSeek, or 
 | `Ask(Text AS STRING) AS INTEGER` | Sends Text, with the conversation so far, to Provider's Model and returns at once: the answer streams in (OnToken), then OnMessage with the whole of it and OnDone. False when it can't ask (no provider, key or model: Error says which; no key fires OnKeyNeeded). |
 | `Cancel` | Stops the answer being written (what came so far stays) or the models list being fetched: OnDone("cancelled"). |
 | `NewChat` | Starts a new conversation: the messages and the transcript go (the usage stays). |
-| `RefreshModels AS INTEGER` | Asks Provider which models the key can use (OpenAI's chat models only): OnModelsLoaded(Count) when Models has them, OnError when not. A Model the list no longer has is cleared: choose again. True when it started. |
+| `RefreshModels AS INTEGER` | Asks Provider which models the key can use (OpenAI's chat models only): OnModelsLoaded(Count) when Models has them, OnError when not — a refused key, no answer within 30 seconds (10 to connect) … in plain words. A Model the list no longer has is cleared: choose again. Asked again, the newer request replaces the one on its way; changing Provider, BaseURL, WorkspaceID, APIKey or APIKeySource drops it too (OnDone("cancelled")). True when it started. |
 | `RememberKey([OnThisDevice AS INTEGER]) AS INTEGER` | Keeps APIKey in the keychain under APIKeySource's keychain NAME, for the next runs. On the web it is kept for the tab, and on this device too when OnThisDevice is True (the page's storage: anyone using this browser profile could read it). True when it was kept. |
 | `ForgetKey` | Removes the key kept under APIKeySource's keychain NAME, and APIKey's. |
 | `AttachComponent(Component AS RAIPROJECTTOOLS, Kind AS STRING) AS INTEGER` | Gives the model a component's tools of Kind (an RAIProjectTools' "project": RapidR Studio's assistant). True when attached; Error says why not. |

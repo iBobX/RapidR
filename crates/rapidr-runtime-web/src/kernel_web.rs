@@ -382,8 +382,12 @@ fn serve_waits() {
         if waits::over() {
             match waits::pop() {
                 Some(Wait::Form(form)) => {
-                    // (the timers stop with the modal form, as the desktop's)
-                    stop_timers();
+                    // (the timers stop with the program's last window, as
+                    // the desktop's: a dialog closed over a window still
+                    // shown leaves them ticking)
+                    if !forms::shown_forms().iter().any(|f| !f.eq_ignore_ascii_case(&form)) {
+                        stop_timers();
+                    }
                     let result = forms::modal_ended(Web, &form);
                     crate::dialog_web::resume_wait(Value::Integer(result));
                 }

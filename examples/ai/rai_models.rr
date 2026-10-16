@@ -9,14 +9,17 @@
 ' Your key is never written into the program. APIKeySource says where it
 ' comes from: "env:OPENAI_API_KEY|ask" — the provider's environment
 ' variable if it is set, else the program asks (OnKeyNeeded) and you type
-' it in the box, kept only while the program runs. No model is chosen for
-' you: List Models shows the provider's own, the fast, low-cost ones first
-' (by the words of their names). A question costs a little on a paid
-' provider: "See prices" says how much.
+' it in the box, kept only while the program runs. An Anthropic key made
+' outside a workspace needs the workspace's ID too (Workspace ID, shown for
+' Anthropic only; or ANTHROPIC_WORKSPACE_ID). No model is chosen for you:
+' List Models shows the provider's own, the fast, low-cost ones first (by
+' the words of their names). A question costs a little on a paid provider:
+' "See prices" says how much.
 
 DECLARE SUB ProviderPicked
 DECLARE SUB AddressTyped
 DECLARE SUB KeyTyped
+DECLARE SUB WorkspaceTyped
 DECLARE SUB ListModels
 DECLARE SUB ModelsIn(Count AS INTEGER)
 DECLARE SUB ModelPicked
@@ -27,75 +30,93 @@ DECLARE SUB Failed(Message AS STRING)
 DECLARE SUB KeyNeeded
 DECLARE SUB PricesClick
 DECLARE SUB GetKeyClick
+DECLARE SUB LayOut
 
 DIM AI AS RAI
 DIM ProvIds(16) AS STRING
 
 CREATE Form AS RForm
     Caption = "Ask an AI"
-    Width = 580: Height = 470
+    Width = 600: Height = 560
     Center
+    OnResize = LayOut
     CREATE ProvLabel AS RLabel
-        Caption = "&Provider:": Left = 12: Top = 16: Width = 80
+        Caption = "&Provider:"
     END CREATE
     CREATE ProviderBox AS RComboBox
-        Left = 100: Top = 12: Width = 270: Style = 2   ' pick from the list
+        Style = 2   ' pick from the list
+        AccessibleName = "AI provider"
         OnChange = ProviderPicked
     END CREATE
-    ' (links: labels that open the provider's pages in the browser)
+    ' (links: labels that open the provider's pages in the browser, in the
+    ' theme's link colour — LayOut sets it)
     CREATE PricesLink AS RLabel
-        Caption = "See prices": Left = 382: Top = 16: Width = 80
-        Font.Color = &HC0661A: Cursor = -21: Visible = 0
+        Caption = "See prices": Cursor = -21: Visible = 0
+        AccessibleName = "The provider's prices, in the browser"
         OnClick = PricesClick
     END CREATE
     CREATE KeyLink AS RLabel
-        Caption = "Get a key": Left = 470: Top = 16: Width = 90
-        Font.Color = &HC0661A: Cursor = -21: Visible = 0
+        Caption = "Get a key": Cursor = -21: Visible = 0
+        AccessibleName = "Where the provider makes keys, in the browser"
         OnClick = GetKeyClick
     END CREATE
     CREATE AddrLabel AS RLabel
-        Caption = "A&ddress:": Left = 12: Top = 50: Width = 80
+        Caption = "A&ddress:"
     END CREATE
     CREATE AddrEdit AS REdit
-        Left = 100: Top = 46: Width = 270
+        AccessibleName = "The provider's address"
         OnChange = AddressTyped
     END CREATE
     CREATE KeyLabel AS RLabel
-        Caption = "API &key:": Left = 12: Top = 84: Width = 80
+        Caption = "API &key:"
     END CREATE
     CREATE KeyEdit AS REdit
-        Left = 100: Top = 80: Width = 270: PasswordChar = "*"
+        PasswordChar = "*"
+        AccessibleName = "API key"
+        AccessibleDescription = "Kept only while this program runs, never saved"
         OnChange = KeyTyped
     END CREATE
     CREATE KeyNote AS RLabel
-        Left = 382: Top = 84: Width = 186
         Caption = "kept only while this runs"
     END CREATE
+    ' (Anthropic only: the workspace a key made outside one works in)
+    CREATE WsLabel AS RLabel
+        Caption = "&Workspace ID:": Visible = 0
+    END CREATE
+    CREATE WsEdit AS REdit
+        Visible = 0
+        AccessibleName = "Anthropic workspace ID (optional)"
+        AccessibleDescription = "Only for a key made outside a workspace: the Claude Console lists your workspaces"
+        OnChange = WorkspaceTyped
+    END CREATE
     CREATE ListBtn AS RButton
-        Caption = "&List Models": Left = 12: Top = 116: Width = 80
+        Caption = "&List Models"
         OnClick = ListModels
     END CREATE
     CREATE ModelBox AS RComboBox
-        Left = 100: Top = 117: Width = 270: Style = 2
+        Style = 2
+        AccessibleName = "Model"
         OnChange = ModelPicked
     END CREATE
     CREATE Question AS REdit
-        Left = 12: Top = 156: Width = 466
         Text = "Say hello in five words."
+        AccessibleName = "Your question"
     END CREATE
     CREATE AskBtn AS RButton
-        Caption = "&Ask": Left = 486: Top = 154: Width = 82: Default = 1
+        Caption = "&Ask": Default = 1
         OnClick = AskOrStop
     END CREATE
     ' (the answer is Markdown: shown formatted, kept at its end as it grows)
     CREATE Answer AS RMarkdownView
-        Left = 12: Top = 192: Width = 556: Height = 210
         FollowEnd = 1
         EmptyText = "The answer shows here."
+        AccessibleName = "The answer"
     END CREATE
+    ' (what is happening, or what went wrong — in a few lines, wrapped)
     CREATE Info AS RLabel
-        Left = 12: Top = 412: Width = 556
+        WordWrap = 1: AutoSize = 0
         Caption = "Choose a provider."
+        AccessibleName = "Status"
     END CREATE
 END CREATE
 
@@ -115,9 +136,55 @@ FOR i = 1 TO TALLY(AI.Providers, CHR$(10)) + 1
     END IF
 NEXT
 
+' Every control placed for the window's size (it can be made bigger): the
+' rows at the top, the answer filling the middle, the status under it.
+SUB LayOut
+    DIM w AS INTEGER, h AS INTEGER, y AS INTEGER, fx AS INTEGER, fw AS INTEGER, rh AS INTEGER
+    w = Form.ClientWidth: h = Form.ClientHeight
+    IF w < 420 THEN w = 420
+    IF h < 420 THEN h = 420
+    fx = 112: fw = w - fx - 12
+    rh = 36
+    y = 12
+    ProvLabel.Left = 12: ProvLabel.Top = y + 4: ProvLabel.Width = 96
+    ProviderBox.Left = fx: ProviderBox.Top = y: ProviderBox.Width = fw - 190
+    PricesLink.Left = fx + fw - 180: PricesLink.Top = y + 4: PricesLink.Width = 84
+    KeyLink.Left = fx + fw - 88: KeyLink.Top = y + 4: KeyLink.Width = 88
+    y = y + rh
+    AddrLabel.Left = 12: AddrLabel.Top = y + 4: AddrLabel.Width = 96
+    AddrEdit.Left = fx: AddrEdit.Top = y: AddrEdit.Width = fw
+    y = y + rh
+    KeyLabel.Left = 12: KeyLabel.Top = y + 4: KeyLabel.Width = 96
+    KeyEdit.Left = fx: KeyEdit.Top = y: KeyEdit.Width = fw - 190
+    KeyNote.Left = fx + fw - 180: KeyNote.Top = y + 4: KeyNote.Width = 180
+    y = y + rh
+    IF WsEdit.Visible THEN
+        WsLabel.Left = 12: WsLabel.Top = y + 4: WsLabel.Width = 96
+        WsEdit.Left = fx: WsEdit.Top = y: WsEdit.Width = fw
+        y = y + rh
+    END IF
+    ListBtn.Left = 12: ListBtn.Top = y - 1: ListBtn.Width = 96
+    ModelBox.Left = fx: ModelBox.Top = y: ModelBox.Width = fw
+    y = y + rh + 8
+    Question.Left = 12: Question.Top = y: Question.Width = w - 12 - 12 - 96 - 8
+    AskBtn.Left = w - 12 - 96: AskBtn.Top = y - 1: AskBtn.Width = 96
+    y = y + rh + 4
+    ' (the status: four lines at the bottom — the longest explanation fits)
+    Info.Left = 12: Info.Width = w - 24: Info.Height = 72
+    Info.Top = h - 12 - Info.Height
+    Answer.Left = 12: Answer.Top = y: Answer.Width = w - 24
+    Answer.Height = Info.Top - 8 - y
+    ' (link colours from the theme: readable in light, dark and high contrast)
+    PricesLink.Font.Color = Application.ThemeColor("page.link")
+    KeyLink.Font.Color = Application.ThemeColor("page.link")
+    KeyNote.Font.Color = Application.ThemeColor("page.dim")
+END SUB
+
 SUB ProviderPicked
     IF ProviderBox.ItemIndex < 0 THEN EXIT SUB
     AI.Provider = ProvIds(ProviderBox.ItemIndex)
+    ' (a model is the provider's own: chosen again from its list)
+    AI.Model = ""
     ' (the environment's key first, else ask; a local server needs none)
     IF AI.NeedsKey THEN
         AI.APIKeySource = "env:" + AI.KeyEnv + "|ask"
@@ -127,6 +194,11 @@ SUB ProviderPicked
     KeyEdit.Text = ""
     KeyEdit.Enabled = AI.NeedsKey
     AddrEdit.Text = AI.BaseURL
+    ' (the workspace row: Anthropic's only)
+    WsEdit.Visible = (AI.Provider = "anthropic")
+    WsLabel.Visible = WsEdit.Visible
+    IF WsEdit.Visible = 0 THEN WsEdit.Text = ""
+    LayOut
     ModelBox.Clear
     PricesLink.Visible = (AI.PricingURL <> "")
     KeyLink.Visible = (AI.KeysURL <> "")
@@ -148,10 +220,15 @@ SUB KeyTyped
     AI.APIKey = KeyEdit.Text
 END SUB
 
+SUB WorkspaceTyped
+    AI.WorkspaceID = WsEdit.Text
+END SUB
+
 SUB ListModels
     ModelBox.Clear
     IF AI.RefreshModels THEN
         Info.Caption = "Asking for the models…"
+        ListBtn.Enabled = 0
     ELSE
         Info.Caption = AI.Error
     END IF
@@ -160,6 +237,7 @@ END SUB
 ' Models: "id<TAB>name<TAB>hint" a line; ModelName(i) is line i's id.
 SUB ModelsIn(Count AS INTEGER)
     DIM i AS INTEGER, hint AS STRING
+    ListBtn.Enabled = 1
     FOR i = 0 TO Count - 1
         hint = FIELD$(FIELD$(AI.Models, CHR$(10), i + 1), CHR$(9), 3)
         IF hint <> "" THEN
@@ -169,6 +247,7 @@ SUB ModelsIn(Count AS INTEGER)
         END IF
     NEXT
     Info.Caption = STR$(Count) + " models: pick one (the fast, low-cost ones are first)."
+    IF Count > 0 THEN ModelBox.SetFocus
 END SUB
 
 SUB ModelPicked
@@ -196,15 +275,24 @@ SUB TokenIn(Text AS STRING)
     Answer.Text = Answer.Text + Text
 END SUB
 
+' (OnDone: a question answered or stopped — or a models list dropped
+' because another provider was picked meanwhile)
 SUB AnswerDone(Status AS STRING)
-    AskBtn.Caption = "&Ask"
-    IF Status = "ok" THEN Info.Caption = AI.Usage
-    IF Status = "cancelled" THEN Info.Caption = "Stopped."
+    ListBtn.Enabled = 1
+    IF AskBtn.Caption = "&Stop" THEN
+        AskBtn.Caption = "&Ask"
+        IF Status = "ok" THEN Info.Caption = AI.Usage
+        IF Status = "cancelled" THEN Info.Caption = "Stopped."
+    END IF
 END SUB
 
+' (a refused key, a wrong address, no answer … in plain words; the buttons
+' work again at once: fix what it says and try again)
 SUB Failed(Message AS STRING)
     AskBtn.Caption = "&Ask"
+    ListBtn.Enabled = 1
     Info.Caption = Message
+    IF WsEdit.Visible AND INSTR(Message, "Workspace ID") > 0 THEN WsEdit.SetFocus
 END SUB
 
 SUB KeyNeeded
@@ -220,6 +308,8 @@ END SUB
 SUB GetKeyClick
     Answer.OpenLink AI.KeysURL
 END SUB
+
+LayOut
 
 ' A server's address given (a local one: Ollama, LM Studio …): the
 ' OpenAI-compatible provider, at that address.
