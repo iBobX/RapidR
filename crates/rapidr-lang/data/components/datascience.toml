@@ -313,6 +313,8 @@ events = [
   { name = "OnKeyDown", params = "Key AS WORD, Shift AS INTEGER" },
   { name = "OnKeyUp", params = "Key AS WORD, Shift AS INTEGER" },
   { name = "OnKeyPress", params = "Key AS BYTE" },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]

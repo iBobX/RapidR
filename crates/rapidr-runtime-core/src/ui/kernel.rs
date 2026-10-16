@@ -452,6 +452,11 @@ fn dispatch_pending() {
         match e {
             // (a kernel-drawn dialog's: never the program's)
             HostEvent::Kernel(form, ev) if rapidr_ui_kernel::dialogs::is_dialog(&form) => rapidr_ui_app::dialogs::event(Rt, &form, ev),
+            // (in a ShowModal's turn a native handler's run-time error ends
+            // that event, the next ones still come — RapidQ's message loop;
+            // in a DOEVENTS' turn it goes on to its caller: rapidr_value::
+            // catching)
+            HostEvent::Kernel(_, ev) if rapidr_value::catches_here() => rapidr_value::catching(|| rapidr_ui_app::dispatch::dispatch(Rt, ev)),
             HostEvent::Kernel(_, ev) => rapidr_ui_app::dispatch::dispatch(Rt, ev),
             HostEvent::Wake => {}
         }
@@ -536,10 +541,14 @@ fn tracking_tick(desk: &mut Desktop) -> rapidr_ui_host_winit::tracking::Turn {
         sync_desk(desk);
         return rapidr_ui_host_winit::tracking::Turn { next: None, end_loop: false };
     }
+    // (a native handler's run-time error ends its turn, not the program —
+    // nor may it unwind through the system's loop: rapidr_value::catching)
     crate::object::rp_program_turn(|| {
-        timers::fire_due_then(Rt, crate::object::rp_serve_program);
-        lists::pre_paint(Rt, &forms::shown_forms());
-        crate::object::rp_serve_program();
+        rapidr_value::catching(|| {
+            timers::fire_due_then(Rt, crate::object::rp_serve_program);
+            lists::pre_paint(Rt, &forms::shown_forms());
+            crate::object::rp_serve_program();
+        })
     });
     sync_desk(desk);
     desk.tick(&RtStore, rapidr_ui_kernel::tick::now());
@@ -752,7 +761,7 @@ pub fn gui_start_drag(name: &str) {
     // (a GUI test's script plays the mouse meanwhile)
     script::input_awaited(rapidr_ui_kernel::tick::now());
     while form_dragging(&form) && forms::form_shown(&form) {
-        step(None);
+        wait_turn();
     }
 }
 
@@ -824,7 +833,7 @@ pub fn gui_showmodal(name: &str) -> i64 {
     }
     forms::show_pending(Rt);
     while forms::modal_waits(&name) {
-        step(None);
+        wait_turn();
     }
     stop_timers_if_last(&name);
     forms::modal_ended(Rt, &name)
@@ -867,7 +876,8 @@ pub fn gui_doevents() {
         waits::start(Wait::Once(rapidr_ui_kernel::tick::now()));
         return;
     }
-    step(Some(Duration::ZERO));
+    // (a handler's run-time error in this turn goes on to DOEVENTS' caller)
+    rapidr_value::passing(|| step(Some(Duration::ZERO)));
 }
 
 /// INPUT$'s wait with windows: events are served until a key reaches
@@ -895,9 +905,18 @@ pub fn gui_wait_key() -> Option<bool> {
         if !forms::any_shown() {
             return Some(false);
         }
-        step(None);
+        wait_turn();
     }
     Some(true)
+}
+
+/// A turn of a native build's wait that goes on after a run-time error in
+/// a handler it runs (ShowModal's, a dialog's, INPUT$'s, a drag's, a
+/// kernel-drawn menu's — not DOEVENTS', which passes it on): the handler
+/// stops there, the wait goes on, as RapidQ's (`rapidr_value::catching`;
+/// the interpreter's, `rapidr_vm`'s `after_host`).
+pub(super) fn wait_turn() {
+    rapidr_value::catching(|| step(None));
 }
 
 /// A method that waits for work done in the background (QDOWNLOAD's

@@ -174,7 +174,7 @@ mod tests {
         f.mouse_down(&s, &mut ts, 8.0, 4.0, Button::Left, Mods::NONE);
         f.mouse_up(&s, &mut ts, 8.0, 4.0, Button::Left, Mods::NONE);
         let set = |v| KernelEvent::Set { id: "ud".into(), prop: "position".into(), value: v };
-        let ev: Vec<_> = f.take_events().into_iter().filter(|e| !matches!(e, KernelEvent::Mouse { .. })).collect();
+        let ev: Vec<_> = f.take_events().into_iter().filter(|e| !matches!(e, KernelEvent::Mouse { .. }) && !matches!(e, KernelEvent::Fire { event, .. } if event == "onenter" || event == "onexit")).collect();
         assert_eq!(ev, vec![set(100), KernelEvent::Click("ud".into())]);
         s.set("ud", "position", v_int(100));
         let mut clip = MemClipboard::default();

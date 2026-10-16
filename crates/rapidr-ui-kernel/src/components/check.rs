@@ -213,7 +213,7 @@ mod tests {
         f.paint(&s, &mut ts, 1.0);
         f.mouse_down(&s, &mut ts, 15.0, 20.0, Button::Left, Mods::NONE);
         f.mouse_up(&s, &mut ts, 15.0, 20.0, Button::Left, Mods::NONE);
-        let ev: Vec<_> = f.take_events().into_iter().filter(|e| !matches!(e, KernelEvent::Mouse { .. })).collect();
+        let ev: Vec<_> = f.take_events().into_iter().filter(|e| !matches!(e, KernelEvent::Mouse { .. }) && !matches!(e, KernelEvent::Fire { event, .. } if event == "onenter" || event == "onexit")).collect();
         assert_eq!(ev, vec![set("ck", 1), KernelEvent::Click("ck".into())]);
         assert_eq!(f.focused(), Some("ck"));
         // (the store says Checked now: Space turns it off)

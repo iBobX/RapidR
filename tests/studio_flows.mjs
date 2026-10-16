@@ -2139,16 +2139,53 @@ const CASES = [
   },
   {
     // 6. a run-time error in a handler: it stops at the line (Continue
-    // enabled); Shift+F5 ends it; run again, the error again: F5 lets it end
-    // the program (exit code 1), Run enabled
+    // enabled); Shift+F5 ends it; run again, the error again: Continue
+    // (F5) does what the program does without the debugger — RapidQ's
+    // (RC.EXE, DEBUG-2): the handler ends there, the program runs on —, so
+    // the next click stops at the error again, three times; the error in
+    // Output each time; the program still running after the last
     name: "debug-events-error",
     open: EVENTS_FILE,
     copy: true,
     desktopOnly: true,
-    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("oopsbtn.__mousedown_10_10,oopsbtn.__mouseup_10_10", 1, 40) },
-    do: `key:F5,${"wait,".repeat(8)}cmds:report,key:Shift+F5,wait,wait,wait,cmds:report,key:F5,${"wait,".repeat(8)}cmds:report,key:F5,wait,wait,wait,wait,cmds:report,cmds:log`,
-    delay: 16,
-    dump: { "outputbox.text": cmdsSeq(cmdsLine("paused@95:exception", "paused"), cmdsLine("stopped", "idle"), cmdsLine("paused@95:exception", "paused"), cmdsLine("error", "idle")) },
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("oopsbtn.__mousedown_10_10,oopsbtn.__mouseup_10_10", 3, 40) },
+    do: `key:F5,${"wait,".repeat(8)}cmds:report,key:Shift+F5,wait,wait,wait,cmds:report,key:F5,${"wait,".repeat(8)}cmds:report,${`key:F5,${"wait,".repeat(8)}cmds:report,`.repeat(2)}key:F5,wait,wait,wait,cmds:report,cmds:log`,
+    delay: 30,
+    // (Output keeps its last lines: the stops and the errors of the second
+    // run, then the whole log of the states)
+    dump: {
+      "outputbox.text": cmdsSeq(
+        cmdsLine("paused@95:exception", "paused"),
+        "run-time error: Division by zero \\(at events\\.rr line 95\\)",
+        cmdsLine("paused@95:exception", "paused"),
+        "run-time error: Division by zero \\(at events\\.rr line 95\\)",
+        cmdsLine("paused@95:exception", "paused"),
+        "run-time error: Division by zero \\(at events\\.rr line 95\\)",
+        cmdsLine("running", "running"),
+        "\\[cmds-log\\]",
+        cmdsLine("paused@95:exception", "paused"),
+        cmdsLine("stopped", "idle"),
+        cmdsLine("paused@95:exception", "paused"),
+        cmdsLine("paused@95:exception", "paused"),
+        cmdsLine("paused@95:exception", "paused"),
+        cmdsLine("running", "running"),
+      ),
+    },
+  },
+  {
+    // (DEBUG-2) the focus (RapidR's OnEnter / OnExit, as Delphi's): Tab from
+    // the name to Greet stops in the name's OnExit (41), then, F5, in
+    // Greet's OnEnter (45) — three rounds, Shift+Tab back between them (its
+    // own OnExit / OnEnter have no breakpoint): each stops every time, in
+    // that order
+    name: "debug-events-focus-order",
+    open: "tests/fixtures/studio_debug/focus.rr",
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: Array.from({ length: 3 }, () => ["nameedit.__key_9", ...Array(4).fill("otherbutton.__mousemove_5_5"), "greetbutton.__key_9_256", ...Array(4).fill("otherbutton.__mousemove_5_5")].join(",")).join(",") },
+    do: `line:41,key:F9,line:45,key:F9,key:F5,${"wait,".repeat(8)}${"key:F5,wait,wait,wait,wait,".repeat(6)}stops:report`,
+    delay: 22,
+    dump: { "outputbox.text": /\[stops\] 41:breakpoint 45:breakpoint 41:breakpoint 45:breakpoint 41:breakpoint 45:breakpoint$/m },
   },
   {
     // 2. the close box (the form's OnClose, the close cancelled: Action = 0)
@@ -3902,14 +3939,104 @@ async function webNestedAndError() {
     await keysBack();
     const reason = await prop("session", "stopreason");
     record("debug-events-web-error (web)", e === "paused@95" && reason === "exception", `a run-time error in a handler stops at its line (${e}, ${reason})`);
-    // (Continue: the browser's runtime fails the handler alone and the
-    // program goes on — the desktop's ends it, exit code 1: a difference of
-    // the runtimes, not the debugger's, in the lane's report — either way
-    // Studio follows: running, ▶ off and ❙❙ on; or ended, ▶ on)
+    // (Continue: what the program does without the debugger — RapidQ's
+    // (RC.EXE, DEBUG-2): the handler ends there and the program runs on, as
+    // on the desktop: running, ▶ off and ❙❙ on; the next click stops at the
+    // error again, three times)
+    for (let k = 1; k <= 3; k++) {
+      await page.keyboard.press("F5");
+      const after = await until(status, (v) => v.startsWith("Running") || /exit code/.test(v), 5000);
+      const running = after.startsWith("Running") && (await button("Pause")) && !(await button("Run (F5)"));
+      record("debug-events-web-error (web)", running, `Continue ${k} after the error: the handler ends, the program runs on (${after})`);
+      if (k === 3) break;
+      const again = await frameBox(runFrame(page), "button", "Oops");
+      await page.mouse.click(again.x, again.y);
+      const e2 = await until(where, (v) => v === "paused@95");
+      await keysBack();
+      record("debug-events-web-error (web)", e2 === "paused@95", `click ${k + 1}: the error stops at its line again (${e2})`);
+    }
+    // (the program answers: a click on Click runs its handler, no stop)
+    const click = await frameBox(runFrame(page), "button", "Click");
+    await page.mouse.click(click.x, click.y);
+    await page.waitForTimeout(600);
+    const st = await prop("session", "state");
+    record("debug-events-web-error (web)", st === "running", `after the errors the program still answers its events (${st})`);
+    await page.screenshot({ path: join(WORK, "debug-events-web-error-continued.png") });
+    await page.keyboard.press("Shift+F5");
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+
+// (DEBUG-2) The focus on the web (RapidR's OnEnter / OnExit): focus.rr with
+// breakpoints in the name's OnExit (41) and Greet's OnEnter (45); in the
+// program's window, Tab from the name stops at 41, F5, then at 45, F5 — three
+// rounds, Shift+Tab back between them; then a click on Greet from the name
+// stops the same way, before its OnClick.
+async function webFocusOrder() {
+  const name = "debug-events-web-focus-order (web)";
+  const src = "tests/fixtures/studio_debug/focus.rr";
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const { prop, until, where, status, keysBack } = webDebug(page);
+  try {
+    await openStudioOn(page, src, [src], 41);
+    await page.keyboard.press("F9");
+    // (the caret to 45 as a person moves it: four lines down)
+    for (let i = 0; i < 4; i++) await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("F9");
+    record(name, (await prop("bptree", "text")).replace(/\r/g, "").trim() === "focus.rr:41\nfocus.rr:45", `breakpoints at 41 and 45 (${JSON.stringify(await prop("bptree", "text"))})`);
     await page.keyboard.press("F5");
-    const after = await until(status, (v) => v.startsWith("Running") || /exit code 1/.test(v), 5000);
-    const consistent = after.startsWith("Running") ? (await button("Pause")) && !(await button("Run (F5)")) : await button("Run (F5)");
-    record("debug-events-web-error (web)", consistent, `Continue after the error: Studio follows the program (${after})`);
+    await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+    await page.waitForTimeout(700);
+    const frame = runFrame(page);
+    const stops = [];
+    const going = async () => {
+      await page.keyboard.press("F5");
+      await until(status, (v) => v.startsWith("Running"), 3000);
+    };
+    for (let k = 1; k <= 3; k++) {
+      // (the name has the focus: a click in it first, then Tab)
+      const ed = await frameBox(frame, "input");
+      await page.mouse.click(ed.x, ed.y);
+      await page.waitForTimeout(200);
+      await page.keyboard.press("Tab");
+      const a = await until(where, (v) => v.startsWith("paused"));
+      await keysBack();
+      if (k === 1) await page.screenshot({ path: join(WORK, "debug-events-web-focus-onexit.png") });
+      await going();
+      const b = await until(where, (v) => v.startsWith("paused"));
+      await keysBack();
+      await going();
+      stops.push(`${a} ${b}`);
+      record(name, a === "paused@41" && b === "paused@45", `Tab ${k}: OnExit (41) then OnEnter (45) (${a}, ${b})`);
+    }
+    // (a click on Greet from the name: the same two stops, then its OnClick)
+    const ed = await frameBox(frame, "input");
+    await page.mouse.click(ed.x, ed.y);
+    await page.waitForTimeout(300);
+    const greet = await frameBox(frame, "button", "Greet");
+    await page.mouse.click(greet.x, greet.y);
+    const a = await until(where, (v) => v.startsWith("paused"));
+    await keysBack();
+    await going();
+    const b = await until(where, (v) => v.startsWith("paused"));
+    await keysBack();
+    await going();
+    record(name, a === "paused@41" && b === "paused@45", `a click on Greet: OnExit (41) then OnEnter (45) (${a}, ${b})`);
+    // (the button let go while the program was stopped: dropped, as all its
+    // input then — Delphi's too: no OnClick. Clicked again, focused already:
+    // no OnExit / OnEnter, its OnClick runs)
+    await page.waitForTimeout(400);
+    await page.mouse.click(greet.x, greet.y);
+    await page.waitForTimeout(600);
+    record(name, (await where()).startsWith("running"), `Greet clicked again: no stop (${await where()})`);
+    // (the program's own label, read in its frame)
+    const steps = await frame.evaluate(() => String(window.__rapidr_rt.rapidr_get_prop("steps", "caption")));
+    record(name, / -name \+greet click$/.test(steps), `then its OnClick ran: the trail ends "-name +greet click" (${JSON.stringify(steps)})`);
+    await page.keyboard.press("Shift+F5");
   } catch (e) {
     record(name, false, e.message.split("\n")[0]);
   } finally {
@@ -3951,6 +4078,9 @@ if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "debug-even
   await webTypingWhilePaused();
   await webDialogStep();
   await webNestedAndError();
+}
+if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "debug-events-web-focus-order".includes(f) || f === "debug-events"))) {
+  await webFocusOrder();
 }
 // (THEME-LIVE) The browser switches the page's colour scheme (playwright's
 // emulateMedia) on a live page — no test script: the page's own media

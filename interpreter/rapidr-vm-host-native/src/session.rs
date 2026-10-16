@@ -84,6 +84,8 @@ pub fn run_session(bytes: &[u8], program: &str) -> Result<i32, String> {
             let input = input.clone();
             move || input.pop()
         })),
+        // (a handler's run-time error, the program going on: the IDE's Output)
+        errors: Some(Box::new(|text: &str| send(&Event::new(EventBody::Output { stream: "stderr".into(), text: text.to_string() })))),
         on_form: Some(Box::new(|id: &str, shown: bool| {
             let body = if shown { EventBody::FormShown { id: id.to_string(), caption: None } } else { EventBody::FormClosed { id: id.to_string() } };
             send(&Event::new(body));

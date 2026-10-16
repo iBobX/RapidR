@@ -208,7 +208,7 @@ mod tests {
         // rb2 clicked: it's checked, rb1 (same parent) comes off, rb3 (another) stays.
         f.mouse_down(&s, &mut ts, 5.0, 40.0, Button::Left, Mods::NONE);
         f.mouse_up(&s, &mut ts, 5.0, 40.0, Button::Left, Mods::NONE);
-        let ev: Vec<_> = f.take_events().into_iter().filter(|e| !matches!(e, KernelEvent::Mouse { .. })).collect();
+        let ev: Vec<_> = f.take_events().into_iter().filter(|e| !matches!(e, KernelEvent::Mouse { .. }) && !matches!(e, KernelEvent::Fire { event, .. } if event == "onenter" || event == "onexit")).collect();
         assert_eq!(ev, vec![set("rb2", 1), set("rb1", 0), KernelEvent::Click("rb2".into())]);
         let list = f.paint(&s, &mut ts, 2.0).dump();
         assert!(list.contains("polygon"), "{list}");

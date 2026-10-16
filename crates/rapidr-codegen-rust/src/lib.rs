@@ -1114,7 +1114,7 @@ impl RustCodegen {
                     }
                 }
                 self.write_indent();
-                let _ = writeln!(self.output, "rp_comp_set(\"{comp_name}\", \"{prop}\", {value});");
+                let _ = writeln!(self.output, "rp_prop_set(\"{comp_name}\", \"{prop}\", {value});");
                 return;
             }
             // Nested member: comp.Sub.Prop = value → rp_comp_set(comp, "sub.prop", value)
@@ -1124,7 +1124,7 @@ impl RustCodegen {
                     let prop = ma.member.to_lowercase();
                     let value = self.owned_expr(&a.value);
                     self.write_indent();
-                    let _ = writeln!(self.output, "rp_comp_set(\"{comp_name}\", \"{sub}.{prop}\", {value});");
+                    let _ = writeln!(self.output, "rp_prop_set(\"{comp_name}\", \"{sub}.{prop}\", {value});");
                     return;
                 }
             }
@@ -1140,7 +1140,7 @@ impl RustCodegen {
                             return;
                         }
                         self.write_indent();
-                        let _ = writeln!(self.output, "rp_comp_set(\"{with_comp}\", \"{prop}\", {value});");
+                        let _ = writeln!(self.output, "rp_prop_set(\"{with_comp}\", \"{prop}\", {value});");
                         return;
                     }
                 }
@@ -1175,7 +1175,7 @@ impl RustCodegen {
                         let receiver = self.receiver(&ma.object);
                         let value = self.owned_expr(&a.value);
                         self.write_indent();
-                        let _ = writeln!(self.output, "rp_comp_set({receiver}, \"{prop}\", {value});");
+                        let _ = writeln!(self.output, "rp_prop_set({receiver}, \"{prop}\", {value});");
                         return;
                     }
                 }
@@ -1192,7 +1192,7 @@ impl RustCodegen {
                     self.write_indent();
                     let _ = writeln!(
                         self.output,
-                        "rp_comp_set({receiver}, \"{}.{}\", {value});",
+                        "rp_prop_set({receiver}, \"{}.{}\", {value});",
                         inner.member.to_lowercase(),
                         ma.member.to_lowercase()
                     );
@@ -1235,7 +1235,7 @@ impl RustCodegen {
                     }
                 }
                 self.write_indent();
-                let _ = writeln!(self.output, "rp_comp_set(\"{obj}\", \"{prop}\", {value});");
+                let _ = writeln!(self.output, "rp_prop_set(\"{obj}\", \"{prop}\", {value});");
                 return;
             }
             // Inside CREATE: MemberAccess target like Font.Size = value → sub-property
@@ -1246,7 +1246,7 @@ impl RustCodegen {
                     let prop = ma.member.to_lowercase();
                     let value = self.owned_expr(&a.value);
                     self.write_indent();
-                    let _ = writeln!(self.output, "rp_comp_set(\"{obj}\", \"{sub}.{prop}\", {value});");
+                    let _ = writeln!(self.output, "rp_prop_set(\"{obj}\", \"{sub}.{prop}\", {value});");
                     return;
                 }
             }
@@ -1851,7 +1851,7 @@ impl RustCodegen {
                 );
             }
         }
-        self.line("p => { eprintln!(\"run-time error: CALLFUNC: {p} is not a function pointer (use BIND or CODEPTR)\"); std::process::exit(1) }");
+        self.line("p => rapidr_runtime_core::value::runtime_error(&format!(\"CALLFUNC: {p} is not a function pointer (use BIND or CODEPTR)\")),");
         self.indent -= 1;
         self.line("}");
         self.indent -= 1;
@@ -2992,7 +2992,7 @@ pub(crate) fn plain_local_names(params: &[Parameter], body: &[Statement]) -> Has
 /// program never reaches): a run-time error, the VM's message.
 fn unknown_routine(name: &str) -> String {
     let name = name.replace('\\', "").replace('"', "");
-    format!("{{ eprintln!(\"run-time error: Unknown builtin function '{name}'\"); std::process::exit(1) }}")
+    format!("rapidr_runtime_core::value::runtime_error(\"Unknown builtin function '{name}'\")")
 }
 
 /// Variables `stmts` assign to by name (`RGB$ = …`, `FOR i`, `INPUT s$`),
@@ -3191,7 +3191,7 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
             Some(format!("{{ ({a0}).rp_set(&[{}], ({value}).clone()); v_null() }}", index_list(idx)))
         }
         "__objget" => Some(format!("rp_comp_read(&({a0}).to_string_val(), &({a1}).to_string_val())")),
-        "__objset" => Some(format!("{{ rp_comp_set(&({a0}).to_string_val(), &({a1}).to_string_val(), ({a2}).clone()); v_null() }}")),
+        "__objset" => Some(format!("{{ rp_prop_set(&({a0}).to_string_val(), &({a1}).to_string_val(), ({a2}).clone()); v_null() }}")),
         "__objcreate" => Some(format!("{{ rp_create_component(&({a0}).to_string_val(), &({a1}).to_string_val()); v_null() }}")),
         "__objcall" => Some(format!(
             "rp_comp_call(&({a0}).to_string_val(), &({a1}).to_string_val(), &[{}])",

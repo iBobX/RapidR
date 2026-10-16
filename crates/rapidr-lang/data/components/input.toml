@@ -74,6 +74,8 @@ events = [
   { name = "OnEndDrag" },
   { name = "OnStartDrag" },
   { name = "WndProc" },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]
@@ -142,6 +144,8 @@ events = [
   { name = "WndProc", params = "Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER" },
   { name = "OnClick", origin = "rapidr" },
   { name = "OnDblClick", origin = "rapidr" },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]
@@ -185,6 +189,8 @@ methods = [
 events = [
   { name = "OnClick" },
   { name = "WndProc" },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]
@@ -227,6 +233,8 @@ methods = [
 events = [
   { name = "OnClick" },
   { name = "WndProc" },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]
@@ -313,6 +321,8 @@ events = [
   { name = "OnClick", origin = "rapidr" },
   { name = "OnDblClick", origin = "rapidr" },
   { name = "WndProc" },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]
@@ -425,6 +435,8 @@ events = [
   { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "OnClick", origin = "rapidr" },
   { name = "OnDblClick", origin = "rapidr" },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]
@@ -481,6 +493,8 @@ events = [
   { name = "OnKeyDown" },
   { name = "OnKeyUp" },
   { name = "OnKeyPress" },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]
@@ -526,6 +540,8 @@ events = [
   { name = "OnKeyPress", params = "Key AS BYTE" },
   { name = "OnKeyUp", params = "Key AS WORD, Shift AS INTEGER" },
   { name = "OnScroll", params = "ScrollCode AS BYTE, ScrollPos AS LONG" },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]
@@ -558,6 +574,8 @@ methods = [
 events = [
   { name = "OnClick" },
   { name = "OnChange" },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]
@@ -641,6 +659,8 @@ methods = [
 events = [
   { name = "OnChange" },
   { name = "OnClick", origin = "rapidr" },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]
@@ -807,6 +827,8 @@ events = [
   { name = "OnNavigate", params = "File AS STRING, Line AS INTEGER, Column AS INTEGER", doc = "Go to definition found it in another file: open it there." },
   { name = "OnReferences", params = "Json AS STRING", doc = "Find references' places: a JSON list of {\"file\", \"line\", \"column\"}." },
   { name = "OnFileEdits", params = "File AS STRING, Json AS STRING", doc = "A rename's edits to another file (ApplyEdits' JSON with \"start\" / \"end\" byte offsets)." },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 
@@ -859,6 +881,8 @@ events = [
   { name = "OnKeyDown" },
   { name = "OnKeyUp" },
   { name = "OnKeyPress" },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]

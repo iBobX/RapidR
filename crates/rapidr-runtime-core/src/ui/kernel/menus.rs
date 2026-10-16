@@ -19,7 +19,7 @@ use rapidr_ui_app::waits::{self, Wait};
 use rapidr_ui_app::windows::{invalidate, push_op};
 use rapidr_ui_app::WindowOp;
 
-use super::{dispatch_pending, pump, step, with_kern, Kern, RtStore};
+use super::{dispatch_pending, pump, with_kern, Kern, RtStore};
 
 /// Pop-up menu `name` open at (x, y) of `form`'s window's inside
 /// (`program`: the program's Popup, not an AutoPopup).
@@ -76,7 +76,7 @@ pub(super) fn open_at(form: &str, name: &str, x: i64, y: i64, program: bool) {
         if !popup_open(form) || !form_shown(form) {
             break;
         }
-        step(None);
+        super::wait_turn();
     }
 }
 

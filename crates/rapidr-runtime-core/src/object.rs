@@ -247,6 +247,16 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     crate::links::apply();
 }
 
+/// A property the program sets (an assignment in its code: the VM's, a
+/// native build's): the events RapidQ fires for it fire inside the set — an
+/// edit's OnChange, a check box's OnClick … (`rapidr_value::events::
+/// program_set`, RC.EXE's table in docs/manual/events.md). What the runtime
+/// sets itself (the user's input, a model) goes through [`rp_comp_set`].
+pub fn rp_prop_set(name: &str, prop: &str, val: Value) {
+    let t = rp_comp_type(name);
+    rapidr_value::events::program_set(&t, prop, |p| rp_comp_get(name, p), || rp_comp_set(name, prop, val), || shown_once(name), |e| rp_fire_event(name, e));
+}
+
 fn comp_set(name: &str, prop: &str, val: Value) {
     // (`Label.Font.AddStyles = fsBold`: RapidQ takes the method so too)
     if let Some(changes) = rapidr_value::objects::font::component_style_call(&prop.to_ascii_lowercase(), std::slice::from_ref(&val)) {
@@ -1873,6 +1883,15 @@ pub fn rp_set_cooperative_waits(on: bool) {
 }
 
 /// Whether the last operation started a wait (asked once per operation).
+/// Whether the wait just started goes on after a run-time error in a
+/// handler it runs (a ShowModal: `rapidr_ui_app::waits::innermost_catches`).
+pub fn rp_wait_catches_errors() -> bool {
+    #[cfg(feature = "gui")]
+    return rapidr_ui_app::waits::innermost_catches();
+    #[cfg(not(feature = "gui"))]
+    false
+}
+
 pub fn rp_take_wait_started() -> bool {
     #[cfg(feature = "gui")]
     return crate::ui::gui_take_wait_started();
