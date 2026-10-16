@@ -28,6 +28,22 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   new read-only `RDesignSurface.Pins`: "Left on, Top on, Right off, Bottom off").
 
 ### Added
+- **Approved images of RapidR Studio itself** (`tests/visual/studio/`, 75 PNGs, 12 MB):
+  `tools/visual/gallery.py studio check` captures 21 scenes — Welcome, the designer
+  with a control selected (anchor pins, live data on `dataframe.rr`) and after a
+  drag, the editor's completion / hover / squiggle with Problems, the debugger paused
+  on `shop.rr` (Variables, Call Stack, Watch with a changed value, Breakpoints, an
+  expanded data tip, a run-time error), the AI panel and Settings > AI (mock
+  provider, made-up key), Markdown, the rich-text example, a RapidQ import, the save
+  prompt, Project Options, Find in Files, the command palette — in RapidR light, dark
+  and high contrast (four also at 2×) and compares them with the approved images to
+  the pixel. Any visual change to Studio now fails until a person has looked at it
+  and approved it (`studio approve <scene>`); a failure names a side-by-side, an
+  enlarged crop of the change and a diff image. `tools/regress.sh studio-goldens`
+  (also part of the `studio` stage); tests/visual/README.md explains the scenes, what
+  is held still (fonts, size, paths, settings, the mock provider's port) and how to add
+  one. The check gives the same pictures from another folder, another locale and time
+  zone, and twelve runs at once.
 - **A contrast check on what is drawn** (`rapidr_ui_kernel::contrast`): each text
   run of a window's display list against the fill under it; the test hooks write
   the runs below AA (`RAPIDR_TEST_CONTRAST`, the web page's test results).

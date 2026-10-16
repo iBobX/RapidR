@@ -17,7 +17,7 @@
 #   tools/regress.sh                  every stage, then the build caches go
 #   tools/regress.sh gui web          only these stages (unit, conformance,
 #                                     examples, gui, visual, web, studio,
-#                                     security, perf, legal),
+#                                     studio-goldens, security, perf, legal),
 #                                     caches kept
 #   tools/regress.sh --clean          (with stages) remove the caches after
 cd "$(dirname "$0")/.."
@@ -94,6 +94,18 @@ if want web; then
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "ASSERT|Error|✗"; }
   done
 fi
+# RapidR Studio's own goldens (tests/visual/README.md "RapidR Studio's own
+# goldens"): the Welcome page, the designer, the editor, the debugger paused,
+# the AI panel and the dialogs, captured in RapidR light, dark and high
+# contrast and compared, pixel for pixel, with the approved images in
+# tests/visual/studio/. Any visual change to Studio fails here until a person
+# looks at it and approves it (tools/visual/gallery.py studio approve <scene>);
+# a failing scene names its side-by-side, its enlarged change and its diff.
+# Part of the `studio` stage; `studio-goldens` runs it alone (it needs only
+# ./rapidr, not the web build).
+if want studio || want studio-goldens; then echo "== studio goldens"
+  out=$(python3 tools/visual/gallery.py studio check 2>&1) || echo "tools/visual/gallery.py studio check: FAILED"
+  echo "$out" | grep -E "✗|side by side|enlarged|diff:|^  !|studio goldens:|sheet:|Traceback|Error|not found|didn't start"; fi
 # RapidR Studio (docs/studio-wow.md): the shell (every scene and theme, the
 # desktop's capture and accessibility tree byte for byte against the web's,
 # at 1x and 2x), its flows driven through its own commands on the desktop's
