@@ -280,7 +280,7 @@ properties = [
 methods = [
   { name = "AddItems", params = "Items ...", value = true },
   { name = "Circle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER", doc = "Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows." },
-  { name = "Clear", value = true },
+  { name = "Clear", value = true, doc = "Removes every item, and the text too — the chosen item's or what was typed (ItemIndex -1, Text \"\"), as RapidQ does." },
   { name = "CopyRect", params = "D, Image, S" },
   { name = "DelItems", params = "Items ..." },
   { name = "Draw", params = "x AS INTEGER, y AS INTEGER, BMP" },

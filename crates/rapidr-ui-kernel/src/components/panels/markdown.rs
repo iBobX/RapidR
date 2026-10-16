@@ -25,7 +25,7 @@ use std::rc::Rc;
 use parley::{Affinity, Alignment, AlignmentOptions, Cursor, FontStyle, FontWeight, Layout, LineHeight, Selection, StyleProperty};
 use rapidr_value::objects::a11y::{part_id, AccessNode, Action, Role, PART_CELL, PART_ITEM, PART_ROW};
 use rapidr_value::objects::font::Font;
-use rapidr_value::objects::ops::{Op, Place, Rect};
+use rapidr_value::objects::ops::{Op, Rect};
 use rapidr_value::panels::markdown::{self as model, Doc, Kind, Para, Style};
 use rapidr_value::panels::rows::vk;
 use rapidr_value::panels::User;
@@ -581,7 +581,8 @@ impl ComponentKind for MarkdownView {
             let empty = model::with(cx.id, |md| md.empty_text.clone()).unwrap_or_default();
             if !empty.is_empty() {
                 let f = faces(cx, theme);
-                p.text((bx + 12, by + 12, (bw - 24).max(0), (bh - 24).max(0)), &empty, &f.body, l.dim, Place::Center);
+                // (wrapped to the view's width: a narrow pane shows all of it)
+                common::wrapped_lines(p, (bx + 12, by + 12, (bw - 24).max(0), (bh - 24).max(0)), &empty, &f.body, l.dim, true);
             }
         }
         let sel = model::with(cx.id, |md| md.selection).flatten().map(|(a, b)| if a <= b { (a, b) } else { (b, a) }).filter(|(a, b)| a != b);

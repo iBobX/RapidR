@@ -43,6 +43,10 @@ struct Dropped {
     /// the cell it drops from (absolute); `None`: the combo's own.
     items: Option<Vec<String>>,
     anchor: Option<Rect>,
+    /// (RapidR Studio's panels: the inspector's lists) As wide as its
+    /// longest item, kept inside the window — a RapidQ combo's or grid's
+    /// list stays its box's width.
+    fit: bool,
 }
 
 thread_local! {
@@ -65,7 +69,7 @@ pub fn is_dropped(id: &str) -> bool {
 
 fn open(form: &str, id: &str) {
     let top = with_list(id, |l| usize::try_from(l.item_index).unwrap_or(0).saturating_sub(DROP_ROWS - 1)).unwrap_or(0);
-    DROPPED.with(|d| *d.borrow_mut() = Some(Dropped { form: form.to_lowercase(), id: id.to_lowercase(), hot: None, top, items: None, anchor: None }));
+    DROPPED.with(|d| *d.borrow_mut() = Some(Dropped { form: form.to_lowercase(), id: id.to_lowercase(), hot: None, top, items: None, anchor: None, fit: false }));
 }
 
 /// Component `id`'s dropped list of another kind's (a grid's gcsList
@@ -80,10 +84,21 @@ pub fn dropped_list(id: &str) -> Option<(Vec<String>, Option<usize>, Rect)> {
 /// client area) for component `id`: a pick is `ListAction::GridStore` (a
 /// grid's gcsList column, once OnListDropDown answered its items).
 pub fn open_list(form: &str, id: &str, items: Vec<String>, anchor: Rect) {
+    open_items(form, id, items, anchor, false);
+}
+
+/// [`open_list`] for a panel (the inspector's Model or Cursor row): the
+/// list is as wide as its longest item, inside the window — a model's long
+/// name isn't cut at the window's edge.
+pub fn open_list_fitted(form: &str, id: &str, items: Vec<String>, anchor: Rect) {
+    open_items(form, id, items, anchor, true);
+}
+
+fn open_items(form: &str, id: &str, items: Vec<String>, anchor: Rect, fit: bool) {
     if items.is_empty() {
         return;
     }
-    DROPPED.with(|d| *d.borrow_mut() = Some(Dropped { form: form.to_lowercase(), id: id.to_lowercase(), hot: None, top: 0, items: Some(items), anchor: Some(anchor) }));
+    DROPPED.with(|d| *d.borrow_mut() = Some(Dropped { form: form.to_lowercase(), id: id.to_lowercase(), hot: None, top: 0, items: Some(items), anchor: Some(anchor), fit }));
 }
 
 /// (I1 / L-PANELS) Lights row `i` of component `id`'s dropped list of
@@ -150,11 +165,21 @@ fn row_heights(id: &str, line: i64) -> Vec<i64> {
 type Rows = Vec<(usize, i64, i64)>;
 
 fn layout(f: &FormUi, d: &Dropped, store: &dyn Store) -> Option<(Rect, Rows)> {
-    let (x, y, w, h) = match d.anchor {
+    let (mut x, y, mut w, h) = match d.anchor {
         Some(a) => a,
         None => f.node(&d.id)?.abs,
     };
     let font = store.font(&d.id);
+    if let (true, Some(items)) = (d.fit, &d.items) {
+        // (its longest item and a margin each side — the scroll bar's
+        // room too when it scrolls — at most the window's width, moved
+        // left to stay inside it)
+        let bar = if items.len() > DROP_ROWS { rapidr_value::scrollbars::BAR } else { 0 };
+        let need = items.iter().map(|t| rapidr_value::objects::text::text_size(t, &font).0).max().unwrap_or(0) + 12 + bar;
+        let cw = f.client.0;
+        w = w.max(need).min(cw.max(1));
+        x = x.min(cw - w).max(0);
+    }
     // (under the box, as tall as its font makes it)
     let h = if d.anchor.is_some() { h } else { h.min(line_height(&font) + 8) };
     let heights = match &d.items {

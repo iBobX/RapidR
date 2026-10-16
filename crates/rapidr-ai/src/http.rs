@@ -173,6 +173,12 @@ mod native {
         }
     }
 
+    /// Whether the transport gave up waiting (to connect, or for the answer).
+    fn timed_out(t: &ureq::Transport) -> bool {
+        let io = std::error::Error::source(t).and_then(|e| e.downcast_ref::<std::io::Error>()).is_some_and(|e| matches!(e.kind(), std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock));
+        io || t.message().is_some_and(|m| m.contains("timed out"))
+    }
+
     trait SourceText {
         fn source_error_text(&self) -> Option<String>;
     }
@@ -235,7 +241,14 @@ mod native {
                     return;
                 }
                 Err(ureq::Error::Transport(t)) => {
-                    on(Incoming::Done(Err(words(&t))));
+                    let what = if !timed_out(&t) {
+                        words(&t)
+                    } else if t.kind() == ureq::ErrorKind::ConnectionFailed {
+                        format!("no connection in {} seconds", opts.connect_timeout)
+                    } else {
+                        format!("no answer came in {} seconds", opts.read_timeout)
+                    };
+                    on(Incoming::Done(Err(what)));
                     return;
                 }
             }
@@ -285,6 +298,30 @@ mod web {
         let _ = JsFuture::from(p).await;
     }
 
+    /// `p`'s value, or `Err(())` when `seconds` went by first (a browser's
+    /// fetch has no timeout of its own: a server that never answers would
+    /// keep the request — and the button that waits for it — forever).
+    async fn within(p: js_sys::Promise, seconds: u64) -> Result<Result<JsValue, JsValue>, ()> {
+        let marker = js_sys::Object::new();
+        let m = marker.clone();
+        let mut handle = None;
+        let timer = js_sys::Promise::new(&mut |resolve, _| {
+            if let Some(w) = web_sys::window() {
+                handle = w.set_timeout_with_callback_and_timeout_and_arguments_1(&resolve, (seconds * 1000) as i32, &m).ok();
+            }
+        });
+        let race = js_sys::Promise::race(&js_sys::Array::of2(&p, &timer));
+        let r = JsFuture::from(race).await;
+        // (the timer of a race won goes: a stream's many pieces leave none behind)
+        if let (Some(h), Some(w)) = (handle, web_sys::window()) {
+            w.clear_timeout_with_handle(h);
+        }
+        match r {
+            Ok(v) if v == JsValue::from(marker) => Err(()),
+            r => Ok(r),
+        }
+    }
+
     pub fn start(id: u64, req: HttpRequest, opts: Options) -> Result<(), String> {
         let ctrl = AbortController::new().map_err(|e| js_words(&e))?;
         CONTROLLERS.with(|c| c.borrow_mut().insert(id, ctrl.clone()));
@@ -316,13 +353,19 @@ mod web {
                 init.set_body(&JsValue::from_str(b));
             }
             init.set_signal(Some(&ctrl.signal()));
-            let resp = JsFuture::from(window.fetch_with_str_and_init(&req.url, &init)).await.map_err(|e| js_words(&e))?;
+            let resp = match within(window.fetch_with_str_and_init(&req.url, &init), opts.connect_timeout + opts.read_timeout).await {
+                Ok(r) => r.map_err(|e| js_words(&e))?,
+                Err(()) => {
+                    ctrl.abort();
+                    return Err(format!("no answer came in {} seconds", opts.connect_timeout + opts.read_timeout));
+                }
+            };
             let resp: Response = resp.dyn_into().map_err(|_| "not an answer".to_string())?;
             let status = resp.status();
             let retry_after = resp.headers().get("retry-after").ok().flatten().and_then(|v| v.trim().parse::<u64>().ok());
             if status >= 400 {
                 let text = match resp.text() {
-                    Ok(p) => JsFuture::from(p).await.ok().and_then(|t| t.as_string()).unwrap_or_default(),
+                    Ok(p) => within(p, opts.read_timeout).await.ok().and_then(Result::ok).and_then(|t| t.as_string()).unwrap_or_default(),
                     Err(_) => String::new(),
                 };
                 if attempt <= opts.retries && passing(status, &text) && !cancelled(id) {
@@ -340,7 +383,13 @@ mod web {
             let Some(body) = resp.body() else { return Ok(()) };
             let reader: web_sys::ReadableStreamDefaultReader = body.get_reader().unchecked_into();
             loop {
-                let chunk = JsFuture::from(reader.read()).await.map_err(|e| js_words(&e))?;
+                let chunk = match within(reader.read(), opts.read_timeout).await {
+                    Ok(r) => r.map_err(|e| js_words(&e))?,
+                    Err(()) => {
+                        ctrl.abort();
+                        return Err(format!("the answer stopped coming for {} seconds", opts.read_timeout));
+                    }
+                };
                 if js_sys::Reflect::get(&chunk, &"done".into()).ok().and_then(|d| d.as_bool()).unwrap_or(true) {
                     return Ok(());
                 }

@@ -66,6 +66,14 @@ const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 // (`wait(c, n)`: n clicks on a component that does nothing with them — the
 // hooks fire an event every 50 ms, so the program's timers run meanwhile)
 const wait = (comp, n) => Array(n).fill(`${comp}.onclick`).join(",");
+// (text typed key by key into `comp`, a US keyboard's keys: a fake API key,
+// a workspace ID — the keyboard's path through the kernel, as a user types)
+const typeKeys = (comp, text) => [...text].map((c) => {
+  if (/[a-z]/.test(c)) return c.toUpperCase().charCodeAt(0);
+  if (/[A-Z]/.test(c)) return `${c.charCodeAt(0)}_256`;
+  if (/[0-9 ]/.test(c)) return c.charCodeAt(0);
+  return { "-": "189", ".": "190", "_": "189_256" }[c];
+}).map((k) => `${comp}.__key_${k}`).join(",");
 export const cases = [
   // basics/
   { file: "basics/hello.rr", runtimes: ["run", "interp", "native", "web"],
@@ -197,6 +205,23 @@ export const cases = [
     events: `listbtn.onclick,${wait("info", 4)},modelbox.__item_0,askbtn.onclick,${wait("info", 6)}`, dump: "modelbox.itemcount,modelbox.text,ai.model,answer.text,info.caption",
     expect: ["modelbox.itemcount=2", "modelbox.text=mock-small  (fast · low cost)", "ai.model=mock-small",
       "answer.text=Hello, friend, nice meeting you.", "info.caption=1,000 tokens sent, 20 received"] },
+  // (AI-REAL: Anthropic played by the mock — RAPIDR_AI_TEST_SERVER — with
+  // an organisation's key: refused without a workspace, the Workspace ID
+  // row filled in, the list and the answer then)
+  { file: "ai/rai_models.rr", runtimes: ["run", "interp", "native", "web"],
+    events: `providerbox.__item_0,${typeKeys("keyedit", "mock-org-key-1")},listbtn.onclick,${wait("info", 6)},${typeKeys("wsedit", "wrk_ex_01")},listbtn.onclick,${wait("info", 6)},modelbox.__item_0,askbtn.onclick,${wait("info", 8)}`,
+    dump: "wsedit.__shown,wsedit.text,modelbox.itemcount,ai.model,answer.text,listbtn.enabled",
+    expect: ["wsedit.__shown=1", "wsedit.text=wrk_ex_01", "modelbox.itemcount=3", "ai.model=claude-mock-haiku-1", "answer.text=Hello, friend, nice meeting you.", "listbtn.enabled=1"] },
+  // (... a key OpenAI refuses: said, List Models usable again at once ...)
+  { file: "ai/rai_models.rr", runtimes: ["run", "web"],
+    events: `providerbox.__item_1,${typeKeys("keyedit", "mock-bad-key-1")},listbtn.onclick,${wait("info", 6)}`,
+    dump: "info.caption,listbtn.enabled",
+    expect: ["info.caption=OpenAI refused the API key (401)", "listbtn.enabled=1"] },
+  // (... and the key typed again: the list comes; no Workspace ID row for OpenAI)
+  { file: "ai/rai_models.rr", runtimes: ["run", "web"],
+    events: `providerbox.__item_1,${typeKeys("keyedit", "mock-bad-key-1")},listbtn.onclick,${wait("info", 6)},keyedit.__key_65_16,${typeKeys("keyedit", "mock-good-key-1")},listbtn.onclick,${wait("info", 6)}`,
+    dump: "modelbox.itemcount,listbtn.enabled,wsedit.__shown",
+    expect: ["modelbox.itemcount=3", "listbtn.enabled=1", "wsedit.__shown=0"] },
   { file: "ai/ask.rr", runtimes: ["run", "interp", "native", "web"], args: ["{aimock}"],
     expect: ["2 models; asking mock-small (fast · low cost):", "Hello, friend, nice meeting you.", "1,000 tokens sent, 20 received"] },
   // iot/: a scripted ESP32 (RAPIDR_TEST_COMPORT's `esp32`: DTR / RTS reset it, it prints a boot log)
@@ -268,6 +293,8 @@ const env = (extra = {}) => ({
   RAPIDR_TEST_WAVE_IN: "tone:440",
   // (no AI provider's key from the machine, none kept in its keychain)
   RAPIDR_AI_KEYSTORE: "memory",
+  // (the cloud providers played by the mock: a loopback address only)
+  RAPIDR_AI_TEST_SERVER: AI_MOCK.replace(/\/v1$/, ""),
   OPENAI_API_KEY: "",
   ANTHROPIC_API_KEY: "",
   DEEPSEEK_API_KEY: "",
@@ -371,7 +398,7 @@ async function runWeb(c) {
     const dir = join(EXAMPLES, dirname(c.file));
     const assets = Object.fromEntries(readdirSync(dir).filter((f) => statSync(join(dir, f)).isFile() && ![".rr", ".bas", ".md"].includes(extname(f).toLowerCase()))
       .map((f) => [f, "data:application/octet-stream;base64," + readFileSync(join(dir, f)).toString("base64")]));
-    const env = { ...hooks(c, "web"), ...(isGui(c) ? { RAPIDR_CAPTURE: "web" } : {}), ...(c.env || {}) };
+    const env = { ...hooks(c, "web"), ...(isGui(c) ? { RAPIDR_CAPTURE: "web" } : {}), RAPIDR_AI_TEST_SERVER: AI_MOCK.replace(/\/v1$/, ""), ...(c.env || {}) };
     await page.evaluate(({ source, assets, env, gui, main, files }) => {
       window.__rapidr_assets = assets;
       window.RAPIDR_TEST_MIDI = ""; window.RAPIDR_TEST_WAVE_IN = "tone:440";
