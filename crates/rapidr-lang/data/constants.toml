@@ -82,12 +82,12 @@ name = "PLAYWAV options"
 source = "RAPIDQ.INC"
 doc = "Options for `PLAYWAV`, added together: wait for the sound to end (SND_SYNC) or play it in the background (SND_ASYNC), repeat it, play it from memory, no default sound when the file is missing, don't stop a sound that is playing."
 constants = [
-  ["SND_SYNC", 0],
   ["SND_ASYNC", 1],
-  ["SND_NODEFAULT", 2],
-  ["SND_MEMORY", 4],
   ["SND_LOOP", 8],
+  ["SND_MEMORY", 4],
+  ["SND_NODEFAULT", 2],
   ["SND_NOSTOP", 16],
+  ["SND_SYNC", 0],
 ]
 
 [[group]]
