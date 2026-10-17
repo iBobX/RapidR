@@ -67,6 +67,8 @@ const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 //            examples where RapidR is installed): what it writes fails, and
 //            it must say so (the built executable is made elsewhere)
 //   without: files of the example's folder left out (its data missing)
+//   reload:  (web) { events, dump }: the page opened again — the browser's
+//            storage kept — and the program run again; `expect` is of that run
 //   extra:   files of other examples' folders (`media/tune.mid`) copied beside it
 //   sameFile: a file the program writes must be byte for byte the one shipped
 //            beside it (make_song.rr's song.mid)
@@ -278,6 +280,28 @@ export const cases = [
   // (a click on the sky sends a rocket there)
   { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: `sky.__mousedown_400_200,sky.__mouseup_400_200,${wait("info", 30)}`,
     dump: "info.caption", expect: ["info.caption=Bursts: 1 "] },
+  // notes.rr: the first note read and shown (92 words, 21 lines, one link); a letter typed (the
+  // preview follows, the note is "changed"); New asks first: No throws the note away, Cancel keeps it;
+  // Save as then New then Open brings the saved note back; Ctrl+B with nothing selected puts the
+  // two marks in and the caret between them
+  { file: "showcase/notes.rr", runtimes: ["run", "interp", "native", "web"], events: `${wait("info", 8)}`,
+    dump: "status.simpletext,form.caption,preview.linkcount,preview.plaintext",
+    expect: ["status.simpletext=Untitled  (saved)   92 words, 21 lines.", "form.caption=Notes - Untitled", "preview.linkcount=1", "Write Markdown on the left. It shows on the right, as you type."] },
+  { file: "showcase/notes.rr", runtimes: ["run", "interp", "native", "web"], events: `editor.__key_65,${wait("info", 8)}`,
+    dump: "status.simpletext,form.caption,preview.plaintext", expect: ["status.simpletext=Untitled  (changed, not saved)", "form.caption=Notes - Untitled *", "preview.plaintext=a# Notes"] },
+  { file: "showcase/notes.rr", runtimes: ["run", "interp", "native", "web"], messageDialog: "No", events: `editor.__key_65,newbtn.onclick,${wait("info", 8)}`,
+    dump: "status.simpletext,form.caption,editor.text", expect: ["status.simpletext=Untitled  (saved)   0 words, 0 lines.", "form.caption=Notes - Untitled"] },
+  { file: "showcase/notes.rr", runtimes: ["run", "interp", "native", "web"], messageDialog: "Cancel", events: `editor.__key_65,newbtn.onclick,${wait("info", 8)}`,
+    dump: "status.simpletext,form.caption", expect: ["status.simpletext=Untitled  (changed, not saved)   92 words, 21 lines.", "form.caption=Notes - Untitled *"] },
+  { file: "showcase/notes.rr", runtimes: ["run", "interp", "native", "web"], fileDialog: "note.md;note.md", events: `saveasbtn.onclick,newbtn.onclick,${wait("info", 8)},openbtn.onclick,${wait("info", 8)}`,
+    dump: "status.simpletext,form.caption,preview.linkcount", expect: ["status.simpletext=note.md  (saved)   92 words, 21 lines.", "form.caption=Notes - note.md", "preview.linkcount=1"] },
+  { file: "showcase/notes.rr", runtimes: ["run", "interp", "native", "web"], events: `bolditem.onclick,${wait("info", 4)}`,
+    dump: "editor.selstart,form.caption", expect: ["editor.selstart=2", "form.caption=Notes - Untitled *"] },
+  // (the web: the note is kept in the browser's storage — the page opened again, the typed letter is
+  // still there, the file name too)
+  { file: "showcase/notes.rr", runtimes: ["web"], events: `editor.__key_65,${wait("info", 16)}`, dump: "status.simpletext",
+    reload: { events: `${wait("info", 8)}`, dump: "status.simpletext,preview.plaintext" },
+    expect: ["Kept in this browser.", "preview.plaintext=a# Notes"] },
   // snake.rr: Space starts it; the first apple is straight ahead, so a second and a half on the
   // score is 1; unsteered the snake reaches the wall and the game is over (Best says 1), Space
   // starts again at 0; P pauses; a turn (Down) avoids the apple and ends at the bottom wall with 0;
@@ -544,21 +568,33 @@ async function runWeb(c) {
       .map((f) => [f, "data:application/octet-stream;base64," + readFileSync(join(dir, f)).toString("base64")]));
     for (const e of c.extra || []) assets[basename(e)] = "data:application/octet-stream;base64," + readFileSync(join(EXAMPLES, e)).toString("base64");
     const env = { ...hooks(c, "web"), ...(isGui(c) ? { RAPIDR_CAPTURE: "web" } : {}), RAPIDR_AI_TEST_SERVER: AI_MOCK.replace(/\/v1$/, ""), ...(c.env || {}) };
-    await page.evaluate(({ source, assets, env, gui, main, files }) => {
-      window.__rapidr_assets = assets;
-      window.RAPIDR_TEST_MIDI = ""; window.RAPIDR_TEST_WAVE_IN = "tone:440";
-      if (env.RAPIDR_TEST_COMPORT) window.RAPIDR_TEST_COMPORT = env.RAPIDR_TEST_COMPORT;
-      const bc = files ? window.rr.compile_files(main, files, assets) : window.rr.compile(source, "example", assets);
-      if (gui) window.rr.rapidr_set_test_env(env);
-      window.rr.rapidr_run_bc(bc);
-    }, { source: readFileSync(join(EXAMPLES, c.file), "utf8"), assets, env, gui: isGui(c), main: basename(c.file), files: c.includes ? sourcesUnder(dir) : null });
-    let dump = [];
-    if (isGui(c)) {
-      await page.waitForFunction(() => window.rr.rapidr_test_results(), null, { timeout: c.timeout || 60000, polling: 100 });
-      dump = JSON.parse(await page.evaluate(() => window.rr.rapidr_test_results())).dump;
-    } else {
-      await page.waitForFunction(() => window.rr.rapidr_main_done(), null, { timeout: c.timeout || 60000, polling: 100 });
-      await page.waitForTimeout(200);
+    // (the program run once; `reload`: the page opened again — the browser's
+    // storage kept — and the program run again with its own events and dump)
+    const go = async (env) => {
+      await page.evaluate(({ source, assets, env, gui, main, files }) => {
+        window.__rapidr_assets = assets;
+        window.RAPIDR_TEST_MIDI = ""; window.RAPIDR_TEST_WAVE_IN = "tone:440";
+        if (env.RAPIDR_TEST_COMPORT) window.RAPIDR_TEST_COMPORT = env.RAPIDR_TEST_COMPORT;
+        const bc = files ? window.rr.compile_files(main, files, assets) : window.rr.compile(source, "example", assets);
+        if (gui) window.rr.rapidr_set_test_env(env);
+        window.rr.rapidr_run_bc(bc);
+      }, { source: readFileSync(join(EXAMPLES, c.file), "utf8"), assets, env, gui: isGui(c), main: basename(c.file), files: c.includes ? sourcesUnder(dir) : null });
+      let found = [];
+      if (isGui(c)) {
+        await page.waitForFunction(() => window.rr.rapidr_test_results(), null, { timeout: c.timeout || 60000, polling: 100 });
+        found = JSON.parse(await page.evaluate(() => window.rr.rapidr_test_results())).dump;
+      } else {
+        await page.waitForFunction(() => window.rr.rapidr_main_done(), null, { timeout: c.timeout || 60000, polling: 100 });
+        await page.waitForTimeout(200);
+      }
+      return found;
+    };
+    let dump = await go(env);
+    if (c.reload) {
+      lines.length = 0;
+      await page.goto(`${URL_BASE}/tests/web_kernel.html${query}`, { waitUntil: "load" });
+      await page.waitForFunction(() => window.rrReady, null, { timeout: 20000 });
+      dump = await go({ ...env, RAPIDR_TEST_EVENTS: c.reload.events || "", RAPIDR_TEST_DUMP: c.reload.dump || c.dump });
     }
     return { out: [...lines, ...dump].join("\n"), ok: errors.length === 0, why: errors.length ? ` (page errors: ${errors.join("; ")})` : "" };
   } catch (e) {

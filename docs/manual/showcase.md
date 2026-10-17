@@ -16,6 +16,7 @@ Where a program needs something a browser can't give it, its section says so.
 | Program | What it shows |
 |---|---|
 | [Fireworks](#fireworks) | thousands of sparks, each with its own physics; RNum draws the shapes |
+| [Notes](#notes) | a Markdown notes app with a live preview; files on the desktop, the browser's storage on the web |
 | [A snake game](#a-snake-game) | a game for the keyboard alone: an `RCanvas`, an `RTimer`, arrays for the snake |
 | [Same numbers](#same-numbers) | four sets of points with the very same statistics and four different pictures, made by the program |
 | [Pi by darts](#pi-by-darts) | RNum throws and counts thousands of random darts; the estimate and its error update live |
@@ -90,6 +91,61 @@ draws about two thousand lines a frame, and measures:
 The cost is the drawing calls: each takes about 5 microseconds, so 2,000
 sparks are about 10 milliseconds of the frame's 16 or 33; the arithmetic for
 all of them takes less than one millisecond.
+
+## Notes
+
+[`notes.rr`](../../examples/showcase/notes.rr) is a small notes app that
+understands Markdown. Write on the left; the right shows the note formatted,
+as you type: headings, lists, tables, quotes, code, **bold** and *italic*, and
+links you can click (they open in the browser). **New**, **Open** and
+**Save** work on files and have the usual keys (Ctrl+N, Ctrl+O, Ctrl+S,
+Ctrl+Shift+S, on a Mac with Cmd); the **Format** menu puts marks round the
+selected text (Ctrl+B bold, Ctrl+I italic, Ctrl+E code). The note's name and
+whether it is saved are in the title and under the window, with a count of
+words and lines. Changes are never lost without asking: New, Open and closing
+the window ask "Save the changes?" first.
+
+![The notes app: a note in Markdown on the left; on the right the same note formatted, with its heading, a list with a link, a quote, a table and a code block](images/showcase/notes.png)
+
+The preview follows the typing with one line, in the editor's `OnChange`
+event:
+
+```basic
+SUB Edited
+    Preview.Text = Editor.Text
+    dirty = 1
+    IF onWeb THEN storeDue = TIMER + 0.6
+    ShowStatus
+END SUB
+```
+
+`Editor` is an `RMemo` (a box of text) and `Preview` an `RMarkdownView`, which
+draws Markdown as the manual does, in the program's theme and readable by a
+screen reader. The two sit side by side with an `RSplitter` between them,
+placed by `Align` (`alLeft`, `alLeft`, `alClient`), so the window can be made
+any size and the line can be dragged.
+
+**Files.** Open and Save use the system's dialogs (`ROpenDialog`,
+`RSaveDialog`) and the memo's own `LoadFromFile` and `SaveToFile`. A browser
+has no folders to give a page, so there those same dialogs are the browser's
+pickers (the manual's page on the web says what each browser does).
+
+**In a browser the note is also kept in the browser's storage.** `RWebStorage`
+keeps strings by name in the page's `localStorage`: a moment after the typing
+stops (a timer, so that not every key writes) the note and its file name are
+stored, and when the page opens again they are read back:
+
+```basic
+Store.Set("rapidr.notes.text", t)
+...
+IF Store.HasKey("rapidr.notes.text") THEN Editor.Text = Store.Get("rapidr.notes.text")
+```
+
+`RWebStorage` exists only in browsers; on the desktop its methods do nothing
+and print a warning. The program asks whether it is in a browser by looking
+at the name of its own file, `Application.ExeName`, which in a browser is the
+page (`index.html`): `onWeb = (RIGHT$(LCASE$(Application.ExeName), 5) = ".html")`.
+(RapidR has no direct way to ask yet.)
 
 ## A snake game
 

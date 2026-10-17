@@ -12,6 +12,9 @@ export const scenes = [
   // little: columns up in the notes' colours, sparks flying, the crystal big
   { name: "midi-visualizer", program: "examples/showcase/midi_visualizer.rr", args: ["44"], delay: 1,
     env: { RAPIDR_TEST_EVENTS: `playbtn.onclick,${wait("info", 60)}` } },
+  // the first note, as the program opens
+  { name: "notes", program: "examples/showcase/notes.rr", delay: 1,
+    env: { RAPIDR_TEST_EVENTS: wait("info", 8) } },
   // the snake with the computer playing (C), the same apples every time
   // (the seed 7), a while into the game
   { name: "snake", program: "examples/showcase/snake.rr", args: ["7"], delay: 1,

@@ -1,0 +1,339 @@
+' notes.rr: a notes app that understands Markdown. Write on the left; the
+' right shows it as you type, formatted: headings, lists, tables, code,
+' links you can click. New, Open and Save work on files on the desktop. In a
+' browser the note is also kept in the browser's own storage (RWebStorage),
+' so it is still there the next time the page is opened.
+'
+'   rapidr run notes.rr          (or open it in RapidR Studio and press F5)
+'   rapidr bundle-bc notes.rr -o notes.zip      (the web: unzip, serve the folder)
+'
+' Runs: desktop (run, interpreted, native) and the web. Keys: Ctrl+N new,
+' Ctrl+O open, Ctrl+S save, Ctrl+Shift+S save as; Ctrl+B, Ctrl+I and Ctrl+E
+' make the selected text bold, italic or code.
+$THEME rapidr
+$INCLUDE "RAPIDQ.INC"            ' alTop, alLeft, alClient, mtConfirmation, mrYes …
+
+DECLARE SUB Edited
+DECLARE SUB NewNote
+DECLARE SUB OpenNote
+DECLARE SUB SaveNote
+DECLARE SUB SaveAsNote
+DECLARE SUB QuitApp
+DECLARE SUB Bold
+DECLARE SUB Italic
+DECLARE SUB Code
+DECLARE SUB FormClosing (Action AS INTEGER)
+DECLARE SUB LinkClicked (Url AS STRING)
+DECLARE SUB Tick
+
+DIM curFile AS STRING            ' the note's file ("" when it has none yet)
+DIM dirty AS INTEGER             ' changed since it was saved (or opened, or begun)
+DIM onWeb AS INTEGER             ' running in a browser: the note is kept in its storage too
+DIM storeDue AS DOUBLE           ' when to put the note in the browser's storage (0: nothing waits)
+DIM words AS INTEGER, lines AS INTEGER
+
+CREATE Store AS RWebStorage
+    StorageType = "local"
+END CREATE
+
+CREATE Form AS RForm
+    Caption = "Notes"
+    ClientWidth = 940
+    ClientHeight = 600
+    MinWidth = 560: MinHeight = 360
+    OnClose = FormClosing
+    Center
+    CREATE MainMenu AS RMainMenu
+        CREATE FileMenu AS RMenuItem
+            Caption = "&File"
+            CREATE NewItem AS RMenuItem
+                Caption = "&New": ShortCut = "Ctrl+N": OnClick = NewNote
+            END CREATE
+            CREATE OpenItem AS RMenuItem
+                Caption = "&Open...": ShortCut = "Ctrl+O": OnClick = OpenNote
+            END CREATE
+            CREATE SaveItem AS RMenuItem
+                Caption = "&Save": ShortCut = "Ctrl+S": OnClick = SaveNote
+            END CREATE
+            CREATE SaveAsItem AS RMenuItem
+                Caption = "Save &as...": ShortCut = "Ctrl+Shift+S": OnClick = SaveAsNote
+            END CREATE
+            CREATE Break1 AS RMenuItem
+                Caption = "-"
+            END CREATE
+            CREATE QuitItem AS RMenuItem
+                Caption = "E&xit": ShortCut = "Ctrl+Q": OnClick = QuitApp
+            END CREATE
+        END CREATE
+        CREATE EditMenu AS RMenuItem
+            Caption = "&Format"
+            CREATE BoldItem AS RMenuItem
+                Caption = "&Bold": ShortCut = "Ctrl+B": OnClick = Bold
+            END CREATE
+            CREATE ItalicItem AS RMenuItem
+                Caption = "&Italic": ShortCut = "Ctrl+I": OnClick = Italic
+            END CREATE
+            CREATE CodeItem AS RMenuItem
+                Caption = "&Code": ShortCut = "Ctrl+E": OnClick = Code
+            END CREATE
+        END CREATE
+    END CREATE
+    CREATE Bar AS RPanel
+        Align = alTop
+        Height = 40
+        BevelOuter = 0
+        CREATE NewBtn AS RButton
+            Caption = "&New": Left = 8: Top = 7: Width = 72
+            OnClick = NewNote
+        END CREATE
+        CREATE OpenBtn AS RButton
+            Caption = "&Open...": Left = 86: Top = 7: Width = 84
+            OnClick = OpenNote
+        END CREATE
+        CREATE SaveBtn AS RButton
+            Caption = "&Save": Left = 176: Top = 7: Width = 72
+            OnClick = SaveNote
+        END CREATE
+        CREATE SaveAsBtn AS RButton
+            Caption = "Save &as...": Left = 254: Top = 7: Width = 96
+            OnClick = SaveAsNote
+        END CREATE
+    END CREATE
+    CREATE Status AS RStatusBar
+        SimplePanel = 1
+    END CREATE
+    CREATE Editor AS RMemo
+        Align = alLeft
+        Width = 450
+        WordWrap = 1
+        ScrollBars = ssVertical
+        OnChange = Edited
+        AccessibleName = "Note"
+        AccessibleDescription = "The note, written in Markdown; the preview on the right shows it formatted"
+    END CREATE
+    CREATE Divider AS RSplitter
+        Align = alLeft
+        Width = 6
+    END CREATE
+    CREATE Preview AS RMarkdownView
+        Align = alClient
+        OnLinkClick = LinkClicked
+        AccessibleName = "Preview"
+    END CREATE
+    CREATE OpenDlg AS ROpenDialog
+        Filter = "Markdown notes|*.md;*.markdown;*.txt|All files|*.*"
+        Title = "Open a note"
+    END CREATE
+    CREATE SaveDlg AS RSaveDialog
+        Filter = "Markdown notes|*.md|All files|*.*"
+        DefaultExt = "md"
+        Title = "Save the note"
+    END CREATE
+    CREATE Clock AS RTimer
+        Interval = 400
+        Enabled = 1
+        OnTimer = Tick
+    END CREATE
+END CREATE
+
+' ---- the note ---------------------------------------------------------------------
+
+' The words of the first note: DATA lines up to ~, joined with line breaks
+FUNCTION Welcome AS STRING
+    DIM s AS STRING, t AS STRING
+    RESTORE WelcomeText
+    DO
+        READ t
+        IF t = "~" THEN EXIT DO
+        s = s + t + CHR$(10)
+    LOOP
+    Welcome = s
+END FUNCTION
+WelcomeText:
+DATA "# Notes"
+DATA ""
+DATA "Write **Markdown** on the left. It shows on the right, as you type."
+DATA ""
+DATA "## What it can show"
+DATA "- **bold**, *italic*, `code` and ~~strikethrough~~"
+DATA "- lists, numbered lists and links: [RapidR](https://github.com/iBobX/RapidR)"
+DATA "- tables, quotes and code"
+DATA ""
+DATA "> Select some words and press Ctrl+B, Ctrl+I or Ctrl+E."
+DATA ""
+DATA "| Keys | What they do |"
+DATA "|---|---|"
+DATA "| Ctrl+N | a new note |"
+DATA "| Ctrl+O | open a note |"
+DATA "| Ctrl+S | save it |"
+DATA "| Ctrl+Shift+S | save it as |"
+DATA ""
+DATA "```basic"
+DATA "x = 1 + 2: PRINT x"
+DATA "```"
+DATA "~"
+
+SUB ShowStatus
+    DIM name AS STRING, keep AS STRING
+    IF curFile = "" THEN name = "Untitled" ELSE name = curFile
+    Form.Caption = "Notes - " + name + IIF(dirty, " *", "")
+    keep = ""
+    IF onWeb THEN keep = "  Kept in this browser."
+    Status.SimpleText = name + IIF(dirty, "  (changed, not saved)", "  (saved)") + "   " + STR$(words) + " words, " + STR$(lines) + " lines." + keep
+END SUB
+
+' The text changed (typed, pasted, opened, new): the preview follows at once
+SUB Edited
+    Preview.Text = Editor.Text
+    dirty = 1
+    IF onWeb THEN storeDue = TIMER + 0.6
+    ShowStatus
+END SUB
+
+' A moment after the typing stops: the words counted (not on every key), and
+' on the web the note put in the browser's storage
+SUB Tick
+    DIM i AS INTEGER, t AS STRING, inWord AS INTEGER, c AS INTEGER
+    t = Editor.Text
+    words = 0: inWord = 0
+    FOR i = 1 TO LEN(t)
+        c = ASC(MID$(t, i, 1))
+        IF c > 32 THEN
+            IF inWord = 0 THEN words = words + 1
+            inWord = 1
+        ELSE
+            inWord = 0
+        END IF
+    NEXT
+    lines = Editor.LineCount
+    IF onWeb AND storeDue > 0 AND TIMER >= storeDue THEN
+        Store.Set("rapidr.notes.text", t)
+        Store.Set("rapidr.notes.file", curFile)
+        storeDue = 0
+    END IF
+    ShowStatus
+END SUB
+
+' Saves first when asked: 1 to go on (saved, or thrown away), 0 to stay
+FUNCTION SafeToLeave AS INTEGER
+    DIM answer AS INTEGER
+    SafeToLeave = 1
+    IF dirty = 0 THEN EXIT FUNCTION
+    answer = MESSAGEDLG("Save the changes to " + IIF(curFile = "", "this note", curFile) + "?", mtConfirmation, mbYes OR mbNo OR mbCancel, 0)
+    IF answer = mrCancel THEN
+        SafeToLeave = 0
+    ELSEIF answer = mrYes THEN
+        SaveNote
+        IF dirty THEN SafeToLeave = 0           ' (the Save dialog was cancelled)
+    END IF
+END FUNCTION
+
+SUB NewNote
+    IF SafeToLeave() = 0 THEN EXIT SUB
+    curFile = ""
+    Editor.Text = ""
+    dirty = 0
+    IF onWeb THEN
+        Store.Set("rapidr.notes.text", "")
+        Store.Set("rapidr.notes.file", "")
+    END IF
+    ShowStatus
+    Editor.SetFocus
+END SUB
+
+SUB OpenNote
+    IF SafeToLeave() = 0 THEN EXIT SUB
+    IF OpenDlg.Execute THEN
+        Editor.LoadFromFile(OpenDlg.FileName)
+        curFile = OpenDlg.FileName
+        Preview.Text = Editor.Text
+        dirty = 0
+        IF onWeb THEN storeDue = TIMER + 0.6
+        ShowStatus
+        Editor.SetFocus
+    END IF
+END SUB
+
+SUB SaveAsNote
+    IF curFile <> "" THEN SaveDlg.FileName = curFile
+    IF SaveDlg.Execute THEN
+        curFile = SaveDlg.FileName
+        Editor.SaveToFile(curFile)
+        dirty = 0
+        IF onWeb THEN storeDue = TIMER + 0.1
+        ShowStatus
+    END IF
+END SUB
+
+SUB SaveNote
+    IF curFile = "" THEN
+        SaveAsNote
+    ELSE
+        Editor.SaveToFile(curFile)
+        dirty = 0
+        IF onWeb THEN storeDue = TIMER + 0.1
+        ShowStatus
+    END IF
+END SUB
+
+SUB QuitApp
+    Form.Close
+END SUB
+
+' (Action = caNone keeps the form open)
+SUB FormClosing (Action AS INTEGER)
+    IF SafeToLeave() = 0 THEN Action = caNone
+END SUB
+
+' ---- formatting: the selected text between marks --------------------------------------
+
+SUB Wrap (mark AS STRING)
+    DIM at AS INTEGER, n AS INTEGER, picked AS STRING
+    at = Editor.SelStart: n = Editor.SelLength
+    picked = Editor.SelText
+    IF n = 0 THEN
+        ' nothing selected: the two marks, the caret between them
+        Editor.SelText = mark + mark
+        Editor.SelStart = at + LEN(mark)
+    ELSE
+        Editor.SelText = mark + picked + mark
+        Editor.SelStart = at: Editor.SelLength = n + 2 * LEN(mark)
+    END IF
+END SUB
+
+SUB Bold
+    Wrap "**"
+END SUB
+
+SUB Italic
+    Wrap "*"
+END SUB
+
+SUB Code
+    Wrap "`"
+END SUB
+
+' A link clicked in the preview: the page opens in the browser by itself
+' (the view's OpenLinks); the status says where it went
+SUB LinkClicked (Url AS STRING)
+    Status.SimpleText = "Opening " + Url
+END SUB
+
+' ---- start -------------------------------------------------------------------------------
+
+' In a browser the program's file is the page (index.html); on the desktop, the program
+onWeb = (RIGHT$(LCASE$(Application.ExeName), 5) = ".html")
+IF onWeb THEN
+    IF Store.HasKey("rapidr.notes.text") THEN
+        Editor.Text = Store.Get("rapidr.notes.text")
+        curFile = Store.Get("rapidr.notes.file")
+    ELSE
+        Editor.Text = Welcome()
+    END IF
+ELSE
+    Editor.Text = Welcome()
+END IF
+Preview.Text = Editor.Text
+dirty = 0
+Tick
+Form.ShowModal

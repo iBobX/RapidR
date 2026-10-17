@@ -129,6 +129,7 @@ SUB FillExamples
   ' (the showcase: in Open an Example, not on the page)
   MoreCount = 0
   AddMoreExample "showcase/fireworks.rr", "Click the sky: rockets and thousands of sparks"
+  AddMoreExample "showcase/notes.rr", "A Markdown notes app, live preview"
   AddMoreExample "showcase/snake.rr", "A snake game, for the keyboard alone"
   AddMoreExample "showcase/same_numbers.rr", "Four pictures, the very same numbers"
   AddMoreExample "showcase/monte_carlo_pi.rr", "Pi by throwing darts, live"
