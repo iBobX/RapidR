@@ -1,0 +1,216 @@
+' monte_carlo_pi.rr: finding pi by throwing darts. Random darts land in a
+' square; the ones inside the circle that just fits in it are blue, the others
+' orange. The circle takes up pi/4 of the square, so four times the share of
+' darts inside is an estimate of pi, and it gets better the more darts land.
+' The number, its error, and a chart of the estimate settling on pi update as
+' the darts fall.
+'
+'   rapidr run monte_carlo_pi.rr       (or open it in RapidR Studio and press F5)
+'   rapidr bundle-bc monte_carlo_pi.rr -o pi.zip       (the web: unzip, serve the folder)
+'
+' Runs: desktop (run, interpreted, native) and the web. A whole batch of darts
+' is thrown and counted by RNum, RapidR's numeric arrays, in a few vector
+' steps, so the speed slider can go from 30 darts a second to 300,000; only
+' the first darts are drawn as dots (3,000 fill the picture).
+$THEME rapidr
+
+CONST PI = 3.14159265358979
+CONST MAXDOTS = 3000               ' dots drawn
+CONST PERTICK = 30                 ' ticks a second
+
+DECLARE SUB Tick
+DECLARE SUB ResetAll
+DECLARE SUB RunPause
+DECLARE SUB SpeedChanged
+
+' The darts of one batch, and how they are counted
+DIM Dx AS RNum, Dy AS RNum, R2 AS RNum, T AS RNum
+' The dots drawn: inside the circle, outside it; the circle itself
+DIM InX AS RNum, InY AS RNum, OutX AS RNum, OutY AS RNum, CirX AS RNum, CirY AS RNum
+' The chart of the estimate: after how many darts (as a power of ten), what it was
+DIM HistN AS RNum, HistE AS RNum, Target AS RNum
+
+DIM total AS DOUBLE, inside AS DOUBLE         ' darts thrown, darts inside
+DIM lastLog AS DOUBLE                         ' the last point of the chart's place
+DIM rate AS DOUBLE                            ' darts a second
+
+CREATE Form AS RForm
+    Caption = "Pi by darts"
+    ClientWidth = 940
+    ClientHeight = 560
+    MinWidth = 800: MinHeight = 520
+    Center
+    CREATE Board AS RPlot
+        Left = 12: Top = 12: Width = 500: Height = 500
+        Anchors = akLeft + akTop + akBottom
+        Title = "Darts in a square"
+        AccessibleName = "The darts thrown: blue inside the circle, orange outside"
+    END CREATE
+    CREATE Settle AS RPlot
+        Left = 524: Top = 12: Width = 404: Height = 280
+        Anchors = akLeft + akTop + akRight
+        Title = "The estimate settling on pi"
+        AccessibleName = "The estimate of pi after more and more darts"
+    END CREATE
+    CREATE PiLabel AS RLabel
+        Left = 524: Top = 304: Width = 404: Height = 46
+        Anchors = akLeft + akTop + akRight
+        Font.Size = 24
+    END CREATE
+    CREATE ErrLabel AS RLabel
+        Left = 524: Top = 352: Width = 404: Height = 20
+        Anchors = akLeft + akTop + akRight
+    END CREATE
+    CREATE CountLabel AS RLabel
+        Left = 524: Top = 374: Width = 404: Height = 20
+        Anchors = akLeft + akTop + akRight
+    END CREATE
+    CREATE LuckLabel AS RLabel
+        Left = 524: Top = 396: Width = 404: Height = 40
+        Anchors = akLeft + akTop + akRight
+        AutoSize = 0: WordWrap = 1
+    END CREATE
+    CREATE SpeedLabel AS RLabel
+        Left = 524: Top = 444: Width = 404
+        Anchors = akLeft + akTop + akRight
+    END CREATE
+    CREATE SpeedBar AS RTrackBar
+        Left = 520: Top = 462: Width = 412: Height = 30
+        Anchors = akLeft + akTop + akRight
+        Min = 0: Max = 100: Position = 40: Frequency = 25: PageSize = 10
+        OnChange = SpeedChanged
+        AccessibleName = "Darts a second"
+    END CREATE
+    CREATE RunBtn AS RButton
+        Caption = "&Pause": Left = 524: Top = 506: Width = 100
+        Anchors = akLeft + akTop
+        OnClick = RunPause
+    END CREATE
+    CREATE ResetBtn AS RButton
+        Caption = "&Reset": Left = 632: Top = 506: Width = 100
+        Anchors = akLeft + akTop
+        OnClick = ResetAll
+        AccessibleDescription = "Starts again from no darts"
+    END CREATE
+    CREATE Clock AS RTimer
+        Interval = 33
+        Enabled = 1
+        OnTimer = Tick
+    END CREATE
+END CREATE
+
+' Thousands separators are for people: 1234567 reads 1,234,567
+FUNCTION Grouped (n AS DOUBLE) AS STRING
+    DIM s AS STRING, t AS STRING
+    s = FORMAT$("%.0f", n)
+    DO WHILE LEN(s) > 3
+        t = "," + RIGHT$(s, 3) + t
+        s = LEFT$(s, LEN(s) - 3)
+    LOOP
+    Grouped = s + t
+END FUNCTION
+
+' The pictures: the square with the circle, and the chart
+SUB Redraw
+    Board.Clear
+    Board.Title = "Darts in a square"
+    Board.Grid = 0
+    Board.Xlim -1.05, 1.05
+    Board.Ylim -1.05, 1.05
+    IF OutX.Count > 0 THEN Board.Scatter(OutX, OutY, "outside", "darkorange")
+    IF InX.Count > 0 THEN Board.Scatter(InX, InY, "inside", "royalblue")
+    Board.Plot(CirX, CirY, "circle", "gray")
+    Board.Show
+    Settle.Clear
+    Settle.Title = "The estimate settling on pi"
+    Settle.XLabel = "darts thrown, as a power of ten (3 is 1,000)"
+    Settle.YLabel = "estimate"
+    Settle.Grid = 1
+    Settle.Ylim 2.8, 3.5
+    IF HistN.Count > 1 THEN Settle.Plot(HistN, HistE, "estimate", "royalblue")
+    Settle.Hline PI, "darkorange", "pi"
+    Settle.Legend
+    Settle.Show
+END SUB
+
+SUB ShowNumbers
+    DIM est AS DOUBLE, err AS DOUBLE
+    IF total = 0 THEN
+        PiLabel.Caption = "pi is about ?"
+        ErrLabel.Caption = "No darts yet"
+        CountLabel.Caption = ""
+        LuckLabel.Caption = ""
+        EXIT SUB
+    END IF
+    est = 4 * inside / total
+    err = ABS(est - PI)
+    PiLabel.Caption = "pi is about " + FORMAT$("%.5f", est)
+    ErrLabel.Caption = "Off by " + FORMAT$("%.5f", err) + "  (" + FORMAT$("%.3f", err / PI * 100) + " %)"
+    CountLabel.Caption = Grouped(total) + " darts, " + Grouped(inside) + " inside the circle"
+    LuckLabel.Caption = "A typical error with this many darts is about " + FORMAT$("%.5f", 1.64 / SQR(total)) + ". It shrinks as the square root of the darts: 100 times as many for one more digit."
+END SUB
+
+' One tick: throw a batch of darts. RNum makes every dart's place at once
+' (Uniform), works out how far each is from the middle (Square, Add) and
+' counts the ones outside (Sign, Clip, Sum).
+SUB Tick
+    DIM batch AS INTEGER, i AS INTEGER, shown AS INTEGER, x AS DOUBLE, y AS DOUBLE, outside AS DOUBLE, lg AS DOUBLE
+    batch = INT(rate / PERTICK)
+    IF batch < 1 THEN batch = 1
+    Dx.Uniform -1, 1, batch
+    Dy.Uniform -1, 1, batch
+    R2.Data = Dx.Data: R2.Square                 ' x * x
+    T.Data = Dy.Data: T.Square                   ' y * y
+    R2.Add "T"                                   ' x * x + y * y: the distance squared
+    R2.Subtract 1: R2.Sign: R2.Clip 0, 1         ' 1 where it is more than 1: outside
+    outside = R2.Sum
+    total = total + batch
+    inside = inside + batch - outside
+    ' dots for the picture: the first darts of a batch, until it's full
+    shown = batch
+    IF shown > 60 THEN shown = 60
+    FOR i = 0 TO shown - 1
+        IF InX.Count + OutX.Count >= MAXDOTS THEN EXIT FOR
+        x = Dx.Get(i): y = Dy.Get(i)
+        IF x * x + y * y <= 1 THEN
+            InX.Push x: InY.Push y
+        ELSE
+            OutX.Push x: OutY.Push y
+        END IF
+    NEXT
+    ' a point of the chart each time the number of darts has grown by a tenth of a decade
+    lg = LOG(total) / LOG(10)
+    IF HistN.Count = 0 OR lg - lastLog >= 0.02 THEN
+        HistN.Push lg: HistE.Push 4 * inside / total
+        lastLog = lg
+    END IF
+    ShowNumbers
+    Redraw
+END SUB
+
+SUB SpeedChanged
+    rate = 30 * 10 ^ (SpeedBar.Position / 25)       ' 30 a second up to 300,000
+    SpeedLabel.Caption = "Speed: " + Grouped(INT(rate)) + " darts a second"
+END SUB
+
+SUB RunPause
+    Clock.Enabled = IIF(Clock.Enabled, 0, 1)
+    RunBtn.Caption = IIF(Clock.Enabled, "&Pause", "&Go on")
+END SUB
+
+SUB ResetAll
+    total = 0: inside = 0: lastLog = 0
+    InX.Clear: InY.Clear: OutX.Clear: OutY.Clear: HistN.Clear: HistE.Clear
+    ShowNumbers
+    Redraw
+END SUB
+
+CirX.Linspace 0, 6.2831853, 181
+CirY.Data = CirX.Data
+CirX.Cos
+CirY.Sin
+RANDOMIZE TIMER
+SpeedChanged
+ShowNumbers
+Redraw
+Form.ShowModal

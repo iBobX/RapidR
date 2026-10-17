@@ -129,6 +129,7 @@ SUB FillExamples
   ' (the showcase: in Open an Example, not on the page)
   MoreCount = 0
   AddMoreExample "showcase/fireworks.rr", "Click the sky: rockets and thousands of sparks"
+  AddMoreExample "showcase/monte_carlo_pi.rr", "Pi by throwing darts, live"
   AddMoreExample "showcase/spin3d.rr", "A lit 3D planet with a ring and a moon"
   AddMoreExample "showcase/signal_lab.rr", "A signal generator, an oscilloscope and an FFT spectrum"
   AddMoreExample "showcase/midi_visualizer.rr", "A 3D scene that dances to a song (reads the MIDI file itself)"

@@ -16,6 +16,7 @@ Where a program needs something a browser can't give it, its section says so.
 | Program | What it shows |
 |---|---|
 | [Fireworks](#fireworks) | thousands of sparks, each with its own physics; RNum draws the shapes |
+| [Pi by darts](#pi-by-darts) | RNum throws and counts thousands of random darts; the estimate and its error update live |
 | [A planet](#a-planet) | a lit, shaded 3D planet with a ring and a moon, built from faces |
 | [Signal lab](#signal-lab) | a signal generator, an oscilloscope held still by a trigger, and an FFT written in BASIC |
 | [A MIDI visualizer](#a-midi-visualizer) | a 3D scene that dances to a song the program reads itself |
@@ -85,6 +86,42 @@ draws about two thousand lines a frame, and measures:
 The cost is the drawing calls: each takes about 5 microseconds, so 2,000
 sparks are about 10 milliseconds of the frame's 16 or 33; the arithmetic for
 all of them takes less than one millisecond.
+
+## Pi by darts
+
+[`monte_carlo_pi.rr`](../../examples/showcase/monte_carlo_pi.rr): random
+darts land in a square. The ones inside the circle that just fits in it are
+blue, the others orange. The circle is pi/4 of the square, so four times the
+share of darts inside estimates pi, and the more darts, the better. The window
+shows the estimate, how far off it is (and as a percentage), what a typical
+error would be with that many darts, and a chart of the estimate settling on pi.
+The slider sets the speed from 30 darts a second to 300,000; **Pause** and
+**Reset** do what they say.
+
+![Pi by darts: 3,000 dots in the square, blue inside the circle and orange outside; the estimate chart close to the pi line; the estimate in big letters with its error, the count of darts and the speed slider](images/showcase/monte-carlo-pi.png)
+
+A batch of darts is thrown and counted by `RNum`, the numeric arrays, in a few
+statements for the whole batch, however many darts it has:
+
+```basic
+Dx.Uniform -1, 1, batch                      ' every dart's x and y, in the square
+Dy.Uniform -1, 1, batch
+R2.Data = Dx.Data: R2.Square                 ' x * x
+T.Data = Dy.Data: T.Square                   ' y * y
+R2.Add "T"                                   ' x * x + y * y: the distance squared
+R2.Subtract 1: R2.Sign: R2.Clip 0, 1         ' 1 where it is more than 1: outside
+outside = R2.Sum
+```
+
+`Sign` turns each number into -1, 0 or 1, `Clip 0, 1` keeps the 1s (the
+darts outside) and `Sum` counts them: that is why the slider can go to 300,000
+darts a second while the program draws only the first 3,000 as dots (a dot
+needs a method call of its own: `InX.Push x`). The chart's x is the number
+of darts as a power of ten (`LOG(total) / LOG(10)`), so the early, wild
+estimates and the later, calm ones both show. Both pictures are `RPlot`
+components on the form: the program changes their series and calls `Show`;
+`Board.Scatter(InX, InY, "inside", "royalblue")` is a series of points,
+`Settle.Hline PI, "darkorange", "pi"` the line the estimate settles on.
 
 ## A planet
 

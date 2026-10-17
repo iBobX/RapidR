@@ -278,6 +278,14 @@ export const cases = [
   // (a click on the sky sends a rocket there; Space another one)
   { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: `sky.__mousedown_400_200,sky.__mouseup_400_200,${wait("info", 30)},form.__key_32`,
     dump: "info.caption", expect: ["info.caption=Bursts so far: 1."] },
+  // monte_carlo_pi.rr: the speed slider's End key (300,000 darts a second),
+  // a second of darts: pi is found to its first digit and the numbers say how many;
+  // Pause then Reset: no darts, and the button offers to go on
+  { file: "showcase/monte_carlo_pi.rr", runtimes: ["run", "interp", "native", "web"], events: `speedbar.__key_35,${wait("info", 20)}`,
+    dump: "pilabel.caption,errlabel.caption,countlabel.caption,speedlabel.caption",
+    expect: ["pilabel.caption=pi is about 3.1", "errlabel.caption=Off by 0.0", " darts, ", " inside the circle", "speedlabel.caption=Speed: 300,000 darts a second"] },
+  { file: "showcase/monte_carlo_pi.rr", runtimes: ["run", "interp", "native", "web"], events: `${wait("info", 10)},runbtn.onclick,resetbtn.onclick`,
+    dump: "pilabel.caption,errlabel.caption,runbtn.caption", expect: ["pilabel.caption=pi is about ?", "errlabel.caption=No darts yet", "runbtn.caption=&Go on"] },
   // spin3d.rr: the arrow keys (used up by the form) and the buttons change the speeds
   { file: "showcase/spin3d.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_39,form.__key_39,${wait("info", 6)}`,
     dump: "info.caption", expect: ["info.caption=Planet turning at 2.0x"] },

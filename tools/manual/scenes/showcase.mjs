@@ -12,6 +12,9 @@ export const scenes = [
   // little: columns up in the notes' colours, sparks flying, the crystal big
   { name: "midi-visualizer", program: "examples/showcase/midi_visualizer.rr", args: ["44"], delay: 1,
     env: { RAPIDR_TEST_EVENTS: `playbtn.onclick,${wait("info", 60)}` } },
+  // the darts at 300,000 a second for a moment: the circle full, the estimate settled
+  { name: "monte-carlo-pi", program: "examples/showcase/monte_carlo_pi.rr", delay: 1,
+    env: { RAPIDR_TEST_EVENTS: `speedbar.__key_35,${wait("info", 30)}` } },
   // the planet, a moment after it opened
   { name: "spin3d", program: "examples/showcase/spin3d.rr", delay: 1,
     env: { RAPIDR_TEST_EVENTS: wait("info", 30) } },
