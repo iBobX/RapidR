@@ -52,11 +52,14 @@ mv /tmp/rapidr-release-smoke.sh "$B/smoke.sh"
 rm -f "$B/smoke.done"
 setsid nohup bash -c '
   export PATH="$HOME/.cargo/bin:$PATH"; B="$1"; host="$(uname -m)"; fail=0
+  # (the smoke works on the disk, not /tmp: the Ubuntu /tmp is a RAM disk of a
+  # few GB, and a native build of a form filled it — "Disk quota exceeded")
+  export TMPDIR="$B/tmp"; rm -rf "$TMPDIR"; mkdir -p "$TMPDIR"
   for a in "$B"/dist/out/*.deb "$B"/dist/out/*.tar.gz; do
     case "$a" in *"$host"*|*_$(dpkg --print-architecture).deb) native=1 ;; *) native=0 ;; esac
     SMOKE_NATIVE=$native bash "$B/smoke.sh" "$a" || fail=1
   done > "$B/smoke.log" 2>&1
-  rm -rf /tmp/rapidr-smoke.*
+  rm -rf /tmp/rapidr-smoke.* "$TMPDIR"
   echo $fail > "$B/smoke.done"' _ "$B" > /dev/null 2>&1 &
 echo started
 EOF

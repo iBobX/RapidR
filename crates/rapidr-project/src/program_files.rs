@@ -53,15 +53,38 @@ pub fn data_files_of(src: &Path) -> Vec<PathBuf> {
         text.push('\n');
         text.push_str(&String::from_utf8_lossy(&fs::read(inc).unwrap_or_default()));
     }
+    // (a name counts only as a whole string literal — "staff.csv" — and
+    // only a name with an extension: a word the program prints, `PRINT
+    // "hello"`, isn't the executable `hello` a build left beside it)
+    let quoted = quoted_strings(&text);
     let Ok(entries) = fs::read_dir(parent) else { return Vec::new() };
     let mut data: Vec<PathBuf> = entries
         .flatten()
         .map(|d| d.path())
-        .filter(|p| p.is_file() && !is_program(p) && !includes.contains(p))
-        .filter(|p| p.file_name().is_some_and(|f| !f.to_string_lossy().starts_with('.') && text.contains(&*f.to_string_lossy())))
+        .filter(|p| p.is_file() && !is_program(p) && !includes.contains(p) && p.extension().is_some())
+        .filter(|p| {
+            p.file_name().is_some_and(|f| {
+                let f = f.to_string_lossy();
+                !f.starts_with('.') && quoted.contains(&f.to_lowercase())
+            })
+        })
         .collect();
     data.sort();
     data
+}
+
+/// The program's string literals ("…" on one line), lowercased: the file
+/// names it can name.
+fn quoted_strings(text: &str) -> std::collections::HashSet<String> {
+    let mut out = std::collections::HashSet::new();
+    for line in text.lines() {
+        let parts: Vec<&str> = line.split('"').collect();
+        // (the odd pieces are inside quotes; a last one with no closing quote isn't)
+        for i in (1..parts.len().saturating_sub(1)).step_by(2) {
+            out.insert(parts[i].trim().to_lowercase());
+        }
+    }
+    out
 }
 
 /// Every file of program `src`: itself, what it includes from its folder,
@@ -255,6 +278,22 @@ pub fn is_inside(path: &Path, dir: &Path) -> bool {
 
 #[cfg(test)]
 mod tests {
+
+    /// (the 2.119 release smoke) A word the program prints isn't a data
+    /// file: only a whole quoted name with an extension is.
+    #[test]
+    fn data_files_are_quoted_names_only() {
+        let dir = std::env::temp_dir().join(format!("rapidr-datafiles-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("hello.bas"), "PRINT \"hello \"; COMMAND$(1)\nOPEN \"Staff.CSV\" FOR INPUT AS #1\n").unwrap();
+        std::fs::write(dir.join("hello"), b"an executable a build left").unwrap();
+        std::fs::write(dir.join("staff.csv"), "a,b\n").unwrap();
+        std::fs::write(dir.join("notes.txt"), "not named").unwrap();
+        let got: Vec<String> = data_files_of(&dir.join("hello.bas")).iter().map(|p| p.file_name().unwrap().to_string_lossy().into_owned()).collect();
+        assert_eq!(got, vec!["staff.csv".to_string()]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
     use super::*;
 
     fn scratch(name: &str) -> PathBuf {

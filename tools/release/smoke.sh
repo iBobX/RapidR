@@ -207,9 +207,11 @@ if [ "$KIND" = sdk ]; then
         check "it is universal" universal "$W/hello"
         mkdir -p "$W/arm" "$W/intel"
         "$R" build hello.bas "$W/arm" --interp --target macos-arm64 > /dev/null 2>&1
-        "$R" build hello.bas "$W/intel" --interp --target macos-x86_64 > /dev/null 2>&1
+        intel_out="$("$R" build hello.bas "$W/intel" --interp --target macos-x86_64 2>&1)"
         check "--target macos-arm64: the arm64 slice, it runs" has "$(lipo -archs "$W/arm/hello"; "$W/arm/hello" a 2>&1)" "arm64"
         check "--target macos-x86_64: the x86_64 slice (not run)" test "$(lipo -archs "$W/intel/hello" 2>/dev/null)" = x86_64
+        # (what the build said, when it didn't make one)
+        [ "$(lipo -archs "$W/intel/hello" 2>/dev/null)" = x86_64 ] || printf '%s\n' "$intel_out" | tail -8 | sed 's/^/        /'
     fi
     check "its THIRD-PARTY-NOTICES.txt beside it (the install's)" grep -q "Rust standard library" "$W/THIRD-PARTY-NOTICES.txt"
     check "the IDE starts (headless)" has "$(RAPIDR_CAPTURE="$W/ide" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=Studio.caption "$R" ide 2>&1)" "Studio.caption=RapidR Studio"
