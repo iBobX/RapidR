@@ -219,3 +219,30 @@ fn the_divider_between_the_columns_shows_the_resize_pointer() {
     // (the search box above the rows)
     assert!((0..120).step_by(3).any(|yy| (0..300).step_by(6).any(|xx| probe(&mut f, &mut ts, xx, yy) == Cursor::IBeam)), "the search box takes the I-beam");
 }
+
+/// (the final audit) The click that starts editing a value leaves it all
+/// selected: typing replaces it (as Delphi's Object Inspector), not adds to
+/// its end; F4 drops a value's list, as Alt+Down.
+#[test]
+fn a_click_on_a_value_then_typing_replaces_it() {
+    let (h, mut f, mut ts) = setup("b1");
+    let mut at = None;
+    'scan: for y in (60..460).step_by(2) {
+        for x in [200, 230] {
+            f.mouse_down(&*h.0.borrow(), &mut ts, x as f64 + 0.5, y as f64 + 0.5, rapidr_value::input::Button::Left, Mods::NONE);
+            f.mouse_up(&*h.0.borrow(), &mut ts, x as f64 + 0.5, y as f64 + 0.5, rapidr_value::input::Button::Left, Mods::NONE);
+            let editing_caption = crate::components::list::editing("insp").is_some() && model::with("insp", |m| m.ui.selected.clone()).flatten().as_deref() == Some("caption");
+            if editing_caption {
+                at = Some((x, y));
+                break 'scan;
+            }
+            key(&mut f, &h, &mut ts, 27, "", Mods::NONE);
+        }
+    }
+    assert!(at.is_some(), "Caption's value cell somewhere");
+    f.take_events();
+    type_text(&mut f, &h, &mut ts, "Go");
+    key(&mut f, &h, &mut ts, 13, "", Mods::NONE);
+    let a = acts(f.take_events());
+    assert!(a.contains(&User::Inspector(Act::Commit { key: "caption".into(), text: "Go".into() })), "typing replaced the caption: {a:?}");
+}

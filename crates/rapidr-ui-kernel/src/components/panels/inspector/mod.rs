@@ -621,7 +621,12 @@ impl Inspector {
                     }
                 }
             }
+            // (Alt+Down or F4: the value's list, as Windows' combo boxes)
             vk::UP | vk::DOWN if k.mods.alt => {
+                finish(cx, false);
+                drop(cx, v, i);
+            }
+            vk::F4 if !k.mods.alt && !k.mods.ctrl => {
                 finish(cx, false);
                 drop(cx, v, i);
             }
@@ -727,11 +732,11 @@ impl Inspector {
                 // (an event's SUB: double click makes one; a press selects)
                 RowKind::Event if !was => {}
                 _ => {
+                    // (the click that starts the edit leaves the whole value
+                    // selected, as Delphi's Object Inspector does: typing
+                    // replaces it; a later click places the caret)
                     let typed = begin(cx, &v, &r.key);
-                    if typed {
-                        let rect = view(cx, classic()).value_rect(i);
-                        list::editor_mouse(cx, m, rect);
-                    } else if matches!(geo::row_kind(&v.m, &r), Some(Kind::Bool)) && was && !v.m.read_only {
+                    if !typed && matches!(geo::row_kind(&v.m, &r), Some(Kind::Bool)) && was && !v.m.read_only {
                         toggle(cx, &r);
                     }
                 }
