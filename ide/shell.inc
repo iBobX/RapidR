@@ -70,6 +70,7 @@ SUB RunCommand(Id AS STRING)
     CASE "file.open": AskOpen
     CASE "file.openFolder": AskOpenFolder
     CASE "file.openExample": ShowPalette "Example"
+    CASE "file.exampleAgain": CopyExampleAgain
     CASE "file.importRapidQ": AskImportRapidQ
     CASE "file.importRapidQFolder": AskImportRapidQFolder
     CASE "file.save": SaveDocument d

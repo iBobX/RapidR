@@ -68,6 +68,11 @@ DIM HomeDir AS STRING
 DIM ProjectName AS STRING
 DIM ProjectMain AS STRING
 DIM ProjectFile AS STRING
+' (the open project is the user's copy of this example, installed where it
+' can't be changed: project.inc; "" otherwise)
+DIM ExampleOriginal AS STRING
+DIM ExampleJustCopied AS STRING
+DECLARE FUNCTION AskCopyAgain(Question AS STRING, Detail AS STRING) AS INTEGER
 DIM RecentList AS STRING
 DIM SavedLayout AS STRING
 DIM DefaultFolder AS STRING

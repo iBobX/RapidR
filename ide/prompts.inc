@@ -15,6 +15,7 @@ CONST PROMPT_REVIEW = 3
 
 DIM PromptAnswer AS INTEGER
 DIM PromptRust AS INTEGER   ' 1: the native build's question (no Rust), else the save questions
+DIM PromptAgain AS INTEGER  ' 1: File > Copy Example Again's question (Copy Again, Cancel)
 DIM PromptIconBmp AS RBitmap
 DIM PromptIconLoaded AS INTEGER
 DIM PromptMany AS INTEGER   ' (the question laid out last: again when the look changes)
@@ -78,6 +79,7 @@ SUB LayOutPrompt(Many AS INTEGER)
   IF PromptRust THEN
     ws = ws + 110: wd = wd + 10
   END IF
+  IF PromptAgain THEN ws = ws + 14
   SavePrompt.Font.Name = UIFont.Name: SavePrompt.Font.Size = UIFont.Size
   PromptTitle.Font = SubFont
   PromptText.Font.Color = TC("page.dim")
@@ -99,7 +101,11 @@ SUB LayOutPrompt(Many AS INTEGER)
   y = pad + th + 6 + tx + pad
   IF y < pad + ic + pad THEN y = pad + ic + pad
   PromptReview.Visible = Many
-  IF PromptRust THEN
+  ' (Copy Example Again: Copy Again or Cancel, nothing between)
+  PromptDont.Visible = Flag(PromptAgain = 0)
+  IF PromptAgain THEN
+    PromptSave.Caption = "&Copy Again"
+  ELSEIF PromptRust THEN
     PromptSave.Caption = "&Build Interpreted Instead"
     PromptDont.Caption = "&Install Rust..."
   ELSEIF Many THEN
@@ -173,6 +179,20 @@ FUNCTION AskRust AS STRING
   ELSE
     Result = ""
   END IF
+END FUNCTION
+
+'' File > Copy Example Again from the Original: Question (Detail under it)
+' with Copy Again (Enter) and Cancel (Escape); 1 for Copy Again.
+FUNCTION AskCopyAgain(Question AS STRING, Detail AS STRING) AS INTEGER
+  PromptAgain = 1
+  LayOutPrompt 0
+  PromptTitle.Caption = Question
+  PromptText.Caption = Detail
+  PromptAnswer = PROMPT_CANCEL
+  SavePrompt.Center
+  SavePrompt.ShowModal
+  PromptAgain = 0
+  Result = Flag(PromptAnswer = PROMPT_SAVE)
 END FUNCTION
 
 ' Whether a document has changes not saved: Studio's window says so (the

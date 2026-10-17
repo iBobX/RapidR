@@ -18,7 +18,7 @@
 // (4.5:1, 3:1 for large and disabled text) fails.
 
 import { spawn, spawnSync } from "node:child_process";
-import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -505,6 +505,60 @@ const CASES = [
     events: "projecttree.__key_9_256,studio.__key_9_256,studio.__key_13",
     delay: 4,
     dump: { "studio.caption": /^notepad - RapidR Studio$/, "welcome.vertposition": /^[1-9]\d*$/, "excard(14).tabstop": /^1$/ },
+  },
+  // (EXAMPLES-DATA) RapidR's examples where RapidR is installed (a
+  // read-only home, as /usr/lib/rapidr or the macOS app): the Welcome
+  // page's card clicked (the mouse, on its title) opens the user's copy in
+  // Documents/RapidR/Examples/<name> — made with its data, said in the
+  // Output with "Copy again from the original"; a copy that's there opens
+  // as the user left it (its missing files copied again); File > Copy
+  // Example Again asks first — Copy Again puts the original back, Cancel
+  // changes nothing; the same from the command line (Recent's way: a path)
+  {
+    name: "example-readonly-home",
+    readOnlyHome: true,
+    desktopOnly: true,
+    events: "extitle(1).__mousedown_5_5,extitle(1).__mouseup_5_5",
+    delay: 4,
+    dump: { "proj.folder": /docs\/RapidR\/Examples\/linked_data$/, "proj.examplecopy": /^made$/, "studio.caption": /^linked_data - RapidR Studio$/,
+      "outputbox.text": /Made your copy of the example linked_data\.rr \(the installed examples can't be changed\), in:\n {2}\S*docs\/RapidR\/Examples\/linked_data\n {2}Copy again from the original/ },
+    desktopFiles: ["docs/RapidR/Examples/linked_data/linked_data.rr", "docs/RapidR/Examples/linked_data/staff.csv"],
+  },
+  {
+    name: "example-readonly-home-kept",
+    readOnlyHome: true,
+    desktopOnly: true,
+    seed: { "RapidR/Examples/linked_data/linked_data.rr": "' mine\nPRINT \"mine\"\n" },
+    events: "extitle(1).__mousedown_5_5,extitle(1).__mouseup_5_5",
+    delay: 4,
+    dump: { "proj.examplecopy": /^kept$/, "outputbox.text": /Your copy of the example linked_data\.rr, as you left it, in:/ },
+    files: { "docs/RapidR/Examples/linked_data/linked_data.rr": /^' mine\nPRINT "mine"\n$/ },
+    desktopFiles: ["docs/RapidR/Examples/linked_data/staff.csv"],
+  },
+  {
+    name: "example-copy-again",
+    readOnlyHome: true,
+    desktopOnly: true,
+    seed: { "RapidR/Examples/linked_data/linked_data.rr": "' mine\nPRINT \"mine\"\n" },
+    open: "examples/data/linked_data.rr",
+    do: "file.exampleAgain",
+    events: "promptsave.__key_13",
+    delay: 6,
+    dump: { "prompttitle.caption": /^Copy linked_data\.rr again from the original\?$/, "promptsave.caption": /^&Copy Again$/, "promptdont.visible": /^0$/, "saveprompt.visible": /^0$/,
+      "outputbox.text": /Copied linked_data\.rr again from the original, in:/, "proj.mainfile": /^linked_data\.rr$/ },
+    files: { "docs/RapidR/Examples/linked_data/linked_data.rr": /^' linked_data\.rr: linked data components/ },
+  },
+  {
+    name: "example-copy-again-cancel",
+    readOnlyHome: true,
+    desktopOnly: true,
+    seed: { "RapidR/Examples/linked_data/linked_data.rr": "' mine\nPRINT \"mine\"\n" },
+    open: "examples/data/linked_data.rr",
+    do: "file.exampleAgain",
+    events: "promptcancel.__mousedown_12_12,promptcancel.__mouseup_12_12",
+    delay: 6,
+    dump: { "saveprompt.visible": /^0$/, "proj.examplecopy": /^kept$/ },
+    files: { "docs/RapidR/Examples/linked_data/linked_data.rr": /^' mine\nPRINT "mine"\n$/ },
   },
   {
     // (the desktop works on a copy: Save All writes the project file)
@@ -3050,11 +3104,39 @@ async function settingsByMouse(page, scale, record) {
   }
 }
 
+// (EXAMPLES-DATA) A folder and everything in it writable again (true) or
+// read-only (false): an install's examples, as /usr/lib/rapidr or the macOS
+// app has them.
+function writableTree(path, writable) {
+  if (!existsSync(path)) return;
+  const st = statSync(path);
+  if (st.isDirectory()) {
+    if (writable) chmodSync(path, 0o755);
+    for (const f of readdirSync(path)) writableTree(join(path, f), writable);
+    if (!writable) chmodSync(path, 0o555);
+  } else chmodSync(path, writable ? 0o644 : 0o444);
+}
+
 function runDesktop(c, scale = 1) {
   const dir = join(WORK, `${c.name}-desktop${scale > 1 ? `@${scale}x` : ""}`);
+  writableTree(join(dir, "install"), true);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
-  const args = ["run", "ide/studio.rr", "--home", ".", "--fresh", "--theme", c.theme || "rapidr-light"];
+  // (EXAMPLES-DATA: `readOnlyHome` — RapidR's home as an install has it, its
+  // examples where they can't be changed; the Documents folder the case's
+  // own, with `seed`'s files in it first)
+  let home = ".";
+  if (c.readOnlyHome) {
+    home = join(dir, "install");
+    cpSync(join(ROOT, "examples"), join(home, "examples"), { recursive: true, filter: (src) => !/\.tmp\.[^/\\]*$|big(_\d+)?\.csv$/.test(src) });
+    cpSync(join(ROOT, "ide", "assets"), join(home, "ide", "assets"), { recursive: true });
+    for (const [rel, text] of Object.entries(c.seed || {})) {
+      mkdirSync(dirname(join(dir, "docs", rel)), { recursive: true });
+      writeFileSync(join(dir, "docs", rel), text);
+    }
+    writableTree(home, false);
+  }
+  const args = ["run", "ide/studio.rr", "--home", home, "--fresh", "--theme", c.theme || "rapidr-light"];
   // (R-NAMES: a RapidQ program's folder copied here, imported from there —
   // the import writes its copy beside it; {dir}: the case's own folder —
   // a new project goes there)
@@ -3075,6 +3157,9 @@ function runDesktop(c, scale = 1) {
     const to = join(dir, c.open.split("/").pop());
     copyFileSync(join(ROOT, c.open), to);
     args.push(to);
+  } else if (c.open && c.readOnlyHome) {
+    // (an example as the install has it: its path there)
+    args.push(join(home, c.open));
   } else if (c.open) {
     args.push(c.open);
   }
@@ -3099,6 +3184,9 @@ function runDesktop(c, scale = 1) {
       ...(c.contrast ? { RAPIDR_TEST_CONTRAST: join(dir, "contrast.json") } : {}),
       RAPIDR_PRINT_TO: join(WORK, "prints"),
       RAPIDR_REGISTRY: join(WORK, `${c.name}.reg`),
+      // (an example's copy, a build that can't go beside its program: the
+      // case's own Documents folder — never the user's)
+      RAPIDR_DOCUMENTS: join(dir, "docs"),
       // (the AI assistant: keys in memory only — never the user's keychain —,
       // no provider's key from this shell, its audit log the case's)
       RAPIDR_AI_KEYSTORE: "memory",
@@ -3119,6 +3207,8 @@ function runDesktop(c, scale = 1) {
     if (c.restart.do) again.splice(again.length - 1, 0, "--do", c.restart.do);
     r = run(again, c.restart.delay || c.delay, "events" in c.restart ? c.restart.events : c.events);
   }
+  // (the install's copy writable again: the results folder can be cleared)
+  if (c.readOnlyHome) writableTree(home, true);
   const dump = parseDump(r.stdout || "", keys);
   const quit = r.status === 0 && !r.error && Object.keys(dump).length === 0;
   // (files the run must leave: the program's own window captured)

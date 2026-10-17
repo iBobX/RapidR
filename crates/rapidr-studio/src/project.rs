@@ -40,6 +40,9 @@ struct Model {
 }
 
 thread_local! {
+    /// What the last ExampleToOpen did, by component: "made" (a copy now),
+    /// "kept" (the copy that was there), "" (the example itself).
+    static EXAMPLE_COPY: RefCell<HashMap<String, &'static str>> = RefCell::new(HashMap::new());
     static PROJECTS: RefCell<HashMap<String, Model>> = RefCell::new(HashMap::new());
     /// The last import's (summary, report file), by component: kept when a
     /// project is opened (the copy is, next).
@@ -95,6 +98,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "importreport" => Value::String(imported(name).1),
             "importmissing" => Value::String(imported(name).2),
             "includefolders" => Value::String(include_folders()),
+            "examplecopy" => Value::String(EXAMPLE_COPY.with(|e| e.borrow().get(&name.to_ascii_lowercase()).copied().unwrap_or("")).to_string()),
             // (Reveal's: what the system calls its file manager)
             "filemanager" => Value::String(if cfg!(target_arch = "wasm32") { "" } else if cfg!(target_os = "macos") { "Finder" } else if cfg!(windows) { "File Explorer" } else { "Files" }.into()),
             _ => return None,
@@ -133,7 +137,7 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             "keeprust" => m.project.build.keep_rust = v.to_i64() != 0 || v.to_string_val().eq_ignore_ascii_case("true"),
             "buildkind" => set_build_kind(&mut m.project, v.to_string_val().trim().eq_ignore_ascii_case("interpreted")),
             "includefolders" => set_include_folders(&v.to_string_val()),
-            "filename" | "folder" | "kind" | "error" | "filecount" | "building" | "builtpath" | "filemanager" | "importsummary" | "importreport" | "importmissing" => {}
+            "filename" | "folder" | "kind" | "error" | "filecount" | "building" | "builtpath" | "filemanager" | "importsummary" | "importreport" | "importmissing" | "examplecopy" => {}
             _ => return false,
         }
         true
@@ -451,6 +455,76 @@ fn icon_preview(name: &str, px: u32) -> String {
     })
 }
 
+/// ExampleToOpen(Path, Examples): the file Studio opens for `path` — when
+/// it's one of RapidR's examples (in folder `examples`) installed where it
+/// can't be written, its copy in Documents/RapidR/Examples/<name>/ (made
+/// now, "made", or the one there, "kept": never overwritten); else `path`
+/// itself (""). The web's store keeps what the user saves over the file it
+/// opened: there, always the example itself.
+fn example_to_open(path: &str, examples: &str) -> Result<(String, &'static str), String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        use rapidr_project::program_files::{self, ExampleOpen};
+        use std::path::Path;
+        let p = Path::new(path);
+        if path.is_empty() || examples.is_empty() || !program_files::is_inside(p, Path::new(examples)) || !p.is_file() {
+            return Ok((path.to_string(), ""));
+        }
+        let (file, what) = program_files::example_to_open(p)?;
+        let what = match what {
+            ExampleOpen::InPlace => return Ok((path.to_string(), "")),
+            ExampleOpen::Copied => "made",
+            ExampleOpen::Existing => "kept",
+        };
+        Ok((slashes(&file.to_string_lossy()), what))
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = examples;
+        Ok((path.to_string(), ""))
+    }
+}
+
+/// ExampleOf(Path, Examples): the example (in folder `examples`) that
+/// `path` is the user's copy of; "" for any other file.
+fn example_of(path: &str, examples: &str) -> String {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        use std::path::Path;
+        if path.is_empty() || examples.is_empty() {
+            return String::new();
+        }
+        rapidr_project::program_files::example_of_copy(Path::new(path), Path::new(examples)).map(|p| slashes(&p.to_string_lossy())).unwrap_or_default()
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (path, examples);
+        String::new()
+    }
+}
+
+/// CopyExampleAgain(Path, Examples): the copy `path` (or the example
+/// `path` itself) made again from the example as RapidR has it — its
+/// program, includes and data over the copy's; files the user added stay.
+/// The copy's main file.
+fn copy_example_again(path: &str, examples: &str) -> Result<String, String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        use std::path::Path;
+        let original = match example_of(path, examples) {
+            o if !o.is_empty() => o,
+            _ if !path.is_empty() && rapidr_project::program_files::is_inside(Path::new(path), Path::new(examples)) => path.to_string(),
+            _ => return Err(format!("{path} isn't a copy of one of RapidR's examples")),
+        };
+        rapidr_project::program_files::copy_example_again(Path::new(&original)).map(|p| slashes(&p.to_string_lossy()))
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (path, examples);
+        Err("the web keeps the examples you change in the page's store".into())
+    }
+}
+
 /// A finished build's app, remembered for Reveal and BuiltPath.
 pub(crate) fn set_built(name: &str, path: &str) {
     with(name, |m| m.built = path.to_string());
@@ -559,6 +633,26 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             flag(ok)
         }
         "iconpreview" => Value::String(icon_preview(name, int_arg(args, 0, 128).clamp(16, 1024) as u32)),
+        // (an example installed where it can't be changed opens as the
+        // user's copy: rapidr_project::program_files)
+        "exampletoopen" => {
+            let r = example_to_open(&s(0), &s(1));
+            let (path, what) = match r {
+                Ok(x) => x,
+                Err(e) => {
+                    with(name, |m| m.error = e);
+                    (String::new(), "")
+                }
+            };
+            EXAMPLE_COPY.with(|e| e.borrow_mut().insert(name.to_ascii_lowercase(), what));
+            Value::String(path)
+        }
+        "exampleof" => Value::String(example_of(&s(0), &s(1))),
+        "copyexampleagain" => {
+            let r = copy_example_again(&s(0), &s(1));
+            with(name, |m| m.error = r.as_ref().err().cloned().unwrap_or_default());
+            Value::String(r.unwrap_or_default())
+        }
         // (File > Import RapidQ Project or File: a copy, never the original)
         "importrapidq" => {
             let r = crate::import::import(host, &s(0), &s(1));

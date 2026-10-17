@@ -22,6 +22,7 @@
 mod error;
 pub mod forms;
 mod implicit;
+pub mod program_files;
 mod project;
 mod v1;
 mod workspace;

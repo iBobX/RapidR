@@ -18,6 +18,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+use rapidr_project::program_files::{self, Existing};
+
 use crate::home::Home;
 
 /// An example: its path under the examples folder (`basics/hello.rr`).
@@ -37,13 +39,18 @@ impl Example {
     }
 
     /// Whether `wanted` names it: `hello`, `hello.rr`, `basics/hello` or
-    /// `basics/hello.rr` (any case, `\` or `/`).
+    /// `basics/hello.rr` — and one in a folder of its own by its topic
+    /// (`rapidq/shapes` for `rapidq/shapes/shapes.bas`) — any case, `\` or
+    /// `/`.
     fn is(&self, wanted: &str) -> bool {
-        let wanted = wanted.replace('\\', "/").to_lowercase();
+        let wanted = wanted.replace('\\', "/").trim_end_matches('/').to_lowercase();
         let name = self.name().to_lowercase();
         let no_ext = name.rsplit_once('.').map_or(name.clone(), |(n, _)| n.to_string());
-        [name.as_str(), no_ext.as_str()].contains(&wanted.as_str())
-            || wanted == self.stem().to_lowercase()
+        let stem = self.stem().to_lowercase();
+        let topic = name.split('/').next().unwrap_or("").to_string();
+        let topic_form = format!("{topic}/{stem}");
+        [name.as_str(), no_ext.as_str(), stem.as_str()].contains(&wanted.as_str())
+            || (name.contains('/') && wanted == topic_form)
             || self.rel.file_name().is_some_and(|f| f.to_string_lossy().to_lowercase() == wanted)
     }
 }
@@ -106,6 +113,24 @@ fn summary(path: &Path) -> String {
     para[..end].trim_end_matches(['.', ',', ' ']).to_string()
 }
 
+/// `text` with each `docs/manual/<page>` it names made the manual's page
+/// where it is: an install's (`<prefix>/share/doc/rapidr/manual/`, beside
+/// its `lib/rapidr/examples`), a checkout's, else on the web.
+fn manual_pages(text: &str, examples: &Path) -> String {
+    const NAMED: &str = "docs/manual/";
+    let Some(at) = text.find(NAMED) else { return text.to_string() };
+    let rest = &text[at + NAMED.len()..];
+    let len = rest.find(|c: char| !(c.is_ascii_alphanumeric() || "-_./".contains(c))).unwrap_or(rest.len());
+    let page = rest[..len].trim_end_matches('.');
+    let home = examples.parent().unwrap_or(Path::new("."));
+    let installed = home.parent().and_then(Path::parent).map(|prefix| prefix.join("share").join("doc").join("rapidr").join("manual").join(page));
+    let place = match installed.into_iter().chain([home.join("docs").join("manual").join(page)]).find(|p| p.exists()) {
+        Some(p) => p.display().to_string(),
+        None => format!("https://github.com/iBobX/RapidR/blob/main/docs/manual/{page}"),
+    };
+    format!("{}{place}{}", &text[..at], manual_pages(&rest[page.len()..], examples))
+}
+
 pub fn command(args: &[String]) -> ExitCode {
     let dir = match folder() {
         Ok(d) => d,
@@ -119,7 +144,7 @@ pub fn command(args: &[String]) -> ExitCode {
         None | Some("list") => {
             let width = examples.iter().map(|e| e.name().len()).max().unwrap_or(0);
             for e in &examples {
-                println!("  {:width$}  {}", e.name(), summary(&dir.join(&e.rel)));
+                println!("  {:width$}  {}", e.name(), manual_pages(&summary(&dir.join(&e.rel)), &dir));
             }
             println!();
             println!("{} examples in {} (examples/README.md: what each shows, where it runs).", examples.len(), dir.display());
@@ -158,43 +183,12 @@ pub fn command(args: &[String]) -> ExitCode {
     }
 }
 
-/// The files program `src` `$INCLUDE`s (however deep) that are in its own
-/// folder or below it (`lib/geometry.inc`), as the compiler finds them.
-fn includes_of(src: &Path) -> Vec<PathBuf> {
-    let Some(folder) = src.parent() else { return Vec::new() };
-    let Ok(pre) = rapidr_preprocessor::preprocess_file(src, rapidr_preprocessor::PreprocessOptions::default()) else { return Vec::new() };
-    let mut out: Vec<PathBuf> = Vec::new();
-    for u in &pre.includes {
-        if let rapidr_preprocessor::IncludeFound::File(p) = &u.found {
-            if p.starts_with(folder) && p.is_file() && !out.contains(p) {
-                out.push(p.clone());
-            }
-        }
-    }
-    out
-}
-
 /// One example into `to`: the program, the files it includes from its
 /// folder (as they are there: `lib/geometry.inc`), and the files beside it
-/// that it names (its data: `$RESOURCE … AS "sprites.dxg"`, "staff.csv").
+/// that it names (its data: `$RESOURCE … AS "sprites.dxg"`, "staff.csv") —
+/// the set RapidR Studio copies too (`rapidr_project::program_files`).
 fn copy_one(dir: &Path, e: &Example, to: &Path) -> Result<Vec<PathBuf>, String> {
-    let src = dir.join(&e.rel);
-    let text = fs::read_to_string(&src).map_err(|err| format!("{}: {err}", src.display()))?;
-    let mut files = vec![src.clone()];
-    files.extend(includes_of(&src));
-    if let Some(parent) = src.parent() {
-        let mut data: Vec<PathBuf> = fs::read_dir(parent)
-            .map_err(|err| format!("{}: {err}", parent.display()))?
-            .flatten()
-            .map(|d| d.path())
-            .filter(|p| p.is_file() && !is_program(p) && !files.contains(p))
-            .filter(|p| p.file_name().is_some_and(|f| text.contains(&*f.to_string_lossy())))
-            .collect();
-        data.sort();
-        files.extend(data);
-    }
-    let parent = src.parent().map(Path::to_path_buf).unwrap_or_default();
-    copy_files(&files, |f| to.join(f.strip_prefix(&parent).map(Path::to_path_buf).unwrap_or_else(|_| PathBuf::from(f.file_name().unwrap_or_default()))))
+    program_files::copy_program(&dir.join(&e.rel), to, Existing::Refuse)
 }
 
 /// Every example, by topic folder, and the index.
@@ -215,30 +209,13 @@ fn copy_all(dir: &Path, examples: &[Example], to: &Path) -> Result<Vec<PathBuf>,
     }
     // (and what each includes from below its folder: rapidq/shapes/lib/…)
     for e in examples {
-        for f in includes_of(&dir.join(&e.rel)) {
+        for f in program_files::includes_of(&dir.join(&e.rel)) {
             if !files.contains(&f) {
                 files.push(f);
             }
         }
     }
-    copy_files(&files, |f| to.join(f.strip_prefix(dir).unwrap_or(f)))
-}
-
-/// `files` to where `dest` puts each — none of them over a file that's
-/// already there (then nothing is copied).
-fn copy_files(files: &[PathBuf], dest: impl Fn(&Path) -> PathBuf) -> Result<Vec<PathBuf>, String> {
-    let pairs: Vec<(PathBuf, PathBuf)> = files.iter().map(|f| (f.clone(), dest(f))).collect();
-    let there: Vec<String> = pairs.iter().filter(|(_, d)| d.exists()).map(|(_, d)| d.display().to_string()).collect();
-    if !there.is_empty() {
-        return Err(format!("already there, not overwritten (nothing was copied): {}", there.join(", ")));
-    }
-    for (src, dst) in &pairs {
-        if let Some(parent) = dst.parent() {
-            fs::create_dir_all(parent).map_err(|err| format!("{}: {err}", parent.display()))?;
-        }
-        fs::copy(src, dst).map_err(|err| format!("{} to {}: {err}", src.display(), dst.display()))?;
-    }
-    Ok(pairs.into_iter().map(|(_, d)| d).collect())
+    program_files::copy_files(&files, |f| to.join(f.strip_prefix(dir).unwrap_or(f)), Existing::Refuse)
 }
 
 #[cfg(test)]
@@ -279,5 +256,14 @@ mod tests {
         let all = list(&dir);
         assert!(all.iter().any(|e| e.name() == "basics/hello.rr"));
         assert!(all.iter().all(|e| !summary(&dir.join(&e.rel)).is_empty()), "every example's first comment line says what it is");
+        // (an example in a folder of its own, by its topic too)
+        let shapes = all.iter().find(|e| e.name() == "rapidq/shapes/shapes.bas").unwrap();
+        assert!(shapes.is("rapidq/shapes") && shapes.is("rapidq/shapes/") && shapes.is("shapes") && shapes.is("RapidQ\\Shapes"));
+        assert!(!shapes.is("gui/shapes"));
+        // (the manual's pages where they are: this checkout's)
+        let shop = manual_pages(&summary(&dir.join("debugging/shop.rr")), &dir);
+        assert!(!shop.contains(" (docs/manual/") && shop.contains(&dir.parent().unwrap().join("docs").join("manual").join("debugging.md").display().to_string()), "{shop}");
+        let elsewhere = manual_pages("see docs/manual/nowhere.md.", Path::new("/no/such/examples"));
+        assert_eq!(elsewhere, "see https://github.com/iBobX/RapidR/blob/main/docs/manual/nowhere.md.");
     }
 }

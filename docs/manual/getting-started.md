@@ -369,6 +369,18 @@ go from card to card — the page scrolls to the one you reach — and Enter
 opens it. Studio opens in your system's light, dark or high-contrast look
 and follows it when you switch ([Themes](components.md#when-the-look-changes)).
 
+The examples where RapidR is installed can't be changed (the macOS app,
+`/usr/lib/rapidr`, Program Files), so the first time you open one Studio
+makes your own copy of it — the program and the data files it uses — in
+`Documents/RapidR/Examples/<name>` and opens that; the Output says where.
+Run it, change it and save it there: the next time you open the example
+(the card, File > Open Example, Recent) you get your copy as you left
+it. **Copy again from the original** (the link in the Output, or File >
+Copy Example Again from the Original) puts RapidR's version back, after
+asking; files you added to the folder stay. In a source checkout the
+examples open where they are. On the web, an example you change and save
+is kept in the browser (the page's store), over the original.
+
 ![The Welcome page scrolled to its last cards: Shift+Tab from the Project pane reached hello.rr, ringed, ready for Enter](images/themes/studio-welcome-last-card.png)
 
 ## Where next
