@@ -278,6 +278,22 @@ export const cases = [
   // (a click on the sky sends a rocket there; Space another one)
   { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: `sky.__mousedown_400_200,sky.__mouseup_400_200,${wait("info", 30)},form.__key_32`,
     dump: "info.caption", expect: ["info.caption=Bursts so far: 1."] },
+  // signal_lab.rr: with the noise off the analyzer finds the two tones the
+  // sliders say (438 and 683 Hz), a screen reader is told; a square wave with
+  // no second tone shows its odd harmonics, the 11th folded back (aliasing)
+  { file: "showcase/signal_lab.rr", runtimes: ["run", "interp", "native", "web"], events: `noisebar.__key_36,${wait("info", 30)}`,
+    dump: "freqlabel.caption,freq2label.caption,amplabel.caption,noiselabel.caption,spec.accessibledescription,scope.accessibledescription",
+    expect: ["freqlabel.caption=Frequency: 438 Hz", "freq2label.caption=Frequency: 683 Hz", "amplabel.caption=Amplitude: 80 %", "noiselabel.caption=Noise: 0 %",
+      "spec.accessibledescription=Peaks at 438 Hz, 683 Hz", "scope.accessibledescription=438 Hz sine wave, about three cycles shown"] },
+  { file: "showcase/signal_lab.rr", runtimes: ["run", "interp", "native", "web"],
+    events: `noisebar.__key_36,wsquare.__mousedown_8_8,wsquare.__mouseup_8_8,tone2on.__mousedown_8_8,tone2on.__mouseup_8_8,${wait("info", 30)}`,
+    dump: "freq2bar.enabled,amp2bar.enabled,spec.accessibledescription,scope.accessibledescription",
+    expect: ["freq2bar.enabled=0", "amp2bar.enabled=0", "spec.accessibledescription=Peaks at 438 Hz, 1314 Hz, 2190 Hz, 3066 Hz, 3942 Hz, 3374 Hz", "scope.accessibledescription=438 Hz square wave"] },
+  // (Hold freezes the screens and says Run; again, and it runs; a frequency
+  // slider moved with the keyboard changes its label; the trigger switched off)
+  { file: "showcase/signal_lab.rr", runtimes: ["run", "interp", "native", "web"], events: `holdbtn.onclick,freqbar.__key_39,trigbox.__mousedown_8_8,trigbox.__mouseup_8_8`,
+    dump: "holdbtn.caption,freqlabel.caption,trigbox.checked", expect: ["holdbtn.caption=&Run", "freqlabel.caption=Frequency: 444 Hz", "trigbox.checked=0"] },
+  { file: "showcase/signal_lab.rr", runtimes: ["run", "interp", "native", "web"], events: `holdbtn.onclick,holdbtn.onclick`, dump: "holdbtn.caption", expect: ["holdbtn.caption=&Hold"] },
   // (the song read by the program itself — 819 notes, 128 beats a minute —,
   // played a little, paused: the clock and the caption say so)
   { file: "showcase/midi_visualizer.rr", runtimes: ["run", "interp", "native", "web"], events: `playbtn.onclick,${wait("info", 24)},pausebtn.onclick`,

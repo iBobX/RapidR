@@ -170,6 +170,7 @@ has a picture of each and explains its best lines.
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
 | [fireworks.rr](showcase/fireworks.rr) | Click the sky or press Space: a rocket flies up and bursts into thousands of sparks, each its own element of arrays with its own gravity, drag and fade; RNum works out the shapes (ball, ring, two rings, a heart); the spark count and the frame rate show in the corner | run · interp · native · web | `rapidr run showcase/fireworks.rr` |
+| [signal_lab.rr](showcase/signal_lab.rr) | A signal generator and a two-screen oscilloscope: four waves, frequency, amplitude, noise and a second tone; the top screen held still by a trigger, the bottom the spectrum from an FFT written in BASIC (radix 2, 1024 points), its peaks marked in hertz | run · interp · native · web | `rapidr run showcase/signal_lab.rr` |
 | [midi_visualizer.rr](showcase/midi_visualizer.rr) | A 3D scene that dances to a song: the program reads the `.mid` file itself (chunks, variable-length times, tempo, Note On), RMIDI plays it, every note moves the scene; Load MIDI…, a Calm switch | run · interp · native · web | `rapidr run showcase/midi_visualizer.rr` |
 | [make_song.rr](showcase/make_song.rr) | Composes [song.mid](showcase/song.mid), the visualizer's own 32-bar loop (kick, bass, arpeggio, pad), and writes it as a MIDI file | run · interp · native · web | `rapidr run showcase/make_song.rr` |
 

@@ -12,6 +12,9 @@ export const scenes = [
   // little: columns up in the notes' colours, sparks flying, the crystal big
   { name: "midi-visualizer", program: "examples/showcase/midi_visualizer.rr", args: ["44"], delay: 1,
     env: { RAPIDR_TEST_EVENTS: `playbtn.onclick,${wait("info", 60)}` } },
+  // the lab as it opens, the noise brought down with its slider's Home key
+  { name: "signal-lab", program: "examples/showcase/signal_lab.rr", delay: 1,
+    env: { RAPIDR_TEST_EVENTS: `noisebar.__key_36,${wait("info", 30)}` } },
   // a ball, two rings and a heart, sent up with the number keys and clicks
   { name: "fireworks", program: "examples/showcase/fireworks.rr", delay: 1,
     env: {

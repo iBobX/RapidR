@@ -16,6 +16,7 @@ Where a program needs something a browser can't give it, its section says so.
 | Program | What it shows |
 |---|---|
 | [Fireworks](#fireworks) | thousands of sparks, each with its own physics; RNum draws the shapes |
+| [Signal lab](#signal-lab) | a signal generator, an oscilloscope held still by a trigger, and an FFT written in BASIC |
 | [A MIDI visualizer](#a-midi-visualizer) | a 3D scene that dances to a song the program reads itself |
 
 ## Fireworks
@@ -83,6 +84,80 @@ draws about two thousand lines a frame, and measures:
 The cost is the drawing calls: each takes about 5 microseconds, so 2,000
 sparks are about 10 milliseconds of the frame's 16 or 33; the arithmetic for
 all of them takes less than one millisecond.
+
+## Signal lab
+
+[`signal_lab.rr`](../../examples/showcase/signal_lab.rr) is a small
+instrument for engineers and for anyone curious about waves. Pick a **sine**,
+**square**, **triangle** or **sawtooth** wave, set its frequency, amplitude
+and the noise on it, and add a second tone. The top screen is the signal as
+an oscilloscope shows it; the bottom screen is its **spectrum** (how much of
+each frequency is in it), with the highest peaks marked in hertz. The signals
+are made up by the program, there is no microphone: RapidR can't listen yet.
+
+![The signal lab: a 438 Hz sine and a 683 Hz tone with a little noise on the scope, and the two tall peaks in the spectrum, each marked with its frequency](images/showcase/signal-lab.png)
+
+Try this: choose **Square**, switch the second tone off, and look at the
+spectrum. A square wave is a sine and its odd multiples, each smaller than the
+last: peaks at 438, 1314, 2190, 3066 and 3942 Hz. The sixth peak is not a
+multiple that fits: the program makes 8192 samples a second, so it can only
+see up to 4096 Hz, and the 11th multiple (4818 Hz) folds back to 3374 Hz, as
+it does on a real analyzer (aliasing).
+
+**The trigger.** A scope draws the signal again and again; the trigger makes
+each picture start at the same point of the wave, so it stands still. Here it
+looks through the frame for the first place the signal climbs through zero
+and starts drawing there. Switch **Trigger** off and the wave runs about:
+
+```basic
+FOR k = 3 TO M - N - 1
+    IF sig(k - 2) < 0 AND sig(k - 1) < 0 AND sig(k) >= 0 THEN
+        trig = k
+        EXIT FOR
+    END IF
+NEXT
+```
+
+(Two samples below zero and then one at or above it: a little noise on the
+signal can't fool it.)
+
+**The FFT.** A Fast Fourier Transform turns 1,024 samples into how much each
+frequency adds up to. The program has its own, in about 30 lines of BASIC (it
+shows that RapidR does real arithmetic: this runs 30 times a second, a
+frame's FFT takes 4 to 6 milliseconds). It first swaps the samples into
+"bit-reversed" order, then combines pairs into fours, eights, and so on,
+with the "butterfly" at its middle:
+
+```basic
+tr = wr * re(j) - wi * im(j)
+ti = wr * im(j) + wi * re(j)
+re(j) = re(i) - tr: im(j) = im(i) - ti
+re(i) = re(i) + tr: im(i) = im(i) + ti
+```
+
+`re` and `im` hold the real and imaginary parts; `wr` and `wi` are the turning
+factor, taken from a table of cosines and sines made once at the start. Before
+the FFT each sample is multiplied by a Hann window,
+`0.5 - 0.5 * COS(2 * PI * q / (N - 1))`, which is 0 at both ends of the frame,
+so that the frame's cut ends don't smear the peaks; after it, the size of
+each frequency is `SQR(re * re + im * im)`, scaled so a tone of amplitude 1
+reads 1, and drawn in decibels: `20 * LOG(mag) / LOG(10)`.
+
+**The peaks** are the points higher than both neighbours and within 30 dB of the
+highest. A peak between two points of the spectrum is found more exactly by
+the parabola through the three points: `best + 0.5 * (a - c) / (a - 2 * b + c)`
+(`a`, `b` and `c` are the decibels at the point before, at it and after it),
+so 438 Hz reads as 438 and not as the nearest multiple of 8. A screen reader
+is told the peaks too: the spectrum's `AccessibleDescription` is "Peaks at 438
+Hz, 683 Hz" and is renewed once a second.
+
+The screens are two `RCanvas` components drawn in their `OnPaint`; the timer
+makes the next frame and calls `Repaint`. Measured, at 1,024 points a frame:
+
+| Where | Frames a second | Making the signal | The FFT | A whole frame |
+|---|---|---|---|---|
+| The interpreter on a Mac (headless) | 30 to 33 | 4 to 6 ms | 4.4 ms | 11 to 14 ms |
+| The browser (headless Chromium) | 31 | 5.2 ms | 6.2 ms | 14.7 ms |
 
 ## A MIDI visualizer
 
