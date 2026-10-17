@@ -186,6 +186,8 @@ installed — RapidR Studio opens your copy instead), it can't write
 empty grid. It checks the way any program can: `FILEEXISTS` and `FILELEN`
 after the file is closed.
 
+![million_rows.rr run in a folder it can't write: "Couldn't write big_2000.csv: the folder it runs in can't be written: it is read-only, or the disk is full. Copy the example to a folder of yours and run it there…", the buttons greyed out](images/examples/million-rows-read-only.png)
+
 ## 6. JSON records
 
 An `RJson` holding an array of records (`[{"name": "Pencil", "price":

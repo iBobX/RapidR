@@ -132,8 +132,9 @@ IF FILEEXISTS(DataFile) = 0 THEN WriteData
 DIM Loaded AS DOUBLE
 ' (written? A folder that can't be written leaves no file, or an empty one)
 IF FILEEXISTS(DataFile) = 0 OR FILELEN(DataFile) = 0 THEN
-    ShowProblem "Couldn't write " + DataFile, "this folder (" + CURDIR$ + ") can't be written: it is read-only, or the disk is full. Copy the example to a folder of yours and run it there: rapidr examples copy million_rows (RapidR Studio copies it when you open it)."
-    PRINT Status.Caption
+    ShowProblem "Couldn't write " + DataFile, "the folder it runs in can't be written: it is read-only, or the disk is full. Copy the example to a folder of yours and run it there: rapidr examples copy million_rows (RapidR Studio copies it when you open it)."
+    ' (the folder in full where there's room for it: the output)
+    PRINT Status.Caption + " in " + CURDIR$
 ELSE
     Loaded = TIMER
     Big.FileName = DataFile

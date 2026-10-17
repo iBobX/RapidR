@@ -381,6 +381,10 @@ asking; files you added to the folder stay. In a source checkout the
 examples open where they are. On the web, an example you change and save
 is kept in the browser (the page's store), over the original.
 
+![linked_data.rr opened from the Welcome page where RapidR is installed: the Project pane lists the copy's linked_data.rr and staff.csv, and the Output says "Made your copy of the example linked_data.rr", its folder Documents/RapidR/Examples/linked_data and the link "Copy again from the original"](images/examples/studio-example-copy.png)
+
+![File > Copy Example Again from the Original asks first: "Copy linked_data.rr again from the original?" — your changes to the example's own files are replaced, files you added stay — Cancel or Copy Again](images/examples/copy-again-question.png)
+
 ![The Welcome page scrolled to its last cards: Shift+Tab from the Project pane reached hello.rr, ringed, ready for Enter](images/themes/studio-welcome-last-card.png)
 
 ## Where next
