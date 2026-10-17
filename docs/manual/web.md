@@ -24,8 +24,8 @@ python3 -m http.server -d form-web 8080      # or any static host
 
 Serve the folder over HTTP(S) — browsers don't load WebAssembly from
 `file://` pages (`rapidr serve form.bas --open` builds the program's web
-version and serves it on this computer for you, to try it). The web interpreter is about 10 MB (2.7 MB compressed with
-brotli, which most hosts do for you).
+version and serves it on this computer for you, to try it). The web interpreter is about 21 MB (about 6 MB compressed with
+brotli, which most hosts do for you; measured for 2.119.0).
 
 ## Files and assets
 

@@ -80,28 +80,14 @@ constants = [
 [[group]]
 name = "PLAYWAV options"
 source = "RAPIDQ.INC"
-doc = "Options for `PLAYWAV`: wait for the sound to end, play it in the background, or repeat it."
-constants = [
-  ["SND_ASYNC", 1],
-  ["SND_LOOP", 8],
-]
-
-[[group]]
-name = "PLAYWAV options"
-source = "RAPIDQ.INC"
-doc = "More `PLAYWAV` options: no default sound, don't stop a sound playing, play from memory."
-constants = [
-  ["SND_MEMORY", 4],
-  ["SND_NODEFAULT", 2],
-  ["SND_NOSTOP", 16],
-]
-
-[[group]]
-name = "PLAYWAV options"
-source = "RAPIDQ.INC"
-doc = "Options for `PLAYWAV`: wait for the sound to end, play it in the background, or repeat it."
+doc = "Options for `PLAYWAV`, added together: wait for the sound to end (SND_SYNC) or play it in the background (SND_ASYNC), repeat it, play it from memory, no default sound when the file is missing, don't stop a sound that is playing."
 constants = [
   ["SND_SYNC", 0],
+  ["SND_ASYNC", 1],
+  ["SND_NODEFAULT", 2],
+  ["SND_MEMORY", 4],
+  ["SND_LOOP", 8],
+  ["SND_NOSTOP", 16],
 ]
 
 [[group]]
