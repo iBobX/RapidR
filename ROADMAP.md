@@ -576,6 +576,17 @@ RapidR BASIC running ON an ESP32 (and later other boards), not only talking to o
 - [ ] **M5Stack (ESP32 with a screen)**: its display, buttons and IMU as RapidR objects, and a small RForm-like GUI for tiny screens (labels, buttons, lists drawn for 320×240).
 - [ ] **Spike first**: blink + a display "Hello" + Wi-Fi on an ESP32 Robert has, measuring binary size and build time.
 
+## Showcase gaps (found 2026-10-16 while choosing showcase examples; after Preview 2)
+In order of how many showcase ideas each unlocks:
+- [ ] RPlot heat map / image kind (correlation heat map, Mandelbrot, cell-life grid).
+- [ ] RDataFrame pivot table (sales pivot, survival by class).
+- [ ] RPlot bubble size on scatter (bubble charts over time).
+- [ ] RPlot treemap (disk-usage map).
+- [ ] Live sound generated from memory (synthesizer, drum machine).
+- [ ] k-means and a scatter-matrix grid.
+- [ ] System information (CPU, memory, OS version).
+- [ ] Saving a canvas as PNG.
+
 ## Phase 3D — Speech and guided lessons (after Preview 2; Robert, 2026-10-16; plan: [docs/speech-and-tutorial-plan.md](docs/speech-and-tutorial-plan.md))
 - [ ] **RSpeech**: text to speech for every program, on the system's voices (macOS, Windows, Linux, the browser). Voice list with language, rate/pitch/volume, an event per word, nothing GPL.
 - [ ] Optional neural voices (Kokoro, Apache-2.0) as a download: English, plus Mandarin marked basic. Spanish and Portuguese wait for our own non-GPL pronunciation rules.
