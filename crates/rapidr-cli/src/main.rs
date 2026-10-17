@@ -549,9 +549,9 @@ fn output_of(path: &str, explicit: Option<&str>, app: &package::Options) -> Resu
     // installed (/usr/lib/rapidr/examples, /Applications/…): the app goes to
     // Documents/RapidR/Builds/<program> instead, and the build says so. A
     // folder named on the command line is the user's choice: its error stays.
-    let dir = if explicit.is_none() && !can_write_in(&dir) {
+    let dir = if explicit.is_none() && !rapidr_project::program_files::can_write_in(&dir) {
         let stem = Path::new(path).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "program".into());
-        match std::env::home_dir().map(|h| h.join("Documents").join("RapidR").join("Builds").join(stem)) {
+        match rapidr_project::program_files::documents_folder().map(|d| d.join("RapidR").join("Builds").join(stem)) {
             Some(fallback) => {
                 println!("({} can't be written: the app goes to {})", dir.display(), fallback.display());
                 fallback
@@ -562,17 +562,6 @@ fn output_of(path: &str, explicit: Option<&str>, app: &package::Options) -> Resu
         dir
     };
     Ok(Output { dir, keep_rust })
-}
-
-/// Whether files can be made in `dir` (made first if it's missing).
-fn can_write_in(dir: &Path) -> bool {
-    if fs::create_dir_all(dir).is_err() {
-        return false;
-    }
-    let probe = dir.join(format!(".rapidr-write-test-{}", std::process::id()));
-    let ok = fs::write(&probe, b"").is_ok();
-    let _ = fs::remove_file(&probe);
-    ok
 }
 
 /// `rapidr build`: the program made into what is shipped, in the output
@@ -723,7 +712,15 @@ fn app_plan(path: &str, target: &str, opts: &package::Options) -> Result<package
     let option_icon = pre.as_ref().and_then(|p| rapidr_preprocessor::Resource::option_icon(&p.resources)).and_then(|r| r.path.clone());
     let console = compile_to_bytecode(path).map(|c| c.module.app_type.wants_console()).unwrap_or(false);
     let stem = Path::new(path).file_stem().and_then(|s| s.to_str()).unwrap_or("program");
-    package::plan(stem, system, console, opts, project.as_ref(), option_icon.as_deref())
+    let mut plan = package::plan(stem, system, console, opts, project.as_ref(), option_icon.as_deref())?;
+    // (the data files it names, with the app — not the `$RESOURCE`s: those
+    // are built into it)
+    let built_in: Vec<PathBuf> = pre.as_ref().map(|p| p.resources.iter().filter_map(|r| r.path.clone()).collect()).unwrap_or_default();
+    plan.data = rapidr_project::program_files::data_files_of(Path::new(path))
+        .into_iter()
+        .filter(|f| !built_in.iter().any(|r| rapidr_project::program_files::same_path(r, f)))
+        .collect();
+    Ok(plan)
 }
 
 /// Cargo run on the generated project in `project_dir`, its target folder

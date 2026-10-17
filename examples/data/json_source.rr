@@ -7,10 +7,13 @@
 ' Products (an RJson) holds products.json, an array of records; Stock (an
 ' RDataFrame) takes them (Source = Products); the RDBGrid and the edits are
 ' bound to Stock straight (DataSource = Stock), so they share its current
-' row: click a product and its name, price and stock show below; type a
-' new stock and the grid shows it. "Under 5" keeps the cheap ones; "By
-' category" adds up each category; "All" takes the records again; "Save"
-' writes the table, edits included, to products_edited.json.
+' row: click a product (or move with the arrows) and its name, price and
+' stock show below; type a new stock and the grid shows it (a number: the
+' edit's DataError says why letters aren't taken). "Under 5" keeps the
+' cheap ones; "By category" adds up each category (the first edit shows
+' the category then); "All" takes the records again; "Save"
+' writes the table, edits included, to products_edited.json (or says why
+' it couldn't: a folder that can't be written).
 ' products.json is made-up data.
 
 DECLARE SUB Cheap
@@ -18,6 +21,9 @@ DECLARE SUB ByCategory
 DECLARE SUB ShowAll
 DECLARE SUB SaveJson
 DECLARE SUB Picked(Row AS INTEGER, Col AS INTEGER)
+DECLARE SUB GridKey(Key AS WORD, Shift AS INTEGER)
+DECLARE SUB StockTyped
+DECLARE SUB FollowColumns
 
 CREATE Form AS RForm
     Caption = "Shop stock (JSON)"
@@ -51,6 +57,7 @@ CREATE Form AS RForm
         Left = 10: Top = 44: Width = 530: Height = 240
         DataSource = Stock
         OnCellClick = Picked
+        OnKeyUp = GridKey
     END CREATE
     CREATE NameLbl AS RLabel
         Caption = "Product": Left = 10: Top = 300
@@ -65,6 +72,7 @@ CREATE Form AS RForm
     CREATE StockEdit AS REdit
         Left = 320: Top = 296: Width = 80
         DataSource = Stock: DataField = "stock"
+        OnChange = StockTyped
     END CREATE
     CREATE PriceLbl AS RLabel
         Caption = "Price": Left = 10: Top = 332
@@ -86,25 +94,59 @@ SUB Picked(Row AS INTEGER, Col AS INTEGER)
     END IF
 END SUB
 
+' (the arrows, Page Up / Down, Home / End moved the current row: the same)
+SUB GridKey(Key AS WORD, Shift AS INTEGER)
+    Picked Grid.Row, 0
+END SUB
+
+' (what the user typed into the stock: a number column takes numbers only —
+' the field keeps its value, and DataError says why)
+SUB StockTyped
+    IF StockEdit.DataError <> "" THEN Status.Caption = "Not changed: " + StockEdit.DataError
+END SUB
+
+' (grouped by category, the rows have no product's name: the first edit
+' shows the category instead)
+SUB FollowColumns
+    IF INSTR("," + Stock.Columns + ",", ",name,") > 0 THEN
+        NameLbl.Caption = "Product": NameEdit.DataField = "name"
+    ELSE
+        NameLbl.Caption = "Category": NameEdit.DataField = "category"
+    END IF
+END SUB
+
 SUB Cheap
     Stock.Filter "price", "<", 5
+    FollowColumns
     Status.Caption = STR$(Stock.RowCount) + " products under 5"
 END SUB
 
 SUB ByCategory
     Stock.Select "category,price,stock"
     Stock.GroupBy "category", "sum"
+    FollowColumns
     Status.Caption = STR$(Stock.RowCount) + " categories: the prices and the stock added up"
 END SUB
 
+' (or why there are none: products.json couldn't be read)
 SUB ShowAll
     Stock.Refresh
-    Status.Caption = STR$(Stock.RowCount) + " products"
+    FollowColumns
+    IF Products.Error <> "" THEN
+        Status.Caption = "Couldn't read the products: " + Products.Error
+    ELSE
+        Status.Caption = STR$(Stock.RowCount) + " products"
+    END IF
 END SUB
 
+' (written, or why not: a folder that can't be written)
 SUB SaveJson
     Stock.SaveToJSON "products_edited.json"
-    Status.Caption = "Saved " + STR$(Stock.RowCount) + " records to products_edited.json"
+    IF Stock.Error <> "" THEN
+        Status.Caption = "Couldn't save " + Stock.Error
+    ELSE
+        Status.Caption = "Saved " + STR$(Stock.RowCount) + " records to products_edited.json"
+    END IF
 END SUB
 
 ShowAll

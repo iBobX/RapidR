@@ -7,6 +7,47 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Fixed
+- **RapidR Studio's examples work where RapidR is installed.** The examples
+  there can't be changed (the macOS app, `/usr/lib/rapidr`, Program Files), and
+  `million_rows.rr` "wrote" its data and said so while nothing was written. Now
+  opening one — a Welcome card, File > Open Example, the palette, Recent, File >
+  Open, the command line — opens your own copy in
+  `Documents/RapidR/Examples/<name>`, made the first time with its include and
+  data files (the very files `rapidr examples copy` takes: one implementation,
+  `rapidr_project::program_files`) and never overwritten after; the Output says
+  where it is, with **Copy again from the original** (also File > Copy Example
+  Again from the Original…, which asks first). A checkout's examples still open
+  where they are. `RAPIDR_DOCUMENTS` names another Documents folder (the tests').
+- **Built apps find their data files.** `rapidr build` (native and interpreted,
+  every system) puts the data files the program names with the app — a macOS
+  app's `Contents/Resources`, beside the `.exe`, an AppDir's `usr/bin` — and says
+  so; an app the desktop starts (Finder and `open` start it in `/`, a Linux
+  launcher in the home folder) works in that folder, as a RapidQ program
+  double-clicked on Windows works in its `.exe`'s. Started from a terminal,
+  programs keep the terminal's folder, and an RCSV or RJson that finds no file
+  there reads the app's own. Console programs never move.
+- **The data examples say when something failed**: `million_rows.rr` run where
+  it can't write says so in its window (with why, the buttons off) instead of
+  an empty grid and a "written" line; `linked_data.rr`'s and `json_source.rr`'s
+  Save say "Couldn't save staff_edited.csv: this folder can't be written…";
+  a missing `staff.csv` or `products.json` is said in the window, not "Row 1 of
+  0"; `basics/files.rr` and `data/json.rr` too.
+- `json_source.rr`: letters typed into the numeric Stock edit are refused (the
+  status says why), the arrow keys in the grid update the status line, and
+  grouped by category the first edit shows the category instead of going blank.
+- `rapidr examples copy rapidq/shapes` (an example by its topic) works as
+  `copy shapes` did; `rapidr examples` names the manual's pages where they are
+  (an install's `share/doc/rapidr/manual`, a checkout's `docs/manual`, else
+  on the web).
+
+### Added
+- `RDataFrame.Error` (why its last LoadFromCSV / SaveToCSV / LoadFromJSON /
+  SaveToJSON failed, in plain words), `RJson.Error` (why its records couldn't be
+  read as a data source), `REdit.DataError` (why what the user typed isn't its
+  number field's value — the field keeps its value): RapidR's, every runtime,
+  in the language registry.
+
 ### Changed
 - **Events fire as RapidQ fires them** (checked against RapidQ's own compiler,
   RC.EXE, in the Windows VM). Setting a property from code now fires the event the

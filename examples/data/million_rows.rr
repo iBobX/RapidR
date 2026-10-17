@@ -10,7 +10,9 @@
 ' an RDBGrid — scroll it, click a heading to sort the view. The buttons
 ' filter, sort and group the whole million and say how long it took.
 ' Pass another number of rows to try more or fewer (written to
-' big_<rows>.csv).
+' big_<rows>.csv). Where the file can't be written (RapidR's examples
+' where RapidR is installed: copy it first, `rapidr examples copy
+' million_rows` — RapidR Studio does it for you) the window says so.
 
 DECLARE SUB HighEarners
 DECLARE SUB SortBySalary
@@ -18,6 +20,7 @@ DECLARE SUB ByDepartment
 DECLARE SUB AllRows
 DECLARE SUB Took(What AS STRING, Started AS DOUBLE)
 DECLARE SUB WriteData
+DECLARE SUB ShowProblem(What AS STRING, Why AS STRING)
 
 DIM Rows AS LONG, DataFile AS STRING
 Rows = VAL(COMMAND$(1))
@@ -57,7 +60,21 @@ CREATE Form AS RForm
     CREATE Status AS RLabel
         Left = 10: Top = 416: Width = 610
     END CREATE
+    ' (what went wrong, where the grid would be: shown only then)
+    CREATE Problem AS RLabel
+        AutoSize = 0: WordWrap = 1: Visible = 0
+        Left = 20: Top = 60: Width = 590: Height = 80
+    END CREATE
 END CREATE
+
+' The data couldn't be written or read: why, in the window.
+SUB ShowProblem(What AS STRING, Why AS STRING)
+    Grid.Visible = 0
+    HighBtn.Enabled = 0: SortBtn.Enabled = 0: GroupBtn.Enabled = 0: AllBtn.Enabled = 0
+    Problem.Caption = What + ": " + Why
+    Problem.Visible = 1
+    Status.Caption = What
+END SUB
 
 ' How long something took, in the status line.
 SUB Took(What AS STRING, Started AS DOUBLE)
@@ -108,14 +125,24 @@ SUB WriteData
         PRINT #1, STR$(i) + "," + depts(x MOD 5) + "," + STR$(30000 + (x MOD 90000)) + "," + STR$(x MOD 40)
     NEXT
     CLOSE #1
-    PRINT DataFile + " written: " + STR$(Rows) + " rows in " + STR$(INT((TIMER - t) * 1000)) + " ms"
+    IF FILEEXISTS(DataFile) THEN PRINT DataFile + " written: " + STR$(Rows) + " rows in " + STR$(INT((TIMER - t) * 1000)) + " ms"
 END SUB
 
 IF FILEEXISTS(DataFile) = 0 THEN WriteData
 DIM Loaded AS DOUBLE
-Loaded = TIMER
-Big.FileName = DataFile
-Staff.Source = Big
-Took "Read " + DataFile, Loaded
-PRINT Status.Caption
+' (written? A folder that can't be written leaves no file, or an empty one)
+IF FILEEXISTS(DataFile) = 0 OR FILELEN(DataFile) = 0 THEN
+    ShowProblem "Couldn't write " + DataFile, "this folder (" + CURDIR$ + ") can't be written: it is read-only, or the disk is full. Copy the example to a folder of yours and run it there: rapidr examples copy million_rows (RapidR Studio copies it when you open it)."
+    PRINT Status.Caption
+ELSE
+    Loaded = TIMER
+    Big.FileName = DataFile
+    Staff.Source = Big
+    IF Big.Error <> "" THEN
+        ShowProblem "Couldn't read " + DataFile, Big.Error
+    ELSE
+        Took "Read " + DataFile, Loaded
+    END IF
+    PRINT Status.Caption
+END IF
 Form.ShowModal

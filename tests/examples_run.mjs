@@ -36,7 +36,7 @@
 //   node tests/examples_run.mjs [--runtimes run,interp,native,web] [filter …]
 
 import { spawn as spawnAsync, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dropBuild } from "./cargo_builds.mjs";
@@ -63,6 +63,10 @@ const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 //   includes: the program's $INCLUDEs are in subfolders of its own: the
 //            folder is copied whole, and the web compiles it with every
 //            source file under it (compile_files)
+//   readOnly: the program runs in its folder made read-only (RapidR's
+//            examples where RapidR is installed): what it writes fails, and
+//            it must say so (the built executable is made elsewhere)
+//   without: files of the example's folder left out (its data missing)
 // (`wait(c, n)`: n clicks on a component that does nothing with them — the
 // hooks fire an event every 50 ms, so the program's timers run meanwhile)
 const wait = (comp, n) => Array(n).fill(`${comp}.onclick`).join(",");
@@ -203,6 +207,28 @@ export const cases = [
   { file: "data/million_rows.rr", runtimes: ["run", "interp", "native", "web"], args: ["20000"],
     events: "groupbtn.onclick,grid.__cell_0_1", dump: "grid.rowcount,grid.columns,grid.row",
     expect: ["grid.rowcount=5", "grid.columns=dept,salary,years", "grid.row=1"] },
+  // (EXAMPLES-DATA: where the example's folder can't be written — RapidR's
+  // examples where it's installed — the window says why, nothing pretends;
+  // a data file missing, the same; letters typed into a number field are
+  // refused, the arrows move the row the status line shows, grouped by
+  // category the first edit shows the category)
+  { file: "data/million_rows.rr", runtimes: ["run", "interp", "native"], args: ["2000"], readOnly: true,
+    dump: "status.caption,problem.visible,grid.visible,highbtn.enabled,problem.caption",
+    expect: ["status.caption=Couldn't write big_2000.csv", "problem.visible=1", "grid.visible=0", "highbtn.enabled=0", "can't be written: it is read-only, or the disk is full"] },
+  { file: "data/linked_data.rr", runtimes: ["run", "interp", "native"], readOnly: true, events: "savebtn.onclick", dump: "status.caption",
+    expect: ["status.caption=Couldn't save staff_edited.csv: this folder can't be written (it is read-only, or not yours)"] },
+  { file: "data/linked_data.rr", runtimes: ["run", "interp", "native", "web"], events: "savebtn.onclick", dump: "status.caption",
+    expect: ["status.caption=Saved 8 rows to staff_edited.csv"] },
+  { file: "data/linked_data.rr", runtimes: ["run", "interp", "native", "web"], without: ["staff.csv"], dump: "status.caption,grid.rowcount",
+    expect: ["status.caption=Couldn't read the staff: there is no file \"staff.csv\"", "grid.rowcount=0"] },
+  { file: "data/json_source.rr", runtimes: ["run", "interp", "native", "web"], without: ["products.json"], dump: "status.caption,grid.rowcount",
+    expect: ["status.caption=Couldn't read the products: there is no file \"products.json\"", "grid.rowcount=0"] },
+  { file: "data/json_source.rr", runtimes: ["run", "interp", "native", "web"], events: "grid.__cell_0_0,stockedit.__key_65", dump: "stockedit.dataerror,status.caption,stockedit.text",
+    expect: ["stockedit.dataerror=stock is a whole number: \"a\" isn't one", "status.caption=Not changed: stock is a whole number: \"a\" isn't one", "stockedit.text=a"] },
+  { file: "data/json_source.rr", runtimes: ["run", "interp", "native", "web"], events: "grid.__cell_0_0,grid.__key_40,grid.__key_40", dump: "status.caption,grid.row,nameedit.text",
+    expect: ["status.caption=Ruler (School)", "grid.row=2", "nameedit.text=Ruler"] },
+  { file: "data/json_source.rr", runtimes: ["run", "interp", "native", "web"], events: "groupbtn.onclick,allbtn.onclick,groupbtn.onclick", dump: "namelbl.caption,nameedit.text,nameedit.datafield",
+    expect: ["namelbl.caption=Category", "nameedit.text=Art", "nameedit.datafield=category"] },
   // network/ (the tests' own server, local)
   { file: "network/http_json.rr", runtimes: ["run", "interp", "native", "web"], args: ["{http}/examples/network/forecast.json"],
     expect: ["Forecast for Harbour Town (updated 2026-10-06 06:00)", "  Tuesday   10 to 15 C, showers", "Warmest: Monday"] },
@@ -325,10 +351,12 @@ function hooks(c, work) {
 /// writes stays there; a native build's outputs too).
 function workCopy(c, runtime) {
   const work = join(WORK, `${c.file.replace(/[/.]/g, "_")}-${runtime}`);
+  if (existsSync(work)) chmodSync(work, 0o755);
   rmSync(work, { recursive: true, force: true });
   mkdirSync(work, { recursive: true });
   const dir = join(EXAMPLES, dirname(c.file));
   for (const f of readdirSync(dir)) {
+    if ((c.without || []).includes(f) || /\.tmp\.|^big(_\d+)?\.csv$/.test(f)) continue;
     if (statSync(join(dir, f)).isFile() || c.includes) cpSync(join(dir, f), join(work, f), { recursive: true });
   }
   return work;
@@ -344,24 +372,35 @@ function runDesktop(c, runtime) {
   const work = workCopy(c, runtime);
   const src = join(work, basename(c.file));
   const stem = basename(c.file, extname(c.file));
-  const runEnv = env({ ...hooks(c, work), ...(c.env || {}) });
+  // (readOnly: the captures go elsewhere, the folder can't be written)
+  const shots = c.readOnly ? `${work}-shots` : work;
+  if (c.readOnly) mkdirSync(shots, { recursive: true });
+  const runEnv = env({ ...hooks(c, shots), ...(c.env || {}) });
   const runOpts = { cwd: work, env: runEnv, input: c.input || "", timeout: c.timeout || 60000 };
+  const readOnly = (fn) => {
+    if (c.readOnly) chmodSync(work, 0o555);
+    try {
+      return fn();
+    } finally {
+      if (c.readOnly) chmodSync(work, 0o755);
+    }
+  };
   if (runtime === "run") {
-    const r = spawn(RAPIDR, ["run", src, ...args(c)], runOpts);
+    const r = readOnly(() => spawn(RAPIDR, ["run", src, ...args(c)], runOpts));
     // (RAPIDR_SHOTS=dir: the windows as captured kept, to look at —
     // <example>-<case>-<window>@<scale>x.bmp; RAPIDR_SCALE sets the scale)
     if (process.env.RAPIDR_SHOTS && isGui(c)) {
       mkdirSync(process.env.RAPIDR_SHOTS, { recursive: true });
       const scale = process.env.RAPIDR_SCALE || "1";
-      for (const f of readdirSync(work).filter((f) => /^window-\d+\.bmp$/.test(f))) {
+      for (const f of readdirSync(shots).filter((f) => /^window-\d+\.bmp$/.test(f))) {
         const n = f.match(/\d+/)[0];
-        cpSync(join(work, f), join(process.env.RAPIDR_SHOTS, `${c.file.replace(/[/.]/g, "_")}-${cases.indexOf(c)}-${n}@${scale}x.bmp`));
+        cpSync(join(shots, f), join(process.env.RAPIDR_SHOTS, `${c.file.replace(/[/.]/g, "_")}-${cases.indexOf(c)}-${n}@${scale}x.bmp`));
       }
     }
     return r;
   }
   const native = runtime === "native";
-  const out = join(work, `${stem}-${runtime}`);
+  const out = c.readOnly ? `${work}-${runtime}-out` : join(work, `${stem}-${runtime}`);
   // (a native build: debug, quick to compile; either kind's executable in
   // the output folder)
   const build = spawn(RAPIDR, ["build", src, out, "--no-bundle", ...(native ? ["--debug"] : ["--interp"])], {
@@ -370,7 +409,7 @@ function runDesktop(c, runtime) {
   const exe = join(out, `${stem}${EXE}`);
   let r;
   if (!build.ok || !existsSync(exe)) r = { out: build.out.split("\n").filter((l) => /^error|error:/.test(l)).slice(0, 8).join("\n") || build.out.slice(-800), ok: false, why: ` (build failed${build.why})` };
-  else r = spawn(exe, args(c), runOpts);
+  else r = readOnly(() => spawn(exe, args(c), runOpts));
   // (the native build's ~350 MB in the shared target, gone)
   if (native) dropBuild(CARGO_TARGET, stem);
   rmSync(out, { recursive: true, force: true });
@@ -404,7 +443,7 @@ async function runWeb(c) {
     await page.goto(`${URL_BASE}/tests/web_kernel.html${query}`, { waitUntil: "load" });
     await page.waitForFunction(() => window.rrReady, null, { timeout: 20000 });
     const dir = join(EXAMPLES, dirname(c.file));
-    const assets = Object.fromEntries(readdirSync(dir).filter((f) => statSync(join(dir, f)).isFile() && ![".rr", ".bas", ".md"].includes(extname(f).toLowerCase()))
+    const assets = Object.fromEntries(readdirSync(dir).filter((f) => statSync(join(dir, f)).isFile() && !(c.without || []).includes(f) && ![".rr", ".bas", ".md"].includes(extname(f).toLowerCase()))
       .map((f) => [f, "data:application/octet-stream;base64," + readFileSync(join(dir, f)).toString("base64")]));
     const env = { ...hooks(c, "web"), ...(isGui(c) ? { RAPIDR_CAPTURE: "web" } : {}), RAPIDR_AI_TEST_SERVER: AI_MOCK.replace(/\/v1$/, ""), ...(c.env || {}) };
     await page.evaluate(({ source, assets, env, gui, main, files }) => {

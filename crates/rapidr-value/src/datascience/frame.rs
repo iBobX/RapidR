@@ -344,6 +344,53 @@ thread_local! {
     /// Changes so far, every frame's (versions never repeat, even for a
     /// frame removed and made again).
     static CHANGES: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+    /// Why each frame's last file read or write failed (its `Error`; none
+    /// when it worked).
+    static IO_ERRORS: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new());
+}
+
+/// Frame `name`'s last file read or write: `Err(why)` kept as its `Error`
+/// (a file named in plain words), `Ok` clears it.
+fn io_result(name: &str, file: &str, r: &Result<(), String>) {
+    IO_ERRORS.with(|m| {
+        let mut m = m.borrow_mut();
+        match r {
+            Ok(()) => {
+                m.remove(&key(name));
+            }
+            Err(e) => {
+                m.insert(key(name), plain_io_error(file, e));
+            }
+        }
+    });
+}
+
+/// A file error in plain words: "can't write staff_edited.csv: the folder
+/// can't be written (read-only)".
+fn plain_io_error(file: &str, e: &str) -> String {
+    let low = e.to_ascii_lowercase();
+    let why = if low.contains("permission denied") || low.contains("os error 13") || low.contains("access is denied") || low.contains("os error 5)") {
+        "this folder can't be written (it is read-only, or not yours)".to_string()
+    } else if low.contains("read-only file system") || low.contains("os error 30") {
+        "the disk is read-only".to_string()
+    } else if low.contains("no space") || low.contains("os error 28") {
+        "the disk is full".to_string()
+    } else if low.contains("no such file") || low.contains("os error 2)") || low.contains("not found") {
+        "there is no such file or folder".to_string()
+    } else {
+        e.to_string()
+    };
+    if file.is_empty() || why.contains(file) {
+        why
+    } else {
+        format!("{file}: {why}")
+    }
+}
+
+/// Frame `name`'s `Error`: why its last file read or write failed ("" when
+/// it worked).
+pub fn io_error(name: &str) -> String {
+    IO_ERRORS.with(|m| m.borrow().get(&key(name)).cloned().unwrap_or_default())
 }
 
 /// Frame `name` changed: a new version (and the data links are told:
@@ -610,33 +657,47 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
         }
 
         // --- I/O ---
+        // (each one's failure kept as the frame's Error too: a program shows
+        // why — "can't write staff_edited.csv: …" — instead of nothing)
         "loadfromcsv" | "readcsv" | "read_csv" => {
             let source = arg_text(args, 0);
-            match load_source(&source, |s| s.contains(',')) {
-                Ok(text) => set_frame(name, parse_csv(&text)),
-                Err(e) => warn(&e),
+            let r = load_source(&source, |s| s.contains(',')).map(|text| set_frame(name, parse_csv(&text)));
+            io_result(name, if source.contains(',') { "" } else { &source }, &r);
+            if let Err(e) = r {
+                warn(&e);
             }
             v_null()
         }
         "savetocsv" | "to_csv" | "writecsv" => {
             let path = arg_s_or(args, 0, "output.csv");
-            if let Err(e) = write_text(&path, &read(name, to_csv)) {
+            let r = write_text(&path, &read(name, to_csv));
+            io_result(name, &path, &r);
+            if let Err(e) = r {
                 warn(&e);
             }
             v_null()
         }
         "loadfromjson" | "read_json" => {
             let source = arg_text(args, 0);
-            match load_source(&source, |s| s.trim_start().starts_with(['[', '{'])).map(|t| parse_json_frame(&t)) {
-                Ok(Some(f)) => set_frame(name, f),
-                Ok(None) => warn("not JSON records"),
-                Err(e) => warn(&e),
+            let r = match load_source(&source, |s| s.trim_start().starts_with(['[', '{'])).map(|t| parse_json_frame(&t)) {
+                Ok(Some(f)) => {
+                    set_frame(name, f);
+                    Ok(())
+                }
+                Ok(None) => Err("not JSON records".to_string()),
+                Err(e) => Err(e),
+            };
+            io_result(name, if source.trim_start().starts_with(['[', '{']) { "" } else { &source }, &r);
+            if let Err(e) = r {
+                warn(&e);
             }
             v_null()
         }
         "savetojson" | "to_json" => {
             let path = arg_s_or(args, 0, "output.json");
-            if let Err(e) = write_text(&path, &read(name, to_json)) {
+            let r = write_text(&path, &read(name, to_json));
+            io_result(name, &path, &r);
+            if let Err(e) = r {
                 warn(&e);
             }
             v_null()
@@ -1066,6 +1127,9 @@ pub fn dataframe_method(name: &str, method: &str, args: &[Value], host: &dyn Hos
 /// Reads RDATAFRAME `name`'s property `prop` (lowercase); Null if it has
 /// none.
 pub fn dataframe_get_prop(name: &str, prop: &str) -> Value {
+    if prop == "error" {
+        return v_str(&io_error(name));
+    }
     read(name, |f| match prop {
         "rowcount" | "height" | "nrows" | "rows" => v_int(f.height() as i64),
         "colcount" | "width" | "ncols" => v_int(f.width() as i64),
