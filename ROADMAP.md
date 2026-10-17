@@ -583,6 +583,10 @@ In order of how many showcase ideas each unlocks:
   - A native `RNum.FFT` with windowing.
   - Microphone permission done properly: macOS NSMicrophoneUsageDescription for Studio and built apps, the browser's prompt, and a visible "listening" indicator. Audio never leaves the device.
   - Preview 2 ships signal_lab.rr (synthetic signals, an FFT written in BASIC) as the teaser.
+- [ ] **Music-reactive visuals** (Robert, 2026-10-16; built on RScope's audio analysis):
+  - Play MP3 / OGG / FLAC / WAV. Use permissive decoders only: minimp3 (CC0 core), lewton (MIT/Apache), claxon (Apache), hound (Apache). Symphonia is MPL-2.0, so it needs Robert's OK first. The MP3 patents have expired.
+  - While a song plays, the program gets its live spectrum, levels and beats, e.g. OnBeat / Levels / Spectrum on the player. The web uses decodeAudioData + AnalyserNode.
+  - A showcase where an RDXScreen 3D scene pulses, spins and colours to the music.
 - [ ] RPlot heat map / image kind (correlation heat map, Mandelbrot, cell-life grid).
 - [ ] RDataFrame pivot table (sales pivot, survival by class).
 - [ ] RPlot bubble size on scatter (bubble charts over time).
